@@ -1,0 +1,383 @@
+import React, { useEffect, useState } from "react";
+import { Navigate } from "react-router-dom";
+import { base44 } from "@/api/base44Client";
+import { useAuth } from "@/lib/AuthContext";
+import AppLayout from "@/components/AppLayout";
+import { Bus, Car, Plus, Trash2, Route as RouteIcon, MapPin, Building2, Phone } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+
+export default function CompanyDashboard() {
+  const { user } = useAuth();
+  const [company, setCompany] = useState(null);
+  const [vehicles, setVehicles] = useState([]);
+  const [routes, setRoutes] = useState([]);
+  const [trips, setTrips] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const loadAll = async () => {
+    const [cos, ve, ro, tr] = await Promise.all([
+      base44.entities.Company.list(),
+      base44.entities.Vehicle.list(),
+      base44.entities.Route.list(),
+      base44.entities.Trip.list(),
+    ]);
+    const mine = cos.find((c) => c.created_by_id === user.id);
+    setCompany(mine || null);
+    setVehicles(ve.filter((v) => v.company_id === mine?.id));
+    setRoutes(ro.filter((r) => r.company_id === mine?.id));
+    setTrips(tr.filter((t) => t.company_id === mine?.id));
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    loadAll();
+  }, []);
+
+  if (user && user.role !== "company") return <Navigate to="/" replace />;
+
+  if (loading) return <AppLayout><p className="text-muted-foreground">Loading…</p></AppLayout>;
+  if (!company) return <AppLayout><CreateCompany onCreated={loadAll} /></AppLayout>;
+
+  return (
+    <AppLayout title={`${company.name} · Dashboard`}>
+      <Tabs defaultValue="vehicles">
+        <TabsList>
+          <TabsTrigger value="vehicles"><Bus className="w-4 h-4 mr-1.5" />Vehicles ({vehicles.length})</TabsTrigger>
+          <TabsTrigger value="routes"><RouteIcon className="w-4 h-4 mr-1.5" />Routes ({routes.length})</TabsTrigger>
+          <TabsTrigger value="trips"><MapPin className="w-4 h-4 mr-1.5" />Trips ({trips.length})</TabsTrigger>
+        </TabsList>
+        <TabsContent value="vehicles" className="mt-4">
+          <VehiclesTab company={company} routes={routes} vehicles={vehicles} onChange={loadAll} />
+        </TabsContent>
+        <TabsContent value="routes" className="mt-4">
+          <RoutesTab company={company} routes={routes} onChange={loadAll} />
+        </TabsContent>
+        <TabsContent value="trips" className="mt-4">
+          <TripsTab trips={trips} vehicles={vehicles} onChange={loadAll} />
+        </TabsContent>
+      </Tabs>
+    </AppLayout>
+  );
+}
+
+function CreateCompany({ onCreated }) {
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [staff, setStaff] = useState(true);
+  const [taxi, setTaxi] = useState(false);
+  const [airport, setAirport] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const submit = async () => {
+    if (!name) return;
+    setSaving(true);
+    const service_types = [staff && "staff_bus", taxi && "taxi", airport && "airport"].filter(Boolean);
+    await base44.entities.Company.create({ name, phone, service_types });
+    setSaving(false);
+    onCreated();
+  };
+
+  return (
+    <AppLayout>
+      <Card className="max-w-md mx-auto mt-8">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><Building2 className="w-5 h-5" /> Set up your company</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="cname">Company name</Label>
+            <Input id="cname" value={name} onChange={(e) => setName(e.target.value)} placeholder="Island Transit Co." />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="cphone"><Phone className="w-3.5 h-3.5 inline mr-1" />Contact phone</Label>
+            <Input id="cphone" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+1 473-..." />
+          </div>
+          <div className="space-y-2">
+            <Label>Services offered</Label>
+            <div className="flex flex-wrap gap-2">
+              {[
+                { key: "staff", label: "Staff bus", val: staff, set: setStaff },
+                { key: "taxi", label: "Taxi", val: taxi, set: setTaxi },
+                { key: "airport", label: "Airport pickup", val: airport, set: setAirport },
+              ].map((s) => (
+                <button
+                  key={s.key}
+                  type="button"
+                  onClick={() => s.set(!s.val)}
+                  className={`px-3 h-9 rounded-lg border text-sm transition-colors ${s.val ? "bg-primary text-primary-foreground border-primary" : "bg-card"}`}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <Button className="w-full" onClick={submit} disabled={saving || !name}>
+            {saving ? "Creating…" : "Create company"}
+          </Button>
+        </CardContent>
+      </Card>
+    </AppLayout>
+  );
+}
+
+function VehiclesTab({ company, routes, vehicles, onChange }) {
+  const [form, setForm] = useState({
+    name: "", plate_number: "", type: "bus", capacity: "",
+    driver_email: "", driver_name: "", route_id: "",
+  });
+  const [adding, setAdding] = useState(false);
+
+  const add = async () => {
+    if (!form.name) return;
+    setAdding(true);
+    await base44.entities.Vehicle.create({
+      name: form.name,
+      plate_number: form.plate_number,
+      type: form.type,
+      capacity: Number(form.capacity) || 0,
+      driver_email: form.driver_email,
+      driver_name: form.driver_name,
+      route_id: form.route_id || null,
+      company_id: company.id,
+      company_name: company.name,
+      status: "offline",
+    });
+    setForm({ name: "", plate_number: "", type: "bus", capacity: "", driver_email: "", driver_name: "", route_id: "" });
+    setAdding(false);
+    onChange();
+  };
+
+  const remove = async (id) => {
+    await base44.entities.Vehicle.delete(id);
+    onChange();
+  };
+
+  const setRoute = async (v, route_id) => {
+    await base44.entities.Vehicle.update(v.id, { route_id: route_id || null });
+    onChange();
+  };
+
+  return (
+    <div className="grid lg:grid-cols-[1fr_360px] gap-4">
+      <div className="space-y-2">
+        {vehicles.length === 0 && <p className="text-sm text-muted-foreground py-8 text-center">No vehicles yet. Add your first bus or taxi.</p>}
+        {vehicles.map((v) => (
+          <div key={v.id} className="flex items-center gap-3 p-3 rounded-xl border bg-card">
+            <div className="w-10 h-10 rounded-lg bg-primary/10 grid place-items-center shrink-0">
+              {v.type === "taxi" ? <Car className="w-5 h-5" /> : <Bus className="w-5 h-5" />}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="font-medium truncate">{v.name} <span className="text-xs text-muted-foreground font-normal">· {v.plate_number}</span></div>
+              <div className="text-xs text-muted-foreground truncate">
+                Driver: {v.driver_name || v.driver_email || "Unassigned"}
+              </div>
+            </div>
+            <Select value={v.route_id || "none"} onValueChange={(r) => setRoute(v, r)}>
+              <SelectTrigger className="w-[150px] h-8 hidden sm:flex"><SelectValue placeholder="No route" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">No route</SelectItem>
+                {routes.map((r) => (
+                  <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Badge variant={v.status === "on_trip" ? "default" : v.status === "idle" ? "secondary" : "outline"}>
+              {v.status}
+            </Badge>
+            <Button variant="ghost" size="icon" onClick={() => remove(v.id)}>
+              <Trash2 className="w-4 h-4 text-destructive" />
+            </Button>
+          </div>
+        ))}
+      </div>
+
+      <Card>
+        <CardHeader><CardTitle className="text-base flex items-center gap-2"><Plus className="w-4 h-4" /> Add vehicle</CardTitle></CardHeader>
+        <CardContent className="space-y-3">
+          <div className="space-y-1.5">
+            <Label>Vehicle name</Label>
+            <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Bus 12" />
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1.5">
+              <Label>Plate number</Label>
+              <Input value={form.plate_number} onChange={(e) => setForm({ ...form, plate_number: e.target.value })} placeholder="ISL-101" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Capacity</Label>
+              <Input type="number" value={form.capacity} onChange={(e) => setForm({ ...form, capacity: e.target.value })} placeholder="30" />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Type</Label>
+            <Select value={form.type} onValueChange={(t) => setForm({ ...form, type: t })}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="bus">Bus</SelectItem>
+                <SelectItem value="taxi">Taxi</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Driver name</Label>
+            <Input value={form.driver_name} onChange={(e) => setForm({ ...form, driver_name: e.target.value })} placeholder="John D." />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Driver email (their login)</Label>
+            <Input type="email" value={form.driver_email} onChange={(e) => setForm({ ...form, driver_email: e.target.value })} placeholder="driver@example.com" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Default route</Label>
+            <Select value={form.route_id || "none"} onValueChange={(r) => setForm({ ...form, route_id: r === "none" ? "" : r })}>
+              <SelectTrigger><SelectValue placeholder="No route" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">No route</SelectItem>
+                {routes.map((r) => (
+                  <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <Button className="w-full" onClick={add} disabled={adding || !form.name}>
+            {adding ? "Adding…" : "Add vehicle"}
+          </Button>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function RoutesTab({ company, routes, onChange }) {
+  const [name, setName] = useState("");
+  const [type, setType] = useState("staff");
+  const [stops, setStops] = useState([]);
+  const [stopName, setStopName] = useState("");
+  const [lat, setLat] = useState("");
+  const [lng, setLng] = useState("");
+  const [adding, setAdding] = useState(false);
+
+  const addStop = () => {
+    if (!stopName) return;
+    setStops([...stops, { name: stopName, lat: Number(lat), lng: Number(lng), order: stops.length }]);
+    setStopName(""); setLat(""); setLng("");
+  };
+  const removeStop = (i) => setStops(stops.filter((_, x) => x !== i).map((s, idx) => ({ ...s, order: idx })));
+
+  const save = async () => {
+    if (!name || stops.length < 2) return;
+    setAdding(true);
+    await base44.entities.Route.create({
+      name, type, stops,
+      company_id: company.id,
+      company_name: company.name,
+      active: true,
+    });
+    setName(""); setStops([]); setAdding(false); onChange();
+  };
+
+  const remove = async (id) => {
+    await base44.entities.Route.delete(id);
+    onChange();
+  };
+
+  return (
+    <div className="grid lg:grid-cols-[1fr_380px] gap-4">
+      <div className="space-y-2">
+        {routes.length === 0 && <p className="text-sm text-muted-foreground py-8 text-center">No routes yet. Create one with at least 2 stops.</p>}
+        {routes.map((r) => (
+          <Card key={r.id}>
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base flex items-center gap-2"><RouteIcon className="w-4 h-4" />{r.name}</CardTitle>
+                <div className="flex items-center gap-2">
+                  <Badge variant="secondary" className="capitalize">{r.type}</Badge>
+                  <Button variant="ghost" size="icon" onClick={() => remove(r.id)}><Trash2 className="w-4 h-4 text-destructive" /></Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <ol className="space-y-1.5">
+                {(r.stops || []).map((s, i) => (
+                  <li key={i} className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <span className="w-5 h-5 rounded-full bg-primary/10 text-primary grid place-items-center text-xs">{i + 1}</span>
+                    {s.name}
+                  </li>
+                ))}
+              </ol>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      <Card>
+        <CardHeader><CardTitle className="text-base flex items-center gap-2"><Plus className="w-4 h-4" /> New route</CardTitle></CardHeader>
+        <CardContent className="space-y-3">
+          <div className="space-y-1.5">
+            <Label>Route name</Label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Airport Express" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Type</Label>
+            <Select value={type} onValueChange={setType}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="staff">Staff</SelectItem>
+                <SelectItem value="airport">Airport</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Stops ({stops.length})</Label>
+            <div className="space-y-1">
+              {stops.map((s, i) => (
+                <div key={i} className="flex items-center gap-2 text-sm p-2 rounded-lg border">
+                  <span className="w-5 h-5 rounded-full bg-primary/10 text-primary grid place-items-center text-xs">{i + 1}</span>
+                  <span className="flex-1 truncate">{s.name}</span>
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeStop(i)}><Trash2 className="w-3.5 h-3.5" /></Button>
+                </div>
+              ))}
+            </div>
+            <div className="grid grid-cols-[1fr_70px_70px_auto] gap-1.5">
+              <Input value={stopName} onChange={(e) => setStopName(e.target.value)} placeholder="Stop name" />
+              <Input value={lat} onChange={(e) => setLat(e.target.value)} placeholder="lat" />
+              <Input value={lng} onChange={(e) => setLng(e.target.value)} placeholder="lng" />
+              <Button variant="outline" size="icon" onClick={addStop}><Plus className="w-4 h-4" /></Button>
+            </div>
+            <p className="text-xs text-muted-foreground">Tip: use map coordinates. e.g. Airport 12.0042, -61.787</p>
+          </div>
+          <Button className="w-full" onClick={save} disabled={adding || !name || stops.length < 2}>
+            {adding ? "Saving…" : "Save route"}
+          </Button>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function TripsTab({ trips, vehicles, onChange }) {
+  const sorted = [...trips].sort((a, b) => (b.started_at || "").localeCompare(a.started_at || ""));
+  return (
+    <div className="space-y-2">
+      {sorted.length === 0 && <p className="text-sm text-muted-foreground py-8 text-center">No trips recorded yet. Drivers start trips from the Driver App.</p>}
+      {sorted.map((t) => (
+        <div key={t.id} className="flex items-center gap-3 p-3 rounded-xl border bg-card">
+          <div className="flex-1 min-w-0">
+            <div className="font-medium truncate">{t.vehicle_name}</div>
+            <div className="text-xs text-muted-foreground truncate">
+              {t.route_name || "No route"} · started {t.started_at ? new Date(t.started_at).toLocaleString() : "—"}
+            </div>
+          </div>
+          <Badge variant={t.status === "active" ? "default" : t.status === "completed" ? "secondary" : "outline"}>
+            {t.status}
+          </Badge>
+        </div>
+      ))}
+    </div>
+  );
+}

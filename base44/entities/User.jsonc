@@ -1,0 +1,19 @@
+{
+  "name": "User",
+  "type": "object",
+  "properties": {
+    "role": {
+      "type": "string",
+      "enum": [
+        "admin",
+        "company",
+        "driver",
+        "passenger"
+      ],
+      "default": "passenger"
+    },
+    "company_id": {
+      "type": "string"
+    }
+  }
+}
