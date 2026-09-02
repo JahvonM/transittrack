@@ -3,7 +3,7 @@ import { Navigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import AppLayout from "@/components/AppLayout";
-import { Bus, Car, Plus, Trash2, Route as RouteIcon, MapPin, Building2, Phone } from "lucide-react";
+import { Bus, Car, Plus, Trash2, Route as RouteIcon, MapPin, Building2, Phone, KeyRound, Copy, Check, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,6 +11,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/components/ui/use-toast";
+
+const CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+const genCode = () =>
+  Array.from({ length: 6 }, () => CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)]).join("");
 
 export default function CompanyDashboard() {
   const { user } = useAuth();
@@ -19,6 +24,8 @@ export default function CompanyDashboard() {
   const [routes, setRoutes] = useState([]);
   const [trips, setTrips] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [copied, setCopied] = useState(false);
+  const { toast } = useToast();
 
   const loadAll = async () => {
     const [cos, ve, ro, tr] = await Promise.all([
@@ -46,6 +53,40 @@ export default function CompanyDashboard() {
 
   return (
     <AppLayout title={`${company.name} · Dashboard`}>
+      <Card className="mb-4">
+        <CardContent className="flex flex-wrap items-center gap-3 py-4">
+          <KeyRound className="w-5 h-5 text-primary shrink-0" />
+          <div className="flex-1 min-w-0">
+            <div className="text-sm text-muted-foreground">Passenger access code — share it so passengers can see your fleet</div>
+            <div className="text-2xl font-bold tracking-[0.25em]">{company.access_code || "Not set"}</div>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              navigator.clipboard.writeText(company.access_code || "");
+              setCopied(true);
+              setTimeout(() => setCopied(false), 1500);
+            }}
+          >
+            {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+            {copied ? "Copied" : "Copy"}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={async () => {
+              const code = genCode();
+              await base44.entities.Company.update(company.id, { access_code: code });
+              toast({ description: `New passenger code: ${code}` });
+              loadAll();
+            }}
+          >
+            <RefreshCw className="w-4 h-4" />
+            New code
+          </Button>
+        </CardContent>
+      </Card>
       <Tabs defaultValue="vehicles">
         <TabsList>
           <TabsTrigger value="vehicles"><Bus className="w-4 h-4 mr-1.5" />Vehicles ({vehicles.length})</TabsTrigger>
@@ -78,7 +119,7 @@ function CreateCompany({ onCreated }) {
     if (!name) return;
     setSaving(true);
     const service_types = [staff && "staff_bus", taxi && "taxi", airport && "airport"].filter(Boolean);
-    await base44.entities.Company.create({ name, phone, service_types });
+    await base44.entities.Company.create({ name, phone, service_types, access_code: genCode() });
     setSaving(false);
     onCreated();
   };

@@ -11,6 +11,9 @@
     "phone": {
       "type": "string"
     },
+    "access_code": {
+      "type": "string"
+    },
     "service_types": {
       "type": "array",
       "items": {
