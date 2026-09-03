@@ -8,6 +8,7 @@ import CodeGate from "@/components/CodeGate";
 import ShareLocationButton from "@/components/ShareLocationButton";
 import RouteExplorer from "@/components/RouteExplorer";
 import ContactOperator from "@/components/ContactOperator";
+import ProfileInfo from "@/components/ProfileInfo";
 import { haversineKm, etaMinutes, formatEta } from "@/lib/geo";
 import { Bus, Car, Clock, LogOut, Map as MapIcon } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -194,6 +195,8 @@ export default function Home() {
             </div>
           ))}
         </div>
+
+        <ProfileInfo />
       </div>
     </AppLayout>
   );

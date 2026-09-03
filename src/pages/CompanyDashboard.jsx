@@ -3,7 +3,8 @@ import { Navigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import AppLayout from "@/components/AppLayout";
-import { Bus, Car, Plus, Trash2, Route as RouteIcon, MapPin, Building2, Phone, KeyRound, Copy, Check, RefreshCw } from "lucide-react";
+import ProfileInfo from "@/components/ProfileInfo";
+import { Bus, Car, Plus, Trash2, Route as RouteIcon, MapPin, Building2, Phone, KeyRound, Copy, Check, RefreshCw, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -93,6 +94,7 @@ export default function CompanyDashboard() {
           <TabsTrigger value="vehicles"><Bus className="w-4 h-4 mr-1.5" />Vehicles ({vehicles.length})</TabsTrigger>
           <TabsTrigger value="routes"><RouteIcon className="w-4 h-4 mr-1.5" />Routes ({routes.length})</TabsTrigger>
           <TabsTrigger value="trips"><MapPin className="w-4 h-4 mr-1.5" />Trips ({trips.length})</TabsTrigger>
+          <TabsTrigger value="profile"><User className="w-4 h-4 mr-1.5" />Profile</TabsTrigger>
         </TabsList>
         <TabsContent value="vehicles" className="mt-4">
           <VehiclesTab company={company} routes={routes} vehicles={vehicles} onChange={loadAll} />
@@ -102,6 +104,11 @@ export default function CompanyDashboard() {
         </TabsContent>
         <TabsContent value="trips" className="mt-4">
           <TripsTab trips={trips} vehicles={vehicles} onChange={loadAll} />
+        </TabsContent>
+        <TabsContent value="profile" className="mt-4">
+          <div className="max-w-xl">
+            <ProfileInfo companyName={company.name} />
+          </div>
         </TabsContent>
       </Tabs>
     </AppLayout>

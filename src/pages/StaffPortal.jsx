@@ -4,6 +4,7 @@ import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import AppLayout from "@/components/AppLayout";
 import BusMap from "@/components/BusMap";
+import ProfileInfo from "@/components/ProfileInfo";
 import { haversineKm, etaMinutes, formatEta } from "@/lib/geo";
 import { STATUS_LABEL, STATUS_VARIANT } from "@/lib/trip";
 import { Bus, Clock, Map as MapIcon, User } from "lucide-react";
@@ -295,6 +296,8 @@ export default function StaffPortal() {
             </div>
           </div>
         )}
+
+        <ProfileInfo />
       </div>
     </AppLayout>
   );

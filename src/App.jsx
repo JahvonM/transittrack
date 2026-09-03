@@ -13,6 +13,7 @@ import Register from '@/pages/Register';
 import ForgotPassword from '@/pages/ForgotPassword';
 import ResetPassword from '@/pages/ResetPassword';
 import Home from '@/pages/Home';
+import Welcome from '@/pages/Welcome';
 import CompanyDashboard from '@/pages/CompanyDashboard';
 import DriverApp from '@/pages/DriverApp';
 import Admin from '@/pages/Admin';
@@ -49,8 +50,9 @@ const AuthenticatedApp = () => {
       <Route path="/register" element={<Register />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
+      <Route path="/" element={<Welcome />} />
       <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login" replace />} />}>
-        <Route path="/" element={<Home />} />
+        <Route path="/passenger" element={<Home />} />
         <Route path="/company" element={<CompanyDashboard />} />
         <Route path="/driver" element={<DriverApp />} />
         <Route path="/admin" element={<Admin />} />

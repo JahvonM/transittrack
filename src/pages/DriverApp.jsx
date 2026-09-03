@@ -5,6 +5,7 @@ import { useAuth } from "@/lib/AuthContext";
 import AppLayout from "@/components/AppLayout";
 import BusMap from "@/components/BusMap";
 import DriverTrips from "@/components/DriverTrips";
+import ProfileInfo from "@/components/ProfileInfo";
 import { AlertCircle, Map as MapIcon, Navigation } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -180,6 +181,8 @@ export default function DriverApp() {
         )}
 
         <DriverTrips trips={trips} startSharing={startSharing} refresh={load} />
+
+        <ProfileInfo />
       </div>
     </AppLayout>
   );

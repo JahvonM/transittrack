@@ -6,7 +6,8 @@ import AppLayout from "@/components/AppLayout";
 import AssignTripsTab from "@/components/admin/AssignTripsTab";
 import LiveFleetTab from "@/components/admin/LiveFleetTab";
 import CompletedTripsTab from "@/components/admin/CompletedTripsTab";
-import { Building2, CalendarPlus, MapPin, Trash2, UserPlus, Users } from "lucide-react";
+import ProfileInfo from "@/components/ProfileInfo";
+import { Building2, CalendarPlus, MapPin, Trash2, User, UserPlus, Users } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -81,6 +82,7 @@ export default function Admin() {
           <TabsTrigger value="fleet"><MapPin className="w-4 h-4 mr-1.5" />Live fleet</TabsTrigger>
           <TabsTrigger value="billing"><Building2 className="w-4 h-4 mr-1.5" />Completed &amp; billing</TabsTrigger>
           <TabsTrigger value="users"><Users className="w-4 h-4 mr-1.5" />Users &amp; roles</TabsTrigger>
+          <TabsTrigger value="profile"><User className="w-4 h-4 mr-1.5" />My profile</TabsTrigger>
         </TabsList>
 
         <TabsContent value="trips" className="mt-4">
@@ -182,6 +184,12 @@ export default function Admin() {
                 ))}
               </CardContent>
             </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="profile" className="mt-4">
+          <div className="max-w-xl">
+            <ProfileInfo />
           </div>
         </TabsContent>
       </Tabs>
