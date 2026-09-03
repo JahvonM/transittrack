@@ -118,8 +118,10 @@ export default function DriverApp() {
     if (!active && trips.length > 0) stopSharing();
   }, [trips]);
 
-  if (user && user.role !== "driver") return <Navigate to="/" replace />;
   if (loading) return <AppLayout><p className="text-muted-foreground">Loading…</p></AppLayout>;
+  // Anyone with a vehicle assigned to their email can use the Driver App, even if
+  // their role label hasn't been set to "driver" yet.
+  if (user && user.role !== "driver" && !vehicle) return <Navigate to="/" replace />;
 
   if (!vehicle) {
     return (

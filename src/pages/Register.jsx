@@ -19,6 +19,7 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
   const [showOtp, setShowOtp] = useState(false);
   const [otpCode, setOtpCode] = useState("");
+  const [role, setRole] = useState("passenger");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -45,6 +46,13 @@ export default function Register() {
       const result = await base44.auth.verifyOtp({ email, otpCode });
       if (result?.access_token) {
         base44.auth.setToken(result.access_token);
+        if (role && role !== "passenger") {
+          try {
+            await base44.functions.invoke("applyUserRole", { role });
+          } catch (e) {
+            // Role stays default; an admin can set it later.
+          }
+        }
       }
       window.location.href = safeReturnTo();
     } catch (err) {
@@ -214,6 +222,28 @@ export default function Register() {
               className="pl-10 h-12"
               required
             />
+          </div>
+        </div>
+        <div className="space-y-2">
+          <Label>I am a…</Label>
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { value: "passenger", label: "Passenger" },
+              { value: "driver", label: "Driver" },
+              { value: "staff", label: "Hotel staff" },
+              { value: "company", label: "Company operator" },
+            ].map((r) => (
+              <button
+                key={r.value}
+                type="button"
+                onClick={() => setRole(r.value)}
+                className={`h-10 rounded-lg border text-sm transition-colors ${
+                  role === r.value ? "bg-primary text-primary-foreground border-primary" : "bg-card"
+                }`}
+              >
+                {r.label}
+              </button>
+            ))}
           </div>
         </div>
         <Button type="submit" className="w-full h-12 font-medium" disabled={loading}>

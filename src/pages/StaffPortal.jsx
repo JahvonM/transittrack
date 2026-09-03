@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useToast } from "@/components/ui/use-toast";
 
 const STEPS = ["scheduled", "on_the_way", "arrived", "completed"];
 
@@ -42,10 +43,17 @@ function StatusSteps({ status }) {
 
 export default function StaffPortal() {
   const { user } = useAuth();
+  const { toast } = useToast();
+  const pickupRef = useRef("");
+  const statusRef = useRef({});
   const [vehicles, setVehicles] = useState([]);
   const [routes, setRoutes] = useState([]);
   const [trips, setTrips] = useState([]);
-  const [pickupName, setPickupName] = useState("");
+  const [pickupName, setPickupName] = useState(() => localStorage.getItem("tt_staff_pickup") || "");
+
+  useEffect(() => {
+    pickupRef.current = pickupName;
+  }, [pickupName]);
   const [showMap, setShowMap] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -58,6 +66,7 @@ export default function StaffPortal() {
       setVehicles(v);
       setRoutes(r);
       setTrips(t);
+      statusRef.current = Object.fromEntries(t.map((x) => [x.id, x.status]));
       setLoading(false);
     });
     const unsubVehicles = base44.entities.Vehicle.subscribe((event) => {
@@ -70,10 +79,26 @@ export default function StaffPortal() {
       });
     });
     const unsubTrips = base44.entities.Trip.subscribe((event) => {
+      if (event.type === "delete") {
+        delete statusRef.current[event.id];
+        setTrips((prev) => prev.filter((x) => x.id !== event.id));
+        return;
+      }
+      const rec = event.data;
+      if (!rec) return;
+      const prevStatus = statusRef.current[rec.id];
+      if (
+        (rec.status === "arrived" || rec.status === "completed") &&
+        prevStatus !== rec.status &&
+        rec.pickup_name === pickupRef.current
+      ) {
+        toast({
+          title: rec.status === "arrived" ? "Your ride has arrived" : "Trip completed",
+          description: `${rec.vehicle_name || "Vehicle"} · ${rec.pickup_name} → ${rec.dropoff_name}`,
+        });
+      }
+      statusRef.current[rec.id] = rec.status;
       setTrips((prev) => {
-        if (event.type === "delete") return prev.filter((x) => x.id !== event.id);
-        const rec = event.data;
-        if (!rec) return prev;
         const idx = prev.findIndex((x) => x.id === event.id);
         return idx === -1 ? [...prev, rec] : prev.map((x) => (x.id === event.id ? rec : x));
       });
@@ -151,7 +176,13 @@ export default function StaffPortal() {
 
         <div>
           <p className="text-sm font-medium mb-1.5">Your pickup point</p>
-          <Select value={pickupName} onValueChange={setPickupName}>
+          <Select
+            value={pickupName}
+            onValueChange={(v) => {
+              setPickupName(v);
+              localStorage.setItem("tt_staff_pickup", v);
+            }}
+          >
             <SelectTrigger className="max-w-sm"><SelectValue placeholder="Choose your hotel / stop" /></SelectTrigger>
             <SelectContent>
               {pickupOptions.map((s) => (

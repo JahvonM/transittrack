@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/use-toast";
+import { STATUS_LABEL, STATUS_VARIANT } from "@/lib/trip";
 
 const CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const genCode = () =>
@@ -402,20 +403,20 @@ function RoutesTab({ company, routes, onChange }) {
 }
 
 function TripsTab({ trips, vehicles, onChange }) {
-  const sorted = [...trips].sort((a, b) => (b.started_at || "").localeCompare(a.started_at || ""));
+  const sorted = [...trips].sort((a, b) => (b.scheduled_time || "").localeCompare(a.scheduled_time || ""));
   return (
     <div className="space-y-2">
-      {sorted.length === 0 && <p className="text-sm text-muted-foreground py-8 text-center">No trips recorded yet. Drivers start trips from the Driver App.</p>}
+      {sorted.length === 0 && <p className="text-sm text-muted-foreground py-8 text-center">No trips yet. Assign trips from the Admin dashboard.</p>}
       {sorted.map((t) => (
         <div key={t.id} className="flex items-center gap-3 p-3 rounded-xl border bg-card">
           <div className="flex-1 min-w-0">
-            <div className="font-medium truncate">{t.vehicle_name}</div>
+            <div className="font-medium truncate">{t.pickup_name} <span className="text-muted-foreground">→</span> {t.dropoff_name}</div>
             <div className="text-xs text-muted-foreground truncate">
-              {t.route_name || "No route"} · started {t.started_at ? new Date(t.started_at).toLocaleString() : "—"}
+              {t.vehicle_name} · {t.scheduled_time ? new Date(t.scheduled_time).toLocaleString() : "—"}
             </div>
           </div>
-          <Badge variant={t.status === "active" ? "default" : t.status === "completed" ? "secondary" : "outline"}>
-            {t.status}
+          <Badge variant={STATUS_VARIANT[t.status] || "outline"}>
+            {STATUS_LABEL[t.status] || t.status}
           </Badge>
         </div>
       ))}
