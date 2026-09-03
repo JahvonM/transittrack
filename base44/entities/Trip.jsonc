@@ -8,6 +8,9 @@
     "vehicle_name": {
       "type": "string"
     },
+    "plate_number": {
+      "type": "string"
+    },
     "route_id": {
       "type": "string"
     },
@@ -20,11 +23,43 @@
     "company_name": {
       "type": "string"
     },
+    "driver_email": {
+      "type": "string"
+    },
+    "driver_name": {
+      "type": "string"
+    },
+    "passenger_name": {
+      "type": "string"
+    },
+    "pickup_name": {
+      "type": "string"
+    },
+    "pickup_lat": {
+      "type": "number"
+    },
+    "pickup_lng": {
+      "type": "number"
+    },
+    "dropoff_name": {
+      "type": "string"
+    },
+    "dropoff_lat": {
+      "type": "number"
+    },
+    "dropoff_lng": {
+      "type": "number"
+    },
+    "scheduled_time": {
+      "type": "string",
+      "format": "date-time"
+    },
     "status": {
       "type": "string",
       "enum": [
         "scheduled",
-        "active",
+        "on_the_way",
+        "arrived",
         "completed",
         "cancelled"
       ],
@@ -34,7 +69,31 @@
       "type": "string",
       "format": "date-time"
     },
-    "ended_at": {
+    "arrived_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "completed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "pickup_signature_url": {
+      "type": "string"
+    },
+    "pickup_signed_by": {
+      "type": "string"
+    },
+    "pickup_signed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "dropoff_signature_url": {
+      "type": "string"
+    },
+    "dropoff_signed_by": {
+      "type": "string"
+    },
+    "dropoff_signed_at": {
       "type": "string",
       "format": "date-time"
     }
@@ -56,22 +115,22 @@
           "user_condition": {
             "role": "admin"
           }
-        },
-        {
-          "user_condition": {
-            "role": "driver"
-          }
         }
       ]
     },
     "update": {
       "$or": [
         {
-          "created_by_id": "{{user.id}}"
+          "data.driver_email": "{{user.email}}"
         },
         {
           "user_condition": {
             "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "company"
           }
         }
       ]
