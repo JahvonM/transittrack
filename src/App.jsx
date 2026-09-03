@@ -16,6 +16,7 @@ import Home from '@/pages/Home';
 import CompanyDashboard from '@/pages/CompanyDashboard';
 import DriverApp from '@/pages/DriverApp';
 import Admin from '@/pages/Admin';
+import StaffPortal from '@/pages/StaffPortal';
 // Add page imports here
 
 const AuthenticatedApp = () => {
@@ -53,6 +54,7 @@ const AuthenticatedApp = () => {
         <Route path="/company" element={<CompanyDashboard />} />
         <Route path="/driver" element={<DriverApp />} />
         <Route path="/admin" element={<Admin />} />
+        <Route path="/staff" element={<StaffPortal />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>

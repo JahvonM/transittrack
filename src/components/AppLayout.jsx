@@ -1,7 +1,7 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/lib/AuthContext";
-import { Bus, LogOut, LayoutDashboard, Car, ShieldCheck, MapPin } from "lucide-react";
+import { Bus, LogOut, LayoutDashboard, Car, ShieldCheck, MapPin, Hotel } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function AppLayout({ children, title }) {
@@ -13,6 +13,7 @@ export default function AppLayout({ children, title }) {
     { to: "/", label: "Passenger", icon: MapPin, show: true },
     { to: "/company", label: "Dashboard", icon: LayoutDashboard, show: role === "company" },
     { to: "/driver", label: "Driver App", icon: Car, show: role === "driver" },
+    { to: "/staff", label: "Staff Portal", icon: Hotel, show: role === "staff" },
     { to: "/admin", label: "Admin", icon: ShieldCheck, show: role === "admin" },
   ];
 
