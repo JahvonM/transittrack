@@ -51,8 +51,9 @@ export default function BusMap({
   return (
     <MapContainer center={center} zoom={13} style={{ height: "100%", width: "100%" }} scrollWheelZoom>
       <TileLayer
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        attribution="&copy; OpenStreetMap contributors"
+        url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+        attribution="&copy; Esri, Maxar, Earthstar Geographics"
+        maxZoom={19}
       />
       <FitBounds stops={stops} vehicles={vehicles} userLocation={userLocation} center={center} />
       {poly.length > 1 && (

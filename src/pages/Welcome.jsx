@@ -87,6 +87,13 @@ export default function Welcome() {
     return undefined;
   }, [isAuthenticated, role]);
 
+  useEffect(() => {
+    if (!isAuthenticated || !user) return;
+    const dest = ROLES[role]?.to || "/passenger";
+    navigate(dest, { replace: true });
+  }, [isAuthenticated, user, role, navigate]);
+
+  const redirecting = isAuthenticated && !!user;
   const displayName = (user?.full_name || user?.email || "").trim();
   const firstName = displayName.split(" ")[0].split("@")[0] || "there";
   const initials = (displayName.split(/\s+/).map((p) => p[0]).join("").slice(0, 2) || "·").toUpperCase();
@@ -95,6 +102,14 @@ export default function Welcome() {
   const cardKeys = !isAuthenticated || role === "admin" ? Object.keys(ROLES) : [role];
 
   const open = (to) => navigate(isAuthenticated ? to : `/login?returnTo=${to}`);
+
+  if (redirecting) {
+    return (
+      <div className="min-h-screen bg-slate-900 grid place-items-center">
+        <div className="w-8 h-8 border-4 border-slate-700 border-t-sky-400 rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-900 bg-grid text-slate-50">

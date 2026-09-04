@@ -18,6 +18,7 @@ import BookTaxi from '@/pages/BookTaxi';
 import CompanyDashboard from '@/pages/CompanyDashboard';
 import DriverApp from '@/pages/DriverApp';
 import Admin from '@/pages/Admin';
+import Account from '@/pages/Account';
 import StaffPortal from '@/pages/StaffPortal';
 // Add page imports here
 
@@ -58,6 +59,7 @@ const AuthenticatedApp = () => {
         <Route path="/company" element={<CompanyDashboard />} />
         <Route path="/driver" element={<DriverApp />} />
         <Route path="/admin" element={<Admin />} />
+        <Route path="/account" element={<Account />} />
         <Route path="/staff" element={<StaffPortal />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />

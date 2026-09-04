@@ -9,7 +9,8 @@ import CompletedTripsTab from "@/components/admin/CompletedTripsTab";
 import ProfileInfo from "@/components/ProfileInfo";
 import DriversTab from "@/components/admin/DriversTab";
 import CreateCompanyForm from "@/components/admin/CreateCompanyForm";
-import { Building2, CalendarPlus, Car, MapPin, Trash2, User, UserPlus, Users } from "lucide-react";
+import CopilotTab from "@/components/admin/CopilotTab";
+import { Building2, CalendarPlus, Car, MapPin, Sparkles, Trash2, User, UserPlus, Users } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -86,6 +87,7 @@ export default function Admin() {
           <TabsTrigger value="users"><Users className="w-4 h-4 mr-1.5" />Users &amp; roles</TabsTrigger>
           <TabsTrigger value="drivers"><Car className="w-4 h-4 mr-1.5" />Drivers</TabsTrigger>
           <TabsTrigger value="profile"><User className="w-4 h-4 mr-1.5" />My profile</TabsTrigger>
+          <TabsTrigger value="copilot"><Sparkles className="w-4 h-4 mr-1.5" />AI copilot</TabsTrigger>
         </TabsList>
 
         <TabsContent value="trips" className="mt-4">
@@ -199,6 +201,10 @@ export default function Admin() {
           <div className="max-w-xl">
             <ProfileInfo />
           </div>
+        </TabsContent>
+
+        <TabsContent value="copilot" className="mt-4">
+          <CopilotTab />
         </TabsContent>
       </Tabs>
     </AppLayout>
