@@ -14,6 +14,7 @@ import ForgotPassword from '@/pages/ForgotPassword';
 import ResetPassword from '@/pages/ResetPassword';
 import Home from '@/pages/Home';
 import Welcome from '@/pages/Welcome';
+import BookTaxi from '@/pages/BookTaxi';
 import CompanyDashboard from '@/pages/CompanyDashboard';
 import DriverApp from '@/pages/DriverApp';
 import Admin from '@/pages/Admin';
@@ -51,6 +52,7 @@ const AuthenticatedApp = () => {
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/" element={<Welcome />} />
+      <Route path="/book-taxi" element={<BookTaxi />} />
       <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login" replace />} />}>
         <Route path="/passenger" element={<Home />} />
         <Route path="/company" element={<CompanyDashboard />} />

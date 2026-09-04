@@ -7,7 +7,9 @@ import AssignTripsTab from "@/components/admin/AssignTripsTab";
 import LiveFleetTab from "@/components/admin/LiveFleetTab";
 import CompletedTripsTab from "@/components/admin/CompletedTripsTab";
 import ProfileInfo from "@/components/ProfileInfo";
-import { Building2, CalendarPlus, MapPin, Trash2, User, UserPlus, Users } from "lucide-react";
+import DriversTab from "@/components/admin/DriversTab";
+import CreateCompanyForm from "@/components/admin/CreateCompanyForm";
+import { Building2, CalendarPlus, Car, MapPin, Trash2, User, UserPlus, Users } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -82,6 +84,7 @@ export default function Admin() {
           <TabsTrigger value="fleet"><MapPin className="w-4 h-4 mr-1.5" />Live fleet</TabsTrigger>
           <TabsTrigger value="billing"><Building2 className="w-4 h-4 mr-1.5" />Completed &amp; billing</TabsTrigger>
           <TabsTrigger value="users"><Users className="w-4 h-4 mr-1.5" />Users &amp; roles</TabsTrigger>
+          <TabsTrigger value="drivers"><Car className="w-4 h-4 mr-1.5" />Drivers</TabsTrigger>
           <TabsTrigger value="profile"><User className="w-4 h-4 mr-1.5" />My profile</TabsTrigger>
         </TabsList>
 
@@ -170,7 +173,7 @@ export default function Admin() {
                 <CardTitle className="flex items-center gap-2"><Building2 className="w-5 h-5" /> Companies</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
-                {companies.length === 0 && <p className="text-sm text-muted-foreground">No companies yet. Companies are created by their operators from the Dashboard.</p>}
+                {companies.length === 0 && <p className="text-sm text-muted-foreground">No companies yet — create one below.</p>}
                 {companies.map((c) => (
                   <div key={c.id} className="p-3 rounded-lg border">
                     <div className="font-medium">{c.name}</div>
@@ -182,9 +185,14 @@ export default function Admin() {
                     {c.phone && <div className="text-xs text-muted-foreground mt-1">{c.phone}</div>}
                   </div>
                 ))}
+                <CreateCompanyForm onChange={load} />
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        <TabsContent value="drivers" className="mt-4">
+          <DriversTab users={users} vehicles={vehicles} companies={companies} onChange={load} />
         </TabsContent>
 
         <TabsContent value="profile" className="mt-4">

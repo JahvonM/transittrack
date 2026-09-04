@@ -6,7 +6,8 @@ import AppLayout from "@/components/AppLayout";
 import BusMap from "@/components/BusMap";
 import DriverTrips from "@/components/DriverTrips";
 import ProfileInfo from "@/components/ProfileInfo";
-import { AlertCircle, Map as MapIcon, Navigation } from "lucide-react";
+import { AlertCircle, BellRing, Map as MapIcon, Navigation } from "lucide-react";
+import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,6 +19,8 @@ export default function DriverApp() {
   const [sharing, setSharing] = useState(false);
   const [showMap, setShowMap] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [notifying, setNotifying] = useState(false);
+  const { toast } = useToast();
   const watchId = useRef(null);
   const lastUpdate = useRef(0);
   const vehicleRef = useRef(null);
@@ -112,6 +115,27 @@ export default function DriverApp() {
     }
   };
 
+  const notifyStaff = async () => {
+    if (!vehicle) return;
+    setNotifying(true);
+    try {
+      await base44.entities.Broadcast.create({
+        type: vehicle.type === "taxi" ? "taxi_arrived" : "bus_arrived",
+        message: `${vehicle.name} has arrived`,
+        vehicle_name: vehicle.name,
+        company_id: vehicle.company_id,
+        company_name: vehicle.company_name,
+        driver_name: user?.full_name || user?.email,
+        driver_email: user?.email,
+      });
+      toast({ title: "Staff notified", description: `${vehicle.name} arrival was sent to all staff.` });
+    } catch (e) {
+      toast({ title: "Couldn't notify staff", description: e.message, variant: "destructive" });
+    } finally {
+      setNotifying(false);
+    }
+  };
+
   // Stop broadcasting automatically once no trip is running
   useEffect(() => {
     if (!sharing) return;
@@ -169,6 +193,9 @@ export default function DriverApp() {
               )}
               <Button variant={showMap ? "default" : "outline"} size="sm" onClick={() => setShowMap(!showMap)}>
                 <MapIcon className="w-4 h-4" />{showMap ? "Hide map" : "Map"}
+              </Button>
+              <Button variant="outline" size="sm" onClick={notifyStaff} disabled={notifying}>
+                <BellRing className="w-4 h-4" /> {notifying ? "Sending…" : "Notify staff"}
               </Button>
             </div>
           </CardContent>

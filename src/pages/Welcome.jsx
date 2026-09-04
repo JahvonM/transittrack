@@ -179,6 +179,20 @@ export default function Welcome() {
               </Button>
             </motion.div>
           )}
+
+          <motion.div variants={rise} className="pt-2">
+            <Button
+              asChild
+              variant="outline"
+              size="lg"
+              className="rounded-full px-8 border-sky-400/40 bg-sky-400/10 text-sky-300 hover:bg-sky-400/20"
+            >
+              <Link to="/book-taxi">
+                <Car className="w-4 h-4 mr-1.5" />
+                Book a taxi
+              </Link>
+            </Button>
+          </motion.div>
         </motion.div>
       </section>
 

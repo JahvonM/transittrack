@@ -32,6 +32,9 @@
     "passenger_name": {
       "type": "string"
     },
+    "passenger_phone": {
+      "type": "string"
+    },
     "pickup_name": {
       "type": "string"
     },
@@ -99,7 +102,6 @@
     }
   },
   "required": [
-    "vehicle_id",
     "company_id"
   ],
   "rls": {
