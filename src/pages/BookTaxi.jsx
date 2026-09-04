@@ -21,14 +21,20 @@ export default function BookTaxi() {
   const [pickup, setPickup] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(null);
+  const [authed, setAuthed] = useState(null);
 
   useEffect(() => {
+    base44.auth.isAuthenticated().then(setAuthed);
+  }, []);
+
+  useEffect(() => {
+    if (authed !== true) return;
     base44.functions
       .invoke("bookTaxi", { action: "list" })
       .then((res) => setCompanies(res.data?.companies || []))
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, []);
+  }, [authed]);
 
   const useMyLocation = () => {
     if (!navigator.geolocation) return;
@@ -76,7 +82,23 @@ export default function BookTaxi() {
       </header>
 
       <main className="max-w-md mx-auto px-4 py-10">
-        {done ? (
+        {authed === null ? (
+          <p className="text-sm text-slate-400 text-center">Checking session…</p>
+        ) : authed === false ? (
+          <div className="text-center space-y-4 p-6 rounded-[1.25rem] border border-slate-700/50 bg-slate-800/60 backdrop-blur-[12px]">
+            <Car className="w-10 h-10 text-sky-300 mx-auto" />
+            <h1 className="font-heading font-semibold text-xl">Sign in to book a taxi</h1>
+            <p className="text-sm text-slate-400">You need an account to request a ride.</p>
+            <div className="flex flex-col gap-2">
+              <Button asChild className="rounded-full bg-sky-400 text-slate-900 hover:bg-sky-300">
+                <Link to="/login?returnTo=/book-taxi">Sign in</Link>
+              </Button>
+              <Button asChild variant="outline" className="rounded-full">
+                <Link to="/register?returnTo=/book-taxi">Create account</Link>
+              </Button>
+            </div>
+          </div>
+        ) : done ? (
           done.error ? (
             <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="text-center space-y-4">
               <p className="text-destructive">{done.error}</p>

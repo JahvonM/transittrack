@@ -13,8 +13,19 @@ export default async function applyUserRole(req) {
     const role = body?.role;
     if (!ALLOWED_ROLES.includes(role)) {
       return Response.json(
-        { error: 'Admin access must be granted by an existing administrator from the admin dashboard.' },
+        { error: 'Invalid role.' },
         { status: 400 }
+      );
+    }
+    // Fetch the authoritative role server-side — never trust the client token's snapshot.
+    const fresh = await base44.asServiceRole.entities.User.get(user.id);
+    const isAdmin = fresh.role === 'admin';
+    // Only an admin, or a brand-new user (default role) setting their role once during
+    // registration, may set it. Anyone already assigned a role must ask an admin.
+    if (!isAdmin && fresh.role && fresh.role !== 'user') {
+      return Response.json(
+        { error: 'Your role is already set. Contact an admin to change it.' },
+        { status: 403 }
       );
     }
     await base44.asServiceRole.entities.User.update(user.id, { role });

@@ -3,11 +3,15 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 export default async function(req) {
   try {
     const base44 = createClientFromRequest(req);
+    const user = await base44.auth.me();
+    if (!user) {
+      return Response.json({ error: 'Please sign in to book a taxi.' }, { status: 401 });
+    }
     let body = {};
     try { body = await req.json(); } catch { /* empty body allowed */ }
     const action = body.action || 'book';
 
-    // Public list of taxi operators — no account needed to browse.
+    // List of taxi operators (public info only).
     if (action === 'list') {
       const companies = await base44.asServiceRole.entities.Company.filter({});
       const taxi = companies
@@ -16,7 +20,7 @@ export default async function(req) {
       return Response.json({ companies: taxi });
     }
 
-    // Public booking — creates an unassigned taxi trip for the chosen operator.
+    // Booking — creates an unassigned taxi trip for the chosen operator.
     const { passenger_name, phone, pickup_name, dropoff_name, company_id, pickup_lat, pickup_lng } = body;
     if (!passenger_name || !phone || !pickup_name || !dropoff_name || !company_id) {
       return Response.json({ error: 'Missing required fields' }, { status: 400 });
