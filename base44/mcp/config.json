@@ -1,0 +1,75 @@
+{
+  "auth": "oauth",
+  "tools": {
+    "functions": [
+      {
+        "name": "apply_user_role",
+        "title": "Apply user role",
+        "description": "Set the signed-in user's app role during registration (passenger, driver, staff, or company). Only a brand-new user or an admin may change a role.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "role": {
+              "type": "string",
+              "enum": ["passenger", "driver", "staff", "company"],
+              "description": "The role to assign."
+            }
+          },
+          "required": ["role"]
+        },
+        "handler": "applyUserRole",
+        "annotations": { "read_only_hint": false, "destructive_hint": false, "idempotent_hint": true }
+      },
+      {
+        "name": "book_taxi",
+        "title": "Book a taxi",
+        "description": "List taxi operators or book an unassigned taxi trip for the signed-in user. Use action 'list' to get operators, or action 'book' (default) with passenger and trip details to create a scheduled trip.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "enum": ["list", "book"],
+              "description": "'list' returns taxi operators; 'book' creates a trip. Defaults to 'book'."
+            },
+            "passenger_name": { "type": "string", "description": "Passenger name (required when booking)." },
+            "phone": { "type": "string", "description": "Passenger phone (required when booking)." },
+            "pickup_name": { "type": "string", "description": "Pickup location name (required when booking)." },
+            "dropoff_name": { "type": "string", "description": "Drop-off location name (required when booking)." },
+            "company_id": { "type": "string", "description": "ID of the taxi operator company (required when booking)." },
+            "pickup_lat": { "type": "number", "description": "Pickup latitude (optional)." },
+            "pickup_lng": { "type": "number", "description": "Pickup longitude (optional)." }
+          },
+          "required": []
+        },
+        "handler": "bookTaxi",
+        "annotations": { "read_only_hint": false, "destructive_hint": false, "idempotent_hint": false }
+      },
+      {
+        "name": "ask_bus_assistant",
+        "title": "Ask bus assistant",
+        "description": "Answer a passenger's question about live buses (e.g. how far away a bus is) using real-time fleet data for a company.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "question": { "type": "string", "description": "The passenger's question." },
+            "company_id": { "type": "string", "description": "The company to scope the fleet data to." },
+            "user_lat": { "type": "number", "description": "Passenger latitude for distance estimates." },
+            "user_lng": { "type": "number", "description": "Passenger longitude for distance estimates." }
+          },
+          "required": ["question"]
+        },
+        "handler": "busAssistant",
+        "annotations": { "read_only_hint": true, "destructive_hint": false, "idempotent_hint": true }
+      },
+      {
+        "name": "admin_fleet_briefing",
+        "title": "Admin fleet briefing",
+        "description": "Generate an AI briefing of current fleet activity for admins — summary, anomaly flags, suggested actions, and a draft broadcast message.",
+        "input_schema": { "type": "object", "properties": {} },
+        "handler": "adminCopilot",
+        "annotations": { "read_only_hint": true, "destructive_hint": false, "idempotent_hint": false }
+      }
+    ]
+  }
+}

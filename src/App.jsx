@@ -20,6 +20,7 @@ import DriverApp from '@/pages/DriverApp';
 import Admin from '@/pages/Admin';
 import Account from '@/pages/Account';
 import StaffPortal from '@/pages/StaffPortal';
+import OAuthConsent from '@/pages/OAuthConsent';
 // Add page imports here
 
 const AuthenticatedApp = () => {
@@ -54,6 +55,7 @@ const AuthenticatedApp = () => {
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/" element={<Welcome />} />
       <Route path="/book-taxi" element={<BookTaxi />} />
+      <Route path="/oauth/consent" element={<OAuthConsent />} />
       <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login" replace />} />}>
         <Route path="/passenger" element={<Home />} />
         <Route path="/company" element={<CompanyDashboard />} />
