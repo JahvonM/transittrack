@@ -1,22 +1,39 @@
 import React, { useEffect, useState } from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import AppLayout from "@/components/AppLayout";
+import AdminShell from "@/components/admin/AdminShell";
 import AssignTripsTab from "@/components/admin/AssignTripsTab";
 import LiveFleetTab from "@/components/admin/LiveFleetTab";
 import CompletedTripsTab from "@/components/admin/CompletedTripsTab";
 import ProfileInfo from "@/components/ProfileInfo";
 import DriversTab from "@/components/admin/DriversTab";
-import CreateCompanyForm from "@/components/admin/CreateCompanyForm";
 import CopilotTab from "@/components/admin/CopilotTab";
-import { Building2, CalendarPlus, Car, MapPin, Sparkles, Trash2, User, UserPlus, Users } from "lucide-react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import VehiclesTab from "@/components/admin/VehiclesTab";
+import MessagingTab from "@/components/admin/MessagingTab";
+import AdsTab from "@/components/admin/AdsTab";
+import CompaniesTab from "@/components/admin/CompaniesTab";
+import UsersTab from "@/components/admin/UsersTab";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { Car, ExternalLink, Hotel, LayoutDashboard, MapPin } from "lucide-react";
+
+const ROLE_LINKS = [
+  { to: "/passenger", label: "Passenger view", icon: MapPin },
+  { to: "/driver", label: "Driver app", icon: Car },
+  { to: "/company", label: "Company dashboard", icon: LayoutDashboard },
+  { to: "/staff", label: "Staff portal", icon: Hotel },
+];
+
+function Stat({ label, value }) {
+  return (
+    <div className="p-4 rounded-xl border bg-card">
+      <div className="text-2xl font-bold">{value}</div>
+      <div className="text-xs text-muted-foreground">{label}</div>
+    </div>
+  );
+}
 
 export default function Admin() {
   const { user } = useAuth();
@@ -25,10 +42,8 @@ export default function Admin() {
   const [vehicles, setVehicles] = useState([]);
   const [routes, setRoutes] = useState([]);
   const [trips, setTrips] = useState([]);
-  const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState("passenger");
-  const [inviting, setInviting] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [section, setSection] = useState("overview");
 
   const load = async () => {
     const [u, c, v, r, t] = await Promise.all([
@@ -50,163 +65,81 @@ export default function Admin() {
   }, []);
 
   if (user && user.role !== "admin") return <Navigate to="/" replace />;
+  if (loading)
+    return (
+      <AppLayout>
+        <p className="text-muted-foreground">Loading…</p>
+      </AppLayout>
+    );
 
-  const setRole = async (u, role) => {
-    await base44.entities.User.update(u.id, { role });
-    load();
-  };
-  const setCompany = async (u, companyId) => {
-    await base44.entities.User.update(u.id, { company_id: companyId === "none" ? null : companyId });
-    load();
-  };
-  const invite = async () => {
-    if (!inviteEmail.trim()) return;
-    setInviting(true);
-    try {
-      await base44.users.inviteUser(inviteEmail.trim(), inviteRole);
-      setInviteEmail("");
-      load();
-    } finally {
-      setInviting(false);
-    }
-  };
-  const removeUser = async (u) => {
-    await base44.entities.User.delete(u.id);
-    load();
-  };
-
-  if (loading) return <AppLayout><p className="text-muted-foreground">Loading…</p></AppLayout>;
+  const activeTrips = trips.filter((t) =>
+    ["scheduled", "on_the_way", "arrived"].includes(t.status)
+  );
+  const liveCount = vehicles.filter((v) => v.status !== "offline").length;
 
   return (
-    <AppLayout title="Admin">
-      <Tabs defaultValue="trips">
-        <TabsList className="flex-wrap">
-          <TabsTrigger value="trips"><CalendarPlus className="w-4 h-4 mr-1.5" />Trips</TabsTrigger>
-          <TabsTrigger value="fleet"><MapPin className="w-4 h-4 mr-1.5" />Live fleet</TabsTrigger>
-          <TabsTrigger value="billing"><Building2 className="w-4 h-4 mr-1.5" />Completed &amp; billing</TabsTrigger>
-          <TabsTrigger value="users"><Users className="w-4 h-4 mr-1.5" />Users &amp; roles</TabsTrigger>
-          <TabsTrigger value="drivers"><Car className="w-4 h-4 mr-1.5" />Drivers</TabsTrigger>
-          <TabsTrigger value="profile"><User className="w-4 h-4 mr-1.5" />My profile</TabsTrigger>
-          <TabsTrigger value="copilot"><Sparkles className="w-4 h-4 mr-1.5" />AI copilot</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="trips" className="mt-4">
-          <AssignTripsTab vehicles={vehicles} routes={routes} trips={trips} onChange={load} />
-        </TabsContent>
-
-        <TabsContent value="fleet" className="mt-4">
-          <LiveFleetTab vehicles={vehicles} />
-        </TabsContent>
-
-        <TabsContent value="billing" className="mt-4">
-          <CompletedTripsTab trips={trips} />
-        </TabsContent>
-
-        <TabsContent value="users" className="mt-4">
-          <div className="grid lg:grid-cols-2 gap-4">
+    <AppLayout>
+      <AdminShell active={section} onNavigate={setSection}>
+        {section === "overview" && (
+          <div className="space-y-4">
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              <Stat label="Vehicles" value={vehicles.length} />
+              <Stat label="Live now" value={liveCount} />
+              <Stat label="Active trips" value={activeTrips.length} />
+              <Stat label="Companies" value={companies.length} />
+            </div>
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Users className="w-5 h-5" /> Users &amp; Roles</CardTitle>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <ExternalLink className="w-4 h-4" /> Test as another role
+                </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-2">
-                <div className="flex flex-wrap items-center gap-2 p-3 rounded-lg border bg-muted/40">
-                  <UserPlus className="w-4 h-4 text-muted-foreground shrink-0" />
-                  <Input
-                    type="email"
-                    value={inviteEmail}
-                    onChange={(e) => setInviteEmail(e.target.value)}
-                    placeholder="invite by email"
-                    className="flex-1 min-w-[160px] h-8"
-                  />
-                  <Select value={inviteRole} onValueChange={setInviteRole}>
-                    <SelectTrigger className="w-[130px] h-8"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="passenger">Passenger</SelectItem>
-                      <SelectItem value="company">Company</SelectItem>
-                      <SelectItem value="driver">Driver</SelectItem>
-                      <SelectItem value="staff">Hotel staff</SelectItem>
-                      <SelectItem value="admin">Admin</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Button size="sm" onClick={invite} disabled={inviting || !inviteEmail.trim()}>
-                    {inviting ? "Inviting…" : "Invite"}
-                  </Button>
-                </div>
-                {users.map((u) => (
-                  <div key={u.id} className="flex flex-wrap items-center gap-2 p-3 rounded-lg border">
-                    <div className="flex-1 min-w-[160px]">
-                      <div className="font-medium text-sm">{u.full_name || u.email}</div>
-                      <div className="text-xs text-muted-foreground">{u.email}</div>
-                    </div>
-                    <Badge variant="outline">{u.role}</Badge>
-                    <Select value={u.role} onValueChange={(r) => setRole(u, r)}>
-                      <SelectTrigger className="w-[130px] h-8"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="passenger">Passenger</SelectItem>
-                        <SelectItem value="company">Company</SelectItem>
-                        <SelectItem value="driver">Driver</SelectItem>
-                        <SelectItem value="staff">Hotel staff</SelectItem>
-                        <SelectItem value="admin">Admin</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    {u.role === "company" && (
-                      <Select value={u.company_id || "none"} onValueChange={(c) => setCompany(u, c)}>
-                        <SelectTrigger className="w-[160px] h-8"><SelectValue placeholder="No company" /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">No company</SelectItem>
-                          {companies.map((c) => (
-                            <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
-                    {u.id !== user?.id && (
-                      <Button variant="ghost" size="icon" onClick={() => removeUser(u)}>
-                        <Trash2 className="w-4 h-4 text-destructive" />
+              <CardContent>
+                <p className="text-sm text-muted-foreground mb-3">
+                  Admins can open any role's view to test the experience end-to-end.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {ROLE_LINKS.map((r) => {
+                    const Icon = r.icon;
+                    return (
+                      <Button asChild key={r.to} variant="outline" size="sm">
+                        <Link to={r.to}>
+                          <Icon className="w-4 h-4 mr-1.5" />
+                          {r.label}
+                        </Link>
                       </Button>
-                    )}
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Building2 className="w-5 h-5" /> Companies</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {companies.length === 0 && <p className="text-sm text-muted-foreground">No companies yet — create one below.</p>}
-                {companies.map((c) => (
-                  <div key={c.id} className="p-3 rounded-lg border">
-                    <div className="font-medium">{c.name}</div>
-                    <div className="text-xs text-muted-foreground mt-0.5 flex flex-wrap gap-1">
-                      {(c.service_types || []).map((t) => (
-                        <Badge key={t} variant="secondary" className="capitalize">{t.replace("_", " ")}</Badge>
-                      ))}
-                    </div>
-                    {c.phone && <div className="text-xs text-muted-foreground mt-1">{c.phone}</div>}
-                  </div>
-                ))}
-                <CreateCompanyForm onChange={load} />
+                    );
+                  })}
+                </div>
               </CardContent>
             </Card>
           </div>
-        </TabsContent>
+        )}
 
-        <TabsContent value="drivers" className="mt-4">
+        {section === "trips" && (
+          <AssignTripsTab vehicles={vehicles} routes={routes} trips={trips} onChange={load} />
+        )}
+        {section === "fleet" && <LiveFleetTab vehicles={vehicles} />}
+        {section === "vehicles" && (
+          <VehiclesTab vehicles={vehicles} companies={companies} routes={routes} onChange={load} />
+        )}
+        {section === "billing" && <CompletedTripsTab trips={trips} />}
+        {section === "users" && (
+          <UsersTab users={users} companies={companies} currentUser={user} onChange={load} />
+        )}
+        {section === "drivers" && (
           <DriversTab users={users} vehicles={vehicles} companies={companies} onChange={load} />
-        </TabsContent>
-
-        <TabsContent value="profile" className="mt-4">
+        )}
+        {section === "companies" && <CompaniesTab companies={companies} onChange={load} />}
+        {section === "messaging" && <MessagingTab vehicles={vehicles} />}
+        {section === "ads" && <AdsTab />}
+        {section === "copilot" && <CopilotTab />}
+        {section === "profile" && (
           <div className="max-w-xl">
             <ProfileInfo />
           </div>
-        </TabsContent>
-
-        <TabsContent value="copilot" className="mt-4">
-          <CopilotTab />
-        </TabsContent>
-      </Tabs>
+        )}
+      </AdminShell>
     </AppLayout>
   );
 }

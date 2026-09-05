@@ -24,6 +24,11 @@ export default function StaffAlerts() {
           title: rec.type === "taxi_arrived" ? "Taxi arrived" : "Bus arrived",
           description: `${rec.vehicle_name || "Vehicle"} · ${rec.message}`,
         });
+      } else if (rec.type === "info") {
+        toast({
+          title: rec.title || "Broadcast",
+          description: rec.message,
+        });
       }
     });
     return unsub;

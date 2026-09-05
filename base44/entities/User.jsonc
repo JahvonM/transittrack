@@ -8,11 +8,18 @@
         "admin",
         "company",
         "driver",
-        "passenger"
+        "passenger",
+        "staff"
       ],
       "default": "passenger"
     },
     "company_id": {
+      "type": "string"
+    },
+    "phone": {
+      "type": "string"
+    },
+    "photo_url": {
       "type": "string"
     }
   }

@@ -11,6 +11,9 @@
       ],
       "default": "info"
     },
+    "title": {
+      "type": "string"
+    },
     "message": {
       "type": "string"
     },

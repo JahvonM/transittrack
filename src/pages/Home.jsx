@@ -10,6 +10,9 @@ import RouteExplorer from "@/components/RouteExplorer";
 import ContactOperator from "@/components/ContactOperator";
 import ProfileInfo from "@/components/ProfileInfo";
 import VehicleListItem from "@/components/VehicleListItem";
+import Greeting from "@/components/Greeting";
+import AdBanner from "@/components/AdBanner";
+import BusAssistant from "@/components/BusAssistant";
 import { haversineKm, etaMinutes, formatEta } from "@/lib/geo";
 import { Bus, Car, Clock, LogOut, Map as MapIcon } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -118,6 +121,8 @@ export default function Home() {
   return (
     <AppLayout>
       <div className="space-y-4">
+        <Greeting subtitle={company.name} />
+        <AdBanner />
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="text-xl font-semibold">{company.name}</h2>
@@ -203,6 +208,8 @@ export default function Home() {
             </div>
           )}
         </div>
+
+        <BusAssistant company={company} userLoc={userLoc} />
 
         <ProfileInfo />
       </div>

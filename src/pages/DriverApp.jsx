@@ -6,6 +6,8 @@ import AppLayout from "@/components/AppLayout";
 import BusMap from "@/components/BusMap";
 import DriverTrips from "@/components/DriverTrips";
 import ProfileInfo from "@/components/ProfileInfo";
+import Greeting from "@/components/Greeting";
+import DriverMessages from "@/components/DriverMessages";
 import { AlertCircle, BellRing, Map as MapIcon, Navigation } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
@@ -25,6 +27,7 @@ export default function DriverApp() {
   const lastUpdate = useRef(0);
   const vehicleRef = useRef(null);
   const tripsRef = useRef([]);
+  const trailRef = useRef([]);
 
   const load = async () => {
     const vs = await base44.entities.Vehicle.filter({ driver_email: user.email });
@@ -37,6 +40,7 @@ export default function DriverApp() {
     );
     tripsRef.current = sorted;
     setTrips(sorted);
+    trailRef.current = v?.trail || [];
     setLoading(false);
   };
 
@@ -77,12 +81,15 @@ export default function DriverApp() {
       (t) => t.status === "on_the_way" || t.status === "arrived"
     );
     const status = active ? "on_trip" : "idle";
+    const nextTrail = [...trailRef.current, { lat, lng, t: new Date().toISOString() }].slice(-60);
+    trailRef.current = nextTrail;
     await base44.entities.Vehicle.update(v.id, {
       current_lat: lat,
       current_lng: lng,
       speed: speed || 0,
       status,
       last_location_update: new Date().toISOString(),
+      trail: nextTrail,
     });
     setVehicle((prev) =>
       prev ? { ...prev, current_lat: lat, current_lng: lng, speed: speed || 0, status } : prev
@@ -146,7 +153,7 @@ export default function DriverApp() {
   if (loading) return <AppLayout><p className="text-muted-foreground">Loading…</p></AppLayout>;
   // Anyone with a vehicle assigned to their email can use the Driver App, even if
   // their role label hasn't been set to "driver" yet.
-  if (user && user.role !== "driver" && !vehicle) return <Navigate to="/" replace />;
+  if (user && user.role !== "driver" && user.role !== "admin" && !vehicle) return <Navigate to="/" replace />;
 
   if (!vehicle) {
     return (
@@ -166,6 +173,8 @@ export default function DriverApp() {
   return (
     <AppLayout title="Driver App">
       <div className="space-y-4 max-w-3xl">
+        <DriverMessages />
+        <Greeting subtitle={vehicle.name} />
         <Card>
           <CardHeader className="pb-3">
             <div className="flex flex-wrap items-center justify-between gap-2">

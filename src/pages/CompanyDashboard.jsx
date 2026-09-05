@@ -4,7 +4,7 @@ import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import AppLayout from "@/components/AppLayout";
 import ProfileInfo from "@/components/ProfileInfo";
-import { Bus, Car, Plus, Trash2, Route as RouteIcon, MapPin, Building2, Phone, KeyRound, Copy, Check, RefreshCw, User } from "lucide-react";
+import { Bus, Car, Plus, Pencil, Trash2, Route as RouteIcon, MapPin, Building2, Phone, KeyRound, Copy, Check, RefreshCw, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,6 +14,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/use-toast";
 import { STATUS_LABEL, STATUS_VARIANT } from "@/lib/trip";
+import CompanyEditDialog from "@/components/CompanyEditDialog";
 
 const CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const genCode = () =>
@@ -27,6 +28,7 @@ export default function CompanyDashboard() {
   const [trips, setTrips] = useState([]);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [editing, setEditing] = useState(false);
   const { toast } = useToast();
 
   const loadAll = async () => {
@@ -48,7 +50,7 @@ export default function CompanyDashboard() {
     loadAll();
   }, []);
 
-  if (user && user.role !== "company") return <Navigate to="/" replace />;
+  if (user && user.role !== "company" && user.role !== "admin") return <Navigate to="/" replace />;
 
   if (loading) return <AppLayout><p className="text-muted-foreground">Loading…</p></AppLayout>;
   if (!company) return <AppLayout><CreateCompany onCreated={loadAll} /></AppLayout>;
@@ -87,8 +89,13 @@ export default function CompanyDashboard() {
             <RefreshCw className="w-4 h-4" />
             New code
           </Button>
+          <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
+            <Pencil className="w-4 h-4" />
+            Edit details
+          </Button>
         </CardContent>
       </Card>
+      <CompanyEditDialog company={company} open={editing} onOpenChange={setEditing} onSaved={loadAll} />
       <Tabs defaultValue="vehicles">
         <TabsList>
           <TabsTrigger value="vehicles"><Bus className="w-4 h-4 mr-1.5" />Vehicles ({vehicles.length})</TabsTrigger>

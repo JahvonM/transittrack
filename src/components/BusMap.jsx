@@ -56,6 +56,18 @@ export default function BusMap({
         maxZoom={19}
       />
       <FitBounds stops={stops} vehicles={vehicles} userLocation={userLocation} center={center} />
+      {vehicles.map((v) => {
+        const tr = (v.trail || [])
+          .filter((p) => p.lat != null && p.lng != null)
+          .map((p) => [p.lat, p.lng]);
+        return tr.length > 1 ? (
+          <Polyline
+            key={`trail-${v.id}`}
+            positions={tr}
+            pathOptions={{ color: "#38bdf8", weight: 3, opacity: 0.55 }}
+          />
+        ) : null;
+      })}
       {poly.length > 1 && (
         <Polyline positions={poly} pathOptions={{ color: "#0ea5e9", weight: 3, opacity: 0.7, dashArray: "6 6" }} />
       )}
