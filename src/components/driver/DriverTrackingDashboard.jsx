@@ -133,6 +133,14 @@ export default function DriverTrackingDashboard({ vehicle, user }) {
           if (!alertedRef.current.has(s.id)) {
             alertedRef.current.add(s.id);
             playBeep();
+            // Email the staff member that the bus is near (Gmail notification)
+            base44.functions.invoke('notifyStaffPickup', {
+              to_email: s.email,
+              staff_name: s.full_name || '',
+              vehicle_name: v.name,
+              driver_name: user?.full_name || user?.email || '',
+              company_name: v.company_name || '',
+            }).catch(() => {});
           }
         }
       });
