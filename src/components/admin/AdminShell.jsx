@@ -14,6 +14,7 @@ import {
   Sparkles,
   User,
   Users,
+  Database,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -32,6 +33,7 @@ export const ADMIN_SECTIONS = [
   { id: "messaging", label: "Messaging", icon: Megaphone },
   { id: "ads", label: "Advertisements", icon: ImageIcon },
   { id: "copilot", label: "AI copilot", icon: Sparkles },
+  { id: "data", label: "Data manager", icon: Database },
   { id: "profile", label: "My profile", icon: User },
 ];
 

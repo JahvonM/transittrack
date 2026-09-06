@@ -17,6 +17,11 @@ import CompaniesTab from "@/components/admin/CompaniesTab";
 import UsersTab from "@/components/admin/UsersTab";
 import ServiceQueueTab from "@/components/admin/ServiceQueueTab";
 import FleetSyncTab from "@/components/admin/FleetSyncTab";
+import Greeting from "@/components/Greeting";
+import MapboxMap from "@/components/MapboxMap";
+import AddVehicleQuick from "@/components/admin/AddVehicleQuick";
+import DataTab from "@/components/admin/DataTab";
+import FloatingChatbot from "@/components/admin/FloatingChatbot";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Car, ExternalLink, Hotel, LayoutDashboard, MapPin, Radar } from "lucide-react";
@@ -88,12 +93,32 @@ export default function Admin() {
       <AdminShell active={section} onNavigate={setSection}>
         {section === "overview" && (
           <div className="space-y-4">
-            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
-              <Stat label="Vehicles" value={vehicles.length} />
-              <Stat label="Live now" value={liveCount} />
-              <Stat label="Active trips" value={activeTrips.length} />
-              <Stat label="Companies" value={companies.length} />
+            <Greeting subtitle="Admin control center" />
+            <div className="rounded-2xl overflow-hidden border">
+              <MapboxMap
+                vehicles={vehicles.filter((v) => v.status !== "offline" && v.current_lat != null)}
+                height="40vh"
+              />
             </div>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              <button onClick={() => setSection("vehicles")} className="text-left p-4 rounded-xl border bg-card hover:border-primary transition-colors">
+                <div className="text-2xl font-bold">{vehicles.length}</div>
+                <div className="text-xs text-muted-foreground">Vehicles</div>
+              </button>
+              <button onClick={() => setSection("fleet")} className="text-left p-4 rounded-xl border bg-card hover:border-primary transition-colors">
+                <div className="text-2xl font-bold">{liveCount}</div>
+                <div className="text-xs text-muted-foreground">Live now</div>
+              </button>
+              <button onClick={() => setSection("trips")} className="text-left p-4 rounded-xl border bg-card hover:border-primary transition-colors">
+                <div className="text-2xl font-bold">{activeTrips.length}</div>
+                <div className="text-xs text-muted-foreground">Active trips</div>
+              </button>
+              <button onClick={() => setSection("companies")} className="text-left p-4 rounded-xl border bg-card hover:border-primary transition-colors">
+                <div className="text-2xl font-bold">{companies.length}</div>
+                <div className="text-xs text-muted-foreground">Companies</div>
+              </button>
+            </div>
+            <AddVehicleQuick companies={companies} onChange={load} />
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-base">
@@ -137,19 +162,21 @@ export default function Admin() {
           <ServiceQueueTab inspections={inspections} onChange={load} />
         )}
         {section === "drivers" && (
-          <DriversTab users={users} vehicles={vehicles} companies={companies} onChange={load} />
+          <DriversTab users={users} vehicles={vehicles} companies={companies} routes={routes} onChange={load} />
         )}
         {section === "sync" && <FleetSyncTab />}
         {section === "companies" && <CompaniesTab companies={companies} onChange={load} />}
         {section === "messaging" && <MessagingTab vehicles={vehicles} />}
         {section === "ads" && <AdsTab />}
         {section === "copilot" && <CopilotTab />}
+        {section === "data" && <DataTab />}
         {section === "profile" && (
           <div className="max-w-xl">
             <ProfileInfo />
           </div>
         )}
       </AdminShell>
+      <FloatingChatbot />
     </AppLayout>
   );
 }

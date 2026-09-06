@@ -8,6 +8,7 @@ import ProfileInfo from "@/components/ProfileInfo";
 import StaffAlerts from "@/components/StaffAlerts";
 import LocationPinner from "@/components/staff/LocationPinner";
 import StaffToggles from "@/components/staff/StaffToggles";
+import Greeting from "@/components/Greeting";
 import { haversineKm, etaMinutes, formatEta } from "@/lib/geo";
 import { STATUS_LABEL, STATUS_VARIANT } from "@/lib/trip";
 import { Bus, Clock, Map as MapIcon, User } from "lucide-react";
@@ -168,6 +169,7 @@ export default function StaffPortal() {
   return (
     <AppLayout title="Staff Portal">
       <div className="space-y-4 max-w-3xl">
+        <Greeting subtitle="Staff portal" />
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h2 className="text-lg font-semibold">Track pickups &amp; buses</h2>
