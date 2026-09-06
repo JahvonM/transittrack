@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
-import Map, { Marker, Source, Layer, Popup } from "react-map-gl";
+import Map, { Marker, Source, Layer, Popup, GeolocateControl } from "react-map-gl";
 import { MAPBOX_TOKEN, MAPBOX_STYLE } from "@/lib/mapbox";
 import { Bus } from "lucide-react";
 import BusDistance from "@/components/BusDistance";
@@ -42,6 +42,14 @@ export default function MapboxMap({
   const mapRef = useRef(null);
   const hasFitted = useRef(false);
   const [selectedVehicle, setSelectedVehicle] = useState(null);
+  // Live coordinates from the native GeolocateControl — more accurate than the
+  // manual hook and keeps BusDistance/ETA synced with the on-screen blue dot.
+  const [liveLocation, setLiveLocation] = useState(null);
+  const onGeolocate = (e) => {
+    if (e?.coords) {
+      setLiveLocation({ lat: e.coords.latitude, lng: e.coords.longitude });
+    }
+  };
 
   // Build the full point list for auto-fit bounds
   const allPoints = [
@@ -170,17 +178,19 @@ export default function MapboxMap({
               <div className="text-xs">Plate: {selectedVehicle.plate_number || "—"}</div>
               <div className="text-xs">Driver: {selectedVehicle.driver_name || "—"}</div>
               <div className="text-xs">Status: {selectedVehicle.status}</div>
-              <BusDistance vehicle={selectedVehicle} userLocation={userLocation} />
+              <BusDistance vehicle={selectedVehicle} userLocation={liveLocation || userLocation} />
             </div>
           </Popup>
         )}
 
-        {/* User location marker */}
-        {userLocation && (
-          <Marker longitude={userLocation.lng} latitude={userLocation.lat} anchor="bottom">
-            <div className="text-2xl leading-none" title="You are here">📍</div>
-          </Marker>
-        )}
+        {/* Native high-accuracy geolocation: blue dot + accuracy halo + tracking */}
+        <GeolocateControl
+          positionOptions={{ enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }}
+          trackUserLocation
+          showUserLocation
+          showAccuracyCircle
+          onGeolocate={onGeolocate}
+        />
       </Map>
     </div>
   );
