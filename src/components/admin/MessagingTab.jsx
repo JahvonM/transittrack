@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/select";
 import { Megaphone, Send } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
+import BroadcastInbox from "@/components/admin/BroadcastInbox";
 
 export default function MessagingTab({ vehicles }) {
   const { toast } = useToast();
@@ -58,6 +59,7 @@ export default function MessagingTab({ vehicles }) {
 
   return (
     <div className="space-y-4 max-w-2xl">
+      <BroadcastInbox />
       <div>
         <h1 className="text-2xl font-heading font-semibold">Messaging</h1>
         <p className="text-sm text-muted-foreground">

@@ -49,7 +49,7 @@ export default function DriverApp() {
   return (
     <AppLayout title="Driver App">
       <div className="space-y-4 max-w-3xl">
-        <DriverMessages />
+        <DriverMessages vehicle={vehicle} />
         <Greeting subtitle={vehicle.name} />
 
         {stage === "pin" && (

@@ -31,6 +31,10 @@
     },
     "driver_email": {
       "type": "string"
+    },
+    "is_reply": {
+      "type": "boolean",
+      "default": false
     }
   },
   "required": [
