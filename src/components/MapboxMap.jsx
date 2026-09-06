@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
-import Map, { Marker, Source, Layer, Popup, GeolocateControl } from "react-map-gl";
+import Map, { Marker, Source, Layer, Popup, GeolocateControl, NavigationControl } from "react-map-gl";
 import { MAPBOX_TOKEN, MAPBOX_STYLE } from "@/lib/mapbox";
-import { Bus } from "lucide-react";
+import { Bus, LocateFixed } from "lucide-react";
 import BusDistance from "@/components/BusDistance";
 
 // Status -> pin colour
@@ -62,19 +62,38 @@ export default function MapboxMap({
   ];
   if (userLocation) allPoints.push({ lng: userLocation.lng, lat: userLocation.lat, color: "#34d399", label: "You are here" });
 
-  // Fit to bounds only once on first load — re-fitting on every GPS tick causes jitter.
-  useEffect(() => {
+  // Re-fit the map to all visible points (vehicles, stops, user).
+  const fitToBounds = () => {
     const map = mapRef.current;
-    if (!map || center || hasFitted.current) return;
-    if (allPoints.length === 0) return;
-    const bounds = allPoints.reduce(
+    if (!map) return;
+    const pts = [
+      ...allPoints,
+      ...(liveLocation ? [{ lng: liveLocation.lng, lat: liveLocation.lat }] : []),
+    ];
+    if (pts.length === 0) return;
+    const bounds = pts.reduce(
       (b, p) => b.extend([p.lng, p.lat]),
-      new mapboxgl.LngLatBounds([allPoints[0].lng, allPoints[0].lat], [allPoints[0].lng, allPoints[0].lat])
+      new mapboxgl.LngLatBounds([pts[0].lng, pts[0].lat], [pts[0].lng, pts[0].lat])
     );
     map.fitBounds(bounds, { padding: 60, maxZoom: 15, duration: 600 });
+  };
+
+  // Fit to bounds only once on first load — re-fitting on every GPS tick causes jitter.
+  useEffect(() => {
+    if (center || hasFitted.current || allPoints.length === 0) return;
+    fitToBounds();
     hasFitted.current = true;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allPoints.length, center]);
+
+  // Recenter on the user's live location.
+  const recenter = () => {
+    const map = mapRef.current;
+    if (!map) return;
+    const loc = liveLocation || userLocation;
+    if (!loc) return;
+    map.flyTo({ center: [loc.lng, loc.lat], zoom: Math.max(map.getZoom(), 15), duration: 800 });
+  };
 
   const initViewport = center
     ? { longitude: center[0], latitude: center[1], zoom: 14 }
@@ -170,7 +189,7 @@ export default function MapboxMap({
             anchor="bottom"
             closeButton
             closeOnClick={false}
-            onClose={() => setSelectedVehicle(null)}
+            onClose={() => { setSelectedVehicle(null); fitToBounds(); }}
           >
             <div className="space-y-1 min-w-[180px]">
               <div className="font-semibold text-sm">{selectedVehicle.name}</div>
@@ -191,7 +210,20 @@ export default function MapboxMap({
           showAccuracyCircle
           onGeolocate={onGeolocate}
         />
+
+        {/* Compass + zoom controls (compass re-orients north) */}
+        <NavigationControl position="bottom-right" showCompass visualizePitch />
       </Map>
+
+      {/* Recenter on my location */}
+      <button
+        type="button"
+        onClick={recenter}
+        className="absolute left-3 bottom-3 z-10 w-10 h-10 rounded-full bg-background/90 border border-border shadow-md grid place-items-center hover:bg-accent transition-colors"
+        title="Recenter on my location"
+      >
+        <LocateFixed className="w-5 h-5 text-primary" />
+      </button>
     </div>
   );
 }
