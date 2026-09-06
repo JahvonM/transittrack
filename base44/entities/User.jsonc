@@ -21,6 +21,30 @@
     },
     "photo_url": {
       "type": "string"
+    },
+    "home_lat": {
+      "type": "number"
+    },
+    "home_lng": {
+      "type": "number"
+    },
+    "work_lat": {
+      "type": "number"
+    },
+    "work_lng": {
+      "type": "number"
+    },
+    "whatsapp_linked": {
+      "type": "boolean",
+      "default": false
+    },
+    "skip_pickup_today": {
+      "type": "boolean",
+      "default": false
+    },
+    "late_snooze_active": {
+      "type": "boolean",
+      "default": false
     }
   }
 }

@@ -42,7 +42,9 @@
       "enum": [
         "offline",
         "idle",
-        "on_trip"
+        "on_trip",
+        "speeding",
+        "emergency"
       ],
       "default": "offline"
     },
@@ -55,6 +57,12 @@
     },
     "driver_name": {
       "type": "string"
+    },
+    "driver_pin": {
+      "type": "string"
+    },
+    "current_odometer": {
+      "type": "number"
     },
     "route_id": {
       "type": "string"

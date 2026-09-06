@@ -1,0 +1,75 @@
+{
+  "name": "Inspection",
+  "type": "object",
+  "properties": {
+    "driver_name": {
+      "type": "string"
+    },
+    "driver_email": {
+      "type": "string"
+    },
+    "vehicle_id": {
+      "type": "string"
+    },
+    "vehicle_name": {
+      "type": "string"
+    },
+    "company_id": {
+      "type": "string"
+    },
+    "company_name": {
+      "type": "string"
+    },
+    "date": {
+      "type": "string",
+      "format": "date"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "passed",
+        "failed"
+      ],
+      "default": "passed"
+    },
+    "checklist": {
+      "type": "object",
+      "properties": {
+        "brakes": {
+          "type": "boolean"
+        },
+        "tires": {
+          "type": "boolean"
+        },
+        "lights": {
+          "type": "boolean"
+        },
+        "fluids": {
+          "type": "boolean"
+        },
+        "cleanliness": {
+          "type": "boolean"
+        }
+      }
+    },
+    "odometer_reading": {
+      "type": "number"
+    },
+    "fuel_level": {
+      "type": "number"
+    },
+    "needs_service": {
+      "type": "boolean",
+      "default": false
+    },
+    "service_notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "driver_name",
+    "vehicle_id",
+    "company_id",
+    "date"
+  ]
+}
