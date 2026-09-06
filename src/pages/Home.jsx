@@ -13,6 +13,7 @@ import VehicleListItem from "@/components/VehicleListItem";
 import Greeting from "@/components/Greeting";
 import AdBanner from "@/components/AdBanner";
 import BusAssistant from "@/components/BusAssistant";
+import LocationPrompt from "@/components/LocationPrompt";
 import { haversineKm, etaMinutes, formatEta } from "@/lib/geo";
 import { Bus, Car, Clock, LogOut, Map as MapIcon } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -58,14 +59,6 @@ export default function Home() {
     });
     return unsub;
   }, [company]);
-
-  useEffect(() => {
-    if (!navigator.geolocation) return;
-    navigator.geolocation.getCurrentPosition(
-      (p) => setUserLoc({ lat: p.coords.latitude, lng: p.coords.longitude }),
-      () => setLocError("Enable location to see arrival times to your spot.")
-    );
-  }, []);
 
   const activeVehicles = useMemo(
     () => vehicles.filter((v) => v.status !== "offline" && v.current_lat != null),
@@ -172,6 +165,14 @@ export default function Home() {
           )}
         </div>
 
+        {!userLoc && (
+          <LocationPrompt
+            onLocation={(loc) => {
+              setUserLoc(loc);
+              setLocError("");
+            }}
+          />
+        )}
         {locError && <p className="text-xs text-muted-foreground">{locError}</p>}
 
         <div className="space-y-5 max-w-2xl">

@@ -31,11 +31,17 @@ export default function LocationPinner() {
         pin(p.coords.latitude, p.coords.longitude);
         setLocating(false);
       },
-      () => {
-        toast({ title: "Couldn't get your location", variant: "destructive" });
+      (err) => {
+        const msg =
+          err.code === 1
+            ? "Location permission denied — enable it in your browser settings."
+            : err.code === 3
+            ? "Location request timed out — make sure GPS is on."
+            : "Couldn't get your location — check your GPS and try again.";
+        toast({ title: msg, variant: "destructive" });
         setLocating(false);
       },
-      { enableHighAccuracy: true }
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
   };
 
