@@ -144,18 +144,19 @@ export default function DriverTrackingDashboard({ vehicle, user }) {
   const startTracking = () => {
     if (!navigator.geolocation || watchId.current != null) return;
     setSharing(true);
-    navigator.geolocation.getCurrentPosition((p) =>
-      handlePosition(p.coords.latitude, p.coords.longitude, p.coords.speed)
-    );
     watchId.current = navigator.geolocation.watchPosition(
-      (p) => handlePosition(p.coords.latitude, p.coords.longitude, p.coords.speed),
+      (p) => {
+        // Reject low-accuracy fixes to prevent erratic pin jumps
+        if (p.coords.accuracy != null && p.coords.accuracy > 20) return;
+        handlePosition(p.coords.latitude, p.coords.longitude, p.coords.speed);
+      },
       (err) => {
         if (err.code === err.PERMISSION_DENIED) {
           toast({ title: "Location permission denied", variant: "destructive" });
           setSharing(false);
         }
       },
-      { enableHighAccuracy: true, maximumAge: 5000, timeout: GPS_INTERVAL_MS }
+      { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
     );
   };
 
