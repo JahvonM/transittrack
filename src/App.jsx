@@ -22,6 +22,17 @@ import Account from '@/pages/Account';
 import StaffPortal from '@/pages/StaffPortal';
 import ManagerDashboard from '@/pages/ManagerDashboard';
 import OAuthConsent from '@/pages/OAuthConsent';
+import MaintenanceQueue from '@/pages/MaintenanceQueue';
+import RouteAnalytics from '@/pages/RouteAnalytics';
+import DriverProfile from '@/pages/DriverProfile';
+import FleetSyncSettings from '@/pages/FleetSyncSettings';
+import IncidentReports from '@/pages/IncidentReports';
+import PassengerBookings from '@/pages/PassengerBookings';
+import RouteExplorer from '@/pages/RouteExplorer';
+import StaffDirectory from '@/pages/StaffDirectory';
+import VehicleLogs from '@/pages/VehicleLogs';
+import ServiceHistory from '@/pages/ServiceHistory';
+import SafetyStandards from '@/pages/SafetyStandards';
 // Add page imports here
 
 const AuthenticatedApp = () => {
@@ -65,6 +76,17 @@ const AuthenticatedApp = () => {
         <Route path="/account" element={<Account />} />
         <Route path="/staff" element={<StaffPortal />} />
         <Route path="/manager" element={<ManagerDashboard />} />
+        <Route path="/maintenance-queue" element={<MaintenanceQueue />} />
+        <Route path="/route-analytics" element={<RouteAnalytics />} />
+        <Route path="/driver-profile" element={<DriverProfile />} />
+        <Route path="/fleet-sync" element={<FleetSyncSettings />} />
+        <Route path="/incident-reports" element={<IncidentReports />} />
+        <Route path="/passenger-bookings" element={<PassengerBookings />} />
+        <Route path="/route-explorer" element={<RouteExplorer />} />
+        <Route path="/staff-directory" element={<StaffDirectory />} />
+        <Route path="/vehicle-logs" element={<VehicleLogs />} />
+        <Route path="/service-history" element={<ServiceHistory />} />
+        <Route path="/safety-standards" element={<SafetyStandards />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>

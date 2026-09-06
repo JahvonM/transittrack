@@ -36,6 +36,15 @@
     "occurred_at": {
       "type": "string",
       "format": "date-time"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "open",
+        "investigating",
+        "resolved"
+      ],
+      "default": "open"
     }
   },
   "required": [
