@@ -25,6 +25,9 @@
     "capacity": {
       "type": "number"
     },
+    "image_url": {
+      "type": "string"
+    },
     "current_lat": {
       "type": "number"
     },
