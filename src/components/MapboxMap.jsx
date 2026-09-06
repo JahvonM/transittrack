@@ -1,7 +1,9 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
-import Map, { Marker, Source, Layer } from "react-map-gl";
+import Map, { Marker, Source, Layer, Popup } from "react-map-gl";
 import { MAPBOX_TOKEN, MAPBOX_STYLE } from "@/lib/mapbox";
+import { Bus } from "lucide-react";
+import BusETAAsk from "@/components/BusETAAsk";
 
 // Status -> pin colour
 const STATUS_COLORS = {
@@ -38,6 +40,7 @@ export default function MapboxMap({
   interactive = true,
 }) {
   const mapRef = useRef(null);
+  const [selectedVehicle, setSelectedVehicle] = useState(null);
 
   // Build the full point list for auto-fit bounds
   const allPoints = [
@@ -128,20 +131,46 @@ export default function MapboxMap({
           </Marker>
         ))}
 
-        {/* Vehicle markers */}
+        {/* Vehicle markers — tappable little bus icons */}
         {vehicles
           .filter((v) => v.current_lat != null)
           .map((v) => (
             <Marker key={`v-${v.id}`} longitude={v.current_lng} latitude={v.current_lat} anchor="bottom">
-              <div
-                className="text-2xl leading-none"
-                style={{ filter: "drop-shadow(0 2px 3px rgba(0,0,0,.4))" }}
+              <button
+                onClick={() => setSelectedVehicle(v)}
+                className="flex flex-col items-center focus:outline-none"
                 title={`${v.name} · ${v.company_name || ""} · ${v.status}`}
               >
-                {VEHICLE_ICON(v.type)}
-              </div>
+                <div
+                  className="w-7 h-7 rounded-full border-2 border-white shadow-md grid place-items-center"
+                  style={{ backgroundColor: statusColor(v.status) }}
+                >
+                  <Bus className="w-4 h-4 text-white" />
+                </div>
+              </button>
             </Marker>
           ))}
+
+        {/* Selected vehicle details + ask AI */}
+        {selectedVehicle && (
+          <Popup
+            longitude={selectedVehicle.current_lng}
+            latitude={selectedVehicle.current_lat}
+            anchor="bottom"
+            closeButton
+            closeOnClick={false}
+            onClose={() => setSelectedVehicle(null)}
+          >
+            <div className="space-y-1 min-w-[180px]">
+              <div className="font-semibold text-sm">{selectedVehicle.name}</div>
+              <div className="text-xs text-muted-foreground">{selectedVehicle.company_name || ""}</div>
+              <div className="text-xs">Plate: {selectedVehicle.plate_number || "—"}</div>
+              <div className="text-xs">Driver: {selectedVehicle.driver_name || "—"}</div>
+              <div className="text-xs">Status: {selectedVehicle.status}</div>
+              <BusETAAsk vehicle={selectedVehicle} userLocation={userLocation} />
+            </div>
+          </Popup>
+        )}
 
         {/* User location marker */}
         {userLocation && (
