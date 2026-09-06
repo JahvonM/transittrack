@@ -5,6 +5,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { base44 } from "@/api/base44Client";
 import LiveClock from "@/components/LiveClock";
 import WeatherWidget from "@/components/WeatherWidget";
+import Logo from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 import {
   Bus,
@@ -116,10 +117,8 @@ export default function Welcome() {
       <header className="sticky top-0 z-40 h-14 border-b border-slate-700/50 bg-slate-900/70 backdrop-blur-[12px]">
         <div className="max-w-6xl mx-auto px-4 h-full flex items-center justify-between gap-3">
           <Link to="/" className="flex items-center gap-2.5 font-heading font-semibold text-lg">
-            <span className="w-8 h-8 rounded-xl bg-sky-400 text-slate-900 grid place-items-center shrink-0">
-              <Bus className="w-4 h-4" />
-            </span>
-            Transit Hub
+            <Logo className="w-8 h-8" />
+            MCSween's Transport
           </Link>
           <div className="flex items-center gap-2 sm:gap-3">
             <WeatherWidget variant="chip" />

@@ -1,8 +1,9 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/lib/AuthContext";
-import { ArrowLeft, Bus, LogOut, User } from "lucide-react";
+import { ArrowLeft, LogOut, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import Logo from "@/components/Logo";
 
 export default function AppLayout({ children, title }) {
   const { user, logout } = useAuth();
@@ -22,10 +23,8 @@ export default function AppLayout({ children, title }) {
               </Button>
             )}
             <Link to="/" className="flex items-center gap-2.5 font-heading font-semibold">
-              <span className="w-8 h-8 rounded-lg bg-primary text-primary-foreground grid place-items-center shrink-0">
-                <Bus className="w-4 h-4" />
-              </span>
-              <span className="hidden sm:inline">Transit Hub</span>
+              <Logo className="w-8 h-8" />
+              <span className="hidden sm:inline">MCSween's Transport</span>
             </Link>
           </div>
           <div className="flex items-center gap-2">
