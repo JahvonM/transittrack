@@ -16,6 +16,7 @@ import AdsTab from "@/components/admin/AdsTab";
 import CompaniesTab from "@/components/admin/CompaniesTab";
 import UsersTab from "@/components/admin/UsersTab";
 import ServiceQueueTab from "@/components/admin/ServiceQueueTab";
+import FleetSyncTab from "@/components/admin/FleetSyncTab";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Car, ExternalLink, Hotel, LayoutDashboard, MapPin, Radar } from "lucide-react";
@@ -138,6 +139,7 @@ export default function Admin() {
         {section === "drivers" && (
           <DriversTab users={users} vehicles={vehicles} companies={companies} onChange={load} />
         )}
+        {section === "sync" && <FleetSyncTab />}
         {section === "companies" && <CompaniesTab companies={companies} onChange={load} />}
         {section === "messaging" && <MessagingTab vehicles={vehicles} />}
         {section === "ads" && <AdsTab />}
