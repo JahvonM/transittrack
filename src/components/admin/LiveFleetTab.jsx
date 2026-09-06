@@ -1,7 +1,7 @@
 import React from "react";
 import { Bus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import BusMap from "@/components/BusMap";
+import MapboxMap from "@/components/MapboxMap";
 import useUserLocation from "@/hooks/useUserLocation";
 
 const fmtTime = (iso) =>
@@ -18,7 +18,7 @@ export default function LiveFleetTab({ vehicles }) {
         <p className="text-sm text-muted-foreground">{active.length} of {vehicles.length} vehicles live</p>
       </div>
       <div className="rounded-2xl overflow-hidden border h-[50vh]">
-        <BusMap vehicles={withLocation} userLocation={userLoc} />
+        <MapboxMap vehicles={withLocation} userLocation={userLoc} height="100%" />
       </div>
       <div className="grid sm:grid-cols-2 gap-2">
         {vehicles.map((v) => (
