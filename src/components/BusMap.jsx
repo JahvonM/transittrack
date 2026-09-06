@@ -2,7 +2,7 @@ import React, { useEffect } from "react";
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import BusETAAsk from "@/components/BusETAAsk";
+import BusDistance from "@/components/BusDistance";
 
 const DEFAULT_CENTER = [12.05, -61.75];
 
@@ -88,7 +88,7 @@ export default function BusMap({
               {v.company_name}
               <br />
               {v.type} · {v.status === "on_trip" ? "On trip" : "Idle"}
-              <BusETAAsk vehicle={v} userLocation={userLocation} />
+              <BusDistance vehicle={v} userLocation={userLocation} />
             </Popup>
           </Marker>
         ) : null

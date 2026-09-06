@@ -3,7 +3,7 @@ import mapboxgl from "mapbox-gl";
 import Map, { Marker, Source, Layer, Popup } from "react-map-gl";
 import { MAPBOX_TOKEN, MAPBOX_STYLE } from "@/lib/mapbox";
 import { Bus } from "lucide-react";
-import BusETAAsk from "@/components/BusETAAsk";
+import BusDistance from "@/components/BusDistance";
 
 // Status -> pin colour
 const STATUS_COLORS = {
@@ -167,7 +167,7 @@ export default function MapboxMap({
               <div className="text-xs">Plate: {selectedVehicle.plate_number || "—"}</div>
               <div className="text-xs">Driver: {selectedVehicle.driver_name || "—"}</div>
               <div className="text-xs">Status: {selectedVehicle.status}</div>
-              <BusETAAsk vehicle={selectedVehicle} userLocation={userLocation} />
+              <BusDistance vehicle={selectedVehicle} userLocation={userLocation} />
             </div>
           </Popup>
         )}
