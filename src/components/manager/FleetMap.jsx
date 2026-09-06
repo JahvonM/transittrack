@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import MapboxMap from "@/components/MapboxMap";
+import useUserLocation from "@/hooks/useUserLocation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Siren, Gauge, AlertTriangle } from "lucide-react";
 
 export default function FleetMap({ vehicles }) {
+  const { location: userLoc } = useUserLocation();
   const [liveVehicles, setLiveVehicles] = useState(vehicles);
 
   useEffect(() => {
@@ -43,7 +45,7 @@ export default function FleetMap({ vehicles }) {
         </Card>
       )}
       <div className="rounded-2xl overflow-hidden border">
-        <MapboxMap vehicles={liveVehicles.filter((v) => v.current_lat != null)} height="60vh" />
+        <MapboxMap vehicles={liveVehicles.filter((v) => v.current_lat != null)} userLocation={userLoc} height="60vh" />
       </div>
     </div>
   );

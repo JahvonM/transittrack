@@ -1,29 +1,25 @@
-import React, { useState } from "react";
-import { Bus, Map as MapIcon } from "lucide-react";
+import React from "react";
+import { Bus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import BusMap from "@/components/BusMap";
+import useUserLocation from "@/hooks/useUserLocation";
 
 const fmtTime = (iso) =>
   iso ? new Date(iso).toLocaleString([], { dateStyle: "short", timeStyle: "short" }) : "never";
 
 export default function LiveFleetTab({ vehicles }) {
-  const [showMap, setShowMap] = useState(false);
+  const { location: userLoc } = useUserLocation();
   const active = vehicles.filter((v) => v.status !== "offline" && v.current_lat != null);
+  const withLocation = vehicles.filter((v) => v.current_lat != null);
 
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">{active.length} of {vehicles.length} vehicles live</p>
-        <Button variant={showMap ? "default" : "outline"} size="sm" onClick={() => setShowMap(!showMap)}>
-          <MapIcon className="w-4 h-4" />{showMap ? "Hide map" : "Show map"}
-        </Button>
       </div>
-      {showMap && (
-        <div className="rounded-2xl overflow-hidden border h-[50vh]">
-          <BusMap vehicles={active} />
-        </div>
-      )}
+      <div className="rounded-2xl overflow-hidden border h-[50vh]">
+        <BusMap vehicles={withLocation} userLocation={userLoc} />
+      </div>
       <div className="grid sm:grid-cols-2 gap-2">
         {vehicles.map((v) => (
           <div key={v.id} className="p-3 rounded-xl border bg-card">

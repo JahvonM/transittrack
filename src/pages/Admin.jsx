@@ -22,6 +22,7 @@ import MapboxMap from "@/components/MapboxMap";
 import AddVehicleQuick from "@/components/admin/AddVehicleQuick";
 import DataTab from "@/components/admin/DataTab";
 import FloatingChatbot from "@/components/admin/FloatingChatbot";
+import useUserLocation from "@/hooks/useUserLocation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Car, ExternalLink, Hotel, LayoutDashboard, MapPin, Radar } from "lucide-react";
@@ -53,6 +54,7 @@ export default function Admin() {
   const [inspections, setInspections] = useState([]);
   const [loading, setLoading] = useState(true);
   const [section, setSection] = useState("overview");
+  const { location: userLoc } = useUserLocation();
 
   const load = async () => {
     const [u, c, v, r, t, insp] = await Promise.all([
@@ -96,7 +98,8 @@ export default function Admin() {
             <Greeting subtitle="Admin control center" />
             <div className="rounded-2xl overflow-hidden border">
               <MapboxMap
-                vehicles={vehicles.filter((v) => v.status !== "offline" && v.current_lat != null)}
+                vehicles={vehicles.filter((v) => v.current_lat != null)}
+                userLocation={userLoc}
                 height="40vh"
               />
             </div>

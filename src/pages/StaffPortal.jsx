@@ -7,6 +7,7 @@ import MapboxMap from "@/components/MapboxMap";
 import ProfileInfo from "@/components/ProfileInfo";
 import StaffAlerts from "@/components/StaffAlerts";
 import LocationPinner from "@/components/staff/LocationPinner";
+import useUserLocation from "@/hooks/useUserLocation";
 import StaffToggles from "@/components/staff/StaffToggles";
 import Greeting from "@/components/Greeting";
 import { haversineKm, etaMinutes, formatEta } from "@/lib/geo";
@@ -60,7 +61,7 @@ export default function StaffPortal() {
   useEffect(() => {
     pickupRef.current = pickupName;
   }, [pickupName]);
-  const [showMap, setShowMap] = useState(false);
+  const { location: userLoc } = useUserLocation();
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -175,16 +176,11 @@ export default function StaffPortal() {
             <h2 className="text-lg font-semibold">Track pickups &amp; buses</h2>
             <p className="text-sm text-muted-foreground">{activeVehicles.length} vehicles live right now</p>
           </div>
-          <Button variant={showMap ? "default" : "outline"} size="sm" onClick={() => setShowMap(!showMap)}>
-            <MapIcon className="w-4 h-4" />{showMap ? "Hide map" : "Where are the buses?"}
-          </Button>
         </div>
 
-        {showMap && (
-          <div className="rounded-2xl overflow-hidden border h-[50vh]">
-            <MapboxMap vehicles={activeVehicles} />
-          </div>
-        )}
+        <div className="rounded-2xl overflow-hidden border h-[50vh]">
+          <MapboxMap vehicles={activeVehicles} userLocation={userLoc} />
+        </div>
 
         <div className="grid md:grid-cols-2 gap-4">
           <LocationPinner />

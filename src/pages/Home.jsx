@@ -13,7 +13,7 @@ import VehicleListItem from "@/components/VehicleListItem";
 import Greeting from "@/components/Greeting";
 import AdBanner from "@/components/AdBanner";
 import BusAssistant from "@/components/BusAssistant";
-import LocationPrompt from "@/components/LocationPrompt";
+import useUserLocation from "@/hooks/useUserLocation";
 import { haversineKm, etaMinutes, formatEta } from "@/lib/geo";
 import { Bus, Car, Clock, LogOut, Map as MapIcon } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -28,9 +28,7 @@ export default function Home() {
   const [routes, setRoutes] = useState([]);
   const [routeId, setRouteId] = useState("all");
   const [stopIdx, setStopIdx] = useState("nearest");
-  const [showMap, setShowMap] = useState(false);
-  const [userLoc, setUserLoc] = useState(null);
-  const [locError, setLocError] = useState("");
+  const { location: userLoc, error: locError } = useUserLocation();
 
   useEffect(() => {
     base44.entities.Company.list().then((cos) => {
@@ -108,7 +106,6 @@ export default function Home() {
     setVehicles([]);
     setRoutes([]);
     setRouteId("all");
-    setShowMap(false);
   };
 
   return (
@@ -122,10 +119,6 @@ export default function Home() {
             <p className="text-sm text-muted-foreground">{filtered.length} vehicles live right now</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Button variant={showMap ? "default" : "outline"} size="sm" onClick={() => setShowMap(!showMap)}>
-              <MapIcon className="w-4 h-4" />
-              {showMap ? "Hide map" : "Show live map"}
-            </Button>
             <RouteExplorer routes={routes} vehicles={activeVehicles} />
             <ShareLocationButton />
             <ContactOperator company={company} />
@@ -136,11 +129,9 @@ export default function Home() {
           </div>
         </div>
 
-        {showMap && (
-          <div className="rounded-2xl overflow-hidden border h-[55vh]">
-            <MapboxMap vehicles={filtered} stops={stops} userLocation={userLoc} height="100%" />
-          </div>
-        )}
+        <div className="rounded-2xl overflow-hidden border h-[55vh]">
+          <MapboxMap vehicles={filtered} stops={stops} userLocation={userLoc} height="100%" />
+        </div>
 
         <div className="grid sm:grid-cols-2 gap-2 max-w-md">
           <Select value={routeId} onValueChange={(v) => { setRouteId(v); setStopIdx("nearest"); }}>
@@ -165,14 +156,6 @@ export default function Home() {
           )}
         </div>
 
-        {!userLoc && (
-          <LocationPrompt
-            onLocation={(loc) => {
-              setUserLoc(loc);
-              setLocError("");
-            }}
-          />
-        )}
         {locError && <p className="text-xs text-muted-foreground">{locError}</p>}
 
         <div className="space-y-5 max-w-2xl">
