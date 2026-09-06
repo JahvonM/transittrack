@@ -40,6 +40,7 @@ export default function MapboxMap({
   interactive = true,
 }) {
   const mapRef = useRef(null);
+  const hasFitted = useRef(false);
   const [selectedVehicle, setSelectedVehicle] = useState(null);
 
   // Build the full point list for auto-fit bounds
@@ -53,17 +54,19 @@ export default function MapboxMap({
   ];
   if (userLocation) allPoints.push({ lng: userLocation.lng, lat: userLocation.lat, color: "#34d399", label: "You are here" });
 
+  // Fit to bounds only once on first load — re-fitting on every GPS tick causes jitter.
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || center) return;
+    if (!map || center || hasFitted.current) return;
     if (allPoints.length === 0) return;
     const bounds = allPoints.reduce(
       (b, p) => b.extend([p.lng, p.lat]),
       new mapboxgl.LngLatBounds([allPoints[0].lng, allPoints[0].lat], [allPoints[0].lng, allPoints[0].lat])
     );
     map.fitBounds(bounds, { padding: 60, maxZoom: 15, duration: 600 });
+    hasFitted.current = true;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allPoints.length, center, stops, userLocation, vehicles.length]);
+  }, [allPoints.length, center]);
 
   const initViewport = center
     ? { longitude: center[0], latitude: center[1], zoom: 14 }

@@ -30,7 +30,7 @@ export default function useUserLocation() {
             : "Couldn't get your location."
         );
       },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 5000 }
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
     );
     return () => navigator.geolocation.clearWatch(id);
   }, []);
