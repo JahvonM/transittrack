@@ -1,159 +1,37 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import AppLayout from "@/components/AppLayout";
-import BusMap from "@/components/BusMap";
-import DriverTrips from "@/components/DriverTrips";
-import ProfileInfo from "@/components/ProfileInfo";
-import Greeting from "@/components/Greeting";
+import PinGate from "@/components/driver/PinGate";
+import PreTripInspection from "@/components/driver/PreTripInspection";
+import DriverTrackingDashboard from "@/components/driver/DriverTrackingDashboard";
 import DriverMessages from "@/components/DriverMessages";
-import { AlertCircle, BellRing, Map as MapIcon, Navigation } from "lucide-react";
-import { useToast } from "@/components/ui/use-toast";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import Greeting from "@/components/Greeting";
+import ProfileInfo from "@/components/ProfileInfo";
+import { AlertCircle } from "lucide-react";
 
+// Flow: pin gate → inspection → tracking dashboard
 export default function DriverApp() {
   const { user } = useAuth();
   const [vehicle, setVehicle] = useState(null);
-  const [trips, setTrips] = useState([]);
-  const [sharing, setSharing] = useState(false);
-  const [showMap, setShowMap] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [notifying, setNotifying] = useState(false);
-  const { toast } = useToast();
-  const watchId = useRef(null);
-  const lastUpdate = useRef(0);
-  const vehicleRef = useRef(null);
-  const tripsRef = useRef([]);
-  const trailRef = useRef([]);
-
-  const load = async () => {
-    const vs = await base44.entities.Vehicle.filter({ driver_email: user.email });
-    const v = vs[0] || null;
-    vehicleRef.current = v;
-    setVehicle(v);
-    const ts = await base44.entities.Trip.filter({ driver_email: user.email });
-    const sorted = [...ts].sort((a, b) =>
-      (a.scheduled_time || "").localeCompare(b.scheduled_time || "")
-    );
-    tripsRef.current = sorted;
-    setTrips(sorted);
-    trailRef.current = v?.trail || [];
-    setLoading(false);
-  };
+  const [stage, setStage] = useState("pin"); // pin | inspection | tracking
 
   useEffect(() => {
-    load();
-    const unsub = base44.entities.Trip.subscribe((event) => {
-      setTrips((prev) => {
-        let next = prev;
-        if (event.type === "delete") {
-          next = prev.filter((t) => t.id !== event.id);
-        } else {
-          const rec = event.data;
-          if (rec && rec.driver_email === user.email) {
-            const idx = prev.findIndex((t) => t.id === event.id);
-            next = idx === -1 ? [...prev, rec] : prev.map((t) => (t.id === event.id ? rec : t));
-          }
-        }
-        next = [...next].sort((a, b) =>
-          (a.scheduled_time || "").localeCompare(b.scheduled_time || "")
-        );
-        tripsRef.current = next;
-        return next;
-      });
-    });
-    return () => {
-      unsub();
-      if (watchId.current != null) navigator.geolocation.clearWatch(watchId.current);
+    const load = async () => {
+      const vs = await base44.entities.Vehicle.filter({ driver_email: user.email });
+      const v = vs[0] || null;
+      setVehicle(v);
+      setLoading(false);
     };
+    load();
   }, []);
 
-  const updateLocation = async (lat, lng, speed) => {
-    const now = Date.now();
-    if (now - lastUpdate.current < 5000) return;
-    lastUpdate.current = now;
-    const v = vehicleRef.current;
-    if (!v) return;
-    const active = (tripsRef.current || []).some(
-      (t) => t.status === "on_the_way" || t.status === "arrived"
-    );
-    const status = active ? "on_trip" : "idle";
-    const nextTrail = [...trailRef.current, { lat, lng, t: new Date().toISOString() }].slice(-60);
-    trailRef.current = nextTrail;
-    await base44.entities.Vehicle.update(v.id, {
-      current_lat: lat,
-      current_lng: lng,
-      speed: speed || 0,
-      status,
-      last_location_update: new Date().toISOString(),
-      trail: nextTrail,
-    });
-    setVehicle((prev) =>
-      prev ? { ...prev, current_lat: lat, current_lng: lng, speed: speed || 0, status } : prev
-    );
-  };
-
-  const startSharing = () => {
-    if (!navigator.geolocation || !vehicleRef.current || watchId.current != null) return;
-    setSharing(true);
-    navigator.geolocation.getCurrentPosition((p) =>
-      updateLocation(p.coords.latitude, p.coords.longitude, p.coords.speed)
-    );
-    watchId.current = navigator.geolocation.watchPosition(
-      (p) => updateLocation(p.coords.latitude, p.coords.longitude, p.coords.speed),
-      (err) => console.error(err),
-      { enableHighAccuracy: true, maximumAge: 3000 }
-    );
-  };
-
-  const stopSharing = async () => {
-    setSharing(false);
-    if (watchId.current != null) {
-      navigator.geolocation.clearWatch(watchId.current);
-      watchId.current = null;
-    }
-    const v = vehicleRef.current;
-    if (v) {
-      await base44.entities.Vehicle.update(v.id, { status: "offline" });
-      setVehicle((prev) => (prev ? { ...prev, status: "offline" } : prev));
-    }
-  };
-
-  const notifyStaff = async () => {
-    if (!vehicle) return;
-    setNotifying(true);
-    try {
-      await base44.entities.Broadcast.create({
-        type: vehicle.type === "taxi" ? "taxi_arrived" : "bus_arrived",
-        message: `${vehicle.name} has arrived`,
-        vehicle_name: vehicle.name,
-        company_id: vehicle.company_id,
-        company_name: vehicle.company_name,
-        driver_name: user?.full_name || user?.email,
-        driver_email: user?.email,
-      });
-      toast({ title: "Staff notified", description: `${vehicle.name} arrival was sent to all staff.` });
-    } catch (e) {
-      toast({ title: "Couldn't notify staff", description: e.message, variant: "destructive" });
-    } finally {
-      setNotifying(false);
-    }
-  };
-
-  // Stop broadcasting automatically once no trip is running
-  useEffect(() => {
-    if (!sharing) return;
-    const active = trips.some((t) => t.status === "on_the_way" || t.status === "arrived");
-    if (!active && trips.length > 0) stopSharing();
-  }, [trips]);
-
   if (loading) return <AppLayout><p className="text-muted-foreground">Loading…</p></AppLayout>;
-  // Anyone with a vehicle assigned to their email can use the Driver App, even if
-  // their role label hasn't been set to "driver" yet.
-  if (user && user.role !== "driver" && user.role !== "admin" && !vehicle) return <Navigate to="/" replace />;
+
+  if (user && user.role !== "driver" && user.role !== "admin" && !vehicle)
+    return <Navigate to="/" replace />;
 
   if (!vehicle) {
     return (
@@ -168,57 +46,29 @@ export default function DriverApp() {
     );
   }
 
-  const hasLoc = vehicle.current_lat != null;
-
   return (
     <AppLayout title="Driver App">
       <div className="space-y-4 max-w-3xl">
         <DriverMessages />
         <Greeting subtitle={vehicle.name} />
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <CardTitle>{vehicle.name}</CardTitle>
-              <Badge variant={vehicle.status === "on_trip" ? "default" : "secondary"}>
-                {vehicle.status === "on_trip" ? "On trip" : vehicle.status === "idle" ? "Idle" : "Offline"}
-              </Badge>
-            </div>
-          </CardHeader>
-          <CardContent className="flex flex-wrap items-center justify-between gap-3">
-            <div className="text-sm text-muted-foreground">
-              {vehicle.company_name} · {vehicle.plate_number}
-              <div className="flex items-center gap-1.5 mt-1">
-                <span className={`w-2 h-2 rounded-full ${sharing ? "bg-green-500" : "bg-muted-foreground"}`} />
-                {sharing ? "Sharing live GPS location" : "Location sharing off"}
-              </div>
-            </div>
-            <div className="flex gap-2">
-              {sharing ? (
-                <Button variant="outline" size="sm" onClick={stopSharing}>Stop sharing</Button>
-              ) : (
-                <Button variant="outline" size="sm" onClick={startSharing}>
-                  <Navigation className="w-4 h-4" /> Share location
-                </Button>
-              )}
-              <Button variant={showMap ? "default" : "outline"} size="sm" onClick={() => setShowMap(!showMap)}>
-                <MapIcon className="w-4 h-4" />{showMap ? "Hide map" : "Map"}
-              </Button>
-              <Button variant="outline" size="sm" onClick={notifyStaff} disabled={notifying}>
-                <BellRing className="w-4 h-4" /> {notifying ? "Sending…" : "Notify staff"}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
 
-        {showMap && (
-          <div className="rounded-2xl overflow-hidden border h-[45vh]">
-            <BusMap vehicles={hasLoc ? [vehicle] : []} />
-          </div>
+        {stage === "pin" && (
+          <PinGate vehicle={vehicle} onUnlock={() => setStage("inspection")} />
         )}
 
-        <DriverTrips trips={trips} startSharing={startSharing} refresh={load} />
+        {stage === "inspection" && (
+          <PreTripInspection
+            vehicle={vehicle}
+            user={user}
+            onCompleted={() => setStage("tracking")}
+          />
+        )}
 
-        <ProfileInfo />
+        {stage === "tracking" && (
+          <DriverTrackingDashboard vehicle={vehicle} user={user} />
+        )}
+
+        {stage === "tracking" && <ProfileInfo />}
       </div>
     </AppLayout>
   );

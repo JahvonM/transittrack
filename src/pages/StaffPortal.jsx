@@ -3,9 +3,11 @@ import { Navigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import AppLayout from "@/components/AppLayout";
-import BusMap from "@/components/BusMap";
+import MapboxMap from "@/components/MapboxMap";
 import ProfileInfo from "@/components/ProfileInfo";
 import StaffAlerts from "@/components/StaffAlerts";
+import LocationPinner from "@/components/staff/LocationPinner";
+import StaffToggles from "@/components/staff/StaffToggles";
 import { haversineKm, etaMinutes, formatEta } from "@/lib/geo";
 import { STATUS_LABEL, STATUS_VARIANT } from "@/lib/trip";
 import { Bus, Clock, Map as MapIcon, User } from "lucide-react";
@@ -52,6 +54,7 @@ export default function StaffPortal() {
   const [routes, setRoutes] = useState([]);
   const [trips, setTrips] = useState([]);
   const [pickupName, setPickupName] = useState(() => localStorage.getItem("tt_staff_pickup") || "");
+  const [companyPhone, setCompanyPhone] = useState("");
 
   useEffect(() => {
     pickupRef.current = pickupName;
@@ -64,11 +67,16 @@ export default function StaffPortal() {
       base44.entities.Vehicle.list(),
       base44.entities.Route.list(),
       base44.entities.Trip.list(),
-    ]).then(([v, r, t]) => {
+    ]).then(async ([v, r, t]) => {
       setVehicles(v);
       setRoutes(r);
       setTrips(t);
       statusRef.current = Object.fromEntries(t.map((x) => [x.id, x.status]));
+      // Fetch company phone for WhatsApp opt-in
+      if (user?.company_id) {
+        const companies = await base44.entities.Company.filter({ id: user.company_id });
+        if (companies[0]) setCompanyPhone(companies[0].phone || "");
+      }
       setLoading(false);
     });
     const unsubVehicles = base44.entities.Vehicle.subscribe((event) => {
@@ -172,9 +180,14 @@ export default function StaffPortal() {
 
         {showMap && (
           <div className="rounded-2xl overflow-hidden border h-[50vh]">
-            <BusMap vehicles={activeVehicles} />
+            <MapboxMap vehicles={activeVehicles} />
           </div>
         )}
+
+        <div className="grid md:grid-cols-2 gap-4">
+          <LocationPinner />
+          <StaffToggles companyPhone={companyPhone} />
+        </div>
 
         <div>
           <p className="text-sm font-medium mb-1.5">Your pickup point</p>

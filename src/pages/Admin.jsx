@@ -15,15 +15,17 @@ import MessagingTab from "@/components/admin/MessagingTab";
 import AdsTab from "@/components/admin/AdsTab";
 import CompaniesTab from "@/components/admin/CompaniesTab";
 import UsersTab from "@/components/admin/UsersTab";
+import ServiceQueueTab from "@/components/admin/ServiceQueueTab";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Car, ExternalLink, Hotel, LayoutDashboard, MapPin } from "lucide-react";
+import { Car, ExternalLink, Hotel, LayoutDashboard, MapPin, Radar } from "lucide-react";
 
 const ROLE_LINKS = [
   { to: "/passenger", label: "Passenger view", icon: MapPin },
   { to: "/driver", label: "Driver app", icon: Car },
   { to: "/company", label: "Company dashboard", icon: LayoutDashboard },
   { to: "/staff", label: "Staff portal", icon: Hotel },
+  { to: "/manager", label: "Fleet manager", icon: Radar },
 ];
 
 function Stat({ label, value }) {
@@ -42,22 +44,25 @@ export default function Admin() {
   const [vehicles, setVehicles] = useState([]);
   const [routes, setRoutes] = useState([]);
   const [trips, setTrips] = useState([]);
+  const [inspections, setInspections] = useState([]);
   const [loading, setLoading] = useState(true);
   const [section, setSection] = useState("overview");
 
   const load = async () => {
-    const [u, c, v, r, t] = await Promise.all([
+    const [u, c, v, r, t, insp] = await Promise.all([
       base44.entities.User.list(),
       base44.entities.Company.list(),
       base44.entities.Vehicle.list(),
       base44.entities.Route.list(),
       base44.entities.Trip.list(),
+      base44.entities.Inspection.list(),
     ]);
     setUsers(u);
     setCompanies(c);
     setVehicles(v);
     setRoutes(r);
     setTrips(t);
+    setInspections(insp);
     setLoading(false);
   };
   useEffect(() => {
@@ -126,6 +131,9 @@ export default function Admin() {
         {section === "billing" && <CompletedTripsTab trips={trips} />}
         {section === "users" && (
           <UsersTab users={users} companies={companies} currentUser={user} onChange={load} />
+        )}
+        {section === "service" && (
+          <ServiceQueueTab inspections={inspections} onChange={load} />
         )}
         {section === "drivers" && (
           <DriversTab users={users} vehicles={vehicles} companies={companies} onChange={load} />

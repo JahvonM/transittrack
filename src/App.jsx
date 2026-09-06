@@ -20,6 +20,7 @@ import DriverApp from '@/pages/DriverApp';
 import Admin from '@/pages/Admin';
 import Account from '@/pages/Account';
 import StaffPortal from '@/pages/StaffPortal';
+import ManagerDashboard from '@/pages/ManagerDashboard';
 import OAuthConsent from '@/pages/OAuthConsent';
 // Add page imports here
 
@@ -63,6 +64,7 @@ const AuthenticatedApp = () => {
         <Route path="/admin" element={<Admin />} />
         <Route path="/account" element={<Account />} />
         <Route path="/staff" element={<StaffPortal />} />
+        <Route path="/manager" element={<ManagerDashboard />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>
