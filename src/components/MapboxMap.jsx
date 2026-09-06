@@ -16,20 +16,22 @@ export function statusColor(status) {
   return STATUS_COLORS[status] || "#38bdf8";
 }
 
+const VEHICLE_ICON = (type) =>
+  type === "taxi" ? "🚕" : "🚌";
+
 /**
  * Reusable Mapbox streets map.
  * props:
- *  - vehicles: [{ current_lat, current_lng, status, name, ... }]
- *  - trail: [{ lat, lng }] (optional) — draws a polyline
- *  - pins: [{ lat, lng, color, label }] (optional) — extra markers
+ *  - vehicles: [{ current_lat, current_lng, status, name, type, trail }]
+ *  - stops: [{ name, lat, lng }] (optional) — route stop markers
+ *  - userLocation: { lat, lng } (optional) — user position marker
  *  - center: [lng, lat] | null  (auto-fit if omitted)
- *  - follow: vehicle id to keep centered
  *  - className, height
  */
 export default function MapboxMap({
   vehicles = [],
-  trail = [],
-  pins = [],
+  stops = [],
+  userLocation = null,
   center = null,
   className = "",
   height = "50vh",
@@ -37,12 +39,16 @@ export default function MapboxMap({
 }) {
   const mapRef = useRef(null);
 
+  // Build the full point list for auto-fit bounds
   const allPoints = [
     ...vehicles
       .filter((v) => v.current_lat != null)
       .map((v) => ({ lng: v.current_lng, lat: v.current_lat, color: statusColor(v.status), label: v.name })),
-    ...pins.filter((p) => p.lat != null).map((p) => ({ lng: p.lng, lat: p.lat, color: p.color || "#34d399", label: p.label })),
+    ...(stops || [])
+      .filter((s) => s.lat != null)
+      .map((s) => ({ lng: s.lng, lat: s.lat, color: "#0ea5e9", label: s.name })),
   ];
+  if (userLocation) allPoints.push({ lng: userLocation.lng, lat: userLocation.lat, color: "#34d399", label: "You are here" });
 
   useEffect(() => {
     const map = mapRef.current;
@@ -53,14 +59,25 @@ export default function MapboxMap({
       new mapboxgl.LngLatBounds([allPoints[0].lng, allPoints[0].lat], [allPoints[0].lng, allPoints[0].lat])
     );
     map.fitBounds(bounds, { padding: 60, maxZoom: 15, duration: 600 });
-  }, [allPoints.length, center]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allPoints.length, center, stops, userLocation, vehicles.length]);
 
   const initViewport = center
     ? { longitude: center[0], latitude: center[1], zoom: 14 }
     : { longitude: -61.7, latitude: 12.05, zoom: 11 };
 
-  const trailCoords =
-    trail.length > 0 ? trail.map((t) => [t.lng, t.lat]) : [];
+  // Route polyline from stops (if any)
+  const routeCoords =
+    stops && stops.length > 1 ? stops.filter((s) => s.lat != null).map((s) => [s.lng, s.lat]) : [];
+
+  // Per-vehicle trails
+  const vehicleTrails = vehicles
+    .filter((v) => v.trail && v.trail.length > 1)
+    .map((v) => ({
+      id: `trail-${v.id}`,
+      coords: v.trail.filter((p) => p.lat != null && p.lng != null).map((p) => [p.lng, p.lat]),
+    }))
+    .filter((t) => t.coords.length > 1);
 
   return (
     <div className={`relative ${className}`} style={{ height }}>
@@ -73,25 +90,65 @@ export default function MapboxMap({
         interactive={interactive}
         attributionControl={false}
       >
-        {trailCoords.length > 1 && (
-          <Source id="trail" type="geojson" data={{ type: "Feature", geometry: { type: "LineString", coordinates: trailCoords } }}>
+        {/* Route stop polyline */}
+        {routeCoords.length > 1 && (
+          <Source id="route" type="geojson" data={{ type: "Feature", geometry: { type: "LineString", coordinates: routeCoords } }}>
             <Layer
-              id="trail-line"
+              id="route-line"
               type="line"
-              paint={{ "line-color": "#38bdf8", "line-width": 3, "line-opacity": 0.7 }}
+              paint={{ "line-color": "#0ea5e9", "line-width": 3, "line-opacity": 0.7, "line-dasharray": [2, 2] }}
             />
           </Source>
         )}
 
-        {allPoints.map((p, i) => (
-          <Marker key={i} longitude={p.lng} latitude={p.lat} anchor="bottom">
+        {/* Per-vehicle trails */}
+        {vehicleTrails.map((t) => (
+          <Source
+            key={t.id}
+            id={t.id}
+            type="geojson"
+            data={{ type: "Feature", geometry: { type: "LineString", coordinates: t.coords } }}
+          >
+            <Layer
+              id={`${t.id}-line`}
+              type="line"
+              paint={{ "line-color": "#38bdf8", "line-width": 3, "line-opacity": 0.55 }}
+            />
+          </Source>
+        ))}
+
+        {/* Route stop markers */}
+        {(stops || []).filter((s) => s.lat != null).map((s, i) => (
+          <Marker key={`stop-${i}`} longitude={s.lng} latitude={s.lat} anchor="center">
             <div
-              className="w-5 h-5 rounded-full border-2 border-white shadow-lg"
-              style={{ backgroundColor: p.color }}
-              title={p.label}
+              className="w-3.5 h-3.5 rounded-full border-2 border-white shadow"
+              style={{ backgroundColor: "#0ea5e9" }}
+              title={s.name}
             />
           </Marker>
         ))}
+
+        {/* Vehicle markers */}
+        {vehicles
+          .filter((v) => v.current_lat != null)
+          .map((v) => (
+            <Marker key={`v-${v.id}`} longitude={v.current_lng} latitude={v.current_lat} anchor="bottom">
+              <div
+                className="text-2xl leading-none"
+                style={{ filter: "drop-shadow(0 2px 3px rgba(0,0,0,.4))" }}
+                title={`${v.name} · ${v.company_name || ""} · ${v.status}`}
+              >
+                {VEHICLE_ICON(v.type)}
+              </div>
+            </Marker>
+          ))}
+
+        {/* User location marker */}
+        {userLocation && (
+          <Marker longitude={userLocation.lng} latitude={userLocation.lat} anchor="bottom">
+            <div className="text-2xl leading-none" title="You are here">📍</div>
+          </Marker>
+        )}
       </Map>
     </div>
   );

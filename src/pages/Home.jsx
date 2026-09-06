@@ -3,7 +3,7 @@ import { Navigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import AppLayout from "@/components/AppLayout";
-import BusMap from "@/components/BusMap";
+import MapboxMap from "@/components/MapboxMap";
 import CodeGate from "@/components/CodeGate";
 import ShareLocationButton from "@/components/ShareLocationButton";
 import RouteExplorer from "@/components/RouteExplorer";
@@ -145,7 +145,7 @@ export default function Home() {
 
         {showMap && (
           <div className="rounded-2xl overflow-hidden border h-[55vh]">
-            <BusMap vehicles={filtered} stops={stops} userLocation={userLoc} />
+            <MapboxMap vehicles={filtered} stops={stops} userLocation={userLoc} height="100%" />
           </div>
         )}
 
