@@ -93,16 +93,23 @@ export default async function (req) {
       /* no body */
     }
     const direction = payload.direction || 'both';
+    const vehicleEntity = payload.vehicleEntity || 'Buses';
+    const inspectionEntity = payload.inspectionEntity || 'Inspections';
     const admin = base44.asServiceRole;
-    const summary = { pulled: { vehicles: 0, inspections: 0 }, pushed: { vehicles: 0, inspections: 0 }, errors: [] };
+    const summary = {
+      pulled: { vehicles: 0, inspections: 0 },
+      pushed: { vehicles: 0, inspections: 0 },
+      errors: [],
+      endpoints: { vehicle: `${base}/entities/${vehicleEntity}`, inspection: `${base}/entities/${inspectionEntity}` },
+    };
 
     // Fetch remote once (used for both pull + push dedupe)
     const [remoteV, remoteI] = await Promise.all([
-      remoteList(base, apiKey, 'Vehicle'),
-      remoteList(base, apiKey, 'Inspection'),
+      remoteList(base, apiKey, vehicleEntity),
+      remoteList(base, apiKey, inspectionEntity),
     ]);
-    if (!remoteV.ok) summary.errors.push(`Vehicle remote: ${remoteV.detail || remoteV.status}`);
-    if (!remoteI.ok) summary.errors.push(`Inspection remote: ${remoteI.detail || remoteI.status}`);
+    if (!remoteV.ok) summary.errors.push(`Vehicle remote (${vehicleEntity}): ${remoteV.detail || remoteV.status}`);
+    if (!remoteI.ok) summary.errors.push(`Inspection remote (${inspectionEntity}): ${remoteI.detail || remoteI.status}`);
 
     // ---- PULL: maintenance -> TransitTrack ----
     if (direction !== 'push') {
@@ -144,7 +151,7 @@ export default async function (req) {
         const localV = await admin.entities.Vehicle.list('-updated_date', 5000);
         for (const lv of localV) {
           if (!lv.plate_number || remotePlates.has(lv.plate_number)) continue;
-          const r = await remoteCreate(base, apiKey, 'Vehicle', mapVehicle(lv));
+          const r = await remoteCreate(base, apiKey, vehicleEntity, mapVehicle(lv));
           if (r.ok) summary.pushed.vehicles++;
           else summary.errors.push(`Push vehicle ${lv.plate_number}: ${r.status}`);
         }
@@ -157,7 +164,7 @@ export default async function (req) {
         for (const li of localI) {
           const k = (li.vehicle_name || '') + '|' + (li.date || '');
           if (!li.date || remoteKeys.has(k)) continue;
-          const r = await remoteCreate(base, apiKey, 'Inspection', mapInspection(li));
+          const r = await remoteCreate(base, apiKey, inspectionEntity, mapInspection(li));
           if (r.ok) summary.pushed.inspections++;
           else summary.errors.push(`Push inspection ${k}: ${r.status}`);
         }

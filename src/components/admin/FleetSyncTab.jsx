@@ -3,6 +3,8 @@ import { base44 } from "@/api/base44Client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { ArrowLeftRight, ArrowDownToLine, ArrowUpFromLine, RefreshCw, CheckCircle2, AlertTriangle } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 
@@ -10,11 +12,13 @@ export default function FleetSyncTab() {
   const { toast } = useToast();
   const [syncing, setSyncing] = useState(false);
   const [result, setResult] = useState(null);
+  const [vehicleEntity, setVehicleEntity] = useState("Buses");
+  const [inspectionEntity, setInspectionEntity] = useState("Inspections");
 
   const runSync = async (direction) => {
     setSyncing(true);
     try {
-      const res = await base44.functions.invoke("syncFleet", { direction });
+      const res = await base44.functions.invoke("syncFleet", { direction, vehicleEntity, inspectionEntity });
       setResult(res.data);
       toast({ title: "Sync complete", description: "Fleet data synchronized with the maintenance app." });
     } catch (e) {
@@ -37,6 +41,16 @@ export default function FleetSyncTab() {
             maintenance pilot app. Records are matched by plate number and vehicle + date;
             the newest version wins.
           </p>
+          <div className="grid sm:grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Maintenance vehicle table</Label>
+              <Input value={vehicleEntity} onChange={(e) => setVehicleEntity(e.target.value)} placeholder="e.g. Buses" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Maintenance inspection table</Label>
+              <Input value={inspectionEntity} onChange={(e) => setInspectionEntity(e.target.value)} placeholder="e.g. Inspections" />
+            </div>
+          </div>
           <div className="flex flex-wrap gap-2">
             <Button onClick={() => runSync("both")} disabled={syncing}>
               <ArrowLeftRight className="w-4 h-4" /> {syncing ? "Syncing…" : "Sync both ways"}
