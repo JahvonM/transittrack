@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
-import Map, { Marker, Source, Layer, Popup, GeolocateControl, NavigationControl } from "react-map-gl";
+import Map, { Marker, Source, Layer, Popup, NavigationControl } from "react-map-gl";
 import { MAPBOX_TOKEN, MAPBOX_STYLE } from "@/lib/mapbox";
 import { Bus, LocateFixed, Maximize2, Minimize2, Satellite, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -43,27 +43,11 @@ export default function MapboxMap({
 }) {
   const mapRef = useRef(null);
   const hasFitted = useRef(false);
-  const geoRef = useRef(null);
   const [selectedVehicle, setSelectedVehicle] = useState(null);
-  // Live coordinates from the native GeolocateControl — more accurate than the
-  // manual hook and keeps BusDistance/ETA synced with the on-screen blue dot.
-  const [liveLocation, setLiveLocation] = useState(null);
   const [isSatellite, setIsSatellite] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const onGeolocate = (e) => {
-    if (e?.coords) {
-      setLiveLocation({ lat: e.coords.latitude, lng: e.coords.longitude });
-    }
-  };
 
-  // Single source of truth for the user's position — prefers the accurate
-  // native control fix, falls back to the hook's coordinates.
-  const currentUserLocation = liveLocation || userLocation;
-
-  // Trigger geolocation once the map has fully loaded — the control ref isn't ready on mount
-  const handleMapLoad = () => {
-    if (geoRef.current) geoRef.current.trigger();
-  };
+  const currentUserLocation = userLocation;
 
   // Build the full point list for auto-fit bounds
   const allPoints = [
@@ -133,7 +117,6 @@ export default function MapboxMap({
         style={{ width: "100%", height: "100%" }}
         interactive={interactive}
         attributionControl={false}
-        onLoad={handleMapLoad}
       >
         {/* Route stop polyline */}
         {routeCoords.length > 1 && (
@@ -195,17 +178,15 @@ export default function MapboxMap({
 
         {/* (selected vehicle panel rendered as overlay below to keep the map visible) */}
 
-        {/* Native high-accuracy geolocation: blue dot + accuracy halo + tracking.
-            Single source of truth — no custom marker, so the dot always aligns
-            with the map's own geolocation and stays centered during zoom. */}
-        <GeolocateControl
-          ref={geoRef}
-          positionOptions={{ enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }}
-          trackUserLocation
-          showUserLocation
-          showAccuracyCircle
-          onGeolocate={onGeolocate}
-        />
+        {/* User location — pulsing blue dot from the geolocation hook */}
+        {currentUserLocation && (
+          <Marker key="user-loc" longitude={currentUserLocation.lng} latitude={currentUserLocation.lat} anchor="center">
+            <div className="relative">
+              <div className="w-4 h-4 rounded-full bg-blue-500 border-2 border-white shadow-lg" />
+              <div className="absolute inset-0 w-4 h-4 rounded-full bg-blue-500 animate-ping opacity-40" />
+            </div>
+          </Marker>
+        )}
 
         {/* Compass + zoom controls (compass re-orients north) */}
         <NavigationControl position="bottom-right" showCompass visualizePitch />
@@ -258,7 +239,7 @@ export default function MapboxMap({
                   <div className="font-medium truncate">{selectedVehicle.driver_name || "—"}</div>
                 </div>
               </div>
-              <BusDistance vehicle={selectedVehicle} userLocation={liveLocation || userLocation} />
+              <BusDistance vehicle={selectedVehicle} userLocation={currentUserLocation} />
             </div>
           </div>
         </div>
