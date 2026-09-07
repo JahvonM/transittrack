@@ -19,7 +19,7 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
   const [showOtp, setShowOtp] = useState(false);
   const [otpCode, setOtpCode] = useState("");
-  const [role, setRole] = useState("passenger");
+  const [role, setRole] = useState("staff");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -46,7 +46,7 @@ export default function Register() {
       const result = await base44.auth.verifyOtp({ email, otpCode });
       if (result?.access_token) {
         base44.auth.setToken(result.access_token);
-        if (role && role !== "passenger") {
+        if (role) {
           try {
             await base44.functions.invoke("applyUserRole", { role });
           } catch (e) {
@@ -228,7 +228,6 @@ export default function Register() {
           <Label>I am a…</Label>
           <div className="grid grid-cols-2 gap-2">
             {[
-              { value: "passenger", label: "Passenger" },
               { value: "driver", label: "Driver" },
               { value: "staff", label: "Hotel staff" },
               { value: "company", label: "Company operator" },

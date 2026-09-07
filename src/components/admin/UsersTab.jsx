@@ -15,7 +15,7 @@ import { Trash2, UserPlus, Users } from "lucide-react";
 
 export default function UsersTab({ users, companies, currentUser, onChange }) {
   const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState("passenger");
+  const [inviteRole, setInviteRole] = useState("staff");
   const [inviting, setInviting] = useState(false);
 
   const setRole = async (u, role) => {
@@ -62,7 +62,6 @@ export default function UsersTab({ users, companies, currentUser, onChange }) {
           <Select value={inviteRole} onValueChange={setInviteRole}>
             <SelectTrigger className="w-[130px] h-8"><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="passenger">Passenger</SelectItem>
               <SelectItem value="company">Company</SelectItem>
               <SelectItem value="driver">Driver</SelectItem>
               <SelectItem value="staff">Hotel staff</SelectItem>
@@ -83,7 +82,6 @@ export default function UsersTab({ users, companies, currentUser, onChange }) {
             <Select value={u.role} onValueChange={(r) => setRole(u, r)}>
               <SelectTrigger className="w-[130px] h-8"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="passenger">Passenger</SelectItem>
                 <SelectItem value="company">Company</SelectItem>
                 <SelectItem value="driver">Driver</SelectItem>
                 <SelectItem value="staff">Hotel staff</SelectItem>

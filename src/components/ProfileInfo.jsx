@@ -9,7 +9,6 @@ import { Image } from "@/components/ui/image";
 import { Building2, Camera, Check, Loader2, Mail, Pencil, Phone } from "lucide-react";
 
 const ROLE_LABEL = {
-  passenger: "Passenger",
   driver: "Driver",
   staff: "Hotel staff",
   company: "Company operator",

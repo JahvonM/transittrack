@@ -1,6 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 
-const ALLOWED_ROLES = ["passenger", "driver", "staff", "company"];
+const ALLOWED_ROLES = ["driver", "staff", "company"];
 
 export default async function applyUserRole(req) {
   try {
