@@ -56,6 +56,10 @@ export default function MapboxMap({
     }
   };
 
+  // Single source of truth for the user's position — prefers the accurate
+  // native control fix, falls back to the hook's coordinates.
+  const currentUserLocation = liveLocation || userLocation;
+
   // Trigger geolocation once the map has fully loaded — the control ref isn't ready on mount
   const handleMapLoad = () => {
     if (geoRef.current) geoRef.current.trigger();
@@ -70,16 +74,13 @@ export default function MapboxMap({
       .filter((s) => s.lat != null)
       .map((s) => ({ lng: s.lng, lat: s.lat, color: "#0ea5e9", label: s.name })),
   ];
-  if (userLocation) allPoints.push({ lng: userLocation.lng, lat: userLocation.lat, color: "#34d399", label: "You are here" });
+  if (currentUserLocation) allPoints.push({ lng: currentUserLocation.lng, lat: currentUserLocation.lat, color: "#34d399", label: "You are here" });
 
   // Re-fit the map to all visible points (vehicles, stops, user).
   const fitToBounds = () => {
     const map = mapRef.current;
     if (!map) return;
-    const pts = [
-      ...allPoints,
-      ...(liveLocation ? [{ lng: liveLocation.lng, lat: liveLocation.lat }] : []),
-    ];
+    const pts = [...allPoints];
     if (pts.length === 0) return;
     const bounds = pts.reduce(
       (b, p) => b.extend([p.lng, p.lat]),
@@ -100,7 +101,7 @@ export default function MapboxMap({
   const recenter = () => {
     const map = mapRef.current;
     if (!map) return;
-    const loc = liveLocation || userLocation;
+    const loc = currentUserLocation;
     if (!loc) return;
     map.flyTo({ center: [loc.lng, loc.lat], zoom: Math.max(map.getZoom(), 15), duration: 800 });
   };
@@ -195,10 +196,10 @@ export default function MapboxMap({
         {/* (selected vehicle panel rendered as overlay below to keep the map visible) */}
 
         {/* Visible user location dot — always shows even before native control triggers */}
-        {(liveLocation || userLocation) && (
+        {currentUserLocation && (
           <Marker
-            longitude={(liveLocation || userLocation).lng}
-            latitude={(liveLocation || userLocation).lat}
+            longitude={currentUserLocation.lng}
+            latitude={currentUserLocation.lat}
             anchor="center"
           >
             <div className="relative flex items-center justify-center">
