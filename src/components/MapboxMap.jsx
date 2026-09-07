@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import mapboxgl from "mapbox-gl";
 import Map, { Marker, Source, Layer, Popup, NavigationControl } from "react-map-gl";
 import { MAPBOX_TOKEN, MAPBOX_STYLE } from "@/lib/mapbox";
@@ -120,8 +121,8 @@ export default function MapboxMap({
     }))
     .filter((t) => t.coords.length > 1);
 
-  return (
-    <div className={`relative ${className} ${isFullscreen ? "fixed inset-0 z-50" : ""}`} style={{ height: isFullscreen ? "100vh" : height }}>
+  const mapContent = (
+    <>
       <Map
         ref={mapRef}
         mapboxAccessToken={MAPBOX_TOKEN}
@@ -314,6 +315,22 @@ export default function MapboxMap({
       >
         <LocateFixed className="w-5 h-5 text-primary" />
       </button>
+    </>
+  );
+
+  // Fullscreen renders via portal at body level to escape parent overflow/transform clipping
+  if (isFullscreen) {
+    return createPortal(
+      <div className="fixed inset-0 z-50 bg-background" style={{ height: "100vh" }}>
+        {mapContent}
+      </div>,
+      document.body
+    );
+  }
+
+  return (
+    <div className={`relative ${className}`} style={{ height }}>
+      {mapContent}
     </div>
   );
 }
