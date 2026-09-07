@@ -207,21 +207,9 @@ export default function MapboxMap({
 
         {/* (selected vehicle panel rendered as overlay below to keep the map visible) */}
 
-        {/* Visible user location dot — always shows even before native control triggers */}
-        {currentUserLocation && (
-          <Marker
-            longitude={currentUserLocation.lng}
-            latitude={currentUserLocation.lat}
-            anchor="center"
-          >
-            <div className="relative flex items-center justify-center">
-              <div className="absolute h-8 w-8 rounded-full bg-primary/30 animate-ping" />
-              <div className="relative h-4 w-4 rounded-full bg-primary border-2 border-white shadow-lg" />
-            </div>
-          </Marker>
-        )}
-
-        {/* Native high-accuracy geolocation: blue dot + accuracy halo + tracking */}
+        {/* Native high-accuracy geolocation: blue dot + accuracy halo + tracking.
+            Single source of truth — no custom marker, so the dot always aligns
+            with the map's own geolocation and stays centered during zoom. */}
         <GeolocateControl
           ref={geoRef}
           positionOptions={{ enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }}
