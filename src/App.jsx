@@ -33,6 +33,14 @@ import StaffDirectory from '@/pages/StaffDirectory';
 import VehicleLogs from '@/pages/VehicleLogs';
 import ServiceHistory from '@/pages/ServiceHistory';
 import SafetyStandards from '@/pages/SafetyStandards';
+import RideHistory from '@/pages/RideHistory';
+import FleetAnalytics from '@/pages/FleetAnalytics';
+import Notifications from '@/pages/Notifications';
+import VehicleRegistry from '@/pages/VehicleRegistry';
+import DriverSchedule from '@/pages/DriverSchedule';
+import IncidentReport from '@/pages/IncidentReport';
+import PassengerSupport from '@/pages/PassengerSupport';
+import RoutePlanner from '@/pages/RoutePlanner';
 // Add page imports here
 
 const AuthenticatedApp = () => {
@@ -87,6 +95,14 @@ const AuthenticatedApp = () => {
         <Route path="/vehicle-logs" element={<VehicleLogs />} />
         <Route path="/service-history" element={<ServiceHistory />} />
         <Route path="/safety-standards" element={<SafetyStandards />} />
+        <Route path="/ride-history" element={<RideHistory />} />
+        <Route path="/fleet-analytics" element={<FleetAnalytics />} />
+        <Route path="/notifications" element={<Notifications />} />
+        <Route path="/vehicle-registry" element={<VehicleRegistry />} />
+        <Route path="/driver-schedule" element={<DriverSchedule />} />
+        <Route path="/incident-report" element={<IncidentReport />} />
+        <Route path="/support" element={<PassengerSupport />} />
+        <Route path="/route-planner" element={<RoutePlanner />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>
