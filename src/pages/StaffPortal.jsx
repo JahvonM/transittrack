@@ -68,9 +68,9 @@ export default function StaffPortal() {
 
   useEffect(() => {
     Promise.all([
-      base44.entities.Vehicle.list(),
-      base44.entities.Route.list(),
-      base44.entities.Trip.list(),
+      base44.entities.Vehicle.list("-created_date", 1000),
+      base44.entities.Route.list("-created_date", 1000),
+      base44.entities.Trip.list("-created_date", 1000),
     ]).then(async ([v, r, t]) => {
       setVehicles(v);
       setRoutes(r);
