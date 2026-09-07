@@ -43,6 +43,7 @@ export default function MapboxMap({
 }) {
   const mapRef = useRef(null);
   const hasFitted = useRef(false);
+  const hasUserCentered = useRef(false);
   const geoRef = useRef(null);
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   // Live coordinates from the native GeolocateControl — more accurate than the
@@ -96,6 +97,17 @@ export default function MapboxMap({
     hasFitted.current = true;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allPoints.length, center]);
+
+  // Once the user's position is known, fly to it so the map isn't stuck on
+  // the default/vehicle view — runs only the first time a fix arrives.
+  useEffect(() => {
+    if (!currentUserLocation || hasUserCentered.current) return;
+    const map = mapRef.current;
+    if (!map) return;
+    hasUserCentered.current = true;
+    map.flyTo({ center: [currentUserLocation.lng, currentUserLocation.lat], zoom: 15, duration: 800 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUserLocation]);
 
   // Recenter on the user's live location.
   const recenter = () => {
