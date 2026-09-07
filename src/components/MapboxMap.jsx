@@ -47,6 +47,7 @@ export default function MapboxMap({
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [isSatellite, setIsSatellite] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [mapLoaded, setMapLoaded] = useState(false);
 
   const currentUserLocation = userLocation;
 
@@ -76,21 +77,22 @@ export default function MapboxMap({
 
   // Fit to bounds only once on first load — re-fitting on every GPS tick causes jitter.
   useEffect(() => {
-    if (center || hasFitted.current || allPoints.length === 0) return;
+    if (!mapLoaded || center || hasFitted.current || hasUserCentered.current) return;
+    if (allPoints.length === 0) return;
     fitToBounds();
     hasFitted.current = true;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allPoints.length, center]);
+  }, [mapLoaded, allPoints.length, center]);
 
   // Once the user's position is known, fly to it so the map centers on them.
   useEffect(() => {
-    if (!currentUserLocation || hasUserCentered.current) return;
+    if (!mapLoaded || !currentUserLocation || hasUserCentered.current) return;
     const map = mapRef.current;
     if (!map) return;
     hasUserCentered.current = true;
     map.flyTo({ center: [currentUserLocation.lng, currentUserLocation.lat], zoom: 15, duration: 800 });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentUserLocation]);
+  }, [mapLoaded, currentUserLocation]);
 
   // Recenter on the user's live location.
   const recenter = () => {
@@ -128,6 +130,7 @@ export default function MapboxMap({
         style={{ width: "100%", height: "100%" }}
         interactive={interactive}
         attributionControl={false}
+        onLoad={() => setMapLoaded(true)}
       >
         {/* Route stop polyline */}
         {routeCoords.length > 1 && (
