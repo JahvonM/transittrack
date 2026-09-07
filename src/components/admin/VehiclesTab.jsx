@@ -22,6 +22,7 @@ const empty = {
   company_id: "",
   driver_email: "",
   driver_name: "",
+  driver_pin: "",
   route_id: "",
 };
 
@@ -43,6 +44,7 @@ export default function VehiclesTab({ vehicles, companies, routes, onChange }) {
         capacity: Number(form.capacity) || 0,
         driver_email: form.driver_email,
         driver_name: form.driver_name,
+        driver_pin: form.driver_pin || null,
         route_id: form.route_id || null,
         company_id: form.company_id,
         company_name: company?.name || "",
@@ -67,6 +69,7 @@ export default function VehiclesTab({ vehicles, companies, routes, onChange }) {
       plate_number: v.plate_number || "",
       driver_name: v.driver_name || "",
       driver_email: v.driver_email || "",
+      driver_pin: v.driver_pin || "",
       company_id: v.company_id || "",
       route_id: v.route_id || "",
     });
@@ -79,6 +82,7 @@ export default function VehiclesTab({ vehicles, companies, routes, onChange }) {
       plate_number: edit.plate_number,
       driver_name: edit.driver_name,
       driver_email: edit.driver_email,
+      driver_pin: edit.driver_pin || null,
       company_id: edit.company_id || null,
       company_name: company?.name || "",
       route_id: edit.route_id || null,
@@ -108,6 +112,7 @@ export default function VehiclesTab({ vehicles, companies, routes, onChange }) {
                   <Input value={edit.driver_name} onChange={(e) => setEdit({ ...edit, driver_name: e.target.value })} placeholder="Driver name" />
                   <Input value={edit.driver_email} onChange={(e) => setEdit({ ...edit, driver_email: e.target.value })} placeholder="Driver email" />
                 </div>
+                <Input inputMode="numeric" maxLength={4} value={edit.driver_pin} onChange={(e) => setEdit({ ...edit, driver_pin: e.target.value.replace(/\D/g, "") })} placeholder="Driver PIN (4 digits)" />
                 <Select value={edit.company_id} onValueChange={(c) => setEdit({ ...edit, company_id: c })}>
                   <SelectTrigger><SelectValue placeholder="Company" /></SelectTrigger>
                   <SelectContent>
@@ -198,6 +203,10 @@ export default function VehiclesTab({ vehicles, companies, routes, onChange }) {
           <div className="space-y-1.5">
             <Label>Driver email (their login)</Label>
             <Input type="email" value={form.driver_email} onChange={(e) => setForm({ ...form, driver_email: e.target.value })} placeholder="driver@example.com" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Driver PIN (4 digits)</Label>
+            <Input inputMode="numeric" maxLength={4} value={form.driver_pin} onChange={(e) => setForm({ ...form, driver_pin: e.target.value.replace(/\D/g, "") })} placeholder="1234" />
           </div>
           <Button className="w-full" onClick={add} disabled={adding || !form.name || !form.company_id}>
             {adding ? "Adding…" : "Add vehicle"}

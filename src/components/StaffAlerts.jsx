@@ -34,7 +34,11 @@ export default function StaffAlerts() {
     return unsub;
   }, []);
 
-  if (alerts.length === 0) return null;
+  // Auto-expire alerts after 1 hour
+  const oneHourAgo = Date.now() - 60 * 60 * 1000;
+  const recent = alerts.filter((a) => new Date(a.created_date).getTime() > oneHourAgo);
+
+  if (recent.length === 0) return null;
 
   return (
     <div>
@@ -42,7 +46,7 @@ export default function StaffAlerts() {
         <BellRing className="w-4 h-4" /> Staff alerts
       </h3>
       <div className="space-y-2">
-        {alerts.map((a) => (
+        {recent.map((a) => (
           <div key={a.id} className="flex items-center gap-3 p-3 rounded-xl border bg-card">
             <div className="w-9 h-9 rounded-lg bg-emerald-500/15 text-emerald-400 grid place-items-center shrink-0">
               {a.type === "taxi_arrived" ? <Car className="w-4 h-4" /> : <Bus className="w-4 h-4" />}

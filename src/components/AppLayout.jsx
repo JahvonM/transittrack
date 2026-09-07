@@ -9,13 +9,14 @@ export default function AppLayout({ children, title }) {
   const { user, logout } = useAuth();
   const { pathname } = useLocation();
   const isHome = pathname === "/";
+  const hideBack = isHome || ["/admin", "/staff", "/driver"].includes(pathname);
 
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-40 border-b border-slate-700/50 bg-background/80 backdrop-blur-[12px]">
         <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-1">
-            {!isHome && (
+            {!hideBack && (
               <Button asChild variant="ghost" size="icon" className="text-slate-300 hover:text-slate-50">
                 <Link to="/" aria-label="Back to home">
                   <ArrowLeft className="w-5 h-5" />

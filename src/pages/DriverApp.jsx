@@ -18,6 +18,10 @@ export default function DriverApp() {
   const [loading, setLoading] = useState(true);
   const [stage, setStage] = useState("pin"); // pin | inspection | tracking
 
+  // Only require pre-trip inspection in the morning (4 AM – 11 AM) using system time
+  const hour = new Date().getHours();
+  const isMorning = hour >= 4 && hour < 11;
+
   useEffect(() => {
     const load = async () => {
       const vs = await base44.entities.Vehicle.filter({ driver_email: user.email });
@@ -53,7 +57,7 @@ export default function DriverApp() {
         <Greeting subtitle={vehicle.name} />
 
         {stage === "pin" && (
-          <PinGate vehicle={vehicle} onUnlock={() => setStage("inspection")} />
+          <PinGate vehicle={vehicle} onUnlock={() => setStage(isMorning ? "inspection" : "tracking")} />
         )}
 
         {stage === "inspection" && (

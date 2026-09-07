@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
 import Map, { Marker, Source, Layer, Popup, GeolocateControl, NavigationControl } from "react-map-gl";
 import { MAPBOX_TOKEN, MAPBOX_STYLE } from "@/lib/mapbox";
-import { Bus, LocateFixed } from "lucide-react";
+import { Bus, LocateFixed, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Image } from "@/components/ui/image";
 import BusDistance from "@/components/BusDistance";
@@ -43,6 +43,7 @@ export default function MapboxMap({
 }) {
   const mapRef = useRef(null);
   const hasFitted = useRef(false);
+  const geoRef = useRef(null);
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   // Live coordinates from the native GeolocateControl — more accurate than the
   // manual hook and keeps BusDistance/ETA synced with the on-screen blue dot.
@@ -52,6 +53,11 @@ export default function MapboxMap({
       setLiveLocation({ lat: e.coords.latitude, lng: e.coords.longitude });
     }
   };
+
+  // Auto-trigger geolocation on mount so the blue dot appears without a manual click
+  useEffect(() => {
+    if (geoRef.current) geoRef.current.trigger();
+  }, []);
 
   // Build the full point list for auto-fit bounds
   const allPoints = [
@@ -183,60 +189,11 @@ export default function MapboxMap({
             </Marker>
           ))}
 
-        {/* Selected vehicle details */}
-        {selectedVehicle && (
-          <Popup
-            longitude={selectedVehicle.current_lng}
-            latitude={selectedVehicle.current_lat}
-            anchor="bottom"
-            closeButton
-            closeOnClick={false}
-            maxWidth="300px"
-            onClose={() => { setSelectedVehicle(null); fitToBounds(); }}
-          >
-            <div className="w-[240px] -my-2 -mx-2 overflow-hidden rounded-lg">
-              {selectedVehicle.image_url ? (
-                <Image
-                  src={selectedVehicle.image_url}
-                  alt={selectedVehicle.name}
-                  fittingType="fill"
-                  className="w-full h-24"
-                />
-              ) : (
-                <div className="w-full h-24 grid place-items-center bg-gradient-to-br from-primary/80 to-primary/30">
-                  <Bus className="w-10 h-10 text-white" />
-                </div>
-              )}
-              <div className="p-3 space-y-2">
-                <div>
-                  <div className="font-semibold text-sm leading-tight">{selectedVehicle.name}</div>
-                  <div className="text-xs text-muted-foreground">{selectedVehicle.company_name || ""}</div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant="secondary" className="text-[10px] gap-1">
-                    <span className="inline-block w-1.5 h-1.5 rounded-full" style={{ backgroundColor: statusColor(selectedVehicle.status) }} />
-                    {selectedVehicle.status}
-                  </Badge>
-                  <span className="text-[10px] text-muted-foreground">{VEHICLE_ICON(selectedVehicle.type)} {selectedVehicle.type}</span>
-                </div>
-                <div className="grid grid-cols-2 gap-1.5 text-[11px]">
-                  <div>
-                    <div className="text-muted-foreground">Plate</div>
-                    <div className="font-medium">{selectedVehicle.plate_number || "—"}</div>
-                  </div>
-                  <div>
-                    <div className="text-muted-foreground">Driver</div>
-                    <div className="font-medium truncate">{selectedVehicle.driver_name || "—"}</div>
-                  </div>
-                </div>
-                <BusDistance vehicle={selectedVehicle} userLocation={liveLocation || userLocation} />
-              </div>
-            </div>
-          </Popup>
-        )}
+        {/* (selected vehicle panel rendered as overlay below to keep the map visible) */}
 
         {/* Native high-accuracy geolocation: blue dot + accuracy halo + tracking */}
         <GeolocateControl
+          ref={geoRef}
           positionOptions={{ enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }}
           trackUserLocation
           showUserLocation
@@ -247,6 +204,59 @@ export default function MapboxMap({
         {/* Compass + zoom controls (compass re-orients north) */}
         <NavigationControl position="bottom-right" showCompass visualizePitch />
       </Map>
+
+      {/* Selected vehicle details — floating panel keeps the map fully visible & interactive */}
+      {selectedVehicle && (
+        <div className="absolute left-1/2 -translate-x-1/2 bottom-16 z-20 w-[280px] max-w-[92%]">
+          <div className="rounded-2xl border border-border bg-card/95 backdrop-blur-md shadow-2xl overflow-hidden">
+            <div className="relative">
+              {selectedVehicle.image_url ? (
+                <Image
+                  src={selectedVehicle.image_url}
+                  alt={selectedVehicle.name}
+                  fittingType="fill"
+                  className="w-full h-20"
+                />
+              ) : (
+                <div className="w-full h-20 grid place-items-center bg-gradient-to-br from-primary/70 to-primary/20">
+                  <Bus className="w-9 h-9 text-white" />
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={() => setSelectedVehicle(null)}
+                className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/40 hover:bg-black/60 grid place-items-center text-white transition-colors"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+            <div className="p-3 space-y-2">
+              <div>
+                <div className="font-semibold text-sm leading-tight">{selectedVehicle.name}</div>
+                <div className="text-xs text-muted-foreground">{selectedVehicle.company_name || ""}</div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Badge variant="secondary" className="text-[10px] gap-1">
+                  <span className="inline-block w-1.5 h-1.5 rounded-full" style={{ backgroundColor: statusColor(selectedVehicle.status) }} />
+                  {selectedVehicle.status}
+                </Badge>
+                <span className="text-[10px] text-muted-foreground">{VEHICLE_ICON(selectedVehicle.type)} {selectedVehicle.type}</span>
+              </div>
+              <div className="grid grid-cols-2 gap-1.5 text-[11px]">
+                <div>
+                  <div className="text-muted-foreground">Plate</div>
+                  <div className="font-medium">{selectedVehicle.plate_number || "—"}</div>
+                </div>
+                <div>
+                  <div className="text-muted-foreground">Driver</div>
+                  <div className="font-medium truncate">{selectedVehicle.driver_name || "—"}</div>
+                </div>
+              </div>
+              <BusDistance vehicle={selectedVehicle} userLocation={liveLocation || userLocation} />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Recenter on my location */}
       <button

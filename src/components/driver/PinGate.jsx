@@ -13,9 +13,7 @@ export default function PinGate({ vehicle, onUnlock }) {
 
   const submit = () => {
     if (!vehicle?.driver_pin) {
-      // No PIN set on vehicle — allow through with a notice
-      toast({ title: "No PIN set on this vehicle", description: "Access granted — set a PIN for security." });
-      onUnlock();
+      setError("No PIN has been set for this vehicle. Contact your administrator.");
       return;
     }
     if (pin === vehicle.driver_pin) {
