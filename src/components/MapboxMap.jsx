@@ -56,10 +56,10 @@ export default function MapboxMap({
     }
   };
 
-  // Auto-trigger geolocation on mount so the blue dot appears without a manual click
-  useEffect(() => {
+  // Trigger geolocation once the map has fully loaded — the control ref isn't ready on mount
+  const handleMapLoad = () => {
     if (geoRef.current) geoRef.current.trigger();
-  }, []);
+  };
 
   // Build the full point list for auto-fit bounds
   const allPoints = [
@@ -132,6 +132,7 @@ export default function MapboxMap({
         style={{ width: "100%", height: "100%" }}
         interactive={interactive}
         attributionControl={false}
+        onLoad={handleMapLoad}
       >
         {/* Route stop polyline */}
         {routeCoords.length > 1 && (
@@ -192,6 +193,20 @@ export default function MapboxMap({
           ))}
 
         {/* (selected vehicle panel rendered as overlay below to keep the map visible) */}
+
+        {/* Visible user location dot — always shows even before native control triggers */}
+        {(liveLocation || userLocation) && (
+          <Marker
+            longitude={(liveLocation || userLocation).lng}
+            latitude={(liveLocation || userLocation).lat}
+            anchor="center"
+          >
+            <div className="relative flex items-center justify-center">
+              <div className="absolute h-8 w-8 rounded-full bg-primary/30 animate-ping" />
+              <div className="relative h-4 w-4 rounded-full bg-primary border-2 border-white shadow-lg" />
+            </div>
+          </Marker>
+        )}
 
         {/* Native high-accuracy geolocation: blue dot + accuracy halo + tracking */}
         <GeolocateControl
