@@ -43,6 +43,7 @@ export default function MapboxMap({
 }) {
   const mapRef = useRef(null);
   const hasFitted = useRef(false);
+  const hasUserCentered = useRef(false);
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [isSatellite, setIsSatellite] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -80,6 +81,16 @@ export default function MapboxMap({
     hasFitted.current = true;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allPoints.length, center]);
+
+  // Once the user's position is known, fly to it so the map centers on them.
+  useEffect(() => {
+    if (!currentUserLocation || hasUserCentered.current) return;
+    const map = mapRef.current;
+    if (!map) return;
+    hasUserCentered.current = true;
+    map.flyTo({ center: [currentUserLocation.lng, currentUserLocation.lat], zoom: 15, duration: 800 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUserLocation]);
 
   // Recenter on the user's live location.
   const recenter = () => {
