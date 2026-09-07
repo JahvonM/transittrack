@@ -16,17 +16,10 @@ import {
   LayoutDashboard,
   LogIn,
   LogOut,
-  MapPin,
   ShieldCheck,
 } from "lucide-react";
 
 const ROLES = {
-  passenger: {
-    to: "/passenger",
-    title: "Passenger",
-    icon: MapPin,
-    blurb: "Live buses, arrival times and the route explorer.",
-  },
   driver: {
     to: "/driver",
     title: "Driver",
@@ -70,7 +63,7 @@ export default function Welcome() {
   const { user, isAuthenticated, logout } = useAuth();
   const navigate = useNavigate();
   const [preview, setPreview] = useState({});
-  const role = user?.role || "passenger";
+  const role = user?.role || "staff";
 
   useEffect(() => {
     if (!isAuthenticated) return undefined;
@@ -90,7 +83,7 @@ export default function Welcome() {
 
   useEffect(() => {
     if (!isAuthenticated || !user) return;
-    const dest = ROLES[role]?.to || "/passenger";
+    const dest = ROLES[role]?.to || "/staff";
     navigate(dest, { replace: true });
   }, [isAuthenticated, user, role, navigate]);
 
