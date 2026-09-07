@@ -4,6 +4,7 @@ import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import AppLayout from "@/components/AppLayout";
 import MapboxMap from "@/components/MapboxMap";
+import CodeGate from "@/components/CodeGate";
 import ProfileInfo from "@/components/ProfileInfo";
 import StaffAlerts from "@/components/StaffAlerts";
 import LocationPinner from "@/components/staff/LocationPinner";
@@ -14,7 +15,7 @@ import ShareLocationButton from "@/components/ShareLocationButton";
 import Greeting from "@/components/Greeting";
 import { haversineKm, etaMinutes, formatEta } from "@/lib/geo";
 import { STATUS_LABEL, STATUS_VARIANT } from "@/lib/trip";
-import { Bus, Clock, Map as MapIcon, User } from "lucide-react";
+import { Bus, Clock, LogOut, Map as MapIcon, User } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -54,6 +55,8 @@ export default function StaffPortal() {
   const { toast } = useToast();
   const pickupRef = useRef("");
   const statusRef = useRef({});
+  const [company, setCompany] = useState(null);
+  const [companiesLoaded, setCompaniesLoaded] = useState(false);
   const [vehicles, setVehicles] = useState([]);
   const [routes, setRoutes] = useState([]);
   const [trips, setTrips] = useState([]);
@@ -66,28 +69,36 @@ export default function StaffPortal() {
   const { location: userLoc } = useUserLocation();
   const [loading, setLoading] = useState(true);
 
+  // Load saved company code
   useEffect(() => {
+    base44.entities.Company.list().then((cos) => {
+      const saved = localStorage.getItem("tt_company_code");
+      const match = saved ? cos.find((c) => (c.access_code || "").toUpperCase() === saved.toUpperCase()) : null;
+      if (match) setCompany(match);
+      if (match) setCompanyPhone(match.phone || "");
+      setCompaniesLoaded(true);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!company) return;
+    setLoading(true);
     Promise.all([
-      base44.entities.Vehicle.list("-created_date", 1000),
-      base44.entities.Route.list("-created_date", 1000),
-      base44.entities.Trip.list("-created_date", 1000),
-    ]).then(async ([v, r, t]) => {
+      base44.entities.Vehicle.filter({ company_id: company.id }),
+      base44.entities.Route.filter({ company_id: company.id }),
+      base44.entities.Trip.filter({ company_id: company.id }),
+    ]).then(([v, r, t]) => {
       setVehicles(v);
       setRoutes(r);
       setTrips(t);
       statusRef.current = Object.fromEntries(t.map((x) => [x.id, x.status]));
-      // Fetch company phone for WhatsApp opt-in
-      if (user?.company_id) {
-        const companies = await base44.entities.Company.filter({ id: user.company_id });
-        if (companies[0]) setCompanyPhone(companies[0].phone || "");
-      }
       setLoading(false);
     });
     const unsubVehicles = base44.entities.Vehicle.subscribe((event) => {
       setVehicles((prev) => {
         if (event.type === "delete") return prev.filter((x) => x.id !== event.id);
         const rec = event.data;
-        if (!rec) return prev;
+        if (!rec || rec.company_id !== company.id) return prev;
         const idx = prev.findIndex((x) => x.id === event.id);
         return idx === -1 ? [...prev, rec] : prev.map((x) => (x.id === event.id ? rec : x));
       });
@@ -99,7 +110,7 @@ export default function StaffPortal() {
         return;
       }
       const rec = event.data;
-      if (!rec) return;
+      if (!rec || rec.company_id !== company.id) return;
       const prevStatus = statusRef.current[rec.id];
       if (
         (rec.status === "arrived" || rec.status === "completed") &&
@@ -121,7 +132,16 @@ export default function StaffPortal() {
       unsubVehicles();
       unsubTrips();
     };
-  }, []);
+  }, [company]);
+
+  const switchCompany = () => {
+    localStorage.removeItem("tt_company_code");
+    setCompany(null);
+    setCompanyPhone("");
+    setVehicles([]);
+    setRoutes([]);
+    setTrips([]);
+  };
 
   const pickupOptions = useMemo(() => {
     const seen = new Set();
@@ -168,18 +188,32 @@ export default function StaffPortal() {
 
   if (user?.role === "driver") return <Navigate to="/driver" replace />;
   if (user?.role === "company") return <Navigate to="/company" replace />;
+  if (!companiesLoaded) return <AppLayout />;
+  if (!company) {
+    return (
+      <AppLayout>
+        <CodeGate onUnlock={(c) => { setCompany(c); setCompanyPhone(c.phone || ""); }} />
+      </AppLayout>
+    );
+  }
   if (loading) return <AppLayout><p className="text-muted-foreground">Loading…</p></AppLayout>;
 
   return (
     <AppLayout title="Transit Portal">
       <div className="space-y-4 max-w-3xl">
-        <Greeting subtitle="Staff portal" />
+        <Greeting subtitle={company.name} />
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h2 className="text-lg font-semibold">Track pickups &amp; buses</h2>
             <p className="text-sm text-muted-foreground">{activeVehicles.length} vehicles live right now</p>
           </div>
-          <ShareLocationButton />
+          <div className="flex items-center gap-2">
+            <ShareLocationButton />
+            <Button variant="ghost" size="sm" onClick={switchCompany}>
+              <LogOut className="w-4 h-4" />
+              Switch company
+            </Button>
+          </div>
         </div>
 
         <div className="rounded-2xl overflow-hidden border h-[50vh]">

@@ -12,7 +12,6 @@ import Login from '@/pages/Login';
 import Register from '@/pages/Register';
 import ForgotPassword from '@/pages/ForgotPassword';
 import ResetPassword from '@/pages/ResetPassword';
-import Home from '@/pages/Home';
 import Welcome from '@/pages/Welcome';
 import BookTaxi from '@/pages/BookTaxi';
 import CompanyDashboard from '@/pages/CompanyDashboard';
