@@ -78,7 +78,10 @@ export default function DriversTab({ users, vehicles, companies, routes, onChang
                       {v.type === "taxi" ? <Car className="w-4 h-4" /> : <Bus className="w-4 h-4" />}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium truncate">{v.name}</div>
+                      <div className="flex items-center gap-2">
+                        <div className="text-sm font-medium truncate">{v.name}</div>
+                        {v.driver_pin && <Badge variant="outline" className="text-[10px] shrink-0">PIN: {v.driver_pin}</Badge>}
+                      </div>
                       <div className="text-xs text-muted-foreground truncate">
                         {v.plate_number} · {v.company_name}
                       </div>

@@ -136,7 +136,7 @@ export default function VehiclesTab({ vehicles, companies, routes, onChange }) {
                     {v.name} <span className="text-xs text-muted-foreground font-normal">· {v.plate_number}</span>
                   </div>
                   <div className="text-xs text-muted-foreground truncate">
-                    {v.company_name} · Driver: {v.driver_name || v.driver_email || "Unassigned"}
+                    {v.company_name} · Driver: {v.driver_name || v.driver_email || "Unassigned"} · PIN: {v.driver_pin || "—"}
                   </div>
                 </div>
                 <Badge variant={v.status === "on_trip" ? "default" : v.status === "idle" ? "secondary" : "outline"}>

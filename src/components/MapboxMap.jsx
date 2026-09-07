@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
 import Map, { Marker, Source, Layer, Popup, GeolocateControl, NavigationControl } from "react-map-gl";
 import { MAPBOX_TOKEN, MAPBOX_STYLE } from "@/lib/mapbox";
-import { Bus, LocateFixed, X } from "lucide-react";
+import { Bus, LocateFixed, Maximize2, Minimize2, Satellite, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Image } from "@/components/ui/image";
 import BusDistance from "@/components/BusDistance";
@@ -48,6 +48,8 @@ export default function MapboxMap({
   // Live coordinates from the native GeolocateControl — more accurate than the
   // manual hook and keeps BusDistance/ETA synced with the on-screen blue dot.
   const [liveLocation, setLiveLocation] = useState(null);
+  const [isSatellite, setIsSatellite] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const onGeolocate = (e) => {
     if (e?.coords) {
       setLiveLocation({ lat: e.coords.latitude, lng: e.coords.longitude });
@@ -121,11 +123,11 @@ export default function MapboxMap({
     .filter((t) => t.coords.length > 1);
 
   return (
-    <div className={`relative ${className}`} style={{ height }}>
+    <div className={`relative ${className} ${isFullscreen ? "fixed inset-0 z-50" : ""}`} style={{ height: isFullscreen ? "100vh" : height }}>
       <Map
         ref={mapRef}
         mapboxAccessToken={MAPBOX_TOKEN}
-        mapStyle={MAPBOX_STYLE}
+        mapStyle={isSatellite ? "mapbox://styles/mapbox/satellite-streets-v12" : MAPBOX_STYLE}
         initialViewState={initViewport}
         style={{ width: "100%", height: "100%" }}
         interactive={interactive}
@@ -257,6 +259,26 @@ export default function MapboxMap({
           </div>
         </div>
       )}
+
+      {/* Satellite / street view toggle */}
+      <button
+        type="button"
+        onClick={() => setIsSatellite((s) => !s)}
+        className={`absolute left-3 bottom-16 z-10 w-10 h-10 rounded-full border shadow-md grid place-items-center transition-colors ${isSatellite ? "bg-primary text-primary-foreground border-primary" : "bg-background/90 border-border hover:bg-accent"}`}
+        title={isSatellite ? "Switch to street view" : "Switch to satellite view"}
+      >
+        <Satellite className="w-5 h-5" />
+      </button>
+
+      {/* Fullscreen toggle */}
+      <button
+        type="button"
+        onClick={() => setIsFullscreen((f) => !f)}
+        className="absolute right-3 top-3 z-10 w-10 h-10 rounded-full bg-background/90 border border-border shadow-md grid place-items-center hover:bg-accent transition-colors"
+        title={isFullscreen ? "Exit fullscreen" : "Open fullscreen"}
+      >
+        {isFullscreen ? <Minimize2 className="w-5 h-5 text-primary" /> : <Maximize2 className="w-5 h-5 text-primary" />}
+      </button>
 
       {/* Recenter on my location */}
       <button

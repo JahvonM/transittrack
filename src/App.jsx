@@ -77,7 +77,7 @@ const AuthenticatedApp = () => {
       <Route path="/book-taxi" element={<BookTaxi />} />
       <Route path="/oauth/consent" element={<OAuthConsent />} />
       <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login" replace />} />}>
-        <Route path="/passenger" element={<Home />} />
+        <Route path="/passenger" element={<Navigate to="/staff" replace />} />
         <Route path="/company" element={<CompanyDashboard />} />
         <Route path="/driver" element={<DriverApp />} />
         <Route path="/admin" element={<Admin />} />

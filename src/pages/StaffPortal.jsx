@@ -9,6 +9,8 @@ import StaffAlerts from "@/components/StaffAlerts";
 import LocationPinner from "@/components/staff/LocationPinner";
 import useUserLocation from "@/hooks/useUserLocation";
 import StaffToggles from "@/components/staff/StaffToggles";
+import LostItemReport from "@/components/staff/LostItemReport";
+import ShareLocationButton from "@/components/ShareLocationButton";
 import Greeting from "@/components/Greeting";
 import { haversineKm, etaMinutes, formatEta } from "@/lib/geo";
 import { STATUS_LABEL, STATUS_VARIANT } from "@/lib/trip";
@@ -164,11 +166,12 @@ export default function StaffPortal() {
     [trips, pickupName]
   );
 
-  if (user && user.role !== "staff" && user.role !== "admin") return <Navigate to="/" replace />;
+  if (user?.role === "driver") return <Navigate to="/driver" replace />;
+  if (user?.role === "company") return <Navigate to="/company" replace />;
   if (loading) return <AppLayout><p className="text-muted-foreground">Loading…</p></AppLayout>;
 
   return (
-    <AppLayout title="Staff Portal">
+    <AppLayout title="Transit Portal">
       <div className="space-y-4 max-w-3xl">
         <Greeting subtitle="Staff portal" />
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -176,6 +179,7 @@ export default function StaffPortal() {
             <h2 className="text-lg font-semibold">Track pickups &amp; buses</h2>
             <p className="text-sm text-muted-foreground">{activeVehicles.length} vehicles live right now</p>
           </div>
+          <ShareLocationButton />
         </div>
 
         <div className="rounded-2xl overflow-hidden border h-[50vh]">
@@ -310,6 +314,8 @@ export default function StaffPortal() {
         )}
 
         <StaffAlerts />
+
+        <LostItemReport />
 
         <ProfileInfo />
       </div>
