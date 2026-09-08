@@ -94,6 +94,26 @@ export default function BusEntryKiosk() {
   const hour = now.getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
 
+  // Auto-unlock when a tablet opens its dedicated URL (?code=)
+  useEffect(() => {
+    if (bus) return;
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get("code");
+    if (!code) return;
+    (async () => {
+      try {
+        const list = await base44.entities.Vehicle.list();
+        const match = list.find((v) => (v.entry_code || "").toUpperCase() === code.toUpperCase());
+        if (match) {
+          localStorage.setItem("tt_kiosk_bus", JSON.stringify(match));
+          setBus(match);
+        }
+      } catch {
+        /* ignore — fall back to manual code entry */
+      }
+    })();
+  }, [bus]);
+
   const unlockBus = async (e) => {
     e.preventDefault();
     const value = busCode.trim().toUpperCase();

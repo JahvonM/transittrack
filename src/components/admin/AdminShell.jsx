@@ -14,6 +14,7 @@ import {
   Sparkles,
   User,
   Users,
+  Smartphone,
   Database,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -24,6 +25,7 @@ export const ADMIN_SECTIONS = [
   { id: "trips", label: "Trips", icon: CalendarPlus },
   { id: "fleet", label: "Live fleet", icon: MapPin },
   { id: "vehicles", label: "Vehicles", icon: Bus },
+  { id: "kiosks", label: "Kiosk tablets", icon: Smartphone },
   { id: "billing", label: "Completed & billing", icon: Building2 },
   { id: "users", label: "Users & roles", icon: Users },
   { id: "service", label: "Service Queue", icon: Wrench },
