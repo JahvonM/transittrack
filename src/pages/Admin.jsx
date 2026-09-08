@@ -25,7 +25,19 @@ import FloatingChatbot from "@/components/admin/FloatingChatbot";
 import useUserLocation from "@/hooks/useUserLocation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Car, ExternalLink, Hotel, LayoutDashboard, MapPin, Radar } from "lucide-react";
+import {
+  Car,
+  CreditCard,
+  DoorOpen,
+  ExternalLink,
+  FlaskConical,
+  Hotel,
+  LayoutDashboard,
+  MapPin,
+  Radar,
+  Smartphone,
+  Link2,
+} from "lucide-react";
 
 const ROLE_LINKS = [
   { to: "/passenger", label: "Passenger view", icon: MapPin },
@@ -33,6 +45,14 @@ const ROLE_LINKS = [
   { to: "/company", label: "Company dashboard", icon: LayoutDashboard },
   { to: "/staff", label: "Staff portal", icon: Hotel },
   { to: "/manager", label: "Fleet manager", icon: Radar },
+];
+
+const PORTAL_LINKS = [
+  { to: "/badge-registry", label: "Badge Registry", icon: CreditCard },
+  { to: "/kiosk/bus", label: "Bus Entry Kiosk", icon: Smartphone },
+  { to: "/kiosk/driver", label: "Driver Kiosk", icon: Car },
+  { to: "/kiosk/front-desk", label: "Front Desk Kiosk", icon: DoorOpen },
+  { to: "/reviewer-sandbox", label: "Reviewer Sandbox", icon: FlaskConical },
 ];
 
 function Stat({ label, value }) {
@@ -144,9 +164,31 @@ export default function Admin() {
                       </Button>
                     );
                   })}
-                </div>
-              </CardContent>
-            </Card>
+                  </div>
+                  </CardContent>
+                  </Card>
+                  <Card>
+                  <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-base">
+                  <Link2 className="w-4 h-4" /> Portals & kiosks
+                  </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                  <div className="flex flex-wrap gap-2">
+                  {PORTAL_LINKS.map((r) => {
+                    const Icon = r.icon;
+                    return (
+                      <Button asChild key={r.to} variant="outline" size="sm">
+                        <Link to={r.to}>
+                          <Icon className="w-4 h-4 mr-1.5" />
+                          {r.label}
+                        </Link>
+                      </Button>
+                    );
+                  })}
+                  </div>
+                  </CardContent>
+                  </Card>
           </div>
         )}
 

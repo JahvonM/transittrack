@@ -44,6 +44,7 @@ import BusEntryKiosk from '@/pages/BusEntryKiosk';
 import DriverKiosk from '@/pages/DriverKiosk';
 import FrontDeskKiosk from '@/pages/FrontDeskKiosk';
 import ReviewerSandbox from '@/pages/ReviewerSandbox';
+import BadgeRegistry from '@/pages/BadgeRegistry';
 // Add page imports here
 
 const AuthenticatedApp = () => {
@@ -110,6 +111,7 @@ const AuthenticatedApp = () => {
         <Route path="/kiosk/driver" element={<DriverKiosk />} />
         <Route path="/kiosk/front-desk" element={<FrontDeskKiosk />} />
         <Route path="/reviewer-sandbox" element={<ReviewerSandbox />} />
+        <Route path="/badge-registry" element={<BadgeRegistry />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>
