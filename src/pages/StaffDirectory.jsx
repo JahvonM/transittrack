@@ -14,8 +14,10 @@ import {
   MapPin,
 } from "lucide-react";
 import ContactFormDialog from "@/components/directory/ContactFormDialog";
+import { useAuth } from "@/lib/AuthContext";
 
 export default function StaffDirectory() {
+  const { user } = useAuth();
   const [contacts, setContacts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all");
@@ -45,8 +47,13 @@ export default function StaffDirectory() {
   };
 
   const save = async (data) => {
-    if (editing) await base44.entities.Contact.update(editing.id, data);
-    else await base44.entities.Contact.create(data);
+    const payload = {
+      ...data,
+      company_id: data.company_id || user?.company_id,
+      company_name: data.company_name || user?.company_name,
+    };
+    if (editing) await base44.entities.Contact.update(editing.id, payload);
+    else await base44.entities.Contact.create(payload);
     setDialogOpen(false);
     load();
   };

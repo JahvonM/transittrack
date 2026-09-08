@@ -41,12 +41,59 @@ export default function DriverTrackingDashboard({ vehicle, user }) {
   // Load staff for this company
   useEffect(() => {
     const loadStaff = async () => {
-      const users = await base44.entities.User.list();
-      const companyStaff = users.filter(
-        (u) => u.role === "staff" && u.company_id === vehicle.company_id
+      // Pull each staff member's assigned pickup point from the Contact directory
+      // (where staff/passengers are assigned a pickup GPS), falling back to the
+      // pickup location they pinned themselves in their personal staff app.
+      const [users, contacts] = await Promise.all([
+        base44.entities.User.list(),
+        base44.entities.Contact.filter({ type: "staff" }),
+      ]);
+      const userByEmail = new Map(
+        users
+          .filter((u) => u.role === "staff" && u.company_id === vehicle.company_id)
+          .map((u) => [(u.email || "").toLowerCase(), u])
       );
-      staffRef.current = companyStaff;
-      setStaff(companyStaff);
+      const companyContacts = contacts.filter(
+        (c) => c.company_id === vehicle.company_id
+      );
+      const contactEmails = new Set(
+        companyContacts.map((c) => (c.email || "").toLowerCase())
+      );
+      // Staff who pinned a pickup in their personal app but have no directory contact
+      const orphanUsers = [...userByEmail.values()].filter(
+        (u) => !contactEmails.has((u.email || "").toLowerCase())
+      );
+      const merged = [
+        ...companyContacts.map((c) => {
+          const u = userByEmail.get((c.email || "").toLowerCase()) || {};
+          return {
+            id: c.id,
+            full_name: c.name || u.full_name,
+            email: c.email || u.email,
+            phone: c.phone || u.phone,
+            home_lat: c.pickup_lat != null ? c.pickup_lat : u.home_lat,
+            home_lng: c.pickup_lng != null ? c.pickup_lng : u.home_lng,
+            pickup_name: c.pickup_name,
+            dropoff_name: c.dropoff_name,
+            nfc_card_tag: c.nfc_card_tag,
+            skip_pickup_today: u.skip_pickup_today || false,
+          };
+        }),
+        ...orphanUsers.map((u) => ({
+          id: u.id,
+          full_name: u.full_name,
+          email: u.email,
+          phone: u.phone,
+          home_lat: u.home_lat,
+          home_lng: u.home_lng,
+          pickup_name: undefined,
+          dropoff_name: undefined,
+          nfc_card_tag: undefined,
+          skip_pickup_today: u.skip_pickup_today || false,
+        })),
+      ];
+      staffRef.current = merged;
+      setStaff(merged);
     };
     loadStaff();
     const unsub = base44.entities.Vehicle.subscribe((event) => {
