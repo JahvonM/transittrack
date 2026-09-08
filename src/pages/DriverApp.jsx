@@ -6,6 +6,7 @@ import AppLayout from "@/components/AppLayout";
 import PinGate from "@/components/driver/PinGate";
 import PreTripInspection from "@/components/driver/PreTripInspection";
 import DriverTrackingDashboard from "@/components/driver/DriverTrackingDashboard";
+import DriverNavMap from "@/components/driver/DriverNavMap";
 import DriverMessages from "@/components/DriverMessages";
 import Greeting from "@/components/Greeting";
 import ProfileInfo from "@/components/ProfileInfo";
@@ -70,13 +71,17 @@ export default function DriverApp() {
 
         {stage === "tracking" && (
           <Tabs defaultValue="track" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="track">Track</TabsTrigger>
+              <TabsTrigger value="navigate">Navigate</TabsTrigger>
               <TabsTrigger value="messages">Messages</TabsTrigger>
               <TabsTrigger value="profile">Profile</TabsTrigger>
             </TabsList>
             <TabsContent value="track" className="mt-4 space-y-4">
               <DriverTrackingDashboard vehicle={vehicle} user={user} />
+            </TabsContent>
+            <TabsContent value="navigate" className="mt-4">
+              <DriverNavMap vehicle={vehicle} />
             </TabsContent>
             <TabsContent value="messages" className="mt-4">
               <DriverMessages vehicle={vehicle} />

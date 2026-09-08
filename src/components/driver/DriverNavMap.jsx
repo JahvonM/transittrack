@@ -1,16 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Map, { Marker, Source, Layer } from "react-map-gl";
-import { MAPBOX_TOKEN } from "@/lib/mapbox";
-import { useAuth } from "@/lib/AuthContext";
+import { MAPBOX_TOKEN, GPS_INTERVAL_MS } from "@/lib/mapbox";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import OfflineStatusBadge from "@/components/OfflineStatusBadge";
 import { useOfflineSync } from "@/hooks/useOfflineSync";
-import { Bus, Navigation, MapPin, Loader2, AlertCircle, LocateFixed, Satellite } from "lucide-react";
+import { Bus, Navigation, MapPin, LocateFixed, Satellite } from "lucide-react";
 
-const TRACK_INTERVAL_MS = 30000;
-
-// Hide commercial POI icons/labels from the streets style for a clean driver view.
+// Hide commercial POI / transit / road labels for a clean driver view.
 function hidePoiLayers(map) {
   const style = map.getStyle();
   if (!style || !style.layers) return;
@@ -26,57 +23,45 @@ function hidePoiLayers(map) {
   });
 }
 
-export default function DriverKiosk() {
-  const { user } = useAuth();
+/**
+ * Fullscreen-style navigation map (merged from the old Driver Kiosk).
+ * Keeps the Mapbox streets style, POI hiding, trail, next-stop, recenter,
+ * GPS status badge, offline badge, and turn-by-turn hand-off.
+ */
+export default function DriverNavMap({ vehicle }) {
   const { online, pendingCount } = useOfflineSync();
-  const [vehicle, setVehicle] = useState(null);
   const [route, setRoute] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [pos, setPos] = useState(null);
+  const [pos, setPos] = useState(
+    vehicle?.current_lat != null ? { lat: vehicle.current_lat, lng: vehicle.current_lng } : null
+  );
+  const [liveVehicle, setLiveVehicle] = useState(vehicle);
   const watchId = useRef(null);
   const lastPush = useRef(0);
   const mapRef = useRef(null);
 
-  // Load the driver's assigned vehicle + route
   useEffect(() => {
     let cancelled = false;
     async function load() {
-      if (!user?.email) return;
-      try {
-        const vehicles = await base44.entities.Vehicle.filter({ driver_email: user.email });
-        if (cancelled) return;
-        const v = vehicles[0];
-        if (!v) {
-          setError("No vehicle is assigned to your account.");
-          setLoading(false);
-          return;
+      if (vehicle?.route_id) {
+        try {
+          const r = await base44.entities.Route.get(vehicle.route_id);
+          if (!cancelled) setRoute(r);
+        } catch {
+          /* route may be missing */
         }
-        setVehicle(v);
-        if (v.route_id) {
-          try {
-            const r = await base44.entities.Route.get(v.route_id);
-            if (!cancelled) setRoute(r);
-          } catch {
-            /* route may be missing */
-          }
-        }
-        if (v.current_lat != null) {
-          setPos({ lat: v.current_lat, lng: v.current_lng });
-        }
-      } catch {
-        if (!cancelled) setError("Couldn't load your vehicle.");
-      } finally {
-        if (!cancelled) setLoading(false);
       }
     }
     load();
+    const unsub = base44.entities.Vehicle.subscribe((event) => {
+      if (event.data?.id === vehicle?.id) setLiveVehicle(event.data);
+    });
     return () => {
       cancelled = true;
+      unsub();
     };
-  }, [user?.email]);
+  }, [vehicle?.id, vehicle?.route_id]);
 
-  // High-accuracy tracking loop — pushes coordinates every 30s.
+  // High-accuracy tracking — local marker moves instantly, DB writes throttled.
   const pushLocation = useCallback(
     async (lat, lng) => {
       if (!vehicle?.id) return;
@@ -88,7 +73,7 @@ export default function DriverKiosk() {
           status: "on_trip",
         });
       } catch {
-        /* offline — the offline queue isn't needed for updates (idempotent retry on next tick) */
+        /* offline — idempotent retry on next tick */
       }
     },
     [vehicle?.id]
@@ -98,16 +83,16 @@ export default function DriverKiosk() {
     if (!vehicle?.id || !navigator.geolocation) return;
     watchId.current = navigator.geolocation.watchPosition(
       (p) => {
-        if (p.coords.accuracy > 500) return; // ignore junk fixes
+        if (p.coords.accuracy != null && p.coords.accuracy > 100) return;
         setPos({ lat: p.coords.latitude, lng: p.coords.longitude, accuracy: p.coords.accuracy });
         const now = Date.now();
-        if (now - lastPush.current >= TRACK_INTERVAL_MS) {
+        if (now - lastPush.current >= GPS_INTERVAL_MS) {
           lastPush.current = now;
           pushLocation(p.coords.latitude, p.coords.longitude);
         }
       },
       () => {},
-      { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 }
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
     );
     return () => {
       if (watchId.current != null) navigator.geolocation.clearWatch(watchId.current);
@@ -126,25 +111,6 @@ export default function DriverKiosk() {
     ? `https://www.google.com/maps?q=${pos.lat},${pos.lng}`
     : "#";
 
-  if (loading) {
-    return (
-      <div className="min-h-screen grid place-items-center bg-background">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  if (error || !vehicle) {
-    return (
-      <div className="min-h-screen grid place-items-center bg-background p-6">
-        <div className="text-center max-w-sm">
-          <AlertCircle className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
-          <p className="text-sm text-muted-foreground">{error || "No vehicle assigned."}</p>
-        </div>
-      </div>
-    );
-  }
-
   const gpsStatus = !pos
     ? "searching"
     : pos.accuracy != null && pos.accuracy <= 50
@@ -157,9 +123,11 @@ export default function DriverKiosk() {
     map.flyTo({ center: [pos.lng, pos.lat], zoom: Math.max(map.getZoom(), 15), duration: 800 });
   };
 
+  const trail = liveVehicle?.trail || vehicle?.trail || [];
+
   return (
-    <div className="h-screen bg-background flex flex-col">
-      <header className="h-12 border-b border-border flex items-center justify-between px-4">
+    <div className="space-y-3">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="flex items-center gap-2 font-heading font-semibold text-sm">
           <Bus className="w-4 h-4 text-primary" />
           {vehicle.name}
@@ -179,8 +147,9 @@ export default function DriverKiosk() {
           </span>
           <OfflineStatusBadge online={online} pendingCount={pendingCount} />
         </div>
-      </header>
-      <div className="relative flex-1">
+      </div>
+
+      <div className="relative rounded-2xl overflow-hidden border h-[72vh]">
         <Map
           ref={mapRef}
           mapboxAccessToken={MAPBOX_TOKEN}
@@ -194,7 +163,7 @@ export default function DriverKiosk() {
           attributionControl={false}
           onLoad={(e) => hidePoiLayers(e.target)}
         >
-          {vehicle?.trail?.length > 1 && (
+          {trail.length > 1 && (
             <Source
               id="driver-trail"
               type="geojson"
@@ -202,7 +171,7 @@ export default function DriverKiosk() {
                 type: "Feature",
                 geometry: {
                   type: "LineString",
-                  coordinates: vehicle.trail
+                  coordinates: trail
                     .filter((p) => p.lat != null && p.lng != null)
                     .map((p) => [p.lng, p.lat]),
                 },
