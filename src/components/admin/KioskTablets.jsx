@@ -3,15 +3,6 @@ import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,7 +21,6 @@ import {
   DoorOpen,
   Bus,
   Check,
-  Plus,
   Trash2,
 } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
@@ -42,11 +32,9 @@ function randomCode(len = 6) {
   return out;
 }
 
-export default function KioskTablets({ vehicles, companies, onChange }) {
+export default function KioskTablets({ vehicles, onChange }) {
   const [busyId, setBusyId] = useState(null);
   const [copiedId, setCopiedId] = useState(null);
-  const [adding, setAdding] = useState(false);
-  const [form, setForm] = useState({ name: "", plate: "", company_id: "" });
   const origin = window.location.origin;
 
   const copy = async (url, id) => {
@@ -64,10 +52,10 @@ export default function KioskTablets({ vehicles, companies, onChange }) {
     setBusyId(vehicle.id);
     try {
       await base44.entities.Vehicle.update(vehicle.id, { entry_code: code });
-      toast({ title: "URL regenerated", description: `${vehicle.name} now uses code ${code}` });
+      toast({ title: "URL generated", description: `${vehicle.name} now uses code ${code}` });
       onChange?.();
     } catch {
-      toast({ title: "Couldn't regenerate", variant: "destructive" });
+      toast({ title: "Couldn't generate", variant: "destructive" });
     } finally {
       setBusyId(null);
     }
@@ -86,81 +74,22 @@ export default function KioskTablets({ vehicles, companies, onChange }) {
     }
   };
 
-  const addTablet = async () => {
-    if (!form.name.trim()) {
-      toast({ title: "Bus name is required", variant: "destructive" });
-      return;
-    }
-    const company = companies?.find((c) => c.id === form.company_id);
-    setBusyId("new");
-    try {
-      await base44.entities.Vehicle.create({
-        name: form.name.trim(),
-        plate_number: form.plate.trim(),
-        type: "bus",
-        company_id: form.company_id || null,
-        company_name: company?.name || null,
-        entry_code: randomCode(),
-        status: "offline",
-      });
-      toast({ title: "Kiosk tablet added", description: form.name.trim() });
-      setForm({ name: "", plate: "", company_id: "" });
-      setAdding(false);
-      onChange?.();
-    } catch {
-      toast({ title: "Couldn't add tablet", variant: "destructive" });
-    } finally {
-      setBusyId(null);
-    }
-  };
-
   const buses = vehicles.filter((v) => v.type === "bus");
   const frontDeskUrl = `${origin}/kiosk/front-desk`;
 
   return (
     <div className="space-y-4">
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0">
+        <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <Smartphone className="w-4 h-4" /> Bus entry kiosk tablets
           </CardTitle>
-          <Button size="sm" variant={adding ? "outline" : "default"} onClick={() => setAdding((a) => !a)}>
-            {adding ? "Cancel" : <><Plus className="w-4 h-4" /> Add tablet</>}
-          </Button>
         </CardHeader>
         <CardContent className="space-y-3">
           <p className="text-sm text-muted-foreground">
-            Each tablet opens its dedicated URL to skip code entry. Regenerate to invalidate the old URL; Remove revokes the link.
+            Each bus from your fleet is listed below. Generate a code to create its dedicated tablet URL, copy it to the tablet, regenerate to rotate the code, or remove to revoke the link.
           </p>
-
-          {adding && (
-            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 p-3 rounded-xl border bg-card">
-              <div className="space-y-1">
-                <Label className="text-xs">Bus name</Label>
-                <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Bus 12" />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Plate</Label>
-                <Input value={form.plate} onChange={(e) => setForm({ ...form, plate: e.target.value })} placeholder="ABC-123" />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Company</Label>
-                <Select value={form.company_id} onValueChange={(v) => setForm({ ...form, company_id: v })}>
-                  <SelectTrigger><SelectValue placeholder="Select company" /></SelectTrigger>
-                  <SelectContent>
-                    {(companies || []).map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex items-end">
-                <Button className="w-full" disabled={busyId === "new"} onClick={addTablet}>
-                  {busyId === "new" ? "Adding…" : "Create"}
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {buses.length === 0 && <p className="text-sm text-muted-foreground">No buses yet — add a tablet above.</p>}
+          {buses.length === 0 && <p className="text-sm text-muted-foreground">No buses in your fleet yet — add vehicles first.</p>}
           {buses.map((v) => {
             const hasCode = !!v.entry_code;
             const url = `${origin}/kiosk/bus?code=${v.entry_code || ""}`;
@@ -169,7 +98,10 @@ export default function KioskTablets({ vehicles, companies, onChange }) {
                 <div className="flex items-center gap-2 min-w-0 flex-1">
                   <Bus className="w-4 h-4 text-primary shrink-0" />
                   <div className="min-w-0">
-                    <div className="font-medium truncate">{v.name}</div>
+                    <div className="font-medium truncate">
+                      {v.name}
+                      {v.plate_number && <span className="text-muted-foreground font-normal"> · {v.plate_number}</span>}
+                    </div>
                     <div className="text-xs text-muted-foreground truncate font-mono">
                       {hasCode ? url : "No URL — generate a code"}
                     </div>
