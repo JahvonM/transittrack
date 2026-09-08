@@ -33,7 +33,7 @@ export default function RouteExplorer() {
             ))}
           </div>
           <div className="rounded-xl overflow-hidden border border-border">
-            <MapboxMap vehicles={shownVehicles} stops={active ? (routes.find((r) => r.id === active)?.stops || []) : allStops} height="60vh" />
+            <MapboxMap vehicles={shownVehicles} stops={active ? (routes.find((r) => r.id === active)?.stops || []) : allStops} height="48vh" />
           </div>
           <div className="flex flex-wrap gap-2">
             {shownVehicles.map((v) => (

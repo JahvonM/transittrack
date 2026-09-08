@@ -39,7 +39,7 @@ export default function MapboxMap({
   userLocation = null,
   center = null,
   className = "",
-  height = "50vh",
+  height = "45vh",
   interactive = true,
 }) {
   const mapRef = useRef(null);

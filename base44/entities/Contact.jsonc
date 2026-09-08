@@ -1,0 +1,108 @@
+{
+  "name": "Contact",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "phone": {
+      "type": "string"
+    },
+    "email": {
+      "type": "string"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "staff",
+        "passenger"
+      ],
+      "default": "passenger"
+    },
+    "nfc_card_tag": {
+      "type": "string"
+    },
+    "company_id": {
+      "type": "string"
+    },
+    "company_name": {
+      "type": "string"
+    },
+    "pickup_name": {
+      "type": "string"
+    },
+    "pickup_lat": {
+      "type": "number"
+    },
+    "pickup_lng": {
+      "type": "number"
+    },
+    "dropoff_name": {
+      "type": "string"
+    },
+    "dropoff_lat": {
+      "type": "number"
+    },
+    "dropoff_lng": {
+      "type": "number"
+    }
+  },
+  "required": [
+    "name",
+    "type"
+  ],
+  "rls": {
+    "read": {},
+    "create": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "company"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "company"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "company"
+          }
+        }
+      ]
+    }
+  }
+}
