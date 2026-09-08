@@ -1,12 +1,13 @@
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useOfflineSync } from "@/hooks/useOfflineSync";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Usb, CheckCircle2, Keyboard, Nfc, Bus, ArrowRight } from "lucide-react";
+import { Usb, CheckCircle2, Keyboard, Nfc, Bus, ArrowRight, MapPin, Clock } from "lucide-react";
 import { CardDescription } from "@/components/ui/card";
+import { MAPBOX_TOKEN } from "@/lib/mapbox";
 import OfflineStatusBadge from "@/components/OfflineStatusBadge";
 
 const ROSTER_KEY = "kiosk_card_roster";
@@ -61,6 +62,38 @@ export default function BusEntryKiosk() {
   const [busError, setBusError] = useState("");
   const [busChecking, setBusChecking] = useState(false);
 
+  // Live clock + kiosk location for the greeting screen
+  const [now, setNow] = useState(new Date());
+  const [place, setPlace] = useState("");
+
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  useEffect(() => {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      async (p) => {
+        const { latitude, longitude } = p.coords;
+        try {
+          const res = await fetch(
+            `https://api.mapbox.com/geocoding/v5/mapbox.places/${longitude},${latitude}.json?types=poi,address&limit=1&access_token=${MAPBOX_TOKEN}`
+          );
+          const data = await res.json();
+          if (data.features?.length) setPlace(data.features[0].place_name);
+        } catch {
+          /* reverse geocode failed — location stays blank */
+        }
+      },
+      () => {},
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  }, []);
+
+  const hour = now.getHours();
+  const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+
   const unlockBus = async (e) => {
     e.preventDefault();
     const value = busCode.trim().toUpperCase();
@@ -89,10 +122,10 @@ export default function BusEntryKiosk() {
     setBus(null);
   };
 
-  const showFlash = useCallback((ok, name) => {
-    setFlash({ ok, name });
+  const showFlash = useCallback((ok, name, action) => {
+    setFlash({ ok, name, action });
     if (ok) SUCCESS_CHIME();
-    setTimeout(() => setFlash(null), 2500);
+    setTimeout(() => setFlash(null), 3000);
   }, []);
 
   const board = useCallback(
@@ -104,17 +137,25 @@ export default function BusEntryKiosk() {
         roster[cardTag] = name;
         writeRoster(roster);
       }
+      // Toggle sign-in / sign-out based on the most recent record for this badge
+      let nextStatus = "boarded";
+      try {
+        const recent = await base44.entities.StaffCheckIn.filter({ card_tag: cardTag }, "-created_date", 1);
+        if (recent.length && recent[0].status === "boarded") nextStatus = "off_board";
+      } catch {
+        /* offline — default to sign-in */
+      }
       await safeCreate("StaffCheckIn", {
         staff_name: staffName,
         card_tag: cardTag,
-        status: "boarded",
+        status: nextStatus,
         boarded_at: new Date().toISOString(),
         vehicle_id: bus?.id || null,
         vehicle_name: bus?.name || null,
         company_id: bus?.company_id || null,
         company_name: bus?.company_name || null,
       });
-      showFlash(true, staffName);
+      showFlash(true, staffName, nextStatus === "boarded" ? "in" : "out");
     },
     [safeCreate, showFlash, bus]
   );
@@ -269,13 +310,16 @@ export default function BusEntryKiosk() {
     return (
       <div
         className={`fixed inset-0 grid place-items-center z-50 ${
-          flash.ok ? "bg-emerald-500" : "bg-red-500"
+          flash.action === "out" ? "bg-sky-500" : "bg-emerald-500"
         }`}
       >
         <div className="text-center text-white animate-in fade-in zoom-in duration-300">
           <CheckCircle2 className="w-28 h-28 mx-auto mb-5 drop-shadow-lg" />
-          <div className="text-4xl font-bold">Boarded</div>
-          <div className="text-xl mt-2 opacity-90">{flash.name}</div>
+          <div className="text-4xl font-bold">Hello, {flash.name}!</div>
+          <div className="text-xl mt-2 opacity-95">{flash.action === "in" ? "Signed in" : "Signed out"}</div>
+          <div className="text-sm mt-3 opacity-80">
+            {now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+          </div>
         </div>
       </div>
     );
@@ -340,10 +384,21 @@ export default function BusEntryKiosk() {
           ) : (
             <>
               <div className="text-center space-y-2">
-                <div className="w-20 h-20 rounded-full bg-primary/10 grid place-items-center mx-auto">
+                <div className="text-sm text-muted-foreground">{greeting}!</div>
+                <div className="flex items-center justify-center gap-2 text-3xl font-heading font-semibold tabular-nums">
+                  <Clock className="w-6 h-6 text-primary" />
+                  {now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+                </div>
+                {place && (
+                  <div className="flex items-center justify-center gap-1.5 text-sm text-muted-foreground">
+                    <MapPin className="w-4 h-4 text-primary" />
+                    <span className="truncate max-w-[16rem]">{place}</span>
+                  </div>
+                )}
+                <div className="w-20 h-20 rounded-full bg-primary/10 grid place-items-center mx-auto mt-3">
                   <Nfc className="w-10 h-10 text-primary" />
                 </div>
-                <h1 className="text-2xl font-heading font-semibold">Tap your badge to board</h1>
+                <h1 className="text-2xl font-heading font-semibold">Tap your badge to sign in or out</h1>
                 <p className="text-sm text-muted-foreground">
                   Hold your ID card against the reader, or enter the tag manually below.
                 </p>
