@@ -1,0 +1,76 @@
+{
+  "name": "StaffCheckIn",
+  "type": "object",
+  "properties": {
+    "staff_name": {
+      "type": "string"
+    },
+    "card_tag": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "boarded",
+        "off_board"
+      ],
+      "default": "boarded"
+    },
+    "boarded_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "company_id": {
+      "type": "string"
+    },
+    "company_name": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "card_tag",
+    "status"
+  ],
+  "rls": {
+    "read": {},
+    "create": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "staff"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "company"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "created_by_id": "{{user.id}}"
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

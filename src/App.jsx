@@ -40,6 +40,10 @@ import DriverSchedule from '@/pages/DriverSchedule';
 import IncidentReport from '@/pages/IncidentReport';
 import PassengerSupport from '@/pages/PassengerSupport';
 import RoutePlanner from '@/pages/RoutePlanner';
+import BusEntryKiosk from '@/pages/BusEntryKiosk';
+import DriverKiosk from '@/pages/DriverKiosk';
+import FrontDeskKiosk from '@/pages/FrontDeskKiosk';
+import ReviewerSandbox from '@/pages/ReviewerSandbox';
 // Add page imports here
 
 const AuthenticatedApp = () => {
@@ -102,6 +106,10 @@ const AuthenticatedApp = () => {
         <Route path="/incident-report" element={<IncidentReport />} />
         <Route path="/support" element={<PassengerSupport />} />
         <Route path="/route-planner" element={<RoutePlanner />} />
+        <Route path="/kiosk/bus" element={<BusEntryKiosk />} />
+        <Route path="/kiosk/driver" element={<DriverKiosk />} />
+        <Route path="/kiosk/front-desk" element={<FrontDeskKiosk />} />
+        <Route path="/reviewer-sandbox" element={<ReviewerSandbox />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>

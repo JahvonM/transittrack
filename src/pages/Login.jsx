@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { LogIn, Mail, Lock, Loader2 } from "lucide-react";
 import AuthLayout from "@/components/AuthLayout";
 import GoogleIcon from "@/components/GoogleIcon";
+import PrivacyPolicyDialog from "@/components/PrivacyPolicyDialog";
 import { safeReturnTo } from "@/lib/authReturnTo";
 
 export default function Login() {
@@ -42,15 +43,18 @@ export default function Login() {
       title="Welcome back"
       subtitle="Log in to your account"
       footer={
-        <>
-          Don't have an account?{" "}
-          <Link
-            to={"/register" + (returnTo !== "/" ? "?returnTo=" + encodeURIComponent(returnTo) : "")}
-            className="text-primary font-medium hover:underline"
-          >
-            Create one
-          </Link>
-        </>
+        <div className="space-y-3 text-center">
+          <div>
+            Don't have an account?{" "}
+            <Link
+              to={"/register" + (returnTo !== "/" ? "?returnTo=" + encodeURIComponent(returnTo) : "")}
+              className="text-primary font-medium hover:underline"
+            >
+              Create one
+            </Link>
+          </div>
+          <PrivacyPolicyDialog />
+        </div>
       }
     >
       <Button
