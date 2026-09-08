@@ -12,6 +12,7 @@ import DriversTab from "@/components/admin/DriversTab";
 import CopilotTab from "@/components/admin/CopilotTab";
 import VehiclesTab from "@/components/admin/VehiclesTab";
 import KioskTablets from "@/components/admin/KioskTablets";
+import CheckInLog from "@/components/admin/CheckInLog";
 import MessagingTab from "@/components/admin/MessagingTab";
 import AdsTab from "@/components/admin/AdsTab";
 import CompaniesTab from "@/components/admin/CompaniesTab";
@@ -258,7 +259,8 @@ export default function Admin() {
         {section === "vehicles" && (
           <VehiclesTab vehicles={vehicles} companies={companies} routes={routes} onChange={load} />
         )}
-        {section === "kiosks" && <KioskTablets vehicles={vehicles} onChange={load} />}
+        {section === "kiosks" && <KioskTablets vehicles={vehicles} companies={companies} onChange={load} />}
+        {section === "checkins" && <CheckInLog vehicles={vehicles} onChange={load} />}
         {section === "billing" && <CompletedTripsTab trips={trips} />}
         {section === "users" && (
           <UsersTab users={users} companies={companies} currentUser={user} onChange={load} />

@@ -15,6 +15,7 @@ import {
   User,
   Users,
   Smartphone,
+  ClipboardList,
   Database,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -26,6 +27,7 @@ export const ADMIN_SECTIONS = [
   { id: "fleet", label: "Live fleet", icon: MapPin },
   { id: "vehicles", label: "Vehicles", icon: Bus },
   { id: "kiosks", label: "Kiosk tablets", icon: Smartphone },
+  { id: "checkins", label: "Sign-in log", icon: ClipboardList },
   { id: "billing", label: "Completed & billing", icon: Building2 },
   { id: "users", label: "Users & roles", icon: Users },
   { id: "service", label: "Service Queue", icon: Wrench },
