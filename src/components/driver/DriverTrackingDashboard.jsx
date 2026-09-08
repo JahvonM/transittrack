@@ -159,10 +159,7 @@ export default function DriverTrackingDashboard({ vehicle, user }) {
             // Email the staff member that the bus is near (Gmail notification)
             base44.functions.invoke('notifyStaffPickup', {
               to_email: s.email,
-              staff_name: s.full_name || '',
-              vehicle_name: v.name,
-              driver_name: user?.full_name || user?.email || '',
-              company_name: v.company_name || '',
+              vehicle_id: v.id,
             }).catch(() => {});
           }
         }
