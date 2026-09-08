@@ -46,10 +46,7 @@ const DriverSchedule = lazy(() => import('@/pages/DriverSchedule'));
 const IncidentReport = lazy(() => import('@/pages/IncidentReport'));
 const PassengerSupport = lazy(() => import('@/pages/PassengerSupport'));
 const RoutePlanner = lazy(() => import('@/pages/RoutePlanner'));
-const BusEntryKiosk = lazy(() => import('@/pages/BusEntryKiosk'));
-const FrontDeskKiosk = lazy(() => import('@/pages/FrontDeskKiosk'));
 const ReviewerSandbox = lazy(() => import('@/pages/ReviewerSandbox'));
-const BadgeRegistry = lazy(() => import('@/pages/BadgeRegistry'));
 // Add page imports here
 
 const RouteFallback = () => (
@@ -101,9 +98,6 @@ const AuthenticatedApp = () => {
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/" element={<Welcome />} />
       <Route path="/book-taxi" element={<BookTaxi />} />
-      <Route path="/kiosk/bus" element={<BusEntryKiosk />} />
-      <Route path="/kiosk/driver" element={<Navigate to="/driver" replace />} />
-      <Route path="/kiosk/front-desk" element={<FrontDeskKiosk />} />
       <Route path="/oauth/consent" element={<OAuthConsent />} />
       <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login" replace />} />}>
         <Route path="/passenger" element={<Navigate to="/staff" replace />} />
@@ -137,7 +131,6 @@ const AuthenticatedApp = () => {
         <Route path="/support" element={<PassengerSupport />} />
         <Route path="/route-planner" element={<RoutePlanner />} />
         <Route path="/reviewer-sandbox" element={<ReviewerSandbox />} />
-        <Route path="/badge-registry" element={<BadgeRegistry />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
       </Routes>
