@@ -12,11 +12,15 @@ import {
   Car,
   ChevronRight,
   Clock,
+  FlaskConical,
   Hotel,
   LayoutDashboard,
   LogIn,
   LogOut,
+  Navigation,
+  PenLine,
   ShieldCheck,
+  Usb,
 } from "lucide-react";
 
 const ROLES = {
@@ -43,6 +47,30 @@ const ROLES = {
     title: "Admin",
     icon: ShieldCheck,
     blurb: "Fleet health, users, roles and scheduling.",
+  },
+  kiosk_bus: {
+    to: "/kiosk/bus",
+    title: "Bus Entry Kiosk",
+    icon: Usb,
+    blurb: "NFC badge tap-in board at the vehicle door.",
+  },
+  kiosk_driver: {
+    to: "/kiosk/driver",
+    title: "Driver Kiosk",
+    icon: Navigation,
+    blurb: "High-accuracy GPS sharing and turn-by-turn nav.",
+  },
+  kiosk_front_desk: {
+    to: "/kiosk/front-desk",
+    title: "Front Desk Sign-In",
+    icon: PenLine,
+    blurb: "Visitor sign-in with signature capture.",
+  },
+  reviewer_sandbox: {
+    to: "/reviewer-sandbox",
+    title: "Reviewer Sandbox",
+    icon: FlaskConical,
+    blurb: "Simulated live bus demo for review.",
   },
 };
 
