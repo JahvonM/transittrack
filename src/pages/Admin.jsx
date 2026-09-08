@@ -37,6 +37,21 @@ import {
   Radar,
   Smartphone,
   Link2,
+  Wrench,
+  LineChart,
+  UserCircle,
+  RefreshCw,
+  AlertTriangle,
+  BookOpen,
+  Route,
+  Users,
+  FileText,
+  History,
+  ShieldCheck,
+  Bell,
+  CalendarClock,
+  LifeBuoy,
+  Map,
 } from "lucide-react";
 
 const ROLE_LINKS = [
@@ -53,6 +68,28 @@ const PORTAL_LINKS = [
   { to: "/kiosk/driver", label: "Driver Kiosk", icon: Car },
   { to: "/kiosk/front-desk", label: "Front Desk Kiosk", icon: DoorOpen },
   { to: "/reviewer-sandbox", label: "Reviewer Sandbox", icon: FlaskConical },
+];
+
+const MGMT_LINKS = [
+  { to: "/vehicle-registry", label: "Vehicle Registry", icon: Car },
+  { to: "/driver-profile", label: "Driver Profiles", icon: UserCircle },
+  { to: "/driver-schedule", label: "Driver Schedule", icon: CalendarClock },
+  { to: "/maintenance-queue", label: "Maintenance Queue", icon: Wrench },
+  { to: "/service-history", label: "Service History", icon: History },
+  { to: "/vehicle-logs", label: "Vehicle Logs", icon: FileText },
+  { to: "/safety-standards", label: "Safety Standards", icon: ShieldCheck },
+  { to: "/incident-reports", label: "Incident Reports", icon: AlertTriangle },
+  { to: "/incident-report", label: "Report Incident", icon: LifeBuoy },
+  { to: "/route-planner", label: "Route Planner", icon: Map },
+  { to: "/route-explorer", label: "Route Explorer", icon: Route },
+  { to: "/route-analytics", label: "Route Analytics", icon: LineChart },
+  { to: "/fleet-analytics", label: "Fleet Analytics", icon: LineChart },
+  { to: "/fleet-sync", label: "Fleet Sync", icon: RefreshCw },
+  { to: "/ride-history", label: "Ride History", icon: History },
+  { to: "/passenger-bookings", label: "Passenger Bookings", icon: BookOpen },
+  { to: "/staff-directory", label: "Staff Directory", icon: Users },
+  { to: "/notifications", label: "Notifications", icon: Bell },
+  { to: "/support", label: "Passenger Support", icon: LifeBuoy },
 ];
 
 function Stat({ label, value }) {
@@ -176,6 +213,28 @@ export default function Admin() {
                   <CardContent>
                   <div className="flex flex-wrap gap-2">
                   {PORTAL_LINKS.map((r) => {
+                    const Icon = r.icon;
+                    return (
+                      <Button asChild key={r.to} variant="outline" size="sm">
+                        <Link to={r.to}>
+                          <Icon className="w-4 h-4 mr-1.5" />
+                          {r.label}
+                        </Link>
+                      </Button>
+                    );
+                  })}
+                  </div>
+                  </CardContent>
+                  </Card>
+                  <Card>
+                  <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-base">
+                  <Wrench className="w-4 h-4" /> Management tools
+                  </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                  <div className="flex flex-wrap gap-2">
+                  {MGMT_LINKS.map((r) => {
                     const Icon = r.icon;
                     return (
                       <Button asChild key={r.to} variant="outline" size="sm">
