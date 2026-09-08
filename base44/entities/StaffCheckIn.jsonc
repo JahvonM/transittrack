@@ -5,6 +5,9 @@
     "staff_name": {
       "type": "string"
     },
+    "staff_picture_url": {
+      "type": "string"
+    },
     "card_tag": {
       "type": "string"
     },

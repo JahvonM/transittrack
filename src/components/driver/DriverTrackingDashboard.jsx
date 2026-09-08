@@ -16,6 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { TrafficCone, Navigation, Radio } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
+import BoardingPopup from "@/components/driver/BoardingPopup";
 
 export default function DriverTrackingDashboard({ vehicle, user }) {
   const { toast } = useToast();
@@ -24,6 +25,7 @@ export default function DriverTrackingDashboard({ vehicle, user }) {
   const [nearbyStaff, setNearbyStaff] = useState([]);
   const [alertedStaff, setAlertedStaff] = useState(new Set());
   const [liveVehicle, setLiveVehicle] = useState(vehicle);
+  const [boardingPopup, setBoardingPopup] = useState(null);
 
   const watchId = useRef(null);
   const lastUpdate = useRef(0);
@@ -51,6 +53,24 @@ export default function DriverTrackingDashboard({ vehicle, user }) {
       if (event.data?.id === vehicle.id) {
         setLiveVehicle(event.data);
         vehicleRef.current = event.data;
+      }
+    });
+    return () => unsub();
+  }, [vehicle.id]);
+
+  // Pop up the boarder's name + photo when someone signs in at this bus's kiosk
+  useEffect(() => {
+    const unsub = base44.entities.StaffCheckIn.subscribe((event) => {
+      if (event.type !== "create") return;
+      const d = event.data;
+      if (d.vehicle_id === vehicle.id && d.status === "boarded") {
+        setBoardingPopup({
+          name: d.staff_name || "Staff member",
+          picture: d.staff_picture_url || null,
+          time: d.boarded_at
+            ? new Date(d.boarded_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+            : "",
+        });
       }
     });
     return () => unsub();
@@ -197,6 +217,8 @@ export default function DriverTrackingDashboard({ vehicle, user }) {
 
   return (
     <div className="space-y-4">
+      <BoardingPopup data={boardingPopup} onClose={() => setBoardingPopup(null)} />
+
       {/* Traffic banner */}
       <div className="flex items-center gap-2 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30">
         <TrafficCone className="w-5 h-5 text-amber-400 shrink-0" />

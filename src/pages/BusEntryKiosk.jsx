@@ -94,6 +94,15 @@ export default function BusEntryKiosk() {
   const hour = now.getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
 
+  const [route, setRoute] = useState(null);
+  useEffect(() => {
+    if (!bus?.route_id) {
+      setRoute(null);
+      return;
+    }
+    base44.entities.Route.get(bus.route_id).then(setRoute).catch(() => setRoute(null));
+  }, [bus?.route_id]);
+
   // Auto-unlock when a tablet opens its dedicated URL (?code=)
   useEffect(() => {
     if (bus) return;
@@ -149,7 +158,7 @@ export default function BusEntryKiosk() {
   }, []);
 
   const board = useCallback(
-    async (cardTag, name) => {
+    async (cardTag, name, picture) => {
       if (!cardTag) return;
       const roster = readRoster();
       const staffName = name || roster[cardTag] || "Unknown staff";
@@ -174,6 +183,7 @@ export default function BusEntryKiosk() {
         vehicle_name: bus?.name || null,
         company_id: bus?.company_id || null,
         company_name: bus?.company_name || null,
+        staff_picture_url: picture || null,
       });
       showFlash(true, staffName, nextStatus === "boarded" ? "in" : "out");
     },
@@ -198,7 +208,7 @@ export default function BusEntryKiosk() {
           const roster = readRoster();
           roster[clean] = staffName;
           writeRoster(roster);
-          await board(clean, staffName);
+          await board(clean, staffName, u.photo_url);
           return;
         }
       } catch {
@@ -404,6 +414,13 @@ export default function BusEntryKiosk() {
           ) : (
             <>
               <div className="text-center space-y-2">
+                <div className="inline-flex items-center gap-1.5 text-xs text-muted-foreground bg-card border rounded-full px-3 py-1">
+                  <Bus className="w-3.5 h-3.5 text-primary" />
+                  <span className="font-medium text-foreground">{bus.name}</span>
+                  {bus.plate_number && <span>· {bus.plate_number}</span>}
+                  {route?.name && <span>· {route.name}</span>}
+                  {bus.driver_name && <span>· {bus.driver_name}</span>}
+                </div>
                 <div className="text-sm text-muted-foreground">{greeting}!</div>
                 <div className="flex items-center justify-center gap-2 text-3xl font-heading font-semibold tabular-nums">
                   <Clock className="w-6 h-6 text-primary" />
