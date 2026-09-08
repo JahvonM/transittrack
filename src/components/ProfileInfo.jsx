@@ -6,7 +6,18 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Image } from "@/components/ui/image";
-import { Building2, Camera, Check, Loader2, Mail, Pencil, Phone } from "lucide-react";
+import { Building2, Camera, Check, Loader2, Mail, Pencil, Phone, Trash2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const ROLE_LABEL = {
   driver: "Driver",
@@ -16,7 +27,7 @@ const ROLE_LABEL = {
 };
 
 export default function ProfileInfo({ companyName }) {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const { toast } = useToast();
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
@@ -25,6 +36,7 @@ export default function ProfileInfo({ companyName }) {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [company, setCompany] = useState(companyName || "");
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     setFullName(user?.full_name || "");
@@ -52,6 +64,20 @@ export default function ProfileInfo({ companyName }) {
       setPhotoUrl(file_url);
     } finally {
       setUploading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      await base44.functions.invoke("deleteAccount", {});
+      toast({ title: "Account deleted" });
+      logout(false);
+      window.location.href = "/login";
+    } catch (e) {
+      toast({ title: "Couldn't delete account", description: e.message, variant: "destructive" });
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -154,6 +180,35 @@ export default function ProfileInfo({ companyName }) {
             <span>{user.phone || "Add your phone number"}</span>
           </div>
         )}
+      </div>
+
+      <div className="mt-6 pt-5 border-t border-slate-700/50">
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button variant="destructive" size="sm" className="w-full sm:w-auto">
+              <Trash2 className="w-4 h-4 mr-1.5" />
+              Delete account
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete your account?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This permanently removes your account and can't be undone. You'll be signed out immediately.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={(e) => { e.preventDefault(); handleDelete(); }}
+                disabled={deleting}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Delete account"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );

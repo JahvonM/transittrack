@@ -1,5 +1,5 @@
 import React from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/AuthContext";
 import { ArrowLeft, LogOut, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -8,19 +8,18 @@ import Logo from "@/components/Logo";
 export default function AppLayout({ children, title }) {
   const { user, logout } = useAuth();
   const { pathname } = useLocation();
+  const navigate = useNavigate();
   const isHome = pathname === "/";
   const hideBack = isHome || ["/admin", "/staff", "/driver"].includes(pathname);
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-40 border-b border-slate-700/50 bg-background/80 backdrop-blur-[12px]">
-        <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
+      <header className="sticky top-0 z-40 border-b border-slate-700/50 bg-background/80 backdrop-blur-[12px] safe-area-top">
+        <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between safe-area-x">
           <div className="flex items-center gap-1">
             {!hideBack && (
-              <Button asChild variant="ghost" size="icon" className="text-slate-300 hover:text-slate-50">
-                <Link to="/" aria-label="Back to home">
-                  <ArrowLeft className="w-5 h-5" />
-                </Link>
+              <Button variant="ghost" size="icon" className="text-slate-300 hover:text-slate-50" onClick={() => navigate(-1)} aria-label="Go back">
+                <ArrowLeft className="w-5 h-5" />
               </Button>
             )}
             <Link to="/" className="flex items-center gap-2.5 font-heading font-semibold">
@@ -47,7 +46,7 @@ export default function AppLayout({ children, title }) {
           </div>
         </div>
       </header>
-      <main className="max-w-7xl mx-auto px-4 py-6">
+      <main className="max-w-7xl mx-auto px-4 py-6 safe-area-bottom">
         {title && <h1 className="text-2xl font-heading font-semibold mb-4">{title}</h1>}
         {children}
       </main>
