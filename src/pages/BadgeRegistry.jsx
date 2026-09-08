@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/use-toast";
-import { Check, Link2, Search, Unlink, UserCircle2 } from "lucide-react";
+import { Check, Link2, Search, Trash2, UserCircle2 } from "lucide-react";
 
 export default function BadgeRegistry() {
   const { user } = useAuth();
@@ -202,16 +202,16 @@ export default function BadgeRegistry() {
                               variant="outline"
                               onClick={() => startEdit(u)}
                             >
-                              {hasBadge ? "Edit" : "Link badge"}
+                              {hasBadge ? "Edit" : "Add badge"}
                             </Button>
                             {hasBadge && (
                               <Button
-                                size="icon"
-                                variant="ghost"
+                                size="sm"
+                                variant="destructive"
                                 disabled={savingId === u.id}
                                 onClick={() => unlink(u)}
                               >
-                                <Unlink className="w-4 h-4 text-muted-foreground" />
+                                <Trash2 className="w-4 h-4 mr-1" /> Remove
                               </Button>
                             )}
                           </>

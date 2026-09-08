@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/use-toast";
 import { STATUS_LABEL, STATUS_VARIANT } from "@/lib/trip";
 import CompanyEditDialog from "@/components/CompanyEditDialog";
+import MapboxMap from "@/components/MapboxMap";
 
 const CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const genCode = () =>
@@ -253,56 +254,16 @@ function VehiclesTab({ company, routes, vehicles, onChange }) {
         ))}
       </div>
 
-      <Card>
-        <CardHeader><CardTitle className="text-base flex items-center gap-2"><Plus className="w-4 h-4" /> Add vehicle</CardTitle></CardHeader>
-        <CardContent className="space-y-3">
-          <div className="space-y-1.5">
-            <Label>Vehicle name</Label>
-            <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Bus 12" />
+      <Card className="h-fit sticky top-4">
+        <CardHeader><CardTitle className="text-base flex items-center gap-2"><MapPin className="w-4 h-4" /> Live fleet map</CardTitle></CardHeader>
+        <CardContent>
+          <div className="rounded-xl overflow-hidden border h-[440px]">
+            <MapboxMap
+              vehicles={vehicles.filter((v) => v.current_lat != null)}
+              stops={routes.flatMap((r) => r.stops || []).filter((s) => s.lat != null)}
+            />
           </div>
-          <div className="grid grid-cols-2 gap-2">
-            <div className="space-y-1.5">
-              <Label>Plate number</Label>
-              <Input value={form.plate_number} onChange={(e) => setForm({ ...form, plate_number: e.target.value })} placeholder="ISL-101" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Capacity</Label>
-              <Input type="number" value={form.capacity} onChange={(e) => setForm({ ...form, capacity: e.target.value })} placeholder="30" />
-            </div>
-          </div>
-          <div className="space-y-1.5">
-            <Label>Type</Label>
-            <Select value={form.type} onValueChange={(t) => setForm({ ...form, type: t })}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="bus">Bus</SelectItem>
-                <SelectItem value="taxi">Taxi</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5">
-            <Label>Driver name</Label>
-            <Input value={form.driver_name} onChange={(e) => setForm({ ...form, driver_name: e.target.value })} placeholder="John D." />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Driver email (their login)</Label>
-            <Input type="email" value={form.driver_email} onChange={(e) => setForm({ ...form, driver_email: e.target.value })} placeholder="driver@example.com" />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Default route</Label>
-            <Select value={form.route_id || "none"} onValueChange={(r) => setForm({ ...form, route_id: r === "none" ? "" : r })}>
-              <SelectTrigger><SelectValue placeholder="No route" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">No route</SelectItem>
-                {routes.map((r) => (
-                  <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <Button className="w-full" onClick={add} disabled={adding || !form.name}>
-            {adding ? "Adding…" : "Add vehicle"}
-          </Button>
+          <p className="text-xs text-muted-foreground mt-2">Live vehicle positions with your route stop paths. Add vehicles from the Admin dashboard.</p>
         </CardContent>
       </Card>
     </div>

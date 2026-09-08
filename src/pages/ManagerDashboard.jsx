@@ -62,21 +62,23 @@ export default function ManagerDashboard() {
           </Button>
         </div>
 
-        <Tabs defaultValue="live">
-          <TabsList>
-            <TabsTrigger value="live">Live fleet</TabsTrigger>
-            <TabsTrigger value="replay">Route replay</TabsTrigger>
-            <TabsTrigger value="analytics">Analytics</TabsTrigger>
+        <Tabs defaultValue="live" className="grid md:grid-cols-[200px_1fr] gap-4 items-start">
+          <TabsList className="flex flex-col justify-start h-auto gap-1 p-2">
+            <TabsTrigger value="live" className="justify-start w-full">Live fleet</TabsTrigger>
+            <TabsTrigger value="replay" className="justify-start w-full">Route replay</TabsTrigger>
+            <TabsTrigger value="analytics" className="justify-start w-full">Analytics</TabsTrigger>
           </TabsList>
-          <TabsContent value="live" className="mt-4">
-            <FleetMap vehicles={vehicles} />
-          </TabsContent>
-          <TabsContent value="replay" className="mt-4">
-            <RouteReplay vehicles={vehicles} />
-          </TabsContent>
-          <TabsContent value="analytics" className="mt-4">
-            <FleetAnalytics trips={trips} vehicles={vehicles} />
-          </TabsContent>
+          <div>
+            <TabsContent value="live">
+              <FleetMap vehicles={vehicles} />
+            </TabsContent>
+            <TabsContent value="replay">
+              <RouteReplay vehicles={vehicles} />
+            </TabsContent>
+            <TabsContent value="analytics">
+              <FleetAnalytics trips={trips} vehicles={vehicles} />
+            </TabsContent>
+          </div>
         </Tabs>
       </div>
     </AppLayout>

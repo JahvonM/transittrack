@@ -81,7 +81,10 @@ export default function DriverTrackingDashboard({ vehicle, user }) {
       const v = vehicleRef.current;
       if (!v) return;
 
-      // Throttle DB writes to 30s
+      // Update the driver's own marker instantly so movement shows without waiting on a DB round-trip
+      setLiveVehicle((prev) => prev ? { ...prev, current_lat: lat, current_lng: lng, speed: speed || 0 } : prev);
+
+      // Throttle database writes so other viewers refresh on a sane cadence
       if (now - lastUpdate.current < GPS_INTERVAL_MS) return;
       lastUpdate.current = now;
 
@@ -155,7 +158,7 @@ export default function DriverTrackingDashboard({ vehicle, user }) {
     watchId.current = navigator.geolocation.watchPosition(
       (p) => {
         // Reject low-accuracy fixes to prevent erratic pin jumps
-        if (p.coords.accuracy != null && p.coords.accuracy > 20) return;
+        if (p.coords.accuracy != null && p.coords.accuracy > 100) return;
         handlePosition(p.coords.latitude, p.coords.longitude, p.coords.speed);
       },
       (err) => {
