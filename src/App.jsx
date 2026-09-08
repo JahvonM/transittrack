@@ -78,6 +78,9 @@ const AuthenticatedApp = () => {
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/" element={<Welcome />} />
       <Route path="/book-taxi" element={<BookTaxi />} />
+      <Route path="/kiosk/bus" element={<BusEntryKiosk />} />
+      <Route path="/kiosk/driver" element={<Navigate to="/driver" replace />} />
+      <Route path="/kiosk/front-desk" element={<FrontDeskKiosk />} />
       <Route path="/oauth/consent" element={<OAuthConsent />} />
       <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login" replace />} />}>
         <Route path="/passenger" element={<Navigate to="/staff" replace />} />
@@ -106,9 +109,6 @@ const AuthenticatedApp = () => {
         <Route path="/incident-report" element={<IncidentReport />} />
         <Route path="/support" element={<PassengerSupport />} />
         <Route path="/route-planner" element={<RoutePlanner />} />
-        <Route path="/kiosk/bus" element={<BusEntryKiosk />} />
-        <Route path="/kiosk/driver" element={<Navigate to="/driver" replace />} />
-        <Route path="/kiosk/front-desk" element={<FrontDeskKiosk />} />
         <Route path="/reviewer-sandbox" element={<ReviewerSandbox />} />
         <Route path="/badge-registry" element={<BadgeRegistry />} />
       </Route>
