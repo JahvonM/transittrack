@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Usb, CheckCircle2, Keyboard, Nfc } from "lucide-react";
+import { Usb, CheckCircle2, Keyboard, Nfc, Bus, ArrowRight } from "lucide-react";
+import { CardDescription } from "@/components/ui/card";
 import OfflineStatusBadge from "@/components/OfflineStatusBadge";
 
 const ROSTER_KEY = "kiosk_card_roster";
@@ -48,6 +49,45 @@ export default function BusEntryKiosk() {
   const [pendingName, setPendingName] = useState(null);
   const [nameInput, setNameInput] = useState("");
   const deviceRef = useRef(null);
+  const [bus, setBus] = useState(() => {
+    try {
+      const s = localStorage.getItem("tt_kiosk_bus");
+      return s ? JSON.parse(s) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [busCode, setBusCode] = useState("");
+  const [busError, setBusError] = useState("");
+  const [busChecking, setBusChecking] = useState(false);
+
+  const unlockBus = async (e) => {
+    e.preventDefault();
+    const value = busCode.trim().toUpperCase();
+    if (!value) return;
+    setBusChecking(true);
+    setBusError("");
+    try {
+      const list = await base44.entities.Vehicle.list();
+      const match = list.find((v) => (v.entry_code || "").toUpperCase() === value);
+      if (!match) {
+        setBusError("That code doesn't match any bus. Check with your operator.");
+        return;
+      }
+      localStorage.setItem("tt_kiosk_bus", JSON.stringify(match));
+      setBus(match);
+      setBusCode("");
+    } catch {
+      setBusError("Couldn't verify code. Try again.");
+    } finally {
+      setBusChecking(false);
+    }
+  };
+
+  const switchBus = () => {
+    localStorage.removeItem("tt_kiosk_bus");
+    setBus(null);
+  };
 
   const showFlash = useCallback((ok, name) => {
     setFlash({ ok, name });
@@ -69,10 +109,14 @@ export default function BusEntryKiosk() {
         card_tag: cardTag,
         status: "boarded",
         boarded_at: new Date().toISOString(),
+        vehicle_id: bus?.id || null,
+        vehicle_name: bus?.name || null,
+        company_id: bus?.company_id || null,
+        company_name: bus?.company_name || null,
       });
       showFlash(true, staffName);
     },
-    [safeCreate, showFlash]
+    [safeCreate, showFlash, bus]
   );
 
   const handleTag = useCallback(
@@ -178,6 +222,49 @@ export default function BusEntryKiosk() {
     setNameInput("");
   };
 
+  if (!bus) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col">
+        <header className="h-14 border-b border-border flex items-center px-5">
+          <div className="flex items-center gap-2 font-heading font-semibold">
+            <Usb className="w-5 h-5 text-primary" />
+            Bus Entry Kiosk
+          </div>
+        </header>
+        <main className="flex-1 grid place-items-center p-6">
+          <div className="w-full max-w-sm">
+            <Card>
+              <CardHeader className="text-center">
+                <div className="mx-auto w-12 h-12 rounded-xl bg-primary text-primary-foreground grid place-items-center mb-2">
+                  <Bus className="w-6 h-6" />
+                </div>
+                <CardTitle className="text-xl">Enter the bus code</CardTitle>
+                <CardDescription>Type the code for this bus to open its boarding kiosk.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={unlockBus} className="space-y-3">
+                  <Input
+                    value={busCode}
+                    onChange={(e) => setBusCode(e.target.value.toUpperCase())}
+                    placeholder="e.g. BUS12"
+                    maxLength={12}
+                    autoFocus
+                    className="h-12 text-center text-lg font-semibold tracking-[0.3em]"
+                  />
+                  {busError && <p className="text-sm text-destructive">{busError}</p>}
+                  <Button type="submit" className="w-full" disabled={busChecking || !busCode.trim()}>
+                    {busChecking ? "Checking…" : "Open kiosk"}
+                    <ArrowRight className="w-4 h-4" />
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   if (flash) {
     return (
       <div
@@ -200,8 +287,12 @@ export default function BusEntryKiosk() {
         <div className="flex items-center gap-2 font-heading font-semibold">
           <Usb className="w-5 h-5 text-primary" />
           Bus Entry Kiosk
+          <span className="text-muted-foreground font-normal hidden sm:inline">· {bus.name}</span>
         </div>
         <div className="flex items-center gap-2">
+          <Button variant="ghost" size="sm" onClick={switchBus}>
+            Switch bus
+          </Button>
           <OfflineStatusBadge online={online} pendingCount={pendingCount} />
           <span
           className={`text-xs px-2.5 py-1 rounded-full border ${

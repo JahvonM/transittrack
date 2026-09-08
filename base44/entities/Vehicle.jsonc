@@ -64,6 +64,9 @@
     "driver_pin": {
       "type": "string"
     },
+    "entry_code": {
+      "type": "string"
+    },
     "current_odometer": {
       "type": "number"
     },

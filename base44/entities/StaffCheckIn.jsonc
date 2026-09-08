@@ -25,6 +25,12 @@
     },
     "company_name": {
       "type": "string"
+    },
+    "vehicle_id": {
+      "type": "string"
+    },
+    "vehicle_name": {
+      "type": "string"
     }
   },
   "required": [
