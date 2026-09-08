@@ -67,6 +67,10 @@
     "current_odometer": {
       "type": "number"
     },
+    "wired_gps_connected": {
+      "type": "boolean",
+      "default": false
+    },
     "route_id": {
       "type": "string"
     },

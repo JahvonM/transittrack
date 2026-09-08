@@ -79,6 +79,26 @@ export default function BusEntryKiosk() {
     async (tag) => {
       const clean = String(tag).trim();
       if (!clean) return;
+      // Cross-reference the tapped badge against User.nfc_tag_id
+      try {
+        const users = await base44.entities.User.filter({ nfc_tag_id: clean });
+        if (users.length) {
+          const u = users[0];
+          const staffName = u.full_name || u.email || "Registered staff";
+          try {
+            await base44.entities.User.update(u.id, { skip_pickup_today: false });
+          } catch {
+            /* RLS may block non-admin operators */
+          }
+          const roster = readRoster();
+          roster[clean] = staffName;
+          writeRoster(roster);
+          await board(clean, staffName);
+          return;
+        }
+      } catch {
+        /* offline — fall through to roster / StaffCheckIn */
+      }
       const roster = readRoster();
       if (roster[clean]) {
         await board(clean, roster[clean]);

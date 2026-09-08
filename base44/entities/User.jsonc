@@ -34,6 +34,9 @@
     "work_lng": {
       "type": "number"
     },
+    "nfc_tag_id": {
+      "type": "string"
+    },
     "whatsapp_linked": {
       "type": "boolean",
       "default": false

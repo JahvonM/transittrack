@@ -61,9 +61,14 @@ export function useOfflineSync() {
     window.addEventListener("online", onOnline);
     window.addEventListener("offline", onOffline);
     drain();
+    // Validate the network link every 15s and silently replay any backlog.
+    const pollId = setInterval(() => {
+      if (navigator.onLine) drain();
+    }, 15000);
     return () => {
       window.removeEventListener("online", onOnline);
       window.removeEventListener("offline", onOffline);
+      clearInterval(pollId);
     };
   }, [drain]);
 
