@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import { waLink } from "@/lib/mapbox";
@@ -8,11 +8,29 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function StaffToggles({ companyPhone }) {
   const { user, checkUserAuth } = useAuth();
+  const [optimistic, setOptimistic] = useState({});
+
+  const val = (field) =>
+    field in optimistic ? optimistic[field] : user?.[field];
 
   const toggle = async (field) => {
-    const newVal = !user[field];
-    await base44.auth.updateMe({ [field]: newVal });
-    await checkUserAuth();
+    const prev = val(field);
+    const newVal = !prev;
+    // Optimistic: render the new state instantly
+    setOptimistic((o) => ({ ...o, [field]: newVal }));
+    try {
+      await base44.auth.updateMe({ [field]: newVal });
+      await checkUserAuth();
+      // Real state synced — drop the optimistic override
+      setOptimistic((o) => {
+        const next = { ...o };
+        delete next[field];
+        return next;
+      });
+    } catch (e) {
+      // Roll back on failure
+      setOptimistic((o) => ({ ...o, [field]: prev }));
+    }
   };
 
   const linkWhatsapp = async () => {
@@ -32,20 +50,20 @@ export default function StaffToggles({ companyPhone }) {
       </CardHeader>
       <CardContent className="space-y-2">
         <Button
-          variant={user?.skip_pickup_today ? "default" : "outline"}
+          variant={val("skip_pickup_today") ? "default" : "outline"}
           className="w-full justify-start"
           onClick={() => toggle("skip_pickup_today")}
         >
           <BellOff className="w-4 h-4 mr-2" />
-          {user?.skip_pickup_today ? "Skipping pickup today (tap to resume)" : "Skip pickup today"}
+          {val("skip_pickup_today") ? "Skipping pickup today (tap to resume)" : "Skip pickup today"}
         </Button>
         <Button
-          variant={user?.late_snooze_active ? "default" : "outline"}
+          variant={val("late_snooze_active") ? "default" : "outline"}
           className="w-full justify-start"
           onClick={() => toggle("late_snooze_active")}
         >
           <Clock className="w-4 h-4 mr-2" />
-          {user?.late_snooze_active ? "Running late — driver notified (tap to clear)" : "I'm running late"}
+          {val("late_snooze_active") ? "Running late — driver notified (tap to clear)" : "I'm running late"}
         </Button>
         {user?.whatsapp_linked ? (
           <div className="flex items-center gap-2 text-sm text-green-400 pt-1">

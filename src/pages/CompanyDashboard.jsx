@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, useParams, useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import AppLayout from "@/components/AppLayout";
@@ -23,6 +23,9 @@ const genCode = () =>
 
 export default function CompanyDashboard() {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const { tab: urlTab } = useParams();
+  const tab = urlTab || "vehicles";
   const [company, setCompany] = useState(null);
   const [vehicles, setVehicles] = useState([]);
   const [routes, setRoutes] = useState([]);
@@ -97,7 +100,7 @@ export default function CompanyDashboard() {
         </CardContent>
       </Card>
       <CompanyEditDialog company={company} open={editing} onOpenChange={setEditing} onSaved={loadAll} />
-      <Tabs defaultValue="vehicles">
+      <Tabs value={tab} onValueChange={(v) => navigate("/company/" + v)}>
         <TabsList>
           <TabsTrigger value="vehicles"><Bus className="w-4 h-4 mr-1.5" />Vehicles ({vehicles.length})</TabsTrigger>
           <TabsTrigger value="routes"><RouteIcon className="w-4 h-4 mr-1.5" />Routes ({routes.length})</TabsTrigger>

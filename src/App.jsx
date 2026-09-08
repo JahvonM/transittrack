@@ -97,11 +97,15 @@ const AuthenticatedApp = () => {
       <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login" replace />} />}>
         <Route path="/passenger" element={<Navigate to="/staff" replace />} />
         <Route path="/company" element={<CompanyDashboard />} />
+        <Route path="/company/:tab" element={<CompanyDashboard />} />
         <Route path="/driver" element={<DriverApp />} />
+        <Route path="/driver/:stage" element={<DriverApp />} />
         <Route path="/admin" element={<Admin />} />
+        <Route path="/admin/:section" element={<Admin />} />
         <Route path="/account" element={<Account />} />
         <Route path="/staff" element={<StaffPortal />} />
         <Route path="/manager" element={<ManagerDashboard />} />
+        <Route path="/manager/:tab" element={<ManagerDashboard />} />
         <Route path="/maintenance-queue" element={<MaintenanceQueue />} />
         <Route path="/route-analytics" element={<RouteAnalytics />} />
         <Route path="/driver-profile" element={<DriverProfile />} />

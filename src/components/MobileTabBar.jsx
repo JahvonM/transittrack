@@ -44,12 +44,11 @@ export default function MobileTabBar() {
       <div className="flex items-stretch justify-around">
         {TABS.map(({ to, label, icon: Icon, exact }) => {
           const active = exact ? pathname === "/" : pathname.startsWith(to);
-          const target = tabStacks[to] || to;
           return (
             <button
               key={to}
               type="button"
-              onClick={() => navigate(target)}
+              onClick={() => navigate(active ? to : (tabStacks[to] || to))}
               className={cn(
                 "flex flex-1 flex-col items-center justify-center gap-0.5 py-2 text-[11px] font-medium transition-colors",
                 active ? "text-primary" : "text-muted-foreground"

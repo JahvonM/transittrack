@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Navigate, Link } from "react-router-dom";
+import { Navigate, Link, useParams, useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import AppLayout from "@/components/AppLayout";
@@ -104,6 +104,9 @@ function Stat({ label, value }) {
 
 export default function Admin() {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const { section: urlSection } = useParams();
+  const section = urlSection || "overview";
   const [users, setUsers] = useState([]);
   const [companies, setCompanies] = useState([]);
   const [vehicles, setVehicles] = useState([]);
@@ -111,8 +114,9 @@ export default function Admin() {
   const [trips, setTrips] = useState([]);
   const [inspections, setInspections] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [section, setSection] = useState("overview");
   const { location: userLoc } = useUserLocation();
+
+  const go = (s) => navigate("/admin/" + s);
 
   const load = async () => {
     const [u, c, v, r, t, insp] = await Promise.all([
@@ -150,7 +154,7 @@ export default function Admin() {
 
   return (
     <AppLayout>
-      <AdminShell active={section} onNavigate={setSection}>
+      <AdminShell active={section} onNavigate={go}>
         {section === "overview" && (
           <div className="space-y-4">
             <Greeting subtitle="Admin control center" />
@@ -162,19 +166,19 @@ export default function Admin() {
               />
             </div>
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
-              <button onClick={() => setSection("vehicles")} className="text-left p-4 rounded-xl border bg-card hover:border-primary transition-colors">
+              <button onClick={() => go("vehicles")} className="text-left p-4 rounded-xl border bg-card hover:border-primary transition-colors">
                 <div className="text-2xl font-bold">{vehicles.length}</div>
                 <div className="text-xs text-muted-foreground">Vehicles</div>
               </button>
-              <button onClick={() => setSection("fleet")} className="text-left p-4 rounded-xl border bg-card hover:border-primary transition-colors">
+              <button onClick={() => go("fleet")} className="text-left p-4 rounded-xl border bg-card hover:border-primary transition-colors">
                 <div className="text-2xl font-bold">{liveCount}</div>
                 <div className="text-xs text-muted-foreground">Live now</div>
               </button>
-              <button onClick={() => setSection("trips")} className="text-left p-4 rounded-xl border bg-card hover:border-primary transition-colors">
+              <button onClick={() => go("trips")} className="text-left p-4 rounded-xl border bg-card hover:border-primary transition-colors">
                 <div className="text-2xl font-bold">{activeTrips.length}</div>
                 <div className="text-xs text-muted-foreground">Active trips</div>
               </button>
-              <button onClick={() => setSection("companies")} className="text-left p-4 rounded-xl border bg-card hover:border-primary transition-colors">
+              <button onClick={() => go("companies")} className="text-left p-4 rounded-xl border bg-card hover:border-primary transition-colors">
                 <div className="text-2xl font-bold">{companies.length}</div>
                 <div className="text-xs text-muted-foreground">Companies</div>
               </button>

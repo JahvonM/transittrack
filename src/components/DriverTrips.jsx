@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { CheckCircle2, Clock, Flag, PenLine, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -12,52 +12,93 @@ const fmtDateTime = (iso) =>
 
 export default function DriverTrips({ trips, startSharing, refresh }) {
   const [dialog, setDialog] = useState(null);
+  const [localTrips, setLocalTrips] = useState(trips);
+
+  // Keep local view in sync when the parent re-fetches
+  useEffect(() => {
+    setLocalTrips(trips);
+  }, [trips]);
+
+  const patchTrip = (id, patch) =>
+    setLocalTrips((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t)));
 
   const startTrip = async (trip) => {
-    await base44.entities.Trip.update(trip.id, {
-      status: "on_the_way",
-      started_at: new Date().toISOString(),
-    });
-    await base44.entities.Vehicle.update(trip.vehicle_id, { status: "on_trip" });
+    const prev = { ...trip };
+    const now = new Date().toISOString();
+    // Optimistic update
+    patchTrip(trip.id, { status: "on_the_way", started_at: now });
     startSharing();
-    refresh();
+    try {
+      await base44.entities.Trip.update(trip.id, { status: "on_the_way", started_at: now });
+      await base44.entities.Vehicle.update(trip.vehicle_id, { status: "on_trip" });
+      refresh();
+    } catch (e) {
+      patchTrip(trip.id, prev);
+      refresh();
+    }
   };
 
   const markArrived = async (trip) => {
-    await base44.entities.Trip.update(trip.id, {
-      status: "arrived",
-      arrived_at: new Date().toISOString(),
-    });
-    refresh();
+    const prev = { ...trip };
+    const now = new Date().toISOString();
+    patchTrip(trip.id, { status: "arrived", arrived_at: now });
+    try {
+      await base44.entities.Trip.update(trip.id, { status: "arrived", arrived_at: now });
+      refresh();
+    } catch (e) {
+      patchTrip(trip.id, prev);
+      refresh();
+    }
   };
 
   const saveSignature = async ({ file_url, signed_by, signed_at }) => {
     if (!dialog) return;
     const { trip, mode } = dialog;
+    const prev = { ...trip };
+    const now = new Date().toISOString();
     if (mode === "pickup") {
-      await base44.entities.Trip.update(trip.id, {
-        pickup_signature_url: file_url,
-        pickup_signed_by: signed_by,
-        pickup_signed_at: signed_at,
-      });
+      patchTrip(trip.id, { pickup_signature_url: file_url, pickup_signed_by: signed_by, pickup_signed_at: signed_at });
+      try {
+        await base44.entities.Trip.update(trip.id, {
+          pickup_signature_url: file_url,
+          pickup_signed_by: signed_by,
+          pickup_signed_at: signed_at,
+        });
+        refresh();
+      } catch (e) {
+        patchTrip(trip.id, prev);
+        refresh();
+      }
     } else {
-      await base44.entities.Trip.update(trip.id, {
+      patchTrip(trip.id, {
         dropoff_signature_url: file_url,
         dropoff_signed_by: signed_by,
         dropoff_signed_at: signed_at,
         status: "completed",
-        completed_at: new Date().toISOString(),
+        completed_at: now,
       });
-      await base44.entities.Vehicle.update(trip.vehicle_id, { status: "idle" });
+      try {
+        await base44.entities.Trip.update(trip.id, {
+          dropoff_signature_url: file_url,
+          dropoff_signed_by: signed_by,
+          dropoff_signed_at: signed_at,
+          status: "completed",
+          completed_at: now,
+        });
+        await base44.entities.Vehicle.update(trip.vehicle_id, { status: "idle" });
+        refresh();
+      } catch (e) {
+        patchTrip(trip.id, prev);
+        refresh();
+      }
     }
-    refresh();
   };
 
   const todayStr = new Date().toDateString();
-  const todays = trips.filter(
+  const todays = localTrips.filter(
     (t) => !t.scheduled_time || new Date(t.scheduled_time).toDateString() === todayStr
   );
-  const later = trips.filter((t) => !todays.includes(t));
+  const later = localTrips.filter((t) => !todays.includes(t));
 
   const renderTrip = (trip) => {
     const active = trip.status === "on_the_way" || trip.status === "arrived";

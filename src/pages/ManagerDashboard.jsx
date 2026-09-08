@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, useParams, useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import AppLayout from "@/components/AppLayout";
@@ -13,6 +13,9 @@ import { Button } from "@/components/ui/button";
 
 export default function ManagerDashboard() {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const { tab: urlTab } = useParams();
+  const tab = urlTab || "live";
   const [vehicles, setVehicles] = useState([]);
   const [trips, setTrips] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -62,7 +65,7 @@ export default function ManagerDashboard() {
           </Button>
         </div>
 
-        <Tabs defaultValue="live" className="grid md:grid-cols-[200px_1fr] gap-4 items-start">
+        <Tabs value={tab} onValueChange={(v) => navigate("/manager/" + v)} className="grid md:grid-cols-[200px_1fr] gap-4 items-start">
           <TabsList className="flex flex-col justify-start h-auto gap-1 p-2">
             <TabsTrigger value="live" className="justify-start w-full">Live fleet</TabsTrigger>
             <TabsTrigger value="replay" className="justify-start w-full">Route replay</TabsTrigger>
