@@ -11,7 +11,9 @@ import DriverMessages from "@/components/DriverMessages";
 import Greeting from "@/components/Greeting";
 import ProfileInfo from "@/components/ProfileInfo";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, DoorOpen } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Link } from "react-router-dom";
 
 // Flow: pin gate → inspection → tracking dashboard
 export default function DriverApp() {
@@ -67,6 +69,17 @@ export default function DriverApp() {
             user={user}
             onCompleted={() => setStage("tracking")}
           />
+        )}
+
+        {stage === "tracking" && (
+          <div className="flex justify-end">
+            <Button asChild variant="outline" size="sm">
+              <Link to="/kiosk/front-desk">
+                <DoorOpen className="w-4 h-4 mr-1.5" />
+                Front-desk kiosk
+              </Link>
+            </Button>
+          </div>
         )}
 
         {stage === "tracking" && (

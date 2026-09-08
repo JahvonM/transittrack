@@ -65,7 +65,7 @@ const ROLE_LINKS = [
 const PORTAL_LINKS = [
   { to: "/badge-registry", label: "Badge Registry", icon: CreditCard },
   { to: "/kiosk/bus", label: "Bus Entry Kiosk", icon: Smartphone },
-  { to: "/kiosk/driver", label: "Driver Kiosk", icon: Car },
+  { to: "/kiosk/clock", label: "NFC Clock Kiosk", icon: CreditCard },
   { to: "/kiosk/front-desk", label: "Front Desk Kiosk", icon: DoorOpen },
   { to: "/reviewer-sandbox", label: "Reviewer Sandbox", icon: FlaskConical },
 ];
