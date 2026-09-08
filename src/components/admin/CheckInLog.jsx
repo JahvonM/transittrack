@@ -10,7 +10,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { LogIn, LogOut, RefreshCw } from "lucide-react";
+import { FileSpreadsheet, FileText, LogIn, LogOut, RefreshCw } from "lucide-react";
+import { exportToCSV, exportToPDF } from "@/lib/exporters";
+
+const CHECKIN_COLS = [
+  { key: "staff_name", label: "Staff" },
+  { key: "status", label: "Status" },
+  { key: "vehicle_name", label: "Bus" },
+  { key: "company_name", label: "Company" },
+  { key: "card_tag", label: "Badge tag" },
+  { key: "boarded_at", label: "Time" },
+  { key: "created_date", label: "Logged" },
+];
 
 export default function CheckInLog({ vehicles }) {
   const [records, setRecords] = useState([]);
@@ -41,9 +52,17 @@ export default function CheckInLog({ vehicles }) {
         <CardTitle className="flex items-center gap-2 text-base">
           <LogIn className="w-4 h-4" /> Bus sign-in / sign-out log
         </CardTitle>
-        <Button size="sm" variant="outline" onClick={load}>
-          <RefreshCw className="w-4 h-4" /> Refresh
-        </Button>
+        <div className="flex gap-2">
+          <Button size="sm" variant="outline" onClick={() => exportToCSV("checkin-log", CHECKIN_COLS, filtered)} disabled={!filtered.length}>
+            <FileSpreadsheet className="w-4 h-4" /> Excel
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => exportToPDF("checkin-log", "Bus sign-in / sign-out log", CHECKIN_COLS, filtered)} disabled={!filtered.length}>
+            <FileText className="w-4 h-4" /> PDF
+          </Button>
+          <Button size="sm" variant="outline" onClick={load}>
+            <RefreshCw className="w-4 h-4" /> Refresh
+          </Button>
+        </div>
       </CardHeader>
       <CardContent>
         <div className="mb-3">

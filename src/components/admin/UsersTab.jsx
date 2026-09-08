@@ -11,7 +11,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Trash2, UserPlus, Users } from "lucide-react";
+import { FileSpreadsheet, FileText, Trash2, UserPlus, Users } from "lucide-react";
+import { exportToCSV, exportToPDF } from "@/lib/exporters";
+
+const USER_COLS = [
+  { key: "full_name", label: "Full name" },
+  { key: "email", label: "Email" },
+  { key: "role", label: "Role" },
+  { key: "company_id", label: "Company ID" },
+  { key: "created_date", label: "Created" },
+];
 
 export default function UsersTab({ users, companies, currentUser, onChange }) {
   const [inviteEmail, setInviteEmail] = useState("");
@@ -44,10 +53,18 @@ export default function UsersTab({ users, companies, currentUser, onChange }) {
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0">
         <CardTitle className="flex items-center gap-2">
           <Users className="w-5 h-5" /> Users &amp; roles
         </CardTitle>
+        <div className="flex gap-2">
+          <Button size="sm" variant="outline" onClick={() => exportToCSV("users", USER_COLS, users)} disabled={!users.length}>
+            <FileSpreadsheet className="w-4 h-4" /> Excel
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => exportToPDF("users", "Users and roles", USER_COLS, users)} disabled={!users.length}>
+            <FileText className="w-4 h-4" /> PDF
+          </Button>
+        </div>
       </CardHeader>
       <CardContent className="space-y-2">
         <div className="flex flex-wrap items-center gap-2 p-3 rounded-lg border bg-muted/40">

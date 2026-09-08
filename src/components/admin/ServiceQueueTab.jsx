@@ -4,7 +4,19 @@ import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Wrench, CheckCircle2, AlertTriangle } from "lucide-react";
+import { CheckCircle2, AlertTriangle, FileSpreadsheet, FileText, Wrench } from "lucide-react";
+import { exportToCSV, exportToPDF } from "@/lib/exporters";
+
+const SERVICE_COLS = [
+  { key: "vehicle_name", label: "Vehicle" },
+  { key: "company_name", label: "Company" },
+  { key: "driver_name", label: "Driver" },
+  { key: "date", label: "Inspection date" },
+  { key: "service_notes", label: "Service notes" },
+  { key: "odometer_reading", label: "Odometer (km)" },
+  { key: "fuel_level", label: "Fuel (%)" },
+  { key: "created_date", label: "Reported" },
+];
 
 export default function ServiceQueueTab({ inspections = [], onChange }) {
   const [resolving, setResolving] = useState(null);
@@ -28,10 +40,18 @@ export default function ServiceQueueTab({ inspections = [], onChange }) {
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <Wrench className="w-5 h-5 text-amber-400" />
         <h2 className="text-lg font-semibold">Service Queue</h2>
         <Badge variant="destructive">{pending.length} pending</Badge>
+        <div className="ml-auto flex gap-2">
+          <Button size="sm" variant="outline" onClick={() => exportToCSV("service-queue", SERVICE_COLS, pending)} disabled={!pending.length}>
+            <FileSpreadsheet className="w-4 h-4" /> Excel
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => exportToPDF("service-queue", "Service queue", SERVICE_COLS, pending)} disabled={!pending.length}>
+            <FileText className="w-4 h-4" /> PDF
+          </Button>
+        </div>
       </div>
       <p className="text-sm text-muted-foreground">
         Vehicles with failed inspection items that need a mechanic's attention.

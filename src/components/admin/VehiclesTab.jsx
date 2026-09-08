@@ -12,7 +12,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Bus, Car, Check, Pencil, Plus, Trash2, X } from "lucide-react";
+import { Bus, Car, Check, FileSpreadsheet, FileText, Pencil, Plus, Trash2, X } from "lucide-react";
+import { exportToCSV, exportToPDF } from "@/lib/exporters";
+
+const VEHICLE_COLS = [
+  { key: "name", label: "Name" },
+  { key: "plate_number", label: "Plate" },
+  { key: "type", label: "Type" },
+  { key: "company_name", label: "Company" },
+  { key: "driver_name", label: "Driver" },
+  { key: "driver_email", label: "Driver email" },
+  { key: "status", label: "Status" },
+  { key: "capacity", label: "Capacity" },
+  { key: "entry_code", label: "Entry code" },
+  { key: "created_date", label: "Created" },
+];
 
 const empty = {
   name: "",
@@ -99,6 +113,14 @@ export default function VehiclesTab({ vehicles, companies, routes, onChange }) {
   return (
     <div className="grid lg:grid-cols-[1fr_360px] gap-4">
       <div className="space-y-2">
+        <div className="flex justify-end gap-2">
+          <Button size="sm" variant="outline" onClick={() => exportToCSV("vehicles", VEHICLE_COLS, vehicles)} disabled={!vehicles.length}>
+            <FileSpreadsheet className="w-4 h-4" /> Excel
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => exportToPDF("vehicles", "Vehicle fleet", VEHICLE_COLS, vehicles)} disabled={!vehicles.length}>
+            <FileText className="w-4 h-4" /> PDF
+          </Button>
+        </div>
         {vehicles.length === 0 && (
           <p className="text-sm text-muted-foreground py-8 text-center border rounded-2xl">
             No vehicles yet. Add your first bus or taxi.
