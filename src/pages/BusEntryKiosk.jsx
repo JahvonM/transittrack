@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Usb, CheckCircle2, Keyboard, Nfc } from "lucide-react";
+import OfflineStatusBadge from "@/components/OfflineStatusBadge";
 
 const ROSTER_KEY = "kiosk_card_roster";
 
@@ -40,7 +41,7 @@ const SUCCESS_CHIME = () => {
 };
 
 export default function BusEntryKiosk() {
-  const { safeCreate } = useOfflineSync();
+  const { safeCreate, online, pendingCount } = useOfflineSync();
   const [readerStatus, setReaderStatus] = useState("disconnected");
   const [flash, setFlash] = useState(null);
   const [manualTag, setManualTag] = useState("");
@@ -180,7 +181,9 @@ export default function BusEntryKiosk() {
           <Usb className="w-5 h-5 text-primary" />
           Bus Entry Kiosk
         </div>
-        <span
+        <div className="flex items-center gap-2">
+          <OfflineStatusBadge online={online} pendingCount={pendingCount} />
+          <span
           className={`text-xs px-2.5 py-1 rounded-full border ${
             readerStatus === "connected"
               ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
@@ -194,7 +197,8 @@ export default function BusEntryKiosk() {
             : readerStatus === "error"
             ? "Reader error"
             : "Reader disconnected"}
-        </span>
+          </span>
+        </div>
       </header>
 
       <main className="flex-1 grid place-items-center p-6">

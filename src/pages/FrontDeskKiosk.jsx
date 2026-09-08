@@ -7,9 +7,10 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import SignaturePad from "@/components/SignaturePad";
 import { CheckCircle2, Loader2, PenLine } from "lucide-react";
+import OfflineStatusBadge from "@/components/OfflineStatusBadge";
 
 export default function FrontDeskKiosk() {
-  const { safeCreate } = useOfflineSync();
+  const { safeCreate, online, pendingCount } = useOfflineSync();
   const sigRef = useRef(null);
   const [fullName, setFullName] = useState("");
   const [companyName, setCompanyName] = useState("");
@@ -64,11 +65,12 @@ export default function FrontDeskKiosk() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <header className="h-14 border-b border-border flex items-center px-5">
+      <header className="h-14 border-b border-border flex items-center justify-between px-5">
         <div className="flex items-center gap-2 font-heading font-semibold">
           <PenLine className="w-5 h-5 text-primary" />
           Front Desk Sign-In
         </div>
+        <OfflineStatusBadge online={online} pendingCount={pendingCount} />
       </header>
 
       <main className="flex-1 grid place-items-center p-6">

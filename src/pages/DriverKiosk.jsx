@@ -1,10 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Map, { Marker } from "react-map-gl";
+import Map, { Marker, Source, Layer } from "react-map-gl";
 import { MAPBOX_TOKEN } from "@/lib/mapbox";
 import { useAuth } from "@/lib/AuthContext";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
-import { Bus, Navigation, MapPin, Loader2, AlertCircle } from "lucide-react";
+import OfflineStatusBadge from "@/components/OfflineStatusBadge";
+import { useOfflineSync } from "@/hooks/useOfflineSync";
+import { Bus, Navigation, MapPin, Loader2, AlertCircle, LocateFixed, Satellite } from "lucide-react";
 
 const TRACK_INTERVAL_MS = 30000;
 
@@ -26,6 +28,7 @@ function hidePoiLayers(map) {
 
 export default function DriverKiosk() {
   const { user } = useAuth();
+  const { online, pendingCount } = useOfflineSync();
   const [vehicle, setVehicle] = useState(null);
   const [route, setRoute] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -33,6 +36,7 @@ export default function DriverKiosk() {
   const [pos, setPos] = useState(null);
   const watchId = useRef(null);
   const lastPush = useRef(0);
+  const mapRef = useRef(null);
 
   // Load the driver's assigned vehicle + route
   useEffect(() => {
@@ -141,10 +145,44 @@ export default function DriverKiosk() {
     );
   }
 
+  const gpsStatus = !pos
+    ? "searching"
+    : pos.accuracy != null && pos.accuracy <= 50
+    ? "locked"
+    : "low";
+
+  const recenter = () => {
+    const map = mapRef.current;
+    if (!map || !pos) return;
+    map.flyTo({ center: [pos.lng, pos.lat], zoom: Math.max(map.getZoom(), 15), duration: 800 });
+  };
+
   return (
     <div className="h-screen bg-background flex flex-col">
+      <header className="h-12 border-b border-border flex items-center justify-between px-4">
+        <div className="flex items-center gap-2 font-heading font-semibold text-sm">
+          <Bus className="w-4 h-4 text-primary" />
+          {vehicle.name}
+        </div>
+        <div className="flex items-center gap-2">
+          <span
+            className={`text-xs px-2 py-0.5 rounded-full border inline-flex items-center gap-1 ${
+              gpsStatus === "locked"
+                ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
+                : gpsStatus === "low"
+                ? "bg-amber-500/10 text-amber-400 border-amber-500/30"
+                : "bg-muted text-muted-foreground border-border"
+            }`}
+          >
+            <Satellite className="w-3 h-3" />
+            {gpsStatus === "locked" ? "GPS locked" : gpsStatus === "low" ? "Low signal" : "Searching…"}
+          </span>
+          <OfflineStatusBadge online={online} pendingCount={pendingCount} />
+        </div>
+      </header>
       <div className="relative flex-1">
         <Map
+          ref={mapRef}
           mapboxAccessToken={MAPBOX_TOKEN}
           mapStyle="mapbox://styles/mapbox/streets-v12"
           initialViewState={{
@@ -156,6 +194,27 @@ export default function DriverKiosk() {
           attributionControl={false}
           onLoad={(e) => hidePoiLayers(e.target)}
         >
+          {vehicle?.trail?.length > 1 && (
+            <Source
+              id="driver-trail"
+              type="geojson"
+              data={{
+                type: "Feature",
+                geometry: {
+                  type: "LineString",
+                  coordinates: vehicle.trail
+                    .filter((p) => p.lat != null && p.lng != null)
+                    .map((p) => [p.lng, p.lat]),
+                },
+              }}
+            >
+              <Layer
+                id="driver-trail-line"
+                type="line"
+                paint={{ "line-color": "#38bdf8", "line-width": 4, "line-opacity": 0.5 }}
+              />
+            </Source>
+          )}
           {pos && (
             <Marker longitude={pos.lng} latitude={pos.lat} anchor="bottom">
               <div className="w-10 h-10 rounded-full bg-primary border-2 border-white shadow-lg grid place-items-center">
@@ -190,6 +249,15 @@ export default function DriverKiosk() {
             </a>
           </Button>
         </div>
+
+        <button
+          type="button"
+          onClick={recenter}
+          className="absolute right-4 bottom-24 z-10 w-11 h-11 rounded-full bg-card/95 border border-border shadow-lg grid place-items-center hover:bg-accent transition-colors"
+          title="Recenter on bus"
+        >
+          <LocateFixed className="w-5 h-5 text-primary" />
+        </button>
       </div>
     </div>
   );

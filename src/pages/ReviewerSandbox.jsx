@@ -1,10 +1,8 @@
-import React, { useEffect, useMemo, useState } from "react";
-import Map, { Marker } from "react-map-gl";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import Map, { Marker, Source, Layer } from "react-map-gl";
 import { MAPBOX_TOKEN } from "@/lib/mapbox";
-import { useAuth } from "@/lib/AuthContext";
-import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
-import { Navigation, Bus, MapPin, Loader2 } from "lucide-react";
+import { Navigation, Bus, MapPin, Flag } from "lucide-react";
 
 // Simulated test path the demo bus travels along.
 const PATH = [
@@ -15,23 +13,49 @@ const PATH = [
   { lng: -61.744, lat: 12.058 },
 ];
 const DEST = { lng: -61.750, lat: 12.062, name: "Reviewer Test Stop" };
+const STEP_MS = 2200;
+
+function lerp(a, b, t) {
+  return a + (b - a) * t;
+}
 
 export default function ReviewerSandbox() {
-  const { user } = useAuth();
   const [step, setStep] = useState(0);
+  const [displayPos, setDisplayPos] = useState(PATH[0]);
+  const raf = useRef(null);
 
+  // Advance the target waypoint on a cadence.
   useEffect(() => {
     const id = setInterval(() => {
       setStep((s) => (s + 1) % PATH.length);
-    }, 2000);
+    }, STEP_MS);
     return () => clearInterval(id);
   }, []);
 
-  const pos = PATH[step];
+  // Smoothly glide the displayed position toward the current target waypoint.
+  useEffect(() => {
+    const target = PATH[step];
+    const loop = () => {
+      setDisplayPos((prev) => ({
+        lng: lerp(prev.lng, target.lng, 0.06),
+        lat: lerp(prev.lat, target.lat, 0.06),
+      }));
+      raf.current = requestAnimationFrame(loop);
+    };
+    raf.current = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf.current);
+  }, [step]);
+
+  const trailCoords = useMemo(
+    () => PATH.slice(0, step + 1).map((p) => [p.lng, p.lat]),
+    [step]
+  );
+
   const navUrl = `https://www.google.com/maps?q=${DEST.lat},${DEST.lng}`;
+  const progress = Math.round(((step + 1) / PATH.length) * 100);
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="h-screen bg-background flex flex-col">
       <header className="h-14 border-b border-border flex items-center justify-between px-5">
         <div className="flex items-center gap-2 font-heading font-semibold">
           <Bus className="w-5 h-5 text-primary" />
@@ -46,18 +70,58 @@ export default function ReviewerSandbox() {
         <Map
           mapboxAccessToken={MAPBOX_TOKEN}
           mapStyle="mapbox://styles/mapbox/streets-v12"
-          initialViewState={{ longitude: pos.lng, latitude: pos.lat, zoom: 14 }}
+          initialViewState={{
+            longitude: (PATH[0].lng + DEST.lng) / 2,
+            latitude: (PATH[0].lat + DEST.lat) / 2,
+            zoom: 13,
+          }}
           style={{ width: "100%", height: "100%" }}
           attributionControl={false}
+          onLoad={(e) => {
+            const map = e.target;
+            map.getStyle()?.layers?.forEach((layer) => {
+              const id = layer.id || "";
+              if (id.includes("poi") || id.includes("transit")) {
+                try {
+                  map.setLayoutProperty(id, "visibility", "none");
+                } catch {
+                  /* skip */
+                }
+              }
+            });
+          }}
         >
-          <Marker longitude={pos.lng} latitude={pos.lat} anchor="bottom">
-            <div className="w-9 h-9 rounded-full bg-primary border-2 border-white shadow-lg grid place-items-center">
-              <Bus className="w-5 h-5 text-primary-foreground" />
+          {trailCoords.length > 1 && (
+            <Source
+              id="demo-trail"
+              type="geojson"
+              data={{ type: "Feature", geometry: { type: "LineString", coordinates: trailCoords } }}
+            >
+              <Layer
+                id="demo-trail-line"
+                type="line"
+                paint={{ "line-color": "#38bdf8", "line-width": 4, "line-opacity": 0.6 }}
+              />
+            </Source>
+          )}
+
+          <Marker longitude={displayPos.lng} latitude={displayPos.lat} anchor="bottom">
+            <div className="relative">
+              <div className="absolute inset-0 w-9 h-9 rounded-full bg-primary/30 animate-ping" />
+              <div className="w-9 h-9 rounded-full bg-primary border-2 border-white shadow-lg grid place-items-center">
+                <Bus className="w-5 h-5 text-primary-foreground" />
+              </div>
             </div>
           </Marker>
-          <Marker longitude={DEST.lng} latitude={DEST.lat} anchor="center">
+
+          <Marker longitude={DEST.lng} latitude={DEST.lat} anchor="bottom">
             <div className="flex flex-col items-center">
-              <div className="w-4 h-4 rounded-full bg-emerald-500 border-2 border-white shadow" />
+              <div className="w-8 h-8 rounded-full bg-emerald-500/20 border-2 border-emerald-500 grid place-items-center shadow">
+                <Flag className="w-4 h-4 text-emerald-400" />
+              </div>
+              <div className="mt-1 px-2 py-0.5 rounded-full bg-card/95 border border-border text-[10px] font-medium whitespace-nowrap">
+                {DEST.name}
+              </div>
             </div>
           </Marker>
         </Map>
@@ -68,7 +132,16 @@ export default function ReviewerSandbox() {
               <MapPin className="w-3.5 h-3.5 text-primary" />
               Next pickup destination
             </div>
-            <div className="text-lg font-semibold">{DEST.name}</div>
+            <div className="flex items-center justify-between gap-3">
+              <div className="text-lg font-semibold">{DEST.name}</div>
+              <div className="text-xs text-muted-foreground">{progress}% complete</div>
+            </div>
+            <div className="mt-2 h-1.5 rounded-full bg-muted overflow-hidden">
+              <div
+                className="h-full bg-primary transition-all duration-500"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
           </div>
         </div>
 
