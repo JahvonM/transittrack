@@ -9,6 +9,7 @@ import DriverTrackingDashboard from "@/components/driver/DriverTrackingDashboard
 import DriverMessages from "@/components/DriverMessages";
 import Greeting from "@/components/Greeting";
 import ProfileInfo from "@/components/ProfileInfo";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertCircle } from "lucide-react";
 
 // Flow: pin gate → inspection → tracking dashboard
@@ -53,7 +54,6 @@ export default function DriverApp() {
   return (
     <AppLayout title="Driver App">
       <div className="space-y-4 max-w-3xl">
-        <DriverMessages vehicle={vehicle} />
         <Greeting subtitle={vehicle.name} />
 
         {stage === "pin" && (
@@ -69,10 +69,23 @@ export default function DriverApp() {
         )}
 
         {stage === "tracking" && (
-          <DriverTrackingDashboard vehicle={vehicle} user={user} />
+          <Tabs defaultValue="track" className="w-full">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="track">Track</TabsTrigger>
+              <TabsTrigger value="messages">Messages</TabsTrigger>
+              <TabsTrigger value="profile">Profile</TabsTrigger>
+            </TabsList>
+            <TabsContent value="track" className="mt-4 space-y-4">
+              <DriverTrackingDashboard vehicle={vehicle} user={user} />
+            </TabsContent>
+            <TabsContent value="messages" className="mt-4">
+              <DriverMessages vehicle={vehicle} />
+            </TabsContent>
+            <TabsContent value="profile" className="mt-4">
+              <ProfileInfo />
+            </TabsContent>
+          </Tabs>
         )}
-
-        {stage === "tracking" && <ProfileInfo />}
       </div>
     </AppLayout>
   );
