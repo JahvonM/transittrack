@@ -135,7 +135,7 @@ export default function Welcome() {
 
   return (
     <div className="min-h-screen bg-slate-900 bg-grid text-slate-50">
-      <header className="sticky top-0 z-40 h-14 border-b border-slate-700/50 bg-slate-900/70 backdrop-blur-[12px]">
+      <header className="sticky top-0 z-40 h-14 border-b border-slate-700/50 bg-slate-900/70 backdrop-blur-[12px] safe-area-top">
         <div className="max-w-6xl mx-auto px-4 h-full flex items-center justify-between gap-3">
           <Link to="/" className="flex items-center gap-2.5 font-heading font-semibold text-lg">
             <Logo className="w-8 h-8" />

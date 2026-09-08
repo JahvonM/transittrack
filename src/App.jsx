@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster"
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
 import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
-import PageNotFound from './lib/PageNotFound';
+import { Suspense, lazy } from 'react';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import ScrollToTop from './components/ScrollToTop';
@@ -10,43 +10,53 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 import MobileTabBar from '@/components/MobileTabBar';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Navigate } from 'react-router-dom';
+// Auth components load eagerly so the login flow renders without a chunk round-trip
 import Login from '@/pages/Login';
 import Register from '@/pages/Register';
 import ForgotPassword from '@/pages/ForgotPassword';
 import ResetPassword from '@/pages/ResetPassword';
-import Welcome from '@/pages/Welcome';
-import BookTaxi from '@/pages/BookTaxi';
-import CompanyDashboard from '@/pages/CompanyDashboard';
-import DriverApp from '@/pages/DriverApp';
-import Admin from '@/pages/Admin';
-import Account from '@/pages/Account';
-import StaffPortal from '@/pages/StaffPortal';
-import ManagerDashboard from '@/pages/ManagerDashboard';
-import OAuthConsent from '@/pages/OAuthConsent';
-import MaintenanceQueue from '@/pages/MaintenanceQueue';
-import RouteAnalytics from '@/pages/RouteAnalytics';
-import DriverProfile from '@/pages/DriverProfile';
-import FleetSyncSettings from '@/pages/FleetSyncSettings';
-import IncidentReports from '@/pages/IncidentReports';
-import PassengerBookings from '@/pages/PassengerBookings';
-import RouteExplorer from '@/pages/RouteExplorer';
-import StaffDirectory from '@/pages/StaffDirectory';
-import VehicleLogs from '@/pages/VehicleLogs';
-import ServiceHistory from '@/pages/ServiceHistory';
-import SafetyStandards from '@/pages/SafetyStandards';
-import RideHistory from '@/pages/RideHistory';
-import FleetAnalytics from '@/pages/FleetAnalytics';
-import Notifications from '@/pages/Notifications';
-import VehicleRegistry from '@/pages/VehicleRegistry';
-import DriverSchedule from '@/pages/DriverSchedule';
-import IncidentReport from '@/pages/IncidentReport';
-import PassengerSupport from '@/pages/PassengerSupport';
-import RoutePlanner from '@/pages/RoutePlanner';
-import BusEntryKiosk from '@/pages/BusEntryKiosk';
-import FrontDeskKiosk from '@/pages/FrontDeskKiosk';
-import ReviewerSandbox from '@/pages/ReviewerSandbox';
-import BadgeRegistry from '@/pages/BadgeRegistry';
+
+// Route-level pages are lazily loaded for code-splitting / performance
+const PageNotFound = lazy(() => import('./lib/PageNotFound'));
+const Welcome = lazy(() => import('@/pages/Welcome'));
+const BookTaxi = lazy(() => import('@/pages/BookTaxi'));
+const CompanyDashboard = lazy(() => import('@/pages/CompanyDashboard'));
+const DriverApp = lazy(() => import('@/pages/DriverApp'));
+const Admin = lazy(() => import('@/pages/Admin'));
+const Account = lazy(() => import('@/pages/Account'));
+const StaffPortal = lazy(() => import('@/pages/StaffPortal'));
+const ManagerDashboard = lazy(() => import('@/pages/ManagerDashboard'));
+const OAuthConsent = lazy(() => import('@/pages/OAuthConsent'));
+const MaintenanceQueue = lazy(() => import('@/pages/MaintenanceQueue'));
+const RouteAnalytics = lazy(() => import('@/pages/RouteAnalytics'));
+const DriverProfile = lazy(() => import('@/pages/DriverProfile'));
+const FleetSyncSettings = lazy(() => import('@/pages/FleetSyncSettings'));
+const IncidentReports = lazy(() => import('@/pages/IncidentReports'));
+const PassengerBookings = lazy(() => import('@/pages/PassengerBookings'));
+const RouteExplorer = lazy(() => import('@/pages/RouteExplorer'));
+const StaffDirectory = lazy(() => import('@/pages/StaffDirectory'));
+const VehicleLogs = lazy(() => import('@/pages/VehicleLogs'));
+const ServiceHistory = lazy(() => import('@/pages/ServiceHistory'));
+const SafetyStandards = lazy(() => import('@/pages/SafetyStandards'));
+const RideHistory = lazy(() => import('@/pages/RideHistory'));
+const FleetAnalytics = lazy(() => import('@/pages/FleetAnalytics'));
+const Notifications = lazy(() => import('@/pages/Notifications'));
+const VehicleRegistry = lazy(() => import('@/pages/VehicleRegistry'));
+const DriverSchedule = lazy(() => import('@/pages/DriverSchedule'));
+const IncidentReport = lazy(() => import('@/pages/IncidentReport'));
+const PassengerSupport = lazy(() => import('@/pages/PassengerSupport'));
+const RoutePlanner = lazy(() => import('@/pages/RoutePlanner'));
+const BusEntryKiosk = lazy(() => import('@/pages/BusEntryKiosk'));
+const FrontDeskKiosk = lazy(() => import('@/pages/FrontDeskKiosk'));
+const ReviewerSandbox = lazy(() => import('@/pages/ReviewerSandbox'));
+const BadgeRegistry = lazy(() => import('@/pages/BadgeRegistry'));
 // Add page imports here
+
+const RouteFallback = () => (
+  <div className="fixed inset-0 flex items-center justify-center">
+    <div className="w-8 h-8 border-4 border-slate-200 border-t-slate-800 rounded-full animate-spin" />
+  </div>
+);
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -83,6 +93,7 @@ const AuthenticatedApp = () => {
         exit={{ opacity: 0, x: -16 }}
         transition={{ duration: 0.18, ease: "easeOut" }}
       >
+      <Suspense fallback={<RouteFallback />}>
       <Routes location={location}>
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
@@ -130,6 +141,7 @@ const AuthenticatedApp = () => {
       </Route>
       <Route path="*" element={<PageNotFound />} />
       </Routes>
+      </Suspense>
       </motion.div>
     </AnimatePresence>
     <MobileTabBar />
