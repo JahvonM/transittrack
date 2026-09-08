@@ -5,7 +5,7 @@ import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { MobileSelect } from "@/components/ui/mobile-select";
 import { ArrowLeft, Car, CheckCircle2, MapPin } from "lucide-react";
 
 export default function BookTaxi() {
@@ -67,7 +67,7 @@ export default function BookTaxi() {
 
   return (
     <div className="min-h-screen bg-slate-900 bg-grid text-slate-50">
-      <header className="sticky top-0 z-40 h-14 border-b border-slate-700/50 bg-slate-900/70 backdrop-blur-[12px]">
+      <header className="sticky top-0 z-40 h-14 border-b border-slate-700/50 bg-slate-900/70 backdrop-blur-[12px] safe-area-top">
         <div className="max-w-3xl mx-auto px-4 h-full flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2.5 font-heading font-semibold text-lg">
             <span className="w-8 h-8 rounded-xl bg-sky-400 text-slate-900 grid place-items-center">
@@ -81,7 +81,7 @@ export default function BookTaxi() {
         </div>
       </header>
 
-      <main className="max-w-md mx-auto px-4 py-10">
+      <main className="max-w-md mx-auto px-4 pt-10 pb-24 md:pb-10">
         {authed === null ? (
           <p className="text-sm text-slate-400 text-center">Checking session…</p>
         ) : authed === false ? (
@@ -147,18 +147,12 @@ export default function BookTaxi() {
             ) : (
               <div className="space-y-1.5">
                 <Label>Taxi operator</Label>
-                <Select value={form.company_id} onValueChange={(v) => setForm({ ...form, company_id: v })}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Choose an operator" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {companies.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <MobileSelect
+                  value={form.company_id}
+                  onValueChange={(v) => setForm({ ...form, company_id: v })}
+                  placeholder="Choose an operator"
+                  options={companies.map((c) => ({ value: c.id, label: c.name }))}
+                />
               </div>
             )}
 

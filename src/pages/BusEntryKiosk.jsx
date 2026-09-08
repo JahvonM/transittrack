@@ -296,7 +296,7 @@ export default function BusEntryKiosk() {
   if (!bus) {
     return (
       <div className="min-h-screen bg-background flex flex-col">
-        <header className="h-14 border-b border-border flex items-center px-5">
+        <header className="h-14 border-b border-border flex items-center px-5 safe-area-top">
           <div className="flex items-center gap-2 font-heading font-semibold">
             <Usb className="w-5 h-5 text-primary" />
             Bus Entry Kiosk
@@ -357,7 +357,7 @@ export default function BusEntryKiosk() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <header className="h-14 border-b border-border flex items-center px-5 justify-between">
+      <header className="h-14 border-b border-border flex items-center px-5 justify-between safe-area-top">
         <div className="flex items-center gap-2 font-heading font-semibold">
           <Usb className="w-5 h-5 text-primary" />
           Bus Entry Kiosk

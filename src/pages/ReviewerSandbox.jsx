@@ -56,7 +56,7 @@ export default function ReviewerSandbox() {
 
   return (
     <div className="h-screen bg-background flex flex-col">
-      <header className="h-14 border-b border-border flex items-center justify-between px-5">
+      <header className="h-14 border-b border-border flex items-center justify-between px-5 safe-area-top">
         <div className="flex items-center gap-2 font-heading font-semibold">
           <Bus className="w-5 h-5 text-primary" />
           Driver Dashboard

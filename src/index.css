@@ -138,3 +138,29 @@
     min-height: 44px;
   }
 }
+
+/* Slide-up bottom sheet for dropdown menus / selects on mobile */
+@keyframes slide-up-sheet {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 768px) {
+  [data-radix-popper-content-wrapper] {
+    position: fixed !important;
+    inset: auto 0 0 0 !important;
+    transform: none !important;
+    z-index: 60 !important;
+  }
+  [data-radix-popper-content-wrapper] > * {
+    width: 100% !important;
+    max-width: 100% !important;
+    border-radius: 0.75rem 0.75rem 0 0 !important;
+    border-bottom: 0 !important;
+    animation: slide-up-sheet 0.2s ease-out !important;
+  }
+}
