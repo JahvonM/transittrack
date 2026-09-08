@@ -10,7 +10,7 @@ export default function AppLayout({ children, title }) {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const isHome = pathname === "/";
-  const hideBack = isHome || ["/admin", "/staff", "/driver"].includes(pathname);
+  const hideBack = isHome || ["/admin", "/staff", "/driver", "/notifications", "/account", "/route-explorer"].includes(pathname);
 
   return (
     <div className="min-h-screen bg-background">

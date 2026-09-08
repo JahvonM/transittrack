@@ -1,16 +1,20 @@
 import React, { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import AppLayout from "@/components/AppLayout";
+import PullToRefresh from "@/components/PullToRefresh";
 import { Card, CardContent } from "@/components/ui/card";
 import { BellRing, Bus, Car, Info } from "lucide-react";
 
 export default function Notifications() {
   const [alerts, setAlerts] = useState([]);
 
-  useEffect(() => {
+  const loadAlerts = () =>
     base44.entities.Broadcast.list("-created_date", 30)
       .then(setAlerts)
       .catch(() => {});
+
+  useEffect(() => {
+    loadAlerts();
     const unsub = base44.entities.Broadcast.subscribe((event) => {
       if (event.type === "delete") {
         setAlerts((prev) => prev.filter((a) => a.id !== event.id));
@@ -23,7 +27,8 @@ export default function Notifications() {
 
   return (
     <AppLayout title="Notifications">
-      <div className="max-w-2xl space-y-2">
+      <PullToRefresh onRefresh={loadAlerts} className="max-w-2xl">
+        <div className="space-y-2">
         {alerts.length === 0 && <p className="text-muted-foreground py-12 text-center">No notifications yet.</p>}
         {alerts.map((a) => (
           <Card key={a.id}>
@@ -45,7 +50,8 @@ export default function Notifications() {
             </CardContent>
           </Card>
         ))}
-      </div>
+        </div>
+      </PullToRefresh>
     </AppLayout>
   );
 }

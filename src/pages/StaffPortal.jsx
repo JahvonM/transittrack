@@ -16,7 +16,8 @@ import Greeting from "@/components/Greeting";
 import { haversineKm, etaMinutes, formatEta } from "@/lib/geo";
 import { STATUS_LABEL, STATUS_VARIANT } from "@/lib/trip";
 import { Bus, Clock, LogOut, Map as MapIcon, User } from "lucide-react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { MobileSelect } from "@/components/ui/mobile-select";
+import PullToRefresh from "@/components/PullToRefresh";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -134,6 +135,19 @@ export default function StaffPortal() {
     };
   }, [company]);
 
+  const reload = async () => {
+    if (!company) return;
+    const [v, r, t] = await Promise.all([
+      base44.entities.Vehicle.filter({ company_id: company.id }),
+      base44.entities.Route.filter({ company_id: company.id }),
+      base44.entities.Trip.filter({ company_id: company.id }),
+    ]);
+    setVehicles(v);
+    setRoutes(r);
+    setTrips(t);
+    statusRef.current = Object.fromEntries(t.map((x) => [x.id, x.status]));
+  };
+
   const switchCompany = () => {
     localStorage.removeItem("tt_company_code");
     setCompany(null);
@@ -200,7 +214,8 @@ export default function StaffPortal() {
 
   return (
     <AppLayout title="Transit Portal">
-      <div className="space-y-4 max-w-3xl">
+      <PullToRefresh onRefresh={reload} className="max-w-3xl">
+        <div className="space-y-4">
         <Greeting subtitle={company.name} />
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
@@ -227,20 +242,16 @@ export default function StaffPortal() {
 
         <div>
           <p className="text-sm font-medium mb-1.5">Your pickup point</p>
-          <Select
+          <MobileSelect
             value={pickupName}
             onValueChange={(v) => {
               setPickupName(v);
               localStorage.setItem("tt_staff_pickup", v);
             }}
-          >
-            <SelectTrigger className="max-w-sm"><SelectValue placeholder="Choose your hotel / stop" /></SelectTrigger>
-            <SelectContent>
-              {pickupOptions.map((s) => (
-                <SelectItem key={s.name} value={s.name}>{s.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            placeholder="Choose your hotel / stop"
+            options={pickupOptions.map((s) => ({ value: s.name, label: s.name }))}
+            triggerClassName="max-w-sm"
+          />
         </div>
 
         {stop && (
@@ -352,7 +363,8 @@ export default function StaffPortal() {
         <LostItemReport />
 
         <ProfileInfo />
-      </div>
+        </div>
+      </PullToRefresh>
     </AppLayout>
   );
 }

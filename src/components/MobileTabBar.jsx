@@ -1,5 +1,5 @@
-import React from "react";
-import { Link, useLocation } from "react-router-dom";
+import React, { useEffect } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Home, Map, MessageSquare, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -19,8 +19,24 @@ const TABS = [
   { to: "/account", label: "Account", icon: User },
 ];
 
+// Per-tab remembered route stack (session-local)
+const tabStacks = {};
+
+function tabFor(pathname) {
+  if (pathname === "/") return "/";
+  const match = TABS.find((t) => t.to !== "/" && pathname.startsWith(t.to));
+  return match ? match.to : null;
+}
+
 export default function MobileTabBar() {
   const { pathname } = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const tab = tabFor(pathname);
+    if (tab) tabStacks[tab] = pathname;
+  }, [pathname]);
+
   if (HIDDEN_PREFIXES.some((p) => pathname.startsWith(p))) return null;
 
   return (
@@ -28,10 +44,12 @@ export default function MobileTabBar() {
       <div className="flex items-stretch justify-around">
         {TABS.map(({ to, label, icon: Icon, exact }) => {
           const active = exact ? pathname === "/" : pathname.startsWith(to);
+          const target = tabStacks[to] || to;
           return (
-            <Link
+            <button
               key={to}
-              to={to}
+              type="button"
+              onClick={() => navigate(target)}
               className={cn(
                 "flex flex-1 flex-col items-center justify-center gap-0.5 py-2 text-[11px] font-medium transition-colors",
                 active ? "text-primary" : "text-muted-foreground"
@@ -39,7 +57,7 @@ export default function MobileTabBar() {
             >
               <Icon className="w-5 h-5" />
               {label}
-            </Link>
+            </button>
           );
         })}
       </div>
