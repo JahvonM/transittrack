@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import { useToast } from "@/components/ui/use-toast";
@@ -28,6 +29,7 @@ const ROLE_LABEL = {
 
 export default function ProfileInfo({ companyName }) {
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const { toast } = useToast();
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
@@ -73,7 +75,7 @@ export default function ProfileInfo({ companyName }) {
       await base44.functions.invoke("deleteAccount", {});
       toast({ title: "Account deleted" });
       logout(false);
-      window.location.href = "/login";
+      navigate("/login", { replace: true });
     } catch (e) {
       toast({ title: "Couldn't delete account", description: e.message, variant: "destructive" });
     } finally {
