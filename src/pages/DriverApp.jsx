@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { base44 } from "@/api/base44Client";
 import { useDriverSession } from "@/hooks/useDriverSession";
 import DriverPairing from "@/components/driver/DriverPairing";
 import DriverGreeting from "@/components/driver/DriverGreeting";
@@ -22,13 +23,38 @@ export default function DriverApp() {
   const [unlocked, setUnlocked] = useState(false);
   const { session, loading, invoke } = useDriverSession(deviceId);
 
+  // Auto-pair when a pairing code is provided in the URL (?code=AB3D9K)
+  const [autoPairing, setAutoPairing] = useState(false);
+  const pairCode = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("code") : null;
+
+  useEffect(() => {
+    if (!deviceId && pairCode && !autoPairing) {
+      setAutoPairing(true);
+      base44.functions.invoke("pairKioskDevice", { pairing_code: pairCode })
+        .then((res) => {
+          if (res.data?.kiosk_type === "driver" && res.data?.vehicle_id) {
+            localStorage.setItem("tt_driver_device_id", res.data.device_id);
+            setDeviceId(res.data.device_id);
+            navigate("/driver", { replace: true });
+          } else {
+            setAutoPairing(false);
+          }
+        })
+        .catch(() => setAutoPairing(false));
+    }
+  }, [deviceId, pairCode, autoPairing, navigate]);
+
   const isMorning = new Date().getHours() >= 4 && new Date().getHours() < 11;
   const stage = urlStage || "pin";
 
   const handlePaired = (id) => { localStorage.setItem("tt_driver_device_id", id); setDeviceId(id); };
   const handleUnpair = () => { localStorage.removeItem("tt_driver_device_id"); setDeviceId(null); setUnlocked(false); navigate("/driver"); };
 
-  if (!deviceId) return <DriverPairing onPaired={handlePaired} />;
+  if (!deviceId) {
+    if (autoPairing)
+      return <div className="min-h-screen flex items-center justify-center"><div className="w-8 h-8 border-4 border-muted border-t-primary rounded-full animate-spin" /></div>;
+    return <DriverPairing onPaired={handlePaired} />;
+  }
 
   if (loading && !session)
     return <div className="min-h-screen flex items-center justify-center"><div className="w-8 h-8 border-4 border-muted border-t-primary rounded-full animate-spin" /></div>;

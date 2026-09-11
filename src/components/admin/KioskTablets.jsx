@@ -27,6 +27,7 @@ import {
   Trash2,
   Pencil,
   Clock,
+  Navigation,
 } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 
@@ -39,6 +40,7 @@ function randomCode(len = 6) {
 
 const TYPE_META = {
   bus_boarding: { label: "Bus boarding", icon: Bus },
+  driver: { label: "Driver tablet", icon: Navigation },
   front_desk: { label: "Front-desk", icon: DoorOpen },
   badge_registry: { label: "Badge registry", icon: CreditCard },
 };
@@ -230,6 +232,12 @@ export default function KioskTablets({ vehicles, companies, onChange }) {
                     )}
 
                     <div className="flex items-center gap-2 flex-wrap">
+                      {d.kiosk_type === "driver" && hasCode && !isRevoked && (
+                        <Button size="sm" variant="default" onClick={() => copy(`${window.location.origin}/driver?code=${d.pairing_code}`, `url-${d.id}`)}>
+                          {copiedId === `url-${d.id}` ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                          Copy driver URL
+                        </Button>
+                      )}
                       {!isRevoked && (
                         <>
                           <Button size="sm" variant="outline" onClick={() => openEdit(d)}>
