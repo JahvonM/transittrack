@@ -22,7 +22,8 @@
       "enum": [
         "bus_boarding",
         "front_desk",
-        "badge_registry"
+        "badge_registry",
+        "driver"
       ],
       "default": "bus_boarding"
     },

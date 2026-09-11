@@ -22,6 +22,7 @@ function randomCode(len = 6) {
 
 const KIOSK_TYPES = [
   { value: "bus_boarding", label: "Bus boarding" },
+  { value: "driver", label: "Driver tablet" },
   { value: "front_desk", label: "Front-desk sign-in" },
   { value: "badge_registry", label: "Badge / QR registry" },
 ];
@@ -46,11 +47,11 @@ export default function KioskDeviceDialog({ open, onOpenChange, companies, vehic
   const filteredVehicles = vehicles.filter((v) => {
     if (!companyId) return [];
     const byCompany = v.company_id === companyId;
-    if (kioskType === "bus_boarding") return byCompany && v.type === "bus";
+    if (kioskType === "bus_boarding" || kioskType === "driver") return byCompany && v.type === "bus";
     return byCompany;
   });
 
-  const needsVehicle = kioskType === "bus_boarding";
+  const needsVehicle = kioskType === "bus_boarding" || kioskType === "driver";
 
   const handleSave = async () => {
     if (!label.trim()) {
@@ -62,7 +63,7 @@ export default function KioskDeviceDialog({ open, onOpenChange, companies, vehic
       return;
     }
     if (needsVehicle && !vehicleId) {
-      toast({ title: "Vehicle required for bus boarding kiosks", variant: "destructive" });
+      toast({ title: "Vehicle required for this kiosk type", variant: "destructive" });
       return;
     }
 

@@ -31,6 +31,14 @@ export default async function(req) {
       last_seen: new Date().toISOString()
     });
 
+    let driver_name = '';
+    if (device.vehicle_id) {
+      try {
+        const vehicle = await base44.asServiceRole.entities.Vehicle.get(device.vehicle_id);
+        driver_name = vehicle?.driver_name || '';
+      } catch { /* vehicle may not be set yet */ }
+    }
+
     return Response.json({
       device_id: device.id,
       label: device.label,
@@ -38,7 +46,8 @@ export default async function(req) {
       company_name: device.company_name,
       vehicle_id: device.vehicle_id,
       vehicle_name: device.vehicle_name,
-      kiosk_type: device.kiosk_type
+      kiosk_type: device.kiosk_type,
+      driver_name
     });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });

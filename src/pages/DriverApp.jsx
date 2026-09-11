@@ -1,111 +1,79 @@
-import React, { useEffect, useState } from "react";
-import { Navigate, useParams, useNavigate, Link } from "react-router-dom";
-import { base44 } from "@/api/base44Client";
-import { useAuth } from "@/lib/AuthContext";
-import AppLayout from "@/components/AppLayout";
+import React, { useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { useDriverSession } from "@/hooks/useDriverSession";
+import DriverPairing from "@/components/driver/DriverPairing";
+import DriverGreeting from "@/components/driver/DriverGreeting";
 import PinGate from "@/components/driver/PinGate";
 import PreTripInspection from "@/components/driver/PreTripInspection";
 import DriverTrackingDashboard from "@/components/driver/DriverTrackingDashboard";
 import DriverNavMap from "@/components/driver/DriverNavMap";
 import DriverMessages from "@/components/DriverMessages";
-import Greeting from "@/components/Greeting";
-import ProfileInfo from "@/components/ProfileInfo";
+import DriverDevicePanel from "@/components/driver/DriverDevicePanel";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertCircle, DoorOpen } from "lucide-react";
+import { AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const TRACKING_TABS = ["track", "navigate", "messages", "profile"];
 
-// Flow: pin gate → inspection → tracking dashboard (URL-driven via /driver/:stage)
 export default function DriverApp() {
-  const { user } = useAuth();
   const navigate = useNavigate();
   const { stage: urlStage } = useParams();
-  const [vehicle, setVehicle] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [deviceId, setDeviceId] = useState(() => localStorage.getItem("tt_driver_device_id"));
   const [unlocked, setUnlocked] = useState(false);
+  const { session, loading, invoke } = useDriverSession(deviceId);
 
-  // Only require pre-trip inspection in the morning (4 AM – 11 AM) using system time
-  const hour = new Date().getHours();
-  const isMorning = hour >= 4 && hour < 11;
-
+  const isMorning = new Date().getHours() >= 4 && new Date().getHours() < 11;
   const stage = urlStage || "pin";
 
-  useEffect(() => {
-    const load = async () => {
-      const vs = await base44.entities.Vehicle.filter({ driver_email: user.email });
-      const v = vs[0] || null;
-      setVehicle(v);
-      setLoading(false);
-    };
-    load();
-  }, []);
+  const handlePaired = (id) => { localStorage.setItem("tt_driver_device_id", id); setDeviceId(id); };
+  const handleUnpair = () => { localStorage.removeItem("tt_driver_device_id"); setDeviceId(null); setUnlocked(false); navigate("/driver"); };
 
-  if (loading) return <AppLayout><p className="text-muted-foreground">Loading…</p></AppLayout>;
+  if (!deviceId) return <DriverPairing onPaired={handlePaired} />;
 
-  if (user && user.role !== "driver" && user.role !== "admin" && !vehicle)
-    return <Navigate to="/" replace />;
+  if (loading && !session)
+    return <div className="min-h-screen flex items-center justify-center"><div className="w-8 h-8 border-4 border-muted border-t-primary rounded-full animate-spin" /></div>;
 
-  if (!vehicle) {
+  if (!session?.vehicle)
     return (
-      <AppLayout title="Driver App">
-        <div className="flex flex-col items-center py-20 text-center">
-          <AlertCircle className="w-10 h-10 text-muted-foreground mb-3" />
-          <p className="text-muted-foreground max-w-md">
-            No vehicle is assigned to your account ({user.email}). Ask your company to assign your email to a vehicle.
-          </p>
-        </div>
-      </AppLayout>
+      <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center">
+        <AlertCircle className="w-10 h-10 text-muted-foreground mb-3" />
+        <p className="text-muted-foreground max-w-md mb-4">No vehicle is assigned to this tablet. Ask your administrator to assign a vehicle.</p>
+        <Button variant="outline" onClick={handleUnpair}>Unpair tablet</Button>
+      </div>
     );
-  }
 
+  const vehicle = session.vehicle;
+  const driverName = session.driver_name || "Driver";
   const goStage = (s) => navigate("/driver/" + s);
 
-  // Gate: PIN must be completed before any other stage
   if (!unlocked) {
     return (
-      <AppLayout title="Driver App">
-        <div className="space-y-4 max-w-3xl">
-          <Greeting subtitle={vehicle.name} />
-          <PinGate
-            vehicle={vehicle}
-            onUnlock={() => {
-              setUnlocked(true);
-              goStage(isMorning ? "inspection" : "track");
-            }}
-          />
+      <div className="min-h-screen p-4 safe-area-top safe-area-x">
+        <div className="space-y-4 max-w-3xl mx-auto">
+          <DriverGreeting driverName={driverName} subtitle={vehicle.name} />
+          <PinGate vehicle={vehicle} onUnlock={() => { setUnlocked(true); goStage(isMorning ? "inspection" : "track"); }} />
         </div>
-      </AppLayout>
+      </div>
     );
   }
 
   if (stage === "inspection") {
     return (
-      <AppLayout title="Driver App">
-        <div className="space-y-4 max-w-3xl">
-          <Greeting subtitle={vehicle.name} />
-          <PreTripInspection vehicle={vehicle} user={user} onCompleted={() => goStage("track")} />
+      <div className="min-h-screen p-4 safe-area-top safe-area-x">
+        <div className="space-y-4 max-w-3xl mx-auto">
+          <DriverGreeting driverName={driverName} subtitle={vehicle.name} />
+          <PreTripInspection vehicle={vehicle} invoke={invoke} driverName={driverName} onCompleted={() => goStage("track")} />
         </div>
-      </AppLayout>
+      </div>
     );
   }
 
   const tab = TRACKING_TABS.includes(stage) ? stage : "track";
 
   return (
-    <AppLayout title="Driver App">
-      <div className="space-y-4 max-w-3xl">
-        <Greeting subtitle={vehicle.name} />
-
-        <div className="flex justify-end">
-          <Button asChild variant="outline" size="sm">
-            <Link to="/kiosk/front-desk">
-              <DoorOpen className="w-4 h-4 mr-1.5" />
-              Front-desk kiosk
-            </Link>
-          </Button>
-        </div>
-
+    <div className="min-h-screen p-4 safe-area-top safe-area-x">
+      <div className="space-y-4 max-w-3xl mx-auto">
+        <DriverGreeting driverName={driverName} subtitle={vehicle.name} />
         <Tabs value={tab} onValueChange={(v) => goStage(v)} className="w-full">
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="track">Track</TabsTrigger>
@@ -114,19 +82,19 @@ export default function DriverApp() {
             <TabsTrigger value="profile">Profile</TabsTrigger>
           </TabsList>
           <TabsContent value="track" className="mt-4 space-y-4">
-            <DriverTrackingDashboard vehicle={vehicle} user={user} />
+            <DriverTrackingDashboard session={session} invoke={invoke} driverName={driverName} />
           </TabsContent>
           <TabsContent value="navigate" className="mt-4">
-            <DriverNavMap vehicle={vehicle} />
+            <DriverNavMap session={session} invoke={invoke} />
           </TabsContent>
           <TabsContent value="messages" className="mt-4">
-            <DriverMessages vehicle={vehicle} />
+            <DriverMessages session={session} invoke={invoke} />
           </TabsContent>
           <TabsContent value="profile" className="mt-4">
-            <ProfileInfo />
+            <DriverDevicePanel session={session} deviceId={deviceId} onUnpair={handleUnpair} />
           </TabsContent>
         </Tabs>
       </div>
-    </AppLayout>
+    </div>
   );
 }
