@@ -33,6 +33,7 @@ const DriverProfile = lazy(() => import('@/pages/DriverProfile'));
 const FleetSyncSettings = lazy(() => import('@/pages/FleetSyncSettings'));
 const IncidentReports = lazy(() => import('@/pages/IncidentReports'));
 const PassengerBookings = lazy(() => import('@/pages/PassengerBookings'));
+const Kiosk = lazy(() => import('@/pages/Kiosk'));
 const RouteExplorer = lazy(() => import('@/pages/RouteExplorer'));
 const StaffDirectory = lazy(() => import('@/pages/StaffDirectory'));
 const VehicleLogs = lazy(() => import('@/pages/VehicleLogs'));
@@ -101,6 +102,7 @@ const AuthenticatedApp = () => {
       <Route path="/oauth/consent" element={<OAuthConsent />} />
       <Route path="/driver" element={<DriverApp />} />
       <Route path="/driver/:stage" element={<DriverApp />} />
+      <Route path="/kiosk" element={<Kiosk />} />
       <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login" replace />} />}>
         <Route path="/passenger" element={<Navigate to="/staff" replace />} />
         <Route path="/company" element={<CompanyDashboard />} />
