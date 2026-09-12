@@ -128,9 +128,12 @@ export default function DriverNavMap({ session, invoke }) {
             </Source>
           )}
           {smoothPos && (
-            <Marker longitude={smoothPos.lng} latitude={smoothPos.lat} anchor="bottom">
-              <div className="w-10 h-10 rounded-full bg-primary border-2 border-white shadow-lg grid place-items-center"><Bus className="w-6 h-6 text-primary-foreground" /></div>
-            </Marker>
+            <>
+              <AccuracyHalo sourceId="driver-accuracy" lat={smoothPos.lat} lng={smoothPos.lng} accuracy={pos?.accuracy} color="#38bdf8" />
+              <Marker longitude={smoothPos.lng} latitude={smoothPos.lat} anchor="bottom">
+                <div className="w-10 h-10 rounded-full bg-primary border-2 border-white shadow-lg grid place-items-center"><Bus className="w-6 h-6 text-primary-foreground" /></div>
+              </Marker>
+            </>
           )}
           {nextStop && (
             <Marker longitude={nextStop.lng} latitude={nextStop.lat} anchor="center">
