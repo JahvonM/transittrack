@@ -152,9 +152,27 @@ export default function DriverApp() {
             <TabsTrigger value="messages">Messages</TabsTrigger>
             <TabsTrigger value="profile">Profile</TabsTrigger>
           </TabsList>
+          
           <TabsContent value="track" className="mt-4 space-y-4">
+            {/* PROMINENT INCIDENT REPORT BAR LINK */}
+            <div className="bg-destructive/10 border border-destructive/20 text-destructive p-3.5 rounded-lg flex items-center justify-between shadow-sm">
+              <div className="flex items-center gap-2.5">
+                <div className="w-2 h-2 rounded-full bg-destructive animate-ping" />
+                <span className="text-sm font-medium">Mechanical Breakdown or Fleet Incident?</span>
+              </div>
+              <Button 
+                variant="destructive" 
+                size="sm" 
+                className="h-8 text-xs font-semibold px-4 shadow-sm"
+                onClick={() => navigate("/incident-report")}
+              >
+                Report Now
+              </Button>
+            </div>
+
             <DriverTrackingDashboard session={session} invoke={invoke} driverName={driverName} />
           </TabsContent>
+          
           <TabsContent value="navigate" className="mt-4">
             <DriverNavMap session={session} invoke={invoke} />
           </TabsContent>
