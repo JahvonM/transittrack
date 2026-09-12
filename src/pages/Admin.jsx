@@ -259,7 +259,14 @@ export default function Admin() {
         {section === "trips" && (
           <AssignTripsTab vehicles={vehicles} routes={routes} trips={trips} onChange={load} />
         )}
-        {section === "fleet" && <LiveFleetTab vehicles={vehicles} />}
+        {section === "fleet" && (
+          <LiveFleetTab
+            vehicles={vehicles}
+            onVehicleUpdate={(updated) =>
+              setVehicles((prev) => prev.map((v) => (v.id === updated.id ? updated : v)))
+            }
+          />
+        )}
         {section === "vehicles" && (
           <VehiclesTab vehicles={vehicles} companies={companies} routes={routes} onChange={load} />
         )}

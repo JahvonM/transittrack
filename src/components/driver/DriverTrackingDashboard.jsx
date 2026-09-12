@@ -7,9 +7,17 @@ import SosButton from "@/components/driver/SosButton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { TrafficCone, Navigation, Radio } from "lucide-react";
+import { TrafficCone, Navigation, Radio, Lock } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import BoardingPopup from "@/components/driver/BoardingPopup";
+
+function timeAgo(iso) {
+  if (!iso) return "never";
+  const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+  if (s < 60) return "just now";
+  if (s < 3600) return Math.floor(s / 60) + "m ago";
+  return Math.floor(s / 3600) + "h ago";
+}
 
 export default function DriverTrackingDashboard({ session, invoke, driverName }) {
   const { toast } = useToast();
@@ -113,9 +121,10 @@ export default function DriverTrackingDashboard({ session, invoke, driverName })
     setNearbyStaff(nearby);
   }, [playBeep, toast, invoke]);
 
-  const startTracking = () => {
+  const startTracking = async () => {
     if (!navigator.geolocation || watchId.current != null) return;
     setSharing(true);
+    try { await invoke("start_tracking"); } catch { /* tolerate */ }
     watchId.current = navigator.geolocation.watchPosition(
       (p) => {
         if (p.coords.accuracy != null && p.coords.accuracy > 100) return;
@@ -129,6 +138,15 @@ export default function DriverTrackingDashboard({ session, invoke, driverName })
   };
 
   const stopTracking = async () => {
+    try {
+      await invoke("stop_tracking");
+    } catch (e) {
+      const msg = e?.message || e?.error || "";
+      if (msg.includes("locked")) {
+        toast({ title: "Tracking is locked by dispatch", description: "Cannot stop while admin lock is active.", variant: "destructive" });
+        return;
+      }
+    }
     setSharing(false);
     if (watchId.current != null) { navigator.geolocation.clearWatch(watchId.current); watchId.current = null; }
     const v = vehicleRef.current;
@@ -137,6 +155,20 @@ export default function DriverTrackingDashboard({ session, invoke, driverName })
       setLiveVehicle((prev) => prev ? { ...prev, status: "idle" } : prev);
     }
   };
+
+  // Auto-start GPS when admin forces lock on
+  const lockNotified = useRef(false);
+  useEffect(() => {
+    const locked = !!liveVehicle?.remote_tracking_lock;
+    if (locked && watchId.current == null) {
+      startTracking();
+      if (!lockNotified.current) {
+        lockNotified.current = true;
+        toast({ title: "Tracking started by dispatch (locked)", description: "Location sharing is now enforced — stop disabled.", variant: "default" });
+      }
+    }
+    if (!locked) lockNotified.current = false;
+  }, [liveVehicle?.remote_tracking_lock]);
 
   useEffect(() => { return () => { if (watchId.current != null) navigator.geolocation.clearWatch(watchId.current); }; }, []);
 
@@ -168,7 +200,9 @@ export default function DriverTrackingDashboard({ session, invoke, driverName })
         <CardContent>
           <div className="text-sm text-muted-foreground mb-3">{liveVehicle?.company_name} · {liveVehicle?.plate_number}</div>
           {sharing ? (
-            <Button variant="outline" onClick={stopTracking}><Navigation className="w-4 h-4 mr-2" /> Stop tracking</Button>
+            <Button variant="outline" onClick={stopTracking} disabled={!!liveVehicle?.remote_tracking_lock}>
+              {liveVehicle?.remote_tracking_lock ? <><Lock className="w-4 h-4 mr-2" /> Locked by dispatch</> : <><Navigation className="w-4 h-4 mr-2" /> Stop tracking</>}
+            </Button>
           ) : (
             <Button onClick={startTracking}><Navigation className="w-4 h-4 mr-2" /> Start tracking</Button>
           )}

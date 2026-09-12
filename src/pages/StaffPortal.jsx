@@ -172,20 +172,21 @@ export default function StaffPortal() {
 
   const stop = pickupOptions.find((s) => s.name === pickupName) || null;
 
-  const activeVehicles = useMemo(
-    () => vehicles.filter((v) => v.status !== "offline" && v.current_lat != null),
+  const locatedVehicles = useMemo(
+    () => vehicles.filter((v) => v.current_lat != null),
     [vehicles]
   );
 
   const approaching = useMemo(() => {
     if (!stop) return null;
     let best = null;
-    activeVehicles.forEach((v) => {
+    locatedVehicles.forEach((v) => {
+      if (!v.tracking_active) return;
       const dist = haversineKm(v.current_lat, v.current_lng, stop.lat, stop.lng);
       if (best == null || dist < best.dist) best = { v, dist, mins: etaMinutes(dist, v.speed || 25) };
     });
     return best;
-  }, [stop, activeVehicles]);
+  }, [stop, locatedVehicles]);
 
   const onTheWayTrip = useMemo(
     () => trips.find((t) => t.pickup_name === pickupName && t.status === "on_the_way") || null,
@@ -220,7 +221,7 @@ export default function StaffPortal() {
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h2 className="text-lg font-semibold">Track pickups &amp; buses</h2>
-            <p className="text-sm text-muted-foreground">{activeVehicles.length} vehicles live right now</p>
+            <p className="text-sm text-muted-foreground">{locatedVehicles.filter((v) => v.tracking_active).length} vehicles tracking live</p>
           </div>
           <div className="flex items-center gap-2">
             <ShareLocationButton />
@@ -232,7 +233,7 @@ export default function StaffPortal() {
         </div>
 
         <div className="rounded-2xl overflow-hidden border h-[50vh]">
-          <MapboxMap vehicles={activeVehicles} userLocation={userLoc} />
+          <MapboxMap vehicles={locatedVehicles} userLocation={userLoc} />
         </div>
 
         <div className="grid md:grid-cols-2 gap-4">
@@ -333,27 +334,40 @@ export default function StaffPortal() {
               All live vehicles
             </h3>
             <div className="grid sm:grid-cols-2 gap-2">
-              {activeVehicles.length === 0 && (
+              {locatedVehicles.length === 0 && (
                 <p className="text-sm text-muted-foreground py-6 text-center border rounded-2xl sm:col-span-2">
-                  No vehicles are active right now.
+                  No vehicles have reported a location yet.
                 </p>
               )}
-              {activeVehicles.map((v) => (
-                <div key={v.id} className="flex items-center gap-3 p-3 rounded-xl border bg-card">
-                  <div className="w-9 h-9 rounded-lg bg-primary/10 grid place-items-center shrink-0">
-                    <Bus className="w-4 h-4" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium truncate">{v.name}</div>
-                    <div className="text-xs text-muted-foreground truncate">
-                      {v.company_name} · {v.driver_name || "—"}
+              {locatedVehicles.map((v) => {
+                const fresh = v.tracking_active;
+                const ago = v.last_location_update
+                  ? (() => {
+                      const s = Math.floor((Date.now() - new Date(v.last_location_update).getTime()) / 1000);
+                      if (s < 60) return "just now";
+                      if (s < 3600) return Math.floor(s / 60) + "m ago";
+                      return Math.floor(s / 3600) + "h ago";
+                    })()
+                  : "never";
+                return (
+                  <div key={v.id} className="flex items-center gap-3 p-3 rounded-xl border bg-card">
+                    <div className="w-9 h-9 rounded-lg bg-primary/10 grid place-items-center shrink-0">
+                      <Bus className="w-4 h-4" />
                     </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium truncate">{v.name}</div>
+                      <div className="text-xs text-muted-foreground truncate">
+                        {v.company_name} · {v.driver_name || "—"}
+                      </div>
+                    </div>
+                    {fresh ? (
+                      <Badge variant="default">{v.status === "on_trip" ? "On trip" : "Tracking"}</Badge>
+                    ) : (
+                      <Badge variant="secondary" className="text-amber-600">Last seen {ago}</Badge>
+                    )}
                   </div>
-                  <Badge variant={v.status === "on_trip" ? "default" : "secondary"}>
-                    {v.status === "on_trip" ? "On trip" : "Idle"}
-                  </Badge>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
