@@ -126,8 +126,8 @@ export default function DriverNavMap({ session, invoke }) {
               <Layer id="path-to-next-stop-line" type="line" paint={{ "line-color": "#10b981", "line-width": 5, "line-opacity": 0.85 }} />
             </Source>
           )}
-          {pos && (
-            <Marker longitude={pos.lng} latitude={pos.lat} anchor="bottom">
+          {smoothPos && (
+            <Marker longitude={smoothPos.lng} latitude={smoothPos.lat} anchor="bottom">
               <div className="w-10 h-10 rounded-full bg-primary border-2 border-white shadow-lg grid place-items-center"><Bus className="w-6 h-6 text-primary-foreground" /></div>
             </Marker>
           )}
