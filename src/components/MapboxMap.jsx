@@ -7,20 +7,13 @@ import { Bus, LocateFixed, Maximize2, Minimize2, Satellite, X } from "lucide-rea
 import { Badge } from "@/components/ui/badge";
 import { Image } from "@/components/ui/image";
 import BusDistance from "@/components/BusDistance";
+import VehicleMarker from "@/components/VehicleMarker";
 import { fetchDrivingRoute } from "@/lib/geo";
+import { statusColor } from "@/lib/vehicleStatus";
 
-// Status -> pin colour
-const STATUS_COLORS = {
-  on_trip: "#38bdf8",
-  idle: "#94a3b8",
-  speeding: "#f59e0b",
-  emergency: "#ef4444",
-  offline: "#64748b",
-};
-
-export function statusColor(status) {
-  return STATUS_COLORS[status] || "#38bdf8";
-}
+// Re-exported for backwards compatibility — the canonical definition now lives
+// in lib/vehicleStatus so VehicleMarker can use it without importing this file.
+export { statusColor };
 
 const VEHICLE_ICON = (type) =>
   type === "taxi" ? "🚕" : "🚌";
