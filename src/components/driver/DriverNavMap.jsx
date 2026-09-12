@@ -136,6 +136,13 @@ export default function DriverNavMap({ session, invoke }) {
           <div className="rounded-2xl border border-border bg-card/95 backdrop-blur-md shadow-xl px-5 py-4">
             <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1"><MapPin className="w-3.5 h-3.5 text-primary" /> Next pickup destination</div>
             <div className="text-lg font-semibold">{nextStop?.name || "Awaiting route assignment"}</div>
+            {nextStop && (
+              <div className="text-sm text-muted-foreground mt-0.5">
+                {nextStopKm != null ? (nextStopKm < 1 ? `${Math.round(nextStopKm * 1000)} m` : `${nextStopKm.toFixed(1)} km`) : "—"}
+                {" · about "}{formatEta(nextStopMins)}
+                {nextStopIsDriving ? " · by road" : ""}
+              </div>
+            )}
           </div>
         </div>
         <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 w-[90%] max-w-md">
