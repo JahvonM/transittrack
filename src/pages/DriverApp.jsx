@@ -12,18 +12,31 @@ import DriverMessages from "@/components/DriverMessages";
 import DriverMessageAlert from "@/components/driver/DriverMessageAlert";
 import DriverDevicePanel from "@/components/driver/DriverDevicePanel";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from "@/components/ui/use-toast";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
 const TRACKING_TABS = ["track", "navigate", "messages", "profile"];
 
 export default function DriverApp() {
   const navigate = useNavigate();
   const { stage: urlStage } = useParams();
+  const { toast } = useToast();
+  
   const [deviceId, setDeviceId] = useState(() => localStorage.getItem("tt_driver_device_id"));
   const [unlocked, setUnlocked] = useState(() => localStorage.getItem("tt_driver_unlock_date") === new Date().toISOString().slice(0, 10));
   const [activeTab, setActiveTab] = useState(() => TRACKING_TABS.includes(urlStage) ? urlStage : "track");
   const { session, loading, invoke } = useDriverSession(deviceId);
+
+  // States for the integrated inline incident modal
+  const [isReportOpen, setIsReportOpen] = useState(false);
+  const [incidentType, setIncidentType] = useState("breakdown");
+  const [incidentDetails, setIncidentDetails] = useState("");
+  const [isSubmittingIncident, setIsSubmittingIncident] = useState(false);
 
   // Broadcast detection — always active regardless of active tab
   const [alert, setAlert] = useState(null);
@@ -97,6 +110,39 @@ export default function DriverApp() {
   const handlePaired = (id) => { localStorage.setItem("tt_driver_device_id", id); setDeviceId(id); };
   const handleUnpair = () => { localStorage.removeItem("tt_driver_device_id"); localStorage.removeItem("tt_driver_unlock_date"); setDeviceId(null); setUnlocked(false); navigate("/driver"); };
 
+  // Handler to submit the incident report directly using tablet credentials
+  const submitIncidentReport = async () => {
+    if (!incidentDetails.trim()) {
+      toast({ title: "Please provide incident details", variant: "destructive" });
+      return;
+    }
+
+    setIsSubmittingIncident(true);
+    try {
+      await base44.entities.Incident.create({
+        vehicle_id: session?.vehicle?.id || "",
+        vehicle_name: session?.vehicle?.name || "",
+        company_id: session?.vehicle?.company_id || "",
+        company_name: session?.vehicle?.company_name || "",
+        driver_name: session?.driver_name || "Tablet App Operator",
+        driver_email: "",
+        type: incidentType,
+        details: incidentDetails,
+        occurred_at: new Date().toISOString(),
+        status: "open",
+      });
+
+      toast({ title: "Incident reported", description: "The admin dashboard has been notified." });
+      setIncidentDetails("");
+      setIncidentType("breakdown");
+      setIsReportOpen(false);
+    } catch (e) {
+      toast({ title: "Failed to submit", description: e.message, variant: "destructive" });
+    } finally {
+      setIsSubmittingIncident(false);
+    }
+  };
+
   if (!deviceId) {
     if (autoPairing)
       return <div className="min-h-screen flex items-center justify-center"><div className="w-8 h-8 border-4 border-muted border-t-primary rounded-full animate-spin" /></div>;
@@ -154,7 +200,7 @@ export default function DriverApp() {
           </TabsList>
           
           <TabsContent value="track" className="mt-4 space-y-4">
-            {/* PROMINENT INCIDENT REPORT BAR LINK */}
+            {/* INCIDENT REPORT LINKS SAFELY IN-APP */}
             <div className="bg-destructive/10 border border-destructive/20 text-destructive p-3.5 rounded-lg flex items-center justify-between shadow-sm">
               <div className="flex items-center gap-2.5">
                 <div className="w-2 h-2 rounded-full bg-destructive animate-ping" />
@@ -164,7 +210,7 @@ export default function DriverApp() {
                 variant="destructive" 
                 size="sm" 
                 className="h-8 text-xs font-semibold px-4 shadow-sm"
-                onClick={() => navigate("/incident-report")}
+                onClick={() => setIsReportOpen(true)}
               >
                 Report Now
               </Button>
@@ -174,17 +220,3 @@ export default function DriverApp() {
           </TabsContent>
           
           <TabsContent value="navigate" className="mt-4">
-            <DriverNavMap session={session} invoke={invoke} />
-          </TabsContent>
-          <TabsContent value="messages" className="mt-4">
-            <DriverMessages session={session} invoke={invoke} />
-          </TabsContent>
-          <TabsContent value="profile" className="mt-4">
-            <DriverDevicePanel session={session} deviceId={deviceId} onUnpair={handleUnpair} />
-          </TabsContent>
-        </Tabs>
-      </div>
-      <DriverMessageAlert alert={alert} onAcknowledge={() => setAlert(null)} onReply={handleAlertReply} />
-    </div>
-  );
-}
