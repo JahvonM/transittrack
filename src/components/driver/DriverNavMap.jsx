@@ -116,6 +116,11 @@ export default function DriverNavMap({ session, invoke }) {
               <Layer id="driver-trail-line" type="line" paint={{ "line-color": "#38bdf8", "line-width": 4, "line-opacity": 0.5 }} />
             </Source>
           )}
+          {pathToNextStop && (
+            <Source id="path-to-next-stop" type="geojson" data={{ type: "Feature", geometry: { type: "LineString", coordinates: pathToNextStop } }}>
+              <Layer id="path-to-next-stop-line" type="line" paint={{ "line-color": "#10b981", "line-width": 5, "line-opacity": 0.85 }} />
+            </Source>
+          )}
           {pos && (
             <Marker longitude={pos.lng} latitude={pos.lat} anchor="bottom">
               <div className="w-10 h-10 rounded-full bg-primary border-2 border-white shadow-lg grid place-items-center"><Bus className="w-6 h-6 text-primary-foreground" /></div>
