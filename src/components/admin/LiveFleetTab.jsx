@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
 import MapboxMap from "@/components/MapboxMap";
+import BusDistance from "@/components/BusDistance";
 import useUserLocation from "@/hooks/useUserLocation";
 import { useToast } from "@/components/ui/use-toast";
 
