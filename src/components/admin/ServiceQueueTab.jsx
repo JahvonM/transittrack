@@ -30,8 +30,10 @@ export default function ServiceQueueTab({ inspections = [], onChange }) {
   const resolve = async (id) => {
     setResolving(id);
     try {
-      await base44.entities.Inspection.update(id, { needs_service: false });
-      toast({ title: "Marked resolved" });
+      // Also flip status away from "failed" so the record reads as resolved
+      // consistently in Service History too, not just here.
+      await base44.entities.Inspection.update(id, { needs_service: false, status: "passed" });
+      toast({ title: "Marked resolved", description: "Moved to Service History." });
       onChange();
     } catch (e) {
       toast({ title: "Couldn't resolve", description: e.message, variant: "destructive" });
@@ -46,6 +48,9 @@ export default function ServiceQueueTab({ inspections = [], onChange }) {
         <h2 className="text-lg font-semibold">Service Queue</h2>
         <Badge variant="destructive">{pending.length} pending</Badge>
         <div className="ml-auto flex gap-2">
+          <Button size="sm" variant="outline" asChild>
+            <Link to="/service-history"><History className="w-4 h-4" /> Past maintenance</Link>
+          </Button>
           <Button size="sm" variant="outline" onClick={() => exportToCSV("service-queue", SERVICE_COLS, pending)} disabled={!pending.length}>
             <FileSpreadsheet className="w-4 h-4" /> Excel
           </Button>
