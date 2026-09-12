@@ -1,6 +1,5 @@
 import React, { useMemo } from "react";
 import { haversineKm } from "@/lib/geo";
-import { PROXIMITY_TRIGGER_M } from "@/lib/mapbox";
 import { MapPin } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import StaffRouteListItem from "@/components/driver/StaffRouteListItem";
