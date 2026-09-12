@@ -163,7 +163,7 @@ export default function MapboxMap({
         style={{ width: "100%", height: "100%" }}
         interactive={interactive}
         attributionControl={false}
-        onLoad={() => setMapLoaded(true)}
+        onLoad={(e) => { setMapLoaded(true); declutterStyle(e.target); }}
       >
         {/* Route polyline — follows actual roads once the driving route loads;
             falls back to a dashed straight line between stops until then / on failure */}
