@@ -283,9 +283,11 @@ export default function StaffPortal() {
                   </div>
                   <div className="text-right">
                     <div className="flex items-center gap-1 font-medium justify-end">
-                      <Clock className="w-3.5 h-3.5" />{formatEta(approaching.mins)}
+                      <Clock className="w-3.5 h-3.5" />{formatEta(approachingDriving.mins)}
                     </div>
-                    <div className="text-xs text-muted-foreground">estimated arrival</div>
+                    <div className="text-xs text-muted-foreground">
+                      estimated arrival{approachingDriving.isDriving ? " · by road" : " (approx.)"}
+                    </div>
                   </div>
                 </div>
               ) : (
