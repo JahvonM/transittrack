@@ -1,13 +1,14 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Route as RouteIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { haversineKm, etaMinutes, formatEta } from "@/lib/geo";
+import { haversineKm, etaMinutes, formatEta, fetchDrivingRoute } from "@/lib/geo";
 
 export default function RouteExplorer({ routes, vehicles }) {
   const [open, setOpen] = useState(false);
   const [routeId, setRouteId] = useState("");
+  const [drivingByOrder, setDrivingByOrder] = useState({});
 
   const route = routes.find((r) => r.id === routeId) || routes[0];
 
@@ -23,6 +24,35 @@ export default function RouteExplorer({ routes, vehicles }) {
       return { stop, order: i, best };
     });
   }, [route, vehicles]);
+
+  // Refine each straight-line "next bus" candidate above with the actual driving
+  // ETA (following roads), falling back to the straight-line estimate meanwhile.
+  useEffect(() => {
+    let cancelled = false;
+    const candidates = rows.filter((r) => r.best);
+    if (candidates.length === 0) {
+      setDrivingByOrder({});
+      return;
+    }
+    Promise.all(
+      candidates.map((r) =>
+        fetchDrivingRoute([
+          { lat: r.best.v.current_lat, lng: r.best.v.current_lng },
+          { lat: r.stop.lat, lng: r.stop.lng },
+        ]).then((res) => ({ order: r.order, res }))
+      )
+    ).then((results) => {
+      if (cancelled) return;
+      const map = {};
+      results.forEach(({ order, res }) => {
+        if (res) map[order] = res;
+      });
+      setDrivingByOrder(map);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [rows]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -53,25 +83,29 @@ export default function RouteExplorer({ routes, vehicles }) {
               </Select>
             )}
             <ol className="space-y-2">
-              {rows.map(({ stop, order, best }) => (
-                <li key={order} className="flex items-center gap-3 p-2.5 rounded-xl border">
-                  <span className="w-6 h-6 rounded-full bg-primary/10 text-primary grid place-items-center text-xs font-semibold shrink-0">
-                    {order + 1}
-                  </span>
-                  <span className="flex-1 min-w-0">
-                    <span className="block text-sm font-medium truncate">{stop.name}</span>
-                    {best && (
-                      <span className="block text-xs text-muted-foreground truncate">Next: {best.v.name}</span>
-                    )}
-                  </span>
-                  <span className="text-sm text-muted-foreground shrink-0">
-                    {best ? formatEta(best.mins) : "No bus en route"}
-                  </span>
-                </li>
-              ))}
+              {rows.map(({ stop, order, best }) => {
+                const driving = drivingByOrder[order];
+                const mins = driving ? driving.durationMin : best?.mins;
+                return (
+                  <li key={order} className="flex items-center gap-3 p-2.5 rounded-xl border">
+                    <span className="w-6 h-6 rounded-full bg-primary/10 text-primary grid place-items-center text-xs font-semibold shrink-0">
+                      {order + 1}
+                    </span>
+                    <span className="flex-1 min-w-0">
+                      <span className="block text-sm font-medium truncate">{stop.name}</span>
+                      {best && (
+                        <span className="block text-xs text-muted-foreground truncate">Next: {best.v.name}</span>
+                      )}
+                    </span>
+                    <span className="text-sm text-muted-foreground shrink-0">
+                      {best ? formatEta(mins) : "No bus en route"}
+                    </span>
+                  </li>
+                );
+              })}
             </ol>
             <p className="text-xs text-muted-foreground">
-              Times are estimates based on each vehicle's current position and speed.
+              Times are estimates based on each vehicle's current driving distance to the stop, following roads where available.
             </p>
           </div>
         )}
