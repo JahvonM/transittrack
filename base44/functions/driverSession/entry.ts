@@ -79,7 +79,6 @@ export default async function(req) {
         ]);
         const driverEmail = vehicle.driver_email || '';
         const relevantBroadcasts = broadcasts.filter((b) => {
-          if (b.is_reply && b.driver_email === driverEmail) return false;
           const targeted = b.driver_email && b.driver_email === driverEmail;
           const broadcast = !b.driver_email && b.type === 'info';
           return targeted || broadcast;

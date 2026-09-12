@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useDriverSession } from "@/hooks/useDriverSession";
@@ -9,6 +9,7 @@ import PreTripInspection from "@/components/driver/PreTripInspection";
 import DriverTrackingDashboard from "@/components/driver/DriverTrackingDashboard";
 import DriverNavMap from "@/components/driver/DriverNavMap";
 import DriverMessages from "@/components/DriverMessages";
+import DriverMessageAlert from "@/components/driver/DriverMessageAlert";
 import DriverDevicePanel from "@/components/driver/DriverDevicePanel";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertCircle } from "lucide-react";
@@ -23,6 +24,51 @@ export default function DriverApp() {
   const [unlocked, setUnlocked] = useState(() => localStorage.getItem("tt_driver_unlock_date") === new Date().toISOString().slice(0, 10));
   const [activeTab, setActiveTab] = useState(() => TRACKING_TABS.includes(urlStage) ? urlStage : "track");
   const { session, loading, invoke } = useDriverSession(deviceId);
+
+  // Broadcast detection — always active regardless of active tab
+  const [alert, setAlert] = useState(null);
+  const seenIds = useRef(new Set());
+  const firstLoad = useRef(true);
+
+  const playAlertSound = useCallback(() => {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      [880, 1320].forEach((freq, i) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.frequency.value = freq; osc.type = "sine";
+        const start = ctx.currentTime + i * 0.25;
+        gain.gain.setValueAtTime(0.0001, start);
+        gain.gain.exponentialRampToValueAtTime(0.4, start + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.4);
+        osc.start(start); osc.stop(start + 0.4);
+      });
+    } catch { /* ignore */ }
+  }, []);
+
+  useEffect(() => {
+    const broadcasts = session?.broadcasts;
+    if (!broadcasts) return;
+    if (firstLoad.current) {
+      broadcasts.forEach((b) => seenIds.current.add(b.id));
+      firstLoad.current = false;
+      return;
+    }
+    broadcasts.forEach((b) => {
+      if (seenIds.current.has(b.id)) return;
+      seenIds.current.add(b.id);
+      if (!b.is_reply) {
+        playAlertSound();
+        setAlert(b);
+      }
+    });
+  }, [session?.broadcasts, playAlertSound]);
+
+  const handleAlertReply = async (text) => {
+    await invoke("send_broadcast", { message: text });
+    setAlert(null);
+  };
 
   // Auto-pair when a pairing code is provided in the URL (?code=AB3D9K)
   const [autoPairing, setAutoPairing] = useState(false);
@@ -120,6 +166,7 @@ export default function DriverApp() {
           </TabsContent>
         </Tabs>
       </div>
+      <DriverMessageAlert alert={alert} onAcknowledge={() => setAlert(null)} onReply={handleAlertReply} />
     </div>
   );
 }
