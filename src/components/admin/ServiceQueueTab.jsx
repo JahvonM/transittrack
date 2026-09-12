@@ -1,10 +1,11 @@
 import React, { useState } from "react";
+import { Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, AlertTriangle, FileSpreadsheet, FileText, Wrench } from "lucide-react";
+import { CheckCircle2, AlertTriangle, FileSpreadsheet, FileText, Wrench, History } from "lucide-react";
 import { exportToCSV, exportToPDF } from "@/lib/exporters";
 
 const SERVICE_COLS = [
