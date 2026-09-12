@@ -89,6 +89,10 @@ export default function DriverNavMap({ session, invoke }) {
   const recenter = () => { const map = mapRef.current; if (!map || !pos) return; map.flyTo({ center: [pos.lng, pos.lat], zoom: Math.max(map.getZoom(), 15), duration: 800 }); };
   const trail = liveVehicle?.trail || vehicle?.trail || [];
 
+  // Smoothly glide the bus icon between raw GPS pings instead of snapping
+  // (shorter duration than the fleet map since watchPosition updates more often).
+  const smoothPos = useSmoothPosition(pos?.lat, pos?.lng, { duration: 1000 });
+
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-2 flex-wrap">
