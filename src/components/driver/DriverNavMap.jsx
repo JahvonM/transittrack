@@ -62,6 +62,29 @@ export default function DriverNavMap({ session, invoke }) {
     return ordered[0];
   }, [route]);
 
+  // Real driving distance/ETA to the next stop (falls back to straight-line while loading)
+  const nextStopDest = nextStop ? { lat: nextStop.lat, lng: nextStop.lng } : null;
+  const { km: nextStopKm, mins: nextStopMins, isDriving: nextStopIsDriving } = useDrivingEta(pos, nextStopDest);
+
+  // Actual road path from the bus's current position to the next stop (not a straight line)
+  const [pathToNextStop, setPathToNextStop] = useState(null);
+  const pathSignature = pos && nextStop ? `${pos.lat.toFixed(4)},${pos.lng.toFixed(4)}|${nextStop.lat},${nextStop.lng}` : null;
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!pos || !nextStop) {
+      setPathToNextStop(null);
+      return;
+    }
+    import("@/lib/geo").then(({ fetchDrivingRoute }) =>
+      fetchDrivingRoute([{ lat: pos.lat, lng: pos.lng }, { lat: nextStop.lat, lng: nextStop.lng }]).then((res) => {
+        if (!cancelled) setPathToNextStop(res?.geometry || null);
+      })
+    );
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathSignature]);
+
   const navUrl = nextStop ? `https://www.google.com/maps?q=${nextStop.lat},${nextStop.lng}` : pos ? `https://www.google.com/maps?q=${pos.lat},${pos.lng}` : "#";
   const gpsStatus = !pos ? "searching" : pos.accuracy != null && pos.accuracy <= 50 ? "locked" : "low";
   const recenter = () => { const map = mapRef.current; if (!map || !pos) return; map.flyTo({ center: [pos.lng, pos.lat], zoom: Math.max(map.getZoom(), 15), duration: 800 }); };
