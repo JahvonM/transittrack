@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import AppLayout from "@/components/AppLayout";
@@ -15,7 +15,7 @@ import ShareLocationButton from "@/components/ShareLocationButton";
 import Greeting from "@/components/Greeting";
 import { haversineKm, etaMinutes, formatEta } from "@/lib/geo";
 import { STATUS_LABEL, STATUS_VARIANT } from "@/lib/trip";
-import { Bus, Clock, LogOut, Map as MapIcon, User } from "lucide-react";
+import { Bus, Clock, LogOut, Map as MapIcon, ShieldCheck, User } from "lucide-react";
 import { MobileSelect } from "@/components/ui/mobile-select";
 import PullToRefresh from "@/components/PullToRefresh";
 import { Badge } from "@/components/ui/badge";
@@ -375,6 +375,12 @@ export default function StaffPortal() {
         <StaffAlerts />
 
         <LostItemReport />
+
+        <Button asChild variant="outline" className="w-full justify-start">
+          <Link to="/safety-standards">
+            <ShieldCheck className="w-4 h-4 mr-2" /> Safety standards
+          </Link>
+        </Button>
 
         <ProfileInfo />
         </div>
