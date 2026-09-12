@@ -189,6 +189,12 @@ export default function StaffPortal() {
     return best;
   }, [stop, locatedVehicles]);
 
+  // Refine the straight-line candidate above with an actual driving ETA (roads,
+  // not a straight line), falling back to the straight-line estimate while it loads.
+  const approachingOrigin = approaching ? { lat: approaching.v.current_lat, lng: approaching.v.current_lng } : null;
+  const approachingDest = stop ? { lat: stop.lat, lng: stop.lng } : null;
+  const approachingDriving = useDrivingEta(approachingOrigin, approachingDest, approaching?.v?.speed || 25);
+
   const onTheWayTrip = useMemo(
     () => trips.find((t) => t.pickup_name === pickupName && t.status === "on_the_way") || null,
     [trips, pickupName]
