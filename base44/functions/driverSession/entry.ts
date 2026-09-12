@@ -158,6 +158,21 @@ export default async function(req) {
         return Response.json({ inspection });
       }
 
+      case 'report_incident': {
+        const { type, details } = body;
+        if (!details || typeof details !== 'string' || !details.trim())
+          return Response.json({ error: 'details required' }, { status: 400 });
+        const vehicle = await loadVehicle(base44, vehicleId);
+        if (!vehicle) return Response.json({ error: 'Vehicle not found' }, { status: 404 });
+        const allowedTypes = ['breakdown', 'accident', 'delay', 'other'];
+        const incident = await base44.asServiceRole.entities.Incident.create({
+          vehicle_id: vehicleId, vehicle_name: vehicle.name, company_id: companyId, company_name: companyName,
+          driver_name: vehicle.driver_name || '', driver_email: vehicle.driver_email || '',
+          type: allowedTypes.includes(type) ? type : 'other', details: sanitize(details), occurred_at: new Date().toISOString(),
+        });
+        return Response.json({ incident });
+      }
+
       case 'send_broadcast': {
         const { message, title } = body;
         if (!message || typeof message !== 'string') return Response.json({ error: 'message required' }, { status: 400 });
