@@ -82,6 +82,7 @@ export default function LiveFleetTab({ vehicles, onVehicleUpdate }) {
                   {v.current_lat != null ? `Last seen ${timeAgo(v.last_location_update)}` : "No location yet"}
                 </div>
               </div>
+              {v.current_lat != null && userLoc && <BusDistance vehicle={v} userLocation={userLoc} />}
               <div className="flex gap-2">
                 {!tracking && (
                   <Button size="sm" variant="default" disabled={busy === v.id} onClick={() => remoteStart(v)}>
