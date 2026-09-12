@@ -135,17 +135,106 @@ export default async function(req) {
           return Response.json({ error: 'lat and lng required' }, { status: 400 });
         const vehicle = await loadVehicle(base44, vehicleId);
         if (!vehicle) return Response.json({ error: 'Vehicle not found' }, { status: 404 });
-        const update = { current_lat: lat, current_lng: lng, speed: speed || 0, status: status || 'on_trip', last_location_update: new Date().toISOString() };
+
+        const now = new Date();
+        const newSpeed = speed || 0;
+        const prevSpeed = typeof vehicle.speed === 'number' ? vehicle.speed : null;
+        const prevTime = vehicle.last_location_update ? new Date(vehicle.last_location_update).getTime() : null;
+        const dtSec = prevTime ? (now.getTime() - prevTime) / 1000 : null;
+
+        const update = { current_lat: lat, current_lng: lng, speed: newSpeed, status: status || 'on_trip', last_location_update: now.toISOString() };
         if (trail) update.trail = trail;
+
+        // --- Driving-event detection: hard braking / rapid acceleration / possible crash ---
+        // Heuristic only (GPS speed deltas between ~8s pings), not true accelerometer sensing.
+        let drivingEvent = null;
+        if (prevSpeed != null && dtSec != null && dtSec > 0.5 && dtSec <= MAX_GAP_SEC) {
+          const deltaMs2 = (newSpeed - prevSpeed) / dtSec;
+          const prevKmh = prevSpeed * 3.6;
+          const newKmh = newSpeed * 3.6;
+          // "Possible crash": was moving at a meaningful clip and is now essentially stopped, very suddenly.
+          if (prevKmh >= 40 && newKmh <= 5 && dtSec <= 15) {
+            drivingEvent = 'crash';
+          } else if (deltaMs2 <= -HARD_BRAKE_MS2) {
+            drivingEvent = 'hard_brake';
+          } else if (deltaMs2 >= RAPID_ACCEL_MS2) {
+            drivingEvent = 'rapid_accel';
+          }
+        }
+        if (drivingEvent === 'crash') update.status = 'emergency';
+
+        // --- Place alerts: geofence arrival/departure at the vehicle's route stops ---
+        if (vehicle.route_id) {
+          let route = null;
+          try { route = await base44.asServiceRole.entities.Route.get(vehicle.route_id); } catch { /* route may be missing */ }
+          if (route?.stops?.length) {
+            let nearest = null;
+            let nearestDist = Infinity;
+            route.stops.forEach((s) => {
+              if (s.lat == null || s.lng == null) return;
+              const d = haversineMeters(lat, lng, s.lat, s.lng);
+              if (d < nearestDist) { nearestDist = d; nearest = s; }
+            });
+            const prevNearId = vehicle.near_stop_id || '';
+            const nowNearId = nearest && nearestDist <= ARRIVAL_RADIUS_M ? (nearest.name || '') : '';
+            if (nowNearId !== prevNearId) {
+              update.near_stop_id = nowNearId;
+              if (nowNearId) {
+                await base44.asServiceRole.entities.Broadcast.create({
+                  type: vehicle.type === 'taxi' ? 'taxi_arrived' : 'bus_arrived',
+                  title: `${vehicle.name} arrived`, message: `${vehicle.name} has arrived at ${nowNearId}.`,
+                  vehicle_name: vehicle.name, company_id: companyId, company_name: companyName,
+                  driver_name: vehicle.driver_name || '', driver_email: vehicle.driver_email || '',
+                }).catch(() => {});
+              } else if (prevNearId) {
+                await base44.asServiceRole.entities.Broadcast.create({
+                  type: 'info', title: `${vehicle.name} departed`, message: `${vehicle.name} has left ${prevNearId}.`,
+                  vehicle_name: vehicle.name, company_id: companyId, company_name: companyName,
+                  driver_name: vehicle.driver_name || '', driver_email: vehicle.driver_email || '',
+                }).catch(() => {});
+              }
+            }
+          }
+        }
+
         await base44.asServiceRole.entities.Vehicle.update(vehicleId, update);
+
+        // --- Location history, for the "replay this vehicle's day" timeline ---
+        // Throttled to roughly once a minute so a day of history stays a manageable size.
+        const lastPingAt = vehicle.last_ping_logged_at ? new Date(vehicle.last_ping_logged_at).getTime() : 0;
+        if (now.getTime() - lastPingAt >= PING_LOG_INTERVAL_MS) {
+          await base44.asServiceRole.entities.LocationPing.create({
+            vehicle_id: vehicleId, company_id: companyId, lat, lng, speed: newSpeed, recorded_at: now.toISOString(),
+          }).catch(() => {});
+          await base44.asServiceRole.entities.Vehicle.update(vehicleId, { last_ping_logged_at: now.toISOString() }).catch(() => {});
+        }
+
         if (log_speeding) {
           await base44.asServiceRole.entities.Incident.create({
             vehicle_id: vehicleId, vehicle_name: vehicle.name, company_id: companyId, company_name: companyName,
             driver_name: vehicle.driver_name || '', driver_email: vehicle.driver_email || '',
-            type: 'speeding', details: `Speed recorded at ${Math.round((speed || 0) * 3.6)} km/h`, occurred_at: new Date().toISOString(),
+            type: 'speeding', details: `Speed recorded at ${Math.round((speed || 0) * 3.6)} km/h`, occurred_at: now.toISOString(),
           });
         }
-        return Response.json({ ok: true });
+
+        if (drivingEvent) {
+          await base44.asServiceRole.entities.DrivingEvent.create({
+            vehicle_id: vehicleId, vehicle_name: vehicle.name, company_id: companyId, company_name: companyName,
+            driver_name: vehicle.driver_name || '', driver_email: vehicle.driver_email || '',
+            type: drivingEvent, speed_before_kmh: Math.round((prevSpeed || 0) * 3.6), speed_after_kmh: Math.round(newSpeed * 3.6),
+            lat, lng, occurred_at: now.toISOString(),
+          }).catch(() => {});
+
+          if (drivingEvent === 'crash') {
+            await base44.asServiceRole.entities.Incident.create({
+              vehicle_id: vehicleId, vehicle_name: vehicle.name, company_id: companyId, company_name: companyName,
+              driver_name: vehicle.driver_name || '', driver_email: vehicle.driver_email || '',
+              type: 'emergency', details: `Possible crash detected — sudden stop from ${Math.round((prevSpeed || 0) * 3.6)} km/h.`, occurred_at: now.toISOString(),
+            }).catch(() => {});
+          }
+        }
+
+        return Response.json({ ok: true, driving_event: drivingEvent });
       }
 
       case 'sos': {
