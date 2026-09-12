@@ -112,6 +112,15 @@ export default function MapboxMap({
     map.flyTo({ center: [loc.lng, loc.lat], zoom: Math.max(map.getZoom(), 15), duration: 800 });
   };
 
+  // Re-apply decluttering after switching street ↔ satellite — changing mapStyle
+  // swaps the whole style, and onLoad only fires once on the very first load.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || isSatellite) return;
+    if (map.isStyleLoaded && map.isStyleLoaded()) declutterStyle(map);
+    else map.once("styledata", () => declutterStyle(map));
+  }, [isSatellite]);
+
   const initViewport = center
     ? { longitude: center[0], latitude: center[1], zoom: 14 }
     : { longitude: -61.7, latitude: 12.05, zoom: 11 };
