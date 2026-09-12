@@ -11,8 +11,9 @@ import DriverNavMap from "@/components/driver/DriverNavMap";
 import DriverMessages from "@/components/DriverMessages";
 import DriverMessageAlert from "@/components/driver/DriverMessageAlert";
 import DriverDevicePanel from "@/components/driver/DriverDevicePanel";
+import SafetyStandardsContent from "@/components/SafetyStandardsContent";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertCircle, AlertTriangle } from "lucide-react";
+import { AlertCircle, AlertTriangle, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -20,7 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/components/ui/use-toast";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
-const TRACKING_TABS = ["track", "navigate", "messages", "profile"];
+const TRACKING_TABS = ["track", "navigate", "messages", "safety", "profile"];
 
 export default function DriverApp() {
   const navigate = useNavigate();
@@ -192,10 +193,14 @@ export default function DriverApp() {
       <div className="space-y-4 max-w-3xl mx-auto">
         <DriverGreeting driverName={driverName} subtitle={vehicle.name} />
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v)} className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="track">Track</TabsTrigger>
             <TabsTrigger value="navigate">Navigate</TabsTrigger>
             <TabsTrigger value="messages">Messages</TabsTrigger>
+            <TabsTrigger value="safety">
+              <ShieldCheck className="w-4 h-4 sm:hidden" />
+              <span className="hidden sm:inline">Safety</span>
+            </TabsTrigger>
             <TabsTrigger value="profile">Profile</TabsTrigger>
           </TabsList>
           <TabsContent value="track" className="mt-4 space-y-4">
@@ -221,6 +226,9 @@ export default function DriverApp() {
           </TabsContent>
           <TabsContent value="messages" className="mt-4">
             <DriverMessages session={session} invoke={invoke} />
+          </TabsContent>
+          <TabsContent value="safety" className="mt-4">
+            <SafetyStandardsContent />
           </TabsContent>
           <TabsContent value="profile" className="mt-4">
             <DriverDevicePanel session={session} deviceId={deviceId} onUnpair={handleUnpair} />
