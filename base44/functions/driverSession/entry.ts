@@ -304,7 +304,7 @@ export default async function(req) {
           const matches = await base44.asServiceRole.entities.User.filter({ email: to });
           recipient = Array.isArray(matches) ? matches[0] : matches;
         } catch { /* tolerate */ }
-        if (recipient && recipient.company_id && vehicle.company_id && recipient.company_id !== vehicle.company_id)
+        if (!recipient || !recipient.company_id || recipient.company_id !== (vehicle.company_id || companyId))
           return Response.json({ error: 'Recipient not in your company' }, { status: 403 });
         const subject = `Your bus is approaching — ${sanitize(vehicle.name)}`;
         const msg = `Hello,\n\n${sanitize(vehicle.name)}${sanitize(vehicle.driver_name) ? ` (driver ${sanitize(vehicle.driver_name)})` : ''} is near your pickup location${sanitize(vehicle.company_name) ? ` for ${sanitize(vehicle.company_name)}` : ''} and will arrive shortly. Please get ready to board.\n\n— TransitTrack`;
@@ -315,6 +315,13 @@ export default async function(req) {
       case 'update_trip_status': {
         const { trip_id, status } = body;
         if (!trip_id) return Response.json({ error: 'trip_id required' }, { status: 400 });
+        // Ownership check: the trip must belong to this device's company (and vehicle).
+        let existing = null;
+        try { existing = await base44.asServiceRole.entities.Trip.get(trip_id); }
+        catch { /* trip may not exist */ }
+        if (!existing) return Response.json({ error: 'Trip not found' }, { status: 404 });
+        if (existing.company_id !== companyId || existing.vehicle_id !== vehicleId)
+          return Response.json({ error: 'Trip does not belong to this device' }, { status: 403 });
         const update = { status };
         if (status === 'on_the_way') update.started_at = new Date().toISOString();
         if (status === 'arrived') update.arrived_at = new Date().toISOString();

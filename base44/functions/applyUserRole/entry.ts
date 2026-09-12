@@ -1,6 +1,9 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 
-const ALLOWED_ROLES = ["driver", "staff", "company"];
+// Self-service role selection is limited to non-privileged roles.
+// The privileged 'company' (fleet operator) role must be granted by an admin
+// through a separate admin-gated flow — never self-assigned at registration.
+const ALLOWED_ROLES = ["driver", "staff"];
 
 export default async function applyUserRole(req) {
   try {
