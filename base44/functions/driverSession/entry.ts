@@ -95,6 +95,22 @@ export default async function(req) {
         });
       }
 
+      case 'start_tracking': {
+        const vehicle = await loadVehicle(base44, vehicleId);
+        if (!vehicle) return Response.json({ error: 'Vehicle not found' }, { status: 404 });
+        await base44.asServiceRole.entities.Vehicle.update(vehicleId, { tracking_active: true });
+        return Response.json({ ok: true });
+      }
+
+      case 'stop_tracking': {
+        const vehicle = await loadVehicle(base44, vehicleId);
+        if (!vehicle) return Response.json({ error: 'Vehicle not found' }, { status: 404 });
+        if (vehicle.remote_tracking_lock)
+          return Response.json({ error: 'Tracking locked by admin' }, { status: 403 });
+        await base44.asServiceRole.entities.Vehicle.update(vehicleId, { tracking_active: false });
+        return Response.json({ ok: true });
+      }
+
       case 'update_location': {
         const { lat, lng, speed, status, trail, log_speeding } = body;
         if (typeof lat !== 'number' || typeof lng !== 'number')
