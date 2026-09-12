@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import mapboxgl from "mapbox-gl";
 import Map, { Marker, Source, Layer, Popup, NavigationControl } from "react-map-gl";
@@ -7,6 +7,7 @@ import { Bus, LocateFixed, Maximize2, Minimize2, Satellite, X } from "lucide-rea
 import { Badge } from "@/components/ui/badge";
 import { Image } from "@/components/ui/image";
 import BusDistance from "@/components/BusDistance";
+import { fetchDrivingRoute } from "@/lib/geo";
 
 // Status -> pin colour
 const STATUS_COLORS = {
