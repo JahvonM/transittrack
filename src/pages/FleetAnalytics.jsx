@@ -42,6 +42,19 @@ export default function FleetAnalytics() {
   });
   const peakHours = hourCounts.filter((h) => h.trips > 0).sort((a, b) => b.trips - a.trips);
 
+  // Latest recorded fuel level per vehicle, from pre-trip inspections — sorted
+  // lowest-first so vehicles that need fuel soonest surface at the top.
+  const fuelByVehicle = vehicles
+    .map((v) => {
+      const latest = inspections
+        .filter((i) => i.vehicle_id === v.id && i.fuel_level != null)
+        .sort((a, b) => (b.created_date || "").localeCompare(a.created_date || ""))[0];
+      return { name: v.name || "—", fuel: latest ? latest.fuel_level : null };
+    })
+    .filter((f) => f.fuel != null)
+    .sort((a, b) => a.fuel - b.fuel)
+    .slice(0, 10);
+
   const chartStyle = { background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 };
 
   return (
