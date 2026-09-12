@@ -14,8 +14,9 @@ export default function FleetAnalytics() {
     Promise.all([
       base44.entities.Trip.list("-created_date", 200),
       base44.entities.Vehicle.list("-created_date", 100),
+      base44.entities.Inspection.list("-created_date", 500),
     ])
-      .then(([t, v]) => { setTrips(t); setVehicles(v); })
+      .then(([t, v, insp]) => { setTrips(t); setVehicles(v); setInspections(insp); })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
