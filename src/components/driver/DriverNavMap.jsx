@@ -7,6 +7,7 @@ import { useOfflineSync } from "@/hooks/useOfflineSync";
 import { formatEta, fetchDrivingRoute } from "@/lib/geo";
 import useDrivingEta from "@/hooks/useDrivingEta";
 import useSmoothPosition from "@/hooks/useSmoothPosition";
+import AccuracyHalo from "@/components/AccuracyHalo";
 import { Bus, Navigation, MapPin, LocateFixed, Satellite } from "lucide-react";
 
 function hidePoiLayers(map) {
