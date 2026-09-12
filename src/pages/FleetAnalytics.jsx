@@ -8,6 +8,7 @@ import { TrendingUp, Users, Clock } from "lucide-react";
 export default function FleetAnalytics() {
   const [trips, setTrips] = useState([]);
   const [vehicles, setVehicles] = useState([]);
+  const [inspections, setInspections] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
