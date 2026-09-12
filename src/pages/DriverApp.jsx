@@ -20,7 +20,8 @@ export default function DriverApp() {
   const navigate = useNavigate();
   const { stage: urlStage } = useParams();
   const [deviceId, setDeviceId] = useState(() => localStorage.getItem("tt_driver_device_id"));
-  const [unlocked, setUnlocked] = useState(false);
+  const [unlocked, setUnlocked] = useState(() => localStorage.getItem("tt_driver_unlock_date") === new Date().toISOString().slice(0, 10));
+  const [activeTab, setActiveTab] = useState(() => TRACKING_TABS.includes(urlStage) ? urlStage : "track");
   const { session, loading, invoke } = useDriverSession(deviceId);
 
   // Auto-pair when a pairing code is provided in the URL (?code=AB3D9K)
@@ -48,7 +49,7 @@ export default function DriverApp() {
   const stage = urlStage || "pin";
 
   const handlePaired = (id) => { localStorage.setItem("tt_driver_device_id", id); setDeviceId(id); };
-  const handleUnpair = () => { localStorage.removeItem("tt_driver_device_id"); setDeviceId(null); setUnlocked(false); navigate("/driver"); };
+  const handleUnpair = () => { localStorage.removeItem("tt_driver_device_id"); localStorage.removeItem("tt_driver_unlock_date"); setDeviceId(null); setUnlocked(false); navigate("/driver"); };
 
   if (!deviceId) {
     if (autoPairing)
@@ -77,7 +78,7 @@ export default function DriverApp() {
       <div className="min-h-screen p-4 safe-area-top safe-area-x">
         <div className="space-y-4 max-w-3xl mx-auto">
           <DriverGreeting driverName={driverName} subtitle={vehicle.name} />
-          <PinGate vehicle={vehicle} onUnlock={() => { setUnlocked(true); goStage(isMorning ? "inspection" : "track"); }} />
+          <PinGate vehicle={vehicle} onUnlock={() => { localStorage.setItem("tt_driver_unlock_date", new Date().toISOString().slice(0, 10)); setUnlocked(true); goStage(isMorning ? "inspection" : "track"); }} />
         </div>
       </div>
     );
@@ -94,13 +95,11 @@ export default function DriverApp() {
     );
   }
 
-  const tab = TRACKING_TABS.includes(stage) ? stage : "track";
-
   return (
     <div className="min-h-screen p-4 safe-area-top safe-area-x">
       <div className="space-y-4 max-w-3xl mx-auto">
         <DriverGreeting driverName={driverName} subtitle={vehicle.name} />
-        <Tabs value={tab} onValueChange={(v) => goStage(v)} className="w-full">
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v)} className="w-full">
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="track">Track</TabsTrigger>
             <TabsTrigger value="navigate">Navigate</TabsTrigger>
