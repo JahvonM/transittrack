@@ -55,6 +55,14 @@
       "type": "string",
       "format": "date-time"
     },
+    "tracking_active": {
+      "type": "boolean",
+      "default": false
+    },
+    "remote_tracking_lock": {
+      "type": "boolean",
+      "default": false
+    },
     "driver_email": {
       "type": "string"
     },
@@ -128,6 +136,11 @@
         {
           "user_condition": {
             "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "company"
           }
         }
       ]
