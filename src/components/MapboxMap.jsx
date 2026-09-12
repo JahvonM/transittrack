@@ -109,9 +109,33 @@ export default function MapboxMap({
     ? { longitude: center[0], latitude: center[1], zoom: 14 }
     : { longitude: -61.7, latitude: 12.05, zoom: 11 };
 
-  // Route polyline from stops (if any)
+  // Route polyline from stops (if any) — straight-line fallback, used until/unless
+  // the actual driving route (following roads) below is available.
   const routeCoords =
     stops && stops.length > 1 ? stops.filter((s) => s.lat != null).map((s) => [s.lng, s.lat]) : [];
+
+  // Fetch the real driving route through the stops (roads, not a straight line).
+  // Keyed on a stable signature so it only refetches when the stops actually change.
+  const routeStopsSignature = routeCoords.map((c) => c.join(",")).join(";");
+  const [drivingRouteGeom, setDrivingRouteGeom] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (routeCoords.length < 2) {
+      setDrivingRouteGeom(null);
+      return;
+    }
+    fetchDrivingRoute(routeCoords.map(([lng, lat]) => ({ lat, lng }))).then((res) => {
+      if (!cancelled) setDrivingRouteGeom(res?.geometry || null);
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [routeStopsSignature]);
+
+  const routeLineCoords = drivingRouteGeom || routeCoords;
+  const routeFollowsRoads = Boolean(drivingRouteGeom);
 
   // Per-vehicle trails
   const vehicleTrails = vehicles
