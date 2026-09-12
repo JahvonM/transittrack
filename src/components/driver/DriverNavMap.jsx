@@ -76,11 +76,9 @@ export default function DriverNavMap({ session, invoke }) {
       setPathToNextStop(null);
       return;
     }
-    import("@/lib/geo").then(({ fetchDrivingRoute }) =>
-      fetchDrivingRoute([{ lat: pos.lat, lng: pos.lng }, { lat: nextStop.lat, lng: nextStop.lng }]).then((res) => {
-        if (!cancelled) setPathToNextStop(res?.geometry || null);
-      })
-    );
+    fetchDrivingRoute([{ lat: pos.lat, lng: pos.lng }, { lat: nextStop.lat, lng: nextStop.lng }]).then((res) => {
+      if (!cancelled) setPathToNextStop(res?.geometry || null);
+    });
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathSignature]);
