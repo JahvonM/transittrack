@@ -4,6 +4,8 @@ import { MAPBOX_TOKEN, GPS_INTERVAL_MS } from "@/lib/mapbox";
 import { Button } from "@/components/ui/button";
 import OfflineStatusBadge from "@/components/OfflineStatusBadge";
 import { useOfflineSync } from "@/hooks/useOfflineSync";
+import { formatEta } from "@/lib/geo";
+import useDrivingEta from "@/hooks/useDrivingEta";
 import { Bus, Navigation, MapPin, LocateFixed, Satellite } from "lucide-react";
 
 function hidePoiLayers(map) {
