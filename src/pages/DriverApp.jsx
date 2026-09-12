@@ -26,7 +26,7 @@ export default function DriverApp() {
   const navigate = useNavigate();
   const { stage: urlStage } = useParams();
   const { toast } = useToast();
-  
+
   const [deviceId, setDeviceId] = useState(() => localStorage.getItem("tt_driver_device_id"));
   const [unlocked, setUnlocked] = useState(() => localStorage.getItem("tt_driver_unlock_date") === new Date().toISOString().slice(0, 10));
   const [activeTab, setActiveTab] = useState(() => TRACKING_TABS.includes(urlStage) ? urlStage : "track");
@@ -198,16 +198,15 @@ export default function DriverApp() {
             <TabsTrigger value="messages">Messages</TabsTrigger>
             <TabsTrigger value="profile">Profile</TabsTrigger>
           </TabsList>
-          
           <TabsContent value="track" className="mt-4 space-y-4">
             <div className="bg-destructive/10 border border-destructive/20 text-destructive p-3.5 rounded-lg flex items-center justify-between shadow-sm">
               <div className="flex items-center gap-2.5">
                 <div className="w-2 h-2 rounded-full bg-destructive animate-ping" />
                 <span className="text-sm font-medium">Mechanical Breakdown or Fleet Incident?</span>
               </div>
-              <Button 
-                variant="destructive" 
-                size="sm" 
+              <Button
+                variant="destructive"
+                size="sm"
                 className="h-8 text-xs font-semibold px-4 shadow-sm"
                 onClick={() => setIsReportOpen(true)}
               >
@@ -217,8 +216,57 @@ export default function DriverApp() {
 
             <DriverTrackingDashboard session={session} invoke={invoke} driverName={driverName} />
           </TabsContent>
-          
           <TabsContent value="navigate" className="mt-4">
             <DriverNavMap session={session} invoke={invoke} />
           </TabsContent>
           <TabsContent value="messages" className="mt-4">
+            <DriverMessages session={session} invoke={invoke} />
+          </TabsContent>
+          <TabsContent value="profile" className="mt-4">
+            <DriverDevicePanel session={session} deviceId={deviceId} onUnpair={handleUnpair} />
+          </TabsContent>
+        </Tabs>
+      </div>
+      <DriverMessageAlert alert={alert} onAcknowledge={() => setAlert(null)} onReply={handleAlertReply} />
+
+      <Sheet open={isReportOpen} onOpenChange={setIsReportOpen}>
+        <SheetContent side="bottom" className="max-w-3xl mx-auto rounded-t-2xl">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-destructive" />
+              Report an incident
+            </SheetTitle>
+          </SheetHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Type</Label>
+              <Select value={incidentType} onValueChange={setIncidentType}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="breakdown">Mechanical breakdown</SelectItem>
+                  <SelectItem value="accident">Accident</SelectItem>
+                  <SelectItem value="delay">Delay</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Details</Label>
+              <Textarea
+                value={incidentDetails}
+                onChange={(e) => setIncidentDetails(e.target.value)}
+                placeholder="Describe what happened..."
+                rows={4}
+              />
+            </div>
+            <Button className="w-full" onClick={submitIncidentReport} disabled={isSubmittingIncident}>
+              {isSubmittingIncident ? "Submitting..." : "Submit report"}
+            </Button>
+          </div>
+        </SheetContent>
+      </Sheet>
+    </div>
+  );
+}
