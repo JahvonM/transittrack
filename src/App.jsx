@@ -135,6 +135,8 @@ const AuthenticatedApp = () => {
         <Route path="/support" element={<PassengerSupport />} />
         <Route path="/route-planner" element={<RoutePlanner />} />
         <Route path="/reviewer-sandbox" element={<ReviewerSandbox />} />
+        <Route path="/driving-reports" element={<DrivingReports />} />
+        <Route path="/location-timeline" element={<LocationTimeline />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
       </Routes>
