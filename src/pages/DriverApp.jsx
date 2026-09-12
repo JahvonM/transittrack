@@ -111,7 +111,10 @@ export default function DriverApp() {
   const handlePaired = (id) => { localStorage.setItem("tt_driver_device_id", id); setDeviceId(id); };
   const handleUnpair = () => { localStorage.removeItem("tt_driver_device_id"); localStorage.removeItem("tt_driver_unlock_date"); setDeviceId(null); setUnlocked(false); navigate("/driver"); };
 
-  // Handler to submit the incident report directly using tablet credentials
+  // Handler to submit the incident report via the driver-session backend function.
+  // (A direct base44.entities.Incident.create() call from here would be rejected —
+  // driver tablets are paired by device ID, not logged in as a normal user, so they
+  // have no role for the Incident entity's permission rules to match.)
   const submitIncidentReport = async () => {
     if (!incidentDetails.trim()) {
       toast({ title: "Please provide incident details", variant: "destructive" });
@@ -120,18 +123,7 @@ export default function DriverApp() {
 
     setIsSubmittingIncident(true);
     try {
-      await base44.entities.Incident.create({
-        vehicle_id: session?.vehicle?.id || "",
-        vehicle_name: session?.vehicle?.name || "",
-        company_id: session?.vehicle?.company_id || "",
-        company_name: session?.vehicle?.company_name || "",
-        driver_name: session?.driver_name || "Tablet App Operator",
-        driver_email: "",
-        type: incidentType,
-        details: incidentDetails,
-        occurred_at: new Date().toISOString(),
-        status: "open",
-      });
+      await invoke("report_incident", { type: incidentType, details: incidentDetails });
 
       toast({ title: "Incident reported", description: "The admin dashboard has been notified." });
       setIncidentDetails("");
