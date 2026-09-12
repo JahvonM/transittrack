@@ -200,7 +200,6 @@ export default function DriverApp() {
           </TabsList>
           
           <TabsContent value="track" className="mt-4 space-y-4">
-            {/* INCIDENT REPORT LINKS SAFELY IN-APP */}
             <div className="bg-destructive/10 border border-destructive/20 text-destructive p-3.5 rounded-lg flex items-center justify-between shadow-sm">
               <div className="flex items-center gap-2.5">
                 <div className="w-2 h-2 rounded-full bg-destructive animate-ping" />
@@ -220,3 +219,6 @@ export default function DriverApp() {
           </TabsContent>
           
           <TabsContent value="navigate" className="mt-4">
+            <DriverNavMap session={session} invoke={invoke} />
+          </TabsContent>
+          <TabsContent value="messages" className="mt-4">
