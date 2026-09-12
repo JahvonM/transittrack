@@ -123,6 +123,26 @@ export default function FleetAnalytics() {
                 </ResponsiveContainer>
               </CardContent>
             </Card>
+
+            <Card>
+              <CardHeader><CardTitle className="text-base">Fuel level by vehicle (%)</CardTitle></CardHeader>
+              <CardContent>
+                {fuelByVehicle.length === 0 ? (
+                  <p className="text-sm text-muted-foreground py-8 text-center">No fuel readings recorded yet.</p>
+                ) : (
+                  <ResponsiveContainer width="100%" height={250}>
+                    <BarChart data={fuelByVehicle}>
+                      <CartesianGrid strokeDasharray="3 3" className="opacity-20" />
+                      <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                      <YAxis tick={{ fontSize: 11 }} domain={[0, 100]} />
+                      <Tooltip contentStyle={chartStyle} />
+                      <Bar dataKey="fuel" fill="hsl(var(--chart-3))" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+                <p className="text-xs text-muted-foreground mt-2">Based on the most recent pre-trip inspection reading for each vehicle.</p>
+              </CardContent>
+            </Card>
           </>
         )}
       </div>
