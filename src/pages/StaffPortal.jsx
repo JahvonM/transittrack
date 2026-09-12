@@ -14,6 +14,7 @@ import LostItemReport from "@/components/staff/LostItemReport";
 import ShareLocationButton from "@/components/ShareLocationButton";
 import Greeting from "@/components/Greeting";
 import { haversineKm, etaMinutes, formatEta } from "@/lib/geo";
+import useDrivingEta from "@/hooks/useDrivingEta";
 import { STATUS_LABEL, STATUS_VARIANT } from "@/lib/trip";
 import { Bus, Clock, LogOut, Map as MapIcon, ShieldCheck, User } from "lucide-react";
 import { MobileSelect } from "@/components/ui/mobile-select";
