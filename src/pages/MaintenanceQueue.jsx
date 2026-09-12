@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import AppLayout from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Wrench, CheckCircle2, AlertTriangle } from "lucide-react";
+import { Wrench, CheckCircle2, AlertTriangle, History } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 
 export default function MaintenanceQueue() {
@@ -14,19 +15,30 @@ export default function MaintenanceQueue() {
 
   const load = async () => {
     const all = await base44.entities.Inspection.list("-updated_date", 500);
-    setItems(all.filter((i) => i.needs_service || i.status === "failed"));
+    // Only items still needing service stay in the queue — once resolved they move
+    // to Service History instead (this used to also match on status === "failed",
+    // which kept resolved items stuck here forever since resolving only cleared
+    // needs_service, not status).
+    setItems(all.filter((i) => i.needs_service));
     setLoading(false);
   };
   useEffect(() => { load(); }, []);
 
   const resolve = async (id) => {
-    await base44.entities.Inspection.update(id, { needs_service: false, service_notes: "Dispatched / resolved" });
-    toast({ title: "Marked resolved" });
+    // Clear needs_service AND flip status away from "failed" so the record reads
+    // correctly as resolved everywhere else (e.g. Service History) too.
+    await base44.entities.Inspection.update(id, { needs_service: false, status: "passed", service_notes: "Dispatched / resolved" });
+    toast({ title: "Marked resolved", description: "Moved to Service History." });
     load();
   };
 
   return (
     <AppLayout title="Maintenance queue">
+      <div className="flex justify-end mb-3">
+        <Button asChild variant="outline" size="sm">
+          <Link to="/service-history"><History className="w-4 h-4 mr-1.5" /> View past maintenance</Link>
+        </Button>
+      </div>
       {loading ? (
         <p className="text-muted-foreground">Loading…</p>
       ) : items.length === 0 ? (
