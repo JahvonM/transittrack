@@ -1,0 +1,63 @@
+{
+  "name": "LocationPing",
+  "properties": {
+    "company_id": {
+      "type": "string"
+    },
+    "lat": {
+      "type": "number"
+    },
+    "lng": {
+      "type": "number"
+    },
+    "recorded_at": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "speed": {
+      "type": "number"
+    },
+    "vehicle_id": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "vehicle_id",
+    "company_id",
+    "lat",
+    "lng",
+    "recorded_at"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "company"
+          }
+        }
+      ]
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  },
+  "type": "object"
+}

@@ -1,0 +1,89 @@
+{
+  "name": "DrivingEvent",
+  "properties": {
+    "company_id": {
+      "type": "string"
+    },
+    "company_name": {
+      "type": "string"
+    },
+    "driver_email": {
+      "type": "string"
+    },
+    "driver_name": {
+      "type": "string"
+    },
+    "lat": {
+      "type": "number"
+    },
+    "lng": {
+      "type": "number"
+    },
+    "occurred_at": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "speed_after_kmh": {
+      "type": "number"
+    },
+    "speed_before_kmh": {
+      "type": "number"
+    },
+    "type": {
+      "default": "hard_brake",
+      "enum": [
+        "hard_brake",
+        "rapid_accel",
+        "crash"
+      ],
+      "type": "string"
+    },
+    "vehicle_id": {
+      "type": "string"
+    },
+    "vehicle_name": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "vehicle_id",
+    "company_id",
+    "type",
+    "occurred_at"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "$or": [
+        {
+          "data.driver_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "company"
+          }
+        }
+      ]
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  },
+  "type": "object"
+}

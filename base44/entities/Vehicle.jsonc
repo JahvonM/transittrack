@@ -1,31 +1,13 @@
 {
   "name": "Vehicle",
-  "type": "object",
   "properties": {
+    "capacity": {
+      "type": "number"
+    },
     "company_id": {
       "type": "string"
     },
     "company_name": {
-      "type": "string"
-    },
-    "name": {
-      "type": "string"
-    },
-    "plate_number": {
-      "type": "string"
-    },
-    "type": {
-      "type": "string",
-      "enum": [
-        "bus",
-        "taxi"
-      ],
-      "default": "bus"
-    },
-    "capacity": {
-      "type": "number"
-    },
-    "image_url": {
       "type": "string"
     },
     "current_lat": {
@@ -34,34 +16,8 @@
     "current_lng": {
       "type": "number"
     },
-    "heading": {
+    "current_odometer": {
       "type": "number"
-    },
-    "speed": {
-      "type": "number"
-    },
-    "status": {
-      "type": "string",
-      "enum": [
-        "offline",
-        "idle",
-        "on_trip",
-        "speeding",
-        "emergency"
-      ],
-      "default": "offline"
-    },
-    "last_location_update": {
-      "type": "string",
-      "format": "date-time"
-    },
-    "tracking_active": {
-      "type": "boolean",
-      "default": false
-    },
-    "remote_tracking_lock": {
-      "type": "boolean",
-      "default": false
     },
     "driver_email": {
       "type": "string"
@@ -75,20 +31,58 @@
     "entry_code": {
       "type": "string"
     },
-    "current_odometer": {
+    "heading": {
       "type": "number"
     },
-    "wired_gps_connected": {
-      "type": "boolean",
-      "default": false
+    "image_url": {
+      "type": "string"
+    },
+    "last_location_update": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "last_ping_logged_at": {
+      "description": "Last time a LocationPing history point was recorded for this vehicle \u2014 throttles history logging to roughly once a minute.",
+      "format": "date-time",
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "near_stop_id": {
+      "description": "Name of the route stop the vehicle is currently within arrival radius of, if any \u2014 used to detect arrival/departure transitions for place alerts without re-alerting every GPS tick.",
+      "type": "string"
+    },
+    "plate_number": {
+      "type": "string"
+    },
+    "remote_tracking_lock": {
+      "default": false,
+      "type": "boolean"
     },
     "route_id": {
       "type": "string"
     },
+    "speed": {
+      "type": "number"
+    },
+    "status": {
+      "default": "offline",
+      "enum": [
+        "offline",
+        "idle",
+        "on_trip",
+        "speeding",
+        "emergency"
+      ],
+      "type": "string"
+    },
+    "tracking_active": {
+      "default": false,
+      "type": "boolean"
+    },
     "trail": {
-      "type": "array",
       "items": {
-        "type": "object",
         "properties": {
           "lat": {
             "type": "number"
@@ -97,11 +91,25 @@
             "type": "number"
           },
           "t": {
-            "type": "string",
-            "format": "date-time"
+            "format": "date-time",
+            "type": "string"
           }
-        }
-      }
+        },
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "type": {
+      "default": "bus",
+      "enum": [
+        "bus",
+        "taxi"
+      ],
+      "type": "string"
+    },
+    "wired_gps_connected": {
+      "default": false,
+      "type": "boolean"
     }
   },
   "required": [
@@ -109,6 +117,7 @@
     "type",
     "company_id"
   ],
+  "type": "object",
   "rls": {
     "read": {},
     "create": {
