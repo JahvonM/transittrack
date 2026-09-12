@@ -54,6 +54,8 @@ import {
   CalendarClock,
   LifeBuoy,
   Map,
+  Gauge,
+  History as HistoryIcon,
 } from "lucide-react";
 
 const ROLE_LINKS = [
