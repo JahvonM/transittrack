@@ -84,6 +84,8 @@ const MGMT_LINKS = [
   { to: "/incident-report", label: "Report Incident", icon: LifeBuoy },
   { to: "/driving-reports", label: "Driving Reports", icon: Gauge },
   { to: "/location-timeline", label: "Location Timeline", icon: History },
+  { to: "/driving-reports", label: "Driving Reports", icon: Gauge },
+  { to: "/location-timeline", label: "Location Timeline", icon: History },
   { to: "/route-planner", label: "Route Planner", icon: Map },
   { to: "/route-explorer", label: "Route Explorer", icon: Route },
   { to: "/route-analytics", label: "Route Analytics", icon: LineChart },
