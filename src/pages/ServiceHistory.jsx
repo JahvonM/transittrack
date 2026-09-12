@@ -29,16 +29,20 @@ export default function ServiceHistory() {
                 </CardHeader>
                 <CardContent className="text-sm space-y-2">
                   {hist.length === 0 ? <p className="text-muted-foreground">No service records.</p> :
-                    hist.map((i) => (
-                      <div key={i.id} className="flex items-center justify-between border-b border-border/50 pb-1.5 last:border-0">
-                        <div>
-                          <div>{i.date ? new Date(i.date).toLocaleDateString() : "—"}</div>
-                          {i.odometer_reading != null && <div className="text-xs text-muted-foreground">{i.odometer_reading} km · fuel {i.fuel_level ?? "—"}%</div>}
-                          {i.service_notes && <div className="text-xs text-amber-300">{i.service_notes}</div>}
+                    hist.map((i) => {
+                      const badgeLabel = i.needs_service ? "Needs service" : i.status;
+                      const badgeVariant = i.needs_service ? "destructive" : i.status === "passed" ? "default" : "destructive";
+                      return (
+                        <div key={i.id} className="flex items-center justify-between border-b border-border/50 pb-1.5 last:border-0">
+                          <div>
+                            <div>{i.date ? new Date(i.date).toLocaleDateString() : "—"}</div>
+                            {i.odometer_reading != null && <div className="text-xs text-muted-foreground">{i.odometer_reading} km · fuel {i.fuel_level ?? "—"}%</div>}
+                            {i.service_notes && <div className="text-xs text-amber-300">{i.service_notes}</div>}
+                          </div>
+                          <Badge variant={badgeVariant}>{badgeLabel}</Badge>
                         </div>
-                        <Badge variant={i.status === "passed" ? "default" : "destructive"}>{i.status}</Badge>
-                      </div>
-                    ))}
+                      );
+                    })}
                 </CardContent>
               </Card>
             );
