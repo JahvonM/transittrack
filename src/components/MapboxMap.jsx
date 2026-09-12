@@ -194,24 +194,11 @@ export default function MapboxMap({
           </Marker>
         ))}
 
-        {/* Vehicle markers — tappable little bus icons */}
+        {/* Vehicle markers — tappable little bus icons, gliding smoothly between GPS pings */}
         {vehicles
           .filter((v) => v.current_lat != null)
           .map((v) => (
-            <Marker key={`v-${v.id}`} longitude={v.current_lng} latitude={v.current_lat} anchor="bottom">
-              <button
-                onClick={() => setSelectedVehicle(v)}
-                className="flex flex-col items-center focus:outline-none"
-                title={`${v.name} · ${v.company_name || ""} · ${v.status}`}
-              >
-                <div
-                  className="w-7 h-7 rounded-full border-2 border-white shadow-md grid place-items-center"
-                  style={{ backgroundColor: statusColor(v.status) }}
-                >
-                  <Bus className="w-4 h-4 text-white" />
-                </div>
-              </button>
-            </Marker>
+            <VehicleMarker key={`v-${v.id}`} vehicle={v} onSelect={setSelectedVehicle} />
           ))}
 
         {/* (selected vehicle panel rendered as overlay below to keep the map visible) */}
