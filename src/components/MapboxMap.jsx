@@ -19,6 +19,19 @@ export { statusColor };
 const VEHICLE_ICON = (type) =>
   type === "taxi" ? "🚕" : "🚌";
 
+// Hides busy default-style clutter (POI icons, transit icons, small road labels)
+// so the map reads cleaner — the routes/vehicles/stops stay the focus.
+function declutterStyle(map) {
+  const style = map.getStyle();
+  if (!style || !style.layers) return;
+  style.layers.forEach((layer) => {
+    const id = layer.id || "";
+    if (id.includes("poi") || id.includes("transit") || id.includes("road-label")) {
+      try { map.setLayoutProperty(id, "visibility", "none"); } catch { /* some layers can't be toggled */ }
+    }
+  });
+}
+
 /**
  * Reusable Mapbox streets map.
  * props:
