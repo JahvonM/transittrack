@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Image } from "@/components/ui/image";
 import BusDistance from "@/components/BusDistance";
 import VehicleMarker from "@/components/VehicleMarker";
+import AccuracyHalo from "@/components/AccuracyHalo";
 import { fetchDrivingRoute } from "@/lib/geo";
 import { statusColor } from "@/lib/vehicleStatus";
 
