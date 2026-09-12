@@ -48,6 +48,8 @@ const IncidentReport = lazy(() => import('@/pages/IncidentReport'));
 const PassengerSupport = lazy(() => import('@/pages/PassengerSupport'));
 const RoutePlanner = lazy(() => import('@/pages/RoutePlanner'));
 const ReviewerSandbox = lazy(() => import('@/pages/ReviewerSandbox'));
+const DrivingReports = lazy(() => import('@/pages/DrivingReports'));
+const LocationTimeline = lazy(() => import('@/pages/LocationTimeline'));
 // Add page imports here
 
 const RouteFallback = () => (
