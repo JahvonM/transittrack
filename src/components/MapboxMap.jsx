@@ -158,13 +158,18 @@ export default function MapboxMap({
         attributionControl={false}
         onLoad={() => setMapLoaded(true)}
       >
-        {/* Route stop polyline */}
-        {routeCoords.length > 1 && (
-          <Source id="route" type="geojson" data={{ type: "Feature", geometry: { type: "LineString", coordinates: routeCoords } }}>
+        {/* Route polyline — follows actual roads once the driving route loads;
+            falls back to a dashed straight line between stops until then / on failure */}
+        {routeLineCoords.length > 1 && (
+          <Source id="route" type="geojson" data={{ type: "Feature", geometry: { type: "LineString", coordinates: routeLineCoords } }}>
             <Layer
               id="route-line"
               type="line"
-              paint={{ "line-color": "#0ea5e9", "line-width": 3, "line-opacity": 0.7, "line-dasharray": [2, 2] }}
+              paint={
+                routeFollowsRoads
+                  ? { "line-color": "#0ea5e9", "line-width": 4, "line-opacity": 0.85 }
+                  : { "line-color": "#0ea5e9", "line-width": 3, "line-opacity": 0.7, "line-dasharray": [2, 2] }
+              }
             />
           </Source>
         )}
