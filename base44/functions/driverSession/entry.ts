@@ -52,6 +52,24 @@ function sanitize(value) {
   return String(value).replace(/[\u0000-\u001F\u007F]/g, '').replace(/[<>]/g, '').trim();
 }
 
+function haversineMeters(lat1, lng1, lat2, lng2) {
+  const R = 6371000;
+  const toRad = (d) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+// Driving-event thresholds. These are heuristics derived from GPS speed deltas
+// between periodic pings (~8s apart) — not true accelerometer-based detection
+// (which would need phone/tablet sensor data we don't have access to here).
+const HARD_BRAKE_MS2 = 2.5; // average deceleration over the interval
+const RAPID_ACCEL_MS2 = 2.5; // average acceleration over the interval
+const MAX_GAP_SEC = 25; // ignore deltas across gaps this large (offline periods, teleports)
+const ARRIVAL_RADIUS_M = 120; // "at a stop" radius for place alerts
+const PING_LOG_INTERVAL_MS = 60000; // location-history resolution for the replay timeline
+
 export default async function(req) {
   try {
     const body = await req.json();
