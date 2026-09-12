@@ -226,33 +226,16 @@ export default function MapboxMap({
 
         {/* (selected vehicle panel rendered as overlay below to keep the map visible) */}
 
-        {/* User location — accuracy halo + pulsing blue dot */}
+        {/* User location — true-to-scale accuracy halo + pulsing blue dot */}
         {currentUserLocation && (
           <>
-            {currentUserLocation.accuracy && (
-              <Source
-                id="user-accuracy"
-                type="geojson"
-                data={{
-                  type: "Feature",
-                  geometry: { type: "Point", coordinates: [currentUserLocation.lng, currentUserLocation.lat] },
-                }}
-              >
-                <Layer
-                  id="user-accuracy-circle"
-                  type="circle"
-                  paint={{
-                    "circle-radius": currentUserLocation.accuracy,
-                    "circle-color": "#3b82f6",
-                    "circle-opacity": 0.12,
-                    "circle-stroke-width": 1,
-                    "circle-stroke-color": "#3b82f6",
-                    "circle-stroke-opacity": 0.3,
-                    "circle-pitch-alignment": "map",
-                  }}
-                />
-              </Source>
-            )}
+            <AccuracyHalo
+              sourceId="user-accuracy"
+              lat={currentUserLocation.lat}
+              lng={currentUserLocation.lng}
+              accuracy={currentUserLocation.accuracy}
+              color="#3b82f6"
+            />
             <Marker key="user-loc" longitude={currentUserLocation.lng} latitude={currentUserLocation.lat} anchor="center">
               <div className="relative">
                 <div className="w-4 h-4 rounded-full bg-blue-500 border-2 border-white shadow-lg" />
