@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import AppLayout from "@/components/AppLayout";
+import PullToRefresh from "@/components/PullToRefresh";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Bus, Calendar, Clock, MapPin } from "lucide-react";
@@ -9,16 +10,20 @@ export default function RideHistory() {
   const [trips, setTrips] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const load = () =>
     base44.entities.Trip.list("-completed_at", 50)
       .then((data) => setTrips(data.filter((t) => t.status === "completed")))
       .catch(() => {})
       .finally(() => setLoading(false));
+
+  useEffect(() => {
+    load();
   }, []);
 
   return (
     <AppLayout title="Ride History">
-      <div className="max-w-3xl space-y-3">
+      <PullToRefresh onRefresh={load} className="max-w-3xl">
+      <div className="space-y-3">
         {loading && <p className="text-muted-foreground">Loading your rides…</p>}
         {!loading && trips.length === 0 && (
           <p className="text-muted-foreground py-12 text-center">No completed rides yet.</p>
@@ -51,6 +56,7 @@ export default function RideHistory() {
           </Card>
         ))}
       </div>
+      </PullToRefresh>
     </AppLayout>
   );
 }
