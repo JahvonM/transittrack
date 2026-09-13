@@ -40,7 +40,7 @@ function StatusSteps({ status }) {
         <React.Fragment key={s}>
           {i > 0 && <div className={`h-0.5 w-3 sm:w-4 ${i <= current ? "bg-primary" : "bg-border"}`} />}
           <span
-            className={`text-[10px] px-1.5 py-0.5 rounded-full whitespace-nowrap ${
+            className={`text-sm px-1.5 py-0.5 rounded-full whitespace-nowrap ${
               i <= current ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
             }`}
           >
