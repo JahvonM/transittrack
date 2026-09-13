@@ -11,6 +11,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/components/ui/use-toast";
 import { Plus, Trash2, Save } from "lucide-react";
 
+// Matches the declutter treatment on every other map in the app: hide
+// POI/transit icon clutter, keep road labels so the basemap still reads.
+function declutterStyle(map) {
+  const style = map.getStyle();
+  if (!style || !style.layers) return;
+  style.layers.forEach((layer) => {
+    const id = layer.id || "";
+    if (id.includes("poi") || id.includes("transit")) {
+      try { map.setLayoutProperty(id, "visibility", "none"); } catch { /* some layers can't be toggled */ }
+    }
+  });
+}
+
 export default function RoutePlanner() {
   const { toast } = useToast();
   const [companies, setCompanies] = useState([]);
@@ -102,6 +115,7 @@ export default function RoutePlanner() {
               style={{ width: "100%", height: "100%" }}
               onClick={onMapClick}
               attributionControl={false}
+              onLoad={(e) => declutterStyle(e.target)}
             >
               {routeCoords.length > 1 && (
                 <Source id="planner-route" type="geojson" data={{ type: "Feature", geometry: { type: "LineString", coordinates: routeCoords } }}>
