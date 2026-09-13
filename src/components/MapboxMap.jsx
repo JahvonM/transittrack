@@ -211,7 +211,7 @@ export default function MapboxMap({
         {(stops || []).filter((s) => s.lat != null).map((s, i) => (
           <Marker key={`stop-${i}`} longitude={s.lng} latitude={s.lat} anchor="center">
             <div
-              className="w-3.5 h-3.5 rounded-full border-2 border-white shadow"
+              className="w-4 h-4 rounded-full border-[2.5px] border-white shadow-md"
               style={{ backgroundColor: "#0ea5e9" }}
               title={s.name}
             />
