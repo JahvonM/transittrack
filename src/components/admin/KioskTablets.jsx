@@ -222,9 +222,9 @@ export default function KioskTablets({ vehicles, companies, onChange }) {
                       <div className="min-w-0">
                         <div className="font-medium truncate flex items-center gap-2">
                           {d.label}
-                          {d.paired && <Badge variant="default" className="text-[10px]">Paired</Badge>}
-                          {isRevoked && <Badge variant="destructive" className="text-[10px]">Revoked</Badge>}
-                          {!d.paired && !isRevoked && hasCode && <Badge variant="outline" className="text-[10px]">Awaiting pairing</Badge>}
+                          {d.paired && <Badge variant="default" className="text-sm">Paired</Badge>}
+                          {isRevoked && <Badge variant="destructive" className="text-sm">Revoked</Badge>}
+                          {!d.paired && !isRevoked && hasCode && <Badge variant="outline" className="text-sm">Awaiting pairing</Badge>}
                         </div>
                         <div className="text-xs text-muted-foreground truncate">
                           {meta.label}
