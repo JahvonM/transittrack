@@ -46,7 +46,11 @@ export default function AppLayout({ children, title }) {
           </div>
         </div>
       </header>
-      <main className="max-w-7xl mx-auto px-4 pt-6 pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-6 safe-area-bottom">
+      {/* mobile bottom padding clears the fixed MobileTabBar (h-14 + labels ≈ 4rem) plus the safe-area inset;
+          the .safe-area-bottom utility class is intentionally omitted here since it would only ever set
+          padding-bottom to the safe-area inset alone and, being defined after Tailwind's utilities in
+          index.css, would win the cascade and wipe out the tab-bar clearance below */}
+      <main className="max-w-7xl mx-auto px-4 pt-6 pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-6">
         {title && <h1 className="text-2xl font-heading font-semibold mb-4">{title}</h1>}
         {children}
       </main>
