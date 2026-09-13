@@ -21,7 +21,6 @@ import ServiceQueueTab from "@/components/admin/ServiceQueueTab";
 import FleetSyncTab from "@/components/admin/FleetSyncTab";
 import Greeting from "@/components/Greeting";
 import MapboxMap from "@/components/MapboxMap";
-import AddVehicleQuick from "@/components/admin/AddVehicleQuick";
 import DataTab from "@/components/admin/DataTab";
 import FloatingChatbot from "@/components/admin/FloatingChatbot";
 import useUserLocation from "@/hooks/useUserLocation";
@@ -161,10 +160,7 @@ export default function Admin() {
       <AdminShell active={section} onNavigate={go}>
         {section === "overview" && (
           <div className="space-y-4">
-            <div className="flex items-start justify-between gap-3">
-              <Greeting subtitle="Admin control center" />
-              <AddVehicleQuick companies={companies} onChange={load} />
-            </div>
+            <Greeting subtitle="Admin control center" />
             <div className="rounded-2xl overflow-hidden border">
               <MapboxMap
                 vehicles={vehicles.filter((v) => v.current_lat != null)}
