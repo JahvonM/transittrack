@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import AppLayout from "@/components/AppLayout";
+import PullToRefresh from "@/components/PullToRefresh";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { History } from "lucide-react";
@@ -10,14 +11,18 @@ export default function ServiceHistory() {
   const [inspections, setInspections] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    Promise.all([base44.entities.Vehicle.list(), base44.entities.Inspection.list("-date", 1000)]).then(([v, i]) => {
+  const load = () =>
+    Promise.all([base44.entities.Vehicle.list(), base44.entities.Inspection.list("-date", 200)]).then(([v, i]) => {
       setVehicles(v); setInspections(i); setLoading(false);
     });
+
+  useEffect(() => {
+    load();
   }, []);
 
   return (
     <AppLayout title="Service history">
+      <PullToRefresh onRefresh={load}>
       {loading ? <p className="text-muted-foreground">Loading…</p> : (
         <div className="grid md:grid-cols-2 gap-3">
           {vehicles.map((v) => {
@@ -50,6 +55,7 @@ export default function ServiceHistory() {
           {vehicles.length === 0 && <p className="text-muted-foreground">No vehicles.</p>}
         </div>
       )}
+      </PullToRefresh>
     </AppLayout>
   );
 }
