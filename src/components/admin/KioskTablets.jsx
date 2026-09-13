@@ -106,6 +106,20 @@ export default function KioskTablets({ vehicles, companies, onChange }) {
     }
   };
 
+  const removeDevice = async (device) => {
+    setBusyId(device.id);
+    try {
+      await base44.entities.KioskDevice.delete(device.id);
+      toast({ title: "Device removed", description: `${device.label} was deleted` });
+      loadDevices();
+      onChange?.();
+    } catch {
+      toast({ title: "Couldn't remove device", variant: "destructive" });
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   const revoke = async (device) => {
     setBusyId(device.id);
     try {
@@ -250,14 +264,14 @@ export default function KioskTablets({ vehicles, companies, onChange }) {
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
                               <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive">
-                                <Trash2 className="w-3.5 h-3.5" /> Revoke
+                                <XCircle className="w-3.5 h-3.5" /> Revoke
                               </Button>
                             </AlertDialogTrigger>
                             <AlertDialogContent>
                               <AlertDialogHeader>
                                 <AlertDialogTitle>Revoke this device?</AlertDialogTitle>
                                 <AlertDialogDescription>
-                                  {d.label} will be unpaired immediately. The tablet will need a new pairing code to reconnect. You can reactivate it later.
+                                  {d.label} will be unpaired immediately. The tablet will need a new pairing code to reconnect. You can reactivate it later, and the device record stays around. Use "Remove" instead if you want it gone for good.
                                 </AlertDialogDescription>
                               </AlertDialogHeader>
                               <AlertDialogFooter>
@@ -273,6 +287,25 @@ export default function KioskTablets({ vehicles, companies, onChange }) {
                           <RefreshCw className={`w-3.5 h-3.5 ${busyId === d.id ? "animate-spin" : ""}`} /> Reactivate
                         </Button>
                       )}
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" disabled={busyId === d.id}>
+                            <Trash2 className="w-3.5 h-3.5" /> Remove
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Permanently remove this device?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              {d.label} will be deleted for good — unlike Revoke, this can't be undone and there's nothing left to reactivate. Use this once you're sure the tablet is retired.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => removeDevice(d)}>Remove device</AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </div>
                   </div>
                 </CardContent>
