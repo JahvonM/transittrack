@@ -45,7 +45,7 @@ export default function VehicleMarker({ vehicle, onSelect }) {
         </div>
         {/* Small pointed tail beneath the avatar so it reads as a placed pin */}
         <div
-          className="w-2.5 h-2.5 -mt-[5px]"
+          className="w-3 h-3 -mt-[6px]"
           style={{
             backgroundColor: ring,
             clipPath: "polygon(50% 100%, 0 0, 100% 0)",
