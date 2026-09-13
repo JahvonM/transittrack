@@ -49,19 +49,19 @@ const ROLES = {
     blurb: "Fleet health, users, roles and scheduling.",
   },
   kiosk_bus: {
-    to: "/kiosk/bus",
+    to: "/kiosk",
     title: "Bus Entry Kiosk",
     icon: Usb,
     blurb: "NFC badge tap-in board at the vehicle door.",
   },
   kiosk_driver: {
-    to: "/kiosk/driver",
+    to: "/driver",
     title: "Driver Kiosk",
     icon: Navigation,
     blurb: "High-accuracy GPS sharing and turn-by-turn nav.",
   },
   kiosk_front_desk: {
-    to: "/kiosk/front-desk",
+    to: "/kiosk",
     title: "Front Desk Sign-In",
     icon: PenLine,
     blurb: "Visitor sign-in with signature capture.",
