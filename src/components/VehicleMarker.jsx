@@ -26,11 +26,11 @@ export default function VehicleMarker({ vehicle, onSelect }) {
         title={`${vehicle.name} · ${vehicle.company_name || ""} · ${vehicle.status}`}
       >
         <div
-          className="w-9 h-9 rounded-full grid place-items-center shrink-0"
+          className="w-11 h-11 rounded-full grid place-items-center shrink-0"
           style={{
             backgroundColor: "#fff",
-            border: `2.5px solid ${ring}`,
-            boxShadow: "0 2px 6px rgba(0,0,0,0.25)",
+            border: `3px solid ${ring}`,
+            boxShadow: "0 2px 8px rgba(0,0,0,0.35)",
           }}
         >
           {vehicle.image_url ? (
@@ -40,7 +40,7 @@ export default function VehicleMarker({ vehicle, onSelect }) {
               className="w-full h-full rounded-full object-cover"
             />
           ) : (
-            <Icon className="w-4.5 h-4.5" style={{ width: 18, height: 18, color: ring }} />
+            <Icon style={{ width: 22, height: 22, color: ring }} />
           )}
         </div>
         {/* Small pointed tail beneath the avatar so it reads as a placed pin */}
