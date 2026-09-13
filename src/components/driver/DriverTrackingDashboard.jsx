@@ -212,6 +212,9 @@ export default function DriverTrackingDashboard({ session, invoke, driverName })
         <MapboxMap
           vehicles={liveVehicle?.current_lat != null ? [liveVehicle] : []}
           pins={staff.filter((s) => s.home_lat != null && !s.skip_pickup_today).map((s) => ({ lat: s.home_lat, lng: s.home_lng, color: "#34d399", label: s.full_name }))}
+          userLocation={liveVehicle?.current_lat != null ? { lat: liveVehicle.current_lat, lng: liveVehicle.current_lng } : null}
+          followUser
+          height="45vh"
         />
       </div>
       <StaffRouteList staff={staff} vehicle={liveVehicle} nearbyStaff={nearbyStaff} onAttend={markAttended} />
