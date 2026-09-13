@@ -158,16 +158,16 @@ export default function Admin() {
       <AdminShell active={section} onNavigate={go}>
         {section === "overview" && (
           <div className="space-y-4">
-            <Greeting subtitle="Admin control center" />
-            <div className="relative rounded-2xl overflow-hidden border">
+            <div className="flex items-start justify-between gap-3">
+              <Greeting subtitle="Admin control center" />
+              <AddVehicleQuick companies={companies} onChange={load} />
+            </div>
+            <div className="rounded-2xl overflow-hidden border">
               <MapboxMap
                 vehicles={vehicles.filter((v) => v.current_lat != null)}
                 userLocation={userLoc}
                 height="40vh"
               />
-              <div className="absolute right-3 bottom-3 z-10">
-                <AddVehicleQuick companies={companies} onChange={load} />
-              </div>
             </div>
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
               <button onClick={() => go("vehicles")} className="text-left p-4 rounded-xl border bg-card hover:border-primary transition-colors">
