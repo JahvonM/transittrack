@@ -124,7 +124,7 @@ export default function MapboxMap({
 
   const initViewport = center
     ? { longitude: center[0], latitude: center[1], zoom: 14 }
-    : { longitude: -61.7, latitude: 12.05, zoom: 11 };
+    : { longitude: -61.7, latitude: 12.05, zoom: 12.5 };
 
   // Route polyline from stops (if any) — straight-line fallback, used until/unless
   // the actual driving route (following roads) below is available.
@@ -249,6 +249,15 @@ export default function MapboxMap({
         {/* Compass + zoom controls (compass re-orients north) */}
         <NavigationControl position="bottom-right" showCompass visualizePitch />
       </Map>
+
+      {/* Empty state — shown instead of a bare basemap when nothing is live to plot yet */}
+      {mapLoaded && allPoints.length === 0 && (
+        <div className="absolute inset-x-0 top-4 z-10 flex justify-center pointer-events-none">
+          <div className="px-4 py-2 rounded-full border border-border bg-card/95 backdrop-blur-md shadow-md text-xs font-medium text-muted-foreground">
+            No vehicles online right now
+          </div>
+        </div>
+      )}
 
       {/* Selected vehicle details — floating panel keeps the map fully visible & interactive */}
       {selectedVehicle && (
