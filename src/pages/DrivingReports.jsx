@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import AppLayout from "@/components/AppLayout";
+import PullToRefresh from "@/components/PullToRefresh";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
@@ -23,15 +24,18 @@ export default function DrivingReports() {
   const [loading, setLoading] = useState(true);
   const [days, setDays] = useState(7);
 
-  useEffect(() => {
+  const load = () =>
     Promise.all([
-      base44.entities.DrivingEvent.list("-occurred_at", 1000),
-      base44.entities.Incident.filter({ type: "speeding" }, "-occurred_at", 500),
+      base44.entities.DrivingEvent.list("-occurred_at", 200),
+      base44.entities.Incident.filter({ type: "speeding" }, "-occurred_at", 200),
       base44.entities.Vehicle.list(),
     ])
       .then(([ev, inc, v]) => { setEvents(ev); setSpeedingIncidents(inc); setVehicles(v); })
       .catch(() => {})
       .finally(() => setLoading(false));
+
+  useEffect(() => {
+    load();
   }, []);
 
   const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
@@ -59,10 +63,11 @@ export default function DrivingReports() {
 
   const chartData = byVehicle.map((v) => ({ name: v.name, score: v.score }));
   const scoreColor = (s) => (s >= 85 ? "text-emerald-400" : s >= 60 ? "text-amber-400" : "text-destructive");
-  const chartStyle = { background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 };
+  const chartStyle = { background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 14 };
 
   return (
     <AppLayout title="Driving reports">
+      <PullToRefresh onRefresh={load}>
       {loading ? <p className="text-muted-foreground">Loading…</p> : (
         <div className="space-y-4">
           <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 border text-xs text-muted-foreground">
@@ -91,8 +96,8 @@ export default function DrivingReports() {
                 <ResponsiveContainer width="100%" height={Math.max(200, chartData.length * 34)}>
                   <BarChart data={chartData} layout="vertical" margin={{ left: 24 }}>
                     <CartesianGrid strokeDasharray="3 3" className="opacity-20" />
-                    <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 11 }} />
-                    <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={110} />
+                    <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 14 }} />
+                    <YAxis type="category" dataKey="name" tick={{ fontSize: 14 }} width={110} />
                     <Tooltip contentStyle={chartStyle} />
                     <Bar dataKey="score" fill="hsl(var(--chart-1))" radius={[0, 4, 4, 0]} />
                   </BarChart>
@@ -109,11 +114,11 @@ export default function DrivingReports() {
                     <div className="font-medium text-sm truncate">{v.name}</div>
                     <div className="text-xs text-muted-foreground truncate">{v.driver_name || "Unassigned"}</div>
                     <div className="flex flex-wrap gap-1.5 mt-1.5">
-                      {v.hard_brake > 0 && <Badge variant="secondary" className="text-[10px]">{v.hard_brake} hard brake{v.hard_brake > 1 ? "s" : ""}</Badge>}
-                      {v.rapid_accel > 0 && <Badge variant="secondary" className="text-[10px]">{v.rapid_accel} rapid accel{v.rapid_accel > 1 ? "s" : ""}</Badge>}
-                      {v.speeding > 0 && <Badge variant="secondary" className="text-[10px]">{v.speeding} speeding</Badge>}
-                      {v.crash > 0 && <Badge variant="destructive" className="text-[10px]">{v.crash} possible crash{v.crash > 1 ? "es" : ""}</Badge>}
-                      {v.hard_brake + v.rapid_accel + v.speeding + v.crash === 0 && <Badge variant="outline" className="text-[10px]">No events</Badge>}
+                      {v.hard_brake > 0 && <Badge variant="secondary" className="text-sm">{v.hard_brake} hard brake{v.hard_brake > 1 ? "s" : ""}</Badge>}
+                      {v.rapid_accel > 0 && <Badge variant="secondary" className="text-sm">{v.rapid_accel} rapid accel{v.rapid_accel > 1 ? "s" : ""}</Badge>}
+                      {v.speeding > 0 && <Badge variant="secondary" className="text-sm">{v.speeding} speeding</Badge>}
+                      {v.crash > 0 && <Badge variant="destructive" className="text-sm">{v.crash} possible crash{v.crash > 1 ? "es" : ""}</Badge>}
+                      {v.hard_brake + v.rapid_accel + v.speeding + v.crash === 0 && <Badge variant="outline" className="text-sm">No events</Badge>}
                     </div>
                   </div>
                   <div className={`text-2xl font-bold shrink-0 ${scoreColor(v.score)}`}>{v.score}</div>
@@ -124,6 +129,7 @@ export default function DrivingReports() {
           </div>
         </div>
       )}
+      </PullToRefresh>
     </AppLayout>
   );
 }
