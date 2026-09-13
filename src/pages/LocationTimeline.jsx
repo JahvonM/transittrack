@@ -8,6 +8,19 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Play, Pause, Bus } from "lucide-react";
 
+// Matches the declutter treatment on every other map in the app: hide
+// POI/transit icon clutter, keep road labels so the basemap still reads.
+function declutterStyle(map) {
+  const style = map.getStyle();
+  if (!style || !style.layers) return;
+  style.layers.forEach((layer) => {
+    const id = layer.id || "";
+    if (id.includes("poi") || id.includes("transit")) {
+      try { map.setLayoutProperty(id, "visibility", "none"); } catch { /* some layers can't be toggled */ }
+    }
+  });
+}
+
 // Replays a vehicle's recorded path for a chosen day — location history is
 // logged roughly once a minute (see driverSession's update_location), so a
 // full day tops out around ~1,400 points, well within a single fetch.
@@ -105,6 +118,7 @@ export default function LocationTimeline() {
                 initialViewState={{ longitude: pathCoords[0][0], latitude: pathCoords[0][1], zoom: 13 }}
                 style={{ width: "100%", height: "100%" }}
                 attributionControl={false}
+                onLoad={(e) => declutterStyle(e.target)}
               >
                 <Source id="full-path" type="geojson" data={{ type: "Feature", geometry: { type: "LineString", coordinates: pathCoords } }}>
                   <Layer id="full-path-line" type="line" paint={{ "line-color": "#64748b", "line-width": 3, "line-opacity": 0.4 }} />
