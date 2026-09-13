@@ -52,6 +52,9 @@
           "created_by_id": "{{user.id}}"
         },
         {
+          "id": "{{user.company_id}}"
+        },
+        {
           "user_condition": {
             "role": "admin"
           }
