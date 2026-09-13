@@ -69,9 +69,17 @@ export default function RouteReplay({ vehicles }) {
             </div>
             <div className="rounded-2xl overflow-hidden border">
               <MapboxMap
-                trail={replayTrail}
-                pins={currentPoint ? [{ lng: currentPoint.lng, lat: currentPoint.lat, color: "#38bdf8" }] : []}
-                center={currentPoint ? [currentPoint.lng, currentPoint.lat] : null}
+                vehicles={currentPoint ? [{
+                  id: selected?.id || vehicleId,
+                  name: selected?.name,
+                  type: selected?.type,
+                  status: selected?.status,
+                  company_name: selected?.company_name,
+                  current_lat: currentPoint.lat,
+                  current_lng: currentPoint.lng,
+                  trail: replayTrail,
+                }] : []}
+                center={[currentPoint.lng, currentPoint.lat]}
                 height="50vh"
                 interactive={false}
               />
