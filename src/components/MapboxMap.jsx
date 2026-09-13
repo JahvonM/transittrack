@@ -57,6 +57,9 @@ export default function MapboxMap({
   // position every time it updates; a driver looking at their own live
   // position does. Dragging the map turns it off until recenter is tapped.
   followUser = false,
+  // Arbitrary standalone point markers (e.g. staff pickup locations) —
+  // unlike `stops`, these do NOT get connected by a route line.
+  pins = [],
 }) {
   const mapRef = useRef(null);
   const hasFitted = useRef(false);
@@ -78,6 +81,9 @@ export default function MapboxMap({
     ...(stops || [])
       .filter((s) => s.lat != null)
       .map((s) => ({ lng: s.lng, lat: s.lat, color: "#0ea5e9", label: s.name })),
+    ...(pins || [])
+      .filter((p) => p.lat != null && p.lng != null)
+      .map((p) => ({ lng: p.lng, lat: p.lat, color: p.color || "#34d399", label: p.label })),
   ];
   if (currentUserLocation) allPoints.push({ lng: currentUserLocation.lng, lat: currentUserLocation.lat, color: "#34d399", label: "You are here" });
 
@@ -248,6 +254,17 @@ export default function MapboxMap({
               paint={{ "line-color": "#38bdf8", "line-width": 3, "line-opacity": 0.55 }}
             />
           </Source>
+        ))}
+
+        {/* Standalone pins (e.g. staff pickup locations) — no route line between them */}
+        {(pins || []).filter((p) => p.lat != null && p.lng != null).map((p, i) => (
+          <Marker key={`pin-${i}`} longitude={p.lng} latitude={p.lat} anchor="center">
+            <div
+              className="w-3.5 h-3.5 rounded-full border-2 border-white shadow"
+              style={{ backgroundColor: p.color || "#34d399" }}
+              title={p.label}
+            />
+          </Marker>
         ))}
 
         {/* Route stop markers */}
