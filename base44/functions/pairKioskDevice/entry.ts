@@ -24,10 +24,20 @@ export default async function(req) {
 
     const device = devices[0];
 
-    // Mark as paired, consume the code (one-time use), stamp last_seen
+    // Block re-pairing an already-paired device with the same old code (the
+    // one-time-use guarantee). This used to be enforced by blanking
+    // pairing_code on success, but that also erased the admin's ability to
+    // copy that device's URL again later, forcing a disruptive "Regenerate"
+    // (which unpairs the tablet) just to retrieve the link. Checking the
+    // `paired` flag gives the same one-time-use guarantee without losing the
+    // stored code.
+    if (device.paired) {
+      return Response.json({ error: 'This code has already been used to pair a tablet. Ask an admin to generate a new one.' }, { status: 409 });
+    }
+
+    // Mark as paired, stamp last_seen
     await base44.asServiceRole.entities.KioskDevice.update(device.id, {
       paired: true,
-      pairing_code: '',
       last_seen: new Date().toISOString()
     });
 
