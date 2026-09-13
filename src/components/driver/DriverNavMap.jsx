@@ -31,6 +31,11 @@ export default function DriverNavMap({ session, invoke }) {
   const watchId = useRef(null);
   const lastPush = useRef(0);
   const mapRef = useRef(null);
+  // Nav-mode camera follow, like CarPlay/Google Maps: the map recenters on
+  // every new GPS fix by default. Manually dragging the map turns this off
+  // (so the driver can look around) until they tap recenter again.
+  const following = useRef(true);
+  const [isFollowing, setIsFollowing] = useState(true);
 
   const vehicle = session?.vehicle || liveVehicle;
   const vehicleId = vehicle?.id;
@@ -87,8 +92,24 @@ export default function DriverNavMap({ session, invoke }) {
 
   const navUrl = nextStop ? `https://www.google.com/maps?q=${nextStop.lat},${nextStop.lng}` : pos ? `https://www.google.com/maps?q=${pos.lat},${pos.lng}` : "#";
   const gpsStatus = !pos ? "searching" : pos.accuracy != null && pos.accuracy <= 50 ? "locked" : "low";
-  const recenter = () => { const map = mapRef.current; if (!map || !pos) return; map.flyTo({ center: [pos.lng, pos.lat], zoom: Math.max(map.getZoom(), 15), duration: 800 }); };
+  const recenter = () => {
+    const map = mapRef.current;
+    if (!map || !pos) return;
+    following.current = true;
+    setIsFollowing(true);
+    map.flyTo({ center: [pos.lng, pos.lat], zoom: Math.max(map.getZoom(), 15), duration: 800 });
+  };
   const trail = liveVehicle?.trail || vehicle?.trail || [];
+
+  // Keep the camera centered on each new GPS fix while following is on —
+  // eased over roughly the same duration as the marker's own glide
+  // (useSmoothPosition below) so the camera and the bus icon move together.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !pos || !following.current) return;
+    map.easeTo({ center: [pos.lng, pos.lat], duration: 900 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pos?.lat, pos?.lng]);
 
   // Smoothly glide the bus icon between raw GPS pings instead of snapping
   // (shorter duration than the fleet map since watchPosition updates more often).
@@ -116,6 +137,7 @@ export default function DriverNavMap({ session, invoke }) {
           initialViewState={{ longitude: pos?.lng ?? vehicle?.current_lng ?? -61.7, latitude: pos?.lat ?? vehicle?.current_lat ?? 12.05, zoom: 15 }}
           style={{ width: "100%", height: "100%" }} attributionControl={false}
           onLoad={(e) => hidePoiLayers(e.target)}
+          onDragStart={() => { following.current = false; setIsFollowing(false); }}
         >
           {trail.length > 1 && (
             <Source id="driver-trail" type="geojson" data={{ type: "Feature", geometry: { type: "LineString", coordinates: trail.filter((p) => p.lat != null && p.lng != null).map((p) => [p.lng, p.lat]) } }}>
@@ -164,8 +186,15 @@ export default function DriverNavMap({ session, invoke }) {
             <a href={navUrl} target="_blank" rel="noreferrer"><Navigation className="w-5 h-5 mr-2" /> Open turn-by-turn navigation</a>
           </Button>
         </div>
-        <button type="button" onClick={recenter} className="absolute right-4 bottom-24 z-10 w-11 h-11 rounded-full bg-card/95 border border-border shadow-lg grid place-items-center hover:bg-accent transition-colors" title="Recenter on bus">
-          <LocateFixed className="w-5 h-5 text-primary" />
+        <button
+          type="button"
+          onClick={recenter}
+          className={`absolute right-4 bottom-24 z-10 w-11 h-11 rounded-full border shadow-lg grid place-items-center transition-colors ${
+            isFollowing ? "bg-card/95 border-border hover:bg-accent" : "bg-primary border-primary animate-pulse"
+          }`}
+          title={isFollowing ? "Following your position" : "Tap to re-center and follow"}
+        >
+          <LocateFixed className={`w-5 h-5 ${isFollowing ? "text-primary" : "text-primary-foreground"}`} />
         </button>
       </div>
     </div>
