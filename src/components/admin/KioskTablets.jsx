@@ -28,6 +28,7 @@ import {
   Pencil,
   Clock,
   Navigation,
+  XCircle,
 } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 
