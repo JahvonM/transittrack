@@ -3,6 +3,7 @@ import Map, { Marker, Source, Layer } from "react-map-gl";
 import { base44 } from "@/api/base44Client";
 import AppLayout from "@/components/AppLayout";
 import { MAPBOX_TOKEN, MAPBOX_STYLE } from "@/lib/mapbox";
+import { snapTrackToRoads } from "@/lib/geo";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -32,6 +33,8 @@ export default function LocationTimeline() {
   const [loading, setLoading] = useState(false);
   const [index, setIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
+  const [snappedLine, setSnappedLine] = useState(null);
+  const [snapping, setSnapping] = useState(false);
   const playRef = useRef(null);
 
   useEffect(() => {
@@ -61,6 +64,21 @@ export default function LocationTimeline() {
       .finally(() => setLoading(false));
   }, [vehicleId, date]);
 
+  // Snap the day's recorded points onto actual roads instead of connecting
+  // them with straight lines — also bridges any gaps left by offline periods
+  // with the most plausible road path, rather than cutting straight across.
+  useEffect(() => {
+    setSnappedLine(null);
+    if (pings.length < 2) return;
+    let cancelled = false;
+    setSnapping(true);
+    snapTrackToRoads(pings.map((p) => ({ lat: p.lat, lng: p.lng }))).then((line) => {
+      if (!cancelled) setSnappedLine(line);
+    }).finally(() => { if (!cancelled) setSnapping(false); });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pings]);
+
   useEffect(() => {
     if (!playing) {
       if (playRef.current) clearInterval(playRef.current);
@@ -79,8 +97,14 @@ export default function LocationTimeline() {
   }, [playing, pings.length]);
 
   const current = pings[index];
-  const pathCoords = pings.map((p) => [p.lng, p.lat]);
-  const traveled = pathCoords.slice(0, index + 1);
+  const rawPathCoords = pings.map((p) => [p.lng, p.lat]);
+  const pathCoords = snappedLine || rawPathCoords;
+  // The snapped line has a different point count than the raw pings, so
+  // "how far traveled" is tracked proportionally rather than by matching index.
+  const traveledCount = snappedLine
+    ? Math.max(2, Math.round(((index + 1) / pings.length) * snappedLine.length))
+    : index + 1;
+  const traveled = pathCoords.slice(0, traveledCount);
 
   return (
     <AppLayout title="Location timeline">
@@ -139,6 +163,7 @@ export default function LocationTimeline() {
               <div className="absolute top-3 left-3 bg-card/95 backdrop-blur border border-border rounded-lg px-3 py-2 text-xs shadow">
                 {current ? new Date(current.recorded_at).toLocaleTimeString() : "—"}
                 {current && <span className="ml-2 text-muted-foreground">{Math.round((current.speed || 0) * 3.6)} km/h</span>}
+                {snapping && <span className="ml-2 text-muted-foreground">· snapping to roads…</span>}
               </div>
             </div>
 
