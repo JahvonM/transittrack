@@ -23,7 +23,7 @@ export default function AdBanner() {
       <div className="flex-1 min-w-0">
         {ad.title && <div className="font-medium text-sm">{ad.title}</div>}
         {ad.message && <div className="text-xs text-muted-foreground">{ad.message}</div>}
-        {ad.link && (
+        {ad.link && /^https?:\/\//i.test(ad.link) && (
           <a href={ad.link} target="_blank" rel="noreferrer" className="text-xs text-sky-400 underline">
             Learn more
           </a>
