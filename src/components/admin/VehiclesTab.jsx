@@ -28,15 +28,15 @@ const VEHICLE_COLS = [
   { key: "created_date", label: "Created" },
 ];
 
+// Driver assignment (name / email / PIN) lives in the Drivers tab, not here —
+// a vehicle is just the vehicle; who's driving it and their PIN is managed
+// from the driver's own card so it stays in one place.
 const empty = {
   name: "",
   plate_number: "",
   type: "bus",
   capacity: "",
   company_id: "",
-  driver_email: "",
-  driver_name: "",
-  driver_pin: "",
   entry_code: "",
   route_id: "",
 };
@@ -56,9 +56,6 @@ function AddVehicleDialog({ companies, onChange }) {
         plate_number: form.plate_number,
         type: form.type,
         capacity: Number(form.capacity) || 0,
-        driver_email: form.driver_email,
-        driver_name: form.driver_name,
-        driver_pin: form.driver_pin || null,
         entry_code: form.entry_code || null,
         route_id: form.route_id || null,
         company_id: form.company_id,
@@ -119,21 +116,12 @@ function AddVehicleDialog({ companies, onChange }) {
             </Select>
           </div>
           <div className="space-y-1.5">
-            <Label>Driver name</Label>
-            <Input value={form.driver_name} onChange={(e) => setForm({ ...form, driver_name: e.target.value })} placeholder="John D." />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Driver email (their login)</Label>
-            <Input type="email" value={form.driver_email} onChange={(e) => setForm({ ...form, driver_email: e.target.value })} placeholder="driver@example.com" />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Driver PIN (4 digits)</Label>
-            <Input inputMode="numeric" maxLength={4} value={form.driver_pin} onChange={(e) => setForm({ ...form, driver_pin: e.target.value.replace(/\D/g, "") })} placeholder="1234" />
-          </div>
-          <div className="space-y-1.5">
             <Label>Bus entry code</Label>
             <Input value={form.entry_code} onChange={(e) => setForm({ ...form, entry_code: e.target.value.toUpperCase() })} placeholder="BUS12" />
           </div>
+          <p className="text-xs text-muted-foreground">
+            Assign a driver and their PIN afterwards from the Drivers tab.
+          </p>
           <Button className="w-full" onClick={add} disabled={adding || !form.name || !form.company_id}>
             {adding ? "Adding…" : "Add vehicle"}
           </Button>
@@ -157,9 +145,6 @@ export default function VehiclesTab({ vehicles, companies, routes, onChange }) {
     setEdit({
       name: v.name,
       plate_number: v.plate_number || "",
-      driver_name: v.driver_name || "",
-      driver_email: v.driver_email || "",
-      driver_pin: v.driver_pin || "",
       entry_code: v.entry_code || "",
       company_id: v.company_id || "",
       route_id: v.route_id || "",
@@ -171,9 +156,6 @@ export default function VehiclesTab({ vehicles, companies, routes, onChange }) {
     await base44.entities.Vehicle.update(editId, {
       name: edit.name,
       plate_number: edit.plate_number,
-      driver_name: edit.driver_name,
-      driver_email: edit.driver_email,
-      driver_pin: edit.driver_pin || null,
       entry_code: edit.entry_code || null,
       company_id: edit.company_id || null,
       company_name: company?.name || "",
@@ -208,11 +190,6 @@ export default function VehiclesTab({ vehicles, companies, routes, onChange }) {
                 <Input value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} placeholder="Name" />
                 <Input value={edit.plate_number} onChange={(e) => setEdit({ ...edit, plate_number: e.target.value })} placeholder="Plate" />
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                <Input value={edit.driver_name} onChange={(e) => setEdit({ ...edit, driver_name: e.target.value })} placeholder="Driver name" />
-                <Input value={edit.driver_email} onChange={(e) => setEdit({ ...edit, driver_email: e.target.value })} placeholder="Driver email" />
-              </div>
-              <Input inputMode="numeric" maxLength={4} value={edit.driver_pin} onChange={(e) => setEdit({ ...edit, driver_pin: e.target.value.replace(/\D/g, "") })} placeholder="Driver PIN (4 digits)" />
               <Input value={edit.entry_code} onChange={(e) => setEdit({ ...edit, entry_code: e.target.value.toUpperCase() })} placeholder="Bus entry code (e.g. BUS12)" />
               <Select value={edit.company_id} onValueChange={(c) => setEdit({ ...edit, company_id: c })}>
                 <SelectTrigger><SelectValue placeholder="Company" /></SelectTrigger>
@@ -237,7 +214,7 @@ export default function VehiclesTab({ vehicles, companies, routes, onChange }) {
                   {v.name} <span className="text-xs text-muted-foreground font-normal">· {v.plate_number}</span>
                 </div>
                 <div className="text-xs text-muted-foreground truncate">
-                  {v.company_name} · Driver: {v.driver_name || v.driver_email || "Unassigned"} · PIN: {v.driver_pin || "—"} · Code: {v.entry_code || "—"}
+                  {v.company_name} · Driver: {v.driver_name || v.driver_email || "Unassigned"} (set in Drivers tab) · Code: {v.entry_code || "—"}
                 </div>
               </div>
               <Badge variant={v.status === "on_trip" ? "default" : v.status === "idle" ? "secondary" : "outline"}>
