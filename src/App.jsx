@@ -29,7 +29,6 @@ const ManagerDashboard = lazy(() => import('@/pages/ManagerDashboard'));
 const OAuthConsent = lazy(() => import('@/pages/OAuthConsent'));
 const MaintenanceQueue = lazy(() => import('@/pages/MaintenanceQueue'));
 const RouteAnalytics = lazy(() => import('@/pages/RouteAnalytics'));
-const DriverProfile = lazy(() => import('@/pages/DriverProfile'));
 const FleetSyncSettings = lazy(() => import('@/pages/FleetSyncSettings'));
 const IncidentReports = lazy(() => import('@/pages/IncidentReports'));
 const PassengerBookings = lazy(() => import('@/pages/PassengerBookings'));
@@ -43,7 +42,6 @@ const RideHistory = lazy(() => import('@/pages/RideHistory'));
 const FleetAnalytics = lazy(() => import('@/pages/FleetAnalytics'));
 const Notifications = lazy(() => import('@/pages/Notifications'));
 const VehicleRegistry = lazy(() => import('@/pages/VehicleRegistry'));
-const DriverSchedule = lazy(() => import('@/pages/DriverSchedule'));
 const IncidentReport = lazy(() => import('@/pages/IncidentReport'));
 const PassengerSupport = lazy(() => import('@/pages/PassengerSupport'));
 const RoutePlanner = lazy(() => import('@/pages/RoutePlanner'));
@@ -117,7 +115,6 @@ const AuthenticatedApp = () => {
         <Route path="/manager/:tab" element={<ManagerDashboard />} />
         <Route path="/maintenance-queue" element={<MaintenanceQueue />} />
         <Route path="/route-analytics" element={<RouteAnalytics />} />
-        <Route path="/driver-profile" element={<DriverProfile />} />
         <Route path="/fleet-sync" element={<FleetSyncSettings />} />
         <Route path="/incident-reports" element={<IncidentReports />} />
         <Route path="/passenger-bookings" element={<PassengerBookings />} />
@@ -130,7 +127,6 @@ const AuthenticatedApp = () => {
         <Route path="/fleet-analytics" element={<FleetAnalytics />} />
         <Route path="/notifications" element={<Notifications />} />
         <Route path="/vehicle-registry" element={<VehicleRegistry />} />
-        <Route path="/driver-schedule" element={<DriverSchedule />} />
         <Route path="/incident-report" element={<IncidentReport />} />
         <Route path="/support" element={<PassengerSupport />} />
         <Route path="/route-planner" element={<RoutePlanner />} />
