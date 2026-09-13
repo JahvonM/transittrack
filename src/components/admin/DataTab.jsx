@@ -183,6 +183,9 @@ export default function DataTab() {
   const [entity, setEntity] = useState("Vehicle");
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [addOpen, setAddOpen] = useState(false);
+  const [addForm, setAddForm] = useState({});
+  const [adding, setAdding] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -201,6 +204,38 @@ export default function DataTab() {
   }, [entity]);
 
   const columns = useMemo(() => deriveColumns(records), [records]);
+  const createFields = CREATE_FIELDS[entity] || null;
+
+  const openAdd = () => {
+    setAddForm({});
+    setAddOpen(true);
+  };
+
+  const submitAdd = async () => {
+    if (!createFields) return;
+    const missing = createFields.some((f) => f.required && !String(addForm[f.key] || "").trim());
+    if (missing) {
+      toast({ title: "Fill in the required fields", variant: "destructive" });
+      return;
+    }
+    setAdding(true);
+    try {
+      const payload = {};
+      createFields.forEach((f) => {
+        const raw = addForm[f.key];
+        if (raw === undefined || raw === "") return;
+        payload[f.key] = f.type === "number" ? Number(raw) : f.type === "datetime-local" ? new Date(raw).toISOString() : raw;
+      });
+      await base44.entities[entity].create(payload);
+      toast({ title: "Record created" });
+      setAddOpen(false);
+      load();
+    } catch (e) {
+      toast({ title: "Couldn't create this record", description: e.message, variant: "destructive" });
+    } finally {
+      setAdding(false);
+    }
+  };
 
   const remove = async (id) => {
     try {
