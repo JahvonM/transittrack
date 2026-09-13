@@ -230,7 +230,6 @@ export default function Register() {
             {[
               { value: "driver", label: "Driver" },
               { value: "staff", label: "Hotel staff" },
-              { value: "company", label: "Company operator" },
             ].map((r) => (
               <button
                 key={r.value}
