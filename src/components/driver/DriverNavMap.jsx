@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Map, { Marker, Source, Layer } from "react-map-gl";
-import { MAPBOX_TOKEN, GPS_INTERVAL_MS } from "@/lib/mapbox";
+import { MAPBOX_TOKEN, MAPBOX_STYLE, GPS_INTERVAL_MS } from "@/lib/mapbox";
 import { Button } from "@/components/ui/button";
 import OfflineStatusBadge from "@/components/OfflineStatusBadge";
 import { useOfflineSync } from "@/hooks/useOfflineSync";
@@ -112,7 +112,7 @@ export default function DriverNavMap({ session, invoke }) {
       </div>
       <div className="relative rounded-2xl overflow-hidden border h-[72vh]">
         <Map
-          ref={mapRef} mapboxAccessToken={MAPBOX_TOKEN} mapStyle="mapbox://styles/mapbox/streets-v12"
+          ref={mapRef} mapboxAccessToken={MAPBOX_TOKEN} mapStyle={MAPBOX_STYLE}
           initialViewState={{ longitude: pos?.lng ?? vehicle?.current_lng ?? -61.7, latitude: pos?.lat ?? vehicle?.current_lat ?? 12.05, zoom: 15 }}
           style={{ width: "100%", height: "100%" }} attributionControl={false}
           onLoad={(e) => hidePoiLayers(e.target)}
@@ -129,9 +129,14 @@ export default function DriverNavMap({ session, invoke }) {
           )}
           {smoothPos && (
             <>
-              <AccuracyHalo sourceId="driver-accuracy" lat={smoothPos.lat} lng={smoothPos.lng} accuracy={pos?.accuracy} color="#38bdf8" />
+              <AccuracyHalo sourceId="driver-accuracy" lat={smoothPos.lat} lng={smoothPos.lng} accuracy={pos?.accuracy} color="#22c55e" />
               <Marker longitude={smoothPos.lng} latitude={smoothPos.lat} anchor="bottom">
-                <div className="w-10 h-10 rounded-full bg-primary border-2 border-white shadow-lg grid place-items-center"><Bus className="w-6 h-6 text-primary-foreground" /></div>
+                <div className="flex flex-col items-center">
+                  <div className="w-11 h-11 rounded-full bg-white grid place-items-center" style={{ border: "3px solid #22c55e", boxShadow: "0 2px 8px rgba(0,0,0,0.25)" }}>
+                    <Bus className="w-5 h-5" style={{ color: "#22c55e" }} />
+                  </div>
+                  <div className="w-3 h-3 -mt-[6px]" style={{ backgroundColor: "#22c55e", clipPath: "polygon(50% 100%, 0 0, 100% 0)" }} />
+                </div>
               </Marker>
             </>
           )}
