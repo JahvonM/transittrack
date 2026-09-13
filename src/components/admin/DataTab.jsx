@@ -264,6 +264,11 @@ export default function DataTab() {
             ))}
           </SelectContent>
         </Select>
+        {createFields && (
+          <Button size="sm" onClick={openAdd}>
+            <Plus className="w-4 h-4" /> Add record
+          </Button>
+        )}
         <div className="ml-auto flex gap-2">
           <Button size="sm" variant="outline" onClick={() => exportToCSV(entity, columns, records)} disabled={!records.length}>
             <FileSpreadsheet className="w-4 h-4" /> Excel
@@ -273,6 +278,10 @@ export default function DataTab() {
           </Button>
         </div>
       </div>
+
+      {!createFields && UNCREATABLE_NOTES[entity] && (
+        <p className="text-xs text-muted-foreground">{UNCREATABLE_NOTES[entity]}</p>
+      )}
 
       {loading ? (
         <p className="text-muted-foreground">Loading…</p>
@@ -317,6 +326,30 @@ export default function DataTab() {
       {records.length > 0 && (
         <p className="text-xs text-muted-foreground">{records.length} records · showing latest 200</p>
       )}
+
+      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>New {entity}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
+            {(createFields || []).map((f) => (
+              <div key={f.key} className="space-y-1.5">
+                <Label>{f.label}{f.required && " *"}</Label>
+                <Input
+                  type={f.type === "number" ? "number" : f.type === "date" ? "date" : f.type === "datetime-local" ? "datetime-local" : "text"}
+                  value={addForm[f.key] ?? ""}
+                  placeholder={f.placeholder}
+                  onChange={(e) => setAddForm((prev) => ({ ...prev, [f.key]: e.target.value }))}
+                />
+              </div>
+            ))}
+          </div>
+          <Button className="w-full" onClick={submitAdd} disabled={adding}>
+            {adding ? "Creating…" : `Create ${entity}`}
+          </Button>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
