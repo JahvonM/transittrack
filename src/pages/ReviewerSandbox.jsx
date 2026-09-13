@@ -108,10 +108,10 @@ export default function ReviewerSandbox() {
           <Marker longitude={displayPos.lng} latitude={displayPos.lat} anchor="bottom">
             <div className="flex flex-col items-center relative">
               <div className="absolute top-0 w-11 h-11 rounded-full bg-green-500/25 animate-ping" />
-              <div className="w-9 h-9 rounded-full bg-white grid place-items-center" style={{ border: "3px solid #22c55e", boxShadow: "0 2px 8px rgba(0,0,0,0.25)" }}>
-                <Bus className="w-4 h-4" style={{ color: "#22c55e" }} />
+              <div className="w-11 h-11 rounded-full bg-white grid place-items-center" style={{ border: "3px solid #22c55e", boxShadow: "0 2px 8px rgba(0,0,0,0.25)" }}>
+                <Bus className="w-5 h-5" style={{ color: "#22c55e" }} />
               </div>
-              <div className="w-2.5 h-2.5 -mt-[5px]" style={{ backgroundColor: "#22c55e", clipPath: "polygon(50% 100%, 0 0, 100% 0)" }} />
+              <div className="w-3 h-3 -mt-[6px]" style={{ backgroundColor: "#22c55e", clipPath: "polygon(50% 100%, 0 0, 100% 0)" }} />
             </div>
           </Marker>
 
