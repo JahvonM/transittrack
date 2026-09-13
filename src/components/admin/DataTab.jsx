@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -10,6 +12,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   Table,
   TableBody,
   TableCell,
@@ -17,9 +25,84 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Database, FileSpreadsheet, FileText, Trash2 } from "lucide-react";
+import { Database, FileSpreadsheet, FileText, Plus, Trash2 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { exportToCSV, exportToPDF } from "@/lib/exporters";
+
+// Minimal "quick add" field sets per entity — covers the fields you actually
+// need to create a usable record by hand. User and FrontDeskSignIns are
+// intentionally left out: Users must go through the invite flow (a raw row
+// here wouldn't have a login), and front-desk sign-ins are only ever created
+// by the front-desk kiosk itself (its RLS blocks direct client creates).
+const CREATE_FIELDS = {
+  Company: [
+    { key: "name", label: "Name", required: true },
+    { key: "phone", label: "Phone" },
+    { key: "access_code", label: "Access code" },
+  ],
+  Vehicle: [
+    { key: "name", label: "Name", required: true },
+    { key: "type", label: "Type (bus / taxi)", required: true, placeholder: "bus" },
+    { key: "company_id", label: "Company ID", required: true },
+    { key: "plate_number", label: "Plate number" },
+    { key: "driver_name", label: "Driver name" },
+    { key: "driver_email", label: "Driver email" },
+    { key: "capacity", label: "Capacity", type: "number" },
+  ],
+  Route: [
+    { key: "name", label: "Name", required: true },
+    { key: "company_id", label: "Company ID", required: true },
+    { key: "type", label: "Type (staff / airport)", placeholder: "staff" },
+  ],
+  Trip: [
+    { key: "company_id", label: "Company ID", required: true },
+    { key: "pickup_name", label: "Pickup name" },
+    { key: "dropoff_name", label: "Drop-off name" },
+    { key: "passenger_name", label: "Passenger name" },
+    { key: "passenger_phone", label: "Passenger phone" },
+    { key: "scheduled_time", label: "Scheduled time", type: "datetime-local" },
+  ],
+  Broadcast: [
+    { key: "type", label: "Type (bus_arrived / taxi_arrived / info)", required: true, placeholder: "info" },
+    { key: "title", label: "Title" },
+    { key: "message", label: "Message", required: true },
+  ],
+  Advertisement: [
+    { key: "title", label: "Title", required: true },
+    { key: "message", label: "Message" },
+    { key: "link", label: "Link" },
+  ],
+  Workplace: [
+    { key: "name", label: "Name", required: true },
+    { key: "company_id", label: "Company ID" },
+    { key: "lat", label: "Latitude", type: "number" },
+    { key: "lng", label: "Longitude", type: "number" },
+  ],
+  Inspection: [
+    { key: "driver_name", label: "Driver name", required: true },
+    { key: "vehicle_id", label: "Vehicle ID", required: true },
+    { key: "company_id", label: "Company ID", required: true },
+    { key: "date", label: "Date", required: true, type: "date" },
+    { key: "status", label: "Status (passed / failed)", placeholder: "passed" },
+  ],
+  Incident: [
+    { key: "type", label: "Type", required: true, placeholder: "other" },
+    { key: "company_id", label: "Company ID", required: true },
+    { key: "details", label: "Details" },
+  ],
+  StaffCheckIn: [
+    { key: "card_tag", label: "Badge tag", required: true },
+    { key: "status", label: "Status (boarded / off_board)", required: true, placeholder: "boarded" },
+    { key: "staff_name", label: "Staff name" },
+    { key: "company_id", label: "Company ID" },
+    { key: "vehicle_id", label: "Vehicle ID" },
+  ],
+};
+
+const UNCREATABLE_NOTES = {
+  User: "New users are created from the Users & Roles tab (Invite), so they get a real login.",
+  FrontDeskSignIns: "Sign-ins are created by the front-desk kiosk itself, not added by hand here.",
+};
 
 const ENTITIES = [
   "Company", "Vehicle", "Route", "Trip", "User",
