@@ -7,7 +7,19 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Bus, Camera, Car, Loader2, Mail, Pencil, Phone, User as UserIcon, X } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { useToast } from "@/components/ui/use-toast";
+import { Bus, Camera, Car, Loader2, Mail, Pencil, Phone, Plus, Trash2, User as UserIcon, X } from "lucide-react";
 
 const STATUSES = [
   { value: "offline", label: "Offline" },
@@ -16,6 +28,59 @@ const STATUSES = [
   { value: "speeding", label: "Speeding" },
   { value: "emergency", label: "Emergency" },
 ];
+
+function AddDriverDialog({ onAdded }) {
+  const { toast } = useToast();
+  const [open, setOpen] = useState(false);
+  const [email, setEmail] = useState("");
+  const [inviting, setInviting] = useState(false);
+
+  const invite = async () => {
+    if (!email.trim()) return;
+    setInviting(true);
+    try {
+      await base44.users.inviteUser(email.trim(), "driver");
+      toast({ title: "Driver invited", description: `${email.trim()} can now sign in as a driver.` });
+      setEmail("");
+      setOpen(false);
+      onAdded();
+    } catch (e) {
+      toast({ title: "Couldn't invite driver", description: e.message, variant: "destructive" });
+    } finally {
+      setInviting(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <Button size="sm" onClick={() => setOpen(true)}>
+        <Plus className="w-4 h-4" /> Add driver
+      </Button>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2"><Plus className="w-4 h-4" /> Invite a driver</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label>Email</Label>
+            <Input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="driver@example.com"
+            />
+          </div>
+          <p className="text-xs text-muted-foreground">
+            They'll get an invite to sign in with the Driver role. Once they show up here, you can add their photo, name and assign buses.
+          </p>
+          <Button className="w-full" onClick={invite} disabled={inviting || !email.trim()}>
+            {inviting ? "Inviting…" : "Send invite"}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 function EditDriverDialog({ driver, open, onOpenChange, onSaved }) {
   const [fullName, setFullName] = useState("");
@@ -100,7 +165,7 @@ function EditDriverDialog({ driver, open, onOpenChange, onSaved }) {
   );
 }
 
-function DriverCard({ driver, vehicles, companies, routes, onAssign, onUnassign, onSetStatus, onSetRoute, onSaved }) {
+function DriverCard({ driver, vehicles, companies, routes, onAssign, onUnassign, onSetStatus, onSetRoute, onSaved, onRemove }) {
   const [editOpen, setEditOpen] = useState(false);
   const assigned = vehicles.filter((v) => v.driver_email === driver.email);
   const companyName = companies.find((c) => c.id === driver.company_id)?.name;
@@ -114,15 +179,41 @@ function DriverCard({ driver, vehicles, companies, routes, onAssign, onUnassign,
         <span className="text-[10px] font-bold tracking-[0.15em] text-primary-foreground uppercase">
           Driver ID
         </span>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-6 w-6 text-primary-foreground hover:bg-white/20 hover:text-primary-foreground"
-          onClick={() => setEditOpen(true)}
-          title="Edit driver"
-        >
-          <Pencil className="w-3 h-3" />
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6 text-primary-foreground hover:bg-white/20 hover:text-primary-foreground"
+            onClick={() => setEditOpen(true)}
+            title="Edit driver"
+          >
+            <Pencil className="w-3 h-3" />
+          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 text-primary-foreground hover:bg-white/20 hover:text-primary-foreground"
+                title="Remove driver"
+              >
+                <Trash2 className="w-3 h-3" />
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Remove {driver.full_name || driver.email}?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This deletes their account and unassigns any buses currently assigned to them. This can't be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={() => onRemove(driver)}>Remove driver</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
       </div>
       <CardContent className="p-4 space-y-3">
         <div className="flex items-center gap-4">
@@ -226,6 +317,7 @@ function DriverCard({ driver, vehicles, companies, routes, onAssign, onUnassign,
 }
 
 export default function DriversTab({ users, vehicles, companies, routes, onChange }) {
+  const { toast } = useToast();
   const drivers = users.filter((u) => u.role === "driver");
 
   const assign = async (driver, vehicleId) => {
@@ -252,27 +344,49 @@ export default function DriversTab({ users, vehicles, companies, routes, onChang
     onChange();
   };
 
+  const removeDriver = async (driver) => {
+    try {
+      const assignedVehicles = vehicles.filter((v) => v.driver_email === driver.email);
+      await Promise.all(
+        assignedVehicles.map((v) =>
+          base44.entities.Vehicle.update(v.id, { driver_email: null, driver_name: null })
+        )
+      );
+      await base44.entities.User.delete(driver.id);
+      toast({ title: "Driver removed" });
+      onChange();
+    } catch (e) {
+      toast({ title: "Couldn't remove driver", description: e.message, variant: "destructive" });
+    }
+  };
+
   return (
-    <div className="grid sm:grid-cols-2 gap-3">
-      {drivers.length === 0 && (
-        <p className="text-sm text-muted-foreground py-8 text-center sm:col-span-2">
-          No drivers yet. Invite a user with the Driver role, then assign buses here.
-        </p>
-      )}
-      {drivers.map((d) => (
-        <DriverCard
-          key={d.id}
-          driver={d}
-          vehicles={vehicles}
-          companies={companies}
-          routes={routes}
-          onAssign={assign}
-          onUnassign={unassign}
-          onSetStatus={setStatus}
-          onSetRoute={setRoute}
-          onSaved={onChange}
-        />
-      ))}
+    <div className="space-y-3">
+      <div className="flex justify-end">
+        <AddDriverDialog onAdded={onChange} />
+      </div>
+      <div className="grid sm:grid-cols-2 gap-3">
+        {drivers.length === 0 && (
+          <p className="text-sm text-muted-foreground py-8 text-center sm:col-span-2">
+            No drivers yet. Add one above, then assign buses here.
+          </p>
+        )}
+        {drivers.map((d) => (
+          <DriverCard
+            key={d.id}
+            driver={d}
+            vehicles={vehicles}
+            companies={companies}
+            routes={routes}
+            onAssign={assign}
+            onUnassign={unassign}
+            onSetStatus={setStatus}
+            onSetRoute={setRoute}
+            onSaved={onChange}
+            onRemove={removeDriver}
+          />
+        ))}
+      </div>
     </div>
   );
 }
