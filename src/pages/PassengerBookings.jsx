@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import AppLayout from "@/components/AppLayout";
+import PullToRefresh from "@/components/PullToRefresh";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -58,6 +59,7 @@ export default function PassengerBookings() {
 
   return (
     <AppLayout title="Passenger bookings">
+      <PullToRefresh onRefresh={load}>
       {loading ? <p className="text-muted-foreground">Loading…</p> : (
         <div className="grid md:grid-cols-2 gap-4">
           <div>
@@ -76,6 +78,7 @@ export default function PassengerBookings() {
           </div>
         </div>
       )}
+      </PullToRefresh>
     </AppLayout>
   );
 }
