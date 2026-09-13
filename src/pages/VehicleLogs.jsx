@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import AppLayout from "@/components/AppLayout";
+import PullToRefresh from "@/components/PullToRefresh";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Activity, Radio } from "lucide-react";
@@ -10,11 +11,14 @@ export default function VehicleLogs() {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const load = () =>
     base44.entities.Vehicle.list().then((v) => {
       setVehicles(v.sort((a, b) => new Date(b.last_location_update || 0) - new Date(a.last_location_update || 0)));
       setLoading(false);
     });
+
+  useEffect(() => {
+    load();
     const unsub = base44.entities.Vehicle.subscribe((ev) => {
       const stamp = new Date().toLocaleTimeString();
       setEvents((cur) => [{ stamp, ...ev }].slice(0, 50));
@@ -24,6 +28,7 @@ export default function VehicleLogs() {
 
   return (
     <AppLayout title="Vehicle live logs">
+      <PullToRefresh onRefresh={load}>
       {loading ? <p className="text-muted-foreground">Loading…</p> : (
         <div className="grid lg:grid-cols-2 gap-4">
           <div>
@@ -58,6 +63,7 @@ export default function VehicleLogs() {
           </div>
         </div>
       )}
+      </PullToRefresh>
     </AppLayout>
   );
 }
