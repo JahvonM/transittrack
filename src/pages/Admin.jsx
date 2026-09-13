@@ -27,8 +27,10 @@ import FloatingChatbot from "@/components/admin/FloatingChatbot";
 import useUserLocation from "@/hooks/useUserLocation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   Car,
+  ChevronDown,
   CreditCard,
   DoorOpen,
   ExternalLink,
@@ -115,6 +117,7 @@ export default function Admin() {
   const [trips, setTrips] = useState([]);
   const [inspections, setInspections] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [moreOpen, setMoreOpen] = useState(false);
   const { location: userLoc } = useUserLocation();
 
   const go = (s) => navigate("/admin/" + s);
