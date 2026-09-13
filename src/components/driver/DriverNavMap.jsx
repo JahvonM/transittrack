@@ -10,12 +10,15 @@ import useSmoothPosition from "@/hooks/useSmoothPosition";
 import AccuracyHalo from "@/components/AccuracyHalo";
 import { Bus, Navigation, MapPin, LocateFixed, Satellite } from "lucide-react";
 
+// Matches MapboxMap.jsx's declutterStyle: hide POI/transit icon clutter but
+// keep road labels — without them, an area with no live data yet renders as
+// a blank basemap, and a driver specifically needs street names to navigate.
 function hidePoiLayers(map) {
   const style = map.getStyle();
   if (!style || !style.layers) return;
   style.layers.forEach((layer) => {
     const id = layer.id || "";
-    if (id.includes("poi") || id.includes("transit") || id.includes("road-label")) {
+    if (id.includes("poi") || id.includes("transit")) {
       try { map.setLayoutProperty(id, "visibility", "none"); } catch { /* some layers can't be toggled */ }
     }
   });
