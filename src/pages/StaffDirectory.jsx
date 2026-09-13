@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import AppLayout from "@/components/AppLayout";
+import PullToRefresh from "@/components/PullToRefresh";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -25,7 +26,7 @@ export default function StaffDirectory() {
   const [editing, setEditing] = useState(null);
 
   const load = () => {
-    base44.entities.Contact.list("-updated_date", 1000).then((c) => {
+    base44.entities.Contact.list("-updated_date", 200).then((c) => {
       setContacts(c);
       setLoading(false);
     });
@@ -33,7 +34,19 @@ export default function StaffDirectory() {
 
   useEffect(() => {
     load();
-    const unsub = base44.entities.Contact.subscribe(() => load());
+    // Apply realtime updates incrementally (mirrors Notifications.jsx) instead
+    // of re-fetching the whole list on every single event.
+    const unsub = base44.entities.Contact.subscribe((event) => {
+      if (event.type === "delete") {
+        setContacts((prev) => prev.filter((c) => c.id !== event.id));
+        return;
+      }
+      if (!event.data) return;
+      setContacts((prev) => {
+        const idx = prev.findIndex((c) => c.id === event.data.id);
+        return idx === -1 ? [event.data, ...prev] : prev.map((c) => (c.id === event.data.id ? event.data : c));
+      });
+    });
     return unsub;
   }, []);
 
@@ -73,6 +86,7 @@ export default function StaffDirectory() {
 
   return (
     <AppLayout title="Staff & passenger directory">
+      <PullToRefresh onRefresh={load}>
       <div className="flex items-center justify-between gap-3 mb-4">
         <div className="flex gap-2">
           {["all", "staff", "passenger"].map((t) => (
@@ -179,6 +193,7 @@ export default function StaffDirectory() {
         onSave={save}
         contact={editing}
       />
+      </PullToRefresh>
     </AppLayout>
   );
 }
