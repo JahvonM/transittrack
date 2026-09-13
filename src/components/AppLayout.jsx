@@ -46,7 +46,7 @@ export default function AppLayout({ children, title }) {
           </div>
         </div>
       </header>
-      <main className="max-w-7xl mx-auto px-4 py-6 pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-6 safe-area-bottom">
+      <main className="max-w-7xl mx-auto px-4 pt-6 pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-6 safe-area-bottom">
         {title && <h1 className="text-2xl font-heading font-semibold mb-4">{title}</h1>}
         {children}
       </main>
