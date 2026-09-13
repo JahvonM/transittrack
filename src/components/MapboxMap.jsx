@@ -9,7 +9,7 @@ import { Image } from "@/components/ui/image";
 import BusDistance from "@/components/BusDistance";
 import VehicleMarker from "@/components/VehicleMarker";
 import AccuracyHalo from "@/components/AccuracyHalo";
-import { fetchDrivingRoute } from "@/lib/geo";
+import { fetchDrivingRoute, snapTrackToRoads } from "@/lib/geo";
 import { statusColor } from "@/lib/vehicleStatus";
 
 // Re-exported for backwards compatibility — the canonical definition now lives
@@ -154,12 +154,34 @@ export default function MapboxMap({
   const routeLineCoords = drivingRouteGeom || routeCoords;
   const routeFollowsRoads = Boolean(drivingRouteGeom);
 
-  // Per-vehicle trails
+  // Per-vehicle trails — snapped onto actual roads in the background so the
+  // line follows streets instead of cutting straight between GPS points.
+  // Kept "simple": render the raw straight-line trail immediately (so nothing
+  // ever looks missing), then swap in the snapped version once it resolves,
+  // and only re-snap every few new points rather than on every GPS tick.
+  const [snappedTrails, setSnappedTrails] = useState({});
+  const snappedLenRef = useRef({});
+  const trailSignature = vehicles.map((v) => `${v.id}:${v.trail?.length || 0}`).join(",");
+
+  useEffect(() => {
+    vehicles.forEach((v) => {
+      if (!v.trail || v.trail.length < 2) return;
+      const lastLen = snappedLenRef.current[v.id] || 0;
+      if (lastLen !== 0 && v.trail.length - lastLen < 5) return;
+      snappedLenRef.current[v.id] = v.trail.length;
+      const pts = v.trail.filter((p) => p.lat != null && p.lng != null);
+      snapTrackToRoads(pts).then((line) => {
+        setSnappedTrails((prev) => ({ ...prev, [v.id]: line }));
+      });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trailSignature]);
+
   const vehicleTrails = vehicles
     .filter((v) => v.trail && v.trail.length > 1)
     .map((v) => ({
       id: `trail-${v.id}`,
-      coords: v.trail.filter((p) => p.lat != null && p.lng != null).map((p) => [p.lng, p.lat]),
+      coords: snappedTrails[v.id] || v.trail.filter((p) => p.lat != null && p.lng != null).map((p) => [p.lng, p.lat]),
     }))
     .filter((t) => t.coords.length > 1);
 
