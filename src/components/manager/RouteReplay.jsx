@@ -79,7 +79,7 @@ export default function RouteReplay({ vehicles }) {
                   current_lng: currentPoint.lng,
                   trail: replayTrail,
                 }] : []}
-                center={[currentPoint.lng, currentPoint.lat]}
+                center={currentPoint ? [currentPoint.lng, currentPoint.lat] : null}
                 height="50vh"
                 interactive={false}
               />
