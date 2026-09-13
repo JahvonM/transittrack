@@ -66,9 +66,9 @@ const ROLE_LINKS = [
 ];
 
 const PORTAL_LINKS = [
-  { to: "/badge-registry", label: "Badge Registry", icon: CreditCard },
-  { to: "/kiosk/bus", label: "Bus Entry Kiosk", icon: Smartphone },
-  { to: "/kiosk/front-desk", label: "Front Desk Kiosk", icon: DoorOpen },
+  { to: "/kiosk", label: "Badge Registry", icon: CreditCard },
+  { to: "/kiosk", label: "Bus Entry Kiosk", icon: Smartphone },
+  { to: "/kiosk", label: "Front Desk Kiosk", icon: DoorOpen },
   { to: "/reviewer-sandbox", label: "Reviewer Sandbox", icon: FlaskConical },
 ];
 
