@@ -50,10 +50,19 @@ export default function MapboxMap({
   className = "",
   height = "45vh",
   interactive = true,
+  // Opt-in nav-mode camera follow (like CarPlay/Google Maps): the camera
+  // keeps recentering on userLocation as it updates, instead of only
+  // fitting bounds once at load. Off by default — a passenger or admin
+  // looking at the fleet doesn't want the camera yanked back to their own
+  // position every time it updates; a driver looking at their own live
+  // position does. Dragging the map turns it off until recenter is tapped.
+  followUser = false,
 }) {
   const mapRef = useRef(null);
   const hasFitted = useRef(false);
   const hasUserCentered = useRef(false);
+  const following = useRef(followUser);
+  const [isFollowing, setIsFollowing] = useState(followUser);
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [isSatellite, setIsSatellite] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -104,12 +113,23 @@ export default function MapboxMap({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mapLoaded, currentUserLocation]);
 
+  // Nav-mode follow: keep recentering on every update to userLocation while
+  // following is on (see `followUser` above).
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!followUser || !map || !currentUserLocation || !following.current) return;
+    map.easeTo({ center: [currentUserLocation.lng, currentUserLocation.lat], duration: 900 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [followUser, currentUserLocation?.lat, currentUserLocation?.lng]);
+
   // Recenter on the user's live location.
   const recenter = () => {
     const map = mapRef.current;
     if (!map) return;
     const loc = currentUserLocation;
     if (!loc) return;
+    following.current = true;
+    setIsFollowing(true);
     map.flyTo({ center: [loc.lng, loc.lat], zoom: Math.max(map.getZoom(), 15), duration: 800 });
   };
 
@@ -196,6 +216,7 @@ export default function MapboxMap({
         interactive={interactive}
         attributionControl={false}
         onLoad={(e) => { setMapLoaded(true); declutterStyle(e.target); }}
+        onDragStart={followUser ? () => { following.current = false; setIsFollowing(false); } : undefined}
       >
         {/* Route polyline — follows actual roads once the driving route loads;
             falls back to a dashed straight line between stops until then / on failure */}
