@@ -94,10 +94,16 @@ export default function DriverNavMap({ session, invoke }) {
   const gpsStatus = !pos ? "searching" : pos.accuracy != null && pos.accuracy <= 50 ? "locked" : "low";
   const recenter = () => {
     const map = mapRef.current;
-    if (!map || !pos) return;
+    // Fall back to the vehicle's last known server position if the browser
+    // hasn't produced a live GPS fix yet (e.g. permission prompt still
+    // pending, or every fix so far was too low-accuracy) — same fallback
+    // chain the initial map view already uses, so the button always does
+    // something as long as we know roughly where the bus is.
+    const target = pos || (vehicle?.current_lat != null ? { lat: vehicle.current_lat, lng: vehicle.current_lng } : null);
+    if (!map || !target) return;
     following.current = true;
     setIsFollowing(true);
-    map.flyTo({ center: [pos.lng, pos.lat], zoom: Math.max(map.getZoom(), 15), duration: 800 });
+    map.flyTo({ center: [target.lng, target.lat], zoom: Math.max(map.getZoom(), 15), duration: 800 });
   };
   const trail = liveVehicle?.trail || vehicle?.trail || [];
 
