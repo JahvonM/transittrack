@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -41,11 +41,10 @@ const empty = {
   route_id: "",
 };
 
-export default function VehiclesTab({ vehicles, companies, routes, onChange }) {
+function AddVehicleDialog({ companies, onChange }) {
+  const [open, setOpen] = useState(false);
   const [form, setForm] = useState(empty);
   const [adding, setAdding] = useState(false);
-  const [editId, setEditId] = useState(null);
-  const [edit, setEdit] = useState({});
 
   const add = async () => {
     if (!form.name || !form.company_id) return;
@@ -67,127 +66,23 @@ export default function VehiclesTab({ vehicles, companies, routes, onChange }) {
         status: "offline",
       });
       setForm(empty);
+      setOpen(false);
       onChange();
     } finally {
       setAdding(false);
     }
   };
 
-  const remove = async (id) => {
-    await base44.entities.Vehicle.delete(id);
-    onChange();
-  };
-
-  const startEdit = (v) => {
-    setEditId(v.id);
-    setEdit({
-      name: v.name,
-      plate_number: v.plate_number || "",
-      driver_name: v.driver_name || "",
-      driver_email: v.driver_email || "",
-      driver_pin: v.driver_pin || "",
-      entry_code: v.entry_code || "",
-      company_id: v.company_id || "",
-      route_id: v.route_id || "",
-    });
-  };
-
-  const saveEdit = async () => {
-    const company = companies.find((c) => c.id === edit.company_id);
-    await base44.entities.Vehicle.update(editId, {
-      name: edit.name,
-      plate_number: edit.plate_number,
-      driver_name: edit.driver_name,
-      driver_email: edit.driver_email,
-      driver_pin: edit.driver_pin || null,
-      entry_code: edit.entry_code || null,
-      company_id: edit.company_id || null,
-      company_name: company?.name || "",
-      route_id: edit.route_id || null,
-    });
-    setEditId(null);
-    setEdit({});
-    onChange();
-  };
-
   return (
-    <div className="grid lg:grid-cols-[1fr_360px] gap-4">
-      <div className="space-y-2">
-        <div className="flex justify-end gap-2">
-          <Button size="sm" variant="outline" onClick={() => exportToCSV("vehicles", VEHICLE_COLS, vehicles)} disabled={!vehicles.length}>
-            <FileSpreadsheet className="w-4 h-4" /> Excel
-          </Button>
-          <Button size="sm" variant="outline" onClick={() => exportToPDF("vehicles", "Vehicle fleet", VEHICLE_COLS, vehicles)} disabled={!vehicles.length}>
-            <FileText className="w-4 h-4" /> PDF
-          </Button>
-        </div>
-        {vehicles.length === 0 && (
-          <p className="text-sm text-muted-foreground py-8 text-center border rounded-2xl">
-            No vehicles yet. Add your first bus or taxi.
-          </p>
-        )}
-        {vehicles.map((v) => (
-          <div key={v.id} className="p-3 rounded-xl border bg-card">
-            {editId === v.id ? (
-              <div className="space-y-2">
-                <div className="grid grid-cols-2 gap-2">
-                  <Input value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} placeholder="Name" />
-                  <Input value={edit.plate_number} onChange={(e) => setEdit({ ...edit, plate_number: e.target.value })} placeholder="Plate" />
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <Input value={edit.driver_name} onChange={(e) => setEdit({ ...edit, driver_name: e.target.value })} placeholder="Driver name" />
-                  <Input value={edit.driver_email} onChange={(e) => setEdit({ ...edit, driver_email: e.target.value })} placeholder="Driver email" />
-                </div>
-                <Input inputMode="numeric" maxLength={4} value={edit.driver_pin} onChange={(e) => setEdit({ ...edit, driver_pin: e.target.value.replace(/\D/g, "") })} placeholder="Driver PIN (4 digits)" />
-                <Input value={edit.entry_code} onChange={(e) => setEdit({ ...edit, entry_code: e.target.value.toUpperCase() })} placeholder="Bus entry code (e.g. BUS12)" />
-                <Select value={edit.company_id} onValueChange={(c) => setEdit({ ...edit, company_id: c })}>
-                  <SelectTrigger><SelectValue placeholder="Company" /></SelectTrigger>
-                  <SelectContent>
-                    {companies.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <div className="flex gap-2">
-                  <Button size="sm" onClick={saveEdit}><Check className="w-4 h-4 mr-1" />Save</Button>
-                  <Button size="sm" variant="outline" onClick={() => setEditId(null)}><X className="w-4 h-4 mr-1" />Cancel</Button>
-                </div>
-              </div>
-            ) : (
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-primary/10 grid place-items-center shrink-0">
-                  {v.type === "taxi" ? <Car className="w-5 h-5" /> : <Bus className="w-5 h-5" />}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="font-medium truncate">
-                    {v.name} <span className="text-xs text-muted-foreground font-normal">· {v.plate_number}</span>
-                  </div>
-                  <div className="text-xs text-muted-foreground truncate">
-                    {v.company_name} · Driver: {v.driver_name || v.driver_email || "Unassigned"} · PIN: {v.driver_pin || "—"} · Code: {v.entry_code || "—"}
-                  </div>
-                </div>
-                <Badge variant={v.status === "on_trip" ? "default" : v.status === "idle" ? "secondary" : "outline"}>
-                  {v.status === "on_trip" ? "On trip" : v.status === "idle" ? "Idle" : "Offline"}
-                </Badge>
-                <Button variant="ghost" size="icon" onClick={() => startEdit(v)}>
-                  <Pencil className="w-4 h-4" />
-                </Button>
-                <Button variant="ghost" size="icon" onClick={() => remove(v.id)}>
-                  <Trash2 className="w-4 h-4 text-destructive" />
-                </Button>
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <Plus className="w-4 h-4" /> Add vehicle
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
+    <Dialog open={open} onOpenChange={setOpen}>
+      <Button size="sm" onClick={() => setOpen(true)}>
+        <Plus className="w-4 h-4" /> Add vehicle
+      </Button>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2"><Plus className="w-4 h-4" /> Add vehicle</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
           <div className="space-y-1.5">
             <Label>Company</Label>
             <Select value={form.company_id} onValueChange={(c) => setForm({ ...form, company_id: c })}>
@@ -242,8 +137,122 @@ export default function VehiclesTab({ vehicles, companies, routes, onChange }) {
           <Button className="w-full" onClick={add} disabled={adding || !form.name || !form.company_id}>
             {adding ? "Adding…" : "Add vehicle"}
           </Button>
-        </CardContent>
-      </Card>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+export default function VehiclesTab({ vehicles, companies, routes, onChange }) {
+  const [editId, setEditId] = useState(null);
+  const [edit, setEdit] = useState({});
+
+  const remove = async (id) => {
+    await base44.entities.Vehicle.delete(id);
+    onChange();
+  };
+
+  const startEdit = (v) => {
+    setEditId(v.id);
+    setEdit({
+      name: v.name,
+      plate_number: v.plate_number || "",
+      driver_name: v.driver_name || "",
+      driver_email: v.driver_email || "",
+      driver_pin: v.driver_pin || "",
+      entry_code: v.entry_code || "",
+      company_id: v.company_id || "",
+      route_id: v.route_id || "",
+    });
+  };
+
+  const saveEdit = async () => {
+    const company = companies.find((c) => c.id === edit.company_id);
+    await base44.entities.Vehicle.update(editId, {
+      name: edit.name,
+      plate_number: edit.plate_number,
+      driver_name: edit.driver_name,
+      driver_email: edit.driver_email,
+      driver_pin: edit.driver_pin || null,
+      entry_code: edit.entry_code || null,
+      company_id: edit.company_id || null,
+      company_name: company?.name || "",
+      route_id: edit.route_id || null,
+    });
+    setEditId(null);
+    setEdit({});
+    onChange();
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex justify-end gap-2">
+        <AddVehicleDialog companies={companies} onChange={onChange} />
+        <Button size="sm" variant="outline" onClick={() => exportToCSV("vehicles", VEHICLE_COLS, vehicles)} disabled={!vehicles.length}>
+          <FileSpreadsheet className="w-4 h-4" /> Excel
+        </Button>
+        <Button size="sm" variant="outline" onClick={() => exportToPDF("vehicles", "Vehicle fleet", VEHICLE_COLS, vehicles)} disabled={!vehicles.length}>
+          <FileText className="w-4 h-4" /> PDF
+        </Button>
+      </div>
+      {vehicles.length === 0 && (
+        <p className="text-sm text-muted-foreground py-8 text-center border rounded-2xl">
+          No vehicles yet. Add your first bus or taxi.
+        </p>
+      )}
+      {vehicles.map((v) => (
+        <div key={v.id} className="p-3 rounded-xl border bg-card">
+          {editId === v.id ? (
+            <div className="space-y-2">
+              <div className="grid grid-cols-2 gap-2">
+                <Input value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} placeholder="Name" />
+                <Input value={edit.plate_number} onChange={(e) => setEdit({ ...edit, plate_number: e.target.value })} placeholder="Plate" />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <Input value={edit.driver_name} onChange={(e) => setEdit({ ...edit, driver_name: e.target.value })} placeholder="Driver name" />
+                <Input value={edit.driver_email} onChange={(e) => setEdit({ ...edit, driver_email: e.target.value })} placeholder="Driver email" />
+              </div>
+              <Input inputMode="numeric" maxLength={4} value={edit.driver_pin} onChange={(e) => setEdit({ ...edit, driver_pin: e.target.value.replace(/\D/g, "") })} placeholder="Driver PIN (4 digits)" />
+              <Input value={edit.entry_code} onChange={(e) => setEdit({ ...edit, entry_code: e.target.value.toUpperCase() })} placeholder="Bus entry code (e.g. BUS12)" />
+              <Select value={edit.company_id} onValueChange={(c) => setEdit({ ...edit, company_id: c })}>
+                <SelectTrigger><SelectValue placeholder="Company" /></SelectTrigger>
+                <SelectContent>
+                  {companies.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <div className="flex gap-2">
+                <Button size="sm" onClick={saveEdit}><Check className="w-4 h-4 mr-1" />Save</Button>
+                <Button size="sm" variant="outline" onClick={() => setEditId(null)}><X className="w-4 h-4 mr-1" />Cancel</Button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-primary/10 grid place-items-center shrink-0">
+                {v.type === "taxi" ? <Car className="w-5 h-5" /> : <Bus className="w-5 h-5" />}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="font-medium truncate">
+                  {v.name} <span className="text-xs text-muted-foreground font-normal">· {v.plate_number}</span>
+                </div>
+                <div className="text-xs text-muted-foreground truncate">
+                  {v.company_name} · Driver: {v.driver_name || v.driver_email || "Unassigned"} · PIN: {v.driver_pin || "—"} · Code: {v.entry_code || "—"}
+                </div>
+              </div>
+              <Badge variant={v.status === "on_trip" ? "default" : v.status === "idle" ? "secondary" : "outline"}>
+                {v.status === "on_trip" ? "On trip" : v.status === "idle" ? "Idle" : "Offline"}
+              </Badge>
+              <Button variant="ghost" size="icon" onClick={() => startEdit(v)}>
+                <Pencil className="w-4 h-4" />
+              </Button>
+              <Button variant="ghost" size="icon" onClick={() => remove(v.id)}>
+                <Trash2 className="w-4 h-4 text-destructive" />
+              </Button>
+            </div>
+          )}
+        </div>
+      ))}
     </div>
   );
 }
