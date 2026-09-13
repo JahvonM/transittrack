@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import Map, { Marker, Source, Layer } from "react-map-gl";
-import { MAPBOX_TOKEN } from "@/lib/mapbox";
+import { MAPBOX_TOKEN, MAPBOX_STYLE } from "@/lib/mapbox";
 import { Button } from "@/components/ui/button";
 import { Navigation, Bus, MapPin, Flag } from "lucide-react";
 
@@ -69,7 +69,7 @@ export default function ReviewerSandbox() {
       <div className="relative flex-1">
         <Map
           mapboxAccessToken={MAPBOX_TOKEN}
-          mapStyle="mapbox://styles/mapbox/streets-v12"
+          mapStyle={MAPBOX_STYLE}
           initialViewState={{
             longitude: (PATH[0].lng + DEST.lng) / 2,
             latitude: (PATH[0].lat + DEST.lat) / 2,
@@ -106,11 +106,12 @@ export default function ReviewerSandbox() {
           )}
 
           <Marker longitude={displayPos.lng} latitude={displayPos.lat} anchor="bottom">
-            <div className="relative">
-              <div className="absolute inset-0 w-9 h-9 rounded-full bg-primary/30 animate-ping" />
-              <div className="w-9 h-9 rounded-full bg-primary border-2 border-white shadow-lg grid place-items-center">
-                <Bus className="w-5 h-5 text-primary-foreground" />
+            <div className="flex flex-col items-center relative">
+              <div className="absolute top-0 w-11 h-11 rounded-full bg-green-500/25 animate-ping" />
+              <div className="w-9 h-9 rounded-full bg-white grid place-items-center" style={{ border: "3px solid #22c55e", boxShadow: "0 2px 8px rgba(0,0,0,0.25)" }}>
+                <Bus className="w-4 h-4" style={{ color: "#22c55e" }} />
               </div>
+              <div className="w-2.5 h-2.5 -mt-[5px]" style={{ backgroundColor: "#22c55e", clipPath: "polygon(50% 100%, 0 0, 100% 0)" }} />
             </div>
           </Marker>
 
