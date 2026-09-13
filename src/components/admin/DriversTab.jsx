@@ -165,7 +165,66 @@ function EditDriverDialog({ driver, open, onOpenChange, onSaved }) {
   );
 }
 
-function DriverCard({ driver, vehicles, companies, routes, onAssign, onUnassign, onSetStatus, onSetRoute, onSaved, onRemove }) {
+function AssignedVehicleRow({ vehicle: v, routes, onUnassign, onSetStatus, onSetRoute, onSetPin }) {
+  const [pin, setPin] = useState(v.driver_pin || "");
+
+  useEffect(() => {
+    setPin(v.driver_pin || "");
+  }, [v.driver_pin]);
+
+  return (
+    <div className="p-2 rounded-lg border space-y-2 mt-2">
+      <div className="flex items-center gap-3">
+        <div className="w-8 h-8 rounded-lg bg-primary/10 grid place-items-center shrink-0">
+          {v.type === "taxi" ? <Car className="w-4 h-4" /> : <Bus className="w-4 h-4" />}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="text-sm font-medium truncate">{v.name}</div>
+          <div className="text-xs text-muted-foreground truncate">
+            {v.plate_number} · {v.company_name}
+          </div>
+        </div>
+        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onUnassign(v.id)}>
+          <X className="w-4 h-4 text-destructive" />
+        </Button>
+      </div>
+      <div className="flex flex-wrap gap-2 pl-10">
+        <Select value={v.status || "offline"} onValueChange={(s) => onSetStatus(v.id, s)}>
+          <SelectTrigger className="h-8 w-36">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {STATUSES.map((s) => (
+              <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={v.route_id || "none"} onValueChange={(r) => onSetRoute(v.id, r === "none" ? null : r)}>
+          <SelectTrigger className="h-8 w-44">
+            <SelectValue placeholder="Assign route" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">No route</SelectItem>
+            {routes.map((r) => (
+              <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Input
+          className="h-8 w-28"
+          inputMode="numeric"
+          maxLength={4}
+          value={pin}
+          placeholder="PIN"
+          onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
+          onBlur={() => { if (pin !== (v.driver_pin || "")) onSetPin(v.id, pin); }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function DriverCard({ driver, vehicles, companies, routes, onAssign, onUnassign, onSetStatus, onSetRoute, onSetPin, onSaved, onRemove }) {
   const [editOpen, setEditOpen] = useState(false);
   const assigned = vehicles.filter((v) => v.driver_email === driver.email);
   const companyName = companies.find((c) => c.id === driver.company_id)?.name;
@@ -251,48 +310,15 @@ function DriverCard({ driver, vehicles, companies, routes, onAssign, onUnassign,
             <p className="text-sm text-muted-foreground pt-2">No buses assigned yet.</p>
           )}
           {assigned.map((v) => (
-            <div key={v.id} className="p-2 rounded-lg border space-y-2 mt-2">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-primary/10 grid place-items-center shrink-0">
-                  {v.type === "taxi" ? <Car className="w-4 h-4" /> : <Bus className="w-4 h-4" />}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <div className="text-sm font-medium truncate">{v.name}</div>
-                    {v.driver_pin && <Badge variant="outline" className="text-[10px] shrink-0">PIN: {v.driver_pin}</Badge>}
-                  </div>
-                  <div className="text-xs text-muted-foreground truncate">
-                    {v.plate_number} · {v.company_name}
-                  </div>
-                </div>
-                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onUnassign(v.id)}>
-                  <X className="w-4 h-4 text-destructive" />
-                </Button>
-              </div>
-              <div className="flex flex-wrap gap-2 pl-10">
-                <Select value={v.status || "offline"} onValueChange={(s) => onSetStatus(v.id, s)}>
-                  <SelectTrigger className="h-8 w-36">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {STATUSES.map((s) => (
-                      <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select value={v.route_id || "none"} onValueChange={(r) => onSetRoute(v.id, r === "none" ? null : r)}>
-                  <SelectTrigger className="h-8 w-44">
-                    <SelectValue placeholder="Assign route" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">No route</SelectItem>
-                    {routes.map((r) => (
-                      <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+            <AssignedVehicleRow
+              key={v.id}
+              vehicle={v}
+              routes={routes}
+              onUnassign={onUnassign}
+              onSetStatus={onSetStatus}
+              onSetRoute={onSetRoute}
+              onSetPin={onSetPin}
+            />
           ))}
           {pool.length > 0 && (
             <Select onValueChange={(vid) => onAssign(driver, vid)}>
@@ -382,6 +408,7 @@ export default function DriversTab({ users, vehicles, companies, routes, onChang
             onUnassign={unassign}
             onSetStatus={setStatus}
             onSetRoute={setRoute}
+            onSetPin={setPin}
             onSaved={onChange}
             onRemove={removeDriver}
           />
