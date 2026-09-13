@@ -68,3 +68,68 @@ export async function fetchDrivingRoute(points) {
     return null;
   }
 }
+
+const MAX_MATCH_POINTS = 100; // Mapbox Map Matching API limit per request
+
+/**
+ * Snaps one chunk (<=100 points) of a raw GPS trace onto the road network via
+ * Mapbox's Map Matching API — unlike Directions (routing between waypoints
+ * you choose), this is built for "here's a noisy/sparse recorded trace, tell
+ * me the roads it actually followed", including bridging gaps (e.g. while a
+ * vehicle was offline) with the most plausible road path between the points
+ * on either side. Returns null on failure so callers can fall back to a
+ * straight line for that chunk rather than dropping it.
+ *
+ * @param {Array<{lat:number,lng:number}>} points - 2-100 points, in order
+ * @returns {Promise<number[][] | null>} matched [lng,lat] line, or null
+ */
+async function fetchMapMatchedRoute(points) {
+  const valid = (points || []).filter((p) => p && p.lat != null && p.lng != null);
+  if (valid.length < 2 || valid.length > MAX_MATCH_POINTS || !MAPBOX_TOKEN) return null;
+
+  const coordsParam = valid.map((p) => `${roundCoord(p.lng)},${roundCoord(p.lat)}`).join(";");
+  const url = `https://api.mapbox.com/matching/v5/mapbox/driving/${coordsParam}?geometries=geojson&overview=full&access_token=${MAPBOX_TOKEN}`;
+
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data.code !== "Ok") return null;
+    const matching = data.matchings && data.matchings[0];
+    return matching?.geometry?.coordinates || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Snaps a full recorded GPS trace (any length) onto the road network.
+ * Map Matching caps requests at 100 points, so this chunks the trace into
+ * <=100-point windows that overlap by one point (to stay continuous when
+ * concatenated), matches each chunk in parallel, and falls back to that
+ * chunk's own straight-line points if matching fails for it — so a bad
+ * network blip degrades one segment instead of losing the whole line.
+ *
+ * @param {Array<{lat:number,lng:number}>} points - the recorded trace, in order
+ * @returns {Promise<number[][]>} a [lng,lat][] line covering the same points
+ */
+export async function snapTrackToRoads(points) {
+  const valid = (points || []).filter((p) => p && p.lat != null && p.lng != null);
+  if (valid.length < 2) return valid.map((p) => [p.lng, p.lat]);
+
+  const chunks = [];
+  for (let i = 0; i < valid.length; i += MAX_MATCH_POINTS - 1) {
+    chunks.push(valid.slice(i, i + MAX_MATCH_POINTS));
+    if (i + MAX_MATCH_POINTS >= valid.length) break;
+  }
+
+  const results = await Promise.all(
+    chunks.map(async (chunk) => (await fetchMapMatchedRoute(chunk)) || chunk.map((p) => [p.lng, p.lat]))
+  );
+
+  const line = [];
+  results.forEach((coords, i) => {
+    line.push(...(i === 0 ? coords : coords.slice(1)));
+  });
+  return line;
+}
