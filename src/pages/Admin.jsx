@@ -115,6 +115,7 @@ export default function Admin() {
   const [routes, setRoutes] = useState([]);
   const [trips, setTrips] = useState([]);
   const [inspections, setInspections] = useState([]);
+  const [drivers, setDrivers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [moreOpen, setMoreOpen] = useState(false);
   const { location: userLoc } = useUserLocation();
@@ -122,13 +123,14 @@ export default function Admin() {
   const go = (s) => navigate("/admin/" + s);
 
   const load = async () => {
-    const [u, c, v, r, t, insp] = await Promise.all([
+    const [u, c, v, r, t, insp, dr] = await Promise.all([
       base44.entities.User.list(),
       base44.entities.Company.list(),
       base44.entities.Vehicle.list(),
       base44.entities.Route.list(),
       base44.entities.Trip.list(),
       base44.entities.Inspection.list(),
+      base44.entities.Driver.list(),
     ]);
     setUsers(u);
     setCompanies(c);
@@ -136,6 +138,7 @@ export default function Admin() {
     setRoutes(r);
     setTrips(t);
     setInspections(insp);
+    setDrivers(dr);
     setLoading(false);
   };
   useEffect(() => {
@@ -294,7 +297,7 @@ export default function Admin() {
           <ServiceQueueTab inspections={inspections} onChange={load} />
         )}
         {section === "drivers" && (
-          <DriversTab users={users} vehicles={vehicles} companies={companies} routes={routes} onChange={load} />
+          <DriversTab drivers={drivers} vehicles={vehicles} companies={companies} routes={routes} onChange={load} />
         )}
         {section === "sync" && <FleetSyncTab />}
         {section === "companies" && <CompaniesTab companies={companies} onChange={load} />}
