@@ -370,6 +370,11 @@ export default function DriversTab({ users, vehicles, companies, routes, onChang
     onChange();
   };
 
+  const setPin = async (vehicleId, pin) => {
+    await base44.entities.Vehicle.update(vehicleId, { driver_pin: pin || null });
+    onChange();
+  };
+
   const removeDriver = async (driver) => {
     try {
       const assignedVehicles = vehicles.filter((v) => v.driver_email === driver.email);
