@@ -102,7 +102,7 @@ export default function ProfileInfo({ companyName }) {
   };
 
   return (
-    <div className="p-6 rounded-[1.25rem] border border-slate-700/50 bg-slate-800/60 backdrop-blur-[12px]">
+    <div className="p-6 rounded-[1.25rem] border border-border bg-card backdrop-blur-[12px]">
       <div className="flex items-center gap-4">
         <div className="relative shrink-0">
           {photoUrl ? (
@@ -184,7 +184,7 @@ export default function ProfileInfo({ companyName }) {
         )}
       </div>
 
-      <div className="mt-6 pt-5 border-t border-slate-700/50">
+      <div className="mt-6 pt-5 border-t border-border">
         <AlertDialog>
           <AlertDialogTrigger asChild>
             <Button variant="destructive" size="sm" className="w-full sm:w-auto">
