@@ -373,12 +373,14 @@ export default function MapboxMap({
         {isFullscreen ? <Minimize2 className="w-5 h-5 text-primary" /> : <Maximize2 className="w-5 h-5 text-primary" />}
       </button>
 
-      {/* Recenter on my location */}
+      {/* Recenter on my location — pulses when follow mode has been dragged off (followUser only) */}
       <button
         type="button"
         onClick={recenter}
-        className="absolute left-3 bottom-3 z-10 w-10 h-10 rounded-full bg-background/90 border border-border shadow-md grid place-items-center hover:bg-accent transition-colors"
-        title="Recenter on my location"
+        className={`absolute left-3 bottom-3 z-10 w-10 h-10 rounded-full border shadow-md grid place-items-center transition-colors ${
+          followUser && !isFollowing ? "bg-primary border-primary animate-pulse" : "bg-background/90 border-border hover:bg-accent"
+        }`}
+        title={followUser && !isFollowing ? "Tap to re-center and follow" : "Recenter on my location"}
       >
         <LocateFixed className="w-5 h-5 text-primary" />
       </button>
