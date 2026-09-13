@@ -19,14 +19,15 @@ export { statusColor };
 const VEHICLE_ICON = (type) =>
   type === "taxi" ? "🚕" : "🚌";
 
-// Hides busy default-style clutter (POI icons, transit icons, small road labels)
-// so the map reads cleaner — the routes/vehicles/stops stay the focus.
+// Hides busy default-style clutter (POI icons, transit icons) so the map reads
+// cleaner — road labels stay on, since without them the basemap goes blank
+// and unreadable wherever there's no live vehicle/stop data yet.
 function declutterStyle(map) {
   const style = map.getStyle();
   if (!style || !style.layers) return;
   style.layers.forEach((layer) => {
     const id = layer.id || "";
-    if (id.includes("poi") || id.includes("transit") || id.includes("road-label")) {
+    if (id.includes("poi") || id.includes("transit")) {
       try { map.setLayoutProperty(id, "visibility", "none"); } catch { /* some layers can't be toggled */ }
     }
   });
