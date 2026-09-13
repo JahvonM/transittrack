@@ -75,15 +75,20 @@ const MAX_MATCH_POINTS = 100; // Mapbox Map Matching API limit per request
  * Snaps one chunk (<=100 points) of a raw GPS trace onto the road network via
  * Mapbox's Map Matching API — unlike Directions (routing between waypoints
  * you choose), this is built for "here's a noisy/sparse recorded trace, tell
- * me the roads it actually followed", including bridging gaps (e.g. while a
- * vehicle was offline) with the most plausible road path between the points
- * on either side. Returns null on failure so callers can fall back to a
- * straight line for that chunk rather than dropping it.
+ * me the roads it actually followed". Returns an array of segments rather
+ * than one flat line: whenever the trace has a real break (e.g. the vehicle
+ * went offline for a while), Mapbox doesn't bridge it silently — it splits
+ * the response into multiple separate `matchings`, one per contiguous
+ * stretch it could confidently match. Keeping only matchings[0] (an earlier
+ * version of this did) silently threw away every stretch after the first
+ * break, which is exactly why the drawn line had chunks missing. Returns
+ * null on total failure so the caller can fall back to a straight line for
+ * this chunk rather than dropping it.
  *
  * @param {Array<{lat:number,lng:number}>} points - 2-100 points, in order
- * @returns {Promise<number[][] | null>} matched [lng,lat] line, or null
+ * @returns {Promise<number[][][] | null>} matched segments, each a [lng,lat][] line
  */
-async function fetchMapMatchedRoute(points) {
+async function fetchMapMatchedSegments(points) {
   const valid = (points || []).filter((p) => p && p.lat != null && p.lng != null);
   if (valid.length < 2 || valid.length > MAX_MATCH_POINTS || !MAPBOX_TOKEN) return null;
 
@@ -94,21 +99,29 @@ async function fetchMapMatchedRoute(points) {
     const res = await fetch(url);
     if (!res.ok) return null;
     const data = await res.json();
-    if (data.code !== "Ok") return null;
-    const matching = data.matchings && data.matchings[0];
-    return matching?.geometry?.coordinates || null;
+    if (data.code !== "Ok" || !data.matchings?.length) return null;
+    const segments = data.matchings.map((m) => m.geometry?.coordinates || []).filter((c) => c.length > 0);
+    return segments.length ? segments : null;
   } catch {
     return null;
   }
 }
 
+// Below this distance apart, two segment endpoints are treated as the same
+// point (snapping/rounding jitter) and joined directly with no bridge call.
+const BRIDGE_THRESHOLD_KM = 0.03;
+
 /**
  * Snaps a full recorded GPS trace (any length) onto the road network.
  * Map Matching caps requests at 100 points, so this chunks the trace into
- * <=100-point windows that overlap by one point (to stay continuous when
- * concatenated), matches each chunk in parallel, and falls back to that
- * chunk's own straight-line points if matching fails for it — so a bad
- * network blip degrades one segment instead of losing the whole line.
+ * <=100-point windows that overlap by one point, matches each chunk in
+ * parallel (falling back to that chunk's own straight-line points if
+ * matching fails for it), and then stitches every resulting segment into
+ * one continuous line — bridging any real break (a matching split, or a
+ * chunk boundary that didn't quite line up) with an actual driving route
+ * between the two points on either side, rather than leaving a gap or
+ * silently dropping that stretch. Falls back to a plain straight connector
+ * if even the bridge route can't be found.
  *
  * @param {Array<{lat:number,lng:number}>} points - the recorded trace, in order
  * @returns {Promise<number[][]>} a [lng,lat][] line covering the same points
@@ -123,13 +136,26 @@ export async function snapTrackToRoads(points) {
     if (i + MAX_MATCH_POINTS >= valid.length) break;
   }
 
-  const results = await Promise.all(
-    chunks.map(async (chunk) => (await fetchMapMatchedRoute(chunk)) || chunk.map((p) => [p.lng, p.lat]))
+  const chunkResults = await Promise.all(
+    chunks.map(async (chunk) => (await fetchMapMatchedSegments(chunk)) || [chunk.map((p) => [p.lng, p.lat])])
   );
+  const segments = chunkResults.flat().filter((seg) => seg.length > 0);
+  if (!segments.length) return [];
 
-  const line = [];
-  results.forEach((coords, i) => {
-    line.push(...(i === 0 ? coords : coords.slice(1)));
-  });
+  const line = [...segments[0]];
+  for (let i = 1; i < segments.length; i++) {
+    const seg = segments[i];
+    const prevEnd = line[line.length - 1];
+    const nextStart = seg[0];
+    const gapKm = haversineKm(prevEnd[1], prevEnd[0], nextStart[1], nextStart[0]);
+    if (gapKm > BRIDGE_THRESHOLD_KM) {
+      const bridge = await fetchDrivingRoute([
+        { lat: prevEnd[1], lng: prevEnd[0] },
+        { lat: nextStart[1], lng: nextStart[0] },
+      ]);
+      if (bridge?.geometry?.length) line.push(...bridge.geometry);
+    }
+    line.push(...seg);
+  }
   return line;
 }
