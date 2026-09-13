@@ -1,7 +1,10 @@
 export const MAPBOX_TOKEN =
   "pk.eyJ1IjoiZG9udGUxMjMiLCJhIjoiY210cDR4eGV5MDJvcjJ5b25nMGw4ZjlvdyJ9.f3EfmLY4lHy6IrtERYvD7A";
 
-export const MAPBOX_STYLE = "mapbox://styles/mapbox/streets-v12";
+// Light, minimal base map — clean cream/white land, muted roads, soft green
+// parks — closer to the friendly, low-clutter look of consumer location apps
+// like Life360, rather than the busier default "streets" style.
+export const MAPBOX_STYLE = "mapbox://styles/mapbox/light-v11";
 
 // Thresholds (metres / km / kmh)
 export const PROXIMITY_TRIGGER_M = 500;
