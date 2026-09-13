@@ -33,7 +33,6 @@
     "name"
   ],
   "rls": {
-    "read": {},
     "create": {
       "$or": [
         {
@@ -46,13 +45,14 @@
         }
       ]
     },
+    "read": null,
     "update": {
       "$or": [
         {
           "created_by_id": "{{user.id}}"
         },
         {
-          "id": "{{user.company_id}}"
+          "id": "{{user.data.company_id}}"
         },
         {
           "user_condition": {
