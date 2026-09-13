@@ -382,7 +382,7 @@ export default function MapboxMap({
         }`}
         title={followUser && !isFollowing ? "Tap to re-center and follow" : "Recenter on my location"}
       >
-        <LocateFixed className="w-5 h-5 text-primary" />
+        <LocateFixed className={`w-5 h-5 ${followUser && !isFollowing ? "text-primary-foreground" : "text-primary"}`} />
       </button>
     </>
   );
