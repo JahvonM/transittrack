@@ -13,7 +13,7 @@ import DriverMessageAlert from "@/components/driver/DriverMessageAlert";
 import DriverDevicePanel from "@/components/driver/DriverDevicePanel";
 import SafetyStandardsContent from "@/components/SafetyStandardsContent";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertCircle, AlertTriangle, ShieldCheck } from "lucide-react";
+import { AlertCircle, AlertTriangle, ArrowLeft, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -108,6 +108,16 @@ export default function DriverApp() {
   const isMorning = new Date().getHours() >= 4 && new Date().getHours() < 11;
   const stage = urlStage || "pin";
 
+  // Visible back control for iOS WebViews, where a swipe-back gesture isn't
+  // reliably available: from the inspection screen or any tab other than
+  // "track" go to the natural previous stage, otherwise fall back to the
+  // "/driver" root.
+  const goBack = () => {
+    if (stage === "inspection") { navigate("/driver"); return; }
+    if (activeTab !== "track") { goStage("track"); return; }
+    navigate("/driver");
+  };
+
   const handlePaired = (id) => { localStorage.setItem("tt_driver_device_id", id); setDeviceId(id); };
   const handleUnpair = () => { localStorage.removeItem("tt_driver_device_id"); localStorage.removeItem("tt_driver_unlock_date"); setDeviceId(null); setUnlocked(false); navigate("/driver"); };
 
@@ -173,6 +183,15 @@ export default function DriverApp() {
     return (
       <div className="min-h-screen p-4 safe-area-top safe-area-x">
         <div className="space-y-4 max-w-3xl mx-auto">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="min-w-[44px] min-h-[44px] -ml-2"
+            onClick={goBack}
+            aria-label="Back"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </Button>
           <DriverGreeting driverName={driverName} subtitle={vehicle.name} />
           <PreTripInspection vehicle={vehicle} invoke={invoke} driverName={driverName} onCompleted={() => goStage("track")} />
         </div>
@@ -183,6 +202,15 @@ export default function DriverApp() {
   return (
     <div className="min-h-screen p-4 safe-area-top safe-area-x">
       <div className="space-y-4 max-w-3xl mx-auto">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="min-w-[44px] min-h-[44px] -ml-2"
+          onClick={goBack}
+          aria-label="Back"
+        >
+          <ArrowLeft className="w-5 h-5" />
+        </Button>
         <DriverGreeting driverName={driverName} subtitle={vehicle.name} />
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v)} className="w-full">
           <TabsList className="grid w-full grid-cols-5">
