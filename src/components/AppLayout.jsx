@@ -14,11 +14,11 @@ export default function AppLayout({ children, title }) {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-40 border-b border-slate-700/50 bg-background/80 backdrop-blur-[12px] safe-area-top">
+      <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-[12px] safe-area-top">
         <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between safe-area-x">
           <div className="flex items-center gap-1">
             {!hideBack && (
-              <Button variant="ghost" size="icon" className="text-slate-300 hover:text-slate-50" onClick={() => navigate(-1)} aria-label="Go back">
+              <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground" onClick={() => navigate(-1)} aria-label="Go back">
                 <ArrowLeft className="w-5 h-5" />
               </Button>
             )}
@@ -33,7 +33,7 @@ export default function AppLayout({ children, title }) {
                 {user.full_name || user.email}
               </span>
             )}
-            <Button asChild variant="ghost" size="sm" className="text-slate-300 hover:text-slate-50">
+            <Button asChild variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
               <Link to="/account">
                 <User className="w-4 h-4" />
                 <span className="hidden sm:inline ml-1.5">My account</span>
@@ -46,7 +46,7 @@ export default function AppLayout({ children, title }) {
           </div>
         </div>
       </header>
-      <main className="max-w-7xl mx-auto px-4 py-6 safe-area-bottom">
+      <main className="max-w-7xl mx-auto px-4 py-6 pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-6 safe-area-bottom">
         {title && <h1 className="text-2xl font-heading font-semibold mb-4">{title}</h1>}
         {children}
       </main>
