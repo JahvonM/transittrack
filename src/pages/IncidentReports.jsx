@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import AppLayout from "@/components/AppLayout";
+import PullToRefresh from "@/components/PullToRefresh";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -32,6 +33,7 @@ export default function IncidentReports() {
 
   return (
     <AppLayout title="Incident reports">
+      <PullToRefresh onRefresh={load}>
       {loading ? <p className="text-muted-foreground">Loading…</p> : items.length === 0 ? (
         <Card><CardContent className="py-10 text-center text-muted-foreground">No incidents logged.</CardContent></Card>
       ) : (
@@ -55,6 +57,7 @@ export default function IncidentReports() {
           ))}
         </div>
       )}
+      </PullToRefresh>
     </AppLayout>
   );
 }
