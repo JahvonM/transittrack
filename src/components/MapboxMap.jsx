@@ -288,13 +288,13 @@ export default function MapboxMap({
             </div>
             <div className="p-3 pt-2 space-y-2">
               <div className="flex items-center gap-2">
-                <Badge variant="secondary" className="text-[10px] gap-1">
+                <Badge variant="secondary" className="text-sm gap-1">
                   <span className="inline-block w-1.5 h-1.5 rounded-full" style={{ backgroundColor: statusColor(selectedVehicle.status) }} />
                   {selectedVehicle.status}
                 </Badge>
-                <span className="text-[10px] text-muted-foreground">{VEHICLE_ICON(selectedVehicle.type)} {selectedVehicle.type}</span>
+                <span className="text-sm text-muted-foreground">{VEHICLE_ICON(selectedVehicle.type)} {selectedVehicle.type}</span>
               </div>
-              <div className="grid grid-cols-2 gap-1.5 text-[11px]">
+              <div className="grid grid-cols-2 gap-1.5 text-sm">
                 <div>
                   <div className="text-muted-foreground">Plate</div>
                   <div className="font-medium">{selectedVehicle.plate_number || "—"}</div>
