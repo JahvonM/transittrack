@@ -42,7 +42,8 @@ export default function CompanyDashboard() {
       base44.entities.Route.list(),
       base44.entities.Trip.list(),
     ]);
-    const mine = cos.find((c) => c.created_by_id === user.id);
+    const mine = (user.company_id && cos.find((c) => c.id === user.company_id))
+      || cos.find((c) => c.created_by_id === user.id);
     setCompany(mine || null);
     setVehicles(ve.filter((v) => v.company_id === mine?.id));
     setRoutes(ro.filter((r) => r.company_id === mine?.id));
