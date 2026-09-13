@@ -187,75 +187,87 @@ export default function Admin() {
                 <div className="text-xs text-muted-foreground">Companies</div>
               </button>
             </div>
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <ExternalLink className="w-4 h-4" /> Test as another role
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground mb-3">
-                  Admins can open any role's view to test the experience end-to-end.
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {ROLE_LINKS.map((r) => {
-                    const Icon = r.icon;
-                    return (
-                      <Button asChild key={r.to} variant="outline" size="sm">
-                        <Link to={r.to}>
-                          <Icon className="w-4 h-4 mr-1.5" />
-                          {r.label}
-                        </Link>
-                      </Button>
-                    );
-                  })}
-                  </div>
-                  </CardContent>
-                  </Card>
-                  <Card>
+            <Collapsible open={moreOpen} onOpenChange={setMoreOpen}>
+              <CollapsibleTrigger asChild>
+                <Button variant="outline" className="w-full justify-between">
+                  <span className="flex items-center gap-2">
+                    <Wrench className="w-4 h-4" /> More tools & shortcuts
+                  </span>
+                  <ChevronDown className={`w-4 h-4 transition-transform ${moreOpen ? "rotate-180" : ""}`} />
+                </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="space-y-4 pt-4">
+                <Card>
                   <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-base">
-                  <Link2 className="w-4 h-4" /> Portals & kiosks
-                  </CardTitle>
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <ExternalLink className="w-4 h-4" /> Test as another role
+                    </CardTitle>
                   </CardHeader>
                   <CardContent>
-                  <div className="flex flex-wrap gap-2">
-                  {PORTAL_LINKS.map((r) => {
-                    const Icon = r.icon;
-                    return (
-                      <Button asChild key={r.to} variant="outline" size="sm">
-                        <Link to={r.to}>
-                          <Icon className="w-4 h-4 mr-1.5" />
-                          {r.label}
-                        </Link>
-                      </Button>
-                    );
-                  })}
-                  </div>
+                    <p className="text-sm text-muted-foreground mb-3">
+                      Admins can open any role's view to test the experience end-to-end.
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {ROLE_LINKS.map((r) => {
+                        const Icon = r.icon;
+                        return (
+                          <Button asChild key={r.to} variant="outline" size="sm">
+                            <Link to={r.to}>
+                              <Icon className="w-4 h-4 mr-1.5" />
+                              {r.label}
+                            </Link>
+                          </Button>
+                        );
+                      })}
+                    </div>
                   </CardContent>
-                  </Card>
-                  <Card>
+                </Card>
+                <Card>
                   <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-base">
-                  <Wrench className="w-4 h-4" /> Management tools
-                  </CardTitle>
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <Link2 className="w-4 h-4" /> Portals & kiosks
+                    </CardTitle>
                   </CardHeader>
                   <CardContent>
-                  <div className="flex flex-wrap gap-2">
-                  {MGMT_LINKS.map((r) => {
-                    const Icon = r.icon;
-                    return (
-                      <Button asChild key={r.to} variant="outline" size="sm">
-                        <Link to={r.to}>
-                          <Icon className="w-4 h-4 mr-1.5" />
-                          {r.label}
-                        </Link>
-                      </Button>
-                    );
-                  })}
-                  </div>
+                    <div className="flex flex-wrap gap-2">
+                      {PORTAL_LINKS.map((r) => {
+                        const Icon = r.icon;
+                        return (
+                          <Button asChild key={r.to} variant="outline" size="sm">
+                            <Link to={r.to}>
+                              <Icon className="w-4 h-4 mr-1.5" />
+                              {r.label}
+                            </Link>
+                          </Button>
+                        );
+                      })}
+                    </div>
                   </CardContent>
-                  </Card>
+                </Card>
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <Wrench className="w-4 h-4" /> Management tools
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex flex-wrap gap-2">
+                      {MGMT_LINKS.map((r) => {
+                        const Icon = r.icon;
+                        return (
+                          <Button asChild key={r.to} variant="outline" size="sm">
+                            <Link to={r.to}>
+                              <Icon className="w-4 h-4 mr-1.5" />
+                              {r.label}
+                            </Link>
+                          </Button>
+                        );
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
+              </CollapsibleContent>
+            </Collapsible>
           </div>
         )}
 
