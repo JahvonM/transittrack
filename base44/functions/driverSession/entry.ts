@@ -162,12 +162,17 @@ export default async function(req) {
           const prevKmh = prevSpeed * 3.6;
           const newKmh = newSpeed * 3.6;
           // "Possible crash": was moving at a meaningful clip and is now essentially
-          // stopped, AND the deceleration itself was severe (well beyond a normal
-          // hard brake) within a short window. Checking only the speed drop (the
-          // old condition) also matched completely ordinary braking for a red
-          // light or stop sign spread across one ~8-15s GPS interval, which is
-          // why this was firing SOS on totally normal stops.
-          if (prevKmh >= 40 && newKmh <= 5 && dtSec <= 6 && deltaMs2 <= -CRASH_DECEL_MS2) {
+          // stopped. NOTE: at this ~8s GPS ping rate we cannot reliably tell a real
+          // collision from completely normal braking for a red light or stop sign—
+          // any real impact happens in under a second, then the vehicle sits still
+          // for the rest of the reporting window, so the *averaged* deceleration
+          // looks the same either way. That averaging is exactly why this used to
+          // auto-declare a vehicle-wide emergency (full-screen admin alert, WhatsApp
+          // to the boss) on totally ordinary stops. It's still logged below as a
+          // driving event + incident for review, but it no longer escalates to
+          // 'emergency' on its own — only the driver's own SOS button (or admin
+          // reviewing the incident) can do that now.
+          if (prevKmh >= 40 && newKmh <= 5 && dtSec <= 15) {
             drivingEvent = 'crash';
           } else if (deltaMs2 <= -HARD_BRAKE_MS2) {
             drivingEvent = 'hard_brake';
@@ -175,8 +180,6 @@ export default async function(req) {
             drivingEvent = 'rapid_accel';
           }
         }
-        if (drivingEvent === 'crash') update.status = 'emergency';
-
         // --- Place alerts: geofence arrival/departure at the vehicle's route stops ---
         if (vehicle.route_id) {
           let route = null;
@@ -243,7 +246,7 @@ export default async function(req) {
             await base44.asServiceRole.entities.Incident.create({
               vehicle_id: vehicleId, vehicle_name: vehicle.name, company_id: companyId, company_name: companyName,
               driver_name: vehicle.driver_name || '', driver_email: vehicle.driver_email || '',
-              type: 'emergency', details: `Possible crash detected — sudden stop from ${Math.round((prevSpeed || 0) * 3.6)} km/h.`, occurred_at: now.toISOString(),
+              type: 'other', details: `Possible hard stop detected (auto, unconfirmed) — sudden speed drop from ${Math.round((prevSpeed || 0) * 3.6)} km/h. Not auto-escalated to SOS; review and use the SOS/incident tools if this needs a real response.`, occurred_at: now.toISOString(),
             }).catch(() => {});
           }
         }
