@@ -7,6 +7,7 @@ import MapboxMap from "@/components/MapboxMap";
 import CodeGate from "@/components/CodeGate";
 import ProfileInfo from "@/components/ProfileInfo";
 import StaffAlerts from "@/components/StaffAlerts";
+import StaffGroupChat from "@/components/staff/StaffGroupChat";
 import LocationPinner from "@/components/staff/LocationPinner";
 import useUserLocation from "@/hooks/useUserLocation";
 import StaffToggles from "@/components/staff/StaffToggles";
@@ -199,6 +200,16 @@ export default function StaffPortal() {
   const approachingDest = stop ? { lat: stop.lat, lng: stop.lng } : null;
   const approachingDriving = useDrivingEta(approachingOrigin, approachingDest, approaching?.v?.speed || 25);
 
+  // "My bus" for group chat: prefer the vehicle actually assigned to the
+  // route that owns this stop, falling back to whichever tracked vehicle is
+  // currently closest to it (same candidate the ETA card above uses).
+  const myVehicle = useMemo(() => {
+    if (!stop) return approaching?.v || null;
+    const matchedRoute = routes.find((r) => (r.stops || []).some((s) => s.name === stop.name));
+    const onRoute = matchedRoute ? vehicles.find((v) => v.route_id === matchedRoute.id) : null;
+    return onRoute || approaching?.v || null;
+  }, [stop, routes, vehicles, approaching]);
+
   const onTheWayTrip = useMemo(
     () => trips.find((t) => t.pickup_name === pickupName && t.status === "on_the_way") || null,
     [trips, pickupName]
@@ -305,6 +316,8 @@ export default function StaffPortal() {
             </CardContent>
           </Card>
         )}
+
+        {stop && <StaffGroupChat vehicle={myVehicle} />}
 
         {pickupName && (
           <div>
