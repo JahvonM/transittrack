@@ -14,7 +14,7 @@ import DriverMessageAlert from "@/components/driver/DriverMessageAlert";
 import DriverDevicePanel from "@/components/driver/DriverDevicePanel";
 import SafetyStandardsContent from "@/components/SafetyStandardsContent";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertCircle, AlertTriangle, ArrowLeft, ShieldCheck } from "lucide-react";
+import { AlertCircle, AlertTriangle, ArrowLeft, Inbox, MessageCircle, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -217,8 +217,14 @@ export default function DriverApp() {
           <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="track">Track</TabsTrigger>
             <TabsTrigger value="navigate">Navigate</TabsTrigger>
-            <TabsTrigger value="messages">Messages</TabsTrigger>
-            <TabsTrigger value="chat">Chat</TabsTrigger>
+            <TabsTrigger value="messages">
+              <Inbox className="w-4 h-4 sm:hidden" />
+              <span className="hidden sm:inline">Messages</span>
+            </TabsTrigger>
+            <TabsTrigger value="chat">
+              <MessageCircle className="w-4 h-4 sm:hidden" />
+              <span className="hidden sm:inline">Chat</span>
+            </TabsTrigger>
             <TabsTrigger value="safety">
               <ShieldCheck className="w-4 h-4 sm:hidden" />
               <span className="hidden sm:inline">Safety</span>
