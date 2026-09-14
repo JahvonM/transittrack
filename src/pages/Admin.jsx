@@ -191,6 +191,15 @@ export default function Admin() {
     });
   };
 
+  // Actually clears the emergency (the driver's own GPS heartbeat no longer
+  // will — it now preserves 'emergency' status until this happens). Separate
+  // from Acknowledge, which only dismisses the takeover without resolving it.
+  const resolveAll = async () => {
+    await Promise.all(unacknowledged.map((v) => base44.entities.Vehicle.update(v.id, { status: "on_trip" })));
+    setVehicles((prev) => prev.map((v) => (unacknowledged.some((u) => u.id === v.id) ? { ...v, status: "on_trip" } : v)));
+    acknowledgeAll();
+  };
+
   const emergencyOverlay = unacknowledged.length > 0 && (
     <div className="fixed inset-0 z-[999] bg-destructive text-destructive-foreground flex flex-col items-center justify-center p-6 text-center">
       <Siren className="w-20 h-20 mb-4 animate-pulse" />
@@ -202,14 +211,27 @@ export default function Admin() {
           </div>
         ))}
       </div>
-      <Button
-        size="lg"
-        variant="secondary"
-        className="h-14 px-10 text-lg font-semibold"
-        onClick={acknowledgeAll}
-      >
-        Acknowledge
-      </Button>
+      <div className="flex flex-wrap items-center justify-center gap-3">
+        <Button
+          size="lg"
+          variant="secondary"
+          className="h-14 px-10 text-lg font-semibold"
+          onClick={acknowledgeAll}
+        >
+          Acknowledge
+        </Button>
+        <Button
+          size="lg"
+          variant="outline"
+          className="h-14 px-10 text-lg font-semibold bg-transparent border-destructive-foreground/40 text-destructive-foreground hover:bg-destructive-foreground/10"
+          onClick={resolveAll}
+        >
+          Mark resolved
+        </Button>
+      </div>
+      <p className="text-sm text-destructive-foreground/80 mt-4 max-w-sm">
+        Acknowledge just clears this screen — the alert can return. Mark resolved once the situation is actually handled.
+      </p>
     </div>
   );
 
