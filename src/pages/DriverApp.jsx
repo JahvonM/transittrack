@@ -9,6 +9,7 @@ import PreTripInspection from "@/components/driver/PreTripInspection";
 import DriverTrackingDashboard from "@/components/driver/DriverTrackingDashboard";
 import DriverNavMap from "@/components/driver/DriverNavMap";
 import DriverMessages from "@/components/DriverMessages";
+import DriverGroupChat from "@/components/driver/DriverGroupChat";
 import DriverMessageAlert from "@/components/driver/DriverMessageAlert";
 import DriverDevicePanel from "@/components/driver/DriverDevicePanel";
 import SafetyStandardsContent from "@/components/SafetyStandardsContent";
@@ -21,7 +22,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/components/ui/use-toast";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
-const TRACKING_TABS = ["track", "navigate", "messages", "safety", "profile"];
+const TRACKING_TABS = ["track", "navigate", "messages", "chat", "safety", "profile"];
 
 export default function DriverApp() {
   const navigate = useNavigate();
@@ -213,10 +214,11 @@ export default function DriverApp() {
         </Button>
         <DriverGreeting driverName={driverName} subtitle={vehicle.name} />
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v)} className="w-full">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="track">Track</TabsTrigger>
             <TabsTrigger value="navigate">Navigate</TabsTrigger>
             <TabsTrigger value="messages">Messages</TabsTrigger>
+            <TabsTrigger value="chat">Chat</TabsTrigger>
             <TabsTrigger value="safety">
               <ShieldCheck className="w-4 h-4 sm:hidden" />
               <span className="hidden sm:inline">Safety</span>
@@ -246,6 +248,9 @@ export default function DriverApp() {
           </TabsContent>
           <TabsContent value="messages" className="mt-4">
             <DriverMessages session={session} invoke={invoke} />
+          </TabsContent>
+          <TabsContent value="chat" className="mt-4">
+            <DriverGroupChat session={session} invoke={invoke} />
           </TabsContent>
           <TabsContent value="safety" className="mt-4">
             <SafetyStandardsContent />
