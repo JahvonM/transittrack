@@ -11,7 +11,7 @@ export const PROXIMITY_TRIGGER_M = 500;
 export const ATTENDANCE_TRIGGER_M = 1500; // ~15 min walk / close proximity
 export const SPEEDING_THRESHOLD_KMH = 100;
 export const TRAIL_MAX = 60;
-export const GPS_INTERVAL_MS = 8000;
+export const GPS_INTERVAL_MS = 5000;
 
 // Normalise a phone number for wa.me (strip non-digits, ensure no leading +)
 export function waNumber(phone) {
