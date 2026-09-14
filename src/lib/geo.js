@@ -69,6 +69,45 @@ export async function fetchDrivingRoute(points) {
   }
 }
 
+/**
+ * Fetches a driving route between two points WITH turn-by-turn maneuver
+ * steps, for in-app navigation guidance (as opposed to fetchDrivingRoute,
+ * which only returns the line geometry for drawing/ETA purposes).
+ *
+ * @param {{lat:number,lng:number}} origin
+ * @param {{lat:number,lng:number}} destination
+ * @returns {Promise<{distanceKm:number, durationMin:number, geometry:number[][], steps:Array} | null>}
+ */
+export async function fetchTurnByTurnRoute(origin, destination) {
+  if (!origin?.lat || !destination?.lat || !MAPBOX_TOKEN) return null;
+  const coordsParam = `${roundCoord(origin.lng)},${roundCoord(origin.lat)};${roundCoord(destination.lng)},${roundCoord(destination.lat)}`;
+  const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${coordsParam}?geometries=geojson&overview=full&steps=true&access_token=${MAPBOX_TOKEN}`;
+
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const data = await res.json();
+    const route = data.routes && data.routes[0];
+    if (!route) return null;
+    const steps = (route.legs?.[0]?.steps || []).map((s) => ({
+      instruction: s.maneuver?.instruction || "Continue straight",
+      type: s.maneuver?.type || "turn",
+      modifier: s.maneuver?.modifier || "straight",
+      distanceM: s.distance || 0,
+      location: s.maneuver?.location || null, // [lng, lat]
+      streetName: s.name || "",
+    }));
+    return {
+      distanceKm: route.distance / 1000,
+      durationMin: route.duration / 60,
+      geometry: route.geometry?.coordinates || [],
+      steps,
+    };
+  } catch {
+    return null;
+  }
+}
+
 const MAX_MATCH_POINTS = 100; // Mapbox Map Matching API limit per request
 
 /**
