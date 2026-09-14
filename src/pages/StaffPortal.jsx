@@ -333,7 +333,21 @@ export default function StaffPortal() {
           </Card>
         )}
 
-        {stop && <StaffGroupChat vehicle={myVehicle} />}
+        {stop && (
+          <div className="space-y-2">
+            <StaffGroupChat vehicle={myVehicle} />
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <span>Wrong bus?</span>
+              <MobileSelect
+                value={chosenVehicleId}
+                onValueChange={chooseVehicle}
+                placeholder="Auto-detected"
+                options={[{ value: "", label: "Auto-detect" }, ...vehicles.map((v) => ({ value: v.id, label: v.name }))]}
+                triggerClassName="h-8 text-xs w-auto"
+              />
+            </div>
+          </div>
+        )}
 
         {pickupName && (
           <div>
