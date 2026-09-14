@@ -173,8 +173,12 @@ export default function StaffPortal() {
 
   const stop = pickupOptions.find((s) => s.name === pickupName) || null;
 
+  // SOS is admin/management-only — never surface the "emergency" status to
+  // staff/passengers here (it drives the map pin color and its tooltip text).
   const locatedVehicles = useMemo(
-    () => vehicles.filter((v) => v.current_lat != null),
+    () => vehicles
+      .filter((v) => v.current_lat != null)
+      .map((v) => (v.status === "emergency" ? { ...v, status: "on_trip" } : v)),
     [vehicles]
   );
 
