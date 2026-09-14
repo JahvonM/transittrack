@@ -21,7 +21,7 @@ export default function VehicleMarker({ vehicle, onSelect }) {
   return (
     <Marker longitude={pos.lng} latitude={pos.lat} anchor="bottom">
       <button
-        onClick={() => onSelect(vehicle)}
+        onClick={(e) => { e.stopPropagation(); onSelect(vehicle); }}
         className="flex flex-col items-center focus:outline-none"
         title={`${vehicle.name} · ${vehicle.company_name || ""} · ${vehicle.status}`}
       >
