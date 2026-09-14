@@ -7,9 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import FleetMap from "@/components/manager/FleetMap";
 import RouteReplay from "@/components/manager/RouteReplay";
 import FleetAnalytics from "@/components/manager/FleetAnalytics";
-import { waLink } from "@/lib/mapbox";
-import { Megaphone } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import DelayBroadcast from "@/components/manager/DelayBroadcast";
 
 export default function ManagerDashboard() {
   const { user } = useAuth();
@@ -45,11 +43,6 @@ export default function ManagerDashboard() {
       </AppLayout>
     );
 
-  const broadcastLink = waLink(
-    null,
-    "🚌 Staff Bus Update: There is a delay with today's service. We apologise for the inconvenience and will update shortly."
-  );
-
   return (
     <AppLayout title="Fleet Manager">
       <div className="max-w-4xl space-y-4">
@@ -58,11 +51,7 @@ export default function ManagerDashboard() {
             <h2 className="text-lg font-semibold">Fleet Overview</h2>
             <p className="text-sm text-muted-foreground">{vehicles.length} vehicles · {vehicles.filter(v => v.status !== "offline").length} live</p>
           </div>
-          <Button asChild variant="outline">
-            <a href={broadcastLink} target="_blank" rel="noopener noreferrer">
-              <Megaphone className="w-4 h-4 mr-2" /> Broadcast group delay
-            </a>
-          </Button>
+          <DelayBroadcast />
         </div>
 
         <Tabs value={tab} onValueChange={(v) => navigate("/manager/" + v)} className="grid md:grid-cols-[200px_1fr] gap-4 items-start">
