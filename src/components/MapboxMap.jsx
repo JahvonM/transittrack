@@ -131,7 +131,13 @@ export default function MapboxMap({
   const followEngagedRef = useRef(false);
   useEffect(() => {
     const map = mapRef.current;
-    if (!followUser || !map || !currentUserLocation || !following.current) return;
+    // Wait for the map to actually finish loading before issuing the first
+    // flyTo. Without this, an early flyTo call (before mapbox-gl finishes
+    // applying its own initialViewState) could get silently clobbered by
+    // that internal setup running afterward — which looked exactly like
+    // "auto-recenter doesn't work on open": the effect fired, but the map
+    // settled back on its default startup view a moment later anyway.
+    if (!mapLoaded || !followUser || !map || !currentUserLocation || !following.current) return;
     if (!followEngagedRef.current) {
       followEngagedRef.current = true;
       map.flyTo({ center: [currentUserLocation.lng, currentUserLocation.lat], zoom: Math.max(map.getZoom(), 15), duration: 600 });
@@ -139,7 +145,7 @@ export default function MapboxMap({
       map.easeTo({ center: [currentUserLocation.lng, currentUserLocation.lat], duration: 900 });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [followUser, currentUserLocation?.lat, currentUserLocation?.lng]);
+  }, [mapLoaded, followUser, currentUserLocation?.lat, currentUserLocation?.lng]);
 
   // Recenter on the user's live location — always (re-)engages follow and
   // flies back, whether following was already on or dragging turned it off.
