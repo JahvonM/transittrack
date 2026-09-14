@@ -144,7 +144,13 @@ export default async function(req) {
         const prevTime = vehicle.last_location_update ? new Date(vehicle.last_location_update).getTime() : null;
         const dtSec = prevTime ? (now.getTime() - prevTime) / 1000 : null;
 
-        const update = { current_lat: lat, current_lng: lng, speed: newSpeed, status: status || 'on_trip', last_location_update: now.toISOString() };
+        // Once a vehicle is in 'emergency' (SOS), the driver's own routine
+        // location heartbeat must NOT silently clear it back to 'on_trip' —
+        // that was the bug making the admin SOS alert vanish a few seconds
+        // after firing. Emergency can only be cleared by an explicit admin
+        // action (Vehicle.update from the dashboard), never by a heartbeat.
+        const routineStatus = status || 'on_trip';
+        const update = { current_lat: lat, current_lng: lng, speed: newSpeed, status: vehicle.status === 'emergency' ? 'emergency' : routineStatus, last_location_update: now.toISOString() };
         if (trail) update.trail = trail;
 
         // --- Driving-event detection: hard braking / rapid acceleration / possible crash ---
