@@ -141,18 +141,15 @@ export default function MapboxMap({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [followUser, currentUserLocation?.lat, currentUserLocation?.lng]);
 
-  // Recenter on the user's live location. In followUser (nav) mode this also
-  // doubles as an explicit on/off toggle: tapping it while already following
-  // turns following off (same as dragging the map), tapping again re-engages
-  // it. Non-nav maps keep the simple one-shot "fly to my location" behavior.
+  // Recenter on the user's live location — always (re-)engages follow and
+  // flies back, whether following was already on or dragging turned it off.
+  // (A tap-to-toggle-off variant was tried here but caused the button to
+  // switch follow OFF if tapped while already auto-following, which read as
+  // "recenter stopped working" since follow is on by default. Dragging the
+  // map remains the only way to disengage it.)
   const recenter = () => {
     const map = mapRef.current;
     if (!map) return;
-    if (followUser && following.current) {
-      following.current = false;
-      setIsFollowing(false);
-      return;
-    }
     const loc = currentUserLocation;
     if (!loc) return;
     following.current = true;
@@ -420,7 +417,7 @@ export default function MapboxMap({
         className={`absolute left-3 bottom-3 z-10 w-10 h-10 rounded-full border shadow-md grid place-items-center transition-colors ${
           followUser && !isFollowing ? "bg-primary border-primary animate-pulse" : "bg-background/90 border-border hover:bg-accent"
         }`}
-        title={followUser ? (isFollowing ? "Tap to stop following" : "Tap to re-center and follow") : "Recenter on my location"}
+        title={followUser && !isFollowing ? "Tap to re-center and follow" : "Recenter on my location"}
       >
         <LocateFixed className={`w-5 h-5 ${followUser && !isFollowing ? "text-primary-foreground" : "text-primary"}`} />
       </button>
