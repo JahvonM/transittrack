@@ -2,6 +2,7 @@ import React, { useState, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { SOS_MESSAGE, waLink } from "@/lib/mapbox";
 import { Siren, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 
 export default function SosButton({ vehicle, invoke }) {
