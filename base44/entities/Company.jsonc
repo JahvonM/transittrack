@@ -27,6 +27,14 @@
     },
     "description": {
       "type": "string"
+    },
+    "boss_phone": {
+      "type": "string",
+      "description": "Owner/manager's phone number \u2014 SOS alerts are sent here (WhatsApp), not to staff."
+    },
+    "secretary_phone": {
+      "type": "string",
+      "description": "Secretary/dispatch phone number \u2014 SOS alerts are sent here (WhatsApp) alongside the boss."
     }
   },
   "required": [
