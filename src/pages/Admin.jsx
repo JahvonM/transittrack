@@ -56,6 +56,7 @@ import {
   LifeBuoy,
   Map,
   Gauge,
+  Siren,
 } from "lucide-react";
 
 const ROLE_LINKS = [
@@ -118,6 +119,7 @@ export default function Admin() {
   const [drivers, setDrivers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [acknowledged, setAcknowledged] = useState(() => new Set());
   const { location: userLoc } = useUserLocation();
 
   const go = (s) => navigate("/admin/" + s);
@@ -160,22 +162,76 @@ export default function Admin() {
     return unsub;
   }, []);
 
+  // An acknowledgment only clears a vehicle's CURRENT emergency — if it drops
+  // out of emergency status and later fires SOS again, it must take over the
+  // screen again rather than staying silently acknowledged forever.
+  useEffect(() => {
+    setAcknowledged((prev) => {
+      if (prev.size === 0) return prev;
+      const stillEmergency = new Set(vehicles.filter((v) => v.status === "emergency").map((v) => v.id));
+      let changed = false;
+      const next = new Set();
+      prev.forEach((id) => {
+        if (stillEmergency.has(id)) next.add(id);
+        else changed = true;
+      });
+      return changed ? next : prev;
+    });
+  }, [vehicles]);
+
   if (user && user.role !== "admin") return <Navigate to="/" replace />;
+
+  const emergencyVehicles = vehicles.filter((v) => v.status === "emergency");
+  const unacknowledged = emergencyVehicles.filter((v) => !acknowledged.has(v.id));
+  const acknowledgeAll = () => {
+    setAcknowledged((prev) => {
+      const next = new Set(prev);
+      unacknowledged.forEach((v) => next.add(v.id));
+      return next;
+    });
+  };
+
+  const emergencyOverlay = unacknowledged.length > 0 && (
+    <div className="fixed inset-0 z-[999] bg-destructive text-destructive-foreground flex flex-col items-center justify-center p-6 text-center">
+      <Siren className="w-20 h-20 mb-4 animate-pulse" />
+      <h1 className="text-3xl sm:text-4xl font-heading font-bold mb-3">EMERGENCY SOS</h1>
+      <div className="space-y-1 mb-8 max-w-md">
+        {unacknowledged.map((v) => (
+          <div key={v.id} className="text-lg font-medium">
+            {v.name} — {v.company_name || "Unknown company"}
+          </div>
+        ))}
+      </div>
+      <Button
+        size="lg"
+        variant="secondary"
+        className="h-14 px-10 text-lg font-semibold"
+        onClick={acknowledgeAll}
+      >
+        Acknowledge
+      </Button>
+    </div>
+  );
+
   if (loading)
     return (
-      <AppLayout>
-        <p className="text-muted-foreground">Loading…</p>
-      </AppLayout>
+      <>
+        {emergencyOverlay}
+        <AppLayout>
+          <p className="text-muted-foreground">Loading…</p>
+        </AppLayout>
+      </>
     );
 
   const activeTrips = trips.filter((t) =>
     ["scheduled", "on_the_way", "arrived"].includes(t.status)
   );
   const liveCount = vehicles.filter((v) => v.status !== "offline").length;
-  const emergencyVehicles = vehicles.filter((v) => v.status === "emergency");
 
   return (
-    <AppLayout>
+    <>
+      {emergencyOverlay}
+      <AppLayout>
       <AdminShell active={section} onNavigate={go} alertVehicles={emergencyVehicles}>
         {section === "overview" && (
           <div className="space-y-4">
