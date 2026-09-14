@@ -136,7 +136,7 @@ export default function BookTaxi() {
               <Car className="w-5 h-5" />
               <h1 className="font-heading font-semibold text-xl">Request a taxi</h1>
             </div>
-            <p className="text-sm text-slate-400 -mt-2">No account needed — we'll match you with an available taxi.</p>
+            <p className="text-sm text-slate-400 -mt-2">We'll match you with an available taxi operator.</p>
 
             {loading ? (
               <p className="text-sm text-slate-400">Loading available operators…</p>
