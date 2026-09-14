@@ -257,6 +257,20 @@ export default async function(req) {
         return Response.json({ incident });
       }
 
+      case 'cancel_sos': {
+        const vehicle = await loadVehicle(base44, vehicleId);
+        if (!vehicle) return Response.json({ error: 'Vehicle not found' }, { status: 404 });
+        if (vehicle.status === 'emergency') {
+          await base44.asServiceRole.entities.Vehicle.update(vehicleId, { status: 'on_trip' });
+          await base44.asServiceRole.entities.Incident.create({
+            vehicle_id: vehicleId, vehicle_name: vehicle.name, company_id: companyId, company_name: companyName,
+            driver_name: vehicle.driver_name || '', driver_email: vehicle.driver_email || '',
+            type: 'other', details: 'SOS cancelled by driver (false alarm).', occurred_at: new Date().toISOString(),
+          }).catch(() => {});
+        }
+        return Response.json({ ok: true });
+      }
+
       case 'submit_inspection': {
         const { checklist, odometer, fuel, status, service_notes } = body;
         const vehicle = await loadVehicle(base44, vehicleId);
