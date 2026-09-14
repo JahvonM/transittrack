@@ -60,7 +60,7 @@ export default function StaffGroupChat({ vehicle }) {
     return (
       <Card>
         <CardContent className="p-6 text-sm text-muted-foreground text-center">
-          Pick your pickup stop above to join your bus's group chat.
+          Choose your bus below, or pick your pickup stop further down, to join your bus's group chat.
         </CardContent>
       </Card>
     );
