@@ -17,6 +17,7 @@ import {
   Smartphone,
   ClipboardList,
   Database,
+  Siren,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -41,7 +42,7 @@ export const ADMIN_SECTIONS = [
   { id: "profile", label: "My profile", icon: User },
 ];
 
-export default function AdminShell({ active, onNavigate, children }) {
+export default function AdminShell({ active, onNavigate, children, alertVehicles = [] }) {
   const [open, setOpen] = useState(false);
 
   const NavList = () => (
@@ -73,6 +74,18 @@ export default function AdminShell({ active, onNavigate, children }) {
 
   return (
     <div>
+      {alertVehicles.length > 0 && (
+        <button
+          onClick={() => onNavigate("fleet")}
+          className="w-full mb-4 flex items-center gap-3 px-4 py-3 rounded-xl bg-destructive text-destructive-foreground shadow-lg animate-pulse text-left"
+        >
+          <Siren className="w-5 h-5 shrink-0" />
+          <span className="font-semibold text-sm">
+            SOS — {alertVehicles.map((v) => v.name).join(", ")} {alertVehicles.length === 1 ? "needs" : "need"} immediate attention
+          </span>
+          <span className="ml-auto text-xs underline shrink-0 hidden sm:inline">View live fleet →</span>
+        </button>
+      )}
       <div className="flex items-center justify-between mb-4">
         <div>
           <h1 className="text-2xl font-heading font-semibold flex items-center gap-2">
