@@ -145,6 +145,21 @@ export default function Admin() {
     load();
   }, []);
 
+  // Keep vehicle statuses live so an SOS triggered by a driver lights up the
+  // admin screen immediately, without waiting for a manual refresh.
+  useEffect(() => {
+    const unsub = base44.entities.Vehicle.subscribe((event) => {
+      setVehicles((prev) => {
+        if (event.type === "delete") return prev.filter((v) => v.id !== event.id);
+        const rec = event.data;
+        if (!rec) return prev;
+        const idx = prev.findIndex((v) => v.id === event.id);
+        return idx === -1 ? [...prev, rec] : prev.map((v) => (v.id === event.id ? rec : v));
+      });
+    });
+    return unsub;
+  }, []);
+
   if (user && user.role !== "admin") return <Navigate to="/" replace />;
   if (loading)
     return (
