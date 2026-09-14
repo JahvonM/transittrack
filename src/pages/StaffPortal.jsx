@@ -213,8 +213,9 @@ export default function StaffPortal() {
   // currently closest to it (same candidate the ETA card above uses).
   const [chosenVehicleId, setChosenVehicleId] = useState(() => localStorage.getItem("tt_staff_vehicle_id") || "");
   const chooseVehicle = (id) => {
-    setChosenVehicleId(id);
-    if (id) localStorage.setItem("tt_staff_vehicle_id", id);
+    const value = id === "auto" ? "" : id;
+    setChosenVehicleId(value);
+    if (value) localStorage.setItem("tt_staff_vehicle_id", value);
     else localStorage.removeItem("tt_staff_vehicle_id");
   };
   const myVehicle = useMemo(() => {
@@ -339,10 +340,10 @@ export default function StaffPortal() {
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <span>Wrong bus?</span>
               <MobileSelect
-                value={chosenVehicleId}
+                value={chosenVehicleId || "auto"}
                 onValueChange={chooseVehicle}
                 placeholder="Auto-detected"
-                options={[{ value: "", label: "Auto-detect" }, ...vehicles.map((v) => ({ value: v.id, label: v.name }))]}
+                options={[{ value: "auto", label: "Auto-detect" }, ...vehicles.map((v) => ({ value: v.id, label: v.name }))]}
                 triggerClassName="h-8 text-xs w-auto"
               />
             </div>
