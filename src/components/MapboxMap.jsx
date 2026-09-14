@@ -242,7 +242,7 @@ export default function MapboxMap({
         attributionControl={false}
         onLoad={(e) => { setMapLoaded(true); declutterStyle(e.target); }}
         onClick={() => setSelectedVehicle(null)}
-        onDragStart={followUser ? () => { following.current = false; setIsFollowing(false); } : undefined}
+        onDrag={followUser ? () => { following.current = false; setIsFollowing(false); } : undefined}
       >
         {/* Route polyline — follows actual roads once the driving route loads;
             falls back to a dashed straight line between stops until then / on failure */}
