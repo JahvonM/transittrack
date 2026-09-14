@@ -176,7 +176,7 @@ export default function Admin() {
 
   return (
     <AppLayout>
-      <AdminShell active={section} onNavigate={go}>
+      <AdminShell active={section} onNavigate={go} alertVehicles={emergencyVehicles}>
         {section === "overview" && (
           <div className="space-y-4">
             <Greeting subtitle="Admin control center" />
