@@ -13,6 +13,8 @@ const genCode = () =>
 export default function CreateCompanyForm({ onChange }) {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [bossPhone, setBossPhone] = useState("");
+  const [secretaryPhone, setSecretaryPhone] = useState("");
   const [staff, setStaff] = useState(true);
   const [taxi, setTaxi] = useState(false);
   const [airport, setAirport] = useState(false);
@@ -22,9 +24,11 @@ export default function CreateCompanyForm({ onChange }) {
     if (!name) return;
     setSaving(true);
     const service_types = [staff && "staff_bus", taxi && "taxi", airport && "airport"].filter(Boolean);
-    await base44.entities.Company.create({ name, phone, service_types, access_code: genCode() });
+    await base44.entities.Company.create({ name, phone, boss_phone: bossPhone, secretary_phone: secretaryPhone, service_types, access_code: genCode() });
     setName("");
     setPhone("");
+    setBossPhone("");
+    setSecretaryPhone("");
     setStaff(true);
     setTaxi(false);
     setAirport(false);
@@ -53,6 +57,14 @@ export default function CreateCompanyForm({ onChange }) {
         <div className="space-y-1.5">
           <Label>Contact phone</Label>
           <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+1 473-..." />
+        </div>
+        <div className="space-y-1.5">
+          <Label>Boss / owner's phone (WhatsApp, for SOS alerts)</Label>
+          <Input value={bossPhone} onChange={(e) => setBossPhone(e.target.value)} placeholder="+1 473-..." />
+        </div>
+        <div className="space-y-1.5">
+          <Label>Secretary / dispatch phone (WhatsApp, for SOS alerts)</Label>
+          <Input value={secretaryPhone} onChange={(e) => setSecretaryPhone(e.target.value)} placeholder="+1 473-..." />
         </div>
         <div className="space-y-1.5">
           <Label>Services</Label>
