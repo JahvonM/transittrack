@@ -213,6 +213,7 @@ export default function DriverTrackingDashboard({ session, invoke, driverName })
           vehicles={liveVehicle?.current_lat != null ? [liveVehicle] : []}
           pins={staff.filter((s) => s.home_lat != null && !s.skip_pickup_today).map((s) => ({ lat: s.home_lat, lng: s.home_lng, color: "#34d399", label: s.full_name }))}
           userLocation={liveVehicle?.current_lat != null ? { lat: liveVehicle.current_lat, lng: liveVehicle.current_lng } : null}
+          center={liveVehicle?.current_lat != null ? [liveVehicle.current_lng, liveVehicle.current_lat] : null}
           followUser
           height="45vh"
         />
