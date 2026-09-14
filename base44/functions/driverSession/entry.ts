@@ -65,6 +65,7 @@ function haversineMeters(lat1, lng1, lat2, lng2) {
 // between periodic pings (~8s apart) — not true accelerometer-based detection
 // (which would need phone/tablet sensor data we don't have access to here).
 const HARD_BRAKE_MS2 = 2.5; // average deceleration over the interval
+const CRASH_DECEL_MS2 = 6; // far beyond a hard brake — required (with a short window) before auto-flagging 'crash'
 const RAPID_ACCEL_MS2 = 2.5; // average acceleration over the interval
 const MAX_GAP_SEC = 25; // ignore deltas across gaps this large (offline periods, teleports)
 const ARRIVAL_RADIUS_M = 120; // "at a stop" radius for place alerts
@@ -160,8 +161,13 @@ export default async function(req) {
           const deltaMs2 = (newSpeed - prevSpeed) / dtSec;
           const prevKmh = prevSpeed * 3.6;
           const newKmh = newSpeed * 3.6;
-          // "Possible crash": was moving at a meaningful clip and is now essentially stopped, very suddenly.
-          if (prevKmh >= 40 && newKmh <= 5 && dtSec <= 15) {
+          // "Possible crash": was moving at a meaningful clip and is now essentially
+          // stopped, AND the deceleration itself was severe (well beyond a normal
+          // hard brake) within a short window. Checking only the speed drop (the
+          // old condition) also matched completely ordinary braking for a red
+          // light or stop sign spread across one ~8-15s GPS interval, which is
+          // why this was firing SOS on totally normal stops.
+          if (prevKmh >= 40 && newKmh <= 5 && dtSec <= 6 && deltaMs2 <= -CRASH_DECEL_MS2) {
             drivingEvent = 'crash';
           } else if (deltaMs2 <= -HARD_BRAKE_MS2) {
             drivingEvent = 'hard_brake';
