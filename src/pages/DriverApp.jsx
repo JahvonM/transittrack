@@ -103,6 +103,28 @@ export default function DriverApp() {
 
   useEffect(() => { if (activeTab === "chat") setHasUnreadChat(false); }, [activeTab]);
 
+  // `unlocked` is only checked against today's date once, at mount. A tablet
+  // that's mounted in a vehicle and just left powered on overnight (instead
+  // of being closed/reopened) never re-mounts this component, so it stays
+  // "unlocked" from the previous day forever — which meant the morning PIN
+  // re-entry (and the pre-trip inspection prompt that only fires from it)
+  // silently never came back up. Re-check whenever the tablet wakes/is
+  // touched again, not just at load.
+  useEffect(() => {
+    const checkUnlockDate = () => {
+      const today = new Date().toISOString().slice(0, 10);
+      if (localStorage.getItem("tt_driver_unlock_date") !== today) setUnlocked(false);
+    };
+    const interval = setInterval(checkUnlockDate, 60000);
+    document.addEventListener("visibilitychange", checkUnlockDate);
+    window.addEventListener("focus", checkUnlockDate);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", checkUnlockDate);
+      window.removeEventListener("focus", checkUnlockDate);
+    };
+  }, []);
+
   const handleAlertReply = async (text) => {
     await invoke("send_broadcast", { message: text });
     setAlert(null);
