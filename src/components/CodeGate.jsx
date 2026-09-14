@@ -1,11 +1,13 @@
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
+import { useAuth } from "@/lib/AuthContext";
 import { Bus, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function CodeGate({ onUnlock }) {
+  const { user } = useAuth();
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
   const [checking, setChecking] = useState(false);
@@ -24,6 +26,12 @@ export default function CodeGate({ onUnlock }) {
       return;
     }
     localStorage.setItem("tt_company_code", match.access_code);
+    // Persist which company this account belongs to server-side (not just in
+    // localStorage) so RLS-backed features — like the per-bus group chat —
+    // can actually scope data by company instead of trusting the client.
+    if (user?.id && user.company_id !== match.id) {
+      try { await base44.entities.User.update(user.id, { company_id: match.id }); } catch { /* best-effort */ }
+    }
     onUnlock(match);
   };
 
