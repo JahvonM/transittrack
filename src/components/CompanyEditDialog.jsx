@@ -20,6 +20,8 @@ const SERVICES = [
 export default function CompanyEditDialog({ company, open, onOpenChange, onSaved }) {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [bossPhone, setBossPhone] = useState("");
+  const [secretaryPhone, setSecretaryPhone] = useState("");
   const [services, setServices] = useState([]);
   const [saving, setSaving] = useState(false);
 
@@ -27,6 +29,8 @@ export default function CompanyEditDialog({ company, open, onOpenChange, onSaved
     if (company) {
       setName(company.name || "");
       setPhone(company.phone || "");
+      setBossPhone(company.boss_phone || "");
+      setSecretaryPhone(company.secretary_phone || "");
       setServices(company.service_types || []);
     }
   }, [company]);
@@ -40,6 +44,8 @@ export default function CompanyEditDialog({ company, open, onOpenChange, onSaved
       await base44.entities.Company.update(company.id, {
         name,
         phone,
+        boss_phone: bossPhone,
+        secretary_phone: secretaryPhone,
         service_types: services,
       });
       onSaved();
@@ -63,6 +69,15 @@ export default function CompanyEditDialog({ company, open, onOpenChange, onSaved
           <div className="space-y-1.5">
             <Label>Phone</Label>
             <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+1 473-..." />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Boss / owner's phone (WhatsApp)</Label>
+            <Input value={bossPhone} onChange={(e) => setBossPhone(e.target.value)} placeholder="+1 473-..." />
+            <p className="text-xs text-muted-foreground">SOS alerts from drivers go here — not to staff.</p>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Secretary / dispatch phone (WhatsApp)</Label>
+            <Input value={secretaryPhone} onChange={(e) => setSecretaryPhone(e.target.value)} placeholder="+1 473-..." />
           </div>
           <div className="space-y-1.5">
             <Label>Services</Label>
