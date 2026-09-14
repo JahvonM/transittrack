@@ -1,14 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Map, { Marker, Source, Layer } from "react-map-gl";
 import { MAPBOX_TOKEN, MAPBOX_STYLE, GPS_INTERVAL_MS } from "@/lib/mapbox";
-import { Button } from "@/components/ui/button";
 import OfflineStatusBadge from "@/components/OfflineStatusBadge";
 import { useOfflineSync } from "@/hooks/useOfflineSync";
-import { formatEta, fetchDrivingRoute } from "@/lib/geo";
+import { formatEta, fetchTurnByTurnRoute, haversineKm } from "@/lib/geo";
+import { speak, stopSpeaking } from "@/lib/speech";
 import useDrivingEta from "@/hooks/useDrivingEta";
 import useSmoothPosition from "@/hooks/useSmoothPosition";
 import AccuracyHalo from "@/components/AccuracyHalo";
-import { Bus, Navigation, MapPin, LocateFixed, Satellite } from "lucide-react";
+import { Bus, Navigation, MapPin, LocateFixed, Satellite, Flag, RotateCw, ArrowUp, Volume2, VolumeX } from "lucide-react";
 
 // Matches MapboxMap.jsx's declutterStyle: hide POI/transit icon clutter but
 // keep road labels — without them, an area with no live data yet renders as
@@ -23,6 +23,52 @@ function hidePoiLayers(map) {
     }
   });
 }
+
+// Maps a Mapbox maneuver "modifier" to a rotation angle for a single arrow
+// icon — covers every turn/merge/fork case without needing a full icon set.
+const MANEUVER_ANGLES = {
+  uturn: 180,
+  "sharp right": 135,
+  right: 90,
+  "slight right": 45,
+  straight: 0,
+  "slight left": -45,
+  left: -90,
+  "sharp left": -135,
+};
+
+function ManeuverIcon({ step, className }) {
+  if (!step) return <Navigation className={className} />;
+  if (step.type === "arrive") return <Flag className={className} />;
+  if (step.type === "roundabout" || step.type === "rotary") return <RotateCw className={className} />;
+  const angle = MANEUVER_ANGLES[step.modifier] ?? 0;
+  return <ArrowUp className={className} style={{ transform: `rotate(${angle}deg)` }} />;
+}
+
+function formatDistance(m) {
+  if (m == null) return "";
+  if (m < 1000) return `${Math.max(0, Math.round(m / 10) * 10)} m`;
+  return `${(m / 1000).toFixed(1)} km`;
+}
+
+// Distance from a point to the nearest vertex of a route line — good enough
+// to detect "the driver has left the planned route" without a full
+// point-to-segment projection.
+function minDistanceToLineKm(point, coords) {
+  if (!point || !coords?.length) return Infinity;
+  let min = Infinity;
+  for (const [lng, lat] of coords) {
+    const d = haversineKm(point.lat, point.lng, lat, lng);
+    if (d < min) min = d;
+  }
+  return min;
+}
+
+const OFFROUTE_KM = 0.08; // ~80m off the planned line triggers a reroute
+const REROUTE_COOLDOWN_MS = 15000;
+const FAR_ANNOUNCE_M = 300;
+const NEAR_ANNOUNCE_M = 50;
+const ADVANCE_STEP_M = 25;
 
 export default function DriverNavMap({ session, invoke }) {
   const { online, pendingCount } = useOfflineSync();
@@ -71,29 +117,87 @@ export default function DriverNavMap({ session, invoke }) {
     const ordered = [...route.stops].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
     return ordered[0];
   }, [route]);
+  const nextStopKey = nextStop ? `${nextStop.lat},${nextStop.lng}` : null;
 
   // Real driving distance/ETA to the next stop (falls back to straight-line while loading)
   const nextStopDest = nextStop ? { lat: nextStop.lat, lng: nextStop.lng } : null;
-  const { km: nextStopKm, mins: nextStopMins, isDriving: nextStopIsDriving } = useDrivingEta(pos, nextStopDest);
+  const { km: nextStopKm, mins: nextStopMins } = useDrivingEta(pos, nextStopDest);
 
-  // Actual road path from the bus's current position to the next stop (not a straight line)
-  const [pathToNextStop, setPathToNextStop] = useState(null);
-  const pathSignature = pos && nextStop ? `${pos.lat.toFixed(4)},${pos.lng.toFixed(4)}|${nextStop.lat},${nextStop.lng}` : null;
+  // --- In-app turn-by-turn guidance ------------------------------------
+  // Everything below replaces the old "hand off to Google Maps" button:
+  // a real route+maneuver-step fetch, live progress through the steps
+  // driven purely off the GPS fix (no extra network calls needed for
+  // that part), spoken cues at two distance thresholds per maneuver, and
+  // an automatic reroute if the driver strays off the planned line.
+  const [navRoute, setNavRoute] = useState(null); // {geometry, steps, distanceKm, durationMin}
+  const [stepIndex, setStepIndex] = useState(0);
+  const [rerouting, setRerouting] = useState(false);
+  const [muted, setMuted] = useState(false);
+  const loadedForRef = useRef(null);
+  const lastRerouteAt = useRef(0);
+  const spokenRef = useRef({});
+  const mutedRef = useRef(false);
+  useEffect(() => { mutedRef.current = muted; }, [muted]);
 
+  const loadRoute = useCallback(async (origin, dest) => {
+    setRerouting(true);
+    const res = await fetchTurnByTurnRoute(origin, dest);
+    setNavRoute(res);
+    setStepIndex(0);
+    spokenRef.current = {};
+    setRerouting(false);
+  }, []);
+
+  // Fetch a route+steps once per destination stop (not on every GPS tick).
   useEffect(() => {
-    let cancelled = false;
-    if (!pos || !nextStop) {
-      setPathToNextStop(null);
-      return;
-    }
-    fetchDrivingRoute([{ lat: pos.lat, lng: pos.lng }, { lat: nextStop.lat, lng: nextStop.lng }]).then((res) => {
-      if (!cancelled) setPathToNextStop(res?.geometry || null);
-    });
-    return () => { cancelled = true; };
+    if (!pos || !nextStop || !nextStopKey) return;
+    if (loadedForRef.current === nextStopKey) return;
+    loadedForRef.current = nextStopKey;
+    loadRoute({ lat: pos.lat, lng: pos.lng }, { lat: nextStop.lat, lng: nextStop.lng });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pathSignature]);
+  }, [pos, nextStop, nextStopKey]);
 
-  const navUrl = nextStop ? `https://www.google.com/maps?q=${nextStop.lat},${nextStop.lng}` : pos ? `https://www.google.com/maps?q=${pos.lat},${pos.lng}` : "#";
+  // If the driver strays noticeably off the planned line, recalculate —
+  // same behavior real nav apps show as "Recalculating…".
+  useEffect(() => {
+    if (!pos || !navRoute?.geometry?.length || !nextStop) return;
+    const off = minDistanceToLineKm(pos, navRoute.geometry) > OFFROUTE_KM;
+    if (off && Date.now() - lastRerouteAt.current > REROUTE_COOLDOWN_MS) {
+      lastRerouteAt.current = Date.now();
+      loadRoute({ lat: pos.lat, lng: pos.lng }, { lat: nextStop.lat, lng: nextStop.lng });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pos?.lat, pos?.lng]);
+
+  const currentStep = navRoute?.steps?.[stepIndex] || null;
+  const distanceToManeuverM = currentStep?.location && pos
+    ? haversineKm(pos.lat, pos.lng, currentStep.location[1], currentStep.location[0]) * 1000
+    : null;
+
+  // Advance through steps and speak cues based on live distance to the
+  // upcoming maneuver — no need to re-fetch anything for this part.
+  useEffect(() => {
+    if (!currentStep || distanceToManeuverM == null) return;
+    const spoken = spokenRef.current[stepIndex] || (spokenRef.current[stepIndex] = {});
+    if (!mutedRef.current) {
+      if (!spoken.far && distanceToManeuverM <= FAR_ANNOUNCE_M && currentStep.type !== "arrive") {
+        speak(`In ${formatDistance(distanceToManeuverM)}, ${currentStep.instruction}`);
+        spoken.far = true;
+      }
+      if (!spoken.near && distanceToManeuverM <= NEAR_ANNOUNCE_M) {
+        speak(currentStep.type === "arrive" ? "You have arrived at the stop" : currentStep.instruction);
+        spoken.near = true;
+      }
+    }
+    if (distanceToManeuverM <= ADVANCE_STEP_M && stepIndex < navRoute.steps.length - 1) {
+      setStepIndex((i) => i + 1);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [distanceToManeuverM, stepIndex]);
+
+  useEffect(() => () => stopSpeaking(), []);
+  // ----------------------------------------------------------------------
+
   const gpsStatus = !pos ? "searching" : pos.accuracy != null && pos.accuracy <= 50 ? "locked" : "low";
   const recenter = () => {
     const map = mapRef.current;
@@ -153,8 +257,8 @@ export default function DriverNavMap({ session, invoke }) {
               <Layer id="driver-trail-line" type="line" paint={{ "line-color": "#38bdf8", "line-width": 4, "line-opacity": 0.5 }} />
             </Source>
           )}
-          {pathToNextStop && (
-            <Source id="path-to-next-stop" type="geojson" data={{ type: "Feature", geometry: { type: "LineString", coordinates: pathToNextStop } }}>
+          {navRoute?.geometry?.length > 0 && (
+            <Source id="path-to-next-stop" type="geojson" data={{ type: "Feature", geometry: { type: "LineString", coordinates: navRoute.geometry } }}>
               <Layer id="path-to-next-stop-line" type="line" paint={{ "line-color": "#10b981", "line-width": 5, "line-opacity": 0.85 }} />
             </Source>
           )}
@@ -177,28 +281,45 @@ export default function DriverNavMap({ session, invoke }) {
             </Marker>
           )}
         </Map>
-        <div className="absolute top-4 left-4 right-4 z-10">
-          <div className="rounded-2xl border border-border bg-card/95 backdrop-blur-md shadow-xl px-5 py-4">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1"><MapPin className="w-3.5 h-3.5 text-primary" /> Next pickup destination</div>
-            <div className="text-lg font-semibold">{nextStop?.name || "Awaiting route assignment"}</div>
-            {nextStop && (
-              <div className="text-sm text-muted-foreground mt-0.5">
-                {nextStopKm != null ? (nextStopKm < 1 ? `${Math.round(nextStopKm * 1000)} m` : `${nextStopKm.toFixed(1)} km`) : "—"}
-                {" · about "}{formatEta(nextStopMins)}
-                {nextStopIsDriving ? " · by road" : ""}
+        <div className="absolute top-4 left-4 right-4 z-10 space-y-2">
+          <div className="rounded-2xl border border-border bg-card/95 backdrop-blur-md shadow-xl px-4 py-3.5 flex items-center gap-3">
+            <div className={`w-11 h-11 rounded-full grid place-items-center shrink-0 ${currentStep?.type === "arrive" ? "bg-emerald-500" : "bg-primary"}`}>
+              <ManeuverIcon step={currentStep} className="w-5 h-5 text-white" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-base font-semibold leading-tight truncate">
+                {rerouting ? "Recalculating route…" : currentStep ? currentStep.instruction : nextStop ? "Loading directions…" : "Awaiting route assignment"}
               </div>
-            )}
+              {currentStep && !rerouting && (
+                <div className="text-sm text-muted-foreground mt-0.5 truncate">
+                  {formatDistance(distanceToManeuverM)}{currentStep.streetName ? ` · onto ${currentStep.streetName}` : ""}
+                </div>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => setMuted((m) => !m)}
+              className="w-9 h-9 rounded-full border border-border grid place-items-center shrink-0 hover:bg-accent"
+              title={muted ? "Unmute voice guidance" : "Mute voice guidance"}
+            >
+              {muted ? <VolumeX className="w-4 h-4 text-muted-foreground" /> : <Volume2 className="w-4 h-4" />}
+            </button>
           </div>
-        </div>
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 w-[90%] max-w-md">
-          <Button asChild size="lg" className="w-full h-14 text-base bg-emerald-500 hover:bg-emerald-600 text-white">
-            <a href={navUrl} target="_blank" rel="noreferrer"><Navigation className="w-5 h-5 mr-2" /> Open turn-by-turn navigation</a>
-          </Button>
+          {nextStop && (
+            <div className="rounded-xl border border-border bg-card/90 backdrop-blur-md shadow px-4 py-2 flex items-center gap-2 text-xs text-muted-foreground">
+              <MapPin className="w-3.5 h-3.5 text-primary shrink-0" />
+              <span className="truncate">{nextStop.name}</span>
+              <span className="ml-auto shrink-0">
+                {nextStopKm != null ? (nextStopKm < 1 ? `${Math.round(nextStopKm * 1000)} m` : `${nextStopKm.toFixed(1)} km`) : "—"}
+                {" · "}{formatEta(nextStopMins)}
+              </span>
+            </div>
+          )}
         </div>
         <button
           type="button"
           onClick={recenter}
-          className={`absolute right-4 bottom-24 z-10 w-11 h-11 rounded-full border shadow-lg grid place-items-center transition-colors ${
+          className={`absolute right-4 bottom-6 z-10 w-11 h-11 rounded-full border shadow-lg grid place-items-center transition-colors ${
             isFollowing ? "bg-card/95 border-border hover:bg-accent" : "bg-primary border-primary animate-pulse"
           }`}
           title={isFollowing ? "Following your position" : "Tap to re-center and follow"}
