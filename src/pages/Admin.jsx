@@ -172,6 +172,7 @@ export default function Admin() {
     ["scheduled", "on_the_way", "arrived"].includes(t.status)
   );
   const liveCount = vehicles.filter((v) => v.status !== "offline").length;
+  const emergencyVehicles = vehicles.filter((v) => v.status === "emergency");
 
   return (
     <AppLayout>
