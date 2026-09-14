@@ -257,6 +257,21 @@ export default function StaffPortal() {
       <PullToRefresh onRefresh={reload} className="max-w-3xl">
         <div className="space-y-4">
         <Greeting subtitle={company.name} />
+
+        <div className="space-y-2">
+          <StaffGroupChat vehicle={myVehicle} />
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <span>Wrong bus?</span>
+            <MobileSelect
+              value={chosenVehicleId || "auto"}
+              onValueChange={chooseVehicle}
+              placeholder="Auto-detected"
+              options={[{ value: "auto", label: "Auto-detect" }, ...vehicles.map((v) => ({ value: v.id, label: v.name }))]}
+              triggerClassName="h-8 text-xs w-auto"
+            />
+          </div>
+        </div>
+
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h2 className="text-lg font-semibold">Track pickups &amp; buses</h2>
@@ -332,22 +347,6 @@ export default function StaffPortal() {
               )}
             </CardContent>
           </Card>
-        )}
-
-        {stop && (
-          <div className="space-y-2">
-            <StaffGroupChat vehicle={myVehicle} />
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <span>Wrong bus?</span>
-              <MobileSelect
-                value={chosenVehicleId || "auto"}
-                onValueChange={chooseVehicle}
-                placeholder="Auto-detected"
-                options={[{ value: "auto", label: "Auto-detect" }, ...vehicles.map((v) => ({ value: v.id, label: v.name }))]}
-                triggerClassName="h-8 text-xs w-auto"
-              />
-            </div>
-          </div>
         )}
 
         {pickupName && (
