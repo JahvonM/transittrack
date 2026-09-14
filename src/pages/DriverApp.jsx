@@ -45,6 +45,12 @@ export default function DriverApp() {
   const seenIds = useRef(new Set());
   const firstLoad = useRef(true);
 
+  // Unread dot on the Chat tab when a staff member posts while the driver
+  // is looking at a different tab.
+  const [hasUnreadChat, setHasUnreadChat] = useState(false);
+  const seenChatIds = useRef(new Set());
+  const firstChatLoad = useRef(true);
+
   const playAlertSound = useCallback(() => {
     try {
       const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -79,6 +85,23 @@ export default function DriverApp() {
       }
     });
   }, [session?.broadcasts, playAlertSound]);
+
+  useEffect(() => {
+    const groupMessages = session?.group_messages;
+    if (!groupMessages) return;
+    if (firstChatLoad.current) {
+      groupMessages.forEach((m) => seenChatIds.current.add(m.id));
+      firstChatLoad.current = false;
+      return;
+    }
+    groupMessages.forEach((m) => {
+      if (seenChatIds.current.has(m.id)) return;
+      seenChatIds.current.add(m.id);
+      if (m.sender_role === "staff") setHasUnreadChat(true);
+    });
+  }, [session?.group_messages]);
+
+  useEffect(() => { if (activeTab === "chat") setHasUnreadChat(false); }, [activeTab]);
 
   const handleAlertReply = async (text) => {
     await invoke("send_broadcast", { message: text });
@@ -221,9 +244,10 @@ export default function DriverApp() {
               <Inbox className="w-4 h-4 sm:hidden" />
               <span className="hidden sm:inline">Messages</span>
             </TabsTrigger>
-            <TabsTrigger value="chat">
+            <TabsTrigger value="chat" className="relative">
               <MessageCircle className="w-4 h-4 sm:hidden" />
               <span className="hidden sm:inline">Chat</span>
+              {hasUnreadChat && <span className="absolute top-1 right-1 sm:right-2 w-2 h-2 rounded-full bg-destructive" />}
             </TabsTrigger>
             <TabsTrigger value="safety">
               <ShieldCheck className="w-4 h-4 sm:hidden" />
