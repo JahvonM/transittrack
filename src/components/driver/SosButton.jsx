@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { SOS_MESSAGE, waLink } from "@/lib/mapbox";
 import { Siren, X } from "lucide-react";
@@ -37,6 +37,16 @@ export default function SosButton({ vehicle, invoke }) {
 
   const startHold = () => { setHolding(true); timer.current = setTimeout(trigger, 800); };
   const cancelHold = () => { setHolding(false); if (timer.current) clearTimeout(timer.current); };
+
+  // Keep the UI in sync with the vehicle's actual status — covers a crash
+  // auto-detected as 'emergency' without the button being pressed (still
+  // cancellable here), and admin marking it resolved from the dashboard
+  // (resets this panel back to the idle SOS button).
+  useEffect(() => {
+    if (vehicle?.status === "emergency" && !fired) setFired(true);
+    if (vehicle?.status !== "emergency" && fired && !cancelling) { setFired(false); setContacts(null); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vehicle?.status]);
 
   const cancelSos = async () => {
     setCancelling(true);
