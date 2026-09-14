@@ -250,7 +250,7 @@ export default function DriverNavMap({ session, invoke }) {
           initialViewState={{ longitude: pos?.lng ?? vehicle?.current_lng ?? -61.7, latitude: pos?.lat ?? vehicle?.current_lat ?? 12.05, zoom: 15 }}
           style={{ width: "100%", height: "100%" }} attributionControl={false}
           onLoad={(e) => hidePoiLayers(e.target)}
-          onDragStart={() => { following.current = false; setIsFollowing(false); }}
+          onDrag={() => { following.current = false; setIsFollowing(false); }}
         >
           {trail.length > 1 && (
             <Source id="driver-trail" type="geojson" data={{ type: "Feature", geometry: { type: "LineString", coordinates: trail.filter((p) => p.lat != null && p.lng != null).map((p) => [p.lng, p.lat]) } }}>
