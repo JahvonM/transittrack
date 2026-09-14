@@ -90,10 +90,11 @@ export default async function(req) {
       case 'heartbeat': {
         const vehicle = await loadVehicle(base44, vehicleId);
         if (!vehicle) return Response.json({ error: 'Vehicle not found' }, { status: 404 });
-        const [staff, broadcasts, checkIns] = await Promise.all([
+        const [staff, broadcasts, checkIns, groupMessages] = await Promise.all([
           loadStaff(base44, companyId),
           base44.asServiceRole.entities.Broadcast.filter({}, '-created_date', 20),
           base44.asServiceRole.entities.StaffCheckIn.filter({ vehicle_id: vehicleId }, '-created_date', 20),
+          base44.asServiceRole.entities.GroupMessage.filter({ vehicle_id: vehicleId }, '-created_date', 50),
         ]);
         const driverEmail = vehicle.driver_email || '';
         const relevantBroadcasts = broadcasts.filter((b) => {
@@ -110,6 +111,7 @@ export default async function(req) {
           vehicle, driver_name: vehicle.driver_name || '', driver_pin: vehicle.driver_pin || '',
           company_id: companyId, company_name: companyName, staff, route,
           broadcasts: relevantBroadcasts, check_ins: checkIns.filter((c) => c.status === 'boarded'),
+          group_messages: [...groupMessages].reverse(),
         });
       }
 
@@ -278,6 +280,19 @@ export default async function(req) {
           type: allowedTypes.includes(type) ? type : 'other', details: sanitize(details), occurred_at: new Date().toISOString(),
         });
         return Response.json({ incident });
+      }
+
+      case 'send_group_message': {
+        const { text } = body;
+        if (!text || typeof text !== 'string' || !text.trim())
+          return Response.json({ error: 'text required' }, { status: 400 });
+        const vehicle = await loadVehicle(base44, vehicleId);
+        if (!vehicle) return Response.json({ error: 'Vehicle not found' }, { status: 404 });
+        const message = await base44.asServiceRole.entities.GroupMessage.create({
+          vehicle_id: vehicleId, vehicle_name: vehicle.name, company_id: companyId, company_name: companyName,
+          sender_role: 'driver', sender_name: vehicle.driver_name || 'Driver', text: sanitize(text),
+        });
+        return Response.json({ message });
       }
 
       case 'send_broadcast': {
