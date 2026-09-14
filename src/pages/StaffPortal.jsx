@@ -207,15 +207,24 @@ export default function StaffPortal() {
   const approachingDest = stop ? { lat: stop.lat, lng: stop.lng } : null;
   const approachingDriving = useDrivingEta(approachingOrigin, approachingDest, approaching?.v?.speed || 25);
 
-  // "My bus" for group chat: prefer the vehicle actually assigned to the
-  // route that owns this stop, falling back to whichever tracked vehicle is
+  // "My bus" for group chat: an explicit manual pick always wins (in case
+  // the auto-guess below is wrong), then the vehicle actually assigned to
+  // the route that owns this stop, then whichever tracked vehicle is
   // currently closest to it (same candidate the ETA card above uses).
+  const [chosenVehicleId, setChosenVehicleId] = useState(() => localStorage.getItem("tt_staff_vehicle_id") || "");
+  const chooseVehicle = (id) => {
+    setChosenVehicleId(id);
+    if (id) localStorage.setItem("tt_staff_vehicle_id", id);
+    else localStorage.removeItem("tt_staff_vehicle_id");
+  };
   const myVehicle = useMemo(() => {
+    const chosen = chosenVehicleId ? vehicles.find((v) => v.id === chosenVehicleId) : null;
+    if (chosen) return chosen;
     if (!stop) return approaching?.v || null;
     const matchedRoute = routes.find((r) => (r.stops || []).some((s) => s.name === stop.name));
     const onRoute = matchedRoute ? vehicles.find((v) => v.route_id === matchedRoute.id) : null;
     return onRoute || approaching?.v || null;
-  }, [stop, routes, vehicles, approaching]);
+  }, [chosenVehicleId, stop, routes, vehicles, approaching]);
 
   const onTheWayTrip = useMemo(
     () => trips.find((t) => t.pickup_name === pickupName && t.status === "on_the_way") || null,
