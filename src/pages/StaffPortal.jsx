@@ -83,6 +83,13 @@ export default function StaffPortal() {
     });
   }, []);
 
+  // Backfill company_id for accounts that picked a company before this link
+  // was tracked server-side (needed for the group chat's company-scoped RLS).
+  useEffect(() => {
+    if (!company || !user?.id || user.company_id === company.id) return;
+    base44.entities.User.update(user.id, { company_id: company.id }).catch(() => {});
+  }, [company, user]);
+
   useEffect(() => {
     if (!company) return;
     setLoading(true);
