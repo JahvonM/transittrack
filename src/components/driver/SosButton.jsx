@@ -1,13 +1,14 @@
 import React, { useState, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { SOS_MESSAGE, waLink } from "@/lib/mapbox";
-import { Siren } from "lucide-react";
+import { Siren, X } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 
 export default function SosButton({ vehicle, invoke }) {
   const [holding, setHolding] = useState(false);
-  const [fired, setFired] = useState(false);
+  const [fired, setFired] = useState(!!vehicle && vehicle.status === "emergency");
   const [contacts, setContacts] = useState(null); // { boss_phone, secretary_phone } once loaded
+  const [cancelling, setCancelling] = useState(false);
   const timer = useRef(null);
   const { toast } = useToast();
 
@@ -36,6 +37,20 @@ export default function SosButton({ vehicle, invoke }) {
   const startHold = () => { setHolding(true); timer.current = setTimeout(trigger, 800); };
   const cancelHold = () => { setHolding(false); if (timer.current) clearTimeout(timer.current); };
 
+  const cancelSos = async () => {
+    setCancelling(true);
+    try {
+      await invoke("cancel_sos");
+      toast({ title: "SOS cancelled", description: "Admin and management have been told it was a false alarm." });
+      setFired(false);
+      setContacts(null);
+    } catch (e) {
+      toast({ title: "Failed to cancel", description: e.message, variant: "destructive" });
+    } finally {
+      setCancelling(false);
+    }
+  };
+
   const hasBoss = !!contacts?.boss_phone;
   const hasSecretary = !!contacts?.secretary_phone;
   const hasAnyContact = hasBoss || hasSecretary;
@@ -57,6 +72,9 @@ export default function SosButton({ vehicle, invoke }) {
       </button>
       {fired && (
         <div className="space-y-2">
+          <Button variant="outline" className="w-full" disabled={cancelling} onClick={cancelSos}>
+            <X className="w-4 h-4 mr-1.5" /> {cancelling ? "Cancelling…" : "Cancel SOS (false alarm)"}
+          </Button>
           {contacts === null && (
             <p className="text-xs text-muted-foreground text-center">Looking up management contacts…</p>
           )}
