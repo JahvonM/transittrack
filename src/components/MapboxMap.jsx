@@ -101,41 +101,63 @@ export default function MapboxMap({
   };
 
   // Fit to bounds only once on first load — re-fitting on every GPS tick causes jitter.
+  // Skipped entirely in followUser (nav) mode: that mode has its own dedicated
+  // centering below, and letting this generic "fit every point" logic run first
+  // (it includes unrelated pins/stops too) was racing with it and could leave
+  // the camera zoomed out to fit everything instead of tight on the driver.
   useEffect(() => {
-    if (!mapLoaded || center || hasFitted.current || hasUserCentered.current) return;
+    if (!mapLoaded || center || followUser || hasFitted.current || hasUserCentered.current) return;
     if (allPoints.length === 0) return;
     fitToBounds();
     hasFitted.current = true;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mapLoaded, allPoints.length, center]);
+  }, [mapLoaded, allPoints.length, center, followUser]);
 
   // Once the user's position is known, fly to it so the map centers on them.
+  // Also skipped in followUser mode — same reasoning as above.
   useEffect(() => {
-    if (!mapLoaded || !currentUserLocation || hasUserCentered.current) return;
+    if (!mapLoaded || followUser || !currentUserLocation || hasUserCentered.current) return;
     const map = mapRef.current;
     if (!map) return;
     hasUserCentered.current = true;
     map.flyTo({ center: [currentUserLocation.lng, currentUserLocation.lat], zoom: 15, duration: 800 });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mapLoaded, currentUserLocation]);
+  }, [mapLoaded, currentUserLocation, followUser]);
 
-  // Nav-mode follow: keep recentering on every update to userLocation while
-  // following is on (see `followUser` above).
+  // Nav-mode follow: recenters automatically the moment a position is known
+  // (first tick uses flyTo with a proper zoom-in; every tick after that just
+  // eases the center over, preserving whatever zoom the driver is on) and
+  // keeps doing so on every update while following is on.
+  const followEngagedRef = useRef(false);
   useEffect(() => {
     const map = mapRef.current;
     if (!followUser || !map || !currentUserLocation || !following.current) return;
-    map.easeTo({ center: [currentUserLocation.lng, currentUserLocation.lat], duration: 900 });
+    if (!followEngagedRef.current) {
+      followEngagedRef.current = true;
+      map.flyTo({ center: [currentUserLocation.lng, currentUserLocation.lat], zoom: Math.max(map.getZoom(), 15), duration: 600 });
+    } else {
+      map.easeTo({ center: [currentUserLocation.lng, currentUserLocation.lat], duration: 900 });
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [followUser, currentUserLocation?.lat, currentUserLocation?.lng]);
 
-  // Recenter on the user's live location.
+  // Recenter on the user's live location. In followUser (nav) mode this also
+  // doubles as an explicit on/off toggle: tapping it while already following
+  // turns following off (same as dragging the map), tapping again re-engages
+  // it. Non-nav maps keep the simple one-shot "fly to my location" behavior.
   const recenter = () => {
     const map = mapRef.current;
     if (!map) return;
+    if (followUser && following.current) {
+      following.current = false;
+      setIsFollowing(false);
+      return;
+    }
     const loc = currentUserLocation;
     if (!loc) return;
     following.current = true;
     setIsFollowing(true);
+    followEngagedRef.current = true;
     map.flyTo({ center: [loc.lng, loc.lat], zoom: Math.max(map.getZoom(), 15), duration: 800 });
   };
 
@@ -397,7 +419,7 @@ export default function MapboxMap({
         className={`absolute left-3 bottom-3 z-10 w-10 h-10 rounded-full border shadow-md grid place-items-center transition-colors ${
           followUser && !isFollowing ? "bg-primary border-primary animate-pulse" : "bg-background/90 border-border hover:bg-accent"
         }`}
-        title={followUser && !isFollowing ? "Tap to re-center and follow" : "Recenter on my location"}
+        title={followUser ? (isFollowing ? "Tap to stop following" : "Tap to re-center and follow") : "Recenter on my location"}
       >
         <LocateFixed className={`w-5 h-5 ${followUser && !isFollowing ? "text-primary-foreground" : "text-primary"}`} />
       </button>
