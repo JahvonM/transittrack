@@ -384,6 +384,7 @@ export default function Admin() {
         )}
       </AdminShell>
       <FloatingChatbot />
-    </AppLayout>
+      </AppLayout>
+    </>
   );
 }
