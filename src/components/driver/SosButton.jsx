@@ -10,7 +10,9 @@ export default function SosButton({ vehicle, invoke }) {
   const [fired, setFired] = useState(!!vehicle && vehicle.status === "emergency");
   const [contacts, setContacts] = useState(null); // { boss_phone, secretary_phone } once loaded
   const [cancelling, setCancelling] = useState(false);
+  const [cooldown, setCooldown] = useState(false);
   const timer = useRef(null);
+  const cooldownTimer = useRef(null);
   const { toast } = useToast();
 
   const trigger = async () => {
@@ -55,6 +57,10 @@ export default function SosButton({ vehicle, invoke }) {
       toast({ title: "SOS cancelled", description: "Admin and management have been told it was a false alarm." });
       setFired(false);
       setContacts(null);
+      // Brief cooldown so an accidental double-tap can't immediately refire it.
+      setCooldown(true);
+      if (cooldownTimer.current) clearTimeout(cooldownTimer.current);
+      cooldownTimer.current = setTimeout(() => setCooldown(false), 10000);
     } catch (e) {
       toast({ title: "Failed to cancel", description: e.message, variant: "destructive" });
     } finally {
@@ -70,7 +76,7 @@ export default function SosButton({ vehicle, invoke }) {
     <div className="space-y-2">
       <button
         onMouseDown={startHold} onMouseUp={cancelHold} onMouseLeave={cancelHold}
-        onTouchStart={startHold} onTouchEnd={cancelHold} disabled={fired}
+        onTouchStart={startHold} onTouchEnd={cancelHold} disabled={fired || cooldown}
         className={`w-full rounded-2xl border-2 border-destructive/40 py-5 flex flex-col items-center gap-1 transition-all ${
           holding ? "bg-destructive scale-95" : fired ? "bg-destructive/20" : "bg-destructive/10 hover:bg-destructive/20"
         }`}
@@ -78,7 +84,7 @@ export default function SosButton({ vehicle, invoke }) {
         <Siren className={`w-8 h-8 text-destructive ${holding ? "animate-ping" : ""}`} />
         <span className="font-bold text-destructive">{fired ? "SOS SENT" : holding ? "HOLD…" : "SOS"}</span>
         <span className="text-xs text-muted-foreground">
-          {fired ? "Admin notified · alert management below" : "Press and hold to activate"}
+          {fired ? "Admin notified · alert management below" : cooldown ? "Just cancelled — available again shortly…" : "Press and hold to activate"}
         </span>
       </button>
       {fired && (
