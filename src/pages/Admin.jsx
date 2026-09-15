@@ -24,6 +24,7 @@ import MapboxMap from "@/components/MapboxMap";
 import DataTab from "@/components/admin/DataTab";
 import FloatingChatbot from "@/components/admin/FloatingChatbot";
 import useUserLocation from "@/hooks/useUserLocation";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -107,6 +108,7 @@ function Stat({ label, value }) {
 
 export default function Admin() {
   const { user } = useAuth();
+  usePushNotifications({ email: user?.email, role: "admin" });
   const navigate = useNavigate();
   const { section: urlSection } = useParams();
   const section = urlSection || "overview";
