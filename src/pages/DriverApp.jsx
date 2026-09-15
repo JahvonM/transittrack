@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useDriverSession } from "@/hooks/useDriverSession";
 import { getFcmToken } from "@/lib/firebase";
+import { useKeepAwake } from "@/hooks/useKeepAwake";
 import DriverPairing from "@/components/driver/DriverPairing";
 import DriverGreeting from "@/components/driver/DriverGreeting";
 import PinGate from "@/components/driver/PinGate";
@@ -34,6 +35,11 @@ export default function DriverApp() {
   const [unlocked, setUnlocked] = useState(() => localStorage.getItem("tt_driver_unlock_date") === new Date().toISOString().slice(0, 10));
   const [activeTab, setActiveTab] = useState(() => TRACKING_TABS.includes(urlStage) ? urlStage : "track");
   const { session, loading, invoke } = useDriverSession(deviceId);
+
+  // Driver tablets are mounted and always powered — keep the screen on so
+  // locking is never what interrupts GPS tracking (no background-location
+  // permission needed for this; it only matters while the screen is on).
+  useKeepAwake(!!deviceId);
 
   // States for the integrated inline incident modal
   const [isReportOpen, setIsReportOpen] = useState(false);
