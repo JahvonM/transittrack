@@ -8,6 +8,7 @@ import CodeGate from "@/components/CodeGate";
 import ProfileInfo from "@/components/ProfileInfo";
 import StaffAlerts from "@/components/StaffAlerts";
 import StaffGroupChat from "@/components/staff/StaffGroupChat";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 import LocationPinner from "@/components/staff/LocationPinner";
 import useUserLocation from "@/hooks/useUserLocation";
 import StaffToggles from "@/components/staff/StaffToggles";
@@ -55,6 +56,7 @@ function StatusSteps({ status }) {
 
 export default function StaffPortal() {
   const { user } = useAuth();
+  usePushNotifications({ email: user?.email, role: user?.role, companyId: user?.company_id });
   const { toast } = useToast();
   const pickupRef = useRef("");
   const statusRef = useRef({});
