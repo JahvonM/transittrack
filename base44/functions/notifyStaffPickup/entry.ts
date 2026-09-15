@@ -1,4 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
+import { secrets } from 'base44:runtime';
+import { sendPushToTokens } from '../_shared/fcm.ts';
 
 const ALLOWED_ROLES = ['driver', 'company', 'admin'];
 
@@ -70,6 +72,22 @@ export default async function(req) {
       subject,
       body: message,
     });
+
+    // Real device push — this is what actually reaches a staff member's phone
+    // when they're not sitting in the app; email above stays as a fallback.
+    try {
+      const serviceAccountJson = secrets.get('FIREBASE_SERVICE_ACCOUNT');
+      if (serviceAccountJson) {
+        const tokens = await base44.asServiceRole.entities.PushToken.filter({ email: to });
+        if (tokens.length) {
+          await sendPushToTokens(serviceAccountJson, tokens.map((t) => t.token), {
+            title: `${vehicleName} is approaching`,
+            body: `Arriving shortly${companyName ? ` — ${companyName}` : ''}. Get ready to board.`,
+            data: { type: 'pickup_approaching', vehicle_id: vehicleId },
+          });
+        }
+      }
+    } catch { /* push is best-effort — email above already went out */ }
 
     return Response.json({ ok: true });
   } catch (error) {
