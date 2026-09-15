@@ -108,7 +108,7 @@ function Stat({ label, value }) {
 
 export default function Admin() {
   const { user } = useAuth();
-  usePushNotifications({ email: user?.email, role: "admin" });
+  const { permission: pushPermission, enableNotifications } = usePushNotifications({ email: user?.email, role: "admin" });
   const navigate = useNavigate();
   const { section: urlSection } = useParams();
   const section = urlSection || "overview";
@@ -260,6 +260,11 @@ export default function Admin() {
         {section === "overview" && (
           <div className="space-y-4">
             <Greeting subtitle="Admin control center" />
+            {pushPermission !== "granted" && pushPermission !== "unsupported" && (
+              <Button variant="outline" size="sm" onClick={enableNotifications}>
+                <Bell className="w-4 h-4 mr-1.5" /> Enable notifications (SOS alerts on this device)
+              </Button>
+            )}
             <div className="rounded-2xl overflow-hidden border">
               <MapboxMap
                 vehicles={vehicles.filter((v) => v.current_lat != null)}
