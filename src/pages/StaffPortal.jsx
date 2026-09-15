@@ -56,7 +56,7 @@ function StatusSteps({ status }) {
 
 export default function StaffPortal() {
   const { user } = useAuth();
-  usePushNotifications({ email: user?.email, role: user?.role, companyId: user?.company_id });
+  const { permission: pushPermission, enableNotifications } = usePushNotifications({ email: user?.email, role: user?.role, companyId: user?.company_id });
   const { toast } = useToast();
   const pickupRef = useRef("");
   const statusRef = useRef({});
@@ -259,6 +259,12 @@ export default function StaffPortal() {
       <PullToRefresh onRefresh={reload} className="max-w-3xl">
         <div className="space-y-4">
         <Greeting subtitle={company.name} />
+
+        {pushPermission !== "granted" && pushPermission !== "unsupported" && (
+          <Button variant="outline" size="sm" onClick={enableNotifications}>
+            <BellRing className="w-4 h-4 mr-1.5" /> Enable notifications (know when your bus is close)
+          </Button>
+        )}
 
         <div className="space-y-2">
           <StaffGroupChat vehicle={myVehicle} />
