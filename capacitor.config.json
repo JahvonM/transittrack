@@ -1,0 +1,19 @@
+{
+  "appId": "com.transittrack.app",
+  "appName": "TransitTrack",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 800,
+      "backgroundColor": "#0f172a",
+      "androidSplashResourceName": "splash",
+      "showSpinner": false
+    },
+    "PushNotifications": {
+      "presentationOptions": ["badge", "sound", "alert"]
+    }
+  }
+}
