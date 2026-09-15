@@ -18,7 +18,7 @@ import Greeting from "@/components/Greeting";
 import { haversineKm, etaMinutes, formatEta } from "@/lib/geo";
 import useDrivingEta from "@/hooks/useDrivingEta";
 import { STATUS_LABEL, STATUS_VARIANT } from "@/lib/trip";
-import { Bus, Clock, LogOut, Map as MapIcon, ShieldCheck, User } from "lucide-react";
+import { Bus, BellRing, Clock, LogOut, Map as MapIcon, ShieldCheck, User } from "lucide-react";
 import { MobileSelect } from "@/components/ui/mobile-select";
 import PullToRefresh from "@/components/PullToRefresh";
 import { Badge } from "@/components/ui/badge";
