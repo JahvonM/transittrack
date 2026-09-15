@@ -1,0 +1,53 @@
+{
+  "name": "PushToken",
+  "type": "object",
+  "properties": {
+    "token": {
+      "type": "string",
+      "description": "The FCM registration token for one browser/device."
+    },
+    "email": {
+      "type": "string",
+      "description": "Logged-in user's email, for staff/admin/company tokens."
+    },
+    "device_id": {
+      "type": "string",
+      "description": "KioskDevice id, for driver-tablet tokens (drivers have no login)."
+    },
+    "role": {
+      "type": "string",
+      "description": "Role this token belongs to (admin, company, passenger, driver) \u2014 used to target a whole audience, e.g. all admins for SOS."
+    },
+    "company_id": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "token"
+  ],
+  "rls": {
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "create": {},
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}
