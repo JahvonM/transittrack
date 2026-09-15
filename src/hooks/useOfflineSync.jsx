@@ -33,23 +33,25 @@ export function useOfflineSync() {
   const drain = useCallback(async () => {
     if (draining.current) return;
     draining.current = true;
-    const queue = readQueue();
-    if (!queue.length) {
+    try {
+      const queue = readQueue();
+      if (!queue.length) return;
+      const remaining = [];
+      for (const item of queue) {
+        try {
+          await base44.entities[item.entity].create(item.data);
+        } catch {
+          remaining.push(item);
+        }
+      }
+      writeQueue(remaining);
+    } finally {
+      // Always release the lock, even if writeQueue (or anything else above)
+      // throws — previously an exception there left draining.current stuck
+      // true forever, silently killing all future retries of the backlog.
       draining.current = false;
       refreshCount();
-      return;
     }
-    const remaining = [];
-    for (const item of queue) {
-      try {
-        await base44.entities[item.entity].create(item.data);
-      } catch {
-        remaining.push(item);
-      }
-    }
-    writeQueue(remaining);
-    draining.current = false;
-    refreshCount();
   }, [refreshCount]);
 
   useEffect(() => {
