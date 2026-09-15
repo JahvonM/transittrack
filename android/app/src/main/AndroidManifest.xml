@@ -32,4 +32,12 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- ACCESS_BACKGROUND_LOCATION is deliberately NOT included yet: it triggers
+         a stricter Google Play review (a prominent in-app disclosure + written
+         justification) and only matters if the driver app must keep tracking
+         with the screen off/app minimized. Add it (and the matching iOS
+         "Always" permission) only once that's a confirmed requirement. -->
 </manifest>
