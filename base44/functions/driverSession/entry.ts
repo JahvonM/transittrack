@@ -1,4 +1,55 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
+import { secrets } from 'base44:runtime';
+
+// --- Firebase Cloud Messaging (push) helpers — duplicated per-function, see notifyStaffPickup/entry.ts ---
+function base64UrlEncode(bytes) {
+  const arr = new Uint8Array(bytes);
+  let binary = '';
+  for (let i = 0; i < arr.length; i++) binary += String.fromCharCode(arr[i]);
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+function pemToArrayBuffer(pem) {
+  const b64 = pem.replace(/-----BEGIN PRIVATE KEY-----/, '').replace(/-----END PRIVATE KEY-----/, '').replace(/\s+/g, '');
+  const binary = atob(b64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes.buffer;
+}
+async function getFcmAccessToken(serviceAccount) {
+  const { client_email, private_key, token_uri } = serviceAccount;
+  const now = Math.floor(Date.now() / 1000);
+  const encoder = new TextEncoder();
+  const headerB64 = base64UrlEncode(encoder.encode(JSON.stringify({ alg: 'RS256', typ: 'JWT' })));
+  const claimsB64 = base64UrlEncode(encoder.encode(JSON.stringify({
+    iss: client_email, scope: 'https://www.googleapis.com/auth/firebase.messaging',
+    aud: token_uri, exp: now + 3600, iat: now,
+  })));
+  const signingInput = `${headerB64}.${claimsB64}`;
+  const cryptoKey = await crypto.subtle.importKey('pkcs8', pemToArrayBuffer(private_key), { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['sign']);
+  const signature = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', cryptoKey, encoder.encode(signingInput));
+  const jwt = `${signingInput}.${base64UrlEncode(signature)}`;
+  const res = await fetch(token_uri, {
+    method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: `grant_type=${encodeURIComponent('urn:ietf:params:oauth:grant-type:jwt-bearer')}&assertion=${encodeURIComponent(jwt)}`,
+  });
+  const data = await res.json();
+  if (!res.ok || !data.access_token) throw new Error(`FCM auth failed: ${data.error_description || data.error || res.status}`);
+  return data.access_token;
+}
+async function sendPushToToken(serviceAccountJson, token, payload) {
+  try {
+    const serviceAccount = JSON.parse(serviceAccountJson);
+    const accessToken = await getFcmAccessToken(serviceAccount);
+    const res = await fetch(`https://fcm.googleapis.com/v1/projects/${serviceAccount.project_id}/messages:send`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+      body: JSON.stringify({ message: { token, notification: { title: payload.title, body: payload.body }, data: payload.data || {}, webpush: { fcm_options: { link: '/' } } } }),
+    });
+    return res.ok;
+  } catch { return false; }
+}
+async function sendPushToTokens(serviceAccountJson, tokens, payload) {
+  await Promise.all(tokens.map((t) => sendPushToToken(serviceAccountJson, t, payload)));
+}
 
 async function resolveDriverDevice(base44, deviceId) {
   if (!deviceId || typeof deviceId !== 'string') return null;
