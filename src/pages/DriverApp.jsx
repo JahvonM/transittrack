@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useDriverSession } from "@/hooks/useDriverSession";
+import { getFcmToken } from "@/lib/firebase";
 import DriverPairing from "@/components/driver/DriverPairing";
 import DriverGreeting from "@/components/driver/DriverGreeting";
 import PinGate from "@/components/driver/PinGate";
@@ -102,6 +103,15 @@ export default function DriverApp() {
   }, [session?.group_messages]);
 
   useEffect(() => { if (activeTab === "chat") setHasUnreadChat(false); }, [activeTab]);
+
+  // Drivers have no login, so their push token registers through the device
+  // session instead of the usePushNotifications hook (which needs an email).
+  const pushRegistered = useRef(false);
+  useEffect(() => {
+    if (pushRegistered.current || !deviceId || !session?.vehicle) return;
+    pushRegistered.current = true;
+    getFcmToken().then((token) => { if (token) invoke("register_push_token", { token }).catch(() => {}); });
+  }, [deviceId, session?.vehicle, invoke]);
 
   // `unlocked` is only checked against today's date once, at mount. A tablet
   // that's mounted in a vehicle and just left powered on overnight (instead
