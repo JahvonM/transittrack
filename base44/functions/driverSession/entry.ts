@@ -313,7 +313,30 @@ export default async function(req) {
           driver_name: vehicle.driver_name || '', driver_email: vehicle.driver_email || '',
           type: 'emergency', details: 'SOS triggered by driver via long-press.', occurred_at: new Date().toISOString(),
         });
+        try {
+          const serviceAccountJson = secrets.get('FIREBASE_SERVICE_ACCOUNT');
+          if (serviceAccountJson) {
+            const adminTokens = await base44.asServiceRole.entities.PushToken.filter({ role: 'admin' });
+            if (adminTokens.length) {
+              await sendPushToTokens(serviceAccountJson, adminTokens.map((t) => t.token), {
+                title: '🚨 SOS — ' + vehicle.name,
+                body: `${vehicle.driver_name || 'Driver'} triggered SOS. Open the admin dashboard now.`,
+                data: { type: 'sos', vehicle_id: vehicleId },
+              });
+            }
+          }
+        } catch { /* push is best-effort — the in-app takeover still works */ }
         return Response.json({ incident });
+      }
+
+      case 'register_push_token': {
+        const { token } = body;
+        if (!token || typeof token !== 'string') return Response.json({ error: 'token required' }, { status: 400 });
+        const existing = await base44.asServiceRole.entities.PushToken.filter({ token });
+        if (!existing.length) {
+          await base44.asServiceRole.entities.PushToken.create({ token, device_id: String(device_id), role: 'driver', company_id: companyId });
+        }
+        return Response.json({ ok: true });
       }
 
       case 'cancel_sos': {
