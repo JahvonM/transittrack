@@ -85,6 +85,13 @@ export default function CompanyMessages({ vehicles = [] }) {
     setUnreadVehicleIds((prev) => { const next = new Set(prev); next.delete(vehicleId); return next; });
   };
 
+  const notifyAdmin = (extra) => {
+    base44.functions.invoke("notifyAdminMessage", {
+      vehicle_name: activeVehicle.name, company_id: activeVehicle.company_id, channel: "company",
+      sender_name: senderName, ...extra,
+    }).catch(() => {});
+  };
+
   const send = async (text) => {
     if (!activeVehicle) return;
     setSending(true);
@@ -94,6 +101,7 @@ export default function CompanyMessages({ vehicles = [] }) {
         company_id: activeVehicle.company_id, company_name: activeVehicle.company_name,
         channel: "company", sender_role: "company", sender_name: senderName, text,
       });
+      notifyAdmin({ text });
     } finally {
       setSending(false);
     }
@@ -110,6 +118,7 @@ export default function CompanyMessages({ vehicles = [] }) {
       channel: "company", sender_role: "company", sender_name: senderName,
       text: "", message_type: messageType, media_url: file_url,
     });
+    notifyAdmin({ message_type: messageType });
   };
 
   const editMessage = async (m, text) => {
