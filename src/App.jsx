@@ -111,6 +111,7 @@ const AuthenticatedApp = () => {
         <Route path="/admin/:section" element={<Admin />} />
         <Route path="/account" element={<Account />} />
         <Route path="/staff" element={<StaffPortal />} />
+        <Route path="/mechanic" element={<MechanicPortal />} />
         <Route path="/manager" element={<ManagerDashboard />} />
         <Route path="/manager/:tab" element={<ManagerDashboard />} />
         <Route path="/maintenance-queue" element={<MaintenanceQueue />} />
