@@ -313,34 +313,19 @@ export default async function(req) {
           driver_name: vehicle.driver_name || '', driver_email: vehicle.driver_email || '',
           type: 'emergency', details: 'SOS triggered by driver via long-press.', occurred_at: new Date().toISOString(),
         });
-        // TEMPORARY DIAGNOSTICS: recording exactly what happens in the push
-        // path (into the incident itself, since function logs aren't visible
-        // from outside) to find out why the push isn't reaching the admin's
-        // phone despite a valid token and working credentials. Remove once fixed.
-        let pushDebug = 'not started';
         try {
           const serviceAccountJson = secrets.get('FIREBASE_SERVICE_ACCOUNT');
-          if (!serviceAccountJson) {
-            pushDebug = 'secret FIREBASE_SERVICE_ACCOUNT is empty/missing';
-          } else {
-            pushDebug = `secret present (len ${serviceAccountJson.length}); `;
+          if (serviceAccountJson) {
             const adminTokens = await base44.asServiceRole.entities.PushToken.filter({ role: 'admin' });
-            pushDebug += `found ${adminTokens.length} admin token(s); `;
             if (adminTokens.length) {
-              const results = await Promise.all(adminTokens.map((t) => sendPushToToken(serviceAccountJson, t.token, {
+              await sendPushToTokens(serviceAccountJson, adminTokens.map((t) => t.token), {
                 title: '🚨 SOS — ' + vehicle.name,
                 body: `${vehicle.driver_name || 'Driver'} triggered SOS. Open the admin dashboard now.`,
                 data: { type: 'sos', vehicle_id: vehicleId },
-              })));
-              pushDebug += `send results: ${JSON.stringify(results)}`;
+              });
             }
           }
-        } catch (e) {
-          pushDebug = `threw: ${e && e.message ? e.message : String(e)}`;
-        }
-        await base44.asServiceRole.entities.Incident.update(incident.id, {
-          details: incident.details + ' [PUSH DEBUG: ' + pushDebug + ']',
-        }).catch(() => {});
+        } catch { /* push is best-effort — the in-app takeover still works */ }
         return Response.json({ incident });
       }
 
