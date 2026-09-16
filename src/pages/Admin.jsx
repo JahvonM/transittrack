@@ -23,6 +23,7 @@ import Greeting from "@/components/Greeting";
 import MapboxMap from "@/components/MapboxMap";
 import DataTab from "@/components/admin/DataTab";
 import FloatingChatbot from "@/components/admin/FloatingChatbot";
+import FloatingMessages from "@/components/admin/FloatingMessages";
 import useUserLocation from "@/hooks/useUserLocation";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -412,6 +413,7 @@ export default function Admin() {
           </div>
         )}
       </AdminShell>
+      <FloatingMessages vehicles={vehicles} />
       <FloatingChatbot />
       </AppLayout>
     </>
