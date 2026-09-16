@@ -3,7 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { MessageCircle, Send, Users } from "lucide-react";
+import { MessageCircle, Send, Users, Pencil, Trash2, Check, X } from "lucide-react";
 
 function formatTime(iso) {
   if (!iso) return "";
@@ -20,6 +20,9 @@ export default function StaffGroupChat({ vehicle }) {
   const [text, setText] = useState("");
   const [name, setName] = useState(() => localStorage.getItem("tt_staff_chat_name") || "");
   const [sending, setSending] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [editText, setEditText] = useState("");
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
   const bottomRef = useRef(null);
 
   useEffect(() => {
@@ -52,8 +55,34 @@ export default function StaffGroupChat({ vehicle }) {
         sender_role: "staff", sender_name: displayName, text: trimmed,
       });
       setText("");
+      // Notify admin (staff creates go straight through the client SDK, so
+      // this is the one path that doesn't already push-notify inline).
+      base44.functions.invoke("notifyAdminMessage", {
+        vehicle_name: vehicle.name, sender_name: displayName, text: trimmed,
+      }).catch(() => {});
     } catch { /* offline or blocked — nothing to recover client-side */ }
     finally { setSending(false); }
+  };
+
+  const startEdit = (m) => { setEditingId(m.id); setEditText(m.text); setConfirmDeleteId(null); };
+  const cancelEdit = () => { setEditingId(null); setEditText(""); };
+  const saveEdit = async (m) => {
+    const trimmed = editText.trim();
+    if (!trimmed) return;
+    try {
+      await base44.entities.GroupMessage.update(m.id, { text: trimmed, edited: true });
+      setMessages((prev) => prev.map((x) => (x.id === m.id ? { ...x, text: trimmed, edited: true } : x)));
+    } finally {
+      cancelEdit();
+    }
+  };
+  const deleteMessage = async (id) => {
+    try {
+      await base44.entities.GroupMessage.delete(id);
+      setMessages((prev) => prev.filter((m) => m.id !== id));
+    } finally {
+      setConfirmDeleteId(null);
+    }
   };
 
   if (!vehicle) {
@@ -81,21 +110,56 @@ export default function StaffGroupChat({ vehicle }) {
               No messages yet.
             </p>
           )}
-          {messages.map((m) => (
-            <div key={m.id} className={`flex ${m.sender_role === "staff" ? "justify-end" : "justify-start"}`}>
-              <div className={`max-w-[80%] rounded-2xl px-3.5 py-2 ${
-                m.sender_role === "staff" ? "bg-primary text-primary-foreground" : "bg-muted"
-              }`}>
-                <div className="text-xs font-medium opacity-70 mb-0.5">
-                  {m.sender_role === "driver" ? "Driver" : (m.sender_name || "Staff")}
+          {messages.map((m) => {
+            const isMine = m.sender_role === "staff" && m.sender_name === (name.trim() || "Staff");
+            const isEditing = editingId === m.id;
+            return (
+              <div key={m.id} className={`flex flex-col ${isMine ? "items-end" : "items-start"}`}>
+                <div className={`max-w-[80%] rounded-2xl px-3.5 py-2 ${
+                  isMine ? "bg-primary text-primary-foreground" : "bg-muted"
+                }`}>
+                  <div className="text-xs font-medium opacity-70 mb-0.5">
+                    {m.sender_role === "driver" ? "Driver" : m.sender_role === "admin" ? "Admin" : (m.sender_name || "Staff")}
+                  </div>
+                  {isEditing ? (
+                    <div className="flex items-center gap-1.5">
+                      <Input
+                        autoFocus
+                        value={editText}
+                        onChange={(e) => setEditText(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter") saveEdit(m); if (e.key === "Escape") cancelEdit(); }}
+                        className="h-8 text-sm bg-background text-foreground"
+                      />
+                      <button type="button" onClick={() => saveEdit(m)} className="shrink-0"><Check className="w-4 h-4" /></button>
+                      <button type="button" onClick={cancelEdit} className="shrink-0"><X className="w-4 h-4" /></button>
+                    </div>
+                  ) : (
+                    <div className="text-sm whitespace-pre-wrap">{m.text}</div>
+                  )}
+                  <div className={`text-[11px] mt-0.5 ${isMine ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
+                    {formatTime(m.created_date)}{m.edited ? " · edited" : ""}
+                  </div>
                 </div>
-                <div className="text-sm whitespace-pre-wrap">{m.text}</div>
-                <div className={`text-[11px] mt-0.5 ${m.sender_role === "staff" ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
-                  {formatTime(m.created_date)}
-                </div>
+                {isMine && !isEditing && (
+                  <div className="flex items-center gap-2 mt-1 px-1">
+                    <button type="button" onClick={() => startEdit(m)} className="text-muted-foreground hover:text-foreground">
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                    {confirmDeleteId === m.id ? (
+                      <>
+                        <button type="button" onClick={() => deleteMessage(m.id)} className="text-xs text-destructive font-medium">Delete?</button>
+                        <button type="button" onClick={() => setConfirmDeleteId(null)} className="text-xs text-muted-foreground">Cancel</button>
+                      </>
+                    ) : (
+                      <button type="button" onClick={() => setConfirmDeleteId(m.id)} className="text-muted-foreground hover:text-destructive">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
           <div ref={bottomRef} />
         </div>
         <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name (shown to the driver)" />
