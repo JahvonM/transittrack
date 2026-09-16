@@ -14,18 +14,42 @@
     "company_name": {
       "type": "string"
     },
+    "channel": {
+      "type": "string",
+      "enum": [
+        "staff",
+        "company",
+        "dispatch",
+        "mechanic"
+      ],
+      "default": "staff"
+    },
     "sender_role": {
       "type": "string",
       "enum": [
         "driver",
         "staff",
-        "admin"
+        "admin",
+        "company",
+        "mechanic"
       ]
     },
     "sender_name": {
       "type": "string"
     },
     "text": {
+      "type": "string"
+    },
+    "message_type": {
+      "type": "string",
+      "enum": [
+        "text",
+        "image",
+        "audio"
+      ],
+      "default": "text"
+    },
+    "media_url": {
       "type": "string"
     },
     "edited": {
@@ -42,24 +66,92 @@
     "read": {
       "$or": [
         {
-          "data.company_id": "{{user.data.company_id}}"
+          "$and": [
+            {
+              "data.channel": "staff"
+            },
+            {
+              "data.company_id": "{{user.data.company_id}}"
+            }
+          ]
+        },
+        {
+          "$and": [
+            {
+              "data.channel": "company"
+            },
+            {
+              "data.company_id": "{{user.data.company_id}}"
+            },
+            {
+              "user_condition": {
+                "role": "company"
+              }
+            }
+          ]
         },
         {
           "user_condition": {
             "role": "admin"
           }
+        },
+        {
+          "$and": [
+            {
+              "data.channel": "mechanic"
+            },
+            {
+              "user_condition": {
+                "role": "mechanic"
+              }
+            }
+          ]
         }
       ]
     },
     "create": {
       "$or": [
         {
-          "data.company_id": "{{user.data.company_id}}"
+          "$and": [
+            {
+              "data.channel": "staff"
+            },
+            {
+              "data.company_id": "{{user.data.company_id}}"
+            }
+          ]
+        },
+        {
+          "$and": [
+            {
+              "data.channel": "company"
+            },
+            {
+              "data.company_id": "{{user.data.company_id}}"
+            },
+            {
+              "user_condition": {
+                "role": "company"
+              }
+            }
+          ]
         },
         {
           "user_condition": {
             "role": "admin"
           }
+        },
+        {
+          "$and": [
+            {
+              "data.channel": "mechanic"
+            },
+            {
+              "user_condition": {
+                "role": "mechanic"
+              }
+            }
+          ]
         }
       ]
     },
