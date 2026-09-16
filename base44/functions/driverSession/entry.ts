@@ -170,7 +170,7 @@ export default async function(req) {
           loadStaff(base44, companyId),
           base44.asServiceRole.entities.Broadcast.filter({}, '-created_date', 20),
           base44.asServiceRole.entities.StaffCheckIn.filter({ vehicle_id: vehicleId }, '-created_date', 20),
-          base44.asServiceRole.entities.GroupMessage.filter({ vehicle_id: vehicleId }, '-created_date', 50),
+          base44.asServiceRole.entities.GroupMessage.filter({ vehicle_id: vehicleId }, '-created_date', 200),
         ]);
         const driverEmail = vehicle.driver_email || '';
         const relevantBroadcasts = broadcasts.filter((b) => {
