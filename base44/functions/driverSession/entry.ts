@@ -51,6 +51,31 @@ async function sendPushToTokens(serviceAccountJson, tokens, payload) {
   await Promise.all(tokens.map((t) => sendPushToToken(serviceAccountJson, t, payload)));
 }
 
+// Chat channels each reach a different audience beyond the always-included
+// admin: 'company' also reaches that company's own manager, 'mechanic' also
+// reaches the maintenance team. 'staff' and 'dispatch' are admin-only targets
+// (staff themselves are already looking at the thread live via subscribe).
+async function pushTokensForChannel(base44, channel, companyId) {
+  const queries = [base44.asServiceRole.entities.PushToken.filter({ role: 'admin' })];
+  if (channel === 'company' && companyId) {
+    queries.push(base44.asServiceRole.entities.PushToken.filter({ role: 'company', company_id: companyId }));
+  }
+  if (channel === 'mechanic') {
+    queries.push(base44.asServiceRole.entities.PushToken.filter({ role: 'mechanic' }));
+  }
+  const results = await Promise.all(queries);
+  return [...new Set(results.flat().map((t) => t.token))];
+}
+
+const CHAT_CHANNELS = ['staff', 'company', 'dispatch', 'mechanic'];
+
+function base64ToBytes(b64) {
+  const binary = atob(b64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
 async function resolveDriverDevice(base44, deviceId) {
   if (!deviceId || typeof deviceId !== 'string') return null;
   try {
