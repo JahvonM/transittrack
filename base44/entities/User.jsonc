@@ -9,7 +9,8 @@
         "company",
         "driver",
         "passenger",
-        "staff"
+        "staff",
+        "mechanic"
       ],
       "default": "passenger"
     },
@@ -49,5 +50,6 @@
       "type": "boolean",
       "default": false
     }
-  }
+  },
+  "required": []
 }
