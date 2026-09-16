@@ -21,6 +21,7 @@ import {
   PenLine,
   ShieldCheck,
   Usb,
+  Wrench,
 } from "lucide-react";
 
 const ROLES = {
@@ -47,6 +48,12 @@ const ROLES = {
     title: "Admin",
     icon: ShieldCheck,
     blurb: "Fleet health, users, roles and scheduling.",
+  },
+  mechanic: {
+    to: "/mechanic",
+    title: "Mechanic",
+    icon: Wrench,
+    blurb: "Vehicle issues and maintenance chat with drivers.",
   },
   kiosk_bus: {
     to: "/kiosk",
