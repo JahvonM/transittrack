@@ -244,6 +244,7 @@ export default function StaffPortal() {
 
   if (user?.role === "driver") return <Navigate to="/driver" replace />;
   if (user?.role === "company") return <Navigate to="/company" replace />;
+  if (user?.role === "mechanic") return <Navigate to="/mechanic" replace />;
   if (!companiesLoaded) return <AppLayout />;
   if (!company) {
     return (
