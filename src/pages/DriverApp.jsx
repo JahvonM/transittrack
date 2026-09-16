@@ -10,13 +10,12 @@ import PinGate from "@/components/driver/PinGate";
 import PreTripInspection from "@/components/driver/PreTripInspection";
 import DriverTrackingDashboard from "@/components/driver/DriverTrackingDashboard";
 import DriverNavMap from "@/components/driver/DriverNavMap";
-import DriverMessages from "@/components/DriverMessages";
-import DriverGroupChat from "@/components/driver/DriverGroupChat";
+import DriverChats from "@/components/driver/DriverChats";
 import DriverMessageAlert from "@/components/driver/DriverMessageAlert";
 import DriverDevicePanel from "@/components/driver/DriverDevicePanel";
 import SafetyStandardsContent from "@/components/SafetyStandardsContent";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertCircle, AlertTriangle, ArrowLeft, Inbox, MessageCircle, ShieldCheck } from "lucide-react";
+import { AlertCircle, AlertTriangle, ArrowLeft, MessageCircle, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -24,7 +23,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/components/ui/use-toast";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
-const TRACKING_TABS = ["track", "navigate", "messages", "chat", "safety", "profile"];
+const TRACKING_TABS = ["track", "navigate", "chat", "safety", "profile"];
 
 export default function DriverApp() {
   const navigate = useNavigate();
@@ -52,11 +51,9 @@ export default function DriverApp() {
   const seenIds = useRef(new Set());
   const firstLoad = useRef(true);
 
-  // Unread dot on the Chat tab when a staff member posts while the driver
-  // is looking at a different tab.
+  // Unread dot on the Chat tab — DriverChats tracks per-contact unread
+  // (staff/company/dispatch/mechanic) and reports whether any is unread.
   const [hasUnreadChat, setHasUnreadChat] = useState(false);
-  const seenChatIds = useRef(new Set());
-  const firstChatLoad = useRef(true);
 
   const playAlertSound = useCallback(() => {
     try {
@@ -93,22 +90,6 @@ export default function DriverApp() {
     });
   }, [session?.broadcasts, playAlertSound]);
 
-  useEffect(() => {
-    const groupMessages = session?.group_messages;
-    if (!groupMessages) return;
-    if (firstChatLoad.current) {
-      groupMessages.forEach((m) => seenChatIds.current.add(m.id));
-      firstChatLoad.current = false;
-      return;
-    }
-    groupMessages.forEach((m) => {
-      if (seenChatIds.current.has(m.id)) return;
-      seenChatIds.current.add(m.id);
-      if (m.sender_role === "staff") setHasUnreadChat(true);
-    });
-  }, [session?.group_messages]);
-
-  useEffect(() => { if (activeTab === "chat") setHasUnreadChat(false); }, [activeTab]);
 
   // Drivers have no login, so their push token registers through the device
   // session instead of the usePushNotifications hook (which needs an email).
@@ -142,7 +123,7 @@ export default function DriverApp() {
   }, []);
 
   const handleAlertReply = async (text) => {
-    await invoke("send_broadcast", { message: text });
+    await invoke("send_group_message", { text, channel: "dispatch" });
     setAlert(null);
   };
 
@@ -275,13 +256,9 @@ export default function DriverApp() {
         </Button>
         <DriverGreeting driverName={driverName} subtitle={vehicle.name} />
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v)} className="w-full">
-          <TabsList className="grid w-full grid-cols-6">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="track">Track</TabsTrigger>
             <TabsTrigger value="navigate">Navigate</TabsTrigger>
-            <TabsTrigger value="messages">
-              <Inbox className="w-4 h-4 sm:hidden" />
-              <span className="hidden sm:inline">Messages</span>
-            </TabsTrigger>
             <TabsTrigger value="chat" className="relative">
               <MessageCircle className="w-4 h-4 sm:hidden" />
               <span className="hidden sm:inline">Chat</span>
@@ -314,11 +291,8 @@ export default function DriverApp() {
           <TabsContent value="navigate" className="mt-4">
             <DriverNavMap session={session} invoke={invoke} />
           </TabsContent>
-          <TabsContent value="messages" className="mt-4">
-            <DriverMessages session={session} invoke={invoke} />
-          </TabsContent>
           <TabsContent value="chat" className="mt-4">
-            <DriverGroupChat session={session} invoke={invoke} />
+            <DriverChats session={session} invoke={invoke} onUnreadChange={setHasUnreadChat} />
           </TabsContent>
           <TabsContent value="safety" className="mt-4">
             <SafetyStandardsContent />
