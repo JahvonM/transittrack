@@ -390,11 +390,46 @@ export default async function(req) {
           return Response.json({ error: 'text required' }, { status: 400 });
         const vehicle = await loadVehicle(base44, vehicleId);
         if (!vehicle) return Response.json({ error: 'Vehicle not found' }, { status: 404 });
+        const cleanText = sanitize(text);
         const message = await base44.asServiceRole.entities.GroupMessage.create({
           vehicle_id: vehicleId, vehicle_name: vehicle.name, company_id: companyId, company_name: companyName,
-          sender_role: 'driver', sender_name: vehicle.driver_name || 'Driver', text: sanitize(text),
+          sender_role: 'driver', sender_name: vehicle.driver_name || 'Driver', text: cleanText,
         });
+        try {
+          const serviceAccountJson = secrets.get('FIREBASE_SERVICE_ACCOUNT');
+          if (serviceAccountJson) {
+            const adminTokens = await base44.asServiceRole.entities.PushToken.filter({ role: 'admin' });
+            if (adminTokens.length) {
+              await sendPushToTokens(serviceAccountJson, adminTokens.map((t) => t.token), {
+                title: `${vehicle.name} · ${vehicle.driver_name || 'Driver'}`,
+                body: cleanText,
+                data: { type: 'group_message', vehicle_id: vehicleId },
+              });
+            }
+          }
+        } catch { /* push is best-effort */ }
         return Response.json({ message });
+      }
+
+      case 'edit_group_message': {
+        const { message_id, text } = body;
+        if (!message_id || !text || typeof text !== 'string' || !text.trim())
+          return Response.json({ error: 'message_id and text required' }, { status: 400 });
+        const existing = await base44.asServiceRole.entities.GroupMessage.get(message_id).catch(() => null);
+        if (!existing || existing.vehicle_id !== vehicleId || existing.sender_role !== 'driver')
+          return Response.json({ error: 'Message not found' }, { status: 404 });
+        const updated = await base44.asServiceRole.entities.GroupMessage.update(message_id, { text: sanitize(text), edited: true });
+        return Response.json({ message: updated });
+      }
+
+      case 'delete_group_message': {
+        const { message_id } = body;
+        if (!message_id) return Response.json({ error: 'message_id required' }, { status: 400 });
+        const existing = await base44.asServiceRole.entities.GroupMessage.get(message_id).catch(() => null);
+        if (!existing || existing.vehicle_id !== vehicleId || existing.sender_role !== 'driver')
+          return Response.json({ error: 'Message not found' }, { status: 404 });
+        await base44.asServiceRole.entities.GroupMessage.delete(message_id);
+        return Response.json({ ok: true });
       }
 
       case 'send_broadcast': {
