@@ -25,6 +25,7 @@ const DriverApp = lazy(() => import('@/pages/DriverApp'));
 const Admin = lazy(() => import('@/pages/Admin'));
 const Account = lazy(() => import('@/pages/Account'));
 const StaffPortal = lazy(() => import('@/pages/StaffPortal'));
+const MechanicPortal = lazy(() => import('@/pages/MechanicPortal'));
 const ManagerDashboard = lazy(() => import('@/pages/ManagerDashboard'));
 const OAuthConsent = lazy(() => import('@/pages/OAuthConsent'));
 const MaintenanceQueue = lazy(() => import('@/pages/MaintenanceQueue'));
