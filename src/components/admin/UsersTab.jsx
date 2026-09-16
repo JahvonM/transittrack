@@ -101,6 +101,7 @@ function CreateAccountDialog({ companies, onCreated }) {
                 <SelectItem value="company">Company</SelectItem>
                 <SelectItem value="driver">Driver</SelectItem>
                 <SelectItem value="staff">Hotel staff</SelectItem>
+                <SelectItem value="mechanic">Mechanic</SelectItem>
                 <SelectItem value="admin">Admin</SelectItem>
               </SelectContent>
             </Select>
@@ -188,6 +189,7 @@ export default function UsersTab({ users, companies, currentUser, onChange }) {
               <SelectItem value="company">Company</SelectItem>
               <SelectItem value="driver">Driver</SelectItem>
               <SelectItem value="staff">Hotel staff</SelectItem>
+              <SelectItem value="mechanic">Mechanic</SelectItem>
               <SelectItem value="admin">Admin</SelectItem>
             </SelectContent>
           </Select>
@@ -210,6 +212,7 @@ export default function UsersTab({ users, companies, currentUser, onChange }) {
                 <SelectItem value="company">Company</SelectItem>
                 <SelectItem value="driver">Driver</SelectItem>
                 <SelectItem value="staff">Hotel staff</SelectItem>
+                <SelectItem value="mechanic">Mechanic</SelectItem>
                 <SelectItem value="admin">Admin</SelectItem>
               </SelectContent>
             </Select>
