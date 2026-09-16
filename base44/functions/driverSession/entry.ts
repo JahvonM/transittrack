@@ -410,25 +410,67 @@ export default async function(req) {
       }
 
       case 'send_group_message': {
-        const { text } = body;
+        const { text, channel } = body;
         if (!text || typeof text !== 'string' || !text.trim())
           return Response.json({ error: 'text required' }, { status: 400 });
+        const ch = CHAT_CHANNELS.includes(channel) ? channel : 'staff';
         const vehicle = await loadVehicle(base44, vehicleId);
         if (!vehicle) return Response.json({ error: 'Vehicle not found' }, { status: 404 });
         const cleanText = sanitize(text);
         const message = await base44.asServiceRole.entities.GroupMessage.create({
           vehicle_id: vehicleId, vehicle_name: vehicle.name, company_id: companyId, company_name: companyName,
-          sender_role: 'driver', sender_name: vehicle.driver_name || 'Driver', text: cleanText,
+          channel: ch, sender_role: 'driver', sender_name: vehicle.driver_name || 'Driver', text: cleanText,
         });
         try {
           const serviceAccountJson = secrets.get('FIREBASE_SERVICE_ACCOUNT');
           if (serviceAccountJson) {
-            const adminTokens = await base44.asServiceRole.entities.PushToken.filter({ role: 'admin' });
-            if (adminTokens.length) {
-              await sendPushToTokens(serviceAccountJson, adminTokens.map((t) => t.token), {
+            const tokens = await pushTokensForChannel(base44, ch, companyId);
+            if (tokens.length) {
+              await sendPushToTokens(serviceAccountJson, tokens, {
                 title: `${vehicle.name} · ${vehicle.driver_name || 'Driver'}`,
                 body: cleanText,
-                data: { type: 'group_message', vehicle_id: vehicleId },
+                data: { type: 'group_message', vehicle_id: vehicleId, channel: ch },
+              });
+            }
+          }
+        } catch { /* push is best-effort */ }
+        return Response.json({ message });
+      }
+
+      case 'send_chat_media': {
+        const { channel, message_type, data_base64, mime_type, filename } = body;
+        const ch = CHAT_CHANNELS.includes(channel) ? channel : 'staff';
+        if (!['image', 'audio'].includes(message_type))
+          return Response.json({ error: 'message_type must be image or audio' }, { status: 400 });
+        if (!data_base64 || typeof data_base64 !== 'string')
+          return Response.json({ error: 'data_base64 required' }, { status: 400 });
+        const vehicle = await loadVehicle(base44, vehicleId);
+        if (!vehicle) return Response.json({ error: 'Vehicle not found' }, { status: 404 });
+        let mediaUrl;
+        try {
+          const bytes = base64ToBytes(data_base64);
+          const type = mime_type || (message_type === 'image' ? 'image/jpeg' : 'audio/webm');
+          const name = filename || `${message_type}-${Date.now()}`;
+          const file = new File([bytes], name, { type });
+          const uploaded = await base44.asServiceRole.integrations.Core.UploadFile({ file });
+          mediaUrl = uploaded.file_url;
+        } catch (e) {
+          return Response.json({ error: `Upload failed: ${e.message}` }, { status: 500 });
+        }
+        const message = await base44.asServiceRole.entities.GroupMessage.create({
+          vehicle_id: vehicleId, vehicle_name: vehicle.name, company_id: companyId, company_name: companyName,
+          channel: ch, sender_role: 'driver', sender_name: vehicle.driver_name || 'Driver',
+          text: '', message_type, media_url: mediaUrl,
+        });
+        try {
+          const serviceAccountJson = secrets.get('FIREBASE_SERVICE_ACCOUNT');
+          if (serviceAccountJson) {
+            const tokens = await pushTokensForChannel(base44, ch, companyId);
+            if (tokens.length) {
+              await sendPushToTokens(serviceAccountJson, tokens, {
+                title: `${vehicle.name} · ${vehicle.driver_name || 'Driver'}`,
+                body: message_type === 'image' ? '📷 Photo' : '🎤 Voice note',
+                data: { type: 'group_message', vehicle_id: vehicleId, channel: ch },
               });
             }
           }
