@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { MessageCircle, Send, Users } from "lucide-react";
+import { MessageCircle, Send, Users, Pencil, Trash2, Check, X } from "lucide-react";
 
 // One-tap canned messages so a driver can update the group without typing
 // while driving — tapping sends immediately.
@@ -26,6 +26,9 @@ export default function DriverGroupChat({ session, invoke }) {
   const [text, setText] = useState("");
   const [localMessages, setLocalMessages] = useState([]);
   const [sending, setSending] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [editText, setEditText] = useState("");
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
   const bottomRef = useRef(null);
 
   // Drop optimistic local echoes once the server's own copy shows up (next heartbeat).
@@ -56,6 +59,27 @@ export default function DriverGroupChat({ session, invoke }) {
     }
   };
 
+  const startEdit = (m) => { setEditingId(m.id); setEditText(m.text); setConfirmDeleteId(null); };
+  const cancelEdit = () => { setEditingId(null); setEditText(""); };
+  const saveEdit = async (id) => {
+    const trimmed = editText.trim();
+    if (!trimmed) return;
+    try {
+      await invoke("edit_group_message", { message_id: id, text: trimmed });
+      setLocalMessages((prev) => prev.map((m) => (m.id === id ? { ...m, text: trimmed, edited: true } : m)));
+    } finally {
+      cancelEdit();
+    }
+  };
+  const deleteMessage = async (id) => {
+    try {
+      await invoke("delete_group_message", { message_id: id });
+      setLocalMessages((prev) => prev.filter((m) => m.id !== id));
+    } finally {
+      setConfirmDeleteId(null);
+    }
+  };
+
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -69,21 +93,57 @@ export default function DriverGroupChat({ session, invoke }) {
               No messages yet — say hello or send a quick update below.
             </p>
           )}
-          {allMessages.map((m) => (
-            <div key={m.id} className={`flex ${m.sender_role === "driver" ? "justify-end" : "justify-start"}`}>
-              <div className={`max-w-[80%] rounded-2xl px-3.5 py-2 ${
-                m.sender_role === "driver" ? "bg-primary text-primary-foreground" : "bg-muted"
-              }`}>
-                {m.sender_role !== "driver" && (
-                  <div className="text-xs font-medium opacity-70 mb-0.5">{m.sender_name || "Staff"}</div>
-                )}
-                <div className="text-sm whitespace-pre-wrap">{m.text}</div>
-                <div className={`text-[11px] mt-0.5 ${m.sender_role === "driver" ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
-                  {formatTime(m.created_date)}
+          {allMessages.map((m) => {
+            const isMine = m.sender_role === "driver";
+            const isLocal = String(m.id).startsWith("local-");
+            const isEditing = editingId === m.id;
+            return (
+              <div key={m.id} className={`flex flex-col ${isMine ? "items-end" : "items-start"}`}>
+                <div className={`max-w-[80%] rounded-2xl px-3.5 py-2 ${
+                  isMine ? "bg-primary text-primary-foreground" : "bg-muted"
+                }`}>
+                  {!isMine && (
+                    <div className="text-xs font-medium opacity-70 mb-0.5">{m.sender_name || "Staff"}</div>
+                  )}
+                  {isEditing ? (
+                    <div className="flex items-center gap-1.5">
+                      <Input
+                        autoFocus
+                        value={editText}
+                        onChange={(e) => setEditText(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter") saveEdit(m.id); if (e.key === "Escape") cancelEdit(); }}
+                        className="h-8 text-sm bg-background text-foreground"
+                      />
+                      <button type="button" onClick={() => saveEdit(m.id)} className="shrink-0"><Check className="w-4 h-4" /></button>
+                      <button type="button" onClick={cancelEdit} className="shrink-0"><X className="w-4 h-4" /></button>
+                    </div>
+                  ) : (
+                    <div className="text-sm whitespace-pre-wrap">{m.text}</div>
+                  )}
+                  <div className={`text-[11px] mt-0.5 ${isMine ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
+                    {formatTime(m.created_date)}{m.edited ? " · edited" : ""}
+                  </div>
                 </div>
+                {isMine && !isLocal && !isEditing && (
+                  <div className="flex items-center gap-2 mt-1 px-1">
+                    <button type="button" onClick={() => startEdit(m)} className="text-muted-foreground hover:text-foreground">
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                    {confirmDeleteId === m.id ? (
+                      <>
+                        <button type="button" onClick={() => deleteMessage(m.id)} className="text-xs text-destructive font-medium">Delete?</button>
+                        <button type="button" onClick={() => setConfirmDeleteId(null)} className="text-xs text-muted-foreground">Cancel</button>
+                      </>
+                    ) : (
+                      <button type="button" onClick={() => setConfirmDeleteId(m.id)} className="text-muted-foreground hover:text-destructive">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
           <div ref={bottomRef} />
         </CardContent>
       </Card>
