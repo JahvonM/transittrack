@@ -150,7 +150,7 @@ export default function FloatingMessages({ vehicles = [] }) {
   return (
     <>
       {open && (
-        <div className="fixed bottom-20 left-4 z-50 w-[92vw] max-w-sm h-[65vh] flex flex-col rounded-2xl border bg-card shadow-2xl overflow-hidden">
+        <div className="fixed bottom-40 right-4 z-50 w-[92vw] max-w-sm h-[65vh] flex flex-col rounded-2xl border bg-card shadow-2xl overflow-hidden">
           {!activeVehicle ? (
             <>
               <div className="flex items-center justify-between p-3 border-b shrink-0">
@@ -263,7 +263,7 @@ export default function FloatingMessages({ vehicles = [] }) {
         </div>
       )}
       <Button
-        className="fixed bottom-4 left-4 z-50 rounded-full h-14 w-14 shadow-lg relative"
+        className="fixed bottom-24 right-4 z-50 rounded-full h-14 w-14 shadow-lg relative"
         size="icon"
         onClick={() => setOpen(!open)}
       >
