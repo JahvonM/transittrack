@@ -8,6 +8,7 @@ import CodeGate from "@/components/CodeGate";
 import ProfileInfo from "@/components/ProfileInfo";
 import StaffAlerts from "@/components/StaffAlerts";
 import StaffGroupChat from "@/components/staff/StaffGroupChat";
+import MyBadgeQr from "@/components/staff/MyBadgeQr";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import LocationPinner from "@/components/staff/LocationPinner";
 import useUserLocation from "@/hooks/useUserLocation";
@@ -261,11 +262,14 @@ export default function StaffPortal() {
         <div className="space-y-4">
         <Greeting subtitle={company.name} />
 
-        {pushPermission !== "granted" && pushPermission !== "unsupported" && (
-          <Button variant="outline" size="sm" onClick={enableNotifications}>
-            <BellRing className="w-4 h-4 mr-1.5" /> Enable notifications (know when your bus is close)
-          </Button>
-        )}
+        <div className="flex flex-wrap gap-2">
+          {pushPermission !== "granted" && pushPermission !== "unsupported" && (
+            <Button variant="outline" size="sm" onClick={enableNotifications}>
+              <BellRing className="w-4 h-4 mr-1.5" /> Enable notifications (know when your bus is close)
+            </Button>
+          )}
+          <MyBadgeQr userId={user?.id} />
+        </div>
 
         <div className="space-y-2">
           <StaffGroupChat vehicle={myVehicle} />
