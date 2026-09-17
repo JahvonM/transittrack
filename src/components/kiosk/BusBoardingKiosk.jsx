@@ -90,6 +90,10 @@ export default function BusBoardingKiosk({ invoke }) {
       setResult({ staff_name: res.record.staff_name, status: res.record.status });
       setMode("result");
       resetSoon();
+    } catch {
+      setBadgeError("Something went wrong checking that in — please try again.");
+      setMode("badge_error");
+      resetSoon(3000);
     } finally {
       setBusy(false);
     }
@@ -103,6 +107,10 @@ export default function BusBoardingKiosk({ invoke }) {
       setResult({ staff_name: res.record.staff_name, status: res.record.status });
       setMode("result");
       resetSoon();
+    } catch {
+      setBadgeError("Something went wrong checking that in — please try again.");
+      setMode("badge_error");
+      resetSoon(3000);
     } finally {
       setBusy(false);
     }
