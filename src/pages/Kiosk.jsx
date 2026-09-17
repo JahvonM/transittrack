@@ -1,8 +1,11 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
 import { Bus, Building2, DoorOpen, CreditCard, CheckCircle2, AlertCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import BusBoardingKiosk from "@/components/kiosk/BusBoardingKiosk";
+import BadgeRegistryKiosk from "@/components/kiosk/BadgeRegistryKiosk";
+import FrontDeskKiosk from "@/components/kiosk/FrontDeskKiosk";
 
 const TYPE_META = {
   bus_boarding: { label: "Bus boarding", icon: Bus },
@@ -14,6 +17,7 @@ const HEARTBEAT_MS = 30000;
 
 export default function Kiosk() {
   const [device, setDevice] = useState(null);
+  const [deviceId, setDeviceId] = useState(null);
   const [status, setStatus] = useState("pairing"); // pairing | paired | error
   const [error, setError] = useState("");
   const heartbeatId = useRef(null);
@@ -25,9 +29,9 @@ export default function Kiosk() {
   // "Last seen: X ago") and re-syncs device details for the paired screen.
   // Without this, a paired kiosk looked perpetually stale to admin no matter
   // how actively it was being used — it only ever checked in once, at pairing.
-  const heartbeat = (deviceId) => {
+  const heartbeat = (id) => {
     base44.functions
-      .invoke("kioskHeartbeat", { device_id: deviceId })
+      .invoke("kioskHeartbeat", { device_id: id })
       .then((res) => {
         if (res.data?.error) {
           setStatus("error");
@@ -37,6 +41,7 @@ export default function Kiosk() {
           return;
         }
         setDevice(res.data);
+        setDeviceId(id);
         setStatus("paired");
       })
       .catch(() => {
@@ -62,6 +67,7 @@ export default function Kiosk() {
         if (!res.data?.device_id) { setStatus("error"); setError("Pairing failed."); return; }
         localStorage.setItem("tt_kiosk_device_id", res.data.device_id);
         setDevice(res.data);
+        setDeviceId(res.data.device_id);
         setStatus("paired");
         heartbeatId.current = setInterval(() => heartbeat(res.data.device_id), HEARTBEAT_MS);
       })
@@ -73,6 +79,13 @@ export default function Kiosk() {
     return () => { if (heartbeatId.current) clearInterval(heartbeatId.current); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [code, storedId]);
+
+  // Every kiosk action (search/lookup/check-in/register/sign-in) goes
+  // through this one backend function, keyed by device_id like driverSession.
+  const invoke = useCallback(async (action, payload = {}) => {
+    const res = await base44.functions.invoke("kioskCheckIn", { device_id: deviceId, action, ...payload });
+    return res.data;
+  }, [deviceId]);
 
   const meta = device ? (TYPE_META[device.kiosk_type] || TYPE_META.bus_boarding) : null;
   const Icon = meta?.icon || Bus;
@@ -95,42 +108,32 @@ export default function Kiosk() {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-background">
-      <Card className="max-w-sm w-full">
-        <CardHeader className="text-center">
-          <div className="mx-auto w-12 h-12 rounded-xl bg-emerald-500/10 grid place-items-center mb-2">
-            <CheckCircle2 className="w-6 h-6 text-emerald-500" />
-          </div>
-          <CardTitle className="text-xl">Tablet paired</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex items-center gap-3 p-3 rounded-lg border bg-card">
-            <Icon className="w-5 h-5 text-primary shrink-0" />
-            <div>
-              <div className="text-sm font-medium">{meta?.label || "Kiosk"}</div>
-              <div className="text-xs text-muted-foreground">{device?.label || "Device"}</div>
+      <div className="max-w-sm w-full space-y-3">
+        <Card>
+          <CardHeader className="text-center pb-3">
+            <div className="mx-auto w-10 h-10 rounded-xl bg-emerald-500/10 grid place-items-center mb-1">
+              <CheckCircle2 className="w-5 h-5 text-emerald-500" />
             </div>
-          </div>
-          {device?.company_name && (
-            <div className="flex items-center gap-3 p-3 rounded-lg border bg-card">
-              <Building2 className="w-5 h-5 text-primary shrink-0" />
-              <div>
-                <div className="text-sm font-medium">{device.company_name}</div>
-                <div className="text-xs text-muted-foreground">Company</div>
-              </div>
-            </div>
+            <CardTitle className="text-base flex items-center justify-center gap-2">
+              <Icon className="w-4 h-4 text-primary" /> {meta?.label || "Kiosk"}
+            </CardTitle>
+          </CardHeader>
+          {(device?.company_name || device?.vehicle_name) && (
+            <CardContent className="pt-0 pb-4 flex flex-wrap justify-center gap-2 text-xs text-muted-foreground">
+              {device?.company_name && (
+                <span className="flex items-center gap-1"><Building2 className="w-3.5 h-3.5" /> {device.company_name}</span>
+              )}
+              {device?.vehicle_name && (
+                <span className="flex items-center gap-1"><Bus className="w-3.5 h-3.5" /> {device.vehicle_name}</span>
+              )}
+            </CardContent>
           )}
-          {device?.vehicle_name && (
-            <div className="flex items-center gap-3 p-3 rounded-lg border bg-card">
-              <Bus className="w-5 h-5 text-primary shrink-0" />
-              <div>
-                <div className="text-sm font-medium">{device.vehicle_name}</div>
-                <div className="text-xs text-muted-foreground">Assigned vehicle</div>
-              </div>
-            </div>
-          )}
-          <p className="text-xs text-muted-foreground text-center pt-2">This tablet is now paired and ready. Keep it open to stay connected.</p>
-        </CardContent>
-      </Card>
+        </Card>
+
+        {device?.kiosk_type === "bus_boarding" && <BusBoardingKiosk invoke={invoke} />}
+        {device?.kiosk_type === "badge_registry" && <BadgeRegistryKiosk invoke={invoke} />}
+        {device?.kiosk_type === "front_desk" && <FrontDeskKiosk invoke={invoke} />}
+      </div>
     </div>
   );
 }
