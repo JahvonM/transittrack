@@ -16,6 +16,7 @@ export default function BadgeRegistryKiosk({ invoke }) {
   const [mode, setMode] = useState(null); // null | nfc | qr | done
   const [qrUrl, setQrUrl] = useState("");
   const [busy, setBusy] = useState(false);
+  const [registerError, setRegisterError] = useState("");
 
   const { supported: nfcSupported, listening, nfcError } = useNfcTap(
     (tag) => registerTag(tag),
@@ -40,9 +41,12 @@ export default function BadgeRegistryKiosk({ invoke }) {
   const registerTag = async (tag) => {
     if (!selected || busy) return;
     setBusy(true);
+    setRegisterError("");
     try {
       await invoke("register_badge", { staff_id: selected.id, card_tag: tag });
       setMode("done");
+    } catch {
+      setRegisterError("Couldn't register that badge — try tapping it again.");
     } finally {
       setBusy(false);
     }
@@ -95,6 +99,7 @@ export default function BadgeRegistryKiosk({ invoke }) {
           </div>
           <p className="font-medium">Tap {selected.full_name}'s badge now</p>
           {nfcError && <p className="text-xs text-destructive">{nfcError}</p>}
+          {registerError && <p className="text-xs text-destructive">{registerError}</p>}
         </CardContent>
       </Card>
     );
