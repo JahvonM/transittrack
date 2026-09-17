@@ -13,12 +13,14 @@ export default function FrontDeskKiosk({ invoke }) {
   const [reason, setReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
+  const [error, setError] = useState("");
   const padRef = useRef(null);
   const resetTimer = useRef(null);
 
   const submit = async () => {
     if (!fullName.trim() || submitting) return;
     setSubmitting(true);
+    setError("");
     try {
       const signature_base64 = padRef.current && !padRef.current.isEmpty() ? padRef.current.toDataUrl() : "";
       await invoke("front_desk_sign_in", {
@@ -28,6 +30,8 @@ export default function FrontDeskKiosk({ invoke }) {
       resetTimer.current = setTimeout(() => {
         setFullName(""); setCompanyName(""); setReason(""); padRef.current?.clear(); setDone(false);
       }, 3000);
+    } catch {
+      setError("Something went wrong — please try signing in again.");
     } finally {
       setSubmitting(false);
     }
@@ -63,6 +67,7 @@ export default function FrontDeskKiosk({ invoke }) {
           <Textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={2} placeholder="Meeting, delivery, interview…" />
         </div>
         <SignaturePad ref={padRef} />
+        {error && <p className="text-xs text-destructive text-center">{error}</p>}
         <Button className="w-full" onClick={submit} disabled={submitting || !fullName.trim()}>
           {submitting ? "Signing in…" : "Sign in"}
         </Button>
