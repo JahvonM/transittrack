@@ -18,23 +18,29 @@ export function useNfcTap(onTag, active) {
   useEffect(() => {
     if (!supported || !active) { setListening(false); return; }
     let cancelled = false;
+    // Without an AbortSignal, a scan started here keeps running (and
+    // `onreading` keeps firing) even after this effect's cleanup runs —
+    // e.g. once a tap has moved the caller on to a confirm/result screen,
+    // a second tap would otherwise silently re-trigger the tag handler.
+    const controller = new AbortController();
     const reader = new window.NDEFReader();
     readerRef.current = reader;
-    reader.scan()
+    reader.scan({ signal: controller.signal })
       .then(() => {
         if (cancelled) return;
         setListening(true);
         setNfcError("");
         reader.onreading = (event) => {
+          if (cancelled) return;
           const tag = event.serialNumber && event.serialNumber.replace(/:/g, "").toUpperCase();
           if (tag) onTagRef.current?.(tag);
         };
-        reader.onreadingerror = () => setNfcError("Couldn't read that tag — try again.");
+        reader.onreadingerror = () => { if (!cancelled) setNfcError("Couldn't read that tag — try again."); };
       })
       .catch((e) => {
         if (!cancelled) { setNfcError(e?.message || "NFC scan failed to start."); setListening(false); }
       });
-    return () => { cancelled = true; setListening(false); };
+    return () => { cancelled = true; controller.abort(); setListening(false); };
   }, [supported, active]);
 
   return { supported, listening, nfcError };
