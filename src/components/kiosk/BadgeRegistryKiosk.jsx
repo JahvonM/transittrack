@@ -52,7 +52,7 @@ export default function BadgeRegistryKiosk({ invoke }) {
     }
   };
 
-  const reset = () => { setSelected(null); setMode(null); setQuery(""); setMatches([]); setQrUrl(""); };
+  const reset = () => { setSelected(null); setMode(null); setQuery(""); setMatches([]); setQrUrl(""); setRegisterError(""); };
 
   if (!selected) {
     return (
