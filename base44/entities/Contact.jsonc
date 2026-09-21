@@ -22,6 +22,10 @@
     "nfc_card_tag": {
       "type": "string"
     },
+    "access_code": {
+      "type": "string",
+      "description": "Persistent staff check-in code, assigned at the badge registry kiosk and typed on the bus boarding kiosk's keypad."
+    },
     "company_id": {
       "type": "string"
     },
