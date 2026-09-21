@@ -26,12 +26,14 @@
     "token"
   ],
   "rls": {
+    "create": {
+      "created_by_id": "{{user.id}}"
+    },
     "read": {
       "user_condition": {
         "role": "admin"
       }
     },
-    "create": {},
     "update": {
       "user_condition": {
         "role": "admin"
