@@ -40,7 +40,8 @@
       "enum": [
         "nfc",
         "qr",
-        "manual"
+        "manual",
+        "code"
       ],
       "default": "manual"
     }
