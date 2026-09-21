@@ -38,6 +38,18 @@
     "nfc_tag_id": {
       "type": "string"
     },
+    "access_code": {
+      "type": "string",
+      "description": "Persistent staff check-in code, assigned at the badge registry kiosk and typed on the bus boarding kiosk's keypad."
+    },
+    "one_time_code": {
+      "type": "string",
+      "description": "Short-lived self-service code a staff member generates from their own app when they forgot their NFC badge."
+    },
+    "one_time_code_expires_at": {
+      "type": "string",
+      "format": "date-time"
+    },
     "whatsapp_linked": {
       "type": "boolean",
       "default": false
