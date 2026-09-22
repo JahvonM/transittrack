@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ChevronLeft, CreditCard, CheckCircle2, Search, Hash } from "lucide-react";
+import { ChevronLeft, CreditCard, CheckCircle2, Search, Hash, UserPlus } from "lucide-react";
 import { useNfcTap } from "@/hooks/useNfcTap";
 
 // badge_registry kiosk: pick a staff member, then either tap a fresh NFC
@@ -10,7 +10,7 @@ import { useNfcTap } from "@/hooks/useNfcTap";
 // boarding kiosk's keypad. QR isn't registered here — it's a one-time code
 // staff generate themselves from their own app (see OneTimeCode.jsx), never
 // a permanent credential someone could screenshot and reuse forever.
-export default function BadgeRegistryKiosk({ invoke }) {
+export default function BadgeRegistryKiosk({ invoke, onAddStaff }) {
   const [query, setQuery] = useState("");
   const [matches, setMatches] = useState([]);
   const [selected, setSelected] = useState(null); // { id, full_name }
@@ -18,6 +18,8 @@ export default function BadgeRegistryKiosk({ invoke }) {
   const [accessCode, setAccessCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [registerError, setRegisterError] = useState("");
+  const [adding, setAdding] = useState(false);
+  const [addError, setAddError] = useState("");
 
   const { supported: nfcSupported, listening, nfcError } = useNfcTap(
     (tag) => registerTag(tag),
@@ -63,7 +65,21 @@ export default function BadgeRegistryKiosk({ invoke }) {
     }
   };
 
-  const reset = () => { setSelected(null); setMode(null); setQuery(""); setMatches([]); setAccessCode(""); setRegisterError(""); };
+  const addNewStaff = async () => {
+    if (!onAddStaff || !query.trim() || adding) return;
+    setAdding(true);
+    setAddError("");
+    try {
+      const created = await onAddStaff(query.trim());
+      setSelected(created);
+    } catch {
+      setAddError("Couldn't add that staff member — try again.");
+    } finally {
+      setAdding(false);
+    }
+  };
+
+  const reset = () => { setSelected(null); setMode(null); setQuery(""); setMatches([]); setAccessCode(""); setRegisterError(""); setAddError(""); };
 
   if (!selected) {
     return (
@@ -83,6 +99,14 @@ export default function BadgeRegistryKiosk({ invoke }) {
             ))}
             {query.trim() && matches.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">No matches.</p>}
           </div>
+          {onAddStaff && query.trim() && (
+            <div className="pt-1 space-y-1.5">
+              <Button variant="outline" size="sm" className="w-full" onClick={addNewStaff} disabled={adding}>
+                <UserPlus className="w-3.5 h-3.5 mr-1.5" /> {adding ? "Adding…" : `Add "${query.trim()}" as new staff`}
+              </Button>
+              {addError && <p className="text-xs text-destructive text-center">{addError}</p>}
+            </div>
+          )}
         </CardContent>
       </Card>
     );
