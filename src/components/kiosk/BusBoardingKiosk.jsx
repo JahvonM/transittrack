@@ -88,6 +88,7 @@ export default function BusBoardingKiosk({ invoke, device }) {
       setPending({ staff: res.staff, next_status: res.next_status, method: "nfc" });
       setMode("confirm");
     } catch (e) {
+      if (handleUnpaired(e)) return;
       setBadgeError(e?.response?.data?.error === "badge_not_registered"
         ? "This badge isn't registered yet. Ask an admin to enroll it at the badge registry kiosk."
         : "Couldn't read that badge — try again.");
@@ -106,7 +107,8 @@ export default function BusBoardingKiosk({ invoke, device }) {
       const res = await invoke("lookup_code", { code: decoded });
       setPending({ staff: res.staff, next_status: res.next_status, method: "qr", code_type: res.code_type });
       setMode("confirm");
-    } catch {
+    } catch (e) {
+      if (handleUnpaired(e)) return;
       setBadgeError("That QR code isn't recognized — it may have expired or already been used.");
       setMode("badge_error");
       resetSoon(3000);
@@ -123,7 +125,8 @@ export default function BusBoardingKiosk({ invoke, device }) {
       setPending({ staff: res.staff, next_status: res.next_status, method: "code", code_type: res.code_type });
       setMode("confirm");
       setCode("");
-    } catch {
+    } catch (e) {
+      if (handleUnpaired(e)) return;
       setBadgeError("That code isn't recognized — check it and try again.");
       setMode("badge_error");
       resetSoon(3000);
@@ -140,7 +143,8 @@ export default function BusBoardingKiosk({ invoke, device }) {
       setResult({ staff_name: res.record.staff_name, status: res.record.status });
       setMode("result");
       resetSoon();
-    } catch {
+    } catch (e) {
+      if (handleUnpaired(e)) return;
       setBadgeError("Something went wrong checking that in — please try again.");
       setMode("badge_error");
       resetSoon(3000);
