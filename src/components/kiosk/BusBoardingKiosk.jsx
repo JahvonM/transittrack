@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CreditCard, QrCode, Hash, ChevronLeft, CheckCircle2, LogIn, LogOut, AlertCircle, Delete } from "lucide-react";
 import { useNfcTap } from "@/hooks/useNfcTap";
-import { parseStaffQrPayload } from "@/lib/qr";
+import { parseCodeQrPayload } from "@/lib/qr";
 import QrScanner from "./QrScanner";
 
 const CODE_MAX_LEN = 6;
@@ -58,15 +58,15 @@ export default function BusBoardingKiosk({ invoke }) {
   };
 
   const handleQrDecode = async (text) => {
-    const staffId = parseStaffQrPayload(text);
-    if (!staffId || busy) return;
+    const code = parseCodeQrPayload(text);
+    if (!code || busy) return;
     setBusy(true);
     try {
-      const res = await invoke("lookup_qr", { staff_id: staffId });
-      setPending({ staff: res.staff, next_status: res.next_status, method: "qr" });
+      const res = await invoke("lookup_code", { code });
+      setPending({ staff: res.staff, next_status: res.next_status, method: "qr", code_type: res.code_type });
       setMode("confirm");
     } catch {
-      setBadgeError("That QR code isn't recognized.");
+      setBadgeError("That QR code isn't recognized — it may have expired or already been used.");
       setMode("badge_error");
       resetSoon(3000);
     } finally {
