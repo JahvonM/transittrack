@@ -12,6 +12,7 @@ import DriversTab from "@/components/admin/DriversTab";
 import CopilotTab from "@/components/admin/CopilotTab";
 import VehiclesTab from "@/components/admin/VehiclesTab";
 import KioskTablets from "@/components/admin/KioskTablets";
+import AdminBadgeRegistry from "@/components/admin/AdminBadgeRegistry";
 import CheckInLog from "@/components/admin/CheckInLog";
 import MessagingTab from "@/components/admin/MessagingTab";
 import AdsTab from "@/components/admin/AdsTab";
