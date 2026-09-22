@@ -1,21 +1,41 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CreditCard, QrCode, Hash, ChevronLeft, CheckCircle2, LogIn, LogOut, AlertCircle, Delete } from "lucide-react";
+import { CreditCard, QrCode, Hash, ChevronLeft, CheckCircle2, LogIn, LogOut, AlertCircle, Delete, HelpCircle } from "lucide-react";
 import { useNfcTap } from "@/hooks/useNfcTap";
 import { parseCodeQrPayload } from "@/lib/qr";
 import QrScanner from "./QrScanner";
 
 const CODE_MAX_LEN = 6;
 
-// bus_boarding kiosk: three ways in, one shared confirm/result flow.
-// "idle" mode auto-listens for an NFC tap (when the tablet supports Web
-// NFC) while also offering QR and keypad-code buttons. The keypad accepts
-// either a staff member's permanent access_code (assigned at the badge
-// registry kiosk) or a temporary one_time_code (self-generated from their
-// own app when they forgot their badge) — the backend tells us which.
-export default function BusBoardingKiosk({ invoke }) {
-  const [mode, setMode] = useState("idle"); // idle | qr | code | confirm | result | badge_error
+function greeting() {
+  const h = new Date().getHours();
+  if (h < 12) return "Good morning";
+  if (h < 18) return "Good afternoon";
+  return "Good evening";
+}
+
+function Avatar({ name, photoUrl }) {
+  if (photoUrl) return <img src={photoUrl} alt={name} className="w-16 h-16 rounded-full object-cover mx-auto" />;
+  const initials = (name || "?").trim().split(/\s+/).map((p) => p[0]).slice(0, 2).join("").toUpperCase();
+  return (
+    <div className="w-16 h-16 rounded-full bg-primary/15 text-primary grid place-items-center mx-auto text-xl font-bold">
+      {initials}
+    </div>
+  );
+}
+
+// bus_boarding kiosk: three ways in (NFC tap, QR scan, keypad code), one
+// shared confirm/result flow. "idle" is a welcome screen that auto-listens
+// for an NFC tap (when the tablet supports Web NFC); everything else lives
+// behind a single "Don't have your badge?" entry point so the primary
+// screen stays uncluttered. After identifying someone, they're asked
+// explicitly whether they're boarding or exiting — the system's guess
+// (based on their last recorded state) is only a highlighted suggestion,
+// never the only option, since a missed tap or skipped stop would otherwise
+// leave no way to correct it.
+export default function BusBoardingKiosk({ invoke, device }) {
+  const [mode, setMode] = useState("idle"); // idle | help | qr | code | confirm | result | badge_error
   const [pending, setPending] = useState(null); // { staff, next_status, method, code_type }
   const [result, setResult] = useState(null); // { staff_name, status }
   const [badgeError, setBadgeError] = useState("");
@@ -58,11 +78,11 @@ export default function BusBoardingKiosk({ invoke }) {
   };
 
   const handleQrDecode = async (text) => {
-    const code = parseCodeQrPayload(text);
-    if (!code || busy) return;
+    const decoded = parseCodeQrPayload(text);
+    if (!decoded || busy) return;
     setBusy(true);
     try {
-      const res = await invoke("lookup_code", { code });
+      const res = await invoke("lookup_code", { code: decoded });
       setPending({ staff: res.staff, next_status: res.next_status, method: "qr", code_type: res.code_type });
       setMode("confirm");
     } catch {
@@ -91,11 +111,11 @@ export default function BusBoardingKiosk({ invoke }) {
     }
   };
 
-  const confirmCheckIn = async () => {
+  const confirmCheckIn = async (status) => {
     if (!pending || busy) return;
     setBusy(true);
     try {
-      const res = await invoke("check_in", { staff_id: pending.staff.id, method: pending.method, code_type: pending.code_type });
+      const res = await invoke("check_in", { staff_id: pending.staff.id, method: pending.method, code_type: pending.code_type, status });
       setResult({ staff_name: res.record.staff_name, status: res.record.status });
       setMode("result");
       resetSoon();
@@ -109,21 +129,34 @@ export default function BusBoardingKiosk({ invoke }) {
   };
 
   if (mode === "confirm" && pending) {
-    const checkingIn = pending.next_status === "boarded";
+    const suggestBoarding = pending.next_status === "boarded";
     return (
       <Card>
         <CardContent className="p-6 text-center space-y-4">
-          <div className={`mx-auto w-16 h-16 rounded-full grid place-items-center ${checkingIn ? "bg-emerald-500/15 text-emerald-500" : "bg-sky-500/15 text-sky-500"}`}>
-            {checkingIn ? <LogIn className="w-8 h-8" /> : <LogOut className="w-8 h-8" />}
-          </div>
-          <div>
-            <p className="text-lg font-semibold">{pending.staff.full_name}</p>
-            <p className="text-sm text-muted-foreground">{checkingIn ? "Check in to this bus?" : "Check out of this bus?"}</p>
-          </div>
+          <Avatar name={pending.staff.full_name} photoUrl={pending.staff.photo_url} />
+          <p className="text-lg font-semibold">{pending.staff.full_name}</p>
+          <p className="text-sm text-muted-foreground">Are you boarding or exiting?</p>
           <div className="flex gap-2">
-            <Button variant="outline" className="flex-1" onClick={() => { setMode("idle"); setPending(null); }}>Cancel</Button>
-            <Button className="flex-1" onClick={confirmCheckIn} disabled={busy}>{checkingIn ? "Check in" : "Check out"}</Button>
+            <Button
+              variant={suggestBoarding ? "default" : "outline"}
+              className="flex-1 h-14 flex-col gap-0.5"
+              onClick={() => confirmCheckIn("boarded")}
+              disabled={busy}
+            >
+              <LogIn className="w-5 h-5" />
+              <span className="text-sm">Boarding</span>
+            </Button>
+            <Button
+              variant={suggestBoarding ? "outline" : "default"}
+              className="flex-1 h-14 flex-col gap-0.5"
+              onClick={() => confirmCheckIn("off_board")}
+              disabled={busy}
+            >
+              <LogOut className="w-5 h-5" />
+              <span className="text-sm">Exiting</span>
+            </Button>
           </div>
+          <Button variant="ghost" size="sm" onClick={() => { setMode("idle"); setPending(null); }}>Cancel</Button>
         </CardContent>
       </Card>
     );
@@ -156,8 +189,8 @@ export default function BusBoardingKiosk({ invoke }) {
     return (
       <Card>
         <CardContent className="p-5 space-y-4">
-          <Button variant="ghost" size="sm" onClick={() => setMode("idle")}><ChevronLeft className="w-4 h-4 mr-1" /> Back</Button>
-          <p className="text-sm text-center text-muted-foreground">Show your badge QR code to the camera</p>
+          <Button variant="ghost" size="sm" onClick={() => setMode("help")}><ChevronLeft className="w-4 h-4 mr-1" /> Back</Button>
+          <p className="text-sm text-center text-muted-foreground">Show your QR code to the camera</p>
           <QrScanner active onDecode={handleQrDecode} />
         </CardContent>
       </Card>
@@ -169,7 +202,7 @@ export default function BusBoardingKiosk({ invoke }) {
     return (
       <Card>
         <CardContent className="p-5 space-y-4">
-          <Button variant="ghost" size="sm" onClick={() => { setMode("idle"); setCode(""); }}><ChevronLeft className="w-4 h-4 mr-1" /> Back</Button>
+          <Button variant="ghost" size="sm" onClick={() => { setMode("help"); setCode(""); }}><ChevronLeft className="w-4 h-4 mr-1" /> Back</Button>
           <p className="text-sm text-center text-muted-foreground">Enter your code</p>
           <div className="flex justify-center gap-2">
             {Array.from({ length: Math.max(code.length, 4) }).map((_, i) => (
@@ -196,30 +229,48 @@ export default function BusBoardingKiosk({ invoke }) {
     );
   }
 
-  // idle
+  if (mode === "help") {
+    return (
+      <Card>
+        <CardContent className="p-6 text-center space-y-4">
+          <Button variant="ghost" size="sm" onClick={() => setMode("idle")}><ChevronLeft className="w-4 h-4 mr-1" /> Back</Button>
+          <p className="font-semibold">How would you like to check in?</p>
+          <div className="grid grid-cols-1 gap-2 max-w-xs mx-auto">
+            <Button variant="outline" className="h-14" onClick={() => setMode("code")}>
+              <Hash className="w-4 h-4 mr-1.5" /> Enter my code
+            </Button>
+            <Button variant="outline" className="h-14" onClick={() => setMode("qr")}>
+              <QrCode className="w-4 h-4 mr-1.5" /> Scan my QR code
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // idle — the welcome screen
   return (
     <Card>
-      <CardContent className="p-6 text-center space-y-5">
-        <div className="mx-auto w-20 h-20 rounded-full bg-primary/10 grid place-items-center">
-          <CreditCard className={`w-9 h-9 text-primary ${nfcListening ? "animate-pulse" : ""}`} />
+      <CardContent className="p-8 text-center space-y-6">
+        <div>
+          <p className="text-sm text-muted-foreground">{greeting()}</p>
+          <p className="text-2xl font-heading font-semibold">
+            Welcome{device?.vehicle_name ? ` aboard ${device.vehicle_name}` : ""}
+          </p>
+        </div>
+        <div className="mx-auto w-24 h-24 rounded-full bg-primary/10 grid place-items-center">
+          <CreditCard className={`w-11 h-11 text-primary ${nfcListening ? "animate-pulse" : ""}`} />
         </div>
         <div>
           <p className="font-semibold text-lg">
-            {nfcSupported ? "Tap your badge" : "Scan your QR badge or enter your code"}
+            {nfcSupported ? "Tap your badge to check in" : "Scan your QR code or enter your code to check in"}
           </p>
-          <p className="text-sm text-muted-foreground">
-            {nfcSupported ? "Hold your badge near this tablet" : "NFC tap isn't supported on this device"}
-          </p>
+          {nfcSupported && <p className="text-sm text-muted-foreground">Hold your badge near this tablet</p>}
           {nfcError && <p className="text-xs text-destructive mt-1">{nfcError}</p>}
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" className="flex-1" onClick={() => setMode("qr")}>
-            <QrCode className="w-4 h-4 mr-1.5" /> Scan QR
-          </Button>
-          <Button variant="outline" className="flex-1" onClick={() => setMode("code")}>
-            <Hash className="w-4 h-4 mr-1.5" /> Enter code
-          </Button>
-        </div>
+        <Button variant="outline" onClick={() => setMode("help")}>
+          <HelpCircle className="w-4 h-4 mr-1.5" /> Don't have your badge?
+        </Button>
       </CardContent>
     </Card>
   );
