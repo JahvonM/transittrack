@@ -9,8 +9,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Nfc, MapPin } from "lucide-react";
+import { Nfc, MapPin, Hash } from "lucide-react";
 import LocationPicker from "./LocationPicker";
+import { base44 } from "@/api/base44Client";
+import { useNfcTap } from "@/hooks/useNfcTap";
 
 const empty = {
   name: "",
@@ -18,6 +20,7 @@ const empty = {
   email: "",
   type: "passenger",
   nfc_card_tag: "",
+  access_code: "",
   pickup_name: "",
   pickup_lat: null,
   pickup_lng: null,
@@ -28,9 +31,21 @@ const empty = {
 
 export default function ContactFormDialog({ open, onClose, onSave, contact }) {
   const [form, setForm] = useState(empty);
+  const [nfcListening, setNfcListening] = useState(false);
+  const [nfcBusy, setNfcBusy] = useState(false);
+  const [nfcError, setNfcError] = useState("");
+  const [nfcSuccess, setNfcSuccess] = useState("");
+  const [codeBusy, setCodeBusy] = useState(false);
+  const [codeError, setCodeError] = useState("");
 
   useEffect(() => {
-    if (open) setForm({ ...empty, ...(contact || {}) });
+    if (open) {
+      setForm({ ...empty, ...(contact || {}) });
+      setNfcListening(false);
+      setNfcError("");
+      setNfcSuccess("");
+      setCodeError("");
+    }
   }, [open, contact]);
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
@@ -38,6 +53,54 @@ export default function ContactFormDialog({ open, onClose, onSave, contact }) {
   const submit = () => {
     if (!form.name?.trim()) return;
     onSave(form);
+  };
+
+  // Tapping a badge here writes straight through kioskCheckIn's
+  // register_badge action (admin-auth path — no device_id, just the logged-in
+  // admin session + this contact's own company_id), the same backend the
+  // kiosk tablets use — so collision-clearing against a previous owner stays
+  // in one place instead of being reimplemented client-side.
+  const registerBadge = async (tag) => {
+    if (!contact?.id || nfcBusy) return;
+    setNfcBusy(true);
+    setNfcError("");
+    try {
+      const res = await base44.functions.invoke("kioskCheckIn", {
+        action: "register_badge",
+        company_id: contact.company_id,
+        staff_id: contact.id,
+        card_tag: tag,
+      });
+      set("nfc_card_tag", tag);
+      setNfcListening(false);
+      setNfcSuccess(
+        res.data?.reassigned_from ? `Badge reassigned from ${res.data.reassigned_from}` : "Badge registered."
+      );
+    } catch {
+      setNfcError("Couldn't register that badge — try tapping it again.");
+    } finally {
+      setNfcBusy(false);
+    }
+  };
+
+  const { supported: nfcSupported, nfcError: nfcHookError } = useNfcTap(registerBadge, nfcListening);
+
+  const generateAccessCode = async () => {
+    if (!contact?.id || codeBusy) return;
+    setCodeBusy(true);
+    setCodeError("");
+    try {
+      const res = await base44.functions.invoke("kioskCheckIn", {
+        action: "generate_access_code",
+        company_id: contact.company_id,
+        staff_id: contact.id,
+      });
+      set("access_code", res.data?.code || "");
+    } catch {
+      setCodeError("Couldn't generate a code — try again.");
+    } finally {
+      setCodeBusy(false);
+    }
   };
 
   return (
@@ -97,16 +160,74 @@ export default function ContactFormDialog({ open, onClose, onSave, contact }) {
             </div>
           </div>
 
-          <div className="space-y-1.5">
-            <Label className="flex items-center gap-1.5">
-              <Nfc className="w-3.5 h-3.5" /> NFC card tag
-            </Label>
-            <Input
-              value={form.nfc_card_tag || ""}
-              onChange={(e) => set("nfc_card_tag", e.target.value)}
-              placeholder="NFC card ID"
-            />
-          </div>
+          {form.type === "staff" && contact?.id ? (
+            <div className="rounded-lg border border-border p-3 space-y-3">
+              <div className="text-sm font-medium flex items-center gap-1.5">
+                <Nfc className="w-4 h-4 text-primary" /> Badge & access code
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">NFC card tag</Label>
+                <div className="flex gap-2">
+                  <Input
+                    value={form.nfc_card_tag || ""}
+                    onChange={(e) => set("nfc_card_tag", e.target.value)}
+                    placeholder="NFC card ID"
+                  />
+                  {nfcSupported && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="shrink-0"
+                      onClick={() => setNfcListening((v) => !v)}
+                      disabled={nfcBusy}
+                    >
+                      {nfcListening ? "Cancel" : "Tap to register"}
+                    </Button>
+                  )}
+                </div>
+                {nfcListening && <p className="text-xs text-primary animate-pulse">Waiting for badge tap…</p>}
+                {(nfcHookError || nfcError) && <p className="text-xs text-destructive">{nfcHookError || nfcError}</p>}
+                {nfcSuccess && <p className="text-xs text-emerald-600">{nfcSuccess}</p>}
+                {!nfcSupported && (
+                  <p className="text-xs text-muted-foreground">
+                    NFC tap-to-register isn't supported on this device — you can still type a tag manually.
+                  </p>
+                )}
+              </div>
+              <div className="space-y-1.5">
+                <Label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Hash className="w-3.5 h-3.5" /> Access code (keypad)
+                </Label>
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 text-lg font-bold tracking-[0.2em]">{form.access_code || "—"}</div>
+                  <Button type="button" variant="outline" size="sm" onClick={generateAccessCode} disabled={codeBusy}>
+                    {form.access_code ? "Generate new code" : "Generate code"}
+                  </Button>
+                </div>
+                {codeError && <p className="text-xs text-destructive">{codeError}</p>}
+                <p className="text-xs text-muted-foreground">
+                  Give this code to {form.name?.split(" ")[0] || "them"} — they can type it on the bus boarding kiosk's keypad instead of tapping a badge.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-1.5">
+              <Label className="flex items-center gap-1.5">
+                <Nfc className="w-3.5 h-3.5" /> NFC card tag
+              </Label>
+              <Input
+                value={form.nfc_card_tag || ""}
+                onChange={(e) => set("nfc_card_tag", e.target.value)}
+                placeholder="NFC card ID"
+              />
+              {form.type === "staff" && (
+                <p className="text-xs text-muted-foreground">
+                  Save this contact first, then edit it to tap-register a badge or generate an access code.
+                </p>
+              )}
+            </div>
+          )}
 
           <div className="rounded-lg border border-border p-3 space-y-2">
             <div className="flex items-center gap-1.5 text-sm font-medium">
