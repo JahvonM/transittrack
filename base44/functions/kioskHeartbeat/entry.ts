@@ -12,8 +12,14 @@ export default async function(req) {
     const base44 = createClientFromRequest(req);
 
     const device = await base44.asServiceRole.entities.KioskDevice.get(device_id);
-    if (!device || device.status !== 'active') {
-      return Response.json({ error: 'Device not found or inactive' }, { status: 404 });
+    // `paired` must be checked here too, not just `status` — an admin
+    // regenerating this device's pairing code (KioskTablets.jsx's
+    // Regenerate/Reactivate actions) sets paired:false but leaves
+    // status:'active'. Without this check the tablet keeps heartbeating
+    // successfully and looking completely normal while every real action
+    // (kioskCheckIn's resolveKioskDevice requires both) silently 401s.
+    if (!device || device.status !== 'active' || !device.paired) {
+      return Response.json({ error: 'Device not found, inactive, or unpaired' }, { status: 404 });
     }
 
     // Update last_seen — kiosk is unauthenticated, use service role
