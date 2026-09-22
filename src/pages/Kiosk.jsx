@@ -130,7 +130,7 @@ export default function Kiosk() {
           )}
         </Card>
 
-        {device?.kiosk_type === "bus_boarding" && <BusBoardingKiosk invoke={invoke} />}
+        {device?.kiosk_type === "bus_boarding" && <BusBoardingKiosk invoke={invoke} device={device} />}
         {device?.kiosk_type === "badge_registry" && <BadgeRegistryKiosk invoke={invoke} />}
         {device?.kiosk_type === "front_desk" && <FrontDeskKiosk invoke={invoke} />}
       </div>
