@@ -60,7 +60,7 @@ export default function AdminBadgeRegistry({ companies }) {
         <ChevronLeft className="w-4 h-4 mr-1" /> Change company
       </Button>
       {/* key remounts BadgeRegistryKiosk's internal state cleanly on company change */}
-      <BadgeRegistryKiosk key={companyId} invoke={invoke} />
+      <BadgeRegistryKiosk key={companyId} invoke={invoke} onAddStaff={handleAddStaff} />
     </div>
   );
 }
