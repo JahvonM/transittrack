@@ -12,6 +12,7 @@ import DriverTrackingDashboard from "@/components/driver/DriverTrackingDashboard
 import DriverNavMap from "@/components/driver/DriverNavMap";
 import DriverChats from "@/components/driver/DriverChats";
 import DriverMessageAlert from "@/components/driver/DriverMessageAlert";
+import NewCheckInAlert from "@/components/driver/NewCheckInAlert";
 import DriverDevicePanel from "@/components/driver/DriverDevicePanel";
 import SafetyStandardsContent from "@/components/SafetyStandardsContent";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -51,6 +52,11 @@ export default function DriverApp() {
   const seenIds = useRef(new Set());
   const firstLoad = useRef(true);
 
+  // New-check-in popup — separate tracking from the broadcast alert above.
+  const [checkInAlert, setCheckInAlert] = useState(null);
+  const seenCheckInIds = useRef(new Set());
+  const firstCheckInLoad = useRef(true);
+
   // Unread dot on the Chat tab — DriverChats tracks per-contact unread
   // (staff/company/dispatch/mechanic) and reports whether any is unread.
   const [hasUnreadChat, setHasUnreadChat] = useState(false);
@@ -89,6 +95,21 @@ export default function DriverApp() {
       }
     });
   }, [session?.broadcasts, playAlertSound]);
+
+  useEffect(() => {
+    const checkIns = session?.check_ins;
+    if (!checkIns) return;
+    if (firstCheckInLoad.current) {
+      checkIns.forEach((c) => seenCheckInIds.current.add(c.id));
+      firstCheckInLoad.current = false;
+      return;
+    }
+    checkIns.forEach((c) => {
+      if (seenCheckInIds.current.has(c.id)) return;
+      seenCheckInIds.current.add(c.id);
+      setCheckInAlert(c);
+    });
+  }, [session?.check_ins]);
 
 
   // Drivers have no login, so their push token registers through the device
@@ -303,6 +324,7 @@ export default function DriverApp() {
         </Tabs>
       </div>
       <DriverMessageAlert alert={alert} onAcknowledge={() => setAlert(null)} onReply={handleAlertReply} />
+      <NewCheckInAlert checkIn={checkInAlert} onDismiss={() => setCheckInAlert(null)} />
 
       <Sheet open={isReportOpen} onOpenChange={setIsReportOpen}>
         <SheetContent side="bottom" className="max-w-3xl mx-auto rounded-t-2xl">
