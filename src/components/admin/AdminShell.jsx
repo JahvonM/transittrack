@@ -18,6 +18,7 @@ import {
   ClipboardList,
   Database,
   Siren,
+  CreditCard,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -28,6 +29,7 @@ export const ADMIN_SECTIONS = [
   { id: "fleet", label: "Live fleet", icon: MapPin },
   { id: "vehicles", label: "Vehicles", icon: Bus },
   { id: "kiosks", label: "Kiosk tablets", icon: Smartphone },
+  { id: "badges", label: "NFC & badges", icon: CreditCard },
   { id: "checkins", label: "Sign-in log", icon: ClipboardList },
   { id: "billing", label: "Completed & billing", icon: Building2 },
   { id: "users", label: "Users & roles", icon: Users },
