@@ -47,7 +47,7 @@ export default function BusBoardingKiosk({ invoke, device }) {
   const [busy, setBusy] = useState(false);
   const resetTimer = useRef(null);
 
-  const idleListening = mode === "idle";
+  const idleListening = unlocked && mode === "idle";
   const { supported: nfcSupported, listening: nfcListening, nfcError } = useNfcTap(
     (tag) => handleTag(tag),
     idleListening
@@ -65,6 +65,19 @@ export default function BusBoardingKiosk({ invoke, device }) {
     resetTimer.current = setTimeout(() => {
       setMode("idle"); setPending(null); setResult(null); setBadgeError(""); setCode("");
     }, ms);
+  };
+
+  // An admin regenerating this tablet's pairing code (Admin → Kiosk Tablets)
+  // revokes it server-side immediately, but this tablet won't notice until
+  // its next 30s heartbeat. Recognize that specific failure here so a tap in
+  // the gap shows a real explanation and recovers itself, instead of a
+  // confusing "badge not registered"/"code not recognized" message.
+  const handleUnpaired = (e) => {
+    if (e?.response?.data?.error !== "Invalid or unpaired kiosk device") return false;
+    setBadgeError("This tablet's pairing was reset — restarting…");
+    setMode("badge_error");
+    setTimeout(() => window.location.reload(), 2000);
+    return true;
   };
 
   const handleTag = async (tag) => {
