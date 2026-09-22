@@ -5,6 +5,7 @@ import { CreditCard, QrCode, Hash, ChevronLeft, CheckCircle2, LogIn, LogOut, Ale
 import { useNfcTap } from "@/hooks/useNfcTap";
 import { parseCodeQrPayload } from "@/lib/qr";
 import QrScanner from "./QrScanner";
+import SlideToUnlock from "./SlideToUnlock";
 
 const CODE_MAX_LEN = 6;
 
@@ -35,6 +36,8 @@ function Avatar({ name, photoUrl }) {
 // never the only option, since a missed tap or skipped stop would otherwise
 // leave no way to correct it.
 export default function BusBoardingKiosk({ invoke, device }) {
+  const [unlocked, setUnlocked] = useState(false);
+  const [now, setNow] = useState(() => new Date());
   const [mode, setMode] = useState("idle"); // idle | help | qr | code | confirm | result | badge_error
   const [pending, setPending] = useState(null); // { staff, next_status, method, code_type }
   const [result, setResult] = useState(null); // { staff_name, status }
@@ -51,6 +54,11 @@ export default function BusBoardingKiosk({ invoke, device }) {
   );
 
   useEffect(() => () => clearTimeout(resetTimer.current), []);
+
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(t);
+  }, []);
 
   const resetSoon = (ms = 2500) => {
     clearTimeout(resetTimer.current);
@@ -127,6 +135,25 @@ export default function BusBoardingKiosk({ invoke, device }) {
       setBusy(false);
     }
   };
+
+  if (!unlocked) {
+    return (
+      <Card>
+        <CardContent className="p-8 text-center space-y-8">
+          <div>
+            <p className="text-5xl font-heading font-semibold tabular-nums">
+              {now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+            </p>
+            <p className="text-sm text-muted-foreground mt-1">
+              {now.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" })}
+            </p>
+          </div>
+          {device?.vehicle_name && <p className="text-lg font-medium text-muted-foreground">{device.vehicle_name}</p>}
+          <SlideToUnlock label="Slide to check in" onUnlock={() => setUnlocked(true)} />
+        </CardContent>
+      </Card>
+    );
+  }
 
   if (mode === "confirm" && pending) {
     const suggestBoarding = pending.next_status === "boarded";
