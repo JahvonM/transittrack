@@ -17,7 +17,18 @@ import { ChevronLeft } from "lucide-react";
 export default function AdminBadgeRegistry({ companies }) {
   const [companyId, setCompanyId] = useState("");
 
-PLACEHOLDER
+  const invoke = useCallback(async (action, payload = {}) => {
+    const res = await base44.functions.invoke("kioskCheckIn", { action, company_id: companyId, ...payload });
+    return res.data;
+  }, [companyId]);
+
+  const handleAddStaff = useCallback(async (name) => {
+    const company = companies.find((c) => c.id === companyId);
+    const created = await base44.entities.Contact.create({
+      name, type: "staff", company_id: companyId, company_name: company?.name || "",
+    });
+    return { id: created.id, full_name: created.name };
+  }, [companyId, companies]);
 
   if (!companyId) {
     return (
