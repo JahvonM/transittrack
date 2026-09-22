@@ -97,7 +97,10 @@ export default async function(req) {
       companyId = device.company_id; companyName = device.company_name;
       vehicleId = device.vehicle_id; vehicleName = device.vehicle_name;
     } else {
-      const user = await base44.auth.me();
+      // auth.me() throws (rather than resolving null) when the request
+      // carries no session at all — treat that the same as "not an admin".
+      let user = null;
+      try { user = await base44.auth.me(); } catch { user = null; }
       if (!user || user.role !== 'admin') return Response.json({ error: 'Invalid or unpaired kiosk device' }, { status: 401 });
       companyId = sanitize(body.company_id);
       if (!companyId) return Response.json({ error: 'company_id required' }, { status: 400 });
