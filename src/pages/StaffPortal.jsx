@@ -8,7 +8,6 @@ import CodeGate from "@/components/CodeGate";
 import ProfileInfo from "@/components/ProfileInfo";
 import StaffAlerts from "@/components/StaffAlerts";
 import StaffGroupChat from "@/components/staff/StaffGroupChat";
-import MyBadgeQr from "@/components/staff/MyBadgeQr";
 import OneTimeCode from "@/components/staff/OneTimeCode";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import LocationPinner from "@/components/staff/LocationPinner";
@@ -269,7 +268,6 @@ export default function StaffPortal() {
               <BellRing className="w-4 h-4 mr-1.5" /> Enable notifications (know when your bus is close)
             </Button>
           )}
-          <MyBadgeQr userId={user?.id} />
           <OneTimeCode />
         </div>
 
