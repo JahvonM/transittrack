@@ -12,7 +12,6 @@ import DriversTab from "@/components/admin/DriversTab";
 import CopilotTab from "@/components/admin/CopilotTab";
 import VehiclesTab from "@/components/admin/VehiclesTab";
 import KioskTablets from "@/components/admin/KioskTablets";
-import AdminBadgeRegistry from "@/components/admin/AdminBadgeRegistry";
 import CheckInLog from "@/components/admin/CheckInLog";
 import MessagingTab from "@/components/admin/MessagingTab";
 import AdsTab from "@/components/admin/AdsTab";
@@ -33,7 +32,6 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import {
   Car,
   ChevronDown,
-  CreditCard,
   DoorOpen,
   ExternalLink,
   FlaskConical,
@@ -71,7 +69,6 @@ const ROLE_LINKS = [
 ];
 
 const PORTAL_LINKS = [
-  { to: "/admin/badges", label: "Badge Registry", icon: CreditCard },
   { to: "/admin/kiosks", label: "Bus Entry Kiosk", icon: Smartphone },
   { to: "/admin/kiosks", label: "Front Desk Kiosk", icon: DoorOpen },
   { to: "/reviewer-sandbox", label: "Reviewer Sandbox", icon: FlaskConical },
@@ -391,7 +388,6 @@ export default function Admin() {
           <VehiclesTab vehicles={vehicles} companies={companies} routes={routes} onChange={load} />
         )}
         {section === "kiosks" && <KioskTablets vehicles={vehicles} companies={companies} onChange={load} />}
-        {section === "badges" && <AdminBadgeRegistry companies={companies} />}
         {section === "checkins" && <CheckInLog vehicles={vehicles} onChange={load} />}
         {section === "billing" && <CompletedTripsTab trips={trips} />}
         {section === "users" && (
