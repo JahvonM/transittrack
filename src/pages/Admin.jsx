@@ -390,6 +390,7 @@ export default function Admin() {
           <VehiclesTab vehicles={vehicles} companies={companies} routes={routes} onChange={load} />
         )}
         {section === "kiosks" && <KioskTablets vehicles={vehicles} companies={companies} onChange={load} />}
+        {section === "badges" && <AdminBadgeRegistry companies={companies} />}
         {section === "checkins" && <CheckInLog vehicles={vehicles} onChange={load} />}
         {section === "billing" && <CompletedTripsTab trips={trips} />}
         {section === "users" && (
