@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ChevronLeft, CreditCard, QrCode, CheckCircle2, Search } from "lucide-react";
+import { ChevronLeft, CreditCard, QrCode, CheckCircle2, Search, Hash } from "lucide-react";
 import { useNfcTap } from "@/hooks/useNfcTap";
 import { staffQrDataUrl } from "@/lib/qr";
 
@@ -13,8 +13,9 @@ export default function BadgeRegistryKiosk({ invoke }) {
   const [query, setQuery] = useState("");
   const [matches, setMatches] = useState([]);
   const [selected, setSelected] = useState(null); // { id, full_name }
-  const [mode, setMode] = useState(null); // null | nfc | qr | done
+  const [mode, setMode] = useState(null); // null | nfc | qr | code | done
   const [qrUrl, setQrUrl] = useState("");
+  const [accessCode, setAccessCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [registerError, setRegisterError] = useState("");
 
@@ -52,7 +53,22 @@ export default function BadgeRegistryKiosk({ invoke }) {
     }
   };
 
-  const reset = () => { setSelected(null); setMode(null); setQuery(""); setMatches([]); setQrUrl(""); setRegisterError(""); };
+  const generateCode = async () => {
+    if (!selected || busy) return;
+    setBusy(true);
+    setRegisterError("");
+    try {
+      const res = await invoke("generate_access_code", { staff_id: selected.id });
+      setAccessCode(res.code);
+      setMode("code");
+    } catch {
+      setRegisterError("Couldn't generate a code — try again.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const reset = () => { setSelected(null); setMode(null); setQuery(""); setMatches([]); setQrUrl(""); setAccessCode(""); setRegisterError(""); };
 
   if (!selected) {
     return (
@@ -119,20 +135,39 @@ export default function BadgeRegistryKiosk({ invoke }) {
     );
   }
 
+  if (mode === "code") {
+    return (
+      <Card>
+        <CardContent className="p-6 text-center space-y-4">
+          <p className="font-medium">{selected.full_name}'s access code</p>
+          <p className="text-4xl font-bold tracking-[0.3em] text-primary">{accessCode}</p>
+          <p className="text-xs text-muted-foreground">
+            Give this code to {selected.full_name.split(" ")[0]} — they'll type it on the bus boarding kiosk's keypad instead of tapping a badge.
+          </p>
+          <Button onClick={reset}>Done</Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card>
       <CardContent className="p-6 text-center space-y-4">
         <Button variant="ghost" size="sm" onClick={reset} className="mb-1"><ChevronLeft className="w-4 h-4 mr-1" /> Back</Button>
         <p className="font-semibold text-lg">{selected.full_name}</p>
-        <div className="flex gap-2">
-          <Button variant="outline" className="flex-1" onClick={() => setMode("nfc")} disabled={!nfcSupported}>
+        <div className="grid grid-cols-1 gap-2">
+          <Button variant="outline" onClick={() => setMode("nfc")} disabled={!nfcSupported}>
             <CreditCard className="w-4 h-4 mr-1.5" /> Register NFC badge
           </Button>
-          <Button variant="outline" className="flex-1" onClick={() => setMode("qr")}>
+          <Button variant="outline" onClick={generateCode} disabled={busy}>
+            <Hash className="w-4 h-4 mr-1.5" /> Generate access code
+          </Button>
+          <Button variant="outline" onClick={() => setMode("qr")}>
             <QrCode className="w-4 h-4 mr-1.5" /> Show QR code
           </Button>
         </div>
-        {!nfcSupported && <p className="text-xs text-muted-foreground">NFC isn't supported on this device — QR still works.</p>}
+        {registerError && <p className="text-xs text-destructive">{registerError}</p>}
+        {!nfcSupported && <p className="text-xs text-muted-foreground">NFC isn't supported on this device — QR and access codes still work.</p>}
       </CardContent>
     </Card>
   );
