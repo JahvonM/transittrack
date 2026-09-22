@@ -9,6 +9,7 @@ import ProfileInfo from "@/components/ProfileInfo";
 import StaffAlerts from "@/components/StaffAlerts";
 import StaffGroupChat from "@/components/staff/StaffGroupChat";
 import MyBadgeQr from "@/components/staff/MyBadgeQr";
+import OneTimeCode from "@/components/staff/OneTimeCode";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import LocationPinner from "@/components/staff/LocationPinner";
 import useUserLocation from "@/hooks/useUserLocation";
@@ -269,6 +270,7 @@ export default function StaffPortal() {
             </Button>
           )}
           <MyBadgeQr userId={user?.id} />
+          <OneTimeCode />
         </div>
 
         <div className="space-y-2">
