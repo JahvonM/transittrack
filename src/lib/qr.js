@@ -1,14 +1,15 @@
 import QRCode from "qrcode";
 
-// A staff member's personal QR code just encodes their User id — kiosks are
-// physically controlled devices scoped to one company/vehicle already, so
-// this matches the app's existing low-friction trust model (e.g. six-char
-// kiosk pairing codes) rather than needing a signed token.
-export async function staffQrDataUrl(staffId) {
-  return QRCode.toDataURL(`tt-staff:${staffId}`, { width: 320, margin: 2 });
+// QR codes at the bus boarding kiosk encode a one-time check-in code (the
+// same kind generated for the keypad), never a permanent staff identifier —
+// a screenshot of a permanent QR would be a forever-valid badge for whoever
+// has it. Scanning just feeds the same code through lookup_code, so a QR is
+// nothing more than another way to enter one.
+export async function codeQrDataUrl(code) {
+  return QRCode.toDataURL(`tt-code:${code}`, { width: 320, margin: 2 });
 }
 
-export function parseStaffQrPayload(text) {
-  const match = /^tt-staff:(.+)$/.exec(String(text || "").trim());
+export function parseCodeQrPayload(text) {
+  const match = /^tt-code:(.+)$/.exec(String(text || "").trim());
   return match ? match[1] : null;
 }
