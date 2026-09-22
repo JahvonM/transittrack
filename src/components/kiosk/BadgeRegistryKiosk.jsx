@@ -2,19 +2,19 @@ import React, { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ChevronLeft, CreditCard, QrCode, CheckCircle2, Search, Hash } from "lucide-react";
+import { ChevronLeft, CreditCard, CheckCircle2, Search, Hash } from "lucide-react";
 import { useNfcTap } from "@/hooks/useNfcTap";
-import { staffQrDataUrl } from "@/lib/qr";
 
 // badge_registry kiosk: pick a staff member, then either tap a fresh NFC
-// card to link it to them, or show them a personal QR code to save/screenshot
-// (same QR they could also pull up from their own StaffPortal profile).
+// card to link it to them, or generate a persistent access code for the bus
+// boarding kiosk's keypad. QR isn't registered here — it's a one-time code
+// staff generate themselves from their own app (see OneTimeCode.jsx), never
+// a permanent credential someone could screenshot and reuse forever.
 export default function BadgeRegistryKiosk({ invoke }) {
   const [query, setQuery] = useState("");
   const [matches, setMatches] = useState([]);
   const [selected, setSelected] = useState(null); // { id, full_name }
-  const [mode, setMode] = useState(null); // null | nfc | qr | code | done
-  const [qrUrl, setQrUrl] = useState("");
+  const [mode, setMode] = useState(null); // null | nfc | code | done
   const [accessCode, setAccessCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [registerError, setRegisterError] = useState("");
@@ -33,11 +33,6 @@ export default function BadgeRegistryKiosk({ invoke }) {
     }, 250);
     return () => { cancelled = true; clearTimeout(t); };
   }, [query, invoke]);
-
-  useEffect(() => {
-    if (mode !== "qr" || !selected) return;
-    staffQrDataUrl(selected.id).then(setQrUrl);
-  }, [mode, selected]);
 
   const registerTag = async (tag) => {
     if (!selected || busy) return;
@@ -68,14 +63,14 @@ export default function BadgeRegistryKiosk({ invoke }) {
     }
   };
 
-  const reset = () => { setSelected(null); setMode(null); setQuery(""); setMatches([]); setQrUrl(""); setAccessCode(""); setRegisterError(""); };
+  const reset = () => { setSelected(null); setMode(null); setQuery(""); setMatches([]); setAccessCode(""); setRegisterError(""); };
 
   if (!selected) {
     return (
       <Card>
         <CardContent className="p-5 space-y-3">
           <p className="font-semibold text-center">Badge registry</p>
-          <p className="text-sm text-muted-foreground text-center">Find yourself to register a badge or get a QR code</p>
+          <p className="text-sm text-muted-foreground text-center">Find yourself to register a badge or get an access code</p>
           <div className="relative">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <Input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Type your name…" className="pl-9" />
@@ -121,20 +116,6 @@ export default function BadgeRegistryKiosk({ invoke }) {
     );
   }
 
-  if (mode === "qr") {
-    return (
-      <Card>
-        <CardContent className="p-6 text-center space-y-4">
-          <Button variant="ghost" size="sm" className="mb-1" onClick={() => setMode(null)}><ChevronLeft className="w-4 h-4 mr-1" /> Back</Button>
-          <p className="font-medium">{selected.full_name}'s badge QR</p>
-          {qrUrl && <img src={qrUrl} alt="Badge QR code" className="mx-auto rounded-lg border" width={220} height={220} />}
-          <p className="text-xs text-muted-foreground">Save or screenshot this — show it to the bus boarding kiosk to check in.</p>
-          <Button onClick={reset}>Done</Button>
-        </CardContent>
-      </Card>
-    );
-  }
-
   if (mode === "code") {
     return (
       <Card>
@@ -162,12 +143,9 @@ export default function BadgeRegistryKiosk({ invoke }) {
           <Button variant="outline" onClick={generateCode} disabled={busy}>
             <Hash className="w-4 h-4 mr-1.5" /> Generate access code
           </Button>
-          <Button variant="outline" onClick={() => setMode("qr")}>
-            <QrCode className="w-4 h-4 mr-1.5" /> Show QR code
-          </Button>
         </div>
         {registerError && <p className="text-xs text-destructive">{registerError}</p>}
-        {!nfcSupported && <p className="text-xs text-muted-foreground">NFC isn't supported on this device — QR and access codes still work.</p>}
+        {!nfcSupported && <p className="text-xs text-muted-foreground">NFC isn't supported on this device — an access code still works.</p>}
       </CardContent>
     </Card>
   );
