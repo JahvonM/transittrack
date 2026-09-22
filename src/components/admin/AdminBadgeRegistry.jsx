@@ -17,10 +17,7 @@ import { ChevronLeft } from "lucide-react";
 export default function AdminBadgeRegistry({ companies }) {
   const [companyId, setCompanyId] = useState("");
 
-  const invoke = useCallback(async (action, payload = {}) => {
-    const res = await base44.functions.invoke("kioskCheckIn", { action, company_id: companyId, ...payload });
-    return res.data;
-  }, [companyId]);
+PLACEHOLDER
 
   if (!companyId) {
     return (
