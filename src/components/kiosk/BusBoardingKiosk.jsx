@@ -1,24 +1,27 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { CreditCard, QrCode, Search, ChevronLeft, CheckCircle2, LogIn, LogOut, AlertCircle } from "lucide-react";
+import { CreditCard, QrCode, Hash, ChevronLeft, CheckCircle2, LogIn, LogOut, AlertCircle, Delete } from "lucide-react";
 import { useNfcTap } from "@/hooks/useNfcTap";
 import { parseStaffQrPayload } from "@/lib/qr";
 import QrScanner from "./QrScanner";
 
+const CODE_MAX_LEN = 6;
+
 // bus_boarding kiosk: three ways in, one shared confirm/result flow.
 // "idle" mode auto-listens for an NFC tap (when the tablet supports Web
-// NFC) while also offering QR and manual-search buttons.
+// NFC) while also offering QR and keypad-code buttons. The keypad accepts
+// either a staff member's permanent access_code (assigned at the badge
+// registry kiosk) or a temporary one_time_code (self-generated from their
+// own app when they forgot their badge) — the backend tells us which.
 export default function BusBoardingKiosk({ invoke }) {
-  const [mode, setMode] = useState("idle"); // idle | qr | manual | confirm | result | badge_error
-  const [pending, setPending] = useState(null); // { staff, next_status, method }
+  const [mode, setMode] = useState("idle"); // idle | qr | code | confirm | result | badge_error
+  const [pending, setPending] = useState(null); // { staff, next_status, method, code_type }
   const [result, setResult] = useState(null); // { staff_name, status }
   const [badgeError, setBadgeError] = useState("");
-  const [query, setQuery] = useState("");
-  const [matches, setMatches] = useState([]);
+  const [code, setCode] = useState("");
+  const [checkingCode, setCheckingCode] = useState(false);
   const [busy, setBusy] = useState(false);
-  const searchTimer = useRef(null);
   const resetTimer = useRef(null);
 
   const idleListening = mode === "idle";
@@ -27,13 +30,12 @@ export default function BusBoardingKiosk({ invoke }) {
     idleListening
   );
 
-  useEffect(() => () => { clearTimeout(searchTimer.current); clearTimeout(resetTimer.current); }, []);
+  useEffect(() => () => clearTimeout(resetTimer.current), []);
 
   const resetSoon = (ms = 2500) => {
     clearTimeout(resetTimer.current);
     resetTimer.current = setTimeout(() => {
-      setMode("idle"); setPending(null); setResult(null); setBadgeError("");
-      setQuery(""); setMatches([]);
+      setMode("idle"); setPending(null); setResult(null); setBadgeError(""); setCode("");
     }, ms);
   };
 
@@ -72,38 +74,28 @@ export default function BusBoardingKiosk({ invoke }) {
     }
   };
 
-  const runSearch = (value) => {
-    setQuery(value);
-    clearTimeout(searchTimer.current);
-    if (!value.trim()) { setMatches([]); return; }
-    searchTimer.current = setTimeout(async () => {
-      try { setMatches((await invoke("search_staff", { query: value.trim() })).staff || []); }
-      catch { setMatches([]); }
-    }, 250);
+  const submitCode = async () => {
+    if (!code || checkingCode) return;
+    setCheckingCode(true);
+    try {
+      const res = await invoke("lookup_code", { code });
+      setPending({ staff: res.staff, next_status: res.next_status, method: "code", code_type: res.code_type });
+      setMode("confirm");
+      setCode("");
+    } catch {
+      setBadgeError("That code isn't recognized — check it and try again.");
+      setMode("badge_error");
+      resetSoon(3000);
+    } finally {
+      setCheckingCode(false);
+    }
   };
 
   const confirmCheckIn = async () => {
     if (!pending || busy) return;
     setBusy(true);
     try {
-      const res = await invoke("check_in", { staff_id: pending.staff.id, method: pending.method });
-      setResult({ staff_name: res.record.staff_name, status: res.record.status });
-      setMode("result");
-      resetSoon();
-    } catch {
-      setBadgeError("Something went wrong checking that in — please try again.");
-      setMode("badge_error");
-      resetSoon(3000);
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const pickManual = async (staff) => {
-    if (busy) return;
-    setBusy(true);
-    try {
-      const res = await invoke("check_in", { staff_id: staff.id, method: "manual" });
+      const res = await invoke("check_in", { staff_id: pending.staff.id, method: pending.method, code_type: pending.code_type });
       setResult({ staff_name: res.record.staff_name, status: res.record.status });
       setMode("result");
       resetSoon();
@@ -172,28 +164,33 @@ export default function BusBoardingKiosk({ invoke }) {
     );
   }
 
-  if (mode === "manual") {
+  if (mode === "code") {
+    const press = (d) => setCode((prev) => (prev.length < CODE_MAX_LEN ? prev + d : prev));
     return (
       <Card>
-        <CardContent className="p-5 space-y-3">
-          <Button variant="ghost" size="sm" onClick={() => setMode("idle")}><ChevronLeft className="w-4 h-4 mr-1" /> Back</Button>
-          <Input autoFocus value={query} onChange={(e) => runSearch(e.target.value)} placeholder="Type your name…" />
-          <div className="space-y-1.5 max-h-64 overflow-y-auto">
-            {matches.map((s) => (
-              <button
-                key={s.id}
-                type="button"
-                disabled={busy}
-                onClick={() => pickManual(s)}
-                className="w-full text-left p-3 rounded-lg border hover:bg-accent flex items-center gap-2"
-              >
-                <span className="font-medium">{s.full_name}</span>
-              </button>
+        <CardContent className="p-5 space-y-4">
+          <Button variant="ghost" size="sm" onClick={() => { setMode("idle"); setCode(""); }}><ChevronLeft className="w-4 h-4 mr-1" /> Back</Button>
+          <p className="text-sm text-center text-muted-foreground">Enter your code</p>
+          <div className="flex justify-center gap-2">
+            {Array.from({ length: Math.max(code.length, 4) }).map((_, i) => (
+              <div key={i} className={`w-9 h-11 rounded-lg border-2 grid place-items-center text-xl font-bold ${i < code.length ? "border-primary" : "border-border"}`}>
+                {i < code.length ? "•" : ""}
+              </div>
             ))}
-            {query.trim() && matches.length === 0 && (
-              <p className="text-sm text-muted-foreground text-center py-4">No matches.</p>
-            )}
           </div>
+          <div className="grid grid-cols-3 gap-2 max-w-xs mx-auto">
+            {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((d) => (
+              <Button key={d} variant="outline" className="h-14 text-xl" onClick={() => press(d)} disabled={checkingCode}>{d}</Button>
+            ))}
+            <Button variant="outline" className="h-14" onClick={() => setCode("")} disabled={checkingCode}>Clear</Button>
+            <Button variant="outline" className="h-14 text-xl" onClick={() => press("0")} disabled={checkingCode}>0</Button>
+            <Button variant="outline" className="h-14" onClick={() => setCode((prev) => prev.slice(0, -1))} disabled={checkingCode}>
+              <Delete className="w-5 h-5" />
+            </Button>
+          </div>
+          <Button className="w-full" onClick={submitCode} disabled={!code || checkingCode}>
+            {checkingCode ? "Checking…" : "Submit"}
+          </Button>
         </CardContent>
       </Card>
     );
@@ -208,7 +205,7 @@ export default function BusBoardingKiosk({ invoke }) {
         </div>
         <div>
           <p className="font-semibold text-lg">
-            {nfcSupported ? "Tap your badge" : "Scan your QR badge or enter your name"}
+            {nfcSupported ? "Tap your badge" : "Scan your QR badge or enter your code"}
           </p>
           <p className="text-sm text-muted-foreground">
             {nfcSupported ? "Hold your badge near this tablet" : "NFC tap isn't supported on this device"}
@@ -219,8 +216,8 @@ export default function BusBoardingKiosk({ invoke }) {
           <Button variant="outline" className="flex-1" onClick={() => setMode("qr")}>
             <QrCode className="w-4 h-4 mr-1.5" /> Scan QR
           </Button>
-          <Button variant="outline" className="flex-1" onClick={() => setMode("manual")}>
-            <Search className="w-4 h-4 mr-1.5" /> Enter name
+          <Button variant="outline" className="flex-1" onClick={() => setMode("code")}>
+            <Hash className="w-4 h-4 mr-1.5" /> Enter code
           </Button>
         </div>
       </CardContent>
