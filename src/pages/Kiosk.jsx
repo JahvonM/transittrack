@@ -3,6 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { Bus, Building2, DoorOpen, CreditCard, CheckCircle2, AlertCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import BusBoardingKiosk from "@/components/kiosk/BusBoardingKiosk";
 import BadgeRegistryKiosk from "@/components/kiosk/BadgeRegistryKiosk";
 import FrontDeskKiosk from "@/components/kiosk/FrontDeskKiosk";
@@ -20,10 +21,38 @@ export default function Kiosk() {
   const [deviceId, setDeviceId] = useState(null);
   const [status, setStatus] = useState("pairing"); // pairing | paired | error
   const [error, setError] = useState("");
+  const [manualCode, setManualCode] = useState("");
+  const [pairing, setPairing] = useState(false);
   const heartbeatId = useRef(null);
 
   const code = new URLSearchParams(window.location.search).get("code");
   const storedId = localStorage.getItem("tt_kiosk_device_id");
+
+  // Shared by the initial ?code= flow and the error screen's manual-entry
+  // fallback — a tablet that's been sitting at its bare bookmarked /kiosk
+  // URL (no ?code=) with no localStorage entry (cleared after its pairing
+  // was revoked server-side) previously had NO way to recover without
+  // someone physically typing a full pairing URL on it. This lets whoever's
+  // standing at the tablet just type the code an admin reads out to them.
+  const pairWithCode = (value) => {
+    setPairing(true);
+    setError("");
+    base44.functions.invoke("pairKioskDevice", { pairing_code: value })
+      .then((res) => {
+        if (!res.data?.device_id) { setStatus("error"); setError("Pairing failed."); return; }
+        localStorage.setItem("tt_kiosk_device_id", res.data.device_id);
+        setDevice(res.data);
+        setDeviceId(res.data.device_id);
+        setStatus("paired");
+        setManualCode("");
+        heartbeatId.current = setInterval(() => heartbeat(res.data.device_id), HEARTBEAT_MS);
+      })
+      .catch((e) => {
+        setStatus("error");
+        setError(e?.response?.data?.error || "Invalid or expired pairing code.");
+      })
+      .finally(() => setPairing(false));
+  };
 
   // Keeps `last_seen` fresh (admin's Kiosk Tablets screen shows this as
   // "Last seen: X ago") and re-syncs device details for the paired screen.
@@ -62,19 +91,7 @@ export default function Kiosk() {
       return () => { if (heartbeatId.current) clearInterval(heartbeatId.current); };
     }
 
-    base44.functions.invoke("pairKioskDevice", { pairing_code: code })
-      .then((res) => {
-        if (!res.data?.device_id) { setStatus("error"); setError("Pairing failed."); return; }
-        localStorage.setItem("tt_kiosk_device_id", res.data.device_id);
-        setDevice(res.data);
-        setDeviceId(res.data.device_id);
-        setStatus("paired");
-        heartbeatId.current = setInterval(() => heartbeat(res.data.device_id), HEARTBEAT_MS);
-      })
-      .catch((e) => {
-        setStatus("error");
-        setError(e?.response?.data?.error || "Invalid or expired pairing code.");
-      });
+    pairWithCode(code);
 
     return () => { if (heartbeatId.current) clearInterval(heartbeatId.current); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -97,10 +114,25 @@ export default function Kiosk() {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
         <Card className="max-w-sm w-full">
-          <CardContent className="pt-6 text-center space-y-3">
+          <CardContent className="pt-6 text-center space-y-4">
             <AlertCircle className="w-10 h-10 text-destructive mx-auto" />
             <p className="text-sm text-muted-foreground">{error}</p>
-            <Button variant="outline" onClick={() => { localStorage.removeItem("tt_kiosk_device_id"); window.location.reload(); }}>Retry</Button>
+            <div className="space-y-2">
+              <p className="text-xs text-muted-foreground">Have a pairing code? Enter it below to reconnect this tablet.</p>
+              <div className="flex gap-2">
+                <Input
+                  value={manualCode}
+                  onChange={(e) => setManualCode(e.target.value.toUpperCase())}
+                  placeholder="Pairing code"
+                  className="text-center tracking-widest"
+                  onKeyDown={(e) => { if (e.key === "Enter" && manualCode.trim()) pairWithCode(manualCode.trim()); }}
+                />
+                <Button onClick={() => pairWithCode(manualCode.trim())} disabled={!manualCode.trim() || pairing}>
+                  {pairing ? "Pairing…" : "Pair"}
+                </Button>
+              </div>
+            </div>
+            <Button variant="outline" className="w-full" onClick={() => { localStorage.removeItem("tt_kiosk_device_id"); window.location.reload(); }}>Retry</Button>
           </CardContent>
         </Card>
       </div>
