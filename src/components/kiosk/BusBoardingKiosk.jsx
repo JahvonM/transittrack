@@ -1,13 +1,17 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CreditCard, QrCode, Hash, ChevronLeft, CheckCircle2, LogIn, LogOut, AlertCircle, Delete, HelpCircle } from "lucide-react";
+import { CreditCard, QrCode, Hash, ChevronLeft, CheckCircle2, LogIn, LogOut, AlertCircle, Delete, HelpCircle, MapPin, CloudUpload } from "lucide-react";
 import { useNfcTap } from "@/hooks/useNfcTap";
 import { parseCodeQrPayload } from "@/lib/qr";
+import { base44 } from "@/api/base44Client";
+import { haversineKm, etaMinutes, formatEta } from "@/lib/geo";
+import { enqueueCheckIn, queueLength, isNetworkFailure, flushQueue } from "@/lib/offlineQueue";
 import QrScanner from "./QrScanner";
 import SlideToUnlock from "./SlideToUnlock";
 
 const CODE_MAX_LEN = 6;
+const FLUSH_INTERVAL_MS = 15000;
 
 function greeting() {
   const h = new Date().getHours();
@@ -39,6 +43,17 @@ function Screen({ modeKey, className = "", children }) {
   );
 }
 
+// Speaks a short confirmation aloud on successful check-in — free, no
+// hardware, and genuinely useful in a noisy boarding environment where
+// someone might not be looking at the screen the instant they tap in.
+function speak(text) {
+  if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+  try {
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(new SpeechSynthesisUtterance(text));
+  } catch { /* speech synthesis is a nice-to-have, never blocks check-in */ }
+}
+
 // bus_boarding kiosk: three ways in (NFC tap, QR scan, keypad code), one
 // shared confirm/result flow. "idle" is a welcome screen that auto-listens
 // for an NFC tap (when the tablet supports Web NFC); everything else lives
@@ -53,11 +68,14 @@ export default function BusBoardingKiosk({ invoke, device }) {
   const [now, setNow] = useState(() => new Date());
   const [mode, setMode] = useState("idle"); // idle | help | qr | code | confirm | result | badge_error
   const [pending, setPending] = useState(null); // { staff, next_status, method, code_type }
-  const [result, setResult] = useState(null); // { staff_name, status }
+  const [result, setResult] = useState(null); // { staff_name, status, offline? }
   const [badgeError, setBadgeError] = useState("");
   const [code, setCode] = useState("");
   const [checkingCode, setCheckingCode] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [pendingSyncCount, setPendingSyncCount] = useState(() => queueLength());
+  const [vehicle, setVehicle] = useState(null);
+  const [route, setRoute] = useState(null);
   const resetTimer = useRef(null);
 
   const idleListening = unlocked && mode === "idle";
@@ -72,6 +90,52 @@ export default function BusBoardingKiosk({ invoke, device }) {
     const t = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(t);
   }, []);
+
+  // Retries anything queued while offline — on a timer, and immediately when
+  // the browser reports connectivity is back, rather than waiting up to 15s.
+  useEffect(() => {
+    const tryFlush = () => {
+      flushQueue(invoke).then((synced) => { if (synced) setPendingSyncCount(queueLength()); });
+    };
+    const t = setInterval(tryFlush, FLUSH_INTERVAL_MS);
+    window.addEventListener("online", tryFlush);
+    return () => { clearInterval(t); window.removeEventListener("online", tryFlush); };
+  }, [invoke]);
+
+  // Nearest-stop info for the idle screen — turns dead wait time into a
+  // small piece of live journey status instead of a static welcome message.
+  // This is straight-line distance to the closest stop on the vehicle's
+  // assigned route, not a true "next in sequence" calculation (this app has
+  // no stop-sequence tracking yet), so it's labeled "Nearest stop" rather
+  // than implying route-aware precision it doesn't have.
+  useEffect(() => {
+    if (!device?.vehicle_id) return;
+    const load = () => base44.entities.Vehicle.get(device.vehicle_id).then(setVehicle).catch(() => {});
+    load();
+    const unsub = base44.entities.Vehicle.subscribe((event) => {
+      if (event.data?.id === device.vehicle_id) setVehicle(event.data);
+    });
+    return unsub;
+  }, [device?.vehicle_id]);
+
+  useEffect(() => {
+    if (!vehicle?.route_id) { setRoute(null); return; }
+    let cancelled = false;
+    base44.entities.Route.get(vehicle.route_id).then((r) => { if (!cancelled) setRoute(r); }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [vehicle?.route_id]);
+
+  const nearestStop = (() => {
+    if (vehicle?.current_lat == null || !route?.stops?.length) return null;
+    let best = null;
+    let bestKm = Infinity;
+    for (const s of route.stops) {
+      if (s.lat == null || s.lng == null) continue;
+      const km = haversineKm(vehicle.current_lat, vehicle.current_lng, s.lat, s.lng);
+      if (km < bestKm) { bestKm = km; best = s; }
+    }
+    return best ? { name: best.name, mins: etaMinutes(bestKm) } : null;
+  })();
 
   const resetSoon = (ms = 2500) => {
     clearTimeout(resetTimer.current);
@@ -151,13 +215,27 @@ export default function BusBoardingKiosk({ invoke, device }) {
   const confirmCheckIn = async (status) => {
     if (!pending || busy) return;
     setBusy(true);
+    const payload = { staff_id: pending.staff.id, method: pending.method, code_type: pending.code_type, status };
     try {
-      const res = await invoke("check_in", { staff_id: pending.staff.id, method: pending.method, code_type: pending.code_type, status });
-      setResult({ staff_name: res.record.staff_name, status: res.record.status });
+      const res = await invoke("check_in", payload);
+      const record = { staff_name: res.record.staff_name, status: res.record.status };
+      setResult(record);
       setMode("result");
+      speak(record.status === "boarded" ? `Welcome aboard, ${record.staff_name.split(" ")[0]}` : `See you later, ${record.staff_name.split(" ")[0]}`);
       resetSoon();
     } catch (e) {
       if (handleUnpaired(e)) return;
+      // A network failure (never reached the server) doesn't have to cost
+      // this person their check-in — queue it and let them walk away as if
+      // it worked; a real rejection from the backend still shows the error.
+      if (isNetworkFailure(e)) {
+        setPendingSyncCount(enqueueCheckIn(payload));
+        setResult({ staff_name: pending.staff.full_name, status, offline: true });
+        setMode("result");
+        speak(status === "boarded" ? `Welcome aboard, ${pending.staff.full_name.split(" ")[0]}` : `See you later, ${pending.staff.full_name.split(" ")[0]}`);
+        resetSoon();
+        return;
+      }
       setBadgeError("Something went wrong checking that in — please try again.");
       setMode("badge_error");
       resetSoon(3000);
@@ -224,6 +302,11 @@ export default function BusBoardingKiosk({ invoke, device }) {
             <CheckCircle2 className={`w-14 h-14 ${boarded ? "text-emerald-500" : "text-sky-500"}`} />
           </div>
           <p className="text-3xl font-bold">{boarded ? `Welcome aboard, ${result.staff_name.split(" ")[0]}!` : `See you later, ${result.staff_name.split(" ")[0]}!`}</p>
+          {result.offline && (
+            <p className="text-xs text-muted-foreground flex items-center justify-center gap-1.5">
+              <CloudUpload className="w-3.5 h-3.5" /> Saved offline — will sync automatically
+            </p>
+          )}
         </CardContent>
       </Card>
     );
@@ -305,6 +388,11 @@ export default function BusBoardingKiosk({ invoke, device }) {
         <p className="text-3xl font-heading font-bold tracking-tight">
           Welcome{device?.vehicle_name ? ` aboard ${device.vehicle_name}` : ""}
         </p>
+        {nearestStop && (
+          <p className="text-sm text-muted-foreground mt-1.5 flex items-center justify-center gap-1.5">
+            <MapPin className="w-3.5 h-3.5" /> Nearest stop: {nearestStop.name} · {formatEta(nearestStop.mins)}
+          </p>
+        )}
       </div>
       <div className="relative mx-auto w-36 h-36 grid place-items-center">
         {nfcListening && (
@@ -327,6 +415,11 @@ export default function BusBoardingKiosk({ invoke, device }) {
       <Button variant="outline" className="h-14 px-6 text-base rounded-2xl" onClick={() => setMode("help")}>
         <HelpCircle className="w-5 h-5 mr-2" /> Don't have your badge?
       </Button>
+      {pendingSyncCount > 0 && (
+        <p className="text-xs text-muted-foreground flex items-center justify-center gap-1.5">
+          <CloudUpload className="w-3.5 h-3.5" /> {pendingSyncCount} check-in{pendingSyncCount === 1 ? "" : "s"} waiting to sync
+        </p>
+      )}
     </Screen>
   );
 }
