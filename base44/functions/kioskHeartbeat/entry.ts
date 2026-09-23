@@ -27,12 +27,21 @@ export default async function(req) {
       last_seen: new Date().toISOString()
     });
 
+    let company_logo_url = '';
+    if (device.company_id) {
+      try {
+        const company = await base44.asServiceRole.entities.Company.get(device.company_id);
+        company_logo_url = company?.logo_url || '';
+      } catch { /* company may have been removed */ }
+    }
+
     return Response.json({
       ok: true,
       device_id: device.id,
       label: device.label,
       company_id: device.company_id,
       company_name: device.company_name,
+      company_logo_url,
       vehicle_id: device.vehicle_id,
       vehicle_name: device.vehicle_name,
       kiosk_type: device.kiosk_type,
