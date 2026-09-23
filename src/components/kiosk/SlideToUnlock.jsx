@@ -1,7 +1,7 @@
 import React, { useRef, useState } from "react";
 import { ChevronsRight } from "lucide-react";
 
-const HANDLE_SIZE = 48; // px — matches h-12/w-12 below
+const HANDLE_SIZE = 64; // px — matches h-16/w-16 below
 const TRACK_PADDING = 4; // px — matches p-1 below
 const UNLOCK_THRESHOLD = 0.85; // fraction of travel needed to trigger onUnlock
 
@@ -51,20 +51,20 @@ export default function SlideToUnlock({ label = "Slide to unlock", onUnlock }) {
   return (
     <div
       ref={trackRef}
-      className="relative w-full max-w-xs mx-auto h-14 rounded-full bg-primary/10 border border-primary/20 overflow-hidden p-1"
+      className="relative w-full max-w-sm mx-auto h-20 rounded-full bg-gradient-to-r from-primary/15 to-primary/5 border border-primary/20 overflow-hidden p-1 shadow-inner"
     >
-      <div className="absolute inset-0 flex items-center justify-center text-sm font-medium text-primary/70 pointer-events-none">
+      <div className="absolute inset-0 flex items-center justify-center text-base font-semibold text-primary/70 pointer-events-none tracking-wide">
         {label}
       </div>
       <div
-        className={`relative h-12 w-12 rounded-full bg-primary text-primary-foreground grid place-items-center shadow-md touch-none ${dragging ? "" : "transition-transform duration-300 ease-out"}`}
+        className={`relative h-[64px] w-[64px] rounded-full bg-gradient-to-br from-primary to-primary/80 text-primary-foreground grid place-items-center shadow-lg touch-none ${dragging ? "" : "transition-transform duration-300 ease-out"}`}
         style={{ transform: `translateX(${dragX}px)` }}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={finish}
         onPointerCancel={finish}
       >
-        <ChevronsRight className="w-6 h-6" />
+        <ChevronsRight className="w-8 h-8" />
       </div>
     </div>
   );
