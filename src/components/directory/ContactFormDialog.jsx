@@ -189,11 +189,10 @@ export default function ContactFormDialog({ open, onClose, onSave, contact }) {
                 {nfcListening && <p className="text-xs text-primary animate-pulse">Waiting for badge tap…</p>}
                 {(nfcHookError || nfcError) && <p className="text-xs text-destructive">{nfcHookError || nfcError}</p>}
                 {nfcSuccess && <p className="text-xs text-emerald-600">{nfcSuccess}</p>}
-                {!nfcSupported && (
-                  <p className="text-xs text-muted-foreground">
-                    NFC tap-to-register isn't supported on this device — you can still type a tag manually.
-                  </p>
-                )}
+                <p className="text-xs text-muted-foreground">
+                  Only works with a physical tap at the kiosk — {!nfcSupported ? "this device can't tap-register, but you can " : "or you can "}
+                  type a card's printed ID here to pre-register it for later. This is <span className="font-medium">not</span> something {form.name?.split(" ")[0] || "they"} can type in — for that, use the access code below.
+                </p>
               </div>
               <div className="space-y-1.5">
                 <Label className="flex items-center gap-1.5 text-xs text-muted-foreground">
