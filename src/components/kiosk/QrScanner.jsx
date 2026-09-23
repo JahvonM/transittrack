@@ -4,7 +4,7 @@ import { Html5Qrcode } from "html5-qrcode";
 // Thin wrapper around html5-qrcode's camera-based decoder. Renders into a
 // fixed-id div (the library owns that element's DOM) and reports every
 // decoded payload upward — the caller decides what a valid payload means.
-export default function QrScanner({ onDecode, active }) {
+export default function QrScanner({ onDecode, active, facingMode = "environment" }) {
   const elementId = useRef(`qr-scanner-${Math.random().toString(36).slice(2)}`).current;
   const scannerRef = useRef(null);
   const [error, setError] = useState("");
@@ -15,7 +15,7 @@ export default function QrScanner({ onDecode, active }) {
     const scanner = new Html5Qrcode(elementId);
     scannerRef.current = scanner;
     scanner.start(
-      { facingMode: "environment" },
+      { facingMode },
       { fps: 10, qrbox: 220 },
       (decodedText) => { if (!stopped) onDecode?.(decodedText); },
       () => { /* per-frame no-QR-found noise — ignore */ }
@@ -26,7 +26,7 @@ export default function QrScanner({ onDecode, active }) {
       scanner.stop().then(() => scanner.clear()).catch(() => {});
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active]);
+  }, [active, facingMode]);
 
   if (!active) return null;
 
