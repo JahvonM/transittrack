@@ -58,11 +58,11 @@ export default function FrontDeskKiosk({ invoke }) {
         </div>
         <div className="space-y-1.5">
           <Label className="text-sm">Full name</Label>
-          <Input autoFocus value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Jane Doe" className="h-13 text-base rounded-xl" />
+          <Input autoFocus value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Jane Doe" className="h-12 text-base rounded-xl" />
         </div>
         <div className="space-y-1.5">
           <Label className="text-sm">Company (optional)</Label>
-          <Input value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="Who are you visiting from?" className="h-13 text-base rounded-xl" />
+          <Input value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="Who are you visiting from?" className="h-12 text-base rounded-xl" />
         </div>
         <div className="space-y-1.5">
           <Label className="text-sm">Reason for visit (optional)</Label>
