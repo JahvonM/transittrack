@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { Bus, Lock, Radar, Radio, MapPin } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { Bus, Lock, Radar, Radio, MapPin, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
@@ -7,6 +7,7 @@ import MapboxMap from "@/components/MapboxMap";
 import BusDistance from "@/components/BusDistance";
 import useUserLocation from "@/hooks/useUserLocation";
 import { useToast } from "@/components/ui/use-toast";
+import { computeOccupancyByVehicle } from "@/lib/occupancy";
 
 const fmtTime = (iso) =>
   iso ? new Date(iso).toLocaleString([], { dateStyle: "short", timeStyle: "short" }) : "never";
@@ -23,7 +24,22 @@ export default function LiveFleetTab({ vehicles, onVehicleUpdate }) {
   const { toast } = useToast();
   const { location: userLoc } = useUserLocation();
   const [busy, setBusy] = useState(null);
+  const [occupancy, setOccupancy] = useState({});
   const withLocation = vehicles.filter((v) => v.current_lat != null);
+
+  // Every boarding/exit already lands in StaffCheckIn — this just aggregates
+  // the latest record per person per vehicle into a live headcount, so
+  // dispatch can see "14 aboard" without opening the sign-in log.
+  useEffect(() => {
+    const load = () => {
+      base44.entities.StaffCheckIn.list("-created_date", 500).then((list) => {
+        setOccupancy(computeOccupancyByVehicle(list));
+      });
+    };
+    load();
+    const unsub = base44.entities.StaffCheckIn.subscribe(() => load());
+    return unsub;
+  }, []);
 
   const remoteStart = async (v) => {
     setBusy(v.id);
@@ -67,6 +83,11 @@ export default function LiveFleetTab({ vehicles, onVehicleUpdate }) {
                   {v.name}
                 </div>
                 <div className="flex items-center gap-1.5">
+                  {occupancy[v.id] > 0 && (
+                    <Badge variant="outline" className="gap-1">
+                      <Users className="w-3 h-3" /> {occupancy[v.id]}{v.capacity ? `/${v.capacity}` : ""}
+                    </Badge>
+                  )}
                   {locked && <Badge variant="destructive"><Lock className="w-3 h-3 mr-1" />Locked</Badge>}
                   {tracking && !locked && <Badge variant="default"><Radio className="w-3 h-3 mr-1 animate-pulse" />Tracking</Badge>}
                   {!tracking && !locked && <Badge variant="secondary">Not tracking</Badge>}
