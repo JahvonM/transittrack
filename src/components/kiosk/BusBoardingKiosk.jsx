@@ -1,23 +1,32 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CreditCard, QrCode, Hash, ChevronLeft, CheckCircle2, LogIn, LogOut, AlertCircle, Delete, HelpCircle, MapPin, CloudUpload } from "lucide-react";
+import { CreditCard, QrCode, Hash, ChevronLeft, CheckCircle2, LogIn, LogOut, AlertCircle, Delete, HelpCircle, MapPin, CloudUpload, PartyPopper } from "lucide-react";
 import { useNfcTap } from "@/hooks/useNfcTap";
 import { parseCodeQrPayload } from "@/lib/qr";
 import { base44 } from "@/api/base44Client";
 import { haversineKm, etaMinutes, formatEta } from "@/lib/geo";
 import { enqueueCheckIn, queueLength, isNetworkFailure, flushQueue } from "@/lib/offlineQueue";
+import WeatherWidget from "@/components/WeatherWidget";
 import QrScanner from "./QrScanner";
 import SlideToUnlock from "./SlideToUnlock";
+import KioskMascot from "./KioskMascot";
 
 const CODE_MAX_LEN = 6;
 const FLUSH_INTERVAL_MS = 15000;
+const ATTRACT_INTERVAL_MS = 7000;
 
 function greeting() {
   const h = new Date().getHours();
   if (h < 12) return "Good morning";
   if (h < 18) return "Good afternoon";
   return "Good evening";
+}
+
+function startOfToday() {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
 }
 
 function Avatar({ name, photoUrl }) {
@@ -68,7 +77,7 @@ export default function BusBoardingKiosk({ invoke, device }) {
   const [now, setNow] = useState(() => new Date());
   const [mode, setMode] = useState("idle"); // idle | help | qr | code | confirm | result | badge_error
   const [pending, setPending] = useState(null); // { staff, next_status, method, code_type }
-  const [result, setResult] = useState(null); // { staff_name, status, offline? }
+  const [result, setResult] = useState(null); // { staff_name, status, offline?, riderNumber? }
   const [badgeError, setBadgeError] = useState("");
   const [code, setCode] = useState("");
   const [checkingCode, setCheckingCode] = useState(false);
@@ -76,6 +85,9 @@ export default function BusBoardingKiosk({ invoke, device }) {
   const [pendingSyncCount, setPendingSyncCount] = useState(() => queueLength());
   const [vehicle, setVehicle] = useState(null);
   const [route, setRoute] = useState(null);
+  const [ads, setAds] = useState([]);
+  const [todayCount, setTodayCount] = useState(null);
+  const [attractSlide, setAttractSlide] = useState(0);
   const resetTimer = useRef(null);
 
   const idleListening = unlocked && mode === "idle";
@@ -136,6 +148,52 @@ export default function BusBoardingKiosk({ invoke, device }) {
     }
     return best ? { name: best.name, mins: etaMinutes(bestKm) } : null;
   })();
+
+  // Active ads for the idle screen's attract-mode rotation — same
+  // Advertisement entity the passenger home screen already uses, so a
+  // company's existing promos/announcements show up here for free.
+  useEffect(() => {
+    base44.entities.Advertisement.list("order").then((list) => setAds((list || []).filter((a) => a.active))).catch(() => setAds([]));
+  }, []);
+
+  // Today's boarded-so-far count for this vehicle — powers both the
+  // "N riders today" attract slide and the playful "you're rider #N!" line
+  // on a successful boarding's result screen.
+  const refreshTodayCount = () => {
+    if (!device?.vehicle_id) return;
+    base44.entities.StaffCheckIn.filter({ vehicle_id: device.vehicle_id, status: "boarded" }, "-created_date", 300)
+      .then((list) => setTodayCount((list || []).filter((r) => new Date(r.created_date) >= startOfToday()).length))
+      .catch(() => {});
+  };
+  useEffect(() => {
+    if (!device?.vehicle_id) return;
+    refreshTodayCount();
+    const unsub = base44.entities.StaffCheckIn.subscribe((event) => {
+      if (event.data?.vehicle_id === device.vehicle_id) refreshTodayCount();
+    });
+    return unsub;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [device?.vehicle_id]);
+
+  // Attract mode: while nobody's interacting, the top of the idle screen
+  // slowly rotates through the welcome message, live weather, and any
+  // active company ads — like an airport gate screen instead of a static
+  // "tap your badge" card. It never touches the tap-to-check-in icon or the
+  // help button below it, so it can't get in the way of actually checking
+  // in. Resets to the welcome slide every time the kiosk returns to idle.
+  useEffect(() => {
+    if (mode !== "idle") return;
+    setAttractSlide(0);
+    const t = setInterval(() => setAttractSlide((s) => s + 1), ATTRACT_INTERVAL_MS);
+    return () => clearInterval(t);
+  }, [mode]);
+
+  const attractSlides = [
+    { type: "welcome" },
+    { type: "weather" },
+    ...ads.map((ad) => ({ type: "ad", ad })),
+  ];
+  const currentAttractSlide = attractSlides[attractSlide % attractSlides.length];
 
   const resetSoon = (ms = 2500) => {
     clearTimeout(resetTimer.current);
@@ -219,6 +277,17 @@ export default function BusBoardingKiosk({ invoke, device }) {
     try {
       const res = await invoke("check_in", payload);
       const record = { staff_name: res.record.staff_name, status: res.record.status };
+      // Rider number is a fun extra, never a blocker — computed only for a
+      // confirmed, synchronous success, and only for boarding (an exit isn't
+      // "rider #N").
+      if (record.status === "boarded" && device?.vehicle_id) {
+        base44.entities.StaffCheckIn.filter({ vehicle_id: device.vehicle_id, status: "boarded" }, "-created_date", 300)
+          .then((list) => {
+            const n = (list || []).filter((r) => new Date(r.created_date) >= startOfToday()).length;
+            setResult((prev) => (prev && prev.staff_name === record.staff_name ? { ...prev, riderNumber: n } : prev));
+          })
+          .catch(() => {});
+      }
       setResult(record);
       setMode("result");
       speak(record.status === "boarded" ? `Welcome aboard, ${record.staff_name.split(" ")[0]}` : `See you later, ${record.staff_name.split(" ")[0]}`);
@@ -264,7 +333,16 @@ export default function BusBoardingKiosk({ invoke, device }) {
   if (mode === "confirm" && pending) {
     const suggestBoarding = pending.next_status === "boarded";
     return (
-      <Screen modeKey="confirm" className="p-8 text-center space-y-5">
+      <Screen modeKey="confirm" className="p-8 text-center space-y-4">
+        {/* A little card flies in and "taps" down before the person's info
+            appears — reinforces the physical action that just happened
+            instead of jumping straight to a static result. Only for a real
+            NFC tap; QR/code entry has no physical tap to echo. */}
+        {pending.method === "nfc" && (
+          <div className="mx-auto w-16 h-11 rounded-lg bg-gradient-to-br from-primary to-primary/70 shadow-lg grid place-items-center animate-in slide-in-from-top-20 fade-in duration-500">
+            <CreditCard className="w-6 h-6 text-primary-foreground" />
+          </div>
+        )}
         <Avatar name={pending.staff.full_name} photoUrl={pending.staff.photo_url} />
         <p className="text-2xl font-bold">{pending.staff.full_name}</p>
         <p className="text-base text-muted-foreground">Are you boarding or exiting?</p>
@@ -298,10 +376,18 @@ export default function BusBoardingKiosk({ invoke, device }) {
     return (
       <Card className={`rounded-3xl shadow-xl border-border/60 overflow-hidden bg-gradient-to-b ${boarded ? "from-emerald-500/15" : "from-sky-500/15"} to-transparent`}>
         <CardContent key="result" className="p-10 text-center space-y-4 animate-in fade-in zoom-in-90 duration-500">
-          <div className={`mx-auto w-24 h-24 rounded-full grid place-items-center ${boarded ? "bg-emerald-500/15" : "bg-sky-500/15"} animate-in zoom-in spin-in-6 duration-500`}>
-            <CheckCircle2 className={`w-14 h-14 ${boarded ? "text-emerald-500" : "text-sky-500"}`} />
+          <div className="flex items-center justify-center gap-3">
+            <div className={`w-24 h-24 rounded-full grid place-items-center ${boarded ? "bg-emerald-500/15" : "bg-sky-500/15"} animate-in zoom-in spin-in-6 duration-500`}>
+              <CheckCircle2 className={`w-14 h-14 ${boarded ? "text-emerald-500" : "text-sky-500"}`} />
+            </div>
+            {boarded && <KioskMascot mood="cheer" size={72} />}
           </div>
           <p className="text-3xl font-bold">{boarded ? `Welcome aboard, ${result.staff_name.split(" ")[0]}!` : `See you later, ${result.staff_name.split(" ")[0]}!`}</p>
+          {boarded && result.riderNumber > 0 && (
+            <p className="text-sm font-medium text-primary flex items-center justify-center gap-1.5">
+              <PartyPopper className="w-4 h-4" /> You're rider #{result.riderNumber} today!
+            </p>
+          )}
           {result.offline && (
             <p className="text-xs text-muted-foreground flex items-center justify-center gap-1.5">
               <CloudUpload className="w-3.5 h-3.5" /> Saved offline — will sync automatically
@@ -380,18 +466,43 @@ export default function BusBoardingKiosk({ invoke, device }) {
     );
   }
 
-  // idle — the welcome screen
+  // idle — the welcome screen, with an attract-mode top section that
+  // rotates through the welcome message, weather, and any active ads
+  const vehicleName = device?.vehicle_name;
   return (
     <Screen modeKey="idle" className="p-10 text-center space-y-8">
-      <div>
-        <p className="text-base text-muted-foreground">{greeting()}</p>
-        <p className="text-3xl font-heading font-bold tracking-tight">
-          Welcome{device?.vehicle_name ? ` aboard ${device.vehicle_name}` : ""}
-        </p>
-        {nearestStop && (
-          <p className="text-sm text-muted-foreground mt-1.5 flex items-center justify-center gap-1.5">
-            <MapPin className="w-3.5 h-3.5" /> Nearest stop: {nearestStop.name} · {formatEta(nearestStop.mins)}
-          </p>
+      <div key={attractSlide} className="min-h-[76px] flex flex-col items-center justify-center animate-in fade-in duration-500">
+        {currentAttractSlide.type === "welcome" && (
+          <>
+            <p className="text-base text-muted-foreground">{greeting()}</p>
+            <p className="text-3xl font-heading font-bold tracking-tight">
+              Welcome{vehicleName ? ` aboard ${vehicleName}` : ""}
+            </p>
+            {nearestStop && (
+              <p className="text-sm text-muted-foreground mt-1.5 flex items-center justify-center gap-1.5">
+                <MapPin className="w-3.5 h-3.5" /> Nearest stop: {nearestStop.name} · {formatEta(nearestStop.mins)}
+              </p>
+            )}
+            {todayCount > 0 && (
+              <p className="text-xs text-muted-foreground mt-1">{todayCount} rider{todayCount === 1 ? "" : "s"} today so far</p>
+            )}
+          </>
+        )}
+        {currentAttractSlide.type === "weather" && (
+          <div className="scale-125">
+            <WeatherWidget variant="hero" />
+          </div>
+        )}
+        {currentAttractSlide.type === "ad" && (
+          <div className="flex items-center gap-3">
+            {currentAttractSlide.ad.image_url && (
+              <img src={currentAttractSlide.ad.image_url} alt="" className="w-14 h-14 rounded-xl object-cover shadow" />
+            )}
+            <div className="text-left">
+              <p className="font-semibold">{currentAttractSlide.ad.title}</p>
+              {currentAttractSlide.ad.message && <p className="text-sm text-muted-foreground">{currentAttractSlide.ad.message}</p>}
+            </div>
+          </div>
         )}
       </div>
       <div className="relative mx-auto w-36 h-36 grid place-items-center">
@@ -403,6 +514,9 @@ export default function BusBoardingKiosk({ invoke, device }) {
         )}
         <div className="relative w-full h-full rounded-full bg-gradient-to-br from-primary/20 to-primary/5 grid place-items-center shadow-inner">
           <CreditCard className={`w-16 h-16 text-primary ${nfcListening ? "animate-pulse" : ""}`} />
+        </div>
+        <div className="absolute -bottom-1 -right-1">
+          <KioskMascot mood="wave" size={44} />
         </div>
       </div>
       <div>
