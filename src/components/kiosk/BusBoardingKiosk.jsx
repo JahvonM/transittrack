@@ -17,12 +17,25 @@ function greeting() {
 }
 
 function Avatar({ name, photoUrl }) {
-  if (photoUrl) return <img src={photoUrl} alt={name} className="w-16 h-16 rounded-full object-cover mx-auto" />;
+  if (photoUrl) return <img src={photoUrl} alt={name} className="w-28 h-28 rounded-full object-cover mx-auto shadow-lg ring-4 ring-primary/10" />;
   const initials = (name || "?").trim().split(/\s+/).map((p) => p[0]).slice(0, 2).join("").toUpperCase();
   return (
-    <div className="w-16 h-16 rounded-full bg-primary/15 text-primary grid place-items-center mx-auto text-xl font-bold">
+    <div className="w-28 h-28 rounded-full bg-gradient-to-br from-primary/25 to-primary/10 text-primary grid place-items-center mx-auto text-4xl font-bold shadow-lg ring-4 ring-primary/10">
       {initials}
     </div>
+  );
+}
+
+// Wraps each screen so switching modes gets a soft fade+scale transition
+// instead of an abrupt swap — cheap "feels designed" polish with no extra
+// libraries, just tailwindcss-animate's utilities keyed on mode.
+function Screen({ modeKey, className = "", children }) {
+  return (
+    <Card className="rounded-3xl shadow-xl border-border/60 overflow-hidden">
+      <CardContent key={modeKey} className={`animate-in fade-in zoom-in-95 duration-300 ${className}`}>
+        {children}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -155,64 +168,62 @@ export default function BusBoardingKiosk({ invoke, device }) {
 
   if (!unlocked) {
     return (
-      <Card>
-        <CardContent className="p-8 text-center space-y-8">
-          <div>
-            <p className="text-5xl font-heading font-semibold tabular-nums">
-              {now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-            </p>
-            <p className="text-sm text-muted-foreground mt-1">
-              {now.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" })}
-            </p>
-          </div>
-          {device?.vehicle_name && <p className="text-lg font-medium text-muted-foreground">{device.vehicle_name}</p>}
-          <SlideToUnlock label="Slide to check in" onUnlock={() => setUnlocked(true)} />
-        </CardContent>
-      </Card>
+      <Screen modeKey="lock" className="p-10 text-center space-y-10">
+        <div>
+          <p className="text-7xl font-heading font-bold tabular-nums tracking-tight">
+            {now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+          </p>
+          <p className="text-base text-muted-foreground mt-2">
+            {now.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" })}
+          </p>
+        </div>
+        {device?.vehicle_name && <p className="text-xl font-semibold text-muted-foreground">{device.vehicle_name}</p>}
+        <SlideToUnlock label="Slide to check in" onUnlock={() => setUnlocked(true)} />
+      </Screen>
     );
   }
 
   if (mode === "confirm" && pending) {
     const suggestBoarding = pending.next_status === "boarded";
     return (
-      <Card>
-        <CardContent className="p-6 text-center space-y-4">
-          <Avatar name={pending.staff.full_name} photoUrl={pending.staff.photo_url} />
-          <p className="text-lg font-semibold">{pending.staff.full_name}</p>
-          <p className="text-sm text-muted-foreground">Are you boarding or exiting?</p>
-          <div className="flex gap-2">
-            <Button
-              variant={suggestBoarding ? "default" : "outline"}
-              className="flex-1 h-14 flex-col gap-0.5"
-              onClick={() => confirmCheckIn("boarded")}
-              disabled={busy}
-            >
-              <LogIn className="w-5 h-5" />
-              <span className="text-sm">Boarding</span>
-            </Button>
-            <Button
-              variant={suggestBoarding ? "outline" : "default"}
-              className="flex-1 h-14 flex-col gap-0.5"
-              onClick={() => confirmCheckIn("off_board")}
-              disabled={busy}
-            >
-              <LogOut className="w-5 h-5" />
-              <span className="text-sm">Exiting</span>
-            </Button>
-          </div>
-          <Button variant="ghost" size="sm" onClick={() => { setMode("idle"); setPending(null); }}>Cancel</Button>
-        </CardContent>
-      </Card>
+      <Screen modeKey="confirm" className="p-8 text-center space-y-5">
+        <Avatar name={pending.staff.full_name} photoUrl={pending.staff.photo_url} />
+        <p className="text-2xl font-bold">{pending.staff.full_name}</p>
+        <p className="text-base text-muted-foreground">Are you boarding or exiting?</p>
+        <div className="flex gap-3">
+          <Button
+            variant={suggestBoarding ? "default" : "outline"}
+            className="flex-1 h-24 flex-col gap-1.5 rounded-2xl text-base"
+            onClick={() => confirmCheckIn("boarded")}
+            disabled={busy}
+          >
+            <LogIn className="w-8 h-8" />
+            <span>Boarding</span>
+          </Button>
+          <Button
+            variant={suggestBoarding ? "outline" : "default"}
+            className="flex-1 h-24 flex-col gap-1.5 rounded-2xl text-base"
+            onClick={() => confirmCheckIn("off_board")}
+            disabled={busy}
+          >
+            <LogOut className="w-8 h-8" />
+            <span>Exiting</span>
+          </Button>
+        </div>
+        <Button variant="ghost" onClick={() => { setMode("idle"); setPending(null); }}>Cancel</Button>
+      </Screen>
     );
   }
 
   if (mode === "result" && result) {
     const boarded = result.status === "boarded";
     return (
-      <Card>
-        <CardContent className="p-8 text-center space-y-3">
-          <CheckCircle2 className={`w-14 h-14 mx-auto ${boarded ? "text-emerald-500" : "text-sky-500"}`} />
-          <p className="text-xl font-semibold">{boarded ? `Welcome aboard, ${result.staff_name.split(" ")[0]}!` : `See you later, ${result.staff_name.split(" ")[0]}!`}</p>
+      <Card className={`rounded-3xl shadow-xl border-border/60 overflow-hidden bg-gradient-to-b ${boarded ? "from-emerald-500/15" : "from-sky-500/15"} to-transparent`}>
+        <CardContent key="result" className="p-10 text-center space-y-4 animate-in fade-in zoom-in-90 duration-500">
+          <div className={`mx-auto w-24 h-24 rounded-full grid place-items-center ${boarded ? "bg-emerald-500/15" : "bg-sky-500/15"} animate-in zoom-in spin-in-6 duration-500`}>
+            <CheckCircle2 className={`w-14 h-14 ${boarded ? "text-emerald-500" : "text-sky-500"}`} />
+          </div>
+          <p className="text-3xl font-bold">{boarded ? `Welcome aboard, ${result.staff_name.split(" ")[0]}!` : `See you later, ${result.staff_name.split(" ")[0]}!`}</p>
         </CardContent>
       </Card>
     );
@@ -220,102 +231,102 @@ export default function BusBoardingKiosk({ invoke, device }) {
 
   if (mode === "badge_error") {
     return (
-      <Card>
-        <CardContent className="p-8 text-center space-y-3">
-          <AlertCircle className="w-12 h-12 mx-auto text-destructive" />
-          <p className="text-sm text-muted-foreground">{badgeError}</p>
-        </CardContent>
-      </Card>
+      <Screen modeKey="badge_error" className="p-10 text-center space-y-4">
+        <div className="mx-auto w-20 h-20 rounded-full bg-destructive/10 grid place-items-center">
+          <AlertCircle className="w-11 h-11 text-destructive" />
+        </div>
+        <p className="text-base text-muted-foreground">{badgeError}</p>
+      </Screen>
     );
   }
 
   if (mode === "qr") {
     return (
-      <Card>
-        <CardContent className="p-5 space-y-4">
-          <Button variant="ghost" size="sm" onClick={() => setMode("help")}><ChevronLeft className="w-4 h-4 mr-1" /> Back</Button>
-          <p className="text-sm text-center text-muted-foreground">Show your QR code to the camera</p>
-          <QrScanner active onDecode={handleQrDecode} />
-        </CardContent>
-      </Card>
+      <Screen modeKey="qr" className="p-5 space-y-4">
+        <Button variant="ghost" onClick={() => setMode("help")}><ChevronLeft className="w-5 h-5 mr-1" /> Back</Button>
+        <p className="text-base text-center text-muted-foreground">Show your QR code to the camera</p>
+        <QrScanner active onDecode={handleQrDecode} />
+      </Screen>
     );
   }
 
   if (mode === "code") {
     const press = (d) => setCode((prev) => (prev.length < CODE_MAX_LEN ? prev + d : prev));
     return (
-      <Card>
-        <CardContent className="p-5 space-y-4">
-          <Button variant="ghost" size="sm" onClick={() => { setMode("help"); setCode(""); }}><ChevronLeft className="w-4 h-4 mr-1" /> Back</Button>
-          <p className="text-sm text-center text-muted-foreground">Enter your code</p>
-          <div className="flex justify-center gap-2">
-            {Array.from({ length: Math.max(code.length, 4) }).map((_, i) => (
-              <div key={i} className={`w-9 h-11 rounded-lg border-2 grid place-items-center text-xl font-bold ${i < code.length ? "border-primary" : "border-border"}`}>
-                {i < code.length ? "•" : ""}
-              </div>
-            ))}
-          </div>
-          <div className="grid grid-cols-3 gap-2 max-w-xs mx-auto">
-            {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((d) => (
-              <Button key={d} variant="outline" className="h-14 text-xl" onClick={() => press(d)} disabled={checkingCode}>{d}</Button>
-            ))}
-            <Button variant="outline" className="h-14" onClick={() => setCode("")} disabled={checkingCode}>Clear</Button>
-            <Button variant="outline" className="h-14 text-xl" onClick={() => press("0")} disabled={checkingCode}>0</Button>
-            <Button variant="outline" className="h-14" onClick={() => setCode((prev) => prev.slice(0, -1))} disabled={checkingCode}>
-              <Delete className="w-5 h-5" />
-            </Button>
-          </div>
-          <Button className="w-full" onClick={submitCode} disabled={!code || checkingCode}>
-            {checkingCode ? "Checking…" : "Submit"}
+      <Screen modeKey="code" className="p-6 space-y-5">
+        <Button variant="ghost" onClick={() => { setMode("help"); setCode(""); }}><ChevronLeft className="w-5 h-5 mr-1" /> Back</Button>
+        <p className="text-base text-center text-muted-foreground">Enter your code</p>
+        <div className="flex justify-center gap-2.5">
+          {Array.from({ length: Math.max(code.length, 4) }).map((_, i) => (
+            <div key={i} className={`w-11 h-14 rounded-xl border-2 grid place-items-center text-2xl font-bold transition-colors ${i < code.length ? "border-primary bg-primary/5" : "border-border"}`}>
+              {i < code.length ? "•" : ""}
+            </div>
+          ))}
+        </div>
+        <div className="grid grid-cols-3 gap-2.5 max-w-sm mx-auto">
+          {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((d) => (
+            <Button key={d} variant="outline" className="h-16 text-2xl rounded-2xl" onClick={() => press(d)} disabled={checkingCode}>{d}</Button>
+          ))}
+          <Button variant="outline" className="h-16 rounded-2xl" onClick={() => setCode("")} disabled={checkingCode}>Clear</Button>
+          <Button variant="outline" className="h-16 text-2xl rounded-2xl" onClick={() => press("0")} disabled={checkingCode}>0</Button>
+          <Button variant="outline" className="h-16 rounded-2xl" onClick={() => setCode((prev) => prev.slice(0, -1))} disabled={checkingCode}>
+            <Delete className="w-6 h-6" />
           </Button>
-        </CardContent>
-      </Card>
+        </div>
+        <Button className="w-full h-14 text-base rounded-2xl" onClick={submitCode} disabled={!code || checkingCode}>
+          {checkingCode ? "Checking…" : "Submit"}
+        </Button>
+      </Screen>
     );
   }
 
   if (mode === "help") {
     return (
-      <Card>
-        <CardContent className="p-6 text-center space-y-4">
-          <Button variant="ghost" size="sm" onClick={() => setMode("idle")}><ChevronLeft className="w-4 h-4 mr-1" /> Back</Button>
-          <p className="font-semibold">How would you like to check in?</p>
-          <div className="grid grid-cols-1 gap-2 max-w-xs mx-auto">
-            <Button variant="outline" className="h-14" onClick={() => setMode("code")}>
-              <Hash className="w-4 h-4 mr-1.5" /> Enter my code
-            </Button>
-            <Button variant="outline" className="h-14" onClick={() => setMode("qr")}>
-              <QrCode className="w-4 h-4 mr-1.5" /> Scan my QR code
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      <Screen modeKey="help" className="p-8 text-center space-y-5">
+        <Button variant="ghost" onClick={() => setMode("idle")}><ChevronLeft className="w-5 h-5 mr-1" /> Back</Button>
+        <p className="font-semibold text-lg">How would you like to check in?</p>
+        <div className="grid grid-cols-1 gap-3 max-w-sm mx-auto">
+          <Button variant="outline" className="h-16 text-base rounded-2xl" onClick={() => setMode("code")}>
+            <Hash className="w-5 h-5 mr-2" /> Enter my code
+          </Button>
+          <Button variant="outline" className="h-16 text-base rounded-2xl" onClick={() => setMode("qr")}>
+            <QrCode className="w-5 h-5 mr-2" /> Scan my QR code
+          </Button>
+        </div>
+      </Screen>
     );
   }
 
   // idle — the welcome screen
   return (
-    <Card>
-      <CardContent className="p-8 text-center space-y-6">
-        <div>
-          <p className="text-sm text-muted-foreground">{greeting()}</p>
-          <p className="text-2xl font-heading font-semibold">
-            Welcome{device?.vehicle_name ? ` aboard ${device.vehicle_name}` : ""}
-          </p>
+    <Screen modeKey="idle" className="p-10 text-center space-y-8">
+      <div>
+        <p className="text-base text-muted-foreground">{greeting()}</p>
+        <p className="text-3xl font-heading font-bold tracking-tight">
+          Welcome{device?.vehicle_name ? ` aboard ${device.vehicle_name}` : ""}
+        </p>
+      </div>
+      <div className="relative mx-auto w-36 h-36 grid place-items-center">
+        {nfcListening && (
+          <>
+            <span className="absolute inset-0 rounded-full bg-primary/20 animate-ping" />
+            <span className="absolute inset-3 rounded-full bg-primary/10 animate-ping [animation-delay:150ms]" />
+          </>
+        )}
+        <div className="relative w-full h-full rounded-full bg-gradient-to-br from-primary/20 to-primary/5 grid place-items-center shadow-inner">
+          <CreditCard className={`w-16 h-16 text-primary ${nfcListening ? "animate-pulse" : ""}`} />
         </div>
-        <div className="mx-auto w-24 h-24 rounded-full bg-primary/10 grid place-items-center">
-          <CreditCard className={`w-11 h-11 text-primary ${nfcListening ? "animate-pulse" : ""}`} />
-        </div>
-        <div>
-          <p className="font-semibold text-lg">
-            {nfcSupported ? "Tap your badge to check in" : "Scan your QR code or enter your code to check in"}
-          </p>
-          {nfcSupported && <p className="text-sm text-muted-foreground">Hold your badge near this tablet</p>}
-          {nfcError && <p className="text-xs text-destructive mt-1">{nfcError}</p>}
-        </div>
-        <Button variant="outline" onClick={() => setMode("help")}>
-          <HelpCircle className="w-4 h-4 mr-1.5" /> Don't have your badge?
-        </Button>
-      </CardContent>
-    </Card>
+      </div>
+      <div>
+        <p className="font-semibold text-xl">
+          {nfcSupported ? "Tap your badge to check in" : "Scan your QR code or enter your code to check in"}
+        </p>
+        {nfcSupported && <p className="text-base text-muted-foreground mt-1">Hold your badge near this tablet</p>}
+        {nfcError && <p className="text-sm text-destructive mt-2">{nfcError}</p>}
+      </div>
+      <Button variant="outline" className="h-14 px-6 text-base rounded-2xl" onClick={() => setMode("help")}>
+        <HelpCircle className="w-5 h-5 mr-2" /> Don't have your badge?
+      </Button>
+    </Screen>
   );
 }
