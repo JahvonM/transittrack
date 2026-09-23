@@ -108,14 +108,20 @@ export default function Kiosk() {
   const Icon = meta?.icon || Bus;
 
   if (status === "pairing")
-    return <div className="min-h-screen flex items-center justify-center"><div className="w-8 h-8 border-4 border-muted border-t-primary rounded-full animate-spin" /></div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/15 via-background to-background">
+        <div className="w-10 h-10 border-4 border-muted border-t-primary rounded-full animate-spin" />
+      </div>
+    );
 
   if (status === "error")
     return (
-      <div className="min-h-screen flex items-center justify-center p-4">
-        <Card className="max-w-sm w-full">
-          <CardContent className="pt-6 text-center space-y-4">
-            <AlertCircle className="w-10 h-10 text-destructive mx-auto" />
+      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-primary/15 via-background to-background">
+        <Card className="max-w-md w-full rounded-3xl shadow-xl border-border/60 animate-in fade-in zoom-in-95 duration-300">
+          <CardContent className="pt-8 pb-8 text-center space-y-5">
+            <div className="mx-auto w-16 h-16 rounded-full bg-destructive/10 grid place-items-center">
+              <AlertCircle className="w-9 h-9 text-destructive" />
+            </div>
             <p className="text-sm text-muted-foreground">{error}</p>
             <div className="space-y-2">
               <p className="text-xs text-muted-foreground">Have a pairing code? Enter it below to reconnect this tablet.</p>
@@ -124,47 +130,57 @@ export default function Kiosk() {
                   value={manualCode}
                   onChange={(e) => setManualCode(e.target.value.toUpperCase())}
                   placeholder="Pairing code"
-                  className="text-center tracking-widest"
+                  className="text-center tracking-widest h-12 text-lg"
                   onKeyDown={(e) => { if (e.key === "Enter" && manualCode.trim()) pairWithCode(manualCode.trim()); }}
                 />
-                <Button onClick={() => pairWithCode(manualCode.trim())} disabled={!manualCode.trim() || pairing}>
+                <Button className="h-12 px-6" onClick={() => pairWithCode(manualCode.trim())} disabled={!manualCode.trim() || pairing}>
                   {pairing ? "Pairing…" : "Pair"}
                 </Button>
               </div>
             </div>
-            <Button variant="outline" className="w-full" onClick={() => { localStorage.removeItem("tt_kiosk_device_id"); window.location.reload(); }}>Retry</Button>
+            <Button variant="outline" className="w-full h-11" onClick={() => { localStorage.removeItem("tt_kiosk_device_id"); window.location.reload(); }}>Retry</Button>
           </CardContent>
         </Card>
       </div>
     );
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-background">
-      <div className="max-w-sm w-full space-y-3">
-        <Card>
-          <CardHeader className="text-center pb-3">
-            <div className="mx-auto w-10 h-10 rounded-xl bg-emerald-500/10 grid place-items-center mb-1">
-              <CheckCircle2 className="w-5 h-5 text-emerald-500" />
-            </div>
-            <CardTitle className="text-base flex items-center justify-center gap-2">
-              <Icon className="w-4 h-4 text-primary" /> {meta?.label || "Kiosk"}
+    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-primary/15 via-background to-background">
+      <div className="max-w-md w-full space-y-4">
+        <Card className="rounded-3xl shadow-xl border-border/60 overflow-hidden animate-in fade-in slide-in-from-top-4 duration-500">
+          <CardHeader className="text-center pb-4 pt-6">
+            {device?.company_logo_url ? (
+              <img
+                src={device.company_logo_url}
+                alt={device.company_name || "Company logo"}
+                className="mx-auto w-16 h-16 rounded-2xl object-cover shadow-md mb-2"
+              />
+            ) : (
+              <div className="mx-auto w-14 h-14 rounded-2xl bg-gradient-to-br from-primary to-primary/60 grid place-items-center mb-2 shadow-md">
+                <CheckCircle2 className="w-7 h-7 text-primary-foreground" />
+              </div>
+            )}
+            <CardTitle className="text-lg flex items-center justify-center gap-2">
+              <Icon className="w-5 h-5 text-primary" /> {meta?.label || "Kiosk"}
             </CardTitle>
           </CardHeader>
           {(device?.company_name || device?.vehicle_name) && (
-            <CardContent className="pt-0 pb-4 flex flex-wrap justify-center gap-2 text-xs text-muted-foreground">
+            <CardContent className="pt-0 pb-5 flex flex-wrap justify-center gap-2 text-sm text-muted-foreground">
               {device?.company_name && (
-                <span className="flex items-center gap-1"><Building2 className="w-3.5 h-3.5" /> {device.company_name}</span>
+                <span className="flex items-center gap-1.5 font-medium"><Building2 className="w-4 h-4" /> {device.company_name}</span>
               )}
               {device?.vehicle_name && (
-                <span className="flex items-center gap-1"><Bus className="w-3.5 h-3.5" /> {device.vehicle_name}</span>
+                <span className="flex items-center gap-1.5"><Bus className="w-4 h-4" /> {device.vehicle_name}</span>
               )}
             </CardContent>
           )}
         </Card>
 
-        {device?.kiosk_type === "bus_boarding" && <BusBoardingKiosk invoke={invoke} device={device} />}
-        {device?.kiosk_type === "badge_registry" && <BadgeRegistryKiosk invoke={invoke} />}
-        {device?.kiosk_type === "front_desk" && <FrontDeskKiosk invoke={invoke} />}
+        <div key={device?.kiosk_type} className="animate-in fade-in zoom-in-95 duration-300">
+          {device?.kiosk_type === "bus_boarding" && <BusBoardingKiosk invoke={invoke} device={device} />}
+          {device?.kiosk_type === "badge_registry" && <BadgeRegistryKiosk invoke={invoke} />}
+          {device?.kiosk_type === "front_desk" && <FrontDeskKiosk invoke={invoke} />}
+        </div>
       </div>
     </div>
   );
