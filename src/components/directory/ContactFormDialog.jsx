@@ -220,6 +220,9 @@ export default function ContactFormDialog({ open, onClose, onSave, contact }) {
                 onChange={(e) => set("nfc_card_tag", e.target.value)}
                 placeholder="NFC card ID"
               />
+              <p className="text-xs text-muted-foreground">
+                Only works with a physical tap at the kiosk — not something they can type in themselves.
+              </p>
               {form.type === "staff" && (
                 <p className="text-xs text-muted-foreground">
                   Save this contact first, then edit it to tap-register a badge or generate an access code.
