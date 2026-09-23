@@ -1,13 +1,15 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { haversineKm } from "@/lib/geo";
 import { GPS_INTERVAL_MS, PROXIMITY_TRIGGER_M, SPEEDING_THRESHOLD_KMH, TRAIL_MAX } from "@/lib/mapbox";
+import { base44 } from "@/api/base44Client";
+import { computeOccupancy } from "@/lib/occupancy";
 import MapboxMap from "@/components/MapboxMap";
 import StaffRouteList from "@/components/driver/StaffRouteList";
 import SosButton from "@/components/driver/SosButton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { TrafficCone, Navigation, Radio, Lock } from "lucide-react";
+import { TrafficCone, Navigation, Radio, Lock, Users } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import BoardingPopup from "@/components/driver/BoardingPopup";
 
@@ -26,6 +28,7 @@ export default function DriverTrackingDashboard({ session, invoke, driverName })
   const [nearbyStaff, setNearbyStaff] = useState([]);
   const [liveVehicle, setLiveVehicle] = useState(session?.vehicle || null);
   const [boardingPopup, setBoardingPopup] = useState(null);
+  const [occupancy, setOccupancy] = useState(0);
 
   const watchId = useRef(null);
   const lastUpdate = useRef(0);
@@ -67,6 +70,25 @@ export default function DriverTrackingDashboard({ session, invoke, driverName })
       }
     });
   }, [session?.check_ins]);
+
+  // session.check_ins is only the most recent handful (for the boarding
+  // popup) — occupancy needs the full recent history to know who's still
+  // aboard, so this fetches its own wider window and stays live via
+  // subscribe rather than piggybacking on the heartbeat's small slice.
+  useEffect(() => {
+    const vehicleId = liveVehicle?.id;
+    if (!vehicleId) return;
+    const load = () => {
+      base44.entities.StaffCheckIn.filter({ vehicle_id: vehicleId }, "-created_date", 300).then((list) => {
+        setOccupancy(computeOccupancy(list, vehicleId));
+      });
+    };
+    load();
+    const unsub = base44.entities.StaffCheckIn.subscribe((event) => {
+      if (event.data?.vehicle_id === vehicleId || event.type === "delete") load();
+    });
+    return unsub;
+  }, [liveVehicle?.id]);
 
   const playBeep = useCallback(() => {
     try {
@@ -199,6 +221,11 @@ export default function DriverTrackingDashboard({ session, invoke, driverName })
         </CardHeader>
         <CardContent>
           <div className="text-sm text-muted-foreground mb-3">{liveVehicle?.company_name} · {liveVehicle?.plate_number}</div>
+          <div className="flex items-center gap-2 mb-3 p-3 rounded-xl bg-primary/5 border border-primary/10">
+            <Users className="w-5 h-5 text-primary" />
+            <span className="text-2xl font-bold">{occupancy}</span>
+            <span className="text-sm text-muted-foreground">{liveVehicle?.capacity ? `of ${liveVehicle.capacity} aboard` : "aboard right now"}</span>
+          </div>
           {sharing ? (
             <Button variant="outline" onClick={stopTracking} disabled={!!liveVehicle?.remote_tracking_lock}>
               {liveVehicle?.remote_tracking_lock ? <><Lock className="w-4 h-4 mr-2" /> Locked by dispatch</> : <><Navigation className="w-4 h-4 mr-2" /> Stop tracking</>}
