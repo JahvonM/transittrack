@@ -1,11 +1,13 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CreditCard, QrCode, Hash, ChevronLeft, CheckCircle2, LogIn, LogOut, AlertCircle, Delete, HelpCircle, MapPin, CloudUpload, PartyPopper } from "lucide-react";
+import { CreditCard, QrCode, Hash, ChevronLeft, CheckCircle2, LogIn, LogOut, AlertCircle, Delete, HelpCircle, MapPin, CloudUpload, PartyPopper, Bus, Users } from "lucide-react";
 import { useNfcTap } from "@/hooks/useNfcTap";
 import { parseCodeQrPayload } from "@/lib/qr";
 import { base44 } from "@/api/base44Client";
 import { haversineKm, etaMinutes, formatEta } from "@/lib/geo";
+import { MAPBOX_TOKEN, MAPBOX_STYLE } from "@/lib/mapbox";
+import { computeOccupancy } from "@/lib/occupancy";
 import { enqueueCheckIn, queueLength, isNetworkFailure, flushQueue } from "@/lib/offlineQueue";
 import WeatherWidget from "@/components/WeatherWidget";
 import QrScanner from "./QrScanner";
@@ -27,6 +29,17 @@ function startOfToday() {
   const d = new Date();
   d.setHours(0, 0, 0, 0);
   return d;
+}
+
+// A single static (non-interactive) map image centered on the vehicle, used
+// purely as ambient backdrop texture on big-tablet layouts — deliberately
+// NOT the full interactive MapboxMap component, which renders its own
+// zoom/satellite/fullscreen controls that would float uselessly (and
+// confusingly) over a background nobody can actually tap.
+function staticMapBackgroundUrl(lat, lng) {
+  if (lat == null || lng == null || !MAPBOX_TOKEN) return null;
+  const styleId = MAPBOX_STYLE.replace("mapbox://styles/", "");
+  return `https://api.mapbox.com/styles/v1/${styleId}/static/${lng},${lat},13,0/1600x1000@2x?access_token=${MAPBOX_TOKEN}`;
 }
 
 function Avatar({ name, photoUrl }) {
@@ -52,6 +65,87 @@ function Screen({ modeKey, className = "", children }) {
   );
 }
 
+// Persistent header across every mode — company identity, vehicle, live
+// clock, occupancy, and sync status always visible instead of being buried
+// inside whichever card happens to be showing.
+function TopStatusBar({ device, vehicle, now, occupancy, pendingSyncCount }) {
+  return (
+    <div className="w-full flex items-center gap-3 px-5 sm:px-8 py-3 bg-card/70 backdrop-blur-md border-b border-border/60">
+      {device?.company_logo_url ? (
+        <img src={device.company_logo_url} alt="" className="w-10 h-10 rounded-xl object-cover shadow shrink-0" />
+      ) : (
+        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/60 grid place-items-center shadow shrink-0">
+          <Bus className="w-5 h-5 text-primary-foreground" />
+        </div>
+      )}
+      <div className="min-w-0">
+        <p className="font-semibold text-sm truncate">{device?.company_name || "Bus boarding"}</p>
+        {device?.vehicle_name && <p className="text-xs text-muted-foreground truncate">{device.vehicle_name}</p>}
+      </div>
+      <div className="flex-1" />
+      <div className="hidden sm:flex items-center gap-1.5 text-sm text-muted-foreground shrink-0">
+        <Users className="w-4 h-4" /> {occupancy}{vehicle?.capacity ? `/${vehicle.capacity}` : ""}
+      </div>
+      {pendingSyncCount > 0 && (
+        <div className="flex items-center gap-1 text-xs text-amber-500 shrink-0">
+          <CloudUpload className="w-3.5 h-3.5" /> {pendingSyncCount}
+        </div>
+      )}
+      <p className="font-bold tabular-nums shrink-0">
+        {now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+      </p>
+    </div>
+  );
+}
+
+// Persistent right-hand rail on big screens only — occupancy, nearest stop,
+// weather, and any active company ads, all visible at once instead of
+// rotating through a single line inside the action card. Hidden below the
+// `lg` breakpoint, where the idle screen's own attract-mode rotation covers
+// the same ground since there's no room for a separate column.
+function InfoRail({ occupancy, vehicle, nearestStop, ads, todayCount }) {
+  return (
+    <div className="hidden lg:flex lg:w-80 xl:w-96 flex-col gap-4 shrink-0 max-h-full overflow-y-auto">
+      <div className="rounded-2xl border border-border/60 bg-card/70 backdrop-blur-md p-5">
+        <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground mb-1">
+          <Users className="w-4 h-4" /> Occupancy
+        </div>
+        <p className="text-4xl font-bold">
+          {occupancy}
+          {vehicle?.capacity ? <span className="text-lg text-muted-foreground font-normal"> / {vehicle.capacity}</span> : null}
+        </p>
+        {todayCount > 0 && <p className="text-xs text-muted-foreground mt-1">{todayCount} rider{todayCount === 1 ? "" : "s"} today so far</p>}
+      </div>
+      {nearestStop && (
+        <div className="rounded-2xl border border-border/60 bg-card/70 backdrop-blur-md p-5">
+          <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground mb-1">
+            <MapPin className="w-4 h-4" /> Nearest stop
+          </div>
+          <p className="text-lg font-bold truncate">{nearestStop.name}</p>
+          <p className="text-sm text-muted-foreground">{formatEta(nearestStop.mins)}</p>
+        </div>
+      )}
+      <div className="rounded-2xl border border-border/60 bg-card/70 backdrop-blur-md p-5 flex justify-center">
+        <WeatherWidget variant="hero" />
+      </div>
+      {ads.length > 0 && (
+        <div className="rounded-2xl border border-border/60 bg-card/70 backdrop-blur-md p-5 space-y-3">
+          <p className="text-sm font-semibold text-muted-foreground">Announcements</p>
+          {ads.map((ad) => (
+            <div key={ad.id} className="flex items-center gap-3">
+              {ad.image_url && <img src={ad.image_url} alt="" className="w-12 h-12 rounded-lg object-cover shrink-0" />}
+              <div className="min-w-0">
+                <p className="font-medium text-sm truncate">{ad.title}</p>
+                {ad.message && <p className="text-xs text-muted-foreground truncate">{ad.message}</p>}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Speaks a short confirmation aloud on successful check-in — free, no
 // hardware, and genuinely useful in a noisy boarding environment where
 // someone might not be looking at the screen the instant they tap in.
@@ -72,6 +166,11 @@ function speak(text) {
 // (based on their last recorded state) is only a highlighted suggestion,
 // never the only option, since a missed tap or skipped stop would otherwise
 // leave no way to correct it.
+//
+// Layout: this component owns the full viewport (see Kiosk.jsx) rather than
+// sitting in a small centered card, so a big tablet doesn't end up mostly
+// empty space — a persistent top bar and, on large screens, a live info
+// rail (occupancy/weather/ads) fill the room around the actual check-in card.
 export default function BusBoardingKiosk({ invoke, device }) {
   const [unlocked, setUnlocked] = useState(false);
   const [now, setNow] = useState(() => new Date());
@@ -87,6 +186,7 @@ export default function BusBoardingKiosk({ invoke, device }) {
   const [route, setRoute] = useState(null);
   const [ads, setAds] = useState([]);
   const [todayCount, setTodayCount] = useState(null);
+  const [occupancy, setOccupancy] = useState(0);
   const [attractSlide, setAttractSlide] = useState(0);
   const resetTimer = useRef(null);
 
@@ -114,12 +214,8 @@ export default function BusBoardingKiosk({ invoke, device }) {
     return () => { clearInterval(t); window.removeEventListener("online", tryFlush); };
   }, [invoke]);
 
-  // Nearest-stop info for the idle screen — turns dead wait time into a
-  // small piece of live journey status instead of a static welcome message.
-  // This is straight-line distance to the closest stop on the vehicle's
-  // assigned route, not a true "next in sequence" calculation (this app has
-  // no stop-sequence tracking yet), so it's labeled "Nearest stop" rather
-  // than implying route-aware precision it doesn't have.
+  // Vehicle + route power the nearest-stop line, the map backdrop, and the
+  // occupancy capacity fraction — one live subscription feeds all three.
   useEffect(() => {
     if (!device?.vehicle_id) return;
     const load = () => base44.entities.Vehicle.get(device.vehicle_id).then(setVehicle).catch(() => {});
@@ -137,6 +233,10 @@ export default function BusBoardingKiosk({ invoke, device }) {
     return () => { cancelled = true; };
   }, [vehicle?.route_id]);
 
+  // This is straight-line distance to the closest stop on the vehicle's
+  // assigned route, not a true "next in sequence" calculation (this app has
+  // no stop-sequence tracking yet), so it's labeled "Nearest stop" rather
+  // than implying route-aware precision it doesn't have.
   const nearestStop = (() => {
     if (vehicle?.current_lat == null || !route?.stops?.length) return null;
     let best = null;
@@ -149,16 +249,31 @@ export default function BusBoardingKiosk({ invoke, device }) {
     return best ? { name: best.name, mins: etaMinutes(bestKm) } : null;
   })();
 
-  // Active ads for the idle screen's attract-mode rotation — same
-  // Advertisement entity the passenger home screen already uses, so a
-  // company's existing promos/announcements show up here for free.
+  // Live headcount for this vehicle — same aggregation the admin/driver
+  // views use, so the number always agrees everywhere it's shown.
+  useEffect(() => {
+    if (!device?.vehicle_id) return;
+    const load = () => {
+      base44.entities.StaffCheckIn.filter({ vehicle_id: device.vehicle_id }, "-created_date", 300).then((list) => {
+        setOccupancy(computeOccupancy(list, device.vehicle_id));
+      }).catch(() => {});
+    };
+    load();
+    const unsub = base44.entities.StaffCheckIn.subscribe((event) => {
+      if (event.data?.vehicle_id === device.vehicle_id) load();
+    });
+    return unsub;
+  }, [device?.vehicle_id]);
+
+  // Active ads for the idle screen's attract-mode rotation (small screens)
+  // and the info rail (large screens) — same Advertisement entity the
+  // passenger home screen already uses.
   useEffect(() => {
     base44.entities.Advertisement.list("order").then((list) => setAds((list || []).filter((a) => a.active))).catch(() => setAds([]));
   }, []);
 
-  // Today's boarded-so-far count for this vehicle — powers both the
-  // "N riders today" attract slide and the playful "you're rider #N!" line
-  // on a successful boarding's result screen.
+  // Today's boarded-so-far count for this vehicle — powers the "N riders
+  // today" line and the playful "you're rider #N!" on a successful boarding.
   const refreshTodayCount = () => {
     if (!device?.vehicle_id) return;
     base44.entities.StaffCheckIn.filter({ vehicle_id: device.vehicle_id, status: "boarded" }, "-created_date", 300)
@@ -175,10 +290,10 @@ export default function BusBoardingKiosk({ invoke, device }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [device?.vehicle_id]);
 
-  // Attract mode: while nobody's interacting, the top of the idle screen
-  // slowly rotates through the welcome message, live weather, and any
-  // active company ads — like an airport gate screen instead of a static
-  // "tap your badge" card. It never touches the tap-to-check-in icon or the
+  // Attract mode (small screens only — large screens have the permanent
+  // info rail instead): while nobody's interacting, the top of the idle
+  // screen slowly rotates through the welcome message, live weather, and
+  // any active company ads. Never touches the tap-to-check-in icon or the
   // help button below it, so it can't get in the way of actually checking
   // in. Resets to the welcome slide every time the kiosk returns to idle.
   useEffect(() => {
@@ -313,11 +428,13 @@ export default function BusBoardingKiosk({ invoke, device }) {
     }
   };
 
+  let actionContent;
+
   if (!unlocked) {
-    return (
+    actionContent = (
       <Screen modeKey="lock" className="p-10 text-center space-y-10">
         <div>
-          <p className="text-7xl font-heading font-bold tabular-nums tracking-tight">
+          <p className="text-7xl lg:text-8xl font-heading font-bold tabular-nums tracking-tight">
             {now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
           </p>
           <p className="text-base text-muted-foreground mt-2">
@@ -328,11 +445,9 @@ export default function BusBoardingKiosk({ invoke, device }) {
         <SlideToUnlock label="Slide to check in" onUnlock={() => setUnlocked(true)} />
       </Screen>
     );
-  }
-
-  if (mode === "confirm" && pending) {
+  } else if (mode === "confirm" && pending) {
     const suggestBoarding = pending.next_status === "boarded";
-    return (
+    actionContent = (
       <Screen modeKey="confirm" className="p-8 text-center space-y-4">
         {/* A little card flies in and "taps" down before the person's info
             appears — reinforces the physical action that just happened
@@ -369,11 +484,9 @@ export default function BusBoardingKiosk({ invoke, device }) {
         <Button variant="ghost" onClick={() => { setMode("idle"); setPending(null); }}>Cancel</Button>
       </Screen>
     );
-  }
-
-  if (mode === "result" && result) {
+  } else if (mode === "result" && result) {
     const boarded = result.status === "boarded";
-    return (
+    actionContent = (
       <Card className={`rounded-3xl shadow-xl border-border/60 overflow-hidden bg-gradient-to-b ${boarded ? "from-emerald-500/15" : "from-sky-500/15"} to-transparent`}>
         <CardContent key="result" className="p-10 text-center space-y-4 animate-in fade-in zoom-in-90 duration-500">
           <div className="flex items-center justify-center gap-3">
@@ -396,10 +509,8 @@ export default function BusBoardingKiosk({ invoke, device }) {
         </CardContent>
       </Card>
     );
-  }
-
-  if (mode === "badge_error") {
-    return (
+  } else if (mode === "badge_error") {
+    actionContent = (
       <Screen modeKey="badge_error" className="p-10 text-center space-y-4">
         <div className="mx-auto w-20 h-20 rounded-full bg-destructive/10 grid place-items-center">
           <AlertCircle className="w-11 h-11 text-destructive" />
@@ -407,21 +518,17 @@ export default function BusBoardingKiosk({ invoke, device }) {
         <p className="text-base text-muted-foreground">{badgeError}</p>
       </Screen>
     );
-  }
-
-  if (mode === "qr") {
-    return (
+  } else if (mode === "qr") {
+    actionContent = (
       <Screen modeKey="qr" className="p-5 space-y-4">
         <Button variant="ghost" onClick={() => setMode("help")}><ChevronLeft className="w-5 h-5 mr-1" /> Back</Button>
         <p className="text-base text-center text-muted-foreground">Show your QR code to the camera</p>
         <QrScanner active onDecode={handleQrDecode} facingMode="user" />
       </Screen>
     );
-  }
-
-  if (mode === "code") {
+  } else if (mode === "code") {
     const press = (d) => setCode((prev) => (prev.length < CODE_MAX_LEN ? prev + d : prev));
-    return (
+    actionContent = (
       <Screen modeKey="code" className="p-6 space-y-5">
         <Button variant="ghost" onClick={() => { setMode("help"); setCode(""); }}><ChevronLeft className="w-5 h-5 mr-1" /> Back</Button>
         <p className="text-base text-center text-muted-foreground">Enter your code</p>
@@ -447,10 +554,8 @@ export default function BusBoardingKiosk({ invoke, device }) {
         </Button>
       </Screen>
     );
-  }
-
-  if (mode === "help") {
-    return (
+  } else if (mode === "help") {
+    actionContent = (
       <Screen modeKey="help" className="p-8 text-center space-y-5">
         <Button variant="ghost" onClick={() => setMode("idle")}><ChevronLeft className="w-5 h-5 mr-1" /> Back</Button>
         <p className="font-semibold text-lg">How would you like to check in?</p>
@@ -464,76 +569,107 @@ export default function BusBoardingKiosk({ invoke, device }) {
         </div>
       </Screen>
     );
-  }
-
-  // idle — the welcome screen, with an attract-mode top section that
-  // rotates through the welcome message, weather, and any active ads
-  const vehicleName = device?.vehicle_name;
-  return (
-    <Screen modeKey="idle" className="p-10 text-center space-y-8">
-      <div key={attractSlide} className="min-h-[76px] flex flex-col items-center justify-center animate-in fade-in duration-500">
-        {currentAttractSlide.type === "welcome" && (
-          <>
+  } else {
+    // idle — the welcome screen. Large screens keep this simple (the info
+    // rail covers weather/ads/nearest-stop); small screens rotate the same
+    // info through here instead, since there's no room for a side rail.
+    const vehicleName = device?.vehicle_name;
+    actionContent = (
+      <Screen modeKey="idle" className="p-10 text-center space-y-8">
+        <div className="min-h-[76px] flex flex-col items-center justify-center">
+          <div className="hidden lg:block animate-in fade-in duration-500">
             <p className="text-base text-muted-foreground">{greeting()}</p>
-            <p className="text-3xl font-heading font-bold tracking-tight">
+            <p className="text-3xl xl:text-4xl font-heading font-bold tracking-tight">
               Welcome{vehicleName ? ` aboard ${vehicleName}` : ""}
             </p>
-            {nearestStop && (
-              <p className="text-sm text-muted-foreground mt-1.5 flex items-center justify-center gap-1.5">
-                <MapPin className="w-3.5 h-3.5" /> Nearest stop: {nearestStop.name} · {formatEta(nearestStop.mins)}
-              </p>
-            )}
-            {todayCount > 0 && (
-              <p className="text-xs text-muted-foreground mt-1">{todayCount} rider{todayCount === 1 ? "" : "s"} today so far</p>
-            )}
-          </>
-        )}
-        {currentAttractSlide.type === "weather" && (
-          <div className="scale-125">
-            <WeatherWidget variant="hero" />
           </div>
-        )}
-        {currentAttractSlide.type === "ad" && (
-          <div className="flex items-center gap-3">
-            {currentAttractSlide.ad.image_url && (
-              <img src={currentAttractSlide.ad.image_url} alt="" className="w-14 h-14 rounded-xl object-cover shadow" />
+          <div key={attractSlide} className="lg:hidden animate-in fade-in duration-500">
+            {currentAttractSlide.type === "welcome" && (
+              <>
+                <p className="text-base text-muted-foreground">{greeting()}</p>
+                <p className="text-3xl font-heading font-bold tracking-tight">
+                  Welcome{vehicleName ? ` aboard ${vehicleName}` : ""}
+                </p>
+                {nearestStop && (
+                  <p className="text-sm text-muted-foreground mt-1.5 flex items-center justify-center gap-1.5">
+                    <MapPin className="w-3.5 h-3.5" /> Nearest stop: {nearestStop.name} · {formatEta(nearestStop.mins)}
+                  </p>
+                )}
+                {todayCount > 0 && (
+                  <p className="text-xs text-muted-foreground mt-1">{todayCount} rider{todayCount === 1 ? "" : "s"} today so far</p>
+                )}
+              </>
             )}
-            <div className="text-left">
-              <p className="font-semibold">{currentAttractSlide.ad.title}</p>
-              {currentAttractSlide.ad.message && <p className="text-sm text-muted-foreground">{currentAttractSlide.ad.message}</p>}
-            </div>
+            {currentAttractSlide.type === "weather" && (
+              <div className="scale-125">
+                <WeatherWidget variant="hero" />
+              </div>
+            )}
+            {currentAttractSlide.type === "ad" && (
+              <div className="flex items-center gap-3">
+                {currentAttractSlide.ad.image_url && (
+                  <img src={currentAttractSlide.ad.image_url} alt="" className="w-14 h-14 rounded-xl object-cover shadow" />
+                )}
+                <div className="text-left">
+                  <p className="font-semibold">{currentAttractSlide.ad.title}</p>
+                  {currentAttractSlide.ad.message && <p className="text-sm text-muted-foreground">{currentAttractSlide.ad.message}</p>}
+                </div>
+              </div>
+            )}
           </div>
-        )}
-      </div>
-      <div className="relative mx-auto w-36 h-36 grid place-items-center">
-        {nfcListening && (
-          <>
-            <span className="absolute inset-0 rounded-full bg-primary/20 animate-ping" />
-            <span className="absolute inset-3 rounded-full bg-primary/10 animate-ping [animation-delay:150ms]" />
-          </>
-        )}
-        <div className="relative w-full h-full rounded-full bg-gradient-to-br from-primary/20 to-primary/5 grid place-items-center shadow-inner">
-          <CreditCard className={`w-16 h-16 text-primary ${nfcListening ? "animate-pulse" : ""}`} />
         </div>
-        <div className="absolute -bottom-1 -right-1">
-          <KioskMascot mood="wave" size={44} />
+        <div className="relative mx-auto w-36 h-36 lg:w-44 lg:h-44 grid place-items-center">
+          {nfcListening && (
+            <>
+              <span className="absolute inset-0 rounded-full bg-primary/20 animate-ping" />
+              <span className="absolute inset-3 rounded-full bg-primary/10 animate-ping [animation-delay:150ms]" />
+            </>
+          )}
+          <div className="relative w-full h-full rounded-full bg-gradient-to-br from-primary/20 to-primary/5 grid place-items-center shadow-inner">
+            <CreditCard className={`w-16 h-16 lg:w-20 lg:h-20 text-primary ${nfcListening ? "animate-pulse" : ""}`} />
+          </div>
+          <div className="absolute -bottom-1 -right-1">
+            <KioskMascot mood="wave" size={44} />
+          </div>
         </div>
-      </div>
-      <div>
-        <p className="font-semibold text-xl">
-          {nfcSupported ? "Tap your badge to check in" : "Scan your QR code or enter your code to check in"}
-        </p>
-        {nfcSupported && <p className="text-base text-muted-foreground mt-1">Hold your badge near this tablet</p>}
-        {nfcError && <p className="text-sm text-destructive mt-2">{nfcError}</p>}
-      </div>
-      <Button variant="outline" className="h-14 px-6 text-base rounded-2xl" onClick={() => setMode("help")}>
-        <HelpCircle className="w-5 h-5 mr-2" /> Don't have your badge?
-      </Button>
-      {pendingSyncCount > 0 && (
-        <p className="text-xs text-muted-foreground flex items-center justify-center gap-1.5">
-          <CloudUpload className="w-3.5 h-3.5" /> {pendingSyncCount} check-in{pendingSyncCount === 1 ? "" : "s"} waiting to sync
-        </p>
+        <div>
+          <p className="font-semibold text-xl">
+            {nfcSupported ? "Tap your badge to check in" : "Scan your QR code or enter your code to check in"}
+          </p>
+          {nfcSupported && <p className="text-base text-muted-foreground mt-1">Hold your badge near this tablet</p>}
+          {nfcError && <p className="text-sm text-destructive mt-2">{nfcError}</p>}
+        </div>
+        <Button variant="outline" className="h-14 px-6 text-base rounded-2xl" onClick={() => setMode("help")}>
+          <HelpCircle className="w-5 h-5 mr-2" /> Don't have your badge?
+        </Button>
+        {pendingSyncCount > 0 && (
+          <p className="text-xs text-muted-foreground flex items-center justify-center gap-1.5">
+            <CloudUpload className="w-3.5 h-3.5" /> {pendingSyncCount} check-in{pendingSyncCount === 1 ? "" : "s"} waiting to sync
+          </p>
+        )}
+      </Screen>
+    );
+  }
+
+  const bgUrl = staticMapBackgroundUrl(vehicle?.current_lat, vehicle?.current_lng);
+
+  return (
+    <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-primary/15 via-background to-background">
+      {bgUrl && (
+        <div className="absolute inset-0">
+          <img src={bgUrl} alt="" className="w-full h-full object-cover" />
+          <div className="absolute inset-0 bg-background/85 backdrop-blur-md" />
+        </div>
       )}
-    </Screen>
+      <div className="relative z-10 flex flex-col min-h-screen">
+        <TopStatusBar device={device} vehicle={vehicle} now={now} occupancy={occupancy} pendingSyncCount={pendingSyncCount} />
+        <div className="flex-1 flex flex-col lg:flex-row items-center justify-center gap-6 p-6 lg:p-10">
+          <div className="w-full max-w-md lg:max-w-xl">
+            {actionContent}
+          </div>
+          <InfoRail occupancy={occupancy} vehicle={vehicle} nearestStop={nearestStop} ads={ads} todayCount={todayCount} />
+        </div>
+      </div>
+    </div>
   );
 }
