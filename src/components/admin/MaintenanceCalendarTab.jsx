@@ -9,7 +9,11 @@ const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 function nextDueDate(s) {
   if (s.due_type !== "days") return null;
-  const baseDate = s.last_service_date ? new Date(s.last_service_date) : null;
+  // A schedule with no last_service_date yet (never serviced since it was
+  // created) falls back to created_date as the baseline — otherwise it has
+  // no due date at all and silently disappears from both the calendar grid
+  // and the mileage sidebar (which only handles due_type "mileage").
+  const baseDate = s.last_service_date ? new Date(s.last_service_date) : s.created_date ? new Date(s.created_date) : null;
   const interval = s.interval_days || 0;
   if (!baseDate || interval <= 0) return null;
   return new Date(baseDate.getTime() + interval * DAY_MS);
