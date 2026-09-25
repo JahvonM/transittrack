@@ -24,7 +24,10 @@ function buildEmail(name, isAdmin, items) {
 // original maintenanceAlerts, but scoped per company_id since this app is
 // multi-tenant (FleetPilot managed a single global fleet, no company concept).
 // Mileage-based schedules read Vehicle.current_odometer (the field this app
-// already uses everywhere else) rather than a separate 'mileage' field.
+// already uses everywhere else) rather than a separate 'mileage' field. The
+// reminder-days threshold itself is a single global value in the
+// MaintenanceSettings singleton, controlled only by the mechanic team —
+// maintenance is a shared/central team here, not per-company.
 export default async function (req) {
   try {
     const base44 = createClientFromRequest(req);
