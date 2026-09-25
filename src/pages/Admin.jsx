@@ -271,6 +271,8 @@ export default function Admin() {
     ["scheduled", "on_the_way", "arrived"].includes(t.status)
   );
   const liveCount = vehicles.filter((v) => v.status !== "offline").length;
+  const openFaultsCount = faults.filter((f) => f.status === "open").length;
+  const maintenanceDueCount = schedules.filter((s) => s.status === "due" || s.status === "overdue").length;
 
   return (
     <>
@@ -308,6 +310,18 @@ export default function Admin() {
               <button onClick={() => go("companies")} className="text-left p-4 rounded-xl border bg-card hover:border-primary transition-colors">
                 <div className="text-2xl font-bold">{companies.length}</div>
                 <div className="text-xs text-muted-foreground">Companies</div>
+              </button>
+              <button onClick={() => go("faults")} className="text-left p-4 rounded-xl border bg-card hover:border-primary transition-colors">
+                <div className="text-2xl font-bold">{openFaultsCount}</div>
+                <div className="text-xs text-muted-foreground">Open faults</div>
+              </button>
+              <button onClick={() => go("schedule")} className="text-left p-4 rounded-xl border bg-card hover:border-primary transition-colors">
+                <div className="text-2xl font-bold">{maintenanceDueCount}</div>
+                <div className="text-xs text-muted-foreground">Maintenance due</div>
+              </button>
+              <button onClick={() => go("parts")} className="text-left p-4 rounded-xl border bg-card hover:border-primary transition-colors">
+                <div className="text-2xl font-bold">{parts.length}</div>
+                <div className="text-xs text-muted-foreground">Parts</div>
               </button>
             </div>
             <Collapsible open={moreOpen} onOpenChange={setMoreOpen}>
