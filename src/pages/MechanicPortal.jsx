@@ -6,9 +6,10 @@ import AppLayout from "@/components/AppLayout";
 import Greeting from "@/components/Greeting";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, Bus, Wrench, BellRing, ClipboardCheck } from "lucide-react";
+import { ChevronLeft, Bus, Wrench, BellRing, ClipboardCheck, Settings } from "lucide-react";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import ChatThread from "@/components/chat/ChatThread";
+import MechanicSettingsDialog from "@/components/MechanicSettingsDialog";
 
 function formatTime(iso) {
   if (!iso) return "";
@@ -34,6 +35,7 @@ export default function MechanicPortal() {
   const [sending, setSending] = useState(false);
   const [unreadVehicleIds, setUnreadVehicleIds] = useState(() => new Set());
   const [loading, setLoading] = useState(true);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const seenIds = useRef(new Set());
   const firstLoad = useRef(true);
   const { permission: pushPermission, enableNotifications } = usePushNotifications({
@@ -186,12 +188,16 @@ export default function MechanicPortal() {
           <Button asChild size="sm">
             <Link to="/run-inspection"><ClipboardCheck className="w-4 h-4 mr-1.5" /> Run inspection</Link>
           </Button>
+          <Button variant="outline" size="sm" onClick={() => setSettingsOpen(true)}>
+            <Settings className="w-4 h-4 mr-1.5" /> Maintenance settings
+          </Button>
           {pushPermission !== "granted" && pushPermission !== "unsupported" && (
             <Button variant="outline" size="sm" onClick={enableNotifications}>
               <BellRing className="w-4 h-4 mr-1.5" /> Enable notifications
             </Button>
           )}
         </div>
+        <MechanicSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
         {loading ? (
           <p className="text-muted-foreground">Loading…</p>
         ) : (
