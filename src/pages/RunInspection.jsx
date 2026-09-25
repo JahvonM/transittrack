@@ -126,9 +126,9 @@ export default function RunInspection() {
       if (failedItems.length > 0) {
         let autoCreate = true;
         try {
-          const company = vehicle.company_id ? await base44.entities.Company.get(vehicle.company_id) : null;
-          autoCreate = company?.auto_create_faults !== false;
-        } catch { /* company lookup failing shouldn't block fault creation */ }
+          const settingsList = await base44.entities.MaintenanceSettings.list();
+          autoCreate = settingsList[0]?.auto_create_faults !== false;
+        } catch { /* settings lookup failing shouldn't block fault creation */ }
         if (autoCreate) {
           await Promise.all(
             failedItems.map((it) => {
