@@ -18,6 +18,9 @@ import {
   ClipboardList,
   Database,
   Siren,
+  AlertTriangle,
+  Package,
+  CalendarClock,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -32,6 +35,9 @@ export const ADMIN_SECTIONS = [
   { id: "billing", label: "Completed & billing", icon: Building2 },
   { id: "users", label: "Users & roles", icon: Users },
   { id: "service", label: "Service Queue", icon: Wrench },
+  { id: "faults", label: "Faults", icon: AlertTriangle },
+  { id: "parts", label: "Parts", icon: Package },
+  { id: "schedule", label: "Maintenance Schedule", icon: CalendarClock },
   { id: "drivers", label: "Drivers", icon: Car },
   { id: "sync", label: "Fleet sync", icon: RefreshCw },
   { id: "companies", label: "Companies", icon: Building2 },
