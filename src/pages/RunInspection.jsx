@@ -35,11 +35,17 @@ export default function RunInspection() {
   const [submitting, setSubmitting] = useState(false);
   const [summary, setSummary] = useState(null);
   const [uploadingKey, setUploadingKey] = useState(null);
+  const [photosEnabled, setPhotosEnabled] = useState(true);
 
   useEffect(() => {
-    Promise.all([base44.entities.Vehicle.list(), base44.entities.InspectionTemplate.list()]).then(([v, t]) => {
+    Promise.all([
+      base44.entities.Vehicle.list(),
+      base44.entities.InspectionTemplate.list(),
+      base44.entities.MaintenanceSettings.list(),
+    ]).then(([v, t, settingsList]) => {
       setVehicles(v);
       setTemplates(t);
+      setPhotosEnabled(settingsList[0]?.enable_photo_attachments !== false);
       setLoading(false);
     });
   }, []);
@@ -267,7 +273,7 @@ export default function RunInspection() {
                   <div key={key} className="border rounded-xl p-3 space-y-2">
                     <div className="flex items-center justify-between gap-2">
                       <p className="text-sm font-medium">{item.item_name}</p>
-                      {item.requires_photo && <Camera className="w-3.5 h-3.5 text-muted-foreground shrink-0" />}
+                      {photosEnabled && item.requires_photo && <Camera className="w-3.5 h-3.5 text-muted-foreground shrink-0" />}
                     </div>
                     <div className="flex gap-1.5">
                       {CONDITIONS.map((c) => {
@@ -295,17 +301,19 @@ export default function RunInspection() {
                           onChange={(e) => setResult(key, { notes: e.target.value })}
                           className="text-sm min-h-[60px]"
                         />
-                        <label className="inline-flex items-center gap-1.5 text-xs text-primary cursor-pointer">
-                          <Camera className="w-3.5 h-3.5" />
-                          {uploadingKey === key ? "Uploading…" : r.photo_url ? "Photo attached — replace" : "Add photo"}
-                          <input
-                            type="file"
-                            accept="image/*"
-                            capture="environment"
-                            className="hidden"
-                            onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) uploadPhoto(key, f); }}
-                          />
-                        </label>
+                        {photosEnabled && (
+                          <label className="inline-flex items-center gap-1.5 text-xs text-primary cursor-pointer">
+                            <Camera className="w-3.5 h-3.5" />
+                            {uploadingKey === key ? "Uploading…" : r.photo_url ? "Photo attached — replace" : "Add photo"}
+                            <input
+                              type="file"
+                              accept="image/*"
+                              capture="environment"
+                              className="hidden"
+                              onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) uploadPhoto(key, f); }}
+                            />
+                          </label>
+                        )}
                       </div>
                     )}
                   </div>
