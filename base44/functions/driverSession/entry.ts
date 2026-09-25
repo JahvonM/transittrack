@@ -393,8 +393,10 @@ export default async function(req) {
         if (odometer) await base44.asServiceRole.entities.Vehicle.update(vehicleId, { current_odometer: Number(odometer) });
         // A failed inspection also raises a proper Fault for the mechanic
         // queue (richer than the old needs_service flag alone — severity,
-        // status workflow, links back to this inspection) unless the company
-        // has explicitly turned that off.
+        // status workflow, links back to this inspection) unless the
+        // mechanic team has turned that off in the global MaintenanceSettings
+        // singleton (this is fleet-wide, not per-company — only mechanics
+        // control it).
         if (!passed) {
           try {
             const settingsList = await base44.asServiceRole.entities.MaintenanceSettings.list();
