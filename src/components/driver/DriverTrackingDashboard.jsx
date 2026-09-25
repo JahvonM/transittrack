@@ -7,9 +7,8 @@ import MapboxMap from "@/components/MapboxMap";
 import StaffRouteList from "@/components/driver/StaffRouteList";
 import SosButton from "@/components/driver/SosButton";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { TrafficCone, Navigation, Radio, Lock, Users } from "lucide-react";
+import { Navigation, Radio, Lock, Users } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 
 function timeAgo(iso) {
@@ -177,52 +176,59 @@ export default function DriverTrackingDashboard({ session, invoke, driverName })
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-2 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30">
-        <TrafficCone className="w-5 h-5 text-amber-400 shrink-0" />
-        <span className="text-sm text-amber-100">Live tracking active — navigate safely and obey traffic rules.</span>
+    <div className="space-y-3">
+      {/* compact status strip — everything you'd otherwise scroll to see */}
+      <div className="flex items-center gap-3 p-3 rounded-2xl border bg-card flex-wrap">
+        <div className="min-w-0">
+          <p className="font-semibold truncate">{liveVehicle?.name}</p>
+          <p className="text-xs text-muted-foreground truncate">{liveVehicle?.company_name} · {liveVehicle?.plate_number}</p>
+        </div>
+        <div className="flex items-center gap-1.5 ml-auto flex-wrap justify-end">
+          <Badge variant={sharing ? "default" : "secondary"}>
+            {sharing ? (<><Radio className="w-3 h-3 mr-1 animate-pulse" /> Tracking</>) : "Paused"}
+          </Badge>
+          {liveVehicle?.status === "speeding" && <Badge variant="destructive">Speeding</Badge>}
+          {liveVehicle?.status === "emergency" && <Badge variant="destructive">SOS</Badge>}
+        </div>
       </div>
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between gap-2">
-            <CardTitle>{liveVehicle?.name}</CardTitle>
-            <div className="flex items-center gap-2">
-              <Badge variant={sharing ? "default" : "secondary"}>
-                {sharing ? (<><Radio className="w-3 h-3 mr-1 animate-pulse" /> Tracking</>) : "Paused"}
-              </Badge>
-              {liveVehicle?.status === "speeding" && <Badge variant="destructive">Speeding</Badge>}
-              {liveVehicle?.status === "emergency" && <Badge variant="destructive">SOS</Badge>}
+
+      {/* one screen: big map + a clean side panel, instead of a long stack */}
+      <div className="grid lg:grid-cols-[1fr_320px] gap-3">
+        <div className="rounded-2xl overflow-hidden border h-[42vh] lg:h-[68vh]">
+          <MapboxMap
+            vehicles={liveVehicle?.current_lat != null ? [liveVehicle] : []}
+            pins={staff.filter((s) => s.home_lat != null && !s.skip_pickup_today).map((s) => ({ lat: s.home_lat, lng: s.home_lng, color: "#34d399", label: s.full_name }))}
+            userLocation={liveVehicle?.current_lat != null ? { lat: liveVehicle.current_lat, lng: liveVehicle.current_lng } : null}
+            center={liveVehicle?.current_lat != null ? [liveVehicle.current_lng, liveVehicle.current_lat] : null}
+            followUser
+            height="100%"
+          />
+        </div>
+
+        <div className="flex flex-col gap-3 lg:h-[68vh]">
+          <div className="p-4 rounded-2xl border bg-primary/5 border-primary/10 flex items-center gap-3">
+            <Users className="w-6 h-6 text-primary shrink-0" />
+            <div>
+              <p className="text-2xl font-bold leading-none">{occupancy}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{liveVehicle?.capacity ? `of ${liveVehicle.capacity} aboard` : "aboard right now"}</p>
             </div>
           </div>
-        </CardHeader>
-        <CardContent>
-          <div className="text-sm text-muted-foreground mb-3">{liveVehicle?.company_name} · {liveVehicle?.plate_number}</div>
-          <div className="flex items-center gap-2 mb-3 p-3 rounded-xl bg-primary/5 border border-primary/10">
-            <Users className="w-5 h-5 text-primary" />
-            <span className="text-2xl font-bold">{occupancy}</span>
-            <span className="text-sm text-muted-foreground">{liveVehicle?.capacity ? `of ${liveVehicle.capacity} aboard` : "aboard right now"}</span>
-          </div>
+
           {sharing ? (
-            <Button variant="outline" onClick={stopTracking} disabled={!!liveVehicle?.remote_tracking_lock}>
+            <Button variant="outline" className="w-full h-12" onClick={stopTracking} disabled={!!liveVehicle?.remote_tracking_lock}>
               {liveVehicle?.remote_tracking_lock ? <><Lock className="w-4 h-4 mr-2" /> Locked by dispatch</> : <><Navigation className="w-4 h-4 mr-2" /> Stop tracking</>}
             </Button>
           ) : (
-            <Button onClick={startTracking}><Navigation className="w-4 h-4 mr-2" /> Start tracking</Button>
+            <Button className="w-full h-12" onClick={startTracking}><Navigation className="w-4 h-4 mr-2" /> Start tracking</Button>
           )}
-        </CardContent>
-      </Card>
-      <div className="rounded-2xl overflow-hidden border h-[45vh]">
-        <MapboxMap
-          vehicles={liveVehicle?.current_lat != null ? [liveVehicle] : []}
-          pins={staff.filter((s) => s.home_lat != null && !s.skip_pickup_today).map((s) => ({ lat: s.home_lat, lng: s.home_lng, color: "#34d399", label: s.full_name }))}
-          userLocation={liveVehicle?.current_lat != null ? { lat: liveVehicle.current_lat, lng: liveVehicle.current_lng } : null}
-          center={liveVehicle?.current_lat != null ? [liveVehicle.current_lng, liveVehicle.current_lat] : null}
-          followUser
-          height="45vh"
-        />
+
+          <div className="flex-1 min-h-0 overflow-y-auto">
+            <StaffRouteList staff={staff} vehicle={liveVehicle} nearbyStaff={nearbyStaff} onAttend={markAttended} />
+          </div>
+
+          <SosButton vehicle={liveVehicle} invoke={invoke} />
+        </div>
       </div>
-      <StaffRouteList staff={staff} vehicle={liveVehicle} nearbyStaff={nearbyStaff} onAttend={markAttended} />
-      <SosButton vehicle={liveVehicle} invoke={invoke} />
     </div>
   );
 }
