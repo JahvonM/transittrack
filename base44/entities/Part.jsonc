@@ -1,0 +1,116 @@
+{
+  "name": "Part",
+  "type": "object",
+  "required": [
+    "part_name",
+    "company_id"
+  ],
+  "properties": {
+    "company_id": {
+      "type": "string"
+    },
+    "company_name": {
+      "type": "string"
+    },
+    "part_name": {
+      "type": "string"
+    },
+    "oem_number": {
+      "type": "string"
+    },
+    "aftermarket_number": {
+      "type": "string"
+    },
+    "vehicle_compatibility": {
+      "type": "string",
+      "description": "e.g. Toyota Hiace"
+    },
+    "category": {
+      "type": "string"
+    },
+    "quantity_in_stock": {
+      "type": "number",
+      "default": 0
+    },
+    "unit_price": {
+      "type": "number",
+      "default": 0
+    },
+    "supplier": {
+      "type": "string"
+    }
+  },
+  "rls": {
+    "read": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "company"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "mechanic"
+          }
+        }
+      ]
+    },
+    "create": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "company"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "mechanic"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "company"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "mechanic"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "company"
+          }
+        }
+      ]
+    }
+  }
+}

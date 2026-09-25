@@ -1,0 +1,138 @@
+{
+  "name": "MaintenanceSchedule",
+  "type": "object",
+  "required": [
+    "vehicle_id",
+    "service_type",
+    "company_id"
+  ],
+  "properties": {
+    "vehicle_id": {
+      "type": "string"
+    },
+    "vehicle_name": {
+      "type": "string"
+    },
+    "company_id": {
+      "type": "string"
+    },
+    "company_name": {
+      "type": "string"
+    },
+    "service_type": {
+      "type": "string",
+      "description": "e.g. Engine Oil Change"
+    },
+    "due_type": {
+      "type": "string",
+      "enum": [
+        "mileage",
+        "days"
+      ],
+      "default": "mileage"
+    },
+    "interval_km": {
+      "type": "number",
+      "default": 0
+    },
+    "interval_days": {
+      "type": "number",
+      "default": 0
+    },
+    "last_service_mileage": {
+      "type": "number",
+      "default": 0
+    },
+    "last_service_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "upcoming",
+        "due",
+        "overdue",
+        "completed"
+      ],
+      "default": "upcoming"
+    },
+    "assigned_mechanic_id": {
+      "type": "string"
+    },
+    "assigned_mechanic_name": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "rls": {
+    "read": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "company"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "mechanic"
+          }
+        }
+      ]
+    },
+    "create": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "company"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "company"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "mechanic"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "company"
+          }
+        }
+      ]
+    }
+  }
+}
