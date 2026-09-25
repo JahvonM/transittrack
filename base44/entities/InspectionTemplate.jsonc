@@ -1,0 +1,77 @@
+{
+  "name": "InspectionTemplate",
+  "type": "object",
+  "required": [
+    "name"
+  ],
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "e.g. Daily, Weekly, Monthly, Service"
+    },
+    "category": {
+      "type": "string"
+    },
+    "company_id": {
+      "type": "string",
+      "description": "Optional \u2014 blank means available to every company (true for the default seeded templates)."
+    },
+    "company_name": {
+      "type": "string"
+    },
+    "sections": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "section_name": {
+            "type": "string"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "item_name": {
+                  "type": "string"
+                },
+                "critical": {
+                  "type": "string",
+                  "enum": [
+                    "Low",
+                    "Medium",
+                    "High",
+                    "Critical"
+                  ],
+                  "default": "Medium"
+                },
+                "requires_photo": {
+                  "type": "boolean",
+                  "default": false
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "rls": {
+    "read": {},
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

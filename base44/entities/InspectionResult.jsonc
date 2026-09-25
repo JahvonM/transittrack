@@ -1,0 +1,135 @@
+{
+  "name": "InspectionResult",
+  "type": "object",
+  "required": [
+    "vehicle_id",
+    "inspection_name",
+    "inspection_item"
+  ],
+  "properties": {
+    "vehicle_id": {
+      "type": "string"
+    },
+    "vehicle_name": {
+      "type": "string"
+    },
+    "company_id": {
+      "type": "string"
+    },
+    "company_name": {
+      "type": "string"
+    },
+    "inspection_name": {
+      "type": "string",
+      "description": "Which InspectionTemplate this came from (its name)."
+    },
+    "section_name": {
+      "type": "string"
+    },
+    "inspection_item": {
+      "type": "string"
+    },
+    "condition": {
+      "type": "string",
+      "enum": [
+        "GOOD",
+        "WARNING",
+        "FAILED",
+        "PENDING"
+      ],
+      "default": "PENDING"
+    },
+    "fault_found": {
+      "type": "boolean",
+      "default": false
+    },
+    "fault_description": {
+      "type": "string"
+    },
+    "photo_url": {
+      "type": "string"
+    },
+    "repair_required": {
+      "type": "boolean",
+      "default": false
+    },
+    "notes": {
+      "type": "string"
+    },
+    "inspector_id": {
+      "type": "string"
+    },
+    "inspector_name": {
+      "type": "string"
+    },
+    "inspection_date": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "rls": {
+    "read": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "company"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "mechanic"
+          }
+        },
+        {
+          "created_by_id": "{{user.id}}"
+        }
+      ]
+    },
+    "create": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "company"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "mechanic"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "driver"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "created_by_id": "{{user.id}}"
+        }
+      ]
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}
