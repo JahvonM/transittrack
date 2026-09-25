@@ -18,6 +18,9 @@ import AdsTab from "@/components/admin/AdsTab";
 import CompaniesTab from "@/components/admin/CompaniesTab";
 import UsersTab from "@/components/admin/UsersTab";
 import ServiceQueueTab from "@/components/admin/ServiceQueueTab";
+import FaultsTab from "@/components/admin/FaultsTab";
+import PartsTab from "@/components/admin/PartsTab";
+import MaintenanceScheduleTab from "@/components/admin/MaintenanceScheduleTab";
 import FleetSyncTab from "@/components/admin/FleetSyncTab";
 import Greeting from "@/components/Greeting";
 import MapboxMap from "@/components/MapboxMap";
@@ -118,6 +121,9 @@ export default function Admin() {
   const [trips, setTrips] = useState([]);
   const [inspections, setInspections] = useState([]);
   const [drivers, setDrivers] = useState([]);
+  const [faults, setFaults] = useState([]);
+  const [parts, setParts] = useState([]);
+  const [schedules, setSchedules] = useState([]);
   const [loading, setLoading] = useState(true);
   const [moreOpen, setMoreOpen] = useState(false);
   const [acknowledged, setAcknowledged] = useState(() => new Set());
@@ -126,7 +132,7 @@ export default function Admin() {
   const go = (s) => navigate("/admin/" + s);
 
   const load = async () => {
-    const [u, c, v, r, t, insp, dr] = await Promise.all([
+    const [u, c, v, r, t, insp, dr, fl, pt, sch] = await Promise.all([
       base44.entities.User.list(),
       base44.entities.Company.list(),
       base44.entities.Vehicle.list(),
@@ -134,7 +140,13 @@ export default function Admin() {
       base44.entities.Trip.list(),
       base44.entities.Inspection.list(),
       base44.entities.Driver.list(),
+      base44.entities.Fault.list(),
+      base44.entities.Part.list(),
+      base44.entities.MaintenanceSchedule.list(),
     ]);
+    setFaults(fl);
+    setParts(pt);
+    setSchedules(sch);
     setUsers(u);
     setCompanies(c);
     setVehicles(v);
@@ -396,6 +408,9 @@ export default function Admin() {
         {section === "service" && (
           <ServiceQueueTab inspections={inspections} onChange={load} />
         )}
+        {section === "faults" && <FaultsTab faults={faults} onChange={load} />}
+        {section === "parts" && <PartsTab parts={parts} companies={companies} onChange={load} />}
+        {section === "schedule" && <MaintenanceScheduleTab schedules={schedules} vehicles={vehicles} onChange={load} />}
         {section === "drivers" && (
           <DriversTab drivers={drivers} vehicles={vehicles} companies={companies} routes={routes} onChange={load} />
         )}
