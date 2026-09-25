@@ -8,7 +8,7 @@ import StaffRouteList from "@/components/driver/StaffRouteList";
 import SosButton from "@/components/driver/SosButton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Navigation, Radio, Lock, Users } from "lucide-react";
+import { Navigation, Radio, Lock, Users, AlertTriangle } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 
 function timeAgo(iso) {
@@ -19,7 +19,7 @@ function timeAgo(iso) {
   return Math.floor(s / 3600) + "h ago";
 }
 
-export default function DriverTrackingDashboard({ session, invoke, driverName }) {
+export default function DriverTrackingDashboard({ session, invoke, driverName, onReportIncident }) {
   const { toast } = useToast();
   const [staff, setStaff] = useState([]);
   const [sharing, setSharing] = useState(false);
@@ -189,6 +189,11 @@ export default function DriverTrackingDashboard({ session, invoke, driverName })
           </Badge>
           {liveVehicle?.status === "speeding" && <Badge variant="destructive">Speeding</Badge>}
           {liveVehicle?.status === "emergency" && <Badge variant="destructive">SOS</Badge>}
+          {onReportIncident && (
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={onReportIncident} aria-label="Report an incident">
+              <AlertTriangle className="w-4 h-4" />
+            </Button>
+          )}
         </div>
       </div>
 
