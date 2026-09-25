@@ -391,6 +391,24 @@ export default async function(req) {
           fuel_level: Number(fuel) || 0, needs_service: !passed, service_notes: service_notes || '',
         });
         if (odometer) await base44.asServiceRole.entities.Vehicle.update(vehicleId, { current_odometer: Number(odometer) });
+        // A failed inspection also raises a proper Fault for the mechanic
+        // queue (richer than the old needs_service flag alone — severity,
+        // status workflow, links back to this inspection) unless the company
+        // has explicitly turned that off.
+        if (!passed) {
+          try {
+            const company = await base44.asServiceRole.entities.Company.get(companyId);
+            if (company?.auto_create_faults !== false) {
+              await base44.asServiceRole.entities.Fault.create({
+                vehicle_id: vehicleId, vehicle_name: vehicle.name, company_id: companyId, company_name: companyName,
+                title: service_notes ? service_notes.slice(0, 80) : 'Failed pre-trip inspection',
+                description: service_notes || 'Auto-created from a failed pre-trip inspection checklist.',
+                source: 'inspection', inspection_id: inspection.id, severity: 'medium', status: 'open',
+                reported_by: vehicle.driver_name || vehicle.driver_email || 'Driver',
+              });
+            }
+          } catch { /* fault creation is best-effort — never blocks the inspection itself */ }
+        }
         return Response.json({ inspection });
       }
 
