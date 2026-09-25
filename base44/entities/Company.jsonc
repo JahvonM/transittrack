@@ -38,16 +38,6 @@
     "secretary_phone": {
       "type": "string",
       "description": "Secretary/dispatch phone number \u2014 SOS alerts are sent here (WhatsApp) alongside the boss."
-    },
-    "maintenance_reminder_days": {
-      "type": "number",
-      "default": 14,
-      "description": "Days before a MaintenanceSchedule's due date that it starts showing as 'due soon'."
-    },
-    "auto_create_faults": {
-      "type": "boolean",
-      "default": true,
-      "description": "When true, a failed driver inspection automatically creates a Fault record for mechanics, in addition to flagging needs_service."
     }
   },
   "rls": {

@@ -1,0 +1,48 @@
+{
+  "name": "MaintenanceSettings",
+  "type": "object",
+  "properties": {
+    "auto_create_faults": {
+      "type": "boolean",
+      "default": true,
+      "description": "Global, fleet-wide \u2014 a failed inspection (driver checklist or a mechanic's Run Inspection) auto-creates a Fault ticket. Only the mechanic team controls this, not individual companies."
+    },
+    "maintenance_reminder_days": {
+      "type": "number",
+      "default": 14,
+      "description": "Global \u2014 days before a MaintenanceSchedule's due date that maintenanceAlerts sends a reminder email. Only the mechanic team controls this."
+    }
+  },
+  "rls": {
+    "read": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "mechanic"
+          }
+        }
+      ]
+    },
+    "create": {
+      "user_condition": {
+        "role": "mechanic"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "mechanic"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  },
+  "required": []
+}
