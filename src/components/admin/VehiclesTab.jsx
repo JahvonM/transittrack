@@ -12,8 +12,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Bus, Car, Check, FileSpreadsheet, FileText, Pencil, Plus, Trash2, X } from "lucide-react";
+import { Bus, Car, Check, FileSpreadsheet, FileText, History, Pencil, Plus, Trash2, X } from "lucide-react";
 import { exportToCSV, exportToPDF } from "@/lib/exporters";
+import VehicleHistoryDialog from "./VehicleHistoryDialog";
 
 const VEHICLE_COLS = [
   { key: "name", label: "Name" },
@@ -131,9 +132,10 @@ function AddVehicleDialog({ companies, onChange }) {
   );
 }
 
-export default function VehiclesTab({ vehicles, companies, routes, onChange }) {
+export default function VehiclesTab({ vehicles, companies, routes, onChange, faults = [], schedules = [], inspectionResults = [] }) {
   const [editId, setEditId] = useState(null);
   const [edit, setEdit] = useState({});
+  const [historyVehicle, setHistoryVehicle] = useState(null);
 
   const remove = async (id) => {
     await base44.entities.Vehicle.delete(id);
@@ -220,6 +222,9 @@ export default function VehiclesTab({ vehicles, companies, routes, onChange }) {
               <Badge variant={v.status === "on_trip" ? "default" : v.status === "idle" ? "secondary" : "outline"}>
                 {v.status === "on_trip" ? "On trip" : v.status === "idle" ? "Idle" : "Offline"}
               </Badge>
+              <Button variant="ghost" size="icon" onClick={() => setHistoryVehicle(v)}>
+                <History className="w-4 h-4" />
+              </Button>
               <Button variant="ghost" size="icon" onClick={() => startEdit(v)}>
                 <Pencil className="w-4 h-4" />
               </Button>
@@ -230,6 +235,14 @@ export default function VehiclesTab({ vehicles, companies, routes, onChange }) {
           )}
         </div>
       ))}
+      <VehicleHistoryDialog
+        vehicle={historyVehicle}
+        open={!!historyVehicle}
+        onOpenChange={(o) => !o && setHistoryVehicle(null)}
+        faults={faults}
+        schedules={schedules}
+        inspectionResults={inspectionResults}
+      />
     </div>
   );
 }
