@@ -1,5 +1,11 @@
 {
   "name": "Vehicle",
+  "type": "object",
+  "required": [
+    "name",
+    "type",
+    "company_id"
+  ],
   "properties": {
     "capacity": {
       "type": "number"
@@ -17,7 +23,8 @@
       "type": "number"
     },
     "current_odometer": {
-      "type": "number"
+      "type": "number",
+      "description": "Odometer reading in km \u2014 also the single source of truth for MaintenanceSchedule's mileage-based due calculations (merged from FleetPilot's separate 'mileage' field)."
     },
     "driver_email": {
       "type": "string"
@@ -110,14 +117,47 @@
     "wired_gps_connected": {
       "default": false,
       "type": "boolean"
+    },
+    "fleet_number": {
+      "type": "string",
+      "description": "Internal fleet code (e.g. BUS001) \u2014 merged from FleetPilot, distinct from plate_number."
+    },
+    "make": {
+      "type": "string"
+    },
+    "model": {
+      "type": "string"
+    },
+    "year": {
+      "type": "integer"
+    },
+    "vin": {
+      "type": "string"
+    },
+    "engine": {
+      "type": "string"
+    },
+    "transmission": {
+      "type": "string"
+    },
+    "hours": {
+      "type": "number",
+      "default": 0,
+      "description": "Engine hours, tracked separately from odometer km."
+    },
+    "fuel_type": {
+      "type": "string"
+    },
+    "last_inspection_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "in_service": {
+      "type": "boolean",
+      "default": true,
+      "description": "Whether this vehicle is an active part of the fleet for maintenance purposes \u2014 separate from the live dispatch 'status' field (a vehicle can be in_service but currently offline)."
     }
   },
-  "required": [
-    "name",
-    "type",
-    "company_id"
-  ],
-  "type": "object",
   "rls": {
     "read": {},
     "create": {
