@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/components/ui/use-toast";
 import { ClipboardCheck, CheckCircle2, AlertTriangle, XCircle, Camera, Loader2, PartyPopper } from "lucide-react";
 
 const CONDITIONS = [
@@ -25,6 +26,7 @@ const SEVERITY_BY_CRITICAL = { Critical: "critical", High: "high", Medium: "medi
 // uses), and stamp the vehicle's last_inspection_date.
 export default function RunInspection() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [vehicles, setVehicles] = useState([]);
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -168,6 +170,15 @@ export default function RunInspection() {
         faultsCreated,
       });
       setStarted(false);
+    } catch (e) {
+      // Some InspectionResult rows or the Fault/Vehicle updates may have
+      // already gone through before this failed — surface the error rather
+      // than silently leaving the mechanic on the form with no explanation.
+      // Re-submitting after this is safe for InspectionResult (new rows, no
+      // uniqueness constraint) but could double-create Faults for items that
+      // already succeeded; that's an acceptable tradeoff for a best-effort
+      // retry versus losing the inspection entirely.
+      toast({ title: "Couldn't submit inspection", description: e.message, variant: "destructive" });
     } finally {
       setSubmitting(false);
     }
