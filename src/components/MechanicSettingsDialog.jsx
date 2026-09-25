@@ -20,6 +20,7 @@ export default function MechanicSettingsDialog({ open, onOpenChange }) {
   const [settingsId, setSettingsId] = useState(null);
   const [autoCreateFaults, setAutoCreateFaults] = useState(true);
   const [reminderDays, setReminderDays] = useState(14);
+  const [enablePhotos, setEnablePhotos] = useState(true);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -32,6 +33,7 @@ export default function MechanicSettingsDialog({ open, onOpenChange }) {
         setSettingsId(s.id);
         setAutoCreateFaults(s.auto_create_faults !== false);
         setReminderDays(s.maintenance_reminder_days ?? 14);
+        setEnablePhotos(s.enable_photo_attachments !== false);
       }
       setLoading(false);
     });
@@ -40,7 +42,11 @@ export default function MechanicSettingsDialog({ open, onOpenChange }) {
   const save = async () => {
     setSaving(true);
     try {
-      const payload = { auto_create_faults: autoCreateFaults, maintenance_reminder_days: Number(reminderDays) || 14 };
+      const payload = {
+        auto_create_faults: autoCreateFaults,
+        maintenance_reminder_days: Number(reminderDays) || 14,
+        enable_photo_attachments: enablePhotos,
+      };
       if (settingsId) {
         await base44.entities.MaintenanceSettings.update(settingsId, payload);
       } else {
@@ -74,6 +80,13 @@ export default function MechanicSettingsDialog({ open, onOpenChange }) {
               <Label>Maintenance reminder (days ahead)</Label>
               <Input type="number" min={1} value={reminderDays} onChange={(e) => setReminderDays(e.target.value)} />
               <p className="text-xs text-muted-foreground">How many days before a schedule is due to send a reminder email — applies fleet-wide.</p>
+            </div>
+            <div className="flex items-center justify-between rounded-lg border p-3">
+              <div>
+                <Label>Enable photo attachments</Label>
+                <p className="text-xs text-muted-foreground">Allow attaching photos to inspection items in Run Inspection.</p>
+              </div>
+              <Switch checked={enablePhotos} onCheckedChange={setEnablePhotos} />
             </div>
           </div>
         )}
