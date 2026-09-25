@@ -48,10 +48,10 @@ export default function DriverTrackingDashboard({ session, invoke, driverName })
     }
   }, [session?.vehicle]);
 
-  // session.check_ins is only the most recent handful (for the boarding
-  // popup) — occupancy needs the full recent history to know who's still
-  // aboard, so this fetches its own wider window and stays live via
-  // subscribe rather than piggybacking on the heartbeat's small slice.
+  // session.check_ins is only the most recent handful (used by DriverApp's
+  // own NewCheckInAlert toast) — occupancy needs the full recent history to
+  // know who's still aboard, so this fetches its own wider window and stays
+  // live via subscribe rather than piggybacking on the heartbeat's small slice.
   useEffect(() => {
     const vehicleId = liveVehicle?.id;
     if (!vehicleId) return;
