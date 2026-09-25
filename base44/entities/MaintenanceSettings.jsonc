@@ -11,6 +11,11 @@
       "type": "number",
       "default": 14,
       "description": "Global \u2014 days before a MaintenanceSchedule's due date that maintenanceAlerts sends a reminder email. Only the mechanic team controls this."
+    },
+    "enable_photo_attachments": {
+      "type": "boolean",
+      "default": true,
+      "description": "Global \u2014 whether mechanics can attach photos to inspection items in Run Inspection. Only the mechanic team controls this."
     }
   },
   "rls": {
