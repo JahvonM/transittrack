@@ -117,7 +117,13 @@ export default function InspectionTemplatesTab({ templates = [], companies = [],
         sections: [],
       });
       setNewTemplate(emptyTemplate());
-      onChange();
+      // Await the reload before selecting the new template — otherwise the
+      // parent's `templates` prop is still the pre-create array when
+      // selectedId changes, the sync effect below finds no matching record,
+      // sets draft to null, and never gets a second chance to re-sync
+      // (its dependency, selectedId, doesn't change again) — leaving the
+      // editor panel blank instead of showing the new template.
+      await onChange();
       setSelectedId(record.id);
     } catch (e) {
       toast({ title: "Couldn't create template", description: e.message, variant: "destructive" });
