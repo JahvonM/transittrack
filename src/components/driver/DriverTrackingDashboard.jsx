@@ -11,7 +11,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { TrafficCone, Navigation, Radio, Lock, Users } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
-import BoardingPopup from "@/components/driver/BoardingPopup";
 
 function timeAgo(iso) {
   if (!iso) return "never";
@@ -27,7 +26,6 @@ export default function DriverTrackingDashboard({ session, invoke, driverName })
   const [sharing, setSharing] = useState(false);
   const [nearbyStaff, setNearbyStaff] = useState([]);
   const [liveVehicle, setLiveVehicle] = useState(session?.vehicle || null);
-  const [boardingPopup, setBoardingPopup] = useState(null);
   const [occupancy, setOccupancy] = useState(0);
 
   const watchId = useRef(null);
@@ -37,8 +35,6 @@ export default function DriverTrackingDashboard({ session, invoke, driverName })
   const staffRef = useRef([]);
   const alertedRef = useRef(new Set());
   const speedingLoggedRef = useRef(false);
-  const seenCheckIns = useRef(new Set());
-  const firstCheckInLoad = useRef(true);
 
   useEffect(() => {
     if (session?.staff) { staffRef.current = session.staff; setStaff(session.staff); }
@@ -51,25 +47,6 @@ export default function DriverTrackingDashboard({ session, invoke, driverName })
       if (session.vehicle.trail) trailRef.current = session.vehicle.trail;
     }
   }, [session?.vehicle]);
-
-  useEffect(() => {
-    const checkIns = session?.check_ins;
-    if (!checkIns) return;
-    if (firstCheckInLoad.current) {
-      checkIns.forEach((c) => seenCheckIns.current.add(c.id));
-      firstCheckInLoad.current = false;
-      return;
-    }
-    checkIns.forEach((c) => {
-      if (!seenCheckIns.current.has(c.id)) {
-        seenCheckIns.current.add(c.id);
-        setBoardingPopup({
-          name: c.staff_name || "Staff member", picture: c.staff_picture_url || null,
-          time: c.boarded_at ? new Date(c.boarded_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "",
-        });
-      }
-    });
-  }, [session?.check_ins]);
 
   // session.check_ins is only the most recent handful (for the boarding
   // popup) — occupancy needs the full recent history to know who's still
@@ -201,7 +178,6 @@ export default function DriverTrackingDashboard({ session, invoke, driverName })
 
   return (
     <div className="space-y-4">
-      <BoardingPopup data={boardingPopup} onClose={() => setBoardingPopup(null)} />
       <div className="flex items-center gap-2 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30">
         <TrafficCone className="w-5 h-5 text-amber-400 shrink-0" />
         <span className="text-sm text-amber-100">Live tracking active — navigate safely and obey traffic rules.</span>
