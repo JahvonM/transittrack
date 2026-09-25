@@ -42,7 +42,7 @@
     "maintenance_reminder_days": {
       "type": "number",
       "default": 14,
-      "description": "How many days (or km, for mileage-based schedules \u2014 reused as a generic threshold) before a MaintenanceSchedule is due that it starts showing as 'due soon'."
+      "description": "Days before a MaintenanceSchedule's due date that it starts showing as 'due soon'."
     },
     "auto_create_faults": {
       "type": "boolean",
