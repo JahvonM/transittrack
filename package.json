@@ -15,7 +15,7 @@
     "cap:android": "vite build && cap sync android && cap open android"
   },
   "dependencies": {
-    "@base44/sdk": "^0.8.50",
+    "@base44/sdk": "^0.8.51",
     "@base44/vite-plugin": "^1.0.42",
     "@capacitor-community/keep-awake": "^5.0.1",
     "@capacitor/android": "^6.1.2",
