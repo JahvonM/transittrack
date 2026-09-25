@@ -26,6 +26,7 @@ const Admin = lazy(() => import('@/pages/Admin'));
 const Account = lazy(() => import('@/pages/Account'));
 const StaffPortal = lazy(() => import('@/pages/StaffPortal'));
 const MechanicPortal = lazy(() => import('@/pages/MechanicPortal'));
+const RunInspection = lazy(() => import('@/pages/RunInspection'));
 const ManagerDashboard = lazy(() => import('@/pages/ManagerDashboard'));
 const OAuthConsent = lazy(() => import('@/pages/OAuthConsent'));
 const MaintenanceQueue = lazy(() => import('@/pages/MaintenanceQueue'));
@@ -113,6 +114,7 @@ const AuthenticatedApp = () => {
         <Route path="/account" element={<Account />} />
         <Route path="/staff" element={<StaffPortal />} />
         <Route path="/mechanic" element={<MechanicPortal />} />
+        <Route path="/run-inspection" element={<RunInspection />} />
         <Route path="/manager" element={<ManagerDashboard />} />
         <Route path="/manager/:tab" element={<ManagerDashboard />} />
         <Route path="/maintenance-queue" element={<MaintenanceQueue />} />
