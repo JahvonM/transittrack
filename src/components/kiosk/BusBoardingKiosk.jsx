@@ -529,16 +529,20 @@ export default function BusBoardingKiosk({ invoke, device }) {
       </Screen>
     );
   } else {
-    // idle — the welcome screen. Large screens keep this simple (the info
-    // rail covers weather/ads/nearest-stop); small screens rotate the same
-    // info through here instead, since there's no room for a side rail.
+    // idle — the home screen. NFC tap keeps listening in the background the
+    // whole time; the keypad below is always visible instead of hidden
+    // behind a chooser step, and QR scanning is one tap away via a small
+    // link. Large screens keep the header simple (the info rail covers
+    // weather/ads/nearest-stop); small screens rotate the same info through
+    // here instead, since there's no room for a side rail.
     const vehicleName = device?.vehicle_name;
+    const press = (d) => setCode((prev) => (prev.length < CODE_MAX_LEN ? prev + d : prev));
     actionContent = (
-      <Screen modeKey="idle" className="p-10 text-center space-y-8">
-        <div className="min-h-[76px] flex flex-col items-center justify-center">
+      <Screen modeKey="idle" className="p-8 lg:p-10 text-center space-y-6">
+        <div className="min-h-[60px] flex flex-col items-center justify-center">
           <div className="hidden lg:block animate-in fade-in duration-500">
-            <p className="text-base text-muted-foreground">{greeting()}</p>
-            <p className="text-3xl xl:text-4xl font-heading font-bold tracking-tight">
+            <p className="text-sm text-muted-foreground">{greeting()}</p>
+            <p className="text-2xl xl:text-3xl font-heading font-bold tracking-tight">
               Welcome{vehicleName ? ` aboard ${vehicleName}` : ""}
             </p>
           </div>
@@ -577,30 +581,58 @@ export default function BusBoardingKiosk({ invoke, device }) {
             )}
           </div>
         </div>
-        <div className="relative mx-auto w-36 h-36 lg:w-44 lg:h-44 grid place-items-center">
-          {nfcListening && (
-            <>
-              <span className="absolute inset-0 rounded-full bg-primary/20 animate-ping" />
-              <span className="absolute inset-3 rounded-full bg-primary/10 animate-ping [animation-delay:150ms]" />
-            </>
-          )}
-          <div className="relative w-full h-full rounded-full bg-gradient-to-br from-primary/20 to-primary/5 grid place-items-center shadow-inner">
-            <CreditCard className={`w-16 h-16 lg:w-20 lg:h-20 text-primary ${nfcListening ? "animate-pulse" : ""}`} />
+        <div className="flex flex-col items-center gap-1.5">
+          <div className="relative w-20 h-20 lg:w-24 lg:h-24 grid place-items-center">
+            {nfcListening && (
+              <>
+                <span className="absolute inset-0 rounded-full bg-primary/20 animate-ping" />
+                <span className="absolute inset-2 rounded-full bg-primary/10 animate-ping [animation-delay:150ms]" />
+              </>
+            )}
+            <div className="relative w-full h-full rounded-full bg-gradient-to-br from-primary/20 to-primary/5 grid place-items-center shadow-inner">
+              <CreditCard className={`w-9 h-9 lg:w-10 lg:h-10 text-primary ${nfcListening ? "animate-pulse" : ""}`} />
+            </div>
+            <div className="absolute -bottom-1 -right-1">
+              <KioskMascot mood="wave" size={32} />
+            </div>
           </div>
-          <div className="absolute -bottom-1 -right-1">
-            <KioskMascot mood="wave" size={44} />
-          </div>
-        </div>
-        <div>
-          <p className="font-semibold text-xl">
-            {nfcSupported ? "Tap your badge to check in" : "Scan your QR code or enter your code to check in"}
+          <p className="text-sm font-medium text-muted-foreground">
+            {nfcSupported ? "Tap your badge, or enter your code below" : "Enter your code below"}
           </p>
-          {nfcSupported && <p className="text-base text-muted-foreground mt-1">Hold your badge near this tablet</p>}
-          {nfcError && <p className="text-sm text-destructive mt-2">{nfcError}</p>}
+          {nfcError && <p className="text-xs text-destructive">{nfcError}</p>}
         </div>
-        <Button variant="outline" className="h-14 px-6 text-base rounded-2xl" onClick={() => setMode("help")}>
-          <HelpCircle className="w-5 h-5 mr-2" /> Don't have your badge?
-        </Button>
+
+        <div className="space-y-3">
+          <div className="flex justify-center gap-2">
+            {Array.from({ length: Math.max(code.length, 4) }).map((_, i) => (
+              <div key={i} className={`w-10 h-12 lg:w-11 lg:h-14 rounded-xl border-2 grid place-items-center text-xl lg:text-2xl font-bold transition-colors ${i < code.length ? "border-primary bg-primary/5" : "border-border"}`}>
+                {i < code.length ? "•" : ""}
+              </div>
+            ))}
+          </div>
+          <div className="grid grid-cols-3 gap-2 max-w-xs mx-auto">
+            {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((d) => (
+              <Button key={d} variant="outline" className="h-14 text-xl rounded-2xl" onClick={() => press(d)} disabled={checkingCode}>{d}</Button>
+            ))}
+            <Button variant="outline" className="h-14 rounded-2xl" onClick={() => setCode("")} disabled={checkingCode}>Clear</Button>
+            <Button variant="outline" className="h-14 text-xl rounded-2xl" onClick={() => press("0")} disabled={checkingCode}>0</Button>
+            <Button variant="outline" className="h-14 rounded-2xl" onClick={() => setCode((prev) => prev.slice(0, -1))} disabled={checkingCode}>
+              <Delete className="w-5 h-5" />
+            </Button>
+          </div>
+          <Button className="w-full max-w-xs mx-auto h-12 text-base rounded-2xl" onClick={submitCode} disabled={!code || checkingCode}>
+            {checkingCode ? "Checking…" : "Submit code"}
+          </Button>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setMode("qr")}
+          className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
+        >
+          <QrCode className="w-4 h-4" /> Scan QR code instead
+        </button>
+
         {pendingSyncCount > 0 && (
           <p className="text-xs text-muted-foreground flex items-center justify-center gap-1.5">
             <CloudUpload className="w-3.5 h-3.5" /> {pendingSyncCount} check-in{pendingSyncCount === 1 ? "" : "s"} waiting to sync
