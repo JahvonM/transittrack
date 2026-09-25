@@ -37,16 +37,18 @@ export default async function (req) {
       }
     } catch { /* scheduled run, no user — proceed */ }
 
-    const [schedules, vehicles, users, companies] = await Promise.all([
+    const [schedules, vehicles, users, settingsList] = await Promise.all([
       base44.asServiceRole.entities.MaintenanceSchedule.list(),
       base44.asServiceRole.entities.Vehicle.list(),
       base44.asServiceRole.entities.User.list(),
-      base44.asServiceRole.entities.Company.list(),
+      base44.asServiceRole.entities.MaintenanceSettings.list(),
     ]);
 
     const vehicleById = new Map(vehicles.map((v) => [v.id, v]));
-    const companyById = new Map(companies.map((c) => [c.id, c]));
     const userById = new Map(users.map((u) => [u.id, u]));
+    // Global, fleet-wide — only the mechanic team controls this (not
+    // per-company), since maintenance is a shared/central team here.
+    const reminderDays = settingsList[0]?.maintenance_reminder_days || 14;
     const today = new Date();
 
     const dueByCompany = new Map(); // company_id -> [{ schedule, isOverdue, dueLabel }]
@@ -55,7 +57,6 @@ export default async function (req) {
     for (const s of schedules) {
       if (s.status === 'completed') continue;
       const vehicle = vehicleById.get(s.vehicle_id);
-      const reminderDays = companyById.get(s.company_id)?.maintenance_reminder_days || 14;
       let isDue = false;
       let isOverdue = false;
       let dueLabel = '';
