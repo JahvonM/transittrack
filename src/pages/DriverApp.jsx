@@ -265,7 +265,7 @@ export default function DriverApp() {
 
   return (
     <div className="min-h-screen p-4 safe-area-top safe-area-x">
-      <div className="space-y-4 max-w-3xl mx-auto">
+      <div className="space-y-4 max-w-6xl mx-auto">
         <Button
           variant="ghost"
           size="icon"
