@@ -397,8 +397,9 @@ export default async function(req) {
         // has explicitly turned that off.
         if (!passed) {
           try {
-            const company = await base44.asServiceRole.entities.Company.get(companyId);
-            if (company?.auto_create_faults !== false) {
+            const settingsList = await base44.asServiceRole.entities.MaintenanceSettings.list();
+            const settings = settingsList[0];
+            if (settings?.auto_create_faults !== false) {
               await base44.asServiceRole.entities.Fault.create({
                 vehicle_id: vehicleId, vehicle_name: vehicle.name, company_id: companyId, company_name: companyName,
                 title: service_notes ? service_notes.slice(0, 80) : 'Failed pre-trip inspection',
