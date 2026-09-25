@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CreditCard, QrCode, Hash, ChevronLeft, CheckCircle2, LogIn, LogOut, AlertCircle, Delete, HelpCircle, MapPin, CloudUpload, PartyPopper, Bus, Users } from "lucide-react";
+import { CreditCard, QrCode, Hash, ChevronLeft, CheckCircle2, LogIn, LogOut, AlertCircle, Delete, MapPin, CloudUpload, PartyPopper, Bus, Users } from "lucide-react";
 import { useNfcTap } from "@/hooks/useNfcTap";
 import { parseCodeQrPayload } from "@/lib/qr";
 import { base44 } from "@/api/base44Client";
@@ -159,11 +159,11 @@ function speak(text) {
   } catch { /* speech synthesis is a nice-to-have, never blocks check-in */ }
 }
 
-// bus_boarding kiosk: three ways in (NFC tap, QR scan, keypad code), one
-// shared confirm/result flow. "idle" is a welcome screen that auto-listens
-// for an NFC tap (when the tablet supports Web NFC); everything else lives
-// behind a single "Don't have your badge?" entry point so the primary
-// screen stays uncluttered. After identifying someone, they're asked
+// bus_boarding kiosk: three ways in, all reachable without a click-through
+// chooser screen — NFC tap keeps listening in the background the whole time
+// idle, the keypad is always on-screen (not hidden behind a "don't have
+// your badge?" step), and QR scanning is one tap away via a small link.
+// After identifying someone, they're asked
 // explicitly whether they're boarding or exiting — the system's guess
 // (based on their last recorded state) is only a highlighted suggestion,
 // never the only option, since a missed tap or skipped stop would otherwise
@@ -176,7 +176,7 @@ function speak(text) {
 export default function BusBoardingKiosk({ invoke, device }) {
   const [unlocked, setUnlocked] = useState(false);
   const [now, setNow] = useState(() => new Date());
-  const [mode, setMode] = useState("idle"); // idle | help | qr | code | confirm | result | badge_error
+  const [mode, setMode] = useState("idle"); // idle | qr | confirm | result | badge_error
   const [pending, setPending] = useState(null); // { staff, next_status, method, code_type }
   const [result, setResult] = useState(null); // { staff_name, status, offline?, riderNumber? }
   const [badgeError, setBadgeError] = useState("");
@@ -523,52 +523,9 @@ export default function BusBoardingKiosk({ invoke, device }) {
   } else if (mode === "qr") {
     actionContent = (
       <Screen modeKey="qr" className="p-5 space-y-4">
-        <Button variant="ghost" onClick={() => setMode("help")}><ChevronLeft className="w-5 h-5 mr-1" /> Back</Button>
+        <Button variant="ghost" onClick={() => setMode("idle")}><ChevronLeft className="w-5 h-5 mr-1" /> Back</Button>
         <p className="text-base text-center text-muted-foreground">Show your QR code to the camera</p>
         <QrScanner active onDecode={handleQrDecode} facingMode="user" />
-      </Screen>
-    );
-  } else if (mode === "code") {
-    const press = (d) => setCode((prev) => (prev.length < CODE_MAX_LEN ? prev + d : prev));
-    actionContent = (
-      <Screen modeKey="code" className="p-6 space-y-5">
-        <Button variant="ghost" onClick={() => { setMode("help"); setCode(""); }}><ChevronLeft className="w-5 h-5 mr-1" /> Back</Button>
-        <p className="text-base text-center text-muted-foreground">Enter your code</p>
-        <div className="flex justify-center gap-2.5">
-          {Array.from({ length: Math.max(code.length, 4) }).map((_, i) => (
-            <div key={i} className={`w-11 h-14 rounded-xl border-2 grid place-items-center text-2xl font-bold transition-colors ${i < code.length ? "border-primary bg-primary/5" : "border-border"}`}>
-              {i < code.length ? "•" : ""}
-            </div>
-          ))}
-        </div>
-        <div className="grid grid-cols-3 gap-2.5 max-w-sm mx-auto">
-          {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((d) => (
-            <Button key={d} variant="outline" className="h-16 text-2xl rounded-2xl" onClick={() => press(d)} disabled={checkingCode}>{d}</Button>
-          ))}
-          <Button variant="outline" className="h-16 rounded-2xl" onClick={() => setCode("")} disabled={checkingCode}>Clear</Button>
-          <Button variant="outline" className="h-16 text-2xl rounded-2xl" onClick={() => press("0")} disabled={checkingCode}>0</Button>
-          <Button variant="outline" className="h-16 rounded-2xl" onClick={() => setCode((prev) => prev.slice(0, -1))} disabled={checkingCode}>
-            <Delete className="w-6 h-6" />
-          </Button>
-        </div>
-        <Button className="w-full h-14 text-base rounded-2xl" onClick={submitCode} disabled={!code || checkingCode}>
-          {checkingCode ? "Checking…" : "Submit"}
-        </Button>
-      </Screen>
-    );
-  } else if (mode === "help") {
-    actionContent = (
-      <Screen modeKey="help" className="p-8 text-center space-y-5">
-        <Button variant="ghost" onClick={() => setMode("idle")}><ChevronLeft className="w-5 h-5 mr-1" /> Back</Button>
-        <p className="font-semibold text-lg">How would you like to check in?</p>
-        <div className="grid grid-cols-1 gap-3 max-w-sm mx-auto">
-          <Button variant="outline" className="h-16 text-base rounded-2xl" onClick={() => setMode("code")}>
-            <Hash className="w-5 h-5 mr-2" /> Enter my code
-          </Button>
-          <Button variant="outline" className="h-16 text-base rounded-2xl" onClick={() => setMode("qr")}>
-            <QrCode className="w-5 h-5 mr-2" /> Scan my QR code
-          </Button>
-        </div>
       </Screen>
     );
   } else {
