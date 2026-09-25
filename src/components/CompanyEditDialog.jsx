@@ -10,7 +10,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 
 const SERVICES = [
   { key: "staff_bus", label: "Staff bus" },
@@ -24,8 +23,6 @@ export default function CompanyEditDialog({ company, open, onOpenChange, onSaved
   const [bossPhone, setBossPhone] = useState("");
   const [secretaryPhone, setSecretaryPhone] = useState("");
   const [services, setServices] = useState([]);
-  const [autoCreateFaults, setAutoCreateFaults] = useState(true);
-  const [reminderDays, setReminderDays] = useState(14);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -35,8 +32,6 @@ export default function CompanyEditDialog({ company, open, onOpenChange, onSaved
       setBossPhone(company.boss_phone || "");
       setSecretaryPhone(company.secretary_phone || "");
       setServices(company.service_types || []);
-      setAutoCreateFaults(company.auto_create_faults !== false);
-      setReminderDays(company.maintenance_reminder_days ?? 14);
     }
   }, [company]);
 
@@ -52,8 +47,6 @@ export default function CompanyEditDialog({ company, open, onOpenChange, onSaved
         boss_phone: bossPhone,
         secretary_phone: secretaryPhone,
         service_types: services,
-        auto_create_faults: autoCreateFaults,
-        maintenance_reminder_days: Number(reminderDays) || 14,
       });
       onSaved();
       onOpenChange(false);
@@ -85,23 +78,6 @@ export default function CompanyEditDialog({ company, open, onOpenChange, onSaved
           <div className="space-y-1.5">
             <Label>Secretary / dispatch phone (WhatsApp)</Label>
             <Input value={secretaryPhone} onChange={(e) => setSecretaryPhone(e.target.value)} placeholder="+1 473-..." />
-          </div>
-          <div className="flex items-center justify-between rounded-lg border p-3">
-            <div>
-              <Label>Auto-create faults</Label>
-              <p className="text-xs text-muted-foreground">Failed pre-trip inspections automatically open a Fault ticket.</p>
-            </div>
-            <Switch checked={autoCreateFaults} onCheckedChange={setAutoCreateFaults} />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Maintenance reminder (days ahead)</Label>
-            <Input
-              type="number"
-              min={1}
-              value={reminderDays}
-              onChange={(e) => setReminderDays(e.target.value)}
-            />
-            <p className="text-xs text-muted-foreground">How many days before a schedule is due to send a reminder email.</p>
           </div>
           <div className="space-y-1.5">
             <Label>Services</Label>
