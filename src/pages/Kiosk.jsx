@@ -144,6 +144,13 @@ export default function Kiosk() {
       </div>
     );
 
+  // bus_boarding owns the whole viewport (top status bar, live map backdrop,
+  // two-panel layout) — it doesn't fit inside the generic small centered
+  // card the other two kiosk types use, and a big tablet has room to spare.
+  if (device?.kiosk_type === "bus_boarding") {
+    return <BusBoardingKiosk invoke={invoke} device={device} />;
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-primary/15 via-background to-background">
       <div className="max-w-md w-full space-y-4">
@@ -177,7 +184,6 @@ export default function Kiosk() {
         </Card>
 
         <div key={device?.kiosk_type} className="animate-in fade-in zoom-in-95 duration-300">
-          {device?.kiosk_type === "bus_boarding" && <BusBoardingKiosk invoke={invoke} device={device} />}
           {device?.kiosk_type === "badge_registry" && <BadgeRegistryKiosk invoke={invoke} />}
           {device?.kiosk_type === "front_desk" && <FrontDeskKiosk invoke={invoke} />}
         </div>
