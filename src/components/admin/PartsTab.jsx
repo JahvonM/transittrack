@@ -51,8 +51,12 @@ export default function PartsTab({ parts = [], companies = [], onChange }) {
 
   const adjustStock = async (part, delta) => {
     const next = Math.max(0, (part.quantity_in_stock || 0) + delta);
-    await base44.entities.Part.update(part.id, { quantity_in_stock: next });
-    onChange();
+    try {
+      await base44.entities.Part.update(part.id, { quantity_in_stock: next });
+      onChange();
+    } catch (e) {
+      toast({ title: "Couldn't update stock", description: e.message, variant: "destructive" });
+    }
   };
 
   const filtered = parts.filter((p) => {
