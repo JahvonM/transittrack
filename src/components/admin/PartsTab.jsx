@@ -39,8 +39,14 @@ export default function PartsTab({ parts = [], companies = [], onChange }) {
 
   const remove = async (id) => {
     if (!window.confirm("Delete this part?")) return;
-    await base44.entities.Part.delete(id);
-    onChange();
+    try {
+      await base44.entities.Part.delete(id);
+      onChange();
+    } catch (e) {
+      // Delete is admin/company-only — a mechanic clicking this needs to see
+      // why nothing happened, not a silent no-op.
+      toast({ title: "Couldn't delete part", description: e.message, variant: "destructive" });
+    }
   };
 
   const adjustStock = async (part, delta) => {
