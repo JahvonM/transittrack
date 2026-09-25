@@ -21,6 +21,8 @@ import {
   AlertTriangle,
   Package,
   CalendarClock,
+  ListChecks,
+  Calendar,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -38,6 +40,8 @@ export const ADMIN_SECTIONS = [
   { id: "faults", label: "Faults", icon: AlertTriangle },
   { id: "parts", label: "Parts", icon: Package },
   { id: "schedule", label: "Maintenance Schedule", icon: CalendarClock },
+  { id: "calendar", label: "Maintenance Calendar", icon: Calendar },
+  { id: "templates", label: "Inspection Templates", icon: ListChecks },
   { id: "drivers", label: "Drivers", icon: Car },
   { id: "sync", label: "Fleet sync", icon: RefreshCw },
   { id: "companies", label: "Companies", icon: Building2 },
