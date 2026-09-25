@@ -406,7 +406,15 @@ export default function Admin() {
           />
         )}
         {section === "vehicles" && (
-          <VehiclesTab vehicles={vehicles} companies={companies} routes={routes} onChange={load} />
+          <VehiclesTab
+            vehicles={vehicles}
+            companies={companies}
+            routes={routes}
+            onChange={load}
+            faults={faults}
+            schedules={schedules}
+            inspectionResults={inspectionResults}
+          />
         )}
         {section === "kiosks" && <KioskTablets vehicles={vehicles} companies={companies} onChange={load} />}
         {section === "checkins" && <CheckInLog vehicles={vehicles} onChange={load} />}
