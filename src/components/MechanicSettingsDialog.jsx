@@ -11,12 +11,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { useToast } from "@/components/ui/use-toast";
 
 // Fleet-wide maintenance settings, controlled only by the mechanic team —
 // a single MaintenanceSettings row rather than a per-company field, since
 // maintenance is a shared/central team here, not something each transport
 // company should be able to tune for itself.
 export default function MechanicSettingsDialog({ open, onOpenChange }) {
+  const { toast } = useToast();
   const [settingsId, setSettingsId] = useState(null);
   const [autoCreateFaults, setAutoCreateFaults] = useState(true);
   const [reminderDays, setReminderDays] = useState(14);
@@ -54,6 +56,8 @@ export default function MechanicSettingsDialog({ open, onOpenChange }) {
         setSettingsId(created.id);
       }
       onOpenChange(false);
+    } catch (e) {
+      toast({ title: "Couldn't save settings", description: e.message, variant: "destructive" });
     } finally {
       setSaving(false);
     }
