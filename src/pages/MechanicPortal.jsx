@@ -6,10 +6,13 @@ import AppLayout from "@/components/AppLayout";
 import Greeting from "@/components/Greeting";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, Bus, Wrench, BellRing, ClipboardCheck, Settings } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { ChevronLeft, Bus, Wrench, BellRing, ClipboardCheck, Settings, LayoutDashboard, MessageCircle } from "lucide-react";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import ChatThread from "@/components/chat/ChatThread";
 import MechanicSettingsDialog from "@/components/MechanicSettingsDialog";
+import MechanicDashboardTab from "@/components/mechanic/MechanicDashboardTab";
 
 function formatTime(iso) {
   if (!iso) return "";
@@ -182,8 +185,8 @@ export default function MechanicPortal() {
 
   return (
     <AppLayout title="Mechanic">
-      <div className="max-w-lg space-y-4">
-        <Greeting subtitle="Vehicle issues and maintenance chat" />
+      <div className="max-w-5xl space-y-4">
+        <Greeting subtitle="Vehicle issues and maintenance" />
         <div className="flex flex-wrap gap-2">
           <Button asChild size="sm">
             <Link to="/run-inspection"><ClipboardCheck className="w-4 h-4 mr-1.5" /> Run inspection</Link>
@@ -198,35 +201,51 @@ export default function MechanicPortal() {
           )}
         </div>
         <MechanicSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
-        {loading ? (
-          <p className="text-muted-foreground">Loading…</p>
-        ) : (
-          <div className="space-y-2">
-            {chatVehicles.map((v) => {
-              const list = messagesByVehicle[v.id] || [];
-              const last = list[list.length - 1];
-              return (
-                <Card key={v.id} className="cursor-pointer hover:border-primary/40 transition-colors" onClick={() => openThread(v.id)}>
-                  <CardContent className="p-3.5 flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-primary/10 grid place-items-center shrink-0">
-                      <Wrench className="w-5 h-5 text-primary" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="font-medium text-sm truncate">{v.name}</p>
-                        {last && <span className="text-[11px] text-muted-foreground shrink-0">{formatTime(last.created_date)}</span>}
-                      </div>
-                      <p className="text-xs text-muted-foreground truncate">
-                        {last ? `${last.sender_role === "mechanic" ? "You" : last.sender_name || "Driver"}: ${previewText(last)}` : (v.driver_name || "No messages yet")}
-                      </p>
-                    </div>
-                    {unreadVehicleIds.has(v.id) && <span className="w-2.5 h-2.5 rounded-full bg-destructive shrink-0" />}
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        )}
+        <Tabs defaultValue="dashboard">
+          <TabsList>
+            <TabsTrigger value="dashboard"><LayoutDashboard className="w-4 h-4 mr-1.5" /> Dashboard</TabsTrigger>
+            <TabsTrigger value="messages">
+              <MessageCircle className="w-4 h-4 mr-1.5" /> Messages
+              {unreadVehicleIds.size > 0 && <Badge variant="destructive" className="ml-1.5 px-1.5">{unreadVehicleIds.size}</Badge>}
+            </TabsTrigger>
+          </TabsList>
+          <TabsContent value="dashboard" className="mt-4">
+            <MechanicDashboardTab />
+          </TabsContent>
+          <TabsContent value="messages" className="mt-4">
+            <div className="max-w-lg">
+              {loading ? (
+                <p className="text-muted-foreground">Loading…</p>
+              ) : (
+                <div className="space-y-2">
+                  {chatVehicles.map((v) => {
+                    const list = messagesByVehicle[v.id] || [];
+                    const last = list[list.length - 1];
+                    return (
+                      <Card key={v.id} className="cursor-pointer hover:border-primary/40 transition-colors" onClick={() => openThread(v.id)}>
+                        <CardContent className="p-3.5 flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-primary/10 grid place-items-center shrink-0">
+                            <Wrench className="w-5 h-5 text-primary" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="font-medium text-sm truncate">{v.name}</p>
+                              {last && <span className="text-[11px] text-muted-foreground shrink-0">{formatTime(last.created_date)}</span>}
+                            </div>
+                            <p className="text-xs text-muted-foreground truncate">
+                              {last ? `${last.sender_role === "mechanic" ? "You" : last.sender_name || "Driver"}: ${previewText(last)}` : (v.driver_name || "No messages yet")}
+                            </p>
+                          </div>
+                          {unreadVehicleIds.has(v.id) && <span className="w-2.5 h-2.5 rounded-full bg-destructive shrink-0" />}
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </TabsContent>
+        </Tabs>
       </div>
     </AppLayout>
   );
