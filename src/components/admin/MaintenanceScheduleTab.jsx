@@ -61,8 +61,14 @@ export default function MaintenanceScheduleTab({ schedules = [], vehicles = [], 
 
   const remove = async (id) => {
     if (!window.confirm("Delete this schedule?")) return;
-    await base44.entities.MaintenanceSchedule.delete(id);
-    onChange();
+    try {
+      await base44.entities.MaintenanceSchedule.delete(id);
+      onChange();
+    } catch (e) {
+      // Delete is admin/company-only — a mechanic clicking this needs to see
+      // why nothing happened, not a silent no-op.
+      toast({ title: "Couldn't delete schedule", description: e.message, variant: "destructive" });
+    }
   };
 
   const sorted = [...schedules].sort((a, b) => (STATUS_ORDER[a.status] ?? 4) - (STATUS_ORDER[b.status] ?? 4));
