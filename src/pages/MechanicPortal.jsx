@@ -1,12 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import AppLayout from "@/components/AppLayout";
 import Greeting from "@/components/Greeting";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, Bus, Wrench, BellRing } from "lucide-react";
+import { ChevronLeft, Bus, Wrench, BellRing, ClipboardCheck } from "lucide-react";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import ChatThread from "@/components/chat/ChatThread";
 
@@ -182,11 +182,16 @@ export default function MechanicPortal() {
     <AppLayout title="Mechanic">
       <div className="max-w-lg space-y-4">
         <Greeting subtitle="Vehicle issues and maintenance chat" />
-        {pushPermission !== "granted" && pushPermission !== "unsupported" && (
-          <Button variant="outline" size="sm" onClick={enableNotifications}>
-            <BellRing className="w-4 h-4 mr-1.5" /> Enable notifications
+        <div className="flex flex-wrap gap-2">
+          <Button asChild size="sm">
+            <Link to="/run-inspection"><ClipboardCheck className="w-4 h-4 mr-1.5" /> Run inspection</Link>
           </Button>
-        )}
+          {pushPermission !== "granted" && pushPermission !== "unsupported" && (
+            <Button variant="outline" size="sm" onClick={enableNotifications}>
+              <BellRing className="w-4 h-4 mr-1.5" /> Enable notifications
+            </Button>
+          )}
+        </div>
         {loading ? (
           <p className="text-muted-foreground">Loading…</p>
         ) : (
