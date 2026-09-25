@@ -39,7 +39,9 @@ function startOfToday() {
 function staticMapBackgroundUrl(lat, lng) {
   if (lat == null || lng == null || !MAPBOX_TOKEN) return null;
   const styleId = MAPBOX_STYLE.replace("mapbox://styles/", "");
-  return `https://api.mapbox.com/styles/v1/${styleId}/static/${lng},${lat},13,0/1600x1000@2x?access_token=${MAPBOX_TOKEN}`;
+  // Mapbox's Static Images API caps width/height at 1280 each (the @2x
+  // modifier then doubles the actual rendered resolution to 2560x1600).
+  return `https://api.mapbox.com/styles/v1/${styleId}/static/${lng},${lat},13,0/1280x800@2x?access_token=${MAPBOX_TOKEN}`;
 }
 
 function Avatar({ name, photoUrl }) {
