@@ -191,6 +191,11 @@
           "user_condition": {
             "role": "company"
           }
+        },
+        {
+          "user_condition": {
+            "role": "mechanic"
+          }
         }
       ]
     },
