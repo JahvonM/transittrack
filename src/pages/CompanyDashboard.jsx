@@ -188,6 +188,7 @@ function CreateCompany({ onCreated }) {
 }
 
 function VehiclesTab({ company, routes, vehicles, onChange }) {
+  const { toast } = useToast();
   const [form, setForm] = useState({
     name: "", plate_number: "", type: "bus", capacity: "",
     driver_email: "", driver_name: "", route_id: "",
@@ -197,31 +198,44 @@ function VehiclesTab({ company, routes, vehicles, onChange }) {
   const add = async () => {
     if (!form.name) return;
     setAdding(true);
-    await base44.entities.Vehicle.create({
-      name: form.name,
-      plate_number: form.plate_number,
-      type: form.type,
-      capacity: Number(form.capacity) || 0,
-      driver_email: form.driver_email,
-      driver_name: form.driver_name,
-      route_id: form.route_id || null,
-      company_id: company.id,
-      company_name: company.name,
-      status: "offline",
-    });
-    setForm({ name: "", plate_number: "", type: "bus", capacity: "", driver_email: "", driver_name: "", route_id: "" });
-    setAdding(false);
-    onChange();
+    try {
+      await base44.entities.Vehicle.create({
+        name: form.name,
+        plate_number: form.plate_number,
+        type: form.type,
+        capacity: Number(form.capacity) || 0,
+        driver_email: form.driver_email,
+        driver_name: form.driver_name,
+        route_id: form.route_id || null,
+        company_id: company.id,
+        company_name: company.name,
+        status: "offline",
+      });
+      setForm({ name: "", plate_number: "", type: "bus", capacity: "", driver_email: "", driver_name: "", route_id: "" });
+      onChange();
+    } catch (e) {
+      toast({ title: "Couldn't add vehicle", description: e.message, variant: "destructive" });
+    } finally {
+      setAdding(false);
+    }
   };
 
   const remove = async (id) => {
-    await base44.entities.Vehicle.delete(id);
-    onChange();
+    try {
+      await base44.entities.Vehicle.delete(id);
+      onChange();
+    } catch (e) {
+      toast({ title: "Couldn't delete vehicle", description: e.message, variant: "destructive" });
+    }
   };
 
   const setRoute = async (v, route_id) => {
-    await base44.entities.Vehicle.update(v.id, { route_id: route_id || null });
-    onChange();
+    try {
+      await base44.entities.Vehicle.update(v.id, { route_id: route_id || null });
+      onChange();
+    } catch (e) {
+      toast({ title: "Couldn't update route", description: e.message, variant: "destructive" });
+    }
   };
 
   return (
@@ -275,6 +289,7 @@ function VehiclesTab({ company, routes, vehicles, onChange }) {
 }
 
 function RoutesTab({ company, routes, onChange }) {
+  const { toast } = useToast();
   const [name, setName] = useState("");
   const [type, setType] = useState("staff");
   const [stops, setStops] = useState([]);
@@ -293,18 +308,29 @@ function RoutesTab({ company, routes, onChange }) {
   const save = async () => {
     if (!name || stops.length < 2) return;
     setAdding(true);
-    await base44.entities.Route.create({
-      name, type, stops,
-      company_id: company.id,
-      company_name: company.name,
-      active: true,
-    });
-    setName(""); setStops([]); setAdding(false); onChange();
+    try {
+      await base44.entities.Route.create({
+        name, type, stops,
+        company_id: company.id,
+        company_name: company.name,
+        active: true,
+      });
+      setName(""); setStops([]);
+      onChange();
+    } catch (e) {
+      toast({ title: "Couldn't create route", description: e.message, variant: "destructive" });
+    } finally {
+      setAdding(false);
+    }
   };
 
   const remove = async (id) => {
-    await base44.entities.Route.delete(id);
-    onChange();
+    try {
+      await base44.entities.Route.delete(id);
+      onChange();
+    } catch (e) {
+      toast({ title: "Couldn't delete route", description: e.message, variant: "destructive" });
+    }
   };
 
   return (
