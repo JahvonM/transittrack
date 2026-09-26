@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { Navigate, useParams, useNavigate } from "react-router-dom";
+import { Navigate, useParams, useNavigate, Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import AppLayout from "@/components/AppLayout";
 import ProfileInfo from "@/components/ProfileInfo";
-import { Bus, Car, Plus, Pencil, Trash2, Route as RouteIcon, MapPin, Building2, Phone, KeyRound, Copy, Check, RefreshCw, User } from "lucide-react";
+import { Bus, Car, Plus, Pencil, Trash2, Route as RouteIcon, MapPin, Building2, Phone, KeyRound, Copy, Check, RefreshCw, User, History } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -265,6 +265,9 @@ function VehiclesTab({ company, routes, vehicles, onChange }) {
             <Badge variant={v.status === "on_trip" ? "default" : v.status === "idle" ? "secondary" : "outline"}>
               {v.status}
             </Badge>
+            <Button asChild variant="ghost" size="icon">
+              <Link to={`/vehicle/${v.id}`}><History className="w-4 h-4" /></Link>
+            </Button>
             <Button variant="ghost" size="icon" onClick={() => remove(v.id)}>
               <Trash2 className="w-4 h-4 text-destructive" />
             </Button>
