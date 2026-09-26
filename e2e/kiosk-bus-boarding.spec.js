@@ -17,5 +17,7 @@ test('an already-paired bus boarding kiosk heartbeats and shows the lock screen'
   await page.goto('/kiosk');
 
   await expect(page.getByText('Slide to check in')).toBeVisible({ timeout: 15000 });
-  await expect(page.getByText('hvyurtet')).toBeVisible();
+  // Appears twice (TopStatusBar + the lock screen itself) — .first() is enough
+  // to confirm the fixture's vehicle_id resolved, not just "some device paired".
+  await expect(page.getByText('hvyurtet').first()).toBeVisible();
 });
