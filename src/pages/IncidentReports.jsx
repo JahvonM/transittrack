@@ -24,9 +24,13 @@ export default function IncidentReports() {
 
   const cycle = async (i) => {
     const ns = next(i.status || "open");
-    await base44.entities.Incident.update(i.id, { status: ns });
-    toast({ title: `Status → ${ns}` });
-    load();
+    try {
+      await base44.entities.Incident.update(i.id, { status: ns });
+      toast({ title: `Status → ${ns}` });
+      load();
+    } catch (e) {
+      toast({ title: "Couldn't update status", description: e.message, variant: "destructive" });
+    }
   };
 
   const variant = (s) => (s === "resolved" ? "default" : s === "investigating" ? "secondary" : "destructive");
