@@ -27,9 +27,13 @@ export default function MaintenanceQueue() {
   const resolve = async (id) => {
     // Clear needs_service AND flip status away from "failed" so the record reads
     // correctly as resolved everywhere else (e.g. Service History) too.
-    await base44.entities.Inspection.update(id, { needs_service: false, status: "passed", service_notes: "Dispatched / resolved" });
-    toast({ title: "Marked resolved", description: "Moved to Service History." });
-    load();
+    try {
+      await base44.entities.Inspection.update(id, { needs_service: false, status: "passed", service_notes: "Dispatched / resolved" });
+      toast({ title: "Marked resolved", description: "Moved to Service History." });
+      load();
+    } catch (e) {
+      toast({ title: "Couldn't resolve", description: e.message, variant: "destructive" });
+    }
   };
 
   return (
