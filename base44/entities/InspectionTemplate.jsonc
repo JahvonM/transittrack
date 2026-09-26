@@ -19,6 +19,10 @@
     "company_name": {
       "type": "string"
     },
+    "frequency_days": {
+      "type": "number",
+      "description": "Optional \u2014 how often (in days) this template should be run per vehicle. Set this to have inspectionAlerts remind mechanics when a vehicle is overdue. Leave blank/0 to exclude this template from reminders (e.g. a one-off or ad-hoc checklist)."
+    },
     "sections": {
       "type": "array",
       "items": {
