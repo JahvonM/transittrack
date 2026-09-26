@@ -15,5 +15,20 @@ export default defineConfig({
       visualEditAgent: true
     }),
     react(),
-  ]
+  ],
+  // `vite preview` only serves the static build — the SDK always calls a
+  // same-origin relative `/api` (see src/api/base44Client.js's `serverUrl:
+  // ''`), which the real deployed app satisfies because Base44's own hosting
+  // serves both the static bundle and /api from one origin. Locally there is
+  // no /api route at all, so proxy it straight to the real backend. This only
+  // affects `vite preview` (used by the Playwright e2e suite) — the actual
+  // deploy never runs `vite preview`, so this is inert in production.
+  preview: {
+    proxy: {
+      '/api': {
+        target: 'https://base44.app',
+        changeOrigin: true,
+      },
+    },
+  },
 });
