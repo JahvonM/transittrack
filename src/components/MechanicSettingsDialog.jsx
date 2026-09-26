@@ -22,6 +22,7 @@ export default function MechanicSettingsDialog({ open, onOpenChange }) {
   const [settingsId, setSettingsId] = useState(null);
   const [autoCreateFaults, setAutoCreateFaults] = useState(true);
   const [reminderDays, setReminderDays] = useState(14);
+  const [inspectionReminderDays, setInspectionReminderDays] = useState(1);
   const [enablePhotos, setEnablePhotos] = useState(true);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -35,6 +36,7 @@ export default function MechanicSettingsDialog({ open, onOpenChange }) {
         setSettingsId(s.id);
         setAutoCreateFaults(s.auto_create_faults !== false);
         setReminderDays(s.maintenance_reminder_days ?? 14);
+        setInspectionReminderDays(s.inspection_reminder_days ?? 1);
         setEnablePhotos(s.enable_photo_attachments !== false);
       }
       setLoading(false);
@@ -47,6 +49,7 @@ export default function MechanicSettingsDialog({ open, onOpenChange }) {
       const payload = {
         auto_create_faults: autoCreateFaults,
         maintenance_reminder_days: Number(reminderDays) || 14,
+        inspection_reminder_days: Number(inspectionReminderDays) || 1,
         enable_photo_attachments: enablePhotos,
       };
       if (settingsId) {
@@ -84,6 +87,18 @@ export default function MechanicSettingsDialog({ open, onOpenChange }) {
               <Label>Maintenance reminder (days ahead)</Label>
               <Input type="number" min={1} value={reminderDays} onChange={(e) => setReminderDays(e.target.value)} />
               <p className="text-xs text-muted-foreground">How many days before a schedule is due to send a reminder email — applies fleet-wide.</p>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Inspection reminder (days ahead)</Label>
+              <Input
+                type="number"
+                min={0}
+                value={inspectionReminderDays}
+                onChange={(e) => setInspectionReminderDays(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                How many days before a recurring inspection template (one with a reminder schedule set in Inspection Templates) is due to send a reminder email.
+              </p>
             </div>
             <div className="flex items-center justify-between rounded-lg border p-3">
               <div>
