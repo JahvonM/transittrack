@@ -24,35 +24,48 @@ import {
   ListChecks,
   Calendar,
   History,
+  ChevronDown,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 
+// `group` clusters the flat section list into labeled chunks in the sidebar
+// (Fleet Operations / Maintenance — the mechanic's own area / Dispatch — the
+// secretary/front-desk area / Admin) instead of one long undifferentiated
+// list. `null` keeps an item standalone (Overview at top, My profile at
+// bottom), matching the pre-grouping layout.
 export const ADMIN_SECTIONS = [
-  { id: "overview", label: "Overview", icon: LayoutDashboard },
-  { id: "trips", label: "Trips", icon: CalendarPlus },
-  { id: "fleet", label: "Live fleet", icon: MapPin },
-  { id: "vehicles", label: "Vehicles", icon: Bus },
-  { id: "kiosks", label: "Kiosk tablets", icon: Smartphone },
-  { id: "checkins", label: "Sign-in log", icon: ClipboardList },
-  { id: "billing", label: "Completed & billing", icon: Building2 },
-  { id: "users", label: "Users & roles", icon: Users },
-  { id: "service", label: "Service Queue", icon: Wrench },
-  { id: "faults", label: "Faults", icon: AlertTriangle },
-  { id: "parts", label: "Parts", icon: Package },
-  { id: "schedule", label: "Maintenance Schedule", icon: CalendarClock },
-  { id: "calendar", label: "Maintenance Calendar", icon: Calendar },
-  { id: "templates", label: "Inspection Templates", icon: ListChecks },
-  { id: "inspection-history", label: "Inspection History", icon: History },
-  { id: "drivers", label: "Drivers", icon: Car },
-  { id: "sync", label: "Fleet sync", icon: RefreshCw },
-  { id: "companies", label: "Companies", icon: Building2 },
-  { id: "messaging", label: "Messaging", icon: Megaphone },
-  { id: "ads", label: "Advertisements", icon: ImageIcon },
-  { id: "copilot", label: "AI copilot", icon: Sparkles },
-  { id: "data", label: "Data manager", icon: Database },
-  { id: "profile", label: "My profile", icon: User },
+  { id: "overview", label: "Overview", icon: LayoutDashboard, group: null },
+
+  { id: "trips", label: "Trips", icon: CalendarPlus, group: "Fleet Operations" },
+  { id: "fleet", label: "Live fleet", icon: MapPin, group: "Fleet Operations" },
+  { id: "vehicles", label: "Vehicles", icon: Bus, group: "Fleet Operations" },
+  { id: "drivers", label: "Drivers", icon: Car, group: "Fleet Operations" },
+  { id: "kiosks", label: "Kiosk tablets", icon: Smartphone, group: "Fleet Operations" },
+  { id: "sync", label: "Fleet sync", icon: RefreshCw, group: "Fleet Operations" },
+
+  { id: "service", label: "Service Queue", icon: Wrench, group: "Maintenance" },
+  { id: "faults", label: "Faults", icon: AlertTriangle, group: "Maintenance" },
+  { id: "parts", label: "Parts", icon: Package, group: "Maintenance" },
+  { id: "schedule", label: "Maintenance Schedule", icon: CalendarClock, group: "Maintenance" },
+  { id: "calendar", label: "Maintenance Calendar", icon: Calendar, group: "Maintenance" },
+  { id: "templates", label: "Inspection Templates", icon: ListChecks, group: "Maintenance" },
+  { id: "inspection-history", label: "Inspection History", icon: History, group: "Maintenance" },
+
+  { id: "checkins", label: "Sign-in log", icon: ClipboardList, group: "Dispatch" },
+  { id: "billing", label: "Completed & billing", icon: Building2, group: "Dispatch" },
+  { id: "messaging", label: "Messaging", icon: Megaphone, group: "Dispatch" },
+  { id: "ads", label: "Advertisements", icon: ImageIcon, group: "Dispatch" },
+
+  { id: "users", label: "Users & roles", icon: Users, group: "Admin" },
+  { id: "companies", label: "Companies", icon: Building2, group: "Admin" },
+  { id: "copilot", label: "AI copilot", icon: Sparkles, group: "Admin" },
+  { id: "data", label: "Data manager", icon: Database, group: "Admin" },
+
+  { id: "profile", label: "My profile", icon: User, group: null },
 ];
+
+const GROUP_ORDER = ["Fleet Operations", "Maintenance", "Dispatch", "Admin"];
 
 export default function AdminShell({ active, onNavigate, children, alertVehicles = [] }) {
   const [open, setOpen] = useState(false);
