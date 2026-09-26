@@ -1,8 +1,10 @@
 import React from "react";
+import { Link } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, Wrench, ClipboardCheck } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { AlertTriangle, Wrench, ClipboardCheck, ExternalLink } from "lucide-react";
 
 // Per-vehicle rollup — port of FleetPilot's VehicleDetail.jsx tabs (faults /
 // maintenance / inspections for one vehicle), shown as a dialog from the
@@ -17,8 +19,11 @@ export default function VehicleHistoryDialog({ vehicle, open, onOpenChange, faul
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
-        <DialogHeader>
+        <DialogHeader className="flex flex-row items-center justify-between gap-2 pr-6">
           <DialogTitle>{vehicle.name} — history</DialogTitle>
+          <Button asChild variant="outline" size="sm">
+            <Link to={`/vehicle/${vehicle.id}`}><ExternalLink className="w-3.5 h-3.5 mr-1.5" /> Full page</Link>
+          </Button>
         </DialogHeader>
         <Tabs defaultValue="faults">
           <TabsList className="w-full">
