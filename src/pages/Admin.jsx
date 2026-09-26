@@ -355,9 +355,7 @@ export default function Admin() {
                 <div className="text-xs text-muted-foreground">Parts</div>
               </button>
             </div>
-            <div className="grid lg:grid-cols-2 gap-4">
-              <RecentActivityFeed onNavigate={go} />
-            </div>
+            <RecentActivityFeed onNavigate={go} />
             <Collapsible open={moreOpen} onOpenChange={setMoreOpen}>
               <CollapsibleTrigger asChild>
                 <Button variant="outline" className="w-full justify-between">
