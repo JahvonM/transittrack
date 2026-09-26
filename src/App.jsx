@@ -44,6 +44,7 @@ const RideHistory = lazy(() => import('@/pages/RideHistory'));
 const FleetAnalytics = lazy(() => import('@/pages/FleetAnalytics'));
 const Notifications = lazy(() => import('@/pages/Notifications'));
 const VehicleRegistry = lazy(() => import('@/pages/VehicleRegistry'));
+const VehicleDetail = lazy(() => import('@/pages/VehicleDetail'));
 const IncidentReport = lazy(() => import('@/pages/IncidentReport'));
 const PassengerSupport = lazy(() => import('@/pages/PassengerSupport'));
 const RoutePlanner = lazy(() => import('@/pages/RoutePlanner'));
@@ -131,6 +132,7 @@ const AuthenticatedApp = () => {
         <Route path="/fleet-analytics" element={<FleetAnalytics />} />
         <Route path="/notifications" element={<Notifications />} />
         <Route path="/vehicle-registry" element={<VehicleRegistry />} />
+        <Route path="/vehicle/:id" element={<VehicleDetail />} />
         <Route path="/incident-report" element={<IncidentReport />} />
         <Route path="/support" element={<PassengerSupport />} />
         <Route path="/route-planner" element={<RoutePlanner />} />
