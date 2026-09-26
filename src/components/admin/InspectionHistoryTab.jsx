@@ -2,7 +2,9 @@ import React, { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ClipboardCheck, ChevronDown, ChevronUp } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { ClipboardCheck, ChevronDown, ChevronUp, Download } from "lucide-react";
+import { exportToPDF } from "@/lib/exporters";
 
 const conditionVariant = (c) => {
   if (c === "GOOD") return "default";
@@ -41,6 +43,30 @@ export default function InspectionHistoryTab({ results = [], vehicles = [] }) {
       map.get(r.section_name).push(r);
     }
     return [...map.entries()];
+  };
+
+  const exportSessionPDF = (first, items) => {
+    const dateStr = first.inspection_date ? new Date(first.inspection_date).toISOString().slice(0, 10) : "unknown-date";
+    const rows = items.map((r) => ({
+      section_name: r.section_name,
+      inspection_item: r.inspection_item,
+      condition: r.condition,
+      notes: r.notes || r.fault_description || "",
+      repair_required: r.repair_required,
+    }));
+    const cols = [
+      { key: "section_name", label: "Section" },
+      { key: "inspection_item", label: "Item" },
+      { key: "condition", label: "Condition" },
+      { key: "notes", label: "Notes" },
+      { key: "repair_required", label: "Repair required" },
+    ];
+    exportToPDF(
+      `${first.vehicle_name}-${first.inspection_name}-${dateStr}`,
+      `${first.vehicle_name} — ${first.inspection_name} Inspection (${dateStr})`,
+      cols,
+      rows
+    );
   };
 
   return (
@@ -84,6 +110,15 @@ export default function InspectionHistoryTab({ results = [], vehicles = [] }) {
                   {failed > 0 && <Badge variant="destructive" className="text-xs">{failed} failed</Badge>}
                   {warning > 0 && <Badge variant="secondary" className="text-xs">{warning} warning</Badge>}
                   {failed === 0 && warning === 0 && <Badge className="text-xs">All good</Badge>}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    onClick={(e) => { e.stopPropagation(); exportSessionPDF(first, items); }}
+                    title="Export PDF"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                  </Button>
                   {expanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
                 </div>
               </CardContent>
