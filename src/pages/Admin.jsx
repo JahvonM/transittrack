@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Navigate, Link, useParams, useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
@@ -24,6 +24,8 @@ import MaintenanceScheduleTab from "@/components/admin/MaintenanceScheduleTab";
 import MaintenanceCalendarTab from "@/components/admin/MaintenanceCalendarTab";
 import InspectionTemplatesTab from "@/components/admin/InspectionTemplatesTab";
 import InspectionHistoryTab from "@/components/admin/InspectionHistoryTab";
+import Sparkline from "@/components/admin/Sparkline";
+import RecentActivityFeed from "@/components/admin/RecentActivityFeed";
 import FleetSyncTab from "@/components/admin/FleetSyncTab";
 import Greeting from "@/components/Greeting";
 import MapboxMap from "@/components/MapboxMap";
@@ -273,6 +275,33 @@ export default function Admin() {
   const liveCount = vehicles.filter((v) => v.status !== "offline").length;
   const openFaultsCount = faults.filter((f) => f.status === "open").length;
   const maintenanceDueCount = schedules.filter((s) => s.status === "due" || s.status === "overdue").length;
+
+  // 7-day daily counts for the two stat tiles where a trend is meaningful
+  // (Trips/Faults have a created_date to bucket by day; Vehicles/Companies/
+  // Parts/Maintenance-due are point-in-time snapshots, not naturally a
+  // trend, so they stay plain numbers).
+  const last7Days = useMemo(() => {
+    const days = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      d.setHours(0, 0, 0, 0);
+      days.push(d);
+    }
+    return days;
+  }, []);
+  const dailyTrend = (records, dateField) =>
+    last7Days.map((d) => {
+      const next = new Date(d);
+      next.setDate(d.getDate() + 1);
+      const value = records.filter((r) => {
+        const t = r[dateField] && new Date(r[dateField]);
+        return t && t >= d && t < next;
+      }).length;
+      return { label: d.toLocaleDateString(undefined, { weekday: "short" }), value };
+    });
+  const tripsTrend = useMemo(() => dailyTrend(trips, "created_date"), [trips, last7Days]);
+  const faultsTrend = useMemo(() => dailyTrend(faults, "created_date"), [faults, last7Days]);
 
   return (
     <>
