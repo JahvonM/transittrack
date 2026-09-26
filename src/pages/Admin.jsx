@@ -334,7 +334,8 @@ export default function Admin() {
               </button>
               <button onClick={() => go("trips")} className="text-left p-4 rounded-xl border bg-card hover:border-primary transition-colors">
                 <div className="text-2xl font-bold">{activeTrips.length}</div>
-                <div className="text-xs text-muted-foreground">Active trips</div>
+                <div className="text-xs text-muted-foreground mb-1.5">Active trips</div>
+                <Sparkline data={tripsTrend} className="text-blue-600 h-6" />
               </button>
               <button onClick={() => go("companies")} className="text-left p-4 rounded-xl border bg-card hover:border-primary transition-colors">
                 <div className="text-2xl font-bold">{companies.length}</div>
@@ -342,7 +343,8 @@ export default function Admin() {
               </button>
               <button onClick={() => go("faults")} className="text-left p-4 rounded-xl border bg-card hover:border-primary transition-colors">
                 <div className="text-2xl font-bold">{openFaultsCount}</div>
-                <div className="text-xs text-muted-foreground">Open faults</div>
+                <div className="text-xs text-muted-foreground mb-1.5">Open faults</div>
+                <Sparkline data={faultsTrend} className="text-destructive h-6" />
               </button>
               <button onClick={() => go("schedule")} className="text-left p-4 rounded-xl border bg-card hover:border-primary transition-colors">
                 <div className="text-2xl font-bold">{maintenanceDueCount}</div>
@@ -352,6 +354,9 @@ export default function Admin() {
                 <div className="text-2xl font-bold">{parts.length}</div>
                 <div className="text-xs text-muted-foreground">Parts</div>
               </button>
+            </div>
+            <div className="grid lg:grid-cols-2 gap-4">
+              <RecentActivityFeed onNavigate={go} />
             </div>
             <Collapsible open={moreOpen} onOpenChange={setMoreOpen}>
               <CollapsibleTrigger asChild>
