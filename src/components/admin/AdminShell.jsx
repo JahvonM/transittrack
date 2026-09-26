@@ -69,29 +69,64 @@ const GROUP_ORDER = ["Fleet Operations", "Maintenance", "Dispatch", "Admin"];
 
 export default function AdminShell({ active, onNavigate, children, alertVehicles = [] }) {
   const [open, setOpen] = useState(false);
+  const [collapsedGroups, setCollapsedGroups] = useState({});
+
+  const toggleGroup = (group) => setCollapsedGroups((prev) => ({ ...prev, [group]: !prev[group] }));
+
+  const renderItem = (s) => {
+    const Icon = s.icon;
+    const isActive = active === s.id;
+    return (
+      <button
+        key={s.id}
+        onClick={() => {
+          onNavigate(s.id);
+          setOpen(false);
+        }}
+        className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
+          isActive
+            ? "bg-primary text-primary-foreground"
+            : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+        }`}
+      >
+        <Icon className="w-4 h-4" /> {s.label}
+      </button>
+    );
+  };
+
+  // Overview stays pinned above every group, My profile below all of
+  // them — everything else renders inside its own labeled, collapsible
+  // cluster so admin/mechanic/dispatch areas read as distinct sections
+  // instead of one long flat list.
+  const topStandalone = ADMIN_SECTIONS.filter((s) => s.group === null && s.id !== "profile");
+  const bottomStandalone = ADMIN_SECTIONS.filter((s) => s.id === "profile");
 
   const NavList = () => (
     <nav className="space-y-1">
-      {ADMIN_SECTIONS.map((s) => {
-        const Icon = s.icon;
-        const isActive = active === s.id;
+      {topStandalone.map(renderItem)}
+
+      {GROUP_ORDER.map((group) => {
+        const items = ADMIN_SECTIONS.filter((s) => s.group === group);
+        const hasActive = items.some((s) => s.id === active);
+        const collapsed = !!collapsedGroups[group] && !hasActive;
         return (
-          <button
-            key={s.id}
-            onClick={() => {
-              onNavigate(s.id);
-              setOpen(false);
-            }}
-            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
-              isActive
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-            }`}
-          >
-            <Icon className="w-4 h-4" /> {s.label}
-          </button>
+          <div key={group} className="pt-3 first:pt-1">
+            <button
+              type="button"
+              onClick={() => toggleGroup(group)}
+              className="w-full flex items-center justify-between px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground/70 hover:text-muted-foreground transition-colors"
+            >
+              <span>{group}</span>
+              <ChevronDown className={`w-3.5 h-3.5 transition-transform ${collapsed ? "-rotate-90" : ""}`} />
+            </button>
+            {!collapsed && <div className="space-y-1 mt-0.5">{items.map(renderItem)}</div>}
+          </div>
         );
       })}
+
+      <div className="pt-3 mt-2 border-t border-border/60">
+        {bottomStandalone.map(renderItem)}
+      </div>
     </nav>
   );
 
