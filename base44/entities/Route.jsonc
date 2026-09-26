@@ -59,6 +59,11 @@
           "user_condition": {
             "role": "admin"
           }
+        },
+        {
+          "user_condition": {
+            "role": "company"
+          }
         }
       ]
     },
@@ -71,6 +76,11 @@
           "user_condition": {
             "role": "admin"
           }
+        },
+        {
+          "user_condition": {
+            "role": "company"
+          }
         }
       ]
     },
@@ -82,6 +92,11 @@
         {
           "user_condition": {
             "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "company"
           }
         }
       ]
