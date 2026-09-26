@@ -11,7 +11,7 @@ import { ListChecks, Plus, Trash2, Save } from "lucide-react";
 const CRITICALITY = ["Low", "Medium", "High", "Critical"];
 
 function emptyTemplate() {
-  return { name: "", company_id: "" };
+  return { name: "", company_id: "", frequency_days: "" };
 }
 
 // Admin-configurable inspection builder — unlike FleetPilot's original
@@ -30,6 +30,8 @@ export default function InspectionTemplatesTab({ templates = [], companies = [],
   const [newSectionName, setNewSectionName] = useState("");
   const [creating, setCreating] = useState(false);
   const [newTemplate, setNewTemplate] = useState(emptyTemplate());
+  const [frequencyDays, setFrequencyDays] = useState("");
+  const [savingFrequency, setSavingFrequency] = useState(false);
 
   const selected = templates.find((t) => t.id === selectedId) || null;
 
@@ -37,8 +39,10 @@ export default function InspectionTemplatesTab({ templates = [], companies = [],
     if (selected) {
       setDraft(JSON.parse(JSON.stringify(selected.sections || [])));
       setDirty(false);
+      setFrequencyDays(selected.frequency_days ? String(selected.frequency_days) : "");
     } else {
       setDraft(null);
+      setFrequencyDays("");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId]);
@@ -104,6 +108,20 @@ export default function InspectionTemplatesTab({ templates = [], companies = [],
     }
   };
 
+  const saveFrequency = async () => {
+    if (!selected) return;
+    setSavingFrequency(true);
+    try {
+      await base44.entities.InspectionTemplate.update(selected.id, { frequency_days: Number(frequencyDays) || 0 });
+      onChange();
+      toast({ title: "Reminder schedule saved" });
+    } catch (e) {
+      toast({ title: "Couldn't save", description: e.message, variant: "destructive" });
+    } finally {
+      setSavingFrequency(false);
+    }
+  };
+
   const createTemplate = async () => {
     if (!newTemplate.name.trim()) return;
     setCreating(true);
@@ -114,6 +132,7 @@ export default function InspectionTemplatesTab({ templates = [], companies = [],
         category: "Vehicle Inspection",
         company_id: newTemplate.company_id || undefined,
         company_name: company?.name || undefined,
+        frequency_days: Number(newTemplate.frequency_days) || 0,
         sections: [],
       });
       setNewTemplate(emptyTemplate());
@@ -193,6 +212,13 @@ export default function InspectionTemplatesTab({ templates = [], companies = [],
                   {companies.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
                 </SelectContent>
               </Select>
+              <Input
+                type="number"
+                min={0}
+                value={newTemplate.frequency_days}
+                onChange={(e) => setNewTemplate((f) => ({ ...f, frequency_days: e.target.value }))}
+                placeholder="Remind every N days (optional)"
+              />
               <Button className="w-full" size="sm" onClick={createTemplate} disabled={creating || !newTemplate.name.trim()}>
                 {creating ? "Creating…" : "Create"}
               </Button>
@@ -213,6 +239,21 @@ export default function InspectionTemplatesTab({ templates = [], companies = [],
                 </Button>
               </CardHeader>
               <CardContent className="space-y-4">
+                <div className="flex items-end gap-2 border rounded-xl p-3">
+                  <div className="flex-1 space-y-1.5">
+                    <label className="text-xs font-medium text-muted-foreground">Remind every N days (blank = no reminders)</label>
+                    <Input
+                      type="number"
+                      min={0}
+                      value={frequencyDays}
+                      onChange={(e) => setFrequencyDays(e.target.value)}
+                      className="h-8"
+                    />
+                  </div>
+                  <Button size="sm" variant="outline" onClick={saveFrequency} disabled={savingFrequency}>
+                    {savingFrequency ? "Saving…" : "Save"}
+                  </Button>
+                </div>
                 {draft.map((section, sIdx) => (
                   <div key={sIdx} className="border rounded-xl p-3 space-y-2">
                     <div className="flex items-center gap-2">
