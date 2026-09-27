@@ -6,10 +6,9 @@ import useSmoothPosition from "@/hooks/useSmoothPosition";
 
 /**
  * A single vehicle pin that glides smoothly to each new GPS position instead
- * of snapping. Styled like a Life360-style member pin: a circular avatar
- * (vehicle photo if we have one, otherwise an icon) framed by a colored ring
- * that reflects live status, sitting on a small pointed tail so it reads as
- * a located pin rather than a floating badge.
+ * of snapping. A dark rounded tile (vehicle photo if we have one, otherwise
+ * an icon) whose border and icon carry the live status color, with a soft
+ * glow while on a trip and a small tail so it reads as a placed pin.
  */
 export default function VehicleMarker({ vehicle, onSelect }) {
   const pos = useSmoothPosition(vehicle.current_lat, vehicle.current_lng);
@@ -17,6 +16,7 @@ export default function VehicleMarker({ vehicle, onSelect }) {
 
   const ring = statusColor(vehicle.status);
   const Icon = vehicle.type === "taxi" ? Car : Bus;
+  const active = vehicle.status === "on_trip";
 
   return (
     <Marker longitude={pos.lng} latitude={pos.lat} anchor="bottom">
@@ -24,32 +24,27 @@ export default function VehicleMarker({ vehicle, onSelect }) {
         onClick={(e) => { e.stopPropagation(); onSelect(vehicle); }}
         className="flex flex-col items-center focus:outline-none"
         title={`${vehicle.name} · ${vehicle.company_name || ""} · ${vehicle.status}`}
+        aria-label={`${vehicle.name}, ${vehicle.status}`}
       >
         <div
-          className="w-11 h-11 rounded-full grid place-items-center shrink-0"
+          className="w-10 h-10 rounded-xl grid place-items-center shrink-0 overflow-hidden"
           style={{
-            backgroundColor: "#fff",
-            border: `3px solid ${ring}`,
-            boxShadow: "0 2px 8px rgba(0,0,0,0.35)",
+            backgroundColor: "#1C1C1F",
+            border: `2px solid ${ring}`,
+            boxShadow: active
+              ? `0 0 0 5px ${ring}2E, 0 6px 14px rgba(0,0,0,0.55)`
+              : "0 6px 14px rgba(0,0,0,0.55)",
           }}
         >
           {vehicle.image_url ? (
-            <img
-              src={vehicle.image_url}
-              alt=""
-              className="w-full h-full rounded-full object-cover"
-            />
+            <img src={vehicle.image_url} alt="" className="w-full h-full object-cover" />
           ) : (
-            <Icon style={{ width: 22, height: 22, color: ring }} />
+            <Icon style={{ width: 20, height: 20, color: ring }} />
           )}
         </div>
-        {/* Small pointed tail beneath the avatar so it reads as a placed pin */}
         <div
-          className="w-3 h-3 -mt-[6px]"
-          style={{
-            backgroundColor: ring,
-            clipPath: "polygon(50% 100%, 0 0, 100% 0)",
-          }}
+          className="w-3 h-2 -mt-px"
+          style={{ backgroundColor: ring, clipPath: "polygon(50% 100%, 0 0, 100% 0)" }}
         />
       </button>
     </Marker>
