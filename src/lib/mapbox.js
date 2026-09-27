@@ -5,6 +5,14 @@ export const MAPBOX_TOKEN =
 // saturated land/water/park colors so the map reads well even before any
 // vehicles are on it (the earlier ultra-light style washed out to near-blank).
 export const MAPBOX_STYLE = "mapbox://styles/mapbox/streets-v12";
+export const MAPBOX_STYLE_DARK = "mapbox://styles/mapbox/dark-v11";
+
+export const mapStyleFor = (isDark) => (isDark ? MAPBOX_STYLE_DARK : MAPBOX_STYLE);
+
+// Route/stop/"you are here" accent drawn on the map. Pure lime on the dark
+// basemap; the deeper olive-lime on the light streets basemap, where pure
+// lime would vanish against pale roads.
+export const mapAccentFor = (isDark) => (isDark ? "#D6F54A" : "#5E7A0A");
 
 // Thresholds (metres / km / kmh)
 export const PROXIMITY_TRIGGER_M = 500;
