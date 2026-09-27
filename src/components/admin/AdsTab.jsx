@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import EmptyState from "@/components/EmptyState";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -64,7 +65,7 @@ export default function AdsTab() {
       <div className="grid lg:grid-cols-[1fr_360px] gap-4">
         <div className="space-y-2">
           {ads.length === 0 && !loading && (
-            <p className="text-sm text-muted-foreground py-8 text-center border rounded-2xl">No ads yet.</p>
+            <div className="border rounded-2xl"><EmptyState text="No ads yet." /></div>
           )}
           {ads.map((ad) => (
             <div key={ad.id} className="flex items-center gap-3 p-3 rounded-xl border bg-card">

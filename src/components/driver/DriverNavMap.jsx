@@ -10,6 +10,7 @@ import useDrivingEta from "@/hooks/useDrivingEta";
 import useSmoothPosition from "@/hooks/useSmoothPosition";
 import AccuracyHalo from "@/components/AccuracyHalo";
 import MapBusPin, { useFacingRight } from "@/components/MapBusPin";
+import TripProgress from "@/components/TripProgress";
 import { Bus, Navigation, MapPin, LocateFixed, Satellite, Flag, RotateCw, ArrowUp, Volume2, VolumeX } from "lucide-react";
 
 // Matches MapboxMap.jsx's declutterStyle: hide POI/transit icon clutter but
@@ -249,6 +250,14 @@ export default function DriverNavMap({ session, invoke }) {
           <OfflineStatusBadge online={online} pendingCount={pendingCount} />
         </div>
       </div>
+      {route?.stops?.length > 1 && pos && (
+        <TripProgress
+          stops={[...route.stops].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))}
+          lat={pos.lat}
+          lng={pos.lng}
+          label={route.name || "Your route"}
+        />
+      )}
       <div className="relative rounded-2xl overflow-hidden border h-[72vh]">
         <Map
           ref={mapRef} mapboxAccessToken={MAPBOX_TOKEN} mapStyle={mapStyleFor(isDark)}

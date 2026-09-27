@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import EmptyState from "@/components/EmptyState";
 import { base44 } from "@/api/base44Client";
 import AppLayout from "@/components/AppLayout";
 import PullToRefresh from "@/components/PullToRefresh";
@@ -91,7 +92,7 @@ export default function DrivingReports() {
             <CardHeader><CardTitle className="text-base flex items-center gap-2"><Gauge className="w-4 h-4 text-primary" /> Driving score by vehicle</CardTitle></CardHeader>
             <CardContent>
               {chartData.length === 0 ? (
-                <p className="text-sm text-muted-foreground py-8 text-center">No vehicles yet.</p>
+                <EmptyState text="No vehicles yet." />
               ) : (
                 <ResponsiveContainer width="100%" height={Math.max(200, chartData.length * 34)}>
                   <BarChart data={chartData} layout="vertical" margin={{ left: 24 }}>

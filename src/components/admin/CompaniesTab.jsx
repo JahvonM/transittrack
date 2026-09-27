@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import EmptyState from "@/components/EmptyState";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -29,7 +30,7 @@ export default function CompaniesTab({ companies, onChange }) {
       </div>
       <div className="space-y-2">
         {companies.length === 0 && (
-          <p className="text-sm text-muted-foreground py-8 text-center border rounded-2xl">No companies yet.</p>
+          <div className="border rounded-2xl"><EmptyState text="No companies yet." /></div>
         )}
         {companies.map((c) => (
           <Card key={c.id}>

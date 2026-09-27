@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import EmptyState from "@/components/EmptyState";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import AppLayout from "@/components/AppLayout";
@@ -70,7 +71,7 @@ export default function DriverSchedule() {
             <Calendar className="w-4 h-4" /> Today's shifts
           </h3>
           <div className="space-y-2">
-            {todayTrips.length === 0 && <p className="text-sm text-muted-foreground">No shifts scheduled for today.</p>}
+            {todayTrips.length === 0 && <EmptyState text="No shifts scheduled for today." />}
             {todayTrips.map((t) => <ShiftCard key={t.id} t={t} />)}
           </div>
         </div>
@@ -80,7 +81,7 @@ export default function DriverSchedule() {
             <Calendar className="w-4 h-4" /> Upcoming
           </h3>
           <div className="space-y-2">
-            {upcoming.length === 0 && <p className="text-sm text-muted-foreground">No upcoming shifts.</p>}
+            {upcoming.length === 0 && <EmptyState text="No upcoming shifts." />}
             {upcoming.map((t) => <ShiftCard key={t.id} t={t} />)}
           </div>
         </div>

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import EmptyState from "@/components/EmptyState";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -146,7 +147,7 @@ export default function CompanyMessages({ vehicles = [] }) {
               </div>
               <div className="flex-1 overflow-y-auto">
                 {chatVehicles.length === 0 && (
-                  <p className="text-sm text-muted-foreground text-center py-10 px-4">No vehicles yet.</p>
+                  <EmptyState text="No vehicles yet." />
                 )}
                 {chatVehicles.map((v) => {
                   const list = messagesByVehicle[v.id] || [];

@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { haversineKm, etaMinutes, formatEta, fetchDrivingRoute } from "@/lib/geo";
+import TripProgress from "@/components/TripProgress";
 
 export default function RouteExplorer({ routes, vehicles }) {
   const [open, setOpen] = useState(false);
@@ -11,6 +12,7 @@ export default function RouteExplorer({ routes, vehicles }) {
   const [drivingByOrder, setDrivingByOrder] = useState({});
 
   const route = routes.find((r) => r.id === routeId) || routes[0];
+  const liveBus = route ? vehicles.find((v) => v.route_id === route.id && v.current_lat != null) : null;
 
   const rows = useMemo(() => {
     if (!route) return [];
@@ -81,6 +83,9 @@ export default function RouteExplorer({ routes, vehicles }) {
                   ))}
                 </SelectContent>
               </Select>
+            )}
+            {liveBus && (
+              <TripProgress stops={route.stops} lat={liveBus.current_lat} lng={liveBus.current_lng} label={liveBus.name + " on " + (route.name || "this route")} />
             )}
             <ol className="space-y-2">
               {rows.map(({ stop, order, best }) => {

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import EmptyState from "@/components/EmptyState";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import AppLayout from "@/components/AppLayout";
@@ -35,7 +36,7 @@ export default function DriverProfile() {
           <Card>
             <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><Bus className="w-4 h-4 text-primary" /> Assigned buses ({vehicles.length})</CardTitle></CardHeader>
             <CardContent className="space-y-2 text-sm">
-              {vehicles.length === 0 && <p className="text-muted-foreground">No vehicles assigned.</p>}
+              {vehicles.length === 0 && <EmptyState text="No vehicles assigned." />}
               {vehicles.map((v) => (
                 <div key={v.id} className="flex items-center justify-between border-b border-border/50 pb-2 last:border-0">
                   <span>{v.name} · {v.plate_number}</span>

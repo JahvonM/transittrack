@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import EmptyState from "@/components/EmptyState";
 import { base44 } from "@/api/base44Client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -89,7 +90,7 @@ function BusCheckIns({ vehicles }) {
       {loading ? (
         <p className="text-sm text-muted-foreground">Loading…</p>
       ) : filtered.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No check-ins recorded yet.</p>
+        <EmptyState text="No check-ins recorded yet." />
       ) : (
         <div className="space-y-2">
           {filtered.map((r) => {
@@ -165,7 +166,7 @@ function VisitorSignIns() {
       {loading ? (
         <p className="text-sm text-muted-foreground">Loading…</p>
       ) : records.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No visitor sign-ins recorded yet.</p>
+        <EmptyState text="No visitor sign-ins recorded yet." />
       ) : (
         <div className="space-y-2">
           {records.map((r) => (

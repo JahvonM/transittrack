@@ -1,4 +1,5 @@
 import React, { useMemo } from "react";
+import EmptyState from "@/components/EmptyState";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 
@@ -29,7 +30,7 @@ export default function FleetAnalytics({ trips, vehicles }) {
       </CardHeader>
       <CardContent>
         {data.length === 0 ? (
-          <p className="text-sm text-muted-foreground py-6 text-center">No trip data yet.</p>
+          <EmptyState text="No trip data yet." />
         ) : (
           <ResponsiveContainer width="100%" height={280}>
             <BarChart data={data}>

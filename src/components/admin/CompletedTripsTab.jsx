@@ -1,4 +1,5 @@
 import React from "react";
+import EmptyState from "@/components/EmptyState";
 import { FileSpreadsheet, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -56,7 +57,7 @@ export default function CompletedTripsTab({ trips }) {
       {completed.length === 0 ? (
         <div className="text-center py-12 border rounded-2xl">
           <FileText className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
-          <p className="text-sm text-muted-foreground">No completed trips yet.</p>
+          <EmptyState text="No completed trips yet." />
         </div>
       ) : (
         <div className="rounded-xl border overflow-x-auto">

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import EmptyState from "@/components/EmptyState";
 import { base44 } from "@/api/base44Client";
 import AppLayout from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -56,7 +57,7 @@ export default function RouteAnalytics() {
               </Card>
             );
           })}
-          {routes.length === 0 && <p className="text-muted-foreground">No routes yet.</p>}
+          {routes.length === 0 && <EmptyState text="No routes yet." />}
         </div>
       )}
     </AppLayout>
