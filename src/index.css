@@ -1,128 +1,91 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
-  /* Clean light theme is the default */
-  :root {
-    --background: 0 0% 100%;
-    --foreground: 222 47% 11%;
-    --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
-    --primary: 199 85% 36%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 210 24% 90%;
-    --secondary-foreground: 222 47% 11%;
-    --muted: 210 24% 90%;
-    --muted-foreground: 215 19% 38%;
-    --accent: 210 24% 88%;
-    --accent-foreground: 222 47% 11%;
-    --destructive: 0 72% 42%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 214 22% 82%;
-    --input: 214 22% 82%;
-    --ring: 199 85% 36%;
-    --chart-1: 199 85% 36%;
-    --chart-2: 142 65% 38%;
-    --chart-3: 38 80% 42%;
-    --chart-4: 27 85% 48%;
-    --chart-5: 262 70% 50%;
-    --radius: 1.25rem;
-    --font-heading: 'Outfit', ui-sans-serif, system-ui, sans-serif;
-    --font-body: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
-    --font-display: 'Outfit', ui-sans-serif, system-ui, sans-serif;
-    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-    --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 222 47% 11%;
-    --sidebar-primary: 199 85% 36%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 210 24% 88%;
-    --sidebar-accent-foreground: 222 47% 11%;
-    --sidebar-border: 214 22% 82%;
-    --sidebar-ring: 199 85% 36%;
-  }
-
-  /* Dark theme follows the OS preference … */
-  @media (prefers-color-scheme: dark) {
-    :root:not(.light) {
-      --background: 222 47% 11%;
-      --foreground: 210 40% 98%;
-      --card: 217 33% 17%;
-      --card-foreground: 210 40% 98%;
-      --popover: 222 47% 13%;
-      --popover-foreground: 210 40% 98%;
-      --primary: 199 89% 60%;
-      --primary-foreground: 222 47% 11%;
-      --secondary: 217 33% 22%;
-      --secondary-foreground: 210 40% 98%;
-      --muted: 217 33% 22%;
-      --muted-foreground: 215 20% 65%;
-      --accent: 217 33% 25%;
-      --accent-foreground: 210 40% 98%;
-      --destructive: 0 72% 51%;
-      --destructive-foreground: 210 40% 98%;
-      --border: 217 19% 27%;
-      --input: 217 19% 27%;
-      --ring: 199 89% 60%;
-      --chart-1: 199 89% 60%;
-      --chart-2: 142 71% 45%;
-      --chart-3: 43 74% 66%;
-      --chart-4: 27 87% 67%;
-      --chart-5: 262 83% 70%;
-      --sidebar-background: 222 47% 11%;
-      --sidebar-foreground: 210 40% 98%;
-      --sidebar-primary: 199 89% 60%;
-      --sidebar-primary-foreground: 222 47% 11%;
-      --sidebar-accent: 217 33% 22%;
-      --sidebar-accent-foreground: 210 40% 98%;
-      --sidebar-border: 217 19% 27%;
-      --sidebar-ring: 199 89% 60%;
-    }
-  }
-
-  /* … and can be forced on explicitly via the .dark class */
+  /* Dark + Lime is the default look: near-black zinc surfaces, one lime
+     accent (#D6F54A) with near-black text on it. */
+  :root,
   .dark {
-    --background: 222 47% 11%;
-    --foreground: 210 40% 98%;
-    --card: 217 33% 17%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222 47% 13%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 199 89% 60%;
-    --primary-foreground: 222 47% 11%;
-    --secondary: 217 33% 22%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217 33% 22%;
-    --muted-foreground: 215 20% 65%;
-    --accent: 217 33% 25%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217 19% 27%;
-    --input: 217 19% 27%;
-    --ring: 199 89% 60%;
-    --chart-1: 199 89% 60%;
-    --chart-2: 142 71% 45%;
-    --chart-3: 43 74% 66%;
-    --chart-4: 27 87% 67%;
-    --chart-5: 262 83% 70%;
+    --background: 240 8% 5%;
+    --foreground: 240 5% 96%;
+    --card: 240 5% 9%;
+    --card-foreground: 240 5% 96%;
+    --popover: 240 5% 10%;
+    --popover-foreground: 240 5% 96%;
+    --primary: 71 90% 63%;
+    --primary-foreground: 240 8% 5%;
+    --secondary: 240 5% 13%;
+    --secondary-foreground: 240 5% 96%;
+    --muted: 240 5% 13%;
+    --muted-foreground: 240 5% 65%;
+    --accent: 240 5% 16%;
+    --accent-foreground: 240 5% 96%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 240 8% 5%;
+    --border: 240 5% 16%;
+    --input: 240 5% 22%;
+    --ring: 71 90% 63%;
+    --chart-1: 71 90% 63%;
+    --chart-2: 160 64% 52%;
+    --chart-3: 43 96% 56%;
+    --chart-4: 25 95% 60%;
+    --chart-5: 262 83% 72%;
     --radius: 1.25rem;
-    --font-heading: 'Outfit', ui-sans-serif, system-ui, sans-serif;
+    --font-heading: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
     --font-body: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
-    --font-display: 'Outfit', ui-sans-serif, system-ui, sans-serif;
+    --font-display: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
     --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-    --sidebar-background: 222 47% 11%;
-    --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 199 89% 60%;
-    --sidebar-primary-foreground: 222 47% 11%;
-    --sidebar-accent: 217 33% 22%;
-    --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 217 19% 27%;
-    --sidebar-ring: 199 89% 60%;
+    --sidebar-background: 240 6% 6%;
+    --sidebar-foreground: 240 5% 96%;
+    --sidebar-primary: 71 90% 63%;
+    --sidebar-primary-foreground: 240 8% 5%;
+    --sidebar-accent: 240 5% 15%;
+    --sidebar-accent-foreground: 240 5% 96%;
+    --sidebar-border: 240 5% 14%;
+    --sidebar-ring: 71 90% 63%;
+    color-scheme: dark;
+  }
+
+  /* Light theme (opt-in via the theme toggle). Pure lime is unreadable as
+     text on white, so primary here is a deep olive-lime that clears 4.5:1
+     both as text on white and under white button text. */
+  .light {
+    --background: 0 0% 100%;
+    --foreground: 240 10% 4%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 4%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 4%;
+    --primary: 75 85% 26%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 240 5% 94%;
+    --secondary-foreground: 240 10% 4%;
+    --muted: 240 5% 94%;
+    --muted-foreground: 240 4% 36%;
+    --accent: 71 70% 92%;
+    --accent-foreground: 240 10% 4%;
+    --destructive: 0 72% 45%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 240 6% 88%;
+    --input: 240 6% 82%;
+    --ring: 75 85% 26%;
+    --chart-1: 75 85% 30%;
+    --chart-2: 160 70% 32%;
+    --chart-3: 38 90% 40%;
+    --chart-4: 25 90% 45%;
+    --chart-5: 262 70% 50%;
+    --sidebar-background: 240 5% 97%;
+    --sidebar-foreground: 240 10% 4%;
+    --sidebar-primary: 75 85% 26%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 5% 94%;
+    --sidebar-accent-foreground: 240 10% 4%;
+    --sidebar-border: 240 6% 88%;
+    --sidebar-ring: 75 85% 26%;
+    color-scheme: light;
   }
 }
 
@@ -134,6 +97,31 @@
   body {
     @apply bg-background text-foreground font-body;
   }
+}
+
+/* Animated bus (components/AnimatedBus.jsx) */
+.tt-wheel {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.tt-wheel-spin { animation: tt-wheel-spin 0.7s linear infinite; }
+.tt-bus-bob { animation: tt-bus-bob 0.9s ease-in-out infinite alternate; }
+.tt-bus-arrive { animation: tt-bus-arrive 1.3s cubic-bezier(.2,.8,.2,1) both; }
+.tt-wheel-arrive { animation: tt-wheel-arrive 1.3s cubic-bezier(.2,.8,.2,1) both; }
+.tt-sky-scroll { animation: tt-sky-scroll 36s linear infinite; }
+.tt-lane-scroll {
+  background-image: repeating-linear-gradient(90deg, hsl(var(--muted-foreground) / 0.35) 0 38px, transparent 38px 76px);
+  background-size: 76px 5px;
+  animation: tt-lane-scroll 0.7s linear infinite;
+}
+@keyframes tt-wheel-spin { from { transform: rotate(0deg); } to { transform: rotate(-360deg); } }
+@keyframes tt-bus-bob { from { transform: translateY(0); } to { transform: translateY(-2px); } }
+@keyframes tt-bus-arrive { 0% { transform: translateX(120%); opacity: 0; } 30% { opacity: 1; } 100% { transform: translateX(0); opacity: 1; } }
+@keyframes tt-wheel-arrive { from { transform: rotate(0deg); } to { transform: rotate(-600deg); } }
+@keyframes tt-sky-scroll { from { transform: translateX(-50%); } to { transform: translateX(0); } }
+@keyframes tt-lane-scroll { from { background-position: 0 0; } to { background-position: 76px 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .tt-wheel-spin, .tt-bus-bob, .tt-bus-arrive, .tt-wheel-arrive, .tt-sky-scroll, .tt-lane-scroll { animation: none !important; }
 }
 
 .bg-grid {
