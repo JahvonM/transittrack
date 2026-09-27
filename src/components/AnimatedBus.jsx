@@ -79,7 +79,7 @@ function Skyline() {
 export function DrivingScene({ height = 200, busWidth = 280, className = "" }) {
   return (
     <div className={`relative overflow-hidden ${className}`} style={{ height }} aria-hidden="true">
-      <div className="absolute left-0 flex tt-sky-scroll" style={{ bottom: 56, width: 1412, height: 200 }}>
+      <div className="absolute left-0 flex tt-sky-scroll" style={{ bottom: 60, width: 1412, height: 200 }}>
         <Skyline />
         <Skyline />
       </div>
