@@ -86,7 +86,9 @@ export function DrivingScene({ height = 200, busWidth = 280, className = "" }) {
       <div className="absolute inset-x-0 bottom-3 h-12 bg-foreground/[0.05] border-t border-foreground/10" />
       <div className="absolute inset-x-0 tt-lane-scroll" style={{ bottom: 18, height: 5 }} />
       <div className="absolute left-1/2 -translate-x-1/2" style={{ bottom: 30 }}>
-        <AnimatedBus mode="drive" width={busWidth} />
+        <div className="tt-bus-arrive">
+          <AnimatedBus mode="drive" width={busWidth} />
+        </div>
       </div>
     </div>
   );
