@@ -4,6 +4,7 @@ import { MAPBOX_TOKEN, mapStyleFor, mapAccentFor } from "@/lib/mapbox";
 import { useIsDark } from "@/lib/useTheme";
 import { Button } from "@/components/ui/button";
 import { Navigation, Bus, MapPin, Flag } from "lucide-react";
+import MapBusPin, { useFacingRight } from "@/components/MapBusPin";
 
 // Simulated test path the demo bus travels along.
 const PATH = [
@@ -48,6 +49,8 @@ export default function ReviewerSandbox() {
     raf.current = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf.current);
   }, [step]);
+
+  const faceRight = useFacingRight(PATH[step].lng);
 
   const trailCoords = useMemo(
     () => PATH.slice(0, step + 1).map((p) => [p.lng, p.lat]),
@@ -109,13 +112,7 @@ export default function ReviewerSandbox() {
           )}
 
           <Marker longitude={displayPos.lng} latitude={displayPos.lat} anchor="bottom">
-            <div className="flex flex-col items-center relative">
-              <div className="absolute top-0 w-11 h-11 rounded-full bg-green-500/25 animate-ping" />
-              <div className="w-11 h-11 rounded-xl grid place-items-center" style={{ backgroundColor: "#1C1C1F", border: `2px solid ${accent}`, boxShadow: `0 0 0 5px ${accent}2E, 0 6px 14px rgba(0,0,0,0.55)` }}>
-                <Bus className="w-5 h-5" style={{ color: accent }} />
-              </div>
-              <div className="w-3 h-3 -mt-[6px]" style={{ backgroundColor: accent, clipPath: "polygon(50% 100%, 0 0, 100% 0)" }} />
-            </div>
+            <MapBusPin color={accent} driving faceRight={faceRight} />
           </Marker>
 
           <Marker longitude={DEST.lng} latitude={DEST.lat} anchor="bottom">
