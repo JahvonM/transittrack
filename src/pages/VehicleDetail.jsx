@@ -87,6 +87,7 @@ export default function VehicleDetail() {
         <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="-ml-2">
           <ArrowLeft className="w-4 h-4 mr-1.5" /> Back
         </Button>
+        <div className="rounded-2xl border border-border bg-card p-5 pb-0 overflow-hidden">
         <div className="flex items-start justify-between flex-wrap gap-3">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-xl bg-primary/10 grid place-items-center shrink-0">
@@ -105,6 +106,15 @@ export default function VehicleDetail() {
               <Badge variant="destructive">{openFaultsCount} open fault{openFaultsCount === 1 ? "" : "s"}</Badge>
             )}
           </div>
+        </div>
+        <div
+          className="relative -mx-5 mt-2 h-28 overflow-hidden"
+          style={{ background: "radial-gradient(80% 100% at 50% 100%, hsl(var(--primary) / 0.18), transparent 70%)" }}
+        >
+          <div className="absolute left-1/2 -translate-x-1/2 bottom-1">
+            <AnimatedBus mode="arrive" width={220} />
+          </div>
+        </div>
         </div>
 
         <Card>
