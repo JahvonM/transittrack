@@ -9,6 +9,7 @@ import { speak, stopSpeaking } from "@/lib/speech";
 import useDrivingEta from "@/hooks/useDrivingEta";
 import useSmoothPosition from "@/hooks/useSmoothPosition";
 import AccuracyHalo from "@/components/AccuracyHalo";
+import MapBusPin, { useFacingRight } from "@/components/MapBusPin";
 import { Bus, Navigation, MapPin, LocateFixed, Satellite, Flag, RotateCw, ArrowUp, Volume2, VolumeX } from "lucide-react";
 
 // Matches MapboxMap.jsx's declutterStyle: hide POI/transit icon clutter but
@@ -230,6 +231,7 @@ export default function DriverNavMap({ session, invoke }) {
   // Smoothly glide the bus icon between raw GPS pings instead of snapping
   // (shorter duration than the fleet map since watchPosition updates more often).
   const smoothPos = useSmoothPosition(pos?.lat, pos?.lng, { duration: 1000 });
+  const faceRight = useFacingRight(pos?.lng);
 
   return (
     <div className="space-y-3">
@@ -269,12 +271,7 @@ export default function DriverNavMap({ session, invoke }) {
             <>
               <AccuracyHalo sourceId="driver-accuracy" lat={smoothPos.lat} lng={smoothPos.lng} accuracy={pos?.accuracy} color={accent} />
               <Marker longitude={smoothPos.lng} latitude={smoothPos.lat} anchor="bottom">
-                <div className="flex flex-col items-center">
-                  <div className="w-11 h-11 rounded-xl grid place-items-center" style={{ backgroundColor: "#1C1C1F", border: `2px solid ${accent}`, boxShadow: `0 0 0 5px ${accent}2E, 0 6px 14px rgba(0,0,0,0.55)` }}>
-                    <Bus className="w-5 h-5" style={{ color: accent }} />
-                  </div>
-                  <div className="w-3 h-3 -mt-[6px]" style={{ backgroundColor: accent, clipPath: "polygon(50% 100%, 0 0, 100% 0)" }} />
-                </div>
+                <MapBusPin color={accent} driving faceRight={faceRight} />
               </Marker>
             </>
           )}
