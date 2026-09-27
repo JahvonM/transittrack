@@ -70,7 +70,7 @@ export default function BookTaxi() {
       <header className="sticky top-0 z-40 h-14 border-b border-border bg-background/70 backdrop-blur-[12px] safe-area-top">
         <div className="max-w-3xl mx-auto px-4 h-full flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2.5 font-heading font-semibold text-lg">
-            <span className="w-8 h-8 rounded-xl bg-sky-400 text-foreground grid place-items-center">
+            <span className="w-8 h-8 rounded-xl bg-primary text-primary-foreground grid place-items-center">
               <Car className="w-4 h-4" />
             </span>
             Book a taxi
