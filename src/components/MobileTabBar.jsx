@@ -82,7 +82,7 @@ export default function MobileTabBar() {
                 active ? "text-primary" : "text-muted-foreground"
               )}
             >
-              <Icon className="w-5 h-5" />
+              <Icon key={active ? "on" : "off"} className={cn("w-5 h-5", active && "tt-pop")} />
               {label}
             </button>
           );

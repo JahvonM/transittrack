@@ -27,7 +27,7 @@ export default function Sparkline({ data, className = "" }) {
   return (
     <div className={`relative ${className}`}>
       <svg viewBox={`0 0 ${w} ${h}`} width="100%" height={h} preserveAspectRatio="none" aria-hidden="true">
-        <path d={path} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        <path d={path} pathLength="1" className="tt-draw" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
         {points.map((p, i) => (
           <circle key={`hit-${id}-${i}`} cx={p.x} cy={p.y} r={6} fill="transparent"
             onMouseEnter={() => setHoverIdx(i)} onMouseLeave={() => setHoverIdx(null)} style={{ cursor: "pointer" }} />

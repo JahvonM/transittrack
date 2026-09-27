@@ -25,6 +25,7 @@ import MaintenanceCalendarTab from "@/components/admin/MaintenanceCalendarTab";
 import InspectionTemplatesTab from "@/components/admin/InspectionTemplatesTab";
 import InspectionHistoryTab from "@/components/admin/InspectionHistoryTab";
 import Sparkline from "@/components/admin/Sparkline";
+import CountUp from "@/components/CountUp";
 import RecentActivityFeed from "@/components/admin/RecentActivityFeed";
 import FleetSyncTab from "@/components/admin/FleetSyncTab";
 import Greeting from "@/components/Greeting";
@@ -107,7 +108,7 @@ const MGMT_LINKS = [
 function Stat({ label, value }) {
   return (
     <div className="p-4 rounded-xl border bg-card">
-      <div className="text-2xl font-bold">{value}</div>
+      <div className="text-2xl font-bold"><CountUp value={value} /></div>
       <div className="text-xs text-muted-foreground">{label}</div>
     </div>
   );
@@ -323,33 +324,33 @@ export default function Admin() {
             </div>
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
               <button onClick={() => go("vehicles")} className="text-left p-4 rounded-xl border bg-card hover:border-primary transition-colors">
-                <div className="text-2xl font-bold">{vehicles.length}</div>
+                <div className="text-2xl font-bold"><CountUp value={vehicles.length} /></div>
                 <div className="text-xs text-muted-foreground">Vehicles</div>
               </button>
               <button onClick={() => go("fleet")} className="text-left p-4 rounded-xl border bg-card hover:border-primary transition-colors">
-                <div className="text-2xl font-bold">{liveCount}</div>
+                <div className="text-2xl font-bold"><CountUp value={liveCount} /></div>
                 <div className="text-xs text-muted-foreground">Live now</div>
               </button>
               <button onClick={() => go("trips")} className="text-left p-4 rounded-xl border bg-card hover:border-primary transition-colors">
-                <div className="text-2xl font-bold">{activeTrips.length}</div>
+                <div className="text-2xl font-bold"><CountUp value={activeTrips.length} /></div>
                 <div className="text-xs text-muted-foreground mb-1.5">Active trips</div>
                 <Sparkline data={tripsTrend} className="text-primary h-6" />
               </button>
               <button onClick={() => go("companies")} className="text-left p-4 rounded-xl border bg-card hover:border-primary transition-colors">
-                <div className="text-2xl font-bold">{companies.length}</div>
+                <div className="text-2xl font-bold"><CountUp value={companies.length} /></div>
                 <div className="text-xs text-muted-foreground">Companies</div>
               </button>
               <button onClick={() => go("faults")} className="text-left p-4 rounded-xl border bg-card hover:border-primary transition-colors">
-                <div className="text-2xl font-bold">{openFaultsCount}</div>
+                <div className="text-2xl font-bold"><CountUp value={openFaultsCount} /></div>
                 <div className="text-xs text-muted-foreground mb-1.5">Open faults</div>
                 <Sparkline data={faultsTrend} className="text-destructive h-6" />
               </button>
               <button onClick={() => go("schedule")} className="text-left p-4 rounded-xl border bg-card hover:border-primary transition-colors">
-                <div className="text-2xl font-bold">{maintenanceDueCount}</div>
+                <div className="text-2xl font-bold"><CountUp value={maintenanceDueCount} /></div>
                 <div className="text-xs text-muted-foreground">Maintenance due</div>
               </button>
               <button onClick={() => go("parts")} className="text-left p-4 rounded-xl border bg-card hover:border-primary transition-colors">
-                <div className="text-2xl font-bold">{parts.length}</div>
+                <div className="text-2xl font-bold"><CountUp value={parts.length} /></div>
                 <div className="text-xs text-muted-foreground">Parts</div>
               </button>
             </div>

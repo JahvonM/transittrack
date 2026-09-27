@@ -106,7 +106,7 @@ export default function RecentActivityFeed({ onNavigate }) {
             <button
               key={e.key}
               onClick={() => onNavigate(e.nav)}
-              className="w-full flex items-center gap-3 p-2.5 rounded-lg hover:bg-accent transition-colors text-left"
+              className="w-full flex items-center gap-3 p-2.5 rounded-lg hover:bg-accent transition-colors text-left animate-in fade-in slide-in-from-top-1 duration-300"
             >
               <div className={`w-8 h-8 rounded-lg grid place-items-center shrink-0 ${meta.bgClass}`}>
                 <Icon className={`w-4 h-4 ${meta.iconClass}`} />
