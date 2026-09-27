@@ -110,7 +110,7 @@ export default function Kiosk() {
   if (status === "pairing")
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/15 via-background to-background">
-        <div className="w-10 h-10 border-4 border-muted border-t-primary rounded-full animate-spin" />
+        <BusLoader label="Connecting this tablet…" />
       </div>
     );
 
