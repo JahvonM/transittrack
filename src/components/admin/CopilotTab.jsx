@@ -56,7 +56,7 @@ export default function CopilotTab() {
   if (loading) {
     return (
       <div className="grid place-items-center py-16 text-muted-foreground">
-        <Loader2 className="w-6 h-6 animate-spin mb-3 text-sky-400" />
+        <Loader2 className="w-6 h-6 animate-spin mb-3 text-primary" />
         Analyzing fleet activity…
       </div>
     );
@@ -78,7 +78,7 @@ export default function CopilotTab() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0">
           <CardTitle className="flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-sky-400" /> Fleet briefing
+            <Sparkles className="w-5 h-5 text-primary" /> Fleet briefing
           </CardTitle>
           <Button variant="outline" size="sm" onClick={load}>
             <RefreshCw className="w-4 h-4 mr-1.5" /> Refresh
@@ -140,7 +140,7 @@ export default function CopilotTab() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Send className="w-5 h-5 text-sky-400" /> Draft broadcast
+              <Send className="w-5 h-5 text-primary" /> Draft broadcast
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">

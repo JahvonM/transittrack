@@ -33,7 +33,7 @@ export default function BusAssistant({ company, userLoc }) {
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
-          <Sparkles className="w-4 h-4 text-sky-400" /> Ask about your bus
+          <Sparkles className="w-4 h-4 text-primary" /> Ask about your bus
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">

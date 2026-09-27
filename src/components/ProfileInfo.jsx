@@ -108,7 +108,7 @@ export default function ProfileInfo({ companyName }) {
           {photoUrl ? (
             <Image src={photoUrl} className="w-14 h-14 rounded-full" fittingType="fill" />
           ) : (
-            <span className="w-14 h-14 rounded-full bg-sky-400/15 text-sky-300 grid place-items-center text-lg font-semibold font-heading">
+            <span className="w-14 h-14 rounded-full bg-primary/15 text-primary grid place-items-center text-lg font-semibold font-heading">
               {initials}
             </span>
           )}
@@ -136,7 +136,7 @@ export default function ProfileInfo({ companyName }) {
             <div className="font-heading font-semibold text-lg truncate">{displayName}</div>
           )}
           <div className="flex flex-wrap items-center gap-2 mt-1">
-            <Badge className="bg-sky-400/15 text-sky-300 border-0 hover:bg-sky-400/25">
+            <Badge className="bg-primary/15 text-primary border-0 hover:bg-primary/25">
               {ROLE_LABEL[user.role] || user.role}
             </Badge>
             {company && (

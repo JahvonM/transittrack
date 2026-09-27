@@ -20,10 +20,10 @@ export default function Greeting({ subtitle }) {
   });
 
   return (
-    <div className="p-5 rounded-2xl border border-slate-700/50 bg-slate-800/60 backdrop-blur-[12px]">
+    <div className="p-5 rounded-2xl border border-border bg-card/60 backdrop-blur-[12px]">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-xs uppercase tracking-[0.2em] text-sky-400 mb-1">{dateStr}</p>
+          <p className="text-xs uppercase tracking-[0.2em] text-primary mb-1">{dateStr}</p>
           <h2 className="text-2xl font-heading font-semibold">
             {greetingWord()}, {name} 👋
           </h2>

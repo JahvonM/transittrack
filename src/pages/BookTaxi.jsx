@@ -66,16 +66,16 @@ export default function BookTaxi() {
   const set = (key) => (e) => setForm({ ...form, [key]: e.target.value });
 
   return (
-    <div className="min-h-screen bg-slate-900 bg-grid text-slate-50">
-      <header className="sticky top-0 z-40 h-14 border-b border-slate-700/50 bg-slate-900/70 backdrop-blur-[12px] safe-area-top">
+    <div className="min-h-screen bg-background bg-grid text-foreground">
+      <header className="sticky top-0 z-40 h-14 border-b border-border bg-background/70 backdrop-blur-[12px] safe-area-top">
         <div className="max-w-3xl mx-auto px-4 h-full flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2.5 font-heading font-semibold text-lg">
-            <span className="w-8 h-8 rounded-xl bg-sky-400 text-slate-900 grid place-items-center">
+            <span className="w-8 h-8 rounded-xl bg-sky-400 text-foreground grid place-items-center">
               <Car className="w-4 h-4" />
             </span>
             Book a taxi
           </Link>
-          <Link to="/" className="text-sm text-slate-400 hover:text-slate-200 inline-flex items-center gap-1">
+          <Link to="/" className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1">
             <ArrowLeft className="w-4 h-4" />Home
           </Link>
         </div>
@@ -83,14 +83,14 @@ export default function BookTaxi() {
 
       <main className="max-w-md mx-auto px-4 pt-10 pb-24 md:pb-10">
         {authed === null ? (
-          <p className="text-sm text-slate-400 text-center">Checking session…</p>
+          <p className="text-sm text-muted-foreground text-center">Checking session…</p>
         ) : authed === false ? (
-          <div className="text-center space-y-4 p-6 rounded-[1.25rem] border border-slate-700/50 bg-slate-800/60 backdrop-blur-[12px]">
-            <Car className="w-10 h-10 text-sky-300 mx-auto" />
+          <div className="text-center space-y-4 p-6 rounded-[1.25rem] border border-border bg-card/60 backdrop-blur-[12px]">
+            <Car className="w-10 h-10 text-primary mx-auto" />
             <h1 className="font-heading font-semibold text-xl">Sign in to book a taxi</h1>
-            <p className="text-sm text-slate-400">You need an account to request a ride.</p>
+            <p className="text-sm text-muted-foreground">You need an account to request a ride.</p>
             <div className="flex flex-col gap-2">
-              <Button asChild className="rounded-full bg-sky-400 text-slate-900 hover:bg-sky-300">
+              <Button asChild className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90">
                 <Link to="/login?returnTo=/book-taxi">Sign in</Link>
               </Button>
               <Button asChild variant="outline" className="rounded-full">
@@ -115,12 +115,12 @@ export default function BookTaxi() {
               <CheckCircle2 className="w-14 h-14 text-emerald-400 mx-auto" />
               <div>
                 <h1 className="font-display font-bold text-2xl">Taxi booked!</h1>
-                <p className="text-slate-400 mt-1">
+                <p className="text-muted-foreground mt-1">
                   We've sent your request to {done.company}. A driver will be assigned shortly.
                 </p>
               </div>
-              <div className="text-xs text-slate-500">Booking ref: {done.trip_id}</div>
-              <Button asChild className="rounded-full bg-sky-400 text-slate-900 hover:bg-sky-300">
+              <div className="text-xs text-muted-foreground">Booking ref: {done.trip_id}</div>
+              <Button asChild className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90">
                 <Link to="/">Back to home</Link>
               </Button>
             </motion.div>
@@ -130,16 +130,16 @@ export default function BookTaxi() {
             onSubmit={submit}
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            className="space-y-4 p-6 rounded-[1.25rem] border border-slate-700/50 bg-slate-800/60 backdrop-blur-[12px]"
+            className="space-y-4 p-6 rounded-[1.25rem] border border-border bg-card/60 backdrop-blur-[12px]"
           >
-            <div className="flex items-center gap-2 text-sky-300">
+            <div className="flex items-center gap-2 text-primary">
               <Car className="w-5 h-5" />
               <h1 className="font-heading font-semibold text-xl">Request a taxi</h1>
             </div>
-            <p className="text-sm text-slate-400 -mt-2">We'll match you with an available taxi operator.</p>
+            <p className="text-sm text-muted-foreground -mt-2">We'll match you with an available taxi operator.</p>
 
             {loading ? (
-              <p className="text-sm text-slate-400">Loading available operators…</p>
+              <p className="text-sm text-muted-foreground">Loading available operators…</p>
             ) : companies.length === 0 ? (
               <p className="text-sm text-amber-400">
                 No taxi operators available right now. Please check back later.
@@ -170,7 +170,7 @@ export default function BookTaxi() {
               <button
                 type="button"
                 onClick={useMyLocation}
-                className="text-xs text-sky-400 inline-flex items-center gap-1"
+                className="text-xs text-primary inline-flex items-center gap-1"
               >
                 <MapPin className="w-3.5 h-3.5" />
                 Use my current location
@@ -182,7 +182,7 @@ export default function BookTaxi() {
             </div>
             <Button
               type="submit"
-              className="w-full rounded-full bg-sky-400 text-slate-900 hover:bg-sky-300"
+              className="w-full rounded-full bg-primary text-primary-foreground hover:bg-primary/90"
               disabled={
                 submitting ||
                 !form.company_id ||

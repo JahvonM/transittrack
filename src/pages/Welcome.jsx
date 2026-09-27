@@ -134,15 +134,15 @@ export default function Welcome() {
 
   if (redirecting) {
     return (
-      <div className="min-h-screen bg-slate-900 grid place-items-center">
-        <div className="w-8 h-8 border-4 border-slate-700 border-t-sky-400 rounded-full animate-spin" />
+      <div className="min-h-screen bg-background grid place-items-center">
+        <div className="w-8 h-8 border-4 border-border border-t-primary rounded-full animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-900 bg-grid text-slate-50">
-      <header className="sticky top-0 z-40 h-14 border-b border-slate-700/50 bg-slate-900/70 backdrop-blur-[12px] safe-area-top">
+    <div className="min-h-screen bg-background bg-grid text-foreground">
+      <header className="sticky top-0 z-40 h-14 border-b border-border bg-background/70 backdrop-blur-[12px] safe-area-top">
         <div className="max-w-6xl mx-auto px-4 h-full flex items-center justify-between gap-3">
           <Link to="/" className="flex items-center gap-2.5 font-heading font-semibold text-lg">
             <Logo className="w-8 h-8" />
@@ -150,24 +150,24 @@ export default function Welcome() {
           </Link>
           <div className="flex items-center gap-2 sm:gap-3">
             <WeatherWidget variant="chip" />
-            <LiveClock className="hidden sm:block text-xs text-slate-400" />
+            <LiveClock className="hidden sm:block text-xs text-muted-foreground" />
             {isAuthenticated ? (
               <>
-                <span className="hidden sm:grid w-9 h-9 rounded-full bg-sky-400/15 text-sky-300 place-items-center text-xs font-semibold shrink-0">
+                <span className="hidden sm:grid w-9 h-9 rounded-full bg-primary/15 text-primary place-items-center text-xs font-semibold shrink-0">
                   {initials}
                 </span>
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => logout()}
-                  className="text-slate-300 hover:text-slate-50"
+                  className="text-foreground/80 hover:text-foreground"
                 >
                   <LogOut className="w-4 h-4" />
                   <span className="hidden sm:inline ml-1.5">Sign out</span>
                 </Button>
               </>
             ) : (
-              <Button asChild size="sm" className="rounded-full bg-sky-400 text-slate-900 hover:bg-sky-300">
+              <Button asChild size="sm" className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90">
                 <Link to="/login">
                   <LogIn className="w-4 h-4 mr-1.5" />
                   Sign in
@@ -180,7 +180,7 @@ export default function Welcome() {
 
       <section className="relative min-h-[calc(100vh-3.5rem)] flex flex-col items-center justify-center text-center px-4 py-16">
         <motion.div variants={stagger} initial="hidden" animate="show" className="max-w-3xl space-y-6">
-          <motion.p variants={rise} className="text-xs sm:text-sm uppercase tracking-[0.25em] text-sky-400">
+          <motion.p variants={rise} className="text-xs sm:text-sm uppercase tracking-[0.25em] text-primary">
             {dateStr}
           </motion.p>
           <motion.h1
@@ -190,15 +190,15 @@ export default function Welcome() {
           >
             {isAuthenticated ? `Hello, ${firstName}` : "Welcome to Transit Hub"}
           </motion.h1>
-          <motion.p variants={rise} className="text-slate-400">
+          <motion.p variants={rise} className="text-muted-foreground">
             {isAuthenticated
               ? `${greetingWord()} — pick up right where you left off.`
               : "Live tracking for buses and taxis. Choose a role below or sign in to get moving."}
           </motion.p>
           <motion.div variants={rise} className="flex flex-wrap items-center justify-center gap-3">
             <WeatherWidget variant="hero" />
-            <span className="flex items-center gap-2 px-4 py-2 rounded-full border border-slate-700/50 bg-slate-800/60 backdrop-blur-[12px]">
-              <Clock className="w-4 h-4 text-sky-400" />
+            <span className="flex items-center gap-2 px-4 py-2 rounded-full border border-border bg-card/60 backdrop-blur-[12px]">
+              <Clock className="w-4 h-4 text-primary" />
               <LiveClock className="text-base" />
             </span>
           </motion.div>
@@ -207,7 +207,7 @@ export default function Welcome() {
               <Button
                 asChild
                 size="lg"
-                className="w-full sm:w-auto rounded-full px-8 bg-sky-400 text-slate-900 hover:bg-sky-300"
+                className="w-full sm:w-auto rounded-full px-8 bg-primary text-primary-foreground hover:bg-primary/90"
               >
                 <Link to="/login">Sign in</Link>
               </Button>
@@ -215,7 +215,7 @@ export default function Welcome() {
                 asChild
                 variant="outline"
                 size="lg"
-                className="w-full sm:w-auto rounded-full px-8 border-slate-700/50 bg-slate-800/60 hover:bg-slate-800 text-slate-50"
+                className="w-full sm:w-auto rounded-full px-8 border-border bg-card/60 hover:bg-card text-foreground"
               >
                 <Link to="/register">Create account</Link>
               </Button>
@@ -227,7 +227,7 @@ export default function Welcome() {
               asChild
               variant="outline"
               size="lg"
-              className="rounded-full px-8 border-sky-400/40 bg-sky-400/10 text-sky-300 hover:bg-sky-400/20"
+              className="rounded-full px-8 border-primary/40 bg-primary/10 text-primary hover:bg-primary/20"
             >
               <Link to="/book-taxi">
                 <Car className="w-4 h-4 mr-1.5" />
@@ -255,19 +255,19 @@ export default function Welcome() {
                 variants={rise}
                 whileHover={{ y: -4 }}
                 onClick={() => open(r.to)}
-                className="group text-left p-6 rounded-[1.25rem] border border-slate-700/50 bg-slate-800/60 backdrop-blur-[12px] transition-shadow hover:border-sky-400/60 hover:shadow-[0_0_30px_-6px_rgba(56,189,248,0.4)]"
+                className="group text-left p-6 rounded-[1.25rem] border border-border bg-card/60 backdrop-blur-[12px] transition-shadow hover:border-primary/60 hover:shadow-[0_0_30px_-6px_rgba(214,245,74,0.4)]"
               >
-                <div className="w-11 h-11 rounded-full bg-sky-400/15 text-sky-400 grid place-items-center mb-4">
+                <div className="w-11 h-11 rounded-full bg-primary/15 text-primary grid place-items-center mb-4">
                   <Icon className="w-5 h-5" />
                 </div>
                 <h2 className="font-heading font-semibold text-xl mb-1">{r.title}</h2>
-                <p className="text-sm text-slate-400">{r.blurb}</p>
+                <p className="text-sm text-muted-foreground">{r.blurb}</p>
                 <div className="mt-5 flex items-center justify-between">
                   <span className="text-xs text-emerald-400 inline-flex items-center gap-1.5">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                     {preview[key] || (isAuthenticated ? "Open" : "Sign in to continue")}
                   </span>
-                  <ChevronRight className="w-4 h-4 text-slate-500 group-hover:text-sky-400" />
+                  <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-primary" />
                 </div>
               </motion.button>
             );

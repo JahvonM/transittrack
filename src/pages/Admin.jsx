@@ -335,7 +335,7 @@ export default function Admin() {
               <button onClick={() => go("trips")} className="text-left p-4 rounded-xl border bg-card hover:border-primary transition-colors">
                 <div className="text-2xl font-bold">{activeTrips.length}</div>
                 <div className="text-xs text-muted-foreground mb-1.5">Active trips</div>
-                <Sparkline data={tripsTrend} className="text-blue-600 h-6" />
+                <Sparkline data={tripsTrend} className="text-primary h-6" />
               </button>
               <button onClick={() => go("companies")} className="text-left p-4 rounded-xl border bg-card hover:border-primary transition-colors">
                 <div className="text-2xl font-bold">{companies.length}</div>

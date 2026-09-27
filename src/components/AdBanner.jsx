@@ -18,13 +18,13 @@ export default function AdBanner() {
   const ad = visible[0];
 
   return (
-    <div className="relative flex items-center gap-3 p-3 rounded-xl border border-sky-500/30 bg-sky-500/10">
-      <Megaphone className="w-5 h-5 text-sky-400 shrink-0" />
+    <div className="relative flex items-center gap-3 p-3 rounded-xl border border-primary/30 bg-primary/10">
+      <Megaphone className="w-5 h-5 text-primary shrink-0" />
       <div className="flex-1 min-w-0">
         {ad.title && <div className="font-medium text-sm">{ad.title}</div>}
         {ad.message && <div className="text-xs text-muted-foreground">{ad.message}</div>}
         {ad.link && /^https?:\/\//i.test(ad.link) && (
-          <a href={ad.link} target="_blank" rel="noreferrer" className="text-xs text-sky-400 underline">
+          <a href={ad.link} target="_blank" rel="noreferrer" className="text-xs text-primary underline">
             Learn more
           </a>
         )}
