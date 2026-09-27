@@ -279,17 +279,15 @@ export default function Admin() {
   // 7-day daily counts for the two stat tiles where a trend is meaningful
   // (Trips/Faults have a created_date to bucket by day; Vehicles/Companies/
   // Parts/Maintenance-due are point-in-time snapshots, not naturally a
-  // trend, so they stay plain numbers).
-  const last7Days = useMemo(() => {
-    const days = [];
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      d.setHours(0, 0, 0, 0);
-      days.push(d);
-    }
-    return days;
-  }, []);
+  // trend, so they stay plain numbers). Plain computation, not useMemo: this
+  // runs after the early returns above, where hooks aren't allowed.
+  const last7Days = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    d.setHours(0, 0, 0, 0);
+    last7Days.push(d);
+  }
   const dailyTrend = (records, dateField) =>
     last7Days.map((d) => {
       const next = new Date(d);
@@ -300,8 +298,8 @@ export default function Admin() {
       }).length;
       return { label: d.toLocaleDateString(undefined, { weekday: "short" }), value };
     });
-  const tripsTrend = useMemo(() => dailyTrend(trips, "created_date"), [trips, last7Days]);
-  const faultsTrend = useMemo(() => dailyTrend(faults, "created_date"), [faults, last7Days]);
+  const tripsTrend = dailyTrend(trips, "created_date");
+  const faultsTrend = dailyTrend(faults, "created_date");
 
   return (
     <>
