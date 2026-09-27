@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from "react";
+import BusLoader from "@/components/BusLoader";
+import { DrivingScene } from "@/components/AnimatedBus";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useAuth } from "@/lib/AuthContext";
@@ -197,6 +199,13 @@ export default function Welcome() {
               ? `${greetingWord()} — pick up right where you left off.`
               : "Live tracking for buses and taxis. Choose a role below or sign in to get moving."}
           </motion.p>
+          <motion.div
+            variants={rise}
+            className="-mx-4 sm:mx-0 rounded-3xl overflow-hidden"
+            style={{ background: "radial-gradient(70% 100% at 50% 100%, hsl(var(--primary) / 0.16), transparent 70%)" }}
+          >
+            <DrivingScene height={170} busWidth={220} />
+          </motion.div>
           <motion.div variants={rise} className="flex flex-wrap items-center justify-center gap-3">
             <WeatherWidget variant="hero" />
             <span className="flex items-center gap-2 px-4 py-2 rounded-full border border-border bg-card/60 backdrop-blur-[12px]">
