@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 
-const STORAGE_KEY = "tt-theme";
+// v2: the old key was written on every mount (not just explicit choices), so
+// it can't tell a real preference from an OS default — reset once for the
+// dark + lime redesign.
+const STORAGE_KEY = "tt-theme-v2";
 
 function applyClass(theme) {
   const root = document.documentElement;
