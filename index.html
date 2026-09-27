@@ -6,13 +6,13 @@
     <link rel="apple-touch-icon" href="https://media.base44.com/images/public/6a98b192be27b5f9635020ba/816fbe4ae_b65f2f18-9838-4b11-9bc9-24fadae4e868.jpeg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no, maximum-scale=1.0, minimum-scale=1.0" />
     <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#0B0B0D" />
+    <style>html.dark, html:not(.light) { background: #0B0B0D; } html.light { background: #ffffff; }</style>
     <script>
       (function () {
         try {
           var t = localStorage.getItem("tt-theme");
-          if (t !== "dark" && t !== "light") {
-            t = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-          }
+          if (t !== "dark" && t !== "light") t = "dark";
           var root = document.documentElement;
           root.classList.remove("dark", "light");
           root.classList.add(t);
