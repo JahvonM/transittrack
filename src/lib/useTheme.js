@@ -21,6 +21,20 @@ function initialTheme() {
   return "dark";
 }
 
+// Tracks the live <html> class rather than holding its own state, so
+// components that only need to *react* to the theme (e.g. picking a map
+// style) update the moment any toggle anywhere flips it.
+export function useIsDark() {
+  const read = () => !document.documentElement.classList.contains("light");
+  const [isDark, setIsDark] = useState(read);
+  useEffect(() => {
+    const obs = new MutationObserver(() => setIsDark(read()));
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+    return () => obs.disconnect();
+  }, []);
+  return isDark;
+}
+
 export function useTheme() {
   const [theme, setTheme] = useState(initialTheme);
 
