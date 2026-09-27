@@ -135,7 +135,7 @@ export default function Welcome() {
   if (redirecting) {
     return (
       <div className="min-h-screen bg-background grid place-items-center">
-        <div className="w-8 h-8 border-4 border-border border-t-primary rounded-full animate-spin" />
+        <BusLoader />
       </div>
     );
   }
