@@ -2,7 +2,8 @@ import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import mapboxgl from "mapbox-gl";
 import Map, { Marker, Source, Layer, Popup, NavigationControl } from "react-map-gl";
-import { MAPBOX_TOKEN, MAPBOX_STYLE } from "@/lib/mapbox";
+import { MAPBOX_TOKEN, mapStyleFor, mapAccentFor } from "@/lib/mapbox";
+import { useIsDark } from "@/lib/useTheme";
 import { Bus, LocateFixed, Maximize2, Minimize2, Satellite, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Image } from "@/components/ui/image";
@@ -70,6 +71,8 @@ export default function MapboxMap({
   const [isSatellite, setIsSatellite] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [mapLoaded, setMapLoaded] = useState(false);
+  const isDark = useIsDark();
+  const accent = mapAccentFor(isDark);
 
   const currentUserLocation = userLocation;
 
@@ -80,7 +83,7 @@ export default function MapboxMap({
       .map((v) => ({ lng: v.current_lng, lat: v.current_lat, color: statusColor(v.status), label: v.name })),
     ...(stops || [])
       .filter((s) => s.lat != null)
-      .map((s) => ({ lng: s.lng, lat: s.lat, color: "#0ea5e9", label: s.name })),
+      .map((s) => ({ lng: s.lng, lat: s.lat, color: accent, label: s.name })),
     ...(pins || [])
       .filter((p) => p.lat != null && p.lng != null)
       .map((p) => ({ lng: p.lng, lat: p.lat, color: p.color || "#34d399", label: p.label })),
@@ -164,14 +167,14 @@ export default function MapboxMap({
     map.flyTo({ center: [loc.lng, loc.lat], zoom: Math.max(map.getZoom(), 15), duration: 800 });
   };
 
-  // Re-apply decluttering after switching street ↔ satellite — changing mapStyle
-  // swaps the whole style, and onLoad only fires once on the very first load.
+  // Re-apply decluttering after switching street ↔ satellite or light ↔ dark —
+  // changing mapStyle swaps the whole style, and onLoad only fires once.
   useEffect(() => {
     const map = mapRef.current;
     if (!map || isSatellite) return;
     if (map.isStyleLoaded && map.isStyleLoaded()) declutterStyle(map);
     else map.once("styledata", () => declutterStyle(map));
-  }, [isSatellite]);
+  }, [isSatellite, isDark]);
 
   const initViewport = center
     ? { longitude: center[0], latitude: center[1], zoom: 14 }
@@ -241,7 +244,7 @@ export default function MapboxMap({
       <Map
         ref={mapRef}
         mapboxAccessToken={MAPBOX_TOKEN}
-        mapStyle={isSatellite ? "mapbox://styles/mapbox/satellite-streets-v12" : MAPBOX_STYLE}
+        mapStyle={isSatellite ? "mapbox://styles/mapbox/satellite-streets-v12" : mapStyleFor(isDark)}
         initialViewState={initViewport}
         style={{ width: "100%", height: "100%" }}
         interactive={interactive}
@@ -259,8 +262,8 @@ export default function MapboxMap({
               type="line"
               paint={
                 routeFollowsRoads
-                  ? { "line-color": "#0ea5e9", "line-width": 4, "line-opacity": 0.85 }
-                  : { "line-color": "#0ea5e9", "line-width": 3, "line-opacity": 0.7, "line-dasharray": [2, 2] }
+                  ? { "line-color": accent, "line-width": 4, "line-opacity": 0.9 }
+                  : { "line-color": accent, "line-width": 3, "line-opacity": 0.7, "line-dasharray": [2, 2] }
               }
             />
           </Source>
@@ -277,7 +280,7 @@ export default function MapboxMap({
             <Layer
               id={`${t.id}-line`}
               type="line"
-              paint={{ "line-color": "#38bdf8", "line-width": 3, "line-opacity": 0.55 }}
+              paint={{ "line-color": accent, "line-width": 3, "line-opacity": 0.4 }}
             />
           </Source>
         ))}
@@ -297,8 +300,8 @@ export default function MapboxMap({
         {(stops || []).filter((s) => s.lat != null).map((s, i) => (
           <Marker key={`stop-${i}`} longitude={s.lng} latitude={s.lat} anchor="center">
             <div
-              className="w-4 h-4 rounded-full border-[2.5px] border-white shadow-md"
-              style={{ backgroundColor: "#0ea5e9" }}
+              className="w-4 h-4 rounded-full border-[2.5px] shadow-md"
+              style={{ backgroundColor: accent, borderColor: "#0B0B0D" }}
               title={s.name}
             />
           </Marker>
@@ -321,12 +324,12 @@ export default function MapboxMap({
               lat={currentUserLocation.lat}
               lng={currentUserLocation.lng}
               accuracy={currentUserLocation.accuracy}
-              color="#3b82f6"
+              color={accent}
             />
             <Marker key="user-loc" longitude={currentUserLocation.lng} latitude={currentUserLocation.lat} anchor="center">
               <div className="relative">
-                <div className="w-4 h-4 rounded-full bg-blue-500 border-2 border-white shadow-lg" />
-                <div className="absolute inset-0 w-4 h-4 rounded-full bg-blue-500 animate-ping opacity-40" />
+                <div className="absolute inset-0 w-4 h-4 rounded-full animate-ping opacity-50" style={{ backgroundColor: accent }} />
+                <div className="relative w-4 h-4 rounded-full border-[3px] shadow-lg" style={{ backgroundColor: accent, borderColor: "#0B0B0D" }} />
               </div>
             </Marker>
           </>
@@ -351,8 +354,8 @@ export default function MapboxMap({
           <div className="rounded-2xl border border-border bg-card/95 backdrop-blur-md shadow-2xl overflow-hidden">
             <div className="relative flex items-center gap-3 px-4 pt-4">
               <div
-                className="w-14 h-14 rounded-full grid place-items-center shrink-0 bg-white overflow-hidden"
-                style={{ border: `3px solid ${statusColor(selectedVehicle.status)}`, boxShadow: "0 2px 8px rgba(0,0,0,0.2)" }}
+                className="w-14 h-14 rounded-2xl grid place-items-center shrink-0 overflow-hidden"
+                style={{ backgroundColor: "#1C1C1F", border: `2px solid ${statusColor(selectedVehicle.status)}`, boxShadow: "0 2px 8px rgba(0,0,0,0.3)" }}
               >
                 {selectedVehicle.image_url ? (
                   <Image src={selectedVehicle.image_url} alt={selectedVehicle.name} fittingType="fill" className="w-full h-full" />
