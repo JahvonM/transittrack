@@ -1,6 +1,6 @@
 import { chromium } from "@playwright/test";
 const base = "https://eager-transit-track-go.base44.app";
-const route = { id: "r1", name: "R4 Harbour loop", company_id: "c1", stops: [
+const route = { id: "r1", name: "R4 Harbour loop", company_id: "c1", active: true, stops: [
   { name: "Depot", lat: 12.040, lng: -61.760, order: 0 },
   { name: "Market St", lat: 12.050, lng: -61.750, order: 1 },
   { name: "Bay St", lat: 12.060, lng: -61.740, order: 2 },
@@ -42,14 +42,17 @@ await ctx.close();
 console.log("welcome/home driving scene:", await p.locator(".tt-sky-scroll").count(), "| page fade", await p.locator(".tt-page-in").count(), "| errors", errs);
 await ctx.close();
 
-({ p, ctx, errs } = await page("/admin/fleet", true));
-const btn = p.getByRole("button", { name: /route explorer/i });
-console.log("route explorer button:", await btn.count());
-if (await btn.count()) {
-  await btn.first().click();
-  await p.waitForTimeout(1500);
-  console.log("trip progress 'Next:'", await p.locator("text=/Next: /").count(), "| moving bus", await p.locator('[role="dialog"] .tt-wheel-spin').count());
-}
-console.log("errors", errs);
+({ p, ctx, errs } = await page("/route-explorer", true));
+await p.getByRole("button", { name: /R4 Harbour loop/ }).first().click().catch((e) => errs.push("click " + e));
+await p.waitForTimeout(1500);
+console.log("route explorer: trip progress", await p.locator("text=/Next: /").count(), "| next label:", await p.locator("text=/Next: /").first().textContent().catch(() => null), "| moving bus in strip", await p.locator(".rounded-2xl .tt-wheel-spin").count(), "| errors", errs);
+await p.screenshot({ path: "/tmp/shots/progress.jpg", type: "jpeg", quality: 75, clip: { x: 0, y: 0, width: 1100, height: 320 } });
 await ctx.close();
+
+const ctx2 = await b.newContext({ viewport: { width: 390, height: 844 } });
+const p2 = await ctx2.newPage();
+await p2.goto(base + "/", { waitUntil: "domcontentloaded" });
+await p2.waitForTimeout(5000);
+console.log("welcome signed-out: driving scene", await p2.locator(".tt-sky-scroll").count());
+await ctx2.close();
 await b.close();
