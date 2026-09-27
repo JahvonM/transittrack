@@ -55,7 +55,7 @@ const LocationTimeline = lazy(() => import('@/pages/LocationTimeline'));
 
 const RouteFallback = () => (
   <div className="fixed inset-0 flex items-center justify-center">
-    <div className="w-8 h-8 border-4 border-muted border-t-primary rounded-full animate-spin" />
+    <BusLoader />
   </div>
 );
 
@@ -67,7 +67,7 @@ const AuthenticatedApp = () => {
   if (isLoadingPublicSettings || isLoadingAuth) {
     return (
       <div className="fixed inset-0 flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-muted border-t-primary rounded-full animate-spin"></div>
+        <BusLoader />
       </div>
     );
   }
