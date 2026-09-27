@@ -14,6 +14,7 @@ import WeatherWidget from "@/components/WeatherWidget";
 import QrScanner from "./QrScanner";
 import SlideToUnlock from "./SlideToUnlock";
 import KioskMascot from "./KioskMascot";
+import { DrivingScene } from "@/components/AnimatedBus";
 
 const CODE_MAX_LEN = 6;
 const FLUSH_INTERVAL_MS = 15000;
@@ -436,7 +437,7 @@ export default function BusBoardingKiosk({ invoke, device }) {
 
   if (!unlocked) {
     actionContent = (
-      <Screen modeKey="lock" className="p-10 text-center space-y-10">
+      <Screen modeKey="lock" className="p-10 text-center space-y-8">
         <div>
           <p className="text-7xl lg:text-8xl font-heading font-bold tabular-nums tracking-tight">
             {now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
@@ -446,6 +447,7 @@ export default function BusBoardingKiosk({ invoke, device }) {
           </p>
         </div>
         {device?.vehicle_name && <p className="text-xl font-semibold text-muted-foreground">{device.vehicle_name}</p>}
+        <DrivingScene height={190} busWidth={260} className="-mx-10" />
         <SlideToUnlock label="Slide to check in" onUnlock={() => setUnlocked(true)} />
       </Screen>
     );
