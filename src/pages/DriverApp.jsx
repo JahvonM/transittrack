@@ -212,12 +212,12 @@ export default function DriverApp() {
 
   if (!deviceId) {
     if (autoPairing)
-      return <div className="min-h-screen flex items-center justify-center"><div className="w-8 h-8 border-4 border-muted border-t-primary rounded-full animate-spin" /></div>;
+      return <div className="min-h-screen flex items-center justify-center"><BusLoader /></div>;
     return <DriverPairing onPaired={handlePaired} />;
   }
 
   if (loading && !session)
-    return <div className="min-h-screen flex items-center justify-center"><div className="w-8 h-8 border-4 border-muted border-t-primary rounded-full animate-spin" /></div>;
+    return <div className="min-h-screen flex items-center justify-center"><BusLoader /></div>;
 
   if (!session?.vehicle)
     return (
