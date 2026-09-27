@@ -14,7 +14,7 @@ import WeatherWidget from "@/components/WeatherWidget";
 import QrScanner from "./QrScanner";
 import SlideToUnlock from "./SlideToUnlock";
 import KioskMascot from "./KioskMascot";
-import { DrivingScene } from "@/components/AnimatedBus";
+import AnimatedBus, { DrivingScene } from "@/components/AnimatedBus";
 
 const CODE_MAX_LEN = 6;
 const FLUSH_INTERVAL_MS = 15000;
@@ -495,6 +495,11 @@ export default function BusBoardingKiosk({ invoke, device }) {
     actionContent = (
       <Card className={`rounded-3xl shadow-xl border-border/60 overflow-hidden bg-gradient-to-b ${boarded ? "from-emerald-500/15" : "from-sky-500/15"} to-transparent`}>
         <CardContent key="result" className="p-10 text-center space-y-4 animate-in fade-in zoom-in-90 duration-500">
+          {boarded && (
+            <div className="flex justify-center -mb-2">
+              <AnimatedBus mode="arrive" width={220} doorOpen />
+            </div>
+          )}
           <div className="flex items-center justify-center gap-3">
             <div className={`w-24 h-24 rounded-full grid place-items-center ${boarded ? "bg-emerald-500/15" : "bg-sky-500/15"} animate-in zoom-in spin-in-6 duration-500`}>
               <CheckCircle2 className={`w-14 h-14 ${boarded ? "text-emerald-500" : "text-sky-500"}`} />
