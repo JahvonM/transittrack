@@ -4,6 +4,8 @@ import AppLayout from "@/components/AppLayout";
 import MapboxMap from "@/components/MapboxMap";
 import { Badge } from "@/components/ui/badge";
 import { Route as RouteIcon } from "lucide-react";
+import BusLoader from "@/components/BusLoader";
+import TripProgress from "@/components/TripProgress";
 
 export default function RouteExplorer() {
   const [routes, setRoutes] = useState([]);
@@ -19,10 +21,13 @@ export default function RouteExplorer() {
 
   const allStops = routes.flatMap((r) => (r.stops || []).map((s) => ({ ...s, name: `${s.name} (${r.name})` })));
   const shownVehicles = active ? vehicles.filter((v) => v.route_id === active) : vehicles;
+  const activeRoute = active ? routes.find((r) => r.id === active) : null;
+  const orderedStops = activeRoute ? [...(activeRoute.stops || [])].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)) : [];
+  const busesOnRoute = shownVehicles.filter((v) => v.current_lat != null && v.status !== "offline");
 
   return (
     <AppLayout title="Route explorer">
-      {loading ? <p className="text-muted-foreground">Loading…</p> : (
+      {loading ? <BusLoader label="Loading routes…" className="py-10" /> : (
         <div className="space-y-4">
           <div className="flex flex-wrap gap-2">
             <button onClick={() => setActive(null)} className={`px-3 py-1.5 rounded-lg text-sm border transition-colors ${!active ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-accent"}`}>All routes</button>
@@ -32,6 +37,15 @@ export default function RouteExplorer() {
               </button>
             ))}
           </div>
+          {activeRoute && orderedStops.length > 1 && busesOnRoute.map((v) => (
+            <TripProgress
+              key={v.id}
+              stops={orderedStops}
+              lat={v.current_lat}
+              lng={v.current_lng}
+              label={`${v.name} · ${activeRoute.name}`}
+            />
+          ))}
           <div className="rounded-xl overflow-hidden border border-border">
             <MapboxMap vehicles={shownVehicles} stops={active ? (routes.find((r) => r.id === active)?.stops || []) : allStops} height="48vh" />
           </div>
