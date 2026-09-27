@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import Map, { Marker } from "react-map-gl";
-import { MAPBOX_TOKEN, mapStyleFor, mapAccentFor } from "@/lib/mapbox";
+import { MAPBOX_TOKEN, mapStyleFor } from "@/lib/mapbox";
 import { useIsDark } from "@/lib/useTheme";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -25,7 +25,6 @@ function declutterStyle(map) {
  */
 export default function LocationPicker({ lat, lng, onChange }) {
   const isDark = useIsDark();
-  const accent = mapAccentFor(isDark);
   const [viewport, setViewport] = useState({
     longitude: lng ?? -61.7,
     latitude: lat ?? 12.05,
