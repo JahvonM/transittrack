@@ -5,7 +5,8 @@ import React from "react";
 //   mode="arrive": slides in from the right once, wheels rolling to a stop
 //   mode="drive":  stays put, wheels spin and body bobs (pair with DrivingScene)
 //   mode="still":  no motion
-export default function AnimatedBus({ mode = "arrive", width = 240, className = "" }) {
+//   doorOpen: after arriving, the door slides open onto a lit interior
+export default function AnimatedBus({ mode = "arrive", width = 240, className = "", doorOpen = false }) {
   const height = Math.round((width * 112) / 240);
   const wheelClass = mode === "arrive" ? "tt-wheel tt-wheel-arrive" : mode === "drive" ? "tt-wheel tt-wheel-spin" : "tt-wheel";
   const outerClass = mode === "arrive" ? "tt-bus-arrive" : "";
@@ -31,8 +32,18 @@ export default function AnimatedBus({ mode = "arrive", width = 240, className = 
           <rect x="10" y="76" width="220" height="14" rx="5" fill="#2A2A2E" />
           <path d="M15 40 C15 26 19 16 30 16 H42 V56 H15 Z" fill="#18181B" />
           <rect x="21" y="19" width="17" height="6" rx="2" fill="#D6F54A" />
-          <rect x="48" y="16" width="24" height="68" rx="3" fill="#18181B" />
-          <path d="M60 18 V82" stroke="#3F3F46" strokeWidth="1.5" />
+          {doorOpen ? (
+            <>
+              <rect x="48" y="16" width="24" height="68" rx="3" fill="#D6F54A" fillOpacity="0.55" />
+              <rect className="tt-door-l" x="48" y="16" width="12" height="68" fill="#18181B" />
+              <rect className="tt-door-r" x="60" y="16" width="12" height="68" fill="#18181B" />
+            </>
+          ) : (
+            <>
+              <rect x="48" y="16" width="24" height="68" rx="3" fill="#18181B" />
+              <path d="M60 18 V82" stroke="#3F3F46" strokeWidth="1.5" />
+            </>
+          )}
           {[80, 116, 152, 188].map((x) => (
             <rect key={x} x={x} y="16" width="30" height="36" rx="5" fill="#18181B" />
           ))}
