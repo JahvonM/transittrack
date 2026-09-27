@@ -6,7 +6,8 @@ import { useNfcTap } from "@/hooks/useNfcTap";
 import { parseCodeQrPayload } from "@/lib/qr";
 import { base44 } from "@/api/base44Client";
 import { haversineKm, etaMinutes, formatEta } from "@/lib/geo";
-import { MAPBOX_TOKEN, MAPBOX_STYLE } from "@/lib/mapbox";
+import { MAPBOX_TOKEN, mapStyleFor } from "@/lib/mapbox";
+import { useIsDark } from "@/lib/useTheme";
 import { computeOccupancy } from "@/lib/occupancy";
 import { enqueueCheckIn, queueLength, isNetworkFailure, flushQueue } from "@/lib/offlineQueue";
 import WeatherWidget from "@/components/WeatherWidget";
@@ -36,9 +37,9 @@ function startOfToday() {
 // NOT the full interactive MapboxMap component, which renders its own
 // zoom/satellite/fullscreen controls that would float uselessly (and
 // confusingly) over a background nobody can actually tap.
-function staticMapBackgroundUrl(lat, lng) {
+function staticMapBackgroundUrl(lat, lng, isDark) {
   if (lat == null || lng == null || !MAPBOX_TOKEN) return null;
-  const styleId = MAPBOX_STYLE.replace("mapbox://styles/", "");
+  const styleId = mapStyleFor(isDark).replace("mapbox://styles/", "");
   // Mapbox's Static Images API caps width/height at 1280 each (the @2x
   // modifier then doubles the actual rendered resolution to 2560x1600).
   return `https://api.mapbox.com/styles/v1/${styleId}/static/${lng},${lat},13,0/1280x800@2x?access_token=${MAPBOX_TOKEN}`;
@@ -174,6 +175,7 @@ function speak(text) {
 // empty space — a persistent top bar and, on large screens, a live info
 // rail (occupancy/weather/ads) fill the room around the actual check-in card.
 export default function BusBoardingKiosk({ invoke, device }) {
+  const isDark = useIsDark();
   const [unlocked, setUnlocked] = useState(false);
   const [now, setNow] = useState(() => new Date());
   const [mode, setMode] = useState("idle"); // idle | qr | confirm | result | badge_error
@@ -642,7 +644,7 @@ export default function BusBoardingKiosk({ invoke, device }) {
     );
   }
 
-  const bgUrl = staticMapBackgroundUrl(vehicle?.current_lat, vehicle?.current_lng);
+  const bgUrl = staticMapBackgroundUrl(vehicle?.current_lat, vehicle?.current_lng, isDark);
 
   return (
     <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-primary/15 via-background to-background">
