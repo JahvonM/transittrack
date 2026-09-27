@@ -149,7 +149,9 @@ export default function Welcome() {
             MCSween's Transport
           </Link>
           <div className="flex items-center gap-2 sm:gap-3">
-            <WeatherWidget variant="chip" />
+            <div className="hidden sm:block">
+              <WeatherWidget variant="chip" />
+            </div>
             <LiveClock className="hidden sm:block text-xs text-muted-foreground" />
             {isAuthenticated ? (
               <>
