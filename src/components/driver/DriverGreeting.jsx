@@ -1,7 +1,7 @@
 import React from "react";
 import LiveClock from "@/components/LiveClock";
 import WeatherWidget from "@/components/WeatherWidget";
-import AnimatedBus from "@/components/AnimatedBus";
+import { DrivingScene } from "@/components/AnimatedBus";
 
 const greetingWord = () => {
   const h = new Date().getHours();
@@ -27,12 +27,10 @@ export default function DriverGreeting({ driverName, subtitle }) {
         </div>
       </div>
       <div
-        className="relative -mx-5 mt-2 h-28 overflow-hidden"
+        className="-mx-5 mt-2"
         style={{ background: "radial-gradient(80% 100% at 50% 100%, hsl(var(--primary) / 0.18), transparent 70%)" }}
       >
-        <div className="absolute left-1/2 -translate-x-1/2 bottom-1">
-          <AnimatedBus mode="arrive" width={220} />
-        </div>
+        <DrivingScene height={160} busWidth={210} />
       </div>
     </div>
   );
