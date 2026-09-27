@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import Map, { Marker, Source, Layer } from "react-map-gl";
-import { MAPBOX_TOKEN, MAPBOX_STYLE } from "@/lib/mapbox";
+import { MAPBOX_TOKEN, mapStyleFor, mapAccentFor } from "@/lib/mapbox";
+import { useIsDark } from "@/lib/useTheme";
 import { Button } from "@/components/ui/button";
 import { Navigation, Bus, MapPin, Flag } from "lucide-react";
 
@@ -20,6 +21,8 @@ function lerp(a, b, t) {
 }
 
 export default function ReviewerSandbox() {
+  const isDark = useIsDark();
+  const accent = mapAccentFor(isDark);
   const [step, setStep] = useState(0);
   const [displayPos, setDisplayPos] = useState(PATH[0]);
   const raf = useRef(null);
@@ -69,7 +72,7 @@ export default function ReviewerSandbox() {
       <div className="relative flex-1">
         <Map
           mapboxAccessToken={MAPBOX_TOKEN}
-          mapStyle={MAPBOX_STYLE}
+          mapStyle={mapStyleFor(isDark)}
           initialViewState={{
             longitude: (PATH[0].lng + DEST.lng) / 2,
             latitude: (PATH[0].lat + DEST.lat) / 2,
@@ -100,7 +103,7 @@ export default function ReviewerSandbox() {
               <Layer
                 id="demo-trail-line"
                 type="line"
-                paint={{ "line-color": "#38bdf8", "line-width": 4, "line-opacity": 0.6 }}
+                paint={{ "line-color": accent, "line-width": 4, "line-opacity": 0.6 }}
               />
             </Source>
           )}
@@ -108,10 +111,10 @@ export default function ReviewerSandbox() {
           <Marker longitude={displayPos.lng} latitude={displayPos.lat} anchor="bottom">
             <div className="flex flex-col items-center relative">
               <div className="absolute top-0 w-11 h-11 rounded-full bg-green-500/25 animate-ping" />
-              <div className="w-11 h-11 rounded-full bg-white grid place-items-center" style={{ border: "3px solid #22c55e", boxShadow: "0 2px 8px rgba(0,0,0,0.25)" }}>
-                <Bus className="w-5 h-5" style={{ color: "#22c55e" }} />
+              <div className="w-11 h-11 rounded-xl grid place-items-center" style={{ backgroundColor: "#1C1C1F", border: `2px solid ${accent}`, boxShadow: `0 0 0 5px ${accent}2E, 0 6px 14px rgba(0,0,0,0.55)` }}>
+                <Bus className="w-5 h-5" style={{ color: accent }} />
               </div>
-              <div className="w-3 h-3 -mt-[6px]" style={{ backgroundColor: "#22c55e", clipPath: "polygon(50% 100%, 0 0, 100% 0)" }} />
+              <div className="w-3 h-3 -mt-[6px]" style={{ backgroundColor: accent, clipPath: "polygon(50% 100%, 0 0, 100% 0)" }} />
             </div>
           </Marker>
 

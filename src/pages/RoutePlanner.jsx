@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import Map, { Marker, Source, Layer } from "react-map-gl";
-import { MAPBOX_TOKEN, MAPBOX_STYLE } from "@/lib/mapbox";
+import { MAPBOX_TOKEN, mapStyleFor, mapAccentFor } from "@/lib/mapbox";
+import { useIsDark } from "@/lib/useTheme";
 import { base44 } from "@/api/base44Client";
 import AppLayout from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,6 +26,8 @@ function declutterStyle(map) {
 }
 
 export default function RoutePlanner() {
+  const isDark = useIsDark();
+  const accent = mapAccentFor(isDark);
   const { toast } = useToast();
   const [companies, setCompanies] = useState([]);
   const [routes, setRoutes] = useState([]);
@@ -110,7 +113,7 @@ export default function RoutePlanner() {
           <div className="rounded-xl overflow-hidden border" style={{ height: "60vh" }}>
             <Map
               mapboxAccessToken={MAPBOX_TOKEN}
-              mapStyle={MAPBOX_STYLE}
+              mapStyle={mapStyleFor(isDark)}
               initialViewState={{ longitude: center[0], latitude: center[1], zoom: 12 }}
               style={{ width: "100%", height: "100%" }}
               onClick={onMapClick}
@@ -119,7 +122,7 @@ export default function RoutePlanner() {
             >
               {routeCoords.length > 1 && (
                 <Source id="planner-route" type="geojson" data={{ type: "Feature", geometry: { type: "LineString", coordinates: routeCoords } }}>
-                  <Layer id="planner-route-line" type="line" paint={{ "line-color": "#38bdf8", "line-width": 4, "line-opacity": 0.7 }} />
+                  <Layer id="planner-route-line" type="line" paint={{ "line-color": accent, "line-width": 4, "line-opacity": 0.7 }} />
                 </Source>
               )}
               {stops.map((s, i) => (

@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Map, { Marker, Source, Layer } from "react-map-gl";
-import { MAPBOX_TOKEN, MAPBOX_STYLE, GPS_INTERVAL_MS } from "@/lib/mapbox";
+import { MAPBOX_TOKEN, mapStyleFor, mapAccentFor, GPS_INTERVAL_MS } from "@/lib/mapbox";
+import { useIsDark } from "@/lib/useTheme";
 import OfflineStatusBadge from "@/components/OfflineStatusBadge";
 import { useOfflineSync } from "@/hooks/useOfflineSync";
 import { formatEta, fetchTurnByTurnRoute, haversineKm } from "@/lib/geo";
@@ -71,6 +72,8 @@ const NEAR_ANNOUNCE_M = 50;
 const ADVANCE_STEP_M = 25;
 
 export default function DriverNavMap({ session, invoke }) {
+  const isDark = useIsDark();
+  const accent = mapAccentFor(isDark);
   const { online, pendingCount } = useOfflineSync();
   const [route, setRoute] = useState(session?.route || null);
   const [pos, setPos] = useState(
@@ -246,7 +249,7 @@ export default function DriverNavMap({ session, invoke }) {
       </div>
       <div className="relative rounded-2xl overflow-hidden border h-[72vh]">
         <Map
-          ref={mapRef} mapboxAccessToken={MAPBOX_TOKEN} mapStyle={MAPBOX_STYLE}
+          ref={mapRef} mapboxAccessToken={MAPBOX_TOKEN} mapStyle={mapStyleFor(isDark)}
           initialViewState={{ longitude: pos?.lng ?? vehicle?.current_lng ?? -61.7, latitude: pos?.lat ?? vehicle?.current_lat ?? 12.05, zoom: 15 }}
           style={{ width: "100%", height: "100%" }} attributionControl={false}
           onLoad={(e) => hidePoiLayers(e.target)}
@@ -254,23 +257,23 @@ export default function DriverNavMap({ session, invoke }) {
         >
           {trail.length > 1 && (
             <Source id="driver-trail" type="geojson" data={{ type: "Feature", geometry: { type: "LineString", coordinates: trail.filter((p) => p.lat != null && p.lng != null).map((p) => [p.lng, p.lat]) } }}>
-              <Layer id="driver-trail-line" type="line" paint={{ "line-color": "#38bdf8", "line-width": 4, "line-opacity": 0.5 }} />
+              <Layer id="driver-trail-line" type="line" paint={{ "line-color": accent, "line-width": 4, "line-opacity": 0.5 }} />
             </Source>
           )}
           {navRoute?.geometry?.length > 0 && (
             <Source id="path-to-next-stop" type="geojson" data={{ type: "Feature", geometry: { type: "LineString", coordinates: navRoute.geometry } }}>
-              <Layer id="path-to-next-stop-line" type="line" paint={{ "line-color": "#10b981", "line-width": 5, "line-opacity": 0.85 }} />
+              <Layer id="path-to-next-stop-line" type="line" paint={{ "line-color": accent, "line-width": 5, "line-opacity": 0.85 }} />
             </Source>
           )}
           {smoothPos && (
             <>
-              <AccuracyHalo sourceId="driver-accuracy" lat={smoothPos.lat} lng={smoothPos.lng} accuracy={pos?.accuracy} color="#22c55e" />
+              <AccuracyHalo sourceId="driver-accuracy" lat={smoothPos.lat} lng={smoothPos.lng} accuracy={pos?.accuracy} color={accent} />
               <Marker longitude={smoothPos.lng} latitude={smoothPos.lat} anchor="bottom">
                 <div className="flex flex-col items-center">
-                  <div className="w-11 h-11 rounded-full bg-white grid place-items-center" style={{ border: "3px solid #22c55e", boxShadow: "0 2px 8px rgba(0,0,0,0.25)" }}>
-                    <Bus className="w-5 h-5" style={{ color: "#22c55e" }} />
+                  <div className="w-11 h-11 rounded-xl grid place-items-center" style={{ backgroundColor: "#1C1C1F", border: `2px solid ${accent}`, boxShadow: `0 0 0 5px ${accent}2E, 0 6px 14px rgba(0,0,0,0.55)` }}>
+                    <Bus className="w-5 h-5" style={{ color: accent }} />
                   </div>
-                  <div className="w-3 h-3 -mt-[6px]" style={{ backgroundColor: "#22c55e", clipPath: "polygon(50% 100%, 0 0, 100% 0)" }} />
+                  <div className="w-3 h-3 -mt-[6px]" style={{ backgroundColor: accent, clipPath: "polygon(50% 100%, 0 0, 100% 0)" }} />
                 </div>
               </Marker>
             </>

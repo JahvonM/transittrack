@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import Map, { Marker } from "react-map-gl";
-import { MAPBOX_TOKEN, MAPBOX_STYLE } from "@/lib/mapbox";
+import { MAPBOX_TOKEN, mapStyleFor, mapAccentFor } from "@/lib/mapbox";
+import { useIsDark } from "@/lib/useTheme";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { LocateFixed } from "lucide-react";
@@ -23,6 +24,8 @@ function declutterStyle(map) {
  * props: { lat, lng, onChange(lat, lng) }
  */
 export default function LocationPicker({ lat, lng, onChange }) {
+  const isDark = useIsDark();
+  const accent = mapAccentFor(isDark);
   const [viewport, setViewport] = useState({
     longitude: lng ?? -61.7,
     latitude: lat ?? 12.05,
@@ -50,7 +53,7 @@ export default function LocationPicker({ lat, lng, onChange }) {
       <div className="rounded-lg overflow-hidden border border-border" style={{ height: 200 }}>
         <Map
           mapboxAccessToken={MAPBOX_TOKEN}
-          mapStyle={MAPBOX_STYLE}
+          mapStyle={mapStyleFor(isDark)}
           {...viewport}
           onMove={(e) => setViewport(e.viewState)}
           onClick={(e) => setPoint(e.lngLat.lat, e.lngLat.lng)}

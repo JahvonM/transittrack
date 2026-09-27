@@ -2,7 +2,8 @@ import React, { useEffect, useRef, useState } from "react";
 import Map, { Marker, Source, Layer } from "react-map-gl";
 import { base44 } from "@/api/base44Client";
 import AppLayout from "@/components/AppLayout";
-import { MAPBOX_TOKEN, MAPBOX_STYLE } from "@/lib/mapbox";
+import { MAPBOX_TOKEN, mapStyleFor, mapAccentFor } from "@/lib/mapbox";
+import { useIsDark } from "@/lib/useTheme";
 import { snapTrackToRoads } from "@/lib/geo";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -26,6 +27,8 @@ function declutterStyle(map) {
 // logged roughly once a minute (see driverSession's update_location), so a
 // full day tops out around ~1,400 points, well within a single fetch.
 export default function LocationTimeline() {
+  const isDark = useIsDark();
+  const accent = mapAccentFor(isDark);
   const [vehicles, setVehicles] = useState([]);
   const [vehicleId, setVehicleId] = useState("");
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
@@ -138,7 +141,7 @@ export default function LocationTimeline() {
             <div className="rounded-2xl overflow-hidden border h-[50vh] relative">
               <Map
                 mapboxAccessToken={MAPBOX_TOKEN}
-                mapStyle={MAPBOX_STYLE}
+                mapStyle={mapStyleFor(isDark)}
                 initialViewState={{ longitude: pathCoords[0][0], latitude: pathCoords[0][1], zoom: 13 }}
                 style={{ width: "100%", height: "100%" }}
                 attributionControl={false}
@@ -149,7 +152,7 @@ export default function LocationTimeline() {
                 </Source>
                 {traveled.length > 1 && (
                   <Source id="traveled-path" type="geojson" data={{ type: "Feature", geometry: { type: "LineString", coordinates: traveled } }}>
-                    <Layer id="traveled-path-line" type="line" paint={{ "line-color": "#38bdf8", "line-width": 4 }} />
+                    <Layer id="traveled-path-line" type="line" paint={{ "line-color": accent, "line-width": 4 }} />
                   </Source>
                 )}
                 {current && (
