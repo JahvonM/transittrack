@@ -11,6 +11,7 @@ import { ArrowLeft, Bus, AlertTriangle, Wrench, ClipboardCheck } from "lucide-re
 import FaultsTab from "@/components/admin/FaultsTab";
 import MaintenanceScheduleTab from "@/components/admin/MaintenanceScheduleTab";
 import InspectionHistoryTab from "@/components/admin/InspectionHistoryTab";
+import AnimatedBus from "@/components/AnimatedBus";
 
 const RESTRICTED_ROLES = ["driver", "staff", "passenger"];
 
