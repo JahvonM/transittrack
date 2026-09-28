@@ -32,7 +32,8 @@ export default function VehicleDetail() {
   const [loading, setLoading] = useState(true);
 
   const load = async () => {
-    try {      const v = await base44.entities.Vehicle.get(id);
+    try {
+      const v = await base44.entities.Vehicle.get(id);
       setVehicle(v);
       const [f, s, ir] = await Promise.all([
         base44.entities.Fault.filter({ vehicle_id: id }),

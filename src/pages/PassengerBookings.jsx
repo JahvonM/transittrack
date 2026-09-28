@@ -18,7 +18,8 @@ export default function PassengerBookings() {
   const [assign, setAssign] = useState({});
 
   const load = async () => {
-    try {      const [t, v] = await Promise.all([
+    try {
+      const [t, v] = await Promise.all([
         base44.entities.Trip.list("-updated_date", 500),
         base44.entities.Vehicle.list(),
       ]);

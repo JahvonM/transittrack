@@ -22,7 +22,8 @@ export default function ManagerDashboard() {
 
   useEffect(() => {
     const load = async () => {
-      try {        const [v, t] = await Promise.all([
+      try {
+        const [v, t] = await Promise.all([
           base44.entities.Vehicle.list(),
           base44.entities.Trip.list(),
         ]);

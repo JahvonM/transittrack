@@ -34,7 +34,8 @@ export default function MechanicDashboardTab() {
   const [loading, setLoading] = useState(true);
 
   const load = async () => {
-    try {      const [v, c, f, p, s, ir] = await Promise.all([
+    try {
+      const [v, c, f, p, s, ir] = await Promise.all([
         base44.entities.Vehicle.list(),
         base44.entities.Company.list(),
         base44.entities.Fault.list(),

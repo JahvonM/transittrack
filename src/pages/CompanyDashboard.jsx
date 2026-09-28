@@ -37,7 +37,8 @@ export default function CompanyDashboard() {
   const { toast } = useToast();
 
   const loadAll = async () => {
-    try {      const [cos, ve, ro, tr] = await Promise.all([
+    try {
+      const [cos, ve, ro, tr] = await Promise.all([
         base44.entities.Company.list(),
         base44.entities.Vehicle.list(),
         base44.entities.Route.list(),

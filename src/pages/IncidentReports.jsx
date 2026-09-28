@@ -18,7 +18,8 @@ export default function IncidentReports() {
   const [loading, setLoading] = useState(true);
 
   const load = async () => {
-    try {      const all = await base44.entities.Incident.list("-occurred_at", 500);
+    try {
+      const all = await base44.entities.Incident.list("-occurred_at", 500);
       setItems(all);
     } catch {
       loadFailed(load);

@@ -139,7 +139,8 @@ export default function Admin() {
   const go = (s) => navigate("/admin/" + s);
 
   const load = async () => {
-    try {      const [u, c, v, r, t, insp, dr, fl, pt, sch, tmpl, ir] = await Promise.all([
+    try {
+      const [u, c, v, r, t, insp, dr, fl, pt, sch, tmpl, ir] = await Promise.all([
         base44.entities.User.list(),
         base44.entities.Company.list(),
         base44.entities.Vehicle.list(),

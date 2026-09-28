@@ -18,7 +18,8 @@ export default function AdsTab() {
   const [uploading, setUploading] = useState(false);
 
   const load = async () => {
-    try {      const list = await base44.entities.Advertisement.list();
+    try {
+      const list = await base44.entities.Advertisement.list();
       setAds(list);
     } catch {
       loadFailed(load);
