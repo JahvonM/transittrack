@@ -6,7 +6,7 @@ if [[ "$B" == http://localhost* ]]; then
   sleep 4
 fi
 {
-node e2e/diagnose-authed.mjs $B admin "/admin,/manager,/vehicle-logs,/route-analytics,/incidents,/passenger-bookings,/service-history,/maintenance-queue"
+node e2e/diagnose-authed.mjs $B admin "/admin,/admin/lost-items,/admin/shifts,/manager,/vehicle-logs,/route-analytics,/passenger-bookings,/service-history"
 node e2e/diagnose-authed.mjs $B user "/staff,/route-explorer,/staff-directory,/account"
 node e2e/diagnose-authed.mjs $B mechanic "/mechanic,/run-inspection"
 node e2e/diagnose-authed.mjs $B company "/company"
