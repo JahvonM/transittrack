@@ -15,6 +15,7 @@ import DriverChats from "@/components/driver/DriverChats";
 import DriverMessageAlert from "@/components/driver/DriverMessageAlert";
 import NewCheckInAlert from "@/components/driver/NewCheckInAlert";
 import DriverDevicePanel from "@/components/driver/DriverDevicePanel";
+import DriverTrips from "@/components/DriverTrips";
 import SafetyStandardsContent from "@/components/SafetyStandardsContent";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertCircle, AlertTriangle, ArrowLeft, MessageCircle, ShieldCheck } from "lucide-react";
@@ -35,7 +36,7 @@ export default function DriverApp() {
   const [deviceId, setDeviceId] = useState(() => localStorage.getItem("tt_driver_device_id"));
   const [unlocked, setUnlocked] = useState(() => localStorage.getItem("tt_driver_unlock_date") === new Date().toISOString().slice(0, 10));
   const [activeTab, setActiveTab] = useState(() => TRACKING_TABS.includes(urlStage) ? urlStage : "track");
-  const { session, loading, invoke } = useDriverSession(deviceId);
+  const { session, loading, invoke, refresh } = useDriverSession(deviceId);
 
   // Driver tablets are mounted and always powered — keep the screen on so
   // locking is never what interrupts GPS tracking (no background-location
@@ -294,6 +295,16 @@ export default function DriverApp() {
           </TabsList>
           <TabsContent value="track" className="mt-4">
             <DriverTrackingDashboard session={session} invoke={invoke} driverName={driverName} onReportIncident={() => setIsReportOpen(true)} />
+            {session.trips?.length > 0 && (
+              <div className="mt-6">
+                <DriverTrips
+                  trips={session.trips}
+                  invoke={invoke}
+                  refresh={refresh}
+                  startSharing={() => invoke("start_tracking").catch(() => {})}
+                />
+              </div>
+            )}
           </TabsContent>
           <TabsContent value="navigate" className="mt-4">
             <DriverNavMap session={session} invoke={invoke} />
