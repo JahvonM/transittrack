@@ -85,7 +85,6 @@ const PORTAL_LINKS = [
 
 const MGMT_LINKS = [
   { to: "/vehicle-registry", label: "Vehicles & Drivers", icon: Car },
-  { to: "/maintenance-queue", label: "Maintenance Queue", icon: Wrench },
   { to: "/service-history", label: "Service History", icon: History },
   { to: "/vehicle-logs", label: "Vehicle Logs", icon: FileText },
   { to: "/safety-standards", label: "Safety Standards", icon: ShieldCheck },

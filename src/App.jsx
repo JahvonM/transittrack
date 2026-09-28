@@ -32,7 +32,6 @@ const MechanicPortal = lazy(() => import('@/pages/MechanicPortal'));
 const RunInspection = lazy(() => import('@/pages/RunInspection'));
 const ManagerDashboard = lazy(() => import('@/pages/ManagerDashboard'));
 const OAuthConsent = lazy(() => import('@/pages/OAuthConsent'));
-const MaintenanceQueue = lazy(() => import('@/pages/MaintenanceQueue'));
 const RouteAnalytics = lazy(() => import('@/pages/RouteAnalytics'));
 const FleetSyncSettings = lazy(() => import('@/pages/FleetSyncSettings'));
 const IncidentReports = lazy(() => import('@/pages/IncidentReports'));
@@ -124,7 +123,6 @@ const AuthenticatedApp = () => {
         <Route path="/run-inspection" element={<RunInspection />} />
         <Route path="/manager" element={<ManagerDashboard />} />
         <Route path="/manager/:tab" element={<ManagerDashboard />} />
-        <Route path="/maintenance-queue" element={<MaintenanceQueue />} />
         <Route path="/route-analytics" element={<RouteAnalytics />} />
         <Route path="/fleet-sync" element={<FleetSyncSettings />} />
         <Route path="/incident-reports" element={<IncidentReports />} />
