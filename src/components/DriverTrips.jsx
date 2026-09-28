@@ -1,16 +1,20 @@
 import React, { useEffect, useState } from "react";
-import { base44 } from "@/api/base44Client";
 import { CheckCircle2, Clock, Flag, PenLine, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { useToast } from "@/components/ui/use-toast";
 import TripSignatureDialog from "@/components/TripSignatureDialog";
 import { STATUS_LABEL, STATUS_VARIANT } from "@/lib/trip";
+import { blobToBase64 } from "@/lib/chatMedia";
 
 const fmtDateTime = (iso) =>
   iso ? new Date(iso).toLocaleString([], { dateStyle: "medium", timeStyle: "short" }) : "—";
 
-export default function DriverTrips({ trips, startSharing, refresh }) {
+// Booked trips assigned to this tablet's vehicle. Drivers have no login, so
+// every change goes through the driverSession backend via `invoke`.
+export default function DriverTrips({ trips, invoke, startSharing, refresh }) {
+  const { toast } = useToast();
   const [dialog, setDialog] = useState(null);
   const [localTrips, setLocalTrips] = useState(trips);
 
@@ -22,76 +26,33 @@ export default function DriverTrips({ trips, startSharing, refresh }) {
   const patchTrip = (id, patch) =>
     setLocalTrips((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t)));
 
-  const startTrip = async (trip) => {
+  const setStatus = async (trip, status, patch) => {
     const prev = { ...trip };
-    const now = new Date().toISOString();
-    // Optimistic update
-    patchTrip(trip.id, { status: "on_the_way", started_at: now });
-    startSharing();
+    patchTrip(trip.id, { status, ...patch });
     try {
-      await base44.entities.Trip.update(trip.id, { status: "on_the_way", started_at: now });
-      await base44.entities.Vehicle.update(trip.vehicle_id, { status: "on_trip" });
-      refresh();
-    } catch (e) {
+      await invoke("update_trip_status", { trip_id: trip.id, status });
+    } catch {
       patchTrip(trip.id, prev);
-      refresh();
+      toast({ title: "Couldn't update the trip", description: "Check the connection and try again.", variant: "destructive" });
     }
+    refresh?.();
   };
 
-  const markArrived = async (trip) => {
-    const prev = { ...trip };
-    const now = new Date().toISOString();
-    patchTrip(trip.id, { status: "arrived", arrived_at: now });
-    try {
-      await base44.entities.Trip.update(trip.id, { status: "arrived", arrived_at: now });
-      refresh();
-    } catch (e) {
-      patchTrip(trip.id, prev);
-      refresh();
-    }
+  const startTrip = (trip) => {
+    startSharing?.();
+    return setStatus(trip, "on_the_way", { started_at: new Date().toISOString() });
   };
 
-  const saveSignature = async ({ file_url, signed_by, signed_at }) => {
+  const markArrived = (trip) => setStatus(trip, "arrived", { arrived_at: new Date().toISOString() });
+
+  // Throws on failure so the dialog stays open and shows its error.
+  const signTrip = async (file, signedBy) => {
     if (!dialog) return;
     const { trip, mode } = dialog;
-    const prev = { ...trip };
-    const now = new Date().toISOString();
-    if (mode === "pickup") {
-      patchTrip(trip.id, { pickup_signature_url: file_url, pickup_signed_by: signed_by, pickup_signed_at: signed_at });
-      try {
-        await base44.entities.Trip.update(trip.id, {
-          pickup_signature_url: file_url,
-          pickup_signed_by: signed_by,
-          pickup_signed_at: signed_at,
-        });
-        refresh();
-      } catch (e) {
-        patchTrip(trip.id, prev);
-        refresh();
-      }
-    } else {
-      patchTrip(trip.id, {
-        dropoff_signature_url: file_url,
-        dropoff_signed_by: signed_by,
-        dropoff_signed_at: signed_at,
-        status: "completed",
-        completed_at: now,
-      });
-      try {
-        await base44.entities.Trip.update(trip.id, {
-          dropoff_signature_url: file_url,
-          dropoff_signed_by: signed_by,
-          dropoff_signed_at: signed_at,
-          status: "completed",
-          completed_at: now,
-        });
-        await base44.entities.Vehicle.update(trip.vehicle_id, { status: "idle" });
-        refresh();
-      } catch (e) {
-        patchTrip(trip.id, prev);
-        refresh();
-      }
-    }
+    const data_base64 = await blobToBase64(file);
+    const res = await invoke("sign_trip", { trip_id: trip.id, mode, data_base64, mime_type: file.type || "image/png", signed_by: signedBy });
+    if (res?.trip) patchTrip(trip.id, res.trip);
+    refresh?.();
   };
 
   const todayStr = new Date().toDateString();
@@ -189,7 +150,7 @@ export default function DriverTrips({ trips, startSharing, refresh }) {
         onOpenChange={(o) => !o && setDialog(null)}
         trip={dialog?.trip}
         mode={dialog?.mode}
-        onSaved={saveSignature}
+        onSign={signTrip}
       />
     </div>
   );
