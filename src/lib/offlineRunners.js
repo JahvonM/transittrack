@@ -1,0 +1,39 @@
+// Runners for the offline job queue. Registered once at startup (main.jsx)
+// so queued work uploads on reconnect no matter which screen is open.
+import { base44 } from "@/api/base44Client";
+import { registerRunner, startOfflineSync } from "@/lib/offlineJobs";
+
+// Mechanic inspection: result rows, then faults, then the vehicle's
+// last-inspection date. Each finished row is removed from the payload via
+// `save`, so a retry after a mid-upload drop never duplicates rows.
+export async function runMechanicInspection(payload, save = () => {}) {
+  let p = { ...payload };
+  while (p.results.length) {
+    await base44.entities.InspectionResult.create(p.results[0]);
+    p = { ...p, results: p.results.slice(1) };
+    save(p);
+  }
+  while (p.faults.length) {
+    await base44.entities.Fault.create(p.faults[0]);
+    p = { ...p, faults: p.faults.slice(1) };
+    save(p);
+  }
+  if (p.vehicle_id && !p.vehicle_updated) {
+    await base44.entities.Vehicle.update(p.vehicle_id, { last_inspection_date: p.date.slice(0, 10) });
+    p = { ...p, vehicle_updated: true };
+    save(p);
+  }
+}
+
+// Driver pre-trip check from a paired tablet (no login; goes through the
+// driver session with the tablet's device id).
+export async function runDriverInspection(payload) {
+  const res = await base44.functions.invoke("driverSession", { ...payload, action: "submit_inspection" });
+  return res.data;
+}
+
+export function installOfflineRunners() {
+  registerRunner("mechanic_inspection", runMechanicInspection);
+  registerRunner("driver_inspection", runDriverInspection);
+  startOfflineSync();
+}
