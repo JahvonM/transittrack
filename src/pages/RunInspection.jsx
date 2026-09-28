@@ -211,7 +211,10 @@ export default function RunInspection() {
           <Card className="bg-gradient-to-b from-emerald-500/10 to-transparent">
             <CardContent className="p-8 text-center space-y-3">
               <PartyPopper className="w-10 h-10 text-emerald-500 mx-auto" />
-              <p className="text-xl font-bold">Inspection submitted</p>
+              <p className="text-xl font-bold">{summary.queued ? "Inspection saved on this device" : "Inspection submitted"}</p>
+              {summary.queued && (
+                <p className="text-sm text-muted-foreground">There's no connection right now. It will upload automatically as soon as you're back online, so you can keep working.</p>
+              )}
               <div className="flex justify-center gap-2 flex-wrap">
                 <Badge variant="secondary">{summary.good} good</Badge>
                 {summary.warning > 0 && <Badge className="bg-amber-500 text-white hover:bg-amber-500">{summary.warning} warning</Badge>}
