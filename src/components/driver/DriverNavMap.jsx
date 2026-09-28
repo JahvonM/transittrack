@@ -10,7 +10,7 @@ import useDrivingEta from "@/hooks/useDrivingEta";
 import useSmoothPosition from "@/hooks/useSmoothPosition";
 import AccuracyHalo from "@/components/AccuracyHalo";
 import MapBusPin, { useFacingRight } from "@/components/MapBusPin";
-import TripProgress from "@/components/TripProgress";
+import TripProgress, { routeProgress } from "@/components/TripProgress";
 import { Bus, Navigation, MapPin, LocateFixed, Satellite, Flag, RotateCw, ArrowUp, Volume2, VolumeX } from "lucide-react";
 
 // Matches MapboxMap.jsx's declutterStyle: hide POI/transit icon clutter but
@@ -117,11 +117,20 @@ export default function DriverNavMap({ session, invoke }) {
     return () => { if (watchId.current != null) navigator.geolocation.clearWatch(watchId.current); };
   }, [vehicleId, pushLocation]);
 
-  const nextStop = useMemo(() => {
-    if (!route?.stops?.length) return null;
-    const ordered = [...route.stops].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-    return ordered[0];
-  }, [route]);
+  const orderedStops = useMemo(
+    () => (route?.stops?.length ? [...route.stops].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)) : []),
+    [route]
+  );
+  // The stop ahead of the bus given where it is now — advances as each stop
+  // is passed. Before the first GPS fix, fall back to the first stop.
+  const nextStopIndex = useMemo(() => {
+    if (!orderedStops.length) return -1;
+    const p = routeProgress(orderedStops, pos?.lat, pos?.lng);
+    if (!p) return 0;
+    const next = p.stops[p.nextIndex];
+    return Math.max(0, orderedStops.indexOf(next));
+  }, [orderedStops, pos?.lat, pos?.lng]);
+  const nextStop = nextStopIndex >= 0 ? orderedStops[nextStopIndex] : null;
   const nextStopKey = nextStop ? `${nextStop.lat},${nextStop.lng}` : null;
 
   // Real driving distance/ETA to the next stop (falls back to straight-line while loading)
@@ -252,7 +261,7 @@ export default function DriverNavMap({ session, invoke }) {
       </div>
       {route?.stops?.length > 1 && pos && (
         <TripProgress
-          stops={[...route.stops].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))}
+          stops={orderedStops}
           lat={pos.lat}
           lng={pos.lng}
           label={route.name || "Your route"}
