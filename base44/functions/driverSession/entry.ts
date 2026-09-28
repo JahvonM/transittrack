@@ -195,7 +195,7 @@ export default async function(req) {
           base44.asServiceRole.entities.StaffCheckIn.filter({ vehicle_id: vehicleId }, '-created_date', 20),
           base44.asServiceRole.entities.GroupMessage.filter({ vehicle_id: vehicleId }, '-created_date', 200),
           base44.asServiceRole.entities.Trip.filter({ vehicle_id: vehicleId }, 'scheduled_time', 100).catch(() => []),
-          base44.asServiceRole.entities.DriverShift.filter({ vehicle_id: vehicleId, ended_at: null }, '-started_at', 1).catch(() => []),
+          base44.asServiceRole.entities.DriverShift.filter({ vehicle_id: vehicleId }, '-started_at', 3).catch(() => []),
         ]);
         const trips = vehicleTrips.filter((t) => ['scheduled', 'on_the_way', 'arrived'].includes(t.status));
         const driverEmail = vehicle.driver_email || '';
@@ -221,7 +221,7 @@ export default async function(req) {
       case 'start_shift': {
         const vehicle = await loadVehicle(base44, vehicleId);
         if (!vehicle) return Response.json({ error: 'Vehicle not found' }, { status: 404 });
-        const open = (await base44.asServiceRole.entities.DriverShift.filter({ vehicle_id: vehicleId, ended_at: null }, '-started_at', 5))
+        const open = (await base44.asServiceRole.entities.DriverShift.filter({ vehicle_id: vehicleId }, '-started_at', 5))
           .filter((s) => !s.ended_at);
         if (open.length) return Response.json({ shift: open[0] });
         const shift = await base44.asServiceRole.entities.DriverShift.create({
@@ -233,7 +233,7 @@ export default async function(req) {
       }
 
       case 'end_shift': {
-        const open = (await base44.asServiceRole.entities.DriverShift.filter({ vehicle_id: vehicleId, ended_at: null }, '-started_at', 5))
+        const open = (await base44.asServiceRole.entities.DriverShift.filter({ vehicle_id: vehicleId }, '-started_at', 5))
           .filter((s) => !s.ended_at);
         if (!open.length) return Response.json({ shift: null });
         const now = new Date();
