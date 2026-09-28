@@ -10,9 +10,11 @@ const browser = await chromium.launch();
 const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
 await ctx.addInitScript(() => { localStorage.setItem("base44_access_token", "fake"); localStorage.setItem("token", "fake"); });
 const writes = [];
+let offline = false;
 await ctx.route("**/api/**", async (route) => {
   const req = route.request();
   const url = req.url();
+  if (offline) return route.abort("internetdisconnected");
   if (url.includes("public-settings")) return route.continue();
   if (url.includes("/entities/User/me")) return route.fulfill({ json: user });
   if (req.method() !== "GET" && url.includes("/entities/")) {
@@ -38,6 +40,7 @@ await page.getByRole("button", { name: /start inspection/i }).click();
 await page.getByRole("button", { name: "Failed" }).first().click();
 await page.getByRole("button", { name: "Good" }).nth(1).click();
 
+offline = true;
 await ctx.setOffline(true);
 await page.getByRole("button", { name: /^submit$/i }).click();
 const t0 = Date.now();
@@ -47,6 +50,7 @@ const pillOffline = await page.getByText(/1 inspection waiting for signal/).wait
 const queued = await page.evaluate(() => JSON.parse(localStorage.getItem("tt_offline_jobs") || "[]").length);
 console.log("offline submit -> saved screen:", saved, "| pill:", pillOffline, "| queued jobs:", queued, "| writes while offline:", writes.length);
 
+offline = false;
 await ctx.setOffline(false);
 await page.waitForFunction(() => JSON.parse(localStorage.getItem("tt_offline_jobs") || "[]").length === 0, null, { timeout: 15000 }).catch(() => {});
 const left = await page.evaluate(() => JSON.parse(localStorage.getItem("tt_offline_jobs") || "[]").length);
