@@ -8,7 +8,7 @@ import { endOfToday, hoursFromNow, lateActive, skipActive, LATE_HOURS } from "@/
 const time = (iso) => new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 
 function Tile({ icon: Icon, label, sub, active, dot, onClick, href }) {
-  const cls = `relative flex flex-col items-center justify-start gap-1.5 rounded-2xl border px-1.5 py-3 text-center transition-colors min-h-[92px] ${
+  const cls = `relative shrink-0 w-[84px] snap-start flex flex-col items-center justify-start gap-1.5 rounded-2xl border px-1.5 py-3 text-center transition-colors min-h-[96px] ${
     active ? "bg-primary text-primary-foreground border-primary" : "bg-card hover:bg-accent border-border"
   }`;
   const body = (
@@ -66,7 +66,7 @@ export default function QuickActions({ onChat, chatUnread = 0, onBadge, companyP
   const tel = (companyPhone || "").trim();
 
   return (
-    <div className={`grid gap-2 ${tel ? "grid-cols-5" : "grid-cols-4"}`}>
+    <div className="-mx-4 px-4 flex gap-2 overflow-x-auto snap-x pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:mx-0 sm:px-0 sm:grid sm:grid-cols-5 sm:overflow-visible">
       <Tile icon={Clock} label={late ? "Running late" : "I'm late"} sub={late ? `until ${time(merged.late_until)}` : null} active={late} onClick={toggleLate} />
       <Tile icon={BellOff} label={skip ? "Skipping" : "Skip today"} sub={skip ? "back tomorrow" : null} active={skip} onClick={toggleSkip} />
       <Tile icon={MessageCircle} label="Chat" sub="with driver" dot={chatUnread} onClick={onChat} />
