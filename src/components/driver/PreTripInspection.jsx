@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ClipboardCheck, Volume2, AlertTriangle } from "lucide-react";
+import { enqueueJob, isOfflineError } from "@/lib/offlineJobs";
 
 const CHECKLIST = [
   { key: "brakes", label: "Brakes are responsive" },
@@ -45,14 +46,15 @@ export default function PreTripInspection({ vehicle, invoke, driverName, onCompl
     setSubmitting(true);
     const passed = failed.length === 0;
     const checklistObj = CHECKLIST.reduce((acc, c) => { acc[c.key] = checks[c.key] === true; return acc; }, {});
+    const payload = {
+      checklist: checklistObj,
+      odometer: odometer ? Number(odometer) : undefined,
+      fuel: Number(fuel),
+      status: passed ? "passed" : "failed",
+      service_notes: !passed ? "Failed items: " + failed.map((f) => f.label).join("; ") : "",
+    };
     try {
-      const result = await invoke("submit_inspection", {
-        checklist: checklistObj,
-        odometer: odometer ? Number(odometer) : undefined,
-        fuel: Number(fuel),
-        status: passed ? "passed" : "failed",
-        service_notes: !passed ? "Failed items: " + failed.map((f) => f.label).join("; ") : "",
-      });
+      const result = await invoke("submit_inspection", payload);
       toast({
         title: passed ? "Inspection passed" : "Inspection flagged for service",
         description: passed ? "You're clear to start your route." : "A mechanic has been notified. Proceed with caution.",
@@ -60,7 +62,15 @@ export default function PreTripInspection({ vehicle, invoke, driverName, onCompl
       });
       onCompleted(result?.inspection, passed);
     } catch (e) {
-      toast({ title: "Couldn't save inspection", description: e.message, variant: "destructive" });
+      const deviceId = localStorage.getItem("tt_driver_device_id");
+      if (isOfflineError(e) && deviceId) {
+        // No signal: keep it on the tablet and upload when back online.
+        enqueueJob("driver_inspection", { ...payload, device_id: deviceId }, `Pre-trip check · ${vehicle?.name || "vehicle"}`);
+        toast({ title: "Saved on this tablet", description: "No connection right now. The inspection will upload automatically when you're back online." });
+        onCompleted(null, passed);
+      } else {
+        toast({ title: "Couldn't save inspection", description: e.message, variant: "destructive" });
+      }
     }
     setSubmitting(false);
   };

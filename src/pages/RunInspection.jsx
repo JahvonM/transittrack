@@ -12,6 +12,8 @@ import { useToast } from "@/components/ui/use-toast";
 import { ClipboardCheck, CheckCircle2, AlertTriangle, XCircle, Camera, Loader2, PartyPopper } from "lucide-react";
 import { loadFailed } from "@/lib/loadFailed";
 import BusLoader from "@/components/BusLoader";
+import { enqueueJob, isOfflineError } from "@/lib/offlineJobs";
+import { runMechanicInspection } from "@/lib/offlineRunners";
 
 const CONDITIONS = [
   { key: "GOOD", label: "Good", icon: CheckCircle2, activeClass: "bg-emerald-500 text-white border-emerald-500" },
@@ -129,47 +131,53 @@ export default function RunInspection() {
           inspection_date: now,
         };
       });
-      await Promise.all(resultRecords.map((r) => base44.entities.InspectionResult.create(r)));
-
       const failedItems = allItems.filter((it) => results[it.key]?.condition === "FAILED");
-      let faultsCreated = 0;
+      let autoCreate = true;
       if (failedItems.length > 0) {
-        let autoCreate = true;
         try {
           const settingsList = await base44.entities.MaintenanceSettings.list();
           autoCreate = settingsList[0]?.auto_create_faults !== false;
-        } catch { /* settings lookup failing shouldn't block fault creation */ }
-        if (autoCreate) {
-          await Promise.all(
-            failedItems.map((it) => {
-              const r = results[it.key];
-              return base44.entities.Fault.create({
-                vehicle_id: vehicle.id,
-                vehicle_name: vehicle.name,
-                company_id: vehicle.company_id,
-                company_name: vehicle.company_name,
-                title: it.item_name,
-                description: r.notes || `Failed during ${template.name} inspection (${it.section_name}).`,
-                source: "inspection",
-                severity: SEVERITY_BY_CRITICAL[it.critical] || "medium",
-                status: "open",
-                photo_url: r.photo_url || "",
-                repair_required: true,
-                reported_by: inspectorName,
-              });
-            })
-          );
-          faultsCreated = failedItems.length;
-        }
+        } catch { /* offline or lookup failed: default to creating faults */ }
       }
+      const faultRecords = autoCreate
+        ? failedItems.map((it) => {
+            const r = results[it.key];
+            return {
+              vehicle_id: vehicle.id,
+              vehicle_name: vehicle.name,
+              company_id: vehicle.company_id,
+              company_name: vehicle.company_name,
+              title: it.item_name,
+              description: r.notes || `Failed during ${template.name} inspection (${it.section_name}).`,
+              source: "inspection",
+              severity: SEVERITY_BY_CRITICAL[it.critical] || "medium",
+              status: "open",
+              photo_url: r.photo_url || "",
+              repair_required: true,
+              reported_by: inspectorName,
+            };
+          })
+        : [];
+      const faultsCreated = faultRecords.length;
 
-      await base44.entities.Vehicle.update(vehicle.id, { last_inspection_date: now.slice(0, 10) });
+      // Upload row by row; if the connection drops, whatever is left is kept
+      // on this device and uploads automatically once back online.
+      let progress = { results: resultRecords, faults: faultRecords, vehicle_id: vehicle.id, date: now };
+      let queued = false;
+      try {
+        await runMechanicInspection(progress, (p) => { progress = p; });
+      } catch (err) {
+        if (!isOfflineError(err)) throw err;
+        enqueueJob("mechanic_inspection", progress, `${template.name} · ${vehicle.name}`);
+        queued = true;
+      }
 
       setSummary({
         good: allItems.filter((it) => results[it.key]?.condition === "GOOD").length,
         warning: allItems.filter((it) => results[it.key]?.condition === "WARNING").length,
         failed: failedItems.length,
         faultsCreated,
+        queued,
       });
       setStarted(false);
     } catch (e) {
