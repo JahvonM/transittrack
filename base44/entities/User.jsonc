@@ -61,6 +61,15 @@
     "late_snooze_active": {
       "type": "boolean",
       "default": false
+    },
+    "favorite_stop": {
+      "type": "string",
+      "description": "Name of the passenger's usual pickup stop (matches a Route stop name)."
+    },
+    "stop_alerts": {
+      "type": "boolean",
+      "default": false,
+      "description": "Send a push when a bus leaves the stop before favorite_stop."
     }
   },
   "required": []
