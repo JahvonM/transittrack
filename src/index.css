@@ -139,7 +139,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .tt-wheel-spin, .tt-bus-bob, .tt-bus-arrive, .tt-wheel-arrive, .tt-sky-scroll, .tt-lane-scroll,
-  .tt-door-l, .tt-door-r, .tt-page-in, .tt-pop { animation: none !important; }
+  .tt-door-l, .tt-door-r, .tt-page-in, .tt-pop, .tt-wave { animation: none !important; }
   .tt-door-l, .tt-door-r { transform: scaleX(0.15); }
   .tt-draw { animation: none !important; stroke-dashoffset: 0; }
   /* Safety net for every other animation/transition in the app */
