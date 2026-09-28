@@ -27,6 +27,7 @@ import {
   ChevronDown,
   Timer,
   ScrollText,
+  PackageSearch,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -58,6 +59,7 @@ export const ADMIN_SECTIONS = [
   { id: "checkins", label: "Sign-in log", icon: ClipboardList, group: "Dispatch" },
   { id: "billing", label: "Completed & billing", icon: Building2, group: "Dispatch" },
   { id: "messaging", label: "Messaging", icon: Megaphone, group: "Dispatch" },
+  { id: "lost-items", label: "Lost items", icon: PackageSearch, group: "Dispatch" },
   { id: "ads", label: "Advertisements", icon: ImageIcon, group: "Dispatch" },
 
   { id: "users", label: "Users & roles", icon: Users, group: "Admin" },

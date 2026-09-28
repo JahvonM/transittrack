@@ -70,6 +70,7 @@ import { loadFailed } from "@/lib/loadFailed";
 import BusLoader from "@/components/BusLoader";
 import ShiftsTab from "@/components/admin/ShiftsTab";
 import AuditLogTab from "@/components/admin/AuditLogTab";
+import LostItemsTab from "@/components/admin/LostItemsTab";
 
 const ROLE_LINKS = [
   { to: "/passenger", label: "Passenger view", icon: MapPin },
@@ -488,6 +489,7 @@ export default function Admin() {
         {section === "sync" && <FleetSyncTab />}
         {section === "shifts" && <ShiftsTab />}
         {section === "audit" && <AuditLogTab />}
+        {section === "lost-items" && <LostItemsTab />}
         {section === "companies" && <CompaniesTab companies={companies} onChange={load} />}
         {section === "messaging" && <MessagingTab vehicles={vehicles} />}
         {section === "ads" && <AdsTab />}
