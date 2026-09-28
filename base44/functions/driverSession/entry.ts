@@ -67,6 +67,29 @@ async function pushTokensForChannel(base44, channel, companyId) {
   return [...new Set(results.flat().map((t) => t.token))];
 }
 
+// When a bus leaves a stop, the next stop on its route is "one stop away":
+// push to passengers of this company who saved that stop as their favourite
+// and switched stop alerts on. Leaving each stop happens once per pass, so
+// this naturally sends one alert per bus per stop.
+async function notifyStopAhead(base44, route, departedName, vehicle, companyId) {
+  const serviceAccountJson = secrets.get('FIREBASE_SERVICE_ACCOUNT');
+  if (!serviceAccountJson) return;
+  const idx = route.stops.findIndex((s) => s.name === departedName);
+  const next = idx >= 0 ? route.stops[idx + 1] : null;
+  if (!next?.name) return;
+  const users = await base44.asServiceRole.entities.User.filter({ favorite_stop: next.name, stop_alerts: true });
+  const emails = users.filter((u) => u.company_id === companyId && u.email).map((u) => u.email);
+  if (!emails.length) return;
+  const tokenLists = await Promise.all(emails.map((email) => base44.asServiceRole.entities.PushToken.filter({ email })));
+  const tokens = [...new Set(tokenLists.flat().map((t) => t.token))];
+  if (!tokens.length) return;
+  await sendPushToTokens(serviceAccountJson, tokens, {
+    title: `${vehicle.name} is one stop away`,
+    body: `It just left ${departedName}. Your stop, ${next.name}, is next.`,
+    data: { type: 'stop_ahead', vehicle_id: vehicle.id, stop: next.name },
+  });
+}
+
 const CHAT_CHANNELS = ['staff', 'company', 'dispatch', 'mechanic'];
 
 function base64ToBytes(b64) {
@@ -166,12 +189,13 @@ export default async function(req) {
       case 'heartbeat': {
         const vehicle = await loadVehicle(base44, vehicleId);
         if (!vehicle) return Response.json({ error: 'Vehicle not found' }, { status: 404 });
-        const [staff, broadcasts, checkIns, groupMessages, vehicleTrips] = await Promise.all([
+        const [staff, broadcasts, checkIns, groupMessages, vehicleTrips, openShifts] = await Promise.all([
           loadStaff(base44, companyId),
           base44.asServiceRole.entities.Broadcast.filter({}, '-created_date', 20),
           base44.asServiceRole.entities.StaffCheckIn.filter({ vehicle_id: vehicleId }, '-created_date', 20),
           base44.asServiceRole.entities.GroupMessage.filter({ vehicle_id: vehicleId }, '-created_date', 200),
           base44.asServiceRole.entities.Trip.filter({ vehicle_id: vehicleId }, 'scheduled_time', 100).catch(() => []),
+          base44.asServiceRole.entities.DriverShift.filter({ vehicle_id: vehicleId, ended_at: null }, '-started_at', 1).catch(() => []),
         ]);
         const trips = vehicleTrips.filter((t) => ['scheduled', 'on_the_way', 'arrived'].includes(t.status));
         const driverEmail = vehicle.driver_email || '';
@@ -190,7 +214,38 @@ export default async function(req) {
           company_id: companyId, company_name: companyName, staff, route,
           broadcasts: relevantBroadcasts, check_ins: checkIns.filter((c) => c.status === 'boarded'),
           group_messages: [...groupMessages].reverse(), trips,
+          open_shift: openShifts.find((s) => !s.ended_at) || null,
         });
+      }
+
+      case 'start_shift': {
+        const vehicle = await loadVehicle(base44, vehicleId);
+        if (!vehicle) return Response.json({ error: 'Vehicle not found' }, { status: 404 });
+        const open = (await base44.asServiceRole.entities.DriverShift.filter({ vehicle_id: vehicleId, ended_at: null }, '-started_at', 5))
+          .filter((s) => !s.ended_at);
+        if (open.length) return Response.json({ shift: open[0] });
+        const shift = await base44.asServiceRole.entities.DriverShift.create({
+          vehicle_id: vehicleId, vehicle_name: vehicle.name, company_id: companyId, company_name: companyName,
+          driver_name: vehicle.driver_name || '', driver_email: vehicle.driver_email || '',
+          device_id, started_at: new Date().toISOString(),
+        });
+        return Response.json({ shift });
+      }
+
+      case 'end_shift': {
+        const open = (await base44.asServiceRole.entities.DriverShift.filter({ vehicle_id: vehicleId, ended_at: null }, '-started_at', 5))
+          .filter((s) => !s.ended_at);
+        if (!open.length) return Response.json({ shift: null });
+        const now = new Date();
+        const ended = [];
+        for (const s of open) {
+          const minutes = Math.max(0, Math.round((now.getTime() - new Date(s.started_at).getTime()) / 60000));
+          ended.push(await base44.asServiceRole.entities.DriverShift.update(s.id, {
+            ended_at: now.toISOString(), duration_minutes: minutes,
+            notes: typeof body.notes === 'string' ? body.notes.slice(0, 500) : s.notes,
+          }));
+        }
+        return Response.json({ shift: ended[0] });
       }
 
       case 'start_tracking': {
@@ -286,6 +341,8 @@ export default async function(req) {
                   vehicle_name: vehicle.name, company_id: companyId, company_name: companyName,
                   driver_name: vehicle.driver_name || '', driver_email: vehicle.driver_email || '',
                 }).catch(() => {});
+                try { await notifyStopAhead(base44, route, prevNearId, vehicle, companyId); }
+                catch { /* alerts are best-effort */ }
               }
             }
           }
