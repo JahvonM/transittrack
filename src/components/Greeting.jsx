@@ -1,4 +1,5 @@
 import React from "react";
+import { Hand } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import LiveClock from "@/components/LiveClock";
 import WeatherWidget from "@/components/WeatherWidget";
@@ -25,7 +26,7 @@ export default function Greeting({ subtitle }) {
         <div className="min-w-0">
           <p className="text-xs uppercase tracking-[0.2em] text-primary mb-1">{dateStr}</p>
           <h2 className="text-2xl font-heading font-semibold">
-            {greetingWord()}, {name} 👋
+            {greetingWord()}, {name} <Hand className="inline-block w-6 h-6 ml-1 -mt-1 text-primary tt-wave" aria-hidden="true" />
           </h2>
           {subtitle && <p className="text-sm text-muted-foreground mt-1">{subtitle}</p>}
         </div>

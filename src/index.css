@@ -218,3 +218,12 @@
     animation: slide-up-sheet 0.2s ease-out !important;
   }
 }
+/* Greeting hand wave */
+@keyframes tt-wave-kf {
+  0%, 60%, 100% { transform: rotate(0deg); }
+  10%, 30% { transform: rotate(14deg); }
+  20% { transform: rotate(-8deg); }
+  40% { transform: rotate(-4deg); }
+  50% { transform: rotate(10deg); }
+}
+.tt-wave { transform-origin: 70% 70%; animation: tt-wave-kf 2.4s ease-in-out 0.4s 2; }

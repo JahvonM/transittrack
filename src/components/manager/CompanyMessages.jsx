@@ -3,7 +3,7 @@ import EmptyState from "@/components/EmptyState";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import { Button } from "@/components/ui/button";
-import { MessageCircle, X, ChevronLeft, Bus } from "lucide-react";
+import { MessageCircle, X, ChevronLeft, Bus, Camera, Mic } from "lucide-react";
 import ChatThread from "@/components/chat/ChatThread";
 
 function formatTime(iso) {
@@ -13,8 +13,8 @@ function formatTime(iso) {
 }
 function previewText(m) {
   if (!m) return "";
-  if (m.message_type === "image") return "📷 Photo";
-  if (m.message_type === "audio") return "🎤 Voice note";
+  if (m.message_type === "image") return <><Camera className="inline w-3.5 h-3.5 mr-1 -mt-0.5" aria-hidden="true" />Photo</>;
+  if (m.message_type === "audio") return <><Mic className="inline w-3.5 h-3.5 mr-1 -mt-0.5" aria-hidden="true" />Voice note</>;
   return m.text;
 }
 
@@ -168,7 +168,7 @@ export default function CompanyMessages({ vehicles = [] }) {
                           {last && <div className="text-[11px] text-muted-foreground shrink-0">{formatTime(last.created_date)}</div>}
                         </div>
                         <div className="text-xs text-muted-foreground truncate">
-                          {last ? `${last.sender_role === "company" ? "You" : last.sender_name || "Driver"}: ${previewText(last)}` : (v.driver_name || "No messages yet")}
+                          {last ? <>{last.sender_role === "company" ? "You" : last.sender_name || "Driver"}: {previewText(last)}</> : (v.driver_name || "No messages yet")}
                         </div>
                       </div>
                       {unreadVehicleIds.has(v.id) && <span className="w-2 h-2 rounded-full bg-destructive shrink-0" />}

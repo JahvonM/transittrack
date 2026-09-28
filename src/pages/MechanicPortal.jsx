@@ -8,7 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { ChevronLeft, Bus, Wrench, BellRing, ClipboardCheck, Settings, LayoutDashboard, MessageCircle } from "lucide-react";
+import { ChevronLeft, Bus, Wrench, BellRing, ClipboardCheck, Settings, LayoutDashboard, MessageCircle, Camera, Mic } from "lucide-react";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import ChatThread from "@/components/chat/ChatThread";
 import MechanicSettingsDialog from "@/components/MechanicSettingsDialog";
@@ -23,8 +23,8 @@ function formatTime(iso) {
 }
 function previewText(m) {
   if (!m) return "";
-  if (m.message_type === "image") return "📷 Photo";
-  if (m.message_type === "audio") return "🎤 Voice note";
+  if (m.message_type === "image") return <><Camera className="inline w-3.5 h-3.5 mr-1 -mt-0.5" aria-hidden="true" />Photo</>;
+  if (m.message_type === "audio") return <><Mic className="inline w-3.5 h-3.5 mr-1 -mt-0.5" aria-hidden="true" />Voice note</>;
   return m.text;
 }
 
@@ -235,7 +235,7 @@ export default function MechanicPortal() {
                               {last && <span className="text-[11px] text-muted-foreground shrink-0">{formatTime(last.created_date)}</span>}
                             </div>
                             <p className="text-xs text-muted-foreground truncate">
-                              {last ? `${last.sender_role === "mechanic" ? "You" : last.sender_name || "Driver"}: ${previewText(last)}` : (v.driver_name || "No messages yet")}
+                              {last ? <>{last.sender_role === "mechanic" ? "You" : last.sender_name || "Driver"}: {previewText(last)}</> : (v.driver_name || "No messages yet")}
                             </p>
                           </div>
                           {unreadVehicleIds.has(v.id) && <span className="w-2.5 h-2.5 rounded-full bg-destructive shrink-0" />}
