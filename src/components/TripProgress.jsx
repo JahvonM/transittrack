@@ -19,7 +19,9 @@ export function routeProgress(stops, lat, lng) {
   const to = from + 1;
   const seg = d[from] + d[to];
   const t = seg > 0 ? Math.min(1, Math.max(0, d[from] / seg)) : 0;
-  return { fraction: (from + t) / (pts.length - 1), nextIndex: t > 0.95 ? Math.min(to + 1, pts.length - 1) : to, stops: pts };
+  // Within ~60 m of a stop counts as having reached it.
+  const atTo = d[to] < 0.06;
+  return { fraction: (from + t) / (pts.length - 1), nextIndex: atTo ? Math.min(to + 1, pts.length - 1) : to, stops: pts };
 }
 
 // Horizontal strip with the route's stops as dots and a little bus driving
