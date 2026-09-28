@@ -343,12 +343,12 @@ export default function StaffPortal() {
     <AppLayout>
       <PullToRefresh onRefresh={reload} className="max-w-2xl">
         <div className="space-y-5">
-          <header className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <h1 className="text-2xl font-heading font-semibold truncate">{greetingWord()}{firstName ? `, ${firstName}` : ""}</h1>
-              <p className="text-sm text-muted-foreground truncate">{company.name}</p>
+          <header className="space-y-2">
+            <h1 className="text-2xl font-heading font-semibold leading-tight">{greetingWord()}{firstName ? `, ${firstName}` : ""}</h1>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+              <p className="text-sm text-muted-foreground">{company.name}</p>
+              <WeatherWidget variant="chip" />
             </div>
-            <WeatherWidget variant="chip" />
           </header>
 
           {!userLoc && locError && <LocationPrompt onLocation={setPromptLoc} />}
