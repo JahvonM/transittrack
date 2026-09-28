@@ -52,7 +52,7 @@ export default function AppLayout({ children, title }) {
           index.css, would win the cascade and wipe out the tab-bar clearance below */}
       <main className="max-w-7xl mx-auto px-4 pt-6 pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-6">
         {title && <h1 className="text-2xl font-heading font-semibold mb-4">{title}</h1>}
-        <div key={pathname} className="tt-page-in">{children}</div>
+        {children}
       </main>
     </div>
   );
