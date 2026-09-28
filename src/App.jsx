@@ -1,5 +1,6 @@
 import { Toaster } from "@/components/ui/toaster"
 import BusLoader from "@/components/BusLoader";
+import ErrorBoundary from "@/components/ErrorBoundary";
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
 import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
@@ -95,6 +96,7 @@ const AuthenticatedApp = () => {
         exit={{ opacity: 0, x: -16 }}
         transition={{ duration: 0.18, ease: "easeOut" }}
       >
+      <ErrorBoundary key={location.pathname}>
       <Suspense fallback={<RouteFallback />}>
       <Routes location={location}>
       <Route path="/login" element={<Login />} />
@@ -144,6 +146,7 @@ const AuthenticatedApp = () => {
       <Route path="*" element={<PageNotFound />} />
       </Routes>
       </Suspense>
+      </ErrorBoundary>
       </motion.div>
     </AnimatePresence>
     <MobileTabBar />
@@ -155,6 +158,7 @@ const AuthenticatedApp = () => {
 function App() {
 
   return (
+    <ErrorBoundary>
     <AuthProvider>
       <QueryClientProvider client={queryClientInstance}>
         <Router>
@@ -164,6 +168,7 @@ function App() {
         <Toaster />
       </QueryClientProvider>
     </AuthProvider>
+    </ErrorBoundary>
   )
 }
 
