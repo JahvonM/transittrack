@@ -26,7 +26,7 @@ const browser = await chromium.launch();
 const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1 });
 await ctx.addInitScript((sc) => {
   localStorage.setItem("base44_access_token", "fake"); localStorage.setItem("token", "fake");
-  localStorage.setItem("tt_company_code", "ABC123");
+
   localStorage.setItem("tt_staff_chat_name", "Tanya");
   if (sc === "pickup") localStorage.setItem("tt_staff_pickup", "Hotel Riu");
 }, scenario);
