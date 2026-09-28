@@ -8,7 +8,7 @@ import { endOfToday, hoursFromNow, lateActive, skipActive, LATE_HOURS } from "@/
 const time = (iso) => new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 
 function Tile({ icon: Icon, label, sub, active, dot, onClick, href }) {
-  const cls = `relative shrink-0 w-[84px] snap-start flex flex-col items-center justify-start gap-1.5 rounded-2xl border px-1.5 py-3 text-center transition-colors min-h-[96px] ${
+  const cls = `relative shrink-0 w-[84px] sm:w-auto snap-start flex flex-col items-center justify-start gap-1.5 rounded-2xl border px-1.5 py-3 text-center transition-colors min-h-[96px] ${
     active ? "bg-primary text-primary-foreground border-primary" : "bg-card hover:bg-accent border-border"
   }`;
   const body = (
