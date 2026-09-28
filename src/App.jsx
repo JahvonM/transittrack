@@ -53,6 +53,8 @@ const RoutePlanner = lazy(() => import('@/pages/RoutePlanner'));
 const ReviewerSandbox = lazy(() => import('@/pages/ReviewerSandbox'));
 const DrivingReports = lazy(() => import('@/pages/DrivingReports'));
 const LocationTimeline = lazy(() => import('@/pages/LocationTimeline'));
+const DriverSchedule = lazy(() => import('@/pages/DriverSchedule'));
+const DriverProfile = lazy(() => import('@/pages/DriverProfile'));
 // Add page imports here
 
 const RouteFallback = () => (
@@ -142,6 +144,8 @@ const AuthenticatedApp = () => {
         <Route path="/reviewer-sandbox" element={<ReviewerSandbox />} />
         <Route path="/driving-reports" element={<DrivingReports />} />
         <Route path="/location-timeline" element={<LocationTimeline />} />
+        <Route path="/driver-schedule" element={<DriverSchedule />} />
+        <Route path="/driver-profile" element={<DriverProfile />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
       </Routes>
