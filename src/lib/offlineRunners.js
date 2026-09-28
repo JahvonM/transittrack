@@ -4,18 +4,19 @@ import { base44 } from "@/api/base44Client";
 import { registerRunner, startOfflineSync } from "@/lib/offlineJobs";
 
 // Mechanic inspection: result rows, then faults, then the vehicle's
-// last-inspection date. Each finished row is removed from the payload via
-// `save`, so a retry after a mid-upload drop never duplicates rows.
+// last-inspection date, each step in one request. Finished steps are cleared
+// from the payload via `save`, so a retry after a drop resumes at the step
+// that didn't make it instead of duplicating rows.
 export async function runMechanicInspection(payload, save = () => {}) {
   let p = { ...payload };
-  while (p.results.length) {
-    await base44.entities.InspectionResult.create(p.results[0]);
-    p = { ...p, results: p.results.slice(1) };
+  if (p.results.length) {
+    await base44.entities.InspectionResult.bulkCreate(p.results);
+    p = { ...p, results: [] };
     save(p);
   }
-  while (p.faults.length) {
-    await base44.entities.Fault.create(p.faults[0]);
-    p = { ...p, faults: p.faults.slice(1) };
+  if (p.faults.length) {
+    await base44.entities.Fault.bulkCreate(p.faults);
+    p = { ...p, faults: [] };
     save(p);
   }
   if (p.vehicle_id && !p.vehicle_updated) {
