@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { confirmAction } from "@/components/ConfirmHost";
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
@@ -60,8 +61,8 @@ export default function InspectionTemplatesTab({ templates = [], companies = [],
     setNewSectionName("");
   };
 
-  const removeSection = (idx) => {
-    if (!window.confirm("Delete this whole section and its items?")) return;
+  const removeSection = async (idx) => {
+    if (!(await confirmAction({ title: "Delete this section?", description: "The section and all of its items will be removed from this template." }))) return;
     updateSections((s) => s.filter((_, i) => i !== idx));
   };
 
@@ -152,7 +153,7 @@ export default function InspectionTemplatesTab({ templates = [], companies = [],
   };
 
   const removeTemplate = async (id) => {
-    if (!window.confirm("Delete this template? This can't be undone.")) return;
+    if (!(await confirmAction({ title: "Delete this template?", description: "This can't be undone." }))) return;
     await base44.entities.InspectionTemplate.delete(id);
     if (selectedId === id) setSelectedId(null);
     onChange();

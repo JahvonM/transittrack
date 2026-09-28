@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { confirmAction } from "@/components/ConfirmHost";
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
@@ -38,7 +39,7 @@ export default function PartsTab({ parts = [], companies = [], onChange }) {
   };
 
   const remove = async (id) => {
-    if (!window.confirm("Delete this part?")) return;
+    if (!(await confirmAction({ title: "Delete this part?", description: "It will be removed from your parts inventory." }))) return;
     try {
       await base44.entities.Part.delete(id);
       onChange();

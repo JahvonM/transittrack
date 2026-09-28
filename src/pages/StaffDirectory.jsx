@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { confirmAction } from "@/components/ConfirmHost";
 import { base44 } from "@/api/base44Client";
 import AppLayout from "@/components/AppLayout";
 import PullToRefresh from "@/components/PullToRefresh";
@@ -72,7 +73,7 @@ export default function StaffDirectory() {
   };
 
   const remove = async (c) => {
-    if (!window.confirm(`Delete ${c.name}?`)) return;
+    if (!(await confirmAction({ title: `Delete ${c.name}?`, description: "This contact will be removed from the directory." }))) return;
     await base44.entities.Contact.delete(c.id);
     load();
   };

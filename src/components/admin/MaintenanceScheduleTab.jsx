@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { confirmAction } from "@/components/ConfirmHost";
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
@@ -60,7 +61,7 @@ export default function MaintenanceScheduleTab({ schedules = [], vehicles = [], 
   };
 
   const remove = async (id) => {
-    if (!window.confirm("Delete this schedule?")) return;
+    if (!(await confirmAction({ title: "Delete this schedule?", description: "This maintenance schedule will be removed." }))) return;
     try {
       await base44.entities.MaintenanceSchedule.delete(id);
       onChange();
