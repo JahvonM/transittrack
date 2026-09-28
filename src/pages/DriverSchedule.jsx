@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import EmptyState from "@/components/EmptyState";
+import BusLoader from "@/components/BusLoader";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import AppLayout from "@/components/AppLayout";
@@ -52,7 +53,7 @@ export default function DriverSchedule() {
   return (
     <AppLayout title="Driver Schedule">
       <div className="max-w-2xl space-y-4">
-        {loading && <p className="text-muted-foreground">Loading schedule…</p>}
+        {loading && <BusLoader label="Loading your shifts…" className="py-6" />}
 
         {vehicle && (
           <Card>
