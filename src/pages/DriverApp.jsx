@@ -16,6 +16,7 @@ import DriverMessageAlert from "@/components/driver/DriverMessageAlert";
 import NewCheckInAlert from "@/components/driver/NewCheckInAlert";
 import DriverDevicePanel from "@/components/driver/DriverDevicePanel";
 import DriverTrips from "@/components/DriverTrips";
+import ShiftCard from "@/components/driver/ShiftCard";
 import SafetyStandardsContent from "@/components/SafetyStandardsContent";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertCircle, AlertTriangle, ArrowLeft, MessageCircle, ShieldCheck } from "lucide-react";
@@ -294,6 +295,8 @@ export default function DriverApp() {
             <TabsTrigger value="profile">Profile</TabsTrigger>
           </TabsList>
           <TabsContent value="track" className="mt-4">
+            <ShiftCard session={session} invoke={invoke} refresh={refresh} />
+            <div className="h-4" />
             <DriverTrackingDashboard session={session} invoke={invoke} driverName={driverName} onReportIncident={() => setIsReportOpen(true)} />
             {session.trips?.length > 0 && (
               <div className="mt-6">
