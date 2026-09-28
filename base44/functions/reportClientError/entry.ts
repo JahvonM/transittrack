@@ -1,6 +1,10 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 
 const HOUR_MS = 60 * 60 * 1000;
+// This endpoint is callable without a login, so cap what it can do per hour
+// no matter how many distinct messages arrive.
+const MAX_EMAILS_PER_HOUR = 5;
+const MAX_RECORDS_PER_HOUR = 200;
 const clip = (v, n) => (typeof v === 'string' ? v.slice(0, n) : '');
 
 // Records a crash reported by the app (signed-in users, kiosks and driver
@@ -19,8 +23,13 @@ export default async function (req) {
 
     const db = base44.asServiceRole.entities;
     const since = new Date(Date.now() - HOUR_MS).toISOString();
+    const latest = await db.ClientError.list('-created_date', MAX_RECORDS_PER_HOUR);
+    if (latest.length >= MAX_RECORDS_PER_HOUR && latest[latest.length - 1].created_date >= since) {
+      return Response.json({ ok: true, throttled: true });
+    }
+    const emailedThisHour = latest.filter((r) => r.emailed && r.created_date >= since).length;
     const recent = await db.ClientError.filter({ message }, '-created_date', 1);
-    const alreadyAlerted = recent.length > 0 && recent[0].created_date >= since;
+    const alreadyAlerted = (recent.length > 0 && recent[0].created_date >= since) || emailedThisHour >= MAX_EMAILS_PER_HOUR;
 
     const record = await db.ClientError.create({
       message,
