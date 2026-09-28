@@ -1,5 +1,16 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 
+// These jobs can be reached over plain HTTP with no login (that's how the
+// scheduler calls them), so outside an admin each one may only run once per
+// period; otherwise anyone could spam admin inboxes by hitting the URL.
+async function claimRun(base44, job, minGapMs, isAdmin) {
+  const db = base44.asServiceRole.entities.JobRun;
+  const last = (await db.filter({ job }, '-ran_at', 1))[0];
+  if (!isAdmin && last && Date.now() - new Date(last.ran_at).getTime() < minGapMs) return false;
+  await db.create({ job, ran_at: new Date().toISOString(), trigger: isAdmin ? 'admin' : 'schedule' });
+  return true;
+}
+
 const DAY_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_MILEAGE_THRESHOLD_KM = 500;
 
@@ -33,12 +44,17 @@ export default async function (req) {
     const base44 = createClientFromRequest(req);
 
     // Soft guard for direct HTTP invocation; scheduled runs have no user.
+    let isAdmin = false;
     try {
       const currentUser = await base44.auth.me();
+      isAdmin = currentUser?.role === 'admin';
       if (currentUser && currentUser.role && !['admin', 'company'].includes(currentUser.role)) {
         return Response.json({ error: 'Forbidden' }, { status: 403 });
       }
     } catch { /* scheduled run, no user — proceed */ }
+    if (!(await claimRun(base44, 'maintenanceAlerts', 20 * 60 * 60 * 1000, isAdmin))) {
+      return Response.json({ ok: true, skipped: 'already ran recently' });
+    }
 
     const [schedules, vehicles, users, settingsList] = await Promise.all([
       base44.asServiceRole.entities.MaintenanceSchedule.list(),

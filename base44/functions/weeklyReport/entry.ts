@@ -1,5 +1,16 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 
+// These jobs can be reached over plain HTTP with no login (that's how the
+// scheduler calls them), so outside an admin each one may only run once per
+// period; otherwise anyone could spam admin inboxes by hitting the URL.
+async function claimRun(base44, job, minGapMs, isAdmin) {
+  const db = base44.asServiceRole.entities.JobRun;
+  const last = (await db.filter({ job }, '-ran_at', 1))[0];
+  if (!isAdmin && last && Date.now() - new Date(last.ran_at).getTime() < minGapMs) return false;
+  await db.create({ job, ran_at: new Date().toISOString(), trigger: isAdmin ? 'admin' : 'schedule' });
+  return true;
+}
+
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 const inWindow = (iso, since) => !!iso && new Date(iso).getTime() >= since;
@@ -12,12 +23,17 @@ const hours = (mins) => (mins / 60).toFixed(1);
 export default async function (req) {
   try {
     const base44 = createClientFromRequest(req);
+    let isAdmin = false;
     try {
       const currentUser = await base44.auth.me();
+      isAdmin = currentUser?.role === 'admin';
       if (currentUser && currentUser.role !== 'admin') {
         return Response.json({ error: 'Forbidden' }, { status: 403 });
       }
     } catch { /* scheduled run, no user — proceed */ }
+    if (!(await claimRun(base44, 'weeklyReport', 6 * 24 * 60 * 60 * 1000, isAdmin))) {
+      return Response.json({ ok: true, skipped: 'already ran recently' });
+    }
 
     const db = base44.asServiceRole.entities;
     const since = Date.now() - 7 * DAY_MS;
