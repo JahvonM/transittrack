@@ -65,7 +65,7 @@ export default function CompanyDashboard() {
   if (user && user.role !== "company" && user.role !== "admin") return <Navigate to="/" replace />;
 
   if (loading) return <AppLayout><BusLoader className="py-8" /></AppLayout>;
-  if (!company) return <AppLayout><CreateCompany onCreated={loadAll} /></AppLayout>;
+  if (!company) return <CreateCompany onCreated={loadAll} />;
 
   return (
     <AppLayout title={`${company.name} · Dashboard`}>

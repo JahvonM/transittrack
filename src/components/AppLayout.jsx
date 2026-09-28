@@ -24,7 +24,7 @@ export default function AppLayout({ children, title }) {
             )}
             <Link to="/" className="flex items-center gap-2.5 font-heading font-semibold">
               <Logo className="w-8 h-8" />
-              <span className="hidden sm:inline">MCSween's Transport</span>
+              <span className="hidden sm:inline">TransitTrack</span>
             </Link>
           </div>
           <div className="flex items-center gap-2">

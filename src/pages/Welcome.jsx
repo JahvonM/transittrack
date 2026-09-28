@@ -147,7 +147,7 @@ export default function Welcome() {
         <div className="max-w-6xl mx-auto px-4 h-full flex items-center justify-between gap-3">
           <Link to="/" className="flex items-center gap-2.5 font-heading font-semibold text-lg">
             <Logo className="w-8 h-8" />
-            MCSween's Transport
+            TransitTrack
           </Link>
           <div className="flex items-center gap-2 sm:gap-3">
             <div className="hidden sm:block">
@@ -191,7 +191,7 @@ export default function Welcome() {
             className="font-display font-bold leading-[1.05]"
             style={{ fontSize: "clamp(2.5rem, 6vw, 4.5rem)" }}
           >
-            {isAuthenticated ? `Hello, ${firstName}` : "Welcome to Transit Hub"}
+            {isAuthenticated ? `Hello, ${firstName}` : "Welcome to TransitTrack"}
           </motion.h1>
           <motion.p variants={rise} className="text-muted-foreground">
             {isAuthenticated
