@@ -1,0 +1,85 @@
+{
+  "name": "AuditLog",
+  "type": "object",
+  "properties": {
+    "actor_email": {
+      "type": "string"
+    },
+    "actor_name": {
+      "type": "string"
+    },
+    "actor_role": {
+      "type": "string"
+    },
+    "action": {
+      "type": "string",
+      "enum": [
+        "create",
+        "update",
+        "delete"
+      ]
+    },
+    "entity": {
+      "type": "string"
+    },
+    "record_id": {
+      "type": "string"
+    },
+    "summary": {
+      "type": "string",
+      "description": "Human-readable label of the record, e.g. its name."
+    },
+    "changes": {
+      "type": "string",
+      "description": "JSON of the fields that were set (values clipped)."
+    },
+    "page": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "action",
+    "entity"
+  ],
+  "rls": {
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "create": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "company"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "mechanic"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "staff"
+          }
+        }
+      ]
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

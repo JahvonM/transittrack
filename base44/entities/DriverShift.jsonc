@@ -1,0 +1,87 @@
+{
+  "name": "DriverShift",
+  "type": "object",
+  "properties": {
+    "vehicle_id": {
+      "type": "string"
+    },
+    "vehicle_name": {
+      "type": "string"
+    },
+    "company_id": {
+      "type": "string"
+    },
+    "company_name": {
+      "type": "string"
+    },
+    "driver_name": {
+      "type": "string"
+    },
+    "driver_email": {
+      "type": "string"
+    },
+    "device_id": {
+      "type": "string",
+      "description": "Driver tablet (KioskDevice) that started the shift."
+    },
+    "started_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "ended_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "duration_minutes": {
+      "type": "number"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "vehicle_id",
+    "started_at"
+  ],
+  "rls": {
+    "read": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "$and": [
+            {
+              "user_condition": {
+                "role": "company"
+              }
+            },
+            {
+              "data.company_id": "{{user.data.company_id}}"
+            }
+          ]
+        },
+        {
+          "data.driver_email": "{{user.email}}"
+        }
+      ]
+    },
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}
