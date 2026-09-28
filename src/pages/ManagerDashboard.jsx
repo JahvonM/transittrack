@@ -9,6 +9,7 @@ import RouteReplay from "@/components/manager/RouteReplay";
 import FleetAnalytics from "@/components/manager/FleetAnalytics";
 import DelayBroadcast from "@/components/manager/DelayBroadcast";
 import CompanyMessages from "@/components/manager/CompanyMessages";
+import { loadFailed } from "@/lib/loadFailed";
 
 export default function ManagerDashboard() {
   const { user } = useAuth();
@@ -21,13 +22,17 @@ export default function ManagerDashboard() {
 
   useEffect(() => {
     const load = async () => {
-      const [v, t] = await Promise.all([
-        base44.entities.Vehicle.list(),
-        base44.entities.Trip.list(),
-      ]);
-      setVehicles(v);
-      setTrips(t);
-      setLoading(false);
+      try {        const [v, t] = await Promise.all([
+          base44.entities.Vehicle.list(),
+          base44.entities.Trip.list(),
+        ]);
+        setVehicles(v);
+        setTrips(t);
+      } catch {
+        loadFailed(load);
+      } finally {
+        setLoading(false);
+      }
     };
     load();
     const unsub = base44.entities.Vehicle.subscribe(() => {

@@ -66,6 +66,7 @@ import {
   Gauge,
   Siren,
 } from "lucide-react";
+import { loadFailed } from "@/lib/loadFailed";
 
 const ROLE_LINKS = [
   { to: "/passenger", label: "Passenger view", icon: MapPin },
@@ -138,33 +139,37 @@ export default function Admin() {
   const go = (s) => navigate("/admin/" + s);
 
   const load = async () => {
-    const [u, c, v, r, t, insp, dr, fl, pt, sch, tmpl, ir] = await Promise.all([
-      base44.entities.User.list(),
-      base44.entities.Company.list(),
-      base44.entities.Vehicle.list(),
-      base44.entities.Route.list(),
-      base44.entities.Trip.list(),
-      base44.entities.Inspection.list(),
-      base44.entities.Driver.list(),
-      base44.entities.Fault.list(),
-      base44.entities.Part.list(),
-      base44.entities.MaintenanceSchedule.list(),
-      base44.entities.InspectionTemplate.list(),
-      base44.entities.InspectionResult.list("-inspection_date", 500),
-    ]);
-    setFaults(fl);
-    setParts(pt);
-    setSchedules(sch);
-    setTemplates(tmpl);
-    setInspectionResults(ir);
-    setUsers(u);
-    setCompanies(c);
-    setVehicles(v);
-    setRoutes(r);
-    setTrips(t);
-    setInspections(insp);
-    setDrivers(dr);
-    setLoading(false);
+    try {      const [u, c, v, r, t, insp, dr, fl, pt, sch, tmpl, ir] = await Promise.all([
+        base44.entities.User.list(),
+        base44.entities.Company.list(),
+        base44.entities.Vehicle.list(),
+        base44.entities.Route.list(),
+        base44.entities.Trip.list(),
+        base44.entities.Inspection.list(),
+        base44.entities.Driver.list(),
+        base44.entities.Fault.list(),
+        base44.entities.Part.list(),
+        base44.entities.MaintenanceSchedule.list(),
+        base44.entities.InspectionTemplate.list(),
+        base44.entities.InspectionResult.list("-inspection_date", 500),
+      ]);
+      setFaults(fl);
+      setParts(pt);
+      setSchedules(sch);
+      setTemplates(tmpl);
+      setInspectionResults(ir);
+      setUsers(u);
+      setCompanies(c);
+      setVehicles(v);
+      setRoutes(r);
+      setTrips(t);
+      setInspections(insp);
+      setDrivers(dr);
+    } catch {
+      loadFailed(load);
+    } finally {
+      setLoading(false);
+    }
   };
   useEffect(() => {
     load();

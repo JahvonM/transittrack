@@ -13,6 +13,7 @@ import { usePushNotifications } from "@/hooks/usePushNotifications";
 import ChatThread from "@/components/chat/ChatThread";
 import MechanicSettingsDialog from "@/components/MechanicSettingsDialog";
 import MechanicDashboardTab from "@/components/mechanic/MechanicDashboardTab";
+import { loadFailed } from "@/lib/loadFailed";
 
 function formatTime(iso) {
   if (!iso) return "";
@@ -50,7 +51,7 @@ export default function MechanicPortal() {
   const activeMessages = messagesByVehicle[activeVehicleId] || [];
 
   useEffect(() => {
-    base44.entities.Vehicle.list().then((v) => { setVehicles(v); setLoading(false); });
+    base44.entities.Vehicle.list().then((v) => { setVehicles(v); setLoading(false); }).catch(() => { setLoading(false); loadFailed(); });
   }, []);
 
   useEffect(() => {

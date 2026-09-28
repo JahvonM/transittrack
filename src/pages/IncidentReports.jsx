@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { AlertOctagon } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
+import { loadFailed } from "@/lib/loadFailed";
 
 const STATUSES = ["open", "investigating", "resolved"];
 const next = (s) => STATUSES[(STATUSES.indexOf(s) + 1) % STATUSES.length];
@@ -17,8 +18,13 @@ export default function IncidentReports() {
   const [loading, setLoading] = useState(true);
 
   const load = async () => {
-    const all = await base44.entities.Incident.list("-occurred_at", 500);
-    setItems(all); setLoading(false);
+    try {      const all = await base44.entities.Incident.list("-occurred_at", 500);
+      setItems(all);
+    } catch {
+      loadFailed(load);
+    } finally {
+      setLoading(false);
+    }
   };
   useEffect(() => { load(); }, []);
 

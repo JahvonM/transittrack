@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/components/ui/use-toast";
+import { loadFailed } from "@/lib/loadFailed";
 
 // Fleet-wide maintenance settings, controlled only by the mechanic team —
 // a single MaintenanceSettings row rather than a per-company field, since
@@ -40,7 +41,7 @@ export default function MechanicSettingsDialog({ open, onOpenChange }) {
         setEnablePhotos(s.enable_photo_attachments !== false);
       }
       setLoading(false);
-    });
+    }).catch(() => { setLoading(false); loadFailed(); });
   }, [open]);
 
   const save = async () => {

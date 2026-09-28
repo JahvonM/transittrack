@@ -5,6 +5,7 @@ import AppLayout from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { TrendingUp, Clock, MapPin } from "lucide-react";
+import { loadFailed } from "@/lib/loadFailed";
 
 function avgMs(trips) {
   const durs = trips
@@ -28,7 +29,7 @@ export default function RouteAnalytics() {
   useEffect(() => {
     Promise.all([base44.entities.Route.list(), base44.entities.Trip.list("-updated_date", 500)]).then(([r, t]) => {
       setRoutes(r); setTrips(t); setLoading(false);
-    });
+    }).catch(() => { setLoading(false); loadFailed(); });
   }, []);
 
   return (

@@ -7,6 +7,7 @@ import PartsTab from "@/components/admin/PartsTab";
 import MaintenanceScheduleTab from "@/components/admin/MaintenanceScheduleTab";
 import MaintenanceCalendarTab from "@/components/admin/MaintenanceCalendarTab";
 import InspectionHistoryTab from "@/components/admin/InspectionHistoryTab";
+import { loadFailed } from "@/lib/loadFailed";
 
 function StatCard({ icon: Icon, label, value, accent = "text-primary" }) {
   return (
@@ -33,21 +34,25 @@ export default function MechanicDashboardTab() {
   const [loading, setLoading] = useState(true);
 
   const load = async () => {
-    const [v, c, f, p, s, ir] = await Promise.all([
-      base44.entities.Vehicle.list(),
-      base44.entities.Company.list(),
-      base44.entities.Fault.list(),
-      base44.entities.Part.list(),
-      base44.entities.MaintenanceSchedule.list(),
-      base44.entities.InspectionResult.list("-inspection_date", 500),
-    ]);
-    setVehicles(v);
-    setCompanies(c);
-    setFaults(f);
-    setParts(p);
-    setSchedules(s);
-    setInspectionResults(ir);
-    setLoading(false);
+    try {      const [v, c, f, p, s, ir] = await Promise.all([
+        base44.entities.Vehicle.list(),
+        base44.entities.Company.list(),
+        base44.entities.Fault.list(),
+        base44.entities.Part.list(),
+        base44.entities.MaintenanceSchedule.list(),
+        base44.entities.InspectionResult.list("-inspection_date", 500),
+      ]);
+      setVehicles(v);
+      setCompanies(c);
+      setFaults(f);
+      setParts(p);
+      setSchedules(s);
+      setInspectionResults(ir);
+    } catch {
+      loadFailed(load);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {

@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/use-toast";
 import { ClipboardCheck, CheckCircle2, AlertTriangle, XCircle, Camera, Loader2, PartyPopper } from "lucide-react";
+import { loadFailed } from "@/lib/loadFailed";
 
 const CONDITIONS = [
   { key: "GOOD", label: "Good", icon: CheckCircle2, activeClass: "bg-emerald-500 text-white border-emerald-500" },
@@ -49,7 +50,7 @@ export default function RunInspection() {
       setTemplates(t);
       setPhotosEnabled(settingsList[0]?.enable_photo_attachments !== false);
       setLoading(false);
-    });
+    }).catch(() => { setLoading(false); loadFailed(); });
   }, []);
 
   const vehicle = vehicles.find((v) => v.id === vehicleId) || null;

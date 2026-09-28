@@ -16,6 +16,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { STATUS_LABEL, STATUS_VARIANT } from "@/lib/trip";
 import CompanyEditDialog from "@/components/CompanyEditDialog";
 import MapboxMap from "@/components/MapboxMap";
+import { loadFailed } from "@/lib/loadFailed";
 
 const CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const genCode = () =>
@@ -36,19 +37,23 @@ export default function CompanyDashboard() {
   const { toast } = useToast();
 
   const loadAll = async () => {
-    const [cos, ve, ro, tr] = await Promise.all([
-      base44.entities.Company.list(),
-      base44.entities.Vehicle.list(),
-      base44.entities.Route.list(),
-      base44.entities.Trip.list(),
-    ]);
-    const mine = (user.company_id && cos.find((c) => c.id === user.company_id))
-      || cos.find((c) => c.created_by_id === user.id);
-    setCompany(mine || null);
-    setVehicles(ve.filter((v) => v.company_id === mine?.id));
-    setRoutes(ro.filter((r) => r.company_id === mine?.id));
-    setTrips(tr.filter((t) => t.company_id === mine?.id));
-    setLoading(false);
+    try {      const [cos, ve, ro, tr] = await Promise.all([
+        base44.entities.Company.list(),
+        base44.entities.Vehicle.list(),
+        base44.entities.Route.list(),
+        base44.entities.Trip.list(),
+      ]);
+      const mine = (user.company_id && cos.find((c) => c.id === user.company_id))
+        || cos.find((c) => c.created_by_id === user.id);
+      setCompany(mine || null);
+      setVehicles(ve.filter((v) => v.company_id === mine?.id));
+      setRoutes(ro.filter((r) => r.company_id === mine?.id));
+      setTrips(tr.filter((t) => t.company_id === mine?.id));
+    } catch {
+      loadFailed(loadAll);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {

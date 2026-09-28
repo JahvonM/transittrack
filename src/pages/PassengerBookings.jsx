@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CalendarCheck } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
+import { loadFailed } from "@/lib/loadFailed";
 
 export default function PassengerBookings() {
   const { toast } = useToast();
@@ -17,11 +18,16 @@ export default function PassengerBookings() {
   const [assign, setAssign] = useState({});
 
   const load = async () => {
-    const [t, v] = await Promise.all([
-      base44.entities.Trip.list("-updated_date", 500),
-      base44.entities.Vehicle.list(),
-    ]);
-    setTrips(t); setVehicles(v); setLoading(false);
+    try {      const [t, v] = await Promise.all([
+        base44.entities.Trip.list("-updated_date", 500),
+        base44.entities.Vehicle.list(),
+      ]);
+      setTrips(t); setVehicles(v);
+    } catch {
+      loadFailed(load);
+    } finally {
+      setLoading(false);
+    }
   };
   useEffect(() => { load(); }, []);
 

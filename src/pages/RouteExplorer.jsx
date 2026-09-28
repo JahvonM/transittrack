@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Route as RouteIcon } from "lucide-react";
 import BusLoader from "@/components/BusLoader";
 import TripProgress from "@/components/TripProgress";
+import { loadFailed } from "@/lib/loadFailed";
 
 export default function RouteExplorer() {
   const [routes, setRoutes] = useState([]);
@@ -16,7 +17,7 @@ export default function RouteExplorer() {
   useEffect(() => {
     Promise.all([base44.entities.Route.list(), base44.entities.Vehicle.list()]).then(([r, v]) => {
       setRoutes(r.filter((x) => x.active)); setVehicles(v); setLoading(false);
-    });
+    }).catch(() => { setLoading(false); loadFailed(); });
   }, []);
 
   const allStops = routes.flatMap((r) => (r.stops || []).map((s) => ({ ...s, name: `${s.name} (${r.name})` })));

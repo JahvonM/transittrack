@@ -12,6 +12,7 @@ import FaultsTab from "@/components/admin/FaultsTab";
 import MaintenanceScheduleTab from "@/components/admin/MaintenanceScheduleTab";
 import InspectionHistoryTab from "@/components/admin/InspectionHistoryTab";
 import AnimatedBus from "@/components/AnimatedBus";
+import { loadFailed } from "@/lib/loadFailed";
 
 const RESTRICTED_ROLES = ["driver", "staff", "passenger"];
 
@@ -31,17 +32,21 @@ export default function VehicleDetail() {
   const [loading, setLoading] = useState(true);
 
   const load = async () => {
-    const v = await base44.entities.Vehicle.get(id);
-    setVehicle(v);
-    const [f, s, ir] = await Promise.all([
-      base44.entities.Fault.filter({ vehicle_id: id }),
-      base44.entities.MaintenanceSchedule.filter({ vehicle_id: id }),
-      base44.entities.InspectionResult.filter({ vehicle_id: id }, "-inspection_date", 500),
-    ]);
-    setFaults(f);
-    setSchedules(s);
-    setInspectionResults(ir);
-    setLoading(false);
+    try {      const v = await base44.entities.Vehicle.get(id);
+      setVehicle(v);
+      const [f, s, ir] = await Promise.all([
+        base44.entities.Fault.filter({ vehicle_id: id }),
+        base44.entities.MaintenanceSchedule.filter({ vehicle_id: id }),
+        base44.entities.InspectionResult.filter({ vehicle_id: id }, "-inspection_date", 500),
+      ]);
+      setFaults(f);
+      setSchedules(s);
+      setInspectionResults(ir);
+    } catch {
+      loadFailed(load);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {

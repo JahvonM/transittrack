@@ -26,6 +26,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
+import { loadFailed } from "@/lib/loadFailed";
 
 const STEPS = ["scheduled", "on_the_way", "arrived", "completed"];
 
@@ -106,7 +107,7 @@ export default function StaffPortal() {
       setTrips(t);
       statusRef.current = Object.fromEntries(t.map((x) => [x.id, x.status]));
       setLoading(false);
-    });
+    }).catch(() => { setLoading(false); loadFailed(); });
     const unsubVehicles = base44.entities.Vehicle.subscribe((event) => {
       setVehicles((prev) => {
         if (event.type === "delete") return prev.filter((x) => x.id !== event.id);

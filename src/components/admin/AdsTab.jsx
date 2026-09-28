@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Image } from "@/components/ui/image";
 import { Image as ImageIcon, Loader2, Plus, Trash2, Upload } from "lucide-react";
+import { loadFailed } from "@/lib/loadFailed";
 
 export default function AdsTab() {
   const [ads, setAds] = useState([]);
@@ -17,9 +18,13 @@ export default function AdsTab() {
   const [uploading, setUploading] = useState(false);
 
   const load = async () => {
-    const list = await base44.entities.Advertisement.list();
-    setAds(list);
-    setLoading(false);
+    try {      const list = await base44.entities.Advertisement.list();
+      setAds(list);
+    } catch {
+      loadFailed(load);
+    } finally {
+      setLoading(false);
+    }
   };
   useEffect(() => {
     load();

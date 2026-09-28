@@ -5,6 +5,7 @@ import PullToRefresh from "@/components/PullToRefresh";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Activity, Radio } from "lucide-react";
+import { loadFailed } from "@/lib/loadFailed";
 
 export default function VehicleLogs() {
   const [vehicles, setVehicles] = useState([]);
@@ -15,7 +16,7 @@ export default function VehicleLogs() {
     base44.entities.Vehicle.list().then((v) => {
       setVehicles(v.sort((a, b) => new Date(b.last_location_update || 0) - new Date(a.last_location_update || 0)));
       setLoading(false);
-    });
+    }).catch(() => { setLoading(false); loadFailed(); });
 
   useEffect(() => {
     load();

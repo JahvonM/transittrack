@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import ContactFormDialog from "@/components/directory/ContactFormDialog";
 import { useAuth } from "@/lib/AuthContext";
+import { loadFailed } from "@/lib/loadFailed";
 
 export default function StaffDirectory() {
   const { user } = useAuth();
@@ -30,7 +31,7 @@ export default function StaffDirectory() {
     base44.entities.Contact.list("-updated_date", 200).then((c) => {
       setContacts(c);
       setLoading(false);
-    });
+    }).catch(() => { setLoading(false); loadFailed(); });
   };
 
   useEffect(() => {

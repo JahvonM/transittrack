@@ -5,6 +5,7 @@ import PullToRefresh from "@/components/PullToRefresh";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { History } from "lucide-react";
+import { loadFailed } from "@/lib/loadFailed";
 
 export default function ServiceHistory() {
   const [vehicles, setVehicles] = useState([]);
@@ -14,7 +15,7 @@ export default function ServiceHistory() {
   const load = () =>
     Promise.all([base44.entities.Vehicle.list(), base44.entities.Inspection.list("-date", 200)]).then(([v, i]) => {
       setVehicles(v); setInspections(i); setLoading(false);
-    });
+    }).catch(() => { setLoading(false); loadFailed(); });
 
   useEffect(() => {
     load();
