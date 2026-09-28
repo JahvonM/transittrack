@@ -1,0 +1,60 @@
+{
+  "name": "ClientError",
+  "type": "object",
+  "properties": {
+    "message": {
+      "type": "string",
+      "description": "Error message (truncated)"
+    },
+    "stack": {
+      "type": "string",
+      "description": "Stack trace / component stack (truncated)"
+    },
+    "url": {
+      "type": "string",
+      "description": "Page path where it happened"
+    },
+    "user_email": {
+      "type": "string"
+    },
+    "user_role": {
+      "type": "string"
+    },
+    "user_agent": {
+      "type": "string"
+    },
+    "source": {
+      "type": "string",
+      "description": "boundary | window | promise"
+    },
+    "emailed": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "required": [
+    "message"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}
