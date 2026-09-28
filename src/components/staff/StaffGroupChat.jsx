@@ -1,48 +1,63 @@
 import React, { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Users } from "lucide-react";
+import { useAuth } from "@/lib/AuthContext";
 import ChatThread from "@/components/chat/ChatThread";
 
-// Chat scoped to one bus — its driver plus the staff riding it (channel:
-// "staff" on the shared GroupMessage entity; company/dispatch/mechanic are
-// separate channels the driver can also reach, not shown here). Driver
-// messages come through the driverSession backend function (drivers have no
-// login); staff post directly since they're logged in, so this side gets
-// live updates via subscribe instead of polling.
-export default function StaffGroupChat({ vehicle }) {
-  const [messages, setMessages] = useState([]);
-  const [name, setName] = useState(() => localStorage.getItem("tt_staff_chat_name") || "");
-  const [sending, setSending] = useState(false);
+const seenKey = (vehicleId) => `tt_staff_chat_seen_${vehicleId}`;
 
+function useBusMessages(vehicleId) {
+  const [messages, setMessages] = useState([]);
   useEffect(() => {
-    if (!vehicle?.id) { setMessages([]); return; }
+    if (!vehicleId) { setMessages([]); return undefined; }
     let cancelled = false;
-    base44.entities.GroupMessage.filter({ vehicle_id: vehicle.id, channel: "staff" }, "created_date", 100)
-      .then((rows) => { if (!cancelled) setMessages(rows); })
+    base44.entities.GroupMessage.filter({ vehicle_id: vehicleId, channel: "staff" }, "-created_date", 100)
+      .then((rows) => { if (!cancelled) setMessages([...rows].reverse()); })
       .catch(() => {});
     const unsub = base44.entities.GroupMessage.subscribe((event) => {
       if (event.type === "delete") { setMessages((prev) => prev.filter((m) => m.id !== event.id)); return; }
       const rec = event.data;
-      if (!rec || rec.vehicle_id !== vehicle.id || (rec.channel || "staff") !== "staff") return;
+      if (!rec || rec.vehicle_id !== vehicleId || (rec.channel || "staff") !== "staff") return;
       setMessages((prev) => (prev.some((m) => m.id === rec.id) ? prev.map((m) => (m.id === rec.id ? rec : m)) : [...prev, rec]));
     });
     return () => { cancelled = true; unsub(); };
-  }, [vehicle?.id]);
+  }, [vehicleId]);
+  return [messages, setMessages];
+}
+
+// Messages from others on this bus's chat since the chat was last opened.
+export function useChatUnread(vehicleId, open) {
+  const { user } = useAuth();
+  const [messages] = useBusMessages(vehicleId);
+  const [seenAt, setSeenAt] = useState(() => (vehicleId ? Number(localStorage.getItem(seenKey(vehicleId)) || 0) : 0));
+  useEffect(() => { if (vehicleId) setSeenAt(Number(localStorage.getItem(seenKey(vehicleId)) || 0)); }, [vehicleId]);
+  useEffect(() => {
+    if (!open || !vehicleId) return;
+    const now = Date.now();
+    try { localStorage.setItem(seenKey(vehicleId), String(now)); } catch { /* storage full */ }
+    setSeenAt(now);
+  }, [open, vehicleId, messages.length]);
+  return messages.filter((m) => m.created_by_id !== user?.id && new Date(m.created_date).getTime() > seenAt).length;
+}
+
+// Chat scoped to one bus: its driver plus the staff riding it (channel
+// "staff" on GroupMessage). Staff post directly as themselves; driver
+// messages arrive through the driverSession backend function.
+export default function StaffGroupChat({ vehicle }) {
+  const { user } = useAuth();
+  const [messages, setMessages] = useBusMessages(vehicle?.id);
+  const [sending, setSending] = useState(false);
+  const displayName = user?.full_name || user?.email?.split("@")[0] || "Staff";
 
   const notifyAdmin = (extra) => {
     base44.functions.invoke("notifyAdminMessage", {
       vehicle_name: vehicle.name, company_id: vehicle.company_id, channel: "staff",
-      sender_name: name.trim() || "Staff", ...extra,
+      sender_name: displayName, ...extra,
     }).catch(() => {});
   };
 
   const send = async (text) => {
     if (!vehicle?.id) return;
     setSending(true);
-    const displayName = name.trim() || "Staff";
-    localStorage.setItem("tt_staff_chat_name", displayName);
     try {
       await base44.entities.GroupMessage.create({
         vehicle_id: vehicle.id, vehicle_name: vehicle.name,
@@ -56,8 +71,6 @@ export default function StaffGroupChat({ vehicle }) {
 
   const sendMedia = async (blob, messageType) => {
     if (!vehicle?.id) return;
-    const displayName = name.trim() || "Staff";
-    localStorage.setItem("tt_staff_chat_name", displayName);
     const ext = messageType === "image" ? "jpg" : "webm";
     const file = new File([blob], `${messageType}-${Date.now()}.${ext}`, { type: blob.type });
     const { file_url } = await base44.integrations.Core.UploadFile({ file });
@@ -81,38 +94,24 @@ export default function StaffGroupChat({ vehicle }) {
 
   if (!vehicle) {
     return (
-      <Card>
-        <CardContent className="p-6 text-sm text-muted-foreground text-center">
-          Choose your bus below, or pick your pickup stop further down, to join your bus's group chat.
-        </CardContent>
-      </Card>
+      <p className="p-6 text-sm text-muted-foreground text-center">
+        Choose your pickup stop or your bus first to join its group chat.
+      </p>
     );
   }
 
-  const myName = name.trim() || "Staff";
-
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-base flex items-center gap-2">
-          <Users className="w-4 h-4 text-primary" /> {vehicle.name} group chat
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <ChatThread
-          messages={messages}
-          isMine={(m) => m.sender_role === "staff" && m.sender_name === myName}
-          senderLabel={(m) => (m.sender_role === "driver" ? "Driver" : m.sender_role === "admin" ? "Admin" : (m.sender_name || "Staff"))}
-          onSend={send}
-          onSendImage={(blob) => sendMedia(blob, "image")}
-          onSendAudio={(blob) => sendMedia(blob, "audio")}
-          onEdit={editMessage}
-          onDelete={deleteMessage}
-          sending={sending}
-          placeholder="Message the driver…"
-        />
-        <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name (shown to the driver)" />
-      </CardContent>
-    </Card>
+    <ChatThread
+      messages={messages}
+      isMine={(m) => m.created_by_id === user?.id}
+      senderLabel={(m) => (m.sender_role === "driver" ? "Driver" : m.sender_role === "admin" ? "Admin" : (m.sender_name || "Staff"))}
+      onSend={send}
+      onSendImage={(blob) => sendMedia(blob, "image")}
+      onSendAudio={(blob) => sendMedia(blob, "audio")}
+      onEdit={editMessage}
+      onDelete={deleteMessage}
+      sending={sending}
+      placeholder="Message the driver…"
+    />
   );
 }
