@@ -43,7 +43,7 @@ export default function CompanyDashboard() {
         base44.entities.Company.list(),
         base44.entities.Vehicle.list(),
         base44.entities.Route.list(),
-        base44.entities.Trip.list(),
+        base44.entities.Trip.list("-created_date", 1000),
       ]);
       const mine = (user.company_id && cos.find((c) => c.id === user.company_id))
         || cos.find((c) => c.created_by_id === user.id);

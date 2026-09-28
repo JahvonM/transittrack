@@ -26,7 +26,7 @@ export default function ManagerDashboard() {
       try {
         const [v, t] = await Promise.all([
           base44.entities.Vehicle.list(),
-          base44.entities.Trip.list(),
+          base44.entities.Trip.list("-created_date", 1000),
         ]);
         setVehicles(v);
         setTrips(t);

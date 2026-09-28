@@ -18,7 +18,7 @@ export default function DriverSchedule() {
     if (!user?.email) return;
     Promise.all([
       base44.entities.Vehicle.filter({ driver_email: user.email }),
-      base44.entities.Trip.filter({ driver_email: user.email }),
+      base44.entities.Trip.filter({ driver_email: user.email }, "-scheduled_time", 200),
     ])
       .then(([vs, ts]) => {
         setVehicle(vs[0] || null);

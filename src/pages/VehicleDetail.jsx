@@ -37,7 +37,7 @@ export default function VehicleDetail() {
       const v = await base44.entities.Vehicle.get(id);
       setVehicle(v);
       const [f, s, ir] = await Promise.all([
-        base44.entities.Fault.filter({ vehicle_id: id }),
+        base44.entities.Fault.filter({ vehicle_id: id }, "-created_date", 500),
         base44.entities.MaintenanceSchedule.filter({ vehicle_id: id }),
         base44.entities.InspectionResult.filter({ vehicle_id: id }, "-inspection_date", 500),
       ]);

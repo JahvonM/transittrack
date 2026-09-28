@@ -109,7 +109,7 @@ export default function StaffPortal() {
     Promise.all([
       base44.entities.Vehicle.filter({ company_id: company.id }),
       base44.entities.Route.filter({ company_id: company.id }),
-      base44.entities.Trip.filter({ company_id: company.id }),
+      base44.entities.Trip.filter({ company_id: company.id }, "-scheduled_time", 500),
     ]).then(([v, r, t]) => {
       setVehicles(v);
       setRoutes(r);
@@ -162,7 +162,7 @@ export default function StaffPortal() {
     const [v, r, t] = await Promise.all([
       base44.entities.Vehicle.filter({ company_id: company.id }),
       base44.entities.Route.filter({ company_id: company.id }),
-      base44.entities.Trip.filter({ company_id: company.id }),
+      base44.entities.Trip.filter({ company_id: company.id }, "-scheduled_time", 500),
     ]);
     setVehicles(v);
     setRoutes(r);

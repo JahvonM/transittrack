@@ -39,7 +39,7 @@ export default function MechanicDashboardTab() {
       const [v, c, f, p, s, ir] = await Promise.all([
         base44.entities.Vehicle.list(),
         base44.entities.Company.list(),
-        base44.entities.Fault.list(),
+        base44.entities.Fault.list("-created_date", 1000),
         base44.entities.Part.list(),
         base44.entities.MaintenanceSchedule.list(),
         base44.entities.InspectionResult.list("-inspection_date", 500),

@@ -109,7 +109,7 @@ export default function Welcome() {
         setPreview((p) => (p.admin ? p : { ...p, admin: `${vs.length} vehicles · ${live} live now` }));
       });
     } else if (role === "driver") {
-      base44.entities.Trip.filter({ driver_email: user.email }).then((ts) => {
+      base44.entities.Trip.filter({ driver_email: user.email }, "-scheduled_time", 200).then((ts) => {
         const active = ts.filter((t) => t.status === "on_the_way" || t.status === "arrived").length;
         setPreview((p) => (p.driver ? p : { ...p, driver: `${ts.length} trips · ${active} running` }));
       });
