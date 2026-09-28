@@ -20,6 +20,9 @@ import AdBanner from "@/components/AdBanner";
 import BusAssistant from "@/components/BusAssistant";
 import ContactOperator from "@/components/ContactOperator";
 import LocationPrompt from "@/components/LocationPrompt";
+import CrowdBadge from "@/components/staff/CrowdBadge";
+import useCrowding from "@/hooks/useCrowding";
+import { Switch } from "@/components/ui/switch";
 import { haversineKm, etaMinutes, formatEta } from "@/lib/geo";
 import useDrivingEta from "@/hooks/useDrivingEta";
 import { STATUS_LABEL } from "@/lib/trip";
@@ -74,6 +77,43 @@ export default function StaffPortal() {
   const [trips, setTrips] = useState([]);
   const [pickupName, setPickupName] = useState(() => localStorage.getItem("tt_staff_pickup") || "");
   const [companyPhone, setCompanyPhone] = useState("");
+  const [stopAlerts, setStopAlerts] = useState(false);
+
+  // The pickup point doubles as the passenger's saved favourite stop, kept on
+  // their account so the server can send "one stop away" alerts for it.
+  useEffect(() => {
+    if (!user) return;
+    setStopAlerts(!!user.stop_alerts);
+    if (user.favorite_stop && !localStorage.getItem("tt_staff_pickup")) {
+      setPickupName(user.favorite_stop);
+      localStorage.setItem("tt_staff_pickup", user.favorite_stop);
+    }
+  }, [user]);
+
+  const choosePickup = (v) => {
+    setPickupName(v);
+    localStorage.setItem("tt_staff_pickup", v);
+    if (user) base44.auth.updateMe({ favorite_stop: v }).catch(() => {});
+  };
+
+  const toggleStopAlerts = async (on) => {
+    if (on && !pickupName) {
+      toast({ title: "Choose your pickup point first" });
+      return;
+    }
+    if (on && pushPermission !== "granted") await enableNotifications();
+    setStopAlerts(on);
+    try {
+      await base44.auth.updateMe({ stop_alerts: on, favorite_stop: pickupName });
+      toast({
+        title: on ? "Stop alerts on" : "Stop alerts off",
+        description: on ? `We'll notify you when a bus leaves the stop before ${pickupName}.` : undefined,
+      });
+    } catch {
+      setStopAlerts(!on);
+      toast({ title: "Couldn't save that setting", variant: "destructive" });
+    }
+  };
 
   useEffect(() => {
     pickupRef.current = pickupName;
@@ -83,6 +123,7 @@ export default function StaffPortal() {
   // background watch was denied or timed out.
   const [promptLoc, setPromptLoc] = useState(null);
   const userLoc = watchedLoc || promptLoc;
+  const crowd = useCrowding(company?.id);
   const [loading, setLoading] = useState(true);
 
   // Load saved company code
@@ -327,14 +368,20 @@ export default function StaffPortal() {
           <p className="text-sm font-medium mb-1.5">Your pickup point</p>
           <MobileSelect
             value={pickupName}
-            onValueChange={(v) => {
-              setPickupName(v);
-              localStorage.setItem("tt_staff_pickup", v);
-            }}
+            onValueChange={choosePickup}
             placeholder="Choose your hotel / stop"
             options={pickupOptions.map((s) => ({ value: s.name, label: s.name }))}
             triggerClassName="max-w-sm"
           />
+          <label className="mt-3 flex items-center gap-3 max-w-sm cursor-pointer">
+            <Switch checked={stopAlerts} onCheckedChange={toggleStopAlerts} aria-label="Alert me when a bus is one stop away" />
+            <span className="text-sm">
+              Alert me when a bus is one stop away
+              {stopAlerts && pushPermission === "unsupported" && (
+                <span className="block text-xs text-muted-foreground">This device can't show notifications. Add the app to your home screen to get them.</span>
+              )}
+            </span>
+          </label>
         </div>
 
         {stop && (
@@ -349,6 +396,7 @@ export default function StaffPortal() {
                     <Bus className="w-5 h-5" />
                   </div>
                   <div className="flex-1 min-w-0">
+                    <div className="mb-0.5"><CrowdBadge count={crowd[approaching.v.id] || 0} capacity={approaching.v.capacity} /></div>
                     <div className="font-medium truncate">
                       {approaching.v.name} · {approaching.v.plate_number}
                     </div>
@@ -445,6 +493,7 @@ export default function StaffPortal() {
                       <div className="text-xs text-muted-foreground truncate">
                         {v.company_name} · {v.driver_name || "—"}
                       </div>
+                      <div className="mt-1"><CrowdBadge count={crowd[v.id] || 0} capacity={v.capacity} /></div>
                     </div>
                     {fresh ? (
                       <Badge variant="default">{v.status === "on_trip" ? "On trip" : "Tracking"}</Badge>
