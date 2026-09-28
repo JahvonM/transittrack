@@ -29,6 +29,10 @@
     "home_lng": {
       "type": "number"
     },
+    "home_address": {
+      "type": "string",
+      "description": "Readable address of the pinned pickup location."
+    },
     "work_lat": {
       "type": "number"
     },
@@ -58,9 +62,19 @@
       "type": "boolean",
       "default": false
     },
+    "skip_pickup_until": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Skip only applies until this moment (end of the day it was set)."
+    },
     "late_snooze_active": {
       "type": "boolean",
       "default": false
+    },
+    "late_until": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Running-late flag only applies until this moment."
     },
     "favorite_stop": {
       "type": "string",
