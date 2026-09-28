@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import Map, { Marker } from "react-map-gl";
+import "mapbox-gl/dist/mapbox-gl.css";
 import { MAPBOX_TOKEN, mapStyleFor } from "@/lib/mapbox";
 import { useIsDark } from "@/lib/useTheme";
 import { Input } from "@/components/ui/input";

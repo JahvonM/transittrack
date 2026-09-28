@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import Map, { Marker, Source, Layer } from "react-map-gl";
+import "mapbox-gl/dist/mapbox-gl.css";
 import { MAPBOX_TOKEN, mapStyleFor, mapAccentFor } from "@/lib/mapbox";
 import { useIsDark } from "@/lib/useTheme";
 import { base44 } from "@/api/base44Client";
