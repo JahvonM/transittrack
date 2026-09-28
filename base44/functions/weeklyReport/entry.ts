@@ -49,13 +49,13 @@ export default async function (req) {
 
     const weekResults = results.filter((r) => inWindow(r.inspection_date || r.created_date, since));
     const inspectionSessions = new Set(weekResults.map((r) => `${r.vehicle_id}|${r.inspection_name}|${(r.inspection_date || r.created_date || '').slice(0, 10)}`)).size;
-    const failedItems = weekResults.filter((r) => r.result === 'fail' || r.status === 'fail' || r.passed === false).length;
+    const failedItems = weekResults.filter((r) => r.condition === 'FAILED').length;
 
     const newFaults = faults.filter((f) => inWindow(f.created_date, since)).length;
-    const openFaults = faults.filter((f) => !['resolved', 'closed', 'fixed'].includes((f.status || '').toLowerCase())).length;
+    const openFaults = faults.filter((f) => f.status !== 'resolved').length;
 
     const weekIncidents = incidents.filter((i) => inWindow(i.occurred_at || i.created_date, since));
-    const sos = weekIncidents.filter((i) => i.type === 'sos').length;
+    const sos = weekIncidents.filter((i) => i.type === 'emergency').length;
     const speeding = weekIncidents.filter((i) => i.type === 'speeding').length;
 
     const offline = vehicles.filter((v) => !v.last_location_update || Date.now() - new Date(v.last_location_update).getTime() > 7 * DAY_MS);
