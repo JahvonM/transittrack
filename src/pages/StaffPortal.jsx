@@ -1,65 +1,69 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Navigate, Link } from "react-router-dom";
+import { Navigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import AppLayout from "@/components/AppLayout";
 import MapboxMap from "@/components/MapboxMap";
 import CodeGate from "@/components/CodeGate";
-import ProfileInfo from "@/components/ProfileInfo";
 import StaffAlerts from "@/components/StaffAlerts";
-import StaffGroupChat from "@/components/staff/StaffGroupChat";
-import OneTimeCode from "@/components/staff/OneTimeCode";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
-import LocationPinner from "@/components/staff/LocationPinner";
 import useUserLocation from "@/hooks/useUserLocation";
-import StaffToggles from "@/components/staff/StaffToggles";
-import LostItemReport from "@/components/staff/LostItemReport";
-import ShareLocationButton from "@/components/ShareLocationButton";
-import Greeting from "@/components/Greeting";
+import WeatherWidget from "@/components/WeatherWidget";
 import AdBanner from "@/components/AdBanner";
 import BusAssistant from "@/components/BusAssistant";
-import ContactOperator from "@/components/ContactOperator";
 import LocationPrompt from "@/components/LocationPrompt";
 import CrowdBadge from "@/components/staff/CrowdBadge";
+import NextBusCard from "@/components/staff/NextBusCard";
+import QuickActions from "@/components/staff/QuickActions";
+import { useChatUnread } from "@/components/staff/StaffGroupChat";
+import { MyPickupSheet, HelpSheet, BadgeSheet, ChatSheet } from "@/components/staff/StaffSheets";
 import useCrowding from "@/hooks/useCrowding";
-import { Switch } from "@/components/ui/switch";
-import { haversineKm, etaMinutes, formatEta } from "@/lib/geo";
+import { haversineKm, etaMinutes } from "@/lib/geo";
 import useDrivingEta from "@/hooks/useDrivingEta";
 import { STATUS_LABEL } from "@/lib/trip";
-import { Bus, BellRing, Clock, LogOut, ShieldCheck, User } from "lucide-react";
-import { MobileSelect } from "@/components/ui/mobile-select";
+import { Bus, BellRing, ChevronRight, Clock, LifeBuoy, MapPin, UserRound, X } from "lucide-react";
 import PullToRefresh from "@/components/PullToRefresh";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
 import { loadFailed } from "@/lib/loadFailed";
 import BusLoader from "@/components/BusLoader";
 
 const STEPS = ["scheduled", "on_the_way", "arrived", "completed"];
 
-const fmtDateTime = (iso) =>
-  iso ? new Date(iso).toLocaleString([], { dateStyle: "medium", timeStyle: "short" }) : "—";
+const fmtWhen = (iso) => {
+  if (!iso) return "Time TBA";
+  const d = new Date(iso);
+  const today = new Date().toDateString() === d.toDateString();
+  return today
+    ? `Today ${d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`
+    : d.toLocaleString([], { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
+};
 
-function StatusSteps({ status }) {
-  if (status === "cancelled") {
-    return <Badge variant="destructive">Cancelled</Badge>;
-  }
+const greetingWord = () => {
+  const h = new Date().getHours();
+  return h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
+};
+
+// Compact trip progress: four segments, filled up to the current step.
+function TripSteps({ status }) {
+  if (status === "cancelled") return <span className="text-xs font-medium text-destructive">Cancelled</span>;
   const current = STEPS.indexOf(status);
   return (
-    <div className="flex items-center gap-1">
-      {STEPS.map((s, i) => (
-        <React.Fragment key={s}>
-          {i > 0 && <div className={`h-0.5 w-3 sm:w-4 ${i <= current ? "bg-primary" : "bg-border"}`} />}
-          <span
-            className={`text-sm px-1.5 py-0.5 rounded-full whitespace-nowrap ${
-              i <= current ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
-            }`}
-          >
-            {STATUS_LABEL[s]}
-          </span>
-        </React.Fragment>
-      ))}
+    <div className="flex items-center gap-2 min-w-[120px]" aria-label={`Status: ${STATUS_LABEL[status] || status}`}>
+      <div className="flex gap-1 flex-1">
+        {STEPS.map((s, i) => (
+          <span key={s} className={`h-1.5 flex-1 rounded-full ${i <= current ? "bg-primary" : "bg-muted"}`} />
+        ))}
+      </div>
+      <span className="text-xs font-medium whitespace-nowrap">{STATUS_LABEL[status] || status}</span>
+    </div>
+  );
+}
+
+function SectionTitle({ children, action }) {
+  return (
+    <div className="flex items-center justify-between mb-2">
+      <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{children}</h3>
+      {action}
     </div>
   );
 }
@@ -78,9 +82,11 @@ export default function StaffPortal() {
   const [pickupName, setPickupName] = useState(() => localStorage.getItem("tt_staff_pickup") || "");
   const [companyPhone, setCompanyPhone] = useState("");
   const [stopAlerts, setStopAlerts] = useState(false);
+  const [sheet, setSheet] = useState(null); // "pickup" | "help" | "badge" | "chat" | null
+  const [notifDismissed, setNotifDismissed] = useState(() => localStorage.getItem("tt_notif_prompt_dismissed") === "1");
 
-  // The pickup point doubles as the passenger's saved favourite stop, kept on
-  // their account so the server can send "one stop away" alerts for it.
+  // The pickup stop is saved on the account (favourite stop) so the server
+  // can send "one stop away" alerts for it.
   useEffect(() => {
     if (!user) return;
     setStopAlerts(!!user.stop_alerts);
@@ -98,7 +104,7 @@ export default function StaffPortal() {
 
   const toggleStopAlerts = async (on) => {
     if (on && !pickupName) {
-      toast({ title: "Choose your pickup point first" });
+      toast({ title: "Choose your pickup stop first" });
       return;
     }
     if (on && pushPermission !== "granted") await enableNotifications();
@@ -126,16 +132,21 @@ export default function StaffPortal() {
   const crowd = useCrowding(company?.id);
   const [loading, setLoading] = useState(true);
 
-  // Load saved company code
+  // Pick the company: the one this account is already linked to, else the
+  // code saved on this device. Only brand-new accounts see the code screen.
   useEffect(() => {
     base44.entities.Company.list().then((cos) => {
       const saved = localStorage.getItem("tt_company_code");
-      const match = saved ? cos.find((c) => (c.access_code || "").toUpperCase() === saved.toUpperCase()) : null;
-      if (match) setCompany(match);
-      if (match) setCompanyPhone(match.phone || "");
+      const match =
+        (user?.company_id && cos.find((c) => c.id === user.company_id)) ||
+        (saved ? cos.find((c) => (c.access_code || "").toUpperCase() === saved.toUpperCase()) : null);
+      if (match) {
+        setCompany(match);
+        setCompanyPhone(match.phone || "");
+      }
       setCompaniesLoaded(true);
-    });
-  }, []);
+    }).catch(() => { setCompaniesLoaded(true); loadFailed(); });
+  }, [user?.company_id]);
 
   // Backfill company_id for accounts that picked a company before this link
   // was tracked server-side (needed for the group chat's company-scoped RLS).
@@ -145,7 +156,7 @@ export default function StaffPortal() {
   }, [company, user]);
 
   useEffect(() => {
-    if (!company) return;
+    if (!company) return undefined;
     setLoading(true);
     Promise.all([
       base44.entities.Vehicle.filter({ company_id: company.id }),
@@ -200,19 +211,24 @@ export default function StaffPortal() {
 
   const reload = async () => {
     if (!company) return;
-    const [v, r, t] = await Promise.all([
-      base44.entities.Vehicle.filter({ company_id: company.id }),
-      base44.entities.Route.filter({ company_id: company.id }),
-      base44.entities.Trip.filter({ company_id: company.id }, "-scheduled_time", 500),
-    ]);
-    setVehicles(v);
-    setRoutes(r);
-    setTrips(t);
-    statusRef.current = Object.fromEntries(t.map((x) => [x.id, x.status]));
+    try {
+      const [v, r, t] = await Promise.all([
+        base44.entities.Vehicle.filter({ company_id: company.id }),
+        base44.entities.Route.filter({ company_id: company.id }),
+        base44.entities.Trip.filter({ company_id: company.id }, "-scheduled_time", 500),
+      ]);
+      setVehicles(v);
+      setRoutes(r);
+      setTrips(t);
+      statusRef.current = Object.fromEntries(t.map((x) => [x.id, x.status]));
+    } catch {
+      loadFailed(reload);
+    }
   };
 
   const switchCompany = () => {
     localStorage.removeItem("tt_company_code");
+    setSheet(null);
     setCompany(null);
     setCompanyPhone("");
     setVehicles([]);
@@ -244,27 +260,36 @@ export default function StaffPortal() {
     [vehicles]
   );
 
+  // Routes that actually stop at the chosen pickup point.
+  const servingRoutes = useMemo(
+    () => (stop ? routes.filter((r) => (r.stops || []).some((s) => s.name === stop.name)) : []),
+    [stop, routes]
+  );
+
+  // The bus coming to your stop: the closest *tracking* bus on a route that
+  // serves it. Only if no route lists the stop do we fall back to any bus.
   const approaching = useMemo(() => {
     if (!stop) return null;
+    const routeIds = new Set(servingRoutes.map((r) => r.id));
     let best = null;
     locatedVehicles.forEach((v) => {
       if (!v.tracking_active) return;
+      if (routeIds.size && !routeIds.has(v.route_id)) return;
       const dist = haversineKm(v.current_lat, v.current_lng, stop.lat, stop.lng);
       if (best == null || dist < best.dist) best = { v, dist, mins: etaMinutes(dist, v.speed || 25) };
     });
     return best;
-  }, [stop, locatedVehicles]);
+  }, [stop, locatedVehicles, servingRoutes]);
 
   // Refine the straight-line candidate above with an actual driving ETA (roads,
   // not a straight line), falling back to the straight-line estimate while it loads.
   const approachingOrigin = approaching ? { lat: approaching.v.current_lat, lng: approaching.v.current_lng } : null;
   const approachingDest = stop ? { lat: stop.lat, lng: stop.lng } : null;
   const approachingDriving = useDrivingEta(approachingOrigin, approachingDest, approaching?.v?.speed || 25);
+  const approachingRoute = approaching ? routes.find((r) => r.id === approaching.v.route_id) || null : null;
 
-  // "My bus" for group chat: an explicit manual pick always wins (in case
-  // the auto-guess below is wrong), then the vehicle actually assigned to
-  // the route that owns this stop, then whichever tracked vehicle is
-  // currently closest to it (same candidate the ETA card above uses).
+  // "My bus" for group chat: an explicit manual pick always wins, then the
+  // bus coming to your stop, then any bus assigned to a route serving it.
   const [chosenVehicleId, setChosenVehicleId] = useState(() => localStorage.getItem("tt_staff_vehicle_id") || "");
   const chooseVehicle = (id) => {
     const value = id === "auto" ? "" : id;
@@ -275,29 +300,33 @@ export default function StaffPortal() {
   const myVehicle = useMemo(() => {
     const chosen = chosenVehicleId ? vehicles.find((v) => v.id === chosenVehicleId) : null;
     if (chosen) return chosen;
-    if (!stop) return approaching?.v || null;
-    const matchedRoute = routes.find((r) => (r.stops || []).some((s) => s.name === stop.name));
-    const onRoute = matchedRoute ? vehicles.find((v) => v.route_id === matchedRoute.id) : null;
-    return onRoute || approaching?.v || null;
-  }, [chosenVehicleId, stop, routes, vehicles, approaching]);
+    if (approaching?.v) return approaching.v;
+    const routeIds = new Set(servingRoutes.map((r) => r.id));
+    return vehicles.find((v) => routeIds.has(v.route_id)) || null;
+  }, [chosenVehicleId, vehicles, approaching, servingRoutes]);
+
+  const chatUnread = useChatUnread(myVehicle?.id, sheet === "chat");
 
   const onTheWayTrip = useMemo(
     () => trips.find((t) => t.pickup_name === pickupName && t.status === "on_the_way") || null,
     [trips, pickupName]
   );
 
-  const pickupTrips = useMemo(
+  const upcomingTrips = useMemo(
     () =>
       trips
-        .filter((t) => t.pickup_name === pickupName)
-        .sort((a, b) => (a.scheduled_time || "").localeCompare(b.scheduled_time || "")),
+        .filter((t) => t.pickup_name === pickupName && t.status !== "completed" && t.status !== "cancelled")
+        .sort((a, b) => (a.scheduled_time || "").localeCompare(b.scheduled_time || ""))
+        .slice(0, 4),
     [trips, pickupName]
   );
+
+  const otherBuses = locatedVehicles.filter((v) => v.id !== approaching?.v?.id);
 
   if (user?.role === "driver") return <Navigate to="/driver" replace />;
   if (user?.role === "company") return <Navigate to="/company" replace />;
   if (user?.role === "mechanic") return <Navigate to="/mechanic" replace />;
-  if (!companiesLoaded) return <AppLayout />;
+  if (!companiesLoaded) return <AppLayout><BusLoader className="py-8" /></AppLayout>;
   if (!company) {
     return (
       <AppLayout>
@@ -307,219 +336,158 @@ export default function StaffPortal() {
   }
   if (loading) return <AppLayout><BusLoader className="py-8" /></AppLayout>;
 
+  const firstName = (user?.full_name || user?.email || "").split("@")[0].split(" ")[0];
+  const showNotifPrompt = !notifDismissed && pushPermission !== "granted" && pushPermission !== "unsupported";
+
   return (
-    <AppLayout title="Transit Portal">
-      <PullToRefresh onRefresh={reload} className="max-w-3xl">
-        <div className="space-y-4">
-        <Greeting subtitle={company.name} />
+    <AppLayout>
+      <PullToRefresh onRefresh={reload} className="max-w-2xl">
+        <div className="space-y-5">
+          <header className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h1 className="text-2xl font-heading font-semibold truncate">{greetingWord()}{firstName ? `, ${firstName}` : ""}</h1>
+              <p className="text-sm text-muted-foreground truncate">{company.name}</p>
+            </div>
+            <WeatherWidget variant="chip" />
+          </header>
 
-        <AdBanner />
+          {!userLoc && locError && <LocationPrompt onLocation={setPromptLoc} />}
 
-        {!userLoc && locError && <LocationPrompt onLocation={setPromptLoc} />}
-
-        <div className="flex flex-wrap gap-2">
-          {pushPermission !== "granted" && pushPermission !== "unsupported" && (
-            <Button variant="outline" size="sm" onClick={enableNotifications}>
-              <BellRing className="w-4 h-4 mr-1.5" /> Enable notifications (know when your bus is close)
-            </Button>
-          )}
-          <OneTimeCode />
-        </div>
-
-        <div className="space-y-2">
-          <StaffGroupChat vehicle={myVehicle} />
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <span>Wrong bus?</span>
-            <MobileSelect
-              value={chosenVehicleId || "auto"}
-              onValueChange={chooseVehicle}
-              placeholder="Auto-detected"
-              options={[{ value: "auto", label: "Auto-detect" }, ...vehicles.map((v) => ({ value: v.id, label: v.name }))]}
-              triggerClassName="h-8 text-xs w-auto"
-            />
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <h2 className="text-lg font-semibold">Track pickups &amp; buses</h2>
-            <p className="text-sm text-muted-foreground">{locatedVehicles.filter((v) => v.tracking_active).length} vehicles tracking live</p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <ContactOperator company={{ phone: companyPhone }} />
-            <ShareLocationButton />
-            <Button variant="ghost" size="sm" onClick={switchCompany}>
-              <LogOut className="w-4 h-4" />
-              Switch company
-            </Button>
-          </div>
-        </div>
-
-        <div className="rounded-2xl overflow-hidden border h-[50vh]">
-          <MapboxMap vehicles={locatedVehicles} userLocation={userLoc} />
-        </div>
-
-        <div className="grid md:grid-cols-2 gap-4">
-          <LocationPinner />
-          <StaffToggles companyPhone={companyPhone} />
-        </div>
-
-        <div>
-          <p className="text-sm font-medium mb-1.5">Your pickup point</p>
-          <MobileSelect
-            value={pickupName}
-            onValueChange={choosePickup}
-            placeholder="Choose your hotel / stop"
-            options={pickupOptions.map((s) => ({ value: s.name, label: s.name }))}
-            triggerClassName="max-w-sm"
+          <NextBusCard
+            stop={stop}
+            bus={approaching?.v || null}
+            eta={approaching ? approachingDriving : null}
+            route={approachingRoute}
+            crowdCount={approaching ? crowd[approaching.v.id] || 0 : 0}
+            trip={onTheWayTrip}
+            onChooseStop={() => setSheet("pickup")}
           />
-          <label className="mt-3 flex items-center gap-3 max-w-sm cursor-pointer">
-            <Switch checked={stopAlerts} onCheckedChange={toggleStopAlerts} aria-label="Alert me when a bus is one stop away" />
-            <span className="text-sm">
-              Alert me when a bus is one stop away
-              {stopAlerts && pushPermission === "unsupported" && (
-                <span className="block text-xs text-muted-foreground">This device can't show notifications. Add the app to your home screen to get them.</span>
-              )}
-            </span>
-          </label>
-        </div>
 
-        {stop && (
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base">Approaching {stop.name}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {approaching ? (
-                <div className="flex flex-wrap items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-primary/10 grid place-items-center shrink-0">
-                    <Bus className="w-5 h-5" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="mb-0.5"><CrowdBadge count={crowd[approaching.v.id] || 0} capacity={approaching.v.capacity} /></div>
-                    <div className="font-medium truncate">
-                      {approaching.v.name} · {approaching.v.plate_number}
-                    </div>
-                    <div className="text-xs text-muted-foreground truncate">
-                      Driver: {approaching.v.driver_name || "—"} · {approaching.v.company_name}
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="flex items-center gap-1 font-medium justify-end">
-                      <Clock className="w-3.5 h-3.5" />{formatEta(approachingDriving.mins)}
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      estimated arrival{approachingDriving.isDriving ? " · by road" : " (approx.)"}
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">No vehicles are active right now.</p>
-              )}
-              {onTheWayTrip && (
-                <p className="text-sm text-primary mt-2">
-                  Your ride is on the way — {onTheWayTrip.vehicle_name} · Driver {onTheWayTrip.driver_name || "—"}
-                </p>
-              )}
-            </CardContent>
-          </Card>
-        )}
+          <QuickActions
+            onChat={() => setSheet("chat")}
+            chatUnread={chatUnread}
+            onBadge={() => setSheet("badge")}
+            companyPhone={companyPhone}
+          />
 
-        <BusAssistant company={company} userLoc={userLoc} />
-
-        {pickupName && (
-          <div>
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-              Pickups at {pickupName}
-            </h3>
-            <div className="space-y-2">
-              {pickupTrips.length === 0 && (
-                <p className="text-sm text-muted-foreground py-6 text-center border rounded-2xl">
-                  No scheduled pickups at this point yet.
-                </p>
-              )}
-              {pickupTrips.map((t) => (
-                <div key={t.id} className="p-3 rounded-xl border bg-card space-y-2">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="text-sm font-medium">
-                      {t.pickup_name} <span className="text-muted-foreground">→</span> {t.dropoff_name}
-                    </div>
-                    <StatusSteps status={t.status} />
-                  </div>
-                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                    <span className="inline-flex items-center gap-1">
-                      <Clock className="w-3.5 h-3.5" />{fmtDateTime(t.scheduled_time)}
-                    </span>
-                    <span className="inline-flex items-center gap-1">
-                      <User className="w-3.5 h-3.5" />{t.driver_name || "Driver TBA"}
-                    </span>
-                    <span>{t.vehicle_name} · {t.plate_number}</span>
-                    {t.passenger_name && <span>Guest: {t.passenger_name}</span>}
-                  </div>
-                </div>
-              ))}
+          {showNotifPrompt && (
+            <div className="flex items-center gap-3 rounded-2xl border border-primary/30 bg-primary/10 p-3">
+              <BellRing className="w-5 h-5 text-primary shrink-0" />
+              <p className="text-sm flex-1">Get a notification when your bus is close.</p>
+              <button type="button" onClick={enableNotifications} className="text-sm font-semibold text-primary px-2 py-1">Turn on</button>
+              <button
+                type="button"
+                aria-label="Dismiss"
+                onClick={() => { setNotifDismissed(true); localStorage.setItem("tt_notif_prompt_dismissed", "1"); }}
+                className="text-muted-foreground p-1"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
-          </div>
-        )}
+          )}
 
-        {!pickupName && (
-          <div>
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-              All live vehicles
-            </h3>
-            <div className="grid sm:grid-cols-2 gap-2">
-              {locatedVehicles.length === 0 && (
-                <p className="text-sm text-muted-foreground py-6 text-center border rounded-2xl sm:col-span-2">
-                  No vehicles have reported a location yet.
-                </p>
-              )}
-              {locatedVehicles.map((v) => {
-                const fresh = v.tracking_active;
-                const ago = v.last_location_update
-                  ? (() => {
-                      const s = Math.floor((Date.now() - new Date(v.last_location_update).getTime()) / 1000);
-                      if (s < 60) return "just now";
-                      if (s < 3600) return Math.floor(s / 60) + "m ago";
-                      return Math.floor(s / 3600) + "h ago";
-                    })()
-                  : "never";
-                return (
-                  <div key={v.id} className="flex items-center gap-3 p-3 rounded-xl border bg-card">
-                    <div className="w-9 h-9 rounded-lg bg-primary/10 grid place-items-center shrink-0">
-                      <Bus className="w-4 h-4" />
+          <AdBanner />
+
+          <StaffAlerts companyId={company.id} />
+
+          {upcomingTrips.length > 0 && (
+            <section>
+              <SectionTitle>Booked rides from {pickupName}</SectionTitle>
+              <div className="space-y-2">
+                {upcomingTrips.map((t) => (
+                  <div key={t.id} className="p-3 rounded-2xl border bg-card space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm font-semibold truncate">{t.pickup_name} <span className="text-muted-foreground">→</span> {t.dropoff_name}</p>
+                      <span className="text-xs text-muted-foreground whitespace-nowrap flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{fmtWhen(t.scheduled_time)}</span>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium truncate">{v.name}</div>
-                      <div className="text-xs text-muted-foreground truncate">
-                        {v.company_name} · {v.driver_name || "—"}
+                    <TripSteps status={t.status} />
+                    <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
+                      <UserRound className="w-3.5 h-3.5" /> {t.driver_name || "Driver TBA"} · {t.vehicle_name || "Vehicle TBA"}
+                      {t.passenger_name ? ` · ${t.passenger_name}` : ""}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          <section>
+            <SectionTitle>Live map</SectionTitle>
+            <div className="rounded-3xl overflow-hidden border h-72">
+              <MapboxMap vehicles={locatedVehicles} userLocation={userLoc} />
+            </div>
+          </section>
+
+          {otherBuses.length > 0 && (
+            <section>
+              <SectionTitle>{approaching ? "Other buses" : "All buses"}</SectionTitle>
+              <div className="rounded-2xl border bg-card divide-y divide-border">
+                {otherBuses.map((v) => {
+                  const live = v.tracking_active;
+                  return (
+                    <div key={v.id} className="flex items-center gap-3 p-3">
+                      <div className={`w-9 h-9 rounded-xl grid place-items-center shrink-0 ${live ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"}`}>
+                        <Bus className="w-4 h-4" />
                       </div>
-                      <div className="mt-1"><CrowdBadge count={crowd[v.id] || 0} capacity={v.capacity} /></div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{v.name}</p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {live ? (v.status === "on_trip" ? "On a trip" : "Tracking") : `Parked · last seen ${v.last_location_update ? new Date(v.last_location_update).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "—"}`}
+                        </p>
+                      </div>
+                      {live && <CrowdBadge count={crowd[v.id] || 0} capacity={v.capacity} />}
                     </div>
-                    {fresh ? (
-                      <Badge variant="default">{v.status === "on_trip" ? "On trip" : "Tracking"}</Badge>
-                    ) : (
-                      <Badge variant="secondary" className="text-amber-600">Last seen {ago}</Badge>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
+                  );
+                })}
+              </div>
+            </section>
+          )}
 
-        <StaffAlerts />
+          <BusAssistant company={company} userLoc={userLoc} />
 
-        <LostItemReport />
-
-        <Button asChild variant="outline" className="w-full justify-start">
-          <Link to="/safety-standards">
-            <ShieldCheck className="w-4 h-4 mr-2" /> Safety standards
-          </Link>
-        </Button>
-
-        <ProfileInfo />
+          <nav className="grid grid-cols-2 gap-2" aria-label="More">
+            <button type="button" onClick={() => setSheet("pickup")} className="flex items-center gap-3 rounded-2xl border bg-card p-4 text-left hover:bg-accent transition-colors">
+              <MapPin className="w-5 h-5 text-primary" />
+              <span className="flex-1 min-w-0">
+                <span className="block text-sm font-semibold">My pickup</span>
+                <span className="block text-xs text-muted-foreground truncate">{pickupName || "Not set"}{stopAlerts ? " · alerts on" : ""}</span>
+              </span>
+              <ChevronRight className="w-4 h-4 text-muted-foreground" />
+            </button>
+            <button type="button" onClick={() => setSheet("help")} className="flex items-center gap-3 rounded-2xl border bg-card p-4 text-left hover:bg-accent transition-colors">
+              <LifeBuoy className="w-5 h-5 text-primary" />
+              <span className="flex-1 min-w-0">
+                <span className="block text-sm font-semibold">Help</span>
+                <span className="block text-xs text-muted-foreground truncate">Lost items · safety</span>
+              </span>
+              <ChevronRight className="w-4 h-4 text-muted-foreground" />
+            </button>
+          </nav>
         </div>
       </PullToRefresh>
+
+      <MyPickupSheet
+        open={sheet === "pickup"}
+        onOpenChange={(o) => setSheet(o ? "pickup" : null)}
+        pickupName={pickupName}
+        pickupOptions={pickupOptions}
+        onChoosePickup={choosePickup}
+        stopAlerts={stopAlerts}
+        onToggleStopAlerts={toggleStopAlerts}
+        pushUnsupported={pushPermission === "unsupported"}
+        companyPhone={companyPhone}
+        onSwitchCompany={switchCompany}
+      />
+      <HelpSheet open={sheet === "help"} onOpenChange={(o) => setSheet(o ? "help" : null)} company={company} vehicles={vehicles} />
+      <BadgeSheet open={sheet === "badge"} onOpenChange={(o) => setSheet(o ? "badge" : null)} />
+      <ChatSheet
+        open={sheet === "chat"}
+        onOpenChange={(o) => setSheet(o ? "chat" : null)}
+        vehicle={myVehicle}
+        vehicles={vehicles}
+        chosenVehicleId={chosenVehicleId}
+        onChooseVehicle={chooseVehicle}
+      />
     </AppLayout>
   );
 }
