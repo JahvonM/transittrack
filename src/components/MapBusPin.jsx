@@ -47,7 +47,7 @@ export function useBearing(lat, lng, initial = 0) {
 }
 
 // Dimensions of the bus box, in px: width (x), length (y), height (z).
-const SIZES = { bus: { w: 20, l: 48, h: 17 }, taxi: { w: 18, l: 30, h: 12 } };
+const SIZES = { bus: { w: 22, l: 54, h: 19 }, taxi: { w: 19, l: 32, h: 13 } };
 const PAINT = {
   bus: { body: "#F4F4F0", side: "#D9DAD3", roof: "#FFFFFF", stripe: "#C8F547" },
   taxi: { body: "#F7C948", side: "#DDAE2E", roof: "#FFD95E", stripe: "#1C1C1F" },
@@ -64,7 +64,7 @@ function Face({ style, children }) {
 export function Vehicle3D({ kind = "bus", heading = 0, color = "#C8F547", driving = false, alert = false }) {
   const { w, l, h } = SIZES[kind] || SIZES.bus;
   const p = PAINT[kind] || PAINT.bus;
-  const box = 64;
+  const box = 72;
 
   return (
     <div className="relative" style={{ width: box, height: box, perspective: 520 }}>
