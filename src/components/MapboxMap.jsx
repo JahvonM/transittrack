@@ -4,7 +4,7 @@ import mapboxgl from "mapbox-gl";
 import Map, { Marker, Source, Layer, NavigationControl } from "react-map-gl";
 import { MAPBOX_TOKEN, mapStyleFor, mapAccentFor } from "@/lib/mapbox";
 import { useIsDark } from "@/lib/useTheme";
-import { Bus, LocateFixed, Maximize2, Minimize2, Satellite, X } from "lucide-react";
+import { Bus, LocateFixed, Maximize2, Minimize2, Satellite, X, Car } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Image } from "@/components/ui/image";
 import BusDistance from "@/components/BusDistance";
@@ -18,7 +18,9 @@ import { statusColor } from "@/lib/vehicleStatus";
 export { statusColor };
 
 const VEHICLE_ICON = (type) =>
-  type === "taxi" ? "🚕" : "🚌";
+  type === "taxi"
+    ? <Car className="inline w-4 h-4 -mt-0.5" aria-hidden="true" />
+    : <Bus className="inline w-4 h-4 -mt-0.5" aria-hidden="true" />;
 
 // Hides busy default-style clutter (POI icons, transit icons) so the map reads
 // cleaner — road labels stay on, since without them the basemap goes blank
