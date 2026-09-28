@@ -19,7 +19,10 @@ export default function ShiftCard({ session, invoke, refresh }) {
   const [busy, setBusy] = useState(false);
   const [now, setNow] = useState(Date.now());
 
-  useEffect(() => { if (!busy) setShift(session?.open_shift || null); }, [session?.open_shift, busy]);
+  // Re-sync only when the server's open shift actually changes, so a fresh
+  // local start/end isn't undone by a heartbeat that predates it.
+  const serverShiftId = session?.open_shift?.id || null;
+  useEffect(() => { setShift(session?.open_shift || null); }, [serverShiftId]);
   useEffect(() => {
     if (!shift) return undefined;
     const t = setInterval(() => setNow(Date.now()), 30000);
