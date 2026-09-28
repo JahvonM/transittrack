@@ -3,7 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Clock, Download } from "lucide-react";
+import { Download } from "lucide-react";
 import BusLoader from "@/components/BusLoader";
 import EmptyState from "@/components/EmptyState";
 import { loadFailed } from "@/lib/loadFailed";
@@ -91,7 +91,7 @@ export default function ShiftsTab() {
       </div>
 
       {!inRange.length ? (
-        <EmptyState icon={Clock} title="No shifts yet" description="Shifts appear here once drivers tap Start shift on their tablet." />
+        <EmptyState text="No shifts yet. They appear here once drivers tap Start shift on their tablet." />
       ) : (
         <>
           <Card>
