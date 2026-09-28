@@ -28,6 +28,8 @@ const SEVERITY_BY_CRITICAL = { Critical: "critical", High: "high", Medium: "medi
 // -> bulk InspectionResult records, auto-open a Fault for each FAILED item
 // (same auto_create_faults bridge the driver's simple checklist already
 // uses), and stamp the vehicle's last_inspection_date.
+const OFFLINE_CACHE_KEY = "tt_inspection_cache";
+
 export default function RunInspection() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -53,7 +55,21 @@ export default function RunInspection() {
       setTemplates(t);
       setPhotosEnabled(settingsList[0]?.enable_photo_attachments !== false);
       setLoading(false);
-    }).catch(() => { setLoading(false); loadFailed(); });
+      // Keep a copy so the checklist still opens with no signal.
+      try { localStorage.setItem(OFFLINE_CACHE_KEY, JSON.stringify({ vehicles: v, templates: t })); } catch { /* storage full */ }
+    }).catch(() => {
+      setLoading(false);
+      let cached = null;
+      try { cached = JSON.parse(localStorage.getItem(OFFLINE_CACHE_KEY) || "null"); } catch { /* corrupt cache */ }
+      if (cached?.vehicles?.length) {
+        setVehicles(cached.vehicles);
+        setTemplates(cached.templates || []);
+        setPhotosEnabled(false);
+        toast({ title: "You're offline", description: "Using the last saved vehicles and checklists. Your inspection will upload when you're back online." });
+      } else {
+        loadFailed();
+      }
+    });
   }, []);
 
   const vehicle = vehicles.find((v) => v.id === vehicleId) || null;
