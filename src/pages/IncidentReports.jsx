@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { AlertOctagon } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { loadFailed } from "@/lib/loadFailed";
+import BusLoader from "@/components/BusLoader";
 
 const STATUSES = ["open", "investigating", "resolved"];
 const next = (s) => STATUSES[(STATUSES.indexOf(s) + 1) % STATUSES.length];
@@ -45,7 +46,7 @@ export default function IncidentReports() {
   return (
     <AppLayout title="Incident reports">
       <PullToRefresh onRefresh={load}>
-      {loading ? <p className="text-muted-foreground">Loading…</p> : items.length === 0 ? (
+      {loading ? <BusLoader className="py-8" /> : items.length === 0 ? (
         <Card><CardContent className="py-10 text-center text-muted-foreground">No incidents logged.</CardContent></Card>
       ) : (
         <div className="grid gap-3">

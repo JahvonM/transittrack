@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { Gauge, TrendingDown, TrendingUp, AlertOctagon, Zap } from "lucide-react";
+import BusLoader from "@/components/BusLoader";
 
 const EVENT_META = {
   hard_brake: { label: "Hard braking", icon: TrendingDown, color: "text-amber-400" },
@@ -69,7 +70,7 @@ export default function DrivingReports() {
   return (
     <AppLayout title="Driving reports">
       <PullToRefresh onRefresh={load}>
-      {loading ? <p className="text-muted-foreground">Loading…</p> : (
+      {loading ? <BusLoader className="py-8" /> : (
         <div className="space-y-4">
           <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 border text-xs text-muted-foreground">
             <Zap className="w-4 h-4 shrink-0" />

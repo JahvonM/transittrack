@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/use-toast";
 import { ClipboardCheck, CheckCircle2, AlertTriangle, XCircle, Camera, Loader2, PartyPopper } from "lucide-react";
 import { loadFailed } from "@/lib/loadFailed";
+import BusLoader from "@/components/BusLoader";
 
 const CONDITIONS = [
   { key: "GOOD", label: "Good", icon: CheckCircle2, activeClass: "bg-emerald-500 text-white border-emerald-500" },
@@ -190,7 +191,7 @@ export default function RunInspection() {
   if (loading) {
     return (
       <AppLayout title="Run inspection">
-        <p className="text-muted-foreground">Loading…</p>
+        <BusLoader className="py-8" />
       </AppLayout>
     );
   }

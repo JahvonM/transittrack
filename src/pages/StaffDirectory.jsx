@@ -18,6 +18,7 @@ import {
 import ContactFormDialog from "@/components/directory/ContactFormDialog";
 import { useAuth } from "@/lib/AuthContext";
 import { loadFailed } from "@/lib/loadFailed";
+import BusLoader from "@/components/BusLoader";
 
 export default function StaffDirectory() {
   const { user } = useAuth();
@@ -111,7 +112,7 @@ export default function StaffDirectory() {
       </div>
 
       {loading ? (
-        <p className="text-muted-foreground">Loading…</p>
+        <BusLoader className="py-8" />
       ) : filtered.length === 0 ? (
         <Card>
           <CardContent className="py-10 text-center text-muted-foreground">

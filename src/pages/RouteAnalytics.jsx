@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { TrendingUp, Clock, MapPin } from "lucide-react";
 import { loadFailed } from "@/lib/loadFailed";
+import BusLoader from "@/components/BusLoader";
 
 function avgMs(trips) {
   const durs = trips
@@ -34,7 +35,7 @@ export default function RouteAnalytics() {
 
   return (
     <AppLayout title="Route analytics">
-      {loading ? <p className="text-muted-foreground">Loading…</p> : (
+      {loading ? <BusLoader className="py-8" /> : (
         <div className="grid md:grid-cols-2 gap-3">
           {routes.map((r) => {
             const rt = trips.filter((t) => t.route_id === r.id);

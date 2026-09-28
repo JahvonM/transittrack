@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Activity, Radio } from "lucide-react";
 import { loadFailed } from "@/lib/loadFailed";
+import BusLoader from "@/components/BusLoader";
 
 export default function VehicleLogs() {
   const [vehicles, setVehicles] = useState([]);
@@ -30,7 +31,7 @@ export default function VehicleLogs() {
   return (
     <AppLayout title="Vehicle live logs">
       <PullToRefresh onRefresh={load}>
-      {loading ? <p className="text-muted-foreground">Loading…</p> : (
+      {loading ? <BusLoader className="py-8" /> : (
         <div className="grid lg:grid-cols-2 gap-4">
           <div>
             <h2 className="text-sm font-semibold mb-2 flex items-center gap-2"><Activity className="w-4 h-4 text-primary" /> Latest updates</h2>

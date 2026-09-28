@@ -27,6 +27,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
 import { loadFailed } from "@/lib/loadFailed";
+import BusLoader from "@/components/BusLoader";
 
 const STEPS = ["scheduled", "on_the_way", "arrived", "completed"];
 
@@ -255,7 +256,7 @@ export default function StaffPortal() {
       </AppLayout>
     );
   }
-  if (loading) return <AppLayout><p className="text-muted-foreground">Loading…</p></AppLayout>;
+  if (loading) return <AppLayout><BusLoader className="py-8" /></AppLayout>;
 
   return (
     <AppLayout title="Transit Portal">

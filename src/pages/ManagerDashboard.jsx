@@ -10,6 +10,7 @@ import FleetAnalytics from "@/components/manager/FleetAnalytics";
 import DelayBroadcast from "@/components/manager/DelayBroadcast";
 import CompanyMessages from "@/components/manager/CompanyMessages";
 import { loadFailed } from "@/lib/loadFailed";
+import BusLoader from "@/components/BusLoader";
 
 export default function ManagerDashboard() {
   const { user } = useAuth();
@@ -46,7 +47,7 @@ export default function ManagerDashboard() {
   if (loading)
     return (
       <AppLayout>
-        <p className="text-muted-foreground">Loading…</p>
+        <BusLoader className="py-8" />
       </AppLayout>
     );
 

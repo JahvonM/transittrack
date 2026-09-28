@@ -14,6 +14,7 @@ import ChatThread from "@/components/chat/ChatThread";
 import MechanicSettingsDialog from "@/components/MechanicSettingsDialog";
 import MechanicDashboardTab from "@/components/mechanic/MechanicDashboardTab";
 import { loadFailed } from "@/lib/loadFailed";
+import BusLoader from "@/components/BusLoader";
 
 function formatTime(iso) {
   if (!iso) return "";
@@ -216,7 +217,7 @@ export default function MechanicPortal() {
           <TabsContent value="messages" className="mt-4">
             <div className="max-w-lg">
               {loading ? (
-                <p className="text-muted-foreground">Loading…</p>
+                <BusLoader className="py-8" />
               ) : (
                 <div className="space-y-2">
                   {chatVehicles.map((v) => {

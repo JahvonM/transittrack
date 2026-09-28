@@ -17,6 +17,7 @@ import { STATUS_LABEL, STATUS_VARIANT } from "@/lib/trip";
 import CompanyEditDialog from "@/components/CompanyEditDialog";
 import MapboxMap from "@/components/MapboxMap";
 import { loadFailed } from "@/lib/loadFailed";
+import BusLoader from "@/components/BusLoader";
 
 const CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const genCode = () =>
@@ -63,7 +64,7 @@ export default function CompanyDashboard() {
 
   if (user && user.role !== "company" && user.role !== "admin") return <Navigate to="/" replace />;
 
-  if (loading) return <AppLayout><p className="text-muted-foreground">Loading…</p></AppLayout>;
+  if (loading) return <AppLayout><BusLoader className="py-8" /></AppLayout>;
   if (!company) return <AppLayout><CreateCompany onCreated={loadAll} /></AppLayout>;
 
   return (

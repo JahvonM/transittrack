@@ -8,6 +8,7 @@ import MaintenanceScheduleTab from "@/components/admin/MaintenanceScheduleTab";
 import MaintenanceCalendarTab from "@/components/admin/MaintenanceCalendarTab";
 import InspectionHistoryTab from "@/components/admin/InspectionHistoryTab";
 import { loadFailed } from "@/lib/loadFailed";
+import BusLoader from "@/components/BusLoader";
 
 function StatCard({ icon: Icon, label, value, accent = "text-primary" }) {
   return (
@@ -61,7 +62,7 @@ export default function MechanicDashboardTab() {
   }, []);
 
   if (loading) {
-    return <p className="text-muted-foreground">Loading…</p>;
+    return <BusLoader className="py-8" />;
   }
 
   const openFaultsCount = faults.filter((f) => f.status === "open").length;

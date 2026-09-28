@@ -28,6 +28,7 @@ import {
 import { Database, FileSpreadsheet, FileText, Plus, Trash2 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { exportToCSV, exportToPDF } from "@/lib/exporters";
+import BusLoader from "@/components/BusLoader";
 
 // Minimal "quick add" field sets per entity — covers the fields you actually
 // need to create a usable record by hand. User and FrontDeskSignIns are
@@ -284,7 +285,7 @@ export default function DataTab() {
       )}
 
       {loading ? (
-        <p className="text-muted-foreground">Loading…</p>
+        <BusLoader className="py-8" />
       ) : records.length === 0 ? (
         <Card>
           <CardContent className="py-10 text-center text-muted-foreground">No records in {entity}.</CardContent>

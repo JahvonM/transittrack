@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Play, Pause, Bus } from "lucide-react";
+import BusLoader from "@/components/BusLoader";
 
 // Matches the declutter treatment on every other map in the app: hide
 // POI/transit icon clutter, keep road labels so the basemap still reads.
@@ -133,7 +134,7 @@ export default function LocationTimeline() {
         </div>
 
         {loading ? (
-          <p className="text-sm text-muted-foreground">Loading…</p>
+          <BusLoader className="py-8" />
         ) : pings.length === 0 ? (
           <Card><CardContent className="py-10 text-center text-sm text-muted-foreground">No location history for this vehicle on this day.</CardContent></Card>
         ) : (

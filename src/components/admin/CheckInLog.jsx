@@ -14,6 +14,7 @@ import {
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { FileSpreadsheet, FileText, LogIn, LogOut, RefreshCw, CreditCard, QrCode, Search, DoorOpen } from "lucide-react";
 import { exportToCSV, exportToPDF } from "@/lib/exporters";
+import BusLoader from "@/components/BusLoader";
 
 const CHECKIN_COLS = [
   { key: "staff_name", label: "Staff" },
@@ -88,7 +89,7 @@ function BusCheckIns({ vehicles }) {
       </div>
 
       {loading ? (
-        <p className="text-sm text-muted-foreground">Loading…</p>
+        <BusLoader className="py-8" />
       ) : filtered.length === 0 ? (
         <EmptyState text="No check-ins recorded yet." />
       ) : (
@@ -164,7 +165,7 @@ function VisitorSignIns() {
       </div>
 
       {loading ? (
-        <p className="text-sm text-muted-foreground">Loading…</p>
+        <BusLoader className="py-8" />
       ) : records.length === 0 ? (
         <EmptyState text="No visitor sign-ins recorded yet." />
       ) : (

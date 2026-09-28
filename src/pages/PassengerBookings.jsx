@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { CalendarCheck } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { loadFailed } from "@/lib/loadFailed";
+import BusLoader from "@/components/BusLoader";
 
 export default function PassengerBookings() {
   const { toast } = useToast();
@@ -67,7 +68,7 @@ export default function PassengerBookings() {
   return (
     <AppLayout title="Passenger bookings">
       <PullToRefresh onRefresh={load}>
-      {loading ? <p className="text-muted-foreground">Loading…</p> : (
+      {loading ? <BusLoader className="py-8" /> : (
         <div className="grid md:grid-cols-2 gap-4">
           <div>
             <h2 className="text-sm font-semibold mb-2 flex items-center gap-2"><CalendarCheck className="w-4 h-4 text-amber-400" /> Pending ({pending.length})</h2>

@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/components/ui/use-toast";
 import { loadFailed } from "@/lib/loadFailed";
+import BusLoader from "@/components/BusLoader";
 
 // Fleet-wide maintenance settings, controlled only by the mechanic team —
 // a single MaintenanceSettings row rather than a per-company field, since
@@ -74,7 +75,7 @@ export default function MechanicSettingsDialog({ open, onOpenChange }) {
           <DialogTitle>Maintenance settings</DialogTitle>
         </DialogHeader>
         {loading ? (
-          <p className="text-sm text-muted-foreground py-4">Loading…</p>
+          <BusLoader className="py-8" />
         ) : (
           <div className="space-y-3 py-2">
             <div className="flex items-center justify-between rounded-lg border p-3">

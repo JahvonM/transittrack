@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertTriangle, Siren, CheckCircle2, Wrench } from "lucide-react";
+import BusLoader from "@/components/BusLoader";
 
 function timeAgo(iso) {
   if (!iso) return "";
@@ -95,7 +96,7 @@ export default function RecentActivityFeed({ onNavigate }) {
         <CardTitle className="text-base">Recent activity</CardTitle>
       </CardHeader>
       <CardContent className="space-y-1 max-h-[360px] overflow-y-auto">
-        {loading && <p className="text-sm text-muted-foreground py-6 text-center">Loading…</p>}
+        {loading && <BusLoader className="py-8" />}
         {!loading && events.length === 0 && (
           <p className="text-sm text-muted-foreground py-6 text-center">Nothing to show yet.</p>
         )}

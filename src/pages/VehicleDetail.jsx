@@ -13,6 +13,7 @@ import MaintenanceScheduleTab from "@/components/admin/MaintenanceScheduleTab";
 import InspectionHistoryTab from "@/components/admin/InspectionHistoryTab";
 import AnimatedBus from "@/components/AnimatedBus";
 import { loadFailed } from "@/lib/loadFailed";
+import BusLoader from "@/components/BusLoader";
 
 const RESTRICTED_ROLES = ["driver", "staff", "passenger"];
 
@@ -60,7 +61,7 @@ export default function VehicleDetail() {
   if (loading) {
     return (
       <AppLayout title="Vehicle">
-        <p className="text-muted-foreground">Loading…</p>
+        <BusLoader className="py-8" />
       </AppLayout>
     );
   }

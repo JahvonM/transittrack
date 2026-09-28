@@ -67,6 +67,7 @@ import {
   Siren,
 } from "lucide-react";
 import { loadFailed } from "@/lib/loadFailed";
+import BusLoader from "@/components/BusLoader";
 
 const ROLE_LINKS = [
   { to: "/passenger", label: "Passenger view", icon: MapPin },
@@ -269,7 +270,7 @@ export default function Admin() {
       <>
         {emergencyOverlay}
         <AppLayout>
-          <p className="text-muted-foreground">Loading…</p>
+          <BusLoader className="py-8" />
         </AppLayout>
       </>
     );

@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { History } from "lucide-react";
 import { loadFailed } from "@/lib/loadFailed";
+import BusLoader from "@/components/BusLoader";
 
 export default function ServiceHistory() {
   const [vehicles, setVehicles] = useState([]);
@@ -24,7 +25,7 @@ export default function ServiceHistory() {
   return (
     <AppLayout title="Service history">
       <PullToRefresh onRefresh={load}>
-      {loading ? <p className="text-muted-foreground">Loading…</p> : (
+      {loading ? <BusLoader className="py-8" /> : (
         <div className="grid md:grid-cols-2 gap-3">
           {vehicles.map((v) => {
             const hist = inspections.filter((i) => i.vehicle_id === v.id);
