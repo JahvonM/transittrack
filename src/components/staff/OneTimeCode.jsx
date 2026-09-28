@@ -14,7 +14,7 @@ function formatTime(iso) {
 // boarding kiosk, shown both as digits (for the keypad) and a QR (for the
 // scanner) since they're the same underlying one-time code either way.
 // Separate from the permanent access_code the badge registry kiosk assigns.
-export default function OneTimeCode() {
+export default function OneTimeCode({ autoGenerate = false }) {
   const [state, setState] = useState(null); // { code, expires_at } | "error" | null
   const [qrUrl, setQrUrl] = useState("");
   const [loading, setLoading] = useState(false);
@@ -22,6 +22,7 @@ export default function OneTimeCode() {
   useEffect(() => {
     if (state && state !== "error") codeQrDataUrl(state.code).then(setQrUrl);
   }, [state]);
+  useEffect(() => { if (autoGenerate) generate(); }, [autoGenerate]);
 
   const generate = async () => {
     setLoading(true);
@@ -38,11 +39,18 @@ export default function OneTimeCode() {
 
   return (
     <div>
-      <Button variant="outline" size="sm" onClick={generate} disabled={loading}>
-        <KeyRound className="w-4 h-4 mr-1.5" /> {loading ? "Generating…" : "Forgot your badge?"}
-      </Button>
+      {autoGenerate ? (
+        loading && <p className="text-sm text-muted-foreground text-center py-6">Getting your code…</p>
+      ) : (
+        <Button variant="outline" size="sm" onClick={generate} disabled={loading}>
+          <KeyRound className="w-4 h-4 mr-1.5" /> {loading ? "Generating…" : "Forgot your badge?"}
+        </Button>
+      )}
       {state === "error" && (
-        <p className="text-xs text-destructive mt-1.5">Couldn't generate a code — try again.</p>
+        <div className="text-center space-y-2 py-2">
+          <p className="text-sm text-destructive">Couldn't get a code. Check your connection.</p>
+          {autoGenerate && <Button size="sm" variant="outline" onClick={generate}>Try again</Button>}
+        </div>
       )}
       {state && state !== "error" && (
         <Card className="mt-2">
