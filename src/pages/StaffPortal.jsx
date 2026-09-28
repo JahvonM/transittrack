@@ -16,6 +16,10 @@ import StaffToggles from "@/components/staff/StaffToggles";
 import LostItemReport from "@/components/staff/LostItemReport";
 import ShareLocationButton from "@/components/ShareLocationButton";
 import Greeting from "@/components/Greeting";
+import AdBanner from "@/components/AdBanner";
+import BusAssistant from "@/components/BusAssistant";
+import ContactOperator from "@/components/ContactOperator";
+import LocationPrompt from "@/components/LocationPrompt";
 import { haversineKm, etaMinutes, formatEta } from "@/lib/geo";
 import useDrivingEta from "@/hooks/useDrivingEta";
 import { STATUS_LABEL } from "@/lib/trip";
@@ -74,7 +78,11 @@ export default function StaffPortal() {
   useEffect(() => {
     pickupRef.current = pickupName;
   }, [pickupName]);
-  const { location: userLoc } = useUserLocation();
+  const { location: watchedLoc, error: locError } = useUserLocation();
+  // Fallback fix from the explicit "Allow location" prompt, for when the
+  // background watch was denied or timed out.
+  const [promptLoc, setPromptLoc] = useState(null);
+  const userLoc = watchedLoc || promptLoc;
   const [loading, setLoading] = useState(true);
 
   // Load saved company code
@@ -264,6 +272,10 @@ export default function StaffPortal() {
         <div className="space-y-4">
         <Greeting subtitle={company.name} />
 
+        <AdBanner />
+
+        {!userLoc && locError && <LocationPrompt onLocation={setPromptLoc} />}
+
         <div className="flex flex-wrap gap-2">
           {pushPermission !== "granted" && pushPermission !== "unsupported" && (
             <Button variant="outline" size="sm" onClick={enableNotifications}>
@@ -292,7 +304,8 @@ export default function StaffPortal() {
             <h2 className="text-lg font-semibold">Track pickups &amp; buses</h2>
             <p className="text-sm text-muted-foreground">{locatedVehicles.filter((v) => v.tracking_active).length} vehicles tracking live</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <ContactOperator company={{ phone: companyPhone }} />
             <ShareLocationButton />
             <Button variant="ghost" size="sm" onClick={switchCompany}>
               <LogOut className="w-4 h-4" />
@@ -363,6 +376,8 @@ export default function StaffPortal() {
             </CardContent>
           </Card>
         )}
+
+        <BusAssistant company={company} userLoc={userLoc} />
 
         {pickupName && (
           <div>
