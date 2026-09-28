@@ -25,6 +25,8 @@ import {
   Calendar,
   History,
   ChevronDown,
+  Timer,
+  ScrollText,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -42,6 +44,7 @@ export const ADMIN_SECTIONS = [
   { id: "vehicles", label: "Vehicles", icon: Bus, group: "Fleet Operations" },
   { id: "drivers", label: "Drivers", icon: Car, group: "Fleet Operations" },
   { id: "kiosks", label: "Kiosk tablets", icon: Smartphone, group: "Fleet Operations" },
+  { id: "shifts", label: "Driver shifts", icon: Timer, group: "Fleet Operations" },
   { id: "sync", label: "Fleet sync", icon: RefreshCw, group: "Fleet Operations" },
 
   { id: "service", label: "Service Queue", icon: Wrench, group: "Maintenance" },
@@ -60,6 +63,7 @@ export const ADMIN_SECTIONS = [
   { id: "users", label: "Users & roles", icon: Users, group: "Admin" },
   { id: "companies", label: "Companies", icon: Building2, group: "Admin" },
   { id: "copilot", label: "AI copilot", icon: Sparkles, group: "Admin" },
+  { id: "audit", label: "Change history", icon: ScrollText, group: "Admin" },
   { id: "data", label: "Data manager", icon: Database, group: "Admin" },
 
   { id: "profile", label: "My profile", icon: User, group: null },

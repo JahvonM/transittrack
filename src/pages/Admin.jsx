@@ -68,6 +68,8 @@ import {
 } from "lucide-react";
 import { loadFailed } from "@/lib/loadFailed";
 import BusLoader from "@/components/BusLoader";
+import ShiftsTab from "@/components/admin/ShiftsTab";
+import AuditLogTab from "@/components/admin/AuditLogTab";
 
 const ROLE_LINKS = [
   { to: "/passenger", label: "Passenger view", icon: MapPin },
@@ -484,6 +486,8 @@ export default function Admin() {
           <DriversTab drivers={drivers} vehicles={vehicles} companies={companies} routes={routes} onChange={load} />
         )}
         {section === "sync" && <FleetSyncTab />}
+        {section === "shifts" && <ShiftsTab />}
+        {section === "audit" && <AuditLogTab />}
         {section === "companies" && <CompaniesTab companies={companies} onChange={load} />}
         {section === "messaging" && <MessagingTab vehicles={vehicles} />}
         {section === "ads" && <AdsTab />}
