@@ -40,8 +40,10 @@ await page.getByRole("button", { name: "Good" }).nth(1).click();
 
 await ctx.setOffline(true);
 await page.getByRole("button", { name: /^submit$/i }).click();
-const saved = await page.getByText("Inspection saved on this device").isVisible({ timeout: 8000 }).catch(() => false);
-const pillOffline = await page.getByText(/1 inspection waiting for signal/).isVisible({ timeout: 3000 }).catch(() => false);
+const t0 = Date.now();
+const saved = await page.getByText("Inspection saved on this device").waitFor({ timeout: 20000 }).then(() => true).catch(() => false);
+console.log("offline result shown after", Date.now() - t0, "ms");
+const pillOffline = await page.getByText(/1 inspection waiting for signal/).waitFor({ timeout: 5000 }).then(() => true).catch(() => false);
 const queued = await page.evaluate(() => JSON.parse(localStorage.getItem("tt_offline_jobs") || "[]").length);
 console.log("offline submit -> saved screen:", saved, "| pill:", pillOffline, "| queued jobs:", queued, "| writes while offline:", writes.length);
 
