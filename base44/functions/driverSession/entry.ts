@@ -166,12 +166,14 @@ export default async function(req) {
       case 'heartbeat': {
         const vehicle = await loadVehicle(base44, vehicleId);
         if (!vehicle) return Response.json({ error: 'Vehicle not found' }, { status: 404 });
-        const [staff, broadcasts, checkIns, groupMessages] = await Promise.all([
+        const [staff, broadcasts, checkIns, groupMessages, vehicleTrips] = await Promise.all([
           loadStaff(base44, companyId),
           base44.asServiceRole.entities.Broadcast.filter({}, '-created_date', 20),
           base44.asServiceRole.entities.StaffCheckIn.filter({ vehicle_id: vehicleId }, '-created_date', 20),
           base44.asServiceRole.entities.GroupMessage.filter({ vehicle_id: vehicleId }, '-created_date', 200),
+          base44.asServiceRole.entities.Trip.filter({ vehicle_id: vehicleId }, 'scheduled_time', 100).catch(() => []),
         ]);
+        const trips = vehicleTrips.filter((t) => ['scheduled', 'on_the_way', 'arrived'].includes(t.status));
         const driverEmail = vehicle.driver_email || '';
         const relevantBroadcasts = broadcasts.filter((b) => {
           const targeted = b.driver_email && b.driver_email === driverEmail;
@@ -187,7 +189,7 @@ export default async function(req) {
           vehicle, driver_name: vehicle.driver_name || '', driver_pin: vehicle.driver_pin || '',
           company_id: companyId, company_name: companyName, staff, route,
           broadcasts: relevantBroadcasts, check_ins: checkIns.filter((c) => c.status === 'boarded'),
-          group_messages: [...groupMessages].reverse(),
+          group_messages: [...groupMessages].reverse(), trips,
         });
       }
 
@@ -562,11 +564,48 @@ export default async function(req) {
         if (!existing) return Response.json({ error: 'Trip not found' }, { status: 404 });
         if (existing.company_id !== companyId || existing.vehicle_id !== vehicleId)
           return Response.json({ error: 'Trip does not belong to this device' }, { status: 403 });
+        if (!['on_the_way', 'arrived', 'completed'].includes(status))
+          return Response.json({ error: 'Invalid status' }, { status: 400 });
         const update = { status };
         if (status === 'on_the_way') update.started_at = new Date().toISOString();
         if (status === 'arrived') update.arrived_at = new Date().toISOString();
         if (status === 'completed') update.completed_at = new Date().toISOString();
         const trip = await base44.asServiceRole.entities.Trip.update(trip_id, update);
+        if (status === 'on_the_way') await base44.asServiceRole.entities.Vehicle.update(vehicleId, { status: 'on_trip' });
+        if (status === 'completed') await base44.asServiceRole.entities.Vehicle.update(vehicleId, { status: 'idle' });
+        return Response.json({ trip });
+      }
+
+      case 'sign_trip': {
+        // Pickup / drop-off signature captured on the tablet. Drivers have no
+        // login, so the upload and trip update run here with the service role.
+        const { trip_id, mode, data_base64, mime_type, signed_by } = body;
+        if (!trip_id || !['pickup', 'dropoff'].includes(mode))
+          return Response.json({ error: 'trip_id and mode required' }, { status: 400 });
+        if (!data_base64 || typeof data_base64 !== 'string')
+          return Response.json({ error: 'data_base64 required' }, { status: 400 });
+        let existing = null;
+        try { existing = await base44.asServiceRole.entities.Trip.get(trip_id); }
+        catch { /* trip may not exist */ }
+        if (!existing) return Response.json({ error: 'Trip not found' }, { status: 404 });
+        if (existing.company_id !== companyId || existing.vehicle_id !== vehicleId)
+          return Response.json({ error: 'Trip does not belong to this device' }, { status: 403 });
+        let fileUrl;
+        try {
+          const bytes = base64ToBytes(data_base64);
+          const file = new File([bytes], `signature-${mode}-${Date.now()}.png`, { type: mime_type || 'image/png' });
+          const uploaded = await base44.asServiceRole.integrations.Core.UploadFile({ file });
+          fileUrl = uploaded.file_url;
+        } catch (e) {
+          return Response.json({ error: `Upload failed: ${e.message}` }, { status: 500 });
+        }
+        const now = new Date().toISOString();
+        const name = String(signed_by || '').slice(0, 120);
+        const update = mode === 'pickup'
+          ? { pickup_signature_url: fileUrl, pickup_signed_by: name, pickup_signed_at: now }
+          : { dropoff_signature_url: fileUrl, dropoff_signed_by: name, dropoff_signed_at: now, status: 'completed', completed_at: now };
+        const trip = await base44.asServiceRole.entities.Trip.update(trip_id, update);
+        if (mode === 'dropoff') await base44.asServiceRole.entities.Vehicle.update(vehicleId, { status: 'idle' });
         return Response.json({ trip });
       }
 
