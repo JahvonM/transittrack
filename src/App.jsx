@@ -1,6 +1,7 @@
 import { Toaster } from "@/components/ui/toaster"
 import BusLoader from "@/components/BusLoader";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import ConfirmHost from "@/components/ConfirmHost";
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
 import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
@@ -170,6 +171,7 @@ function App() {
           <AuthenticatedApp />
         </Router>
         <Toaster />
+        <ConfirmHost />
       </QueryClientProvider>
     </AuthProvider>
     </ErrorBoundary>
