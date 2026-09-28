@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import { MAPBOX_TOKEN } from "@/lib/mapbox";
-import { MapPin, Search, Crosshair, MessageCircle, BellOff, Clock } from "lucide-react";
+import { MapPin, Search, Crosshair } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";

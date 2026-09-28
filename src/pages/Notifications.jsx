@@ -3,7 +3,7 @@ import { base44 } from "@/api/base44Client";
 import AppLayout from "@/components/AppLayout";
 import PullToRefresh from "@/components/PullToRefresh";
 import { Card, CardContent } from "@/components/ui/card";
-import { BellRing, Bus, Car, Info } from "lucide-react";
+import { Bus, Car, Info } from "lucide-react";
 
 export default function Notifications() {
   const [alerts, setAlerts] = useState([]);

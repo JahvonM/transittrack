@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import mapboxgl from "mapbox-gl";
-import Map, { Marker, Source, Layer, Popup, NavigationControl } from "react-map-gl";
+import Map, { Marker, Source, Layer, NavigationControl } from "react-map-gl";
 import { MAPBOX_TOKEN, mapStyleFor, mapAccentFor } from "@/lib/mapbox";
 import { useIsDark } from "@/lib/useTheme";
 import { Bus, LocateFixed, Maximize2, Minimize2, Satellite, X } from "lucide-react";

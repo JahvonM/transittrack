@@ -10,7 +10,6 @@ import WeatherWidget from "@/components/WeatherWidget";
 import Logo from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 import {
-  Bus,
   Car,
   ChevronRight,
   Clock,
