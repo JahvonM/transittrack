@@ -114,6 +114,10 @@ async function loadVehicle(base44, vehicleId) {
   catch { return null; }
 }
 
+// "Skip today" and "running late" carry an expiry so they switch themselves
+// off; a flag with no expiry (set before expiries existed) counts as expired.
+const flagActive = (on, until) => !!on && !!until && new Date(until).getTime() > Date.now();
+
 async function loadStaff(base44, companyId) {
   const [users, contacts] = await Promise.all([
     base44.asServiceRole.entities.User.list(),
@@ -134,13 +138,16 @@ async function loadStaff(base44, companyId) {
         home_lat: c.pickup_lat != null ? c.pickup_lat : u.home_lat,
         home_lng: c.pickup_lng != null ? c.pickup_lng : u.home_lng,
         pickup_name: c.pickup_name, dropoff_name: c.dropoff_name, nfc_card_tag: c.nfc_card_tag,
-        skip_pickup_today: u.skip_pickup_today || false,
+        skip_pickup_today: flagActive(u.skip_pickup_today, u.skip_pickup_until),
+        late_snooze_active: flagActive(u.late_snooze_active, u.late_until),
       };
     }),
     ...orphanUsers.map((u) => ({
       id: u.id, full_name: u.full_name, email: u.email, phone: u.phone,
       home_lat: u.home_lat, home_lng: u.home_lng, pickup_name: undefined, dropoff_name: undefined,
-      nfc_card_tag: undefined, skip_pickup_today: u.skip_pickup_today || false,
+      nfc_card_tag: undefined,
+      skip_pickup_today: flagActive(u.skip_pickup_today, u.skip_pickup_until),
+      late_snooze_active: flagActive(u.late_snooze_active, u.late_until),
     })),
   ];
   return merged;
