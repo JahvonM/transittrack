@@ -1,0 +1,50 @@
+{
+  "name": "JobRun",
+  "type": "object",
+  "properties": {
+    "job": {
+      "type": "string",
+      "description": "Scheduled job name, e.g. weeklyReport."
+    },
+    "ran_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "trigger": {
+      "type": "string",
+      "enum": [
+        "schedule",
+        "admin"
+      ]
+    },
+    "summary": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "job",
+    "ran_at"
+  ],
+  "rls": {
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}
