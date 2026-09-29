@@ -337,7 +337,7 @@ export default function InspectionTemplatesTab({ templates = [], companies = [],
                           <Input
                             value={item.item_name}
                             onChange={(e) => updateItem(sIdx, iIdx, { item_name: e.target.value })}
-                            className="h-8 flex-1"
+                            className="h-8 flex-1 min-w-[160px]"
                           />
                           <Select value={item.zone || "__auto__"} onValueChange={(v) => updateItem(sIdx, iIdx, { zone: v === "__auto__" ? "" : v })}>
                             <SelectTrigger className="h-8 w-44" aria-label="Bus part"><SelectValue /></SelectTrigger>
