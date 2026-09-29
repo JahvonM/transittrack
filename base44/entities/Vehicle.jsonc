@@ -120,7 +120,7 @@
     },
     "fleet_number": {
       "type": "string",
-      "description": "Internal fleet code (e.g. BUS001) \u2014 merged from FleetPilot, distinct from plate_number."
+      "description": "Vehicle number / internal fleet code (e.g. BUS001), distinct from plate_number."
     },
     "make": {
       "type": "string"
@@ -132,7 +132,8 @@
       "type": "integer"
     },
     "vin": {
-      "type": "string"
+      "type": "string",
+      "description": "Chassis number (VIN)."
     },
     "engine": {
       "type": "string"
@@ -156,6 +157,10 @@
       "type": "boolean",
       "default": true,
       "description": "Whether this vehicle is an active part of the fleet for maintenance purposes \u2014 separate from the live dispatch 'status' field (a vehicle can be in_service but currently offline)."
+    },
+    "model_3d": {
+      "type": "string",
+      "description": "Which 3D model draws this vehicle on maps (see src/lib/vehicleModels.js), e.g. city_bus, coach, school_bus, taxi."
     }
   },
   "rls": {
