@@ -5,6 +5,7 @@ import AppLayout from "@/components/AppLayout";
 import ProfileInfo from "@/components/ProfileInfo";
 import ChangePassword from "@/components/ChangePassword";
 import ThemeToggle from "@/components/ThemeToggle";
+import AccentPicker from "@/components/AccentPicker";
 import { useAuth } from "@/lib/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -45,11 +46,17 @@ export default function Account() {
           <CardHeader className="pb-3">
             <CardTitle className="text-base">Appearance</CardTitle>
           </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground mb-3">
-              Switch between light and dark mode. Your choice is remembered on this device.
-            </p>
-            <ThemeToggle />
+          <CardContent className="space-y-5">
+            <div>
+              <p className="text-sm font-medium mb-1">Mode</p>
+              <p className="text-sm text-muted-foreground mb-3">Light or dark. Remembered on this device.</p>
+              <ThemeToggle />
+            </div>
+            <div>
+              <p className="text-sm font-medium mb-1">Colour theme</p>
+              <p className="text-sm text-muted-foreground mb-3">Changes buttons, highlights and map routes. Saved to your account.</p>
+              <AccentPicker />
+            </div>
           </CardContent>
         </Card>
       </div>
