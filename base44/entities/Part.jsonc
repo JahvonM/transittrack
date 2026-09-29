@@ -2,8 +2,7 @@
   "name": "Part",
   "type": "object",
   "required": [
-    "part_name",
-    "company_id"
+    "part_name"
   ],
   "properties": {
     "company_id": {
@@ -38,6 +37,10 @@
     },
     "supplier": {
       "type": "string"
+    },
+    "photo_url": {
+      "type": "string",
+      "description": "Photo of the part."
     }
   },
   "rls": {
