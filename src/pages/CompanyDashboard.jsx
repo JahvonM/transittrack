@@ -4,7 +4,7 @@ import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import AppLayout from "@/components/AppLayout";
 import ProfileInfo from "@/components/ProfileInfo";
-import { Bus, Car, Plus, Pencil, Trash2, Route as RouteIcon, MapPin, Building2, Phone, KeyRound, Copy, Check, RefreshCw, User, History } from "lucide-react";
+import { Bus, Plus, Pencil, Trash2, Route as RouteIcon, MapPin, Building2, Phone, KeyRound, Copy, Check, RefreshCw, User, History } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
