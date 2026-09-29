@@ -3,6 +3,7 @@ import { Marker } from "react-map-gl";
 import { statusColor } from "@/lib/vehicleStatus";
 import useSmoothPosition from "@/hooks/useSmoothPosition";
 import MapBusPin, { useBearing } from "@/components/MapBusPin";
+import { modelIdFor } from "@/lib/vehicleModels";
 
 /**
  * A single vehicle on the map: a small 3D bus (or taxi) that glides to each
@@ -26,7 +27,7 @@ export default function VehicleMarker({ vehicle, onSelect }) {
         title={`${vehicle.name} · ${vehicle.company_name || ""} · ${vehicle.status}`}
         aria-label={`${vehicle.name}, ${vehicle.status}`}
       >
-        <MapBusPin kind={vehicle.type === "taxi" ? "taxi" : "bus"} color={ring} driving={driving} alert={alert} heading={heading} />
+        <MapBusPin model={modelIdFor(vehicle)} color={ring} driving={driving} alert={alert} heading={heading} />
       </button>
     </Marker>
   );
