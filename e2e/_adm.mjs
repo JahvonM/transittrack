@@ -1,0 +1,13 @@
+import { chromium } from "@playwright/test";
+const b = await chromium.launch(); const ctx = await b.newContext({ viewport: { width: 1280, height: 900 } });
+await ctx.addInitScript(() => { localStorage.setItem("base44_access_token", "fake"); localStorage.setItem("token", "fake"); });
+const reqs=[];
+await ctx.route("**/api/**", async (r) => { const u=r.request().url(); reqs.push(u.replace(/.*\/api/,'').slice(0,90));
+ if (u.includes("public-settings")) return r.continue();
+ if (u.includes("/entities/User/me")) return r.fulfill({ json: { id: "u1", email: "a@x.com", full_name: "Ana Admin", role: "admin" } });
+ if (u.includes("/entities/InspectionTemplate")) return r.fulfill({ json: [{id:"t1",name:"Driver pre-trip walk-around",audience:"driver",sections:[]}] });
+ if (u.includes("/entities/")) return r.fulfill({ json: [] }); return r.fulfill({ json: {} }); });
+const p = await ctx.newPage(); const errs=[]; p.on("pageerror", e=>errs.push(String(e).slice(0,200)));
+await p.goto("http://localhost:4173/admin/templates"); await p.waitForTimeout(4000);
+console.log(p.url()); console.log((await p.locator("body").innerText()).slice(0,800)); console.log(errs); console.log(reqs.filter(x=>x.includes('Inspection')).join('\n'));
+await b.close();
