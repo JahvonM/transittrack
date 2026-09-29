@@ -1,4 +1,4 @@
-import React from "react";
+import React, { createContext, useContext } from "react";
 import { BUS_ZONES } from "@/lib/busZones";
 
 // X-ray style bus drawing used by inspections. Two views: "outside" (side
@@ -46,7 +46,10 @@ function zoneClass(z, statuses, activeZone) {
   return "";
 }
 
-function Part({ z, statuses, activeZone, className = "", children }) {
+const XrCtx = createContext({ statuses: {}, activeZone: null });
+
+function P({ z, className = "", children }) {
+  const { statuses, activeZone } = useContext(XrCtx);
   return <g className={`p ${className} ${zoneClass(z, statuses, activeZone)}`}>{children}</g>;
 }
 
@@ -69,27 +72,26 @@ function Defs({ id }) {
   );
 }
 
-function Wheel({ cx, cy, z, brakeZ, statuses, activeZone }) {
+function Wheel({ cx, cy, z, brakeZ }) {
   return (
     <>
-      <Part z={z} statuses={statuses} activeZone={activeZone}>
+      <P z={z}>
         <circle className="f" cx={cx} cy={cy} r="44" strokeWidth="5" />
         <circle cx={cx} cy={cy} r="27" />
         {[0, 60, 120, 180, 240, 300].map((a) => (
           <circle key={a} cx={cx + 17 * Math.cos((a * Math.PI) / 180)} cy={cy + 17 * Math.sin((a * Math.PI) / 180)} r="2.5" />
         ))}
-      </Part>
-      <Part z={brakeZ} statuses={statuses} activeZone={activeZone} className="dim">
+      </P>
+      <P z={brakeZ} className="dim">
         <circle cx={cx} cy={cy} r="34" strokeDasharray="4 5" />
         <path d={`M${cx - 12} ${cy - 30} a32 32 0 0 1 24 0`} strokeWidth="6" />
         <circle cx={cx} cy={cy} r="8" />
-      </Part>
+      </P>
     </>
   );
 }
 
-function OutsideView({ statuses, activeZone }) {
-  const P = (props) => <Part statuses={statuses} activeZone={activeZone} {...props} />;
+function OutsideView() {
   const windows = [[150, 228], [238, 316], [326, 404], [414, 492], [596, 674], [684, 762]];
   const seats = [162, 252, 342, 432, 610, 700];
   return (
@@ -143,23 +145,25 @@ function OutsideView({ statuses, activeZone }) {
       </P>
       <P z="steering_wheel" className="faint"><ellipse cx="882" cy="176" rx="5" ry="17" strokeWidth="3" /></P>
       <P z="driver_seat" className="faint"><path d="M836 196V248M836 232H872" strokeWidth="3" /></P>
-      <Wheel cx={258} cy={330} z="tyres" brakeZ="brakes" statuses={statuses} activeZone={activeZone} />
-      <Wheel cx={788} cy={330} z="tyres" brakeZ="brakes" statuses={statuses} activeZone={activeZone} />
+      <Wheel cx={258} cy={330} z="tyres" brakeZ="brakes" />
+      <Wheel cx={788} cy={330} z="tyres" brakeZ="brakes" />
       <path d="M20 376H980" stroke={C.line} strokeOpacity=".25" strokeWidth="2" strokeDasharray="2 10" />
     </>
   );
 }
 
-function InsideView({ statuses, activeZone }) {
-  const P = (props) => <Part statuses={statuses} activeZone={activeZone} {...props} />;
-  const topRows = [110, 170, 230, 290, 350, 410, 470, 530, 590, 650, 710];
-  const bottomRows = [110, 170, 230, 290, 350, 410, 470];
-  const Seat = ({ x, y }) => (
+function Seat({ x, y }) {
+  return (
     <>
       <rect className="f" x={x} y={y} width="42" height="30" rx="6" />
       <path d={`M${x + 4} ${y + 2}V${y + 28}`} strokeWidth="4" />
     </>
   );
+}
+
+function InsideView() {
+  const topRows = [110, 170, 230, 290, 350, 410, 470, 530, 590, 650, 710];
+  const bottomRows = [110, 170, 230, 290, 350, 410, 470];
   return (
     <>
       <P z="body">
@@ -211,7 +215,9 @@ export default function XrayBus({ view = "outside", statuses = {}, activeZone, o
       <svg viewBox={vb} role="img" aria-label={label || (view === "inside" ? "X-ray of the bus cabin" : "X-ray of the bus from the side")}>
         <Defs id={id} />
         <rect width={w} height={h} fill={`url(#xr-grid-${id})`} />
-        {view === "inside" ? <InsideView statuses={statuses} activeZone={activeZone} /> : <OutsideView statuses={statuses} activeZone={activeZone} />}
+        <XrCtx.Provider value={{ statuses, activeZone }}>
+          {view === "inside" ? <InsideView /> : <OutsideView />}
+        </XrCtx.Provider>
         {scanning && (
           <g className="scan" aria-hidden="true">
             <rect x="0" y="0" width="140" height={h} fill={`url(#xr-scan-${id})`} />
