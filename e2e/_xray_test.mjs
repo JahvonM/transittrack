@@ -142,10 +142,12 @@ out.safetyList = (await has("Deep clean check")) && (await has("Done today"));
 await page.screenshot({ path: "/tmp/shots/x_safety.png" });
 
 // 5. Admin builder
+for (const [k, v] of Object.entries(out)) console.log(k.padEnd(24), v);
 await page.goto(base + "/admin/templates", { waitUntil: "domcontentloaded" });
 await page.waitForTimeout(3500);
+await page.screenshot({ path: "/tmp/shots/x_admin_pre.png" });
 out.adminAudienceShown = await has("Drivers · Start of the day");
-await page.getByText("Driver pre-trip walk-around").first().click();
+await page.getByText("Driver pre-trip walk-around").first().click({ timeout: 5000 });
 await page.waitForTimeout(800);
 await page.getByRole("radio", { name: /When a shift starts/ }).click();
 await page.getByRole("button", { name: "Mon" }).click();
