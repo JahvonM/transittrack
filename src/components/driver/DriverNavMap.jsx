@@ -11,6 +11,7 @@ import useDrivingEta from "@/hooks/useDrivingEta";
 import useSmoothPosition from "@/hooks/useSmoothPosition";
 import AccuracyHalo from "@/components/AccuracyHalo";
 import MapBusPin, { useBearing } from "@/components/MapBusPin";
+import { modelIdFor } from "@/lib/vehicleModels";
 import TripProgress, { routeProgress } from "@/components/TripProgress";
 import { Bus, Navigation, MapPin, LocateFixed, Satellite, Flag, RotateCw, ArrowUp, Volume2, VolumeX } from "lucide-react";
 
@@ -290,7 +291,7 @@ export default function DriverNavMap({ session, invoke }) {
             <>
               <AccuracyHalo sourceId="driver-accuracy" lat={smoothPos.lat} lng={smoothPos.lng} accuracy={pos?.accuracy} color={accent} />
               <Marker longitude={smoothPos.lng} latitude={smoothPos.lat} anchor="center">
-                <MapBusPin color={accent} driving heading={heading} />
+                <MapBusPin model={modelIdFor(vehicle)} color={accent} driving heading={heading} />
               </Marker>
             </>
           )}
