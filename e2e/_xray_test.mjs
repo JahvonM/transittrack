@@ -96,12 +96,21 @@ await page.locator("input[type=file]").setInputFiles("/tmp/part.png");
 await page.waitForTimeout(700);
 await page.screenshot({ path: "/tmp/shots/x_problem.png" });
 await page.getByRole("button", { name: /Save and next/ }).click(); await page.waitForTimeout(400);
-for (let i = 0; i < 2; i++) { await ok(); await page.waitForTimeout(500); }
-out.onInsideView = await page.getByRole("tab", { name: "Inside" }).getAttribute("aria-selected");
-await page.screenshot({ path: "/tmp/shots/x_inside.png" });
-await ok(); await page.waitForTimeout(300);
-await page.locator("input[type=file]").setInputFiles("/tmp/part.png");
-await page.waitForTimeout(1200);
+const order = [];
+for (let i = 0; i < 6 && !(await has("Almost done")); i++) {
+  const title = await page.locator("h3").first().innerText();
+  order.push(title);
+  if (i === 1) {
+    out.onInsideView = await page.getByRole("tab", { name: "Inside" }).getAttribute("aria-selected");
+    await page.screenshot({ path: "/tmp/shots/x_inside.png" });
+  }
+  await ok(); await page.waitForTimeout(400);
+  if (await page.getByRole("button", { name: /Take the required photo/ }).isVisible().catch(() => false)) {
+    await page.locator("input[type=file]").setInputFiles("/tmp/part.png");
+    await page.waitForTimeout(1000);
+  }
+}
+out.walkOrderRest = order.join(" → ");
 out.readingsShown = await has("Almost done");
 await page.screenshot({ path: "/tmp/shots/x_readings.png" });
 await page.getByRole("button", { name: /Submit inspection/ }).click();
