@@ -19,6 +19,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/components/ui/use-toast";
+import DriverDocumentsDialog, { DocChips } from "@/components/admin/DriverDocuments";
 import { Bus, Camera, Car, Loader2, Mail, Pencil, Phone, Plus, Trash2, User as UserIcon, X } from "lucide-react";
 
 const STATUSES = [
@@ -255,8 +256,9 @@ function AssignedVehicleRow({ vehicle: v, routes, onUnassign, onSetStatus, onSet
   );
 }
 
-function DriverCard({ driver, vehicles, companies, routes, onAssign, onUnassign, onSetStatus, onSetRoute, onSetPin, onSaved, onRemove }) {
+function DriverCard({ driver, vehicles, companies, routes, docs = [], onDocsChanged, onAssign, onUnassign, onSetStatus, onSetRoute, onSetPin, onSaved, onRemove }) {
   const [editOpen, setEditOpen] = useState(false);
+  const [docsOpen, setDocsOpen] = useState(false);
   const assigned = vehicles.filter((v) => driver.email && v.driver_email === driver.email);
   const companyName = companies.find((c) => c.id === driver.company_id)?.name;
   const pool = vehicles.filter(
@@ -371,15 +373,20 @@ function DriverCard({ driver, vehicles, companies, routes, onAssign, onUnassign,
             <p className="text-xs text-amber-600">Add an email for this driver to assign a bus (vehicles are matched by driver email).</p>
           )}
         </div>
+        <DocChips docs={docs} onOpen={() => setDocsOpen(true)} />
       </CardContent>
 
       <EditDriverDialog driver={driver} companies={companies} open={editOpen} onOpenChange={setEditOpen} onSaved={onSaved} />
+      <DriverDocumentsDialog driver={driver} docs={docs} open={docsOpen} onOpenChange={setDocsOpen} onChanged={onDocsChanged} />
     </Card>
   );
 }
 
 export default function DriversTab({ drivers, vehicles, companies, routes, onChange }) {
   const { toast } = useToast();
+  const [docs, setDocs] = useState([]);
+  const loadDocs = () => base44.entities.DriverDocument.list("-updated_date", 1000).then(setDocs).catch(() => {});
+  useEffect(() => { loadDocs(); }, []);
 
   const assign = async (driver, vehicleId) => {
     if (!vehicleId) return;
@@ -451,6 +458,8 @@ export default function DriversTab({ drivers, vehicles, companies, routes, onCha
             onSetPin={setPin}
             onSaved={onChange}
             onRemove={removeDriver}
+            docs={docs.filter((doc) => doc.driver_id === d.id)}
+            onDocsChanged={loadDocs}
           />
         ))}
       </div>
