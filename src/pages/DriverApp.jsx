@@ -314,7 +314,7 @@ export default function DriverApp() {
               <ArrowLeft className="w-5 h-5" />
             </Button>
           )}
-          <DriverGreeting driverName={driverName} subtitle={vehicle.name} />
+          {!template && <DriverGreeting driverName={driverName} subtitle={vehicle.name} />}
           {template ? (
             <DriverInspectionRunner
               template={template}
