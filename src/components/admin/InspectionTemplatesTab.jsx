@@ -8,11 +8,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ListChecks, Plus, Trash2, Save } from "lucide-react";
+import InspectionTemplateSettings, { AUDIENCES, audienceSummary, metaFrom } from "@/components/admin/InspectionTemplateSettings";
+import XrayBus from "@/components/inspection/XrayBus";
+import { BUS_ZONES, ZONE_BY_ID, flattenTemplate, zoneFor, zoneStatus } from "@/lib/busZones";
 
 const CRITICALITY = ["Low", "Medium", "High", "Critical"];
 
 function emptyTemplate() {
-  return { name: "", company_id: "", frequency_days: "" };
+  return { name: "", company_id: "", frequency_days: "", audience: "mechanic" };
 }
 
 // Admin-configurable inspection builder — unlike FleetPilot's original
@@ -33,6 +36,9 @@ export default function InspectionTemplatesTab({ templates = [], companies = [],
   const [newTemplate, setNewTemplate] = useState(emptyTemplate());
   const [frequencyDays, setFrequencyDays] = useState("");
   const [savingFrequency, setSavingFrequency] = useState(false);
+  const [meta, setMeta] = useState(metaFrom(null));
+  const [sending, setSending] = useState(false);
+  const [focusZone, setFocusZone] = useState(null);
 
   const selected = templates.find((t) => t.id === selectedId) || null;
 
@@ -41,6 +47,8 @@ export default function InspectionTemplatesTab({ templates = [], companies = [],
       setDraft(JSON.parse(JSON.stringify(selected.sections || [])));
       setDirty(false);
       setFrequencyDays(selected.frequency_days ? String(selected.frequency_days) : "");
+      setMeta(metaFrom(selected));
+      setFocusZone(null);
     } else {
       setDraft(null);
       setFrequencyDays("");
@@ -98,16 +106,44 @@ export default function InspectionTemplatesTab({ templates = [], companies = [],
     if (!selected) return;
     setSaving(true);
     try {
-      await base44.entities.InspectionTemplate.update(selected.id, { sections: draft });
+      await base44.entities.InspectionTemplate.update(selected.id, { sections: draft, ...meta });
       setDirty(false);
-      onChange();
+      await onChange();
       toast({ title: "Template saved" });
+      return true;
     } catch (e) {
       toast({ title: "Couldn't save", description: e.message, variant: "destructive" });
+      return false;
     } finally {
       setSaving(false);
     }
   };
+
+  const changeMeta = (m) => { setMeta(m); setDirty(true); };
+
+  const sendNow = async () => {
+    if (!selected) return;
+    const where = selected.company_name ? `${selected.company_name}'s` : "every";
+    if (!(await confirmAction({
+      title: "Send to drivers now?",
+      description: `“${selected.name}” will pop up on ${where} driver tablet straight away, until each driver has done it.`,
+      confirmLabel: "Send",
+    }))) return;
+    if (dirty && !(await saveDraft())) return;
+    setSending(true);
+    try {
+      await base44.entities.InspectionTemplate.update(selected.id, { driver_sent_at: new Date().toISOString() });
+      await onChange();
+      toast({ title: "Sent to drivers", description: "It will appear on the tablets within a minute." });
+    } catch (e) {
+      toast({ title: "Couldn't send", description: e.message, variant: "destructive" });
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const draftItems = draft ? flattenTemplate({ sections: draft }) : [];
+  const previewStatus = zoneStatus(draftItems, {});
 
   const saveFrequency = async () => {
     if (!selected) return;
@@ -134,6 +170,8 @@ export default function InspectionTemplatesTab({ templates = [], companies = [],
         company_id: newTemplate.company_id || undefined,
         company_name: company?.name || undefined,
         frequency_days: Number(newTemplate.frequency_days) || 0,
+        audience: newTemplate.audience || "mechanic",
+        ...(newTemplate.audience !== "mechanic" ? { driver_trigger: "start_of_day", driver_required: true } : {}),
         sections: [],
       });
       setNewTemplate(emptyTemplate());
@@ -181,6 +219,9 @@ export default function InspectionTemplatesTab({ templates = [], companies = [],
                   <div className="text-xs text-muted-foreground truncate">
                     {t.company_name || "All companies"} · {itemCount(t)} items
                   </div>
+                  <div className="text-xs text-primary truncate">
+                    {audienceSummary(t)}
+                  </div>
                 </div>
                 <Button
                   variant="ghost"
@@ -211,6 +252,12 @@ export default function InspectionTemplatesTab({ templates = [], companies = [],
                 <SelectContent>
                   <SelectItem value="__all__">All companies</SelectItem>
                   {companies.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Select value={newTemplate.audience} onValueChange={(v) => setNewTemplate((f) => ({ ...f, audience: v }))}>
+                <SelectTrigger aria-label="Who does this inspection"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {AUDIENCES.map((a) => <SelectItem key={a.id} value={a.id}>For {a.label.toLowerCase()}</SelectItem>)}
                 </SelectContent>
               </Select>
               <Input
@@ -255,6 +302,19 @@ export default function InspectionTemplatesTab({ templates = [], companies = [],
                     {savingFrequency ? "Saving…" : "Save"}
                   </Button>
                 </div>
+                <InspectionTemplateSettings meta={meta} onChange={changeMeta} sentAt={selected.driver_sent_at} onSendNow={sendNow} sending={sending} />
+                {draftItems.length > 0 && (
+                  <div className="border rounded-xl p-3 space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm font-semibold">X-ray preview</p>
+                      <p className="text-xs text-muted-foreground">{focusZone ? `Showing ${ZONE_BY_ID[focusZone]?.label}. Tap it again to show all.` : "Tap a part to find its items."}</p>
+                    </div>
+                    <div className="grid sm:grid-cols-2 gap-2">
+                      <XrayBus view="outside" statuses={previewStatus} activeZone={focusZone} scanning={false} onZoneClick={(z) => setFocusZone((f) => (f === z ? null : z))} />
+                      <XrayBus view="inside" statuses={previewStatus} activeZone={focusZone} scanning={false} onZoneClick={(z) => setFocusZone((f) => (f === z ? null : z))} />
+                    </div>
+                  </div>
+                )}
                 {draft.map((section, sIdx) => (
                   <div key={sIdx} className="border rounded-xl p-3 space-y-2">
                     <div className="flex items-center gap-2">
@@ -268,13 +328,24 @@ export default function InspectionTemplatesTab({ templates = [], companies = [],
                       </Button>
                     </div>
                     <div className="space-y-1.5">
-                      {section.items.map((item, iIdx) => (
-                        <div key={iIdx} className="flex items-center gap-2 text-sm">
+                      {section.items.map((item, iIdx) => {
+                        const autoZone = zoneFor({ item_name: item.item_name }, section.section_name);
+                        const zone = item.zone || autoZone;
+                        if (focusZone && zone !== focusZone) return null;
+                        return (
+                        <div key={iIdx} className="flex flex-wrap sm:flex-nowrap items-center gap-2 text-sm">
                           <Input
                             value={item.item_name}
                             onChange={(e) => updateItem(sIdx, iIdx, { item_name: e.target.value })}
                             className="h-8 flex-1"
                           />
+                          <Select value={item.zone || "__auto__"} onValueChange={(v) => updateItem(sIdx, iIdx, { zone: v === "__auto__" ? "" : v })}>
+                            <SelectTrigger className="h-8 w-44" aria-label="Bus part"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="__auto__">Auto: {ZONE_BY_ID[autoZone]?.label}</SelectItem>
+                              {BUS_ZONES.map((z) => <SelectItem key={z.id} value={z.id}>{z.label}{z.view === "inside" ? " (inside)" : ""}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
                           <Select value={item.critical} onValueChange={(v) => updateItem(sIdx, iIdx, { critical: v })}>
                             <SelectTrigger className="h-8 w-28"><SelectValue /></SelectTrigger>
                             <SelectContent>
@@ -289,7 +360,8 @@ export default function InspectionTemplatesTab({ templates = [], companies = [],
                             <Trash2 className="w-3.5 h-3.5 text-destructive" />
                           </Button>
                         </div>
-                      ))}
+                        );
+                      })}
                     </div>
                     <Button variant="outline" size="sm" onClick={() => addItem(sIdx)}>
                       <Plus className="w-3.5 h-3.5 mr-1.5" /> Add item
