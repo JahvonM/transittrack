@@ -61,7 +61,8 @@ export default async function (req) {
       base44.asServiceRole.entities.MaintenanceSettings.list(),
     ]);
 
-    const recurringTemplates = templates.filter((t) => (t.frequency_days || 0) > 0);
+    // Driver-only templates are scheduled in the driver app, not by mechanics.
+    const recurringTemplates = templates.filter((t) => (t.frequency_days || 0) > 0 && t.audience !== 'driver');
     if (recurringTemplates.length === 0) {
       return Response.json({ alerted: false, count: 0, message: 'No recurring inspection templates configured.' });
     }
