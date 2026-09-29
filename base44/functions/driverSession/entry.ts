@@ -176,6 +176,22 @@ const MAX_GAP_SEC = 25; // ignore deltas across gaps this large (offline periods
 const ARRIVAL_RADIUS_M = 120; // "at a stop" radius for place alerts
 const PING_LOG_INTERVAL_MS = 60000; // location-history resolution for the replay timeline
 
+// Inspection templates sent to drivers for this tablet's company.
+function driverTemplates(templates, companyId) {
+  return (templates || [])
+    .filter((t) => (t.audience === 'driver' || t.audience === 'both') && (!t.company_id || t.company_id === companyId))
+    .map((t) => ({
+      id: t.id, name: t.name, sections: t.sections || [],
+      driver_trigger: t.driver_trigger || 'start_of_day', driver_days: t.driver_days || [],
+      driver_from_time: t.driver_from_time || '', driver_required: t.driver_required !== false,
+      driver_sent_at: t.driver_sent_at || null,
+    }));
+}
+
+const SEVERITY = { Low: 'low', Medium: 'medium', High: 'high', Critical: 'critical' };
+const MAX_INSPECTION_PHOTOS = 25;
+const MAX_PHOTO_B64 = 3_000_000;
+
 export default async function(req) {
   try {
     const body = await req.json();
@@ -196,13 +212,15 @@ export default async function(req) {
       case 'heartbeat': {
         const vehicle = await loadVehicle(base44, vehicleId);
         if (!vehicle) return Response.json({ error: 'Vehicle not found' }, { status: 404 });
-        const [staff, broadcasts, checkIns, groupMessages, vehicleTrips, openShifts] = await Promise.all([
+        const [staff, broadcasts, checkIns, groupMessages, vehicleTrips, openShifts, allTemplates, recentInspections] = await Promise.all([
           loadStaff(base44, companyId),
           base44.asServiceRole.entities.Broadcast.filter({}, '-created_date', 20),
           base44.asServiceRole.entities.StaffCheckIn.filter({ vehicle_id: vehicleId }, '-created_date', 20),
           base44.asServiceRole.entities.GroupMessage.filter({ vehicle_id: vehicleId }, '-created_date', 200),
           base44.asServiceRole.entities.Trip.filter({ vehicle_id: vehicleId }, 'scheduled_time', 100).catch(() => []),
           base44.asServiceRole.entities.DriverShift.filter({ vehicle_id: vehicleId }, '-started_at', 3).catch(() => []),
+          base44.asServiceRole.entities.InspectionTemplate.list().catch(() => []),
+          base44.asServiceRole.entities.Inspection.filter({ vehicle_id: vehicleId }, '-created_date', 30).catch(() => []),
         ]);
         const trips = vehicleTrips.filter((t) => ['scheduled', 'on_the_way', 'arrived'].includes(t.status));
         const driverEmail = vehicle.driver_email || '';
@@ -222,6 +240,11 @@ export default async function(req) {
           broadcasts: relevantBroadcasts, check_ins: checkIns.filter((c) => c.status === 'boarded'),
           group_messages: [...groupMessages].reverse(), trips,
           open_shift: openShifts.find((s) => !s.ended_at) || null,
+          inspection_templates: driverTemplates(allTemplates, companyId),
+          recent_inspections: recentInspections.map((i) => ({
+            id: i.id, template_id: i.template_id || null, template_name: i.template_name || null,
+            status: i.status, created_date: i.created_date,
+          })),
         });
       }
 
@@ -479,6 +502,83 @@ export default async function(req) {
           } catch { /* fault creation is best-effort — never blocks the inspection itself */ }
         }
         return Response.json({ inspection });
+      }
+
+      case 'submit_template_inspection': {
+        const { template_id, results, odometer, fuel, trigger } = body;
+        if (!template_id || !Array.isArray(results) || !results.length)
+          return Response.json({ error: 'template_id and results required' }, { status: 400 });
+        let template;
+        try { template = await base44.asServiceRole.entities.InspectionTemplate.get(template_id); } catch { template = null; }
+        if (!template || !['driver', 'both'].includes(template.audience) || (template.company_id && template.company_id !== companyId))
+          return Response.json({ error: 'This inspection is not available on this tablet' }, { status: 403 });
+        const vehicle = await loadVehicle(base44, vehicleId);
+        if (!vehicle) return Response.json({ error: 'Vehicle not found' }, { status: 404 });
+
+        // Photos arrive as base64 inside the submission (so an offline tablet
+        // can queue the whole thing); upload each one and keep its URL.
+        let photos = 0;
+        const clean = [];
+        for (const r of results.slice(0, 300)) {
+          const condition = r?.condition === 'FAILED' ? 'FAILED' : 'GOOD';
+          let photo_url = typeof r?.photo_url === 'string' && r.photo_url.startsWith('https://') ? r.photo_url : '';
+          if (!photo_url && typeof r?.photo_data === 'string' && r.photo_data.length < MAX_PHOTO_B64 && photos < MAX_INSPECTION_PHOTOS) {
+            try {
+              const bytes = base64ToBytes(r.photo_data);
+              const file = new File([bytes], `inspection-${Date.now()}-${photos}.jpg`, { type: 'image/jpeg' });
+              const uploaded = await base44.asServiceRole.integrations.Core.UploadFile({ file });
+              photo_url = uploaded.file_url;
+              photos += 1;
+            } catch { /* keep the result even if its photo failed */ }
+          }
+          clean.push({
+            section_name: sanitize(r?.section_name).slice(0, 120), item_name: sanitize(r?.item_name).slice(0, 200),
+            zone: sanitize(r?.zone).slice(0, 40), critical: ['Low', 'Medium', 'High', 'Critical'].includes(r?.critical) ? r.critical : 'Medium',
+            condition, notes: sanitize(r?.notes).slice(0, 1000), photo_url,
+          });
+        }
+        const failed = clean.filter((r) => r.condition === 'FAILED');
+        const passed = failed.length === 0;
+        const now = new Date().toISOString();
+        const inspection = await base44.asServiceRole.entities.Inspection.create({
+          driver_name: vehicle.driver_name || '', driver_email: vehicle.driver_email || '',
+          vehicle_id: vehicleId, vehicle_name: vehicle.name, company_id: companyId, company_name: companyName,
+          date: now.slice(0, 10), status: passed ? 'passed' : 'failed',
+          template_id: template.id, template_name: template.name, trigger: sanitize(trigger).slice(0, 30),
+          results: clean, checklist: {},
+          odometer_reading: odometer ? Number(odometer) : undefined, fuel_level: fuel != null ? Number(fuel) || 0 : undefined,
+          needs_service: !passed,
+          service_notes: passed ? '' : 'Problems: ' + failed.map((f) => f.item_name + (f.notes ? ` (${f.notes})` : '')).join('; ').slice(0, 1500),
+        });
+        if (odometer && Number(odometer) > 0) await base44.asServiceRole.entities.Vehicle.update(vehicleId, { current_odometer: Number(odometer) }).catch(() => {});
+
+        // Same per-item rows mechanics write, so Inspection History and the
+        // overdue reminders count driver inspections too.
+        const inspectorName = vehicle.driver_name || 'Driver';
+        await base44.asServiceRole.entities.InspectionResult.bulkCreate(clean.map((r) => ({
+          vehicle_id: vehicleId, vehicle_name: vehicle.name, company_id: companyId, company_name: companyName,
+          inspection_name: template.name, section_name: r.section_name, inspection_item: r.item_name,
+          condition: r.condition, fault_found: r.condition === 'FAILED', fault_description: r.condition === 'FAILED' ? r.notes : '',
+          photo_url: r.photo_url || undefined, repair_required: r.condition === 'FAILED', notes: r.notes,
+          inspector_name: `${inspectorName} (driver)`, inspection_date: now,
+        }))).catch(() => {});
+
+        if (failed.length) {
+          try {
+            const settingsList = await base44.asServiceRole.entities.MaintenanceSettings.list();
+            if (settingsList[0]?.auto_create_faults !== false) {
+              await base44.asServiceRole.entities.Fault.bulkCreate(failed.map((f) => ({
+                vehicle_id: vehicleId, vehicle_name: vehicle.name, company_id: companyId, company_name: companyName,
+                title: f.item_name.slice(0, 80),
+                description: (f.notes || 'Reported as a problem in a driver inspection.') + ` — ${template.name}`,
+                source: 'inspection', inspection_id: inspection.id, severity: SEVERITY[f.critical] || 'medium',
+                status: 'open', photo_url: f.photo_url || undefined, repair_required: true,
+                reported_by: inspectorName,
+              })));
+            }
+          } catch { /* fault creation is best-effort — never blocks the inspection itself */ }
+        }
+        return Response.json({ inspection: { id: inspection.id, template_id: template.id, status: inspection.status, created_date: inspection.created_date } });
       }
 
       case 'report_incident': {
