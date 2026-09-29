@@ -74,7 +74,7 @@ export default function RunInspection() {
 
   const vehicle = vehicles.find((v) => v.id === vehicleId) || null;
   const availableTemplates = useMemo(
-    () => templates.filter((t) => !t.company_id || t.company_id === vehicle?.company_id),
+    () => templates.filter((t) => t.audience !== "driver" && (!t.company_id || t.company_id === vehicle?.company_id)),
     [templates, vehicle]
   );
   const template = templates.find((t) => t.id === templateId) || null;
