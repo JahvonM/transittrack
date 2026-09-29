@@ -33,6 +33,7 @@ await ctx.addInitScript(() => {
   localStorage.setItem("tt_driver_device_id", "dev1");
   localStorage.setItem("tt_driver_unlock_date", new Date().toISOString().slice(0, 10));
   localStorage.setItem("tt-xr-speak", "off");
+  localStorage.setItem("base44_access_token", "fake"); localStorage.setItem("token", "fake");
 });
 const adminTemplates = [
   { id: "t1", ...T1, audience: "driver" },
