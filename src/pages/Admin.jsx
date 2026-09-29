@@ -27,7 +27,6 @@ import InspectionHistoryTab from "@/components/admin/InspectionHistoryTab";
 import Sparkline from "@/components/admin/Sparkline";
 import CountUp from "@/components/CountUp";
 import RecentActivityFeed from "@/components/admin/RecentActivityFeed";
-import FleetSyncTab from "@/components/admin/FleetSyncTab";
 import Greeting from "@/components/Greeting";
 import MapboxMap from "@/components/MapboxMap";
 import DataTab from "@/components/admin/DataTab";
@@ -99,7 +98,6 @@ const MGMT_LINKS = [
   { to: "/route-explorer", label: "Route Explorer", icon: Route },
   { to: "/route-analytics", label: "Route Analytics", icon: LineChart },
   { to: "/fleet-analytics", label: "Fleet Analytics", icon: LineChart },
-  { to: "/fleet-sync", label: "Fleet Sync", icon: RefreshCw },
   { to: "/ride-history", label: "Ride History", icon: History },
   { to: "/passenger-bookings", label: "Passenger Bookings", icon: BookOpen },
   { to: "/staff-directory", label: "Staff Directory", icon: Users },
@@ -486,7 +484,6 @@ export default function Admin() {
         {section === "drivers" && (
           <DriversTab drivers={drivers} vehicles={vehicles} companies={companies} routes={routes} onChange={load} />
         )}
-        {section === "sync" && <FleetSyncTab />}
         {section === "shifts" && <ShiftsTab />}
         {section === "audit" && <AuditLogTab />}
         {section === "lost-items" && <LostItemsTab />}

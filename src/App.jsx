@@ -34,7 +34,6 @@ const RunInspection = lazy(() => import('@/pages/RunInspection'));
 const ManagerDashboard = lazy(() => import('@/pages/ManagerDashboard'));
 const OAuthConsent = lazy(() => import('@/pages/OAuthConsent'));
 const RouteAnalytics = lazy(() => import('@/pages/RouteAnalytics'));
-const FleetSyncSettings = lazy(() => import('@/pages/FleetSyncSettings'));
 const IncidentReports = lazy(() => import('@/pages/IncidentReports'));
 const PassengerBookings = lazy(() => import('@/pages/PassengerBookings'));
 const Kiosk = lazy(() => import('@/pages/Kiosk'));
@@ -125,7 +124,6 @@ const AuthenticatedApp = () => {
         <Route path="/manager" element={<ManagerDashboard />} />
         <Route path="/manager/:tab" element={<ManagerDashboard />} />
         <Route path="/route-analytics" element={<RouteAnalytics />} />
-        <Route path="/fleet-sync" element={<FleetSyncSettings />} />
         <Route path="/incident-reports" element={<IncidentReports />} />
         <Route path="/passenger-bookings" element={<PassengerBookings />} />
         <Route path="/route-explorer" element={<RouteExplorer />} />

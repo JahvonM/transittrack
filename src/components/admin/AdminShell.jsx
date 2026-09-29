@@ -46,7 +46,6 @@ export const ADMIN_SECTIONS = [
   { id: "drivers", label: "Drivers", icon: Car, group: "Fleet Operations" },
   { id: "kiosks", label: "Kiosk tablets", icon: Smartphone, group: "Fleet Operations" },
   { id: "shifts", label: "Driver shifts", icon: Timer, group: "Fleet Operations" },
-  { id: "sync", label: "Fleet sync", icon: RefreshCw, group: "Fleet Operations" },
 
   { id: "service", label: "Service Queue", icon: Wrench, group: "Maintenance" },
   { id: "faults", label: "Faults", icon: AlertTriangle, group: "Maintenance" },
