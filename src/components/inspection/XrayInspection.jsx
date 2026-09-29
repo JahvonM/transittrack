@@ -109,7 +109,7 @@ export default function XrayInspection({ template, vehicle, onSubmit, onSkip, on
 
   const goNext = (res2 = results) => {
     const j = nextUnchecked(idx, res2);
-    if (j === -1) setPhase(askReadings ? "readings" : "readings");
+    if (j === -1) setPhase("readings");
     else setIdx(j);
   };
 
