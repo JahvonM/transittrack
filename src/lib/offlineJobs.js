@@ -15,8 +15,10 @@ function read() {
   try { return JSON.parse(localStorage.getItem(KEY) || "[]"); } catch { return []; }
 }
 function write(jobs) {
-  try { localStorage.setItem(KEY, JSON.stringify(jobs)); } catch { /* storage full/unavailable */ }
+  let ok = true;
+  try { localStorage.setItem(KEY, JSON.stringify(jobs)); } catch { ok = false; /* storage full/unavailable */ }
   try { window.dispatchEvent(new Event(JOBS_EVENT)); } catch { /* non-browser */ }
+  return ok;
 }
 
 // No response at all (or the browser says it's offline) means the request
@@ -32,7 +34,7 @@ export function registerRunner(kind, fn) {
 export function enqueueJob(kind, payload, label) {
   const jobs = read();
   jobs.push({ id: `job-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, kind, payload, label: label || kind, queued_at: new Date().toISOString() });
-  write(jobs);
+  return write(jobs); // false when the device storage is full
 }
 
 export function pendingJobs() {
