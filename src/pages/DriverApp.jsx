@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import BusLoader from "@/components/BusLoader";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useDriverSession } from "@/hooks/useDriverSession";
 import { getFcmToken } from "@/lib/firebase";
@@ -8,7 +8,8 @@ import { useKeepAwake } from "@/hooks/useKeepAwake";
 import DriverPairing from "@/components/driver/DriverPairing";
 import DriverGreeting from "@/components/driver/DriverGreeting";
 import PinGate from "@/components/driver/PinGate";
-import PreTripInspection from "@/components/driver/PreTripInspection";
+import { DriverInspectionRunner, DueInspectionsBanner, DriverInspectionList, SentInspectionPrompt, readLocalDone, markLocalDone } from "@/components/driver/DriverInspection";
+import { dueFor, dueNow, sentAndPending } from "@/lib/driverInspections";
 import DriverTrackingDashboard from "@/components/driver/DriverTrackingDashboard";
 import DriverNavMap from "@/components/driver/DriverNavMap";
 import DriverChats from "@/components/driver/DriverChats";
@@ -32,12 +33,14 @@ const TRACKING_TABS = ["track", "navigate", "chat", "safety", "profile"];
 export default function DriverApp() {
   const navigate = useNavigate();
   const { stage: urlStage } = useParams();
+  const [searchParams] = useSearchParams();
   const { toast } = useToast();
 
   const [deviceId, setDeviceId] = useState(() => localStorage.getItem("tt_driver_device_id"));
   const [unlocked, setUnlocked] = useState(() => localStorage.getItem("tt_driver_unlock_date") === new Date().toISOString().slice(0, 10));
   const [activeTab, setActiveTab] = useState(() => TRACKING_TABS.includes(urlStage) ? urlStage : "track");
   const { session, loading, invoke, refresh } = useDriverSession(deviceId);
+  const [localDone, setLocalDone] = useState(readLocalDone);
 
   // Driver tablets are mounted and always powered — keep the screen on so
   // locking is never what interrupts GPS tracking (no background-location
@@ -172,7 +175,6 @@ export default function DriverApp() {
     }
   }, [deviceId, pairCode, autoPairing, navigate]);
 
-  const isMorning = new Date().getHours() >= 4 && new Date().getHours() < 11;
   const stage = urlStage || "pin";
 
   // Visible back control for iOS WebViews, where a swipe-back gesture isn't
@@ -183,6 +185,51 @@ export default function DriverApp() {
     if (stage === "inspection") { navigate("/driver"); return; }
     if (activeTab !== "track") { goStage("track"); return; }
     navigate("/driver");
+  };
+
+  // Inspections sent to this tablet, and which are due right now.
+  const inspTemplates = session?.inspection_templates || [];
+  const recentInspections = session?.recent_inspections || [];
+  const dueInspections = dueNow(inspTemplates, recentInspections, localDone);
+  const sentPending = inspTemplates.filter((t) => sentAndPending(t, recentInspections, localDone));
+
+  // then: an action to finish after the inspection (start/end the shift).
+  // from: "unlock" | "manual" — decides what comes next and whether it can be skipped.
+  const openInspection = (t, { then, from } = {}) => {
+    const q = new URLSearchParams();
+    if (t) q.set("t", t.id);
+    if (then) q.set("then", then);
+    if (from) q.set("from", from);
+    navigate(`/driver/inspection?${q.toString()}`);
+  };
+
+  // Shift buttons: run any inspection set for that moment first.
+  const beforeShift = (moment) => {
+    const due = dueFor(moment === "start_shift" ? "shift_start" : "shift_end", inspTemplates, recentInspections, localDone);
+    if (!due.length) return false;
+    openInspection(due[0], { then: moment });
+    return true;
+  };
+
+  const finishInspection = async (template, then, from) => {
+    const done = markLocalDone(template.id);
+    setLocalDone(done);
+    refresh?.();
+    const moment = then === "start_shift" ? "shift_start" : then === "end_shift" ? "shift_end" : null;
+    const next = moment
+      ? dueFor(moment, inspTemplates, recentInspections, done)
+      : from === "unlock" ? dueNow(inspTemplates, recentInspections, done) : [];
+    if (next.length) { openInspection(next[0], { then, from }); return; }
+    if (then) {
+      try {
+        await invoke(then);
+        toast({ title: then === "start_shift" ? "Shift started" : "Shift ended", description: then === "start_shift" ? "Have a safe drive." : "Your hours have been saved." });
+        refresh?.();
+      } catch {
+        toast({ title: then === "start_shift" ? "Couldn't start the shift" : "Couldn't end the shift", description: "Tap the shift button to try again.", variant: "destructive" });
+      }
+    }
+    goStage("track");
   };
 
   const handlePaired = (id) => { localStorage.setItem("tt_driver_device_id", id); setDeviceId(id); };
@@ -240,27 +287,51 @@ export default function DriverApp() {
       <div className="min-h-screen p-4 safe-area-top safe-area-x">
         <div className="space-y-4 max-w-3xl mx-auto">
           <DriverGreeting driverName={driverName} subtitle={vehicle.name} />
-          <PinGate vehicle={vehicle} onUnlock={() => { localStorage.setItem("tt_driver_unlock_date", new Date().toISOString().slice(0, 10)); setUnlocked(true); goStage(isMorning ? "inspection" : "track"); }} />
+          <PinGate vehicle={vehicle} onUnlock={() => { localStorage.setItem("tt_driver_unlock_date", new Date().toISOString().slice(0, 10)); setUnlocked(true); if (dueInspections.length) openInspection(dueInspections[0], { from: "unlock" }); else goStage("track"); }} />
         </div>
       </div>
     );
   }
 
   if (stage === "inspection") {
+    const then = searchParams.get("then") || "";
+    const from = searchParams.get("from") || "";
+    const tId = searchParams.get("t");
+    const template = inspTemplates.find((t) => t.id === tId) || (tId ? null : dueInspections[0]) || null;
+    // A required inspection can't be skipped — unless the driver opened it themselves.
+    const canSkip = !template || !template.driver_required || from === "manual";
     return (
       <div className="min-h-screen p-4 safe-area-top safe-area-x">
-        <div className="space-y-4 max-w-3xl mx-auto">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="min-w-[44px] min-h-[44px] -ml-2"
-            onClick={goBack}
-            aria-label="Back"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
+        <div className="space-y-4 max-w-6xl mx-auto">
+          {canSkip && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="min-w-[44px] min-h-[44px] -ml-2"
+              onClick={goBack}
+              aria-label="Back"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+          )}
           <DriverGreeting driverName={driverName} subtitle={vehicle.name} />
-          <PreTripInspection vehicle={vehicle} invoke={invoke} driverName={driverName} onCompleted={() => goStage("track")} />
+          {template ? (
+            <DriverInspectionRunner
+              template={template}
+              vehicle={vehicle}
+              invoke={invoke}
+              trigger={then || (from === "manual" ? "on_demand" : template.driver_trigger)}
+              onFinished={() => finishInspection(template, then, from)}
+              onSkip={canSkip ? () => goStage("track") : undefined}
+            />
+          ) : (
+            <DriverInspectionList
+              templates={inspTemplates}
+              recent={recentInspections}
+              localDone={localDone}
+              onStart={(t) => openInspection(t, { from: "manual" })}
+            />
+          )}
         </div>
       </div>
     );
@@ -295,7 +366,12 @@ export default function DriverApp() {
             <TabsTrigger value="profile">Profile</TabsTrigger>
           </TabsList>
           <TabsContent value="track" className="mt-4">
-            <ShiftCard session={session} invoke={invoke} refresh={refresh} />
+            {dueInspections.length > 0 && (
+              <div className="mb-4">
+                <DueInspectionsBanner due={dueInspections} onStart={(t) => openInspection(t, { from: "unlock" })} />
+              </div>
+            )}
+            <ShiftCard session={session} invoke={invoke} refresh={refresh} beforeStart={() => beforeShift("start_shift")} beforeEnd={() => beforeShift("end_shift")} />
             <div className="h-4" />
             <DriverTrackingDashboard session={session} invoke={invoke} driverName={driverName} onReportIncident={() => setIsReportOpen(true)} />
             {session.trips?.length > 0 && (
@@ -315,7 +391,13 @@ export default function DriverApp() {
           <TabsContent value="chat" className="mt-4">
             <DriverChats session={session} invoke={invoke} onUnreadChange={setHasUnreadChat} />
           </TabsContent>
-          <TabsContent value="safety" className="mt-4">
+          <TabsContent value="safety" className="mt-4 space-y-4">
+            <DriverInspectionList
+              templates={inspTemplates}
+              recent={recentInspections}
+              localDone={localDone}
+              onStart={(t) => openInspection(t, { from: "manual" })}
+            />
             <SafetyStandardsContent />
           </TabsContent>
           <TabsContent value="profile" className="mt-4">
@@ -325,6 +407,7 @@ export default function DriverApp() {
       </div>
       <DriverMessageAlert alert={alert} onAcknowledge={() => setAlert(null)} onReply={handleAlertReply} />
       <NewCheckInAlert checkIn={checkInAlert} onDismiss={() => setCheckInAlert(null)} />
+      <SentInspectionPrompt pending={sentPending} onStart={(t) => openInspection(t, { from: "unlock" })} />
 
       <Sheet open={isReportOpen} onOpenChange={setIsReportOpen}>
         <SheetContent side="bottom" className="max-w-3xl mx-auto rounded-t-2xl">
