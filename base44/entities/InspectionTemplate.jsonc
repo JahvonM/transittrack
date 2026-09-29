@@ -23,6 +23,48 @@
       "type": "number",
       "description": "Optional \u2014 how often (in days) this template should be run per vehicle. Set this to have inspectionAlerts remind mechanics when a vehicle is overdue. Leave blank/0 to exclude this template from reminders (e.g. a one-off or ad-hoc checklist)."
     },
+    "audience": {
+      "type": "string",
+      "enum": [
+        "mechanic",
+        "driver",
+        "both"
+      ],
+      "default": "mechanic",
+      "description": "Who runs this inspection: mechanics (Run Inspection page), drivers (driver tablet app), or both."
+    },
+    "driver_trigger": {
+      "type": "string",
+      "enum": [
+        "start_of_day",
+        "shift_start",
+        "shift_end",
+        "on_demand"
+      ],
+      "default": "start_of_day",
+      "description": "When the inspection appears in the driver app."
+    },
+    "driver_days": {
+      "type": "array",
+      "items": {
+        "type": "number"
+      },
+      "description": "Days of the week it appears (0=Sunday \u2026 6=Saturday). Empty means every day."
+    },
+    "driver_from_time": {
+      "type": "string",
+      "description": "Optional HH:MM \u2014 only appears from this time of day on."
+    },
+    "driver_required": {
+      "type": "boolean",
+      "default": true,
+      "description": "Driver must finish it before driving (no skip)."
+    },
+    "driver_sent_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Set by 'Send to drivers now' \u2014 the inspection pops up on every matching driver tablet until done after this time."
+    },
     "sections": {
       "type": "array",
       "items": {
@@ -52,6 +94,13 @@
                 "requires_photo": {
                   "type": "boolean",
                   "default": false
+                },
+                "zone": {
+                  "type": "string",
+                  "description": "Bus part shown on the X-ray view (blank = worked out from the item name)."
+                },
+                "instructions": {
+                  "type": "string"
                 }
               }
             }
