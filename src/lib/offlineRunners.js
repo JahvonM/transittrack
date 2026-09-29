@@ -33,8 +33,15 @@ export async function runDriverInspection(payload) {
   return res.data;
 }
 
+// Driver X-ray inspection from a template; photos travel inside the payload.
+export async function runDriverTemplateInspection(payload) {
+  const res = await base44.functions.invoke("driverSession", { ...payload, action: "submit_template_inspection" });
+  return res.data;
+}
+
 export function installOfflineRunners() {
   registerRunner("mechanic_inspection", runMechanicInspection);
   registerRunner("driver_inspection", runDriverInspection);
+  registerRunner("driver_template_inspection", runDriverTemplateInspection);
   startOfflineSync();
 }
