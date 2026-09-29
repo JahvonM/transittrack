@@ -10,7 +10,6 @@ import {
   MapPin,
   Megaphone,
   Menu,
-  RefreshCw,
   Sparkles,
   User,
   Users,
