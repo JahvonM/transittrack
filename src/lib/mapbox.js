@@ -1,3 +1,4 @@
+import { accentHex } from "@/lib/accents";
 export const MAPBOX_TOKEN =
   "pk.eyJ1IjoiZG9udGUxMjMiLCJhIjoiY210cDR4eGV5MDJvcjJ5b25nMGw4ZjlvdyJ9.f3EfmLY4lHy6IrtERYvD7A";
 
@@ -12,7 +13,9 @@ export const mapStyleFor = (isDark) => (isDark ? MAPBOX_STYLE_DARK : MAPBOX_STYL
 // Route/stop/"you are here" accent drawn on the map. Pure lime on the dark
 // basemap; the deeper olive-lime on the light streets basemap, where pure
 // lime would vanish against pale roads.
-export const mapAccentFor = (isDark) => (isDark ? "#D6F54A" : "#5E7A0A");
+// Follows the chosen colour theme; isDark is kept in the signature so callers
+// re-read it whenever the theme (class or accent) changes.
+export const mapAccentFor = (isDark) => accentHex(isDark);
 
 // Thresholds (metres / km / kmh)
 export const PROXIMITY_TRIGGER_M = 500;

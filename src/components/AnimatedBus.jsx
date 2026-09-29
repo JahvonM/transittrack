@@ -17,7 +17,7 @@ export default function AnimatedBus({ mode = "arrive", width = 240, className = 
       <circle cx={cx} cy="92" r="13" fill="#1C1C1F" stroke="#3F3F46" strokeWidth="3" />
       <path d={`M${cx} 83 V101 M${cx - 7.8} 87.5 L${cx + 7.8} 96.5 M${cx - 7.8} 96.5 L${cx + 7.8} 87.5`} stroke="#52525B" strokeWidth="2" />
       <circle cx={cx} cy="92" r="4.5" fill="#A1A1AA" />
-      <circle cx={cx} cy="81.5" r="1.8" fill="#D6F54A" />
+      <circle cx={cx} cy="81.5" r="1.8" style={{ fill: "hsl(var(--primary))" }} />
     </g>
   );
 
@@ -28,13 +28,13 @@ export default function AnimatedBus({ mode = "arrive", width = 240, className = 
           <ellipse cx="122" cy="104" rx="106" ry="5" fill="#000" fillOpacity="0.45" />
           <rect x="44" y="3" width="120" height="8" rx="3" fill="#D4D4D8" />
           <path d="M24 8 H218 Q230 8 230 20 V84 Q230 90 224 90 H16 Q10 90 10 84 V36 C10 20 14 8 24 8 Z" fill="#F4F4F5" />
-          <rect x="10" y="60" width="220" height="6" fill="#D6F54A" />
+          <rect x="10" y="60" width="220" height="6" style={{ fill: "hsl(var(--primary))" }} />
           <rect x="10" y="76" width="220" height="14" rx="5" fill="#2A2A2E" />
           <path d="M15 40 C15 26 19 16 30 16 H42 V56 H15 Z" fill="#18181B" />
-          <rect x="21" y="19" width="17" height="6" rx="2" fill="#D6F54A" />
+          <rect x="21" y="19" width="17" height="6" rx="2" style={{ fill: "hsl(var(--primary))" }} />
           {doorOpen ? (
             <>
-              <rect x="48" y="16" width="24" height="68" rx="3" fill="#D6F54A" fillOpacity="0.55" />
+              <rect x="48" y="16" width="24" height="68" rx="3" style={{ fill: "hsl(var(--primary))" }} fillOpacity="0.55" />
               <rect className="tt-door-l" x="48" y="16" width="12" height="68" fill="#18181B" />
               <rect className="tt-door-r" x="60" y="16" width="12" height="68" fill="#18181B" />
             </>

@@ -2,6 +2,7 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { appParams } from '@/lib/app-params';
 import { setAuditActor } from '@/lib/auditLog';
+import { ACCENT_KEY, applyAccent } from '@/lib/accents';
 
 const AuthContext = createContext();
 
@@ -85,6 +86,9 @@ export const AuthProvider = ({ children }) => {
       const currentUser = await base44.auth.me();
       setUser(currentUser);
       setAuditActor(currentUser);
+      try {
+        if (currentUser?.theme_accent && !localStorage.getItem(ACCENT_KEY)) applyAccent(currentUser.theme_accent);
+      } catch { /* storage blocked */ }
       setIsAuthenticated(true);
       setIsLoadingAuth(false);
       setAuthChecked(true);

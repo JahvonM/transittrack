@@ -29,7 +29,7 @@ export function useIsDark() {
   const [isDark, setIsDark] = useState(read);
   useEffect(() => {
     const obs = new MutationObserver(() => setIsDark(read()));
-    obs.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ["class", "data-accent"] });
     return () => obs.disconnect();
   }, []);
   return isDark;

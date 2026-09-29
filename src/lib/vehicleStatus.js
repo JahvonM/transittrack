@@ -1,3 +1,4 @@
+import { accentHex } from "@/lib/accents";
 // Shared vehicle status -> map pin color, used by MapboxMap and per-marker components.
 // Pins are always drawn as dark tiles (see VehicleMarker), so these read on
 // both the dark and light basemaps. Lime = on trip matches the app accent.
@@ -10,5 +11,6 @@ const STATUS_COLORS = {
 };
 
 export function statusColor(status) {
-  return STATUS_COLORS[status] || STATUS_COLORS.on_trip;
+  if (!status || status === "on_trip") return accentHex();
+  return STATUS_COLORS[status] || accentHex();
 }
