@@ -18,6 +18,9 @@ import CompanyEditDialog from "@/components/CompanyEditDialog";
 import MapboxMap from "@/components/MapboxMap";
 import { loadFailed } from "@/lib/loadFailed";
 import BusLoader from "@/components/BusLoader";
+import VehicleFormDialog from "@/components/VehicleFormDialog";
+import { VehicleModelThumb } from "@/components/VehicleModelPicker";
+import { modelIdFor } from "@/lib/vehicleModels";
 
 const CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const genCode = () =>
@@ -196,36 +199,8 @@ function CreateCompany({ onCreated }) {
 
 function VehiclesTab({ company, routes, vehicles, onChange }) {
   const { toast } = useToast();
-  const [form, setForm] = useState({
-    name: "", plate_number: "", type: "bus", capacity: "",
-    driver_email: "", driver_name: "", route_id: "",
-  });
-  const [adding, setAdding] = useState(false);
-
-  const add = async () => {
-    if (!form.name) return;
-    setAdding(true);
-    try {
-      await base44.entities.Vehicle.create({
-        name: form.name,
-        plate_number: form.plate_number,
-        type: form.type,
-        capacity: Number(form.capacity) || 0,
-        driver_email: form.driver_email,
-        driver_name: form.driver_name,
-        route_id: form.route_id || null,
-        company_id: company.id,
-        company_name: company.name,
-        status: "offline",
-      });
-      setForm({ name: "", plate_number: "", type: "bus", capacity: "", driver_email: "", driver_name: "", route_id: "" });
-      onChange();
-    } catch (e) {
-      toast({ title: "Couldn't add vehicle", description: e.message, variant: "destructive" });
-    } finally {
-      setAdding(false);
-    }
-  };
+  const [formOpen, setFormOpen] = useState(false);
+  const [editing, setEditing] = useState(null);
 
   const remove = async (id) => {
     try {
@@ -248,14 +223,15 @@ function VehiclesTab({ company, routes, vehicles, onChange }) {
   return (
     <div className="grid lg:grid-cols-[1fr_360px] gap-4">
       <div className="space-y-2">
+        <div className="flex justify-end">
+          <Button size="sm" onClick={() => { setEditing(null); setFormOpen(true); }}><Plus className="w-4 h-4" /> Add vehicle</Button>
+        </div>
         {vehicles.length === 0 && <p className="text-sm text-muted-foreground py-8 text-center">No vehicles yet. Add your first bus or taxi.</p>}
         {vehicles.map((v) => (
           <div key={v.id} className="flex items-center gap-3 p-3 rounded-xl border bg-card">
-            <div className="w-10 h-10 rounded-lg bg-primary/10 grid place-items-center shrink-0">
-              {v.type === "taxi" ? <Car className="w-5 h-5" /> : <Bus className="w-5 h-5" />}
-            </div>
+            <div className="rounded-xl bg-muted/50 shrink-0"><VehicleModelThumb model={modelIdFor(v)} size={48} /></div>
             <div className="flex-1 min-w-0">
-              <div className="font-medium truncate">{v.name} <span className="text-xs text-muted-foreground font-normal">· {v.plate_number}</span></div>
+              <div className="font-medium truncate">{v.name} <span className="text-xs text-muted-foreground font-normal">· {[v.fleet_number, v.plate_number].filter(Boolean).join(" · ")}</span></div>
               <div className="text-xs text-muted-foreground truncate">
                 Driver: {v.driver_name || v.driver_email || "Unassigned"}
               </div>
@@ -275,11 +251,15 @@ function VehiclesTab({ company, routes, vehicles, onChange }) {
             <Button asChild variant="ghost" size="icon">
               <Link to={`/vehicle/${v.id}`}><History className="w-4 h-4" /></Link>
             </Button>
+            <Button variant="ghost" size="icon" onClick={() => { setEditing(v); setFormOpen(true); }} aria-label="Edit">
+              <Pencil className="w-4 h-4" />
+            </Button>
             <Button variant="ghost" size="icon" onClick={() => remove(v.id)}>
               <Trash2 className="w-4 h-4 text-destructive" />
             </Button>
           </div>
         ))}
+        <VehicleFormDialog open={formOpen} onOpenChange={setFormOpen} vehicle={editing} fixedCompany={company} routes={routes} onSaved={onChange} />
       </div>
 
       <Card className="h-fit sticky top-4">
@@ -291,7 +271,7 @@ function VehiclesTab({ company, routes, vehicles, onChange }) {
               stops={routes.flatMap((r) => r.stops || []).filter((s) => s.lat != null)}
             />
           </div>
-          <p className="text-xs text-muted-foreground mt-2">Live vehicle positions with your route stop paths. Add vehicles from the Admin dashboard.</p>
+          <p className="text-xs text-muted-foreground mt-2">Live vehicle positions with your route stop paths.</p>
         </CardContent>
       </Card>
     </div>
