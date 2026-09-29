@@ -84,6 +84,10 @@
       "type": "boolean",
       "default": false,
       "description": "Send a push when a bus leaves the stop before favorite_stop."
+    },
+    "theme_accent": {
+      "type": "string",
+      "description": "Chosen colour theme (see src/lib/accents.js), e.g. lime, ocean, sunset."
     }
   },
   "required": []

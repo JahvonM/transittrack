@@ -1,0 +1,129 @@
+{
+  "name": "DriverDocument",
+  "type": "object",
+  "properties": {
+    "driver_id": {
+      "type": "string"
+    },
+    "driver_name": {
+      "type": "string"
+    },
+    "company_id": {
+      "type": "string"
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "license",
+        "insurance"
+      ]
+    },
+    "file_uri": {
+      "type": "string",
+      "description": "Private file reference; viewed through a short-lived signed URL."
+    },
+    "file_name": {
+      "type": "string"
+    },
+    "document_number": {
+      "type": "string"
+    },
+    "expiry_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "driver_id",
+    "kind"
+  ],
+  "rls": {
+    "read": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "$and": [
+            {
+              "user_condition": {
+                "role": "company"
+              }
+            },
+            {
+              "data.company_id": "{{user.data.company_id}}"
+            }
+          ]
+        }
+      ]
+    },
+    "create": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "$and": [
+            {
+              "user_condition": {
+                "role": "company"
+              }
+            },
+            {
+              "data.company_id": "{{user.data.company_id}}"
+            }
+          ]
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "$and": [
+            {
+              "user_condition": {
+                "role": "company"
+              }
+            },
+            {
+              "data.company_id": "{{user.data.company_id}}"
+            }
+          ]
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "$and": [
+            {
+              "user_condition": {
+                "role": "company"
+              }
+            },
+            {
+              "data.company_id": "{{user.data.company_id}}"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
