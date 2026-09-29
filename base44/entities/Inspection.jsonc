@@ -64,6 +64,44 @@
     },
     "service_notes": {
       "type": "string"
+    },
+    "template_id": {
+      "type": "string"
+    },
+    "template_name": {
+      "type": "string"
+    },
+    "trigger": {
+      "type": "string"
+    },
+    "results": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "section_name": {
+            "type": "string"
+          },
+          "item_name": {
+            "type": "string"
+          },
+          "zone": {
+            "type": "string"
+          },
+          "critical": {
+            "type": "string"
+          },
+          "condition": {
+            "type": "string"
+          },
+          "notes": {
+            "type": "string"
+          },
+          "photo_url": {
+            "type": "string"
+          }
+        }
+      }
     }
   },
   "required": [
