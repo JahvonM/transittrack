@@ -13,7 +13,9 @@ function formatDuration(ms) {
 
 // Start / end the driver's shift. The open shift comes back on every
 // heartbeat, so the timer survives reloads and tablet restarts.
-export default function ShiftCard({ session, invoke, refresh }) {
+// beforeStart/beforeEnd return true when they've taken over (an inspection
+// set for that moment runs first, then starts/ends the shift itself).
+export default function ShiftCard({ session, invoke, refresh, beforeStart, beforeEnd }) {
   const { toast } = useToast();
   const [shift, setShift] = useState(session?.open_shift || null);
   const [busy, setBusy] = useState(false);
@@ -30,6 +32,7 @@ export default function ShiftCard({ session, invoke, refresh }) {
   }, [shift]);
 
   const start = async () => {
+    if (beforeStart?.()) return;
     setBusy(true);
     try {
       const res = await invoke("start_shift");
@@ -46,6 +49,7 @@ export default function ShiftCard({ session, invoke, refresh }) {
 
   const end = async () => {
     if (!(await confirmAction({ title: "End your shift?", description: "Your hours for this shift will be saved.", confirmLabel: "End shift" }))) return;
+    if (beforeEnd?.()) return;
     setBusy(true);
     try {
       const res = await invoke("end_shift");
