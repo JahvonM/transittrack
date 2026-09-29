@@ -89,6 +89,58 @@
   }
 }
 
+/* Colour themes (Account → Appearance). Lime is the default in :root/.light above. */
+@layer base {
+  html[data-accent="ocean"] {
+    --primary: 199 89% 60%; --ring: 199 89% 60%; --chart-1: 199 89% 60%;
+    --sidebar-primary: 199 89% 60%; --sidebar-ring: 199 89% 60%;
+  }
+  html.light[data-accent="ocean"] {
+    --primary: 201 96% 32%; --ring: 201 96% 32%; --chart-1: 201 96% 32%;
+    --sidebar-primary: 201 96% 32%; --sidebar-ring: 201 96% 32%; --accent: 199 80% 93%;
+  }
+  html[data-accent="sunset"] {
+    --primary: 25 95% 60%; --ring: 25 95% 60%; --chart-1: 25 95% 60%;
+    --sidebar-primary: 25 95% 60%; --sidebar-ring: 25 95% 60%;
+  }
+  html.light[data-accent="sunset"] {
+    --primary: 17 88% 40%; --ring: 17 88% 40%; --chart-1: 17 88% 40%;
+    --sidebar-primary: 17 88% 40%; --sidebar-ring: 17 88% 40%; --accent: 25 90% 93%;
+  }
+  html[data-accent="rose"] {
+    --primary: 340 85% 68%; --ring: 340 85% 68%; --chart-1: 340 85% 68%;
+    --sidebar-primary: 340 85% 68%; --sidebar-ring: 340 85% 68%;
+  }
+  html.light[data-accent="rose"] {
+    --primary: 336 70% 40%; --ring: 336 70% 40%; --chart-1: 336 70% 40%;
+    --sidebar-primary: 336 70% 40%; --sidebar-ring: 336 70% 40%; --accent: 340 80% 94%;
+  }
+  html[data-accent="violet"] {
+    --primary: 262 83% 74%; --ring: 262 83% 74%; --chart-1: 262 83% 74%;
+    --sidebar-primary: 262 83% 74%; --sidebar-ring: 262 83% 74%;
+  }
+  html.light[data-accent="violet"] {
+    --primary: 262 60% 50%; --ring: 262 60% 50%; --chart-1: 262 60% 50%;
+    --sidebar-primary: 262 60% 50%; --sidebar-ring: 262 60% 50%; --accent: 262 80% 95%;
+  }
+  html[data-accent="mint"] {
+    --primary: 158 64% 52%; --ring: 158 64% 52%; --chart-1: 158 64% 52%;
+    --sidebar-primary: 158 64% 52%; --sidebar-ring: 158 64% 52%;
+  }
+  html.light[data-accent="mint"] {
+    --primary: 161 94% 24%; --ring: 161 94% 24%; --chart-1: 161 94% 24%;
+    --sidebar-primary: 161 94% 24%; --sidebar-ring: 161 94% 24%; --accent: 158 60% 92%;
+  }
+  html[data-accent="gold"] {
+    --primary: 45 96% 58%; --ring: 45 96% 58%; --chart-1: 45 96% 58%;
+    --sidebar-primary: 45 96% 58%; --sidebar-ring: 45 96% 58%;
+  }
+  html.light[data-accent="gold"] {
+    --primary: 32 95% 34%; --ring: 32 95% 34%; --chart-1: 32 95% 34%;
+    --sidebar-primary: 32 95% 34%; --sidebar-ring: 32 95% 34%; --accent: 45 90% 92%;
+  }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
