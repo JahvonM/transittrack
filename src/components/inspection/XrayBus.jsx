@@ -252,18 +252,19 @@ export default function XrayBus({ view = "outside", statuses = {}, activeZone, o
               ) : (
                 <text x={z.x} y={z.y + 5} textAnchor="middle" fontSize="14" fontWeight="700" fill={color} fontFamily="inherit">{s.total - s.done}</text>
               )}
-              {active && (
-                <g pointerEvents="none">
-                  <text
-                    x={Math.min(Math.max(z.x, 110), w - 110)}
-                    y={z.y - r - 12 < 18 ? z.y + r + 24 : z.y - r - 12}
-                    textAnchor="middle" fontSize="17" fontWeight="700" fill={C.active}
-                    stroke="#04101f" strokeWidth="5" paintOrder="stroke" fontFamily="inherit"
-                  >
-                    {z.label}
-                  </text>
-                </g>
-              )}
+              {active && (() => {
+                // Label pill above the hotspot (below it near the top edge),
+                // kept inside the frame.
+                const half = z.label.length * 4.9 + 14;
+                const lx = Math.min(Math.max(z.x, half + 6), w - half - 6);
+                const ly = z.y - r - 30 < 6 ? z.y + r + 10 : z.y - r - 34;
+                return (
+                  <g pointerEvents="none">
+                    <rect x={lx - half} y={ly} width={half * 2} height="26" rx="13" fill="#04101f" fillOpacity=".9" stroke={C.line} strokeOpacity=".6" />
+                    <text x={lx} y={ly + 18} textAnchor="middle" fontSize="16" fontWeight="700" fill={C.active} fontFamily="inherit">{z.label}</text>
+                  </g>
+                );
+              })()}
             </g>
           );
         })}
