@@ -34,7 +34,7 @@ export function DriverInspectionRunner({ template, vehicle, invoke, trigger, onF
       const label = `${template.name} · ${vehicle?.name || "vehicle"}`;
       if (enqueueJob("driver_template_inspection", { ...payload, device_id: deviceId }, label)) return;
       // Tablet storage is full: keep the answers, drop the photos.
-      const slim = { ...payload, device_id: deviceId, results: results.map(({ photo_data, photo_mime, ...r }) => r) };
+      const slim = { ...payload, device_id: deviceId, results: results.map(({ photo_data: _pd, photo_mime: _pm, ...r }) => r) };
       if (!enqueueJob("driver_template_inspection", slim, label)) throw new Error("No signal and the tablet is out of space. Try again when you have signal.");
     }
   };
