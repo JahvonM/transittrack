@@ -1,5 +1,5 @@
 import json, urllib.request, urllib.error
-URL = "https://eager-transit-track-go.base44.app/api/apps/6a98b192be27b5f9635020ba/functions/driverSession"
+URL = "https://eager-transit-track-go.base44.app/functions/driverSession"
 DEV = "6aa4943d1e43e65e2edd3793"
 
 def call(body):
