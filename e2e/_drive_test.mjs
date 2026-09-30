@@ -7,8 +7,9 @@ fs.mkdirSync("/tmp/shots", { recursive: true });
 const vehicle = { id: "v1", name: "Bus 12", company_id: "c1", company_name: "Island Transit Co.", driver_name: "Marcus", driver_pin: "1111", capacity: 30, current_lat: 12.1286, current_lng: -61.7483, status: "idle", route_id: "r1", plate_number: "PE 4512",
   trail: [{ lat: 12.1270, lng: -61.7500 }, { lat: 12.1286, lng: -61.7483 }] };
 const route = { id: "r1", name: "Town loop", stops: [{ name: "Market Square", lat: 12.1300, lng: -61.7450, order: 1 }, { name: "Grand Anse", lat: 12.1200, lng: -61.7550, order: 2 }] };
-const staff = [{ id: "s1", full_name: "Ana Joseph", email: "a@x.com", home_lat: 12.127, home_lng: -61.746, pickup_name: "Morne Jaloux" }, { id: "s2", full_name: "Kevin Paul", email: "k@x.com", home_lat: 12.131, home_lng: -61.751 }];
-const trips = [{ id: "t1", status: "scheduled", scheduled_time: new Date(Date.now() + 3600e3).toISOString(), pickup_name: "Market Square", dropoff_name: "Grand Anse", passenger_name: "Visitor group" }];
+const names = ["Ana Joseph", "Kevin Paul", "Maria Charles", "Dion Thomas", "Lisa Noel", "Ryan Baptiste", "Tessa Mark"];
+const staff = names.map((n, i) => ({ id: "s" + i, full_name: n, email: "s" + i + "@x.com", home_lat: 12.12 + i * 0.003, home_lng: -61.745 - i * 0.002 }));
+const trips = [0, 1, 2].map((i) => ({ id: "t" + i, status: "scheduled", scheduled_time: new Date(Date.now() + (i + 1) * 3600e3).toISOString(), pickup_name: ["Market Square", "St George's", "Airport"][i], dropoff_name: "Grand Anse", passenger_name: "Visitor group" }));
 const templates = [{ id: "t1", name: "Driver pre-trip walk-around", driver_trigger: "start_of_day", driver_days: [], driver_required: true, sections: [{ section_name: "A", items: [{ item_name: "Tyres" }] }] }];
 
 const sizes = process.env.ONE ? [["tablet_landscape", 1280, 800]] : [["tablet_landscape", 1280, 800], ["tablet_landscape_browserbars", 1280, 720], ["tablet_portrait", 800, 1280], ["tablet_portrait_browserbars", 800, 1200]];
