@@ -112,8 +112,8 @@ const AuthenticatedApp = () => {
       <Route path="/" element={<Welcome />} />
       <Route path="/book-taxi" element={<BookTaxi />} />
       <Route path="/oauth/consent" element={<OAuthConsent />} />
-      <Route path="/driver" element={<DriverApp />} />
-      <Route path="/driver/:stage" element={<DriverApp />} />
+      {/* One route for /driver and /driver/<tab> so tab changes don't remount the app */}
+      <Route path="/driver/:stage?" element={<DriverApp />} />
       <Route path="/kiosk" element={<Kiosk />} />
       <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login" replace />} />}>
         <Route path="/passenger" element={<Navigate to="/staff" replace />} />
