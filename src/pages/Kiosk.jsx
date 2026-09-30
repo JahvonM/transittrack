@@ -130,7 +130,10 @@ export default function Kiosk() {
 
   // Keep a copy of who can board (names, card IDs, keypad codes) on the
   // tablet, refreshed every few minutes, so cards and codes still work offline.
+  // An admin pressing "Send to bus tablet" (Card issuing) changes
+  // directory_sent_at, which makes the tablet download the list right away.
   const isBoarding = device?.kiosk_type === "bus_boarding";
+  const sentAt = device?.directory_sent_at || null;
   useEffect(() => {
     if (!deviceId || !isBoarding) return undefined;
     let stopped = false;
@@ -149,7 +152,7 @@ export default function Kiosk() {
     const onUp = () => refresh();
     window.addEventListener("online", onUp);
     return () => { stopped = true; clearInterval(t); window.removeEventListener("online", onUp); };
-  }, [deviceId, isBoarding]);
+  }, [deviceId, isBoarding, sentAt]);
 
   // Every kiosk action (search/lookup/check-in/register/sign-in) goes
   // through this one backend function, keyed by device_id like driverSession.
