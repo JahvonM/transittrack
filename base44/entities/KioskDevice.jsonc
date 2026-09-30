@@ -49,6 +49,11 @@
     "device_info": {
       "type": "string",
       "description": "Reported by the tablet: which map it can draw (full/basic), WebGL 2 support and browser."
+    },
+    "directory_sent_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When an admin last sent the staff card list to this tablet; the tablet re-downloads it on its next check-in."
     }
   },
   "required": [
