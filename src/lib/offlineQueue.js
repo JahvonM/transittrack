@@ -37,19 +37,28 @@ export function isNetworkFailure(e) {
 // Replays every queued check-in through the given invoke() function,
 // dropping each one as soon as it succeeds; anything that fails again with a
 // network error stays queued for the next flush. Order is preserved.
+let flushing = false;
 export async function flushQueue(invoke) {
+  if (flushing) return 0;
   const queue = readQueue();
   if (!queue.length) return 0;
-  const remaining = [];
+  flushing = true;
+  const done = new Set();
   let synced = 0;
-  for (const item of queue) {
-    try {
-      await invoke("check_in", item.payload);
-      synced++;
-    } catch (e) {
-      if (isNetworkFailure(e)) remaining.push(item);
+  try {
+    for (const item of queue) {
+      try {
+        await invoke("check_in", item.payload);
+        synced++;
+        done.add(item.id);
+      } catch (e) {
+        if (!isNetworkFailure(e)) done.add(item.id);
+      }
     }
+  } finally {
+    // Re-read so check-ins queued while this ran aren't lost.
+    writeQueue(readQueue().filter((item) => !done.has(item.id)));
+    flushing = false;
   }
-  writeQueue(remaining);
   return synced;
 }
