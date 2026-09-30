@@ -90,7 +90,13 @@ async function cacheFirst(request, cacheName) {
   const response = await fetch(request);
   if (response.ok || response.type === "opaque") {
     const cache = await caches.open(cacheName);
-    cache.put(request, response.clone()).catch(() => {});
+    cache.put(request, response.clone())
+      .then(async () => {
+        if (cacheName !== RUNTIME) return;
+        const keys = await cache.keys();
+        for (let i = 0; i < keys.length - 300; i++) await cache.delete(keys[i]); // keep the newest 300
+      })
+      .catch(() => {});
   }
   return response;
 }
