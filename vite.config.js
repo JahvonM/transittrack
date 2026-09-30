@@ -2,6 +2,19 @@ import base44 from "@base44/vite-plugin"
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 
+// Lists every file in the build so the service worker (public/sw.js) can
+// save them all and the app opens with no WiFi.
+function offlineManifest() {
+  return {
+    name: 'tt-offline-manifest',
+    apply: 'build',
+    generateBundle(_options, bundle) {
+      const files = Object.keys(bundle).filter((f) => !f.endsWith('.map') && f !== 'index.html');
+      this.emitFile({ type: 'asset', fileName: 'offline-manifest.json', source: JSON.stringify({ built: new Date().toISOString(), files }) });
+    },
+  };
+}
+
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
@@ -15,6 +28,7 @@ export default defineConfig({
       visualEditAgent: true
     }),
     react(),
+    offlineManifest(),
   ],
   // `vite preview` only serves the static build — the SDK always calls a
   // same-origin relative `/api` (see src/api/base44Client.js's `serverUrl:
