@@ -51,7 +51,7 @@ function ReaderBadge({ helper, reader, webNfc }) {
   if (webNfc) {
     return <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-primary/40 bg-primary/10 text-sm font-medium"><Nfc className="w-4 h-4" /> Using this device's NFC</span>;
   }
-  return <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-border bg-muted text-sm font-medium text-muted-foreground"><Usb className="w-4 h-4" /> {helper === "connecting" ? "Looking for reader…" : "Reader not connected"}</span>;
+  return <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-border bg-muted text-sm font-medium text-muted-foreground"><Usb className="w-4 h-4" /> {helper === "connecting" ? "Looking for reader…" : helper === "idle" ? "No reader connected" : "Reader not connected"}</span>;
 }
 
 // ---------------------------------------------------------------------------
@@ -330,7 +330,7 @@ export default function CardIssuingTab({ companies = [] }) {
     }
   };
 
-  const { helper, reader, webNfc, log, addLog, feedback } = useCardReader(onTap, { active: armed });
+  const { helper, reader, webNfc, log, addLog, feedback, connect, access } = useCardReader(onTap, { active: armed });
 
   useEffect(() => {
     const el = consoleRef.current;
@@ -378,14 +378,34 @@ export default function CardIssuingTab({ companies = [] }) {
         </div>
       </div>
 
-      {helper === "offline" && !webNfc && (
-        <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 flex flex-wrap items-center gap-3">
+      {(helper === "idle" || helper === "offline") && !webNfc && (
+        <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 flex flex-wrap items-center gap-4">
           <Usb className="w-5 h-5 text-amber-600 shrink-0" />
-          <div className="flex-1 min-w-[260px] text-sm">
-            <p className="font-semibold">Connect the ACR122U reader</p>
-            <p className="text-muted-foreground">Download the TransitTrack Card Reader helper on the Windows PC with the reader, double-click it, then allow this page to connect to it. No other software is needed. Until then you can type card IDs by hand.</p>
+          <div className="flex-1 min-w-[280px] text-sm space-y-1">
+            {access === "denied" ? (
+              <>
+                <p className="font-semibold">Chrome is blocking the card reader</p>
+                <p className="text-muted-foreground">Click the icon left of the web address → <b>Site settings</b> → set <b>Local network access</b> (or “Apps on device”) to <b>Allow</b>, then press Connect reader.</p>
+              </>
+            ) : helper === "offline" ? (
+              <>
+                <p className="font-semibold">Can't find the reader helper on this PC</p>
+                <p className="text-muted-foreground">Make sure <b>TransitTrack Card Reader</b> is running (its window says “Listening”), then press Connect reader. You can still type card IDs by hand.</p>
+              </>
+            ) : (
+              <>
+                <p className="font-semibold">Using an ACS ACR122U reader on this Windows PC?</p>
+                <ol className="text-muted-foreground list-decimal ml-4">
+                  <li>Download the helper and double-click it (if Windows warns you: <i>More info → Run anyway</i>). Leave its window open.</li>
+                  <li>Press <b>Connect reader</b>. Chrome asks to let this site use apps on this device — choose <b>Allow</b>.</li>
+                </ol>
+              </>
+            )}
           </div>
-          <Button asChild><a href={HELPER_DOWNLOAD} download><Download className="w-4 h-4" /> Download helper (Windows)</a></Button>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" asChild><a href={HELPER_DOWNLOAD} download><Download className="w-4 h-4" /> Download helper</a></Button>
+            <Button onClick={connect}><Usb className="w-4 h-4" /> Connect reader</Button>
+          </div>
         </div>
       )}
 
