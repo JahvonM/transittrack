@@ -76,6 +76,15 @@ async function nextStatus(base44, vehicleId, matchKey, matchValue) {
   return rows[0]?.status === 'boarded' ? 'off_board' : 'boarded';
 }
 
+// A check-in saved on the tablet while offline carries the time it really
+// happened; accept it if it's plausible (not in the future, not days old).
+function occurredAt(value) {
+  const t = value ? new Date(value).getTime() : NaN;
+  const now = Date.now();
+  if (Number.isFinite(t) && t <= now + 60_000 && t >= now - 72 * 3600_000) return new Date(t).toISOString();
+  return new Date(now).toISOString();
+}
+
 const VEHICLE_ONLY_ACTIONS = new Set(['check_in', 'lookup_tag', 'lookup_code']);
 
 export default async function(req) {
@@ -121,6 +130,21 @@ export default async function(req) {
       }
 
       // --- bus_boarding: NFC tap lookup, before confirming ---
+      // --- bus_boarding: the list a tablet keeps so cards and keypad codes
+      // still work with no WiFi (refreshed every few minutes when online) ---
+      case 'offline_directory': {
+        if (!device) return Response.json({ error: 'Tablets only' }, { status: 403 });
+        const directory = await loadStaffDirectory(base44, companyId);
+        return Response.json({
+          generated_at: new Date().toISOString(),
+          staff: directory.map((s) => ({
+            id: s.id, full_name: s.full_name, photo_url: s.photo_url || '',
+            nfc_tag: s.nfc_tag || '', access_code: s.access_code || '',
+            one_time_code: s.one_time_code || '', one_time_code_expires_at: s.one_time_code_expires_at || null,
+          })),
+        });
+      }
+
       case 'lookup_tag': {
         const directory = await loadStaffDirectory(base44, companyId);
         const person = directory.find((s) => s.nfc_tag && s.nfc_tag === sanitize(body.card_tag));
@@ -184,7 +208,7 @@ export default async function(req) {
         const record = await base44.asServiceRole.entities.StaffCheckIn.create({
           staff_name: person?.full_name || sanitize(staff_name) || 'Staff',
           staff_picture_url: person?.photo_url || '',
-          card_tag: cardTag, status, boarded_at: new Date().toISOString(),
+          card_tag: cardTag, status, boarded_at: occurredAt(body.occurred_at),
           company_id: companyId, company_name: companyName,
           vehicle_id: vehicleId, vehicle_name: resolvedVehicleName,
           check_in_method: ['nfc', 'qr', 'manual', 'code'].includes(method) ? method : 'manual',
