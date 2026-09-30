@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { CheckCircle2, Clock, Flag, PenLine, Play } from "lucide-react";
+import { CheckCircle2, ChevronRight, Clock, Flag, PenLine, Play, Route } from "lucide-react";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -13,9 +14,12 @@ const fmtDateTime = (iso) =>
 
 // Booked trips assigned to this tablet's vehicle. Drivers have no login, so
 // every change goes through the driverSession backend via `invoke`.
-export default function DriverTrips({ trips, invoke, startSharing, refresh }) {
+// compact: the Drive screen shows just the trip in progress (or the next one)
+// with its one action button; the full list opens in a sheet.
+export default function DriverTrips({ trips, invoke, startSharing, refresh, compact = false }) {
   const { toast } = useToast();
   const [dialog, setDialog] = useState(null);
+  const [allOpen, setAllOpen] = useState(false);
   const [localTrips, setLocalTrips] = useState(trips);
 
   // Keep local view in sync when the parent re-fetches
@@ -60,6 +64,15 @@ export default function DriverTrips({ trips, invoke, startSharing, refresh }) {
     (t) => !t.scheduled_time || new Date(t.scheduled_time).toDateString() === todayStr
   );
   const later = localTrips.filter((t) => !todays.includes(t));
+
+  // The one action a trip needs next.
+  const nextAction = (trip) => {
+    if (trip.status === "scheduled") return { label: "Start trip", icon: Play, run: () => startTrip(trip) };
+    if (trip.status === "on_the_way" && !trip.pickup_signature_url) return { label: "Confirm pickup", icon: PenLine, run: () => setDialog({ trip, mode: "pickup" }) };
+    if (trip.status === "on_the_way") return { label: "Arrived at drop-off", icon: Flag, run: () => markArrived(trip), outline: true };
+    if (trip.status === "arrived") return { label: "Confirm drop-off", icon: PenLine, run: () => setDialog({ trip, mode: "dropoff" }) };
+    return null;
+  };
 
   const renderTrip = (trip) => {
     const active = trip.status === "on_the_way" || trip.status === "arrived";
@@ -125,6 +138,59 @@ export default function DriverTrips({ trips, invoke, startSharing, refresh }) {
       </Card>
     );
   };
+
+  const signatureDialog = (
+    <TripSignatureDialog
+      open={!!dialog}
+      onOpenChange={(o) => !o && setDialog(null)}
+      trip={dialog?.trip}
+      mode={dialog?.mode}
+      onSign={signTrip}
+    />
+  );
+
+  if (compact) {
+    const focus = localTrips.find((t) => t.status === "on_the_way" || t.status === "arrived")
+      || todays.find((t) => t.status === "scheduled") || todays[0] || later[0] || null;
+    const action = focus ? nextAction(focus) : null;
+    const ActionIcon = action?.icon;
+    return (
+      <div className={`rounded-2xl border bg-card p-3 space-y-2 ${focus && (focus.status === "on_the_way" || focus.status === "arrived") ? "border-primary" : ""}`}>
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-sm font-semibold flex items-center gap-2"><Route className="w-4 h-4 text-primary" /> Trips ({localTrips.length})</p>
+          <Button variant="ghost" size="sm" className="h-8 -mr-1" onClick={() => setAllOpen(true)}>See all <ChevronRight className="w-4 h-4" /></Button>
+        </div>
+        {focus && (
+          <>
+            <div className="flex items-center gap-2 min-w-0">
+              <p className="font-medium truncate flex-1">{focus.pickup_name} <span className="text-muted-foreground">→</span> {focus.dropoff_name}</p>
+              <Badge variant={STATUS_VARIANT[focus.status]} className="shrink-0">{STATUS_LABEL[focus.status]}</Badge>
+            </div>
+            <p className="text-xs text-muted-foreground flex items-center gap-1.5 truncate">
+              <Clock className="w-3.5 h-3.5 shrink-0" />
+              {focus.scheduled_time ? new Date(focus.scheduled_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "No time set"}
+              {focus.passenger_name ? ` · ${focus.passenger_name}` : ""}
+            </p>
+            {action && (
+              <Button className="w-full h-11" variant={action.outline ? "outline" : "default"} onClick={action.run}>
+                <ActionIcon className="w-4 h-4" /> {action.label}
+              </Button>
+            )}
+          </>
+        )}
+        <Sheet open={allOpen} onOpenChange={setAllOpen}>
+          <SheetContent side="right" className="w-full sm:max-w-md flex flex-col">
+            <SheetHeader><SheetTitle>Trips</SheetTitle></SheetHeader>
+            <div className="flex-1 min-h-0 overflow-y-auto space-y-2 py-3">
+              {localTrips.length === 0 && <p className="text-sm text-muted-foreground">No trips assigned.</p>}
+              {[...todays, ...later].map(renderTrip)}
+            </div>
+          </SheetContent>
+        </Sheet>
+        {signatureDialog}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
