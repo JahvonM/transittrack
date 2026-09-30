@@ -4,8 +4,11 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 // chip's built-in ID (UID), which is what the bus boarding kiosks already
 // match on, so an issued card works for check-in straight away.
 //
-// Actions: people · issue · verify · revoke · add_holder · keypad_code
+// Actions: people · issue · verify · revoke · add_holder · set_bus ·
+// send_to_bus · keypad_code
 // Admins see everyone; company managers only their own company.
+// Bus staff belong to a company and are linked to one bus; their card list
+// is sent to that bus's boarding tablet.
 
 const normalizeUid = (v) => String(v || '').replace(/[^0-9a-f]/gi, '').toUpperCase();
 const clean = (v, max = 120) => String(v ?? '').replace(/[\u0000-\u001F\u007F<>]/g, '').trim().slice(0, max);
@@ -32,14 +35,16 @@ async function audit(base44, user, fields) {
 // (directory contacts merged with staff logins) and extra card holders.
 async function loadPeople(base44, companyFilter) {
   const sr = base44.asServiceRole.entities;
-  const [drivers, users, contacts, holders, vehicles, cards] = await Promise.all([
+  const [drivers, users, contacts, holders, vehicles, cards, kiosks] = await Promise.all([
     sr.Driver.list('-updated_date', 1000),
     sr.User.list(),
     sr.Contact.filter({ type: 'staff' }, '-updated_date', 1000),
     sr.CardHolder.list('-updated_date', 1000).catch(() => []),
     sr.Vehicle.list('-updated_date', 500),
     sr.NfcCard.list('-issue_date', 3000).catch(() => []),
+    sr.KioskDevice.filter({ kiosk_type: 'bus_boarding' }).catch(() => []),
   ]);
+  const vehicleName = new Map(vehicles.map((v) => [v.id, v.fleet_number ? `${v.name} (${v.fleet_number})` : v.name]));
   const inCompany = (cid) => !companyFilter || cid === companyFilter;
   const vehicleByDriver = new Map();
   for (const v of vehicles) {
@@ -67,7 +72,8 @@ async function loadPeople(base44, companyFilter) {
     const u = staffUsers.get(email) || {};
     people.push({ source: 'contact', id: c.id, type: 'staff', role: 'Staff', name: c.name || u.full_name || 'Staff', email: c.email || '',
       employee_id: c.employee_id || u.employee_id || '', company_id: c.company_id || '', company_name: c.company_name || '',
-      assigned_vehicle: '', legacy_tag: c.nfc_card_tag || u.nfc_tag_id || '', access_code: c.access_code || u.access_code || '' });
+      vehicle_id: c.vehicle_id || '', assigned_vehicle: (c.vehicle_id && vehicleName.get(c.vehicle_id)) || c.vehicle_name || '',
+      legacy_tag: c.nfc_card_tag || u.nfc_tag_id || '', access_code: c.access_code || u.access_code || '' });
   }
   for (const [email, u] of staffUsers) {
     if (contactEmails.has(email) || !inCompany(u.company_id)) continue;
@@ -101,7 +107,34 @@ async function loadPeople(base44, companyFilter) {
     p.default_access = ACCESS_BY_ROLE[p.role] || 'DEPOT_GENERAL';
   }
   people.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-  return { people, cards: cards.filter((c) => inCompany(c.company_id)) };
+  return {
+    people,
+    cards: cards.filter((c) => inCompany(c.company_id)),
+    vehicles: vehicles.filter((v) => inCompany(v.company_id))
+      .map((v) => ({ id: v.id, name: vehicleName.get(v.id), company_id: v.company_id || '' }))
+      .sort((a, b) => (a.name || '').localeCompare(b.name || '', undefined, { numeric: true })),
+    tablets: kiosks.filter((k) => inCompany(k.company_id) && k.vehicle_id)
+      .map((k) => ({ id: k.id, label: k.label || '', vehicle_id: k.vehicle_id, paired: !!k.paired, active: k.status === 'active', last_seen: k.last_seen || null, directory_sent_at: k.directory_sent_at || null })),
+  };
+}
+
+// Tell every boarding tablet on this bus to download the card list now.
+async function sendToBus(base44, user, vehicleId) {
+  const sr = base44.asServiceRole.entities;
+  const tablets = (await sr.KioskDevice.filter({ vehicle_id: vehicleId, kiosk_type: 'bus_boarding' }))
+    .filter((k) => k.status === 'active' && k.paired);
+  const at = new Date().toISOString();
+  for (const k of tablets) await sr.KioskDevice.update(k.id, { directory_sent_at: at });
+  if (tablets.length) {
+    await audit(base44, user, { action: 'update', entity: 'KioskDevice', record_id: tablets[0].id, summary: `Sent staff cards to ${tablets[0].vehicle_name || 'bus'} tablet${tablets.length > 1 ? `s (${tablets.length})` : ''}` });
+  }
+  return { sent: tablets.length, sent_at: at };
+}
+
+async function loadVehicleFor(base44, vehicleId, companyFilter) {
+  const v = vehicleId ? await base44.asServiceRole.entities.Vehicle.get(vehicleId).catch(() => null) : null;
+  if (!v || (companyFilter && v.company_id !== companyFilter)) return null;
+  return v;
 }
 
 // Who (if anyone) already holds this UID, from card records or older badge fields.
@@ -176,9 +209,11 @@ export default async function (req) {
         await setTag(base44, person.source, person.id, uid, employeeId && employeeId !== person.employee_id ? { employee_id: employeeId } : {});
         await audit(base44, user, {
           action: 'card_programmed', card_uid: uid, status: 'SUCCESS', record_id: card.id,
-          summary: `Issued card ${uid} to ${person.name} (${person.role}${employeeId ? `, ${employeeId}` : ''}) · ${card.access_level}${previous.length ? ' · replaced previous card' : ''}`,
+          summary: `Issued card ${uid} to ${person.name} (${person.role}${person.assigned_vehicle ? `, ${person.assigned_vehicle}` : ''}) · ${card.access_level}${previous.length ? ' · replaced previous card' : ''}`,
         });
-        return Response.json({ ok: true, card, replaced: previous.length });
+        // The new card goes straight to their bus's boarding tablet.
+        const delivery = person.vehicle_id ? await sendToBus(base44, user, person.vehicle_id).catch(() => ({ sent: 0 })) : { sent: 0 };
+        return Response.json({ ok: true, card, replaced: previous.length, sent_to_bus: delivery.sent });
       }
 
       case 'verify': {
@@ -222,19 +257,56 @@ export default async function (req) {
         return Response.json({ ok: true, code });
       }
 
+      // New bus staff for a company, linked to one of that company's buses.
       case 'add_holder': {
-        const full_name = clean(body.full_name);
-        if (!full_name) return Response.json({ error: 'Name is required' }, { status: 400 });
-        let company_id = clean(body.company_id, 40) || undefined;
-        if (companyFilter) company_id = companyFilter;
-        let company_name;
-        if (company_id) { try { company_name = (await sr.Company.get(company_id))?.name; } catch { /* ignore */ } }
-        const roles = ['Dispatcher', 'Inspector', 'Supervisor', 'Cleaner', 'Security', 'Other'];
-        const holder = await sr.CardHolder.create({
-          full_name, employee_id: clean(body.employee_id, 40), role: roles.includes(body.role) ? body.role : 'Other',
-          assigned_vehicle: clean(body.assigned_vehicle, 60), company_id, company_name,
+        const name = clean(body.full_name);
+        if (!name) return Response.json({ error: 'Name is required' }, { status: 400 });
+        const vehicle = await loadVehicleFor(base44, clean(body.vehicle_id, 40), companyFilter);
+        if (!vehicle) return Response.json({ error: 'Pick their bus' }, { status: 400 });
+        const company_id = vehicle.company_id || companyFilter || clean(body.company_id, 40);
+        if (!company_id) return Response.json({ error: 'Pick a company' }, { status: 400 });
+        let company_name = '';
+        try { company_name = (await sr.Company.get(company_id))?.name || ''; } catch { /* ignore */ }
+        const contact = await sr.Contact.create({
+          name, type: 'staff', company_id, company_name, vehicle_id: vehicle.id, vehicle_name: vehicle.name,
         });
-        return Response.json({ ok: true, holder });
+        await audit(base44, user, { action: 'create', entity: 'Contact', record_id: contact.id, summary: `Added bus staff ${name} (${company_name || 'company'} · ${vehicle.name})` });
+        return Response.json({ ok: true, person_key: `contact:${contact.id}`, contact });
+      }
+
+      // Move a staff member to another bus (or take them off one).
+      case 'set_bus': {
+        const { people } = await loadPeople(base44, companyFilter);
+        const person = people.find((p) => p.key === body.person_key);
+        if (!person || person.type !== 'staff') return Response.json({ error: 'Pick a staff member first.' }, { status: 404 });
+        const vehicleId = clean(body.vehicle_id, 40);
+        const vehicle = vehicleId ? await loadVehicleFor(base44, vehicleId, companyFilter) : null;
+        if (vehicleId && !vehicle) return Response.json({ error: 'That bus was not found' }, { status: 404 });
+        if (vehicle && person.company_id && vehicle.company_id && vehicle.company_id !== person.company_id) {
+          return Response.json({ error: `That bus belongs to another company` }, { status: 400 });
+        }
+        const patch = { vehicle_id: vehicle?.id || '', vehicle_name: vehicle?.name || '' };
+        let key = person.key;
+        if (person.source === 'contact') {
+          await sr.Contact.update(person.id, patch);
+        } else {
+          // A staff login without a directory entry: give them one so the bus link has a home.
+          const u = await sr.User.get(person.id);
+          const contact = await sr.Contact.create({
+            name: person.name, email: u?.email || '', type: 'staff', company_id: person.company_id || vehicle?.company_id || '',
+            company_name: person.company_name || '', ...patch,
+          });
+          key = `contact:${contact.id}`;
+        }
+        await audit(base44, user, { action: 'update', entity: 'Contact', record_id: person.id, summary: vehicle ? `${person.name} now rides ${vehicle.name}` : `${person.name} removed from ${person.assigned_vehicle || 'their bus'}` });
+        const delivery = vehicle ? await sendToBus(base44, user, vehicle.id).catch(() => ({ sent: 0 })) : { sent: 0 };
+        return Response.json({ ok: true, person_key: key, sent_to_bus: delivery.sent });
+      }
+
+      case 'send_to_bus': {
+        const vehicle = await loadVehicleFor(base44, clean(body.vehicle_id, 40), companyFilter);
+        if (!vehicle) return Response.json({ error: 'Bus not found' }, { status: 404 });
+        return Response.json({ ok: true, ...(await sendToBus(base44, user, vehicle.id)) });
       }
 
       default:
