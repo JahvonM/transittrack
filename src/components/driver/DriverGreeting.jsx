@@ -1,5 +1,5 @@
 import React from "react";
-import { Hand } from "lucide-react";
+import { Bus, Hand } from "lucide-react";
 import LiveClock from "@/components/LiveClock";
 import WeatherWidget from "@/components/WeatherWidget";
 import { DrivingScene } from "@/components/AnimatedBus";
@@ -10,6 +10,27 @@ const greetingWord = () => {
   if (h < 18) return "Good afternoon";
   return "Good evening";
 };
+
+// One-line header for the main driving screen: greeting, bus, weather, time.
+// Keeps the map and controls on one screen instead of a tall banner.
+export function DriverTopBar({ driverName, busName, left, right }) {
+  const name = (driverName || "Driver").split("@")[0].split(" ")[0];
+  return (
+    <header className="flex items-center gap-3 px-3 sm:px-4 h-14 shrink-0 border-b border-border bg-card/80 backdrop-blur">
+      {left}
+      <div className="w-9 h-9 rounded-xl bg-primary text-primary-foreground grid place-items-center shrink-0">
+        <Bus className="w-5 h-5" aria-hidden="true" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="font-semibold leading-tight truncate">{greetingWord()}, {name}</p>
+        {busName && <p className="text-xs text-muted-foreground truncate">{busName}</p>}
+      </div>
+      {right}
+      <div className="hidden sm:block"><WeatherWidget variant="chip" /></div>
+      <LiveClock className="text-base font-mono tabular-nums" />
+    </header>
+  );
+}
 
 export default function DriverGreeting({ driverName, subtitle }) {
   const name = (driverName || "Driver").split("@")[0].split(" ")[0];
