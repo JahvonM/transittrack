@@ -330,7 +330,7 @@ export default function CardIssuingTab({ companies = [] }) {
     }
   };
 
-  const { helper, reader, webNfc, log, addLog, feedback, connect, access } = useCardReader(onTap, { active: armed });
+  const { helper, reader, webNfc, log, addLog, feedback, connect, access: localAccess } = useCardReader(onTap, { active: armed });
 
   useEffect(() => {
     const el = consoleRef.current;
@@ -382,7 +382,7 @@ export default function CardIssuingTab({ companies = [] }) {
         <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 flex flex-wrap items-center gap-4">
           <Usb className="w-5 h-5 text-amber-600 shrink-0" />
           <div className="flex-1 min-w-[280px] text-sm space-y-1">
-            {access === "denied" ? (
+            {localAccess === "denied" ? (
               <>
                 <p className="font-semibold">Chrome is blocking the card reader</p>
                 <p className="text-muted-foreground">Click the icon left of the web address → <b>Site settings</b> → set <b>Local network access</b> (or “Apps on device”) to <b>Allow</b>, then press Connect reader.</p>
