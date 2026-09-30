@@ -129,7 +129,6 @@ export default async function(req) {
         return Response.json({ staff: matches.map((s) => ({ id: s.id, full_name: s.full_name, photo_url: s.photo_url })) });
       }
 
-      // --- bus_boarding: NFC tap lookup, before confirming ---
       // --- bus_boarding: the list a tablet keeps so cards and keypad codes
       // still work with no WiFi (refreshed every few minutes when online) ---
       case 'offline_directory': {
@@ -145,6 +144,7 @@ export default async function(req) {
         });
       }
 
+      // --- bus_boarding: NFC tap lookup, before confirming ---
       case 'lookup_tag': {
         const directory = await loadStaffDirectory(base44, companyId);
         const person = directory.find((s) => s.nfc_tag && s.nfc_tag === sanitize(body.card_tag));
