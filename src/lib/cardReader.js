@@ -26,8 +26,25 @@ export function readerFeedback(kind, { beep = true, led = true } = {}) {
  *   active: only deliver taps while true (e.g. while waiting for a card)
  * Returns helper/reader status and a live log for the console panel.
  */
+// Chrome asks "allow this site to access apps and services on this device?"
+// the first time a website talks to a program on the same PC. We only ask
+// after the operator clicks Connect (then remember it for this PC).
+async function localAccessState() {
+  if (!navigator.permissions?.query) return "unknown";
+  for (const name of ["loopback-network", "local-network-access", "local-network"]) {
+    try { return (await navigator.permissions.query({ name })).state; } catch { /* not supported */ }
+  }
+  return "unknown";
+}
+
+function helperRemembered() {
+  try { return localStorage.getItem(HELPER_FLAG) === "1"; } catch { return false; }
+}
+
 export function useCardReader(onTap, { active = true } = {}) {
-  const [helper, setHelper] = useState("connecting"); // connecting | connected | offline
+  const [enabled, setEnabled] = useState(helperRemembered);
+  const [helper, setHelper] = useState(() => (helperRemembered() ? "connecting" : "idle")); // idle | connecting | connected | offline
+  const [access, setAccess] = useState("unknown"); // Chrome local-network permission: granted | prompt | denied | unknown
   const [reader, setReader] = useState(null); // reader name when plugged in
   const [log, setLog] = useState([]);
   const onTapRef = useRef(onTap);
@@ -42,6 +59,7 @@ export function useCardReader(onTap, { active = true } = {}) {
   // USB reader via the helper (Server-Sent Events). EventSource reconnects by
   // itself; if the helper isn't running at all we retry every few seconds.
   useEffect(() => {
+    if (!enabled) return undefined;
     if (typeof window === "undefined" || !("EventSource" in window)) { setHelper("offline"); return undefined; }
     let es = null;
     let retry = null;
@@ -71,10 +89,11 @@ export function useCardReader(onTap, { active = true } = {}) {
         }
       };
       es.onerror = () => {
-        if (es.readyState === 2) { // CLOSED — helper not running
+        if (es.readyState === 2) { // CLOSED — helper not running, or Chrome blocked it
           setHelper("offline");
           setReader(null);
-          if (!announcedOffline) { addLog("Reader helper not running on this computer", "warn"); announcedOffline = true; }
+          localAccessState().then(setAccess);
+          if (!announcedOffline) { addLog("Can't reach the reader helper on this computer", "warn"); announcedOffline = true; }
           es.close();
           retry = setTimeout(open, 5000);
         } else {
@@ -82,8 +101,19 @@ export function useCardReader(onTap, { active = true } = {}) {
         }
       };
     };
-    open();
+    // A plain request first: this is what makes Chrome show its one-time
+    // "allow access to this device" prompt.
+    setHelper("connecting");
+    fetch(`${HELPER_URL}/status`, { cache: "no-store" })
+      .then(() => setAccess("granted"))
+      .catch(() => localAccessState().then(setAccess))
+      .finally(open);
     return () => { closed = true; clearTimeout(retry); es?.close(); };
+  }, [enabled, addLog]);
+
+  const connect = useCallback(() => {
+    addLog("Connecting to the reader helper…");
+    setEnabled(true);
   }, [addLog]);
 
   // Built-in NFC (Chrome on Android) — reads the same UID, no helper needed.
@@ -115,7 +145,7 @@ export function useCardReader(onTap, { active = true } = {}) {
     if (res?.apdu) addLog(`> ${res.apdu}  ${res.ok ? "90 00" : "(" + (res.error || "no response") + ")"}`, "apdu");
   }, [helper, addLog]);
 
-  return { helper, reader, webNfc, log, addLog, feedback };
+  return { helper, reader, webNfc, log, addLog, feedback, connect, access };
 }
 
 // Kiosk pages on a PC that has used the helper: turn its card taps into the
