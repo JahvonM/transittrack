@@ -45,6 +45,10 @@
     "last_seen": {
       "type": "string",
       "format": "date-time"
+    },
+    "device_info": {
+      "type": "string",
+      "description": "Reported by the tablet: which map it can draw (full/basic), WebGL 2 support and browser."
     }
   },
   "required": [
