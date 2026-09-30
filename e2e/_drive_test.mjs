@@ -11,7 +11,7 @@ const staff = [{ id: "s1", full_name: "Ana Joseph", email: "a@x.com", home_lat: 
 const trips = [{ id: "t1", status: "scheduled", scheduled_time: new Date(Date.now() + 3600e3).toISOString(), pickup_name: "Market Square", dropoff_name: "Grand Anse", passenger_name: "Visitor group" }];
 const templates = [{ id: "t1", name: "Driver pre-trip walk-around", driver_trigger: "start_of_day", driver_days: [], driver_required: true, sections: [{ section_name: "A", items: [{ item_name: "Tyres" }] }] }];
 
-const sizes = [["tablet_landscape", 1280, 800], ["tablet_portrait", 800, 1280], ["phone", 390, 844]];
+const sizes = process.env.ONE ? [["tablet_landscape", 1280, 800]] : [["tablet_landscape", 1280, 800], ["tablet_portrait", 800, 1280], ["phone", 390, 844]];
 const browser = await chromium.launch({ args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"] });
 for (const [label, w, h] of sizes) {
   const ctx = await browser.newContext({ viewport: { width: w, height: h }, geolocation: { latitude: 12.1286, longitude: -61.7483 }, permissions: ["geolocation"] });
@@ -48,13 +48,15 @@ for (const [label, w, h] of sizes) {
   await page.screenshot({ path: `/tmp/shots/drive_${label}.png` });
   // tracking survives switching tabs
   await page.getByRole("button", { name: /Start tracking/ }).click();
-  await page.waitForTimeout(500);
+  await page.waitForTimeout(800);
+  out.afterStartStopBtn = await page.getByRole("button", { name: /Stop tracking/ }).first().isVisible().catch(() => false);
+  out.afterStartCalls = calls.filter((c) => c !== "heartbeat").join(",");
   await page.getByRole("button", { name: "Chat", exact: true }).click();
   await page.waitForTimeout(800);
   out.chatShown = page.url().endsWith("/driver/chat");
   await page.getByRole("button", { name: "Drive", exact: true }).click();
   await page.waitForTimeout(800);
-  out.stillTracking = await page.getByText("Tracking", { exact: true }).first().isVisible().catch(() => false);
+  out.stillTracking = await page.getByRole("button", { name: /Stop tracking/ }).first().isVisible().catch(() => false);
   out.navigateAlias = await (async () => { await page.goto(base + "/driver/navigate", { waitUntil: "domcontentloaded" }); await page.waitForTimeout(3500); return await page.getByRole("button", { name: "Drive", exact: true }).getAttribute("aria-current"); })();
   out.errors = errors.length ? errors : "none";
   console.log(`--- ${label} ${w}x${h}`);
