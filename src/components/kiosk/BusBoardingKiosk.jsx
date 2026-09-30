@@ -10,6 +10,7 @@ import { MAPBOX_TOKEN, mapStyleFor } from "@/lib/mapbox";
 import { useIsDark } from "@/lib/useTheme";
 import { computeOccupancy } from "@/lib/occupancy";
 import { enqueueCheckIn, queueLength, isNetworkFailure, flushQueue } from "@/lib/offlineQueue";
+import { noteStatus, burnOneTimeCode } from "@/lib/kioskOffline";
 import WeatherWidget from "@/components/WeatherWidget";
 import QrScanner from "./QrScanner";
 import SlideToUnlock from "./SlideToUnlock";
@@ -352,8 +353,10 @@ export default function BusBoardingKiosk({ invoke, device }) {
       if (handleUnpaired(e)) return;
       setUnlocked(true);
       setBadgeError(e?.response?.data?.error === "badge_not_registered"
-        ? "This badge isn't registered yet. Ask an admin to enroll it at the badge registry kiosk."
-        : "Couldn't read that badge — try again.");
+        ? "This card isn't registered yet. Ask an admin to issue it in Card issuing."
+        : isNetworkFailure(e)
+          ? "No connection, and this tablet hasn't saved the staff list yet. Connect to WiFi once."
+          : "Couldn't read that badge — try again.");
       setMode("badge_error");
       resetSoon(3500);
     } finally {
@@ -426,6 +429,8 @@ export default function BusBoardingKiosk({ invoke, device }) {
       // it worked; a real rejection from the backend still shows the error.
       if (isNetworkFailure(e)) {
         setPendingSyncCount(enqueueCheckIn(payload));
+        noteStatus(payload.staff_id, status);
+        if (payload.code_type === "one_time") burnOneTimeCode(payload.staff_id);
         setResult({ staff_name: pending.staff.full_name, status, offline: true });
         setMode("result");
         speak(status === "boarded" ? `Welcome aboard, ${pending.staff.full_name.split(" ")[0]}` : `See you later, ${pending.staff.full_name.split(" ")[0]}`);
