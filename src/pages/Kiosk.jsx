@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import BusBoardingKiosk from "@/components/kiosk/BusBoardingKiosk";
 import FrontDeskKiosk from "@/components/kiosk/FrontDeskKiosk";
+import { saveDevice, loadDevice, forgetTablet, saveDirectory, directoryInfo, warmPhotos, offlineLookup, noteStatus } from "@/lib/kioskOffline";
+import { isNetworkFailure } from "@/lib/offlineQueue";
 
 const TYPE_META = {
   bus_boarding: { label: "Bus boarding", icon: Bus },
@@ -15,11 +17,18 @@ const TYPE_META = {
 };
 
 const HEARTBEAT_MS = 30000;
+const DIRECTORY_MS = 5 * 60 * 1000;
+
+const initialStoredId = () => { try { return localStorage.getItem("tt_kiosk_device_id"); } catch { return null; } };
 
 export default function Kiosk() {
-  const [device, setDevice] = useState(null);
-  const [deviceId, setDeviceId] = useState(null);
-  const [status, setStatus] = useState("pairing"); // pairing | paired | error
+  // A tablet that has paired before opens straight from its saved setup, so
+  // it still works when it starts up with no WiFi.
+  const [device, setDevice] = useState(() => { const id = initialStoredId(); return id ? loadDevice(id) : null; });
+  const [deviceId, setDeviceId] = useState(() => (device ? initialStoredId() : null));
+  const [status, setStatus] = useState(() => (device ? "paired" : "pairing")); // pairing | paired | error
+  const [online, setOnline] = useState(() => navigator.onLine !== false);
+  const [savedList, setSavedList] = useState(() => directoryInfo());
   const [error, setError] = useState("");
   const [manualCode, setManualCode] = useState("");
   const [pairing, setPairing] = useState(false);
@@ -41,6 +50,7 @@ export default function Kiosk() {
       .then((res) => {
         if (!res.data?.device_id) { setStatus("error"); setError("Pairing failed."); return; }
         localStorage.setItem("tt_kiosk_device_id", res.data.device_id);
+        saveDevice({ ...res.data, device_id: res.data.device_id });
         setDevice(res.data);
         setDeviceId(res.data.device_id);
         setStatus("paired");
@@ -66,15 +76,28 @@ export default function Kiosk() {
           setStatus("error");
           setError("This device is no longer paired. Ask your administrator for a new pairing link.");
           localStorage.removeItem("tt_kiosk_device_id");
+          forgetTablet();
           if (heartbeatId.current) clearInterval(heartbeatId.current);
           return;
         }
+        saveDevice({ ...res.data, device_id: id });
         setDevice(res.data);
         setDeviceId(id);
         setStatus("paired");
+        setOnline(true);
       })
-      .catch(() => {
-        /* transient network issue — next heartbeat retries; don't drop paired state over one miss */
+      .catch((e) => {
+        // No connection: keep running from the saved setup. A real "no" from
+        // the server (e.g. device removed) arrives as res.data.error above,
+        // or as a 4xx here.
+        if (isNetworkFailure(e)) { setOnline(false); return; }
+        if (e?.response?.status === 404 || e?.response?.status === 401) {
+          setStatus("error");
+          setError("This device is no longer paired. Ask your administrator for a new pairing link.");
+          localStorage.removeItem("tt_kiosk_device_id");
+          forgetTablet();
+          if (heartbeatId.current) clearInterval(heartbeatId.current);
+        }
       });
   };
 
@@ -97,11 +120,54 @@ export default function Kiosk() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [code, storedId]);
 
+  useEffect(() => {
+    const up = () => setOnline(true);
+    const down = () => setOnline(false);
+    window.addEventListener("online", up);
+    window.addEventListener("offline", down);
+    return () => { window.removeEventListener("online", up); window.removeEventListener("offline", down); };
+  }, []);
+
+  // Keep a copy of who can board (names, card IDs, keypad codes) on the
+  // tablet, refreshed every few minutes, so cards and codes still work offline.
+  const isBoarding = device?.kiosk_type === "bus_boarding";
+  useEffect(() => {
+    if (!deviceId || !isBoarding) return undefined;
+    let stopped = false;
+    const refresh = () => {
+      base44.functions.invoke("kioskCheckIn", { device_id: deviceId, action: "offline_directory" })
+        .then((res) => {
+          if (stopped || !res.data?.staff) return;
+          saveDirectory(res.data);
+          setSavedList(directoryInfo());
+          warmPhotos(res.data.staff);
+        })
+        .catch(() => { /* offline - keep the list we have */ });
+    };
+    refresh();
+    const t = setInterval(refresh, DIRECTORY_MS);
+    const onUp = () => refresh();
+    window.addEventListener("online", onUp);
+    return () => { stopped = true; clearInterval(t); window.removeEventListener("online", onUp); };
+  }, [deviceId, isBoarding]);
+
   // Every kiosk action (search/lookup/check-in/register/sign-in) goes
   // through this one backend function, keyed by device_id like driverSession.
+  // With no connection, card and code lookups are answered from the saved list.
   const invoke = useCallback(async (action, payload = {}) => {
-    const res = await base44.functions.invoke("kioskCheckIn", { device_id: deviceId, action, ...payload });
-    return res.data;
+    try {
+      const res = await base44.functions.invoke("kioskCheckIn", { device_id: deviceId, action, ...payload });
+      if (action === "check_in" && payload.staff_id) noteStatus(payload.staff_id, payload.status);
+      setOnline(true);
+      return res.data;
+    } catch (e) {
+      if (isNetworkFailure(e) && (action === "lookup_tag" || action === "lookup_code")) {
+        setOnline(false);
+        const local = offlineLookup(action, payload);
+        if (local) return local;
+      }
+      throw e;
+    }
   }, [deviceId]);
 
   const meta = device ? (TYPE_META[device.kiosk_type] || TYPE_META.bus_boarding) : null;
@@ -138,7 +204,7 @@ export default function Kiosk() {
                 </Button>
               </div>
             </div>
-            <Button variant="outline" className="w-full h-11" onClick={() => { localStorage.removeItem("tt_kiosk_device_id"); window.location.reload(); }}>Retry</Button>
+            <Button variant="outline" className="w-full h-11" onClick={() => { localStorage.removeItem("tt_kiosk_device_id"); forgetTablet(); window.location.reload(); }}>Retry</Button>
           </CardContent>
         </Card>
       </div>
@@ -148,7 +214,12 @@ export default function Kiosk() {
   // two-panel layout) — it doesn't fit inside the generic small centered
   // card the other two kiosk types use, and a big tablet has room to spare.
   if (device?.kiosk_type === "bus_boarding") {
-    return <BusBoardingKiosk invoke={invoke} device={device} />;
+    return (
+      <>
+        <BusBoardingKiosk invoke={invoke} device={device} />
+        {!online && <OfflineChip savedList={savedList} />}
+      </>
+    );
   }
 
   return (
