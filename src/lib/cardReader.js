@@ -43,6 +43,7 @@ function helperRemembered() {
 
 export function useCardReader(onTap, { active = true } = {}) {
   const [enabled, setEnabled] = useState(helperRemembered);
+  const [attempt, setAttempt] = useState(0);
   const [helper, setHelper] = useState(() => (helperRemembered() ? "connecting" : "idle")); // idle | connecting | connected | offline
   const [access, setAccess] = useState("unknown"); // Chrome local-network permission: granted | prompt | denied | unknown
   const [reader, setReader] = useState(null); // reader name when plugged in
@@ -109,11 +110,12 @@ export function useCardReader(onTap, { active = true } = {}) {
       .catch(() => localAccessState().then(setAccess))
       .finally(open);
     return () => { closed = true; clearTimeout(retry); es?.close(); };
-  }, [enabled, addLog]);
+  }, [enabled, attempt, addLog]);
 
   const connect = useCallback(() => {
     addLog("Connecting to the reader helper…");
     setEnabled(true);
+    setAttempt((a) => a + 1);
   }, [addLog]);
 
   // Built-in NFC (Chrome on Android) — reads the same UID, no helper needed.
