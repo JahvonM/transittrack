@@ -24,7 +24,6 @@ const KIOSK_TYPES = [
   { value: "bus_boarding", label: "Bus boarding" },
   { value: "driver", label: "Driver tablet" },
   { value: "front_desk", label: "Front-desk sign-in" },
-  { value: "badge_registry", label: "Badge / QR registry" },
 ];
 
 export default function KioskDeviceDialog({ open, onOpenChange, companies, vehicles, device, onSaved }) {
@@ -38,7 +37,7 @@ export default function KioskDeviceDialog({ open, onOpenChange, companies, vehic
   useEffect(() => {
     if (open) {
       setLabel(device?.label || "");
-      setKioskType(device?.kiosk_type || "bus_boarding");
+      setKioskType(device?.kiosk_type && device.kiosk_type !== "badge_registry" ? device.kiosk_type : "bus_boarding");
       setCompanyId(device?.company_id || "");
       setVehicleId(device?.vehicle_id || "");
     }

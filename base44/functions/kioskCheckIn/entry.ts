@@ -148,10 +148,11 @@ export default async function(req) {
         return Response.json({ staff: { id: person.id, full_name: person.full_name, photo_url: person.photo_url }, next_status: status, code_type: codeType });
       }
 
-      // --- badge_registry (kiosk or admin app): generate a persistent access
-      // code for a staff member, to be written down/handed to them (typed on
-      // the bus boarding kiosk's keypad in place of an NFC tap) ---
+      // --- admin app (Staff Directory): generate a persistent access code for
+      // a staff member, typed on the bus boarding kiosk's keypad in place of
+      // an NFC tap. (NFC cards are issued in Admin > Card issuing.) ---
       case 'generate_access_code': {
+        if (device) return Response.json({ error: 'Keypad codes are managed by admins' }, { status: 403 });
         const { staff_id } = body;
         if (!staff_id) return Response.json({ error: 'staff_id required' }, { status: 400 });
         const directory = await loadStaffDirectory(base44, companyId);
@@ -195,28 +196,6 @@ export default async function(req) {
           await base44.asServiceRole.entities.User.update(person.id, { one_time_code: '', one_time_code_expires_at: null });
         }
         return Response.json({ record });
-      }
-
-      // --- badge_registry (kiosk or admin app): link a fresh NFC tap to a
-      // chosen staff member ---
-      case 'register_badge': {
-        const { staff_id, card_tag } = body;
-        const tag = sanitize(card_tag);
-        if (!staff_id || !tag) return Response.json({ error: 'staff_id and card_tag required' }, { status: 400 });
-        const directory = await loadStaffDirectory(base44, companyId);
-        const person = directory.find((s) => s.id === sanitize(staff_id));
-        if (!person) return Response.json({ error: 'Staff member not found' }, { status: 404 });
-        // A lost badge gets reissued to someone else in the real world — clear
-        // this tag off whoever else in the directory currently holds it first,
-        // so lookup_tag never has two people ambiguously matching one card.
-        const previousOwner = directory.find((s) => s.nfc_tag === tag && s.id !== person.id);
-        if (previousOwner) {
-          if (previousOwner.source === 'user') await base44.asServiceRole.entities.User.update(previousOwner.id, { nfc_tag_id: '' });
-          else await base44.asServiceRole.entities.Contact.update(previousOwner.id, { nfc_card_tag: '' });
-        }
-        if (person.source === 'user') await base44.asServiceRole.entities.User.update(person.id, { nfc_tag_id: tag });
-        else await base44.asServiceRole.entities.Contact.update(person.id, { nfc_card_tag: tag });
-        return Response.json({ ok: true, staff: { id: person.id, full_name: person.full_name }, reassigned_from: previousOwner?.full_name || null });
       }
 
       // --- front_desk: visitor sign-in with a captured signature ---

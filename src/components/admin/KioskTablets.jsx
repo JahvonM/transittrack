@@ -43,7 +43,7 @@ const TYPE_META = {
   bus_boarding: { label: "Bus boarding", icon: Bus },
   driver: { label: "Driver tablet", icon: Navigation },
   front_desk: { label: "Front-desk", icon: DoorOpen },
-  badge_registry: { label: "Badge registry", icon: CreditCard },
+  badge_registry: { label: "Retired mode - edit to switch to Bus boarding", icon: CreditCard },
 };
 
 function timeAgo(dateStr) {

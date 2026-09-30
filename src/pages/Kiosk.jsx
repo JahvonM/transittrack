@@ -6,13 +6,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import BusBoardingKiosk from "@/components/kiosk/BusBoardingKiosk";
-import BadgeRegistryKiosk from "@/components/kiosk/BadgeRegistryKiosk";
 import FrontDeskKiosk from "@/components/kiosk/FrontDeskKiosk";
 
 const TYPE_META = {
   bus_boarding: { label: "Bus boarding", icon: Bus },
   front_desk: { label: "Front-desk sign-in", icon: DoorOpen },
-  badge_registry: { label: "Badge / QR registry", icon: CreditCard },
+  badge_registry: { label: "Retired kiosk mode", icon: CreditCard },
 };
 
 const HEARTBEAT_MS = 30000;
@@ -185,7 +184,16 @@ export default function Kiosk() {
         </Card>
 
         <div key={device?.kiosk_type} className="animate-in fade-in zoom-in-95 duration-300">
-          {device?.kiosk_type === "badge_registry" && <BadgeRegistryKiosk invoke={invoke} />}
+          {device?.kiosk_type === "badge_registry" && (
+            <div className="rounded-3xl border border-border bg-card p-8 text-center space-y-2 shadow-xl">
+              <CreditCard className="w-10 h-10 mx-auto text-muted-foreground" />
+              <p className="text-xl font-semibold">This kiosk mode has been retired</p>
+              <p className="text-muted-foreground max-w-md mx-auto">
+                Staff cards are now issued by an administrator in Admin → Card issuing. Ask your administrator to switch this tablet to
+                <b> Bus boarding</b> in Admin → Kiosk tablets.
+              </p>
+            </div>
+          )}
           {device?.kiosk_type === "front_desk" && <FrontDeskKiosk invoke={invoke} />}
         </div>
       </div>
