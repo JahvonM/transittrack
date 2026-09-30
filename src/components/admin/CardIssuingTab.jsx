@@ -232,6 +232,7 @@ export default function CardIssuingTab({ companies = [] }) {
   const [addOpen, setAddOpen] = useState(false);
   const [manualOpen, setManualOpen] = useState(false);
   const [manualUid, setManualUid] = useState("");
+  const [codeBusy, setCodeBusy] = useState(false);
   const consoleRef = useRef(null);
   const batchTimer = useRef(null);
 
@@ -336,6 +337,20 @@ export default function CardIssuingTab({ companies = [] }) {
     const el = consoleRef.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [log]);
+
+  const giveKeypadCode = async () => {
+    if (!selected || codeBusy) return;
+    if (selected.access_code && !(await confirmAction({ title: `Give ${selected.name} a new keypad code?`, description: `Their current code ${selected.access_code} will stop working.`, confirmLabel: "New code" }))) return;
+    setCodeBusy(true);
+    try {
+      const res = await base44.functions.invoke("nfcCards", { action: "keypad_code", person_key: selected.key });
+      addLog(`Keypad code for ${selected.name}: ${res.data?.code}`, "ok");
+      toast({ title: `Keypad code for ${selected.name}: ${res.data?.code}`, description: "They type it on the bus boarding tablet's keypad." });
+      await load();
+    } catch (e) {
+      toast({ title: "Couldn't make a code", description: e?.response?.data?.error || e.message, variant: "destructive" });
+    } finally { setCodeBusy(false); }
+  };
 
   const program = () => {
     if (!selected) return;
@@ -530,6 +545,17 @@ export default function CardIssuingTab({ companies = [] }) {
                       </div>
                       <div><dt className="text-xs text-muted-foreground">Card type</dt><dd className="font-medium">{cardType || "Detected on tap (MIFARE Classic / NTAG)"}</dd></div>
                       <div><dt className="text-xs text-muted-foreground">Assigned bus</dt><dd className="font-medium">{selected?.assigned_vehicle || "—"}</dd></div>
+                      {selected?.type === "staff" && (
+                        <div className="sm:col-span-2 flex items-center gap-3 rounded-lg bg-muted/40 px-3 py-2">
+                          <div className="flex-1">
+                            <dt className="text-xs text-muted-foreground">Keypad code (if they forget their card)</dt>
+                            <dd className="text-lg font-bold tracking-[0.25em]">{selected.access_code || "—"}</dd>
+                          </div>
+                          <Button type="button" variant="outline" size="sm" onClick={giveKeypadCode} disabled={codeBusy}>
+                            {codeBusy ? "…" : selected.access_code ? "New code" : "Give code"}
+                          </Button>
+                        </div>
+                      )}
                       <div><dt className="text-xs text-muted-foreground">Current card</dt><dd className="font-mono">{selected?.card ? formatUid(selected.card.card_uid) : selected?.legacy_tag ? `${formatUid(selected.legacy_tag)} (kiosk)` : "None"}</dd></div>
                     </dl>
                     <p className="text-xs text-muted-foreground">The card's built-in ID is registered to this person. Nothing is written onto the card, so any MIFARE or NTAG card works and a lost card can't be copied from our data.</p>
