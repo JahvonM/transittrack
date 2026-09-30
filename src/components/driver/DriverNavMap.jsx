@@ -384,7 +384,7 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
             </div>
           )}
         </div>
-        {fill && <div className="absolute left-3 bottom-8 z-10 [&>div]:flex-wrap">{statusBadges}</div>}
+        {fill && <div className="absolute left-3 bottom-8 z-10 rounded-full bg-card/90 backdrop-blur px-1.5 py-1 shadow-md">{statusBadges}</div>}
         <button
           type="button"
           onClick={recenter}
