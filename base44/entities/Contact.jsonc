@@ -52,6 +52,13 @@
     },
     "employee_id": {
       "type": "string"
+    },
+    "vehicle_id": {
+      "type": "string",
+      "description": "The bus this staff member rides (their card is sent to this bus's boarding tablet)."
+    },
+    "vehicle_name": {
+      "type": "string"
     }
   },
   "required": [
