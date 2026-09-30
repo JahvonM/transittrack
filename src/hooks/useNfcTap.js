@@ -19,7 +19,7 @@ import { useEffect, useRef, useState } from "react";
 //    way match.
 const EXTERNAL_READER_KEY = "tt_badge_reader";
 
-function hasExternalReader() {
+export function hasExternalReader() {
   try {
     return typeof window !== "undefined" && window.localStorage.getItem(EXTERNAL_READER_KEY) === "1";
   } catch {
@@ -29,6 +29,21 @@ function hasExternalReader() {
 
 function normalizeTag(value) {
   return String(value || "").replace(/[^0-9a-f]/gi, "").toUpperCase();
+}
+
+// Tells the USB reader bridge whether the app accepted the badge it just
+// sent, so the reader can flash green (accepted) or red + 3 beeps (rejected).
+// The bridge listens only on the tablet itself (127.0.0.1). Fire-and-forget:
+// if it isn't reachable, the reader just falls back to its default flash.
+export function reportBadgeResult(ok) {
+  if (!hasExternalReader()) return;
+  const url = `http://127.0.0.1:8765/result?ok=${ok ? 1 : 0}&t=${Date.now()}`;
+  const viaImage = () => { try { new Image().src = url; } catch { /* ignore */ } };
+  try {
+    fetch(url, { mode: "no-cors", cache: "no-store" }).catch(viaImage);
+  } catch {
+    viaImage();
+  }
 }
 
 export function useNfcTap(onTag, active) {
