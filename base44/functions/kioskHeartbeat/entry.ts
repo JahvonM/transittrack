@@ -45,7 +45,8 @@ export default async function(req) {
       vehicle_id: device.vehicle_id,
       vehicle_name: device.vehicle_name,
       kiosk_type: device.kiosk_type,
-      paired: device.paired
+      paired: device.paired,
+      directory_sent_at: device.directory_sent_at || null
     });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
