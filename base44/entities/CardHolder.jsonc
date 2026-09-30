@@ -1,0 +1,77 @@
+{
+  "name": "CardHolder",
+  "type": "object",
+  "required": [
+    "full_name"
+  ],
+  "properties": {
+    "full_name": {
+      "type": "string"
+    },
+    "employee_id": {
+      "type": "string"
+    },
+    "role": {
+      "type": "string",
+      "enum": [
+        "Dispatcher",
+        "Inspector",
+        "Supervisor",
+        "Cleaner",
+        "Security",
+        "Other"
+      ],
+      "default": "Other"
+    },
+    "assigned_vehicle": {
+      "type": "string"
+    },
+    "company_id": {
+      "type": "string"
+    },
+    "company_name": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "rls": {
+    "read": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "$and": [
+            {
+              "user_condition": {
+                "role": "company"
+              }
+            },
+            {
+              "data.company_id": "{{user.data.company_id}}"
+            }
+          ]
+        }
+      ]
+    },
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

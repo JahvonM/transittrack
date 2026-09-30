@@ -1,0 +1,126 @@
+{
+  "name": "NfcCard",
+  "type": "object",
+  "required": [
+    "card_uid",
+    "holder_name"
+  ],
+  "properties": {
+    "card_uid": {
+      "type": "string",
+      "description": "Card's built-in ID, uppercase hex without separators (e.g. 04A28B22). Unique among active cards."
+    },
+    "card_type": {
+      "type": "string",
+      "description": "Detected chip, e.g. MIFARE Classic 1K, NTAG / Ultralight."
+    },
+    "holder_type": {
+      "type": "string",
+      "enum": [
+        "driver",
+        "mechanic",
+        "staff",
+        "other"
+      ]
+    },
+    "holder_source": {
+      "type": "string",
+      "enum": [
+        "driver",
+        "user",
+        "contact",
+        "cardholder"
+      ],
+      "description": "Which record the holder lives in."
+    },
+    "holder_id": {
+      "type": "string"
+    },
+    "holder_name": {
+      "type": "string"
+    },
+    "employee_id": {
+      "type": "string"
+    },
+    "role": {
+      "type": "string",
+      "description": "Driver, Mechanic, Staff, Dispatcher, Inspector, ..."
+    },
+    "assigned_vehicle": {
+      "type": "string"
+    },
+    "company_id": {
+      "type": "string"
+    },
+    "company_name": {
+      "type": "string"
+    },
+    "access_level": {
+      "type": "string",
+      "description": "e.g. DEPOT_DRIVER_ZONE"
+    },
+    "issue_date": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "expiry_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "issued_by": {
+      "type": "string"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true
+    },
+    "revoked_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "revoked_by": {
+      "type": "string"
+    },
+    "revoke_reason": {
+      "type": "string"
+    }
+  },
+  "rls": {
+    "read": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "$and": [
+            {
+              "user_condition": {
+                "role": "company"
+              }
+            },
+            {
+              "data.company_id": "{{user.data.company_id}}"
+            }
+          ]
+        }
+      ]
+    },
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

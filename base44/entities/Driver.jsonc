@@ -19,6 +19,13 @@
     },
     "company_name": {
       "type": "string"
+    },
+    "employee_id": {
+      "type": "string"
+    },
+    "nfc_card_uid": {
+      "type": "string",
+      "description": "Active staff card issued at Card issuing (uppercase hex)."
     }
   },
   "required": [
