@@ -15,7 +15,7 @@ function formatDuration(ms) {
 // heartbeat, so the timer survives reloads and tablet restarts.
 // beforeStart/beforeEnd return true when they've taken over (an inspection
 // set for that moment runs first, then starts/ends the shift itself).
-export default function ShiftCard({ session, invoke, refresh, beforeStart, beforeEnd }) {
+export default function ShiftCard({ session, invoke, refresh, beforeStart, beforeEnd, compact = false }) {
   const { toast } = useToast();
   const [shift, setShift] = useState(session?.open_shift || null);
   const [busy, setBusy] = useState(false);
@@ -67,22 +67,22 @@ export default function ShiftCard({ session, invoke, refresh, beforeStart, befor
   const since = shift ? new Date(shift.started_at) : null;
 
   return (
-    <div className="flex flex-wrap items-center gap-3 p-4 rounded-2xl border border-border bg-card">
-      <div className={`w-10 h-10 rounded-xl grid place-items-center shrink-0 ${shift ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
+    <div className={`flex items-center gap-3 rounded-2xl border border-border bg-card ${compact ? "p-3" : "p-4 flex-wrap"}`}>
+      <div className={`${compact ? "w-9 h-9" : "w-10 h-10"} rounded-xl grid place-items-center shrink-0 ${shift ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
         <Clock className="w-5 h-5" />
       </div>
       <div className="flex-1 min-w-0">
         {shift ? (
           <>
-            <p className="font-semibold">On shift · {formatDuration(now - since.getTime())}</p>
-            <p className="text-xs text-muted-foreground">
+            <p className="font-semibold truncate">On shift · {formatDuration(now - since.getTime())}</p>
+            <p className="text-xs text-muted-foreground truncate">
               Started {since.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
             </p>
           </>
         ) : (
           <>
             <p className="font-semibold">Off shift</p>
-            <p className="text-xs text-muted-foreground">Start your shift so your hours are logged.</p>
+            <p className="text-xs text-muted-foreground truncate">{compact ? "Hours are logged per shift" : "Start your shift so your hours are logged."}</p>
           </>
         )}
       </div>
