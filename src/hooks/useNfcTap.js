@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { bridgeHelperToBadgeEvents } from "@/lib/cardReader";
 
 // Two ways a badge tap can arrive:
 //
@@ -57,6 +58,9 @@ export function useNfcTap(onTag, active) {
 
   // The bridge announces itself when it starts (and a tap also proves it's there).
   useEffect(() => {
+    // On a Windows PC that has the TransitTrack Card Reader helper, its taps
+    // arrive as the same `tt-badge` events.
+    bridgeHelperToBadgeEvents();
     const onReader = () => setExternal(true);
     window.addEventListener("tt-badge-reader", onReader);
     return () => window.removeEventListener("tt-badge-reader", onReader);
