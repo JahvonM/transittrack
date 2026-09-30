@@ -3,7 +3,7 @@ PowerShell 5.1's Add-Type) and builds a simulate-mode test binary.
 Usage: python3 tools/card-reader/test_compile.py  ->  /tmp/ttreader.exe"""
 import re, subprocess, sys, os
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-bat = open(os.path.join(ROOT, "public/tools/TransitTrack-Card-Reader.bat"), encoding="ascii").read()
+bat = open(os.path.join(ROOT, "public/tools/TransitTrack-Card-Reader.bat"), encoding="ascii", newline="").read()
 m = re.search(r"\$code = @'\r\n(.*?)\r\n'@", bat, re.S)
 assert m, "embedded C# not found"
 open("/tmp/embedded.cs", "w").write(m.group(1))
