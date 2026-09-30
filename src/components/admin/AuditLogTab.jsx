@@ -7,8 +7,14 @@ import BusLoader from "@/components/BusLoader";
 import EmptyState from "@/components/EmptyState";
 import { loadFailed } from "@/lib/loadFailed";
 
-const ACTION_VARIANT = { create: "default", update: "secondary", delete: "destructive" };
-const ACTION_LABEL = { create: "Created", update: "Edited", delete: "Deleted" };
+const ACTION_VARIANT = {
+  create: "default", update: "secondary", delete: "destructive",
+  card_programmed: "default", card_verified: "secondary", card_rejected: "destructive", card_revoked: "destructive",
+};
+const ACTION_LABEL = {
+  create: "Created", update: "Edited", delete: "Deleted",
+  card_programmed: "Card issued", card_verified: "Card checked", card_rejected: "Card refused", card_revoked: "Card revoked",
+};
 
 const fmt = (iso) => (iso ? new Date(iso).toLocaleString([], { dateStyle: "medium", timeStyle: "short" }) : "");
 
