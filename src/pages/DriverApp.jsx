@@ -6,12 +6,11 @@ import { useDriverSession } from "@/hooks/useDriverSession";
 import { getFcmToken } from "@/lib/firebase";
 import { useKeepAwake } from "@/hooks/useKeepAwake";
 import DriverPairing from "@/components/driver/DriverPairing";
-import DriverGreeting from "@/components/driver/DriverGreeting";
+import DriverGreeting, { DriverTopBar } from "@/components/driver/DriverGreeting";
 import PinGate from "@/components/driver/PinGate";
 import { DriverInspectionRunner, DueInspectionsBanner, DriverInspectionList, SentInspectionPrompt, readLocalDone, markLocalDone } from "@/components/driver/DriverInspection";
 import { dueFor, dueNow, sentAndPending } from "@/lib/driverInspections";
 import DriverTrackingDashboard from "@/components/driver/DriverTrackingDashboard";
-import DriverNavMap from "@/components/driver/DriverNavMap";
 import DriverChats from "@/components/driver/DriverChats";
 import DriverMessageAlert from "@/components/driver/DriverMessageAlert";
 import NewCheckInAlert from "@/components/driver/NewCheckInAlert";
@@ -19,8 +18,7 @@ import DriverDevicePanel from "@/components/driver/DriverDevicePanel";
 import DriverTrips from "@/components/DriverTrips";
 import ShiftCard from "@/components/driver/ShiftCard";
 import SafetyStandardsContent from "@/components/SafetyStandardsContent";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertCircle, AlertTriangle, ArrowLeft, MessageCircle, ShieldCheck } from "lucide-react";
+import { AlertCircle, AlertTriangle, ArrowLeft, MessageCircle, Navigation, ShieldCheck, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -28,7 +26,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/components/ui/use-toast";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
+// "navigate" is kept as an alias: Track and Navigate are now one Drive screen.
 const TRACKING_TABS = ["track", "navigate", "chat", "safety", "profile"];
+const DRIVER_TABS = [
+  { id: "track", label: "Drive", icon: Navigation },
+  { id: "chat", label: "Chat", icon: MessageCircle },
+  { id: "safety", label: "Safety", icon: ShieldCheck },
+  { id: "profile", label: "Profile", icon: UserRound },
+];
+const tabFromStage = (st) => (st === "navigate" ? "track" : TRACKING_TABS.includes(st) ? st : null);
 
 export default function DriverApp() {
   const navigate = useNavigate();
@@ -38,7 +44,9 @@ export default function DriverApp() {
 
   const [deviceId, setDeviceId] = useState(() => localStorage.getItem("tt_driver_device_id"));
   const [unlocked, setUnlocked] = useState(() => localStorage.getItem("tt_driver_unlock_date") === new Date().toISOString().slice(0, 10));
-  const [activeTab, setActiveTab] = useState(() => TRACKING_TABS.includes(urlStage) ? urlStage : "track");
+  const [activeTab, setActiveTab] = useState(() => tabFromStage(urlStage) || "track");
+  // Follow the URL (e.g. "Continue" after an inspection goes to /driver/track).
+  useEffect(() => { const t = tabFromStage(urlStage); if (t) setActiveTab(t); }, [urlStage]);
   const { session, loading, invoke, refresh } = useDriverSession(deviceId);
   const [localDone, setLocalDone] = useState(readLocalDone);
 
@@ -183,7 +191,7 @@ export default function DriverApp() {
   // "/driver" root.
   const goBack = () => {
     if (stage === "inspection") { navigate("/driver"); return; }
-    if (activeTab !== "track") { goStage("track"); return; }
+    if (activeTab !== "track") { setActiveTab("track"); goStage("track"); return; }
     navigate("/driver");
   };
 
@@ -337,74 +345,89 @@ export default function DriverApp() {
     );
   }
 
+  const selectTab = (v) => {
+    setActiveTab(v);
+    navigate("/driver/" + v, { replace: true });
+  };
+
   return (
-    <div className="min-h-screen p-4 safe-area-top safe-area-x">
-      <div className="space-y-4 max-w-6xl mx-auto">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="min-w-[44px] min-h-[44px] -ml-2"
-          onClick={goBack}
-          aria-label="Back"
-        >
-          <ArrowLeft className="w-5 h-5" />
-        </Button>
-        <DriverGreeting driverName={driverName} subtitle={vehicle.name} />
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v)} className="w-full">
-          <TabsList className="grid w-full grid-cols-5">
-            <TabsTrigger value="track">Track</TabsTrigger>
-            <TabsTrigger value="navigate">Navigate</TabsTrigger>
-            <TabsTrigger value="chat" className="relative">
-              <MessageCircle className="w-4 h-4 sm:hidden" />
-              <span className="hidden sm:inline">Chat</span>
-              {hasUnreadChat && <span className="absolute top-1 right-1 sm:right-2 w-2 h-2 rounded-full bg-destructive" />}
-            </TabsTrigger>
-            <TabsTrigger value="safety">
-              <ShieldCheck className="w-4 h-4 sm:hidden" />
-              <span className="hidden sm:inline">Safety</span>
-            </TabsTrigger>
-            <TabsTrigger value="profile">Profile</TabsTrigger>
-          </TabsList>
-          <TabsContent value="track" className="mt-4">
-            {dueInspections.length > 0 && (
-              <div className="mb-4">
-                <DueInspectionsBanner due={dueInspections} onStart={(t) => openInspection(t, { from: "unlock" })} />
-              </div>
+    <div className="h-[100dvh] flex flex-col overflow-hidden bg-background safe-area-top safe-area-x">
+      <DriverTopBar
+        driverName={driverName}
+        busName={vehicle.name}
+        left={activeTab !== "track" ? (
+          <Button variant="ghost" size="icon" className="min-w-[44px] min-h-[44px] -ml-1" onClick={goBack} aria-label="Back to Drive">
+            <ArrowLeft className="w-5 h-5" />
+          </Button>
+        ) : null}
+      />
+
+      <main className="flex-1 min-h-0 relative">
+        {/* Drive stays mounted so GPS tracking keeps running while another tab is open. */}
+        <section className={`absolute inset-0 p-3 ${activeTab === "track" ? "" : "invisible pointer-events-none"}`} aria-hidden={activeTab !== "track"}>
+          <DriverTrackingDashboard
+            session={session}
+            invoke={invoke}
+            onReportIncident={() => setIsReportOpen(true)}
+            panelTop={(
+              <>
+                {dueInspections.length > 0 && (
+                  <DueInspectionsBanner due={dueInspections} onStart={(t) => openInspection(t, { from: "unlock" })} />
+                )}
+                <ShiftCard session={session} invoke={invoke} refresh={refresh} beforeStart={() => beforeShift("start_shift")} beforeEnd={() => beforeShift("end_shift")} />
+              </>
             )}
-            <ShiftCard session={session} invoke={invoke} refresh={refresh} beforeStart={() => beforeShift("start_shift")} beforeEnd={() => beforeShift("end_shift")} />
-            <div className="h-4" />
-            <DriverTrackingDashboard session={session} invoke={invoke} driverName={driverName} onReportIncident={() => setIsReportOpen(true)} />
-            {session.trips?.length > 0 && (
-              <div className="mt-6">
-                <DriverTrips
-                  trips={session.trips}
-                  invoke={invoke}
-                  refresh={refresh}
-                  startSharing={() => invoke("start_tracking").catch(() => {})}
-                />
-              </div>
-            )}
-          </TabsContent>
-          <TabsContent value="navigate" className="mt-4">
-            <DriverNavMap session={session} invoke={invoke} />
-          </TabsContent>
-          <TabsContent value="chat" className="mt-4">
-            <DriverChats session={session} invoke={invoke} onUnreadChange={setHasUnreadChat} />
-          </TabsContent>
-          <TabsContent value="safety" className="mt-4 space-y-4">
-            <DriverInspectionList
-              templates={inspTemplates}
-              recent={recentInspections}
-              localDone={localDone}
-              onStart={(t) => openInspection(t, { from: "manual" })}
-            />
-            <SafetyStandardsContent />
-          </TabsContent>
-          <TabsContent value="profile" className="mt-4">
-            <DriverDevicePanel session={session} deviceId={deviceId} onUnpair={handleUnpair} />
-          </TabsContent>
-        </Tabs>
-      </div>
+            panelBottom={session.trips?.length > 0 ? (
+              <DriverTrips
+                trips={session.trips}
+                invoke={invoke}
+                refresh={refresh}
+                startSharing={() => invoke("start_tracking").catch(() => {})}
+              />
+            ) : null}
+          />
+        </section>
+        {activeTab !== "track" && (
+          <section className="absolute inset-0 overflow-y-auto overscroll-contain p-3 sm:p-4">
+            <div className="max-w-3xl mx-auto space-y-4">
+              {activeTab === "chat" && <DriverChats session={session} invoke={invoke} onUnreadChange={setHasUnreadChat} />}
+              {activeTab === "safety" && (
+                <>
+                  <DriverInspectionList
+                    templates={inspTemplates}
+                    recent={recentInspections}
+                    localDone={localDone}
+                    onStart={(t) => openInspection(t, { from: "manual" })}
+                  />
+                  <SafetyStandardsContent />
+                </>
+              )}
+              {activeTab === "profile" && <DriverDevicePanel session={session} deviceId={deviceId} onUnpair={handleUnpair} />}
+            </div>
+          </section>
+        )}
+      </main>
+
+      <nav className="shrink-0 grid grid-cols-4 border-t border-border bg-card/95 backdrop-blur safe-area-bottom" aria-label="Driver sections">
+        {DRIVER_TABS.map(({ id, label, icon: Icon }) => {
+          const active = activeTab === id;
+          return (
+            <button
+              key={id}
+              type="button"
+              onClick={() => selectTab(id)}
+              aria-current={active ? "page" : undefined}
+              className={`relative flex flex-col items-center justify-center gap-1 h-16 text-xs font-semibold transition-colors ${active ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}
+            >
+              {active && <span className="absolute top-0 inset-x-6 h-0.5 rounded-full bg-primary" aria-hidden="true" />}
+              <Icon className="w-6 h-6" aria-hidden="true" />
+              {label}
+              {id === "chat" && hasUnreadChat && <span className="absolute top-2.5 left-1/2 ml-2.5 w-2.5 h-2.5 rounded-full bg-destructive" aria-label="Unread messages" />}
+            </button>
+          );
+        })}
+      </nav>
+
       <DriverMessageAlert alert={alert} onAcknowledge={() => setAlert(null)} onReply={handleAlertReply} />
       <NewCheckInAlert checkIn={checkInAlert} onDismiss={() => setCheckInAlert(null)} />
       <SentInspectionPrompt pending={sentPending} onStart={(t) => openInspection(t, { from: "unlock" })} />
