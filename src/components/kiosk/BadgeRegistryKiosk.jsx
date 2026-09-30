@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ChevronLeft, CreditCard, CheckCircle2, Search, Hash, UserPlus } from "lucide-react";
-import { useNfcTap } from "@/hooks/useNfcTap";
+import { useNfcTap, reportBadgeResult } from "@/hooks/useNfcTap";
 
 function Screen({ modeKey, className = "", children }) {
   return (
@@ -53,7 +53,9 @@ export default function BadgeRegistryKiosk({ invoke, onAddStaff }) {
     try {
       await invoke("register_badge", { staff_id: selected.id, card_tag: tag });
       setMode("done");
+      reportBadgeResult(true);
     } catch {
+      reportBadgeResult(false);
       setRegisterError("Couldn't register that badge — try tapping it again.");
     } finally {
       setBusy(false);
