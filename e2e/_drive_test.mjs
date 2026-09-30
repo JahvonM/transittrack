@@ -11,7 +11,7 @@ const staff = [{ id: "s1", full_name: "Ana Joseph", email: "a@x.com", home_lat: 
 const trips = [{ id: "t1", status: "scheduled", scheduled_time: new Date(Date.now() + 3600e3).toISOString(), pickup_name: "Market Square", dropoff_name: "Grand Anse", passenger_name: "Visitor group" }];
 const templates = [{ id: "t1", name: "Driver pre-trip walk-around", driver_trigger: "start_of_day", driver_days: [], driver_required: true, sections: [{ section_name: "A", items: [{ item_name: "Tyres" }] }] }];
 
-const sizes = process.env.ONE ? [["tablet_landscape", 1280, 800]] : [["tablet_landscape", 1280, 800], ["tablet_portrait", 800, 1280], ["phone", 390, 844]];
+const sizes = process.env.ONE ? [["tablet_landscape", 1280, 800]] : [["tablet_landscape", 1280, 800], ["tablet_landscape_browserbars", 1280, 720], ["tablet_portrait", 800, 1280], ["tablet_portrait_browserbars", 800, 1200]];
 const browser = await chromium.launch({ args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"] });
 for (const [label, w, h] of sizes) {
   const ctx = await browser.newContext({ viewport: { width: w, height: h }, geolocation: { latitude: 12.1286, longitude: -61.7483 }, permissions: ["geolocation"] });
@@ -39,6 +39,8 @@ for (const [label, w, h] of sizes) {
   const vis = async (loc) => { const b = await loc.first().boundingBox().catch(() => null); return !!b && b.y >= 0 && b.y + b.height <= h + 1 && b.height > 0; };
   const out = {};
   out.pageScrolls = await page.evaluate(() => document.documentElement.scrollHeight > window.innerHeight + 1);
+  out.panelScrolls = await page.evaluate(() => [...document.querySelectorAll('aside *')].some((el) => { const cs = getComputedStyle(el); return /(auto|scroll)/.test(cs.overflowY) && el.scrollHeight > el.clientHeight + 1; }));
+  out.pickupsShown = await page.locator('aside').getByRole('button', { name: /more|See all/ }).allInnerTexts().then((t) => t.join(' | '));
   const mapBox = await page.locator("canvas.mapboxgl-canvas, .leaflet-container").first().boundingBox();
   out.mapSize = mapBox ? `${Math.round(mapBox.width)}x${Math.round(mapBox.height)}` : "none";
   out.startTrackingOnScreen = await vis(page.getByRole("button", { name: /Start tracking/ }));

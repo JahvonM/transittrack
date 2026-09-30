@@ -372,13 +372,14 @@ export default function DriverApp() {
             panelTop={(
               <>
                 {dueInspections.length > 0 && (
-                  <DueInspectionsBanner due={dueInspections} onStart={(t) => openInspection(t, { from: "unlock" })} />
+                  <DueInspectionsBanner compact due={dueInspections} onStart={(t) => openInspection(t, { from: "unlock" })} />
                 )}
-                <ShiftCard session={session} invoke={invoke} refresh={refresh} beforeStart={() => beforeShift("start_shift")} beforeEnd={() => beforeShift("end_shift")} />
+                <ShiftCard compact session={session} invoke={invoke} refresh={refresh} beforeStart={() => beforeShift("start_shift")} beforeEnd={() => beforeShift("end_shift")} />
               </>
             )}
             panelBottom={session.trips?.length > 0 ? (
               <DriverTrips
+                compact
                 trips={session.trips}
                 invoke={invoke}
                 refresh={refresh}
