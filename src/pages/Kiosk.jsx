@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import BusLoader from "@/components/BusLoader";
 import { base44 } from "@/api/base44Client";
-import { Bus, Building2, DoorOpen, CreditCard, CheckCircle2, AlertCircle } from "lucide-react";
+import { Bus, Building2, DoorOpen, CreditCard, CheckCircle2, AlertCircle, WifiOff } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -268,6 +268,21 @@ export default function Kiosk() {
           {device?.kiosk_type === "front_desk" && <FrontDeskKiosk invoke={invoke} />}
         </div>
       </div>
+    </div>
+  );
+}
+
+function OfflineChip({ savedList }) {
+  const updated = savedList?.updated ? new Date(savedList.updated) : null;
+  const time = updated && !Number.isNaN(updated.getTime())
+    ? updated.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
+    : null;
+  return (
+    <div role="status" className="fixed bottom-3 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 rounded-full bg-amber-500 text-black px-4 py-2 text-sm font-semibold shadow-lg">
+      <WifiOff className="w-4 h-4" />
+      {savedList?.count
+        ? `Offline - using saved list${time ? `, updated ${time}` : ""}. Check-ins will sync.`
+        : "Offline - check-ins will sync when WiFi is back."}
     </div>
   );
 }
