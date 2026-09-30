@@ -32,6 +32,7 @@ await ctx.route("**/api/**", async (r) => {
     }
     if (body.action === "verify") return r.fulfill({ json: { ok: true, uid: body.uid, owner: body.uid === "04AA11BB22CC33" ? { name: "Kevin Paul", card: cards[0] } : null } });
     if (body.action === "revoke") return r.fulfill({ json: { ok: true } });
+    if (body.action === "keypad_code") { const p = people.find((x) => x.key === body.person_key); p.access_code = "48213"; return r.fulfill({ json: { ok: true, code: "48213" } }); }
     return r.fulfill({ json: {} });
   }
   if (url.includes("/entities/User/me")) return r.fulfill({ json: { id: "u1", email: "a@x.com", full_name: "Ana Admin", role: "admin" } });
@@ -95,6 +96,14 @@ await tap("04CC33DD44EE55");
 await page.waitForTimeout(1200);
 out.tapIgnoredWhenIdle = calls.filter((c) => c.action === "issue").length === before;
 
+// Keypad code for a staff member
+await page.getByRole("tab", { name: "Issue a card" }).click().catch(() => {});
+await page.getByRole("button", { name: /Kevin Paul/ }).click();
+await page.getByRole("button", { name: "Give code" }).click();
+await page.waitForTimeout(1200);
+out.keypadCodeShown = await page.getByText("48213").first().isVisible().catch(() => false);
+await page.getByRole("button", { name: /Marcus Reid/ }).click();
+out.noKeypadForDriver = !(await page.getByRole("button", { name: /Give code|New code/ }).isVisible().catch(() => false));
 // Check a card
 await page.getByRole("tab", { name: "Check a card" }).click();
 await tap("04AA11BB22CC33");

@@ -68,6 +68,10 @@ r = await call({ action: "issue", person_key: "user:u1", uid: "12" });
 out.badUid = `${r.ok} ${r.code}`;
 r = await call({ action: "add_holder", full_name: "Tom Inspector", role: "Inspector", employee_id: "INS-9", company_id: "c1" });
 out.addHolder = `${r.ok} ${r.holder?.role} ${r.holder?.company_name}`;
+r = await call({ action: "keypad_code", person_key: "contact:s1" });
+out.keypadForStaff = r.ok + " " + r.code + " saved=" + (db.Contact[0].access_code === r.code) + " 5digits=" + /^[0-9]{5}$/.test(r.code);
+r = await call({ action: "keypad_code", person_key: "driver:d1" });
+out.keypadForDriverRefused = r.status + " " + r.error;
 // company manager of c2 only sees c2 people and can't issue to c1 people
 me = db.User.find((u) => u.id === "m9");
 r = await call({ action: "people" });
