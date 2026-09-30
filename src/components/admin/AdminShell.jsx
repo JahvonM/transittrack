@@ -27,6 +27,7 @@ import {
   Timer,
   ScrollText,
   PackageSearch,
+  CreditCard,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -45,6 +46,7 @@ export const ADMIN_SECTIONS = [
   { id: "drivers", label: "Drivers", icon: Car, group: "Fleet Operations" },
   { id: "kiosks", label: "Kiosk tablets", icon: Smartphone, group: "Fleet Operations" },
   { id: "shifts", label: "Driver shifts", icon: Timer, group: "Fleet Operations" },
+  { id: "cards", label: "Card issuing", icon: CreditCard, group: "Fleet Operations" },
 
   { id: "service", label: "Service Queue", icon: Wrench, group: "Maintenance" },
   { id: "faults", label: "Faults", icon: AlertTriangle, group: "Maintenance" },
