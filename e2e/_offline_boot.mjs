@@ -78,12 +78,12 @@ await page.screenshot({ path: shotDir + "/off_kiosk.png" });
 // Slide to unlock, then tap a card.
 const slider = page.getByText("Slide to check in").first();
 const box = await (await slider.elementHandle()).evaluate((el) => {
-  let n = el; for (let i = 0; i < 4 && n.parentElement; i++) n = n.parentElement;
+  const n = el.parentElement;
   const r = n.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height };
 });
-await page.mouse.move(box.x + 30, box.y + box.h / 2);
+await page.mouse.move(box.x + 36, box.y + box.h / 2);
 await page.mouse.down();
-for (let i = 1; i <= 20; i++) await page.mouse.move(box.x + 30 + (box.w - 40) * i / 20, box.y + box.h / 2);
+for (let i = 1; i <= 20; i++) await page.mouse.move(box.x + 36 + (box.w - 40) * i / 20, box.y + box.h / 2);
 await page.mouse.up();
 await page.waitForTimeout(800);
 await page.evaluate(() => window.dispatchEvent(new CustomEvent("tt-badge", { detail: "04:a1:b2:c3" })));
