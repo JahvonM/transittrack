@@ -2,13 +2,21 @@ import React, { useEffect, useState } from "react";
 import { CloudOff, CloudUpload } from "lucide-react";
 import { JOBS_EVENT, flushJobs, pendingJobs } from "@/lib/offlineJobs";
 
-// Small pill shown while inspections are waiting on this device to upload.
+// Small pill shown while work saved offline (inspections, shift start/end)
+// is waiting on this device to upload.
+const nounFor = (jobs) => {
+  const n = jobs.length;
+  if (jobs.every((j) => String(j.kind).includes("inspection"))) return `${n} inspection${n === 1 ? "" : "s"}`;
+  if (jobs.every((j) => j.kind === "driver_shift")) return `${n} shift update${n === 1 ? "" : "s"}`;
+  return `${n} saved item${n === 1 ? "" : "s"}`;
+};
 export default function OfflineJobsBanner() {
-  const [count, setCount] = useState(() => pendingJobs().length);
+  const [jobs, setJobs] = useState(() => pendingJobs());
+  const count = jobs.length;
   const [online, setOnline] = useState(() => (typeof navigator === "undefined" ? true : navigator.onLine));
 
   useEffect(() => {
-    const refresh = () => setCount(pendingJobs().length);
+    const refresh = () => setJobs(pendingJobs());
     const up = () => { setOnline(true); refresh(); };
     const down = () => setOnline(false);
     window.addEventListener(JOBS_EVENT, refresh);
@@ -33,7 +41,7 @@ export default function OfflineJobsBanner() {
       role="status"
     >
       <Icon className="w-4 h-4 text-primary" aria-hidden="true" />
-      {count} inspection{count === 1 ? "" : "s"} {online ? "uploading…" : "waiting for signal"}
+      {nounFor(jobs)} {online ? "uploading…" : "waiting for signal"}
     </button>
   );
 }
