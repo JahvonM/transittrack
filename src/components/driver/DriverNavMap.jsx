@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Map, { Marker, Source, Layer } from "react-map-gl";
+import LiteMap from "@/components/LiteMap";
+import { mapEngine, markFullMapFailed } from "@/lib/mapEngine";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { MAPBOX_TOKEN, mapStyleFor, mapAccentFor, GPS_INTERVAL_MS } from "@/lib/mapbox";
 import { useIsDark } from "@/lib/useTheme";
@@ -87,6 +89,7 @@ export default function DriverNavMap({ session, invoke }) {
   const watchId = useRef(null);
   const lastPush = useRef(0);
   const mapRef = useRef(null);
+  const [basicMap, setBasicMap] = useState(() => mapEngine() === "basic");
   // Nav-mode camera follow, like CarPlay/Google Maps: the map recenters on
   // every new GPS fix by default. Manually dragging the map turns this off
   // (so the driver can look around) until they tap recenter again.
@@ -223,9 +226,10 @@ export default function DriverNavMap({ session, invoke }) {
     // chain the initial map view already uses, so the button always does
     // something as long as we know roughly where the bus is.
     const target = pos || (vehicle?.current_lat != null ? { lat: vehicle.current_lat, lng: vehicle.current_lng } : null);
-    if (!map || !target) return;
+    if (!target) return;
     following.current = true;
     setIsFollowing(true);
+    if (!map) return; // the basic map follows by itself once isFollowing is on
     map.flyTo({ center: [target.lng, target.lat], zoom: Math.max(map.getZoom(), 15), duration: 800 });
   };
   const trail = liveVehicle?.trail || vehicle?.trail || [];
@@ -270,37 +274,59 @@ export default function DriverNavMap({ session, invoke }) {
         />
       )}
       <div className="relative rounded-2xl overflow-hidden border h-[72vh]">
-        <Map
-          ref={mapRef} mapboxAccessToken={MAPBOX_TOKEN} mapStyle={mapStyleFor(isDark)}
-          initialViewState={{ longitude: pos?.lng ?? vehicle?.current_lng ?? -61.7, latitude: pos?.lat ?? vehicle?.current_lat ?? 12.05, zoom: 15 }}
-          style={{ width: "100%", height: "100%" }} attributionControl={false}
-          onLoad={(e) => hidePoiLayers(e.target)}
-          onDrag={() => { following.current = false; setIsFollowing(false); }}
-        >
-          {trail.length > 1 && (
-            <Source id="driver-trail" type="geojson" data={{ type: "Feature", geometry: { type: "LineString", coordinates: trail.filter((p) => p.lat != null && p.lng != null).map((p) => [p.lng, p.lat]) } }}>
-              <Layer id="driver-trail-line" type="line" paint={{ "line-color": accent, "line-width": 4, "line-opacity": 0.5 }} />
-            </Source>
-          )}
-          {navRoute?.geometry?.length > 0 && (
-            <Source id="path-to-next-stop" type="geojson" data={{ type: "Feature", geometry: { type: "LineString", coordinates: navRoute.geometry } }}>
-              <Layer id="path-to-next-stop-line" type="line" paint={{ "line-color": accent, "line-width": 5, "line-opacity": 0.85 }} />
-            </Source>
-          )}
-          {smoothPos && (
-            <>
-              <AccuracyHalo sourceId="driver-accuracy" lat={smoothPos.lat} lng={smoothPos.lng} accuracy={pos?.accuracy} color={accent} />
-              <Marker longitude={smoothPos.lng} latitude={smoothPos.lat} anchor="center">
-                <MapBusPin model={modelIdFor(vehicle)} color={accent} driving heading={heading} />
+        {basicMap ? (
+          <LiteMap
+            fill
+            followUser={isFollowing}
+            showUserDot={false}
+            showRecenter={false}
+            onDragStart={() => { following.current = false; setIsFollowing(false); }}
+            userLocation={smoothPos || (vehicle?.current_lat != null ? { lat: vehicle.current_lat, lng: vehicle.current_lng } : null)}
+            vehicles={smoothPos || vehicle?.current_lat != null ? [{
+              id: "self", name: vehicle?.name, marker_label: "",
+              current_lat: smoothPos?.lat ?? vehicle.current_lat, current_lng: smoothPos?.lng ?? vehicle.current_lng,
+              marker_color: accent, marker_size: 40, marker_heading: heading ?? null,
+            }] : []}
+            stops={nextStop ? [{ ...nextStop, color: "#10b981" }] : []}
+            lines={[
+              { coords: trail.filter((p) => p.lat != null && p.lng != null).map((p) => [p.lng, p.lat]), color: accent, width: 4, opacity: 0.5 },
+              { coords: navRoute?.geometry || [], color: accent, width: 5, opacity: 0.85 },
+            ]}
+          />
+        ) : (
+          <Map
+            ref={mapRef} mapboxAccessToken={MAPBOX_TOKEN} mapStyle={mapStyleFor(isDark)}
+            initialViewState={{ longitude: pos?.lng ?? vehicle?.current_lng ?? -61.7, latitude: pos?.lat ?? vehicle?.current_lat ?? 12.05, zoom: 15 }}
+            style={{ width: "100%", height: "100%" }} attributionControl={false}
+            onLoad={(e) => hidePoiLayers(e.target)}
+            onError={(e) => { if (/webgl/i.test(e?.error?.message || "")) { markFullMapFailed(); setBasicMap(true); } }}
+            onDrag={() => { following.current = false; setIsFollowing(false); }}
+          >
+            {trail.length > 1 && (
+              <Source id="driver-trail" type="geojson" data={{ type: "Feature", geometry: { type: "LineString", coordinates: trail.filter((p) => p.lat != null && p.lng != null).map((p) => [p.lng, p.lat]) } }}>
+                <Layer id="driver-trail-line" type="line" paint={{ "line-color": accent, "line-width": 4, "line-opacity": 0.5 }} />
+              </Source>
+            )}
+            {navRoute?.geometry?.length > 0 && (
+              <Source id="path-to-next-stop" type="geojson" data={{ type: "Feature", geometry: { type: "LineString", coordinates: navRoute.geometry } }}>
+                <Layer id="path-to-next-stop-line" type="line" paint={{ "line-color": accent, "line-width": 5, "line-opacity": 0.85 }} />
+              </Source>
+            )}
+            {smoothPos && (
+              <>
+                <AccuracyHalo sourceId="driver-accuracy" lat={smoothPos.lat} lng={smoothPos.lng} accuracy={pos?.accuracy} color={accent} />
+                <Marker longitude={smoothPos.lng} latitude={smoothPos.lat} anchor="center">
+                  <MapBusPin model={modelIdFor(vehicle)} color={accent} driving heading={heading} />
+                </Marker>
+              </>
+            )}
+            {nextStop && (
+              <Marker longitude={nextStop.lng} latitude={nextStop.lat} anchor="center">
+                <div className="w-5 h-5 rounded-full bg-emerald-500 border-2 border-white shadow" />
               </Marker>
-            </>
-          )}
-          {nextStop && (
-            <Marker longitude={nextStop.lng} latitude={nextStop.lat} anchor="center">
-              <div className="w-5 h-5 rounded-full bg-emerald-500 border-2 border-white shadow" />
-            </Marker>
-          )}
-        </Map>
+            )}
+          </Map>
+        )}
         <div className="absolute top-4 left-4 right-4 z-10 space-y-2">
           <div className="rounded-2xl border border-border bg-card/95 backdrop-blur-md shadow-xl px-4 py-3.5 flex items-center gap-3">
             <div className={`w-11 h-11 rounded-full grid place-items-center shrink-0 ${currentStep?.type === "arrive" ? "bg-emerald-500" : "bg-primary"}`}>

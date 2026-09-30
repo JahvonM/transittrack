@@ -64,6 +64,9 @@ export default function MapboxMap({
   // Arbitrary standalone point markers (e.g. staff pickup locations) —
   // unlike `stops`, these do NOT get connected by a route line.
   pins = [],
+  // Called if the map engine can't start on this device (no WebGL), so the
+  // wrapper can swap in the basic map.
+  onEngineFail,
 }) {
   const mapRef = useRef(null);
   const hasFitted = useRef(false);
@@ -253,6 +256,7 @@ export default function MapboxMap({
         interactive={interactive}
         attributionControl={false}
         onLoad={(e) => { setMapLoaded(true); declutterStyle(e.target); }}
+        onError={(e) => { if (/webgl/i.test(e?.error?.message || "")) onEngineFail?.(); }}
         onClick={() => setSelectedVehicle(null)}
         onDrag={followUser ? () => { following.current = false; setIsFollowing(false); } : undefined}
       >
