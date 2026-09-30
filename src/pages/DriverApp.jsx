@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import BusLoader from "@/components/BusLoader";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { useDriverSession } from "@/hooks/useDriverSession";
+import { useDriverSession, clearDriverSessionCache } from "@/hooks/useDriverSession";
+import { shiftAction } from "@/lib/driverShift";
 import { getFcmToken } from "@/lib/firebase";
 import { useKeepAwake } from "@/hooks/useKeepAwake";
 import DriverPairing from "@/components/driver/DriverPairing";
@@ -47,7 +48,7 @@ export default function DriverApp() {
   const [activeTab, setActiveTab] = useState(() => tabFromStage(urlStage) || "track");
   // Follow the URL (e.g. "Continue" after an inspection goes to /driver/track).
   useEffect(() => { const t = tabFromStage(urlStage); if (t) setActiveTab(t); }, [urlStage]);
-  const { session, loading, invoke, refresh } = useDriverSession(deviceId);
+  const { session, loading, offline, invoke, refresh } = useDriverSession(deviceId);
   const [localDone, setLocalDone] = useState(readLocalDone);
 
   // Driver tablets are mounted and always powered — keep the screen on so
@@ -230,8 +231,11 @@ export default function DriverApp() {
     if (next.length) { openInspection(next[0], { then, from }); return; }
     if (then) {
       try {
-        await invoke(then);
-        toast({ title: then === "start_shift" ? "Shift started" : "Shift ended", description: then === "start_shift" ? "Have a safe drive." : "Your hours have been saved." });
+        const res = await shiftAction(invoke, then);
+        toast({
+          title: then === "start_shift" ? "Shift started" : "Shift ended",
+          description: res.queued ? "No connection - it will be saved when WiFi is back." : then === "start_shift" ? "Have a safe drive." : "Your hours have been saved.",
+        });
         refresh?.();
       } catch {
         toast({ title: then === "start_shift" ? "Couldn't start the shift" : "Couldn't end the shift", description: "Tap the shift button to try again.", variant: "destructive" });
@@ -241,7 +245,7 @@ export default function DriverApp() {
   };
 
   const handlePaired = (id) => { localStorage.setItem("tt_driver_device_id", id); setDeviceId(id); };
-  const handleUnpair = () => { localStorage.removeItem("tt_driver_device_id"); localStorage.removeItem("tt_driver_unlock_date"); setDeviceId(null); setUnlocked(false); navigate("/driver"); };
+  const handleUnpair = () => { clearDriverSessionCache(); localStorage.removeItem("tt_driver_device_id"); localStorage.removeItem("tt_driver_unlock_date"); setDeviceId(null); setUnlocked(false); navigate("/driver"); };
 
   // Handler to submit the incident report via the driver-session backend function.
   // (A direct base44.entities.Incident.create() call from here would be rejected —
@@ -359,6 +363,11 @@ export default function DriverApp() {
           <Button variant="ghost" size="icon" className="min-w-[44px] min-h-[44px] -ml-1" onClick={goBack} aria-label="Back to Drive">
             <ArrowLeft className="w-5 h-5" />
           </Button>
+        ) : null}
+        right={offline ? (
+          <span role="status" className="flex items-center gap-1.5 rounded-full bg-amber-500 text-black px-3 py-1 text-xs font-semibold shrink-0">
+            <WifiOff className="w-3.5 h-3.5" /> Offline
+          </span>
         ) : null}
       />
 
