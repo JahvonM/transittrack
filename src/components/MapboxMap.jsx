@@ -1,9 +1,12 @@
-import React, { Suspense, lazy } from "react";
+import React, { Suspense, lazy, useState } from "react";
 import { MapPin } from "lucide-react";
+import { mapEngine, markFullMapFailed } from "@/lib/mapEngine";
 
 // The map engine (mapbox-gl) is ~1.8 MB, so it loads in the background after
 // the page around it has rendered, instead of holding the whole screen back.
 const MapboxMapImpl = lazy(() => import("@/components/MapboxMapImpl"));
+// Devices without WebGL 2 (common on budget tablets) get the basic map.
+const LiteMap = lazy(() => import("@/components/LiteMap"));
 
 export { statusColor } from "@/lib/vehicleStatus";
 
@@ -16,9 +19,14 @@ function MapPlaceholder() {
 }
 
 export default function MapboxMap(props) {
+  const [basic, setBasic] = useState(() => mapEngine() === "basic");
   return (
     <Suspense fallback={<MapPlaceholder />}>
-      <MapboxMapImpl {...props} />
+      {basic ? (
+        <LiteMap {...props} />
+      ) : (
+        <MapboxMapImpl {...props} onEngineFail={() => { markFullMapFailed(); setBasic(true); }} />
+      )}
     </Suspense>
   );
 }
