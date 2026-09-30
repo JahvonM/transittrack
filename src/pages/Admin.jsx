@@ -68,6 +68,7 @@ import { loadFailed } from "@/lib/loadFailed";
 import BusLoader from "@/components/BusLoader";
 import ShiftsTab from "@/components/admin/ShiftsTab";
 import AuditLogTab from "@/components/admin/AuditLogTab";
+import CardIssuingTab from "@/components/admin/CardIssuingTab";
 import LostItemsTab from "@/components/admin/LostItemsTab";
 
 const ROLE_LINKS = [
@@ -484,6 +485,7 @@ export default function Admin() {
           <DriversTab drivers={drivers} vehicles={vehicles} companies={companies} routes={routes} onChange={load} />
         )}
         {section === "shifts" && <ShiftsTab />}
+        {section === "cards" && <CardIssuingTab companies={companies} />}
         {section === "audit" && <AuditLogTab />}
         {section === "lost-items" && <LostItemsTab />}
         {section === "companies" && <CompaniesTab companies={companies} onChange={load} />}
