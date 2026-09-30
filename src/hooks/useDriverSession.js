@@ -10,7 +10,12 @@ export function useDriverSession(deviceId, { intervalMs = 8000 } = {}) {
   const heartbeat = useCallback(async () => {
     if (!deviceId) return;
     try {
-      const res = await base44.functions.invoke("driverSession", { device_id: deviceId, action: "heartbeat" });
+      const first = !sentInfoRef.current;
+      sentInfoRef.current = true;
+      const res = await base44.functions.invoke("driverSession", {
+        device_id: deviceId, action: "heartbeat",
+        ...(first ? { device_info: deviceMapInfo() } : {}),
+      });
       setSession(res.data);
       setError(null);
     } catch (e) {

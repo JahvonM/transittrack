@@ -1,7 +1,9 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Map, { Marker, Source, Layer } from "react-map-gl";
-import LiteMap from "@/components/LiteMap";
 import { mapEngine, markFullMapFailed } from "@/lib/mapEngine";
+
+// Basic map for tablets without WebGL 2 — loaded only on those devices.
+const LiteMap = lazy(() => import("@/components/LiteMap"));
 import "mapbox-gl/dist/mapbox-gl.css";
 import { MAPBOX_TOKEN, mapStyleFor, mapAccentFor, GPS_INTERVAL_MS } from "@/lib/mapbox";
 import { useIsDark } from "@/lib/useTheme";
@@ -275,6 +277,7 @@ export default function DriverNavMap({ session, invoke }) {
       )}
       <div className="relative rounded-2xl overflow-hidden border h-[72vh]">
         {basicMap ? (
+          <Suspense fallback={null}>
           <LiteMap
             fill
             followUser={isFollowing}
@@ -293,6 +296,7 @@ export default function DriverNavMap({ session, invoke }) {
               { coords: navRoute?.geometry || [], color: accent, width: 5, opacity: 0.85 },
             ]}
           />
+          </Suspense>
         ) : (
           <Map
             ref={mapRef} mapboxAccessToken={MAPBOX_TOKEN} mapStyle={mapStyleFor(isDark)}
