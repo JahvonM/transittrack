@@ -255,22 +255,30 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
   const smoothPos = useSmoothPosition(pos?.lat, pos?.lng, { duration: 1000 });
   const heading = useBearing(pos?.lat, pos?.lng);
 
+  // GPS + connection status: in the header normally, floating on the map
+  // on the Drive screen (where the top bar already names the bus).
+  const statusBadges = (
+    <div className="flex items-center gap-2">
+      <span className={`text-xs px-2 py-0.5 rounded-full border inline-flex items-center gap-1 ${
+        gpsStatus === "locked" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30" : gpsStatus === "low" ? "bg-amber-500/10 text-amber-400 border-amber-500/30" : "bg-muted text-muted-foreground border-border"
+      }`}>
+        <Satellite className="w-3 h-3" />
+        {gpsStatus === "locked" ? "GPS locked" : gpsStatus === "low" ? "Low signal" : "Searching…"}
+      </span>
+      <OfflineStatusBadge online={online} pendingCount={pendingCount} />
+    </div>
+  );
+
   return (
     <div className={fill ? "h-full min-h-0 flex flex-col gap-2" : "space-y-3"}>
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <div className="flex items-center gap-2 font-heading font-semibold text-sm">
-          <Bus className="w-4 h-4 text-primary" /> {vehicle?.name}
+      {!fill && (
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div className="flex items-center gap-2 font-heading font-semibold text-sm">
+            <Bus className="w-4 h-4 text-primary" /> {vehicle?.name}
+          </div>
+          {statusBadges}
         </div>
-        <div className="flex items-center gap-2">
-          <span className={`text-xs px-2 py-0.5 rounded-full border inline-flex items-center gap-1 ${
-            gpsStatus === "locked" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30" : gpsStatus === "low" ? "bg-amber-500/10 text-amber-400 border-amber-500/30" : "bg-muted text-muted-foreground border-border"
-          }`}>
-            <Satellite className="w-3 h-3" />
-            {gpsStatus === "locked" ? "GPS locked" : gpsStatus === "low" ? "Low signal" : "Searching…"}
-          </span>
-          <OfflineStatusBadge online={online} pendingCount={pendingCount} />
-        </div>
-      </div>
+      )}
       {route?.stops?.length > 1 && pos && (
         <TripProgress
           stops={orderedStops}
@@ -376,6 +384,7 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
             </div>
           )}
         </div>
+        {fill && <div className="absolute left-3 bottom-8 z-10 [&>div]:flex-wrap">{statusBadges}</div>}
         <button
           type="button"
           onClick={recenter}

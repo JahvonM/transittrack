@@ -5,7 +5,8 @@ import { Siren, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 
-export default function SosButton({ vehicle, invoke }) {
+// compact: a single-row button for the Drive screen side panel.
+export default function SosButton({ vehicle, invoke, compact = false }) {
   const [holding, setHolding] = useState(false);
   const [fired, setFired] = useState(!!vehicle && vehicle.status === "emergency");
   const [contacts, setContacts] = useState(null); // { boss_phone, secretary_phone } once loaded
@@ -77,15 +78,24 @@ export default function SosButton({ vehicle, invoke }) {
       <button
         onMouseDown={startHold} onMouseUp={cancelHold} onMouseLeave={cancelHold}
         onTouchStart={startHold} onTouchEnd={cancelHold} disabled={fired || cooldown}
-        className={`w-full rounded-2xl border-2 border-destructive/40 py-5 flex flex-col items-center gap-1 transition-all ${
+        className={`w-full rounded-2xl border-2 border-destructive/40 ${compact ? "py-3 px-4 flex flex-row items-center justify-center gap-3 text-left" : "py-5 flex flex-col items-center gap-1"} transition-all ${
           holding ? "bg-destructive scale-95" : fired ? "bg-destructive/20" : "bg-destructive/10 hover:bg-destructive/20"
         }`}
       >
-        <Siren className={`w-8 h-8 text-destructive ${holding ? "animate-ping" : ""}`} />
+        <Siren className={`${compact ? "w-7 h-7" : "w-8 h-8"} text-destructive shrink-0 ${holding ? "animate-ping" : ""}`} />
+        {compact ? (
+          <span className="flex flex-col">
+            <span className="font-bold text-destructive leading-tight">{fired ? "SOS SENT" : holding ? "HOLD…" : "SOS"}</span>
+            <span className="text-xs text-muted-foreground">
+              {fired ? "Admin notified" : cooldown ? "Available again shortly…" : "Press and hold to activate"}
+            </span>
+          </span>
+        ) : (<>
         <span className="font-bold text-destructive">{fired ? "SOS SENT" : holding ? "HOLD…" : "SOS"}</span>
         <span className="text-xs text-muted-foreground">
           {fired ? "Admin notified · alert management below" : cooldown ? "Just cancelled — available again shortly…" : "Press and hold to activate"}
         </span>
+        </>)}
       </button>
       {fired && (
         <div className="space-y-2">

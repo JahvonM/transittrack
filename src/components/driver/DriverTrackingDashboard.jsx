@@ -225,7 +225,7 @@ export default function DriverTrackingDashboard({ session, invoke, onReportIncid
         </div>
 
         <div className="shrink-0">
-          <SosButton vehicle={liveVehicle} invoke={invoke} />
+          <SosButton vehicle={liveVehicle} invoke={invoke} compact />
         </div>
       </aside>
     </div>
