@@ -1,11 +1,14 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
+import { deviceMapInfo } from "@/lib/mapEngine";
 
 export function useDriverSession(deviceId, { intervalMs = 8000 } = {}) {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const timerRef = useRef(null);
+  // The first heartbeat also reports how this tablet draws maps.
+  const sentInfoRef = useRef(false);
 
   const heartbeat = useCallback(async () => {
     if (!deviceId) return;
