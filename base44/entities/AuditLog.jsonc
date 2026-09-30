@@ -16,7 +16,11 @@
       "enum": [
         "create",
         "update",
-        "delete"
+        "delete",
+        "card_programmed",
+        "card_verified",
+        "card_rejected",
+        "card_revoked"
       ]
     },
     "entity": {
@@ -26,21 +30,25 @@
       "type": "string"
     },
     "summary": {
-      "type": "string",
-      "description": "Human-readable label of the record, e.g. its name."
+      "type": "string"
     },
     "changes": {
-      "type": "string",
-      "description": "JSON of the fields that were set (values clipped)."
+      "type": "string"
     },
     "page": {
       "type": "string"
+    },
+    "card_uid": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "SUCCESS",
+        "ERROR"
+      ]
     }
   },
-  "required": [
-    "action",
-    "entity"
-  ],
   "rls": {
     "read": {
       "user_condition": {
@@ -81,5 +89,6 @@
         "role": "admin"
       }
     }
-  }
+  },
+  "required": []
 }
