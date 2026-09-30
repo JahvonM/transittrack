@@ -39,7 +39,14 @@ export async function runDriverTemplateInspection(payload) {
   return res.data;
 }
 
+// Shift start/end made with no signal; carries the time it really happened.
+export async function runDriverShift(payload) {
+  const res = await base44.functions.invoke("driverSession", payload);
+  return res.data;
+}
+
 export function installOfflineRunners() {
+  registerRunner("driver_shift", runDriverShift);
   registerRunner("mechanic_inspection", runMechanicInspection);
   registerRunner("driver_inspection", runDriverInspection);
   registerRunner("driver_template_inspection", runDriverTemplateInspection);
