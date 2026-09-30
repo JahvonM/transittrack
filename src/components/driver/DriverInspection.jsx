@@ -58,16 +58,16 @@ const STATUS_CHIP = {
 };
 
 // Home-screen nudge for inspections that are due now.
-export function DueInspectionsBanner({ due = [], onStart }) {
+export function DueInspectionsBanner({ due = [], onStart, compact = false }) {
   if (!due.length) return null;
   return (
-    <div className="rounded-2xl border border-primary/40 bg-primary/10 p-4 flex flex-wrap items-center gap-3">
-      <div className="w-10 h-10 rounded-xl bg-primary text-primary-foreground grid place-items-center shrink-0">
+    <div className={`rounded-2xl border border-primary/40 bg-primary/10 flex items-center gap-3 ${compact ? "p-3" : "p-4 flex-wrap"}`}>
+      <div className={`${compact ? "w-9 h-9" : "w-10 h-10"} rounded-xl bg-primary text-primary-foreground grid place-items-center shrink-0`}>
         <ScanLine className="w-5 h-5" />
       </div>
-      <div className="flex-1 min-w-[180px]">
-        <p className="font-semibold">{due.length === 1 ? `${due[0].name} is due` : `${due.length} inspections are due`}</p>
-        <p className="text-sm text-muted-foreground">
+      <div className={compact ? "flex-1 min-w-0" : "flex-1 min-w-[180px]"}>
+        <p className="font-semibold truncate">{due.length === 1 ? (compact ? "Inspection due" : `${due[0].name} is due`) : `${due.length} inspections are due`}</p>
+        <p className="text-sm text-muted-foreground truncate">
           {due.some((t) => t.driver_required) ? "Please finish before you drive." : "Tap to start the walk-around."}
         </p>
       </div>
