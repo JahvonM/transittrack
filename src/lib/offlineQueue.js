@@ -9,16 +9,14 @@ function writeQueue(items) {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(items)); } catch { /* storage full/unavailable */ }
 }
 
-// A check-in only ever gets queued AFTER the person has already been
-// identified (lookup already succeeded against the server) — this never
-// caches anyone's raw badge tag or access code, just the already-resolved
-// action (staff_id/method/status), so a brief connectivity blip at the exact
-// moment of confirming boarding doesn't cost someone a redo or a missing
-// attendance record. It does NOT make identification itself work offline —
-// tapping/typing a fresh badge still needs a live lookup.
+// A check-in only ever gets queued AFTER the person has been identified
+// (live, or from the tablet's saved staff list in lib/kioskOffline) — the
+// queue holds just the resolved action (staff_id/method/status) plus when it
+// really happened, so the record keeps the right time when it syncs later.
 export function enqueueCheckIn(payload) {
   const queue = readQueue();
-  queue.push({ id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, payload, queued_at: new Date().toISOString() });
+  const now = new Date().toISOString();
+  queue.push({ id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, payload: { ...payload, occurred_at: payload.occurred_at || now }, queued_at: now });
   writeQueue(queue);
   return queue.length;
 }
