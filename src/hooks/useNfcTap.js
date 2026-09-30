@@ -1,22 +1,67 @@
 import { useEffect, useRef, useState } from "react";
 
-// Web NFC (NDEFReader) is Chrome-on-Android only, needs HTTPS and a user
-// gesture to start scanning — a real constraint for a kiosk tablet, but this
-// app's kiosks are already Android tablets, so it's a real option rather
-// than a dead end. We read the tag's hardware serialNumber as the badge's
-// identifier — that's present on every NFC card without needing it to be
-// pre-written with NDEF records, which is what makes cheap unformatted
-// cards work as badges out of the box.
+// Two ways a badge tap can arrive:
+//
+// 1. Web NFC (NDEFReader) — Chrome-on-Android only, needs HTTPS and a user
+//    gesture to start scanning. We read the tag's hardware serialNumber as the
+//    badge's identifier — that's present on every NFC card without needing it
+//    to be pre-written with NDEF records, which is what makes cheap
+//    unformatted cards work as badges out of the box.
+//
+// 2. An external USB reader (ACR122U) on a kiosk tablet. Web NFC can't see
+//    USB readers and doesn't run inside the kiosk app's WebView, so a small
+//    bridge program on the tablet reads the card and hands the UID to the page
+//    by firing a `tt-badge` window event (detail = UID hex string). The bridge
+//    also sets localStorage "tt_badge_reader" = "1" and fires
+//    `tt-badge-reader` so screens know a reader is attached and enable their
+//    "tap your badge" options. UIDs arrive in the same format as Web NFC's
+//    serialNumber (uppercase hex, no separators), so badges registered either
+//    way match.
+const EXTERNAL_READER_KEY = "tt_badge_reader";
+
+function hasExternalReader() {
+  try {
+    return typeof window !== "undefined" && window.localStorage.getItem(EXTERNAL_READER_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function normalizeTag(value) {
+  return String(value || "").replace(/[^0-9a-f]/gi, "").toUpperCase();
+}
+
 export function useNfcTap(onTag, active) {
-  const [supported] = useState(() => typeof window !== "undefined" && "NDEFReader" in window);
+  const [webNfc] = useState(() => typeof window !== "undefined" && "NDEFReader" in window);
+  const [external, setExternal] = useState(hasExternalReader);
   const [listening, setListening] = useState(false);
   const [nfcError, setNfcError] = useState("");
   const readerRef = useRef(null);
   const onTagRef = useRef(onTag);
   onTagRef.current = onTag;
 
+  // The bridge announces itself when it starts (and a tap also proves it's there).
   useEffect(() => {
-    if (!supported || !active) { setListening(false); return; }
+    const onReader = () => setExternal(true);
+    window.addEventListener("tt-badge-reader", onReader);
+    return () => window.removeEventListener("tt-badge-reader", onReader);
+  }, []);
+
+  // External USB reader taps — only acted on while this screen is listening,
+  // same as Web NFC, so a tap on a confirm/result screen doesn't re-trigger.
+  useEffect(() => {
+    const onBadge = (event) => {
+      setExternal(true);
+      if (!active) return;
+      const tag = normalizeTag(event?.detail);
+      if (tag) onTagRef.current?.(tag);
+    };
+    window.addEventListener("tt-badge", onBadge);
+    return () => window.removeEventListener("tt-badge", onBadge);
+  }, [active]);
+
+  useEffect(() => {
+    if (!webNfc || !active) { setListening(false); return; }
     let cancelled = false;
     // Without an AbortSignal, a scan started here keeps running (and
     // `onreading` keeps firing) even after this effect's cleanup runs —
@@ -32,16 +77,22 @@ export function useNfcTap(onTag, active) {
         setNfcError("");
         reader.onreading = (event) => {
           if (cancelled) return;
-          const tag = event.serialNumber && event.serialNumber.replace(/:/g, "").toUpperCase();
+          const tag = event.serialNumber && normalizeTag(event.serialNumber);
           if (tag) onTagRef.current?.(tag);
         };
         reader.onreadingerror = () => { if (!cancelled) setNfcError("Couldn't read that tag — try again."); };
       })
       .catch((e) => {
-        if (!cancelled) { setNfcError(e?.message || "NFC scan failed to start."); setListening(false); }
+        // On a kiosk with a USB reader, a Web NFC failure isn't worth showing.
+        if (!cancelled && !hasExternalReader()) { setNfcError(e?.message || "NFC scan failed to start."); }
+        if (!cancelled) setListening(false);
       });
     return () => { cancelled = true; controller.abort(); setListening(false); };
-  }, [supported, active]);
+  }, [webNfc, active]);
 
-  return { supported, listening, nfcError };
+  return {
+    supported: webNfc || external,
+    listening: listening || (!!active && external),
+    nfcError,
+  };
 }
