@@ -3,6 +3,7 @@ import { Clock, Play, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { confirmAction } from "@/components/ConfirmHost";
+import { shiftAction } from "@/lib/driverShift";
 
 function formatDuration(ms) {
   const mins = Math.max(0, Math.floor(ms / 60000));
@@ -35,10 +36,10 @@ export default function ShiftCard({ session, invoke, refresh, beforeStart, befor
     if (beforeStart?.()) return;
     setBusy(true);
     try {
-      const res = await invoke("start_shift");
+      const res = await shiftAction(invoke, "start_shift");
       setShift(res?.shift || null);
       setNow(Date.now());
-      toast({ title: "Shift started", description: "Have a safe drive." });
+      toast({ title: "Shift started", description: res?.queued ? "No connection - it will be saved when WiFi is back." : "Have a safe drive." });
       refresh?.();
     } catch {
       toast({ title: "Couldn't start the shift", description: "Check the connection and try again.", variant: "destructive" });
@@ -52,10 +53,15 @@ export default function ShiftCard({ session, invoke, refresh, beforeStart, befor
     if (beforeEnd?.()) return;
     setBusy(true);
     try {
-      const res = await invoke("end_shift");
-      const mins = res?.shift?.duration_minutes;
+      const res = await shiftAction(invoke, "end_shift");
+      const mins = res?.queued
+        ? (shift?.started_at ? (Date.now() - new Date(shift.started_at).getTime()) / 60000 : null)
+        : res?.shift?.duration_minutes;
       setShift(null);
-      toast({ title: "Shift ended", description: mins != null ? `Logged ${formatDuration(mins * 60000)}.` : undefined });
+      toast({
+        title: "Shift ended",
+        description: [mins != null ? `Logged ${formatDuration(mins * 60000)}.` : "", res?.queued ? "It will be saved when WiFi is back." : ""].filter(Boolean).join(" ") || undefined,
+      });
       refresh?.();
     } catch {
       toast({ title: "Couldn't end the shift", description: "Check the connection and try again.", variant: "destructive" });
