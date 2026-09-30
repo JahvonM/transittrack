@@ -219,8 +219,10 @@ export default function BusBoardingKiosk({ invoke, device }) {
       flushQueue(invoke).then((synced) => { if (synced) setPendingSyncCount(queueLength()); });
     };
     const t = setInterval(tryFlush, FLUSH_INTERVAL_MS);
+    // Also on open: check-ins saved offline before a restart go up right away.
+    const first = setTimeout(tryFlush, 3000);
     window.addEventListener("online", tryFlush);
-    return () => { clearInterval(t); window.removeEventListener("online", tryFlush); };
+    return () => { clearInterval(t); clearTimeout(first); window.removeEventListener("online", tryFlush); };
   }, [invoke]);
 
   // Vehicle + route power the nearest-stop line, the map backdrop, and the
