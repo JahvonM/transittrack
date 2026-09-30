@@ -47,7 +47,9 @@ b1 = header.rindex('      </div>')
 badges = header[b0:b1].rstrip()
 # drop one indent level from the badges block for use as a const
 badges_const = '\n'.join(ln[4:] if ln.startswith('    ') else ln for ln in badges.split('\n'))
-s = s[:h0] + '      {!fill && (\n' + '\n'.join('  ' + ln if ln else ln for ln in header.rstrip('\n').split('\n')) + '\n      )}\n' + s[h1:]
+header2 = header.replace(badges, '        {statusBadges}', 1)
+assert header2 != header
+s = s[:h0] + '      {!fill && (\n' + '\n'.join('  ' + ln if ln else ln for ln in header2.rstrip('\n').split('\n')) + '\n      )}\n' + s[h1:]
 anchor = '  return (\n    <div className={fill ? "h-full min-h-0 flex flex-col gap-2" : "space-y-3"}>'
 assert anchor in s
 s = s.replace(anchor, '''  // GPS + connection status: in the header normally, floating on the map
@@ -57,7 +59,6 @@ s = s.replace(anchor, '''  // GPS + connection status: in the header normally, f
   );
 
 ''' + anchor, 1)
-s = s.replace(header.rstrip('\n')[b0:b1].rstrip() if False else badges, '{statusBadges}', 1)
 old = '''        <button
           type="button"
           onClick={recenter}
