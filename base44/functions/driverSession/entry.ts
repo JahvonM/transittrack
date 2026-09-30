@@ -158,6 +158,15 @@ function sanitize(value) {
   return String(value).replace(/[\u0000-\u001F\u007F]/g, '').replace(/[<>]/g, '').trim();
 }
 
+// When a queued offline action really happened; anything implausible
+// (more than a minute ahead, or older than 3 days) falls back to now.
+function occurredAt(value) {
+  const t = value ? new Date(value).getTime() : NaN;
+  const now = Date.now();
+  if (!Number.isFinite(t) || t > now + 60_000 || t < now - 72 * 3600_000) return new Date(now);
+  return new Date(Math.min(t, now));
+}
+
 function haversineMeters(lat1, lng1, lat2, lng2) {
   const R = 6371000;
   const toRad = (d) => (d * Math.PI) / 180;
@@ -261,7 +270,7 @@ export default async function(req) {
         const shift = await base44.asServiceRole.entities.DriverShift.create({
           vehicle_id: vehicleId, vehicle_name: vehicle.name, company_id: companyId, company_name: companyName,
           driver_name: vehicle.driver_name || '', driver_email: vehicle.driver_email || '',
-          device_id, started_at: new Date().toISOString(),
+          device_id, started_at: occurredAt(body.occurred_at).toISOString(),
         });
         return Response.json({ shift });
       }
@@ -270,12 +279,14 @@ export default async function(req) {
         const open = (await base44.asServiceRole.entities.DriverShift.filter({ vehicle_id: vehicleId }, '-started_at', 5))
           .filter((s) => !s.ended_at);
         if (!open.length) return Response.json({ shift: null });
-        const now = new Date();
+        const endAt = occurredAt(body.occurred_at);
         const ended = [];
         for (const s of open) {
-          const minutes = Math.max(0, Math.round((now.getTime() - new Date(s.started_at).getTime()) / 60000));
+          const startMs = new Date(s.started_at).getTime();
+          const endMs = Math.max(endAt.getTime(), startMs || 0);
+          const minutes = Math.max(0, Math.round((endMs - startMs) / 60000));
           ended.push(await base44.asServiceRole.entities.DriverShift.update(s.id, {
-            ended_at: now.toISOString(), duration_minutes: minutes,
+            ended_at: new Date(endMs).toISOString(), duration_minutes: minutes,
             notes: typeof body.notes === 'string' ? body.notes.slice(0, 500) : s.notes,
           }));
         }
