@@ -79,7 +79,11 @@ const FAR_ANNOUNCE_M = 300;
 const NEAR_ANNOUNCE_M = 50;
 const ADVANCE_STEP_M = 25;
 
-export default function DriverNavMap({ session, invoke }) {
+// fill: take the parent's full height (the combined Drive screen).
+// pushLocation: send GPS to the server itself — off on the Drive screen,
+// where the tracking panel owns location sharing (and its Paused state).
+// pins: extra points such as staff pickup spots.
+export default function DriverNavMap({ session, invoke, fill = false, pushLocation: shouldPush = true, pins = [] }) {
   const isDark = useIsDark();
   const accent = mapAccentFor(isDark);
   const { online, pendingCount } = useOfflineSync();
@@ -116,13 +120,13 @@ export default function DriverNavMap({ session, invoke }) {
         if (p.coords.accuracy != null && p.coords.accuracy > 100) return;
         setPos({ lat: p.coords.latitude, lng: p.coords.longitude, accuracy: p.coords.accuracy });
         const now = Date.now();
-        if (now - lastPush.current >= GPS_INTERVAL_MS) { lastPush.current = now; pushLocation(p.coords.latitude, p.coords.longitude); }
+        if (shouldPush && now - lastPush.current >= GPS_INTERVAL_MS) { lastPush.current = now; pushLocation(p.coords.latitude, p.coords.longitude); }
       },
       () => {},
       { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
     );
     return () => { if (watchId.current != null) navigator.geolocation.clearWatch(watchId.current); };
-  }, [vehicleId, pushLocation]);
+  }, [vehicleId, pushLocation, shouldPush]);
 
   const orderedStops = useMemo(
     () => (route?.stops?.length ? [...route.stops].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)) : []),
@@ -252,7 +256,7 @@ export default function DriverNavMap({ session, invoke }) {
   const heading = useBearing(pos?.lat, pos?.lng);
 
   return (
-    <div className="space-y-3">
+    <div className={fill ? "h-full min-h-0 flex flex-col gap-2" : "space-y-3"}>
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="flex items-center gap-2 font-heading font-semibold text-sm">
           <Bus className="w-4 h-4 text-primary" /> {vehicle?.name}
@@ -275,7 +279,7 @@ export default function DriverNavMap({ session, invoke }) {
           label={route.name || "Your route"}
         />
       )}
-      <div className="relative rounded-2xl overflow-hidden border h-[72vh]">
+      <div className={`relative rounded-2xl overflow-hidden border ${fill ? "flex-1 min-h-[220px]" : "h-[72vh]"}`}>
         {basicMap ? (
           <Suspense fallback={null}>
           <LiteMap
@@ -291,6 +295,7 @@ export default function DriverNavMap({ session, invoke }) {
               marker_color: accent, marker_size: 40, marker_heading: heading ?? null,
             }] : []}
             stops={nextStop ? [{ ...nextStop, color: "#10b981" }] : []}
+            pins={pins}
             lines={[
               { coords: trail.filter((p) => p.lat != null && p.lng != null).map((p) => [p.lng, p.lat]), color: accent, width: 4, opacity: 0.5 },
               { coords: navRoute?.geometry || [], color: accent, width: 5, opacity: 0.85 },
@@ -324,6 +329,11 @@ export default function DriverNavMap({ session, invoke }) {
                 </Marker>
               </>
             )}
+            {pins.filter((p) => p.lat != null && p.lng != null).map((p, i) => (
+              <Marker key={`pin-${i}`} longitude={p.lng} latitude={p.lat} anchor="center">
+                <div className="w-3.5 h-3.5 rounded-full border-2 border-white shadow" style={{ backgroundColor: p.color || "#34d399" }} title={p.label} />
+              </Marker>
+            ))}
             {nextStop && (
               <Marker longitude={nextStop.lng} latitude={nextStop.lat} anchor="center">
                 <div className="w-5 h-5 rounded-full bg-emerald-500 border-2 border-white shadow" />
