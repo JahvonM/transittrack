@@ -1,11 +1,17 @@
 // GKD rule for TransitTrack kiosk tablets (bus boarding with a USB ACR122U reader).
-// After a restart, Android asks "Allow Termux:API to access <reader>?" before the
-// card-reader bridge can start. This rule makes GKD tap OK on that popup, so the
-// reader comes back by itself. Add it in GKD as a subscription with this file's URL.
+// After a restart, Android asks "Allow Termux:API to access ACR122U PICC Interface?"
+// before the card-reader bridge can start. This rule makes GKD tap OK on that popup,
+// so the reader comes back by itself. Add it in GKD as a subscription with this file's URL.
+//
+// Popup details (captured from the tablet with uiautomator):
+//   window:  com.android.systemui/.usb.UsbPermissionActivity
+//   title:   android:id/alertTitle   = "Termux:API"
+//   message: android:id/message      = "Allow Termux:API to access ACR122U PICC Interface?"
+//   OK:      android:id/button1      = "OK"      (Cancel is android:id/button2)
 {
   id: 20260930,
   name: 'TransitTrack kiosk',
-  version: 1,
+  version: 2,
   author: 'TransitTrack',
   apps: [
     {
@@ -17,9 +23,18 @@
           name: 'Allow USB access for the card reader',
           desc: 'Taps OK on the "Allow Termux:API to access" USB popup',
           enable: true,
+          matchTime: 20000,
+          actionMaximum: 3,
+          resetMatch: 'activity',
           rules: [
             {
-              matches: ['[text*="Termux:API"]', '[text="OK"]'],
+              key: 0,
+              activityIds: ['com.android.systemui.usb.UsbPermissionActivity', '.usb.UsbPermissionActivity'],
+              matches: ['[vid="message"][text*="Termux:API"]', '[vid="button1"][clickable=true]'],
+            },
+            {
+              key: 1,
+              matches: ['[text*="Termux:API"]', 'Button[text="OK"]'],
             },
           ],
         },
