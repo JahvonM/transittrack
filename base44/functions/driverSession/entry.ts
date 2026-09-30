@@ -206,7 +206,11 @@ export default async function(req) {
     const vehicleId = device.vehicle_id;
     if (!vehicleId) return Response.json({ error: 'No vehicle assigned to this device' }, { status: 400 });
 
-    await base44.asServiceRole.entities.KioskDevice.update(device_id, { last_seen: new Date().toISOString() });
+    await base44.asServiceRole.entities.KioskDevice.update(device_id, {
+      last_seen: new Date().toISOString(),
+      // Sent once per app start: how this tablet draws maps (for support).
+      ...(typeof body.device_info === 'string' ? { device_info: sanitize(body.device_info).slice(0, 400) } : {}),
+    });
 
     switch (action) {
       case 'heartbeat': {
