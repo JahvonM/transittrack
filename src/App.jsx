@@ -66,6 +66,10 @@ const RouteFallback = () => (
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
   const location = useLocation();
+  // Pages remount (and animate) when this key changes. The driver app's tabs
+  // are all one page, so they share a key — switching tabs must not restart
+  // it (that would stop GPS tracking and navigation).
+  const pageKey = location.pathname.startsWith("/driver") ? "/driver" : location.pathname;
 
   // Show loading spinner while checking app public settings or auth
   if (isLoadingPublicSettings || isLoadingAuth) {
@@ -92,13 +96,13 @@ const AuthenticatedApp = () => {
     <>
     <AnimatePresence mode="wait" initial={false}>
       <motion.div
-        key={location.pathname}
+        key={pageKey}
         initial={{ opacity: 0, x: 16 }}
         animate={{ opacity: 1, x: 0 }}
         exit={{ opacity: 0, x: -16 }}
         transition={{ duration: 0.18, ease: "easeOut" }}
       >
-      <ErrorBoundary key={location.pathname}>
+      <ErrorBoundary key={pageKey}>
       <Suspense fallback={<RouteFallback />}>
       <Routes location={location}>
       <Route path="/login" element={<Login />} />
