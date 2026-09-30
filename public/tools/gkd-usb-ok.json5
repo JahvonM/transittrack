@@ -1,0 +1,29 @@
+// GKD rule for TransitTrack kiosk tablets (bus boarding with a USB ACR122U reader).
+// After a restart, Android asks "Allow Termux:API to access <reader>?" before the
+// card-reader bridge can start. This rule makes GKD tap OK on that popup, so the
+// reader comes back by itself. Add it in GKD as a subscription with this file's URL.
+{
+  id: 20260930,
+  name: 'TransitTrack kiosk',
+  version: 1,
+  author: 'TransitTrack',
+  apps: [
+    {
+      id: 'com.android.systemui',
+      name: 'System UI',
+      groups: [
+        {
+          key: 1,
+          name: 'Allow USB access for the card reader',
+          desc: 'Taps OK on the "Allow Termux:API to access" USB popup',
+          enable: true,
+          rules: [
+            {
+              matches: ['[text*="Termux:API"]', '[text="OK"]'],
+            },
+          ],
+        },
+      ],
+    },
+  ],
+}
