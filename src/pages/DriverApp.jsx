@@ -19,7 +19,7 @@ import DriverDevicePanel from "@/components/driver/DriverDevicePanel";
 import DriverTrips from "@/components/DriverTrips";
 import ShiftCard from "@/components/driver/ShiftCard";
 import SafetyStandardsContent from "@/components/SafetyStandardsContent";
-import { AlertCircle, AlertTriangle, ArrowLeft, MessageCircle, Navigation, ShieldCheck, UserRound } from "lucide-react";
+import { AlertCircle, AlertTriangle, ArrowLeft, MessageCircle, Navigation, ShieldCheck, UserRound, WifiOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
