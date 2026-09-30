@@ -11,14 +11,6 @@ import { Badge } from "@/components/ui/badge";
 import { Navigation, Radio, Lock, Users, AlertTriangle } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 
-function timeAgo(iso) {
-  if (!iso) return "never";
-  const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
-  if (s < 60) return "just now";
-  if (s < 3600) return Math.floor(s / 60) + "m ago";
-  return Math.floor(s / 3600) + "h ago";
-}
-
 // The Drive screen: turn-by-turn map + everything the driver needs beside
 // it, sized to the screen (no page scrolling). panelTop / panelBottom let the
 // app put the shift card, due inspections and trips into the side panel.
