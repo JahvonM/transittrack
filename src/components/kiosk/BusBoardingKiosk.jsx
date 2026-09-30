@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CreditCard, QrCode, ChevronLeft, CheckCircle2, LogIn, LogOut, AlertCircle, Delete, MapPin, CloudUpload, PartyPopper, Bus, Users } from "lucide-react";
-import { useNfcTap } from "@/hooks/useNfcTap";
+import { useNfcTap, hasExternalReader, reportBadgeResult } from "@/hooks/useNfcTap";
 import { parseCodeQrPayload } from "@/lib/qr";
 import { base44 } from "@/api/base44Client";
 import { haversineKm, etaMinutes, formatEta } from "@/lib/geo";
@@ -195,7 +195,10 @@ export default function BusBoardingKiosk({ invoke, device }) {
   const [attractSlide, setAttractSlide] = useState(0);
   const resetTimer = useRef(null);
 
-  const idleListening = unlocked && mode === "idle";
+  // Web NFC needs the slide-to-unlock gesture before it can scan, but a USB
+  // badge reader doesn't — so with one attached, a tap works straight from the
+  // attract screen too.
+  const idleListening = (unlocked || hasExternalReader()) && mode === "idle";
   const { supported: nfcSupported, listening: nfcListening, nfcError } = useNfcTap(
     (tag) => handleTag(tag),
     idleListening
@@ -340,10 +343,14 @@ export default function BusBoardingKiosk({ invoke, device }) {
     setBusy(true);
     try {
       const res = await invoke("lookup_tag", { card_tag: tag });
+      setUnlocked(true);
       setPending({ staff: res.staff, next_status: res.next_status, method: "nfc" });
       setMode("confirm");
+      reportBadgeResult(true);
     } catch (e) {
+      reportBadgeResult(false);
       if (handleUnpaired(e)) return;
+      setUnlocked(true);
       setBadgeError(e?.response?.data?.error === "badge_not_registered"
         ? "This badge isn't registered yet. Ask an admin to enroll it at the badge registry kiosk."
         : "Couldn't read that badge — try again.");
