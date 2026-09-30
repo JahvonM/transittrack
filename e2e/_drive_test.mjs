@@ -49,13 +49,13 @@ for (const [label, w, h] of sizes) {
   // tracking survives switching tabs
   await page.getByRole("button", { name: /Start tracking/ }).click();
   await page.waitForTimeout(500);
-  await page.getByRole("button", { name: "Chat" }).click();
+  await page.getByRole("button", { name: "Chat", exact: true }).click();
   await page.waitForTimeout(800);
   out.chatShown = page.url().endsWith("/driver/chat");
-  await page.getByRole("button", { name: "Drive" }).click();
+  await page.getByRole("button", { name: "Drive", exact: true }).click();
   await page.waitForTimeout(800);
   out.stillTracking = await page.getByText("Tracking", { exact: true }).first().isVisible().catch(() => false);
-  out.navigateAlias = await (async () => { await page.goto(base + "/driver/navigate", { waitUntil: "domcontentloaded" }); await page.waitForTimeout(3500); return await page.getByRole("button", { name: "Drive" }).getAttribute("aria-current"); })();
+  out.navigateAlias = await (async () => { await page.goto(base + "/driver/navigate", { waitUntil: "domcontentloaded" }); await page.waitForTimeout(3500); return await page.getByRole("button", { name: "Drive", exact: true }).getAttribute("aria-current"); })();
   out.errors = errors.length ? errors : "none";
   console.log(`--- ${label} ${w}x${h}`);
   for (const [k, v] of Object.entries(out)) console.log("  " + k.padEnd(22), v);
