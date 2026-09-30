@@ -88,6 +88,10 @@
     "theme_accent": {
       "type": "string",
       "description": "Chosen colour theme (see src/lib/accents.js), e.g. lime, ocean, sunset."
+    },
+    "employee_id": {
+      "type": "string",
+      "description": "Staff/employee number printed on their NFC card record."
     }
   },
   "required": []
