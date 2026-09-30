@@ -38,7 +38,10 @@ await ctx.route("**/api/**", async (r) => {
   if (url.includes("/entities/")) return r.fulfill({ json: [] });
   return r.fulfill({ json: {} });
 });
+try { await ctx.grantPermissions(["local-network-access"], { origin: base }); } catch { /* older chromium */ }
 const page = await ctx.newPage();
+const helperHits = [];
+page.on("request", (rq) => { if (rq.url().startsWith(HELPER)) helperHits.push(rq.url()); });
 const errors = [];
 page.on("pageerror", (e) => errors.push(String(e).slice(0, 200)));
 const tap = (uid) => fetch(`${HELPER}/simulate?uid=${uid}&type=MIFARE%20Classic%201K`);
@@ -46,7 +49,12 @@ const out = {};
 const has = (t) => page.getByText(t).first().isVisible().catch(() => false);
 
 await page.goto(base + "/admin/cards", { waitUntil: "domcontentloaded" });
-await page.waitForTimeout(4000);
+await page.waitForTimeout(3000);
+out.noHelperCallsBeforeConnect = helperHits.length === 0;
+out.setupBannerShown = await has("Using an ACS ACR122U reader on this Windows PC?");
+await page.screenshot({ path: "/tmp/shots/cards_setup.png" });
+await page.getByRole("button", { name: "Connect reader" }).click();
+await page.waitForTimeout(2500);
 out.readerBadge = await has("ACS ACR122U PICC Interface (simulated)");
 out.queueCount = await page.locator('aside[aria-label="Staff queue"] li button').count();
 
@@ -104,5 +112,9 @@ await page.waitForTimeout(800);
 out.revokeCalled = calls.some((c) => c.action === "revoke");
 await page.screenshot({ path: "/tmp/shots/cards_list.png" });
 out.errors = errors.length ? errors : "none";
+// Reload: the PC is remembered, so it reconnects without asking again
+await page.reload({ waitUntil: "domcontentloaded" });
+await page.waitForTimeout(3500);
+out.autoReconnectAfterReload = await has("ACS ACR122U PICC Interface (simulated)");
 for (const [k, v] of Object.entries(out)) console.log(k.padEnd(20), v);
 await browser.close();
