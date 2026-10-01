@@ -25,7 +25,7 @@ function emptyTemplate() {
 // criticality and photo requirement. Seeded once with 4 defaults
 // (Daily/Weekly/Monthly/Service) built from that same catalog data so
 // admins start with real content instead of a blank builder.
-export default function InspectionTemplatesTab({ templates = [], companies = [], onChange }) {
+export default function InspectionTemplatesTab({ templates = [], companies = [], vehicles = [], onChange }) {
   const { toast } = useToast();
   const [selectedId, setSelectedId] = useState(null);
   const [draft, setDraft] = useState(null);
@@ -123,7 +123,8 @@ export default function InspectionTemplatesTab({ templates = [], companies = [],
 
   const sendNow = async () => {
     if (!selected) return;
-    const where = selected.company_name ? `${selected.company_name}'s` : "every";
+    const picked = (meta.driver_vehicle_ids || []).length;
+    const where = picked ? `the ${picked} chosen bus${picked === 1 ? "'s" : "es'"}` : selected.company_name ? `${selected.company_name}'s` : "every";
     if (!(await confirmAction({
       title: "Send to drivers now?",
       description: `“${selected.name}” will pop up on ${where} driver tablet straight away, until each driver has done it.`,
@@ -305,7 +306,7 @@ export default function InspectionTemplatesTab({ templates = [], companies = [],
                     {savingFrequency ? "Saving…" : "Save"}
                   </Button>
                 </div>
-                <InspectionTemplateSettings meta={meta} onChange={changeMeta} sentAt={selected.driver_sent_at} onSendNow={sendNow} sending={sending} />
+                <InspectionTemplateSettings meta={meta} onChange={changeMeta} sentAt={selected.driver_sent_at} onSendNow={sendNow} sending={sending} vehicles={vehicles.filter((v) => !selected.company_id || v.company_id === selected.company_id)} />
                 <div className="border rounded-xl p-3 space-y-2">
                   <p className="text-sm font-semibold">Bus type for the X-ray</p>
                   <div className="grid sm:grid-cols-3 gap-2" role="radiogroup" aria-label="Bus type for the X-ray">
