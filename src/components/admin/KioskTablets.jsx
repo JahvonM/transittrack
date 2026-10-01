@@ -29,6 +29,7 @@ import {
   Clock,
   Navigation,
   XCircle,
+  Activity,
 } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 
@@ -234,6 +235,7 @@ export default function KioskTablets({ vehicles, companies, onChange }) {
                         <div className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
                           <Clock className="w-3 h-3" /> Last seen: {timeAgo(d.last_seen)}
                         </div>
+                        <HelperHealthLine h={d.helper_health} />
                       </div>
                     </div>
 
