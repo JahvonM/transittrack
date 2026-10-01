@@ -458,6 +458,51 @@ export default async function(req) {
         return Response.json({ ok: true, driving_event: drivingEvent });
       }
 
+      // GPS points the tablet saved while it had no connection. They go into
+      // the location history at the time they were taken (thinned to about
+      // one a minute, like live tracking), skipping times already stored, so
+      // a retried upload can't duplicate. The bus's live position only moves
+      // if these points are newer than the last one the server saw. Driving
+      // events and stop alerts are not raised from old points.
+      case 'upload_track': {
+        const vehicle = await loadVehicle(base44, vehicleId);
+        if (!vehicle) return Response.json({ error: 'Vehicle not found' }, { status: 404 });
+        const nowMs = Date.now();
+        const points = (Array.isArray(body.points) ? body.points : []).slice(0, 300)
+          .map((p) => ({ t: new Date(p?.t).getTime(), lat: Number(p?.lat), lng: Number(p?.lng), speed: Number(p?.speed) }))
+          .filter((p) => Number.isFinite(p.t) && p.t <= nowMs + 60_000 && p.t >= nowMs - 72 * 3600_000
+            && Number.isFinite(p.lat) && Number.isFinite(p.lng) && Math.abs(p.lat) <= 90 && Math.abs(p.lng) <= 180)
+          .sort((a, b) => a.t - b.t);
+        if (!points.length) return Response.json({ ok: true, stored: 0 });
+
+        const from = points[0].t - PING_LOG_INTERVAL_MS;
+        const to = points[points.length - 1].t + PING_LOG_INTERVAL_MS;
+        const existing = (await base44.asServiceRole.entities.LocationPing.filter({ vehicle_id: vehicleId }, '-recorded_at', 1000).catch(() => []))
+          .map((r) => new Date(r.recorded_at).getTime())
+          .filter((t) => Number.isFinite(t) && t >= from && t <= to);
+        const taken = [...existing];
+        const near = (t) => taken.some((x) => Math.abs(x - t) < PING_LOG_INTERVAL_MS / 2);
+        const rows = [];
+        let lastKept = -Infinity;
+        for (const p of points) {
+          if (p.t - lastKept < PING_LOG_INTERVAL_MS || near(p.t)) continue;
+          rows.push({ vehicle_id: vehicleId, company_id: companyId, lat: p.lat, lng: p.lng, speed: Number.isFinite(p.speed) ? p.speed : 0, recorded_at: new Date(p.t).toISOString() });
+          taken.push(p.t);
+          lastKept = p.t;
+        }
+        if (rows.length) await base44.asServiceRole.entities.LocationPing.bulkCreate(rows);
+
+        const newest = points[points.length - 1];
+        const lastSeen = vehicle.last_location_update ? new Date(vehicle.last_location_update).getTime() : 0;
+        if (newest.t > lastSeen) {
+          await base44.asServiceRole.entities.Vehicle.update(vehicleId, {
+            current_lat: newest.lat, current_lng: newest.lng, speed: Number.isFinite(newest.speed) ? newest.speed : 0,
+            last_location_update: new Date(newest.t).toISOString(),
+          }).catch(() => {});
+        }
+        return Response.json({ ok: true, stored: rows.length, received: points.length });
+      }
+
       case 'sos': {
         const vehicle = await loadVehicle(base44, vehicleId);
         if (!vehicle) return Response.json({ error: 'Vehicle not found' }, { status: 404 });
