@@ -57,6 +57,10 @@ $installDir = Join-Path $env:APPDATA 'TransitTrack'
 $installed = Join-Path $installDir 'TransitTrack-Card-Reader.bat'
 $declined = Join-Path $installDir 'no-autostart'
 $shortcut = Join-Path ([Environment]::GetFolderPath('Startup')) 'TransitTrack Card Reader.lnk'
+# A newer download replaces the copy that starts with Windows.
+if ($env:TT_SELF -and (Test-Path -LiteralPath $installed) -and $env:TT_SELF -ne $installed) {
+  try { Copy-Item -LiteralPath $env:TT_SELF -Destination $installed -Force } catch { }
+}
 if ($env:TT_SELF -and -not $env:TT_NO_INSTALL -and -not (Test-Path -LiteralPath $shortcut) -and -not (Test-Path -LiteralPath $declined)) {
   $answer = Read-Host '  Start this helper automatically when Windows starts? (Y/N)'
   New-Item -ItemType Directory -Force -Path $installDir | Out-Null
