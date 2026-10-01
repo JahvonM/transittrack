@@ -58,6 +58,30 @@ function timeAgo(dateStr) {
   return `${Math.floor(hrs / 24)}d ago`;
 }
 
+// Status reported by the TransitTrack Helper app on the tablet (battery, card
+// reader, USB GPS, last card). Red when the battery is low or a device has a problem.
+const OK_STATES = /^(connected|fix|paused|card reader off|gps off)/i;
+function HelperHealthLine({ h }) {
+  if (!h || !h.reported_at) return null;
+  const stale = Date.now() - new Date(h.reported_at).getTime() > 10 * 60 * 1000;
+  const parts = [];
+  if (h.version) parts.push(`Helper ${h.version}`);
+  if (typeof h.battery === "number") parts.push(`Battery ${h.battery}%${h.charging ? " (charging)" : ""}`);
+  if (h.parked) parts.push("Parked");
+  if (h.reader) parts.push(`Reader: ${h.reader}`);
+  if (h.gps) parts.push(`GPS: ${h.gps}`);
+  if (h.last_card_at) parts.push(`Last card ${timeAgo(h.last_card_at)}`);
+  if (stale) parts.push(`reported ${timeAgo(h.reported_at)}`);
+  const lowBattery = typeof h.battery === "number" && h.battery <= 20 && !h.charging;
+  const problem = (h.reader && !OK_STATES.test(h.reader)) || (h.gps && !OK_STATES.test(h.gps) && !/^searching/i.test(h.gps));
+  return (
+    <div className={`text-xs flex items-start gap-1 mt-0.5 ${lowBattery || problem ? "text-destructive" : "text-muted-foreground"}`}>
+      <Activity className="w-3 h-3 mt-0.5 shrink-0" />
+      <span className="break-words">{parts.join(" · ")}</span>
+    </div>
+  );
+}
+
 export default function KioskTablets({ vehicles, companies, onChange }) {
   const [devices, setDevices] = useState([]);
   const [loading, setLoading] = useState(true);
