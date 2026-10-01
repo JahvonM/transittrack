@@ -27,7 +27,7 @@ await page.goto(base + "/admin/cards");
 await page.getByRole("button", { name: "Connect reader" }).click();
 const checklist = await page.getByText(/Can't reach the reader helper on this PC/).waitFor({ timeout: 10000 }).then(() => true).catch(() => false);
 ok("helper-not-running checklist shown", checklist);
-ok("test-the-helper link points at the helper", (await page.getByRole("link", { name: "Test the helper" }).getAttribute("href")) === "http://127.0.0.1:8765/");
+ok("test-the-helper link points at the helper", await page.locator("a", { hasText: "Test the helper" }).first().getAttribute("href", { timeout: 3000 }).then((h) => h === "http://127.0.0.1:8765/").catch(() => false));
 ok("button now says Try again", await page.getByRole("button", { name: "Try again" }).isVisible());
 await page.screenshot({ path: "/tmp/shots/reader_offline.png" });
 await ctx.close();
