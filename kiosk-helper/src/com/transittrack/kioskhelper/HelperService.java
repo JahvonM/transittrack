@@ -21,7 +21,7 @@ import org.json.JSONObject;
 
 /**
  * Runs all the time:
- *  - screen on/off with the charger (bus ignition)
+ *  - screen on/off with the charger (bus ignition); never sleeps while powered
  *  - card reader and USB GPS
  *  - parked mode: 2 min after power is lost, pause reader + GPS and let the tablet sleep
  *  - page refresh when the bus starts after a long park (or at 3 AM if never unplugged)
@@ -30,7 +30,7 @@ import org.json.JSONObject;
  *  - boarding tablets: join the bus hotspot automatically
  */
 public class HelperService extends Service {
-    static final String VERSION = "1.4";
+    static final String VERSION = "1.5";
     static volatile boolean plugged = true;
     static volatile boolean parked = false;
 
@@ -106,6 +106,7 @@ public class HelperService extends Service {
         main = new Handler(Looper.getMainLooper());
         startForeground(1, notification());
         ensureAutoOk();
+        ensureStayOnWhilePowered();
         PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
         wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "TTHelper:main");
         wakeLock.setReferenceCounted(false);
@@ -161,6 +162,7 @@ public class HelperService extends Service {
         main.removeCallbacks(screenOff);
         main.removeCallbacks(park);
         if (isPlugged) {
+            ensureStayOnWhilePowered();
             boolean longPark = parked && System.currentTimeMillis() - parkedSince >= RELOAD_AFTER_PARK_MS;
             leaveParked();
             if (Config.ignition(this)) setScreen(true);
@@ -294,6 +296,21 @@ public class HelperService extends Service {
                 Status.log("Could not set screen " + (on ? "on" : "off") + " - is FreeKiosk's REST API on?");
             }
         }, "tt-screen").start();
+    }
+
+    /** Android setting: the screen never times out while the tablet is charging (AC, USB or wireless). */
+    private void ensureStayOnWhilePowered() {
+        if (!Config.ignition(this)) return;
+        try {
+            int all = BatteryManager.BATTERY_PLUGGED_AC | BatteryManager.BATTERY_PLUGGED_USB | BatteryManager.BATTERY_PLUGGED_WIRELESS;
+            int current = Settings.Global.getInt(getContentResolver(), Settings.Global.STAY_ON_WHILE_PLUGGED_IN, 0);
+            if (current != all) {
+                Settings.Global.putInt(getContentResolver(), Settings.Global.STAY_ON_WHILE_PLUGGED_IN, all);
+                Status.log("Screen set to stay on while powered");
+            }
+        } catch (SecurityException e) {
+            Status.log("Stay-on not set: run  adb shell pm grant " + getPackageName() + " android.permission.WRITE_SECURE_SETTINGS");
+        }
     }
 
     /** Switches on the auto-OK accessibility service, keeping any others (e.g. FreeKiosk's) switched on. */

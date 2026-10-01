@@ -19,6 +19,29 @@ function cleanHelperHealth(h: unknown): Record<string, unknown> | null {
   return out;
 }
 
+// What the TransitTrack app itself reports (build, uploads waiting, last GPS
+// fix, card reader in use). Shown in Admin → Fleet health.
+function cleanAppHealth(h: unknown): Record<string, unknown> | null {
+  if (!h || typeof h !== 'object' || Array.isArray(h)) return null;
+  const o = h as Record<string, unknown>;
+  const str = (v: unknown, n: number) =>
+    typeof v === 'string' ? v.replace(/[\u0000-\u001f<>]/g, '').slice(0, n) : undefined;
+  const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? Math.max(0, Math.min(100000, Math.round(v))) : undefined);
+  const date = (v: unknown) => { const s = str(v, 40); return s && !Number.isNaN(Date.parse(s)) ? new Date(s).toISOString() : undefined; };
+  const out: Record<string, unknown> = { reported_at: new Date().toISOString() };
+  const set = (k: string, v: unknown) => { if (v !== undefined) out[k] = v; };
+  set('build', str(o.build, 24));
+  if (typeof o.online === 'boolean') out.online = o.online;
+  set('queued_gps', num(o.queued_gps));
+  set('queued_checkins', num(o.queued_checkins));
+  set('queued_jobs', num(o.queued_jobs));
+  set('last_gps_fix', date(o.last_gps_fix));
+  set('reader', str(o.reader, 24));
+  set('saved_list_at', date(o.saved_list_at));
+  set('saved_list_count', num(o.saved_list_count));
+  return out;
+}
+
 export default async function(req) {
   try {
     const body = await req.json();
@@ -43,9 +66,11 @@ export default async function(req) {
 
     // Update last_seen — kiosk is unauthenticated, use service role
     const helperHealth = cleanHelperHealth(body.helper_health);
+    const appHealth = cleanAppHealth(body.app_health);
     await base44.asServiceRole.entities.KioskDevice.update(device_id, {
       last_seen: new Date().toISOString(),
       ...(helperHealth ? { helper_health: helperHealth } : {}),
+      ...(appHealth ? { app_health: appHealth } : {}),
     });
 
     let company_logo_url = '';

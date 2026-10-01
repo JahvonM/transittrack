@@ -10,6 +10,7 @@ import FrontDeskKiosk from "@/components/kiosk/FrontDeskKiosk";
 import { saveDevice, loadDevice, forgetTablet, saveDirectory, directoryInfo, warmPhotos, offlineLookup, noteStatus } from "@/lib/kioskOffline";
 import { isNetworkFailure } from "@/lib/offlineQueue";
 import { helperHealthPayload } from "@/lib/helperHealth";
+import { appHealthPayload } from "@/lib/appHealth";
 
 const TYPE_META = {
   bus_boarding: { label: "Bus boarding", icon: Bus },
@@ -71,7 +72,7 @@ export default function Kiosk() {
   // how actively it was being used — it only ever checked in once, at pairing.
   const heartbeat = (id) => {
     base44.functions
-      .invoke("kioskHeartbeat", { device_id: id, ...helperHealthPayload() })
+      .invoke("kioskHeartbeat", { device_id: id, ...helperHealthPayload(), ...appHealthPayload("boarding") })
       .then((res) => {
         if (res.data?.error) {
           setStatus("error");

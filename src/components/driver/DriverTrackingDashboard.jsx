@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Navigation, Radio, Lock, Users, AlertTriangle } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { queueGpsPoint, queuedGpsCount, flushGpsQueue, GPS_QUEUE_EVENT } from "@/lib/gpsQueue";
+import { noteGpsFix } from "@/lib/appHealth";
 
 // The Drive screen: turn-by-turn map + everything the driver needs beside
 // it, sized to the screen (no page scrolling). panelTop / panelBottom let the
@@ -94,6 +95,7 @@ export default function DriverTrackingDashboard({ session, invoke, onReportIncid
   const handlePosition = useCallback(async (lat, lng, speed, extra = {}) => {
     const now = Date.now();
     setLastFixAt(now);
+    noteGpsFix(now);
     setGpsProblem("");
     const v = vehicleRef.current;
     if (!v) return;

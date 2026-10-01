@@ -37,6 +37,7 @@ export default async function (req) {
       url: clip(body.url, 300),
       user_agent: clip(body.user_agent, 300),
       source: clip(body.source, 20),
+      device_id: clip(body.device_id, 40),
       user_email: user?.email || '',
       user_role: user?.role || '',
       emailed: !alreadyAlerted,

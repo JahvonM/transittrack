@@ -2,7 +2,8 @@
 
 Small Android app for the bus tablets. Replaces the Termux scripts:
 
-- **Screen on/off with the ignition**: reacts instantly to the charger being plugged/unplugged
+- **Screen on/off with the ignition**: sets Android's "stay on while charging" so the screen
+  never sleeps while powered, and reacts instantly to the charger being plugged/unplugged
   and calls FreeKiosk's REST API (`/api/screen/on|off`). Unplug is delayed 5 s so an engine
   crank doesn't blank the screen.
 - **ACR122U card reader** (boarding tablets): reads card UIDs over USB (CCID), sends them to the

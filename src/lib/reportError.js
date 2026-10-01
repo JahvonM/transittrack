@@ -18,6 +18,8 @@ export function reportError(error, { source = "window", extra = "" } = {}) {
         source,
         url: window.location.pathname + window.location.search,
         user_agent: navigator.userAgent,
+        // Which tablet it came from (driver or kiosk), for Admin → Fleet health.
+        device_id: (() => { try { return localStorage.getItem("tt_driver_device_id") || localStorage.getItem("tt_kiosk_device_id") || ""; } catch { return ""; } })(),
       })
       .catch(() => {});
   } catch {

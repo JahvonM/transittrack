@@ -27,6 +27,10 @@
       "type": "string",
       "description": "boundary | window | promise"
     },
+    "device_id": {
+      "type": "string",
+      "description": "Driver or kiosk tablet it came from (blank for signed-in users)"
+    },
     "emailed": {
       "type": "boolean",
       "default": false

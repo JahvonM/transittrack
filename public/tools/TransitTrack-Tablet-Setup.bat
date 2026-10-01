@@ -212,6 +212,7 @@ adb shell settings put system accelerometer_rotation 0
 adb shell settings put system user_rotation 1
 adb shell wm fixed-to-user-rotation enabled
 adb shell settings put system sound_effects_enabled 0
+adb shell settings put global stay_on_while_plugged_in 7
 adb shell settings put global policy_control immersive.full=com.freekiosk
 if not defined WV_APK goto wv_set_done
 echo %WV_APK%| find /i "canary" >nul
@@ -312,7 +313,7 @@ echo       OTG charging cable, with the charger connected.
 echo    2. Any USB popup closes by itself. Put it near a window for a GPS fix.
 echo    3. About a minute after start-up, %SSID% appears as a Wi-Fi network.
 :finish_common
-echo    -  Unplug power: screen off after about 5 seconds. Plug in: screen on.
+echo    -  Screen stays on while powered. Unplug power: off after about 5 seconds.
 echo    -  Admin - Kiosk Tablets shows battery, reader / GPS and hotspot.
 echo.
 echo  Problem? Plug in this computer and run:  adb logcat -d -s TTHelper
