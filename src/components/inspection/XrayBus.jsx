@@ -1,9 +1,10 @@
 import React, { createContext, useContext } from "react";
-import { BUS_ZONES } from "@/lib/busZones";
+import { layoutZones, FRONT_ENGINE_GEOMETRY, DEFAULT_LAYOUT } from "@/lib/busZones";
 
 // X-ray style bus drawing used by inspections. Two views: "outside" (side
 // view, see-through to the engine, axles, tanks and wiring) and "inside"
-// (top-down cabin plan). Parts are grouped by zone so the zone being
+// (top-down cabin plan), for each bus layout (city bus with the engine at
+// the back, bus or minibus with the engine in front). Parts are grouped by zone so the zone being
 // checked glows, finished zones turn green and zones with a problem turn red.
 // Always drawn on its own dark "film" background, in light and dark mode.
 
@@ -91,7 +92,7 @@ function Wheel({ cx, cy, z, brakeZ }) {
   );
 }
 
-function OutsideView() {
+function CityOutside() {
   const windows = [[150, 228], [238, 316], [326, 404], [414, 492], [596, 674], [684, 762]];
   const seats = [162, 252, 342, 432, 610, 700];
   return (
@@ -161,7 +162,7 @@ function Seat({ x, y }) {
   );
 }
 
-function InsideView() {
+function CityInside() {
   const topRows = [110, 170, 230, 290, 350, 410, 470, 530, 590, 650, 710];
   const bottomRows = [110, 170, 230, 290, 350, 410, 470];
   return (
@@ -202,13 +203,120 @@ function InsideView() {
   );
 }
 
+
+// Bus / minibus with the engine at the front (no wheelchair space). The
+// geometry comes from FRONT_ENGINE_GEOMETRY so the hotspots line up.
+function FrontEngineOutside({ g }) {
+  const { x0, x1, roof, frontWheel: fw, rearWheel: rw, frontDoor: [dx, dw], rearDoor: [rx, rwid] } = g;
+  const [ex, ey, ew, eh] = g.engine;
+  const [cx, cy, cw, ch] = g.cooling;
+  const [tx, ty] = g.trans;
+  const ribs = [];
+  for (let x = x0 + 90; x < x1 - 80; x += 88) ribs.push(x);
+  const seats = g.windows.slice(0, -2).map(([a]) => a + 14);
+  const shell = `M${x0} 300V${roof + 28}Q${x0} ${roof} ${x0 + 28} ${roof}H${x1 - 76}Q${x1 - 44} ${roof} ${x1 - 26} ${roof + 28}L${x1 - 8} ${roof + 66}Q${x1} ${roof + 82} ${x1} ${roof + 108}V300Q${x1} 316 ${x1 - 16} 316H${fw + 58}A58 58 0 0 0 ${fw - 58} 316H${rw + 58}A58 58 0 0 0 ${rw - 58} 316H${x0 + 16}Q${x0} 316 ${x0} 300Z`;
+  return (
+    <>
+      <P className="faint">
+        {ribs.map((x) => <path key={x} d={`M${x} ${roof + 8}V308`} />)}
+        <path d={`M${x0 + 12} 250H${x1 - 6}`} strokeDasharray="6 6" />
+        <path d={`M${x0 + 20} 286H${x1 - 24}M${x0 + 20} 294H${x1 - 24}`} />
+      </P>
+      <P className="faint">{seats.map((x) => <path key={x} d={`M${x} 198V248M${x} 232H${x + 36}M${x + 30} 232V248`} />)}</P>
+      <P z="body">
+        <path className="f" d={shell} strokeWidth="2.5" />
+        {g.windows.map(([a, b]) => <rect key={a} x={a} y={roof + 28} width={b - a} height="78" rx="6" />)}
+      </P>
+      <P z="roof_ac"><rect className="f" x={g.ac[0]} y={roof - 18} width={g.ac[1]} height="18" rx="6" /><path d={`M${g.ac[0] + 24} ${roof - 9}H${g.ac[0] + g.ac[1] - 24}`} strokeDasharray="3 6" /></P>
+      <P z="windshield"><path className="f" d={`M${x1 - 70} ${roof + 8}L${x1 - 32} ${roof + 30}L${x1 - 14} ${roof + 72}V${roof + 150}H${x1 - 62}Z`} /></P>
+      <P z="wipers"><path d={`M${x1 - 56} ${roof + 144}L${x1 - 28} ${roof + 86}M${x1 - 38} ${roof + 146}L${x1 - 18} ${roof + 100}`} strokeWidth="3" /></P>
+      <P z="mirrors"><path d={`M${x1 - 28} ${roof + 28}Q${x1 - 2} ${roof + 22} ${x1 + 8} ${roof + 34}`} /><rect className="f" x={x1 + 2} y={roof + 34} width="12" height="40" rx="4" /></P>
+      <P z="front_door"><rect className="f" x={dx} y={roof + 28} width={dw} height={308 - roof - 28} rx="4" /><path d={`M${dx + dw / 2} ${roof + 32}V304M${dx} 180H${dx + dw}`} /></P>
+      <P z="rear_door"><rect className="f" x={rx} y={roof + 28} width={rwid} height={290 - roof - 28} rx="4" /><path d={`M${rx + 10} 180H${rx + rwid - 10}`} /><circle cx={rx + rwid - 12} cy="200" r="3" /></P>
+      <P z="lights_front"><rect className="f" x={x1 - 18} y="244" width="16" height="26" rx="5" /><rect x={x1 - 16} y="276" width="14" height="10" rx="3" /></P>
+      <P z="lights_rear"><rect className="f" x={x0 - 4} y="232" width="12" height="40" rx="4" /><rect x={x0 - 4} y={roof + 36} width="10" height="14" rx="3" /></P>
+      {/* front engine bay */}
+      <P z="engine" className="dim">
+        <rect className="f" x={ex} y={ey} width={ew} height={eh} rx="10" />
+        {[0.2, 0.4, 0.6, 0.8].map((f) => <circle key={f} cx={ex + ew * f} cy={ey + 24} r="8" />)}
+        <path d={`M${ex + 8} ${ey + 54}H${ex + ew - 8}M${ex + 8} ${ey + 64}H${ex + ew - 8}`} />
+      </P>
+      <P z="cooling" className="dim">
+        <rect className="f" x={cx} y={cy} width={cw} height={ch} rx="5" />
+        {[0.2, 0.4, 0.6, 0.8].map((f) => <path key={f} d={`M${cx + 4} ${cy + ch * f}H${cx + cw - 4}`} />)}
+      </P>
+      <P z="exhaust" className="dim"><path d={`M${ex + 30} ${ey + eh}V304H${x0 + 70}V318`} strokeWidth="4" /></P>
+      <P z="transmission" className="dim">
+        <rect className="f" x={tx} y={ty} width="44" height="26" rx="6" />
+        <path d={`M${tx} 276H${rw + 30}`} strokeWidth="4" strokeDasharray="10 4" />
+        <rect x={rw - 20} y="268" width="40" height="18" rx="6" />
+      </P>
+      <P z="battery" className="dim"><rect className="f" x={g.battery} y="284" width="60" height="24" rx="4" /><path d={`M${g.battery + 12} 280V284M${g.battery + 48} 280V284M${g.battery + 8} 296H${g.battery + 18}M${g.battery + 40} 296H${g.battery + 52}M${g.battery + 46} 290V302`} /></P>
+      <P z="fuel" className="dim"><rect className="f" x={g.fuel} y="282" width="92" height="26" rx="12" /><path d={`M${g.fuel + 14} 282V270Q${g.fuel + 14} 262 ${g.fuel + 6} 262`} /></P>
+      <P z="brakes" className="dim"><rect className="f" x={g.airTank} y="288" width="64" height="16" rx="8" /><path d={`M${g.airTank + 64} 296H${fw - 50}M${rw + 50} 296H${g.fuel}`} strokeDasharray="5 5" /></P>
+      <P z="suspension" className="dim">
+        <ellipse className="f" cx={rw} cy="280" rx="26" ry="8" /><ellipse className="f" cx={fw} cy="280" rx="24" ry="8" />
+        <path d={`M${rw - 26} 286L${rw - 36} 302M${rw + 26} 286L${rw + 36} 302M${fw - 24} 286L${fw - 34} 302M${fw + 24} 286L${fw + 34} 302`} />
+      </P>
+      <P z="steering" className="dim">
+        <path d={`M${x1 - 74} 180L${x1 - 70} 286`} strokeWidth="3" /><rect className="f" x={x1 - 82} y="284" width="24" height="16" rx="4" /><path d={`M${x1 - 82} 296L${fw + 20} 304`} />
+      </P>
+      <P z="steering_wheel" className="faint"><ellipse cx={x1 - 76} cy="176" rx="5" ry="17" strokeWidth="3" /></P>
+      <P z="driver_seat" className="faint"><path d={`M${x1 - 120} 196V248M${x1 - 120} 232H${x1 - 88}`} strokeWidth="3" /></P>
+      <Wheel cx={rw} cy={330} z="tyres" brakeZ="brakes" />
+      <Wheel cx={fw} cy={330} z="tyres" brakeZ="brakes" />
+      <path d="M20 376H980" stroke={C.line} strokeOpacity=".25" strokeWidth="2" strokeDasharray="2 10" />
+    </>
+  );
+}
+
+function FrontEngineInside({ g }) {
+  const { x0, x1, frontWheel: fw, rearWheel: rw, frontDoor: [dx, dw] } = g;
+  const s = g.inside;
+  const [ecx, ecy, ecw, ech] = s.engineCover;
+  return (
+    <>
+      <P z="body">
+        <path className="f" d={`M${x0 + 32} 50H${x1 - 72}Q${x1 - 24} 50 ${x1 - 20} 102V258Q${x1 - 24} 310 ${x1 - 72} 310H${x0 + 32}Q${x0} 310 ${x0} 278V82Q${x0} 50 ${x0 + 32} 50Z`} strokeWidth="2.5" />
+      </P>
+      <P z="tyres" className="dim">
+        {[rw - 30, fw - 30].map((x) => <React.Fragment key={x}><rect x={x} y="36" width="60" height="14" rx="4" /><rect x={x} y="310" width="60" height="14" rx="4" /></React.Fragment>)}
+      </P>
+      {/* engine under a cover beside the driver */}
+      <P z="engine" className="dim"><rect className="f" x={ecx} y={ecy} width={ecw} height={ech} rx="10" strokeDasharray="6 5" /><path d={`M${ecx + 8} ${ecy + 20}H${ecx + ecw - 8}M${ecx + 8} ${ecy + 34}H${ecx + ecw - 8}`} /></P>
+      <P z="floor" className="faint"><path d={`M${x0 + 70} 180H${dx - 10}`} strokeDasharray="8 8" /></P>
+      <P z="passenger_seats">
+        {s.topRows.map((x) => <React.Fragment key={x}><Seat x={x} y={62} /><Seat x={x} y={96} /></React.Fragment>)}
+        {s.bottomRows.map((x) => <React.Fragment key={x}><Seat x={x} y={232} /><Seat x={x} y={266} /></React.Fragment>)}
+      </P>
+      <P z="interior_lights">{s.lights.map((x) => <circle key={x} className="f" cx={x} cy="180" r="5" />)}</P>
+      <P z="rear_door"><path d={`M${x0} 128V232`} strokeWidth="7" /></P>
+      <P z="front_door"><rect className="f" x={dx} y="298" width={dw} height="14" rx="4" /></P>
+      <P z="handrails">
+        <rect x={dx + 6} y="246" width={dw - 12} height="12" rx="3" /><rect x={dx + 6} y="266" width={dw - 12} height="12" rx="3" />
+        <circle cx={dx - 6} cy="248" r="4" /><circle cx={dx + dw + 6} cy="248" r="4" />
+      </P>
+      <P z="driver_seat"><rect className="f" x={s.driverSeat} y="66" width="46" height="46" rx="8" /><path d={`M${s.driverSeat + 4} 70V108`} strokeWidth="5" /></P>
+      <P z="steering_wheel"><circle className="f" cx={s.wheel} cy="90" r="19" strokeWidth="3" /><path d={`M${s.wheel - 19} 90H${s.wheel + 19}M${s.wheel} 90V109`} /></P>
+      <P z="dashboard"><path className="f" d={`M${x1 - 64} 62Q${x1 - 18} 180 ${x1 - 64} 298L${x1 - 46} 298Q${x1 - 4} 180 ${x1 - 46} 62Z`} /><rect x={x1 - 50} y="164" width="14" height="24" rx="3" /></P>
+      <P z="windshield" className="dim"><path d={`M${x1 - 22} 70Q${x1 + 10} 180 ${x1 - 22} 290`} strokeWidth="4" /></P>
+      <P z="fire_extinguisher"><rect className="f" x={s.fireExt[0]} y={s.fireExt[1]} width="16" height="28" rx="6" /><path d={`M${s.fireExt[0] + 4} ${s.fireExt[1]}V${s.fireExt[1] - 6}H${s.fireExt[0] + 14}`} /></P>
+      <P z="first_aid"><rect className="f" x={s.firstAid[0]} y={s.firstAid[1]} width="26" height="22" rx="4" /><path d={`M${s.firstAid[0] + 13} ${s.firstAid[1] + 5}V${s.firstAid[1] + 17}M${s.firstAid[0] + 7} ${s.firstAid[1] + 11}H${s.firstAid[0] + 19}`} strokeWidth="3" /></P>
+      <P z="emergency_exit">
+        {s.hatches.map((x) => <rect key={x} className="f" x={x} y="152" width="44" height="56" rx="4" strokeDasharray="5 4" />)}
+      </P>
+    </>
+  );
+}
+
 // statuses: { [zoneId]: { total, done, failed } } — only zones listed here
 // get a hotspot. activeZone glows and pulses.
-export default function XrayBus({ view = "outside", statuses = {}, activeZone, onZoneClick, scanning = true, className = "", label }) {
-  const id = view;
+export default function XrayBus({ view = "outside", layout = DEFAULT_LAYOUT, statuses = {}, activeZone, onZoneClick, scanning = true, className = "", label }) {
+  const id = `${layout}-${view}`;
+  const g = FRONT_ENGINE_GEOMETRY[layout];
   const vb = view === "inside" ? "0 0 1000 360" : "0 0 1000 400";
   const [, , w, h] = vb.split(" ").map(Number);
-  const zones = BUS_ZONES.filter((z) => z.view === view && statuses[z.id]);
+  const zones = layoutZones(layout).filter((z) => z.view === view && statuses[z.id]);
   return (
     <div className={`tt-xr relative overflow-hidden rounded-2xl ${className}`}>
       <style>{STYLE}</style>
@@ -216,7 +324,9 @@ export default function XrayBus({ view = "outside", statuses = {}, activeZone, o
         <Defs id={id} />
         <rect width={w} height={h} fill={`url(#xr-grid-${id})`} />
         <XrCtx.Provider value={{ statuses, activeZone }}>
-          {view === "inside" ? <InsideView /> : <OutsideView />}
+          {g
+            ? (view === "inside" ? <FrontEngineInside g={g} /> : <FrontEngineOutside g={g} />)
+            : (view === "inside" ? <CityInside /> : <CityOutside />)}
         </XrCtx.Provider>
         {scanning && (
           <g className="scan" aria-hidden="true">
