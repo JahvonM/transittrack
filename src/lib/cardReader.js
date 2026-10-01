@@ -69,14 +69,15 @@ export function useCardReader(onTap, { active = true } = {}) {
     const open = () => {
       if (closed) return;
       let wasOpen = false;
-      es = new EventSource(`${HELPER_URL}/events`);
-      es.onopen = () => {
+      const source = new EventSource(`${HELPER_URL}/events`);
+      es = source;
+      source.onopen = () => {
         wasOpen = true;
         setHelper("connected");
         announcedOffline = false;
         try { localStorage.setItem(HELPER_FLAG, "1"); } catch { /* ignore */ }
       };
-      es.onmessage = (ev) => {
+      source.onmessage = (ev) => {
         let msg;
         try { msg = JSON.parse(ev.data); } catch { return; }
         if (msg.type === "status") {
@@ -95,8 +96,8 @@ export function useCardReader(onTap, { active = true } = {}) {
       // over: a stream that never opened means the helper isn't reachable
       // (not running, or the browser blocked it) - say so and try again
       // every few seconds. A stream that dropped reconnects straight away.
-      es.onerror = () => {
-        es.close();
+      source.onerror = () => {
+        source.close();
         setReader(null);
         if (wasOpen) {
           setHelper("connecting");

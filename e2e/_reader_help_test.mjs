@@ -35,7 +35,7 @@ await ctx.close();
 // 2) Inside another page (like the Base44 editor preview)
 ctx = await context();
 page = await ctx.newPage();
-await page.goto(base + "/brand/icon.svg");
+await page.goto(base + "/manifest.webmanifest").catch(() => {}); await page.goto("about:blank");
 await page.setContent(`<iframe src="${base}/admin/cards" style="width:1400px;height:880px;border:0"></iframe>`);
 const frame = page.frameLocator("iframe");
 const framed = await frame.getByText("Open Card issuing in its own tab").waitFor({ timeout: 20000 }).then(() => true).catch(() => false);
