@@ -20,29 +20,6 @@ Write-Host '  Connects the ACS ACR122U reader to TransitTrack in your browser.'
 Write-Host '  Leave this window open - you can minimise it.'
 Write-Host ''
 
-# First run: offer to start automatically when Windows starts.
-$installDir = Join-Path $env:APPDATA 'TransitTrack'
-$installed = Join-Path $installDir 'TransitTrack-Card-Reader.bat'
-$declined = Join-Path $installDir 'no-autostart'
-$shortcut = Join-Path ([Environment]::GetFolderPath('Startup')) 'TransitTrack Card Reader.lnk'
-if ($env:TT_SELF -and -not $env:TT_NO_INSTALL -and -not (Test-Path -LiteralPath $shortcut) -and -not (Test-Path -LiteralPath $declined)) {
-  $answer = Read-Host '  Start this helper automatically when Windows starts? (Y/N)'
-  New-Item -ItemType Directory -Force -Path $installDir | Out-Null
-  if ($answer -match '^[Yy]') {
-    if ($env:TT_SELF -ne $installed) { Copy-Item -LiteralPath $env:TT_SELF -Destination $installed -Force }
-    $ws = New-Object -ComObject WScript.Shell
-    $lnk = $ws.CreateShortcut($shortcut)
-    $lnk.TargetPath = $installed
-    $lnk.WorkingDirectory = $installDir
-    $lnk.WindowStyle = 7
-    $lnk.Save()
-    Write-Host '  Done - it will start (minimised) every time you sign in to Windows.' -ForegroundColor Green
-  } else {
-    Set-Content -LiteralPath $declined -Value 'declined'
-  }
-  Write-Host ''
-}
-
 $code = @'
 // TransitTrack Card Reader - helper for the ACS ACR122U USB NFC reader.
 //
@@ -149,6 +126,14 @@ public static class TTCardReader
 
     public static void Run(int port, string extraOrigins, bool simulate)
     {
+        if (Start(port, extraOrigins, simulate)) Wait();
+    }
+
+    // Starts listening and watching the reader in the background, so the
+    // page can connect straight away (even while the window still asks a
+    // question). Returns false if another copy is already running.
+    public static bool Start(int port, string extraOrigins, bool simulate)
+    {
         Simulate = simulate;
         AllowedOrigins.Add("https://eager-transit-track-go.base44.app");
         if (!string.IsNullOrEmpty(extraOrigins))
@@ -169,9 +154,10 @@ public static class TTCardReader
         catch (SocketException)
         {
             Console.WriteLine("  The card reader helper is already running (port " + port + " is in use).");
-            return;
+            Console.WriteLine("  Look for its other window, or restart the PC if you can't find it.");
+            return false;
         }
-        Log("info", "Listening on http://127.0.0.1:" + port + " (this computer only)" + (Simulate ? " - SIMULATE MODE" : ""));
+        Log("ok", "Listening on http://127.0.0.1:" + port + " (this computer only)" + (Simulate ? " - SIMULATE MODE" : ""));
 
         Thread http = new Thread(delegate () { AcceptLoop(listener); });
         http.IsBackground = true;
@@ -179,8 +165,15 @@ public static class TTCardReader
         Thread ping = new Thread(PingLoop);
         ping.IsBackground = true;
         ping.Start();
+        Thread readerThread = new Thread(ReaderLoop);
+        readerThread.IsBackground = true;
+        readerThread.Start();
+        return true;
+    }
 
-        ReaderLoop();
+    public static void Wait()
+    {
+        while (true) Thread.Sleep(60000);
     }
 
     // ------------------------------------------------------------------ reader
@@ -199,7 +192,14 @@ public static class TTCardReader
                     if (rc != 0)
                     {
                         Ctx = IntPtr.Zero;
-                        if (!warnedService) { Log("warn", "Waiting for the reader - plug in the ACR122U (" + Hex(rc) + ")"); warnedService = true; }
+                        if (!warnedService)
+                        {
+                            // 0x8010001D SCARD_E_NO_SERVICE: the Smart Card service is stopped (it starts when a reader is plugged in).
+                            Log("warn", rc == unchecked((int)0x8010001D)
+                                ? "Waiting for the reader - plug in the ACR122U (Windows' Smart Card service isn't running yet)"
+                                : "Waiting for the reader - plug in the ACR122U (" + Hex(rc) + ")");
+                            warnedService = true;
+                        }
                         SetReader(null);
                         IdleWait(2000);
                         continue;
@@ -559,6 +559,7 @@ public static class TTCardReader
             if (qi >= 0) { path = target.Substring(0, qi); query = target.Substring(qi + 1); }
 
             bool allowed = OriginAllowed(origin);
+            if (!allowed && !string.IsNullOrEmpty(origin) && (path == "/events" || path == "/status")) WarnOrigin(origin);
             string cors = allowed
                 ? "Access-Control-Allow-Origin: " + origin + "\r\nVary: Origin\r\nAccess-Control-Allow-Private-Network: true\r\n"
                 : "";
@@ -639,6 +640,17 @@ public static class TTCardReader
             Interlocked.Exchange(ref IdleAtTicks, DateTime.UtcNow.AddMilliseconds(kind == "error" ? 2200 : 1600).Ticks);
         string err = !done ? "timeout" : job.Error;
         return "{\"ok\":" + (done && job.Ok ? "true" : "false") + ",\"apdu\":\"" + apduHex + "\"" + (err != null ? ",\"error\":" + Json(err) : "") + "}";
+    }
+
+    static readonly List<string> WarnedOrigins = new List<string>();
+    static void WarnOrigin(string origin)
+    {
+        lock (WarnedOrigins)
+        {
+            if (WarnedOrigins.Contains(origin)) return;
+            WarnedOrigins.Add(origin);
+        }
+        Log("warn", "Refused a connection from " + origin + " - open TransitTrack at https://eager-transit-track-go.base44.app instead");
     }
 
     static bool OriginAllowed(string origin)
@@ -785,5 +797,41 @@ public static class TTCardReader
     }
 }
 '@
-Add-Type -TypeDefinition $code -Language CSharp
-[TTCardReader]::Run(8765, $env:TT_ORIGINS, ($env:TT_SIMULATE -eq '1'))
+try {
+  Add-Type -TypeDefinition $code -Language CSharp
+} catch {
+  Write-Host '  Windows would not start the card reader helper:' -ForegroundColor Red
+  Write-Host ('  ' + $_.Exception.Message) -ForegroundColor Red
+  Write-Host '  If this is a work PC, ask IT to allow PowerShell scripts (Add-Type).'
+  exit 1
+}
+if (-not [TTCardReader]::Start(8765, $env:TT_ORIGINS, ($env:TT_SIMULATE -eq '1'))) { Start-Sleep -Seconds 10; exit 0 }
+Write-Host ''
+Write-Host '  Ready. In Chrome or Edge open https://eager-transit-track-go.base44.app/admin/cards' -ForegroundColor Green
+Write-Host '  and press Connect reader. If Chrome asks to allow access to apps on this device, choose Allow.'
+Write-Host ''
+# First run: offer to start automatically when Windows starts. (Asked after
+# the helper is already listening, so the page connects even before answering.)
+$installDir = Join-Path $env:APPDATA 'TransitTrack'
+$installed = Join-Path $installDir 'TransitTrack-Card-Reader.bat'
+$declined = Join-Path $installDir 'no-autostart'
+$shortcut = Join-Path ([Environment]::GetFolderPath('Startup')) 'TransitTrack Card Reader.lnk'
+if ($env:TT_SELF -and -not $env:TT_NO_INSTALL -and -not (Test-Path -LiteralPath $shortcut) -and -not (Test-Path -LiteralPath $declined)) {
+  $answer = Read-Host '  Start this helper automatically when Windows starts? (Y/N)'
+  New-Item -ItemType Directory -Force -Path $installDir | Out-Null
+  if ($answer -match '^[Yy]') {
+    if ($env:TT_SELF -ne $installed) { Copy-Item -LiteralPath $env:TT_SELF -Destination $installed -Force }
+    $ws = New-Object -ComObject WScript.Shell
+    $lnk = $ws.CreateShortcut($shortcut)
+    $lnk.TargetPath = $installed
+    $lnk.WorkingDirectory = $installDir
+    $lnk.WindowStyle = 7
+    $lnk.Save()
+    Write-Host '  Done - it will start (minimised) every time you sign in to Windows.' -ForegroundColor Green
+  } else {
+    Set-Content -LiteralPath $declined -Value 'declined'
+  }
+  Write-Host ''
+}
+
+[TTCardReader]::Wait()

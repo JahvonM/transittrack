@@ -35,7 +35,24 @@ Write-Host '  Connects the ACS ACR122U reader to TransitTrack in your browser.'
 Write-Host '  Leave this window open - you can minimise it.'
 Write-Host ''
 
-# First run: offer to start automatically when Windows starts.
+$code = @'
+__CSHARP__
+'@
+try {
+  Add-Type -TypeDefinition $code -Language CSharp
+} catch {
+  Write-Host '  Windows would not start the card reader helper:' -ForegroundColor Red
+  Write-Host ('  ' + $_.Exception.Message) -ForegroundColor Red
+  Write-Host '  If this is a work PC, ask IT to allow PowerShell scripts (Add-Type).'
+  exit 1
+}
+if (-not [TTCardReader]::Start(8765, $env:TT_ORIGINS, ($env:TT_SIMULATE -eq '1'))) { Start-Sleep -Seconds 10; exit 0 }
+Write-Host ''
+Write-Host '  Ready. In Chrome or Edge open https://eager-transit-track-go.base44.app/admin/cards' -ForegroundColor Green
+Write-Host '  and press Connect reader. If Chrome asks to allow access to apps on this device, choose Allow.'
+Write-Host ''
+# First run: offer to start automatically when Windows starts. (Asked after
+# the helper is already listening, so the page connects even before answering.)
 $installDir = Join-Path $env:APPDATA 'TransitTrack'
 $installed = Join-Path $installDir 'TransitTrack-Card-Reader.bat'
 $declined = Join-Path $installDir 'no-autostart'
@@ -58,11 +75,7 @@ if ($env:TT_SELF -and -not $env:TT_NO_INSTALL -and -not (Test-Path -LiteralPath 
   Write-Host ''
 }
 
-$code = @'
-__CSHARP__
-'@
-Add-Type -TypeDefinition $code -Language CSharp
-[TTCardReader]::Run(8765, $env:TT_ORIGINS, ($env:TT_SIMULATE -eq '1'))
+[TTCardReader]::Wait()
 """
 
 out = BAT.replace("__CSHARP__", cs.strip("\n"))
