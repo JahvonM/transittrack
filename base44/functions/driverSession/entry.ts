@@ -477,7 +477,9 @@ export default async function(req) {
 
         const from = points[0].t - PING_LOG_INTERVAL_MS;
         const to = points[points.length - 1].t + PING_LOG_INTERVAL_MS;
-        const existing = (await base44.asServiceRole.entities.LocationPing.filter({ vehicle_id: vehicleId }, '-recorded_at', 1000).catch(() => []))
+        const pings = base44.asServiceRole.entities.LocationPing;
+        const existing = (await pings.filter({ vehicle_id: vehicleId, recorded_at: { $gte: new Date(from).toISOString(), $lte: new Date(to).toISOString() } }, '-recorded_at', 1000)
+          .catch(() => pings.filter({ vehicle_id: vehicleId }, '-recorded_at', 1000)).catch(() => []))
           .map((r) => new Date(r.recorded_at).getTime())
           .filter((t) => Number.isFinite(t) && t >= from && t <= to);
         const taken = [...existing];
