@@ -10,10 +10,10 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
-  AlertTriangle, Bus, CheckCircle2, CreditCard, Download, Keyboard, Loader2, Nfc, Plus, RefreshCw,
+  AlertTriangle, Bus, CheckCircle2, CreditCard, Download, ExternalLink, Keyboard, Loader2, Nfc, Plus, RefreshCw,
   Search, Send, ShieldCheck, Tablet, Terminal, Usb, UserRound, XCircle,
 } from "lucide-react";
-import { useCardReader, formatUid, normalizeUid, HELPER_DOWNLOAD } from "@/lib/cardReader";
+import { useCardReader, formatUid, normalizeUid, HELPER_DOWNLOAD, HELPER_URL } from "@/lib/cardReader";
 
 const ROLE_FILTERS = [
   { id: "all", label: "All" },
@@ -30,6 +30,10 @@ const STATUS_STYLE = {
 };
 const ACCESS_LEVELS = ["DEPOT_DRIVER_ZONE", "DEPOT_WORKSHOP", "DEPOT_DISPATCH", "DEPOT_ALL_ACCESS", "STAFF_BUS_BOARDING", "DEPOT_GENERAL"];
 const PREF_KEY = "tt-card-issuing-prefs";
+// Browsers won't let a page shown inside another page (e.g. the Base44
+// editor preview) reach programs on this PC, and Safari never allows it.
+const IN_FRAME = (() => { try { return window.self !== window.top; } catch { return true; } })();
+const IS_SAFARI = typeof navigator !== "undefined" && /Safari\//.test(navigator.userAgent) && !/Chrome|Chromium|Edg\//.test(navigator.userAgent);
 
 const initials = (name) => (name || "?").split(/\s+/).map((w) => w[0]).slice(0, 2).join("").toUpperCase();
 const fmtDate = (iso) => (iso ? new Date(iso).toLocaleDateString([], { dateStyle: "medium" }) : "—");
@@ -479,15 +483,30 @@ export default function CardIssuingTab({ companies = [] }) {
         <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 flex flex-wrap items-center gap-4">
           <Usb className="w-5 h-5 text-amber-600 shrink-0" />
           <div className="flex-1 min-w-[280px] text-sm space-y-1">
-            {localAccess === "denied" ? (
+            {IN_FRAME ? (
+              <>
+                <p className="font-semibold">Open Card issuing in its own tab</p>
+                <p className="text-muted-foreground">The card reader can't connect while TransitTrack is shown inside another page (like the Base44 editor preview). Open it in its own Chrome or Edge tab.</p>
+              </>
+            ) : IS_SAFARI ? (
+              <>
+                <p className="font-semibold">Use Chrome or Edge for the card reader</p>
+                <p className="text-muted-foreground">Safari can't talk to the reader helper. Open this page in Chrome or Microsoft Edge on the Windows PC the reader is plugged into.</p>
+              </>
+            ) : localAccess === "denied" ? (
               <>
                 <p className="font-semibold">Chrome is blocking the card reader</p>
                 <p className="text-muted-foreground">Click the icon left of the web address → <b>Site settings</b> → set <b>Local network access</b> (or “Apps on device”) to <b>Allow</b>, then press Connect reader.</p>
               </>
             ) : helper === "offline" ? (
               <>
-                <p className="font-semibold">Can't find the reader helper on this PC</p>
-                <p className="text-muted-foreground">Make sure <b>TransitTrack Card Reader</b> is running (its window says “Listening”), then press Connect reader. You can still type card IDs by hand.</p>
+                <p className="font-semibold">Can't reach the reader helper on this PC — check these in order:</p>
+                <ol className="text-muted-foreground list-decimal ml-4 space-y-0.5">
+                  <li>The black <b>TransitTrack Card Reader</b> window is open and says <b>Listening on http://127.0.0.1:8765</b>. Not open? Download the helper again and double-click it.</li>
+                  <li><a href={`${HELPER_URL}/`} target="_blank" rel="noreferrer" className="underline font-medium text-foreground">Test the helper</a> — a page showing “TransitTrack Card Reader” means it's running. “Can't be reached” means it isn't.</li>
+                  <li>Test works but still not connected? Chrome is blocking this site: click the icon left of the web address → <b>Site settings</b> → <b>Local network access</b> → <b>Allow</b>, then press Connect reader.</li>
+                </ol>
+                <p className="text-xs text-muted-foreground">You can still type card IDs by hand.</p>
               </>
             ) : (
               <>
@@ -500,8 +519,14 @@ export default function CardIssuingTab({ companies = [] }) {
             )}
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" asChild><a href={HELPER_DOWNLOAD} download><Download className="w-4 h-4" /> Download helper</a></Button>
-            <Button onClick={connect}><Usb className="w-4 h-4" /> Connect reader</Button>
+            {IN_FRAME ? (
+              <Button onClick={() => window.open(window.location.href, "_blank", "noopener")}><ExternalLink className="w-4 h-4" /> Open in new tab</Button>
+            ) : (
+              <>
+                <Button variant="outline" asChild><a href={HELPER_DOWNLOAD} download><Download className="w-4 h-4" /> Download helper</a></Button>
+                <Button onClick={connect}><Usb className="w-4 h-4" /> {helper === "offline" ? "Try again" : "Connect reader"}</Button>
+              </>
+            )}
           </div>
         </div>
       )}
