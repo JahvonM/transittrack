@@ -330,6 +330,19 @@ export default function KioskTablets({ vehicles, companies, onChange }) {
                           Copy URL
                         </Button>
                       )}
+                      {hasCode && !isRevoked && (d.kiosk_type === "driver" || d.kiosk_type === "bus_boarding") && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() =>
+                            downloadSetupFile(d, meta.label).catch(() =>
+                              toast({ title: "Couldn't make the setup file", description: "Try again, or use Setup tool at the top.", variant: "destructive" })
+                            )
+                          }
+                        >
+                          <Download className="w-3.5 h-3.5" /> Setup file
+                        </Button>
+                      )}
                       {!isRevoked && (
                         <>
                           <Button size="sm" variant="outline" onClick={() => openEdit(d)}>
