@@ -9,7 +9,6 @@ export function helperHealthPayload() {
     const h = typeof window !== "undefined" ? window.__ttHelperHealth : null;
     if (!h || typeof h !== "object") return {};
     if (typeof h.at === "number" && Date.now() - h.at > MAX_AGE_MS) return {};
-    // eslint-disable-next-line no-unused-vars
     const { at, ...report } = h;
     return { helper_health: report };
   } catch {
