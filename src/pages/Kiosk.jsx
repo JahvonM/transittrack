@@ -9,6 +9,7 @@ import BusBoardingKiosk from "@/components/kiosk/BusBoardingKiosk";
 import FrontDeskKiosk from "@/components/kiosk/FrontDeskKiosk";
 import { saveDevice, loadDevice, forgetTablet, saveDirectory, directoryInfo, warmPhotos, offlineLookup, noteStatus } from "@/lib/kioskOffline";
 import { isNetworkFailure } from "@/lib/offlineQueue";
+import { helperHealthPayload } from "@/lib/helperHealth";
 
 const TYPE_META = {
   bus_boarding: { label: "Bus boarding", icon: Bus },
@@ -70,7 +71,7 @@ export default function Kiosk() {
   // how actively it was being used — it only ever checked in once, at pairing.
   const heartbeat = (id) => {
     base44.functions
-      .invoke("kioskHeartbeat", { device_id: id })
+      .invoke("kioskHeartbeat", { device_id: id, ...helperHealthPayload() })
       .then((res) => {
         if (res.data?.error) {
           setStatus("error");
