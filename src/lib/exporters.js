@@ -76,8 +76,8 @@ export async function exportToPDF(filename, title, columns, rows) {
   // and long values wrap onto extra lines instead of being cut off.
   const cells = list.map((row) => cols.map((c) => cellValue(row, c.key)));
   const weights = cols.map((c, i) => {
-    const longest = Math.max(String(c.label ?? c.key).length, ...cells.slice(0, 200).map((r) => Math.min(r[i].length, 60)));
-    return Math.max(6, Math.min(longest, 40));
+    const longest = Math.max(String(c.label ?? c.key).length + 3, ...cells.slice(0, 200).map((r) => Math.min(r[i].length, 60)));
+    return Math.max(8, Math.min(longest, 40));
   });
   const total = weights.reduce((a, b) => a + b, 0) || 1;
   const widths = weights.map((w) => (usableW * w) / total);
