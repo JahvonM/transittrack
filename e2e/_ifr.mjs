@@ -1,0 +1,14 @@
+import { chromium } from "/app/node_modules/@playwright/test/index.mjs";
+const base="http://localhost:4173";
+const b=await chromium.launch(); const ctx=await b.newContext({viewport:{width:1440,height:900}});
+await ctx.addInitScript(() => { localStorage.setItem("base44_access_token", "fake"); localStorage.setItem("token", "fake"); });
+await ctx.route("**/api/**", async (r) => { const url=r.request().url();
+ if (url.includes("public-settings")) return r.continue();
+ if (url.includes("/functions/nfcCards")) return r.fulfill({ json: { people: [], cards: [], vehicles: [], tablets: [] } });
+ if (url.includes("/entities/User/me")) return r.fulfill({ json: { id: "u1", email: "a@x.com", full_name: "Ana Admin", role: "admin" } });
+ if (url.includes("/entities/")) return r.fulfill({ json: [] }); return r.fulfill({ json: {} }); });
+const p=await ctx.newPage();
+await p.setContent(`<iframe src="${base}/admin/cards" style="width:1400px;height:880px;border:0"></iframe>`);
+await p.waitForTimeout(8000);
+const f=p.frames()[1]; console.log(f?.url()); console.log((await f.evaluate(()=>document.body.innerText)).slice(0,600));
+await b.close();
