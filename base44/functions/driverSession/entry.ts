@@ -483,7 +483,9 @@ export default async function(req) {
           .map((r) => new Date(r.recorded_at).getTime())
           .filter((t) => Number.isFinite(t) && t >= from && t <= to);
         const taken = [...existing];
-        const near = (t) => taken.some((x) => Math.abs(x - t) < PING_LOG_INTERVAL_MS / 2);
+        // Already have a point within a minute of this one (from live tracking
+        // or an earlier upload of the same batch)? Then skip it.
+        const near = (t) => taken.some((x) => Math.abs(x - t) < PING_LOG_INTERVAL_MS);
         const rows = [];
         let lastKept = -Infinity;
         for (const p of points) {
