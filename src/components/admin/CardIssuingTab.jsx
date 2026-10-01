@@ -167,7 +167,7 @@ function AddStaffDialog({ open, onOpenChange, companies, vehicles, defaultCompan
   const [form, setForm] = useState(empty);
   const [busy, setBusy] = useState(false);
   const set = (p) => setForm((f) => ({ ...f, ...p }));
-  useEffect(() => { if (open) setForm({ ...empty, company_id: defaultCompany && defaultCompany !== "all" ? defaultCompany : "" }); }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (open) setForm({ ...empty, company_id: defaultCompany && defaultCompany !== "all" ? defaultCompany : "" }); }, [open]);
   const pickCompany = companies.length > 0;
   const buses = vehicles.filter((v) => !pickCompany || (form.company_id && v.company_id === form.company_id));
   const ready = form.full_name.trim() && form.vehicle_id && (!pickCompany || form.company_id);
@@ -602,7 +602,7 @@ export default function CardIssuingTab({ companies = [] }) {
                       <p className="text-lg font-semibold flex items-center gap-2"><AlertTriangle className="w-5 h-5 text-rose-600" /> Not issued to anyone</p>
                     )}
                     {checkResult.owner?.card && (
-                      <p className="text-sm text-muted-foreground mt-1">{checkResult.owner.card.role} · {checkResult.owner.card.access_level} · issued {fmtDate(checkResult.owner.card.issue_date)}</p>
+                      <p className="text-sm text-muted-foreground mt-1">{[checkResult.owner.card.company_name, checkResult.owner.card.assigned_vehicle].filter(Boolean).join(" · ") || checkResult.owner.card.role} · {checkResult.owner.card.access_level} · issued {fmtDate(checkResult.owner.card.issue_date)}</p>
                     )}
                   </div>
                 )}
