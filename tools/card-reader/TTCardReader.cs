@@ -536,6 +536,7 @@ public static class TTCardReader
             if (qi >= 0) { path = target.Substring(0, qi); query = target.Substring(qi + 1); }
 
             bool allowed = OriginAllowed(origin);
+            if (!allowed && !string.IsNullOrEmpty(origin) && (path == "/events" || path == "/status")) WarnOrigin(origin);
             string cors = allowed
                 ? "Access-Control-Allow-Origin: " + origin + "\r\nVary: Origin\r\nAccess-Control-Allow-Private-Network: true\r\n"
                 : "";
@@ -616,6 +617,17 @@ public static class TTCardReader
             Interlocked.Exchange(ref IdleAtTicks, DateTime.UtcNow.AddMilliseconds(kind == "error" ? 2200 : 1600).Ticks);
         string err = !done ? "timeout" : job.Error;
         return "{\"ok\":" + (done && job.Ok ? "true" : "false") + ",\"apdu\":\"" + apduHex + "\"" + (err != null ? ",\"error\":" + Json(err) : "") + "}";
+    }
+
+    static readonly List<string> WarnedOrigins = new List<string>();
+    static void WarnOrigin(string origin)
+    {
+        lock (WarnedOrigins)
+        {
+            if (WarnedOrigins.Contains(origin)) return;
+            WarnedOrigins.Add(origin);
+        }
+        Log("warn", "Refused a connection from " + origin + " - open TransitTrack at https://eager-transit-track-go.base44.app instead");
     }
 
     static bool OriginAllowed(string origin)
