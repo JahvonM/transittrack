@@ -70,10 +70,11 @@ function HelperHealthLine({ h }) {
   if (h.parked) parts.push("Parked");
   if (h.reader) parts.push(`Reader: ${h.reader}`);
   if (h.gps) parts.push(`GPS: ${h.gps}`);
+  if (h.hotspot) parts.push(`Hotspot: ${h.hotspot}`);
   if (h.last_card_at) parts.push(`Last card ${timeAgo(h.last_card_at)}`);
   if (stale) parts.push(`reported ${timeAgo(h.reported_at)}`);
   const lowBattery = typeof h.battery === "number" && h.battery <= 20 && !h.charging;
-  const problem = (h.reader && !OK_STATES.test(h.reader)) || (h.gps && !OK_STATES.test(h.gps) && !/^searching/i.test(h.gps));
+  const problem = (h.reader && !OK_STATES.test(h.reader)) || (h.gps && !OK_STATES.test(h.gps) && !/^searching/i.test(h.gps)) || (h.hotspot && /^(blocked|failed)/i.test(h.hotspot) && !h.parked);
   return (
     <div className={`text-xs flex items-start gap-1 mt-0.5 ${lowBattery || problem ? "text-destructive" : "text-muted-foreground"}`}>
       <Activity className="w-3 h-3 mt-0.5 shrink-0" />

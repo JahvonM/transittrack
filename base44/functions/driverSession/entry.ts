@@ -213,6 +213,7 @@ function cleanHelperHealth(h: unknown): Record<string, unknown> | null {
   if (typeof o.parked === 'boolean') out.parked = o.parked;
   const reader = str(o.reader, 40); if (reader) out.reader = reader;
   const gps = str(o.gps, 40); if (gps) out.gps = gps;
+  const hotspot = str(o.hotspot, 40); if (hotspot) out.hotspot = hotspot;
   const lastCard = str(o.last_card_at, 40); if (lastCard) out.last_card_at = lastCard;
   return out;
 }

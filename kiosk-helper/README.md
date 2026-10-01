@@ -18,11 +18,14 @@ Small Android app for the bus tablets. Replaces the Termux scripts:
   heartbeat relays it to KioskDevice.helper_health (Admin -> Kiosk Tablets).
 - **Auto-OK**: accessibility service taps OK on Android's USB access popup when it mentions
   TransitTrack Helper (needs `pm grant ... android.permission.WRITE_SECURE_SETTINGS`).
+- **Hotspot** (driver tablets, `--es hotspot true`): Wi-Fi hotspot on while the bus runs, off when
+  parked, so the boarding tablet can use the bus SIM. Android 10 has no public API: needs
+  `appops set ... WRITE_SETTINGS allow` and `settings put global hidden_api_policy 1`.
 - Starts at boot. Declares the ACR122U (VID 072F / PID 2200) as its USB device, so ticking
   "Use by default" once makes Android grant USB access automatically after every restart.
 
 Config (optional) via adb:
-`adb shell am start -n com.transittrack.kioskhelper/.MainActivity --es api_key KEY --es port 8080 --es ignition true --es reader true --es gps true`
+`adb shell am start -n com.transittrack.kioskhelper/.MainActivity --es api_key KEY --es port 8080 --es ignition true --es reader true --es gps true --es hotspot false`
 
 Build: see build.sh (aapt2 + javac + d8 + apksigner, no Gradle). The signing key is
 kiosk-helper/signing.jks; keep it, updates must be signed with the same key.
