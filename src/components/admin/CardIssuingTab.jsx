@@ -10,8 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
-  AlertTriangle, CheckCircle2, CreditCard, Download, Keyboard, Loader2, Nfc, Plus, RefreshCw,
-  Search, ShieldCheck, Terminal, Usb, UserRound, XCircle,
+  AlertTriangle, Bus, CheckCircle2, CreditCard, Download, Keyboard, Loader2, Nfc, Plus, RefreshCw,
+  Search, Send, ShieldCheck, Tablet, Terminal, Usb, UserRound, XCircle,
 } from "lucide-react";
 import { useCardReader, formatUid, normalizeUid, HELPER_DOWNLOAD } from "@/lib/cardReader";
 
@@ -29,11 +29,84 @@ const STATUS_STYLE = {
   "Revoked": "bg-rose-600/15 text-rose-700 dark:text-rose-300 border-rose-600/40",
 };
 const ACCESS_LEVELS = ["DEPOT_DRIVER_ZONE", "DEPOT_WORKSHOP", "DEPOT_DISPATCH", "DEPOT_ALL_ACCESS", "STAFF_BUS_BOARDING", "DEPOT_GENERAL"];
-const HOLDER_ROLES = ["Dispatcher", "Inspector", "Supervisor", "Cleaner", "Security", "Other"];
 const PREF_KEY = "tt-card-issuing-prefs";
 
 const initials = (name) => (name || "?").split(/\s+/).map((w) => w[0]).slice(0, 2).join("").toUpperCase();
 const fmtDate = (iso) => (iso ? new Date(iso).toLocaleDateString([], { dateStyle: "medium" }) : "—");
+const ago = (iso) => {
+  if (!iso) return "never";
+  const m = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+  if (m < 1) return "just now";
+  if (m < 60) return `${m} min ago`;
+  const h = Math.round(m / 60);
+  return h < 48 ? `${h} h ago` : fmtDate(iso);
+};
+
+const NO_BUS = "__none__";
+
+// The bus a staff member rides, and sending their card to that bus's
+// boarding tablet (it re-downloads the card list on its next check-in,
+// within about 30 seconds).
+function BusLink({ person, vehicles, tablets, onChanged }) {
+  const { toast } = useToast();
+  const [busy, setBusy] = useState("");
+  const choices = vehicles.filter((v) => !person.company_id || !v.company_id || v.company_id === person.company_id);
+  const onBus = tablets.filter((t) => t.vehicle_id === person.vehicle_id && t.paired && t.active);
+  const sentAt = onBus.map((t) => t.directory_sent_at).filter(Boolean).sort().pop();
+  const tell = (n, busName) => (n
+    ? toast({ title: `Sent to ${busName}'s tablet`, description: "It picks up the card list within about 30 seconds." })
+    : toast({ title: `${busName} has no boarding tablet yet`, description: "Set one up in Kiosk tablets — it will get the card list when it's paired." }));
+
+  const change = async (vehicleId) => {
+    setBusy("bus");
+    try {
+      const res = await base44.functions.invoke("nfcCards", { action: "set_bus", person_key: person.key, vehicle_id: vehicleId === NO_BUS ? "" : vehicleId });
+      const v = vehicles.find((x) => x.id === vehicleId);
+      if (v) tell(res.data?.sent_to_bus, v.name);
+      await onChanged?.(res.data?.person_key);
+    } catch (e) {
+      toast({ title: "Couldn't change the bus", description: e?.response?.data?.error || e.message, variant: "destructive" });
+    } finally { setBusy(""); }
+  };
+  const send = async () => {
+    setBusy("send");
+    try {
+      const res = await base44.functions.invoke("nfcCards", { action: "send_to_bus", vehicle_id: person.vehicle_id });
+      tell(res.data?.sent, person.assigned_vehicle || "This bus");
+      await onChanged?.(person.key);
+    } catch (e) {
+      toast({ title: "Couldn't send", description: e?.response?.data?.error || e.message, variant: "destructive" });
+    } finally { setBusy(""); }
+  };
+
+  return (
+    <div className="sm:col-span-2 rounded-lg bg-muted/40 px-3 py-2.5 space-y-2">
+      <div className="flex flex-wrap items-end gap-2">
+        <div className="flex-1 min-w-[200px]">
+          <Label className="text-xs text-muted-foreground">Bus</Label>
+          <Select value={person.vehicle_id || NO_BUS} onValueChange={change} disabled={!!busy}>
+            <SelectTrigger className="h-9 mt-1" aria-label="Bus"><SelectValue placeholder="Choose their bus" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NO_BUS}>No bus</SelectItem>
+              {choices.map((v) => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <Button type="button" variant="outline" size="sm" className="h-9" onClick={send} disabled={!person.vehicle_id || !!busy}>
+          {busy === "send" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Send to bus tablet
+        </Button>
+      </div>
+      {person.vehicle_id && (
+        <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+          <Tablet className="w-3.5 h-3.5" />
+          {onBus.length
+            ? `${onBus.map((t) => t.label || "Boarding tablet").join(", ")} · seen ${ago(onBus[0].last_seen)} · last sent ${ago(sentAt)}`
+            : "No boarding tablet on this bus yet — pair one in Kiosk tablets."}
+        </p>
+      )}
+    </div>
+  );
+}
 
 function readPrefs() {
   try { return { beep: true, led: true, batch: false, ...JSON.parse(localStorage.getItem(PREF_KEY) || "{}") }; } catch { return { beep: true, led: true, batch: false }; }
@@ -87,20 +160,25 @@ function TapTarget({ phase, message, uid }) {
 }
 
 // ---------------------------------------------------------------------------
-function AddHolderDialog({ open, onOpenChange, companies, onAdded }) {
+// New bus staff: a company's staff member, linked to one of its buses.
+function AddStaffDialog({ open, onOpenChange, companies, vehicles, defaultCompany, onAdded }) {
   const { toast } = useToast();
-  const [form, setForm] = useState({ full_name: "", employee_id: "", role: "Dispatcher", company_id: "", assigned_vehicle: "" });
+  const empty = { full_name: "", company_id: "", vehicle_id: "" };
+  const [form, setForm] = useState(empty);
   const [busy, setBusy] = useState(false);
   const set = (p) => setForm((f) => ({ ...f, ...p }));
+  useEffect(() => { if (open) setForm({ ...empty, company_id: defaultCompany && defaultCompany !== "all" ? defaultCompany : "" }); }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+  const pickCompany = companies.length > 0;
+  const buses = vehicles.filter((v) => !pickCompany || (form.company_id && v.company_id === form.company_id));
+  const ready = form.full_name.trim() && form.vehicle_id && (!pickCompany || form.company_id);
   const save = async () => {
-    if (!form.full_name.trim()) return;
+    if (!ready) return;
     setBusy(true);
     try {
       const res = await base44.functions.invoke("nfcCards", { action: "add_holder", ...form });
-      toast({ title: `${form.full_name} added` });
-      onAdded?.(res.data?.holder);
+      toast({ title: `${form.full_name.trim()} added`, description: "Now program their card." });
       onOpenChange(false);
-      setForm({ full_name: "", employee_id: "", role: "Dispatcher", company_id: "", assigned_vehicle: "" });
+      onAdded?.(res.data?.person_key);
     } catch (e) {
       toast({ title: "Couldn't add", description: e?.response?.data?.error || e.message, variant: "destructive" });
     } finally { setBusy(false); }
@@ -108,33 +186,31 @@ function AddHolderDialog({ open, onOpenChange, companies, onAdded }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
-        <DialogHeader><DialogTitle>Add a card holder</DialogTitle></DialogHeader>
-        <p className="text-sm text-muted-foreground -mt-2">For dispatchers, inspectors and others who aren't drivers, mechanics or bus staff.</p>
-        <div className="grid sm:grid-cols-2 gap-3">
-          <div className="space-y-1.5 sm:col-span-2"><Label htmlFor="ch-name">Full name</Label><Input id="ch-name" value={form.full_name} onChange={(e) => set({ full_name: e.target.value })} /></div>
-          <div className="space-y-1.5"><Label htmlFor="ch-emp">Employee ID</Label><Input id="ch-emp" value={form.employee_id} onChange={(e) => set({ employee_id: e.target.value })} placeholder="e.g. EMP-0142" /></div>
-          <div className="space-y-1.5"><Label>Role</Label>
-            <Select value={form.role} onValueChange={(v) => set({ role: v })}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>{HOLDER_ROLES.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent>
-            </Select>
-          </div>
-          {companies.length > 0 && (
+        <DialogHeader><DialogTitle>Add bus staff</DialogTitle></DialogHeader>
+        <p className="text-sm text-muted-foreground -mt-2">Staff belong to a company and ride one of its buses. Their card is sent to that bus's boarding tablet.</p>
+        <div className="space-y-3">
+          <div className="space-y-1.5"><Label htmlFor="st-name">Full name</Label><Input id="st-name" value={form.full_name} onChange={(e) => set({ full_name: e.target.value })} autoFocus /></div>
+          {pickCompany && (
             <div className="space-y-1.5"><Label>Company</Label>
-              <Select value={form.company_id || "__none__"} onValueChange={(v) => set({ company_id: v === "__none__" ? "" : v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">None</SelectItem>
-                  {companies.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                </SelectContent>
+              <Select value={form.company_id || undefined} onValueChange={(v) => set({ company_id: v, vehicle_id: "" })}>
+                <SelectTrigger aria-label="Company"><SelectValue placeholder="Choose a company" /></SelectTrigger>
+                <SelectContent>{companies.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
           )}
-          <div className="space-y-1.5"><Label htmlFor="ch-bus">Assigned bus (optional)</Label><Input id="ch-bus" value={form.assigned_vehicle} onChange={(e) => set({ assigned_vehicle: e.target.value })} placeholder="e.g. Bus #14" /></div>
+          <div className="space-y-1.5"><Label>Bus</Label>
+            <Select value={form.vehicle_id || undefined} onValueChange={(v) => set({ vehicle_id: v })} disabled={pickCompany && !form.company_id}>
+              <SelectTrigger aria-label="Bus"><SelectValue placeholder={pickCompany && !form.company_id ? "Choose the company first" : "Choose their bus"} /></SelectTrigger>
+              <SelectContent>
+                {buses.length === 0 && <div className="px-3 py-2 text-sm text-muted-foreground">This company has no buses yet.</div>}
+                {buses.map((v) => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={save} disabled={busy || !form.full_name.trim()}>{busy ? "Adding…" : "Add"}</Button>
+          <Button onClick={save} disabled={busy || !ready}>{busy ? "Adding…" : "Add staff"}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -148,7 +224,7 @@ function IssuedCards({ cards, people, onRevoked }) {
   const [show, setShow] = useState("active");
   const list = cards
     .filter((c) => (show === "all" ? true : show === "active" ? c.is_active : !c.is_active))
-    .filter((c) => !q || `${c.holder_name} ${c.card_uid} ${c.employee_id} ${c.role} ${c.access_level}`.toLowerCase().includes(q.toLowerCase()));
+    .filter((c) => !q || `${c.holder_name} ${c.card_uid} ${c.company_name} ${c.assigned_vehicle} ${c.access_level}`.toLowerCase().includes(q.toLowerCase()));
   const revoke = async (card) => {
     if (!(await confirmAction({ title: `Revoke ${card.holder_name}'s card?`, description: `Card ${formatUid(card.card_uid)} will stop working straight away, including on the bus boarding tablets.`, confirmLabel: "Revoke card" }))) return;
     try {
@@ -164,7 +240,7 @@ function IssuedCards({ cards, people, onRevoked }) {
       <div className="flex flex-wrap items-center gap-2 p-3 border-b">
         <div className="relative flex-1 min-w-[200px]">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name, card ID, employee ID…" className="pl-9" aria-label="Search issued cards" />
+          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name, card ID, company or bus…" className="pl-9" aria-label="Search issued cards" />
         </div>
         <Select value={show} onValueChange={setShow}>
           <SelectTrigger className="w-40" aria-label="Show"><SelectValue /></SelectTrigger>
@@ -179,7 +255,7 @@ function IssuedCards({ cards, people, onRevoked }) {
         <table className="w-full text-sm">
           <thead className="text-left text-muted-foreground">
             <tr className="border-b">
-              <th className="px-3 py-2 font-medium">Card ID</th><th className="px-3 py-2 font-medium">Holder</th><th className="px-3 py-2 font-medium">Role</th>
+              <th className="px-3 py-2 font-medium">Card ID</th><th className="px-3 py-2 font-medium">Holder</th><th className="px-3 py-2 font-medium">Bus</th>
               <th className="px-3 py-2 font-medium">Access</th><th className="px-3 py-2 font-medium">Issued</th><th className="px-3 py-2 font-medium">Status</th><th className="px-3 py-2" />
             </tr>
           </thead>
@@ -188,8 +264,8 @@ function IssuedCards({ cards, people, onRevoked }) {
             {list.map((c) => (
               <tr key={c.id} className="border-b last:border-0">
                 <td className="px-3 py-2 font-mono">{formatUid(c.card_uid)}<div className="text-xs text-muted-foreground font-sans">{c.card_type || ""}</div></td>
-                <td className="px-3 py-2">{c.holder_name}<div className="text-xs text-muted-foreground">{c.employee_id || ""}</div></td>
-                <td className="px-3 py-2">{c.role}</td>
+                <td className="px-3 py-2">{c.holder_name}<div className="text-xs text-muted-foreground">{c.company_name || ""}</div></td>
+                <td className="px-3 py-2">{c.assigned_vehicle || "—"}</td>
                 <td className="px-3 py-2 font-mono text-xs">{c.access_level}</td>
                 <td className="px-3 py-2">{fmtDate(c.issue_date)}<div className="text-xs text-muted-foreground">{c.issued_by || ""}</div></td>
                 <td className="px-3 py-2">
