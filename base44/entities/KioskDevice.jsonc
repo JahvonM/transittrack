@@ -17,7 +17,7 @@
       "type": "string"
     },
     "helper_health": {
-      "description": "Reported by the TransitTrack Helper Android app on the tablet (via the kiosk/driver page heartbeat): helper version, battery %, charging, parked, card reader state, last card time, USB GPS state, and when it was reported.",
+      "description": "Reported by the TransitTrack Helper Android app on the tablet (via the kiosk/driver page heartbeat): helper version, battery %, charging, parked, card reader state, last card time, USB GPS state, Wi-Fi hotspot state, and when it was reported.",
       "properties": {
         "battery": {
           "type": "number"
@@ -26,6 +26,9 @@
           "type": "boolean"
         },
         "gps": {
+          "type": "string"
+        },
+        "hotspot": {
           "type": "string"
         },
         "last_card_at": {
