@@ -198,6 +198,24 @@ function driverTemplates(templates, companyId) {
 }
 
 const SEVERITY = { Low: 'low', Medium: 'medium', High: 'high', Critical: 'critical' };
+
+// Status from the TransitTrack Helper Android app on the tablet (battery, card
+// reader, USB GPS...), relayed by the driver page. Shown in Admin → Kiosk Tablets.
+function cleanHelperHealth(h: unknown): Record<string, unknown> | null {
+  if (!h || typeof h !== 'object' || Array.isArray(h)) return null;
+  const o = h as Record<string, unknown>;
+  const str = (v: unknown, n: number) =>
+    typeof v === 'string' ? v.replace(/[\u0000-\u001f<>]/g, '').slice(0, n) : undefined;
+  const out: Record<string, unknown> = { reported_at: new Date().toISOString() };
+  const version = str(o.version, 16); if (version) out.version = version;
+  if (typeof o.battery === 'number' && Number.isFinite(o.battery)) out.battery = Math.max(0, Math.min(100, Math.round(o.battery)));
+  if (typeof o.charging === 'boolean') out.charging = o.charging;
+  if (typeof o.parked === 'boolean') out.parked = o.parked;
+  const reader = str(o.reader, 40); if (reader) out.reader = reader;
+  const gps = str(o.gps, 40); if (gps) out.gps = gps;
+  const lastCard = str(o.last_card_at, 40); if (lastCard) out.last_card_at = lastCard;
+  return out;
+}
 const MAX_INSPECTION_PHOTOS = 25;
 const MAX_PHOTO_B64 = 3_000_000;
 
@@ -215,10 +233,12 @@ export default async function(req) {
     const vehicleId = device.vehicle_id;
     if (!vehicleId) return Response.json({ error: 'No vehicle assigned to this device' }, { status: 400 });
 
+    const helperHealth = cleanHelperHealth(body.helper_health);
     await base44.asServiceRole.entities.KioskDevice.update(device_id, {
       last_seen: new Date().toISOString(),
       // Sent once per app start: how this tablet draws maps (for support).
       ...(typeof body.device_info === 'string' ? { device_info: sanitize(body.device_info).slice(0, 400) } : {}),
+      ...(helperHealth ? { helper_health: helperHealth } : {}),
     });
 
     switch (action) {
