@@ -289,6 +289,9 @@ export default function CardIssuingTab({ companies = [] }) {
   const { toast } = useToast();
   const [people, setPeople] = useState([]);
   const [cards, setCards] = useState([]);
+  const [vehicles, setVehicles] = useState([]);
+  const [tablets, setTablets] = useState([]);
+  const [companyFilter, setCompanyFilter] = useState("all");
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState("issue"); // issue | cards
   const [mode, setMode] = useState("issue"); // issue | check
@@ -301,7 +304,6 @@ export default function CardIssuingTab({ companies = [] }) {
   const [lastUid, setLastUid] = useState("");
   const [cardType, setCardType] = useState("");
   const [checkResult, setCheckResult] = useState(null);
-  const [employeeId, setEmployeeId] = useState("");
   const [access, setAccess] = useState("");
   const [expiry, setExpiry] = useState("");
   const [prefs, setPrefs] = useState(readPrefs);
@@ -323,6 +325,9 @@ export default function CardIssuingTab({ companies = [] }) {
       const res = await base44.functions.invoke("nfcCards", { action: "people" });
       setPeople(res.data?.people || []);
       setCards(res.data?.cards || []);
+      setVehicles(res.data?.vehicles || []);
+      setTablets(res.data?.tablets || []);
+      return res.data?.people || [];
     } catch (e) {
       toast({ title: "Couldn't load staff", description: e?.response?.data?.error || e.message, variant: "destructive" });
     } finally { setLoading(false); }
@@ -337,13 +342,14 @@ export default function CardIssuingTab({ companies = [] }) {
     return people.filter((p) =>
       (roleFilter === "all" || p.type === roleFilter)
       && (statusFilter === "all" || p.status === statusFilter)
-      && (!term || `${p.name} ${p.employee_id} ${p.assigned_vehicle} ${p.email} ${p.role}`.toLowerCase().includes(term)));
-  }, [people, q, roleFilter, statusFilter]);
+      && (companyFilter === "all" || p.company_id === companyFilter)
+      && (!term || `${p.name} ${p.assigned_vehicle} ${p.email} ${p.company_name}`.toLowerCase().includes(term)));
+  }, [people, q, roleFilter, statusFilter, companyFilter]);
+  const companyName = (p) => p.company_name || companies.find((c) => c.id === p.company_id)?.name || "";
 
   const select = (p) => {
     clearTimeout(batchTimer.current);
     setSelectedKey(p?.key || null);
-    setEmployeeId(p?.employee_id || "");
     setAccess(p?.card?.access_level || p?.default_access || "");
     setExpiry("");
     setMessage("");
@@ -377,12 +383,12 @@ export default function CardIssuingTab({ companies = [] }) {
     try {
       const res = await base44.functions.invoke("nfcCards", {
         action: "issue", person_key: selected.key, uid, card_type: type || cardType,
-        employee_id: employeeId, access_level: access, expiry_date: expiry,
+        access_level: access, expiry_date: expiry,
       });
       const data = res.data || {};
       if (!data.ok) throw Object.assign(new Error(data.error || "Card not issued"), { code: data.code });
       setPhase("success");
-      setMessage(`${selected.name} · ${access}${data.replaced ? " · old card deactivated" : ""}`);
+      setMessage(`${selected.name} · ${access}${data.replaced ? " · old card deactivated" : ""}${data.sent_to_bus ? ` · sent to ${selected.assigned_vehicle}'s tablet` : ""}`);
       addLog(`CARD_PROGRAMMED · ${formatUid(uid)} → ${selected.name}`, "ok");
       feedback("success", { beep: prefs.beep, led: prefs.led });
       await load();
@@ -509,8 +515,17 @@ export default function CardIssuingTab({ companies = [] }) {
             <div className="p-3 space-y-2 border-b">
               <div className="relative">
                 <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Name, employee ID or bus" className="pl-9" aria-label="Search staff" />
+                <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Name or bus" className="pl-9" aria-label="Search staff" />
               </div>
+              {companies.length > 0 && (
+                <Select value={companyFilter} onValueChange={setCompanyFilter}>
+                  <SelectTrigger className="h-9" aria-label="Company"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All companies</SelectItem>
+                    {companies.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              )}
               <div className="flex flex-wrap gap-1.5">
                 {ROLE_FILTERS.map((r) => (
                   <button key={r.id} onClick={() => setRoleFilter(r.id)} aria-pressed={roleFilter === r.id}
@@ -527,7 +542,7 @@ export default function CardIssuingTab({ companies = [] }) {
                     {Object.keys(STATUS_STYLE).map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                   </SelectContent>
                 </Select>
-                <Button variant="outline" size="sm" className="h-9" onClick={() => setAddOpen(true)}><Plus className="w-4 h-4" /> Add</Button>
+                <Button variant="outline" size="sm" className="h-9" onClick={() => setAddOpen(true)}><Plus className="w-4 h-4" /> Add staff</Button>
               </div>
               <label className="flex items-center justify-between gap-2 rounded-lg bg-muted/50 px-3 py-2">
                 <span className="text-sm"><span className="font-medium">Batch mode</span><span className="block text-xs text-muted-foreground">Move to the next unassigned person after each card</span></span>
@@ -544,7 +559,7 @@ export default function CardIssuingTab({ companies = [] }) {
                     <span className="w-9 h-9 rounded-full bg-muted grid place-items-center text-xs font-bold shrink-0">{initials(p.name)}</span>
                     <span className="flex-1 min-w-0">
                       <span className="block font-medium truncate">{p.name}</span>
-                      <span className="block text-xs text-muted-foreground truncate">{[p.role, p.employee_id, p.assigned_vehicle].filter(Boolean).join(" · ")}</span>
+                      <span className="block text-xs text-muted-foreground truncate">{[companyName(p), p.assigned_vehicle].filter(Boolean).join(" · ") || (p.type === "staff" ? "No bus yet" : "")}</span>
                     </span>
                     <span className={`text-[11px] px-2 py-0.5 rounded-full border whitespace-nowrap ${STATUS_STYLE[p.status]}`}>{p.status}</span>
                   </button>
@@ -600,12 +615,13 @@ export default function CardIssuingTab({ companies = [] }) {
                   <div className="rounded-2xl border bg-card p-4 space-y-3">
                     <p className="text-sm font-semibold">Card details</p>
                     <dl className="grid sm:grid-cols-2 gap-x-4 gap-y-3 text-sm">
-                      <div><dt className="text-xs text-muted-foreground">Employee</dt><dd className="font-medium truncate">{selected?.name || "—"}</dd></div>
-                      <div><dt className="text-xs text-muted-foreground">Role</dt><dd className="font-medium">{selected ? `${selected.role}${selected.company_name ? ` · ${selected.company_name}` : ""}` : "—"}</dd></div>
-                      <div>
-                        <dt><Label htmlFor="ci-emp" className="text-xs text-muted-foreground">Employee ID</Label></dt>
-                        <dd><Input id="ci-emp" value={employeeId} onChange={(e) => setEmployeeId(e.target.value)} disabled={!selected} placeholder="Optional" className="h-9 mt-1" /></dd>
-                      </div>
+                      <div><dt className="text-xs text-muted-foreground">Name</dt><dd className="font-medium truncate">{selected?.name || "—"}</dd></div>
+                      <div><dt className="text-xs text-muted-foreground">Company</dt><dd className="font-medium truncate">{selected ? companyName(selected) || "—" : "—"}</dd></div>
+                      {selected?.type === "staff" ? (
+                        <BusLink person={selected} vehicles={vehicles} tablets={tablets} onChanged={async (key) => { const list = await load(); const p = list?.find((x) => x.key === key); if (p) select(p); }} />
+                      ) : (
+                        <div className="sm:col-span-2"><dt className="text-xs text-muted-foreground">Bus</dt><dd className="font-medium flex items-center gap-1.5"><Bus className="w-4 h-4 text-muted-foreground" />{selected?.assigned_vehicle || "—"}</dd></div>
+                      )}
                       <div>
                         <dt><Label className="text-xs text-muted-foreground">Access clearance</Label></dt>
                         <dd>
@@ -620,7 +636,6 @@ export default function CardIssuingTab({ companies = [] }) {
                         <dd><Input id="ci-exp" type="date" value={expiry} onChange={(e) => setExpiry(e.target.value)} disabled={!selected} className="h-9 mt-1" /></dd>
                       </div>
                       <div><dt className="text-xs text-muted-foreground">Card type</dt><dd className="font-medium">{cardType || "Detected on tap (MIFARE Classic / NTAG)"}</dd></div>
-                      <div><dt className="text-xs text-muted-foreground">Assigned bus</dt><dd className="font-medium">{selected?.assigned_vehicle || "—"}</dd></div>
                       {selected?.type === "staff" && (
                         <div className="sm:col-span-2 flex items-center gap-3 rounded-lg bg-muted/40 px-3 py-2">
                           <div className="flex-1">
@@ -673,7 +688,14 @@ export default function CardIssuingTab({ companies = [] }) {
         </div>
       )}
 
-      <AddHolderDialog open={addOpen} onOpenChange={setAddOpen} companies={companies} onAdded={() => load()} />
+      <AddStaffDialog
+        open={addOpen} onOpenChange={setAddOpen} companies={companies} vehicles={vehicles} defaultCompany={companyFilter}
+        onAdded={async (key) => {
+          const list = await load();
+          const p = list?.find((x) => x.key === key);
+          if (p) { setMode("issue"); setRoleFilter("all"); setStatusFilter("all"); setQ(""); select(p); }
+        }}
+      />
     </div>
   );
 }
