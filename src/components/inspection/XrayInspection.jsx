@@ -9,7 +9,7 @@ import {
   ScanLine, Volume2, VolumeX, X,
 } from "lucide-react";
 import XrayBus from "@/components/inspection/XrayBus";
-import { ZONE_BY_ID, flattenTemplate, walkOrder, zoneStatus } from "@/lib/busZones";
+import { zoneById, layoutOf, flattenTemplate, walkOrder, zoneStatus } from "@/lib/busZones";
 
 const SPEAK_KEY = "tt-xr-speak";
 
@@ -44,7 +44,9 @@ const CRIT_STYLE = {
 // (outside first, then the cabin), highlighting the part being checked.
 // onSubmit({ results, odometer, fuel, passed }) must resolve when saved.
 export default function XrayInspection({ template, vehicle, onSubmit, onSkip, onFinished, askReadings = true }) {
-  const items = useMemo(() => walkOrder(flattenTemplate(template)), [template]);
+  const layout = layoutOf(template);
+  const ZONE_BY_ID = useMemo(() => zoneById(layout), [layout]);
+  const items = useMemo(() => walkOrder(flattenTemplate(template), layout), [template, layout]);
   const [results, setResults] = useState({});
   const [idx, setIdx] = useState(0);
   const [phase, setPhase] = useState("scan"); // scan → check → readings → done
