@@ -68,8 +68,10 @@ export function useCardReader(onTap, { active = true } = {}) {
     let announcedOffline = false;
     const open = () => {
       if (closed) return;
+      let wasOpen = false;
       es = new EventSource(`${HELPER_URL}/events`);
       es.onopen = () => {
+        wasOpen = true;
         setHelper("connected");
         announcedOffline = false;
         try { localStorage.setItem(HELPER_FLAG, "1"); } catch { /* ignore */ }
@@ -89,17 +91,22 @@ export function useCardReader(onTap, { active = true } = {}) {
           addLog("Card removed");
         }
       };
+      // EventSource quietly retries forever when nothing answers, so take
+      // over: a stream that never opened means the helper isn't reachable
+      // (not running, or the browser blocked it) - say so and try again
+      // every few seconds. A stream that dropped reconnects straight away.
       es.onerror = () => {
-        if (es.readyState === 2) { // CLOSED — helper not running, or Chrome blocked it
-          setHelper("offline");
-          setReader(null);
-          localAccessState().then(setAccess);
-          if (!announcedOffline) { addLog("Can't reach the reader helper on this computer", "warn"); announcedOffline = true; }
-          es.close();
-          retry = setTimeout(open, 5000);
-        } else {
+        es.close();
+        setReader(null);
+        if (wasOpen) {
           setHelper("connecting");
+          retry = setTimeout(open, 1000);
+          return;
         }
+        setHelper("offline");
+        localAccessState().then(setAccess);
+        if (!announcedOffline) { addLog("Can't reach the reader helper on this computer", "warn"); announcedOffline = true; }
+        retry = setTimeout(open, 5000);
       };
     };
     // A plain request first: this is what makes Chrome show its one-time
