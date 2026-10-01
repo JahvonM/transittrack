@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Navigation, Radio, Lock, Users, AlertTriangle } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
+import { queueGpsPoint, queuedGpsCount, flushGpsQueue, GPS_QUEUE_EVENT } from "@/lib/gpsQueue";
 
 // The Drive screen: turn-by-turn map + everything the driver needs beside
 // it, sized to the screen (no page scrolling). panelTop / panelBottom let the
@@ -29,6 +30,22 @@ export default function DriverTrackingDashboard({ session, invoke, onReportIncid
   const staffRef = useRef([]);
   const alertedRef = useRef(new Set());
   const speedingLoggedRef = useRef(false);
+
+  // Tracking health shown under the tracking buttons.
+  const [lastFixAt, setLastFixAt] = useState(null);
+  const [lastSentAt, setLastSentAt] = useState(null);
+  const [queued, setQueued] = useState(() => queuedGpsCount());
+  const [gpsProblem, setGpsProblem] = useState("");
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const onQueue = () => setQueued(queuedGpsCount());
+    const onOnline = () => flushGpsQueue(invoke).then((n) => { if (n) setLastSentAt(Date.now()); });
+    window.addEventListener(GPS_QUEUE_EVENT, onQueue);
+    window.addEventListener("online", onOnline);
+    const t = setInterval(() => setTick((x) => x + 1), 15000);
+    if (queuedGpsCount()) onOnline();
+    return () => { window.removeEventListener(GPS_QUEUE_EVENT, onQueue); window.removeEventListener("online", onOnline); clearInterval(t); };
+  }, [invoke]);
 
   useEffect(() => {
     if (session?.staff) { staffRef.current = session.staff; setStaff(session.staff); }
@@ -74,8 +91,10 @@ export default function DriverTrackingDashboard({ session, invoke, onReportIncid
     } catch { /* ignore */ }
   }, []);
 
-  const handlePosition = useCallback(async (lat, lng, speed) => {
+  const handlePosition = useCallback(async (lat, lng, speed, extra = {}) => {
     const now = Date.now();
+    setLastFixAt(now);
+    setGpsProblem("");
     const v = vehicleRef.current;
     if (!v) return;
     setLiveVehicle((prev) => prev ? { ...prev, current_lat: lat, current_lng: lng, speed: speed || 0 } : prev);
@@ -96,7 +115,14 @@ export default function DriverTrackingDashboard({ session, invoke, onReportIncid
     } else { speedingLoggedRef.current = false; }
     try {
       await invoke("update_location", { lat, lng, speed: speed || 0, status, trail: nextTrail, log_speeding: logSpeeding });
-    } catch { /* offline — next heartbeat syncs */ }
+      setLastSentAt(Date.now());
+      // Back online: send anything saved while there was no connection.
+      if (queuedGpsCount()) flushGpsQueue(invoke);
+    } catch (e) {
+      // No connection: keep the point on the tablet (with the time it was
+      // taken) and upload it later, so the trip has no gap.
+      if (!e?.response) queueGpsPoint({ lat, lng, speed, heading: extra.heading, accuracy: extra.accuracy, t: extra.ts || now });
+    }
     setLiveVehicle((prev) => prev ? { ...prev, current_lat: lat, current_lng: lng, speed: speed || 0, status, trail: nextTrail } : prev);
     const nearby = [];
     staffRef.current.forEach((s) => {
@@ -120,11 +146,17 @@ export default function DriverTrackingDashboard({ session, invoke, onReportIncid
     try { await invoke("start_tracking"); } catch { /* tolerate */ }
     watchId.current = navigator.geolocation.watchPosition(
       (p) => {
-        if (p.coords.accuracy != null && p.coords.accuracy > 100) return;
-        handlePosition(p.coords.latitude, p.coords.longitude, p.coords.speed);
+        if (p.coords.accuracy != null && p.coords.accuracy > 100) { setGpsProblem("Weak GPS signal"); return; }
+        handlePosition(p.coords.latitude, p.coords.longitude, p.coords.speed, { heading: p.coords.heading, accuracy: p.coords.accuracy, ts: p.timestamp });
       },
       (err) => {
-        if (err.code === err.PERMISSION_DENIED) { toast({ title: "Location permission denied", variant: "destructive" }); setSharing(false); }
+        if (err.code === err.PERMISSION_DENIED) {
+          toast({ title: "Location permission denied", description: "Allow location for this app in the tablet's settings.", variant: "destructive" });
+          setGpsProblem("Location permission is off");
+          setSharing(false);
+        } else {
+          setGpsProblem(err.code === err.POSITION_UNAVAILABLE ? "GPS is off or unavailable" : "Waiting for GPS signal");
+        }
       },
       { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
     );
@@ -175,6 +207,17 @@ export default function DriverTrackingDashboard({ session, invoke, onReportIncid
     .map((s) => ({ lat: s.home_lat, lng: s.home_lng, color: "#34d399", label: s.full_name }));
   const locked = !!liveVehicle?.remote_tracking_lock;
 
+  // One line of tracking health: GPS fix freshness, upload state, saved points.
+  const ago = (ms) => { const s = Math.round((Date.now() - ms) / 1000); return s < 60 ? `${s}s` : `${Math.round(s / 60)} min`; };
+  const staleFix = sharing && lastFixAt && Date.now() - lastFixAt > 60000;
+  const health = !sharing
+    ? (queued ? { tone: "warn", text: `${queued} saved GPS point${queued === 1 ? "" : "s"} waiting to upload` } : null)
+    : gpsProblem ? { tone: "warn", text: gpsProblem }
+    : staleFix ? { tone: "warn", text: `No GPS signal for ${ago(lastFixAt)}` }
+    : queued ? { tone: "warn", text: `No connection · ${queued} GPS point${queued === 1 ? "" : "s"} saved on this tablet, will upload` }
+    : lastSentAt ? { tone: "ok", text: `GPS live · sent ${ago(lastSentAt)} ago` }
+    : { tone: "muted", text: "Waiting for first GPS fix…" };
+
   // Sized to the screen with nothing to scroll: landscape = map | panel,
   // portrait = map on top, two panel columns below. Lists show what fits and
   // open the rest in a sheet.
@@ -221,6 +264,12 @@ export default function DriverTrackingDashboard({ session, invoke, onReportIncid
                   </Button>
                 )}
               </div>
+              {health && (
+                <p role="status" className={`text-xs flex items-center gap-1.5 ${health.tone === "warn" ? "text-amber-600 dark:text-amber-400" : health.tone === "ok" ? "text-green-700 dark:text-green-400" : "text-muted-foreground"}`}>
+                  <span className={`w-2 h-2 rounded-full shrink-0 ${health.tone === "warn" ? "bg-amber-500" : health.tone === "ok" ? "bg-green-500" : "bg-muted-foreground"}`} />
+                  {health.text}
+                </p>
+              )}
             </div>
           </div>
 
