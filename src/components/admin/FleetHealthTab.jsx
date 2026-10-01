@@ -184,9 +184,9 @@ export default function FleetHealthTab({ vehicles = [] }) {
             )}
             {shown.map((r) => (
               <tr key={r.v.id} className={`border-b last:border-0 align-top ${r.problem ? "" : "opacity-90"}`}>
-                <td className="px-3 py-2.5">
-                  <p className="font-medium flex items-center gap-1.5"><Bus className="w-4 h-4 text-muted-foreground" />{r.v.name}</p>
-                  <p className="text-xs text-muted-foreground pl-5.5">{[r.v.fleet_number, r.v.driver_name].filter(Boolean).join(" · ")}</p>
+                <td className="px-3 py-2.5 min-w-[150px]">
+                  <p className="font-medium flex items-center gap-1.5 whitespace-nowrap"><Bus className="w-4 h-4 text-muted-foreground shrink-0" />{r.v.name}</p>
+                  <p className="text-xs text-muted-foreground pl-5 truncate max-w-[180px]">{[r.v.fleet_number, r.v.driver_name].filter(Boolean).join(" · ")}</p>
                 </td>
                 <td className="px-3 py-2.5"><Cell s={r.cells.gps} /></td>
                 <td className="px-3 py-2.5"><Cell s={r.cells.driver} /></td>
