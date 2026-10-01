@@ -223,6 +223,7 @@ export default function XrayInspection({ template, vehicle, onSubmit, onSkip, on
           <div className="relative">
             <XrayBus
               view={view}
+              layout={layout}
               statuses={statuses}
               activeZone={phase === "check" ? item?.zone : null}
               onZoneClick={phase === "done" ? undefined : jumpToZone}

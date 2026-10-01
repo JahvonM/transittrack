@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ListChecks, Plus, Trash2, Save } from "lucide-react";
 import InspectionTemplateSettings, { AUDIENCES, audienceSummary, metaFrom } from "@/components/admin/InspectionTemplateSettings";
 import XrayBus from "@/components/inspection/XrayBus";
-import { BUS_ZONES, ZONE_BY_ID, flattenTemplate, zoneFor, zoneStatus } from "@/lib/busZones";
+import { BUS_LAYOUTS, layoutZones, zoneById, flattenTemplate, zoneFor, zoneStatus } from "@/lib/busZones";
 
 const CRITICALITY = ["Low", "Medium", "High", "Critical"];
 
@@ -142,7 +142,10 @@ export default function InspectionTemplatesTab({ templates = [], companies = [],
     }
   };
 
-  const draftItems = draft ? flattenTemplate({ sections: draft }) : [];
+  const layout = meta.xray_layout;
+  const layoutZoneList = layoutZones(layout);
+  const ZONE_BY_ID = zoneById(layout);
+  const draftItems = draft ? flattenTemplate({ sections: draft, xray_layout: layout }) : [];
   const previewStatus = zoneStatus(draftItems, {});
 
   const saveFrequency = async () => {
@@ -303,6 +306,25 @@ export default function InspectionTemplatesTab({ templates = [], companies = [],
                   </Button>
                 </div>
                 <InspectionTemplateSettings meta={meta} onChange={changeMeta} sentAt={selected.driver_sent_at} onSendNow={sendNow} sending={sending} />
+                <div className="border rounded-xl p-3 space-y-2">
+                  <p className="text-sm font-semibold">Bus type for the X-ray</p>
+                  <div className="grid sm:grid-cols-3 gap-2" role="radiogroup" aria-label="Bus type for the X-ray">
+                    {BUS_LAYOUTS.map((l) => (
+                      <button
+                        key={l.id}
+                        type="button"
+                        role="radio"
+                        aria-checked={layout === l.id}
+                        onClick={() => changeMeta({ ...meta, xray_layout: l.id })}
+                        className={`text-left rounded-lg border p-2 transition-colors ${layout === l.id ? "border-primary bg-primary/10" : "border-border hover:bg-muted/40"}`}
+                      >
+                        <XrayBus view="outside" layout={l.id} scanning={false} className="pointer-events-none" label={l.label} />
+                        <span className="block text-sm font-medium mt-1.5">{l.short}</span>
+                        <span className="block text-xs text-muted-foreground">{l.label.split(" · ")[1]}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
                 {draftItems.length > 0 && (
                   <div className="border rounded-xl p-3 space-y-2">
                     <div className="flex items-center justify-between gap-2">
@@ -310,8 +332,8 @@ export default function InspectionTemplatesTab({ templates = [], companies = [],
                       <p className="text-xs text-muted-foreground">{focusZone ? `Showing ${ZONE_BY_ID[focusZone]?.label}. Tap it again to show all.` : "Tap a part to find its items."}</p>
                     </div>
                     <div className="grid sm:grid-cols-2 gap-2">
-                      <XrayBus view="outside" statuses={previewStatus} activeZone={focusZone} scanning={false} onZoneClick={(z) => setFocusZone((f) => (f === z ? null : z))} />
-                      <XrayBus view="inside" statuses={previewStatus} activeZone={focusZone} scanning={false} onZoneClick={(z) => setFocusZone((f) => (f === z ? null : z))} />
+                      <XrayBus view="outside" layout={layout} statuses={previewStatus} activeZone={focusZone} scanning={false} onZoneClick={(z) => setFocusZone((f) => (f === z ? null : z))} />
+                      <XrayBus view="inside" layout={layout} statuses={previewStatus} activeZone={focusZone} scanning={false} onZoneClick={(z) => setFocusZone((f) => (f === z ? null : z))} />
                     </div>
                   </div>
                 )}
@@ -329,8 +351,8 @@ export default function InspectionTemplatesTab({ templates = [], companies = [],
                     </div>
                     <div className="space-y-1.5">
                       {section.items.map((item, iIdx) => {
-                        const autoZone = zoneFor({ item_name: item.item_name }, section.section_name);
-                        const zone = item.zone || autoZone;
+                        const autoZone = zoneFor({ item_name: item.item_name }, section.section_name, layout);
+                        const zone = (item.zone && ZONE_BY_ID[item.zone]) ? item.zone : autoZone;
                         if (focusZone && zone !== focusZone) return null;
                         return (
                         <div key={iIdx} className="flex flex-wrap sm:flex-nowrap items-center gap-2 text-sm">
@@ -339,11 +361,11 @@ export default function InspectionTemplatesTab({ templates = [], companies = [],
                             onChange={(e) => updateItem(sIdx, iIdx, { item_name: e.target.value })}
                             className="h-8 flex-1 min-w-[160px]"
                           />
-                          <Select value={item.zone || "__auto__"} onValueChange={(v) => updateItem(sIdx, iIdx, { zone: v === "__auto__" ? "" : v })}>
+                          <Select value={(item.zone && ZONE_BY_ID[item.zone]) ? item.zone : "__auto__"} onValueChange={(v) => updateItem(sIdx, iIdx, { zone: v === "__auto__" ? "" : v })}>
                             <SelectTrigger className="h-8 w-44" aria-label="Bus part"><SelectValue /></SelectTrigger>
                             <SelectContent>
                               <SelectItem value="__auto__">Auto: {ZONE_BY_ID[autoZone]?.label}</SelectItem>
-                              {BUS_ZONES.map((z) => <SelectItem key={z.id} value={z.id}>{z.label}{z.view === "inside" ? " (inside)" : ""}</SelectItem>)}
+                              {layoutZoneList.map((z) => <SelectItem key={z.id} value={z.id}>{z.label}{z.view === "inside" ? " (inside)" : ""}</SelectItem>)}
                             </SelectContent>
                           </Select>
                           <Select value={item.critical} onValueChange={(v) => updateItem(sIdx, iIdx, { critical: v })}>
