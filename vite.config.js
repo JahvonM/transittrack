@@ -15,8 +15,13 @@ function offlineManifest() {
   };
 }
 
+// Build stamp shown in Admin → Fleet health, so you can see which tablets
+// are still running an older version.
+const APP_BUILD = new Date().toISOString().slice(0, 16).replace('T', ' ');
+
 // https://vite.dev/config/
 export default defineConfig({
+  define: { __APP_BUILD__: JSON.stringify(APP_BUILD) },
   plugins: [
     base44({
       // Support for legacy code that imports the base44 SDK with @/integrations, @/entities, etc.
