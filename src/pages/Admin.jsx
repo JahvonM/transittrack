@@ -69,6 +69,7 @@ import BusLoader from "@/components/BusLoader";
 import ShiftsTab from "@/components/admin/ShiftsTab";
 import AuditLogTab from "@/components/admin/AuditLogTab";
 import CardIssuingTab from "@/components/admin/CardIssuingTab";
+import FleetHealthTab from "@/components/admin/FleetHealthTab";
 import LostItemsTab from "@/components/admin/LostItemsTab";
 
 const ROLE_LINKS = [
@@ -466,6 +467,7 @@ export default function Admin() {
             inspectionResults={inspectionResults}
           />
         )}
+        {section === "health" && <FleetHealthTab vehicles={vehicles} />}
         {section === "kiosks" && <KioskTablets vehicles={vehicles} companies={companies} onChange={load} />}
         {section === "checkins" && <CheckInLog vehicles={vehicles} onChange={load} />}
         {section === "billing" && <CompletedTripsTab trips={trips} />}

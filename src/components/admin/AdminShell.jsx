@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import {
+  Activity,
   Bus,
   Building2,
   CalendarPlus,
@@ -44,6 +45,7 @@ export const ADMIN_SECTIONS = [
   { id: "fleet", label: "Live fleet", icon: MapPin, group: "Fleet Operations" },
   { id: "vehicles", label: "Vehicles", icon: Bus, group: "Fleet Operations" },
   { id: "drivers", label: "Drivers", icon: Car, group: "Fleet Operations" },
+  { id: "health", label: "Fleet health", icon: Activity, group: "Fleet Operations" },
   { id: "kiosks", label: "Kiosk tablets", icon: Smartphone, group: "Fleet Operations" },
   { id: "shifts", label: "Driver shifts", icon: Timer, group: "Fleet Operations" },
   { id: "cards", label: "Card issuing", icon: CreditCard, group: "Fleet Operations" },
