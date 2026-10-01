@@ -16,18 +16,37 @@ import android.os.IBinder;
 import android.os.Looper;
 import android.os.PowerManager;
 import android.provider.Settings;
+import java.util.Calendar;
+import org.json.JSONObject;
 
-/** Runs all the time: screen on/off with the charger, and the card reader. */
+/**
+ * Runs all the time:
+ *  - screen on/off with the charger (bus ignition)
+ *  - card reader and USB GPS
+ *  - parked mode: 2 min after power is lost, pause reader + GPS and let the tablet sleep
+ *  - page refresh when the bus starts after a long park (or at 3 AM if never unplugged)
+ *  - health report to the page every minute (battery, reader, GPS, last card)
+ */
 public class HelperService extends Service {
+    static final String VERSION = "1.2";
     static volatile boolean plugged = true;
+    static volatile boolean parked = false;
+
     private static final String CHANNEL = "helper";
-    private static final long UNPLUG_DELAY_MS = 5000;  // ignore short power dips (engine crank)
+    private static final long UNPLUG_DELAY_MS = 5000;              // ignore short power dips (engine crank)
+    private static final long PARK_DELAY_MS = 2 * 60 * 1000;       // then pause everything to save battery
+    private static final long HEALTH_MS = 60 * 1000;
+    private static final long RELOAD_AFTER_PARK_MS = 2 * 60 * 60 * 1000L;
+    private static final int LOW_BATTERY = 15;
 
     private Handler main;
     private PowerManager.WakeLock wakeLock;
     private ResultServer results;
     private CardReader reader;
+    private UsbGps gps;
     private volatile int screenRequest = 0;
+    private long parkedSince = 0;
+    private int lastReloadDay = -1;
 
     static void start(Context c) {
         Intent i = new Intent(c, HelperService.class);
@@ -51,6 +70,33 @@ public class HelperService extends Service {
         @Override public void run() { if (!plugged) setScreen(false); }
     };
 
+    private final Runnable park = new Runnable() {
+        @Override public void run() { if (!plugged) enterParked("bus switched off"); }
+    };
+
+    private final Runnable health = new Runnable() {
+        @Override public void run() {
+            if (!parked) {
+                int battery = batteryPercent();
+                if (!plugged && battery >= 0 && battery <= LOW_BATTERY) enterParked("battery low (" + battery + "%)");
+                pushHealth();
+            }
+            main.postDelayed(this, HEALTH_MS);
+        }
+    };
+
+    private final Runnable nightly = new Runnable() {
+        @Override public void run() {
+            Calendar c = Calendar.getInstance();
+            int day = c.get(Calendar.DAY_OF_YEAR);
+            if (plugged && !parked && c.get(Calendar.HOUR_OF_DAY) == 3 && day != lastReloadDay) {
+                lastReloadDay = day;
+                reloadPage("nightly refresh");
+            }
+            main.postDelayed(this, 10 * 60 * 1000);
+        }
+    };
+
     @Override public void onCreate() {
         super.onCreate();
         main = new Handler(Looper.getMainLooper());
@@ -58,6 +104,7 @@ public class HelperService extends Service {
         ensureAutoOk();
         PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
         wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "TTHelper:main");
+        wakeLock.setReferenceCounted(false);
         wakeLock.acquire();
 
         IntentFilter pf = new IntentFilter();
@@ -68,12 +115,15 @@ public class HelperService extends Service {
 
         Intent battery = registerReceiver(null, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
         plugged = battery == null || battery.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0) != 0;
+        parked = false;
         Status.power = plugged ? "Plugged in" : "Unplugged";
-        Status.log("Helper started (" + Status.power + ")");
-        if (Config.ignition(this)) {
-            if (plugged) setScreen(true); else main.postDelayed(screenOff, UNPLUG_DELAY_MS);
+        Status.log("Helper " + VERSION + " started (" + Status.power + ")");
+        if (!Config.ignition(this)) Status.screen = "Ignition control off";
+        if (plugged) {
+            if (Config.ignition(this)) setScreen(true);
         } else {
-            Status.screen = "Ignition control off";
+            if (Config.ignition(this)) main.postDelayed(screenOff, UNPLUG_DELAY_MS);
+            main.postDelayed(park, PARK_DELAY_MS);
         }
 
         if (Config.reader(this)) {
@@ -84,6 +134,14 @@ public class HelperService extends Service {
         } else {
             Status.reader = "Card reader off";
         }
+        if (Config.gps(this)) {
+            gps = new UsbGps(this);
+            new Thread(gps, "tt-gps").start();
+        } else {
+            Status.gps = "GPS off";
+        }
+        main.postDelayed(health, 15000);
+        main.postDelayed(nightly, 10 * 60 * 1000);
     }
 
     @Override public int onStartCommand(Intent intent, int flags, int startId) {
@@ -94,9 +152,81 @@ public class HelperService extends Service {
         plugged = isPlugged;
         Status.power = isPlugged ? "Plugged in" : "Unplugged";
         Status.log("Power " + (isPlugged ? "connected" : "disconnected"));
-        if (!Config.ignition(this)) return;
         main.removeCallbacks(screenOff);
-        if (isPlugged) setScreen(true); else main.postDelayed(screenOff, UNPLUG_DELAY_MS);
+        main.removeCallbacks(park);
+        if (isPlugged) {
+            boolean longPark = parked && System.currentTimeMillis() - parkedSince >= RELOAD_AFTER_PARK_MS;
+            leaveParked();
+            if (Config.ignition(this)) setScreen(true);
+            if (longPark) reloadPage("bus started after a long park");
+            main.postDelayed(new Runnable() { @Override public void run() { pushHealth(); } }, 5000);
+        } else {
+            if (Config.ignition(this)) main.postDelayed(screenOff, UNPLUG_DELAY_MS);
+            main.postDelayed(park, PARK_DELAY_MS);
+        }
+    }
+
+    private void enterParked(String why) {
+        if (parked) return;
+        parked = true;
+        parkedSince = System.currentTimeMillis();
+        Status.power = "Unplugged (parked)";
+        Status.log("Parked (" + why + "): card reader and GPS paused to save battery");
+        if (Config.ignition(this)) setScreen(false);
+        pushHealth();
+        // Give the threads a moment to stop, then let the tablet sleep.
+        main.postDelayed(new Runnable() {
+            @Override public void run() { if (parked && wakeLock.isHeld()) wakeLock.release(); }
+        }, 15000);
+    }
+
+    private void leaveParked() {
+        if (!wakeLock.isHeld()) wakeLock.acquire();
+        if (!parked) return;
+        parked = false;
+        Status.log("Power back: card reader and GPS resumed");
+    }
+
+    private void reloadPage(final String why) {
+        new Thread(new Runnable() {
+            @Override public void run() {
+                try { Thread.sleep(8000); } catch (InterruptedException e) { return; }
+                for (int attempt = 0; attempt < 6; attempt++) {
+                    if (Kiosk.reload(HelperService.this)) { Status.log("Page refreshed (" + why + ")"); return; }
+                    try { Thread.sleep(10000); } catch (InterruptedException e) { return; }
+                }
+            }
+        }, "tt-reload").start();
+    }
+
+    private int batteryPercent() {
+        Intent b = registerReceiver(null, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
+        if (b == null) return -1;
+        int level = b.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
+        int scale = b.getIntExtra(BatteryManager.EXTRA_SCALE, 100);
+        return level < 0 || scale <= 0 ? -1 : Math.round(level * 100f / scale);
+    }
+
+    /** Puts the helper's status into the page; its heartbeat passes it on to Admin -> Kiosk Tablets. */
+    private void pushHealth() {
+        final String js;
+        try {
+            JSONObject h = new JSONObject();
+            h.put("version", VERSION);
+            int battery = batteryPercent();
+            if (battery >= 0) h.put("battery", battery);
+            h.put("charging", plugged);
+            h.put("parked", parked);
+            if (Config.reader(this) && Config.seen(this, "reader")) h.put("reader", Status.reader);
+            if (Status.lastCardIso != null) h.put("last_card_at", Status.lastCardIso);
+            if (Config.gps(this) && Config.seen(this, "gps")) h.put("gps", Status.gps);
+            js = "window.__ttHelperHealth=Object.assign(" + h.toString() + ",{at:Date.now()})";
+        } catch (Exception e) {
+            return;
+        }
+        new Thread(new Runnable() {
+            @Override public void run() { Kiosk.js(HelperService.this, js); }
+        }, "tt-health").start();
     }
 
     /** Tells FreeKiosk to turn the screen on/off; retries for ~2 minutes (FreeKiosk may still be starting). */
@@ -150,14 +280,16 @@ public class HelperService extends Service {
             b = new Notification.Builder(this);
         }
         return b.setContentTitle("TransitTrack Helper")
-                .setContentText("Card reader and screen control running")
+                .setContentText("Card reader, GPS and screen control running")
                 .setSmallIcon(android.R.drawable.ic_menu_compass)
                 .setOngoing(true)
                 .build();
     }
 
     @Override public void onDestroy() {
+        main.removeCallbacksAndMessages(null);
         if (reader != null) reader.stop();
+        if (gps != null) gps.stop();
         if (results != null) results.stop();
         try { unregisterReceiver(powerReceiver); } catch (Exception ignored) { }
         try { unregisterReceiver(permissionReceiver); } catch (Exception ignored) { }

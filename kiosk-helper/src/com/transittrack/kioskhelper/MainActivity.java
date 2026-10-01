@@ -16,11 +16,12 @@ public class MainActivity extends Activity {
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Runnable refresh = new Runnable() {
         @Override public void run() {
-            text.setText("TransitTrack Helper\n\n"
+            text.setText("TransitTrack Helper " + HelperService.VERSION + "\n\n"
                     + "Power:      " + Status.power + "\n"
                     + "Screen:     " + Status.screen + "\n"
                     + "Reader:     " + Status.reader + "\n"
-                    + "Last card:  " + Status.lastCard + "\n\n"
+                    + "Last card:  " + Status.lastCard + "\n"
+                    + "USB GPS:    " + Status.gps + "\n\n"
                     + "Recent:\n" + Status.recent());
             handler.postDelayed(this, 1000);
         }
@@ -55,6 +56,7 @@ public class MainActivity extends Activity {
         }
         if ((v = i.getStringExtra("ignition")) != null) { e.putBoolean("ignition", "true".equalsIgnoreCase(v)); changed = true; }
         if ((v = i.getStringExtra("reader")) != null) { e.putBoolean("reader", "true".equalsIgnoreCase(v)); changed = true; }
+        if ((v = i.getStringExtra("gps")) != null) { e.putBoolean("gps", "true".equalsIgnoreCase(v)); changed = true; }
         if (changed) {
             e.apply();
             Status.log("Settings saved - restarting helper");
