@@ -21,7 +21,8 @@ public class MainActivity extends Activity {
                     + "Screen:     " + Status.screen + "\n"
                     + "Reader:     " + Status.reader + "\n"
                     + "Last card:  " + Status.lastCard + "\n"
-                    + "USB GPS:    " + Status.gps + "\n\n"
+                    + "USB GPS:    " + Status.gps + "\n"
+                    + "Hotspot:    " + (Config.hotspot(MainActivity.this) ? Status.hotspot : "Not used") + "\n\n"
                     + "Recent:\n" + Status.recent());
             handler.postDelayed(this, 1000);
         }
@@ -57,6 +58,7 @@ public class MainActivity extends Activity {
         if ((v = i.getStringExtra("ignition")) != null) { e.putBoolean("ignition", "true".equalsIgnoreCase(v)); changed = true; }
         if ((v = i.getStringExtra("reader")) != null) { e.putBoolean("reader", "true".equalsIgnoreCase(v)); changed = true; }
         if ((v = i.getStringExtra("gps")) != null) { e.putBoolean("gps", "true".equalsIgnoreCase(v)); changed = true; }
+        if ((v = i.getStringExtra("hotspot")) != null) { e.putBoolean("hotspot", "true".equalsIgnoreCase(v)); changed = true; }
         if (changed) {
             e.apply();
             Status.log("Settings saved - restarting helper");

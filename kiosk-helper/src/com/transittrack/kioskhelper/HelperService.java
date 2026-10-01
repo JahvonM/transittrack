@@ -26,9 +26,10 @@ import org.json.JSONObject;
  *  - parked mode: 2 min after power is lost, pause reader + GPS and let the tablet sleep
  *  - page refresh when the bus starts after a long park (or at 3 AM if never unplugged)
  *  - health report to the page every minute (battery, reader, GPS, last card)
+ *  - driver tablets: Wi-Fi hotspot on while the bus runs, off when parked
  */
 public class HelperService extends Service {
-    static final String VERSION = "1.2";
+    static final String VERSION = "1.3";
     static volatile boolean plugged = true;
     static volatile boolean parked = false;
 
@@ -77,6 +78,7 @@ public class HelperService extends Service {
     private final Runnable health = new Runnable() {
         @Override public void run() {
             if (!parked) {
+                if (plugged) keepHotspot(true);
                 int battery = batteryPercent();
                 if (!plugged && battery >= 0 && battery <= LOW_BATTERY) enterParked("battery low (" + battery + "%)");
                 pushHealth();
@@ -121,6 +123,7 @@ public class HelperService extends Service {
         if (!Config.ignition(this)) Status.screen = "Ignition control off";
         if (plugged) {
             if (Config.ignition(this)) setScreen(true);
+            main.postDelayed(new Runnable() { @Override public void run() { keepHotspot(true); } }, 20000);
         } else {
             if (Config.ignition(this)) main.postDelayed(screenOff, UNPLUG_DELAY_MS);
             main.postDelayed(park, PARK_DELAY_MS);
@@ -159,6 +162,7 @@ public class HelperService extends Service {
             leaveParked();
             if (Config.ignition(this)) setScreen(true);
             if (longPark) reloadPage("bus started after a long park");
+            main.postDelayed(new Runnable() { @Override public void run() { keepHotspot(true); } }, 3000);
             main.postDelayed(new Runnable() { @Override public void run() { pushHealth(); } }, 5000);
         } else {
             if (Config.ignition(this)) main.postDelayed(screenOff, UNPLUG_DELAY_MS);
@@ -173,6 +177,7 @@ public class HelperService extends Service {
         Status.power = "Unplugged (parked)";
         Status.log("Parked (" + why + "): card reader and GPS paused to save battery");
         if (Config.ignition(this)) setScreen(false);
+        keepHotspot(false);
         pushHealth();
         // Give the threads a moment to stop, then let the tablet sleep.
         main.postDelayed(new Runnable() {
@@ -199,6 +204,31 @@ public class HelperService extends Service {
         }, "tt-reload").start();
     }
 
+    private long lastHotspotTry = 0;
+    private String lastHotspotResult = "";
+
+    /** Driver tablets: hotspot on while the bus runs (re-checked every minute), off when parked. */
+    private void keepHotspot(final boolean on) {
+        if (!Config.hotspot(this)) return;
+        new Thread(new Runnable() {
+            @Override public void run() {
+                boolean isOn = Hotspot.isOn(HelperService.this);
+                if (isOn == on) { Status.hotspot = on ? "On" : "Off"; return; }
+                long now = System.currentTimeMillis();
+                if (on && now - lastHotspotTry < 50000) return;
+                lastHotspotTry = now;
+                String r = Hotspot.set(HelperService.this, on);
+                if (!r.equals("requested")) {
+                    Status.hotspot = "Blocked";
+                    if (!r.equals(lastHotspotResult)) Status.log("Hotspot could not be turned " + (on ? "on" : "off") + ": " + r);
+                } else if (!r.equals(lastHotspotResult)) {
+                    Status.log("Hotspot " + (on ? "start" : "stop") + " requested");
+                }
+                lastHotspotResult = r;
+            }
+        }, "tt-hotspot").start();
+    }
+
     private int batteryPercent() {
         Intent b = registerReceiver(null, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
         if (b == null) return -1;
@@ -220,6 +250,7 @@ public class HelperService extends Service {
             if (Config.reader(this) && Config.seen(this, "reader")) h.put("reader", Status.reader);
             if (Status.lastCardIso != null) h.put("last_card_at", Status.lastCardIso);
             if (Config.gps(this) && Config.seen(this, "gps")) h.put("gps", Status.gps);
+            if (Config.hotspot(this)) h.put("hotspot", Status.hotspot);
             js = "window.__ttHelperHealth=Object.assign(" + h.toString() + ",{at:Date.now()})";
         } catch (Exception e) {
             return;
