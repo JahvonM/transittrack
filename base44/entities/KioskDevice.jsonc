@@ -1,14 +1,82 @@
 {
   "name": "KioskDevice",
-  "type": "object",
   "properties": {
-    "label": {
-      "type": "string"
-    },
     "company_id": {
       "type": "string"
     },
     "company_name": {
+      "type": "string"
+    },
+    "device_info": {
+      "description": "Reported by the tablet: which map it can draw (full/basic), WebGL 2 support and browser.",
+      "type": "string"
+    },
+    "directory_sent_at": {
+      "description": "When an admin last sent the staff card list to this tablet; the tablet re-downloads it on its next check-in.",
+      "format": "date-time",
+      "type": "string"
+    },
+    "helper_health": {
+      "description": "Reported by the TransitTrack Helper Android app on the tablet (via the kiosk/driver page heartbeat): helper version, battery %, charging, parked, card reader state, last card time, USB GPS state, and when it was reported.",
+      "properties": {
+        "battery": {
+          "type": "number"
+        },
+        "charging": {
+          "type": "boolean"
+        },
+        "gps": {
+          "type": "string"
+        },
+        "last_card_at": {
+          "type": "string"
+        },
+        "parked": {
+          "type": "boolean"
+        },
+        "reader": {
+          "type": "string"
+        },
+        "reported_at": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "kiosk_type": {
+      "default": "bus_boarding",
+      "enum": [
+        "bus_boarding",
+        "front_desk",
+        "badge_registry",
+        "driver"
+      ],
+      "type": "string"
+    },
+    "label": {
+      "type": "string"
+    },
+    "last_seen": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "paired": {
+      "default": false,
+      "type": "boolean"
+    },
+    "pairing_code": {
+      "type": "string"
+    },
+    "status": {
+      "default": "active",
+      "enum": [
+        "active",
+        "revoked"
+      ],
       "type": "string"
     },
     "vehicle_id": {
@@ -16,50 +84,13 @@
     },
     "vehicle_name": {
       "type": "string"
-    },
-    "kiosk_type": {
-      "type": "string",
-      "enum": [
-        "bus_boarding",
-        "front_desk",
-        "badge_registry",
-        "driver"
-      ],
-      "default": "bus_boarding"
-    },
-    "pairing_code": {
-      "type": "string"
-    },
-    "paired": {
-      "type": "boolean",
-      "default": false
-    },
-    "status": {
-      "type": "string",
-      "enum": [
-        "active",
-        "revoked"
-      ],
-      "default": "active"
-    },
-    "last_seen": {
-      "type": "string",
-      "format": "date-time"
-    },
-    "device_info": {
-      "type": "string",
-      "description": "Reported by the tablet: which map it can draw (full/basic), WebGL 2 support and browser."
-    },
-    "directory_sent_at": {
-      "type": "string",
-      "format": "date-time",
-      "description": "When an admin last sent the staff card list to this tablet; the tablet re-downloads it on its next check-in."
     }
   },
   "required": [
     "label",
     "kiosk_type"
   ],
+  "type": "object",
   "rls": {
     "read": {
       "$or": [
