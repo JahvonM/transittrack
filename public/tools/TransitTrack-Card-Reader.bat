@@ -48,7 +48,7 @@ using System.Threading;
 
 public static class TTCardReader
 {
-    const string Version = "1.0.0";
+    const string Version = "1.1.0";
 
     const uint SCARD_SCOPE_USER = 0;
     const uint SCARD_SHARE_SHARED = 2;
