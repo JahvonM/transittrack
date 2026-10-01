@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { ClipboardCheck, ChevronRight, Check, ScanLine, Send } from "lucide-react";
 import XrayInspection from "@/components/inspection/XrayInspection";
 import { enqueueJob, isOfflineError } from "@/lib/offlineJobs";
-import { TRIGGER_LABEL, statusFor, triggerOf } from "@/lib/driverInspections";
+import { TRIGGER_LABEL, statusFor, triggerOf, timesOf, nextSlot, formatTime } from "@/lib/driverInspections";
 import { flattenTemplate } from "@/lib/busZones";
 
 const LOCAL_DONE_KEY = "tt_driver_insp_done";
@@ -57,6 +57,15 @@ const STATUS_CHIP = {
   available: { label: "", cls: "" },
 };
 
+// "At 7:00 AM, 1:00 PM · next 1:00 PM" for timed ones, else the trigger name.
+function whenText(t) {
+  if (triggerOf(t) !== "at_times") return TRIGGER_LABEL[triggerOf(t)];
+  const times = timesOf(t);
+  if (!times.length) return TRIGGER_LABEL.at_times;
+  const next = nextSlot(t);
+  return `At ${times.map(formatTime).join(", ")}${next ? ` · next ${formatTime(next)}` : ""}`;
+}
+
 // Home-screen nudge for inspections that are due now.
 export function DueInspectionsBanner({ due = [], onStart, compact = false }) {
   if (!due.length) return null;
@@ -97,7 +106,7 @@ export function DriverInspectionList({ templates = [], recent = [], localDone = 
                 <button className="w-full flex items-center gap-3 py-3 text-left min-h-[56px]" onClick={() => onStart(t)}>
                   <div className="flex-1 min-w-0">
                     <p className="font-medium truncate">{t.name}</p>
-                    <p className="text-xs text-muted-foreground">{TRIGGER_LABEL[triggerOf(t)]} · {count} item{count === 1 ? "" : "s"}</p>
+                    <p className="text-xs text-muted-foreground">{whenText(t)} · {count} item{count === 1 ? "" : "s"}</p>
                   </div>
                   {chip.label && (
                     <span className={`text-xs px-2 py-0.5 rounded-full flex items-center gap-1 ${chip.cls}`}>
@@ -120,7 +129,7 @@ export function SentInspectionPrompt({ pending = [], onStart }) {
   const seen = useRef(null);
   const [current, setCurrent] = useState(null);
   useEffect(() => {
-    const key = (t) => `${t.id}@${t.driver_sent_at}`;
+    const key = (t) => t._promptKey || `${t.id}@${t.driver_sent_at}`;
     if (seen.current === null) {
       // First load: anything already pending is shown by the banner instead.
       seen.current = new Set(pending.map(key));
@@ -138,9 +147,9 @@ export function SentInspectionPrompt({ pending = [], onStart }) {
     <Dialog open onOpenChange={(o) => { if (!o && !required) setCurrent(null); }}>
       <DialogContent onInteractOutside={(e) => required && e.preventDefault()} onEscapeKeyDown={(e) => required && e.preventDefault()}>
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2"><ScanLine className="w-5 h-5 text-primary" /> New inspection</DialogTitle>
+          <DialogTitle className="flex items-center gap-2"><ScanLine className="w-5 h-5 text-primary" /> {current._slot ? "Inspection due" : "New inspection"}</DialogTitle>
           <DialogDescription>
-            Your office sent you “{current.name}”. {required ? "Please do it before you carry on driving." : "You can do it now or later from the Safety tab."}
+            {current._slot ? `It's ${formatTime(current._slot)} — time for “${current.name}”.` : `Your office sent you “${current.name}”.`} {required ? "Please do it before you carry on driving." : "You can do it now or later from the Safety tab."}
           </DialogDescription>
         </DialogHeader>
         <DialogFooter className="gap-2">

@@ -10,7 +10,7 @@ import DriverPairing from "@/components/driver/DriverPairing";
 import DriverGreeting, { DriverTopBar } from "@/components/driver/DriverGreeting";
 import PinGate from "@/components/driver/PinGate";
 import { DriverInspectionRunner, DueInspectionsBanner, DriverInspectionList, SentInspectionPrompt, readLocalDone, markLocalDone } from "@/components/driver/DriverInspection";
-import { dueFor, dueNow, sentAndPending } from "@/lib/driverInspections";
+import { dueFor, dueNow, sentAndPending, dueAtTime } from "@/lib/driverInspections";
 import DriverTrackingDashboard from "@/components/driver/DriverTrackingDashboard";
 import DriverChats from "@/components/driver/DriverChats";
 import DriverMessageAlert from "@/components/driver/DriverMessageAlert";
@@ -201,6 +201,14 @@ export default function DriverApp() {
   const recentInspections = session?.recent_inspections || [];
   const dueInspections = dueNow(inspTemplates, recentInspections, localDone);
   const sentPending = inspTemplates.filter((t) => sentAndPending(t, recentInspections, localDone));
+  // Pop up when the office sends one, or when a set time (e.g. 13:00) comes round.
+  const promptPending = [
+    ...sentPending,
+    ...inspTemplates.flatMap((t) => {
+      const slot = dueAtTime(t, recentInspections, localDone);
+      return slot ? [{ ...t, _slot: slot.time, _promptKey: `${t.id}@${new Date().toDateString()}@${slot.time}` }] : [];
+    }),
+  ];
 
   // then: an action to finish after the inspection (start/end the shift).
   // from: "unlock" | "manual" — decides what comes next and whether it can be skipped.
@@ -440,7 +448,7 @@ export default function DriverApp() {
 
       <DriverMessageAlert alert={alert} onAcknowledge={() => setAlert(null)} onReply={handleAlertReply} />
       <NewCheckInAlert checkIn={checkInAlert} onDismiss={() => setCheckInAlert(null)} />
-      <SentInspectionPrompt pending={sentPending} onStart={(t) => openInspection(t, { from: "unlock" })} />
+      <SentInspectionPrompt pending={promptPending} onStart={(t) => openInspection(t, { from: "unlock" })} />
 
       <Sheet open={isReportOpen} onOpenChange={setIsReportOpen}>
         <SheetContent side="bottom" className="max-w-3xl mx-auto rounded-t-2xl">
