@@ -37,6 +37,7 @@
       "type": "string",
       "enum": [
         "start_of_day",
+        "at_times",
         "shift_start",
         "shift_end",
         "on_demand"
@@ -50,6 +51,30 @@
         "type": "number"
       },
       "description": "Days of the week it appears (0=Sunday \u2026 6=Saturday). Empty means every day."
+    },
+    "driver_times": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "For the 'at_times' trigger: HH:MM times of day it becomes due (each time is a separate round, so it can be due several times a day)."
+    },
+    "driver_vehicle_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Only send to these buses. Empty means every bus (in the template's company)."
+    },
+    "xray_layout": {
+      "type": "string",
+      "enum": [
+        "front_engine",
+        "minibus",
+        "city_rear"
+      ],
+      "default": "front_engine",
+      "description": "Which bus drawing the X-ray walk-around uses."
     },
     "driver_from_time": {
       "type": "string",

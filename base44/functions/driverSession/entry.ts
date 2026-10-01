@@ -186,14 +186,18 @@ const ARRIVAL_RADIUS_M = 120; // "at a stop" radius for place alerts
 const PING_LOG_INTERVAL_MS = 60000; // location-history resolution for the replay timeline
 
 // Inspection templates sent to drivers for this tablet's company.
-function driverTemplates(templates, companyId) {
+// Templates sent to this bus's driver app: right company, and either every
+// bus or one of the buses picked for it.
+function driverTemplates(templates, companyId, vehicleId) {
   return (templates || [])
     .filter((t) => (t.audience === 'driver' || t.audience === 'both') && (!t.company_id || t.company_id === companyId))
+    .filter((t) => !Array.isArray(t.driver_vehicle_ids) || !t.driver_vehicle_ids.length || t.driver_vehicle_ids.includes(vehicleId))
     .map((t) => ({
       id: t.id, name: t.name, sections: t.sections || [],
       driver_trigger: t.driver_trigger || 'start_of_day', driver_days: t.driver_days || [],
+      driver_times: Array.isArray(t.driver_times) ? t.driver_times : [],
       driver_from_time: t.driver_from_time || '', driver_required: t.driver_required !== false,
-      driver_sent_at: t.driver_sent_at || null,
+      driver_sent_at: t.driver_sent_at || null, xray_layout: t.xray_layout || '',
     }));
 }
 
@@ -274,7 +278,7 @@ export default async function(req) {
           broadcasts: relevantBroadcasts, check_ins: checkIns.filter((c) => c.status === 'boarded'),
           group_messages: [...groupMessages].reverse(), trips,
           open_shift: openShifts.find((s) => !s.ended_at) || null,
-          inspection_templates: driverTemplates(allTemplates, companyId),
+          inspection_templates: driverTemplates(allTemplates, companyId, vehicleId),
           recent_inspections: recentInspections.map((i) => ({
             id: i.id, template_id: i.template_id || null, template_name: i.template_name || null,
             status: i.status, created_date: i.created_date,
