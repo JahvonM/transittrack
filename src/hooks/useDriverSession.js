@@ -2,6 +2,7 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
 import { deviceMapInfo } from "@/lib/mapEngine";
 import { isOfflineError, pendingJobs } from "@/lib/offlineJobs";
+import { helperHealthPayload } from "@/lib/helperHealth";
 
 // The last good session is kept on the tablet so the driver app still opens
 // (vehicle, PIN, route, stops, staff list) when it starts with no WiFi.
@@ -58,6 +59,7 @@ export function useDriverSession(deviceId, { intervalMs = 8000 } = {}) {
       const res = await base44.functions.invoke("driverSession", {
         device_id: deviceId, action: "heartbeat",
         ...(first ? { device_info: deviceMapInfo() } : {}),
+        ...helperHealthPayload(),
       });
       setSession((prev) => {
         // A shift started/ended offline wins until it has been uploaded.
