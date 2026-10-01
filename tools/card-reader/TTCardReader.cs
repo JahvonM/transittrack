@@ -103,6 +103,14 @@ public static class TTCardReader
 
     public static void Run(int port, string extraOrigins, bool simulate)
     {
+        if (Start(port, extraOrigins, simulate)) Wait();
+    }
+
+    // Starts listening and watching the reader in the background, so the
+    // page can connect straight away (even while the window still asks a
+    // question). Returns false if another copy is already running.
+    public static bool Start(int port, string extraOrigins, bool simulate)
+    {
         Simulate = simulate;
         AllowedOrigins.Add("https://eager-transit-track-go.base44.app");
         if (!string.IsNullOrEmpty(extraOrigins))
@@ -123,9 +131,10 @@ public static class TTCardReader
         catch (SocketException)
         {
             Console.WriteLine("  The card reader helper is already running (port " + port + " is in use).");
-            return;
+            Console.WriteLine("  Look for its other window, or restart the PC if you can't find it.");
+            return false;
         }
-        Log("info", "Listening on http://127.0.0.1:" + port + " (this computer only)" + (Simulate ? " - SIMULATE MODE" : ""));
+        Log("ok", "Listening on http://127.0.0.1:" + port + " (this computer only)" + (Simulate ? " - SIMULATE MODE" : ""));
 
         Thread http = new Thread(delegate () { AcceptLoop(listener); });
         http.IsBackground = true;
@@ -133,8 +142,15 @@ public static class TTCardReader
         Thread ping = new Thread(PingLoop);
         ping.IsBackground = true;
         ping.Start();
+        Thread readerThread = new Thread(ReaderLoop);
+        readerThread.IsBackground = true;
+        readerThread.Start();
+        return true;
+    }
 
-        ReaderLoop();
+    public static void Wait()
+    {
+        while (true) Thread.Sleep(60000);
     }
 
     // ------------------------------------------------------------------ reader
@@ -153,7 +169,14 @@ public static class TTCardReader
                     if (rc != 0)
                     {
                         Ctx = IntPtr.Zero;
-                        if (!warnedService) { Log("warn", "Waiting for the reader - plug in the ACR122U (" + Hex(rc) + ")"); warnedService = true; }
+                        if (!warnedService)
+                        {
+                            // 0x8010001D SCARD_E_NO_SERVICE: the Smart Card service is stopped (it starts when a reader is plugged in).
+                            Log("warn", rc == unchecked((int)0x8010001D)
+                                ? "Waiting for the reader - plug in the ACR122U (Windows' Smart Card service isn't running yet)"
+                                : "Waiting for the reader - plug in the ACR122U (" + Hex(rc) + ")");
+                            warnedService = true;
+                        }
                         SetReader(null);
                         IdleWait(2000);
                         continue;
