@@ -42,6 +42,11 @@ final class CardReader implements Runnable {
     @Override public void run() {
         while (running) {
             try {
+                if (HelperService.parked) {
+                    setReader("Paused (bus parked)");
+                    sleep(3000);
+                    continue;
+                }
                 UsbDevice d = find();
                 if (d == null) {
                     setReader("Not plugged in");
@@ -66,6 +71,7 @@ final class CardReader implements Runnable {
                     continue;
                 }
                 waitingSince = 0;
+                Config.markSeen(ctx, "reader");
                 if (!open(d)) { sleep(3000); continue; }
                 Status.log("Card reader connected");
                 setReader("Connected");
@@ -125,6 +131,7 @@ final class CardReader implements Runnable {
         boolean armed = true, first = true;
         int misses = 0, fails = 0;
         while (running) {
+            if (HelperService.parked) { Status.log("Card reader paused (bus parked)"); return; }
             String uid;
             try {
                 uid = readCard();
@@ -153,6 +160,7 @@ final class CardReader implements Runnable {
 
     private void handleCard(String uid) {
         Status.lastCard = uid + "  (" + Status.now() + ")";
+        Status.lastCardIso = Status.iso(System.currentTimeMillis());
         ledRead();
         results.arm();
         boolean sent = Kiosk.badge(ctx, uid);

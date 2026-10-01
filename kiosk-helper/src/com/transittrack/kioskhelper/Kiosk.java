@@ -20,6 +20,10 @@ final class Kiosk {
 
     static boolean announce(Context c) { return js(c, ANNOUNCE_JS); }
 
+    static boolean reload(Context c) { return post(c, "/api/reload", "{}"); }
+
+    private static volatile boolean lastOk = true;
+
     static boolean badge(Context c, String uid) {
         return js(c, ANNOUNCE_JS + ";window.dispatchEvent(new CustomEvent(\"tt-badge\",{detail:\"" + uid + "\"}))");
     }
@@ -47,9 +51,13 @@ final class Kiosk {
             int code = con.getResponseCode();
             InputStream is = code < 400 ? con.getInputStream() : con.getErrorStream();
             if (is != null) { byte[] b = new byte[512]; while (is.read(b) != -1) { } is.close(); }
-            return code >= 200 && code < 300;
+            boolean ok = code >= 200 && code < 300;
+            if (ok && !lastOk) Status.log("FreeKiosk reachable again");
+            lastOk = ok;
+            return ok;
         } catch (Exception e) {
-            Status.log("FreeKiosk not reachable (" + path + "): " + e.getClass().getSimpleName());
+            if (lastOk) Status.log("FreeKiosk not reachable (" + path + "): " + e.getClass().getSimpleName());
+            lastOk = false;
             return false;
         } finally {
             if (con != null) con.disconnect();

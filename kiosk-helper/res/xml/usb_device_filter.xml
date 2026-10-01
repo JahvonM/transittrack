@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- ACS ACR122U: vendor 0x072F, product 0x2200 -->
+    <!-- ACS ACR122U card reader: vendor 0x072F, product 0x2200 -->
     <usb-device vendor-id="1839" product-id="8704" />
+    <!-- USB GPS receivers: Prolific PL2303 (VFAN / BU-353 style) and u-blox -->
+    <usb-device vendor-id="1659" product-id="8963" />
+    <usb-device vendor-id="1659" product-id="9123" />
+    <usb-device vendor-id="5446" />
 </resources>

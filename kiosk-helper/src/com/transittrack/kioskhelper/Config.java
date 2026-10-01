@@ -10,4 +10,11 @@ final class Config {
     static int port(Context c) { return prefs(c).getInt("port", 8080); }
     static boolean ignition(Context c) { return prefs(c).getBoolean("ignition", true); }
     static boolean reader(Context c) { return prefs(c).getBoolean("reader", true); }
+    static boolean gps(Context c) { return prefs(c).getBoolean("gps", true); }
+
+    /** Remembered once a reader / GPS has ever been plugged in, so tablets without one don't report it. */
+    static boolean seen(Context c, String what) { return prefs(c).getBoolean("seen_" + what, false); }
+    static void markSeen(Context c, String what) {
+        if (!seen(c, what)) prefs(c).edit().putBoolean("seen_" + what, true).apply();
+    }
 }
