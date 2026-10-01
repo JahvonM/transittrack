@@ -4,6 +4,7 @@
 
 export const TRIGGERS = [
   { id: "start_of_day", label: "Start of the day", hint: "After the driver unlocks the tablet for the first time that day" },
+  { id: "at_times", label: "At set times", hint: "At each time you pick, e.g. 7:00 and 13:00 — more than once a day if needed" },
   { id: "shift_start", label: "When a shift starts", hint: "Every time the driver taps Start shift" },
   { id: "shift_end", label: "When a shift ends", hint: "Every time the driver taps End shift" },
   { id: "on_demand", label: "Anytime", hint: "Only when the driver opens it from the Safety tab" },
@@ -15,6 +16,37 @@ const sameLocalDay = (a, b) => a.getFullYear() === b.getFullYear() && a.getMonth
 
 export function triggerOf(t) {
   return t?.driver_trigger || "start_of_day";
+}
+
+const toMinutes = (hhmm) => {
+  if (!/^\d{1,2}:\d{2}$/.test(hhmm || "")) return null;
+  const [h, m] = hhmm.split(":").map(Number);
+  return h * 60 + m;
+};
+export function timesOf(t) {
+  return (Array.isArray(t?.driver_times) ? t.driver_times : []).filter((x) => toMinutes(x) != null).sort((a, b) => toMinutes(a) - toMinutes(b));
+}
+export const formatTime = (hhmm) => {
+  const mins = toMinutes(hhmm);
+  if (mins == null) return hhmm || "";
+  const d = new Date(2000, 0, 1, Math.floor(mins / 60), mins % 60);
+  return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+};
+
+// "At set times": the latest set time that has passed today (as a Date), or
+// null before the first one. Each time is its own round: done after 7:00
+// covers 7:00, but 13:00 needs doing again.
+export function currentSlot(t, now = new Date()) {
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  let slot = null;
+  for (const x of timesOf(t)) if (toMinutes(x) <= nowMin) slot = x;
+  if (!slot) return null;
+  const mins = toMinutes(slot);
+  return { time: slot, at: new Date(now.getFullYear(), now.getMonth(), now.getDate(), Math.floor(mins / 60), mins % 60) };
+}
+export function nextSlot(t, now = new Date()) {
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  return timesOf(t).find((x) => toMinutes(x) > nowMin) || null;
 }
 
 // Scheduled for today (day of week) and past its "from" time.
@@ -36,6 +68,17 @@ function lastDone(t, recent = [], localDone = {}) {
     if (!last || d > last) last = d;
   }
   return last;
+}
+
+// Due now at a set time and not done since that time (only on its days).
+export function dueAtTime(t, recent, localDone, now = new Date()) {
+  if (triggerOf(t) !== "at_times") return null;
+  const days = Array.isArray(t.driver_days) ? t.driver_days : [];
+  if (days.length && !days.includes(now.getDay())) return null;
+  const slot = currentSlot(t, now);
+  if (!slot) return null;
+  const last = lastDone(t, recent, localDone);
+  return !last || last < slot.at ? slot : null;
 }
 
 export function doneToday(t, recent, localDone, now = new Date()) {
@@ -62,6 +105,7 @@ export function doneWithin(t, recent, localDone, minutes, now = new Date()) {
 
 // Inspections that should run at a given moment of the driver's day.
 export function dueFor(moment, templates = [], recent = [], localDone = {}, now = new Date()) {
+  if (moment === "at_times") return templates.filter((t) => !!dueAtTime(t, recent, localDone, now));
   return templates.filter((t) => {
     if (triggerOf(t) !== moment || !scheduledNow(t, now)) return false;
     if (moment === "start_of_day") return !doneToday(t, recent, localDone, now);
@@ -73,12 +117,15 @@ export function dueFor(moment, templates = [], recent = [], localDone = {}, now 
 export function dueNow(templates = [], recent = [], localDone = {}, now = new Date()) {
   const sent = templates.filter((t) => sentAndPending(t, recent, localDone, now));
   const daily = dueFor("start_of_day", templates, recent, localDone, now);
+  const timed = dueFor("at_times", templates, recent, localDone, now);
   const seen = new Set();
-  return [...sent, ...daily].filter((t) => (seen.has(t.id) ? false : seen.add(t.id)));
+  return [...sent, ...timed, ...daily].filter((t) => (seen.has(t.id) ? false : seen.add(t.id)));
 }
 
 export function statusFor(t, recent, localDone, now = new Date()) {
   if (sentAndPending(t, recent, localDone, now)) return "sent";
+  if (dueAtTime(t, recent, localDone, now)) return "due";
+  if (triggerOf(t) === "at_times") return doneToday(t, recent, localDone, now) ? "done" : "available";
   if (doneToday(t, recent, localDone, now)) return "done";
   if (triggerOf(t) === "start_of_day" && scheduledNow(t, now)) return "due";
   return "available";
