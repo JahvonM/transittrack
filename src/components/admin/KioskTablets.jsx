@@ -30,6 +30,7 @@ import {
   Navigation,
   XCircle,
   Activity,
+  Download,
 } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 
@@ -56,6 +57,37 @@ function timeAgo(dateStr) {
   const hrs = Math.floor(mins / 60);
   if (hrs < 24) return `${hrs}h ago`;
   return `${Math.floor(hrs / 24)}d ago`;
+}
+
+// Windows setup tool (public/tools): installs FreeKiosk, WebView and the
+// TransitTrack Helper on a new tablet over USB and sets it up as a driver or
+// bus boarding tablet. The per-tablet version comes pre-filled (type, pairing
+// code, bus number) so it runs without typing.
+const SETUP_TOOL = "/tools/TransitTrack-Tablet-Setup.bat";
+const batSafe = (v) => String(v || "").replace(/[^A-Za-z0-9 .,-]/g, "").trim();
+
+async function downloadSetupFile(d, typeLabel) {
+  const res = await fetch(SETUP_TOOL, { cache: "no-store" });
+  if (!res.ok) throw new Error("Setup tool not found");
+  let text = await res.text();
+  const busNumber = (String(d.vehicle_name || d.label || "").match(/\d+/) || [""])[0];
+  const name = batSafe(`${d.label} - ${typeLabel}${d.vehicle_name ? ` - ${d.vehicle_name}` : ""}`);
+  const fill = (key, value) => {
+    text = text.replace(new RegExp(`set ${key}=\\r?\\n`), (m) => `set ${key}=${value}${m.endsWith("\r\n") ? "\r\n" : "\n"}`);
+  };
+  fill("PRESET_TYPE", d.kiosk_type === "driver" ? "1" : "2");
+  fill("PRESET_CODE", String(d.pairing_code || "").replace(/[^A-Za-z0-9]/g, ""));
+  if (busNumber) fill("PRESET_BUS", busNumber);
+  fill("PRESET_NAME", name);
+  const blob = new Blob([text], { type: "application/octet-stream" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `TransitTrack-Setup-${batSafe(d.label).replace(/[ .,]+/g, "-") || "tablet"}.bat`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
 }
 
 // Status reported by the TransitTrack Helper app on the tablet (battery, card
@@ -213,9 +245,27 @@ export default function KioskTablets({ vehicles, companies, onChange }) {
             <div className="text-xs text-muted-foreground">Active</div>
           </div>
         </div>
-        <Button onClick={openCreate}>
-          <Plus className="w-4 h-4 mr-1" /> Register tablet
-        </Button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button variant="outline" asChild>
+            <a href={SETUP_TOOL} download><Download className="w-4 h-4 mr-1" /> Setup tool</a>
+          </Button>
+          <Button onClick={openCreate}>
+            <Plus className="w-4 h-4 mr-1" /> Register tablet
+          </Button>
+        </div>
+      </div>
+
+      <div className="rounded-xl border bg-muted/40 px-4 py-3 text-sm">
+        <p className="font-medium">Setting up a new driver or bus boarding tablet</p>
+        <ol className="text-muted-foreground list-decimal ml-4 mt-1 space-y-0.5">
+          <li>Register the tablet here, then press <b>Setup file</b> on its card. The file comes filled in with its type, code and bus.</li>
+          <li>On the tablet: turn on USB debugging, remove all accounts, connect to Wi-Fi, and plug it into this Windows PC.</li>
+          <li>Double-click the downloaded file (if Windows warns you: <i>More info → Run anyway</i>) and follow the blue window.</li>
+        </ol>
+        <p className="text-xs text-muted-foreground mt-1">
+          Needs ADB on the PC (<code>winget install Google.PlatformTools</code>) and the WebView .apk in your Downloads folder.
+          FreeKiosk and TransitTrack Helper download themselves. <b>Setup tool</b> is the same file without anything filled in.
+        </p>
       </div>
 
       {loading ? (
