@@ -14,6 +14,7 @@ import {
   Search, Send, ShieldCheck, Tablet, Terminal, Usb, UserRound, XCircle,
 } from "lucide-react";
 import { useCardReader, formatUid, normalizeUid, HELPER_DOWNLOAD, HELPER_URL } from "@/lib/cardReader";
+import BulkCardIssue from "@/components/admin/BulkCardIssue";
 
 const ROLE_FILTERS = [
   { id: "all", label: "All" },
@@ -147,17 +148,17 @@ function TapTarget({ phase, message, uid }) {
   const p = PHASES[phase] || PHASES.ready;
   const Icon = p.icon;
   return (
-    <div className={`rounded-3xl border-2 min-h-[220px] flex flex-col items-center justify-center text-center gap-3 p-6 transition-colors ${p.cls}`} role="status" aria-live="polite">
-      <div className="relative">
+    <div className={`rounded-xl border-2 flex items-center gap-4 px-4 py-3 min-h-[84px] transition-colors ${p.cls}`} role="status" aria-live="polite">
+      <div className="relative shrink-0">
         {phase === "waiting" && <span className="absolute inset-0 rounded-full bg-rose-500/30 animate-ping" aria-hidden="true" />}
-        <div className="relative w-20 h-20 rounded-full grid place-items-center bg-background/70 border border-current/20">
-          <Icon className={`w-10 h-10 ${phase === "encoding" ? "animate-spin" : ""}`} />
+        <div className="relative w-12 h-12 rounded-full grid place-items-center bg-background/70 border border-current/20">
+          <Icon className={`w-6 h-6 ${phase === "encoding" ? "animate-spin" : ""}`} />
         </div>
       </div>
-      <div>
-        <p className="text-2xl font-bold">{p.title}</p>
-        <p className="text-sm opacity-90 mt-1">{message || p.sub}</p>
-        {uid && <p className="font-mono text-sm mt-2 opacity-90">Card {formatUid(uid)}</p>}
+      <div className="min-w-0">
+        <p className="text-lg font-bold leading-tight">{p.title}</p>
+        <p className="text-sm opacity-90">{message || p.sub}</p>
+        {uid && <p className="font-mono text-xs mt-0.5 opacity-90">Card {formatUid(uid)}</p>}
       </div>
     </div>
   );
@@ -316,7 +317,8 @@ export default function CardIssuingTab({ companies = [] }) {
   const [manualUid, setManualUid] = useState("");
   const [codeBusy, setCodeBusy] = useState(false);
   const consoleRef = useRef(null);
-  const batchTimer = useRef(null);
+  const bulkTapRef = useRef(null);
+  const [logOpen, setLogOpen] = useState(false);
 
   const setPref = (p) => setPrefs((prev) => {
     const next = { ...prev, ...p };
@@ -337,7 +339,6 @@ export default function CardIssuingTab({ companies = [] }) {
     } finally { setLoading(false); }
   }, [toast]);
   useEffect(() => { load(); }, [load]);
-  useEffect(() => () => clearTimeout(batchTimer.current), []);
 
   const selected = people.find((p) => p.key === selectedKey) || null;
 
@@ -352,7 +353,6 @@ export default function CardIssuingTab({ companies = [] }) {
   const companyName = (p) => p.company_name || companies.find((c) => c.id === p.company_id)?.name || "";
 
   const select = (p) => {
-    clearTimeout(batchTimer.current);
     setSelectedKey(p?.key || null);
     setAccess(p?.card?.access_level || p?.default_access || "");
     setExpiry("");
@@ -365,6 +365,7 @@ export default function CardIssuingTab({ companies = [] }) {
   const armed = mode === "check" || phase === "waiting";
 
   const onTap = async ({ uid, cardType: type }) => {
+    if (view === "bulk") { bulkTapRef.current?.({ uid, cardType: type }); return; }
     setLastUid(uid);
     if (type) setCardType(type);
     if (mode === "check") {
@@ -396,18 +397,6 @@ export default function CardIssuingTab({ companies = [] }) {
       addLog(`CARD_PROGRAMMED · ${formatUid(uid)} → ${selected.name}`, "ok");
       feedback("success", { beep: prefs.beep, led: prefs.led });
       await load();
-      if (prefs.batch) {
-        batchTimer.current = setTimeout(() => {
-          const next = filtered.find((p) => p.key !== selected.key && p.status === "Unassigned");
-          if (next) {
-            select(next);
-            setPhase("waiting");
-            addLog(`Batch mode: next up ${next.name}`);
-          } else {
-            addLog("Batch mode: everyone in this list has a card", "ok");
-          }
-        }, 1800);
-      }
     } catch (e) {
       const msg = e?.response?.data?.error || e.message;
       setPhase("error");
@@ -417,7 +406,7 @@ export default function CardIssuingTab({ companies = [] }) {
     }
   };
 
-  const { helper, reader, webNfc, log, addLog, feedback, connect, access: localAccess } = useCardReader(onTap, { active: armed });
+  const { helper, reader, webNfc, log, addLog, feedback, connect, access: localAccess } = useCardReader(onTap, { active: view === "bulk" || armed });
 
   useEffect(() => {
     const el = consoleRef.current;
@@ -468,7 +457,7 @@ export default function CardIssuingTab({ companies = [] }) {
         <CreditCard className="w-5 h-5 text-primary" />
         <h2 className="text-lg font-semibold">Card issuing</h2>
         <div className="flex rounded-lg border p-0.5 ml-2" role="tablist" aria-label="Card issuing view">
-          {[["issue", "Issue cards"], ["cards", `Issued cards (${cards.filter((c) => c.is_active).length})`]].map(([v, l]) => (
+          {[["issue", "Issue one"], ["bulk", "Bulk setup"], ["cards", `Issued cards (${cards.filter((c) => c.is_active).length})`]].map(([v, l]) => (
             <button key={v} role="tab" aria-selected={view === v} onClick={() => setView(v)}
               className={`px-3 h-9 rounded-md text-sm font-medium ${view === v ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>{l}</button>
           ))}
@@ -533,18 +522,23 @@ export default function CardIssuingTab({ companies = [] }) {
 
       {view === "cards" ? (
         <IssuedCards cards={cards} people={people} onRevoked={load} />
+      ) : view === "bulk" ? (
+        <BulkCardIssue
+          people={people} vehicles={vehicles} companies={companies} companyName={companyName}
+          tapRef={bulkTapRef} feedback={feedback} addLog={addLog} readerReady={helper === "connected" || webNfc} onIssued={load}
+        />
       ) : (
-        <div className="grid xl:grid-cols-[340px_minmax(0,1fr)] gap-4 items-start">
+        <div className="grid lg:grid-cols-[300px_minmax(0,1fr)] gap-3 items-start">
           {/* STAFF QUEUE */}
-          <aside className="rounded-2xl border bg-card flex flex-col xl:h-[calc(100vh-190px)] xl:min-h-[560px]" aria-label="Staff queue">
-            <div className="p-3 space-y-2 border-b">
+          <aside className="rounded-2xl border bg-card flex flex-col lg:h-[calc(100vh-200px)] lg:min-h-[480px]" aria-label="Staff queue">
+            <div className="p-2.5 space-y-2 border-b">
               <div className="relative">
                 <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Name or bus" className="pl-9" aria-label="Search staff" />
+                <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Name or bus" className="pl-9 h-9" aria-label="Search staff" />
               </div>
               {companies.length > 0 && (
                 <Select value={companyFilter} onValueChange={setCompanyFilter}>
-                  <SelectTrigger className="h-9" aria-label="Company"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="h-8" aria-label="Company"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All companies</SelectItem>
                     {companies.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
@@ -554,36 +548,32 @@ export default function CardIssuingTab({ companies = [] }) {
               <div className="flex flex-wrap gap-1.5">
                 {ROLE_FILTERS.map((r) => (
                   <button key={r.id} onClick={() => setRoleFilter(r.id)} aria-pressed={roleFilter === r.id}
-                    className={`px-2.5 h-8 rounded-full border text-xs font-semibold ${roleFilter === r.id ? "bg-primary text-primary-foreground border-primary" : "text-muted-foreground hover:text-foreground"}`}>
+                    className={`px-2 h-7 rounded-full border text-xs font-semibold ${roleFilter === r.id ? "bg-primary text-primary-foreground border-primary" : "text-muted-foreground hover:text-foreground"}`}>
                     {r.label} <span className="opacity-70">{counts[r.id] || 0}</span>
                   </button>
                 ))}
               </div>
               <div className="flex items-center gap-2">
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="h-9 flex-1" aria-label="Status"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="h-8 flex-1" aria-label="Status"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Any status</SelectItem>
                     {Object.keys(STATUS_STYLE).map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                   </SelectContent>
                 </Select>
-                <Button variant="outline" size="sm" className="h-9" onClick={() => setAddOpen(true)}><Plus className="w-4 h-4" /> Add staff</Button>
+                <Button variant="outline" size="sm" className="h-8" onClick={() => setAddOpen(true)}><Plus className="w-4 h-4" /> Add staff</Button>
               </div>
-              <label className="flex items-center justify-between gap-2 rounded-lg bg-muted/50 px-3 py-2">
-                <span className="text-sm"><span className="font-medium">Batch mode</span><span className="block text-xs text-muted-foreground">Move to the next unassigned person after each card</span></span>
-                <Switch checked={prefs.batch} onCheckedChange={(v) => setPref({ batch: v })} aria-label="Batch mode" />
-              </label>
             </div>
-            <ul className="flex-1 min-h-[240px] overflow-y-auto p-2 space-y-1">
+            <ul className="flex-1 min-h-[240px] overflow-y-auto p-1.5 space-y-0.5">
               {loading && <li className="p-6 text-center text-sm text-muted-foreground"><Loader2 className="w-5 h-5 animate-spin inline" /></li>}
               {!loading && filtered.length === 0 && <li className="p-6 text-center text-sm text-muted-foreground">Nobody matches.</li>}
               {filtered.map((p) => (
                 <li key={p.key}>
                   <button onClick={() => { setMode("issue"); select(p); }} aria-current={p.key === selectedKey}
-                    className={`w-full flex items-center gap-3 p-2.5 rounded-xl text-left border transition-colors ${p.key === selectedKey ? "border-primary bg-primary/10" : "border-transparent hover:bg-muted/60"}`}>
-                    <span className="w-9 h-9 rounded-full bg-muted grid place-items-center text-xs font-bold shrink-0">{initials(p.name)}</span>
+                    className={`w-full flex items-center gap-2.5 px-2 py-1.5 rounded-lg text-left border transition-colors ${p.key === selectedKey ? "border-primary bg-primary/10" : "border-transparent hover:bg-muted/60"}`}>
+                    <span className="w-8 h-8 rounded-full bg-muted grid place-items-center text-xs font-bold shrink-0">{initials(p.name)}</span>
                     <span className="flex-1 min-w-0">
-                      <span className="block font-medium truncate">{p.name}</span>
+                      <span className="block text-sm font-medium truncate">{p.name}</span>
                       <span className="block text-xs text-muted-foreground truncate">{[companyName(p), p.assigned_vehicle].filter(Boolean).join(" · ") || (p.type === "staff" ? "No bus yet" : "")}</span>
                     </span>
                     <span className={`text-[11px] px-2 py-0.5 rounded-full border whitespace-nowrap ${STATUS_STYLE[p.status]}`}>{p.status}</span>
@@ -594,7 +584,7 @@ export default function CardIssuingTab({ companies = [] }) {
           </aside>
 
           {/* WORKSPACE */}
-          <section className="space-y-4 min-w-0" aria-label="Card programming">
+          <section className="space-y-3 min-w-0" aria-label="Card programming">
             <div className="flex flex-wrap items-center gap-2">
               <div className="flex rounded-lg border p-0.5" role="tablist" aria-label="Mode">
                 {[["issue", "Issue a card"], ["check", "Check a card"]].map(([v, l]) => (
@@ -633,74 +623,79 @@ export default function CardIssuingTab({ companies = [] }) {
                 )}
               </>
             ) : (
-              <>
-                <TapTarget phase={phase} message={message} uid={phase === "success" || phase === "error" ? lastUid : ""} />
-
-                <div className="grid lg:grid-cols-[minmax(0,1fr)_260px] gap-4">
-                  <div className="rounded-2xl border bg-card p-4 space-y-3">
-                    <p className="text-sm font-semibold">Card details</p>
-                    <dl className="grid sm:grid-cols-2 gap-x-4 gap-y-3 text-sm">
-                      <div><dt className="text-xs text-muted-foreground">Name</dt><dd className="font-medium truncate">{selected?.name || "—"}</dd></div>
-                      <div><dt className="text-xs text-muted-foreground">Company</dt><dd className="font-medium truncate">{selected ? companyName(selected) || "—" : "—"}</dd></div>
-                      {selected?.type === "staff" ? (
-                        <BusLink person={selected} vehicles={vehicles} tablets={tablets} onChanged={async (key) => { const list = await load(); const p = list?.find((x) => x.key === key); if (p) select(p); }} />
-                      ) : (
-                        <div className="sm:col-span-2"><dt className="text-xs text-muted-foreground">Bus</dt><dd className="font-medium flex items-center gap-1.5"><Bus className="w-4 h-4 text-muted-foreground" />{selected?.assigned_vehicle || "—"}</dd></div>
-                      )}
-                      <div>
-                        <dt><Label className="text-xs text-muted-foreground">Access clearance</Label></dt>
-                        <dd>
-                          <Select value={access || "__none__"} onValueChange={(v) => setAccess(v === "__none__" ? "" : v)} disabled={!selected}>
-                            <SelectTrigger className="h-9 mt-1 font-mono text-xs"><SelectValue placeholder="Choose" /></SelectTrigger>
-                            <SelectContent>{[...new Set([...(access ? [access] : []), ...ACCESS_LEVELS])].map((a) => <SelectItem key={a} value={a} className="font-mono text-xs">{a}</SelectItem>)}</SelectContent>
-                          </Select>
-                        </dd>
-                      </div>
-                      <div>
-                        <dt><Label htmlFor="ci-exp" className="text-xs text-muted-foreground">Expires (optional)</Label></dt>
-                        <dd><Input id="ci-exp" type="date" value={expiry} onChange={(e) => setExpiry(e.target.value)} disabled={!selected} className="h-9 mt-1" /></dd>
-                      </div>
-                      <div><dt className="text-xs text-muted-foreground">Card type</dt><dd className="font-medium">{cardType || "Detected on tap (MIFARE Classic / NTAG)"}</dd></div>
-                      {selected?.type === "staff" && (
-                        <div className="sm:col-span-2 flex items-center gap-3 rounded-lg bg-muted/40 px-3 py-2">
-                          <div className="flex-1">
-                            <dt className="text-xs text-muted-foreground">Keypad code (if they forget their card)</dt>
-                            <dd className="text-lg font-bold tracking-[0.25em]">{selected.access_code || "—"}</dd>
-                          </div>
-                          <Button type="button" variant="outline" size="sm" onClick={giveKeypadCode} disabled={codeBusy}>
-                            {codeBusy ? "…" : selected.access_code ? "New code" : "Give code"}
-                          </Button>
-                        </div>
-                      )}
-                      <div><dt className="text-xs text-muted-foreground">Current card</dt><dd className="font-mono">{selected?.card ? formatUid(selected.card.card_uid) : selected?.legacy_tag ? `${formatUid(selected.legacy_tag)} (kiosk)` : "None"}</dd></div>
-                    </dl>
-                    <p className="text-xs text-muted-foreground">The card's built-in ID is registered to this person. Nothing is written onto the card, so any MIFARE or NTAG card works and a lost card can't be copied from our data.</p>
+              <div className="rounded-2xl border bg-card p-3 space-y-3">
+                {/* who + the big button, side by side */}
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="w-11 h-11 rounded-full bg-muted grid place-items-center text-sm font-bold shrink-0">{selected ? initials(selected.name) : <UserRound className="w-5 h-5 text-muted-foreground" />}</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold text-lg leading-tight truncate">{selected?.name || "Pick someone from the list"}</p>
+                    <p className="text-sm text-muted-foreground truncate">
+                      {selected ? [companyName(selected), selected.assigned_vehicle || (selected.type === "staff" ? "No bus yet" : ""), selected.card ? `card ${formatUid(selected.card.card_uid)}` : selected.legacy_tag ? `card ${formatUid(selected.legacy_tag)}` : "no card yet"].filter(Boolean).join(" · ") : "Or use Bulk setup to do a whole bus at once."}
+                    </p>
                   </div>
-
-                  <div className="rounded-2xl border bg-card p-4 space-y-3">
-                    <p className="text-sm font-semibold">Reader feedback</p>
-                    <label className="flex items-center justify-between gap-2 text-sm">Beep on success<Switch checked={prefs.beep} onCheckedChange={(v) => setPref({ beep: v })} /></label>
-                    <label className="flex items-center justify-between gap-2 text-sm">Flash green light<Switch checked={prefs.led} onCheckedChange={(v) => setPref({ led: v })} /></label>
-                    <p className="text-xs text-muted-foreground">A refused card always double-beeps and flashes red.</p>
-                  </div>
+                  {phase === "waiting" ? (
+                    <Button variant="outline" className="h-11" onClick={() => setPhase("ready")}>Cancel</Button>
+                  ) : (
+                    <Button className="h-11 px-5" disabled={!selected || phase === "encoding"} onClick={program}>
+                      <Nfc className="w-5 h-5" /> {selected?.card || selected?.legacy_tag ? "Replace card" : "Program card"}
+                    </Button>
+                  )}
                 </div>
 
-                <Button className="w-full h-14 text-base" disabled={!selected || phase === "encoding"} onClick={program}>
-                  <Nfc className="w-5 h-5" />
-                  {phase === "waiting" ? `Waiting for ${selected?.name || ""}'s card…` : selected ? `Program card for ${selected.name}` : "Pick someone to program a card"}
-                </Button>
-                {phase === "waiting" && (
-                  <Button variant="ghost" className="w-full -mt-2" onClick={() => setPhase("ready")}>Cancel</Button>
+                <TapTarget phase={phase} message={message} uid={phase === "success" || phase === "error" ? lastUid : ""} />
+
+                {selected?.type === "staff" && (
+                  <BusLink person={selected} vehicles={vehicles} tablets={tablets} onChanged={async (key) => { const list = await load(); const p = list?.find((x) => x.key === key); if (p) select(p); }} />
                 )}
-              </>
+
+                <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-2 text-sm">
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Access</Label>
+                    <Select value={access || "__none__"} onValueChange={(v) => setAccess(v === "__none__" ? "" : v)} disabled={!selected}>
+                      <SelectTrigger className="h-9 mt-1 font-mono text-xs"><SelectValue placeholder="Choose" /></SelectTrigger>
+                      <SelectContent>{[...new Set([...(access ? [access] : []), ...ACCESS_LEVELS])].map((a) => <SelectItem key={a} value={a} className="font-mono text-xs">{a}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="ci-exp" className="text-xs text-muted-foreground">Expires (optional)</Label>
+                    <Input id="ci-exp" type="date" value={expiry} onChange={(e) => setExpiry(e.target.value)} disabled={!selected} className="h-9 mt-1" />
+                  </div>
+                  {selected?.type === "staff" ? (
+                    <div>
+                      <span className="text-xs text-muted-foreground">Keypad code (forgot card)</span>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="h-9 flex-1 rounded-md border bg-muted/40 grid place-items-center font-bold tracking-[0.2em]">{selected.access_code || "—"}</span>
+                        <Button type="button" variant="outline" size="sm" className="h-9" onClick={giveKeypadCode} disabled={codeBusy}>
+                          {codeBusy ? "…" : selected.access_code ? "New" : "Give"}
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <span className="text-xs text-muted-foreground">Bus</span>
+                      <p className="h-9 mt-1 flex items-center gap-1.5 font-medium"><Bus className="w-4 h-4 text-muted-foreground" />{selected?.assigned_vehicle || "—"}</p>
+                    </div>
+                  )}
+                  <div>
+                    <span className="text-xs text-muted-foreground">Reader</span>
+                    <div className="h-9 mt-1 flex items-center gap-3">
+                      <label className="flex items-center gap-1.5 text-xs"><Switch checked={prefs.beep} onCheckedChange={(v) => setPref({ beep: v })} aria-label="Beep on success" /> Beep</label>
+                      <label className="flex items-center gap-1.5 text-xs"><Switch checked={prefs.led} onCheckedChange={(v) => setPref({ led: v })} aria-label="Flash green light" /> Light</label>
+                    </div>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">{cardType ? `${cardType} · ` : ""}Only the card's built-in ID is registered — nothing is written to the card, so any MIFARE or NTAG card works.</p>
+              </div>
             )}
 
             {/* LIVE CONSOLE */}
             <div className="rounded-2xl border bg-[#0b0f14] text-slate-200">
-              <div className="flex items-center gap-2 px-3 py-2 border-b border-white/10 text-xs text-slate-400">
-                <Terminal className="w-3.5 h-3.5" /> Reader log
-              </div>
-              <div ref={consoleRef} className="h-44 overflow-y-auto px-3 py-2 font-mono text-xs space-y-0.5" aria-live="polite">
+              <button type="button" onClick={() => setLogOpen((o) => !o)} aria-expanded={logOpen} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-400 text-left">
+                <Terminal className="w-3.5 h-3.5 shrink-0" /> Reader log
+                {!logOpen && log.length > 0 && <span className="truncate font-mono text-slate-300">· {log[log.length - 1].text}</span>}
+                <span className="ml-auto shrink-0">{logOpen ? "Hide" : "Show"}</span>
+              </button>
+              <div ref={consoleRef} className={`${logOpen ? "h-44 border-t border-white/10" : "hidden"} overflow-y-auto px-3 py-2 font-mono text-xs space-y-0.5`} aria-live="polite">
                 {log.length === 0 && <p className="text-slate-500">Waiting for the reader…</p>}
                 {log.map((l, i) => (
                   <p key={i} className={l.level === "error" ? "text-rose-400" : l.level === "warn" ? "text-amber-300" : l.level === "ok" ? "text-emerald-300" : l.level === "apdu" ? "text-sky-300" : ""}>
