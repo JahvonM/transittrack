@@ -15,6 +15,7 @@ import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
 import android.os.PowerManager;
+import android.provider.Settings;
 
 /** Runs all the time: screen on/off with the charger, and the card reader. */
 public class HelperService extends Service {
@@ -54,6 +55,7 @@ public class HelperService extends Service {
         super.onCreate();
         main = new Handler(Looper.getMainLooper());
         startForeground(1, notification());
+        ensureAutoOk();
         PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
         wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "TTHelper:main");
         wakeLock.acquire();
@@ -114,6 +116,27 @@ public class HelperService extends Service {
                 Status.log("Could not set screen " + (on ? "on" : "off") + " - is FreeKiosk's REST API on?");
             }
         }, "tt-screen").start();
+    }
+
+    /** Switches on the auto-OK accessibility service, keeping any others (e.g. FreeKiosk's) switched on. */
+    private void ensureAutoOk() {
+        String me = getPackageName() + "/" + AutoOkService.class.getName();
+        try {
+            String list = Settings.Secure.getString(getContentResolver(), Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
+            if (list == null) list = "";
+            boolean present = false;
+            for (String part : list.split(":")) {
+                if (part.equalsIgnoreCase(me) || part.equalsIgnoreCase(getPackageName() + "/.AutoOkService")) present = true;
+            }
+            if (!present) {
+                String updated = list.isEmpty() ? me : list + ":" + me;
+                Settings.Secure.putString(getContentResolver(), Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES, updated);
+                Status.log("Switched on auto-OK for the USB popup");
+            }
+            Settings.Secure.putInt(getContentResolver(), Settings.Secure.ACCESSIBILITY_ENABLED, 1);
+        } catch (SecurityException e) {
+            Status.log("Auto-OK not switched on: run  adb shell pm grant " + getPackageName() + " android.permission.WRITE_SECURE_SETTINGS");
+        }
     }
 
     private Notification notification() {

@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="a11y_desc">Taps OK on Android\'s USB access popup for the card reader, so it starts by itself after a restart. Only acts on popups that mention TransitTrack Helper.</string>
+</resources>
