@@ -139,6 +139,7 @@ const RULES = [
   [/battery|alternator|starter|wiring|ground connection|fuse|relay|sensor|electrical/, "battery"],
   [/engine|oil|belt|mount/, "engine"],
   [/\bac\b|a\/c|air con|hvac|compressor|condenser|evaporator|blower|climate|heater/, "roof_ac"],
+  [/rear door|back door|emergency door|middle door|centre door|center door|exit door/, "rear_door"],
   [/door/, "front_door"],
   [/step|handrail|grab/, "handrails"],
   [/extinguisher/, "fire_extinguisher"],
