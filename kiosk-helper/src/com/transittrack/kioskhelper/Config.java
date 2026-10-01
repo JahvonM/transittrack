@@ -13,6 +13,9 @@ final class Config {
     static boolean gps(Context c) { return prefs(c).getBoolean("gps", true); }
     /** Driver tablets only: share the SIM's internet over the Wi-Fi hotspot while the bus runs. */
     static boolean hotspot(Context c) { return prefs(c).getBoolean("hotspot", false); }
+    /** Boarding tablets: the bus hotspot to join automatically (empty = not used). */
+    static String joinSsid(Context c) { return prefs(c).getString("join_ssid", "").trim(); }
+    static String joinPass(Context c) { return prefs(c).getString("join_pass", ""); }
 
     /** Remembered once a reader / GPS has ever been plugged in, so tablets without one don't report it. */
     static boolean seen(Context c, String what) { return prefs(c).getBoolean("seen_" + what, false); }

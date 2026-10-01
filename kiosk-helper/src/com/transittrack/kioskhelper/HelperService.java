@@ -27,9 +27,10 @@ import org.json.JSONObject;
  *  - page refresh when the bus starts after a long park (or at 3 AM if never unplugged)
  *  - health report to the page every minute (battery, reader, GPS, last card)
  *  - driver tablets: Wi-Fi hotspot on while the bus runs, off when parked
+ *  - boarding tablets: join the bus hotspot automatically
  */
 public class HelperService extends Service {
-    static final String VERSION = "1.3";
+    static final String VERSION = "1.4";
     static volatile boolean plugged = true;
     static volatile boolean parked = false;
 
@@ -79,6 +80,7 @@ public class HelperService extends Service {
         @Override public void run() {
             if (!parked) {
                 if (plugged) keepHotspot(true);
+                if (plugged) joinBusWifi(0);
                 int battery = batteryPercent();
                 if (!plugged && battery >= 0 && battery <= LOW_BATTERY) enterParked("battery low (" + battery + "%)");
                 pushHealth();
@@ -124,6 +126,7 @@ public class HelperService extends Service {
         if (plugged) {
             if (Config.ignition(this)) setScreen(true);
             main.postDelayed(new Runnable() { @Override public void run() { keepHotspot(true); } }, 20000);
+            joinBusWifi(10000);
         } else {
             if (Config.ignition(this)) main.postDelayed(screenOff, UNPLUG_DELAY_MS);
             main.postDelayed(park, PARK_DELAY_MS);
@@ -163,6 +166,8 @@ public class HelperService extends Service {
             if (Config.ignition(this)) setScreen(true);
             if (longPark) reloadPage("bus started after a long park");
             main.postDelayed(new Runnable() { @Override public void run() { keepHotspot(true); } }, 3000);
+            joinBusWifi(15000);
+            joinBusWifi(45000);
             main.postDelayed(new Runnable() { @Override public void run() { pushHealth(); } }, 5000);
         } else {
             if (Config.ignition(this)) main.postDelayed(screenOff, UNPLUG_DELAY_MS);
@@ -227,6 +232,18 @@ public class HelperService extends Service {
                 lastHotspotResult = r;
             }
         }, "tt-hotspot").start();
+    }
+
+    /** Boarding tablets: make sure the bus hotspot is saved and joined (after a delay, off the main thread). */
+    private void joinBusWifi(long delayMs) {
+        if (Config.joinSsid(this).isEmpty()) return;
+        main.postDelayed(new Runnable() {
+            @Override public void run() {
+                new Thread(new Runnable() {
+                    @Override public void run() { WifiJoin.ensure(HelperService.this); }
+                }, "tt-wifi").start();
+            }
+        }, delayMs);
     }
 
     private int batteryPercent() {

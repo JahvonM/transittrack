@@ -21,6 +21,9 @@ Small Android app for the bus tablets. Replaces the Termux scripts:
 - **Hotspot** (driver tablets, `--es hotspot true`): Wi-Fi hotspot on while the bus runs, off when
   parked, so the boarding tablet can use the bus SIM. Android 10 has no public API: needs
   `appops set ... WRITE_SETTINGS allow` and `settings put global hidden_api_policy 1`.
+- **Bus Wi-Fi** (boarding tablets, `--es join_ssid TT-BUS12 --es join_pass PASSWORD`): saves the
+  bus hotspot, keeps Wi-Fi on and reconnects while the bus runs (classic Wi-Fi API; helper
+  targets API 28 for this). Needs `pm grant ... android.permission.ACCESS_FINE_LOCATION`.
 - Starts at boot. Declares the ACR122U (VID 072F / PID 2200) as its USB device, so ticking
   "Use by default" once makes Android grant USB access automatically after every restart.
 

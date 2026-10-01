@@ -15,6 +15,7 @@ final class Status {
     static volatile String reader = "Not started";
     static volatile String gps = "Not started";
     static volatile String hotspot = "Off";
+    static volatile String wifi = "-";
     static volatile String lastCard = "-";
     static volatile String lastCardIso = null;
     private static final ArrayDeque<String> LINES = new ArrayDeque<>();
