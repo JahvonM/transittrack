@@ -1,3 +1,4 @@
+import { cleanTabletSession } from "@/lib/tabletSession";
 import { useEffect, useState, useRef, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
 import { deviceMapInfo } from "@/lib/mapEngine";
@@ -6,20 +7,24 @@ import { helperHealthPayload } from "@/lib/helperHealth";
 import { appHealthPayload } from "@/lib/appHealth";
 
 // The last good session is kept on the tablet so the driver app still opens
-// (vehicle, PIN, route, stops, staff list) when it starts with no WiFi.
+// (vehicle summary, route, stops, staff list) when it starts with no WiFi.
 const CACHE_KEY = "tt_driver_session_cache";
 const PATCH_EVENT = "tt-driver-session-patch";
 
 function readCache(deviceId) {
   try {
     const c = JSON.parse(localStorage.getItem(CACHE_KEY) || "null");
-    return c && c.device_id === deviceId ? c.session : null;
+    if (!c || c.device_id !== deviceId) return null;
+    const clean = cleanTabletSession(c.session);
+    // Rewrite legacy storage immediately, even when the tablet starts offline.
+    writeCache(deviceId, clean);
+    return clean;
   } catch { return null; }
 }
 function writeCache(deviceId, session) {
   if (!deviceId || !session) return;
   // Chat history and photos are the bulky parts and aren't needed to drive.
-  const slim = { ...session, group_messages: (session.group_messages || []).slice(-20) };
+  const slim = cleanTabletSession({ ...session, group_messages: (session.group_messages || []).slice(-20) });
   try { localStorage.setItem(CACHE_KEY, JSON.stringify({ device_id: deviceId, saved_at: new Date().toISOString(), session: slim })); }
   catch { try { localStorage.setItem(CACHE_KEY, JSON.stringify({ device_id: deviceId, session: { ...slim, group_messages: [] } })); } catch { /* storage full */ } }
 }
@@ -65,7 +70,7 @@ export function useDriverSession(deviceId, { intervalMs = 8000 } = {}) {
       });
       setSession((prev) => {
         // A shift started/ended offline wins until it has been uploaded.
-        const next = hasQueuedShift() && prev ? { ...res.data, open_shift: prev.open_shift } : res.data;
+        const next = cleanTabletSession(hasQueuedShift() && prev ? { ...res.data, open_shift: prev.open_shift } : res.data);
         writeCache(deviceId, next);
         return next;
       });
@@ -92,7 +97,7 @@ export function useDriverSession(deviceId, { intervalMs = 8000 } = {}) {
   useEffect(() => {
     const onPatch = (e) => setSession((prev) => {
       if (!prev) return prev;
-      const next = { ...prev, ...e.detail };
+      const next = cleanTabletSession({ ...prev, ...e.detail });
       writeCache(deviceId, next);
       return next;
     });
