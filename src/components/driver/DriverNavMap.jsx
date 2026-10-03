@@ -251,7 +251,6 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
       duration: 900,
       essential: true,
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [smooth?.lat, smooth?.lng, following, northUp]);
 
   const stopFollowing = () => setFollowing(false);

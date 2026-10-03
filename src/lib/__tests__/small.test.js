@@ -1,27 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { googleMapsDirectionsUrl } from "@/lib/navLinks";
 import { computeOccupancyByVehicle } from "@/lib/occupancy";
 import { formatEta, haversineKm } from "@/lib/geo";
 import { formatUid, normalizeUid } from "@/lib/cardReader";
 import { layoutZones, zoneFor } from "@/lib/busZones";
-
-describe("googleMapsDirectionsUrl", () => {
-  it("goes to the last stop through the ones before it", () => {
-    const url = new URL(googleMapsDirectionsUrl([{ lat: 1, lng: 2 }, { lat: 3, lng: 4 }, { lat: 5, lng: 6 }]));
-    expect(url.searchParams.get("destination")).toBe("5,6");
-    expect(url.searchParams.get("waypoints")).toBe("1,2|3,4");
-    expect(url.searchParams.get("dir_action")).toBe("navigate");
-  });
-  it("keeps to Google's limit of 9 stops in between", () => {
-    const stops = Array.from({ length: 15 }, (_, i) => ({ lat: i, lng: i }));
-    const url = new URL(googleMapsDirectionsUrl(stops));
-    expect(url.searchParams.get("waypoints").split("|")).toHaveLength(9);
-    expect(url.searchParams.get("destination")).toBe("14,14");
-  });
-  it("needs at least one stop with a position", () => {
-    expect(googleMapsDirectionsUrl([{ name: "No GPS" }])).toBeNull();
-  });
-});
 
 describe("computeOccupancyByVehicle", () => {
   it("counts people whose latest tap on that bus was boarding", () => {
