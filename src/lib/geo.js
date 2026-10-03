@@ -78,13 +78,19 @@ export async function fetchDrivingRoute(points) {
  * @param {{lat:number,lng:number}} destination
  * @returns {Promise<{distanceKm:number, durationMin:number, geometry:number[][], steps:Array} | null>}
  */
-export async function fetchTurnByTurnRoute(origin, destination) {
+// heading: the bus's direction of travel in degrees, when known — makes the
+// route start the way the bus is already facing instead of telling the
+// driver to make a U-turn. Uses live traffic, like Google Maps does.
+export async function fetchTurnByTurnRoute(origin, destination, { heading = null } = {}) {
   if (!origin?.lat || !destination?.lat || !MAPBOX_TOKEN) return null;
   const coordsParam = `${roundCoord(origin.lng)},${roundCoord(origin.lat)};${roundCoord(destination.lng)},${roundCoord(destination.lat)}`;
-  const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${coordsParam}?geometries=geojson&overview=full&steps=true&access_token=${MAPBOX_TOKEN}`;
+  const bearings = Number.isFinite(heading) ? `&bearings=${Math.round((heading + 360) % 360)},60;` : "";
+  const query = `geometries=geojson&overview=full&steps=true${bearings}&access_token=${MAPBOX_TOKEN}`;
 
   try {
-    const res = await fetch(url);
+    let res = await fetch(`https://api.mapbox.com/directions/v5/mapbox/driving-traffic/${coordsParam}?${query}`);
+    // Traffic routing isn't available everywhere; plain driving always is.
+    if (!res.ok) res = await fetch(`https://api.mapbox.com/directions/v5/mapbox/driving/${coordsParam}?${query}`);
     if (!res.ok) return null;
     const data = await res.json();
     const route = data.routes && data.routes[0];
