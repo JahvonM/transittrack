@@ -29,6 +29,17 @@ import {
   ScrollText,
   PackageSearch,
   CreditCard,
+  FileText,
+  Gauge,
+  LineChart,
+  BarChart3,
+  Map as MapIcon,
+  Route,
+  Contact,
+  ShieldCheck,
+  LifeBuoy,
+  BookOpen,
+  MapPinned,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -50,6 +61,15 @@ export const ADMIN_SECTIONS = [
   { id: "shifts", label: "Driver shifts", icon: Timer, group: "Fleet Operations" },
   { id: "cards", label: "Card issuing", icon: CreditCard, group: "Fleet Operations" },
 
+  // Full pages shown inside the admin area (see ADMIN_PAGES in Admin.jsx).
+  { id: "vehicle-logs", label: "Vehicle log", icon: FileText, group: "Fleet management" },
+  { id: "driving-reports", label: "Driver report", icon: Gauge, group: "Fleet management" },
+  { id: "location-timeline", label: "Location timeline", icon: MapPinned, group: "Fleet management" },
+  { id: "route-analytics", label: "Route analysis", icon: LineChart, group: "Fleet management" },
+  { id: "fleet-analytics", label: "Fleet analysis", icon: BarChart3, group: "Fleet management" },
+  { id: "route-planner", label: "Route planner", icon: MapIcon, group: "Fleet management" },
+  { id: "route-explorer", label: "Route explorer", icon: Route, group: "Fleet management" },
+
   { id: "service", label: "Service Queue", icon: Wrench, group: "Maintenance" },
   { id: "faults", label: "Faults", icon: AlertTriangle, group: "Maintenance" },
   { id: "parts", label: "Parts", icon: Package, group: "Maintenance" },
@@ -57,12 +77,19 @@ export const ADMIN_SECTIONS = [
   { id: "calendar", label: "Maintenance Calendar", icon: Calendar, group: "Maintenance" },
   { id: "templates", label: "Inspection Templates", icon: ListChecks, group: "Maintenance" },
   { id: "inspection-history", label: "Inspection History", icon: History, group: "Maintenance" },
+  { id: "service-history", label: "Service history", icon: History, group: "Maintenance" },
+  { id: "incident-reports", label: "Incident reports", icon: AlertTriangle, group: "Maintenance" },
+  { id: "safety-standards", label: "Safety standards", icon: ShieldCheck, group: "Maintenance" },
 
+  { id: "directory", label: "Passenger directory", icon: Contact, group: "Dispatch" },
   { id: "checkins", label: "Sign-in log", icon: ClipboardList, group: "Dispatch" },
   { id: "billing", label: "Completed & billing", icon: Building2, group: "Dispatch" },
   { id: "messaging", label: "Messaging", icon: Megaphone, group: "Dispatch" },
   { id: "lost-items", label: "Lost items", icon: PackageSearch, group: "Dispatch" },
   { id: "ads", label: "Advertisements", icon: ImageIcon, group: "Dispatch" },
+  { id: "ride-history", label: "Ride history", icon: History, group: "Dispatch" },
+  { id: "passenger-bookings", label: "Passenger bookings", icon: BookOpen, group: "Dispatch" },
+  { id: "support", label: "Passenger support", icon: LifeBuoy, group: "Dispatch" },
 
   { id: "users", label: "Users & roles", icon: Users, group: "Admin" },
   { id: "companies", label: "Companies", icon: Building2, group: "Admin" },
@@ -73,7 +100,7 @@ export const ADMIN_SECTIONS = [
   { id: "profile", label: "My profile", icon: User, group: null },
 ];
 
-const GROUP_ORDER = ["Fleet Operations", "Maintenance", "Dispatch", "Admin"];
+const GROUP_ORDER = ["Fleet Operations", "Fleet management", "Dispatch", "Maintenance", "Admin"];
 
 export default function AdminShell({ active, onNavigate, children, alertVehicles = [] }) {
   const [open, setOpen] = useState(false);

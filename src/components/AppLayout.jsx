@@ -13,12 +13,8 @@ export const EmbeddedLayout = React.createContext(false);
 export default function AppLayout(props) {
   const embedded = React.useContext(EmbeddedLayout);
   if (embedded) {
-    return (
-      <div>
-        {props.title && <h1 className="text-2xl font-heading font-semibold mb-4">{props.title}</h1>}
-        {props.children}
-      </div>
-    );
+    // The admin sidebar already shows the page name as its heading.
+    return <div>{props.children}</div>;
   }
   return <FullLayout {...props} />;
 }
