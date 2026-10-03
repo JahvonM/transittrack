@@ -7,7 +7,6 @@ import { MAPBOX_TOKEN, mapStyleFor, mapAccentFor } from "@/lib/mapbox";
 import { useIsDark } from "@/lib/useTheme";
 import { Bus, LocateFixed, Maximize2, Minimize2, Minus, Plus, Satellite, X, Car } from "lucide-react";
 
-const TOOL_BTN = "w-9 h-9 rounded-full bg-background/90 border border-border shadow-md grid place-items-center hover:bg-accent transition-colors";
 import { Badge } from "@/components/ui/badge";
 import { Image } from "@/components/ui/image";
 import BusDistance from "@/components/BusDistance";
@@ -15,6 +14,8 @@ import VehicleMarker from "@/components/VehicleMarker";
 import AccuracyHalo from "@/components/AccuracyHalo";
 import { fetchDrivingRoute, snapTrackToRoads } from "@/lib/geo";
 import { statusColor } from "@/lib/vehicleStatus";
+
+const TOOL_BTN = "w-9 h-9 rounded-full bg-background/90 border border-border shadow-md grid place-items-center hover:bg-accent transition-colors";
 
 // Re-exported for backwards compatibility — the canonical definition now lives
 // in lib/vehicleStatus so VehicleMarker can use it without importing this file.

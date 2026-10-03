@@ -413,7 +413,7 @@ export default function StaffPortal() {
 
           <section>
             <SectionTitle>Live map</SectionTitle>
-            <div className="rounded-3xl overflow-hidden border h-72">
+            <div className="rounded-3xl overflow-hidden border h-80">
               <MapboxMap vehicles={locatedVehicles} userLocation={userLoc} />
             </div>
           </section>
