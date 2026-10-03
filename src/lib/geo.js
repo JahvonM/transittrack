@@ -91,10 +91,10 @@ export async function fetchTurnByTurnRoute(origin, destination, { heading = null
     let res = await fetch(`https://api.mapbox.com/directions/v5/mapbox/driving-traffic/${coordsParam}?${query}`);
     // Traffic routing isn't available everywhere; plain driving always is.
     if (!res.ok) res = await fetch(`https://api.mapbox.com/directions/v5/mapbox/driving/${coordsParam}?${query}`);
-    if (!res.ok) return null;
+    if (!res.ok) return bearings ? fetchTurnByTurnRoute(origin, destination) : null;
     const data = await res.json();
     const route = data.routes && data.routes[0];
-    if (!route) return null;
+    if (!route) return bearings ? fetchTurnByTurnRoute(origin, destination) : null;
     const steps = (route.legs?.[0]?.steps || []).map((s) => ({
       instruction: s.maneuver?.instruction || "Continue straight",
       type: s.maneuver?.type || "turn",
