@@ -78,6 +78,20 @@ const REROUTE_COOLDOWN_MS = 15000;
 const FAR_ANNOUNCE_M = 300;
 const NEAR_ANNOUNCE_M = 50;
 const ADVANCE_STEP_M = 25;
+const PASSED_NEAR_M = 70;
+const PASSED_MARGIN_M = 25;
+
+// Opens Google Maps' own turn-by-turn (the app on Android/iPhone) through
+// the remaining stops. Google allows up to 9 stops in between.
+export function googleMapsDirectionsUrl(stops) {
+  const valid = (stops || []).filter((s) => s?.lat != null && s?.lng != null);
+  if (!valid.length) return null;
+  const dest = valid[valid.length - 1];
+  const via = valid.slice(0, -1).slice(0, 9);
+  const p = new URLSearchParams({ api: "1", destination: `${dest.lat},${dest.lng}`, travelmode: "driving", dir_action: "navigate" });
+  if (via.length) p.set("waypoints", via.map((s) => `${s.lat},${s.lng}`).join("|"));
+  return `https://www.google.com/maps/dir/?${p.toString()}`;
+}
 
 // fill: take the parent's full height (the combined Drive screen).
 // pushLocation: send GPS to the server itself — off on the Drive screen,
@@ -162,11 +176,12 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
   const lastRerouteAt = useRef(0);
   const spokenRef = useRef({});
   const mutedRef = useRef(false);
+  const headingRef = useRef(null);
   useEffect(() => { mutedRef.current = muted; }, [muted]);
 
   const loadRoute = useCallback(async (origin, dest) => {
     setRerouting(true);
-    const res = await fetchTurnByTurnRoute(origin, dest);
+    const res = await fetchTurnByTurnRoute(origin, dest, { heading: headingRef.current });
     setNavRoute(res);
     setStepIndex(0);
     spokenRef.current = {};
@@ -214,7 +229,13 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
         spoken.near = true;
       }
     }
-    if (distanceToManeuverM <= ADVANCE_STEP_M && stepIndex < navRoute.steps.length - 1) {
+    // Move to the next instruction once the turn is reached — or once the
+    // bus came close and is now moving away again (GPS often never gets
+    // within a few metres of the exact turn point, which used to leave the
+    // old instruction stuck on screen).
+    spoken.min = Math.min(spoken.min ?? Infinity, distanceToManeuverM);
+    const passed = spoken.min <= PASSED_NEAR_M && distanceToManeuverM > spoken.min + PASSED_MARGIN_M;
+    if ((distanceToManeuverM <= ADVANCE_STEP_M || passed) && stepIndex < navRoute.steps.length - 1) {
       setStepIndex((i) => i + 1);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -238,7 +259,11 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
     if (!map) return; // the basic map follows by itself once isFollowing is on
     map.flyTo({ center: [target.lng, target.lat], zoom: Math.max(map.getZoom(), 15), duration: 800 });
   };
-  const trail = liveVehicle?.trail || vehicle?.trail || [];
+  // Only stops still ahead go to Google Maps.
+  const googleUrl = useMemo(
+    () => (nextStopIndex >= 0 ? googleMapsDirectionsUrl(orderedStops.slice(nextStopIndex)) : null),
+    [orderedStops, nextStopIndex]
+  );
 
   // Keep the camera centered on each new GPS fix while following is on —
   // eased over roughly the same duration as the marker's own glide
@@ -254,6 +279,7 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
   // (shorter duration than the fleet map since watchPosition updates more often).
   const smoothPos = useSmoothPosition(pos?.lat, pos?.lng, { duration: 1000 });
   const heading = useBearing(pos?.lat, pos?.lng);
+  useEffect(() => { headingRef.current = heading ?? null; }, [heading]);
 
   // GPS + connection status: in the header normally, floating on the map
   // on the Drive screen (where the top bar already names the bus).
@@ -305,7 +331,6 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
             stops={nextStop ? [{ ...nextStop, color: "#10b981" }] : []}
             pins={pins}
             lines={[
-              { coords: trail.filter((p) => p.lat != null && p.lng != null).map((p) => [p.lng, p.lat]), color: accent, width: 4, opacity: 0.5 },
               { coords: navRoute?.geometry || [], color: accent, width: 5, opacity: 0.85 },
             ]}
           />
@@ -319,11 +344,6 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
             onError={(e) => { if (/webgl/i.test(e?.error?.message || "")) { markFullMapFailed(); setBasicMap(true); } }}
             onDrag={() => { following.current = false; setIsFollowing(false); }}
           >
-            {trail.length > 1 && (
-              <Source id="driver-trail" type="geojson" data={{ type: "Feature", geometry: { type: "LineString", coordinates: trail.filter((p) => p.lat != null && p.lng != null).map((p) => [p.lng, p.lat]) } }}>
-                <Layer id="driver-trail-line" type="line" paint={{ "line-color": accent, "line-width": 4, "line-opacity": 0.5 }} />
-              </Source>
-            )}
             {navRoute?.geometry?.length > 0 && (
               <Source id="path-to-next-stop" type="geojson" data={{ type: "Feature", geometry: { type: "LineString", coordinates: navRoute.geometry } }}>
                 <Layer id="path-to-next-stop-line" type="line" paint={{ "line-color": accent, "line-width": 5, "line-opacity": 0.85 }} />
@@ -384,6 +404,17 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
             </div>
           )}
         </div>
+        {googleUrl && (
+          <a
+            href={googleUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="absolute right-4 bottom-20 z-10 h-11 px-4 rounded-full border border-border bg-card/95 backdrop-blur shadow-lg flex items-center gap-2 text-sm font-semibold hover:bg-accent"
+            title="Open turn-by-turn directions in Google Maps"
+          >
+            <Navigation className="w-4 h-4 text-primary" /> Google Maps
+          </a>
+        )}
         {fill && <div className="absolute left-3 bottom-8 z-10 rounded-full bg-card/90 backdrop-blur px-1.5 py-1 shadow-md">{statusBadges}</div>}
         <button
           type="button"
