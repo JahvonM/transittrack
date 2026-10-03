@@ -40,6 +40,7 @@ import {
   LifeBuoy,
   BookOpen,
   MapPinned,
+  Hourglass,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -69,6 +70,7 @@ export const ADMIN_SECTIONS = [
   { id: "fleet-analytics", label: "Fleet analysis", icon: BarChart3, group: "Fleet management" },
   { id: "route-planner", label: "Route planner", icon: MapIcon, group: "Fleet management" },
   { id: "route-explorer", label: "Route explorer", icon: Route, group: "Fleet management" },
+  { id: "travel-times", label: "Travel times", icon: Hourglass, group: "Fleet management" },
 
   { id: "service", label: "Service Queue", icon: Wrench, group: "Maintenance" },
   { id: "faults", label: "Faults", icon: AlertTriangle, group: "Maintenance" },
