@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { haversineKm, etaMinutes, formatEta, fetchDrivingRoute } from "@/lib/geo";
+import useTravelTimes, { etaFromLearned } from "@/hooks/useTravelTimes";
 
 export default function RouteExplorer({ routes, vehicles }) {
   const [open, setOpen] = useState(false);
@@ -11,6 +12,7 @@ export default function RouteExplorer({ routes, vehicles }) {
   const [drivingByOrder, setDrivingByOrder] = useState({});
 
   const route = routes.find((r) => r.id === routeId) || routes[0];
+  const travelTimes = useTravelTimes();
 
   const rows = useMemo(() => {
     if (!route) return [];
@@ -18,18 +20,21 @@ export default function RouteExplorer({ routes, vehicles }) {
     return (route.stops || []).map((stop, i) => {
       let best = null;
       onRoute.forEach((v) => {
-        const mins = etaMinutes(haversineKm(v.current_lat, v.current_lng, stop.lat, stop.lng), v.speed || 25);
-        if (mins != null && (best == null || mins < best.mins)) best = { v, mins };
+        // Real trips first (only buses still heading to this stop), else a
+        // straight-line guess that the road estimate below refines.
+        const learned = etaFromLearned(travelTimes[route.id], route, v, stop);
+        const mins = learned ? learned.mins : etaMinutes(haversineKm(v.current_lat, v.current_lng, stop.lat, stop.lng), v.speed || 25);
+        if (mins != null && (best == null || mins < best.mins)) best = { v, mins, learned: !!learned };
       });
       return { stop, order: i, best };
     });
-  }, [route, vehicles]);
+  }, [route, vehicles, travelTimes]);
 
   // Refine each straight-line "next bus" candidate above with the actual driving
   // ETA (following roads), falling back to the straight-line estimate meanwhile.
   useEffect(() => {
     let cancelled = false;
-    const candidates = rows.filter((r) => r.best);
+    const candidates = rows.filter((r) => r.best && !r.best.learned);
     if (candidates.length === 0) {
       setDrivingByOrder({});
       return;
@@ -85,7 +90,7 @@ export default function RouteExplorer({ routes, vehicles }) {
             <ol className="space-y-2">
               {rows.map(({ stop, order, best }) => {
                 const driving = drivingByOrder[order];
-                const mins = driving ? driving.durationMin : best?.mins;
+                const mins = best?.learned ? best.mins : driving ? driving.durationMin : best?.mins;
                 return (
                   <li key={order} className="flex items-center gap-3 p-2.5 rounded-xl border">
                     <span className="w-6 h-6 rounded-full bg-primary/10 text-primary grid place-items-center text-xs font-semibold shrink-0">
@@ -94,7 +99,7 @@ export default function RouteExplorer({ routes, vehicles }) {
                     <span className="flex-1 min-w-0">
                       <span className="block text-sm font-medium truncate">{stop.name}</span>
                       {best && (
-                        <span className="block text-xs text-muted-foreground truncate">Next: {best.v.name}</span>
+                        <span className="block text-xs text-muted-foreground truncate">Next: {best.v.name}{best.learned ? " · from real trips" : ""}</span>
                       )}
                     </span>
                     <span className="text-sm text-muted-foreground shrink-0">
@@ -105,7 +110,7 @@ export default function RouteExplorer({ routes, vehicles }) {
               })}
             </ol>
             <p className="text-xs text-muted-foreground">
-              Times are estimates based on each vehicle's current driving distance to the stop, following roads where available.
+              Where buses have driven this route enough, times come from their real past trips at this time of day; otherwise from the driving distance to the stop.
             </p>
           </div>
         )}

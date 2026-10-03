@@ -57,7 +57,11 @@ export default function NextBusCard({ stop, bus, eta, route, crowdCount, trip, o
                 ) : (
                   <p className="text-2xl font-semibold leading-none">On its way</p>
                 )}
-                <p className="text-xs text-muted-foreground mt-2">{eta?.isDriving ? "Live estimate by road" : "Approximate estimate"}</p>
+                <p className="text-xs text-muted-foreground mt-2">
+                  {eta?.isLearned
+                    ? `Based on ${eta.trips || "past"} real trip${eta.trips === 1 ? "" : "s"} on this route`
+                    : eta?.isDriving ? "Live estimate by road" : "Approximate estimate"}
+                </p>
               </div>
               <div className="shrink-0 -mb-1 tt-bus-bob">
                 <AnimatedBus mode="drive" width={112} />

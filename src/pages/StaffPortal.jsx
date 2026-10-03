@@ -19,6 +19,7 @@ import { useChatUnread } from "@/components/staff/StaffGroupChat";
 import { MyPickupSheet, HelpSheet, BadgeSheet, ChatSheet } from "@/components/staff/StaffSheets";
 import useCrowding from "@/hooks/useCrowding";
 import { haversineKm, etaMinutes } from "@/lib/geo";
+import useTravelTimes, { etaFromLearned } from "@/hooks/useTravelTimes";
 import useDrivingEta from "@/hooks/useDrivingEta";
 import { STATUS_LABEL } from "@/lib/trip";
 import { Bus, BellRing, ChevronRight, Clock, LifeBuoy, MapPin, UserRound, X } from "lucide-react";
@@ -287,6 +288,13 @@ export default function StaffPortal() {
   const approachingDest = stop ? { lat: stop.lat, lng: stop.lng } : null;
   const approachingDriving = useDrivingEta(approachingOrigin, approachingDest, approaching?.v?.speed || 25);
   const approachingRoute = approaching ? routes.find((r) => r.id === approaching.v.route_id) || null : null;
+  // Better still: how long this bus really takes from here to your stop,
+  // learned from its past trips (used once enough of the way is known).
+  const travelTimes = useTravelTimes();
+  const approachingLearned = useMemo(
+    () => (approaching ? etaFromLearned(travelTimes[approaching.v.route_id], approachingRoute, approaching.v, stop) : null),
+    [approaching, approachingRoute, travelTimes, stop]
+  );
 
   // "My bus" for group chat: an explicit manual pick always wins, then the
   // bus coming to your stop, then any bus assigned to a route serving it.
@@ -356,7 +364,7 @@ export default function StaffPortal() {
           <NextBusCard
             stop={stop}
             bus={approaching?.v || null}
-            eta={approaching ? approachingDriving : null}
+            eta={approaching ? approachingLearned || approachingDriving : null}
             route={approachingRoute}
             crowdCount={approaching ? crowd[approaching.v.id] || 0 : 0}
             trip={onTheWayTrip}
