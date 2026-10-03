@@ -16,8 +16,9 @@ function client(overrides = {}) {
   const entities = new Proxy({}, { get: (_, name) => ({
     get: async () => name === 'KioskDevice' ? { ...device, ...overrides.device } : name === 'Vehicle' ? { ...vehicle, ...overrides.vehicle } : name === 'Route' ? { id: 'route-a', company_id: 'company-a', stops: [{ name: 'Stop', lat: 1, lng: 2, secret: 'CREDENTIAL_SENTINEL' }], access_code: 'CREDENTIAL_SENTINEL' } : { boss_phone: '555', access_code: 'CREDENTIAL_SENTINEL' },
     update: async () => ({}),
+    create: async (data) => ({ id: 'saved-checkin', created_date: new Date().toISOString(), ...data }),
     list: async () => [],
-    filter: async () => name === 'StaffCheckIn' ? [{ id: 'boarding', company_id: 'company-a', vehicle_id: 'bus-a', staff_name: 'Rider', card_tag: 'CREDENTIAL_SENTINEL', status: 'boarded', created_date: new Date().toISOString() }] : [],
+    filter: async () => { if (name === 'StaffCheckIn' && overrides.summaryFailure) throw new Error('summary unavailable'); return name === 'StaffCheckIn' ? [{ id: 'boarding', company_id: 'company-a', vehicle_id: 'bus-a', staff_name: 'Rider', card_tag: 'CREDENTIAL_SENTINEL', status: 'boarded', created_date: new Date().toISOString() }] : []; },
   }) });
   return { asServiceRole: { entities }, auth: { me: async () => null } };
 }
@@ -61,6 +62,19 @@ describe('tablet backend response security', () => {
   });
   it('rejects PIN verification from an unpaired driver', async () => {
     expect((await call('driverSession', { action: 'verify_pin', pin: '1234' }, { device: { kiosk_type: 'driver', paired: false } })).status).toBe(401);
+  });
+  it('returns check-in display fields and counts without card credentials', async () => {
+    const response = await call('kioskCheckIn', { action: 'check_in', staff_name: 'Rider', status: 'boarded', method: 'manual' });
+    expect(response.status).toBe(200);
+    const data = await response.json();
+    expect(data.record.staff_name).toBe('Rider');
+    expect(data.record.card_tag).toBeUndefined();
+    expect(data.occupancy).toBe(1);
+  });
+  it('does not report a saved check-in as failed when summary refresh fails', async () => {
+    const response = await call('kioskCheckIn', { action: 'check_in', staff_name: 'Rider', status: 'boarded' }, { summaryFailure: true });
+    expect(response.status).toBe(200);
+    expect((await response.json()).record.id).toBe('saved-checkin');
   });
   it('scrubs credentials from legacy caches at every nesting level', () => {
     const clean = cleanTabletSession({ driver_pin: '1234', vehicle, staff: [{ name: 'Rider', nfc_card_tag: 'CREDENTIAL_SENTINEL', access_code: 'CREDENTIAL_SENTINEL' }], check_ins: [{ card_tag: 'CREDENTIAL_SENTINEL', status: 'boarded' }], has_driver_pin: true });

@@ -280,7 +280,9 @@ export default async function(req) {
         if (code_type === 'one_time' && person?.source === 'user') {
           await base44.asServiceRole.entities.User.update(person.id, { one_time_code: '', one_time_code_expires_at: null });
         }
-        const stats = boardingStats(await tabletCheckIns(base44, companyId, vehicleId));
+        // A summary failure must not turn a completed write into a retry.
+        let stats = {};
+        try { stats = boardingStats(await tabletCheckIns(base44, companyId, vehicleId)); } catch { /* heartbeat refreshes counts later */ }
         return Response.json({ record: tabletCheckIn(record), ...stats });
       }
 
