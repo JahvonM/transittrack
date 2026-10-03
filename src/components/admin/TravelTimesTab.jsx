@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Hourglass, RefreshCw, Route as RouteIcon } from "lucide-react";
+import { Hourglass, RefreshCw } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -79,7 +79,7 @@ export default function TravelTimesTab() {
       </div>
 
       {routes.length === 0 ? (
-        <EmptyState icon={RouteIcon} title="No routes yet" description="Add a route with stops in Route planner first." />
+        <EmptyState text="No routes yet. Add a route with its stops in Route planner first." />
       ) : (
         routes.map((route) => (
           <RouteCard key={route.id} route={route} record={learned[route.id]} bucket={bucket} />
