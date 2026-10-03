@@ -8,7 +8,7 @@ import OfflineStatusBadge from "@/components/OfflineStatusBadge";
 import { useOfflineSync } from "@/hooks/useOfflineSync";
 import { fetchTurnByTurnRoute } from "@/lib/geo";
 import {
-  formatDistance, formatDuration, progressAt, projectOnRoute, routeAhead, speedLimitKmh, voicePromptAt,
+  formatDistance, formatDuration, metres, progressAt, projectOnRoute, routeAhead, speedLimitKmh, voicePromptAt,
 } from "@/lib/navigation";
 import { speak, stopSpeaking } from "@/lib/speech";
 import useSmoothPosition from "@/hooks/useSmoothPosition";
@@ -80,6 +80,7 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
     session?.vehicle?.current_lat != null ? { lat: session.vehicle.current_lat, lng: session.vehicle.current_lng } : null
   );
   const watchId = useRef(null);
+  const lastFix = useRef(null);
   const lastPush = useRef(0);
   const mapRef = useRef(null);
   const bannerRef = useRef(null);
@@ -113,9 +114,18 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
     watchId.current = navigator.geolocation.watchPosition(
       (p) => {
         if (p.coords.accuracy != null && p.coords.accuracy > 100) return;
+        // Some GPS units don't report speed; work it out from the last fix.
+        let kmh = Number.isFinite(p.coords.speed) && p.coords.speed >= 0 ? p.coords.speed * 3.6 : null;
+        const prev = lastFix.current;
+        const t = p.timestamp || Date.now();
+        if (kmh == null && prev && t - prev.t >= 1000 && t - prev.t < 15000) {
+          kmh = (metres([prev.lng, prev.lat], [p.coords.longitude, p.coords.latitude]) / ((t - prev.t) / 1000)) * 3.6;
+          if (kmh < 3) kmh = 0;
+        }
+        lastFix.current = { lat: p.coords.latitude, lng: p.coords.longitude, t };
         setPos({
           lat: p.coords.latitude, lng: p.coords.longitude, accuracy: p.coords.accuracy,
-          kmh: Number.isFinite(p.coords.speed) && p.coords.speed >= 0 ? p.coords.speed * 3.6 : null,
+          kmh: kmh != null && kmh < 200 ? kmh : null,
           gpsHeading: Number.isFinite(p.coords.heading) ? p.coords.heading : null,
         });
         const now = Date.now();
