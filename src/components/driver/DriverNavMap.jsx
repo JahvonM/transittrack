@@ -179,6 +179,13 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
 
   // Where the bus is on the route, and everything that follows from it.
   const routeNav = nav && navFor === nextStopKey ? nav : null;
+
+  // No directions yet (no signal, or the request failed): try again shortly.
+  useEffect(() => {
+    if (routeNav || loadingRoute || !nextStopKey) return undefined;
+    const t = setTimeout(() => { requestedFor.current = null; setPos((p) => (p ? { ...p } : p)); }, online ? 15000 : 5000);
+    return () => clearTimeout(t);
+  }, [routeNav, loadingRoute, nextStopKey, online]);
   const proj = useMemo(() => {
     if (!routeNav || !pos) return null;
     const p = projectOnRoute(routeNav, pos, projRef.current?.seg ?? null);
