@@ -54,6 +54,7 @@ export function parseDirections(data) {
     exit: s.maneuver?.exit ?? null,
     instruction: s.maneuver?.instruction || "Continue",
     name: s.name || "",
+    drivingSide: s.driving_side || "right",
     distanceM: s.distance || 0,
     durationS: s.duration || 0,
     location: s.maneuver?.location || null,
