@@ -54,6 +54,21 @@ const normalizeTag = (v) => String(v || "").replace(/[^0-9a-f]/gi, "").toUpperCa
 const notFound = (error) => Object.assign(new Error(error), { response: { status: 404, data: { error } }, offline: true });
 const toStaff = (s) => ({ id: s.id, full_name: s.full_name, photo_url: s.photo_url });
 
+// Same rule as the server (kioskCheckIn's wrongBus): a card or code only
+// works on the passenger's own bus. Lists saved before this rule existed have
+// no vehicle_id on anyone, so they're not checked until the next refresh.
+export function busRefusal(person, vehicleId) {
+  if (!person || !vehicleId || person.vehicle_id === undefined) return null;
+  if (!person.vehicle_id) {
+    return { error: "no_bus", message: `${person.full_name} isn't assigned to a bus yet. Ask the office to pick their bus in Card issuing.` };
+  }
+  if (person.vehicle_id !== vehicleId) {
+    return { error: "wrong_bus", message: `${person.full_name} rides ${person.vehicle_name || "another bus"}, not this one.` };
+  }
+  return null;
+}
+const refuse = (data) => Object.assign(new Error(data.error), { response: { status: 403, data }, offline: true });
+
 // Answers lookup_tag / lookup_code from the saved list. Returns null when
 // there's no saved list (nothing to answer from); throws the same "not
 // recognised" errors the server gives.
@@ -64,6 +79,8 @@ export function offlineLookup(action, payload = {}) {
     const tag = normalizeTag(payload.card_tag);
     const person = dir.staff.find((s) => s.nfc_tag && normalizeTag(s.nfc_tag) === tag);
     if (!person) throw notFound("badge_not_registered");
+    const no = busRefusal(person, read(DEVICE_KEY, null)?.vehicle_id);
+    if (no) throw refuse(no);
     return { staff: toStaff(person), next_status: nextStatus(person.id), offline: true };
   }
   if (action === "lookup_code") {
@@ -76,6 +93,8 @@ export function offlineLookup(action, payload = {}) {
       codeType = "one_time";
     }
     if (!person) throw notFound("code_not_recognized");
+    const no = busRefusal(person, read(DEVICE_KEY, null)?.vehicle_id);
+    if (no) throw refuse(no);
     return { staff: toStaff(person), next_status: nextStatus(person.id), code_type: codeType, offline: true };
   }
   return null;

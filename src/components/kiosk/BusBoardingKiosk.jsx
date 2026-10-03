@@ -354,6 +354,9 @@ export default function BusBoardingKiosk({ invoke, device }) {
     return true;
   };
 
+  // "Wrong bus" / "no bus yet" from the server or the saved list.
+  const busMessage = (e) => (["wrong_bus", "no_bus"].includes(e?.response?.data?.error) ? e.response.data.message : "");
+
   const handleTag = async (tag) => {
     if (lookupStarted.current && Date.now() - lookupStarted.current < 12000) return;
     lookupStarted.current = Date.now();
@@ -371,13 +374,13 @@ export default function BusBoardingKiosk({ invoke, device }) {
       reportBadgeResult(false);
       if (handleUnpaired(e)) return;
       setUnlocked(true);
-      setBadgeError(e?.response?.data?.error === "badge_not_registered"
+      setBadgeError(busMessage(e) || (e?.response?.data?.error === "badge_not_registered"
         ? "This card isn't registered yet. Ask an admin to issue it in Card issuing."
         : isNetworkFailure(e)
           ? "No connection, and this tablet hasn't saved the passenger list yet. Connect to WiFi once."
-          : "Couldn't read that badge — try again.");
+          : "Couldn't read that badge — try again."));
       setMode("badge_error");
-      resetSoon(3500);
+      resetSoon(busMessage(e) ? 5000 : 3500);
     } finally {
       lookupStarted.current = 0;
       setBusy(false);
@@ -394,7 +397,7 @@ export default function BusBoardingKiosk({ invoke, device }) {
       setMode("confirm");
     } catch (e) {
       if (handleUnpaired(e)) return;
-      setBadgeError("That QR code isn't recognized — it may have expired or already been used.");
+      setBadgeError(busMessage(e) || "That QR code isn't recognized — it may have expired or already been used.");
       setMode("badge_error");
       resetSoon(3000);
     } finally {
@@ -412,7 +415,7 @@ export default function BusBoardingKiosk({ invoke, device }) {
       setCode("");
     } catch (e) {
       if (handleUnpaired(e)) return;
-      setBadgeError("That code isn't recognized — check it and try again.");
+      setBadgeError(busMessage(e) || "That code isn't recognized — check it and try again.");
       setMode("badge_error");
       resetSoon(3000);
     } finally {
@@ -457,7 +460,7 @@ export default function BusBoardingKiosk({ invoke, device }) {
         resetSoon();
         return;
       }
-      setBadgeError("Something went wrong checking that in — please try again.");
+      setBadgeError(busMessage(e) || "Something went wrong checking that in — please try again.");
       setMode("badge_error");
       resetSoon(3000);
     } finally {
