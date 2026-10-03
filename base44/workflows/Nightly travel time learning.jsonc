@@ -1,0 +1,41 @@
+{
+  "name": "Nightly travel time learning",
+  "description": "Learns real stop-to-stop travel times from the buses' GPS history for passenger ETAs (learnTravelTimes). 3:15 am Grenada time.",
+  "trigger": {
+    "condition": null,
+    "config": {
+      "trigger_type": "scheduled",
+      "events": [],
+      "schedule_mode": "recurring",
+      "cron_expression": "15 7 * * *",
+      "one_time_date": null,
+      "timezone": "UTC",
+      "interval_value": null,
+      "interval_unit": null,
+      "interval_anchor": null,
+      "ends_type": "never",
+      "ends_on_date": null,
+      "ends_after_count": null
+    }
+  },
+  "definition": {
+    "document": {
+      "dsl": "1.0.0",
+      "namespace": "base44",
+      "name": "nightly-travel-time-learning",
+      "version": "1.0.0"
+    },
+    "do": [
+      {
+        "runLearnTravelTimes": {
+          "call": "invoke_backend_function",
+          "with": {
+            "function_name": "learnTravelTimes",
+            "payload": {}
+          },
+          "then": "end"
+        }
+      }
+    ]
+  }
+}
