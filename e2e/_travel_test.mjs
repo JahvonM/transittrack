@@ -68,6 +68,7 @@ async function session(role, path, extra = {}) {
 {
   const { browser, page, errs } = await session("staff", "/staff");
   await page.getByText(/real trips on this route/).waitFor({ timeout: 20000 }).catch(() => {});
+  await page.waitForTimeout(2500); // let the minutes finish counting up
   const label = await page.getByText(/real trips on this route/).innerText().catch(() => "");
   ok("ETA from real trips", /Based on 8 real trips/.test(label), label);
   const card = await page.getByRole("region", { name: "Your bus" }).innerText().catch(() => "");
