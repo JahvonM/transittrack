@@ -18,7 +18,7 @@ function client(overrides = {}) {
     update: async () => ({}),
     create: async (data) => ({ id: 'saved-checkin', created_date: new Date().toISOString(), ...data }),
     list: async () => [],
-    filter: async () => { if (name === 'StaffCheckIn' && overrides.summaryFailure) throw new Error('summary unavailable'); return name === 'StaffCheckIn' ? [{ id: 'boarding', company_id: 'company-a', vehicle_id: 'bus-a', staff_name: 'Rider', card_tag: 'CREDENTIAL_SENTINEL', status: 'boarded', created_date: new Date().toISOString() }] : []; },
+    filter: async () => { if (name === 'StaffCheckIn' && overrides.summaryFailure) throw new Error('summary unavailable'); return name === 'StaffCheckIn' ? [{ id: 'boarding', company_id: 'company-a', vehicle_id: 'bus-a', staff_name: 'Rider', card_tag: 'CREDENTIAL_SENTINEL', status: 'boarded', created_date: new Date().toISOString() }] : name === 'Contact' ? [{ id: 'rider-a', type: 'staff', company_id: 'company-a', name: 'Rider', nfc_card_tag: 'CREDENTIAL_SENTINEL', access_code: 'CREDENTIAL_SENTINEL' }] : []; },
   }) });
   return { asServiceRole: { entities }, auth: { me: async () => null } };
 }

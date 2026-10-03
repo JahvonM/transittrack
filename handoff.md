@@ -192,3 +192,31 @@ this step changes the current repository only. Do not use exposed development
 credentials for production. STEP 2 is not authorized yet. V1 remains unresolved:
 built-in User security cannot be changed according to Base44 docs, and custom
 profile fields are self-editable. Authenticated non-admin tests remain needed.
+
+## Pre-production security — STEP 2 (2026-10-03)
+
+User authorized STEP 2 with "Next". Kiosk display reads now use the existing
+30-second kioskHeartbeat context (vehicle/route whitelist, active public ads,
+server occupancy/today counts). Check-in returns a whitelisted display record
+and optional refreshed counts; summary errors never turn a saved write into a
+failure. Driver heartbeat omits PIN/entry code/card UIDs, provides server counts
+and whitelisted company emergency phones, validates vehicle/company assignment,
+and rejects broadcasts scoped to other companies. Driver SOS/occupancy no longer
+read Company/StaffCheckIn directly. Driver PIN verification moved server-side as
+required to remove the PIN from heartbeat; this is not yet a server-enforced
+driver action session. Existing daily unlock flag and reviewer sandbox remain.
+
+Legacy driver session cache is scrubbed on read/write, including offline startup.
+Kiosk offline_directory remains a known credential exposure pending STEP 4;
+do not claim all tablet credential responses are fixed. STEP 3 must replace
+device-ID-as-credential. PIN hashing/attempt limits and company membership model
+are still pending. Database rules and Advertisement write permissions unchanged.
+
+Verification: lint/build, 73 unit tests including 10 backend/cache regressions;
+2 mocked Chromium tests with direct entity access blocked. Tests use no live
+credentials and create no development records. No tablet revocation or signing
+key work. Frontend has not been published. Base44 automatically syncs backend
+function edits, so publish the updated frontend as a coordinated development
+rollout before relying on existing tablet PIN screens. Old frontend builds
+expect a raw driver PIN and are incompatible with the new heartbeat contract.
+STEP 3 is not started.
