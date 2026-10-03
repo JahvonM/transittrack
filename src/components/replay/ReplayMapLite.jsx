@@ -43,7 +43,6 @@ function Fit({ line, fitKey }) {
     if (!line?.length) return;
     if (line.length === 1) map.setView([line[0][1], line[0][0]], 15);
     else map.fitBounds(ll(line), { padding: [40, 40], maxZoom: 16 });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fitKey]);
   return null;
 }

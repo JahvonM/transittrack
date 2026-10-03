@@ -10,8 +10,6 @@ import { useToast } from "@/components/ui/use-toast";
 import { computeOccupancyByVehicle } from "@/lib/occupancy";
 import LocationReplay from "@/components/replay/LocationReplay";
 
-const fmtTime = (iso) =>
-  iso ? new Date(iso).toLocaleString([], { dateStyle: "short", timeStyle: "short" }) : "never";
 
 function timeAgo(iso) {
   if (!iso) return "never";

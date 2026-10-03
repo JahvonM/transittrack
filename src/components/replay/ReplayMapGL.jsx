@@ -33,7 +33,6 @@ export default function ReplayMapGL({ line, traveled, position, stops = [], foll
     if (!map || !line?.length) return;
     if (line.length === 1) map.jumpTo({ center: line[0], zoom: 15 });
     else map.fitBounds(boundsOf(line), { padding: 48, duration: 0, maxZoom: 16 });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fitKey]);
 
   useEffect(() => {
