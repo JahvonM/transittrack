@@ -14,7 +14,7 @@ const cum = [0]; for (let i = 1; i < geom.length; i++) cum.push(cum[i - 1] + met
 const at = (d) => { const i = Math.max(1, cum.findIndex((c) => c >= d)); const f = (d - cum[i - 1]) / (cum[i] - cum[i - 1]); return { latitude: geom[i - 1][1] + (geom[i][1] - geom[i - 1][1]) * f, longitude: geom[i - 1][0] + (geom[i][0] - geom[i - 1][0]) * f, accuracy: 8 }; };
 
 const vehicle = { id: "v1", name: "Bus 12", company_id: "c1", driver_pin: "1111", current_lat: geom[0][1], current_lng: geom[0][0], status: "idle", route_id: "r1" };
-const route = { id: "r1", name: "Town loop", stops: [{ name: "Grand Anse", lat: 12.12, lng: -61.755, order: 1 }, { name: "Morne Rouge", lat: 12.1, lng: -61.765, order: 2 }] };
+const route = { id: "r1", name: "Town loop", stops: [{ name: "Grand Anse", lat: 12.12, lng: -61.755, order: 1 }] };
 const browser = await chromium.launch({ args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"] });
 const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 }, geolocation: at(0), permissions: ["geolocation"] });
 await ctx.addInitScript((engine) => {
@@ -62,6 +62,7 @@ ok("time left goes down", /(1[0-9]) min/.test(eta1), eta1);
 for (const d of [1600, 2000, 2380]) await driveTo(d);
 ok("'Then' shown for a turn right after", await page.getByTestId("nav-then").isVisible().catch(() => false));
 await page.screenshot({ path: "/tmp/shots/nav_then.png" });
+await driveTo(2450); // Mapbox says "Turn right. Then turn left." 115 m before the turn
 
 const said = await page.evaluate(() => window.__said);
 ok("voice: starting prompt", said.some((s) => /Drive northwest on Old Road/.test(s)), said.join(" | "));
