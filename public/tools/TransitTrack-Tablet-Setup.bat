@@ -99,14 +99,17 @@ echo  Hotspot %SSID% password - letters and numbers only.
 echo  Enter the password configured for this bus. There is no default password.
 set HPASS=
 set /p HPASS=  Password: 
-if "%HPASS%"=="" goto bus_done
+powershell -NoProfile -Command "if ($env:HPASS -notmatch '^[A-Za-z0-9]{8,63}$') { exit 1 }"
+if errorlevel 1 goto bus_done
 
 :ask_pin
 set /p PIN=  FreeKiosk exit PIN for this tablet: 
-if "%PIN%"=="" goto ask_pin
+powershell -NoProfile -Command "if ($env:PIN -notmatch '^[0-9]{6,12}$') { exit 1 }"
+if errorlevel 1 goto ask_pin
 :ask_api_key
 set /p APIKEY=  FreeKiosk REST API key for this tablet - letters and numbers only: 
-if "%APIKEY%"=="" goto ask_api_key
+powershell -NoProfile -Command "if ($env:APIKEY -notmatch '^[A-Za-z0-9]{16,128}$') { exit 1 }"
+if errorlevel 1 goto ask_api_key
 
 rem ---------- Find the APK files ----------
 set FK_APK=

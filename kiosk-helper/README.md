@@ -41,7 +41,8 @@ must use the same signing key as the installed app. Do not commit signed APKs.
 FreeKiosk has no built-in API key fallback. Configure the tablet's own REST API
 key through the existing `--es api_key` option. The setup script asks for the
 exit PIN, API key, and bus hotspot password locally; it contains no fleet-wide
-credential defaults. Use letters and numbers for API keys and hotspot passwords.
+credential defaults. Use 16–128 letters/numbers for API keys, 8–63 letters/numbers for hotspot
+passwords, and 6–12 digits for the exit PIN. Inputs are validated before ADB use.
 Place a trusted, privately supplied `TransitTrack-Kiosk-Helper.apk` beside the
 Windows setup script. It no longer downloads the old public APK.
 

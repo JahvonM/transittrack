@@ -169,3 +169,26 @@ In order, across this stream of work:
   listings, real `appId` in place of the placeholder `com.transittrack.app`)
   is explicitly on hold per the user until "a few more things to debug" are
   done.
+
+## Pre-production security — STEP 1 (2026-10-03)
+
+User authorized STEP 1 only. No production resources exist. Mechanics require
+maintenance access across companies, without credentials or ownership/role
+controls. Advertisements stay publicly readable with authorized writes only.
+
+Removed tracked helper signing material and the public legacy helper APK. The
+existing development key remains at kiosk-helper/signing.jks as an ignored local
+file (0600); legacy APK moved to ignored kiosk-helper/legacy-development/. Secure
+external backup is still required before sandbox reset. No key generation, device
+revocation, credential rotation, database rule changes, or deployment performed.
+
+Helper build now requires an existing absolute-path keystore, alias and password
+environment variables and never creates keys. FreeKiosk key fallback removed;
+setup asks for validated local PIN/API-key/Wi-Fi credentials and explicitly passes
+the API key to the helper. Setup uses a privately supplied local APK.
+
+Earlier Git history and previously published files still contain old material;
+this step changes the current repository only. Do not use exposed development
+credentials for production. STEP 2 is not authorized yet. V1 remains unresolved:
+built-in User security cannot be changed according to Base44 docs, and custom
+profile fields are self-editable. Authenticated non-admin tests remain needed.
