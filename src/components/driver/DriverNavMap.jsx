@@ -10,6 +10,7 @@ import { useIsDark } from "@/lib/useTheme";
 import OfflineStatusBadge from "@/components/OfflineStatusBadge";
 import { useOfflineSync } from "@/hooks/useOfflineSync";
 import { formatEta, fetchTurnByTurnRoute, haversineKm } from "@/lib/geo";
+import { googleMapsDirectionsUrl } from "@/lib/navLinks";
 import { speak, stopSpeaking } from "@/lib/speech";
 import useDrivingEta from "@/hooks/useDrivingEta";
 import useSmoothPosition from "@/hooks/useSmoothPosition";
@@ -81,17 +82,6 @@ const ADVANCE_STEP_M = 25;
 const PASSED_NEAR_M = 70;
 const PASSED_MARGIN_M = 25;
 
-// Opens Google Maps' own turn-by-turn (the app on Android/iPhone) through
-// the remaining stops. Google allows up to 9 stops in between.
-export function googleMapsDirectionsUrl(stops) {
-  const valid = (stops || []).filter((s) => s?.lat != null && s?.lng != null);
-  if (!valid.length) return null;
-  const dest = valid[valid.length - 1];
-  const via = valid.slice(0, -1).slice(0, 9);
-  const p = new URLSearchParams({ api: "1", destination: `${dest.lat},${dest.lng}`, travelmode: "driving", dir_action: "navigate" });
-  if (via.length) p.set("waypoints", via.map((s) => `${s.lat},${s.lng}`).join("|"));
-  return `https://www.google.com/maps/dir/?${p.toString()}`;
-}
 
 // fill: take the parent's full height (the combined Drive screen).
 // pushLocation: send GPS to the server itself — off on the Drive screen,
