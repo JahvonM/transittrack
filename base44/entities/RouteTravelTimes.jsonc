@@ -1,0 +1,95 @@
+{
+  "name": "RouteTravelTimes",
+  "type": "object",
+  "properties": {
+    "route_id": {
+      "type": "string"
+    },
+    "route_name": {
+      "type": "string"
+    },
+    "company_id": {
+      "type": "string"
+    },
+    "legs": {
+      "type": "object",
+      "description": "Learned stop-to-stop driving times, keyed 'lat,lng>lat,lng' of the two stops: { all: {n, median, p80}, b: { wd07: {n, median}, ... } } in seconds. Bucket = weekday/sa/su + hour in Grenada time."
+    },
+    "dwells": {
+      "type": "object",
+      "description": "Learned waiting time at each stop, keyed 'lat,lng', same shape as legs."
+    },
+    "leg_samples": {
+      "type": "number",
+      "description": "Stop-to-stop trips the times are based on."
+    },
+    "pings_used": {
+      "type": "number"
+    },
+    "vehicles_used": {
+      "type": "number"
+    },
+    "days": {
+      "type": "number",
+      "description": "How many days of history were used."
+    },
+    "learned_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "route_id"
+  ],
+  "rls": {
+    "read": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "company"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "staff"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "passenger"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "driver"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "mechanic"
+          }
+        }
+      ]
+    },
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}
