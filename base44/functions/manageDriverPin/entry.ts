@@ -1,0 +1,39 @@
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
+
+async function pinHash(pin, salt) {
+ const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(pin), 'PBKDF2', false, ['deriveBits']);
+ const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt: new TextEncoder().encode(salt), iterations: 600000, hash: 'SHA-256' }, key, 256);
+ return Array.from(new Uint8Array(bits), b => b.toString(16).padStart(2,'0')).join('');
+}
+async function setProtectedPin(base44, vehicle, pin) {
+ const salt = Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2,'0')).join('');
+ const data = { vehicle_id: vehicle.id, company_id: vehicle.company_id, salt, pin_hash: pin ? await pinHash(pin, salt) : '', enabled: !!pin };
+ const rows = await base44.asServiceRole.entities.DriverPinCredential.filter({ vehicle_id: vehicle.id }, '-updated_date', 1);
+ if (rows[0]) await base44.asServiceRole.entities.DriverPinCredential.update(rows[0].id, data);
+ else await base44.asServiceRole.entities.DriverPinCredential.create(data);
+ await base44.asServiceRole.entities.Vehicle.update(vehicle.id, { driver_pin: '' });
+}
+async function verifyProtectedPin(base44, vehicle, pin) {
+ if (typeof pin !== 'string' || !/^\d{4}$/.test(pin)) return false;
+ const rows = await base44.asServiceRole.entities.DriverPinCredential.filter({ vehicle_id: vehicle.id }, '-updated_date', 1);
+ const row = rows[0];
+ if (row) return row.enabled === true && row.company_id === vehicle.company_id && (await pinHash(pin, row.salt)) === row.pin_hash;
+ // Development migration only: successful verification moves the old PIN to a protected hash.
+ if (pin !== vehicle.driver_pin) return false;
+ await setProtectedPin(base44, vehicle, pin);
+ return true;
+}
+
+export default async function(req) {
+ try {
+  const base44 = createClientFromRequest(req);
+  const user = await base44.auth.me().catch(() => null);
+  if (!user || user.role !== 'admin') return Response.json({ error: 'Admins only' }, { status: 403 });
+  const body = await req.json();
+  if (typeof body.pin !== 'string' || (body.pin !== '' && !/^\d{4}$/.test(body.pin))) return Response.json({ error: 'PIN must contain four digits' }, { status: 400 });
+  const vehicle = await base44.asServiceRole.entities.Vehicle.get(body.vehicle_id);
+  if (!vehicle?.company_id) return Response.json({ error: 'Vehicle not found' }, { status: 404 });
+  await setProtectedPin(base44, vehicle, body.pin);
+  return Response.json({ ok: true });
+ } catch { return Response.json({ error: 'Could not save PIN' }, { status: 500 }); }
+}
