@@ -53,13 +53,8 @@ export default async function(req) {
 
     const device = devices[0];
 
-    // Block re-pairing an already-paired device with the same old code (the
-    // one-time-use guarantee). This used to be enforced by blanking
-    // pairing_code on success, but that also erased the admin's ability to
-    // copy that device's URL again later, forcing a disruptive "Regenerate"
-    // (which unpairs the tablet) just to retrieve the link. Checking the
-    // `paired` flag gives the same one-time-use guarantee without losing the
-    // stored code.
+    // Reject sequential reuse. Base44 does not expose an atomic consume here;
+    // simultaneous pairing requests still require a transactional backend guard.
     if (device.paired) {
       return Response.json({ error: 'This code has already been used to pair a tablet. Ask an admin to generate a new one.' }, { status: 409 });
     }
