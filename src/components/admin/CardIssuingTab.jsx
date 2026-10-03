@@ -192,7 +192,7 @@ function AddStaffDialog({ open, onOpenChange, companies, vehicles, defaultCompan
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader><DialogTitle>Add passenger</DialogTitle></DialogHeader>
-        <p className="text-sm text-muted-foreground -mt-2">Passengers belong to a company and ride one of its buses. Their card is sent to that bus's boarding tablet.</p>
+        <p className="text-sm text-muted-foreground -mt-2">Passengers belong to a company and ride one of its buses. Their card is sent to that bus's boarding tablet and only works on that bus.</p>
         <div className="space-y-3">
           <div className="space-y-1.5"><Label htmlFor="st-name">Full name</Label><Input id="st-name" value={form.full_name} onChange={(e) => set({ full_name: e.target.value })} autoFocus /></div>
           {pickCompany && (
