@@ -27,6 +27,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/components/ui/use-toast";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { idleFor, useTabletUpdates } from "@/lib/tabletUpdate";
 
 // "navigate" is kept as an alias: Track and Navigate are now one Drive screen.
 const TRACKING_TABS = ["track", "navigate", "chat", "safety", "profile"];
@@ -50,6 +51,12 @@ export default function DriverApp() {
   // Follow the URL (e.g. "Continue" after an inspection goes to /driver/track).
   useEffect(() => { const t = tabFromStage(urlStage); if (t) setActiveTab(t); }, [urlStage]);
   const { session, loading, offline, invoke, refresh } = useDriverSession(deviceId);
+  // Updates only happen while the bus is stopped and nobody has touched the
+  // screen for 3 minutes (see lib/tabletUpdate).
+  useTabletUpdates({
+    requestedAt: session?.update_requested_at,
+    isIdle: () => idleFor(3 * 60 * 1000) && (window.__ttHelperHealth?.parked === true || (session?.vehicle?.speed || 0) < 0.5),
+  });
   const [localDone, setLocalDone] = useState(readLocalDone);
 
   // Driver tablets are mounted and always powered — keep the screen on so

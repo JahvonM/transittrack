@@ -11,6 +11,7 @@ import { saveDevice, loadDevice, forgetTablet, saveDirectory, directoryInfo, war
 import { isNetworkFailure } from "@/lib/offlineQueue";
 import { helperHealthPayload } from "@/lib/helperHealth";
 import { appHealthPayload } from "@/lib/appHealth";
+import { idleFor, useTabletUpdates } from "@/lib/tabletUpdate";
 
 const TYPE_META = {
   bus_boarding: { label: "Bus boarding", icon: Bus },
@@ -40,6 +41,9 @@ export default function Kiosk() {
   const [manualCode, setManualCode] = useState("");
   const [pairing, setPairing] = useState(false);
   const heartbeatId = useRef(null);
+  // New versions install themselves while the tablet is charging and nobody
+  // has tapped it for a while; "Send update" in admin applies when idle.
+  useTabletUpdates({ requestedAt: device?.update_requested_at, isIdle: () => idleFor(90 * 1000) });
 
   const code = new URLSearchParams(window.location.search).get("code");
   const storedId = localStorage.getItem("tt_kiosk_device_id");
