@@ -102,7 +102,11 @@ export default function DriverTrackingDashboard({ session, invoke, onReportIncid
     setLiveVehicle((prev) => prev ? { ...prev, current_lat: lat, current_lng: lng, speed: speed || 0 } : prev);
     if (now - lastUpdate.current < GPS_INTERVAL_MS) return;
     lastUpdate.current = now;
-    const nextTrail = [...trailRef.current, { lat, lng, t: new Date().toISOString() }].slice(-TRAIL_MAX);
+    // The tail only covers the last half hour, so yesterday's drive (or the
+    // previous trip) never shows up as a line on the maps.
+    const cutoff = Date.now() - 30 * 60 * 1000;
+    const recent = trailRef.current.filter((p) => p.t && Date.parse(p.t) > cutoff);
+    const nextTrail = [...recent, { lat, lng, t: new Date().toISOString() }].slice(-TRAIL_MAX);
     trailRef.current = nextTrail;
     const speedKmh = (speed || 0) * 3.6;
     let status = "on_trip";
