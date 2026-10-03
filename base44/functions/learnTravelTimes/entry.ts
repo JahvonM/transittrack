@@ -7,7 +7,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 // Admin -> Travel times -> Learn now.
 //
 // The block between the "shared" markers is an exact copy of the same block
-// in src/lib/travelTimes.js — edit it there, then run e2e/_gen_learn_fn.py.
+// in src/lib/travelTimes.js — edit it there, then run tools/gen_learn_travel_times.py.
 // A unit test fails if the copies differ.
 
 const DAY_MS = 24 * 60 * 60 * 1000;
