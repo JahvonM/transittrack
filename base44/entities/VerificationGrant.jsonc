@@ -1,0 +1,49 @@
+{
+  "name": "VerificationGrant",
+  "type": "object",
+  "properties": {
+    "token_hash": {
+      "type": "string"
+    },
+    "device_id": {
+      "type": "string"
+    },
+    "company_id": {
+      "type": "string"
+    },
+    "vehicle_id": {
+      "type": "string"
+    },
+    "purpose": {
+      "type": "string"
+    },
+    "subject": {
+      "type": "string"
+    },
+    "expires_at": {
+      "type": "string"
+    }
+  },
+  "rls": {
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}
