@@ -374,7 +374,7 @@ export default function BusBoardingKiosk({ invoke, device }) {
       setBadgeError(e?.response?.data?.error === "badge_not_registered"
         ? "This card isn't registered yet. Ask an admin to issue it in Card issuing."
         : isNetworkFailure(e)
-          ? "No connection, and this tablet hasn't saved the staff list yet. Connect to WiFi once."
+          ? "No connection, and this tablet hasn't saved the passenger list yet. Connect to WiFi once."
           : "Couldn't read that badge — try again.");
       setMode("badge_error");
       resetSoon(3500);

@@ -89,8 +89,8 @@ function readerStatus(d) {
     const ok = READER_OK.test(h.reader);
     return { tone: ok ? "ok" : "bad", text: ok ? "Reader OK" : `Reader: ${h.reader}`, sub: h.last_card_at ? `last card ${ago(h.last_card_at)}` : undefined };
   }
-  if (a.reader === "usb_reader" || a.reader === "pc_helper") return { tone: "ok", text: "USB reader", sub: a.saved_list_at ? `staff list ${ago(a.saved_list_at)}` : undefined };
-  if (a.reader === "built_in_nfc") return { tone: "ok", text: "Built-in NFC", sub: a.saved_list_at ? `staff list ${ago(a.saved_list_at)}` : undefined };
+  if (a.reader === "usb_reader" || a.reader === "pc_helper") return { tone: "ok", text: "USB reader", sub: a.saved_list_at ? `passenger list ${ago(a.saved_list_at)}` : undefined };
+  if (a.reader === "built_in_nfc") return { tone: "ok", text: "Built-in NFC", sub: a.saved_list_at ? `passenger list ${ago(a.saved_list_at)}` : undefined };
   return { tone: "idle", text: "Unknown", sub: "keypad codes still work" };
 }
 

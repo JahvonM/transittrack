@@ -274,7 +274,7 @@ export default function Kiosk() {
               <CreditCard className="w-10 h-10 mx-auto text-muted-foreground" />
               <p className="text-xl font-semibold">This kiosk mode has been retired</p>
               <p className="text-muted-foreground max-w-md mx-auto">
-                Staff cards are now issued by an administrator in Admin → Card issuing. Ask your administrator to switch this tablet to
+                Passenger cards are now issued by an administrator in Admin → Card issuing. Ask your administrator to switch this tablet to
                 <b> Bus boarding</b> in Admin → Kiosk tablets.
               </p>
             </div>

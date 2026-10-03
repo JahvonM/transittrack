@@ -20,7 +20,7 @@ const ROLE_FILTERS = [
   { id: "all", label: "All" },
   { id: "driver", label: "Drivers" },
   { id: "mechanic", label: "Mechanics" },
-  { id: "staff", label: "Staff" },
+  { id: "staff", label: "Passengers" },
   { id: "other", label: "Other" },
 ];
 const STATUS_STYLE = {
@@ -191,8 +191,8 @@ function AddStaffDialog({ open, onOpenChange, companies, vehicles, defaultCompan
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
-        <DialogHeader><DialogTitle>Add bus staff</DialogTitle></DialogHeader>
-        <p className="text-sm text-muted-foreground -mt-2">Staff belong to a company and ride one of its buses. Their card is sent to that bus's boarding tablet.</p>
+        <DialogHeader><DialogTitle>Add passenger</DialogTitle></DialogHeader>
+        <p className="text-sm text-muted-foreground -mt-2">Passengers belong to a company and ride one of its buses. Their card is sent to that bus's boarding tablet.</p>
         <div className="space-y-3">
           <div className="space-y-1.5"><Label htmlFor="st-name">Full name</Label><Input id="st-name" value={form.full_name} onChange={(e) => set({ full_name: e.target.value })} autoFocus /></div>
           {pickCompany && (
@@ -215,7 +215,7 @@ function AddStaffDialog({ open, onOpenChange, companies, vehicles, defaultCompan
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={save} disabled={busy || !ready}>{busy ? "Adding…" : "Add staff"}</Button>
+          <Button onClick={save} disabled={busy || !ready}>{busy ? "Adding…" : "Add passenger"}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -335,7 +335,7 @@ export default function CardIssuingTab({ companies = [] }) {
       setTablets(res.data?.tablets || []);
       return res.data?.people || [];
     } catch (e) {
-      toast({ title: "Couldn't load staff", description: e?.response?.data?.error || e.message, variant: "destructive" });
+      toast({ title: "Couldn't load people", description: e?.response?.data?.error || e.message, variant: "destructive" });
     } finally { setLoading(false); }
   }, [toast]);
   useEffect(() => { load(); }, [load]);
@@ -530,11 +530,11 @@ export default function CardIssuingTab({ companies = [] }) {
       ) : (
         <div className="grid lg:grid-cols-[300px_minmax(0,1fr)] gap-3 items-start">
           {/* STAFF QUEUE */}
-          <aside className="rounded-2xl border bg-card flex flex-col lg:h-[calc(100vh-200px)] lg:min-h-[480px]" aria-label="Staff queue">
+          <aside className="rounded-2xl border bg-card flex flex-col lg:h-[calc(100vh-200px)] lg:min-h-[480px]" aria-label="People list">
             <div className="p-2.5 space-y-2 border-b">
               <div className="relative">
                 <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Name or bus" className="pl-9 h-9" aria-label="Search staff" />
+                <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Name or bus" className="pl-9 h-9" aria-label="Search people" />
               </div>
               {companies.length > 0 && (
                 <Select value={companyFilter} onValueChange={setCompanyFilter}>
@@ -561,7 +561,7 @@ export default function CardIssuingTab({ companies = [] }) {
                     {Object.keys(STATUS_STYLE).map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                   </SelectContent>
                 </Select>
-                <Button variant="outline" size="sm" className="h-8" onClick={() => setAddOpen(true)}><Plus className="w-4 h-4" /> Add staff</Button>
+                <Button variant="outline" size="sm" className="h-8" onClick={() => setAddOpen(true)}><Plus className="w-4 h-4" /> Add passenger</Button>
               </div>
             </div>
             <ul className="flex-1 min-h-[240px] overflow-y-auto p-1.5 space-y-0.5">

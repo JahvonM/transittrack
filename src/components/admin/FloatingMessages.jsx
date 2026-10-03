@@ -18,7 +18,7 @@ function previewText(m) {
 }
 
 const CHANNELS = [
-  { channel: "staff", label: "Staff", icon: Users },
+  { channel: "staff", label: "Passengers", icon: Users },
   { channel: "company", label: "Company", icon: Building2 },
   { channel: "dispatch", label: "Dispatch", icon: Radio },
   { channel: "mechanic", label: "Mechanic", icon: Wrench },
@@ -29,7 +29,7 @@ function senderLabelFor(m, channel) {
   if (m.sender_role === "admin") return "Admin";
   if (channel === "company") return m.sender_name || "Company";
   if (channel === "mechanic") return m.sender_name || "Mechanic";
-  return m.sender_name || "Staff";
+  return m.sender_name || "Passenger";
 }
 
 // Floating chat bubble for admin — mirrors FloatingChatbot's UX, but connects

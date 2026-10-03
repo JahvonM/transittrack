@@ -76,7 +76,7 @@ const ROLE_LINKS = [
   { to: "/passenger", label: "Passenger view", icon: MapPin },
   { to: "/driver", label: "Driver app", icon: Car },
   { to: "/company", label: "Company dashboard", icon: LayoutDashboard },
-  { to: "/staff", label: "Staff portal", icon: Hotel },
+  { to: "/staff", label: "Passenger app", icon: Hotel },
   { to: "/manager", label: "Fleet manager", icon: Radar },
 ];
 

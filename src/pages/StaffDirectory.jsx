@@ -20,6 +20,9 @@ import { useAuth } from "@/lib/AuthContext";
 import { loadFailed } from "@/lib/loadFailed";
 import BusLoader from "@/components/BusLoader";
 
+// "staff" in the data = people from client companies who ride the buses.
+const TYPE_LABEL = { all: "All", staff: "Company passengers", passenger: "Other passengers" };
+
 export default function StaffDirectory() {
   const { user } = useAuth();
   const [contacts, setContacts] = useState([]);
@@ -88,7 +91,7 @@ export default function StaffDirectory() {
   const filtered = filter === "all" ? contacts : contacts.filter((c) => c.type === filter);
 
   return (
-    <AppLayout title="Staff & passenger directory">
+    <AppLayout title="Passenger directory">
       <PullToRefresh onRefresh={load}>
       <div className="flex items-center justify-between gap-3 mb-4">
         <div className="flex gap-2">
@@ -96,13 +99,13 @@ export default function StaffDirectory() {
             <button
               key={t}
               onClick={() => setFilter(t)}
-              className={`px-3 py-1.5 rounded-lg text-sm border capitalize transition-colors ${
+              className={`px-3 py-1.5 rounded-lg text-sm border transition-colors ${
                 filter === t
                   ? "bg-primary text-primary-foreground border-primary"
                   : "border-border hover:bg-accent"
               }`}
             >
-              {t}
+              {TYPE_LABEL[t]}
             </button>
           ))}
         </div>
@@ -132,9 +135,8 @@ export default function StaffDirectory() {
                     </div>
                     <Badge
                       variant={c.type === "staff" ? "default" : "secondary"}
-                      className="capitalize"
                     >
-                      {c.type}
+                      {TYPE_LABEL[c.type] || c.type}
                     </Badge>
                   </div>
                   {c.phone && <div className="text-muted-foreground">{c.phone}</div>}

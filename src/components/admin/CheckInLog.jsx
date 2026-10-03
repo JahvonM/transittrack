@@ -17,7 +17,7 @@ import { exportToCSV, exportToPDF } from "@/lib/exporters";
 import BusLoader from "@/components/BusLoader";
 
 const CHECKIN_COLS = [
-  { key: "staff_name", label: "Staff" },
+  { key: "staff_name", label: "Passenger" },
   { key: "status", label: "Status" },
   { key: "check_in_method", label: "Method" },
   { key: "vehicle_name", label: "Bus" },
@@ -107,7 +107,7 @@ function BusCheckIns({ vehicles }) {
                   {r.status === "boarded" ? <LogIn className="w-4 h-4" /> : <LogOut className="w-4 h-4" />}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="font-medium truncate">{r.staff_name || "Unknown staff"}</div>
+                  <div className="font-medium truncate">{r.staff_name || "Unknown passenger"}</div>
                   <div className="text-xs text-muted-foreground truncate">
                     {r.vehicle_name || "—"}{r.company_name ? ` · ${r.company_name}` : ""}
                   </div>

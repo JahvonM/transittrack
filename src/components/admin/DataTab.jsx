@@ -94,7 +94,7 @@ const CREATE_FIELDS = {
   StaffCheckIn: [
     { key: "card_tag", label: "Badge tag", required: true },
     { key: "status", label: "Status (boarded / off_board)", required: true, placeholder: "boarded" },
-    { key: "staff_name", label: "Staff name" },
+    { key: "staff_name", label: "Passenger name" },
     { key: "company_id", label: "Company ID" },
     { key: "vehicle_id", label: "Vehicle ID" },
   ],
@@ -134,7 +134,7 @@ const LABELS = {
   entry_code: "Entry code",
   route_id: "Route ID",
   route_name: "Route",
-  staff_name: "Staff",
+  staff_name: "Passenger",
   card_tag: "Badge tag",
   vehicle_name: "Bus",
   vehicle_id: "Bus ID",

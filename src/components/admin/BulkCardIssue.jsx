@@ -8,7 +8,7 @@ import { CheckCircle2, Layers, Loader2, Nfc, Pause, Play, RotateCcw, SkipForward
 import { formatUid, normalizeUid } from "@/lib/cardReader";
 
 const TYPES = [
-  { id: "staff", label: "Staff" },
+  { id: "staff", label: "Passengers" },
   { id: "driver", label: "Drivers" },
   { id: "mechanic", label: "Mechanics" },
   { id: "all", label: "Everyone" },

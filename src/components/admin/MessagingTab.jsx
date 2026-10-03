@@ -63,7 +63,7 @@ export default function MessagingTab({ vehicles }) {
       <div>
         <h1 className="text-2xl font-heading font-semibold">Messaging</h1>
         <p className="text-sm text-muted-foreground">
-          Send a message that pops up on a driver's screen, or broadcast to all drivers and staff.
+          Send a message that pops up on a driver's screen, or broadcast to all drivers and passengers.
         </p>
       </div>
       <Card>
@@ -123,7 +123,7 @@ export default function MessagingTab({ vehicles }) {
             {sending ? "Sending…" : (<><Send className="w-4 h-4 mr-1.5" />Send</>)}
           </Button>
           {mode === "broadcast" && (
-            <p className="text-xs text-muted-foreground">This pops up on every driver and staff screen.</p>
+            <p className="text-xs text-muted-foreground">This pops up on every driver and passenger screen.</p>
           )}
         </CardContent>
       </Card>
