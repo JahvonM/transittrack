@@ -33,6 +33,8 @@ final class Kiosk {
     }
 
     static boolean post(Context c, String path, String json) {
+        String apiKey = Config.apiKey(c);
+        if (apiKey == null || apiKey.trim().isEmpty()) return false;
         HttpURLConnection con = null;
         try {
             URL u = new URL("http://127.0.0.1:" + Config.port(c) + path);
@@ -41,7 +43,7 @@ final class Kiosk {
             con.setReadTimeout(6000);
             con.setRequestMethod("POST");
             con.setDoOutput(true);
-            con.setRequestProperty("X-Api-Key", Config.apiKey(c));
+            con.setRequestProperty("X-Api-Key", apiKey);
             con.setRequestProperty("Content-Type", "application/json");
             byte[] body = json.getBytes("UTF-8");
             con.setFixedLengthStreamingMode(body.length);

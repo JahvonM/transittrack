@@ -4,6 +4,17 @@
 set -e
 cd "$(dirname "$0")"
 : "${JAVA_BIN:?set JAVA_BIN to the JDK bin folder}" "${BT:?set BT to build-tools}" "${AJ:?set AJ to android.jar}"
+# Supply an existing private keystore; this script never creates signing keys.
+: "${HELPER_KEYSTORE:?set HELPER_KEYSTORE to an existing private keystore}" \
+  "${HELPER_KEY_ALIAS:?set HELPER_KEY_ALIAS}" \
+  "${HELPER_STORE_PASSWORD:?set HELPER_STORE_PASSWORD}" \
+  "${HELPER_KEY_PASSWORD:?set HELPER_KEY_PASSWORD}"
+[ -f "$HELPER_KEYSTORE" ] || { echo "Signing keystore not found" >&2; exit 1; }
+case "$HELPER_KEYSTORE" in
+  /*) ;;
+  *) echo "HELPER_KEYSTORE must be an absolute path" >&2; exit 1 ;;
+esac
+export HELPER_STORE_PASSWORD HELPER_KEY_PASSWORD
 export PATH="$JAVA_BIN:$PATH"
 rm -rf build && mkdir -p build/gen build/classes
 "$BT/aapt2" compile --dir res -o build/res.zip
@@ -17,11 +28,8 @@ with zipfile.ZipFile("build/unsigned.apk", "a", zipfile.ZIP_DEFLATED) as z:
     z.write("build/classes.dex", "classes.dex")
 PY
 "$BT/zipalign" -f 4 build/unsigned.apk build/aligned.apk
-if [ ! -f signing.jks ]; then
-  keytool -genkeypair -keystore signing.jks -storepass transittrack -keypass transittrack \
-    -alias helper -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=TransitTrack Kiosk Helper"
-fi
-"$BT/apksigner" sign --ks signing.jks --ks-pass pass:transittrack --key-pass pass:transittrack \
+"$BT/apksigner" sign --ks "$HELPER_KEYSTORE" --ks-key-alias "$HELPER_KEY_ALIAS" \
+  --ks-pass env:HELPER_STORE_PASSWORD --key-pass env:HELPER_KEY_PASSWORD \
   --out build/TransitTrack-Kiosk-Helper.apk build/aligned.apk
 "$BT/apksigner" verify build/TransitTrack-Kiosk-Helper.apk
 echo "Built build/TransitTrack-Kiosk-Helper.apk"

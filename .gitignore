@@ -30,3 +30,12 @@ dist-ssr
 .env
 .vite
 base44/.app.jsonc
+
+# Private signing material and generated helper binaries
+*.jks
+*.keystore
+*.p12
+*.pfx
+/kiosk-helper/build/
+/kiosk-helper/legacy-development/
+/public/tools/TransitTrack-Kiosk-Helper.apk

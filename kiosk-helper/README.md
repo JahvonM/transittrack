@@ -31,5 +31,26 @@ Small Android app for the bus tablets. Replaces the Termux scripts:
 Config (optional) via adb:
 `adb shell am start -n com.transittrack.kioskhelper/.MainActivity --es api_key KEY --es port 8080 --es ignition true --es reader true --es gps true --es hotspot false`
 
-Build: see build.sh (aapt2 + javac + d8 + apksigner, no Gradle). The signing key is
-kiosk-helper/signing.jks; keep it, updates must be signed with the same key.
+Build: see build.sh (aapt2 + javac + d8 + apksigner, no Gradle).
+Supply an existing signing keystore using an absolute `HELPER_KEYSTORE` path,
+`HELPER_KEY_ALIAS`, `HELPER_STORE_PASSWORD`, and `HELPER_KEY_PASSWORD` in the local
+environment. The build fails if these are missing and never generates a key.
+Keep signing material outside version control in secure private storage; updates
+must use the same signing key as the installed app. Do not commit signed APKs.
+
+FreeKiosk has no built-in API key fallback. Configure the tablet's own REST API
+key through the existing `--es api_key` option. The setup script asks for the
+exit PIN, API key, and bus hotspot password locally; it contains no fleet-wide
+credential defaults. Use letters and numbers for API keys and hotspot passwords.
+Place a trusted, privately supplied `TransitTrack-Kiosk-Helper.apk` beside the
+Windows setup script. It no longer downloads the old public APK.
+
+Pre-production STEP 1 preserved the existing development signing key as an
+ignored local file and moved the legacy APK into ignored
+`kiosk-helper/legacy-development/`. Back up development signing material securely
+outside the sandbox before it is reset. Existing tablets were not updated or
+revoked. No replacement keys were generated.
+
+Removing secrets from the current tree does not erase earlier Git commits or
+previously published files. History cleanup and publishing are separate tasks;
+do not treat the removed credentials as suitable for the first production release.

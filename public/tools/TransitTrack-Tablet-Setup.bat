@@ -10,12 +10,11 @@ set PRESET_CODE=
 set PRESET_BUS=
 set PRESET_NAME=
 
-rem ===== Same on every tablet. Change here if they ever change. =====
-set PIN=604827
-set APIKEY=GdBus-7kR4vQ9mX2wT
+rem ===== Credentials are entered locally for this tablet; never embed them here. =====
+set PIN=
+set APIKEY=
 set SITE=https://eager-transit-track-go.base44.app
 set HOTSPOT_PREFIX=TT-BUS
-set DEFAULT_HOTSPOT_PASS=TransitTrack2026
 set HELPER=com.transittrack.kioskhelper
 set FK=com.freekiosk/.MainActivity
 
@@ -97,10 +96,17 @@ if "%BUS%"=="" goto ask_bus_q
 set SSID=%HOTSPOT_PREFIX%%BUS%
 echo.
 echo  Hotspot %SSID% password - letters and numbers only.
-echo  Press Enter to use the fleet password: %DEFAULT_HOTSPOT_PASS%
+echo  Enter the password configured for this bus. There is no default password.
 set HPASS=
 set /p HPASS=  Password: 
-if "%HPASS%"=="" set HPASS=%DEFAULT_HOTSPOT_PASS%
+if "%HPASS%"=="" goto bus_done
+
+:ask_pin
+set /p PIN=  FreeKiosk exit PIN for this tablet: 
+if "%PIN%"=="" goto ask_pin
+:ask_api_key
+set /p APIKEY=  FreeKiosk REST API key for this tablet - letters and numbers only: 
+if "%APIKEY%"=="" goto ask_api_key
 
 rem ---------- Find the APK files ----------
 set FK_APK=
@@ -158,13 +164,12 @@ if not defined WV_APK goto wv_skip
 echo  Installing WebView - the big one, about a minute...
 adb install -r "%WV_APK%"
 :wv_skip
-echo  Downloading the latest TransitTrack Helper...
-del "%TEMP%\tt-helper.apk" >nul 2>&1
-curl -s -L -o "%TEMP%\tt-helper.apk" "%SITE%/tools/TransitTrack-Kiosk-Helper.apk"
-if not exist "%TEMP%\tt-helper.apk" goto helper_failed
-for %%z in ("%TEMP%\tt-helper.apk") do if %%~zz LSS 10000 goto helper_failed
-echo  Installing TransitTrack Helper...
-adb install -r "%TEMP%\tt-helper.apk"
+rem Use a trusted, privately supplied APK; no legacy public helper download.
+set "HELPER_APK=%~dp0TransitTrack-Kiosk-Helper.apk"
+if not exist "%HELPER_APK%" goto helper_failed
+echo  Installing the locally supplied TransitTrack Helper...
+adb install -r "%HELPER_APK%"
+if errorlevel 1 goto helper_failed
 rem Old apps the helper replaces - fine if they are not there
 adb uninstall com.termux.boot >nul 2>&1
 adb uninstall org.broeuschmeul.android.gps.usb.provider >nul 2>&1
@@ -178,8 +183,8 @@ pause
 exit /b
 
 :helper_failed
-echo  [X] Could not download TransitTrack Helper. Check this computer's internet,
-echo      then run this again.
+echo  [X] Place a trusted TransitTrack-Kiosk-Helper.apk beside this setup file.
+echo      Installation may also fail if its signing key differs from the installed app.
 pause
 exit /b
 
@@ -246,10 +251,10 @@ rem ---------- Step 5: TransitTrack Helper ----------
 echo.
 echo  --- Step 5 of 7: Setting up TransitTrack Helper ---
 if "%TYPE%"=="1" goto helper_driver
-adb shell am start -n %HELPER%/.MainActivity --es reader true --es gps false --es hotspot false --es join_ssid %SSID% --es join_pass %HPASS%
+adb shell am start -n %HELPER%/.MainActivity --es api_key "%APIKEY%" --es reader true --es gps false --es hotspot false --es join_ssid %SSID% --es join_pass %HPASS%
 goto helper_set
 :helper_driver
-adb shell am start -n %HELPER%/.MainActivity --es reader false --es gps true --es hotspot true
+adb shell am start -n %HELPER%/.MainActivity --es api_key "%APIKEY%" --es reader false --es gps true --es hotspot true
 :helper_set
 timeout /t 5 /nobreak >nul
 echo  [OK] Done.
