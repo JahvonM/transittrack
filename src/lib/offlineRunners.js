@@ -1,3 +1,4 @@
+import { deviceRequest } from "@/lib/deviceAuth";
 // Runners for the offline job queue. Registered once at startup (main.jsx)
 // so queued work uploads on reconnect no matter which screen is open.
 import { base44 } from "@/api/base44Client";
@@ -29,19 +30,19 @@ export async function runMechanicInspection(payload, save = () => {}) {
 // Driver pre-trip check from a paired tablet (no login; goes through the
 // driver session with the tablet's device id).
 export async function runDriverInspection(payload) {
-  const res = await base44.functions.invoke("driverSession", { ...payload, action: "submit_inspection" });
+  const res = await base44.functions.invoke("driverSession", deviceRequest(payload.device_id, { ...payload, action: "submit_inspection" }));
   return res.data;
 }
 
 // Driver X-ray inspection from a template; photos travel inside the payload.
 export async function runDriverTemplateInspection(payload) {
-  const res = await base44.functions.invoke("driverSession", { ...payload, action: "submit_template_inspection" });
+  const res = await base44.functions.invoke("driverSession", deviceRequest(payload.device_id, { ...payload, action: "submit_template_inspection" }));
   return res.data;
 }
 
 // Shift start/end made with no signal; carries the time it really happened.
 export async function runDriverShift(payload) {
-  const res = await base44.functions.invoke("driverSession", payload);
+  const res = await base44.functions.invoke("driverSession", deviceRequest(payload.device_id, payload));
   return res.data;
 }
 

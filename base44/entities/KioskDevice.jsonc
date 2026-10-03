@@ -25,16 +25,39 @@
       "type": "object",
       "description": "Reported by the TransitTrack app on the tablet every heartbeat: build, online, uploads waiting (GPS points, check-ins, other saved work), last GPS fix, card reader in use, saved staff list.",
       "properties": {
-        "reported_at": { "type": "string", "format": "date-time" },
-        "build": { "type": "string" },
-        "online": { "type": "boolean" },
-        "queued_gps": { "type": "number" },
-        "queued_checkins": { "type": "number" },
-        "queued_jobs": { "type": "number" },
-        "last_gps_fix": { "type": "string", "format": "date-time" },
-        "reader": { "type": "string" },
-        "saved_list_at": { "type": "string", "format": "date-time" },
-        "saved_list_count": { "type": "number" }
+        "reported_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "build": {
+          "type": "string"
+        },
+        "online": {
+          "type": "boolean"
+        },
+        "queued_gps": {
+          "type": "number"
+        },
+        "queued_checkins": {
+          "type": "number"
+        },
+        "queued_jobs": {
+          "type": "number"
+        },
+        "last_gps_fix": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "reader": {
+          "type": "string"
+        },
+        "saved_list_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "saved_list_count": {
+          "type": "number"
+        }
       }
     },
     "helper_health": {
@@ -108,6 +131,10 @@
     },
     "vehicle_name": {
       "type": "string"
+    },
+    "pairing_expires_at": {
+      "type": "string",
+      "format": "date-time"
     }
   },
   "required": [

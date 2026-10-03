@@ -1,4 +1,33 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
+// Random device credentials are stored only as hashes in protected DeviceCredential.
+// Existing development tablets remain legacy-compatible until explicitly re-paired.
+const LEGACY_DEVICE_CUTOFF = Date.parse('2026-10-03T23:35:39Z');
+async function deviceDigest(value) {
+  const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
+  return Array.from(new Uint8Array(bytes), (b) => b.toString(16).padStart(2, '0')).join('');
+}
+function sameDigest(a, b) {
+  if (typeof a !== 'string' || typeof b !== 'string' || a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+async function authenticatedTablet(base44, device, token) {
+  if (!device || !device.paired || device.status !== 'active') return false;
+  const credentials = await base44.asServiceRole.entities.DeviceCredential.filter({ device_id: device.id }, '-issued_at', 1);
+  const credential = credentials[0];
+  if (!credential) {
+    // No upgrade based on possession of an ID. Only older records may use legacy auth.
+    const created = Date.parse(device.created_date);
+    return Number.isFinite(created) && created < LEGACY_DEVICE_CUTOFF;
+  }
+  if (typeof token !== 'string' || !/^[a-f0-9]{64}$/.test(token)) return false;
+  if (!(Date.parse(credential.expires_at) > Date.now())) return false;
+  if (credential.company_id !== device.company_id || credential.vehicle_id !== (device.vehicle_id || '') || credential.kiosk_type !== device.kiosk_type) return false;
+  if (!sameDigest(credential.pairing_code_hash, await deviceDigest(device.pairing_code || ''))) return false;
+  return sameDigest(credential.token_hash, await deviceDigest(token));
+}
+
 
 export default async function(req) {
   try {
@@ -35,11 +64,22 @@ export default async function(req) {
       return Response.json({ error: 'This code has already been used to pair a tablet. Ask an admin to generate a new one.' }, { status: 409 });
     }
 
-    // Mark as paired, stamp last_seen
-    await base44.asServiceRole.entities.KioskDevice.update(device.id, {
-      paired: true,
-      last_seen: new Date().toISOString()
-    });
+    if (body.expected_type === 'driver' && device.kiosk_type !== 'driver') return Response.json({ error: 'Not a driver tablet' }, { status: 400 });
+    if (body.expected_type === 'kiosk' && device.kiosk_type === 'driver') return Response.json({ error: 'Not a kiosk tablet' }, { status: 400 });
+    if (device.pairing_expires_at && !(Date.parse(device.pairing_expires_at) > Date.now())) return Response.json({ error: 'Pairing code expired' }, { status: 410 });
+    if (!device.company_id) return Response.json({ error: 'Company assignment required' }, { status: 400 });
+    const token = Array.from(crypto.getRandomValues(new Uint8Array(32)), (b) => b.toString(16).padStart(2, '0')).join('');
+    const issued = new Date();
+    const data = {
+      device_id: device.id, token_hash: await deviceDigest(token),
+      company_id: device.company_id, vehicle_id: device.vehicle_id || '', kiosk_type: device.kiosk_type,
+      pairing_code_hash: await deviceDigest(device.pairing_code || ''),
+      issued_at: issued.toISOString(), expires_at: new Date(issued.getTime() + 90 * 86400_000).toISOString(),
+    };
+    const existing = await base44.asServiceRole.entities.DeviceCredential.filter({ device_id: device.id }, '-issued_at', 1);
+    if (existing.length) await base44.asServiceRole.entities.DeviceCredential.update(existing[0].id, data);
+    else await base44.asServiceRole.entities.DeviceCredential.create(data);
+    await base44.asServiceRole.entities.KioskDevice.update(device.id, { paired: true, last_seen: issued.toISOString() });
 
     let driver_name = '';
     if (device.vehicle_id) {
@@ -59,6 +99,8 @@ export default async function(req) {
 
     return Response.json({
       device_id: device.id,
+      device_token: token,
+      token_expires_at: data.expires_at,
       label: device.label,
       company_id: device.company_id,
       company_name: device.company_name,

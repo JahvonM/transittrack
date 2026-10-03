@@ -55,7 +55,7 @@ export async function flushJobs() {
         write(read().filter((j) => j.id !== job.id));
         synced++;
       } catch (e) {
-        if (isOfflineError(e)) break; // still offline, try again later
+        if (e?.response?.status === 401 || isOfflineError(e)) break; // still offline, try again later
         // The server rejected it for good; drop it and tell the admins.
         write(read().filter((j) => j.id !== job.id));
         reportError(e, { source: "offline-sync", extra: { kind: job.kind, label: job.label } });

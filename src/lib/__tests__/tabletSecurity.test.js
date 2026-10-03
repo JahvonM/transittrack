@@ -11,7 +11,7 @@ function handler(name, client) {
   return exports.default;
 }
 const vehicle = { id: 'bus-a', company_id: 'company-a', name: 'Bus A', capacity: 25, route_id: 'route-a', driver_pin: '1234', entry_code: 'CREDENTIAL_SENTINEL', new_secret: 'CREDENTIAL_SENTINEL' };
-const device = { id: 'tablet', status: 'active', paired: true, kiosk_type: 'bus_boarding', company_id: 'company-a', vehicle_id: 'bus-a' };
+const device = { created_date: '2026-10-02T00:00:00Z', id: 'tablet', status: 'active', paired: true, kiosk_type: 'bus_boarding', company_id: 'company-a', vehicle_id: 'bus-a' };
 function client(overrides = {}) {
   const entities = new Proxy({}, { get: (_, name) => ({
     get: async () => name === 'KioskDevice' ? { ...device, ...overrides.device } : name === 'Vehicle' ? { ...vehicle, ...overrides.vehicle } : name === 'Route' ? { id: 'route-a', company_id: 'company-a', stops: [{ name: 'Stop', lat: 1, lng: 2, secret: 'CREDENTIAL_SENTINEL' }], access_code: 'CREDENTIAL_SENTINEL' } : { boss_phone: '555', access_code: 'CREDENTIAL_SENTINEL' },
@@ -37,7 +37,7 @@ describe('tablet backend response security', () => {
     expect(JSON.stringify(data)).not.toContain('CREDENTIAL_SENTINEL');
   });
   it('rejects an inactive kiosk', async () => {
-    expect((await call('kioskHeartbeat', {}, { device: { status: 'inactive' } })).status).toBe(404);
+    expect((await call('kioskHeartbeat', {}, { device: { status: 'inactive' } })).status).toBe(401);
   });
   it('rejects a kiosk assigned to another company vehicle', async () => {
     expect((await call('kioskHeartbeat', {}, { vehicle: { company_id: 'company-b' } })).status).toBe(403);

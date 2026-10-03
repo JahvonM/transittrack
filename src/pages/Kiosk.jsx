@@ -1,3 +1,4 @@
+import { deviceRequest, saveDeviceToken, forgetDeviceToken, pairingProfile } from "@/lib/deviceAuth";
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import BusLoader from "@/components/BusLoader";
 import { base44 } from "@/api/base44Client";
@@ -57,12 +58,13 @@ export default function Kiosk() {
   const pairWithCode = (value) => {
     setPairing(true);
     setError("");
-    base44.functions.invoke("pairKioskDevice", { pairing_code: value })
+    base44.functions.invoke("pairKioskDevice", { pairing_code: value, expected_type: "kiosk" })
       .then((res) => {
         if (!res.data?.device_id) { setStatus("error"); setError("Pairing failed."); return; }
+        saveDeviceToken(res.data.device_id, res.data.device_token);
         localStorage.setItem("tt_kiosk_device_id", res.data.device_id);
-        saveDevice({ ...res.data, device_id: res.data.device_id });
-        setDevice(res.data);
+        saveDevice(pairingProfile(res.data));
+        setDevice(pairingProfile(res.data));
         setDeviceId(res.data.device_id);
         setStatus("paired");
         setManualCode("");
@@ -82,18 +84,19 @@ export default function Kiosk() {
   // how actively it was being used — it only ever checked in once, at pairing.
   const heartbeat = (id) => {
     base44.functions
-      .invoke("kioskHeartbeat", { device_id: id, ...helperHealthPayload(), ...appHealthPayload("boarding") })
+      .invoke("kioskHeartbeat", deviceRequest(id, { ...helperHealthPayload(), ...appHealthPayload("boarding") }))
       .then((res) => {
         if (res.data?.error) {
           setStatus("error");
           setError("This device is no longer paired. Ask your administrator for a new pairing link.");
+          forgetDeviceToken(id);
           localStorage.removeItem("tt_kiosk_device_id");
           forgetTablet();
           if (heartbeatId.current) clearInterval(heartbeatId.current);
           return;
         }
         saveDevice({ ...res.data, device_id: id });
-        setDevice(res.data);
+        setDevice(pairingProfile(res.data));
         setDeviceId(id);
         setStatus("paired");
         setOnline(true);
@@ -106,6 +109,7 @@ export default function Kiosk() {
         if (e?.response?.status === 404 || e?.response?.status === 401) {
           setStatus("error");
           setError("This device is no longer paired. Ask your administrator for a new pairing link.");
+          forgetDeviceToken(id);
           localStorage.removeItem("tt_kiosk_device_id");
           forgetTablet();
           if (heartbeatId.current) clearInterval(heartbeatId.current);
@@ -150,7 +154,7 @@ export default function Kiosk() {
     if (!deviceId || !isBoarding) return undefined;
     let stopped = false;
     const refresh = () => {
-      base44.functions.invoke("kioskCheckIn", { device_id: deviceId, action: "offline_directory" })
+      base44.functions.invoke("kioskCheckIn", deviceRequest(deviceId, { action: "offline_directory" }))
         .then((res) => {
           if (stopped || !res.data?.staff) return;
           saveDirectory(res.data);
@@ -175,7 +179,7 @@ export default function Kiosk() {
       // counts as offline after a few seconds, so card lookups fall back to
       // the saved list and check-ins are queued instead of hanging.
       const ms = action === "lookup_tag" || action === "lookup_code" ? 4000 : action === "check_in" ? 12000 : 20000;
-      const res = await withTimeout(base44.functions.invoke("kioskCheckIn", { device_id: deviceId, action, ...payload }), ms);
+      const res = await withTimeout(base44.functions.invoke("kioskCheckIn", deviceRequest(deviceId, { ...payload, action })), ms);
       if (action === "check_in" && payload.staff_id) noteStatus(payload.staff_id, payload.status);
       setOnline(true);
       return res.data;
@@ -223,7 +227,7 @@ export default function Kiosk() {
                 </Button>
               </div>
             </div>
-            <Button variant="outline" className="w-full h-11" onClick={() => { localStorage.removeItem("tt_kiosk_device_id"); forgetTablet(); window.location.reload(); }}>Retry</Button>
+            <Button variant="outline" className="w-full h-11" onClick={() => { forgetDeviceToken(deviceId); localStorage.removeItem("tt_kiosk_device_id"); forgetTablet(); window.location.reload(); }}>Retry</Button>
           </CardContent>
         </Card>
       </div>

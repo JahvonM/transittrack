@@ -1,3 +1,4 @@
+import { randomPairingCode } from "@/lib/deviceAuth";
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
@@ -35,12 +36,6 @@ import {
 } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 
-function randomCode(len = 6) {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  let out = "";
-  for (let i = 0; i < len; i++) out += chars[Math.floor(Math.random() * chars.length)];
-  return out;
-}
 
 const TYPE_META = {
   bus_boarding: { label: "Bus boarding", icon: Bus },
@@ -150,11 +145,12 @@ export default function KioskTablets({ vehicles, companies, onChange }) {
   };
 
   const regenerate = async (device) => {
-    const code = randomCode();
+    const code = randomPairingCode();
     setBusyId(device.id);
     try {
       await base44.entities.KioskDevice.update(device.id, {
         pairing_code: code,
+          pairing_expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
         paired: false,
       });
       toast({ title: "New pairing code generated", description: code });
@@ -222,12 +218,13 @@ export default function KioskTablets({ vehicles, companies, onChange }) {
   };
 
   const reactivate = async (device) => {
-    const code = randomCode();
+    const code = randomPairingCode();
     setBusyId(device.id);
     try {
       await base44.entities.KioskDevice.update(device.id, {
         status: "active",
         pairing_code: code,
+          pairing_expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
         paired: false,
       });
       toast({ title: "Device reactivated", description: `New pairing code: ${code}` });

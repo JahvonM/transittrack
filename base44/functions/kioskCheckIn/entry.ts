@@ -1,12 +1,41 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
+// Random device credentials are stored only as hashes in protected DeviceCredential.
+// Existing development tablets remain legacy-compatible until explicitly re-paired.
+const LEGACY_DEVICE_CUTOFF = Date.parse('2026-10-03T23:35:39Z');
+async function deviceDigest(value) {
+  const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
+  return Array.from(new Uint8Array(bytes), (b) => b.toString(16).padStart(2, '0')).join('');
+}
+function sameDigest(a, b) {
+  if (typeof a !== 'string' || typeof b !== 'string' || a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+async function authenticatedTablet(base44, device, token) {
+  if (!device || !device.paired || device.status !== 'active') return false;
+  const credentials = await base44.asServiceRole.entities.DeviceCredential.filter({ device_id: device.id }, '-issued_at', 1);
+  const credential = credentials[0];
+  if (!credential) {
+    // No upgrade based on possession of an ID. Only older records may use legacy auth.
+    const created = Date.parse(device.created_date);
+    return Number.isFinite(created) && created < LEGACY_DEVICE_CUTOFF;
+  }
+  if (typeof token !== 'string' || !/^[a-f0-9]{64}$/.test(token)) return false;
+  if (!(Date.parse(credential.expires_at) > Date.now())) return false;
+  if (credential.company_id !== device.company_id || credential.vehicle_id !== (device.vehicle_id || '') || credential.kiosk_type !== device.kiosk_type) return false;
+  if (!sameDigest(credential.pairing_code_hash, await deviceDigest(device.pairing_code || ''))) return false;
+  return sameDigest(credential.token_hash, await deviceDigest(token));
+}
+
 
 // Kiosk tablets are unauthenticated (paired by device ID, like driverSession),
 // so every write here goes through the service role.
-async function resolveKioskDevice(base44, deviceId) {
+async function resolveKioskDevice(base44, deviceId, token) {
   if (!deviceId || typeof deviceId !== 'string') return null;
   try {
     const device = await base44.asServiceRole.entities.KioskDevice.get(deviceId);
-    if (!device || !device.paired || device.status !== 'active') return null;
+    if (!device || device.kiosk_type === 'driver' || !(await authenticatedTablet(base44, device, token))) return null;
     return device;
   } catch { return null; }
 }
@@ -154,7 +183,7 @@ export default async function(req) {
     // path never trusts a client-asserted role — it's always re-checked
     // server-side against the actual session, same pattern as
     // notifyAdminMessage's auth.me() check.
-    const device = await resolveKioskDevice(base44, device_id);
+    const device = await resolveKioskDevice(base44, device_id, body.device_token);
     let companyId, companyName, vehicleId, vehicleName;
     if (device) {
       companyId = device.company_id; companyName = device.company_name;

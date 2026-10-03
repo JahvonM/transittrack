@@ -1,3 +1,4 @@
+import { saveDeviceToken, forgetDeviceToken } from "@/lib/deviceAuth";
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import BusLoader from "@/components/BusLoader";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
@@ -178,9 +179,10 @@ export default function DriverApp() {
   useEffect(() => {
     if (!deviceId && pairCode && !autoPairing) {
       setAutoPairing(true);
-      base44.functions.invoke("pairKioskDevice", { pairing_code: pairCode })
+      base44.functions.invoke("pairKioskDevice", { pairing_code: pairCode, expected_type: "driver" })
         .then((res) => {
           if (res.data?.kiosk_type === "driver" && res.data?.vehicle_id) {
+            saveDeviceToken(res.data.device_id, res.data.device_token);
             localStorage.setItem("tt_driver_device_id", res.data.device_id);
             setDeviceId(res.data.device_id);
             navigate("/driver", { replace: true });
@@ -261,7 +263,7 @@ export default function DriverApp() {
   };
 
   const handlePaired = (id) => { localStorage.setItem("tt_driver_device_id", id); setDeviceId(id); };
-  const handleUnpair = () => { clearDriverSessionCache(); clearGpsQueue(); localStorage.removeItem("tt_driver_device_id"); localStorage.removeItem("tt_driver_unlock_date"); setDeviceId(null); setUnlocked(false); navigate("/driver"); };
+  const handleUnpair = () => { forgetDeviceToken(deviceId); clearDriverSessionCache(); clearGpsQueue(); localStorage.removeItem("tt_driver_device_id"); localStorage.removeItem("tt_driver_unlock_date"); setDeviceId(null); setUnlocked(false); navigate("/driver"); };
 
   // Handler to submit the incident report via the driver-session backend function.
   // (A direct base44.entities.Incident.create() call from here would be rejected —

@@ -1,3 +1,4 @@
+import { saveDeviceToken } from "@/lib/deviceAuth";
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { Bus, ArrowRight } from "lucide-react";
@@ -17,7 +18,7 @@ export default function DriverPairing({ onPaired }) {
     setChecking(true);
     setError("");
     try {
-      const res = await base44.functions.invoke("pairKioskDevice", { pairing_code: value });
+      const res = await base44.functions.invoke("pairKioskDevice", { pairing_code: value, expected_type: "driver" });
       if (res.data?.kiosk_type !== "driver") {
         setError("This pairing code is for a kiosk tablet, not a driver tablet.");
         setChecking(false);
@@ -28,6 +29,7 @@ export default function DriverPairing({ onPaired }) {
         setChecking(false);
         return;
       }
+      saveDeviceToken(res.data.device_id, res.data.device_token);
       onPaired(res.data.device_id);
     } catch (err) {
       setError(err?.response?.data?.error || "Invalid or expired pairing code.");

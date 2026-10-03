@@ -1,3 +1,4 @@
+import { deviceRequest } from "@/lib/deviceAuth";
 import { cleanTabletSession } from "@/lib/tabletSession";
 import { useEffect, useState, useRef, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
@@ -62,12 +63,12 @@ export function useDriverSession(deviceId, { intervalMs = 8000 } = {}) {
     const first = !sentInfoRef.current;
     try {
       sentInfoRef.current = true;
-      const res = await base44.functions.invoke("driverSession", {
-        device_id: deviceId, action: "heartbeat",
+      const res = await base44.functions.invoke("driverSession", deviceRequest(deviceId, {
+        action: "heartbeat",
         ...(first ? { device_info: deviceMapInfo() } : {}),
         ...helperHealthPayload(),
         ...appHealthPayload("driver"),
-      });
+      }));
       setSession((prev) => {
         // A shift started/ended offline wins until it has been uploaded.
         const next = cleanTabletSession(hasQueuedShift() && prev ? { ...res.data, open_shift: prev.open_shift } : res.data);
@@ -106,7 +107,7 @@ export function useDriverSession(deviceId, { intervalMs = 8000 } = {}) {
   }, [deviceId]);
 
   const invoke = useCallback(async (action, payload = {}) => {
-    const res = await base44.functions.invoke("driverSession", { device_id: deviceId, action, ...payload });
+    const res = await base44.functions.invoke("driverSession", deviceRequest(deviceId, { ...payload, action }));
     return res.data;
   }, [deviceId]);
 

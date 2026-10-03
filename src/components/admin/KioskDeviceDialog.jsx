@@ -1,3 +1,4 @@
+import { randomPairingCode } from "@/lib/deviceAuth";
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,12 +14,6 @@ import {
 import { base44 } from "@/api/base44Client";
 import { toast } from "@/components/ui/use-toast";
 
-function randomCode(len = 6) {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  let out = "";
-  for (let i = 0; i < len; i++) out += chars[Math.floor(Math.random() * chars.length)];
-  return out;
-}
 
 const KIOSK_TYPES = [
   { value: "bus_boarding", label: "Bus boarding" },
@@ -82,7 +77,7 @@ export default function KioskDeviceDialog({ open, onOpenChange, companies, vehic
         });
         toast({ title: "Device updated" });
       } else {
-        const code = randomCode();
+        const code = randomPairingCode();
         await base44.entities.KioskDevice.create({
           label: label.trim(),
           kiosk_type: kioskType,
@@ -91,6 +86,7 @@ export default function KioskDeviceDialog({ open, onOpenChange, companies, vehic
           vehicle_id: needsVehicle ? vehicleId : "",
           vehicle_name: needsVehicle ? vehicle?.name : "",
           pairing_code: code,
+          pairing_expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
           paired: false,
           status: "active",
         });
