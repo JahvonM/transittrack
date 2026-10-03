@@ -2,10 +2,12 @@ import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
-import Map, { Marker, Source, Layer, NavigationControl } from "react-map-gl";
+import Map, { Marker, Source, Layer } from "react-map-gl";
 import { MAPBOX_TOKEN, mapStyleFor, mapAccentFor } from "@/lib/mapbox";
 import { useIsDark } from "@/lib/useTheme";
-import { Bus, LocateFixed, Maximize2, Minimize2, Satellite, X, Car } from "lucide-react";
+import { Bus, LocateFixed, Maximize2, Minimize2, Minus, Plus, Satellite, X, Car } from "lucide-react";
+
+const TOOL_BTN = "w-9 h-9 rounded-full bg-background/90 border border-border shadow-md grid place-items-center hover:bg-accent transition-colors";
 import { Badge } from "@/components/ui/badge";
 import { Image } from "@/components/ui/image";
 import BusDistance from "@/components/BusDistance";
@@ -359,8 +361,6 @@ export default function MapboxMap({
           </>
         )}
 
-        {/* Compass + zoom controls (compass re-orients north) */}
-        <NavigationControl position="bottom-right" showCompass visualizePitch />
       </Map>
 
       {/* Empty state — shown instead of a bare basemap when nothing is live to plot yet */}
@@ -423,37 +423,48 @@ export default function MapboxMap({
         </div>
       )}
 
-      {/* Satellite / street view toggle */}
-      <button
-        type="button"
-        onClick={() => setIsSatellite((s) => !s)}
-        className={`absolute left-3 bottom-16 z-10 w-10 h-10 rounded-full border shadow-md grid place-items-center transition-colors ${isSatellite ? "bg-primary text-primary-foreground border-primary" : "bg-background/90 border-border hover:bg-accent"}`}
-        title={isSatellite ? "Switch to street view" : "Switch to satellite view"}
-      >
-        <Satellite className="w-5 h-5" />
-      </button>
-
-      {/* Fullscreen toggle */}
-      <button
-        type="button"
-        onClick={() => setIsFullscreen((f) => !f)}
-        className="absolute right-3 top-3 z-10 w-10 h-10 rounded-full bg-background/90 border border-border shadow-md grid place-items-center hover:bg-accent transition-colors"
-        title={isFullscreen ? "Exit fullscreen" : "Open fullscreen"}
-      >
-        {isFullscreen ? <Minimize2 className="w-5 h-5 text-primary" /> : <Maximize2 className="w-5 h-5 text-primary" />}
-      </button>
-
-      {/* Recenter on my location — pulses when follow mode has been dragged off (followUser only) */}
-      <button
-        type="button"
-        onClick={recenter}
-        className={`absolute left-3 bottom-3 z-10 w-10 h-10 rounded-full border shadow-md grid place-items-center transition-colors ${
-          followUser && !isFollowing ? "bg-primary border-primary animate-pulse" : "bg-background/90 border-border hover:bg-accent"
-        }`}
-        title={followUser && !isFollowing ? "Tap to re-center and follow" : "Recenter on my location"}
-      >
-        <LocateFixed className={`w-5 h-5 ${followUser && !isFollowing ? "text-primary-foreground" : "text-primary"}`} />
-      </button>
+      {/* Map tools, stacked in one column in the top-right corner so none of
+          them get cut off by rounded corners on short maps (the passenger
+          home map is only a few hundred pixels tall). */}
+      <div className="absolute right-3 top-3 z-10 flex flex-col gap-1.5">
+        <button
+          type="button"
+          onClick={() => setIsFullscreen((f) => !f)}
+          className={TOOL_BTN}
+          title={isFullscreen ? "Exit full screen" : "Full screen"}
+          aria-label={isFullscreen ? "Exit full screen" : "Full screen"}
+        >
+          {isFullscreen ? <Minimize2 className="w-[18px] h-[18px] text-primary" /> : <Maximize2 className="w-[18px] h-[18px] text-primary" />}
+        </button>
+        {/* Recenter on my location — pulses when follow mode has been dragged off (followUser only) */}
+        <button
+          type="button"
+          onClick={recenter}
+          className={`${TOOL_BTN} ${followUser && !isFollowing ? "!bg-primary !border-primary animate-pulse" : ""}`}
+          title={followUser && !isFollowing ? "Tap to re-center and follow" : "Show my location"}
+          aria-label="Show my location"
+        >
+          <LocateFixed className={`w-[18px] h-[18px] ${followUser && !isFollowing ? "text-primary-foreground" : "text-primary"}`} />
+        </button>
+        <button
+          type="button"
+          onClick={() => setIsSatellite((s) => !s)}
+          className={`${TOOL_BTN} ${isSatellite ? "!bg-primary !text-primary-foreground !border-primary" : ""}`}
+          title={isSatellite ? "Switch to street view" : "Switch to satellite view"}
+          aria-label={isSatellite ? "Street view" : "Satellite view"}
+        >
+          <Satellite className="w-[18px] h-[18px]" />
+        </button>
+        <div className="flex flex-col rounded-full border border-border bg-background/90 shadow-md overflow-hidden">
+          <button type="button" onClick={() => mapRef.current?.zoomIn({ duration: 300 })} className="w-9 h-9 grid place-items-center hover:bg-accent" aria-label="Zoom in" title="Zoom in">
+            <Plus className="w-[18px] h-[18px]" />
+          </button>
+          <div className="h-px bg-border mx-2" />
+          <button type="button" onClick={() => mapRef.current?.zoomOut({ duration: 300 })} className="w-9 h-9 grid place-items-center hover:bg-accent" aria-label="Zoom out" title="Zoom out">
+            <Minus className="w-[18px] h-[18px]" />
+          </button>
+        </div>
+      </div>
     </>
   );
 
