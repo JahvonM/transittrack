@@ -93,7 +93,11 @@ export function projectOnRoute(nav, pos, hint = null) {
   const kx = R * Math.cos(rad(pos.lat));
   const toXY = ([lng, lat]) => [rad(lng) * kx, rad(lat) * R];
   const p = toXY([pos.lng, pos.lat]);
-  const search = (from, to) => {
+  // A route can use the same road twice (out and back). Jumping far along
+  // the route from where the bus just was costs a little, so it stays on
+  // the pass it's actually driving.
+  const hintAlong = hint != null ? nav.cum[Math.min(hint, nav.cum.length - 1)] : null;
+  const search = (from, to, sticky) => {
     let best = null;
     for (let i = from; i <= to; i++) {
       const a = toXY(g[i]);
@@ -105,14 +109,15 @@ export function projectOnRoute(nav, pos, hint = null) {
       const qx = a[0] + t * dx;
       const qy = a[1] + t * dy;
       const d = Math.hypot(p[0] - qx, p[1] - qy);
-      if (!best || d < best.offM) best = { seg: i, t, offM: d };
+      const score = sticky ? d + Math.abs(nav.cum[i] - hintAlong) * 0.03 : d;
+      if (!best || score < best.score) best = { seg: i, t, offM: d, score };
     }
     return best;
   };
   const last = g.length - 2;
-  let best = hint != null ? search(Math.max(0, hint - 10), Math.min(last, hint + 300)) : null;
+  let best = hint != null ? search(Math.max(0, hint - 10), Math.min(last, hint + 300), true) : null;
   if (!best || best.offM > 60) {
-    const full = search(0, last);
+    const full = search(0, last, false);
     if (!best || full.offM < best.offM) best = full;
   }
   const a = g[best.seg];
