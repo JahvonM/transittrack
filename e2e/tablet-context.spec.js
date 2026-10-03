@@ -13,7 +13,7 @@ async function mockApi(page, calls) {
     if (url.includes('/functions/kioskHeartbeat')) return route.fulfill({ json: kiosk });
     if (url.includes('/functions/kioskCheckIn')) return route.fulfill({ json: { staff: [], generated_at: new Date().toISOString() } });
     if (url.includes('/functions/driverSession')) {
-      if (body?.action === 'verify_pin') return route.fulfill(body.pin === '1234' ? { json: { ok: true } } : { status: 403, json: { error: 'Incorrect PIN' } });
+      if (body?.action === 'verify_pin') return route.fulfill(body.pin === '1234' ? { json: { ok: true, driver_grant: "a".repeat(64) } } : { status: 403, json: { error: 'Incorrect PIN' } });
       return route.fulfill({ json: driver });
     }
     if (url.includes('/entities/')) return route.fulfill({ status: 403, json: { error: 'Direct entity access blocked in test' } });

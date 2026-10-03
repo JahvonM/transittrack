@@ -57,7 +57,9 @@ describe('tablet backend response security', () => {
   });
   it('verifies PIN on the backend without returning it', async () => {
     const response = await call('driverSession', { action: 'verify_pin', pin: '1234' }, { device: { kiosk_type: 'driver' } });
-    expect(await response.json()).toEqual({ ok: true });
+    const data = await response.json();
+    expect(data.ok).toBe(true);
+    expect(data.driver_grant).toMatch(/^[a-f0-9]{64}$/);
     expect((await call('driverSession', { action: 'verify_pin', pin: '0000' }, { device: { kiosk_type: 'driver' } })).status).toBe(403);
   });
   it('rejects PIN verification from an unpaired driver', async () => {

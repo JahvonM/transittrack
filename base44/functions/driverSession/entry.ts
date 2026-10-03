@@ -346,6 +346,30 @@ async function validGrant(base44, device, token, purpose, subject) {
  return !!row && row.device_id === device.id && row.company_id === device.company_id && row.vehicle_id === device.vehicle_id && row.purpose === purpose && row.subject === subject && Date.parse(row.expires_at) > Date.now();
 }
 
+async function pinHash(pin, salt) {
+ const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(pin), 'PBKDF2', false, ['deriveBits']);
+ const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt: new TextEncoder().encode(salt), iterations: 600000, hash: 'SHA-256' }, key, 256);
+ return Array.from(new Uint8Array(bits), b => b.toString(16).padStart(2,'0')).join('');
+}
+async function setProtectedPin(base44, vehicle, pin) {
+ const salt = Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2,'0')).join('');
+ const data = { vehicle_id: vehicle.id, company_id: vehicle.company_id, salt, pin_hash: pin ? await pinHash(pin, salt) : '', enabled: !!pin };
+ const rows = await base44.asServiceRole.entities.DriverPinCredential.filter({ vehicle_id: vehicle.id }, '-updated_date', 1);
+ if (rows[0]) await base44.asServiceRole.entities.DriverPinCredential.update(rows[0].id, data);
+ else await base44.asServiceRole.entities.DriverPinCredential.create(data);
+ await base44.asServiceRole.entities.Vehicle.update(vehicle.id, { driver_pin: '' });
+}
+async function verifyProtectedPin(base44, vehicle, pin) {
+ if (typeof pin !== 'string' || !/^\d{4}$/.test(pin)) return false;
+ const rows = await base44.asServiceRole.entities.DriverPinCredential.filter({ vehicle_id: vehicle.id }, '-updated_date', 1);
+ const row = rows[0];
+ if (row) return row.enabled === true && row.company_id === vehicle.company_id && (await pinHash(pin, row.salt)) === row.pin_hash;
+ // Development migration only: successful verification moves the old PIN to a protected hash.
+ if (pin !== vehicle.driver_pin) return false;
+ await setProtectedPin(base44, vehicle, pin);
+ return true;
+}
+
 export default async function(req) {
   try {
     const body = await req.json();
@@ -377,7 +401,7 @@ export default async function(req) {
         const vehicle = await loadVehicle(base44, vehicleId);
         if (!vehicle || vehicle.company_id !== companyId) return Response.json({ error: 'Vehicle assignment mismatch' }, { status: 403 });
         if (!(await reserveAttempt(base44, 'driver-pin:' + vehicleId, 5, 15 * 60_000))) return Response.json({ error: 'Too many PIN attempts. Try again in 15 minutes.' }, { status: 429 });
-        if (!vehicle.driver_pin || typeof body.pin !== 'string' || !/^\d{4}$/.test(body.pin) || body.pin !== vehicle.driver_pin) return Response.json({ error: 'Incorrect PIN or no PIN configured' }, { status: 403 });
+        if (!(await verifyProtectedPin(base44, vehicle, body.pin))) return Response.json({ error: 'Incorrect PIN or no PIN configured' }, { status: 403 });
         return Response.json({ ok: true, driver_grant: await issueGrant(base44, device, 'driver', vehicleId, 12 * 3600_000) });
       }
       case 'heartbeat': {
@@ -410,7 +434,7 @@ export default async function(req) {
         let emergencyContacts = { boss_phone: '', secretary_phone: '' };
         try { const company = await base44.asServiceRole.entities.Company.get(companyId); emergencyContacts = { boss_phone: company?.boss_phone || '', secretary_phone: company?.secretary_phone || '' }; } catch { /* optional contacts */ }
         return Response.json({
-          vehicle: tabletVehicle(vehicle), driver_name: vehicle.driver_name || '', has_driver_pin: !!vehicle.driver_pin,
+          vehicle: tabletVehicle(vehicle), driver_name: vehicle.driver_name || '', has_driver_pin: !!vehicle.driver_pin || !!(await base44.asServiceRole.entities.DriverPinCredential.filter({ vehicle_id: vehicleId }, '-updated_date', 1))[0]?.enabled,
           company_id: companyId, company_name: companyName, staff, route: tabletRoute(route, companyId), emergency_contacts: emergencyContacts, ...boardingStats(checkIns),
           broadcasts: relevantBroadcasts, check_ins: checkIns.slice(0, 20).filter((c) => c.status === 'boarded').map(tabletCheckIn),
           group_messages: [...groupMessages].reverse(), trips,

@@ -198,11 +198,11 @@ function EditDriverDialog({ driver, companies, open, onOpenChange, onSaved }) {
 }
 
 function AssignedVehicleRow({ vehicle: v, routes, onUnassign, onSetStatus, onSetRoute, onSetPin }) {
-  const [pin, setPin] = useState(v.driver_pin || "");
+  const [pin, setPin] = useState("");
 
   useEffect(() => {
-    setPin(v.driver_pin || "");
-  }, [v.driver_pin]);
+    setPin("");
+  }, [v.id]);
 
   return (
     <div className="p-2 rounded-lg border space-y-2 mt-2">
@@ -247,9 +247,10 @@ function AssignedVehicleRow({ vehicle: v, routes, onUnassign, onSetStatus, onSet
           inputMode="numeric"
           maxLength={4}
           value={pin}
-          placeholder="PIN"
+          type="password"
+          placeholder="New PIN"
           onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
-          onBlur={() => { if (pin !== (v.driver_pin || "")) onSetPin(v.id, pin); }}
+          onBlur={() => { if (pin.length === 4) { onSetPin(v.id, pin); setPin(""); } }}
         />
       </div>
     </div>
@@ -413,7 +414,7 @@ export default function DriversTab({ drivers, vehicles, companies, routes, onCha
   };
 
   const setPin = async (vehicleId, pin) => {
-    await base44.entities.Vehicle.update(vehicleId, { driver_pin: pin || null });
+    await base44.functions.invoke("manageDriverPin", { vehicle_id: vehicleId, pin: pin || "" });
     onChange();
   };
 

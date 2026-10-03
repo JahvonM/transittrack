@@ -31,33 +31,22 @@ describe("busRefusal (card only works on the passenger's own bus)", () => {
   });
 });
 
-describe("offlineLookup", () => {
-  it("finds a card however the reader formats it", () => {
-    const res = offlineLookup("lookup_tag", { card_tag: "04a1b2" });
-    expect(res.staff).toEqual({ id: "p1", full_name: "Tanya Brown", photo_url: undefined });
-    expect(res.next_status).toBe("boarded");
-    expect(res.offline).toBe(true);
+describe("offline credential security", () => {
+  it("does not cache card UIDs, access codes or temporary codes", () => {
+    const cached = localStorage.getItem("tt_kiosk_directory");
+    expect(cached).not.toContain("nfc_tag");
+    expect(cached).not.toContain("access_code");
+    expect(cached).not.toContain("one_time_code");
+    expect(cached).toContain("Tanya Brown");
   });
-
-  it("refuses a card from another bus with a clear message", () => {
-    expect(() => offlineLookup("lookup_tag", { card_tag: "04C3D4" })).toThrow(expect.objectContaining({
-      response: { status: 403, data: { error: "wrong_bus", message: "Kevin Paul rides Bus 7, not this one." } },
-    }));
+  it("requires a connection for card and code verification", () => {
+    for (const action of ["lookup_tag", "lookup_code"]) expect(() => offlineLookup(action)).toThrow("Connect to verify");
   });
-
-  it("says when a card isn't registered", () => {
-    expect(() => offlineLookup("lookup_tag", { card_tag: "FFFF" })).toThrow(expect.objectContaining({ response: expect.objectContaining({ status: 404 }) }));
-  });
-
-  it("accepts keypad codes and one-time codes, once", () => {
-    expect(offlineLookup("lookup_code", { code: "11111" }).code_type).toBe("access");
-    expect(offlineLookup("lookup_code", { code: "98765" }).code_type).toBe("one_time");
+  it("scrubs old credentials on offline startup", () => {
+    localStorage.setItem("tt_kiosk_directory", JSON.stringify({ staff: people }));
     burnOneTimeCode("p4");
-    expect(() => offlineLookup("lookup_code", { code: "98765" })).toThrow();
-  });
-
-  it("has nothing to answer from before the list is saved", () => {
-    localStorage.clear();
-    expect(offlineLookup("lookup_tag", { card_tag: "04A1B2" })).toBeNull();
+    const cached = localStorage.getItem("tt_kiosk_directory");
+    expect(cached).not.toContain("98765");
+    expect(cached).not.toContain("04:A1:B2");
   });
 });
