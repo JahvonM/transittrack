@@ -66,6 +66,7 @@ export default function Kiosk() {
         setDeviceId(res.data.device_id);
         setStatus("paired");
         setManualCode("");
+        heartbeat(res.data.device_id);
         heartbeatId.current = setInterval(() => heartbeat(res.data.device_id), HEARTBEAT_MS);
       })
       .catch((e) => {

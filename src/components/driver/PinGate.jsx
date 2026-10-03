@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -8,27 +7,24 @@ import { Lock, Unlock } from "lucide-react";
 
 const REVIEWER_PIN = "9999";
 
-export default function PinGate({ vehicle, onUnlock }) {
+export default function PinGate({ vehicle, invoke, onUnlock }) {
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
-  const { toast } = useToast();
+  const [checking, setChecking] = useState(false);
   const navigate = useNavigate();
 
-  const submit = () => {
-    if (pin === REVIEWER_PIN) {
-      navigate("/reviewer-sandbox");
-      return;
-    }
-    if (!vehicle?.driver_pin) {
-      setError("No PIN has been set for this vehicle. Contact your administrator.");
-      return;
-    }
-    if (pin === vehicle.driver_pin) {
+  const submit = async () => {
+    if (checking) return;
+    if (pin === REVIEWER_PIN) { navigate("/reviewer-sandbox"); return; }
+    setChecking(true);
+    try {
+      const result = await invoke("verify_pin", { pin });
+      if (result?.ok !== true) throw new Error("PIN verification failed");
       onUnlock();
-    } else {
-      setError("Incorrect PIN. Try again.");
+    } catch {
+      setError("Could not unlock. Check your PIN and connection, or contact your administrator.");
       setPin("");
-    }
+    } finally { setChecking(false); }
   };
 
   return (
@@ -57,7 +53,7 @@ export default function PinGate({ vehicle, onUnlock }) {
           className="text-center text-2xl tracking-[0.5em]"
         />
         {error && <p className="text-sm text-destructive text-center">{error}</p>}
-        <Button className="w-full" onClick={submit} disabled={pin.length < 4}>
+        <Button className="w-full" onClick={submit} disabled={pin.length < 4 || checking}>
           <Unlock className="w-4 h-4 mr-2" /> Unlock
         </Button>
       </CardContent>

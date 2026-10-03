@@ -137,7 +137,7 @@ async function loadStaff(base44, companyId) {
         id: c.id, full_name: c.name || u.full_name, email: c.email || u.email, phone: c.phone || u.phone,
         home_lat: c.pickup_lat != null ? c.pickup_lat : u.home_lat,
         home_lng: c.pickup_lng != null ? c.pickup_lng : u.home_lng,
-        pickup_name: c.pickup_name, dropoff_name: c.dropoff_name, nfc_card_tag: c.nfc_card_tag,
+        pickup_name: c.pickup_name, dropoff_name: c.dropoff_name,
         skip_pickup_today: flagActive(u.skip_pickup_today, u.skip_pickup_until),
         late_snooze_active: flagActive(u.late_snooze_active, u.late_until),
       };
@@ -145,7 +145,6 @@ async function loadStaff(base44, companyId) {
     ...orphanUsers.map((u) => ({
       id: u.id, full_name: u.full_name, email: u.email, phone: u.phone,
       home_lat: u.home_lat, home_lng: u.home_lng, pickup_name: undefined, dropoff_name: undefined,
-      nfc_card_tag: undefined,
       skip_pickup_today: flagActive(u.skip_pickup_today, u.skip_pickup_until),
       late_snooze_active: flagActive(u.late_snooze_active, u.late_until),
     })),
@@ -247,6 +246,45 @@ function cleanAppHealth(h: unknown): Record<string, unknown> | null {
 const MAX_INSPECTION_PHOTOS = 25;
 const MAX_PHOTO_B64 = 3_000_000;
 
+// Tablet response contract: whitelist fields; never forward entire entity records.
+function tabletFields(row, fields) {
+  if (!row) return null;
+  return Object.fromEntries(fields.filter((k) => row[k] !== undefined).map((k) => [k, row[k]]));
+}
+function tabletVehicle(row) {
+  const out = tabletFields(row, ['id', 'name', 'type', 'plate_number', 'company_id', 'company_name', 'capacity', 'route_id', 'current_lat', 'current_lng', 'speed', 'heading', 'status', 'driver_name', 'driver_email', 'image_url', 'model_3d', 'tracking_active', 'remote_tracking_lock', 'last_location_update', 'current_odometer']);
+  if (out && Array.isArray(row.trail)) out.trail = row.trail.map((t) => tabletFields(t, ['lat', 'lng', 't']));
+  return out;
+}
+function tabletRoute(row, companyId) {
+  if (!row || row.company_id !== companyId) return null;
+  return { ...tabletFields(row, ['id', 'name', 'type', 'active', 'company_id']), stops: (row.stops || []).map((s) => tabletFields(s, ['name', 'lat', 'lng', 'order'])) };
+}
+function tabletCheckIn(row) {
+  return tabletFields(row, ['id', 'staff_name', 'staff_picture_url', 'status', 'boarded_at', 'created_date', 'vehicle_id', 'vehicle_name', 'check_in_method']);
+}
+function boardingStats(rows) {
+  const latest = new Map();
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Grenada' });
+  let todayCount = 0;
+  for (const row of rows || []) {
+    const key = row.card_tag || row.staff_name;
+    const prev = latest.get(key);
+    if (!prev || Date.parse(row.created_date) > Date.parse(prev.created_date)) latest.set(key, row);
+    if (row.status === 'boarded' && new Date(row.created_date).toLocaleDateString('en-CA', { timeZone: 'America/Grenada' }) === today) todayCount++;
+  }
+  return { occupancy: [...latest.values()].filter((r) => r.status === 'boarded').length, today_count: todayCount };
+}
+async function tabletCheckIns(base44, companyId, vehicleId) {
+  if (!companyId || !vehicleId) return [];
+  const rows = [];
+  for (let skip = 0; ; skip += 500) {
+    const batch = await base44.asServiceRole.entities.StaffCheckIn.filter({ company_id: companyId, vehicle_id: vehicleId }, '-created_date', 500, skip);
+    rows.push(...batch);
+    if (batch.length < 500) return rows;
+  }
+}
+
 export default async function(req) {
   try {
     const body = await req.json();
@@ -272,13 +310,20 @@ export default async function(req) {
     });
 
     switch (action) {
+      case 'verify_pin': {
+        const vehicle = await loadVehicle(base44, vehicleId);
+        if (!vehicle || vehicle.company_id !== companyId) return Response.json({ error: 'Vehicle assignment mismatch' }, { status: 403 });
+        if (!vehicle.driver_pin || typeof body.pin !== 'string' || !/^\d{4}$/.test(body.pin) || body.pin !== vehicle.driver_pin) return Response.json({ error: 'Incorrect PIN or no PIN configured' }, { status: 403 });
+        return Response.json({ ok: true });
+      }
       case 'heartbeat': {
         const vehicle = await loadVehicle(base44, vehicleId);
         if (!vehicle) return Response.json({ error: 'Vehicle not found' }, { status: 404 });
+        if (vehicle.company_id !== companyId) return Response.json({ error: 'Vehicle assignment mismatch' }, { status: 403 });
         const [staff, broadcasts, checkIns, groupMessages, vehicleTrips, openShifts, allTemplates, recentInspections] = await Promise.all([
           loadStaff(base44, companyId),
           base44.asServiceRole.entities.Broadcast.filter({}, '-created_date', 20),
-          base44.asServiceRole.entities.StaffCheckIn.filter({ vehicle_id: vehicleId }, '-created_date', 20),
+          tabletCheckIns(base44, companyId, vehicleId),
           base44.asServiceRole.entities.GroupMessage.filter({ vehicle_id: vehicleId }, '-created_date', 200),
           base44.asServiceRole.entities.Trip.filter({ vehicle_id: vehicleId }, 'scheduled_time', 100).catch(() => []),
           base44.asServiceRole.entities.DriverShift.filter({ vehicle_id: vehicleId }, '-started_at', 3).catch(() => []),
@@ -297,10 +342,12 @@ export default async function(req) {
           try { route = await base44.asServiceRole.entities.Route.get(vehicle.route_id); }
           catch { /* route may be missing */ }
         }
+        let emergencyContacts = { boss_phone: '', secretary_phone: '' };
+        try { const company = await base44.asServiceRole.entities.Company.get(companyId); emergencyContacts = { boss_phone: company?.boss_phone || '', secretary_phone: company?.secretary_phone || '' }; } catch { /* optional contacts */ }
         return Response.json({
-          vehicle, driver_name: vehicle.driver_name || '', driver_pin: vehicle.driver_pin || '',
-          company_id: companyId, company_name: companyName, staff, route,
-          broadcasts: relevantBroadcasts, check_ins: checkIns.filter((c) => c.status === 'boarded'),
+          vehicle: tabletVehicle(vehicle), driver_name: vehicle.driver_name || '', has_driver_pin: !!vehicle.driver_pin,
+          company_id: companyId, company_name: companyName, staff, route: tabletRoute(route, companyId), emergency_contacts: emergencyContacts, ...boardingStats(checkIns),
+          broadcasts: relevantBroadcasts, check_ins: checkIns.slice(0, 20).filter((c) => c.status === 'boarded').map(tabletCheckIn),
           group_messages: [...groupMessages].reverse(), trips,
           open_shift: openShifts.find((s) => !s.ended_at) || null,
           inspection_templates: driverTemplates(allTemplates, companyId, vehicleId),

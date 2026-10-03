@@ -4,11 +4,9 @@ import { Button } from "@/components/ui/button";
 import { CreditCard, QrCode, ChevronLeft, CheckCircle2, LogIn, LogOut, AlertCircle, Delete, MapPin, CloudUpload, PartyPopper, Bus, Users } from "lucide-react";
 import { useNfcTap, hasExternalReader, reportBadgeResult } from "@/hooks/useNfcTap";
 import { parseCodeQrPayload } from "@/lib/qr";
-import { base44 } from "@/api/base44Client";
 import { haversineKm, etaMinutes, formatEta } from "@/lib/geo";
 import { MAPBOX_TOKEN, mapStyleFor } from "@/lib/mapbox";
 import { useIsDark } from "@/lib/useTheme";
-import { computeOccupancy } from "@/lib/occupancy";
 import { enqueueCheckIn, queueLength, isNetworkFailure, flushQueue } from "@/lib/offlineQueue";
 import { noteStatus, burnOneTimeCode } from "@/lib/kioskOffline";
 import WeatherWidget from "@/components/WeatherWidget";
@@ -26,12 +24,6 @@ function greeting() {
   if (h < 12) return "Good morning";
   if (h < 18) return "Good afternoon";
   return "Good evening";
-}
-
-function startOfToday() {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d;
 }
 
 // A single static (non-interactive) map image centered on the vehicle, used
@@ -238,24 +230,16 @@ export default function BusBoardingKiosk({ invoke, device }) {
     return () => { clearInterval(t); clearTimeout(first); window.removeEventListener("online", tryFlush); };
   }, [invoke]);
 
-  // Vehicle + route power the nearest-stop line, the map backdrop, and the
-  // occupancy capacity fraction — one live subscription feeds all three.
+  // The paired heartbeat supplies only this bus's display context.
   useEffect(() => {
-    if (!device?.vehicle_id) return;
-    const load = () => base44.entities.Vehicle.get(device.vehicle_id).then(setVehicle).catch(() => {});
-    load();
-    const unsub = base44.entities.Vehicle.subscribe((event) => {
-      if (event.data?.id === device.vehicle_id) setVehicle(event.data);
-    });
-    return unsub;
-  }, [device?.vehicle_id]);
-
-  useEffect(() => {
-    if (!vehicle?.route_id) { setRoute(null); return; }
-    let cancelled = false;
-    base44.entities.Route.get(vehicle.route_id).then((r) => { if (!cancelled) setRoute(r); }).catch(() => {});
-    return () => { cancelled = true; };
-  }, [vehicle?.route_id]);
+    const context = device?.context;
+    if (!context) return;
+    setVehicle(context.vehicle || null);
+    setRoute(context.route || null);
+    setAds(context.ads || []);
+    setOccupancy(context.occupancy || 0);
+    setTodayCount(context.today_count || 0);
+  }, [device?.context]);
 
   // This is straight-line distance to the closest stop on the vehicle's
   // assigned route, not a true "next in sequence" calculation (this app has
@@ -272,47 +256,6 @@ export default function BusBoardingKiosk({ invoke, device }) {
     }
     return best ? { name: best.name, mins: etaMinutes(bestKm) } : null;
   })();
-
-  // Live headcount for this vehicle — same aggregation the admin/driver
-  // views use, so the number always agrees everywhere it's shown.
-  useEffect(() => {
-    if (!device?.vehicle_id) return;
-    const load = () => {
-      base44.entities.StaffCheckIn.filter({ vehicle_id: device.vehicle_id }, "-created_date", 300).then((list) => {
-        setOccupancy(computeOccupancy(list, device.vehicle_id));
-      }).catch(() => {});
-    };
-    load();
-    const unsub = base44.entities.StaffCheckIn.subscribe((event) => {
-      if (event.data?.vehicle_id === device.vehicle_id) load();
-    });
-    return unsub;
-  }, [device?.vehicle_id]);
-
-  // Active ads for the idle screen's attract-mode rotation (small screens)
-  // and the info rail (large screens) — same Advertisement entity the
-  // passenger home screen already uses.
-  useEffect(() => {
-    base44.entities.Advertisement.list("order").then((list) => setAds((list || []).filter((a) => a.active))).catch(() => setAds([]));
-  }, []);
-
-  // Today's boarded-so-far count for this vehicle — powers the "N riders
-  // today" line and the playful "you're rider #N!" on a successful boarding.
-  const refreshTodayCount = () => {
-    if (!device?.vehicle_id) return;
-    base44.entities.StaffCheckIn.filter({ vehicle_id: device.vehicle_id, status: "boarded" }, "-created_date", 300)
-      .then((list) => setTodayCount((list || []).filter((r) => new Date(r.created_date) >= startOfToday()).length))
-      .catch(() => {});
-  };
-  useEffect(() => {
-    if (!device?.vehicle_id) return;
-    refreshTodayCount();
-    const unsub = base44.entities.StaffCheckIn.subscribe((event) => {
-      if (event.data?.vehicle_id === device.vehicle_id) refreshTodayCount();
-    });
-    return unsub;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [device?.vehicle_id]);
 
   // Attract mode (small screens only — large screens have the permanent
   // info rail instead): while nobody's interacting, the top of the idle
@@ -430,16 +373,10 @@ export default function BusBoardingKiosk({ invoke, device }) {
     try {
       const res = await invoke("check_in", payload);
       const record = { staff_name: res.record.staff_name, status: res.record.status };
-      // Rider number is a fun extra, never a blocker — computed only for a
-      // confirmed, synchronous success, and only for boarding (an exit isn't
-      // "rider #N").
-      if (record.status === "boarded" && device?.vehicle_id) {
-        base44.entities.StaffCheckIn.filter({ vehicle_id: device.vehicle_id, status: "boarded" }, "-created_date", 300)
-          .then((list) => {
-            const n = (list || []).filter((r) => new Date(r.created_date) >= startOfToday()).length;
-            setResult((prev) => (prev && prev.staff_name === record.staff_name ? { ...prev, riderNumber: n } : prev));
-          })
-          .catch(() => {});
+      if (Number.isFinite(res.occupancy)) setOccupancy(res.occupancy);
+      if (Number.isFinite(res.today_count)) {
+        setTodayCount(res.today_count);
+        if (record.status === "boarded") record.riderNumber = res.today_count;
       }
       setResult(record);
       setMode("result");

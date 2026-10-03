@@ -1,8 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { haversineKm } from "@/lib/geo";
 import { GPS_INTERVAL_MS, PROXIMITY_TRIGGER_M, SPEEDING_THRESHOLD_KMH, TRAIL_MAX } from "@/lib/mapbox";
-import { base44 } from "@/api/base44Client";
-import { computeOccupancy } from "@/lib/occupancy";
 import DriverNavMap from "@/components/driver/DriverNavMap";
 import StaffRouteList from "@/components/driver/StaffRouteList";
 import SosButton from "@/components/driver/SosButton";
@@ -60,24 +58,7 @@ export default function DriverTrackingDashboard({ session, invoke, onReportIncid
     }
   }, [session?.vehicle]);
 
-  // session.check_ins is only the most recent handful (used by DriverApp's
-  // own NewCheckInAlert toast) — occupancy needs the full recent history to
-  // know who's still aboard, so this fetches its own wider window and stays
-  // live via subscribe rather than piggybacking on the heartbeat's small slice.
-  useEffect(() => {
-    const vehicleId = liveVehicle?.id;
-    if (!vehicleId) return;
-    const load = () => {
-      base44.entities.StaffCheckIn.filter({ vehicle_id: vehicleId }, "-created_date", 300).then((list) => {
-        setOccupancy(computeOccupancy(list, vehicleId));
-      });
-    };
-    load();
-    const unsub = base44.entities.StaffCheckIn.subscribe((event) => {
-      if (event.data?.vehicle_id === vehicleId || event.type === "delete") load();
-    });
-    return unsub;
-  }, [liveVehicle?.id]);
+  useEffect(() => { setOccupancy(session?.occupancy || 0); }, [session?.occupancy]);
 
   const playBeep = useCallback(() => {
     try {
@@ -305,7 +286,7 @@ export default function DriverTrackingDashboard({ session, invoke, onReportIncid
         </div>
 
         <div className="shrink-0">
-          <SosButton vehicle={liveVehicle} invoke={invoke} compact />
+          <SosButton vehicle={liveVehicle} invoke={invoke} emergencyContacts={session?.emergency_contacts} compact />
         </div>
       </aside>
     </div>

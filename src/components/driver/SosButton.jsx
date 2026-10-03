@@ -1,12 +1,11 @@
 import React, { useState, useRef, useEffect } from "react";
-import { base44 } from "@/api/base44Client";
 import { SOS_MESSAGE, waLink } from "@/lib/mapbox";
 import { Siren, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 
 // compact: a single-row button for the Drive screen side panel.
-export default function SosButton({ vehicle, invoke, compact = false }) {
+export default function SosButton({ vehicle, invoke, emergencyContacts, compact = false }) {
   const [holding, setHolding] = useState(false);
   const [fired, setFired] = useState(!!vehicle && vehicle.status === "emergency");
   const [contacts, setContacts] = useState(null); // { boss_phone, secretary_phone } once loaded
@@ -25,13 +24,7 @@ export default function SosButton({ vehicle, invoke, compact = false }) {
       // SOS goes to admin (in-app) plus the company's boss/secretary — never
       // to staff/passengers. Look up those numbers now so we can hand the
       // driver pre-addressed WhatsApp links instead of an open share sheet.
-      if (vehicle?.company_id) {
-        base44.entities.Company.get(vehicle.company_id)
-          .then((c) => setContacts({ boss_phone: c?.boss_phone || "", secretary_phone: c?.secretary_phone || "" }))
-          .catch(() => setContacts({ boss_phone: "", secretary_phone: "" }));
-      } else {
-        setContacts({ boss_phone: "", secretary_phone: "" });
-      }
+      setContacts(emergencyContacts || { boss_phone: "", secretary_phone: "" });
     } catch (e) {
       toast({ title: "SOS failed", description: e.message, variant: "destructive" });
       setFired(false);
