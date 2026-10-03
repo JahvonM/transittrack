@@ -1,4 +1,5 @@
 import { MAPBOX_TOKEN } from "@/lib/mapbox";
+import { parseDirections } from "@/lib/navigation";
 
 export function haversineKm(lat1, lng1, lat2, lng2) {
   const R = 6371;
@@ -70,45 +71,33 @@ export async function fetchDrivingRoute(points) {
 }
 
 /**
- * Fetches a driving route between two points WITH turn-by-turn maneuver
- * steps, for in-app navigation guidance (as opposed to fetchDrivingRoute,
- * which only returns the line geometry for drawing/ETA purposes).
+ * Route with everything the driver's Navigate screen needs, Google-Maps
+ * style: turn-by-turn steps, banner text and lane arrows, the spoken prompts
+ * ("In 800 metres, turn right"), live traffic and speed limits along the way.
+ * Returns the parsed route from lib/navigation (parseDirections) or null.
+ *
+ * heading: the bus's direction of travel in degrees, when known — makes the
+ * route start the way the bus is already facing instead of telling the
+ * driver to make a U-turn.
  *
  * @param {{lat:number,lng:number}} origin
  * @param {{lat:number,lng:number}} destination
- * @returns {Promise<{distanceKm:number, durationMin:number, geometry:number[][], steps:Array} | null>}
  */
-// heading: the bus's direction of travel in degrees, when known — makes the
-// route start the way the bus is already facing instead of telling the
-// driver to make a U-turn. Uses live traffic, like Google Maps does.
 export async function fetchTurnByTurnRoute(origin, destination, { heading = null } = {}) {
   if (!origin?.lat || !destination?.lat || !MAPBOX_TOKEN) return null;
   const coordsParam = `${roundCoord(origin.lng)},${roundCoord(origin.lat)};${roundCoord(destination.lng)},${roundCoord(destination.lat)}`;
   const bearings = Number.isFinite(heading) ? `&bearings=${Math.round((heading + 360) % 360)},60;` : "";
-  const query = `geometries=geojson&overview=full&steps=true${bearings}&access_token=${MAPBOX_TOKEN}`;
+  const common = `geometries=geojson&overview=full&steps=true&banner_instructions=true&voice_instructions=true&voice_units=metric${bearings}&access_token=${MAPBOX_TOKEN}`;
 
   try {
-    let res = await fetch(`https://api.mapbox.com/directions/v5/mapbox/driving-traffic/${coordsParam}?${query}`);
-    // Traffic routing isn't available everywhere; plain driving always is.
-    if (!res.ok) res = await fetch(`https://api.mapbox.com/directions/v5/mapbox/driving/${coordsParam}?${query}`);
+    // Live traffic first (like Google Maps); plain driving where that isn't
+    // available. Traffic levels only come with the traffic profile.
+    let res = await fetch(`https://api.mapbox.com/directions/v5/mapbox/driving-traffic/${coordsParam}?${common}&annotations=maxspeed,congestion`);
+    if (!res.ok) res = await fetch(`https://api.mapbox.com/directions/v5/mapbox/driving/${coordsParam}?${common}&annotations=maxspeed`);
     if (!res.ok) return bearings ? fetchTurnByTurnRoute(origin, destination) : null;
-    const data = await res.json();
-    const route = data.routes && data.routes[0];
-    if (!route) return bearings ? fetchTurnByTurnRoute(origin, destination) : null;
-    const steps = (route.legs?.[0]?.steps || []).map((s) => ({
-      instruction: s.maneuver?.instruction || "Continue straight",
-      type: s.maneuver?.type || "turn",
-      modifier: s.maneuver?.modifier || "straight",
-      distanceM: s.distance || 0,
-      location: s.maneuver?.location || null, // [lng, lat]
-      streetName: s.name || "",
-    }));
-    return {
-      distanceKm: route.distance / 1000,
-      durationMin: route.duration / 60,
-      geometry: route.geometry?.coordinates || [],
-      steps,
-    };
+    const nav = parseDirections(await res.json());
+    if (!nav) return bearings ? fetchTurnByTurnRoute(origin, destination) : null;
+    return nav;
   } catch {
     return null;
   }
