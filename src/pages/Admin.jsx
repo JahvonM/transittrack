@@ -71,6 +71,7 @@ import AuditLogTab from "@/components/admin/AuditLogTab";
 import CardIssuingTab from "@/components/admin/CardIssuingTab";
 import FleetHealthTab from "@/components/admin/FleetHealthTab";
 import LostItemsTab from "@/components/admin/LostItemsTab";
+import TravelTimesTab from "@/components/admin/TravelTimesTab";
 
 const ROLE_LINKS = [
   { to: "/passenger", label: "Passenger view", icon: MapPin },
@@ -514,6 +515,7 @@ export default function Admin() {
         {section === "ads" && <AdsTab />}
         {section === "copilot" && <CopilotTab />}
         {section === "data" && <DataTab />}
+        {section === "travel-times" && <TravelTimesTab />}
         {ADMIN_PAGES[section] && (
           <EmbeddedLayout.Provider value={true}>
             <Suspense fallback={<BusLoader className="py-12" />}>
