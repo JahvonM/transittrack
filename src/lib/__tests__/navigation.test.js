@@ -36,10 +36,12 @@ describe("projectOnRoute", () => {
   });
   it("snaps a bus a little off the line back onto it", () => {
     const pos = at(3000);
-    // This route drives part of Western Road twice (out and back), so the
-    // previous position (hint) decides which pass the bus is on.
-    const before = projectOnRoute(nav, at(2950));
-    const p = projectOnRoute(nav, { lat: pos.lat + 0.0002, lng: pos.lng }, before.seg); // ~22 m north
+    // This route drives part of Western Road out and back (2.3 km and 3 km
+    // along are the same spot), so like the app, follow the bus from the
+    // start and let its last position decide which pass it's on.
+    let hint = null;
+    for (let a = 0; a <= 2950; a += 50) hint = projectOnRoute(nav, at(a), hint).seg;
+    const p = projectOnRoute(nav, { lat: pos.lat + 0.0002, lng: pos.lng }, hint); // ~22 m north
     expect(p.offM).toBeGreaterThan(5);
     expect(p.offM).toBeLessThan(30);
     expect(Math.abs(p.along - 3000)).toBeLessThan(40);
