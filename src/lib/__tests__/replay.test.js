@@ -80,7 +80,7 @@ describe("long gaps", () => {
 
   it("still shows the real clock time", () => {
     const mid = positionAt(tl, 60000 + GAP_CAP_MS / 2);
-    expect(mid.time).toBe(base + 60000 + 44 * 60000);
+    expect(mid.time).toBe(base + 60000 + 44.5 * 60000); // halfway through the 89-minute stop
     expect(vtForTime(tl, base + 90 * 60000)).toBe(60000 + GAP_CAP_MS);
   });
 });

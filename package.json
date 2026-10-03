@@ -13,7 +13,9 @@
     "test:e2e": "playwright test",
     "cap:sync": "vite build && cap sync",
     "cap:ios": "vite build && cap sync ios && cap open ios",
-    "cap:android": "vite build && cap sync android && cap open android"
+    "cap:android": "vite build && cap sync android && cap open android",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@base44/sdk": "^0.8.52",
