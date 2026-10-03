@@ -1,3 +1,4 @@
+import { randomPairingCode } from "@/lib/deviceAuth";
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,9 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Building2 } from "lucide-react";
 
-const CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-const genCode = () =>
-  Array.from({ length: 6 }, () => CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)]).join("");
+const genCode = () => randomPairingCode(12);
 
 export default function CreateCompanyForm({ onChange }) {
   const [name, setName] = useState("");

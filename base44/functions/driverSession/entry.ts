@@ -335,7 +335,7 @@ async function issueGrant(base44, device, purpose, subject, ttlMs) {
  const secret = randomSecret();
  await base44.asServiceRole.entities.VerificationGrant.create({
  token_hash: await hashSecret(secret), device_id: device.id, company_id: device.company_id,
- vehicle_id: device.vehicle_id, purpose, subject, expires_at: new Date(Date.now()+ttlMs).toISOString(),
+ vehicle_id: device.vehicle_id, pairing_code_hash: await hashSecret(device.pairing_code || ''), purpose, subject, expires_at: new Date(Date.now()+ttlMs).toISOString(),
  });
  return secret;
 }
@@ -343,7 +343,7 @@ async function validGrant(base44, device, token, purpose, subject) {
  if (typeof token !== 'string' || !/^[a-f0-9]{64}$/.test(token)) return false;
  const rows = await base44.asServiceRole.entities.VerificationGrant.filter({ token_hash: await hashSecret(token) }, '-created_date', 1);
  const row = rows[0];
- return !!row && row.device_id === device.id && row.company_id === device.company_id && row.vehicle_id === device.vehicle_id && row.purpose === purpose && row.subject === subject && Date.parse(row.expires_at) > Date.now();
+ return !!row && row.pairing_code_hash === await hashSecret(device.pairing_code || '') && row.device_id === device.id && row.company_id === device.company_id && row.vehicle_id === device.vehicle_id && row.purpose === purpose && row.subject === subject && Date.parse(row.expires_at) > Date.now();
 }
 
 async function pinHash(pin, salt) {

@@ -1,3 +1,4 @@
+import { randomPairingCode } from "@/lib/deviceAuth";
 import React, { useEffect, useState } from "react";
 import { Navigate, useParams, useNavigate, Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
@@ -22,9 +23,7 @@ import VehicleFormDialog from "@/components/VehicleFormDialog";
 import { VehicleModelThumb } from "@/components/VehicleModelPicker";
 import { modelIdFor } from "@/lib/vehicleModels";
 
-const CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-const genCode = () =>
-  Array.from({ length: 6 }, () => CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)]).join("");
+const genCode = () => randomPairingCode(12);
 
 export default function CompanyDashboard() {
   const { user } = useAuth();

@@ -22,6 +22,9 @@
     },
     "expires_at": {
       "type": "string"
+    },
+    "pairing_code_hash": {
+      "type": "string"
     }
   },
   "rls": {

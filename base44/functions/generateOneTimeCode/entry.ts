@@ -49,7 +49,13 @@ export default async function(req) {
     if (!(await reserveAttempt(base44, 'otp-issue:' + user.id, 3, 30 * 60_000))) return Response.json({ error: 'Too many code requests. Try again later.' }, { status: 429 });
     const previous = await base44.asServiceRole.entities.PassengerOneTimeCredential.filter({ user_id: user.id }, '-created_date', 100);
     for (const row of previous) if (!row.consumed_at) await base44.asServiceRole.entities.PassengerOneTimeCredential.update(row.id, { consumed_at: new Date().toISOString() });
-    const code = randomDigits(6);
+    let code = '';
+    for (let i = 0; i < 50; i++) {
+      const candidate = randomDigits(6);
+      const matches = await base44.asServiceRole.entities.PassengerOneTimeCredential.filter({ company_id: user.company_id, token_hash: await hashSecret(candidate) }, '-created_date', 2);
+      if (!matches.some(c => !c.consumed_at && Date.parse(c.expires_at) > Date.now())) { code = candidate; break; }
+    }
+    if (!code) return Response.json({ error: 'Could not allocate a unique code' }, { status: 503 });
     const expiresAt = new Date(Date.now() + CODE_TTL_MS).toISOString();
     await base44.asServiceRole.entities.PassengerOneTimeCredential.create({ user_id: user.id, company_id: user.company_id, token_hash: await hashSecret(code), expires_at: expiresAt });
 

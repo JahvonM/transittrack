@@ -52,7 +52,7 @@ export async function flushQueue(invoke) {
         synced++;
         done.add(item.id);
       } catch (e) {
-        if (e?.response?.status === 401) break;
+        if ([401, 403, 429].includes(e?.response?.status)) break;
         if (!isNetworkFailure(e)) done.add(item.id);
       }
     }

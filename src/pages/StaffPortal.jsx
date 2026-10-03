@@ -133,28 +133,17 @@ export default function StaffPortal() {
   const crowd = useCrowding(company?.id);
   const [loading, setLoading] = useState(true);
 
-  // Pick the company: the one this account is already linked to, else the
-  // code saved on this device. Only brand-new accounts see the code screen.
+  // Restore only a server-issued access grant; never compare cached join codes.
   useEffect(() => {
-    base44.entities.Company.list().then((cos) => {
-      const saved = localStorage.getItem("tt_company_code");
-      const match =
-        (user?.company_id && cos.find((c) => c.id === user.company_id)) ||
-        (saved ? cos.find((c) => (c.access_code || "").toUpperCase() === saved.toUpperCase()) : null);
-      if (match) {
-        setCompany(match);
-        setCompanyPhone(match.phone || "");
-      }
-      setCompaniesLoaded(true);
-    }).catch(() => { setCompaniesLoaded(true); loadFailed(); });
-  }, [user?.company_id]);
-
-  // Backfill company_id for accounts that picked a company before this link
-  // was tracked server-side (needed for the group chat's company-scoped RLS).
-  useEffect(() => {
-    if (!company || !user?.id || user.company_id === company.id) return;
-    base44.entities.User.update(user.id, { company_id: company.id }).catch(() => {});
-  }, [company, user]);
+    localStorage.removeItem("tt_company_code");
+    const grant = localStorage.getItem("tt_company_access_grant");
+    if (!grant) { setCompaniesLoaded(true); return; }
+    base44.functions.invoke("companyAccess", { action: "context", grant }).then(({ data }) => {
+      setCompany(data.company);
+      setCompanyPhone(data.company.phone || "");
+    }).catch(() => { localStorage.removeItem("tt_company_access_grant"); })
+      .finally(() => setCompaniesLoaded(true));
+  }, [user?.id]);
 
   useEffect(() => {
     if (!company) return undefined;
