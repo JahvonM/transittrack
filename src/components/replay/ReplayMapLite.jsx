@@ -12,15 +12,22 @@ const tileUrl = (isDark) =>
 
 const ll = (line) => line.map(([lng, lat]) => [lat, lng]);
 
-function busIcon(color, heading) {
+const iconCache = new Map();
+function busIcon(color, rawHeading) {
+  // Rounded so the icon is rebuilt only when the bus actually turns.
+  const heading = rawHeading == null ? null : Math.round(rawHeading / 10) * 10;
+  const key = `${color}|${heading}`;
+  if (iconCache.has(key)) return iconCache.get(key);
   const arrow = heading == null ? "" :
     `<div style="position:absolute;inset:-10px;transform:rotate(${heading}deg)"><div style="margin:0 auto;width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:9px solid ${color}"></div></div>`;
-  return L.divIcon({
+  const icon = L.divIcon({
     className: "",
     iconSize: [36, 36],
     iconAnchor: [18, 18],
     html: `<div style="position:relative;width:36px;height:36px">${arrow}<div style="width:36px;height:36px;border-radius:50%;background:#0B0B0D;border:3px solid ${color};box-shadow:0 2px 8px rgba(0,0,0,.45)"></div></div>`,
   });
+  iconCache.set(key, icon);
+  return icon;
 }
 
 const stopIcon = L.divIcon({
