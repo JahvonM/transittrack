@@ -10,14 +10,14 @@ function handler(name, client) {
   new Function('exports', 'createClientFromRequest', 'secrets', js)(exports, () => client, {});
   return exports.default;
 }
-const vehicle = { id: 'bus-a', company_id: 'company-a', name: 'Bus A', capacity: 25, route_id: 'route-a', driver_pin: '1234', entry_code: 'secret', new_secret: 'secret' };
+const vehicle = { id: 'bus-a', company_id: 'company-a', name: 'Bus A', capacity: 25, route_id: 'route-a', driver_pin: '1234', entry_code: 'CREDENTIAL_SENTINEL', new_secret: 'CREDENTIAL_SENTINEL' };
 const device = { id: 'tablet', status: 'active', paired: true, kiosk_type: 'bus_boarding', company_id: 'company-a', vehicle_id: 'bus-a' };
 function client(overrides = {}) {
   const entities = new Proxy({}, { get: (_, name) => ({
-    get: async () => name === 'KioskDevice' ? { ...device, ...overrides.device } : name === 'Vehicle' ? { ...vehicle, ...overrides.vehicle } : name === 'Route' ? { id: 'route-a', company_id: 'company-a', stops: [{ name: 'Stop', lat: 1, lng: 2, secret: 'secret' }], access_code: 'secret' } : { boss_phone: '555', access_code: 'secret' },
+    get: async () => name === 'KioskDevice' ? { ...device, ...overrides.device } : name === 'Vehicle' ? { ...vehicle, ...overrides.vehicle } : name === 'Route' ? { id: 'route-a', company_id: 'company-a', stops: [{ name: 'Stop', lat: 1, lng: 2, secret: 'CREDENTIAL_SENTINEL' }], access_code: 'CREDENTIAL_SENTINEL' } : { boss_phone: '555', access_code: 'CREDENTIAL_SENTINEL' },
     update: async () => ({}),
     list: async () => [],
-    filter: async () => name === 'StaffCheckIn' ? [{ id: 'boarding', company_id: 'company-a', vehicle_id: 'bus-a', staff_name: 'Rider', card_tag: 'secret', status: 'boarded', created_date: new Date().toISOString() }] : [],
+    filter: async () => name === 'StaffCheckIn' ? [{ id: 'boarding', company_id: 'company-a', vehicle_id: 'bus-a', staff_name: 'Rider', card_tag: 'CREDENTIAL_SENTINEL', status: 'boarded', created_date: new Date().toISOString() }] : [],
   }) });
   return { asServiceRole: { entities }, auth: { me: async () => null } };
 }
@@ -33,7 +33,7 @@ describe('tablet backend response security', () => {
     expect(data.context.vehicle.name).toBe('Bus A');
     expect(data.context.occupancy).toBe(1);
     expect(data.context.route.stops[0]).toEqual({ name: 'Stop', lat: 1, lng: 2 });
-    expect(JSON.stringify(data)).not.toContain('secret');
+    expect(JSON.stringify(data)).not.toContain('CREDENTIAL_SENTINEL');
   });
   it('rejects an inactive kiosk', async () => {
     expect((await call('kioskHeartbeat', {}, { device: { status: 'inactive' } })).status).toBe(404);
@@ -47,7 +47,7 @@ describe('tablet backend response security', () => {
     expect(data.has_driver_pin).toBe(true);
     expect(data.emergency_contacts.boss_phone).toBe('555');
     expect(data.occupancy).toBe(1);
-    expect(JSON.stringify(data)).not.toContain('secret');
+    expect(JSON.stringify(data)).not.toContain('CREDENTIAL_SENTINEL');
     expect(JSON.stringify(data)).not.toContain('1234');
     expect(data.check_ins[0].card_tag).toBeUndefined();
   });
@@ -63,7 +63,7 @@ describe('tablet backend response security', () => {
     expect((await call('driverSession', { action: 'verify_pin', pin: '1234' }, { device: { kiosk_type: 'driver', paired: false } })).status).toBe(401);
   });
   it('scrubs credentials from legacy caches at every nesting level', () => {
-    const clean = cleanTabletSession({ driver_pin: '1234', vehicle, staff: [{ name: 'Rider', nfc_card_tag: 'secret', access_code: 'secret' }], check_ins: [{ card_tag: 'secret', status: 'boarded' }], has_driver_pin: true });
+    const clean = cleanTabletSession({ driver_pin: '1234', vehicle, staff: [{ name: 'Rider', nfc_card_tag: 'CREDENTIAL_SENTINEL', access_code: 'CREDENTIAL_SENTINEL' }], check_ins: [{ card_tag: 'CREDENTIAL_SENTINEL', status: 'boarded' }], has_driver_pin: true });
     expect(clean.driver_pin).toBeUndefined();
     expect(clean.vehicle.driver_pin).toBeUndefined();
     expect(clean.vehicle.entry_code).toBeUndefined();

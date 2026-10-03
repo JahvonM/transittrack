@@ -333,6 +333,7 @@ export default async function(req) {
         const trips = vehicleTrips.filter((t) => ['scheduled', 'on_the_way', 'arrived'].includes(t.status));
         const driverEmail = vehicle.driver_email || '';
         const relevantBroadcasts = broadcasts.filter((b) => {
+          if (b.company_id && b.company_id !== companyId) return false;
           const targeted = b.driver_email && b.driver_email === driverEmail;
           const broadcast = !b.driver_email && b.type === 'info';
           return targeted || broadcast;
