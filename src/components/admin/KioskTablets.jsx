@@ -31,6 +31,7 @@ import {
   XCircle,
   Activity,
   Download,
+  ArrowUpCircle,
 } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 
@@ -179,6 +180,29 @@ export default function KioskTablets({ vehicles, companies, onChange }) {
     }
   };
 
+  // The tablet reloads to the newest version the next time nobody is using
+  // it (boarding: 1½ min without a tap; driver: bus stopped, 3 min untouched).
+  // Tablets also do this by themselves while charging.
+  const updatable = (d) => d.paired && d.status !== "revoked";
+  const sendUpdate = async (list) => {
+    const targets = list.filter(updatable);
+    if (!targets.length) return;
+    setBusyId(targets.length === 1 ? `upd-${targets[0].id}` : "upd-all");
+    const now = new Date().toISOString();
+    try {
+      await Promise.all(targets.map((d) => base44.entities.KioskDevice.update(d.id, { update_requested_at: now })));
+      toast({
+        title: targets.length === 1 ? `Update sent to ${targets[0].label}` : `Update sent to ${targets.length} tablets`,
+        description: "Each tablet reloads to the newest version the next time it's not being used (it needs internet).",
+      });
+      loadDevices();
+    } catch {
+      toast({ title: "Couldn't send the update", variant: "destructive" });
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   const revoke = async (device) => {
     setBusyId(device.id);
     try {
@@ -249,6 +273,9 @@ export default function KioskTablets({ vehicles, companies, onChange }) {
           <Button variant="outline" asChild>
             <a href={SETUP_TOOL} download><Download className="w-4 h-4 mr-1" /> Setup tool</a>
           </Button>
+          <Button variant="outline" disabled={busyId === "upd-all" || !devices.some(updatable)} onClick={() => sendUpdate(devices)}>
+            <ArrowUpCircle className="w-4 h-4 mr-1" /> Update all tablets
+          </Button>
           <Button onClick={openCreate}>
             <Plus className="w-4 h-4 mr-1" /> Register tablet
           </Button>
@@ -311,6 +338,14 @@ export default function KioskTablets({ vehicles, companies, onChange }) {
                           <Clock className="w-3 h-3" /> Last seen: {timeAgo(d.last_seen)}
                         </div>
                         <HelperHealthLine h={d.helper_health} />
+                        {(d.app_health?.build || d.update_requested_at) && (
+                          <div className="text-xs text-muted-foreground mt-0.5">
+                            {d.app_health?.build && <>Version {d.app_health.build} UTC</>}
+                            {d.update_requested_at && Date.now() - Date.parse(d.update_requested_at) < 24 * 3600 * 1000 && (
+                              <>{d.app_health?.build ? " · " : ""}update sent {timeAgo(d.update_requested_at)}</>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -348,6 +383,11 @@ export default function KioskTablets({ vehicles, companies, onChange }) {
                           <Button size="sm" variant="outline" onClick={() => openEdit(d)}>
                             <Pencil className="w-3.5 h-3.5" /> Reassign
                           </Button>
+                          {d.paired && (
+                            <Button size="sm" variant="outline" disabled={busyId === `upd-${d.id}`} onClick={() => sendUpdate([d])}>
+                              <ArrowUpCircle className="w-3.5 h-3.5" /> Send update
+                            </Button>
+                          )}
                           <Button size="sm" variant="secondary" disabled={busyId === d.id} onClick={() => regenerate(d)}>
                             <RefreshCw className={`w-3.5 h-3.5 ${busyId === d.id ? "animate-spin" : ""}`} />
                             {hasCode ? "Regenerate" : "New code"}
