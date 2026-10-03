@@ -1,3 +1,4 @@
+import { saveDriverGrant } from "@/lib/deviceAuth";
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -20,6 +21,7 @@ export default function PinGate({ vehicle, invoke, onUnlock }) {
     try {
       const result = await invoke("verify_pin", { pin });
       if (result?.ok !== true) throw new Error("PIN verification failed");
+      saveDriverGrant(localStorage.getItem("tt_driver_device_id"), result.driver_grant);
       onUnlock();
     } catch {
       setError("Could not unlock. Check your PIN and connection, or contact your administrator.");

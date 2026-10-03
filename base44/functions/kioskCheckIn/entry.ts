@@ -79,11 +79,7 @@ async function loadStaffDirectory(base44, companyId) {
   ];
 }
 
-function randomDigits(len) {
-  let out = '';
-  for (let i = 0; i < len; i++) out += Math.floor(Math.random() * 10);
-  return out;
-}
+
 
 function sanitize(value) {
   if (value == null) return '';
@@ -170,6 +166,38 @@ async function tabletCheckIns(base44, companyId, vehicleId) {
   }
 }
 
+async function hashSecret(value) {
+ const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
+ return Array.from(new Uint8Array(bytes), b => b.toString(16).padStart(2,'0')).join('');
+}
+function randomSecret() { return Array.from(crypto.getRandomValues(new Uint8Array(32)), b => b.toString(16).padStart(2,'0')).join(''); }
+function randomDigits(len) {
+ let out = '';
+ while (out.length < len) { const b = crypto.getRandomValues(new Uint8Array(1))[0]; if (b < 250) out += b % 10; }
+ return out;
+}
+async function reserveAttempt(base44, key, limit, windowMs) {
+ const rows = await base44.asServiceRole.entities.VerificationAttempt.filter({ scope: key }, '-created_date', limit);
+ const recent = rows.filter(r => Date.parse(r.attempted_at) > Date.now() - windowMs);
+ if (recent.length >= limit) return false;
+ await base44.asServiceRole.entities.VerificationAttempt.create({ scope: key, attempted_at: new Date().toISOString() });
+ return true;
+}
+async function issueGrant(base44, device, purpose, subject, ttlMs) {
+ const secret = randomSecret();
+ await base44.asServiceRole.entities.VerificationGrant.create({
+ token_hash: await hashSecret(secret), device_id: device.id, company_id: device.company_id,
+ vehicle_id: device.vehicle_id, purpose, subject, expires_at: new Date(Date.now()+ttlMs).toISOString(),
+ });
+ return secret;
+}
+async function validGrant(base44, device, token, purpose, subject) {
+ if (typeof token !== 'string' || !/^[a-f0-9]{64}$/.test(token)) return false;
+ const rows = await base44.asServiceRole.entities.VerificationGrant.filter({ token_hash: await hashSecret(token) }, '-created_date', 1);
+ const row = rows[0];
+ return !!row && row.device_id === device.id && row.company_id === device.company_id && row.vehicle_id === device.vehicle_id && row.purpose === purpose && row.subject === subject && Date.parse(row.expires_at) > Date.now();
+}
+
 export default async function(req) {
   try {
     const body = await req.json();
@@ -202,6 +230,8 @@ export default async function(req) {
       return Response.json({ error: 'This action requires a paired kiosk device' }, { status: 400 });
     }
 
+    if (device && ['lookup_tag', 'lookup_code'].includes(action) && !(await reserveAttempt(base44, 'passenger-lookup:' + device.id, 20, 60_000))) return Response.json({ error: 'Too many attempts. Try again in a minute.' }, { status: 429 });
+
     switch (action) {
       // --- bus_boarding: manual entry (search-as-you-type staff picker) ---
       case 'search_staff': {
@@ -216,16 +246,7 @@ export default async function(req) {
       // still work with no WiFi (refreshed every few minutes when online) ---
       case 'offline_directory': {
         if (!device) return Response.json({ error: 'Tablets only' }, { status: 403 });
-        const directory = await loadStaffDirectory(base44, companyId);
-        return Response.json({
-          generated_at: new Date().toISOString(),
-          staff: directory.map((s) => ({
-            id: s.id, full_name: s.full_name, photo_url: s.photo_url || '',
-            nfc_tag: s.nfc_tag || '', access_code: s.access_code || '',
-            one_time_code: s.one_time_code || '', one_time_code_expires_at: s.one_time_code_expires_at || null,
-            vehicle_id: s.vehicle_id || '', vehicle_name: s.vehicle_name || '',
-          })),
-        });
+        return Response.json({ generated_at: new Date().toISOString(), staff: [], verification_online_only: true });
       }
 
       // --- bus_boarding: NFC tap lookup, before confirming ---
@@ -236,7 +257,7 @@ export default async function(req) {
         const refusal = wrongBus(person, vehicleId);
         if (refusal) return Response.json(refusal, { status: 403 });
         const status = await nextStatus(base44, vehicleId, 'card_tag', person.nfc_tag || person.id);
-        return Response.json({ staff: { id: person.id, full_name: person.full_name, photo_url: person.photo_url }, next_status: status });
+        return Response.json({ staff: { id: person.id, full_name: person.full_name, photo_url: person.photo_url }, next_status: status, verification_grant: await issueGrant(base44, device, 'boarding', person.id, 24 * 3600_000) });
       }
 
       // --- bus_boarding: keypad code entry — either a permanent, admin-
@@ -250,14 +271,23 @@ export default async function(req) {
         let person = directory.find((s) => s.access_code && s.access_code === code);
         let codeType = 'access';
         if (!person) {
-          person = directory.find((s) => s.one_time_code && s.one_time_code === code && s.one_time_code_expires_at && new Date(s.one_time_code_expires_at).getTime() > now);
+          const credentials = await base44.asServiceRole.entities.PassengerOneTimeCredential.filter({ company_id: companyId, token_hash: await hashSecret(code) }, '-created_date', 2);
+          const credential = credentials.find(c => !c.consumed_at && Date.parse(c.expires_at) > now);
+          const user = credential ? await base44.asServiceRole.entities.User.get(credential.user_id) : null;
+          person = user ? directory.find(s => s.id === user.id || (s.email && s.email.toLowerCase() === (user.email || '').toLowerCase())) : null;
           codeType = 'one_time';
         }
         if (!person) return Response.json({ error: 'code_not_recognized' }, { status: 404 });
         const refusal = wrongBus(person, vehicleId);
         if (refusal) return Response.json(refusal, { status: 403 });
+        if (codeType === 'one_time') {
+          const credentials = await base44.asServiceRole.entities.PassengerOneTimeCredential.filter({ company_id: companyId, token_hash: await hashSecret(code) }, '-created_date', 2);
+          const current = credentials.find(c => !c.consumed_at && Date.parse(c.expires_at) > Date.now());
+          if (!current) return Response.json({ error: 'code_not_recognized' }, { status: 404 });
+          await base44.asServiceRole.entities.PassengerOneTimeCredential.update(current.id, { consumed_at: new Date().toISOString() });
+        }
         const status = await nextStatus(base44, vehicleId, 'card_tag', person.nfc_tag || person.id);
-        return Response.json({ staff: { id: person.id, full_name: person.full_name, photo_url: person.photo_url }, next_status: status, code_type: codeType });
+        return Response.json({ staff: { id: person.id, full_name: person.full_name, photo_url: person.photo_url }, next_status: status, code_type: codeType, verification_grant: await issueGrant(base44, device, 'boarding', person.id, 24 * 3600_000) });
       }
 
       // --- admin app (Staff Directory): generate a persistent access code for
@@ -273,6 +303,7 @@ export default async function(req) {
         const existingCodes = new Set(directory.map((s) => s.access_code).filter(Boolean));
         let code = randomDigits(5);
         for (let i = 0; i < 5 && existingCodes.has(code); i++) code = randomDigits(5);
+        if (existingCodes.has(code)) return Response.json({ error: 'Could not allocate a unique code' }, { status: 503 });
         if (person.source === 'user') await base44.asServiceRole.entities.User.update(person.id, { access_code: code });
         else await base44.asServiceRole.entities.Contact.update(person.id, { access_code: code });
         return Response.json({ code, staff: { id: person.id, full_name: person.full_name } });
@@ -288,6 +319,7 @@ export default async function(req) {
         if (!staff_id && !staff_name) return Response.json({ error: 'staff_id or staff_name required' }, { status: 400 });
         const directory = await loadStaffDirectory(base44, companyId);
         const person = directory.find((s) => s.id === sanitize(staff_id)) || null;
+        if (['nfc', 'qr', 'code'].includes(method) && (!person || !(await validGrant(base44, device, body.verification_grant, 'boarding', person.id)))) return Response.json({ error: 'Online credential verification required' }, { status: 403 });
         const refusal = wrongBus(person, vehicleId);
         if (refusal) return Response.json(refusal, { status: 403 });
         const cardTag = person?.nfc_tag || person?.id || sanitize(staff_id) || sanitize(staff_name);
@@ -306,9 +338,6 @@ export default async function(req) {
         // A one-time code is single-use — burn it now that it's actually been
         // used to check in, not at lookup time (cancelling the confirm screen
         // shouldn't waste it).
-        if (code_type === 'one_time' && person?.source === 'user') {
-          await base44.asServiceRole.entities.User.update(person.id, { one_time_code: '', one_time_code_expires_at: null });
-        }
         // A summary failure must not turn a completed write into a retry.
         let stats = {};
         try { stats = boardingStats(await tabletCheckIns(base44, companyId, vehicleId)); } catch { /* heartbeat refreshes counts later */ }

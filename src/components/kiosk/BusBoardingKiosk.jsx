@@ -310,7 +310,7 @@ export default function BusBoardingKiosk({ invoke, device }) {
     try {
       const res = await invoke("lookup_tag", { card_tag: tag });
       setUnlocked(true);
-      setPending({ staff: res.staff, next_status: res.next_status, method: "nfc" });
+      setPending({ staff: res.staff, next_status: res.next_status, method: "nfc", verification_grant: res.verification_grant });
       setMode("confirm");
       reportBadgeResult(true);
     } catch (e) {
@@ -336,7 +336,7 @@ export default function BusBoardingKiosk({ invoke, device }) {
     setBusy(true);
     try {
       const res = await invoke("lookup_code", { code: decoded });
-      setPending({ staff: res.staff, next_status: res.next_status, method: "qr", code_type: res.code_type });
+      setPending({ staff: res.staff, next_status: res.next_status, method: "qr", code_type: res.code_type, verification_grant: res.verification_grant });
       setMode("confirm");
     } catch (e) {
       if (handleUnpaired(e)) return;
@@ -353,7 +353,7 @@ export default function BusBoardingKiosk({ invoke, device }) {
     setCheckingCode(true);
     try {
       const res = await invoke("lookup_code", { code });
-      setPending({ staff: res.staff, next_status: res.next_status, method: "code", code_type: res.code_type });
+      setPending({ staff: res.staff, next_status: res.next_status, method: "code", code_type: res.code_type, verification_grant: res.verification_grant });
       setMode("confirm");
       setCode("");
     } catch (e) {
@@ -369,7 +369,7 @@ export default function BusBoardingKiosk({ invoke, device }) {
   const confirmCheckIn = async (status) => {
     if (!pending || busy) return;
     setBusy(true);
-    const payload = { staff_id: pending.staff.id, method: pending.method, code_type: pending.code_type, status };
+    const payload = { staff_id: pending.staff.id, method: pending.method, code_type: pending.code_type, verification_grant: pending.verification_grant, status };
     try {
       const res = await invoke("check_in", payload);
       const record = { staff_name: res.record.staff_name, status: res.record.status };

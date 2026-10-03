@@ -47,7 +47,7 @@ export default function DriverApp() {
   const { toast } = useToast();
 
   const [deviceId, setDeviceId] = useState(() => localStorage.getItem("tt_driver_device_id"));
-  const [unlocked, setUnlocked] = useState(() => localStorage.getItem("tt_driver_unlock_date") === new Date().toISOString().slice(0, 10));
+  const [unlocked, setUnlocked] = useState(() => false);
   const [activeTab, setActiveTab] = useState(() => tabFromStage(urlStage) || "track");
   // Follow the URL (e.g. "Continue" after an inspection goes to /driver/track).
   useEffect(() => { const t = tabFromStage(urlStage); if (t) setActiveTab(t); }, [urlStage]);

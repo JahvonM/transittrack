@@ -1,3 +1,4 @@
+import { cleanTabletSession } from "./tabletSession";
 // What a bus boarding tablet keeps on the device so it still works with no
 // WiFi: its own setup (so it opens straight into boarding), and the list of
 // who can board - names, card IDs and keypad codes for this company -
@@ -18,6 +19,7 @@ export function saveDevice(device) {
   if (device) write(DEVICE_KEY, device);
 }
 export function loadDevice(deviceId) {
+  clearLegacyDirectory();
   const d = read(DEVICE_KEY, null);
   return d && (d.device_id === deviceId || d.id === deviceId || !deviceId) ? d : null;
 }
@@ -28,7 +30,7 @@ export function forgetTablet() {
 }
 
 export function saveDirectory(data) {
-  if (data?.staff) write(DIRECTORY_KEY, { generated_at: data.generated_at || new Date().toISOString(), staff: data.staff });
+  if (data?.staff) write(DIRECTORY_KEY, { generated_at: data.generated_at || new Date().toISOString(), staff: data.staff.map(s => Object.fromEntries(["id", "full_name", "photo_url", "vehicle_id", "vehicle_name"].filter(k => s[k] !== undefined).map(k => [k, s[k]]))) });
 }
 export function directoryInfo() {
   const d = read(DIRECTORY_KEY, null);
@@ -50,10 +52,6 @@ export function noteStatus(staffId, status) {
 }
 const nextStatus = (staffId) => (read(LAST_STATUS_KEY, {})[staffId] === "boarded" ? "off_board" : "boarded");
 
-const normalizeTag = (v) => String(v || "").replace(/[^0-9a-f]/gi, "").toUpperCase();
-const notFound = (error) => Object.assign(new Error(error), { response: { status: 404, data: { error } }, offline: true });
-const toStaff = (s) => ({ id: s.id, full_name: s.full_name, photo_url: s.photo_url });
-
 // Same rule as the server (kioskCheckIn's wrongBus): a card or code only
 // works on the passenger's own bus. Lists saved before this rule existed have
 // no vehicle_id on anyone, so they're not checked until the next refresh.
@@ -67,43 +65,14 @@ export function busRefusal(person, vehicleId) {
   }
   return null;
 }
-const refuse = (data) => Object.assign(new Error(data.error), { response: { status: 403, data }, offline: true });
-
-// Answers lookup_tag / lookup_code from the saved list. Returns null when
-// there's no saved list (nothing to answer from); throws the same "not
-// recognised" errors the server gives.
-export function offlineLookup(action, payload = {}) {
-  const dir = read(DIRECTORY_KEY, null);
-  if (!dir?.staff?.length) return null;
-  if (action === "lookup_tag") {
-    const tag = normalizeTag(payload.card_tag);
-    const person = dir.staff.find((s) => s.nfc_tag && normalizeTag(s.nfc_tag) === tag);
-    if (!person) throw notFound("badge_not_registered");
-    const no = busRefusal(person, read(DEVICE_KEY, null)?.vehicle_id);
-    if (no) throw refuse(no);
-    return { staff: toStaff(person), next_status: nextStatus(person.id), offline: true };
-  }
-  if (action === "lookup_code") {
-    const code = String(payload.code || "").trim();
-    let person = dir.staff.find((s) => s.access_code && s.access_code === code);
-    let codeType = "access";
-    if (!person) {
-      person = dir.staff.find((s) => s.one_time_code && s.one_time_code === code
-        && s.one_time_code_expires_at && new Date(s.one_time_code_expires_at).getTime() > Date.now());
-      codeType = "one_time";
-    }
-    if (!person) throw notFound("code_not_recognized");
-    const no = busRefusal(person, read(DEVICE_KEY, null)?.vehicle_id);
-    if (no) throw refuse(no);
-    return { staff: toStaff(person), next_status: nextStatus(person.id), code_type: codeType, offline: true };
-  }
-  return null;
+// Legacy caches are scrubbed even when the tablet starts without a connection.
+export function clearLegacyDirectory() {
+ const dir = read(DIRECTORY_KEY, null);
+ if (dir) write(DIRECTORY_KEY, cleanTabletSession(dir));
 }
-
-// A one-time code used offline mustn't work twice on this tablet.
-export function burnOneTimeCode(staffId) {
-  const dir = read(DIRECTORY_KEY, null);
-  if (!dir?.staff) return;
-  const s = dir.staff.find((x) => x.id === staffId);
-  if (s) { s.one_time_code = ""; write(DIRECTORY_KEY, dir); }
+export function offlineLookup(action) {
+ clearLegacyDirectory();
+ if (["lookup_tag", "lookup_code"].includes(action)) throw Object.assign(new Error("Connect to verify your card or code"), { response: { status: 503, data: { error: "verification_requires_connection" } } });
+ return null;
 }
+export function burnOneTimeCode() { clearLegacyDirectory(); }

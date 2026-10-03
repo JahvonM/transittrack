@@ -10,6 +10,12 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 // Bus staff belong to a company and are linked to one bus; their card list
 // is sent to that bus's boarding tablet.
 
+function randomDigits(len) {
+ let out = '';
+ while (out.length < len) { const b = crypto.getRandomValues(new Uint8Array(1))[0]; if (b < 250) out += b % 10; }
+ return out;
+}
+
 const normalizeUid = (v) => String(v || '').replace(/[^0-9a-f]/gi, '').toUpperCase();
 const clean = (v, max = 120) => String(v ?? '').replace(/[\u0000-\u001F\u007F<>]/g, '').trim().slice(0, max);
 
@@ -250,7 +256,8 @@ export default async function (req) {
         const [allContacts, allUsers] = await Promise.all([sr.Contact.list('-updated_date', 5000), sr.User.list()]);
         const taken = new Set([...allContacts, ...allUsers].map((r) => r.access_code).filter(Boolean));
         let code = '';
-        for (let i = 0; i < 50 && (!code || taken.has(code)); i++) code = String(Math.floor(10000 + Math.random() * 90000));
+        for (let i = 0; i < 50 && (!code || taken.has(code)); i++) code = randomDigits(5);
+        if (!code || taken.has(code)) return Response.json({ error: 'Could not allocate a unique code' }, { status: 503 });
         if (person.source === 'user') await sr.User.update(person.id, { access_code: code });
         else await sr.Contact.update(person.id, { access_code: code });
         await audit(base44, user, { action: 'update', entity: person.source === 'user' ? 'User' : 'Contact', record_id: person.id, summary: `New keypad code for ${person.name}` });

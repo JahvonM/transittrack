@@ -314,6 +314,38 @@ async function tabletCheckIns(base44, companyId, vehicleId) {
   }
 }
 
+async function hashSecret(value) {
+ const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
+ return Array.from(new Uint8Array(bytes), b => b.toString(16).padStart(2,'0')).join('');
+}
+function randomSecret() { return Array.from(crypto.getRandomValues(new Uint8Array(32)), b => b.toString(16).padStart(2,'0')).join(''); }
+function randomDigits(len) {
+ let out = '';
+ while (out.length < len) { const b = crypto.getRandomValues(new Uint8Array(1))[0]; if (b < 250) out += b % 10; }
+ return out;
+}
+async function reserveAttempt(base44, key, limit, windowMs) {
+ const rows = await base44.asServiceRole.entities.VerificationAttempt.filter({ scope: key }, '-created_date', limit);
+ const recent = rows.filter(r => Date.parse(r.attempted_at) > Date.now() - windowMs);
+ if (recent.length >= limit) return false;
+ await base44.asServiceRole.entities.VerificationAttempt.create({ scope: key, attempted_at: new Date().toISOString() });
+ return true;
+}
+async function issueGrant(base44, device, purpose, subject, ttlMs) {
+ const secret = randomSecret();
+ await base44.asServiceRole.entities.VerificationGrant.create({
+ token_hash: await hashSecret(secret), device_id: device.id, company_id: device.company_id,
+ vehicle_id: device.vehicle_id, purpose, subject, expires_at: new Date(Date.now()+ttlMs).toISOString(),
+ });
+ return secret;
+}
+async function validGrant(base44, device, token, purpose, subject) {
+ if (typeof token !== 'string' || !/^[a-f0-9]{64}$/.test(token)) return false;
+ const rows = await base44.asServiceRole.entities.VerificationGrant.filter({ token_hash: await hashSecret(token) }, '-created_date', 1);
+ const row = rows[0];
+ return !!row && row.device_id === device.id && row.company_id === device.company_id && row.vehicle_id === device.vehicle_id && row.purpose === purpose && row.subject === subject && Date.parse(row.expires_at) > Date.now();
+}
+
 export default async function(req) {
   try {
     const body = await req.json();
@@ -327,6 +359,8 @@ export default async function(req) {
     const companyName = device.company_name;
     const vehicleId = device.vehicle_id;
     if (!vehicleId) return Response.json({ error: 'No vehicle assigned to this device' }, { status: 400 });
+
+    if (!['heartbeat', 'verify_pin', 'register_push_token', 'sos'].includes(action) && !(await validGrant(base44, device, body.driver_grant, 'driver', vehicleId))) return Response.json({ error: 'Driver PIN verification required' }, { status: 401 });
 
     const helperHealth = cleanHelperHealth(body.helper_health);
     const appHealth = cleanAppHealth(body.app_health);
@@ -342,8 +376,9 @@ export default async function(req) {
       case 'verify_pin': {
         const vehicle = await loadVehicle(base44, vehicleId);
         if (!vehicle || vehicle.company_id !== companyId) return Response.json({ error: 'Vehicle assignment mismatch' }, { status: 403 });
+        if (!(await reserveAttempt(base44, 'driver-pin:' + vehicleId, 5, 15 * 60_000))) return Response.json({ error: 'Too many PIN attempts. Try again in 15 minutes.' }, { status: 429 });
         if (!vehicle.driver_pin || typeof body.pin !== 'string' || !/^\d{4}$/.test(body.pin) || body.pin !== vehicle.driver_pin) return Response.json({ error: 'Incorrect PIN or no PIN configured' }, { status: 403 });
-        return Response.json({ ok: true });
+        return Response.json({ ok: true, driver_grant: await issueGrant(base44, device, 'driver', vehicleId, 12 * 3600_000) });
       }
       case 'heartbeat': {
         const vehicle = await loadVehicle(base44, vehicleId);
