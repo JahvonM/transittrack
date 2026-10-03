@@ -37,6 +37,7 @@ async function loadStaffDirectory(base44, companyId) {
         nfc_tag: c.nfc_card_tag || u.nfc_tag_id || '',
         access_code: c.access_code || u.access_code || '',
         one_time_code: u.one_time_code || '', one_time_code_expires_at: u.one_time_code_expires_at || null,
+        vehicle_id: c.vehicle_id || '', vehicle_name: c.vehicle_name || '',
       };
     }),
     ...orphanUsers.map((u) => ({
@@ -44,6 +45,7 @@ async function loadStaffDirectory(base44, companyId) {
       email: u.email || '', photo_url: u.photo_url || '', nfc_tag: u.nfc_tag_id || '',
       access_code: u.access_code || '',
       one_time_code: u.one_time_code || '', one_time_code_expires_at: u.one_time_code_expires_at || null,
+      vehicle_id: '', vehicle_name: '',
     })),
   ];
 }
@@ -83,6 +85,19 @@ function occurredAt(value) {
   const now = Date.now();
   if (Number.isFinite(t) && t <= now + 60_000 && t >= now - 72 * 3600_000) return new Date(t).toISOString();
   return new Date(now).toISOString();
+}
+
+// A passenger's card or code only works on the bus they're assigned to in
+// Admin → Card issuing. Returns the refusal to send back, or null if fine.
+function wrongBus(person, vehicleId) {
+  if (!person || !vehicleId) return null;
+  if (!person.vehicle_id) {
+    return { error: 'no_bus', staff_name: person.full_name, message: `${person.full_name} isn't assigned to a bus yet. Ask the office to pick their bus in Card issuing.` };
+  }
+  if (person.vehicle_id !== vehicleId) {
+    return { error: 'wrong_bus', staff_name: person.full_name, bus_name: person.vehicle_name || '', message: `${person.full_name} rides ${person.vehicle_name || 'another bus'}, not this one.` };
+  }
+  return null;
 }
 
 const VEHICLE_ONLY_ACTIONS = new Set(['check_in', 'lookup_tag', 'lookup_code']);
@@ -140,6 +155,7 @@ export default async function(req) {
             id: s.id, full_name: s.full_name, photo_url: s.photo_url || '',
             nfc_tag: s.nfc_tag || '', access_code: s.access_code || '',
             one_time_code: s.one_time_code || '', one_time_code_expires_at: s.one_time_code_expires_at || null,
+            vehicle_id: s.vehicle_id || '', vehicle_name: s.vehicle_name || '',
           })),
         });
       }
@@ -149,6 +165,8 @@ export default async function(req) {
         const directory = await loadStaffDirectory(base44, companyId);
         const person = directory.find((s) => s.nfc_tag && s.nfc_tag === sanitize(body.card_tag));
         if (!person) return Response.json({ error: 'badge_not_registered' }, { status: 404 });
+        const refusal = wrongBus(person, vehicleId);
+        if (refusal) return Response.json(refusal, { status: 403 });
         const status = await nextStatus(base44, vehicleId, 'card_tag', person.nfc_tag || person.id);
         return Response.json({ staff: { id: person.id, full_name: person.full_name, photo_url: person.photo_url }, next_status: status });
       }
@@ -168,6 +186,8 @@ export default async function(req) {
           codeType = 'one_time';
         }
         if (!person) return Response.json({ error: 'code_not_recognized' }, { status: 404 });
+        const refusal = wrongBus(person, vehicleId);
+        if (refusal) return Response.json(refusal, { status: 403 });
         const status = await nextStatus(base44, vehicleId, 'card_tag', person.nfc_tag || person.id);
         return Response.json({ staff: { id: person.id, full_name: person.full_name, photo_url: person.photo_url }, next_status: status, code_type: codeType });
       }
@@ -200,6 +220,8 @@ export default async function(req) {
         if (!staff_id && !staff_name) return Response.json({ error: 'staff_id or staff_name required' }, { status: 400 });
         const directory = await loadStaffDirectory(base44, companyId);
         const person = directory.find((s) => s.id === sanitize(staff_id)) || null;
+        const refusal = wrongBus(person, vehicleId);
+        if (refusal) return Response.json(refusal, { status: 403 });
         const cardTag = person?.nfc_tag || person?.id || sanitize(staff_id) || sanitize(staff_name);
         const status = ['boarded', 'off_board'].includes(requestedStatus)
           ? requestedStatus
