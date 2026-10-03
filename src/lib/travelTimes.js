@@ -233,7 +233,10 @@ export function learnedEta({ stats, stops, pos, target, now = Date.now(), timeZo
       minTrips = minTrips == null ? n : Math.min(minTrips, n);
     }
     // Waiting at the stops in between (not the one you're waiting at).
-    if (i + 1 < target) seconds += typicalSeconds(dwells[stopKey(b)], bucket) || 0;
+    if (i + 1 < target) {
+      const wait = typicalSeconds(dwells[stopKey(b)], bucket);
+      if (wait) { seconds += wait; fromLearned += wait; }
+    }
   }
   return { seconds: Math.round(seconds), learnedShare: seconds > 0 ? fromLearned / seconds : 0, trips: minTrips };
 }
