@@ -70,6 +70,17 @@ function SizeWatch() {
   return null;
 }
 
+// Fly to a vehicle picked outside the map (see focusVehicleId).
+function FocusOn({ target, nonce }) {
+  const map = useMap();
+  useEffect(() => {
+    if (!target) return;
+    map.flyTo([target.current_lat, target.current_lng], Math.max(map.getZoom(), 16), { duration: 0.9 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [target?.id, nonce]);
+  return null;
+}
+
 export default function LiteMap({
   vehicles = [],
   stops = [],
@@ -86,6 +97,8 @@ export default function LiteMap({
   showRecenter = true,
   onDragStart,
   fill = false, // fill the parent box instead of using `height`
+  focusVehicleId = null,
+  focusKey = 0,
 }) {
   const isDark = useIsDark();
   const accent = mapAccentFor(isDark);
@@ -130,7 +143,8 @@ export default function LiteMap({
       >
         <TileLayer key={isDark ? "dark" : "light"} url={tileUrl(isDark)} tileSize={512} zoomOffset={-1} maxZoom={19} />
         <SizeWatch />
-        <FitOnce points={fitPoints} skip={!!center || followUser} />
+        <FitOnce points={fitPoints} skip={!!center || followUser || !!focusVehicleId} />
+        <FocusOn target={liveVehicles.find((v) => v.id === focusVehicleId) || null} nonce={focusKey} />
         {followUser && (
           <Follow target={userLocation} following={following} onDragStart={() => { setFollowing(false); onDragStart?.(); }} />
         )}

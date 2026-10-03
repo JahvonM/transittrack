@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Bus, Lock, Radar, Radio, MapPin, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -26,6 +26,14 @@ export default function LiveFleetTab({ vehicles, onVehicleUpdate }) {
   const [busy, setBusy] = useState(null);
   const [occupancy, setOccupancy] = useState({});
   const withLocation = vehicles.filter((v) => v.current_lat != null);
+  // Tapping a bus in the list centres the map on it.
+  const [focus, setFocus] = useState({ id: null, n: 0 });
+  const mapBox = useRef(null);
+  const showOnMap = (v) => {
+    if (v.current_lat == null) { toast({ title: `${v.name} has no location yet` }); return; }
+    setFocus((f) => ({ id: v.id, n: f.n + 1 }));
+    mapBox.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  };
 
   // Every boarding/exit already lands in StaffCheckIn — this just aggregates
   // the latest record per person per vehicle into a live headcount, so
@@ -68,15 +76,23 @@ export default function LiveFleetTab({ vehicles, onVehicleUpdate }) {
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">{withLocation.length} of {vehicles.length} vehicles with last known position</p>
       </div>
-      <div className="rounded-2xl overflow-hidden border h-[50vh]">
-        <MapboxMap vehicles={withLocation} userLocation={userLoc} height="100%" />
+      <div ref={mapBox} className="rounded-2xl overflow-hidden border h-[50vh] scroll-mt-4">
+        <MapboxMap vehicles={withLocation} userLocation={focus.id ? null : userLoc} height="100%" focusVehicleId={focus.id} focusKey={focus.n} />
       </div>
       <div className="grid sm:grid-cols-2 gap-2">
         {vehicles.map((v) => {
           const locked = !!v.remote_tracking_lock;
           const tracking = !!v.tracking_active;
           return (
-            <div key={v.id} className="p-3 rounded-xl border bg-card space-y-2">
+            <div
+              key={v.id}
+              role="button"
+              tabIndex={0}
+              onClick={() => showOnMap(v)}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); showOnMap(v); } }}
+              aria-label={`Show ${v.name} on the map`}
+              className={`p-3 rounded-xl border bg-card space-y-2 cursor-pointer transition-colors hover:border-primary/60 ${focus.id === v.id ? "border-primary ring-1 ring-primary" : ""}`}
+            >
               <div className="flex items-center justify-between gap-2">
                 <div className="font-medium text-sm flex items-center gap-2">
                   <Bus className="w-4 h-4 text-primary" />
@@ -104,7 +120,7 @@ export default function LiveFleetTab({ vehicles, onVehicleUpdate }) {
                 </div>
               </div>
               {v.current_lat != null && userLoc && <BusDistance vehicle={v} userLocation={userLoc} />}
-              <div className="flex gap-2">
+              <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
                 {!tracking && (
                   <Button size="sm" variant="default" disabled={busy === v.id} onClick={() => remoteStart(v)}>
                     <Radar className="w-3.5 h-3.5 mr-1" /> Start tracking

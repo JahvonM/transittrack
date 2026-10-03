@@ -67,6 +67,10 @@ export default function MapboxMap({
   // Called if the map engine can't start on this device (no WebGL), so the
   // wrapper can swap in the basic map.
   onEngineFail,
+  // Fly to and open this vehicle (e.g. picked from a list beside the map).
+  // focusKey changes on every pick, so picking the same bus again re-centers.
+  focusVehicleId = null,
+  focusKey = 0,
 }) {
   const mapRef = useRef(null);
   const hasFitted = useRef(false);
@@ -121,6 +125,19 @@ export default function MapboxMap({
     hasFitted.current = true;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mapLoaded, allPoints.length, center, followUser]);
+
+  // A vehicle picked outside the map: fly to it and show its details.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!mapLoaded || !map || !focusVehicleId) return;
+    const v = vehicles.find((x) => x.id === focusVehicleId);
+    if (!v || v.current_lat == null) return;
+    hasFitted.current = true;
+    hasUserCentered.current = true;
+    setSelectedVehicle(v);
+    map.flyTo({ center: [v.current_lng, v.current_lat], zoom: Math.max(map.getZoom(), 15.5), duration: 900 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mapLoaded, focusVehicleId, focusKey]);
 
   // Once the user's position is known, fly to it so the map centers on them.
   // Also skipped in followUser mode — same reasoning as above.
