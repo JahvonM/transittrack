@@ -219,4 +219,38 @@ key work. Frontend has not been published. Base44 automatically syncs backend
 function edits, so publish the updated frontend as a coordinated development
 rollout before relying on existing tablet PIN screens. Old frontend builds
 expect a raw driver PIN and are incompatible with the new heartbeat contract.
-STEP 3 is not started.
+STEP 3 subsequently authorized; see below.
+
+
+## Pre-production security — STEP 3 (2026-10-03)
+
+User authorized STEP 3. New pairing issues a cryptographically random 256-bit
+bearer token once; only its SHA-256 hash is saved in admin-only DeviceCredential.
+Backend heartbeat/check-in/driver paths verify token, 90-day expiry, active paired
+state, company/vehicle/type binding and current pairing-code hash. New records
+cannot authenticate using only an ID. Existing devices created before the fixed
+2026-10-03T23:35:39Z cutoff with no credential remain legacy-compatible, as the
+user forbids revoking development tablets. Once enrolled they cannot fall back
+merely by omitting a token. Re-pair all legacy devices before production; legacy
+ID authentication is still present deliberately. No live device records changed.
+
+Tablet clients store the bearer token in a dedicated localStorage entry, attach
+it at request time (including offline replay), and omit it from profiles/session
+caches and queued payload overrides. Tokens remain client bearer secrets; XSS
+can access localStorage. Pairing codes now use crypto randomness (12 characters)
+and expire after 15 minutes when created/regenerated. Existing codes are not
+rewritten. Sequential reuse returns 409, but simultaneous pairing is NOT proven
+atomic: a transactional consume/unique guard is still required before production.
+Expired tokens require admin-assisted re-pairing. Unused kioskDirectory endpoint
+retired with 410. Offline queues retain 401 failures for recovery instead of
+silently deleting them; broader queue/idempotency work remains STEP 6.
+
+Verification: lint/build, 82 unit tests (including 9 token regressions), and two
+mocked Chromium tablet tests pass. Tests create no live accounts/devices. Tests
+cover duplicated backend auth helpers, hash-only pairing, sequential replay,
+expiry/bindings/no downgrade, protected schema and clean caches/current tokens.
+Live non-admin RLS tests and actual tablet rollout remain unverified. Backend
+resources auto-sync; frontend has not been explicitly published. Coordinate
+frontend rollout before re-pairing devices. No signing-key generation or existing
+tablet revocation. STEP 4 has not started. Earlier company isolation, PIN attempts,
+credential directory and public entity risks remain pending their planned steps.
