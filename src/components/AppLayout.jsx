@@ -5,7 +5,25 @@ import { ArrowLeft, LogOut, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Logo from "@/components/Logo";
 
-export default function AppLayout({ children, title }) {
+// Set by the admin area when it shows a full page (Vehicle logs, Location
+// timeline…) inside its own sidebar — the page then skips its own header so
+// there aren't two top bars.
+export const EmbeddedLayout = React.createContext(false);
+
+export default function AppLayout(props) {
+  const embedded = React.useContext(EmbeddedLayout);
+  if (embedded) {
+    return (
+      <div>
+        {props.title && <h1 className="text-2xl font-heading font-semibold mb-4">{props.title}</h1>}
+        {props.children}
+      </div>
+    );
+  }
+  return <FullLayout {...props} />;
+}
+
+function FullLayout({ children, title }) {
   const { user, logout } = useAuth();
   const { pathname } = useLocation();
   const navigate = useNavigate();
