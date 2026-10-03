@@ -1,0 +1,61 @@
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
+
+async function hashSecret(value) {
+ const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
+ return Array.from(new Uint8Array(bytes), b => b.toString(16).padStart(2,'0')).join('');
+}
+function randomSecret() { return Array.from(crypto.getRandomValues(new Uint8Array(32)), b => b.toString(16).padStart(2,'0')).join(''); }
+function randomDigits(len) {
+ let out = '';
+ while (out.length < len) { const b = crypto.getRandomValues(new Uint8Array(1))[0]; if (b < 250) out += b % 10; }
+ return out;
+}
+async function reserveAttempt(base44, key, limit, windowMs) {
+ const rows = await base44.asServiceRole.entities.VerificationAttempt.filter({ scope: key }, '-created_date', limit);
+ const recent = rows.filter(r => Date.parse(r.attempted_at) > Date.now() - windowMs);
+ if (recent.length >= limit) return false;
+ await base44.asServiceRole.entities.VerificationAttempt.create({ scope: key, attempted_at: new Date().toISOString() });
+ return true;
+}
+async function issueGrant(base44, device, purpose, subject, ttlMs) {
+ const secret = randomSecret();
+ await base44.asServiceRole.entities.VerificationGrant.create({
+ token_hash: await hashSecret(secret), device_id: device.id, company_id: device.company_id,
+ vehicle_id: device.vehicle_id, purpose, subject, expires_at: new Date(Date.now()+ttlMs).toISOString(),
+ });
+ return secret;
+}
+async function validGrant(base44, device, token, purpose, subject) {
+ if (typeof token !== 'string' || !/^[a-f0-9]{64}$/.test(token)) return false;
+ const rows = await base44.asServiceRole.entities.VerificationGrant.filter({ token_hash: await hashSecret(token) }, '-created_date', 1);
+ const row = rows[0];
+ return !!row && row.device_id === device.id && row.company_id === device.company_id && row.vehicle_id === device.vehicle_id && row.purpose === purpose && row.subject === subject && Date.parse(row.expires_at) > Date.now();
+}
+
+const displayCompany = company => Object.fromEntries(['id','name','phone','logo_url','service_types'].filter(k => company[k] !== undefined).map(k => [k,company[k]]));
+export default async function(req) {
+ try {
+  const base44 = createClientFromRequest(req);
+  const user = await base44.auth.me().catch(() => null);
+  if (!user || !['staff','admin','company'].includes(user.role)) return Response.json({ error: 'Sign in to continue' }, { status: 401 });
+  const body = await req.json();
+  if (body.action === 'context') {
+   if (typeof body.grant !== 'string' || !/^[a-f0-9]{64}$/.test(body.grant)) return Response.json({ error: 'Company code required' }, { status: 401 });
+   const rows = await base44.asServiceRole.entities.CompanyAccessGrant.filter({ user_id: user.id, token_hash: await hashSecret(body.grant) }, '-created_date', 1);
+   const row = rows[0];
+   if (!row || !(Date.parse(row.expires_at) > Date.now())) return Response.json({ error: 'Company code required' }, { status: 401 });
+   const company = await base44.asServiceRole.entities.Company.get(row.company_id);
+   if (!company || row.code_hash !== await hashSecret(company.access_code || '')) return Response.json({ error: 'Company code required' }, { status: 401 });
+   return Response.json({ company: displayCompany(company) });
+  }
+  if (!(await reserveAttempt(base44, 'company-code:' + user.id, 5, 15 * 60_000))) return Response.json({ error: 'Too many attempts. Try again in 15 minutes.' }, { status: 429 });
+  const code = typeof body.code === 'string' ? body.code.trim().toUpperCase() : '';
+  if (!/^[A-Z0-9]{4,12}$/.test(code)) return Response.json({ error: 'Invalid company code' }, { status: 403 });
+  const rows = await base44.asServiceRole.entities.Company.filter({ access_code: code }, '-created_date', 2);
+  if (rows.length !== 1) return Response.json({ error: 'Invalid company code' }, { status: 403 });
+  const company = rows[0], grant = randomSecret();
+  await base44.asServiceRole.entities.CompanyAccessGrant.create({ user_id: user.id, company_id: company.id, token_hash: await hashSecret(grant), code_hash: await hashSecret(code), expires_at: new Date(Date.now()+30*86400_000).toISOString() });
+  // Passenger fleet access is not an ownership, role or trusted membership change.
+  return Response.json({ company: displayCompany(company), grant });
+ } catch { return Response.json({ error: 'Could not verify company access' }, { status: 500 }); }
+}
