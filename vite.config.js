@@ -2,6 +2,11 @@ import base44 from "@base44/vite-plugin"
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 
+// Build stamp shown in Admin → Fleet health, so you can see which tablets
+// are still running an older version. Also written into offline-manifest.json
+// so a tablet can tell a newer version has been published.
+const APP_BUILD = new Date().toISOString().slice(0, 16).replace('T', ' ');
+
 // Lists every file in the build so the service worker (public/sw.js) can
 // save them all and the app opens with no WiFi.
 function offlineManifest() {
@@ -10,14 +15,10 @@ function offlineManifest() {
     apply: 'build',
     generateBundle(_options, bundle) {
       const files = Object.keys(bundle).filter((f) => !f.endsWith('.map') && f !== 'index.html');
-      this.emitFile({ type: 'asset', fileName: 'offline-manifest.json', source: JSON.stringify({ built: new Date().toISOString(), files }) });
+      this.emitFile({ type: 'asset', fileName: 'offline-manifest.json', source: JSON.stringify({ built: new Date().toISOString(), build: APP_BUILD, files }) });
     },
   };
 }
-
-// Build stamp shown in Admin → Fleet health, so you can see which tablets
-// are still running an older version.
-const APP_BUILD = new Date().toISOString().slice(0, 16).replace('T', ' ');
 
 // https://vite.dev/config/
 export default defineConfig({
