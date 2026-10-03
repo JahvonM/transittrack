@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { Activity, AlertTriangle, BatteryLow, Bus, CloudUpload, CreditCard, MapPinOff, RefreshCw, TabletSmartphone } from "lucide-react";
+import { Activity, AlertTriangle, BatteryLow, Satellite, Bus, CloudUpload, CreditCard, MapPinOff, RefreshCw, TabletSmartphone } from "lucide-react";
 import { APP_BUILD } from "@/lib/appHealth";
 
 // One screen for "is everything working out there?": per bus, how fresh its
@@ -66,6 +66,21 @@ function tabletStatus(d, kind) {
   return { tone: "bad", text: m === Infinity ? "Never connected" : `Offline ${ago(d.last_seen)}`, sub };
 }
 
+// The USB GPS module, as reported by the TransitTrack Helper app on
+// whichever tablet it's plugged into.
+function gpsModuleStatus(...devices) {
+  const d = devices.find((x) => x?.helper_health?.gps);
+  if (!d) return { tone: "idle", text: "Not reported", sub: "no GPS module seen" };
+  const h = d.helper_health;
+  const g = String(h.gps);
+  const sub = `${d.kiosk_type === "driver" ? "driver tablet" : "boarding tablet"} · ${ago(h.reported_at)}`;
+  if (minsSince(h.reported_at) > 10) return { tone: "idle", text: "No recent report", sub };
+  if (/^fix|connected|giving/i.test(g)) return { tone: "ok", text: "Working", sub: `${g} · ${sub}` };
+  if (/searching/i.test(g)) return { tone: "warn", text: "Searching for satellites", sub };
+  if (/off|paused/i.test(g)) return { tone: "idle", text: g, sub };
+  return { tone: "bad", text: g, sub };
+}
+
 function readerStatus(d) {
   if (!d) return null;
   const h = d.helper_health || {};
@@ -123,6 +138,7 @@ export default function FleetHealthTab({ vehicles = [] }) {
         driver: tabletStatus(driver, "driver"),
         boarding: tabletStatus(boarding, "boarding"),
         reader: readerStatus(boarding),
+        gpsModule: gpsModuleStatus(driver, boarding),
       };
       const lowBattery = [driver, boarding].some((d) => typeof d?.helper_health?.battery === "number" && d.helper_health.battery <= 20 && !d.helper_health.charging);
       const problem = Object.values(cells).some((c) => c && (c.tone === "bad" || c.tone === "warn")) || waiting > 0 || errs > 0 || lowBattery;
@@ -136,6 +152,7 @@ export default function FleetHealthTab({ vehicles = [] }) {
     { label: "GPS lost / late", value: rows.filter((r) => ["bad", "warn"].includes(r.cells.gps.tone)).length, icon: MapPinOff, tone: "bad" },
     { label: "Tablets offline", value: rows.reduce((n, r) => n + ["driver", "boarding"].filter((k) => (r[k] && r.cells[k].tone === "bad")).length, 0), icon: TabletSmartphone, tone: "bad" },
     { label: "Card reader problems", value: rows.filter((r) => r.cells.reader?.tone === "bad").length, icon: CreditCard, tone: "bad" },
+    { label: "GPS module problems", value: rows.filter((r) => r.cells.gpsModule.tone === "bad").length, icon: Satellite, tone: "bad" },
     { label: "Waiting to upload", value: rows.reduce((n, r) => n + r.waiting, 0), icon: CloudUpload, tone: "warn" },
     { label: "App errors (24 h)", value: errors.length, icon: AlertTriangle, tone: "bad" },
   ];
@@ -152,7 +169,7 @@ export default function FleetHealthTab({ vehicles = [] }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-2">
+      <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-7 gap-2">
         {tiles.map((t) => {
           const Icon = t.icon;
           const alert = t.value > 0 && t.tone !== "ok";
@@ -173,6 +190,7 @@ export default function FleetHealthTab({ vehicles = [] }) {
               <th className="px-3 py-2 font-medium">GPS</th>
               <th className="px-3 py-2 font-medium">Driver tablet</th>
               <th className="px-3 py-2 font-medium">Boarding tablet</th>
+              <th className="px-3 py-2 font-medium">GPS module</th>
               <th className="px-3 py-2 font-medium">Card reader</th>
               <th className="px-3 py-2 font-medium">Waiting</th>
               <th className="px-3 py-2 font-medium">Errors 24 h</th>
@@ -180,7 +198,7 @@ export default function FleetHealthTab({ vehicles = [] }) {
           </thead>
           <tbody>
             {shown.length === 0 && (
-              <tr><td colSpan={7} className="px-3 py-10 text-center text-muted-foreground">{problemsOnly ? "No problems right now." : "No buses yet."}</td></tr>
+              <tr><td colSpan={8} className="px-3 py-10 text-center text-muted-foreground">{problemsOnly ? "No problems right now." : "No buses yet."}</td></tr>
             )}
             {shown.map((r) => (
               <tr key={r.v.id} className={`border-b last:border-0 align-top ${r.problem ? "" : "opacity-90"}`}>
@@ -191,6 +209,7 @@ export default function FleetHealthTab({ vehicles = [] }) {
                 <td className="px-3 py-2.5"><Cell s={r.cells.gps} /></td>
                 <td className="px-3 py-2.5"><Cell s={r.cells.driver} /></td>
                 <td className="px-3 py-2.5"><Cell s={r.cells.boarding} /></td>
+                <td className="px-3 py-2.5"><Cell s={r.cells.gpsModule} /></td>
                 <td className="px-3 py-2.5"><Cell s={r.cells.reader} /></td>
                 <td className="px-3 py-2.5">
                   {r.waiting > 0

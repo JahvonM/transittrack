@@ -8,7 +8,7 @@ import StaffRouteList from "@/components/driver/StaffRouteList";
 import SosButton from "@/components/driver/SosButton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Navigation, Radio, Lock, Users, AlertTriangle } from "lucide-react";
+import { Navigation, Radio, Lock, Users, AlertTriangle, Satellite } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { queueGpsPoint, queuedGpsCount, flushGpsQueue, GPS_QUEUE_EVENT } from "@/lib/gpsQueue";
 import { noteGpsFix } from "@/lib/appHealth";
@@ -220,6 +220,18 @@ export default function DriverTrackingDashboard({ session, invoke, onReportIncid
     : lastSentAt ? { tone: "ok", text: `GPS live · sent ${ago(lastSentAt)} ago` }
     : { tone: "muted", text: "Waiting for first GPS fix…" };
 
+  // The USB GPS module, if this tablet has one (reported by the TransitTrack
+  // Helper app; refreshed every 15 s by the tick above).
+  const moduleGps = (() => {
+    const g = typeof window !== "undefined" ? window.__ttHelperHealth?.gps : null;
+    if (!g) return null;
+    const text = String(g);
+    if (/^fix|connected|giving/i.test(text)) return { tone: "ok", text };
+    if (/searching/i.test(text)) return { tone: "warn", text };
+    if (/off|paused/i.test(text)) return { tone: "idle", text };
+    return { tone: "bad", text };
+  })();
+
   // Sized to the screen with nothing to scroll: landscape = map | panel,
   // portrait = map on top, two panel columns below. Lists show what fits and
   // open the rest in a sheet.
@@ -266,6 +278,11 @@ export default function DriverTrackingDashboard({ session, invoke, onReportIncid
                   </Button>
                 )}
               </div>
+              {moduleGps && (
+                <p className={`text-xs flex items-center gap-1.5 ${moduleGps.tone === "warn" ? "text-amber-600 dark:text-amber-400" : moduleGps.tone === "ok" ? "text-green-700 dark:text-green-400" : moduleGps.tone === "bad" ? "text-destructive" : "text-muted-foreground"}`}>
+                  <Satellite className="w-3.5 h-3.5 shrink-0" /> GPS module: {moduleGps.text}
+                </p>
+              )}
               {health && (
                 <p role="status" className={`text-xs flex items-center gap-1.5 ${health.tone === "warn" ? "text-amber-600 dark:text-amber-400" : health.tone === "ok" ? "text-green-700 dark:text-green-400" : "text-muted-foreground"}`}>
                   <span className={`w-2 h-2 rounded-full shrink-0 ${health.tone === "warn" ? "bg-amber-500" : health.tone === "ok" ? "bg-green-500" : "bg-muted-foreground"}`} />
