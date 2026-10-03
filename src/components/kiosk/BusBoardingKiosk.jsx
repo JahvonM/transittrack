@@ -195,17 +195,30 @@ export default function BusBoardingKiosk({ invoke, device }) {
   const [occupancy, setOccupancy] = useState(0);
   const [attractSlide, setAttractSlide] = useState(0);
   const resetTimer = useRef(null);
+  // When the current card lookup started (0 = none). A lookup that never
+  // answers (weak bus signal) must not block every tap after it.
+  const lookupStarted = useRef(0);
 
   // Web NFC needs the slide-to-unlock gesture before it can scan, but a USB
   // badge reader doesn't — so with one attached, a tap works straight from the
-  // attract screen too.
-  const idleListening = (unlocked || hasExternalReader()) && mode === "idle";
+  // attract screen too. A new tap is also taken on the confirm, welcome and
+  // error screens (it replaces what's showing), so a person who walks away
+  // without pressing Boarding/Exiting can't leave the reader dead for the next.
+  const idleListening = (unlocked || hasExternalReader()) && mode !== "qr";
   const { supported: nfcSupported, listening: nfcListening, nfcError } = useNfcTap(
     (tag) => handleTag(tag),
     idleListening
   );
 
   useEffect(() => () => clearTimeout(resetTimer.current), []);
+
+  // Nobody pressed Boarding/Exiting (or closed the QR camera)? Go back to
+  // the start screen on its own.
+  useEffect(() => {
+    if (mode !== "confirm" && mode !== "qr") return undefined;
+    const t = setTimeout(() => { setMode("idle"); setPending(null); }, mode === "confirm" ? 25000 : 60000);
+    return () => clearTimeout(t);
+  }, [mode, pending]);
 
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 1000);
@@ -342,7 +355,11 @@ export default function BusBoardingKiosk({ invoke, device }) {
   };
 
   const handleTag = async (tag) => {
-    if (busy) return;
+    if (lookupStarted.current && Date.now() - lookupStarted.current < 12000) return;
+    lookupStarted.current = Date.now();
+    clearTimeout(resetTimer.current);
+    setResult(null);
+    setBadgeError("");
     setBusy(true);
     try {
       const res = await invoke("lookup_tag", { card_tag: tag });
@@ -362,6 +379,7 @@ export default function BusBoardingKiosk({ invoke, device }) {
       setMode("badge_error");
       resetSoon(3500);
     } finally {
+      lookupStarted.current = 0;
       setBusy(false);
     }
   };

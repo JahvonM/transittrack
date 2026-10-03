@@ -19,6 +19,11 @@ const TYPE_META = {
 };
 
 const HEARTBEAT_MS = 30000;
+
+const withTimeout = (promise, ms) => new Promise((resolve, reject) => {
+  const t = setTimeout(() => reject(Object.assign(new Error("Timed out"), { timedOut: true })), ms);
+  promise.then((v) => { clearTimeout(t); resolve(v); }, (e) => { clearTimeout(t); reject(e); });
+});
 const DIRECTORY_MS = 5 * 60 * 1000;
 
 const initialStoredId = () => { try { return localStorage.getItem("tt_kiosk_device_id"); } catch { return null; } };
@@ -161,7 +166,11 @@ export default function Kiosk() {
   // With no connection, card and code lookups are answered from the saved list.
   const invoke = useCallback(async (action, payload = {}) => {
     try {
-      const res = await base44.functions.invoke("kioskCheckIn", { device_id: deviceId, action, ...payload });
+      // A request that never answers (bus WiFi connected but no internet)
+      // counts as offline after a few seconds, so card lookups fall back to
+      // the saved list and check-ins are queued instead of hanging.
+      const ms = action === "lookup_tag" || action === "lookup_code" ? 4000 : action === "check_in" ? 12000 : 20000;
+      const res = await withTimeout(base44.functions.invoke("kioskCheckIn", { device_id: deviceId, action, ...payload }), ms);
       if (action === "check_in" && payload.staff_id) noteStatus(payload.staff_id, payload.status);
       setOnline(true);
       return res.data;
