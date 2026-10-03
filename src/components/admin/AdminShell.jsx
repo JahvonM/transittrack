@@ -204,7 +204,7 @@ export default function AdminShell({ active, onNavigate, children, alertVehicles
         </div>
       </div>
       <div className="flex gap-6">
-        <aside className="hidden md:block w-52 shrink-0">
+        <aside className="hidden md:block w-52 shrink-0 sticky top-20 self-start max-h-[calc(100vh-6rem)] overflow-y-auto pr-1">
           <NavList />
         </aside>
         <div className="flex-1 min-w-0">{children}</div>

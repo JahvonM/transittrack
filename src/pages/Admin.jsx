@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from "react";
+import React, { Suspense, lazy, useEffect, useState } from "react";
 import { Navigate, Link, useParams, useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
-import AppLayout from "@/components/AppLayout";
+import AppLayout, { EmbeddedLayout } from "@/components/AppLayout";
 import AdminShell from "@/components/admin/AdminShell";
 import AssignTripsTab from "@/components/admin/AssignTripsTab";
 import LiveFleetTab from "@/components/admin/LiveFleetTab";
@@ -86,24 +86,43 @@ const PORTAL_LINKS = [
   { to: "/reviewer-sandbox", label: "Reviewer Sandbox", icon: FlaskConical },
 ];
 
+// Full pages that also open inside the admin area, under the sidebar, so the
+// management tools are one click away instead of behind the Overview.
+const ADMIN_PAGES = {
+  "vehicle-logs": lazy(() => import("@/pages/VehicleLogs")),
+  "driving-reports": lazy(() => import("@/pages/DrivingReports")),
+  "location-timeline": lazy(() => import("@/pages/LocationTimeline")),
+  "route-analytics": lazy(() => import("@/pages/RouteAnalytics")),
+  "fleet-analytics": lazy(() => import("@/pages/FleetAnalytics")),
+  "route-planner": lazy(() => import("@/pages/RoutePlanner")),
+  "route-explorer": lazy(() => import("@/pages/RouteExplorer")),
+  "service-history": lazy(() => import("@/pages/ServiceHistory")),
+  "incident-reports": lazy(() => import("@/pages/IncidentReports")),
+  "safety-standards": lazy(() => import("@/pages/SafetyStandards")),
+  directory: lazy(() => import("@/pages/StaffDirectory")),
+  "ride-history": lazy(() => import("@/pages/RideHistory")),
+  "passenger-bookings": lazy(() => import("@/pages/PassengerBookings")),
+  support: lazy(() => import("@/pages/PassengerSupport")),
+};
+
 const MGMT_LINKS = [
   { to: "/vehicle-registry", label: "Vehicles & Drivers", icon: Car },
-  { to: "/service-history", label: "Service History", icon: History },
-  { to: "/vehicle-logs", label: "Vehicle Logs", icon: FileText },
-  { to: "/safety-standards", label: "Safety Standards", icon: ShieldCheck },
-  { to: "/incident-reports", label: "Incident Reports", icon: AlertTriangle },
+  { to: "/admin/service-history", label: "Service History", icon: History },
+  { to: "/admin/vehicle-logs", label: "Vehicle Logs", icon: FileText },
+  { to: "/admin/safety-standards", label: "Safety Standards", icon: ShieldCheck },
+  { to: "/admin/incident-reports", label: "Incident Reports", icon: AlertTriangle },
   { to: "/incident-report", label: "Report Incident", icon: LifeBuoy },
-  { to: "/driving-reports", label: "Driving Reports", icon: Gauge },
-  { to: "/location-timeline", label: "Location Timeline", icon: History },
-  { to: "/route-planner", label: "Route Planner", icon: Map },
-  { to: "/route-explorer", label: "Route Explorer", icon: Route },
-  { to: "/route-analytics", label: "Route Analytics", icon: LineChart },
-  { to: "/fleet-analytics", label: "Fleet Analytics", icon: LineChart },
-  { to: "/ride-history", label: "Ride History", icon: History },
-  { to: "/passenger-bookings", label: "Passenger Bookings", icon: BookOpen },
-  { to: "/staff-directory", label: "Staff Directory", icon: Users },
+  { to: "/admin/driving-reports", label: "Driving Reports", icon: Gauge },
+  { to: "/admin/location-timeline", label: "Location Timeline", icon: History },
+  { to: "/admin/route-planner", label: "Route Planner", icon: Map },
+  { to: "/admin/route-explorer", label: "Route Explorer", icon: Route },
+  { to: "/admin/route-analytics", label: "Route Analytics", icon: LineChart },
+  { to: "/admin/fleet-analytics", label: "Fleet Analytics", icon: LineChart },
+  { to: "/admin/ride-history", label: "Ride History", icon: History },
+  { to: "/admin/passenger-bookings", label: "Passenger Bookings", icon: BookOpen },
+  { to: "/admin/directory", label: "Passenger directory", icon: Users },
   { to: "/notifications", label: "Notifications", icon: Bell },
-  { to: "/support", label: "Passenger Support", icon: LifeBuoy },
+  { to: "/admin/support", label: "Passenger Support", icon: LifeBuoy },
 ];
 
 function Stat({ label, value }) {
@@ -495,6 +514,13 @@ export default function Admin() {
         {section === "ads" && <AdsTab />}
         {section === "copilot" && <CopilotTab />}
         {section === "data" && <DataTab />}
+        {ADMIN_PAGES[section] && (
+          <EmbeddedLayout.Provider value={true}>
+            <Suspense fallback={<BusLoader className="py-12" />}>
+              {React.createElement(ADMIN_PAGES[section])}
+            </Suspense>
+          </EmbeddedLayout.Provider>
+        )}
         {section === "profile" && (
           <div className="max-w-xl">
             <ProfileInfo />
