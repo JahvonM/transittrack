@@ -186,7 +186,7 @@ export default function LocationReplay({ vehicles = [], initialVehicleId = "" })
                 onEngineFail={() => { markFullMapFailed(); setBasic(true); }}
               />
             </Suspense>
-            <div className="absolute top-3 left-3 bg-card/95 backdrop-blur border border-border rounded-lg px-3 py-2 text-xs shadow pointer-events-none" data-testid="replay-clock">
+            <div className="absolute top-3 right-3 z-[500] bg-card/95 backdrop-blur border border-border rounded-lg px-3 py-2 text-xs shadow pointer-events-none" data-testid="replay-clock">
               <span className="font-semibold tabular-nums">{position ? clock(position.time) : "—"}</span>
               {position?.kmh != null && <span className="ml-2 text-muted-foreground tabular-nums">{Math.round(position.kmh)} km/h</span>}
               {snapping && <span className="ml-2 text-muted-foreground">· matching to roads…</span>}
