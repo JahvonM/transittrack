@@ -308,6 +308,7 @@ export default async function(req) {
             id: i.id, template_id: i.template_id || null, template_name: i.template_name || null,
             status: i.status, created_date: i.created_date,
           })),
+          update_requested_at: device.update_requested_at || null,
         });
       }
 
