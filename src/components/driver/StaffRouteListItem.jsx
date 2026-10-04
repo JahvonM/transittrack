@@ -30,14 +30,14 @@ export default function StaffRouteListItem({ s, vehicle, onAttend }) {
   return (
     <div
       className={`flex items-center gap-2 p-2.5 rounded-xl border bg-card transition-colors ${
-        skipped ? "opacity-40" : close ? "border-green-500/50 bg-green-500/5" : late ? "border-amber-500/50 bg-amber-500/5" : ""
+        skipped ? "bg-muted/40 text-muted-foreground" : close ? "border-green-500/50 bg-green-500/5" : late ? "border-amber-500/50 bg-amber-500/5" : ""
       }`}
     >
       <div className="flex-1 min-w-0">
         <div className="text-sm font-medium truncate">
           {s.full_name || s.email}
           {skipped && <span className="ml-2 text-xs text-muted-foreground">(skipping)</span>}
-          {late && <span className="ml-2 text-xs text-amber-400">(running late)</span>}
+          {late && <span className="ml-2 text-xs font-semibold text-warning">(running late)</span>}
         </div>
         <div className="text-xs text-muted-foreground">
           {s.dist != null

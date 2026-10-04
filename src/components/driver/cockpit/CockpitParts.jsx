@@ -110,7 +110,7 @@ export function DeckButton({ icon: Icon, state, action, onClick, primary = false
       className={cn(
         "group flex min-h-[88px] w-full min-w-0 flex-col justify-between gap-2 rounded-xl border px-4 py-3 text-left transition-[background-color,transform] duration-fast active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 disabled:active:scale-100",
         primary ? "border-primary bg-primary text-primary-foreground hover:shadow-md"
-          : danger ? "border-danger/50 bg-danger/12 text-danger hover:bg-danger/20"
+          : danger ? "border-danger/50 bg-danger/12 text-danger hover:border-danger"
             : "border-border bg-card hover:bg-accent",
       )}
     >

@@ -78,7 +78,7 @@ export default function SosButton({ vehicle, invoke, emergencyContacts, compact 
         <Siren className={`${compact ? "w-6 h-6" : "w-8 h-8"} text-destructive shrink-0 ${holding ? "animate-ping" : ""}`} />
         {compact ? (
           <span className="flex flex-col">
-            <span className="font-bold text-destructive leading-tight">{fired ? "SOS SENT" : holding ? "HOLD…" : "SOS"}</span>
+            <span className="font-bold text-danger leading-tight">{fired ? "SOS SENT" : holding ? "HOLD…" : "SOS"}</span>
             <span className="text-xs text-muted-foreground">
               {fired ? "Admin notified" : cooldown ? "Available again shortly…" : "Press and hold to activate"}
             </span>

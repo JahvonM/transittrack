@@ -55,7 +55,7 @@ export default function DriverStops({ session, passengers, trips }) {
         stops.length === 0 ? (
           <p className="py-8 text-center text-muted-foreground">This bus has no stops yet. Ask dispatch to assign a route.</p>
         ) : (
-          <ol className="m-0 list-none p-0" role="tabpanel">
+          <div role="tabpanel"><ol className="m-0 list-none p-0">
             {stops.map((st, i) => {
               const passed = nextIndex != null && i < nextIndex;
               const isNext = i === nextIndex;
@@ -81,7 +81,7 @@ export default function DriverStops({ session, passengers, trips }) {
                 </li>
               );
             })}
-          </ol>
+          </ol></div>
         )
       ) : (
         <div className="space-y-4" role="tabpanel">
