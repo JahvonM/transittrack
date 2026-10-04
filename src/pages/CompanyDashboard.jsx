@@ -1,3 +1,4 @@
+import AdsTab from "@/components/admin/AdsTab";
 import React, { useEffect, useState } from "react";
 import { Navigate, useParams, useNavigate, Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
@@ -117,6 +118,7 @@ export default function CompanyDashboard() {
           <TabsTrigger value="vehicles"><Bus className="w-4 h-4 mr-1.5" />Vehicles ({vehicles.length})</TabsTrigger>
           <TabsTrigger value="routes"><RouteIcon className="w-4 h-4 mr-1.5" />Routes ({routes.length})</TabsTrigger>
           <TabsTrigger value="trips"><MapPin className="w-4 h-4 mr-1.5" />Trips ({trips.length})</TabsTrigger>
+          <TabsTrigger value="ads">Advertisements</TabsTrigger>
           <TabsTrigger value="profile"><User className="w-4 h-4 mr-1.5" />Profile</TabsTrigger>
         </TabsList>
         <TabsContent value="vehicles" className="mt-4">
@@ -128,6 +130,7 @@ export default function CompanyDashboard() {
         <TabsContent value="trips" className="mt-4">
           <TripsTab trips={trips} vehicles={vehicles} onChange={loadAll} />
         </TabsContent>
+        <TabsContent value="ads" className="mt-4"><AdsTab companyId={company.id} /></TabsContent>
         <TabsContent value="profile" className="mt-4">
           <div className="max-w-xl">
             <ProfileInfo companyName={company.name} />
