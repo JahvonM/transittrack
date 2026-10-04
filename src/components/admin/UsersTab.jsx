@@ -110,9 +110,9 @@ function CreateAccountDialog({ companies, onCreated }) {
             <div className="space-y-1.5">
               <Label>Company</Label>
               <Select value={form.company_id || "none"} onValueChange={(c) => setForm({ ...form, company_id: c === "none" ? "" : c })}>
-                <SelectTrigger><SelectValue placeholder="No company" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Approve company access" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">No company</SelectItem>
+                  <SelectItem value="none">No approved company</SelectItem>
                   {companies.map((c) => (
                     <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                   ))}
@@ -216,11 +216,11 @@ export default function UsersTab({ users, companies, currentUser, onChange }) {
                 <SelectItem value="admin">Admin</SelectItem>
               </SelectContent>
             </Select>
-            {u.role === "company" && (
+            {["company", "staff"].includes(u.role) && (
               <Select value={u.company_id || "none"} onValueChange={(c) => setCompany(u, c)}>
-                <SelectTrigger className="w-[160px] h-8"><SelectValue placeholder="No company" /></SelectTrigger>
+                <SelectTrigger className="w-[160px] h-8"><SelectValue placeholder="Approve company access" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">No company</SelectItem>
+                  <SelectItem value="none">No approved company</SelectItem>
                   {companies.map((c) => (
                     <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                   ))}

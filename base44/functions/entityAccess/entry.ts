@@ -71,6 +71,15 @@ function project(ctx,name,row) {
  if (name==='User' && row.id===ctx.user?.id) out.company_id=ctx.companies[0] || '';
  return out;
 }
+async function projectRecord(db,ctx,name,row) {
+ const out=project(ctx,name,row);
+ if(name==='User' && row && ctx.user?.role==='admin') {
+  const approved=await memberships(db,row);
+  out.company_id=approved[0]?.company_id || '';
+  out.company_membership_approved=approved.length>0;
+ }
+ return out;
+}
 function cleanQuery(name,query,role) {
  if (!query || typeof query!=='object' || Array.isArray(query)) fail(400,'Invalid query');
  const encoded=JSON.stringify(query);
@@ -152,7 +161,7 @@ export default async function(req) {
   if(operation==='get') {
    const row=name==='User' && body.id==='me' ? ctx.user : await db[name].get(body.id);
    if(!row || !(await visible(db,ctx,name,row))) fail(404,'Record not found');
-   return Response.json({result:project(ctx,name,row)});
+   return Response.json({result:await projectRecord(db,ctx,name,row)});
   }
   if(['list','filter'].includes(operation)) {
    const query=cleanQuery(name,operation==='filter' ? body.query||{} : {},ctx.user?.role);
@@ -164,7 +173,7 @@ export default async function(req) {
    if(body.sort && !/^-?[A-Za-z_]+$/.test(body.sort)) fail(400,'Invalid sort');
    const rows=await db[name].filter(query,body.sort||'-created_date',limit,skip);
    const result=[];
-   for(const row of rows) if(await visible(db,ctx,name,row)) result.push(project(ctx,name,row));
+   for(const row of rows) if(await visible(db,ctx,name,row)) result.push(await projectRecord(db,ctx,name,row));
    return Response.json({result});
   }
   if(!['create','update','delete','bulkCreate'].includes(operation)) fail(400,'Unsupported operation');
@@ -175,7 +184,7 @@ export default async function(req) {
    const data=[];
    for(const input of body.data) data.push(await prepare(db,ctx,name,input));
    const result=[];
-   for(const item of data) result.push(project(ctx,name,await db[name].create(item)));
+   for(const item of data) result.push(await projectRecord(db,ctx,name,await db[name].create(item)));
    return Response.json({result});
   }
   let existing=null;
@@ -194,6 +203,6 @@ export default async function(req) {
    await approveMembership(db,{...existing,...data},data.company_id);
   }
   const row=operation==='create' ? await db[name].create(data) : await db[name].update(body.id,data);
-  return Response.json({result:project(ctx,name,row)});
+  return Response.json({result:await projectRecord(db,ctx,name,row)});
  } catch(error) { return Response.json({error:error.status ? error.message : 'Entity request failed'}, {status:error.status||500}); }
 }
