@@ -55,12 +55,12 @@ export default function NextBusCard({ stop, bus, eta, route, crowdCount, trip, o
                     <span className="text-xl font-semibold ml-1.5">min</span>
                   </p>
                 ) : (
-                  <p className="text-2xl font-semibold leading-none">On its way</p>
+                  <p className="text-2xl font-semibold leading-none">{eta?.stale ? "Location delayed" : eta?.loading ? "Calculating…" : "ETA unavailable"}</p>
                 )}
                 <p className="text-xs text-muted-foreground mt-2">
-                  {eta?.isLearned
+                  {eta?.stale ? "Waiting for a fresh bus location" : eta?.isLearned
                     ? `Based on ${eta.trips || "past"} real trip${eta.trips === 1 ? "" : "s"} on this route`
-                    : eta?.isDriving ? "Live estimate by road" : "Approximate estimate"}
+                    : eta?.isDriving ? "Road estimate via remaining stops · stop waits may add time" : "A reliable arrival time is not available yet"}
                 </p>
               </div>
               <div className="shrink-0 -mb-1 tt-bus-bob">

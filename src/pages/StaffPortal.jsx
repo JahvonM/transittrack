@@ -20,7 +20,7 @@ import { MyPickupSheet, HelpSheet, BadgeSheet, ChatSheet } from "@/components/st
 import useCrowding from "@/hooks/useCrowding";
 import { haversineKm, etaMinutes } from "@/lib/geo";
 import useTravelTimes, { etaFromLearned } from "@/hooks/useTravelTimes";
-import useDrivingEta from "@/hooks/useDrivingEta";
+import useBusEta from "@/hooks/useBusEta";
 import { STATUS_LABEL } from "@/lib/trip";
 import { Bus, BellRing, ChevronRight, Clock, LifeBuoy, MapPin, UserRound, X } from "lucide-react";
 import PullToRefresh from "@/components/PullToRefresh";
@@ -274,10 +274,8 @@ export default function StaffPortal() {
 
   // Refine the straight-line candidate above with an actual driving ETA (roads,
   // not a straight line), falling back to the straight-line estimate while it loads.
-  const approachingOrigin = approaching ? { lat: approaching.v.current_lat, lng: approaching.v.current_lng } : null;
-  const approachingDest = stop ? { lat: stop.lat, lng: stop.lng } : null;
-  const approachingDriving = useDrivingEta(approachingOrigin, approachingDest, approaching?.v?.speed || 25);
   const approachingRoute = approaching ? routes.find((r) => r.id === approaching.v.route_id) || null : null;
+  const approachingDriving = useBusEta(approachingRoute, approaching?.v, stop);
   // Better still: how long this bus really takes from here to your stop,
   // learned from its past trips (used once enough of the way is known).
   const travelTimes = useTravelTimes();
@@ -354,7 +352,7 @@ export default function StaffPortal() {
           <NextBusCard
             stop={stop}
             bus={approaching?.v || null}
-            eta={approaching ? approachingLearned || approachingDriving : null}
+            eta={approaching ? (approachingDriving.stale ? approachingDriving : approachingLearned || approachingDriving) : null}
             route={approachingRoute}
             crowdCount={approaching ? crowd[approaching.v.id] || 0 : 0}
             trip={onTheWayTrip}
