@@ -1,2 +1,6 @@
 import {defineConfig} from 'vitest/config';
-export default defineConfig({test:{include:['security-tests/*.test.js'],environment:'node'}});
+import {fileURLToPath} from 'node:url';
+export default defineConfig({
+ resolve:{alias:{'@':fileURLToPath(new URL('./src',import.meta.url))}},
+ test:{include:['security-tests/*.test.js'],environment:'node'}
+});
