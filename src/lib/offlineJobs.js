@@ -1,81 +1,70 @@
-// Small persistent job queue for work that must survive a dead connection
-// (inspections done in a yard or garage with no signal). Jobs live in
-// localStorage, retry on reconnect / every minute, and runners report their
-// own progress through `save` so a job that half-finished resumes where it
-// stopped instead of creating duplicates.
-import { reportError } from "@/lib/reportError";
-
-const KEY = "tt_offline_jobs";
-export const JOBS_EVENT = "tt-offline-jobs";
-const runners = {};
-let flushing = false;
-let started = false;
-
+import {isPermanentRejection,review,notifySavedWork} from "./savedWork";
+const KEY="tt_offline_jobs";
+export const JOBS_EVENT="tt-offline-jobs";
+const runners={};
+const inFlight=new Set();
+let flushing=false,started=false;
 function read() {
-  try { const items = JSON.parse(localStorage.getItem(KEY) || "[]"); if (!Array.isArray(items)) throw new Error(); return items; }
-  catch { throw new Error("Saved work cannot be read. Do not clear tablet storage."); }
+ try {const items=JSON.parse(localStorage.getItem(KEY)||"[]");if(!Array.isArray(items))throw new Error();return items;}
+ catch {throw new Error("Saved work cannot be read. Do not clear tablet storage.");}
 }
 function write(jobs) {
-  let ok = true;
-  try { localStorage.setItem(KEY, JSON.stringify(jobs)); } catch { ok = false; /* storage full/unavailable */ }
-  try { window.dispatchEvent(new Event(JOBS_EVENT)); } catch { /* non-browser */ }
-  return ok;
+ try {localStorage.setItem(KEY,JSON.stringify(jobs));}catch {return false;}
+ notifySavedWork();try {window.dispatchEvent(new Event(JOBS_EVENT));}catch { /* tests */ }return true;
 }
-
-// No response at all (or the browser says it's offline) means the request
-// may have reached the server. Persistent request IDs make replay safe after a lost response.
-export function isOfflineError(e) {
-  return (typeof navigator !== "undefined" && navigator.onLine === false) || !e?.response || e.response.status===401 || e.response.status===429 || e.response.status>=500;
+function mustWrite(jobs) {if(!write(jobs))throw new Error("Saved work could not be updated; keep this device's storage.");}
+export function isOfflineError(error) {return (typeof navigator!=="undefined"&&navigator.onLine===false)||!error?.response||[401,429].includes(error.response.status)||error.response.status>=500;}
+export function registerRunner(kind,fn){runners[kind]=fn;}
+export function bindDriverPayload(payload) {
+ const cache=JSON.parse(localStorage.getItem("tt_driver_session_cache")||"null");
+ const vehicle=cache?.session?.vehicle;
+ return vehicle&&cache.device_id===payload.device_id?{...payload,expected_device_id:payload.expected_device_id||payload.device_id,expected_company_id:payload.expected_company_id||vehicle.company_id,expected_vehicle_id:payload.expected_vehicle_id||vehicle.id}:payload;
 }
-
-export function registerRunner(kind, fn) {
-  runners[kind] = fn;
+export function enqueueJob(kind,payload,label) {
+ const jobs=read();
+ if(kind.startsWith("driver_"))payload=bindDriverPayload(payload);
+ const id=payload.client_request_id||crypto.randomUUID();
+ if(jobs.some(job=>job.kind===kind&&job.payload.client_request_id===id))return true;
+ jobs.push({id:"job-"+crypto.randomUUID(),kind,payload:{...payload,client_request_id:id},label:label||kind,queued_at:new Date().toISOString()});
+ return write(jobs);
 }
-
-export function enqueueJob(kind, payload, label) {
-  const jobs = read();
-  if(kind.startsWith('driver_')) {
-    const cache=JSON.parse(localStorage.getItem('tt_driver_session_cache')||'null');
-    const vehicle=cache?.session?.vehicle;
-    if(vehicle && cache.device_id===payload.device_id) payload={...payload,expected_device_id:payload.expected_device_id||payload.device_id,expected_company_id:payload.expected_company_id||vehicle.company_id,expected_vehicle_id:payload.expected_vehicle_id||vehicle.id};
-  }
-  jobs.push({ id: `job-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, kind, payload: {...payload, client_request_id: payload.client_request_id || crypto.randomUUID()}, label: label || kind, queued_at: new Date().toISOString() });
-  return write(jobs); // false when the device storage is full
+export function pendingJobs(){return read();}
+export function completeJob(requestId){mustWrite(read().filter(job=>job.payload.client_request_id!==requestId));}
+export function quarantineJob(requestId,error){mustWrite(read().map(job=>job.payload.client_request_id===requestId?review(job,error):job));}
+export async function submitSavedJob(kind,payload,label,runner) {
+ payload={...payload,client_request_id:payload.client_request_id||crypto.randomUUID()};
+ if(kind.startsWith("driver_"))payload=bindDriverPayload(payload);
+ if(!enqueueJob(kind,payload,label))throw new Error("Work could not be saved on this device. Keep this screen open.");
+ const id=payload.client_request_id;
+ inFlight.add(id);
+ const save=next=>mustWrite(read().map(job=>job.payload.client_request_id===id?{...job,payload:{...next,client_request_id:id}}:job));
+ try {const result=await runner(payload,save);completeJob(id);return result;}
+ catch(error){if(isPermanentRejection(error))quarantineJob(id,error);throw error;}
+ finally{inFlight.delete(id);}
 }
-
-export function pendingJobs() {
-  return read();
-}
-
+const scope=job=>job.payload.expected_vehicle_id||job.payload.vehicle_id||job.payload.device_id||job.kind;
 export async function flushJobs() {
-  if (flushing || (typeof navigator !== "undefined" && navigator.onLine === false)) return 0;
-  flushing = true;
-  let synced = 0;
-  try {
-    for (const job of read()) {
-      const runner = runners[job.kind];
-      if (!runner) continue;
-      const save = (payload) => { if (!write(read().map((j) => (j.id === job.id ? { ...j, payload } : j)))) throw new Error("Job progress could not be saved"); };
-      try {
-        await runner(job.payload, save);
-        if (!write(read().filter((j) => j.id !== job.id))) break;
-        synced++;
-      } catch (e) {
-        write(read().map(j=>j.id===job.id ? {...j,last_error: e?.response?.status ? 'Server returned '+e.response.status : 'Connection unavailable',failed_at:new Date().toISOString()} : j));
-        if (!isOfflineError(e)) reportError(e, { source: "offline-sync", extra: { kind: job.kind, label: job.label } });
-        break; // Never discard unsuccessful work or reorder dependent jobs.
-      }
-    }
-  } finally {
-    flushing = false;
+ if(flushing||(typeof navigator!=="undefined"&&navigator.onLine===false))return 0;
+ flushing=true;let synced=0;
+ try {
+  const jobs=read(),blocked=new Set(jobs.filter(job=>job.state==="needs_review").map(scope));
+  for(const job of jobs) {
+   const runner=runners[job.kind],id=job.payload.client_request_id;
+   if(!runner||job.state==="needs_review"||blocked.has(scope(job))||inFlight.has(id))continue;
+   const save=payload=>mustWrite(read().map(saved=>saved.id===job.id?{...saved,payload}:saved));
+   try {
+    inFlight.add(id);await runner(job.payload,save);
+    mustWrite(read().filter(saved=>saved.id!==job.id));synced++;
+   } catch(error) {
+    if(isPermanentRejection(error)){mustWrite(read().map(saved=>saved.id===job.id?review(saved,error):saved));blocked.add(scope(job));continue;}
+    mustWrite(read().map(saved=>saved.id===job.id?{...saved,last_error:error?.response?.status?"Server returned "+error.response.status:"Connection unavailable",failed_at:new Date().toISOString()}:saved));break;
+   } finally{inFlight.delete(id);}
   }
-  return synced;
+ } finally{flushing=false;}
+ return synced;
 }
-
 export function startOfflineSync() {
-  if (started || typeof window === "undefined") return;
-  started = true;
-  window.addEventListener("online", () => { flushJobs(); });
-  setInterval(() => { if (read().length) flushJobs(); }, 60000);
-  setTimeout(() => { if (read().length) flushJobs(); }, 3000);
+ if(started||typeof window==="undefined")return;started=true;
+ const run=()=>flushJobs().catch(()=>notifySavedWork());
+ window.addEventListener("online",run);setInterval(run,60000);setTimeout(run,3000);
 }
