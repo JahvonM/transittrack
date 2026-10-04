@@ -61,6 +61,7 @@ export const ADMIN_SECTIONS = [
   { id: "kiosks", label: "Kiosk tablets", icon: Smartphone, group: "Fleet Operations" },
   { id: "shifts", label: "Driver shifts", icon: Timer, group: "Fleet Operations" },
   { id: "cards", label: "Card issuing", icon: CreditCard, group: "Fleet Operations" },
+  { id: "card-designs", label: "Card designer", icon: ImageIcon, group: "Fleet Operations" },
 
   // Full pages shown inside the admin area (see ADMIN_PAGES in Admin.jsx).
   { id: "vehicle-logs", label: "Vehicle log", icon: FileText, group: "Fleet management" },

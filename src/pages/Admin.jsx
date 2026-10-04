@@ -69,6 +69,7 @@ import BusLoader from "@/components/BusLoader";
 import ShiftsTab from "@/components/admin/ShiftsTab";
 import AuditLogTab from "@/components/admin/AuditLogTab";
 import CardIssuingTab from "@/components/admin/CardIssuingTab";
+import CardDesignerTab from "@/components/admin/CardDesignerTab";
 import FleetHealthTab from "@/components/admin/FleetHealthTab";
 import LostItemsTab from "@/components/admin/LostItemsTab";
 import TravelTimesTab from "@/components/admin/TravelTimesTab";
@@ -508,6 +509,7 @@ export default function Admin() {
         )}
         {section === "shifts" && <ShiftsTab />}
         {section === "cards" && <CardIssuingTab companies={companies} />}
+        {section === "card-designs" && <CardDesignerTab />}
         {section === "audit" && <AuditLogTab />}
         {section === "lost-items" && <LostItemsTab />}
         {section === "companies" && <CompaniesTab companies={companies} onChange={load} />}

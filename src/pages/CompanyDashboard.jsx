@@ -1,3 +1,5 @@
+import CardIssuingTab from "@/components/admin/CardIssuingTab";
+import CardDesignerTab from "@/components/admin/CardDesignerTab";
 import AdsTab from "@/components/admin/AdsTab";
 import React, { useEffect, useState } from "react";
 import { Navigate, useParams, useNavigate, Link } from "react-router-dom";
@@ -118,6 +120,8 @@ export default function CompanyDashboard() {
           <TabsTrigger value="vehicles"><Bus className="w-4 h-4 mr-1.5" />Vehicles ({vehicles.length})</TabsTrigger>
           <TabsTrigger value="routes"><RouteIcon className="w-4 h-4 mr-1.5" />Routes ({routes.length})</TabsTrigger>
           <TabsTrigger value="trips"><MapPin className="w-4 h-4 mr-1.5" />Trips ({trips.length})</TabsTrigger>
+          <TabsTrigger value="cards">NFC cards</TabsTrigger>
+          <TabsTrigger value="card-designs">Card designer</TabsTrigger>
           <TabsTrigger value="ads">Advertisements</TabsTrigger>
           <TabsTrigger value="profile"><User className="w-4 h-4 mr-1.5" />Profile</TabsTrigger>
         </TabsList>
@@ -130,6 +134,8 @@ export default function CompanyDashboard() {
         <TabsContent value="trips" className="mt-4">
           <TripsTab trips={trips} vehicles={vehicles} onChange={loadAll} />
         </TabsContent>
+        <TabsContent value="cards" className="mt-4"><CardIssuingTab companies={[company]} /></TabsContent>
+        <TabsContent value="card-designs" className="mt-4"><CardDesignerTab /></TabsContent>
         <TabsContent value="ads" className="mt-4"><AdsTab companyId={company.id} /></TabsContent>
         <TabsContent value="profile" className="mt-4">
           <div className="max-w-xl">
