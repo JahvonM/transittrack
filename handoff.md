@@ -565,3 +565,34 @@ blob privacy, credential inventories and GitHub required checks remain unverifie
 Step 8 audit completion does not authorize or establish production readiness.
 No frontend publication, live account/device changes, tablet revocation, production
 credential rotation or signing-key generation occurred.
+
+
+## Notification security and taxi validation follow-up — 2026-10-04 UTC
+
+Authorized after the Step 8 audit. Both chat push selectors now resolve recipients
+from current users and approved live manager memberships; driver SOS uses that
+selector too. Historical token role/company metadata cannot retain former access.
+No token/device records were removed. Global mechanic/admin routing is preserved.
+
+notifyAdminMessage requires a saved message_id, fetches the current actor, verifies
+ownership/channel and vehicle company, and derives names/text/media from server
+records. CompanyMessages, StaffGroupChat and MechanicPortal use the returned write
+ID for text/photos/voice notes. Missing/foreign/deleted records and stale privileges
+are refused. Older clients using raw notification bodies are refused until client
+rollout; their chat writes remain independent. Backend edits auto-sync; frontend
+not published. Taxi booking rejects non-taxi operators, unsupported actions,
+invalid required strings and malformed/out-of-range/unpaired coordinates, while
+preserving signed-in public booking without operator membership.
+
+232 baseline unit tests (34 new), 11 mock browser checks, lint/build pass. Four
+strict criteria now pass: both stale-recipient checks, passenger dispatch denial
+and non-taxi rejection. Strict suite: 16 pass, 22 fail out of 38, exit 1. Dispatch
+fixture now includes a saved owned dispatch row so it tests channel authorization
+rather than merely missing-input validation. Current results supersede audit counts.
+
+No real FCM, email, bookings, accounts, tablet revocations or signing changes were
+performed. Current eligibility snapshots cannot retract an in-flight push. Valid
+message notification replay still needs an atomic claim/budget; booking limits and
+idempotency remain to implement. The public crash-report budget and original atomic
+release blockers remain red. Required CI gate/live tests remain unverified. TransitTrack
+is still not ready for first production. See security-tests/README.md and step8-audit.md.

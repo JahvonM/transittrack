@@ -9,12 +9,14 @@ npm run test:e2e
 ```
 
 playwright.config.js discovers only company-isolation.spec.js and
-tablet-context.spec.js and saved-work.spec.js. All intercept API calls and exercise the compiled
+tablet-context.spec.js, saved-work.spec.js and message-notifications.spec.js.
+All intercept API calls and exercise the compiled
 frontend without live entity reads/writes, notification delivery or account changes.
 
-The eight checks cover centralized mechanic vehicles, approved company context,
+The eleven checks cover centralized mechanic vehicles, approved company context,
 tablet context projection/cache cleanup, backend PIN unlock UI, saved-work export,
-admin archive/removal, fresh role checks and GPS preservation on driver unpairing. They do not
+admin archive/removal, fresh role checks, GPS preservation on driver unpairing
+and acknowledged text/photo message IDs in mechanic/company/staff notification calls. They do not
 prove live backend RLS or real authentication sessions. Those boundaries have
 separate unit tests using in-memory SDK adapters.
 
@@ -24,7 +26,7 @@ npm run test:security:release
 ```
 
 The first command verifies implemented behavior; the second enforces stricter
-production requirements and currently has 12 passing and 26 failing checks (38 total after Step 8) and exits nonzero.
+production requirements and currently has 16 passing and 22 failing checks (38 total after Step 8) and exits nonzero.
 See security-tests/README.md for root causes, test limits and the review ledger.
 
 Legacy live specs and ad-hoc scripts in this directory are excluded from default

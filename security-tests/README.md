@@ -2,9 +2,10 @@
 
 TransitTrack is pre-production. Step 7 first reproduced 33 failing release
 criteria. The authorized remediation batch satisfied 12. Step 8 added five
-additional failing criteria: 12 pass and 26 fail out of 38. Step 8 audit is
-complete; the first production release remains blocked. See step8-audit.md.
-These are checks, not 26 distinct vulnerabilities.
+additional criteria. The notification/booking follow-up now brings the strict
+suite to 16 passing and 22 failing out of 38. Step 8 audit is complete; the
+first production release remains blocked. See step8-audit.md.
+These are checks, not 22 distinct vulnerabilities.
 
 Testing replaces the SDK with in-memory entities, fake sessions and captured
 email calls. Browser tests intercept every API request. No live API attack,
@@ -16,11 +17,11 @@ auto-sync in Base44. The frontend was not published.
 
 | Command | Result | Meaning |
 |---|---|---|
-| npm test | 198 passed | Implemented behavior and recovery regressions |
+| npm test | 232 passed | Implemented behavior and recovery regressions |
 | npm run lint | Passed | Source and tests |
 | npm run build | Passed | Frontend compiles |
-| npm run test:e2e | 8 passed | Mocked company/mechanic/tablet/recovery browser contracts |
-| npm run test:security:release | 12 passed, 26 failed; exits 1 | Release blockers remain |
+| npm run test:e2e | 11 checks passed | Mocked company/mechanic/tablet/recovery browser contracts |
+| npm run test:security:release | 16 passed, 22 failed; exits 1 | Release blockers remain |
 
 The strict suite uses ordinary assertions. Failures are not skipped, marked
 expected, swallowed or treated as success. GitHub Actions has a separate
@@ -29,7 +30,8 @@ settings have not been verified/configured. A workflow is not an enforced gate.
 No deployment workflow was added.
 
 Default Playwright discovery includes only company-isolation.spec.js,
-tablet-context.spec.js and saved-work.spec.js. Older live specs remain excluded.
+tablet-context.spec.js, saved-work.spec.js and message-notifications.spec.js.
+Older live specs remain excluded.
 Test outputs/traces are ignored.
 
 ## Remediation covered by the 12 now-passing release criteria
@@ -85,10 +87,7 @@ reviewed/archived originals are not thinned.
 | Boarding grant use/card revocation | 2 | Another request can reuse a grant; revoked cards still board using an earlier grant |
 | Concurrent mechanic inspection replay | 1 | Interleaved identical IDs create duplicate result rows |
 | Concurrent check-in/shift/driver inspection/GPS | 4 | Duplicate rows and older live-position overwrite |
-| Fresh privileged push recipients | 2 | Both selectors retain deleted-admin/removed-manager tokens |
-| Dispatch notification authorization | 1 | Approved passenger can trigger dispatch notification |
 | Atomic public crash email budget | 1 | Twenty interleaved reports capture twenty emails despite budget five |
-| Eligible taxi operator | 1 | Non-taxi company accepts a scheduled taxi trip |
 
 Concurrency fixtures return snapshots and explicitly interleave vulnerable reads
 before writes. They model a valid non-transactional schedule even with immediate
@@ -116,11 +115,11 @@ These tests do not prove exhaustive security.
 | 12: passenger audit-log writes | Policy decision; actor attribution remains server-controlled |
 | 13: mechanic deletion rights | Policy decision; global maintenance visibility preserved |
 
-Step 8 confirmed stale push-recipient selection in code and mocks, dispatch
-notification permission mismatch, public crash-email budget races and non-taxi
-booking acceptance. Five additional strict checks fail for these findings; see
-step8-audit.md. Real push delivery and trustworthy scheduler identity remain
-unverified.
+Step 8 confirmed stale push-recipient selection, dispatch notification mismatch,
+public crash-email budget races and non-taxi booking acceptance. Follow-up fixes
+now satisfy the two recipient checks, dispatch check and taxi check. The crash
+email budget still fails. Real push delivery and trustworthy scheduler identity
+remain unverified. See step8-audit.md for historical evidence and follow-up status.
 Scheduled functions reject anonymous calls before reads/writes/email. Tests do not
 validate an authenticated automatic schedule. Live inventories, live platform User
 self-edit rules and direct-entity RLS tests remain outstanding. No test account was
@@ -132,3 +131,37 @@ authorize legacy credential/device migration, configure verified scheduler ident
 review old queued work, then perform separately authorized live role/device tests
 with verified accounts and cleanup. Backend changes and the unpublished frontend
 need a coordinated rollout. Passing baseline tests do not establish release readiness.
+
+
+## Notification and booking follow-up — 2026-10-04 UTC
+
+Four additional strict criteria now pass. Both chat recipient selectors (and SOS
+through the driver selector) resolve current User roles and active approved manager
+memberships; historical PushToken roles/company fields do not authorize delivery.
+Recipient queries paginate and fail closed if the 10,000-row bound is reached or
+lookups fail. Eligible admins and global mechanics remain reachable, and promoted
+users do not need old token role metadata to match their current role.
+
+notifyAdminMessage now accepts message_id. It fetches the current actor, verifies
+saved message ownership/channel/vehicle scope, and derives notification content
+from server records. Company/staff/mechanic text and media callers pass the ID
+returned by the message write. A missing/deleted/foreign message cannot trigger
+an arbitrary notification. Taxi booking validates eligible taxi service, action,
+required strings and optional paired coordinates; signed-in non-members may still
+book an actual public taxi operator. No publication or live mutation was performed.
+
+34 new baseline unit tests cover legitimate routing, stale recipients, membership
+expiry/code changes, fail-closed lookup, forged notification fields, ownership,
+channel/tenant scope, media and taxi validation. Three mock browser checks cover
+text/photo notifications from all three client chat screens, alongside the eight
+existing checks. Voice-note metadata is covered in a backend test; the live
+microphone/FCM path was not exercised. Lint/build pass.
+
+Limits: recipient checks are current snapshots, not atomic with FCM delivery.
+Deletion/demotion after authorization cannot retract an already submitted push.
+Token rows were not deleted and tablets were not revoked. Valid message IDs can
+still replay notification requests: no atomic notification claim/budget was added.
+Taxi booking abuse limits/idempotency and anonymous crash-email limits remain
+future work. Backend functions auto-sync; older unpublished client versions using
+raw notification text are refused by the new endpoint while stored chat messages
+still work. Coordinate client rollout before real tablet/operator use.

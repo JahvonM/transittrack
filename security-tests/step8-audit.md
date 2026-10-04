@@ -104,7 +104,7 @@ Fix: require an eligible taxi operator, validate booking action/coordinates and
 add booking abuse limits/request IDs. Test accepted public taxi bookings plus
 rejection for non-taxi companies and malformed inputs.
 
-## Current release gate
+## Audit-time release gate
 
 The strict suite now has 38 criteria: 12 pass and 26 fail, exit 1. Five new failing
 checks cover the four additional findings above; the original 21 failures remain.
@@ -141,3 +141,13 @@ and the new notification/telemetry/booking findings.
 
 Frontend unpublished. No live devices/accounts changed. No production credentials
 rotated and no replacement signing keys generated or committed.
+
+
+## Follow-up remediation status — 2026-10-04 UTC
+
+A8-1, A8-2 and A8-4 now have code fixes and passing isolated release assertions.
+A8-3 remains unresolved. Original audit evidence above describes 67ed322 and is
+retained as history. Current strict results: 16 pass, 22 fail out of 38. Baseline:
+232 unit tests, 11 mocked browser checks, lint and build pass. The first production
+release remains blocked. See README.md's follow-up section for the new contract,
+test coverage, rollout requirements and non-atomic notification replay limits.
