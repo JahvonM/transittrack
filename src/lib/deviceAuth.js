@@ -20,16 +20,6 @@ export function pairingProfile(data) {
   const { device_token: _token, ...profile } = data;
   return profile;
 }
-export function randomPairingCode(len = 12) {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let out = '';
-  while (out.length < len) {
-    const value = crypto.getRandomValues(new Uint8Array(1))[0];
-    if (value < Math.floor(256 / chars.length) * chars.length) out += chars[value % chars.length];
-  }
-  return out;
-}
-
 export function saveDriverGrant(id, grant) {
  if (typeof grant !== 'string' || !/^[a-f0-9]{64}$/.test(grant)) throw new Error('Driver verification grant missing');
  localStorage.setItem('tt_driver_grant_' + id, grant);

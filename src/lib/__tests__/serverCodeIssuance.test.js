@@ -57,8 +57,8 @@ describe('server code issuance',()=>{
   expect(JSON.stringify(sdk.tables.PassengerAccessCredential)).not.toContain(data.code);
  });
  it('rejects protected and legacy code ambiguity before issuing a grant',async()=>{
-  const sdk=mock('admin');sdk.tables.PassengerAccessCredential=[{id:'held',company_id:'a',contact_id:'rider',token_hash:digest('12345')}];
-  expect((await call(sdk,{action:'lookup_code',company_id:'a',vehicle_id:'bus-a',code:'12345'},'kioskCheckIn')).status).toBe(409);
+  const sdk=mock(null);sdk.tables.DeviceCredential=[{id:'cred',device_id:'tablet',token_hash:digest('device-token')}];sdk.tables.PassengerAccessCredential=[{id:'held',company_id:'a',contact_id:'rider',token_hash:digest('12345')}];
+  expect((await call(sdk,{action:'lookup_code',device_id:'tablet',device_token:'device-token',code:'12345'},'kioskCheckIn')).status).toBe(409);
   expect(sdk.tables.VerificationGrant||[]).toEqual([]);
  });
 });
