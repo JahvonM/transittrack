@@ -56,9 +56,27 @@ describe('server code issuance',()=>{
   expect(sdk.tables.PassengerAccessCredential[0]).toMatchObject({contact_id:'rider',company_id:'a',token_hash:digest(data.code)});
   expect(JSON.stringify(sdk.tables.PassengerAccessCredential)).not.toContain(data.code);
  });
+ it('looks up a newly hashed Contact code and hides it from the issuing directory',async()=>{
+  const sdk=mock('admin');const issued=await call(sdk,{action:'keypad_code',person_key:'contact:rider'},'nfcCards');expect(issued.status).toBe(200);const {code}=await issued.json();
+  const directory=await (await call(sdk,{action:'people'},'nfcCards')).json();
+  expect(JSON.stringify(directory)).not.toContain(code);
+  sdk.auth.me=async()=>null;
+  const lookup=await call(sdk,{action:'lookup_code',device_id:'tablet',code},'kioskCheckIn');
+  expect(lookup.status).toBe(200);expect((await lookup.json()).staff.id).toBe('rider');
+ });
+ it('mints pairing credentials when registering a device',async()=>{
+  const sdk=mock('admin');const res=await call(sdk,{entity:'KioskDevice',operation:'create',data:{label:'New',company_id:'a',kiosk_type:'driver',vehicle_id:'bus-a'}},'entityAccess');expect(res.status).toBe(200);
+  const row=sdk.tables.KioskDevice.find(d=>d.label==='New');expect(row.pairing_code).toMatch(/^[A-Z2-9]{12}$/);expect(row.paired).toBe(false);expect(Date.parse(row.pairing_expires_at)-Date.now()).toBeLessThanOrEqual(900000);
+ });
+ it('preserves existing company context when only join-code expiry has elapsed',async()=>{
+  const sdk=mock('staff');sdk.tables.Company[0].access_code_expires_at=new Date(Date.now()+60000).toISOString();
+  const verify=await call(sdk,{action:'verify',code:'JOIN12345678'},'companyAccess');expect(verify.status).toBe(200);const {grant}=await verify.json();
+  sdk.tables.Company[0].access_code_expires_at='2000-01-01';
+  expect((await call(sdk,{action:'context',grant},'companyAccess')).status).toBe(200);
+ });
  it('rejects protected and legacy code ambiguity before issuing a grant',async()=>{
-  const sdk=mock(null);sdk.tables.DeviceCredential=[{id:'cred',device_id:'tablet',token_hash:digest('device-token')}];sdk.tables.PassengerAccessCredential=[{id:'held',company_id:'a',contact_id:'rider',token_hash:digest('12345')}];
-  expect((await call(sdk,{action:'lookup_code',device_id:'tablet',device_token:'device-token',code:'12345'},'kioskCheckIn')).status).toBe(409);
+  const sdk=mock(null);sdk.tables.DeviceCredential=[{id:'cred',device_id:'tablet',token_hash:digest('a'.repeat(64)),expires_at:new Date(Date.now()+86400000).toISOString(),company_id:'a',vehicle_id:'bus-a',kiosk_type:'bus_boarding',pairing_code_hash:digest('PAIR12345678')}];sdk.tables.PassengerAccessCredential=[{id:'held',company_id:'a',contact_id:'rider',token_hash:digest('12345')}];
+  expect((await call(sdk,{action:'lookup_code',device_id:'tablet',device_token:'a'.repeat(64),code:'12345'},'kioskCheckIn')).status).toBe(409);
   expect(sdk.tables.VerificationGrant||[]).toEqual([]);
  });
 });
