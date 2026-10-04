@@ -65,7 +65,7 @@ async function audit(base44, user, fields) {
 // (directory contacts merged with staff logins) and extra card holders.
 async function loadPeople(base44, companyFilter) {
   const sr = base44.asServiceRole.entities;
-  const [drivers, users, contacts, holders, vehicles, cards, kiosks] = await Promise.all([
+  const [drivers, users, contacts, holders, vehicles, cards, kiosks, companies] = await Promise.all([
     sr.Driver.list('-updated_date', 1000),
     sr.User.list(),
     sr.Contact.list('-updated_date', 1000),
@@ -73,7 +73,9 @@ async function loadPeople(base44, companyFilter) {
     sr.Vehicle.list('-updated_date', 500),
     sr.NfcCard.list('-issue_date', 3000).catch(() => []),
     sr.KioskDevice.filter({ kiosk_type: 'bus_boarding' }).catch(() => []),
+    sr.Company.list('-updated_date',1000),
   ]);
+  const companyName = new Map(companies.map(c=>[c.id,c.name]));
   const vehicleName = new Map(vehicles.map((v) => [v.id, v.fleet_number ? `${v.name} (${v.fleet_number})` : v.name]));
   const inCompany = (cid) => !companyFilter || cid === companyFilter;
   const vehicleByDriver = new Map();
@@ -114,7 +116,7 @@ async function loadPeople(base44, companyFilter) {
   for (const [email, u] of staffUsers) {
     if (contactEmails.has(u.company_id + ':' + email) || !inCompany(u.company_id)) continue;
     people.push({ source: 'user', id: u.id, type: 'staff', role: 'Staff', name: u.full_name || u.email, email: u.email || '',
-      employee_id: u.employee_id || '', company_id: u.company_id || '', company_name: '', phone: u.phone || '', photo_url: u.photo_url || '', registered: true,
+      employee_id: u.employee_id || '', company_id: u.company_id || '', company_name: companyName.get(u.company_id) || '', phone: u.phone || '', photo_url: u.photo_url || '', registered: true,
       pickup_name: u.pickup_name || '', pickup_lat: u.pickup_lat, pickup_lng: u.pickup_lng, assigned_vehicle: '', legacy_tag: '',
       access_code: '' });
   }

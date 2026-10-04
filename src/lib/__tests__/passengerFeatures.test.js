@@ -38,6 +38,17 @@ describe("email account directory",()=>{
   expect(sdk.tables.User[0].role).toBe("passenger");
   expect(sdk.tables.CompanyMembership.some(m=>m.active && m.scope==="passenger" && m.company_id==="a")).toBe(true);
  });
+ it("issues a card to an approved email passenger and verifies it at the company tablet",async()=>{
+  const sdk=mock("admin");sdk.tables.Contact=[];
+  sdk.tables.User.push({id:"email-user",role:"passenger",email:"new@test.invalid",full_name:"New Passenger"});
+  sdk.tables.CompanyMembership.push({id:"p",user_id:"email-user",company_id:"a",scope:"passenger",active:true});
+  const issued=await call(sdk,{action:"issue",person_key:"user:email-user",uid:"AABBCCDD"});
+  expect(issued.status).toBe(200);
+  sdk.auth.me=async()=>null;
+  const lookup=await call(sdk,{action:"lookup_tag",device_id:"tablet",card_tag:"AABBCCDD"},"kioskCheckIn");
+  expect(lookup.status).toBe(200);
+  expect((await lookup.json()).staff.id).toBe("email-user");
+ });
  it("rejects issuing a card to an unassigned account",async()=>{
   const sdk=mock("admin");sdk.tables.User.push({id:"new",role:"passenger",email:"new@test.invalid"});
   expect((await call(sdk,{action:"issue",person_key:"user:new",uid:"AABBCCDD"})).status).toBe(403);

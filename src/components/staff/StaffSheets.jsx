@@ -68,7 +68,7 @@ export function MyPickupSheet({ open, onOpenChange, pickupName, pickupOptions, o
         </Section>
 
         <Section title="Find a roadside pickup">
-          <LocationPinner />
+          <LocationPinner onSaved={onChoosePickup} />
         </Section>
 
         {companyPhone && (

@@ -20,7 +20,7 @@ async function reverseGeocode(lat, lng) {
 }
 
 // Roadside pickup on a company bus route, with walking directions.
-export default function LocationPinner() {
+export default function LocationPinner({ onSaved }) {
   const { user, checkUserAuth } = useAuth();
   const { toast } = useToast();
   const [locating, setLocating] = useState(false);
@@ -54,6 +54,7 @@ export default function LocationPinner() {
         pickup_lat: suggestion.lat, pickup_lng: suggestion.lng, pickup_name: suggestion.name, pickup_route_id: suggestion.route_id,
       });
       await checkUserAuth?.();
+      onSaved?.(suggestion.name);
       setSuggestion(null);
       toast({ title: "Roadside pickup saved", description: "Your driver sees the bus-road point. Use the walking directions to reach it." });
     } catch { toast({ title: "Couldn't save your pickup", variant: "destructive" }); }
