@@ -5,10 +5,41 @@ module.exports = {
   theme: {
   	extend: {
   		opacity: Object.fromEntries(Array.from({ length: 101 }, (_, i) => [i, `${i / 100}`])),
+  		// One radius scale: controls 10px, cards 14px, sheets/hero surfaces 18-22px.
   		borderRadius: {
+  			sm: '6px',
+  			md: '10px',
   			lg: 'var(--radius)',
-  			md: 'calc(var(--radius) - 2px)',
-  			sm: 'calc(var(--radius) - 4px)'
+  			xl: '16px',
+  			'2xl': '18px',
+  			'3xl': '22px'
+  		},
+  		boxShadow: {
+  			sm: 'var(--shadow-1)',
+  			DEFAULT: 'var(--shadow-1)',
+  			md: 'var(--shadow-2)',
+  			lg: 'var(--shadow-2)',
+  			xl: 'var(--shadow-3)',
+  			'2xl': 'var(--shadow-3)'
+  		},
+  		// Semantic type scale (min 12px). Tailwind's default sizes remain available.
+  		fontSize: {
+  			caption: ['0.75rem', { lineHeight: '1rem' }],
+  			'body-sm': ['0.875rem', { lineHeight: '1.25rem' }],
+  			body: ['1rem', { lineHeight: '1.5rem' }],
+  			'title-sm': ['1.125rem', { lineHeight: '1.625rem', fontWeight: '600' }],
+  			title: ['1.375rem', { lineHeight: '1.75rem', fontWeight: '700', letterSpacing: '-0.01em' }],
+  			headline: ['1.75rem', { lineHeight: '2.125rem', fontWeight: '700', letterSpacing: '-0.015em' }],
+  			display: ['2.25rem', { lineHeight: '2.5rem', fontWeight: '700', letterSpacing: '-0.01em' }],
+  			hero: ['3.5rem', { lineHeight: '1', fontWeight: '700', letterSpacing: '-0.02em' }]
+  		},
+  		transitionDuration: {
+  			fast: '120ms',
+  			base: '180ms',
+  			slow: '240ms'
+  		},
+  		transitionTimingFunction: {
+  			'out-soft': 'cubic-bezier(.2,.8,.2,1)'
   		},
   		colors: {
   			background: 'hsl(var(--background))',
@@ -41,6 +72,17 @@ module.exports = {
   				DEFAULT: 'hsl(var(--destructive))',
   				foreground: 'hsl(var(--destructive-foreground))'
   			},
+  			surface: {
+  				'0': 'hsl(var(--surface-0))',
+  				'1': 'hsl(var(--surface-1))',
+  				'2': 'hsl(var(--surface-2))',
+  				'3': 'hsl(var(--surface-3))'
+  			},
+  			success: { DEFAULT: 'hsl(var(--success))', foreground: 'hsl(var(--status-foreground))' },
+  			warning: { DEFAULT: 'hsl(var(--warning))', foreground: 'hsl(var(--status-foreground))' },
+  			danger: { DEFAULT: 'hsl(var(--danger))', foreground: 'hsl(var(--status-foreground))' },
+  			info: { DEFAULT: 'hsl(var(--info))', foreground: 'hsl(var(--status-foreground))' },
+  			offline: { DEFAULT: 'hsl(var(--offline))', foreground: 'hsl(var(--status-foreground))' },
   			border: 'hsl(var(--border))',
   			input: 'hsl(var(--input))',
   			ring: 'hsl(var(--ring))',

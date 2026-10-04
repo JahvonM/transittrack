@@ -222,7 +222,7 @@ function VehiclesTab({ company, routes, vehicles, onChange }) {
   };
 
   return (
-    <div className="grid lg:grid-cols-[1fr_360px] gap-4">
+    <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-4">
       <div className="space-y-2">
         <div className="flex justify-end">
           <Button size="sm" onClick={() => { setEditing(null); setFormOpen(true); }}><Plus className="w-4 h-4" /> Add vehicle</Button>
@@ -325,7 +325,7 @@ function RoutesTab({ company, routes, onChange }) {
   };
 
   return (
-    <div className="grid lg:grid-cols-[1fr_380px] gap-4">
+    <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-4">
       <div className="space-y-2">
         {routes.length === 0 && <p className="text-sm text-muted-foreground py-8 text-center">No routes yet. Create one with at least 2 stops.</p>}
         {routes.map((r) => (
