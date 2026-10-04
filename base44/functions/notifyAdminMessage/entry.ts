@@ -117,15 +117,19 @@ async function pushTokensForChannel(base44, channel, companyId) {
 function notificationFailure(status, message) {
   throw Object.assign(new Error(message), { status });
 }
+async function notificationRecord(db, name, id) {
+  try { return await db[name].get(id); }
+  catch (error) { if (error.status === 404 || error.response?.status === 404) return null; throw error; }
+}
 async function notificationForMessage(base44, user, body) {
   if (typeof body?.message_id !== 'string' || !body.message_id || body.message_id.length > 200) notificationFailure(400, 'Saved message ID required');
   const db = base44.asServiceRole.entities;
-  const message = await db.GroupMessage.get(body.message_id);
+  const message = await notificationRecord(db, 'GroupMessage', body.message_id);
   if (!message) notificationFailure(404, 'Message not found');
   if (message.sender_id !== user.id) notificationFailure(403, 'Own messages only');
   const channel = message.channel || 'staff';
   if (!['staff', 'company', 'dispatch', 'mechanic'].includes(channel)) notificationFailure(403, 'Forbidden channel');
-  const vehicle = await db.Vehicle.get(message.vehicle_id);
+  const vehicle = await notificationRecord(db, 'Vehicle', message.vehicle_id);
   if (!vehicle || !vehicle.company_id || vehicle.company_id !== message.company_id) notificationFailure(403, 'Message assignment mismatch');
   if (user.role !== 'admin') {
     if (user.role === 'mechanic') {
@@ -152,7 +156,7 @@ export default async function(req) {
     const base44 = createClientFromRequest(req);
     const session = await base44.auth.me().catch(() => null);
     if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 });
-    const user = await base44.asServiceRole.entities.User.get(session.id);
+    const user = await notificationRecord(base44.asServiceRole.entities, 'User', session.id);
     if (!user || user.id !== session.id) return Response.json({ error: 'Unauthorized' }, { status: 401 });
     const notification = await notificationForMessage(base44, user, await req.json());
     const serviceAccountJson = secrets.get('FIREBASE_SERVICE_ACCOUNT');
