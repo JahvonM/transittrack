@@ -1,0 +1,192 @@
+
+const META = ['id','created_date','updated_date','created_by','created_by_id'];
+const CREDENTIALS = new Set(['driver_pin','entry_code','access_code','one_time_code','one_time_code_expires_at','nfc_tag_id','nfc_card_tag','nfc_card_uid','card_uid','card_tag','pairing_code','token','token_hash','salt','pin_hash','password','device_token','driver_grant','verification_grant']);
+const COMPANY_ENTITIES = new Set(['Vehicle','Trip','InspectionResult','GroupMessage','LocationPing','Driver','DriverShift','NfcCard','Broadcast','KioskDevice','Route','Inspection','RouteTravelTimes','Fault','StaffCheckIn','CardHolder','DrivingEvent','DriverDocument','Part','Workplace','Incident','Contact','LostItemReport','InspectionTemplate','MaintenanceSchedule']);
+const PASSENGER_READ = new Set(['Company','Vehicle','Route','RouteTravelTimes','Broadcast','Trip','GroupMessage','Workplace','Advertisement']);
+const COMPANY_READ = new Set([...COMPANY_ENTITIES, 'Company','Advertisement']);
+const PROFILE_FIELDS = new Set(['full_name','phone','photo_url','home_lat','home_lng','home_address','work_lat','work_lng','whatsapp_linked','skip_pickup_today','skip_pickup_until','late_snooze_active','late_until','favorite_stop','stop_alerts','theme_accent']);
+function fail(status, message) { throw Object.assign(new Error(message), { status }); }
+function pick(row, fields) { return Object.fromEntries(fields.filter(k => row[k] !== undefined).map(k => [k,row[k]])); }
+function scrub(value, allowCodes=false) {
+ if (Array.isArray(value)) return value.map(v=>scrub(v,allowCodes));
+ if (!value || typeof value !== 'object') return value;
+ return Object.fromEntries(Object.entries(value).filter(([k]) => !CREDENTIALS.has(k) || (allowCodes && ['access_code','pairing_code'].includes(k))).map(([k,v])=>[k,scrub(v,allowCodes)]));
+}
+async function memberships(db, user) {
+ const rows = await db.CompanyMembership.filter({ user_id:user.id, active:true }, '-updated_date', 100);
+ return rows.filter(r=>r.scope === (user.role === 'company' ? 'manager' : 'passenger'));
+}
+async function context(base44) {
+ const session = await base44.auth.me().catch(()=>null);
+ if (!session) return { user:null, companies:[] };
+ const user = await base44.asServiceRole.entities.User.get(session.id);
+ if (!user || user.id !== session.id) fail(401,'Sign in required');
+ const companies = user.role === 'admin' || user.role === 'mechanic' ? [] : (await memberships(base44.asServiceRole.entities,user)).map(m=>m.company_id);
+ return {user,companies};
+}
+async function tenantOf(db, name, row) {
+ if (name === 'Company') return row.id;
+ if (row.vehicle_id) {
+  const vehicle = await db.Vehicle.get(row.vehicle_id).catch(()=>null);
+  if (!vehicle || (row.company_id && row.company_id !== vehicle.company_id)) return null;
+  return vehicle.company_id;
+ }
+ if (row.driver_id) {
+  const driver = await db.Driver.get(row.driver_id).catch(()=>null);
+  if (!driver || (row.company_id && row.company_id !== driver.company_id)) return null;
+  return driver.company_id;
+ }
+ return row.company_id || null;
+}
+async function visible(db, ctx, name, row) {
+ const {user,companies} = ctx;
+ if (name === 'Advertisement') return true;
+ if (!user) return false;
+ if (user.role === 'admin') return true;
+ if (name === 'User') return row.id === user.id;
+ if (name === 'PushToken') return row.email === user.email;
+ if (user.role === 'mechanic') return MAINTENANCE.has(name) || name === 'Company' || (name === 'GroupMessage' && row.channel === 'mechanic');
+ const tenant = await tenantOf(db,name,row);
+ if (!tenant || !companies.includes(tenant)) return false;
+ if (user.role === 'company') return COMPANY_READ.has(name);
+ if (!PASSENGER_READ.has(name)) return false;
+ if (name === 'GroupMessage' && row.channel !== 'staff') return false;
+ return true;
+}
+function project(ctx,name,row) {
+ if (!row) return row;
+ const role=ctx.user?.role;
+ let fields=[...META,...(ENTITY_FIELDS[name] || [])];
+ if (name === 'User') fields=[...META,'email','full_name','role','company_id',...PROFILE_FIELDS];
+ if (name === 'Company' && !['admin','company'].includes(role)) fields=[...META,'name','phone','logo_url','service_types','description'];
+ if (!['admin','company','mechanic'].includes(role) && name === 'Vehicle') fields=[...META,'name','type','company_id','company_name','capacity','route_id','current_lat','current_lng','speed','heading','status','driver_name','image_url','model_3d','tracking_active','last_location_update','trail'];
+ if (!['admin','company'].includes(role) && name === 'Trip') fields=[...META,'company_id','vehicle_id','vehicle_name','route_id','route_name','pickup_name','dropoff_name','scheduled_time','status','started_at','arrived_at','completed_at'];
+ const allowCodes=['admin','company'].includes(role) && ['Company','KioskDevice'].includes(name);
+ const out=scrub(pick(row,fields),allowCodes);
+ if (name==='User' && row.id===ctx.user?.id) out.company_id=ctx.companies[0] || '';
+ return out;
+}
+function cleanQuery(name,query,role) {
+ if (!query || typeof query!=='object' || Array.isArray(query)) fail(400,'Invalid query');
+ const encoded=JSON.stringify(query);
+ if (encoded.length>8000) fail(400,'Query too large');
+ for(const key of Object.keys(query)) {
+  if (['$or','$and'].includes(key)) {
+   if (!Array.isArray(query[key]) || query[key].length>20) fail(400,'Invalid query');
+   query[key].forEach(q=>cleanQuery(name,q,role));
+  } else if (![...META,...ENTITY_FIELDS[name], 'email','full_name'].includes(key) || CREDENTIALS.has(key)) fail(400,'Unsupported query field');
+ }
+ return query;
+}
+async function prepare(db,ctx,name,input,existing=null) {
+ const user=ctx.user;
+ if (!user) fail(401,'Sign in required');
+ if (!input || typeof input!=='object' || Array.isArray(input)) fail(400,'Invalid data');
+ const allowed=new Set(ENTITY_FIELDS[name]);
+ if(name==='User') ['full_name','email'].forEach(k=>allowed.add(k));
+ for (const key of Object.keys(input)) {
+  if (!allowed.has(key)) fail(400,'Unsupported field: '+key);
+  if (CREDENTIALS.has(key) && !(name==='Company' && key==='access_code') && !(name==='KioskDevice' && key==='pairing_code') && !(name==='PushToken' && key==='token')) fail(403,'Use the protected credential workflow');
+ }
+ const data={...input};
+ if (name==='User') {
+  if (user.role !== 'admin') {
+   if (!existing || existing.id!==user.id || Object.keys(data).some(k=>!PROFILE_FIELDS.has(k))) fail(403,'Profile fields only');
+  } else if(data.role && !['admin','company','mechanic','driver','staff','passenger'].includes(data.role)) fail(400,'Invalid role');
+  return data;
+ }
+ if (name==='AuditLog') return {...data, actor_email:user.email,actor_name:user.full_name||'',actor_role:user.role};
+ if (name==='ClientError') fail(403,'Use reportClientError');
+ if (name==='PushToken') return {...data,email:user.email,role:user.role,company_id:ctx.companies[0]||''};
+ if (user.role !== 'admin') {
+  if(user.role==='mechanic') {
+   if (!(MAINTENANCE.has(name) || (name==='GroupMessage' && (data.channel||existing?.channel)==='mechanic'))) fail(403,'Forbidden');
+   if(name==='Vehicle' && Object.keys(data).some(k=>!['current_odometer','last_inspection_date','in_service','hours','status'].includes(k))) fail(403,'Maintenance vehicle fields only');
+  } else if(user.role==='company') {
+   if(!COMPANY_READ.has(name) || (name==='Company' && !existing)) fail(403,'Forbidden');
+  } else if (name!=='GroupMessage' && name!=='LostItemReport') fail(403,'Forbidden');
+ }
+ if (name==='GroupMessage') {
+  const channel=data.channel||existing?.channel||'staff';
+  if(user.role!=='admin') {
+   if(user.role==='mechanic' ? channel!=='mechanic' : user.role==='company' ? !['company','staff','dispatch'].includes(channel) : channel!=='staff') fail(403,'Forbidden channel');
+   if(existing && existing.sender_email!==user.email && existing.created_by!==user.email) fail(403,'Own messages only');
+  }
+  data.sender_role=user.role;data.sender_name=user.full_name||user.email;
+ }
+ const combined={...existing,...data};
+ let tenant=await tenantOf(db,name,combined);
+ if(COMPANY_ENTITIES.has(name) || name==='Company') {
+  if(!tenant && name==='InspectionTemplate' && ['admin','mechanic'].includes(user.role)) return data;
+  if(!tenant) fail(400,'Company assignment required');
+  if(user.role!=='admin' && user.role!=='mechanic' && !ctx.companies.includes(tenant)) fail(403,'Company access denied');
+  if(existing && existing.company_id && data.company_id && data.company_id!==existing.company_id) fail(403,'Company assignment cannot be changed here');
+  if(name!=='Company') data.company_id=tenant;
+  if(name!=='Company' && !(await db.Company.get(tenant).catch(()=>null))) fail(400,'Company not found');
+ }
+ for(const [field,parent] of [['route_id','Route'],['inspection_id','Inspection'],['driver_id','Driver'],['template_id','InspectionTemplate']]) {
+  if(data[field]) { const row=await db[parent].get(data[field]).catch(()=>null); if(!row || (row.company_id && tenant && row.company_id!==tenant)) fail(403,'Related record belongs to another company'); }
+ }
+ return data;
+}
+async function approveMembership(db,target,companyId) {
+ if (companyId && !(await db.Company.get(companyId).catch(()=>null))) fail(400,'Company not found');
+ const rows=await db.CompanyMembership.filter({user_id:target.id},'-updated_date',100);
+ for(const row of rows) await db.CompanyMembership.update(row.id,{active:false});
+ if(companyId) await db.CompanyMembership.create({user_id:target.id,company_id:companyId,scope:target.role==='company'?'manager':'passenger',active:true});
+}
+export default async function(req) {
+ try {
+  const base44=createClientFromRequest(req), db=base44.asServiceRole.entities;
+  const body=await req.json(), name=body.entity, operation=body.operation;
+  if(!Object.hasOwn(ENTITY_FIELDS,name)) fail(403,'Entity access denied');
+  const ctx=await context(base44);
+  if(!ctx.user && !(name==='Advertisement' && ['list','filter','get'].includes(operation))) fail(401,'Sign in required');
+  if(operation==='get') {
+   const row=name==='User' && body.id==='me' ? ctx.user : await db[name].get(body.id);
+   if(!row || !(await visible(db,ctx,name,row))) fail(404,'Record not found');
+   return Response.json({result:project(ctx,name,row)});
+  }
+  if(['list','filter'].includes(operation)) {
+   const query=cleanQuery(name,operation==='filter' ? body.query||{} : {},ctx.user?.role);
+   if(name==='Company' && ctx.user && !['admin','mechanic'].includes(ctx.user.role)) query.id={$in:ctx.companies};
+   else if(COMPANY_ENTITIES.has(name) && ctx.user && !['admin','mechanic'].includes(ctx.user.role)) query.company_id={$in:ctx.companies};
+   else if(name==='User' && ctx.user?.role!=='admin') query.id=ctx.user.id;
+   else if(name==='PushToken' && ctx.user?.role!=='admin') query.email=ctx.user.email;
+   const limit=Math.min(Math.max(Number(body.limit)||1000,1),5000), skip=Math.max(Number(body.skip)||0,0);
+   if(body.sort && !/^-?[A-Za-z_]+$/.test(body.sort)) fail(400,'Invalid sort');
+   const rows=await db[name].filter(query,body.sort||'-created_date',limit,skip);
+   const result=[];
+   for(const row of rows) if(await visible(db,ctx,name,row)) result.push(project(ctx,name,row));
+   return Response.json({result});
+  }
+  if(!['create','update','delete','bulkCreate'].includes(operation)) fail(400,'Unsupported operation');
+  if(!ctx.user) fail(401,'Sign in required');
+  if(name==='User' && ['create','delete','bulkCreate'].includes(operation) && ctx.user.role!=='admin') fail(403,'Admins only');
+  if(operation==='bulkCreate') {
+   if(!Array.isArray(body.data) || body.data.length>500) fail(400,'Invalid batch');
+   const data=[];
+   for(const input of body.data) data.push(await prepare(db,ctx,name,input));
+   const result=[];
+   for(const item of data) result.push(project(ctx,name,await db[name].create(item)));
+   return Response.json({result});
+  }
+  let existing=null;
+  if(['update','delete'].includes(operation)) {
+   existing=await db[name].get(body.id);
+   if(!existing || !(await visible(db,ctx,name,existing))) fail(404,'Record not found');
+  }
+  if(operation==='delete') {
+   if(ctx.user.role!=='admin' && !(ctx.user.role==='company' && COMPANY_READ.has(name) && name!=='Company') && !(ctx.user.role==='mechanic' && MAINTENANCE.has(name) && name!=='Vehicle')) fail(403,'Delete forbidden');
+   await prepare(db,ctx,name,{},existing);
+   await db[name].delete(body.id);
+   return Response.json({result:{ok:true}});
+  }
+  const data=await prepare(db,ctx,name,body.data,existing);
+  if(name==='User' && ctx.user.role==='admin' && Object.hasOwn(data,'company_id')) {
+   await approveMembership(db,{...existing,...data},data.company_id);
+  }
+  const row=operation==='create' ? await db[name].create(data) : await db[name].update(body.id,data);
+  return Response.json({result:project(ctx,name,row)});
+ } catch(error) { return Response.json({error:error.status ? error.message : 'Entity request failed'}, {status:error.status||500}); }
+}
