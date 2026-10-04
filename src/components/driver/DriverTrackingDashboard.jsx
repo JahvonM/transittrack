@@ -87,7 +87,7 @@ export default function DriverTrackingDashboard({ session, invoke, onReportIncid
     // previous trip) never shows up as a line on the maps.
     const cutoff = Date.now() - 30 * 60 * 1000;
     const recent = trailRef.current.filter((p) => p.t && Date.parse(p.t) > cutoff);
-    const nextTrail = [...recent, { lat, lng, t: new Date().toISOString() }].slice(-TRAIL_MAX);
+    const nextTrail = [...recent, { lat, lng, t: new Date(extra.ts || now).toISOString() }].slice(-TRAIL_MAX);
     trailRef.current = nextTrail;
     const speedKmh = (speed || 0) * 3.6;
     let status = "on_trip";
@@ -108,7 +108,10 @@ export default function DriverTrackingDashboard({ session, invoke, onReportIncid
     } catch (e) {
       // No connection: keep the point on the tablet (with the time it was
       // taken) and upload it later, so the trip has no gap.
-      if (!e?.response) queueGpsPoint({ lat, lng, speed, heading: extra.heading, accuracy: extra.accuracy, t: extra.ts || now });
+      if (!e?.response || [401,403,429].includes(e.response.status) || e.response.status>=500) {
+        try { queueGpsPoint({ lat, lng, speed, heading: extra.heading, accuracy: extra.accuracy, t: extra.ts || now }); }
+        catch (storageError) { toast({ title: "GPS could not be saved", description: storageError.message, variant: "destructive" }); }
+      }
     }
     setLiveVehicle((prev) => prev ? { ...prev, current_lat: lat, current_lng: lng, speed: speed || 0, status, trail: nextTrail } : prev);
     const nearby = [];

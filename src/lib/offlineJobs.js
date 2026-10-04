@@ -12,7 +12,8 @@ let flushing = false;
 let started = false;
 
 function read() {
-  try { return JSON.parse(localStorage.getItem(KEY) || "[]"); } catch { return []; }
+  try { const items = JSON.parse(localStorage.getItem(KEY) || "[]"); if (!Array.isArray(items)) throw new Error(); return items; }
+  catch { throw new Error("Saved work cannot be read. Do not clear tablet storage."); }
 }
 function write(jobs) {
   let ok = true;

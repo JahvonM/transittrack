@@ -41,7 +41,7 @@ export default function OfflineJobsBanner() {
       role="status"
     >
       <Icon className="w-4 h-4 text-primary" aria-hidden="true" />
-      {nounFor(jobs)} {online ? "uploading…" : "waiting for signal"}
+      {nounFor(jobs)} {jobs.some(j => j.last_error) ? "saved — upload needs attention; tap to retry" : online ? "uploading…" : "waiting for signal"}
     </button>
   );
 }

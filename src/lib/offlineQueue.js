@@ -1,7 +1,7 @@
 const STORAGE_KEY = "tt_offline_checkins";
 
 function readQueue() {
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]"); }
+  try { const items = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]"); if (!Array.isArray(items)) throw new Error(); return items; }
   catch { throw new Error("Saved check-ins cannot be read. Do not clear tablet storage."); }
 }
 
@@ -27,7 +27,7 @@ export function queueLength() {
   return readQueue().length;
 }
 
-// A network failure (the request never reached the server) has no
+// A network failure (the response may have been lost) has no
 // `response` on the thrown error; a real rejection from the backend (bad
 // staff_id, unknown action, etc.) does. Only the former is safe to retry
 // blindly — retrying a genuine rejection would just loop forever on the
@@ -43,6 +43,12 @@ let flushing = false;
 export async function flushQueue(invoke) {
   if (flushing) return 0;
   const queue = readQueue();
+  // Persist IDs before sending older queued work, so a lost response retries the same ID.
+  let migrated = false;
+  for (const item of queue) {
+    if (!item.payload.client_request_id) { item.payload.client_request_id = crypto.randomUUID(); migrated = true; }
+  }
+  if (migrated) writeQueue(queue);
   if (!queue.length) return 0;
   flushing = true;
   const done = new Set();
@@ -61,8 +67,7 @@ export async function flushQueue(invoke) {
     }
   } finally {
     // Re-read so check-ins queued while this ran aren't lost.
-    writeQueue(readQueue().filter((item) => !done.has(item.id)));
-    flushing = false;
+    try { writeQueue(readQueue().filter((item) => !done.has(item.id))); } finally { flushing = false; }
   }
   return synced;
 }

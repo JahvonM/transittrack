@@ -10,7 +10,8 @@ const MIN_GAP_MS = 15000; // offline, keep one point every 15 s
 const BATCH = 200;
 
 function read() {
-  try { const v = JSON.parse(localStorage.getItem(KEY) || "[]"); return Array.isArray(v) ? v : []; } catch { return []; }
+  try { const items = JSON.parse(localStorage.getItem(KEY) || "[]"); if (!Array.isArray(items)) throw new Error(); return items; }
+  catch { throw new Error("Saved GPS history cannot be read. Do not clear tablet storage."); }
 }
 function write(points) {
   try { localStorage.setItem(KEY, JSON.stringify(points)); } catch { throw new Error("GPS history could not be saved on this tablet"); }

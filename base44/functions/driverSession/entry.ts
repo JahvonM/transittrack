@@ -531,7 +531,7 @@ export default async function(req) {
 
         const sampleMs=body.recorded_at===undefined ? Date.now() : Date.parse(body.recorded_at);
         if(!Number.isFinite(sampleMs) || sampleMs>Date.now()+60000 || sampleMs<Date.now()-72*3600_000) return Response.json({error:'Invalid GPS timestamp'},{status:400});
-        if(speed!==undefined && (!Number.isFinite(speed) || speed<0 || speed>350)) return Response.json({error:'Invalid GPS speed'},{status:400});
+        if(speed!==undefined && (!Number.isFinite(speed) || speed<0 || speed>100)) return Response.json({error:'Invalid GPS speed'},{status:400});
         if(vehicle.company_id!==companyId) return Response.json({error:'Vehicle assignment mismatch'},{status:403});
         if(sampleMs<=Date.parse(vehicle.last_location_update||'')) return Response.json({ok:true,ignored:'stale sample'});
         const now = new Date(sampleMs);
@@ -545,6 +545,7 @@ export default async function(req) {
         // that was the bug making the admin SOS alert vanish a few seconds
         // after firing. Emergency can only be cleared by an explicit admin
         // action (Vehicle.update from the dashboard), never by a heartbeat.
+        if(status !== undefined && !['idle','on_trip','speeding','offline'].includes(status)) return Response.json({error:'Invalid tracking status'},{status:400});
         const routineStatus = status || 'on_trip';
         const update = { current_lat: lat, current_lng: lng, speed: newSpeed, status: vehicle.status === 'emergency' ? 'emergency' : routineStatus, last_location_update: now.toISOString() };
         if (Array.isArray(trail)) update.trail = trail.slice(-300).filter(p=>Number.isFinite(p.lat)&&Number.isFinite(p.lng)&&Math.abs(p.lat)<=90&&Math.abs(p.lng)<=180&&Number.isFinite(Date.parse(p.t))&&Date.parse(p.t)<=sampleMs).map(p=>({lat:p.lat,lng:p.lng,t:p.t}));
@@ -660,21 +661,27 @@ export default async function(req) {
       case 'upload_track': {
         const vehicle = await loadVehicle(base44, vehicleId);
         if (!vehicle) return Response.json({ error: 'Vehicle not found' }, { status: 404 });
+        if(vehicle.company_id!==companyId) return Response.json({error:'Vehicle assignment mismatch'},{status:403});
+        if(!Array.isArray(body.points) || body.points.length>300 || !body.points.length) return Response.json({error:'GPS batch must contain 1 to 300 points'},{status:400});
         const nowMs = Date.now();
         const points = (Array.isArray(body.points) ? body.points : []).slice(0, 300)
           .map((p) => ({ t: new Date(p?.t).getTime(), lat: p?.lat, lng: p?.lng, speed: p?.speed ?? 0 }))
           .filter((p) => Number.isFinite(p.t) && p.t <= nowMs + 60_000 && p.t >= nowMs - 72 * 3600_000
-            && Number.isFinite(p.lat) && Number.isFinite(p.lng) && Math.abs(p.lat) <= 90 && Math.abs(p.lng) <= 180 && Number.isFinite(p.speed) && p.speed>=0 && p.speed<=350)
+            && Number.isFinite(p.lat) && Number.isFinite(p.lng) && Math.abs(p.lat) <= 90 && Math.abs(p.lng) <= 180 && Number.isFinite(p.speed) && p.speed>=0 && p.speed<=100)
           .sort((a, b) => a.t - b.t);
-        if (!points.length) return Response.json({ ok: true, stored: 0 });
+        if(points.length!==body.points.length) return Response.json({error:'Invalid GPS point; batch retained'},{status:400});
 
         const from = points[0].t - PING_LOG_INTERVAL_MS;
         const to = points[points.length - 1].t + PING_LOG_INTERVAL_MS;
         const pings = base44.asServiceRole.entities.LocationPing;
-        const existing = (await pings.filter({ vehicle_id: vehicleId, recorded_at: { $gte: new Date(from).toISOString(), $lte: new Date(to).toISOString() } }, '-recorded_at', 1000)
-          .catch(() => pings.filter({ vehicle_id: vehicleId, company_id: companyId }, '-recorded_at', 1000)))
-          .map((r) => new Date(r.recorded_at).getTime())
-          .filter((t) => Number.isFinite(t) && t >= from && t <= to);
+        // Exhaust the tenant-scoped history rather than silently truncating duplicate checks.
+        const history = [];
+        for(let offset=0;;offset+=500) {
+          const page = await pings.filter({vehicle_id:vehicleId,company_id:companyId},'-recorded_at',500,offset);
+          history.push(...page);
+          if(page.length<500) break;
+        }
+        const existing = history.map(r=>Date.parse(r.recorded_at)).filter(t=>Number.isFinite(t)&&t>=from&&t<=to);
         const taken = [...existing];
         // Already have a point within a minute of this one (from live tracking
         // or an earlier upload of the same batch)? Then skip it.

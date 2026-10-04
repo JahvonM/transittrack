@@ -354,6 +354,21 @@ export default async function(req) {
       case 'check_in': {
         const { staff_id, staff_name, method, code_type, status: requestedStatus } = body;
         if (!staff_id && !staff_name) return Response.json({ error: 'staff_id or staff_name required' }, { status: 400 });
+        const requestId = body.client_request_id;
+        if(requestId !== undefined && (typeof requestId!=='string' || !/^[a-zA-Z0-9_-]{8,100}$/.test(requestId))) return Response.json({error:'Invalid request ID'},{status:400});
+        if(requestId && !['boarded','off_board'].includes(requestedStatus)) return Response.json({error:'Explicit boarding status required'},{status:400});
+        const requestHash = await hashSecret(JSON.stringify({staff:sanitize(staff_id)||sanitize(staff_name),status:requestedStatus,method:method||'manual',occurred_at:body.occurred_at||null}));
+        if(requestId) {
+          const previous=await base44.asServiceRole.entities.StaffCheckIn.filter({device_id:device.id,company_id:companyId,vehicle_id:vehicleId,client_request_id:requestId},'-created_date',1);
+          if(previous[0]) {
+            if(previous[0].request_hash!==requestHash) return Response.json({error:'Request ID reused with different data'},{status:409});
+            return Response.json({record:tabletCheckIn(previous[0]),deduplicated:true});
+          }
+        }
+        if(requestId && body.occurred_at !== undefined) {
+          const time = Date.parse(body.occurred_at);
+          if(!Number.isFinite(time) || time>Date.now()+60000 || time<Date.now()-72*3600_000) return Response.json({error:'Invalid check-in timestamp'},{status:400});
+        }
         const directory = await loadStaffDirectory(base44, companyId);
         const person = directory.find((s) => s.id === sanitize(staff_id)) || null;
         if (['nfc', 'qr', 'code'].includes(method) && (!person || !(await validGrant(base44, device, body.verification_grant, 'boarding', person.id)))) return Response.json({ error: 'Online credential verification required' }, { status: 403 });
@@ -364,16 +379,6 @@ export default async function(req) {
           ? requestedStatus
           : await nextStatus(base44, vehicleId, 'card_tag', cardTag);
         const resolvedVehicleName = vehicleName || (await resolveVehicleName(base44, vehicleId));
-        const requestId = body.client_request_id;
-        if(requestId !== undefined && (typeof requestId!=='string' || !/^[a-zA-Z0-9_-]{8,100}$/.test(requestId))) return Response.json({error:'Invalid request ID'},{status:400});
-        const requestHash = await hashSecret(JSON.stringify({staff:person?.id||sanitize(staff_id)||sanitize(staff_name),status,method:method||'manual',occurred_at:body.occurred_at||null}));
-        if(requestId) {
-          const previous=await base44.asServiceRole.entities.StaffCheckIn.filter({device_id:device.id,company_id:companyId,client_request_id:requestId},'-created_date',1);
-          if(previous[0]) {
-            if(previous[0].request_hash!==requestHash) return Response.json({error:'Request ID reused with different data'},{status:409});
-            return Response.json({record:tabletCheckIn(previous[0]),deduplicated:true});
-          }
-        }
         const record = await base44.asServiceRole.entities.StaffCheckIn.create({
           ...(requestId ? {client_request_id:requestId,request_hash:requestHash,device_id:device.id} : {}),
           staff_name: person?.full_name || sanitize(staff_name) || 'Staff',
@@ -383,9 +388,6 @@ export default async function(req) {
           vehicle_id: vehicleId, vehicle_name: resolvedVehicleName,
           check_in_method: ['nfc', 'qr', 'manual', 'code'].includes(method) ? method : 'manual',
         });
-        // A one-time code is single-use — burn it now that it's actually been
-        // used to check in, not at lookup time (cancelling the confirm screen
-        // shouldn't waste it).
         // A summary failure must not turn a completed write into a retry.
         let stats = {};
         try { stats = boardingStats(await tabletCheckIns(base44, companyId, vehicleId)); } catch { /* heartbeat refreshes counts later */ }
