@@ -1,12 +1,27 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 
+
+async function liveMembership(base44, row) {
+ if (!row.expires_at && !row.code_hash) return true; // Explicit admin approval.
+ if (!(Date.parse(row.expires_at) > Date.now()) || !row.code_hash) return false;
+ const company=await base44.asServiceRole.entities.Company.get(row.company_id).catch(()=>null);
+ if(!company) return false;
+ const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(company.access_code || ''));
+ const hash=Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,'0')).join('');
+ return row.code_hash===hash;
+}
+
 async function approvedCompanies(base44, user, scope) {
   const rows = await base44.asServiceRole.entities.CompanyMembership.filter({ user_id: user.id, active: true }, '-updated_date', 100);
-  return rows.filter(r => r.scope === (scope || (user.role === 'company' ? 'manager' : 'passenger'))).map(r => r.company_id);
+  const approved=[];
+  for(const row of rows) if(row.scope === (scope || (user.role === 'company' ? 'manager' : 'passenger')) && await liveMembership(base44,row)) approved.push(row.company_id);
+  return approved;
 }
 async function approvedStaffIds(base44, companyId) {
   const rows = await base44.asServiceRole.entities.CompanyMembership.filter({ company_id: companyId, active: true, scope: 'passenger' }, '-updated_date', 5000);
-  return new Set(rows.map(r => r.user_id));
+  const ids=new Set();
+  for(const row of rows) if(await liveMembership(base44,row)) ids.add(row.user_id);
+  return ids;
 }
 
 export default async function(req) {

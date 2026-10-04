@@ -1,12 +1,27 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 
+
+async function liveMembership(base44, row) {
+ if (!row.expires_at && !row.code_hash) return true; // Explicit admin approval.
+ if (!(Date.parse(row.expires_at) > Date.now()) || !row.code_hash) return false;
+ const company=await base44.asServiceRole.entities.Company.get(row.company_id).catch(()=>null);
+ if(!company) return false;
+ const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(company.access_code || ''));
+ const hash=Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,'0')).join('');
+ return row.code_hash===hash;
+}
+
 async function approvedCompanies(base44, user, scope) {
   const rows = await base44.asServiceRole.entities.CompanyMembership.filter({ user_id: user.id, active: true }, '-updated_date', 100);
-  return rows.filter(r => r.scope === (scope || (user.role === 'company' ? 'manager' : 'passenger'))).map(r => r.company_id);
+  const approved=[];
+  for(const row of rows) if(row.scope === (scope || (user.role === 'company' ? 'manager' : 'passenger')) && await liveMembership(base44,row)) approved.push(row.company_id);
+  return approved;
 }
 async function approvedStaffIds(base44, companyId) {
   const rows = await base44.asServiceRole.entities.CompanyMembership.filter({ company_id: companyId, active: true, scope: 'passenger' }, '-updated_date', 5000);
-  return new Set(rows.map(r => r.user_id));
+  const ids=new Set();
+  for(const row of rows) if(await liveMembership(base44,row)) ids.add(row.user_id);
+  return ids;
 }
 
 // Staff NFC card issuing (Admin → Card issuing). Cards are identified by the
@@ -67,7 +82,9 @@ async function loadPeople(base44, companyFilter) {
     if (key && !vehicleByDriver.has(key)) vehicleByDriver.set(key, v.fleet_number ? `${v.name} (${v.fleet_number})` : v.name);
   }
   const memberships = await sr.CompanyMembership.filter({ active: true, scope: 'passenger' }, '-updated_date', 5000);
-  const trustedUsers = users.map(u => ({ ...u, company_id: memberships.find(m => m.user_id === u.id)?.company_id || '' }));
+  const live=[];
+  for(const row of memberships) if(await liveMembership(base44,row)) live.push(row);
+  const trustedUsers = users.map(u => ({ ...u, company_id: live.find(m => m.user_id === u.id)?.company_id || '' }));
   const people = [];
   for (const d of drivers) {
     if (!inCompany(d.company_id)) continue;

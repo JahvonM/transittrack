@@ -17,9 +17,22 @@ function scrub(value, allowCodes=false) {
  if (!value || typeof value !== 'object') return value;
  return Object.fromEntries(Object.entries(value).filter(([k]) => !CREDENTIALS.has(k) || (allowCodes && ['access_code','pairing_code'].includes(k))).map(([k,v])=>[k,scrub(v,allowCodes)]));
 }
+
+async function liveMembership(db, row) {
+ if (!row.expires_at && !row.code_hash) return true; // Explicit admin approval.
+ if (!(Date.parse(row.expires_at) > Date.now()) || !row.code_hash) return false;
+ const company=await db.Company.get(row.company_id).catch(()=>null);
+ if(!company) return false;
+ const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(company.access_code || ''));
+ const hash=Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,'0')).join('');
+ return row.code_hash===hash;
+}
+
 async function memberships(db, user) {
  const rows = await db.CompanyMembership.filter({ user_id:user.id, active:true }, '-updated_date', 100);
- return rows.filter(r=>r.scope === (user.role === 'company' ? 'manager' : 'passenger'));
+ const approved=[];
+ for(const row of rows) if(row.scope === (user.role === 'company' ? 'manager' : 'passenger') && await liveMembership(db,row)) approved.push(row);
+ return approved;
 }
 async function context(base44) {
  const session = await base44.auth.me().catch(()=>null);
@@ -150,7 +163,7 @@ async function prepare(db,ctx,name,input,existing=null) {
   if(name!=='Company' && !(await db.Company.get(tenant).catch(()=>null))) fail(400,'Company not found');
  }
  for(const [field,parent] of [['route_id','Route'],['inspection_id','Inspection'],['driver_id','Driver'],['template_id','InspectionTemplate']]) {
-  if(data[field]) { const row=await db[parent].get(data[field]).catch(()=>null); if(!row || (row.company_id && tenant && row.company_id!==tenant)) fail(403,'Related record belongs to another company'); }
+  if(data[field]) { const row=await db[parent].get(data[field]).catch(()=>null); const parentTenant=row ? await tenantOf(db,parent,row) : null; if(!row || (tenant && parentTenant!==tenant && !(parent==='InspectionTemplate' && !parentTenant && !row.company_id))) fail(403,'Related record belongs to another company'); }
  }
  return data;
 }

@@ -17,6 +17,12 @@
     },
     "active": {
       "type": "boolean"
+    },
+    "expires_at": {
+      "type": "string"
+    },
+    "code_hash": {
+      "type": "string"
     }
   },
   "required": [
