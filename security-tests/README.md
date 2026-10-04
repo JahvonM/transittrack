@@ -17,7 +17,7 @@ auto-sync in Base44. The frontend was not published.
 
 | Command | Result | Meaning |
 |---|---|---|
-| npm test | 232 passed | Implemented behavior and recovery regressions |
+| npm test | 234 passed | Implemented behavior and recovery regressions |
 | npm run lint | Passed | Source and tests |
 | npm run build | Passed | Frontend compiles |
 | npm run test:e2e | 11 checks passed | Mocked company/mechanic/tablet/recovery browser contracts |
@@ -150,7 +150,7 @@ an arbitrary notification. Taxi booking validates eligible taxi service, action,
 required strings and optional paired coordinates; signed-in non-members may still
 book an actual public taxi operator. No publication or live mutation was performed.
 
-34 new baseline unit tests cover legitimate routing, stale recipients, membership
+36 new baseline unit tests cover legitimate routing, stale recipients, membership
 expiry/code changes, fail-closed lookup, forged notification fields, ownership,
 channel/tenant scope, media and taxi validation. Three mock browser checks cover
 text/photo notifications from all three client chat screens, alongside the eight

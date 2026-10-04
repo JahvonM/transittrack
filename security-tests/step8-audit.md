@@ -148,6 +148,6 @@ rotated and no replacement signing keys generated or committed.
 A8-1, A8-2 and A8-4 now have code fixes and passing isolated release assertions.
 A8-3 remains unresolved. Original audit evidence above describes 67ed322 and is
 retained as history. Current strict results: 16 pass, 22 fail out of 38. Baseline:
-232 unit tests, 11 mocked browser checks, lint and build pass. The first production
+234 unit tests, 11 mocked browser checks, lint and build pass. The first production
 release remains blocked. See README.md's follow-up section for the new contract,
 test coverage, rollout requirements and non-atomic notification replay limits.

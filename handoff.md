@@ -584,7 +584,7 @@ not published. Taxi booking rejects non-taxi operators, unsupported actions,
 invalid required strings and malformed/out-of-range/unpaired coordinates, while
 preserving signed-in public booking without operator membership.
 
-232 baseline unit tests (34 new), 11 mock browser checks, lint/build pass. Four
+234 baseline unit tests (36 new), 11 mock browser checks, lint/build pass. Four
 strict criteria now pass: both stale-recipient checks, passenger dispatch denial
 and non-taxi rejection. Strict suite: 16 pass, 22 fail out of 38, exit 1. Dispatch
 fixture now includes a saved owned dispatch row so it tests channel authorization

@@ -91,6 +91,17 @@ describe('saved-message notification authorization',()=>{
   const sdk=mock(null);expect((await load('notifyAdminMessage',sdk).default(request({message_id:'message'}))).status).toBe(401);
   expect(sdk.reads).toEqual([]);
  });
+ it('maps SDK missing-record errors to controlled rejection',async()=>{
+  const {sdk,default:handler}=notificationFixture(),db=sdk.asServiceRole.entities;
+  sdk.asServiceRole.entities=new Proxy(db,{get:(target,name)=>name==='GroupMessage'?{...target[name],get:async()=>{throw Object.assign(new Error('missing'),{response:{status:404}});}}:target[name]});
+  expect((await handler(request({message_id:'message'}))).status).toBe(404);
+ });
+ it('fails closed without exposing database errors when lookup fails',async()=>{
+  const {sdk,default:handler}=notificationFixture(),db=sdk.asServiceRole.entities;
+  sdk.asServiceRole.entities=new Proxy(db,{get:(target,name)=>name==='GroupMessage'?{...target[name],get:async()=>{throw new Error('PRIVATE_DATABASE_DETAIL');}}:target[name]});
+  const response=await handler(request({message_id:'message'}));
+  expect(response.status).toBe(500);expect(await response.json()).toEqual({error:'Notification failed'});
+ });
  it('rejects deleted message IDs',async()=>{
   const {sdk,default:handler}=notificationFixture();sdk.tables.GroupMessage=[];
   expect((await handler(request({message_id:'message'}))).status).toBe(404);
