@@ -1,4 +1,3 @@
-import { randomPairingCode } from "@/lib/deviceAuth";
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
@@ -145,15 +144,11 @@ export default function KioskTablets({ vehicles, companies, onChange }) {
   };
 
   const regenerate = async (device) => {
-    const code = randomPairingCode();
     setBusyId(device.id);
     try {
-      await base44.entities.KioskDevice.update(device.id, {
-        pairing_code: code,
-          pairing_expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
-        paired: false,
-      });
-      toast({ title: "New pairing code generated", description: code });
+      if (device.paired && !window.confirm("Replacing this pairing disconnects the tablet. Export or sync its saved work first. Continue?")) return;
+      const res = await base44.functions.invoke("manageAccessCodes", { action: "issue_pairing", device_id: device.id, replace_existing: device.paired === true });
+      toast({ title: "New pairing code generated", description: res.data.code });
       loadDevices();
     } catch {
       toast({ title: "Couldn't generate code", variant: "destructive" });
@@ -202,11 +197,7 @@ export default function KioskTablets({ vehicles, companies, onChange }) {
   const revoke = async (device) => {
     setBusyId(device.id);
     try {
-      await base44.entities.KioskDevice.update(device.id, {
-        status: "revoked",
-        pairing_code: "",
-        paired: false,
-      });
+      await base44.functions.invoke("manageAccessCodes", { action: "revoke_device", device_id: device.id });
       toast({ title: "Device revoked", description: `${device.label} is unpaired` });
       loadDevices();
       onChange?.();
@@ -218,16 +209,10 @@ export default function KioskTablets({ vehicles, companies, onChange }) {
   };
 
   const reactivate = async (device) => {
-    const code = randomPairingCode();
     setBusyId(device.id);
     try {
-      await base44.entities.KioskDevice.update(device.id, {
-        status: "active",
-        pairing_code: code,
-          pairing_expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
-        paired: false,
-      });
-      toast({ title: "Device reactivated", description: `New pairing code: ${code}` });
+      const res = await base44.functions.invoke("manageAccessCodes", { action: "reactivate_device", device_id: device.id });
+      toast({ title: "Device reactivated", description: `New pairing code: ${res.data.code}` });
       loadDevices();
     } catch {
       toast({ title: "Couldn't reactivate", variant: "destructive" });

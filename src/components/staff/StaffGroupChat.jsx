@@ -48,23 +48,20 @@ export default function StaffGroupChat({ vehicle }) {
   const [sending, setSending] = useState(false);
   const displayName = user?.full_name || user?.email?.split("@")[0] || "Staff";
 
-  const notifyAdmin = (extra) => {
-    base44.functions.invoke("notifyAdminMessage", {
-      vehicle_name: vehicle.name, company_id: vehicle.company_id, channel: "staff",
-      sender_name: displayName, ...extra,
-    }).catch(() => {});
+  const notifyAdmin = (message) => {
+    base44.functions.invoke("notifyAdminMessage", { message_id: message.id }).catch(() => {});
   };
 
   const send = async (text) => {
     if (!vehicle?.id) return;
     setSending(true);
     try {
-      await base44.entities.GroupMessage.create({
+      const message = await base44.entities.GroupMessage.create({
         vehicle_id: vehicle.id, vehicle_name: vehicle.name,
         company_id: vehicle.company_id, company_name: vehicle.company_name,
         channel: "staff", sender_role: "staff", sender_name: displayName, text,
       });
-      notifyAdmin({ text });
+      notifyAdmin(message);
     } catch { /* offline or blocked — nothing to recover client-side */ }
     finally { setSending(false); }
   };
@@ -74,13 +71,13 @@ export default function StaffGroupChat({ vehicle }) {
     const ext = messageType === "image" ? "jpg" : "webm";
     const file = new File([blob], `${messageType}-${Date.now()}.${ext}`, { type: blob.type });
     const { file_url } = await base44.integrations.Core.UploadFile({ file });
-    await base44.entities.GroupMessage.create({
+    const message = await base44.entities.GroupMessage.create({
       vehicle_id: vehicle.id, vehicle_name: vehicle.name,
       company_id: vehicle.company_id, company_name: vehicle.company_name,
       channel: "staff", sender_role: "staff", sender_name: displayName,
       text: "", message_type: messageType, media_url: file_url,
     });
-    notifyAdmin({ message_type: messageType });
+    notifyAdmin(message);
   };
 
   const editMessage = async (m, text) => {

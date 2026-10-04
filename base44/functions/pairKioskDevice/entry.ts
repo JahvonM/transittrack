@@ -34,7 +34,7 @@ export default async function(req) {
     const body = await req.json();
     const { pairing_code } = body;
 
-    if (!pairing_code || typeof pairing_code !== 'string' || pairing_code.trim().length < 4) {
+    if (!pairing_code || typeof pairing_code !== 'string' || !/^[A-Z0-9]{12}$/.test(pairing_code.trim().toUpperCase())) {
       return Response.json({ error: 'A valid pairing code is required' }, { status: 400 });
     }
 
@@ -51,6 +51,7 @@ export default async function(req) {
       return Response.json({ error: 'Invalid or expired pairing code' }, { status: 404 });
     }
 
+    if(devices.length!==1)return Response.json({error:'Pairing code is ambiguous; request a new code'},{status:409});
     const device = devices[0];
 
     // Reject sequential reuse. Base44 does not expose an atomic consume here;
@@ -61,7 +62,7 @@ export default async function(req) {
 
     if (body.expected_type === 'driver' && device.kiosk_type !== 'driver') return Response.json({ error: 'Not a driver tablet' }, { status: 400 });
     if (body.expected_type === 'kiosk' && device.kiosk_type === 'driver') return Response.json({ error: 'Not a kiosk tablet' }, { status: 400 });
-    if (device.pairing_expires_at && !(Date.parse(device.pairing_expires_at) > Date.now())) return Response.json({ error: 'Pairing code expired' }, { status: 410 });
+    if (!(Date.parse(device.pairing_expires_at) > Date.now()) || Date.parse(device.pairing_expires_at) > Date.now()+15*60_000) return Response.json({ error: 'Pairing code expired' }, { status: 410 });
     if (!device.company_id) return Response.json({ error: 'Company assignment required' }, { status: 400 });
     const token = Array.from(crypto.getRandomValues(new Uint8Array(32)), (b) => b.toString(16).padStart(2, '0')).join('');
     const issued = new Date();

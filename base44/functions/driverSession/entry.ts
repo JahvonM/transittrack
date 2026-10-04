@@ -108,16 +108,32 @@ async function sendPushToTokens(serviceAccountJson, tokens, payload) {
 // admin: 'company' also reaches that company's own manager, 'mechanic' also
 // reaches the maintenance team. 'staff' and 'dispatch' are admin-only targets
 // (staff themselves are already looking at the thread live via subscribe).
+// Stored token roles are registration metadata, never recipient authorization.
+// Re-evaluate current users and approved manager memberships for every send.
+async function recipientRows(db, name, query) {
+  const rows = [];
+  for (let skip = 0; skip < 10000; skip += 500) {
+    const batch = await db[name].filter(query, '-created_date', 500, skip);
+    rows.push(...batch);
+    if (batch.length < 500) return rows;
+  }
+  throw new Error('Notification recipient set is too large');
+}
 async function pushTokensForChannel(base44, channel, companyId) {
-  const queries = [base44.asServiceRole.entities.PushToken.filter({ role: 'admin' })];
-  if (channel === 'company' && companyId) {
-    queries.push(base44.asServiceRole.entities.PushToken.filter({ role: 'company', company_id: companyId }));
+  const db = base44.asServiceRole.entities;
+  const roles = ['admin'];
+  if (channel === 'company' && companyId) roles.push('company');
+  if (channel === 'mechanic') roles.push('mechanic');
+  const users = await recipientRows(db, 'User', { role: { $in: roles } });
+  const tokens = new Set();
+  for (const user of users) {
+    if (!user.email) continue;
+    if (user.role === 'company' && !(await approvedCompanies(base44, user, 'manager')).includes(companyId)) continue;
+    for (const row of await recipientRows(db, 'PushToken', { email: user.email })) {
+      if (typeof row.token === 'string' && row.token) tokens.add(row.token);
+    }
   }
-  if (channel === 'mechanic') {
-    queries.push(base44.asServiceRole.entities.PushToken.filter({ role: 'mechanic' }));
-  }
-  const results = await Promise.all(queries);
-  return [...new Set(results.flat().map((t) => t.token))];
+  return [...tokens];
 }
 
 // When a bus leaves a stop, the next stop on its route is "one stop away":
@@ -770,9 +786,9 @@ export default async function(req) {
         try {
           const serviceAccountJson = secrets.get('FIREBASE_SERVICE_ACCOUNT');
           if (serviceAccountJson) {
-            const adminTokens = await base44.asServiceRole.entities.PushToken.filter({ role: 'admin' });
+            const adminTokens = await pushTokensForChannel(base44, 'dispatch', companyId);
             if (adminTokens.length) {
-              await sendPushToTokens(serviceAccountJson, adminTokens.map((t) => t.token), {
+              await sendPushToTokens(serviceAccountJson, adminTokens, {
                 title: '🚨 SOS — ' + vehicle.name,
                 body: `${vehicle.driver_name || 'Driver'} triggered SOS. Open the admin dashboard now.`,
                 data: { type: 'sos', vehicle_id: vehicleId },

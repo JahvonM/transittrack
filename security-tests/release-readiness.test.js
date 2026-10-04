@@ -21,14 +21,14 @@ describe('production security readiness',()=>{
   expect(sdk.tables.DeviceCredential).toHaveLength(1);
  });
  it('rejects pairing codes without an expiry',async()=>{
-  const sdk=mock(null);Object.assign(sdk.tables.KioskDevice[0],{paired:false,pairing_code:'AAAA'});
-  const response=await load('pairKioskDevice',sdk).default(request({pairing_code:'AAAA'}));
+  const sdk=mock(null);Object.assign(sdk.tables.KioskDevice[0],{paired:false,pairing_code:'PAIR12345678'});
+  const response=await load('pairKioskDevice',sdk).default(request({pairing_code:'PAIR12345678'}));
   expect(response.status).toBeGreaterThanOrEqual(400);
   expect(sdk.tables.DeviceCredential||[]).toHaveLength(0);
  });
  it('rejects manager writes to pairing security fields',async()=>{
   const sdk=mock('company');
-  const response=await load('entityAccess',sdk).default(request({entity:'KioskDevice',operation:'update',id:'tablet',data:{pairing_code:'AAAA',paired:false,pairing_expires_at:null}}));
+  const response=await load('entityAccess',sdk).default(request({entity:'KioskDevice',operation:'update',id:'tablet',data:{pairing_code:'PAIR12345678',paired:false,pairing_expires_at:null}}));
   expect(response.status).toBe(403);
  });
  it('rejects weak manager-supplied company join codes',async()=>{
@@ -49,10 +49,10 @@ describe('production security readiness',()=>{
   expect((await response.json()).code.length).toBeGreaterThanOrEqual(10);
  });
  it('does not issue a code already held in PassengerAccessCredential',async()=>{
-  const sdk=codeClient();sdk.tables.PassengerAccessCredential=[{id:'held',user_id:'other',company_id:'a',token_hash:digest('77777')}];
+  const sdk=codeClient();sdk.tables.PassengerAccessCredential=[{id:'held',user_id:'other',company_id:'a',token_hash:digest('777777777777')}];
   const fixedRandom={subtle:webcrypto.subtle,getRandomValues:array=>array.fill(7)};
   const response=await load('kioskCheckIn',sdk,[],fixedRandom).default(request({action:'generate_access_code',company_id:'a',staff_id:'passenger'}));
-  if(response.status===200)expect((await response.json()).code).not.toBe('77777');
+  if(response.status===200)expect((await response.json()).code).not.toBe('777777777777');
   else expect(response.status).toBe(503);
  });
  it('consumes one-time passenger codes only once under concurrency',async()=>{

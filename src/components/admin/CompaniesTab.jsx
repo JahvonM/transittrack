@@ -1,3 +1,4 @@
+import { toast } from "@/components/ui/use-toast";
 import React, { useState } from "react";
 import EmptyState from "@/components/EmptyState";
 import { base44 } from "@/api/base44Client";
@@ -11,6 +12,7 @@ import CreateCompanyForm from "@/components/admin/CreateCompanyForm";
 export default function CompaniesTab({ companies, onChange }) {
   const [copied, setCopied] = useState(null);
   const [editing, setEditing] = useState(null);
+  const [issuing, setIssuing] = useState(null);
 
   const copy = (code) => {
     navigator.clipboard.writeText(code || "");
@@ -56,6 +58,15 @@ export default function CompaniesTab({ companies, onChange }) {
                   {copied === c.access_code ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                 </Button>
               </div>
+              <Button variant="outline" size="sm" disabled={issuing === c.id} onClick={async () => {
+                setIssuing(c.id);
+                try {
+                  const res = await base44.functions.invoke("manageAccessCodes", { action: "issue_company", company_id: c.id });
+                  toast({ title: "New join code", description: res.data.code });
+                  onChange();
+                } catch (error) { toast({ title: "Could not issue code", description: error.message, variant: "destructive" }); }
+                finally { setIssuing(null); }
+              }}>New code</Button>
               <Button variant="outline" size="sm" onClick={() => setEditing(c)}>
                 <Pencil className="w-4 h-4 mr-1.5" />Edit
               </Button>

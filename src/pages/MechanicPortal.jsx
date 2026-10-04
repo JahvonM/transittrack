@@ -117,15 +117,12 @@ export default function MechanicPortal() {
     if (!activeVehicle) return;
     setSending(true);
     try {
-      await base44.entities.GroupMessage.create({
+      const message = await base44.entities.GroupMessage.create({
         vehicle_id: activeVehicle.id, vehicle_name: activeVehicle.name,
         company_id: activeVehicle.company_id, company_name: activeVehicle.company_name,
         channel: "mechanic", sender_role: "mechanic", sender_name: senderName, text,
       });
-      base44.functions.invoke("notifyAdminMessage", {
-        vehicle_name: activeVehicle.name, company_id: activeVehicle.company_id, channel: "mechanic",
-        sender_name: senderName, text,
-      }).catch(() => {});
+      base44.functions.invoke("notifyAdminMessage", { message_id: message.id }).catch(() => {});
     } finally {
       setSending(false);
     }
@@ -136,16 +133,13 @@ export default function MechanicPortal() {
     const ext = messageType === "image" ? "jpg" : "webm";
     const file = new File([blob], `${messageType}-${Date.now()}.${ext}`, { type: blob.type });
     const { file_url } = await base44.integrations.Core.UploadFile({ file });
-    await base44.entities.GroupMessage.create({
+    const message = await base44.entities.GroupMessage.create({
       vehicle_id: activeVehicle.id, vehicle_name: activeVehicle.name,
       company_id: activeVehicle.company_id, company_name: activeVehicle.company_name,
       channel: "mechanic", sender_role: "mechanic", sender_name: senderName,
       text: "", message_type: messageType, media_url: file_url,
     });
-    base44.functions.invoke("notifyAdminMessage", {
-      vehicle_name: activeVehicle.name, company_id: activeVehicle.company_id, channel: "mechanic",
-      sender_name: senderName, message_type: messageType,
-    }).catch(() => {});
+    base44.functions.invoke("notifyAdminMessage", { message_id: message.id }).catch(() => {});
   };
 
   const editMessage = async (m, text) => {

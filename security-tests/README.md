@@ -2,9 +2,10 @@
 
 TransitTrack is pre-production. Step 7 first reproduced 33 failing release
 criteria. The authorized remediation batch satisfied 12. Step 8 added five
-additional failing criteria: 12 pass and 26 fail out of 38. Step 8 audit is
-complete; the first production release remains blocked. See step8-audit.md.
-These are checks, not 26 distinct vulnerabilities.
+additional criteria. The notification/booking follow-up now brings the strict
+suite to 16 passing and 22 failing out of 38. The server-code issuance follow-up brings it to 21 passing and 17 failing out of 38. Step 8 audit is complete; the
+first production release remains blocked. See step8-audit.md.
+These are checks, not 17 distinct vulnerabilities.
 
 Testing replaces the SDK with in-memory entities, fake sessions and captured
 email calls. Browser tests intercept every API request. No live API attack,
@@ -16,11 +17,11 @@ auto-sync in Base44. The frontend was not published.
 
 | Command | Result | Meaning |
 |---|---|---|
-| npm test | 198 passed | Implemented behavior and recovery regressions |
+| npm test | 255 passed | Implemented behavior and recovery regressions |
 | npm run lint | Passed | Source and tests |
 | npm run build | Passed | Frontend compiles |
-| npm run test:e2e | 8 passed | Mocked company/mechanic/tablet/recovery browser contracts |
-| npm run test:security:release | 12 passed, 26 failed; exits 1 | Release blockers remain |
+| npm run test:e2e | 13 checks passed | Mocked company/mechanic/tablet/recovery browser contracts |
+| npm run test:security:release | 21 passed, 17 failed; exits 1 | Release blockers remain |
 
 The strict suite uses ordinary assertions. Failures are not skipped, marked
 expected, swallowed or treated as success. GitHub Actions has a separate
@@ -29,7 +30,8 @@ settings have not been verified/configured. A workflow is not an enforced gate.
 No deployment workflow was added.
 
 Default Playwright discovery includes only company-isolation.spec.js,
-tablet-context.spec.js and saved-work.spec.js. Older live specs remain excluded.
+tablet-context.spec.js, saved-work.spec.js, message-notifications.spec.js and server-codes.spec.js.
+Older live specs remain excluded.
 Test outputs/traces are ignored.
 
 ## Remediation covered by the 12 now-passing release criteria
@@ -78,17 +80,11 @@ reviewed/archived originals are not thinned.
 | Atomic attempt limits | 4 | Concurrent requests exceed each reserveAttempt limit |
 | End development ID-only authentication before production | 3 | Tokenless pre-cutoff tablets still authenticate; deliberate development exception |
 | Exclusive pairing claim | 1 | Concurrent pairing requests succeed together |
-| Server-controlled pairing rules | 2 | No-expiry short codes pair; managers can write pairing security fields |
-| Strong company join codes | 1 | Manager can set ABCD |
-| Permanent keypad strength/collision checks | 2 | Five-digit generation and duplicate protected credential fingerprints |
 | One-time code consumption | 1 | Interleaved consumers obtain grants from one code |
 | Boarding grant use/card revocation | 2 | Another request can reuse a grant; revoked cards still board using an earlier grant |
 | Concurrent mechanic inspection replay | 1 | Interleaved identical IDs create duplicate result rows |
 | Concurrent check-in/shift/driver inspection/GPS | 4 | Duplicate rows and older live-position overwrite |
-| Fresh privileged push recipients | 2 | Both selectors retain deleted-admin/removed-manager tokens |
-| Dispatch notification authorization | 1 | Approved passenger can trigger dispatch notification |
 | Atomic public crash email budget | 1 | Twenty interleaved reports capture twenty emails despite budget five |
-| Eligible taxi operator | 1 | Non-taxi company accepts a scheduled taxi trip |
 
 Concurrency fixtures return snapshots and explicitly interleave vulnerable reads
 before writes. They model a valid non-transactional schedule even with immediate
@@ -102,12 +98,12 @@ These tests do not prove exhaustive security.
 
 | Finding | Current status |
 |---|---|
-| 1: permanent codes | Unresolved; plaintext Contact storage/global failure budget also remain |
+| 1: permanent codes | New codes are twelve digits, checked against protected and legacy codes, and hashed for both User and Contact. Legacy plaintext, lifetime, global budget and atomic uniqueness remain |
 | 2: legacy device login | Deliberate development exception; needs authorized migration before release |
 | 3: concurrent pairing | Unresolved; atomic storage guarantee needed |
-| 4: pairing rules in UI | Unresolved; server issuance, expiry, throttle and uniqueness needed |
+| 4: pairing rules in UI | Server issuance, expiry and security-field restrictions implemented; throttle and atomic uniqueness remain |
 | 5: attempt-limit races | Unresolved; failure/success policy and backoff also need design |
-| 6: weak join codes | Unresolved; server issuance and multi-account abuse budget needed |
+| 6: weak join codes | Server-issued twelve-character codes with expiry; multi-account budget and atomic uniqueness remain |
 | 7: OTP/grant reuse | Unresolved; completed retries must still safely acknowledge |
 | 8: maintenance recipients | Fixed with approved membership selection; isolated email assertions pass |
 | 9: advertisement ownership/drafts | Policy decision; public reads and authorized admin/company writes retained |
@@ -116,11 +112,11 @@ These tests do not prove exhaustive security.
 | 12: passenger audit-log writes | Policy decision; actor attribution remains server-controlled |
 | 13: mechanic deletion rights | Policy decision; global maintenance visibility preserved |
 
-Step 8 confirmed stale push-recipient selection in code and mocks, dispatch
-notification permission mismatch, public crash-email budget races and non-taxi
-booking acceptance. Five additional strict checks fail for these findings; see
-step8-audit.md. Real push delivery and trustworthy scheduler identity remain
-unverified.
+Step 8 confirmed stale push-recipient selection, dispatch notification mismatch,
+public crash-email budget races and non-taxi booking acceptance. Follow-up fixes
+now satisfy the two recipient checks, dispatch check and taxi check. The crash
+email budget still fails. Real push delivery and trustworthy scheduler identity
+remain unverified. See step8-audit.md for historical evidence and follow-up status.
 Scheduled functions reject anonymous calls before reads/writes/email. Tests do not
 validate an authenticated automatic schedule. Live inventories, live platform User
 self-edit rules and direct-entity RLS tests remain outstanding. No test account was
@@ -132,3 +128,78 @@ authorize legacy credential/device migration, configure verified scheduler ident
 review old queued work, then perform separately authorized live role/device tests
 with verified accounts and cleanup. Backend changes and the unpublished frontend
 need a coordinated rollout. Passing baseline tests do not establish release readiness.
+
+
+## Notification and booking follow-up — 2026-10-04 UTC
+
+Four additional strict criteria now pass. Both chat recipient selectors (and SOS
+through the driver selector) resolve current User roles and active approved manager
+memberships; historical PushToken roles/company fields do not authorize delivery.
+Recipient queries paginate and fail closed if the 10,000-row bound is reached or
+lookups fail. Eligible admins and global mechanics remain reachable, and promoted
+users do not need old token role metadata to match their current role.
+
+notifyAdminMessage now accepts message_id. It fetches the current actor, verifies
+saved message ownership/channel/vehicle scope, and derives notification content
+from server records. Company/staff/mechanic text and media callers pass the ID
+returned by the message write. A missing/deleted/foreign message cannot trigger
+an arbitrary notification. Taxi booking validates eligible taxi service, action,
+required strings and optional paired coordinates; signed-in non-members may still
+book an actual public taxi operator. No publication or live mutation was performed.
+
+36 new baseline unit tests cover legitimate routing, stale recipients, membership
+expiry/code changes, fail-closed lookup, forged notification fields, ownership,
+channel/tenant scope, media and taxi validation. Three mock browser checks cover
+text/photo notifications from all three client chat screens, alongside the eight
+existing checks. Voice-note metadata is covered in a backend test; the live
+microphone/FCM path was not exercised. Lint/build pass.
+
+Limits: recipient checks are current snapshots, not atomic with FCM delivery.
+Deletion/demotion after authorization cannot retract an already submitted push.
+Token rows were not deleted and tablets were not revoked. Valid message IDs can
+still replay notification requests: no atomic notification claim/budget was added.
+Taxi booking abuse limits/idempotency and anonymous crash-email limits remain
+future work. Backend functions auto-sync; older unpublished client versions using
+raw notification text are refused by the new endpoint while stored chat messages
+still work. Coordinate client rollout before real tablet/operator use.
+
+
+## Server-controlled code issuance follow-up — 2026-10-04 UTC
+
+Five additional strict checks pass: pairing expiry, blocked pairing-field writes,
+blocked weak company-code writes, permanent keypad strength and protected-code
+collision rejection. The strict suite is 21 pass / 17 fail (38 checks), exit 1.
+This does not solve concurrent issuance, pairing claims, attempt-limit races or
+one-time/grant consumption.
+
+manageAccessCodes fetches the current actor and requires admin or an active
+approved manager membership for the target company. It generates twelve-character
+pairing codes (15-minute expiry) and company join codes (30-day new-join expiry).
+The generic gateway rejects caller-controlled company code/expiry and device
+pairing/expiry/paired/status fields. Company/device creation issues codes server-side.
+Existing paired-device replacement requires explicit confirmation. Browser issuance,
+revocation and reactivation controls use the protected function.
+
+Both passenger issuance paths generate twelve random digits, check protected
+fingerprints and legacy Contact codes, and store fingerprints in the protected
+ledger. Reissuing a Contact clears its legacy plaintext code. Card directory
+responses indicate whether a code exists without returning it. Lookup rejects
+ambiguity between legacy and protected records; the keypad accepts twelve digits.
+Collision queries are sequential checks, not a unique constraint or transaction.
+
+No records were queried or rotated live. Existing paired tablet authentication
+is unchanged, including the deliberately retained ID-only development exception.
+Old unpaired short/no-expiry pairing codes require operator reissue before pairing.
+Old company codes lacking a future expiry cannot authorize new joins. Existing
+code-bound memberships/context grants retain their own expiry when only join-code
+expiry elapses; replacing the code invalidates those code-bound grants under the
+existing policy. Explicit admin-approved memberships are unaffected by replacement.
+Legacy Contact plaintext codes remain until individually reissued; no bulk migration
+was performed. Permanent passenger codes still need a lifetime/rotation policy.
+Company join codes remain server-stored and are returned only to authorized
+admin/company operators for sharing; mechanics/passengers cannot read them.
+
+255 unit tests (21 new issuance checks), 13 mocked browser checks, lint/build pass.
+No live account changes, actual tablet revocation, production credential rotation,
+signing keys or frontend publication. Backend/entity files auto-sync; older browser
+code-management writes now fail closed, so client rollout must be coordinated.

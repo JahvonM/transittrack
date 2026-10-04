@@ -9,7 +9,9 @@ export default async function(req) {
     }
     let body = {};
     try { body = await req.json(); } catch { /* empty body allowed */ }
-    const action = body.action || 'book';
+    if (!body || typeof body !== 'object' || Array.isArray(body)) return Response.json({ error: 'Invalid booking request' }, { status: 400 });
+    const action = body.action === undefined ? 'book' : body.action;
+    if (!['list', 'book'].includes(action)) return Response.json({ error: 'Unsupported action' }, { status: 400 });
 
     // List of taxi operators (public info only).
     if (action === 'list') {
@@ -22,18 +24,22 @@ export default async function(req) {
 
     // Booking — creates an unassigned taxi trip for the chosen operator.
     const { passenger_name, phone, pickup_name, dropoff_name, company_id, pickup_lat, pickup_lng } = body;
-    if (!passenger_name || !phone || !pickup_name || !dropoff_name || !company_id) {
+    if ([passenger_name, phone, pickup_name, dropoff_name, company_id].some(value => typeof value !== 'string' || !value.trim())) {
       return Response.json({ error: 'Missing required fields' }, { status: 400 });
     }
-    const company = await base44.asServiceRole.entities.Company.get(String(company_id));
+    const hasLat = pickup_lat !== undefined && pickup_lat !== null;
+    const hasLng = pickup_lng !== undefined && pickup_lng !== null;
+    if (hasLat !== hasLng || (hasLat && (!Number.isFinite(pickup_lat) || !Number.isFinite(pickup_lng) || Math.abs(pickup_lat) > 90 || Math.abs(pickup_lng) > 180))) return Response.json({ error: 'Invalid pickup coordinates' }, { status: 400 });
+    const company = await base44.asServiceRole.entities.Company.get(company_id.trim());
     if (!company) return Response.json({ error: 'Company not found' }, { status: 404 });
+    if (!Array.isArray(company.service_types) || !company.service_types.includes('taxi')) return Response.json({ error: 'Company does not offer taxi service' }, { status: 403 });
 
     const trip = await base44.asServiceRole.entities.Trip.create({
-      passenger_name: String(passenger_name).slice(0, 80),
-      passenger_phone: String(phone).slice(0, 40),
-      pickup_name: String(pickup_name).slice(0, 120),
-      dropoff_name: String(dropoff_name).slice(0, 120),
-      company_id: String(company_id),
+      passenger_name: passenger_name.trim().slice(0, 80),
+      passenger_phone: phone.trim().slice(0, 40),
+      pickup_name: pickup_name.trim().slice(0, 120),
+      dropoff_name: dropoff_name.trim().slice(0, 120),
+      company_id: company.id,
       company_name: company.name,
       pickup_lat: typeof pickup_lat === 'number' ? pickup_lat : null,
       pickup_lng: typeof pickup_lng === 'number' ? pickup_lng : null,

@@ -565,3 +565,64 @@ blob privacy, credential inventories and GitHub required checks remain unverifie
 Step 8 audit completion does not authorize or establish production readiness.
 No frontend publication, live account/device changes, tablet revocation, production
 credential rotation or signing-key generation occurred.
+
+
+## Notification security and taxi validation follow-up — 2026-10-04 UTC
+
+Authorized after the Step 8 audit. Both chat push selectors now resolve recipients
+from current users and approved live manager memberships; driver SOS uses that
+selector too. Historical token role/company metadata cannot retain former access.
+No token/device records were removed. Global mechanic/admin routing is preserved.
+
+notifyAdminMessage requires a saved message_id, fetches the current actor, verifies
+ownership/channel and vehicle company, and derives names/text/media from server
+records. CompanyMessages, StaffGroupChat and MechanicPortal use the returned write
+ID for text/photos/voice notes. Missing/foreign/deleted records and stale privileges
+are refused. Older clients using raw notification bodies are refused until client
+rollout; their chat writes remain independent. Backend edits auto-sync; frontend
+not published. Taxi booking rejects non-taxi operators, unsupported actions,
+invalid required strings and malformed/out-of-range/unpaired coordinates, while
+preserving signed-in public booking without operator membership.
+
+234 baseline unit tests (36 new), 11 mock browser checks, lint/build pass. Four
+strict criteria now pass: both stale-recipient checks, passenger dispatch denial
+and non-taxi rejection. Strict suite: 16 pass, 22 fail out of 38, exit 1. Dispatch
+fixture now includes a saved owned dispatch row so it tests channel authorization
+rather than merely missing-input validation. Current results supersede audit counts.
+
+No real FCM, email, bookings, accounts, tablet revocations or signing changes were
+performed. Current eligibility snapshots cannot retract an in-flight push. Valid
+message notification replay still needs an atomic claim/budget; booking limits and
+idempotency remain to implement. The public crash-report budget and original atomic
+release blockers remain red. Required CI gate/live tests remain unverified. TransitTrack
+is still not ready for first production. See security-tests/README.md and step8-audit.md.
+
+
+## Server-controlled code issuance — 2026-10-04 UTC
+
+manageAccessCodes requires a freshly fetched admin or approved scoped company
+manager. It issues twelve-character pairing codes (15 minutes) and company codes
+(30 days for new joins), and handles authorized device revoke/reactivate actions.
+Gateway creates mint codes; caller writes to those security fields are denied.
+Admin/company browser code controls use the protected function. Existing paired
+device replacement has explicit confirmation; no device action was called live.
+
+Both passenger issuance paths now create twelve-digit codes, reject existing
+protected/legacy collisions and hash Contact credentials in the protected ledger.
+Reissue clears Contact plaintext; directory exposes has_access_code instead of
+the code; lookup detects ambiguous legacy/protected codes. Keypad supports twelve.
+There is no atomic uniqueness guarantee, bulk legacy migration or lifetime policy.
+
+255 unit tests, 13 API-mocked browser checks, lint/build pass. Strict criteria:
+21 pass / 17 fail of 38, exit 1. Five newly passing checks cover code strength,
+protected collisions, expiry and forbidden gateway security writes.
+
+Existing paired development auth remains unchanged. Old unpaired pairing codes
+and old company join codes without compliant format/expiry need operator reissue.
+Existing grants keep their own expiry when join-code expiry alone elapses, but
+code replacement invalidates code-bound grants/memberships by existing policy.
+Explicit approved memberships remain independent. Backend/entity resources auto-sync;
+frontend was not published. Older frontend management writes now fail closed.
+No live accounts, credentials or tablets were modified through function calls.
+Next: establish documented atomic storage semantics before implementing claims,
+limits or concurrent idempotency; retain failing release assertions.

@@ -15,7 +15,7 @@ import SlideToUnlock from "./SlideToUnlock";
 import KioskMascot from "./KioskMascot";
 import AnimatedBus, { DrivingScene } from "@/components/AnimatedBus";
 
-const CODE_MAX_LEN = 6;
+const CODE_MAX_LEN = 12;
 const FLUSH_INTERVAL_MS = 15000;
 const ATTRACT_INTERVAL_MS = 7000;
 
@@ -590,7 +590,7 @@ export default function BusBoardingKiosk({ invoke, device }) {
         </div>
 
         <div className="space-y-3">
-          <div className="flex justify-center gap-2">
+          <div className="flex flex-wrap justify-center gap-1 max-w-xs mx-auto">
             {Array.from({ length: Math.max(code.length, 4) }).map((_, i) => (
               <div key={i} className={`w-10 h-12 lg:w-11 lg:h-14 rounded-xl border-2 grid place-items-center text-xl lg:text-2xl font-bold transition-colors ${i < code.length ? "border-primary bg-primary/5" : "border-border"}`}>
                 {i < code.length ? "•" : ""}

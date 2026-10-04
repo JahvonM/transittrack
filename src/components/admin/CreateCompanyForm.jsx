@@ -1,4 +1,3 @@
-import { randomPairingCode } from "@/lib/deviceAuth";
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,7 +6,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Building2 } from "lucide-react";
 
-const genCode = () => randomPairingCode(12);
 
 export default function CreateCompanyForm({ onChange }) {
   const [name, setName] = useState("");
@@ -23,7 +21,7 @@ export default function CreateCompanyForm({ onChange }) {
     if (!name) return;
     setSaving(true);
     const service_types = [staff && "staff_bus", taxi && "taxi", airport && "airport"].filter(Boolean);
-    await base44.entities.Company.create({ name, phone, boss_phone: bossPhone, secretary_phone: secretaryPhone, service_types, access_code: genCode() });
+    await base44.entities.Company.create({ name, phone, boss_phone: bossPhone, secretary_phone: secretaryPhone, service_types });
     setName("");
     setPhone("");
     setBossPhone("");

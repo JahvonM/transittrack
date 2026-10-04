@@ -38,6 +38,11 @@
     "secretary_phone": {
       "type": "string",
       "description": "Secretary/dispatch phone number \u2014 SOS alerts are sent here (WhatsApp) alongside the boss."
+    },
+    "access_code_expires_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Server-issued join code expiry. Existing memberships retain their own expiry."
     }
   },
   "rls": {

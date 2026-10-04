@@ -50,7 +50,7 @@ export default function DriverPairing({ onPaired }) {
           </CardHeader>
           <CardContent>
             <form onSubmit={submit} className="space-y-3">
-              <Input value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="e.g. AB3D9K" maxLength={12} autoFocus className="h-12 text-center text-lg font-semibold tracking-[0.3em]" />
+              <Input value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="e.g. ABCD2345EFGH" maxLength={12} autoFocus className="h-12 text-center text-lg font-semibold tracking-[0.3em]" />
               {error && <p className="text-sm text-destructive">{error}</p>}
               <Button type="submit" className="w-full" disabled={checking || !code.trim()}>
                 {checking ? "Pairing…" : "Pair tablet"}
