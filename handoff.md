@@ -597,7 +597,7 @@ idempotency remain to implement. The public crash-report budget and original ato
 release blockers remain red. Required CI gate/live tests remain unverified. TransitTrack
 is still not ready for first production. See security-tests/README.md and step8-audit.md.
 
- 
+
 ## Server-controlled code issuance — 2026-10-04 UTC
 
 manageAccessCodes requires a freshly fetched admin or approved scoped company
