@@ -23,7 +23,7 @@ npm run test:security:release
 ```
 
 The first command verifies implemented behavior; the second enforces stricter
-production requirements and currently exits nonzero for 19 known failing checks.
+production requirements and currently exits nonzero for 33 known failing checks.
 See security-tests/README.md for root causes, test limits and the review ledger.
 
 Legacy live specs and ad-hoc scripts in this directory are excluded from default

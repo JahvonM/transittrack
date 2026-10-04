@@ -494,3 +494,16 @@ concurrency, weak issuance, grant/card/PIN revocation and maintenance-recipient
 issues remain unresolved. Generated Playwright reports are no longer tracked.
 This checkpoint is a tested regression baseline with known release failures,
 not a production-ready checkpoint. STEP 8 has not begun.
+
+
+### Step 7 follow-up: independent Step 6 review
+
+Added 14 strict production criteria in security-tests/offline-readiness.test.js;
+all fail against current code, bringing the release suite to 33 failing checks.
+Confirmed stuck queues, unpersisted first-send shift work, untargeted old shift
+ends, photo loss, unbound legacy replay, full-history GPS reads, admin metadata
+500, and further concurrent races. Corrected the overly broad earlier shift-test
+description: only retry of an exact already-completed request ID was covered.
+Application functions/resources remain unchanged. See security-tests/README.md
+for the updated ledger and safe remediation scope. Do not clear queues as a
+workaround, and do not treat 33 checks as 33 unique vulnerabilities. STEP 8 paused.

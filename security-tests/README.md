@@ -14,7 +14,7 @@ or notification is performed.
 | npm run lint | Passed | Source and new tests |
 | npm run build | Passed | Frontend compiles |
 | npm run test:e2e | 4 passed | Mocked company/mechanic/tablet browser contracts |
-| npm run test:security:release | 19 failed; exits 1 | Known production requirements are not satisfied |
+| npm run test:security:release | 33 failed; exits 1 | Known production requirements are not satisfied |
 
 The strict suite uses ordinary assertions. Failures are not skipped, marked
 expected, swallowed or treated as success. The separate GitHub Actions job
@@ -90,3 +90,45 @@ authorized live role tests with verified accounts and reliable cleanup.
 Do not infer production readiness from npm test alone.
 
 Step 8 has not started.
+
+## Step 6 independent-review follow-up
+
+Rechecked the report against the latest repository, not only Claude's reviewed
+690963f snapshot. Added offline-readiness.test.js with 14 additional ordinary
+production assertions. All 14 fail for the reported reasons; the full strict
+suite now has 33 failing checks. This is a larger coverage set, not 33 distinct bugs.
+
+| Review gap | Added failing checks | Reproduced behavior |
+|---|---:|---|
+| B1: stuck queues | 3 | Expired boarding, rejected independent jobs and mixed old/fresh GPS prevent later uploads |
+| B2: old end requests | 1 | An unsent old end closes a newer shift opened on another tablet |
+| B4: photos | 2 | Failed upload or oversized photo is acknowledged with 200 |
+| Persistence before first send | 1 | New shift payload is absent from persistent storage at its first invoke |
+| Legacy assignment | 1 | Unbound legacy shift is accepted using current pairing |
+| Admin assignment metadata | 1 | No device plus expected_device_id returns 500 |
+| GPS history scaling | 1 | One-point batch requires 13 reads over 6,000 unrelated historical rows |
+| B3: concurrent replay and GPS | 4 | Same-ID check-ins, shifts and inspection parents duplicate; older GPS overwrites newer |
+
+The previous passing end-shift test was narrower: an exact request ID already
+completed on the server is recognized. It did not cover an unsent old end event,
+a different request ID, or another tablet opening a newer shift. Its name now
+states that narrow guarantee.
+
+The persist-before-send test confirms the shift path. Check-in, driver-template
+and mechanic first-send persistence gaps remain confirmed by code review; those
+UI crash cases need additional coverage when the persistence workflow is revised.
+Photo-count caps and cross-user mechanic replay remain code-review gaps too.
+
+These requirements do not mean blindly skipping every 4xx. Global authorization
+errors and 429 throttling need backoff/re-authentication. Permanent item-specific
+rejections need a visible recoverable quarantine/export workflow, and independent
+work can continue without reordering dependent events. Rejected legacy work must
+be preserved and resolved/exported before re-pairing; do not empty tablet storage
+as a workaround. The GPS mixed-batch case must separate invalid/expired points
+without silently deleting them.
+
+No application fix was made in this follow-up. Production is still blocked.
+The next remediation should address queue recovery/persist-before-send, targeted
+shift closure, photo acknowledgement, bounded GPS history and the controlled
+admin error, while atomic storage guarantees are investigated separately.
+Step 8 remains paused.
