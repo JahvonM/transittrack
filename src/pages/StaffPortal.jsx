@@ -18,6 +18,7 @@ import { haversineKm, etaMinutes } from "@/lib/geo";
 import useTravelTimes, { etaFromLearned } from "@/hooks/useTravelTimes";
 import useBusEta from "@/hooks/useBusEta";
 import { locationIsStale } from "@/lib/busEta";
+import { locateOnRoute } from "@/lib/travelTimes";
 import PullToRefresh from "@/components/PullToRefresh";
 import { useToast } from "@/components/ui/use-toast";
 import { loadFailed } from "@/lib/loadFailed";
@@ -222,8 +223,9 @@ export default function StaffPortal() {
         out.push(s);
       })
     );
+    if (user?.pickup_lat != null && routes.some(r => r.id === user.pickup_route_id)) out.push({ name: user.pickup_name, lat: user.pickup_lat, lng: user.pickup_lng, route_id: user.pickup_route_id, personal: true });
     return out;
-  }, [routes]);
+  }, [routes, user?.pickup_lat, user?.pickup_lng, user?.pickup_name, user?.pickup_route_id]);
 
   const stop = pickupOptions.find((s) => s.name === pickupName) || null;
 
@@ -238,7 +240,7 @@ export default function StaffPortal() {
 
   // Routes that actually stop at the chosen pickup point.
   const servingRoutes = useMemo(
-    () => (stop ? routes.filter((r) => (r.stops || []).some((s) => s.name === stop.name)) : []),
+    () => (stop ? routes.filter((r) => stop.personal ? r.id === stop.route_id : (r.stops || []).some((s) => s.name === stop.name)) : []),
     [stop, routes]
   );
 
@@ -259,7 +261,14 @@ export default function StaffPortal() {
 
   // Refine the straight-line candidate above with an actual driving ETA (roads,
   // not a straight line), falling back to the straight-line estimate while it loads.
-  const approachingRoute = approaching ? routes.find((r) => r.id === approaching.v.route_id) || null : null;
+  const approachingRoute = useMemo(() => {
+    const assigned = approaching ? routes.find(r => r.id === approaching.v.route_id) : null;
+    if (!assigned || !stop?.personal) return assigned || null;
+    const stops = [...(assigned.stops || [])].sort((a,b)=>(a.order??0)-(b.order??0));
+    const leg = locateOnRoute(stops, stop)?.leg;
+    if (leg == null) return assigned;
+    return { ...assigned, stops: [...stops.slice(0,leg+1), { ...stop, order: (stops[leg].order ?? leg) + 0.5 }, ...stops.slice(leg+1)] };
+  }, [approaching, routes, stop]);
   const approachingDriving = useBusEta(approachingRoute, approaching?.v, stop);
   // Better still: how long this bus really takes from here to your stop,
   // learned from its past trips (used once enough of the way is known).

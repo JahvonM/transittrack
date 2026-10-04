@@ -131,6 +131,7 @@ export default function LocationPinner() {
           <Button variant="ghost" onClick={() => setSuggestion(null)}>Cancel</Button>
         </div>
       )}
+      {hasPin && user?.home_lat != null && <Button variant="outline" disabled={searching || locating} onClick={async () => { setSearching(true); await pin(user.home_lat,user.home_lng,user.home_address); setSearching(false); }}>Review walking directions</Button>}
       <div className="flex gap-2">
         <Input
           placeholder="Search an address…"
