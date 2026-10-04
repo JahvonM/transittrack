@@ -1,3 +1,4 @@
+import AvatarPicker from "@/components/AvatarPicker";
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
@@ -149,7 +150,7 @@ export default function ProfileInfo({ companyName }) {
         </div>
         <div className="shrink-0">
           {editing ? (
-            <Button size="sm" onClick={save} disabled={saving}>
+            <Button size="sm" onClick={save} disabled={saving || uploading}>
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
               {saving ? "Saving…" : "Save"}
             </Button>
@@ -161,6 +162,7 @@ export default function ProfileInfo({ companyName }) {
         </div>
       </div>
 
+      {editing && <div className="mt-4"><AvatarPicker onChange={setPhotoUrl} disabled={saving || uploading} /></div>}
       <div className="mt-5 space-y-2.5 text-sm">
         <div className="flex items-center gap-2 text-muted-foreground">
           <Mail className="w-4 h-4 shrink-0" />

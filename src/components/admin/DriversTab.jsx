@@ -1,3 +1,4 @@
+import AvatarPicker from "@/components/AvatarPicker";
 import React, { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -187,6 +188,7 @@ function EditDriverDialog({ driver, companies, open, onOpenChange, onSaved }) {
               />
             </label>
           </div>
+          <AvatarPicker onChange={setPhotoUrl} disabled={saving || uploading} />
           <DriverFormFields form={form} setForm={setForm} companies={companies} />
           <Button className="w-full" onClick={save} disabled={saving || uploading || !form.full_name.trim()}>
             {saving ? "Saving…" : "Save changes"}
