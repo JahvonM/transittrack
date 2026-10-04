@@ -66,6 +66,8 @@ async function loadPeople(base44, companyFilter) {
     const key = (v.driver_email || '').toLowerCase();
     if (key && !vehicleByDriver.has(key)) vehicleByDriver.set(key, v.fleet_number ? `${v.name} (${v.fleet_number})` : v.name);
   }
+  const memberships = await sr.CompanyMembership.filter({ active: true, scope: 'passenger' }, '-updated_date', 5000);
+  const trustedUsers = users.map(u => ({ ...u, company_id: memberships.find(m => m.user_id === u.id)?.company_id || '' }));
   const people = [];
   for (const d of drivers) {
     if (!inCompany(d.company_id)) continue;
@@ -73,20 +75,19 @@ async function loadPeople(base44, companyFilter) {
       employee_id: d.employee_id || '', company_id: d.company_id || '', company_name: d.company_name || '',
       assigned_vehicle: vehicleByDriver.get((d.email || '').toLowerCase()) || '', legacy_tag: d.nfc_card_uid || '' });
   }
-  for (const u of users) {
+  for (const u of trustedUsers) {
     if (u.role !== 'mechanic' || !inCompany(u.company_id)) continue;
     people.push({ source: 'user', id: u.id, type: 'mechanic', role: 'Mechanic', name: u.full_name || u.email, email: u.email || '',
       employee_id: u.employee_id || '', company_id: u.company_id || '', company_name: '', assigned_vehicle: '', legacy_tag: '' });
   }
-  const memberships = await sr.CompanyMembership.filter({ active: true, scope: 'passenger' }, '-updated_date', 5000);
-  const trustedUsers = users.map(u => ({ ...u, company_id: memberships.find(m => m.user_id === u.id)?.company_id || '' }));
-  const staffUsers = new Map(trustedUsers.filter((u) => u.role === 'staff').map((u) => [(u.email || '').toLowerCase(), u]));
+  const staffUsers = new Map(trustedUsers.filter((u) => u.role === 'staff' && inCompany(u.company_id)).map((u) => [(u.email || '').toLowerCase(), u]));
   const contactEmails = new Set();
   for (const c of contacts) {
     if (!inCompany(c.company_id)) continue;
     const email = (c.email || '').toLowerCase();
     if (email) contactEmails.add(email);
-    const u = staffUsers.get(email) || {};
+    const candidate = staffUsers.get(email);
+    const u = candidate?.company_id === c.company_id ? candidate : {};
     people.push({ source: 'contact', id: c.id, type: 'staff', role: 'Staff', name: c.name || u.full_name || 'Staff', email: c.email || '',
       employee_id: c.employee_id || u.employee_id || '', company_id: c.company_id || '', company_name: c.company_name || '',
       vehicle_id: c.vehicle_id || '', assigned_vehicle: (c.vehicle_id && vehicleName.get(c.vehicle_id)) || c.vehicle_name || '',

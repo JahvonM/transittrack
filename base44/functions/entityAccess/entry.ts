@@ -3,6 +3,7 @@ const ENTITY_FIELDS = {"Company": ["name", "logo_url", "phone", "access_code", "
 const MAINTENANCE = new Set(["Vehicle", "Fault", "Inspection", "InspectionResult", "InspectionTemplate", "Part", "MaintenanceSchedule", "MaintenanceSettings"]);
 
 ENTITY_FIELDS.GroupMessage.push('sender_id','sender_email');
+ENTITY_FIELDS.LostItemReport.push('reporter_id');
 const META = ['id','created_date','updated_date','created_by','created_by_id'];
 const CREDENTIALS = new Set(['driver_pin','entry_code','access_code','one_time_code','one_time_code_expires_at','nfc_tag_id','nfc_card_tag','nfc_card_uid','card_uid','card_tag','pairing_code','token','token_hash','salt','pin_hash','password','device_token','driver_grant','verification_grant']);
 const COMPANY_ENTITIES = new Set(['Vehicle','Trip','InspectionResult','GroupMessage','LocationPing','Driver','DriverShift','NfcCard','Broadcast','KioskDevice','Route','Inspection','RouteTravelTimes','Fault','StaffCheckIn','CardHolder','DrivingEvent','DriverDocument','Part','Workplace','Incident','Contact','LostItemReport','InspectionTemplate','MaintenanceSchedule']);
@@ -49,6 +50,8 @@ async function visible(db, ctx, name, row) {
  if (user.role === 'admin') return true;
  if (name === 'User') return row.id === user.id;
  if (name === 'PushToken') return row.email === user.email;
+ if(name==='LostItemReport' && user.role!=='company') return row.reporter_id===user.id && companies.includes(row.company_id);
+ if(name==='Broadcast' && !row.company_id) return true;
  if (user.role === 'mechanic') return MAINTENANCE.has(name) || name === 'Company' || (name === 'GroupMessage' && row.channel === 'mechanic');
  const tenant = await tenantOf(db,name,row);
  if (!tenant || !companies.includes(tenant)) return false;
@@ -121,6 +124,10 @@ async function prepare(db,ctx,name,input,existing=null) {
    if(!COMPANY_READ.has(name) || (name==='Company' && !existing)) fail(403,'Forbidden');
   } else if (name!=='GroupMessage' && name!=='LostItemReport') fail(403,'Forbidden');
  }
+ if(name==='LostItemReport' && user.role!=='admin' && user.role!=='company') {
+  if(existing && existing.reporter_id!==user.id) fail(403,'Own reports only');
+  data.reporter_id=user.id;data.reporter_email=user.email;data.reporter_name=user.full_name||user.email;
+ }
  if (name==='GroupMessage') {
   const channel=data.channel||existing?.channel||'staff';
   if(user.role!=='admin') {
@@ -130,10 +137,12 @@ async function prepare(db,ctx,name,input,existing=null) {
   data.sender_role=user.role;data.sender_name=user.full_name||user.email;data.sender_id=user.id;data.sender_email=user.email;
  }
  if(name==='Company' && !existing && user.role==='admin') return data;
+ if(COMPANY_ENTITIES.has(name) && !existing && !data.company_id && !data.vehicle_id && ctx.companies.length===1) data.company_id=ctx.companies[0];
  const combined={...existing,...data};
  let tenant=await tenantOf(db,name,combined);
  if(COMPANY_ENTITIES.has(name) || name==='Company') {
-  if(!tenant && name==='InspectionTemplate' && ['admin','mechanic'].includes(user.role)) return data;
+  if(!tenant && ['InspectionTemplate','Part'].includes(name) && ['admin','mechanic'].includes(user.role)) return data;
+  if(!tenant && name==='Broadcast' && user.role==='admin') return data;
   if(!tenant) fail(400,'Company assignment required');
   if(user.role!=='admin' && user.role!=='mechanic' && !ctx.companies.includes(tenant)) fail(403,'Company access denied');
   if(existing && existing.company_id && data.company_id && data.company_id!==existing.company_id) fail(403,'Company assignment cannot be changed here');
@@ -169,6 +178,7 @@ export default async function(req) {
    else if(COMPANY_ENTITIES.has(name) && ctx.user && !['admin','mechanic'].includes(ctx.user.role)) query.company_id={$in:ctx.companies};
    else if(name==='User' && ctx.user?.role!=='admin') query.id=ctx.user.id;
    else if(name==='PushToken' && ctx.user?.role!=='admin') query.email=ctx.user.email;
+   if(name==='LostItemReport' && ctx.user?.role!=='admin' && ctx.user?.role!=='company') { delete query.created_by_id; query.reporter_id=ctx.user.id; }
    const limit=Math.min(Math.max(Number(body.limit)||1000,1),5000), skip=Math.max(Number(body.skip)||0,0);
    if(body.sort && !/^-?[A-Za-z_]+$/.test(body.sort)) fail(400,'Invalid sort');
    const rows=await db[name].filter(query,body.sort||'-created_date',limit,skip);
@@ -193,7 +203,7 @@ export default async function(req) {
    if(!existing || !(await visible(db,ctx,name,existing))) fail(404,'Record not found');
   }
   if(operation==='delete') {
-   if(ctx.user.role!=='admin' && !(ctx.user.role==='company' && COMPANY_READ.has(name) && name!=='Company') && !(ctx.user.role==='mechanic' && MAINTENANCE.has(name) && name!=='Vehicle')) fail(403,'Delete forbidden');
+   if(ctx.user.role!=='admin' && !(ctx.user.role==='company' && COMPANY_READ.has(name) && name!=='Company') && !(ctx.user.role==='mechanic' && MAINTENANCE.has(name) && name!=='Vehicle') && !(name==='GroupMessage' && existing.sender_id===ctx.user.id)) fail(403,'Delete forbidden');
    await prepare(db,ctx,name,{},existing);
    await db[name].delete(body.id);
    return Response.json({result:{ok:true}});

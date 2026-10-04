@@ -76,7 +76,6 @@ export default function VehicleFormDialog({ open, onOpenChange, vehicle, compani
       model: form.model.trim(),
       year: numOrNull(form.year),
       route_id: form.route_id || null,
-      entry_code: form.entry_code ? form.entry_code.toUpperCase() : null,
       model_3d: form.model_3d,
       company_id: companyId,
       company_name: company?.name || "",
@@ -129,7 +128,6 @@ export default function VehicleFormDialog({ open, onOpenChange, vehicle, compani
                 options={[{ value: "none", label: "No route" }, ...companyRoutes.map((r) => ({ value: r.id, label: r.name }))]}
               />
             </Field>
-            <Field label="Bus entry code"><Input value={form.entry_code} onChange={(e) => set("entry_code", e.target.value.toUpperCase())} placeholder="BUS12" /></Field>
           </div>
           <Field label="3D model on the map" hint="How this vehicle looks on every live map.">
             <VehicleModelPicker value={form.model_3d} onChange={(v) => set("model_3d", v)} />

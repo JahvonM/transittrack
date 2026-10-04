@@ -37,6 +37,9 @@
     },
     "admin_notes": {
       "type": "string"
+    },
+    "reporter_id": {
+      "type": "string"
     }
   },
   "required": [
