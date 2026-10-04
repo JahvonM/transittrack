@@ -1,82 +1,60 @@
-// GPS points the driver tablet couldn't send (no signal / no WiFi). Each
-// point keeps the time it was really taken, so the trip replay has no holes
-// once it uploads. The queue lives in localStorage, is capped (old points are
-// thinned out, never the newest), and uploads oldest-first in batches; the
-// server checks existing samples on sequential retries. Concurrent writes need atomic storage.
-const KEY = "tt_gps_queue";
-const EVENT = "tt-gps-queue";
-const MAX_POINTS = 2000; // ~8 hours at one point per 15 s
-const MIN_GAP_MS = 15000; // offline, keep one point every 15 s
-const BATCH = 200;
-
+import {isPermanentRejection,review,notifySavedWork} from "./savedWork";
+const KEY="tt_gps_queue",EVENT="tt-gps-queue",MAX_POINTS=2000,MIN_GAP_MS=15000,BATCH=200;
 function read() {
-  try { const items = JSON.parse(localStorage.getItem(KEY) || "[]"); if (!Array.isArray(items)) throw new Error(); return items; }
-  catch { throw new Error("Saved GPS history cannot be read. Do not clear tablet storage."); }
+ try {const points=JSON.parse(localStorage.getItem(KEY)||"[]");if(!Array.isArray(points))throw new Error();return points;}
+ catch {throw new Error("Saved GPS history cannot be read. Do not clear tablet storage.");}
 }
 function write(points) {
-  try { localStorage.setItem(KEY, JSON.stringify(points)); } catch { throw new Error("GPS history could not be saved on this tablet"); }
-  try { window.dispatchEvent(new Event(EVENT)); } catch { /* non-browser */ }
+ try {localStorage.setItem(KEY,JSON.stringify(points));}catch {throw new Error("GPS history could not be saved on this tablet");}
+ notifySavedWork();try {window.dispatchEvent(new Event(EVENT));}catch { /* tests */ }
 }
-
-// Over the cap: drop every second point from the older half, so the whole
-// trip stays covered (less detail long ago) and the latest stays exact.
 function thin(points) {
-  if (points.length <= MAX_POINTS) return points;
-  const half = Math.floor(points.length / 2);
-  return [...points.slice(0, half).filter((_, i) => i % 2 === 0), ...points.slice(half)];
+ const active=points.filter(p=>p.state!=="needs_review"),paused=points.filter(p=>p.state==="needs_review");
+ if(active.length<=MAX_POINTS)return points;
+ const half=Math.floor(active.length/2);
+ // Retained failures are never thinned/discarded.
+ return [...paused,...active.slice(0,half).filter((_,i)=>i%2===0),...active.slice(half)];
 }
-
-const round = (n, d) => (typeof n === "number" && Number.isFinite(n) ? Number(n.toFixed(d)) : null);
-
-export function queueGpsPoint({ lat, lng, speed, heading, accuracy, t, binding }) {
-  if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat)>90 || Math.abs(lng)>180) return false;
-  const points = read();
-  const time = t ? new Date(t) : new Date();
-  if (!Number.isFinite(time.getTime()) || time.getTime()>Date.now()+60000 || time.getTime()<Date.now()-72*3600000) return false;
-  const last = points[points.length - 1];
-  if (last && time - new Date(last.t) < MIN_GAP_MS) return;
-  points.push({ ...(binding || {}), t: time.toISOString(), lat: round(lat, 6), lng: round(lng, 6), speed: round(speed, 2), heading: round(heading, 1), accuracy: round(accuracy, 1) });
-  write(thin(points));
-  return true;
+const round=(n,d)=>typeof n==="number"&&Number.isFinite(n)?Number(n.toFixed(d)):null;
+export function queueGpsPoint({lat,lng,speed,heading,accuracy,t,binding}) {
+ if(!Number.isFinite(lat)||!Number.isFinite(lng)||Math.abs(lat)>90||Math.abs(lng)>180)return false;
+ const time=t?new Date(t):new Date();
+ if(!Number.isFinite(time.getTime())||time.getTime()>Date.now()+60000||time.getTime()<Date.now()-72*3600000)return false;
+ const points=read(),last=points.filter(p=>p.state!=="needs_review").at(-1);
+ if(last&&time-new Date(last.t)<MIN_GAP_MS)return false;
+ points.push({queue_id:crypto.randomUUID(),...(binding||{}),t:time.toISOString(),lat:round(lat,6),lng:round(lng,6),speed:round(speed,2),heading:round(heading,1),accuracy:round(accuracy,1)});
+ write(thin(points));return true;
 }
-
-export function queuedGpsCount() {
-  return read().length;
-}
-export const GPS_QUEUE_EVENT = EVENT;
-
-let flushing = false;
-let syncError = "";
-export function gpsSyncError() { return syncError; }
-// Upload what's waiting through the driver session. Returns how many points
-// were accepted; stops at the first network failure (still offline).
+export function queuedGpsCount(){return read().length;}
+export const GPS_QUEUE_EVENT=EVENT;
+let flushing=false,syncError="";
+export function gpsSyncError(){return syncError;}
 export async function flushGpsQueue(invoke) {
-  if (flushing || !invoke) return 0;
-  if (typeof navigator !== "undefined" && navigator.onLine === false) return 0;
-  flushing = true;
-  let sent = 0;
-  try {
-    for (let guard = 0; guard < 50; guard++) {
-      const batch = read().slice(0, BATCH);
-      if (!batch.length) break;
-      try {
-        await invoke("upload_track", { points: batch });
-      } catch (error) {
-        syncError=error?.response?.status ? 'Saved GPS upload blocked (server '+error.response.status+'); unlock or resolve the error and retry.' : 'Saved GPS is waiting for connection.';
-        try { window.dispatchEvent(new Event(EVENT)); } catch { /* non-browser */ }
-        break;
-      }
-      syncError="";
-      const sentTimes = new Set(batch.map((p) => p.t));
-      write(read().filter((p) => !sentTimes.has(p.t)));
-      sent += batch.length;
-    }
-  } finally {
-    flushing = false;
+ if(flushing||!invoke||(typeof navigator!=="undefined"&&navigator.onLine===false))return 0;
+ flushing=true;let sent=0;
+ const mark=(points,error)=>{const ids=new Set(points.map(p=>p.queue_id));write(read().map(p=>ids.has(p.queue_id)?review(p,error):p));syncError="Saved GPS needs review; export it from Saved work.";};
+ const upload=async batch=>{
+  try {await invoke("upload_track",{points:batch});}
+  catch(error) {
+   if(!isPermanentRejection(error))throw error;
+   if(batch.length===1){mark(batch,error);return;}
+   const middle=Math.floor(batch.length/2);
+   await upload(batch.slice(0,middle));await upload(batch.slice(middle));return;
   }
-  return sent;
+  const ids=new Set(batch.map(p=>p.queue_id));write(read().filter(p=>!ids.has(p.queue_id)));sent+=batch.length;
+ };
+ try {
+  const points=read();let migrated=false;
+  for(const point of points)if(!point.queue_id){point.queue_id=crypto.randomUUID();migrated=true;}
+  if(migrated)write(points);
+  // Splitting a rejected batch isolates invalid/expired/old-assignment points.
+  for(let guard=0;guard<50;guard++) {
+   const batch=read().filter(p=>p.state!=="needs_review").slice(0,BATCH);if(!batch.length)break;
+   await upload(batch);
+  }
+  if(!read().some(p=>p.state==="needs_review"))syncError="";
+ } catch(error) {syncError=error?.response?.status?"Saved GPS waiting: server "+error.response.status:error.message||"Waiting for connection";}
+ finally {flushing=false;notifySavedWork();try {window.dispatchEvent(new Event(EVENT));}catch { /* tests */ }}
+ return sent;
 }
-
-export function clearGpsQueue() {
-  write([]);
-}
+export function clearGpsQueue() {write([]);}
