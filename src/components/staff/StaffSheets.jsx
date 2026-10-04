@@ -65,7 +65,7 @@ export function MyPickupSheet({ open, onOpenChange, pickupName, pickupOptions, o
           </label>
         </Section>
 
-        <Section title="Door-to-door pickup pin">
+        <Section title="Find a roadside pickup">
           <LocationPinner />
         </Section>
 
