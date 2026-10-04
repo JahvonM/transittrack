@@ -180,6 +180,7 @@ async function prepare(db,ctx,name,input,existing=null) {
  for(const [field,parent] of [['route_id','Route'],['inspection_id','Inspection'],['driver_id','Driver'],['template_id','InspectionTemplate']]) {
   if(data[field]) { const row=await db[parent].get(data[field]).catch(()=>null); const parentTenant=row ? await tenantOf(db,parent,row) : null; if(!row || (tenant && parentTenant!==tenant && !(parent==='InspectionTemplate' && !parentTenant && !row.company_id))) fail(403,'Related record belongs to another company'); }
  }
+ if(name==='KioskDevice'&&['driver','bus_boarding'].includes(combined.kiosk_type)&&!combined.vehicle_id) fail(400,'Vehicle assignment required');
  if(name==='KioskDevice'&&!existing) return {...data,status:'active',paired:false,pairing_code:await uniqueAccessCode(db,'KioskDevice','pairing_code'),pairing_expires_at:new Date(Date.now()+15*60_000).toISOString()};
  return data;
 }

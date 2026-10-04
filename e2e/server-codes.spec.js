@@ -28,3 +28,23 @@ test('company code replacement uses server issuance rather than gateway credenti
  expect(calls).toContainEqual({action:'issue_company',company_id:'a'});
  expect(calls.some(c=>c.data&&'access_code' in c.data)).toBe(false);
 });
+
+test('boarding keypad sends all twelve digits and caps additional input',async({page})=>{
+ const lookups=[];
+ await page.addInitScript(()=>localStorage.setItem('tt_kiosk_device_id','tablet-test'));
+ await page.route('**/api/**',async route=>{
+  const url=route.request().url(),body=route.request().postDataJSON();
+  if(url.includes('/functions/kioskHeartbeat'))return route.fulfill({json:{device_id:'tablet-test',paired:true,kiosk_type:'bus_boarding',company_id:'a',company_name:'A',vehicle_id:'bus-a',vehicle_name:'Bus A',context:{vehicle:{id:'bus-a',name:'Bus A',capacity:25},route:null,ads:[],occupancy:0,today_count:0}}});
+  if(url.includes('/functions/kioskCheckIn')){
+   if(body?.action==='lookup_code'){lookups.push(body.code);return route.fulfill({status:404,json:{error:'code_not_recognized'}});}
+   return route.fulfill({json:{staff:[],generated_at:new Date().toISOString()}});
+  }
+  if(url.includes('/entities/'))return route.fulfill({status:403,json:{error:'Direct access blocked'}});
+  return route.fulfill({json:{id:'test-app',public_settings:{authentication_required:false}}});
+ });
+ await page.goto('/kiosk');
+ await expect(page.getByRole('button',{name:'Submit code',exact:true})).toBeVisible();
+ for(const digit of '1234567890123')await page.getByRole('button',{name:digit,exact:true}).click();
+ await page.getByRole('button',{name:'Submit code',exact:true}).click();
+ await expect.poll(()=>lookups).toEqual(['123456789012']);
+});
