@@ -9,6 +9,7 @@ import { registerRunner, startOfflineSync } from "@/lib/offlineJobs";
 // from the payload via `save`, so a retry after a drop resumes at the step
 // that didn't make it instead of duplicating rows.
 export async function runMechanicInspection(payload, save = () => {}) {
+  if(!payload.expected_actor_id) throw Object.assign(new Error("Legacy saved inspection lacks its original user; export for review"),{response:{status:409}});
   if(payload.expected_actor_id) {
     const user=await base44.auth.me();
     if(user.id!==payload.expected_actor_id) throw Object.assign(new Error("Saved inspection belongs to another signed-in user"),{response:{status:409}});

@@ -44,7 +44,7 @@ export async function flushQueue(invoke) {
    if(item.state||blocked.has(scope(item))||inFlight.has(item.payload.client_request_id))continue;
    try {
     inFlight.add(item.payload.client_request_id);
-    await invoke("check_in",item.payload);acknowledgeCheckIn(item.payload.client_request_id);synced++;
+    await invoke("check_in",{...item.payload,queue_replay:true});acknowledgeCheckIn(item.payload.client_request_id);synced++;
    } catch(error) {
     if(isPermanentRejection(error)){quarantineCheckIn(item.payload.client_request_id,error);blocked.add(scope(item));continue;}
     break; // Global auth/network/throttling/server failures wait for recovery.

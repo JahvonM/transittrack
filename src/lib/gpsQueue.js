@@ -34,7 +34,7 @@ export async function flushGpsQueue(invoke) {
  flushing=true;let sent=0;
  const mark=(points,error)=>{const ids=new Set(points.map(p=>p.queue_id));write(read().map(p=>ids.has(p.queue_id)?review(p,error):p));syncError="Saved GPS needs review; export it from Saved work.";};
  const upload=async batch=>{
-  try {await invoke("upload_track",{points:batch});}
+  try {await invoke("upload_track",{points:batch,queue_replay:true});}
   catch(error) {
    if(!isPermanentRejection(error))throw error;
    if(batch.length===1){mark(batch,error);return;}

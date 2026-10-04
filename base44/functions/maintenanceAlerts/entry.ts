@@ -11,6 +11,17 @@ async function claimRun(base44, job, minGapMs, isAdmin) {
   return true;
 }
 
+async function liveMembership(db, row) {
+ if (!row.expires_at && !row.code_hash) return true; // Explicit admin approval.
+ if (!(Date.parse(row.expires_at) > Date.now()) || !row.code_hash) return false;
+ const company=await db.Company.get(row.company_id).catch(()=>null);
+ if(!company) return false;
+ const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(company.access_code || ''));
+ const hash=Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,'0')).join('');
+ return row.code_hash===hash;
+}
+
+
 const DAY_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_MILEAGE_THRESHOLD_KM = 500;
 
@@ -116,7 +127,10 @@ export default async function (req) {
       const recipients = new Map();
       users.filter((u) => u.role === 'admin' && u.email)
         .forEach((u) => recipients.set(u.email, { email: u.email, name: u.full_name || u.email, isAdmin: true }));
-      users.filter((u) => u.role === 'company' && u.company_id === companyId && u.email)
+      const memberships=await base44.asServiceRole.entities.CompanyMembership.filter({company_id:companyId,scope:'manager',active:true},'-updated_date',1000);
+      const approvedManagers=new Set();
+      for(const membership of memberships) if(await liveMembership(base44.asServiceRole.entities,membership)) approvedManagers.add(membership.user_id);
+      users.filter((u) => u.role === 'company' && approvedManagers.has(u.id) && u.email)
         .forEach((u) => recipients.set(u.email, { email: u.email, name: u.full_name || u.email, isAdmin: true }));
 
       const perMechanicItems = new Map();

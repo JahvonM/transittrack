@@ -357,10 +357,14 @@ async function reserveAttempt(base44, key, limit, windowMs) {
  await base44.asServiceRole.entities.VerificationAttempt.create({ scope: key, attempted_at: new Date().toISOString() });
  return true;
 }
+async function driverCredentialVersion(base44,vehicleId) {
+ const row=(await base44.asServiceRole.entities.DriverPinCredential.filter({vehicle_id:vehicleId},'-updated_date',1))[0];
+ return row ? hashSecret(JSON.stringify({company_id:row.company_id,pin_hash:row.pin_hash,salt:row.salt,enabled:row.enabled})) : 'legacy';
+}
 async function issueGrant(base44, device, purpose, subject, ttlMs) {
  const secret = randomSecret();
  await base44.asServiceRole.entities.VerificationGrant.create({
- token_hash: await hashSecret(secret), device_id: device.id, company_id: device.company_id,
+ token_hash: await hashSecret(secret), ...(purpose==='driver'?{credential_version:await driverCredentialVersion(base44,subject)}:{}), device_id: device.id, company_id: device.company_id,
  vehicle_id: device.vehicle_id, pairing_code_hash: await hashSecret(device.pairing_code || ''), purpose, subject, expires_at: new Date(Date.now()+ttlMs).toISOString(),
  });
  return secret;
@@ -369,6 +373,7 @@ async function validGrant(base44, device, token, purpose, subject) {
  if (typeof token !== 'string' || !/^[a-f0-9]{64}$/.test(token)) return false;
  const rows = await base44.asServiceRole.entities.VerificationGrant.filter({ token_hash: await hashSecret(token) }, '-created_date', 1);
  const row = rows[0];
+ if(purpose==='driver' && row?.credential_version!==await driverCredentialVersion(base44,subject)) return false;
  return !!row && row.pairing_code_hash === await hashSecret(device.pairing_code || '') && row.device_id === device.id && row.company_id === device.company_id && row.vehicle_id === device.vehicle_id && row.purpose === purpose && row.subject === subject && Date.parse(row.expires_at) > Date.now();
 }
 
@@ -438,7 +443,7 @@ export default async function(req) {
       ...(appHealth ? { app_health: appHealth } : {}),
     });
 
-    if(body.queue_replay && (!body.expected_device_id || !body.expected_company_id || !body.expected_vehicle_id)) return Response.json({error:'Legacy saved work lacks its original assignment; export for review'},{status:409});
+    if(body.queue_replay && (action==='upload_track' ? !Array.isArray(body.points) || body.points.some(p=>!p?.expected_device_id || !p?.expected_company_id || !p?.expected_vehicle_id) : !body.expected_device_id || !body.expected_company_id || !body.expected_vehicle_id)) return Response.json({error:'Legacy saved work lacks its original assignment; export for review'},{status:409});
     const matchesAssignment = (value) => (!value.expected_device_id || value.expected_device_id===device.id) && (!value.expected_company_id || value.expected_company_id===companyId) && (!value.expected_vehicle_id || value.expected_vehicle_id===vehicleId);
     if(!matchesAssignment(body) || (action==='upload_track' && Array.isArray(body.points) && body.points.some(p=>!matchesAssignment(p||{})))) return Response.json({error:'Saved work belongs to a different tablet assignment'},{status:409});
 

@@ -25,6 +25,9 @@
     },
     "pairing_code_hash": {
       "type": "string"
+    },
+    "credential_version": {
+      "type": "string"
     }
   },
   "rls": {
