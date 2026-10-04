@@ -476,6 +476,8 @@ export default function StaffPortal() {
                 onAssistant={() => setSheet("assistant")}
                 onHelp={() => setSheet("help")}
                 onPickup={() => setSheet("pickup")}
+                onChat={() => setSheet("chat")}
+                chatUnread={chatUnread}
               />
               <SponsorLine />
             </div>

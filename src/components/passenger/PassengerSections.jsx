@@ -254,12 +254,14 @@ function MoreRow({ icon: Icon, title, sub, onClick, href }) {
   return <li>{href ? <a href={href} className={cls}>{body}</a> : <button type="button" onClick={onClick} className={cls}>{body}</button>}</li>;
 }
 
-export function MoreList({ companyName, companyPhone, onBadge, onAssistant, onHelp, onPickup, pickupSummary }) {
+export function MoreList({ companyName, companyPhone, onBadge, onAssistant, onHelp, onPickup, pickupSummary, onChat, chatUnread = 0 }) {
   const tel = (companyPhone || "").trim();
   return (
     <section className="px-6 pt-10 lg:px-0" aria-labelledby="tt-more">
       <SectionHead id="tt-more" title="More" />
       <ul className="divide-y divide-border border-y border-border">
+        {/* Also here so the chat is reachable before a stop is chosen. */}
+        {onChat && <MoreRow icon={MessageCircle} title="Chat with your driver" sub={chatUnread > 0 ? `${chatUnread} unread` : "Your driver and the people on this bus"} onClick={onChat} />}
         <MoreRow icon={KeyRound} title="Boarding code" sub="Forgot your badge? Get a one-time code" onClick={onBadge} />
         <MoreRow icon={Sparkles} title="Ask about your bus" sub="Quick answers about times and stops" onClick={onAssistant} />
         {tel && <MoreRow icon={Phone} title={`Call ${companyName || "the operator"}`} sub={tel} href={`tel:${tel}`} />}
