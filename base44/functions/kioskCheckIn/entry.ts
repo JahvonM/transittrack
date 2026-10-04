@@ -364,7 +364,18 @@ export default async function(req) {
           ? requestedStatus
           : await nextStatus(base44, vehicleId, 'card_tag', cardTag);
         const resolvedVehicleName = vehicleName || (await resolveVehicleName(base44, vehicleId));
+        const requestId = body.client_request_id;
+        if(requestId !== undefined && (typeof requestId!=='string' || !/^[a-zA-Z0-9_-]{8,100}$/.test(requestId))) return Response.json({error:'Invalid request ID'},{status:400});
+        const requestHash = await hashSecret(JSON.stringify({staff:person?.id||sanitize(staff_id)||sanitize(staff_name),status,method:method||'manual',occurred_at:body.occurred_at||null}));
+        if(requestId) {
+          const previous=await base44.asServiceRole.entities.StaffCheckIn.filter({device_id:device.id,company_id:companyId,client_request_id:requestId},'-created_date',1);
+          if(previous[0]) {
+            if(previous[0].request_hash!==requestHash) return Response.json({error:'Request ID reused with different data'},{status:409});
+            return Response.json({record:tabletCheckIn(previous[0]),deduplicated:true});
+          }
+        }
         const record = await base44.asServiceRole.entities.StaffCheckIn.create({
+          ...(requestId ? {client_request_id:requestId,request_hash:requestHash,device_id:device.id} : {}),
           staff_name: person?.full_name || sanitize(staff_name) || 'Staff',
           staff_picture_url: person?.photo_url || '',
           card_tag: cardTag, status, boarded_at: occurredAt(body.occurred_at),

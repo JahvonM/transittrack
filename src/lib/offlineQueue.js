@@ -2,11 +2,11 @@ const STORAGE_KEY = "tt_offline_checkins";
 
 function readQueue() {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]"); }
-  catch { return []; }
+  catch { throw new Error("Saved check-ins cannot be read. Do not clear tablet storage."); }
 }
 
 function writeQueue(items) {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(items)); } catch { /* storage full/unavailable */ }
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(items)); } catch { throw new Error("Tablet storage is full or unavailable; check-in was not saved."); }
 }
 
 // A check-in only ever gets queued AFTER the person has been identified
@@ -16,7 +16,9 @@ function writeQueue(items) {
 export function enqueueCheckIn(payload) {
   const queue = readQueue();
   const now = new Date().toISOString();
-  queue.push({ id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, payload: { ...payload, occurred_at: payload.occurred_at || now }, queued_at: now });
+  const requestId=payload.client_request_id || crypto.randomUUID();
+  if(queue.some(item=>item.payload.client_request_id===requestId)) return queue.length;
+  queue.push({ id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, payload: { ...payload, client_request_id: requestId, occurred_at: payload.occurred_at || now }, queued_at: now });
   writeQueue(queue);
   return queue.length;
 }
@@ -52,8 +54,9 @@ export async function flushQueue(invoke) {
         synced++;
         done.add(item.id);
       } catch (e) {
-        if ([401, 403, 429].includes(e?.response?.status)) break;
-        if (!isNetworkFailure(e)) done.add(item.id);
+        // Keep every failed item, including server failures and validation rejections.
+        // Stop to preserve event order; an operator can resolve the retained error.
+        break;
       }
     }
   } finally {

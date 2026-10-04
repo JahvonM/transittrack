@@ -101,7 +101,7 @@ export default function DriverTrackingDashboard({ session, invoke, onReportIncid
       }
     } else { speedingLoggedRef.current = false; }
     try {
-      await invoke("update_location", { lat, lng, speed: speed || 0, status, trail: nextTrail, log_speeding: logSpeeding });
+      await invoke("update_location", { lat, lng, speed: speed || 0, status, trail: nextTrail, log_speeding: logSpeeding, recorded_at: new Date(extra.ts || now).toISOString() });
       setLastSentAt(Date.now());
       // Back online: send anything saved while there was no connection.
       if (queuedGpsCount()) flushGpsQueue(invoke);

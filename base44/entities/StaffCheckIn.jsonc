@@ -44,6 +44,15 @@
         "code"
       ],
       "default": "manual"
+    },
+    "client_request_id": {
+      "type": "string"
+    },
+    "request_hash": {
+      "type": "string"
+    },
+    "device_id": {
+      "type": "string"
     }
   },
   "required": [

@@ -49,16 +49,15 @@ export async function flushJobs() {
     for (const job of read()) {
       const runner = runners[job.kind];
       if (!runner) continue;
-      const save = (payload) => write(read().map((j) => (j.id === job.id ? { ...j, payload } : j)));
+      const save = (payload) => { if (!write(read().map((j) => (j.id === job.id ? { ...j, payload } : j)))) throw new Error("Job progress could not be saved"); };
       try {
         await runner(job.payload, save);
-        write(read().filter((j) => j.id !== job.id));
+        if (!write(read().filter((j) => j.id !== job.id))) break;
         synced++;
       } catch (e) {
-        if (e?.response?.status === 401 || isOfflineError(e)) break; // still offline, try again later
-        // The server rejected it for good; drop it and tell the admins.
-        write(read().filter((j) => j.id !== job.id));
-        reportError(e, { source: "offline-sync", extra: { kind: job.kind, label: job.label } });
+        write(read().map(j=>j.id===job.id ? {...j,last_error: e?.response?.status ? 'Server returned '+e.response.status : 'Connection unavailable',failed_at:new Date().toISOString()} : j));
+        if (!isOfflineError(e)) reportError(e, { source: "offline-sync", extra: { kind: job.kind, label: job.label } });
+        break; // Never discard unsuccessful work or reorder dependent jobs.
       }
     }
   } finally {

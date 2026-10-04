@@ -13,7 +13,7 @@ function read() {
   try { const v = JSON.parse(localStorage.getItem(KEY) || "[]"); return Array.isArray(v) ? v : []; } catch { return []; }
 }
 function write(points) {
-  try { localStorage.setItem(KEY, JSON.stringify(points)); } catch { /* storage full */ }
+  try { localStorage.setItem(KEY, JSON.stringify(points)); } catch { throw new Error("GPS history could not be saved on this tablet"); }
   try { window.dispatchEvent(new Event(EVENT)); } catch { /* non-browser */ }
 }
 
@@ -28,13 +28,15 @@ function thin(points) {
 const round = (n, d) => (typeof n === "number" && Number.isFinite(n) ? Number(n.toFixed(d)) : null);
 
 export function queueGpsPoint({ lat, lng, speed, heading, accuracy, t }) {
-  if (typeof lat !== "number" || typeof lng !== "number") return;
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat)>90 || Math.abs(lng)>180) return false;
   const points = read();
   const time = t ? new Date(t) : new Date();
+  if (!Number.isFinite(time.getTime()) || time.getTime()>Date.now()+60000 || time.getTime()<Date.now()-72*3600000) return false;
   const last = points[points.length - 1];
   if (last && time - new Date(last.t) < MIN_GAP_MS) return;
   points.push({ t: time.toISOString(), lat: round(lat, 6), lng: round(lng, 6), speed: round(speed, 2), heading: round(heading, 1), accuracy: round(accuracy, 1) });
   write(thin(points));
+  return true;
 }
 
 export function queuedGpsCount() {
@@ -56,11 +58,7 @@ export async function flushGpsQueue(invoke) {
       if (!batch.length) break;
       try {
         await invoke("upload_track", { points: batch });
-      } catch (e) {
-        if (!e?.response) break; // no connection - keep them for later
-        // The server refused this batch for good (bad data); drop it so it
-        // can't block everything behind it.
-      }
+      } catch { break; } // Authentication, throttling and server errors retain the whole batch.
       const sentTimes = new Set(batch.map((p) => p.t));
       write(read().filter((p) => !sentTimes.has(p.t)));
       sent += batch.length;

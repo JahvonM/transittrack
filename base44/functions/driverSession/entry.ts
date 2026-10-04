@@ -524,13 +524,18 @@ export default async function(req) {
 
       case 'update_location': {
         const { lat, lng, speed, status, trail, log_speeding } = body;
-        if (typeof lat !== 'number' || typeof lng !== 'number')
+        if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat)>90 || Math.abs(lng)>180)
           return Response.json({ error: 'lat and lng required' }, { status: 400 });
         const vehicle = await loadVehicle(base44, vehicleId);
         if (!vehicle) return Response.json({ error: 'Vehicle not found' }, { status: 404 });
 
-        const now = new Date();
-        const newSpeed = speed || 0;
+        const sampleMs=body.recorded_at===undefined ? Date.now() : Date.parse(body.recorded_at);
+        if(!Number.isFinite(sampleMs) || sampleMs>Date.now()+60000 || sampleMs<Date.now()-72*3600_000) return Response.json({error:'Invalid GPS timestamp'},{status:400});
+        if(speed!==undefined && (!Number.isFinite(speed) || speed<0 || speed>350)) return Response.json({error:'Invalid GPS speed'},{status:400});
+        if(vehicle.company_id!==companyId) return Response.json({error:'Vehicle assignment mismatch'},{status:403});
+        if(sampleMs<=Date.parse(vehicle.last_location_update||'')) return Response.json({ok:true,ignored:'stale sample'});
+        const now = new Date(sampleMs);
+        const newSpeed = speed ?? 0;
         const prevSpeed = typeof vehicle.speed === 'number' ? vehicle.speed : null;
         const prevTime = vehicle.last_location_update ? new Date(vehicle.last_location_update).getTime() : null;
         const dtSec = prevTime ? (now.getTime() - prevTime) / 1000 : null;
@@ -542,7 +547,7 @@ export default async function(req) {
         // action (Vehicle.update from the dashboard), never by a heartbeat.
         const routineStatus = status || 'on_trip';
         const update = { current_lat: lat, current_lng: lng, speed: newSpeed, status: vehicle.status === 'emergency' ? 'emergency' : routineStatus, last_location_update: now.toISOString() };
-        if (trail) update.trail = trail;
+        if (Array.isArray(trail)) update.trail = trail.slice(-300).filter(p=>Number.isFinite(p.lat)&&Number.isFinite(p.lng)&&Math.abs(p.lat)<=90&&Math.abs(p.lng)<=180&&Number.isFinite(Date.parse(p.t))&&Date.parse(p.t)<=sampleMs).map(p=>({lat:p.lat,lng:p.lng,t:p.t}));
 
         // --- Driving-event detection: hard braking / rapid acceleration / possible crash ---
         // Heuristic only (GPS speed deltas between ~8s pings), not true accelerometer sensing.
@@ -657,9 +662,9 @@ export default async function(req) {
         if (!vehicle) return Response.json({ error: 'Vehicle not found' }, { status: 404 });
         const nowMs = Date.now();
         const points = (Array.isArray(body.points) ? body.points : []).slice(0, 300)
-          .map((p) => ({ t: new Date(p?.t).getTime(), lat: Number(p?.lat), lng: Number(p?.lng), speed: Number(p?.speed) }))
+          .map((p) => ({ t: new Date(p?.t).getTime(), lat: p?.lat, lng: p?.lng, speed: p?.speed ?? 0 }))
           .filter((p) => Number.isFinite(p.t) && p.t <= nowMs + 60_000 && p.t >= nowMs - 72 * 3600_000
-            && Number.isFinite(p.lat) && Number.isFinite(p.lng) && Math.abs(p.lat) <= 90 && Math.abs(p.lng) <= 180)
+            && Number.isFinite(p.lat) && Number.isFinite(p.lng) && Math.abs(p.lat) <= 90 && Math.abs(p.lng) <= 180 && Number.isFinite(p.speed) && p.speed>=0 && p.speed<=350)
           .sort((a, b) => a.t - b.t);
         if (!points.length) return Response.json({ ok: true, stored: 0 });
 
@@ -667,7 +672,7 @@ export default async function(req) {
         const to = points[points.length - 1].t + PING_LOG_INTERVAL_MS;
         const pings = base44.asServiceRole.entities.LocationPing;
         const existing = (await pings.filter({ vehicle_id: vehicleId, recorded_at: { $gte: new Date(from).toISOString(), $lte: new Date(to).toISOString() } }, '-recorded_at', 1000)
-          .catch(() => pings.filter({ vehicle_id: vehicleId }, '-recorded_at', 1000)).catch(() => []))
+          .catch(() => pings.filter({ vehicle_id: vehicleId, company_id: companyId }, '-recorded_at', 1000)))
           .map((r) => new Date(r.recorded_at).getTime())
           .filter((t) => Number.isFinite(t) && t >= from && t <= to);
         const taken = [...existing];

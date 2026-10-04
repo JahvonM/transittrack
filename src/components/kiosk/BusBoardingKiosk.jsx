@@ -373,7 +373,7 @@ export default function BusBoardingKiosk({ invoke, device }) {
   const confirmCheckIn = async (status) => {
     if (!pending || busy) return;
     setBusy(true);
-    const payload = { staff_id: pending.staff.id, method: pending.method, code_type: pending.code_type, verification_grant: pending.verification_grant, status };
+    const payload = { client_request_id: crypto.randomUUID(), occurred_at: new Date().toISOString(), staff_id: pending.staff.id, method: pending.method, code_type: pending.code_type, verification_grant: pending.verification_grant, status };
     try {
       const res = await invoke("check_in", payload);
       const record = { staff_name: res.record.staff_name, status: res.record.status };
@@ -392,7 +392,8 @@ export default function BusBoardingKiosk({ invoke, device }) {
       // this person their check-in — queue it and let them walk away as if
       // it worked; a real rejection from the backend still shows the error.
       if (isNetworkFailure(e)) {
-        setPendingSyncCount(enqueueCheckIn(payload));
+        try { setPendingSyncCount(enqueueCheckIn(payload)); }
+        catch (storageError) { setBadgeError(storageError.message); setMode("badge_error"); return; }
         noteStatus(payload.staff_id, status);
         if (payload.code_type === "one_time") burnOneTimeCode(payload.staff_id);
         setResult({ staff_name: pending.staff.full_name, status, offline: true });
