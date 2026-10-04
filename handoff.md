@@ -347,3 +347,72 @@ does not need to repeat them:
 - GitHub secret scanning, push protection and Dependabot alerts could NOT be
   enabled from here (proxy refuses settings writes). The user must turn them
   on in the repo settings.
+
+
+## Pre-production security — STEP 5 (2026-10-03 America/Grenada)
+
+User authorized STEP 5 with "Let's go". CompanyMembership is an admin-controlled
+approval ledger; User.company_id is never trusted for company authorization.
+Manager memberships require explicit admin assignment in User management. Existing
+profile assignments were NOT automatically approved and no live user/device/account
+records were changed by this work. Admin User lists show approved company membership,
+not raw profile values; company users without approval see an approval message.
+Staff entering a verified company code obtain passenger scope only, with a 30-day
+expiry and code hash; expiry or company code changes invalidate it. Existing valid
+server-issued company access grants can restore passenger scope without treating
+self-edited profile fields as membership. No role or ownership is granted by codes.
+
+entityAccess is the sole application entity gateway: fresh server-side User role,
+approved company scope, per-role operation policies, explicit field projections,
+credential scrubbing, record-ID checks, tenant filters, related-record validation,
+and prevalidation of batches. All direct custom entity rules are admin-only except
+Advertisement public reads. Built-in User permissions remain platform-controlled;
+its schema was not assigned ineffective custom RLS. Public custom entity requests
+return no rows; public gateway access is limited to Advertisement read operations.
+Company writes use approved memberships via the gateway; advertisements remain
+public with writes only for admin or approved company users. Mechanics have global
+Vehicle/Fault/Inspection/InspectionResult/InspectionTemplate/Part/MaintenanceSchedule/
+MaintenanceSettings access, plus company display names and their maintenance chat;
+no driver PIN, passenger credential/card UID, join code, role or ownership access.
+Mechanic Vehicle writes are limited to maintenance fields. Shared parts inventory
+and global maintenance settings/templates remain available to the central team.
+
+src/api/base44Client.js wraps entity calls in src/lib/scopedEntities.js and resolves
+presentation auth context through the gateway. Subscriptions use scoped 10-second
+snapshot polling rather than raw entity streams; 5,000-row cap is a known scaling
+limit. SDK analytics still calls the signed-in account's built-in User/me endpoint;
+it does not replace app authorization. Profile updates allow only safe fields.
+Vehicle form no longer submits the unused raw entry-code field, which would bypass
+protected credential management. Report/message ownership is server-attributed;
+company broadcasts receive the approved company ID even when omitted by the UI.
+
+nfcCards, notifyStaffPickup, notifyAdminMessage, generateOneTimeCode, driverSession,
+kioskCheckIn, adminCopilot and busAssistant now check approved membership or scoped
+server data. User-stored legacy UID/access-code/temporary-code fields are not
+accepted as credentials. Existing controlled Contact badges still work; issued
+User badges resolve through protected active NfcCard records, and User permanent
+keypad codes now use protected hashed PassengerAccessCredential. Legacy User-only
+badges/codes without canonical records need migration/reissue before rollout.
+The four fleet-wide job functions weeklyReport/inspectionAlerts/maintenanceAlerts/
+learnTravelTimes no longer mistake an anonymous request for a scheduler. They now
+require an authorized account; automatic schedules are deliberately blocked until
+a verified service authentication path is configured. This is a rollout requirement,
+not a claim that anonymous scheduled execution is safe.
+
+Validation: lint/build, 118 unit tests (27 company-isolation regressions), and four
+mocked Chromium tablet/mechanic/company tests pass. Read-only live anonymous checks
+returned zero rows for Vehicle, Company, Contact, StaffCheckIn, CompanyMembership,
+NfcCard and DriverPinCredential; User returned 401. Live entityAccess returned 401
+for Vehicle/User and 200 for Advertisement reads. Synced schema permissions were
+checked separately. No live advertisement records exist for a positive content
+read; public readability is verified by schema and mock contract. Authenticated
+non-admin direct-API tests still require verified test sessions; no six test
+accounts were created because unverified accounts would not enable those checks.
+
+Rollout: explicitly approve managers in Admin → User management; passenger accounts
+can re-enter a valid company code. Finish legacy credential migration (including
+unused plaintext PINs), configure authenticated jobs, and exercise verified real
+roles before first production. Frontend has not been published. Backend/resources
+auto-sync, so older published clients will lose broad direct entity access until
+coordinated frontend rollout. No development tablet revocation, key generation,
+credential rotation or GitHub security setting changes. STEP 6 has not started.

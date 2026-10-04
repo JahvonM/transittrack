@@ -1,3 +1,19 @@
+## Security hardening test status (2026-10-03)
+
+Run the current mocked regression checks with:
+
+```bash
+npx playwright test e2e/tablet-context.spec.js e2e/company-isolation.spec.js
+```
+
+These block raw custom entity access, verify tablet credential cache cleanup,
+backend PIN verification, centralized mechanic vehicles and scoped company context.
+SDK analytics may access its own built-in User/me endpoint. Other authenticated
+role checks require verified test sessions. Older live device tests below describe
+legacy ID/PIN contracts and need migration before use with enrolled token devices.
+TransitTrack is pre-production; references below to production mean the hosted
+Base44 backend, not an active production release.
+
 # E2E tests
 
 Playwright tests that run against the real production backend (`https://base44.app`),
