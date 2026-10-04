@@ -48,3 +48,23 @@ export function mock(role='staff') {
  })});
  return {tables,reads,writes,emails,auth:{me:async()=>role?structuredClone(tables.User[0]):null},asServiceRole:{entities,integrations:{Core:{SendEmail:async data=>{emails.push(data);return {};}}}}};
 }
+
+export function interleaveReads(client,entity,participants) {
+ const original=client.asServiceRole.entities;
+ let pending=[];
+ client.asServiceRole.entities=new Proxy(original,{get:(target,name)=>{
+  const table=target[name];
+  if(name!==entity)return table;
+  return {...table,filter:async(...args)=>{
+   const snapshot=await table.filter(...args);
+   return new Promise((resolve,reject)=>{
+    const timer=setTimeout(()=>reject(new Error('Interleaving fixture did not receive all participants')),1500);
+    pending.push({resolve,snapshot,timer});
+    if(pending.length===participants) {
+     const group=pending;pending=[];
+     for(const item of group){clearTimeout(item.timer);item.resolve(item.snapshot);}
+    }
+   });
+  }};
+ }});
+}

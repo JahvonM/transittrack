@@ -2,7 +2,7 @@
 // Run separately with npm run test:security:release. Current failures block release.
 import {describe,it,expect} from 'vitest';
 import {webcrypto} from 'node:crypto';
-import {load,mock,request,tablet,digest} from './helpers';
+import {load,mock,request,tablet,digest,interleaveReads} from './helpers';
 describe('production security readiness',()=>{
  for(const name of ['companyAccess','generateOneTimeCode','kioskCheckIn','driverSession']) it(name+' accepts at most five attempts in a concurrent burst',async()=>{
   const sdk=mock(),{reserveAttempt}=load(name,sdk,['reserveAttempt']);
@@ -58,6 +58,7 @@ describe('production security readiness',()=>{
  it('consumes one-time passenger codes only once under concurrency',async()=>{
   const sdk=mock(null);sdk.tables.User[0].role='staff';
   sdk.tables.PassengerOneTimeCredential=[{id:'otp',user_id:'caller',company_id:'a',token_hash:digest('987654'),expires_at:new Date(Date.now()+60000).toISOString()}];
+  interleaveReads(sdk,'PassengerOneTimeCredential',5);
   const handler=load('kioskCheckIn',sdk).default;
   const responses=await Promise.all(Array.from({length:5},()=>handler(request({device_id:'tablet',action:'lookup_code',code:'987654'}))));
   expect(responses.filter(r=>r.status===200)).toHaveLength(1);
@@ -97,7 +98,7 @@ describe('production security readiness',()=>{
   expect(sdk.emails.map(e=>e.to)).not.toContain('manager@test.invalid');
  });
  it('creates one mechanic inspection row for concurrent identical replay IDs',async()=>{
-  const sdk=mock('mechanic'),handler=load('entityAccess',sdk).default;
+  const sdk=mock('mechanic');interleaveReads(sdk,'InspectionResult',5);const handler=load('entityAccess',sdk).default;
   const body={entity:'InspectionResult',operation:'create',data:{vehicle_id:'bus-a',company_id:'a',inspection_item:'Tyre',condition:'GOOD',client_request_id:'same-result-123'}};
   const responses=await Promise.all(Array.from({length:5},()=>handler(request(body))));
   expect(responses.every(r=>r.status===200)).toBe(true);
