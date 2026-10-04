@@ -17,6 +17,8 @@ set SITE=https://eager-transit-track-go.base44.app
 set HOTSPOT_PREFIX=TT-BUS
 set HELPER=com.transittrack.kioskhelper
 set FK=com.freekiosk/.MainActivity
+rem Boarding tablets: brightness 0-255 (screen timeout is set to never)
+set KIOSK_BRIGHTNESS=70
 
 :start
 cls
@@ -33,19 +35,27 @@ echo    - USB cable plugged into this computer
 echo.
 if not defined PRESET_TYPE goto ask_type
 set TYPE=%PRESET_TYPE%
-echo  This setup file was made for:  %PRESET_NAME%
+echo  This file was made for:  %PRESET_NAME%
 echo.
-pause
-goto chosen_type
+echo    [1]  SET UP this tablet - new tablet
+echo    [2]  UPDATE this tablet - already set up, push the latest helper and settings
+echo.
+set MODE=
+set /p MODE=  Type 1 or 2 and press Enter: 
+if "%MODE%"=="2" goto update_run
+if "%MODE%"=="1" goto chosen_type
+goto start
 
 :ask_type
-echo  Which tablet is this?
+echo  What do you want to do?
 echo.
-echo    [1]  DRIVER tablet        - driver app, USB GPS, shares its hotspot
-echo    [2]  BUS BOARDING tablet  - card reader, joins the bus hotspot
+echo    [1]  Set up a new DRIVER tablet        - driver app, USB GPS, shares its hotspot
+echo    [2]  Set up a new BUS BOARDING tablet  - card reader, joins the bus hotspot
+echo    [3]  UPDATE a tablet that is already set up
 echo.
 set TYPE=
-set /p TYPE=  Type 1 or 2 and press Enter: 
+set /p TYPE=  Type 1, 2 or 3 and press Enter: 
+if "%TYPE%"=="3" goto update_ask
 :chosen_type
 if "%TYPE%"=="1" goto type_driver
 if "%TYPE%"=="2" goto type_boarding
@@ -238,6 +248,9 @@ goto perms_done
 :perms_boarding
 adb shell pm grant %HELPER% android.permission.ACCESS_FINE_LOCATION
 adb shell settings put secure location_mode 3
+adb shell settings put system screen_off_timeout 2147483647
+adb shell settings put system screen_brightness_mode 0
+adb shell settings put system screen_brightness %KIOSK_BRIGHTNESS%
 goto perms_done
 
 :perms_done
@@ -330,3 +343,83 @@ pause
 adb reboot
 echo  Restarting. You can set up the next tablet now.
 pause
+
+rem =================================================================
+rem   UPDATE MODE - tablet already set up: latest helper + settings
+rem =================================================================
+:update_ask
+echo.
+echo  Which tablet are you updating?
+echo    [1]  Driver tablet
+echo    [2]  Bus boarding tablet
+set TYPE=
+set /p TYPE=  Type 1 or 2 and press Enter: 
+if "%TYPE%"=="1" goto update_run
+if "%TYPE%"=="2" goto update_run
+goto update_ask
+
+:update_run
+if "%TYPE%"=="1" set KIND=Driver
+if "%TYPE%"=="2" set KIND=Bus boarding
+:upd_check_device
+adb disconnect >nul 2>&1
+set STATE=
+for /f %%s in ('adb get-state 2^>nul') do set STATE=%%s
+if "%STATE%"=="device" goto upd_device_ok
+echo.
+echo  [X] Tablet not found. Check the cable, wake the tablet, and tap ALLOW
+echo      on the "Allow USB debugging?" popup.
+pause
+goto upd_check_device
+:upd_device_ok
+set SERIAL=unknown
+for /f %%s in ('adb get-serialno') do set SERIAL=%%s
+echo  [OK] Tablet connected - %SERIAL%
+echo.
+echo  --- Update 1 of 3: Latest TransitTrack Helper ---
+del "%TEMP%\tt-helper.apk" >nul 2>&1
+curl -s -L -o "%TEMP%\tt-helper.apk" "%SITE%/tools/TransitTrack-Kiosk-Helper.apk"
+if not exist "%TEMP%\tt-helper.apk" goto helper_failed
+for %%z in ("%TEMP%\tt-helper.apk") do if %%~zz LSS 10000 goto helper_failed
+adb install -r "%TEMP%\tt-helper.apk"
+adb uninstall com.termux.boot >nul 2>&1
+adb uninstall org.broeuschmeul.android.gps.usb.provider >nul 2>&1
+echo.
+echo  --- Update 2 of 3: Settings ---
+adb shell pm grant %HELPER% android.permission.WRITE_SECURE_SETTINGS
+adb shell dumpsys deviceidle whitelist +%HELPER%
+adb shell settings put global stay_on_while_plugged_in 7
+adb shell settings put system sound_effects_enabled 0
+if "%TYPE%"=="1" goto upd_driver
+adb shell pm grant %HELPER% android.permission.ACCESS_FINE_LOCATION
+adb shell settings put secure location_mode 3
+adb shell settings put system screen_off_timeout 2147483647
+adb shell settings put system screen_brightness_mode 0
+adb shell settings put system screen_brightness %KIOSK_BRIGHTNESS%
+goto upd_settings_done
+:upd_driver
+adb shell appops set %HELPER% android:mock_location allow
+adb shell appops set %HELPER% WRITE_SETTINGS allow
+adb shell settings put global hidden_api_policy 1
+:upd_settings_done
+rem Make sure the helper and the USB popup are allowed through the kiosk lock
+adb shell am start -n %FK% --es pin "%PIN%" --es managed_apps '[{\"packageName\":\"com.transittrack.kioskhelper\",\"showOnHomeScreen\":false},{\"packageName\":\"com.android.systemui\",\"showOnHomeScreen\":false}]'
+timeout /t 8 /nobreak >nul
+echo  [OK] Done.
+echo.
+echo  --- Update 3 of 3: Restart ---
+set LOG=%USERPROFILE%\Documents\TransitTrack-tablets.csv
+if not exist "%LOG%" >"%LOG%" echo Date,Time,Type,Bus,Code,Hotspot,Serial
+>>"%LOG%" echo %DATE%,%TIME%,%KIND% UPDATE,,,,%SERIAL%
+echo.
+echo  ==========================================================
+echo    UPDATE FINISHED - %KIND% tablet %SERIAL%
+echo  ==========================================================
+echo  The tablet restarts when you press a key. A couple of minutes
+echo  later, Admin - Kiosk Tablets shows the new helper version.
+echo.
+pause
+adb reboot
+echo  Restarting. You can update the next tablet now.
+pause
+exit /b
