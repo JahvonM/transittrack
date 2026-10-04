@@ -10,17 +10,18 @@ import { Image } from "@/components/ui/image";
 import { Image as ImageIcon, Loader2, Plus, Trash2, Upload } from "lucide-react";
 import { loadFailed } from "@/lib/loadFailed";
 
-export default function AdsTab() {
+export default function AdsTab({ companyId = "" }) {
   const [ads, setAds] = useState([]);
+  const [companies, setCompanies] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [form, setForm] = useState({ title: "", message: "", link: "", image_url: "" });
+  const [form, setForm] = useState({ title: "", message: "", link: "", image_url: "", company_id: companyId });
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
 
   const load = async () => {
     try {
-      const list = await base44.entities.Advertisement.list();
-      setAds(list);
+      const [list, companyList] = await Promise.all([base44.entities.Advertisement.list(), base44.entities.Company.list()]);
+      setAds(companyId ? list.filter(ad => ad.company_id === companyId) : list);setCompanies(companyList);
     } catch {
       loadFailed(load);
     } finally {
@@ -46,7 +47,7 @@ export default function AdsTab() {
     setSaving(true);
     try {
       await base44.entities.Advertisement.create({ ...form, active: true, order: 0 });
-      setForm({ title: "", message: "", link: "", image_url: "" });
+      setForm({ title: "", message: "", link: "", image_url: "", company_id: companyId });
       load();
     } finally {
       setSaving(false);
@@ -64,7 +65,16 @@ export default function AdsTab() {
 
   return (
     <div className="space-y-4">
-      <PageIntro>Promos shown to passengers on the home screen.</PageIntro>
+      <PageIntro>{companyId ? "Manage your company’s public promos." : "Manage public promos for all companies."}</PageIntro>
+      {!companyId && (
+        <div className="max-w-sm space-y-1.5">
+          <Label htmlFor="ad-owner">Owner of new advertisement</Label>
+          <select id="ad-owner" aria-label="Advertisement owner" value={form.company_id} onChange={e => setForm(f => ({ ...f, company_id: e.target.value }))} className="h-10 w-full rounded-md border border-input bg-card px-3 text-body-sm">
+            <option value="">Global — admin managed</option>
+            {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        </div>
+      )}
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-4">
         <div className="space-y-2">
           {ads.length === 0 && !loading && (
@@ -72,6 +82,9 @@ export default function AdsTab() {
           )}
           {ads.map((ad) => (
             <div key={ad.id} className="flex items-center gap-3 p-3 rounded-xl border bg-card">
+              {!companyId && <select aria-label={`Owner of ${ad.title}`} value={ad.company_id || ""} onChange={async e => { await base44.entities.Advertisement.update(ad.id, { company_id: e.target.value }); load(); }} className="max-w-40 border rounded-md text-xs">
+                <option value="">Global</option>{companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>}
               {ad.image_url ? (
                 <Image src={ad.image_url} className="w-12 h-12 rounded-lg shrink-0" fittingType="fill" />
               ) : (

@@ -13,11 +13,11 @@ tablet-context.spec.js, saved-work.spec.js, message-notifications.spec.js and se
 All intercept API calls and exercise the compiled
 frontend without live entity reads/writes, notification delivery or account changes.
 
-The thirteen checks cover centralized mechanic vehicles, approved company context,
+The fourteen checks cover centralized mechanic vehicles, approved company context,
 tablet context projection/cache cleanup, backend PIN unlock UI, saved-work export,
 admin archive/removal, fresh role checks, GPS preservation on driver unpairing
 and acknowledged text/photo message IDs in mechanic/company/staff notification calls,
-server company-code issuance and twelve-digit boarding keypad input. They do not
+server company-code retrieval, twelve-digit boarding keypad input and company-owned advertisement management. They do not
 prove live backend RLS or real authentication sessions. Those boundaries have
 separate unit tests using in-memory SDK adapters.
 

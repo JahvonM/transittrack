@@ -33,13 +33,13 @@ async function validGrant(base44, device, token, purpose, subject) {
 }
 
 
-async function recordPassengerMembership(base44,user,company,codeHash,expiresAt) {
+async function recordPassengerMembership(base44,user,company,codeHash) {
  if(user.role!=='staff') return;
  const previous=await base44.asServiceRole.entities.CompanyMembership.filter({user_id:user.id,scope:'passenger'},'-updated_date',100);
- const current=previous.find(row=>row.active && row.company_id===company.id && row.code_hash===codeHash && row.expires_at===expiresAt);
+ const current=previous.find(row=>row.active && row.company_id===company.id && row.code_hash===codeHash);
  if(current) return;
  for(const row of previous) await base44.asServiceRole.entities.CompanyMembership.update(row.id,{active:false});
- await base44.asServiceRole.entities.CompanyMembership.create({user_id:user.id,company_id:company.id,scope:'passenger',active:true,code_hash:codeHash,expires_at:expiresAt});
+ await base44.asServiceRole.entities.CompanyMembership.create({user_id:user.id,company_id:company.id,scope:'passenger',active:true,code_hash:codeHash});
 }
 
 const displayCompany = company => Object.fromEntries(['id','name','phone','logo_url','service_types'].filter(k => company[k] !== undefined).map(k => [k,company[k]]));
@@ -53,10 +53,13 @@ export default async function(req) {
    if (typeof body.grant !== 'string' || !/^[a-f0-9]{64}$/.test(body.grant)) return Response.json({ error: 'Company code required' }, { status: 401 });
    const rows = await base44.asServiceRole.entities.CompanyAccessGrant.filter({ user_id: user.id, token_hash: await hashSecret(body.grant) }, '-created_date', 1);
    const row = rows[0];
-   if (!row || !(Date.parse(row.expires_at) > Date.now())) return Response.json({ error: 'Company code required' }, { status: 401 });
+   if (!row) return Response.json({ error: 'Company code required' }, { status: 401 });
    const company = await base44.asServiceRole.entities.Company.get(row.company_id);
    if (!company || row.code_hash !== await hashSecret(company.access_code || '')) return Response.json({ error: 'Company code required' }, { status: 401 });
-   await recordPassengerMembership(base44,user,company,row.code_hash,row.expires_at);
+   if(user.role==='staff') {
+    const memberships=await base44.asServiceRole.entities.CompanyMembership.filter({user_id:user.id,company_id:company.id,scope:'passenger',active:true},'-updated_date',100);
+    if(!memberships.some(m=>(!m.code_hash&&!m.expires_at)||m.code_hash===row.code_hash))return Response.json({error:'Company access removed'},{status:401});
+   }
    return Response.json({ company: displayCompany(company) });
   }
   if (!(await reserveAttempt(base44, 'company-code:' + user.id, 5, 15 * 60_000))) return Response.json({ error: 'Too many attempts. Try again in 15 minutes.' }, { status: 429 });
@@ -65,11 +68,9 @@ export default async function(req) {
   const rows = await base44.asServiceRole.entities.Company.filter({ access_code: code }, '-created_date', 2);
   if (rows.length !== 1) return Response.json({ error: 'Invalid company code' }, { status: 403 });
   const company = rows[0];
-  if(!(Date.parse(company.access_code_expires_at)>Date.now()))return Response.json({error:'Company join code expired; request a new code'},{status:403});
   const grant = randomSecret();
-  const expiresAt=new Date(Date.now()+30*86400_000).toISOString();
-  await base44.asServiceRole.entities.CompanyAccessGrant.create({ user_id: user.id, company_id: company.id, token_hash: await hashSecret(grant), code_hash: await hashSecret(code), expires_at: expiresAt });
-  await recordPassengerMembership(base44,user,company,await hashSecret(code),expiresAt);
+  await base44.asServiceRole.entities.CompanyAccessGrant.create({ user_id: user.id, company_id: company.id, token_hash: await hashSecret(grant), code_hash: await hashSecret(code) });
+  await recordPassengerMembership(base44,user,company,await hashSecret(code));
   // Verified passenger access never grants manager scope, ownership or a role.
   return Response.json({ company: displayCompany(company), grant });
  } catch { return Response.json({ error: 'Could not verify company access' }, { status: 500 }); }

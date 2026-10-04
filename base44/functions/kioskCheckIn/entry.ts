@@ -3,7 +3,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 
 async function liveMembership(base44, row) {
  if (!row.expires_at && !row.code_hash) return true; // Explicit admin approval.
- if (!(Date.parse(row.expires_at) > Date.now()) || !row.code_hash) return false;
+ if (!row.code_hash || (row.scope !== 'passenger' && !(Date.parse(row.expires_at) > Date.now()))) return false;
  const company=await base44.asServiceRole.entities.Company.get(row.company_id).catch(()=>null);
  if(!company) return false;
  const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(company.access_code || ''));
@@ -88,7 +88,7 @@ async function loadStaffDirectory(base44, companyId) {
     ...companyContacts.map((c) => {
       const u = userByEmail.get((c.email || '').toLowerCase()) || {};
       return {
-        source: 'contact', id: c.id, full_name: c.name || u.full_name || 'Staff',
+        source: 'contact', member_user_id: u.id || '', id: c.id, full_name: c.name || u.full_name || 'Staff',
         email: c.email || u.email || '', photo_url: u.photo_url || '',
         nfc_tag: c.nfc_card_tag || cardForUser(u.id),
         access_code: c.access_code || '',
@@ -97,7 +97,7 @@ async function loadStaffDirectory(base44, companyId) {
       };
     }),
     ...orphanUsers.map((u) => ({
-      source: 'user', id: u.id, full_name: u.full_name || u.email || 'Staff',
+      source: 'user', member_user_id: u.id, id: u.id, full_name: u.full_name || u.email || 'Staff',
       email: u.email || '', photo_url: u.photo_url || '', nfc_tag: cardForUser(u.id),
       access_code: '',
       one_time_code: u.one_time_code || '', one_time_code_expires_at: u.one_time_code_expires_at || null,
@@ -210,11 +210,11 @@ async function reserveAttempt(base44, key, limit, windowMs) {
  await base44.asServiceRole.entities.VerificationAttempt.create({ scope: key, attempted_at: new Date().toISOString() });
  return true;
 }
-async function issueGrant(base44, device, purpose, subject, ttlMs) {
+async function issueGrant(base44, device, purpose, subject, ttlMs, binding={}) {
  const secret = randomSecret();
  await base44.asServiceRole.entities.VerificationGrant.create({
  token_hash: await hashSecret(secret), device_id: device.id, company_id: device.company_id,
- vehicle_id: device.vehicle_id, pairing_code_hash: await hashSecret(device.pairing_code || ''), purpose, subject, expires_at: new Date(Date.now()+ttlMs).toISOString(),
+ ...binding, vehicle_id: device.vehicle_id, pairing_code_hash: await hashSecret(device.pairing_code || ''), purpose, subject, expires_at: new Date(Date.now()+ttlMs).toISOString(),
  });
  return secret;
 }
@@ -223,6 +223,50 @@ async function validGrant(base44, device, token, purpose, subject) {
  const rows = await base44.asServiceRole.entities.VerificationGrant.filter({ token_hash: await hashSecret(token) }, '-created_date', 1);
  const row = rows[0];
  return !!row && row.pairing_code_hash === await hashSecret(device.pairing_code || '') && row.device_id === device.id && row.company_id === device.company_id && row.vehicle_id === device.vehicle_id && row.purpose === purpose && row.subject === subject && Date.parse(row.expires_at) > Date.now();
+}
+
+async function currentCard(base44,companyId,person,uid) {
+ if(!uid)return {valid:false};
+ const rows=await base44.asServiceRole.entities.NfcCard.filter({card_uid:uid},'-updated_date',2);
+ if(rows.length>1)return {valid:false};
+ const card=rows[0];
+ // Unregistered legacy Contact tags remain development-compatible. A ledger
+ // record, including a revoked one, takes precedence over a copied legacy tag.
+ if(!card)return {valid:true,card_id:''};
+ const expiry=card.expiry_date?Date.parse(card.expiry_date):null;
+ const today=Date.parse(new Date().toISOString().slice(0,10));
+ const owner=(card.holder_source==='contact'&&person.source==='contact'&&card.holder_id===person.id)||
+  (card.holder_source==='user'&&card.holder_id===person.member_user_id);
+ return {valid:card.company_id===companyId&&card.is_active===true&&!card.revoked_at&&owner&&
+  (expiry===null||(Number.isFinite(expiry)&&expiry>=today)),card_id:card.id};
+}
+async function boardingBinding(base44,device,person,kind) {
+ const binding={auth_kind:kind,subject_source:person.source,member_user_id:person.member_user_id||''};
+ if(kind==='card') {
+  const card=await currentCard(base44,device.company_id,person,person.nfc_tag);
+  if(!card.valid)return null;
+  binding.card_id=card.card_id;binding.card_tag_hash=await hashSecret(person.nfc_tag);
+ }
+ return binding;
+}
+async function currentBoardingEligibility(base44,device,person,token,method) {
+ const rows=await base44.asServiceRole.entities.VerificationGrant.filter({token_hash:await hashSecret(token)},'-created_date',1);
+ const row=rows[0];if(!row||!['card','code'].includes(row.auth_kind)||!row.subject_source)return false;
+ if(row.subject_source&&row.subject_source!==person.source)return false;
+ if(row.member_user_id) {
+  const user=await base44.asServiceRole.entities.User.get(row.member_user_id).catch(error=>{if(error.status===404||error.response?.status===404)return null;throw error;});
+  if(!user||user.role!=='staff'||!(await approvedStaffIds(base44,device.company_id)).has(user.id))return false;
+  if(person.member_user_id!==user.id)return false;
+ }
+ const cardMethod=['nfc','qr'].includes(method);
+ if(row.auth_kind&&row.auth_kind!==(cardMethod?'card':'code'))return false;
+ if(cardMethod) {
+  const card=await currentCard(base44,device.company_id,person,person.nfc_tag);
+  if(!card.valid)return false;
+  if(row.card_tag_hash&&row.card_tag_hash!==await hashSecret(person.nfc_tag))return false;
+  if(row.card_id&&row.card_id!==card.card_id)return false;
+ }
+ return true;
 }
 
 async function allocatePassengerCode(base44,person,companyId) {
@@ -307,8 +351,10 @@ export default async function(req) {
         if (!person) return Response.json({ error: 'badge_not_registered' }, { status: 404 });
         const refusal = wrongBus(person, vehicleId);
         if (refusal) return Response.json(refusal, { status: 403 });
+        const binding=await boardingBinding(base44,device,person,'card');
+        if(!binding)return Response.json({error:'Card no longer authorized'},{status:403});
         const status = await nextStatus(base44, vehicleId, 'card_tag', person.nfc_tag || person.id);
-        return Response.json({ staff: { id: person.id, full_name: person.full_name, photo_url: person.photo_url }, next_status: status, verification_grant: await issueGrant(base44, device, 'boarding', person.id, 24 * 3600_000) });
+        return Response.json({ staff: { id: person.id, full_name: person.full_name, photo_url: person.photo_url }, next_status: status, verification_grant: await issueGrant(base44, device, 'boarding', person.id, 24 * 3600_000,binding) });
       }
 
       // --- bus_boarding: keypad code entry — either a permanent, admin-
@@ -347,7 +393,7 @@ export default async function(req) {
           await base44.asServiceRole.entities.PassengerOneTimeCredential.update(current.id, { consumed_at: new Date().toISOString() });
         }
         const status = await nextStatus(base44, vehicleId, 'card_tag', person.nfc_tag || person.id);
-        return Response.json({ staff: { id: person.id, full_name: person.full_name, photo_url: person.photo_url }, next_status: status, code_type: codeType, verification_grant: await issueGrant(base44, device, 'boarding', person.id, 24 * 3600_000) });
+        return Response.json({ staff: { id: person.id, full_name: person.full_name, photo_url: person.photo_url }, next_status: status, code_type: codeType, verification_grant: await issueGrant(base44, device, 'boarding', person.id, 24 * 3600_000,await boardingBinding(base44,device,person,'code')) });
       }
 
       // --- admin app (Staff Directory): generate a persistent access code for
@@ -389,7 +435,7 @@ export default async function(req) {
         }
         const directory = await loadStaffDirectory(base44, companyId);
         const person = directory.find((s) => s.id === sanitize(staff_id)) || null;
-        if (['nfc', 'qr', 'code'].includes(method) && (!person || !(await validGrant(base44, device, body.verification_grant, 'boarding', person.id)))) return Response.json({ error: 'Online credential verification required' }, { status: 403 });
+        if (['nfc', 'qr', 'code'].includes(method) && (!person || !(await validGrant(base44, device, body.verification_grant, 'boarding', person.id)) || !(await currentBoardingEligibility(base44,device,person,body.verification_grant,method)))) return Response.json({ error: 'Online credential verification required' }, { status: 403 });
         const refusal = wrongBus(person, vehicleId);
         if (refusal) return Response.json(refusal, { status: 403 });
         const cardTag = person?.nfc_tag || person?.id || sanitize(staff_id) || sanitize(staff_name);

@@ -13,7 +13,7 @@ async function claimRun(base44, job, minGapMs, isAdmin) {
 
 async function liveMembership(db, row) {
  if (!row.expires_at && !row.code_hash) return true; // Explicit admin approval.
- if (!(Date.parse(row.expires_at) > Date.now()) || !row.code_hash) return false;
+ if (!row.code_hash || (row.scope !== 'passenger' && !(Date.parse(row.expires_at) > Date.now()))) return false;
  const company=await db.Company.get(row.company_id).catch(()=>null);
  if(!company) return false;
  const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(company.access_code || ''));

@@ -28,7 +28,8 @@ describe('offline replay backend contracts',()=>{
  it('acknowledges a completed boarding retry even after its grant expires',async()=>{
   const sdk=mock();sdk.tables.KioskDevice[0].kiosk_type='bus_boarding';
   const api=load('kioskCheckIn',sdk),handler=api.default;
-  const grant=await api.issueGrant(sdk,sdk.tables.KioskDevice[0],'boarding','contact',60000);
+  const lookup=await handler(req({device_id:'tablet',action:'lookup_tag',card_tag:'CARD-SENTINEL'}));
+  expect(lookup.status).toBe(200);const {verification_grant:grant}=await lookup.json();
   const body={device_id:'tablet',action:'check_in',staff_id:'contact',method:'nfc',status:'boarded',verification_grant:grant,client_request_id:'request-123',occurred_at:new Date().toISOString()};
   expect((await handler(req(body))).status).toBe(200);
   sdk.tables.VerificationGrant[0].expires_at='2000-01-01';

@@ -275,6 +275,10 @@ export default function KioskTablets({ vehicles, companies, onChange }) {
           Needs ADB on the PC (<code>winget install Google.PlatformTools</code>) and the WebView .apk in your Downloads folder.
           FreeKiosk and TransitTrack Helper download themselves. <b>Setup tool</b> is the same file without anything filled in.
         </p>
+        <p className="text-xs text-muted-foreground mt-1">
+          <b>Updating a tablet that's already set up:</b> plug it in, run its Setup file (or the Setup tool) and choose <b>Update</b>.
+          It installs the latest TransitTrack Helper and re-applies the settings without unlocking or resetting the tablet.
+        </p>
       </div>
 
       {loading ? (

@@ -164,3 +164,91 @@ checks, lint/build pass; strict suite 21 pass / 17 fail, exit 1. Concurrent uniq
 legacy migration and budgets remain unresolved. See security-tests/README.md
 for expiry, membership and coordinated rollout boundaries. No live mutations,
 tablet revocation, signing changes or frontend publication were performed.
+
+## Boarding grant revocation follow-up — 2026-10-04 UTC
+
+New card grants bind the source identity, associated app user, protected card
+record ID (when present), card UID fingerprint and verification kind. Keypad
+grants bind source identity, associated app user and kind. No added identity
+metadata or fingerprint is returned to tablets.
+
+Before a new verified check-in, the server reads current directory assignment,
+app role and approved membership, and verifies card activity, revocation,
+expiry, company and holder against the original grant. A registered card ledger
+takes precedence over a copied legacy Contact tag. Replacing a card, deleting its
+ledger or reassigning its holder cannot preserve a new grant. Transient user reads
+fail with a server error rather than treating the outage as permanent revocation.
+Standalone legacy Contact tags remain development-compatible when no ledger
+exists; bulk migration and legacy authentication were not changed.
+
+Unbound grants issued before this update cannot authorize new verified check-ins:
+the rider must perform a fresh online lookup. Existing saved-work handling keeps
+rejected queued originals for review/export. A completed retry with the same
+request ID and payload still returns the whitelisted acknowledgement before
+eligibility revalidation, without making another write. Changed payloads keep
+their conflict response. No live grants/cards/accounts/tablets were modified
+through function calls; authorization checks are backend code changes that auto-sync.
+
+20 new unit cases cover revocation, timestamps, invalid/expired card dates,
+owner/company changes, deleted/duplicate ledgers, assignment/membership/role
+changes, replacement cards, method binding, missing grant binding, keypad
+membership, safe completed retries, transient read failure and response scrubbing.
+275 unit tests and lint pass. The strict suite is 22 pass / 16 fail of 38, exit 1.
+Fixtures now obtain real mocked lookup grants so concurrency and reuse criteria
+continue to exercise valid authorization. This adds one passing release criterion.
+The 13 prior mocked browser checks were not repeated for this backend-only change.
+
+This is authorization revalidation at request processing time, not an atomic
+revocation/write transaction. Card/member changes racing a write, single-use
+boarding grants, OTP claims, attempt limits and concurrent replay remain unresolved.
+Atomic platform questions are still prepared but unanswered; none were sent.
+No SDK upgrade, production rotation, signing changes or frontend publication.
+
+## Approved policy changes — 2026-10-04 UTC
+
+User-approved rules: admins manage everything through the existing protected
+workflows; mechanics work on maintenance across companies; maintenance deletion
+is admin-only; companies manage their own public ads; company passenger access
+uses one permanent company code with no 30-day expiry.
+
+Company code issuance returns the existing compliant code by default, without
+writing or rotating it. New codes and passenger company grants/memberships do not
+carry a expiry. Legacy expiry metadata is ignored for code-bound passenger scope,
+including existing active memberships and grants whose code still matches.
+All duplicated membership helpers use this rule. Manager scope retains its
+existing expiry checks; changing a code still invalidates code-bound passenger
+access. Only an explicit admin rotate request can replace a compliant code.
+No code was rotated or live membership/grant updated by the agent.
+
+Context retrieval checks current active passenger membership and never
+reactivates a removed membership. A person who still knows the shared code can
+join again by entering it; membership removal is not a permanent user ban.
+Explicit admin approval remains independent of a code. Short/noncompliant legacy
+company codes still need an operator to request a compliant code once.
+
+Advertisement gains company_id ownership. Companies create only under an approved
+company and can update/delete only their own ads; ownership transfer is admin-only.
+Missing ownership denotes an admin-managed global ad. Existing ads were not
+backfilled or reassigned live. Admin controls can assign any existing ad to a
+company or global scope. The company dashboard has an Advertisements tab showing
+its own manageable ads. Public reads of all ads remain enabled, including the
+existing inactive-read behavior. Public, passenger and mechanic writes are denied.
+
+Maintenance deletion now requires admin for both mechanics and company managers.
+Mechanics retain global maintenance reads, creates and updates within existing
+field/tenant constraints. Admin access, protected credentials, role-management
+workflows, tablet authentication and pairing expiry remain in place.
+
+Validation: 296 unit tests, 14 API-mocked browser checks, lint and build pass.
+21 new policy unit tests include cross-company/global ad denial, admin assignment,
+permanent legacy grants, inactive membership handling, stable issuance,
+explicit admin rotation, mechanic global access and helper consistency.
+The strict suite remains 22 passing / 16 failing out of 38 and exits 1.
+Old expiry assertions were changed to the approved permanent-access policy;
+code mismatch, role/scope checks and revoked membership assertions remain.
+The browser runtime needed Chromium restored before tests could start.
+
+Backend/entity edits auto-sync; frontend was not published. No live accounts,
+company codes, ads, memberships, grants or tablets were mutated through function
+calls. No signing/production credential changes. Atomic guarantees remain
+unconfirmed; the platform questions have not been sent.

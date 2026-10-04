@@ -42,7 +42,7 @@
     "access_code_expires_at": {
       "type": "string",
       "format": "date-time",
-      "description": "Server-issued join code expiry. Existing memberships retain their own expiry."
+      "description": "Legacy metadata; company codes are permanent and this expiry is no longer enforced."
     }
   },
   "rls": {

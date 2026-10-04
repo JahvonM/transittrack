@@ -28,6 +28,21 @@
     },
     "credential_version": {
       "type": "string"
+    },
+    "auth_kind": {
+      "type": "string"
+    },
+    "subject_source": {
+      "type": "string"
+    },
+    "member_user_id": {
+      "type": "string"
+    },
+    "card_id": {
+      "type": "string"
+    },
+    "card_tag_hash": {
+      "type": "string"
     }
   },
   "rls": {

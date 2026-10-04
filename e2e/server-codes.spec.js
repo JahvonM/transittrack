@@ -1,6 +1,6 @@
 
 import {test,expect} from '@playwright/test';
-test('company code replacement uses server issuance rather than gateway credential writes',async({page})=>{
+test('company code retrieval uses server management rather than gateway credential writes',async({page})=>{
  const calls=[];
  const company={id:'a',name:'Company A',access_code:'LEGACY'};
  await page.addInitScript(()=>localStorage.setItem('base44_access_token','mock-authenticated-session'));
@@ -22,9 +22,9 @@ test('company code replacement uses server issuance rather than gateway credenti
  });
  await page.goto('/company');
  await expect(page.getByText('LEGACY',{exact:true})).toBeVisible();
- await page.getByRole('button',{name:'New code',exact:true}).click();
+ await page.getByRole('button',{name:'Get code',exact:true}).click();
  await expect(page.getByText('ABCD2345EFGH',{exact:true})).toBeVisible();
- await expect(page.getByText(/New joins allowed until/)).toBeVisible();
+ await expect(page.getByText(/Permanent company code/)).toBeVisible();
  expect(calls).toContainEqual({action:'issue_company',company_id:'a'});
  expect(calls.some(c=>c.data&&'access_code' in c.data)).toBe(false);
 });
@@ -53,4 +53,33 @@ test('boarding keypad sends all twelve digits and caps additional input',async({
  for(const digit of '1234567890123')await page.getByRole('button',{name:digit,exact:true}).click();
  await page.getByRole('button',{name:'Submit code',exact:true}).click();
  await expect.poll(()=>lookups).toEqual(['123456789012']);
+});
+
+test('company advertisement management shows and creates only owned advertisements',async({page})=>{
+ const writes=[],ads=[{id:'own',title:'Our promo',company_id:'a',active:true},{id:'foreign',title:'Other company promo',company_id:'b',active:true},{id:'global',title:'Admin promo',active:true}];
+ await page.addInitScript(()=>localStorage.setItem('base44_access_token','mock-authenticated-session'));
+ await page.route('**/api/**',async route=>{
+  const req=route.request(),url=req.url();
+  if(url.includes('/entities/'))return route.fulfill({status:403,json:{error:'Direct access blocked'}});
+  if(url.includes('/functions/entityAccess')){
+   const body=req.postDataJSON();let result=[];
+   if(body.entity==='User')result={id:'caller',role:'company',company_id:'a',email:'manager@test.invalid',full_name:'Manager'};
+   else if(body.entity==='Company')result=[{id:'a',name:'Company A',access_code:'ABCD2345EFGH'}];
+   else if(body.entity==='Advertisement'){
+    if(body.operation==='create'){writes.push(body);result={id:'new',...body.data};ads.push(result);}
+    else result=ads;
+   }
+   return route.fulfill({json:{result}});
+  }
+  return route.fulfill({json:{id:'test-app',public_settings:{authentication_required:false}}});
+ });
+ await page.goto('/company/ads');
+ await expect(page.getByText('Our promo',{exact:true})).toBeVisible();
+ await expect(page.getByText('Other company promo',{exact:true})).toHaveCount(0);
+ await expect(page.getByText('Admin promo',{exact:true})).toHaveCount(0);
+ await expect(page.getByLabel('Advertisement owner',{exact:true})).toHaveCount(0);
+ await page.getByPlaceholder('Summer routes sale').fill('New owned promo');
+ await page.getByRole('button',{name:'Create ad',exact:true}).click();
+ await expect(page.getByText('New owned promo',{exact:true})).toBeVisible();
+ expect(writes).toHaveLength(1);expect(writes[0].data.company_id).toBe('a');
 });
