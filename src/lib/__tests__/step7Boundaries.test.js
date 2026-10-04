@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import {execFileSync} from 'node:child_process';
 import {describe,it,expect} from 'vitest';
 import {load,mock,request} from '../../../security-tests/helpers';
 describe('Step 7 security boundaries',()=>{
@@ -53,4 +54,11 @@ describe('Step 7 security boundaries',()=>{
   }
   expect(sdk.writes).toEqual([]);
  });
+ it('keeps private signing files and real environment files out of tracked source',()=>{
+  const root=new URL('../../../',import.meta.url);
+  const files=execFileSync('git',['ls-files','-z'],{cwd:root,encoding:'utf8'}).split('\0').filter(Boolean);
+  const privateFiles=files.filter(file=>/\.(jks|keystore|p12|pfx)$/i.test(file) || /(^|\/)\.env($|\.)/.test(file) && !/\.env\.(example|sample|template)$/.test(file));
+  expect(privateFiles).toEqual([]);
+ });
+
 });

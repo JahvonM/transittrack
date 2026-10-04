@@ -39,3 +39,8 @@ base44/.app.jsonc
 /kiosk-helper/build/
 /kiosk-helper/legacy-development/
 /public/tools/TransitTrack-Kiosk-Helper.apk
+
+# Generated browser reports may contain session/request traces
+/test-results/
+/playwright-report/
+/blob-report/

@@ -38,6 +38,10 @@ jobs:
         run: npm test
       - name: Build
         run: npm run build
+      - name: Install test browser
+        run: npx playwright install --with-deps chromium
+      - name: Mocked browser regression tests
+        run: npm run test:e2e
 
   security-release-readiness:
     runs-on: ubuntu-latest

@@ -472,3 +472,25 @@ development device records or publish the frontend.
 Validation: 145 unit tests (27 new Step 6 regressions), lint/build and four mocked
 Chromium tests pass. STEP 7 has not begun. No production credential rotation,
 development tablet revocation, signing-key generation or frontend publication.
+
+
+## STEP 7 — Regression tests and strict production criteria (2026-10-04 UTC)
+
+Added 33 passing boundary/repository tests (178 baseline unit tests total),
+mock-only default Playwright discovery, and a separate strict production suite
+with 19 normal failing assertions. The failures reproduce current release blockers
+in memory; they are not disguised as expected passes. See security-tests/README.md
+for the grouped results, review of Claude's 13 findings and remaining policy choices.
+GitHub workflow now runs baseline/mock browser checks and an independent failing
+security-release-readiness job. Required branch protection and deployed GitHub
+execution were not configured/verified. Tests replace SDK/services with fixtures;
+no live record, account, tablet or credential was changed. Application functions
+and entity resources were not edited in Step 7; no frontend publication.
+
+Lint/build and 178 baseline unit tests pass; four mocked browser checks pass.
+Production-readiness command exits 1 with all 19 requirements failing.
+The legacy-device criteria are deliberately red until authorized migration;
+concurrency, weak issuance, grant/card/PIN revocation and maintenance-recipient
+issues remain unresolved. Generated Playwright reports are no longer tracked.
+This checkpoint is a tested regression baseline with known release failures,
+not a production-ready checkpoint. STEP 8 has not begun.
