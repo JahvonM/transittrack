@@ -117,7 +117,7 @@ async function loadPeople(base44, companyFilter) {
     if (contactEmails.has(u.company_id + ':' + email) || !inCompany(u.company_id)) continue;
     people.push({ source: 'user', id: u.id, type: 'staff', role: 'Staff', name: u.full_name || u.email, email: u.email || '',
       employee_id: u.employee_id || '', company_id: u.company_id || '', company_name: companyName.get(u.company_id) || '', phone: u.phone || '', photo_url: u.photo_url || '', registered: true,
-      pickup_name: u.pickup_name || '', pickup_lat: u.pickup_lat, pickup_lng: u.pickup_lng, assigned_vehicle: '', legacy_tag: '',
+      pickup_name: u.pickup_name || '', pickup_lat: u.pickup_lat, pickup_lng: u.pickup_lng, vehicle_id: u.vehicle_id || '', assigned_vehicle: vehicleName.get(u.vehicle_id) || u.vehicle_name || '', legacy_tag: '',
       access_code: '' });
   }
   for (const h of holders) {
@@ -356,13 +356,9 @@ export default async function (req) {
         if (person.source === 'contact') {
           await sr.Contact.update(person.id, patch);
         } else {
-          // A staff login without a directory entry: give them one so the bus link has a home.
-          const u = await sr.User.get(person.id);
-          const contact = await sr.Contact.create({
-            name: person.name, email: u?.email || '', type: 'staff', company_id: person.company_id || vehicle?.company_id || '',
-            company_name: person.company_name || '', ...patch,
-          });
-          key = `contact:${contact.id}`;
+          // Keep the email account as the canonical identity: its existing
+          // card and protected credentials stay linked when assigning a bus.
+          await sr.User.update(person.id, patch);
         }
         await audit(base44, user, { action: 'update', entity: 'Contact', record_id: person.id, summary: vehicle ? `${person.name} now rides ${vehicle.name}` : `${person.name} removed from ${person.assigned_vehicle || 'their bus'}` });
         const delivery = vehicle ? await sendToBus(base44, user, vehicle.id).catch(() => ({ sent: 0 })) : { sent: 0 };

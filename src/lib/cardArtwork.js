@@ -21,8 +21,8 @@ export function cardArtwork(design, person, side = "front", photo = "") {
   body += '<path d="M660 0H1011V638H870Z" fill="' + color(d.color, "#0f766e") + '" opacity=".6"/>';
   body += '<rect x="0" y="0" width="1011" height="150" fill="' + color(d.color, "#0f766e") + '"/>';
   if (logo) body += '<image href="' + logo + '" x="46" y="32" width="90" height="90" preserveAspectRatio="xMidYMid meet"/>';
-  body += '<text x="' + (logo ? 160 : 48) + '" y="82" font-size="40" font-weight="700">' + xml(d.title.slice(0,32)) + '</text>';
-  body += '<text x="' + (logo ? 160 : 48) + '" y="120" font-size="22" letter-spacing="4">' + xml(d.subtitle.slice(0,40)) + '</text>';
+  body += '<text x="' + (logo ? 160 : 48) + '" y="82" font-size="40" font-weight="700">' + xml(String(d.title || "").slice(0,32)) + '</text>';
+  body += '<text x="' + (logo ? 160 : 48) + '" y="120" font-size="22" letter-spacing="4">' + xml(String(d.subtitle || "").slice(0,40)) + '</text>';
   if (side === "front") {
     body += '<rect x="48" y="195" width="220" height="285" rx="18" fill="#ffffff" opacity=".12"/>';
     if (portrait) body += '<image href="' + portrait + '" x="48" y="195" width="220" height="285" preserveAspectRatio="xMidYMid slice"/>';
@@ -33,7 +33,7 @@ export function cardArtwork(design, person, side = "front", photo = "") {
   } else {
     lines(d.backText).forEach((l,i) => { body += '<text x="52" y="' + (220+i*38) + '" font-size="27">' + xml(l) + '</text>'; });
   }
-  body += '<text x="48" y="585" font-size="23">' + xml(d.footer.slice(0,70)) + '</text>';
+  body += '<text x="48" y="585" font-size="23">' + xml(String(d.footer || "").slice(0,70)) + '</text>';
   return '<svg xmlns="http://www.w3.org/2000/svg" width="1011" height="638" viewBox="0 0 1011 638" font-family="Arial, sans-serif" fill="' + color(d.text, "#ffffff") + '">' + body + '</svg>';
 }
 
