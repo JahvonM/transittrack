@@ -1,8 +1,10 @@
 # Security regression and release-readiness status
 
 TransitTrack is pre-production. Step 7 first reproduced 33 failing release
-criteria. The authorized remediation batch now satisfies 12; 21 still fail.
-Step 8 remains paused. These are checks, not 21 distinct vulnerabilities.
+criteria. The authorized remediation batch satisfied 12. Step 8 added five
+additional failing criteria: 12 pass and 26 fail out of 38. Step 8 audit is
+complete; the first production release remains blocked. See step8-audit.md.
+These are checks, not 26 distinct vulnerabilities.
 
 Testing replaces the SDK with in-memory entities, fake sessions and captured
 email calls. Browser tests intercept every API request. No live API attack,
@@ -18,7 +20,7 @@ auto-sync in Base44. The frontend was not published.
 | npm run lint | Passed | Source and tests |
 | npm run build | Passed | Frontend compiles |
 | npm run test:e2e | 8 passed | Mocked company/mechanic/tablet/recovery browser contracts |
-| npm run test:security:release | 12 passed, 21 failed; exits 1 | Release blockers remain |
+| npm run test:security:release | 12 passed, 26 failed; exits 1 | Release blockers remain |
 
 The strict suite uses ordinary assertions. Failures are not skipped, marked
 expected, swallowed or treated as success. GitHub Actions has a separate
@@ -110,7 +112,11 @@ These tests do not prove exhaustive security.
 | 12: passenger audit-log writes | Policy decision; actor attribution remains server-controlled |
 | 13: mechanic deletion rights | Policy decision; global maintenance visibility preserved |
 
-Push-token recipient freshness and trustworthy scheduler identity remain unverified.
+Step 8 confirmed stale push-recipient selection in code and mocks, dispatch
+notification permission mismatch, public crash-email budget races and non-taxi
+booking acceptance. Five additional strict checks fail for these findings; see
+step8-audit.md. Real push delivery and trustworthy scheduler identity remain
+unverified.
 Scheduled functions reject anonymous calls before reads/writes/email. Tests do not
 validate an authenticated automatic schedule. Live inventories, live platform User
 self-edit rules and direct-entity RLS tests remain outstanding. No test account was

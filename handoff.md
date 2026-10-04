@@ -540,3 +540,28 @@ not transactions. Large photos can exceed local-storage capacity and are refused
 before send. Partial successful photo uploads can leave unused blobs on retry.
 GPS dense windows hit a 10,000-row cap and retry with 503. Policy decisions and
 live identity/RLS checks remain outstanding; this checkpoint is not release-ready.
+
+
+## STEP 8 — Final pre-production audit (2026-10-04 UTC)
+
+Completed the user-authorized audit of application source 67ed322. Decision:
+NOT READY for the first production release. Full scope, evidence, findings and
+release sequence are in security-tests/step8-audit.md. Step 8 edited tests/docs
+only; no frontend/backend/entity application changes or live mutations.
+
+Five new strict criteria reproduce four additional findings: stale privileged
+push recipients in both notification selectors; passenger-triggered dispatch
+notifications; concurrent anonymous crash-report email-budget bypass; taxi trips
+accepted for non-taxi companies. Mocked recipient selection/captured emails do
+not prove live FCM delivery. No real notification or booking was sent.
+
+The strict gate now has 38 checks: 12 pass, 26 fail, exit 1. The former 21 failing
+checks remain; the increase reflects coverage, not broken remediation. Baseline
+198 unit tests and lint rerun and pass; prior eight mocked browser/build checks
+remain applicable because this audit does not change application source. Current
+tracked-source signature scan found no private-key/GitHub-token/AWS-key matches;
+this is limited, not exhaustive and not a history scan. Live User/RLS, scheduler,
+blob privacy, credential inventories and GitHub required checks remain unverified.
+Step 8 audit completion does not authorize or establish production readiness.
+No frontend publication, live account/device changes, tablet revocation, production
+credential rotation or signing-key generation occurred.
