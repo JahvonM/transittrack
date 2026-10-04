@@ -7,7 +7,7 @@ import { parseCodeQrPayload } from "@/lib/qr";
 import { haversineKm, etaMinutes, formatEta } from "@/lib/geo";
 import { MAPBOX_TOKEN, mapStyleFor } from "@/lib/mapbox";
 import { useIsDark } from "@/lib/useTheme";
-import { enqueueCheckIn, queueLength, isNetworkFailure, flushQueue } from "@/lib/offlineQueue";
+import { enqueueCheckIn, queueLength, queueSyncError, isNetworkFailure, flushQueue } from "@/lib/offlineQueue";
 import { noteStatus, burnOneTimeCode } from "@/lib/kioskOffline";
 import WeatherWidget from "@/components/WeatherWidget";
 import QrScanner from "./QrScanner";
@@ -179,6 +179,7 @@ export default function BusBoardingKiosk({ invoke, device }) {
   const [code, setCode] = useState("");
   const [checkingCode, setCheckingCode] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [syncError, setSyncError] = useState(() => queueSyncError());
   const [pendingSyncCount, setPendingSyncCount] = useState(() => queueLength());
   const [vehicle, setVehicle] = useState(null);
   const [route, setRoute] = useState(null);
@@ -221,7 +222,7 @@ export default function BusBoardingKiosk({ invoke, device }) {
   // the browser reports connectivity is back, rather than waiting up to 15s.
   useEffect(() => {
     const tryFlush = () => {
-      flushQueue(invoke).then((synced) => { if (synced) setPendingSyncCount(queueLength()); }).catch(e=>{setBadgeError(e.message);setMode("badge_error");});
+      flushQueue(invoke).then(() => { setPendingSyncCount(queueLength()); setSyncError(queueSyncError()); }).catch(e=>{setBadgeError(e.message);setMode("badge_error");});
     };
     const t = setInterval(tryFlush, FLUSH_INTERVAL_MS);
     // Also on open: check-ins saved offline before a restart go up right away.
@@ -621,7 +622,7 @@ export default function BusBoardingKiosk({ invoke, device }) {
 
         {pendingSyncCount > 0 && (
           <p className="text-xs text-muted-foreground flex items-center justify-center gap-1.5">
-            <CloudUpload className="w-3.5 h-3.5" /> {pendingSyncCount} check-in{pendingSyncCount === 1 ? "" : "s"} waiting to sync
+            <CloudUpload className="w-3.5 h-3.5" /> {pendingSyncCount} check-in{pendingSyncCount === 1 ? "" : "s"} waiting to sync{syncError ? " · "+syncError : ""}
           </p>
         )}
       </Screen>

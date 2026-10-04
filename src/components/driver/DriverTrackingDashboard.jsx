@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Navigation, Radio, Lock, Users, AlertTriangle, Satellite } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
-import { queueGpsPoint, queuedGpsCount, flushGpsQueue, GPS_QUEUE_EVENT } from "@/lib/gpsQueue";
+import { queueGpsPoint, queuedGpsCount, flushGpsQueue, gpsSyncError, GPS_QUEUE_EVENT } from "@/lib/gpsQueue";
 import { noteGpsFix } from "@/lib/appHealth";
 
 // The Drive screen: turn-by-turn map + everything the driver needs beside
@@ -37,7 +37,7 @@ export default function DriverTrackingDashboard({ session, invoke, onReportIncid
   const [gpsProblem, setGpsProblem] = useState("");
   const [, setTick] = useState(0);
   useEffect(() => {
-    const onQueue = () => setQueued(queuedGpsCount());
+    const onQueue = () => { setQueued(queuedGpsCount()); setGpsProblem(gpsSyncError()); };
     const onOnline = () => flushGpsQueue(invoke).then((n) => { if (n) setLastSentAt(Date.now()); }).catch(e=>setGpsProblem(e.message));
     window.addEventListener(GPS_QUEUE_EVENT, onQueue);
     window.addEventListener("online", onOnline);

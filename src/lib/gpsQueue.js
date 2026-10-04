@@ -2,7 +2,7 @@
 // point keeps the time it was really taken, so the trip replay has no holes
 // once it uploads. The queue lives in localStorage, is capped (old points are
 // thinned out, never the newest), and uploads oldest-first in batches; the
-// server ignores points it already has, so a retried batch can't duplicate.
+// server checks existing samples on sequential retries. Concurrent writes need atomic storage.
 const KEY = "tt_gps_queue";
 const EVENT = "tt-gps-queue";
 const MAX_POINTS = 2000; // ~8 hours at one point per 15 s
@@ -46,6 +46,8 @@ export function queuedGpsCount() {
 export const GPS_QUEUE_EVENT = EVENT;
 
 let flushing = false;
+let syncError = "";
+export function gpsSyncError() { return syncError; }
 // Upload what's waiting through the driver session. Returns how many points
 // were accepted; stops at the first network failure (still offline).
 export async function flushGpsQueue(invoke) {
@@ -59,7 +61,12 @@ export async function flushGpsQueue(invoke) {
       if (!batch.length) break;
       try {
         await invoke("upload_track", { points: batch });
-      } catch { break; } // Authentication, throttling and server errors retain the whole batch.
+      } catch (error) {
+        syncError=error?.response?.status ? 'Saved GPS upload blocked (server '+error.response.status+'); unlock or resolve the error and retry.' : 'Saved GPS is waiting for connection.';
+        try { window.dispatchEvent(new Event(EVENT)); } catch { /* non-browser */ }
+        break;
+      }
+      syncError="";
       const sentTimes = new Set(batch.map((p) => p.t));
       write(read().filter((p) => !sentTimes.has(p.t)));
       sent += batch.length;

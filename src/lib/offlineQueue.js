@@ -23,6 +23,8 @@ export function enqueueCheckIn(payload) {
   return queue.length;
 }
 
+export function queueSyncError() { return readQueue().find(item=>item.last_error)?.last_error || ""; }
+
 export function queueLength() {
   return readQueue().length;
 }
@@ -57,6 +59,8 @@ export async function flushQueue(invoke) {
         synced++;
         done.add(item.id);
       } catch (e) {
+        const message=e?.response?.status ? 'Upload blocked (server '+e.response.status+'). Saved work needs attention.' : 'Waiting for connection.';
+        writeQueue(readQueue().map(saved=>saved.id===item.id ? {...saved,last_error:message} : saved));
         // Keep every failed item, including server failures and validation rejections.
         // Stop to preserve event order; an operator can resolve the retained error.
         break;
