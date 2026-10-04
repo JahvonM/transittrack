@@ -126,3 +126,21 @@ test('boarding passengers display full-screen IDs in sequence',async({page})=>{
  await expect(id).toContainText('Second Passenger');
  await expect(id).toBeHidden({timeout:9000});
 });
+
+test('driver tablet showcase keeps controls reachable in portrait and landscape',async({page})=>{
+ await mockApi(page,[]);
+ await page.route('https://api.mapbox.com/**',r=>r.fulfill({status:404,body:''}));
+ await page.addInitScript(()=>{
+  localStorage.setItem('tt_driver_device_id','driver-test');
+  localStorage.setItem('tt_driver_grant','a'.repeat(64));
+  localStorage.setItem('tt-map-engine','basic');
+ });
+ for(const size of [{width:1024,height:768},{width:390,height:844}]){
+  await page.setViewportSize(size);
+  await page.goto('/driver/track');
+  await expect(page.getByRole('navigation',{name:'Driver sections'})).toBeVisible();
+  await expect(page.getByRole('button',{name:'Start tracking',exact:true})).toBeVisible();
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
+  await page.screenshot({path:`/tmp/tt-driver-${size.width}.png`});
+ }
+});

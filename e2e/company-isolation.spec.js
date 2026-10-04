@@ -164,3 +164,16 @@ test('passenger showcase keeps delayed GPS distinct from live arrival',async({pa
   await expect(card.getByText('Location delayed',{exact:true})).toBeVisible();
   await expect(page.getByLabel('Route stops')).toBeVisible();
 });
+
+test('admin showcase keeps metrics, fleet list and working section navigation',async({page})=>{
+  await session(page,'admin');
+  await page.addInitScript(()=>localStorage.setItem('tt-map-engine','basic'));
+  await page.route('https://api.mapbox.com/**',r=>r.fulfill({status:404,body:''}));
+  await page.goto('/admin');
+  await expect(page.getByRole('region',{name:'Live fleet overview'})).toBeVisible();
+  await expect(page.getByText('Live now',{exact:true})).toBeVisible();
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
+  await page.screenshot({path:'/tmp/tt-admin-desktop.png',fullPage:true});
+  await page.getByRole('button',{name:'Card designer',exact:true}).click();
+  await expect(page.getByRole('button',{name:'Download PNG',exact:true})).toBeVisible();
+});
