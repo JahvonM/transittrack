@@ -23,6 +23,13 @@
     },
     "code_hash": {
       "type": "string"
+    },
+    "vehicle_id": {
+      "type": "string",
+      "description": "Passenger bus assigned by an authorized administrator or company manager."
+    },
+    "vehicle_name": {
+      "type": "string"
     }
   },
   "required": [

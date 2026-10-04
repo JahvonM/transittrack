@@ -17,11 +17,14 @@ async function approvedCompanies(base44, user, scope) {
   for(const row of rows) if(row.scope === (scope || (user.role === 'company' ? 'manager' : 'passenger')) && await liveMembership(base44,row)) approved.push(row.company_id);
   return approved;
 }
-async function approvedStaffIds(base44, companyId) {
+async function approvedPassengerMemberships(base44, companyId) {
   const rows = await base44.asServiceRole.entities.CompanyMembership.filter({ company_id: companyId, active: true, scope: 'passenger' }, '-updated_date', 5000);
-  const ids=new Set();
-  for(const row of rows) if(await liveMembership(base44,row)) ids.add(row.user_id);
-  return ids;
+  const live=[];
+  for(const row of rows) if(await liveMembership(base44,row)) live.push(row);
+  return live;
+}
+async function approvedStaffIds(base44, companyId) {
+  return new Set((await approvedPassengerMemberships(base44,companyId)).map(row=>row.user_id));
 }
 // Random device credentials are stored only as hashes in protected DeviceCredential.
 // Existing development tablets remain legacy-compatible until explicitly re-paired.
@@ -70,7 +73,9 @@ async function resolveKioskDevice(base44, deviceId, token) {
 // device's company. Badge/QR check-in matches against nfc_tag_id /
 // nfc_card_tag on whichever record represents that person.
 async function loadStaffDirectory(base44, companyId) {
-  const approvedIds = await approvedStaffIds(base44, companyId);
+  const approvedRows = await approvedPassengerMemberships(base44,companyId);
+  const approvedIds = new Set(approvedRows.map(row=>row.user_id));
+  const assignments = new Map(approvedRows.map(row=>[row.user_id,row]));
   const [users, contacts] = await Promise.all([
     base44.asServiceRole.entities.User.list(),
     base44.asServiceRole.entities.Contact.filter({ company_id: companyId }, '-updated_date', 500),
@@ -101,7 +106,7 @@ async function loadStaffDirectory(base44, companyId) {
       email: u.email || '', photo_url: u.photo_url || '', nfc_tag: cardForUser(u.id),
       access_code: '',
       one_time_code: u.one_time_code || '', one_time_code_expires_at: u.one_time_code_expires_at || null,
-      vehicle_id: u.vehicle_id || '', vehicle_name: u.vehicle_name || '',
+      vehicle_id: assignments.get(u.id)?.vehicle_id || '', vehicle_name: assignments.get(u.id)?.vehicle_name || '',
     })),
   ];
 }

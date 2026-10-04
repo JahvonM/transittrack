@@ -86,7 +86,10 @@ async function loadPeople(base44, companyFilter) {
   const memberships = await sr.CompanyMembership.filter({ active: true, scope: 'passenger' }, '-updated_date', 5000);
   const live=[];
   for(const row of memberships) if(await liveMembership(base44,row)) live.push(row);
-  const trustedUsers = users.map(u => ({ ...u, company_id: live.find(m => m.user_id === u.id)?.company_id || '' }));
+  const trustedUsers = users.map(u => {
+    const membership=live.find(m=>m.user_id===u.id && (!companyFilter || m.company_id===companyFilter));
+    return {...u,company_id:membership?.company_id || '',vehicle_id:membership?.vehicle_id || '',vehicle_name:membership?.vehicle_name || ''};
+  });
   const people = [];
   for (const d of drivers) {
     if (!inCompany(d.company_id)) continue;
@@ -358,7 +361,11 @@ export default async function (req) {
         } else {
           // Keep the email account as the canonical identity: its existing
           // card and protected credentials stay linked when assigning a bus.
-          await sr.User.update(person.id, patch);
+          const rows=await sr.CompanyMembership.filter({user_id:person.id,company_id:person.company_id,scope:'passenger',active:true},'-updated_date',100);
+          const membership=[];
+          for(const row of rows) if(await liveMembership(base44,row))membership.push(row);
+          if(!membership.length)return Response.json({error:'Approved passenger membership required'},{status:403});
+          for(const row of membership)await sr.CompanyMembership.update(row.id,patch);
         }
         await audit(base44, user, { action: 'update', entity: 'Contact', record_id: person.id, summary: vehicle ? `${person.name} now rides ${vehicle.name}` : `${person.name} removed from ${person.assigned_vehicle || 'their bus'}` });
         const delivery = vehicle ? await sendToBus(base44, user, vehicle.id).catch(() => ({ sent: 0 })) : { sent: 0 };
