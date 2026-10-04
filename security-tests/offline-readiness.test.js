@@ -64,7 +64,7 @@ describe('Step 6 independent-review production criteria',()=>{
   expect(storedAtSend.some(job=>job.payload.client_request_id && job.payload.action==='start_shift')).toBe(true);
  });
  it('does not reinterpret an unbound legacy shift on a newly assigned bus',async()=>{
-  const {sdk,send}=await driver();sdk.tables.KioskDevice[0].pairing_code='NEWPAIRING';
+  const {sdk}=await driver();sdk.tables.KioskDevice[0].pairing_code='NEWPAIRING';
   // Re-unlock under the new pairing, then attempt a legacy queued payload with no assignment.
   const api=load('driverSession',sdk,['issueGrant']);
   const grant=await api.issueGrant(sdk,sdk.tables.KioskDevice[0],'driver','bus-a',60000);
@@ -88,7 +88,7 @@ describe('Step 6 independent-review production criteria',()=>{
   const grant=await api.issueGrant(sdk,sdk.tables.KioskDevice[0],'boarding','rider',60000);
   interleaveReads(sdk,'StaffCheckIn',2);
   const body={device_id:'tablet',action:'check_in',client_request_id:'concurrent-boarding',staff_id:'rider',method:'nfc',status:'boarded',verification_grant:grant,occurred_at:new Date().toISOString()};
-  // Stop the barrier after the request-ID reads: later summary queries must not wait.
+  // The two later summary reads also complete as a pair.
   const responses=await Promise.all([api.default(request(body)),api.default(request(body))]);
   expect(responses.every(r=>r.status===200)).toBe(true);
   expect(sdk.tables.StaffCheckIn).toHaveLength(1);

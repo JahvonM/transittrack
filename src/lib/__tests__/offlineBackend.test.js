@@ -99,7 +99,7 @@ describe('offline replay backend contracts',()=>{
   expect((await api.default(req(body))).status).toBe(200);
   expect(sdk.tables.Inspection).toHaveLength(1);expect(sdk.tables.InspectionResult).toHaveLength(2);expect(sdk.tables.Fault).toHaveLength(1);
  });
- it('does not end a new shift when replaying an already completed end request',async()=>{
+ it('does not end a new shift when retrying the exact previously completed end request ID',async()=>{
   const sdk=mock(),api=load('driverSession',sdk),grant=await api.issueGrant(sdk,device,'driver','bus',60000);
   const send=body=>api.default(req({device_id:'tablet',driver_grant:grant,...body}));
   const time=new Date().toISOString();
