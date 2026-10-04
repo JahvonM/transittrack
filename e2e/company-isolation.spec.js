@@ -71,6 +71,7 @@ test('passenger previews walking directions then saves a separate roadside picku
  await session(page,'staff');
  await context.grantPermissions(['geolocation']);
  await context.setGeolocation({latitude:12.005,longitude:-61.701,accuracy:5});
+  await page.addInitScript(() => { navigator.geolocation.getCurrentPosition = success => success({coords:{latitude:12.005,longitude:-61.701,accuracy:5}}); });
  await page.addInitScript(()=>localStorage.setItem('tt_company_access_grant','a'.repeat(64)));
  const saved=[];
  const user={id:'caller',role:'staff',email:'caller@test.local',full_name:'Test Passenger',company_id:'a'};
