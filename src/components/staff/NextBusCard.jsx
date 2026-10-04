@@ -70,7 +70,7 @@ export default function NextBusCard({ stop, bus, eta, route, crowdCount, trip, o
                 </p>
               </div>
               <div className="shrink-0 -mb-1 tt-bus-bob">
-                <BusArtwork width={150} className="max-w-[38vw]" />
+                <BusArtwork width={150} className="max-w-[38vw] h-28 sm:h-40" />
               </div>
             </div>
 

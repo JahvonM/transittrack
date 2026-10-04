@@ -12,7 +12,7 @@ export default function PassengerTimeline({ route, bus, stop, eta }) {
       const selected = s.name === stop?.name;
       const passed = progress && i < progress.nextIndex;
       const next = progress && i === progress.nextIndex;
-      return <li key={s.id || `${s.name}-${i}`} className={`relative flex items-center gap-4 min-h-[58px] px-3 rounded-xl ${selected ? "bg-primary/10" : ""}`}>
+      return <li key={s.id || `${s.name}-${i}`} className={`relative flex items-center gap-4 min-h-[52px] px-3 rounded-xl ${selected ? "bg-primary/10" : ""}`}>
         {i < stops.length - 1 && <span aria-hidden="true" className={`absolute left-[23px] top-8 bottom-[-24px] w-0.5 ${passed ? "bg-primary" : "bg-muted-foreground/30"}`} />}
         <span className={`relative z-10 grid place-items-center shrink-0 w-6 h-6 rounded-full border-2 ${selected ? "border-primary bg-background text-primary shadow-[0_0_0_4px_hsl(var(--primary)/0.1)]" : passed || next ? "border-primary bg-background" : "border-muted-foreground/60 bg-background"}`}>
           {selected ? <Bus className="w-3.5 h-3.5" /> : <span className={`w-2 h-2 rounded-full ${passed ? "bg-primary" : ""}`} />}

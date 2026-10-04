@@ -322,3 +322,5 @@
 .tt-admin-sidebar { background: hsl(var(--sidebar-background)); border: 1px solid hsl(var(--border)); border-radius: 1.25rem; padding: .75rem; }
 .tt-driver-shell { background-image: radial-gradient(ellipse at 50% 0%, hsl(var(--primary) / .045), transparent 65%); }
 .light .tt-arrival-card { background-image: linear-gradient(145deg, white, hsl(210 40% 98%)); }
+
+html.light:not([data-accent]) .tt-notify-button, html.light[data-accent="lime"] .tt-notify-button { background: #c4f52a; color: #182002; }

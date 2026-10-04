@@ -354,14 +354,13 @@ export default function StaffPortal() {
       <PullToRefresh onRefresh={reload} className="w-full">
         <div className="tt-passenger-dashboard space-y-5">
           <header className="space-y-2">
-            <h1 className="text-2xl font-heading font-semibold leading-tight">{greetingWord()}{firstName ? `, ${firstName}` : ""}</h1>
+            <h1 className="text-lg sm:text-2xl font-heading font-semibold leading-tight">{greetingWord()}{firstName ? `, ${firstName}` : ""}</h1>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
               <p className="text-sm text-muted-foreground">{company.name}</p>
               <WeatherWidget variant="chip" />
             </div>
           </header>
 
-          {!userLoc && locError && <LocationPrompt onLocation={setPromptLoc} />}
 
           <div className="grid lg:grid-cols-[minmax(0,420px)_minmax(0,1fr)] gap-5 items-start">
           <div className="space-y-4 min-w-0">
@@ -465,6 +464,8 @@ export default function StaffPortal() {
 
           </aside>
           </div>
+
+          {!userLoc && locError && <LocationPrompt onLocation={setPromptLoc} />}
 
           <BusAssistant company={company} userLoc={userLoc} />
 

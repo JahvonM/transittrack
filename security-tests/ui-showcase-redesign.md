@@ -1,0 +1,15 @@
+# Approved UI showcase implementation
+
+Reference: TransitTrack Grenada Dashboard Showcase.png (approved October 4, 2026). Coastal near-black/lime palette, light mode, rounded cards, white/lime wordmark, large passenger arrival time, vertical route timeline, realistic bus artwork and a desktop map beside the arrival panel.
+
+Passenger Home/Map/Buses/More navigation keeps Messages, Account and Support in More. The Buses tab shows all located company buses. The passenger home map remains live, displays route stops and fits beside the ETA on desktop; mobile stacks the same panels. Notification settings, badge/code, pickup, chat, booking and help controls remain available. Only the selected stop's reliable ETA is shown; no fictional timing is assigned to other stops.
+
+Full Mapbox maps have a 2D/3D toggle with pitched camera, optional terrain and building extrusions. The passenger home starts in satellite/perspective mode. Data is genuine provider terrain and imagery, never the illustrative map from the showcase. Actual Grenada imagery/building coverage and device graphics capability determine detail. The basic map remains a 2D fallback. Mapbox references: https://docs.mapbox.com/mapbox-gl-js/example/add-terrain/ and https://docs.mapbox.com/mapbox-gl-js/guides/styles/work-with-layers/ .
+
+Realistic default bus illustration replaces the old glyph in full/basic maps and passenger/driver headers. Position smoothing is retained on full maps; a heading arrow remains data-driven and adjusts for camera rotation. Other selectable CSS vehicle models remain available. The bus illustration itself has a fixed three-quarter viewpoint; it is not a rotatable photogrammetric bus model or true 4D capture.
+
+Shared app shell/cards/themes cover company, mechanic, admin and other existing screens. Admin metrics now lead its overview, with fleet list and map side by side. All sidebar sections remain. Driver tracking stays mounted across sections and the controls remain reachable in portrait and landscape. Driver authentication was not bypassed for visual testing.
+
+Asset: public/images/transit-bus-3d.webp (52 KB). Generated using built-in image generation with the approved showcase as a reference. Prompt: isolated realistic 3D white city bus, lime lower stripe, blue roof details, dark panoramic glass, front three-quarter view facing slightly left, transparent background, subtle grounding shadow, no UI/map/scenery/people/text/logos. This artwork is cosmetic and does not imply a specific real fleet vehicle.
+
+Validation: lint/build pass; 318 unit tests and 24 mocked browser scenarios pass. Checks cover desktop split layout, light-mode mobile navigation and no horizontal overflow, delayed GPS display, admin navigation, driver controls in portrait/landscape, and existing NFC, queues, messages and isolation flows. Screenshots inspected using mocked data and map responses. Real 3D map tiles, tablets and printers have not been tested. No backend credentials, live records or devices changed. Frontend not published. This is a functional interpretation of an image reference, not a pixel-identical reproduction of its invented map or sample data.
