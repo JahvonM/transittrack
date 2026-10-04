@@ -71,6 +71,20 @@ function whenText(t) {
 // Home-screen nudge for inspections that are due now.
 export function DueInspectionsBanner({ due = [], onStart, compact = false }) {
   if (!due.length) return null;
+  // On the Drive screen: one attention row in the rail.
+  if (compact) {
+    const required = due.some((t) => t.driver_required);
+    return (
+      <div className="flex items-center gap-3 rounded-xl border border-warning/35 bg-warning/12 px-3 py-2.5" role="status">
+        <ScanLine className="h-5 w-5 shrink-0 text-warning" aria-hidden="true" />
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-semibold">{due.length === 1 ? `${due[0].name || "Inspection"} due` : `${due.length} inspections due`}</p>
+          <p className="truncate text-body-sm text-muted-foreground">{required ? "Finish before you drive" : "Walk-around check"}</p>
+        </div>
+        <Button className="min-h-[44px]" variant={required ? "default" : "outline"} onClick={() => onStart(due[0])}>Start <ChevronRight className="w-4 h-4" /></Button>
+      </div>
+    );
+  }
   return (
     <div className={`rounded-2xl border border-primary/40 bg-primary/10 flex items-center gap-3 ${compact ? "p-3" : "p-4 flex-wrap"}`}>
       <div className={`${compact ? "w-9 h-9" : "w-10 h-10"} rounded-xl bg-primary text-primary-foreground grid place-items-center shrink-0`}>

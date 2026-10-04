@@ -2,9 +2,8 @@ import { saveDriverGrant } from "@/lib/deviceAuth";
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Lock, Unlock } from "lucide-react";
+import { Delete, Lock, Unlock } from "lucide-react";
 
 const REVIEWER_PIN = "9999";
 
@@ -29,36 +28,47 @@ export default function PinGate({ vehicle, deviceId, invoke, onUnlock }) {
     } finally { setChecking(false); }
   };
 
+  // On-screen keypad for touch tablets; it only types into the same field.
+  const press = (d) => { setError(""); setPin((p) => (p.length < 4 ? p + d : p)); };
+  const back = () => { setError(""); setPin((p) => p.slice(0, -1)); };
+  const key = "h-14 rounded-xl border border-border bg-background font-display text-headline font-semibold tabular-nums transition-colors hover:bg-accent active:scale-[0.97] disabled:opacity-50";
+
   return (
-    <Card className="max-w-sm mx-auto">
-      <CardHeader className="text-center pb-3">
-        <div className="w-14 h-14 rounded-2xl bg-primary/10 grid place-items-center mx-auto mb-2">
-          <Lock className="w-7 h-7 text-primary" />
-        </div>
-        <CardTitle>Driver PIN required</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <p className="text-sm text-muted-foreground text-center">
-          Enter the 4-digit PIN assigned to {vehicle?.name} to begin your shift.
-        </p>
-        <Input
-          type="password"
-          inputMode="numeric"
-          maxLength={4}
-          placeholder="••••"
-          value={pin}
-          onChange={(e) => {
-            setPin(e.target.value.replace(/\D/g, ""));
-            setError("");
-          }}
-          onKeyDown={(e) => e.key === "Enter" && pin.length === 4 && submit()}
-          className="text-center text-2xl tracking-[0.5em]"
-        />
-        {error && <p className="text-sm text-destructive text-center">{error}</p>}
-        <Button className="w-full" onClick={submit} disabled={pin.length < 4 || checking}>
-          <Unlock className="w-4 h-4 mr-2" /> Unlock
-        </Button>
-      </CardContent>
-    </Card>
+    <section className="w-full max-w-sm mx-auto rounded-2xl border border-border bg-card p-6" aria-labelledby="tt-pin-title">
+      <h2 id="tt-pin-title" className="flex items-center gap-2 text-title font-bold">
+        <Lock className="w-5 h-5 text-muted-foreground" aria-hidden="true" /> Driver PIN required
+      </h2>
+      <p className="mt-1 text-body-sm text-muted-foreground">Enter the 4-digit PIN for {vehicle?.name || "this bus"} to begin your shift.</p>
+      <label htmlFor="tt-driver-pin" className="sr-only">Driver PIN</label>
+      <Input
+        id="tt-driver-pin"
+        type="password"
+        inputMode="numeric"
+        autoComplete="off"
+        maxLength={4}
+        placeholder="••••"
+        value={pin}
+        onChange={(e) => {
+          setPin(e.target.value.replace(/\D/g, ""));
+          setError("");
+        }}
+        onKeyDown={(e) => e.key === "Enter" && pin.length === 4 && submit()}
+        className="mt-4 h-14 text-center font-display text-3xl tracking-[0.6em]"
+      />
+      <div className="mt-3 grid grid-cols-3 gap-2" role="group" aria-label="Keypad">
+        {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((d) => (
+          <button key={d} type="button" className={key} onClick={() => press(d)} disabled={checking}>{d}</button>
+        ))}
+        <button type="button" className={`${key} text-body font-semibold`} onClick={() => { setPin(""); setError(""); }} disabled={checking || !pin}>Clear</button>
+        <button type="button" className={key} onClick={() => press("0")} disabled={checking}>0</button>
+        <button type="button" className={`${key} grid place-items-center`} onClick={back} disabled={checking || !pin} aria-label="Delete last digit">
+          <Delete className="w-6 h-6" aria-hidden="true" />
+        </button>
+      </div>
+      {error && <p className="mt-3 text-body-sm text-danger" role="alert">{error}</p>}
+      <Button size="lg" className="mt-4 w-full" onClick={submit} disabled={pin.length < 4 || checking} loading={checking}>
+        <Unlock className="w-5 h-5" aria-hidden="true" /> Unlock
+      </Button>
+    </section>
   );
 }

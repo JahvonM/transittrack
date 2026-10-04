@@ -2,7 +2,7 @@ import React, { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useStat
 import Map, { Marker, Source, Layer } from "react-map-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { mapEngine, markFullMapFailed } from "@/lib/mapEngine";
-import { MAPBOX_TOKEN, mapStyleFor, GPS_INTERVAL_MS } from "@/lib/mapbox";
+import { MAPBOX_TOKEN, mapStyleFor, mapAccentFor, GPS_INTERVAL_MS } from "@/lib/mapbox";
 import { useIsDark } from "@/lib/useTheme";
 import OfflineStatusBadge from "@/components/OfflineStatusBadge";
 import { useOfflineSync } from "@/hooks/useOfflineSync";
@@ -20,10 +20,13 @@ import { Bus, Compass, LocateFixed, Route as RouteIcon, Satellite, Volume2, Volu
 // Basic map for tablets without WebGL 2 — loaded only on those devices.
 const LiteMap = lazy(() => import("@/components/LiteMap"));
 
-// Google-Maps-style colours: blue route, orange/red where traffic is slow.
-const ROUTE_COLOR = { normal: "#1A73E8", moderate: "#F29900", heavy: "#D93025" };
-const BANNER = "#0F6E46"; // Google's navigation green
-const BANNER_DARK = "#0B5537";
+// Route in the TransitTrack accent; amber/red where traffic is slow (the
+// same semantic colours as everywhere else).
+const TRAFFIC_COLOR = { moderate: "#F2A93B", heavy: "#E5484D" };
+// Directions banner: one dark ink panel in both themes, so the next turn
+// reads the same in sunlight and at night.
+const BANNER = "#16181B";
+const BANNER_DARK = "#0E0F11";
 
 // Hide POI/transit icon clutter but keep road labels — a driver needs
 // street names to navigate.
@@ -72,8 +75,14 @@ function SpeedWidget({ kmh, limit }) {
 // pushLocation: send GPS to the server itself — off on the Drive screen,
 // where the tracking panel owns location sharing (and its Paused state).
 // pins: extra points such as passenger pickup spots.
-export default function DriverNavMap({ session, invoke, fill = false, pushLocation: shouldPush = true, pins = [] }) {
+// showProgress: the stop strip above the map (the Drive screen shows stops in
+// its side rail instead). showStatus: the GPS / connection chips on the map.
+// onStatus: reports what the directions already know (next stop, time and
+// distance left, GPS and connection state) so the rail can show it. Read-only.
+export default function DriverNavMap({ session, invoke, fill = false, pushLocation: shouldPush = true, pins = [], showProgress = true, showStatus = true, onStatus }) {
   const isDark = useIsDark();
+  const accent = mapAccentFor(isDark);
+  const ROUTE_COLOR = { normal: accent, ...TRAFFIC_COLOR };
   const { online, pendingCount } = useOfflineSync();
   const [route, setRoute] = useState(session?.route || null);
   const [pos, setPos] = useState(
@@ -297,6 +306,17 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
   const thenStep = progress?.thenStep || null;
   const arrivalAt = progress && !progress.arrived ? Date.now() + progress.remainingS * 1000 : null;
 
+  const remainingS = progress && !progress.arrived ? progress.remainingS : null;
+  const remainingM = progress && !progress.arrived ? progress.remainingM : null;
+  useEffect(() => {
+    onStatus?.({
+      gpsStatus, online, pendingCount, nextStop, nextStopIndex, total: orderedStops.length,
+      routeName: route?.name || "", remainingS, remainingM, arrived: !!progress?.arrived, hasDirections: !!routeNav,
+    });
+    // Round to whole seconds/metres-ish so the rail doesn't re-render on every fix.
+  }, [onStatus, gpsStatus, online, pendingCount, nextStopKey, nextStopIndex, orderedStops.length, route?.name,
+    remainingS == null ? null : Math.round(remainingS / 15), remainingM == null ? null : Math.round(remainingM / 50), progress?.arrived, !!routeNav]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const statusBadges = (
     <div className="flex items-center gap-1.5">
       <span className={`text-xs px-2 py-0.5 rounded-full border inline-flex items-center gap-1 bg-card/90 backdrop-blur ${
@@ -321,7 +341,7 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
           {statusBadges}
         </div>
       )}
-      {route?.stops?.length > 1 && pos && (
+      {showProgress && route?.stops?.length > 1 && pos && (
         <TripProgress stops={orderedStops} lat={pos.lat} lng={pos.lng} label={route.name || "Your route"} />
       )}
       <div className={`relative rounded-2xl overflow-hidden border ${fill ? "flex-1 min-h-[260px]" : "h-[72vh]"}`} data-testid="nav-map">
@@ -339,7 +359,7 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
                 current_lat: smooth.lat, current_lng: smooth.lng,
                 marker_color: ROUTE_COLOR.normal, marker_size: 40, marker_heading: heading ?? null,
               }] : []}
-              stops={nextStop ? [{ ...nextStop, color: "#D93025" }] : []}
+              stops={nextStop ? [{ ...nextStop, color: accent }] : []}
               pins={pins}
               lines={ahead.map((r) => ({ coords: r.coords, color: ROUTE_COLOR[r.level], width: 7, opacity: 0.95 }))}
             />
@@ -361,7 +381,7 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
             {ahead.length > 0 && (
               <Source id="nav-route" type="geojson" data={aheadGeo}>
                 <Layer id="nav-route-casing" type="line" layout={{ "line-cap": "round", "line-join": "round" }}
-                  paint={{ "line-color": isDark ? "#0b2a5c" : "#0d47a1", "line-width": ["interpolate", ["linear"], ["zoom"], 12, 7, 17, 15] }} />
+                  paint={{ "line-color": isDark ? "#0B0C0E" : "#FFFFFF", "line-width": ["interpolate", ["linear"], ["zoom"], 12, 7, 17, 15] }} />
                 <Layer id="nav-route-line" type="line" layout={{ "line-cap": "round", "line-join": "round" }}
                   paint={{
                     "line-color": ["match", ["get", "level"], "heavy", ROUTE_COLOR.heavy, "moderate", ROUTE_COLOR.moderate, ROUTE_COLOR.normal],
@@ -376,11 +396,8 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
             ))}
             {nextStop && (
               <Marker longitude={nextStop.lng} latitude={nextStop.lat} anchor="bottom">
-                <div className="flex flex-col items-center" title={nextStop.name}>
-                  <svg width="30" height="40" viewBox="0 0 24 32" aria-hidden="true">
-                    <path d="M12 31s-10-10.2-10-18a10 10 0 0 1 20 0c0 7.8-10 18-10 18z" fill="#D93025" stroke="#fff" strokeWidth="1.5" />
-                    <circle cx="12" cy="13" r="3.8" fill="#fff" />
-                  </svg>
+                <div className="tt-map-stop-mine" title={nextStop.name} role="img" aria-label={`Next stop, ${nextStop.name || ""}`}>
+                  <span className="tt-map-stop-mine__pin" />
                 </div>
               </Marker>
             )}
@@ -397,20 +414,20 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
           <div className="rounded-2xl text-white shadow-xl overflow-hidden" style={{ background: BANNER }}>
             {bannerMain ? (
               <div className="px-4 py-3 flex items-center gap-3">
-                {bannerMain.arrive && <ManeuverArrow type="arrive" className="w-10 h-10 shrink-0" />}
+                {bannerMain.arrive && <span className="text-primary"><ManeuverArrow type="arrive" className="w-10 h-10 shrink-0" /></span>}
                 <div className="min-w-0">
-                  <div className="text-xl font-semibold leading-tight">{bannerMain.title}</div>
+                  <div className="text-title font-bold leading-tight">{bannerMain.title}</div>
                   {bannerMain.sub && <div className="text-sm text-white/80 mt-0.5">{bannerMain.sub}</div>}
                 </div>
               </div>
             ) : (
-              <div className="px-4 py-3 flex items-center gap-4">
-                <div className="flex flex-col items-center shrink-0 w-16">
-                  <ManeuverArrow type={step?.type} modifier={step?.modifier} drivingSide={drivingSide} className="w-12 h-12" />
-                  <div className="text-lg font-bold tabular-nums leading-none mt-1" data-testid="nav-distance">{formatDistance(progress?.distToManeuverM)}</div>
+              <div className="px-3 py-2.5 sm:px-4 sm:py-3 flex items-center gap-3 sm:gap-4">
+                <div className="flex flex-col items-center shrink-0 w-14 sm:w-[72px] text-primary">
+                  <ManeuverArrow type={step?.type} modifier={step?.modifier} drivingSide={drivingSide} className="w-10 h-10 sm:w-14 sm:h-14" />
+                  <div className="font-display text-xl sm:text-2xl font-semibold tabular-nums leading-none mt-1 text-white" data-testid="nav-distance">{formatDistance(progress?.distToManeuverM)}</div>
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="text-2xl font-bold leading-tight line-clamp-2" data-testid="nav-instruction">
+                  <div className="text-title sm:text-[1.625rem] font-bold leading-tight line-clamp-2" data-testid="nav-instruction">
                     {banner?.text || step?.name || step?.instruction}
                   </div>
                   {banner?.secondary ? (
@@ -440,19 +457,19 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
             <div className="flex items-end gap-2">
               <SpeedWidget kmh={kmh} limit={limit} />
               {!following && (
-                <button type="button" onClick={recenter} className="h-11 px-4 rounded-full bg-card/95 border border-border shadow-lg flex items-center gap-2 text-sm font-semibold text-[#1A73E8]">
+                <button type="button" onClick={recenter} className="h-12 px-5 rounded-full bg-card/95 border border-border shadow-lg flex items-center gap-2 text-body font-semibold text-foreground">
                   <LocateFixed className="w-4 h-4" /> Re-centre
                 </button>
               )}
             </div>
-            {fill && statusBadges}
+            {fill && showStatus && statusBadges}
           </div>
           <div className="rounded-2xl bg-card/95 backdrop-blur border border-border shadow-xl px-4 py-2.5 flex items-center gap-3" data-testid="nav-eta">
             <div className="min-w-0 flex-1">
               {progress && !progress.arrived ? (
                 <>
-                  <div className="text-2xl font-bold leading-tight text-[#1E8E3E] dark:text-[#34A853] tabular-nums">{formatDuration(progress.remainingS)}</div>
-                  <div className="text-sm text-muted-foreground truncate tabular-nums">
+                  <div className="font-display text-[1.75rem] font-semibold leading-tight tabular-nums">{formatDuration(progress.remainingS)}</div>
+                  <div className="text-body-sm text-muted-foreground truncate tabular-nums">
                     {formatDistance(progress.remainingM)} · {clock(arrivalAt)}{nextStop?.name ? ` · ${nextStop.name}` : ""}
                   </div>
                 </>
@@ -465,7 +482,7 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
             <button
               type="button"
               onClick={() => setNorthUp((v) => !v)}
-              className="w-10 h-10 rounded-full border border-border grid place-items-center hover:bg-accent shrink-0"
+              className="w-11 h-11 rounded-full border border-border grid place-items-center hover:bg-accent shrink-0"
               title={northUp ? "Point the map the way you drive" : "Keep north at the top"}
               aria-label={northUp ? "Heading up" : "North up"}
             >
@@ -475,7 +492,7 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
               type="button"
               onClick={showOverview}
               disabled={!ahead.length}
-              className="w-10 h-10 rounded-full border border-border grid place-items-center hover:bg-accent shrink-0 disabled:opacity-40"
+              className="w-11 h-11 rounded-full border border-border grid place-items-center hover:bg-accent shrink-0 disabled:opacity-40"
               title="See the whole route"
               aria-label="Route overview"
             >
@@ -484,7 +501,7 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
             <button
               type="button"
               onClick={() => setMuted((m) => !m)}
-              className="w-10 h-10 rounded-full border border-border grid place-items-center hover:bg-accent shrink-0"
+              className="w-11 h-11 rounded-full border border-border grid place-items-center hover:bg-accent shrink-0"
               title={muted ? "Turn voice directions on" : "Mute voice directions"}
               aria-label={muted ? "Unmute" : "Mute"}
             >

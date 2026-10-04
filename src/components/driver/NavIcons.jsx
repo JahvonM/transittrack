@@ -67,7 +67,7 @@ function Pin() {
   return (
     <>
       <path d="M12 22s-6.5-6.2-6.5-11.5a6.5 6.5 0 0 1 13 0C18.5 15.8 12 22 12 22z" fill="currentColor" />
-      <circle cx="12" cy="10.5" r="2.4" fill="#0F6E46" />
+      <circle cx="12" cy="10.5" r="2.4" fill="#16181B" />
     </>
   );
 }
@@ -98,13 +98,15 @@ export function LaneArrow({ lane, drivingSide = "right" }) {
   );
 }
 
-// The "you are here" arrow, like Google Maps' blue navigation chevron.
+// The "you are here" arrow: an ink chevron on a white disc with a lime ring,
+// readable on both the light and dark map.
 export function NavPuck({ size = 44 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 44 44" aria-label="Your bus">
-      <circle cx="22" cy="22" r="19" fill="#ffffff" opacity="0.95" />
-      <circle cx="22" cy="22" r="19" fill="none" stroke="#1A73E8" strokeOpacity="0.25" strokeWidth="3" />
-      <path d="M22 8 L33 33 L22 27 L11 33 Z" fill="#1A73E8" stroke="#ffffff" strokeWidth="1.5" strokeLinejoin="round" />
+      <circle cx="22" cy="22" r="20" fill="#16181B" opacity="0.35" />
+      <circle cx="22" cy="22" r="18" fill="#ffffff" />
+      <circle cx="22" cy="22" r="18" fill="none" stroke="#C8EB2E" strokeWidth="3" />
+      <path d="M22 8 L33 33 L22 27 L11 33 Z" fill="#16181B" stroke="#ffffff" strokeWidth="1.5" strokeLinejoin="round" />
     </svg>
   );
 }

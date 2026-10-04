@@ -7,7 +7,9 @@ export default function SafetyStandardsContent() {
   const [companies, setCompanies] = useState([]);
 
   useEffect(() => {
-    base44.entities.Company.list().then(setCompanies);
+    // Driver tablets aren't signed in, so this list may be refused; the
+    // section then says no contacts are on file instead of breaking.
+    base44.entities.Company.list().then((rows) => setCompanies(Array.isArray(rows) ? rows : [])).catch(() => {});
   }, []);
 
   const Section = ({ icon: Icon, title, children }) => (

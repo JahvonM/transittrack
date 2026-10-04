@@ -88,6 +88,9 @@ export default function DriverApp() {
   // Unread dot on the Chat tab — DriverChats tracks per-contact unread
   // (staff/company/dispatch/mechanic) and reports whether any is unread.
   const [hasUnreadChat, setHasUnreadChat] = useState(false);
+  // Whether a shift is open, reported by the shift control; only used to
+  // highlight the next step on the Drive screen.
+  const [shiftOpen, setShiftOpen] = useState(false);
 
   const playAlertSound = useCallback(() => {
     try {
@@ -318,8 +321,8 @@ export default function DriverApp() {
 
   if (!unlocked) {
     return (
-      <div className="min-h-screen p-4 safe-area-top safe-area-x">
-        <div className="space-y-4 max-w-3xl mx-auto">
+      <div className="min-h-[100dvh] grid place-items-center p-6 safe-area-top safe-area-x">
+        <div className="grid w-full max-w-4xl gap-10 md:grid-cols-2 md:items-center">
           <DriverGreeting driverName={driverName} subtitle={vehicle.name} />
           <PinGate deviceId={deviceId} vehicle={vehicle} invoke={invoke} onUnlock={() => { localStorage.setItem("tt_driver_unlock_date", new Date().toISOString().slice(0, 10)); setUnlocked(true); if (dueInspections.length) openInspection(dueInspections[0], { from: "unlock" }); else goStage("track"); }} />
         </div>
@@ -386,28 +389,27 @@ export default function DriverApp() {
             <ArrowLeft className="w-5 h-5" />
           </Button>
         ) : null}
-        right={offline ? (
-          <span role="status" className="flex items-center gap-1.5 rounded-full bg-amber-500 text-black px-3 py-1 text-xs font-semibold shrink-0">
-            <WifiOff className="w-3.5 h-3.5" /> Offline
+        right={offline && activeTab !== "track" ? (
+          <span role="status" className="flex items-center gap-1.5 rounded-full border border-warning/40 bg-warning/12 text-warning px-3 py-1 text-body-sm font-semibold shrink-0">
+            <WifiOff className="w-4 h-4" aria-hidden="true" /> Offline
           </span>
         ) : null}
       />
 
       <main className="flex-1 min-h-0 relative">
         {/* Drive stays mounted so GPS tracking keeps running while another tab is open. */}
-        <section className={`absolute inset-0 p-3 ${activeTab === "track" ? "" : "invisible pointer-events-none"}`} aria-hidden={activeTab !== "track"}>
+        <section className={`absolute inset-0 p-3 lg:p-4 ${activeTab === "track" ? "" : "invisible pointer-events-none"}`} aria-hidden={activeTab !== "track"}>
           <DriverTrackingDashboard
             session={session}
             invoke={invoke}
             onReportIncident={() => setIsReportOpen(true)}
-            panelTop={(
-              <>
-                {dueInspections.length > 0 && (
-                  <DueInspectionsBanner compact due={dueInspections} onStart={(t) => openInspection(t, { from: "unlock" })} />
-                )}
-                <ShiftCard compact session={session} invoke={invoke} refresh={refresh} beforeStart={() => beforeShift("start_shift")} beforeEnd={() => beforeShift("end_shift")} />
-              </>
+            shiftActive={shiftOpen}
+            shiftControl={(
+              <ShiftCard variant="deck" session={session} invoke={invoke} refresh={refresh} onChange={setShiftOpen} beforeStart={() => beforeShift("start_shift")} beforeEnd={() => beforeShift("end_shift")} />
             )}
+            panelTop={dueInspections.length > 0 ? (
+              <DueInspectionsBanner compact due={dueInspections} onStart={(t) => openInspection(t, { from: "unlock" })} />
+            ) : null}
             panelBottom={session.trips?.length > 0 ? (
               <DriverTrips
                 compact
@@ -440,7 +442,7 @@ export default function DriverApp() {
         )}
       </main>
 
-      <nav className="shrink-0 grid grid-cols-4 border-t border-border bg-card/95 backdrop-blur safe-area-bottom" aria-label="Driver sections">
+      <nav className="shrink-0 grid grid-cols-4 border-t border-border bg-background/95 backdrop-blur safe-area-bottom" aria-label="Driver sections">
         {DRIVER_TABS.map(({ id, label, icon: Icon }) => {
           const active = activeTab === id;
           return (
@@ -449,12 +451,12 @@ export default function DriverApp() {
               type="button"
               onClick={() => selectTab(id)}
               aria-current={active ? "page" : undefined}
-              className={`relative flex flex-col items-center justify-center gap-1 h-16 text-xs font-semibold transition-colors ${active ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}
+              className={`relative flex flex-col items-center justify-center gap-1 h-16 text-body-sm font-semibold transition-colors ${active ? "text-foreground" : "text-muted-foreground hover:text-foreground"}`}
             >
-              {active && <span className="absolute top-0 inset-x-6 h-0.5 rounded-full bg-primary" aria-hidden="true" />}
-              <Icon className="w-6 h-6" aria-hidden="true" />
+              {active && <span className="absolute top-0 left-1/2 -translate-x-1/2 h-[3px] w-12 rounded-b-full bg-primary" aria-hidden="true" />}
+              <Icon className="w-6 h-6" strokeWidth={active ? 2.2 : 1.8} aria-hidden="true" />
               {label}
-              {id === "chat" && hasUnreadChat && <span className="absolute top-2.5 left-1/2 ml-2.5 w-2.5 h-2.5 rounded-full bg-destructive" aria-label="Unread messages" />}
+              {id === "chat" && hasUnreadChat && <span className="absolute top-2.5 left-1/2 ml-2.5 w-2.5 h-2.5 rounded-full bg-danger" aria-label="Unread messages" />}
             </button>
           );
         })}

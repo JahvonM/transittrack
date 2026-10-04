@@ -14,7 +14,7 @@ import useFitCount from "@/hooks/useFitCount";
 // only as many as fit; the full list opens in a sheet.
 export default function StaffRouteList({ staff = [], vehicle, nearbyStaff = [], onAttend, compact = false }) {
   const [allOpen, setAllOpen] = useState(false);
-  const [fitRef, fitCount] = useFitCount(58, { gap: 8, min: 1 });
+  const [fitRef, fitCount] = useFitCount(66, { gap: 8, min: 1 });
 
   const enriched = useMemo(() => {
     return staff.map((s) => {

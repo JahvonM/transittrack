@@ -5,16 +5,20 @@ import DriverNavMap from "@/components/driver/DriverNavMap";
 import StaffRouteList from "@/components/driver/StaffRouteList";
 import SosButton from "@/components/driver/SosButton";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Navigation, Radio, Lock, Users, AlertTriangle, Satellite } from "lucide-react";
+import { Navigation, NavigationOff, Lock, AlertTriangle, Satellite, SatelliteDish, Wifi, WifiOff, CloudUpload, Radio, PauseCircle, Gauge, BellRing } from "lucide-react";
+import { AttentionItem, DeckButton, NextStopBlock, OnBoard, StatusStrip } from "@/components/driver/cockpit/CockpitParts";
 import { useToast } from "@/components/ui/use-toast";
 import { queueGpsPoint, queuedGpsCount, flushGpsQueue, gpsSyncError, GPS_QUEUE_EVENT } from "@/lib/gpsQueue";
 import { noteGpsFix } from "@/lib/appHealth";
 
-// The Drive screen: turn-by-turn map + everything the driver needs beside
-// it, sized to the screen (no page scrolling). panelTop / panelBottom let the
-// app put the shift card, due inspections and trips into the side panel.
-export default function DriverTrackingDashboard({ session, invoke, onReportIncident, panelTop = null, panelBottom = null }) {
+// The Drive screen, laid out like a cockpit: the turn-by-turn map, then one
+// rail that reads top to bottom — status, next stop, people on board, things
+// that need attention, today's trips and pickups, and the control deck.
+// shiftControl: the shift half of the deck (its own start/end logic).
+// panelTop: items that need attention now (e.g. a due inspection).
+// panelBottom: today's booked trips.
+// shiftActive: whether a shift is open, only to highlight the next step.
+export default function DriverTrackingDashboard({ session, invoke, onReportIncident, panelTop = null, panelBottom = null, shiftControl = null, shiftActive = false }) {
   const { toast } = useToast();
   const [staff, setStaff] = useState([]);
   const [sharing, setSharing] = useState(false);
@@ -220,78 +224,110 @@ export default function DriverTrackingDashboard({ session, invoke, onReportIncid
     return { tone: "bad", text };
   })();
 
-  // Sized to the screen with nothing to scroll: landscape = map | panel,
-  // portrait = map on top, two panel columns below. Lists show what fits and
-  // open the rest in a sheet.
+  // What the directions know (next stop, time left, GPS, connection).
+  const [nav, setNav] = useState(null);
+  const onNavStatus = useCallback((x) => setNav(x), []);
+
+  const online = nav ? nav.online : typeof navigator === "undefined" || navigator.onLine !== false;
+  const gpsItem = sharing
+    ? (health?.tone === "ok" ? { tone: "success", icon: Satellite, label: "GPS live", detail: health.text.replace(/^GPS live · /, "") }
+      : health?.tone === "warn" ? { tone: "warning", icon: SatelliteDish, label: "GPS problem", detail: health.text }
+        : { tone: "neutral", icon: SatelliteDish, label: "Finding GPS", detail: "Waiting for first fix" })
+    : nav?.gpsStatus === "locked" ? { tone: "success", icon: Satellite, label: "GPS ready" }
+      : nav?.gpsStatus === "low" ? { tone: "warning", icon: SatelliteDish, label: "Weak GPS" }
+        : { tone: "neutral", icon: SatelliteDish, label: "Finding GPS" };
+  if (moduleGps && moduleGps.tone !== "ok") gpsItem.detail = `GPS module: ${moduleGps.text}`;
+  const connItem = !online
+    ? { tone: "warning", icon: WifiOff, label: "Offline", detail: queued ? `${queued} point${queued === 1 ? "" : "s"} saved` : "Saving on tablet" }
+    : queued ? { tone: "info", icon: CloudUpload, label: "Uploading", detail: `${queued} saved point${queued === 1 ? "" : "s"}` }
+      : { tone: "success", icon: Wifi, label: "Online" };
+  const trackItem = sharing
+    ? { tone: "live", icon: Radio, label: locked ? "Locked on" : "Tracking", detail: locked ? "By dispatch" : "Sharing" }
+    : { tone: "neutral", icon: PauseCircle, label: "Not tracking", detail: "Not shared" };
+
+  const attention = [];
+  if (liveVehicle?.status === "speeding") attention.push(<AttentionItem key="speed" tone="danger" icon={Gauge} title="Slow down" detail="Speeding has been logged" />);
+  if (nearbyStaff.length) {
+    const names = staff.filter((p) => nearbyStaff.includes(p.id)).map((p) => (p.full_name || p.email || "").split(" ")[0]).filter(Boolean);
+    attention.push(
+      <AttentionItem key="near" tone="info" icon={BellRing}
+        title={`${nearbyStaff.length} pickup${nearbyStaff.length === 1 ? "" : "s"} within 500 m`}
+        detail={names.length ? `${names.slice(0, 3).join(", ")} ${names.length === 1 ? "has" : "have"} been alerted` : "Passengers have been alerted"} />,
+    );
+  }
+
+  const trackingPrimary = !!shiftActive && !sharing;
+  const trackingButton = (
+    <DeckButton
+      icon={sharing ? (locked ? Lock : NavigationOff) : Navigation}
+      state={sharing ? (locked ? "Locked on by dispatch" : "Sharing location") : "Location not shared"}
+      action={sharing ? (locked ? "Can't stop" : "Stop tracking") : "Start tracking"}
+      onClick={sharing ? stopTracking : startTracking}
+      disabled={sharing && locked}
+      active={sharing}
+      primary={trackingPrimary}
+      ariaLabel={sharing ? (locked ? "Tracking is locked on by dispatch" : "Stop tracking") : "Start tracking"}
+    />
+  );
+
+  // Phone: everything scrolls under a fixed-height map (max-content rows, so
+  // nothing gets squeezed to zero by the fixed-height scroller). Tablet portrait:
+  // map on top, rail below in two columns. Landscape: map | rail.
   return (
-    <div className="h-full min-h-0 flex flex-col gap-2 lg:grid lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-3">
-      <div className="flex-1 min-h-0 lg:h-full">
-        <DriverNavMap session={session} invoke={invoke} fill pushLocation={false} pins={staffPins} />
+    <div
+      className={[
+        "grid h-full min-h-0 gap-3 overflow-y-auto overscroll-contain",
+        "grid-cols-1 [grid-template-areas:'map'_'status'_'next'_'deck'_'more'] grid-rows-[56vh_max-content_max-content_max-content_minmax(280px,max-content)]",
+        "md:overflow-hidden md:grid-cols-2 md:[grid-template-areas:'map_map'_'status_status'_'next_more'_'deck_deck'] md:grid-rows-[minmax(0,1fr)_auto_minmax(220px,30%)_auto]",
+        "lg:grid-cols-[minmax(0,1fr)_400px] lg:[grid-template-areas:'map_status'_'map_next'_'map_more'_'map_deck'] lg:grid-rows-[auto_auto_minmax(0,1fr)_auto]",
+      ].join(" ")}
+    >
+      <div className="min-h-0 [grid-area:map]">
+        <DriverNavMap session={session} invoke={invoke} fill pushLocation={false} pins={staffPins} showProgress={false} showStatus={false} onStatus={onNavStatus} />
       </div>
 
-      <aside className="shrink-0 h-[44%] lg:h-full min-h-0 flex flex-col gap-2" aria-label="Driving controls">
-        <div className="flex-1 min-h-0 overflow-y-auto md:overflow-hidden grid gap-2 md:grid-cols-2 md:[grid-template-rows:minmax(0,1fr)] lg:flex lg:flex-col">
-          <div className="flex flex-col gap-2 min-h-0 shrink-0">
+      <StatusStrip className="[grid-area:status]" items={[{ key: "gps", ...gpsItem }, { key: "net", ...connItem }, { key: "track", ...trackItem }]} />
+
+      <div className="flex min-h-0 flex-col gap-4 overflow-y-auto py-1 [grid-area:next] md:overflow-hidden lg:overflow-visible">
+        <NextStopBlock
+          stop={nav?.nextStop || null}
+          index={nav?.nextStopIndex ?? 0}
+          total={nav?.total ?? (session?.route?.stops?.length || 0)}
+          routeName={nav?.routeName || session?.route?.name}
+          remainingS={nav?.remainingS}
+          remainingM={nav?.remainingM}
+          arrived={nav?.arrived}
+        />
+        <OnBoard count={occupancy} capacity={liveVehicle?.capacity} />
+        {(panelTop || attention.length > 0) && (
+          <div className="flex flex-col gap-2" aria-label="Needs attention">
+            {attention}
             {panelTop}
-
-            {/* passengers + tracking in one card */}
-            <div className="p-3 rounded-2xl border bg-card space-y-2">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary grid place-items-center shrink-0">
-                  <Users className="w-5 h-5" />
-                </div>
-                <p className="flex-1 min-w-0 leading-tight">
-                  <span className="text-xl font-bold">{occupancy}</span>
-                  <span className="text-sm text-muted-foreground">{liveVehicle?.capacity ? ` / ${liveVehicle.capacity}` : ""} aboard</span>
-                </p>
-                <div className="flex items-center gap-1">
-                  {liveVehicle?.status === "speeding" && <Badge variant="destructive">Speeding</Badge>}
-                  {liveVehicle?.status === "emergency" && <Badge variant="destructive">SOS</Badge>}
-                  <Badge variant={sharing ? "default" : "secondary"}>
-                    {sharing ? (<><Radio className="w-3 h-3 mr-1 animate-pulse" /> Tracking</>) : "Paused"}
-                  </Badge>
-                </div>
-              </div>
-              <div className="flex gap-2">
-                {sharing ? (
-                  <Button variant="outline" className="flex-1 h-11" onClick={stopTracking} disabled={locked}>
-                    {locked ? <><Lock className="w-4 h-4 mr-2" /> Locked by dispatch</> : <><Navigation className="w-4 h-4 mr-2" /> Stop tracking</>}
-                  </Button>
-                ) : (
-                  <Button className="flex-1 h-11" onClick={startTracking}><Navigation className="w-4 h-4 mr-2" /> Start tracking</Button>
-                )}
-                {onReportIncident && (
-                  <Button variant="outline" className="h-11 px-3 text-destructive" onClick={onReportIncident} aria-label="Report an incident">
-                    <AlertTriangle className="w-5 h-5" /><span className="hidden sm:inline ml-1.5">Report</span>
-                  </Button>
-                )}
-              </div>
-              {moduleGps && (
-                <p className={`text-xs flex items-center gap-1.5 ${moduleGps.tone === "warn" ? "text-amber-600 dark:text-amber-400" : moduleGps.tone === "ok" ? "text-green-700 dark:text-green-400" : moduleGps.tone === "bad" ? "text-destructive" : "text-muted-foreground"}`}>
-                  <Satellite className="w-3.5 h-3.5 shrink-0" /> GPS module: {moduleGps.text}
-                </p>
-              )}
-              {health && (
-                <p role="status" className={`text-xs flex items-center gap-1.5 ${health.tone === "warn" ? "text-amber-600 dark:text-amber-400" : health.tone === "ok" ? "text-green-700 dark:text-green-400" : "text-muted-foreground"}`}>
-                  <span className={`w-2 h-2 rounded-full shrink-0 ${health.tone === "warn" ? "bg-amber-500" : health.tone === "ok" ? "bg-green-500" : "bg-muted-foreground"}`} />
-                  {health.text}
-                </p>
-              )}
-            </div>
           </div>
+        )}
+      </div>
 
-          <div className="flex flex-col gap-2 min-h-[160px] md:min-h-0 lg:flex-1">
-            {panelBottom}
-            <div className="flex-1 min-h-[120px] md:min-h-0">
-              <StaffRouteList staff={staff} vehicle={liveVehicle} nearbyStaff={nearbyStaff} onAttend={markAttended} compact />
-            </div>
-          </div>
+      <section className="flex min-h-0 flex-col gap-2 [grid-area:more]" aria-label="Today's trips and pickups">
+        {panelBottom}
+        <div className="min-h-[140px] flex-1 md:min-h-0">
+          <StaffRouteList staff={staff} vehicle={liveVehicle} nearbyStaff={nearbyStaff} onAttend={markAttended} compact />
         </div>
+      </section>
 
-        <div className="shrink-0">
+      <div className="flex flex-col gap-2 [grid-area:deck]" aria-label="Driving controls">
+        <div className="grid grid-cols-2 gap-2">
+          {shiftControl}
+          {trackingButton}
+        </div>
+        <div className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-2">
+          {onReportIncident && (
+            <Button variant="outline" className="h-[52px] px-4" onClick={onReportIncident} aria-label="Report an incident">
+              <AlertTriangle className="h-5 w-5 text-danger" aria-hidden="true" /><span className="ml-1.5">Report</span>
+            </Button>
+          )}
           <SosButton vehicle={liveVehicle} invoke={invoke} emergencyContacts={session?.emergency_contacts} compact />
         </div>
-      </aside>
+      </div>
     </div>
   );
 }

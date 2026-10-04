@@ -1,8 +1,7 @@
 import React from "react";
-import { Bus, Hand } from "lucide-react";
+import { Bus } from "lucide-react";
 import LiveClock from "@/components/LiveClock";
 import WeatherWidget from "@/components/WeatherWidget";
-import { DrivingScene } from "@/components/AnimatedBus";
 
 const greetingWord = () => {
   const h = new Date().getHours();
@@ -11,49 +10,47 @@ const greetingWord = () => {
   return "Good evening";
 };
 
-// One-line header for the main driving screen: greeting, bus, weather, time.
-// Keeps the map and controls on one screen instead of a tall banner.
+// One-line header for the driving screens: the bus number large (it's what
+// the driver and dispatch call the bus by), the driver, and the time.
 export function DriverTopBar({ driverName, busName, left, right }) {
   const name = (driverName || "Driver").split("@")[0].split(" ")[0];
+  const num = String(busName || "").match(/(\d+)\s*$/)?.[1];
   return (
-    <header className="flex items-center gap-3 px-3 sm:px-4 h-14 shrink-0 border-b border-border bg-card/80 backdrop-blur">
+    <header className="flex items-center gap-3 px-3 sm:px-4 h-14 shrink-0 border-b border-border bg-background">
       {left}
-      <div className="w-9 h-9 rounded-xl bg-primary text-primary-foreground grid place-items-center shrink-0">
-        <Bus className="w-5 h-5" aria-hidden="true" />
+      <div className="min-w-[2.75rem] h-10 px-2 rounded-lg bg-primary text-primary-foreground grid place-items-center shrink-0" aria-hidden="true">
+        {num ? <span className="font-display text-title font-bold tabular-nums leading-none">{num}</span> : <Bus className="w-5 h-5" />}
       </div>
       <div className="min-w-0 flex-1">
-        <p className="font-semibold leading-tight truncate">{greetingWord()}, {name}</p>
-        {busName && <p className="text-xs text-muted-foreground truncate">{busName}</p>}
+        <p className="font-semibold leading-tight truncate">{busName || "Your bus"}</p>
+        <p className="text-body-sm text-muted-foreground truncate">{name}</p>
       </div>
       {right}
-      <div className="hidden sm:block"><WeatherWidget variant="chip" /></div>
-      <LiveClock className="text-base font-mono tabular-nums" />
+      <LiveClock seconds={false} mono={false} className="font-display text-title font-semibold" />
     </header>
   );
 }
 
+// The unlock screen's identity panel: which bus this tablet is, who's
+// driving, and the time. Quiet on purpose; the PIN is the action.
 export default function DriverGreeting({ driverName, subtitle }) {
   const name = (driverName || "Driver").split("@")[0].split(" ")[0];
   const dateStr = new Date().toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" });
+  const num = String(subtitle || "").match(/(\d+)\s*$/)?.[1];
   return (
-    <div className="p-5 pb-0 rounded-2xl border border-border bg-card overflow-hidden">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-xs uppercase tracking-[0.2em] text-primary mb-1">{dateStr}</p>
-          <h2 className="text-2xl font-heading font-semibold">{greetingWord()}, {name} <Hand className="inline-block w-6 h-6 ml-1 -mt-1 text-primary tt-wave" aria-hidden="true" /></h2>
-          {subtitle && <p className="text-sm text-muted-foreground mt-1">{subtitle}</p>}
-        </div>
-        <div className="flex flex-col items-end gap-2">
-          <WeatherWidget variant="chip" />
-          <LiveClock className="text-lg font-mono" />
-        </div>
+    <section className="flex flex-col gap-6" aria-label="This tablet">
+      <span className="grid h-20 min-w-[5rem] w-fit place-items-center rounded-2xl bg-primary px-4 text-primary-foreground" aria-hidden="true">
+        {num ? <span className="font-display text-[2.75rem] font-bold leading-none tabular-nums">{num}</span> : <Bus className="h-9 w-9" />}
+      </span>
+      <div>
+        <p className="text-body text-muted-foreground">{dateStr}</p>
+        <h1 className="mt-1 text-display font-bold">{greetingWord()}, {name}</h1>
+        {subtitle && <p className="mt-1 text-title-sm text-muted-foreground">{subtitle}</p>}
       </div>
-      <div
-        className="-mx-5 mt-2"
-        style={{ background: "radial-gradient(80% 100% at 50% 100%, hsl(var(--primary) / 0.18), transparent 70%)" }}
-      >
-        <DrivingScene height={160} busWidth={210} />
+      <div className="flex flex-wrap items-center gap-3">
+        <LiveClock seconds={false} mono={false} className="font-display text-headline font-semibold" />
+        <WeatherWidget variant="chip" />
       </div>
-    </div>
+    </section>
   );
 }

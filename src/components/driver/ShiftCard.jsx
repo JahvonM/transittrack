@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { confirmAction } from "@/components/ConfirmHost";
 import { shiftAction } from "@/lib/driverShift";
+import { DeckButton } from "@/components/driver/cockpit/CockpitParts";
 
 function formatDuration(ms) {
   const mins = Math.max(0, Math.floor(ms / 60000));
@@ -16,7 +17,10 @@ function formatDuration(ms) {
 // heartbeat, so the timer survives reloads and tablet restarts.
 // beforeStart/beforeEnd return true when they've taken over (an inspection
 // set for that moment runs first, then starts/ends the shift itself).
-export default function ShiftCard({ session, invoke, refresh, beforeStart, beforeEnd, compact = false }) {
+// variant "deck": one half of the Drive screen's control deck (the other
+// half is tracking, which stays a separate action). onChange reports whether
+// a shift is open, so the deck can highlight the next step.
+export default function ShiftCard({ session, invoke, refresh, beforeStart, beforeEnd, compact = false, variant, onChange }) {
   const { toast } = useToast();
   const [shift, setShift] = useState(session?.open_shift || null);
   const [busy, setBusy] = useState(false);
@@ -71,6 +75,22 @@ export default function ShiftCard({ session, invoke, refresh, beforeStart, befor
   };
 
   const since = shift ? new Date(shift.started_at) : null;
+  useEffect(() => { onChange?.(!!shift); }, [shift, onChange]);
+
+  if (variant === "deck") {
+    return (
+      <DeckButton
+        icon={shift ? Square : Play}
+        state={shift ? `On shift · ${formatDuration(now - since.getTime())}` : "Off shift"}
+        action={shift ? "End shift" : "Start shift"}
+        onClick={shift ? end : start}
+        busy={busy}
+        active={!!shift}
+        primary={!shift}
+        ariaLabel={shift ? `End shift. On shift for ${formatDuration(now - since.getTime())}` : "Start shift"}
+      />
+    );
+  }
 
   return (
     <div className={`flex items-center gap-3 rounded-2xl border border-border bg-card ${compact ? "p-3" : "p-4 flex-wrap"}`}>

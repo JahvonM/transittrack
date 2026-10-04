@@ -71,11 +71,11 @@ export default function SosButton({ vehicle, invoke, emergencyContacts, compact 
       <button
         onMouseDown={startHold} onMouseUp={cancelHold} onMouseLeave={cancelHold}
         onTouchStart={startHold} onTouchEnd={cancelHold} disabled={fired || cooldown}
-        className={`w-full rounded-2xl border-2 border-destructive/40 ${compact ? "py-3 px-4 flex flex-row items-center justify-center gap-3 text-left" : "py-5 flex flex-col items-center gap-1"} transition-all ${
+        className={`w-full rounded-2xl border-2 border-destructive/40 ${compact ? "min-h-[52px] py-2 px-4 flex flex-row items-center justify-center gap-3 text-left rounded-xl" : "py-5 flex flex-col items-center gap-1"} transition-all ${
           holding ? "bg-destructive scale-95" : fired ? "bg-destructive/20" : "bg-destructive/10 hover:bg-destructive/20"
         }`}
       >
-        <Siren className={`${compact ? "w-7 h-7" : "w-8 h-8"} text-destructive shrink-0 ${holding ? "animate-ping" : ""}`} />
+        <Siren className={`${compact ? "w-6 h-6" : "w-8 h-8"} text-destructive shrink-0 ${holding ? "animate-ping" : ""}`} />
         {compact ? (
           <span className="flex flex-col">
             <span className="font-bold text-destructive leading-tight">{fired ? "SOS SENT" : holding ? "HOLD…" : "SOS"}</span>

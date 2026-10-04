@@ -47,22 +47,23 @@ export default function StaffRouteListItem({ s, vehicle, onAttend }) {
             : "No location pinned"}
         </div>
       </div>
-      {close && !skipped && <Volume2 className="w-4 h-4 text-green-400 animate-pulse" />}
-      <Button size="icon" variant="ghost" className="h-8 w-8" onClick={navTo} disabled={s.home_lat == null || skipped}>
-        <Navigation className="w-4 h-4" />
+      {close && !skipped && <Volume2 className="w-4 h-4 text-green-400 animate-pulse" aria-hidden="true" />}
+      <Button size="icon" variant="ghost" className="h-11 w-11" onClick={navTo} disabled={s.home_lat == null || skipped} aria-label={`Directions to ${s.full_name || "pickup"}`}>
+        <Navigation className="w-5 h-5" aria-hidden="true" />
       </Button>
       {close && !skipped && s.phone && (
         <a
           href={wa}
           target="_blank"
           rel="noopener noreferrer"
-          className="h-8 w-8 rounded-md grid place-items-center bg-green-600 text-white hover:bg-green-700"
+          className="h-11 w-11 rounded-lg grid place-items-center bg-green-600 text-white hover:bg-green-700"
+          aria-label={`Message ${s.full_name || "passenger"} on WhatsApp`}
         >
-          <MessageCircle className="w-4 h-4" />
+          <MessageCircle className="w-5 h-5" aria-hidden="true" />
         </a>
       )}
       {!skipped && !close && s.isNear && (
-        <Button size="sm" variant="outline" className="h-8" onClick={() => onAttend(s.id)}>
+        <Button size="sm" variant="outline" className="h-11" onClick={() => onAttend(s.id)}>
           <UserCheck className="w-3.5 h-3.5" /> Mark
         </Button>
       )}
