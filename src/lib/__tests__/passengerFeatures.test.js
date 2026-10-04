@@ -44,6 +44,7 @@ describe("email account directory",()=>{
   sdk.tables.CompanyMembership.push({id:"p",user_id:"email-user",company_id:"a",scope:"passenger",active:true});
   const issued=await call(sdk,{action:"issue",person_key:"user:email-user",uid:"AABBCCDD"});
   expect(issued.status).toBe(200);
+  await call(sdk,{action:"set_bus",person_key:"user:email-user",vehicle_id:"bus-a"});
   sdk.auth.me=async()=>null;
   const lookup=await call(sdk,{action:"lookup_tag",device_id:"tablet",card_tag:"AABBCCDD"},"kioskCheckIn");
   expect(lookup.status).toBe(200);
