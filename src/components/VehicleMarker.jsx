@@ -10,7 +10,7 @@ import { modelIdFor } from "@/lib/vehicleModels";
  * new GPS position and turns to face its direction of travel, with a
  * status-coloured glow that pulses while it's on a trip.
  */
-export default function VehicleMarker({ vehicle, onSelect }) {
+export default function VehicleMarker({ vehicle, onSelect, cameraBearing = 0 }) {
   const pos = useSmoothPosition(vehicle.current_lat, vehicle.current_lng);
   const heading = useBearing(vehicle.current_lat, vehicle.current_lng, vehicle.heading);
   if (!pos) return null;
@@ -27,7 +27,7 @@ export default function VehicleMarker({ vehicle, onSelect }) {
         title={`${vehicle.name} · ${vehicle.company_name || ""} · ${vehicle.status}`}
         aria-label={`${vehicle.name}, ${vehicle.status}`}
       >
-        <MapBusPin model={modelIdFor(vehicle)} color={ring} driving={driving} alert={alert} heading={heading} />
+        <MapBusPin model={modelIdFor(vehicle)} color={ring} driving={driving} alert={alert} heading={heading - cameraBearing} />
       </button>
     </Marker>
   );

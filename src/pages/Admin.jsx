@@ -342,13 +342,6 @@ export default function Admin() {
                 <Bell className="w-4 h-4 mr-1.5" /> Enable notifications (SOS alerts on this device)
               </Button>
             )}
-            <div className="rounded-2xl overflow-hidden border">
-              <MapboxMap
-                vehicles={vehicles.filter((v) => v.current_lat != null)}
-                userLocation={userLoc}
-                height="40vh"
-              />
-            </div>
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
               <button onClick={() => go("vehicles")} className="text-left p-4 rounded-xl border bg-card hover:border-primary transition-colors">
                 <div className="text-2xl font-bold"><CountUp value={vehicles.length} /></div>
@@ -380,6 +373,22 @@ export default function Admin() {
                 <div className="text-2xl font-bold"><CountUp value={parts.length} /></div>
                 <div className="text-xs text-muted-foreground">Parts</div>
               </button>
+            </div>
+            <div className="grid xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-4">
+              <section className="rounded-2xl border bg-card p-4" aria-label="Live fleet overview">
+                <div className="flex items-center justify-between mb-3"><h2 className="font-bold">Live fleet</h2><button onClick={() => go("fleet")} className="text-xs text-primary font-semibold">View all →</button></div>
+                <div className="divide-y divide-border">{vehicles.slice(0,6).map(v => <button key={v.id} onClick={() => go("fleet")} className="w-full flex items-center gap-3 py-3 text-left hover:bg-accent rounded-lg px-2">
+                  <Bus className="w-5 h-5 text-primary shrink-0" /><div className="flex-1 min-w-0"><p className="text-sm font-semibold truncate">{v.name}</p><p className="text-xs text-muted-foreground truncate">{v.company_name || "Vehicle"} · {v.driver_name || "Driver not assigned"}</p></div>
+                  <span className="text-xs rounded-full bg-muted px-2 py-1">{v.status?.replaceAll("_"," ") || "Idle"}</span>
+                </button>)}{vehicles.length === 0 && <p className="text-sm text-muted-foreground py-8">No vehicles yet.</p>}</div>
+              </section>
+            <div className="rounded-2xl overflow-hidden border">
+              <MapboxMap
+                vehicles={vehicles.filter((v) => v.current_lat != null)}
+                userLocation={userLoc}
+                height="420px"
+              />
+            </div>
             </div>
             <RecentActivityFeed onNavigate={go} />
             <Collapsible open={moreOpen} onOpenChange={setMoreOpen}>

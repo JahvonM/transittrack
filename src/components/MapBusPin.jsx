@@ -93,10 +93,11 @@ export function Vehicle3D({ model = "city_bus", kind, heading = 0, color = "#C8F
           <Face style={{ inset: -2, background: "rgba(0,0,0,0.45)", filter: "blur(3px)", borderRadius: 6, transform: "translateZ(0)" }} />
           {/* left + right sides: window band(s) and a stripe */}
           {[0, w].map((x) => (
-            <Face key={x} style={{ left: x, top: 0, width: h, height: l, transformOrigin: "left", transform: "rotateY(-90deg)", background: m.side, borderRadius: 2 }}>
+            <Face key={x} style={{ left: x, top: 0, width: h, height: l, transformOrigin: "left", transform: "rotateY(-90deg)", background: `linear-gradient(90deg, #9ba4ac, ${m.side} 30%, ${m.body} 75%)`, borderRadius: 3 }}>
               {Array.from({ length: decks }, (_, i) => (
-                <div key={i} className="absolute" style={{ ...band(i), top: l * 0.1, bottom: l * 0.12, background: GLASS, borderRadius: 1.5 }} />
+                <div key={i} className="absolute" style={{ ...band(i), top: l * 0.1, bottom: l * 0.12, background: `repeating-linear-gradient(0deg, transparent 0 9px, #65717c 9px 10px), linear-gradient(110deg,#101d2b,#456275 50%,#152432)`, borderRadius: 1.5 }} />
               ))}
+              {[l * .18,l * .8].map(y => <div key={y} className="absolute rounded-full" style={{left:-3,top:y,width:8,height:8,background:"radial-gradient(circle,#a2acb4 0 25%,#20242b 28% 60%,#080d12 63%)",boxShadow:"0 1px 2px #0008"}} />)}
               <div className="absolute" style={{ left: h * (decks === 2 ? 0.07 : 0.2), width: Math.max(2, h * 0.1), top: 2, bottom: 2, background: stripe }} />
             </Face>
           ))}
@@ -113,7 +114,7 @@ export function Vehicle3D({ model = "city_bus", kind, heading = 0, color = "#C8F
             <div className="absolute rounded-sm" style={{ right: 2, top: h * 0.1, width: 4, height: 2, background: "#FF4D4D" }} />
           </Face>
           {/* roof */}
-          <Face style={{ inset: 0, transform: `translateZ(${h}px)`, background: m.roof, borderRadius: 4, boxShadow: `inset 0 0 0 1.5px ${color}` }}>
+          <Face style={{ inset: 0, transform: `translateZ(${h}px)`, background: `linear-gradient(100deg,${m.side},${m.roof} 45%,#b5bdc3)`, borderRadius: 4, boxShadow: `inset 0 0 0 1.5px ${color}` }}>
             {m.roofUnit === "ac" && <div className="absolute rounded-sm" style={{ left: w * 0.22, right: w * 0.22, top: l * 0.35, height: l * 0.28, background: "#C9CBC4" }} />}
             {m.roofUnit === "battery" && (
               <div className="absolute rounded-sm grid gap-[2px]" style={{ left: w * 0.18, right: w * 0.18, top: l * 0.22, height: l * 0.5, gridTemplateRows: "repeat(3, 1fr)" }}>

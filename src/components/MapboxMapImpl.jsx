@@ -4,6 +4,7 @@ import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import Map, { Marker, Source, Layer } from "react-map-gl";
 import { MAPBOX_TOKEN, mapStyleFor, mapAccentFor } from "@/lib/mapbox";
+import { applyMapPerspective } from "@/lib/mapPerspective";
 import { useIsDark } from "@/lib/useTheme";
 import { Bus, LocateFixed, Maximize2, Minimize2, Minus, Plus, Satellite, X, Car } from "lucide-react";
 
@@ -57,6 +58,7 @@ export default function MapboxMap({
   className = "",
   height = "45vh",
   interactive = true,
+  immersive = false,
   // Opt-in nav-mode camera follow (like CarPlay/Google Maps): the camera
   // keeps recentering on userLocation as it updates, instead of only
   // fitting bounds once at load. Off by default — a passenger or admin
@@ -81,7 +83,9 @@ export default function MapboxMap({
   const following = useRef(followUser);
   const [isFollowing, setIsFollowing] = useState(followUser);
   const [selectedVehicle, setSelectedVehicle] = useState(null);
-  const [isSatellite, setIsSatellite] = useState(false);
+  const [isSatellite, setIsSatellite] = useState(immersive);
+  const [is3D, setIs3D] = useState(immersive);
+  const [cameraBearing, setCameraBearing] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [mapLoaded, setMapLoaded] = useState(false);
   const isDark = useIsDark();
@@ -202,9 +206,19 @@ export default function MapboxMap({
     else map.once("styledata", () => declutterStyle(map));
   }, [isSatellite, isDark]);
 
+  useEffect(() => {
+    const map = mapRef.current?.getMap?.();
+    if (!map) return;
+    const apply = () => { declutterStyle(map); applyMapPerspective(map, is3D, isDark); };
+    apply();
+    map.on("style.load", apply);
+    map.easeTo({pitch:is3D ? 50 : 0,duration:600});
+    return () => map.off("style.load", apply);
+  }, [is3D, isDark, isSatellite, mapLoaded]);
+
   const initViewport = center
-    ? { longitude: center[0], latitude: center[1], zoom: 14 }
-    : { longitude: -61.7, latitude: 12.05, zoom: 12.5 };
+    ? { longitude: center[0], latitude: center[1], zoom: 14, pitch: immersive ? 50 : 0 }
+    : { longitude: -61.7, latitude: 12.05, zoom: 12.5, pitch: immersive ? 50 : 0 };
 
   // Route polyline from stops (if any) — straight-line fallback, used until/unless
   // the actual driving route (following roads) below is available.
@@ -275,7 +289,8 @@ export default function MapboxMap({
         style={{ width: "100%", height: "100%" }}
         interactive={interactive}
         attributionControl={false}
-        onLoad={(e) => { setMapLoaded(true); declutterStyle(e.target); }}
+        onLoad={(e) => { setMapLoaded(true); declutterStyle(e.target); applyMapPerspective(e.target, is3D, isDark); }}
+        onRotate={(e) => setCameraBearing(e.viewState.bearing)}
         onError={(e) => { if (/webgl/i.test(e?.error?.message || "")) onEngineFail?.(); }}
         onClick={() => setSelectedVehicle(null)}
         onDrag={followUser ? () => { following.current = false; setIsFollowing(false); } : undefined}
@@ -338,7 +353,7 @@ export default function MapboxMap({
         {vehicles
           .filter((v) => v.current_lat != null)
           .map((v) => (
-            <VehicleMarker key={`v-${v.id}`} vehicle={v} onSelect={setSelectedVehicle} />
+            <VehicleMarker key={`v-${v.id}`} vehicle={v} cameraBearing={cameraBearing} onSelect={setSelectedVehicle} />
           ))}
 
         {/* (selected vehicle panel rendered as overlay below to keep the map visible) */}
@@ -456,6 +471,7 @@ export default function MapboxMap({
         >
           <Satellite className="w-[18px] h-[18px]" />
         </button>
+        <button type="button" onClick={() => setIs3D(v => !v)} className={`${TOOL_BTN} text-xs font-bold ${is3D ? "!bg-primary !text-primary-foreground" : ""}`} aria-label={is3D ? "Switch to 2D map" : "Switch to 3D map"} aria-pressed={is3D}>{is3D ? "3D" : "2D"}</button>
         <div className="flex flex-col rounded-full border border-border bg-background/90 shadow-md overflow-hidden">
           <button type="button" onClick={() => mapRef.current?.zoomIn({ duration: 300 })} className="w-9 h-9 grid place-items-center hover:bg-accent" aria-label="Zoom in" title="Zoom in">
             <Plus className="w-[18px] h-[18px]" />
