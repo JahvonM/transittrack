@@ -346,8 +346,8 @@ export default function StaffPortal() {
 
   return (
     <AppLayout>
-      <PullToRefresh onRefresh={reload} className="max-w-2xl">
-        <div className="space-y-5">
+      <PullToRefresh onRefresh={reload} className="w-full">
+        <div className="tt-passenger-dashboard space-y-5">
           <header className="space-y-2">
             <h1 className="text-2xl font-heading font-semibold leading-tight">{greetingWord()}{firstName ? `, ${firstName}` : ""}</h1>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
@@ -358,6 +358,8 @@ export default function StaffPortal() {
 
           {!userLoc && locError && <LocationPrompt onLocation={setPromptLoc} />}
 
+          <div className="grid lg:grid-cols-[minmax(0,420px)_minmax(0,1fr)] gap-5 items-start">
+          <div className="space-y-4 min-w-0">
           <NextBusCard
             stop={stop}
             bus={approaching?.v || null}
@@ -367,6 +369,11 @@ export default function StaffPortal() {
             trip={onTheWayTrip}
             onChooseStop={() => setSheet("pickup")}
           />
+
+          <button type="button" onClick={() => toggleStopAlerts(!stopAlerts)} disabled={!pickupName} className="tt-notify-button w-full rounded-xl bg-primary text-primary-foreground p-3 text-center disabled:opacity-50">
+            <span className="flex justify-center items-center gap-2 text-sm font-bold"><BellRing className="w-4 h-4" />{stopAlerts ? "Notifications on" : "Notify me"}</span>
+            <span className="text-[11px]">When the bus is one stop away</span>
+          </button>
 
           <QuickActions
             onChat={() => setSheet("chat")}
@@ -416,10 +423,12 @@ export default function StaffPortal() {
             </section>
           )}
 
-          <section>
+          </div>
+          <aside className="space-y-5 min-w-0 lg:sticky lg:top-24" aria-label="Live buses">
+          <section id="passenger-live-map">
             <SectionTitle>Live map</SectionTitle>
-            <div className="rounded-3xl overflow-hidden border h-80">
-              <MapboxMap vehicles={locatedVehicles} userLocation={userLoc} />
+            <div className="rounded-3xl overflow-hidden border h-[420px] lg:h-[580px]">
+              <MapboxMap vehicles={locatedVehicles} stops={approachingRoute?.stops || []} userLocation={userLoc} immersive height="100%" />
             </div>
           </section>
 
@@ -447,6 +456,9 @@ export default function StaffPortal() {
               </div>
             </section>
           )}
+
+          </aside>
+          </div>
 
           <BusAssistant company={company} userLoc={userLoc} />
 

@@ -2,7 +2,7 @@ import React from "react";
 import { Bus, Hand } from "lucide-react";
 import LiveClock from "@/components/LiveClock";
 import WeatherWidget from "@/components/WeatherWidget";
-import { DrivingScene } from "@/components/AnimatedBus";
+import BusArtwork from "@/components/BusArtwork";
 
 const greetingWord = () => {
   const h = new Date().getHours();
@@ -52,7 +52,7 @@ export default function DriverGreeting({ driverName, subtitle }) {
         className="-mx-5 mt-2"
         style={{ background: "radial-gradient(80% 100% at 50% 100%, hsl(var(--primary) / 0.18), transparent 70%)" }}
       >
-        <DrivingScene height={160} busWidth={210} />
+        <div className="flex justify-center py-2"><BusArtwork width={220} /></div>
       </div>
     </div>
   );

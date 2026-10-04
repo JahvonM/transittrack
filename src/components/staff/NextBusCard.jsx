@@ -1,12 +1,17 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { MapPin, ChevronRight, UserRound } from "lucide-react";
-import AnimatedBus from "@/components/AnimatedBus";
-import TripProgress from "@/components/TripProgress";
+import BusArtwork from "@/components/BusArtwork";
+import PassengerTimeline from "@/components/staff/PassengerTimeline";
 import CrowdBadge from "@/components/staff/CrowdBadge";
 import CountUp from "@/components/CountUp";
 
 // The first thing staff see: which bus is coming to their stop and when.
 export default function NextBusCard({ stop, bus, eta, route, crowdCount, trip, onChooseStop }) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => { const timer = setInterval(() => setNow(Date.now()), 15000); return () => clearInterval(timer); }, []);
+  const updated = Date.parse(bus?.last_location_update || "");
+  const age = Number.isFinite(updated) ? Math.max(0, Math.round((now - updated) / 1000)) : null;
+  const fresh = age != null && age <= 120 && !eta?.stale;
   if (!stop) {
     return (
       <button
@@ -30,9 +35,10 @@ export default function NextBusCard({ stop, bus, eta, route, crowdCount, trip, o
   const arriving = mins != null && mins <= 1;
 
   return (
-    <section className="relative overflow-hidden rounded-3xl border border-border bg-card" aria-label="Your bus">
+    <section className="tt-arrival-card relative overflow-hidden rounded-3xl border border-border bg-card" aria-label="Your bus">
       <div className="absolute -right-10 -top-10 w-40 h-40 rounded-full bg-primary/15 blur-2xl pointer-events-none" />
-      <div className="relative p-5 space-y-4">
+      <div className="relative p-5 sm:p-6 space-y-5">
+        {bus && <p className="flex items-center gap-2 text-xs text-muted-foreground" role="status"><span className={`w-2 h-2 rounded-full ${fresh ? "bg-primary" : "bg-amber-500"}`} />{fresh ? `Live · updated ${age}s ago` : age != null ? `Location delayed · updated ${Math.max(1,Math.round(age / 60))} min ago` : "Waiting for a location update"}</p>}
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Your bus to</p>
@@ -51,7 +57,7 @@ export default function NextBusCard({ stop, bus, eta, route, crowdCount, trip, o
                   <p className="text-4xl font-bold text-primary leading-none">Arriving</p>
                 ) : mins != null ? (
                   <p className="leading-none">
-                    <span className="text-6xl font-bold tabular-nums text-primary"><CountUp value={Math.round(mins)} /></span>
+                    <span className="text-7xl sm:text-8xl font-extrabold tracking-tighter tabular-nums text-foreground"><CountUp value={Math.round(mins)} /></span>
                     <span className="text-xl font-semibold ml-1.5">min</span>
                   </p>
                 ) : (
@@ -64,7 +70,7 @@ export default function NextBusCard({ stop, bus, eta, route, crowdCount, trip, o
                 </p>
               </div>
               <div className="shrink-0 -mb-1 tt-bus-bob">
-                <AnimatedBus mode="drive" width={112} />
+                <BusArtwork width={150} className="max-w-[38vw]" />
               </div>
             </div>
 
@@ -78,12 +84,12 @@ export default function NextBusCard({ stop, bus, eta, route, crowdCount, trip, o
             </div>
 
             {route?.stops?.length > 1 && (
-              <TripProgress stops={route.stops} lat={bus.current_lat} lng={bus.current_lng} label={route.name} className="!bg-transparent !border-0 !px-0 !pb-0" />
+              <PassengerTimeline route={route} bus={bus} stop={stop} eta={eta} />
             )}
           </>
         ) : (
           <div className="flex items-center gap-4">
-            <div className="opacity-70"><AnimatedBus mode="still" width={96} /></div>
+            <div className="opacity-70"><BusArtwork width={110} /></div>
             <div>
               <p className="font-semibold">No bus on the way yet</p>
               <p className="text-sm text-muted-foreground">We'll show it here as soon as a bus serving this stop starts its trip.</p>

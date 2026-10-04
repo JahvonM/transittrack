@@ -27,7 +27,7 @@ function FullLayout({ children, title }) {
   const hideBack = isHome || ["/admin", "/staff", "/driver", "/notifications", "/account", "/route-explorer"].includes(pathname);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="tt-app-shell min-h-screen bg-background">
       <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-[12px] safe-area-top">
         <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between safe-area-x">
           <div className="flex items-center gap-1">
@@ -38,9 +38,14 @@ function FullLayout({ children, title }) {
             )}
             <Link to="/" className="flex items-center gap-2.5 font-heading font-semibold">
               <Logo className="w-8 h-8" />
-              <span className="hidden sm:inline">TransitTrack</span>
+              <span className="text-lg font-extrabold tracking-tight">Transit<span className="text-primary">Track</span></span>
             </Link>
           </div>
+          {pathname === "/staff" && <nav aria-label="Passenger navigation" className="hidden lg:flex gap-1">
+            <Link to="/staff" className="rounded-lg bg-primary/10 text-primary px-4 py-2 text-sm font-semibold">Live bus</Link>
+            <Link to="/route-explorer" className="rounded-lg px-4 py-2 text-sm hover:bg-accent">Routes & map</Link>
+            <Link to="/notifications" className="rounded-lg px-4 py-2 text-sm hover:bg-accent">Messages</Link>
+          </nav>}
           <div className="flex items-center gap-2">
             {user && (
               <span className="hidden md:block text-sm text-muted-foreground max-w-[220px] truncate">
