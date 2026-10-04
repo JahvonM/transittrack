@@ -400,7 +400,7 @@ async function replayInspection(base44,device,body) {
  const id=body.client_request_id;
  if(id===undefined) return {fields:{},prior:null};
  if(typeof id!=='string' || !/^[a-zA-Z0-9_-]{8,100}$/.test(id)) throw Object.assign(new Error('Invalid request ID'),{status:400});
- const {driver_grant,device_token,device_id,client_request_id,...data}=body;
+ const {driver_grant,device_token,device_id,client_request_id,expected_device_id,expected_company_id,expected_vehicle_id,...data}=body;
  const hash=await hashSecret(JSON.stringify(data));
  const prior=(await base44.asServiceRole.entities.Inspection.filter({client_request_id:id,request_actor_id:device.id,company_id:device.company_id,vehicle_id:device.vehicle_id},'-created_date',1))[0];
  if(prior && prior.request_hash!==hash) throw Object.assign(new Error('Request ID reused with different data'),{status:409});

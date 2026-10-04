@@ -415,4 +415,60 @@ unused plaintext PINs), configure authenticated jobs, and exercise verified real
 roles before first production. Frontend has not been published. Backend/resources
 auto-sync, so older published clients will lose broad direct entity access until
 coordinated frontend rollout. No development tablet revocation, key generation,
-credential rotation or GitHub security setting changes. STEP 6 has not started.
+credential rotation or GitHub security setting changes. STEP 6 implementation and focused verification are complete; see below.
+
+
+## STEP 6 — Offline queues, replay IDs and GPS integrity (2026-10-04)
+
+Failed check-in, GPS and inspection/shift uploads retain saved work for all HTTP
+errors and network failures. Queues stop at the first failed item to preserve order.
+Storage failures no longer pretend that work was saved; corrupt queue storage is
+preserved and reported instead of being replaced with an empty array. Mechanic
+jobs save progress before and between requests; operator banners expose upload
+errors. Driver inspection storage-full fallback no longer silently discards photos.
+
+Check-ins use persistent client_request_id values before the first online request;
+older queued check-ins receive and persist IDs before replay. Server retries are
+scoped by device/company/vehicle and content hash. Completed writes can be
+acknowledged after a boarding grant expires; new writes still require verification.
+Changed data with the same ID returns 409. New IDs require explicit boarding status
+and valid supplied timestamps. No new credential directory or offline PIN bypass.
+
+Mechanic InspectionResult/Fault rows receive persistent individual IDs before any
+request, with actor-scoped backend deduplication and content hashes. Driver basic
+and template inspections reuse their saved parent on retry; per-item result/fault
+IDs resume partial completion. Required fault-write failures now retain the job for
+retry instead of acknowledging incomplete work. Driver start/end shifts have
+persistent replay IDs so replaying an old end action cannot end a newer shift.
+Queued replay uses current device tokens and current driver grants at send time.
+
+GPS validates numeric coordinates, bounds, speed (0–100 m/s) and timestamps
+(72 hours old through one minute ahead). Invalid/oversized batches are rejected
+in full so the client retains them. Sequential retries check tenant-scoped history
+with pagination; server read errors stop the write rather than guessing no
+duplicates exist. Replayed older samples cannot replace a newer live position.
+GPS uses sample time, not replay time. The existing 2,000-point local cap thins older
+points and server history samples at approximately one minute; this is intentionally
+reduced detail, not lossless storage of every GPS fix.
+
+New queued boarding/GPS data carry original tablet/company/vehicle assignment
+metadata, checked server-side before writing. Newly queued driver inspection/shift
+jobs take binding from the matching cached session when available. Legacy queues
+without binding cannot have their historical assignment inferred safely and need
+operator review before re-pairing/rollout. No existing queue was cleared.
+
+IMPORTANT RELEASE LIMITS: lookup then create/update is NOT an atomic transaction.
+Sequential replay and partial recovery are covered, but concurrent requests/tabs
+can still create duplicates or race live GPS updates. A platform-supported unique
+constraint/transaction/CAS remains required before claiming exactly-once delivery.
+Legacy check-ins already saved before replay IDs existed cannot be retroactively
+deduplicated from a lost response. Expired driver grants require an online PIN
+unlock; expired uncompleted boarding grants and GPS beyond the 72-hour window
+remain retained for operator resolution. Corrupt/full browser storage requires
+recovery; do not clear storage to dismiss the error. Authenticated live tablet/role
+testing is still outstanding; this phase uses mocks and does not mutate live
+development device records or publish the frontend.
+
+Validation: 145 unit tests (27 new Step 6 regressions), lint/build and four mocked
+Chromium tests pass. STEP 7 has not begun. No production credential rotation,
+development tablet revocation, signing-key generation or frontend publication.

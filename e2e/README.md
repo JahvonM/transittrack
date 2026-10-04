@@ -77,3 +77,5 @@ on the steady-state (already-paired) code path every run:
 - `6ab72f96a01e01329ada39dd` — "E2E Driver Test Device", same vehicle (driver_pin `1111`).
 
 Don't unpair or delete these — the tests depend on them staying paired.
+
+Step 6 adds offlineDurability.test.js and offlineBackend.test.js for retained HTTP failures, storage corruption/quota errors, stable replay IDs, partial inspections, shift retries, stale GPS and assignment mismatches. These are mock-only and do not seed live entities. Atomic concurrent deduplication and legacy unbound queues remain release limits in handoff.md.

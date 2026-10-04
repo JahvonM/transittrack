@@ -78,7 +78,7 @@ describe('offline replay backend contracts',()=>{
   expect((await api.default(req(body))).status).toBe(503);
   expect(sdk.tables.Inspection).toHaveLength(1);
   fail=false;
-  expect((await api.default(req(body))).status).toBe(200);
+  expect((await api.default(req({...body,expected_vehicle_id:'bus',expected_company_id:'company'}))).status).toBe(200);
   expect((await api.default(req(body))).status).toBe(200);
   expect(sdk.tables.Inspection).toHaveLength(1);expect(sdk.tables.Fault).toHaveLength(1);
   expect((await api.default(req({...body,service_notes:'Different'}))).status).toBe(409);
@@ -109,6 +109,17 @@ describe('offline replay backend contracts',()=>{
   await send({action:'start_shift',client_request_id:'start-456',occurred_at:time});
   expect((await (await send(end)).json()).deduplicated).toBe(true);
   expect(sdk.tables.DriverShift).toHaveLength(2);expect(sdk.tables.DriverShift[1].ended_at).toBeUndefined();
+ });
+
+ it('rejects queued boarding work from another tablet assignment',async()=>{
+  const sdk=mock();sdk.tables.KioskDevice[0].kiosk_type='bus_boarding';
+  const response=await load('kioskCheckIn',sdk).default(req({device_id:'tablet',action:'check_in',staff_name:'Manual',method:'manual',status:'boarded',client_request_id:'request-123',expected_company_id:'other'}));
+  expect(response.status).toBe(409);expect(sdk.tables.StaffCheckIn).toBeUndefined();
+ });
+ it('rejects a GPS batch containing a point from another vehicle assignment',async()=>{
+  const {sdk,send}=await driver();
+  const response=await send({action:'upload_track',points:[{t:new Date().toISOString(),lat:18,lng:-76,expected_vehicle_id:'other'}]});
+  expect(response.status).toBe(409);expect(sdk.tables.LocationPing).toBeUndefined();
  });
 
 });
