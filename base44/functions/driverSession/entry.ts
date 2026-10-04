@@ -192,7 +192,7 @@ async function loadStaff(base44, companyId) {
   const approvedIds = await approvedStaffIds(base44, companyId);
   const [users, contacts] = await Promise.all([
     base44.asServiceRole.entities.User.list(),
-    base44.asServiceRole.entities.Contact.filter({ type: 'staff', company_id: companyId }, '-updated_date', 500),
+    base44.asServiceRole.entities.Contact.filter({ type: { $in: ['staff','passenger'] }, company_id: companyId }, '-updated_date', 500),
   ]);
   const userByEmail = new Map(
     users.filter((u) => ['staff','passenger'].includes(u.role) && approvedIds.has(u.id))

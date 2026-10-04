@@ -73,7 +73,7 @@ async function loadStaffDirectory(base44, companyId) {
   const approvedIds = await approvedStaffIds(base44, companyId);
   const [users, contacts] = await Promise.all([
     base44.asServiceRole.entities.User.list(),
-    base44.asServiceRole.entities.Contact.filter({ type: 'staff', company_id: companyId }, '-updated_date', 500),
+    base44.asServiceRole.entities.Contact.filter({ type: { $in: ['staff','passenger'] }, company_id: companyId }, '-updated_date', 500),
   ]);
   const activeCards = await base44.asServiceRole.entities.NfcCard.filter({ company_id: companyId, is_active: true }, '-issue_date', 3000);
   const cardForUser = id => activeCards.find(c => c.holder_source === 'user' && c.holder_id === id && (!c.expiry_date || c.expiry_date >= new Date().toISOString().slice(0,10)))?.card_uid || '';
