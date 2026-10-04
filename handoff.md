@@ -306,3 +306,9 @@ Backend auto-syncs; frontend not published; coordinate development rollout befor
 using changed PIN/boarding/code contracts. Existing temporary codes must be
 regenerated; existing raw cached join codes require re-entry after rollout.
 STEP 5 is not started.
+
+Verification: lint/build, 91 unit tests including 11 new verification regressions,
+and 2 mocked Chromium tablet tests pass. Browser tests verify old credential cache
+cleanup and that a daily unlock flag cannot skip PIN startup. The five new schemas
+were confirmed synced with admin-only permissions. Tests use mock data, not live
+credentials or device records. STEP 4 checkpoint saved after verification.
