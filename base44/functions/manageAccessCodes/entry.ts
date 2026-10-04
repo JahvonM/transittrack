@@ -18,8 +18,14 @@ async function liveMembership(db,row) {
  const bytes=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(company.access_code||''));
  return row.code_hash===Array.from(new Uint8Array(bytes),b=>b.toString(16).padStart(2,'0')).join('');
 }
+async function getRecord(db,entity,id) {
+ try { return await db[entity].get(id); } catch(error) {
+  if(error.status===404||error.response?.status===404)return null;
+  throw error;
+ }
+}
 async function authorizeCompany(db,user,id) {
- const company=await db.Company.get(id);if(!company)fail(404,'Company not found');
+ const company=await getRecord(db,"Company",id);if(!company)fail(404,'Company not found');
  if(user.role!=='admin') {
   const memberships=await db.CompanyMembership.filter({user_id:user.id,company_id:id,scope:'manager',active:true},'-updated_date',100);
   let allowed=false;for(const row of memberships)if(await liveMembership(db,row)){allowed=true;break;}
@@ -31,7 +37,7 @@ export default async function(req) {
  try {
   const base44=createClientFromRequest(req),db=base44.asServiceRole.entities;
   const session=await base44.auth.me().catch(()=>null);if(!session)fail(401,'Sign in required');
-  const user=await db.User.get(session.id);if(!user||user.id!==session.id||!['admin','company'].includes(user.role))fail(403,'Administrators or approved company managers only');
+  const user=await getRecord(db,"User",session.id);if(!user||user.id!==session.id||!['admin','company'].includes(user.role))fail(403,'Administrators or approved company managers only');
   const body=await req.json();
   if(body.action==='issue_company') {
    if(typeof body.company_id!=='string'||!body.company_id)fail(400,'Company required');
@@ -42,7 +48,7 @@ export default async function(req) {
   }
   if(!['issue_pairing','revoke_device','reactivate_device'].includes(body.action))fail(400,'Unsupported action');
   if(typeof body.device_id!=='string'||!body.device_id)fail(400,'Device required');
-  const device=await db.KioskDevice.get(body.device_id);if(!device)fail(404,'Device not found');
+  const device=await getRecord(db,"KioskDevice",body.device_id);if(!device)fail(404,'Device not found');
   await authorizeCompany(db,user,device.company_id);
   if(body.action==='revoke_device') {
    await db.KioskDevice.update(device.id,{status:'revoked',paired:false,pairing_code:'',pairing_expires_at:null});
@@ -52,7 +58,7 @@ export default async function(req) {
   if(device.paired&&body.replace_existing!==true)fail(409,'Explicit confirmation is required to replace a paired device');
   if(['driver','bus_boarding'].includes(device.kiosk_type)&&!device.vehicle_id)fail(400,'Vehicle assignment required');
   if(device.vehicle_id) {
-   const vehicle=await db.Vehicle.get(device.vehicle_id);if(!vehicle||vehicle.company_id!==device.company_id)fail(403,'Vehicle assignment mismatch');
+   const vehicle=await getRecord(db,"Vehicle",device.vehicle_id);if(!vehicle||vehicle.company_id!==device.company_id)fail(403,'Vehicle assignment mismatch');
   }
   const code=await uniqueAccessCode(db,'KioskDevice','pairing_code'),expires_at=new Date(Date.now()+PAIR_TTL_MS).toISOString();
   await db.KioskDevice.update(device.id,{status:'active',paired:false,pairing_code:code,pairing_expires_at:expires_at});

@@ -319,17 +319,16 @@ export default async function(req) {
         if (!code) return Response.json({ error: 'code required' }, { status: 400 });
         const directory = await loadStaffDirectory(base44, companyId);
         const now = Date.now();
-        let person = directory.find((s) => s.access_code && s.access_code === code);
+        const legacyMatches=directory.filter(s=>s.access_code&&s.access_code===code);
+        const credentials = await base44.asServiceRole.entities.PassengerAccessCredential.filter({ company_id: companyId, token_hash: await hashSecret(code) }, '-updated_date', 2);
+        if (legacyMatches.length + credentials.length > 1) return Response.json({error:'Ambiguous keypad code; request reissue'},{status:409});
+        let person=legacyMatches[0];
         let codeType = 'access';
-        if (!person) {
-          const credentials = await base44.asServiceRole.entities.PassengerAccessCredential.filter({ company_id: companyId, token_hash: await hashSecret(code) }, '-updated_date', 2);
-          if(credentials.length>1)return Response.json({error:'Ambiguous keypad code; request reissue'},{status:409});
-          const credential=credentials[0];
-          if(credential?.contact_id)person=directory.find(s=>s.source==='contact'&&s.id===credential.contact_id);
-          else {
-            const user=credential?.user_id?await base44.asServiceRole.entities.User.get(credential.user_id):null;
-            person=user?directory.find(s=>s.id===user.id||(s.email&&s.email.toLowerCase()===(user.email||'').toLowerCase())):null;
-          }
+        const credential=credentials[0];
+        if(!person&&credential?.contact_id)person=directory.find(s=>s.source==='contact'&&s.id===credential.contact_id);
+        else if(!person&&credential?.user_id) {
+          const user=await base44.asServiceRole.entities.User.get(credential.user_id);
+          person=user?directory.find(s=>s.id===user.id||(s.email&&s.email.toLowerCase()===(user.email||'').toLowerCase())):null;
         }
         if (!person) {
           const credentials = await base44.asServiceRole.entities.PassengerOneTimeCredential.filter({ company_id: companyId, token_hash: await hashSecret(code) }, '-created_date', 2);
