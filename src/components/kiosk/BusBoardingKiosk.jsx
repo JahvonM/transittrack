@@ -298,7 +298,11 @@ export default function BusBoardingKiosk({ invoke, device }) {
   };
 
   // "Wrong bus" / "no bus yet" from the server or the saved list.
-  const busMessage = (e) => (["wrong_bus", "no_bus"].includes(e?.response?.data?.error) ? e.response.data.message : "");
+  const busMessage = (e) => {
+    if (e?.response?.data?.error === "verification_requires_connection" || isNetworkFailure(e)) return "Connect to WiFi to verify your card or code.";
+    if (e?.response?.status === 429) return "Too many attempts. Try again in a minute.";
+    return ["wrong_bus", "no_bus"].includes(e?.response?.data?.error) ? e.response.data.message : "";
+  };
 
   const handleTag = async (tag) => {
     if (lookupStarted.current && Date.now() - lookupStarted.current < 12000) return;

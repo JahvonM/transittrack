@@ -144,10 +144,7 @@ export default function Kiosk() {
     return () => { window.removeEventListener("online", up); window.removeEventListener("offline", down); };
   }, []);
 
-  // Keep a copy of who can board (names, card IDs, keypad codes) on the
-  // tablet, refreshed every few minutes, so cards and codes still work offline.
-  // An admin pressing "Send to bus tablet" (Card issuing) changes
-  // directory_sent_at, which makes the tablet download the list right away.
+  // Refresh credential-free display metadata and replace any legacy directory.
   const isBoarding = device?.kiosk_type === "bus_boarding";
   const sentAt = device?.directory_sent_at || null;
   useEffect(() => {
@@ -172,7 +169,7 @@ export default function Kiosk() {
 
   // Every kiosk action (search/lookup/check-in/register/sign-in) goes
   // through this one backend function, keyed by device_id like driverSession.
-  // With no connection, card and code lookups are answered from the saved list.
+  // With no connection, card and code verification fails with a connection prompt.
   const invoke = useCallback(async (action, payload = {}) => {
     try {
       // A request that never answers (bus WiFi connected but no internet)
@@ -295,17 +292,11 @@ export default function Kiosk() {
   );
 }
 
-function OfflineChip({ savedList }) {
-  const updated = savedList?.updated ? new Date(savedList.updated) : null;
-  const time = updated && !Number.isNaN(updated.getTime())
-    ? updated.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
-    : null;
+function OfflineChip() {
   return (
     <div role="status" className="fixed bottom-3 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 rounded-full bg-amber-500 text-black px-4 py-2 text-sm font-semibold shadow-lg">
       <WifiOff className="w-4 h-4" />
-      {savedList?.count
-        ? `Offline - using saved list${time ? `, updated ${time}` : ""}. Check-ins will sync.`
-        : "Offline - check-ins will sync when WiFi is back."}
+      Offline — connect to verify cards or codes. Pending check-ins will sync.
     </div>
   );
 }

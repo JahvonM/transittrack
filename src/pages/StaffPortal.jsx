@@ -218,6 +218,7 @@ export default function StaffPortal() {
 
   const switchCompany = () => {
     localStorage.removeItem("tt_company_code");
+    localStorage.removeItem("tt_company_access_grant");
     setSheet(null);
     setCompany(null);
     setCompanyPhone("");

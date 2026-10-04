@@ -414,8 +414,11 @@ export default function DriversTab({ drivers, vehicles, companies, routes, onCha
   };
 
   const setPin = async (vehicleId, pin) => {
-    await base44.functions.invoke("manageDriverPin", { vehicle_id: vehicleId, pin: pin || "" });
-    onChange();
+    try {
+      await base44.functions.invoke("manageDriverPin", { vehicle_id: vehicleId, pin: pin || "" });
+      toast({ title: "Driver PIN updated" });
+      onChange();
+    } catch { toast({ title: "Could not save driver PIN", variant: "destructive" }); }
   };
 
   const removeDriver = async (driver) => {

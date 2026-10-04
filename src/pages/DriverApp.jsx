@@ -52,6 +52,11 @@ export default function DriverApp() {
   // Follow the URL (e.g. "Continue" after an inspection goes to /driver/track).
   useEffect(() => { const t = tabFromStage(urlStage); if (t) setActiveTab(t); }, [urlStage]);
   const { session, loading, offline, invoke, refresh } = useDriverSession(deviceId);
+  useEffect(() => {
+    const lock = () => setUnlocked(false);
+    window.addEventListener("tt-driver-locked", lock);
+    return () => window.removeEventListener("tt-driver-locked", lock);
+  }, []);
   // Updates only happen while the bus is stopped and nobody has touched the
   // screen for 3 minutes (see lib/tabletUpdate).
   useTabletUpdates({
@@ -317,7 +322,7 @@ export default function DriverApp() {
       <div className="min-h-screen p-4 safe-area-top safe-area-x">
         <div className="space-y-4 max-w-3xl mx-auto">
           <DriverGreeting driverName={driverName} subtitle={vehicle.name} />
-          <PinGate vehicle={vehicle} invoke={invoke} onUnlock={() => { localStorage.setItem("tt_driver_unlock_date", new Date().toISOString().slice(0, 10)); setUnlocked(true); if (dueInspections.length) openInspection(dueInspections[0], { from: "unlock" }); else goStage("track"); }} />
+          <PinGate deviceId={deviceId} vehicle={vehicle} invoke={invoke} onUnlock={() => { localStorage.setItem("tt_driver_unlock_date", new Date().toISOString().slice(0, 10)); setUnlocked(true); if (dueInspections.length) openInspection(dueInspections[0], { from: "unlock" }); else goStage("track"); }} />
         </div>
       </div>
     );

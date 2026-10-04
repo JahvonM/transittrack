@@ -8,7 +8,7 @@ import { Lock, Unlock } from "lucide-react";
 
 const REVIEWER_PIN = "9999";
 
-export default function PinGate({ vehicle, invoke, onUnlock }) {
+export default function PinGate({ vehicle, deviceId, invoke, onUnlock }) {
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
   const [checking, setChecking] = useState(false);
@@ -21,7 +21,7 @@ export default function PinGate({ vehicle, invoke, onUnlock }) {
     try {
       const result = await invoke("verify_pin", { pin });
       if (result?.ok !== true) throw new Error("PIN verification failed");
-      saveDriverGrant(localStorage.getItem("tt_driver_device_id"), result.driver_grant);
+      saveDriverGrant(deviceId, result.driver_grant);
       onUnlock();
     } catch {
       setError("Could not unlock. Check your PIN and connection, or contact your administrator.");

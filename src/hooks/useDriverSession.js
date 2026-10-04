@@ -107,8 +107,13 @@ export function useDriverSession(deviceId, { intervalMs = 8000 } = {}) {
   }, [deviceId]);
 
   const invoke = useCallback(async (action, payload = {}) => {
-    const res = await base44.functions.invoke("driverSession", deviceRequest(deviceId, { ...payload, action }));
-    return res.data;
+    try {
+      const res = await base44.functions.invoke("driverSession", deviceRequest(deviceId, { ...payload, action }));
+      return res.data;
+    } catch (error) {
+      if (error?.response?.status === 401) window.dispatchEvent(new Event("tt-driver-locked"));
+      throw error;
+    }
   }, [deviceId]);
 
   return { session, loading, error, offline, refresh: heartbeat, invoke };

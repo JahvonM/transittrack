@@ -1,9 +1,5 @@
 import { cleanTabletSession } from "./tabletSession";
-// What a bus boarding tablet keeps on the device so it still works with no
-// WiFi: its own setup (so it opens straight into boarding), and the list of
-// who can board - names, card IDs and keypad codes for this company -
-// refreshed every few minutes while online. Check-ins made offline are
-// queued (lib/offlineQueue) and uploaded with the time they really happened.
+// Cache tablet display information only. Credential verification requires a connection.
 const DEVICE_KEY = "tt_kiosk_device_cache";
 const DIRECTORY_KEY = "tt_kiosk_directory";
 const LAST_STATUS_KEY = "tt_kiosk_last_status";
@@ -16,11 +12,12 @@ const write = (key, value) => {
 };
 
 export function saveDevice(device) {
-  if (device) write(DEVICE_KEY, device);
+  if (device) write(DEVICE_KEY, cleanTabletSession(device));
 }
 export function loadDevice(deviceId) {
   clearLegacyDirectory();
-  const d = read(DEVICE_KEY, null);
+  const d = cleanTabletSession(read(DEVICE_KEY, null));
+  if (d) write(DEVICE_KEY, d);
   return d && (d.device_id === deviceId || d.id === deviceId || !deviceId) ? d : null;
 }
 export function forgetTablet() {
@@ -33,6 +30,7 @@ export function saveDirectory(data) {
   if (data?.staff) write(DIRECTORY_KEY, { generated_at: data.generated_at || new Date().toISOString(), staff: data.staff.map(s => Object.fromEntries(["id", "full_name", "photo_url", "vehicle_id", "vehicle_name"].filter(k => s[k] !== undefined).map(k => [k, s[k]]))) });
 }
 export function directoryInfo() {
+  clearLegacyDirectory();
   const d = read(DIRECTORY_KEY, null);
   return d ? { count: d.staff.length, updated: d.generated_at } : null;
 }
