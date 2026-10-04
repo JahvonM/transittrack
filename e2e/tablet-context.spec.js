@@ -106,3 +106,23 @@ test('driver can choose a returned route and its ETA updates', async ({ page, co
   await expect(option).toHaveAttribute('aria-pressed', 'true');
   await expect.poll(() => page.getByTestId('nav-eta').innerText()).not.toBe(before);
 });
+
+test('boarding passengers display full-screen IDs in sequence',async({page})=>{
+ let reads=0;
+ const live={...driver};
+ Object.defineProperty(live,'check_ins',{enumerable:true,get:()=> (++reads>1 ? [
+  {id:'boarding-2',staff_name:'Second Passenger',status:'boarded',boarded_at:'2026-10-04T12:00:01Z',check_in_method:'nfc'},
+  {id:'boarding-1',staff_name:'First Passenger',status:'boarded',boarded_at:'2026-10-04T12:00:00Z',check_in_method:'nfc'},
+ ] : [])});
+ await mockApi(page,[],live);
+ await page.addInitScript(()=>localStorage.setItem('tt_driver_device_id','driver-test'));
+ await page.goto('/driver/profile');
+ await page.locator('input[type=password]').fill('1234');
+ await page.getByRole('button',{name:'Unlock',exact:true}).click();
+ const id=page.getByRole('dialog',{name:'Passenger boarding ID'});
+ await expect(id).toBeVisible({timeout:25000});
+ await expect(id).toContainText('First Passenger');
+ await id.getByRole('button',{name:'Close',exact:true}).click();
+ await expect(id).toContainText('Second Passenger');
+ await expect(id).toBeHidden({timeout:9000});
+});

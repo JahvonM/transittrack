@@ -38,3 +38,31 @@ test('company fleet uses approved context and scoped entity access',async({page}
  // SDK analytics resolves its own signed-in User/me; all app entity reads use the gateway.
  expect(direct.filter(url=>!url.endsWith('/entities/User/me'))).toEqual([]);
 });
+
+test('email passenger directory links to card issuing without displaying card UIDs',async({page})=>{
+ await session(page,'admin');
+ await page.route('**/functions/nfcCards',route=>route.fulfill({json:{people:[{key:'user:email-passenger',source:'user',id:'email-passenger',name:'Email Passenger',email:'email@test.invalid',company_id:'a',company_name:'Company A',registered:true,status:'Unassigned'}]}}));
+ await page.goto('/admin/directory');
+ await expect(page.getByText('Email Passenger',{exact:true})).toBeVisible();
+ await expect(page.getByText('Email account',{exact:true})).toBeVisible();
+ await expect(page.getByRole('link',{name:'Issue card'})).toHaveAttribute('href','/admin/cards?person=user%3Aemail-passenger');
+});
+test('card designer exports a printable PNG using selected passenger details',async({page})=>{
+ await session(page,'admin');
+ await page.route('**/functions/nfcCards',route=>route.fulfill({json:{people:[{key:'user:email-passenger',name:'Email Passenger',company_name:'Company A',employee_id:'EMP-12',card:{card_uid:'SECRETUID'}}]}}));
+ await page.goto('/admin/card-designs');
+ await page.getByLabel('Card holder',{exact:true}).selectOption('user:email-passenger');
+ await expect(page.getByTestId('card-artwork-preview')).toContainText('Email Passenger');
+ await expect(page.getByTestId('card-artwork-preview')).toContainText('EMP-12');
+ await expect(page.getByTestId('card-artwork-preview')).not.toContainText('SECRETUID');
+ const downloaded=page.waitForEvent('download');
+ await page.getByRole('button',{name:'Download PNG',exact:true}).click();
+ const download=await downloaded;
+ expect(download.suggestedFilename()).toBe('Email-Passenger-front-card.png');
+ const stream=await download.createReadStream();const chunks=[];for await(const chunk of stream)chunks.push(chunk);
+ const bytes=Buffer.concat(chunks);
+ expect(bytes.subarray(1,4).toString()).toBe('PNG');
+ expect(bytes.readUInt32BE(16)).toBe(1011);expect(bytes.readUInt32BE(20)).toBe(638);
+ await page.getByRole('button',{name:'Back',exact:true}).click();
+ await expect(page.getByTestId('card-artwork-preview')).toContainText('If found');
+});
