@@ -327,8 +327,9 @@ export default function DriverApp() {
 
   if (!unlocked) {
     return (
-      <div className="min-h-[100dvh] grid place-items-center p-6 safe-area-top safe-area-x">
-        <div className="grid w-full max-w-4xl gap-10 md:grid-cols-2 md:items-center">
+      <div className="min-h-[100dvh] grid place-items-center safe-area-top safe-area-x">
+        {/* Padding sits inside: safe-area-x replaces the outer box's padding. */}
+        <div className="grid w-full max-w-4xl gap-10 p-6 md:grid-cols-2 md:items-center">
           <DriverGreeting driverName={driverName} subtitle={vehicle.name} />
           <PinGate deviceId={deviceId} vehicle={vehicle} invoke={invoke} onUnlock={() => { localStorage.setItem("tt_driver_unlock_date", new Date().toISOString().slice(0, 10)); setUnlocked(true); if (dueInspections.length) openInspection(dueInspections[0], { from: "unlock" }); else goStage(session?.open_shift ? "track" : "home"); }} />
         </div>
