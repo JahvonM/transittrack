@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import ts from 'typescript';
+import { createHash } from 'node:crypto';
 function handler(name,client) {
  const source=fs.readFileSync(new URL(`../../../base44/functions/${name}/entry.ts`,import.meta.url),'utf8').replace(/^import .*;\s*$/gm,'');
  const exports={};
@@ -152,6 +153,36 @@ describe('company and role access boundaries',()=>{
  it('allows admin company creation without letting company users create ownership records',async()=>{
   expect((await call(sdk('admin'),{entity:'Company',operation:'create',data:{name:'New',access_code:'NEWCODE'}})).status).toBe(200);
   expect((await call(sdk(),{entity:'Company',operation:'create',data:{name:'New'}})).status).toBe(403);
+ });
+ it('expires passenger code memberships and invalidates them when the code changes',async()=>{
+  const client=sdk('staff');
+  client.tables.CompanyMembership[0].expires_at='2099-01-01';
+  client.tables.CompanyMembership[0].code_hash=createHash('sha256').update('SENTINEL').digest('hex');
+  expect((await call(client,{entity:'Vehicle',operation:'list'})).data.result).toHaveLength(1);
+  client.tables.Company[0].access_code='CHANGED';
+  expect((await call(client,{entity:'Vehicle',operation:'list'})).data.result).toEqual([]);
+  client.tables.Company[0].access_code='SENTINEL';
+  client.tables.CompanyMembership[0].expires_at='2000-01-01';
+  expect((await call(client,{entity:'Vehicle',operation:'list'})).data.result).toEqual([]);
+ });
+ it('keeps centralized unscoped parts editable by mechanics',async()=>{
+  const client=sdk('mechanic');
+  expect((await call(client,{entity:'Part',operation:'create',data:{part_name:'Shared stock',quantity_in_stock:3}})).status).toBe(200);
+ });
+ it('scopes company delay broadcasts even when the UI omits company_id',async()=>{
+  const client=sdk();
+  expect((await call(client,{entity:'Broadcast',operation:'create',data:{title:'Delay',message:'Late'}})).status).toBe(200);
+  expect(client.tables.Broadcast[0].company_id).toBe('a');
+ });
+ it('assigns lost reports to the authenticated passenger and hides others',async()=>{
+  const client=sdk('staff');
+  const created=await call(client,{entity:'LostItemReport',operation:'create',data:{company_id:'a',description:'Bag',reporter_email:'forged@test.local'}});
+  expect(created.status).toBe(200);
+  expect(client.tables.LostItemReport[0].reporter_email).toBe('caller@test.local');
+  client.tables.LostItemReport.push({id:'other-report',company_id:'a',reporter_id:'other',description:'Private'});
+  const read=await call(client,{entity:'LostItemReport',operation:'filter',query:{created_by_id:'forged'}});
+  expect(read.data.result).toHaveLength(1);
+  expect(read.data.result[0].description).toBe('Bag');
  });
  it('locks all direct custom entities except public advertisement reads to admin',()=>{
   const directory=new URL('../../../base44/entities/',import.meta.url);
