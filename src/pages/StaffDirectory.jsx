@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { confirmAction } from "@/components/ConfirmHost";
 import { base44 } from "@/api/base44Client";
 import AppLayout from "@/components/AppLayout";
@@ -22,30 +23,13 @@ export default function StaffDirectory() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState(null);
 
-  const load = () => {
-    base44.entities.Contact.list("-updated_date", 200).then((c) => {
-      setContacts(c);
-      setLoading(false);
-    }).catch(() => { setLoading(false); loadFailed(); });
+  const load = async () => {
+    try {
+      const res = await base44.functions.invoke("nfcCards", { action: "directory" });
+      setContacts((res.data?.people || []).map(p => ({ ...p, type: p.directory_type || (p.company_id ? "staff" : "passenger") })));
+    } catch { loadFailed(); } finally { setLoading(false); }
   };
-
-  useEffect(() => {
-    load();
-    // Apply realtime updates incrementally (mirrors Notifications.jsx) instead
-    // of re-fetching the whole list on every single event.
-    const unsub = base44.entities.Contact.subscribe((event) => {
-      if (event.type === "delete") {
-        setContacts((prev) => prev.filter((c) => c.id !== event.id));
-        return;
-      }
-      if (!event.data) return;
-      setContacts((prev) => {
-        const idx = prev.findIndex((c) => c.id === event.data.id);
-        return idx === -1 ? [event.data, ...prev] : prev.map((c) => (c.id === event.data.id ? event.data : c));
-      });
-    });
-    return unsub;
-  }, []);
+  useEffect(() => { load(); }, []);
 
   const openAdd = () => {
     setEditing(null);
@@ -82,7 +66,7 @@ export default function StaffDirectory() {
   const [query, setQuery] = useState("");
   const q = query.trim().toLowerCase();
   const filtered = (filter === "all" ? contacts : contacts.filter((c) => c.type === filter))
-    .filter((c) => !q || [c.name, c.phone, c.email, c.nfc_card_tag, c.pickup_name, c.dropoff_name, c.company_name].some((x) => String(x || "").toLowerCase().includes(q)));
+    .filter((c) => !q || [c.name, c.phone, c.email, c.pickup_name, c.dropoff_name, c.company_name].some((x) => String(x || "").toLowerCase().includes(q)));
   const place = (name, lat, lng) => name || (lat != null ? `${lat?.toFixed(4)}, ${lng?.toFixed(4)}` : "");
 
   return (
@@ -97,7 +81,7 @@ export default function StaffDirectory() {
         <label className="relative min-w-[220px] flex-1 sm:max-w-sm">
           <span className="sr-only">Search passengers</span>
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
-          <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Name, phone, card or stop"
+          <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Name, phone or stop"
             className="h-10 w-full rounded-xl border border-input bg-card pl-9 pr-3 text-body-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
         </label>
         <Segmented label="Passenger type" value={filter} onChange={setFilter} options={["all", "staff", "passenger"].map((t) => ({
@@ -115,8 +99,8 @@ export default function StaffDirectory() {
         <EmptyState icon={Search} title="No passengers match">Try another search or type.</EmptyState>
       ) : (
         <div className="overflow-hidden rounded-2xl border border-border bg-card">
-          <div className="hidden grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1.4fr)_auto] gap-4 border-b border-border px-4 py-3 text-caption font-semibold uppercase tracking-wide text-muted-foreground lg:grid" aria-hidden="true">
-            <span>Passenger</span><span>Contact</span><span>Pickup and drop-off</span><span className="w-[136px] text-right">Actions</span>
+          <div className="hidden grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1.3fr)_252px] gap-4 border-b border-border px-4 py-3 text-caption font-semibold uppercase tracking-wide text-muted-foreground lg:grid" aria-hidden="true">
+            <span>Passenger</span><span>Contact</span><span>Pickup and drop-off</span><span className="text-right">Actions</span>
           </div>
           <ul className="divide-y divide-border">
             {filtered.map((c) => {
@@ -125,15 +109,17 @@ export default function StaffDirectory() {
               const dropoff = place(c.dropoff_name, c.dropoff_lat, c.dropoff_lng);
               const initials = (c.name || "?").split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join("");
               return (
-                <li key={c.id} className="grid grid-cols-1 gap-x-4 gap-y-2 px-4 py-3 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1.4fr)_auto] lg:items-center">
+                <li key={c.key} className="grid grid-cols-1 gap-x-4 gap-y-2 px-4 py-3 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1.3fr)_252px] lg:items-center">
                   <div className="flex min-w-0 items-center gap-3">
                     <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-secondary text-body-sm font-bold" aria-hidden="true">{initials}</span>
                     <div className="min-w-0">
                       <p className="truncate font-semibold">{c.name}</p>
                       <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
                         <StatusChip tone={c.type === "staff" ? "info" : "neutral"} dot={false}>{TYPE_LABEL[c.type] || c.type}</StatusChip>
-                        {c.nfc_card_tag && <StatusChip tone="neutral" dot={false}><Nfc className="h-3.5 w-3.5" aria-hidden="true" /> Card</StatusChip>}
+                        {c.status === "Card Issued" && <StatusChip tone="success" dot={false}><Nfc className="h-3.5 w-3.5" aria-hidden="true" /> Card issued</StatusChip>}
+                        {c.registered && <StatusChip tone="neutral" dot={false}>Email account</StatusChip>}
                       </div>
+                      {!c.company_id && <p className="mt-1 text-caption text-warning">Company membership needed before card issuing</p>}
                     </div>
                   </div>
                   <div className="min-w-0 text-body-sm">
@@ -145,14 +131,17 @@ export default function StaffDirectory() {
                     <p className="truncate"><span className="text-muted-foreground">Pickup </span>{pickup || "Not set"}</p>
                     <p className="truncate"><span className="text-muted-foreground">Drop-off </span>{dropoff || "Not set"}</p>
                   </div>
-                  <div className="flex items-center gap-1 lg:w-[136px] lg:justify-end">
+                  <div className="flex flex-wrap items-center gap-1 lg:flex-nowrap lg:justify-end">
+                    <Button asChild variant="outline" size="sm">
+                      <Link to={(user?.role === "admin" ? "/admin/cards" : "/company/cards") + "?person=" + encodeURIComponent(c.key)}><Nfc className="h-4 w-4" /> Issue card</Link>
+                    </Button>
                     {wa && (
                       <Button asChild variant="ghost" size="icon" title="WhatsApp">
                         <a href={wa} target="_blank" rel="noreferrer" aria-label={`WhatsApp ${c.name}`}><MessageCircle className="h-4 w-4" /></a>
                       </Button>
                     )}
-                    <Button variant="ghost" size="icon" onClick={() => openEdit(c)} aria-label={`Edit ${c.name}`} title="Edit"><Pencil className="h-4 w-4" /></Button>
-                    <Button variant="ghost" size="icon" onClick={() => remove(c)} aria-label={`Delete ${c.name}`} title="Delete" className="text-danger hover:text-danger"><Trash2 className="h-4 w-4" /></Button>
+                    {c.source === "contact" && <Button variant="ghost" size="icon" onClick={() => openEdit(c)} aria-label={`Edit ${c.name}`} title="Edit"><Pencil className="h-4 w-4" /></Button>}
+                    {c.source === "contact" && <Button variant="ghost" size="icon" onClick={() => remove(c)} aria-label={`Delete ${c.name}`} title="Delete" className="text-danger hover:text-danger"><Trash2 className="h-4 w-4" /></Button>}
                   </div>
                 </li>
               );
