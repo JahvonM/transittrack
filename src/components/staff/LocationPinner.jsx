@@ -29,8 +29,10 @@ export default function LocationPinner({ onSaved }) {
   const [suggestion, setSuggestion] = useState(null);
   const [origin, setOrigin] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [finding, setFinding] = useState(false);
 
   const pin = async (lat, lng, address) => {
+    setFinding(true);
     setSuggestion(null);
     setOrigin({ lat, lng });
     try {
@@ -43,7 +45,7 @@ export default function LocationPinner({ onSaved }) {
       setSuggestion({ ...result, address: address || (await reverseGeocode(lat, lng)) });
     } catch {
       toast({ title: "Couldn't find a roadside pickup", variant: "destructive" });
-    }
+    } finally { setFinding(false); }
   };
   const saveSuggestion = async () => {
     if (!suggestion || !origin) return;
@@ -87,7 +89,7 @@ export default function LocationPinner({ onSaved }) {
   };
 
   const searchAddress = async () => {
-    if (!query.trim()) return;
+    if (!query.trim() || finding || locating || searching) return;
     setSearching(true);
     try {
       const res = await fetch(
@@ -132,7 +134,7 @@ export default function LocationPinner({ onSaved }) {
           <Button variant="ghost" onClick={() => setSuggestion(null)}>Cancel</Button>
         </div>
       )}
-      {hasPin && user?.home_lat != null && <Button variant="outline" disabled={searching || locating} onClick={async () => { setSearching(true); await pin(user.home_lat,user.home_lng,user.home_address); setSearching(false); }}>Review walking directions</Button>}
+      {hasPin && user?.home_lat != null && <Button variant="outline" disabled={searching || locating || finding} onClick={async () => { setSearching(true); await pin(user.home_lat,user.home_lng,user.home_address); setSearching(false); }}>Review walking directions</Button>}
       <div className="flex gap-2">
         <Input
           placeholder="Search an address…"
@@ -140,11 +142,11 @@ export default function LocationPinner({ onSaved }) {
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && searchAddress()}
         />
-        <Button variant="outline" size="icon" onClick={searchAddress} disabled={searching} aria-label="Search address">
+        <Button variant="outline" size="icon" onClick={searchAddress} disabled={searching || locating || finding} aria-label="Search address">
           <Search className="w-4 h-4" />
         </Button>
       </div>
-      <Button variant="outline" className="w-full" onClick={useGps} disabled={locating}>
+      <Button variant="outline" className="w-full" onClick={useGps} disabled={locating || searching || finding}>
         <Crosshair className="w-4 h-4 mr-2" />
         {locating ? "Locating…" : "Use where I am now"}
       </Button>
