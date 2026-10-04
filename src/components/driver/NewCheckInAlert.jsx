@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import { User as UserIcon, CreditCard, QrCode, Hash, Search } from "lucide-react";
 
 const AUTO_DISMISS_MS = 6000;
@@ -12,11 +12,14 @@ const METHOD_META = {
 
 // Full-screen boarding ID with automatic dismissal and an immediate close button.
 export default function NewCheckInAlert({ checkIn, onDismiss }) {
+  const dismissRef = useRef(onDismiss);
+  dismissRef.current = onDismiss;
+  const eventId = checkIn?.id;
   useEffect(() => {
-    if (!checkIn) return;
-    const t = setTimeout(onDismiss, AUTO_DISMISS_MS);
+    if (!eventId) return;
+    const t = setTimeout(() => dismissRef.current(), AUTO_DISMISS_MS);
     return () => clearTimeout(t);
-  }, [checkIn, onDismiss]);
+  }, [eventId]);
 
   if (!checkIn) return null;
 
