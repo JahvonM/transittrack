@@ -132,12 +132,13 @@ test('driver tablet showcase keeps controls reachable in portrait and landscape'
  await page.route('https://api.mapbox.com/**',r=>r.fulfill({status:404,body:''}));
  await page.addInitScript(()=>{
   localStorage.setItem('tt_driver_device_id','driver-test');
-  localStorage.setItem('tt_driver_grant','a'.repeat(64));
   localStorage.setItem('tt-map-engine','basic');
  });
  for(const size of [{width:1024,height:768},{width:390,height:844}]){
   await page.setViewportSize(size);
   await page.goto('/driver/track');
+  await page.locator('input[type=password]').fill('1234');
+  await page.getByRole('button',{name:'Unlock',exact:true}).click();
   await expect(page.getByRole('navigation',{name:'Driver sections'})).toBeVisible();
   await expect(page.getByRole('button',{name:'Start tracking',exact:true})).toBeVisible();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);

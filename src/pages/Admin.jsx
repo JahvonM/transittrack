@@ -63,6 +63,7 @@ import {
   Map,
   Gauge,
   Siren,
+  Bus,
 } from "lucide-react";
 import { loadFailed } from "@/lib/loadFailed";
 import BusLoader from "@/components/BusLoader";
