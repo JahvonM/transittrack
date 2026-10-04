@@ -254,3 +254,55 @@ resources auto-sync; frontend has not been explicitly published. Coordinate
 frontend rollout before re-pairing devices. No signing-key generation or existing
 tablet revocation. STEP 4 has not started. Earlier company isolation, PIN attempts,
 credential directory and public entity risks remain pending their planned steps.
+
+
+## Pre-production security — STEP 4 (2026-10-03 America/Grenada)
+
+User authorized STEP 4. Driver actions (apart from heartbeat, PIN verification,
+push registration and emergency SOS) now require a protected 12-hour server grant
+issued after PIN verification. Grants bind device/company/vehicle/pairing/purpose;
+client daily unlock flags never authorize backend writes and startup requests PIN
+again. Current grant attaches at send time, including queued driver actions.
+PIN verification is limited to 5 attempts per vehicle per 15 minutes. New/reset
+PINs go through admin-only manageDriverPin and use PBKDF2-SHA256, 600,000 iterations,
+a random salt, protected DriverPinCredential, and clear Vehicle.driver_pin. A
+successful verification lazily migrates an existing development PIN. Unused old
+PINs remain plaintext until reset/migration; migrate every one before production.
+Admin PIN UI is write-only. PIN grants are bearer secrets in dedicated localStorage;
+XSS resistance and session invalidation after PIN reset remain rollout concerns.
+
+Kiosk offline_directory no longer returns card UIDs or permanent/temporary codes.
+Legacy kiosk directory/setup caches are scrubbed on offline startup too. Card/code
+verification now requires a network connection; UI explains it. A verified lookup
+returns a 24-hour boarding grant (not the presented credential) so its confirmation
+can queue if the network drops. The tablet rate limit is 20 lookups per minute.
+Badge/code check-ins require the grant; manual check-ins remain a deliberate paired
+operator capability. Broad offline reliability/idempotency remains STEP 6. Queue
+401/403/429 failures stay queued for recovery, rather than silently disappearing.
+
+Temporary code issuance requires a staff login, allows 3 requests per 30 minutes,
+uses crypto random 6 digits, stores only SHA-256 in protected
+PassengerOneTimeCredential, expires after 30 minutes, invalidates older codes,
+and consumes at successful lookup (cancelling confirmation requires a new code).
+Self-editable legacy User.one_time_code is ignored. Permanent keypad issuing now
+uses crypto randomness and fails when collision allocation exhausts. New company
+codes are crypto random 12 characters; existing codes unchanged. Company code
+verification/restoration goes through companyAccess with 5 attempts per account
+per 15 minutes, protected 30-day access grants, display-only company response,
+and invalidation on code change. CodeGate/StaffPortal no longer download code lists,
+cache raw join codes, or write User.company_id. Company access grants grant only
+passenger display access, never user roles, company ownership or trusted membership.
+
+Release blockers: rate-limit count+append and temporary code consumption are
+persistent but not transactional; concurrent requests can pass their checks.
+Atomic consumption/attempt reservation and cleanup of expired grant/attempt rows
+must be supplied before first production. Schema company isolation and legacy
+credential fields/direct entity reads remain STEP 5 (including User.company_id
+and self-editable badge fields); this step does not claim all public data exposure
+is resolved. Existing Advertisement rules unchanged. New schemas admin-only;
+service-role backend access bypasses them. Live non-admin RLS tests still needed.
+No live accounts created, signing keys generated, or development devices revoked.
+Backend auto-syncs; frontend not published; coordinate development rollout before
+using changed PIN/boarding/code contracts. Existing temporary codes must be
+regenerated; existing raw cached join codes require re-entry after rollout.
+STEP 5 is not started.

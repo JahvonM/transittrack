@@ -24,17 +24,25 @@ async function mockApi(page, calls) {
 test('boarding kiosk renders backend context with entity access blocked', async ({ page }) => {
   const calls = [];
   await mockApi(page, calls);
-  await page.addInitScript(() => localStorage.setItem('tt_kiosk_device_id', 'kiosk-test'));
+  await page.addInitScript(() => {
+    localStorage.setItem('tt_kiosk_device_id', 'kiosk-test');
+    localStorage.setItem('tt_kiosk_directory', JSON.stringify({ staff: [{ id: 'old', full_name: 'Rider', nfc_tag: 'LEGACY_CREDENTIAL', access_code: 'LEGACY_CREDENTIAL' }] }));
+  });
   await page.goto('/kiosk');
   await expect(page.getByText('Company A', { exact: true }).first()).toBeVisible();
   await expect(page.getByText('Bus A', { exact: true }).first()).toBeVisible();
   expect(calls.some((url) => /\/entities\/(Vehicle|Route|StaffCheckIn|Advertisement)/.test(url))).toBe(false);
+  const cached = await page.evaluate(() => localStorage.getItem('tt_kiosk_directory'));
+  expect(cached).not.toContain('LEGACY_CREDENTIAL');
 });
 
 test('driver verifies PIN through backend with entity access blocked', async ({ page }) => {
   const calls = [];
   await mockApi(page, calls);
-  await page.addInitScript(() => localStorage.setItem('tt_driver_device_id', 'driver-test'));
+  await page.addInitScript(() => {
+    localStorage.setItem('tt_driver_device_id', 'driver-test');
+    localStorage.setItem('tt_driver_unlock_date', new Date().toISOString().slice(0, 10));
+  });
   await page.goto('/driver');
   await expect(page.getByText('Driver PIN required')).toBeVisible();
   await page.locator('input[type=password]').fill('0000');
