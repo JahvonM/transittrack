@@ -77,8 +77,8 @@ export default function StaffDirectory() {
   return (
     <AppLayout title="Passenger directory">
       <PullToRefresh onRefresh={load}>
-      <div className="flex items-center justify-between gap-3 mb-4">
-        <div className="flex gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <div className="flex flex-wrap gap-2">
           {["all", "staff", "passenger"].map((t) => (
             <button
               key={t}
@@ -129,9 +129,9 @@ export default function StaffDirectory() {
                   {c.email && (
                     <div className="text-muted-foreground text-xs">{c.email}</div>
                   )}
-                  {c.status === "Card Issued" && (
+                  {c.status && c.status !== "Unassigned" && (
                     <div className="inline-flex items-center gap-1.5 text-xs">
-                      <Nfc className="w-3.5 h-3.5 text-primary" /> Card issued
+                      <Nfc className="w-3.5 h-3.5 text-primary" /> {c.status === "Card Issued" ? "Card issued" : c.status + " card"}
                     </div>
                   )}
                   {(c.pickup_name || c.pickup_lat != null) && (
@@ -148,7 +148,7 @@ export default function StaffDirectory() {
                         `${c.dropoff_lat?.toFixed(4)}, ${c.dropoff_lng?.toFixed(4)}`}
                     </div>
                   )}
-                  <div className="flex items-center gap-2 pt-1">
+                  <div className="flex flex-wrap items-center gap-2 pt-1">
                     {c.source === "contact" && <Button variant="outline" size="sm" onClick={() => openEdit(c)}>
                       <Pencil className="w-3.5 h-3.5" /> Edit
                     </Button>}
@@ -160,7 +160,7 @@ export default function StaffDirectory() {
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </Button>}
-                    <Button asChild variant="outline" size="sm"><Link to={(user?.role === "admin" ? "/admin/cards" : "/company/cards") + "?person=" + encodeURIComponent(c.key)}><Nfc className="w-3.5 h-3.5" /> Issue card</Link></Button>
+                    <Button asChild variant="outline" size="sm"><Link to={(user?.role === "admin" ? "/admin/cards" : "/company/cards") + "?person=" + encodeURIComponent(c.key)}><Nfc className="w-3.5 h-3.5" /> {c.status === "Card Issued" ? "Manage card" : "Issue card"}</Link></Button>
                     {wa && (
                       <a
                         href={wa}

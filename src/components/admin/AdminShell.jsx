@@ -121,13 +121,13 @@ export default function AdminShell({ active, onNavigate, children, alertVehicles
           onNavigate(s.id);
           setOpen(false);
         }}
-        className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
+        className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left text-sm transition-colors ${
           isActive
             ? "bg-primary/15 text-primary font-semibold ring-1 ring-primary/20"
             : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
         }`}
       >
-        <Icon className="w-4 h-4" /> {s.label}
+        <Icon className="w-4 h-4 shrink-0" /><span className="min-w-0 flex-1 leading-5">{s.label}</span>
       </button>
     );
   };

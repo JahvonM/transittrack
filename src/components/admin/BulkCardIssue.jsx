@@ -133,12 +133,10 @@ export default function BulkCardIssue({ people, vehicles, companies, companyName
               {buses.map((v) => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}
             </SelectContent>
           </Select>
-          <div className="flex rounded-lg border p-0.5" role="radiogroup" aria-label="Who">
-            {TYPES.map((t) => (
-              <button key={t.id} type="button" role="radio" aria-checked={type === t.id} onClick={() => { setType(t.id); setUnticked(new Set()); }}
-                className={`flex-1 h-8 rounded-md text-xs font-semibold ${type === t.id ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>{t.label}</button>
-            ))}
-          </div>
+          <Select value={type} onValueChange={(v) => { setType(v); setUnticked(new Set()); }}>
+            <SelectTrigger className="h-9" aria-label="Card holder role"><SelectValue /></SelectTrigger>
+            <SelectContent>{TYPES.map(t => <SelectItem key={t.id} value={t.id}>{t.label}</SelectItem>)}</SelectContent>
+          </Select>
           <label className="flex items-center gap-2 text-sm h-9">
             <Checkbox checked={onlyNew} onCheckedChange={(v) => { setOnlyNew(!!v); setUnticked(new Set()); }} /> Only people without a card
           </label>

@@ -199,6 +199,8 @@ function EditDriverDialog({ driver, companies, open, onOpenChange, onSaved }) {
 
 function AssignedVehicleRow({ vehicle: v, routes, onUnassign, onSetStatus, onSetRoute, onSetPin }) {
   const [pin, setPin] = useState("");
+  const [pinSaving, setPinSaving] = useState(false);
+  const [pinMessage, setPinMessage] = useState("");
 
   useEffect(() => {
     setPin("");
@@ -248,10 +250,19 @@ function AssignedVehicleRow({ vehicle: v, routes, onUnassign, onSetStatus, onSet
           maxLength={4}
           value={pin}
           type="password"
+          aria-label={`New PIN for ${v.name}`}
+          autoComplete="new-password"
           placeholder="New PIN"
           onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
-          onBlur={() => { if (pin.length === 4) { onSetPin(v.id, pin); setPin(""); } }}
+          disabled={pinSaving}
         />
+        <Button size="sm" disabled={pin.length !== 4 || pinSaving} onClick={async () => {
+          setPinSaving(true); setPinMessage("");
+          try { await onSetPin(v.id, pin); setPin(""); setPinMessage("PIN saved"); }
+          catch (e) { setPinMessage(e?.response?.data?.error || e.message || "Could not save PIN"); }
+          finally { setPinSaving(false); }
+        }}>{pinSaving ? "Saving…" : "Save PIN"}</Button>
+        {pinMessage && <p role="status" className="w-full text-xs">{pinMessage}</p>}
       </div>
     </div>
   );
@@ -418,7 +429,7 @@ export default function DriversTab({ drivers, vehicles, companies, routes, onCha
       await base44.functions.invoke("manageDriverPin", { vehicle_id: vehicleId, pin: pin || "" });
       toast({ title: "Driver PIN updated" });
       onChange();
-    } catch { toast({ title: "Could not save driver PIN", variant: "destructive" }); }
+    } catch (e) { toast({ title: "Could not save driver PIN", description: e?.response?.data?.error || e.message, variant: "destructive" }); throw e; }
   };
 
   const removeDriver = async (driver) => {

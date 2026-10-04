@@ -103,9 +103,9 @@ function HelperHealthLine({ h }) {
   const lowBattery = typeof h.battery === "number" && h.battery <= 20 && !h.charging;
   const problem = (h.reader && !OK_STATES.test(h.reader)) || (h.gps && !OK_STATES.test(h.gps) && !/^searching/i.test(h.gps)) || (h.hotspot && /^(blocked|failed)/i.test(h.hotspot) && !h.parked);
   return (
-    <div className={`text-xs flex items-start gap-1 mt-0.5 ${lowBattery || problem ? "text-destructive" : "text-muted-foreground"}`}>
+    <div className={`text-sm flex items-start gap-2 mt-2 ${lowBattery || problem ? "text-destructive" : "text-muted-foreground"}`}>
       <Activity className="w-3 h-3 mt-0.5 shrink-0" />
-      <span className="break-words">{parts.join(" · ")}</span>
+      <span className="flex flex-wrap gap-x-4 gap-y-1 min-w-0">{parts.map(part => <span key={part} className="break-words">{part}</span>)}</span>
     </div>
   );
 }
@@ -251,7 +251,7 @@ export default function KioskTablets({ vehicles, companies, onChange }) {
             <div className="text-xs text-muted-foreground">Active</div>
           </div>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap border-t pt-3">
           <Button variant="outline" asChild>
             <a href={SETUP_TOOL} download><Download className="w-4 h-4 mr-1" /> Setup tool</a>
           </Button>
@@ -303,19 +303,19 @@ export default function KioskTablets({ vehicles, companies, onChange }) {
             return (
               <Card key={d.id} className={isRevoked ? "opacity-60" : ""}>
                 <CardContent className="p-4">
-                  <div className="flex flex-col lg:flex-row lg:items-center gap-3">
+                  <div className="flex flex-col gap-4">
                     <div className="flex items-center gap-3 min-w-0 flex-1">
                       <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                         <Icon className="w-5 h-5 text-primary" />
                       </div>
-                      <div className="min-w-0">
-                        <div className="font-medium truncate flex items-center gap-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="font-medium flex flex-wrap items-center gap-2">
                           {d.label}
                           {d.paired && <Badge variant="default" className="text-sm">Paired</Badge>}
                           {isRevoked && <Badge variant="destructive" className="text-sm">Revoked</Badge>}
                           {!d.paired && !isRevoked && hasCode && <Badge variant="outline" className="text-sm">Awaiting pairing</Badge>}
                         </div>
-                        <div className="text-xs text-muted-foreground truncate">
+                        <div className="text-sm text-muted-foreground break-words">
                           {meta.label}
                           {d.company_name && ` · ${d.company_name}`}
                           {d.vehicle_name && ` · ${d.vehicle_name}`}
@@ -336,15 +336,15 @@ export default function KioskTablets({ vehicles, companies, onChange }) {
                     </div>
 
                     {hasCode && (
-                      <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted font-mono text-lg font-bold tracking-widest">
+                      <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted font-mono text-lg font-bold tracking-widest self-start max-w-full break-all">
                         {d.pairing_code}
-                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => copy(d.pairing_code, d.id)}>
+                        <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" aria-label={`Copy pairing code for ${d.label}`} onClick={() => copy(d.pairing_code, d.id)}>
                           {copiedId === d.id ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                         </Button>
                       </div>
                     )}
 
-                    <div className="flex items-center gap-2 flex-wrap">
+                    <div className="flex items-center gap-2 flex-wrap border-t pt-3">
                       {hasCode && !isRevoked && (
                         <Button size="sm" variant="default" onClick={() => copy(`${window.location.origin}${d.kiosk_type === "driver" ? "/driver" : "/kiosk"}?code=${d.pairing_code}`, `url-${d.id}`)}>
                           {copiedId === `url-${d.id}` ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
