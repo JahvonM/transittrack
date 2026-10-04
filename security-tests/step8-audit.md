@@ -1,0 +1,143 @@
+# Step 8 — Pre-production security and reliability audit
+
+Date: 2026-10-04 UTC. Application source reviewed: 67ed322.
+Decision: NOT READY for the first production release.
+Step 8's audit is complete; completion does not authorize publishing or certify
+security. This step changes tests and documentation only. No application functions,
+entities, live records, accounts, devices or credentials were changed in Step 8.
+
+## Evidence and limits
+
+Reviewed the scoped frontend client/gateway, custom entity schema permissions,
+device authentication and tablet projections, protected PIN/OTP/company workflows,
+role/account functions, notification paths, AI fleet projections, scheduled-job
+authorization, saved-work/replay fixes and repository check configuration.
+The current tracked-source signature scan found no matching private-key material,
+GitHub-token or AWS-key signatures. Baseline tests also enforce absence of tracked
+signing files and real environment files. This limited scan is not exhaustive,
+does not scan git history and does not prove previously exposed credentials safe.
+No replacement keys or rotations were performed.
+
+Unit/strict tests use an in-memory SDK; notification/email integrations are captured.
+Browser checks mock every API request. No real push, email, taxi trip or live role
+attack was performed. Mocked interleaving proves code-level race possibilities,
+not Base44's actual storage isolation. Live User self-edit/direct-entity rules,
+credential inventories, scheduler identity, blob access controls and production
+GitHub branch protection remain unverified. No production environment exists yet.
+
+## Established boundaries
+
+| Boundary | Reviewed result | Evidence |
+|---|---|---|
+| Mechanics across companies | Maintenance entities and Company are globally readable; vehicle writes limited to maintenance fields | entityAccess MAINTENANCE/visible/prepare; existing unit/browser tests |
+| Mechanic credentials and privilege changes | Gateway strips credentials; protected ledgers omitted; privileged User edits and credential functions deny mechanic access | Credential projections and existing boundary tests |
+| Approved company scope | Membership scope/expiry/code binding, not mutable profile company_id, determines gateway access | context/memberships/liveMembership; company isolation tests |
+| Advertisement | Public reads retained; anonymous writes denied; admin/approved-company writes allowed | Entity RLS and all four anonymous write-operation tests |
+| Direct custom entities | Admin-only read/create/update/delete except public Advertisement reads | Every custom schema checked; built-in User explicitly excluded |
+| Maintenance email recipients | Approved active manager membership selects company recipients | Remediation captured-email test |
+| PIN reset | Credential-version mismatch rejects an earlier driver unlock | Remediation grant test |
+| Queue recovery | Original work persists before first send; rejection is reviewable/exportable; unpair preserves GPS | Recovery unit tests and mocked browser checks |
+| Scheduled jobs | Anonymous/low-privilege requests rejected before reads or side effects | Existing 20 boundary tests; automatic scheduler compatibility unverified |
+| Repository workflow | Separate strict release job with ordinary failing assertions; read-only workflow token permissions | checks.yml; required-check enforcement unverified |
+
+Mechanics' maintenance visibility does not settle their deletion rights. Public
+advertisement reads currently include inactive records. Any approved manager can
+modify/delete any ad because ownership is absent. Those policies remain decisions.
+
+## Additional findings confirmed in Step 8
+
+### A8-1 — Stale privileged push recipients (HIGH)
+
+Both notifyAdminMessage.pushTokensForChannel and driverSession.pushTokensForChannel
+select recipients using PushToken.role/company_id without checking the current
+User or an active approved manager membership. Deleted/demoted admins and removed
+managers remain selected if their historical token rows persist. Group-message
+push includes message text, vehicle/sender title and channel, so this is a possible
+information leak, not only an obsolete notification badge.
+
+Two isolated strict checks seed a deleted admin and a removed manager; both
+selectors return their tokens instead of an empty list. Real FCM delivery was not
+attempted and still depends on a valid token/runtime secret. SOS also selects
+stored admin-token roles; review that route as part of the same fix.
+
+Fix: select eligible recipients from fresh server-side users and approved live
+memberships, then resolve tokens; remove/invalidate registrations on role change,
+membership removal and account deletion. Test demotion, deletion, removed/expired
+membership and unchanged legitimate global mechanic/admin routing.
+
+### A8-2 — Dispatch notification authorization differs from message authorization (MEDIUM)
+
+A passenger with an approved company membership can call notifyAdminMessage with
+channel=dispatch. The endpoint returns 200 even though entityAccess disallows that
+passenger creating a dispatch GroupMessage. It also accepts caller-supplied sender,
+vehicle label and text without requiring a corresponding stored message. The
+isolated assertion expects 403 and fails with 200. No real push was sent.
+
+Fix: accept a stored message ID, verify its actor, channel and approved scope, and
+build notification content from that record. Enforce the same channel permissions
+as the write path; use an atomic notification claim/budget to prevent replay spam.
+
+### A8-3 — Anonymous crash-report email budget is not atomic (MEDIUM)
+
+reportClientError counts/list-checks, then creates the report and sends email.
+Twenty explicitly interleaved anonymous reports with different messages capture
+20 emails to one fake admin despite the advertised five-email hourly budget.
+The record budget has the same count-before-write design (code review; not a
+separate live or strict test). Report bodies are clipped but this does not enforce
+a concurrent budget.
+
+Fix: enforce an atomic server budget before creating records/sending email; add
+source/device/account/IP abuse controls where a trusted signal is available.
+Public telemetry may remain possible, but must not offer unbounded email/storage
+side effects. A process-local lock or count-after-write is not a platform-wide fix.
+
+### A8-4 — Taxi booking accepts non-taxi companies (MEDIUM, integrity/abuse)
+
+bookTaxi checks that a company exists but does not require service_types to include
+taxi. A signed-in passenger without company-B membership can create a scheduled
+trip for company B even when B only offers staff-bus service. The isolated strict
+check expects rejection before writes; the current function returns 200 and creates
+a trip. This does not demonstrate reading B's private data. Public taxi booking
+into an actual taxi operator can remain intentional.
+
+Fix: require an eligible taxi operator, validate booking action/coordinates and
+add booking abuse limits/request IDs. Test accepted public taxi bookings plus
+rejection for non-taxi companies and malformed inputs.
+
+## Current release gate
+
+The strict suite now has 38 criteria: 12 pass and 26 fail, exit 1. Five new failing
+checks cover the four additional findings above; the original 21 failures remain.
+This increase is expanded audit coverage, not regression of the remediation fixes.
+Baseline: 198 unit tests pass. Eight mock browser checks, lint and build were
+verified on the remediation source; Step 8 changes no frontend application source.
+Lint and baseline tests were rerun for the audit test addition.
+
+Remaining categories: atomic attempt limits, pairing/OTP consumption, concurrent
+check-in/shift/inspection/GPS replay, legacy ID-only tablet login, server-enforced
+pairing/company/permanent code strength/uniqueness, boarding grant reuse/revocation,
+and the new notification/telemetry/booking findings.
+
+## Work needed before release
+
+1. Resolve atomic storage/backend guarantees and choose a supported implementation.
+   Do not accept claim-row rereads, process locks or append/count as atomic without
+   a documented platform guarantee. Claude can investigate this read-only.
+2. Fix notification recipient freshness/channel authorization and non-taxi booking
+   validation; preserve intended public advertisements and public taxi booking.
+3. Move pairing/company/permanent code rules to server issuance with expiry,
+   uniqueness and effective failure budgets; hash remaining Contact codes.
+4. Implement single-use grant/OTP consumption with correct completed-retry ACKs and
+   current card/membership checks; fix concurrent replay and position updates.
+5. Settle ad ownership/drafts, mechanic deletes, passenger membership renewal and
+   audit-log writer policy. No policy was silently changed during this audit.
+6. Review/export old work before a separately authorized legacy-device migration;
+   then eliminate ID-only authentication before first production. Do not clear
+   queues, revoke development tablets or generate signing keys as an audit action.
+7. Verify scheduled caller identity, live role/User/RLS behavior, file privacy and
+   GitHub gate enforcement with appropriate access and authorized test accounts.
+8. Coordinate backend/client rollout, pass the strict suite and complete live
+   migration/recovery tests before any first-production publish decision.
+
+Frontend unpublished. No live devices/accounts changed. No production credentials
+rotated and no replacement signing keys generated or committed.

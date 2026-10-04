@@ -57,4 +57,3 @@ export async function flushGpsQueue(invoke) {
  finally {flushing=false;notifySavedWork();try {window.dispatchEvent(new Event(EVENT));}catch { /* tests */ }}
  return sent;
 }
-export function clearGpsQueue() {write([]);}
