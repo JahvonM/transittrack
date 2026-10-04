@@ -596,3 +596,33 @@ message notification replay still needs an atomic claim/budget; booking limits a
 idempotency remain to implement. The public crash-report budget and original atomic
 release blockers remain red. Required CI gate/live tests remain unverified. TransitTrack
 is still not ready for first production. See security-tests/README.md and step8-audit.md.
+
+ 
+## Server-controlled code issuance — 2026-10-04 UTC
+
+manageAccessCodes requires a freshly fetched admin or approved scoped company
+manager. It issues twelve-character pairing codes (15 minutes) and company codes
+(30 days for new joins), and handles authorized device revoke/reactivate actions.
+Gateway creates mint codes; caller writes to those security fields are denied.
+Admin/company browser code controls use the protected function. Existing paired
+device replacement has explicit confirmation; no device action was called live.
+
+Both passenger issuance paths now create twelve-digit codes, reject existing
+protected/legacy collisions and hash Contact credentials in the protected ledger.
+Reissue clears Contact plaintext; directory exposes has_access_code instead of
+the code; lookup detects ambiguous legacy/protected codes. Keypad supports twelve.
+There is no atomic uniqueness guarantee, bulk legacy migration or lifetime policy.
+
+255 unit tests, 13 API-mocked browser checks, lint/build pass. Strict criteria:
+21 pass / 17 fail of 38, exit 1. Five newly passing checks cover code strength,
+protected collisions, expiry and forbidden gateway security writes.
+
+Existing paired development auth remains unchanged. Old unpaired pairing codes
+and old company join codes without compliant format/expiry need operator reissue.
+Existing grants keep their own expiry when join-code expiry alone elapses, but
+code replacement invalidates code-bound grants/memberships by existing policy.
+Explicit approved memberships remain independent. Backend/entity resources auto-sync;
+frontend was not published. Older frontend management writes now fail closed.
+No live accounts, credentials or tablets were modified through function calls.
+Next: establish documented atomic storage semantics before implementing claims,
+limits or concurrent idempotency; retain failing release assertions.

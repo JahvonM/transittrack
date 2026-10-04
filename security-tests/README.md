@@ -3,9 +3,9 @@
 TransitTrack is pre-production. Step 7 first reproduced 33 failing release
 criteria. The authorized remediation batch satisfied 12. Step 8 added five
 additional criteria. The notification/booking follow-up now brings the strict
-suite to 16 passing and 22 failing out of 38. Step 8 audit is complete; the
+suite to 16 passing and 22 failing out of 38. The server-code issuance follow-up brings it to 21 passing and 17 failing out of 38. Step 8 audit is complete; the
 first production release remains blocked. See step8-audit.md.
-These are checks, not 22 distinct vulnerabilities.
+These are checks, not 17 distinct vulnerabilities.
 
 Testing replaces the SDK with in-memory entities, fake sessions and captured
 email calls. Browser tests intercept every API request. No live API attack,
@@ -17,11 +17,11 @@ auto-sync in Base44. The frontend was not published.
 
 | Command | Result | Meaning |
 |---|---|---|
-| npm test | 234 passed | Implemented behavior and recovery regressions |
+| npm test | 255 passed | Implemented behavior and recovery regressions |
 | npm run lint | Passed | Source and tests |
 | npm run build | Passed | Frontend compiles |
-| npm run test:e2e | 11 checks passed | Mocked company/mechanic/tablet/recovery browser contracts |
-| npm run test:security:release | 16 passed, 22 failed; exits 1 | Release blockers remain |
+| npm run test:e2e | 13 checks passed | Mocked company/mechanic/tablet/recovery browser contracts |
+| npm run test:security:release | 21 passed, 17 failed; exits 1 | Release blockers remain |
 
 The strict suite uses ordinary assertions. Failures are not skipped, marked
 expected, swallowed or treated as success. GitHub Actions has a separate
@@ -30,7 +30,7 @@ settings have not been verified/configured. A workflow is not an enforced gate.
 No deployment workflow was added.
 
 Default Playwright discovery includes only company-isolation.spec.js,
-tablet-context.spec.js, saved-work.spec.js and message-notifications.spec.js.
+tablet-context.spec.js, saved-work.spec.js, message-notifications.spec.js and server-codes.spec.js.
 Older live specs remain excluded.
 Test outputs/traces are ignored.
 
@@ -80,9 +80,6 @@ reviewed/archived originals are not thinned.
 | Atomic attempt limits | 4 | Concurrent requests exceed each reserveAttempt limit |
 | End development ID-only authentication before production | 3 | Tokenless pre-cutoff tablets still authenticate; deliberate development exception |
 | Exclusive pairing claim | 1 | Concurrent pairing requests succeed together |
-| Server-controlled pairing rules | 2 | No-expiry short codes pair; managers can write pairing security fields |
-| Strong company join codes | 1 | Manager can set ABCD |
-| Permanent keypad strength/collision checks | 2 | Five-digit generation and duplicate protected credential fingerprints |
 | One-time code consumption | 1 | Interleaved consumers obtain grants from one code |
 | Boarding grant use/card revocation | 2 | Another request can reuse a grant; revoked cards still board using an earlier grant |
 | Concurrent mechanic inspection replay | 1 | Interleaved identical IDs create duplicate result rows |
@@ -101,12 +98,12 @@ These tests do not prove exhaustive security.
 
 | Finding | Current status |
 |---|---|
-| 1: permanent codes | Unresolved; plaintext Contact storage/global failure budget also remain |
+| 1: permanent codes | New codes are twelve digits, checked against protected and legacy codes, and hashed for both User and Contact. Legacy plaintext, lifetime, global budget and atomic uniqueness remain |
 | 2: legacy device login | Deliberate development exception; needs authorized migration before release |
 | 3: concurrent pairing | Unresolved; atomic storage guarantee needed |
-| 4: pairing rules in UI | Unresolved; server issuance, expiry, throttle and uniqueness needed |
+| 4: pairing rules in UI | Server issuance, expiry and security-field restrictions implemented; throttle and atomic uniqueness remain |
 | 5: attempt-limit races | Unresolved; failure/success policy and backoff also need design |
-| 6: weak join codes | Unresolved; server issuance and multi-account abuse budget needed |
+| 6: weak join codes | Server-issued twelve-character codes with expiry; multi-account budget and atomic uniqueness remain |
 | 7: OTP/grant reuse | Unresolved; completed retries must still safely acknowledge |
 | 8: maintenance recipients | Fixed with approved membership selection; isolated email assertions pass |
 | 9: advertisement ownership/drafts | Policy decision; public reads and authorized admin/company writes retained |
@@ -165,3 +162,44 @@ Taxi booking abuse limits/idempotency and anonymous crash-email limits remain
 future work. Backend functions auto-sync; older unpublished client versions using
 raw notification text are refused by the new endpoint while stored chat messages
 still work. Coordinate client rollout before real tablet/operator use.
+
+
+## Server-controlled code issuance follow-up — 2026-10-04 UTC
+
+Five additional strict checks pass: pairing expiry, blocked pairing-field writes,
+blocked weak company-code writes, permanent keypad strength and protected-code
+collision rejection. The strict suite is 21 pass / 17 fail (38 checks), exit 1.
+This does not solve concurrent issuance, pairing claims, attempt-limit races or
+one-time/grant consumption.
+
+manageAccessCodes fetches the current actor and requires admin or an active
+approved manager membership for the target company. It generates twelve-character
+pairing codes (15-minute expiry) and company join codes (30-day new-join expiry).
+The generic gateway rejects caller-controlled company code/expiry and device
+pairing/expiry/paired/status fields. Company/device creation issues codes server-side.
+Existing paired-device replacement requires explicit confirmation. Browser issuance,
+revocation and reactivation controls use the protected function.
+
+Both passenger issuance paths generate twelve random digits, check protected
+fingerprints and legacy Contact codes, and store fingerprints in the protected
+ledger. Reissuing a Contact clears its legacy plaintext code. Card directory
+responses indicate whether a code exists without returning it. Lookup rejects
+ambiguity between legacy and protected records; the keypad accepts twelve digits.
+Collision queries are sequential checks, not a unique constraint or transaction.
+
+No records were queried or rotated live. Existing paired tablet authentication
+is unchanged, including the deliberately retained ID-only development exception.
+Old unpaired short/no-expiry pairing codes require operator reissue before pairing.
+Old company codes lacking a future expiry cannot authorize new joins. Existing
+code-bound memberships/context grants retain their own expiry when only join-code
+expiry elapses; replacing the code invalidates those code-bound grants under the
+existing policy. Explicit admin-approved memberships are unaffected by replacement.
+Legacy Contact plaintext codes remain until individually reissued; no bulk migration
+was performed. Permanent passenger codes still need a lifetime/rotation policy.
+Company join codes remain server-stored and are returned only to authorized
+admin/company operators for sharing; mechanics/passengers cannot read them.
+
+255 unit tests (21 new issuance checks), 13 mocked browser checks, lint/build pass.
+No live account changes, actual tablet revocation, production credential rotation,
+signing keys or frontend publication. Backend/entity files auto-sync; older browser
+code-management writes now fail closed, so client rollout must be coordinated.

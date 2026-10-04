@@ -151,3 +151,16 @@ retained as history. Current strict results: 16 pass, 22 fail out of 38. Baselin
 234 unit tests, 11 mocked browser checks, lint and build pass. The first production
 release remains blocked. See README.md's follow-up section for the new contract,
 test coverage, rollout requirements and non-atomic notification replay limits.
+
+ 
+## Server-code issuance follow-up — 2026-10-04 UTC
+
+Subsequent authorized application changes satisfy five more strict criteria.
+Pairing/company issuance is server-controlled with fixed strength and expiry;
+generic credential-field writes are blocked. Newly issued Contact/User passenger
+codes are hashed and checked against existing protected and legacy codes.
+Current results supersede historical counts: 255 unit tests, 13 mock browser
+checks, lint/build pass; strict suite 21 pass / 17 fail, exit 1. Concurrent uniqueness,
+legacy migration and budgets remain unresolved. See security-tests/README.md
+for expiry, membership and coordinated rollout boundaries. No live mutations,
+tablet revocation, signing changes or frontend publication were performed.
