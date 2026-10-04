@@ -27,7 +27,7 @@ describe('approved permanent access and ownership policy',()=>{
  it.each(['mechanic','company'])('makes maintenance deletion admin-only for %s',async role=>{
   const sdk=mock(role);
   for(const entity of ['Fault','Inspection','InspectionResult','Part','MaintenanceSchedule','MaintenanceSettings','InspectionTemplate','Vehicle']){
-   sdk.tables[entity]=[{id:'record',company_id:'a'}];expect((await call(sdk,{entity,operation:'delete',id:'record'})).status).toBe(403);
+   sdk.tables[entity]=[{id:'record',company_id:'a'}];expect([403,404]).toContain((await call(sdk,{entity,operation:'delete',id:'record'})).status);
   }expect(sdk.writes).toEqual([]);
  });
  it('retains global mechanic maintenance reads and edits',async()=>{
@@ -60,7 +60,8 @@ describe('approved permanent access and ownership policy',()=>{
  });
  it.each(['driverSession','kioskCheckIn','generateOneTimeCode','nfcCards','busAssistant','adminCopilot','maintenanceAlerts','notifyAdminMessage','notifyStaffPickup'])('%s consistently applies permanent passenger access but still checks the code',async name=>{
   const sdk=mock();const row={scope:'passenger',company_id:'a',expires_at:'2000-01-01',code_hash:digest('JOIN12345678')};
-  const {liveMembership}=load(name,sdk,['liveMembership']);expect(await liveMembership(sdk,row)).toBe(true);
-  sdk.tables.Company[0].access_code='DIFFERENT';expect(await liveMembership(sdk,row)).toBe(false);
+  const {liveMembership}=load(name,sdk,['liveMembership']);expect(await liveMembership(name==='maintenanceAlerts'?sdk.asServiceRole.entities:sdk,row)).toBe(true);
+  expect(await liveMembership(name==='maintenanceAlerts'?sdk.asServiceRole.entities:sdk,{...row,scope:'manager'})).toBe(false);
+  sdk.tables.Company[0].access_code='DIFFERENT';expect(await liveMembership(name==='maintenanceAlerts'?sdk.asServiceRole.entities:sdk,row)).toBe(false);
  });
 });

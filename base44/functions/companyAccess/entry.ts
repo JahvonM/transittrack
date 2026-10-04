@@ -58,7 +58,7 @@ export default async function(req) {
    if (!company || row.code_hash !== await hashSecret(company.access_code || '')) return Response.json({ error: 'Company code required' }, { status: 401 });
    if(user.role==='staff') {
     const memberships=await base44.asServiceRole.entities.CompanyMembership.filter({user_id:user.id,company_id:company.id,scope:'passenger',active:true},'-updated_date',100);
-    if(!memberships.some(m=>!m.code_hash||m.code_hash===row.code_hash))return Response.json({error:'Company access removed'},{status:401});
+    if(!memberships.some(m=>(!m.code_hash&&!m.expires_at)||m.code_hash===row.code_hash))return Response.json({error:'Company access removed'},{status:401});
    }
    return Response.json({ company: displayCompany(company) });
   }
