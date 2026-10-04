@@ -207,6 +207,7 @@ export default function CompanyMessages({ vehicles = [] }) {
         className="fixed bottom-4 right-4 z-50 rounded-full h-14 w-14 shadow-lg relative"
         size="icon"
         onClick={() => setOpen(!open)}
+        aria-label={open ? "Close driver chats" : "Open driver chats"}
       >
         {open ? <X className="w-5 h-5" /> : <MessageCircle className="w-5 h-5" />}
         {!open && totalUnread > 0 && (
