@@ -66,4 +66,49 @@ describe('offline replay backend contracts',()=>{
   expect((await (await send(body)).json()).stored).toBe(0);
   expect(sdk.tables.LocationPing).toHaveLength(1);expect(sdk.tables.Vehicle[0].current_lat).toBe(20);
  });
+ it('resumes a failed pre-trip fault write without duplicating the inspection',async()=>{
+  const sdk=mock(), original=sdk.asServiceRole.entities;let fail=true;
+  sdk.asServiceRole.entities=new Proxy(original,{get:(target,name)=>{
+    const table=target[name];
+    if(name!=='Fault') return table;
+    return {...table,create:async data=>{if(fail) throw new Error('unavailable');return table.create(data);}};
+  }});
+  const api=load('driverSession',sdk), grant=await api.issueGrant(sdk,device,'driver','bus',60000);
+  const body={device_id:'tablet',driver_grant:grant,action:'submit_inspection',client_request_id:'inspection-123',status:'failed',service_notes:'Tyre'};
+  expect((await api.default(req(body))).status).toBe(503);
+  expect(sdk.tables.Inspection).toHaveLength(1);
+  fail=false;
+  expect((await api.default(req(body))).status).toBe(200);
+  expect((await api.default(req(body))).status).toBe(200);
+  expect(sdk.tables.Inspection).toHaveLength(1);expect(sdk.tables.Fault).toHaveLength(1);
+  expect((await api.default(req({...body,service_notes:'Different'}))).status).toBe(409);
+ });
+ it('retries template child rows without duplicating the parent or earlier results',async()=>{
+  const sdk=mock();sdk.tables.InspectionTemplate=[{id:'template',name:'Daily',audience:'driver',company_id:'company'}];
+  const original=sdk.asServiceRole.entities;let fail=true;
+  sdk.asServiceRole.entities=new Proxy(original,{get:(target,name)=>{
+    const table=target[name];
+    if(name!=='InspectionResult')return table;
+    return {...table,create:async data=>{if(fail && data.inspection_item==='second')throw new Error('lost');return table.create(data);}};
+  }});
+  const api=load('driverSession',sdk),grant=await api.issueGrant(sdk,device,'driver','bus',60000);
+  const body={device_id:'tablet',driver_grant:grant,action:'submit_template_inspection',client_request_id:'template-123',template_id:'template',results:[{item_name:'first',condition:'GOOD'},{item_name:'second',condition:'FAILED'}]};
+  expect((await api.default(req(body))).status).toBe(500);
+  expect(sdk.tables.Inspection).toHaveLength(1);expect(sdk.tables.InspectionResult).toHaveLength(1);
+  fail=false;expect((await api.default(req(body))).status).toBe(200);
+  expect((await api.default(req(body))).status).toBe(200);
+  expect(sdk.tables.Inspection).toHaveLength(1);expect(sdk.tables.InspectionResult).toHaveLength(2);expect(sdk.tables.Fault).toHaveLength(1);
+ });
+ it('does not end a new shift when replaying an already completed end request',async()=>{
+  const sdk=mock(),api=load('driverSession',sdk),grant=await api.issueGrant(sdk,device,'driver','bus',60000);
+  const send=body=>api.default(req({device_id:'tablet',driver_grant:grant,...body}));
+  const time=new Date().toISOString();
+  await send({action:'start_shift',client_request_id:'start-123',occurred_at:time});
+  const end={action:'end_shift',client_request_id:'end-12345',occurred_at:time};
+  expect((await send(end)).status).toBe(200);
+  await send({action:'start_shift',client_request_id:'start-456',occurred_at:time});
+  expect((await (await send(end)).json()).deduplicated).toBe(true);
+  expect(sdk.tables.DriverShift).toHaveLength(2);expect(sdk.tables.DriverShift[1].ended_at).toBeUndefined();
+ });
+
 });

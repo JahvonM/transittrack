@@ -196,4 +196,14 @@ describe('company and role access boundaries',()=>{
   const response=await handler(name,sdk(null))(request({}));
   expect(response.status).toBe(401);
  });
+ it('deduplicates mechanic inspection rows and rejects changed retry payloads',async()=>{
+  const client=sdk('mechanic');
+  const body={entity:'InspectionResult',operation:'create',data:{vehicle_id:'bus-a',company_id:'a',inspection_item:'Tyre',condition:'GOOD',client_request_id:'result-123'}};
+  expect((await call(client,body)).status).toBe(200);
+  expect((await call(client,body)).status).toBe(200);
+  expect(client.tables.InspectionResult).toHaveLength(1);
+  expect((await call(client,{...body,data:{...body.data,condition:'FAILED'}})).status).toBe(409);
+  expect((await call(client,{...body,data:{...body.data,request_actor_id:'other'}})).status).toBe(400);
+ });
+
 });
