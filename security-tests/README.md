@@ -85,6 +85,10 @@ reviewed/archived originals are not thinned.
 | Boarding grant use/card revocation | 2 | Another request can reuse a grant; revoked cards still board using an earlier grant |
 | Concurrent mechanic inspection replay | 1 | Interleaved identical IDs create duplicate result rows |
 | Concurrent check-in/shift/driver inspection/GPS | 4 | Duplicate rows and older live-position overwrite |
+| Fresh privileged push recipients | 2 | Both selectors retain deleted-admin/removed-manager tokens |
+| Dispatch notification authorization | 1 | Approved passenger can trigger dispatch notification |
+| Atomic public crash email budget | 1 | Twenty interleaved reports capture twenty emails despite budget five |
+| Eligible taxi operator | 1 | Non-taxi company accepts a scheduled taxi trip |
 
 Concurrency fixtures return snapshots and explicitly interleave vulnerable reads
 before writes. They model a valid non-transactional schedule even with immediate
