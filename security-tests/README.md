@@ -1,134 +1,124 @@
-# Step 7 security regression and release-readiness status
+# Security regression and release-readiness status
 
-Step 7 adds tests, test configuration and documentation. Application functions,
-entity permissions, live records, tablets, credentials and frontend publication
-were not changed in this step. Testing is isolated: the SDK is replaced with
-in-memory entities, fake sessions and captured email calls. No live API attack
-or notification is performed.
+TransitTrack is pre-production. Step 7 first reproduced 33 failing release
+criteria. The authorized remediation batch now satisfies 12; 21 still fail.
+Step 8 remains paused. These are checks, not 21 distinct vulnerabilities.
 
-## Commands and results
+Testing replaces the SDK with in-memory entities, fake sessions and captured
+email calls. Browser tests intercept every API request. No live API attack,
+account mutation, notification delivery or development-tablet revocation was run.
+Application/backend/entity fixes were made during remediation; backend resources
+auto-sync in Base44. The frontend was not published.
+
+## Current results
 
 | Command | Result | Meaning |
 |---|---|---|
-| npm test | 178 passed | Current isolation, projection, credentials, offline recovery and other regressions |
-| npm run lint | Passed | Source and new tests |
+| npm test | 198 passed | Implemented behavior and recovery regressions |
+| npm run lint | Passed | Source and tests |
 | npm run build | Passed | Frontend compiles |
-| npm run test:e2e | 4 passed | Mocked company/mechanic/tablet browser contracts |
-| npm run test:security:release | 33 failed; exits 1 | Known production requirements are not satisfied |
+| npm run test:e2e | 8 passed | Mocked company/mechanic/tablet/recovery browser contracts |
+| npm run test:security:release | 12 passed, 21 failed; exits 1 | Release blockers remain |
 
 The strict suite uses ordinary assertions. Failures are not skipped, marked
-expected, swallowed or treated as success. The separate GitHub Actions job
-security-release-readiness runs it and should stay red until fixes satisfy it.
-Repository branch protection/required-check settings have not been configured
-or verified by this change; adding a workflow is not the same as enforcing a
-merge or deployment gate. No deployment workflow was added.
+expected, swallowed or treated as success. GitHub Actions has a separate
+security-release-readiness job. Its actual execution and repository required-check
+settings have not been verified/configured. A workflow is not an enforced gate.
+No deployment workflow was added.
 
-Default Playwright discovery now includes only company-isolation.spec.js and
-tablet-context.spec.js. Both intercept every API call with mocks. Older live
-device specs are excluded, and need contract migration plus separately
-authorized verified sessions before use. Test outputs/traces are ignored.
+Default Playwright discovery includes only company-isolation.spec.js,
+tablet-context.spec.js and saved-work.spec.js. Older live specs remain excluded.
+Test outputs/traces are ignored.
 
-## Strict failures grouped by root cause
+## Remediation covered by the 12 now-passing release criteria
+
+| Requirement | Passing checks | Result |
+|---|---:|---|
+| Queue recovery | 3 | Rejected check-ins/jobs are retained for review; independent work proceeds; rejected GPS batches split into individual retained failures |
+| Targeted end-shift | 1 | Named shift only; old timestamps cannot close a newer shift |
+| Photo acknowledgement | 2 | Upload failure returns 503; oversized/count-invalid photos fail validation before creating inspection records |
+| Persistence before first send | 1 | Shift job is durable before network invocation |
+| Legacy assignment | 1 | Queued replay without original assignment is rejected for review |
+| Admin assignment metadata | 1 | Missing device plus expected_device_id returns a controlled error instead of 500 |
+| GPS history scaling | 1 | Descending tenant/vehicle history stops outside the requested window; unrelated old history needs one read in the fixture |
+| PIN reset | 1 | Driver unlock binds to protected credential version and is rejected after reset |
+| Maintenance recipients | 1 | Approved active manager memberships select recipients; profile company_id is ignored |
+
+New check-in, driver shift, driver-template and mechanic submissions persist their
+request IDs and payloads before their first send. Eight additional recovery unit
+tests cover exact persistence, storage failure, dependency ordering, retained
+photos, export scrubbing, archive/remove boundaries and unchanged retry binding.
+Three browser checks verify export/admin archive/removal and fresh role checks;
+another verifies that driver unpairing preserves GPS with its original assignment.
+
+Saved Work shows rejected originals and exports them with photos/answers retained
+and known credential fields omitted. Archive requires an online admin, an export
+and reconciliation acknowledgement. Archived originals remain exportable and stop
+blocking dependent work. Removing archived copies requires a second export,
+acknowledgement and confirmation. Original assignments/IDs are never rewritten to
+make a rejected replay pass. No saved queue was cleared during this work.
+
+401, 429, 5xx and network failures pause uploading. Item validation/authorization
+4xx failures are retained for review. Corrupt/full browser storage is surfaced;
+new work is not sent if persistence fails. Local-storage capacity can refuse large
+photo submissions. Exports contain operational/personal information and photos;
+they are recovery records, not anonymous data. Local in-flight guards do not solve
+cross-tab storage races. Photo retries can leave orphaned/duplicate uploaded blobs
+if an earlier partial attempt uploaded successfully. GPS history has a bounded
+10,000-row inspection cap; dense windows return 503, not a false acknowledgement.
+GPS's existing active-point thinning remains intentionally reduced detail;
+reviewed/archived originals are not thinned.
+
+## Remaining strict failures grouped by root cause
 
 | Requirement | Failing checks | Evidence in isolated tests |
 |---|---:|---|
-| Atomic attempt limits | 4 | All 20 concurrent requests accepted with limit 5 in each reserveAttempt copy |
-| End development ID-only authentication before production | 3 | Tokenless pre-cutoff tablets still authenticate; deliberately unchanged |
-| Exclusive pairing claim | 1 | Five simultaneous pairing requests return success |
+| Atomic attempt limits | 4 | Concurrent requests exceed each reserveAttempt limit |
+| End development ID-only authentication before production | 3 | Tokenless pre-cutoff tablets still authenticate; deliberate development exception |
+| Exclusive pairing claim | 1 | Concurrent pairing requests succeed together |
 | Server-controlled pairing rules | 2 | No-expiry short codes pair; managers can write pairing security fields |
 | Strong company join codes | 1 | Manager can set ABCD |
-| Permanent keypad code strength and collision checks | 2 | Generator emits five digits and reissues a protected credential fingerprint |
-| One-time code consumption | 1 | Five interleaved consumers get grants from one code |
-| Boarding grant use and card revocation | 2 | Grant authorizes another request; revoked card still boards using earlier grant |
-| PIN-reset revocation | 1 | Previously issued driver unlock remains valid after reset |
-| Maintenance recipient membership | 1 | Manager approved for A receives B mail after profile company_id is B |
-| Concurrent inspection replay | 1 | Five interleaved identical IDs create five mechanic result rows |
+| Permanent keypad strength/collision checks | 2 | Five-digit generation and duplicate protected credential fingerprints |
+| One-time code consumption | 1 | Interleaved consumers obtain grants from one code |
+| Boarding grant use/card revocation | 2 | Another request can reuse a grant; revoked cards still board using an earlier grant |
+| Concurrent mechanic inspection replay | 1 | Interleaved identical IDs create duplicate result rows |
+| Concurrent check-in/shift/driver inspection/GPS | 4 | Duplicate rows and older live-position overwrite |
 
-The concurrency fixtures return snapshots and explicitly interleave vulnerable
-reads before writes. They model a valid non-transactional schedule even with
-immediate read-after-write consistency; they do not prove Base44's exact live
-scheduling, isolation or consistency guarantees. A burst without explicit
-interleaving sometimes passes by luck. That is why the OTP and inspection tests
-use barriers. No claim/read-back or append/count technique is assumed atomic.
-A future transactional implementation must supply a faithful atomic test adapter.
+Concurrency fixtures return snapshots and explicitly interleave vulnerable reads
+before writes. They model a valid non-transactional schedule even with immediate
+read-after-write consistency; they do not prove Base44's live scheduling/isolation.
+Claim/read-back and append/count are not assumed atomic. A transactional fix needs
+a documented guarantee and faithful atomic test adapter. Ten-character permanent
+codes are a proposed minimum criterion, not a complete entropy/expiry design.
+These tests do not prove exhaustive security.
 
-The ten-character permanent-code test is a proposed minimum production criterion,
-not a complete entropy/expiry design. These tests do not prove exhaustive security.
+## Independent review ledger
 
-## Claude's 13 findings against this checkpoint
+| Finding | Current status |
+|---|---|
+| 1: permanent codes | Unresolved; plaintext Contact storage/global failure budget also remain |
+| 2: legacy device login | Deliberate development exception; needs authorized migration before release |
+| 3: concurrent pairing | Unresolved; atomic storage guarantee needed |
+| 4: pairing rules in UI | Unresolved; server issuance, expiry, throttle and uniqueness needed |
+| 5: attempt-limit races | Unresolved; failure/success policy and backoff also need design |
+| 6: weak join codes | Unresolved; server issuance and multi-account abuse budget needed |
+| 7: OTP/grant reuse | Unresolved; completed retries must still safely acknowledge |
+| 8: maintenance recipients | Fixed with approved membership selection; isolated email assertions pass |
+| 9: advertisement ownership/drafts | Policy decision; public reads and authorized admin/company writes retained |
+| 10: PIN reset | Fixed with credential-bound grants; old grants require online PIN unlock |
+| 11: 30-day membership | Availability/policy decision; renewal or permanent approval not chosen |
+| 12: passenger audit-log writes | Policy decision; actor attribution remains server-controlled |
+| 13: mechanic deletion rights | Policy decision; global maintenance visibility preserved |
 
-| Finding | Status | Coverage / remaining work |
-|---|---|---|
-| 1: permanent code strength/collisions | Reproduced in mocks | Two strict failures; plaintext Contact codes and company-wide failure budget also remain code-review gaps |
-| 2: legacy ID login | Deliberate release exception | Three strict failures; migrate/re-pair only with explicit user authorization |
-| 3: pairing race | Reproduced in mocks | Strict concurrent pairing failure; needs verified atomic storage |
-| 4: pairing rules only in UI | Reproduced in mocks | Strict no-expiry and manager-write failures; missing pairing throttle/uniqueness also visible in code |
-| 5: attempt-limit races | Reproduced in mocks | Four strict failures; success-attempt policy/backoff needs design |
-| 6: weak join codes/account-only budget | Partly reproduced; remainder confirmed in code | Strict weak manager-code failure; multi-account abuse/global budget still needs design |
-| 7: OTP/grants reusable after revocation | Reproduced in mocks | Three strict failures; completed Step 6 retries must still ACK without creating a new action |
-| 8: maintenance recipients trust User.company_id | Reproduced in mocks | Captured emails show cross-company recipient; no actual email sent |
-| 9: ad ownership and inactive drafts | Policy decision; behavior confirmed in code | User authorized public ads and admin/company writes; company ownership and draft visibility were not settled |
-| 10: PIN reset leaves unlock valid | Reproduced in mocks | Strict grant revocation failure |
-| 11: 30-day passenger membership | Availability/policy decision | Existing tests verify expiry enforcement; renewal or permanent admin approval requires a chosen policy |
-| 12: passenger audit-log creation | Behavior confirmed in code; policy decision | Actor attribution is server-controlled; audit creation returns before role restriction |
-| 13: mechanic deletes across companies | Behavior confirmed in code; policy decision | Central maintenance visibility was authorized; deletion policy needs an explicit decision |
+Push-token recipient freshness and trustworthy scheduler identity remain unverified.
+Scheduled functions reject anonymous calls before reads/writes/email. Tests do not
+validate an authenticated automatic schedule. Live inventories, live platform User
+self-edit rules and direct-entity RLS tests remain outstanding. No test account was
+created or modified. No signing keys or production credentials were generated or
+rotated. Development device credentials were not revoked.
 
-Push-token recipient freshness and a trustworthy scheduled-job identity remain
-unverified. The four scheduled functions reject anonymous calls before any data
-read, job write or email; 20 new tests cover unauthorized roles and forged
-scheduler/admin payloads. They do not validate an authenticated automated schedule.
-Live credential inventories and live non-admin platform User/direct-entity rules
-remain untested here. No test account was created or modified.
-
-## Before first production
-
-Resolve strict failures; settle advertisement ownership/drafts, mechanic deletion,
-membership lifetime and audit-write policies; migrate legacy credentials/devices;
-configure verified service authentication for scheduled jobs; review old queued
-work lacking original assignment/replay identifiers; then run separately
-authorized live role tests with verified accounts and reliable cleanup.
-Do not infer production readiness from npm test alone.
-
-Step 8 has not started.
-
-## Step 6 independent-review follow-up
-
-Rechecked the report against the latest repository, not only Claude's reviewed
-690963f snapshot. Added offline-readiness.test.js with 14 additional ordinary
-production assertions. All 14 fail for the reported reasons; the full strict
-suite now has 33 failing checks. This is a larger coverage set, not 33 distinct bugs.
-
-| Review gap | Added failing checks | Reproduced behavior |
-|---|---:|---|
-| B1: stuck queues | 3 | Expired boarding, rejected independent jobs and mixed old/fresh GPS prevent later uploads |
-| B2: old end requests | 1 | An unsent old end closes a newer shift opened on another tablet |
-| B4: photos | 2 | Failed upload or oversized photo is acknowledged with 200 |
-| Persistence before first send | 1 | New shift payload is absent from persistent storage at its first invoke |
-| Legacy assignment | 1 | Unbound legacy shift is accepted using current pairing |
-| Admin assignment metadata | 1 | No device plus expected_device_id returns 500 |
-| GPS history scaling | 1 | One-point batch requires 13 reads over 6,000 unrelated historical rows |
-| B3: concurrent replay and GPS | 4 | Same-ID check-ins, shifts and inspection parents duplicate; older GPS overwrites newer |
-
-The previous passing end-shift test was narrower: an exact request ID already
-completed on the server is recognized. It did not cover an unsent old end event,
-a different request ID, or another tablet opening a newer shift. Its name now
-states that narrow guarantee.
-
-The persist-before-send test confirms the shift path. Check-in, driver-template
-and mechanic first-send persistence gaps remain confirmed by code review; those
-UI crash cases need additional coverage when the persistence workflow is revised.
-Photo-count caps and cross-user mechanic replay remain code-review gaps too.
-
-These requirements do not mean blindly skipping every 4xx. Global authorization
-errors and 429 throttling need backoff/re-authentication. Permanent item-specific
-rejections need a visible recoverable quarantine/export workflow, and independent
-work can continue without reordering dependent events. Rejected legacy work must
-be preserved and resolved/exported before re-pairing; do not empty tablet storage
-as a workaround. The GPS mixed-batch case must separate invalid/expired points
-without silently deleting them.
-
-No application fix was made in this follow-up. Production is still blocked.
-The next remediation should address queue recovery/persist-before-send, targeted
-shift closure, photo acknowledgement, bounded GPS history and the controlled
-admin error, while atomic storage guarantees are investigated separately.
-Step 8 remains paused.
+Before first production: resolve remaining strict failures, settle policy choices,
+authorize legacy credential/device migration, configure verified scheduler identity,
+review old queued work, then perform separately authorized live role/device tests
+with verified accounts and cleanup. Backend changes and the unpublished frontend
+need a coordinated rollout. Passing baseline tests do not establish release readiness.

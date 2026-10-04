@@ -507,3 +507,36 @@ description: only retry of an exact already-completed request ID was covered.
 Application functions/resources remain unchanged. See security-tests/README.md
 for the updated ledger and safe remediation scope. Do not clear queues as a
 workaround, and do not treat 33 checks as 33 unique vulnerabilities. STEP 8 paused.
+
+
+## Authorized remediation batch — 2026-10-04 UTC
+
+Current results supersede the historical Step 7 counts above: 198 baseline unit
+assertions and eight mocked Chromium checks pass; lint and build pass. Strict
+production criteria: 12 pass, 21 fail (33 total), exit 1. Step 8 stays paused.
+See security-tests/README.md for the current ledger and limits.
+
+Implemented persist-before-first-send check-ins/shifts/driver and mechanic
+inspections; visible retained rejection/export/retry/archive recovery; independent
+queue progress and split GPS rejection handling; targeted end-shift; prevalidated
+photo caps and failed-upload 503; replay assignment enforcement; bounded descending
+GPS history reads; controlled admin assignment error. Unpairing a driver tablet no
+longer clears GPS history. Queue originals and assignments are retained for review.
+Exports omit known credential fields and preserve answers/photos. Archive/removal
+are explicit online-admin reconciliation actions, tested only with mocked storage.
+
+Maintenance alert managers now come from approved active CompanyMembership,
+ignoring profile User.company_id. Driver unlock grants bind to the PIN credential
+version, so reset invalidates previous grants. Existing unlock grants lacking that
+version require an online PIN unlock; device records/tokens were not revoked.
+Mechanic maintenance access and credential/role restrictions are preserved.
+
+Backend/entity edits auto-sync. The frontend was not published, and backend/client
+contracts need coordinated rollout before tablet use. No live accounts/records,
+emails, schedules, tablet revocations, production credential rotations or signing
+keys were used. Legacy ID-only development authentication remains deliberately
+unchanged. Concurrent storage/backend replay remains unresolved; local guards are
+not transactions. Large photos can exceed local-storage capacity and are refused
+before send. Partial successful photo uploads can leave unused blobs on retry.
+GPS dense windows hit a 10,000-row cap and retry with 503. Policy decisions and
+live identity/RLS checks remain outstanding; this checkpoint is not release-ready.
