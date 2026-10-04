@@ -259,6 +259,13 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
     features: ahead.map((r) => ({ type: "Feature", properties: { level: r.level }, geometry: { type: "LineString", coordinates: r.coords } })),
   }), [ahead]);
 
+  const alternateGeo = {
+    type: "FeatureCollection",
+    features: routeNav ? routeOptions.filter((r) => r !== nav).map((r) => ({
+      type: "Feature", properties: {}, geometry: { type: "LineString", coordinates: r.geometry },
+    })) : [],
+  };
+
   // Camera: follow the bus, pointing the way it drives, tilted, with the
   // bus low on the screen so more of the road ahead shows.
   useEffect(() => {
@@ -355,7 +362,7 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
               }] : []}
               stops={nextStop ? [{ ...nextStop, color: "#D93025" }] : []}
               pins={pins}
-              lines={ahead.map((r) => ({ coords: r.coords, color: ROUTE_COLOR[r.level], width: 7, opacity: 0.95 }))}
+              lines={[...alternateGeo.features.map((f) => ({ coords: f.geometry.coordinates, color: "#94a3b8", width: 5, opacity: 0.7 })), ...ahead.map((r) => ({ coords: r.coords, color: ROUTE_COLOR[r.level], width: 7, opacity: 0.95 }))]}
             />
           </Suspense>
         ) : (
@@ -372,6 +379,12 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
             onRotateStart={(e) => { if (e.originalEvent) stopFollowing(); }}
             onPitchStart={(e) => { if (e.originalEvent) stopFollowing(); }}
           >
+            {alternateGeo.features.length > 0 && (
+              <Source id="nav-alternatives" type="geojson" data={alternateGeo}>
+                <Layer id="nav-alternatives-line" type="line" layout={{ "line-cap": "round", "line-join": "round" }}
+                  paint={{ "line-color": "#94a3b8", "line-width": 5, "line-opacity": 0.7 }} />
+              </Source>
+            )}
             {ahead.length > 0 && (
               <Source id="nav-route" type="geojson" data={aheadGeo}>
                 <Layer id="nav-route-casing" type="line" layout={{ "line-cap": "round", "line-join": "round" }}
