@@ -101,7 +101,7 @@ async function loadStaffDirectory(base44, companyId) {
       email: u.email || '', photo_url: u.photo_url || '', nfc_tag: cardForUser(u.id),
       access_code: '',
       one_time_code: u.one_time_code || '', one_time_code_expires_at: u.one_time_code_expires_at || null,
-      vehicle_id: '', vehicle_name: '',
+      vehicle_id: u.vehicle_id || '', vehicle_name: u.vehicle_name || '',
     })),
   ];
 }
