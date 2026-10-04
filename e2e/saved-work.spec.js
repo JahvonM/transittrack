@@ -17,7 +17,7 @@ async function recoverySession(page, initialRole='admin') {
   return route.fulfill({json:{id:'test-app',public_settings:{authentication_required:false}}});
  });
  await page.goto('/login');
- await page.getByRole('button',{name:'1 saved items need review'}).click();
+ await page.getByRole('status').filter({hasText:'1 saved items need review'}).click();
  await expect(page.getByRole('dialog')).toBeVisible();
  return identity;
 }
