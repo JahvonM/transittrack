@@ -254,7 +254,7 @@ async function currentBoardingEligibility(base44,device,person,token,method) {
  const row=rows[0];if(!row||!['card','code'].includes(row.auth_kind)||!row.subject_source)return false;
  if(row.subject_source&&row.subject_source!==person.source)return false;
  if(row.member_user_id) {
-  const user=await base44.asServiceRole.entities.User.get(row.member_user_id).catch(()=>null);
+  const user=await base44.asServiceRole.entities.User.get(row.member_user_id).catch(error=>{if(error.status===404||error.response?.status===404)return null;throw error;});
   if(!user||user.role!=='staff'||!(await approvedStaffIds(base44,device.company_id)).has(user.id))return false;
   if(person.member_user_id!==user.id)return false;
  }

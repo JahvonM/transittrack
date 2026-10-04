@@ -19,6 +19,8 @@ describe('boarding grant current authorization',()=>{
  ['revoked timestamp',sdk=>{sdk.tables.NfcCard[0].revoked_at=new Date().toISOString();}],
  ['expired card',sdk=>{sdk.tables.NfcCard[0].expiry_date='2000-01-01';}],
  ['invalid expiry',sdk=>{sdk.tables.NfcCard[0].expiry_date='bad-date';}],
+ ['deleted card ledger',sdk=>{sdk.tables.NfcCard=[];}],
+ ['duplicate card UID',sdk=>{sdk.tables.NfcCard.push({...sdk.tables.NfcCard[0],id:'duplicate'});}],
  ['different owner',sdk=>{sdk.tables.NfcCard[0].holder_id='someone-else';}],
  ['different company',sdk=>{sdk.tables.NfcCard[0].company_id='b';}],
  ['removed membership',sdk=>{sdk.tables.CompanyMembership[0].active=false;}],
@@ -52,6 +54,16 @@ describe('boarding grant current authorization',()=>{
  });
  it('binds card grants to the verification method',async()=>{
   const f=setup(),grant=await lookedUp(f);expect((await f.send({...check(grant),method:'code'})).status).toBe(403);
+ });
+ it('rechecks membership on keypad grants too',async()=>{
+  const f=setup();const lookup=await f.send({action:'lookup_code',code:'12345'});expect(lookup.status).toBe(200);
+  const grant=(await lookup.json()).verification_grant;f.sdk.tables.CompanyMembership[0].active=false;
+  expect((await f.send({...check(grant),method:'code'})).status).toBe(403);expect(f.sdk.tables.StaffCheckIn||[]).toEqual([]);
+ });
+ it('returns a retryable server error when a current-user read fails',async()=>{
+  const f=setup(),grant=await lookedUp(f),original=f.sdk.asServiceRole.entities;
+  f.sdk.asServiceRole.entities=new Proxy(original,{get:(target,name)=>name==='User'?{...target[name],get:async()=>{throw new Error('temporary storage failure');}}:target[name]});
+  expect((await f.send(check(grant))).status).toBe(500);expect(f.sdk.tables.StaffCheckIn||[]).toEqual([]);
  });
  it('does not return grant identity or card fingerprint to the tablet',async()=>{
   const f=setup();const response=await f.send({action:'lookup_tag',card_tag:'CARD'});const data=await response.json();
