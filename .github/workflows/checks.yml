@@ -5,6 +5,9 @@
 #   build - makes sure the app still builds
 name: Checks
 
+permissions:
+  contents: read
+
 on:
   push:
     branches: [main]
@@ -35,3 +38,21 @@ jobs:
         run: npm test
       - name: Build
         run: npm run build
+
+  security-release-readiness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install
+        run: npm ci
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
+      # These assertions intentionally stay red until known release blockers are fixed.
+      # Never convert them to skips/expected failures or use continue-on-error.
+      - name: Production security requirements
+        run: npm run test:security:release
