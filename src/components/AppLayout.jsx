@@ -22,16 +22,17 @@ export default function AppLayout(props) {
 }
 
 const PASSENGER_NAV = [
-  { to: "/staff", label: "Home", also: "/" },
+  { to: "/staff", label: "Home", also: ["/"] },
   { to: "/route-explorer", label: "Map" },
-  { to: "/notifications", label: "Messages" },
+  { to: "/buses", label: "Buses" },
+  { to: "/more", label: "More", also: ["/notifications", "/account", "/safety-standards"] },
 ];
 const STAFF_ROLES = new Set(["admin", "driver", "company", "mechanic"]);
 
 // Passenger screens: no header on phones (the bottom tabs are the navigation
 // and each screen has its own top line); a slim top bar with the same tabs
 // from tablet width up.
-function PassengerLayout({ children, title, fullBleed = false }) {
+function PassengerLayout({ children, title, fullBleed = false, back = null }) {
   const { user, logout } = useAuth();
   const { pathname } = useLocation();
   if (STAFF_ROLES.has(user?.role)) return <FullLayout title={title}>{children}</FullLayout>;
@@ -43,11 +44,11 @@ function PassengerLayout({ children, title, fullBleed = false }) {
         <div className="mx-auto flex h-16 max-w-6xl items-center gap-8 px-8">
           <Link to="/staff" className="flex items-center gap-2.5 font-heading text-title-sm font-bold">
             <Logo className="h-8 w-8" />
-            TransitTrack
+            <span>Transit<span className="text-primary">Track</span></span>
           </Link>
           <nav className="flex h-full items-stretch gap-1" aria-label="Main">
-            {PASSENGER_NAV.map(({ to, label, also }) => {
-              const active = pathname.startsWith(to) || pathname === also;
+            {PASSENGER_NAV.map(({ to, label, also = [] }) => {
+              const active = pathname.startsWith(to) || also.some((p) => (p === "/" ? pathname === "/" : pathname.startsWith(p)));
               return (
                 <Link
                   key={to}
@@ -81,7 +82,12 @@ function PassengerLayout({ children, title, fullBleed = false }) {
           fullBleed && "max-w-none p-0 md:p-0 md:pb-0",
         )}
       >
-        {title && <h1 className="px-6 pb-2 pt-6 text-display font-bold md:px-0 md:pt-2">{title}</h1>}
+        {back && (
+          <Link to={back.to} className="ml-4 mt-3 inline-flex min-h-[44px] items-center gap-1 rounded-lg px-2 text-body font-semibold text-muted-foreground hover:text-foreground md:ml-0">
+            <ArrowLeft className="h-5 w-5" aria-hidden="true" /> {back.label}
+          </Link>
+        )}
+        {title && <h1 className={cn("px-6 pb-2 text-display font-bold md:px-0", back ? "pt-1" : "pt-6 md:pt-2")}>{title}</h1>}
         {children}
       </main>
     </div>

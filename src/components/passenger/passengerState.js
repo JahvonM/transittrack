@@ -1,7 +1,7 @@
 // Presentation rules for the passenger home. These only *describe* data the
 // page already has (the approaching bus, its ETA, its last fix); they never
 // change it and never invent schedule status such as "on time" or "late".
-import { freshnessOf } from "@/components/system/status";
+import { freshnessOf, formatAge } from "@/components/system/status";
 import { routeProgress } from "@/components/TripProgress";
 
 /**
@@ -95,4 +95,19 @@ export function timelineRows({ route, bus, stopName, placeBus = true, showAllPas
 export function busNumber(name) {
   const m = String(name || "").match(/(\d+)\s*$/) || String(name || "").match(/(\d+)/);
   return m ? m[1] : null;
+}
+
+// One line describing where a bus is, shared by the Map and Buses tabs.
+export function busStatusLine(v, route, now = Date.now()) {
+  if (v.in_service === false) return "Out of service";
+  if (!v.tracking_active || v.current_lat == null) {
+    return v.last_location_update ? `Not tracking · last seen ${lastSeen(v.last_location_update, now)}` : "Not on the road";
+  }
+  const fresh = freshnessOf(v.last_location_update, { now });
+  if (fresh.state === "lost") return `Signal lost ${formatAge(fresh.ageMs)}`;
+  const stops = sortStops(route?.stops).filter((s) => s.lat != null && s.lng != null);
+  const p = stops.length > 1 ? routeProgress(stops, v.current_lat, v.current_lng) : null;
+  const next = p ? stops[p.nextIndex] : null;
+  const where = next ? `Next stop ${next.name}` : "On the road";
+  return fresh.state === "stale" ? `${where} · updated ${formatAge(fresh.ageMs)}` : where;
 }

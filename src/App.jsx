@@ -42,6 +42,8 @@ const StaffDirectory = lazy(() => import('@/pages/StaffDirectory'));
 const VehicleLogs = lazy(() => import('@/pages/VehicleLogs'));
 const ServiceHistory = lazy(() => import('@/pages/ServiceHistory'));
 const SafetyStandards = lazy(() => import('@/pages/SafetyStandards'));
+const Buses = lazy(() => import('@/pages/Buses'));
+const More = lazy(() => import('@/pages/More'));
 const RideHistory = lazy(() => import('@/pages/RideHistory'));
 const FleetAnalytics = lazy(() => import('@/pages/FleetAnalytics'));
 const Notifications = lazy(() => import('@/pages/Notifications'));
@@ -131,6 +133,8 @@ const AuthenticatedApp = () => {
         <Route path="/incident-reports" element={<IncidentReports />} />
         <Route path="/passenger-bookings" element={<PassengerBookings />} />
         <Route path="/route-explorer" element={<RouteExplorer />} />
+        <Route path="/buses" element={<Buses />} />
+        <Route path="/more" element={<More />} />
         <Route path="/staff-directory" element={<StaffDirectory />} />
         <Route path="/vehicle-logs" element={<VehicleLogs />} />
         <Route path="/service-history" element={<ServiceHistory />} />

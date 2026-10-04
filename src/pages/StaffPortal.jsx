@@ -1,6 +1,8 @@
 import React, { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
-import { Link, Navigate } from "react-router-dom";
-import { Bell, ChevronDown } from "lucide-react";
+import { Link, Navigate, useSearchParams } from "react-router-dom";
+import { Bell, MapPin, UserRound } from "lucide-react";
+import { useIsDark } from "@/lib/useTheme";
+import { mapAccentFor } from "@/lib/mapbox";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import AppLayout from "@/components/AppLayout";
@@ -24,9 +26,10 @@ import ArrivalHero from "@/components/passenger/ArrivalHero";
 import RouteTimeline from "@/components/passenger/RouteTimeline";
 import StopChooser from "@/components/passenger/StopChooser";
 import {
-  AlertBand, BookedRides, MoreList, OtherBuses, SectionHead, SponsorLine, StopAlertRow, TripActions, TripFacts,
+  AlertBand, BookedRides, MoreList, OtherBuses, OtherBusesOverlay, SectionHead, SponsorLine, StopAlertRow, TripActions, TripFacts,
 } from "@/components/passenger/PassengerSections";
 import { clock, passengerTripState, sortStops } from "@/components/passenger/passengerState";
+import useStopEtas from "@/components/passenger/useStopEtas";
 
 // The live 3D map (mapbox-gl + three.js) loads after the page around it.
 const LiveTransitMap = lazy(() => import("@/components/map3d/LiveTransitMap"));
@@ -56,6 +59,16 @@ export default function StaffPortal() {
   const [companyPhone, setCompanyPhone] = useState("");
   const [stopAlerts, setStopAlerts] = useState(false);
   const [sheet, setSheet] = useState(null); // "pickup" | "stop" | "help" | "badge" | "chat" | "assistant" | null
+  // Links from the More tab open a sheet here (/staff?sheet=help).
+  const [params, setParams] = useSearchParams();
+  useEffect(() => {
+    const want = params.get("sheet");
+    if (!want || !["pickup", "stop", "help", "badge", "chat", "assistant"].includes(want)) return;
+    setSheet(want);
+    const next = new URLSearchParams(params);
+    next.delete("sheet");
+    setParams(next, { replace: true });
+  }, [params, setParams]);
 
   // The pickup stop is saved on the account (favourite stop) so the server
   // can send "one stop away" alerts for it.
@@ -305,6 +318,16 @@ export default function StaffPortal() {
   const onTrip = ["live", "arriving", "signal_lost"].includes(tripState.kind);
   const busOnMap = tripState.bus && tripState.bus.current_lat != null ? locatedVehicles.find((v) => v.id === tripState.bus.id) || null : null;
   const nextStopIndex = onTrip && busOnMap ? routeProgress(mapStops, busOnMap.current_lat, busOnMap.current_lng)?.nextIndex ?? null : null;
+  // Times for each stop ahead, from the same ETA sources as the arrival time.
+  const upcomingStops = useMemo(() => {
+    if (nextStopIndex == null || !stop) return [];
+    const mine = mapStops.findIndex((x) => x.name === stop.name);
+    const end = mine >= nextStopIndex ? mine : mapStops.length - 1;
+    return [...mapStops.slice(nextStopIndex, end + 1), ...(end < mapStops.length - 1 ? [mapStops[mapStops.length - 1]] : [])];
+  }, [mapStops, nextStopIndex, stop]);
+  const stopEtas = useStopEtas({ bus: busOnMap, route: timelineRoute, stops: upcomingStops, record: timelineRoute ? travelTimes[timelineRoute.id] : null, enabled: onTrip });
+  const isDark = useIsDark();
+  const accent = mapAccentFor(isDark);
 
   if (user?.role === "driver") return <Navigate to="/driver" replace />;
   if (user?.role === "company") return <Navigate to="/company" replace />;
@@ -337,9 +360,26 @@ export default function StaffPortal() {
       <p className="mt-1 font-display text-display font-semibold tabular-nums">
         {tripState.kind === "arriving" ? "Arriving" : roundMins != null && onTrip ? `${roundMins} min` : tripState.kind === "not_started" ? "Not started" : "No arrival time"}
       </p>
-      {nextStopIndex != null && mapStops[nextStopIndex] && <p className="text-body-sm">Next stop: <b>{mapStops[nextStopIndex].name}</b></p>}
+      {nextStopIndex != null && mapStops[nextStopIndex] && <p className="text-body-sm">Next stop: <b>{mapStops[nextStopIndex].name}</b>{stopEtas[mapStops[nextStopIndex].name] && onTrip ? ` · ${Math.max(1, Math.round(stopEtas[mapStops[nextStopIndex].name].mins))} min` : ""}</p>}
     </div>
   ) : null;
+
+  const nextStop = nextStopIndex != null ? mapStops[nextStopIndex] : null;
+  const myStopEta = stop ? stopEtas[stop.name] : null;
+  const mapTopCard = stop ? (
+    <div className="flex items-center gap-3 rounded-2xl border border-border bg-card/95 px-4 py-3 shadow-xl backdrop-blur">
+      <MapPin className="h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
+      <p className="min-w-0 flex-1">
+        <span className="block truncate font-bold">{stop.name}</span>
+        <span className="block text-body-sm text-muted-foreground">
+          {roundMins != null && onTrip ? `${roundMins} min` : "No arrival time yet"}
+          {myStopEta?.km != null && onTrip ? ` · ${myStopEta.km < 1 ? `${Math.round(myStopEta.km * 1000)} m` : `${myStopEta.km.toFixed(1)} km`}` : ""}
+        </span>
+      </p>
+    </div>
+  ) : null;
+  const serving = new Set(servingRoutes.map((r) => r.id));
+  const routeBuses = otherBuses.filter((v) => serving.has(v.route_id));
 
   return (
     <AppLayout variant="passenger">
@@ -347,23 +387,17 @@ export default function StaffPortal() {
         <div className="mx-auto max-w-2xl lg:grid lg:max-w-none lg:grid-cols-[440px_minmax(0,1fr)] lg:items-start lg:gap-14">
           {/* Left: your trip */}
           <div className="min-w-0">
-            {stop && (
-              <div className="flex h-[60px] items-center justify-between pl-6 pr-3 lg:px-0">
-                <button
-                  type="button"
-                  onClick={() => setSheet("stop")}
-                  className="-ml-1 flex min-h-[44px] min-w-0 items-center gap-1.5 rounded-lg px-1 text-title-sm font-bold"
-                  aria-label={`Your stop: ${stop.name}. Change stop`}
-                >
-                  <span className="font-medium text-muted-foreground">To</span>
-                  <span className="truncate">{stop.name}</span>
-                  <ChevronDown className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden="true" />
-                </button>
-                <Link to="/notifications" className="grid h-11 w-11 shrink-0 place-items-center rounded-xl hover:bg-accent" aria-label="Announcements">
+            <div className="flex h-[60px] items-center justify-between pl-6 pr-3 md:hidden">
+              <p className="font-heading text-title font-bold tracking-[-0.01em]">Transit<span className="text-primary">Track</span></p>
+              <div className="flex items-center">
+                <Link to="/notifications" className="grid h-11 w-11 place-items-center rounded-xl hover:bg-accent" aria-label="Messages and announcements">
                   <Bell className="h-[22px] w-[22px]" aria-hidden="true" />
                 </Link>
+                <Link to="/account" className="grid h-11 w-11 place-items-center rounded-xl hover:bg-accent" aria-label="Account">
+                  <UserRound className="h-[22px] w-[22px]" aria-hidden="true" />
+                </Link>
               </div>
-            )}
+            </div>
 
             {tripState.kind === "choose" ? (
               <>
@@ -372,7 +406,6 @@ export default function StaffPortal() {
               </>
             ) : (
               <>
-                <ArrivalHero state={tripState} stop={stop} eta={eta} trip={onTheWayTrip} now={now} />
                 {tripState.kind === "problem" && (
                   <AlertBand
                     tone="danger"
@@ -392,8 +425,11 @@ export default function StaffPortal() {
                     />
                   </div>
                 )}
+                <div className={tripState.kind === "problem" || notice ? "pt-4" : ""}>
+                  <ArrivalHero state={tripState} stop={stop} eta={eta} trip={onTheWayTrip} now={now} onChangeStop={() => setSheet("stop")} accent={accent} />
+                </div>
                 {timelineRoute && (
-                  <RouteTimeline route={timelineRoute} bus={tripState.bus} kind={tripState.kind} stopName={stop.name} mins={mins} />
+                  <RouteTimeline route={timelineRoute} bus={tripState.bus} kind={tripState.kind} stopName={stop.name} mins={mins} stopEtas={stopEtas} now={now} />
                 )}
                 <StopAlertRow
                   busName={tripState.bus?.name}
@@ -403,19 +439,19 @@ export default function StaffPortal() {
                   onEnablePush={enableNotifications}
                 />
                 <TripActions onChat={() => setSheet("chat")} chatUnread={chatUnread} />
+                <TripFacts bus={tripState.bus} crowdCount={tripState.bus ? crowd[tripState.bus.id] || 0 : 0} />
                 {!userLoc && locError && <div className="px-6 pt-6 lg:px-0"><LocationPrompt onLocation={setPromptLoc} /></div>}
               </>
             )}
           </div>
 
           {/* Right: map and details */}
-          <div className="flex min-w-0 flex-col lg:pt-[60px]">
-            {stop && <div className="lg:order-2"><TripFacts bus={tripState.bus} crowdCount={tripState.bus ? crowd[tripState.bus.id] || 0 : 0} /></div>}
+          <div className="flex min-w-0 flex-col">
             <section className="px-6 pt-10 lg:order-1 lg:px-0 lg:pt-0" aria-labelledby="tt-live-map">
               <SectionHead id="tt-live-map" title="Live map" aside={<Link to="/route-explorer" className="text-body-sm font-semibold underline-offset-4 hover:underline">Open map</Link>} />
-              <Suspense fallback={<div className="h-64 animate-pulse rounded-xl bg-muted lg:h-[440px]" />}>
+              <Suspense fallback={<div className="h-64 animate-pulse rounded-2xl bg-muted lg:h-[620px]" />}>
                 <LiveTransitMap
-                  className="h-64 rounded-xl border border-border sm:h-80 lg:h-[440px]"
+                  className="h-64 rounded-2xl border border-border sm:h-80 lg:h-[620px]"
                   vehicles={locatedVehicles}
                   focusVehicleId={busOnMap?.id || null}
                   stops={mapStops}
@@ -424,6 +460,8 @@ export default function StaffPortal() {
                   userLocation={userLoc}
                   callout={callout}
                   summary={mapSummary}
+                  topCard={mapTopCard}
+                  overlay={<OtherBusesOverlay buses={routeBuses} stop={stop} now={now} />}
                   label={stop ? `Live map of ${tripState.bus?.name || "buses"} and ${stop.name}` : "Live map of buses"}
                 />
               </Suspense>

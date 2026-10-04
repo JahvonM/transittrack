@@ -1,8 +1,11 @@
-import React from "react";
-import { Clock, SatelliteDish, Sparkles, Route as RouteIcon, Ruler } from "lucide-react";
+import React, { Suspense, lazy } from "react";
+import { ChevronDown, Clock, SatelliteDish, Sparkles, Route as RouteIcon, Ruler } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatAge } from "@/components/system/status";
 import { arrivalClock, clock, lastSeen } from "./passengerState";
+
+// The 3D model shares three.js with the live map, so it loads with it.
+const BusModelView = lazy(() => import("@/components/map3d/BusModelView"));
 
 function LiveLine({ state, fresh }) {
   if (state.kind === "signal_lost") {
@@ -36,30 +39,33 @@ function LiveLine({ state, fresh }) {
   );
 }
 
+// Where the minutes come from, as a small chip.
 function SourceLine({ eta }) {
   if (!eta) return null;
   const Icon = eta.isLearned ? Sparkles : eta.isDriving ? RouteIcon : Ruler;
-  const text = eta.isLearned
+  const text = eta.isLearned ? "Learned ETA" : eta.isDriving ? "Road estimate" : "Rough estimate";
+  const title = eta.isLearned
     ? `Based on ${eta.trips ? `${eta.trips} real trip${eta.trips === 1 ? "" : "s"}` : "real trips"} on this route`
-    : eta.isDriving ? "Estimated by road from the bus's position" : "Rough estimate from distance";
+    : eta.isDriving ? "Estimated by road from the bus's position" : "Estimated from straight-line distance";
   return (
-    <p className="mt-1.5 flex items-center gap-1.5 text-body-sm text-muted-foreground">
-      <Icon className="h-4 w-4 shrink-0" aria-hidden="true" /> {text}
+    <p className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-caption font-semibold text-muted-foreground" title={title}>
+      <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" /> {text}
+      <span className="sr-only">: {title}</span>
     </p>
   );
 }
 
-const BIG = "font-display font-semibold tabular-nums leading-[0.8] tracking-[-0.03em] text-[clamp(6.5rem,32vw,9.5rem)] lg:text-[9.5rem]";
-const WORD = "font-display font-semibold leading-none tracking-[-0.02em] text-[clamp(3.5rem,17vw,5rem)]";
+const BIG = "font-display font-semibold tabular-nums leading-[0.8] tracking-[-0.03em] text-[clamp(5.5rem,26vw,7.5rem)]";
+const WORD = "font-display font-semibold leading-none tracking-[-0.02em] text-[clamp(3rem,14vw,4.25rem)]";
 // Longer word states stay on one line on a 360px phone.
-const WORD_LONG = "font-display font-semibold leading-none tracking-[-0.02em] text-[clamp(2.5rem,12vw,3.75rem)]";
+const WORD_LONG = "font-display font-semibold leading-none tracking-[-0.02em] text-[clamp(2.25rem,10vw,3.25rem)]";
 
 /**
  * The arrival area: the one thing a passenger opens the app for. Says only
  * what TransitTrack knows (minutes, word states, how fresh the position is)
  * and never shows schedule status like "on time" or "late".
  */
-export default function ArrivalHero({ state, stop, eta, trip, now = Date.now() }) {
+export default function ArrivalHero({ state, stop, eta, trip, now = Date.now(), onChangeStop, accent }) {
   const { kind, bus, fresh, mins } = state;
   const name = bus?.name || "Your bus";
   const roundMins = mins != null ? Math.max(1, Math.round(mins)) : null;
@@ -70,7 +76,7 @@ export default function ArrivalHero({ state, stop, eta, trip, now = Date.now() }
   switch (kind) {
     case "live":
       big = roundMins != null
-        ? <><span className={BIG}>{roundMins}</span><span className="text-[2.25rem] font-medium text-muted-foreground">min</span></>
+        ? <><span className={BIG}>{roundMins}</span><span className="text-[2rem] font-medium text-muted-foreground">min</span></>
         : <span className={WORD}>On its way</span>;
       sub = roundMins != null ? `${name} reaches ${stop.name} around ${arrivalClock(mins, now)}` : `${name} is on its way to ${stop.name}`;
       note = <SourceLine eta={eta} />;
@@ -82,7 +88,7 @@ export default function ArrivalHero({ state, stop, eta, trip, now = Date.now() }
       break;
     case "signal_lost":
       big = roundMins != null
-        ? <><span className={cn(BIG, "text-muted-foreground")}>{roundMins}</span><span className="text-[2.25rem] font-medium text-muted-foreground">min</span></>
+        ? <><span className={cn(BIG, "text-muted-foreground")}>{roundMins}</span><span className="text-[2rem] font-medium text-muted-foreground">min</span></>
         : <span className={cn(WORD, "text-muted-foreground")}>No signal</span>;
       sub = bus?.last_location_update ? `Last estimate, from ${clock(bus.last_location_update)}` : "Last estimate";
       note = <p className="mt-1.5 text-body-sm text-muted-foreground">{name} hasn't sent its location since then. The time above may be out of date.</p>;
@@ -113,12 +119,33 @@ export default function ArrivalHero({ state, stop, eta, trip, now = Date.now() }
       : kind === "arriving" ? `${name} is arriving at ${stop.name}`
         : sub;
 
+  const showBus = bus && kind !== "no_eta";
   return (
-    <section className="px-6 pb-8 pt-4 lg:px-0" aria-labelledby="tt-arrival-sub">
+    <section className="px-6 pb-6 pt-2 lg:px-0" aria-labelledby="tt-arrival-sub">
       <LiveLine state={state} fresh={fresh} />
       <p className="sr-only" aria-live="polite">{spoken}</p>
-      <div className="mt-6 flex items-baseline gap-2.5" aria-hidden="true">{big}</div>
-      <p id="tt-arrival-sub" className="mt-6 text-title-sm font-semibold leading-snug">{sub}</p>
+      <div className="mt-5 flex items-end justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex items-baseline gap-2" aria-hidden="true">{big}</div>
+          <button
+            type="button"
+            onClick={onChangeStop}
+            className="-ml-1 mt-3 flex min-h-[44px] max-w-full items-center gap-1 rounded-lg px-1 text-left text-title font-bold leading-tight"
+            aria-label={`Your stop: ${stop.name}. Change stop`}
+          >
+            <span className="break-words">to {stop.name}</span>
+            <ChevronDown className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden="true" />
+          </button>
+        </div>
+        {showBus && (
+          <div className="relative -mr-2 h-24 w-32 shrink-0 min-[400px]:h-28 min-[400px]:w-40 sm:h-32 sm:w-48" aria-hidden="true">
+            <Suspense fallback={null}>
+              <BusModelView className="h-full w-full" modelId={bus.model_3d || (bus.type === "taxi" ? "taxi" : "city_bus")} accent={accent} stale={kind === "signal_lost" || kind === "problem" || kind === "not_started"} label={bus.name} />
+            </Suspense>
+          </div>
+        )}
+      </div>
+      <p id="tt-arrival-sub" className="mt-2 text-body font-semibold leading-snug">{sub}</p>
       {note}
       {trip && (
         <p className="mt-4 border-l-4 border-primary pl-3 text-body-sm">

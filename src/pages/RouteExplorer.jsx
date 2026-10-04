@@ -8,25 +8,12 @@ import BusLoader from "@/components/BusLoader";
 import { routeProgress } from "@/components/TripProgress";
 import { loadFailed } from "@/lib/loadFailed";
 import { cn } from "@/lib/utils";
-import { busNumber, clock, lastSeen, sortStops } from "@/components/passenger/passengerState";
-import { freshnessOf, formatAge } from "@/components/system/status";
+import { busNumber, busStatusLine, clock, sortStops } from "@/components/passenger/passengerState";
 
 const LiveTransitMap = lazy(() => import("@/components/map3d/LiveTransitMap"));
 const STAFF_ROLES = new Set(["admin", "company"]);
 
-function busLine(v, route, now) {
-  if (v.in_service === false) return "Out of service";
-  if (!v.tracking_active || v.current_lat == null) {
-    return v.last_location_update ? `Not tracking · last seen ${lastSeen(v.last_location_update, now)}` : "Not on the road";
-  }
-  const fresh = freshnessOf(v.last_location_update, { now });
-  if (fresh.state === "lost") return `Signal lost ${formatAge(fresh.ageMs)}`;
-  const stops = sortStops(route?.stops).filter((s) => s.lat != null && s.lng != null);
-  const p = stops.length > 1 ? routeProgress(stops, v.current_lat, v.current_lng) : null;
-  const next = p ? stops[p.nextIndex] : null;
-  const where = next ? `Next stop ${next.name}` : "On the road";
-  return fresh.state === "stale" ? `${where} · updated ${formatAge(fresh.ageMs)}` : where;
-}
+const busLine = busStatusLine;
 
 export default function RouteExplorer() {
   const { user } = useAuth();
@@ -105,6 +92,7 @@ export default function RouteExplorer() {
             <Suspense fallback={<div className="h-full w-full animate-pulse bg-muted" />}>
               <LiveTransitMap
                 variant="page"
+                defaultSatellite
                 className="h-full w-full"
                 vehicles={located}
                 focusVehicleId={focus?.id || null}

@@ -18,7 +18,7 @@ const DRIVER_LINKS = [
 export default function Account() {
   const { user, logout } = useAuth();
   return (
-    <AppLayout variant="passenger" title="Account">
+    <AppLayout variant="passenger" back={{ to: "/more", label: "More" }} title="Account">
       <div className="max-w-xl space-y-4 px-4 pb-6 md:px-0">
         <ProfileInfo />
         {user?.role === "driver" && (

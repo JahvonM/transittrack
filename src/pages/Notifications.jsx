@@ -50,7 +50,7 @@ export default function Notifications() {
   });
 
   return (
-    <AppLayout variant="passenger" title="Messages">
+    <AppLayout variant="passenger" back={{ to: "/more", label: "More" }} title="Messages">
       <PullToRefresh onRefresh={loadAlerts} className="max-w-2xl">
         <p className="px-6 pb-4 text-body text-muted-foreground md:px-0">Announcements and arrivals from your bus company.</p>
         {alerts.length === 0 && (

@@ -261,12 +261,13 @@ export default function DriverTrackingDashboard({ session, invoke, onReportIncid
     <DeckButton
       icon={sharing ? (locked ? Lock : NavigationOff) : Navigation}
       state={sharing ? (locked ? "Locked on by dispatch" : "Sharing location") : "Location not shared"}
-      action={sharing ? (locked ? "Can't stop" : "Stop tracking") : "Start tracking"}
+      action={sharing ? (locked ? "Can't stop" : "End tracking") : "Start tracking"}
       onClick={sharing ? stopTracking : startTracking}
       disabled={sharing && locked}
       active={sharing}
       primary={trackingPrimary}
-      ariaLabel={sharing ? (locked ? "Tracking is locked on by dispatch" : "Stop tracking") : "Start tracking"}
+      danger={sharing && !locked}
+      ariaLabel={sharing ? (locked ? "Tracking is locked on by dispatch" : "End tracking") : "Start tracking"}
     />
   );
 
@@ -276,8 +277,8 @@ export default function DriverTrackingDashboard({ session, invoke, onReportIncid
   return (
     <div
       className={[
-        "grid h-full min-h-0 gap-3 overflow-y-auto overscroll-contain",
-        "grid-cols-1 [grid-template-areas:'map'_'status'_'next'_'deck'_'more'] grid-rows-[56vh_max-content_max-content_max-content_minmax(280px,max-content)]",
+        "grid h-full min-h-0 gap-2 overflow-hidden md:gap-3",
+        "grid-cols-1 [grid-template-areas:'map'_'status'_'deck'] grid-rows-[minmax(0,1fr)_max-content_max-content]",
         "md:overflow-hidden md:grid-cols-2 md:[grid-template-areas:'map_map'_'status_status'_'next_more'_'deck_deck'] md:grid-rows-[minmax(0,1fr)_auto_minmax(220px,30%)_auto]",
         "lg:grid-cols-[minmax(0,1fr)_400px] lg:[grid-template-areas:'map_status'_'map_next'_'map_more'_'map_deck'] lg:grid-rows-[auto_auto_minmax(0,1fr)_auto]",
       ].join(" ")}
@@ -288,7 +289,7 @@ export default function DriverTrackingDashboard({ session, invoke, onReportIncid
 
       <StatusStrip className="[grid-area:status]" items={[{ key: "gps", ...gpsItem }, { key: "net", ...connItem }, { key: "track", ...trackItem }]} />
 
-      <div className="flex min-h-0 flex-col gap-4 overflow-y-auto py-1 [grid-area:next] md:overflow-hidden lg:overflow-visible">
+      <div className="hidden min-h-0 flex-col gap-4 overflow-y-auto py-1 [grid-area:next] md:flex md:overflow-hidden lg:overflow-visible">
         <NextStopBlock
           stop={nav?.nextStop || null}
           index={nav?.nextStopIndex ?? 0}
@@ -307,7 +308,7 @@ export default function DriverTrackingDashboard({ session, invoke, onReportIncid
         )}
       </div>
 
-      <section className="flex min-h-0 flex-col gap-2 [grid-area:more]" aria-label="Today's trips and pickups">
+      <section className="hidden min-h-0 flex-col gap-2 [grid-area:more] md:flex" aria-label="Today's trips and pickups">
         {panelBottom}
         <div className="min-h-[140px] flex-1 md:min-h-0">
           <StaffRouteList staff={staff} vehicle={liveVehicle} nearbyStaff={nearbyStaff} onAttend={markAttended} compact />
@@ -315,8 +316,22 @@ export default function DriverTrackingDashboard({ session, invoke, onReportIncid
       </section>
 
       <div className="flex flex-col gap-2 [grid-area:deck]" aria-label="Driving controls">
+        {/* Phone: next stop and passengers in one line (Stops and Home hold the rest). */}
+        <div className="flex items-center justify-between gap-3 px-1 md:hidden">
+          <p className="min-w-0">
+            <span className="block text-caption text-muted-foreground">{nav?.arrived ? "Arrived at" : "Next stop"}</span>
+            <span className="block truncate text-title-sm font-bold">{nav?.nextStop?.name || "No stop ahead"}</span>
+          </p>
+          {nav?.remainingS != null && !nav?.arrived && (
+            <p className="shrink-0 font-display text-title font-semibold tabular-nums">{Math.max(1, Math.round(nav.remainingS / 60))}<span className="ml-1 text-body-sm font-medium text-muted-foreground">min</span></p>
+          )}
+        </div>
         <div className="grid grid-cols-2 gap-2">
-          {shiftControl}
+          <div className="hidden md:block">{shiftControl}</div>
+          <div className="flex min-h-[88px] flex-col justify-between rounded-xl border border-border bg-card px-4 py-3 md:hidden" aria-label="Passengers on board">
+            <span className="text-body-sm text-muted-foreground">Passengers</span>
+            <span className="font-display text-headline font-semibold leading-none tabular-nums">{occupancy}{liveVehicle?.capacity ? <span className="text-title-sm font-medium text-muted-foreground">/{liveVehicle.capacity}</span> : null}</span>
+          </div>
           {trackingButton}
         </div>
         <div className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-2">

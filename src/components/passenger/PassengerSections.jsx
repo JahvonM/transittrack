@@ -1,15 +1,16 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
-  BellOff, ChevronRight, Clock, CircleAlert, KeyRound, LifeBuoy, MapPinned, MessageCircle, OctagonAlert,
-  Phone, Sparkles, TriangleAlert, Users, X,
+  Bell, BellOff, BellRing, Bus, ChevronRight, Clock, CircleAlert, KeyRound, LifeBuoy, MapPinned, MessageCircle, OctagonAlert,
+  Phone, Sparkles, TriangleAlert, UserRound, Users, X,
 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { cn } from "@/lib/utils";
-import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Image } from "@/components/ui/image";
 import { crowdLevel } from "@/hooks/useCrowding";
+import useDrivingEta from "@/hooks/useDrivingEta";
+import { freshnessOf } from "@/components/system/status";
 import { STATUS_LABEL } from "@/lib/trip";
 import { useStaffFlags } from "@/components/staff/QuickActions";
 import { busNumber, clock, lastSeen } from "./passengerState";
@@ -49,21 +50,33 @@ export function AlertBand({ tone = "warning", title, body, meta, onDismiss, acti
   );
 }
 
-// The "one stop away" alert, with a way to turn notifications on when this
-// phone hasn't allowed them yet.
+// The "one stop away" alert as one big action. Same switch as before
+// (onToggle), with a way to turn notifications on when this phone hasn't
+// allowed them yet.
 export function StopAlertRow({ busName, stopAlerts, onToggle, pushPermission, onEnablePush }) {
   const needsPush = stopAlerts && pushPermission !== "granted" && pushPermission !== "unsupported";
   return (
-    <section className="px-6 pt-6 lg:px-0">
-      <label className="flex min-h-[64px] cursor-pointer items-center gap-4 rounded-xl border border-border bg-card px-4 py-3">
-        <span className="flex-1 text-body font-semibold">
-          Notify me when {busName || "a bus"} is one stop away
-          {stopAlerts && pushPermission === "unsupported" && (
-            <span className="mt-0.5 block text-body-sm font-normal text-muted-foreground">This device can't show notifications. Add the app to your home screen to get them.</span>
-          )}
+    <section className="px-6 pt-5 lg:px-0">
+      <button
+        type="button"
+        onClick={() => onToggle(!stopAlerts)}
+        aria-pressed={stopAlerts}
+        className={cn(
+          "flex min-h-[64px] w-full flex-col items-center justify-center rounded-xl px-4 py-2.5 text-center transition-[background-color,transform] duration-fast active:scale-[0.99]",
+          stopAlerts ? "border border-border bg-card hover:bg-accent" : "bg-primary text-primary-foreground hover:shadow-md",
+        )}
+      >
+        <span className="flex items-center gap-2 text-title-sm font-bold">
+          {stopAlerts ? <BellRing className="h-5 w-5 text-primary" aria-hidden="true" /> : <Bell className="h-5 w-5" aria-hidden="true" />}
+          {stopAlerts ? "You'll be notified" : "Notify me"}
         </span>
-        <Switch checked={stopAlerts} onCheckedChange={onToggle} aria-label={`Notify me when ${busName || "a bus"} is one stop away`} />
-      </label>
+        <span className={cn("text-body-sm", stopAlerts ? "text-muted-foreground" : "text-primary-foreground")}>
+          {stopAlerts ? `When ${busName || "a bus"} is one stop away · tap to turn off` : `When ${busName || "the bus"} is one stop away`}
+        </span>
+      </button>
+      {stopAlerts && pushPermission === "unsupported" && (
+        <p className="mt-2 text-body-sm text-muted-foreground">This device can't show notifications. Add the app to your home screen to get them.</p>
+      )}
       {needsPush && (
         <p className="mt-2 flex items-center gap-2 text-body-sm text-muted-foreground">
           <CircleAlert className="h-4 w-4 shrink-0 text-warning" aria-hidden="true" />
@@ -80,9 +93,9 @@ const fmtUntil = (iso) => (iso ? clock(iso) : "");
 // Running late, skip today and message the driver, as one segmented row.
 export function TripActions({ onChat, chatUnread = 0 }) {
   const { late, skip, lateUntil, toggleLate, toggleSkip } = useStaffFlags();
-  const btn = "relative flex min-h-[72px] flex-1 flex-col items-center justify-center gap-1.5 px-2 py-3 text-center text-body-sm font-semibold transition-colors focus-visible:z-10";
+  const btn = "relative flex min-h-[60px] flex-1 flex-col items-center justify-center gap-1 px-2 py-2 text-center text-caption font-semibold transition-colors focus-visible:z-10";
   return (
-    <section className="px-6 pt-4 lg:px-0" aria-label="Trip actions">
+    <section className="px-6 pt-3 lg:px-0" aria-label="Trip actions">
       <div className="flex overflow-hidden rounded-xl border border-border bg-card divide-x divide-border">
         <button type="button" onClick={toggleLate} aria-pressed={late} className={cn(btn, late ? "bg-primary text-primary-foreground" : "hover:bg-accent")}>
           <Clock className="h-5 w-5" aria-hidden="true" />
@@ -106,30 +119,33 @@ export function TripActions({ onChat, chatUnread = 0 }) {
   );
 }
 
-// Driver, vehicle and how full it is.
+// Driver, vehicle and how full it is, side by side.
 export function TripFacts({ bus, crowdCount = 0 }) {
   if (!bus) return null;
   const crowd = crowdLevel(crowdCount, bus.capacity);
-  const rows = [
-    ["Driver", bus.driver_name || "Not assigned"],
-    ["Vehicle", [bus.name, bus.plate_number].filter(Boolean).join(", ")],
+  const cells = [
+    { icon: UserRound, k: "Driver", v: bus.driver_name || "Not assigned" },
+    { icon: Bus, k: "Vehicle", v: bus.name, note: bus.plate_number || null },
+    ...(crowd ? [{
+      icon: Users, k: "Occupancy",
+      v: bus.capacity ? `${crowdCount}/${bus.capacity} seats` : crowd.label,
+      tone: crowd.tone === "full" ? "text-danger" : crowd.tone === "busy" ? "text-warning" : "text-success",
+      note: bus.capacity ? crowd.label : null,
+    }] : []),
   ];
-  if (crowd) {
-    rows.push([
-      "On board",
-      <span key="c" className="inline-flex items-center gap-1.5">
-        <Users className={cn("h-4 w-4", crowd.tone === "full" ? "text-danger" : crowd.tone === "busy" ? "text-warning" : "text-success")} aria-hidden="true" />
-        {bus.capacity ? `${crowdCount} of ${bus.capacity} seats · ${crowd.label}` : crowd.label}
-      </span>,
-    ]);
-  }
   return (
-    <section className="px-6 pt-8 lg:px-0" aria-label="About your bus">
-      <dl className="divide-y divide-border border-y border-border">
-        {rows.map(([k, v]) => (
-          <div key={k} className="flex min-h-[52px] items-center justify-between gap-4 py-2">
-            <dt className="text-body-sm text-muted-foreground">{k}</dt>
-            <dd className="truncate text-right font-semibold">{v}</dd>
+    <section className="px-6 pt-8 lg:px-0" aria-labelledby="tt-vehicle-details">
+      <h2 id="tt-vehicle-details" className="mb-2 text-title-sm font-bold">Vehicle details</h2>
+      <dl className={cn("grid divide-x divide-border rounded-xl border border-border bg-card", cells.length === 3 ? "grid-cols-3" : "grid-cols-2")}>
+        {cells.map(({ icon: Icon, k, v, tone, note }) => (
+          <div key={k} className="flex min-w-0 flex-col gap-1 px-3 py-3">
+            <dt className="flex items-center gap-1.5 text-caption text-muted-foreground">
+              <Icon className={cn("h-4 w-4 shrink-0", tone)} aria-hidden="true" /> {k}
+            </dt>
+            <dd className="text-body-sm font-semibold leading-snug">
+              {v}
+              {note && <span className="block text-caption font-normal text-muted-foreground">{note}</span>}
+            </dd>
           </div>
         ))}
       </dl>
@@ -277,5 +293,48 @@ export function SponsorLine() {
         <X className="h-4 w-4" aria-hidden="true" />
       </button>
     </aside>
+  );
+}
+
+function OverlayBusRow({ bus, stop, now }) {
+  const tracking = bus.tracking_active && bus.current_lat != null && freshnessOf(bus.last_location_update, { now }).state !== "lost";
+  const origin = tracking ? { lat: bus.current_lat, lng: bus.current_lng } : null;
+  const dest = stop?.lat != null ? { lat: stop.lat, lng: stop.lng } : null;
+  const { mins } = useDrivingEta(origin, dest, bus.speed || 25);
+  const num = busNumber(bus.name);
+  return (
+    <li>
+      <Link to={`/route-explorer?bus=${encodeURIComponent(bus.id)}`} className="flex min-h-[52px] items-center gap-3 rounded-lg px-2 py-1.5 hover:bg-accent">
+        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-secondary font-display text-title-sm font-semibold tabular-nums" aria-hidden="true">{num || <Bus className="h-4 w-4" />}</span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-body-sm font-semibold">{bus.name}</span>
+          <span className="flex items-center gap-1.5 text-caption text-muted-foreground">
+            <span className={cn("h-1.5 w-1.5 rounded-full", tracking ? "bg-success" : "bg-offline")} aria-hidden="true" />
+            {tracking ? "On route" : "Not tracking"}
+          </span>
+        </span>
+        {tracking && mins != null && (
+          <span className="shrink-0 text-right">
+            <span className="block font-display text-title-sm font-semibold tabular-nums">{Math.max(1, Math.round(mins))} min</span>
+            <span className="block text-caption text-muted-foreground">to {stop.name}</span>
+          </span>
+        )}
+      </Link>
+    </li>
+  );
+}
+
+// Over the desktop map: the other buses that serve your stop, with how far
+// away each is (same road estimate as the arrival time).
+export function OtherBusesOverlay({ buses, stop, now = Date.now() }) {
+  if (!buses.length || !stop) return null;
+  return (
+    <section className="rounded-2xl border border-border bg-card/95 p-3 shadow-xl backdrop-blur" aria-labelledby="tt-overlay-buses">
+      <div className="mb-1 flex items-baseline justify-between gap-2 px-2">
+        <h2 id="tt-overlay-buses" className="text-body-sm font-bold">Other buses on this route</h2>
+        <Link to="/buses" className="text-caption font-semibold text-muted-foreground hover:text-foreground">View all</Link>
+      </div>
+      <ul>{buses.slice(0, 4).map((b) => <OverlayBusRow key={b.id} bus={b} stop={stop} now={now} />)}</ul>
+    </section>
   );
 }

@@ -127,6 +127,9 @@ function FullMap({
   userLocation = null,
   callout = null,
   summary = null,
+  topCard = null, // full screen: where you're going, across the top
+  overlay = null, // desktop-only panel over the inline map (e.g. other buses)
+  defaultSatellite = false,
   variant = "preview", // "preview" (on a scrolling page) | "page" (fills a screen)
   label = "Live map",
   focusKey = 0, // changes when a bus is picked outside the map, to fly to it
@@ -155,7 +158,7 @@ function FullMap({
   const [styleTick, setStyleTick] = useState(0);
   const [follow, setFollow] = useState(true);
   const [is3D, setIs3D] = useState(true);
-  const [satellite, setSatellite] = useState(false);
+  const [satellite, setSatellite] = useState(defaultSatellite);
   const [fullscreen, setFullscreen] = useState(false);
   const [bearing, setBearing] = useState(0);
   const [selectedId, setSelectedId] = useState(null);
@@ -190,7 +193,7 @@ function FullMap({
       map = new mapboxgl.Map({
         container: mapEl,
         accessToken: MAPBOX_TOKEN,
-        style: STYLE,
+        style: defaultSatellite ? STYLE_SATELLITE : STYLE,
         projection: "mercator", // custom 3D layers assume a flat mercator world
         center: DEFAULT_VIEW.center,
         zoom: DEFAULT_VIEW.zoom,
@@ -472,7 +475,8 @@ function FullMap({
 
   const overlays = (
     <>
-      <div className="pointer-events-none absolute left-3 top-3 z-10 flex max-w-[calc(100%-5.5rem)] flex-col items-start gap-1.5">
+      {fullscreen && topCard && <div className="absolute left-3 right-[4.25rem] top-3 z-20">{topCard}</div>}
+      <div className={cn("pointer-events-none absolute left-3 z-10 flex max-w-[calc(100%-5.5rem)] flex-col items-start gap-1.5", fullscreen && topCard ? "top-[5.75rem]" : "top-3")}>
         {!online && <ConnectionPill state="offline" label="You're offline · last known positions" className="pointer-events-auto bg-background/92 backdrop-blur" />}
         {focus && freshState && (
           <ConnectionPill
@@ -570,6 +574,7 @@ function FullMap({
       )}
       {/* Kept above the Mapbox logo and attribution, which must stay visible. */}
       {!selected && fullscreen && summary && <div className="absolute inset-x-3 bottom-10 z-20 sm:left-3 sm:right-auto sm:w-96">{summary}</div>}
+      {!selected && !fullscreen && overlay && <div className="absolute bottom-10 right-3 z-20 hidden w-80 lg:block">{overlay}</div>}
     </>
   );
 
@@ -635,7 +640,7 @@ function installLayers(map, layer, s) {
 
 function paintRoute(map, accent, isDark, followsRoads) {
   const set = (id, prop, value) => { try { if (map.getLayer(id)) map.setPaintProperty(id, prop, value); } catch { /* older style */ } };
-  set("tt-route-casing", "line-color", isDark ? "#0B0C0E" : "#FFFFFF");
+  set("tt-route-casing", "line-color", isDark ? "#0A131C" : "#FFFFFF");
   set("tt-route-done", "line-color", isDark ? "#6E726C" : "#9EA29B");
   set("tt-route-done", "line-opacity", 0.75);
   set("tt-route-ahead", "line-color", accent);

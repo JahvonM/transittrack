@@ -20,7 +20,11 @@ import DriverDevicePanel from "@/components/driver/DriverDevicePanel";
 import DriverTrips from "@/components/DriverTrips";
 import ShiftCard from "@/components/driver/ShiftCard";
 import SafetyStandardsContent from "@/components/SafetyStandardsContent";
-import { AlertCircle, AlertTriangle, ArrowLeft, MessageCircle, Navigation, ShieldCheck, UserRound, WifiOff } from "lucide-react";
+import { AlertCircle, AlertTriangle, ArrowLeft, Home, LayoutGrid, ListOrdered, MessageCircle, Navigation, WifiOff } from "lucide-react";
+import DriverHome from "@/components/driver/screens/DriverHome";
+import DriverStops from "@/components/driver/screens/DriverStops";
+import DriverMessages from "@/components/driver/screens/DriverMessages";
+import StaffRouteList from "@/components/driver/StaffRouteList";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -29,15 +33,17 @@ import { useToast } from "@/components/ui/use-toast";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { idleFor, useTabletUpdates } from "@/lib/tabletUpdate";
 
-// "navigate" is kept as an alias: Track and Navigate are now one Drive screen.
-const TRACKING_TABS = ["track", "navigate", "chat", "safety", "profile"];
+// "navigate" is kept as an alias: Track and Navigate are one Drive screen.
+// Safety and Profile now live under More (old links still work).
+const TRACKING_TABS = ["home", "track", "navigate", "stops", "chat", "more", "safety", "profile"];
 const DRIVER_TABS = [
+  { id: "home", label: "Home", icon: Home },
   { id: "track", label: "Drive", icon: Navigation },
-  { id: "chat", label: "Chat", icon: MessageCircle },
-  { id: "safety", label: "Safety", icon: ShieldCheck },
-  { id: "profile", label: "Profile", icon: UserRound },
+  { id: "stops", label: "Stops", icon: ListOrdered },
+  { id: "chat", label: "Messages", icon: MessageCircle },
+  { id: "more", label: "More", icon: LayoutGrid },
 ];
-const tabFromStage = (st) => (st === "navigate" ? "track" : TRACKING_TABS.includes(st) ? st : null);
+const tabFromStage = (st) => (st === "navigate" ? "track" : st === "safety" || st === "profile" ? "more" : TRACKING_TABS.includes(st) ? st : null);
 
 export default function DriverApp() {
   const navigate = useNavigate();
@@ -47,7 +53,7 @@ export default function DriverApp() {
 
   const [deviceId, setDeviceId] = useState(() => localStorage.getItem("tt_driver_device_id"));
   const [unlocked, setUnlocked] = useState(() => false);
-  const [activeTab, setActiveTab] = useState(() => tabFromStage(urlStage) || "track");
+  const [activeTab, setActiveTab] = useState(() => tabFromStage(urlStage) || "home");
   // Follow the URL (e.g. "Continue" after an inspection goes to /driver/track).
   useEffect(() => { const t = tabFromStage(urlStage); if (t) setActiveTab(t); }, [urlStage]);
   const { session, loading, offline, invoke, refresh } = useDriverSession(deviceId);
@@ -209,7 +215,7 @@ export default function DriverApp() {
   // "/driver" root.
   const goBack = () => {
     if (stage === "inspection") { navigate("/driver"); return; }
-    if (activeTab !== "track") { setActiveTab("track"); goStage("track"); return; }
+    if (activeTab !== "home" && activeTab !== "track") { setActiveTab("home"); goStage("home"); return; }
     navigate("/driver");
   };
 
@@ -324,7 +330,7 @@ export default function DriverApp() {
       <div className="min-h-[100dvh] grid place-items-center p-6 safe-area-top safe-area-x">
         <div className="grid w-full max-w-4xl gap-10 md:grid-cols-2 md:items-center">
           <DriverGreeting driverName={driverName} subtitle={vehicle.name} />
-          <PinGate deviceId={deviceId} vehicle={vehicle} invoke={invoke} onUnlock={() => { localStorage.setItem("tt_driver_unlock_date", new Date().toISOString().slice(0, 10)); setUnlocked(true); if (dueInspections.length) openInspection(dueInspections[0], { from: "unlock" }); else goStage("track"); }} />
+          <PinGate deviceId={deviceId} vehicle={vehicle} invoke={invoke} onUnlock={() => { localStorage.setItem("tt_driver_unlock_date", new Date().toISOString().slice(0, 10)); setUnlocked(true); if (dueInspections.length) openInspection(dueInspections[0], { from: "unlock" }); else goStage(session?.open_shift ? "track" : "home"); }} />
         </div>
       </div>
     );
@@ -384,8 +390,8 @@ export default function DriverApp() {
       <DriverTopBar
         driverName={driverName}
         busName={vehicle.name}
-        left={activeTab !== "track" ? (
-          <Button variant="ghost" size="icon" className="min-w-[44px] min-h-[44px] -ml-1" onClick={goBack} aria-label="Back to Drive">
+        left={activeTab !== "track" && activeTab !== "home" ? (
+          <Button variant="ghost" size="icon" className="min-w-[44px] min-h-[44px] -ml-1" onClick={goBack} aria-label="Back to Home">
             <ArrowLeft className="w-5 h-5" />
           </Button>
         ) : null}
@@ -422,11 +428,43 @@ export default function DriverApp() {
           />
         </section>
         {activeTab !== "track" && (
-          <section className="absolute inset-0 overflow-y-auto overscroll-contain p-3 sm:p-4">
-            <div className="max-w-3xl mx-auto space-y-4">
-              {activeTab === "chat" && <DriverChats session={session} invoke={invoke} onUnreadChange={setHasUnreadChat} />}
-              {activeTab === "safety" && (
-                <>
+          <section className="absolute inset-0 overflow-y-auto overscroll-contain p-4 sm:p-6">
+            {activeTab === "home" && (
+              <DriverHome
+                session={session}
+                offline={offline}
+                shiftOpen={shiftOpen}
+                shiftControl={<ShiftCard variant="deck" session={session} invoke={invoke} refresh={refresh} onChange={setShiftOpen} beforeStart={() => beforeShift("start_shift")} beforeEnd={() => beforeShift("end_shift")} />}
+                dueInspections={dueInspections}
+                onStartInspection={(t) => openInspection(t, { from: "unlock" })}
+                onOpenDrive={() => selectTab("track")}
+                onOpenStops={() => selectTab("stops")}
+                trips={session.trips?.length > 0 ? (
+                  <DriverTrips compact trips={session.trips} invoke={invoke} refresh={refresh} startSharing={() => invoke("start_tracking").catch(() => {})} />
+                ) : null}
+              />
+            )}
+            {activeTab === "stops" && (
+              <DriverStops
+                session={session}
+                trips={session.trips?.length > 0 ? <DriverTrips trips={session.trips} invoke={invoke} refresh={refresh} startSharing={() => invoke("start_tracking").catch(() => {})} /> : null}
+                passengers={<StaffRouteList staff={session.staff || []} vehicle={session.vehicle} nearbyStaff={[]} onAttend={() => {}} />}
+              />
+            )}
+            {activeTab === "chat" && (
+              <DriverMessages
+                broadcasts={session.broadcasts || []}
+                hasUnreadChat={hasUnreadChat}
+                chats={<DriverChats session={session} invoke={invoke} onUnreadChange={setHasUnreadChat} />}
+              />
+            )}
+            {activeTab === "more" && (
+              <div className="mx-auto max-w-3xl space-y-6">
+                <h1 className="text-title font-bold">More</h1>
+                <Button variant="outline" size="lg" className="w-full justify-start" onClick={() => setIsReportOpen(true)}>
+                  <AlertTriangle className="h-5 w-5 text-danger" aria-hidden="true" /> Report an incident
+                </Button>
+                <section aria-label="Safety" className="space-y-4">
                   <DriverInspectionList
                     templates={inspTemplates}
                     recent={recentInspections}
@@ -434,15 +472,15 @@ export default function DriverApp() {
                     onStart={(t) => openInspection(t, { from: "manual" })}
                   />
                   <SafetyStandardsContent />
-                </>
-              )}
-              {activeTab === "profile" && <DriverDevicePanel session={session} deviceId={deviceId} onUnpair={handleUnpair} />}
-            </div>
+                </section>
+                <DriverDevicePanel session={session} deviceId={deviceId} onUnpair={handleUnpair} />
+              </div>
+            )}
           </section>
         )}
       </main>
 
-      <nav className="shrink-0 grid grid-cols-4 border-t border-border bg-background/95 backdrop-blur safe-area-bottom" aria-label="Driver sections">
+      <nav className="shrink-0 grid grid-cols-5 border-t border-border bg-background/95 backdrop-blur safe-area-bottom" aria-label="Driver sections">
         {DRIVER_TABS.map(({ id, label, icon: Icon }) => {
           const active = activeTab === id;
           return (

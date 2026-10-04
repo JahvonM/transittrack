@@ -25,8 +25,8 @@ const LiteMap = lazy(() => import("@/components/LiteMap"));
 const TRAFFIC_COLOR = { moderate: "#F2A93B", heavy: "#E5484D" };
 // Directions banner: one dark ink panel in both themes, so the next turn
 // reads the same in sunlight and at night.
-const BANNER = "#16181B";
-const BANNER_DARK = "#0E0F11";
+const BANNER = "#122130";
+const BANNER_DARK = "#0C1722";
 
 // Hide POI/transit icon clutter but keep road labels — a driver needs
 // street names to navigate.
@@ -381,7 +381,7 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
             {ahead.length > 0 && (
               <Source id="nav-route" type="geojson" data={aheadGeo}>
                 <Layer id="nav-route-casing" type="line" layout={{ "line-cap": "round", "line-join": "round" }}
-                  paint={{ "line-color": isDark ? "#0B0C0E" : "#FFFFFF", "line-width": ["interpolate", ["linear"], ["zoom"], 12, 7, 17, 15] }} />
+                  paint={{ "line-color": isDark ? "#0A131C" : "#FFFFFF", "line-width": ["interpolate", ["linear"], ["zoom"], 12, 7, 17, 15] }} />
                 <Layer id="nav-route-line" type="line" layout={{ "line-cap": "round", "line-join": "round" }}
                   paint={{
                     "line-color": ["match", ["get", "level"], "heavy", ROUTE_COLOR.heavy, "moderate", ROUTE_COLOR.moderate, ROUTE_COLOR.normal],

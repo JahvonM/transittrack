@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 import { useLocation, useNavigate, useNavigationType } from "react-router-dom";
-import { Home, Map, MessageSquare, User } from "lucide-react";
+import { Bus, Home, LayoutGrid, Map } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const HIDDEN_PREFIXES = [
@@ -18,8 +18,9 @@ const TABS = [
   // The passenger home lives at /staff ("/" sends each role to its own home).
   { to: "/", label: "Home", icon: Home, exact: true, also: "/staff" },
   { to: "/route-explorer", label: "Map", icon: Map },
-  { to: "/notifications", label: "Messages", icon: MessageSquare },
-  { to: "/account", label: "Account", icon: User },
+  { to: "/buses", label: "Buses", icon: Bus },
+  // Messages and Account live under More.
+  { to: "/more", label: "More", icon: LayoutGrid, also: ["/notifications", "/account", "/safety-standards"] },
 ];
 
 // Per-tab remembered navigation stack (session-local): each tab keeps the
@@ -31,7 +32,7 @@ const tabStacks = {};
 
 function tabFor(pathname) {
   if (pathname === "/" || pathname.startsWith("/staff")) return "/";
-  const match = TABS.find((t) => t.to !== "/" && pathname.startsWith(t.to));
+  const match = TABS.find((t) => t.to !== "/" && (pathname.startsWith(t.to) || (Array.isArray(t.also) && t.also.some((p) => pathname.startsWith(p)))));
   return match ? match.to : null;
 }
 
@@ -72,7 +73,8 @@ export default function MobileTabBar() {
     <nav className="md:hidden fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 backdrop-blur-md safe-area-bottom" aria-label="Main">
       <div className="flex items-stretch justify-around">
         {TABS.map(({ to, label, icon: Icon, exact, also }) => {
-          const active = exact ? pathname === to || (also && pathname.startsWith(also)) : pathname.startsWith(to);
+          const also_ = Array.isArray(also) ? also : also ? [also] : [];
+          const active = exact ? pathname === to || also_.some((p) => pathname.startsWith(p)) : pathname.startsWith(to) || also_.some((p) => pathname.startsWith(p));
           return (
             <button
               key={to}

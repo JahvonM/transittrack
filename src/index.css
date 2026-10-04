@@ -5,28 +5,28 @@
 @tailwind utilities;
 
 @layer base {
-  /* Dark + Lime is the default look: near-black zinc surfaces, one lime
-     accent (#D6F54A) with near-black text on it. */
+  /* Dark + Lime is the default look: deep navy-slate surfaces, one lime
+     accent (#D6F54A) with dark text on it. */
   :root,
   .dark {
-    --background: 240 8% 5%;
-    --foreground: 240 5% 96%;
-    --card: 240 5% 9%;
-    --card-foreground: 240 5% 96%;
-    --popover: 240 5% 10%;
-    --popover-foreground: 240 5% 96%;
+    --background: 210 38% 8%;
+    --foreground: 210 20% 96%;
+    --card: 210 32% 12%;
+    --card-foreground: 210 20% 96%;
+    --popover: 210 32% 13%;
+    --popover-foreground: 210 20% 96%;
     --primary: 71 90% 63%;
-    --primary-foreground: 240 8% 5%;
-    --secondary: 240 5% 13%;
-    --secondary-foreground: 240 5% 96%;
-    --muted: 240 5% 13%;
-    --muted-foreground: 240 5% 65%;
-    --accent: 240 5% 16%;
-    --accent-foreground: 240 5% 96%;
+    --primary-foreground: 210 38% 8%;
+    --secondary: 210 28% 16%;
+    --secondary-foreground: 210 20% 96%;
+    --muted: 210 28% 16%;
+    --muted-foreground: 210 16% 70%;
+    --accent: 210 26% 19%;
+    --accent-foreground: 210 20% 96%;
     --destructive: 0 84% 60%;
-    --destructive-foreground: 240 8% 5%;
-    --border: 240 5% 16%;
-    --input: 240 5% 42%;
+    --destructive-foreground: 210 38% 8%;
+    --border: 210 24% 20%;
+    --input: 210 14% 46%;
     --ring: 71 90% 63%;
     --chart-1: 71 90% 63%;
     --chart-2: 160 64% 52%;
@@ -39,27 +39,27 @@
     /* Wayfinding numerals: ETAs, bus numbers, statistics. */
     --font-display: 'Barlow Semi Condensed', 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
     --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-    --sidebar-background: 240 6% 6%;
-    --sidebar-foreground: 240 5% 96%;
+    --sidebar-background: 210 40% 7%;
+    --sidebar-foreground: 210 20% 96%;
     --sidebar-primary: 71 90% 63%;
-    --sidebar-primary-foreground: 240 8% 5%;
-    --sidebar-accent: 240 5% 15%;
-    --sidebar-accent-foreground: 240 5% 96%;
-    --sidebar-border: 240 5% 14%;
+    --sidebar-primary-foreground: 210 38% 8%;
+    --sidebar-accent: 210 26% 17%;
+    --sidebar-accent-foreground: 210 20% 96%;
+    --sidebar-border: 210 24% 17%;
     --sidebar-ring: 71 90% 63%;
     /* Surfaces, lowest to highest. */
-    --surface-0: 240 8% 5%;
-    --surface-1: 240 5% 9%;
-    --surface-2: 240 5% 12%;
-    --surface-3: 240 5% 15%;
+    --surface-0: 210 38% 8%;
+    --surface-1: 210 32% 12%;
+    --surface-2: 210 28% 15%;
+    --surface-3: 210 26% 18%;
     /* Status colours are independent of the brand accent and colour themes.
        Always pair them with an icon and a label (never colour alone). */
     --success: 142 65% 58%;
     --warning: 38 92% 58%;
     --danger: 0 86% 68%;
     --info: 212 92% 70%;
-    --offline: 240 5% 62%;
-    --status-foreground: 240 8% 5%;
+    --offline: 210 12% 64%;
+    --status-foreground: 210 38% 8%;
     --shadow-1: 0 1px 2px rgb(0 0 0 / 0.4);
     --shadow-2: 0 6px 16px -4px rgb(0 0 0 / 0.5);
     --shadow-3: 0 18px 40px -10px rgb(0 0 0 / 0.65);

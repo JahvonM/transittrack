@@ -100,7 +100,7 @@ export function OnBoard({ count = 0, capacity, className }) {
  * side, but each keeps its own handler. `primary` marks the next thing the
  * driver should do; at most one deck button is primary at a time.
  */
-export function DeckButton({ icon: Icon, state, action, onClick, primary = false, disabled = false, busy = false, active = false, ariaLabel }) {
+export function DeckButton({ icon: Icon, state, action, onClick, primary = false, danger = false, disabled = false, busy = false, active = false, ariaLabel }) {
   return (
     <button
       type="button"
@@ -109,7 +109,9 @@ export function DeckButton({ icon: Icon, state, action, onClick, primary = false
       aria-label={ariaLabel}
       className={cn(
         "group flex min-h-[88px] w-full min-w-0 flex-col justify-between gap-2 rounded-xl border px-4 py-3 text-left transition-[background-color,transform] duration-fast active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 disabled:active:scale-100",
-        primary ? "border-primary bg-primary text-primary-foreground hover:shadow-md" : "border-border bg-card hover:bg-accent",
+        primary ? "border-primary bg-primary text-primary-foreground hover:shadow-md"
+          : danger ? "border-danger/50 bg-danger/12 text-danger hover:bg-danger/20"
+            : "border-border bg-card hover:bg-accent",
       )}
     >
       <span className={cn("flex items-center gap-1.5 text-body-sm", primary ? "text-primary-foreground" : "text-muted-foreground")}>
