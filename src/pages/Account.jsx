@@ -19,7 +19,8 @@ export default function Account() {
   const { user, logout } = useAuth();
   return (
     <AppLayout variant="passenger" back={{ to: "/more", label: "More" }} title="Account">
-      <div className="max-w-xl space-y-4 px-4 pb-6 md:px-0">
+      <div className="grid grid-cols-1 items-start gap-4 px-4 pb-6 md:px-0 lg:grid-cols-2">
+        <div className="space-y-4">
         <ProfileInfo />
         {user?.role === "driver" && (
           <Card>
@@ -43,6 +44,8 @@ export default function Account() {
           </Card>
         )}
         <ChangePassword />
+        </div>
+        <div className="space-y-4">
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base">Appearance</CardTitle>
@@ -60,6 +63,7 @@ export default function Account() {
             </div>
           </CardContent>
         </Card>
+        </div>
         {/* Phones have no header on passenger screens, so sign-out lives here too. */}
         <Button variant="outline" size="lg" className="w-full justify-center md:hidden" onClick={() => logout()}>
           <LogOut className="h-5 w-5" aria-hidden="true" /> Sign out

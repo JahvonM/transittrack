@@ -11,6 +11,9 @@ import DelayBroadcast from "@/components/manager/DelayBroadcast";
 import CompanyMessages from "@/components/manager/CompanyMessages";
 import { loadFailed } from "@/lib/loadFailed";
 import BusLoader from "@/components/BusLoader";
+import { Kpi, KpiRow, PageActions } from "@/components/admin/kit";
+import { fleetStatus } from "@/components/admin/AdminOverview";
+import { Bus, CalendarClock, Radio, SatelliteDish } from "lucide-react";
 
 export default function ManagerDashboard() {
   const { user } = useAuth();
@@ -51,36 +54,40 @@ export default function ManagerDashboard() {
       </AppLayout>
     );
 
-  return (
-    <AppLayout title="Fleet Manager">
-      <div className="max-w-4xl space-y-4">
-        <div className="flex items-center justify-between gap-2 flex-wrap">
-          <div>
-            <h2 className="text-lg font-semibold">Fleet Overview</h2>
-            <p className="text-sm text-muted-foreground">{vehicles.length} vehicles · {vehicles.filter(v => v.status !== "offline").length} live</p>
-          </div>
-          <DelayBroadcast />
-        </div>
+  const now = Date.now();
+  const st = vehicles.map((v) => fleetStatus(v, now).key);
+  const today = new Date().toDateString();
+  const tripsToday = trips.filter((t) => t.scheduled_time && new Date(t.scheduled_time).toDateString() === today).length;
+  const TAB = "h-9 rounded-lg px-4 text-body-sm font-semibold data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm";
 
-        <Tabs value={tab} onValueChange={(v) => navigate("/manager/" + v)} className="grid md:grid-cols-[200px_1fr] gap-4 items-start">
-          <TabsList className="flex flex-col justify-start h-auto gap-1 p-2">
-            <TabsTrigger value="live" className="justify-start w-full">Live fleet</TabsTrigger>
-            <TabsTrigger value="replay" className="justify-start w-full">Route replay</TabsTrigger>
-            <TabsTrigger value="analytics" className="justify-start w-full">Analytics</TabsTrigger>
-          </TabsList>
-          <div>
-            <TabsContent value="live">
-              <FleetMap vehicles={vehicles} />
-            </TabsContent>
-            <TabsContent value="replay">
-              <RouteReplay vehicles={vehicles} />
-            </TabsContent>
-            <TabsContent value="analytics">
-              <FleetAnalytics trips={trips} vehicles={vehicles} />
-            </TabsContent>
-          </div>
-        </Tabs>
-      </div>
+  return (
+    <AppLayout title="Fleet manager">
+      <PageActions>
+        <DelayBroadcast />
+      </PageActions>
+      <KpiRow>
+        <Kpi label="Vehicles" value={vehicles.length} icon={Bus} />
+        <Kpi label="On route now" value={st.filter((k) => ["live", "stale", "speed"].includes(k)).length} icon={Radio} tone="success" />
+        <Kpi label="Signal issues" value={st.filter((k) => k === "lost" || k === "stale").length} icon={SatelliteDish} tone={st.some((k) => k === "lost" || k === "stale") ? "warning" : undefined} detail="GPS late or lost" />
+        <Kpi label="Trips today" value={tripsToday} icon={CalendarClock} />
+      </KpiRow>
+
+      <Tabs value={tab} onValueChange={(v) => navigate("/manager/" + v)}>
+        <TabsList className="mb-4 h-auto gap-1 rounded-xl bg-secondary p-1">
+          <TabsTrigger value="live" className={TAB}>Live fleet</TabsTrigger>
+          <TabsTrigger value="replay" className={TAB}>Route replay</TabsTrigger>
+          <TabsTrigger value="analytics" className={TAB}>Analytics</TabsTrigger>
+        </TabsList>
+        <TabsContent value="live" className="mt-0">
+          <FleetMap vehicles={vehicles} />
+        </TabsContent>
+        <TabsContent value="replay" className="mt-0">
+          <RouteReplay vehicles={vehicles} />
+        </TabsContent>
+        <TabsContent value="analytics" className="mt-0">
+          <FleetAnalytics trips={trips} vehicles={vehicles} />
+        </TabsContent>
+      </Tabs>
       {user?.role === "company" && <CompanyMessages vehicles={vehicles} />}
     </AppLayout>
   );

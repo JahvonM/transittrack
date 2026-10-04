@@ -9,16 +9,9 @@ import MaintenanceCalendarTab from "@/components/admin/MaintenanceCalendarTab";
 import InspectionHistoryTab from "@/components/admin/InspectionHistoryTab";
 import { loadFailed } from "@/lib/loadFailed";
 import BusLoader from "@/components/BusLoader";
+import { Kpi, KpiRow, NestedPage } from "@/components/admin/kit";
 
-function StatCard({ icon: Icon, label, value, accent = "text-primary" }) {
-  return (
-    <div className="rounded-xl border bg-card p-4">
-      <Icon className={`w-5 h-5 mb-2 ${accent}`} />
-      <div className="text-2xl font-bold leading-none">{value}</div>
-      <div className="text-xs text-muted-foreground mt-1.5">{label}</div>
-    </div>
-  );
-}
+const TAB = "h-9 rounded-lg px-3 text-body-sm font-semibold data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm";
 
 // Everything ported from FleetPilot that the mechanic team actually needs to
 // see and act on, in one place — reuses the same admin tab components
@@ -70,19 +63,20 @@ export default function MechanicDashboardTab() {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <StatCard icon={Bus} label="Vehicles" value={vehicles.length} />
-        <StatCard icon={AlertTriangle} label="Open faults" value={openFaultsCount} accent="text-destructive" />
-        <StatCard icon={CalendarClock} label="Maintenance due" value={maintenanceDueCount} accent="text-amber-500" />
-        <StatCard icon={Package} label="Parts" value={parts.length} />
-      </div>
+      <KpiRow className="mb-0">
+        <Kpi icon={Bus} label="Vehicles" value={vehicles.length} />
+        <Kpi icon={AlertTriangle} label="Open faults" value={openFaultsCount} tone={openFaultsCount ? "danger" : undefined} />
+        <Kpi icon={CalendarClock} label="Maintenance due" value={maintenanceDueCount} tone={maintenanceDueCount ? "warning" : undefined} />
+        <Kpi icon={Package} label="Parts" value={parts.length} />
+      </KpiRow>
+      <NestedPage>
       <Tabs defaultValue="faults">
-        <TabsList className="w-full justify-start overflow-x-auto h-auto py-1">
-          <TabsTrigger value="faults"><AlertTriangle className="w-4 h-4 mr-1.5" />Faults</TabsTrigger>
-          <TabsTrigger value="schedule"><Wrench className="w-4 h-4 mr-1.5" />Schedule</TabsTrigger>
-          <TabsTrigger value="calendar"><CalendarClock className="w-4 h-4 mr-1.5" />Calendar</TabsTrigger>
-          <TabsTrigger value="parts"><Package className="w-4 h-4 mr-1.5" />Parts</TabsTrigger>
-          <TabsTrigger value="history"><ClipboardCheck className="w-4 h-4 mr-1.5" />Inspections</TabsTrigger>
+        <TabsList className="h-auto max-w-full flex-wrap justify-start gap-1 rounded-xl bg-secondary p-1">
+          <TabsTrigger value="faults" className={TAB}><AlertTriangle className="w-4 h-4 mr-1.5" />Faults</TabsTrigger>
+          <TabsTrigger value="schedule" className={TAB}><Wrench className="w-4 h-4 mr-1.5" />Schedule</TabsTrigger>
+          <TabsTrigger value="calendar" className={TAB}><CalendarClock className="w-4 h-4 mr-1.5" />Calendar</TabsTrigger>
+          <TabsTrigger value="parts" className={TAB}><Package className="w-4 h-4 mr-1.5" />Parts</TabsTrigger>
+          <TabsTrigger value="history" className={TAB}><ClipboardCheck className="w-4 h-4 mr-1.5" />Inspections</TabsTrigger>
         </TabsList>
         <TabsContent value="faults" className="mt-4">
           <FaultsTab faults={faults} onChange={load} />
@@ -100,6 +94,7 @@ export default function MechanicDashboardTab() {
           <InspectionHistoryTab results={inspectionResults} vehicles={vehicles} />
         </TabsContent>
       </Tabs>
+      </NestedPage>
     </div>
   );
 }

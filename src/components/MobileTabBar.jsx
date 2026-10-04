@@ -2,6 +2,11 @@ import React, { useEffect } from "react";
 import { useLocation, useNavigate, useNavigationType } from "react-router-dom";
 import { Bus, Home, LayoutGrid, Map } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/lib/AuthContext";
+
+// Staff roles have their own navigation in their layout; signed-out
+// visitors have none. These tabs are the passenger app's.
+const NOT_PASSENGER = new Set(["admin", "driver", "company", "mechanic"]);
 
 const HIDDEN_PREFIXES = [
   "/login",
@@ -40,6 +45,7 @@ export default function MobileTabBar() {
   const { pathname } = useLocation();
   const navigationType = useNavigationType(); // "PUSH" | "POP" | "REPLACE"
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   useEffect(() => {
     const tab = tabFor(pathname);
@@ -57,6 +63,7 @@ export default function MobileTabBar() {
   }, [pathname, navigationType]);
 
   if (HIDDEN_PREFIXES.some((p) => pathname.startsWith(p))) return null;
+  if (!user || NOT_PASSENGER.has(user.role)) return null;
 
   const goToTab = (to, active) => {
     if (active) {

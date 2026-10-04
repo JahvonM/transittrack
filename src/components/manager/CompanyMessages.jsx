@@ -131,7 +131,7 @@ export default function CompanyMessages({ vehicles = [] }) {
   return (
     <>
       {open && (
-        <div className="fixed bottom-20 right-4 z-50 w-[92vw] max-w-sm h-[65vh] flex flex-col rounded-2xl border bg-card shadow-2xl overflow-hidden">
+        <div className="fixed bottom-[calc(9.5rem+env(safe-area-inset-bottom))] right-4 z-50 flex h-[60vh] w-[92vw] max-w-sm flex-col overflow-hidden rounded-2xl border bg-card shadow-2xl md:bottom-24" role="dialog" aria-label="Driver chats">
           {!activeVehicle ? (
             <>
               <div className="flex items-center justify-between p-3 border-b shrink-0">
@@ -204,14 +204,14 @@ export default function CompanyMessages({ vehicles = [] }) {
         </div>
       )}
       <Button
-        className="fixed bottom-4 right-4 z-50 rounded-full h-14 w-14 shadow-lg relative"
+        className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-4 z-50 h-14 w-14 rounded-full border border-border bg-card text-foreground shadow-lg hover:bg-accent md:bottom-6"
         size="icon"
         onClick={() => setOpen(!open)}
         aria-label={open ? "Close driver chats" : "Open driver chats"}
       >
         {open ? <X className="w-5 h-5" /> : <MessageCircle className="w-5 h-5" />}
         {!open && totalUnread > 0 && (
-          <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-destructive text-destructive-foreground text-[11px] font-semibold grid place-items-center">
+          <span className="absolute -right-0.5 -top-0.5 grid h-5 min-w-[1.25rem] place-items-center rounded-full bg-danger px-1 text-caption font-semibold text-danger-foreground" aria-hidden="true">
             {totalUnread}
           </span>
         )}

@@ -11,6 +11,12 @@ import { cn } from "@/lib/utils";
 // actions, and a line under it for a short description.
 export const PageSlots = createContext({ actions: null, intro: null });
 
+// Wrap a screen that is shown inside another page (a tab) so its intro and
+// actions stay with it instead of moving into the outer page's header.
+export function NestedPage({ children }) {
+  return <PageSlots.Provider value={{ actions: null, intro: null }}>{children}</PageSlots.Provider>;
+}
+
 export function PageActions({ children }) {
   const { actions } = useContext(PageSlots);
   if (!actions) return <div className="mb-4 flex flex-wrap justify-end gap-2">{children}</div>;

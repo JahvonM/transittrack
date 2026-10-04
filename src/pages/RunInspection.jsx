@@ -7,9 +7,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
+import { StatusChip } from "@/components/admin/kit";
 import { useToast } from "@/components/ui/use-toast";
-import { ClipboardCheck, CheckCircle2, AlertTriangle, XCircle, Camera, Loader2, PartyPopper } from "lucide-react";
+import { CheckCircle2, AlertTriangle, XCircle, Camera, Loader2, PartyPopper } from "lucide-react";
 import { loadFailed } from "@/lib/loadFailed";
 import BusLoader from "@/components/BusLoader";
 import { submitSavedJob, isOfflineError } from "@/lib/offlineJobs";
@@ -225,18 +225,18 @@ export default function RunInspection() {
   if (summary) {
     return (
       <AppLayout title="Run inspection">
-        <div className="max-w-lg space-y-4">
-          <Card className="bg-gradient-to-b from-emerald-500/10 to-transparent">
+        <div className="mx-auto max-w-xl space-y-4">
+          <Card className="rounded-2xl bg-gradient-to-b from-success/10 to-transparent">
             <CardContent className="p-8 text-center space-y-3">
-              <PartyPopper className="w-10 h-10 text-emerald-500 mx-auto" />
+              <PartyPopper className="mx-auto h-10 w-10 text-success" aria-hidden="true" />
               <p className="text-xl font-bold">{summary.queued ? "Inspection saved on this device" : "Inspection submitted"}</p>
               {summary.queued && (
                 <p className="text-sm text-muted-foreground">There's no connection right now. It will upload automatically as soon as you're back online, so you can keep working.</p>
               )}
               <div className="flex justify-center gap-2 flex-wrap">
-                <Badge variant="secondary">{summary.good} good</Badge>
-                {summary.warning > 0 && <Badge className="bg-amber-500 text-white hover:bg-amber-500">{summary.warning} warning</Badge>}
-                {summary.failed > 0 && <Badge variant="destructive">{summary.failed} failed</Badge>}
+                <StatusChip tone="success">{summary.good} good</StatusChip>
+                {summary.warning > 0 && <StatusChip tone="warning">{summary.warning} warning</StatusChip>}
+                {summary.failed > 0 && <StatusChip tone="danger">{summary.failed} failed</StatusChip>}
               </div>
               {summary.faultsCreated > 0 && (
                 <p className="text-sm text-muted-foreground">{summary.faultsCreated} fault{summary.faultsCreated === 1 ? "" : "s"} opened for the mechanic queue.</p>
@@ -252,17 +252,13 @@ export default function RunInspection() {
   if (!started) {
     return (
       <AppLayout title="Run inspection">
-        <div className="max-w-lg space-y-4">
-          <div className="flex items-center gap-2">
-            <ClipboardCheck className="w-5 h-5 text-primary" />
-            <h1 className="text-xl font-heading font-semibold">Run inspection</h1>
-          </div>
+        <div className="mx-auto max-w-xl space-y-4">
           <Card>
             <CardContent className="p-4 space-y-3">
               <div className="space-y-1.5">
                 <label className="text-sm font-medium">Vehicle</label>
                 <Select value={vehicleId} onValueChange={(v) => { setVehicleId(v); setTemplateId(""); }}>
-                  <SelectTrigger><SelectValue placeholder="Choose a vehicle" /></SelectTrigger>
+                  <SelectTrigger aria-label="Vehicle"><SelectValue placeholder="Choose a vehicle" /></SelectTrigger>
                   <SelectContent>
                     {vehicles.map((v) => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}
                   </SelectContent>
@@ -271,7 +267,7 @@ export default function RunInspection() {
               <div className="space-y-1.5">
                 <label className="text-sm font-medium">Inspection template</label>
                 <Select value={templateId} onValueChange={setTemplateId} disabled={!vehicleId}>
-                  <SelectTrigger><SelectValue placeholder={vehicleId ? "Choose a template" : "Pick a vehicle first"} /></SelectTrigger>
+                  <SelectTrigger aria-label="Inspection template"><SelectValue placeholder={vehicleId ? "Choose a template" : "Pick a vehicle first"} /></SelectTrigger>
                   <SelectContent>
                     {availableTemplates.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
                   </SelectContent>
@@ -292,7 +288,7 @@ export default function RunInspection() {
 
   return (
     <AppLayout title="Run inspection">
-      <div className="max-w-2xl space-y-4">
+      <div className="mx-auto max-w-3xl space-y-4">
         <div className="flex items-center justify-between gap-2 sticky top-0 bg-background/95 backdrop-blur-sm py-2 z-10">
           <div className="min-w-0">
             <p className="font-semibold truncate">{vehicle?.name} · {template?.name}</p>

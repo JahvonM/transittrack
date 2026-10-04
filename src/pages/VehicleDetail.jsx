@@ -1,13 +1,12 @@
 import React, { useEffect, useState } from "react";
-import { useParams, useNavigate, Navigate } from "react-router-dom";
+import { useParams, Navigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import AppLayout from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { NestedPage, StatusChip } from "@/components/admin/kit";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { ArrowLeft, Bus, AlertTriangle, Wrench, ClipboardCheck } from "lucide-react";
+import { Bus, AlertTriangle, Wrench, ClipboardCheck } from "lucide-react";
 import FaultsTab from "@/components/admin/FaultsTab";
 import MaintenanceScheduleTab from "@/components/admin/MaintenanceScheduleTab";
 import InspectionHistoryTab from "@/components/admin/InspectionHistoryTab";
@@ -24,7 +23,6 @@ const RESTRICTED_ROLES = ["driver", "staff", "passenger"];
 // path — and the same RLS — as the fleet-wide admin/mechanic views.
 export default function VehicleDetail() {
   const { id } = useParams();
-  const navigate = useNavigate();
   const { user } = useAuth();
   const [vehicle, setVehicle] = useState(null);
   const [faults, setFaults] = useState([]);
@@ -91,27 +89,24 @@ export default function VehicleDetail() {
 
   return (
     <AppLayout title={vehicle.name}>
-      <div className="max-w-4xl space-y-4">
-        <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="-ml-2">
-          <ArrowLeft className="w-4 h-4 mr-1.5" /> Back
-        </Button>
+      <div className="mx-auto max-w-5xl space-y-4">
         <div className="rounded-2xl border border-border bg-card p-5 pb-0 overflow-hidden">
         <div className="flex items-start justify-between flex-wrap gap-3">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-primary/10 grid place-items-center shrink-0">
-              <Bus className="w-6 h-6 text-primary" />
+            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-secondary" aria-hidden="true">
+              <Bus className="h-6 w-6" />
             </div>
             <div>
-              <h1 className="text-2xl font-heading font-bold">{vehicle.name}</h1>
-              <p className="text-sm text-muted-foreground">{vehicle.company_name}</p>
+              <p className="text-title-sm font-bold">{[vehicle.fleet_number && `No. ${vehicle.fleet_number}`, vehicle.plate_number].filter(Boolean).join(" · ") || vehicle.name}</p>
+              <p className="text-body-sm text-muted-foreground">{vehicle.company_name}</p>
             </div>
           </div>
           <div className="flex gap-2">
-            <Badge variant={vehicle.in_service === false ? "secondary" : "default"}>
+            <StatusChip tone={vehicle.in_service === false ? "warning" : "success"}>
               {vehicle.in_service === false ? "Out of service" : "In service"}
-            </Badge>
+            </StatusChip>
             {openFaultsCount > 0 && (
-              <Badge variant="destructive">{openFaultsCount} open fault{openFaultsCount === 1 ? "" : "s"}</Badge>
+              <StatusChip tone="danger">{openFaultsCount} open fault{openFaultsCount === 1 ? "" : "s"}</StatusChip>
             )}
           </div>
         </div>
@@ -139,11 +134,12 @@ export default function VehicleDetail() {
           </CardContent>
         </Card>
 
+        <NestedPage>
         <Tabs defaultValue="faults">
-          <TabsList>
-            <TabsTrigger value="faults"><AlertTriangle className="w-4 h-4 mr-1.5" /> Faults</TabsTrigger>
-            <TabsTrigger value="maintenance"><Wrench className="w-4 h-4 mr-1.5" /> Maintenance</TabsTrigger>
-            <TabsTrigger value="inspections"><ClipboardCheck className="w-4 h-4 mr-1.5" /> Inspections</TabsTrigger>
+          <TabsList className="h-auto gap-1 rounded-xl bg-secondary p-1">
+            <TabsTrigger value="faults" className="h-9 rounded-lg px-3 text-body-sm font-semibold data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"><AlertTriangle className="w-4 h-4 mr-1.5" /> Faults</TabsTrigger>
+            <TabsTrigger value="maintenance" className="h-9 rounded-lg px-3 text-body-sm font-semibold data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"><Wrench className="w-4 h-4 mr-1.5" /> Maintenance</TabsTrigger>
+            <TabsTrigger value="inspections" className="h-9 rounded-lg px-3 text-body-sm font-semibold data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"><ClipboardCheck className="w-4 h-4 mr-1.5" /> Inspections</TabsTrigger>
           </TabsList>
           <TabsContent value="faults" className="mt-4">
             <FaultsTab faults={faults} onChange={load} />
@@ -155,6 +151,7 @@ export default function VehicleDetail() {
             <InspectionHistoryTab results={inspectionResults} vehicles={[vehicle]} />
           </TabsContent>
         </Tabs>
+        </NestedPage>
       </div>
     </AppLayout>
   );

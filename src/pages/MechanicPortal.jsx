@@ -3,10 +3,8 @@ import { Navigate, Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import AppLayout from "@/components/AppLayout";
-import Greeting from "@/components/Greeting";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ChevronLeft, Bus, Wrench, BellRing, ClipboardCheck, Settings, LayoutDashboard, MessageCircle, Camera, Mic } from "lucide-react";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
@@ -15,6 +13,9 @@ import MechanicSettingsDialog from "@/components/MechanicSettingsDialog";
 import MechanicDashboardTab from "@/components/mechanic/MechanicDashboardTab";
 import { loadFailed } from "@/lib/loadFailed";
 import BusLoader from "@/components/BusLoader";
+import { PageActions, PageIntro } from "@/components/admin/kit";
+
+const TAB = "h-9 rounded-lg px-4 text-body-sm font-semibold data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm";
 
 function formatTime(iso) {
   if (!iso) return "";
@@ -156,11 +157,11 @@ export default function MechanicPortal() {
       <AppLayout title="Mechanic">
         <div className="max-w-lg space-y-3">
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" className="h-8 w-8 -ml-2" onClick={() => setActiveVehicleId(null)}>
-              <ChevronLeft className="w-4 h-4" />
+            <Button variant="ghost" size="icon" className="-ml-2" onClick={() => setActiveVehicleId(null)} aria-label="Back to all chats">
+              <ChevronLeft className="h-5 w-5" />
             </Button>
-            <Bus className="w-4 h-4 text-primary" />
-            <span className="font-medium text-sm">{activeVehicle.name}</span>
+            <Bus className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
+            <span className="text-title-sm font-bold">{activeVehicle.name}</span>
           </div>
           <ChatThread
             messages={activeMessages}
@@ -179,30 +180,34 @@ export default function MechanicPortal() {
     );
   }
 
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+  const firstName = (user?.full_name || "").split(" ")[0];
+
   return (
     <AppLayout title="Mechanic">
-      <div className="max-w-5xl space-y-4">
-        <Greeting subtitle="Vehicle issues and maintenance" />
-        <div className="flex flex-wrap gap-2">
-          <Button asChild size="sm">
-            <Link to="/run-inspection"><ClipboardCheck className="w-4 h-4 mr-1.5" /> Run inspection</Link>
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => setSettingsOpen(true)}>
-            <Settings className="w-4 h-4 mr-1.5" /> Maintenance settings
-          </Button>
+      <div className="space-y-4">
+        <PageIntro>{greeting}{firstName ? `, ${firstName}` : ""}. Vehicle issues, maintenance and messages from drivers.</PageIntro>
+        <PageActions>
           {pushPermission !== "granted" && pushPermission !== "unsupported" && (
             <Button variant="outline" size="sm" onClick={enableNotifications}>
-              <BellRing className="w-4 h-4 mr-1.5" /> Enable notifications
+              <BellRing className="h-4 w-4" /> Enable notifications
             </Button>
           )}
-        </div>
+          <Button variant="outline" size="sm" onClick={() => setSettingsOpen(true)}>
+            <Settings className="h-4 w-4" /> Maintenance settings
+          </Button>
+          <Button asChild size="sm">
+            <Link to="/run-inspection"><ClipboardCheck className="h-4 w-4" /> Run inspection</Link>
+          </Button>
+        </PageActions>
         <MechanicSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
         <Tabs defaultValue="dashboard">
-          <TabsList>
-            <TabsTrigger value="dashboard"><LayoutDashboard className="w-4 h-4 mr-1.5" /> Dashboard</TabsTrigger>
-            <TabsTrigger value="messages">
-              <MessageCircle className="w-4 h-4 mr-1.5" /> Messages
-              {unreadVehicleIds.size > 0 && <Badge variant="destructive" className="ml-1.5 px-1.5">{unreadVehicleIds.size}</Badge>}
+          <TabsList className="h-auto gap-1 rounded-xl bg-secondary p-1">
+            <TabsTrigger value="dashboard" className={TAB}><LayoutDashboard className="mr-1.5 h-4 w-4" /> Dashboard</TabsTrigger>
+            <TabsTrigger value="messages" className={TAB}>
+              <MessageCircle className="mr-1.5 h-4 w-4" /> Messages
+              {unreadVehicleIds.size > 0 && <span className="ml-1.5 grid h-5 min-w-[1.25rem] place-items-center rounded-full bg-danger px-1 text-caption font-semibold text-danger-foreground" aria-label={`${unreadVehicleIds.size} unread`}>{unreadVehicleIds.size}</span>}
             </TabsTrigger>
           </TabsList>
           <TabsContent value="dashboard" className="mt-4">
@@ -218,21 +223,23 @@ export default function MechanicPortal() {
                     const list = messagesByVehicle[v.id] || [];
                     const last = list[list.length - 1];
                     return (
-                      <Card key={v.id} className="cursor-pointer hover:border-primary/40 transition-colors" onClick={() => openThread(v.id)}>
-                        <CardContent className="p-3.5 flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-primary/10 grid place-items-center shrink-0">
-                            <Wrench className="w-5 h-5 text-primary" />
+                      <Card key={v.id} className="rounded-2xl transition-colors hover:bg-accent/40">
+                        <CardContent className="p-0">
+                          <button type="button" onClick={() => openThread(v.id)} className="flex min-h-[64px] w-full items-center gap-3 p-3.5 text-left">
+                          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-secondary" aria-hidden="true">
+                            <Wrench className="h-5 w-5" />
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between gap-2">
                               <p className="font-medium text-sm truncate">{v.name}</p>
-                              {last && <span className="text-[11px] text-muted-foreground shrink-0">{formatTime(last.created_date)}</span>}
+                              {last && <span className="shrink-0 text-caption text-muted-foreground">{formatTime(last.created_date)}</span>}
                             </div>
                             <p className="text-xs text-muted-foreground truncate">
                               {last ? <>{last.sender_role === "mechanic" ? "You" : last.sender_name || "Driver"}: {previewText(last)}</> : (v.driver_name || "No messages yet")}
                             </p>
                           </div>
-                          {unreadVehicleIds.has(v.id) && <span className="w-2.5 h-2.5 rounded-full bg-destructive shrink-0" />}
+                          {unreadVehicleIds.has(v.id) && <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-danger" aria-label="Unread" />}
+                          </button>
                         </CardContent>
                       </Card>
                     );

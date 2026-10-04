@@ -37,13 +37,14 @@ export default function RouteReplay({ vehicles }) {
   const currentPoint = trail[step];
 
   return (
-    <Card>
+    <Card className="rounded-2xl">
       <CardHeader className="pb-3">
-        <CardTitle className="text-base">Route Replay</CardTitle>
+        <CardTitle className="text-title-sm font-bold">Route replay</CardTitle>
+        <p className="text-body-sm text-muted-foreground">Pick a bus to play back where it has been.</p>
       </CardHeader>
       <CardContent className="space-y-3">
         <Select value={vehicleId} onValueChange={setVehicleId}>
-          <SelectTrigger><SelectValue placeholder="Select a vehicle" /></SelectTrigger>
+          <SelectTrigger className="sm:max-w-sm" aria-label="Vehicle to replay"><SelectValue placeholder="Select a vehicle" /></SelectTrigger>
           <SelectContent>
             {vehicles.map((v) => (
               <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>
@@ -58,7 +59,7 @@ export default function RouteReplay({ vehicles }) {
                 {playing ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
                 {playing ? "Pause" : "Play"}
               </Button>
-              <Button size="sm" variant="ghost" onClick={() => { setStep(0); setPlaying(false); }}>
+              <Button size="sm" variant="ghost" onClick={() => { setStep(0); setPlaying(false); }} aria-label="Restart replay" title="Restart">
                 <RotateCcw className="w-4 h-4" />
               </Button>
               <span className="text-sm text-muted-foreground">

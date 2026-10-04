@@ -1,5 +1,5 @@
 import AdsTab from "@/components/admin/AdsTab";
-import React, { useEffect, useState } from "react";
+import React, { Suspense, lazy, useEffect, useState } from "react";
 import { Navigate, useParams, useNavigate, Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
@@ -12,16 +12,17 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
+import { NestedPage, PageIntro, StatusChip, humanize } from "@/components/admin/kit";
 import { useToast } from "@/components/ui/use-toast";
-import { STATUS_LABEL, STATUS_VARIANT } from "@/lib/trip";
+import { STATUS_LABEL } from "@/lib/trip";
 import CompanyEditDialog from "@/components/CompanyEditDialog";
-import MapboxMap from "@/components/MapboxMap";
 import { loadFailed } from "@/lib/loadFailed";
 import BusLoader from "@/components/BusLoader";
 import VehicleFormDialog from "@/components/VehicleFormDialog";
 import { VehicleModelThumb } from "@/components/VehicleModelPicker";
 import { modelIdFor } from "@/lib/vehicleModels";
+
+const LiveTransitMap = lazy(() => import("@/components/map3d/LiveTransitMap"));
 
 
 export default function CompanyDashboard() {
@@ -70,16 +71,19 @@ export default function CompanyDashboard() {
     ? <CreateCompany onCreated={loadAll} />
     : <AppLayout><p className="py-8">Company access needs administrator approval. Ask your administrator to assign your company in User management.</p></AppLayout>;
 
+  const TAB = "h-9 rounded-lg px-3 text-body-sm font-semibold data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm";
   return (
-    <AppLayout title={`${company.name} · Dashboard`}>
-      <Card className="mb-4">
-        <CardContent className="flex flex-wrap items-center gap-3 py-4">
-          <KeyRound className="w-5 h-5 text-primary shrink-0" />
-          <div className="flex-1 min-w-0">
-            <div className="text-sm text-muted-foreground">Passenger access code — share it so passengers can see your fleet</div>
-            <div className="text-2xl font-bold tracking-[0.25em]">{company.access_code || "Not set"}</div>
-            <div className="text-xs text-muted-foreground">Permanent company code — passengers keep access.</div>
+    <AppLayout title={company.name}>
+      <PageIntro>Company dashboard: your buses, routes, trips and promos.</PageIntro>
+      <Card className="mb-4 rounded-2xl">
+        <CardContent className="flex flex-wrap items-center gap-4 p-5">
+          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-secondary" aria-hidden="true"><KeyRound className="h-6 w-6" /></span>
+          <div className="min-w-0 flex-1">
+            <div className="text-body-sm text-muted-foreground">Passenger access code. Share it so passengers can see your fleet.</div>
+            <div className="font-display text-[1.75rem] font-semibold tracking-[0.25em]">{company.access_code || "Not set"}</div>
+            <div className="text-caption text-muted-foreground">Permanent company code. Passengers keep access.</div>
           </div>
+          <div className="flex w-full flex-wrap gap-2 sm:w-auto">
           <Button
             variant="outline"
             size="sm"
@@ -110,16 +114,17 @@ export default function CompanyDashboard() {
             <Pencil className="w-4 h-4" />
             Edit details
           </Button>
+          </div>
         </CardContent>
       </Card>
       <CompanyEditDialog company={company} open={editing} onOpenChange={setEditing} onSaved={loadAll} />
       <Tabs value={tab} onValueChange={(v) => navigate("/company/" + v)}>
-        <TabsList>
-          <TabsTrigger value="vehicles"><Bus className="w-4 h-4 mr-1.5" />Vehicles ({vehicles.length})</TabsTrigger>
-          <TabsTrigger value="routes"><RouteIcon className="w-4 h-4 mr-1.5" />Routes ({routes.length})</TabsTrigger>
-          <TabsTrigger value="trips"><MapPin className="w-4 h-4 mr-1.5" />Trips ({trips.length})</TabsTrigger>
-          <TabsTrigger value="ads">Advertisements</TabsTrigger>
-          <TabsTrigger value="profile"><User className="w-4 h-4 mr-1.5" />Profile</TabsTrigger>
+        <TabsList className="h-auto max-w-full flex-wrap justify-start gap-1 rounded-xl bg-secondary p-1">
+          <TabsTrigger value="vehicles" className={TAB}><Bus className="mr-1.5 h-4 w-4" />Vehicles ({vehicles.length})</TabsTrigger>
+          <TabsTrigger value="routes" className={TAB}><RouteIcon className="mr-1.5 h-4 w-4" />Routes ({routes.length})</TabsTrigger>
+          <TabsTrigger value="trips" className={TAB}><MapPin className="mr-1.5 h-4 w-4" />Trips ({trips.length})</TabsTrigger>
+          <TabsTrigger value="ads" className={TAB}>Advertisements</TabsTrigger>
+          <TabsTrigger value="profile" className={TAB}><User className="mr-1.5 h-4 w-4" />Profile</TabsTrigger>
         </TabsList>
         <TabsContent value="vehicles" className="mt-4">
           <VehiclesTab company={company} routes={routes} vehicles={vehicles} onChange={loadAll} />
@@ -130,7 +135,7 @@ export default function CompanyDashboard() {
         <TabsContent value="trips" className="mt-4">
           <TripsTab trips={trips} vehicles={vehicles} onChange={loadAll} />
         </TabsContent>
-        <TabsContent value="ads" className="mt-4"><AdsTab companyId={company.id} /></TabsContent>
+        <TabsContent value="ads" className="mt-4"><NestedPage><AdsTab companyId={company.id} /></NestedPage></TabsContent>
         <TabsContent value="profile" className="mt-4">
           <div className="max-w-xl">
             <ProfileInfo companyName={company.name} />
@@ -232,16 +237,17 @@ function VehiclesTab({ company, routes, vehicles, onChange }) {
         </div>
         {vehicles.length === 0 && <p className="text-sm text-muted-foreground py-8 text-center">No vehicles yet. Add your first bus or taxi.</p>}
         {vehicles.map((v) => (
-          <div key={v.id} className="flex items-center gap-3 p-3 rounded-xl border bg-card">
-            <div className="rounded-xl bg-muted/50 shrink-0"><VehicleModelThumb model={modelIdFor(v)} size={48} /></div>
-            <div className="flex-1 min-w-0">
+          <div key={v.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl border bg-card p-3">
+            <div className="shrink-0 rounded-xl bg-secondary"><VehicleModelThumb model={modelIdFor(v)} size={48} /></div>
+            <div className="min-w-[10rem] flex-1">
               <div className="font-medium truncate">{v.name} <span className="text-xs text-muted-foreground font-normal">· {[v.fleet_number, v.plate_number].filter(Boolean).join(" · ")}</span></div>
               <div className="text-xs text-muted-foreground truncate">
                 Driver: {v.driver_name || v.driver_email || "Unassigned"}
               </div>
             </div>
+            <div className="flex w-full items-center justify-end gap-1 sm:w-auto">
             <Select value={v.route_id || "none"} onValueChange={(r) => setRoute(v, r)}>
-              <SelectTrigger className="w-[150px] h-8 hidden sm:flex"><SelectValue placeholder="No route" /></SelectTrigger>
+              <SelectTrigger className="mr-auto h-9 w-[150px] sm:mr-1" aria-label={`Route of ${v.name}`}><SelectValue placeholder="No route" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">No route</SelectItem>
                 {routes.map((r) => (
@@ -249,33 +255,37 @@ function VehiclesTab({ company, routes, vehicles, onChange }) {
                 ))}
               </SelectContent>
             </Select>
-            <Badge variant={v.status === "on_trip" ? "default" : v.status === "idle" ? "secondary" : "outline"}>
-              {v.status}
-            </Badge>
+            <StatusChip status={v.status || "offline"} />
             <Button asChild variant="ghost" size="icon">
-              <Link to={`/vehicle/${v.id}`}><History className="w-4 h-4" /></Link>
+              <Link to={`/vehicle/${v.id}`} aria-label={`History of ${v.name}`} title="History"><History className="w-4 h-4" /></Link>
             </Button>
-            <Button variant="ghost" size="icon" onClick={() => { setEditing(v); setFormOpen(true); }} aria-label="Edit">
+            <Button variant="ghost" size="icon" onClick={() => { setEditing(v); setFormOpen(true); }} aria-label={`Edit ${v.name}`} title="Edit">
               <Pencil className="w-4 h-4" />
             </Button>
-            <Button variant="ghost" size="icon" onClick={() => remove(v.id)}>
-              <Trash2 className="w-4 h-4 text-destructive" />
+            <Button variant="ghost" size="icon" onClick={() => remove(v.id)} aria-label={`Delete ${v.name}`} title="Delete" className="text-danger hover:text-danger">
+              <Trash2 className="w-4 h-4" />
             </Button>
+            </div>
           </div>
         ))}
         <VehicleFormDialog open={formOpen} onOpenChange={setFormOpen} vehicle={editing} fixedCompany={company} routes={routes} onSaved={onChange} />
       </div>
 
-      <Card className="h-fit sticky top-4">
+      <Card className="sticky top-20 h-fit rounded-2xl">
         <CardHeader><CardTitle className="text-base flex items-center gap-2"><MapPin className="w-4 h-4" /> Live fleet map</CardTitle></CardHeader>
         <CardContent>
           <div className="rounded-xl overflow-hidden border h-[440px]">
-            <MapboxMap
-              vehicles={vehicles.filter((v) => v.current_lat != null)}
-              stops={routes.flatMap((r) => r.stops || []).filter((s) => s.lat != null)}
-            />
+            <Suspense fallback={<div className="h-full w-full animate-pulse bg-muted" />}>
+              <LiveTransitMap
+                variant="page"
+                className="h-full w-full"
+                vehicles={vehicles.filter((v) => v.current_lat != null)}
+                looseStops={routes.flatMap((r) => r.stops || []).filter((st) => st.lat != null)}
+                label="Live fleet map"
+              />
+            </Suspense>
           </div>
-          <p className="text-xs text-muted-foreground mt-2">Live vehicle positions with your route stop paths.</p>
+          <p className="mt-2 text-body-sm text-muted-foreground">Live vehicle positions and your route stops.</p>
         </CardContent>
       </Card>
     </div>
@@ -337,8 +347,8 @@ function RoutesTab({ company, routes, onChange }) {
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base flex items-center gap-2"><RouteIcon className="w-4 h-4" />{r.name}</CardTitle>
                 <div className="flex items-center gap-2">
-                  <Badge variant="secondary" className="capitalize">{r.type}</Badge>
-                  <Button variant="ghost" size="icon" onClick={() => remove(r.id)}><Trash2 className="w-4 h-4 text-destructive" /></Button>
+                  <StatusChip tone="neutral" dot={false}>{humanize(r.type)}</StatusChip>
+                  <Button variant="ghost" size="icon" onClick={() => remove(r.id)} aria-label={`Delete ${r.name}`} title="Delete route" className="text-danger hover:text-danger"><Trash2 className="w-4 h-4" /></Button>
                 </div>
               </div>
             </CardHeader>
@@ -414,9 +424,7 @@ function TripsTab({ trips, vehicles, onChange }) {
               {t.vehicle_name} · {t.scheduled_time ? new Date(t.scheduled_time).toLocaleString() : "—"}
             </div>
           </div>
-          <Badge variant={STATUS_VARIANT[t.status] || "outline"}>
-            {STATUS_LABEL[t.status] || t.status}
-          </Badge>
+          <StatusChip status={t.status}>{STATUS_LABEL[t.status] || t.status}</StatusChip>
         </div>
       ))}
     </div>
