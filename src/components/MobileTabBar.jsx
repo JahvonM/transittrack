@@ -1,6 +1,8 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate, useNavigationType } from "react-router-dom";
-import { Home, Map, MessageSquare, User } from "lucide-react";
+import { Home, Map, MessageSquare, User, Bus, Menu, LifeBuoy } from "lucide-react";
+import { useAuth } from "@/lib/AuthContext";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 
 const HIDDEN_PREFIXES = [
@@ -35,6 +37,7 @@ function tabFor(pathname) {
 }
 
 export default function MobileTabBar() {
+  const { user } = useAuth();
   const { pathname } = useLocation();
   const navigationType = useNavigationType(); // "PUSH" | "POP" | "REPLACE"
   const navigate = useNavigate();
@@ -55,6 +58,8 @@ export default function MobileTabBar() {
   }, [pathname, navigationType]);
 
   if (HIDDEN_PREFIXES.some((p) => pathname.startsWith(p))) return null;
+
+  if (["staff","passenger"].includes(user?.role)) return <PassengerTabs />;
 
   const goToTab = (to, active) => {
     if (active) {
@@ -90,4 +95,13 @@ export default function MobileTabBar() {
       </div>
     </nav>
   );
+}
+
+function PassengerTabs() {
+  const { pathname, hash } = useLocation();
+  const navigate = useNavigate();
+  const [more, setMore] = useState(false);
+  const tabs = [{label:"Home",icon:Home,to:"/staff",active:pathname === "/staff" && !hash}, {label:"Map",icon:Map,to:"/route-explorer",active:pathname === "/route-explorer"}, {label:"Buses",icon:Bus,to:"/staff#passenger-buses",active:pathname === "/staff" && !!hash}, {label:"More",icon:Menu,active:more || ["/account","/notifications","/support"].includes(pathname)}];
+  return <><nav aria-label="Passenger sections" className="md:hidden fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 backdrop-blur-md safe-area-bottom"><div className="flex items-stretch">{tabs.map(({label,icon:Icon,to,active}) => <button key={label} type="button" aria-current={active ? "page" : undefined} onClick={() => to ? navigate(to) : setMore(true)} className={`flex-1 min-h-[60px] flex flex-col items-center justify-center gap-1 text-[11px] font-semibold ${active ? "text-primary" : "text-muted-foreground"}`}><Icon className="w-5 h-5" />{label}</button>)}</div></nav>
+    <Sheet open={more} onOpenChange={setMore}><SheetContent side="bottom" className="rounded-t-3xl"><SheetTitle>More</SheetTitle><div className="grid gap-2 py-4">{[{label:"Messages",to:"/notifications",icon:MessageSquare},{label:"My account",to:"/account",icon:User},{label:"Passenger support",to:"/support",icon:LifeBuoy}].map(({label,to,icon:Icon}) => <button key={to} onClick={() => { setMore(false); navigate(to); }} className="flex items-center gap-3 rounded-xl border bg-card p-4 text-left"><Icon className="w-5 h-5 text-primary" />{label}</button>)}</div></SheetContent></Sheet></>;
 }

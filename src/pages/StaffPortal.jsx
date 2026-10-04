@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import AppLayout from "@/components/AppLayout";
@@ -72,6 +72,7 @@ function SectionTitle({ children, action }) {
 
 export default function StaffPortal() {
   const { user } = useAuth();
+  const { hash } = useLocation();
   const { permission: pushPermission, enableNotifications } = usePushNotifications({ email: user?.email, role: user?.role, companyId: user?.company_id });
   const { toast } = useToast();
   const pickupRef = useRef("");
@@ -133,6 +134,10 @@ export default function StaffPortal() {
   const userLoc = watchedLoc || promptLoc;
   const crowd = useCrowding(company?.id);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!loading && hash === "#passenger-buses") document.getElementById("passenger-buses")?.scrollIntoView({behavior:"smooth",block:"start"});
+  }, [hash, loading]);
 
   // Restore only a server-issued access grant; never compare cached join codes.
   useEffect(() => {
@@ -425,6 +430,7 @@ export default function StaffPortal() {
 
           </div>
           <aside className="space-y-5 min-w-0 lg:sticky lg:top-24" aria-label="Live buses">
+          {otherBuses.length === 0 && <div id="passenger-buses" className="scroll-mt-24" />}
           <section id="passenger-live-map">
             <SectionTitle>Live map</SectionTitle>
             <div className="rounded-3xl overflow-hidden border h-[420px] lg:h-[580px]">
@@ -433,7 +439,7 @@ export default function StaffPortal() {
           </section>
 
           {otherBuses.length > 0 && (
-            <section>
+            <section id="passenger-buses" className="scroll-mt-24">
               <SectionTitle>{approaching ? "Other buses" : "All buses"}</SectionTitle>
               <div className="rounded-2xl border bg-card divide-y divide-border">
                 {otherBuses.map((v) => {
