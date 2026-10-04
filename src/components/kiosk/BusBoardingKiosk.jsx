@@ -7,7 +7,7 @@ import { parseCodeQrPayload } from "@/lib/qr";
 import { haversineKm, etaMinutes, formatEta } from "@/lib/geo";
 import { MAPBOX_TOKEN, mapStyleFor } from "@/lib/mapbox";
 import { useIsDark } from "@/lib/useTheme";
-import { submitSavedCheckIn, queueLength, queueSyncError, isNetworkFailure, flushQueue } from "@/lib/offlineQueue";
+import { submitSavedCheckIn, hasSavedCheckIn, queueLength, queueSyncError, isNetworkFailure, flushQueue } from "@/lib/offlineQueue";
 import { noteStatus, burnOneTimeCode } from "@/lib/kioskOffline";
 import WeatherWidget from "@/components/WeatherWidget";
 import QrScanner from "./QrScanner";
@@ -393,7 +393,7 @@ export default function BusBoardingKiosk({ invoke, device }) {
       // this person their check-in — queue it and let them walk away as if
       // it worked; a real rejection from the backend still shows the error.
       if (isNetworkFailure(e)) {
-        try { setPendingSyncCount(queueLength()); if(!queueLength()) throw e; }
+        try { setPendingSyncCount(queueLength()); if(!hasSavedCheckIn(payload.client_request_id)) throw e; }
         catch (storageError) { setBadgeError(storageError.message); setMode("badge_error"); return; }
         noteStatus(payload.staff_id, status);
         if (payload.code_type === "one_time") burnOneTimeCode(payload.staff_id);

@@ -23,3 +23,7 @@ export function retryReviewedWork() {
 export function archiveReviewedWork() {
  for(const key of SAVED_KEYS)writeSaved(key,readSaved(key).map(item=>item.state==="needs_review"?{...item,state:"archived",archived_at:new Date().toISOString()}:item));
 }
+
+export function removeArchivedWork() {
+ for(const key of SAVED_KEYS)writeSaved(key,readSaved(key).filter(item=>item.state!=="archived"));
+}

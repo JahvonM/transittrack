@@ -15,6 +15,7 @@ export function enqueueCheckIn(payload) {
  }
  return queue.length;
 }
+export function hasSavedCheckIn(requestId) {return readQueue().some(item=>item.payload.client_request_id===requestId);}
 export function acknowledgeCheckIn(requestId) {writeQueue(readQueue().filter(item=>item.payload.client_request_id!==requestId));}
 export function quarantineCheckIn(requestId,error) {writeQueue(readQueue().map(item=>item.payload.client_request_id===requestId?review(item,error):item));}
 export function queueSyncError() {return readQueue().find(item=>item.state!=="archived"&&item.last_error)?.last_error||"";}
