@@ -200,7 +200,7 @@ test('driver PIN is saved explicitly and retains input after a server failure',a
  expect(pins).toHaveLength(0);
  await page.getByRole('button',{name:'Save PIN',exact:true}).click();
  await expect(input).toHaveValue('0123');
- await expect(page.getByRole('status').filter({hasText:'Please retry PIN save'})).toBeVisible();
+ await expect(page.locator('p[role=status]').filter({hasText:'Please retry PIN save'})).toBeVisible();
  fail=false;
  await page.getByRole('button',{name:'Save PIN',exact:true}).click();
  await expect(input).toHaveValue('');
@@ -217,7 +217,7 @@ test('existing card status and bulk role dropdown are clear',async({page})=>{
  await expect(page.getByText('Card issued',{exact:true})).toBeVisible();
  await expect(page.getByRole('link',{name:'Manage card'})).toBeVisible();
  await page.goto('/admin/cards');
- await page.getByRole('button',{name:'Bulk setup',exact:true}).click();
+ await page.getByRole('tab',{name:'Bulk setup',exact:true}).click();
  await page.getByRole('combobox',{name:'Card holder role'}).click();
  await page.getByRole('option',{name:'Drivers',exact:true}).click();
  await expect(page.getByText('New Driver',{exact:true})).toBeVisible();
