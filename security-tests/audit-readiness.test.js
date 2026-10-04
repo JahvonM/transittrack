@@ -13,7 +13,8 @@ describe('Step 8 additional release boundaries',()=>{
  });
  it('passenger cannot trigger dispatch notification despite having a company membership',async()=>{
   const sdk=mock('passenger');
-  const response=await load('notifyAdminMessage',sdk).default(request({channel:'dispatch',company_id:'a',text:'Forged dispatch message',sender_name:'Dispatcher',vehicle_name:'Bus A'}));
+  sdk.tables.GroupMessage=[{id:'forged-dispatch',sender_id:'caller',vehicle_id:'bus-a',company_id:'a',channel:'dispatch',text:'Forged dispatch message'}];
+  const response=await load('notifyAdminMessage',sdk).default(request({message_id:'forged-dispatch',channel:'dispatch',company_id:'a',text:'Forged dispatch message',sender_name:'Dispatcher',vehicle_name:'Bus A'}));
   expect(response.status).toBe(403);
  });
  it('public crash reporting keeps its five-email hourly budget under concurrency',async()=>{

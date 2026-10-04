@@ -86,23 +86,20 @@ export default function CompanyMessages({ vehicles = [] }) {
     setUnreadVehicleIds((prev) => { const next = new Set(prev); next.delete(vehicleId); return next; });
   };
 
-  const notifyAdmin = (extra) => {
-    base44.functions.invoke("notifyAdminMessage", {
-      vehicle_name: activeVehicle.name, company_id: activeVehicle.company_id, channel: "company",
-      sender_name: senderName, ...extra,
-    }).catch(() => {});
+  const notifyAdmin = (message) => {
+    base44.functions.invoke("notifyAdminMessage", { message_id: message.id }).catch(() => {});
   };
 
   const send = async (text) => {
     if (!activeVehicle) return;
     setSending(true);
     try {
-      await base44.entities.GroupMessage.create({
+      const message = await base44.entities.GroupMessage.create({
         vehicle_id: activeVehicle.id, vehicle_name: activeVehicle.name,
         company_id: activeVehicle.company_id, company_name: activeVehicle.company_name,
         channel: "company", sender_role: "company", sender_name: senderName, text,
       });
-      notifyAdmin({ text });
+      notifyAdmin(message);
     } finally {
       setSending(false);
     }
@@ -113,13 +110,13 @@ export default function CompanyMessages({ vehicles = [] }) {
     const ext = messageType === "image" ? "jpg" : "webm";
     const file = new File([blob], `${messageType}-${Date.now()}.${ext}`, { type: blob.type });
     const { file_url } = await base44.integrations.Core.UploadFile({ file });
-    await base44.entities.GroupMessage.create({
+    const message = await base44.entities.GroupMessage.create({
       vehicle_id: activeVehicle.id, vehicle_name: activeVehicle.name,
       company_id: activeVehicle.company_id, company_name: activeVehicle.company_name,
       channel: "company", sender_role: "company", sender_name: senderName,
       text: "", message_type: messageType, media_url: file_url,
     });
-    notifyAdmin({ message_type: messageType });
+    notifyAdmin(message);
   };
 
   const editMessage = async (m, text) => {
