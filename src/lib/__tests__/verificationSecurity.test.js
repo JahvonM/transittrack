@@ -114,3 +114,14 @@ describe('verification and credential protection', () => {
   expect(sdk.tables.Vehicle[0].driver_pin).toBe('');
  });
 });
+
+
+it("reports a safe PIN storage reference without exposing credential material",async()=>{
+ const sdk=mock("admin");
+ sdk.asServiceRole.entities.DriverPinCredential.create=async()=>{throw new Error("SECRET_DATABASE_DETAIL");};
+ const response=await load("manageDriverPin",sdk).default(req({vehicle_id:"bus",pin:"5678"}));
+ expect(response.status).toBe(500);
+ const data=await response.json();
+ expect(data.code).toBe("PIN_STORE_WRITE");
+ expect(JSON.stringify(data)).not.toMatch(/5678|SECRET_DATABASE_DETAIL|pin_hash|salt/);
+});

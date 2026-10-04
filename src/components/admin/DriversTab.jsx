@@ -428,7 +428,8 @@ export default function DriversTab({ drivers, vehicles, companies, routes, onCha
 
   const setPin = async (vehicleId, pin) => {
     try {
-      await base44.functions.invoke("manageDriverPin", { vehicle_id: vehicleId, pin: pin || "" });
+      const response = await base44.functions.invoke("manageDriverPin", { vehicle_id: vehicleId, pin: pin || "" });
+      if (response.data?.ok !== true) throw new Error(response.data?.error || "PIN save was not confirmed");
       toast({ title: "Driver PIN updated" });
       onChange();
     } catch (e) { toast({ title: "Could not save driver PIN", description: e?.response?.data?.error || e.message, variant: "destructive" }); throw e; }
