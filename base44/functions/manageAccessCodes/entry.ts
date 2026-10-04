@@ -1,5 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
-const PAIR_TTL_MS=15*60_000,JOIN_TTL_MS=30*86400_000;
+const PAIR_TTL_MS=15*60_000;
 function fail(status,message){throw Object.assign(new Error(message),{status});}
 function randomAccessCode() {
  const alphabet='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';let code='';
@@ -13,7 +13,7 @@ async function uniqueAccessCode(db,entity,field) {
 }
 async function liveMembership(db,row) {
  if(!row.expires_at&&!row.code_hash)return true;
- if(!(Date.parse(row.expires_at)>Date.now())||!row.code_hash)return false;
+ if(!row.code_hash||(row.scope!=='passenger'&&!(Date.parse(row.expires_at)>Date.now())))return false;
  const company=await db.Company.get(row.company_id).catch(()=>null);if(!company)return false;
  const bytes=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(company.access_code||''));
  return row.code_hash===Array.from(new Uint8Array(bytes),b=>b.toString(16).padStart(2,'0')).join('');
@@ -42,9 +42,11 @@ export default async function(req) {
   if(body.action==='issue_company') {
    if(typeof body.company_id!=='string'||!body.company_id)fail(400,'Company required');
    const company=await authorizeCompany(db,user,body.company_id);
-   const code=await uniqueAccessCode(db,'Company','access_code'),expires_at=new Date(Date.now()+JOIN_TTL_MS).toISOString();
-   await db.Company.update(company.id,{access_code:code,access_code_expires_at:expires_at});
-   return Response.json({code,expires_at});
+   if(body.rotate===true&&user.role!=='admin')fail(403,'Only admins can replace a company code');
+   if(body.rotate!==true&&/^[A-Z0-9]{12}$/.test(company.access_code||''))return Response.json({code:company.access_code,permanent:true});
+   const code=await uniqueAccessCode(db,'Company','access_code');
+   await db.Company.update(company.id,{access_code:code});
+   return Response.json({code,permanent:true});
   }
   if(!['issue_pairing','revoke_device','reactivate_device'].includes(body.action))fail(400,'Unsupported action');
   if(typeof body.device_id!=='string'||!body.device_id)fail(400,'Device required');

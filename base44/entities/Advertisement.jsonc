@@ -21,6 +21,10 @@
     "order": {
       "type": "number",
       "default": 0
+    },
+    "company_id": {
+      "type": "string",
+      "description": "Owning company; missing means admin-managed global content."
     }
   },
   "required": [

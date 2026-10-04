@@ -77,7 +77,7 @@ export default function CompanyDashboard() {
           <div className="flex-1 min-w-0">
             <div className="text-sm text-muted-foreground">Passenger access code — share it so passengers can see your fleet</div>
             <div className="text-2xl font-bold tracking-[0.25em]">{company.access_code || "Not set"}</div>
-            <div className="text-xs text-muted-foreground">{company.access_code_expires_at ? `New joins allowed until ${new Date(company.access_code_expires_at).toLocaleString()}` : "Issue a new code before inviting passengers."}</div>
+            <div className="text-xs text-muted-foreground">Permanent company code — passengers keep access.</div>
           </div>
           <Button
             variant="outline"
@@ -97,13 +97,13 @@ export default function CompanyDashboard() {
             onClick={async () => {
               try {
                 const res = await base44.functions.invoke("manageAccessCodes", { action: "issue_company", company_id: company.id });
-                toast({ description: `New passenger code: ${res.data.code}` });
+                toast({ description: `Passenger code: ${res.data.code}` });
                 loadAll();
               } catch (error) { toast({ title: "Could not issue code", description: error.message, variant: "destructive" }); }
             }}
           >
             <RefreshCw className="w-4 h-4" />
-            New code
+            Get code
           </Button>
           <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
             <Pencil className="w-4 h-4" />

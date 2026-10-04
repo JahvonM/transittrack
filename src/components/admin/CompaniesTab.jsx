@@ -62,11 +62,11 @@ export default function CompaniesTab({ companies, onChange }) {
                 setIssuing(c.id);
                 try {
                   const res = await base44.functions.invoke("manageAccessCodes", { action: "issue_company", company_id: c.id });
-                  toast({ title: "New join code", description: res.data.code });
+                  toast({ title: "Company join code", description: res.data.code });
                   onChange();
                 } catch (error) { toast({ title: "Could not issue code", description: error.message, variant: "destructive" }); }
                 finally { setIssuing(null); }
-              }}>New code</Button>
+              }}>Get code</Button>
               <Button variant="outline" size="sm" onClick={() => setEditing(c)}>
                 <Pencil className="w-4 h-4 mr-1.5" />Edit
               </Button>

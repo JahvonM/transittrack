@@ -16,6 +16,7 @@ for(const name of ['InspectionResult','Fault']) ENTITY_FIELDS[name].push('client
 ENTITY_FIELDS.GroupMessage.push('sender_id','sender_email');
 ENTITY_FIELDS.LostItemReport.push('reporter_id');
 ENTITY_FIELDS.Company.push('access_code_expires_at');
+ENTITY_FIELDS.Advertisement.push('company_id');
 const SECURITY_FIELDS={Company:new Set(['access_code','access_code_expires_at']),KioskDevice:new Set(['pairing_code','pairing_expires_at','paired','status'])};
 const META = ['id','created_date','updated_date','created_by','created_by_id'];
 const CREDENTIALS = new Set(['driver_pin','entry_code','access_code','one_time_code','one_time_code_expires_at','nfc_tag_id','nfc_card_tag','nfc_card_uid','card_uid','card_tag','pairing_code','token','token_hash','salt','pin_hash','password','device_token','driver_grant','verification_grant']);
@@ -33,7 +34,7 @@ function scrub(value, allowCodes=false) {
 
 async function liveMembership(db, row) {
  if (!row.expires_at && !row.code_hash) return true; // Explicit admin approval.
- if (!(Date.parse(row.expires_at) > Date.now()) || !row.code_hash) return false;
+ if (!row.code_hash || (row.scope !== 'passenger' && !(Date.parse(row.expires_at) > Date.now()))) return false;
  const company=await db.Company.get(row.company_id).catch(()=>null);
  if(!company) return false;
  const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(company.access_code || ''));
@@ -134,6 +135,17 @@ async function prepare(db,ctx,name,input,existing=null) {
  }
  if(input.client_request_id!==undefined && (existing || typeof input.client_request_id!=='string' || !/^[a-zA-Z0-9_-]{8,100}$/.test(input.client_request_id))) fail(400,'Invalid immutable request ID');
  const data={...input};
+ if(name==='Advertisement') {
+  if(!['admin','company'].includes(user.role))fail(403,'Advertisement management forbidden');
+  if(user.role==='company') {
+   if(existing&&(!existing.company_id||!ctx.companies.includes(existing.company_id)))fail(403,'Own company advertisements only');
+   if(!existing&&!data.company_id&&ctx.companies.length===1)data.company_id=ctx.companies[0];
+   const owner=data.company_id||existing?.company_id;
+   if(!owner||!ctx.companies.includes(owner))fail(403,'Approved company assignment required');
+   if(existing&&data.company_id&&data.company_id!==existing.company_id)fail(403,'Advertisement ownership cannot be changed');
+   if(!(await db.Company.get(owner).catch(()=>null)))fail(400,'Company not found');
+  }else if(data.company_id&&!(await db.Company.get(data.company_id).catch(()=>null)))fail(400,'Company not found');
+ }
  if (user.role==='company' && !ctx.companies.length) fail(403,'Approved company membership required');
  if (name==='User') {
   if (user.role !== 'admin') {
@@ -164,7 +176,7 @@ async function prepare(db,ctx,name,input,existing=null) {
   }
   data.sender_role=user.role;data.sender_name=user.full_name||user.email;data.sender_id=user.id;data.sender_email=user.email;
  }
- if(name==='Company' && !existing && user.role==='admin') return {...data,access_code:await uniqueAccessCode(db,'Company','access_code'),access_code_expires_at:new Date(Date.now()+30*86400_000).toISOString()};
+ if(name==='Company' && !existing && user.role==='admin') return {...data,access_code:await uniqueAccessCode(db,'Company','access_code'),};
  if(COMPANY_ENTITIES.has(name) && !existing && !data.company_id && !data.vehicle_id && ctx.companies.length===1) data.company_id=ctx.companies[0];
  const combined={...existing,...data};
  let tenant=await tenantOf(db,name,combined);
@@ -241,6 +253,7 @@ export default async function(req) {
    if(!existing || !(await visible(db,ctx,name,existing))) fail(404,'Record not found');
   }
   if(operation==='delete') {
+   if(ctx.user.role==='mechanic'&&MAINTENANCE.has(name))fail(403,'Maintenance deletion is admin-only');
    if(ctx.user.role!=='admin' && !(ctx.user.role==='company' && COMPANY_READ.has(name) && name!=='Company') && !(ctx.user.role==='mechanic' && MAINTENANCE.has(name) && name!=='Vehicle') && !(name==='GroupMessage' && existing.sender_id===ctx.user.id)) fail(403,'Delete forbidden');
    await prepare(db,ctx,name,{},existing);
    await db[name].delete(body.id);
