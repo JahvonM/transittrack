@@ -270,7 +270,7 @@ export default function LiveFleetTab({ vehicles, routes = [], onVehicleUpdate })
         </p>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(300px,380px)_minmax(0,1fr)]">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(300px,380px)_minmax(0,1fr)]">
         <div ref={mapBox} className="min-w-0 scroll-mt-20 space-y-4 lg:order-last" role="tabpanel">
           {view === "live" ? (
             <>

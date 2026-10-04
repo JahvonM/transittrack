@@ -2,7 +2,7 @@ import React from "react";
 import { Link } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
+import { StatusChip } from "@/components/admin/kit";
 import { Button } from "@/components/ui/button";
 import { AlertTriangle, Wrench, ClipboardCheck, ExternalLink } from "lucide-react";
 
@@ -40,7 +40,7 @@ export default function VehicleHistoryDialog({ vehicle, open, onOpenChange, faul
                   <p className="font-medium truncate">{f.title}</p>
                   <p className="text-xs text-muted-foreground truncate">{f.description}</p>
                 </div>
-                <Badge variant={f.status === "open" ? "destructive" : "secondary"} className="text-xs capitalize shrink-0">{f.status}</Badge>
+                <StatusChip status={f.status} />
               </div>
             ))}
           </TabsContent>
@@ -55,7 +55,7 @@ export default function VehicleHistoryDialog({ vehicle, open, onOpenChange, faul
                     {s.due_type === "mileage" ? `Every ${s.interval_km?.toLocaleString() || 0} km` : `Every ${s.interval_days || 0} days`}
                   </p>
                 </div>
-                <Badge variant="outline" className="text-xs capitalize shrink-0">{s.status}</Badge>
+                <StatusChip status={s.status} />
               </div>
             ))}
           </TabsContent>
@@ -70,9 +70,9 @@ export default function VehicleHistoryDialog({ vehicle, open, onOpenChange, faul
                     {i.inspection_name} · {i.inspection_date ? new Date(i.inspection_date).toLocaleDateString() : ""}
                   </p>
                 </div>
-                <Badge variant={i.condition === "FAILED" ? "destructive" : i.condition === "WARNING" ? "secondary" : "outline"} className="text-xs shrink-0">
+                <StatusChip tone={i.condition === "FAILED" ? "danger" : i.condition === "WARNING" ? "warning" : "success"}>
                   {i.condition}
-                </Badge>
+                </StatusChip>
               </div>
             ))}
           </TabsContent>

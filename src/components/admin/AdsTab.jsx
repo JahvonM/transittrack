@@ -4,7 +4,7 @@ import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
+import { PageIntro, StatusChip } from "@/components/admin/kit";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Image } from "@/components/ui/image";
 import { Image as ImageIcon, Loader2, Plus, Trash2, Upload } from "lucide-react";
@@ -64,11 +64,8 @@ export default function AdsTab() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-heading font-semibold">Advertisements</h1>
-        <p className="text-sm text-muted-foreground">Manage promos shown to passengers on the home screen.</p>
-      </div>
-      <div className="grid lg:grid-cols-[1fr_360px] gap-4">
+      <PageIntro>Promos shown to passengers on the home screen.</PageIntro>
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-4">
         <div className="space-y-2">
           {ads.length === 0 && !loading && (
             <div className="border rounded-2xl"><EmptyState text="No ads yet." /></div>
@@ -86,7 +83,7 @@ export default function AdsTab() {
                 <div className="font-medium truncate">{ad.title}</div>
                 {ad.message && <div className="text-xs text-muted-foreground truncate">{ad.message}</div>}
               </div>
-              <Badge variant={ad.active ? "default" : "secondary"}>{ad.active ? "Live" : "Hidden"}</Badge>
+              <StatusChip tone={ad.active ? "success" : "neutral"}>{ad.active ? "Live" : "Hidden"}</StatusChip>
               <Button variant="outline" size="sm" onClick={() => toggle(ad)}>
                 {ad.active ? "Hide" : "Show"}
               </Button>

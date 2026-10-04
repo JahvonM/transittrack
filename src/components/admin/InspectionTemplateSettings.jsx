@@ -60,7 +60,7 @@ function TimesEditor({ times, onChange }) {
         <Input type="time" value={next} onChange={(e) => setNext(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); add(); } }} className="h-9 w-32" aria-label="Add a time" />
         <Button type="button" variant="outline" size="sm" className="h-9" onClick={add} disabled={!next}><Plus className="w-4 h-4" /> Add time</Button>
       </div>
-      {!times.length && <p className="text-xs text-amber-600 dark:text-amber-400">Add at least one time, e.g. 07:00.</p>}
+      {!times.length && <p className="text-xs text-warning">Add at least one time, e.g. 07:00.</p>}
     </div>
   );
 }
@@ -124,7 +124,7 @@ export default function InspectionTemplateSettings({ meta, onChange, sentAt, onS
         <>
           <div className="space-y-2">
             <p className="text-sm font-semibold">When should it appear in the driver app?</p>
-            <div className="grid sm:grid-cols-2 gap-2" role="radiogroup" aria-label="When it appears">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2" role="radiogroup" aria-label="When it appears">
               {TRIGGERS.map((t) => (
                 <button
                   key={t.id}
@@ -146,7 +146,7 @@ export default function InspectionTemplateSettings({ meta, onChange, sentAt, onS
           )}
 
           {meta.driver_trigger !== "on_demand" && (
-            <div className="grid sm:grid-cols-[1fr_auto] gap-3 items-end">
+            <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-3 items-end">
               <div className="space-y-1.5">
                 <p className="text-xs font-medium text-muted-foreground">Days (none picked = every day)</p>
                 <div className="flex flex-wrap gap-1.5">

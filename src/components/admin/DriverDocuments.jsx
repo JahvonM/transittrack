@@ -28,10 +28,10 @@ const fmtDate = (d) => (d ? new Date(d + "T12:00:00").toLocaleDateString([], { d
 
 const TONE = {
   missing: "bg-muted text-muted-foreground",
-  expired: "bg-red-500/15 text-red-600 dark:text-red-400",
-  expiring: "bg-amber-500/15 text-amber-700 dark:text-amber-300",
-  valid: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
-  no_expiry: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
+  expired: "bg-danger/15 text-danger",
+  expiring: "bg-warning/15 text-warning",
+  valid: "bg-success/15 text-success",
+  no_expiry: "bg-success/15 text-success",
 };
 
 function statusText(doc) {
@@ -54,7 +54,7 @@ export function DocChips({ docs, onOpen }) {
         const s = docStatus(doc);
         const Icon = s === "valid" || s === "no_expiry" ? CheckCircle2 : s === "missing" ? k.icon : AlertTriangle;
         return (
-          <span key={k.id} className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${TONE[s]}`}>
+          <span key={k.id} className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-caption font-medium ${TONE[s]}`}>
             <Icon className="w-3 h-3" /> {k.short}: {statusText(doc)}
           </span>
         );

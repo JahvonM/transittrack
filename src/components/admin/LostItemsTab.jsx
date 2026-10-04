@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { MobileSelect } from "@/components/ui/mobile-select";
-import { Badge } from "@/components/ui/badge";
+import { StatusChip, PageIntro } from "@/components/admin/kit";
 import { useToast } from "@/components/ui/use-toast";
 import BusLoader from "@/components/BusLoader";
 import EmptyState from "@/components/EmptyState";
@@ -49,10 +49,7 @@ export default function LostItemsTab() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h2 className="text-xl font-semibold">Lost items</h2>
-        <p className="text-sm text-muted-foreground">{open} still being looked for. Only admins, the company and the person who reported it can see these.</p>
-      </div>
+      <PageIntro>{open} still being looked for. Only admins, the company and the person who reported it can see these.</PageIntro>
       {!rows.length ? (
         <EmptyState text="No lost-item reports yet." />
       ) : (
@@ -67,7 +64,7 @@ export default function LostItemsTab() {
                 </div>
                 <div className="text-xs text-muted-foreground mt-1 flex flex-wrap gap-x-2">
                   {r.company_name && <span>{r.company_name}</span>}
-                  {r.vehicle_name && <Badge variant="secondary">{r.vehicle_name}</Badge>}
+                  {r.vehicle_name && <StatusChip tone="neutral" dot={false}>{r.vehicle_name}</StatusChip>}
                   <span>{fmt(r.created_date)}</span>
                 </div>
               </div>

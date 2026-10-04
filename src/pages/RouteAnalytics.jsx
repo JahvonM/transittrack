@@ -3,7 +3,7 @@ import EmptyState from "@/components/EmptyState";
 import { base44 } from "@/api/base44Client";
 import AppLayout from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { StatusChip, humanize } from "@/components/admin/kit";
 import { TrendingUp, Clock, MapPin } from "lucide-react";
 import { loadFailed } from "@/lib/loadFailed";
 import BusLoader from "@/components/BusLoader";
@@ -36,7 +36,7 @@ export default function RouteAnalytics() {
   return (
     <AppLayout title="Route analytics">
       {loading ? <BusLoader className="py-8" /> : (
-        <div className="grid md:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {routes.map((r) => {
             const rt = trips.filter((t) => t.route_id === r.id);
             const stops = (r.stops || []).length;
@@ -47,14 +47,14 @@ export default function RouteAnalytics() {
                 <CardHeader className="pb-2">
                   <CardTitle className="text-base flex items-center justify-between">
                     <span className="flex items-center gap-2"><MapPin className="w-4 h-4 text-primary" /> {r.name}</span>
-                    <Badge variant="secondary">{r.type}</Badge>
+                    <StatusChip tone="neutral" dot={false}>{humanize(r.type)}</StatusChip>
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="grid grid-cols-2 gap-3 text-sm">
                   <div className="flex items-center gap-2"><Clock className="w-4 h-4 text-muted-foreground" /> Avg time: <b>{fmtDur(avgMs(rt))}</b></div>
                   <div className="flex items-center gap-2"><MapPin className="w-4 h-4 text-muted-foreground" /> Stops: <b>{stops}</b></div>
-                  <div className="flex items-center gap-2"><TrendingUp className="w-4 h-4 text-emerald-400" /> Completed: <b>{completed}</b></div>
-                  <div className="flex items-center gap-2"><TrendingUp className="w-4 h-4 text-amber-400" /> Cancelled: <b>{cancelled}</b></div>
+                  <div className="flex items-center gap-2"><TrendingUp className="w-4 h-4 text-success" /> Completed: <b>{completed}</b></div>
+                  <div className="flex items-center gap-2"><TrendingUp className="w-4 h-4 text-warning" /> Cancelled: <b>{cancelled}</b></div>
                 </CardContent>
               </Card>
             );

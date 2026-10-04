@@ -3,7 +3,7 @@ import { base44 } from "@/api/base44Client";
 import AppLayout from "@/components/AppLayout";
 import PullToRefresh from "@/components/PullToRefresh";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { StatusChip } from "@/components/admin/kit";
 import { Button } from "@/components/ui/button";
 import { AlertOctagon } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
@@ -41,7 +41,6 @@ export default function IncidentReports() {
     }
   };
 
-  const variant = (s) => (s === "resolved" ? "default" : s === "investigating" ? "secondary" : "destructive");
 
   return (
     <AppLayout title="Incident reports">
@@ -54,8 +53,8 @@ export default function IncidentReports() {
             <Card key={i.id}>
               <CardHeader className="pb-2">
                 <CardTitle className="text-base flex items-center justify-between">
-                  <span className="flex items-center gap-2"><AlertOctagon className="w-4 h-4 text-red-400" /> {i.vehicle_name || "Vehicle"} · {i.type}</span>
-                  <Badge variant={variant(i.status)}>{i.status || "open"}</Badge>
+                  <span className="flex items-center gap-2"><AlertOctagon className="w-4 h-4 text-danger" /> {i.vehicle_name || "Vehicle"} · {i.type}</span>
+                  <StatusChip status={i.status || "open"} />
                 </CardTitle>
               </CardHeader>
               <CardContent className="text-sm space-y-2">

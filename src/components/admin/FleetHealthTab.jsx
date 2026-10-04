@@ -26,9 +26,9 @@ function ago(iso) {
 }
 
 const TONE = {
-  ok: { dot: "bg-green-500", text: "text-foreground" },
-  warn: { dot: "bg-amber-500", text: "text-amber-700 dark:text-amber-300" },
-  bad: { dot: "bg-rose-500", text: "text-rose-700 dark:text-rose-300" },
+  ok: { dot: "bg-success", text: "text-foreground" },
+  warn: { dot: "bg-warning", text: "text-warning" },
+  bad: { dot: "bg-danger", text: "text-danger" },
   idle: { dot: "bg-muted-foreground/50", text: "text-muted-foreground" },
 };
 function Cell({ s }) {
@@ -160,9 +160,7 @@ export default function FleetHealthTab({ vehicles = [] }) {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
-        <Activity className="w-5 h-5 text-primary" />
-        <h2 className="text-lg font-semibold">Fleet health</h2>
-        <span className="text-xs text-muted-foreground">Updated {loadedAt ? loadedAt.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" }) : "…"} · refreshes every 30 s · current version {APP_BUILD}</span>
+        <span className="text-body-sm text-muted-foreground">Updated {loadedAt ? loadedAt.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" }) : "…"} · refreshes every 30 s · current version {APP_BUILD}</span>
         <div className="ml-auto flex items-center gap-3">
           <label className="flex items-center gap-2 text-sm"><Switch checked={problemsOnly} onCheckedChange={setProblemsOnly} aria-label="Problems only" /> Problems only</label>
           <Button variant="ghost" size="icon" onClick={load} disabled={busy} aria-label="Refresh"><RefreshCw className={`w-4 h-4 ${busy ? "animate-spin" : ""}`} /></Button>
@@ -174,7 +172,7 @@ export default function FleetHealthTab({ vehicles = [] }) {
           const Icon = t.icon;
           const alert = t.value > 0 && t.tone !== "ok";
           return (
-            <div key={t.label} className={`rounded-2xl border p-3 ${alert ? (t.tone === "warn" ? "border-amber-500/50 bg-amber-500/10" : "border-rose-500/50 bg-rose-500/10") : "bg-card"}`}>
+            <div key={t.label} className={`rounded-2xl border p-3 ${alert ? (t.tone === "warn" ? "border-warning/50 bg-warning/10" : "border-danger/50 bg-danger/10") : "bg-card"}`}>
               <p className="flex items-center gap-1.5 text-xs text-muted-foreground"><Icon className="w-3.5 h-3.5" /> {t.label}</p>
               <p className="text-2xl font-bold tabular-nums mt-0.5">{t.value}</p>
             </div>
@@ -182,7 +180,7 @@ export default function FleetHealthTab({ vehicles = [] }) {
         })}
       </div>
 
-      <div className="rounded-2xl border bg-card overflow-x-auto">
+      <div className="rounded-2xl border bg-card overflow-x-auto" tabIndex={0} role="region" aria-label="Fleet health table">
         <table className="w-full text-sm">
           <thead className="text-left text-xs text-muted-foreground">
             <tr className="border-b">
@@ -215,7 +213,7 @@ export default function FleetHealthTab({ vehicles = [] }) {
                   {r.waiting > 0
                     ? <Cell s={{ tone: "warn", text: `${r.waiting} item${r.waiting === 1 ? "" : "s"}`, sub: "saved offline, will upload" }} />
                     : <span className="text-xs text-muted-foreground">Nothing</span>}
-                  {r.lowBattery && <p className="text-xs text-rose-600 flex items-center gap-1 mt-1"><BatteryLow className="w-3.5 h-3.5" /> Low battery</p>}
+                  {r.lowBattery && <p className="text-xs text-danger flex items-center gap-1 mt-1"><BatteryLow className="w-3.5 h-3.5" /> Low battery</p>}
                 </td>
                 <td className="px-3 py-2.5">
                   {r.errs > 0 ? <Cell s={{ tone: "bad", text: `${r.errs}`, sub: "see Data manager → ClientError" }} /> : <span className="text-xs text-muted-foreground">0</span>}

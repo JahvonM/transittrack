@@ -1,8 +1,8 @@
 import React, { useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Wrench } from "lucide-react";
+import { StatusChip } from "@/components/admin/kit";
+import { ChevronLeft, ChevronRight, Wrench } from "lucide-react";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -69,10 +69,10 @@ export default function MaintenanceCalendarTab({ schedules = [], vehicles = [] }
   const todayKey = fmtKey(new Date());
 
   const eventColor = (due, status) => {
-    if (status === "overdue") return "bg-red-500 text-white";
+    if (status === "overdue") return "bg-danger text-white";
     const diffDays = Math.ceil((due.getTime() - Date.now()) / DAY_MS);
-    if (diffDays < 0) return "bg-red-500 text-white";
-    if (diffDays <= 14) return "bg-amber-500 text-white";
+    if (diffDays < 0) return "bg-danger text-white";
+    if (diffDays <= 14) return "bg-warning text-white";
     return "bg-primary text-primary-foreground";
   };
 
@@ -80,15 +80,11 @@ export default function MaintenanceCalendarTab({ schedules = [], vehicles = [] }
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-2">
-          <CalendarIcon className="w-5 h-5 text-primary" />
-          <h2 className="text-lg font-semibold">Maintenance calendar</h2>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1))}>
+          <Button variant="outline" size="icon" aria-label="Previous month" onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1))}>
             <ChevronLeft className="w-4 h-4" />
           </Button>
-          <span className="text-sm font-semibold min-w-[140px] text-center">{monthLabel}</span>
-          <Button variant="outline" size="icon" onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1))}>
+          <span className="min-w-[140px] text-center text-title-sm font-bold">{monthLabel}</span>
+          <Button variant="outline" size="icon" aria-label="Next month" onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1))}>
             <ChevronRight className="w-4 h-4" />
           </Button>
           <Button variant="ghost" size="sm" onClick={() => setCursor(new Date(new Date().getFullYear(), new Date().getMonth(), 1))}>
@@ -125,7 +121,7 @@ export default function MaintenanceCalendarTab({ schedules = [], vehicles = [] }
                       {dayEvents.map(({ schedule: s, due }) => (
                         <div
                           key={s.id}
-                          className={`rounded px-1 py-0.5 text-[10px] leading-tight truncate ${eventColor(due, s.status)}`}
+                          className={`rounded px-1 py-0.5 text-caption leading-tight truncate ${eventColor(due, s.status)}`}
                           title={`${s.vehicle_name} — ${s.service_type}`}
                         >
                           {s.vehicle_name} · {s.service_type}
@@ -142,7 +138,7 @@ export default function MaintenanceCalendarTab({ schedules = [], vehicles = [] }
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-3">
-              <Wrench className="w-4 h-4 text-amber-600" />
+              <Wrench className="w-4 h-4 text-warning" />
               <h2 className="text-sm font-semibold">Mileage-based (no fixed date)</h2>
             </div>
             {undated.length === 0 ? (
@@ -157,9 +153,9 @@ export default function MaintenanceCalendarTab({ schedules = [], vehicles = [] }
                     <div key={s.id} className="rounded-lg border border-border p-2.5">
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-xs font-medium truncate">{s.vehicle_name}</span>
-                        <Badge className={remaining <= 0 ? "bg-red-500 text-white hover:bg-red-500" : remaining <= 500 ? "bg-amber-500 text-white hover:bg-amber-500" : ""}>
+                        <StatusChip tone={remaining <= 0 ? "danger" : remaining <= 500 ? "warning" : "neutral"}>
                           {remaining <= 0 ? "Overdue" : `${remaining.toLocaleString()} km left`}
-                        </Badge>
+                        </StatusChip>
                       </div>
                       <p className="text-xs text-muted-foreground mt-0.5">{s.service_type}</p>
                     </div>

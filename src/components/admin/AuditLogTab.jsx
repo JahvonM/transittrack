@@ -1,16 +1,12 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { base44 } from "@/api/base44Client";
-import { Badge } from "@/components/ui/badge";
+import { StatusChip, PageIntro } from "@/components/admin/kit";
 import { Input } from "@/components/ui/input";
 import { MobileSelect } from "@/components/ui/mobile-select";
 import BusLoader from "@/components/BusLoader";
 import EmptyState from "@/components/EmptyState";
 import { loadFailed } from "@/lib/loadFailed";
 
-const ACTION_VARIANT = {
-  create: "default", update: "secondary", delete: "destructive",
-  card_programmed: "default", card_verified: "secondary", card_rejected: "destructive", card_revoked: "destructive",
-};
 const ACTION_LABEL = {
   create: "Created", update: "Edited", delete: "Deleted",
   card_programmed: "Card issued", card_verified: "Card checked", card_rejected: "Card refused", card_revoked: "Card revoked",
@@ -69,17 +65,15 @@ export default function AuditLogTab() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h2 className="text-xl font-semibold">Change history</h2>
-        <p className="text-sm text-muted-foreground">Every create, edit and delete made from the dashboards, newest first. PINs and codes are hidden.</p>
-      </div>
+      <PageIntro>Every create, edit and delete made from the dashboards, newest first. PINs and codes are hidden.</PageIntro>
       <div className="flex flex-wrap gap-2">
-        <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search person, record or type" className="max-w-xs" />
+        <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search person, record or type" aria-label="Search change history" className="h-10 max-w-xs bg-card" />
         <MobileSelect
           value={entity}
           onValueChange={setEntity}
           options={[{ value: "all", label: "All record types" }, ...entities.map((e) => ({ value: e, label: e }))]}
           triggerClassName="w-auto min-w-[180px]"
+          ariaLabel="Record type"
         />
       </div>
       {!shown.length ? (
@@ -89,7 +83,7 @@ export default function AuditLogTab() {
           {shown.map((r) => (
             <button key={r.id} type="button" onClick={() => setOpen(open === r.id ? null : r.id)} className="w-full text-left p-3 hover:bg-muted/40 transition-colors">
               <div className="flex flex-wrap items-center gap-2">
-                <Badge variant={ACTION_VARIANT[r.action] || "secondary"}>{ACTION_LABEL[r.action] || r.action}</Badge>
+                <StatusChip tone={{ create: "success", update: "info", delete: "danger" }[r.action] || "neutral"}>{ACTION_LABEL[r.action] || r.action}</StatusChip>
                 <span className="font-medium">{r.entity}</span>
                 {r.summary && <span className="truncate max-w-[40ch]">· {r.summary}</span>}
                 <span className="ml-auto text-xs text-muted-foreground whitespace-nowrap">{fmt(r.created_date)}</span>

@@ -3,7 +3,7 @@ import { base44 } from "@/api/base44Client";
 import AppLayout from "@/components/AppLayout";
 import PullToRefresh from "@/components/PullToRefresh";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { StatusChip } from "@/components/admin/kit";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CalendarCheck } from "lucide-react";
@@ -55,7 +55,7 @@ export default function PassengerBookings() {
         {t.status === "scheduled" && (
           <div className="flex items-center gap-2 pt-1">
             <Select value={assign[t.id] || ""} onValueChange={(val) => setAssign((s) => ({ ...s, [t.id]: val }))}>
-              <SelectTrigger className="h-8 w-44"><SelectValue placeholder="Assign vehicle" /></SelectTrigger>
+              <SelectTrigger className="h-8 w-44" aria-label="Assign vehicle"><SelectValue placeholder="Assign vehicle" /></SelectTrigger>
               <SelectContent>{vehicles.map((v) => <SelectItem key={v.id} value={v.id}>{v.name} · {v.plate_number}</SelectItem>)}</SelectContent>
             </Select>
             <Button size="sm" onClick={() => approve(t)}>Approve</Button>
@@ -69,18 +69,18 @@ export default function PassengerBookings() {
     <AppLayout title="Passenger bookings">
       <PullToRefresh onRefresh={load}>
       {loading ? <BusLoader className="py-8" /> : (
-        <div className="grid md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <h2 className="text-sm font-semibold mb-2 flex items-center gap-2"><CalendarCheck className="w-4 h-4 text-amber-400" /> Pending ({pending.length})</h2>
-            <div className="space-y-2">{pending.length ? pending.map(Card_) : <p className="text-sm text-muted-foreground">No pending bookings.</p>}</div>
+            <h2 className="mb-3 flex items-center gap-2 text-title-sm font-bold"><CalendarCheck className="w-4 h-4 text-warning" /> Pending ({pending.length})</h2>
+            <div className="space-y-2">{pending.length ? pending.map((t) => <Card_ key={t.id} t={t} />) : <p className="text-sm text-muted-foreground">No pending bookings.</p>}</div>
           </div>
           <div>
-            <h2 className="text-sm font-semibold mb-2 flex items-center gap-2"><CalendarCheck className="w-4 h-4 text-emerald-400" /> Confirmed ({confirmed.length})</h2>
+            <h2 className="mb-3 flex items-center gap-2 text-title-sm font-bold"><CalendarCheck className="w-4 h-4 text-success" /> Confirmed ({confirmed.length})</h2>
             <div className="space-y-2">{confirmed.length ? confirmed.map((t) => (
               <Card key={t.id}><CardContent className="py-3 text-sm">
                 <div className="font-medium">{t.passenger_name || "Passenger"} · {t.vehicle_name || "—"}</div>
                 <div className="text-muted-foreground">{t.pickup_name} → {t.dropoff_name}</div>
-                <Badge variant="secondary" className="mt-1">{t.status}</Badge>
+                <StatusChip status={t.status} className="mt-1" />
               </CardContent></Card>
             )) : <p className="text-sm text-muted-foreground">No active bookings.</p>}</div>
           </div>

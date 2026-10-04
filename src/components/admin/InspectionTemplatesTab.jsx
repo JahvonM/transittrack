@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ListChecks, Plus, Trash2, Save } from "lucide-react";
+import { Plus, Trash2, Save } from "lucide-react";
 import InspectionTemplateSettings, { AUDIENCES, audienceSummary, metaFrom } from "@/components/admin/InspectionTemplateSettings";
 import XrayBus from "@/components/inspection/XrayBus";
 import { BUS_LAYOUTS, layoutZones, zoneById, flattenTemplate, zoneFor, zoneStatus } from "@/lib/busZones";
@@ -205,11 +205,7 @@ export default function InspectionTemplatesTab({ templates = [], companies = [],
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <ListChecks className="w-5 h-5 text-primary" />
-        <h2 className="text-lg font-semibold">Inspection templates</h2>
-      </div>
-      <div className="grid lg:grid-cols-[300px_1fr] gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-4">
         <div className="space-y-2">
           {templates.map((t) => (
             <Card
@@ -252,7 +248,7 @@ export default function InspectionTemplatesTab({ templates = [], companies = [],
                 value={newTemplate.company_id || "__all__"}
                 onValueChange={(v) => setNewTemplate((f) => ({ ...f, company_id: v === "__all__" ? "" : v }))}
               >
-                <SelectTrigger><SelectValue placeholder="All companies" /></SelectTrigger>
+                <SelectTrigger aria-label="Company"><SelectValue placeholder="All companies" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__all__">All companies</SelectItem>
                   {companies.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
@@ -309,7 +305,7 @@ export default function InspectionTemplatesTab({ templates = [], companies = [],
                 <InspectionTemplateSettings meta={meta} onChange={changeMeta} sentAt={selected.driver_sent_at} onSendNow={sendNow} sending={sending} vehicles={vehicles.filter((v) => !selected.company_id || v.company_id === selected.company_id)} />
                 <div className="border rounded-xl p-3 space-y-2">
                   <p className="text-sm font-semibold">Bus type for the X-ray</p>
-                  <div className="grid sm:grid-cols-3 gap-2" role="radiogroup" aria-label="Bus type for the X-ray">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2" role="radiogroup" aria-label="Bus type for the X-ray">
                     {BUS_LAYOUTS.map((l) => (
                       <button
                         key={l.id}
@@ -332,7 +328,7 @@ export default function InspectionTemplatesTab({ templates = [], companies = [],
                       <p className="text-sm font-semibold">X-ray preview</p>
                       <p className="text-xs text-muted-foreground">{focusZone ? `Showing ${ZONE_BY_ID[focusZone]?.label}. Tap it again to show all.` : "Tap a part to find its items."}</p>
                     </div>
-                    <div className="grid sm:grid-cols-2 gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       <XrayBus view="outside" layout={layout} statuses={previewStatus} activeZone={focusZone} scanning={false} onZoneClick={(z) => setFocusZone((f) => (f === z ? null : z))} />
                       <XrayBus view="inside" layout={layout} statuses={previewStatus} activeZone={focusZone} scanning={false} onZoneClick={(z) => setFocusZone((f) => (f === z ? null : z))} />
                     </div>
@@ -370,7 +366,7 @@ export default function InspectionTemplatesTab({ templates = [], companies = [],
                             </SelectContent>
                           </Select>
                           <Select value={item.critical} onValueChange={(v) => updateItem(sIdx, iIdx, { critical: v })}>
-                            <SelectTrigger className="h-8 w-28"><SelectValue /></SelectTrigger>
+                            <SelectTrigger className="h-8 w-28" aria-label="Item type"><SelectValue /></SelectTrigger>
                             <SelectContent>
                               {CRITICALITY.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                             </SelectContent>

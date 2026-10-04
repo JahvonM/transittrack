@@ -6,8 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Camera, ImagePlus, Loader2, Package, Plus, Trash2, Search, Minus, X } from "lucide-react";
+import { StatusChip } from "@/components/admin/kit";
+import { Camera, ImagePlus, Loader2, Plus, Trash2, Search, Minus, X } from "lucide-react";
 
 const empty = {
   part_name: "", oem_number: "", aftermarket_number: "",
@@ -114,11 +114,7 @@ export default function PartsTab({ parts = [], onChange }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <Package className="w-5 h-5 text-primary" />
-        <h2 className="text-lg font-semibold">Parts inventory</h2>
-      </div>
-      <div className="grid lg:grid-cols-[1fr_360px] gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-4">
         <div className="space-y-2">
           <div className="relative">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -137,7 +133,7 @@ export default function PartsTab({ parts = [], onChange }) {
                     {[p.oem_number, p.vehicle_compatibility, p.supplier].filter(Boolean).join(" · ") || p.category || "—"}
                   </div>
                 </div>
-                <Badge variant={p.quantity_in_stock > 0 ? "secondary" : "destructive"} className="shrink-0">{p.quantity_in_stock} in stock</Badge>
+                <StatusChip tone={p.quantity_in_stock > 0 ? "neutral" : "danger"}>{p.quantity_in_stock} in stock</StatusChip>
                 <div className="flex items-center gap-1 shrink-0">
                   <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => adjustStock(p, -1)}><Minus className="w-3 h-3" /></Button>
                   <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => adjustStock(p, 1)}><Plus className="w-3 h-3" /></Button>
@@ -169,19 +165,19 @@ export default function PartsTab({ parts = [], onChange }) {
                 </label>
               )}
             </div>
-            <div className="space-y-1.5"><Label>Part name</Label><Input value={form.part_name} onChange={(e) => set("part_name", e.target.value)} /></div>
+            <div className="space-y-1.5"><Label htmlFor="part-part_name">Part name</Label><Input id="part-part_name" value={form.part_name} onChange={(e) => set("part_name", e.target.value)} /></div>
             <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-1.5"><Label>OEM #</Label><Input value={form.oem_number} onChange={(e) => set("oem_number", e.target.value)} /></div>
-              <div className="space-y-1.5"><Label>Aftermarket #</Label><Input value={form.aftermarket_number} onChange={(e) => set("aftermarket_number", e.target.value)} /></div>
+              <div className="space-y-1.5"><Label htmlFor="part-oem_number">OEM #</Label><Input id="part-oem_number" value={form.oem_number} onChange={(e) => set("oem_number", e.target.value)} /></div>
+              <div className="space-y-1.5"><Label htmlFor="part-aftermarket_number">Aftermarket #</Label><Input id="part-aftermarket_number" value={form.aftermarket_number} onChange={(e) => set("aftermarket_number", e.target.value)} /></div>
             </div>
-            <div className="space-y-1.5"><Label>Compatible vehicle</Label><Input value={form.vehicle_compatibility} onChange={(e) => set("vehicle_compatibility", e.target.value)} placeholder="e.g. Toyota Hiace" /></div>
+            <div className="space-y-1.5"><Label htmlFor="part-vehicle_compatibility">Compatible vehicle</Label><Input id="part-vehicle_compatibility" value={form.vehicle_compatibility} onChange={(e) => set("vehicle_compatibility", e.target.value)} placeholder="e.g. Toyota Hiace" /></div>
             <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-1.5"><Label>Category</Label><Input value={form.category} onChange={(e) => set("category", e.target.value)} /></div>
-              <div className="space-y-1.5"><Label>Supplier</Label><Input value={form.supplier} onChange={(e) => set("supplier", e.target.value)} /></div>
+              <div className="space-y-1.5"><Label htmlFor="part-category">Category</Label><Input id="part-category" value={form.category} onChange={(e) => set("category", e.target.value)} /></div>
+              <div className="space-y-1.5"><Label htmlFor="part-supplier">Supplier</Label><Input id="part-supplier" value={form.supplier} onChange={(e) => set("supplier", e.target.value)} /></div>
             </div>
             <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-1.5"><Label>Qty in stock</Label><Input type="number" value={form.quantity_in_stock} onChange={(e) => set("quantity_in_stock", Number(e.target.value))} /></div>
-              <div className="space-y-1.5"><Label>Unit price</Label><Input type="number" value={form.unit_price} onChange={(e) => set("unit_price", Number(e.target.value))} /></div>
+              <div className="space-y-1.5"><Label htmlFor="part-quantity_in_stock">Qty in stock</Label><Input id="part-quantity_in_stock" type="number" value={form.quantity_in_stock} onChange={(e) => set("quantity_in_stock", Number(e.target.value))} /></div>
+              <div className="space-y-1.5"><Label htmlFor="part-unit_price">Unit price</Label><Input id="part-unit_price" type="number" value={form.unit_price} onChange={(e) => set("unit_price", Number(e.target.value))} /></div>
             </div>
             <Button className="w-full" onClick={create} disabled={saving || uploading || !form.part_name.trim()}>
               {saving ? "Adding…" : "Add part"}

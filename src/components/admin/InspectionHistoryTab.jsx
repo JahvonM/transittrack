@@ -1,16 +1,15 @@
 import React, { useMemo, useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { ClipboardCheck, ChevronDown, ChevronUp, Download } from "lucide-react";
+import { ClipboardCheck, ChevronDown, Download, ListChecks, OctagonAlert, TriangleAlert } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { EmptyState, Kpi, KpiRow, StatusChip } from "@/components/admin/kit";
 import { exportToPDF } from "@/lib/exporters";
 
-const conditionVariant = (c) => {
-  if (c === "GOOD") return "default";
-  if (c === "WARNING") return "secondary";
-  if (c === "FAILED") return "destructive";
-  return "outline";
+const CONDITION = { GOOD: ["success", "Good"], WARNING: ["warning", "Warning"], FAILED: ["danger", "Failed"] };
+const Condition = ({ c }) => {
+  const [tone, label] = CONDITION[c] || ["neutral", c || "Not checked"];
+  return <StatusChip tone={tone}>{label}</StatusChip>;
 };
 
 // Browsable log of past inspection runs — port of FleetPilot's
@@ -69,90 +68,95 @@ export default function InspectionHistoryTab({ results = [], vehicles = [] }) {
     );
   };
 
+  const withFail = sessions.filter((x) => x.items.some((i) => i.condition === "FAILED")).length;
+  const withWarn = sessions.filter((x) => !x.items.some((i) => i.condition === "FAILED") && x.items.some((i) => i.condition === "WARNING")).length;
+
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-2">
-          <ClipboardCheck className="w-5 h-5 text-primary" />
-          <h2 className="text-lg font-semibold">Inspection history</h2>
-        </div>
+    <div>
+      <div className="mb-4 flex flex-wrap items-center gap-2">
         <Select value={vehicleFilter} onValueChange={setVehicleFilter}>
-          <SelectTrigger className="w-56"><SelectValue placeholder="All vehicles" /></SelectTrigger>
+          <SelectTrigger className="h-10 w-56 bg-card" aria-label="Filter by vehicle"><SelectValue placeholder="All vehicles" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="__all__">All vehicles</SelectItem>
             {vehicles.map((v) => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}
           </SelectContent>
         </Select>
       </div>
+      <KpiRow className="xl:grid-cols-3">
+        <Kpi label="Inspections" value={sessions.length} icon={ListChecks} />
+        <Kpi label="With failed items" value={withFail} icon={OctagonAlert} tone={withFail ? "danger" : undefined} />
+        <Kpi label="With warnings only" value={withWarn} icon={TriangleAlert} tone={withWarn ? "warning" : undefined} />
+      </KpiRow>
 
-      {sessions.length === 0 && (
-        <Card><CardContent className="py-14 text-center text-sm text-muted-foreground">No inspections recorded yet.</CardContent></Card>
-      )}
-
-      <div className="space-y-2">
-        {sessions.map(({ key, items, first }) => {
-          const failed = items.filter((i) => i.condition === "FAILED").length;
-          const warning = items.filter((i) => i.condition === "WARNING").length;
-          const expanded = expandedKey === key;
-          return (
-            <Card key={key}>
-              <CardContent
-                className="p-4 cursor-pointer flex items-center justify-between gap-3"
-                onClick={() => setExpandedKey(expanded ? null : key)}
-              >
-                <div className="min-w-0">
-                  <p className="font-medium text-sm truncate">{first.vehicle_name} — {first.inspection_name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {first.inspection_date ? new Date(first.inspection_date).toLocaleString() : ""} · {items.length} items · {first.inspector_name || "Unknown inspector"}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  {failed > 0 && <Badge variant="destructive" className="text-xs">{failed} failed</Badge>}
-                  {warning > 0 && <Badge variant="secondary" className="text-xs">{warning} warning</Badge>}
-                  {failed === 0 && warning === 0 && <Badge className="text-xs">All good</Badge>}
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7"
-                    onClick={(e) => { e.stopPropagation(); exportSessionPDF(first, items); }}
-                    title="Export PDF"
+      {sessions.length === 0 ? (
+        <EmptyState icon={ClipboardCheck} title="No inspections recorded yet">Inspections drivers and mechanics complete will show up here.</EmptyState>
+      ) : (
+        <ul className="space-y-2">
+          {sessions.map(({ key, items, first }) => {
+            const failed = items.filter((i) => i.condition === "FAILED").length;
+            const warning = items.filter((i) => i.condition === "WARNING").length;
+            const expanded = expandedKey === key;
+            const panelId = `insp-${key.replace(/[^a-zA-Z0-9]/g, "")}`;
+            return (
+              <li key={key} className="overflow-hidden rounded-2xl border border-border bg-card">
+                <div className="flex items-center gap-2 pr-2">
+                  <button
+                    type="button"
+                    onClick={() => setExpandedKey(expanded ? null : key)}
+                    aria-expanded={expanded}
+                    aria-controls={panelId}
+                    className="flex min-h-[64px] min-w-0 flex-1 items-center gap-3 px-4 py-3 text-left hover:bg-accent/40"
                   >
-                    <Download className="w-3.5 h-3.5" />
+                    <span className={cn("grid h-10 w-10 shrink-0 place-items-center rounded-lg", failed ? "bg-danger/12 text-danger" : warning ? "bg-warning/14 text-warning" : "bg-success/12 text-success")} aria-hidden="true">
+                      <ClipboardCheck className="h-5 w-5" />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate font-semibold">{first.vehicle_name} · {first.inspection_name}</span>
+                      <span className="block truncate text-body-sm text-muted-foreground">
+                        {first.inspection_date ? new Date(first.inspection_date).toLocaleString([], { dateStyle: "medium", timeStyle: "short" }) : ""} · {items.length} items · {first.inspector_name || "Unknown inspector"}
+                      </span>
+                    </span>
+                    <span className="hidden shrink-0 items-center gap-1.5 sm:flex">
+                      {failed > 0 && <StatusChip tone="danger">{failed} failed</StatusChip>}
+                      {warning > 0 && <StatusChip tone="warning">{warning} warning</StatusChip>}
+                      {failed === 0 && warning === 0 && <StatusChip tone="success">All good</StatusChip>}
+                    </span>
+                    <ChevronDown className={cn("h-5 w-5 shrink-0 text-muted-foreground transition-transform", expanded && "rotate-180")} aria-hidden="true" />
+                  </button>
+                  <Button variant="ghost" size="icon" onClick={() => exportSessionPDF(first, items)} aria-label={`Export ${first.vehicle_name} ${first.inspection_name} as PDF`} title="Export PDF">
+                    <Download className="h-4 w-4" />
                   </Button>
-                  {expanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
                 </div>
-              </CardContent>
-              {expanded && (
-                <CardContent className="pt-0 space-y-3 border-t">
-                  {sectionsFor(items).map(([sectionName, sectionItems]) => (
-                    <div key={sectionName} className="pt-3">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1.5">{sectionName}</p>
-                      <div className="space-y-1.5">
-                        {sectionItems.map((r) => (
-                          <div key={r.id} className="border rounded-lg p-2.5 text-sm">
-                            <div className="flex items-center justify-between gap-2">
-                              <span className="font-medium">{r.inspection_item}</span>
-                              <Badge variant={conditionVariant(r.condition)} className="text-xs shrink-0">{r.condition}</Badge>
-                            </div>
-                            {(r.fault_description || r.notes) && (
-                              <p className="text-xs text-muted-foreground mt-1">{r.fault_description || r.notes}</p>
-                            )}
-                            {r.photo_url && (
-                              <a href={r.photo_url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline mt-1 inline-block">
-                                View photo
-                              </a>
-                            )}
-                          </div>
-                        ))}
+                {expanded && (
+                  <div id={panelId} className="space-y-4 border-t border-border px-4 py-4">
+                    {sectionsFor(items).map(([sectionName, sectionItems]) => (
+                      <div key={sectionName}>
+                        <h3 className="mb-2 text-caption font-semibold uppercase tracking-wide text-muted-foreground">{sectionName}</h3>
+                        <ul className="divide-y divide-border rounded-xl border border-border">
+                          {sectionItems.map((r) => (
+                            <li key={r.id} className="px-3 py-2.5 text-body-sm">
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="font-semibold">{r.inspection_item}</span>
+                                <Condition c={r.condition} />
+                              </div>
+                              {(r.fault_description || r.notes) && <p className="mt-1 text-muted-foreground">{r.fault_description || r.notes}</p>}
+                              {r.photo_url && (
+                                <a href={r.photo_url} target="_blank" rel="noopener noreferrer" className="mt-1 inline-block font-semibold underline underline-offset-2">
+                                  View photo
+                                </a>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
                       </div>
-                    </div>
-                  ))}
-                </CardContent>
-              )}
-            </Card>
-          );
-        })}
-      </div>
+                    ))}
+                  </div>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </div>
   );
 }

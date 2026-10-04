@@ -2,10 +2,9 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Hourglass, RefreshCw } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/use-toast";
 import BusLoader from "@/components/BusLoader";
-import EmptyState from "@/components/EmptyState";
+import { EmptyState, PageActions, PageIntro, StatusChip } from "@/components/admin/kit";
 import { bucketOf, legKey, routeCoverage, stopKey, typicalSeconds } from "@/lib/travelTimes";
 
 const fmt = (s) => {
@@ -64,22 +63,18 @@ export default function TravelTimesTab() {
 
   return (
     <div className="space-y-4">
-      <div className="rounded-2xl border bg-card p-4 flex flex-col sm:flex-row sm:items-center gap-3">
-        <div className="flex-1 text-sm text-muted-foreground">
-          <p className="text-foreground font-medium">ETAs from your own buses</p>
-          <p>
-            Every night the app looks at the last 6 weeks of GPS from each bus and learns how long it really takes between
-            the stops on its route, for each hour of the day. Passengers then see ETAs from those real trips instead of a map
-            estimate. The more the buses drive with tracking on, the better it gets.
-          </p>
-        </div>
-        <Button onClick={learnNow} disabled={busy} className="shrink-0">
-          <RefreshCw className={`w-4 h-4 mr-1.5 ${busy ? "animate-spin" : ""}`} /> {busy ? "Learning…" : "Learn now"}
+      <PageIntro>
+        Every night the app looks at the last 6 weeks of GPS from each bus and learns how long it really takes between the stops on
+        its route, for each hour of the day. Passengers then see ETAs from those real trips instead of a map estimate.
+      </PageIntro>
+      <PageActions>
+        <Button onClick={learnNow} disabled={busy} size="sm" variant="outline">
+          <RefreshCw className={`h-4 w-4 ${busy ? "animate-spin" : ""}`} /> {busy ? "Learning…" : "Learn now"}
         </Button>
-      </div>
+      </PageActions>
 
       {routes.length === 0 ? (
-        <EmptyState text="No routes yet. Add a route with its stops in Route planner first." />
+        <EmptyState icon={Hourglass} title="No routes yet">Add a route with its stops in Routes first.</EmptyState>
       ) : (
         routes.map((route) => (
           <RouteCard key={route.id} route={route} record={learned[route.id]} bucket={bucket} />
@@ -98,31 +93,31 @@ function RouteCard({ route, record, bucket }) {
   const status = cov.total === 0 ? null : cov.learned === cov.total ? "Learned" : cov.learned ? "Partly learned" : "Learning";
 
   return (
-    <section className="rounded-2xl border bg-card overflow-hidden" aria-label={`Travel times for ${route.name}`}>
-      <header className="px-4 py-3 border-b flex flex-wrap items-center gap-2">
-        <Hourglass className="w-4 h-4 text-primary" />
-        <h3 className="font-semibold">{route.name}</h3>
+    <section className="overflow-hidden rounded-2xl border border-border bg-card" aria-label={`Travel times for ${route.name}`}>
+      <header className="flex flex-wrap items-center gap-2 border-b border-border px-5 py-4">
+        <Hourglass className="h-[18px] w-[18px] text-muted-foreground" aria-hidden="true" />
+        <h2 className="text-title-sm font-bold">{route.name}</h2>
         {status && (
-          <Badge variant={cov.learned === cov.total ? "default" : "secondary"}>
+          <StatusChip tone={cov.learned === cov.total ? "success" : cov.learned ? "info" : "neutral"}>
             {status} · {cov.learned}/{cov.total} legs
-          </Badge>
+          </StatusChip>
         )}
-        <span className="ml-auto text-xs text-muted-foreground">
+        <span className="ml-auto text-body-sm text-muted-foreground">
           {record ? `${record.leg_samples || 0} trips between stops · ${record.vehicles_used || 0} bus${record.vehicles_used === 1 ? "" : "es"} · updated ${when(record.learned_at)}` : "Not learned yet"}
         </span>
       </header>
       {stops.length < 2 ? (
-        <p className="px-4 py-3 text-sm text-muted-foreground">This route needs at least two stops.</p>
+        <p className="px-5 py-4 text-body-sm text-muted-foreground">This route needs at least two stops.</p>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="text-xs text-muted-foreground">
+        <div className="overflow-x-auto" tabIndex={0} role="region" aria-label={`Travel times table for ${route.name}`}>
+          <table className="w-full min-w-[640px] text-body-sm">
+            <thead className="text-caption uppercase tracking-wide text-muted-foreground">
               <tr className="text-left">
-                <th className="px-4 py-2 font-medium">From → to</th>
-                <th className="px-3 py-2 font-medium">Now <span className="font-normal">({bucketLabel(bucket)})</span></th>
-                <th className="px-3 py-2 font-medium">Usually</th>
-                <th className="px-3 py-2 font-medium">Slow days</th>
-                <th className="px-3 py-2 font-medium text-right">Trips</th>
+                <th scope="col" className="px-5 py-3 font-semibold">From → to</th>
+                <th scope="col" className="px-3 py-3 font-semibold">Now <span className="font-normal normal-case tracking-normal">({bucketLabel(bucket)})</span></th>
+                <th scope="col" className="px-3 py-3 font-semibold">Usually</th>
+                <th scope="col" className="px-3 py-3 font-semibold">Slow days</th>
+                <th scope="col" className="px-5 py-3 text-right font-semibold">Trips</th>
               </tr>
             </thead>
             <tbody>
@@ -132,17 +127,17 @@ function RouteCard({ route, record, bucket }) {
                 const wait = record?.dwells?.[stopKey(b)]?.all;
                 const now = typicalSeconds(entry, bucket);
                 return (
-                  <tr key={i} className="border-t">
-                    <td className="px-4 py-2">
+                  <tr key={i} className="border-t border-border hover:bg-accent/40">
+                    <td className="px-5 py-3">
                       <span className="font-medium">{a.name || `Stop ${i + 1}`}</span>
                       <span className="text-muted-foreground"> → </span>
                       <span className="font-medium">{b.name || `Stop ${i + 2}`}</span>
-                      {wait?.median > 0 && <span className="block text-xs text-muted-foreground">then waits about {fmt(wait.median)} at {b.name || "the stop"}</span>}
+                      {wait?.median > 0 && <span className="block text-caption text-muted-foreground">then waits about {fmt(wait.median)} at {b.name || "the stop"}</span>}
                     </td>
-                    <td className="px-3 py-2 tabular-nums">{now != null ? fmt(now) : <span className="text-muted-foreground">learning…</span>}</td>
-                    <td className="px-3 py-2 tabular-nums">{fmt(entry?.all?.median)}</td>
-                    <td className="px-3 py-2 tabular-nums text-muted-foreground">{entry?.all?.p80 != null ? `up to ${fmt(entry.all.p80)}` : "—"}</td>
-                    <td className="px-3 py-2 tabular-nums text-right">{entry?.all?.n || 0}</td>
+                    <td className="px-3 py-3 font-semibold tabular-nums">{now != null ? fmt(now) : <span className="text-muted-foreground">learning…</span>}</td>
+                    <td className="px-3 py-3 tabular-nums">{fmt(entry?.all?.median)}</td>
+                    <td className="px-3 py-3 tabular-nums text-muted-foreground">{entry?.all?.p80 != null ? `up to ${fmt(entry.all.p80)}` : "—"}</td>
+                    <td className="px-5 py-3 text-right tabular-nums">{entry?.all?.n || 0}</td>
                   </tr>
                 );
               })}

@@ -3,7 +3,7 @@ import { base44 } from "@/api/base44Client";
 import AppLayout from "@/components/AppLayout";
 import PullToRefresh from "@/components/PullToRefresh";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { StatusChip, humanize } from "@/components/admin/kit";
 import { Activity, Radio } from "lucide-react";
 import { loadFailed } from "@/lib/loadFailed";
 import BusLoader from "@/components/BusLoader";
@@ -32,9 +32,9 @@ export default function VehicleLogs() {
     <AppLayout title="Vehicle live logs">
       <PullToRefresh onRefresh={load}>
       {loading ? <BusLoader className="py-8" /> : (
-        <div className="grid lg:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <div>
-            <h2 className="text-sm font-semibold mb-2 flex items-center gap-2"><Activity className="w-4 h-4 text-primary" /> Latest updates</h2>
+            <h2 className="mb-3 flex items-center gap-2 text-title-sm font-bold"><Activity className="w-4 h-4 text-primary" /> Latest updates</h2>
             <div className="space-y-2">
               {vehicles.map((v) => (
                 <Card key={v.id}><CardContent className="py-2.5 text-sm flex items-center justify-between">
@@ -45,19 +45,19 @@ export default function VehicleLogs() {
                       {v.current_lat != null && ` · ${v.current_lat.toFixed(4)}, ${v.current_lng.toFixed(4)}`}
                     </div>
                   </div>
-                  <Badge variant={v.status === "offline" ? "secondary" : "default"}>{v.status}</Badge>
+                  <StatusChip status={v.status} />
                 </CardContent></Card>
               ))}
               {vehicles.length === 0 && <p className="text-sm text-muted-foreground">No vehicles.</p>}
             </div>
           </div>
           <div>
-            <h2 className="text-sm font-semibold mb-2 flex items-center gap-2"><Radio className="w-4 h-4 text-emerald-400" /> Live event stream</h2>
+            <h2 className="mb-3 flex items-center gap-2 text-title-sm font-bold"><Radio className="w-4 h-4 text-success" /> Live event stream</h2>
             <Card><CardContent className="py-2.5 text-xs space-y-1 max-h-[60vh] overflow-y-auto">
               {events.length === 0 ? <p className="text-muted-foreground">Waiting for live updates…</p> :
                 events.map((e, i) => (
                   <div key={i} className="border-b border-border/40 pb-1 last:border-0">
-                    <span className="text-muted-foreground">{e.stamp}</span> · <Badge variant="secondary" className="mx-1">{e.type}</Badge>
+                    <span className="text-muted-foreground">{e.stamp}</span> · <StatusChip tone="neutral" dot={false} className="mx-1">{humanize(e.type)}</StatusChip>
                     {e.data?.name || e.data?.id}
                   </div>
                 ))}

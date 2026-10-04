@@ -13,9 +13,9 @@ import {
 } from "lucide-react";
 
 const SEV = {
-  critical: { wrap: "border-red-500/30 bg-red-500/10 text-red-200", icon: AlertTriangle },
-  warning: { wrap: "border-amber-500/30 bg-amber-500/10 text-amber-200", icon: AlertTriangle },
-  info: { wrap: "border-sky-500/30 bg-sky-500/10 text-sky-200", icon: Info },
+  critical: { wrap: "border-danger/30 bg-danger/10 text-danger", icon: AlertTriangle },
+  warning: { wrap: "border-warning/30 bg-warning/10 text-warning", icon: AlertTriangle },
+  info: { wrap: "border-info/30 bg-info/10 text-info", icon: Info },
 };
 
 export default function CopilotTab() {
@@ -93,7 +93,7 @@ export default function CopilotTab() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <AlertTriangle className="w-5 h-5 text-amber-400" /> Flags &amp; anomalies
+              <AlertTriangle className="w-5 h-5 text-warning" /> Flags &amp; anomalies
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
@@ -118,14 +118,14 @@ export default function CopilotTab() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <CheckCircle2 className="w-5 h-5 text-emerald-400" /> Suggested actions
+              <CheckCircle2 className="w-5 h-5 text-success" /> Suggested actions
             </CardTitle>
           </CardHeader>
           <CardContent>
             <ul className="space-y-2">
               {briefing.suggested_actions.map((a, i) => (
                 <li key={i} className="flex items-start gap-2 text-sm">
-                  <span className="w-5 h-5 rounded-full bg-emerald-500/15 text-emerald-300 grid place-items-center text-xs shrink-0">
+                  <span className="w-5 h-5 rounded-full bg-success/15 text-success grid place-items-center text-xs shrink-0">
                     {i + 1}
                   </span>
                   <span>{a}</span>

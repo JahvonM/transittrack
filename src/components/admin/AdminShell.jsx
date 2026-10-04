@@ -53,6 +53,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import Logo from "@/components/Logo";
 import LiveClock from "@/components/LiveClock";
 import { cn } from "@/lib/utils";
+import { PageSlots } from "@/components/admin/kit";
 
 // `group` clusters the flat section list into labeled chunks in the sidebar
 // (Fleet Operations / Maintenance — the mechanic's own area / Dispatch — the
@@ -255,8 +256,11 @@ const fmtDate = () => new Date().toLocaleDateString([], { weekday: "short", mont
  * top bar with section search, date and time, notifications and the
  * account menu, and the SOS banner above the page.
  */
-export default function AdminShell({ active, onNavigate, children, alertVehicles = [], user, onSignOut, pushPermission, onEnableNotifications }) {
+export default function AdminShell({ active, onNavigate, children, alertVehicles = [], user, onSignOut, pushPermission, onEnableNotifications, headerActions = null }) {
   const [open, setOpen] = useState(false);
+  const [actionsEl, setActionsEl] = useState(null);
+  const [introEl, setIntroEl] = useState(null);
+  const slots = useMemo(() => ({ actions: actionsEl, intro: introEl }), [actionsEl, introEl]);
   const nav = (id) => { onNavigate(id); setOpen(false); };
   const current = ADMIN_SECTIONS.find((s) => s.id === active);
   const title = PRIMARY.find((p) => p.id === active)?.label || current?.label || "Admin";
@@ -301,6 +305,7 @@ export default function AdminShell({ active, onNavigate, children, alertVehicles
             <p className="hidden whitespace-nowrap text-body-sm text-muted-foreground md:block">
               {fmtDate()} <LiveClock seconds={false} mono={false} className="ml-1 font-semibold text-foreground" />
             </p>
+            {headerActions}
             {pushPermission !== "granted" && pushPermission !== "unsupported" && onEnableNotifications && (
               <Button variant="ghost" size="icon" onClick={onEnableNotifications} aria-label="Turn on SOS notifications on this device" title="Turn on SOS notifications on this device">
                 <Bell className="h-5 w-5" aria-hidden="true" />
@@ -336,9 +341,15 @@ export default function AdminShell({ active, onNavigate, children, alertVehicles
           </button>
         )}
 
-        <main className="min-w-0 flex-1 px-4 pb-32 pt-6 sm:px-6 lg:px-8">
-          <h1 className="mb-5 text-headline font-bold">{title}</h1>
-          {children}
+        <main className="min-w-0 flex-1 px-4 pb-24 pt-6 sm:px-6 lg:px-8">
+          <div className="mb-5 flex flex-wrap items-end justify-between gap-x-4 gap-y-3">
+            <div className="min-w-0">
+              <h1 className="text-headline font-bold">{title}</h1>
+              <div ref={setIntroEl} />
+            </div>
+            <div ref={setActionsEl} className="empty:hidden" />
+          </div>
+          <PageSlots.Provider value={slots}>{children}</PageSlots.Provider>
         </main>
       </div>
     </div>

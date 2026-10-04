@@ -25,10 +25,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Database, FileSpreadsheet, FileText, Plus, Trash2 } from "lucide-react";
+import { FileSpreadsheet, FileText, Plus, Trash2 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { exportToCSV, exportToPDF } from "@/lib/exporters";
 import BusLoader from "@/components/BusLoader";
+import { PageIntro } from "@/components/admin/kit";
 
 // Minimal "quick add" field sets per entity — covers the fields you actually
 // need to create a usable record by hand. User and FrontDeskSignIns are
@@ -250,13 +251,11 @@ export default function DataTab() {
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Database className="w-4 h-4 text-primary" /> Browse, manage, and export every data collection in the platform.
-      </div>
+      <PageIntro>Browse, manage and export every data collection in the platform.</PageIntro>
 
       <div className="flex flex-wrap items-center gap-2">
         <Select value={entity} onValueChange={setEntity}>
-          <SelectTrigger className="w-56">
+          <SelectTrigger className="w-56" aria-label="Data collection">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -291,7 +290,7 @@ export default function DataTab() {
           <CardContent className="py-10 text-center text-muted-foreground">No records in {entity}.</CardContent>
         </Card>
       ) : (
-        <div className="rounded-xl border overflow-x-auto">
+        <div className="rounded-xl border overflow-x-auto" tabIndex={0} role="region" aria-label="Records table">
           <Table>
             <TableHeader>
               <TableRow>
@@ -314,7 +313,7 @@ export default function DataTab() {
                     </TableCell>
                   ))}
                   <TableCell>
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => remove(r.id)}>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => remove(r.id)} aria-label="Delete record" title="Delete record">
                       <Trash2 className="w-4 h-4 text-destructive" />
                     </Button>
                   </TableCell>

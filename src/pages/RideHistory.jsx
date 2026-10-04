@@ -3,7 +3,7 @@ import { base44 } from "@/api/base44Client";
 import AppLayout from "@/components/AppLayout";
 import PullToRefresh from "@/components/PullToRefresh";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { StatusChip } from "@/components/admin/kit";
 import { Bus, Calendar, Clock, MapPin } from "lucide-react";
 
 export default function RideHistory() {
@@ -51,7 +51,7 @@ export default function RideHistory() {
                   </span>
                 </div>
               </div>
-              <Badge variant="secondary" className="shrink-0">{trip.vehicle_name || ""}</Badge>
+              <StatusChip tone="neutral" dot={false}>{trip.vehicle_name || ""}</StatusChip>
             </CardContent>
           </Card>
         ))}

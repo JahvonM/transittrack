@@ -60,8 +60,8 @@ export default function CompletedTripsTab({ trips }) {
           <EmptyState text="No completed trips yet." />
         </div>
       ) : (
-        <div className="rounded-xl border overflow-x-auto">
-          <Table>
+        <div className="rounded-xl border overflow-x-auto" tabIndex={0} role="region" aria-label="Completed trips table">
+          <Table containerClassName="overflow-visible">
             <TableHeader>
               <TableRow>
                 <TableHead>Completed</TableHead>

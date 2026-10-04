@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import EmptyState from "@/components/EmptyState";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { PageIntro, StatusChip } from "@/components/admin/kit";
 import { Card, CardContent } from "@/components/ui/card";
 import { Copy, Check, KeyRound, Pencil, Trash2 } from "lucide-react";
 import CompanyEditDialog from "@/components/CompanyEditDialog";
@@ -26,10 +26,7 @@ export default function CompaniesTab({ companies, onChange }) {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-heading font-semibold">Companies</h1>
-        <p className="text-sm text-muted-foreground">Each company's passenger access code is shown below.</p>
-      </div>
+      <PageIntro>Bus operators and their passenger access codes.</PageIntro>
       <div className="space-y-2">
         {companies.length === 0 && (
           <div className="border rounded-2xl"><EmptyState text="No companies yet." /></div>
@@ -41,9 +38,9 @@ export default function CompaniesTab({ companies, onChange }) {
                 <div className="font-medium">{c.name}</div>
                 <div className="text-xs text-muted-foreground mt-0.5 flex flex-wrap gap-1">
                   {(c.service_types || []).map((t) => (
-                    <Badge key={t} variant="secondary" className="capitalize">
+                    <StatusChip key={t} tone="neutral" dot={false} className="capitalize">
                       {t.replace("_", " ")}
-                    </Badge>
+                    </StatusChip>
                   ))}
                 </div>
                 {c.phone && <div className="text-xs text-muted-foreground mt-1">{c.phone}</div>}
@@ -51,10 +48,10 @@ export default function CompaniesTab({ companies, onChange }) {
               <div className="flex items-center gap-2 px-3 py-2 rounded-lg border bg-muted/40">
                 <KeyRound className="w-4 h-4 text-primary" />
                 <div>
-                  <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Access code</div>
+                  <div className="text-caption uppercase tracking-wide text-muted-foreground">Access code</div>
                   <div className="font-mono font-bold tracking-[0.2em]">{c.access_code || "—"}</div>
                 </div>
-                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => copy(c.access_code)}>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => copy(c.access_code)} aria-label={`Copy access code for ${c.name}`} title="Copy code">
                   {copied === c.access_code ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                 </Button>
               </div>
@@ -70,7 +67,7 @@ export default function CompaniesTab({ companies, onChange }) {
               <Button variant="outline" size="sm" onClick={() => setEditing(c)}>
                 <Pencil className="w-4 h-4 mr-1.5" />Edit
               </Button>
-              <Button variant="ghost" size="icon" onClick={() => remove(c.id)}>
+              <Button variant="ghost" size="icon" onClick={() => remove(c.id)} aria-label={`Delete ${c.name}`} title="Delete company">
                 <Trash2 className="w-4 h-4 text-destructive" />
               </Button>
             </CardContent>

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { StatusChip, PageActions, PageIntro, Segmented } from "@/components/admin/kit";
 import { Button } from "@/components/ui/button";
 import { Download } from "lucide-react";
 import BusLoader from "@/components/BusLoader";
@@ -75,20 +75,13 @@ export default function ShiftsTab() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h2 className="text-xl font-semibold">Driver shifts</h2>
-          <p className="text-sm text-muted-foreground">Drivers start and end shifts from their tablet's Track tab.</p>
-        </div>
-        <div className="flex items-center gap-2">
-          {RANGES.map((r) => (
-            <Button key={r.id} size="sm" variant={days === r.id ? "default" : "outline"} onClick={() => setDays(r.id)}>{r.label}</Button>
-          ))}
-          <Button size="sm" variant="outline" onClick={exportCsv} disabled={!inRange.length}>
-            <Download className="w-4 h-4" /> CSV
-          </Button>
-        </div>
-      </div>
+      <PageIntro>Drivers start and end shifts from their tablet's Drive screen.</PageIntro>
+      <PageActions>
+        <Button size="sm" variant="outline" onClick={exportCsv} disabled={!inRange.length}>
+          <Download className="w-4 h-4" /> CSV
+        </Button>
+      </PageActions>
+      <Segmented label="Time range" value={days} onChange={setDays} options={RANGES.map((r) => ({ value: r.id, label: r.label }))} />
 
       {!inRange.length ? (
         <EmptyState text="No shifts yet. They appear here once drivers tap Start shift on their tablet." />
@@ -102,7 +95,7 @@ export default function ShiftsTab() {
                   <div className="flex-1 min-w-0">
                     <div className="font-medium truncate flex items-center gap-2">
                       {d.name}
-                      {d.open && <Badge>On shift</Badge>}
+                      {d.open && <StatusChip tone="success">On shift</StatusChip>}
                     </div>
                     <div className="text-xs text-muted-foreground truncate">{d.shifts} shift{d.shifts === 1 ? "" : "s"} · {[...d.vehicles].join(", ") || "—"}</div>
                   </div>
@@ -114,7 +107,7 @@ export default function ShiftsTab() {
 
           <Card>
             <CardHeader className="pb-2"><CardTitle className="text-base">All shifts</CardTitle></CardHeader>
-            <CardContent className="overflow-x-auto">
+            <CardContent className="overflow-x-auto" tabIndex={0} role="region" aria-label="All shifts table">
               <table className="w-full text-sm">
                 <thead className="text-left text-muted-foreground">
                   <tr><th className="py-2 pr-3">Driver</th><th className="py-2 pr-3">Vehicle</th><th className="py-2 pr-3">Started</th><th className="py-2 pr-3">Ended</th><th className="py-2 text-right">Hours</th></tr>
@@ -125,7 +118,7 @@ export default function ShiftsTab() {
                       <td className="py-2 pr-3">{s.driver_name || s.driver_email || "—"}</td>
                       <td className="py-2 pr-3">{s.vehicle_name || "—"}</td>
                       <td className="py-2 pr-3 whitespace-nowrap">{fmt(s.started_at)}</td>
-                      <td className="py-2 pr-3 whitespace-nowrap">{s.ended_at ? fmt(s.ended_at) : <Badge>On shift</Badge>}</td>
+                      <td className="py-2 pr-3 whitespace-nowrap">{s.ended_at ? fmt(s.ended_at) : <StatusChip tone="success">On shift</StatusChip>}</td>
                       <td className="py-2 text-right tabular-nums">{hours(shiftMinutes(s))}</td>
                     </tr>
                   ))}

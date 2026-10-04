@@ -57,6 +57,12 @@ import {
   Map,
   Gauge,
   Siren,
+  Palette,
+  Building2,
+  ListChecks,
+  ScrollText,
+  Database,
+  ChevronRight,
 } from "lucide-react";
 import { loadFailed } from "@/lib/loadFailed";
 import BusLoader from "@/components/BusLoader";
@@ -326,6 +332,12 @@ export default function Admin() {
         onSignOut={() => logout()}
         pushPermission={pushPermission}
         onEnableNotifications={enableNotifications}
+        headerActions={
+          <>
+            <FloatingMessages vehicles={vehicles} placement="header" />
+            <FloatingChatbot placement="header" />
+          </>
+        }
       >
         {section === "overview" && (
           <AdminOverview
@@ -401,13 +413,54 @@ export default function Admin() {
           </EmbeddedLayout.Provider>
         )}
         {section === "profile" && (
-          <div className="max-w-xl">
+          <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
             <ProfileInfo />
+            <section className="rounded-2xl border border-border bg-card" aria-label="Settings">
+              <h2 className="px-5 pb-2 pt-4 text-title-sm font-bold">Settings</h2>
+              <ul className="divide-y divide-border px-2 pb-2">
+                {[
+                  { to: "/account", icon: Palette, title: "Account and appearance", detail: "Theme, colours, password and sign-in" },
+                  { go: "companies", icon: Building2, title: "Companies", detail: "Operators, contact numbers and access codes" },
+                  { go: "kiosks", icon: Smartphone, title: "Kiosk tablets", detail: "Pair and update boarding and driver tablets" },
+                  { go: "templates", icon: ListChecks, title: "Inspection templates", detail: "Checklists drivers and mechanics complete" },
+                  { go: "audit", icon: ScrollText, title: "Change history", detail: "Every create, edit and delete" },
+                  { go: "data", icon: Database, title: "Data manager", detail: "Browse and export every collection" },
+                ].map((it) => {
+                  const Icon = it.icon;
+                  const inner = (
+                    <>
+                      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-secondary" aria-hidden="true"><Icon className="h-5 w-5" /></span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block font-semibold">{it.title}</span>
+                        <span className="block truncate text-body-sm text-muted-foreground">{it.detail}</span>
+                      </span>
+                      <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                    </>
+                  );
+                  const cls = "flex min-h-[60px] w-full items-center gap-3 rounded-lg px-3 py-2 text-left hover:bg-accent/60";
+                  return (
+                    <li key={it.title}>
+                      {it.to ? <Link to={it.to} className={cls}>{inner}</Link> : <button type="button" onClick={() => go(it.go)} className={cls}>{inner}</button>}
+                    </li>
+                  );
+                })}
+                {pushPermission !== "granted" && pushPermission !== "unsupported" && (
+                  <li>
+                    <button type="button" onClick={enableNotifications} className="flex min-h-[60px] w-full items-center gap-3 rounded-lg px-3 py-2 text-left hover:bg-accent/60">
+                      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-warning/14 text-warning" aria-hidden="true"><Bell className="h-5 w-5" /></span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block font-semibold">Turn on SOS notifications</span>
+                        <span className="block truncate text-body-sm text-muted-foreground">Get emergency alerts on this device</span>
+                      </span>
+                    </button>
+                  </li>
+                )}
+              </ul>
+            </section>
           </div>
         )}
       </AdminShell>
-      <FloatingMessages vehicles={vehicles} />
-      <FloatingChatbot />
+
     </>
   );
 }

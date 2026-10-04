@@ -4,8 +4,8 @@ import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, AlertTriangle, FileSpreadsheet, FileText, Wrench, History } from "lucide-react";
+import { StatusChip, PageActions } from "@/components/admin/kit";
+import { CheckCircle2, AlertTriangle, FileSpreadsheet, FileText, History } from "lucide-react";
 import { exportToCSV, exportToPDF } from "@/lib/exporters";
 
 const SERVICE_COLS = [
@@ -44,10 +44,8 @@ export default function ServiceQueueTab({ inspections = [], onChange }) {
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
-        <Wrench className="w-5 h-5 text-amber-400" />
-        <h2 className="text-lg font-semibold">Service Queue</h2>
-        <Badge variant="destructive">{pending.length} pending</Badge>
-        <div className="ml-auto flex gap-2">
+        <StatusChip tone={pending.length ? "danger" : "success"}>{pending.length} pending</StatusChip>
+        <PageActions>
           <Button size="sm" variant="outline" asChild>
             <Link to="/service-history"><History className="w-4 h-4" /> Past maintenance</Link>
           </Button>
@@ -57,7 +55,7 @@ export default function ServiceQueueTab({ inspections = [], onChange }) {
           <Button size="sm" variant="outline" onClick={() => exportToPDF("service-queue", "Service queue", SERVICE_COLS, pending)} disabled={!pending.length}>
             <FileText className="w-4 h-4" /> PDF
           </Button>
-        </div>
+        </PageActions>
       </div>
       <p className="text-sm text-muted-foreground">
         Vehicles with failed inspection items that need a mechanic's attention.
@@ -65,7 +63,7 @@ export default function ServiceQueueTab({ inspections = [], onChange }) {
       {pending.length === 0 && (
         <Card>
           <CardContent className="py-10 text-center text-sm text-muted-foreground">
-            <CheckCircle2 className="w-8 h-8 text-green-400 mx-auto mb-2" />
+            <CheckCircle2 className="w-8 h-8 text-success mx-auto mb-2" />
             All vehicles passed inspection. Nothing in the service queue.
           </CardContent>
         </Card>
@@ -75,7 +73,7 @@ export default function ServiceQueueTab({ inspections = [], onChange }) {
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between gap-2">
               <CardTitle className="text-base">{i.vehicle_name}</CardTitle>
-              <Badge variant="destructive">Failed</Badge>
+              <StatusChip tone="danger">Failed</StatusChip>
             </div>
           </CardHeader>
           <CardContent className="space-y-2">
@@ -83,8 +81,8 @@ export default function ServiceQueueTab({ inspections = [], onChange }) {
               {i.company_name} · Driver: {i.driver_name} · {new Date(i.date).toLocaleDateString()}
             </div>
             {i.service_notes && (
-              <div className="flex items-start gap-2 text-sm p-2 rounded-lg bg-amber-500/10">
-                <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+              <div className="flex items-start gap-2 text-sm p-2 rounded-lg bg-warning/10">
+                <AlertTriangle className="w-4 h-4 text-warning shrink-0 mt-0.5" />
                 <span>{i.service_notes}</span>
               </div>
             )}

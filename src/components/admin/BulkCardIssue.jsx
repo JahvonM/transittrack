@@ -115,7 +115,7 @@ export default function BulkCardIssue({ people, vehicles, companies, companyName
           <p className="font-semibold">Bulk card setup</p>
           <p className="text-sm text-muted-foreground">Pick who gets a card, press Start, then tap the cards one after another.</p>
         </div>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
           {companies.length > 0 && (
             <Select value={company} onValueChange={(v) => { setCompany(v); setBus("all"); setUnticked(new Set()); }}>
               <SelectTrigger className="h-9" aria-label="Company"><SelectValue /></SelectTrigger>
@@ -182,7 +182,7 @@ export default function BulkCardIssue({ people, vehicles, companies, companyName
           <Button className="h-11 px-6" onClick={start} disabled={!picked.length}>
             <Play className="w-4 h-4" /> Start · {picked.length} card{picked.length === 1 ? "" : "s"}
           </Button>
-          {!readerReady && <p className="text-xs text-amber-600 dark:text-amber-400">No reader connected — you can still type or scan each card ID.</p>}
+          {!readerReady && <p className="text-xs text-warning">No reader connected — you can still type or scan each card ID.</p>}
         </div>
       </div>
     );
@@ -191,7 +191,7 @@ export default function BulkCardIssue({ people, vehicles, companies, companyName
   const pct = queue.length ? Math.round((Math.min(idx + (stage === "done" ? 1 : 0), queue.length) / queue.length) * 100) : 0;
 
   return (
-    <div className="grid lg:grid-cols-[minmax(0,1fr)_320px] gap-3 items-start">
+    <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-3 items-start">
       <div className="rounded-2xl border bg-card p-4 space-y-3">
         <div className="flex items-center gap-3">
           <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden"><div className="h-full bg-primary transition-all" style={{ width: `${pct}%` }} /></div>
@@ -199,8 +199,8 @@ export default function BulkCardIssue({ people, vehicles, companies, companyName
         </div>
 
         {stage === "done" ? (
-          <div className="rounded-xl border-2 border-green-600/60 bg-green-600/10 p-6 text-center space-y-2">
-            <CheckCircle2 className="w-10 h-10 mx-auto text-green-600" />
+          <div className="rounded-xl border-2 border-success/60 bg-success/10 p-6 text-center space-y-2">
+            <CheckCircle2 className="w-10 h-10 mx-auto text-success" />
             <p className="text-xl font-bold">All done</p>
             <p className="text-sm text-muted-foreground">
               {doneCount} card{doneCount === 1 ? "" : "s"} issued{results.some((r) => r.skipped) ? ` · ${results.filter((r) => r.skipped).length} skipped` : ""}. Each card was sent to its bus tablet.
@@ -209,18 +209,18 @@ export default function BulkCardIssue({ people, vehicles, companies, companyName
           </div>
         ) : (
           <>
-            <div className={`rounded-xl border-2 p-5 flex items-center gap-4 transition-colors ${error ? "border-rose-600/70 bg-rose-600/10" : busy ? "border-amber-500/70 bg-amber-500/10" : paused ? "border-border bg-muted/40" : "border-primary/60 bg-primary/10"}`} role="status" aria-live="polite">
+            <div className={`rounded-xl border-2 p-5 flex items-center gap-4 transition-colors ${error ? "border-danger/70 bg-danger/10" : busy ? "border-warning/70 bg-warning/10" : paused ? "border-border bg-muted/40" : "border-primary/60 bg-primary/10"}`} role="status" aria-live="polite">
               <div className="relative shrink-0">
                 {!busy && !paused && !error && <span className="absolute inset-0 rounded-full bg-primary/30 animate-ping" aria-hidden="true" />}
                 <div className="relative w-14 h-14 rounded-full grid place-items-center bg-background border">
-                  {busy ? <Loader2 className="w-7 h-7 animate-spin" /> : error ? <XCircle className="w-7 h-7 text-rose-600" /> : <Nfc className="w-7 h-7 text-primary" />}
+                  {busy ? <Loader2 className="w-7 h-7 animate-spin" /> : error ? <XCircle className="w-7 h-7 text-danger" /> : <Nfc className="w-7 h-7 text-primary" />}
                 </div>
               </div>
               <div className="min-w-0">
                 <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">{paused ? "Paused" : busy ? "Registering…" : "Place a card for"}</p>
                 <p className="text-2xl font-bold truncate">{current?.name}</p>
                 <p className="text-sm text-muted-foreground truncate">{[companyName(current || {}), current?.assigned_vehicle].filter(Boolean).join(" · ") || "No bus"}</p>
-                {error && <p className="text-sm font-medium text-rose-600 mt-1">{error} Try another card, or skip.</p>}
+                {error && <p className="text-sm font-medium text-danger mt-1">{error} Try another card, or skip.</p>}
               </div>
             </div>
             {queue[idx + 1] && <p className="text-xs text-muted-foreground">Next: <b>{queue[idx + 1].name}</b>{queue[idx + 1].assigned_vehicle ? ` · ${queue[idx + 1].assigned_vehicle}` : ""}</p>}
@@ -243,7 +243,7 @@ export default function BulkCardIssue({ people, vehicles, companies, companyName
             const isCurrent = stage === "run" && i === idx;
             return (
               <li key={p.key} className={`flex items-center gap-2 px-3 py-1.5 ${isCurrent ? "bg-primary/10" : ""}`}>
-                {r?.ok ? <CheckCircle2 className="w-4 h-4 text-green-600 shrink-0" /> : r?.skipped ? <SkipForward className="w-4 h-4 text-muted-foreground shrink-0" /> : isCurrent ? <Nfc className="w-4 h-4 text-primary shrink-0" /> : <span className="w-4 h-4 rounded-full border shrink-0" />}
+                {r?.ok ? <CheckCircle2 className="w-4 h-4 text-success shrink-0" /> : r?.skipped ? <SkipForward className="w-4 h-4 text-muted-foreground shrink-0" /> : isCurrent ? <Nfc className="w-4 h-4 text-primary shrink-0" /> : <span className="w-4 h-4 rounded-full border shrink-0" />}
                 <span className="flex-1 min-w-0 truncate">{p.name}</span>
                 <span className="text-xs text-muted-foreground font-mono">{r?.ok ? formatUid(r.uid) : r?.skipped ? "skipped" : p.assigned_vehicle || ""}</span>
               </li>

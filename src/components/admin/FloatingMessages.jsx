@@ -37,7 +37,8 @@ function senderLabelFor(m, channel) {
 // WhatsApp-style list of buses; each bus expands into its four channels
 // (Staff / Company / Dispatch / Mechanic), since admin has global oversight
 // across every conversation the driver can start.
-export default function FloatingMessages({ vehicles = [] }) {
+export default function FloatingMessages({ vehicles = [], placement = "float" }) {
+  const inHeader = placement === "header";
   const [open, setOpen] = useState(false);
   const [activeVehicleId, setActiveVehicleId] = useState(null);
   const [activeChannel, setActiveChannel] = useState(null);
@@ -151,7 +152,7 @@ export default function FloatingMessages({ vehicles = [] }) {
   return (
     <>
       {open && (
-        <div className="fixed bottom-40 right-4 z-50 w-[92vw] max-w-sm h-[65vh] flex flex-col rounded-2xl border bg-card shadow-2xl overflow-hidden">
+        <div className={inHeader ? "fixed right-3 top-[4.5rem] z-50 flex h-[min(70vh,640px)] w-[calc(100vw-1.5rem)] max-w-sm flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl" : "fixed bottom-40 right-4 z-50 w-[92vw] max-w-sm h-[65vh] flex flex-col rounded-2xl border bg-card shadow-2xl overflow-hidden"} role="dialog" aria-label="Bus chats">
           {!activeVehicle ? (
             <>
               <div className="flex items-center justify-between p-3 border-b shrink-0">
@@ -264,14 +265,16 @@ export default function FloatingMessages({ vehicles = [] }) {
         </div>
       )}
       <Button
-        className="fixed bottom-24 right-4 z-50 h-14 w-14 rounded-full border border-border bg-card text-foreground shadow-lg hover:bg-accent"
+        className={inHeader ? "relative h-10 w-10 rounded-full" : "fixed bottom-24 right-4 z-50 h-14 w-14 rounded-full border border-border bg-card text-foreground shadow-lg hover:bg-accent"}
+        variant={inHeader ? "ghost" : "default"}
         size="icon"
+        aria-expanded={open}
         onClick={() => setOpen(!open)}
         aria-label={open ? "Close messages" : `Messages${totalUnread ? `, ${totalUnread} unread` : ""}`}
       >
         {open ? <X className="w-5 h-5" /> : <MessageCircle className="w-5 h-5" />}
         {!open && totalUnread > 0 && (
-          <span className="absolute -top-1 -right-1 grid h-5 w-5 place-items-center rounded-full bg-danger text-caption font-semibold text-danger-foreground" aria-hidden="true">
+          <span className="absolute -right-0.5 -top-0.5 grid h-5 min-w-[1.25rem] place-items-center rounded-full bg-danger px-1 text-caption font-semibold text-danger-foreground" aria-hidden="true">
             {totalUnread}
           </span>
         )}

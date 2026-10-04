@@ -1,9 +1,51 @@
 import React, { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import AppLayout from "@/components/AppLayout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
-import { TrendingUp, Users, Clock } from "lucide-react";
+import { TrendingUp, Bus, Clock } from "lucide-react";
+import BusLoader from "@/components/BusLoader";
+import { Kpi, KpiRow, Panel } from "@/components/admin/kit";
+
+// One data colour for every single-series chart: the measure is named by the
+// title, so colour carries no identity here.
+const DATA = "hsl(var(--info))";
+const TICK = { fontSize: 12, fill: "hsl(var(--muted-foreground))" };
+
+function BarPanel({ title, description, data, x, y, unit = "", domain, empty }) {
+  const tip = { background: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: 10, fontSize: 12, color: "hsl(var(--popover-foreground))" };
+  return (
+    <Panel title={title} description={description}>
+      {data.length === 0 ? (
+        <p className="py-10 text-center text-body-sm text-muted-foreground">{empty || "No data yet."}</p>
+      ) : (
+        <>
+          <ResponsiveContainer width="100%" height={240}>
+            <BarChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: -12 }} barCategoryGap="30%">
+              <CartesianGrid vertical={false} stroke="hsl(var(--border))" />
+              <XAxis dataKey={x} tick={TICK} axisLine={{ stroke: "hsl(var(--border))" }} tickLine={false} interval={0} />
+              <YAxis tick={TICK} axisLine={false} tickLine={false} allowDecimals={false} domain={domain} />
+              <Tooltip contentStyle={tip} cursor={{ fill: "hsl(var(--accent))", opacity: 0.5 }} formatter={(v) => [`${v}${unit}`, title]} />
+              <Bar dataKey={y} fill={DATA} radius={[4, 4, 0, 0]} maxBarSize={24} />
+            </BarChart>
+          </ResponsiveContainer>
+          <details className="mt-2 text-body-sm">
+            <summary className="cursor-pointer font-semibold text-muted-foreground hover:text-foreground">Show as table</summary>
+            <table className="mt-2 w-full">
+              <tbody>
+                {data.map((d) => (
+                  <tr key={d[x]} className="border-t border-border">
+                    <th scope="row" className="py-1.5 text-left font-normal">{d[x]}</th>
+                    <td className="py-1.5 text-right tabular-nums">{d[y]}{unit}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </details>
+        </>
+      )}
+    </Panel>
+  );
+}
 
 export default function FleetAnalytics() {
   const [trips, setTrips] = useState([]);
@@ -55,97 +97,25 @@ export default function FleetAnalytics() {
     .sort((a, b) => a.fuel - b.fuel)
     .slice(0, 10);
 
-  const chartStyle = { background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 };
-
   return (
     <AppLayout title="Fleet Analytics">
-      <div className="space-y-4 max-w-5xl">
-        {loading ? (
-          <p className="text-muted-foreground">Loading analytics…</p>
-        ) : (
-          <>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <Card><CardContent className="p-4 flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-primary/10 grid place-items-center"><TrendingUp className="w-5 h-5 text-primary" /></div>
-                <div><div className="text-2xl font-bold">{trips.length}</div><div className="text-xs text-muted-foreground">Total trips</div></div>
-              </CardContent></Card>
-              <Card><CardContent className="p-4 flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-primary/10 grid place-items-center"><Users className="w-5 h-5 text-primary" /></div>
-                <div><div className="text-2xl font-bold">{vehicles.length}</div><div className="text-xs text-muted-foreground">Active vehicles</div></div>
-              </CardContent></Card>
-              <Card><CardContent className="p-4 flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-primary/10 grid place-items-center"><Clock className="w-5 h-5 text-primary" /></div>
-                <div><div className="text-2xl font-bold">{peakHours[0]?.hour || "—"}</div><div className="text-xs text-muted-foreground">Peak hour</div></div>
-              </CardContent></Card>
-            </div>
-
-            <Card>
-              <CardHeader><CardTitle className="text-base">Trips per vehicle</CardTitle></CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={250}>
-                  <BarChart data={tripsPerVehicle}>
-                    <CartesianGrid strokeDasharray="3 3" className="opacity-20" />
-                    <XAxis dataKey="name" tick={{ fontSize: 11 }} className="fill-muted-foreground" />
-                    <YAxis tick={{ fontSize: 11 }} />
-                    <Tooltip contentStyle={chartStyle} />
-                    <Bar dataKey="trips" fill="hsl(var(--chart-1))" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader><CardTitle className="text-base">Average passenger load (%)</CardTitle></CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={250}>
-                  <BarChart data={avgLoad}>
-                    <CartesianGrid strokeDasharray="3 3" className="opacity-20" />
-                    <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-                    <YAxis tick={{ fontSize: 11 }} />
-                    <Tooltip contentStyle={chartStyle} />
-                    <Bar dataKey="load" fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader><CardTitle className="text-base">Peak operating hours</CardTitle></CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={250}>
-                  <BarChart data={peakHours}>
-                    <CartesianGrid strokeDasharray="3 3" className="opacity-20" />
-                    <XAxis dataKey="hour" tick={{ fontSize: 11 }} />
-                    <YAxis tick={{ fontSize: 11 }} />
-                    <Tooltip contentStyle={chartStyle} />
-                    <Bar dataKey="trips" fill="hsl(var(--chart-4))" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader><CardTitle className="text-base">Fuel level by vehicle (%)</CardTitle></CardHeader>
-              <CardContent>
-                {fuelByVehicle.length === 0 ? (
-                  <p className="text-sm text-muted-foreground py-8 text-center">No fuel readings recorded yet.</p>
-                ) : (
-                  <ResponsiveContainer width="100%" height={250}>
-                    <BarChart data={fuelByVehicle}>
-                      <CartesianGrid strokeDasharray="3 3" className="opacity-20" />
-                      <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-                      <YAxis tick={{ fontSize: 11 }} domain={[0, 100]} />
-                      <Tooltip contentStyle={chartStyle} />
-                      <Bar dataKey="fuel" fill="hsl(var(--chart-3))" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                )}
-                <p className="text-xs text-muted-foreground mt-2">Based on the most recent pre-trip inspection reading for each vehicle.</p>
-              </CardContent>
-            </Card>
-          </>
-        )}
-      </div>
+      {loading ? (
+        <BusLoader className="py-12" />
+      ) : (
+        <div>
+          <KpiRow className="xl:grid-cols-3">
+            <Kpi label="Total trips" value={trips.length} icon={TrendingUp} detail="Latest 200 trips" />
+            <Kpi label="Vehicles" value={vehicles.length} icon={Bus} />
+            <Kpi label="Peak hour" value={peakHours[0]?.hour || "—"} icon={Clock} detail={peakHours[0] ? `${peakHours[0].trips} trips start then` : "No trips yet"} />
+          </KpiRow>
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+            <BarPanel title="Trips per vehicle" description="Top 10 vehicles" data={tripsPerVehicle} x="name" y="trips" empty="No trips yet." />
+            <BarPanel title="Average passenger load" description="Trips per vehicle as a share of its seats" data={avgLoad} x="name" y="load" unit="%" />
+            <BarPanel title="Peak operating hours" description="Trips by scheduled start hour" data={[...peakHours].sort((a, b) => parseInt(a.hour) - parseInt(b.hour))} x="hour" y="trips" empty="No trips yet." />
+            <BarPanel title="Fuel level by vehicle" description="Most recent pre-trip inspection reading, lowest first" data={fuelByVehicle} x="name" y="fuel" unit="%" domain={[0, 100]} empty="No fuel readings recorded yet." />
+          </div>
+        </div>
+      )}
     </AppLayout>
   );
 }

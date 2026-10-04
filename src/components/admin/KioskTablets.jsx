@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { StatusChip } from "@/components/admin/kit";
 import KioskDeviceDialog from "@/components/admin/KioskDeviceDialog";
 import {
   AlertDialog,
@@ -307,9 +307,9 @@ export default function KioskTablets({ vehicles, companies, onChange }) {
                       <div className="min-w-0">
                         <div className="font-medium truncate flex items-center gap-2">
                           {d.label}
-                          {d.paired && <Badge variant="default" className="text-sm">Paired</Badge>}
-                          {isRevoked && <Badge variant="destructive" className="text-sm">Revoked</Badge>}
-                          {!d.paired && !isRevoked && hasCode && <Badge variant="outline" className="text-sm">Awaiting pairing</Badge>}
+                          {d.paired && <StatusChip tone="success">Paired</StatusChip>}
+                          {isRevoked && <StatusChip tone="danger">Revoked</StatusChip>}
+                          {!d.paired && !isRevoked && hasCode && <StatusChip tone="warning">Awaiting pairing</StatusChip>}
                         </div>
                         <div className="text-xs text-muted-foreground truncate">
                           {meta.label}

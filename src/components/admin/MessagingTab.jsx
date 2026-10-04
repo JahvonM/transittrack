@@ -15,6 +15,7 @@ import {
 import { Megaphone, Send } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import BroadcastInbox from "@/components/admin/BroadcastInbox";
+import { PageIntro } from "@/components/admin/kit";
 
 export default function MessagingTab({ vehicles }) {
   const { toast } = useToast();
@@ -58,15 +59,9 @@ export default function MessagingTab({ vehicles }) {
   };
 
   return (
-    <div className="space-y-4 max-w-2xl">
-      <BroadcastInbox />
-      <div>
-        <h1 className="text-2xl font-heading font-semibold">Messaging</h1>
-        <p className="text-sm text-muted-foreground">
-          Send a message that pops up on a driver's screen, or broadcast to all drivers and passengers.
-        </p>
-      </div>
-      <Card>
+    <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+      <PageIntro>Send a message that pops up on a driver's screen, or broadcast to all drivers and passengers.</PageIntro>
+      <Card className="xl:order-first">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <Megaphone className="w-4 h-4" /> Send a message
@@ -77,8 +72,9 @@ export default function MessagingTab({ vehicles }) {
             <button
               type="button"
               onClick={() => setMode("driver")}
-              className={`flex-1 px-3 h-9 rounded-lg border text-sm ${
-                mode === "driver" ? "bg-primary text-primary-foreground border-primary" : "bg-card"
+              aria-pressed={mode === "driver"}
+              className={`h-9 flex-1 rounded-lg px-3 text-body-sm font-semibold ${
+                mode === "driver" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
               }`}
             >
               To a driver
@@ -86,8 +82,9 @@ export default function MessagingTab({ vehicles }) {
             <button
               type="button"
               onClick={() => setMode("broadcast")}
-              className={`flex-1 px-3 h-9 rounded-lg border text-sm ${
-                mode === "broadcast" ? "bg-primary text-primary-foreground border-primary" : "bg-card"
+              aria-pressed={mode === "broadcast"}
+              className={`h-9 flex-1 rounded-lg px-3 text-body-sm font-semibold ${
+                mode === "broadcast" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
               }`}
             >
               Broadcast to all
@@ -97,7 +94,7 @@ export default function MessagingTab({ vehicles }) {
             <div className="space-y-1.5">
               <Label>Driver</Label>
               <Select value={targetEmail} onValueChange={setTargetEmail}>
-                <SelectTrigger><SelectValue placeholder="Choose a driver" /></SelectTrigger>
+                <SelectTrigger aria-label="Driver"><SelectValue placeholder="Choose a driver" /></SelectTrigger>
                 <SelectContent>
                   {drivers.map((v) => (
                     <SelectItem key={v.driver_email} value={v.driver_email}>
@@ -127,6 +124,7 @@ export default function MessagingTab({ vehicles }) {
           )}
         </CardContent>
       </Card>
+      <BroadcastInbox />
     </div>
   );
 }

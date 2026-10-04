@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
 import EmptyState from "@/components/EmptyState";
 import { base44 } from "@/api/base44Client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
+import { StatusChip } from "@/components/admin/kit";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -65,7 +65,7 @@ function BusCheckIns({ vehicles }) {
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <Select value={filter} onValueChange={setFilter}>
-          <SelectTrigger className="w-full sm:w-72">
+          <SelectTrigger className="w-full sm:w-72" aria-label="Bus">
             <SelectValue placeholder="Filter by bus" />
           </SelectTrigger>
           <SelectContent>
@@ -101,7 +101,7 @@ function BusCheckIns({ vehicles }) {
               <div key={r.id} className="flex items-center gap-3 p-3 rounded-xl border bg-card">
                 <div
                   className={`w-9 h-9 rounded-full grid place-items-center shrink-0 ${
-                    r.status === "boarded" ? "bg-emerald-500/15 text-emerald-400" : "bg-sky-500/15 text-sky-400"
+                    r.status === "boarded" ? "bg-success/15 text-success" : "bg-info/15 text-info"
                   }`}
                 >
                   {r.status === "boarded" ? <LogIn className="w-4 h-4" /> : <LogOut className="w-4 h-4" />}
@@ -114,10 +114,10 @@ function BusCheckIns({ vehicles }) {
                 </div>
                 <div className="text-right shrink-0 space-y-1">
                   <div className="flex items-center gap-1.5 justify-end">
-                    <Badge variant="outline" className="gap-1"><MethodIcon className="w-3 h-3" /> {method.label}</Badge>
-                    <Badge variant={r.status === "boarded" ? "default" : "secondary"}>
+                    <StatusChip tone="neutral" dot={false}><MethodIcon className="h-3 w-3" aria-hidden="true" /> {method.label}</StatusChip>
+                    <StatusChip tone={r.status === "boarded" ? "success" : "neutral"}>
                       {r.status === "boarded" ? "Signed in" : "Signed out"}
-                    </Badge>
+                    </StatusChip>
                   </div>
                   <div className="text-xs text-muted-foreground">
                     {r.boarded_at ? new Date(r.boarded_at).toLocaleString() : "—"}
@@ -199,12 +199,7 @@ function VisitorSignIns() {
 export default function CheckInLog({ vehicles }) {
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base">
-          <LogIn className="w-4 h-4" /> Sign-in logs
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
+      <CardContent className="pt-5">
         <Tabs defaultValue="bus">
           <TabsList>
             <TabsTrigger value="bus">Bus check-ins</TabsTrigger>

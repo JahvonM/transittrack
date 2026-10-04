@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Badge } from "@/components/ui/badge";
+import { StatusChip } from "@/components/admin/kit";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
@@ -25,9 +25,9 @@ const ROLE_FILTERS = [
 ];
 const STATUS_STYLE = {
   "Unassigned": "bg-muted text-muted-foreground border-border",
-  "Card Issued": "bg-green-600/15 text-green-700 dark:text-green-300 border-green-600/40",
-  "Expired": "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/40",
-  "Revoked": "bg-rose-600/15 text-rose-700 dark:text-rose-300 border-rose-600/40",
+  "Card Issued": "bg-success/15 text-success border-success/40",
+  "Expired": "bg-warning/15 text-warning border-warning/40",
+  "Revoked": "bg-danger/15 text-danger border-danger/40",
 };
 const ACCESS_LEVELS = ["DEPOT_DRIVER_ZONE", "DEPOT_WORKSHOP", "DEPOT_DISPATCH", "DEPOT_ALL_ACCESS", "STAFF_BUS_BOARDING", "DEPOT_GENERAL"];
 const PREF_KEY = "tt-card-issuing-prefs";
@@ -121,10 +121,10 @@ function readPrefs() {
 // Reader connection badge
 function ReaderBadge({ helper, reader, webNfc }) {
   if (helper === "connected" && reader) {
-    return <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-green-600/40 bg-green-600/10 text-sm font-medium text-green-700 dark:text-green-300"><Usb className="w-4 h-4" /> {reader}</span>;
+    return <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-success/40 bg-success/10 text-sm font-medium text-success"><Usb className="w-4 h-4" /> {reader}</span>;
   }
   if (helper === "connected") {
-    return <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-amber-500/40 bg-amber-500/10 text-sm font-medium text-amber-700 dark:text-amber-300"><Usb className="w-4 h-4" /> Helper running · plug in the ACR122U</span>;
+    return <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-warning/40 bg-warning/10 text-sm font-medium text-warning"><Usb className="w-4 h-4" /> Helper running · plug in the ACR122U</span>;
   }
   if (webNfc) {
     return <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-primary/40 bg-primary/10 text-sm font-medium"><Nfc className="w-4 h-4" /> Using this device's NFC</span>;
@@ -137,10 +137,10 @@ function ReaderBadge({ helper, reader, webNfc }) {
 const PHASES = {
   noperson: { cls: "border-border bg-muted/40 text-muted-foreground", icon: UserRound, title: "Pick someone from the list", sub: "Then program their card here." },
   ready: { cls: "border-border bg-card", icon: CreditCard, title: "Ready to program", sub: "Press Program card, then place the card on the reader." },
-  waiting: { cls: "border-rose-500/60 bg-rose-500/10 text-rose-700 dark:text-rose-300", icon: Nfc, title: "Place NFC card on reader", sub: "Hold it flat on the ACR122U until it beeps." },
-  encoding: { cls: "border-amber-500/70 bg-amber-500/15 text-amber-700 dark:text-amber-300 animate-pulse", icon: Loader2, title: "Registering card…", sub: "Checking it isn't already in use." },
-  success: { cls: "border-green-600/70 bg-green-600/15 text-green-700 dark:text-green-300", icon: CheckCircle2, title: "Card issued!", sub: "" },
-  error: { cls: "border-rose-600/70 bg-rose-600/15 text-rose-700 dark:text-rose-300", icon: XCircle, title: "Card not issued", sub: "" },
+  waiting: { cls: "border-danger/60 bg-danger/10 text-danger", icon: Nfc, title: "Place NFC card on reader", sub: "Hold it flat on the ACR122U until it beeps." },
+  encoding: { cls: "border-warning/70 bg-warning/15 text-warning animate-pulse", icon: Loader2, title: "Registering card…", sub: "Checking it isn't already in use." },
+  success: { cls: "border-success/70 bg-success/15 text-success", icon: CheckCircle2, title: "Card issued!", sub: "" },
+  error: { cls: "border-danger/70 bg-danger/15 text-danger", icon: XCircle, title: "Card not issued", sub: "" },
   check: { cls: "border-primary/60 bg-primary/10", icon: ShieldCheck, title: "Check a card", sub: "Place any card on the reader to see who it belongs to." },
 };
 
@@ -150,7 +150,7 @@ function TapTarget({ phase, message, uid }) {
   return (
     <div className={`rounded-xl border-2 flex items-center gap-4 px-4 py-3 min-h-[84px] transition-colors ${p.cls}`} role="status" aria-live="polite">
       <div className="relative shrink-0">
-        {phase === "waiting" && <span className="absolute inset-0 rounded-full bg-rose-500/30 animate-ping" aria-hidden="true" />}
+        {phase === "waiting" && <span className="absolute inset-0 rounded-full bg-danger/30 animate-ping" aria-hidden="true" />}
         <div className="relative w-12 h-12 rounded-full grid place-items-center bg-background/70 border border-current/20">
           <Icon className={`w-6 h-6 ${phase === "encoding" ? "animate-spin" : ""}`} />
         </div>
@@ -256,7 +256,7 @@ function IssuedCards({ cards, people, onRevoked }) {
           </SelectContent>
         </Select>
       </div>
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="Issued cards table">
         <table className="w-full text-sm">
           <thead className="text-left text-muted-foreground">
             <tr className="border-b">
@@ -275,7 +275,7 @@ function IssuedCards({ cards, people, onRevoked }) {
                 <td className="px-3 py-2">{fmtDate(c.issue_date)}<div className="text-xs text-muted-foreground">{c.issued_by || ""}</div></td>
                 <td className="px-3 py-2">
                   {c.is_active
-                    ? <Badge className="bg-green-600/15 text-green-700 dark:text-green-300 border border-green-600/40 hover:bg-green-600/15">Active</Badge>
+                    ? <StatusChip tone="success">Active</StatusChip>
                     : <span className="text-xs text-muted-foreground">{c.revoke_reason || "Revoked"}<br />{fmtDate(c.revoked_at)}</span>}
                 </td>
                 <td className="px-3 py-2 text-right">{c.is_active && <Button size="sm" variant="outline" className="text-destructive" onClick={() => revoke(c)}>Revoke</Button>}</td>
@@ -454,12 +454,10 @@ export default function CardIssuingTab({ companies = [] }) {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
-        <CreditCard className="w-5 h-5 text-primary" />
-        <h2 className="text-lg font-semibold">Card issuing</h2>
-        <div className="flex rounded-lg border p-0.5 ml-2" role="tablist" aria-label="Card issuing view">
+        <div className="flex rounded-xl bg-secondary p-1" role="tablist" aria-label="Card issuing view">
           {[["issue", "Issue one"], ["bulk", "Bulk setup"], ["cards", `Issued cards (${cards.filter((c) => c.is_active).length})`]].map(([v, l]) => (
             <button key={v} role="tab" aria-selected={view === v} onClick={() => setView(v)}
-              className={`px-3 h-9 rounded-md text-sm font-medium ${view === v ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>{l}</button>
+              className={`h-9 rounded-lg px-3 text-body-sm font-semibold ${view === v ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>{l}</button>
           ))}
         </div>
         <div className="ml-auto flex items-center gap-2">
@@ -469,8 +467,8 @@ export default function CardIssuingTab({ companies = [] }) {
       </div>
 
       {(helper === "idle" || helper === "offline") && !webNfc && (
-        <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 flex flex-wrap items-center gap-4">
-          <Usb className="w-5 h-5 text-amber-600 shrink-0" />
+        <div className="rounded-2xl border border-warning/40 bg-warning/10 p-4 flex flex-wrap items-center gap-4">
+          <Usb className="w-5 h-5 text-warning shrink-0" />
           <div className="flex-1 min-w-[280px] text-sm space-y-1">
             {IN_FRAME ? (
               <>
@@ -528,7 +526,7 @@ export default function CardIssuingTab({ companies = [] }) {
           tapRef={bulkTapRef} feedback={feedback} addLog={addLog} readerReady={helper === "connected" || webNfc} onIssued={load}
         />
       ) : (
-        <div className="grid lg:grid-cols-[300px_minmax(0,1fr)] gap-3 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-[300px_minmax(0,1fr)] gap-3 items-start">
           {/* STAFF QUEUE */}
           <aside className="rounded-2xl border bg-card flex flex-col lg:h-[calc(100vh-200px)] lg:min-h-[480px]" aria-label="People list">
             <div className="p-2.5 space-y-2 border-b">
@@ -576,7 +574,7 @@ export default function CardIssuingTab({ companies = [] }) {
                       <span className="block text-sm font-medium truncate">{p.name}</span>
                       <span className="block text-xs text-muted-foreground truncate">{[companyName(p), p.assigned_vehicle].filter(Boolean).join(" · ") || (p.type === "staff" ? "No bus yet" : "")}</span>
                     </span>
-                    <span className={`text-[11px] px-2 py-0.5 rounded-full border whitespace-nowrap ${STATUS_STYLE[p.status]}`}>{p.status}</span>
+                    <span className={`text-caption px-2 py-0.5 rounded-full border whitespace-nowrap ${STATUS_STYLE[p.status]}`}>{p.status}</span>
                   </button>
                 </li>
               ))}
@@ -610,11 +608,11 @@ export default function CardIssuingTab({ companies = [] }) {
               <>
                 <TapTarget phase="check" uid={checkResult?.uid} message={checkResult ? "" : undefined} />
                 {checkResult && (
-                  <div className={`rounded-2xl border p-4 ${checkResult.owner ? "border-green-600/40" : "border-rose-600/40"}`}>
+                  <div className={`rounded-2xl border p-4 ${checkResult.owner ? "border-success/40" : "border-danger/40"}`}>
                     {checkResult.owner ? (
-                      <p className="text-lg font-semibold flex items-center gap-2"><CheckCircle2 className="w-5 h-5 text-green-600" /> {checkResult.owner.name}</p>
+                      <p className="text-lg font-semibold flex items-center gap-2"><CheckCircle2 className="w-5 h-5 text-success" /> {checkResult.owner.name}</p>
                     ) : (
-                      <p className="text-lg font-semibold flex items-center gap-2"><AlertTriangle className="w-5 h-5 text-rose-600" /> Not issued to anyone</p>
+                      <p className="text-lg font-semibold flex items-center gap-2"><AlertTriangle className="w-5 h-5 text-danger" /> Not issued to anyone</p>
                     )}
                     {checkResult.owner?.card && (
                       <p className="text-sm text-muted-foreground mt-1">{[checkResult.owner.card.company_name, checkResult.owner.card.assigned_vehicle].filter(Boolean).join(" · ") || checkResult.owner.card.role} · {checkResult.owner.card.access_level} · issued {fmtDate(checkResult.owner.card.issue_date)}</p>
@@ -648,11 +646,11 @@ export default function CardIssuingTab({ companies = [] }) {
                   <BusLink person={selected} vehicles={vehicles} tablets={tablets} onChanged={async (key) => { const list = await load(); const p = list?.find((x) => x.key === key); if (p) select(p); }} />
                 )}
 
-                <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-2 text-sm">
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2 text-sm">
                   <div>
                     <Label className="text-xs text-muted-foreground">Access</Label>
                     <Select value={access || "__none__"} onValueChange={(v) => setAccess(v === "__none__" ? "" : v)} disabled={!selected}>
-                      <SelectTrigger className="h-9 mt-1 font-mono text-xs"><SelectValue placeholder="Choose" /></SelectTrigger>
+                      <SelectTrigger className="h-9 mt-1 font-mono text-xs" aria-label="Access"><SelectValue placeholder="Choose" /></SelectTrigger>
                       <SelectContent>{[...new Set([...(access ? [access] : []), ...ACCESS_LEVELS])].map((a) => <SelectItem key={a} value={a} className="font-mono text-xs">{a}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
