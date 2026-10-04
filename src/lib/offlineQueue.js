@@ -17,11 +17,12 @@ export function enqueueCheckIn(payload) {
 }
 export function acknowledgeCheckIn(requestId) {writeQueue(readQueue().filter(item=>item.payload.client_request_id!==requestId));}
 export function quarantineCheckIn(requestId,error) {writeQueue(readQueue().map(item=>item.payload.client_request_id===requestId?review(item,error):item));}
-export function queueSyncError() {return readQueue().find(item=>item.last_error)?.last_error||"";}
-export function queueLength() {return readQueue().length;}
+export function queueSyncError() {return readQueue().find(item=>item.state!=="archived"&&item.last_error)?.last_error||"";}
+export function queueLength() {return readQueue().filter(item=>item.state!=="archived").length;}
 export function isNetworkFailure(error) {return !error?.response||error.response.status===429||error.response.status>=500;}
 const inFlight=new Set();
 export async function submitSavedCheckIn(invoke,payload) {
+ payload={...payload,client_request_id:payload.client_request_id||crypto.randomUUID()};
  enqueueCheckIn(payload);
  inFlight.add(payload.client_request_id);
  try {const result=await invoke("check_in",payload);acknowledgeCheckIn(payload.client_request_id);return result;}
@@ -40,7 +41,7 @@ export async function flushQueue(invoke) {
   if(migrated)writeQueue(queue);
   const blocked=new Set(queue.filter(item=>item.state==="needs_review").map(scope));
   for(const item of queue) {
-   if(item.state==="needs_review"||blocked.has(scope(item))||inFlight.has(item.payload.client_request_id))continue;
+   if(item.state||blocked.has(scope(item))||inFlight.has(item.payload.client_request_id))continue;
    try {
     inFlight.add(item.payload.client_request_id);
     await invoke("check_in",item.payload);acknowledgeCheckIn(item.payload.client_request_id);synced++;

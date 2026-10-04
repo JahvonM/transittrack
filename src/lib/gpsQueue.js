@@ -9,7 +9,7 @@ function write(points) {
  notifySavedWork();try {window.dispatchEvent(new Event(EVENT));}catch { /* tests */ }
 }
 function thin(points) {
- const active=points.filter(p=>p.state!=="needs_review"),paused=points.filter(p=>p.state==="needs_review");
+ const active=points.filter(p=>!p.state),paused=points.filter(p=>p.state);
  if(active.length<=MAX_POINTS)return points;
  const half=Math.floor(active.length/2);
  // Retained failures are never thinned/discarded.
@@ -20,12 +20,12 @@ export function queueGpsPoint({lat,lng,speed,heading,accuracy,t,binding}) {
  if(!Number.isFinite(lat)||!Number.isFinite(lng)||Math.abs(lat)>90||Math.abs(lng)>180)return false;
  const time=t?new Date(t):new Date();
  if(!Number.isFinite(time.getTime())||time.getTime()>Date.now()+60000||time.getTime()<Date.now()-72*3600000)return false;
- const points=read(),last=points.filter(p=>p.state!=="needs_review").at(-1);
+ const points=read(),last=points.filter(p=>!p.state).at(-1);
  if(last&&time-new Date(last.t)<MIN_GAP_MS)return false;
  points.push({queue_id:crypto.randomUUID(),...(binding||{}),t:time.toISOString(),lat:round(lat,6),lng:round(lng,6),speed:round(speed,2),heading:round(heading,1),accuracy:round(accuracy,1)});
  write(thin(points));return true;
 }
-export function queuedGpsCount(){return read().length;}
+export function queuedGpsCount(){return read().filter(p=>p.state!=="archived").length;}
 export const GPS_QUEUE_EVENT=EVENT;
 let flushing=false,syncError="";
 export function gpsSyncError(){return syncError;}
@@ -49,7 +49,7 @@ export async function flushGpsQueue(invoke) {
   if(migrated)write(points);
   // Splitting a rejected batch isolates invalid/expired/old-assignment points.
   for(let guard=0;guard<50;guard++) {
-   const batch=read().filter(p=>p.state!=="needs_review").slice(0,BATCH);if(!batch.length)break;
+   const batch=read().filter(p=>!p.state).slice(0,BATCH);if(!batch.length)break;
    await upload(batch);
   }
   if(!read().some(p=>p.state==="needs_review"))syncError="";

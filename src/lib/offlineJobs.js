@@ -28,7 +28,7 @@ export function enqueueJob(kind,payload,label) {
  jobs.push({id:"job-"+crypto.randomUUID(),kind,payload:{...payload,client_request_id:id},label:label||kind,queued_at:new Date().toISOString()});
  return write(jobs);
 }
-export function pendingJobs(){return read();}
+export function pendingJobs(){return read().filter(job=>job.state!=="archived");}
 export function completeJob(requestId){mustWrite(read().filter(job=>job.payload.client_request_id!==requestId));}
 export function quarantineJob(requestId,error){mustWrite(read().map(job=>job.payload.client_request_id===requestId?review(job,error):job));}
 export async function submitSavedJob(kind,payload,label,runner) {
@@ -50,7 +50,7 @@ export async function flushJobs() {
   const jobs=read(),blocked=new Set(jobs.filter(job=>job.state==="needs_review").map(scope));
   for(const job of jobs) {
    const runner=runners[job.kind],id=job.payload.client_request_id;
-   if(!runner||job.state==="needs_review"||blocked.has(scope(job))||inFlight.has(id))continue;
+   if(!runner||job.state||blocked.has(scope(job))||inFlight.has(id))continue;
    const save=payload=>mustWrite(read().map(saved=>saved.id===job.id?{...saved,payload}:saved));
    try {
     inFlight.add(id);await runner(job.payload,save);

@@ -10,7 +10,7 @@ export function readSaved(key) {
 }
 export function writeSaved(key,items) { localStorage.setItem(key,JSON.stringify(items));notifySavedWork(); }
 export function savedWork() { return SAVED_KEYS.flatMap(key=>readSaved(key).map(item=>({...item,storage_key:key}))); }
-const privateFields=new Set(["device_token","driver_grant","verification_grant","token","token_hash","pin","driver_pin","pin_hash","salt","password","card_uid","card_tag","nfc_card_tag"]);
+const privateFields=new Set(["device_token","driver_grant","verification_grant","token","token_hash","pin","driver_pin","pin_hash","salt","password","card_uid","card_tag","nfc_card_tag","nfc_tag_id","access_code","one_time_code"]);
 export function exportSavedWork() {
  const scrub=value=>Array.isArray(value)?value.map(scrub):value&&typeof value==="object"?Object.fromEntries(Object.entries(value).filter(([key])=>!privateFields.has(key)).map(([key,item])=>[key,scrub(item)])):value;
  return JSON.stringify({exported_at:new Date().toISOString(),items:scrub(savedWork())},null,2);
@@ -18,4 +18,8 @@ export function exportSavedWork() {
 export function retryReviewedWork() {
  // Retry unchanged originals; never move old work to a new assignment or refresh credentials.
  for(const key of SAVED_KEYS)writeSaved(key,readSaved(key).map(({state,last_error,failed_at,...item})=>state==="needs_review"?item:{...item,...(state?{state}:{}),...(last_error?{last_error}:{}),...(failed_at?{failed_at}:{})}));
+}
+
+export function archiveReviewedWork() {
+ for(const key of SAVED_KEYS)writeSaved(key,readSaved(key).map(item=>item.state==="needs_review"?{...item,state:"archived",archived_at:new Date().toISOString()}:item));
 }
