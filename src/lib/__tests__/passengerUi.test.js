@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { bearingDeg, boundsOf, distanceM, lerpHeading, nearestOnLine, splitRoute } from "@/components/map3d/routeGeometry";
-import { busNumber, passengerTripState, timelineRows } from "@/components/passenger/passengerState";
+import { busNumber, busStatusLine, passengerTripState, timelineRows } from "@/components/passenger/passengerState";
 
 // A straight east-west road near Grand Anse, ~1.1 km long.
 const A = [-61.76, 12.03];
@@ -142,5 +142,21 @@ describe("bus number", () => {
     expect(busNumber("Bus 12")).toBe("12");
     expect(busNumber("Coach 7A")).toBe("7");
     expect(busNumber("Shuttle")).toBeNull();
+  });
+});
+
+describe("bus status line", () => {
+  const route = { stops: [
+    { name: "Depot", lat: 12.03, lng: -61.77, order: 0 },
+    { name: "Lagoon Road", lat: 12.03, lng: -61.75, order: 1 },
+    { name: "True Blue", lat: 12.03, lng: -61.73, order: 2 },
+  ] };
+  it("names the next stop for a live bus", () => {
+    expect(busStatusLine(bus({ current_lng: -61.76 }), route, now)).toBe("Next stop Lagoon Road");
+  });
+  it("says when the signal is lost or the bus is parked", () => {
+    expect(busStatusLine(bus({ last_location_update: ago(15) }), route, now)).toMatch(/^Signal lost/);
+    expect(busStatusLine(bus({ tracking_active: false, last_location_update: null }), route, now)).toBe("Not on the road");
+    expect(busStatusLine(bus({ in_service: false }), route, now)).toBe("Out of service");
   });
 });
