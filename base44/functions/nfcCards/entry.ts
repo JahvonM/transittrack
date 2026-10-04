@@ -68,7 +68,7 @@ async function loadPeople(base44, companyFilter) {
   const [drivers, users, contacts, holders, vehicles, cards, kiosks] = await Promise.all([
     sr.Driver.list('-updated_date', 1000),
     sr.User.list(),
-    sr.Contact.filter({ type: 'staff' }, '-updated_date', 1000),
+    sr.Contact.list('-updated_date', 1000),
     sr.CardHolder.list('-updated_date', 1000).catch(() => []),
     sr.Vehicle.list('-updated_date', 500),
     sr.NfcCard.list('-issue_date', 3000).catch(() => []),
@@ -97,23 +97,25 @@ async function loadPeople(base44, companyFilter) {
     people.push({ source: 'user', id: u.id, type: 'mechanic', role: 'Mechanic', name: u.full_name || u.email, email: u.email || '',
       employee_id: u.employee_id || '', company_id: u.company_id || '', company_name: '', assigned_vehicle: '', legacy_tag: '' });
   }
-  const staffUsers = new Map(trustedUsers.filter((u) => u.role === 'staff' && inCompany(u.company_id)).map((u) => [(u.email || '').toLowerCase(), u]));
+  const staffUsers = new Map(trustedUsers.filter((u) => ['staff','passenger'].includes(u.role) && inCompany(u.company_id)).map((u) => [(u.email || '').toLowerCase(), u]));
   const contactEmails = new Set();
   for (const c of contacts) {
     if (!inCompany(c.company_id)) continue;
     const email = (c.email || '').toLowerCase();
-    if (email) contactEmails.add(email);
+    if (email) contactEmails.add(c.company_id + ':' + email);
     const candidate = staffUsers.get(email);
     const u = candidate?.company_id === c.company_id ? candidate : {};
     people.push({ source: 'contact', id: c.id, type: 'staff', role: 'Staff', name: c.name || u.full_name || 'Staff', email: c.email || '',
-      employee_id: c.employee_id || u.employee_id || '', company_id: c.company_id || '', company_name: c.company_name || '',
+      employee_id: c.employee_id || u.employee_id || '', company_id: c.company_id || '', company_name: c.company_name || '', phone: c.phone || u.phone || '', photo_url: u.photo_url || '', registered: !!u.id,
+      pickup_name: c.pickup_name || u.pickup_name || '', pickup_lat: c.pickup_lat ?? u.pickup_lat, pickup_lng: c.pickup_lng ?? u.pickup_lng,
       vehicle_id: c.vehicle_id || '', assigned_vehicle: (c.vehicle_id && vehicleName.get(c.vehicle_id)) || c.vehicle_name || '',
       legacy_tag: c.nfc_card_tag || '', access_code: c.access_code || '' });
   }
   for (const [email, u] of staffUsers) {
-    if (contactEmails.has(email) || !inCompany(u.company_id)) continue;
+    if (contactEmails.has(u.company_id + ':' + email) || !inCompany(u.company_id)) continue;
     people.push({ source: 'user', id: u.id, type: 'staff', role: 'Staff', name: u.full_name || u.email, email: u.email || '',
-      employee_id: u.employee_id || '', company_id: u.company_id || '', company_name: '', assigned_vehicle: '', legacy_tag: '',
+      employee_id: u.employee_id || '', company_id: u.company_id || '', company_name: '', phone: u.phone || '', photo_url: u.photo_url || '', registered: true,
+      pickup_name: u.pickup_name || '', pickup_lat: u.pickup_lat, pickup_lng: u.pickup_lng, assigned_vehicle: '', legacy_tag: '',
       access_code: '' });
   }
   for (const h of holders) {
@@ -233,6 +235,11 @@ export default async function (req) {
     switch (body.action) {
       case 'people':
         return Response.json(await loadPeople(base44, companyFilter));
+      case 'directory': {
+        const { people } = await loadPeople(base44, companyFilter);
+        const fields = ['key','source','id','name','email','phone','photo_url','company_id','company_name','employee_id','vehicle_id','assigned_vehicle','pickup_name','pickup_lat','pickup_lng','registered','status'];
+        return Response.json({ people: people.filter(p => p.type === 'staff').map(p => Object.fromEntries(fields.filter(k => p[k] !== undefined).map(k => [k,p[k]]))) });
+      }
 
       case 'issue': {
         const uid = normalizeUid(body.uid);
@@ -241,6 +248,7 @@ export default async function (req) {
         const person = people.find((p) => p.key === body.person_key);
         if (!person) return Response.json({ ok: false, code: 'no_person', error: 'Pick a person first.' }, { status: 404 });
 
+        if (person.type === 'staff' && !person.company_id) return Response.json({ error: 'Approve this passenger’s company membership before issuing a card.' }, { status: 403 });
         const owner = await findOwner(base44, uid);
         if (owner && companyFilter && (!owner.card || owner.card.company_id !== companyFilter)) return Response.json({ error: 'Card is already assigned' }, { status: 409 });
         if (owner) {

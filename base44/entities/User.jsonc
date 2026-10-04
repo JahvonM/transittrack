@@ -92,6 +92,22 @@
     "employee_id": {
       "type": "string",
       "description": "Staff/employee number printed on their NFC card record."
+    },
+    "pickup_lat": {
+      "type": "number",
+      "description": "Passenger-confirmed roadside pickup suggestion; separate from their home location."
+    },
+    "pickup_lng": {
+      "type": "number",
+      "description": "Passenger-confirmed roadside pickup suggestion; separate from their home location."
+    },
+    "pickup_name": {
+      "type": "string",
+      "description": "Passenger-confirmed roadside pickup suggestion; separate from their home location."
+    },
+    "pickup_route_id": {
+      "type": "string",
+      "description": "Passenger-confirmed roadside pickup suggestion; separate from their home location."
     }
   },
   "required": []

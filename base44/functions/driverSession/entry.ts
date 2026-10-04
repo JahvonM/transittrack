@@ -195,7 +195,7 @@ async function loadStaff(base44, companyId) {
     base44.asServiceRole.entities.Contact.filter({ type: 'staff', company_id: companyId }, '-updated_date', 500),
   ]);
   const userByEmail = new Map(
-    users.filter((u) => u.role === 'staff' && approvedIds.has(u.id))
+    users.filter((u) => ['staff','passenger'].includes(u.role) && approvedIds.has(u.id))
       .map((u) => [(u.email || '').toLowerCase(), u])
   );
   const companyContacts = contacts.filter((c) => c.company_id === companyId);
@@ -206,16 +206,16 @@ async function loadStaff(base44, companyId) {
       const u = userByEmail.get((c.email || '').toLowerCase()) || {};
       return {
         id: c.id, full_name: c.name || u.full_name, email: c.email || u.email, phone: c.phone || u.phone,
-        home_lat: c.pickup_lat != null ? c.pickup_lat : u.home_lat,
-        home_lng: c.pickup_lng != null ? c.pickup_lng : u.home_lng,
-        pickup_name: c.pickup_name, dropoff_name: c.dropoff_name,
+        home_lat: c.pickup_lat != null ? c.pickup_lat : (u.pickup_lat ?? u.home_lat),
+        home_lng: c.pickup_lng != null ? c.pickup_lng : (u.pickup_lng ?? u.home_lng),
+        pickup_name: c.pickup_name || u.pickup_name, dropoff_name: c.dropoff_name,
         skip_pickup_today: flagActive(u.skip_pickup_today, u.skip_pickup_until),
         late_snooze_active: flagActive(u.late_snooze_active, u.late_until),
       };
     }),
     ...orphanUsers.map((u) => ({
       id: u.id, full_name: u.full_name, email: u.email, phone: u.phone,
-      home_lat: u.home_lat, home_lng: u.home_lng, pickup_name: undefined, dropoff_name: undefined,
+      home_lat: u.pickup_lat ?? u.home_lat, home_lng: u.pickup_lng ?? u.home_lng, pickup_name: u.pickup_name, dropoff_name: undefined,
       skip_pickup_today: flagActive(u.skip_pickup_today, u.skip_pickup_until),
       late_snooze_active: flagActive(u.late_snooze_active, u.late_until),
     })),
@@ -332,7 +332,7 @@ function tabletRoute(row, companyId) {
   return { ...tabletFields(row, ['id', 'name', 'type', 'active', 'company_id']), stops: (row.stops || []).map((s) => tabletFields(s, ['name', 'lat', 'lng', 'order'])) };
 }
 function tabletCheckIn(row) {
-  return tabletFields(row, ['id', 'staff_name', 'staff_picture_url', 'status', 'boarded_at', 'created_date', 'vehicle_id', 'vehicle_name', 'check_in_method']);
+  return tabletFields(row, ['id', 'staff_name', 'staff_picture_url', 'company_name', 'status', 'boarded_at', 'created_date', 'vehicle_id', 'vehicle_name', 'check_in_method']);
 }
 function boardingStats(rows) {
   const latest = new Map();

@@ -78,7 +78,7 @@ async function loadStaffDirectory(base44, companyId) {
   const activeCards = await base44.asServiceRole.entities.NfcCard.filter({ company_id: companyId, is_active: true }, '-issue_date', 3000);
   const cardForUser = id => activeCards.find(c => c.holder_source === 'user' && c.holder_id === id && (!c.expiry_date || c.expiry_date >= new Date().toISOString().slice(0,10)))?.card_uid || '';
   const userByEmail = new Map(
-    users.filter((u) => u.role === 'staff' && approvedIds.has(u.id))
+    users.filter((u) => ['staff','passenger'].includes(u.role) && approvedIds.has(u.id))
       .map((u) => [(u.email || '').toLowerCase(), u])
   );
   const companyContacts = contacts.filter((c) => c.company_id === companyId);
@@ -255,7 +255,7 @@ async function currentBoardingEligibility(base44,device,person,token,method) {
  if(row.subject_source&&row.subject_source!==person.source)return false;
  if(row.member_user_id) {
   const user=await base44.asServiceRole.entities.User.get(row.member_user_id).catch(error=>{if(error.status===404||error.response?.status===404)return null;throw error;});
-  if(!user||user.role!=='staff'||!(await approvedStaffIds(base44,device.company_id)).has(user.id))return false;
+  if(!user||!['staff','passenger'].includes(user.role)||!(await approvedStaffIds(base44,device.company_id)).has(user.id))return false;
   if(person.member_user_id!==user.id)return false;
  }
  const cardMethod=['nfc','qr'].includes(method);

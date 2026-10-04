@@ -34,7 +34,7 @@ async function validGrant(base44, device, token, purpose, subject) {
 
 
 async function recordPassengerMembership(base44,user,company,codeHash) {
- if(user.role!=='staff') return;
+ if(!['staff','passenger'].includes(user.role)) return;
  const previous=await base44.asServiceRole.entities.CompanyMembership.filter({user_id:user.id,scope:'passenger'},'-updated_date',100);
  const current=previous.find(row=>row.active && row.company_id===company.id && row.code_hash===codeHash);
  if(current) return;
@@ -47,7 +47,7 @@ export default async function(req) {
  try {
   const base44 = createClientFromRequest(req);
   const user = await base44.auth.me().catch(() => null);
-  if (!user || !['staff','admin','company'].includes(user.role)) return Response.json({ error: 'Sign in to continue' }, { status: 401 });
+  if (!user || !['staff','passenger','admin','company'].includes(user.role)) return Response.json({ error: 'Sign in to continue' }, { status: 401 });
   const body = await req.json();
   if (body.action === 'context') {
    if (typeof body.grant !== 'string' || !/^[a-f0-9]{64}$/.test(body.grant)) return Response.json({ error: 'Company code required' }, { status: 401 });
@@ -56,7 +56,7 @@ export default async function(req) {
    if (!row) return Response.json({ error: 'Company code required' }, { status: 401 });
    const company = await base44.asServiceRole.entities.Company.get(row.company_id);
    if (!company || row.code_hash !== await hashSecret(company.access_code || '')) return Response.json({ error: 'Company code required' }, { status: 401 });
-   if(user.role==='staff') {
+   if(['staff','passenger'].includes(user.role)) {
     const memberships=await base44.asServiceRole.entities.CompanyMembership.filter({user_id:user.id,company_id:company.id,scope:'passenger',active:true},'-updated_date',100);
     if(!memberships.some(m=>(!m.code_hash&&!m.expires_at)||m.code_hash===row.code_hash))return Response.json({error:'Company access removed'},{status:401});
    }

@@ -68,7 +68,7 @@ export default async function(req) {
   try {
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me();
-    if (!user || user.role !== 'staff') return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!user || !['staff','passenger'].includes(user.role)) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
     const companyIds = await approvedCompanies(base44, user, 'passenger');
     if (companyIds.length !== 1) return Response.json({ error: 'Verified company access required' }, { status: 403 });
