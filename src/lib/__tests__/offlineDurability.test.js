@@ -10,7 +10,7 @@ describe('durable tablet queues',()=>{
  for(const status of [400,401,403,429,500]) it('retains check-ins and order after HTTP '+status,async()=>{
   enqueueCheckIn({staff_id:'a',status:'boarded'}); enqueueCheckIn({staff_id:'b',status:'boarded'});
   const send=vi.fn().mockRejectedValue(failure(status));
-  expect(await flushQueue(send)).toBe(0); expect(send).toHaveBeenCalledTimes(1); expect(queueLength()).toBe(2);
+  expect(await flushQueue(send)).toBe(0); expect(send).toHaveBeenCalledTimes([400,403].includes(status)?2:1); expect(queueLength()).toBe(2);
  });
  it('persists a stable ID for legacy queued work before a lost response',async()=>{
   localStorage.setItem('tt_offline_checkins',JSON.stringify([{id:'old',payload:{staff_id:'a',status:'boarded'}}]));

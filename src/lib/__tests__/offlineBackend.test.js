@@ -104,7 +104,7 @@ describe('offline replay backend contracts',()=>{
   const send=body=>api.default(req({device_id:'tablet',driver_grant:grant,...body}));
   const time=new Date().toISOString();
   await send({action:'start_shift',client_request_id:'start-123',occurred_at:time});
-  const end={action:'end_shift',client_request_id:'end-12345',occurred_at:time};
+  const end={action:'end_shift',shift_id:sdk.tables.DriverShift[0].id,client_request_id:'end-12345',occurred_at:time};
   expect((await send(end)).status).toBe(200);
   await send({action:'start_shift',client_request_id:'start-456',occurred_at:time});
   expect((await (await send(end)).json()).deduplicated).toBe(true);

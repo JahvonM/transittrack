@@ -400,7 +400,7 @@ async function replayInspection(base44,device,body) {
  const id=body.client_request_id;
  if(id===undefined) return {fields:{},prior:null};
  if(typeof id!=='string' || !/^[a-zA-Z0-9_-]{8,100}$/.test(id)) throw Object.assign(new Error('Invalid request ID'),{status:400});
- const {driver_grant,device_token,device_id,client_request_id,expected_device_id,expected_company_id,expected_vehicle_id,...data}=body;
+ const {driver_grant,device_token,device_id,client_request_id,expected_device_id,expected_company_id,expected_vehicle_id,queue_replay,...data}=body;
  const hash=await hashSecret(JSON.stringify(data));
  const prior=(await base44.asServiceRole.entities.Inspection.filter({client_request_id:id,request_actor_id:device.id,company_id:device.company_id,vehicle_id:device.vehicle_id},'-created_date',1))[0];
  if(prior && prior.request_hash!==hash) throw Object.assign(new Error('Request ID reused with different data'),{status:409});
@@ -438,6 +438,7 @@ export default async function(req) {
       ...(appHealth ? { app_health: appHealth } : {}),
     });
 
+    if(body.queue_replay && (!body.expected_device_id || !body.expected_company_id || !body.expected_vehicle_id)) return Response.json({error:'Legacy saved work lacks its original assignment; export for review'},{status:409});
     const matchesAssignment = (value) => (!value.expected_device_id || value.expected_device_id===device.id) && (!value.expected_company_id || value.expected_company_id===companyId) && (!value.expected_vehicle_id || value.expected_vehicle_id===vehicleId);
     if(!matchesAssignment(body) || (action==='upload_track' && Array.isArray(body.points) && body.points.some(p=>!matchesAssignment(p||{})))) return Response.json({error:'Saved work belongs to a different tablet assignment'},{status:409});
 
@@ -522,7 +523,7 @@ export default async function(req) {
       case 'end_shift': {
         const requestId=body.client_request_id;
         if(requestId!==undefined && (typeof requestId!=='string' || !/^[a-zA-Z0-9_-]{8,100}$/.test(requestId))) return Response.json({error:'Invalid request ID'},{status:400});
-        const requestHash=await hashSecret(JSON.stringify({action,occurred_at:body.occurred_at||null,notes:body.notes||null}));
+        const requestHash=await hashSecret(JSON.stringify({action,occurred_at:body.occurred_at||null,notes:body.notes||null,...(body.shift_id?{shift_id:body.shift_id}:{}),...(body.start_request_id?{start_request_id:body.start_request_id}:{})}));
         if(requestId) {
           const prior=(await base44.asServiceRole.entities.DriverShift.filter({end_request_id:requestId,device_id:device.id,vehicle_id:vehicleId,company_id:companyId},'-started_at',1))[0];
           if(prior) {
@@ -531,22 +532,23 @@ export default async function(req) {
           }
         }
 
-        const open = (await base44.asServiceRole.entities.DriverShift.filter({ vehicle_id: vehicleId }, '-started_at', 5))
-          .filter((s) => !s.ended_at);
-        if (!open.length) return Response.json({ shift: null });
-        const endAt = occurredAt(body.occurred_at);
-        const ended = [];
-        for (const s of open) {
-          const startMs = new Date(s.started_at).getTime();
-          const endMs = Math.max(endAt.getTime(), startMs || 0);
-          const minutes = Math.max(0, Math.round((endMs - startMs) / 60000));
-          ended.push(await base44.asServiceRole.entities.DriverShift.update(s.id, {
-            ...(requestId ? {end_request_id:requestId,end_request_hash:requestHash} : {}),
-            ended_at: new Date(endMs).toISOString(), duration_minutes: minutes,
-            notes: typeof body.notes === 'string' ? body.notes.slice(0, 500) : s.notes,
-          }));
-        }
-        return Response.json({ shift: ended[0] });
+
+        let shift;
+        if(typeof body.shift_id==='string') shift=await base44.asServiceRole.entities.DriverShift.get(body.shift_id).catch(()=>null);
+        else if(typeof body.start_request_id==='string') shift=(await base44.asServiceRole.entities.DriverShift.filter({client_request_id:body.start_request_id,company_id:companyId,vehicle_id:vehicleId},'-started_at',1))[0];
+        else return Response.json({error:'Name the shift this end request belongs to'},{status:400});
+        if(!shift || shift.company_id!==companyId || shift.vehicle_id!==vehicleId) return Response.json({error:'Shift not found on this assignment'},{status:404});
+        if(shift.ended_at) return Response.json({shift,deduplicated:true});
+        const time=Date.parse(body.occurred_at || '');
+        if(!Number.isFinite(time) || time>Date.now()+60000) return Response.json({error:'Invalid shift end time'},{status:400});
+        const startMs=Date.parse(shift.started_at);
+        if(!Number.isFinite(startMs) || time<startMs) return Response.json({error:'End request predates this shift'},{status:409});
+        const ended=await base44.asServiceRole.entities.DriverShift.update(shift.id,{
+          ...(requestId?{end_request_id:requestId,end_request_hash:requestHash}:{}),
+          ended_at:new Date(time).toISOString(),duration_minutes:Math.round((time-startMs)/60000),
+          notes:typeof body.notes==='string'?body.notes.slice(0,500):shift.notes,
+        });
+        return Response.json({shift:ended});
       }
 
       case 'start_tracking': {
@@ -717,12 +719,13 @@ export default async function(req) {
         const from = points[0].t - PING_LOG_INTERVAL_MS;
         const to = points[points.length - 1].t + PING_LOG_INTERVAL_MS;
         const pings = base44.asServiceRole.entities.LocationPing;
-        // Exhaust the tenant-scoped history rather than silently truncating duplicate checks.
+        // Descending history stops at the relevant window; never scan all old trips.
         const history = [];
         for(let offset=0;;offset+=500) {
           const page = await pings.filter({vehicle_id:vehicleId,company_id:companyId},'-recorded_at',500,offset);
           history.push(...page);
-          if(page.length<500) break;
+          if(page.length<500 || page.some(row=>Number.isFinite(Date.parse(row.recorded_at)) && Date.parse(row.recorded_at)<from)) break;
+          if(offset>=9500) return Response.json({error:'GPS history window too dense; review required'},{status:503});
         }
         const existing = history.map(r=>Date.parse(r.recorded_at)).filter(t=>Number.isFinite(t)&&t>=from&&t<=to);
         const taken = [...existing];
@@ -842,6 +845,9 @@ export default async function(req) {
         const { template_id, results, odometer, fuel, trigger } = body;
         if (!template_id || !Array.isArray(results) || !results.length)
           return Response.json({ error: 'template_id and results required' }, { status: 400 });
+        if(results.length>300) return Response.json({error:'Too many inspection results'},{status:400});
+        const attachments=results.filter(r=>r?.photo_data || r?.photo_url);
+        if(attachments.length>MAX_INSPECTION_PHOTOS || attachments.some(r=>typeof r.photo_data==='string' && r.photo_data.length>=MAX_PHOTO_B64)) return Response.json({error:'Inspection photos exceed the size or count limit; answers retained for review'},{status:413});
         let template;
         try { template = await base44.asServiceRole.entities.InspectionTemplate.get(template_id); } catch { template = null; }
         if (!template || !['driver', 'both'].includes(template.audience) || (template.company_id && template.company_id !== companyId))
@@ -862,9 +868,10 @@ export default async function(req) {
               const bytes = base64ToBytes(r.photo_data);
               const file = new File([bytes], `inspection-${Date.now()}-${photos}.jpg`, { type: 'image/jpeg' });
               const uploaded = await base44.asServiceRole.integrations.Core.UploadFile({ file });
+              if(typeof uploaded?.file_url!=='string' || !uploaded.file_url.startsWith('https://')) throw new Error('Upload did not return a photo URL');
               photo_url = uploaded.file_url;
               photos += 1;
-            } catch { /* keep the result even if its photo failed */ }
+            } catch { return Response.json({error:'Photo upload failed; inspection remains saved on the tablet for retry'},{status:503}); }
           }
           clean.push({
             section_name: sanitize(r?.section_name).slice(0, 120), item_name: sanitize(r?.item_name).slice(0, 200),

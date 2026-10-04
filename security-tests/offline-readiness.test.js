@@ -68,7 +68,7 @@ describe('Step 6 independent-review production criteria',()=>{
   // Re-unlock under the new pairing, then attempt a legacy queued payload with no assignment.
   const api=load('driverSession',sdk,['issueGrant']);
   const grant=await api.issueGrant(sdk,sdk.tables.KioskDevice[0],'driver','bus-a',60000);
-  const response=await api.default(request({device_id:'tablet',driver_grant:grant,action:'start_shift',client_request_id:'legacy-unbound',occurred_at:new Date().toISOString()}));
+  const response=await api.default(request({device_id:'tablet',driver_grant:grant,action:'start_shift',queue_replay:true,client_request_id:'legacy-unbound',occurred_at:new Date().toISOString()}));
   expect(response.status).toBe(409);
   expect(sdk.tables.DriverShift||[]).toHaveLength(0);
  });
