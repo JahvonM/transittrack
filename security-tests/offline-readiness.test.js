@@ -85,7 +85,8 @@ describe('Step 6 independent-review production criteria',()=>{
  });
  it('B3 creates one check-in under interleaved identical requests',async()=>{
   const sdk=mock(null),api=load('kioskCheckIn',sdk,['issueGrant']);
-  const grant=await api.issueGrant(sdk,sdk.tables.KioskDevice[0],'boarding','rider',60000);
+  const lookup=await api.default(request({device_id:'tablet',action:'lookup_tag',card_tag:'CARD'}));
+  expect(lookup.status).toBe(200);const {verification_grant:grant}=await lookup.json();
   interleaveReads(sdk,'StaffCheckIn',2);
   const body={device_id:'tablet',action:'check_in',client_request_id:'concurrent-boarding',staff_id:'rider',method:'nfc',status:'boarded',verification_grant:grant,occurred_at:new Date().toISOString()};
   // The two later summary reads also complete as a pair.

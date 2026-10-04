@@ -65,7 +65,8 @@ describe('production security readiness',()=>{
  });
  it('allows a boarding grant to authorize only one new request',async()=>{
   const sdk=mock(null),api=load('kioskCheckIn',sdk,['issueGrant']);
-  const grant=await api.issueGrant(sdk,tablet,'boarding','rider',60000);
+  const lookup=await api.default(request({device_id:'tablet',action:'lookup_tag',card_tag:'CARD'}));
+  expect(lookup.status).toBe(200);const {verification_grant:grant}=await lookup.json();
   const body={device_id:'tablet',action:'check_in',staff_id:'rider',method:'nfc',status:'boarded',verification_grant:grant,client_request_id:'first-123',occurred_at:new Date().toISOString()};
   expect((await api.default(request(body))).status).toBe(200);
   expect((await api.default(request({...body,client_request_id:'second-123',status:'off_board'}))).status).toBe(403);

@@ -251,7 +251,7 @@ async function boardingBinding(base44,device,person,kind) {
 }
 async function currentBoardingEligibility(base44,device,person,token,method) {
  const rows=await base44.asServiceRole.entities.VerificationGrant.filter({token_hash:await hashSecret(token)},'-created_date',1);
- const row=rows[0];if(!row)return false;
+ const row=rows[0];if(!row||!['card','code'].includes(row.auth_kind)||!row.subject_source)return false;
  if(row.subject_source&&row.subject_source!==person.source)return false;
  if(row.member_user_id) {
   const user=await base44.asServiceRole.entities.User.get(row.member_user_id).catch(()=>null);
