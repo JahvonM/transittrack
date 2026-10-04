@@ -6,7 +6,7 @@ import { MAPBOX_TOKEN, mapStyleFor, GPS_INTERVAL_MS } from "@/lib/mapbox";
 import { useIsDark } from "@/lib/useTheme";
 import OfflineStatusBadge from "@/components/OfflineStatusBadge";
 import { useOfflineSync } from "@/hooks/useOfflineSync";
-import { fetchTurnByTurnRoute } from "@/lib/geo";
+import { fetchTurnByTurnRoutes } from "@/lib/geo";
 import {
   formatDistance, formatDuration, metres, progressAt, projectOnRoute, routeAhead, speedLimitKmh, voicePromptAt,
 } from "@/lib/navigation";
@@ -154,6 +154,8 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
 
   // --- Directions ------------------------------------------------------
   const [nav, setNav] = useState(null);
+  const [routeOptions, setRouteOptions] = useState([]);
+  const routeRequest = useRef(0);
   const [navFor, setNavFor] = useState(null);
   const [loadingRoute, setLoadingRoute] = useState(false);
   const [rerouting, setRerouting] = useState(false);
@@ -167,17 +169,29 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
   headingRef.current = pos?.gpsHeading ?? (Number.isFinite(rawHeading) ? ((rawHeading % 360) + 360) % 360 : null);
 
   const loadRoute = useCallback(async (origin, stop, key, { reroute = false } = {}) => {
-    if (reroute) setRerouting(true); else setLoadingRoute(true);
-    const res = await fetchTurnByTurnRoute(origin, { lat: stop.lat, lng: stop.lng }, { heading: headingRef.current });
-    if (res) {
-      setNav(res);
+    const request = ++routeRequest.current;
+    if (reroute) setRerouting(true); else { setLoadingRoute(true); setRouteOptions([]); }
+    const res = await fetchTurnByTurnRoutes(origin, { lat: stop.lat, lng: stop.lng }, { heading: headingRef.current });
+    if (request !== routeRequest.current) return;
+    if (res.length) {
+      setRouteOptions(res);
+      setNav(res[0]);
       setNavFor(key);
       projRef.current = null;
       spokenRef.current = new Set();
     }
+    if (!res.length) { setNav(null); setRouteOptions([]); }
     setRerouting(false);
     setLoadingRoute(false);
   }, []);
+
+  const chooseRoute = (option) => {
+    stopSpeaking();
+    setNav(option);
+    projRef.current = null;
+    offCount.current = 0;
+    spokenRef.current = new Set();
+  };
 
   // New directions each time the next stop changes (not on every GPS tick).
   const requestedFor = useRef(null);
@@ -436,6 +450,21 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
 
         {/* Bottom: speed, time and distance left, arrival time */}
         <div ref={bottomRef} className="absolute left-3 right-3 bottom-3 z-10 space-y-2">
+          {routeNav && routeOptions.length > 1 && (
+            <div className="rounded-xl bg-card/95 border border-border p-2 shadow-lg" aria-label="Driving route choices">
+              <p className="text-xs text-muted-foreground mb-1">Choose a route while parked</p>
+              <div className="flex gap-2 overflow-x-auto">
+                {routeOptions.map((option, i) => (
+                  <button key={i} type="button" disabled={(kmh ?? 0) > 3} aria-pressed={nav === option}
+                    onClick={() => chooseRoute(option)}
+                    className={"shrink-0 rounded-lg border px-3 py-2 text-left disabled:opacity-50 " + (nav === option ? "border-primary bg-primary/10" : "border-border")}>
+                    <span className="block font-semibold text-sm">{formatDuration(option.durationS)} · {formatDistance(option.distanceM)}</span>
+                    <span className="block text-xs max-w-48 truncate">{option.summary}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="flex items-end justify-between gap-2">
             <div className="flex items-end gap-2">
               <SpeedWidget kmh={kmh} limit={limit} />

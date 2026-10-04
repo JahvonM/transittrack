@@ -42,8 +42,8 @@ function bannerOf(b) {
 }
 
 // Mapbox Directions response -> route ready for navigation (or null).
-export function parseDirections(data) {
-  const route = data?.routes?.[0];
+export function parseDirections(data, routeIndex = 0) {
+  const route = data?.routes?.[routeIndex];
   const leg = route?.legs?.[0];
   const geometry = route?.geometry?.coordinates;
   if (!leg || !geometry?.length) return null;
