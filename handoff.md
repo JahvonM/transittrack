@@ -312,3 +312,38 @@ and 2 mocked Chromium tablet tests pass. Browser tests verify old credential cac
 cleanup and that a daily unlock flag cannot skip PIN startup. The five new schemas
 were confirmed synced with admin-only permissions. Tests use mock data, not live
 credentials or device records. STEP 4 checkpoint saved after verification.
+
+## Coordination note — second agent, STEP 0 live results (2026-10-04)
+
+Two agents now work on this app. The agent writing STEPs 1–5 above owns the
+security rollout; the second agent ran only the user's "STEP 0" verification
+and changed no app code, schemas, devices or credentials. Results, so STEP 5
+does not need to repeat them:
+
+- Method: plain HTTP as a real non-admin user, no browser. One development
+  account exists for this: tt-dev-passenger-a@example.com (role staff, no
+  company, created via users/provisions so no email was sent; removable via
+  the API). A session token comes from POST /api/apps/{app_id}/embed-tokens
+  (single-use, 60 s) — opening the live site with ?ott=<token> answers 302 to
+  /?access_token=<jwt>, which then works as a Bearer token. Reuse this for the
+  "live non-admin RLS tests" listed as still needed above.
+- V2 (user listing): SAFE. GET /entities/User as that user returns 403; no
+  other users visible.
+- V1 (self-edit): VULNERABLE at the time of testing (before STEP 5). Both
+  auth.updateMe (PUT /entities/User/me) and PUT /entities/User/{own id}
+  returned 200 and changed company_id, access_code, one_time_code (+expiry)
+  and nfc_tag_id. Changing role to admin or company returned 403 and did not
+  change. The account was restored afterwards (staff, those fields null).
+- Impact after STEP 4 (code read, not re-tested): kioskCheckIn no longer
+  trusts User.access_code / User.one_time_code / User.nfc_tag_id for
+  matching (NfcCard, Contact and Passenger*Credential are used instead), so
+  those self-edits look harmless now. loadStaffDirectory still copies
+  User.one_time_code into directory rows (unused; can be dropped).
+  User.company_id must not be trusted anywhere — STEP 5's CompanyMembership
+  approach covers this; re-run the V1 test against it to prove it.
+- At the time of testing, as that passenger: Vehicle, Contact, Company and
+  StaffCheckIn rows were readable (public); KioskDevice, NfcCard, AuditLog
+  returned nothing. Re-run after STEP 5 to confirm they are closed.
+- GitHub secret scanning, push protection and Dependabot alerts could NOT be
+  enabled from here (proxy refuses settings writes). The user must turn them
+  on in the repo settings.
