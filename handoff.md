@@ -728,3 +728,15 @@ Backend/entity edits auto-sync; frontend was not published. No live accounts,
 company codes, ads, memberships, grants or tablets were mutated through function
 calls. No signing/production credential changes. Atomic guarantees remain
 unconfirmed; the platform questions have not been sent.
+
+
+## Tablet re-pairing plan — 2026-10-04 UTC
+
+Prepared security-tests/tablet-repairing-plan.md against c626800. This is a
+supervised pilot-first runbook with metadata inventory, saved-work sync/export/
+reconciliation, assignment preservation, restart checks, failure handling and a
+later four-authenticator legacy-removal gate. Pairing still races under concurrency;
+serial operator handling is not a security fix. Tokens expire after 90 days.
+No live inventory, re-pairing, revocation, publication, account changes, automation
+or synthetic record tests were performed. Atomic confirmation remains on hold.
+Strict status stays 22 pass / 16 fail. Documentation-only; no tests repeated.
