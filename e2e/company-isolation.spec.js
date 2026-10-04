@@ -66,3 +66,40 @@ test('card designer exports a printable PNG using selected passenger details',as
  await page.getByRole('button',{name:'Back',exact:true}).click();
  await expect(page.getByTestId('card-artwork-preview')).toContainText('If found');
 });
+
+test('passenger previews walking directions then saves a separate roadside pickup',async({page,context})=>{
+ await session(page,'staff');
+ await context.grantPermissions(['geolocation']);
+ await context.setGeolocation({latitude:12.005,longitude:-61.701,accuracy:5});
+ await page.addInitScript(()=>localStorage.setItem('tt_company_access_grant','a'.repeat(64)));
+ const saved=[];
+ const user={id:'caller',role:'staff',email:'caller@test.local',full_name:'Test Passenger',company_id:'a'};
+ const routeData={id:'route-a',company_id:'a',name:'Main road route',active:true,stops:[{name:'Start',lat:12,lng:-61.7,order:0},{name:'End',lat:12.01,lng:-61.7,order:1}]};
+ await page.route('**/functions/companyAccess',r=>r.fulfill({json:{company:{id:'a',name:'Company A'}}}));
+ await page.route('**/functions/entityAccess',r=>{
+  const body=r.request().postDataJSON();let result=[];
+  if(body.entity==='User'){ if(body.operation==='update'){saved.push(body.data);Object.assign(user,body.data);}result=user;}
+  if(body.entity==='Route')result=[routeData];
+  if(body.entity==='Company')result=[{id:'a',name:'Company A'}];
+  return r.fulfill({json:{result}});
+ });
+ await page.route('https://api.mapbox.com/**',r=>{
+  const url=r.request().url();
+  if(url.includes('/walking/'))return r.fulfill({json:{routes:[{distance:120,duration:90,geometry:{coordinates:[[-61.701,12.005],[-61.7,12.005]]},legs:[{steps:[{mode:'walking',maneuver:{instruction:'Walk east to the main road'}}]}]}],waypoints:[{}, {location:[-61.7,12.005]}]}});
+  if(url.includes('/directions/'))return r.fulfill({json:{routes:[{distance:1100,duration:180,geometry:{coordinates:[[-61.7,12],[-61.7,12.01]]}}]}});
+  if(url.includes('/geocoding/'))return r.fulfill({json:{features:[{place_name:'Test home, Grenada'}]}});
+  return r.fulfill({status:404,body:''});
+ });
+ await page.goto('/staff');
+ await page.getByRole('button',{name:/^My pickup/}).click();
+ await page.getByRole('button',{name:'Use where I am now',exact:true}).click();
+ await expect(page.getByText('Walk east to the main road',{exact:true})).toBeVisible();
+ expect(saved.filter(d=>d.pickup_lat!==undefined)).toHaveLength(0);
+ await page.getByRole('button',{name:'Use this pickup point',exact:true}).click();
+ await expect.poll(()=>saved.filter(d=>d.pickup_lat!==undefined).length).toBe(1);
+ const pickup=saved.find(d=>d.pickup_lat!==undefined);
+ expect(pickup.pickup_lat).toBeCloseTo(12.005);
+ expect(pickup.pickup_lng).toBeCloseTo(-61.7);
+ expect(pickup.home_lng).toBeCloseTo(-61.701);
+ expect(pickup.pickup_route_id).toBe('route-a');
+});

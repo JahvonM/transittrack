@@ -194,7 +194,6 @@ const flagActive = (on, until) => !!on && !!until && new Date(until).getTime() >
 async function loadStaff(base44, companyId) {
   const approvedRows = await approvedPassengerMemberships(base44,companyId);
   const approvedIds = new Set(approvedRows.map(row=>row.user_id));
-  const assignments = new Map(approvedRows.map(row=>[row.user_id,row]));
   const [users, contacts] = await Promise.all([
     base44.asServiceRole.entities.User.list(),
     base44.asServiceRole.entities.Contact.filter({ company_id: companyId }, '-updated_date', 500),
