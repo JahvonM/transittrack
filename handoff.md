@@ -626,3 +626,17 @@ frontend was not published. Older frontend management writes now fail closed.
 No live accounts, credentials or tablets were modified through function calls.
 Next: establish documented atomic storage semantics before implementing claims,
 limits or concurrent idempotency; retain failing release assertions.
+
+
+## Atomic storage verification — 2026-10-04 UTC
+
+Read-only review found updateMany(query, operatorData) in the pinned backend
+SDK 0.8.44 and installed frontend 0.8.52. Current official docs describe
+conditional queries, increments and update counts, but do not explicitly
+establish atomic predicate/write exclusion across concurrent workers.
+No verified custom unique constraint or multi-record transaction contract was
+found. Newer installed SDK upsert does not appear in the examined 0.8.44 handler.
+See security-tests/atomic-storage-verification.md for evidence, six precise
+platform questions and implementation routes. Questions were prepared, not sent.
+No application/schema/dependency/live-record changes or mutation probes.
+Release counts remain 21 pass / 17 fail. No tests repeated for documentation.

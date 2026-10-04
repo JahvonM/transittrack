@@ -203,3 +203,13 @@ admin/company operators for sharing; mechanics/passengers cannot read them.
 No live account changes, actual tablet revocation, production credential rotation,
 signing keys or frontend publication. Backend/entity files auto-sync; older browser
 code-management writes now fail closed, so client rollout must be coordinated.
+
+
+## Atomic storage verification — 2026-10-04 UTC
+
+The pinned backend SDK exposes updateMany with conditional queries and update
+operators. This is a candidate for existing-record claims and bounded counters;
+its cross-request atomicity remains unverified. No concurrency criteria were
+cleared. See atomic-storage-verification.md for exact evidence, SDK version
+boundaries, prepared platform questions and remaining recovery/uniqueness needs.
+This review changed documentation only; no live mutation probes or SDK upgrades.
