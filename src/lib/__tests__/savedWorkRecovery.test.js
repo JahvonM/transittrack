@@ -38,7 +38,7 @@ describe('saved-work recovery',()=>{
   expect(pendingJobs()[0].payload.results[0].photo_data).toBe('original-photo');
  });
  it('exports original data while omitting credential tokens and PINs',()=>{
-  enqueueCheckIn({staff_id:'a',verification_grant:'SECRET',device_token:'SECRET',nested:{driver_pin:'SECRET',card_uid:'SECRET'},photo_data:'keep-photo'});
+  enqueueCheckIn({staff_id:'a',verification_grant:'SECRET',device_token:'SECRET',nested:{driver_pin:'SECRET',card_uid:'SECRET',nfc_tag:'SECRET',pairing_code:'SECRET',entry_code:'SECRET'},photo_data:'keep-photo'});
   const exported=exportSavedWork();
   expect(exported).not.toContain('SECRET');expect(exported).toContain('keep-photo');expect(exported).toContain('staff_id');
  });

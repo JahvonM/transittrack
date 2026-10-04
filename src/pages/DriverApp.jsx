@@ -5,7 +5,6 @@ import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useDriverSession, clearDriverSessionCache } from "@/hooks/useDriverSession";
 import { shiftAction } from "@/lib/driverShift";
-import { clearGpsQueue } from "@/lib/gpsQueue";
 import { getFcmToken } from "@/lib/firebase";
 import { useKeepAwake } from "@/hooks/useKeepAwake";
 import DriverPairing from "@/components/driver/DriverPairing";
@@ -268,7 +267,7 @@ export default function DriverApp() {
   };
 
   const handlePaired = (id) => { localStorage.setItem("tt_driver_device_id", id); setDeviceId(id); };
-  const handleUnpair = () => { forgetDeviceToken(deviceId); clearDriverSessionCache(); clearGpsQueue(); localStorage.removeItem("tt_driver_device_id"); localStorage.removeItem("tt_driver_unlock_date"); setDeviceId(null); setUnlocked(false); navigate("/driver"); };
+  const handleUnpair = () => { forgetDeviceToken(deviceId); clearDriverSessionCache(); localStorage.removeItem("tt_driver_device_id"); localStorage.removeItem("tt_driver_unlock_date"); setDeviceId(null); setUnlocked(false); navigate("/driver"); };
 
   // Handler to submit the incident report via the driver-session backend function.
   // (A direct base44.entities.Incident.create() call from here would be rejected —
