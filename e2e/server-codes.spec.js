@@ -43,6 +43,12 @@ test('boarding keypad sends all twelve digits and caps additional input',async({
   return route.fulfill({json:{id:'test-app',public_settings:{authentication_required:false}}});
  });
  await page.goto('/kiosk');
+ await expect(page.getByText('Slide to check in',{exact:true})).toBeVisible();
+ const track=await page.getByText('Slide to check in',{exact:true}).locator('..').boundingBox();
+ await page.mouse.move(track.x+36,track.y+40);
+ await page.mouse.down();
+ await page.mouse.move(track.x+track.width-36,track.y+40,{steps:12});
+ await page.mouse.up();
  await expect(page.getByRole('button',{name:'Submit code',exact:true})).toBeVisible();
  for(const digit of '1234567890123')await page.getByRole('button',{name:digit,exact:true}).click();
  await page.getByRole('button',{name:'Submit code',exact:true}).click();
