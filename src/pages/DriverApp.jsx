@@ -387,7 +387,7 @@ export default function DriverApp() {
   };
 
   return (
-    <div className="h-[100dvh] flex flex-col overflow-hidden bg-background safe-area-top safe-area-x">
+    <div className="tt-driver-shell h-[100dvh] flex flex-col overflow-hidden bg-background safe-area-top safe-area-x">
       <DriverTopBar
         driverName={driverName}
         busName={vehicle.name}

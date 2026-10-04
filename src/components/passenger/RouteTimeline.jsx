@@ -44,7 +44,7 @@ export default function RouteTimeline({ route, bus, kind, stopName, mins, stopEt
           {showPassed ? "Hide earlier stops" : `Show ${passed.length} earlier stop${passed.length === 1 ? "" : "s"}`}
         </button>
       )}
-      <ol className="m-0 list-none p-0">
+      <ol className="m-0 list-none p-0" aria-label="Route stops">
         {rows.map((r, i) => {
           const isNext = onTrip && r.status === "next";
           const isPassed = r.status === "passed";

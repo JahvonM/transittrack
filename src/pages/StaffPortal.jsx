@@ -1,8 +1,6 @@
 import React, { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import { Link, Navigate, useSearchParams } from "react-router-dom";
 import { Bell, MapPin, UserRound } from "lucide-react";
-import { useIsDark } from "@/lib/useTheme";
-import { mapAccentFor } from "@/lib/mapbox";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import AppLayout from "@/components/AppLayout";
@@ -337,8 +335,6 @@ export default function StaffPortal() {
   // two minutes old.
   const positionStale = busOnMap ? locationIsStale(busOnMap, now) : false;
   const stopEtas = useStopEtas({ bus: busOnMap, route: timelineRoute, stops: upcomingStops, record: timelineRoute ? travelTimes[timelineRoute.id] : null, enabled: onTrip && !positionStale });
-  const isDark = useIsDark();
-  const accent = mapAccentFor(isDark);
 
   if (user?.role === "driver") return <Navigate to="/driver" replace />;
   if (user?.role === "company") return <Navigate to="/company" replace />;
@@ -437,7 +433,7 @@ export default function StaffPortal() {
                   </div>
                 )}
                 <div className={tripState.kind === "problem" || notice ? "pt-4" : ""}>
-                  <ArrivalHero state={tripState} stop={stop} eta={eta} trip={onTheWayTrip} now={now} onChangeStop={() => setSheet("stop")} accent={accent} />
+                  <ArrivalHero state={tripState} stop={stop} eta={eta} trip={onTheWayTrip} now={now} onChangeStop={() => setSheet("stop")} />
                 </div>
                 {timelineRoute && (
                   <RouteTimeline route={timelineRoute} bus={tripState.bus} kind={tripState.kind} stopName={stop.name} mins={mins} stopEtas={stopEtas} now={now} />
@@ -458,10 +454,11 @@ export default function StaffPortal() {
 
           {/* Right: map and details */}
           <div className="flex min-w-0 flex-col">
-            <section className="px-6 pt-10 lg:order-1 lg:px-0 lg:pt-0" aria-labelledby="tt-live-map">
+            <section id="passenger-live-map" className="px-6 pt-10 lg:order-1 lg:px-0 lg:pt-0" aria-labelledby="tt-live-map">
               <SectionHead id="tt-live-map" title="Live map" aside={<Link to="/route-explorer" className="text-body-sm font-semibold underline-offset-4 hover:underline">Open map</Link>} />
               <Suspense fallback={<div className="h-64 animate-pulse rounded-2xl bg-muted lg:h-[620px]" />}>
                 <LiveTransitMap
+                  defaultSatellite
                   className="h-64 rounded-2xl border border-border sm:h-80 lg:h-[620px]"
                   vehicles={locatedVehicles}
                   focusVehicleId={busOnMap?.id || null}

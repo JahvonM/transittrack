@@ -1,18 +1,16 @@
-import React, { Suspense, lazy } from "react";
+import React from "react";
 import { ChevronDown, Clock, SatelliteDish, Sparkles, Route as RouteIcon, Ruler } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatAge } from "@/components/system/status";
+import BusArtwork from "@/components/BusArtwork";
 import { arrivalClock, clock, lastSeen } from "./passengerState";
-
-// The 3D model shares three.js with the live map, so it loads with it.
-const BusModelView = lazy(() => import("@/components/map3d/BusModelView"));
 
 function LiveLine({ state, fresh }) {
   if (state.kind === "signal_lost") {
     return (
       <p className="flex items-center gap-2.5 text-body-sm text-muted-foreground">
         <SatelliteDish className="h-4 w-4 text-offline" aria-hidden="true" />
-        Signal lost {formatAge(fresh?.ageMs)}
+        <span><span className="font-semibold text-foreground">Location delayed</span>, last update {formatAge(fresh?.ageMs)}</span>
       </p>
     );
   }
@@ -27,7 +25,7 @@ function LiveLine({ state, fresh }) {
     return (
       <p className="flex items-center gap-2.5 text-body-sm text-warning">
         <Clock className="h-4 w-4" aria-hidden="true" />
-        Updated {formatAge(fresh.ageMs)}, location may be a little behind
+        <span><span className="font-semibold">Location delayed</span>, updated {formatAge(fresh.ageMs)}</span>
       </p>
     );
   }
@@ -66,7 +64,7 @@ const WORD_LONG = "font-display font-semibold leading-none tracking-[-0.02em] te
  * what TransitTrack knows (minutes, word states, how fresh the position is)
  * and never shows schedule status like "on time" or "late".
  */
-export default function ArrivalHero({ state, stop, eta, trip, now = Date.now(), onChangeStop, accent }) {
+export default function ArrivalHero({ state, stop, eta, trip, now = Date.now(), onChangeStop }) {
   const { kind, bus, fresh, mins } = state;
   const name = bus?.name || "Your bus";
   const roundMins = mins != null ? Math.max(1, Math.round(mins)) : null;
@@ -122,7 +120,7 @@ export default function ArrivalHero({ state, stop, eta, trip, now = Date.now(), 
 
   const showBus = bus && kind !== "no_eta";
   return (
-    <section className="px-6 pb-6 pt-2 lg:px-0" aria-labelledby="tt-arrival-sub">
+    <section className="px-6 pb-6 pt-2 lg:px-0" aria-label="Your bus" aria-describedby="tt-arrival-sub">
       <LiveLine state={state} fresh={fresh} />
       <p className="sr-only" aria-live="polite">{spoken}</p>
       <div className="mt-5 flex items-end justify-between gap-3">
@@ -139,11 +137,10 @@ export default function ArrivalHero({ state, stop, eta, trip, now = Date.now(), 
           </button>
         </div>
         {showBus && (
-          <div className="relative -mr-2 h-24 w-32 shrink-0 min-[400px]:h-28 min-[400px]:w-40 sm:h-32 sm:w-48" aria-hidden="true">
-            <Suspense fallback={null}>
-              <BusModelView className="h-full w-full" modelId={bus.model_3d || (bus.type === "taxi" ? "taxi" : "city_bus")} accent={accent} stale={kind === "signal_lost" || kind === "problem" || kind === "not_started"} label={bus.name} />
-            </Suspense>
-          </div>
+          <BusArtwork
+            width={192}
+            className={cn("-mr-2 h-24 w-32 shrink-0 min-[400px]:h-28 min-[400px]:w-40 sm:h-32 sm:w-48", (kind === "signal_lost" || kind === "problem" || kind === "not_started") && "opacity-60 grayscale")}
+          />
         )}
       </div>
       <p id="tt-arrival-sub" className="mt-2 text-body font-semibold leading-snug">{sub}</p>

@@ -41,7 +41,7 @@ function PassengerLayout({ children, title, fullBleed = false, back = null }) {
   const initials = (user?.full_name || user?.email || "?").split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join("");
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="tt-app-shell min-h-screen bg-background">
       <header className="sticky top-0 z-40 hidden border-b border-border bg-background/90 backdrop-blur-md md:block">
         <div className="mx-auto flex h-16 max-w-6xl items-center gap-8 px-8">
           <Link to="/staff" className="flex items-center gap-2.5 font-heading text-title-sm font-bold">
@@ -135,7 +135,7 @@ function FullLayout({ children, title }) {
   const initials = (user?.full_name || user?.email || "?").split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join("");
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="tt-app-shell min-h-screen bg-background">
       <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur safe-area-top">
         <div className="mx-auto flex h-16 max-w-7xl items-center gap-2 px-4 safe-area-x sm:px-6">
           {!onTopLevel && (

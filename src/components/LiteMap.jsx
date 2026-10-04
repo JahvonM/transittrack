@@ -23,7 +23,7 @@ function busIcon(color, { size = 34, heading = null, label = "" } = {}) {
     <div style="position:relative;width:${size}px;height:${size}px">
       ${arrow}
       <div style="width:${size}px;height:${size}px;border-radius:50%;background:#0B0B0D;border:3px solid ${color};display:grid;place-items:center;box-shadow:0 2px 8px rgba(0,0,0,.45)">
-        <svg width="${size * 0.5}" height="${size * 0.5}" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 6v6M15 6v6M2 12h19.6M18 18h3s.5-1.7.8-2.8c.1-.4.2-.8.2-1.2 0-.4-.1-.8-.2-1.2l-1.4-5C20.1 6.8 19.1 6 18 6H4a2 2 0 0 0-2 2v10h3"/><circle cx="7" cy="18" r="2"/><path d="M9 18h5"/><circle cx="16" cy="18" r="2"/></svg>
+        <img src="/images/transit-bus-3d.webp" alt="" style="width:${size+12}px;height:${size+12}px;max-width:none;object-fit:contain;filter:drop-shadow(0 2px 3px #0008)" />
       </div>
       ${label ? `<div style="position:absolute;top:${size + 2}px;left:50%;transform:translateX(-50%);white-space:nowrap;font:600 11px/1.2 system-ui,sans-serif;color:#fff;background:rgba(11,11,13,.8);padding:2px 6px;border-radius:999px">${label.replace(/[<>&"]/g, "")}</div>` : ""}
     </div>`;
@@ -169,7 +169,7 @@ export default function LiteMap({
           <Marker
             key={`v-${v.id}`}
             position={[v.current_lat, v.current_lng]}
-            icon={busIcon(v.marker_color || statusColor(v.status), { size: v.marker_size || 34, heading: v.marker_heading ?? null, label: v.marker_label ?? v.name })}
+            icon={busIcon(v.marker_color || statusColor(v.status), { size: v.marker_size || 46, heading: v.marker_heading ?? null, label: v.marker_label ?? v.name })}
           >
             {v.name && (
               <Popup>

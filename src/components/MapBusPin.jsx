@@ -93,10 +93,11 @@ export function Vehicle3D({ model = "city_bus", kind, heading = 0, color = "#C8F
           <Face style={{ inset: -2, background: "rgba(0,0,0,0.45)", filter: "blur(3px)", borderRadius: 6, transform: "translateZ(0)" }} />
           {/* left + right sides: window band(s) and a stripe */}
           {[0, w].map((x) => (
-            <Face key={x} style={{ left: x, top: 0, width: h, height: l, transformOrigin: "left", transform: "rotateY(-90deg)", background: m.side, borderRadius: 2 }}>
+            <Face key={x} style={{ left: x, top: 0, width: h, height: l, transformOrigin: "left", transform: "rotateY(-90deg)", background: `linear-gradient(90deg, #9ba4ac, ${m.side} 30%, ${m.body} 75%)`, borderRadius: 3 }}>
               {Array.from({ length: decks }, (_, i) => (
-                <div key={i} className="absolute" style={{ ...band(i), top: l * 0.1, bottom: l * 0.12, background: GLASS, borderRadius: 1.5 }} />
+                <div key={i} className="absolute" style={{ ...band(i), top: l * 0.1, bottom: l * 0.12, background: `repeating-linear-gradient(0deg, transparent 0 9px, #65717c 9px 10px), linear-gradient(110deg,#101d2b,#456275 50%,#152432)`, borderRadius: 1.5 }} />
               ))}
+              {[l * .18,l * .8].map(y => <div key={y} className="absolute rounded-full" style={{left:-3,top:y,width:8,height:8,background:"radial-gradient(circle,#a2acb4 0 25%,#20242b 28% 60%,#080d12 63%)",boxShadow:"0 1px 2px #0008"}} />)}
               <div className="absolute" style={{ left: h * (decks === 2 ? 0.07 : 0.2), width: Math.max(2, h * 0.1), top: 2, bottom: 2, background: stripe }} />
             </Face>
           ))}
@@ -113,7 +114,7 @@ export function Vehicle3D({ model = "city_bus", kind, heading = 0, color = "#C8F
             <div className="absolute rounded-sm" style={{ right: 2, top: h * 0.1, width: 4, height: 2, background: "#FF4D4D" }} />
           </Face>
           {/* roof */}
-          <Face style={{ inset: 0, transform: `translateZ(${h}px)`, background: m.roof, borderRadius: 4, boxShadow: `inset 0 0 0 1.5px ${color}` }}>
+          <Face style={{ inset: 0, transform: `translateZ(${h}px)`, background: `linear-gradient(100deg,${m.side},${m.roof} 45%,#b5bdc3)`, borderRadius: 4, boxShadow: `inset 0 0 0 1.5px ${color}` }}>
             {m.roofUnit === "ac" && <div className="absolute rounded-sm" style={{ left: w * 0.22, right: w * 0.22, top: l * 0.35, height: l * 0.28, background: "#C9CBC4" }} />}
             {m.roofUnit === "battery" && (
               <div className="absolute rounded-sm grid gap-[2px]" style={{ left: w * 0.18, right: w * 0.18, top: l * 0.22, height: l * 0.5, gridTemplateRows: "repeat(3, 1fr)" }}>
@@ -134,5 +135,13 @@ export function Vehicle3D({ model = "city_bus", kind, heading = 0, color = "#C8F
 // Map pin: the vehicle's chosen 3D model pointing where it's heading, with a
 // status-coloured glow (pulsing while on a trip).
 export default function MapBusPin({ color, driving = false, alert = false, heading = 0, model = "city_bus", kind }) {
+  if (model === "city_bus" && kind !== "taxi") return <div className="relative" style={{width:82,height:82}}>
+    <span className="absolute inset-2 rounded-full" style={{background:`radial-gradient(ellipse, ${color}55, transparent 70%)`}} />
+    <div className="absolute inset-0" style={{transform:`rotate(${heading}deg)`,transition:"transform 1.2s ease-out"}}>
+      <span className="absolute top-0 left-1/2 -translate-x-1/2" style={{width:0,height:0,borderLeft:"5px solid transparent",borderRight:"5px solid transparent",borderBottom:`8px solid ${color}`}} />
+    </div>
+    <img src="/images/transit-bus-3d.webp" alt="" aria-hidden="true" className={`absolute inset-0 w-full h-full object-contain drop-shadow-lg ${driving ? "tt-bus-bob" : ""}`} />
+    {alert && <span className="absolute inset-2 rounded-full border-2 animate-ping" style={{borderColor:color}} />}
+  </div>;
   return <Vehicle3D model={model} kind={kind} heading={heading} color={color} driving={driving} alert={alert} />;
 }

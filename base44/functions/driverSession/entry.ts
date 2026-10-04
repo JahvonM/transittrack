@@ -17,11 +17,14 @@ async function approvedCompanies(base44, user, scope) {
   for(const row of rows) if(row.scope === (scope || (user.role === 'company' ? 'manager' : 'passenger')) && await liveMembership(base44,row)) approved.push(row.company_id);
   return approved;
 }
-async function approvedStaffIds(base44, companyId) {
+async function approvedPassengerMemberships(base44, companyId) {
   const rows = await base44.asServiceRole.entities.CompanyMembership.filter({ company_id: companyId, active: true, scope: 'passenger' }, '-updated_date', 5000);
-  const ids=new Set();
-  for(const row of rows) if(await liveMembership(base44,row)) ids.add(row.user_id);
-  return ids;
+  const live=[];
+  for(const row of rows) if(await liveMembership(base44,row)) live.push(row);
+  return live;
+}
+async function approvedStaffIds(base44, companyId) {
+  return new Set((await approvedPassengerMemberships(base44,companyId)).map(row=>row.user_id));
 }
 // Random device credentials are stored only as hashes in protected DeviceCredential.
 // Existing development tablets remain legacy-compatible until explicitly re-paired.
@@ -189,7 +192,8 @@ async function loadVehicle(base44, vehicleId) {
 const flagActive = (on, until) => !!on && !!until && new Date(until).getTime() > Date.now();
 
 async function loadStaff(base44, companyId) {
-  const approvedIds = await approvedStaffIds(base44, companyId);
+  const approvedRows = await approvedPassengerMemberships(base44,companyId);
+  const approvedIds = new Set(approvedRows.map(row=>row.user_id));
   const [users, contacts] = await Promise.all([
     base44.asServiceRole.entities.User.list(),
     base44.asServiceRole.entities.Contact.filter({ company_id: companyId }, '-updated_date', 500),

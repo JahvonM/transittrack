@@ -108,13 +108,6 @@
     "pickup_route_id": {
       "type": "string",
       "description": "Passenger-confirmed roadside pickup suggestion; separate from their home location."
-    },
-    "vehicle_id": {
-      "type": "string",
-      "description": "Bus assigned through the protected card-issuing workflow."
-    },
-    "vehicle_name": {
-      "type": "string"
     }
   },
   "required": []

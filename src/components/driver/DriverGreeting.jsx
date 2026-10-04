@@ -2,6 +2,7 @@ import React from "react";
 import { Bus } from "lucide-react";
 import LiveClock from "@/components/LiveClock";
 import WeatherWidget from "@/components/WeatherWidget";
+import BusArtwork from "@/components/BusArtwork";
 
 const greetingWord = () => {
   const h = new Date().getHours();
@@ -39,9 +40,12 @@ export default function DriverGreeting({ driverName, subtitle }) {
   const num = String(subtitle || "").match(/(\d+)\s*$/)?.[1];
   return (
     <section className="flex flex-col gap-6" aria-label="This tablet">
-      <span className="grid h-20 min-w-[5rem] w-fit place-items-center rounded-2xl bg-primary px-4 text-primary-foreground" aria-hidden="true">
-        {num ? <span className="font-display text-[2.75rem] font-bold leading-none tabular-nums">{num}</span> : <Bus className="h-9 w-9" />}
-      </span>
+      <div className="flex items-center justify-between gap-4">
+        <span className="grid h-20 min-w-[5rem] w-fit place-items-center rounded-2xl bg-primary px-4 text-primary-foreground" aria-hidden="true">
+          {num ? <span className="font-display text-[2.75rem] font-bold leading-none tabular-nums">{num}</span> : <Bus className="h-9 w-9" />}
+        </span>
+        <BusArtwork width={168} className="-my-6 h-auto max-w-[45%]" />
+      </div>
       <div>
         <p className="text-body text-muted-foreground">{dateStr}</p>
         <h1 className="mt-1 text-display font-bold">{greetingWord()}, {name}</h1>

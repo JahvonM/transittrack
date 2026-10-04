@@ -66,3 +66,116 @@ test('card designer exports a printable PNG using selected passenger details',as
  await page.getByRole('button',{name:'Back',exact:true}).click();
  await expect(page.getByTestId('card-artwork-preview')).toContainText('If found');
 });
+
+test('passenger previews walking directions then saves a separate roadside pickup',async({page,context})=>{
+ await session(page,'staff');
+ await context.grantPermissions(['geolocation']);
+ await context.setGeolocation({latitude:12.005,longitude:-61.701,accuracy:5});
+  await page.addInitScript(() => { navigator.geolocation.getCurrentPosition = success => success({coords:{latitude:12.005,longitude:-61.701,accuracy:5}}); });
+ await page.addInitScript(()=>localStorage.setItem('tt_company_access_grant','a'.repeat(64)));
+ const saved=[];
+ const user={id:'caller',role:'staff',email:'caller@test.local',full_name:'Test Passenger',company_id:'a'};
+ const routeData={id:'route-a',company_id:'a',name:'Main road route',active:true,stops:[{name:'Start',lat:12,lng:-61.7,order:0},{name:'End',lat:12.01,lng:-61.7,order:1}]};
+ await page.route('**/functions/companyAccess',r=>r.fulfill({json:{company:{id:'a',name:'Company A'}}}));
+ await page.route('**/functions/entityAccess',r=>{
+  const body=r.request().postDataJSON();let result=[];
+  if(body.entity==='User'){ if(body.operation==='update'){saved.push(body.data);Object.assign(user,body.data);}result=user;}
+  if(body.entity==='Route')result=[routeData];
+  if(body.entity==='Company')result=[{id:'a',name:'Company A'}];
+  return r.fulfill({json:{result}});
+ });
+ await page.route('https://api.mapbox.com/**',r=>{
+  const url=r.request().url();
+  if(url.includes('/walking/'))return r.fulfill({json:{routes:[{distance:120,duration:90,geometry:{coordinates:[[-61.701,12.005],[-61.7,12.005]]},legs:[{steps:[{mode:'walking',maneuver:{instruction:'Walk east to the main road'}}]}]}],waypoints:[{}, {location:[-61.7,12.005]}]}});
+  if(url.includes('/directions/'))return r.fulfill({json:{routes:[{distance:1100,duration:180,geometry:{coordinates:[[-61.7,12],[-61.7,12.01]]}}]}});
+  if(url.includes('/geocoding/'))return r.fulfill({json:{features:[{place_name:'Test home, Grenada'}]}});
+  return r.fulfill({status:404,body:''});
+ });
+ await page.goto('/staff');
+ await page.getByRole('button',{name:/^Pickup settings/}).click();
+ await page.getByRole('button',{name:'Use where I am now',exact:true}).click();
+ await expect(page.getByText('Walk east to the main road',{exact:true})).toBeVisible();
+ expect(saved.filter(d=>d.pickup_lat!==undefined)).toHaveLength(0);
+ await page.getByRole('button',{name:'Use this pickup point',exact:true}).click();
+ await expect.poll(()=>saved.filter(d=>d.pickup_lat!==undefined).length).toBe(1);
+ const pickup=saved.find(d=>d.pickup_lat!==undefined);
+ expect(pickup.pickup_lat).toBeCloseTo(12.005);
+ expect(pickup.pickup_lng).toBeCloseTo(-61.7);
+ expect(pickup.home_lng).toBeCloseTo(-61.701);
+ expect(pickup.pickup_route_id).toBe('route-a');
+});
+
+async function passengerShowcase(page, { stale = false, light = false } = {}) {
+  await session(page,'staff');
+  await page.addInitScript(({light}) => {
+    localStorage.setItem('tt_company_access_grant','a'.repeat(64));
+    localStorage.setItem('tt_staff_pickup','Grand Anse');
+    localStorage.setItem('tt-map-engine','basic');
+    localStorage.setItem('tt-theme-v2',light ? 'light' : 'dark');
+  }, {light});
+  const passenger={id:'caller',role:'staff',email:'caller@test.local',full_name:'Test Passenger',company_id:'a',favorite_stop:'Grand Anse'};
+  const stops=[{name:"St. George's",lat:12.05,lng:-61.75,order:0},{name:'True Blue',lat:12.02,lng:-61.76,order:1},{name:'Grand Anse',lat:12.01,lng:-61.77,order:2},{name:'Morne Rouge',lat:12,lng:-61.78,order:3}];
+  const bus={...vehicles[0],name:'TT-102',route_id:'route-a',current_lat:12.022,current_lng:-61.758,tracking_active:true,status:'on_trip',speed:25,driver_name:'K. Thomas',last_location_update:new Date(Date.now()-(stale ? 600000 : 20000)).toISOString()};
+  await page.route('**/functions/companyAccess',r=>r.fulfill({json:{company:{id:'a',name:'Grenada Transport Co.'}}}));
+  await page.route('**/functions/entityAccess',r=>{
+    const b=r.request().postDataJSON();let result=[];
+    if(b.entity==='User') result=passenger;
+    if(b.entity==='Vehicle') result=[bus,{...bus,id:'bus-c',name:'TT-108'}];
+    if(b.entity==='Route') result=[{id:'route-a',company_id:'a',name:'Coastal route',active:true,stops}];
+    return r.fulfill({json:{result}});
+  });
+  await page.route('https://api.mapbox.com/**',r=>r.fulfill({json:{routes:[{duration:180,distance:1500,geometry:{coordinates:stops.map(s=>[s.lng,s.lat])},legs:[{duration:180,distance:1500,steps:[]}]}]}}));
+  await page.route('**/api.open-meteo.com/**',r=>r.fulfill({json:{current:{temperature_2m:28,weather_code:0}}}));
+  await page.goto('/staff');
+  await expect(page.getByLabel('Your bus',{exact:true})).toBeVisible();
+}
+
+test('approved passenger layout preserves live map and timeline on desktop',async({page})=>{
+  await page.setViewportSize({width:1440,height:1000});
+  await passengerShowcase(page);
+  await expect(page.getByLabel('Route stops')).toBeVisible();
+  await expect(page.getByRole('button',{name:/Notify me/})).toBeVisible();
+  await expect(page.getByLabel('Your bus',{exact:true}).getByText(/^Live/)).toBeVisible();
+  const hero=await page.getByLabel('Your bus',{exact:true}).boundingBox();
+  const map=await page.locator('#passenger-live-map').boundingBox();
+  expect(map.x).toBeGreaterThan(hero.x+hero.width);
+  await expect.poll(()=>page.locator('img[src="/images/transit-bus-3d.webp"]').first().evaluate(img=>img.complete && img.naturalWidth>0)).toBe(true);
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
+  await page.screenshot({path:'/tmp/tt-passenger-desktop.png',fullPage:true});
+});
+
+test('approved passenger mobile layout keeps four navigation items and more menu',async({page})=>{
+  await page.setViewportSize({width:390,height:844});
+  await passengerShowcase(page,{light:true});
+  await expect(page.locator('html')).toHaveClass(/light/);
+  const nav=page.getByRole('navigation',{name:'Passenger sections'});
+  for(const name of ['Home','Map','Buses','More'])await expect(nav.getByRole('button',{name,exact:true})).toBeVisible();
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
+  await page.screenshot({path:'/tmp/tt-passenger-mobile.png',fullPage:true});
+  // More is its own page in the passenger app; Messages and Account live there.
+  await nav.getByRole('button',{name:'More',exact:true}).click();
+  await expect(page.getByRole('link',{name:/^Messages/})).toBeVisible();
+  await expect(page.getByRole('link',{name:/^Account/})).toBeVisible();
+});
+
+test('passenger showcase keeps delayed GPS distinct from live arrival',async({page})=>{
+  await passengerShowcase(page,{stale:true});
+  const card=page.getByLabel('Your bus',{exact:true});
+  await expect(card.getByText('Location delayed',{exact:true})).toBeVisible();
+  await expect(page.getByLabel('Route stops')).toBeVisible();
+});
+
+test('admin showcase keeps metrics, fleet list and working section navigation',async({page})=>{
+  await session(page,'admin');
+  await page.addInitScript(()=>localStorage.setItem('tt-map-engine','basic'));
+  await page.route('https://api.mapbox.com/**',r=>r.fulfill({status:404,body:''}));
+  await page.goto('/admin');
+  await expect(page.getByRole('region',{name:'Live Fleet'})).toBeVisible();
+  await expect(page.getByText('Active buses',{exact:true})).toBeVisible();
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
+  await page.screenshot({path:'/tmp/tt-admin-desktop.png',fullPage:true});
+  // Card designer sits under All tools in the admin sidebar.
+  await page.getByRole('button',{name:'All tools',exact:true}).click();
+  await page.getByRole('button',{name:'Card designer',exact:true}).click();
+  await expect(page.getByRole('button',{name:'Download PNG',exact:true})).toBeVisible();
+});

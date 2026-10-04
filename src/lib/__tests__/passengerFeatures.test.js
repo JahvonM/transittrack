@@ -45,6 +45,7 @@ describe("email account directory",()=>{
   const issued=await call(sdk,{action:"issue",person_key:"user:email-user",uid:"AABBCCDD"});
   expect(issued.status).toBe(200);
   await call(sdk,{action:"set_bus",person_key:"user:email-user",vehicle_id:"bus-a"});
+  sdk.tables.User.find(u=>u.id==="email-user").vehicle_id="bus-b"; // Self-edit cannot change the trusted assignment.
   sdk.auth.me=async()=>null;
   const lookup=await call(sdk,{action:"lookup_tag",device_id:"tablet",card_tag:"AABBCCDD"},"kioskCheckIn");
   expect(lookup.status).toBe(200);
@@ -59,7 +60,7 @@ describe("email account directory",()=>{
   expect((await res.json()).person_key).toBe("user:email-user");
   expect(sdk.tables.Contact).toEqual([]);
   expect(sdk.tables.NfcCard[0]).toMatchObject({holder_source:"user",holder_id:"email-user",is_active:true});
-  expect(sdk.tables.User.find(u=>u.id==="email-user").vehicle_id).toBe("bus-a");
+  expect(sdk.tables.CompanyMembership.find(m=>m.user_id==="email-user").vehicle_id).toBe("bus-a");
  });
  it("rejects issuing a card to an unassigned account",async()=>{
   const sdk=mock("admin");sdk.tables.User.push({id:"new",role:"passenger",email:"new@test.invalid"});
