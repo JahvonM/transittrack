@@ -67,7 +67,9 @@ export default function CompanyDashboard() {
   if (user && user.role !== "company" && user.role !== "admin") return <Navigate to="/" replace />;
 
   if (loading) return <AppLayout><BusLoader className="py-8" /></AppLayout>;
-  if (!company) return <CreateCompany onCreated={loadAll} />;
+  if (!company) return user?.role === "admin"
+    ? <CreateCompany onCreated={loadAll} />
+    : <AppLayout><p className="py-8">Company access needs administrator approval. Ask your administrator to assign your company in User management.</p></AppLayout>;
 
   return (
     <AppLayout title={`${company.name} · Dashboard`}>
