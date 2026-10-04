@@ -1,4 +1,3 @@
-import { randomPairingCode } from "@/lib/deviceAuth";
 import React, { useEffect, useState } from "react";
 import { Navigate, useParams, useNavigate, Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
@@ -23,7 +22,6 @@ import VehicleFormDialog from "@/components/VehicleFormDialog";
 import { VehicleModelThumb } from "@/components/VehicleModelPicker";
 import { modelIdFor } from "@/lib/vehicleModels";
 
-const genCode = () => randomPairingCode(12);
 
 export default function CompanyDashboard() {
   const { user } = useAuth();
@@ -79,6 +77,7 @@ export default function CompanyDashboard() {
           <div className="flex-1 min-w-0">
             <div className="text-sm text-muted-foreground">Passenger access code — share it so passengers can see your fleet</div>
             <div className="text-2xl font-bold tracking-[0.25em]">{company.access_code || "Not set"}</div>
+            <div className="text-xs text-muted-foreground">{company.access_code_expires_at ? `New joins allowed until ${new Date(company.access_code_expires_at).toLocaleString()}` : "Issue a new code before inviting passengers."}</div>
           </div>
           <Button
             variant="outline"
@@ -96,10 +95,11 @@ export default function CompanyDashboard() {
             variant="outline"
             size="sm"
             onClick={async () => {
-              const code = genCode();
-              await base44.entities.Company.update(company.id, { access_code: code });
-              toast({ description: `New passenger code: ${code}` });
-              loadAll();
+              try {
+                const res = await base44.functions.invoke("manageAccessCodes", { action: "issue_company", company_id: company.id });
+                toast({ description: `New passenger code: ${res.data.code}` });
+                loadAll();
+              } catch (error) { toast({ title: "Could not issue code", description: error.message, variant: "destructive" }); }
             }}
           >
             <RefreshCw className="w-4 h-4" />
@@ -150,7 +150,7 @@ function CreateCompany({ onCreated }) {
     if (!name) return;
     setSaving(true);
     const service_types = [staff && "staff_bus", taxi && "taxi", airport && "airport"].filter(Boolean);
-    await base44.entities.Company.create({ name, phone, service_types, access_code: genCode() });
+    await base44.entities.Company.create({ name, phone, service_types });
     setSaving(false);
     onCreated();
   };

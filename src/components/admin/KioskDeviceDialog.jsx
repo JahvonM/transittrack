@@ -1,4 +1,3 @@
-import { randomPairingCode } from "@/lib/deviceAuth";
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -77,20 +76,15 @@ export default function KioskDeviceDialog({ open, onOpenChange, companies, vehic
         });
         toast({ title: "Device updated" });
       } else {
-        const code = randomPairingCode();
-        await base44.entities.KioskDevice.create({
+        const created = await base44.entities.KioskDevice.create({
           label: label.trim(),
           kiosk_type: kioskType,
           company_id: companyId,
           company_name: company?.name || "",
           vehicle_id: needsVehicle ? vehicleId : "",
           vehicle_name: needsVehicle ? vehicle?.name : "",
-          pairing_code: code,
-          pairing_expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
-          paired: false,
-          status: "active",
         });
-        toast({ title: "Device registered", description: `Pairing code: ${code}` });
+        toast({ title: "Device registered", description: `Pairing code: ${created.pairing_code}` });
       }
       onOpenChange(false);
       onSaved?.();
