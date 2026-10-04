@@ -58,8 +58,10 @@ async function loadStaffDirectory(base44, companyId) {
   const approvedIds = await approvedStaffIds(base44, companyId);
   const [users, contacts] = await Promise.all([
     base44.asServiceRole.entities.User.list(),
-    base44.asServiceRole.entities.Contact.filter({ type: 'staff' }, '-updated_date', 500),
+    base44.asServiceRole.entities.Contact.filter({ type: 'staff', company_id: companyId }, '-updated_date', 500),
   ]);
+  const activeCards = await base44.asServiceRole.entities.NfcCard.filter({ company_id: companyId, is_active: true }, '-issue_date', 3000);
+  const cardForUser = id => activeCards.find(c => c.holder_source === 'user' && c.holder_id === id && (!c.expiry_date || c.expiry_date >= new Date().toISOString().slice(0,10)))?.card_uid || '';
   const userByEmail = new Map(
     users.filter((u) => u.role === 'staff' && approvedIds.has(u.id))
       .map((u) => [(u.email || '').toLowerCase(), u])
@@ -73,7 +75,7 @@ async function loadStaffDirectory(base44, companyId) {
       return {
         source: 'contact', id: c.id, full_name: c.name || u.full_name || 'Staff',
         email: c.email || u.email || '', photo_url: u.photo_url || '',
-        nfc_tag: c.nfc_card_tag || '',
+        nfc_tag: c.nfc_card_tag || cardForUser(u.id),
         access_code: c.access_code || '',
         one_time_code: u.one_time_code || '', one_time_code_expires_at: u.one_time_code_expires_at || null,
         vehicle_id: c.vehicle_id || '', vehicle_name: c.vehicle_name || '',
@@ -81,7 +83,7 @@ async function loadStaffDirectory(base44, companyId) {
     }),
     ...orphanUsers.map((u) => ({
       source: 'user', id: u.id, full_name: u.full_name || u.email || 'Staff',
-      email: u.email || '', photo_url: u.photo_url || '', nfc_tag: '',
+      email: u.email || '', photo_url: u.photo_url || '', nfc_tag: cardForUser(u.id),
       access_code: '',
       one_time_code: u.one_time_code || '', one_time_code_expires_at: u.one_time_code_expires_at || null,
       vehicle_id: '', vehicle_name: '',
@@ -281,6 +283,11 @@ export default async function(req) {
         let person = directory.find((s) => s.access_code && s.access_code === code);
         let codeType = 'access';
         if (!person) {
+          const credentials = await base44.asServiceRole.entities.PassengerAccessCredential.filter({ company_id: companyId, token_hash: await hashSecret(code) }, '-updated_date', 2);
+          const user = credentials[0] ? await base44.asServiceRole.entities.User.get(credentials[0].user_id) : null;
+          person = user ? directory.find(s => s.id === user.id || (s.email && s.email.toLowerCase() === (user.email || '').toLowerCase())) : null;
+        }
+        if (!person) {
           const credentials = await base44.asServiceRole.entities.PassengerOneTimeCredential.filter({ company_id: companyId, token_hash: await hashSecret(code) }, '-created_date', 2);
           const credential = credentials.find(c => !c.consumed_at && Date.parse(c.expires_at) > now);
           const user = credential ? await base44.asServiceRole.entities.User.get(credential.user_id) : null;
@@ -314,7 +321,12 @@ export default async function(req) {
         let code = randomDigits(5);
         for (let i = 0; i < 5 && existingCodes.has(code); i++) code = randomDigits(5);
         if (existingCodes.has(code)) return Response.json({ error: 'Could not allocate a unique code' }, { status: 503 });
-        if (person.source === 'user') await base44.asServiceRole.entities.User.update(person.id, { access_code: code });
+        if (person.source === 'user') {
+          const old = await base44.asServiceRole.entities.PassengerAccessCredential.filter({ user_id: person.id }, '-updated_date', 1);
+          const data = { user_id: person.id, company_id: companyId, token_hash: await hashSecret(code) };
+          if (old[0]) await base44.asServiceRole.entities.PassengerAccessCredential.update(old[0].id, data);
+          else await base44.asServiceRole.entities.PassengerAccessCredential.create(data);
+        }
         else await base44.asServiceRole.entities.Contact.update(person.id, { access_code: code });
         return Response.json({ code, staff: { id: person.id, full_name: person.full_name } });
       }

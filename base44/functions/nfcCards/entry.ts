@@ -160,7 +160,7 @@ async function findOwner(base44, uid) {
   const [cards, contacts, users, drivers] = await Promise.all([
     sr.NfcCard.filter({ card_uid: uid, is_active: true }),
     sr.Contact.filter({ nfc_card_tag: uid }),
-    sr.User.filter({ nfc_tag_id: uid }),
+    Promise.resolve([]),
     sr.Driver.filter({ nfc_card_uid: uid }),
   ]);
   if (cards.length) return { key: `${cards[0].holder_source}:${cards[0].holder_id}`, name: cards[0].holder_name, card: cards[0] };
@@ -273,7 +273,14 @@ export default async function (req) {
         let code = '';
         for (let i = 0; i < 50 && (!code || taken.has(code)); i++) code = randomDigits(5);
         if (!code || taken.has(code)) return Response.json({ error: 'Could not allocate a unique code' }, { status: 503 });
-        if (person.source === 'user') await sr.User.update(person.id, { access_code: code });
+        if (person.source === 'user') {
+          const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(code));
+          const token_hash = Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2,'0')).join('');
+          const old = await sr.PassengerAccessCredential.filter({ user_id: person.id }, '-updated_date', 1);
+          const data = { user_id: person.id, company_id: person.company_id, token_hash };
+          if (old[0]) await sr.PassengerAccessCredential.update(old[0].id, data);
+          else await sr.PassengerAccessCredential.create(data);
+        }
         else await sr.Contact.update(person.id, { access_code: code });
         await audit(base44, user, { action: 'update', entity: person.source === 'user' ? 'User' : 'Contact', record_id: person.id, summary: `New keypad code for ${person.name}` });
         return Response.json({ ok: true, code });

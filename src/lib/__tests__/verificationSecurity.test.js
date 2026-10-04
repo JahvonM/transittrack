@@ -12,7 +12,7 @@ function load(name, client) {
 const device = { id: 'tablet', created_date: '2026-10-02', paired: true, status: 'active', company_id: 'company', vehicle_id: 'bus', kiosk_type: 'driver', pairing_code: 'PAIR' };
 const vehicle = { id: 'bus', company_id: 'company', driver_pin: '1234' };
 function mock(role='staff') {
- const tables = { KioskDevice: [structuredClone(device)], Vehicle: [structuredClone(vehicle)], User: [{ id:'staff', role:'staff', company_id:'company', email:'staff@test.local', full_name:'Rider' }], Contact: [{ id:'contact', email:'staff@test.local', type:'staff', company_id:'company', vehicle_id:'bus', name:'Rider', nfc_card_tag:'CARD-SENTINEL', access_code:'12345' }], Company:[{id:'company', access_code:'JOIN1234', name:'Company', phone:'555'}] };
+ const tables = { CompanyMembership: [{id:'membership',user_id:'staff',company_id:'company',scope:'passenger',active:true}], KioskDevice: [structuredClone(device)], Vehicle: [structuredClone(vehicle)], User: [{ id:'staff', role:'staff', company_id:'company', email:'staff@test.local', full_name:'Rider' }], Contact: [{ id:'contact', email:'staff@test.local', type:'staff', company_id:'company', vehicle_id:'bus', name:'Rider', nfc_card_tag:'CARD-SENTINEL', access_code:'12345' }], Company:[{id:'company', access_code:'JOIN1234', name:'Company', phone:'555'}] };
  const entities = new Proxy({}, { get: (_, name) => ({
   filter: async (query, _sort, limit) => (tables[name] || []).filter(r => Object.entries(query).every(([k,v])=>r[k]===v)).slice().reverse().slice(0,limit),
   list: async () => tables[name] || [],
