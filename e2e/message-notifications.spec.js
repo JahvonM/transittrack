@@ -10,7 +10,7 @@ async function mockedChat(page,role) {
  });
  await page.route('**/api/**',async route=>{
   const req=route.request(),url=req.url();
-  if(url.includes('/integrations/'))return route.fulfill({json:{file_url:'https://mock.invalid/photo.jpg'}});
+  if(url.includes('/integration-endpoints/Core/UploadFile'))return route.fulfill({json:{file_url:'https://mock.invalid/photo.jpg'}});
   if(url.includes('/entities/'))return route.fulfill({status:403,json:{error:'Direct access blocked'}});
   if(url.includes('/functions/notifyAdminMessage')) {
    notifications.push(req.postDataJSON());return route.fulfill({json:{ok:true}});
@@ -39,7 +39,7 @@ for(const role of ['mechanic','company','staff'])test(role+' sends text and phot
  if(role==='mechanic') {
   await page.goto('/mechanic');
   await page.getByRole('tab',{name:/Messages/}).click();
-  await page.getByRole('button',{name:/Bus A/}).click();
+  await page.getByRole('tabpanel',{name:'Messages'}).getByText('Bus A',{exact:true}).click();
  } else if(role==='company') {
   await page.goto('/manager/analytics');
   await page.getByRole('button',{name:'Open driver chats'}).click();
