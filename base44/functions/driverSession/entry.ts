@@ -786,9 +786,9 @@ export default async function(req) {
         try {
           const serviceAccountJson = secrets.get('FIREBASE_SERVICE_ACCOUNT');
           if (serviceAccountJson) {
-            const adminTokens = await base44.asServiceRole.entities.PushToken.filter({ role: 'admin' });
+            const adminTokens = await pushTokensForChannel(base44, 'dispatch', companyId);
             if (adminTokens.length) {
-              await sendPushToTokens(serviceAccountJson, adminTokens.map((t) => t.token), {
+              await sendPushToTokens(serviceAccountJson, adminTokens, {
                 title: '🚨 SOS — ' + vehicle.name,
                 body: `${vehicle.driver_name || 'Driver'} triggered SOS. Open the admin dashboard now.`,
                 data: { type: 'sos', vehicle_id: vehicleId },
