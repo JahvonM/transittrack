@@ -104,3 +104,62 @@ test('passenger previews walking directions then saves a separate roadside picku
  expect(pickup.home_lng).toBeCloseTo(-61.701);
  expect(pickup.pickup_route_id).toBe('route-a');
 });
+
+async function passengerShowcase(page, { stale = false, light = false } = {}) {
+  await session(page,'staff');
+  await page.addInitScript(({light}) => {
+    localStorage.setItem('tt_company_access_grant','a'.repeat(64));
+    localStorage.setItem('tt_staff_pickup','Grand Anse');
+    localStorage.setItem('tt-map-engine','basic');
+    localStorage.setItem('tt_theme',light ? 'light' : 'dark');
+  }, {light});
+  const passenger={id:'caller',role:'staff',email:'caller@test.local',full_name:'Test Passenger',company_id:'a',favorite_stop:'Grand Anse'};
+  const stops=[{name:"St. George's",lat:12.05,lng:-61.75,order:0},{name:'True Blue',lat:12.02,lng:-61.76,order:1},{name:'Grand Anse',lat:12.01,lng:-61.77,order:2},{name:'Morne Rouge',lat:12,lng:-61.78,order:3}];
+  const bus={...vehicles[0],name:'TT-102',route_id:'route-a',current_lat:12.022,current_lng:-61.758,tracking_active:true,status:'on_trip',speed:25,driver_name:'K. Thomas',last_location_update:new Date(Date.now()-(stale ? 600000 : 20000)).toISOString()};
+  await page.route('**/functions/companyAccess',r=>r.fulfill({json:{company:{id:'a',name:'Grenada Transport Co.'}}}));
+  await page.route('**/functions/entityAccess',r=>{
+    const b=r.request().postDataJSON();let result=[];
+    if(b.entity==='User') result=passenger;
+    if(b.entity==='Vehicle') result=[bus,{...bus,id:'bus-c',name:'TT-108'}];
+    if(b.entity==='Route') result=[{id:'route-a',company_id:'a',name:'Coastal route',active:true,stops}];
+    return r.fulfill({json:{result}});
+  });
+  await page.route('https://api.mapbox.com/**',r=>r.fulfill({json:{routes:[{duration:180,distance:1500,geometry:{coordinates:stops.map(s=>[s.lng,s.lat])},legs:[{duration:180,distance:1500,steps:[]}]}]}}));
+  await page.route('**/api.open-meteo.com/**',r=>r.fulfill({json:{current:{temperature_2m:28,weather_code:0}}}));
+  await page.goto('/staff');
+  await expect(page.getByLabel('Your bus',{exact:true})).toBeVisible();
+}
+
+test('approved passenger layout preserves live map and timeline on desktop',async({page})=>{
+  await page.setViewportSize({width:1440,height:1000});
+  await passengerShowcase(page);
+  await expect(page.getByLabel('Route stops')).toBeVisible();
+  await expect(page.getByRole('button',{name:/Notify me/})).toBeVisible();
+  await expect(page.getByLabel('Your bus',{exact:true}).getByRole('status')).toContainText('Live');
+  const hero=await page.getByLabel('Your bus',{exact:true}).boundingBox();
+  const map=await page.locator('#passenger-live-map').boundingBox();
+  expect(map.x).toBeGreaterThan(hero.x+hero.width);
+  await expect.poll(()=>page.locator('img[src="/images/transit-bus-3d.webp"]').first().evaluate(img=>img.complete && img.naturalWidth>0)).toBe(true);
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
+  await page.screenshot({path:'/tmp/tt-passenger-desktop.png',fullPage:true});
+});
+
+test('approved passenger mobile layout keeps four navigation items and more menu',async({page})=>{
+  await page.setViewportSize({width:390,height:844});
+  await passengerShowcase(page,{light:true});
+  const nav=page.getByRole('navigation',{name:'Passenger sections'});
+  for(const name of ['Home','Map','Buses','More'])await expect(nav.getByRole('button',{name,exact:true})).toBeVisible();
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
+  await page.screenshot({path:'/tmp/tt-passenger-mobile.png',fullPage:true});
+  await nav.getByRole('button',{name:'More',exact:true}).click();
+  await expect(page.getByRole('button',{name:'Messages',exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'My account',exact:true})).toBeVisible();
+});
+
+test('passenger showcase keeps delayed GPS distinct from live arrival',async({page})=>{
+  await passengerShowcase(page,{stale:true});
+  const card=page.getByLabel('Your bus',{exact:true});
+  await expect(card.getByRole('status')).toContainText('Location delayed');
+  await expect(card.getByText('Location delayed',{exact:true})).toBeVisible();
+  await expect(page.getByLabel('Route stops')).toBeVisible();
+});
