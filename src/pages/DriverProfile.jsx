@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from "react";
+import { StatusChip } from "@/components/admin/kit";
 import EmptyState from "@/components/EmptyState";
 import BusLoader from "@/components/BusLoader";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import AppLayout from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Bus, ClipboardCheck, Mail, User } from "lucide-react";
 
 export default function DriverProfile() {
@@ -44,7 +44,7 @@ export default function DriverProfile() {
               {vehicles.map((v) => (
                 <div key={v.id} className="flex items-center justify-between border-b border-border/50 pb-2 last:border-0">
                   <span>{v.name} · {v.plate_number}</span>
-                  <Badge variant="secondary">{v.status}</Badge>
+                  <StatusChip status={v.status} />
                 </div>
               ))}
             </CardContent>
@@ -57,7 +57,7 @@ export default function DriverProfile() {
               {inspections.map((i) => (
                 <div key={i.id} className="flex items-center justify-between border-b border-border/50 pb-2 last:border-0">
                   <span>{i.vehicle_name} · {i.date ? new Date(i.date).toLocaleDateString() : "—"}</span>
-                  <Badge variant={i.status === "passed" ? "default" : "destructive"}>{i.status}</Badge>
+                  <StatusChip status={i.status} />
                 </div>
               ))}
             </CardContent>

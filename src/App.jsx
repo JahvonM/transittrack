@@ -3,6 +3,7 @@ import BusLoader from "@/components/BusLoader";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import ConfirmHost from "@/components/ConfirmHost";
 import OfflineJobsBanner from "@/components/OfflineJobsBanner";
+import OfflineNotice from "@/components/system/OfflineNotice";
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
 import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
@@ -174,6 +175,7 @@ function App() {
         <Router>
           <ScrollToTop />
           <AuthenticatedApp />
+          <OfflineNotice />
         </Router>
         <Toaster />
         <ConfirmHost />

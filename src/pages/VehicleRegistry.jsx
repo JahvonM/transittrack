@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
+import { StatusChip } from "@/components/admin/kit";
 import { base44 } from "@/api/base44Client";
 import AppLayout from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -91,9 +91,7 @@ export default function VehicleRegistry() {
                     </div>
                     <div className="text-xs text-muted-foreground">{v.company_name} · {v.driver_name || "Unassigned"}</div>
                   </div>
-                  <Badge variant={v.status === "on_trip" ? "default" : v.status === "idle" ? "secondary" : "outline"}>
-                    {v.status}
-                  </Badge>
+                  <StatusChip status={v.status}>{v.status}</StatusChip>
                   {!isEditing && (
                     <Button size="icon" variant="ghost" onClick={() => startEdit(v)} title="Edit driver / route">
                       <Pencil className="w-4 h-4" />
@@ -158,9 +156,7 @@ export default function VehicleRegistry() {
                     {insp.map((i) => (
                       <div key={i.id} className="flex items-center justify-between text-xs">
                         <span>{i.date ? new Date(i.date).toLocaleDateString() : "—"} · {i.driver_name}</span>
-                        <Badge variant={i.needs_service ? "destructive" : i.status === "passed" ? "default" : "destructive"} className="text-[10px]">
-                          {i.needs_service ? "Needs service" : i.status}
-                        </Badge>
+                        <StatusChip tone={i.needs_service || i.status !== "passed" ? "danger" : "success"}>{i.needs_service ? "Needs service" : i.status}</StatusChip>
                       </div>
                     ))}
                   </div>

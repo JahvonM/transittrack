@@ -194,7 +194,7 @@ export default function LiteMap({
           <LocateFixed className="w-5 h-5 text-primary-foreground" />
         </button>
       )}
-      <div className="absolute left-1/2 -translate-x-1/2 bottom-2 z-[500] px-2 py-0.5 rounded-full bg-black/60 text-[11px] text-white/85 pointer-events-none">
+      <div className="absolute left-1/2 -translate-x-1/2 bottom-2 z-[500] px-2 py-0.5 rounded-full bg-black/60 text-caption text-white/85 pointer-events-none">
         Basic map
       </div>
     </div>

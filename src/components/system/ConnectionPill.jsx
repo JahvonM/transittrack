@@ -11,7 +11,7 @@ const STATES = {
   offline: { tone: "warning", icon: WifiOff, label: "Offline" },
   syncing: { tone: "info", icon: CloudUpload, label: "Syncing" },
   live: { tone: "live", icon: Radio, label: "Live" },
-  stale: { tone: "warning", icon: Clock, label: "Delayed signal" },
+  stale: { tone: "warning", icon: Clock, label: "Location delayed" },
   lost: { tone: "offline", icon: SatelliteDish, label: "Signal lost" },
   paused: { tone: "neutral", icon: PauseCircle, label: "Paused" },
   unknown: { tone: "neutral", icon: SatelliteDish, label: "No location yet" },

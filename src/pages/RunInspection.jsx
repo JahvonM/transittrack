@@ -16,8 +16,8 @@ import { submitSavedJob, isOfflineError } from "@/lib/offlineJobs";
 import { runMechanicInspection } from "@/lib/offlineRunners";
 
 const CONDITIONS = [
-  { key: "GOOD", label: "Good", icon: CheckCircle2, activeClass: "bg-emerald-500 text-white border-emerald-500" },
-  { key: "WARNING", label: "Warning", icon: AlertTriangle, activeClass: "bg-amber-500 text-white border-amber-500" },
+  { key: "GOOD", label: "Good", icon: CheckCircle2, activeClass: "bg-success text-white border-success" },
+  { key: "WARNING", label: "Warning", icon: AlertTriangle, activeClass: "bg-warning text-white border-warning" },
   { key: "FAILED", label: "Failed", icon: XCircle, activeClass: "bg-destructive text-destructive-foreground border-destructive" },
 ];
 

@@ -25,7 +25,7 @@ export function ReplayBusIcon({ heading, color }) {
 
 export function StopPin({ stop }) {
   return (
-    <div title={stopLabel(stop)} className="w-5 h-5 rounded-full bg-amber-500 border-2 border-white shadow grid place-items-center text-[10px] font-bold text-black">
+    <div title={stopLabel(stop)} className="w-5 h-5 rounded-full bg-warning border-2 border-white shadow grid place-items-center text-caption font-bold text-black">
       P
     </div>
   );

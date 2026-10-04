@@ -17,7 +17,7 @@ export function fleetStatus(v, now = Date.now()) {
   const f = freshnessOf(v.last_location_update, { now });
   if (f.state === "lost" || f.state === "unknown") return { key: "lost", label: "Signal lost", tone: "warning" };
   if (v.status === "speeding") return { key: "speed", label: "Speeding", tone: "danger" };
-  if (f.state === "stale") return { key: "stale", label: "Delayed signal", tone: "warning" };
+  if (f.state === "stale") return { key: "stale", label: "Location delayed", tone: "warning" };
   return { key: "live", label: "On route", tone: "success" };
 }
 

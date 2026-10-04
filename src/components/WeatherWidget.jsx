@@ -62,9 +62,9 @@ export default function WeatherWidget({ variant = "hero" }) {
     const hero = variant === "hero";
     return (
       <div
-        className={`${PILL} ${hero ? "px-4 py-2 bg-emerald-500/15 border-emerald-400/30 shadow-[0_0_20px_-6px_rgba(34,197,94,0.45)]" : ""}`}
+        className={`${PILL} ${hero ? "px-4 py-2 bg-success/15 border-success/30 shadow-[0_0_20px_-6px_rgba(34,197,94,0.45)]" : ""}`}
       >
-        <Icon className={`w-4 h-4 ${hero ? "text-emerald-400" : "text-primary"}`} />
+        <Icon className={`w-4 h-4 ${hero ? "text-success" : "text-primary"}`} />
         <span className="text-sm">
           {state.temp}°C · {label}
         </span>

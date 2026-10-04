@@ -54,8 +54,8 @@ export function DriverInspectionRunner({ template, vehicle, invoke, trigger, onF
 
 const STATUS_CHIP = {
   sent: { label: "Sent to you", cls: "bg-primary text-primary-foreground" },
-  due: { label: "Due today", cls: "bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/40" },
-  done: { label: "Done today", cls: "bg-green-600/15 text-green-700 dark:text-green-300 border border-green-600/40" },
+  due: { label: "Due today", cls: "bg-warning/15 text-warning border border-warning/40" },
+  done: { label: "Done today", cls: "bg-success/15 text-success border border-success/40" },
   available: { label: "", cls: "" },
 };
 

@@ -165,7 +165,7 @@ export default function ChatThread({
                 ) : (
                   <div className="text-sm whitespace-pre-wrap">{m.text}</div>
                 )}
-                <div className={`text-[11px] mt-0.5 ${mine ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
+                <div className={`text-caption mt-0.5 ${mine ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
                   {formatTime(m.created_date)}{m.edited ? " · edited" : ""}
                 </div>
               </div>

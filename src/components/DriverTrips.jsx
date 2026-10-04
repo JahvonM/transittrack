@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from "react";
+import { StatusChip } from "@/components/admin/kit";
 import { CheckCircle2, ChevronRight, Clock, Flag, PenLine, Play, Route } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
 import TripSignatureDialog from "@/components/TripSignatureDialog";
-import { STATUS_LABEL, STATUS_VARIANT } from "@/lib/trip";
+import { STATUS_LABEL } from "@/lib/trip";
 import { blobToBase64 } from "@/lib/chatMedia";
 
 const fmtDateTime = (iso) =>
@@ -83,7 +83,7 @@ export default function DriverTrips({ trips, invoke, startSharing, refresh, comp
             <div className="font-medium">
               {trip.pickup_name} <span className="text-muted-foreground">→</span> {trip.dropoff_name}
             </div>
-            <Badge variant={STATUS_VARIANT[trip.status]}>{STATUS_LABEL[trip.status]}</Badge>
+            <StatusChip status={trip.status}>{STATUS_LABEL[trip.status]}</StatusChip>
           </div>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -122,13 +122,13 @@ export default function DriverTrips({ trips, invoke, startSharing, refresh, comp
             <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
               {trip.pickup_signature_url && (
                 <span className="inline-flex items-center gap-1">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-green-600" />
+                  <CheckCircle2 className="w-3.5 h-3.5 text-success" />
                   Pickup signed by {trip.pickup_signed_by} ({fmtDateTime(trip.pickup_signed_at)})
                 </span>
               )}
               {trip.dropoff_signature_url && (
                 <span className="inline-flex items-center gap-1">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-green-600" />
+                  <CheckCircle2 className="w-3.5 h-3.5 text-success" />
                   Drop-off signed by {trip.dropoff_signed_by} ({fmtDateTime(trip.dropoff_signed_at)})
                 </span>
               )}
@@ -164,7 +164,7 @@ export default function DriverTrips({ trips, invoke, startSharing, refresh, comp
           <>
             <div className="flex items-center gap-2 min-w-0">
               <p className="font-medium truncate flex-1">{focus.pickup_name} <span className="text-muted-foreground">→</span> {focus.dropoff_name}</p>
-              <Badge variant={STATUS_VARIANT[focus.status]} className="shrink-0">{STATUS_LABEL[focus.status]}</Badge>
+              <StatusChip status={focus.status}>{STATUS_LABEL[focus.status]}</StatusChip>
             </div>
             <p className="text-xs text-muted-foreground flex items-center gap-1.5 truncate">
               <Clock className="w-3.5 h-3.5 shrink-0" />

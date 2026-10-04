@@ -107,7 +107,7 @@ export default function SosButton({ vehicle, invoke, emergencyContacts, compact 
             <a
               href={waLink(contacts.boss_phone, SOS_MESSAGE)}
               target="_blank" rel="noopener noreferrer"
-              className="w-full rounded-xl bg-green-600 hover:bg-green-700 text-white font-medium py-3 flex items-center justify-center gap-2"
+              className="w-full rounded-xl bg-success hover:bg-green-700 text-white font-medium py-3 flex items-center justify-center gap-2"
             >
               <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm5 14.5l-2.1-2.1c-.6.4-1.3.6-2 .6-2 0-3.5-1.6-3.5-3.5 0-.7.2-1.4.6-2L7.9 7.4l1.4-1.4 2.1 2.1c.6-.4 1.3-.6 2-.6 2 0 3.5 1.6 3.5 3.5 0 .7-.2 1.4-.6 2l2.1 2.1-1.4 1.4z"/></svg>
               Alert boss via WhatsApp
@@ -117,7 +117,7 @@ export default function SosButton({ vehicle, invoke, emergencyContacts, compact 
             <a
               href={waLink(contacts.secretary_phone, SOS_MESSAGE)}
               target="_blank" rel="noopener noreferrer"
-              className="w-full rounded-xl bg-green-600 hover:bg-green-700 text-white font-medium py-3 flex items-center justify-center gap-2"
+              className="w-full rounded-xl bg-success hover:bg-green-700 text-white font-medium py-3 flex items-center justify-center gap-2"
             >
               <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm5 14.5l-2.1-2.1c-.6.4-1.3.6-2 .6-2 0-3.5-1.6-3.5-3.5 0-.7.2-1.4.6-2L7.9 7.4l1.4-1.4 2.1 2.1c.6-.4 1.3-.6 2-.6 2 0 3.5 1.6 3.5 3.5 0 .7-.2 1.4-.6 2l2.1 2.1-1.4 1.4z"/></svg>
               Alert secretary via WhatsApp

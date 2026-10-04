@@ -84,7 +84,7 @@ function TopStatusBar({ device, vehicle, now, occupancy, pendingSyncCount }) {
         <Users className="w-4 h-4" /> {occupancy}{vehicle?.capacity ? `/${vehicle.capacity}` : ""}
       </div>
       {pendingSyncCount > 0 && (
-        <div className="flex items-center gap-1 text-xs text-amber-500 shrink-0">
+        <div className="flex items-center gap-1 text-xs text-warning shrink-0">
           <CloudUpload className="w-3.5 h-3.5" /> {pendingSyncCount}
         </div>
       )}
@@ -479,8 +479,8 @@ export default function BusBoardingKiosk({ invoke, device }) {
             </div>
           )}
           <div className="flex items-center justify-center gap-3">
-            <div className={`w-24 h-24 rounded-full grid place-items-center ${boarded ? "bg-emerald-500/15" : "bg-sky-500/15"} animate-in zoom-in spin-in-6 duration-500`}>
-              <CheckCircle2 className={`w-14 h-14 ${boarded ? "text-emerald-500" : "text-sky-500"}`} />
+            <div className={`w-24 h-24 rounded-full grid place-items-center ${boarded ? "bg-success/15" : "bg-info/15"} animate-in zoom-in spin-in-6 duration-500`}>
+              <CheckCircle2 className={`w-14 h-14 ${boarded ? "text-success" : "text-info"}`} />
             </div>
             {boarded && <KioskMascot mood="cheer" size={72} />}
           </div>

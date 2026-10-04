@@ -35,7 +35,7 @@ function compressToDataUrl(file, maxDim = 1000, quality = 0.62) {
 
 const CRIT_STYLE = {
   Critical: "border-destructive/60 text-destructive",
-  High: "border-amber-500/60 text-amber-600 dark:text-amber-400",
+  High: "border-warning/60 text-warning",
   Medium: "border-border text-muted-foreground",
   Low: "border-border text-muted-foreground",
 };
@@ -247,8 +247,8 @@ export default function XrayInspection({ template, vehicle, onSubmit, onSkip, on
           </div>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground px-1">
             <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full border-2 border-cyan-400" /> To check (number = items)</span>
-            <span className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-green-500" /> OK</span>
-            <span className="flex items-center gap-1.5"><AlertTriangle className="w-3.5 h-3.5 text-rose-500" /> Problem</span>
+            <span className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-success" /> OK</span>
+            <span className="flex items-center gap-1.5"><AlertTriangle className="w-3.5 h-3.5 text-danger" /> Problem</span>
             <span>Tap a part to jump to it.</span>
           </div>
         </div>
@@ -279,14 +279,14 @@ export default function XrayInspection({ template, vehicle, onSubmit, onSkip, on
                 <Button
                   onClick={markOk}
                   aria-pressed={res.condition === "GOOD"}
-                  className={`min-h-[64px] text-base font-semibold ${res.condition === "GOOD" ? "bg-green-600 hover:bg-green-600 text-white" : "bg-green-600/15 text-green-700 dark:text-green-300 hover:bg-green-600/25 border border-green-600/40"}`}
+                  className={`min-h-[64px] text-base font-semibold ${res.condition === "GOOD" ? "bg-success hover:bg-green-600 text-white" : "bg-success/15 text-success hover:bg-green-600/25 border border-success/40"}`}
                 >
                   <Check className="w-5 h-5" /> OK
                 </Button>
                 <Button
                   onClick={markProblem}
                   aria-pressed={res.condition === "FAILED"}
-                  className={`min-h-[64px] text-base font-semibold ${res.condition === "FAILED" ? "bg-rose-600 hover:bg-rose-600 text-white" : "bg-rose-600/15 text-rose-700 dark:text-rose-300 hover:bg-rose-600/25 border border-rose-600/40"}`}
+                  className={`min-h-[64px] text-base font-semibold ${res.condition === "FAILED" ? "bg-danger hover:bg-rose-600 text-white" : "bg-danger/15 text-danger hover:bg-rose-600/25 border border-danger/40"}`}
                 >
                   <AlertTriangle className="w-5 h-5" /> Problem
                 </Button>
@@ -354,7 +354,7 @@ export default function XrayInspection({ template, vehicle, onSubmit, onSkip, on
                 <ul className="space-y-1.5">
                   {failedItems.map((it) => (
                     <li key={it.key} className="flex items-start gap-2 text-sm">
-                      <AlertTriangle className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
+                      <AlertTriangle className="w-4 h-4 text-danger shrink-0 mt-0.5" />
                       <button className="text-left hover:underline" onClick={() => { setIdx(items.indexOf(it)); setPhase("check"); }}>
                         {it.item_name}{results[it.key]?.notes ? ` — ${results[it.key].notes}` : ""}
                       </button>
@@ -387,9 +387,9 @@ export default function XrayInspection({ template, vehicle, onSubmit, onSkip, on
           {phase === "done" && (
             <div className="py-6 text-center space-y-3">
               {failedItems.length === 0 ? (
-                <CircleCheck className="w-14 h-14 mx-auto text-green-500" />
+                <CircleCheck className="w-14 h-14 mx-auto text-success" />
               ) : (
-                <AlertTriangle className="w-14 h-14 mx-auto text-rose-500" />
+                <AlertTriangle className="w-14 h-14 mx-auto text-danger" />
               )}
               <div>
                 <h3 className="text-xl font-bold">{failedItems.length === 0 ? "All clear" : "Problems reported"}</h3>
@@ -419,8 +419,8 @@ export default function XrayInspection({ template, vehicle, onSubmit, onSkip, on
                           className="w-full flex items-center gap-3 px-3 min-h-[48px] text-left text-sm hover:bg-muted/50"
                           onClick={() => { setIdx(i); setPhase("check"); setListOpen(false); }}
                         >
-                          {c === "GOOD" ? <Check className="w-4 h-4 text-green-500 shrink-0" aria-label="OK" />
-                            : c === "FAILED" ? <AlertTriangle className="w-4 h-4 text-rose-500 shrink-0" aria-label="Problem" />
+                          {c === "GOOD" ? <Check className="w-4 h-4 text-success shrink-0" aria-label="OK" />
+                            : c === "FAILED" ? <AlertTriangle className="w-4 h-4 text-danger shrink-0" aria-label="Problem" />
                             : <span className="w-4 h-4 rounded-full border-2 border-muted-foreground/50 shrink-0" aria-label="Not checked" />}
                           <span className="flex-1">{it.item_name}</span>
                           {i === idx && phase === "check" && <span className="text-xs text-primary font-semibold">Now</span>}

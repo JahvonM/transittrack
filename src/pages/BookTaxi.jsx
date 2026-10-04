@@ -87,7 +87,7 @@ export default function BookTaxi() {
         ) : authed === false ? (
           <div className="text-center space-y-4 p-6 rounded-[1.25rem] border border-border bg-card/60 backdrop-blur-[12px]">
             <Car className="w-10 h-10 text-primary mx-auto" />
-            <h1 className="font-heading font-semibold text-xl">Sign in to book a taxi</h1>
+            <h1 className="text-title font-bold">Sign in to book a taxi</h1>
             <p className="text-sm text-muted-foreground">You need an account to request a ride.</p>
             <div className="flex flex-col gap-2">
               <Button asChild className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90">
@@ -112,9 +112,9 @@ export default function BookTaxi() {
               animate={{ opacity: 1, y: 0 }}
               className="text-center space-y-5"
             >
-              <CheckCircle2 className="w-14 h-14 text-emerald-400 mx-auto" />
+              <CheckCircle2 className="w-14 h-14 text-success mx-auto" />
               <div>
-                <h1 className="font-display font-bold text-2xl">Taxi booked!</h1>
+                <h1 className="text-headline font-bold">Taxi booked!</h1>
                 <p className="text-muted-foreground mt-1">
                   We've sent your request to {done.company}. A driver will be assigned shortly.
                 </p>
@@ -134,14 +134,14 @@ export default function BookTaxi() {
           >
             <div className="flex items-center gap-2 text-primary">
               <Car className="w-5 h-5" />
-              <h1 className="font-heading font-semibold text-xl">Request a taxi</h1>
+              <h1 className="text-title font-bold">Request a taxi</h1>
             </div>
             <p className="text-sm text-muted-foreground -mt-2">We'll match you with an available taxi operator.</p>
 
             {loading ? (
               <p className="text-sm text-muted-foreground">Loading available operators…</p>
             ) : companies.length === 0 ? (
-              <p className="text-sm text-amber-400">
+              <p className="text-sm text-warning">
                 No taxi operators available right now. Please check back later.
               </p>
             ) : (

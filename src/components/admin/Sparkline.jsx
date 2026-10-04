@@ -38,7 +38,7 @@ export default function Sparkline({ data, className = "" }) {
       </svg>
       {hoverIdx != null && (
         <div
-          className="absolute -top-6 px-1.5 py-0.5 rounded bg-foreground text-background text-[10px] font-medium whitespace-nowrap pointer-events-none z-10"
+          className="absolute -top-6 px-1.5 py-0.5 rounded bg-foreground text-background text-caption font-medium whitespace-nowrap pointer-events-none z-10"
           style={{ left: `${(points[hoverIdx].x / w) * 100}%`, transform: "translateX(-50%)" }}
         >
           {points[hoverIdx].label}: {points[hoverIdx].value}

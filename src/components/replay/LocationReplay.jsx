@@ -236,14 +236,14 @@ export default function LocationReplay({ vehicles = [], initialVehicleId = "" })
                       key={i}
                       type="button"
                       onClick={() => { setPlaying(false); seek(vtForTime(tl, s.from)); }}
-                      className="text-[11px] px-2 py-1 rounded-full border border-border bg-muted/40 hover:border-primary/60"
+                      className="text-caption px-2 py-1 rounded-full border border-border bg-muted/40 hover:border-primary/60"
                     >
                       {stopLabel(s)}
                     </button>
                   ))}
                 </div>
               )}
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-caption text-muted-foreground">
                 Long parked stretches play in a few seconds. Grey line = whole day, coloured line = driven so far.
               </p>
             </CardContent>

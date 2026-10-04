@@ -183,7 +183,7 @@ export default function FloatingMessages({ vehicles = [], placement = "float" })
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2">
                           <div className="font-medium text-sm truncate">{v.name}</div>
-                          {last && <div className="text-[11px] text-muted-foreground shrink-0">{formatTime(last.created_date)}</div>}
+                          {last && <div className="text-caption text-muted-foreground shrink-0">{formatTime(last.created_date)}</div>}
                         </div>
                         <div className="text-xs text-muted-foreground truncate">
                           {last ? <>{last.sender_role === "admin" ? "You" : last.sender_name || last.sender_role}: {previewText(last)}</> : (v.driver_name || "No messages yet")}

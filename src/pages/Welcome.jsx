@@ -273,8 +273,8 @@ export default function Welcome() {
                 <h2 className="font-heading font-semibold text-xl mb-1">{r.title}</h2>
                 <p className="text-sm text-muted-foreground">{r.blurb}</p>
                 <div className="mt-5 flex items-center justify-between">
-                  <span className="text-xs text-emerald-400 inline-flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                  <span className="text-xs text-success inline-flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-success" />
                     {preview[key] || (isAuthenticated ? "Open" : "Sign in to continue")}
                   </span>
                   <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-primary" />

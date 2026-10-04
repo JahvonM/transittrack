@@ -17,9 +17,9 @@ function Tile({ icon: Icon, label, sub, active, dot, onClick, href }) {
         <Icon className="w-[18px] h-[18px]" aria-hidden="true" />
       </span>
       <span className="text-xs font-semibold leading-tight">{label}</span>
-      {sub && <span className={`text-[11px] leading-tight ${active ? "opacity-80" : "text-muted-foreground"}`}>{sub}</span>}
+      {sub && <span className={`text-caption leading-tight ${active ? "opacity-80" : "text-muted-foreground"}`}>{sub}</span>}
       {dot > 0 && (
-        <span className="absolute top-1.5 right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-destructive text-destructive-foreground text-[11px] font-bold grid place-items-center">
+        <span className="absolute top-1.5 right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-destructive text-destructive-foreground text-caption font-bold grid place-items-center">
           {dot > 9 ? "9+" : dot}
         </span>
       )}

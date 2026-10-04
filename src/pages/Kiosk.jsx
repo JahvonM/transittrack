@@ -1,5 +1,6 @@
 import { deviceRequest, saveDeviceToken, forgetDeviceToken, pairingProfile } from "@/lib/deviceAuth";
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import useNoPageZoom from "@/hooks/useNoPageZoom";
 import BusLoader from "@/components/BusLoader";
 import { base44 } from "@/api/base44Client";
 import { Bus, Building2, DoorOpen, CreditCard, CheckCircle2, AlertCircle, WifiOff } from "lucide-react";
@@ -31,6 +32,7 @@ const DIRECTORY_MS = 5 * 60 * 1000;
 const initialStoredId = () => { try { return localStorage.getItem("tt_kiosk_device_id"); } catch { return null; } };
 
 export default function Kiosk() {
+  useNoPageZoom();
   // A tablet that has paired before opens straight from its saved setup, so
   // it still works when it starts up with no WiFi.
   const [device, setDevice] = useState(() => { const id = initialStoredId(); return id ? loadDevice(id) : null; });
@@ -294,7 +296,7 @@ export default function Kiosk() {
 
 function OfflineChip() {
   return (
-    <div role="status" className="fixed bottom-3 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 rounded-full bg-amber-500 text-black px-4 py-2 text-sm font-semibold shadow-lg">
+    <div role="status" className="fixed bottom-3 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 rounded-full bg-warning text-black px-4 py-2 text-sm font-semibold shadow-lg">
       <WifiOff className="w-4 h-4" />
       Offline — connect to verify cards or codes. Pending check-ins will sync.
     </div>

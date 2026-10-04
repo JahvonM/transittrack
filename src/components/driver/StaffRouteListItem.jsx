@@ -30,7 +30,7 @@ export default function StaffRouteListItem({ s, vehicle, onAttend }) {
   return (
     <div
       className={`flex items-center gap-2 p-2.5 rounded-xl border bg-card transition-colors ${
-        skipped ? "bg-muted/40 text-muted-foreground" : close ? "border-green-500/50 bg-green-500/5" : late ? "border-amber-500/50 bg-amber-500/5" : ""
+        skipped ? "bg-muted/40 text-muted-foreground" : close ? "border-success/50 bg-success/5" : late ? "border-warning/50 bg-warning/5" : ""
       }`}
     >
       <div className="flex-1 min-w-0">
@@ -47,7 +47,7 @@ export default function StaffRouteListItem({ s, vehicle, onAttend }) {
             : "No location pinned"}
         </div>
       </div>
-      {close && !skipped && <Volume2 className="w-4 h-4 text-green-400 animate-pulse" aria-hidden="true" />}
+      {close && !skipped && <Volume2 className="w-4 h-4 text-success animate-pulse" aria-hidden="true" />}
       <Button size="icon" variant="ghost" className="h-11 w-11" onClick={navTo} disabled={s.home_lat == null || skipped} aria-label={`Directions to ${s.full_name || "pickup"}`}>
         <Navigation className="w-5 h-5" aria-hidden="true" />
       </Button>
@@ -56,7 +56,7 @@ export default function StaffRouteListItem({ s, vehicle, onAttend }) {
           href={wa}
           target="_blank"
           rel="noopener noreferrer"
-          className="h-11 w-11 rounded-lg grid place-items-center bg-green-600 text-white hover:bg-green-700"
+          className="h-11 w-11 rounded-lg grid place-items-center bg-success text-white hover:bg-green-700"
           aria-label={`Message ${s.full_name || "passenger"} on WhatsApp`}
         >
           <MessageCircle className="w-5 h-5" aria-hidden="true" />

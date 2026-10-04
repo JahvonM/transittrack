@@ -59,7 +59,7 @@ export default function TripProgress({ stops, lat, lng, label, className = "" })
           </div>
         </div>
       </div>
-      <div className="flex justify-between text-[11px] text-muted-foreground mt-1">
+      <div className="flex justify-between text-caption text-muted-foreground mt-1">
         <span className="truncate max-w-[45%]">{p.stops[0].name || "Start"}</span>
         <span className="truncate max-w-[45%] text-right">{p.stops[n - 1].name || "End"}</span>
       </div>

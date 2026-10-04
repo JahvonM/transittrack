@@ -353,7 +353,7 @@ export default function StaffPortal() {
   const roundMins = mins != null ? Math.max(1, Math.round(mins)) : null;
   const callout = !busOnMap || !stop ? null
     : tripState.kind === "arriving" ? { primary: "Arriving", secondary: stop.name }
-      : tripState.kind === "signal_lost" ? { primary: "No signal", secondary: `Last seen ${clock(busOnMap.last_location_update)}`, tone: "lost" }
+      : tripState.kind === "signal_lost" ? { primary: "Signal lost", secondary: `Last seen ${clock(busOnMap.last_location_update)}`, tone: "lost" }
         : tripState.kind === "live" && roundMins != null ? { primary: `${roundMins} min`, secondary: `to ${stop.name}` }
           : null;
 

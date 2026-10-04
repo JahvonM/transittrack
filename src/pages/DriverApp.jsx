@@ -1,5 +1,6 @@
 import { saveDeviceToken, forgetDeviceToken } from "@/lib/deviceAuth";
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import useNoPageZoom from "@/hooks/useNoPageZoom";
 import BusLoader from "@/components/BusLoader";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
@@ -46,6 +47,7 @@ const DRIVER_TABS = [
 const tabFromStage = (st) => (st === "navigate" ? "track" : st === "safety" || st === "profile" ? "more" : TRACKING_TABS.includes(st) ? st : null);
 
 export default function DriverApp() {
+  useNoPageZoom();
   const navigate = useNavigate();
   const { stage: urlStage } = useParams();
   const [searchParams] = useSearchParams();

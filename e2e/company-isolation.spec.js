@@ -161,7 +161,9 @@ test('approved passenger mobile layout keeps four navigation items and more menu
 test('passenger showcase keeps delayed GPS distinct from live arrival',async({page})=>{
   await passengerShowcase(page,{stale:true});
   const card=page.getByLabel('Your bus',{exact:true});
-  await expect(card.getByText('Location delayed',{exact:true})).toBeVisible();
+  // Ten minutes without a fix reads as a lost signal; two to ten minutes as a delayed location.
+  await expect(card.getByText(/^(Location delayed|Signal lost)$/).first()).toBeVisible();
+  await expect(card.getByText(/^Live/)).toHaveCount(0);
   await expect(page.getByLabel('Route stops')).toBeVisible();
 });
 

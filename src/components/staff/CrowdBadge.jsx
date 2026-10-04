@@ -3,9 +3,9 @@ import { Users } from "lucide-react";
 import { crowdLevel } from "@/hooks/useCrowding";
 
 const TONE = {
-  free: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30",
-  busy: "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30",
-  full: "bg-red-500/15 text-red-700 dark:text-red-300 border-red-500/30",
+  free: "bg-success/15 text-success border-success/30",
+  busy: "bg-warning/15 text-warning border-warning/30",
+  full: "bg-danger/15 text-danger border-danger/30",
   muted: "bg-muted text-muted-foreground border-border",
 };
 

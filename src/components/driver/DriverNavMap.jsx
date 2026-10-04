@@ -64,7 +64,7 @@ function SpeedWidget({ kmh, limit }) {
       <div className={`w-14 h-14 rounded-full grid place-items-center shadow-lg border ${over ? "bg-[#D93025] text-white border-[#D93025]" : "bg-card/95 border-border"}`}>
         <div className="text-center leading-none">
           <div className="text-lg font-bold tabular-nums">{kmh == null ? "–" : Math.round(kmh)}</div>
-          <div className="text-[10px] opacity-75">km/h</div>
+          <div className="text-caption opacity-75">km/h</div>
         </div>
       </div>
     </div>
@@ -341,7 +341,7 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
   const statusBadges = (
     <div className="flex items-center gap-1.5">
       <span className={`text-xs px-2 py-0.5 rounded-full border inline-flex items-center gap-1 bg-card/90 backdrop-blur ${
-        gpsStatus === "locked" ? "text-emerald-500 border-emerald-500/40" : gpsStatus === "low" ? "text-amber-500 border-amber-500/40" : "text-muted-foreground border-border"
+        gpsStatus === "locked" ? "text-success border-success/40" : gpsStatus === "low" ? "text-warning border-warning/40" : "text-muted-foreground border-border"
       }`}>
         <Satellite className="w-3 h-3" />
         {gpsStatus === "locked" ? "GPS" : gpsStatus === "low" ? "Weak GPS" : "Finding GPS…"}

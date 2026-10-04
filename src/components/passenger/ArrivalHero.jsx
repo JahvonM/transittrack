@@ -10,7 +10,7 @@ function LiveLine({ state, fresh }) {
     return (
       <p className="flex items-center gap-2.5 text-body-sm text-muted-foreground">
         <SatelliteDish className="h-4 w-4 text-offline" aria-hidden="true" />
-        <span><span className="font-semibold text-foreground">Location delayed</span>, last update {formatAge(fresh?.ageMs)}</span>
+        <span><span className="font-semibold text-foreground">Signal lost</span>, last update {formatAge(fresh?.ageMs)}</span>
       </p>
     );
   }
@@ -88,7 +88,7 @@ export default function ArrivalHero({ state, stop, eta, trip, now = Date.now(), 
     case "signal_lost":
       big = roundMins != null
         ? <><span className={cn(BIG, "text-muted-foreground")}>{roundMins}</span><span className="text-[2rem] font-medium text-muted-foreground">min</span></>
-        : <span className={cn(WORD, "text-muted-foreground")}>No signal</span>;
+        : <span className={cn(WORD, "text-muted-foreground")}>Signal lost</span>;
       sub = bus?.last_location_update ? `Last estimate, from ${clock(bus.last_location_update)}` : "Last estimate";
       note = <p className="mt-1.5 text-body-sm text-muted-foreground">{name} hasn't sent its location since then. The time above may be out of date.</p>;
       break;

@@ -41,8 +41,8 @@ export default function FrontDeskKiosk({ invoke }) {
     return (
       <Card className="rounded-3xl shadow-xl border-border/60 overflow-hidden bg-gradient-to-b from-emerald-500/15 to-transparent">
         <CardContent className="p-10 text-center space-y-4 animate-in fade-in zoom-in-90 duration-500">
-          <div className="mx-auto w-20 h-20 rounded-full bg-emerald-500/15 grid place-items-center animate-in zoom-in spin-in-6 duration-500">
-            <CheckCircle2 className="w-11 h-11 text-emerald-500" />
+          <div className="mx-auto w-20 h-20 rounded-full bg-success/15 grid place-items-center animate-in zoom-in spin-in-6 duration-500">
+            <CheckCircle2 className="w-11 h-11 text-success" />
           </div>
           <p className="text-2xl font-bold">Thanks, {fullName.split(" ")[0]}! You're signed in.</p>
         </CardContent>

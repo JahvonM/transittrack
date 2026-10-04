@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from "react";
+import { StatusChip } from "@/components/admin/kit";
 import EmptyState from "@/components/EmptyState";
 import BusLoader from "@/components/BusLoader";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import AppLayout from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Calendar, Clock, Bus, MapPin } from "lucide-react";
 
 export default function DriverSchedule() {
@@ -46,7 +46,7 @@ export default function DriverSchedule() {
           {t.scheduled_time ? new Date(t.scheduled_time).toLocaleString() : "—"}
         </div>
       </div>
-      <Badge variant={t.status === "completed" ? "secondary" : "default"}>{t.status}</Badge>
+      <StatusChip status={t.status} />
     </CardContent></Card>
   );
 

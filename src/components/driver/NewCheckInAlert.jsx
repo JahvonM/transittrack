@@ -33,7 +33,7 @@ export default function NewCheckInAlert({ checkIn, onDismiss }) {
   return (
     <div className="fixed inset-0 z-[90] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
       <div role="dialog" aria-label="Passenger boarding ID" aria-modal="true" className="relative pointer-events-auto w-full max-w-3xl rounded-2xl overflow-hidden shadow-2xl border border-border/60 bg-card animate-in fade-in slide-in-from-top-4 zoom-in-95 duration-300">
-        <div className={`h-2 ${boarded ? "bg-emerald-500" : "bg-sky-500"}`} />
+        <div className={`h-2 ${boarded ? "bg-success" : "bg-info"}`} />
         <button type="button" onClick={onDismiss} className="absolute top-4 right-4 rounded-full border bg-card px-4 py-2 text-sm">Close</button>
         <div className="p-6 sm:p-10 flex flex-col sm:flex-row gap-6 items-center">
           <div className="w-36 h-44 sm:w-52 sm:h-64 rounded-lg overflow-hidden bg-muted border border-border shrink-0 grid place-items-center">
@@ -42,7 +42,7 @@ export default function NewCheckInAlert({ checkIn, onDismiss }) {
               : <UserIcon className="w-20 h-20 text-muted-foreground" />}
           </div>
           <div className="min-w-0 flex-1 pt-0.5">
-            <p className={`text-sm font-bold uppercase tracking-wider ${boarded ? "text-emerald-500" : "text-sky-500"}`}>
+            <p className={`text-sm font-bold uppercase tracking-wider ${boarded ? "text-success" : "text-info"}`}>
               {boarded ? "Boarded" : "Exited"}
             </p>
             <p className="font-heading font-bold text-3xl sm:text-5xl leading-tight break-words">{checkIn.staff_name}</p>

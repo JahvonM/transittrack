@@ -198,7 +198,7 @@ export default function DriverChats({ session, invoke, onUnreadChange }) {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2">
                   <p className="font-medium text-sm truncate">{c.label}</p>
-                  {last && <span className="text-[11px] text-muted-foreground shrink-0">{formatTime(last.created_date)}</span>}
+                  {last && <span className="text-caption text-muted-foreground shrink-0">{formatTime(last.created_date)}</span>}
                 </div>
                 <p className="text-xs text-muted-foreground truncate">
                   {last ? previewText(last) : c.blurb}

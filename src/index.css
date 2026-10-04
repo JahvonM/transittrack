@@ -435,3 +435,8 @@
 .light .tt-arrival-card { background-image: linear-gradient(145deg, white, hsl(210 40% 98%)); }
 
 html.light:not([data-accent]) .tt-notify-button, html.light[data-accent="lime"] .tt-notify-button { background: #c4f52a; color: #182002; }
+
+/* Shared tablets (kiosk, driver cockpit): no accidental page pinch-zoom.
+   Maps still zoom with their own pinch gesture. Everywhere else the page
+   can be zoomed. */
+html.tt-no-page-zoom, html.tt-no-page-zoom body { touch-action: pan-x pan-y; }
