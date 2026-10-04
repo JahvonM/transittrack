@@ -12,7 +12,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { ClipboardCheck, CheckCircle2, AlertTriangle, XCircle, Camera, Loader2, PartyPopper } from "lucide-react";
 import { loadFailed } from "@/lib/loadFailed";
 import BusLoader from "@/components/BusLoader";
-import { enqueueJob, isOfflineError } from "@/lib/offlineJobs";
+import { submitSavedJob, isOfflineError } from "@/lib/offlineJobs";
 import { runMechanicInspection } from "@/lib/offlineRunners";
 
 const CONDITIONS = [
@@ -178,13 +178,15 @@ export default function RunInspection() {
 
       // Upload row by row; if the connection drops, whatever is left is kept
       // on this device and uploads automatically once back online.
-      let progress = { results: resultRecords, faults: faultRecords, vehicle_id: vehicle.id, date: now };
+      const requestId=crypto.randomUUID();
+      const progress = {client_request_id:requestId,expected_actor_id:user?.id, results: resultRecords, faults: faultRecords, vehicle_id: vehicle.id, date: now };
       let queued = false;
       try {
-        await runMechanicInspection(progress, (p) => { progress = p; });
+        await submitSavedJob("mechanic_inspection",progress,template.name+" · "+vehicle.name,runMechanicInspection);
       } catch (err) {
         if (!isOfflineError(err)) throw err;
-        if (!enqueueJob("mechanic_inspection", progress, `${template.name} · ${vehicle.name}`)) throw new Error("Inspection could not be saved on this device. Keep this screen open and retry.");
+        const {pendingJobs}=await import("@/lib/offlineJobs");
+        if(!pendingJobs().some(job=>job.payload.client_request_id===requestId)) throw new Error("Inspection could not be saved on this device. Keep this screen open.");
         queued = true;
       }
 

@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ClipboardCheck, ChevronRight, Check, ScanLine, Send } from "lucide-react";
 import XrayInspection from "@/components/inspection/XrayInspection";
-import { enqueueJob, isOfflineError } from "@/lib/offlineJobs";
+import { submitSavedJob, isOfflineError } from "@/lib/offlineJobs";
 import { TRIGGER_LABEL, statusFor, triggerOf, timesOf, nextSlot, formatTime } from "@/lib/driverInspections";
 import { flattenTemplate } from "@/lib/busZones";
 
@@ -30,13 +30,14 @@ export function DriverInspectionRunner({ template, vehicle, invoke, trigger, onF
     if(attemptRef.current?.signature!==signature) attemptRef.current={signature,id:crypto.randomUUID()};
     const payload = { client_request_id:attemptRef.current.id, template_id: template.id, trigger, results, odometer, fuel };
     try {
-      await invoke("submit_template_inspection", payload);
+      const device_id=localStorage.getItem("tt_driver_device_id");
+      await submitSavedJob("driver_template_inspection",{...payload,device_id},template.name+" · "+(vehicle?.name||"vehicle"),p=>invoke("submit_template_inspection",p));
     } catch (e) {
       const deviceId = localStorage.getItem("tt_driver_device_id");
       if (!isOfflineError(e) || !deviceId) throw new Error(e?.response?.data?.error || e?.message || "Couldn't save the inspection");
-      const label = `${template.name} · ${vehicle?.name || "vehicle"}`;
-      if (enqueueJob("driver_template_inspection", { ...payload, device_id: deviceId }, label)) return;
-      throw new Error("Inspection could not be saved on this tablet. Keep this screen open and retry when connected.");
+      const {pendingJobs}=await import("@/lib/offlineJobs");
+      if(!pendingJobs().some(job=>job.payload.client_request_id===payload.client_request_id)) throw new Error("Inspection could not be saved on this tablet. Keep this screen open.");
+      return;
     }
   };
   return (

@@ -7,7 +7,7 @@ import { parseCodeQrPayload } from "@/lib/qr";
 import { haversineKm, etaMinutes, formatEta } from "@/lib/geo";
 import { MAPBOX_TOKEN, mapStyleFor } from "@/lib/mapbox";
 import { useIsDark } from "@/lib/useTheme";
-import { enqueueCheckIn, queueLength, queueSyncError, isNetworkFailure, flushQueue } from "@/lib/offlineQueue";
+import { submitSavedCheckIn, queueLength, queueSyncError, isNetworkFailure, flushQueue } from "@/lib/offlineQueue";
 import { noteStatus, burnOneTimeCode } from "@/lib/kioskOffline";
 import WeatherWidget from "@/components/WeatherWidget";
 import QrScanner from "./QrScanner";
@@ -376,7 +376,7 @@ export default function BusBoardingKiosk({ invoke, device }) {
     setBusy(true);
     const payload = { expected_device_id:device.id, expected_company_id:device.company_id, expected_vehicle_id:device.vehicle_id, client_request_id: crypto.randomUUID(), occurred_at: new Date().toISOString(), staff_id: pending.staff.id, method: pending.method, code_type: pending.code_type, verification_grant: pending.verification_grant, status };
     try {
-      const res = await invoke("check_in", payload);
+      const res = await submitSavedCheckIn(invoke, payload);
       const record = { staff_name: res.record.staff_name, status: res.record.status };
       if (Number.isFinite(res.occupancy)) setOccupancy(res.occupancy);
       if (Number.isFinite(res.today_count)) {
@@ -393,7 +393,7 @@ export default function BusBoardingKiosk({ invoke, device }) {
       // this person their check-in — queue it and let them walk away as if
       // it worked; a real rejection from the backend still shows the error.
       if (isNetworkFailure(e)) {
-        try { setPendingSyncCount(enqueueCheckIn(payload)); }
+        try { setPendingSyncCount(queueLength()); if(!queueLength()) throw e; }
         catch (storageError) { setBadgeError(storageError.message); setMode("badge_error"); return; }
         noteStatus(payload.staff_id, status);
         if (payload.code_type === "one_time") burnOneTimeCode(payload.staff_id);

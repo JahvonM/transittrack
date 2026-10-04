@@ -9,6 +9,10 @@ import { registerRunner, startOfflineSync } from "@/lib/offlineJobs";
 // from the payload via `save`, so a retry after a drop resumes at the step
 // that didn't make it instead of duplicating rows.
 export async function runMechanicInspection(payload, save = () => {}) {
+  if(payload.expected_actor_id) {
+    const user=await base44.auth.me();
+    if(user.id!==payload.expected_actor_id) throw Object.assign(new Error("Saved inspection belongs to another signed-in user"),{response:{status:409}});
+  }
   let p = { ...payload };
   // Save row IDs before any request, including replay of older queued inspections.
   p = {...p, results:p.results.map(r=>({...r,client_request_id:r.client_request_id||crypto.randomUUID()})), faults:p.faults.map(r=>({...r,client_request_id:r.client_request_id||crypto.randomUUID()}))};
@@ -32,22 +36,26 @@ export async function runMechanicInspection(payload, save = () => {}) {
 
 // Driver pre-trip check from a paired tablet (no login; goes through the
 // driver session with the tablet's device id).
+function savedDriverPayload(payload) {
+ if(!payload.expected_device_id || !payload.expected_company_id || !payload.expected_vehicle_id) throw Object.assign(new Error("Legacy saved work lacks its original assignment; export for review"),{response:{status:409}});
+ return {...payload,queue_replay:true};
+}
 export async function runDriverInspection(payload, save = () => {}) {
-  payload = {...payload,client_request_id:payload.client_request_id||crypto.randomUUID()}; save(payload);
+  payload = savedDriverPayload({...payload,client_request_id:payload.client_request_id||crypto.randomUUID()}); save(payload);
   const res = await base44.functions.invoke("driverSession", deviceRequest(payload.device_id, { ...payload, action: "submit_inspection" }));
   return res.data;
 }
 
 // Driver X-ray inspection from a template; photos travel inside the payload.
 export async function runDriverTemplateInspection(payload, save = () => {}) {
-  payload = {...payload,client_request_id:payload.client_request_id||crypto.randomUUID()}; save(payload);
+  payload = savedDriverPayload({...payload,client_request_id:payload.client_request_id||crypto.randomUUID()}); save(payload);
   const res = await base44.functions.invoke("driverSession", deviceRequest(payload.device_id, { ...payload, action: "submit_template_inspection" }));
   return res.data;
 }
 
 // Shift start/end made with no signal; carries the time it really happened.
 export async function runDriverShift(payload, save = () => {}) {
-  payload = {...payload,client_request_id:payload.client_request_id||crypto.randomUUID()}; save(payload);
+  payload = savedDriverPayload({...payload,client_request_id:payload.client_request_id||crypto.randomUUID()}); save(payload);
   const res = await base44.functions.invoke("driverSession", deviceRequest(payload.device_id, payload));
   return res.data;
 }

@@ -53,7 +53,7 @@ export default function ShiftCard({ session, invoke, refresh, beforeStart, befor
     if (beforeEnd?.()) return;
     setBusy(true);
     try {
-      const res = await shiftAction(invoke, "end_shift");
+      const res = await shiftAction(invoke, "end_shift", shift);
       const mins = res?.queued
         ? (shift?.started_at ? (Date.now() - new Date(shift.started_at).getTime()) / 60000 : null)
         : res?.shift?.duration_minutes;
