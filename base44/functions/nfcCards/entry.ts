@@ -130,8 +130,11 @@ async function loadPeople(base44, companyFilter) {
     if (!cardsByHolder.has(k)) cardsByHolder.set(k, []);
     cardsByHolder.get(k).push(c);
   }
+  const protectedCodes=await sr.PassengerAccessCredential.filter(companyFilter?{company_id:companyFilter}:{},'-updated_date',5000);
   for (const p of people) {
     p.key = `${p.source}:${p.id}`;
+    p.has_access_code=!!p.access_code||protectedCodes.some(c=>p.source==='user'?c.user_id===p.id:c.contact_id===p.id);
+    p.access_code='';
     const list = cardsByHolder.get(p.key) || [];
     const active = list.find((c) => c.is_active);
     p.card = active || null;
@@ -196,6 +199,25 @@ async function setTag(base44, source, id, uid, extra = {}) {
   if (source === 'cardholder' && Object.keys(extra).length) return sr.CardHolder.update(id, extra);
 }
 
+async function allocatePassengerCode(base44,person,companyId) {
+ const db=base44.asServiceRole.entities;let code='',token_hash='';
+ for(let i=0;i<50;i++) {
+  const candidate=randomDigits(12);
+  const bytes=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(candidate));
+  const hash=Array.from(new Uint8Array(bytes),b=>b.toString(16).padStart(2,'0')).join('');
+  const [protectedRows,legacyContacts]=await Promise.all([db.PassengerAccessCredential.filter({token_hash:hash},'-updated_date',1),db.Contact.filter({access_code:candidate},'-updated_date',1)]);
+  if(!protectedRows.length&&!legacyContacts.length){code=candidate;token_hash=hash;break;}
+ }
+ if(!code)throw Object.assign(new Error('Could not allocate a unique code'),{status:503});
+ const user=person.source==='user';
+ const identity=user?{user_id:person.id}:{contact_id:person.id};
+ const old=await db.PassengerAccessCredential.filter(identity,'-updated_date',1);
+ const data={user_id:user?person.id:'',contact_id:user?'':person.id,company_id:companyId,token_hash,issued_at:new Date().toISOString()};
+ if(old[0])await db.PassengerAccessCredential.update(old[0].id,data);else await db.PassengerAccessCredential.create(data);
+ // New Contact codes are never persisted as plaintext. Legacy rows need reissue.
+ if(!user)await db.Contact.update(person.id,{access_code:''});
+ return code;
+}
 export default async function (req) {
   try {
     const base44 = createClientFromRequest(req);
@@ -286,20 +308,7 @@ export default async function (req) {
         const person = people.find((p) => p.key === body.person_key);
         if (!person) return Response.json({ error: 'Pick a person first.' }, { status: 404 });
         if (person.type !== 'staff') return Response.json({ error: 'Keypad codes are for bus staff.' }, { status: 400 });
-        const [allContacts, allUsers] = await Promise.all([sr.Contact.list('-updated_date', 5000), sr.User.list()]);
-        const taken = new Set([...allContacts, ...allUsers].map((r) => r.access_code).filter(Boolean));
-        let code = '';
-        for (let i = 0; i < 50 && (!code || taken.has(code)); i++) code = randomDigits(5);
-        if (!code || taken.has(code)) return Response.json({ error: 'Could not allocate a unique code' }, { status: 503 });
-        if (person.source === 'user') {
-          const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(code));
-          const token_hash = Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2,'0')).join('');
-          const old = await sr.PassengerAccessCredential.filter({ user_id: person.id }, '-updated_date', 1);
-          const data = { user_id: person.id, company_id: person.company_id, token_hash };
-          if (old[0]) await sr.PassengerAccessCredential.update(old[0].id, data);
-          else await sr.PassengerAccessCredential.create(data);
-        }
-        else await sr.Contact.update(person.id, { access_code: code });
+        const code=await allocatePassengerCode(base44,person,person.company_id);
         await audit(base44, user, { action: 'update', entity: person.source === 'user' ? 'User' : 'Contact', record_id: person.id, summary: `New keypad code for ${person.name}` });
         return Response.json({ ok: true, code });
       }

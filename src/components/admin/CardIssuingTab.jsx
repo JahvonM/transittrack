@@ -415,7 +415,7 @@ export default function CardIssuingTab({ companies = [] }) {
 
   const giveKeypadCode = async () => {
     if (!selected || codeBusy) return;
-    if (selected.access_code && !(await confirmAction({ title: `Give ${selected.name} a new keypad code?`, description: `Their current code ${selected.access_code} will stop working.`, confirmLabel: "New code" }))) return;
+    if ((selected.has_access_code || selected.access_code) && !(await confirmAction({ title: `Give ${selected.name} a new keypad code?`, description: "Their current keypad code will stop working.", confirmLabel: "New code" }))) return;
     setCodeBusy(true);
     try {
       const res = await base44.functions.invoke("nfcCards", { action: "keypad_code", person_key: selected.key });
@@ -664,9 +664,9 @@ export default function CardIssuingTab({ companies = [] }) {
                     <div>
                       <span className="text-xs text-muted-foreground">Keypad code (forgot card)</span>
                       <div className="flex items-center gap-2 mt-1">
-                        <span className="h-9 flex-1 rounded-md border bg-muted/40 grid place-items-center font-bold tracking-[0.2em]">{selected.access_code || "—"}</span>
+                        <span className="h-9 flex-1 rounded-md border bg-muted/40 grid place-items-center font-bold tracking-[0.2em]">{selected.has_access_code ? "Code issued" : "—"}</span>
                         <Button type="button" variant="outline" size="sm" className="h-9" onClick={giveKeypadCode} disabled={codeBusy}>
-                          {codeBusy ? "…" : selected.access_code ? "New" : "Give"}
+                          {codeBusy ? "…" : selected.has_access_code ? "New" : "Give"}
                         </Button>
                       </div>
                     </div>

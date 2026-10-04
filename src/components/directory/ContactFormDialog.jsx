@@ -49,7 +49,7 @@ export default function ContactFormDialog({ open, onClose, onSave, contact }) {
     if (!form.name?.trim()) return;
     // Cards are issued (and replaced / revoked) only in Admin > Card issuing,
     // so saving this form never touches the card on file.
-    const { nfc_card_tag: _card, ...rest } = form;
+    const { nfc_card_tag: _card, access_code: _code, ...rest } = form;
     onSave(rest);
   };
 

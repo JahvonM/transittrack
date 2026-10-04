@@ -225,6 +225,25 @@ async function validGrant(base44, device, token, purpose, subject) {
  return !!row && row.pairing_code_hash === await hashSecret(device.pairing_code || '') && row.device_id === device.id && row.company_id === device.company_id && row.vehicle_id === device.vehicle_id && row.purpose === purpose && row.subject === subject && Date.parse(row.expires_at) > Date.now();
 }
 
+async function allocatePassengerCode(base44,person,companyId) {
+ const db=base44.asServiceRole.entities;let code='',token_hash='';
+ for(let i=0;i<50;i++) {
+  const candidate=randomDigits(12);
+  const bytes=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(candidate));
+  const hash=Array.from(new Uint8Array(bytes),b=>b.toString(16).padStart(2,'0')).join('');
+  const [protectedRows,legacyContacts]=await Promise.all([db.PassengerAccessCredential.filter({token_hash:hash},'-updated_date',1),db.Contact.filter({access_code:candidate},'-updated_date',1)]);
+  if(!protectedRows.length&&!legacyContacts.length){code=candidate;token_hash=hash;break;}
+ }
+ if(!code)throw Object.assign(new Error('Could not allocate a unique code'),{status:503});
+ const user=person.source==='user';
+ const identity=user?{user_id:person.id}:{contact_id:person.id};
+ const old=await db.PassengerAccessCredential.filter(identity,'-updated_date',1);
+ const data={user_id:user?person.id:'',contact_id:user?'':person.id,company_id:companyId,token_hash,issued_at:new Date().toISOString()};
+ if(old[0])await db.PassengerAccessCredential.update(old[0].id,data);else await db.PassengerAccessCredential.create(data);
+ // New Contact codes are never persisted as plaintext. Legacy rows need reissue.
+ if(!user)await db.Contact.update(person.id,{access_code:''});
+ return code;
+}
 export default async function(req) {
   try {
     const body = await req.json();
@@ -304,8 +323,13 @@ export default async function(req) {
         let codeType = 'access';
         if (!person) {
           const credentials = await base44.asServiceRole.entities.PassengerAccessCredential.filter({ company_id: companyId, token_hash: await hashSecret(code) }, '-updated_date', 2);
-          const user = credentials[0] ? await base44.asServiceRole.entities.User.get(credentials[0].user_id) : null;
-          person = user ? directory.find(s => s.id === user.id || (s.email && s.email.toLowerCase() === (user.email || '').toLowerCase())) : null;
+          if(credentials.length>1)return Response.json({error:'Ambiguous keypad code; request reissue'},{status:409});
+          const credential=credentials[0];
+          if(credential?.contact_id)person=directory.find(s=>s.source==='contact'&&s.id===credential.contact_id);
+          else {
+            const user=credential?.user_id?await base44.asServiceRole.entities.User.get(credential.user_id):null;
+            person=user?directory.find(s=>s.id===user.id||(s.email&&s.email.toLowerCase()===(user.email||'').toLowerCase())):null;
+          }
         }
         if (!person) {
           const credentials = await base44.asServiceRole.entities.PassengerOneTimeCredential.filter({ company_id: companyId, token_hash: await hashSecret(code) }, '-created_date', 2);
@@ -337,17 +361,7 @@ export default async function(req) {
         const directory = await loadStaffDirectory(base44, companyId);
         const person = directory.find((s) => s.id === sanitize(staff_id));
         if (!person) return Response.json({ error: 'Staff member not found' }, { status: 404 });
-        const existingCodes = new Set(directory.map((s) => s.access_code).filter(Boolean));
-        let code = randomDigits(5);
-        for (let i = 0; i < 5 && existingCodes.has(code); i++) code = randomDigits(5);
-        if (existingCodes.has(code)) return Response.json({ error: 'Could not allocate a unique code' }, { status: 503 });
-        if (person.source === 'user') {
-          const old = await base44.asServiceRole.entities.PassengerAccessCredential.filter({ user_id: person.id }, '-updated_date', 1);
-          const data = { user_id: person.id, company_id: companyId, token_hash: await hashSecret(code) };
-          if (old[0]) await base44.asServiceRole.entities.PassengerAccessCredential.update(old[0].id, data);
-          else await base44.asServiceRole.entities.PassengerAccessCredential.create(data);
-        }
-        else await base44.asServiceRole.entities.Contact.update(person.id, { access_code: code });
+        const code=await allocatePassengerCode(base44,person,companyId);
         return Response.json({ code, staff: { id: person.id, full_name: person.full_name } });
       }
 
@@ -427,6 +441,6 @@ export default async function(req) {
         return Response.json({ error: 'Unknown action' }, { status: 400 });
     }
   } catch (error) {
-    return Response.json({ error: error.message }, { status: 500 });
+    return Response.json({ error: error.status?error.message:'Request failed' }, { status: error.status||500 });
   }
 }
