@@ -48,7 +48,7 @@ for(const role of ['mechanic','company','staff'])test(role+' sends text and phot
   await page.goto('/staff');
   await page.getByRole('button',{name:/Chat/}).click();
  }
- const input=page.getByPlaceholder(role==='company'?"Message this bus's driver…":'Message the driver…');
+ const input=page.getByPlaceholder(role!=='staff'?"Message this bus's driver…":'Message the driver…');
  await input.fill('Saved chat message');await input.press('Enter');
  await expect.poll(()=>notifications.length).toBe(1);
  expect(notifications[0]).toEqual({message_id:messages[0].id});
