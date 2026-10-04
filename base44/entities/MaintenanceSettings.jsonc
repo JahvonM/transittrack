@@ -25,27 +25,18 @@
   },
   "rls": {
     "read": {
-      "$or": [
-        {
-          "user_condition": {
-            "role": "admin"
-          }
-        },
-        {
-          "user_condition": {
-            "role": "mechanic"
-          }
-        }
-      ]
+      "user_condition": {
+        "role": "admin"
+      }
     },
     "create": {
       "user_condition": {
-        "role": "mechanic"
+        "role": "admin"
       }
     },
     "update": {
       "user_condition": {
-        "role": "mechanic"
+        "role": "admin"
       }
     },
     "delete": {

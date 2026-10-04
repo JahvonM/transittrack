@@ -1,35 +1,29 @@
 {
-  "name": "Driver",
+  "name": "CompanyMembership",
   "type": "object",
   "properties": {
-    "full_name": {
-      "type": "string"
-    },
-    "email": {
-      "type": "string"
-    },
-    "phone": {
-      "type": "string"
-    },
-    "photo_url": {
+    "user_id": {
       "type": "string"
     },
     "company_id": {
       "type": "string"
     },
-    "company_name": {
-      "type": "string"
-    },
-    "employee_id": {
-      "type": "string"
-    },
-    "nfc_card_uid": {
+    "scope": {
       "type": "string",
-      "description": "Active staff card issued at Card issuing (uppercase hex)."
+      "enum": [
+        "manager",
+        "passenger"
+      ]
+    },
+    "active": {
+      "type": "boolean"
     }
   },
   "required": [
-    "full_name"
+    "user_id",
+    "company_id",
+    "scope",
+    "active"
   ],
   "rls": {
     "read": {

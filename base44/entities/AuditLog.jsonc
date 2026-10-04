@@ -56,28 +56,9 @@
       }
     },
     "create": {
-      "$or": [
-        {
-          "user_condition": {
-            "role": "admin"
-          }
-        },
-        {
-          "user_condition": {
-            "role": "company"
-          }
-        },
-        {
-          "user_condition": {
-            "role": "mechanic"
-          }
-        },
-        {
-          "user_condition": {
-            "role": "staff"
-          }
-        }
-      ]
+      "user_condition": {
+        "role": "admin"
+      }
     },
     "update": {
       "user_condition": {

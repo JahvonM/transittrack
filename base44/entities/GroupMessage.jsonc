@@ -64,120 +64,24 @@
   ],
   "rls": {
     "read": {
-      "$or": [
-        {
-          "$and": [
-            {
-              "data.channel": "staff"
-            },
-            {
-              "data.company_id": "{{user.data.company_id}}"
-            }
-          ]
-        },
-        {
-          "$and": [
-            {
-              "data.channel": "company"
-            },
-            {
-              "data.company_id": "{{user.data.company_id}}"
-            },
-            {
-              "user_condition": {
-                "role": "company"
-              }
-            }
-          ]
-        },
-        {
-          "user_condition": {
-            "role": "admin"
-          }
-        },
-        {
-          "$and": [
-            {
-              "data.channel": "mechanic"
-            },
-            {
-              "user_condition": {
-                "role": "mechanic"
-              }
-            }
-          ]
-        }
-      ]
+      "user_condition": {
+        "role": "admin"
+      }
     },
     "create": {
-      "$or": [
-        {
-          "$and": [
-            {
-              "data.channel": "staff"
-            },
-            {
-              "data.company_id": "{{user.data.company_id}}"
-            }
-          ]
-        },
-        {
-          "$and": [
-            {
-              "data.channel": "company"
-            },
-            {
-              "data.company_id": "{{user.data.company_id}}"
-            },
-            {
-              "user_condition": {
-                "role": "company"
-              }
-            }
-          ]
-        },
-        {
-          "user_condition": {
-            "role": "admin"
-          }
-        },
-        {
-          "$and": [
-            {
-              "data.channel": "mechanic"
-            },
-            {
-              "user_condition": {
-                "role": "mechanic"
-              }
-            }
-          ]
-        }
-      ]
+      "user_condition": {
+        "role": "admin"
+      }
     },
     "update": {
-      "$or": [
-        {
-          "created_by_id": "{{user.id}}"
-        },
-        {
-          "user_condition": {
-            "role": "admin"
-          }
-        }
-      ]
+      "user_condition": {
+        "role": "admin"
+      }
     },
     "delete": {
-      "$or": [
-        {
-          "created_by_id": "{{user.id}}"
-        },
-        {
-          "user_condition": {
-            "role": "admin"
-          }
-        }
-      ]
+      "user_condition": {
+        "role": "admin"
+      }
     }
   }
 }

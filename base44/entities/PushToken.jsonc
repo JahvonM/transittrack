@@ -26,10 +26,12 @@
     "token"
   ],
   "rls": {
-    "create": {
-      "created_by_id": "{{user.id}}"
-    },
     "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "create": {
       "user_condition": {
         "role": "admin"
       }
@@ -40,16 +42,9 @@
       }
     },
     "delete": {
-      "$or": [
-        {
-          "created_by_id": "{{user.id}}"
-        },
-        {
-          "user_condition": {
-            "role": "admin"
-          }
-        }
-      ]
+      "user_condition": {
+        "role": "admin"
+      }
     }
   }
 }

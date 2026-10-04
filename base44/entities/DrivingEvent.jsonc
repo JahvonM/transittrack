@@ -52,34 +52,22 @@
     "occurred_at"
   ],
   "rls": {
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
     "create": {
       "user_condition": {
         "role": "admin"
       }
     },
-    "delete": {
+    "update": {
       "user_condition": {
         "role": "admin"
       }
     },
-    "read": {
-      "$or": [
-        {
-          "data.driver_email": "{{user.email}}"
-        },
-        {
-          "user_condition": {
-            "role": "admin"
-          }
-        },
-        {
-          "user_condition": {
-            "role": "company"
-          }
-        }
-      ]
-    },
-    "update": {
+    "delete": {
       "user_condition": {
         "role": "admin"
       }

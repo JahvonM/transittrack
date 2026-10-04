@@ -43,38 +43,9 @@
   ],
   "rls": {
     "read": {
-      "$or": [
-        {
-          "user_condition": {
-            "role": "admin"
-          }
-        },
-        {
-          "user_condition": {
-            "role": "company"
-          }
-        },
-        {
-          "user_condition": {
-            "role": "staff"
-          }
-        },
-        {
-          "user_condition": {
-            "role": "passenger"
-          }
-        },
-        {
-          "user_condition": {
-            "role": "driver"
-          }
-        },
-        {
-          "user_condition": {
-            "role": "mechanic"
-          }
-        }
-      ]
+      "user_condition": {
+        "role": "admin"
+      }
     },
     "create": {
       "user_condition": {

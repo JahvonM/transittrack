@@ -45,28 +45,9 @@
   ],
   "rls": {
     "read": {
-      "$or": [
-        {
-          "user_condition": {
-            "role": "admin"
-          }
-        },
-        {
-          "$and": [
-            {
-              "user_condition": {
-                "role": "company"
-              }
-            },
-            {
-              "data.company_id": "{{user.data.company_id}}"
-            }
-          ]
-        },
-        {
-          "data.driver_email": "{{user.email}}"
-        }
-      ]
+      "user_condition": {
+        "role": "admin"
+      }
     },
     "create": {
       "user_condition": {
