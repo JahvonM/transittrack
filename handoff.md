@@ -640,3 +640,42 @@ See security-tests/atomic-storage-verification.md for evidence, six precise
 platform questions and implementation routes. Questions were prepared, not sent.
 No application/schema/dependency/live-record changes or mutation probes.
 Release counts remain 21 pass / 17 fail. No tests repeated for documentation.
+
+## Boarding grant revocation follow-up — 2026-10-04 UTC
+
+New card grants bind the source identity, associated app user, protected card
+record ID (when present), card UID fingerprint and verification kind. Keypad
+grants bind source identity, associated app user and kind. No added identity
+metadata or fingerprint is returned to tablets.
+
+Before a new verified check-in, the server reads current directory assignment,
+app role and approved membership, and verifies card activity, revocation,
+expiry, company and holder against the original grant. A registered card ledger
+takes precedence over a copied legacy Contact tag. Replacing a card, deleting its
+ledger or reassigning its holder cannot preserve a new grant. Transient user reads
+fail with a server error rather than treating the outage as permanent revocation.
+Standalone legacy Contact tags remain development-compatible when no ledger
+exists; bulk migration and legacy authentication were not changed.
+
+Unbound grants issued before this update cannot authorize new verified check-ins:
+the rider must perform a fresh online lookup. Existing saved-work handling keeps
+rejected queued originals for review/export. A completed retry with the same
+request ID and payload still returns the whitelisted acknowledgement before
+eligibility revalidation, without making another write. Changed payloads keep
+their conflict response. No live grants/cards/accounts/tablets were modified
+through function calls; authorization checks are backend code changes that auto-sync.
+
+20 new unit cases cover revocation, timestamps, invalid/expired card dates,
+owner/company changes, deleted/duplicate ledgers, assignment/membership/role
+changes, replacement cards, method binding, missing grant binding, keypad
+membership, safe completed retries, transient read failure and response scrubbing.
+275 unit tests and lint pass. The strict suite is 22 pass / 16 fail of 38, exit 1.
+Fixtures now obtain real mocked lookup grants so concurrency and reuse criteria
+continue to exercise valid authorization. This adds one passing release criterion.
+The 13 prior mocked browser checks were not repeated for this backend-only change.
+
+This is authorization revalidation at request processing time, not an atomic
+revocation/write transaction. Card/member changes racing a write, single-use
+boarding grants, OTP claims, attempt limits and concurrent replay remain unresolved.
+Atomic platform questions are still prepared but unanswered; none were sent.
+No SDK upgrade, production rotation, signing changes or frontend publication.

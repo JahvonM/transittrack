@@ -5,7 +5,8 @@ criteria. The authorized remediation batch satisfied 12. Step 8 added five
 additional criteria. The notification/booking follow-up now brings the strict
 suite to 16 passing and 22 failing out of 38. The server-code issuance follow-up brings it to 21 passing and 17 failing out of 38. Step 8 audit is complete; the
 first production release remains blocked. See step8-audit.md.
-These are checks, not 17 distinct vulnerabilities.
+The boarding-grant follow-up brings the current result to 22 passing and 16 failing.
+These are checks, not 16 distinct vulnerabilities.
 
 Testing replaces the SDK with in-memory entities, fake sessions and captured
 email calls. Browser tests intercept every API request. No live API attack,
@@ -17,11 +18,11 @@ auto-sync in Base44. The frontend was not published.
 
 | Command | Result | Meaning |
 |---|---|---|
-| npm test | 255 passed | Implemented behavior and recovery regressions |
+| npm test | 275 passed | Implemented behavior and recovery regressions |
 | npm run lint | Passed | Source and tests |
 | npm run build | Passed | Frontend compiles |
 | npm run test:e2e | 13 checks passed | Mocked company/mechanic/tablet/recovery browser contracts |
-| npm run test:security:release | 21 passed, 17 failed; exits 1 | Release blockers remain |
+| npm run test:security:release | 22 passed, 16 failed; exits 1 | Release blockers remain |
 
 The strict suite uses ordinary assertions. Failures are not skipped, marked
 expected, swallowed or treated as success. GitHub Actions has a separate
@@ -81,7 +82,7 @@ reviewed/archived originals are not thinned.
 | End development ID-only authentication before production | 3 | Tokenless pre-cutoff tablets still authenticate; deliberate development exception |
 | Exclusive pairing claim | 1 | Concurrent pairing requests succeed together |
 | One-time code consumption | 1 | Interleaved consumers obtain grants from one code |
-| Boarding grant use/card revocation | 2 | Another request can reuse a grant; revoked cards still board using an earlier grant |
+| Boarding grant single use | 1 | Another request can reuse a valid grant |
 | Concurrent mechanic inspection replay | 1 | Interleaved identical IDs create duplicate result rows |
 | Concurrent check-in/shift/driver inspection/GPS | 4 | Duplicate rows and older live-position overwrite |
 | Atomic public crash email budget | 1 | Twenty interleaved reports capture twenty emails despite budget five |
@@ -104,7 +105,7 @@ These tests do not prove exhaustive security.
 | 4: pairing rules in UI | Server issuance, expiry and security-field restrictions implemented; throttle and atomic uniqueness remain |
 | 5: attempt-limit races | Unresolved; failure/success policy and backoff also need design |
 | 6: weak join codes | Server-issued twelve-character codes with expiry; multi-account budget and atomic uniqueness remain |
-| 7: OTP/grant reuse | Unresolved; completed retries must still safely acknowledge |
+| 7: OTP/grant reuse | Current card/member status rechecked and new grants bound to source identity; OTP races and grant single use remain unresolved; completed retries safely acknowledge |
 | 8: maintenance recipients | Fixed with approved membership selection; isolated email assertions pass |
 | 9: advertisement ownership/drafts | Policy decision; public reads and authorized admin/company writes retained |
 | 10: PIN reset | Fixed with credential-bound grants; old grants require online PIN unlock |
@@ -213,3 +214,42 @@ its cross-request atomicity remains unverified. No concurrency criteria were
 cleared. See atomic-storage-verification.md for exact evidence, SDK version
 boundaries, prepared platform questions and remaining recovery/uniqueness needs.
 This review changed documentation only; no live mutation probes or SDK upgrades.
+
+## Boarding grant revocation follow-up — 2026-10-04 UTC
+
+New card grants bind the source identity, associated app user, protected card
+record ID (when present), card UID fingerprint and verification kind. Keypad
+grants bind source identity, associated app user and kind. No added identity
+metadata or fingerprint is returned to tablets.
+
+Before a new verified check-in, the server reads current directory assignment,
+app role and approved membership, and verifies card activity, revocation,
+expiry, company and holder against the original grant. A registered card ledger
+takes precedence over a copied legacy Contact tag. Replacing a card, deleting its
+ledger or reassigning its holder cannot preserve a new grant. Transient user reads
+fail with a server error rather than treating the outage as permanent revocation.
+Standalone legacy Contact tags remain development-compatible when no ledger
+exists; bulk migration and legacy authentication were not changed.
+
+Unbound grants issued before this update cannot authorize new verified check-ins:
+the rider must perform a fresh online lookup. Existing saved-work handling keeps
+rejected queued originals for review/export. A completed retry with the same
+request ID and payload still returns the whitelisted acknowledgement before
+eligibility revalidation, without making another write. Changed payloads keep
+their conflict response. No live grants/cards/accounts/tablets were modified
+through function calls; authorization checks are backend code changes that auto-sync.
+
+20 new unit cases cover revocation, timestamps, invalid/expired card dates,
+owner/company changes, deleted/duplicate ledgers, assignment/membership/role
+changes, replacement cards, method binding, missing grant binding, keypad
+membership, safe completed retries, transient read failure and response scrubbing.
+275 unit tests and lint pass. The strict suite is 22 pass / 16 fail of 38, exit 1.
+Fixtures now obtain real mocked lookup grants so concurrency and reuse criteria
+continue to exercise valid authorization. This adds one passing release criterion.
+The 13 prior mocked browser checks were not repeated for this backend-only change.
+
+This is authorization revalidation at request processing time, not an atomic
+revocation/write transaction. Card/member changes racing a write, single-use
+boarding grants, OTP claims, attempt limits and concurrent replay remain unresolved.
+Atomic platform questions are still prepared but unanswered; none were sent.
+No SDK upgrade, production rotation, signing changes or frontend publication.
