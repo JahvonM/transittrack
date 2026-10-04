@@ -61,10 +61,12 @@ export default async function(req) {
   }
   if (!(await reserveAttempt(base44, 'company-code:' + user.id, 5, 15 * 60_000))) return Response.json({ error: 'Too many attempts. Try again in 15 minutes.' }, { status: 429 });
   const code = typeof body.code === 'string' ? body.code.trim().toUpperCase() : '';
-  if (!/^[A-Z0-9]{4,12}$/.test(code)) return Response.json({ error: 'Invalid company code' }, { status: 403 });
+  if (!/^[A-Z0-9]{12}$/.test(code)) return Response.json({ error: 'Invalid company code' }, { status: 403 });
   const rows = await base44.asServiceRole.entities.Company.filter({ access_code: code }, '-created_date', 2);
   if (rows.length !== 1) return Response.json({ error: 'Invalid company code' }, { status: 403 });
-  const company = rows[0], grant = randomSecret();
+  const company = rows[0];
+  if(!(Date.parse(company.access_code_expires_at)>Date.now()))return Response.json({error:'Company join code expired; request a new code'},{status:403});
+  const grant = randomSecret();
   const expiresAt=new Date(Date.now()+30*86400_000).toISOString();
   await base44.asServiceRole.entities.CompanyAccessGrant.create({ user_id: user.id, company_id: company.id, token_hash: await hashSecret(grant), code_hash: await hashSecret(code), expires_at: expiresAt });
   await recordPassengerMembership(base44,user,company,await hashSecret(code),expiresAt);
