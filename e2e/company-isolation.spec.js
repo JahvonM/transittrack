@@ -111,7 +111,7 @@ async function passengerShowcase(page, { stale = false, light = false } = {}) {
     localStorage.setItem('tt_company_access_grant','a'.repeat(64));
     localStorage.setItem('tt_staff_pickup','Grand Anse');
     localStorage.setItem('tt-map-engine','basic');
-    localStorage.setItem('tt_theme',light ? 'light' : 'dark');
+    localStorage.setItem('tt-theme-v2',light ? 'light' : 'dark');
   }, {light});
   const passenger={id:'caller',role:'staff',email:'caller@test.local',full_name:'Test Passenger',company_id:'a',favorite_stop:'Grand Anse'};
   const stops=[{name:"St. George's",lat:12.05,lng:-61.75,order:0},{name:'True Blue',lat:12.02,lng:-61.76,order:1},{name:'Grand Anse',lat:12.01,lng:-61.77,order:2},{name:'Morne Rouge',lat:12,lng:-61.78,order:3}];
@@ -147,6 +147,7 @@ test('approved passenger layout preserves live map and timeline on desktop',asyn
 test('approved passenger mobile layout keeps four navigation items and more menu',async({page})=>{
   await page.setViewportSize({width:390,height:844});
   await passengerShowcase(page,{light:true});
+  await expect(page.locator('html')).toHaveClass(/light/);
   const nav=page.getByRole('navigation',{name:'Passenger sections'});
   for(const name of ['Home','Map','Buses','More'])await expect(nav.getByRole('button',{name,exact:true})).toBeVisible();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);

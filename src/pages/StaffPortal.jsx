@@ -331,7 +331,7 @@ export default function StaffPortal() {
     [trips, pickupName]
   );
 
-  const otherBuses = locatedVehicles.filter((v) => v.id !== approaching?.v?.id);
+  const otherBuses = hash === "#passenger-buses" ? locatedVehicles : locatedVehicles.filter((v) => v.id !== approaching?.v?.id);
 
   if (user?.role === "driver") return <Navigate to="/driver" replace />;
   if (user?.role === "company") return <Navigate to="/company" replace />;

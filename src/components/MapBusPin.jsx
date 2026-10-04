@@ -135,5 +135,13 @@ export function Vehicle3D({ model = "city_bus", kind, heading = 0, color = "#C8F
 // Map pin: the vehicle's chosen 3D model pointing where it's heading, with a
 // status-coloured glow (pulsing while on a trip).
 export default function MapBusPin({ color, driving = false, alert = false, heading = 0, model = "city_bus", kind }) {
+  if (model === "city_bus" && kind !== "taxi") return <div className="relative" style={{width:82,height:82}}>
+    <span className="absolute inset-2 rounded-full" style={{background:`radial-gradient(ellipse, ${color}55, transparent 70%)`}} />
+    <div className="absolute inset-0" style={{transform:`rotate(${heading}deg)`,transition:"transform 1.2s ease-out"}}>
+      <span className="absolute top-0 left-1/2 -translate-x-1/2" style={{width:0,height:0,borderLeft:"5px solid transparent",borderRight:"5px solid transparent",borderBottom:`8px solid ${color}`}} />
+    </div>
+    <img src="/images/transit-bus-3d.webp" alt="" aria-hidden="true" className={`absolute inset-0 w-full h-full object-contain drop-shadow-lg ${driving ? "tt-bus-bob" : ""}`} />
+    {alert && <span className="absolute inset-2 rounded-full border-2 animate-ping" style={{borderColor:color}} />}
+  </div>;
   return <Vehicle3D model={model} kind={kind} heading={heading} color={color} driving={driving} alert={alert} />;
 }
