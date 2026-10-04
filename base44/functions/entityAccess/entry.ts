@@ -120,6 +120,7 @@ async function prepare(db,ctx,name,input,existing=null) {
   }
   data.sender_role=user.role;data.sender_name=user.full_name||user.email;data.sender_id=user.id;data.sender_email=user.email;
  }
+ if(name==='Company' && !existing && user.role==='admin') return data;
  const combined={...existing,...data};
  let tenant=await tenantOf(db,name,combined);
  if(COMPANY_ENTITIES.has(name) || name==='Company') {

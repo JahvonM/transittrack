@@ -1,5 +1,14 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 
+async function approvedCompanies(base44, user, scope) {
+  const rows = await base44.asServiceRole.entities.CompanyMembership.filter({ user_id: user.id, active: true }, '-updated_date', 100);
+  return rows.filter(r => r.scope === (scope || (user.role === 'company' ? 'manager' : 'passenger'))).map(r => r.company_id);
+}
+async function approvedStaffIds(base44, companyId) {
+  const rows = await base44.asServiceRole.entities.CompanyMembership.filter({ company_id: companyId, active: true, scope: 'passenger' }, '-updated_date', 5000);
+  return new Set(rows.map(r => r.user_id));
+}
+
 export default async function(req) {
   try {
     const base44 = createClientFromRequest(req);
@@ -9,10 +18,13 @@ export default async function(req) {
       return Response.json({ error: 'Forbidden' }, { status: 403 });
     }
 
+    const approved = await approvedCompanies(base44, user);
+    if (user.role === 'company' && !approved.length) return Response.json({ error: 'Approved company membership required' }, { status: 403 });
+    const scope = user.role === 'admin' ? {} : { company_id: { $in: approved } };
     const [vehicles, trips, broadcasts] = await Promise.all([
-      base44.entities.Vehicle.list(),
-      base44.entities.Trip.list(),
-      base44.entities.Broadcast.list(),
+      base44.asServiceRole.entities.Vehicle.filter(scope),
+      base44.asServiceRole.entities.Trip.filter(scope),
+      base44.asServiceRole.entities.Broadcast.filter(scope),
     ]);
 
     const now = new Date().toISOString();

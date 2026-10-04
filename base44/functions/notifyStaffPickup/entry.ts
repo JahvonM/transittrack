@@ -1,4 +1,13 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
+
+async function approvedCompanies(base44, user, scope) {
+  const rows = await base44.asServiceRole.entities.CompanyMembership.filter({ user_id: user.id, active: true }, '-updated_date', 100);
+  return rows.filter(r => r.scope === (scope || (user.role === 'company' ? 'manager' : 'passenger'))).map(r => r.company_id);
+}
+async function approvedStaffIds(base44, companyId) {
+  const rows = await base44.asServiceRole.entities.CompanyMembership.filter({ company_id: companyId, active: true, scope: 'passenger' }, '-updated_date', 5000);
+  return new Set(rows.map(r => r.user_id));
+}
 import { secrets } from 'base44:runtime';
 
 // --- Firebase Cloud Messaging (push) helpers ---
@@ -86,7 +95,7 @@ export default async function(req) {
     // Authorization: the caller may only notify about a vehicle they operate.
     const isAuthorized =
       user.role === 'admin' ||
-      (user.role === 'company' && vehicle.company_id === user.company_id) ||
+      (user.role === 'company' && (await approvedCompanies(base44, user)).includes(vehicle.company_id)) ||
       (user.role === 'driver' && vehicle.driver_email === user.email);
     if (!isAuthorized) return Response.json({ error: 'Forbidden' }, { status: 403 });
 
@@ -98,14 +107,7 @@ export default async function(req) {
     } catch {
       /* tolerate lookup errors — SendEmail still enforces delivery rules */
     }
-    if (
-      recipient &&
-      recipient.company_id &&
-      vehicle.company_id &&
-      recipient.company_id !== vehicle.company_id
-    ) {
-      return Response.json({ error: 'Recipient not in your company' }, { status: 403 });
-    }
+    if (!recipient || !(await approvedCompanies(base44, recipient, 'passenger')).includes(vehicle.company_id)) return Response.json({ error: 'Recipient not in your company' }, { status: 403 });
 
     const vehicleName = sanitize(vehicle.name);
     const driverName = sanitize(vehicle.driver_name);

@@ -1,5 +1,14 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 
+async function approvedCompanies(base44, user, scope) {
+  const rows = await base44.asServiceRole.entities.CompanyMembership.filter({ user_id: user.id, active: true }, '-updated_date', 100);
+  return rows.filter(r => r.scope === (scope || (user.role === 'company' ? 'manager' : 'passenger'))).map(r => r.company_id);
+}
+async function approvedStaffIds(base44, companyId) {
+  const rows = await base44.asServiceRole.entities.CompanyMembership.filter({ company_id: companyId, active: true, scope: 'passenger' }, '-updated_date', 5000);
+  return new Set(rows.map(r => r.user_id));
+}
+
 // Staff NFC card issuing (Admin → Card issuing). Cards are identified by the
 // chip's built-in ID (UID), which is what the bus boarding kiosks already
 // match on, so an issued card works for check-in straight away.
@@ -67,9 +76,11 @@ async function loadPeople(base44, companyFilter) {
   for (const u of users) {
     if (u.role !== 'mechanic' || !inCompany(u.company_id)) continue;
     people.push({ source: 'user', id: u.id, type: 'mechanic', role: 'Mechanic', name: u.full_name || u.email, email: u.email || '',
-      employee_id: u.employee_id || '', company_id: u.company_id || '', company_name: '', assigned_vehicle: '', legacy_tag: u.nfc_tag_id || '' });
+      employee_id: u.employee_id || '', company_id: u.company_id || '', company_name: '', assigned_vehicle: '', legacy_tag: '' });
   }
-  const staffUsers = new Map(users.filter((u) => u.role === 'staff').map((u) => [(u.email || '').toLowerCase(), u]));
+  const memberships = await sr.CompanyMembership.filter({ active: true, scope: 'passenger' }, '-updated_date', 5000);
+  const trustedUsers = users.map(u => ({ ...u, company_id: memberships.find(m => m.user_id === u.id)?.company_id || '' }));
+  const staffUsers = new Map(trustedUsers.filter((u) => u.role === 'staff').map((u) => [(u.email || '').toLowerCase(), u]));
   const contactEmails = new Set();
   for (const c of contacts) {
     if (!inCompany(c.company_id)) continue;
@@ -79,13 +90,13 @@ async function loadPeople(base44, companyFilter) {
     people.push({ source: 'contact', id: c.id, type: 'staff', role: 'Staff', name: c.name || u.full_name || 'Staff', email: c.email || '',
       employee_id: c.employee_id || u.employee_id || '', company_id: c.company_id || '', company_name: c.company_name || '',
       vehicle_id: c.vehicle_id || '', assigned_vehicle: (c.vehicle_id && vehicleName.get(c.vehicle_id)) || c.vehicle_name || '',
-      legacy_tag: c.nfc_card_tag || u.nfc_tag_id || '', access_code: c.access_code || u.access_code || '' });
+      legacy_tag: c.nfc_card_tag || '', access_code: c.access_code || '' });
   }
   for (const [email, u] of staffUsers) {
     if (contactEmails.has(email) || !inCompany(u.company_id)) continue;
     people.push({ source: 'user', id: u.id, type: 'staff', role: 'Staff', name: u.full_name || u.email, email: u.email || '',
-      employee_id: u.employee_id || '', company_id: u.company_id || '', company_name: '', assigned_vehicle: '', legacy_tag: u.nfc_tag_id || '',
-      access_code: u.access_code || '' });
+      employee_id: u.employee_id || '', company_id: u.company_id || '', company_name: '', assigned_vehicle: '', legacy_tag: '',
+      access_code: '' });
   }
   for (const h of holders) {
     if (!inCompany(h.company_id)) continue;
@@ -172,7 +183,9 @@ export default async function (req) {
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me().catch(() => null);
     if (!user || !['admin', 'company'].includes(user.role)) return Response.json({ error: 'Admins only' }, { status: 403 });
-    const companyFilter = user.role === 'company' ? (user.company_id || '__none__') : null;
+    const approved = await approvedCompanies(base44, user);
+    if (user.role === 'company' && approved.length !== 1) return Response.json({ error: 'Approved company membership required' }, { status: 403 });
+    const companyFilter = user.role === 'company' ? approved[0] : null;
     const operator = user.full_name || user.email || 'Operator';
     const body = await req.json().catch(() => ({}));
     const sr = base44.asServiceRole.entities;
@@ -189,6 +202,7 @@ export default async function (req) {
         if (!person) return Response.json({ ok: false, code: 'no_person', error: 'Pick a person first.' }, { status: 404 });
 
         const owner = await findOwner(base44, uid);
+        if (owner && companyFilter && (!owner.card || owner.card.company_id !== companyFilter)) return Response.json({ error: 'Card is already assigned' }, { status: 409 });
         if (owner) {
           const same = owner.key === person.key;
           const msg = same ? `This card is already ${person.name}'s card.` : `Card ${uid} is already assigned to ${owner.name}.`;
@@ -225,6 +239,7 @@ export default async function (req) {
       case 'verify': {
         const uid = normalizeUid(body.uid);
         const owner = uid ? await findOwner(base44, uid) : null;
+        if (owner && companyFilter && (!owner.card || owner.card.company_id !== companyFilter)) return Response.json({ error: 'Card is outside your company' }, { status: 403 });
         await audit(base44, user, { action: 'card_verified', card_uid: uid, status: owner ? 'SUCCESS' : 'ERROR', summary: owner ? `Checked card ${uid}: ${owner.name}` : `Checked card ${uid}: not issued` });
         return Response.json({ ok: true, uid, owner: owner ? { key: owner.key, name: owner.name, card: owner.card || null } : null });
       }

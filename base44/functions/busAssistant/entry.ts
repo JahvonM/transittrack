@@ -1,5 +1,14 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 
+async function approvedCompanies(base44, user, scope) {
+  const rows = await base44.asServiceRole.entities.CompanyMembership.filter({ user_id: user.id, active: true }, '-updated_date', 100);
+  return rows.filter(r => r.scope === (scope || (user.role === 'company' ? 'manager' : 'passenger'))).map(r => r.company_id);
+}
+async function approvedStaffIds(base44, companyId) {
+  const rows = await base44.asServiceRole.entities.CompanyMembership.filter({ company_id: companyId, active: true, scope: 'passenger' }, '-updated_date', 5000);
+  return new Set(rows.map(r => r.user_id));
+}
+
 export default async function(req) {
   try {
     const base44 = createClientFromRequest(req);
@@ -9,12 +18,11 @@ export default async function(req) {
     const { question, company_id, user_lat, user_lng } = body || {};
     if (!question) return Response.json({ error: 'Question required' }, { status: 400 });
 
-    const vehicles = company_id
-      ? await base44.entities.Vehicle.filter({ company_id })
-      : await base44.entities.Vehicle.list();
-    const routes = company_id
-      ? await base44.entities.Route.filter({ company_id })
-      : await base44.entities.Route.list();
+    const approved = await approvedCompanies(base44, user);
+    if (user.role !== 'admin' && (!company_id || !approved.includes(company_id))) return Response.json({ error: 'Company access denied' }, { status: 403 });
+    const scope = company_id ? { company_id } : {};
+    const vehicles = await base44.asServiceRole.entities.Vehicle.filter(scope);
+    const routes = await base44.asServiceRole.entities.Route.filter(scope);
 
     const live = vehicles.filter((v) => v.current_lat != null && v.status !== 'offline');
     const context = {

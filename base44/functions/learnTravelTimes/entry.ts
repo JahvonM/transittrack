@@ -182,12 +182,9 @@ export default async function (req) {
     const base44 = createClientFromRequest(req);
     let body = {};
     try { body = await req.json(); } catch { /* no body (scheduled run) */ }
-    let isAdmin = false;
-    try {
-      const user = await base44.auth.me();
-      if (user && user.role !== 'admin') return Response.json({ error: 'Admins only' }, { status: 403 });
-      isAdmin = user?.role === 'admin';
-    } catch { /* scheduled run, no user */ }
+    const currentUser = await base44.auth.me().catch(() => null);
+    if (!currentUser || !['admin'].includes(currentUser.role)) return Response.json({ error: 'Authorized account required; anonymous scheduling disabled' }, { status: 401 });
+    const isAdmin = currentUser.role === 'admin';
     if (!(await claimRun(base44, 'learnTravelTimes', 10 * 60 * 1000, isAdmin))) {
       return Response.json({ ok: true, skipped: 'Ran less than 10 minutes ago' });
     }

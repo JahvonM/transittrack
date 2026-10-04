@@ -1,4 +1,13 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
+
+async function approvedCompanies(base44, user, scope) {
+  const rows = await base44.asServiceRole.entities.CompanyMembership.filter({ user_id: user.id, active: true }, '-updated_date', 100);
+  return rows.filter(r => r.scope === (scope || (user.role === 'company' ? 'manager' : 'passenger'))).map(r => r.company_id);
+}
+async function approvedStaffIds(base44, companyId) {
+  const rows = await base44.asServiceRole.entities.CompanyMembership.filter({ company_id: companyId, active: true, scope: 'passenger' }, '-updated_date', 5000);
+  return new Set(rows.map(r => r.user_id));
+}
 // Random device credentials are stored only as hashes in protected DeviceCredential.
 // Existing development tablets remain legacy-compatible until explicitly re-paired.
 const LEGACY_DEVICE_CUTOFF = Date.parse('2026-10-03T23:35:39Z');
@@ -46,12 +55,13 @@ async function resolveKioskDevice(base44, deviceId, token) {
 // device's company. Badge/QR check-in matches against nfc_tag_id /
 // nfc_card_tag on whichever record represents that person.
 async function loadStaffDirectory(base44, companyId) {
+  const approvedIds = await approvedStaffIds(base44, companyId);
   const [users, contacts] = await Promise.all([
     base44.asServiceRole.entities.User.list(),
     base44.asServiceRole.entities.Contact.filter({ type: 'staff' }, '-updated_date', 500),
   ]);
   const userByEmail = new Map(
-    users.filter((u) => u.role === 'staff' && u.company_id === companyId)
+    users.filter((u) => u.role === 'staff' && approvedIds.has(u.id))
       .map((u) => [(u.email || '').toLowerCase(), u])
   );
   const companyContacts = contacts.filter((c) => c.company_id === companyId);
@@ -63,16 +73,16 @@ async function loadStaffDirectory(base44, companyId) {
       return {
         source: 'contact', id: c.id, full_name: c.name || u.full_name || 'Staff',
         email: c.email || u.email || '', photo_url: u.photo_url || '',
-        nfc_tag: c.nfc_card_tag || u.nfc_tag_id || '',
-        access_code: c.access_code || u.access_code || '',
+        nfc_tag: c.nfc_card_tag || '',
+        access_code: c.access_code || '',
         one_time_code: u.one_time_code || '', one_time_code_expires_at: u.one_time_code_expires_at || null,
         vehicle_id: c.vehicle_id || '', vehicle_name: c.vehicle_name || '',
       };
     }),
     ...orphanUsers.map((u) => ({
       source: 'user', id: u.id, full_name: u.full_name || u.email || 'Staff',
-      email: u.email || '', photo_url: u.photo_url || '', nfc_tag: u.nfc_tag_id || '',
-      access_code: u.access_code || '',
+      email: u.email || '', photo_url: u.photo_url || '', nfc_tag: '',
+      access_code: '',
       one_time_code: u.one_time_code || '', one_time_code_expires_at: u.one_time_code_expires_at || null,
       vehicle_id: '', vehicle_name: '',
     })),

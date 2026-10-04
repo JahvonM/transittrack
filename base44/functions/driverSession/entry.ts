@@ -1,4 +1,13 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
+
+async function approvedCompanies(base44, user, scope) {
+  const rows = await base44.asServiceRole.entities.CompanyMembership.filter({ user_id: user.id, active: true }, '-updated_date', 100);
+  return rows.filter(r => r.scope === (scope || (user.role === 'company' ? 'manager' : 'passenger'))).map(r => r.company_id);
+}
+async function approvedStaffIds(base44, companyId) {
+  const rows = await base44.asServiceRole.entities.CompanyMembership.filter({ company_id: companyId, active: true, scope: 'passenger' }, '-updated_date', 5000);
+  return new Set(rows.map(r => r.user_id));
+}
 // Random device credentials are stored only as hashes in protected DeviceCredential.
 // Existing development tablets remain legacy-compatible until explicitly re-paired.
 const LEGACY_DEVICE_CUTOFF = Date.parse('2026-10-03T23:35:39Z');
@@ -107,7 +116,8 @@ async function notifyStopAhead(base44, route, departedName, vehicle, companyId) 
   const next = idx >= 0 ? route.stops[idx + 1] : null;
   if (!next?.name) return;
   const users = await base44.asServiceRole.entities.User.filter({ favorite_stop: next.name, stop_alerts: true });
-  const emails = users.filter((u) => u.company_id === companyId && u.email).map((u) => u.email);
+  const approvedIds = await approvedStaffIds(base44, companyId);
+  const emails = users.filter((u) => approvedIds.has(u.id) && u.email).map((u) => u.email);
   if (!emails.length) return;
   const tokenLists = await Promise.all(emails.map((email) => base44.asServiceRole.entities.PushToken.filter({ email })));
   const tokens = [...new Set(tokenLists.flat().map((t) => t.token))];
@@ -148,12 +158,13 @@ async function loadVehicle(base44, vehicleId) {
 const flagActive = (on, until) => !!on && !!until && new Date(until).getTime() > Date.now();
 
 async function loadStaff(base44, companyId) {
+  const approvedIds = await approvedStaffIds(base44, companyId);
   const [users, contacts] = await Promise.all([
     base44.asServiceRole.entities.User.list(),
     base44.asServiceRole.entities.Contact.filter({ type: 'staff' }, '-updated_date', 500),
   ]);
   const userByEmail = new Map(
-    users.filter((u) => u.role === 'staff' && u.company_id === companyId)
+    users.filter((u) => u.role === 'staff' && approvedIds.has(u.id))
       .map((u) => [(u.email || '').toLowerCase(), u])
   );
   const companyContacts = contacts.filter((c) => c.company_id === companyId);
@@ -961,7 +972,7 @@ export default async function(req) {
           const matches = await base44.asServiceRole.entities.User.filter({ email: to });
           recipient = Array.isArray(matches) ? matches[0] : matches;
         } catch { /* tolerate */ }
-        if (!recipient || !recipient.company_id || recipient.company_id !== (vehicle.company_id || companyId))
+        if (!recipient || !(await approvedCompanies(base44, recipient, 'passenger')).includes(vehicle.company_id || companyId))
           return Response.json({ error: 'Recipient not in your company' }, { status: 403 });
         const subject = `Your bus is approaching — ${sanitize(vehicle.name)}`;
         const msg = `Hello,\n\n${sanitize(vehicle.name)}${sanitize(vehicle.driver_name) ? ` (driver ${sanitize(vehicle.driver_name)})` : ''} is near your pickup location${sanitize(vehicle.company_name) ? ` for ${sanitize(vehicle.company_name)}` : ''} and will arrive shortly. Please get ready to board.\n\n— TransitTrack`;

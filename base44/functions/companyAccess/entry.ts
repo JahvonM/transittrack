@@ -55,7 +55,12 @@ export default async function(req) {
   if (rows.length !== 1) return Response.json({ error: 'Invalid company code' }, { status: 403 });
   const company = rows[0], grant = randomSecret();
   await base44.asServiceRole.entities.CompanyAccessGrant.create({ user_id: user.id, company_id: company.id, token_hash: await hashSecret(grant), code_hash: await hashSecret(code), expires_at: new Date(Date.now()+30*86400_000).toISOString() });
-  // Passenger fleet access is not an ownership, role or trusted membership change.
+  if (user.role === 'staff') {
+   const previous = await base44.asServiceRole.entities.CompanyMembership.filter({ user_id: user.id, scope: 'passenger' }, '-updated_date', 100);
+   for (const row of previous) await base44.asServiceRole.entities.CompanyMembership.update(row.id, { active: false });
+   await base44.asServiceRole.entities.CompanyMembership.create({ user_id: user.id, company_id: company.id, scope: 'passenger', active: true });
+  }
+  // Verified passenger access never grants manager scope, ownership or a role.
   return Response.json({ company: displayCompany(company), grant });
  } catch { return Response.json({ error: 'Could not verify company access' }, { status: 500 }); }
 }

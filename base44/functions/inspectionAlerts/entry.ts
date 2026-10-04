@@ -41,14 +41,9 @@ export default async function (req) {
     const base44 = createClientFromRequest(req);
 
     // Soft guard for direct HTTP invocation; scheduled runs have no user.
-    let isAdmin = false;
-    try {
-      const currentUser = await base44.auth.me();
-      isAdmin = currentUser?.role === 'admin';
-      if (currentUser && currentUser.role && !['admin', 'mechanic'].includes(currentUser.role)) {
-        return Response.json({ error: 'Forbidden' }, { status: 403 });
-      }
-    } catch { /* scheduled run, no user — proceed */ }
+    const currentUser = await base44.auth.me().catch(() => null);
+    if (!currentUser || !['admin', 'mechanic'].includes(currentUser.role)) return Response.json({ error: 'Authorized account required; anonymous scheduling disabled' }, { status: 401 });
+    const isAdmin = currentUser.role === 'admin';
     if (!(await claimRun(base44, 'inspectionAlerts', 20 * 60 * 60 * 1000, isAdmin))) {
       return Response.json({ ok: true, skipped: 'already ran recently' });
     }
