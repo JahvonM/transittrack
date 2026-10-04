@@ -1,3 +1,5 @@
+import CardIssuingTab from "@/components/admin/CardIssuingTab";
+import CardDesignerTab from "@/components/admin/CardDesignerTab";
 import AdsTab from "@/components/admin/AdsTab";
 import React, { Suspense, lazy, useEffect, useState } from "react";
 import { Navigate, useParams, useNavigate, Link } from "react-router-dom";
@@ -123,6 +125,8 @@ export default function CompanyDashboard() {
           <TabsTrigger value="vehicles" className={TAB}><Bus className="mr-1.5 h-4 w-4" />Vehicles ({vehicles.length})</TabsTrigger>
           <TabsTrigger value="routes" className={TAB}><RouteIcon className="mr-1.5 h-4 w-4" />Routes ({routes.length})</TabsTrigger>
           <TabsTrigger value="trips" className={TAB}><MapPin className="mr-1.5 h-4 w-4" />Trips ({trips.length})</TabsTrigger>
+          <TabsTrigger value="cards" className={TAB}>NFC cards</TabsTrigger>
+          <TabsTrigger value="card-designs" className={TAB}>Card designer</TabsTrigger>
           <TabsTrigger value="ads" className={TAB}>Advertisements</TabsTrigger>
           <TabsTrigger value="profile" className={TAB}><User className="mr-1.5 h-4 w-4" />Profile</TabsTrigger>
         </TabsList>
@@ -135,6 +139,8 @@ export default function CompanyDashboard() {
         <TabsContent value="trips" className="mt-4">
           <TripsTab trips={trips} vehicles={vehicles} onChange={loadAll} />
         </TabsContent>
+        <TabsContent value="cards" className="mt-4"><NestedPage><CardIssuingTab companies={[company]} /></NestedPage></TabsContent>
+        <TabsContent value="card-designs" className="mt-4"><NestedPage><CardDesignerTab /></NestedPage></TabsContent>
         <TabsContent value="ads" className="mt-4"><NestedPage><AdsTab companyId={company.id} /></NestedPage></TabsContent>
         <TabsContent value="profile" className="mt-4">
           <div className="max-w-xl">

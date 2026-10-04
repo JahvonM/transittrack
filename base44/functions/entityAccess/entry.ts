@@ -148,6 +148,14 @@ async function prepare(db,ctx,name,input,existing=null) {
  }
  if (user.role==='company' && !ctx.companies.length) fail(403,'Approved company membership required');
  if (name==='User') {
+  for(const [field,min,max] of [['pickup_lat',-90,90],['pickup_lng',-180,180]]) {
+   if(Object.hasOwn(data,field) && (!Number.isFinite(data[field]) || data[field]<min || data[field]>max))fail(400,'Invalid pickup coordinate');
+  }
+  if(Object.hasOwn(data,'pickup_lat')!==Object.hasOwn(data,'pickup_lng'))fail(400,'Pickup coordinates must be supplied together');
+  if(data.pickup_route_id) {
+   const route=await db.Route.get(data.pickup_route_id).catch(()=>null);
+   if(!route || (user.role!=='admin'&&!ctx.companies.includes(route.company_id)))fail(403,'Approved company route required');
+  }
   if (user.role !== 'admin') {
    if (!existing || existing.id!==user.id || Object.keys(data).some(k=>!PROFILE_FIELDS.has(k))) fail(403,'Profile fields only');
   } else if(data.role && !['admin','company','mechanic','driver','staff','passenger'].includes(data.role)) fail(400,'Invalid role');

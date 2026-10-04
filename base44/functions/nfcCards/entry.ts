@@ -107,7 +107,7 @@ async function loadPeople(base44, companyFilter) {
     const u = candidate?.company_id === c.company_id ? candidate : {};
     people.push({ source: 'contact', id: c.id, type: 'staff', directory_type: c.type || 'passenger', role: 'Staff', name: c.name || u.full_name || 'Staff', email: c.email || '',
       employee_id: c.employee_id || u.employee_id || '', company_id: c.company_id || '', company_name: c.company_name || '', phone: c.phone || u.phone || '', photo_url: u.photo_url || '', registered: !!u.id,
-      pickup_name: c.pickup_name || u.pickup_name || '', pickup_lat: c.pickup_lat ?? u.pickup_lat, pickup_lng: c.pickup_lng ?? u.pickup_lng,
+      pickup_name: c.pickup_name || u.pickup_name || '', pickup_lat: c.pickup_lat ?? u.pickup_lat, pickup_lng: c.pickup_lng ?? u.pickup_lng, dropoff_name: c.dropoff_name || '', dropoff_lat: c.dropoff_lat, dropoff_lng: c.dropoff_lng,
       vehicle_id: c.vehicle_id || '', assigned_vehicle: (c.vehicle_id && vehicleName.get(c.vehicle_id)) || c.vehicle_name || '',
       legacy_tag: c.nfc_card_tag || '', access_code: c.access_code || '' });
   }
@@ -237,7 +237,7 @@ export default async function (req) {
         return Response.json(await loadPeople(base44, companyFilter));
       case 'directory': {
         const { people } = await loadPeople(base44, companyFilter);
-        const fields = ['key','source','id','name','email','phone','photo_url','company_id','company_name','employee_id','vehicle_id','assigned_vehicle','pickup_name','pickup_lat','pickup_lng','registered','status','directory_type'];
+        const fields = ['key','source','id','name','email','phone','photo_url','company_id','company_name','employee_id','vehicle_id','assigned_vehicle','pickup_name','pickup_lat','pickup_lng','registered','status','directory_type','dropoff_name','dropoff_lat','dropoff_lng'];
         return Response.json({ people: people.filter(p => p.type === 'staff').map(p => Object.fromEntries(fields.filter(k => p[k] !== undefined).map(k => [k,p[k]]))) });
       }
 
