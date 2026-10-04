@@ -264,13 +264,14 @@ export default function FloatingMessages({ vehicles = [] }) {
         </div>
       )}
       <Button
-        className="fixed bottom-24 right-4 z-50 rounded-full h-14 w-14 shadow-lg relative"
+        className="fixed bottom-24 right-4 z-50 h-14 w-14 rounded-full border border-border bg-card text-foreground shadow-lg hover:bg-accent"
         size="icon"
         onClick={() => setOpen(!open)}
+        aria-label={open ? "Close messages" : `Messages${totalUnread ? `, ${totalUnread} unread` : ""}`}
       >
         {open ? <X className="w-5 h-5" /> : <MessageCircle className="w-5 h-5" />}
         {!open && totalUnread > 0 && (
-          <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-destructive text-destructive-foreground text-[11px] font-semibold grid place-items-center">
+          <span className="absolute -top-1 -right-1 grid h-5 w-5 place-items-center rounded-full bg-danger text-caption font-semibold text-danger-foreground" aria-hidden="true">
             {totalUnread}
           </span>
         )}

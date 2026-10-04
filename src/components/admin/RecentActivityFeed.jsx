@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { base44 } from "@/api/base44Client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertTriangle, Siren, CheckCircle2, Wrench } from "lucide-react";
 import BusLoader from "@/components/BusLoader";
 
@@ -16,10 +15,10 @@ function timeAgo(iso) {
 }
 
 const EVENT_META = {
-  fault: { icon: AlertTriangle, iconClass: "text-destructive", bgClass: "bg-destructive/10" },
-  sos: { icon: Siren, iconClass: "text-destructive", bgClass: "bg-destructive/10" },
-  incident: { icon: Wrench, iconClass: "text-amber-600", bgClass: "bg-amber-500/10" },
-  trip_completed: { icon: CheckCircle2, iconClass: "text-emerald-600", bgClass: "bg-emerald-500/10" },
+  fault: { icon: AlertTriangle, iconClass: "text-danger", bgClass: "bg-danger/12" },
+  sos: { icon: Siren, iconClass: "text-danger", bgClass: "bg-danger/12" },
+  incident: { icon: Wrench, iconClass: "text-warning", bgClass: "bg-warning/12" },
+  trip_completed: { icon: CheckCircle2, iconClass: "text-success", bgClass: "bg-success/12" },
 };
 
 // Live-updating cross-entity timeline for the admin overview — faults,
@@ -91,14 +90,12 @@ export default function RecentActivityFeed({ onNavigate }) {
   }, [faults, incidents, trips]);
 
   return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-base">Recent activity</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-1 max-h-[360px] overflow-y-auto">
+    <section className="flex min-w-0 flex-col rounded-2xl border border-border bg-card" aria-label="Recent activity">
+      <h2 className="px-5 pb-2 pt-4 text-title-sm font-bold">Recent activity</h2>
+      <div className="max-h-[392px] space-y-1 overflow-y-auto px-2 pb-3">
         {loading && <BusLoader className="py-8" />}
         {!loading && events.length === 0 && (
-          <p className="text-sm text-muted-foreground py-6 text-center">Nothing to show yet.</p>
+          <p className="py-6 text-center text-body-sm text-muted-foreground">Nothing to show yet.</p>
         )}
         {events.map((e) => {
           const meta = EVENT_META[e.type] || EVENT_META.fault;
@@ -106,21 +103,22 @@ export default function RecentActivityFeed({ onNavigate }) {
           return (
             <button
               key={e.key}
+              type="button"
               onClick={() => onNavigate(e.nav)}
-              className="w-full flex items-center gap-3 p-2.5 rounded-lg hover:bg-accent transition-colors text-left animate-in fade-in slide-in-from-top-1 duration-300"
+              className="flex min-h-[52px] w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors hover:bg-accent/60"
             >
-              <div className={`w-8 h-8 rounded-lg grid place-items-center shrink-0 ${meta.bgClass}`}>
-                <Icon className={`w-4 h-4 ${meta.iconClass}`} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">{e.title}</p>
-                {e.subtitle && <p className="text-xs text-muted-foreground truncate">{e.subtitle}</p>}
-              </div>
-              <span className="text-xs text-muted-foreground shrink-0">{timeAgo(e.time)}</span>
+              <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ${meta.bgClass}`} aria-hidden="true">
+                <Icon className={`h-4 w-4 ${meta.iconClass}`} />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate font-semibold first-letter:uppercase">{e.title}</span>
+                {e.subtitle && <span className="block truncate text-body-sm text-muted-foreground">{e.subtitle}</span>}
+              </span>
+              <span className="shrink-0 text-body-sm tabular-nums text-muted-foreground">{timeAgo(e.time)}</span>
             </button>
           );
         })}
-      </CardContent>
-    </Card>
+      </div>
+    </section>
   );
 }

@@ -86,7 +86,7 @@ export function createVehicleLayer({ id = "tt-vehicles", onFrame } = {}) {
     },
   };
 
-  // [{ id, lng, lat, heading?, modelId, stale, emphasis }]
+  // [{ id, lng, lat, heading?, modelId, stale, emphasis, alert }]
   layer.setVehicles = (list, opts = {}) => {
     const now = performance.now();
     if (opts.reduceMotion != null) reduceMotion = opts.reduceMotion;
@@ -98,18 +98,20 @@ export function createVehicleLayer({ id = "tt-vehicles", onFrame } = {}) {
       seen.add(item.id);
       const to = [item.lng, item.lat];
       let v = vehicles.get(item.id);
-      if (v && (accentChanged || v.modelId !== item.modelId || v.emphasis !== !!item.emphasis)) {
+      if (v && (accentChanged || v.modelId !== item.modelId || v.emphasis !== !!item.emphasis || v.alert !== !!item.alert)) {
         disposeVehicle(v.group);
         vehicles.delete(item.id);
         v = { ...v, rebuilt: true };
       }
       if (!vehicles.has(item.id)) {
         const group = buildVehicle(item.modelId, { accent });
-        if (item.emphasis) group.add(ringMesh(accent));
+        // Red ring for an emergency (staff views only), lime for the bus you follow.
+        if (item.alert) group.add(ringMesh("#FF5A5F"));
+        else if (item.emphasis) group.add(ringMesh(accent));
         const start = v?.current || to;
         const heading = item.heading ?? v?.heading ?? 0;
         vehicles.set(item.id, {
-          id: item.id, group, scene: makeScene(group), modelId: item.modelId, emphasis: !!item.emphasis,
+          id: item.id, group, scene: makeScene(group), modelId: item.modelId, emphasis: !!item.emphasis, alert: !!item.alert,
           from: start, to, current: start, t0: now, dur: v && !reduceMotion ? GLIDE_MS : 0,
           hFrom: heading, hTo: heading, heading,
         });

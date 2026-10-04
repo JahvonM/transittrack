@@ -2,8 +2,9 @@ import React, { Suspense, lazy, useEffect, useState } from "react";
 import { Navigate, Link, useParams, useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
-import AppLayout, { EmbeddedLayout } from "@/components/AppLayout";
+import { EmbeddedLayout } from "@/components/AppLayout";
 import AdminShell from "@/components/admin/AdminShell";
+import AdminOverview from "@/components/admin/AdminOverview";
 import AssignTripsTab from "@/components/admin/AssignTripsTab";
 import LiveFleetTab from "@/components/admin/LiveFleetTab";
 import CompletedTripsTab from "@/components/admin/CompletedTripsTab";
@@ -24,17 +25,10 @@ import MaintenanceScheduleTab from "@/components/admin/MaintenanceScheduleTab";
 import MaintenanceCalendarTab from "@/components/admin/MaintenanceCalendarTab";
 import InspectionTemplatesTab from "@/components/admin/InspectionTemplatesTab";
 import InspectionHistoryTab from "@/components/admin/InspectionHistoryTab";
-import Sparkline from "@/components/admin/Sparkline";
-import CountUp from "@/components/CountUp";
-import RecentActivityFeed from "@/components/admin/RecentActivityFeed";
-import Greeting from "@/components/Greeting";
-import MapboxMap from "@/components/MapboxMap";
 import DataTab from "@/components/admin/DataTab";
 import FloatingChatbot from "@/components/admin/FloatingChatbot";
 import FloatingMessages from "@/components/admin/FloatingMessages";
-import useUserLocation from "@/hooks/useUserLocation";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
@@ -126,17 +120,8 @@ const MGMT_LINKS = [
   { to: "/admin/support", label: "Passenger Support", icon: LifeBuoy },
 ];
 
-function Stat({ label, value }) {
-  return (
-    <div className="p-4 rounded-xl border bg-card">
-      <div className="text-2xl font-bold"><CountUp value={value} /></div>
-      <div className="text-xs text-muted-foreground">{label}</div>
-    </div>
-  );
-}
-
 export default function Admin() {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const { permission: pushPermission, enableNotifications } = usePushNotifications({ email: user?.email, role: "admin" });
   const navigate = useNavigate();
   const { section: urlSection } = useParams();
@@ -156,7 +141,6 @@ export default function Admin() {
   const [loading, setLoading] = useState(true);
   const [moreOpen, setMoreOpen] = useState(false);
   const [acknowledged, setAcknowledged] = useState(() => new Set());
-  const { location: userLoc } = useUserLocation();
 
   const go = (s) => navigate("/admin/" + s);
 
@@ -252,7 +236,7 @@ export default function Admin() {
   };
 
   const emergencyOverlay = unacknowledged.length > 0 && (
-    <div className="fixed inset-0 z-[999] bg-destructive text-destructive-foreground flex flex-col items-center justify-center p-6 text-center">
+    <div className="fixed inset-0 z-[999] bg-danger text-danger-foreground flex flex-col items-center justify-center p-6 text-center">
       <Siren className="w-20 h-20 mb-4 animate-pulse" />
       <h1 className="text-3xl sm:text-4xl font-heading font-bold mb-3">EMERGENCY SOS</h1>
       <div className="space-y-1 mb-8 max-w-md">
@@ -290,179 +274,71 @@ export default function Admin() {
     return (
       <>
         {emergencyOverlay}
-        <AppLayout>
+        <AdminShell active={section} onNavigate={go} alertVehicles={emergencyVehicles} user={user} onSignOut={() => logout()}>
           <BusLoader className="py-8" />
-        </AppLayout>
+        </AdminShell>
       </>
     );
 
-  const activeTrips = trips.filter((t) =>
-    ["scheduled", "on_the_way", "arrived"].includes(t.status)
+  const linkGroup = (title, Icon, links, note) => (
+    <div>
+      <h3 className="flex items-center gap-2 text-body-sm font-bold uppercase tracking-wide text-muted-foreground">
+        <Icon className="h-4 w-4" aria-hidden="true" /> {title}
+      </h3>
+      {note && <p className="mt-1 text-body-sm text-muted-foreground">{note}</p>}
+      <div className="mt-2 flex flex-wrap gap-2">
+        {links.map((r) => {
+          const LinkIcon = r.icon;
+          return (
+            <Link key={r.label} to={r.to} className="inline-flex min-h-[40px] items-center gap-2 rounded-lg border border-border bg-background px-3 text-body-sm font-semibold hover:bg-accent">
+              <LinkIcon className="h-4 w-4 text-muted-foreground" aria-hidden="true" /> {r.label}
+            </Link>
+          );
+        })}
+      </div>
+    </div>
   );
-  const liveCount = vehicles.filter((v) => v.status !== "offline").length;
-  const openFaultsCount = faults.filter((f) => f.status === "open").length;
-  const maintenanceDueCount = schedules.filter((s) => s.status === "due" || s.status === "overdue").length;
 
-  // 7-day daily counts for the two stat tiles where a trend is meaningful
-  // (Trips/Faults have a created_date to bucket by day; Vehicles/Companies/
-  // Parts/Maintenance-due are point-in-time snapshots, not naturally a
-  // trend, so they stay plain numbers). Plain computation, not useMemo: this
-  // runs after the early returns above, where hooks aren't allowed.
-  const last7Days = [];
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    d.setHours(0, 0, 0, 0);
-    last7Days.push(d);
-  }
-  const dailyTrend = (records, dateField) =>
-    last7Days.map((d) => {
-      const next = new Date(d);
-      next.setDate(d.getDate() + 1);
-      const value = records.filter((r) => {
-        const t = r[dateField] && new Date(r[dateField]);
-        return t && t >= d && t < next;
-      }).length;
-      return { label: d.toLocaleDateString(undefined, { weekday: "short" }), value };
-    });
-  const tripsTrend = dailyTrend(trips, "created_date");
-  const faultsTrend = dailyTrend(faults, "created_date");
+  const toolsPanel = (
+    <Collapsible open={moreOpen} onOpenChange={setMoreOpen} className="rounded-2xl border border-border bg-card">
+      <CollapsibleTrigger asChild>
+        <button type="button" className="flex min-h-[56px] w-full items-center justify-between gap-3 rounded-2xl px-5 text-left font-semibold hover:bg-accent/60">
+          <span className="flex items-center gap-2"><Wrench className="h-5 w-5 text-muted-foreground" aria-hidden="true" /> More tools and shortcuts</span>
+          <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform ${moreOpen ? "rotate-180" : ""}`} aria-hidden="true" />
+        </button>
+      </CollapsibleTrigger>
+      <CollapsibleContent className="space-y-5 border-t border-border px-5 py-4">
+        {linkGroup("Test as another role", ExternalLink, ROLE_LINKS, "Open any role's view to test the experience end to end.")}
+        {linkGroup("Portals and kiosks", Link2, PORTAL_LINKS)}
+        {linkGroup("Management tools", Wrench, MGMT_LINKS)}
+      </CollapsibleContent>
+    </Collapsible>
+  );
 
   return (
     <>
       {emergencyOverlay}
-      <AppLayout>
-      <AdminShell active={section} onNavigate={go} alertVehicles={emergencyVehicles}>
+      <AdminShell
+        active={section}
+        onNavigate={go}
+        alertVehicles={emergencyVehicles}
+        user={user}
+        onSignOut={() => logout()}
+        pushPermission={pushPermission}
+        onEnableNotifications={enableNotifications}
+      >
         {section === "overview" && (
-          <div className="space-y-4">
-            <Greeting subtitle="Admin control center" />
-            {pushPermission !== "granted" && pushPermission !== "unsupported" && (
-              <Button variant="outline" size="sm" onClick={enableNotifications}>
-                <Bell className="w-4 h-4 mr-1.5" /> Enable notifications (SOS alerts on this device)
-              </Button>
-            )}
-            <div className="rounded-2xl overflow-hidden border">
-              <MapboxMap
-                vehicles={vehicles.filter((v) => v.current_lat != null)}
-                userLocation={userLoc}
-                height="40vh"
-              />
-            </div>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
-              <button onClick={() => go("vehicles")} className="text-left p-4 rounded-xl border bg-card hover:border-primary transition-colors">
-                <div className="text-2xl font-bold"><CountUp value={vehicles.length} /></div>
-                <div className="text-xs text-muted-foreground">Vehicles</div>
-              </button>
-              <button onClick={() => go("fleet")} className="text-left p-4 rounded-xl border bg-card hover:border-primary transition-colors">
-                <div className="text-2xl font-bold"><CountUp value={liveCount} /></div>
-                <div className="text-xs text-muted-foreground">Live now</div>
-              </button>
-              <button onClick={() => go("trips")} className="text-left p-4 rounded-xl border bg-card hover:border-primary transition-colors">
-                <div className="text-2xl font-bold"><CountUp value={activeTrips.length} /></div>
-                <div className="text-xs text-muted-foreground mb-1.5">Active trips</div>
-                <Sparkline data={tripsTrend} className="text-primary h-6" />
-              </button>
-              <button onClick={() => go("companies")} className="text-left p-4 rounded-xl border bg-card hover:border-primary transition-colors">
-                <div className="text-2xl font-bold"><CountUp value={companies.length} /></div>
-                <div className="text-xs text-muted-foreground">Companies</div>
-              </button>
-              <button onClick={() => go("faults")} className="text-left p-4 rounded-xl border bg-card hover:border-primary transition-colors">
-                <div className="text-2xl font-bold"><CountUp value={openFaultsCount} /></div>
-                <div className="text-xs text-muted-foreground mb-1.5">Open faults</div>
-                <Sparkline data={faultsTrend} className="text-destructive h-6" />
-              </button>
-              <button onClick={() => go("schedule")} className="text-left p-4 rounded-xl border bg-card hover:border-primary transition-colors">
-                <div className="text-2xl font-bold"><CountUp value={maintenanceDueCount} /></div>
-                <div className="text-xs text-muted-foreground">Maintenance due</div>
-              </button>
-              <button onClick={() => go("parts")} className="text-left p-4 rounded-xl border bg-card hover:border-primary transition-colors">
-                <div className="text-2xl font-bold"><CountUp value={parts.length} /></div>
-                <div className="text-xs text-muted-foreground">Parts</div>
-              </button>
-            </div>
-            <RecentActivityFeed onNavigate={go} />
-            <Collapsible open={moreOpen} onOpenChange={setMoreOpen}>
-              <CollapsibleTrigger asChild>
-                <Button variant="outline" className="w-full justify-between">
-                  <span className="flex items-center gap-2">
-                    <Wrench className="w-4 h-4" /> More tools & shortcuts
-                  </span>
-                  <ChevronDown className={`w-4 h-4 transition-transform ${moreOpen ? "rotate-180" : ""}`} />
-                </Button>
-              </CollapsibleTrigger>
-              <CollapsibleContent className="space-y-4 pt-4">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-base">
-                      <ExternalLink className="w-4 h-4" /> Test as another role
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-muted-foreground mb-3">
-                      Admins can open any role's view to test the experience end-to-end.
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      {ROLE_LINKS.map((r) => {
-                        const Icon = r.icon;
-                        return (
-                          <Button asChild key={r.to} variant="outline" size="sm">
-                            <Link to={r.to}>
-                              <Icon className="w-4 h-4 mr-1.5" />
-                              {r.label}
-                            </Link>
-                          </Button>
-                        );
-                      })}
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-base">
-                      <Link2 className="w-4 h-4" /> Portals & kiosks
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex flex-wrap gap-2">
-                      {PORTAL_LINKS.map((r) => {
-                        const Icon = r.icon;
-                        return (
-                          <Button asChild key={r.to} variant="outline" size="sm">
-                            <Link to={r.to}>
-                              <Icon className="w-4 h-4 mr-1.5" />
-                              {r.label}
-                            </Link>
-                          </Button>
-                        );
-                      })}
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-base">
-                      <Wrench className="w-4 h-4" /> Management tools
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex flex-wrap gap-2">
-                      {MGMT_LINKS.map((r) => {
-                        const Icon = r.icon;
-                        return (
-                          <Button asChild key={r.to} variant="outline" size="sm">
-                            <Link to={r.to}>
-                              <Icon className="w-4 h-4 mr-1.5" />
-                              {r.label}
-                            </Link>
-                          </Button>
-                        );
-                      })}
-                    </div>
-                  </CardContent>
-                </Card>
-              </CollapsibleContent>
-            </Collapsible>
-          </div>
+          <AdminOverview
+            vehicles={vehicles}
+            routes={routes}
+            trips={trips}
+            faults={faults}
+            schedules={schedules}
+            companies={companies}
+            parts={parts}
+            onNavigate={go}
+            tools={toolsPanel}
+          />
         )}
 
         {section === "trips" && (
@@ -471,6 +347,7 @@ export default function Admin() {
         {section === "fleet" && (
           <LiveFleetTab
             vehicles={vehicles}
+            routes={routes}
             onVehicleUpdate={(updated) =>
               setVehicles((prev) => prev.map((v) => (v.id === updated.id ? updated : v)))
             }
@@ -531,7 +408,6 @@ export default function Admin() {
       </AdminShell>
       <FloatingMessages vehicles={vehicles} />
       <FloatingChatbot />
-      </AppLayout>
     </>
   );
 }

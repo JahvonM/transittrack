@@ -313,6 +313,7 @@ function FullMap({
           modelId: modelIdFor(v),
           stale: !v.tracking_active || fresh.state === "lost" || fresh.state === "unknown",
           emphasis: v.id === focusVehicleId,
+          alert: v.status === "emergency",
         };
       }),
       { accent, reduceMotion },

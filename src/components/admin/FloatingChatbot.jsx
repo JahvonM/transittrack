@@ -77,9 +77,10 @@ export default function FloatingChatbot() {
         </div>
       )}
       <Button
-        className="fixed bottom-4 right-4 z-50 rounded-full h-14 w-14 shadow-lg"
+        className="fixed bottom-4 right-4 z-50 h-14 w-14 rounded-full border border-border bg-card text-foreground shadow-lg hover:bg-accent"
         size="icon"
         onClick={() => setOpen(!open)}
+        aria-label={open ? "Close assistant" : "Open assistant"}
       >
         {open ? <X className="w-5 h-5" /> : <Sparkles className="w-5 h-5" />}
       </Button>
