@@ -22,9 +22,9 @@ test('company code replacement uses server issuance rather than gateway credenti
  });
  await page.goto('/company');
  await expect(page.getByText('LEGACY',{exact:true})).toBeVisible();
- await page.getByRole('button',{name:'New code',exact:true}).click();
+ await page.getByRole('button',{name:'Get code',exact:true}).click();
  await expect(page.getByText('ABCD2345EFGH',{exact:true})).toBeVisible();
- await expect(page.getByText(/New joins allowed until/)).toBeVisible();
+ await expect(page.getByText(/Permanent company code/)).toBeVisible();
  expect(calls).toContainEqual({action:'issue_company',company_id:'a'});
  expect(calls.some(c=>c.data&&'access_code' in c.data)).toBe(false);
 });

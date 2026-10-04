@@ -12,15 +12,16 @@ import { loadFailed } from "@/lib/loadFailed";
 
 export default function AdsTab() {
   const [ads, setAds] = useState([]);
+  const [companies, setCompanies] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [form, setForm] = useState({ title: "", message: "", link: "", image_url: "" });
+  const [form, setForm] = useState({ title: "", message: "", link: "", image_url: "", company_id: "" });
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
 
   const load = async () => {
     try {
-      const list = await base44.entities.Advertisement.list();
-      setAds(list);
+      const [list, companyList] = await Promise.all([base44.entities.Advertisement.list(), base44.entities.Company.list()]);
+      setAds(list);setCompanies(companyList);
     } catch {
       loadFailed(load);
     } finally {
@@ -46,7 +47,7 @@ export default function AdsTab() {
     setSaving(true);
     try {
       await base44.entities.Advertisement.create({ ...form, active: true, order: 0 });
-      setForm({ title: "", message: "", link: "", image_url: "" });
+      setForm({ title: "", message: "", link: "", image_url: "", company_id: "" });
       load();
     } finally {
       setSaving(false);
@@ -66,7 +67,12 @@ export default function AdsTab() {
     <div className="space-y-4">
       <div>
         <h1 className="text-2xl font-heading font-semibold">Advertisements</h1>
-        <p className="text-sm text-muted-foreground">Manage promos shown to passengers on the home screen.</p>
+        <p className="text-sm text-muted-foreground">Manage public promos for all companies.</p>
+        <Label>Owner of new advertisement</Label>
+        <select aria-label="Advertisement owner" value={form.company_id} onChange={e => setForm(f => ({ ...f, company_id: e.target.value }))} className="w-full h-9 border rounded-md px-3">
+          <option value="">Global — admin managed</option>
+          {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
       </div>
       <div className="grid lg:grid-cols-[1fr_360px] gap-4">
         <div className="space-y-2">
@@ -75,6 +81,9 @@ export default function AdsTab() {
           )}
           {ads.map((ad) => (
             <div key={ad.id} className="flex items-center gap-3 p-3 rounded-xl border bg-card">
+              <select aria-label={`Owner of ${ad.title}`} value={ad.company_id || ""} onChange={async e => { await base44.entities.Advertisement.update(ad.id, { company_id: e.target.value }); load(); }} className="max-w-40 border rounded-md text-xs">
+                <option value="">Global</option>{companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
               {ad.image_url ? (
                 <Image src={ad.image_url} className="w-12 h-12 rounded-lg shrink-0" fittingType="fill" />
               ) : (

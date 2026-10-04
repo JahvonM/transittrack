@@ -120,7 +120,7 @@ describe('company and role access boundaries',()=>{
    const result=await call(sdk(role),{entity:'Advertisement',operation,id:'ad',data:{title:'Changed'}});
    expect([401,403]).toContain(result.status);
   }
-  for(const role of ['admin','company']) expect((await call(sdk(role),{entity:'Advertisement',operation:'update',id:'ad',data:{title:'Changed'}})).status).toBe(200);
+  for(const role of ['admin','company']) { const client=sdk(role);client.tables.Advertisement[0].company_id='a';expect((await call(client,{entity:'Advertisement',operation:'update',id:'ad',data:{title:'Changed'}})).status).toBe(200); }
  });
  it('requires authentication for other public entity reads',async()=>{
   for(const entity of ['Vehicle','Company','Contact','StaffCheckIn','Fault']) expect((await call(sdk(null),{entity,operation:'list'})).status).toBe(401);
@@ -154,7 +154,7 @@ describe('company and role access boundaries',()=>{
   expect((await call(sdk('admin'),{entity:'Company',operation:'create',data:{name:'New'}})).status).toBe(200);
   expect((await call(sdk(),{entity:'Company',operation:'create',data:{name:'New'}})).status).toBe(403);
  });
- it('expires passenger code memberships and invalidates them when the code changes',async()=>{
+ it('keeps passenger code memberships permanent and invalidates them when the code changes',async()=>{
   const client=sdk('staff');
   client.tables.CompanyMembership[0].expires_at='2099-01-01';
   client.tables.CompanyMembership[0].code_hash=createHash('sha256').update('SENTINEL').digest('hex');
@@ -163,7 +163,7 @@ describe('company and role access boundaries',()=>{
   expect((await call(client,{entity:'Vehicle',operation:'list'})).data.result).toEqual([]);
   client.tables.Company[0].access_code='SENTINEL';
   client.tables.CompanyMembership[0].expires_at='2000-01-01';
-  expect((await call(client,{entity:'Vehicle',operation:'list'})).data.result).toEqual([]);
+  expect((await call(client,{entity:'Vehicle',operation:'list'})).data.result).toHaveLength(1);
  });
  it('keeps centralized unscoped parts editable by mechanics',async()=>{
   const client=sdk('mechanic');

@@ -24,7 +24,7 @@ describe('boarding grant current authorization',()=>{
  ['different owner',sdk=>{sdk.tables.NfcCard[0].holder_id='someone-else';}],
  ['different company',sdk=>{sdk.tables.NfcCard[0].company_id='b';}],
  ['removed membership',sdk=>{sdk.tables.CompanyMembership[0].active=false;}],
- ['expired membership',sdk=>{sdk.tables.CompanyMembership[0].expires_at='2000-01-01';sdk.tables.CompanyMembership[0].code_hash=digest('JOIN12345678');}],
+ ['company code changed',sdk=>{sdk.tables.CompanyMembership[0].code_hash=digest('OLDJOINCODE');}],
  ['changed role',sdk=>{sdk.tables.User[0].role='company';}],
  ['changed assignment',sdk=>{sdk.tables.Contact[0].vehicle_id='bus-b';}],
  ])('rejects a new check-in after %s without writing',async(_,change)=>{
