@@ -81,7 +81,8 @@ export default function DriverApp() {
   const firstLoad = useRef(true);
 
   // New-check-in popup — separate tracking from the broadcast alert above.
-  const [checkInAlert, setCheckInAlert] = useState(null);
+  const [checkInAlerts, setCheckInAlerts] = useState([]);
+  const checkInAlert = checkInAlerts[0] || null;
   const seenCheckInIds = useRef(new Set());
   const firstCheckInLoad = useRef(true);
 
@@ -132,11 +133,10 @@ export default function DriverApp() {
       firstCheckInLoad.current = false;
       return;
     }
-    checkIns.forEach((c) => {
-      if (seenCheckInIds.current.has(c.id)) return;
-      seenCheckInIds.current.add(c.id);
-      setCheckInAlert(c);
-    });
+    const fresh = checkIns.filter(c => !seenCheckInIds.current.has(c.id));
+    fresh.forEach(c => seenCheckInIds.current.add(c.id));
+    if (fresh.length) setCheckInAlerts(previous => [...previous, ...fresh.sort((a,b) => Date.parse(a.boarded_at) - Date.parse(b.boarded_at))]);
+
   }, [session?.check_ins]);
 
 
@@ -461,7 +461,7 @@ export default function DriverApp() {
       </nav>
 
       <DriverMessageAlert alert={alert} onAcknowledge={() => setAlert(null)} onReply={handleAlertReply} />
-      <NewCheckInAlert checkIn={checkInAlert} onDismiss={() => setCheckInAlert(null)} />
+      <NewCheckInAlert checkIn={checkInAlert} onDismiss={() => setCheckInAlerts(previous => previous.slice(1))} />
       <SentInspectionPrompt pending={promptPending} onStart={(t) => openInspection(t, { from: "unlock" })} />
 
       <Sheet open={isReportOpen} onOpenChange={setIsReportOpen}>

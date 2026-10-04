@@ -303,7 +303,7 @@ export default function CardIssuingTab({ companies = [] }) {
   const [q, setQ] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [selectedKey, setSelectedKey] = useState(null);
+  const [selectedKey, setSelectedKey] = useState(() => new URLSearchParams(window.location.search).get("person"));
   const [phase, setPhase] = useState("noperson");
   const [message, setMessage] = useState("");
   const [lastUid, setLastUid] = useState("");
@@ -341,6 +341,9 @@ export default function CardIssuingTab({ companies = [] }) {
   useEffect(() => { load(); }, [load]);
 
   const selected = people.find((p) => p.key === selectedKey) || null;
+  useEffect(() => {
+    if (selected && phase === "noperson") { setPhase("ready"); setAccess(selected.default_access || "STAFF_BUS_BOARDING"); }
+  }, [selected, phase]);
 
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase();

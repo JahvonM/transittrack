@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { confirmAction } from "@/components/ConfirmHost";
 import { base44 } from "@/api/base44Client";
 import AppLayout from "@/components/AppLayout";
@@ -31,30 +32,13 @@ export default function StaffDirectory() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState(null);
 
-  const load = () => {
-    base44.entities.Contact.list("-updated_date", 200).then((c) => {
-      setContacts(c);
-      setLoading(false);
-    }).catch(() => { setLoading(false); loadFailed(); });
+  const load = async () => {
+    try {
+      const res = await base44.functions.invoke("nfcCards", { action: "directory" });
+      setContacts((res.data?.people || []).map(p => ({ ...p, type: p.directory_type || (p.company_id ? "staff" : "passenger") })));
+    } catch { loadFailed(); } finally { setLoading(false); }
   };
-
-  useEffect(() => {
-    load();
-    // Apply realtime updates incrementally (mirrors Notifications.jsx) instead
-    // of re-fetching the whole list on every single event.
-    const unsub = base44.entities.Contact.subscribe((event) => {
-      if (event.type === "delete") {
-        setContacts((prev) => prev.filter((c) => c.id !== event.id));
-        return;
-      }
-      if (!event.data) return;
-      setContacts((prev) => {
-        const idx = prev.findIndex((c) => c.id === event.data.id);
-        return idx === -1 ? [event.data, ...prev] : prev.map((c) => (c.id === event.data.id ? event.data : c));
-      });
-    });
-    return unsub;
-  }, []);
+  useEffect(() => { load(); }, []);
 
   const openAdd = () => {
     setEditing(null);
@@ -127,7 +111,7 @@ export default function StaffDirectory() {
           {filtered.map((c) => {
             const wa = waLink(c.phone);
             return (
-              <Card key={c.id}>
+              <Card key={c.key}>
                 <CardContent className="py-3 text-sm space-y-2">
                   <div className="flex items-start justify-between gap-2">
                     <div className="font-medium flex items-center gap-2">
@@ -139,13 +123,15 @@ export default function StaffDirectory() {
                       {TYPE_LABEL[c.type] || c.type}
                     </Badge>
                   </div>
+                  {c.registered && <Badge variant="outline">Email account</Badge>}
+                  {!c.company_id && <p className="text-xs text-amber-600">Company membership needed before card issuing</p>}
                   {c.phone && <div className="text-muted-foreground">{c.phone}</div>}
                   {c.email && (
                     <div className="text-muted-foreground text-xs">{c.email}</div>
                   )}
-                  {c.nfc_card_tag && (
+                  {c.status === "Card Issued" && (
                     <div className="inline-flex items-center gap-1.5 text-xs">
-                      <Nfc className="w-3.5 h-3.5 text-primary" /> {c.nfc_card_tag}
+                      <Nfc className="w-3.5 h-3.5 text-primary" /> Card issued
                     </div>
                   )}
                   {(c.pickup_name || c.pickup_lat != null) && (
@@ -163,17 +149,18 @@ export default function StaffDirectory() {
                     </div>
                   )}
                   <div className="flex items-center gap-2 pt-1">
-                    <Button variant="outline" size="sm" onClick={() => openEdit(c)}>
+                    {c.source === "contact" && <Button variant="outline" size="sm" onClick={() => openEdit(c)}>
                       <Pencil className="w-3.5 h-3.5" /> Edit
-                    </Button>
-                    <Button
+                    </Button>}
+                    {c.source === "contact" && <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => remove(c)}
                       className="text-destructive"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
-                    </Button>
+                    </Button>}
+                    <Button asChild variant="outline" size="sm"><Link to={(user?.role === "admin" ? "/admin/cards" : "/company/cards") + "?person=" + encodeURIComponent(c.key)}><Nfc className="w-3.5 h-3.5" /> Issue card</Link></Button>
                     {wa && (
                       <a
                         href={wa}
