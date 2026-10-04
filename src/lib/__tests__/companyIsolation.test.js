@@ -151,7 +151,7 @@ describe('company and role access boundaries',()=>{
   expect((await call(sdk(),{entity:'Vehicle',operation:'updateMany',data:{}})).status).toBe(400);
  });
  it('allows admin company creation without letting company users create ownership records',async()=>{
-  expect((await call(sdk('admin'),{entity:'Company',operation:'create',data:{name:'New',access_code:'NEWCODE'}})).status).toBe(200);
+  expect((await call(sdk('admin'),{entity:'Company',operation:'create',data:{name:'New'}})).status).toBe(200);
   expect((await call(sdk(),{entity:'Company',operation:'create',data:{name:'New'}})).status).toBe(403);
  });
  it('expires passenger code memberships and invalidates them when the code changes',async()=>{

@@ -35,7 +35,7 @@ describe('device credential authentication', () => {
   });
  }
  it('pairs with a random token, stores its hash, and rejects sequential reuse', async () => {
-  const row = { ...device, paired: false, pairing_expires_at: '2099-01-01' };
+  const row = { ...device, paired: false, pairing_code: 'TESTCODE2345', pairing_expires_at: new Date(Date.now()+60000).toISOString() };
   let saved;
   const sdk = { asServiceRole: { entities: {
    KioskDevice: { filter: async () => [row], update: async (_, data) => Object.assign(row, data) },
@@ -43,7 +43,7 @@ describe('device credential authentication', () => {
    Vehicle: { get: async () => ({}) }, Company: { get: async () => ({}) },
   } } };
   const pair = load('pairKioskDevice', sdk).default;
-  const request = () => new Request('https://test.local', { method: 'POST', body: JSON.stringify({ pairing_code: 'TESTCODE', expected_type: 'driver' }) });
+  const request = () => new Request('https://test.local', { method: 'POST', body: JSON.stringify({ pairing_code: 'TESTCODE2345', expected_type: 'driver' }) });
   const response = await pair(request());
   expect(response.status).toBe(200);
   const result = await response.json();
