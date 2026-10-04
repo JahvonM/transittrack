@@ -31,6 +31,13 @@ describe("email account directory",()=>{
   expect(people.filter(p=>p.email==="caller@test.invalid")).toHaveLength(1);
   expect(people[0].registered).toBe(true);
  });
+ it("recognizes an account card when a same-company contact also exists", async()=>{
+  const sdk=mock("staff"); sdk.tables.User[0].role="passenger"; sdk.auth.me=async()=>({id:"admin",role:"admin"});
+  sdk.tables.NfcCard=[{id:"existing-card",holder_source:"user",holder_id:"caller",company_id:"a",is_active:true,card_uid:"SECRETUID"}];
+  const {people}=await (await call(sdk,{action:"directory"})).json();
+  expect(people.find(p=>p.email==="caller@test.invalid")).toMatchObject({key:"user:caller",status:"Card Issued"});
+  expect(JSON.stringify(people)).not.toContain("SECRETUID");
+ });
  it("lets a passenger verify the company code but never grants a manager role",async()=>{
   const sdk=mock("passenger");
   const res=await call(sdk,{action:"verify",code:"JOIN12345678"},"companyAccess");
