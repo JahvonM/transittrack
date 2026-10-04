@@ -24,8 +24,11 @@ export function markLocalDone(templateId) {
 // Runs one template on the X-ray screen and saves it through the driver
 // session (or queues it on the tablet when there's no signal).
 export function DriverInspectionRunner({ template, vehicle, invoke, trigger, onFinished, onSkip }) {
+  const attemptRef = useRef(null);
   const submit = async ({ results, odometer, fuel }) => {
-    const payload = { client_request_id:crypto.randomUUID(), template_id: template.id, trigger, results, odometer, fuel };
+    const signature = JSON.stringify({results,odometer,fuel});
+    if(attemptRef.current?.signature!==signature) attemptRef.current={signature,id:crypto.randomUUID()};
+    const payload = { client_request_id:attemptRef.current.id, template_id: template.id, trigger, results, odometer, fuel };
     try {
       await invoke("submit_template_inspection", payload);
     } catch (e) {
@@ -33,9 +36,7 @@ export function DriverInspectionRunner({ template, vehicle, invoke, trigger, onF
       if (!isOfflineError(e) || !deviceId) throw new Error(e?.response?.data?.error || e?.message || "Couldn't save the inspection");
       const label = `${template.name} · ${vehicle?.name || "vehicle"}`;
       if (enqueueJob("driver_template_inspection", { ...payload, device_id: deviceId }, label)) return;
-      // Tablet storage is full: keep the answers, drop the photos.
-      const slim = { ...payload, device_id: deviceId, results: results.map(({ photo_data: _pd, photo_mime: _pm, ...r }) => r) };
-      if (!enqueueJob("driver_template_inspection", slim, label)) throw new Error("No signal and the tablet is out of space. Try again when you have signal.");
+      throw new Error("Inspection could not be saved on this tablet. Keep this screen open and retry when connected.");
     }
   };
   return (

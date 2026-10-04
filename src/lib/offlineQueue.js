@@ -27,18 +27,15 @@ export function queueLength() {
   return readQueue().length;
 }
 
-// A network failure (the response may have been lost) has no
-// `response` on the thrown error; a real rejection from the backend (bad
-// staff_id, unknown action, etc.) does. Only the former is safe to retry
-// blindly — retrying a genuine rejection would just loop forever on the
-// same "no" the server already gave.
+// Network failures, throttling and server errors are retryable. A missing
+// response does not prove the server failed to save the original request.
 export function isNetworkFailure(e) {
-  return !e?.response;
+  return !e?.response || e.response.status===429 || e.response.status>=500;
 }
 
 // Replays every queued check-in through the given invoke() function,
 // dropping each one as soon as it succeeds; anything that fails again with a
-// network error stays queued for the next flush. Order is preserved.
+// error stays queued for the next flush. Order is preserved.
 let flushing = false;
 export async function flushQueue(invoke) {
   if (flushing) return 0;

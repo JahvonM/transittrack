@@ -23,9 +23,9 @@ function write(jobs) {
 }
 
 // No response at all (or the browser says it's offline) means the request
-// never reached the server, so it's safe to retry later.
+// may have reached the server. Persistent request IDs make replay safe after a lost response.
 export function isOfflineError(e) {
-  return (typeof navigator !== "undefined" && navigator.onLine === false) || !e?.response;
+  return (typeof navigator !== "undefined" && navigator.onLine === false) || !e?.response || e.response.status===401 || e.response.status===429 || e.response.status>=500;
 }
 
 export function registerRunner(kind, fn) {
