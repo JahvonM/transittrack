@@ -1,6 +1,6 @@
 
 import {test,expect} from '@playwright/test';
-test('company code replacement uses server issuance rather than gateway credential writes',async({page})=>{
+test('company code retrieval uses server management rather than gateway credential writes',async({page})=>{
  const calls=[];
  const company={id:'a',name:'Company A',access_code:'LEGACY'};
  await page.addInitScript(()=>localStorage.setItem('base44_access_token','mock-authenticated-session'));

@@ -18,10 +18,10 @@ auto-sync in Base44. The frontend was not published.
 
 | Command | Result | Meaning |
 |---|---|---|
-| npm test | 275 passed | Implemented behavior and recovery regressions |
+| npm test | 296 passed | Implemented behavior and recovery regressions |
 | npm run lint | Passed | Source and tests |
 | npm run build | Passed | Frontend compiles |
-| npm run test:e2e | 13 checks passed | Mocked company/mechanic/tablet/recovery browser contracts |
+| npm run test:e2e | 14 checks passed | Mocked company/mechanic/tablet/recovery browser contracts |
 | npm run test:security:release | 22 passed, 16 failed; exits 1 | Release blockers remain |
 
 The strict suite uses ordinary assertions. Failures are not skipped, marked
@@ -107,11 +107,11 @@ These tests do not prove exhaustive security.
 | 6: weak join codes | Server-issued twelve-character codes with expiry; multi-account budget and atomic uniqueness remain |
 | 7: OTP/grant reuse | Current card/member status rechecked and new grants bound to source identity; OTP races and grant single use remain unresolved; completed retries safely acknowledge |
 | 8: maintenance recipients | Fixed with approved membership selection; isolated email assertions pass |
-| 9: advertisement ownership/drafts | Policy decision; public reads and authorized admin/company writes retained |
+| 9: advertisement ownership/drafts | Ownership enforced: company-owned edits only, admins manage all. Public reads including inactive ads retained |
 | 10: PIN reset | Fixed with credential-bound grants; old grants require online PIN unlock |
-| 11: 30-day membership | Availability/policy decision; renewal or permanent approval not chosen |
+| 11: 30-day membership | Permanent company code and code-bound passenger access implemented; no automatic expiry; removal/code replacement still checked |
 | 12: passenger audit-log writes | Policy decision; actor attribution remains server-controlled |
-| 13: mechanic deletion rights | Policy decision; global maintenance visibility preserved |
+| 13: mechanic deletion rights | Maintenance deletion admin-only; mechanic global reads and edits preserved |
 
 Step 8 confirmed stale push-recipient selection, dispatch notification mismatch,
 public crash-email budget races and non-taxi booking acceptance. Follow-up fixes
@@ -253,3 +253,52 @@ revocation/write transaction. Card/member changes racing a write, single-use
 boarding grants, OTP claims, attempt limits and concurrent replay remain unresolved.
 Atomic platform questions are still prepared but unanswered; none were sent.
 No SDK upgrade, production rotation, signing changes or frontend publication.
+
+## Approved policy changes — 2026-10-04 UTC
+
+User-approved rules: admins manage everything through the existing protected
+workflows; mechanics work on maintenance across companies; maintenance deletion
+is admin-only; companies manage their own public ads; company passenger access
+uses one permanent company code with no 30-day expiry.
+
+Company code issuance returns the existing compliant code by default, without
+writing or rotating it. New codes and passenger company grants/memberships do not
+carry a expiry. Legacy expiry metadata is ignored for code-bound passenger scope,
+including existing active memberships and grants whose code still matches.
+All duplicated membership helpers use this rule. Manager scope retains its
+existing expiry checks; changing a code still invalidates code-bound passenger
+access. Only an explicit admin rotate request can replace a compliant code.
+No code was rotated or live membership/grant updated by the agent.
+
+Context retrieval checks current active passenger membership and never
+reactivates a removed membership. A person who still knows the shared code can
+join again by entering it; membership removal is not a permanent user ban.
+Explicit admin approval remains independent of a code. Short/noncompliant legacy
+company codes still need an operator to request a compliant code once.
+
+Advertisement gains company_id ownership. Companies create only under an approved
+company and can update/delete only their own ads; ownership transfer is admin-only.
+Missing ownership denotes an admin-managed global ad. Existing ads were not
+backfilled or reassigned live. Admin controls can assign any existing ad to a
+company or global scope. The company dashboard has an Advertisements tab showing
+its own manageable ads. Public reads of all ads remain enabled, including the
+existing inactive-read behavior. Public, passenger and mechanic writes are denied.
+
+Maintenance deletion now requires admin for both mechanics and company managers.
+Mechanics retain global maintenance reads, creates and updates within existing
+field/tenant constraints. Admin access, protected credentials, role-management
+workflows, tablet authentication and pairing expiry remain in place.
+
+Validation: 296 unit tests, 14 API-mocked browser checks, lint and build pass.
+21 new policy unit tests include cross-company/global ad denial, admin assignment,
+permanent legacy grants, inactive membership handling, stable issuance,
+explicit admin rotation, mechanic global access and helper consistency.
+The strict suite remains 22 passing / 16 failing out of 38 and exits 1.
+Old expiry assertions were changed to the approved permanent-access policy;
+code mismatch, role/scope checks and revoked membership assertions remain.
+The browser runtime needed Chromium restored before tests could start.
+
+Backend/entity edits auto-sync; frontend was not published. No live accounts,
+company codes, ads, memberships, grants or tablets were mutated through function
+calls. No signing/production credential changes. Atomic guarantees remain
+unconfirmed; the platform questions have not been sent.
