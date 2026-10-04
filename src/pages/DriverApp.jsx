@@ -331,7 +331,7 @@ export default function DriverApp() {
         {/* Padding sits inside: safe-area-x replaces the outer box's padding. */}
         <div className="grid w-full max-w-4xl gap-10 p-6 md:grid-cols-2 md:items-center">
           <DriverGreeting driverName={driverName} subtitle={vehicle.name} />
-          <PinGate deviceId={deviceId} vehicle={vehicle} invoke={invoke} onUnlock={() => { localStorage.setItem("tt_driver_unlock_date", new Date().toISOString().slice(0, 10)); setUnlocked(true); if (dueInspections.length) openInspection(dueInspections[0], { from: "unlock" }); else goStage(session?.open_shift ? "track" : "home"); }} />
+          <PinGate deviceId={deviceId} vehicle={vehicle} invoke={invoke} onUnlock={() => { localStorage.setItem("tt_driver_unlock_date", new Date().toISOString().slice(0, 10)); setUnlocked(true); if (dueInspections.length) openInspection(dueInspections[0], { from: "unlock" }); else goStage(urlStage && urlStage !== "pin" && urlStage !== "inspection" ? urlStage : session?.open_shift ? "track" : "home"); }} />
         </div>
       </div>
     );
