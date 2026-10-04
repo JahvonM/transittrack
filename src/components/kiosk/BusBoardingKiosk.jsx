@@ -221,7 +221,7 @@ export default function BusBoardingKiosk({ invoke, device }) {
   // the browser reports connectivity is back, rather than waiting up to 15s.
   useEffect(() => {
     const tryFlush = () => {
-      flushQueue(invoke).then((synced) => { if (synced) setPendingSyncCount(queueLength()); });
+      flushQueue(invoke).then((synced) => { if (synced) setPendingSyncCount(queueLength()); }).catch(e=>{setBadgeError(e.message);setMode("badge_error");});
     };
     const t = setInterval(tryFlush, FLUSH_INTERVAL_MS);
     // Also on open: check-ins saved offline before a restart go up right away.

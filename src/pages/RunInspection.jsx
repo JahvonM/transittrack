@@ -184,7 +184,7 @@ export default function RunInspection() {
         await runMechanicInspection(progress, (p) => { progress = p; });
       } catch (err) {
         if (!isOfflineError(err)) throw err;
-        enqueueJob("mechanic_inspection", progress, `${template.name} · ${vehicle.name}`);
+        if (!enqueueJob("mechanic_inspection", progress, `${template.name} · ${vehicle.name}`)) throw new Error("Inspection could not be saved on this device. Keep this screen open and retry.");
         queued = true;
       }
 

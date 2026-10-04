@@ -37,6 +37,18 @@
     },
     "notes": {
       "type": "string"
+    },
+    "client_request_id": {
+      "type": "string"
+    },
+    "request_hash": {
+      "type": "string"
+    },
+    "end_request_id": {
+      "type": "string"
+    },
+    "end_request_hash": {
+      "type": "string"
     }
   },
   "required": [

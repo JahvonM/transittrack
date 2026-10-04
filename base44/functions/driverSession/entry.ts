@@ -491,12 +491,24 @@ export default async function(req) {
       }
 
       case 'start_shift': {
+        const requestId=body.client_request_id;
+        if(requestId!==undefined && (typeof requestId!=='string' || !/^[a-zA-Z0-9_-]{8,100}$/.test(requestId))) return Response.json({error:'Invalid request ID'},{status:400});
+        const requestHash=await hashSecret(JSON.stringify({action,occurred_at:body.occurred_at||null,notes:body.notes||null}));
+        if(requestId) {
+          const prior=(await base44.asServiceRole.entities.DriverShift.filter({client_request_id:requestId,device_id:device.id,vehicle_id:vehicleId,company_id:companyId},'-started_at',1))[0];
+          if(prior) {
+            if(prior.request_hash!==requestHash) return Response.json({error:'Request ID reused with different data'},{status:409});
+            return Response.json({shift:prior,deduplicated:true});
+          }
+        }
+
         const vehicle = await loadVehicle(base44, vehicleId);
         if (!vehicle) return Response.json({ error: 'Vehicle not found' }, { status: 404 });
         const open = (await base44.asServiceRole.entities.DriverShift.filter({ vehicle_id: vehicleId }, '-started_at', 5))
           .filter((s) => !s.ended_at);
         if (open.length) return Response.json({ shift: open[0] });
         const shift = await base44.asServiceRole.entities.DriverShift.create({
+          ...(requestId ? {client_request_id:requestId,request_hash:requestHash} : {}),
           vehicle_id: vehicleId, vehicle_name: vehicle.name, company_id: companyId, company_name: companyName,
           driver_name: vehicle.driver_name || '', driver_email: vehicle.driver_email || '',
           device_id, started_at: occurredAt(body.occurred_at).toISOString(),
@@ -505,6 +517,17 @@ export default async function(req) {
       }
 
       case 'end_shift': {
+        const requestId=body.client_request_id;
+        if(requestId!==undefined && (typeof requestId!=='string' || !/^[a-zA-Z0-9_-]{8,100}$/.test(requestId))) return Response.json({error:'Invalid request ID'},{status:400});
+        const requestHash=await hashSecret(JSON.stringify({action,occurred_at:body.occurred_at||null,notes:body.notes||null}));
+        if(requestId) {
+          const prior=(await base44.asServiceRole.entities.DriverShift.filter({end_request_id:requestId,device_id:device.id,vehicle_id:vehicleId,company_id:companyId},'-started_at',1))[0];
+          if(prior) {
+            if(prior.end_request_hash!==requestHash) return Response.json({error:'Request ID reused with different data'},{status:409});
+            return Response.json({shift:prior,deduplicated:true});
+          }
+        }
+
         const open = (await base44.asServiceRole.entities.DriverShift.filter({ vehicle_id: vehicleId }, '-started_at', 5))
           .filter((s) => !s.ended_at);
         if (!open.length) return Response.json({ shift: null });
@@ -515,6 +538,7 @@ export default async function(req) {
           const endMs = Math.max(endAt.getTime(), startMs || 0);
           const minutes = Math.max(0, Math.round((endMs - startMs) / 60000));
           ended.push(await base44.asServiceRole.entities.DriverShift.update(s.id, {
+            ...(requestId ? {end_request_id:requestId,end_request_hash:requestHash} : {}),
             ended_at: new Date(endMs).toISOString(), duration_minutes: minutes,
             notes: typeof body.notes === 'string' ? body.notes.slice(0, 500) : s.notes,
           }));
@@ -1086,6 +1110,6 @@ export default async function(req) {
         return Response.json({ error: 'Unknown action' }, { status: 400 });
     }
   } catch (error) {
-    return Response.json({ error: error.message }, { status: 500 });
+    return Response.json({ error: error.status ? error.message : 'Driver session failed' }, { status: error.status || 500 });
   }
 }

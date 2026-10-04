@@ -46,7 +46,8 @@ export async function runDriverTemplateInspection(payload, save = () => {}) {
 }
 
 // Shift start/end made with no signal; carries the time it really happened.
-export async function runDriverShift(payload) {
+export async function runDriverShift(payload, save = () => {}) {
+  payload = {...payload,client_request_id:payload.client_request_id||crypto.randomUUID()}; save(payload);
   const res = await base44.functions.invoke("driverSession", deviceRequest(payload.device_id, payload));
   return res.data;
 }

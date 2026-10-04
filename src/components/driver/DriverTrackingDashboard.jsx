@@ -38,7 +38,7 @@ export default function DriverTrackingDashboard({ session, invoke, onReportIncid
   const [, setTick] = useState(0);
   useEffect(() => {
     const onQueue = () => setQueued(queuedGpsCount());
-    const onOnline = () => flushGpsQueue(invoke).then((n) => { if (n) setLastSentAt(Date.now()); });
+    const onOnline = () => flushGpsQueue(invoke).then((n) => { if (n) setLastSentAt(Date.now()); }).catch(e=>setGpsProblem(e.message));
     window.addEventListener(GPS_QUEUE_EVENT, onQueue);
     window.addEventListener("online", onOnline);
     const t = setInterval(() => setTick((x) => x + 1), 15000);
@@ -104,7 +104,7 @@ export default function DriverTrackingDashboard({ session, invoke, onReportIncid
       await invoke("update_location", { lat, lng, speed: speed || 0, status, trail: nextTrail, log_speeding: logSpeeding, recorded_at: new Date(extra.ts || now).toISOString() });
       setLastSentAt(Date.now());
       // Back online: send anything saved while there was no connection.
-      if (queuedGpsCount()) flushGpsQueue(invoke);
+      if (queuedGpsCount()) flushGpsQueue(invoke).catch(e=>setGpsProblem(e.message));
     } catch (e) {
       // No connection: keep the point on the tablet (with the time it was
       // taken) and upload it later, so the trip has no gap.
