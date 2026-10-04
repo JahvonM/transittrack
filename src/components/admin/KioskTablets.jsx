@@ -277,7 +277,7 @@ export default function KioskTablets({ vehicles, companies, onChange }) {
         </p>
         <p className="text-xs text-muted-foreground mt-1">
           <b>Updating a tablet that's already set up:</b> plug it in, run its Setup file (or the Setup tool) and choose <b>Update</b>.
-          It installs the latest TransitTrack Helper and re-applies the settings without unlocking or resetting the tablet.
+          Place the trusted TransitTrack-Kiosk-Helper.apk beside the script and have the existing FreeKiosk PIN ready. Sync or export Saved Work first. After updating, verify the Helper version, pairing and device status.
         </p>
       </div>
 

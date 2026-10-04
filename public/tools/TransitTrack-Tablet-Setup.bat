@@ -38,7 +38,7 @@ set TYPE=%PRESET_TYPE%
 echo  This file was made for:  %PRESET_NAME%
 echo.
 echo    [1]  SET UP this tablet - new tablet
-echo    [2]  UPDATE this tablet - already set up, push the latest helper and settings
+echo    [2]  UPDATE this tablet - already set up, install a trusted helper and settings
 echo.
 set MODE=
 set /p MODE=  Type 1 or 2 and press Enter: 
@@ -306,7 +306,7 @@ timeout /t 5 /nobreak >nul
 
 set LOG=%USERPROFILE%\Documents\TransitTrack-tablets.csv
 if not exist "%LOG%" >"%LOG%" echo Date,Time,Type,Bus,Code,Hotspot,Serial
->>"%LOG%" echo %DATE%,%TIME%,%KIND%,%BUS%,%CODE%,%SSID%,%SERIAL%
+>>"%LOG%" echo %DATE%,%TIME%,%KIND%,%BUS%,,%SSID%,%SERIAL%
 
 cls
 echo.
@@ -343,6 +343,7 @@ pause
 adb reboot
 echo  Restarting. You can set up the next tablet now.
 pause
+exit /b 0
 
 rem =================================================================
 rem   UPDATE MODE - tablet already set up: latest helper + settings
@@ -361,65 +362,106 @@ goto update_ask
 :update_run
 if "%TYPE%"=="1" set KIND=Driver
 if "%TYPE%"=="2" set KIND=Bus boarding
+set "HELPER_APK=%~dp0TransitTrack-Kiosk-Helper.apk"
+if not exist "%HELPER_APK%" goto upd_failed
+echo.
+echo  Use the trusted Helper APK supplied for this release, with the existing signing key.
+echo  Saved Work must be synced or exported before proceeding.
+echo  This update keeps existing pairing, Helper settings and FreeKiosk data.
+:upd_pin
+set PIN=
+set /p PIN=  EXISTING FreeKiosk exit PIN for this tablet: 
+powershell -NoProfile -Command "if ($env:PIN -notmatch '^[0-9]{4,12}$') { exit 1 }"
+if errorlevel 1 goto upd_pin
+
 :upd_check_device
-adb disconnect >nul 2>&1
 set STATE=
-for /f %%s in ('adb get-state 2^>nul') do set STATE=%%s
+for /f %%s in ('adb -d get-state 2^>nul') do set STATE=%%s
 if "%STATE%"=="device" goto upd_device_ok
 echo.
-echo  [X] Tablet not found. Check the cable, wake the tablet, and tap ALLOW
-echo      on the "Allow USB debugging?" popup.
+echo  [X] Connect exactly ONE USB tablet, wake it, and approve USB debugging.
 pause
 goto upd_check_device
 :upd_device_ok
-set SERIAL=unknown
-for /f %%s in ('adb get-serialno') do set SERIAL=%%s
-echo  [OK] Tablet connected - %SERIAL%
+set SERIAL=
+for /f %%s in ('adb -d get-serialno 2^>nul') do set SERIAL=%%s
+powershell -NoProfile -Command "if ($env:SERIAL -notmatch '^[A-Za-z0-9._:-]+$' -or $env:SERIAL -eq 'unknown') { exit 1 }"
+if errorlevel 1 goto upd_failed
+echo  Target tablet: %SERIAL%
+echo  Check this is the intended %KIND% tablet before continuing.
+choice /c YN /n /m "  Continue with this tablet? [Y/N]: "
+if errorlevel 2 exit /b 1
+
 echo.
-echo  --- Update 1 of 3: Latest TransitTrack Helper ---
-del "%TEMP%\tt-helper.apk" >nul 2>&1
-curl -s -L -o "%TEMP%\tt-helper.apk" "%SITE%/tools/TransitTrack-Kiosk-Helper.apk"
-if not exist "%TEMP%\tt-helper.apk" goto helper_failed
-for %%z in ("%TEMP%\tt-helper.apk") do if %%~zz LSS 10000 goto helper_failed
-adb install -r "%TEMP%\tt-helper.apk"
-adb uninstall com.termux.boot >nul 2>&1
-adb uninstall org.broeuschmeul.android.gps.usb.provider >nul 2>&1
+echo  --- Update 1 of 3: Trusted TransitTrack Helper ---
+call :upd_adb install -r "%HELPER_APK%"
+if errorlevel 1 goto upd_failed
+rem Preserve older helper apps; removing them needs separate migration verification.
+
 echo.
 echo  --- Update 2 of 3: Settings ---
-adb shell pm grant %HELPER% android.permission.WRITE_SECURE_SETTINGS
-adb shell dumpsys deviceidle whitelist +%HELPER%
-adb shell settings put global stay_on_while_plugged_in 7
-adb shell settings put system sound_effects_enabled 0
+call :upd_adb shell pm grant %HELPER% android.permission.WRITE_SECURE_SETTINGS
+if errorlevel 1 goto upd_failed
+call :upd_adb shell dumpsys deviceidle whitelist +%HELPER%
+if errorlevel 1 goto upd_failed
+call :upd_adb shell settings put global stay_on_while_plugged_in 7
+if errorlevel 1 goto upd_failed
+call :upd_adb shell settings put system sound_effects_enabled 0
+if errorlevel 1 goto upd_failed
 if "%TYPE%"=="1" goto upd_driver
-adb shell pm grant %HELPER% android.permission.ACCESS_FINE_LOCATION
-adb shell settings put secure location_mode 3
-adb shell settings put system screen_off_timeout 2147483647
-adb shell settings put system screen_brightness_mode 0
-adb shell settings put system screen_brightness %KIOSK_BRIGHTNESS%
+call :upd_adb shell pm grant %HELPER% android.permission.ACCESS_FINE_LOCATION
+if errorlevel 1 goto upd_failed
+call :upd_adb shell settings put secure location_mode 3
+if errorlevel 1 goto upd_failed
+call :upd_adb shell settings put system screen_off_timeout 2147483647
+if errorlevel 1 goto upd_failed
+call :upd_adb shell settings put system screen_brightness_mode 0
+if errorlevel 1 goto upd_failed
+call :upd_adb shell settings put system screen_brightness %KIOSK_BRIGHTNESS%
+if errorlevel 1 goto upd_failed
 goto upd_settings_done
 :upd_driver
-adb shell appops set %HELPER% android:mock_location allow
-adb shell appops set %HELPER% WRITE_SETTINGS allow
-adb shell settings put global hidden_api_policy 1
+call :upd_adb shell appops set %HELPER% android:mock_location allow
+if errorlevel 1 goto upd_failed
+call :upd_adb shell appops set %HELPER% WRITE_SETTINGS allow
+if errorlevel 1 goto upd_failed
+call :upd_adb shell settings put global hidden_api_policy 1
+if errorlevel 1 goto upd_failed
 :upd_settings_done
-rem Make sure the helper and the USB popup are allowed through the kiosk lock
-adb shell am start -n %FK% --es pin "%PIN%" --es managed_apps '[{\"packageName\":\"com.transittrack.kioskhelper\",\"showOnHomeScreen\":false},{\"packageName\":\"com.android.systemui\",\"showOnHomeScreen\":false}]'
+rem Android activity launch success is NOT proof of FreeKiosk configuration acceptance.
+call :upd_adb shell am start -n %FK% --es pin "%PIN%" --es managed_apps '[{\"packageName\":\"com.transittrack.kioskhelper\",\"showOnHomeScreen\":false},{\"packageName\":\"com.android.systemui\",\"showOnHomeScreen\":false}]'
+if errorlevel 1 goto upd_failed
+set PIN=
 timeout /t 8 /nobreak >nul
-echo  [OK] Done.
+echo  On the tablet, verify FreeKiosk accepted the settings with no PIN error.
+echo  Check managed apps includes TransitTrack Helper and Android System UI.
+choice /c YN /n /m "  Settings verified on the tablet? [Y/N]: "
+if errorlevel 2 goto upd_failed
+
 echo.
 echo  --- Update 3 of 3: Restart ---
-set LOG=%USERPROFILE%\Documents\TransitTrack-tablets.csv
-if not exist "%LOG%" >"%LOG%" echo Date,Time,Type,Bus,Code,Hotspot,Serial
->>"%LOG%" echo %DATE%,%TIME%,%KIND% UPDATE,,,,%SERIAL%
-echo.
-echo  ==========================================================
-echo    UPDATE FINISHED - %KIND% tablet %SERIAL%
-echo  ==========================================================
-echo  The tablet restarts when you press a key. A couple of minutes
-echo  later, Admin - Kiosk Tablets shows the new helper version.
-echo.
+choice /c YN /n /m "  Restart this tablet now? [Y/N]: "
+if errorlevel 2 exit /b 1
+call :upd_adb reboot
+if errorlevel 1 goto upd_failed
+echo  Restart requested. Update verification is still pending.
+echo  After restart, check Admin - Kiosk Tablets for the expected Helper version,
+echo  fresh last-seen time, and correct reader / GPS / hotspot status.
+echo  Confirm pairing and Saved Work are intact before updating another tablet.
 pause
-adb reboot
-echo  Restarting. You can update the next tablet now.
+exit /b 0
+
+:upd_failed
+set PIN=
+echo.
+echo  [X] UPDATE STOPPED. No successful update has been recorded.
+echo      Check the trusted APK, its existing signing key, USB connection and PIN.
+echo      Some earlier settings may already have applied; inspect the tablet.
+echo      Existing app data and older helpers have not been deliberately removed.
+echo      Do not uninstall FreeKiosk or clear app data to work around this error.
 pause
-exit /b
+exit /b 1
+
+:upd_adb
+adb -s "%SERIAL%" %*
+exit /b %errorlevel%

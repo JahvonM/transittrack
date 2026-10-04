@@ -133,3 +133,20 @@ saved-work safeguards. No reminder, automation or credential renewal was created
 
 Even after migration, other concurrency blockers remain. The last strict suite
 is 22 passing / 16 failing of 38; this planning document clears no release checks.
+
+## Setup tool Update mode hardening (2026-10-04)
+
+Update mode now requires a trusted locally supplied TransitTrack-Kiosk-Helper.apk
+and the existing FreeKiosk PIN. It selects one USB tablet and binds all update
+commands to its serial. Each ADB command exit status is checked; failures stop
+the script. Older helper apps remain installed. FreeKiosk activity launch does
+not establish configuration acceptance, so the operator must verify managed
+apps and no PIN error before restarting. After restart, verify the expected
+Helper version, fresh heartbeat, peripherals, pairing and Saved Work. No update
+success is recorded before those checks. Setup logs no longer include pairing
+codes; historical CSV files may still contain codes and were not modified.
+
+Static control-flow/CRLF checks, lint and build passed. Windows CMD, Android,
+wrong-PIN and failed-install device execution remain untested. No tablets were
+changed, no signing keys generated, and no frontend publication performed.
+This does not clear any of the 16 outstanding security release assertions.

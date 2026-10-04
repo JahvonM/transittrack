@@ -83,24 +83,32 @@ export async function fetchDrivingRoute(points) {
  * @param {{lat:number,lng:number}} origin
  * @param {{lat:number,lng:number}} destination
  */
-export async function fetchTurnByTurnRoute(origin, destination, { heading = null } = {}) {
-  if (!origin?.lat || !destination?.lat || !MAPBOX_TOKEN) return null;
+export async function fetchTurnByTurnRoutes(origin, destination, { heading = null } = {}) {
+  if (!origin?.lat || !destination?.lat || !MAPBOX_TOKEN) return [];
   const coordsParam = `${roundCoord(origin.lng)},${roundCoord(origin.lat)};${roundCoord(destination.lng)},${roundCoord(destination.lat)}`;
   const bearings = Number.isFinite(heading) ? `&bearings=${Math.round((heading + 360) % 360)},60;` : "";
-  const common = `geometries=geojson&overview=full&steps=true&banner_instructions=true&voice_instructions=true&voice_units=metric${bearings}&access_token=${MAPBOX_TOKEN}`;
+  const common = `geometries=geojson&overview=full&steps=true&alternatives=true&banner_instructions=true&voice_instructions=true&voice_units=metric${bearings}&access_token=${MAPBOX_TOKEN}`;
 
   try {
     // Live traffic first (like Google Maps); plain driving where that isn't
     // available. Traffic levels only come with the traffic profile.
     let res = await fetch(`https://api.mapbox.com/directions/v5/mapbox/driving-traffic/${coordsParam}?${common}&annotations=maxspeed,congestion`);
     if (!res.ok) res = await fetch(`https://api.mapbox.com/directions/v5/mapbox/driving/${coordsParam}?${common}&annotations=maxspeed`);
-    if (!res.ok) return bearings ? fetchTurnByTurnRoute(origin, destination) : null;
-    const nav = parseDirections(await res.json());
-    if (!nav) return bearings ? fetchTurnByTurnRoute(origin, destination) : null;
-    return nav;
+    if (!res.ok) return bearings ? fetchTurnByTurnRoutes(origin, destination) : [];
+    const data = await res.json();
+    const options = (data.routes || []).map((r, i) => {
+      const nav = parseDirections(data, i);
+      return nav ? { ...nav, summary: r.legs?.map((l) => l.summary).filter(Boolean).join(" · ") || "Driving route", distanceM: r.distance } : null;
+    }).filter(Boolean);
+    if (!options.length) return bearings ? fetchTurnByTurnRoutes(origin, destination) : [];
+    return options;
   } catch {
-    return null;
+    return [];
   }
+}
+
+export async function fetchTurnByTurnRoute(origin, destination, options) {
+  return (await fetchTurnByTurnRoutes(origin, destination, options))[0] || null;
 }
 
 const MAX_MATCH_POINTS = 100; // Mapbox Map Matching API limit per request

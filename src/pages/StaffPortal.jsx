@@ -16,7 +16,8 @@ import { MyPickupSheet, HelpSheet, BadgeSheet, ChatSheet, StopSheet, AssistantSh
 import useCrowding from "@/hooks/useCrowding";
 import { haversineKm, etaMinutes } from "@/lib/geo";
 import useTravelTimes, { etaFromLearned } from "@/hooks/useTravelTimes";
-import useDrivingEta from "@/hooks/useDrivingEta";
+import useBusEta from "@/hooks/useBusEta";
+import { locationIsStale } from "@/lib/busEta";
 import PullToRefresh from "@/components/PullToRefresh";
 import { useToast } from "@/components/ui/use-toast";
 import { loadFailed } from "@/lib/loadFailed";
@@ -258,10 +259,8 @@ export default function StaffPortal() {
 
   // Refine the straight-line candidate above with an actual driving ETA (roads,
   // not a straight line), falling back to the straight-line estimate while it loads.
-  const approachingOrigin = approaching ? { lat: approaching.v.current_lat, lng: approaching.v.current_lng } : null;
-  const approachingDest = stop ? { lat: stop.lat, lng: stop.lng } : null;
-  const approachingDriving = useDrivingEta(approachingOrigin, approachingDest, approaching?.v?.speed || 25);
   const approachingRoute = approaching ? routes.find((r) => r.id === approaching.v.route_id) || null : null;
+  const approachingDriving = useBusEta(approachingRoute, approaching?.v, stop);
   // Better still: how long this bus really takes from here to your stop,
   // learned from its past trips (used once enough of the way is known).
   const travelTimes = useTravelTimes();
@@ -309,7 +308,7 @@ export default function StaffPortal() {
   const now = useNow();
   const alerts = useCompanyAlerts(company?.id, 3);
   const [dismissedAlerts, setDismissedAlerts] = useState({});
-  const eta = approaching ? approachingLearned || approachingDriving : null;
+  const eta = approaching ? (approachingDriving.stale ? approachingDriving : approachingLearned || approachingDriving) : null;
   const tripState = passengerTripState({ stop, approaching, eta, myVehicle, now });
   const timelineRoute = approachingRoute
     || (myVehicle ? routes.find((r) => r.id === myVehicle.route_id && (r.stops || []).some((s) => s.name === stop?.name)) : null)
@@ -325,7 +324,10 @@ export default function StaffPortal() {
     const end = mine >= nextStopIndex ? mine : mapStops.length - 1;
     return [...mapStops.slice(nextStopIndex, end + 1), ...(end < mapStops.length - 1 ? [mapStops[mapStops.length - 1]] : [])];
   }, [mapStops, nextStopIndex, stop]);
-  const stopEtas = useStopEtas({ bus: busOnMap, route: timelineRoute, stops: upcomingStops, record: timelineRoute ? travelTimes[timelineRoute.id] : null, enabled: onTrip });
+  // Same rule as the main estimate: no stop times from a position more than
+  // two minutes old.
+  const positionStale = busOnMap ? locationIsStale(busOnMap, now) : false;
+  const stopEtas = useStopEtas({ bus: busOnMap, route: timelineRoute, stops: upcomingStops, record: timelineRoute ? travelTimes[timelineRoute.id] : null, enabled: onTrip && !positionStale });
   const isDark = useIsDark();
   const accent = mapAccentFor(isDark);
 

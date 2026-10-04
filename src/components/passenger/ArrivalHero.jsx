@@ -41,7 +41,8 @@ function LiveLine({ state, fresh }) {
 
 // Where the minutes come from, as a small chip.
 function SourceLine({ eta }) {
-  if (!eta) return null;
+  // No minutes (e.g. the bus's position is too old to estimate from): no chip.
+  if (!eta || eta.mins == null) return null;
   const Icon = eta.isLearned ? Sparkles : eta.isDriving ? RouteIcon : Ruler;
   const text = eta.isLearned ? "Learned ETA" : eta.isDriving ? "Road estimate" : "Rough estimate";
   const title = eta.isLearned
