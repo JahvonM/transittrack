@@ -34,7 +34,7 @@ export function registerRunner(kind, fn) {
 
 export function enqueueJob(kind, payload, label) {
   const jobs = read();
-  jobs.push({ id: `job-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, kind, payload, label: label || kind, queued_at: new Date().toISOString() });
+  jobs.push({ id: `job-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, kind, payload: {...payload, client_request_id: payload.client_request_id || crypto.randomUUID()}, label: label || kind, queued_at: new Date().toISOString() });
   return write(jobs); // false when the device storage is full
 }
 

@@ -69,6 +69,15 @@
     "resolved_date": {
       "type": "string",
       "format": "date"
+    },
+    "client_request_id": {
+      "type": "string"
+    },
+    "request_hash": {
+      "type": "string"
+    },
+    "request_actor_id": {
+      "type": "string"
     }
   },
   "rls": {

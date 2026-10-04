@@ -396,6 +396,22 @@ async function verifyProtectedPin(base44, vehicle, pin) {
  return true;
 }
 
+async function replayInspection(base44,device,body) {
+ const id=body.client_request_id;
+ if(id===undefined) return {fields:{},prior:null};
+ if(typeof id!=='string' || !/^[a-zA-Z0-9_-]{8,100}$/.test(id)) throw Object.assign(new Error('Invalid request ID'),{status:400});
+ const {driver_grant,device_token,device_id,client_request_id,...data}=body;
+ const hash=await hashSecret(JSON.stringify(data));
+ const prior=(await base44.asServiceRole.entities.Inspection.filter({client_request_id:id,request_actor_id:device.id,company_id:device.company_id,vehicle_id:device.vehicle_id},'-created_date',1))[0];
+ if(prior && prior.request_hash!==hash) throw Object.assign(new Error('Request ID reused with different data'),{status:409});
+ return {fields:{client_request_id:id,request_hash:hash,request_actor_id:device.id},prior};
+}
+async function inspectionChild(base44,name,data,key,actor) {
+ if(!key) return base44.asServiceRole.entities[name].create(data);
+ const db=base44.asServiceRole.entities[name];
+ const prior=(await db.filter({client_request_id:key,request_actor_id:actor,company_id:data.company_id,vehicle_id:data.vehicle_id},'-created_date',1))[0];
+ return prior || db.create({...data,client_request_id:key,request_actor_id:actor});
+}
 export default async function(req) {
   try {
     const body = await req.json();
@@ -760,8 +776,10 @@ export default async function(req) {
         const { checklist, odometer, fuel, status, service_notes } = body;
         const vehicle = await loadVehicle(base44, vehicleId);
         if (!vehicle) return Response.json({ error: 'Vehicle not found' }, { status: 404 });
+        const replay = await replayInspection(base44,device,body);
         const passed = status !== 'failed';
-        const inspection = await base44.asServiceRole.entities.Inspection.create({
+        const inspection = replay.prior || await base44.asServiceRole.entities.Inspection.create({
+          ...replay.fields,
           driver_name: vehicle.driver_name || '', driver_email: vehicle.driver_email || '',
           vehicle_id: vehicleId, vehicle_name: vehicle.name, company_id: companyId, company_name: companyName,
           date: new Date().toISOString().slice(0, 10), status: passed ? 'passed' : 'failed',
@@ -780,15 +798,15 @@ export default async function(req) {
             const settingsList = await base44.asServiceRole.entities.MaintenanceSettings.list();
             const settings = settingsList[0];
             if (settings?.auto_create_faults !== false) {
-              await base44.asServiceRole.entities.Fault.create({
+              await inspectionChild(base44,'Fault',{
                 vehicle_id: vehicleId, vehicle_name: vehicle.name, company_id: companyId, company_name: companyName,
                 title: service_notes ? service_notes.slice(0, 80) : 'Failed pre-trip inspection',
                 description: service_notes || 'Auto-created from a failed pre-trip inspection checklist.',
                 source: 'inspection', inspection_id: inspection.id, severity: 'medium', status: 'open',
                 reported_by: vehicle.driver_name || vehicle.driver_email || 'Driver',
-              });
+              }, body.client_request_id ? body.client_request_id+'-fault' : null,device.id);
             }
-          } catch { /* fault creation is best-effort — never blocks the inspection itself */ }
+          } catch { return Response.json({error:'Inspection saved; fault creation needs retry'},{status:503}); }
         }
         return Response.json({ inspection });
       }
@@ -804,11 +822,12 @@ export default async function(req) {
         const vehicle = await loadVehicle(base44, vehicleId);
         if (!vehicle) return Response.json({ error: 'Vehicle not found' }, { status: 404 });
 
+        const replay = await replayInspection(base44,device,body);
         // Photos arrive as base64 inside the submission (so an offline tablet
         // can queue the whole thing); upload each one and keep its URL.
         let photos = 0;
-        const clean = [];
-        for (const r of results.slice(0, 300)) {
+        const clean = replay.prior?.results || [];
+        for (const r of (replay.prior ? [] : results.slice(0, 300))) {
           const condition = r?.condition === 'FAILED' ? 'FAILED' : 'GOOD';
           let photo_url = typeof r?.photo_url === 'string' && r.photo_url.startsWith('https://') ? r.photo_url : '';
           if (!photo_url && typeof r?.photo_data === 'string' && r.photo_data.length < MAX_PHOTO_B64 && photos < MAX_INSPECTION_PHOTOS) {
@@ -828,8 +847,9 @@ export default async function(req) {
         }
         const failed = clean.filter((r) => r.condition === 'FAILED');
         const passed = failed.length === 0;
-        const now = new Date().toISOString();
-        const inspection = await base44.asServiceRole.entities.Inspection.create({
+        const now = replay.prior?.created_date || new Date().toISOString();
+        const inspection = replay.prior || await base44.asServiceRole.entities.Inspection.create({
+          ...replay.fields,
           driver_name: vehicle.driver_name || '', driver_email: vehicle.driver_email || '',
           vehicle_id: vehicleId, vehicle_name: vehicle.name, company_id: companyId, company_name: companyName,
           date: now.slice(0, 10), status: passed ? 'passed' : 'failed',
@@ -844,28 +864,28 @@ export default async function(req) {
         // Same per-item rows mechanics write, so Inspection History and the
         // overdue reminders count driver inspections too.
         const inspectorName = vehicle.driver_name || 'Driver';
-        await base44.asServiceRole.entities.InspectionResult.bulkCreate(clean.map((r) => ({
+        for(const [index,r] of clean.entries()) await inspectionChild(base44,'InspectionResult',{
           vehicle_id: vehicleId, vehicle_name: vehicle.name, company_id: companyId, company_name: companyName,
           inspection_name: template.name, section_name: r.section_name, inspection_item: r.item_name,
           condition: r.condition, fault_found: r.condition === 'FAILED', fault_description: r.condition === 'FAILED' ? r.notes : '',
           photo_url: r.photo_url || undefined, repair_required: r.condition === 'FAILED', notes: r.notes,
           inspector_name: `${inspectorName} (driver)`, inspection_date: now,
-        }))).catch(() => {});
+        },body.client_request_id ? body.client_request_id+'-result-'+index : null,device.id);
 
         if (failed.length) {
           try {
             const settingsList = await base44.asServiceRole.entities.MaintenanceSettings.list();
             if (settingsList[0]?.auto_create_faults !== false) {
-              await base44.asServiceRole.entities.Fault.bulkCreate(failed.map((f) => ({
+              for(const [index,f] of failed.entries()) await inspectionChild(base44,'Fault',{
                 vehicle_id: vehicleId, vehicle_name: vehicle.name, company_id: companyId, company_name: companyName,
                 title: f.item_name.slice(0, 80),
                 description: (f.notes || 'Reported as a problem in a driver inspection.') + ` — ${template.name}`,
                 source: 'inspection', inspection_id: inspection.id, severity: SEVERITY[f.critical] || 'medium',
                 status: 'open', photo_url: f.photo_url || undefined, repair_required: true,
                 reported_by: inspectorName,
-              })));
+              },body.client_request_id ? body.client_request_id+'-fault-'+index : null,device.id);
             }
-          } catch { /* fault creation is best-effort — never blocks the inspection itself */ }
+          } catch { return Response.json({error:'Inspection saved; fault creation needs retry'},{status:503}); }
         }
         return Response.json({ inspection: { id: inspection.id, template_id: template.id, status: inspection.status, created_date: inspection.created_date } });
       }

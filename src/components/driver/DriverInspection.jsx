@@ -25,7 +25,7 @@ export function markLocalDone(templateId) {
 // session (or queues it on the tablet when there's no signal).
 export function DriverInspectionRunner({ template, vehicle, invoke, trigger, onFinished, onSkip }) {
   const submit = async ({ results, odometer, fuel }) => {
-    const payload = { template_id: template.id, trigger, results, odometer, fuel };
+    const payload = { client_request_id:crypto.randomUUID(), template_id: template.id, trigger, results, odometer, fuel };
     try {
       await invoke("submit_template_inspection", payload);
     } catch (e) {

@@ -10,6 +10,9 @@ import { registerRunner, startOfflineSync } from "@/lib/offlineJobs";
 // that didn't make it instead of duplicating rows.
 export async function runMechanicInspection(payload, save = () => {}) {
   let p = { ...payload };
+  // Save row IDs before any request, including replay of older queued inspections.
+  p = {...p, results:p.results.map(r=>({...r,client_request_id:r.client_request_id||crypto.randomUUID()})), faults:p.faults.map(r=>({...r,client_request_id:r.client_request_id||crypto.randomUUID()}))};
+  save(p);
   if (p.results.length) {
     await base44.entities.InspectionResult.bulkCreate(p.results);
     p = { ...p, results: [] };
@@ -29,13 +32,15 @@ export async function runMechanicInspection(payload, save = () => {}) {
 
 // Driver pre-trip check from a paired tablet (no login; goes through the
 // driver session with the tablet's device id).
-export async function runDriverInspection(payload) {
+export async function runDriverInspection(payload, save = () => {}) {
+  payload = {...payload,client_request_id:payload.client_request_id||crypto.randomUUID()}; save(payload);
   const res = await base44.functions.invoke("driverSession", deviceRequest(payload.device_id, { ...payload, action: "submit_inspection" }));
   return res.data;
 }
 
 // Driver X-ray inspection from a template; photos travel inside the payload.
-export async function runDriverTemplateInspection(payload) {
+export async function runDriverTemplateInspection(payload, save = () => {}) {
+  payload = {...payload,client_request_id:payload.client_request_id||crypto.randomUUID()}; save(payload);
   const res = await base44.functions.invoke("driverSession", deviceRequest(payload.device_id, { ...payload, action: "submit_template_inspection" }));
   return res.data;
 }

@@ -65,6 +65,15 @@
     "inspection_date": {
       "type": "string",
       "format": "date-time"
+    },
+    "client_request_id": {
+      "type": "string"
+    },
+    "request_hash": {
+      "type": "string"
+    },
+    "request_actor_id": {
+      "type": "string"
     }
   },
   "rls": {
