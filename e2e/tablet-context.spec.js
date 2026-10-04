@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { test, expect } from '@playwright/test';
 
 const vehicle = { id: 'bus-a', name: 'Bus A', company_id: 'company-a', capacity: 25, status: 'idle' };
@@ -68,4 +69,40 @@ test('unpairing a driver tablet preserves saved GPS with its original assignment
  await page.getByRole('button',{name:'Unpair tablet',exact:true}).click();
  await expect.poll(()=>page.evaluate(()=>localStorage.getItem('tt_driver_device_id'))).toBeNull();
  expect(await page.evaluate(()=>JSON.parse(localStorage.getItem('tt_gps_queue')))).toEqual([{queue_id:'retained-gps',state:'needs_review',lat:12,lng:-61,t:'2026-10-03T12:00:00Z',expected_device_id:'driver-test',expected_company_id:'company-a',expected_vehicle_id:'bus-a'}]);
+});
+
+test('driver can choose a returned route and its ETA updates', async ({ page, context }) => {
+  const fixture = JSON.parse(readFileSync('src/lib/__tests__/fixtures/route-short.json', 'utf8'));
+  const first = fixture.routes[0];
+  const second = { ...first, duration: first.duration + 600,
+    legs: first.legs.map((leg) => ({ ...leg, summary: 'Alternative test road',
+      steps: leg.steps.map((step) => ({ ...step, duration: step.duration * 2 })) })) };
+  const [lng, lat] = first.geometry.coordinates[0];
+  await context.grantPermissions(['geolocation']);
+  await context.setGeolocation({ latitude: lat, longitude: lng, accuracy: 5 });
+  await mockApi(page, [], { ...driver, route: { id: 'test-route', stops: [
+    { name: 'Test destination', lat: 12.12, lng: -61.755, order: 0 },
+  ] } });
+  const urls = [];
+  await page.route('https://api.mapbox.com/**', async (r) => {
+    if (r.request().url().includes('/directions/')) {
+      urls.push(r.request().url());
+      return r.fulfill({ json: { routes: [first, second] } });
+    }
+    return r.fulfill({ status: 404, body: '' });
+  });
+  await page.addInitScript(() => {
+    localStorage.setItem('tt_driver_device_id', 'driver-test');
+    localStorage.setItem('tt-map-engine', 'basic');
+  });
+  await page.goto('/driver/track');
+  await page.locator('input[type=password]').fill('1234');
+  await page.getByRole('button', { name: 'Unlock', exact: true }).click();
+  const option = page.getByRole('button', { name: /Alternative test road/ });
+  await expect(option).toBeVisible({ timeout: 20000 });
+  expect(urls.some((u) => u.includes('alternatives=true'))).toBe(true);
+  const before = await page.getByTestId('nav-eta').innerText();
+  await option.click();
+  await expect(option).toHaveAttribute('aria-pressed', 'true');
+  await expect.poll(() => page.getByTestId('nav-eta').innerText()).not.toBe(before);
 });
