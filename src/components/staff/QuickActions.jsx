@@ -29,9 +29,9 @@ function Tile({ icon: Icon, label, sub, active, dot, onClick, href }) {
   return <button type="button" onClick={onClick} className={cls} aria-pressed={active ?? undefined}>{body}</button>;
 }
 
-// One-tap actions under the "Your bus" card. Late and Skip switch themselves
-// off (after LATE_HOURS / at midnight) so nobody gets left behind tomorrow.
-export default function QuickActions({ onChat, chatUnread = 0, onBadge, companyPhone }) {
+// Running late / skip today, saved on the passenger's account. Shared by the
+// quick actions here and the passenger home's trip actions.
+export function useStaffFlags() {
   const { user, checkUserAuth } = useAuth();
   const { toast } = useToast();
   const [override, setOverride] = useState({});
@@ -63,11 +63,18 @@ export default function QuickActions({ onChat, chatUnread = 0, onBadge, companyP
       ? save({ skip_pickup_today: false, skip_pickup_until: null }, { title: "Pickup back on for today" })
       : save({ skip_pickup_today: true, skip_pickup_until: endOfToday() }, { title: "Skipping today's pickup", description: "Your pickup turns back on automatically tomorrow." });
 
+  return { late, skip, lateUntil: merged.late_until, toggleLate, toggleSkip };
+}
+
+// One-tap actions under the "Your bus" card. Late and Skip switch themselves
+// off (after LATE_HOURS / at midnight) so nobody gets left behind tomorrow.
+export default function QuickActions({ onChat, chatUnread = 0, onBadge, companyPhone }) {
+  const { late, skip, lateUntil, toggleLate, toggleSkip } = useStaffFlags();
   const tel = (companyPhone || "").trim();
 
   return (
     <div className="-mx-4 px-4 flex gap-2 overflow-x-auto snap-x pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:mx-0 sm:px-0 sm:grid sm:grid-cols-5 sm:overflow-visible">
-      <Tile icon={Clock} label={late ? "Running late" : "I'm late"} sub={late ? `until ${time(merged.late_until)}` : null} active={late} onClick={toggleLate} />
+      <Tile icon={Clock} label={late ? "Running late" : "I'm late"} sub={late ? `until ${time(lateUntil)}` : null} active={late} onClick={toggleLate} />
       <Tile icon={BellOff} label={skip ? "Skipping" : "Skip today"} sub={skip ? "back tomorrow" : null} active={skip} onClick={toggleSkip} />
       <Tile icon={MessageCircle} label="Chat" sub="with driver" dot={chatUnread} onClick={onChat} />
       <Tile icon={KeyRound} label="No badge?" sub="get a code" onClick={onBadge} />

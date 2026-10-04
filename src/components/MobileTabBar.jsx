@@ -15,7 +15,8 @@ const HIDDEN_PREFIXES = [
 ];
 
 const TABS = [
-  { to: "/", label: "Home", icon: Home, exact: true },
+  // The passenger home lives at /staff ("/" sends each role to its own home).
+  { to: "/", label: "Home", icon: Home, exact: true, also: "/staff" },
   { to: "/route-explorer", label: "Map", icon: Map },
   { to: "/notifications", label: "Messages", icon: MessageSquare },
   { to: "/account", label: "Account", icon: User },
@@ -29,7 +30,7 @@ const TABS = [
 const tabStacks = {};
 
 function tabFor(pathname) {
-  if (pathname === "/") return "/";
+  if (pathname === "/" || pathname.startsWith("/staff")) return "/";
   const match = TABS.find((t) => t.to !== "/" && pathname.startsWith(t.to));
   return match ? match.to : null;
 }
@@ -68,21 +69,23 @@ export default function MobileTabBar() {
   };
 
   return (
-    <nav className="md:hidden fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 backdrop-blur-md safe-area-bottom">
+    <nav className="md:hidden fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 backdrop-blur-md safe-area-bottom" aria-label="Main">
       <div className="flex items-stretch justify-around">
-        {TABS.map(({ to, label, icon: Icon, exact }) => {
-          const active = exact ? pathname === "/" : pathname.startsWith(to);
+        {TABS.map(({ to, label, icon: Icon, exact, also }) => {
+          const active = exact ? pathname === to || (also && pathname.startsWith(also)) : pathname.startsWith(to);
           return (
             <button
               key={to}
               type="button"
               onClick={() => goToTab(to, active)}
+              aria-current={active ? "page" : undefined}
               className={cn(
-                "flex flex-1 min-h-[44px] flex-col items-center justify-center gap-0.5 py-2 text-[11px] font-medium transition-colors",
-                active ? "text-primary" : "text-muted-foreground"
+                "relative flex min-h-[60px] flex-1 flex-col items-center justify-center gap-1 pb-2 pt-2.5 text-caption font-semibold transition-colors",
+                active ? "text-foreground" : "text-muted-foreground hover:text-foreground"
               )}
             >
-              <Icon key={active ? "on" : "off"} className={cn("w-5 h-5", active && "tt-pop")} />
+              {active && <span className="absolute left-1/2 top-0 h-[3px] w-10 -translate-x-1/2 rounded-b-full bg-primary" aria-hidden="true" />}
+              <Icon key={active ? "on" : "off"} className={cn("h-6 w-6", active && "tt-pop")} strokeWidth={active ? 2.2 : 1.8} aria-hidden="true" />
               {label}
             </button>
           );

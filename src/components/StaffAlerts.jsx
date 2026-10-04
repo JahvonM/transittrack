@@ -6,8 +6,9 @@ import { BellRing, Bus, Car, Info } from "lucide-react";
 const SHOWN_TYPES = new Set(["bus_arrived", "taxi_arrived", "info"]);
 
 // Recent arrivals and announcements for ONE company. Announcements with no
-// company (sent to everyone by an admin) are included too.
-export default function StaffAlerts({ companyId, limit = 3 }) {
+// company (sent to everyone by an admin) are included too. New ones also pop
+// up as a toast. Returns those from the last hour, newest first.
+export function useCompanyAlerts(companyId, limit = 3) {
   const { toast } = useToast();
   const [alerts, setAlerts] = useState([]);
 
@@ -32,11 +33,15 @@ export default function StaffAlerts({ companyId, limit = 3 }) {
       }
     });
     return unsub;
-  }, [companyId]);
+  }, [companyId]);  
 
   // Alerts older than an hour are no longer news.
   const oneHourAgo = Date.now() - 60 * 60 * 1000;
-  const recent = alerts.filter((a) => new Date(a.created_date).getTime() > oneHourAgo).slice(0, limit);
+  return alerts.filter((a) => new Date(a.created_date).getTime() > oneHourAgo).slice(0, limit);
+}
+
+export default function StaffAlerts({ companyId, limit = 3 }) {
+  const recent = useCompanyAlerts(companyId, limit);
   if (recent.length === 0) return null;
 
   return (

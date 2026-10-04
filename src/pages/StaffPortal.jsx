@@ -1,72 +1,44 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Navigate } from "react-router-dom";
+import React, { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
+import { Link, Navigate } from "react-router-dom";
+import { Bell, ChevronDown } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import AppLayout from "@/components/AppLayout";
-import MapboxMap from "@/components/MapboxMap";
 import CodeGate from "@/components/CodeGate";
-import StaffAlerts from "@/components/StaffAlerts";
+import { useCompanyAlerts } from "@/components/StaffAlerts";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import useUserLocation from "@/hooks/useUserLocation";
-import WeatherWidget from "@/components/WeatherWidget";
-import AdBanner from "@/components/AdBanner";
-import BusAssistant from "@/components/BusAssistant";
 import LocationPrompt from "@/components/LocationPrompt";
-import CrowdBadge from "@/components/staff/CrowdBadge";
-import NextBusCard from "@/components/staff/NextBusCard";
-import QuickActions from "@/components/staff/QuickActions";
 import { useChatUnread } from "@/components/staff/StaffGroupChat";
-import { MyPickupSheet, HelpSheet, BadgeSheet, ChatSheet } from "@/components/staff/StaffSheets";
+import { MyPickupSheet, HelpSheet, BadgeSheet, ChatSheet, StopSheet, AssistantSheet } from "@/components/staff/StaffSheets";
 import useCrowding from "@/hooks/useCrowding";
 import { haversineKm, etaMinutes } from "@/lib/geo";
 import useTravelTimes, { etaFromLearned } from "@/hooks/useTravelTimes";
 import useDrivingEta from "@/hooks/useDrivingEta";
-import { STATUS_LABEL } from "@/lib/trip";
-import { Bus, BellRing, ChevronRight, Clock, LifeBuoy, MapPin, UserRound, X } from "lucide-react";
 import PullToRefresh from "@/components/PullToRefresh";
 import { useToast } from "@/components/ui/use-toast";
 import { loadFailed } from "@/lib/loadFailed";
 import BusLoader from "@/components/BusLoader";
+import { routeProgress } from "@/components/TripProgress";
+import ArrivalHero from "@/components/passenger/ArrivalHero";
+import RouteTimeline from "@/components/passenger/RouteTimeline";
+import StopChooser from "@/components/passenger/StopChooser";
+import {
+  AlertBand, BookedRides, MoreList, OtherBuses, SectionHead, SponsorLine, StopAlertRow, TripActions, TripFacts,
+} from "@/components/passenger/PassengerSections";
+import { clock, passengerTripState, sortStops } from "@/components/passenger/passengerState";
 
-const STEPS = ["scheduled", "on_the_way", "arrived", "completed"];
+// The live 3D map (mapbox-gl + three.js) loads after the page around it.
+const LiveTransitMap = lazy(() => import("@/components/map3d/LiveTransitMap"));
 
-const fmtWhen = (iso) => {
-  if (!iso) return "Time TBA";
-  const d = new Date(iso);
-  const today = new Date().toDateString() === d.toDateString();
-  return today
-    ? `Today ${d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`
-    : d.toLocaleString([], { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
-};
-
-const greetingWord = () => {
-  const h = new Date().getHours();
-  return h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
-};
-
-// Compact trip progress: four segments, filled up to the current step.
-function TripSteps({ status }) {
-  if (status === "cancelled") return <span className="text-xs font-medium text-destructive">Cancelled</span>;
-  const current = STEPS.indexOf(status);
-  return (
-    <div className="flex items-center gap-2 min-w-[120px]" aria-label={`Status: ${STATUS_LABEL[status] || status}`}>
-      <div className="flex gap-1 flex-1">
-        {STEPS.map((s, i) => (
-          <span key={s} className={`h-1.5 flex-1 rounded-full ${i <= current ? "bg-primary" : "bg-muted"}`} />
-        ))}
-      </div>
-      <span className="text-xs font-medium whitespace-nowrap">{STATUS_LABEL[status] || status}</span>
-    </div>
-  );
-}
-
-function SectionTitle({ children, action }) {
-  return (
-    <div className="flex items-center justify-between mb-2">
-      <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{children}</h3>
-      {action}
-    </div>
-  );
+// Re-render now and then so "updated 20 seconds ago" stays true.
+function useNow(ms = 15_000) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), ms);
+    return () => clearInterval(t);
+  }, [ms]);
+  return now;
 }
 
 export default function StaffPortal() {
@@ -83,8 +55,7 @@ export default function StaffPortal() {
   const [pickupName, setPickupName] = useState(() => localStorage.getItem("tt_staff_pickup") || "");
   const [companyPhone, setCompanyPhone] = useState("");
   const [stopAlerts, setStopAlerts] = useState(false);
-  const [sheet, setSheet] = useState(null); // "pickup" | "help" | "badge" | "chat" | null
-  const [notifDismissed, setNotifDismissed] = useState(() => localStorage.getItem("tt_notif_prompt_dismissed") === "1");
+  const [sheet, setSheet] = useState(null); // "pickup" | "stop" | "help" | "badge" | "chat" | "assistant" | null
 
   // The pickup stop is saved on the account (favourite stop) so the server
   // can send "one stop away" alerts for it.
@@ -321,6 +292,20 @@ export default function StaffPortal() {
 
   const otherBuses = locatedVehicles.filter((v) => v.id !== approaching?.v?.id);
 
+  // Presentation only: which arrival state to show, from the values above.
+  const now = useNow();
+  const alerts = useCompanyAlerts(company?.id, 3);
+  const [dismissedAlerts, setDismissedAlerts] = useState({});
+  const eta = approaching ? approachingLearned || approachingDriving : null;
+  const tripState = passengerTripState({ stop, approaching, eta, myVehicle, now });
+  const timelineRoute = approachingRoute
+    || (myVehicle ? routes.find((r) => r.id === myVehicle.route_id && (r.stops || []).some((s) => s.name === stop?.name)) : null)
+    || servingRoutes[0] || null;
+  const mapStops = useMemo(() => sortStops(timelineRoute?.stops).filter((s) => s.lat != null && s.lng != null), [timelineRoute]);
+  const onTrip = ["live", "arriving", "signal_lost"].includes(tripState.kind);
+  const busOnMap = tripState.bus && tripState.bus.current_lat != null ? locatedVehicles.find((v) => v.id === tripState.bus.id) || null : null;
+  const nextStopIndex = onTrip && busOnMap ? routeProgress(mapStops, busOnMap.current_lat, busOnMap.current_lng)?.nextIndex ?? null : null;
+
   if (user?.role === "driver") return <Navigate to="/driver" replace />;
   if (user?.role === "company") return <Navigate to="/company" replace />;
   if (user?.role === "mechanic") return <Navigate to="/mechanic" replace />;
@@ -332,135 +317,131 @@ export default function StaffPortal() {
       </AppLayout>
     );
   }
-  if (loading) return <AppLayout><BusLoader className="py-8" /></AppLayout>;
+  if (loading) return <AppLayout variant="passenger"><BusLoader className="py-8" /></AppLayout>;
 
-  const firstName = (user?.full_name || user?.email || "").split("@")[0].split(" ")[0];
-  const showNotifPrompt = !notifDismissed && pushPermission !== "granted" && pushPermission !== "unsupported";
+  const mins = tripState.mins;
+  const roundMins = mins != null ? Math.max(1, Math.round(mins)) : null;
+  const callout = !busOnMap || !stop ? null
+    : tripState.kind === "arriving" ? { primary: "Arriving", secondary: stop.name }
+      : tripState.kind === "signal_lost" ? { primary: "No signal", secondary: `Last seen ${clock(busOnMap.last_location_update)}`, tone: "lost" }
+        : tripState.kind === "live" && roundMins != null ? { primary: `${roundMins} min`, secondary: `to ${stop.name}` }
+          : null;
+
+  const visibleAlerts = alerts.filter((a) => !dismissedAlerts[a.id]);
+  const notice = visibleAlerts[0];
+  const companyName = company.name;
+
+  const mapSummary = stop && tripState.bus ? (
+    <div className="rounded-2xl border border-border bg-card/95 p-4 shadow-xl backdrop-blur">
+      <p className="text-body-sm text-muted-foreground">{tripState.bus.name} to {stop.name}</p>
+      <p className="mt-1 font-display text-display font-semibold tabular-nums">
+        {tripState.kind === "arriving" ? "Arriving" : roundMins != null && onTrip ? `${roundMins} min` : tripState.kind === "not_started" ? "Not started" : "No arrival time"}
+      </p>
+      {nextStopIndex != null && mapStops[nextStopIndex] && <p className="text-body-sm">Next stop: <b>{mapStops[nextStopIndex].name}</b></p>}
+    </div>
+  ) : null;
 
   return (
-    <AppLayout>
-      <PullToRefresh onRefresh={reload} className="max-w-2xl">
-        <div className="space-y-5">
-          <header className="space-y-2">
-            <h1 className="text-2xl font-heading font-semibold leading-tight">{greetingWord()}{firstName ? `, ${firstName}` : ""}</h1>
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-              <p className="text-sm text-muted-foreground">{company.name}</p>
-              <WeatherWidget variant="chip" />
-            </div>
-          </header>
+    <AppLayout variant="passenger">
+      <PullToRefresh onRefresh={reload}>
+        <div className="mx-auto max-w-2xl lg:grid lg:max-w-none lg:grid-cols-[440px_minmax(0,1fr)] lg:items-start lg:gap-14">
+          {/* Left: your trip */}
+          <div className="min-w-0">
+            {stop && (
+              <div className="flex h-[60px] items-center justify-between pl-6 pr-3 lg:px-0">
+                <button
+                  type="button"
+                  onClick={() => setSheet("stop")}
+                  className="-ml-1 flex min-h-[44px] min-w-0 items-center gap-1.5 rounded-lg px-1 text-title-sm font-bold"
+                  aria-label={`Your stop: ${stop.name}. Change stop`}
+                >
+                  <span className="font-medium text-muted-foreground">To</span>
+                  <span className="truncate">{stop.name}</span>
+                  <ChevronDown className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden="true" />
+                </button>
+                <Link to="/notifications" className="grid h-11 w-11 shrink-0 place-items-center rounded-xl hover:bg-accent" aria-label="Announcements">
+                  <Bell className="h-[22px] w-[22px]" aria-hidden="true" />
+                </Link>
+              </div>
+            )}
 
-          {!userLoc && locError && <LocationPrompt onLocation={setPromptLoc} />}
-
-          <NextBusCard
-            stop={stop}
-            bus={approaching?.v || null}
-            eta={approaching ? approachingLearned || approachingDriving : null}
-            route={approachingRoute}
-            crowdCount={approaching ? crowd[approaching.v.id] || 0 : 0}
-            trip={onTheWayTrip}
-            onChooseStop={() => setSheet("pickup")}
-          />
-
-          <QuickActions
-            onChat={() => setSheet("chat")}
-            chatUnread={chatUnread}
-            onBadge={() => setSheet("badge")}
-            companyPhone={companyPhone}
-          />
-
-          {showNotifPrompt && (
-            <div className="flex items-center gap-3 rounded-2xl border border-primary/30 bg-primary/10 p-3">
-              <BellRing className="w-5 h-5 text-primary shrink-0" />
-              <p className="text-sm flex-1">Get a notification when your bus is close.</p>
-              <button type="button" onClick={enableNotifications} className="text-sm font-semibold text-primary px-2 py-1">Turn on</button>
-              <button
-                type="button"
-                aria-label="Dismiss"
-                onClick={() => { setNotifDismissed(true); localStorage.setItem("tt_notif_prompt_dismissed", "1"); }}
-                className="text-muted-foreground p-1"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-          )}
-
-          <AdBanner />
-
-          <StaffAlerts companyId={company.id} />
-
-          {upcomingTrips.length > 0 && (
-            <section>
-              <SectionTitle>Booked rides from {pickupName}</SectionTitle>
-              <div className="space-y-2">
-                {upcomingTrips.map((t) => (
-                  <div key={t.id} className="p-3 rounded-2xl border bg-card space-y-2">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-sm font-semibold truncate">{t.pickup_name} <span className="text-muted-foreground">→</span> {t.dropoff_name}</p>
-                      <span className="text-xs text-muted-foreground whitespace-nowrap flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{fmtWhen(t.scheduled_time)}</span>
-                    </div>
-                    <TripSteps status={t.status} />
-                    <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
-                      <UserRound className="w-3.5 h-3.5" /> {t.driver_name || "Driver TBA"} · {t.vehicle_name || "Vehicle TBA"}
-                      {t.passenger_name ? ` · ${t.passenger_name}` : ""}
-                    </p>
+            {tripState.kind === "choose" ? (
+              <>
+                <StopChooser routes={routes} value={pickupName} onChoose={choosePickup} userLoc={userLoc} companyName={companyName} />
+                {!userLoc && locError && <div className="px-6 pb-6 lg:px-0"><LocationPrompt onLocation={setPromptLoc} /></div>}
+              </>
+            ) : (
+              <>
+                <ArrivalHero state={tripState} stop={stop} eta={eta} trip={onTheWayTrip} now={now} />
+                {tripState.kind === "problem" && (
+                  <AlertBand
+                    tone="danger"
+                    title={`${tripState.bus.name} is out of service`}
+                    body={`It has been taken off the road for now. Message the driver${companyPhone ? ` or call ${companyName}` : ""} to find another way.`}
+                  />
+                )}
+                {notice && (
+                  <div className={tripState.kind === "problem" ? "mt-px" : ""}>
+                    <AlertBand
+                      tone="warning"
+                      title={notice.type === "info" ? notice.title || "Announcement" : notice.type === "taxi_arrived" ? "Taxi arrived" : "Bus arrived"}
+                      body={notice.message}
+                      meta={[notice.company_name || companyName, notice.vehicle_name, notice.created_date && clock(notice.created_date)].filter(Boolean).join(", ")}
+                      onDismiss={() => setDismissedAlerts((d) => ({ ...d, [notice.id]: true }))}
+                      action={visibleAlerts.length > 1 ? <Link to="/notifications" className="mt-2 inline-block text-body-sm font-semibold underline underline-offset-4">{visibleAlerts.length - 1} more</Link> : null}
+                    />
                   </div>
-                ))}
-              </div>
-            </section>
-          )}
+                )}
+                {timelineRoute && (
+                  <RouteTimeline route={timelineRoute} bus={tripState.bus} kind={tripState.kind} stopName={stop.name} mins={mins} />
+                )}
+                <StopAlertRow
+                  busName={tripState.bus?.name}
+                  stopAlerts={stopAlerts}
+                  onToggle={toggleStopAlerts}
+                  pushPermission={pushPermission}
+                  onEnablePush={enableNotifications}
+                />
+                <TripActions onChat={() => setSheet("chat")} chatUnread={chatUnread} />
+                {!userLoc && locError && <div className="px-6 pt-6 lg:px-0"><LocationPrompt onLocation={setPromptLoc} /></div>}
+              </>
+            )}
+          </div>
 
-          <section>
-            <SectionTitle>Live map</SectionTitle>
-            <div className="rounded-3xl overflow-hidden border h-80">
-              <MapboxMap vehicles={locatedVehicles} userLocation={userLoc} />
+          {/* Right: map and details */}
+          <div className="flex min-w-0 flex-col lg:pt-[60px]">
+            {stop && <div className="lg:order-2"><TripFacts bus={tripState.bus} crowdCount={tripState.bus ? crowd[tripState.bus.id] || 0 : 0} /></div>}
+            <section className="px-6 pt-10 lg:order-1 lg:px-0 lg:pt-0" aria-labelledby="tt-live-map">
+              <SectionHead id="tt-live-map" title="Live map" aside={<Link to="/route-explorer" className="text-body-sm font-semibold underline-offset-4 hover:underline">Open map</Link>} />
+              <Suspense fallback={<div className="h-64 animate-pulse rounded-xl bg-muted lg:h-[440px]" />}>
+                <LiveTransitMap
+                  className="h-64 rounded-xl border border-border sm:h-80 lg:h-[440px]"
+                  vehicles={locatedVehicles}
+                  focusVehicleId={busOnMap?.id || null}
+                  stops={mapStops}
+                  myStop={stop}
+                  nextStopIndex={nextStopIndex}
+                  userLocation={userLoc}
+                  callout={callout}
+                  summary={mapSummary}
+                  label={stop ? `Live map of ${tripState.bus?.name || "buses"} and ${stop.name}` : "Live map of buses"}
+                />
+              </Suspense>
+            </section>
+            <div className="lg:order-3">
+              <OtherBuses buses={otherBuses} crowd={crowd} title={approaching ? "Other buses" : "All buses"} now={now} />
+              <BookedRides trips={upcomingTrips} stopName={pickupName} />
+              <MoreList
+                companyName={companyName}
+                companyPhone={companyPhone}
+                onBadge={() => setSheet("badge")}
+                onAssistant={() => setSheet("assistant")}
+                onHelp={() => setSheet("help")}
+                onPickup={() => setSheet("pickup")}
+              />
+              <SponsorLine />
             </div>
-          </section>
-
-          {otherBuses.length > 0 && (
-            <section>
-              <SectionTitle>{approaching ? "Other buses" : "All buses"}</SectionTitle>
-              <div className="rounded-2xl border bg-card divide-y divide-border">
-                {otherBuses.map((v) => {
-                  const live = v.tracking_active;
-                  return (
-                    <div key={v.id} className="flex items-center gap-3 p-3">
-                      <div className={`w-9 h-9 rounded-xl grid place-items-center shrink-0 ${live ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"}`}>
-                        <Bus className="w-4 h-4" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{v.name}</p>
-                        <p className="text-xs text-muted-foreground truncate">
-                          {live ? (v.status === "on_trip" ? "On a trip" : "Tracking") : `Parked · last seen ${v.last_location_update ? new Date(v.last_location_update).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "—"}`}
-                        </p>
-                      </div>
-                      {live && <CrowdBadge count={crowd[v.id] || 0} capacity={v.capacity} />}
-                    </div>
-                  );
-                })}
-              </div>
-            </section>
-          )}
-
-          <BusAssistant company={company} userLoc={userLoc} />
-
-          <nav className="grid grid-cols-2 gap-2" aria-label="More">
-            <button type="button" onClick={() => setSheet("pickup")} className="flex items-center gap-3 rounded-2xl border bg-card p-4 text-left hover:bg-accent transition-colors">
-              <MapPin className="w-5 h-5 text-primary" />
-              <span className="flex-1 min-w-0">
-                <span className="block text-sm font-semibold">My pickup</span>
-                <span className="block text-xs text-muted-foreground truncate">{pickupName || "Not set"}{stopAlerts ? " · alerts on" : ""}</span>
-              </span>
-              <ChevronRight className="w-4 h-4 text-muted-foreground" />
-            </button>
-            <button type="button" onClick={() => setSheet("help")} className="flex items-center gap-3 rounded-2xl border bg-card p-4 text-left hover:bg-accent transition-colors">
-              <LifeBuoy className="w-5 h-5 text-primary" />
-              <span className="flex-1 min-w-0">
-                <span className="block text-sm font-semibold">Help</span>
-                <span className="block text-xs text-muted-foreground truncate">Lost items · safety</span>
-              </span>
-              <ChevronRight className="w-4 h-4 text-muted-foreground" />
-            </button>
-          </nav>
+          </div>
         </div>
       </PullToRefresh>
 
@@ -476,6 +457,8 @@ export default function StaffPortal() {
         companyPhone={companyPhone}
         onSwitchCompany={switchCompany}
       />
+      <StopSheet open={sheet === "stop"} onOpenChange={(o) => setSheet(o ? "stop" : null)} routes={routes} value={pickupName} onChoose={choosePickup} userLoc={userLoc} />
+      <AssistantSheet open={sheet === "assistant"} onOpenChange={(o) => setSheet(o ? "assistant" : null)} company={company} userLoc={userLoc} />
       <HelpSheet open={sheet === "help"} onOpenChange={(o) => setSheet(o ? "help" : null)} company={company} vehicles={vehicles} />
       <BadgeSheet open={sheet === "badge"} onOpenChange={(o) => setSheet(o ? "badge" : null)} />
       <ChatSheet

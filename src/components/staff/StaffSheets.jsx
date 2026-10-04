@@ -12,6 +12,8 @@ import LocationPinner from "@/components/staff/LocationPinner";
 import LostItemReport from "@/components/staff/LostItemReport";
 import OneTimeCode from "@/components/staff/OneTimeCode";
 import StaffGroupChat from "@/components/staff/StaffGroupChat";
+import BusAssistant from "@/components/BusAssistant";
+import StopChooser from "@/components/passenger/StopChooser";
 
 function BottomSheet({ open, onOpenChange, title, description, children, tall = false }) {
   return (
@@ -132,6 +134,24 @@ export function ChatSheet({ open, onOpenChange, vehicle, vehicles, chosenVehicle
           />
         </div>
       </div>
+    </BottomSheet>
+  );
+}
+
+export function StopSheet({ open, onOpenChange, routes, value, onChoose, userLoc }) {
+  return (
+    <BottomSheet open={open} onOpenChange={onOpenChange} title="Where do you get on?" description="Your stop decides which bus and arrival time you see.">
+      <div className="-mx-6 pb-4">
+        <StopChooser routes={routes} value={value} userLoc={userLoc} intro={false} onChoose={(name) => { onChoose(name); onOpenChange(false); }} />
+      </div>
+    </BottomSheet>
+  );
+}
+
+export function AssistantSheet({ open, onOpenChange, company, userLoc }) {
+  return (
+    <BottomSheet open={open} onOpenChange={onOpenChange} title="Ask about your bus" description="Quick answers about times, stops and where your bus is.">
+      <div className="pb-4">{open && <BusAssistant company={company} userLoc={userLoc} bare />}</div>
     </BottomSheet>
   );
 }

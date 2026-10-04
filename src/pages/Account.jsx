@@ -1,6 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { CalendarClock, ChevronRight, IdCard } from "lucide-react";
+import { CalendarClock, ChevronRight, IdCard, LogOut } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import AppLayout from "@/components/AppLayout";
 import ProfileInfo from "@/components/ProfileInfo";
 import ChangePassword from "@/components/ChangePassword";
@@ -15,10 +16,10 @@ const DRIVER_LINKS = [
 ];
 
 export default function Account() {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   return (
-    <AppLayout title="My account">
-      <div className="max-w-xl space-y-4">
+    <AppLayout variant="passenger" title="Account">
+      <div className="max-w-xl space-y-4 px-4 pb-6 md:px-0">
         <ProfileInfo />
         {user?.role === "driver" && (
           <Card>
@@ -59,6 +60,10 @@ export default function Account() {
             </div>
           </CardContent>
         </Card>
+        {/* Phones have no header on passenger screens, so sign-out lives here too. */}
+        <Button variant="outline" size="lg" className="w-full justify-center md:hidden" onClick={() => logout()}>
+          <LogOut className="h-5 w-5" aria-hidden="true" /> Sign out
+        </Button>
       </div>
     </AppLayout>
   );

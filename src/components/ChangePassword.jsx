@@ -57,16 +57,16 @@ export default function ChangePassword() {
       </CardHeader>
       <CardContent className="space-y-2 max-w-sm">
         <div className="space-y-1.5">
-          <Label>Current password</Label>
-          <Input type="password" value={cur} onChange={(e) => setCur(e.target.value)} />
+          <Label htmlFor="tt-pw-current">Current password</Label>
+          <Input id="tt-pw-current" type="password" value={cur} onChange={(e) => setCur(e.target.value)} />
         </div>
         <div className="space-y-1.5">
-          <Label>New password</Label>
-          <Input type="password" value={nw} onChange={(e) => setNw(e.target.value)} />
+          <Label htmlFor="tt-pw-new">New password</Label>
+          <Input id="tt-pw-new" type="password" value={nw} onChange={(e) => setNw(e.target.value)} />
         </div>
         <div className="space-y-1.5">
-          <Label>Confirm new password</Label>
-          <Input type="password" value={conf} onChange={(e) => setConf(e.target.value)} />
+          <Label htmlFor="tt-pw-confirm">Confirm new password</Label>
+          <Input id="tt-pw-confirm" type="password" value={conf} onChange={(e) => setConf(e.target.value)} />
         </div>
         <Button onClick={submit} disabled={busy || !cur || !nw}>
           {busy ? "Saving…" : "Update password"}
