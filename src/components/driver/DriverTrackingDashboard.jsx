@@ -109,7 +109,7 @@ export default function DriverTrackingDashboard({ session, invoke, onReportIncid
       // No connection: keep the point on the tablet (with the time it was
       // taken) and upload it later, so the trip has no gap.
       if (!e?.response || [401,403,429].includes(e.response.status) || e.response.status>=500) {
-        try { queueGpsPoint({ lat, lng, speed, heading: extra.heading, accuracy: extra.accuracy, t: extra.ts || now }); }
+        try { queueGpsPoint({ lat, lng, speed, heading: extra.heading, accuracy: extra.accuracy, t: extra.ts || now, binding:{expected_device_id:localStorage.getItem("tt_driver_device_id"),expected_company_id:v.company_id,expected_vehicle_id:v.id} }); }
         catch (storageError) { toast({ title: "GPS could not be saved", description: storageError.message, variant: "destructive" }); }
       }
     }

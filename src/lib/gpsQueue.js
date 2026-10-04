@@ -28,14 +28,14 @@ function thin(points) {
 
 const round = (n, d) => (typeof n === "number" && Number.isFinite(n) ? Number(n.toFixed(d)) : null);
 
-export function queueGpsPoint({ lat, lng, speed, heading, accuracy, t }) {
+export function queueGpsPoint({ lat, lng, speed, heading, accuracy, t, binding }) {
   if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat)>90 || Math.abs(lng)>180) return false;
   const points = read();
   const time = t ? new Date(t) : new Date();
   if (!Number.isFinite(time.getTime()) || time.getTime()>Date.now()+60000 || time.getTime()<Date.now()-72*3600000) return false;
   const last = points[points.length - 1];
   if (last && time - new Date(last.t) < MIN_GAP_MS) return;
-  points.push({ t: time.toISOString(), lat: round(lat, 6), lng: round(lng, 6), speed: round(speed, 2), heading: round(heading, 1), accuracy: round(accuracy, 1) });
+  points.push({ ...(binding || {}), t: time.toISOString(), lat: round(lat, 6), lng: round(lng, 6), speed: round(speed, 2), heading: round(heading, 1), accuracy: round(accuracy, 1) });
   write(thin(points));
   return true;
 }

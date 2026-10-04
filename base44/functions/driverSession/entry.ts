@@ -438,6 +438,9 @@ export default async function(req) {
       ...(appHealth ? { app_health: appHealth } : {}),
     });
 
+    const matchesAssignment = (value) => (!value.expected_device_id || value.expected_device_id===device.id) && (!value.expected_company_id || value.expected_company_id===companyId) && (!value.expected_vehicle_id || value.expected_vehicle_id===vehicleId);
+    if(!matchesAssignment(body) || (action==='upload_track' && Array.isArray(body.points) && body.points.some(p=>!matchesAssignment(p||{})))) return Response.json({error:'Saved work belongs to a different tablet assignment'},{status:409});
+
     switch (action) {
       case 'verify_pin': {
         const vehicle = await loadVehicle(base44, vehicleId);

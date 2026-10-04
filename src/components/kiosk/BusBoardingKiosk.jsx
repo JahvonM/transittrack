@@ -374,7 +374,7 @@ export default function BusBoardingKiosk({ invoke, device }) {
   const confirmCheckIn = async (status) => {
     if (!pending || busy) return;
     setBusy(true);
-    const payload = { client_request_id: crypto.randomUUID(), occurred_at: new Date().toISOString(), staff_id: pending.staff.id, method: pending.method, code_type: pending.code_type, verification_grant: pending.verification_grant, status };
+    const payload = { expected_device_id:device.id, expected_company_id:device.company_id, expected_vehicle_id:device.vehicle_id, client_request_id: crypto.randomUUID(), occurred_at: new Date().toISOString(), staff_id: pending.staff.id, method: pending.method, code_type: pending.code_type, verification_grant: pending.verification_grant, status };
     try {
       const res = await invoke("check_in", payload);
       const record = { staff_name: res.record.staff_name, status: res.record.status };

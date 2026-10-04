@@ -34,6 +34,11 @@ export function registerRunner(kind, fn) {
 
 export function enqueueJob(kind, payload, label) {
   const jobs = read();
+  if(kind.startsWith('driver_')) {
+    const cache=JSON.parse(localStorage.getItem('tt_driver_session_cache')||'null');
+    const vehicle=cache?.session?.vehicle;
+    if(vehicle && cache.device_id===payload.device_id) payload={...payload,expected_device_id:payload.expected_device_id||payload.device_id,expected_company_id:payload.expected_company_id||vehicle.company_id,expected_vehicle_id:payload.expected_vehicle_id||vehicle.id};
+  }
   jobs.push({ id: `job-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, kind, payload: {...payload, client_request_id: payload.client_request_id || crypto.randomUUID()}, label: label || kind, queued_at: new Date().toISOString() });
   return write(jobs); // false when the device storage is full
 }

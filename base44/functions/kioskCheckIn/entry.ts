@@ -259,6 +259,9 @@ export default async function(req) {
 
     if (device && ['lookup_tag', 'lookup_code'].includes(action) && !(await reserveAttempt(base44, 'passenger-lookup:' + device.id, 20, 60_000))) return Response.json({ error: 'Too many attempts. Try again in a minute.' }, { status: 429 });
 
+    const matchesAssignment = (value) => (!value.expected_device_id || value.expected_device_id===device.id) && (!value.expected_company_id || value.expected_company_id===companyId) && (!value.expected_vehicle_id || value.expected_vehicle_id===vehicleId);
+    if(!matchesAssignment(body) || (action==='upload_track' && Array.isArray(body.points) && body.points.some(p=>!matchesAssignment(p||{})))) return Response.json({error:'Saved work belongs to a different tablet assignment'},{status:409});
+
     switch (action) {
       // --- bus_boarding: manual entry (search-as-you-type staff picker) ---
       case 'search_staff': {
