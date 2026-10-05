@@ -2,6 +2,7 @@ import CardIssuingTab from "@/components/admin/CardIssuingTab";
 import CardDesignerTab from "@/components/admin/CardDesignerTab";
 import AdsTab from "@/components/admin/AdsTab";
 import React, { Suspense, lazy, useEffect, useState } from "react";
+import CompanyJoinQr from "@/components/CompanyJoinQr";
 import { Navigate, useParams, useNavigate, Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
@@ -86,6 +87,7 @@ export default function CompanyDashboard() {
             <div className="text-caption text-muted-foreground">Permanent company code. Passengers keep access.</div>
           </div>
           <div className="flex w-full flex-wrap gap-2 sm:w-auto">
+          <CompanyJoinQr code={company.access_code} companyName={company.name} />
           <Button
             variant="outline"
             size="sm"

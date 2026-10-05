@@ -1,5 +1,6 @@
 import { toast } from "@/components/ui/use-toast";
 import React, { useState } from "react";
+import CompanyJoinQr from "@/components/CompanyJoinQr";
 import EmptyState from "@/components/EmptyState";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
@@ -55,6 +56,7 @@ export default function CompaniesTab({ companies, onChange }) {
                   {copied === c.access_code ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                 </Button>
               </div>
+              <CompanyJoinQr code={c.access_code} companyName={c.name} />
               <Button variant="outline" size="sm" disabled={issuing === c.id} onClick={async () => {
                 setIssuing(c.id);
                 try {

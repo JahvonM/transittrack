@@ -25,6 +25,7 @@ import ResetPassword from '@/pages/ResetPassword';
 const PageNotFound = lazy(() => import('./lib/PageNotFound'));
 const Welcome = lazy(() => import('@/pages/Welcome'));
 const BookTaxi = lazy(() => import('@/pages/BookTaxi'));
+const JoinCompany = lazy(() => import('@/pages/JoinCompany'));
 const CompanyDashboard = lazy(() => import('@/pages/CompanyDashboard'));
 const DriverApp = lazy(() => import('@/pages/DriverApp'));
 const Admin = lazy(() => import('@/pages/Admin'));
@@ -114,6 +115,7 @@ const AuthenticatedApp = () => {
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/" element={<Welcome />} />
       <Route path="/book-taxi" element={<BookTaxi />} />
+      <Route path="/join" element={<JoinCompany />} />
       <Route path="/oauth/consent" element={<OAuthConsent />} />
       {/* One route for /driver and /driver/<tab> so tab changes don't remount the app */}
       <Route path="/driver/:stage?" element={<DriverApp />} />

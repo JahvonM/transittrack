@@ -257,3 +257,50 @@ test('tablet details and admin menu stay aligned on narrow screens',async({page}
  const item=page.getByRole('dialog').getByRole('button',{name:'Maintenance',exact:true}).first();
  await expect(item).toHaveCSS('text-align','left');
 });
+
+test('company join QR checks its code after sign-in and keeps it out of the address bar',async({page})=>{
+ await session(page,'staff');
+ const verifies=[];
+ await page.route('**/functions/companyAccess',r=>{
+  const b=r.request().postDataJSON();
+  if(b.action==='verify'){verifies.push(b);return r.fulfill({json:{company:{id:'a',name:'Company A'},grant:'b'.repeat(64)}});}
+  return r.fulfill({status:401,json:{error:'Company code required'}});
+ });
+ await page.goto('/join#code=abcd2345efgh');
+ await expect(page).toHaveURL(/\/staff$/);
+ await expect.poll(()=>verifies.length).toBe(1);
+ expect(verifies[0].code).toBe('ABCD2345EFGH');
+ await expect.poll(()=>page.evaluate(()=>localStorage.getItem('tt_company_access_grant'))).toBe('b'.repeat(64));
+ expect(await page.evaluate(()=>sessionStorage.getItem('tt_pending_company_code'))).toBeNull();
+});
+
+test('company join QR asks a signed-out visitor to sign in first',async({page})=>{
+ await page.route('**/api/**',r=>r.fulfill({status:401,json:{error:'Not signed in'}}));
+ await page.goto('/join#code=ABCD2345EFGH');
+ await expect(page.getByRole('heading',{name:'Join your bus company'})).toBeVisible();
+ expect(new URL(page.url()).hash).toBe('');
+ await expect(page.getByRole('link',{name:'Create an account'})).toHaveAttribute('href','/register?returnTo=%2Fjoin');
+ expect(await page.evaluate(()=>sessionStorage.getItem('tt_pending_company_code'))).toBe('ABCD2345EFGH');
+});
+
+test('a damaged company join QR is refused without calling the server',async({page})=>{
+ await page.route('**/api/**',r=>r.fulfill({status:401,json:{error:'Not signed in'}}));
+ await page.goto('/join#code=<script>');
+ await expect(page.getByRole('heading',{name:"This QR code didn't work"})).toBeVisible();
+ expect(await page.evaluate(()=>sessionStorage.getItem('tt_pending_company_code'))).toBeNull();
+});
+
+test('company dashboard shows a passenger QR for its access code',async({page})=>{
+ await session(page,'company');
+ await page.route('**/functions/entityAccess',r=>{
+  const b=r.request().postDataJSON(); let result=[];
+  if(b.entity==='User') result={id:'caller',email:'caller@test.local',full_name:'Test Caller',role:'company',company_id:'a'};
+  if(b.entity==='Company') result=b.operation==='get'?{id:'a',name:'Company A',access_code:'ABCD2345EFGH'}:[{id:'a',name:'Company A',access_code:'ABCD2345EFGH'}];
+  return r.fulfill({json:{result}});
+ });
+ await page.goto('/company');
+ await page.getByRole('button',{name:'Show QR',exact:true}).click();
+ const img=page.getByRole('img',{name:'QR code to join Company A'});
+ await expect(img).toBeVisible();
+ await expect(img).toHaveAttribute('src',/^data:image\/png;base64,/);
+});

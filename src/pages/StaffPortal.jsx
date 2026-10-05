@@ -5,6 +5,7 @@ import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import AppLayout from "@/components/AppLayout";
 import CodeGate from "@/components/CodeGate";
+import { takePendingJoinCode } from "@/lib/companyJoin";
 import { useCompanyAlerts } from "@/components/StaffAlerts";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import useUserLocation from "@/hooks/useUserLocation";
@@ -117,9 +118,14 @@ export default function StaffPortal() {
   const crowd = useCrowding(company?.id);
   const [loading, setLoading] = useState(true);
 
+  // A company join QR scanned in this tab: check its code instead of
+  // restoring the saved company (it may be a different company).
+  const [joinCode] = useState(() => takePendingJoinCode());
+
   // Restore only a server-issued access grant; never compare cached join codes.
   useEffect(() => {
     localStorage.removeItem("tt_company_code");
+    if (joinCode) { setCompaniesLoaded(true); return; }
     const grant = localStorage.getItem("tt_company_access_grant");
     if (!grant) { setCompaniesLoaded(true); return; }
     base44.functions.invoke("companyAccess", { action: "context", grant }).then(({ data }) => {
@@ -127,7 +133,7 @@ export default function StaffPortal() {
       setCompanyPhone(data.company.phone || "");
     }).catch(() => { localStorage.removeItem("tt_company_access_grant"); })
       .finally(() => setCompaniesLoaded(true));
-  }, [user?.id]);
+  }, [user?.id, joinCode]);
 
   useEffect(() => {
     if (!company) return undefined;
@@ -343,7 +349,7 @@ export default function StaffPortal() {
   if (!company) {
     return (
       <AppLayout>
-        <CodeGate onUnlock={(c) => { setCompany(c); setCompanyPhone(c.phone || ""); }} />
+        <CodeGate initialCode={joinCode} onUnlock={(c) => { setCompany(c); setCompanyPhone(c.phone || ""); }} />
       </AppLayout>
     );
   }

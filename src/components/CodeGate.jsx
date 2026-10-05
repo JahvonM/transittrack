@@ -1,18 +1,20 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { Bus, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
-export default function CodeGate({ onUnlock }) {
-  const [code, setCode] = useState("");
+// initialCode comes from a company's join QR; it is checked straight away,
+// exactly as if the passenger had typed it.
+export default function CodeGate({ onUnlock, initialCode = "" }) {
+  const [code, setCode] = useState(initialCode);
   const [error, setError] = useState("");
   const [checking, setChecking] = useState(false);
 
-  const submit = async (e) => {
-    e.preventDefault();
-    const value = code.trim().toUpperCase();
+  const submit = async (e, override) => {
+    e?.preventDefault();
+    const value = (override ?? code).trim().toUpperCase();
     if (!value) return;
     setChecking(true);
     setError("");
@@ -26,6 +28,15 @@ export default function CodeGate({ onUnlock }) {
       setError(e?.response?.status === 429 ? "Too many attempts. Try again in 15 minutes." : "Could not verify. Check your code and connection.");
     } finally { setChecking(false); }
   };
+
+  const autoTried = useRef(false);
+  useEffect(() => {
+    if (!initialCode || autoTried.current) return;
+    autoTried.current = true;
+    submit(null, initialCode);
+    // Runs once for the QR code it was given.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialCode]);
 
   return (
     <div className="max-w-sm mx-auto mt-10 sm:mt-20">
