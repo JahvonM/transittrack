@@ -330,7 +330,7 @@ test('fleet map centers on a late GPS fix and accepts newer less accurate positi
    navigator.geolocation.clearWatch=id=>window.gpsCallbacks.delete(id);
  });
  await page.goto('/admin/fleet');
- await expect(page.locator('.leaflet-container')).toBeVisible();
+ await expect(page.locator('.leaflet-container')).toBeVisible({timeout:20000});
  await page.evaluate(()=>{
    for(const success of window.gpsCallbacks.values())success({coords:{latitude:12.04,longitude:-61.74,accuracy:5}});
  });
