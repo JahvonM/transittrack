@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CreditCard, QrCode, ChevronLeft, CheckCircle2, LogIn, LogOut, AlertCircle, Delete, MapPin, CloudUpload, PartyPopper, Bus, Users } from "lucide-react";
+import { CreditCard, QrCode, ChevronLeft, CheckCircle2, LogIn, LogOut, AlertCircle, Delete, MapPin, CloudUpload, PartyPopper, Bus, Users, Loader2 } from "lucide-react";
 import { useNfcTap, hasExternalReader, reportBadgeResult } from "@/hooks/useNfcTap";
 import { parseCodeQrPayload } from "@/lib/qr";
 import { haversineKm, etaMinutes, formatEta } from "@/lib/geo";
@@ -179,6 +179,9 @@ export default function BusBoardingKiosk({ invoke, device }) {
   const [code, setCode] = useState("");
   const [checkingCode, setCheckingCode] = useState(false);
   const [busy, setBusy] = useState(false);
+  // True from the moment a card is tapped until the lookup answers, so the
+  // screen reacts instantly even when the bus's connection is slow.
+  const [checkingCard, setCheckingCard] = useState(false);
   const [syncError, setSyncError] = useState(() => queueSyncError());
   const [pendingSyncCount, setPendingSyncCount] = useState(() => queueLength());
   const [vehicle, setVehicle] = useState(null);
@@ -308,6 +311,7 @@ export default function BusBoardingKiosk({ invoke, device }) {
   const handleTag = async (tag) => {
     if (lookupStarted.current && Date.now() - lookupStarted.current < 12000) return;
     lookupStarted.current = Date.now();
+    setCheckingCard(true);
     clearTimeout(resetTimer.current);
     setResult(null);
     setBadgeError("");
@@ -331,6 +335,7 @@ export default function BusBoardingKiosk({ invoke, device }) {
       resetSoon(busMessage(e) ? 5000 : 3500);
     } finally {
       lookupStarted.current = 0;
+      setCheckingCard(false);
       setBusy(false);
     }
   };
@@ -648,6 +653,14 @@ export default function BusBoardingKiosk({ invoke, device }) {
           <InfoRail occupancy={occupancy} vehicle={vehicle} nearestStop={nearestStop} ads={ads} todayCount={todayCount} />
         </div>
       </div>
+      {checkingCard && (
+        <div className="absolute inset-0 z-20 flex items-center justify-center bg-background/70 backdrop-blur-sm" role="status" aria-live="polite">
+          <div className="flex flex-col items-center gap-3 rounded-2xl border bg-card px-10 py-8 shadow-lg">
+            <Loader2 className="w-12 h-12 animate-spin text-primary" />
+            <p className="text-2xl font-semibold">Checking your card…</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
