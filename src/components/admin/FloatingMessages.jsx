@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import EmptyState from "@/components/EmptyState";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
-import { MessageCircle, X, ChevronLeft, Bus, Users, Building2, Radio, Wrench, Camera, Mic } from "lucide-react";
+import { MessageCircle, X, ChevronLeft, Bus, Users, Building2, Radio, Wrench, Camera, Mic, SquarePen } from "lucide-react";
 import ChatThread from "@/components/chat/ChatThread";
 
 function formatTime(iso) {
@@ -40,6 +40,7 @@ function senderLabelFor(m, channel) {
 export default function FloatingMessages({ vehicles = [], placement = "float" }) {
   const inHeader = placement === "header";
   const [open, setOpen] = useState(false);
+  const [composing, setComposing] = useState(false);
   const [activeVehicleId, setActiveVehicleId] = useState(null);
   const [activeChannel, setActiveChannel] = useState(null);
   const [messagesByVehicle, setMessagesByVehicle] = useState({});
@@ -106,7 +107,8 @@ export default function FloatingMessages({ vehicles = [], placement = "float" })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const openVehicle = (vehicleId) => { setActiveVehicleId(vehicleId); setActiveChannel(null); };
+  const newMessage = () => { setOpen(true); setComposing(true); setActiveVehicleId(null); setActiveChannel(null); };
+  const openVehicle = (vehicleId) => { setComposing(false); setActiveVehicleId(vehicleId); setActiveChannel(null); };
   const openChannel = (channel) => {
     setActiveChannel(channel);
     setUnreadKeys((prev) => { const next = new Set(prev); next.delete(`${activeVehicleId}:${channel}`); return next; });
@@ -116,10 +118,14 @@ export default function FloatingMessages({ vehicles = [], placement = "float" })
     if (!activeVehicle || !activeChannel) return;
     setSending(true);
     try {
-      await base44.entities.GroupMessage.create({
+      const created = await base44.entities.GroupMessage.create({
         vehicle_id: activeVehicle.id, vehicle_name: activeVehicle.name,
         company_id: activeVehicle.company_id, company_name: activeVehicle.company_name,
         channel: activeChannel, sender_role: "admin", sender_name: "Admin", text,
+      });
+      setMessagesByVehicle(prev => {
+        const list = prev[created.vehicle_id] || [];
+        return { ...prev, [created.vehicle_id]: list.some(m => m.id === created.id) ? list : [...list, created] };
       });
     } finally {
       setSending(false);
@@ -153,11 +159,12 @@ export default function FloatingMessages({ vehicles = [], placement = "float" })
     <>
       {open && (
         <div className={inHeader ? "fixed right-3 top-[4.5rem] z-50 flex h-[min(70vh,640px)] w-[calc(100vw-1.5rem)] max-w-sm flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl" : "fixed bottom-40 right-4 z-50 w-[92vw] max-w-sm h-[65vh] flex flex-col rounded-2xl border bg-card shadow-2xl overflow-hidden"} role="dialog" aria-label="Bus chats">
+          <Button variant="outline" size="sm" className="m-2 shrink-0" onClick={newMessage}><SquarePen className="h-4 w-4" aria-hidden="true" /> New message</Button>
           {!activeVehicle ? (
             <>
               <div className="flex items-center justify-between p-3 border-b shrink-0">
                 <div className="flex items-center gap-2 font-semibold text-sm">
-                  <MessageCircle className="w-4 h-4 text-primary" /> Bus chats
+                  <MessageCircle className="w-4 h-4 text-primary" /> {composing ? "New message · choose a bus" : "Bus chats"}
                 </div>
                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setOpen(false)}>
                   <X className="w-4 h-4" />
@@ -270,7 +277,7 @@ export default function FloatingMessages({ vehicles = [], placement = "float" })
         size="icon"
         aria-expanded={open}
         onClick={() => setOpen(!open)}
-        aria-label={open ? "Close messages" : `Messages${totalUnread ? `, ${totalUnread} unread` : ""}`}
+        aria-label={open ? "Close messages" : `Open messages${totalUnread ? `, ${totalUnread} unread` : ""}`}
       >
         {open ? <X className="w-5 h-5" /> : <MessageCircle className="w-5 h-5" />}
         {!open && totalUnread > 0 && (

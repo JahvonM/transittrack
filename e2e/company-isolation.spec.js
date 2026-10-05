@@ -1,8 +1,14 @@
+import {createHash} from 'node:crypto';
+import {unzipSync,strFromU8} from 'fflate';
 import {test,expect} from '@playwright/test';
 const vehicles=[{id:'bus-a',name:'Bus A',company_id:'a',company_name:'Company A',type:'staff_bus',status:'idle',capacity:25},{id:'bus-b',name:'Bus B',company_id:'b',company_name:'Company B',type:'staff_bus',status:'idle',capacity:25}];
 async function session(page,role) {
  const calls=[],direct=[];
- await page.addInitScript(()=>localStorage.setItem('base44_access_token','mock-authenticated-session'));
+ await page.addInitScript(()=>{
+   localStorage.setItem('base44_access_token','mock-authenticated-session');
+   localStorage.setItem('tt-map-engine','basic');
+ });
+ await page.route('https://api.mapbox.com/**', r=>r.fulfill({status:404,body:''}));
  await page.route('**/api/**',async route=>{
   const request=route.request(), url=request.url();
   if(url.includes('/entities/')) {direct.push(url);return route.fulfill({status:403,json:{error:'Direct entity access blocked'}});}
@@ -130,15 +136,20 @@ async function passengerShowcase(page, { stale = false, light = false } = {}) {
   await expect(page.getByLabel('Your bus',{exact:true})).toBeVisible();
 }
 
-test('approved passenger layout preserves live map and timeline on desktop',async({page})=>{
+test('approved passenger home shows ETA and opens its map only on request',async({page})=>{
   await page.setViewportSize({width:1440,height:1000});
   await passengerShowcase(page);
   await expect(page.getByLabel('Route stops')).toBeVisible();
   await expect(page.getByRole('button',{name:/Notify me/})).toBeVisible();
   await expect(page.getByLabel('Your bus',{exact:true}).getByText(/^Live/)).toBeVisible();
+  await expect(page.locator('#passenger-live-map')).toHaveCount(0);
+  await expect(page.locator('.leaflet-container')).toHaveCount(0);
+  await page.getByRole('button',{name:'Show map',exact:true}).click();
   const hero=await page.getByLabel('Your bus',{exact:true}).boundingBox();
   const map=await page.locator('#passenger-live-map').boundingBox();
   expect(map.x).toBeGreaterThan(hero.x+hero.width);
+  await page.getByRole('button',{name:'Hide map',exact:true}).click();
+  await expect(page.locator('#passenger-live-map')).toHaveCount(0);
   await expect.poll(()=>page.locator('img[src="/images/transit-bus-3d.webp"]').first().evaluate(img=>img.complete && img.naturalWidth>0)).toBe(true);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
   await page.screenshot({path:'/tmp/tt-passenger-desktop.png',fullPage:true});
@@ -303,4 +314,196 @@ test('company dashboard shows a passenger QR for its access code',async({page})=
  const img=page.getByRole('img',{name:'QR code to join Company A'});
  await expect(img).toBeVisible();
  await expect(img).toHaveAttribute('src',/^data:image\/png;base64,/);
+});
+
+test('admin keeps the current menu group open and message bubble stays above AI',async({page})=>{
+ // ui-redesign: main sections are always listed; the rest sit under "All tools",
+ // which opens itself when the current section is one of them. Messages and the
+ // AI assistant sit side by side in the page header instead of floating.
+ await session(page,'admin');
+ await page.goto('/admin/drivers');
+ const nav=page.getByRole('navigation',{name:'Admin'});
+ await expect(nav.getByRole('button',{name:'Drivers',exact:true})).toHaveAttribute('aria-current','page');
+ const tools=nav.getByRole('button',{name:'All tools',exact:true});
+ await expect(tools).toHaveAttribute('aria-expanded','false');
+ await page.goto('/admin/card-designs');
+ await expect(tools).toHaveAttribute('aria-expanded','true');
+ await expect(nav.getByRole('button',{name:'Card designer',exact:true})).toHaveAttribute('aria-current','page');
+ await tools.click();
+ await expect(tools).toHaveAttribute('aria-expanded','false');
+ const header=page.getByRole('banner');
+ const messages=header.getByRole('button',{name:'Open messages',exact:true});
+ const ai=header.getByRole('button',{name:'Open AI assistant',exact:true});
+ await expect(messages).toBeVisible();
+ await expect(ai).toBeVisible();
+ const m=await messages.boundingBox(),a=await ai.boundingBox();
+ expect(m.x+m.width).toBeLessThanOrEqual(a.x);
+});
+
+test('message bubble starts a new conversation without prior messages',async({page})=>{
+ await session(page,'admin');
+ const sent=[];
+ await page.route('**/functions/entityAccess', async r=>{
+   const b=r.request().postDataJSON();let result=[];
+   if(b.entity==='User')result={id:'caller',email:'caller@test.local',role:'admin'};
+   if(b.entity==='Vehicle')result=vehicles;
+   if(b.entity==='GroupMessage' && b.operation==='create'){sent.push(b.data);result={...b.data,id:'sent-1',created_date:new Date().toISOString()};}
+   return r.fulfill({json:{result}});
+ });
+ await page.goto('/admin');
+ await page.getByRole('button',{name:'Open messages',exact:true}).click();
+ await page.getByRole('button',{name:'New message',exact:true}).click();
+ await page.getByRole('button',{name:/Bus B.*No messages/}).click();
+ await page.getByRole('button',{name:/Passengers.*No messages/}).click();
+ await page.getByPlaceholder("Message this bus's passengers…").fill('Bus departs in five minutes');
+ await page.getByRole('button',{name:'Send message',exact:true}).click();
+ await expect(page.getByText('Bus departs in five minutes',{exact:true})).toBeVisible();
+ expect(sent).toHaveLength(1);
+ expect(sent[0]).toMatchObject({vehicle_id:'bus-b',company_id:'b',channel:'staff'});
+});
+
+test('fleet history opens latest recorded day for an offline bus and replaces timeline page',async({page})=>{
+ await session(page,'admin');
+ await page.addInitScript(()=>localStorage.setItem('tt-map-engine','basic'));
+ const recorded='2026-09-30';
+ await page.route('**/functions/entityAccess',async r=>{
+   const b=r.request().postDataJSON();let result=[];
+   if(b.entity==='User')result={id:'caller',role:'admin',email:'caller@test.local'};
+   if(b.entity==='Vehicle')result=vehicles;
+   if(b.entity==='LocationPing'){
+     const pings=[{id:'p1',vehicle_id:'bus-a',lat:12,lng:-61.7,recorded_at:recorded+'T12:00:00Z'},{id:'p2',vehicle_id:'bus-a',lat:12.001,lng:-61.7,recorded_at:recorded+'T12:01:00Z'}];
+     result=b.limit===1?[pings[1]]:b.query?.recorded_at?.$gte?.startsWith(recorded)?pings:[];
+   }
+   return r.fulfill({json:{result}});
+ });
+ await page.goto('/location-timeline');
+ await expect(page.getByRole('heading',{name:'Location timeline',exact:true})).toBeVisible();
+ await expect(page.getByLabel('Day',{exact:true})).toHaveValue(recorded);
+ await expect(page.getByTestId('replay-map')).toBeVisible();
+ await expect(page.getByRole('button',{name:'Location timeline',exact:true})).toHaveCount(0);
+ await page.getByRole('combobox',{name:'Bus',exact:true}).click();
+ await expect(page.getByRole('option',{name:'Bus B',exact:true})).toBeVisible();
+});
+
+test('fleet map centers on a late GPS fix and accepts newer less accurate positions',async({page})=>{
+ await session(page,'admin');
+ await page.addInitScript(()=>{
+   localStorage.setItem('tt-map-engine','basic');
+   navigator.geolocation.getCurrentPosition=()=>{};
+   window.gpsCallbacks=new Map();
+   let id=0;
+   navigator.geolocation.watchPosition=success=>{window.gpsCallbacks.set(++id,success);return id;};
+   navigator.geolocation.clearWatch=id=>window.gpsCallbacks.delete(id);
+ });
+ await page.goto('/admin/fleet');
+ await expect(page.locator('.leaflet-container')).toBeVisible({timeout:20000});
+ await page.evaluate(()=>{
+   for(const success of window.gpsCallbacks.values())success({coords:{latitude:12.04,longitude:-61.74,accuracy:5}});
+ });
+ const marker=page.locator('.leaflet-container path.leaflet-interactive').first();
+ await expect(marker).toBeVisible();
+ await expect.poll(async()=>{
+   const map=await page.locator('.leaflet-container').boundingBox(), dot=await marker.boundingBox();
+   return Math.max(Math.abs(dot.x+dot.width/2-(map.x+map.width/2)),Math.abs(dot.y+dot.height/2-(map.y+map.height/2)));
+ }).toBeLessThan(3);
+
+ await page.evaluate(()=>{
+   for(const success of window.gpsCallbacks.values())success({coords:{latitude:12.041,longitude:-61.74,accuracy:1200}});
+ });
+ await expect.poll(async()=>{
+   const map=await page.locator('.leaflet-container').boundingBox(),dot=await marker.boundingBox();
+   return Math.abs(dot.y+dot.height/2-(map.y+map.height/2));
+ }).toBeLessThan(3);
+ await expect(page.getByText('Approximate location · accuracy about 1200 metres')).toBeVisible();
+ await page.getByRole('button',{name:'My location',exact:true}).click();
+ await expect(page.locator('.leaflet-container')).toBeVisible();
+});
+
+test('tablet setup download includes the verified helper and prefilled USB script',async({page})=>{
+ await session(page,'admin');
+ const apk=Buffer.from([80,75,3,4,1,7]);
+ await page.route('**/functions/helperRelease',r=>r.fulfill({json:{version:'1.7',version_code:8,file_name:'TransitTrack-Kiosk-Helper.apk',sha256:createHash('sha256').update(apk).digest('hex'),apk_base64:apk.toString('base64')}}));
+ await page.route('**/functions/entityAccess',r=>{
+   const b=r.request().postDataJSON();let result=[];
+   if(b.entity==='User')result={id:'caller',role:'admin',email:'admin@test.invalid'};
+   if(b.entity==='KioskDevice')result=[{id:'tablet-test',label:'Bus 2',kiosk_type:'bus_boarding',paired:true,status:'active',vehicle_name:'Bus 2',pairing_code:'TESTPAIR12'}];
+   return r.fulfill({json:{result}});
+ });
+ await page.goto('/admin/kiosks');
+ const getZip=async(button)=>{
+   const pending=page.waitForEvent('download');
+   await button.click();
+   const download=await pending;
+   expect(download.suggestedFilename()).toMatch(/Helper-1\.7\.zip$/);
+   const stream=await download.createReadStream();const chunks=[];
+   for await(const part of stream)chunks.push(part);
+   return unzipSync(Buffer.concat(chunks));
+ };
+ const perTablet=await getZip(page.getByRole('button',{name:'Setup file',exact:true}));
+ expect(Buffer.from(perTablet['TransitTrack-Kiosk-Helper.apk'])).toEqual(apk);
+ expect(strFromU8(perTablet['TransitTrack-Setup-Bus-2.bat'])).toContain('set PRESET_TYPE=2');
+ const generic=await getZip(page.getByRole('button',{name:'Setup tool',exact:true}));
+ expect(generic['TransitTrack-Tablet-Setup.bat']).toBeDefined();
+ expect(Buffer.from(generic['TransitTrack-Kiosk-Helper.apk'])).toEqual(apk);
+});
+
+test('company logo upload previews the banner and saves its URL',async({page})=>{
+ await session(page,'admin');
+ let saved;
+ await page.route('**/api/**',async r=>{
+  if(/UploadFile/i.test(r.request().url()))return r.fulfill({json:{file_url:'https://test.invalid/company-logo.png'}});
+  return r.fallback();
+ });
+ await page.route('**/functions/entityAccess',async r=>{
+  const b=r.request().postDataJSON();
+  if(b.entity==='Company'&&b.operation==='create'){saved=b.data;return r.fulfill({json:{result:{id:'new-company',...b.data}}});}
+  return r.fallback();
+ });
+ await page.goto('/admin/companies');
+ await page.getByPlaceholder('Island Transit Co.').fill('Logo Company');
+ await page.getByLabel('Company logo',{exact:true}).setInputFiles({name:'logo.png',mimeType:'image/png',buffer:Buffer.from([137,80,78,71])});
+ const preview=page.getByLabel('Company banner preview');
+ await expect(preview.getByRole('img',{name:'Logo Company logo'})).toHaveAttribute('src','https://test.invalid/company-logo.png');
+ await page.getByRole('button',{name:'Create company',exact:true}).click();
+ await expect.poll(()=>saved).toMatchObject({name:'Logo Company',logo_url:'https://test.invalid/company-logo.png'});
+});
+
+test('fleet explains denied location permission and allows retry',async({page})=>{
+ await session(page,'admin');
+ await page.addInitScript(()=>{
+  navigator.geolocation.getCurrentPosition=(ok,fail)=>fail({code:1});
+  navigator.geolocation.watchPosition=(ok,fail)=>{fail({code:1});return 1;};
+  navigator.geolocation.clearWatch=()=>{};
+ });
+ await page.goto('/admin/fleet');
+ await expect(page.getByText('Location permission denied. Enable location access to see yourself on the map.')).toBeVisible();
+ await page.getByRole('button',{name:'My location',exact:true}).click();
+ await expect(page.getByText('Location permission denied. Enable location access to see yourself on the map.')).toBeVisible();
+});
+
+test('passenger Buses is distinct from Home and chat bubble works on both',async({page})=>{
+ await page.setViewportSize({width:390,height:844});
+ await passengerShowcase(page);
+ const bubble=page.getByRole('button',{name:'Open passenger chat',exact:true});
+ await expect(bubble).toBeVisible();
+ await bubble.click();
+ await expect(page.getByRole('heading',{name:/TT-102 chat/})).toBeVisible();
+ await page.keyboard.press('Escape');
+ const nav=page.getByRole('navigation',{name:'Passenger sections'});
+ await nav.getByRole('button',{name:'Buses',exact:true}).click();
+ await expect(page.getByRole('heading',{name:'Company buses',exact:true})).toBeVisible();
+ await expect(page.getByLabel('Your bus',{exact:true})).toHaveCount(0);
+ await expect(page.getByRole('button',{name:/Notify me/})).toHaveCount(0);
+ await expect(page.getByText('All company buses',{exact:true})).toBeVisible();
+ await expect(page.getByLabel('Company bus directory').getByText('TT-102',{exact:true})).toBeVisible();
+ await expect(page.locator('#passenger-live-map')).toHaveCount(0);
+ await page.getByRole('button',{name:'Show map',exact:true}).click();
+ await expect(page.locator('#passenger-live-map')).toBeVisible();
+ await bubble.click();
+ await expect(page.getByRole('heading',{name:/TT-102 chat/})).toBeVisible();
+ await page.keyboard.press('Escape');
+ await nav.getByRole('button',{name:'Home',exact:true}).click();
+ await expect(page.getByLabel('Your bus',{exact:true})).toBeVisible();
+ await expect(page.locator('#passenger-live-map')).toHaveCount(0);
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
 });

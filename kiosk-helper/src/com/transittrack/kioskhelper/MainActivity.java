@@ -20,6 +20,7 @@ public class MainActivity extends Activity {
                     + "Power:      " + Status.power + "\n"
                     + "Screen:     " + Status.screen + "\n"
                     + "Reader:     " + Status.reader + "\n"
+                    + "Page:       " + Status.delivery + "\n"
                     + "Last card:  " + Status.lastCard + "\n"
                     + "USB GPS:    " + Status.gps + "\n"
                     + "Hotspot:    " + (Config.hotspot(MainActivity.this) ? Status.hotspot : "Not used") + "\n"
@@ -56,7 +57,7 @@ public class MainActivity extends Activity {
         if ((v = i.getStringExtra("port")) != null) {
             try { e.putInt("port", Integer.parseInt(v.trim())); changed = true; } catch (NumberFormatException ignored) { }
         }
-        if ((v = i.getStringExtra("ignition")) != null) { e.putBoolean("ignition", "true".equalsIgnoreCase(v)); changed = true; }
+        if ((v = i.getStringExtra("ignition")) != null) { e.putBoolean("ignition", false); changed = true; }
         if ((v = i.getStringExtra("reader")) != null) { e.putBoolean("reader", "true".equalsIgnoreCase(v)); changed = true; }
         if ((v = i.getStringExtra("gps")) != null) { e.putBoolean("gps", "true".equalsIgnoreCase(v)); changed = true; }
         if ((v = i.getStringExtra("hotspot")) != null) { e.putBoolean("hotspot", "true".equalsIgnoreCase(v)); changed = true; }

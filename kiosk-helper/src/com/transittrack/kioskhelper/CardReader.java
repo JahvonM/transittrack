@@ -24,7 +24,9 @@ final class CardReader implements Runnable {
     private final UsbManager usb;
     private final ResultServer results;
     private volatile boolean running = true;
+    private volatile boolean reconnectRequested = false;
 
+    private UsbDevice device;
     private UsbDeviceConnection con;
     private UsbInterface intf;
     private UsbEndpoint in, out;
@@ -38,15 +40,12 @@ final class CardReader implements Runnable {
     }
 
     void stop() { running = false; }
+    void reconnect() { reconnectRequested = true; }
 
     @Override public void run() {
         while (running) {
             try {
-                if (HelperService.parked) {
-                    setReader("Paused (bus parked)");
-                    sleep(3000);
-                    continue;
-                }
+                reconnectRequested = false;
                 UsbDevice d = find();
                 if (d == null) {
                     setReader("Not plugged in");
@@ -72,7 +71,7 @@ final class CardReader implements Runnable {
                 }
                 waitingSince = 0;
                 Config.markSeen(ctx, "reader");
-                if (!open(d)) { sleep(3000); continue; }
+                if (!open(d)) { close(); setReader("Reconnecting"); sleep(3000); continue; }
                 Status.log("Card reader connected");
                 setReader("Connected");
                 readLoop();
@@ -102,6 +101,7 @@ final class CardReader implements Runnable {
     }
 
     private boolean open(UsbDevice d) {
+        device = d;
         con = usb.openDevice(d);
         if (con == null) { Status.log("Could not open the reader"); return false; }
         intf = null;
@@ -124,14 +124,18 @@ final class CardReader implements Runnable {
     private void close() {
         try { if (con != null && intf != null) con.releaseInterface(intf); } catch (Exception ignored) { }
         try { if (con != null) con.close(); } catch (Exception ignored) { }
-        con = null; intf = null; in = null; out = null;
+        con = null; device = null; intf = null; in = null; out = null;
     }
 
     private void readLoop() {
         boolean armed = true, first = true;
         int misses = 0, fails = 0;
         while (running) {
-            if (HelperService.parked) { Status.log("Card reader paused (bus parked)"); return; }
+            if (reconnectRequested) { Status.log("Reopening scanner after wake"); return; }
+            if (device == null || !usb.getDeviceList().containsKey(device.getDeviceName())) {
+                Status.log("Card reader unplugged; looking for scanner");
+                return;
+            }
             String uid;
             try {
                 uid = readCard();
@@ -154,25 +158,35 @@ final class CardReader implements Runnable {
             } else if (++misses >= 2) {
                 armed = true;  // card taken away, ready for the next tap
             }
-            sleep(HelperService.plugged ? 300 : 1000);
+            sleep(HelperService.plugged || !Config.ignition(ctx) ? 300 : 1000);
         }
     }
 
     private void handleCard(String uid) {
-        Status.lastCard = uid + "  (" + Status.now() + ")";
+        Status.lastCard = "Tap detected (" + Status.now() + ")";
         Status.lastCardIso = Status.iso(System.currentTimeMillis());
         ledRead();
+        Status.delivery = "Sending tap to boarding page";
         results.arm();
-        boolean sent = Kiosk.badge(ctx, uid);
+        String tapId = "tap-" + System.currentTimeMillis();
+        boolean sent = Kiosk.badge(ctx, uid, tapId);
         Boolean ok = sent ? results.await(5000) : null;
         if (ok == null) {
-            Status.log("Card " + uid + (sent ? " sent (no answer from the app)" : " NOT sent"));
-            if (sent) ledSuccess(); else ledRejected();
+            Status.log("Retrying card delivery to boarding page");
+            sent = Kiosk.badge(ctx, uid, tapId);
+            ok = sent ? results.await(5000) : null;
+        }
+        if (ok == null) {
+            Status.delivery = sent ? "Page did not acknowledge; tap again" : "FreeKiosk unreachable; check REST API";
+            Status.log(Status.delivery);
+            ledRejected(); // A REST response is not confirmation that the app received the tap.
         } else if (ok) {
-            Status.log("Card " + uid + " accepted");
+            Status.delivery = "Card recognized by page";
+            Status.log(Status.delivery);
             ledSuccess();
         } else {
-            Status.log("Card " + uid + " rejected");
+            Status.delivery = "Card rejected by page";
+            Status.log(Status.delivery);
             ledRejected();
         }
     }

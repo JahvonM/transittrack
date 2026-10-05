@@ -142,10 +142,12 @@ export default async function(req) {
     });
 
     let company_logo_url = '';
+    let company_display_name = device.company_name;
     if (device.company_id) {
       try {
         const company = await base44.asServiceRole.entities.Company.get(device.company_id);
         company_logo_url = company?.logo_url || '';
+        company_display_name = company?.name || device.company_name;
       } catch { /* company may have been removed */ }
     }
 
@@ -168,7 +170,7 @@ export default async function(req) {
       device_id: device.id,
       label: device.label,
       company_id: device.company_id,
-      company_name: device.company_name,
+      company_name: company_display_name,
       company_logo_url,
       vehicle_id: device.vehicle_id,
       vehicle_name: device.vehicle_name,

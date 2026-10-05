@@ -1,3 +1,4 @@
+import CompanyBanner from "@/components/CompanyBanner";
 import React, { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import { Link, Navigate, useSearchParams } from "react-router-dom";
 import { Bell, MapPin, UserRound } from "lucide-react";
@@ -27,7 +28,7 @@ import ArrivalHero from "@/components/passenger/ArrivalHero";
 import RouteTimeline from "@/components/passenger/RouteTimeline";
 import StopChooser from "@/components/passenger/StopChooser";
 import {
-  AlertBand, BookedRides, MoreList, OtherBuses, OtherBusesOverlay, SectionHead, SponsorLine, StopAlertRow, TripActions, TripFacts,
+  AlertBand, BookedRides, MapClosed, MapToggle, MoreList, OtherBuses, OtherBusesOverlay, PassengerChatBubble, SectionHead, SponsorLine, StopAlertRow, TripActions, TripFacts,
 } from "@/components/passenger/PassengerSections";
 import { clock, passengerTripState, sortStops } from "@/components/passenger/passengerState";
 import useStopEtas from "@/components/passenger/useStopEtas";
@@ -59,6 +60,7 @@ export default function StaffPortal() {
   const [pickupName, setPickupName] = useState(() => localStorage.getItem("tt_staff_pickup") || "");
   const [companyPhone, setCompanyPhone] = useState("");
   const [stopAlerts, setStopAlerts] = useState(false);
+  const [mapOpen, setMapOpen] = useState(false);
   const [sheet, setSheet] = useState(null); // "pickup" | "stop" | "help" | "badge" | "chat" | "assistant" | null
   // Links from the More tab open a sheet here (/staff?sheet=help).
   const [params, setParams] = useSearchParams();
@@ -412,6 +414,7 @@ export default function StaffPortal() {
               </div>
             </div>
 
+            <CompanyBanner name={companyName} logoUrl={company.logo_url} compact className="mx-6 mb-4 lg:mx-0" />
             {tripState.kind === "choose" ? (
               <>
                 <StopChooser routes={routes} value={pickupName} onChoose={choosePickup} userLoc={userLoc} companyName={companyName} />
@@ -460,8 +463,12 @@ export default function StaffPortal() {
 
           {/* Right: map and details */}
           <div className="flex min-w-0 flex-col">
-            <section id="passenger-live-map" className="px-6 pt-10 lg:order-1 lg:px-0 lg:pt-0" aria-labelledby="tt-live-map">
-              <SectionHead id="tt-live-map" title="Live map" aside={<Link to="/route-explorer" className="text-body-sm font-semibold underline-offset-4 hover:underline">Open map</Link>} />
+            <section className="px-6 pt-10 lg:order-1 lg:px-0 lg:pt-0" aria-labelledby="tt-live-map">
+              <SectionHead id="tt-live-map" title="Live map" aside={mapOpen ? <MapToggle open onToggle={() => setMapOpen(false)} /> : null} />
+              {!mapOpen ? (
+                <MapClosed onOpen={() => setMapOpen(true)}>See {tripState.bus?.name || "the buses"} moving on a 3D map. The map uses more data and battery.</MapClosed>
+              ) : (
+              <div id="passenger-live-map">
               <Suspense fallback={<div className="h-64 animate-pulse rounded-2xl bg-muted lg:h-[620px]" />}>
                 <LiveTransitMap
                   defaultSatellite
@@ -479,6 +486,8 @@ export default function StaffPortal() {
                   label={stop ? `Live map of ${tripState.bus?.name || "buses"} and ${stop.name}` : "Live map of buses"}
                 />
               </Suspense>
+              </div>
+              )}
             </section>
             <div className="lg:order-3">
               <OtherBuses buses={otherBuses} crowd={crowd} title={approaching ? "Other buses" : "All buses"} now={now} />
@@ -499,6 +508,7 @@ export default function StaffPortal() {
         </div>
       </PullToRefresh>
 
+      <PassengerChatBubble unread={chatUnread} open={sheet === "chat"} onClick={() => setSheet(sheet === "chat" ? null : "chat")} />
       <MyPickupSheet
         open={sheet === "pickup"}
         onOpenChange={(o) => setSheet(o ? "pickup" : null)}

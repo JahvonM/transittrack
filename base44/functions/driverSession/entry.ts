@@ -398,9 +398,19 @@ async function validGrant(base44, device, token, purpose, subject) {
 }
 
 async function pinHash(pin, salt) {
- const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(pin), 'PBKDF2', false, ['deriveBits']);
- const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt: new TextEncoder().encode(salt), iterations: 600000, hash: 'SHA-256' }, key, 256);
- return Array.from(new Uint8Array(bits), b => b.toString(16).padStart(2,'0')).join('');
+ let bytes;
+ try {
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(pin), 'PBKDF2', false, ['deriveBits']);
+  const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt: new TextEncoder().encode(salt), iterations: 600000, hash: 'SHA-256' }, key, 256);
+  bytes = new Uint8Array(bits);
+ } catch {
+  // Some hosted WebCrypto runtimes reject PBKDF2 even when local Deno works.
+  // Pure JavaScript PBKDF2 keeps the identical salt, work factor and output.
+  const { pbkdf2Async } = await import('npm:@noble/hashes@1.8.0/pbkdf2');
+  const { sha256 } = await import('npm:@noble/hashes@1.8.0/sha256');
+  bytes = await pbkdf2Async(sha256, new TextEncoder().encode(pin), new TextEncoder().encode(salt), { c: 600000, dkLen: 32 });
+ }
+ return Array.from(bytes, b => b.toString(16).padStart(2,'0')).join('');
 }
 async function setProtectedPin(base44, vehicle, pin) {
  const salt = Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2,'0')).join('');
@@ -451,7 +461,7 @@ export default async function(req) {
     const vehicleId = device.vehicle_id;
     if (!vehicleId) return Response.json({ error: 'No vehicle assigned to this device' }, { status: 400 });
 
-    if (!['heartbeat', 'verify_pin', 'register_push_token', 'sos'].includes(action) && !(await validGrant(base44, device, body.driver_grant, 'driver', vehicleId))) return Response.json({ error: 'Driver PIN verification required' }, { status: 401 });
+    if (!['heartbeat', 'verify_pin', 'request_pin_reset', 'register_push_token', 'sos'].includes(action) && !(await validGrant(base44, device, body.driver_grant, 'driver', vehicleId))) return Response.json({ error: 'Driver PIN verification required' }, { status: 401 });
 
     const helperHealth = cleanHelperHealth(body.helper_health);
     const appHealth = cleanAppHealth(body.app_health);
@@ -468,6 +478,18 @@ export default async function(req) {
     if(!matchesAssignment(body) || (action==='upload_track' && Array.isArray(body.points) && body.points.some(p=>!matchesAssignment(p||{})))) return Response.json({error:'Saved work belongs to a different tablet assignment'},{status:409});
 
     switch (action) {
+      case 'request_pin_reset': {
+        const vehicle = await loadVehicle(base44, vehicleId);
+        if (!vehicle || vehicle.company_id !== companyId) return Response.json({ error: 'Vehicle assignment mismatch' }, { status: 403 });
+        if (!(await reserveAttempt(base44, 'driver-pin-reset:' + device.id, 1, 15 * 60_000))) return Response.json({ error: 'A reset request was already sent recently. Please contact your administrator.' }, { status: 429 });
+        await base44.asServiceRole.entities.Broadcast.create({
+          type: 'info', title: 'Driver PIN reset requested', is_reply: true,
+          message: 'PIN reset requested from the paired tablet for ' + vehicle.name + '. Admin: open Drivers, find the assigned bus and use Save PIN.',
+          company_id: companyId, company_name: companyName || '',
+          vehicle_name: vehicle.name, driver_name: vehicle.driver_name || '', driver_email: vehicle.driver_email || '',
+        });
+        return Response.json({ ok: true });
+      }
       case 'verify_pin': {
         const vehicle = await loadVehicle(base44, vehicleId);
         if (!vehicle || vehicle.company_id !== companyId) return Response.json({ error: 'Vehicle assignment mismatch' }, { status: 403 });
@@ -503,10 +525,16 @@ export default async function(req) {
           catch { /* route may be missing */ }
         }
         let emergencyContacts = { boss_phone: '', secretary_phone: '' };
-        try { const company = await base44.asServiceRole.entities.Company.get(companyId); emergencyContacts = { boss_phone: company?.boss_phone || '', secretary_phone: company?.secretary_phone || '' }; } catch { /* optional contacts */ }
+        let companyLogoUrl = '', companyDisplayName = companyName;
+        try {
+          const company = await base44.asServiceRole.entities.Company.get(companyId);
+          emergencyContacts = { boss_phone: company?.boss_phone || '', secretary_phone: company?.secretary_phone || '' };
+          companyLogoUrl = company?.logo_url || '';
+          companyDisplayName = company?.name || companyName;
+        } catch { /* optional company display and contacts */ }
         return Response.json({
           vehicle: tabletVehicle(vehicle), driver_name: vehicle.driver_name || '', has_driver_pin: !!vehicle.driver_pin || !!(await base44.asServiceRole.entities.DriverPinCredential.filter({ vehicle_id: vehicleId }, '-updated_date', 1))[0]?.enabled,
-          company_id: companyId, company_name: companyName, staff, route: tabletRoute(route, companyId), emergency_contacts: emergencyContacts, ...boardingStats(checkIns),
+          company_id: companyId, company_name: companyDisplayName, company_logo_url: companyLogoUrl, staff, route: tabletRoute(route, companyId), emergency_contacts: emergencyContacts, ...boardingStats(checkIns),
           broadcasts: relevantBroadcasts, check_ins: checkIns.slice(0, 20).filter((c) => c.status === 'boarded').map(tabletCheckIn),
           group_messages: [...groupMessages].reverse(), trips,
           open_shift: openShifts.find((s) => !s.ended_at) || null,

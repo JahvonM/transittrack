@@ -44,7 +44,6 @@ import {
   ShieldCheck,
   LifeBuoy,
   BookOpen,
-  MapPinned,
   Hourglass,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
@@ -76,7 +75,6 @@ export const ADMIN_SECTIONS = [
   // Full pages shown inside the admin area (see ADMIN_PAGES in Admin.jsx).
   { id: "vehicle-logs", label: "Vehicle log", icon: FileText, group: "Fleet management" },
   { id: "driving-reports", label: "Driver report", icon: Gauge, group: "Fleet management" },
-  { id: "location-timeline", label: "Location timeline", icon: MapPinned, group: "Fleet management" },
   { id: "route-analytics", label: "Route analysis", icon: LineChart, group: "Fleet management" },
   { id: "fleet-analytics", label: "Fleet analysis", icon: BarChart3, group: "Fleet management" },
   { id: "route-planner", label: "Route planner", icon: MapIcon, group: "Fleet management" },

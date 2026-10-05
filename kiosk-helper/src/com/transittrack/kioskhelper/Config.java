@@ -8,7 +8,8 @@ final class Config {
     static SharedPreferences prefs(Context c) { return c.getSharedPreferences("cfg", Context.MODE_PRIVATE); }
     static String apiKey(Context c) { return prefs(c).getString("api_key", ""); }
     static int port(Context c) { return prefs(c).getInt("port", 8080); }
-    static boolean ignition(Context c) { return prefs(c).getBoolean("ignition", true); }
+    /** Legacy setup option: 1.7 keeps the screen awake on battery as well as charger. */
+    static boolean ignition(Context c) { return false; }
     static boolean reader(Context c) { return prefs(c).getBoolean("reader", true); }
     static boolean gps(Context c) { return prefs(c).getBoolean("gps", true); }
     /** Driver tablets only: share the SIM's internet over the Wi-Fi hotspot while the bus runs. */

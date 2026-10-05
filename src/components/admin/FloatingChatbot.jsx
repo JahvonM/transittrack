@@ -82,8 +82,8 @@ export default function FloatingChatbot({ placement = "float" }) {
         variant={inHeader ? "ghost" : "default"}
         size="icon"
         aria-expanded={open}
+        aria-label={open ? "Close AI assistant" : "Open AI assistant"}
         onClick={() => setOpen(!open)}
-        aria-label={open ? "Close assistant" : "Open assistant"}
       >
         {open ? <X className="w-5 h-5" /> : <Sparkles className="w-5 h-5" />}
       </Button>

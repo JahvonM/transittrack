@@ -1,5 +1,6 @@
 import React, { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Crosshair, MapPin, Pause, Play, RotateCcw } from "lucide-react";
+import { loadReplayDay, latestReplayDay } from "@/lib/replayData";
 import { base44 } from "@/api/base44Client";
 import { snapTrackToRoads } from "@/lib/geo";
 import { mapEngine, markFullMapFailed } from "@/lib/mapEngine";
@@ -13,7 +14,6 @@ import BusLoader from "@/components/BusLoader";
 const ReplayMapGL = lazy(() => import("@/components/replay/ReplayMapGL"));
 const ReplayMapLite = lazy(() => import("@/components/replay/ReplayMapLite"));
 
-const DAY = 24 * 60 * 60 * 1000;
 const pad = (n) => String(n).padStart(2, "0");
 // Calendar day in the viewer's own time zone (toISOString would give UTC,
 // which is "tomorrow" for part of the evening in the Americas).
@@ -33,27 +33,6 @@ const SPEEDS = [
   { value: 300, label: "300× (5 min per sec)" },
 ];
 
-async function loadDay(vehicleId, day) {
-  const from = new Date(`${day}T00:00:00`).getTime();
-  const to = from + DAY;
-  const inDay = (p) => {
-    const t = new Date(p.recorded_at).getTime();
-    return t >= from && t < to;
-  };
-  try {
-    const rows = await base44.entities.LocationPing.filter(
-      { vehicle_id: vehicleId, recorded_at: { $gte: new Date(from).toISOString(), $lt: new Date(to).toISOString() } },
-      "recorded_at",
-      5000,
-    );
-    return (rows || []).filter(inDay);
-  } catch {
-    // Older data stores may not accept a date range — newest first, then trim.
-    const rows = await base44.entities.LocationPing.filter({ vehicle_id: vehicleId }, "-recorded_at", 5000);
-    return (rows || []).filter(inDay);
-  }
-}
-
 // Plays back where a bus went on a chosen day. Used by the Location timeline
 // page and by Live fleet → History.
 export default function LocationReplay({ vehicles = [], initialVehicleId = "" }) {
@@ -61,6 +40,9 @@ export default function LocationReplay({ vehicles = [], initialVehicleId = "" })
   const [day, setDay] = useState(() => localDay());
   const [pings, setPings] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState("");
+  const [retry, setRetry] = useState(0);
+  const latestAttempted = useRef("");
   const [line, setLine] = useState(null);
   const [snapping, setSnapping] = useState(false);
   const [vt, setVt] = useState(0);
@@ -79,15 +61,27 @@ export default function LocationReplay({ vehicles = [], initialVehicleId = "" })
     if (!vehicleId) return undefined;
     let cancelled = false;
     setLoading(true);
+    setLoadError("");
+    setPings([]);
     setPlaying(false);
     setLine(null);
     seek(0);
-    loadDay(vehicleId, day)
-      .then((rows) => { if (!cancelled) setPings(cleanPings(rows)); })
-      .catch(() => { if (!cancelled) setPings([]); })
+    const tryLatest = day === localDay() && latestAttempted.current !== vehicleId;
+    latestAttempted.current = vehicleId;
+    loadReplayDay(base44.entities.LocationPing, vehicleId, day)
+      .then(async (rows) => {
+        if (cancelled) return;
+        if (!rows.length && tryLatest) {
+          const latest = await latestReplayDay(base44.entities.LocationPing, vehicleId);
+          if (cancelled) return;
+          if (latest && latest !== day) { setDay(latest); return; }
+        }
+        setPings(cleanPings(rows));
+      })
+      .catch(() => { if (!cancelled) setLoadError("Couldn't load this bus's location history. Try again."); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [vehicleId, day]);
+  }, [vehicleId, day, retry]);
 
   // Put the recorded points on the actual roads (and bridge offline gaps
   // along the likeliest road) instead of joining them with straight lines.
@@ -136,7 +130,7 @@ export default function LocationReplay({ vehicles = [], initialVehicleId = "" })
   return (
     <div className="space-y-3">
       <div className="flex gap-2 flex-wrap items-center">
-        <Select value={vehicleId} onValueChange={setVehicleId}>
+        <Select value={vehicleId} onValueChange={(id) => { setDay(localDay()); setVehicleId(id); }}>
           <SelectTrigger className="w-[200px]" aria-label="Bus">
             <SelectValue placeholder="Choose a bus" />
           </SelectTrigger>
@@ -161,15 +155,24 @@ export default function LocationReplay({ vehicles = [], initialVehicleId = "" })
           </Button>
         </div>
         {day !== today && <Button size="sm" variant="ghost" onClick={() => setDay(today)}>Today</Button>}
+        <Button size="sm" variant="outline" disabled={!vehicleId || loading} onClick={async () => {
+          setLoadError("");
+          try {
+            const latest = await latestReplayDay(base44.entities.LocationPing, vehicleId);
+            if (latest) { setDay(latest); setRetry(n => n + 1); }
+            else setLoadError("No location points have been recorded for this bus yet.");
+          } catch { setLoadError("Couldn't find this bus's latest history. Try again."); }
+        }}>Latest recorded day</Button>
       </div>
 
+      {loadError && <div role="alert" className="rounded-xl border p-3 text-sm">{loadError} <Button size="sm" variant="outline" onClick={() => setRetry(n => n + 1)}>Retry</Button></div>}
       {loading ? (
         <BusLoader className="py-8" />
       ) : !tl ? (
         <Card>
           <CardContent className="py-10 text-center text-sm text-muted-foreground">
             <MapPin className="w-6 h-6 mx-auto mb-2 opacity-60" />
-            No trips recorded for {vehicle?.name || "this bus"} on this day. Use the arrows to look at another day.
+            {loadError ? "History is unavailable right now." : vehicles.length === 0 ? "No buses are registered yet." : `No location points recorded for ${vehicle?.name || "this bus"} on this day. Choose Latest recorded day or use the arrows to look at another day.`}
           </CardContent>
         </Card>
       ) : (

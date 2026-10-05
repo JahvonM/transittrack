@@ -1,3 +1,5 @@
+import { useKeepAwake } from "@/hooks/useKeepAwake";
+import { saveBoardingDirectory, localCardLookup } from "@/lib/boardingDirectory";
 import { deviceRequest, saveDeviceToken, forgetDeviceToken, pairingProfile } from "@/lib/deviceAuth";
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import useNoPageZoom from "@/hooks/useNoPageZoom";
@@ -33,6 +35,7 @@ const initialStoredId = () => { try { return localStorage.getItem("tt_kiosk_devi
 
 export default function Kiosk() {
   useNoPageZoom();
+  useKeepAwake();
   // A tablet that has paired before opens straight from its saved setup, so
   // it still works when it starts up with no WiFi.
   const [device, setDevice] = useState(() => { const id = initialStoredId(); return id ? loadDevice(id) : null; });
@@ -156,6 +159,7 @@ export default function Kiosk() {
       base44.functions.invoke("kioskCheckIn", deviceRequest(deviceId, { action: "offline_directory" }))
         .then((res) => {
           if (stopped || !res.data?.staff) return;
+          saveBoardingDirectory(res.data, device);
           saveDirectory(res.data);
           setSavedList(directoryInfo());
           warmPhotos(res.data.staff);
@@ -167,12 +171,16 @@ export default function Kiosk() {
     const onUp = () => refresh();
     window.addEventListener("online", onUp);
     return () => { stopped = true; clearInterval(t); window.removeEventListener("online", onUp); };
-  }, [deviceId, isBoarding, sentAt]);
+  }, [deviceId, isBoarding, sentAt, device?.company_id, device?.vehicle_id]);
 
   // Every kiosk action (search/lookup/check-in/register/sign-in) goes
   // through this one backend function, keyed by device_id like driverSession.
-  // With no connection, card and code verification fails with a connection prompt.
+  // NFC uses the scoped local index first. Codes still require the server.
   const invoke = useCallback(async (action, payload = {}) => {
+    if (action === "lookup_tag" && device?.kiosk_type === "bus_boarding") {
+      const local = await localCardLookup(payload.card_tag, device);
+      if (local) return local;
+    }
     try {
       // A request that never answers (bus WiFi connected but no internet)
       // counts as offline after a few seconds, so card lookups fall back to
@@ -190,7 +198,7 @@ export default function Kiosk() {
       }
       throw e;
     }
-  }, [deviceId]);
+  }, [deviceId, device?.company_id, device?.vehicle_id, device?.kiosk_type]);
 
   const meta = device ? (TYPE_META[device.kiosk_type] || TYPE_META.bus_boarding) : null;
   const Icon = meta?.icon || Bus;
@@ -238,7 +246,7 @@ export default function Kiosk() {
   if (device?.kiosk_type === "bus_boarding") {
     return (
       <>
-        <BusBoardingKiosk invoke={invoke} device={device} />
+        <BusBoardingKiosk invoke={invoke} device={device} directoryInfo={savedList} />
         {!online && <OfflineChip savedList={savedList} />}
       </>
     );
@@ -294,11 +302,12 @@ export default function Kiosk() {
   );
 }
 
-function OfflineChip() {
+function OfflineChip({ savedList }) {
+  const usable = savedList?.expires && Date.parse(savedList.expires) > Date.now();
   return (
     <div role="status" className="fixed bottom-3 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 rounded-full bg-warning text-black px-4 py-2 text-sm font-semibold shadow-lg">
       <WifiOff className="w-4 h-4" />
-      Offline — connect to verify cards or codes. Pending check-ins will sync.
+      {usable ? "Offline — saved NFC card list available. Check-ins will sync." : "Offline — connect to download a current card list."}
     </div>
   );
 }

@@ -93,7 +93,6 @@ const PORTAL_LINKS = [
 const ADMIN_PAGES = {
   "vehicle-logs": lazy(() => import("@/pages/VehicleLogs")),
   "driving-reports": lazy(() => import("@/pages/DrivingReports")),
-  "location-timeline": lazy(() => import("@/pages/LocationTimeline")),
   "route-analytics": lazy(() => import("@/pages/RouteAnalytics")),
   "fleet-analytics": lazy(() => import("@/pages/FleetAnalytics")),
   "route-planner": lazy(() => import("@/pages/RoutePlanner")),
@@ -115,7 +114,6 @@ const MGMT_LINKS = [
   { to: "/admin/incident-reports", label: "Incident Reports", icon: AlertTriangle },
   { to: "/incident-report", label: "Report Incident", icon: LifeBuoy },
   { to: "/admin/driving-reports", label: "Driving Reports", icon: Gauge },
-  { to: "/admin/location-timeline", label: "Location Timeline", icon: History },
   { to: "/admin/route-planner", label: "Route Planner", icon: Map },
   { to: "/admin/route-explorer", label: "Route Explorer", icon: Route },
   { to: "/admin/route-analytics", label: "Route Analytics", icon: LineChart },
@@ -132,7 +130,7 @@ export default function Admin() {
   const { permission: pushPermission, enableNotifications } = usePushNotifications({ email: user?.email, role: "admin" });
   const navigate = useNavigate();
   const { section: urlSection } = useParams();
-  const section = urlSection || "overview";
+  const section = urlSection === "location-timeline" ? "fleet" : urlSection || "overview";
   const [users, setUsers] = useState([]);
   const [companies, setCompanies] = useState([]);
   const [vehicles, setVehicles] = useState([]);
@@ -361,6 +359,7 @@ export default function Admin() {
           <LiveFleetTab
             vehicles={vehicles}
             routes={routes}
+            initialView={urlSection === "location-timeline" ? "history" : "live"}
             onVehicleUpdate={(updated) =>
               setVehicles((prev) => prev.map((v) => (v.id === updated.id ? updated : v)))
             }

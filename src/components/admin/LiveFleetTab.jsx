@@ -1,5 +1,6 @@
 import React, { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
-import { Bus, History, Lock, Radar, Radio, Search, Unlock, Users, X } from "lucide-react";
+import { Bus, History, Lock, MapPin, Radar, Radio, Search, Unlock, Users, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
 import { cn } from "@/lib/utils";
 import BusDistance from "@/components/BusDistance";
@@ -24,9 +25,10 @@ const ORDER = { sos: 0, speed: 1, lost: 2, stale: 3, live: 4, out: 5, idle: 6 };
 const ACTION =
   "inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl border px-4 text-body-sm font-semibold transition-colors disabled:pointer-events-none disabled:opacity-50";
 
-export default function LiveFleetTab({ vehicles, routes = [], onVehicleUpdate }) {
+export default function LiveFleetTab({ vehicles, routes = [], onVehicleUpdate, initialView = "live" }) {
   const { toast } = useToast();
-  const { location: userLoc } = useUserLocation();
+  const { location: userLoc, error: locationError, retry: retryLocation } = useUserLocation();
+  const [mapKey, setMapKey] = useState(0);
   const [busy, setBusy] = useState(null);
   const [occupancy, setOccupancy] = useState({});
   const [query, setQuery] = useState("");
@@ -37,7 +39,7 @@ export default function LiveFleetTab({ vehicles, routes = [], onVehicleUpdate })
   const [focus, setFocus] = useState({ id: null, n: 0 });
   const mapBox = useRef(null);
   // "live" = where buses are now, "history" = replay a past day.
-  const [view, setView] = useState("live");
+  const [view, setView] = useState(initialView);
   const [historyId, setHistoryId] = useState("");
   // On phones the map sits above the list; bring it into view after a pick.
   const revealMap = () => {
@@ -252,6 +254,7 @@ export default function LiveFleetTab({ vehicles, routes = [], onVehicleUpdate })
               aria-selected={view === id}
               onClick={() => {
                 setView(id);
+                if (id === "live") { setFocus({ id: null, n: 0 }); setMapKey(n => n + 1); }
                 if (id === "history" && !historyId) setHistoryId(focus.id || vehicles[0]?.id || "");
               }}
               className={cn(
@@ -270,12 +273,24 @@ export default function LiveFleetTab({ vehicles, routes = [], onVehicleUpdate })
         </p>
       </div>
 
+      {view === "live" && (
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <p role="status" className="text-body-sm text-muted-foreground">
+            {locationError || (!userLoc ? "Finding your location…" : userLoc.accuracy > 500 ? `Approximate location · accuracy about ${Math.round(userLoc.accuracy)} metres` : "Your current location is shown on the map")}
+          </p>
+          <Button size="sm" variant="outline" onClick={() => { setFocus({ id: null, n: 0 }); setMapKey((n) => n + 1); retryLocation(); }}>
+            <MapPin className="h-4 w-4" aria-hidden="true" /> My location
+          </Button>
+        </div>
+      )}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(300px,380px)_minmax(0,1fr)]">
         <div ref={mapBox} className="min-w-0 scroll-mt-20 space-y-4 lg:order-last" role="tabpanel">
           {view === "live" ? (
             <>
               <Suspense fallback={<div className="h-[46vh] animate-pulse rounded-2xl bg-muted lg:h-[calc(100vh-17rem)]" />}>
                 <LiveTransitMap
+                  key={mapKey}
+                  followUser={!selected}
                   variant="page"
                   className={cn("h-[46vh] min-h-[320px] rounded-2xl border border-border", selected ? "lg:h-[calc(100vh-30rem)] lg:min-h-[380px]" : "lg:h-[calc(100vh-17rem)]")}
                   vehicles={withLocation}
@@ -290,7 +305,10 @@ export default function LiveFleetTab({ vehicles, routes = [], onVehicleUpdate })
               {detail}
             </>
           ) : (
-            <LocationReplay vehicles={vehicles} initialVehicleId={historyId} />
+            <div className="space-y-3">
+              <h2 className="text-title-sm font-bold">Location timeline</h2>
+              <LocationReplay vehicles={vehicles} initialVehicleId={historyId} />
+            </div>
           )}
         </div>
         {list}

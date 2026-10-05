@@ -5,28 +5,29 @@ import { useEffect, useState } from "react";
  * Used by every dashboard map so each user always sees their own location pin.
  * Returns { location: {lat, lng} | null, error: string }.
  */
-export default function useUserLocation() {
+export default function useUserLocation(enabled = true) {
   const [location, setLocation] = useState(null);
   const [error, setError] = useState("");
+  const [request, setRequest] = useState(0);
 
   useEffect(() => {
+    if (!enabled) return undefined;
     if (!navigator.geolocation) {
       setError("Geolocation is not supported by your device.");
       return;
     }
-    const id = navigator.geolocation.watchPosition(
-      (p) => {
+    let cancelled = false, received = false;
+    const success = (p) => {
+        if (cancelled || !Number.isFinite(p.coords.latitude) || !Number.isFinite(p.coords.longitude)) return;
+        received = true;
         const acc = p.coords.accuracy ?? 999;
-        // Skip extremely low-accuracy fixes (cell tower) to avoid big offsets
-        if (acc > 500) return;
-        setLocation((prev) => {
-          // Only update if this fix is at least as accurate as the current one
-          if (prev && prev.accuracy != null && prev.accuracy < acc) return prev;
+        setLocation(() => {
           return { lat: p.coords.latitude, lng: p.coords.longitude, accuracy: acc };
         });
         setError("");
-      },
-      (err) => {
+      };
+    const failure = (err) => {
+        if (cancelled || (received && err.code !== 1)) return;
         setError(
           err.code === 1
             ? "Location permission denied. Enable location access to see yourself on the map."
@@ -36,11 +37,12 @@ export default function useUserLocation() {
             ? "Location request timed out."
             : "Couldn't get your location."
         );
-      },
-      { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
-    );
-    return () => navigator.geolocation.clearWatch(id);
-  }, []);
+      };
+    // A one-shot request also recovers browsers whose watch has not produced a fix yet.
+    navigator.geolocation.getCurrentPosition(success, failure, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
+    const id = navigator.geolocation.watchPosition(success, failure, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
+    return () => { cancelled = true; navigator.geolocation.clearWatch(id); };
+  }, [enabled, request]);
 
-  return { location, error };
+  return { location, error, retry: () => { setError(""); setRequest(n => n + 1); } };
 }

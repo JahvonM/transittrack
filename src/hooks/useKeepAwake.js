@@ -18,14 +18,26 @@ export function useKeepAwake(enabled = true) {
     let wakeLock = null;
     let cancelled = false;
     let usedNative = false;
+    let acquiring = false;
+    let retry = null;
 
     const acquireWeb = async () => {
-      if (!("wakeLock" in navigator)) return;
+      if (cancelled || acquiring || document.visibilityState !== "visible" || !("wakeLock" in navigator) || (wakeLock && !wakeLock.released)) return;
+      acquiring = true;
       try {
-        wakeLock = await navigator.wakeLock.request("screen");
+        const lock = await navigator.wakeLock.request("screen");
+        if (cancelled) { await lock.release(); return; }
+        wakeLock = lock;
+        lock.addEventListener("release", () => {
+          if (wakeLock === lock) wakeLock = null;
+          if (!cancelled && document.visibilityState === "visible") {
+            clearTimeout(retry);
+            retry = setTimeout(acquireWeb, 5000);
+          }
+        }, { once: true });
       } catch {
-        /* e.g. tab not visible yet, or unsupported — harmless */
-      }
+        /* OS/browser may decline; retry on the next visible wake. */
+      } finally { acquiring = false; }
     };
 
     const onVisibilityChange = () => {
@@ -39,6 +51,7 @@ export function useKeepAwake(enabled = true) {
           const { KeepAwake } = await import("@capacitor-community/keep-awake");
           await KeepAwake.keepAwake();
           usedNative = true;
+          if (cancelled) await KeepAwake.allowSleep();
           return;
         }
       } catch {
@@ -48,10 +61,13 @@ export function useKeepAwake(enabled = true) {
     })();
 
     document.addEventListener("visibilitychange", onVisibilityChange);
+    window.addEventListener("pageshow", onVisibilityChange);
 
     return () => {
       cancelled = true;
+      clearTimeout(retry);
       document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.removeEventListener("pageshow", onVisibilityChange);
       if (usedNative) {
         import("@capacitor-community/keep-awake").then(({ KeepAwake }) => KeepAwake.allowSleep()).catch(() => {});
       } else if (wakeLock) {

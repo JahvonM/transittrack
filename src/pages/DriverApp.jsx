@@ -1,3 +1,4 @@
+import CompanyBanner from "@/components/CompanyBanner";
 import { saveDeviceToken, forgetDeviceToken } from "@/lib/deviceAuth";
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import useNoPageZoom from "@/hooks/useNoPageZoom";
@@ -332,7 +333,10 @@ export default function DriverApp() {
       <div className="min-h-[100dvh] grid place-items-center safe-area-top safe-area-x">
         {/* Padding sits inside: safe-area-x replaces the outer box's padding. */}
         <div className="grid w-full max-w-4xl gap-10 p-6 md:grid-cols-2 md:items-center">
-          <DriverGreeting driverName={driverName} subtitle={vehicle.name} />
+          <div className="space-y-6">
+            <CompanyBanner name={session.company_name || vehicle.company_name} logoUrl={session.company_logo_url} />
+            <DriverGreeting driverName={driverName} subtitle={vehicle.name} />
+          </div>
           <PinGate deviceId={deviceId} vehicle={vehicle} invoke={invoke} onUnlock={() => { localStorage.setItem("tt_driver_unlock_date", new Date().toISOString().slice(0, 10)); setUnlocked(true); if (dueInspections.length) openInspection(dueInspections[0], { from: "unlock" }); else goStage(urlStage && urlStage !== "pin" && urlStage !== "inspection" ? urlStage : session?.open_shift ? "track" : "home"); }} />
         </div>
       </div>
@@ -349,6 +353,7 @@ export default function DriverApp() {
     return (
       <div className="min-h-screen p-4 safe-area-top safe-area-x">
         <div className="space-y-4 max-w-6xl mx-auto">
+          <CompanyBanner name={session.company_name || vehicle.company_name} logoUrl={session.company_logo_url} compact />
           {canSkip && (
             <Button
               variant="ghost"
@@ -390,6 +395,7 @@ export default function DriverApp() {
 
   return (
     <div className="tt-driver-shell h-[100dvh] flex flex-col overflow-hidden bg-background safe-area-top safe-area-x">
+      <CompanyBanner name={session.company_name || vehicle.company_name} logoUrl={session.company_logo_url} compact className="shrink-0 mx-3 mt-2" />
       <DriverTopBar
         driverName={driverName}
         busName={vehicle.name}

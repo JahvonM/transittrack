@@ -1,8 +1,9 @@
+import CompanyBanner from "@/components/CompanyBanner";
 import React, { useEffect, useRef, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CreditCard, QrCode, ChevronLeft, CheckCircle2, LogIn, LogOut, AlertCircle, Delete, MapPin, CloudUpload, PartyPopper, Bus, Users } from "lucide-react";
-import { useNfcTap, hasExternalReader, reportBadgeResult } from "@/hooks/useNfcTap";
+import { CreditCard, QrCode, ChevronLeft, CheckCircle2, LogIn, LogOut, AlertCircle, Delete, MapPin, CloudUpload, PartyPopper, Bus, Users, Loader2 } from "lucide-react";
+import { useNfcTap, reportBadgeResult } from "@/hooks/useNfcTap";
 import { parseCodeQrPayload } from "@/lib/qr";
 import { haversineKm, etaMinutes, formatEta } from "@/lib/geo";
 import { MAPBOX_TOKEN, mapStyleFor } from "@/lib/mapbox";
@@ -168,7 +169,7 @@ function speak(text) {
 // sitting in a small centered card, so a big tablet doesn't end up mostly
 // empty space — a persistent top bar and, on large screens, a live info
 // rail (occupancy/weather/ads) fill the room around the actual check-in card.
-export default function BusBoardingKiosk({ invoke, device }) {
+export default function BusBoardingKiosk({ invoke, device, directoryInfo }) {
   const isDark = useIsDark();
   const [unlocked, setUnlocked] = useState(false);
   const [now, setNow] = useState(() => new Date());
@@ -179,6 +180,9 @@ export default function BusBoardingKiosk({ invoke, device }) {
   const [code, setCode] = useState("");
   const [checkingCode, setCheckingCode] = useState(false);
   const [busy, setBusy] = useState(false);
+  // True from the moment a card is tapped until the lookup answers, so the
+  // screen reacts instantly even when the bus's connection is slow.
+  const [checkingCard, setCheckingCard] = useState(false);
   const [syncError, setSyncError] = useState(() => queueSyncError());
   const [pendingSyncCount, setPendingSyncCount] = useState(() => queueLength());
   const [vehicle, setVehicle] = useState(null);
@@ -197,19 +201,28 @@ export default function BusBoardingKiosk({ invoke, device }) {
   // attract screen too. A new tap is also taken on the confirm, welcome and
   // error screens (it replaces what's showing), so a person who walks away
   // without pressing Boarding/Exiting can't leave the reader dead for the next.
-  const idleListening = (unlocked || hasExternalReader()) && mode !== "qr";
+  const idleListening = mode !== "qr";
   const { supported: nfcSupported, listening: nfcListening, nfcError } = useNfcTap(
     (tag) => handleTag(tag),
-    idleListening
+    idleListening,
+    { webActive: unlocked && idleListening }
   );
 
   useEffect(() => () => clearTimeout(resetTimer.current), []);
+
+  // Never leave "Checking your card" up if the connection hangs: a new tap is
+  // accepted again after 12 s anyway (see handleTag).
+  useEffect(() => {
+    if (!checkingCard) return undefined;
+    const t = setTimeout(() => setCheckingCard(false), 13000);
+    return () => clearTimeout(t);
+  }, [checkingCard]);
 
   // Nobody pressed Boarding/Exiting (or closed the QR camera)? Go back to
   // the start screen on its own.
   useEffect(() => {
     if (mode !== "confirm" && mode !== "qr") return undefined;
-    const t = setTimeout(() => { setMode("idle"); setPending(null); }, mode === "confirm" ? 25000 : 60000);
+    const t = setTimeout(() => { setUnlocked(false); setMode("idle"); setPending(null); }, mode === "confirm" ? 25000 : 60000);
     return () => clearTimeout(t);
   }, [mode, pending]);
 
@@ -281,7 +294,7 @@ export default function BusBoardingKiosk({ invoke, device }) {
   const resetSoon = (ms = 2500) => {
     clearTimeout(resetTimer.current);
     resetTimer.current = setTimeout(() => {
-      setMode("idle"); setPending(null); setResult(null); setBadgeError(""); setCode("");
+      setUnlocked(false); setMode("idle"); setPending(null); setResult(null); setBadgeError(""); setCode("");
     }, ms);
   };
 
@@ -308,6 +321,7 @@ export default function BusBoardingKiosk({ invoke, device }) {
   const handleTag = async (tag) => {
     if (lookupStarted.current && Date.now() - lookupStarted.current < 12000) return;
     lookupStarted.current = Date.now();
+    setCheckingCard(true);
     clearTimeout(resetTimer.current);
     setResult(null);
     setBadgeError("");
@@ -315,7 +329,7 @@ export default function BusBoardingKiosk({ invoke, device }) {
     try {
       const res = await invoke("lookup_tag", { card_tag: tag });
       setUnlocked(true);
-      setPending({ staff: res.staff, next_status: res.next_status, method: "nfc", verification_grant: res.verification_grant });
+      setPending({ staff: res.staff, next_status: res.next_status, method: "nfc", verification_grant: res.verification_grant, directory_grant:res.directory_grant, card_fingerprint:res.card_fingerprint });
       setMode("confirm");
       reportBadgeResult(true);
     } catch (e) {
@@ -331,6 +345,7 @@ export default function BusBoardingKiosk({ invoke, device }) {
       resetSoon(busMessage(e) ? 5000 : 3500);
     } finally {
       lookupStarted.current = 0;
+      setCheckingCard(false);
       setBusy(false);
     }
   };
@@ -374,10 +389,11 @@ export default function BusBoardingKiosk({ invoke, device }) {
   const confirmCheckIn = async (status) => {
     if (!pending || busy) return;
     setBusy(true);
-    const payload = { expected_device_id:device.device_id||device.id, expected_company_id:device.company_id, expected_vehicle_id:device.vehicle_id, client_request_id: crypto.randomUUID(), occurred_at: new Date().toISOString(), staff_id: pending.staff.id, method: pending.method, code_type: pending.code_type, verification_grant: pending.verification_grant, status };
+    const payload = { expected_device_id:device.device_id||device.id, expected_company_id:device.company_id, expected_vehicle_id:device.vehicle_id, client_request_id: crypto.randomUUID(), occurred_at: new Date().toISOString(), staff_id: pending.staff.id, method: pending.method, code_type: pending.code_type, verification_grant: pending.verification_grant, directory_grant:pending.directory_grant, card_fingerprint:pending.card_fingerprint, status };
     try {
       const res = await submitSavedCheckIn(invoke, payload);
       const record = { staff_name: res.record.staff_name, status: res.record.status };
+      noteStatus(payload.staff_id,status);
       if (Number.isFinite(res.occupancy)) setOccupancy(res.occupancy);
       if (Number.isFinite(res.today_count)) {
         setTodayCount(res.today_count);
@@ -415,9 +431,9 @@ export default function BusBoardingKiosk({ invoke, device }) {
 
   if (!unlocked) {
     actionContent = (
-      <Screen modeKey="lock" className="p-10 text-center space-y-8">
+      <Screen modeKey="lock" className="space-y-8 p-10 text-center [@media(max-height:820px)]:space-y-5 [@media(max-height:820px)]:p-6">
         <div>
-          <p className="text-7xl lg:text-8xl font-heading font-bold tabular-nums tracking-tight">
+          <p className="text-7xl lg:text-8xl font-heading font-bold tabular-nums tracking-tight [@media(max-height:820px)]:text-6xl">
             {now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
           </p>
           <p className="text-base text-muted-foreground mt-2">
@@ -425,7 +441,8 @@ export default function BusBoardingKiosk({ invoke, device }) {
           </p>
         </div>
         {device?.vehicle_name && <p className="text-xl font-semibold text-muted-foreground">{device.vehicle_name}</p>}
-        <DrivingScene height={190} busWidth={260} className="-mx-10" />
+        {/* Short landscape tablets: drop the scene so the slider stays on screen. */}
+        <div className="[@media(max-height:820px)]:hidden"><DrivingScene height={190} busWidth={260} className="-mx-10" /></div>
         <SlideToUnlock label="Slide to check in" onUnlock={() => setUnlocked(true)} />
       </Screen>
     );
@@ -640,7 +657,12 @@ export default function BusBoardingKiosk({ invoke, device }) {
         </div>
       )}
       <div className="relative z-10 flex flex-col min-h-screen">
+        <CompanyBanner name={device?.company_name} logoUrl={device?.company_logo_url} compact className="mx-3 mt-3" />
         <TopStatusBar device={device} vehicle={vehicle} now={now} occupancy={occupancy} pendingSyncCount={pendingSyncCount} />
+        <p className="px-3 pt-2 text-center text-caption text-muted-foreground" role="status">
+          {directoryInfo?.expires ? `Passenger list: ${directoryInfo.count} cards · updated ${new Date(directoryInfo.updated).toLocaleString()} · ${Date.parse(directoryInfo.expires)>now.getTime() ? "ready for offline taps" : "expired — connect to refresh"}` : "Passenger list not downloaded — connect to WiFi"}
+        </p>
+
         <div className="flex-1 flex flex-col lg:flex-row items-center justify-center gap-6 p-6 lg:p-10">
           <div className="w-full max-w-md lg:max-w-xl">
             {actionContent}
@@ -648,6 +670,14 @@ export default function BusBoardingKiosk({ invoke, device }) {
           <InfoRail occupancy={occupancy} vehicle={vehicle} nearestStop={nearestStop} ads={ads} todayCount={todayCount} />
         </div>
       </div>
+      {checkingCard && (
+        <div className="absolute inset-0 z-20 flex items-center justify-center bg-background/70 backdrop-blur-sm" role="status" aria-live="polite">
+          <div className="flex flex-col items-center gap-3 rounded-2xl border bg-card px-10 py-8 shadow-lg">
+            <Loader2 className="w-12 h-12 animate-spin text-primary" />
+            <p className="text-2xl font-semibold">Checking your card…</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

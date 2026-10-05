@@ -11,6 +11,19 @@ export default function PinGate({ vehicle, deviceId, invoke, onUnlock }) {
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
   const [checking, setChecking] = useState(false);
+  const [forgot, setForgot] = useState(false);
+  const [requesting, setRequesting] = useState(false);
+  const [requested, setRequested] = useState(false);
+  const [resetError, setResetError] = useState("");
+  const requestReset = async () => {
+    setRequesting(true); setResetError("");
+    try {
+      const result = await invoke("request_pin_reset");
+      if (result?.ok !== true) throw new Error("Request was not confirmed");
+      setRequested(true);
+    } catch (e) { setResetError(e?.response?.data?.error || e.message || "Could not send request. Contact your administrator."); }
+    finally { setRequesting(false); }
+  };
   const navigate = useNavigate();
 
   const submit = async () => {
@@ -69,6 +82,16 @@ export default function PinGate({ vehicle, deviceId, invoke, onUnlock }) {
       <Button size="lg" className="mt-4 w-full" onClick={submit} disabled={pin.length < 4 || checking} loading={checking}>
         <Unlock className="w-5 h-5" aria-hidden="true" /> Unlock
       </Button>
+      <Button variant="ghost" className="mt-2 w-full" onClick={() => setForgot(!forgot)} aria-expanded={forgot}>Forgot PIN?</Button>
+      {forgot && (
+        <div className="mt-2 space-y-3 rounded-xl border border-border bg-secondary/50 p-3">
+          <p className="text-body-sm">Your administrator can set a new PIN for {vehicle?.name || "this bus"}. Your current PIN cannot be displayed.</p>
+          {requested
+            ? <p role="status" className="text-body-sm font-semibold">Reset request sent. Contact your administrator and wait for a new PIN, then enter it above.</p>
+            : <Button variant="outline" className="w-full" onClick={requestReset} disabled={requesting}>{requesting ? "Sending…" : "Request admin reset"}</Button>}
+          {resetError && <p role="alert" className="text-body-sm text-danger">{resetError}</p>}
+        </div>
+      )}
     </section>
   );
 }

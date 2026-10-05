@@ -109,7 +109,7 @@ export default function LiveTransitMap(props) {
     return (
       <div className={cn("relative overflow-hidden", props.className)} style={props.style}>
         <Suspense fallback={<div className="h-full w-full animate-pulse bg-muted" />}>
-          <LiteMap vehicles={props.vehicles} stops={props.stops} userLocation={props.userLocation} fill />
+          <LiteMap vehicles={props.vehicles} stops={props.stops} userLocation={props.userLocation} followUser={!!props.followUser} focusVehicleId={props.focusVehicleId} focusKey={props.focusKey} fill />
         </Suspense>
       </div>
     );

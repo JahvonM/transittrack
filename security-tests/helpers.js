@@ -1,13 +1,14 @@
+import {createRequire} from 'node:module';
 import fs from 'node:fs';
 import ts from 'typescript';
 import {webcrypto,createHash} from 'node:crypto';
 export const digest=value=>createHash('sha256').update(value).digest('hex');
 export function load(name,client,exportsList=[],cryptoApi=webcrypto) {
  const file=new URL('../base44/functions/'+name+'/entry.ts',import.meta.url);
- const source=fs.readFileSync(file,'utf8').replace(/^import .*;\s*$/gm,'')+(exportsList.length?'\nexport { '+exportsList.join(',')+' };':'');
+ const source=fs.readFileSync(file,'utf8').replace(/npm:@noble\/hashes@1\.8\.0\//g, '@noble/hashes/').replace(/^import .*;\s*$/gm,'')+(exportsList.length?'\nexport { '+exportsList.join(',')+' };':'');
  const js=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
  const exports={};
- new Function('exports','createClientFromRequest','crypto','secrets',js)(exports,()=>client,cryptoApi,{get:()=>null});
+ new Function('exports','createClientFromRequest','crypto','secrets','require',js)(exports,()=>client,cryptoApi,{get:()=>null},createRequire(import.meta.url));
  return exports;
 }
 export const request=body=>new Request('https://isolated.test',{method:'POST',body:JSON.stringify(body)});

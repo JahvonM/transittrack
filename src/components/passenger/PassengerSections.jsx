@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   Bell, BellOff, BellRing, Bus, ChevronRight, Clock, CircleAlert, KeyRound, LifeBuoy, MapPinned, MessageCircle, OctagonAlert,
-  Phone, Sparkles, TriangleAlert, UserRound, Users, X,
+  Map as MapIcon, Phone, Sparkles, TriangleAlert, UserRound, Users, X,
 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { cn } from "@/lib/utils";
@@ -338,5 +338,41 @@ export function OtherBusesOverlay({ buses, stop, now = Date.now() }) {
       </div>
       <ul>{buses.slice(0, 4).map((b) => <OverlayBusRow key={b.id} bus={b} stop={stop} now={now} />)}</ul>
     </section>
+  );
+}
+
+// Floating chat button for the passenger app. On Home it opens the chat
+// sheet; on other pages it goes to Home with the chat open.
+export function PassengerChatBubble({ unread = 0, open = false, onClick }) {
+  const navigate = useNavigate();
+  const cls = "fixed right-4 bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-40 grid h-14 w-14 place-items-center rounded-full border border-border bg-card text-foreground shadow-lg hover:bg-accent md:bottom-6";
+  const badge = unread > 0 && (
+    <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-danger px-1 text-caption font-bold text-danger-foreground" aria-hidden="true">{unread > 99 ? "99+" : unread}</span>
+  );
+  const label = unread > 0 ? `Open passenger chat, ${unread} unread` : "Open passenger chat";
+  return (
+    <button type="button" aria-label={label} aria-expanded={open} onClick={onClick || (() => navigate("/staff?sheet=chat"))} className={cls}>
+      <MessageCircle className="h-6 w-6" aria-hidden="true" />{badge}
+    </button>
+  );
+}
+
+// The live map stays closed until asked for, which saves data and battery.
+export function MapToggle({ open, onToggle }) {
+  return (
+    <button type="button" onClick={onToggle} aria-expanded={open} className="text-body-sm font-semibold underline-offset-4 hover:underline">
+      {open ? "Hide map" : "Show map"}
+    </button>
+  );
+}
+
+export function MapClosed({ onOpen, children }) {
+  return (
+    <div className="flex flex-col items-start gap-3 rounded-2xl border border-dashed border-border p-5">
+      <p className="text-body-sm text-muted-foreground">{children}</p>
+      <button type="button" onClick={onOpen} className="inline-flex min-h-[44px] items-center gap-2 rounded-xl border border-border bg-card px-4 text-body-sm font-semibold hover:bg-accent">
+        <MapIcon className="h-4 w-4" aria-hidden="true" /> Show map
+      </button>
+    </div>
   );
 }

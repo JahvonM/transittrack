@@ -56,6 +56,18 @@ function Follow({ target, following, onDragStart }) {
   return null;
 }
 
+function LocateOnce({ target, skip }) {
+  const map = useMap();
+  const done = useRef(false);
+  useMapEvents({ dragstart: () => { done.current = true; } });
+  useEffect(() => {
+    if (done.current || skip || !target) return;
+    done.current = true;
+    map.setView([target.lat, target.lng], 15);
+  }, [target, skip, map]);
+  return null;
+}
+
 // Leaflet measures its box once; re-measure if the box was hidden (e.g. an
 // inactive tab) when the map was created.
 function SizeWatch() {
@@ -143,7 +155,8 @@ export default function LiteMap({
       >
         <TileLayer key={isDark ? "dark" : "light"} url={tileUrl(isDark)} tileSize={512} zoomOffset={-1} maxZoom={19} />
         <SizeWatch />
-        <FitOnce points={fitPoints} skip={!!center || followUser || !!focusVehicleId} />
+        <FitOnce points={fitPoints} skip={!!center || !!userLocation || followUser || !!focusVehicleId} />
+        <LocateOnce target={userLocation} skip={!!center || followUser || !!focusVehicleId} />
         <FocusOn target={liveVehicles.find((v) => v.id === focusVehicleId) || null} nonce={focusKey} />
         {followUser && (
           <Follow target={userLocation} following={following} onDragStart={() => { setFollowing(false); onDragStart?.(); }} />

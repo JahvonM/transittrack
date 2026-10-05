@@ -13,6 +13,7 @@ final class Status {
     static volatile String power = "?";
     static volatile String screen = "-";
     static volatile String reader = "Not started";
+    static volatile String delivery = "Waiting for a tap";
     static volatile String gps = "Not started";
     static volatile String hotspot = "Off";
     static volatile String wifi = "-";

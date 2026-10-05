@@ -2,17 +2,23 @@
 
 Small Android app for the bus tablets. Replaces the Termux scripts:
 
-- **Screen on/off with the ignition**: sets Android's "stay on while charging" so the screen
-  never sleeps while powered, and reacts instantly to the charger being plugged/unplugged
-  and calls FreeKiosk's REST API (`/api/screen/on|off`). Unplug is delayed 5 s so an engine
-  crank doesn't blank the screen.
+- **Always-on screen (1.7)**: holds an Android screen wake lock on charger and battery,
+  sets the screen timeout to its maximum and asks FreeKiosk to keep the display on.
+  Legacy ignition sleep settings are ignored. Scanner availability does not control display sleep.
 - **ACR122U card reader** (boarding tablets): reads card UIDs over USB (CCID), sends them to the
   boarding page through FreeKiosk `/api/js` (`tt-badge` event), and lights the reader green
   (accepted) or red + 3 beeps (rejected) using the result the page reports to 127.0.0.1:8765.
 - **USB GPS** (driver tablets): reads a VFAN / Prolific / u-blox / CDC serial GPS and gives the
   position to Android as the "gps" provider (needs `appops set ... android:mock_location allow`).
-- **Parked mode**: 2 min after power is lost (or battery <= 15 % while unplugged) the reader and GPS
-  pause and the wake lock is released. Everything resumes when power returns.
+- **Scanner reconnection (1.7)**: a detached reader is closed, then USB devices are checked
+  every two seconds. The USB connection is reopened after a screen wake. Android must still
+  grant USB access. This continues on battery and while GPS is parked.
+- **Tap delivery (1.7)**: taps are held in page memory for at most 30 seconds while the page
+  starts or wakes. One retry uses the same tap ID to prevent duplicate card lookups. Green
+  feedback requires the page's acknowledgement; a REST response alone is not success.
+  The helper status screen shows whether the page acknowledged the tap. UIDs are not logged.
+- **Low battery**: at 5 % on battery, GPS and hotspot park. The screen and enabled scanner
+  remain awake until Android powers down or the helper stops.
 - **Page refresh**: FreeKiosk `/api/reload` when the bus starts after 2+ h parked, or at 3 AM if
   the tablet was never unplugged.
 - **Health report**: every minute sets `window.__ttHelperHealth` in the page; the kiosk/driver
@@ -29,7 +35,7 @@ Small Android app for the bus tablets. Replaces the Termux scripts:
   "Use by default" once makes Android grant USB access automatically after every restart.
 
 Config (optional) via adb:
-`adb shell am start -n com.transittrack.kioskhelper/.MainActivity --es api_key KEY --es port 8080 --es ignition true --es reader true --es gps true --es hotspot false`
+`adb shell am start -n com.transittrack.kioskhelper/.MainActivity --es api_key KEY --es port 8080 --es ignition false --es reader true --es gps true --es hotspot false`
 
 Build: see build.sh (aapt2 + javac + d8 + apksigner, no Gradle).
 Supply an existing signing keystore using an absolute `HELPER_KEYSTORE` path,
@@ -46,6 +52,11 @@ passwords, and 6–12 digits for the exit PIN. Inputs are validated before ADB u
 Place a trusted, privately supplied `TransitTrack-Kiosk-Helper.apk` beside the
 Windows setup script. It no longer downloads the old public APK.
 
+Release delivery: the signed APK is served only through the admin-only
+`helperRelease` backend function (Admin -> Kiosk Tablets -> Helper app), never
+under /public. To release a new version, build with build.sh and replace
+VERSION, VERSION_CODE, SHA256 and APK_BASE64 in base44/functions/helperRelease/entry.ts.
+
 Pre-production STEP 1 preserved the existing development signing key as an
 ignored local file and moved the legacy APK into ignored
 `kiosk-helper/legacy-development/`. Back up development signing material securely
@@ -55,3 +66,10 @@ revoked. No replacement keys were generated.
 Removing secrets from the current tree does not erase earlier Git commits or
 previously published files. History cleanup and publishing are separate tasks;
 do not treat the removed credentials as suitable for the first production release.
+
+1.7 validation: unplug/replug the scanner while powered and on battery; present a card immediately
+after the boarding page starts; wake the tablet and tap again. The passenger identity should
+appear, and the helper should say the page recognized or rejected the card. Verify the display
+stays awake without a charger and with the scanner unplugged. Compilation and mocked browser
+tests do not replace this physical test. The admin-only Helper app download now supplies signed 1.7 with the existing development
+certificate. Install it on each tablet; publishing the website does not update installed helpers.

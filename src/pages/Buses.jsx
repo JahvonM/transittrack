@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { Suspense, lazy, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { ChevronRight } from "lucide-react";
 import { base44 } from "@/api/base44Client";
@@ -12,6 +12,9 @@ import { loadFailed } from "@/lib/loadFailed";
 import { cn } from "@/lib/utils";
 import { freshnessOf } from "@/components/system/status";
 import { busNumber, busStatusLine } from "@/components/passenger/passengerState";
+import { MapClosed, MapToggle, PassengerChatBubble, SectionHead } from "@/components/passenger/PassengerSections";
+
+const LiveTransitMap = lazy(() => import("@/components/map3d/LiveTransitMap"));
 
 const STAFF_ROLES = new Set(["admin", "company"]);
 
@@ -68,6 +71,7 @@ export default function Buses() {
   const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [now, setNow] = useState(() => Date.now());
+  const [mapOpen, setMapOpen] = useState(false);
 
   const load = () => Promise.all([base44.entities.Route.list(), base44.entities.Vehicle.list()])
     .then(([r, v]) => { setRoutes(r.filter((x) => x.active)); setVehicles(v); })
@@ -104,20 +108,36 @@ export default function Buses() {
   const parked = visible.filter((v) => !isLive(v)).sort(byName);
 
   return (
-    <AppLayout variant="passenger" title="Buses">
+    <AppLayout variant="passenger" title="Company buses">
       <PullToRefresh onRefresh={load} className="max-w-3xl">
         {loading ? <BusLoader className="py-10" /> : (
           <>
             <p className="px-6 pb-4 text-body text-muted-foreground md:px-0">
-              {coming.length + onRoad.length} of {visible.length} buses on the road now.
+              <span className="font-semibold text-foreground">All company buses</span>
+              <span className="block">{coming.length + onRoad.length} of {visible.length} on the road now.</span>
             </p>
+            <section className="px-6 pb-6 md:px-0" aria-labelledby="tt-buses-map">
+              <SectionHead id="tt-buses-map" title="Map" aside={mapOpen ? <MapToggle open onToggle={() => setMapOpen(false)} /> : null} />
+              {mapOpen ? (
+                <div id="passenger-live-map">
+                  <Suspense fallback={<div className="h-72 animate-pulse rounded-2xl bg-muted" />}>
+                    <LiveTransitMap className="h-72 rounded-2xl border border-border sm:h-96" vehicles={visible.filter((v) => v.current_lat != null)} label="Map of the company's buses" />
+                  </Suspense>
+                </div>
+              ) : (
+                <MapClosed onOpen={() => setMapOpen(true)}>See every bus on a 3D map. The map uses more data and battery.</MapClosed>
+              )}
+            </section>
+            <section aria-label="Company bus directory">
             <Group id="tt-buses-coming" title={stop ? `Coming to ${stop.name}` : "Serving your stop"} buses={coming} routes={routes} stop={stop} now={now} />
             <Group id="tt-buses-road" title={coming.length ? "Other buses on the road" : "On the road"} buses={onRoad} routes={routes} stop={null} now={now} />
             <Group id="tt-buses-parked" title="Not on the road" buses={parked} routes={routes} stop={null} now={now} />
             {!visible.length && <p className="px-6 py-10 text-center text-muted-foreground">No buses to show yet.</p>}
+            </section>
           </>
         )}
       </PullToRefresh>
+      <PassengerChatBubble />
     </AppLayout>
   );
 }

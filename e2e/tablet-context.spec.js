@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { test, expect } from '@playwright/test';
 
@@ -144,4 +145,139 @@ test('driver tablet showcase keeps controls reachable in portrait and landscape'
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
   await page.screenshot({path:`/tmp/tt-driver-${size.width}.png`});
  }
+});
+
+test('locked driver can request an admin PIN reset and stays locked',async({page})=>{
+ await mockApi(page,[]);
+ await page.addInitScript(()=>localStorage.setItem('tt_driver_device_id','driver-test'));
+ let requests=0;
+ await page.route('**/functions/driverSession',route=>{
+  const body=route.request().postDataJSON();
+  if(body.action==='request_pin_reset'){requests++;return route.fulfill({json:{ok:true}});}
+  return route.fulfill({json:driver});
+ });
+ await page.goto('/driver');
+ await page.getByRole('button',{name:'Forgot PIN?',exact:true}).click();
+ await page.getByRole('button',{name:'Request admin reset',exact:true}).click();
+ await expect(page.getByRole('status').filter({hasText:'Reset request sent'})).toBeVisible();
+ await expect(page.getByText('Driver PIN required',{exact:true})).toBeVisible();
+ expect(requests).toBe(1);
+ expect(await page.evaluate(()=>localStorage.getItem('tt_driver_unlock_date'))).toBeNull();
+});
+
+test('boarding tablet uses its saved card file after restart without a server lookup',async({page})=>{
+ await mockApi(page,[]);
+ let offline=false,lookups=0;
+ const fingerprint=createHash('sha256').update('kiosk-test:AABBCCDD').digest('hex');
+ await page.route('**/functions/kioskHeartbeat',route=>offline?route.abort():route.fulfill({json:kiosk}));
+ await page.route('**/functions/kioskCheckIn',route=>{
+  const body=route.request().postDataJSON();
+  if(body.action==='lookup_tag')lookups++;
+  if(offline)return route.abort();
+  if(body.action==='offline_directory')return route.fulfill({json:{version:1,device_id:'kiosk-test',company_id:'company-a',vehicle_id:'bus-a',generated_at:new Date().toISOString(),expires_at:new Date(Date.now()+86400000).toISOString(),directory_grant:'a'.repeat(64),staff:[{id:'rider',full_name:'Local Passenger',photo_url:'',card_fingerprint:fingerprint}]}});
+  return route.fulfill({json:{}});
+ });
+ await page.addInitScript(()=>{
+  localStorage.setItem('tt_kiosk_device_id','kiosk-test');
+  localStorage.setItem('tt_badge_reader','1');
+ });
+ await page.goto('/kiosk');
+ await expect(page.getByText(/Passenger list: 1 cards/)).toBeVisible();
+ offline=true;
+ await page.reload();
+ await expect(page.getByText(/Passenger list: 1 cards/)).toBeVisible();
+ await page.evaluate(()=>window.dispatchEvent(new CustomEvent('tt-badge',{detail:'AABBCCDD'})));
+ await expect(page.getByText('Local Passenger',{exact:true})).toBeVisible();
+ expect(lookups).toBe(0);
+ await page.getByRole('button',{name:/Boarding/}).click();
+ await expect(page.getByText('Saved offline — will sync automatically',{exact:true})).toBeVisible();
+ const queue=await page.evaluate(()=>JSON.parse(localStorage.getItem('tt_offline_checkins')));
+ expect(queue[0].payload).toMatchObject({staff_id:'rider',method:'nfc',directory_grant:'a'.repeat(64),card_fingerprint:fingerprint});
+ expect(JSON.stringify(queue)).not.toContain('AABBCCDD');
+});
+
+async function scannerBoarding(page) {
+ await mockApi(page,[]);
+ const fingerprint=createHash('sha256').update('kiosk-test:AABBCCDD').digest('hex');
+ await page.route('**/functions/kioskCheckIn',r=>{
+   const b=r.request().postDataJSON();
+   if(b.action==='offline_directory')return r.fulfill({json:{version:1,device_id:'kiosk-test',company_id:'company-a',vehicle_id:'bus-a',generated_at:new Date().toISOString(),expires_at:new Date(Date.now()+86400000).toISOString(),directory_grant:'a'.repeat(64),staff:[{id:'rider',full_name:'First Tap Passenger',photo_url:'',card_fingerprint:fingerprint}]}});
+   return r.fulfill({status:500,json:{error:'Unexpected server lookup'}});
+ });
+ await page.addInitScript(()=>{
+   localStorage.setItem('tt_kiosk_device_id','kiosk-test');
+   localStorage.setItem('tt-map-engine','basic');
+   localStorage.removeItem('tt_badge_reader');
+ });
+ await page.goto('/kiosk');
+ await expect(page.getByText(/Passenger list: 1 cards/)).toBeVisible({timeout:20000});
+}
+test('first scanner tap works without a prior reader announcement',async({page})=>{
+ await scannerBoarding(page);
+ await page.evaluate(()=>window.dispatchEvent(new CustomEvent('tt-badge',{detail:'AABBCCDD'})));
+ await expect(page.getByText('First Tap Passenger',{exact:true})).toBeVisible();
+});
+test('boarding drains wake taps once and reacquires its screen lock',async({page})=>{
+ await page.addInitScript(()=>{
+   window.wakeRequests=0;window.wakeLocks=[];
+   Object.defineProperty(navigator,'wakeLock',{value:{request:async()=>{
+     window.wakeRequests++;
+     const lock=new EventTarget();lock.released=false;
+     lock.release=async()=>{lock.released=true;lock.dispatchEvent(new Event('release'));};
+     window.wakeLocks.push(lock);return lock;
+   }}});
+ });
+ await scannerBoarding(page);
+ await expect.poll(()=>page.evaluate(()=>window.wakeRequests)).toBeGreaterThan(0);
+ await page.evaluate(async()=>{
+   window.__ttBadgeInbox=[{uid:'AABBCCDD',id:'after-wake',at:Date.now()}];
+   await window.wakeLocks.at(-1).release();
+   window.dispatchEvent(new Event('pageshow'));
+ });
+ await expect(page.getByText('First Tap Passenger',{exact:true})).toBeVisible();
+ await expect.poll(()=>page.evaluate(()=>window.wakeRequests)).toBe(2);
+ expect(await page.evaluate(()=>window.__ttBadgeInbox)).toEqual([]);
+ expect(await page.evaluate(()=>Object.values(localStorage).join(''))).not.toContain('AABBCCDD');
+});
+
+test('completed card boarding returns to swipe screen with company banner',async({page})=>{
+ await scannerBoarding(page);
+ await page.route('**/functions/kioskCheckIn',r=>{
+   const b=r.request().postDataJSON();
+   if(b.action==='check_in')return r.fulfill({json:{record:{id:'boarding',staff_name:'First Tap Passenger',status:'boarded'},occupancy:8,today_count:13}});
+   return r.fallback();
+ });
+ await expect(page.getByLabel('Company banner',{exact:true})).toContainText('Company A');
+ await page.evaluate(()=>window.dispatchEvent(new CustomEvent('tt-badge',{detail:'AABBCCDD'})));
+ await page.getByRole('button',{name:/Boarding/}).click();
+ await expect(page.getByText(/Welcome/).first()).toBeVisible();
+ await expect(page.getByText(/Slide to/).first()).toBeVisible({timeout:10000});
+ await expect(page.getByLabel('Company banner',{exact:true})).toContainText('Company A');
+});
+
+test('completed code exit returns to swipe screen',async({page})=>{
+ await scannerBoarding(page);
+ await page.route('**/functions/kioskCheckIn',r=>{
+   const b=r.request().postDataJSON();
+   if(b.action==='lookup_code')return r.fulfill({json:{staff:{id:'rider',full_name:'Code Passenger'},next_status:'off_board',verification_grant:'b'.repeat(64)}});
+   if(b.action==='check_in')return r.fulfill({json:{record:{id:'exit',staff_name:'Code Passenger',status:'off_board'},occupancy:6,today_count:12}});
+   return r.fallback();
+ });
+ // A scanner tap also opens the keypad; cancel the card confirmation to enter a code.
+ await page.evaluate(()=>window.dispatchEvent(new CustomEvent('tt-badge',{detail:'AABBCCDD'})));
+ await page.getByRole('button',{name:'Cancel',exact:true}).click();
+ for(const digit of ['1','2','3','4'])await page.getByRole('button',{name:digit,exact:true}).click();
+ await page.getByRole('button',{name:'Submit code',exact:true}).click();
+ await expect(page.getByText('Code Passenger',{exact:true})).toBeVisible();
+ await page.getByRole('button',{name:'Exiting',exact:true}).click();
+ await expect(page.getByText('See you later, Code!')).toBeVisible();
+ await expect(page.getByText('Slide to check in',{exact:true})).toBeVisible({timeout:10000});
+});
+
+test('driver login displays the scoped company banner',async({page})=>{
+ await mockApi(page,[],{...driver,company_name:'Island Transit',company_logo_url:''});
+ await page.addInitScript(()=>localStorage.setItem('tt_driver_device_id','driver-test'));
+ await page.goto('/driver');
+ await expect(page.getByLabel('Company banner',{exact:true})).toContainText('Island Transit');
+ await expect(page.getByText('Driver PIN required')).toBeVisible();
 });

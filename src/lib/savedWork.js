@@ -10,7 +10,7 @@ export function readSaved(key) {
 }
 export function writeSaved(key,items) { localStorage.setItem(key,JSON.stringify(items));notifySavedWork(); }
 export function savedWork() { return SAVED_KEYS.flatMap(key=>readSaved(key).map(item=>({...item,storage_key:key}))); }
-const privateFields=new Set(["device_token","driver_grant","verification_grant","token","token_hash","pin","driver_pin","pin_hash","salt","password","card_uid","card_tag","nfc_card_tag","nfc_tag_id","nfc_tag","pairing_code","entry_code","code_hash","fingerprint","access_code","one_time_code"]);
+const privateFields=new Set(["device_token","driver_grant","verification_grant","directory_grant","card_fingerprint","token","token_hash","pin","driver_pin","pin_hash","salt","password","card_uid","card_tag","nfc_card_tag","nfc_tag_id","nfc_tag","pairing_code","entry_code","code_hash","fingerprint","access_code","one_time_code"]);
 export function exportSavedWork() {
  const scrub=value=>Array.isArray(value)?value.map(scrub):value&&typeof value==="object"?Object.fromEntries(Object.entries(value).filter(([key])=>!privateFields.has(key)).map(([key,item])=>[key,scrub(item)])):value;
  return JSON.stringify({exported_at:new Date().toISOString(),items:scrub(savedWork())},null,2);
