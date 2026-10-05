@@ -299,7 +299,7 @@ test('message bubble starts a new conversation without prior messages',async({pa
 
 test('fleet history opens latest recorded day for an offline bus and replaces timeline page',async({page})=>{
  await session(page,'admin');
- await page.addInitScript(()=>localStorage.setItem('tt_map_engine','basic'));
+ await page.addInitScript(()=>localStorage.setItem('tt-map-engine','basic'));
  const recorded='2026-09-30';
  await page.route('**/functions/entityAccess',async r=>{
    const b=r.request().postDataJSON();let result=[];
@@ -318,4 +318,32 @@ test('fleet history opens latest recorded day for an offline bus and replaces ti
  await expect(page.getByRole('button',{name:'Location timeline',exact:true})).toHaveCount(0);
  await page.getByRole('combobox',{name:'Bus',exact:true}).click();
  await expect(page.getByRole('option',{name:'Bus B',exact:true})).toBeVisible();
+});
+
+test('fleet map centers on a late GPS fix and accepts newer less accurate positions',async({page})=>{
+ await session(page,'admin');
+ await page.addInitScript(()=>{
+   localStorage.setItem('tt-map-engine','basic');
+   window.gpsCallbacks=new Map();
+   let id=0;
+   navigator.geolocation.watchPosition=success=>{window.gpsCallbacks.set(++id,success);return id;};
+   navigator.geolocation.clearWatch=id=>window.gpsCallbacks.delete(id);
+ });
+ await page.goto('/admin/fleet');
+ await expect(page.locator('.leaflet-container')).toBeVisible();
+ await page.evaluate(()=>{
+   for(const success of window.gpsCallbacks.values())success({coords:{latitude:12.04,longitude:-61.74,accuracy:5}});
+ });
+ const marker=page.locator('.leaflet-container path.leaflet-interactive').first();
+ await expect(marker).toBeVisible();
+ const map=await page.locator('.leaflet-container').boundingBox(), dot=await marker.boundingBox();
+ expect(Math.abs(dot.x+dot.width/2-(map.x+map.width/2))).toBeLessThan(3);
+ expect(Math.abs(dot.y+dot.height/2-(map.y+map.height/2))).toBeLessThan(3);
+ await page.evaluate(()=>{
+   for(const success of window.gpsCallbacks.values())success({coords:{latitude:12.041,longitude:-61.74,accuracy:20}});
+ });
+ await expect.poll(async()=>{
+   const moved=await marker.boundingBox();
+   return Math.abs(moved.y-dot.y);
+ }).toBeGreaterThan(20);
 });
