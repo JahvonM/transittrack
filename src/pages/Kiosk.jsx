@@ -1,3 +1,4 @@
+import { useKeepAwake } from "@/hooks/useKeepAwake";
 import { saveBoardingDirectory, localCardLookup } from "@/lib/boardingDirectory";
 import { deviceRequest, saveDeviceToken, forgetDeviceToken, pairingProfile } from "@/lib/deviceAuth";
 import React, { useState, useEffect, useRef, useCallback } from "react";
@@ -32,6 +33,7 @@ const DIRECTORY_MS = 5 * 60 * 1000;
 const initialStoredId = () => { try { return localStorage.getItem("tt_kiosk_device_id"); } catch { return null; } };
 
 export default function Kiosk() {
+  useKeepAwake();
   // A tablet that has paired before opens straight from its saved setup, so
   // it still works when it starts up with no WiFi.
   const [device, setDevice] = useState(() => { const id = initialStoredId(); return id ? loadDevice(id) : null; });
