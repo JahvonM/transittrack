@@ -20,7 +20,7 @@ function MapPlaceholder() {
 }
 
 export default function MapboxMap(props) {
-  const { location } = useUserLocation(!props.userLocation && !props.center && !props.focusVehicleId);
+  const { location } = useUserLocation(props.autoLocate !== false && !props.userLocation && !props.center && !props.focusVehicleId);
   const mapProps = { ...props, userLocation: props.userLocation || (!props.center && !props.focusVehicleId ? location : null) };
   const [basic, setBasic] = useState(() => mapEngine() === "basic");
   return (

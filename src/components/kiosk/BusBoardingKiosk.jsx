@@ -221,7 +221,7 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo }) {
   // the start screen on its own.
   useEffect(() => {
     if (mode !== "confirm" && mode !== "qr") return undefined;
-    const t = setTimeout(() => { setMode("idle"); setPending(null); }, mode === "confirm" ? 25000 : 60000);
+    const t = setTimeout(() => { setUnlocked(false); setMode("idle"); setPending(null); }, mode === "confirm" ? 25000 : 60000);
     return () => clearTimeout(t);
   }, [mode, pending]);
 
@@ -293,7 +293,7 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo }) {
   const resetSoon = (ms = 2500) => {
     clearTimeout(resetTimer.current);
     resetTimer.current = setTimeout(() => {
-      setMode("idle"); setPending(null); setResult(null); setBadgeError(""); setCode("");
+      setUnlocked(false); setMode("idle"); setPending(null); setResult(null); setBadgeError(""); setCode("");
     }, ms);
   };
 

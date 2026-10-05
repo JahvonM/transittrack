@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 export default function useUserLocation(enabled = true) {
   const [location, setLocation] = useState(null);
   const [error, setError] = useState("");
+  const [request, setRequest] = useState(0);
 
   useEffect(() => {
     if (!enabled) return undefined;
@@ -15,17 +16,17 @@ export default function useUserLocation(enabled = true) {
       setError("Geolocation is not supported by your device.");
       return;
     }
-    const id = navigator.geolocation.watchPosition(
-      (p) => {
+    let cancelled = false;
+    const success = (p) => {
+        if (cancelled || !Number.isFinite(p.coords.latitude) || !Number.isFinite(p.coords.longitude)) return;
         const acc = p.coords.accuracy ?? 999;
-        // Skip extremely low-accuracy fixes (cell tower) to avoid big offsets
-        if (acc > 500) return;
         setLocation(() => {
           return { lat: p.coords.latitude, lng: p.coords.longitude, accuracy: acc };
         });
         setError("");
-      },
-      (err) => {
+      };
+    const failure = (err) => {
+        if (cancelled) return;
         setError(
           err.code === 1
             ? "Location permission denied. Enable location access to see yourself on the map."
@@ -35,11 +36,12 @@ export default function useUserLocation(enabled = true) {
             ? "Location request timed out."
             : "Couldn't get your location."
         );
-      },
-      { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
-    );
-    return () => navigator.geolocation.clearWatch(id);
-  }, [enabled]);
+      };
+    // A one-shot request also recovers browsers whose watch has not produced a fix yet.
+    navigator.geolocation.getCurrentPosition(success, failure, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
+    const id = navigator.geolocation.watchPosition(success, failure, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
+    return () => { cancelled = true; navigator.geolocation.clearWatch(id); };
+  }, [enabled, request]);
 
-  return { location, error };
+  return { location, error, retry: () => { setError(""); setRequest(n => n + 1); } };
 }

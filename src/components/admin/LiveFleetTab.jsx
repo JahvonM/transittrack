@@ -21,7 +21,8 @@ function timeAgo(iso) {
 
 export default function LiveFleetTab({ vehicles, onVehicleUpdate, initialView = "live" }) {
   const { toast } = useToast();
-  const { location: userLoc } = useUserLocation();
+  const { location: userLoc, error: locationError, retry: retryLocation } = useUserLocation();
+  const [mapKey, setMapKey] = useState(0);
   const [busy, setBusy] = useState(null);
   const [occupancy, setOccupancy] = useState({});
   const withLocation = vehicles.filter((v) => v.current_lat != null);
@@ -95,6 +96,7 @@ export default function LiveFleetTab({ vehicles, onVehicleUpdate, initialView = 
               aria-selected={view === id}
               onClick={() => {
                 setView(id);
+                if (id === "live") { setFocus({ id: null, n: 0 }); setMapKey(n => n + 1); }
                 if (id === "history" && !historyId) setHistoryId(focus.id || vehicles[0]?.id || "");
               }}
               className={`px-3 py-1.5 text-sm rounded-md flex items-center gap-1.5 transition-colors ${view === id ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
@@ -109,10 +111,18 @@ export default function LiveFleetTab({ vehicles, onVehicleUpdate, initialView = 
             : "Pick a bus and a day to replay where it went"}
         </p>
       </div>
+      {view === "live" && <div className="flex items-center justify-between gap-2 text-xs">
+        <p role="status" className="text-muted-foreground">
+          {locationError || (!userLoc ? "Finding your location…" : userLoc.accuracy > 500 ? `Approximate location · accuracy about ${Math.round(userLoc.accuracy)} metres` : "Your current location is shown on the map")}
+        </p>
+        <Button size="sm" variant="outline" onClick={() => { setFocus({ id: null, n: 0 }); setMapKey(n => n + 1); retryLocation(); }}>
+          <MapPin className="w-3.5 h-3.5 mr-1" />My location
+        </Button>
+      </div>}
       <div ref={mapBox} className="scroll-mt-4">
         {view === "live" ? (
           <div className="rounded-2xl overflow-hidden border h-[50vh]">
-            <MapboxMap vehicles={withLocation} userLocation={focus.id ? null : userLoc} height="100%" focusVehicleId={focus.id} focusKey={focus.n} />
+            <MapboxMap key={mapKey} autoLocate={false} followUser={!focus.id} vehicles={withLocation} userLocation={focus.id ? null : userLoc} height="100%" focusVehicleId={focus.id} focusKey={focus.n} />
           </div>
         ) : (
           <div className="space-y-3"><h3 className="font-semibold">Location timeline</h3><LocationReplay vehicles={vehicles} initialVehicleId={historyId} /></div>
