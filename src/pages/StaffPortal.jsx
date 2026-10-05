@@ -339,6 +339,9 @@ export default function StaffPortal() {
     const end = mine >= nextStopIndex ? mine : mapStops.length - 1;
     return [...mapStops.slice(nextStopIndex, end + 1), ...(end < mapStops.length - 1 ? [mapStops[mapStops.length - 1]] : [])];
   }, [mapStops, nextStopIndex, stop]);
+  // How many stops the bus still has before yours, from the same route progress.
+  const myStopIndex = stop ? mapStops.findIndex((x) => x.name === stop.name) : -1;
+  const stopsAway = nextStopIndex != null && myStopIndex >= nextStopIndex ? myStopIndex - nextStopIndex : null;
   // Same rule as the main estimate: no stop times from a position more than
   // two minutes old.
   const positionStale = busOnMap ? locationIsStale(busOnMap, now) : false;
@@ -442,7 +445,7 @@ export default function StaffPortal() {
                   </div>
                 )}
                 <div className={tripState.kind === "problem" || notice ? "pt-4" : ""}>
-                  <ArrivalHero state={tripState} stop={stop} eta={eta} trip={onTheWayTrip} now={now} onChangeStop={() => setSheet("stop")} />
+                  <ArrivalHero state={tripState} stop={stop} eta={eta} trip={onTheWayTrip} now={now} onChangeStop={() => setSheet("stop")} routeName={timelineRoute?.name || ""} stopsAway={stopsAway} />
                 </div>
                 {timelineRoute && (
                   <RouteTimeline route={timelineRoute} bus={tripState.bus} kind={tripState.kind} stopName={stop.name} mins={mins} stopEtas={stopEtas} now={now} />

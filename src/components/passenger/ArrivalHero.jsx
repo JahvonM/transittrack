@@ -37,119 +37,150 @@ function LiveLine({ state, fresh }) {
   );
 }
 
-// Where the minutes come from, as a small chip.
-function SourceLine({ eta }) {
-  // No minutes (e.g. the bus's position is too old to estimate from): no chip.
-  if (!eta || eta.mins == null) return null;
-  const Icon = eta.isLearned ? Sparkles : eta.isDriving ? RouteIcon : Ruler;
-  const text = eta.isLearned ? "Learned ETA" : eta.isDriving ? "Road estimate" : "Rough estimate";
-  const title = eta.isLearned
-    ? `Based on ${eta.trips ? `${eta.trips} real trip${eta.trips === 1 ? "" : "s"}` : "real trips"} on this route`
-    : eta.isDriving ? "Estimated by road from the bus's position" : "Estimated from straight-line distance";
+// The live signal beside the minutes, as transit apps show it.
+function LiveArcs({ tone }) {
   return (
-    <p className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-caption font-semibold text-muted-foreground" title={title}>
-      <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" /> {text}
-      <span className="sr-only">: {title}</span>
-    </p>
+    <svg viewBox="0 0 14 14" className={cn("h-3.5 w-3.5", tone === "live" ? "tt-live-pulse text-primary" : "text-warning")} aria-hidden="true">
+      <path d="M2 12a10 10 0 0 1 10-10" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path d="M2 12a5 5 0 0 1 5-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
   );
 }
 
-const BIG = "font-display font-semibold tabular-nums leading-[0.8] tracking-[-0.03em] text-[clamp(5.5rem,26vw,7.5rem)]";
-const WORD = "font-display font-semibold leading-none tracking-[-0.02em] text-[clamp(3rem,14vw,4.25rem)]";
-// Longer word states stay on one line on a 360px phone.
-const WORD_LONG = "font-display font-semibold leading-none tracking-[-0.02em] text-[clamp(2.25rem,10vw,3.25rem)]";
+// Stops between the bus and yours: the bus, up to four stops, then your stop.
+function StopsTrack({ stopsAway }) {
+  const between = Math.min(stopsAway, 4);
+  return (
+    <div className="flex items-center gap-2.5">
+      <span className="flex items-center" aria-hidden="true">
+        <span className="h-2.5 w-2.5 rounded-full bg-primary" />
+        {Array.from({ length: between }, (_, i) => (
+          <React.Fragment key={i}>
+            <span className="h-0.5 w-3 bg-border" />
+            <span className="h-2 w-2 rounded-full border-2 border-muted-foreground/60" />
+          </React.Fragment>
+        ))}
+        <span className="h-0.5 w-3 bg-border" />
+        <span className="h-3 w-3 rounded-full border-[3px] border-foreground" />
+      </span>
+      <span className="text-body-sm font-semibold">
+        {stopsAway === 0 ? "Your stop is next" : `${stopsAway} stop${stopsAway === 1 ? "" : "s"} away`}
+      </span>
+    </div>
+  );
+}
+
+const MINS = "font-display text-[3.25rem] font-semibold tabular-nums leading-[0.85] tracking-[-0.03em]";
+const WORD = "font-display text-title font-semibold leading-tight";
 
 /**
- * The arrival area: the one thing a passenger opens the app for. Says only
+ * The arrival card: the one thing a passenger opens the app for. Says only
  * what TransitTrack knows (minutes, word states, how fresh the position is)
  * and never shows schedule status like "on time" or "late".
  */
-export default function ArrivalHero({ state, stop, eta, trip, now = Date.now(), onChangeStop }) {
+export default function ArrivalHero({ state, stop, eta, trip, now = Date.now(), onChangeStop, routeName = "", stopsAway = null }) {
   const { kind, bus, fresh, mins } = state;
   const name = bus?.name || "Your bus";
   const roundMins = mins != null ? Math.max(1, Math.round(mins)) : null;
+  const stale = fresh?.state === "stale";
 
-  let big = null;
-  let sub = null;
-  let note = null;
+  let answer;
+  let detail = "";
   switch (kind) {
     case "live":
-      big = roundMins != null
-        ? <><span className={BIG}>{roundMins}</span><span className="text-[2rem] font-medium text-muted-foreground">min</span></>
+      answer = roundMins != null
+        ? <span className="flex items-start gap-1"><span className={MINS}>{roundMins}</span><LiveArcs tone={stale ? "stale" : "live"} /></span>
         : <span className={WORD}>On its way</span>;
-      sub = roundMins != null ? `${name} reaches ${stop.name} around ${arrivalClock(mins, now)}` : `${name} is on its way to ${stop.name}`;
-      note = <SourceLine eta={eta} />;
+      detail = roundMins != null ? `min · ${arrivalClock(mins, now)}` : "";
       break;
     case "arriving":
-      big = <span className={cn(WORD, "text-primary")}>Arriving</span>;
-      sub = `${name} is about a minute from ${stop.name}. Head to the stop now.`;
-      note = <SourceLine eta={eta} />;
+      answer = <span className={cn(WORD, "text-primary")}>Arriving</span>;
+      detail = "Head to the stop";
       break;
     case "signal_lost":
-      big = roundMins != null
-        ? <><span className={cn(BIG, "text-muted-foreground")}>{roundMins}</span><span className="text-[2rem] font-medium text-muted-foreground">min</span></>
-        : <span className={cn(WORD_LONG, "text-muted-foreground")}>Signal lost</span>;
-      sub = bus?.last_location_update ? `Last estimate, from ${clock(bus.last_location_update)}` : "Last estimate";
-      note = <p className="mt-1.5 text-body-sm text-muted-foreground">{name} hasn't sent its location since then. The time above may be out of date.</p>;
+      answer = roundMins != null
+        ? <span className={cn(MINS, "text-muted-foreground")}>{roundMins}</span>
+        : <span className={cn(WORD, "text-muted-foreground")}>No time</span>;
+      detail = bus?.last_location_update ? `Last estimate ${clock(bus.last_location_update)}` : "Last estimate";
       break;
     case "not_started":
-      big = <span className={WORD}>Not started</span>;
-      sub = `${name} hasn't started its trip`;
-      note = (
-        <p className="mt-1.5 text-body-sm text-muted-foreground">
-          {bus?.last_location_update ? `Last seen at ${lastSeen(bus.last_location_update, now)}. ` : ""}
-          The arrival time appears as soon as the bus starts moving.
-        </p>
-      );
+      answer = <span className={cn(WORD, "text-muted-foreground")}>Not started</span>;
+      detail = bus?.last_location_update ? `Last seen ${lastSeen(bus.last_location_update, now)}` : "";
       break;
     case "problem":
-      big = <span className={cn(WORD_LONG, "text-muted-foreground")}>No arrival time</span>;
-      sub = `${name} has been taken out of service`;
-      note = <p className="mt-1.5 text-body-sm text-muted-foreground">Times come back when the bus is on the road again.</p>;
+      answer = <span className={cn(WORD, "text-danger")}>Out of service</span>;
       break;
     default:
-      big = <span className={WORD}>No bus yet</span>;
-      sub = `No bus serving ${stop.name} is on the road right now`;
-      note = <p className="mt-1.5 text-body-sm text-muted-foreground">The arrival time shows here as soon as one starts its trip.</p>;
+      answer = <span className={cn(WORD, "text-muted-foreground")}>No bus yet</span>;
+      detail = "Shows when a bus starts its trip";
   }
 
   const spoken =
-    kind === "live" && roundMins != null ? `${name} arrives at ${stop.name} in about ${roundMins} minutes`
-      : kind === "arriving" ? `${name} is arriving at ${stop.name}`
-        : sub;
+    kind === "live" && roundMins != null ? `${name} arrives at ${stop.name} in about ${roundMins} minutes, around ${arrivalClock(mins, now)}`
+      : kind === "arriving" ? `${name} is arriving at ${stop.name}. Head to the stop.`
+        : kind === "signal_lost" ? `${name} has lost its signal. ${detail}.`
+          : kind === "not_started" ? `${name} hasn't started its trip`
+            : kind === "problem" ? `${name} has been taken out of service`
+              : `No bus serving ${stop.name} is on the road right now`;
 
-  const showBus = bus && kind !== "no_eta";
+  const onTrip = kind === "live" || kind === "arriving" || kind === "signal_lost";
+  const dim = kind === "signal_lost" || kind === "problem" || kind === "not_started";
+  const Source = eta?.mins != null ? (eta.isLearned ? Sparkles : eta.isDriving ? RouteIcon : Ruler) : null;
+  const sourceText = eta?.isLearned ? "Learned from real trips on this route" : eta?.isDriving ? "Estimated by road from the bus's position" : "Rough estimate from straight-line distance";
+
   return (
     <section className="px-6 pb-6 pt-2 lg:px-0" aria-label="Your bus" aria-describedby="tt-arrival-sub">
-      <LiveLine state={state} fresh={fresh} />
-      <p className="sr-only" aria-live="polite">{spoken}</p>
-      <div className="mt-5 flex items-end justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <div className="flex items-baseline gap-2" aria-hidden="true">{big}</div>
-          <button
-            type="button"
-            onClick={onChangeStop}
-            className="-ml-1 mt-3 flex min-h-[44px] max-w-full items-center gap-1 rounded-lg px-1 text-left text-title font-bold leading-tight"
-            aria-label={`Your stop: ${stop.name}. Change stop`}
-          >
-            <span className="break-words">to {stop.name}</span>
-            <ChevronDown className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden="true" />
-          </button>
+      <p className="sr-only" aria-live="polite" id="tt-arrival-sub">{spoken}</p>
+      <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+        {(onTrip || Source) && (
+          <div className="mb-3 flex items-center justify-between gap-3">
+            {onTrip ? <LiveLine state={state} fresh={fresh} /> : <span />}
+            {Source && onTrip && (
+              <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full border border-border text-muted-foreground" title={sourceText}>
+                <Source className="h-3.5 w-3.5" aria-hidden="true" />
+                <span className="sr-only">{sourceText}</span>
+              </span>
+            )}
+          </div>
+        )}
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <div className="flex min-w-0 items-center gap-2">
+              {bus && kind !== "no_eta" && (
+                <BusArtwork width={56} className={cn("-my-2 -ml-1 h-11 w-14 shrink-0", dim && "opacity-60 grayscale")} />
+              )}
+              <span className={cn(
+                "inline-flex max-w-full items-center truncate rounded-md px-2 py-0.5 text-body-sm font-bold",
+                onTrip && !dim ? "bg-primary text-primary-foreground" : "bg-secondary text-foreground",
+              )}>
+                {bus ? name : "No bus"}
+              </span>
+              {routeName && <span className="truncate text-body-sm text-muted-foreground">{routeName}</span>}
+            </div>
+            <button
+              type="button"
+              onClick={onChangeStop}
+              className="-ml-1 mt-2 flex min-h-[44px] max-w-full items-center gap-1 rounded-lg px-1 text-left text-title-sm font-bold leading-tight"
+              aria-label={`Your stop: ${stop.name}. Change stop`}
+            >
+              <span className="break-words">to {stop.name}</span>
+              <ChevronDown className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden="true" />
+            </button>
+          </div>
+          <div className="shrink-0 text-right" aria-hidden="true">
+            <div className="flex justify-end">{answer}</div>
+            {detail && <p className="mt-1 text-caption font-semibold text-muted-foreground">{detail}</p>}
+          </div>
         </div>
-        {showBus && (
-          <BusArtwork
-            width={192}
-            className={cn("-mr-2 h-24 w-32 shrink-0 min-[400px]:h-28 min-[400px]:w-40 sm:h-32 sm:w-48", (kind === "signal_lost" || kind === "problem" || kind === "not_started") && "opacity-60 grayscale")}
-          />
+        {onTrip && stopsAway != null && (
+          <div className="mt-3 border-t border-border pt-3"><StopsTrack stopsAway={stopsAway} /></div>
+        )}
+        {trip && (
+          <p className="mt-3 border-t border-border pt-3 text-body-sm">
+            <span className="font-semibold">Booked ride:</span> {[trip.vehicle_name || "your vehicle", trip.driver_name].filter(Boolean).join(" · ")}
+          </p>
         )}
       </div>
-      <p id="tt-arrival-sub" className="mt-2 text-body font-semibold leading-snug">{sub}</p>
-      {note}
-      {trip && (
-        <p className="mt-4 border-l-4 border-primary pl-3 text-body-sm">
-          Your booked ride is on the way: {trip.vehicle_name || "your vehicle"} with {trip.driver_name || "your driver"}.
-        </p>
-      )}
     </section>
   );
 }
