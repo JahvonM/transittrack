@@ -145,3 +145,21 @@ test('driver tablet showcase keeps controls reachable in portrait and landscape'
   await page.screenshot({path:`/tmp/tt-driver-${size.width}.png`});
  }
 });
+
+test('locked driver can request an admin PIN reset and stays locked',async({page})=>{
+ await mockApi(page,[]);
+ await page.addInitScript(()=>localStorage.setItem('tt_driver_device_id','driver-test'));
+ let requests=0;
+ await page.route('**/functions/driverSession',route=>{
+  const body=route.request().postDataJSON();
+  if(body.action==='request_pin_reset'){requests++;return route.fulfill({json:{ok:true}});}
+  return route.fulfill({json:driver});
+ });
+ await page.goto('/driver');
+ await page.getByRole('button',{name:'Forgot PIN?',exact:true}).click();
+ await page.getByRole('button',{name:'Request admin reset',exact:true}).click();
+ await expect(page.getByRole('status').filter({hasText:'Reset request sent'})).toBeVisible();
+ await expect(page.getByText('Driver PIN required',{exact:true})).toBeVisible();
+ expect(requests).toBe(1);
+ expect(await page.evaluate(()=>localStorage.getItem('tt_driver_unlock_date'))).toBeNull();
+});

@@ -26,3 +26,19 @@ it('saving a PIN still creates only a protected credential with limited WebCrypt
  expect(sdk.tables.Vehicle[0].driver_pin).toBe('');
  expect(row.enabled).toBe(true);
 });
+
+it('a paired locked tablet can request a scoped admin reset without changing its PIN',async()=>{
+ const sdk=mock('admin'); sdk.tables.KioskDevice[0].kiosk_type='driver';
+ const handler=load('driverSession',sdk).default;
+ const res=await handler(request({device_id:'tablet',action:'request_pin_reset',company_id:'b',vehicle_name:'spoof'}));
+ expect(res.status).toBe(200);
+ expect(sdk.tables.Broadcast[0]).toMatchObject({company_id:'a',vehicle_name:'Bus A',is_reply:true,title:'Driver PIN reset requested'});
+ expect(sdk.tables.Vehicle[0].driver_pin).toBe('1234');
+ expect(sdk.tables.DriverPinCredential).toBeUndefined();
+ expect((await handler(request({device_id:'tablet',action:'request_pin_reset'}))).status).toBe(429);
+});
+it('an unpaired tablet cannot request a reset',async()=>{
+ const sdk=mock('admin'); sdk.tables.KioskDevice[0].paired=false;
+ expect((await load('driverSession',sdk).default(request({device_id:'tablet',action:'request_pin_reset'}))).status).toBe(401);
+ expect(sdk.tables.Broadcast).toBeUndefined();
+});

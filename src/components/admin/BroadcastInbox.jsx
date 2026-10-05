@@ -33,7 +33,7 @@ export default function BroadcastInbox() {
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-base">
-            <Inbox className="w-4 h-4" /> Driver replies
+            <Inbox className="w-4 h-4" /> Driver requests & replies
           </CardTitle>
           <Button variant="ghost" size="icon" onClick={load} disabled={loading}>
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
@@ -42,7 +42,7 @@ export default function BroadcastInbox() {
       </CardHeader>
       <CardContent className="space-y-2">
         {replies.length === 0 && (
-          <p className="text-sm text-muted-foreground">No driver replies yet.</p>
+          <p className="text-sm text-muted-foreground">No driver requests or replies yet.</p>
         )}
         {replies.map((b) => (
           <div key={b.id} className="rounded-lg border p-3 space-y-1">
