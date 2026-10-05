@@ -398,9 +398,20 @@ async function validGrant(base44, device, token, purpose, subject) {
 }
 
 async function pinHash(pin, salt) {
- const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(pin), 'PBKDF2', false, ['deriveBits']);
- const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt: new TextEncoder().encode(salt), iterations: 600000, hash: 'SHA-256' }, key, 256);
- return Array.from(new Uint8Array(bits), b => b.toString(16).padStart(2,'0')).join('');
+ let bytes;
+ try {
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(pin), 'PBKDF2', false, ['deriveBits']);
+  const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt: new TextEncoder().encode(salt), iterations: 600000, hash: 'SHA-256' }, key, 256);
+  bytes = new Uint8Array(bits);
+ } catch {
+  // Some hosted WebCrypto runtimes reject PBKDF2 even when local Deno works.
+  // The compatibility path uses the identical salt, work factor and output.
+  const { pbkdf2 } = await import('node:crypto');
+  bytes = await new Promise((resolve, reject) => {
+   pbkdf2(pin, salt, 600000, 32, 'sha256', (error, result) => error ? reject(error) : resolve(result));
+  });
+ }
+ return Array.from(bytes, b => b.toString(16).padStart(2,'0')).join('');
 }
 async function setProtectedPin(base44, vehicle, pin) {
  const salt = Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2,'0')).join('');
