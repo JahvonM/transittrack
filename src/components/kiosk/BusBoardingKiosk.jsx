@@ -208,6 +208,14 @@ export default function BusBoardingKiosk({ invoke, device }) {
 
   useEffect(() => () => clearTimeout(resetTimer.current), []);
 
+  // Never leave "Checking your card" up if the connection hangs: a new tap is
+  // accepted again after 12 s anyway (see handleTag).
+  useEffect(() => {
+    if (!checkingCard) return undefined;
+    const t = setTimeout(() => setCheckingCard(false), 13000);
+    return () => clearTimeout(t);
+  }, [checkingCard]);
+
   // Nobody pressed Boarding/Exiting (or closed the QR camera)? Go back to
   // the start screen on its own.
   useEffect(() => {
