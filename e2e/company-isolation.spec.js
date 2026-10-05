@@ -165,6 +165,62 @@ test('passenger More has a WhatsApp link for app problems once admin sets the nu
   await expect(link).toHaveAttribute('target','_blank');
 });
 
+test('passenger can see other pickup spots nearby or drop their own pin',async({page,context})=>{
+ await session(page,'staff');
+ await context.grantPermissions(['geolocation']);
+ await page.addInitScript(() => { navigator.geolocation.getCurrentPosition = success => success({coords:{latitude:12.005,longitude:-61.701,accuracy:5}}); });
+ await page.addInitScript(()=>localStorage.setItem('tt_company_access_grant','a'.repeat(64)));
+ const saved=[];
+ const user={id:'caller',role:'staff',email:'caller@test.local',full_name:'Test Passenger',company_id:'a'};
+ const routeData={id:'route-a',company_id:'a',name:'Main road route',active:true,stops:[{name:'Start',lat:12,lng:-61.7,order:0},{name:'End',lat:12.01,lng:-61.7,order:1}]};
+ await page.route('**/functions/companyAccess',r=>r.fulfill({json:{company:{id:'a',name:'Company A'}}}));
+ await page.route('**/functions/entityAccess',r=>{
+  const body=r.request().postDataJSON();let result=[];
+  if(body.entity==='User'){ if(body.operation==='update'){saved.push(body.data);Object.assign(user,body.data);}result=user;}
+  if(body.entity==='Route')result=[routeData];
+  if(body.entity==='Company')result=[{id:'a',name:'Company A'}];
+  return r.fulfill({json:{result}});
+ });
+ await page.route('https://api.mapbox.com/**',r=>{
+  const url=r.request().url();
+  if(url.includes('/walking/')){
+   // Walks end exactly where they were asked to go.
+   const [,to]=decodeURIComponent(url.split('/walking/')[1].split('?')[0]).split(';');
+   const [lng,lat]=to.split(',').map(Number);
+   const dist=Math.round(Math.hypot((lat-12.005)*111000,(lng+61.701)*108000));
+   return r.fulfill({json:{routes:[{distance:dist,duration:dist/1.3,geometry:{coordinates:[[-61.701,12.005],[lng,lat]]},legs:[{steps:[{mode:'walking',maneuver:{instruction:'Walk to the main road'}}]}]}],waypoints:[{}, {location:[lng,lat]}]}});
+  }
+  if(url.includes('/directions/'))return r.fulfill({json:{routes:[{distance:1100,duration:180,geometry:{coordinates:[[-61.7,12],[-61.7,12.01]]}}]}});
+  if(url.includes('/geocoding/'))return r.fulfill({json:{features:[{place_name:'Test home, Grenada'}]}});
+  return r.fulfill({status:404,body:''});
+ });
+ await page.goto('/staff');
+ await page.getByRole('button',{name:/^Pickup settings/}).click();
+ await page.getByRole('button',{name:'Use where I am now',exact:true}).click();
+ await expect(page.getByText(/^Spot 1 of [2-9] near you$/)).toBeVisible();
+ await page.getByRole('button',{name:'Show another spot nearby'}).click();
+ await expect(page.getByText(/^Spot 2 of [2-9] near you$/)).toBeVisible();
+ await page.getByRole('button',{name:'Use this pickup point',exact:true}).click();
+ await expect.poll(()=>saved.filter(d=>d.pickup_lat!==undefined).length).toBe(1);
+ const second=saved.find(d=>d.pickup_lat!==undefined);
+ expect(Math.abs(second.pickup_lat-12.005)).toBeGreaterThan(0.0009);
+ expect(second.pickup_lng).toBeCloseTo(-61.7);
+ // Their own pin: off the road gets a warning, on the road saves with the route.
+ await page.getByRole('region',{name:'Your pickup'}).getByRole('button',{name:'Change'}).click();
+ await page.getByRole('button',{name:'Pick my own spot on the map'}).click();
+ const box=page.getByRole('region',{name:'Pick your own pickup spot'});
+ await box.getByLabel('Latitude').fill('12.004');
+ await box.getByLabel('Longitude').fill('-61.702');
+ await expect(box.getByText(/m from the Main road route road/)).toBeVisible();
+ await box.getByLabel('Longitude').fill('-61.7001');
+ await expect(box.getByText('On the Main road route road.')).toBeVisible();
+ await box.getByLabel('Name this spot').fill('Outside the blue shop');
+ await box.getByRole('button',{name:'Use this spot',exact:true}).click();
+ await expect.poll(()=>saved.filter(d=>d.pickup_name==='Outside the blue shop').length).toBe(1);
+ const mine=saved.find(d=>d.pickup_name==='Outside the blue shop');
+ expect(mine).toMatchObject({pickup_lat:12.004,pickup_lng:-61.7001,pickup_route_id:'route-a'});
+});
+
 test('passenger Home puts the roadside pickup up front and shows the workplace drop-off',async({page})=>{
   await passengerShowcase(page);
   const cta=page.getByRole('region',{name:'Get picked up near home'});

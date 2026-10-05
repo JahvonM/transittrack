@@ -79,6 +79,7 @@ export default function LocationPicker({ lat, lng, onChange }) {
           value={lat ?? ""}
           onChange={(e) => onChange(parseFloat(e.target.value), lng)}
           placeholder="Latitude"
+          aria-label="Latitude"
           className="h-8 text-xs"
         />
         <Input
@@ -87,6 +88,7 @@ export default function LocationPicker({ lat, lng, onChange }) {
           value={lng ?? ""}
           onChange={(e) => onChange(lat, parseFloat(e.target.value))}
           placeholder="Longitude"
+          aria-label="Longitude"
           className="h-8 text-xs"
         />
         <Button
@@ -96,6 +98,7 @@ export default function LocationPicker({ lat, lng, onChange }) {
           className="h-8 w-8 shrink-0"
           onClick={useMyLocation}
           title="Use my location"
+          aria-label="Use my location"
         >
           <LocateFixed className="w-4 h-4" />
         </Button>

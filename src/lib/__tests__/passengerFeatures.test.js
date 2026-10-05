@@ -4,7 +4,7 @@ import { cardArtwork, CARD_PX, CARD_MM } from "@/lib/cardArtwork";
 vi.mock("@/lib/mapbox",()=>({ MAPBOX_TOKEN:"test" }));
 vi.mock("@/lib/geo",()=>({fetchDrivingRoute:vi.fn()}));
 import { fetchDrivingRoute } from "@/lib/geo";
-import { nearestRoutePoint, suggestPickup } from "@/lib/pickupSuggestion";
+import { nearestBusRoad, nearestRoutePoint, suggestPickup, suggestPickups } from "@/lib/pickupSuggestion";
 const call=(sdk,body,name="nfcCards")=>load(name,sdk).default(request(body));
 afterEach(()=>{vi.unstubAllGlobals();vi.clearAllMocks();});
 describe("email account directory",()=>{
@@ -97,6 +97,33 @@ describe("roadside walking suggestion",()=>{
   vi.stubGlobal("fetch",vi.fn().mockResolvedValue({ok:true,json:async()=>({routes:[{distance:120,duration:90,geometry:{coordinates:[[-61.701,12.005],[-61.7,12.005]]},legs:[{steps:[{mode:"walking",maneuver:{instruction:"Walk east"}}]}]}],waypoints:[{}, {location:[-61.7,12.005]}]})}));
   const p=await suggestPickup({lat:12.005,lng:-61.701},[{id:"r",name:"Bus route",stops:[{lat:12,lng:-61.7},{lat:12.01,lng:-61.7}]}]);
   expect(p).toMatchObject({route_id:"r",walkM:120,steps:["Walk east"]});
+ });
+});
+describe("other pickup spots and your own pin",()=>{
+ const road=[[-61.7,12],[-61.7,12.01]];
+ const route=[{id:"r",name:"Bus route",stops:[{lat:12,lng:-61.7},{lat:12.01,lng:-61.7}]}];
+ // Walks end exactly where they were sent; length grows with distance.
+ const echoWalk=vi.fn(async(url)=>{
+  const [lng,lat]=decodeURIComponent(url.split("/walking/")[1].split("?")[0]).split(";")[1].split(",").map(Number);
+  const d=Math.round(Math.hypot((lat-12.005)*111000,(lng+61.701)*108000));
+  return {ok:true,json:async()=>({routes:[{distance:d,duration:d,geometry:{coordinates:[[-61.701,12.005],[lng,lat]]},legs:[]}],waypoints:[{}, {location:[lng,lat]}]})};
+ });
+ it("offers several distinct spots along the same road, closest walk first",async()=>{
+  fetchDrivingRoute.mockResolvedValue({geometry:road});
+  vi.stubGlobal("fetch",echoWalk);
+  const spots=await suggestPickups({lat:12.005,lng:-61.701},route);
+  expect(spots.length).toBeGreaterThanOrEqual(3);
+  expect(spots.every(s=>s.route_id==="r" && Math.abs(s.lng+61.7)<1e-6)).toBe(true);
+  for(let i=1;i<spots.length;i++){
+   expect(spots[i].walkM).toBeGreaterThanOrEqual(spots[i-1].walkM);
+   for(let j=0;j<i;j++) expect(Math.abs(spots[i].lat-spots[j].lat)*111000).toBeGreaterThanOrEqual(99);
+  }
+  expect((await suggestPickup({lat:12.005,lng:-61.701},route)).lat).toBeCloseTo(spots[0].lat);
+ });
+ it("links a hand-placed pin to the nearest bus road, or none beyond 2 km",async()=>{
+  fetchDrivingRoute.mockResolvedValue({geometry:road});
+  expect(await nearestBusRoad({lat:12.004,lng:-61.7004},route)).toMatchObject({route_id:"r",route_name:"Bus route"});
+  expect(await nearestBusRoad({lat:12.2,lng:-61.7},route)).toBeNull();
  });
 });
 describe("printable card artwork",()=>{
