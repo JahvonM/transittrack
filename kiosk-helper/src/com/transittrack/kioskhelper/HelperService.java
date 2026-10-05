@@ -45,6 +45,7 @@ public class HelperService extends Service {
 
     private Handler main;
     private PowerManager.WakeLock wakeLock;
+    private PowerManager.WakeLock screenWakeLock;
     private ResultServer results;
     private CardReader reader;
     private UsbGps gps;
@@ -60,6 +61,20 @@ public class HelperService extends Service {
     private final BroadcastReceiver powerReceiver = new BroadcastReceiver() {
         @Override public void onReceive(Context c, Intent i) {
             onPower(Intent.ACTION_POWER_CONNECTED.equals(i.getAction()));
+        }
+    };
+
+    private final BroadcastReceiver screenReceiver = new BroadcastReceiver() {
+        @Override public void onReceive(Context c, Intent i) {
+            ensureScreenAwake();
+            if (Intent.ACTION_SCREEN_OFF.equals(i.getAction())) {
+                setScreen(true);
+            } else {
+                if (reader != null) reader.reconnect();
+                new Thread(new Runnable() {
+                    @Override public void run() { Kiosk.announce(HelperService.this); }
+                }, "tt-reader-wake").start();
+            }
         }
     };
 
@@ -87,6 +102,7 @@ public class HelperService extends Service {
                 int low = Config.ignition(HelperService.this) ? LOW_BATTERY : CRITICAL_BATTERY;
                 if (!plugged && battery >= 0 && battery <= low) enterParked("battery low (" + battery + "%)");
             }
+            ensureScreenAwake();
             pushHealth(); // Keep scanner connection status fresh while parked too.
             main.postDelayed(this, HEALTH_MS);
         }
@@ -114,6 +130,17 @@ public class HelperService extends Service {
         wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "TTHelper:main");
         wakeLock.setReferenceCounted(false);
         wakeLock.acquire();
+        // Unlike a CPU-only lock, this keeps the display on while unplugged.
+        screenWakeLock = pm.newWakeLock(PowerManager.SCREEN_BRIGHT_WAKE_LOCK
+                | PowerManager.ACQUIRE_CAUSES_WAKEUP, "TTHelper:screen");
+        screenWakeLock.setReferenceCounted(false);
+        ensureScreenAwake();
+        setScreen(true);
+        IntentFilter sf = new IntentFilter();
+        sf.addAction(Intent.ACTION_SCREEN_ON);
+        sf.addAction(Intent.ACTION_SCREEN_OFF);
+        sf.addAction(Intent.ACTION_USER_PRESENT);
+        registerReceiver(screenReceiver, sf);
 
         IntentFilter pf = new IntentFilter();
         pf.addAction(Intent.ACTION_POWER_CONNECTED);
@@ -126,7 +153,7 @@ public class HelperService extends Service {
         parked = false;
         Status.power = plugged ? "Plugged in" : "Unplugged";
         Status.log("Helper " + VERSION + " started (" + Status.power + ")");
-        if (!Config.ignition(this)) Status.screen = "Ignition control off";
+        if (!Config.ignition(this)) Status.screen = "Always on (charger or battery)";
         if (plugged) {
             if (Config.ignition(this)) setScreen(true);
             main.postDelayed(new Runnable() { @Override public void run() { keepHotspot(true); } }, 20000);
@@ -161,6 +188,8 @@ public class HelperService extends Service {
     }
 
     private void onPower(boolean isPlugged) {
+        ensureScreenAwake();
+        setScreen(true);
         plugged = isPlugged;
         Status.power = isPlugged ? "Plugged in" : "Unplugged";
         Status.log("Power " + (isPlugged ? "connected" : "disconnected"));
@@ -306,9 +335,18 @@ public class HelperService extends Service {
         }, "tt-screen").start();
     }
 
+    private void ensureScreenAwake() {
+        if (screenWakeLock != null && !screenWakeLock.isHeld()) screenWakeLock.acquire();
+        try {
+            if (Settings.System.getInt(getContentResolver(), Settings.System.SCREEN_OFF_TIMEOUT, 0) != Integer.MAX_VALUE)
+                Settings.System.putInt(getContentResolver(), Settings.System.SCREEN_OFF_TIMEOUT, Integer.MAX_VALUE);
+        } catch (SecurityException e) {
+            Status.log("Screen timeout setting unavailable; screen wake lock remains active");
+        }
+    }
+
     /** Android setting: the screen never times out while the tablet is charging (AC, USB or wireless). */
     private void ensureStayOnWhilePowered() {
-        if (!Config.ignition(this)) return;
         try {
             int all = BatteryManager.BATTERY_PLUGGED_AC | BatteryManager.BATTERY_PLUGGED_USB | BatteryManager.BATTERY_PLUGGED_WIRELESS;
             int current = Settings.Global.getInt(getContentResolver(), Settings.Global.STAY_ON_WHILE_PLUGGED_IN, 0);
@@ -365,8 +403,10 @@ public class HelperService extends Service {
         if (gps != null) gps.stop();
         if (results != null) results.stop();
         try { unregisterReceiver(powerReceiver); } catch (Exception ignored) { }
+        try { unregisterReceiver(screenReceiver); } catch (Exception ignored) { }
         try { unregisterReceiver(permissionReceiver); } catch (Exception ignored) { }
         if (wakeLock != null && wakeLock.isHeld()) wakeLock.release();
+        if (screenWakeLock != null && screenWakeLock.isHeld()) screenWakeLock.release();
         Status.log("Helper stopped");
         super.onDestroy();
     }

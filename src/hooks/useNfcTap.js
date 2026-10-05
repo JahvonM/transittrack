@@ -53,6 +53,7 @@ export function useNfcTap(onTag, active, { webActive = active } = {}) {
   const [external, setExternal] = useState(hasExternalReader);
   const [listening, setListening] = useState(false);
   const [nfcError, setNfcError] = useState("");
+  const [resumeVersion, setResumeVersion] = useState(0);
   const readerRef = useRef(null);
   const takeBadges = useRef(null);
   if (!takeBadges.current) takeBadges.current = badgeInbox();
@@ -74,7 +75,8 @@ export function useNfcTap(onTag, active, { webActive = active } = {}) {
   useEffect(() => {
     const onBadge = (event) => {
       setExternal(true);
-      if (!active) return;
+      if (!active) { takeBadges.current(event); return; }
+      if (document.visibilityState === "hidden") return;
       for (const tag of takeBadges.current(event)) onTagRef.current?.(tag);
     };
     const resume = () => {
@@ -92,6 +94,16 @@ export function useNfcTap(onTag, active, { webActive = active } = {}) {
       document.removeEventListener("visibilitychange", resume);
     };
   }, [active]);
+
+  useEffect(() => {
+    const resume = () => { if (document.visibilityState !== "hidden") setResumeVersion(n => n + 1); };
+    document.addEventListener("visibilitychange", resume);
+    window.addEventListener("pageshow", resume);
+    return () => {
+      document.removeEventListener("visibilitychange", resume);
+      window.removeEventListener("pageshow", resume);
+    };
+  }, []);
 
   useEffect(() => {
     if (!webNfc || !webActive) { setListening(false); return; }
@@ -121,7 +133,7 @@ export function useNfcTap(onTag, active, { webActive = active } = {}) {
         if (!cancelled) setListening(false);
       });
     return () => { cancelled = true; controller.abort(); setListening(false); };
-  }, [webNfc, webActive]);
+  }, [webNfc, webActive, resumeVersion]);
 
   return {
     supported: webNfc || external,
