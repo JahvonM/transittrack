@@ -154,7 +154,7 @@ final class CardReader implements Runnable {
             } else if (++misses >= 2) {
                 armed = true;  // card taken away, ready for the next tap
             }
-            sleep(HelperService.plugged ? 300 : 1000);
+            sleep(HelperService.plugged || !Config.ignition(ctx) ? 300 : 1000);
         }
     }
 

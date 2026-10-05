@@ -8,6 +8,10 @@ final class Config {
     static SharedPreferences prefs(Context c) { return c.getSharedPreferences("cfg", Context.MODE_PRIVATE); }
     static String apiKey(Context c) { return prefs(c).getString("api_key", ""); }
     static int port(Context c) { return prefs(c).getInt("port", 8080); }
+    /**
+     * true  = bus mode: screen off 5 s after power is removed, then parked (reader/GPS paused).
+     * false = always-on: keeps the screen on and the reader working on battery (pauses only at 5 %).
+     */
     static boolean ignition(Context c) { return prefs(c).getBoolean("ignition", true); }
     static boolean reader(Context c) { return prefs(c).getBoolean("reader", true); }
     static boolean gps(Context c) { return prefs(c).getBoolean("gps", true); }

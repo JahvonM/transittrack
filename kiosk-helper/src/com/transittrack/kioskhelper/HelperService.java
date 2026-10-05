@@ -30,7 +30,7 @@ import org.json.JSONObject;
  *  - boarding tablets: join the bus hotspot automatically
  */
 public class HelperService extends Service {
-    static final String VERSION = "1.5";
+    static final String VERSION = "1.6";
     static volatile boolean plugged = true;
     static volatile boolean parked = false;
 
@@ -40,6 +40,8 @@ public class HelperService extends Service {
     private static final long HEALTH_MS = 60 * 1000;
     private static final long RELOAD_AFTER_PARK_MS = 2 * 60 * 60 * 1000L;
     private static final int LOW_BATTERY = 15;
+    /** Always-on tablets (ignition control off) only pause right before the battery would die. */
+    private static final int CRITICAL_BATTERY = 5;
 
     private Handler main;
     private PowerManager.WakeLock wakeLock;
@@ -80,9 +82,10 @@ public class HelperService extends Service {
         @Override public void run() {
             if (!parked) {
                 if (plugged) keepHotspot(true);
-                if (plugged) joinBusWifi(0);
+                if (plugged || !Config.ignition(HelperService.this)) joinBusWifi(0);
                 int battery = batteryPercent();
-                if (!plugged && battery >= 0 && battery <= LOW_BATTERY) enterParked("battery low (" + battery + "%)");
+                int low = Config.ignition(HelperService.this) ? LOW_BATTERY : CRITICAL_BATTERY;
+                if (!plugged && battery >= 0 && battery <= low) enterParked("battery low (" + battery + "%)");
                 pushHealth();
             }
             main.postDelayed(this, HEALTH_MS);
@@ -128,9 +131,11 @@ public class HelperService extends Service {
             if (Config.ignition(this)) setScreen(true);
             main.postDelayed(new Runnable() { @Override public void run() { keepHotspot(true); } }, 20000);
             joinBusWifi(10000);
-        } else {
-            if (Config.ignition(this)) main.postDelayed(screenOff, UNPLUG_DELAY_MS);
+        } else if (Config.ignition(this)) {
+            main.postDelayed(screenOff, UNPLUG_DELAY_MS);
             main.postDelayed(park, PARK_DELAY_MS);
+        } else {
+            joinBusWifi(10000);   // always-on tablet: keep working on battery
         }
 
         if (Config.reader(this)) {
@@ -171,9 +176,11 @@ public class HelperService extends Service {
             joinBusWifi(15000);
             joinBusWifi(45000);
             main.postDelayed(new Runnable() { @Override public void run() { pushHealth(); } }, 5000);
-        } else {
-            if (Config.ignition(this)) main.postDelayed(screenOff, UNPLUG_DELAY_MS);
+        } else if (Config.ignition(this)) {
+            main.postDelayed(screenOff, UNPLUG_DELAY_MS);
             main.postDelayed(park, PARK_DELAY_MS);
+        } else {
+            Status.log("Always-on tablet: keeps running on battery");
         }
     }
 

@@ -11,6 +11,8 @@ Small Android app for the bus tablets. Replaces the Termux scripts:
   (accepted) or red + 3 beeps (rejected) using the result the page reports to 127.0.0.1:8765.
 - **USB GPS** (driver tablets): reads a VFAN / Prolific / u-blox / CDC serial GPS and gives the
   position to Android as the "gps" provider (needs `appops set ... android:mock_location allow`).
+- **Always-on** (`--es ignition false`): no screen-off or parked mode on battery; the reader keeps
+  working off the charger and only pauses at 5 % battery.
 - **Parked mode**: 2 min after power is lost (or battery <= 15 % while unplugged) the reader and GPS
   pause and the wake lock is released. Everything resumes when power returns.
 - **Page refresh**: FreeKiosk `/api/reload` when the bus starts after 2+ h parked, or at 3 AM if
