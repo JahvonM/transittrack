@@ -1,6 +1,4 @@
 import {test,expect} from '@playwright/test';
-test.setTimeout(60000);
-expect.configure({ timeout: 15000 });
 const vehicles=[{id:'bus-a',name:'Bus A',company_id:'a',company_name:'Company A',type:'staff_bus',status:'idle',capacity:25},{id:'bus-b',name:'Bus B',company_id:'b',company_name:'Company B',type:'staff_bus',status:'idle',capacity:25}];
 async function session(page,role) {
  const calls=[],direct=[];
