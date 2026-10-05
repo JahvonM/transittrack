@@ -45,3 +45,11 @@ export function codeFromJoinQr(text) {
     return CODE.test(code) ? code : "";
   } catch { return ""; }
 }
+
+// Keeps a scanned company code for this browser tab until the passenger is
+// signed in; StaffPortal then checks it once, like a typed code.
+export function rememberJoinCode(code) {
+  const value = String(code || "").trim().toUpperCase();
+  if (!CODE.test(value)) return false;
+  try { sessionStorage.setItem(KEY, value); return true; } catch { return false; }
+}

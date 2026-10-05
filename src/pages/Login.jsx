@@ -1,14 +1,17 @@
 import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { LogIn, Mail, Lock, Loader2 } from "lucide-react";
+import { LogIn, Mail, Lock, Loader2, QrCode } from "lucide-react";
 import AuthLayout from "@/components/AuthLayout";
 import GoogleIcon from "@/components/GoogleIcon";
 import PrivacyPolicyDialog from "@/components/PrivacyPolicyDialog";
 import { safeReturnTo } from "@/lib/authReturnTo";
+import { useAuth } from "@/lib/AuthContext";
+import { hasPendingJoinCode, rememberJoinCode } from "@/lib/companyJoin";
+import { ScanCompanyQrButton, ScanCompanyQrDialog } from "@/components/ScanCompanyQr";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -17,7 +20,19 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   // Post-login destination (e.g. the MCP OAuth consent page sends users here
   // with returnTo so the grant flow can resume). Same-origin paths only.
-  const returnTo = safeReturnTo();
+  const askedReturn = safeReturnTo();
+  const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
+  // Company QR scanned here: once signed in, /join adds the passenger to that
+  // company with no code to type. Scanning never signs anyone in by itself.
+  const [scanOpen, setScanOpen] = useState(false);
+  const [joinReady, setJoinReady] = useState(() => hasPendingJoinCode());
+  const returnTo = joinReady && askedReturn === "/" ? "/join" : askedReturn;
+  const onScan = (code) => {
+    if (!rememberJoinCode(code)) return;
+    setJoinReady(true);
+    if (isAuthenticated) navigate("/join");
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -57,6 +72,15 @@ export default function Login() {
         </div>
       }
     >
+      {joinReady ? (
+        <div role="status" className="mb-4 flex items-start gap-3 rounded-xl bg-secondary p-3 text-body-sm">
+          <QrCode className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
+          <span><span className="font-semibold">Company QR scanned.</span> Log in or create an account and you'll be added to your bus company automatically.</span>
+        </div>
+      ) : (
+        <ScanCompanyQrButton className="mb-3 w-full h-12 text-sm font-medium" onClick={() => setScanOpen(true)} />
+      )}
+      <ScanCompanyQrDialog open={scanOpen} onOpenChange={setScanOpen} onCode={onScan} />
       <Button
         variant="outline"
         className="w-full h-12 text-sm font-medium mb-6"

@@ -1,11 +1,10 @@
 import React, { useEffect, useRef, useState } from "react";
 import { base44 } from "@/api/base44Client";
-import { Bus, ArrowRight, QrCode, X } from "lucide-react";
+import { Bus, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import QrScanner from "@/components/kiosk/QrScanner";
-import { codeFromJoinQr } from "@/lib/companyJoin";
+import { ScanCompanyQrButton, ScanCompanyQrDialog } from "@/components/ScanCompanyQr";
 
 // initialCode comes from a company's join QR; it is checked straight away,
 // exactly as if the passenger had typed it.
@@ -14,7 +13,6 @@ export default function CodeGate({ onUnlock, initialCode = "" }) {
   const [error, setError] = useState("");
   const [checking, setChecking] = useState(false);
   const [scanning, setScanning] = useState(false);
-  const [scanError, setScanError] = useState("");
 
   const submit = async (e, override) => {
     e?.preventDefault();
@@ -42,18 +40,8 @@ export default function CodeGate({ onUnlock, initialCode = "" }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialCode]);
 
-  // Scanning the company's QR fills in the code and checks it, the same as typing it.
-  const scanDone = useRef(false);
-  const onScan = (text) => {
-    if (scanDone.current) return;
-    const found = codeFromJoinQr(text);
-    if (!found) { setScanError("That QR code isn't a company code. Try the QR your bus company gave you."); return; }
-    scanDone.current = true;
-    setScanning(false);
-    setScanError("");
-    setCode(found);
-    submit(null, found);
-  };
+  // Scanning the company's QR checks its code, the same as typing it.
+  const onScan = (found) => { setCode(found); submit(null, found); };
 
   return (
     <div className="max-w-sm mx-auto mt-10 sm:mt-20">
@@ -84,20 +72,8 @@ export default function CodeGate({ onUnlock, initialCode = "" }) {
           <div className="my-4 flex items-center gap-3 text-caption text-muted-foreground" aria-hidden="true">
             <span className="h-px flex-1 bg-border" /> or <span className="h-px flex-1 bg-border" />
           </div>
-          {scanning ? (
-            <div className="space-y-3">
-              <QrScanner active onDecode={onScan} />
-              <p className="text-center text-body-sm text-muted-foreground">Point your camera at your company's QR code.</p>
-              {scanError && <p role="alert" className="text-center text-sm text-destructive">{scanError}</p>}
-              <Button type="button" variant="outline" className="w-full" onClick={() => { setScanning(false); setScanError(""); }}>
-                <X className="w-4 h-4" /> Stop scanning
-              </Button>
-            </div>
-          ) : (
-            <Button type="button" variant="outline" className="w-full" onClick={() => { setError(""); scanDone.current = false; setScanning(true); }} disabled={checking}>
-              <QrCode className="w-4 h-4" /> Scan QR code
-            </Button>
-          )}
+          <ScanCompanyQrButton className="w-full" onClick={() => { setError(""); setScanning(true); }} disabled={checking} />
+          <ScanCompanyQrDialog open={scanning} onOpenChange={setScanning} onCode={onScan} />
         </CardContent>
       </Card>
     </div>
