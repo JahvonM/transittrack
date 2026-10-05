@@ -168,7 +168,7 @@ function speak(text) {
 // sitting in a small centered card, so a big tablet doesn't end up mostly
 // empty space — a persistent top bar and, on large screens, a live info
 // rail (occupancy/weather/ads) fill the room around the actual check-in card.
-export default function BusBoardingKiosk({ invoke, device }) {
+export default function BusBoardingKiosk({ invoke, device, directoryInfo }) {
   const isDark = useIsDark();
   const [unlocked, setUnlocked] = useState(false);
   const [now, setNow] = useState(() => new Date());
@@ -634,6 +634,9 @@ export default function BusBoardingKiosk({ invoke, device }) {
           <QrCode className="w-4 h-4" /> Scan QR code instead
         </button>
 
+        <p className="text-xs text-muted-foreground" role="status">
+          {directoryInfo?.expires ? `Passenger list: ${directoryInfo.count} cards · updated ${new Date(directoryInfo.updated).toLocaleString()} · ${Date.parse(directoryInfo.expires)>now.getTime() ? "ready for offline taps" : "expired — connect to refresh"}` : "Passenger list not downloaded — connect to WiFi"}
+        </p>
         {pendingSyncCount > 0 && (
           <p className="text-xs text-muted-foreground flex items-center justify-center gap-1.5">
             <CloudUpload className="w-3.5 h-3.5" /> {pendingSyncCount} check-in{pendingSyncCount === 1 ? "" : "s"} waiting to sync{syncError ? " · "+syncError : ""}

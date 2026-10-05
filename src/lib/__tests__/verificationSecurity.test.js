@@ -77,7 +77,10 @@ describe('verification and credential protection', () => {
   const sdk=mock(); sdk.tables.KioskDevice[0].kiosk_type='bus_boarding';
   const handler=load('kioskCheckIn',sdk).default;
   const response=await handler(req({device_id:'tablet',action:'offline_directory'}));
-  expect(await response.json()).toMatchObject({staff:[],verification_online_only:true});
+  const directory=await response.json();
+  expect(directory).toMatchObject({version:1,vehicle_id:'bus'});
+  expect(JSON.stringify(directory)).not.toContain('CARD-SENTINEL');
+  expect(directory.staff[0].card_fingerprint).toMatch(/^[a-f0-9]{64}$/);
   expect((await handler(req({device_id:'tablet',action:'check_in',staff_id:'contact',method:'nfc',status:'boarded'}))).status).toBe(403);
   const lookup=await handler(req({device_id:'tablet',action:'lookup_tag',card_tag:'CARD-SENTINEL'}));
   const data=await lookup.json();
