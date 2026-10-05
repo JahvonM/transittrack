@@ -252,7 +252,8 @@ test('tablet details and admin menu stay aligned on narrow screens',async({page}
  await expect(page.getByText('Battery 79%',{exact:true})).toBeVisible();
  await expect(page.getByText('GPS: Not plugged in',{exact:true})).toBeVisible();
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
- await page.getByRole('button',{name:'Menu',exact:true}).click();
- const item=page.getByRole('button',{name:'Maintenance Schedule',exact:true});
+ // ui-redesign: the phone admin menu button is "Open menu"; Maintenance Schedule is "Maintenance".
+ await page.getByRole('button',{name:'Open menu',exact:true}).click();
+ const item=page.getByRole('dialog').getByRole('button',{name:'Maintenance',exact:true}).first();
  await expect(item).toHaveCSS('text-align','left');
 });

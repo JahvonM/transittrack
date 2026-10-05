@@ -144,7 +144,7 @@ function NavItem({ item, active, onNavigate }) {
       onClick={() => onNavigate(item.id)}
       aria-current={on ? "page" : undefined}
       className={cn(
-        "relative flex min-h-[40px] w-full items-center gap-3 rounded-lg px-3 text-body-sm font-medium transition-colors",
+        "relative flex min-h-[40px] w-full items-center gap-3 rounded-lg px-3 text-left text-body-sm font-medium transition-colors",
         on ? "bg-sidebar-accent text-sidebar-foreground" : "text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground",
       )}
     >

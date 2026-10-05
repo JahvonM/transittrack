@@ -252,7 +252,7 @@ function AssignedVehicleRow({ vehicle: v, routes, onUnassign, onSetStatus, onSet
           type="password"
           autoComplete="new-password"
           placeholder="New PIN"
-          aria-label={`New driver PIN for ${v.name}`}
+          aria-label={`New PIN for ${v.name}`}
           onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
           disabled={pinSaving}
         />
