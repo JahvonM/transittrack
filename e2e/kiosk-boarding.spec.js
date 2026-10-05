@@ -172,3 +172,28 @@ test('the tablet shows the names on its saved card list', async ({ page }) => {
   await expect(list.getByRole('listitem')).toHaveText(['Maria Joseph', 'Zane Charles']);
   expect(await page.evaluate(() => localStorage.getItem('tt_boarding_card_index_v1'))).not.toMatch(/04[0-9A-F]{6}/);
 });
+
+test('the check-in slider only unlocks on a real slide, not a cancelled one or a tap', async ({ page }) => {
+  const { errors } = await setup(page);
+  await page.goto('/kiosk');
+  const handle = page.getByRole('button', { name: 'Slide to check in' });
+  await expect(handle).toBeVisible();
+  const b = await handle.boundingBox();
+  const track = await page.getByText('Slide to check in', { exact: true }).locator('..').boundingBox();
+  // The system takes the gesture over half-way: springs back, stays locked.
+  await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(track.x + track.width - 30, b.y + b.height / 2, { steps: 8 });
+  await handle.dispatchEvent('pointercancel', { pointerId: 1, isPrimary: true });
+  await page.mouse.up();
+  await expect(page.getByRole('button', { name: 'Submit code', exact: true })).toHaveCount(0);
+  // A tap explains what to do.
+  await handle.click();
+  await expect(page.getByText('Drag the arrow all the way to the right.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Submit code', exact: true })).toHaveCount(0);
+  // Keyboard and screen readers can unlock too.
+  await handle.focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('button', { name: 'Submit code', exact: true })).toBeVisible();
+  expect(errors).toEqual([]);
+});
