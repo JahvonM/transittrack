@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Activity,
   Bus,
@@ -39,7 +39,6 @@ import {
   ShieldCheck,
   LifeBuoy,
   BookOpen,
-  MapPinned,
   Hourglass,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -66,7 +65,6 @@ export const ADMIN_SECTIONS = [
   // Full pages shown inside the admin area (see ADMIN_PAGES in Admin.jsx).
   { id: "vehicle-logs", label: "Vehicle log", icon: FileText, group: "Fleet management" },
   { id: "driving-reports", label: "Driver report", icon: Gauge, group: "Fleet management" },
-  { id: "location-timeline", label: "Location timeline", icon: MapPinned, group: "Fleet management" },
   { id: "route-analytics", label: "Route analysis", icon: LineChart, group: "Fleet management" },
   { id: "fleet-analytics", label: "Fleet analysis", icon: BarChart3, group: "Fleet management" },
   { id: "route-planner", label: "Route planner", icon: MapIcon, group: "Fleet management" },
@@ -108,6 +106,11 @@ const GROUP_ORDER = ["Fleet Operations", "Fleet management", "Dispatch", "Mainte
 export default function AdminShell({ active, onNavigate, children, alertVehicles = [] }) {
   const [open, setOpen] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState(() => Object.fromEntries(GROUP_ORDER.map(group => [group, true])));
+
+  useEffect(() => {
+    const group = ADMIN_SECTIONS.find(s => s.id === active)?.group;
+    if (group) setCollapsedGroups(prev => ({ ...prev, [group]: false }));
+  }, [active]);
 
   const toggleGroup = (group) => setCollapsedGroups((prev) => ({ ...prev, [group]: !prev[group] }));
 

@@ -5,11 +5,12 @@ import { useEffect, useState } from "react";
  * Used by every dashboard map so each user always sees their own location pin.
  * Returns { location: {lat, lng} | null, error: string }.
  */
-export default function useUserLocation() {
+export default function useUserLocation(enabled = true) {
   const [location, setLocation] = useState(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
+    if (!enabled) return undefined;
     if (!navigator.geolocation) {
       setError("Geolocation is not supported by your device.");
       return;
@@ -19,9 +20,7 @@ export default function useUserLocation() {
         const acc = p.coords.accuracy ?? 999;
         // Skip extremely low-accuracy fixes (cell tower) to avoid big offsets
         if (acc > 500) return;
-        setLocation((prev) => {
-          // Only update if this fix is at least as accurate as the current one
-          if (prev && prev.accuracy != null && prev.accuracy < acc) return prev;
+        setLocation(() => {
           return { lat: p.coords.latitude, lng: p.coords.longitude, accuracy: acc };
         });
         setError("");
@@ -40,7 +39,7 @@ export default function useUserLocation() {
       { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
     );
     return () => navigator.geolocation.clearWatch(id);
-  }, []);
+  }, [enabled]);
 
   return { location, error };
 }

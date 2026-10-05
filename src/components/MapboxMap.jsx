@@ -1,3 +1,4 @@
+import useUserLocation from "@/hooks/useUserLocation";
 import React, { Suspense, lazy, useState } from "react";
 import { MapPin } from "lucide-react";
 import { mapEngine, markFullMapFailed } from "@/lib/mapEngine";
@@ -19,13 +20,15 @@ function MapPlaceholder() {
 }
 
 export default function MapboxMap(props) {
+  const { location } = useUserLocation(!props.userLocation && !props.center && !props.focusVehicleId);
+  const mapProps = { ...props, userLocation: props.userLocation || (!props.center && !props.focusVehicleId ? location : null) };
   const [basic, setBasic] = useState(() => mapEngine() === "basic");
   return (
     <Suspense fallback={<MapPlaceholder />}>
       {basic ? (
-        <LiteMap {...props} />
+        <LiteMap {...mapProps} />
       ) : (
-        <MapboxMapImpl {...props} onEngineFail={() => { markFullMapFailed(); setBasic(true); }} />
+        <MapboxMapImpl {...mapProps} onEngineFail={() => { markFullMapFailed(); setBasic(true); }} />
       )}
     </Suspense>
   );

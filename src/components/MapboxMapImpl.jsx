@@ -149,7 +149,7 @@ export default function MapboxMap({
   // Once the user's position is known, fly to it so the map centers on them.
   // Also skipped in followUser mode — same reasoning as above.
   useEffect(() => {
-    if (!mapLoaded || followUser || !currentUserLocation || hasUserCentered.current) return;
+    if (!mapLoaded || center || focusVehicleId || followUser || !currentUserLocation || hasUserCentered.current) return;
     const map = mapRef.current;
     if (!map) return;
     hasUserCentered.current = true;

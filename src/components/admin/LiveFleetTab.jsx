@@ -19,7 +19,7 @@ function timeAgo(iso) {
   return Math.floor(s / 3600) + "h ago";
 }
 
-export default function LiveFleetTab({ vehicles, onVehicleUpdate }) {
+export default function LiveFleetTab({ vehicles, onVehicleUpdate, initialView = "live" }) {
   const { toast } = useToast();
   const { location: userLoc } = useUserLocation();
   const [busy, setBusy] = useState(null);
@@ -29,7 +29,7 @@ export default function LiveFleetTab({ vehicles, onVehicleUpdate }) {
   const [focus, setFocus] = useState({ id: null, n: 0 });
   const mapBox = useRef(null);
   // "live" = where buses are now, "history" = replay a past day.
-  const [view, setView] = useState("live");
+  const [view, setView] = useState(initialView);
   const [historyId, setHistoryId] = useState("");
   const showHistory = (v) => {
     setView("history");
@@ -115,7 +115,7 @@ export default function LiveFleetTab({ vehicles, onVehicleUpdate }) {
             <MapboxMap vehicles={withLocation} userLocation={focus.id ? null : userLoc} height="100%" focusVehicleId={focus.id} focusKey={focus.n} />
           </div>
         ) : (
-          <LocationReplay vehicles={vehicles} initialVehicleId={historyId} />
+          <div className="space-y-3"><h3 className="font-semibold">Location timeline</h3><LocationReplay vehicles={vehicles} initialVehicleId={historyId} /></div>
         )}
       </div>
       <div className="grid sm:grid-cols-2 gap-2">

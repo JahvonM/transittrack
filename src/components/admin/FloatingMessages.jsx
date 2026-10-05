@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import EmptyState from "@/components/EmptyState";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
-import { MessageCircle, X, ChevronLeft, Bus, Users, Building2, Radio, Wrench, Camera, Mic } from "lucide-react";
+import { MessageCircle, X, ChevronLeft, Bus, Users, Building2, Radio, Wrench, Camera, Mic, SquarePen } from "lucide-react";
 import ChatThread from "@/components/chat/ChatThread";
 
 function formatTime(iso) {
@@ -39,6 +39,7 @@ function senderLabelFor(m, channel) {
 // across every conversation the driver can start.
 export default function FloatingMessages({ vehicles = [] }) {
   const [open, setOpen] = useState(false);
+  const [composing, setComposing] = useState(false);
   const [activeVehicleId, setActiveVehicleId] = useState(null);
   const [activeChannel, setActiveChannel] = useState(null);
   const [messagesByVehicle, setMessagesByVehicle] = useState({});
@@ -105,7 +106,8 @@ export default function FloatingMessages({ vehicles = [] }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const openVehicle = (vehicleId) => { setActiveVehicleId(vehicleId); setActiveChannel(null); };
+  const newMessage = () => { setOpen(true); setComposing(true); setActiveVehicleId(null); setActiveChannel(null); };
+  const openVehicle = (vehicleId) => { setComposing(false); setActiveVehicleId(vehicleId); setActiveChannel(null); };
   const openChannel = (channel) => {
     setActiveChannel(channel);
     setUnreadKeys((prev) => { const next = new Set(prev); next.delete(`${activeVehicleId}:${channel}`); return next; });
@@ -152,11 +154,12 @@ export default function FloatingMessages({ vehicles = [] }) {
     <>
       {open && (
         <div className="fixed bottom-40 right-4 z-50 w-[92vw] max-w-sm h-[65vh] flex flex-col rounded-2xl border bg-card shadow-2xl overflow-hidden">
+          <Button variant="outline" size="sm" className="m-2 shrink-0" onClick={newMessage}><SquarePen className="w-4 h-4 mr-2" />New message</Button>
           {!activeVehicle ? (
             <>
               <div className="flex items-center justify-between p-3 border-b shrink-0">
                 <div className="flex items-center gap-2 font-semibold text-sm">
-                  <MessageCircle className="w-4 h-4 text-primary" /> Bus chats
+                  <MessageCircle className="w-4 h-4 text-primary" /> {composing ? "New message · choose a bus" : "Bus chats"}
                 </div>
                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setOpen(false)}>
                   <X className="w-4 h-4" />

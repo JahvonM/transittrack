@@ -52,7 +52,6 @@ const PassengerSupport = lazy(() => import('@/pages/PassengerSupport'));
 const RoutePlanner = lazy(() => import('@/pages/RoutePlanner'));
 const ReviewerSandbox = lazy(() => import('@/pages/ReviewerSandbox'));
 const DrivingReports = lazy(() => import('@/pages/DrivingReports'));
-const LocationTimeline = lazy(() => import('@/pages/LocationTimeline'));
 const DriverSchedule = lazy(() => import('@/pages/DriverSchedule'));
 const DriverProfile = lazy(() => import('@/pages/DriverProfile'));
 // Add page imports here
@@ -145,7 +144,7 @@ const AuthenticatedApp = () => {
         <Route path="/route-planner" element={<RoutePlanner />} />
         <Route path="/reviewer-sandbox" element={<ReviewerSandbox />} />
         <Route path="/driving-reports" element={<DrivingReports />} />
-        <Route path="/location-timeline" element={<LocationTimeline />} />
+        <Route path="/location-timeline" element={<Navigate to="/admin/location-timeline" replace />} />
         <Route path="/driver-schedule" element={<DriverSchedule />} />
         <Route path="/driver-profile" element={<DriverProfile />} />
       </Route>
