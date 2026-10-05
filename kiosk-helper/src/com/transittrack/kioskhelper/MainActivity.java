@@ -20,6 +20,7 @@ public class MainActivity extends Activity {
                     + "Power:      " + Status.power + "\n"
                     + "Screen:     " + Status.screen + "\n"
                     + "Reader:     " + Status.reader + "\n"
+                    + "Page:       " + Status.delivery + "\n"
                     + "Last card:  " + Status.lastCard + "\n"
                     + "USB GPS:    " + Status.gps + "\n"
                     + "Hotspot:    " + (Config.hotspot(MainActivity.this) ? Status.hotspot : "Not used") + "\n"

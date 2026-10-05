@@ -39,7 +39,11 @@ final class Kiosk {
 
     static boolean post(Context c, String path, String json) {
         String apiKey = Config.apiKey(c);
-        if (apiKey == null || apiKey.trim().isEmpty()) return false;
+        if (apiKey == null || apiKey.trim().isEmpty()) {
+            if (lastOk) Status.log("FreeKiosk API key missing; configure this tablet's existing REST API key");
+            lastOk = false;
+            return false;
+        }
         HttpURLConnection con = null;
         try {
             URL u = new URL("http://127.0.0.1:" + Config.port(c) + path);
@@ -60,6 +64,7 @@ final class Kiosk {
             if (is != null) { byte[] b = new byte[512]; while (is.read(b) != -1) { } is.close(); }
             boolean ok = code >= 200 && code < 300;
             if (ok && !lastOk) Status.log("FreeKiosk reachable again");
+            if (!ok && lastOk) Status.log("FreeKiosk rejected " + path + " (HTTP " + code + "); check REST API settings");
             lastOk = ok;
             return ok;
         } catch (Exception e) {

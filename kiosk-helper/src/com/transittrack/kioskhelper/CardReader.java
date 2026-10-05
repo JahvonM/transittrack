@@ -163,9 +163,10 @@ final class CardReader implements Runnable {
     }
 
     private void handleCard(String uid) {
-        Status.lastCard = uid + "  (" + Status.now() + ")";
+        Status.lastCard = "Tap detected (" + Status.now() + ")";
         Status.lastCardIso = Status.iso(System.currentTimeMillis());
         ledRead();
+        Status.delivery = "Sending tap to boarding page";
         results.arm();
         String tapId = "tap-" + System.currentTimeMillis();
         boolean sent = Kiosk.badge(ctx, uid, tapId);
@@ -176,13 +177,16 @@ final class CardReader implements Runnable {
             ok = sent ? results.await(5000) : null;
         }
         if (ok == null) {
-            Status.log("Card " + uid + (sent ? " sent (no answer from the app)" : " NOT sent"));
+            Status.delivery = sent ? "Page did not acknowledge; tap again" : "FreeKiosk unreachable; check REST API";
+            Status.log(Status.delivery);
             ledRejected(); // A REST response is not confirmation that the app received the tap.
         } else if (ok) {
-            Status.log("Card " + uid + " accepted");
+            Status.delivery = "Card recognized by page";
+            Status.log(Status.delivery);
             ledSuccess();
         } else {
-            Status.log("Card " + uid + " rejected");
+            Status.delivery = "Card rejected by page";
+            Status.log(Status.delivery);
             ledRejected();
         }
     }
