@@ -52,6 +52,7 @@ export default function ChatThread({
   quickReplies,
 }) {
   const [text, setText] = useState("");
+  const [sendError, setSendError] = useState("");
   const [editingId, setEditingId] = useState(null);
   const [editText, setEditText] = useState("");
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
@@ -66,9 +67,14 @@ export default function ChatThread({
 
   const send = async (value) => {
     const trimmed = (value ?? text).trim();
-    if (!trimmed) return;
-    setText("");
-    await onSend(trimmed);
+    if (!trimmed || sending) return;
+    setSendError("");
+    try {
+      await onSend(trimmed);
+      setText(current => current.trim() === trimmed ? "" : current);
+    } catch {
+      setSendError("Couldn't send. Your message is still here; try again.");
+    }
   };
 
   const handleFile = async (e) => {
@@ -221,10 +227,11 @@ export default function ChatThread({
           onKeyDown={(e) => { if (e.key === "Enter") send(); }}
           disabled={uploading}
         />
-        <Button onClick={() => send()} disabled={sending || uploading || !text.trim()}>
+        <Button aria-label="Send message" onClick={() => send()} disabled={sending || uploading || !text.trim()}>
           <Send className="w-4 h-4" />
         </Button>
       </div>
+      {sendError && <p role="alert" className="text-xs text-destructive">{sendError}</p>}
       {uploading && <p className="text-xs text-muted-foreground">Uploading…</p>}
     </div>
   );

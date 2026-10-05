@@ -117,10 +117,14 @@ export default function FloatingMessages({ vehicles = [] }) {
     if (!activeVehicle || !activeChannel) return;
     setSending(true);
     try {
-      await base44.entities.GroupMessage.create({
+      const created = await base44.entities.GroupMessage.create({
         vehicle_id: activeVehicle.id, vehicle_name: activeVehicle.name,
         company_id: activeVehicle.company_id, company_name: activeVehicle.company_name,
         channel: activeChannel, sender_role: "admin", sender_name: "Admin", text,
+      });
+      setMessagesByVehicle(prev => {
+        const list = prev[created.vehicle_id] || [];
+        return { ...prev, [created.vehicle_id]: list.some(m => m.id === created.id) ? list : [...list, created] };
       });
     } finally {
       setSending(false);

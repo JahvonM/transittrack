@@ -255,14 +255,16 @@ test('tablet details and admin menu stay aligned on narrow screens',async({page}
  await expect(item).toHaveCSS('text-align','left');
 });
 
-test('admin dropdowns start closed and message bubble stays above AI',async({page})=>{
+test('admin keeps the current menu group open and message bubble stays above AI',async({page})=>{
  await session(page,'admin');
  await page.goto('/admin/drivers');
  const menu=page.getByRole('button',{name:'Fleet Operations',exact:true});
- await expect(menu).toHaveAttribute('aria-expanded','false');
- await expect(page.getByRole('button',{name:'Drivers',exact:true})).toHaveCount(0);
- await menu.click();
+ await expect(menu).toHaveAttribute('aria-expanded','true');
  await expect(page.getByRole('button',{name:'Drivers',exact:true})).toBeVisible();
+ await expect(page.getByRole('button',{name:'Maintenance',exact:true})).toHaveAttribute('aria-expanded','false');
+ await page.getByRole('button',{name:'Live fleet',exact:true}).click();
+ await expect(menu).toHaveAttribute('aria-expanded','true');
+ await expect(page.getByRole('button',{name:'Live fleet',exact:true})).toBeVisible();
  await menu.click();
  await expect(page.getByRole('button',{name:'Drivers',exact:true})).toHaveCount(0);
  const messages=page.getByRole('button',{name:'Open messages',exact:true});
@@ -271,4 +273,49 @@ test('admin dropdowns start closed and message bubble stays above AI',async({pag
  const m=await messages.boundingBox(),a=await ai.boundingBox();
  expect(m.y+m.height).toBeLessThan(a.y);
  expect(m.x).toBe(a.x);
+});
+
+test('message bubble starts a new conversation without prior messages',async({page})=>{
+ await session(page,'admin');
+ const sent=[];
+ await page.route('**/functions/entityAccess', async r=>{
+   const b=r.request().postDataJSON();let result=[];
+   if(b.entity==='User')result={id:'caller',email:'caller@test.local',role:'admin'};
+   if(b.entity==='Vehicle')result=vehicles;
+   if(b.entity==='GroupMessage' && b.operation==='create'){sent.push(b.data);result={...b.data,id:'sent-1',created_date:new Date().toISOString()};}
+   return r.fulfill({json:{result}});
+ });
+ await page.goto('/admin');
+ await page.getByRole('button',{name:'Open messages',exact:true}).click();
+ await page.getByRole('button',{name:'New message',exact:true}).click();
+ await page.getByRole('button',{name:/Bus B.*No messages/}).click();
+ await page.getByRole('button',{name:/Passengers.*No messages/}).click();
+ await page.getByPlaceholder("Message this bus's passengers…").fill('Bus departs in five minutes');
+ await page.getByRole('button',{name:'Send message',exact:true}).click();
+ await expect(page.getByText('Bus departs in five minutes',{exact:true})).toBeVisible();
+ expect(sent).toHaveLength(1);
+ expect(sent[0]).toMatchObject({vehicle_id:'bus-b',company_id:'b',channel:'staff'});
+});
+
+test('fleet history opens latest recorded day for an offline bus and replaces timeline page',async({page})=>{
+ await session(page,'admin');
+ await page.addInitScript(()=>localStorage.setItem('tt_map_engine','basic'));
+ const recorded='2026-09-30';
+ await page.route('**/functions/entityAccess',async r=>{
+   const b=r.request().postDataJSON();let result=[];
+   if(b.entity==='User')result={id:'caller',role:'admin',email:'caller@test.local'};
+   if(b.entity==='Vehicle')result=vehicles;
+   if(b.entity==='LocationPing'){
+     const pings=[{id:'p1',vehicle_id:'bus-a',lat:12,lng:-61.7,recorded_at:recorded+'T12:00:00Z'},{id:'p2',vehicle_id:'bus-a',lat:12.001,lng:-61.7,recorded_at:recorded+'T12:01:00Z'}];
+     result=b.limit===1?[pings[1]]:b.query?.recorded_at?.$gte?.startsWith(recorded)?pings:[];
+   }
+   return r.fulfill({json:{result}});
+ });
+ await page.goto('/location-timeline');
+ await expect(page.getByRole('heading',{name:'Location timeline',exact:true})).toBeVisible();
+ await expect(page.getByLabel('Day',{exact:true})).toHaveValue(recorded);
+ await expect(page.getByTestId('replay-map')).toBeVisible();
+ await expect(page.getByRole('button',{name:'Location timeline',exact:true})).toHaveCount(0);
+ await page.getByRole('combobox',{name:'Bus',exact:true}).click();
+ await expect(page.getByRole('option',{name:'Bus B',exact:true})).toBeVisible();
 });
