@@ -184,6 +184,25 @@ test('passenger Home puts the roadside pickup up front and shows the workplace d
   await expect(card).toContainText('Head office, True Blue');
 });
 
+test('turning on notifications says what went wrong instead of claiming success',async({page})=>{
+  await page.addInitScript(()=>{
+    // A browser where the prompt is closed, then one where it is blocked.
+    let answer='default';
+    window.__setAnswer=a=>{answer=a;};
+    Object.defineProperty(Notification,'permission',{get:()=>window.__perm||'default',configurable:true});
+    Notification.requestPermission=async()=>{window.__perm=answer;return answer;};
+  });
+  await session(page,'admin');
+  await page.goto('/admin');
+  const bell=page.getByRole('button',{name:'Turn on SOS notifications on this device'});
+  await bell.click();
+  await expect(page.getByText('Notifications are still off',{exact:true})).toBeVisible();
+  await page.evaluate(()=>{window.__perm='default';window.__setAnswer('denied');});
+  await bell.click();
+  await expect(page.getByText('Notifications are blocked',{exact:true})).toBeVisible();
+  await expect(page.getByText('Notifications on',{exact:true})).toHaveCount(0);
+});
+
 test('admin saves the app support WhatsApp number in Settings',async({page})=>{
   await session(page,'admin');
   const sets=[];

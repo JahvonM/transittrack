@@ -7,7 +7,10 @@
 //   every screen - including ones not opened yet - works offline.
 // - Live data (/api, /functions) is never cached here; screens keep their
 //   own saved copies and upload queued work when back online.
-importScripts("/firebase-messaging-sw.js");
+// Push comes from Google's servers. If they can't be reached while this
+// worker installs, offline support must still install, so a failure here
+// only turns push off until the next update.
+try { importScripts("/firebase-messaging-sw.js"); } catch { /* push unavailable for now */ }
 
 const VERSION = "1";
 const SHELL = "tt-shell-v" + VERSION;
@@ -16,45 +19,75 @@ const RUNTIME = "tt-runtime-v" + VERSION;
 const NAV_TIMEOUT_MS = 4000;
 const STATIC_FILES = ["/manifest.webmanifest", "/brand/icon.svg", "/brand/favicon-32.png", "/brand/apple-touch-icon.png", "/brand/icon-192.png"];
 
-let lastPrecache = 0;
+// A version is only switched to once it's complete: the new page and every
+// file it (or any screen) needs must all be saved first. Until then the
+// saved copy stays on the last version that fully worked, so a tablet that
+// loses signal half-way through an update still opens.
+let lastCheck = 0;
+let lastHtml = "";
+let staging = null;
 
-async function precache() {
-  if (Date.now() - lastPrecache < 10 * 60 * 1000) return;
-  lastPrecache = Date.now();
-  const res = await fetch("/offline-manifest.json", { cache: "no-store" });
-  if (!res.ok) return;
-  const { files = [] } = await res.json();
-  const wanted = new Set(files.map((f) => "/" + f.replace(/^\//, "")).concat(STATIC_FILES));
+const assetRefs = (html) => [...html.matchAll(/(?:src|href)="(\/assets\/[^"?#]+)"/g)].map((m) => m[1]);
+
+async function stage(html) {
   const cache = await caches.open(ASSETS);
+  let files = [];
+  try {
+    const res = await fetch("/offline-manifest.json", { cache: "no-store" });
+    if (res.ok) files = (await res.json()).files || [];
+  } catch { /* offline: the page's own files are still required below */ }
+  const wanted = new Set([...assetRefs(html), ...files.map((f) => "/" + f.replace(/^\//, "")), ...STATIC_FILES]);
   const have = new Set((await cache.keys()).map((r) => new URL(r.url).pathname));
+  let missing = 0;
   for (const path of wanted) {
     if (have.has(path)) continue;
     try {
       const r = await fetch(path, { cache: "no-store" });
-      if (r.ok) await cache.put(path, r);
-    } catch { /* try again next time */ }
+      if (r.ok) await cache.put(path, r); else missing++;
+    } catch { missing++; }
   }
-  // Drop files from older builds once the new ones are saved.
+  if (missing) return false; // keep the last working version; try again later
+  const shell = await caches.open(SHELL);
+  await shell.put("/", new Response(html, { headers: { "Content-Type": "text/html; charset=utf-8" } }));
+  // Only now drop files the new version no longer uses.
   for (const req of await cache.keys()) {
     const p = new URL(req.url).pathname;
     if (p.startsWith("/assets/") && !wanted.has(p)) await cache.delete(req);
   }
+  return true;
 }
 
-async function saveShell(response) {
+// Saves `html` (the page just served) as the offline copy once all of its
+// files are saved. A new version is staged straight away; the same version
+// is re-checked at most every 10 minutes. One run at a time.
+function update(html, { force = false } = {}) {
+  if (staging) return staging;
+  if (!force && html === lastHtml && Date.now() - lastCheck < 10 * 60 * 1000) return Promise.resolve(true);
+  staging = (async () => {
+    try {
+      const ok = await stage(html);
+      if (ok) { lastHtml = html; lastCheck = Date.now(); }
+      return ok;
+    } catch { return false; }
+    finally { staging = null; }
+  })();
+  return staging;
+}
+
+async function htmlOf(response) {
   const type = response.headers.get("content-type") || "";
-  if (!response.ok || !type.includes("text/html")) return;
-  const cache = await caches.open(SHELL);
-  await cache.put("/", response);
+  if (!response.ok || !type.includes("text/html")) return null;
+  return response.text();
+}
+
+async function fetchAndStage({ force = false } = {}) {
+  const html = await htmlOf(await fetch("/", { cache: "no-store" }));
+  return html ? update(html, { force }) : false;
 }
 
 self.addEventListener("install", (event) => {
   self.skipWaiting();
-  event.waitUntil((async () => {
-    try { await saveShell(await fetch("/", { cache: "no-store" })); } catch { /* offline */ }
-    lastPrecache = 0;
-    try { await precache(); } catch { /* offline */ }
-  })());
+  event.waitUntil(fetchAndStage({ force: true }).catch(() => false));
 });
 
 self.addEventListener("activate", (event) => {
@@ -65,6 +98,14 @@ self.addEventListener("activate", (event) => {
   })());
 });
 
+// Tablets ask for the new version to be fully saved before they reload into
+// it (src/lib/tabletUpdate.js), so an update never leaves them half-way.
+self.addEventListener("message", (event) => {
+  if (event.data?.type !== "tt-stage-update") return;
+  const port = event.ports?.[0];
+  event.waitUntil(fetchAndStage({ force: true }).catch(() => false).then((ok) => port?.postMessage({ ok })));
+});
+
 function timeout(ms) {
   return new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), ms));
 }
@@ -72,7 +113,7 @@ function timeout(ms) {
 async function page(event) {
   try {
     const response = await Promise.race([fetch(event.request), timeout(NAV_TIMEOUT_MS)]);
-    event.waitUntil(saveShell(response.clone()).then(() => precache()).catch(() => {}));
+    event.waitUntil(htmlOf(response.clone()).then((html) => html && update(html)).catch(() => {}));
     return response;
   } catch {
     const cached = await caches.match("/", { cacheName: SHELL });
@@ -85,7 +126,9 @@ async function page(event) {
 }
 
 async function cacheFirst(request, cacheName) {
-  const cached = await caches.match(request);
+  // ignoreVary: app files are saved with a plain request, but scripts load
+  // with an Origin header; a "Vary: Origin" reply would never match offline.
+  const cached = await caches.match(request, { ignoreVary: true });
   if (cached) return cached;
   const response = await fetch(request);
   if (response.ok || response.type === "opaque") {

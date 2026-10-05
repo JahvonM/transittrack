@@ -22,33 +22,45 @@ const VAPID_KEY = "BCHqJA4B0A3ikjyw2B_EgOYiJvo6UT_lNALRl1lh_46jMevS5_BaqvkwEQ56x
 const firebaseApp = initializeApp(firebaseConfig);
 
 /**
- * Requests notification permission, registers the FCM service worker, and
- * returns a device token — or null if push isn't supported (older Safari,
- * private browsing, etc.) or the user declines permission. Never throws.
+ * Gets this device's push token, saying why when it can't. Never throws.
+ * reason: null (ok) | "unsupported" | "denied" | "dismissed" | "no_token" | "error".
+ *
+ * Permission is asked first, straight from the tap that called this: Safari
+ * (and iPhone home-screen apps) ignore a prompt that comes after other
+ * awaited work. With { prompt: false } it never asks, only reuses a grant.
  */
-export async function getFcmToken() {
+export async function requestPushToken({ prompt = true } = {}) {
   try {
-    if (typeof window === "undefined" || !("serviceWorker" in navigator)) return null;
+    if (typeof window === "undefined" || !("Notification" in window) || !("serviceWorker" in navigator)) return { token: null, reason: "unsupported" };
+    let permission = Notification.permission;
+    if (permission === "default" && prompt) permission = await Notification.requestPermission();
+    if (permission === "denied") return { token: null, reason: "denied" };
+    if (permission !== "granted") return { token: null, reason: "dismissed" };
     const supported = await isSupported().catch(() => false);
-    if (!supported) return null;
-    const permission = await Notification.requestPermission();
-    if (permission !== "granted") return null;
+    if (!supported) return { token: null, reason: "unsupported" };
     // One service worker for the whole site: offline support + push (sw.js imports the Firebase part).
     const registration = await navigator.serviceWorker.register("/sw.js");
-    const messaging = getMessaging(firebaseApp);
-    const token = await getToken(messaging, { vapidKey: VAPID_KEY, serviceWorkerRegistration: registration });
-    return token || null;
+    const token = await getToken(getMessaging(firebaseApp), { vapidKey: VAPID_KEY, serviceWorkerRegistration: registration });
+    return token ? { token, reason: null } : { token: null, reason: "no_token" };
   } catch {
-    return null;
+    return { token: null, reason: "error" };
   }
+}
+
+/** The device token, or null when push isn't available (see requestPushToken). */
+export async function getFcmToken(options) {
+  return (await requestPushToken(options)).token;
 }
 
 /** Fires `callback(payload)` for pushes that arrive while the tab is open and focused. */
 export function onForegroundMessage(callback) {
+  let stop = null, cancelled = false;
   isSupported()
     .then((supported) => {
-      if (!supported) return;
-      onMessage(getMessaging(firebaseApp), callback);
+      if (!supported || cancelled) return;
+      stop = onMessage(getMessaging(firebaseApp), callback);
     })
     .catch(() => {});
+  // Returns an unsubscribe, so a page that re-renders doesn't stack listeners.
+  return () => { cancelled = true; stop?.(); };
 }

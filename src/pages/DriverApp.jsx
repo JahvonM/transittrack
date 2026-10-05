@@ -9,7 +9,7 @@ import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useDriverSession, clearDriverSessionCache } from "@/hooks/useDriverSession";
 import { shiftAction } from "@/lib/driverShift";
-import { getFcmToken } from "@/lib/firebase";
+import { requestPushToken } from "@/lib/firebase";
 import { useKeepAwake } from "@/hooks/useKeepAwake";
 import DriverPairing from "@/components/driver/DriverPairing";
 import DriverGreeting, { DriverTopBar } from "@/components/driver/DriverGreeting";
@@ -156,12 +156,20 @@ export default function DriverApp() {
 
   // Drivers have no login, so their push token registers through the device
   // session instead of the usePushNotifications hook (which needs an email).
+  // Tries again on later heartbeats (up to 3 times) when the push service or
+  // the save fails; stops for good once registered, blocked or unsupported.
   const pushRegistered = useRef(false);
+  const pushTries = useRef(0);
   useEffect(() => {
-    if (pushRegistered.current || !deviceId || !session?.vehicle) return;
+    if (pushRegistered.current || pushTries.current >= 3 || !deviceId || !session?.vehicle) return;
+    pushTries.current += 1;
     pushRegistered.current = true;
-    getFcmToken().then((token) => { if (token) invoke("register_push_token", { token }).catch(() => {}); });
-  }, [deviceId, session?.vehicle, invoke]);
+    requestPushToken().then(async ({ token, reason }) => {
+      if (!token) { if (reason === "error" || reason === "no_token") pushRegistered.current = false; return; }
+      try { await invoke("register_push_token", { token }); }
+      catch { pushRegistered.current = false; }
+    });
+  }, [deviceId, session, invoke]);
 
   // `unlocked` is only checked against today's date once, at mount. A tablet
   // that's mounted in a vehicle and just left powered on overnight (instead
