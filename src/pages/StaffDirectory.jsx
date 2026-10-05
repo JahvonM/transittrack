@@ -116,7 +116,7 @@ export default function StaffDirectory() {
                       <p className="truncate font-semibold">{c.name}</p>
                       <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
                         <StatusChip tone={c.type === "staff" ? "info" : "neutral"} dot={false}>{TYPE_LABEL[c.type] || c.type}</StatusChip>
-                        {c.status === "Card Issued" && <StatusChip tone="success" dot={false}><Nfc className="h-3.5 w-3.5" aria-hidden="true" /> Card issued</StatusChip>}
+                        {c.status && c.status !== "Unassigned" && <StatusChip tone={c.status === "Card Issued" ? "success" : "warning"} dot={false}><Nfc className="h-3.5 w-3.5" aria-hidden="true" /> {c.status === "Card Issued" ? "Card issued" : c.status + " card"}</StatusChip>}
                         {c.registered && <StatusChip tone="neutral" dot={false}>Email account</StatusChip>}
                       </div>
                       {!c.company_id && <p className="mt-1 text-caption text-warning">Company membership needed before card issuing</p>}
@@ -133,7 +133,7 @@ export default function StaffDirectory() {
                   </div>
                   <div className="flex flex-wrap items-center gap-1 lg:flex-nowrap lg:justify-end">
                     <Button asChild variant="outline" size="sm">
-                      <Link to={(user?.role === "admin" ? "/admin/cards" : "/company/cards") + "?person=" + encodeURIComponent(c.key)}><Nfc className="h-4 w-4" /> Issue card</Link>
+                      <Link to={(user?.role === "admin" ? "/admin/cards" : "/company/cards") + "?person=" + encodeURIComponent(c.key)}><Nfc className="h-4 w-4" /> {c.status === "Card Issued" ? "Manage card" : "Issue card"}</Link>
                     </Button>
                     {wa && (
                       <Button asChild variant="ghost" size="icon" title="WhatsApp">

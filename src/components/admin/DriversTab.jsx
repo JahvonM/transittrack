@@ -1,3 +1,4 @@
+import AvatarPicker from "@/components/AvatarPicker";
 import React, { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
@@ -186,6 +187,7 @@ function EditDriverDialog({ driver, companies, open, onOpenChange, onSaved }) {
               />
             </label>
           </div>
+          <AvatarPicker onChange={setPhotoUrl} disabled={saving || uploading} />
           <DriverFormFields form={form} setForm={setForm} companies={companies} />
           <Button className="w-full" onClick={save} disabled={saving || uploading || !form.full_name.trim()}>
             {saving ? "Saving…" : "Save changes"}
@@ -198,6 +200,8 @@ function EditDriverDialog({ driver, companies, open, onOpenChange, onSaved }) {
 
 function AssignedVehicleRow({ vehicle: v, routes, onUnassign, onSetStatus, onSetRoute, onSetPin }) {
   const [pin, setPin] = useState("");
+  const [pinSaving, setPinSaving] = useState(false);
+  const [pinMessage, setPinMessage] = useState("");
 
   useEffect(() => {
     setPin("");
@@ -246,11 +250,19 @@ function AssignedVehicleRow({ vehicle: v, routes, onUnassign, onSetStatus, onSet
           maxLength={4}
           value={pin}
           type="password"
+          autoComplete="new-password"
           placeholder="New PIN"
           aria-label={`New driver PIN for ${v.name}`}
           onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
-          onBlur={() => { if (pin.length === 4) { onSetPin(v.id, pin); setPin(""); } }}
+          disabled={pinSaving}
         />
+        <Button size="sm" disabled={pin.length !== 4 || pinSaving} onClick={async () => {
+          setPinSaving(true); setPinMessage("");
+          try { await onSetPin(v.id, pin); setPin(""); setPinMessage("PIN saved"); }
+          catch (e) { setPinMessage(e?.response?.data?.error || e.message || "Could not save PIN"); }
+          finally { setPinSaving(false); }
+        }}>{pinSaving ? "Saving…" : "Save PIN"}</Button>
+        {pinMessage && <p role="status" className="w-full text-caption">{pinMessage}</p>}
       </div>
     </li>
   );
@@ -395,10 +407,11 @@ export default function DriversTab({ drivers, vehicles, companies, routes, onCha
 
   const setPin = async (vehicleId, pin) => {
     try {
-      await base44.functions.invoke("manageDriverPin", { vehicle_id: vehicleId, pin: pin || "" });
+      const response = await base44.functions.invoke("manageDriverPin", { vehicle_id: vehicleId, pin: pin || "" });
+      if (response.data?.ok !== true) throw new Error(response.data?.error || "PIN save was not confirmed");
       toast({ title: "Driver PIN updated" });
       onChange();
-    } catch { toast({ title: "Could not save driver PIN", variant: "destructive" }); }
+    } catch (e) { toast({ title: "Could not save driver PIN", description: e?.response?.data?.error || e.message, variant: "destructive" }); throw e; }
   };
 
   const removeDriver = async (driver) => {

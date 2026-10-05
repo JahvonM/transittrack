@@ -181,3 +181,78 @@ test('admin showcase keeps metrics, fleet list and working section navigation',a
   await page.getByRole('button',{name:'Card designer',exact:true}).click();
   await expect(page.getByRole('button',{name:'Download PNG',exact:true})).toBeVisible();
 });
+
+
+test('driver PIN is saved explicitly and retains input after a server failure',async({page})=>{
+ await session(page,'admin');
+ let fail=true; const pins=[];
+ await page.route('**/functions/entityAccess',route=>{
+  const b=route.request().postDataJSON(); let result=[];
+  if(b.entity==='User') result={id:'caller',role:'admin',email:'admin@test.invalid'};
+  if(b.entity==='Driver') result=[{id:'d',full_name:'Test Driver',email:'driver@test.invalid',company_id:'a'}];
+  if(b.entity==='Vehicle') result=[{...vehicles[0],driver_email:'driver@test.invalid'}];
+  if(b.entity==='Company') result=[{id:'a',name:'Company A'}];
+  return route.fulfill({json:{result}});
+ });
+ await page.route('**/functions/manageDriverPin',route=>{
+  pins.push(route.request().postDataJSON());
+  return route.fulfill(fail?{status:500,json:{error:'Please retry PIN save'}}:{json:{ok:true}});
+ });
+ await page.goto('/admin/drivers');
+ const input=page.getByLabel('New PIN for Bus A');
+ await input.fill('0123'); await input.blur();
+ expect(pins).toHaveLength(0);
+ await page.getByRole('button',{name:'Save PIN',exact:true}).click();
+ await expect(input).toHaveValue('0123');
+ await expect(page.locator('p[role=status]').filter({hasText:'Please retry PIN save'})).toBeVisible();
+ fail=false;
+ await page.getByRole('button',{name:'Save PIN',exact:true}).click();
+ await expect(input).toHaveValue('');
+ await expect(page.getByRole('status').filter({hasText:'PIN saved'})).toBeVisible();
+ expect(pins[1]).toEqual({vehicle_id:'bus-a',pin:'0123'});
+});
+
+test('existing card status and bulk role dropdown are clear',async({page})=>{
+ await session(page,'admin');
+ const people=[{key:'user:p',source:'user',id:'p',name:'Existing Passenger',type:'staff',status:'Card Issued',company_id:'a',registered:true},
+ {key:'driver:d',source:'driver',id:'d',name:'New Driver',type:'driver',status:'Unassigned',company_id:'a'}];
+ await page.route('**/functions/nfcCards',r=>r.fulfill({json:{people,cards:[],vehicles,tablets:[]}}));
+ await page.goto('/admin/directory');
+ await expect(page.getByText('Card issued',{exact:true})).toBeVisible();
+ await expect(page.getByRole('link',{name:'Manage card'})).toBeVisible();
+ await page.goto('/admin/cards');
+ await page.getByRole('tab',{name:'Bulk setup',exact:true}).click();
+ await page.getByRole('combobox',{name:'Card holder role'}).click();
+ await page.getByRole('option',{name:'Drivers',exact:true}).click();
+ await expect(page.getByText('New Driver',{exact:true})).toBeVisible();
+ await expect(page.getByText('Existing Passenger',{exact:true})).toHaveCount(0);
+});
+
+test('avatar can replace a photo in exported card artwork',async({page})=>{
+ await session(page,'admin');
+ await page.route('**/functions/nfcCards',r=>r.fulfill({json:{people:[]}}));
+ await page.goto('/admin/card-designs');
+ await page.getByRole('button',{name:'Ocean avatar',exact:true}).click();
+ await expect(page.getByTestId('card-artwork-preview').locator('image')).toHaveAttribute('href',/^data:image\/png;base64,/);
+ const downloaded=page.waitForEvent('download');
+ await page.getByRole('button',{name:'Download PNG',exact:true}).click(); await downloaded;
+ await page.getByRole('button',{name:'Use initials / no photo',exact:true}).click();
+ await expect(page.getByTestId('card-artwork-preview').locator('image')).toHaveCount(0);
+});
+
+test('tablet details and admin menu stay aligned on narrow screens',async({page})=>{
+ await session(page,'admin'); await page.setViewportSize({width:390,height:844});
+ await page.route('**/functions/entityAccess',route=>{
+  const b=route.request().postDataJSON(); let result=[];
+  if(b.entity==='User') result={id:'caller',role:'admin',email:'admin@test.invalid'};
+  if(b.entity==='KioskDevice') result=[{id:'tablet-test',label:'Bus 2 long tablet name',kiosk_type:'driver',company_name:'Island Transit Company',vehicle_name:'Test vehicle with a long name',paired:true,status:'active',pairing_code:'TESTPAIRCODE12',helper_health:{version:'1.5',battery:79,parked:true,gps:'Not plugged in',reader:'Connected',reported_at:new Date().toISOString()},app_health:{build:'2026-10-04 12:00'}}];
+  return route.fulfill({json:{result}});
+ });
+ await page.goto('/admin/kiosks');
+ await expect(page.getByText('Battery 79%',{exact:true})).toBeVisible();
+ await expect(page.getByText('GPS: Not plugged in',{exact:true})).toBeVisible();
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+ await page.getByRole('button',{name:'Menu',exact:true}).click();
+ const item=page.getByRole('button',{name:'Maintenance Schedule',exact:true});
+ await expect(item).toHaveCSS('text-align','left');
+});

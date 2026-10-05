@@ -1,3 +1,4 @@
+import AvatarPicker from "@/components/AvatarPicker";
 import React, { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
@@ -65,6 +66,7 @@ export default function CardDesignerTab() {
           <Label htmlFor="card-back">Back text</Label><textarea id="card-back" maxLength={400} className="w-full rounded-md border bg-background p-2" value={design.backText} onChange={e => change({backText:e.target.value})} />
           <div className="flex gap-4">{[["color","Accent"],["background","Background"],["text","Text"]].map(([k,label]) => <label key={k} className="text-sm">{label}<input type="color" className="block mt-1" value={design[k]} onChange={e => change({[k]:e.target.value})}/></label>)}</div>
           {[["logo","Logo"],["backgroundImage","Background image"],["photo","Passenger photo"]].map(([k,label]) => <div key={k}><Label htmlFor={"card-image-"+k}>{label}</Label><Input id={"card-image-"+k} type="file" accept="image/png,image/jpeg,image/webp" onChange={e => upload(e.target.files?.[0],k)} /></div>)}
+          <AvatarPicker onChange={setPhoto} disabled={busy} />
           <Button variant="outline" onClick={() => { try { localStorage.setItem(templateKey,JSON.stringify(design)); toast({title:"Template saved on this computer"}); } catch { toast({title:"Template storage is full",variant:"destructive"}); } }}>Save template on this computer</Button>
           <Button variant="ghost" onClick={() => { setDesign(DEFAULT_CARD_DESIGN); setPhoto(""); }}>Reset design</Button>
         </div>
