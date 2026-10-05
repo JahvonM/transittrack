@@ -174,6 +174,7 @@ test('admin showcase keeps metrics, fleet list and working section navigation',a
   await expect(page.getByText('Live now',{exact:true})).toBeVisible();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
   await page.screenshot({path:'/tmp/tt-admin-desktop.png',fullPage:true});
+  await page.getByRole('button',{name:'Fleet Operations',exact:true}).click();
   await page.getByRole('button',{name:'Card designer',exact:true}).click();
   await expect(page.getByRole('button',{name:'Download PNG',exact:true})).toBeVisible();
 });
@@ -249,6 +250,25 @@ test('tablet details and admin menu stay aligned on narrow screens',async({page}
  await expect(page.getByText('GPS: Not plugged in',{exact:true})).toBeVisible();
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
  await page.getByRole('button',{name:'Menu',exact:true}).click();
+ await page.getByRole('button',{name:'Maintenance',exact:true}).click();
  const item=page.getByRole('button',{name:'Maintenance Schedule',exact:true});
  await expect(item).toHaveCSS('text-align','left');
+});
+
+test('admin dropdowns start closed and message bubble stays above AI',async({page})=>{
+ await session(page,'admin');
+ await page.goto('/admin/drivers');
+ const menu=page.getByRole('button',{name:'Fleet Operations',exact:true});
+ await expect(menu).toHaveAttribute('aria-expanded','false');
+ await expect(page.getByRole('button',{name:'Drivers',exact:true})).toHaveCount(0);
+ await menu.click();
+ await expect(page.getByRole('button',{name:'Drivers',exact:true})).toBeVisible();
+ await menu.click();
+ await expect(page.getByRole('button',{name:'Drivers',exact:true})).toHaveCount(0);
+ const messages=page.getByRole('button',{name:'Open messages',exact:true});
+ const ai=page.getByRole('button',{name:'Open AI assistant',exact:true});
+ await expect(messages).toHaveCSS('position','fixed');
+ const m=await messages.boundingBox(),a=await ai.boundingBox();
+ expect(m.y+m.height).toBeLessThan(a.y);
+ expect(m.x).toBe(a.x);
 });

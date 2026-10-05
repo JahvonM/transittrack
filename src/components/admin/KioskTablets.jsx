@@ -59,6 +59,31 @@ function timeAgo(dateStr) {
 // bus boarding tablet. The per-tablet version comes pre-filled (type, pairing
 // code, bus number) so it runs without typing.
 const SETUP_TOOL = "/tools/TransitTrack-Tablet-Setup.bat";
+
+// Admin-only: the signed TransitTrack Helper APK comes from the helperRelease
+// backend function (never a public link). Checked against its SHA-256, then
+// saved as TransitTrack-Kiosk-Helper.apk — the name the setup tool expects
+// beside it.
+async function downloadHelperApk() {
+  const res = await base44.functions.invoke("helperRelease", {});
+  const d = res?.data || {};
+  if (!d.apk_base64) throw new Error(d.error || "No file");
+  const bin = atob(d.apk_base64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  const hex = Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
+  if (hex !== d.sha256) throw new Error("The download was damaged — try again.");
+  const url = URL.createObjectURL(new Blob([bytes], { type: "application/vnd.android.package-archive" }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = d.file_name || "TransitTrack-Kiosk-Helper.apk";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+  return d.version;
+}
 const batSafe = (v) => String(v || "").replace(/[^A-Za-z0-9 .,-]/g, "").trim();
 
 async function downloadSetupFile(d, typeLabel) {
@@ -255,6 +280,16 @@ export default function KioskTablets({ vehicles, companies, onChange }) {
           <Button variant="outline" asChild>
             <a href={SETUP_TOOL} download><Download className="w-4 h-4 mr-1" /> Setup tool</a>
           </Button>
+          <Button
+            variant="outline"
+            onClick={() =>
+              downloadHelperApk()
+                .then((v) => toast({ title: `Helper ${v} downloaded`, description: "Keep TransitTrack-Kiosk-Helper.apk in the same folder as the setup file." }))
+                .catch((e) => toast({ title: "Couldn't download the helper", description: e?.response?.status === 403 ? "Only admins can download it." : (e?.message || "Try again."), variant: "destructive" }))
+            }
+          >
+            <Download className="w-4 h-4 mr-1" /> Helper app
+          </Button>
           <Button variant="outline" disabled={busyId === "upd-all" || !devices.some(updatable)} onClick={() => sendUpdate(devices)}>
             <ArrowUpCircle className="w-4 h-4 mr-1" /> Update all tablets
           </Button>
@@ -272,8 +307,9 @@ export default function KioskTablets({ vehicles, companies, onChange }) {
           <li>Double-click the downloaded file (if Windows warns you: <i>More info → Run anyway</i>) and follow the blue window.</li>
         </ol>
         <p className="text-xs text-muted-foreground mt-1">
-          Needs ADB on the PC (<code>winget install Google.PlatformTools</code>) and the WebView .apk in your Downloads folder.
-          FreeKiosk and TransitTrack Helper download themselves. <b>Setup tool</b> is the same file without anything filled in.
+          Needs ADB on the PC (<code>winget install Google.PlatformTools</code>), the WebView .apk in your Downloads folder, and the
+          TransitTrack Helper: press <b>Helper app</b> (admins only) and keep the downloaded TransitTrack-Kiosk-Helper.apk in the same folder
+          as the setup file. <b>Setup tool</b> is the same setup file without anything filled in.
         </p>
         <p className="text-xs text-muted-foreground mt-1">
           <b>Updating a tablet that's already set up:</b> plug it in, run its Setup file (or the Setup tool) and choose <b>Update</b>.

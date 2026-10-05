@@ -264,8 +264,9 @@ export default function FloatingMessages({ vehicles = [] }) {
         </div>
       )}
       <Button
-        className="fixed bottom-24 right-4 z-50 rounded-full h-14 w-14 shadow-lg relative"
+        className="fixed bottom-24 right-4 z-50 rounded-full h-14 w-14 shadow-lg"
         size="icon"
+        aria-label={open ? "Close messages" : "Open messages"}
         onClick={() => setOpen(!open)}
       >
         {open ? <X className="w-5 h-5" /> : <MessageCircle className="w-5 h-5" />}

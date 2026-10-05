@@ -107,7 +107,7 @@ const GROUP_ORDER = ["Fleet Operations", "Fleet management", "Dispatch", "Mainte
 
 export default function AdminShell({ active, onNavigate, children, alertVehicles = [] }) {
   const [open, setOpen] = useState(false);
-  const [collapsedGroups, setCollapsedGroups] = useState({});
+  const [collapsedGroups, setCollapsedGroups] = useState(() => Object.fromEntries(GROUP_ORDER.map(group => [group, true])));
 
   const toggleGroup = (group) => setCollapsedGroups((prev) => ({ ...prev, [group]: !prev[group] }));
 
@@ -145,12 +145,12 @@ export default function AdminShell({ active, onNavigate, children, alertVehicles
 
       {GROUP_ORDER.map((group) => {
         const items = ADMIN_SECTIONS.filter((s) => s.group === group);
-        const hasActive = items.some((s) => s.id === active);
-        const collapsed = !!collapsedGroups[group] && !hasActive;
+        const collapsed = !!collapsedGroups[group];
         return (
           <div key={group} className="pt-3 first:pt-1">
             <button
               type="button"
+              aria-expanded={!collapsed}
               onClick={() => toggleGroup(group)}
               className="w-full flex items-center justify-between px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground/70 hover:text-muted-foreground transition-colors"
             >

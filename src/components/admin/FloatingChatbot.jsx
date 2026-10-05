@@ -79,6 +79,7 @@ export default function FloatingChatbot() {
       <Button
         className="fixed bottom-4 right-4 z-50 rounded-full h-14 w-14 shadow-lg"
         size="icon"
+        aria-label={open ? "Close AI assistant" : "Open AI assistant"}
         onClick={() => setOpen(!open)}
       >
         {open ? <X className="w-5 h-5" /> : <Sparkles className="w-5 h-5" />}
