@@ -136,15 +136,20 @@ async function passengerShowcase(page, { stale = false, light = false } = {}) {
   await expect(page.getByLabel('Your bus',{exact:true})).toBeVisible();
 }
 
-test('approved passenger layout preserves live map and timeline on desktop',async({page})=>{
+test('approved passenger home shows ETA and opens its map only on request',async({page})=>{
   await page.setViewportSize({width:1440,height:1000});
   await passengerShowcase(page);
   await expect(page.getByLabel('Route stops')).toBeVisible();
   await expect(page.getByRole('button',{name:/Notify me/})).toBeVisible();
   await expect(page.getByLabel('Your bus',{exact:true}).getByRole('status')).toContainText('Live');
+  await expect(page.locator('#passenger-live-map')).toHaveCount(0);
+  await expect(page.locator('.leaflet-container')).toHaveCount(0);
+  await page.getByRole('button',{name:'Show map',exact:true}).click();
   const hero=await page.getByLabel('Your bus',{exact:true}).boundingBox();
   const map=await page.locator('#passenger-live-map').boundingBox();
   expect(map.x).toBeGreaterThan(hero.x+hero.width);
+  await page.getByRole('button',{name:'Hide map',exact:true}).click();
+  await expect(page.locator('#passenger-live-map')).toHaveCount(0);
   await expect.poll(()=>page.locator('img[src="/images/transit-bus-3d.webp"]').first().evaluate(img=>img.complete && img.naturalWidth>0)).toBe(true);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
   await page.screenshot({path:'/tmp/tt-passenger-desktop.png',fullPage:true});
@@ -420,4 +425,31 @@ test('fleet explains denied location permission and allows retry',async({page})=
  await expect(page.getByText('Location permission denied. Enable location access to see yourself on the map.')).toBeVisible();
  await page.getByRole('button',{name:'My location',exact:true}).click();
  await expect(page.getByText('Location permission denied. Enable location access to see yourself on the map.')).toBeVisible();
+});
+
+test('passenger Buses is distinct from Home and chat bubble works on both',async({page})=>{
+ await page.setViewportSize({width:390,height:844});
+ await passengerShowcase(page);
+ const bubble=page.getByRole('button',{name:'Open passenger chat',exact:true});
+ await expect(bubble).toBeVisible();
+ await bubble.click();
+ await expect(page.getByRole('heading',{name:/TT-102 chat/})).toBeVisible();
+ await page.keyboard.press('Escape');
+ const nav=page.getByRole('navigation',{name:'Passenger sections'});
+ await nav.getByRole('button',{name:'Buses',exact:true}).click();
+ await expect(page.getByRole('heading',{name:'Company buses',exact:true})).toBeVisible();
+ await expect(page.getByLabel('Your bus',{exact:true})).toHaveCount(0);
+ await expect(page.getByRole('button',{name:/Notify me/})).toHaveCount(0);
+ await expect(page.getByText('All company buses',{exact:true})).toBeVisible();
+ await expect(page.getByLabel('Company bus directory').getByText('TT-102',{exact:true})).toBeVisible();
+ await expect(page.locator('#passenger-live-map')).toHaveCount(0);
+ await page.getByRole('button',{name:'Show map',exact:true}).click();
+ await expect(page.locator('#passenger-live-map')).toBeVisible();
+ await bubble.click();
+ await expect(page.getByRole('heading',{name:/TT-102 chat/})).toBeVisible();
+ await page.keyboard.press('Escape');
+ await nav.getByRole('button',{name:'Home',exact:true}).click();
+ await expect(page.getByLabel('Your bus',{exact:true})).toBeVisible();
+ await expect(page.locator('#passenger-live-map')).toHaveCount(0);
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
 });

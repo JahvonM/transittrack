@@ -139,10 +139,6 @@ export default function StaffPortal() {
   const crowd = useCrowding(company?.id);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    // The Buses hash selects a separate view; no anchor scrolling is needed.
-  }, [hash, loading]);
-
   // Restore only a server-issued access grant; never compare cached join codes.
   useEffect(() => {
     localStorage.removeItem("tt_company_code");
