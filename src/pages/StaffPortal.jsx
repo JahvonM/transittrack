@@ -24,7 +24,7 @@ import useTravelTimes, { etaFromLearned } from "@/hooks/useTravelTimes";
 import useBusEta from "@/hooks/useBusEta";
 import { locateOnRoute } from "@/lib/travelTimes";
 import { STATUS_LABEL } from "@/lib/trip";
-import { Bus, BellRing, ChevronRight, Clock, LifeBuoy, MapPin, UserRound, X } from "lucide-react";
+import { Bus, BellRing, ChevronRight, Clock, LifeBuoy, MapPin, MessageCircle, UserRound, X } from "lucide-react";
 import PullToRefresh from "@/components/PullToRefresh";
 import { useToast } from "@/components/ui/use-toast";
 import { loadFailed } from "@/lib/loadFailed";
@@ -74,6 +74,9 @@ function SectionTitle({ children, action }) {
 export default function StaffPortal() {
   const { user } = useAuth();
   const { hash } = useLocation();
+  const busesPage = hash === "#passenger-buses";
+  const [mapOpen, setMapOpen] = useState(false);
+  useEffect(() => { setMapOpen(false); window.scrollTo(0, 0); }, [hash]);
   const { permission: pushPermission, enableNotifications } = usePushNotifications({ email: user?.email, role: user?.role, companyId: user?.company_id });
   const { toast } = useToast();
   const pickupRef = useRef("");
@@ -137,7 +140,7 @@ export default function StaffPortal() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!loading && hash === "#passenger-buses") document.getElementById("passenger-buses")?.scrollIntoView({behavior:"smooth",block:"start"});
+    // The Buses hash selects a separate view; no anchor scrolling is needed.
   }, [hash, loading]);
 
   // Restore only a server-issued access grant; never compare cached join codes.
@@ -332,7 +335,7 @@ export default function StaffPortal() {
     [trips, pickupName]
   );
 
-  const otherBuses = hash === "#passenger-buses" ? locatedVehicles : locatedVehicles.filter((v) => v.id !== approaching?.v?.id);
+  const otherBuses = vehicles;
 
   if (user?.role === "driver") return <Navigate to="/driver" replace />;
   if (user?.role === "company") return <Navigate to="/company" replace />;
@@ -356,7 +359,7 @@ export default function StaffPortal() {
         <div className="tt-passenger-dashboard space-y-5">
           <CompanyBanner name={company.name} logoUrl={company.logo_url} />
           <header className="space-y-2">
-            <h1 className="text-lg sm:text-2xl font-heading font-semibold leading-tight">{greetingWord()}{firstName ? `, ${firstName}` : ""}</h1>
+            <h1 className="text-lg sm:text-2xl font-heading font-semibold leading-tight">{busesPage ? "Company buses" : `${greetingWord()}${firstName ? `, ${firstName}` : ""}`}</h1>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
               <p className="text-sm text-muted-foreground">{company.name}</p>
               <WeatherWidget variant="chip" />
@@ -364,8 +367,8 @@ export default function StaffPortal() {
           </header>
 
 
-          <div className="grid lg:grid-cols-[minmax(0,420px)_minmax(0,1fr)] gap-5 items-start">
-          <div className="space-y-4 min-w-0">
+          <div className={mapOpen && !busesPage ? "grid lg:grid-cols-[minmax(0,420px)_minmax(0,1fr)] gap-5 items-start" : "space-y-5"}>
+          {!busesPage && <div className="space-y-4 min-w-0">
           <NextBusCard
             stop={stop}
             bus={approaching?.v || null}
@@ -429,19 +432,20 @@ export default function StaffPortal() {
             </section>
           )}
 
-          </div>
-          <aside className="space-y-5 min-w-0 lg:sticky lg:top-24" aria-label="Live buses">
-          {otherBuses.length === 0 && <div id="passenger-buses" className="scroll-mt-24" />}
-          <section id="passenger-live-map">
+          </div>}
+          <aside className="space-y-5 min-w-0" aria-label={busesPage ? "Company bus directory" : "Map controls"}>
+          <button type="button" aria-expanded={mapOpen} aria-controls="passenger-live-map" onClick={() => setMapOpen(o => !o)} className="flex items-center justify-center gap-2 w-full rounded-xl border bg-card p-3 text-sm font-semibold hover:bg-accent"><MapPin className="w-4 h-4" />{mapOpen ? "Hide map" : "Show map"}</button>
+          {busesPage && otherBuses.length === 0 && <p id="passenger-buses" className="rounded-2xl border p-5 text-muted-foreground">No buses have been added to your company yet.</p>}
+          {mapOpen && <section id="passenger-live-map">
             <SectionTitle>Live map</SectionTitle>
             <div className="rounded-3xl overflow-hidden border h-[420px] lg:h-[580px]">
               <MapboxMap vehicles={locatedVehicles} stops={approachingRoute?.stops || []} userLocation={userLoc} immersive height="100%" />
             </div>
-          </section>
+          </section>}
 
-          {otherBuses.length > 0 && (
+          {busesPage && otherBuses.length > 0 && (
             <section id="passenger-buses" className="scroll-mt-24">
-              <SectionTitle>{approaching ? "Other buses" : "All buses"}</SectionTitle>
+              <SectionTitle>All company buses</SectionTitle>
               <div className="rounded-2xl border bg-card divide-y divide-border">
                 {otherBuses.map((v) => {
                   const live = v.tracking_active;
@@ -469,9 +473,9 @@ export default function StaffPortal() {
 
           {!userLoc && locError && <LocationPrompt onLocation={setPromptLoc} />}
 
-          <BusAssistant company={company} userLoc={userLoc} />
+          {!busesPage && <BusAssistant company={company} userLoc={userLoc} />}
 
-          <nav className="grid grid-cols-2 gap-2" aria-label="More">
+          {!busesPage && <nav className="grid grid-cols-2 gap-2" aria-label="More">
             <button type="button" onClick={() => setSheet("pickup")} className="flex items-center gap-3 rounded-2xl border bg-card p-4 text-left hover:bg-accent transition-colors">
               <MapPin className="w-5 h-5 text-primary" />
               <span className="flex-1 min-w-0">
@@ -488,10 +492,14 @@ export default function StaffPortal() {
               </span>
               <ChevronRight className="w-4 h-4 text-muted-foreground" />
             </button>
-          </nav>
+          </nav>}
         </div>
       </PullToRefresh>
 
+      <button type="button" aria-label="Open passenger chat" aria-expanded={sheet === "chat"} onClick={() => setSheet(sheet === "chat" ? null : "chat")} className="fixed right-4 bottom-[calc(5.5rem+env(safe-area-inset-bottom))] md:bottom-6 z-40 w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg grid place-items-center">
+        <MessageCircle className="w-6 h-6" />
+        {chatUnread > 0 && <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full bg-destructive text-destructive-foreground text-xs grid place-items-center">{chatUnread > 99 ? "99+" : chatUnread}</span>}
+      </button>
       <MyPickupSheet
         open={sheet === "pickup"}
         onOpenChange={(o) => setSheet(o ? "pickup" : null)}
