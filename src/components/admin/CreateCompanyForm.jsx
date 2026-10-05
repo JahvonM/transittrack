@@ -1,3 +1,5 @@
+import CompanyLogoPicker from "@/components/CompanyLogoPicker";
+import { toast } from "@/components/ui/use-toast";
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,22 +17,21 @@ export default function CreateCompanyForm({ onChange }) {
   const [staff, setStaff] = useState(true);
   const [taxi, setTaxi] = useState(false);
   const [airport, setAirport] = useState(false);
+  const [logoUrl, setLogoUrl] = useState("");
+  const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const submit = async () => {
     if (!name) return;
     setSaving(true);
     const service_types = [staff && "staff_bus", taxi && "taxi", airport && "airport"].filter(Boolean);
-    await base44.entities.Company.create({ name, phone, boss_phone: bossPhone, secretary_phone: secretaryPhone, service_types });
-    setName("");
-    setPhone("");
-    setBossPhone("");
-    setSecretaryPhone("");
-    setStaff(true);
-    setTaxi(false);
-    setAirport(false);
-    setSaving(false);
-    onChange();
+    try {
+      await base44.entities.Company.create({ name, phone, boss_phone: bossPhone, secretary_phone: secretaryPhone, service_types, logo_url: logoUrl });
+      setName(""); setPhone(""); setBossPhone(""); setSecretaryPhone(""); setLogoUrl("");
+      setStaff(true); setTaxi(false); setAirport(false);
+      onChange();
+    } catch (e) { toast({ title: "Couldn't create company", description: e.message, variant: "destructive" }); }
+    finally { setSaving(false); }
   };
 
   const toggles = [
@@ -51,6 +52,7 @@ export default function CreateCompanyForm({ onChange }) {
           <Label>Company name</Label>
           <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Island Transit Co." />
         </div>
+        <CompanyLogoPicker name={name} value={logoUrl} onChange={setLogoUrl} onBusyChange={setUploading} disabled={saving} />
         <div className="space-y-1.5">
           <Label>Contact phone</Label>
           <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+1 473-..." />
@@ -80,7 +82,7 @@ export default function CreateCompanyForm({ onChange }) {
             ))}
           </div>
         </div>
-        <Button className="w-full" onClick={submit} disabled={saving || !name}>
+        <Button className="w-full" onClick={submit} disabled={saving || uploading || !name}>
           {saving ? "Creating…" : "Create company"}
         </Button>
       </CardContent>

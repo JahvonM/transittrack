@@ -1,3 +1,5 @@
+import CompanyLogoPicker from "@/components/CompanyLogoPicker";
+import { toast } from "@/components/ui/use-toast";
 import React, { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import {
@@ -23,11 +25,14 @@ export default function CompanyEditDialog({ company, open, onOpenChange, onSaved
   const [bossPhone, setBossPhone] = useState("");
   const [secretaryPhone, setSecretaryPhone] = useState("");
   const [services, setServices] = useState([]);
+  const [logoUrl, setLogoUrl] = useState("");
+  const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (company) {
       setName(company.name || "");
+      setLogoUrl(company.logo_url || "");
       setPhone(company.phone || "");
       setBossPhone(company.boss_phone || "");
       setSecretaryPhone(company.secretary_phone || "");
@@ -43,6 +48,7 @@ export default function CompanyEditDialog({ company, open, onOpenChange, onSaved
     try {
       await base44.entities.Company.update(company.id, {
         name,
+        logo_url: logoUrl,
         phone,
         boss_phone: bossPhone,
         secretary_phone: secretaryPhone,
@@ -50,14 +56,15 @@ export default function CompanyEditDialog({ company, open, onOpenChange, onSaved
       });
       onSaved();
       onOpenChange(false);
-    } finally {
+    } catch (e) { toast({ title: "Couldn't save company", description: e.message, variant: "destructive" }); }
+    finally {
       setSaving(false);
     }
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="max-h-[90dvh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Edit company</DialogTitle>
         </DialogHeader>
@@ -66,6 +73,7 @@ export default function CompanyEditDialog({ company, open, onOpenChange, onSaved
             <Label>Name</Label>
             <Input value={name} onChange={(e) => setName(e.target.value)} />
           </div>
+          <CompanyLogoPicker name={name} value={logoUrl} onChange={setLogoUrl} onBusyChange={setUploading} disabled={saving} />
           <div className="space-y-1.5">
             <Label>Phone</Label>
             <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+1 473-..." />
@@ -101,7 +109,7 @@ export default function CompanyEditDialog({ company, open, onOpenChange, onSaved
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={save} disabled={saving || !name}>
+          <Button onClick={save} disabled={saving || uploading || !name}>
             {saving ? "Saving…" : "Save changes"}
           </Button>
         </DialogFooter>
