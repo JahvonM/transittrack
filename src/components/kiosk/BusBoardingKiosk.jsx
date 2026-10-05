@@ -634,9 +634,6 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo }) {
           <QrCode className="w-4 h-4" /> Scan QR code instead
         </button>
 
-        <p className="text-xs text-muted-foreground" role="status">
-          {directoryInfo?.expires ? `Passenger list: ${directoryInfo.count} cards · updated ${new Date(directoryInfo.updated).toLocaleString()} · ${Date.parse(directoryInfo.expires)>now.getTime() ? "ready for offline taps" : "expired — connect to refresh"}` : "Passenger list not downloaded — connect to WiFi"}
-        </p>
         {pendingSyncCount > 0 && (
           <p className="text-xs text-muted-foreground flex items-center justify-center gap-1.5">
             <CloudUpload className="w-3.5 h-3.5" /> {pendingSyncCount} check-in{pendingSyncCount === 1 ? "" : "s"} waiting to sync{syncError ? " · "+syncError : ""}
@@ -658,6 +655,10 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo }) {
       )}
       <div className="relative z-10 flex flex-col min-h-screen">
         <TopStatusBar device={device} vehicle={vehicle} now={now} occupancy={occupancy} pendingSyncCount={pendingSyncCount} />
+        <p className="text-xs text-muted-foreground text-center px-3 pt-2" role="status">
+          {directoryInfo?.expires ? `Passenger list: ${directoryInfo.count} cards · updated ${new Date(directoryInfo.updated).toLocaleString()} · ${Date.parse(directoryInfo.expires)>now.getTime() ? "ready for offline taps" : "expired — connect to refresh"}` : "Passenger list not downloaded — connect to WiFi"}
+        </p>
+
         <div className="flex-1 flex flex-col lg:flex-row items-center justify-center gap-6 p-6 lg:p-10">
           <div className="w-full max-w-md lg:max-w-xl">
             {actionContent}
