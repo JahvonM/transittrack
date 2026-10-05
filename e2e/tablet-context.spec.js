@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { test, expect } from '@playwright/test';
 
@@ -162,4 +163,35 @@ test('locked driver can request an admin PIN reset and stays locked',async({page
  await expect(page.getByText('Driver PIN required',{exact:true})).toBeVisible();
  expect(requests).toBe(1);
  expect(await page.evaluate(()=>localStorage.getItem('tt_driver_unlock_date'))).toBeNull();
+});
+
+test('boarding tablet uses its saved card file after restart without a server lookup',async({page})=>{
+ await mockApi(page,[]);
+ let offline=false,lookups=0;
+ const fingerprint=createHash('sha256').update('kiosk-test:AABBCCDD').digest('hex');
+ await page.route('**/functions/kioskHeartbeat',route=>offline?route.abort():route.fulfill({json:kiosk}));
+ await page.route('**/functions/kioskCheckIn',route=>{
+  const body=route.request().postDataJSON();
+  if(body.action==='lookup_tag')lookups++;
+  if(offline)return route.abort();
+  if(body.action==='offline_directory')return route.fulfill({json:{version:1,device_id:'kiosk-test',company_id:'company-a',vehicle_id:'bus-a',generated_at:new Date().toISOString(),expires_at:new Date(Date.now()+86400000).toISOString(),directory_grant:'a'.repeat(64),staff:[{id:'rider',full_name:'Local Passenger',photo_url:'',card_fingerprint:fingerprint}]}});
+  return route.fulfill({json:{}});
+ });
+ await page.addInitScript(()=>{
+  localStorage.setItem('tt_kiosk_device_id','kiosk-test');
+  localStorage.setItem('tt_badge_reader','1');
+ });
+ await page.goto('/kiosk');
+ await expect(page.getByText(/Passenger list: 1 cards/)).toBeVisible();
+ offline=true;
+ await page.reload();
+ await expect(page.getByText(/Passenger list: 1 cards/)).toBeVisible();
+ await page.evaluate(()=>window.dispatchEvent(new CustomEvent('tt-badge',{detail:'AABBCCDD'})));
+ await expect(page.getByText('Local Passenger',{exact:true})).toBeVisible();
+ expect(lookups).toBe(0);
+ await page.getByRole('button',{name:/Boarding/}).click();
+ await expect(page.getByText('Saved offline — will sync automatically',{exact:true})).toBeVisible();
+ const queue=await page.evaluate(()=>JSON.parse(localStorage.getItem('tt_offline_checkins')));
+ expect(queue[0].payload).toMatchObject({staff_id:'rider',method:'nfc',directory_grant:'a'.repeat(64),card_fingerprint:fingerprint});
+ expect(JSON.stringify(queue)).not.toContain('AABBCCDD');
 });
