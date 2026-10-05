@@ -8,17 +8,17 @@ async function pinHash(pin, salt) {
   bytes = new Uint8Array(bits);
  } catch {
   // Some hosted WebCrypto runtimes reject PBKDF2 even when local Deno works.
-  // The compatibility path uses the identical salt, work factor and output.
-  const { pbkdf2 } = await import('node:crypto');
-  bytes = await new Promise((resolve, reject) => {
-   pbkdf2(pin, salt, 600000, 32, 'sha256', (error, result) => error ? reject(error) : resolve(result));
-  });
+  // Pure JavaScript PBKDF2 keeps the identical salt, work factor and output.
+  const { pbkdf2Async } = await import('npm:@noble/hashes@1.8.0/pbkdf2');
+  const { sha256 } = await import('npm:@noble/hashes@1.8.0/sha256');
+  bytes = await pbkdf2Async(sha256, new TextEncoder().encode(pin), new TextEncoder().encode(salt), { c: 600000, dkLen: 32 });
  }
  return Array.from(bytes, b => b.toString(16).padStart(2,'0')).join('');
 }
 async function setProtectedPin(base44, vehicle, pin, mark = () => {}) {
- mark("PIN_HASH");
+ mark("PIN_RANDOM_V2");
  const salt = Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2,'0')).join('');
+ mark("PIN_HASH_V2");
  const data = { vehicle_id: vehicle.id, company_id: vehicle.company_id, salt, pin_hash: pin ? await pinHash(pin, salt) : '', enabled: !!pin };
  mark("PIN_STORE_READ");
  const rows = await base44.asServiceRole.entities.DriverPinCredential.filter({ vehicle_id: vehicle.id }, '-updated_date', 1);
