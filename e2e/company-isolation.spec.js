@@ -165,6 +165,25 @@ test('passenger More has a WhatsApp link for app problems once admin sets the nu
   await expect(link).toHaveAttribute('target','_blank');
 });
 
+test('passenger Home puts the roadside pickup up front and shows the workplace drop-off',async({page})=>{
+  await passengerShowcase(page);
+  const cta=page.getByRole('region',{name:'Get picked up near home'});
+  await expect(cta).toBeVisible();
+  await cta.getByRole('button',{name:'Find my pickup',exact:true}).click();
+  await expect(page.getByText('Find a roadside pickup',{exact:true})).toBeVisible();
+  await page.keyboard.press('Escape');
+  await page.route('**/functions/entityAccess',async r=>{
+    const b=r.request().postDataJSON();
+    if(b.entity==='Workplace')return r.fulfill({json:{result:[{id:'w',company_id:'a',name:'Head office, True Blue',lat:12.0,lng:-61.78}]}});
+    if(b.entity==='User')return r.fulfill({json:{result:{id:'caller',role:'staff',email:'caller@test.local',full_name:'Test Passenger',company_id:'a',favorite_stop:'Grand Anse',pickup_lat:12.02,pickup_lng:-61.76,pickup_name:'Roadside by the church',pickup_route_id:'route-a'}}});
+    return r.fallback();
+  });
+  await page.goto('/staff');
+  const card=page.getByRole('region',{name:'Your pickup'});
+  await expect(card).toContainText('Roadside by the church');
+  await expect(card).toContainText('Head office, True Blue');
+});
+
 test('admin saves the app support WhatsApp number in Settings',async({page})=>{
   await session(page,'admin');
   const sets=[];

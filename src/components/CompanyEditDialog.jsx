@@ -1,6 +1,6 @@
 import CompanyLogoPicker from "@/components/CompanyLogoPicker";
 import { toast } from "@/components/ui/use-toast";
-import React, { useEffect, useState } from "react";
+import React, { Suspense, lazy, useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import {
   Dialog,
@@ -12,6 +12,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+
+const LocationPicker = lazy(() => import("@/components/directory/LocationPicker"));
 
 const SERVICES = [
   { key: "staff_bus", label: "Staff bus" },
@@ -28,6 +30,8 @@ export default function CompanyEditDialog({ company, open, onOpenChange, onSaved
   const [logoUrl, setLogoUrl] = useState("");
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
+  // The company's workplace: where every pickup passenger is dropped off.
+  const [workplace, setWorkplace] = useState({ id: null, name: "", lat: null, lng: null, loaded: false });
 
   useEffect(() => {
     if (company) {
@@ -39,6 +43,20 @@ export default function CompanyEditDialog({ company, open, onOpenChange, onSaved
       setServices(company.service_types || []);
     }
   }, [company]);
+
+  useEffect(() => {
+    if (!open || !company?.id) return;
+    let live = true;
+    setWorkplace({ id: null, name: "", lat: null, lng: null, loaded: false });
+    base44.entities.Workplace.filter({ company_id: company.id })
+      .then((rows) => {
+        if (!live) return;
+        const w = rows.find((x) => x.lat != null && x.lng != null) || rows[0];
+        setWorkplace({ id: w?.id || null, name: w?.name || "", lat: w?.lat ?? null, lng: w?.lng ?? null, loaded: true });
+      })
+      .catch(() => { if (live) setWorkplace((w) => ({ ...w, loaded: true })); });
+    return () => { live = false; };
+  }, [open, company?.id]);
 
   const toggle = (k) =>
     setServices((s) => (s.includes(k) ? s.filter((x) => x !== k) : [...s, k]));
@@ -54,6 +72,11 @@ export default function CompanyEditDialog({ company, open, onOpenChange, onSaved
         secretary_phone: secretaryPhone,
         service_types: services,
       });
+      if (Number.isFinite(workplace.lat) && Number.isFinite(workplace.lng)) {
+        const data = { name: workplace.name.trim() || name, company_id: company.id, company_name: name, lat: workplace.lat, lng: workplace.lng };
+        if (workplace.id) await base44.entities.Workplace.update(workplace.id, data);
+        else await base44.entities.Workplace.create(data);
+      }
       onSaved();
       onOpenChange(false);
     } catch (e) { toast({ title: "Couldn't save company", description: e.message, variant: "destructive" }); }
@@ -86,6 +109,16 @@ export default function CompanyEditDialog({ company, open, onOpenChange, onSaved
           <div className="space-y-1.5">
             <Label>Secretary / dispatch phone (WhatsApp)</Label>
             <Input value={secretaryPhone} onChange={(e) => setSecretaryPhone(e.target.value)} placeholder="+1 473-..." />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="tt-workplace-name">Workplace (drop-off)</Label>
+            <p className="text-xs text-muted-foreground">Where the bus drops off everyone it picks up. It shows as the last stop for drivers and passengers. Tap the map to pin it.</p>
+            <Input id="tt-workplace-name" value={workplace.name} onChange={(e) => setWorkplace((w) => ({ ...w, name: e.target.value }))} placeholder="e.g. Head office, True Blue" />
+            {workplace.loaded && (
+              <Suspense fallback={<div className="h-[200px] animate-pulse rounded-lg bg-muted" />}>
+                <LocationPicker key={company?.id} lat={workplace.lat} lng={workplace.lng} onChange={(lat, lng) => setWorkplace((w) => ({ ...w, lat, lng }))} />
+              </Suspense>
+            )}
           </div>
           <div className="space-y-1.5">
             <Label>Services</Label>

@@ -458,6 +458,8 @@ export default function DriverApp() {
             {activeTab === "stops" && (
               <DriverStops
                 session={session}
+                invoke={invoke}
+                refresh={refresh}
                 trips={session.trips?.length > 0 ? <DriverTrips trips={session.trips} invoke={invoke} refresh={refresh} startSharing={() => invoke("start_tracking").catch(() => {})} /> : null}
                 passengers={<StaffRouteList staff={session.staff || []} vehicle={session.vehicle} nearbyStaff={[]} onAttend={() => {}} />}
               />

@@ -256,6 +256,33 @@ function MoreRow({ icon: Icon, title, sub, onClick, href, external = false }) {
   return <li>{href ? <a href={href} className={cls} {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}>{body}</a> : <button type="button" onClick={onClick} className={cls}>{body}</button>}</li>;
 }
 
+// Roadside pickup, near the top of Home: a prompt until one is saved, then
+// where you're picked up (and dropped off) with a quick way to change it.
+export function PickupCard({ pickupName, dropoffName, onOpen }) {
+  if (!pickupName) {
+    return (
+      <section className="mx-6 mb-4 flex items-center gap-4 rounded-2xl border border-primary/40 bg-primary/10 p-4 lg:mx-0" aria-labelledby="tt-pickup-cta">
+        <MapPinned className="h-7 w-7 shrink-0 text-primary" aria-hidden="true" />
+        <div className="min-w-0 flex-1">
+          <h2 id="tt-pickup-cta" className="font-semibold">Get picked up near home</h2>
+          <p className="text-body-sm text-muted-foreground">Find a roadside pickup on a road your bus uses, with walking directions.</p>
+        </div>
+        <Button onClick={onOpen} className="shrink-0">Find my pickup</Button>
+      </section>
+    );
+  }
+  return (
+    <section className="mx-6 mb-4 flex items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3 lg:mx-0" aria-label="Your pickup">
+      <MapPinned className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden="true" />
+      <p className="min-w-0 flex-1 text-body-sm">
+        <span className="block truncate"><span className="text-muted-foreground">Pickup:</span> <span className="font-semibold">{pickupName}</span></span>
+        {dropoffName && <span className="block truncate"><span className="text-muted-foreground">Drop-off:</span> <span className="font-semibold">{dropoffName}</span></span>}
+      </p>
+      <Button variant="ghost" size="sm" onClick={onOpen}>Change</Button>
+    </section>
+  );
+}
+
 export function MoreList({ companyName, companyPhone, onBadge, onAssistant, onHelp, onPickup, pickupSummary, onChat, chatUnread = 0 }) {
   const tel = (companyPhone || "").trim();
   const support = useSupportWhatsApp();

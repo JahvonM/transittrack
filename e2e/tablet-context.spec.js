@@ -338,3 +338,36 @@ test('driver opens their licence and insurance with the bus PIN, and nothing is 
   await viewer.getByRole('button', { name: 'Close' }).click();
   await expect(viewer).toHaveCount(0);
 });
+
+test('driver stops show who is picked up where, the drop-off, and fix a stop from the bus position', async ({ page }) => {
+  const calls = [];
+  const route = { id: 'route-a', name: 'Coastal', stops: [
+    { name: 'Town', lat: 12.05, lng: -61.75, order: 0 }, { name: 'True Blue', lat: 12.02, lng: -61.76, order: 1 }, { name: 'Grand Anse', lat: 12.0, lng: -61.78, order: 2 }] };
+  const live = { ...driver,
+    vehicle: { ...vehicle, route_id: 'route-a', current_lat: 12.0202, current_lng: -61.7601, last_location_update: new Date().toISOString(), tracking_active: false },
+    route, workplace: { name: 'Head office', lat: 11.99, lng: -61.79 },
+    staff: [{ id: 's1', full_name: 'Maria Joseph', home_lat: 12.021, home_lng: -61.761 }, { id: 's2', full_name: 'Zane Charles', home_lat: 12.0205, home_lng: -61.7605 }, { id: 's3', full_name: 'Ann Lee', home_lat: 12.001, home_lng: -61.781 }] };
+  await page.route('**/api/**', async (r) => {
+    const url = r.request().url();
+    const body = r.request().postDataJSON();
+    if (url.includes('/functions/driverSession')) {
+      if (body?.action === 'verify_pin') return r.fulfill({ json: { ok: true, driver_grant: 'a'.repeat(64) } });
+      if (body?.action === 'move_stop') { calls.push(body); return r.fulfill({ json: { ok: true, route } }); }
+      return r.fulfill({ json: live });
+    }
+    if (url.includes('/entities/')) return r.fulfill({ status: 403, json: {} });
+    return r.fulfill({ json: { id: 'test-app', public_settings: { authentication_required: false } } });
+  });
+  await page.addInitScript(() => localStorage.setItem('tt_driver_device_id', 'driver-test'));
+  await page.goto('/driver/stops');
+  await page.locator('input[type=password]').fill('1234');
+  await page.getByRole('button', { name: 'Unlock', exact: true }).click();
+  await expect(page.getByLabel('Picking up Maria Joseph, Zane Charles')).toBeVisible({ timeout: 15000 });
+  await expect(page.getByLabel('Picking up Ann Lee')).toBeVisible();
+  await expect(page.getByText('Drop-off · everyone gets off here')).toBeVisible();
+  await page.getByRole('button', { name: 'Use this location for True Blue' }).click();
+  await expect(page.getByText('True Blue now uses this location.')).toBeVisible();
+  expect(calls).toHaveLength(1);
+  expect(calls[0]).toMatchObject({ action: 'move_stop', stop_name: 'True Blue' });
+  expect(calls[0].lat).toBeUndefined();
+});

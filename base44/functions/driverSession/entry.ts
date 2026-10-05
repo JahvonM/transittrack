@@ -497,6 +497,64 @@ export default async function(req) {
         if (!(await verifyProtectedPin(base44, vehicle, body.pin))) return Response.json({ error: 'Incorrect PIN or no PIN configured' }, { status: 403 });
         return Response.json({ ok: true, driver_grant: await issueGrant(base44, device, 'driver', vehicleId, 12 * 3600_000) });
       }
+      case 'move_stop':
+      case 'add_stop': {
+        // Drivers fix stops where the map is wrong. The new point is always the
+        // bus's own last GPS fix held on the server (never coordinates sent by
+        // the tablet), so a stop can only be placed where the bus really is.
+        const vehicle = await loadVehicle(base44, vehicleId);
+        if (!vehicle || vehicle.company_id !== companyId) return Response.json({ error: 'Vehicle assignment mismatch' }, { status: 403 });
+        if (!vehicle.route_id) return Response.json({ error: 'This bus has no route yet. Ask dispatch to assign one.' }, { status: 400 });
+        let route = null;
+        try { route = await base44.asServiceRole.entities.Route.get(vehicle.route_id); } catch { route = null; }
+        if (!route || route.company_id !== companyId) return Response.json({ error: 'Route not found' }, { status: 404 });
+        const lat = Number(vehicle.current_lat), lng = Number(vehicle.current_lng);
+        const fixAge = Date.now() - Date.parse(vehicle.last_location_update || '');
+        if (!Number.isFinite(lat) || !Number.isFinite(lng) || !(fixAge >= 0 && fixAge <= 2 * 60_000)) {
+          return Response.json({ error: 'No fresh GPS position for this bus. Turn on location sharing and try again in a moment.' }, { status: 409 });
+        }
+        if (!(await reserveAttempt(base44, 'stop-edit:' + vehicleId, 20, 60 * 60_000))) return Response.json({ error: 'Too many stop changes this hour. Try again later.' }, { status: 429 });
+        const RADIUS = 150;
+        const stops = (route.stops || []).slice().sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+        const located = stops.filter((st) => Number.isFinite(Number(st.lat)) && Number.isFinite(Number(st.lng)));
+        const nearest = located.map((st) => ({ st, d: haversineMeters(lat, lng, Number(st.lat), Number(st.lng)) })).sort((a, b) => a.d - b.d)[0];
+        let next, summary;
+        if (action === 'move_stop') {
+          const name = sanitize(body.stop_name).slice(0, 80);
+          const target = stops.find((st) => st.name === name);
+          if (!target) return Response.json({ error: 'Stop not found on this route' }, { status: 404 });
+          if (!nearest || nearest.st !== target || nearest.d > RADIUS) return Response.json({ error: `The bus must be within ${RADIUS} m of ${name} to move it.` }, { status: 400 });
+          next = stops.map((st) => (st === target ? { ...st, lat, lng } : st));
+          summary = `Moved stop "${name}" to the bus's position (${Math.round(nearest.d)} m) from ${vehicle.name}`;
+        } else {
+          const name = sanitize(body.name).slice(0, 60);
+          if (name.length < 2) return Response.json({ error: 'Give the new stop a name.' }, { status: 400 });
+          if (stops.some((st) => String(st.name || '').toLowerCase() === name.toLowerCase())) return Response.json({ error: 'A stop with that name is already on this route.' }, { status: 400 });
+          if (nearest && nearest.d <= RADIUS) return Response.json({ error: `${nearest.st.name} is only ${Math.round(nearest.d)} m away. Move that stop instead.` }, { status: 400 });
+          // Put it where it adds the least extra distance along the route.
+          let at = stops.length;
+          if (located.length >= 2) {
+            let best = Infinity;
+            const pos = (st) => [Number(st.lat), Number(st.lng)];
+            for (let i = 0; i < stops.length - 1; i++) {
+              const a = stops[i], b = stops[i + 1];
+              if (!Number.isFinite(Number(a.lat)) || !Number.isFinite(Number(b.lat))) continue;
+              const [alat, alng] = pos(a), [blat, blng] = pos(b);
+              const extra = haversineMeters(alat, alng, lat, lng) + haversineMeters(lat, lng, blat, blng) - haversineMeters(alat, alng, blat, blng);
+              if (extra < best) { best = extra; at = i + 1; }
+            }
+          }
+          next = [...stops.slice(0, at), { name, lat, lng }, ...stops.slice(at)];
+          summary = `Added stop "${name}" at the bus's position from ${vehicle.name}`;
+        }
+        next = next.map((st, i) => ({ ...st, order: i }));
+        const updated = await base44.asServiceRole.entities.Route.update(route.id, { stops: next });
+        await base44.asServiceRole.entities.AuditLog.create({
+          actor_name: vehicle.driver_name || 'Driver tablet', actor_role: 'driver', action: 'update', entity: 'Route',
+          record_id: route.id, summary: summary + ` on ${route.name || 'route'}`, page: 'driver tablet',
+        }).catch(() => {});
+        return Response.json({ ok: true, route: tabletRoute({ ...route, ...(updated || {}), stops: next }, companyId) });
+      }
       case 'my_documents': {
         // The assigned driver's licence and insurance. Needs the bus PIN again
         // even on an unlocked tablet, and shares the PIN attempt limit.
@@ -551,6 +609,10 @@ export default async function(req) {
           try { route = await base44.asServiceRole.entities.Route.get(vehicle.route_id); }
           catch { /* route may be missing */ }
         }
+        // Where every pickup passenger is dropped off: the company's workplace.
+        const workplaceRow = (await base44.asServiceRole.entities.Workplace.filter({ company_id: companyId }, '-updated_date', 5).catch(() => []))
+          .find((w) => w.company_id === companyId && Number.isFinite(Number(w.lat)) && Number.isFinite(Number(w.lng)));
+        const workplace = workplaceRow ? { name: workplaceRow.name || 'Workplace', lat: Number(workplaceRow.lat), lng: Number(workplaceRow.lng) } : null;
         let emergencyContacts = { boss_phone: '', secretary_phone: '' };
         let companyLogoUrl = '', companyDisplayName = companyName;
         try {
@@ -561,7 +623,7 @@ export default async function(req) {
         } catch { /* optional company display and contacts */ }
         return Response.json({
           vehicle: tabletVehicle(vehicle), driver_name: vehicle.driver_name || '', has_driver_pin: !!vehicle.driver_pin || !!(await base44.asServiceRole.entities.DriverPinCredential.filter({ vehicle_id: vehicleId }, '-updated_date', 1))[0]?.enabled,
-          company_id: companyId, company_name: companyDisplayName, company_logo_url: companyLogoUrl, staff, route: tabletRoute(route, companyId), emergency_contacts: emergencyContacts, ...boardingStats(checkIns),
+          company_id: companyId, company_name: companyDisplayName, company_logo_url: companyLogoUrl, staff, route: tabletRoute(route, companyId), workplace, emergency_contacts: emergencyContacts, ...boardingStats(checkIns),
           broadcasts: relevantBroadcasts, check_ins: checkIns.slice(0, 20).filter((c) => c.status === 'boarded').map(tabletCheckIn),
           group_messages: [...groupMessages].reverse(), trips,
           open_shift: openShifts.find((s) => !s.ended_at) || null,

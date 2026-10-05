@@ -28,7 +28,7 @@ import ArrivalHero from "@/components/passenger/ArrivalHero";
 import RouteTimeline from "@/components/passenger/RouteTimeline";
 import StopChooser from "@/components/passenger/StopChooser";
 import {
-  AlertBand, BookedRides, MapClosed, MapToggle, MoreList, OtherBuses, OtherBusesOverlay, PassengerChatBubble, SectionHead, SponsorLine, StopAlertRow, TripActions, TripFacts,
+  AlertBand, BookedRides, MapClosed, PickupCard, MapToggle, MoreList, OtherBuses, OtherBusesOverlay, PassengerChatBubble, SectionHead, SponsorLine, StopAlertRow, TripActions, TripFacts,
 } from "@/components/passenger/PassengerSections";
 import { clock, passengerTripState, sortStops } from "@/components/passenger/passengerState";
 import useStopEtas from "@/components/passenger/useStopEtas";
@@ -136,6 +136,15 @@ export default function StaffPortal() {
     }).catch(() => { localStorage.removeItem("tt_company_access_grant"); })
       .finally(() => setCompaniesLoaded(true));
   }, [user?.id, joinCode]);
+
+  // The company's workplace: where every pickup passenger is dropped off.
+  const [workplace, setWorkplace] = useState(null);
+  useEffect(() => {
+    if (!company) { setWorkplace(null); return; }
+    base44.entities.Workplace.filter({ company_id: company.id })
+      .then((rows) => setWorkplace(rows.find((w) => w.lat != null && w.lng != null) || rows[0] || null))
+      .catch(() => setWorkplace(null));
+  }, [company]);
 
   useEffect(() => {
     if (!company) return undefined;
@@ -418,6 +427,11 @@ export default function StaffPortal() {
             </div>
 
             <CompanyBanner name={companyName} logoUrl={company.logo_url} compact className="mx-6 mb-4 lg:mx-0" />
+            <PickupCard
+              pickupName={user?.pickup_lat != null ? user.pickup_name || "Your pinned pickup" : ""}
+              dropoffName={workplace?.name || ""}
+              onOpen={() => setSheet("pickup")}
+            />
             {tripState.kind === "choose" ? (
               <>
                 <StopChooser routes={routes} value={pickupName} onChoose={choosePickup} userLoc={userLoc} companyName={companyName} />
