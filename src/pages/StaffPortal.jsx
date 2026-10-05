@@ -1,3 +1,4 @@
+import CompanyBanner from "@/components/CompanyBanner";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
@@ -353,6 +354,7 @@ export default function StaffPortal() {
     <AppLayout>
       <PullToRefresh onRefresh={reload} className="w-full">
         <div className="tt-passenger-dashboard space-y-5">
+          <CompanyBanner name={company.name} logoUrl={company.logo_url} />
           <header className="space-y-2">
             <h1 className="text-lg sm:text-2xl font-heading font-semibold leading-tight">{greetingWord()}{firstName ? `, ${firstName}` : ""}</h1>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-2">

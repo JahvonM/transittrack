@@ -1,3 +1,4 @@
+import CompanyBanner from "@/components/CompanyBanner";
 import { saveDeviceToken, forgetDeviceToken } from "@/lib/deviceAuth";
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import BusLoader from "@/components/BusLoader";
@@ -320,6 +321,7 @@ export default function DriverApp() {
     return (
       <div className="min-h-screen p-4 safe-area-top safe-area-x">
         <div className="space-y-4 max-w-3xl mx-auto">
+          <CompanyBanner name={session.company_name || vehicle.company_name} logoUrl={session.company_logo_url} />
           <DriverGreeting driverName={driverName} subtitle={vehicle.name} />
           <PinGate deviceId={deviceId} vehicle={vehicle} invoke={invoke} onUnlock={() => { localStorage.setItem("tt_driver_unlock_date", new Date().toISOString().slice(0, 10)); setUnlocked(true); if (dueInspections.length) openInspection(dueInspections[0], { from: "unlock" }); else goStage("track"); }} />
         </div>
@@ -337,6 +339,7 @@ export default function DriverApp() {
     return (
       <div className="min-h-screen p-4 safe-area-top safe-area-x">
         <div className="space-y-4 max-w-6xl mx-auto">
+          <CompanyBanner name={session.company_name || vehicle.company_name} logoUrl={session.company_logo_url} compact />
           {canSkip && (
             <Button
               variant="ghost"
@@ -378,6 +381,7 @@ export default function DriverApp() {
 
   return (
     <div className="tt-driver-shell h-[100dvh] flex flex-col overflow-hidden bg-background safe-area-top safe-area-x">
+      <CompanyBanner name={session.company_name || vehicle.company_name} logoUrl={session.company_logo_url} compact className="shrink-0 mx-3 mt-2" />
       <DriverTopBar
         driverName={driverName}
         busName={vehicle.name}

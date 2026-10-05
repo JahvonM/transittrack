@@ -16,9 +16,10 @@ export default function useUserLocation(enabled = true) {
       setError("Geolocation is not supported by your device.");
       return;
     }
-    let cancelled = false;
+    let cancelled = false, received = false;
     const success = (p) => {
         if (cancelled || !Number.isFinite(p.coords.latitude) || !Number.isFinite(p.coords.longitude)) return;
+        received = true;
         const acc = p.coords.accuracy ?? 999;
         setLocation(() => {
           return { lat: p.coords.latitude, lng: p.coords.longitude, accuracy: acc };
@@ -26,7 +27,7 @@ export default function useUserLocation(enabled = true) {
         setError("");
       };
     const failure = (err) => {
-        if (cancelled) return;
+        if (cancelled || (received && err.code !== 1)) return;
         setError(
           err.code === 1
             ? "Location permission denied. Enable location access to see yourself on the map."

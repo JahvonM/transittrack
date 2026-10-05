@@ -37,6 +37,7 @@ export default function CompaniesTab({ companies, onChange }) {
         {companies.map((c) => (
           <Card key={c.id}>
             <CardContent className="flex flex-wrap items-center gap-3 py-4">
+              {c.logo_url && <img src={c.logo_url} alt={`${c.name} logo`} className="w-14 h-14 p-1 rounded-xl object-contain bg-white shrink-0" />}
               <div className="flex-1 min-w-[200px]">
                 <div className="font-medium">{c.name}</div>
                 <div className="text-xs text-muted-foreground mt-0.5 flex flex-wrap gap-1">

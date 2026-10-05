@@ -1,3 +1,4 @@
+import CompanyBanner from "@/components/CompanyBanner";
 import React, { useEffect, useRef, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -655,6 +656,7 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo }) {
         </div>
       )}
       <div className="relative z-10 flex flex-col min-h-screen">
+        <CompanyBanner name={device?.company_name} logoUrl={device?.company_logo_url} className="mx-3 mt-3" />
         <TopStatusBar device={device} vehicle={vehicle} now={now} occupancy={occupancy} pendingSyncCount={pendingSyncCount} />
         <p className="text-xs text-muted-foreground text-center px-3 pt-2" role="status">
           {directoryInfo?.expires ? `Passenger list: ${directoryInfo.count} cards · updated ${new Date(directoryInfo.updated).toLocaleString()} · ${Date.parse(directoryInfo.expires)>now.getTime() ? "ready for offline taps" : "expired — connect to refresh"}` : "Passenger list not downloaded — connect to WiFi"}

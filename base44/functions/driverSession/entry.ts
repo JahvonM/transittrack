@@ -525,10 +525,16 @@ export default async function(req) {
           catch { /* route may be missing */ }
         }
         let emergencyContacts = { boss_phone: '', secretary_phone: '' };
-        try { const company = await base44.asServiceRole.entities.Company.get(companyId); emergencyContacts = { boss_phone: company?.boss_phone || '', secretary_phone: company?.secretary_phone || '' }; } catch { /* optional contacts */ }
+        let companyLogoUrl = '', companyDisplayName = companyName;
+        try {
+          const company = await base44.asServiceRole.entities.Company.get(companyId);
+          emergencyContacts = { boss_phone: company?.boss_phone || '', secretary_phone: company?.secretary_phone || '' };
+          companyLogoUrl = company?.logo_url || '';
+          companyDisplayName = company?.name || companyName;
+        } catch { /* optional company display and contacts */ }
         return Response.json({
           vehicle: tabletVehicle(vehicle), driver_name: vehicle.driver_name || '', has_driver_pin: !!vehicle.driver_pin || !!(await base44.asServiceRole.entities.DriverPinCredential.filter({ vehicle_id: vehicleId }, '-updated_date', 1))[0]?.enabled,
-          company_id: companyId, company_name: companyName, staff, route: tabletRoute(route, companyId), emergency_contacts: emergencyContacts, ...boardingStats(checkIns),
+          company_id: companyId, company_name: companyDisplayName, company_logo_url: companyLogoUrl, staff, route: tabletRoute(route, companyId), emergency_contacts: emergencyContacts, ...boardingStats(checkIns),
           broadcasts: relevantBroadcasts, check_ins: checkIns.slice(0, 20).filter((c) => c.status === 'boarded').map(tabletCheckIn),
           group_messages: [...groupMessages].reverse(), trips,
           open_shift: openShifts.find((s) => !s.ended_at) || null,
