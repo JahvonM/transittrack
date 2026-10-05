@@ -23,20 +23,20 @@ import org.json.JSONObject;
  * Runs all the time:
  *  - screen on/off with the charger (bus ignition); never sleeps while powered
  *  - card reader and USB GPS
- *  - parked mode: 2 min after power is lost, pause reader + GPS and let the tablet sleep
+ *  - parked mode: 2 min after power is lost, pause GPS; keep scanning for the card reader
  *  - page refresh when the bus starts after a long park (or at 3 AM if never unplugged)
  *  - health report to the page every minute (battery, reader, GPS, last card)
  *  - driver tablets: Wi-Fi hotspot on while the bus runs, off when parked
  *  - boarding tablets: join the bus hotspot automatically
  */
 public class HelperService extends Service {
-    static final String VERSION = "1.6";
+    static final String VERSION = "1.7";
     static volatile boolean plugged = true;
     static volatile boolean parked = false;
 
     private static final String CHANNEL = "helper";
     private static final long UNPLUG_DELAY_MS = 5000;              // ignore short power dips (engine crank)
-    private static final long PARK_DELAY_MS = 2 * 60 * 1000;       // then pause everything to save battery
+    private static final long PARK_DELAY_MS = 2 * 60 * 1000;       // then pause GPS to save battery
     private static final long HEALTH_MS = 60 * 1000;
     private static final long RELOAD_AFTER_PARK_MS = 2 * 60 * 60 * 1000L;
     private static final int LOW_BATTERY = 15;
@@ -189,13 +189,14 @@ public class HelperService extends Service {
         parked = true;
         parkedSince = System.currentTimeMillis();
         Status.power = "Unplugged (parked)";
-        Status.log("Parked (" + why + "): card reader and GPS paused to save battery");
+        Status.log("Parked (" + why + "): GPS paused; card reader keeps reconnecting");
         if (Config.ignition(this)) setScreen(false);
         keepHotspot(false);
         pushHealth();
-        // Give the threads a moment to stop, then let the tablet sleep.
+        // Keep the scanner thread awake, including while waiting for reconnection.
+        // Tablets with the reader disabled can sleep after the GPS thread stops.
         main.postDelayed(new Runnable() {
-            @Override public void run() { if (parked && wakeLock.isHeld()) wakeLock.release(); }
+            @Override public void run() { if (parked && !Config.reader(HelperService.this) && wakeLock.isHeld()) wakeLock.release(); }
         }, 15000);
     }
 

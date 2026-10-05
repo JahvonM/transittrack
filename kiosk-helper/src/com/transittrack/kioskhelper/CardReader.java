@@ -25,6 +25,7 @@ final class CardReader implements Runnable {
     private final ResultServer results;
     private volatile boolean running = true;
 
+    private UsbDevice device;
     private UsbDeviceConnection con;
     private UsbInterface intf;
     private UsbEndpoint in, out;
@@ -42,11 +43,6 @@ final class CardReader implements Runnable {
     @Override public void run() {
         while (running) {
             try {
-                if (HelperService.parked) {
-                    setReader("Paused (bus parked)");
-                    sleep(3000);
-                    continue;
-                }
                 UsbDevice d = find();
                 if (d == null) {
                     setReader("Not plugged in");
@@ -102,6 +98,7 @@ final class CardReader implements Runnable {
     }
 
     private boolean open(UsbDevice d) {
+        device = d;
         con = usb.openDevice(d);
         if (con == null) { Status.log("Could not open the reader"); return false; }
         intf = null;
@@ -124,14 +121,17 @@ final class CardReader implements Runnable {
     private void close() {
         try { if (con != null && intf != null) con.releaseInterface(intf); } catch (Exception ignored) { }
         try { if (con != null) con.close(); } catch (Exception ignored) { }
-        con = null; intf = null; in = null; out = null;
+        con = null; device = null; intf = null; in = null; out = null;
     }
 
     private void readLoop() {
         boolean armed = true, first = true;
         int misses = 0, fails = 0;
         while (running) {
-            if (HelperService.parked) { Status.log("Card reader paused (bus parked)"); return; }
+            if (device == null || !usb.getDeviceList().containsKey(device.getDeviceName())) {
+                Status.log("Card reader unplugged; looking for scanner");
+                return;
+            }
             String uid;
             try {
                 uid = readCard();
