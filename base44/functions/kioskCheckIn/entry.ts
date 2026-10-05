@@ -460,6 +460,20 @@ export default async function(req) {
             (await currentCard(base44,companyId,person,person.nfc_tag)).valid;
         }
         if (['nfc', 'qr', 'code'].includes(method) && !locallyVerified && (!person || !(await validGrant(base44, device, body.verification_grant, 'boarding', person.id)) || !(await currentBoardingEligibility(base44,device,person,body.verification_grant,method)))) return Response.json({ error: 'Card authorization expired or changed. Refresh the tablet passenger list.' }, { status: 403 });
+        // Directory grants are reusable for offline card verification. Lookup
+        // grants authorize one completed check-in. Identical request-ID retries
+        // already returned above. Save the digest with the record so a failed
+        // create leaves the grant retryable. Sequential protection only;
+        // concurrent exclusion still needs atomic storage.
+        let boardingGrantHash = '';
+        if (['nfc', 'qr', 'code'].includes(method) && !locallyVerified) {
+          boardingGrantHash = await hashSecret(body.verification_grant);
+          const used = await base44.asServiceRole.entities.StaffCheckIn.filter({
+            device_id: device.id, company_id: companyId, vehicle_id: vehicleId,
+            boarding_grant_hash: boardingGrantHash,
+          }, '-created_date', 1);
+          if (used.length) return Response.json({ error: 'This boarding authorization has already been used. Tap or enter your code again.' }, { status: 403 });
+        }
         const refusal = wrongBus(person, vehicleId);
         if (refusal) return Response.json(refusal, { status: 403 });
         const cardTag = person?.nfc_tag || person?.id || sanitize(staff_id) || sanitize(staff_name);
@@ -469,6 +483,7 @@ export default async function(req) {
         const resolvedVehicleName = vehicleName || (await resolveVehicleName(base44, vehicleId));
         const record = await base44.asServiceRole.entities.StaffCheckIn.create({
           ...(requestId ? {client_request_id:requestId,request_hash:requestHash,device_id:device.id} : {}),
+          ...(boardingGrantHash ? {boarding_grant_hash:boardingGrantHash,device_id:device.id} : {}),
           staff_name: person?.full_name || sanitize(staff_name) || 'Staff',
           staff_picture_url: person?.photo_url || '',
           card_tag: cardTag, status, boarded_at: occurredAt(body.occurred_at),
