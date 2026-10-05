@@ -48,6 +48,11 @@ passwords, and 6–12 digits for the exit PIN. Inputs are validated before ADB u
 Place a trusted, privately supplied `TransitTrack-Kiosk-Helper.apk` beside the
 Windows setup script. It no longer downloads the old public APK.
 
+Release delivery: the signed APK is served only through the admin-only
+`helperRelease` backend function (Admin -> Kiosk Tablets -> Helper app), never
+under /public. To release a new version, build with build.sh and replace
+VERSION, VERSION_CODE, SHA256 and APK_BASE64 in base44/functions/helperRelease/entry.ts.
+
 Pre-production STEP 1 preserved the existing development signing key as an
 ignored local file and moved the legacy APK into ignored
 `kiosk-helper/legacy-development/`. Back up development signing material securely
