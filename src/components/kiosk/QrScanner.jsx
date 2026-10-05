@@ -14,16 +14,19 @@ export default function QrScanner({ onDecode, active, facingMode = "environment"
     let stopped = false;
     const scanner = new Html5Qrcode(elementId);
     scannerRef.current = scanner;
-    scanner.start(
+    const started = scanner.start(
       { facingMode },
       { fps: 10, qrbox: 220 },
       (decodedText) => { if (!stopped) onDecode?.(decodedText); },
       () => { /* per-frame no-QR-found noise — ignore */ }
-    ).catch((e) => setError(e?.message || "Couldn't start the camera."));
+    );
+    started.catch((e) => { if (!stopped) setError(e?.message || (typeof e === "string" ? e : "Couldn't start the camera.")); });
 
+    // stop() throws if the camera never started, so wait for start first;
+    // this also turns off a camera that opens after the scanner was closed.
     return () => {
       stopped = true;
-      scanner.stop().then(() => scanner.clear()).catch(() => {});
+      started.then(() => scanner.stop()).then(() => scanner.clear()).catch(() => {});
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, facingMode]);

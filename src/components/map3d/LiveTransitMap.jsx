@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { ConnectionPill } from "@/components/system/ConnectionPill";
 import { freshnessOf, vehicleStatusMeta, toneOf } from "@/components/system/status";
 import BusDistance from "@/components/BusDistance";
+import useUserLocation from "@/hooks/useUserLocation";
 import { createVehicleLayer } from "./vehicleLayer";
 import { boundsOf, bearingDeg, splitRoute } from "./routeGeometry";
 
@@ -124,7 +125,8 @@ function FullMap({
   looseStops = [], // stops drawn without a route line (e.g. every route at once)
   myStop = null,
   nextStopIndex = null,
-  userLocation = null,
+  userLocation: givenLocation = null,
+  followUser = false, // open on your own position instead of the buses
   callout = null,
   summary = null,
   topCard = null, // full screen: where you're going, across the top
@@ -163,6 +165,14 @@ function FullMap({
   const [bearing, setBearing] = useState(0);
   const [selectedId, setSelectedId] = useState(null);
   const [routeLine, setRouteLine] = useState([]);
+
+  // Your position: the page's own fix when it has one; otherwise the map asks
+  // for it the first time "My location" is tapped.
+  const [askMe, setAskMe] = useState(false);
+  const own = useUserLocation(askMe && !givenLocation);
+  const userLocation = givenLocation || own.location;
+  const [waitingMe, setWaitingMe] = useState(false);
+  const meCenteredRef = useRef(false);
 
   // One map container element that moves between the inline box and the
   // full-screen overlay, so the map (and its WebGL context) survives the switch.
@@ -436,6 +446,7 @@ function FullMap({
     if (!loaded || fittedRef.current) return;
     if (!focus && !myStop && !orderedStops.length && !located.length && !userLocation) return;
     fittedRef.current = true;
+    if (followUser && userLocation && !focus) { meCenteredRef.current = true; goToMe(true); return; }
     frame(true);
      
   }, [loaded, focus?.id, myStop?.name, orderedStops.length, located.length, !!userLocation]);
@@ -462,13 +473,37 @@ function FullMap({
     frame(false);
   };
 
-  const showMe = () => {
+  const goToMe = (instant = false) => {
     const map = mapRef.current;
-    if (!map || !userLocation) return;
+    const me = stateRef.current.userLocation;
+    if (!map || !me) return;
     followRef.current = false;
     setFollow(false);
-    map.easeTo({ center: [userLocation.lng, userLocation.lat], zoom: Math.max(map.getZoom(), 16), duration: reduceMotion ? 0 : 900 });
+    map.easeTo({ center: [me.lng, me.lat], zoom: Math.max(map.getZoom(), 16), pitch: stateRef.current.is3D ? PITCH_3D : 0, duration: instant || reduceMotion ? 0 : 900 });
   };
+
+  const showMe = () => {
+    if (userLocation) { goToMe(); return; }
+    // No fix yet: ask for one and go there as soon as it arrives.
+    setWaitingMe(true);
+    if (askMe) own.retry();
+    else setAskMe(true);
+  };
+
+  // A fix that arrives after the map opened: go there if you asked for it,
+  // or once on maps that open on your position (unless you moved the map).
+  useEffect(() => {
+    if (!loaded || !userLocation) return;
+    if (waitingMe) { setWaitingMe(false); goToMe(); return; }
+    if (followUser && !focus && !meCenteredRef.current && followRef.current) {
+      meCenteredRef.current = true;
+      goToMe(!fittedRef.current);
+      fittedRef.current = true;
+    }
+
+  }, [loaded, !!userLocation, followUser, !!focus, waitingMe]);
+  const locating = waitingMe && !userLocation && !own.error;
+  const locateError = waitingMe && !userLocation ? own.error : "";
 
   // --- Overlays -------------------------------------------------------------
   const roomy = fullscreen || variant === "page";
@@ -487,6 +522,8 @@ function FullMap({
             className="pointer-events-auto bg-background/92 backdrop-blur"
           />
         )}
+        {locating && <p role="status" className="rounded-full bg-background/92 px-3 py-1.5 text-caption font-semibold shadow-md backdrop-blur">Finding your location…</p>}
+        {locateError && <p role="alert" className="pointer-events-auto rounded-xl bg-background/92 px-3 py-1.5 text-caption font-semibold text-danger shadow-md backdrop-blur">{locateError}</p>}
       </div>
 
       <div className="absolute right-3 top-3 z-10 flex flex-col gap-2">
@@ -519,13 +556,11 @@ function FullMap({
         >
           {is3D ? "2D" : <Box className="h-5 w-5" aria-hidden="true" />}
         </button>
+        <button type="button" className={cn(TOOL, locating && "animate-pulse")} onClick={showMe} aria-label="Show my location" title="My location">
+          <LocateFixed className="h-5 w-5" aria-hidden="true" />
+        </button>
         {roomy && (
           <>
-            {userLocation && (
-              <button type="button" className={TOOL} onClick={showMe} aria-label="Show my location" title="My location">
-                <LocateFixed className="h-5 w-5" aria-hidden="true" />
-              </button>
-            )}
             <button
               type="button"
               className={cn(TOOL, satellite && TOOL_ON)}

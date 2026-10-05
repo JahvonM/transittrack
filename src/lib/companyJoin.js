@@ -32,3 +32,16 @@ export function takePendingJoinCode() {
     return CODE.test(code) ? code : "";
   } catch { return ""; }
 }
+
+// Reads the company code out of a scanned join QR (or a bare code). Returns
+// "" for anything else; the app never opens the scanned link itself.
+export function codeFromJoinQr(text) {
+  const raw = String(text || "").trim();
+  if (CODE.test(raw.toUpperCase())) return raw.toUpperCase();
+  try {
+    const url = new URL(raw);
+    if (!/\/join\/?$/.test(url.pathname)) return "";
+    const code = String(new URLSearchParams(url.hash.slice(1)).get("code") || "").trim().toUpperCase();
+    return CODE.test(code) ? code : "";
+  } catch { return ""; }
+}

@@ -69,6 +69,7 @@ export default function FleetMap({ vehicles }) {
           <Suspense fallback={<div className="h-[46vh] animate-pulse rounded-2xl bg-muted" />}>
             <LiveTransitMap
               variant="page"
+              followUser={!selected}
               className="h-[46vh] min-h-[320px] rounded-2xl border border-border lg:h-[calc(100vh-19rem)]"
               vehicles={liveVehicles.filter((v) => v.current_lat != null)}
               focusVehicleId={selected?.current_lat != null ? selected.id : null}

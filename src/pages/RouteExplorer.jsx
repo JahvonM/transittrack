@@ -8,6 +8,7 @@ import BusLoader from "@/components/BusLoader";
 import { routeProgress } from "@/components/TripProgress";
 import { loadFailed } from "@/lib/loadFailed";
 import { cn } from "@/lib/utils";
+import useUserLocation from "@/hooks/useUserLocation";
 import { busNumber, busStatusLine, clock, sortStops } from "@/components/passenger/passengerState";
 
 const LiveTransitMap = lazy(() => import("@/components/map3d/LiveTransitMap"));
@@ -25,6 +26,7 @@ export default function RouteExplorer() {
   const [focusId, setFocusId] = useState(() => params.get("bus") || null);
   const [focusKey, setFocusKey] = useState(() => (params.get("bus") ? 1 : 0));
   const [expanded, setExpanded] = useState(false);
+  const { location: userLoc } = useUserLocation();
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
@@ -97,6 +99,8 @@ export default function RouteExplorer() {
                 vehicles={located}
                 focusVehicleId={focus?.id || null}
                 focusKey={focusKey}
+                userLocation={userLoc}
+                followUser={!focus}
                 stops={focus ? focusStops : orderedStops}
                 looseStops={focus ? [] : allStops}
                 myStop={myStop}

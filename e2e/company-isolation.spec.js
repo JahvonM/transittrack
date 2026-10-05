@@ -187,8 +187,10 @@ test('admin showcase keeps metrics, fleet list and working section navigation',a
   await expect(page.getByText('Active buses',{exact:true})).toBeVisible();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
   await page.screenshot({path:'/tmp/tt-admin-desktop.png',fullPage:true});
-  // Card designer sits under All tools in the admin sidebar.
+  // Card designer sits under All tools > Fleet Operations; groups stay closed until tapped.
   await page.getByRole('button',{name:'All tools',exact:true}).click();
+  await expect(page.getByRole('button',{name:'Card designer',exact:true})).toHaveCount(0);
+  await page.getByRole('button',{name:'Fleet Operations',exact:true}).click();
   await page.getByRole('button',{name:'Card designer',exact:true}).click();
   await expect(page.getByRole('button',{name:'Download PNG',exact:true})).toBeVisible();
 });
@@ -301,6 +303,20 @@ test('a damaged company join QR is refused without calling the server',async({pa
  expect(await page.evaluate(()=>sessionStorage.getItem('tt_pending_company_code'))).toBeNull();
 });
 
+test('company code screen offers a QR scan beside typing the code',async({page})=>{
+ const errors=[]; page.on('pageerror',e=>errors.push(e.message));
+ await session(page,'staff');
+ await page.route('**/functions/companyAccess',r=>r.fulfill({status:401,json:{error:'Company code required'}}));
+ await page.goto('/staff');
+ await expect(page.getByText('Enter your company code')).toBeVisible();
+ const scan=page.getByRole('button',{name:'Scan QR code',exact:true});
+ await scan.click();
+ await expect(page.getByText("Point your camera at your company's QR code.")).toBeVisible();
+ await page.getByRole('button',{name:'Stop scanning',exact:true}).click();
+ await expect(scan).toBeVisible();
+ expect(errors).toEqual([]);
+});
+
 test('company dashboard shows a passenger QR for its access code',async({page})=>{
  await session(page,'company');
  await page.route('**/functions/entityAccess',r=>{
@@ -329,6 +345,13 @@ test('admin keeps the current menu group open and message bubble stays above AI'
  await page.goto('/admin/card-designs');
  await expect(tools).toHaveAttribute('aria-expanded','true');
  await expect(nav.getByRole('button',{name:'Card designer',exact:true})).toHaveAttribute('aria-current','page');
+ // Only the group holding the current page is open; the others wait for a tap.
+ await expect(nav.getByRole('button',{name:'Fleet Operations',exact:true})).toHaveAttribute('aria-expanded','true');
+ const admin=nav.getByRole('button',{name:'Admin',exact:true});
+ await expect(admin).toHaveAttribute('aria-expanded','false');
+ await expect(nav.getByRole('button',{name:'Change history',exact:true})).toHaveCount(0);
+ await admin.click();
+ await expect(nav.getByRole('button',{name:'Change history',exact:true})).toBeVisible();
  await tools.click();
  await expect(tools).toHaveAttribute('aria-expanded','false');
  const header=page.getByRole('banner');

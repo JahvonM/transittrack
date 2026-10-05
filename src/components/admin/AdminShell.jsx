@@ -156,8 +156,12 @@ function NavItem({ item, active, onNavigate }) {
 function SidebarNav({ active, onNavigate }) {
   const activeInMore = !PRIMARY_IDS.has(active);
   const [moreOpen, setMoreOpen] = useState(activeInMore);
-  const [collapsed, setCollapsed] = useState({});
+  // Each group stays closed until it is tapped; only the group holding the
+  // page you are on opens by itself.
+  const activeGroup = activeInMore ? ADMIN_SECTIONS.find((s) => s.id === active)?.group : null;
+  const [openGroups, setOpenGroups] = useState(() => (activeGroup ? { [activeGroup]: true } : {}));
   useEffect(() => { if (activeInMore) setMoreOpen(true); }, [activeInMore]);
+  useEffect(() => { if (activeGroup) setOpenGroups((g) => (g[activeGroup] ? g : { ...g, [activeGroup]: true })); }, [activeGroup]);
   return (
     <nav className="space-y-0.5" aria-label="Admin">
       {PRIMARY.map((p) => <NavItem key={p.id} item={p} active={active} onNavigate={onNavigate} />)}
@@ -174,12 +178,12 @@ function SidebarNav({ active, onNavigate }) {
         {moreOpen && GROUP_ORDER.map((group) => {
           const items = ADMIN_SECTIONS.filter((s) => s.group === group && !PRIMARY_IDS.has(s.id));
           if (!items.length) return null;
-          const isCollapsed = !!collapsed[group] && !items.some((s) => s.id === active);
+          const isCollapsed = !openGroups[group];
           return (
             <div key={group} className="pt-2">
               <button
                 type="button"
-                onClick={() => setCollapsed((c) => ({ ...c, [group]: !c[group] }))}
+                onClick={() => setOpenGroups((g) => ({ ...g, [group]: !g[group] }))}
                 aria-expanded={!isCollapsed}
                 className="flex w-full items-center justify-between px-3 py-1 text-caption font-semibold text-sidebar-foreground/60 hover:text-sidebar-foreground"
               >
