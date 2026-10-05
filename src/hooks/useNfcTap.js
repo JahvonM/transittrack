@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { badgeInbox } from "@/lib/badgeInbox";
 import { bridgeHelperToBadgeEvents } from "@/lib/cardReader";
 
 // Two ways a badge tap can arrive:
@@ -47,12 +48,14 @@ export function reportBadgeResult(ok) {
   }
 }
 
-export function useNfcTap(onTag, active) {
+export function useNfcTap(onTag, active, { webActive = active } = {}) {
   const [webNfc] = useState(() => typeof window !== "undefined" && "NDEFReader" in window);
   const [external, setExternal] = useState(hasExternalReader);
   const [listening, setListening] = useState(false);
   const [nfcError, setNfcError] = useState("");
   const readerRef = useRef(null);
+  const takeBadges = useRef(null);
+  if (!takeBadges.current) takeBadges.current = badgeInbox();
   const onTagRef = useRef(onTag);
   onTagRef.current = onTag;
 
@@ -72,15 +75,26 @@ export function useNfcTap(onTag, active) {
     const onBadge = (event) => {
       setExternal(true);
       if (!active) return;
-      const tag = normalizeTag(event?.detail);
-      if (tag) onTagRef.current?.(tag);
+      for (const tag of takeBadges.current(event)) onTagRef.current?.(tag);
+    };
+    const resume = () => {
+      if (document.visibilityState !== "hidden" && active) {
+        for (const tag of takeBadges.current()) onTagRef.current?.(tag);
+      }
     };
     window.addEventListener("tt-badge", onBadge);
-    return () => window.removeEventListener("tt-badge", onBadge);
+    window.addEventListener("pageshow", resume);
+    document.addEventListener("visibilitychange", resume);
+    resume();
+    return () => {
+      window.removeEventListener("tt-badge", onBadge);
+      window.removeEventListener("pageshow", resume);
+      document.removeEventListener("visibilitychange", resume);
+    };
   }, [active]);
 
   useEffect(() => {
-    if (!webNfc || !active) { setListening(false); return; }
+    if (!webNfc || !webActive) { setListening(false); return; }
     let cancelled = false;
     // Without an AbortSignal, a scan started here keeps running (and
     // `onreading` keeps firing) even after this effect's cleanup runs —
@@ -107,7 +121,7 @@ export function useNfcTap(onTag, active) {
         if (!cancelled) setListening(false);
       });
     return () => { cancelled = true; controller.abort(); setListening(false); };
-  }, [webNfc, active]);
+  }, [webNfc, webActive]);
 
   return {
     supported: webNfc || external,

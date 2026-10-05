@@ -24,8 +24,13 @@ final class Kiosk {
 
     private static volatile boolean lastOk = true;
 
-    static boolean badge(Context c, String uid) {
-        return js(c, ANNOUNCE_JS + ";window.dispatchEvent(new CustomEvent(\"tt-badge\",{detail:\"" + uid + "\"}))");
+    static boolean badge(Context c, String uid, String tapId) {
+        String tap = "{uid:" + quote(uid) + ",id:" + quote(tapId) + ",at:" + System.currentTimeMillis() + "}";
+        return js(c, ANNOUNCE_JS
+            + ";(function(){var t=" + tap + ";"
+            + "window.__ttBadgeInbox=(window.__ttBadgeInbox||[]).filter(function(x){return Date.now()-x.at<30000&&x.id!==t.id}).slice(-7);"
+            + "window.__ttBadgeInbox.push(t);"
+            + "var e=new CustomEvent(\"tt-badge\",{detail:t.uid});e.ttTapId=t.id;e.ttTapAt=t.at;window.dispatchEvent(e)})()");
     }
 
     static boolean js(Context c, String code) {

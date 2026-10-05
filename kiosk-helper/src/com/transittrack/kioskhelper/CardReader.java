@@ -24,6 +24,7 @@ final class CardReader implements Runnable {
     private final UsbManager usb;
     private final ResultServer results;
     private volatile boolean running = true;
+    private volatile boolean reconnectRequested = false;
 
     private UsbDevice device;
     private UsbDeviceConnection con;
@@ -39,10 +40,12 @@ final class CardReader implements Runnable {
     }
 
     void stop() { running = false; }
+    void reconnect() { reconnectRequested = true; }
 
     @Override public void run() {
         while (running) {
             try {
+                reconnectRequested = false;
                 UsbDevice d = find();
                 if (d == null) {
                     setReader("Not plugged in");
@@ -128,6 +131,7 @@ final class CardReader implements Runnable {
         boolean armed = true, first = true;
         int misses = 0, fails = 0;
         while (running) {
+            if (reconnectRequested) { Status.log("Reopening scanner after wake"); return; }
             if (device == null || !usb.getDeviceList().containsKey(device.getDeviceName())) {
                 Status.log("Card reader unplugged; looking for scanner");
                 return;
@@ -163,11 +167,17 @@ final class CardReader implements Runnable {
         Status.lastCardIso = Status.iso(System.currentTimeMillis());
         ledRead();
         results.arm();
-        boolean sent = Kiosk.badge(ctx, uid);
+        String tapId = "tap-" + System.currentTimeMillis();
+        boolean sent = Kiosk.badge(ctx, uid, tapId);
         Boolean ok = sent ? results.await(5000) : null;
         if (ok == null) {
+            Status.log("Retrying card delivery to boarding page");
+            sent = Kiosk.badge(ctx, uid, tapId);
+            ok = sent ? results.await(5000) : null;
+        }
+        if (ok == null) {
             Status.log("Card " + uid + (sent ? " sent (no answer from the app)" : " NOT sent"));
-            if (sent) ledSuccess(); else ledRejected();
+            ledRejected(); // A REST response is not confirmation that the app received the tap.
         } else if (ok) {
             Status.log("Card " + uid + " accepted");
             ledSuccess();

@@ -200,10 +200,11 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo }) {
   // attract screen too. A new tap is also taken on the confirm, welcome and
   // error screens (it replaces what's showing), so a person who walks away
   // without pressing Boarding/Exiting can't leave the reader dead for the next.
-  const idleListening = (unlocked || hasExternalReader()) && mode !== "qr";
+  const idleListening = mode !== "qr";
   const { supported: nfcSupported, listening: nfcListening, nfcError } = useNfcTap(
     (tag) => handleTag(tag),
-    idleListening
+    idleListening,
+    { webActive: unlocked && idleListening }
   );
 
   useEffect(() => () => clearTimeout(resetTimer.current), []);
