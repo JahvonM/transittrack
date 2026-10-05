@@ -267,7 +267,7 @@ rem ---------- Step 5: TransitTrack Helper ----------
 echo.
 echo  --- Step 5 of 7: Setting up TransitTrack Helper ---
 if "%TYPE%"=="1" goto helper_driver
-adb shell am start -n %HELPER%/.MainActivity --es api_key "%APIKEY%" --es reader true --es gps false --es hotspot false --es join_ssid %SSID% --es join_pass %HPASS%
+adb shell am start -n %HELPER%/.MainActivity --es api_key "%APIKEY%" --es reader true --es gps false --es hotspot false --es ignition false --es join_ssid %SSID% --es join_pass %HPASS%
 goto helper_set
 :helper_driver
 adb shell am start -n %HELPER%/.MainActivity --es api_key "%APIKEY%" --es reader false --es gps true --es hotspot true
