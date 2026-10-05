@@ -1,3 +1,4 @@
+import { clearBoardingDirectory, boardingDirectoryInfo } from "./boardingDirectory";
 import { cleanTabletSession } from "./tabletSession";
 // Cache tablet display information only. Credential verification requires a connection.
 const DEVICE_KEY = "tt_kiosk_device_cache";
@@ -21,6 +22,7 @@ export function loadDevice(deviceId) {
   return d && (d.device_id === deviceId || d.id === deviceId || !deviceId) ? d : null;
 }
 export function forgetTablet() {
+  try { clearBoardingDirectory(); } catch { /* unavailable storage */ }
   for (const k of [DEVICE_KEY, DIRECTORY_KEY, LAST_STATUS_KEY]) {
     try { localStorage.removeItem(k); } catch { /* ignore */ }
   }
@@ -30,6 +32,8 @@ export function saveDirectory(data) {
   if (data?.staff) write(DIRECTORY_KEY, { generated_at: data.generated_at || new Date().toISOString(), staff: data.staff.map(s => Object.fromEntries(["id", "full_name", "photo_url", "vehicle_id", "vehicle_name"].filter(k => s[k] !== undefined).map(k => [k, s[k]]))) });
 }
 export function directoryInfo() {
+  const index=boardingDirectoryInfo();
+  if(index) return index;
   clearLegacyDirectory();
   const d = read(DIRECTORY_KEY, null);
   return d ? { count: d.staff.length, updated: d.generated_at } : null;

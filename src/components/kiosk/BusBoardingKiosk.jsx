@@ -327,7 +327,7 @@ export default function BusBoardingKiosk({ invoke, device }) {
     try {
       const res = await invoke("lookup_tag", { card_tag: tag });
       setUnlocked(true);
-      setPending({ staff: res.staff, next_status: res.next_status, method: "nfc", verification_grant: res.verification_grant });
+      setPending({ staff: res.staff, next_status: res.next_status, method: "nfc", verification_grant: res.verification_grant, directory_grant:res.directory_grant, card_fingerprint:res.card_fingerprint });
       setMode("confirm");
       reportBadgeResult(true);
     } catch (e) {
@@ -387,10 +387,11 @@ export default function BusBoardingKiosk({ invoke, device }) {
   const confirmCheckIn = async (status) => {
     if (!pending || busy) return;
     setBusy(true);
-    const payload = { expected_device_id:device.device_id||device.id, expected_company_id:device.company_id, expected_vehicle_id:device.vehicle_id, client_request_id: crypto.randomUUID(), occurred_at: new Date().toISOString(), staff_id: pending.staff.id, method: pending.method, code_type: pending.code_type, verification_grant: pending.verification_grant, status };
+    const payload = { expected_device_id:device.device_id||device.id, expected_company_id:device.company_id, expected_vehicle_id:device.vehicle_id, client_request_id: crypto.randomUUID(), occurred_at: new Date().toISOString(), staff_id: pending.staff.id, method: pending.method, code_type: pending.code_type, verification_grant: pending.verification_grant, directory_grant:pending.directory_grant, card_fingerprint:pending.card_fingerprint, status };
     try {
       const res = await submitSavedCheckIn(invoke, payload);
       const record = { staff_name: res.record.staff_name, status: res.record.status };
+      noteStatus(payload.staff_id,status);
       if (Number.isFinite(res.occupancy)) setOccupancy(res.occupancy);
       if (Number.isFinite(res.today_count)) {
         setTodayCount(res.today_count);

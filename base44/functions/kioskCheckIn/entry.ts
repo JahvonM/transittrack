@@ -345,8 +345,20 @@ export default async function(req) {
       // --- bus_boarding: the list a tablet keeps so cards and keypad codes
       // still work with no WiFi (refreshed every few minutes when online) ---
       case 'offline_directory': {
-        if (!device) return Response.json({ error: 'Tablets only' }, { status: 403 });
-        return Response.json({ generated_at: new Date().toISOString(), staff: [], verification_online_only: true });
+        if (!device || device.kiosk_type !== 'bus_boarding' || !vehicleId) return Response.json({ error: 'Assigned bus boarding tablets only' }, { status: 403 });
+        const directory = await loadStaffDirectory(base44, companyId);
+        const staff = [];
+        for (const person of directory) {
+          if (person.vehicle_id !== vehicleId || !person.nfc_tag) continue;
+          if (!(await currentCard(base44,companyId,person,person.nfc_tag)).valid) continue;
+          staff.push({ id: person.id, full_name: person.full_name, photo_url: person.photo_url,
+            card_fingerprint: await hashSecret(device.id + ':' + person.nfc_tag.toUpperCase()) });
+        }
+        const generated_at = new Date().toISOString();
+        const expires_at = new Date(Date.now() + 24 * 3600_000).toISOString();
+        const directory_grant = await issueGrant(base44,device,'boarding-directory',device.id,24 * 3600_000);
+        return Response.json({ version: 1, device_id: device.id, company_id: companyId, vehicle_id: vehicleId,
+          generated_at, expires_at, directory_grant, staff });
       }
 
       // --- bus_boarding: NFC tap lookup, before confirming ---
@@ -440,7 +452,14 @@ export default async function(req) {
         }
         const directory = await loadStaffDirectory(base44, companyId);
         const person = directory.find((s) => s.id === sanitize(staff_id)) || null;
-        if (['nfc', 'qr', 'code'].includes(method) && (!person || !(await validGrant(base44, device, body.verification_grant, 'boarding', person.id)) || !(await currentBoardingEligibility(base44,device,person,body.verification_grant,method)))) return Response.json({ error: 'Online credential verification required' }, { status: 403 });
+        let locallyVerified = false;
+        if (method === 'nfc' && body.directory_grant && device && person?.nfc_tag &&
+            await validGrant(base44,device,body.directory_grant,'boarding-directory',device.id)) {
+          const fingerprint = await hashSecret(device.id + ':' + person.nfc_tag.toUpperCase());
+          locallyVerified = sameDigest(body.card_fingerprint,fingerprint) &&
+            (await currentCard(base44,companyId,person,person.nfc_tag)).valid;
+        }
+        if (['nfc', 'qr', 'code'].includes(method) && !locallyVerified && (!person || !(await validGrant(base44, device, body.verification_grant, 'boarding', person.id)) || !(await currentBoardingEligibility(base44,device,person,body.verification_grant,method)))) return Response.json({ error: 'Card authorization expired or changed. Refresh the tablet passenger list.' }, { status: 403 });
         const refusal = wrongBus(person, vehicleId);
         if (refusal) return Response.json(refusal, { status: 403 });
         const cardTag = person?.nfc_tag || person?.id || sanitize(staff_id) || sanitize(staff_name);
