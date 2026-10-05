@@ -48,7 +48,7 @@ export default async function (req) {
       const text = `A screen in TransitTrack just crashed.\n\nError: ${message}\nPage: ${record.url || 'unknown'}\nUser: ${record.user_email || 'not signed in'}${record.user_role ? ` (${record.user_role})` : ''}\nDevice: ${record.user_agent || 'unknown'}\n\nThe user saw a "Something went wrong" screen with a reload button. Repeats of this same error in the next hour won't send another email. Full details are in Admin → Data manager → ClientError.\n\n— TransitTrack`;
       for (const a of admins) {
         try {
-          await base44.asServiceRole.integrations.Core.SendEmail({ to: a.email, subject: `TransitTrack crash: ${message.slice(0, 80)}`, body: text });
+          await base44.asServiceRole.integrations.Core.SendEmail({ to: a.email, subject: `TransitTrack crash: ${message.slice(0, 80)}`, text });
         } catch { /* email is best-effort */ }
       }
     }
