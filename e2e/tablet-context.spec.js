@@ -254,3 +254,31 @@ test('completed card boarding returns to swipe screen with company banner',async
  await expect(page.getByText(/Slide to/).first()).toBeVisible({timeout:10000});
  await expect(page.getByLabel('Company banner',{exact:true})).toContainText('Company A');
 });
+
+test('completed code exit returns to swipe screen',async({page})=>{
+ await scannerBoarding(page);
+ await page.route('**/functions/kioskCheckIn',r=>{
+   const b=r.request().postDataJSON();
+   if(b.action==='lookup_code')return r.fulfill({json:{staff:{id:'rider',full_name:'Code Passenger'},next_status:'alighted',verification_grant:'b'.repeat(64)}});
+   if(b.action==='check_in')return r.fulfill({json:{record:{id:'exit',staff_name:'Code Passenger',status:'alighted'},occupancy:6,today_count:12}});
+   return r.fallback();
+ });
+ const track=page.getByText('Slide to check in',{exact:true}).locator('..');
+ const box=await track.boundingBox();
+ await page.mouse.move(box.x+36,box.y+36);await page.mouse.down();
+ await page.mouse.move(box.x+box.width-36,box.y+36,{steps:12});await page.mouse.up();
+ for(const digit of ['1','2','3','4'])await page.getByRole('button',{name:digit,exact:true}).click();
+ await page.getByRole('button',{name:'Submit code',exact:true}).click();
+ await expect(page.getByText('Code Passenger',{exact:true})).toBeVisible();
+ await page.getByRole('button',{name:/Getting off/}).click();
+ await expect(page.getByText('See you later, Code!')).toBeVisible();
+ await expect(page.getByText('Slide to check in',{exact:true})).toBeVisible({timeout:10000});
+});
+
+test('driver login displays the scoped company banner',async({page})=>{
+ await mockApi(page,[],{...driver,company_name:'Island Transit',company_logo_url:''});
+ await page.addInitScript(()=>localStorage.setItem('tt_driver_device_id','driver-test'));
+ await page.goto('/driver');
+ await expect(page.getByLabel('Company banner',{exact:true})).toContainText('Island Transit');
+ await expect(page.getByText('Driver PIN required')).toBeVisible();
+});

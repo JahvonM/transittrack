@@ -408,3 +408,16 @@ test('company logo upload previews the banner and saves its URL',async({page})=>
  await page.getByRole('button',{name:'Create company',exact:true}).click();
  await expect.poll(()=>saved).toMatchObject({name:'Logo Company',logo_url:'https://test.invalid/company-logo.png'});
 });
+
+test('fleet explains denied location permission and allows retry',async({page})=>{
+ await session(page,'admin');
+ await page.addInitScript(()=>{
+  navigator.geolocation.getCurrentPosition=(ok,fail)=>fail({code:1});
+  navigator.geolocation.watchPosition=(ok,fail)=>{fail({code:1});return 1;};
+  navigator.geolocation.clearWatch=()=>{};
+ });
+ await page.goto('/admin/fleet');
+ await expect(page.getByText('Location permission denied. Enable location access to see yourself on the map.')).toBeVisible();
+ await page.getByRole('button',{name:'My location',exact:true}).click();
+ await expect(page.getByText('Location permission denied. Enable location access to see yourself on the map.')).toBeVisible();
+});
