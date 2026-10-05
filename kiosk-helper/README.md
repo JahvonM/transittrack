@@ -71,5 +71,5 @@ do not treat the removed credentials as suitable for the first production releas
 after the boarding page starts; wake the tablet and tap again. The passenger identity should
 appear, and the helper should say the page recognized or rejected the card. Verify the display
 stays awake without a charger and with the scanner unplugged. Compilation and mocked browser
-tests do not replace this physical test. The current downloadable APK remains 1.6 until 1.7 is
-signed with the existing private key and released; publishing the website does not update it.
+tests do not replace this physical test. The admin-only Helper app download now supplies signed 1.7 with the existing development
+certificate. Install it on each tablet; publishing the website does not update installed helpers.
