@@ -1,0 +1,16 @@
+{
+  "name": "AppSupportSetting",
+  "type": "object",
+  "properties": {
+    "whatsapp_number": {
+      "type": "string",
+      "description": "App support WhatsApp number in international format, digits only (e.g. 14735551234). Shown to everyone as a 'Report an app problem' link; read and changed only through the appSupport function."
+    }
+  },
+  "rls": {
+    "read": { "user_condition": { "role": "admin" } },
+    "create": { "user_condition": { "role": "admin" } },
+    "update": { "user_condition": { "role": "admin" } },
+    "delete": { "user_condition": { "role": "admin" } }
+  }
+}

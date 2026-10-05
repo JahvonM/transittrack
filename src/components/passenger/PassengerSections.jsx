@@ -2,8 +2,10 @@ import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   Bell, BellOff, BellRing, Bus, ChevronRight, Clock, CircleAlert, KeyRound, LifeBuoy, MapPinned, MessageCircle, OctagonAlert,
-  Map as MapIcon, Phone, Sparkles, TriangleAlert, UserRound, Users, X,
+  Map as MapIcon, MessageSquareWarning, Phone, Sparkles, TriangleAlert, UserRound, Users, X,
 } from "lucide-react";
+import { useSupportWhatsApp } from "@/components/support/ReportAppProblem";
+import { whatsappLink } from "@/lib/appSupport";
 import { base44 } from "@/api/base44Client";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -239,7 +241,7 @@ export function BookedRides({ trips, stopName }) {
   );
 }
 
-function MoreRow({ icon: Icon, title, sub, onClick, href }) {
+function MoreRow({ icon: Icon, title, sub, onClick, href, external = false }) {
   const body = (
     <>
       <Icon className="h-[22px] w-[22px] shrink-0 text-muted-foreground" aria-hidden="true" />
@@ -251,11 +253,12 @@ function MoreRow({ icon: Icon, title, sub, onClick, href }) {
     </>
   );
   const cls = "flex min-h-[64px] w-full items-center gap-4 py-2 text-left hover:bg-accent/50";
-  return <li>{href ? <a href={href} className={cls}>{body}</a> : <button type="button" onClick={onClick} className={cls}>{body}</button>}</li>;
+  return <li>{href ? <a href={href} className={cls} {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}>{body}</a> : <button type="button" onClick={onClick} className={cls}>{body}</button>}</li>;
 }
 
 export function MoreList({ companyName, companyPhone, onBadge, onAssistant, onHelp, onPickup, pickupSummary, onChat, chatUnread = 0 }) {
   const tel = (companyPhone || "").trim();
+  const support = useSupportWhatsApp();
   return (
     <section className="px-6 pt-10 lg:px-0" aria-labelledby="tt-more">
       <SectionHead id="tt-more" title="More" />
@@ -267,6 +270,7 @@ export function MoreList({ companyName, companyPhone, onBadge, onAssistant, onHe
         {tel && <MoreRow icon={Phone} title={`Call ${companyName || "the operator"}`} sub={tel} href={`tel:${tel}`} />}
         <MoreRow icon={LifeBuoy} title="Help and lost items" sub="Report something left on the bus, safety rules" onClick={onHelp} />
         <MoreRow icon={MapPinned} title="Pickup settings" sub={pickupSummary || "Pickup pin, WhatsApp updates, switch company"} onClick={onPickup} />
+        {support && <MoreRow icon={MessageSquareWarning} title="Report an app problem" sub="WhatsApp the TransitTrack team" href={whatsappLink(support, "passenger app")} external />}
       </ul>
     </section>
   );

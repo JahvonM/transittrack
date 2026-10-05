@@ -18,6 +18,7 @@ async function mockApi(page, calls, driverContext=driver) {
       if (body?.action === 'verify_pin') return route.fulfill(body.pin === '1234' ? { json: { ok: true, driver_grant: "a".repeat(64) } } : { status: 403, json: { error: 'Incorrect PIN' } });
       return route.fulfill({ json: driverContext });
     }
+    if (url.includes('/functions/appSupport')) return route.fulfill({ json: { whatsapp_number: '14735551234' } });
     if (url.includes('/entities/')) return route.fulfill({ status: 403, json: { error: 'Direct entity access blocked in test' } });
     return route.fulfill({ json: { id: 'test-app', public_settings: { authentication_required: false } } });
   });
@@ -300,4 +301,13 @@ test('driver keypad unlocks on the fourth digit with big keys and no tablet keyb
   await expect(page.getByText(/Could not unlock/)).toBeVisible();
   for (const d of '1234') await pad.getByRole('button', { name: d, exact: true }).click();
   await expect(page.getByText('Driver PIN required')).toBeHidden();
+});
+
+test('driver More has a WhatsApp button for app problems', async ({ page }) => {
+  await mockApi(page, []);
+  await page.addInitScript(() => localStorage.setItem('tt_driver_device_id', 'driver-test'));
+  await page.goto('/driver/profile');
+  await page.locator('input[type=password]').fill('1234');
+  await page.getByRole('button', { name: 'Unlock', exact: true }).click();
+  await expect(page.getByRole('link', { name: 'Report an app problem on WhatsApp' })).toHaveAttribute('href', /^https:\/\/wa\.me\/14735551234\?text=.*driver%20tablet/);
 });

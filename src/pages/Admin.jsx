@@ -1,4 +1,5 @@
 import React, { Suspense, lazy, useEffect, useState } from "react";
+import SupportNumberSetting from "@/components/admin/SupportNumberSetting";
 import { Navigate, Link, useParams, useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
@@ -415,7 +416,10 @@ export default function Admin() {
         )}
         {section === "profile" && (
           <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-            <ProfileInfo />
+            <div className="space-y-4">
+              <ProfileInfo />
+              <SupportNumberSetting />
+            </div>
             <section className="rounded-2xl border border-border bg-card" aria-label="Settings">
               <h2 className="px-5 pb-2 pt-4 text-title-sm font-bold">Settings</h2>
               <ul className="divide-y divide-border px-2 pb-2">

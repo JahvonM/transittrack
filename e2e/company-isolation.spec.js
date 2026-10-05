@@ -155,6 +155,33 @@ test('approved passenger home shows ETA and opens its map only on request',async
   await page.screenshot({path:'/tmp/tt-passenger-desktop.png',fullPage:true});
 });
 
+test('passenger More has a WhatsApp link for app problems once admin sets the number',async({page})=>{
+  await passengerShowcase(page);
+  await expect(page.getByRole('link',{name:/Report an app problem/})).toHaveCount(0);
+  await page.route('**/functions/appSupport',r=>r.fulfill({json:{whatsapp_number:'14735551234'}}));
+  await page.goto('/staff');
+  const link=page.getByRole('link',{name:/Report an app problem/});
+  await expect(link).toHaveAttribute('href',/^https:\/\/wa\.me\/14735551234\?text=/);
+  await expect(link).toHaveAttribute('target','_blank');
+});
+
+test('admin saves the app support WhatsApp number in Settings',async({page})=>{
+  await session(page,'admin');
+  const sets=[];
+  await page.route('**/functions/appSupport',r=>{
+    const b=r.request().postDataJSON();
+    if(b.action==='set'){sets.push(b.whatsapp_number);return r.fulfill({json:{ok:true,whatsapp_number:'14735551234'}});}
+    return r.fulfill({json:{whatsapp_number:''}});
+  });
+  await page.goto('/admin/profile');
+  const input=page.getByLabel('Support WhatsApp number');
+  await input.fill('+1 473 555 1234');
+  await page.getByRole('button',{name:'Save',exact:true}).click();
+  await expect(page.getByRole('status').filter({hasText:'Saved.'})).toBeVisible();
+  expect(sets).toEqual(['+1 473 555 1234']);
+  await expect(page.getByRole('link',{name:'Test the link'})).toHaveAttribute('href',/wa\.me\/14735551234/);
+});
+
 test('approved passenger mobile layout keeps four navigation items and more menu',async({page})=>{
   await page.setViewportSize({width:390,height:844});
   await passengerShowcase(page,{light:true});
