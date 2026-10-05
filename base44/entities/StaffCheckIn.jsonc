@@ -51,6 +51,10 @@
     "request_hash": {
       "type": "string"
     },
+    "boarding_grant_hash": {
+      "type": "string",
+      "description": "Server-only digest binding a boarding authorization to its completed check-in. Sequential replay protection; not an atomic uniqueness constraint."
+    },
     "device_id": {
       "type": "string"
     }
