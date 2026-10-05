@@ -330,6 +330,7 @@ test('fleet map centers on a late GPS fix and accepts newer less accurate positi
  await session(page,'admin');
  await page.addInitScript(()=>{
    localStorage.setItem('tt-map-engine','basic');
+   navigator.geolocation.getCurrentPosition=()=>{};
    window.gpsCallbacks=new Map();
    let id=0;
    navigator.geolocation.watchPosition=success=>{window.gpsCallbacks.set(++id,success);return id;};
@@ -346,14 +347,17 @@ test('fleet map centers on a late GPS fix and accepts newer less accurate positi
    const map=await page.locator('.leaflet-container').boundingBox(), dot=await marker.boundingBox();
    return Math.max(Math.abs(dot.x+dot.width/2-(map.x+map.width/2)),Math.abs(dot.y+dot.height/2-(map.y+map.height/2)));
  }).toBeLessThan(3);
- const dot=await marker.boundingBox();
+
  await page.evaluate(()=>{
-   for(const success of window.gpsCallbacks.values())success({coords:{latitude:12.041,longitude:-61.74,accuracy:20}});
+   for(const success of window.gpsCallbacks.values())success({coords:{latitude:12.041,longitude:-61.74,accuracy:1200}});
  });
  await expect.poll(async()=>{
-   const moved=await marker.boundingBox();
-   return Math.abs(moved.y-dot.y);
- }).toBeGreaterThan(20);
+   const map=await page.locator('.leaflet-container').boundingBox(),dot=await marker.boundingBox();
+   return Math.abs(dot.y+dot.height/2-(map.y+map.height/2));
+ }).toBeLessThan(3);
+ await expect(page.getByText('Approximate location · accuracy about 1200 metres')).toBeVisible();
+ await page.getByRole('button',{name:'My location',exact:true}).click();
+ await expect(page.locator('.leaflet-container')).toBeVisible();
 });
 
 test('tablet setup download includes the verified helper and prefilled USB script',async({page})=>{
@@ -382,4 +386,25 @@ test('tablet setup download includes the verified helper and prefilled USB scrip
  const generic=await getZip(page.getByRole('button',{name:'Setup tool',exact:true}));
  expect(generic['TransitTrack-Tablet-Setup.bat']).toBeDefined();
  expect(Buffer.from(generic['TransitTrack-Kiosk-Helper.apk'])).toEqual(apk);
+});
+
+test('company logo upload previews the banner and saves its URL',async({page})=>{
+ await session(page,'admin');
+ let saved;
+ await page.route('**/api/**',async r=>{
+  if(/UploadFile/i.test(r.request().url()))return r.fulfill({json:{file_url:'https://test.invalid/company-logo.png'}});
+  return r.fallback();
+ });
+ await page.route('**/functions/entityAccess',async r=>{
+  const b=r.request().postDataJSON();
+  if(b.entity==='Company'&&b.operation==='create'){saved=b.data;return r.fulfill({json:{result:{id:'new-company',...b.data}}});}
+  return r.fallback();
+ });
+ await page.goto('/admin/companies');
+ await page.getByPlaceholder('Island Transit Co.').fill('Logo Company');
+ await page.getByLabel('Company logo',{exact:true}).setInputFiles({name:'logo.png',mimeType:'image/png',buffer:Buffer.from([137,80,78,71])});
+ const preview=page.getByLabel('Company banner preview');
+ await expect(preview.getByRole('img',{name:'Logo Company logo'})).toHaveAttribute('src','https://test.invalid/company-logo.png');
+ await page.getByRole('button',{name:'Create company',exact:true}).click();
+ await expect.poll(()=>saved).toMatchObject({name:'Logo Company',logo_url:'https://test.invalid/company-logo.png'});
 });

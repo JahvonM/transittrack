@@ -14,7 +14,7 @@ const vehicle = { id: 'bus-a', company_id: 'company-a', name: 'Bus A', capacity:
 const device = { created_date: '2026-10-02T00:00:00Z', id: 'tablet', status: 'active', paired: true, kiosk_type: 'bus_boarding', company_id: 'company-a', vehicle_id: 'bus-a' };
 function client(overrides = {}) {
   const entities = new Proxy({}, { get: (_, name) => ({
-    get: async () => name === 'KioskDevice' ? { ...device, ...overrides.device } : name === 'Vehicle' ? { ...vehicle, ...overrides.vehicle } : name === 'Route' ? { id: 'route-a', company_id: 'company-a', stops: [{ name: 'Stop', lat: 1, lng: 2, secret: 'CREDENTIAL_SENTINEL' }], access_code: 'CREDENTIAL_SENTINEL' } : { boss_phone: '555', access_code: 'CREDENTIAL_SENTINEL' },
+    get: async () => name === 'KioskDevice' ? { ...device, ...overrides.device } : name === 'Vehicle' ? { ...vehicle, ...overrides.vehicle } : name === 'Route' ? { id: 'route-a', company_id: 'company-a', stops: [{ name: 'Stop', lat: 1, lng: 2, secret: 'CREDENTIAL_SENTINEL' }], access_code: 'CREDENTIAL_SENTINEL' } : { name: 'Company A', logo_url: 'https://test.invalid/logo.png', boss_phone: '555', access_code: 'CREDENTIAL_SENTINEL' },
     update: async () => ({}),
     create: async (data) => ({ id: 'saved-checkin', created_date: new Date().toISOString(), ...data }),
     list: async () => [],
@@ -32,6 +32,8 @@ describe('tablet backend response security', () => {
     expect(response.status).toBe(200);
     const data = await response.json();
     expect(data.context.vehicle.name).toBe('Bus A');
+    expect(data.company_name).toBe('Company A');
+    expect(data.company_logo_url).toBe('https://test.invalid/logo.png');
     expect(data.context.occupancy).toBe(1);
     expect(data.context.route.stops[0]).toEqual({ name: 'Stop', lat: 1, lng: 2 });
     expect(JSON.stringify(data)).not.toContain('CREDENTIAL_SENTINEL');
@@ -45,6 +47,8 @@ describe('tablet backend response security', () => {
   it('removes vehicle PINs and card UIDs from driver heartbeat', async () => {
     const data = await (await call('driverSession', { action: 'heartbeat' }, { device: { kiosk_type: 'driver' } })).json();
     expect(data.vehicle.name).toBe('Bus A');
+    expect(data.company_name).toBe('Company A');
+    expect(data.company_logo_url).toBe('https://test.invalid/logo.png');
     expect(data.has_driver_pin).toBe(true);
     expect(data.emergency_contacts.boss_phone).toBe('555');
     expect(data.occupancy).toBe(1);

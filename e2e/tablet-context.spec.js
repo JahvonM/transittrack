@@ -239,3 +239,18 @@ test('boarding drains wake taps once and reacquires its screen lock',async({page
  expect(await page.evaluate(()=>window.__ttBadgeInbox)).toEqual([]);
  expect(await page.evaluate(()=>Object.values(localStorage).join(''))).not.toContain('AABBCCDD');
 });
+
+test('completed card boarding returns to swipe screen with company banner',async({page})=>{
+ await scannerBoarding(page);
+ await page.route('**/functions/kioskCheckIn',r=>{
+   const b=r.request().postDataJSON();
+   if(b.action==='check_in')return r.fulfill({json:{record:{id:'boarding',staff_name:'First Tap Passenger',status:'boarded'},occupancy:8,today_count:13}});
+   return r.fallback();
+ });
+ await expect(page.getByLabel('Company banner',{exact:true})).toContainText('Company A');
+ await page.evaluate(()=>window.dispatchEvent(new CustomEvent('tt-badge',{detail:'AABBCCDD'})));
+ await page.getByRole('button',{name:/Boarding/}).click();
+ await expect(page.getByText(/Welcome/).first()).toBeVisible();
+ await expect(page.getByText(/Slide to/).first()).toBeVisible({timeout:10000});
+ await expect(page.getByLabel('Company banner',{exact:true})).toContainText('Company A');
+});
