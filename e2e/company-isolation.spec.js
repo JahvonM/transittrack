@@ -1,8 +1,14 @@
 import {test,expect} from '@playwright/test';
+test.setTimeout(60000);
+expect.configure({ timeout: 15000 });
 const vehicles=[{id:'bus-a',name:'Bus A',company_id:'a',company_name:'Company A',type:'staff_bus',status:'idle',capacity:25},{id:'bus-b',name:'Bus B',company_id:'b',company_name:'Company B',type:'staff_bus',status:'idle',capacity:25}];
 async function session(page,role) {
  const calls=[],direct=[];
- await page.addInitScript(()=>localStorage.setItem('base44_access_token','mock-authenticated-session'));
+ await page.addInitScript(()=>{
+   localStorage.setItem('base44_access_token','mock-authenticated-session');
+   localStorage.setItem('tt-map-engine','basic');
+ });
+ await page.route('https://api.mapbox.com/**', r=>r.fulfill({status:404,body:''}));
  await page.route('**/api/**',async route=>{
   const request=route.request(), url=request.url();
   if(url.includes('/entities/')) {direct.push(url);return route.fulfill({status:403,json:{error:'Direct entity access blocked'}});}
