@@ -182,10 +182,10 @@ test('boarding tablet uses its saved card file after restart without a server lo
   localStorage.setItem('tt_badge_reader','1');
  });
  await page.goto('/kiosk');
- await expect(page.getByText(/Passenger list: 1 cards/)).toBeVisible();
+ await expect(page.getByText(/Passenger list: 1 card\b/)).toBeVisible();
  offline=true;
  await page.reload();
- await expect(page.getByText(/Passenger list: 1 cards/)).toBeVisible();
+ await expect(page.getByText(/Passenger list: 1 card\b/)).toBeVisible();
  await page.evaluate(()=>window.dispatchEvent(new CustomEvent('tt-badge',{detail:'AABBCCDD'})));
  await expect(page.getByText('Local Passenger',{exact:true})).toBeVisible();
  expect(lookups).toBe(0);
@@ -210,7 +210,7 @@ async function scannerBoarding(page) {
    localStorage.removeItem('tt_badge_reader');
  });
  await page.goto('/kiosk');
- await expect(page.getByText(/Passenger list: 1 cards/)).toBeVisible({timeout:20000});
+ await expect(page.getByText(/Passenger list: 1 card\b/)).toBeVisible({timeout:20000});
 }
 test('first scanner tap works without a prior reader announcement',async({page})=>{
  await scannerBoarding(page);
@@ -280,4 +280,24 @@ test('driver login displays the scoped company banner',async({page})=>{
  await page.goto('/driver');
  await expect(page.getByLabel('Company banner',{exact:true})).toContainText('Island Transit');
  await expect(page.getByText('Driver PIN required')).toBeVisible();
+});
+
+test('driver keypad unlocks on the fourth digit with big keys and no tablet keyboard', async ({ page }) => {
+  const calls = [];
+  await mockApi(page, calls);
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.addInitScript(() => {
+    localStorage.setItem('tt_driver_device_id', 'driver-test');
+    localStorage.setItem('tt_driver_unlock_date', new Date().toISOString().slice(0, 10));
+  });
+  await page.goto('/driver');
+  await expect(page.getByText('Driver PIN required')).toBeVisible();
+  await expect(page.locator('input[type=password]')).toHaveAttribute('inputmode', 'none');
+  const pad = page.getByRole('group', { name: 'Keypad' });
+  const one = pad.getByRole('button', { name: '1', exact: true });
+  expect((await one.boundingBox()).height).toBeGreaterThanOrEqual(64);
+  for (const d of '0000') await pad.getByRole('button', { name: d, exact: true }).click();
+  await expect(page.getByText(/Could not unlock/)).toBeVisible();
+  for (const d of '1234') await pad.getByRole('button', { name: d, exact: true }).click();
+  await expect(page.getByText('Driver PIN required')).toBeHidden();
 });

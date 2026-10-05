@@ -17,6 +17,11 @@ export function saveBoardingDirectory(data, device) {
   localStorage.setItem(KEY,JSON.stringify(snapshot));
   return snapshot;
 }
+// Names only, for the tablet's "who's on this list" view.
+export function boardingDirectoryNames() {
+  const d=read();
+  return d?.version===1 && Array.isArray(d.staff) ? d.staff.map(p=>p.full_name).filter(Boolean).sort((a,b)=>a.localeCompare(b)) : [];
+}
 export function boardingDirectoryInfo() {
   const d=read();
   return d?.version===1 ? {count:d.staff?.length || 0,updated:d.generated_at,expires:d.expires_at} : null;

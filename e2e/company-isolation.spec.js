@@ -507,3 +507,18 @@ test('passenger Buses is distinct from Home and chat bubble works on both',async
  await expect(page.locator('#passenger-live-map')).toHaveCount(0);
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
 });
+
+test('card issuing sends the card list to every paired boarding tablet at once',async({page})=>{
+ await session(page,'admin');
+ const sent=[];
+ const tablets=[{id:'t1',vehicle_id:'bus-a',paired:true,active:true},{id:'t2',vehicle_id:'bus-a',paired:true,active:true},{id:'t3',vehicle_id:'bus-b',paired:true,active:true},{id:'t4',vehicle_id:'bus-c',paired:false,active:true}];
+ await page.route('**/functions/nfcCards',r=>{
+  const b=r.request().postDataJSON();
+  if(b.action==='send_to_bus'){sent.push(b.vehicle_id);return r.fulfill({json:{ok:true,sent:tablets.filter(t=>t.vehicle_id===b.vehicle_id&&t.paired).length}});}
+  return r.fulfill({json:{people:[],cards:[],vehicles:[{id:'bus-a',name:'Bus A'},{id:'bus-b',name:'Bus B'}],tablets}});
+ });
+ await page.goto('/admin/cards');
+ await page.getByRole('button',{name:'Send card list to all tablets',exact:true}).click();
+ await expect(page.getByText('Card list sent to 3 tablets').first()).toBeVisible();
+ expect(sent.sort()).toEqual(['bus-a','bus-b']);
+});

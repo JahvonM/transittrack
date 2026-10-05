@@ -73,6 +73,9 @@ export default function Kiosk() {
         setDeviceId(res.data.device_id);
         setStatus("paired");
         setManualCode("");
+        // The pairing code has done its job; keep it out of the address bar
+        // (and out of anyone's view or screenshot of the tablet).
+        if (new URLSearchParams(window.location.search).has("code")) window.history.replaceState(null, "", window.location.pathname);
         heartbeat(res.data.device_id);
         heartbeatId.current = setInterval(() => heartbeat(res.data.device_id), HEARTBEAT_MS);
       })
@@ -125,7 +128,8 @@ export default function Kiosk() {
   useEffect(() => {
     if (!code && !storedId) {
       setStatus("error");
-      setError("No pairing code in the URL. Ask your administrator for the kiosk link.");
+      // Keep a more specific reason (e.g. "no longer paired") if one is showing.
+      setError((prev) => prev || "No pairing code in the URL. Ask your administrator for the kiosk link.");
       return;
     }
 
@@ -191,7 +195,9 @@ export default function Kiosk() {
       setOnline(true);
       return res.data;
     } catch (e) {
-      if (isNetworkFailure(e) && (action === "lookup_tag" || action === "lookup_code")) {
+      // "Too many attempts" (429) is the server answering, not a lost
+      // connection: show it as it is rather than falling back offline.
+      if (isNetworkFailure(e) && e?.response?.status !== 429 && (action === "lookup_tag" || action === "lookup_code")) {
         setOnline(false);
         const local = offlineLookup(action, payload);
         if (local) return local;

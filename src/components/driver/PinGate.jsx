@@ -26,12 +26,12 @@ export default function PinGate({ vehicle, deviceId, invoke, onUnlock }) {
   };
   const navigate = useNavigate();
 
-  const submit = async () => {
+  const submit = async (value = pin) => {
     if (checking) return;
-    if (pin === REVIEWER_PIN) { navigate("/reviewer-sandbox"); return; }
+    if (value === REVIEWER_PIN) { navigate("/reviewer-sandbox"); return; }
     setChecking(true);
     try {
-      const result = await invoke("verify_pin", { pin });
+      const result = await invoke("verify_pin", { pin: value });
       if (result?.ok !== true) throw new Error("PIN verification failed");
       saveDriverGrant(deviceId, result.driver_grant);
       onUnlock();
@@ -41,13 +41,21 @@ export default function PinGate({ vehicle, deviceId, invoke, onUnlock }) {
     } finally { setChecking(false); }
   };
 
-  // On-screen keypad for touch tablets; it only types into the same field.
-  const press = (d) => { setError(""); setPin((p) => (p.length < 4 ? p + d : p)); };
+  // The driver's own keypad: big keys that work with gloves, and the tablet's
+  // keyboard never pops up. Entering the 4th digit on the keypad unlocks
+  // straight away; a hardware keyboard still types into the field.
+  const press = (d) => {
+    if (checking || pin.length >= 4) return;
+    setError("");
+    const next = pin + d;
+    setPin(next);
+    if (next.length === 4) submit(next);
+  };
   const back = () => { setError(""); setPin((p) => p.slice(0, -1)); };
-  const key = "h-14 rounded-xl border border-border bg-background font-display text-headline font-semibold tabular-nums transition-colors hover:bg-accent active:scale-[0.97] disabled:opacity-50";
+  const key = "h-20 rounded-2xl border border-border bg-background font-display text-[2rem] font-semibold tabular-nums transition-colors hover:bg-accent active:scale-[0.97] active:bg-accent disabled:opacity-50 [@media(max-height:700px)]:h-16";
 
   return (
-    <section className="w-full max-w-sm mx-auto rounded-2xl border border-border bg-card p-6" aria-labelledby="tt-pin-title">
+    <section className="w-full max-w-md mx-auto rounded-2xl border border-border bg-card p-6" aria-labelledby="tt-pin-title">
       <h2 id="tt-pin-title" className="flex items-center gap-2 text-title font-bold">
         <Lock className="w-5 h-5 text-muted-foreground" aria-hidden="true" /> Driver PIN required
       </h2>
@@ -56,7 +64,7 @@ export default function PinGate({ vehicle, deviceId, invoke, onUnlock }) {
       <Input
         id="tt-driver-pin"
         type="password"
-        inputMode="numeric"
+        inputMode="none"
         autoComplete="off"
         maxLength={4}
         placeholder="••••"
@@ -66,20 +74,20 @@ export default function PinGate({ vehicle, deviceId, invoke, onUnlock }) {
           setError("");
         }}
         onKeyDown={(e) => e.key === "Enter" && pin.length === 4 && submit()}
-        className="mt-4 h-14 text-center font-display text-3xl tracking-[0.6em]"
+        className="mt-4 h-16 text-center font-display text-4xl tracking-[0.6em]"
       />
-      <div className="mt-3 grid grid-cols-3 gap-2" role="group" aria-label="Keypad">
+      <div className="mt-4 grid grid-cols-3 gap-3" role="group" aria-label="Keypad">
         {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((d) => (
           <button key={d} type="button" className={key} onClick={() => press(d)} disabled={checking}>{d}</button>
         ))}
-        <button type="button" className={`${key} text-body font-semibold`} onClick={() => { setPin(""); setError(""); }} disabled={checking || !pin}>Clear</button>
+        <button type="button" className={`${key} !text-title font-semibold`} onClick={() => { setPin(""); setError(""); }} disabled={checking || !pin}>Clear</button>
         <button type="button" className={key} onClick={() => press("0")} disabled={checking}>0</button>
         <button type="button" className={`${key} grid place-items-center`} onClick={back} disabled={checking || !pin} aria-label="Delete last digit">
-          <Delete className="w-6 h-6" aria-hidden="true" />
+          <Delete className="w-8 h-8" aria-hidden="true" />
         </button>
       </div>
       {error && <p className="mt-3 text-body-sm text-danger" role="alert">{error}</p>}
-      <Button size="lg" className="mt-4 w-full" onClick={submit} disabled={pin.length < 4 || checking} loading={checking}>
+      <Button size="lg" className="mt-4 h-14 w-full text-body" onClick={() => submit()} disabled={pin.length < 4 || checking} loading={checking}>
         <Unlock className="w-5 h-5" aria-hidden="true" /> Unlock
       </Button>
       <Button variant="ghost" className="mt-2 w-full" onClick={() => setForgot(!forgot)} aria-expanded={forgot}>Forgot PIN?</Button>

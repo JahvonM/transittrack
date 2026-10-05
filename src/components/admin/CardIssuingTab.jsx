@@ -52,6 +52,38 @@ const NO_BUS = "__none__";
 // The bus a staff member rides, and sending their card to that bus's
 // boarding tablet (it re-downloads the card list on its next check-in,
 // within about 30 seconds).
+// Asks every paired boarding tablet to download its bus's card list now
+// (each bus's tablet only ever gets its own bus's riders, as names and card
+// fingerprints, never raw card numbers). Uses the same per-bus send as the
+// "Send to bus tablet" button, once for each bus that has a tablet.
+function SendAllToTablets({ tablets, vehicles, onSent }) {
+  const { toast } = useToast();
+  const [busy, setBusy] = useState(false);
+  const buses = [...new Set(tablets.filter((t) => t.paired && t.active && t.vehicle_id).map((t) => t.vehicle_id))];
+  const send = async () => {
+    setBusy(true);
+    let sent = 0;
+    const failed = [];
+    for (const vehicleId of buses) {
+      try {
+        const res = await base44.functions.invoke("nfcCards", { action: "send_to_bus", vehicle_id: vehicleId });
+        sent += res.data?.sent || 0;
+      } catch {
+        failed.push(vehicles.find((v) => v.id === vehicleId)?.name || "a bus");
+      }
+    }
+    setBusy(false);
+    if (failed.length) toast({ title: `Sent to ${sent} tablet${sent === 1 ? "" : "s"}; ${failed.length} bus${failed.length === 1 ? "" : "es"} failed`, description: `Try again for ${failed.join(", ")}.`, variant: "destructive" });
+    else toast({ title: `Card list sent to ${sent} tablet${sent === 1 ? "" : "s"}`, description: "Each tablet downloads its bus's list within about 30 seconds." });
+    onSent?.();
+  };
+  return (
+    <Button variant="outline" size="sm" onClick={send} disabled={busy || !buses.length} title={buses.length ? undefined : "No paired boarding tablets yet"}>
+      {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} Send card list to all tablets
+    </Button>
+  );
+}
+
 function BusLink({ person, vehicles, tablets, onChanged }) {
   const { toast } = useToast();
   const [busy, setBusy] = useState("");
@@ -465,6 +497,7 @@ export default function CardIssuingTab({ companies = [] }) {
         </div>
         <div className="ml-auto flex items-center gap-2">
           <ReaderBadge helper={helper} reader={reader} webNfc={webNfc} />
+          <SendAllToTablets tablets={tablets} vehicles={vehicles} onSent={load} />
           <Button variant="ghost" size="icon" onClick={load} aria-label="Reload"><RefreshCw className="w-4 h-4" /></Button>
         </div>
       </div>

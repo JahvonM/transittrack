@@ -1,4 +1,3 @@
-import CompanyBanner from "@/components/CompanyBanner";
 import React, { useEffect, useRef, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,6 +9,8 @@ import { MAPBOX_TOKEN, mapStyleFor } from "@/lib/mapbox";
 import { useIsDark } from "@/lib/useTheme";
 import { submitSavedCheckIn, hasSavedCheckIn, queueLength, queueSyncError, isNetworkFailure, flushQueue } from "@/lib/offlineQueue";
 import { noteStatus, burnOneTimeCode } from "@/lib/kioskOffline";
+import { boardingDirectoryNames } from "@/lib/boardingDirectory";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import WeatherWidget from "@/components/WeatherWidget";
 import QrScanner from "./QrScanner";
 import SlideToUnlock from "./SlideToUnlock";
@@ -19,6 +20,10 @@ import AnimatedBus, { DrivingScene } from "@/components/AnimatedBus";
 const CODE_MAX_LEN = 12;
 const FLUSH_INTERVAL_MS = 15000;
 const ATTRACT_INTERVAL_MS = 7000;
+
+function safely(read, fallback) {
+  try { return read(); } catch (e) { return typeof fallback === "string" ? e.message : fallback; }
+}
 
 function greeting() {
   const h = new Date().getHours();
@@ -76,7 +81,7 @@ function TopStatusBar({ device, vehicle, now, occupancy, pendingSyncCount }) {
           <Bus className="w-5 h-5 text-primary-foreground" />
         </div>
       )}
-      <div className="min-w-0">
+      <div className="min-w-0" role="group" aria-label="Company banner">
         <p className="font-semibold text-sm truncate">{device?.company_name || "Bus boarding"}</p>
         {device?.vehicle_name && <p className="text-xs text-muted-foreground truncate">{device.vehicle_name}</p>}
       </div>
@@ -155,6 +160,34 @@ function speak(text) {
   } catch { /* speech synthesis is a nice-to-have, never blocks check-in */ }
 }
 
+// The names saved on this tablet for offline card taps (no card numbers).
+// Closes itself after a minute so it isn't left open for the next rider.
+function PassengerListDialog({ open, onOpenChange, vehicleName }) {
+  const names = open ? boardingDirectoryNames() : [];
+  useEffect(() => {
+    if (!open) return undefined;
+    const t = setTimeout(() => onOpenChange(false), 60000);
+    return () => clearTimeout(t);
+  }, [open, onOpenChange]);
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[85vh] max-w-md overflow-hidden">
+        <DialogHeader>
+          <DialogTitle>Cards saved on this tablet</DialogTitle>
+          <DialogDescription>{names.length} passenger{names.length === 1 ? "" : "s"} can tap in on {vehicleName || "this bus"}, even without WiFi.</DialogDescription>
+        </DialogHeader>
+        {names.length ? (
+          <ol className="max-h-[60vh] list-none space-y-1 overflow-y-auto p-0" aria-label="Passengers with cards">
+            {names.map((n, i) => <li key={`${n}-${i}`} className="rounded-lg bg-secondary/60 px-3 py-2 text-body">{n}</li>)}
+          </ol>
+        ) : (
+          <p className="text-body-sm text-muted-foreground">No passengers with cards for this bus yet.</p>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // bus_boarding kiosk: three ways in, all reachable without a click-through
 // chooser screen — NFC tap keeps listening in the background the whole time
 // idle, the keypad is always on-screen (not hidden behind a "don't have
@@ -183,14 +216,17 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo }) {
   // True from the moment a card is tapped until the lookup answers, so the
   // screen reacts instantly even when the bus's connection is slow.
   const [checkingCard, setCheckingCard] = useState(false);
-  const [syncError, setSyncError] = useState(() => queueSyncError());
-  const [pendingSyncCount, setPendingSyncCount] = useState(() => queueLength());
+  // A damaged saved-check-ins list must not crash the boarding screen: the
+  // error shows on the sync line and taps keep working.
+  const [syncError, setSyncError] = useState(() => safely(queueSyncError, ""));
+  const [pendingSyncCount, setPendingSyncCount] = useState(() => safely(queueLength, 0));
   const [vehicle, setVehicle] = useState(null);
   const [route, setRoute] = useState(null);
   const [ads, setAds] = useState([]);
   const [todayCount, setTodayCount] = useState(null);
   const [occupancy, setOccupancy] = useState(0);
   const [attractSlide, setAttractSlide] = useState(0);
+  const [listOpen, setListOpen] = useState(false);
   const resetTimer = useRef(null);
   // When the current card lookup started (0 = none). A lookup that never
   // answers (weak bus signal) must not block every tap after it.
@@ -235,7 +271,10 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo }) {
   // the browser reports connectivity is back, rather than waiting up to 15s.
   useEffect(() => {
     const tryFlush = () => {
-      flushQueue(invoke).then(() => { setPendingSyncCount(queueLength()); setSyncError(queueSyncError()); }).catch(e=>{setBadgeError(e.message);setMode("badge_error");});
+      // A storage problem while syncing in the background is shown on the
+      // sync line, never as a full-screen error that would block the next
+      // passenger (that screen has no button and never cleared itself).
+      flushQueue(invoke).then(() => { setPendingSyncCount(queueLength()); setSyncError(queueSyncError()); }).catch((e) => { setSyncError(e.message); });
     };
     const t = setInterval(tryFlush, FLUSH_INTERVAL_MS);
     // Also on open: check-ins saved offline before a restart go up right away.
@@ -305,6 +344,8 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo }) {
   // confusing "badge not registered"/"code not recognized" message.
   const handleUnpaired = (e) => {
     if (e?.response?.data?.error !== "Invalid or unpaired kiosk device") return false;
+    // A tap can arrive on the lock screen; show the message over it.
+    setUnlocked(true);
     setBadgeError("This tablet's pairing was reset — restarting…");
     setMode("badge_error");
     setTimeout(() => window.location.reload(), 2000);
@@ -313,8 +354,9 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo }) {
 
   // "Wrong bus" / "no bus yet" from the server or the saved list.
   const busMessage = (e) => {
-    if (e?.response?.data?.error === "verification_requires_connection" || isNetworkFailure(e)) return "Connect to WiFi to verify your card or code.";
+    // 429 counts as a "network failure" for queueing, so check it first.
     if (e?.response?.status === 429) return "Too many attempts. Try again in a minute.";
+    if (e?.response?.data?.error === "verification_requires_connection" || isNetworkFailure(e)) return "Connect to WiFi to verify your card or code.";
     return ["wrong_bus", "no_bus"].includes(e?.response?.data?.error) ? e.response.data.message : "";
   };
 
@@ -409,8 +451,10 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo }) {
       // this person their check-in — queue it and let them walk away as if
       // it worked; a real rejection from the backend still shows the error.
       if (isNetworkFailure(e)) {
-        try { setPendingSyncCount(queueLength()); if(!hasSavedCheckIn(payload.client_request_id)) throw e; }
-        catch (storageError) { setBadgeError(storageError.message); setMode("badge_error"); return; }
+        try {
+          setPendingSyncCount(queueLength());
+          if (!hasSavedCheckIn(payload.client_request_id)) throw new Error("This check-in couldn't be saved on the tablet. Please try again.");
+        } catch (storageError) { setBadgeError(storageError.message); setMode("badge_error"); resetSoon(5000); return; }
         noteStatus(payload.staff_id, status);
         if (payload.code_type === "one_time") burnOneTimeCode(payload.staff_id);
         setResult({ staff_name: pending.staff.full_name, status, offline: true });
@@ -488,7 +532,7 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo }) {
   } else if (mode === "result" && result) {
     const boarded = result.status === "boarded";
     actionContent = (
-      <Card className={`rounded-3xl shadow-xl border-border/60 overflow-hidden bg-gradient-to-b ${boarded ? "from-emerald-500/15" : "from-sky-500/15"} to-transparent`}>
+      <Card className={`rounded-3xl shadow-xl border-border/60 overflow-hidden bg-gradient-to-b ${boarded ? "from-success/15" : "from-info/15"} to-transparent`}>
         <CardContent key="result" className="p-10 text-center space-y-4 animate-in fade-in zoom-in-90 duration-500">
           {boarded && (
             <div className="flex justify-center -mb-2">
@@ -542,8 +586,8 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo }) {
     const vehicleName = device?.vehicle_name;
     const press = (d) => setCode((prev) => (prev.length < CODE_MAX_LEN ? prev + d : prev));
     actionContent = (
-      <Screen modeKey="idle" className="p-8 lg:p-10 text-center space-y-6">
-        <div className="min-h-[60px] flex flex-col items-center justify-center">
+      <Screen modeKey="idle" className="p-8 lg:p-10 text-center space-y-6 [@media(max-height:700px)]:!p-4 [@media(max-height:700px)]:!space-y-3">
+        <div className="min-h-[60px] flex flex-col items-center justify-center [@media(max-height:700px)]:hidden">
           <div className="hidden lg:block animate-in fade-in duration-500">
             <p className="text-sm text-muted-foreground">{greeting()}</p>
             <p className="text-2xl xl:text-3xl font-heading font-bold tracking-tight">
@@ -586,7 +630,7 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo }) {
           </div>
         </div>
         <div className="flex flex-col items-center gap-1.5">
-          <div className="relative w-20 h-20 lg:w-24 lg:h-24 grid place-items-center">
+          <div className="relative w-20 h-20 lg:w-24 lg:h-24 grid place-items-center [@media(max-height:700px)]:hidden">
             {nfcListening && (
               <>
                 <span className="absolute inset-0 rounded-full bg-primary/20 animate-ping" />
@@ -609,19 +653,19 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo }) {
         <div className="space-y-3">
           <div className="flex flex-wrap justify-center gap-1 max-w-xs mx-auto">
             {Array.from({ length: Math.max(code.length, 4) }).map((_, i) => (
-              <div key={i} className={`w-10 h-12 lg:w-11 lg:h-14 rounded-xl border-2 grid place-items-center text-xl lg:text-2xl font-bold transition-colors ${i < code.length ? "border-primary bg-primary/5" : "border-border"}`}>
+              <div key={i} className={`w-10 h-12 lg:w-11 lg:h-14 [@media(max-height:700px)]:!h-10 rounded-xl border-2 grid place-items-center text-xl lg:text-2xl font-bold transition-colors ${i < code.length ? "border-primary bg-primary/5" : "border-border"}`}>
                 {i < code.length ? "•" : ""}
               </div>
             ))}
           </div>
           <div className="grid grid-cols-3 gap-2 max-w-xs mx-auto">
             {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((d) => (
-              <Button key={d} variant="outline" className="h-14 text-xl rounded-2xl" onClick={() => press(d)} disabled={checkingCode}>{d}</Button>
+              <Button key={d} variant="outline" className="h-14 [@media(max-height:700px)]:h-11 text-xl rounded-2xl" onClick={() => press(d)} disabled={checkingCode}>{d}</Button>
             ))}
-            <Button variant="outline" className="h-14 rounded-2xl" onClick={() => setCode("")} disabled={checkingCode}>Clear</Button>
-            <Button variant="outline" className="h-14 text-xl rounded-2xl" onClick={() => press("0")} disabled={checkingCode}>0</Button>
-            <Button variant="outline" className="h-14 rounded-2xl" onClick={() => setCode((prev) => prev.slice(0, -1))} disabled={checkingCode}>
-              <Delete className="w-5 h-5" />
+            <Button variant="outline" className="h-14 [@media(max-height:700px)]:h-11 rounded-2xl" onClick={() => setCode("")} disabled={checkingCode}>Clear</Button>
+            <Button variant="outline" className="h-14 [@media(max-height:700px)]:h-11 text-xl rounded-2xl" onClick={() => press("0")} disabled={checkingCode}>0</Button>
+            <Button variant="outline" className="h-14 [@media(max-height:700px)]:h-11 rounded-2xl" onClick={() => setCode((prev) => prev.slice(0, -1))} disabled={checkingCode} aria-label="Delete last digit">
+              <Delete className="w-5 h-5" aria-hidden="true" />
             </Button>
           </div>
           <Button className="w-full max-w-xs mx-auto h-12 text-base rounded-2xl" onClick={submitCode} disabled={!code || checkingCode}>
@@ -637,9 +681,11 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo }) {
           <QrCode className="w-4 h-4" /> Scan QR code instead
         </button>
 
-        {pendingSyncCount > 0 && (
-          <p className="text-xs text-muted-foreground flex items-center justify-center gap-1.5">
-            <CloudUpload className="w-3.5 h-3.5" /> {pendingSyncCount} check-in{pendingSyncCount === 1 ? "" : "s"} waiting to sync{syncError ? " · "+syncError : ""}
+        {(pendingSyncCount > 0 || syncError) && (
+          <p className="text-caption text-muted-foreground flex items-center justify-center gap-1.5" role="status">
+            <CloudUpload className="w-3.5 h-3.5" aria-hidden="true" />
+            {pendingSyncCount > 0 ? `${pendingSyncCount} check-in${pendingSyncCount === 1 ? "" : "s"} waiting to sync` : ""}
+            {pendingSyncCount > 0 && syncError ? " · " : ""}{syncError}
           </p>
         )}
       </Screen>
@@ -657,13 +703,19 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo }) {
         </div>
       )}
       <div className="relative z-10 flex flex-col min-h-screen">
-        <CompanyBanner name={device?.company_name} logoUrl={device?.company_logo_url} compact className="mx-3 mt-3" />
+        {/* The top bar carries the company name and logo; a second banner
+            pushed the slider and keypad off short landscape tablets. */}
         <TopStatusBar device={device} vehicle={vehicle} now={now} occupancy={occupancy} pendingSyncCount={pendingSyncCount} />
-        <p className="px-3 pt-2 text-center text-caption text-muted-foreground" role="status">
-          {directoryInfo?.expires ? `Passenger list: ${directoryInfo.count} cards · updated ${new Date(directoryInfo.updated).toLocaleString()} · ${Date.parse(directoryInfo.expires)>now.getTime() ? "ready for offline taps" : "expired — connect to refresh"}` : "Passenger list not downloaded — connect to WiFi"}
-        </p>
+        <div className="px-3 pt-2 text-center text-caption text-muted-foreground" role="status">
+          {directoryInfo?.expires ? (
+            <button type="button" onClick={() => setListOpen(true)} className="underline-offset-4 hover:underline">
+              Passenger list: {directoryInfo.count} card{directoryInfo.count === 1 ? "" : "s"} · updated {new Date(directoryInfo.updated).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })} · {Date.parse(directoryInfo.expires) > now.getTime() ? "ready for offline taps" : "expired, connect to refresh"} · <span className="font-semibold">See names</span>
+            </button>
+          ) : "Passenger list not downloaded. Connect to WiFi."}
+        </div>
+        <PassengerListDialog open={listOpen} onOpenChange={setListOpen} vehicleName={device?.vehicle_name} />
 
-        <div className="flex-1 flex flex-col lg:flex-row items-center justify-center gap-6 p-6 lg:p-10">
+        <div className="flex-1 flex flex-col lg:flex-row items-center justify-center gap-6 p-6 lg:p-10 [@media(max-height:700px)]:!p-3">
           <div className="w-full max-w-md lg:max-w-xl">
             {actionContent}
           </div>
