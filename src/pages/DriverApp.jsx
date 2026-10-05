@@ -1,5 +1,6 @@
 import CompanyBanner from "@/components/CompanyBanner";
 import { ReportAppProblemButton } from "@/components/support/ReportAppProblem";
+import DriverDocumentsViewer from "@/components/driver/DriverDocumentsViewer";
 import { saveDeviceToken, forgetDeviceToken } from "@/lib/deviceAuth";
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import useNoPageZoom from "@/hooks/useNoPageZoom";
@@ -484,6 +485,7 @@ export default function DriverApp() {
                   <SafetyStandardsContent />
                 </section>
                 <DriverDevicePanel session={session} deviceId={deviceId} onUnpair={handleUnpair} />
+                <DriverDocumentsViewer invoke={invoke} busName={vehicle?.name} />
                 <ReportAppProblemButton where="driver tablet" className="w-full justify-start" />
               </div>
             )}

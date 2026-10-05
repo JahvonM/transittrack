@@ -15,6 +15,11 @@ async function mockApi(page, calls, driverContext=driver) {
     if (url.includes('/functions/kioskHeartbeat')) return route.fulfill({ json: kiosk });
     if (url.includes('/functions/kioskCheckIn')) return route.fulfill({ json: { staff: [], generated_at: new Date().toISOString() } });
     if (url.includes('/functions/driverSession')) {
+      if (body?.action === 'my_documents') return route.fulfill(body.pin === '1234'
+        ? { json: { ok: true, driver_name: 'Test Driver', documents: [
+          { kind: 'license', document_number: 'DL-1', expiry_date: '2030-01-31', file_name: 'licence.png', url: 'data:image/gif;base64,R0lGODlhAQABAAAAACw=' },
+          { kind: 'insurance', document_number: 'INS-9', expiry_date: '2020-01-31', file_name: 'cover.pdf', url: 'https://files.test/cover.pdf' }] } }
+        : { status: 403, json: { error: 'Incorrect PIN' } });
       if (body?.action === 'verify_pin') return route.fulfill(body.pin === '1234' ? { json: { ok: true, driver_grant: "a".repeat(64) } } : { status: 403, json: { error: 'Incorrect PIN' } });
       return route.fulfill({ json: driverContext });
     }
@@ -310,4 +315,26 @@ test('driver More has a WhatsApp button for app problems', async ({ page }) => {
   await page.locator('input[type=password]').fill('1234');
   await page.getByRole('button', { name: 'Unlock', exact: true }).click();
   await expect(page.getByRole('link', { name: 'Report an app problem on WhatsApp' })).toHaveAttribute('href', /^https:\/\/wa\.me\/14735551234\?text=.*driver%20tablet/);
+});
+
+test('driver opens their licence and insurance with the bus PIN, and nothing is kept', async ({ page }) => {
+  await mockApi(page, []);
+  await page.addInitScript(() => localStorage.setItem('tt_driver_device_id', 'driver-test'));
+  await page.goto('/driver/profile');
+  await page.locator('input[type=password]').fill('1234');
+  await page.getByRole('button', { name: 'Unlock', exact: true }).click();
+  await page.getByRole('button', { name: /My licence & insurance/ }).click();
+  const viewer = page.getByRole('dialog', { name: 'My licence and insurance' });
+  const keypad = viewer.getByRole('group', { name: 'Keypad' });
+  for (const d of '0000') await keypad.getByRole('button', { name: d, exact: true }).click();
+  await expect(viewer.getByText("That PIN isn't right.")).toBeVisible();
+  for (const d of '1234') await keypad.getByRole('button', { name: d, exact: true }).click();
+  await expect(viewer.getByRole('img', { name: "Driver's licence photo" })).toBeVisible();
+  await expect(viewer.getByText(/^Expired .*2020$/)).toBeVisible();
+  await expect(viewer.getByRole('link', { name: /Open insurance \(PDF\)/ })).toHaveAttribute('href', 'https://files.test/cover.pdf');
+  const stored = await page.evaluate(() => JSON.stringify({ ...localStorage }) + JSON.stringify({ ...sessionStorage }));
+  expect(stored).not.toContain('DL-1');
+  expect(stored).not.toContain('files.test');
+  await viewer.getByRole('button', { name: 'Close' }).click();
+  await expect(viewer).toHaveCount(0);
 });

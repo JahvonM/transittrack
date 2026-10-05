@@ -497,6 +497,33 @@ export default async function(req) {
         if (!(await verifyProtectedPin(base44, vehicle, body.pin))) return Response.json({ error: 'Incorrect PIN or no PIN configured' }, { status: 403 });
         return Response.json({ ok: true, driver_grant: await issueGrant(base44, device, 'driver', vehicleId, 12 * 3600_000) });
       }
+      case 'my_documents': {
+        // The assigned driver's licence and insurance. Needs the bus PIN again
+        // even on an unlocked tablet, and shares the PIN attempt limit.
+        const vehicle = await loadVehicle(base44, vehicleId);
+        if (!vehicle || vehicle.company_id !== companyId) return Response.json({ error: 'Vehicle assignment mismatch' }, { status: 403 });
+        if (!(await reserveAttempt(base44, 'driver-pin:' + vehicleId, 5, 15 * 60_000))) return Response.json({ error: 'Too many PIN attempts. Try again in 15 minutes.' }, { status: 429 });
+        if (!(await verifyProtectedPin(base44, vehicle, body.pin))) return Response.json({ error: 'Incorrect PIN' }, { status: 403 });
+        const email = String(vehicle.driver_email || '').trim().toLowerCase();
+        if (!email) return Response.json({ ok: true, driver_name: '', documents: [] });
+        const driver = (await base44.asServiceRole.entities.Driver.filter({ company_id: companyId }, '-updated_date', 500))
+          .find((d) => String(d.email || '').trim().toLowerCase() === email);
+        if (!driver) return Response.json({ ok: true, driver_name: vehicle.driver_name || '', documents: [] });
+        const docs = (await base44.asServiceRole.entities.DriverDocument.filter({ driver_id: driver.id }, '-updated_date', 20))
+          .filter((d) => d.company_id === companyId && (d.kind === 'license' || d.kind === 'insurance'));
+        const documents = [];
+        for (const kind of ['license', 'insurance']) {
+          const d = docs.find((x) => x.kind === kind);
+          if (!d) continue;
+          let url = '';
+          if (d.file_uri) {
+            try { url = (await base44.asServiceRole.integrations.Core.CreateFileSignedUrl({ file_uri: d.file_uri, expires_in: 120 }))?.signed_url || ''; }
+            catch { url = ''; }
+          }
+          documents.push({ kind, document_number: d.document_number || '', expiry_date: d.expiry_date || '', file_name: d.file_name || '', url });
+        }
+        return Response.json({ ok: true, driver_name: driver.full_name || vehicle.driver_name || '', documents });
+      }
       case 'heartbeat': {
         const vehicle = await loadVehicle(base44, vehicleId);
         if (!vehicle) return Response.json({ error: 'Vehicle not found' }, { status: 404 });
