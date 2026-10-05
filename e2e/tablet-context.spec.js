@@ -195,3 +195,47 @@ test('boarding tablet uses its saved card file after restart without a server lo
  expect(queue[0].payload).toMatchObject({staff_id:'rider',method:'nfc',directory_grant:'a'.repeat(64),card_fingerprint:fingerprint});
  expect(JSON.stringify(queue)).not.toContain('AABBCCDD');
 });
+
+async function scannerBoarding(page) {
+ await mockApi(page,[]);
+ const fingerprint=createHash('sha256').update('kiosk-test:AABBCCDD').digest('hex');
+ await page.route('**/functions/kioskCheckIn',r=>{
+   const b=r.request().postDataJSON();
+   if(b.action==='offline_directory')return r.fulfill({json:{version:1,device_id:'kiosk-test',company_id:'company-a',vehicle_id:'bus-a',generated_at:new Date().toISOString(),expires_at:new Date(Date.now()+86400000).toISOString(),directory_grant:'a'.repeat(64),staff:[{id:'rider',full_name:'First Tap Passenger',photo_url:'',card_fingerprint:fingerprint}]}});
+   return r.fulfill({status:500,json:{error:'Unexpected server lookup'}});
+ });
+ await page.addInitScript(()=>{
+   localStorage.setItem('tt_kiosk_device_id','kiosk-test');
+   localStorage.setItem('tt-map-engine','basic');
+   localStorage.removeItem('tt_badge_reader');
+ });
+ await page.goto('/kiosk');
+ await expect(page.getByText(/Passenger list: 1 cards/)).toBeVisible({timeout:20000});
+}
+test('first scanner tap works without a prior reader announcement',async({page})=>{
+ await scannerBoarding(page);
+ await page.evaluate(()=>window.dispatchEvent(new CustomEvent('tt-badge',{detail:'AABBCCDD'})));
+ await expect(page.getByText('First Tap Passenger',{exact:true})).toBeVisible();
+});
+test('boarding drains wake taps once and reacquires its screen lock',async({page})=>{
+ await page.addInitScript(()=>{
+   window.wakeRequests=0;window.wakeLocks=[];
+   Object.defineProperty(navigator,'wakeLock',{value:{request:async()=>{
+     window.wakeRequests++;
+     const lock=new EventTarget();lock.released=false;
+     lock.release=async()=>{lock.released=true;lock.dispatchEvent(new Event('release'));};
+     window.wakeLocks.push(lock);return lock;
+   }}});
+ });
+ await scannerBoarding(page);
+ await expect.poll(()=>page.evaluate(()=>window.wakeRequests)).toBeGreaterThan(0);
+ await page.evaluate(async()=>{
+   window.__ttBadgeInbox=[{uid:'AABBCCDD',id:'after-wake',at:Date.now()}];
+   await window.wakeLocks.at(-1).release();
+   window.dispatchEvent(new Event('pageshow'));
+ });
+ await expect(page.getByText('First Tap Passenger',{exact:true})).toBeVisible();
+ await expect.poll(()=>page.evaluate(()=>window.wakeRequests)).toBe(2);
+ expect(await page.evaluate(()=>window.__ttBadgeInbox)).toEqual([]);
+ expect(await page.evaluate(()=>Object.values(localStorage).join(''))).not.toContain('AABBCCDD');
+});
