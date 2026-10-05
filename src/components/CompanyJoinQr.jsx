@@ -29,7 +29,13 @@ export default function CompanyJoinQr({ code, companyName, size = "sm" }) {
     w.document.close();
   };
 
-  if (!code) return null;
+  if (!code) {
+    return (
+      <Button variant="outline" size={size} disabled title="Get a passenger code first, then the QR appears here">
+        <QrCode className="h-4 w-4" /> Show QR
+      </Button>
+    );
+  }
   return (
     <>
       <Button variant="outline" size={size} onClick={() => setOpen(true)}>
