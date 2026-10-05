@@ -88,7 +88,7 @@ export default function ArrivalHero({ state, stop, eta, trip, now = Date.now(), 
     case "signal_lost":
       big = roundMins != null
         ? <><span className={cn(BIG, "text-muted-foreground")}>{roundMins}</span><span className="text-[2rem] font-medium text-muted-foreground">min</span></>
-        : <span className={cn(WORD, "text-muted-foreground")}>Signal lost</span>;
+        : <span className={cn(WORD_LONG, "text-muted-foreground")}>Signal lost</span>;
       sub = bus?.last_location_update ? `Last estimate, from ${clock(bus.last_location_update)}` : "Last estimate";
       note = <p className="mt-1.5 text-body-sm text-muted-foreground">{name} hasn't sent its location since then. The time above may be out of date.</p>;
       break;
@@ -124,7 +124,7 @@ export default function ArrivalHero({ state, stop, eta, trip, now = Date.now(), 
       <LiveLine state={state} fresh={fresh} />
       <p className="sr-only" aria-live="polite">{spoken}</p>
       <div className="mt-5 flex items-end justify-between gap-3">
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <div className="flex items-baseline gap-2" aria-hidden="true">{big}</div>
           <button
             type="button"
