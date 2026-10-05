@@ -68,7 +68,7 @@ final class CardReader implements Runnable {
                 }
                 waitingSince = 0;
                 Config.markSeen(ctx, "reader");
-                if (!open(d)) { sleep(3000); continue; }
+                if (!open(d)) { close(); setReader("Reconnecting"); sleep(3000); continue; }
                 Status.log("Card reader connected");
                 setReader("Connected");
                 readLoop();

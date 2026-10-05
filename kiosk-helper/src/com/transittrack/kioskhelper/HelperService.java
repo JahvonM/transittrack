@@ -86,8 +86,8 @@ public class HelperService extends Service {
                 int battery = batteryPercent();
                 int low = Config.ignition(HelperService.this) ? LOW_BATTERY : CRITICAL_BATTERY;
                 if (!plugged && battery >= 0 && battery <= low) enterParked("battery low (" + battery + "%)");
-                pushHealth();
             }
+            pushHealth(); // Keep scanner connection status fresh while parked too.
             main.postDelayed(this, HEALTH_MS);
         }
     };

@@ -12,9 +12,14 @@ Small Android app for the bus tablets. Replaces the Termux scripts:
 - **USB GPS** (driver tablets): reads a VFAN / Prolific / u-blox / CDC serial GPS and gives the
   position to Android as the "gps" provider (needs `appops set ... android:mock_location allow`).
 - **Always-on** (`--es ignition false`): no screen-off or parked mode on battery; the reader keeps
-  working off the charger and only pauses at 5 % battery.
-- **Parked mode**: 2 min after power is lost (or battery <= 15 % while unplugged) the reader and GPS
-  pause and the wake lock is released. Everything resumes when power returns.
+  working off the charger. At 5 % battery, GPS parks but scanner detection continues.
+- **Parked mode (1.7)**: 2 min after power is lost (or battery <= 15 % while unplugged), GPS
+  pauses. An enabled card reader keeps scanning and reconnecting even while parked.
+  Its CPU wake lock stays held; disable the reader on tablets that do not use a scanner.
+  Without a reader, the wake lock is released. GPS resumes when power returns.
+- **Scanner reconnection (1.7)**: a detached reader is closed, then USB devices are checked
+  every two seconds. After reconnection Android must still grant USB access. Test on a
+  tablet by unplugging/replugging the scanner both while powered and while parked.
 - **Page refresh**: FreeKiosk `/api/reload` when the bus starts after 2+ h parked, or at 3 AM if
   the tablet was never unplugged.
 - **Health report**: every minute sets `window.__ttHelperHealth` in the page; the kiosk/driver
