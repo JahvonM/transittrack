@@ -22,7 +22,7 @@ export default function DriverMessageAlert({ alert, onAcknowledge, onReply }) {
 
   return (
     <div className="fixed inset-0 z-[100] bg-background/95 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="w-full max-w-lg rounded-2xl border bg-card shadow-2xl p-6 space-y-4 animate-in">
+      <div className="w-full max-w-lg max-h-full overflow-y-auto rounded-2xl border bg-card shadow-2xl p-6 space-y-4 animate-in">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3">
             <span className="w-10 h-10 rounded-xl bg-primary text-primary-foreground grid place-items-center shrink-0">
