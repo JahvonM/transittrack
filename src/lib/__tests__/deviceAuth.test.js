@@ -26,9 +26,9 @@ describe('device credential authentication', () => {
    expect(await auth(client(), { ...device, status: 'revoked' }, token)).toBe(false);
    expect(await auth(client(), { ...device, paired: false }, token)).toBe(false);
   });
-  it(`${name} permits only older unenrolled development devices without a token`, async () => {
+  it(`${name} rejects tokenless devices regardless of age`, async () => {
    const auth = load(name).authenticatedTablet;
-   expect(await auth(client([]), device)).toBe(true);
+   expect(await auth(client([]), device)).toBe(false);
    expect(await auth(client([]), { ...device, created_date: '2099-01-01' })).toBe(false);
    expect(await auth(client([]), { ...device, created_date: undefined })).toBe(false);
    expect(await auth(client(), device)).toBe(false);

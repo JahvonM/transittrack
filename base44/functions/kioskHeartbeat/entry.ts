@@ -1,7 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 // Random device credentials are stored only as hashes in protected DeviceCredential.
-// Existing development tablets remain legacy-compatible until explicitly re-paired.
-const LEGACY_DEVICE_CUTOFF = Date.parse('2026-10-03T23:35:39Z');
+// A valid, unexpired token is always required: possessing a device ID is never enough.
 async function deviceDigest(value) {
   const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
   return Array.from(new Uint8Array(bytes), (b) => b.toString(16).padStart(2, '0')).join('');
@@ -16,11 +15,7 @@ async function authenticatedTablet(base44, device, token) {
   if (!device || !device.paired || device.status !== 'active') return false;
   const credentials = await base44.asServiceRole.entities.DeviceCredential.filter({ device_id: device.id }, '-issued_at', 1);
   const credential = credentials[0];
-  if (!credential) {
-    // No upgrade based on possession of an ID. Only older records may use legacy auth.
-    const created = Date.parse(device.created_date);
-    return Number.isFinite(created) && created < LEGACY_DEVICE_CUTOFF;
-  }
+  if (!credential) return false;
   if (typeof token !== 'string' || !/^[a-f0-9]{64}$/.test(token)) return false;
   if (!(Date.parse(credential.expires_at) > Date.now())) return false;
   if (credential.company_id !== device.company_id || credential.vehicle_id !== (device.vehicle_id || '') || credential.kiosk_type !== device.kiosk_type) return false;

@@ -6,6 +6,7 @@ import { load, mock, request } from "../../../security-tests/helpers.js";
 async function driver({ fixAgeMs = 10_000, lat = 12.0201, lng = -61.7601 } = {}) {
   const sdk = mock(null);
   sdk.tables.KioskDevice[0].kiosk_type = "driver";
+  sdk.tables.DeviceCredential[0].kiosk_type = "driver";
   Object.assign(sdk.tables.Vehicle[0], { route_id: "route-a", current_lat: lat, current_lng: lng, last_location_update: new Date(Date.now() - fixAgeMs).toISOString() });
   sdk.tables.Route = [{ id: "route-a", company_id: "a", name: "Coastal", stops: [
     { name: "Town", lat: 12.05, lng: -61.75, order: 0 },

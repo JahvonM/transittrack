@@ -1,5 +1,5 @@
 import {beforeEach,describe,it,expect,vi} from 'vitest';
-import {load,mock,request} from '../../../security-tests/helpers';
+import {load,mock,request,digest} from '../../../security-tests/helpers';
 import {installMemoryStorage} from '../__tests__/memoryStorage';
 import {enqueueCheckIn,flushQueue,queueLength} from '../offlineQueue';
 import {flushGpsQueue,queuedGpsCount} from '../gpsQueue';
@@ -10,7 +10,7 @@ vi.mock('@/hooks/useDriverSession',()=>({patchDriverSession:vi.fn()}));
 beforeEach(()=>installMemoryStorage());
 const failure=status=>Object.assign(new Error('rejected'),{response:{status}});
 async function driver() {
- const sdk=mock(null);sdk.tables.KioskDevice[0].kiosk_type='driver';
+ const sdk=mock(null);sdk.tables.KioskDevice[0].kiosk_type='driver';sdk.tables.DeviceCredential[0].kiosk_type='driver';
  const api=load('driverSession',sdk,['issueGrant']);
  const grant=await api.issueGrant(sdk,sdk.tables.KioskDevice[0],'driver','bus-a',60000);
  return {sdk,send:body=>api.default(request({device_id:'tablet',driver_grant:grant,...body}))};
@@ -64,7 +64,7 @@ describe('Step 6 independent-review production criteria',()=>{
   expect(storedAtSend.some(job=>job.payload.client_request_id && job.payload.action==='start_shift')).toBe(true);
  });
  it('does not reinterpret an unbound legacy shift on a newly assigned bus',async()=>{
-  const {sdk}=await driver();sdk.tables.KioskDevice[0].pairing_code='NEWPAIRING';
+  const {sdk}=await driver();sdk.tables.KioskDevice[0].pairing_code='NEWPAIRING';sdk.tables.DeviceCredential[0].pairing_code_hash=digest('NEWPAIRING');
   // Re-unlock under the new pairing, then attempt a legacy queued payload with no assignment.
   const api=load('driverSession',sdk,['issueGrant']);
   const grant=await api.issueGrant(sdk,sdk.tables.KioskDevice[0],'driver','bus-a',60000);
