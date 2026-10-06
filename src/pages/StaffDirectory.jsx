@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { confirmAction } from "@/components/ConfirmHost";
 import { base44 } from "@/api/base44Client";
 import AppLayout from "@/components/AppLayout";
 import PullToRefresh from "@/components/PullToRefresh";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Users, MessageCircle, Plus, Pencil, Trash2, Nfc, Search } from "lucide-react";
 import { EmptyState, PageActions, Segmented, StatusChip } from "@/components/admin/kit";
 import ContactFormDialog from "@/components/directory/ContactFormDialog";
@@ -20,6 +21,7 @@ export default function StaffDirectory() {
   const [contacts, setContacts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all");
+  const [companyFilter, setCompanyFilter] = useState("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState(null);
 
@@ -65,7 +67,14 @@ export default function StaffDirectory() {
 
   const [query, setQuery] = useState("");
   const q = query.trim().toLowerCase();
+  // Companies present in the directory, for the company filter.
+  const companies = useMemo(() => {
+    const map = new Map();
+    for (const c of contacts) if (c.company_id) map.set(c.company_id, c.company_name || "Unnamed company");
+    return [...map.entries()].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
+  }, [contacts]);
   const filtered = (filter === "all" ? contacts : contacts.filter((c) => c.type === filter))
+    .filter((c) => companyFilter === "all" || c.company_id === companyFilter)
     .filter((c) => !q || [c.name, c.phone, c.email, c.pickup_name, c.dropoff_name, c.company_name].some((x) => String(x || "").toLowerCase().includes(q)));
   const place = (name, lat, lng) => name || (lat != null ? `${lat?.toFixed(4)}, ${lng?.toFixed(4)}` : "");
 
@@ -84,6 +93,15 @@ export default function StaffDirectory() {
           <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Name, phone or stop"
             className="h-10 w-full rounded-xl border border-input bg-card pl-9 pr-3 text-body-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
         </label>
+        {companies.length > 1 && (
+          <Select value={companyFilter} onValueChange={setCompanyFilter}>
+            <SelectTrigger className="h-10 w-full sm:w-56" aria-label="Company"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All companies</SelectItem>
+              {companies.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        )}
         <Segmented label="Passenger type" value={filter} onChange={setFilter} options={["all", "staff", "passenger"].map((t) => ({
           value: t, label: TYPE_LABEL[t], count: t === "all" ? contacts.length : contacts.filter((c) => c.type === t).length,
         }))} />

@@ -255,12 +255,14 @@ function AddStaffDialog({ open, onOpenChange, companies, vehicles, defaultCompan
 }
 
 // ---------------------------------------------------------------------------
-function IssuedCards({ cards, people, onRevoked }) {
+function IssuedCards({ cards, people, companies = [], onRevoked }) {
   const { toast } = useToast();
   const [q, setQ] = useState("");
   const [show, setShow] = useState("active");
+  const [company, setCompany] = useState("all");
   const list = cards
     .filter((c) => (show === "all" ? true : show === "active" ? c.is_active : !c.is_active))
+    .filter((c) => company === "all" || c.company_id === company)
     .filter((c) => !q || `${c.holder_name} ${c.card_uid} ${c.company_name} ${c.assigned_vehicle} ${c.access_level}`.toLowerCase().includes(q.toLowerCase()));
   const revoke = async (card) => {
     if (!(await confirmAction({ title: `Revoke ${card.holder_name}'s card?`, description: `Card ${formatUid(card.card_uid)} will stop working straight away, including on the bus boarding tablets.`, confirmLabel: "Revoke card" }))) return;
@@ -279,6 +281,15 @@ function IssuedCards({ cards, people, onRevoked }) {
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name, card ID, company or bus…" className="pl-9" aria-label="Search issued cards" />
         </div>
+        {companies.length > 0 && (
+          <Select value={company} onValueChange={setCompany}>
+            <SelectTrigger className="w-44" aria-label="Company"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All companies</SelectItem>
+              {companies.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        )}
         <Select value={show} onValueChange={setShow}>
           <SelectTrigger className="w-40" aria-label="Show"><SelectValue /></SelectTrigger>
           <SelectContent>
@@ -555,7 +566,7 @@ export default function CardIssuingTab({ companies = [] }) {
       )}
 
       {view === "cards" ? (
-        <IssuedCards cards={cards} people={people} onRevoked={load} />
+        <IssuedCards cards={cards} people={people} companies={companies} onRevoked={load} />
       ) : view === "bulk" ? (
         <BulkCardIssue
           people={people} vehicles={vehicles} companies={companies} companyName={companyName}
