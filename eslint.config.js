@@ -79,4 +79,12 @@ export default [
       "react-hooks/exhaustive-deps": "off",
     },
   },
+  // Test files run under Node (they import node:fs / node:crypto), so the Node
+  // globals have to be declared or ESLint reports Buffer/process as undefined.
+  {
+    files: ["src/**/*.test.{js,jsx}", "src/**/__tests__/**/*.{js,jsx}"],
+    languageOptions: {
+      globals: { ...globals.browser, ...globals.node },
+    },
+  },
 ];

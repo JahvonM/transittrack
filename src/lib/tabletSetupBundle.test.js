@@ -1,6 +1,7 @@
 import {describe,it,expect} from 'vitest';
 import {readFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
+import {Buffer} from 'node:buffer';
 import {tabletSetupBundle,HELPER_LINE} from './tabletSetupBundle';
 const apk=new Uint8Array(Array.from({length:5000},(_,i)=>(i*37+11)&255));
 const sha=createHash('sha256').update(apk).digest('hex');
