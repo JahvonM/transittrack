@@ -672,3 +672,23 @@ test('card issuing sends the card list to every paired boarding tablet at once',
  await expect(page.getByText('Card list sent to 3 tablets').first()).toBeVisible();
  expect(sent.sort()).toEqual(['bus-a','bus-b']);
 });
+
+test('admin pages ride out Base44 "too many requests" instead of going blank',async({page})=>{
+ await session(page,'admin');
+ const limited=new Set();
+ await page.route('**/functions/entityAccess',r=>{
+   const b=r.request().postDataJSON();
+   // The first request for each list is rate limited, as Base44 does under a burst.
+   const key=`${b.entity}:${b.operation}`;
+   if(b.entity!=='User'&&!limited.has(key)){limited.add(key);return r.fulfill({status:429,json:{error:'Too many requests'}});}
+   let result=[];
+   if(b.entity==='User')result=b.operation==='get'?{id:'caller',role:'admin',email:'admin@test.invalid'}:[];
+   if(b.entity==='KioskDevice')result=[{id:'tablet-test',label:'Bus 2',kiosk_type:'bus_boarding',paired:true,status:'active',vehicle_name:'Bus 2',pairing_code:'TESTPAIR12'}];
+   return r.fulfill({json:{result}});
+ });
+ await page.goto('/admin/kiosks');
+ await expect(page.getByRole('button',{name:'Copy pairing code for Bus 2'})).toBeVisible({timeout:15000});
+ await expect(page.getByText('No kiosk tablets registered yet.')).toHaveCount(0);
+ await expect(page.getByText("Couldn't load devices")).toHaveCount(0);
+ expect(limited.has('KioskDevice:list')).toBe(true);
+});
