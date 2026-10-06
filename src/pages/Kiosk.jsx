@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import BusBoardingKiosk from "@/components/kiosk/BusBoardingKiosk";
 import FrontDeskKiosk from "@/components/kiosk/FrontDeskKiosk";
+import KioskConnectionBadge from "@/components/kiosk/KioskConnectionBadge";
 import { saveDevice, loadDevice, forgetTablet, saveDirectory, directoryInfo, warmPhotos, offlineLookup, noteStatus } from "@/lib/kioskOffline";
 import { isNetworkFailure } from "@/lib/offlineQueue";
 import { helperHealthPayload } from "@/lib/helperHealth";
@@ -252,7 +253,7 @@ export default function Kiosk() {
   if (device?.kiosk_type === "bus_boarding") {
     return (
       <>
-        <BusBoardingKiosk invoke={invoke} device={device} directoryInfo={savedList} />
+        <BusBoardingKiosk invoke={invoke} device={device} directoryInfo={savedList} online={online} />
         {!online && <OfflineChip savedList={savedList} />}
       </>
     );
@@ -261,7 +262,8 @@ export default function Kiosk() {
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-primary/15 via-background to-background">
       <div className="max-w-md w-full space-y-4">
-        <Card className="rounded-3xl shadow-xl border-border/60 overflow-hidden animate-in fade-in slide-in-from-top-4 duration-500">
+        <Card className="relative rounded-3xl shadow-xl border-border/60 overflow-hidden animate-in fade-in slide-in-from-top-4 duration-500">
+          <KioskConnectionBadge online={online} className="absolute top-3 right-3 z-10" />
           <CardHeader className="text-center pb-4 pt-6">
             {device?.company_logo_url ? (
               <img

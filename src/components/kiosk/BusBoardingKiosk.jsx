@@ -15,6 +15,7 @@ import WeatherWidget from "@/components/WeatherWidget";
 import QrScanner from "./QrScanner";
 import SlideToUnlock from "./SlideToUnlock";
 import KioskMascot from "./KioskMascot";
+import KioskConnectionBadge from "./KioskConnectionBadge";
 import AnimatedBus, { DrivingScene } from "@/components/AnimatedBus";
 
 const CODE_MAX_LEN = 12;
@@ -71,7 +72,7 @@ function Screen({ modeKey, className = "", children }) {
 // Persistent header across every mode — company identity, vehicle, live
 // clock, occupancy, and sync status always visible instead of being buried
 // inside whichever card happens to be showing.
-function TopStatusBar({ device, vehicle, now, occupancy, pendingSyncCount }) {
+function TopStatusBar({ device, vehicle, now, occupancy, pendingSyncCount, online }) {
   return (
     <div className="w-full flex items-center gap-3 px-5 sm:px-8 py-3 bg-card/70 backdrop-blur-md border-b border-border/60">
       {device?.company_logo_url ? (
@@ -94,6 +95,7 @@ function TopStatusBar({ device, vehicle, now, occupancy, pendingSyncCount }) {
           <CloudUpload className="w-3.5 h-3.5" /> {pendingSyncCount}
         </div>
       )}
+      <KioskConnectionBadge online={online} />
       <p className="font-bold tabular-nums shrink-0">
         {now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
       </p>
@@ -202,7 +204,7 @@ function PassengerListDialog({ open, onOpenChange, vehicleName }) {
 // sitting in a small centered card, so a big tablet doesn't end up mostly
 // empty space — a persistent top bar and, on large screens, a live info
 // rail (occupancy/weather/ads) fill the room around the actual check-in card.
-export default function BusBoardingKiosk({ invoke, device, directoryInfo }) {
+export default function BusBoardingKiosk({ invoke, device, directoryInfo, online }) {
   const isDark = useIsDark();
   const [unlocked, setUnlocked] = useState(false);
   const [now, setNow] = useState(() => new Date());
@@ -705,7 +707,7 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo }) {
       <div className="relative z-10 flex flex-col min-h-screen">
         {/* The top bar carries the company name and logo; a second banner
             pushed the slider and keypad off short landscape tablets. */}
-        <TopStatusBar device={device} vehicle={vehicle} now={now} occupancy={occupancy} pendingSyncCount={pendingSyncCount} />
+        <TopStatusBar device={device} vehicle={vehicle} now={now} occupancy={occupancy} pendingSyncCount={pendingSyncCount} online={online} />
         <div className="px-3 pt-2 text-center text-caption text-muted-foreground" role="status">
           {directoryInfo?.expires ? (
             <button type="button" onClick={() => setListOpen(true)} className="underline-offset-4 hover:underline">
