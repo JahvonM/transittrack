@@ -63,9 +63,8 @@ function timeAgo(dateStr) {
 const SETUP_TOOL = "/tools/TransitTrack-Tablet-Setup.bat";
 
 // Admin-only: the signed TransitTrack Helper APK comes from the helperRelease
-// backend function (never a public link). Checked against its SHA-256, then
-// saved as TransitTrack-Kiosk-Helper.apk — the name the setup tool expects
-// beside it.
+// backend function (never a public link), is checked against its SHA-256 and
+// then built into the setup file — there is no separate APK to download.
 async function fetchHelperApk() {
   const res = await base44.functions.invoke("helperRelease", {});
   const d = res?.data || {};
@@ -76,26 +75,14 @@ async function fetchHelperApk() {
   const digest = await crypto.subtle.digest("SHA-256", bytes);
   const hex = Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
   if (hex !== d.sha256) throw new Error("The download was damaged — try again.");
-  return { bytes, release: d };
-}
-async function downloadHelperApk() {
-  const { bytes, release: d } = await fetchHelperApk();
-  const url = URL.createObjectURL(new Blob([bytes], { type: "application/vnd.android.package-archive" }));
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = d.file_name || "TransitTrack-Kiosk-Helper.apk";
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 5000);
-  return d.version;
+  return { bytes, release: d, sha256: hex };
 }
 async function downloadSetupFile(device = null, typeLabel = "") {
   const res = await fetch(SETUP_TOOL, { cache: "no-store" });
   if (!res.ok) throw new Error("Setup tool not found");
-  const { bytes: apk, release } = await fetchHelperApk();
-  const bundle = tabletSetupBundle(await res.text(), apk, release.version, device, typeLabel);
-  const url = URL.createObjectURL(new Blob([bundle.bytes], { type: "application/zip" }));
+  const { bytes: apk, release, sha256 } = await fetchHelperApk();
+  const bundle = tabletSetupBundle(await res.text(), apk, release.version, device, typeLabel, sha256);
+  const url = URL.createObjectURL(new Blob([bundle.bytes], { type: "application/octet-stream" }));
   const a = document.createElement("a");
   a.href = url;
   a.download = bundle.filename;
@@ -143,7 +130,7 @@ export default function KioskTablets({ vehicles, companies, onChange }) {
     setDownloadingSetup(true);
     try {
       const version = await downloadSetupFile(device, label);
-      toast({ title: `Setup with Helper ${version} downloaded`, description: "Extract all files, plug in the tablet and choose Update." });
+      toast({ title: `Setup with Helper ${version} downloaded`, description: "One file with the Helper built in. Plug in the tablet, run it and choose Update." });
     } catch (e) {
       toast({ title: "Couldn't download setup", description: e?.response?.status === 403 ? "Only admins can download it." : e?.message || "Try again.", variant: "destructive" });
     } finally { setDownloadingSetup(false); }
@@ -286,16 +273,6 @@ export default function KioskTablets({ vehicles, companies, onChange }) {
           <Button variant="outline" disabled={downloadingSetup} onClick={() => downloadBundle()}>
             <Download className="w-4 h-4 mr-1" /> {downloadingSetup ? "Preparing setup…" : "Setup tool"}
           </Button>
-          <Button
-            variant="outline"
-            onClick={() =>
-              downloadHelperApk()
-                .then((v) => toast({ title: `Helper ${v} downloaded`, description: "Keep TransitTrack-Kiosk-Helper.apk in the same folder as the setup file." }))
-                .catch((e) => toast({ title: "Couldn't download the helper", description: e?.response?.status === 403 ? "Only admins can download it." : (e?.message || "Try again."), variant: "destructive" }))
-            }
-          >
-            <Download className="w-4 h-4 mr-1" /> Helper app
-          </Button>
           <Button variant="outline" disabled={busyId === "upd-all" || !devices.some(updatable)} onClick={() => sendUpdate(devices)}>
             <ArrowUpCircle className="w-4 h-4 mr-1" /> Update all tablets
           </Button>
@@ -308,18 +285,18 @@ export default function KioskTablets({ vehicles, companies, onChange }) {
       <div className="rounded-xl border bg-muted/40 px-4 py-3 text-sm">
         <p className="font-medium">Setting up a new driver or bus boarding tablet</p>
         <ol className="text-muted-foreground list-decimal ml-4 mt-1 space-y-0.5">
-          <li>Register the tablet here, then press <b>Setup file</b> on its card. The ZIP includes the Helper APK and a setup file filled in with its type, code and bus.</li>
+          <li>Register the tablet here, then press <b>Setup file</b> on its card. You get one .bat file, filled in with its type, code and bus, with the TransitTrack Helper built in.</li>
           <li>On the tablet: turn on USB debugging, remove all accounts, connect to Wi-Fi, and plug it into this Windows PC.</li>
-          <li>Extract all files from the ZIP, then double-click the setup file inside and follow the blue window.</li>
+          <li>Double-click the setup file and follow the blue window. If the browser or Windows warns about it, choose Keep / Run anyway.</li>
         </ol>
         <p className="text-xs text-muted-foreground mt-1">
-          Needs ADB on the PC (<code>winget install Google.PlatformTools</code>), the WebView .apk in your Downloads folder, and the
-          TransitTrack Helper is included in both setup downloads with the correct filename.
-          <b>Setup tool</b> includes the same setup script without anything filled in. <b>Helper app</b> downloads the APK on its own.
+          Needs ADB on the PC (<code>winget install Google.PlatformTools</code>) and the WebView .apk in your Downloads folder.
+          The TransitTrack Helper is built into both setup downloads. <b>Setup tool</b> is the same file without a tablet filled in;
+          its menu also updates a tablet and checks one (Helper version, screen settings, card reader key).
         </p>
         <p className="text-xs text-muted-foreground mt-1">
           <b>Updating a tablet that's already set up:</b> plug it in, run its Setup file (or the Setup tool) and choose <b>Update</b>.
-          Extract the ZIP first; the Helper APK is already beside the script. Have the existing FreeKiosk PIN ready. Sync or export Saved Work first. After updating, verify the Helper version, pairing and device status.
+          The Helper is built into the setup file. Have the existing FreeKiosk PIN and REST API key ready. Sync or export Saved Work first. After updating, verify the Helper version, pairing and device status.
         </p>
       </div>
 

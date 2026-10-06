@@ -11,6 +11,7 @@ import { useDriverSession, clearDriverSessionCache } from "@/hooks/useDriverSess
 import { shiftAction } from "@/lib/driverShift";
 import { requestPushToken } from "@/lib/firebase";
 import { useKeepAwake } from "@/hooks/useKeepAwake";
+import { useBlockOtherSites, DRIVER_ALLOWED } from "@/lib/kioskLinkLock";
 import DriverPairing from "@/components/driver/DriverPairing";
 import DriverGreeting, { DriverTopBar } from "@/components/driver/DriverGreeting";
 import PinGate from "@/components/driver/PinGate";
@@ -79,6 +80,8 @@ export default function DriverApp() {
   // locking is never what interrupts GPS tracking (no background-location
   // permission needed for this; it only matters while the screen is on).
   useKeepAwake(!!deviceId);
+  // Other websites stay closed on the tablet; WhatsApp and Google Maps hand-offs still work.
+  useBlockOtherSites(!!deviceId, DRIVER_ALLOWED);
 
   // States for the integrated inline incident modal
   const [isReportOpen, setIsReportOpen] = useState(false);

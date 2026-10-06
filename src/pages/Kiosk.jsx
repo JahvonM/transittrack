@@ -1,4 +1,5 @@
 import { useKeepAwake } from "@/hooks/useKeepAwake";
+import { useBlockOtherSites } from "@/lib/kioskLinkLock";
 import { saveBoardingDirectory, localCardLookup } from "@/lib/boardingDirectory";
 import { deviceRequest, saveDeviceToken, forgetDeviceToken, pairingProfile } from "@/lib/deviceAuth";
 import React, { useState, useEffect, useRef, useCallback } from "react";
@@ -36,6 +37,8 @@ const initialStoredId = () => { try { return localStorage.getItem("tt_kiosk_devi
 export default function Kiosk() {
   useNoPageZoom();
   useKeepAwake();
+  // Boarding tablets never leave TransitTrack for another website.
+  useBlockOtherSites();
   // A tablet that has paired before opens straight from its saved setup, so
   // it still works when it starts up with no WiFi.
   const [device, setDevice] = useState(() => { const id = initialStoredId(); return id ? loadDevice(id) : null; });

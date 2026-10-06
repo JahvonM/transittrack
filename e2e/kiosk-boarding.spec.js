@@ -214,3 +214,22 @@ test('the boarding screen says when the card reader helper stops reaching it', a
   await page.clock.fastForward('00:31');
   await expect(warning).toHaveCount(0);
 });
+
+test('the boarding tablet cannot open other websites', async ({ page }) => {
+  const { errors } = await setup(page);
+  await page.goto('/kiosk');
+  await expect(page.getByText('Slide to check in', { exact: true })).toBeVisible();
+  await page.evaluate(() => {
+    const a = document.createElement('a');
+    a.href = 'https://example.com/'; a.target = '_blank'; a.id = 'outside'; a.textContent = 'Outside link';
+    a.style.cssText = 'position:fixed;top:0;left:0;z-index:99999;padding:20px;background:#fff';
+    document.body.appendChild(a);
+  });
+  const popup = page.waitForEvent('popup', { timeout: 1500 }).catch(() => null);
+  await page.locator('#outside').click();
+  await expect(page.getByRole('status').filter({ hasText: "Other websites can't be opened" })).toBeVisible();
+  expect(await popup).toBeNull();
+  expect(await page.evaluate(() => window.open('https://example.com/'))).toBeNull();
+  expect(new URL(page.url()).pathname).toBe('/kiosk');
+  expect(errors).toEqual([]);
+});

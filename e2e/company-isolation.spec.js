@@ -1,5 +1,4 @@
 import {createHash} from 'node:crypto';
-import {unzipSync,strFromU8} from 'fflate';
 import {test,expect} from '@playwright/test';
 const vehicles=[{id:'bus-a',name:'Bus A',company_id:'a',company_name:'Company A',type:'staff_bus',status:'idle',capacity:25},{id:'bus-b',name:'Bus B',company_id:'b',company_name:'Company B',type:'staff_bus',status:'idle',capacity:25}];
 async function session(page,role) {
@@ -566,7 +565,7 @@ test('fleet map centers on a late GPS fix and accepts newer less accurate positi
  await expect(page.locator('.leaflet-container')).toBeVisible();
 });
 
-test('tablet setup download includes the verified helper and prefilled USB script',async({page})=>{
+test('tablet setup download is one file with the verified helper built in',async({page})=>{
  await session(page,'admin');
  const apk=Buffer.from([80,75,3,4,1,7]);
  await page.route('**/functions/helperRelease',r=>r.fulfill({json:{version:'1.7',version_code:8,file_name:'TransitTrack-Kiosk-Helper.apk',sha256:createHash('sha256').update(apk).digest('hex'),apk_base64:apk.toString('base64')}}));
@@ -577,21 +576,25 @@ test('tablet setup download includes the verified helper and prefilled USB scrip
    return r.fulfill({json:{result}});
  });
  await page.goto('/admin/kiosks');
- const getZip=async(button)=>{
+ const getBat=async(button,name)=>{
    const pending=page.waitForEvent('download');
    await button.click();
    const download=await pending;
-   expect(download.suggestedFilename()).toMatch(/Helper-1\.7\.zip$/);
+   expect(download.suggestedFilename()).toBe(name);
    const stream=await download.createReadStream();const chunks=[];
    for await(const part of stream)chunks.push(part);
-   return unzipSync(Buffer.concat(chunks));
+   return Buffer.concat(chunks).toString('latin1');
  };
- const perTablet=await getZip(page.getByRole('button',{name:'Setup file',exact:true}));
- expect(Buffer.from(perTablet['TransitTrack-Kiosk-Helper.apk'])).toEqual(apk);
- expect(strFromU8(perTablet['TransitTrack-Setup-Bus-2.bat'])).toContain('set PRESET_TYPE=2');
- const generic=await getZip(page.getByRole('button',{name:'Setup tool',exact:true}));
- expect(generic['TransitTrack-Tablet-Setup.bat']).toBeDefined();
- expect(Buffer.from(generic['TransitTrack-Kiosk-Helper.apk'])).toEqual(apk);
+ const builtIn=t=>Buffer.from(t.split('\r\n').filter(l=>l.startsWith('::TTAPK ')).map(l=>l.slice(8)).join(''),'base64');
+ const perTablet=await getBat(page.getByRole('button',{name:'Setup file',exact:true}),'TransitTrack-Setup-Bus-2-Helper-1.7.bat');
+ expect(perTablet).toContain('set PRESET_TYPE=2\r\n');
+ expect(perTablet).toContain(`set HELPER_SHA256=${createHash('sha256').update(apk).digest('hex')}\r\n`);
+ expect(builtIn(perTablet)).toEqual(apk);
+ const generic=await getBat(page.getByRole('button',{name:'Setup tool',exact:true}),'TransitTrack-Tablet-Setup-Helper-1.7.bat');
+ expect(generic).toContain('set PRESET_TYPE=\r\n');
+ expect(builtIn(generic)).toEqual(apk);
+ // No separate APK download any more.
+ await expect(page.getByRole('button',{name:'Helper app',exact:true})).toHaveCount(0);
 });
 
 test('company logo upload previews the banner and saves its URL',async({page})=>{

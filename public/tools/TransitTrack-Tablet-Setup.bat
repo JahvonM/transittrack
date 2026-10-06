@@ -9,6 +9,9 @@ set PRESET_TYPE=
 set PRESET_CODE=
 set PRESET_BUS=
 set PRESET_NAME=
+rem The TransitTrack Helper is built into the end of this file by the app.
+set HELPER_VERSION=
+set HELPER_SHA256=
 
 rem ===== Credentials are entered locally for this tablet; never embed them here. =====
 set PIN=
@@ -17,7 +20,9 @@ set SITE=https://eager-transit-track-go.base44.app
 set HOTSPOT_PREFIX=TT-BUS
 set HELPER=com.transittrack.kioskhelper
 set FK=com.freekiosk/.MainActivity
-rem Boarding tablets: brightness 0-255 (screen timeout is set to never)
+set "TT_SELF=%~f0"
+rem All bus tablets: the screen never times out, on the charger or on battery.
+rem Boarding tablets: brightness 0-255
 set KIOSK_BRIGHTNESS=70
 
 :start
@@ -33,15 +38,21 @@ echo    - NO accounts  - Settings, Accounts, remove all
 echo    - Wi-Fi with internet
 echo    - USB cable plugged into this computer
 echo.
+echo  The TransitTrack Helper %HELPER_VERSION% is built into this file - nothing else to download.
+echo  Needs ADB on this computer:  winget install Google.PlatformTools
+echo  Updating a tablet? Sync or export its Saved Work first.
+echo.
 if not defined PRESET_TYPE goto ask_type
 set TYPE=%PRESET_TYPE%
 echo  This file was made for:  %PRESET_NAME%
 echo.
 echo    [1]  SET UP this tablet - new tablet
-echo    [2]  UPDATE this tablet - already set up, install a trusted helper and settings
+echo    [2]  UPDATE this tablet - already set up: Helper, settings and card reader key
+echo    [3]  CHECK this tablet  - Helper version, screen, battery, card reader key
 echo.
 set MODE=
-set /p MODE=  Type 1 or 2 and press Enter: 
+set /p MODE=  Type 1, 2 or 3 and press Enter: 
+if "%MODE%"=="3" goto check_tablet
 if "%MODE%"=="2" goto update_run
 if "%MODE%"=="1" goto chosen_type
 goto start
@@ -51,10 +62,12 @@ echo  What do you want to do?
 echo.
 echo    [1]  Set up a new DRIVER tablet        - driver app, USB GPS, shares its hotspot
 echo    [2]  Set up a new BUS BOARDING tablet  - card reader, joins the bus hotspot
-echo    [3]  UPDATE a tablet that is already set up
+echo    [3]  UPDATE a tablet that is already set up - Helper, settings, card reader key
+echo    [4]  CHECK a tablet - Helper version, screen, battery, card reader key
 echo.
 set TYPE=
-set /p TYPE=  Type 1, 2 or 3 and press Enter: 
+set /p TYPE=  Type 1, 2, 3 or 4 and press Enter: 
+if "%TYPE%"=="4" goto check_tablet
 if "%TYPE%"=="3" goto update_ask
 :chosen_type
 if "%TYPE%"=="1" goto type_driver
@@ -136,6 +149,7 @@ echo    Tablet type:   %KIND%
 echo    Link:          %URL%
 echo    Bus hotspot:   %SSID%
 echo    Hotspot pass:  %HPASS%
+echo    Helper:        %HELPER_VERSION% - built into this file
 if defined FK_APK echo    FreeKiosk:     %FK_APK%
 if not defined FK_APK echo    FreeKiosk:     will be downloaded from GitHub
 if defined WV_APK echo    WebView:       %WV_APK%
@@ -177,12 +191,13 @@ if not defined WV_APK goto wv_skip
 echo  Installing WebView - the big one, about a minute...
 adb install -r "%WV_APK%"
 :wv_skip
-rem Use a trusted, privately supplied APK; no legacy public helper download.
-set "HELPER_APK=%~dp0TransitTrack-Kiosk-Helper.apk"
-if not exist "%HELPER_APK%" goto helper_failed
-echo  Installing the locally supplied TransitTrack Helper...
+rem The signed Helper is built into this file; no public helper download.
+call :extract_helper
+if errorlevel 1 goto helper_failed
+echo  Installing TransitTrack Helper %HELPER_VERSION%...
 adb install -r "%HELPER_APK%"
 if errorlevel 1 goto helper_failed
+call :cleanup_helper
 rem Old apps the helper replaces - fine if they are not there
 adb uninstall com.termux.boot >nul 2>&1
 adb uninstall org.broeuschmeul.android.gps.usb.provider >nul 2>&1
@@ -196,8 +211,10 @@ pause
 exit /b
 
 :helper_failed
-echo  [X] Place a trusted TransitTrack-Kiosk-Helper.apk beside this setup file.
-echo      Installation may also fail if its signing key differs from the installed app.
+call :cleanup_helper
+echo  [X] The TransitTrack Helper could not be installed. Download this setup file
+echo      again from Admin - Kiosk Tablets. Installing also fails if the tablet has a
+echo      Helper signed with a different key.
 pause
 exit /b
 
@@ -231,6 +248,11 @@ adb shell settings put system user_rotation 1
 adb shell wm fixed-to-user-rotation enabled
 adb shell settings put system sound_effects_enabled 0
 adb shell settings put global stay_on_while_plugged_in 7
+rem Bus tablets: the screen never times out, on the charger or on battery.
+adb shell settings put system screen_off_timeout 2147483647
+adb shell appops set %HELPER% WRITE_SETTINGS allow
+adb shell settings put global low_power 0 >nul 2>&1
+adb shell settings put global low_power_trigger_level 0 >nul 2>&1
 adb shell settings put global policy_control immersive.full=com.freekiosk
 if not defined WV_APK goto wv_set_done
 echo %WV_APK%| find /i "canary" >nul
@@ -241,14 +263,12 @@ goto perms_boarding
 
 :perms_driver
 adb shell appops set %HELPER% android:mock_location allow
-adb shell appops set %HELPER% WRITE_SETTINGS allow
 adb shell settings put global hidden_api_policy 1
 goto perms_done
 
 :perms_boarding
 adb shell pm grant %HELPER% android.permission.ACCESS_FINE_LOCATION
 adb shell settings put secure location_mode 3
-adb shell settings put system screen_off_timeout 2147483647
 adb shell settings put system screen_brightness_mode 0
 adb shell settings put system screen_brightness %KIOSK_BRIGHTNESS%
 goto perms_done
@@ -270,7 +290,7 @@ if "%TYPE%"=="1" goto helper_driver
 adb shell am start -n %HELPER%/.MainActivity --es api_key "%APIKEY%" --es reader true --es gps false --es hotspot false --es ignition false --es join_ssid %SSID% --es join_pass %HPASS%
 goto helper_set
 :helper_driver
-adb shell am start -n %HELPER%/.MainActivity --es api_key "%APIKEY%" --es reader false --es gps true --es hotspot true
+adb shell am start -n %HELPER%/.MainActivity --es api_key "%APIKEY%" --es reader false --es gps true --es hotspot true --es ignition false
 :helper_set
 timeout /t 5 /nobreak >nul
 call :check_key
@@ -342,7 +362,7 @@ echo       OTG charging cable, with the charger connected.
 echo    2. Any USB popup closes by itself. Put it near a window for a GPS fix.
 echo    3. About a minute after start-up, %SSID% appears as a Wi-Fi network.
 :finish_common
-echo    -  Screen stays on while powered. Unplug power: off after about 5 seconds.
+echo    -  The screen never turns off - on the charger and on battery.
 echo    -  Admin - Kiosk Tablets shows battery, reader / GPS and hotspot.
 echo.
 echo  Problem? Plug in this computer and run:  adb logcat -d ^| findstr TTHelper
@@ -370,10 +390,8 @@ goto update_ask
 :update_run
 if "%TYPE%"=="1" set KIND=Driver
 if "%TYPE%"=="2" set KIND=Bus boarding
-set "HELPER_APK=%~dp0TransitTrack-Kiosk-Helper.apk"
-if not exist "%HELPER_APK%" goto upd_failed
 echo.
-echo  Use the trusted Helper APK supplied for this release, with the existing signing key.
+echo  This file installs TransitTrack Helper %HELPER_VERSION%, built in, signed with the existing key.
 echo  Saved Work must be synced or exported before proceeding.
 echo  This update keeps existing pairing, Helper settings and FreeKiosk data.
 :upd_pin
@@ -410,9 +428,12 @@ choice /c YN /n /m "  Continue with this tablet? [Y/N]: "
 if errorlevel 2 exit /b 1
 
 echo.
-echo  --- Update 1 of 3: Trusted TransitTrack Helper ---
+echo  --- Update 1 of 3: TransitTrack Helper %HELPER_VERSION% ---
+call :extract_helper
+if errorlevel 1 goto upd_failed
 call :upd_adb install -r "%HELPER_APK%"
 if errorlevel 1 goto upd_failed
+call :cleanup_helper
 rem Preserve older helper apps; removing them needs separate migration verification.
 
 echo.
@@ -425,12 +446,17 @@ call :upd_adb shell settings put global stay_on_while_plugged_in 7
 if errorlevel 1 goto upd_failed
 call :upd_adb shell settings put system sound_effects_enabled 0
 if errorlevel 1 goto upd_failed
+rem Bus tablets: the screen never times out, on the charger or on battery.
+call :upd_adb shell settings put system screen_off_timeout 2147483647
+if errorlevel 1 goto upd_failed
+call :upd_adb shell appops set %HELPER% WRITE_SETTINGS allow
+if errorlevel 1 goto upd_failed
+call :upd_adb shell settings put global low_power 0 >nul 2>&1
+call :upd_adb shell settings put global low_power_trigger_level 0 >nul 2>&1
 if "%TYPE%"=="1" goto upd_driver
 call :upd_adb shell pm grant %HELPER% android.permission.ACCESS_FINE_LOCATION
 if errorlevel 1 goto upd_failed
 call :upd_adb shell settings put secure location_mode 3
-if errorlevel 1 goto upd_failed
-call :upd_adb shell settings put system screen_off_timeout 2147483647
 if errorlevel 1 goto upd_failed
 call :upd_adb shell settings put system screen_brightness_mode 0
 if errorlevel 1 goto upd_failed
@@ -440,15 +466,13 @@ goto upd_settings_done
 :upd_driver
 call :upd_adb shell appops set %HELPER% android:mock_location allow
 if errorlevel 1 goto upd_failed
-call :upd_adb shell appops set %HELPER% WRITE_SETTINGS allow
-if errorlevel 1 goto upd_failed
 call :upd_adb shell settings put global hidden_api_policy 1
 if errorlevel 1 goto upd_failed
 :upd_settings_done
 rem Android activity launch success is NOT proof of FreeKiosk configuration acceptance.
 call :upd_adb shell am start -n %FK% --es pin "%PIN%" --es rest_api_enabled "true" --es rest_api_port "8080" --es rest_api_key "%APIKEY%" --es managed_apps '[{\"packageName\":\"com.transittrack.kioskhelper\",\"showOnHomeScreen\":false},{\"packageName\":\"com.android.systemui\",\"showOnHomeScreen\":false}]'
 if errorlevel 1 goto upd_failed
-call :upd_adb shell am start -n %HELPER%/.MainActivity --es api_key "%APIKEY%"
+call :upd_adb shell am start -n %HELPER%/.MainActivity --es api_key "%APIKEY%" --es ignition false
 if errorlevel 1 goto upd_failed
 timeout /t 8 /nobreak >nul
 call :upd_adb shell am start -n %FK%
@@ -482,9 +506,11 @@ exit /b 0
 
 :upd_failed
 set PIN=
+call :cleanup_helper
 echo.
 echo  [X] UPDATE STOPPED. No successful update has been recorded.
-echo      Check the trusted APK, its existing signing key, USB connection and PIN.
+echo      Check the USB connection and PIN. Download this setup file again if the
+echo      Helper did not install - it must be signed with the existing key.
 echo      Some earlier settings may already have applied; inspect the tablet.
 echo      Existing app data and older helpers have not been deliberately removed.
 echo      Do not uninstall FreeKiosk or clear app data to work around this error.
@@ -494,6 +520,84 @@ exit /b 1
 :upd_adb
 adb -s "%SERIAL%" %*
 exit /b %errorlevel%
+
+rem =================================================================
+rem   CHECK MODE - read only: Helper version, screen and battery, and
+rem   (optional) the card reader key. Changes nothing on the tablet.
+rem =================================================================
+:check_tablet
+cls
+echo.
+echo  --- Check a tablet - nothing is changed ---
+:chk_device
+set STATE=
+for /f %%s in ('adb -d get-state 2^>nul') do set STATE=%%s
+if "%STATE%"=="device" goto chk_device_ok
+echo.
+echo  [X] Connect exactly ONE USB tablet, wake it, and approve USB debugging.
+pause
+goto chk_device
+:chk_device_ok
+set SERIAL=
+for /f %%s in ('adb -d get-serialno 2^>nul') do set SERIAL=%%s
+echo.
+echo  Helper built into this file:  %HELPER_VERSION%
+set HV=not installed
+for /f "tokens=2 delims==" %%v in ('adb -s "%SERIAL%" shell dumpsys package %HELPER% ^| findstr /c:"versionName"') do set HV=%%v
+echo  Helper on the tablet:         %HV%
+set ST=
+for /f %%v in ('adb -s "%SERIAL%" shell settings get system screen_off_timeout') do set ST=%%v
+if "%ST%"=="2147483647" echo  Screen timeout:               never - OK, on the charger and on battery
+if not "%ST%"=="2147483647" echo  Screen timeout:               %ST% ms - run Update to set it to never
+set SP=
+for /f %%v in ('adb -s "%SERIAL%" shell settings get global stay_on_while_plugged_in') do set SP=%%v
+echo  Stay on while charging:       %SP% - 7 is correct
+for /f "tokens=*" %%v in ('adb -s "%SERIAL%" shell dumpsys battery ^| findstr /c:"level:"') do echo  Battery %%v
+echo.
+echo  Last Helper messages:
+adb -s "%SERIAL%" logcat -d -t 12 -s TTHelper
+echo.
+choice /c YN /n /m "  Test the card reader key? You need this tablet's FreeKiosk REST API key. [Y/N]: "
+if errorlevel 2 goto chk_done
+:chk_key_ask
+set APIKEY=
+set /p APIKEY=  API key - letters, numbers, - or _ (16 or more): 
+powershell -NoProfile -Command "if ($env:APIKEY -notmatch '^[A-Za-z0-9_-]{16,128}$') { exit 1 }"
+if errorlevel 1 goto chk_key_ask
+call :check_key
+if not "%KEYCODE%"=="200" call :key_problem
+if not "%KEYCODE%"=="200" echo      Fix it with UPDATE - it sets the same key in FreeKiosk and the Helper.
+:chk_done
+set APIKEY=
+echo.
+pause
+exit /b 0
+
+rem -----------------------------------------------------------------
+rem  The signed TransitTrack Helper is built into the end of this file as
+rem  base64 lines. This unpacks it to a temporary file, checks its SHA-256
+rem  and sets HELPER_APK. An older download with the APK beside this file
+rem  still works.
+rem -----------------------------------------------------------------
+:extract_helper
+set HELPER_APK=
+set "TT_OUT=%TEMP%\TransitTrack-Kiosk-Helper-%RANDOM%.apk"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$p='::TT'+'APK '; $b=-join (Get-Content -LiteralPath $env:TT_SELF | Where-Object { $_.StartsWith($p) } | ForEach-Object { $_.Substring($p.Length).Trim() }); if (-not $b) { exit 2 }; $d=[Convert]::FromBase64String($b); $h=-join ([Security.Cryptography.SHA256]::Create().ComputeHash($d) | ForEach-Object { $_.ToString('x2') }); if ($env:HELPER_SHA256 -and $h -ne $env:HELPER_SHA256) { exit 3 }; [IO.File]::WriteAllBytes($env:TT_OUT, $d)"
+set TT_X=%errorlevel%
+if "%TT_X%"=="0" (set "HELPER_APK=%TT_OUT%" & exit /b 0)
+if not "%TT_X%"=="2" goto extract_damaged
+if exist "%~dp0TransitTrack-Kiosk-Helper.apk" (set "HELPER_APK=%~dp0TransitTrack-Kiosk-Helper.apk" & exit /b 0)
+echo  [X] This setup file has no TransitTrack Helper built in. Download it again
+echo      from Admin - Kiosk Tablets - Setup file, or Setup tool.
+exit /b 1
+:extract_damaged
+echo  [X] The TransitTrack Helper built into this file is damaged.
+echo      Download the setup file again from Admin - Kiosk Tablets.
+exit /b 1
+
+:cleanup_helper
+if defined TT_OUT if exist "%TT_OUT%" del "%TT_OUT%" >nul 2>&1
+exit /b 0
 
 rem -----------------------------------------------------------------
 rem  Sends the same request the helper sends with every card tap, using the
