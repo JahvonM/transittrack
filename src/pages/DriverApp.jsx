@@ -321,16 +321,16 @@ export default function DriverApp() {
 
   if (!deviceId) {
     if (autoPairing)
-      return <div className="min-h-screen flex items-center justify-center"><BusLoader /></div>;
+      return <div className="min-h-[100dvh] flex items-center justify-center"><BusLoader /></div>;
     return <DriverPairing onPaired={handlePaired} />;
   }
 
   if (loading && !session)
-    return <div className="min-h-screen flex items-center justify-center"><BusLoader /></div>;
+    return <div className="min-h-[100dvh] flex items-center justify-center"><BusLoader /></div>;
 
   if (!session?.vehicle)
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center">
+      <div className="min-h-[100dvh] flex flex-col items-center justify-center p-6 text-center">
         <AlertCircle className="w-10 h-10 text-muted-foreground mb-3" />
         <p className="text-muted-foreground max-w-md mb-4">No vehicle is assigned to this tablet. Ask your administrator to assign a vehicle.</p>
         <Button variant="outline" onClick={handleUnpair}>Unpair tablet</Button>
@@ -366,7 +366,7 @@ export default function DriverApp() {
     // A required inspection can't be skipped — unless the driver opened it themselves.
     const canSkip = !template || !template.driver_required || from === "manual";
     return (
-      <div className="min-h-screen p-4 safe-area-top safe-area-x">
+      <div className="min-h-[100dvh] p-4 safe-area-top safe-area-x">
         <div className="space-y-4 max-w-6xl mx-auto">
           <CompanyBanner name={session.company_name || vehicle.company_name} logoUrl={session.company_logo_url} compact />
           {canSkip && (
@@ -533,7 +533,7 @@ export default function DriverApp() {
       <SentInspectionPrompt pending={promptPending} onStart={(t) => openInspection(t, { from: "unlock" })} />
 
       <Sheet open={isReportOpen} onOpenChange={setIsReportOpen}>
-        <SheetContent side="bottom" className="max-w-3xl mx-auto rounded-t-2xl">
+        <SheetContent side="bottom" className="max-w-3xl mx-auto rounded-t-2xl max-h-[90dvh] overflow-y-auto">
           <SheetHeader>
             <SheetTitle className="flex items-center gap-2">
               <AlertTriangle className="w-5 h-5 text-destructive" />
