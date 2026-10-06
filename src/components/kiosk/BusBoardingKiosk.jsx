@@ -705,14 +705,14 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
   const bgUrl = staticMapBackgroundUrl(vehicle?.current_lat, vehicle?.current_lng, isDark);
 
   return (
-    <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-primary/15 via-background to-background">
+    <div className="min-h-[100dvh] relative overflow-hidden bg-gradient-to-br from-primary/15 via-background to-background">
       {bgUrl && (
         <div className="absolute inset-0">
           <img src={bgUrl} alt="" className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-background/85 backdrop-blur-md" />
         </div>
       )}
-      <div className="relative z-10 flex flex-col min-h-screen">
+      <div className="relative z-10 flex flex-col min-h-[100dvh]">
         {/* The top bar carries the company name and logo; a second banner
             pushed the slider and keypad off short landscape tablets. */}
         <TopStatusBar device={device} vehicle={vehicle} now={now} occupancy={occupancy} pendingSyncCount={pendingSyncCount} online={online} />

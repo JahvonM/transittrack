@@ -52,7 +52,9 @@ export default function FrontDeskKiosk({ invoke }) {
 
   return (
     <Card className="rounded-3xl shadow-xl border-border/60 overflow-hidden">
-      <CardContent className="p-7 space-y-5 animate-in fade-in zoom-in-95 duration-300">
+      {/* Short portrait tablets: tighten the card so the whole sign-in form
+          (including the Sign in button) stays on one screen. */}
+      <CardContent className="p-7 space-y-5 [@media(max-height:1000px)]:p-5 [@media(max-height:1000px)]:space-y-3 animate-in fade-in zoom-in-95 duration-300">
         <div className="flex items-center gap-2.5 justify-center text-muted-foreground">
           <DoorOpen className="w-6 h-6" /> <span className="font-bold text-lg text-foreground">Visitor sign-in</span>
         </div>
