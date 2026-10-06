@@ -35,8 +35,15 @@ export default function PinGate({ vehicle, deviceId, invoke, onUnlock }) {
       if (result?.ok !== true) throw new Error("PIN verification failed");
       saveDriverGrant(deviceId, result.driver_grant);
       onUnlock();
-    } catch {
-      setError("Could not unlock. Check your PIN and connection, or contact your administrator.");
+    } catch (e) {
+      // Say what actually went wrong — a locked-out or offline tablet is not a
+      // wrong PIN, and drivers were reading all three as one.
+      const status = e?.response?.status;
+      const serverMessage = e?.response?.data?.error;
+      if (status === 429) setError(serverMessage || "Too many PIN tries. Wait 15 minutes and try again.");
+      else if (status === 403) setError(serverMessage || "That PIN is not right for this bus. Check the PIN, or ask your administrator.");
+      else if (status === 401) setError("This tablet is no longer paired to a bus. Ask your administrator to pair it again.");
+      else setError("No connection. Check the tablet's Wi-Fi, then try again.");
       setPin("");
     } finally { setChecking(false); }
   };
