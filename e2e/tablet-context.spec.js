@@ -55,7 +55,7 @@ test('driver verifies PIN through backend with entity access blocked', async ({ 
   await expect(page.getByText('Driver PIN required')).toBeVisible();
   await page.locator('input[type=password]').fill('0000');
   await page.getByRole('button', { name: 'Unlock', exact: true }).click();
-  await expect(page.getByText(/Could not unlock/)).toBeVisible();
+  await expect(page.getByText(/Incorrect PIN/)).toBeVisible();
   await page.locator('input[type=password]').fill('1234');
   await page.getByRole('button', { name: 'Unlock', exact: true }).click();
   await expect(page.getByText('Driver PIN required')).toBeHidden();
@@ -303,7 +303,7 @@ test('driver keypad unlocks on the fourth digit with big keys and no tablet keyb
   const one = pad.getByRole('button', { name: '1', exact: true });
   expect((await one.boundingBox()).height).toBeGreaterThanOrEqual(64);
   for (const d of '0000') await pad.getByRole('button', { name: d, exact: true }).click();
-  await expect(page.getByText(/Could not unlock/)).toBeVisible();
+  await expect(page.getByText(/Incorrect PIN/)).toBeVisible();
   for (const d of '1234') await pad.getByRole('button', { name: d, exact: true }).click();
   await expect(page.getByText('Driver PIN required')).toBeHidden();
 });
