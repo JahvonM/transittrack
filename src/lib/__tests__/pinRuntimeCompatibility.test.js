@@ -28,7 +28,7 @@ it('saving a PIN still creates only a protected credential with limited WebCrypt
 });
 
 it('a paired locked tablet can request a scoped admin reset without changing its PIN',async()=>{
- const sdk=mock('admin'); sdk.tables.KioskDevice[0].kiosk_type='driver';
+ const sdk=mock('admin'); sdk.tables.KioskDevice[0].kiosk_type='driver'; sdk.tables.DeviceCredential[0].kiosk_type='driver';
  const handler=load('driverSession',sdk).default;
  const res=await handler(request({device_id:'tablet',action:'request_pin_reset',company_id:'b',vehicle_name:'spoof'}));
  expect(res.status).toBe(200);

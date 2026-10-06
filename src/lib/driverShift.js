@@ -2,7 +2,9 @@ import {submitSavedJob,isOfflineError,bindDriverPayload} from "@/lib/offlineJobs
 import {patchDriverSession} from "@/hooks/useDriverSession";
 export async function shiftAction(invoke,action,selectedShift) {
  const device_id=localStorage.getItem("tt_driver_device_id");
- const cache=JSON.parse(localStorage.getItem("tt_driver_session_cache")||"null");
+ // A corrupt or unreadable session cache must not block starting/ending a shift.
+ let cache=null;
+ try {cache=JSON.parse(localStorage.getItem("tt_driver_session_cache")||"null");} catch {cache=null;}
  const current=selectedShift||cache?.session?.open_shift;
  const client_request_id=crypto.randomUUID(),occurred_at=new Date().toISOString();
  const payload=bindDriverPayload({device_id,action,occurred_at,client_request_id,

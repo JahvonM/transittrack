@@ -38,7 +38,7 @@ export default function DriverPairing({ onPaired }) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-background">
+    <div className="min-h-[100dvh] flex items-center justify-center p-4 bg-background safe-area-top safe-area-x">
       <div className="w-full max-w-sm">
         <Card>
           <CardHeader className="text-center">

@@ -5,6 +5,25 @@ import pluginReactHooks from "eslint-plugin-react-hooks";
 import pluginUnusedImports from "eslint-plugin-unused-imports";
 
 export default [
+  // Files outside the strict ruleset below (src/lib, the shadcn primitives, the
+  // entry point) still have to parse as JSX. Without this, ESLint falls back to
+  // the default parser and reports "Unexpected token <" instead of linting them,
+  // which silently hides real problems in those files.
+  {
+    files: [
+      "src/**/*.{js,mjs,cjs,jsx}",
+    ],
+    languageOptions: {
+      globals: globals.browser,
+      parserOptions: {
+        ecmaVersion: 2022,
+        sourceType: "module",
+        ecmaFeatures: {
+          jsx: true,
+        },
+      },
+    },
+  },
   {
     files: [
       "src/components/**/*.{js,mjs,cjs,jsx}",
@@ -58,6 +77,14 @@ export default [
       ],
       "react-hooks/rules-of-hooks": "error",
       "react-hooks/exhaustive-deps": "off",
+    },
+  },
+  // Test files run under Node (they import node:fs / node:crypto), so the Node
+  // globals have to be declared or ESLint reports Buffer/process as undefined.
+  {
+    files: ["src/**/*.test.{js,jsx}", "src/**/__tests__/**/*.{js,jsx}"],
+    languageOptions: {
+      globals: { ...globals.browser, ...globals.node },
     },
   },
 ];

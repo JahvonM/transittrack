@@ -21,7 +21,7 @@ describe('production security readiness',()=>{
   expect(sdk.tables.DeviceCredential).toHaveLength(1);
  });
  it('rejects pairing codes without an expiry',async()=>{
-  const sdk=mock(null);Object.assign(sdk.tables.KioskDevice[0],{paired:false,pairing_code:'PAIR12345678'});
+  const sdk=mock(null);sdk.tables.DeviceCredential=[];Object.assign(sdk.tables.KioskDevice[0],{paired:false,pairing_code:'PAIR12345678'});
   const response=await load('pairKioskDevice',sdk).default(request({pairing_code:'PAIR12345678'}));
   expect(response.status).toBeGreaterThanOrEqual(400);
   expect(sdk.tables.DeviceCredential||[]).toHaveLength(0);

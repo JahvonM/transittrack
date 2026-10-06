@@ -16,7 +16,10 @@ function mustWrite(jobs) {if(!write(jobs))throw new Error("Saved work could not 
 export function isOfflineError(error) {return (typeof navigator!=="undefined"&&navigator.onLine===false)||!error?.response||[401,429].includes(error.response.status)||error.response.status>=500;}
 export function registerRunner(kind,fn){runners[kind]=fn;}
 export function bindDriverPayload(payload) {
- const cache=JSON.parse(localStorage.getItem("tt_driver_session_cache")||"null");
+ // A corrupt or unreadable session cache must never stop offline work from
+ // being saved — fall back to the unbound payload instead of throwing.
+ let cache=null;
+ try {cache=JSON.parse(localStorage.getItem("tt_driver_session_cache")||"null");} catch {cache=null;}
  const vehicle=cache?.session?.vehicle;
  return vehicle&&cache.device_id===payload.device_id?{...payload,expected_device_id:payload.expected_device_id||payload.device_id,expected_company_id:payload.expected_company_id||vehicle.company_id,expected_vehicle_id:payload.expected_vehicle_id||vehicle.id}:payload;
 }

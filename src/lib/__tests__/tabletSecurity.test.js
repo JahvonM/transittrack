@@ -1,7 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import ts from 'typescript';
+import { createHash } from 'node:crypto';
 import { cleanTabletSession } from '../tabletSession';
+const sha=value=>createHash('sha256').update(value).digest('hex');
+const TOKEN='c'.repeat(64);
 
 function handler(name, client) {
   const source = fs.readFileSync(new URL(`../../../base44/functions/${name}/entry.ts`, import.meta.url), 'utf8').replace(/^import .*;\s*$/gm, '');
@@ -18,12 +21,12 @@ function client(overrides = {}) {
     update: async () => ({}),
     create: async (data) => ({ id: 'saved-checkin', created_date: new Date().toISOString(), ...data }),
     list: async () => [],
-    filter: async () => { if (name === 'StaffCheckIn' && overrides.summaryFailure) throw new Error('summary unavailable'); return name === 'StaffCheckIn' ? [{ id: 'boarding', company_id: 'company-a', vehicle_id: 'bus-a', staff_name: 'Rider', card_tag: 'CREDENTIAL_SENTINEL', status: 'boarded', created_date: new Date().toISOString() }] : name === 'Contact' ? [{ id: 'rider-a', type: 'staff', company_id: 'company-a', name: 'Rider', nfc_card_tag: 'CREDENTIAL_SENTINEL', access_code: 'CREDENTIAL_SENTINEL' }] : []; },
+    filter: async () => { const current = { ...device, ...overrides.device }; if (name === 'DeviceCredential') return [{ id: 'credential', device_id: current.id, token_hash: sha(TOKEN), company_id: current.company_id, vehicle_id: current.vehicle_id || '', kiosk_type: current.kiosk_type, pairing_code_hash: sha(current.pairing_code || ''), expires_at: '2099-01-01T00:00:00Z' }]; if (name === 'StaffCheckIn' && overrides.summaryFailure) throw new Error('summary unavailable'); return name === 'StaffCheckIn' ? [{ id: 'boarding', company_id: 'company-a', vehicle_id: 'bus-a', staff_name: 'Rider', card_tag: 'CREDENTIAL_SENTINEL', status: 'boarded', created_date: new Date().toISOString() }] : name === 'Contact' ? [{ id: 'rider-a', type: 'staff', company_id: 'company-a', name: 'Rider', nfc_card_tag: 'CREDENTIAL_SENTINEL', access_code: 'CREDENTIAL_SENTINEL' }] : []; },
   }) });
   return { asServiceRole: { entities }, auth: { me: async () => null } };
 }
 async function call(name, body, overrides) {
-  return handler(name, client(overrides))(new Request('https://test.local', { method: 'POST', body: JSON.stringify({ device_id: 'tablet', ...body }) }));
+  return handler(name, client(overrides))(new Request('https://test.local', { method: 'POST', body: JSON.stringify({ device_id: 'tablet', device_token: TOKEN, ...body }) }));
 }
 
 describe('tablet backend response security', () => {
