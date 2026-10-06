@@ -344,11 +344,13 @@ export default function DriverApp() {
   if (!unlocked) {
     return (
       <div className="min-h-[100dvh] grid place-items-center safe-area-top safe-area-x">
-        {/* Padding sits inside: safe-area-x replaces the outer box's padding. */}
-        <div className="grid w-full max-w-4xl gap-10 p-6 md:grid-cols-2 md:items-center">
-          <div className="space-y-6">
-            <CompanyBanner name={session.company_name || vehicle.company_name} logoUrl={session.company_logo_url} />
-            <DriverGreeting driverName={driverName} subtitle={vehicle.name} />
+        {/* Padding sits inside: safe-area-x replaces the outer box's padding.
+            Portrait stacks the identity panel above the PIN pad, landscape puts
+            them side by side — either way the login fits one screen, no scroll. */}
+        <div className="grid w-full max-w-4xl gap-4 p-4 [@media(orientation:landscape)]:grid-cols-2 [@media(orientation:landscape)]:items-center [@media(orientation:landscape)]:gap-10 [@media(orientation:landscape)]:p-6">
+          <div className="flex flex-col gap-3 [@media(orientation:landscape)]:gap-6">
+            <CompanyBanner name={session.company_name || vehicle.company_name} logoUrl={session.company_logo_url} compact />
+            <DriverGreeting driverName={driverName} subtitle={vehicle.name} compact />
           </div>
           <PinGate deviceId={deviceId} vehicle={vehicle} invoke={invoke} onUnlock={() => { localStorage.setItem("tt_driver_unlock_date", new Date().toISOString().slice(0, 10)); setUnlocked(true); if (dueInspections.length) openInspection(dueInspections[0], { from: "unlock" }); else goStage(urlStage && urlStage !== "pin" && urlStage !== "inspection" ? urlStage : session?.open_shift ? "track" : "home"); }} />
         </div>

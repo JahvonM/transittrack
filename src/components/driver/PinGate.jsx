@@ -59,10 +59,12 @@ export default function PinGate({ vehicle, deviceId, invoke, onUnlock }) {
     if (next.length === 4) submit(next);
   };
   const back = () => { setError(""); setPin((p) => p.slice(0, -1)); };
-  const key = "h-20 rounded-2xl border border-border bg-background font-display text-[2rem] font-semibold tabular-nums transition-colors hover:bg-accent active:scale-[0.97] active:bg-accent disabled:opacity-50 [@media(max-height:700px)]:h-16";
+  // Keys scale with the screen height so the whole gate always fits one
+  // screen — a 10.1" tablet in portrait never scrolls to reach Unlock.
+  const key = "h-[clamp(3.5rem,7.5vh,5.5rem)] rounded-2xl border border-border bg-background font-display text-[2rem] font-semibold tabular-nums transition-colors hover:bg-accent active:scale-[0.97] active:bg-accent disabled:opacity-50";
 
   return (
-    <section className="w-full max-w-md mx-auto rounded-2xl border border-border bg-card p-6" aria-labelledby="tt-pin-title">
+    <section className="w-full max-w-md mx-auto rounded-2xl border border-border bg-card p-5 sm:p-6" aria-labelledby="tt-pin-title">
       <h2 id="tt-pin-title" className="flex items-center gap-2 text-title font-bold">
         <Lock className="w-5 h-5 text-muted-foreground" aria-hidden="true" /> Driver PIN required
       </h2>
@@ -81,9 +83,9 @@ export default function PinGate({ vehicle, deviceId, invoke, onUnlock }) {
           setError("");
         }}
         onKeyDown={(e) => e.key === "Enter" && pin.length === 4 && submit()}
-        className="mt-4 h-16 text-center font-display text-4xl tracking-[0.6em]"
+        className="mt-3 h-14 text-center font-display text-4xl tracking-[0.6em]"
       />
-      <div className="mt-4 grid grid-cols-3 gap-3" role="group" aria-label="Keypad">
+      <div className="mt-3 grid grid-cols-3 gap-2 sm:gap-3" role="group" aria-label="Keypad">
         {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((d) => (
           <button key={d} type="button" className={key} onClick={() => press(d)} disabled={checking}>{d}</button>
         ))}
@@ -94,7 +96,7 @@ export default function PinGate({ vehicle, deviceId, invoke, onUnlock }) {
         </button>
       </div>
       {error && <p className="mt-3 text-body-sm text-danger" role="alert">{error}</p>}
-      <Button size="lg" className="mt-4 h-14 w-full text-body" onClick={() => submit()} disabled={pin.length < 4 || checking} loading={checking}>
+      <Button size="lg" className="mt-3 h-14 w-full text-body" onClick={() => submit()} disabled={pin.length < 4 || checking} loading={checking}>
         <Unlock className="w-5 h-5" aria-hidden="true" /> Unlock
       </Button>
       <Button variant="ghost" className="mt-2 w-full" onClick={() => setForgot(!forgot)} aria-expanded={forgot}>Forgot PIN?</Button>
