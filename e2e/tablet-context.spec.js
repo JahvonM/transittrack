@@ -301,7 +301,8 @@ test('driver keypad unlocks on the fourth digit with big keys and no tablet keyb
   await expect(page.locator('input[type=password]')).toHaveAttribute('inputmode', 'none');
   const pad = page.getByRole('group', { name: 'Keypad' });
   const one = pad.getByRole('button', { name: '1', exact: true });
-  expect((await one.boundingBox()).height).toBeGreaterThanOrEqual(64);
+  // Keys scale with screen height (min 3.5rem) so the gate fits a 10.1" tablet.
+  expect((await one.boundingBox()).height).toBeGreaterThanOrEqual(56);
   for (const d of '0000') await pad.getByRole('button', { name: d, exact: true }).click();
   await expect(page.getByText(/Incorrect PIN/)).toBeVisible();
   for (const d of '1234') await pad.getByRole('button', { name: d, exact: true }).click();
