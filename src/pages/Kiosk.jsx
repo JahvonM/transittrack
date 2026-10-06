@@ -215,14 +215,14 @@ export default function Kiosk() {
 
   if (status === "pairing")
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/15 via-background to-background">
+      <div className="min-h-[100dvh] flex items-center justify-center bg-gradient-to-br from-primary/15 via-background to-background">
         <BusLoader label="Connecting this tablet…" />
       </div>
     );
 
   if (status === "error")
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-primary/15 via-background to-background">
+      <div className="min-h-[100dvh] flex items-center justify-center p-4 bg-gradient-to-br from-primary/15 via-background to-background">
         <Card className="max-w-md w-full rounded-3xl shadow-xl border-border/60 animate-in fade-in zoom-in-95 duration-300">
           <CardContent className="pt-8 pb-8 text-center space-y-5">
             <div className="mx-auto w-16 h-16 rounded-full bg-destructive/10 grid place-items-center">
@@ -263,7 +263,7 @@ export default function Kiosk() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-primary/15 via-background to-background">
+    <div className="min-h-[100dvh] flex items-center justify-center p-4 bg-gradient-to-br from-primary/15 via-background to-background">
       <div className="max-w-md w-full space-y-4">
         <Card className="relative rounded-3xl shadow-xl border-border/60 overflow-hidden animate-in fade-in slide-in-from-top-4 duration-500">
           <KioskConnectionBadge online={online} className="absolute top-3 right-3 z-10" />

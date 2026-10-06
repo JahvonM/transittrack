@@ -59,7 +59,7 @@ const SignaturePad = forwardRef(function SignaturePad(_, ref) {
         ref={canvasRef}
         width={400}
         height={160}
-        className="w-full h-40 rounded-xl border bg-white touch-none"
+        className="w-full h-40 [@media(max-height:1000px)]:h-28 rounded-xl border bg-white touch-none"
         onMouseDown={start} onMouseMove={move} onMouseUp={end} onMouseLeave={end}
         onTouchStart={start} onTouchMove={move} onTouchEnd={end}
       />
