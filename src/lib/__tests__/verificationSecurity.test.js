@@ -1,10 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import ts from 'typescript';
-import { webcrypto, createHash } from 'node:crypto';
-const sha=value=>createHash('sha256').update(value).digest('hex');
-const TOKEN='c'.repeat(64);
-const deviceCredential=d=>({id:'credential',device_id:d.id,token_hash:sha(TOKEN),company_id:d.company_id,vehicle_id:d.vehicle_id,kiosk_type:d.kiosk_type,pairing_code_hash:sha(d.pairing_code||''),expires_at:'2099-01-01T00:00:00Z'});
+import { webcrypto } from 'node:crypto';
 function load(name, client) {
  const source = fs.readFileSync(new URL(`../../../base44/functions/${name}/entry.ts`, import.meta.url), 'utf8').replace(/^import .*;\s*$/gm, '') + (['driverSession','kioskCheckIn'].includes(name) ? '\nexport { reserveAttempt, issueGrant, validGrant };' : '');
  const js = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
@@ -17,7 +14,7 @@ const vehicle = { id: 'bus', company_id: 'company', driver_pin: '1234' };
 function mock(role='staff') {
  const tables = { CompanyMembership: [{id:'membership',user_id:'staff',company_id:'company',scope:'passenger',active:true}], KioskDevice: [structuredClone(device)], Vehicle: [structuredClone(vehicle)], User: [{ id:'staff', role:'staff', company_id:'company', email:'staff@test.local', full_name:'Rider' }], Contact: [{ id:'contact', email:'staff@test.local', type:'staff', company_id:'company', vehicle_id:'bus', name:'Rider', nfc_card_tag:'CARD-SENTINEL', access_code:'12345' }], Company:[{id:'company', access_code:'JOIN12345678', access_code_expires_at:new Date(Date.now()+86400000).toISOString(), name:'Company', phone:'555'}] };
  const entities = new Proxy({}, { get: (_, name) => ({
-  filter: async (query, _sort, limit) => name==='DeviceCredential' ? [deviceCredential(tables.KioskDevice[0])] : (tables[name] || []).filter(r => Object.entries(query).every(([k,v])=>r[k]===v)).slice().reverse().slice(0,limit),
+  filter: async (query, _sort, limit) => (tables[name] || []).filter(r => Object.entries(query).every(([k,v])=>r[k]===v)).slice().reverse().slice(0,limit),
   list: async () => tables[name] || [],
   get: async id => (tables[name] || []).find(r=>r.id===id),
   create: async data => { const row={id:'row-'+Object.values(tables).flat().length,created_date:new Date().toISOString(),...data}; (tables[name] ||= []).push(row); return row; },
@@ -25,7 +22,7 @@ function mock(role='staff') {
  }) });
  return { tables, asServiceRole:{entities}, auth:{me:async()=>({id:'staff',role,company_id:'company'})} };
 }
-const req = body => new Request('https://test.local', { method:'POST', body:JSON.stringify({device_token:TOKEN,...body}) });
+const req = body => new Request('https://test.local', { method:'POST', body:JSON.stringify(body) });
 describe('verification and credential protection', () => {
  for (const name of ['driverSession','kioskCheckIn']) {
   it(`${name} persists attempt limits and ages them out`, async()=>{
