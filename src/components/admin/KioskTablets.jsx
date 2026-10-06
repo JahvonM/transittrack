@@ -1,4 +1,5 @@
 import { tabletSetupBundle } from "@/lib/tabletSetupBundle";
+import { helperLinkLost } from "@/lib/helperHealth";
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
@@ -365,6 +366,11 @@ export default function KioskTablets({ vehicles, companies, onChange }) {
                           <Clock className="w-3 h-3" /> Last seen: {timeAgo(d.last_seen)}
                         </div>
                         <HelperHealthLine h={d.helper_health} />
+                        {helperLinkLost(d) && (
+                          <p className="mt-1 text-xs font-semibold text-danger" role="alert">
+                            Card reader helper can't reach this tablet's screen: card taps aren't getting through. Usually FreeKiosk's REST API key no longer matches the helper's, or the REST API is off. Fix: run Update in the tablet setup tool with this tablet's PIN and API key.
+                          </p>
+                        )}
                         {(d.app_health?.build || d.update_requested_at) && (
                           <div className="text-xs text-muted-foreground mt-0.5">
                             {d.app_health?.build && <>Version {d.app_health.build} UTC</>}

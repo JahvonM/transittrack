@@ -117,8 +117,8 @@ set /p PIN=  FreeKiosk exit PIN for this tablet:
 powershell -NoProfile -Command "if ($env:PIN -notmatch '^[0-9]{6,12}$') { exit 1 }"
 if errorlevel 1 goto ask_pin
 :ask_api_key
-set /p APIKEY=  FreeKiosk REST API key for this tablet - letters and numbers only: 
-powershell -NoProfile -Command "if ($env:APIKEY -notmatch '^[A-Za-z0-9]{16,128}$') { exit 1 }"
+set /p APIKEY=  FreeKiosk REST API key for this tablet - letters, numbers, - or _: 
+powershell -NoProfile -Command "if ($env:APIKEY -notmatch '^[A-Za-z0-9_-]{16,128}$') { exit 1 }"
 if errorlevel 1 goto ask_api_key
 
 rem ---------- Find the APK files ----------
@@ -273,6 +273,14 @@ goto helper_set
 adb shell am start -n %HELPER%/.MainActivity --es api_key "%APIKEY%" --es reader false --es gps true --es hotspot true
 :helper_set
 timeout /t 5 /nobreak >nul
+call :check_key
+if "%KEYCODE%"=="200" goto key_ok_setup
+call :key_problem
+if "%KEYCODE%"=="nocurl" goto key_ok_setup
+choice /c RC /n /m "  [R] Retry the check  [C] Continue anyway: "
+if errorlevel 2 goto key_ok_setup
+goto helper_set
+:key_ok_setup
 echo  [OK] Done.
 
 rem ---------- Step 6: hotspot name - driver only ----------
@@ -337,7 +345,7 @@ echo    3. About a minute after start-up, %SSID% appears as a Wi-Fi network.
 echo    -  Screen stays on while powered. Unplug power: off after about 5 seconds.
 echo    -  Admin - Kiosk Tablets shows battery, reader / GPS and hotspot.
 echo.
-echo  Problem? Plug in this computer and run:  adb logcat -d -s TTHelper
+echo  Problem? Plug in this computer and run:  adb logcat -d ^| findstr TTHelper
 echo.
 pause
 adb reboot
@@ -373,6 +381,15 @@ set PIN=
 set /p PIN=  EXISTING FreeKiosk exit PIN for this tablet: 
 powershell -NoProfile -Command "if ($env:PIN -notmatch '^[0-9]{4,12}$') { exit 1 }"
 if errorlevel 1 goto upd_pin
+:upd_api_key
+echo.
+echo  FreeKiosk REST API key for this tablet - the card reader helper uses it to
+echo  send card taps to the boarding screen. It is set in BOTH FreeKiosk and the
+echo  helper below, so they always match.
+set APIKEY=
+set /p APIKEY=  API key - letters, numbers, - or _ (16 or more): 
+powershell -NoProfile -Command "if ($env:APIKEY -notmatch '^[A-Za-z0-9_-]{16,128}$') { exit 1 }"
+if errorlevel 1 goto upd_api_key
 
 :upd_check_device
 set STATE=
@@ -429,10 +446,22 @@ call :upd_adb shell settings put global hidden_api_policy 1
 if errorlevel 1 goto upd_failed
 :upd_settings_done
 rem Android activity launch success is NOT proof of FreeKiosk configuration acceptance.
-call :upd_adb shell am start -n %FK% --es pin "%PIN%" --es managed_apps '[{\"packageName\":\"com.transittrack.kioskhelper\",\"showOnHomeScreen\":false},{\"packageName\":\"com.android.systemui\",\"showOnHomeScreen\":false}]'
+call :upd_adb shell am start -n %FK% --es pin "%PIN%" --es rest_api_enabled "true" --es rest_api_port "8080" --es rest_api_key "%APIKEY%" --es managed_apps '[{\"packageName\":\"com.transittrack.kioskhelper\",\"showOnHomeScreen\":false},{\"packageName\":\"com.android.systemui\",\"showOnHomeScreen\":false}]'
 if errorlevel 1 goto upd_failed
-set PIN=
+call :upd_adb shell am start -n %HELPER%/.MainActivity --es api_key "%APIKEY%"
+if errorlevel 1 goto upd_failed
 timeout /t 8 /nobreak >nul
+call :upd_adb shell am start -n %FK%
+:upd_key_check
+call :check_key
+if "%KEYCODE%"=="200" goto upd_key_ok
+call :key_problem
+if "%KEYCODE%"=="nocurl" goto upd_key_ok
+choice /c RS /n /m "  [R] Retry the check  [S] Stop the update: "
+if errorlevel 2 goto upd_failed
+goto upd_key_check
+:upd_key_ok
+set PIN=
 echo  On the tablet, verify FreeKiosk accepted the settings with no PIN error.
 echo  Check managed apps includes TransitTrack Helper and Android System UI.
 choice /c YN /n /m "  Settings verified on the tablet? [Y/N]: "
@@ -465,3 +494,33 @@ exit /b 1
 :upd_adb
 adb -s "%SERIAL%" %*
 exit /b %errorlevel%
+
+rem -----------------------------------------------------------------
+rem  Sends the same request the helper sends with every card tap, using the
+rem  key just given to the helper. KEYCODE: 200 = works, 401/403 = FreeKiosk
+rem  has a different key (or the PIN was wrong so it kept its old one),
+rem  000 = FreeKiosk's REST API is off, nocurl = cannot check on this PC.
+rem -----------------------------------------------------------------
+:check_key
+set KEYCODE=
+where curl.exe >nul 2>&1
+if errorlevel 1 (set "KEYCODE=nocurl" & exit /b 0)
+set "TTADB=adb"
+if defined SERIAL if not "%SERIAL%"=="unknown" set "TTADB=adb -s "%SERIAL%""
+%TTADB% forward tcp:18080 tcp:8080 >nul 2>&1
+curl.exe -s -o nul -m 8 -w "%%{http_code}" -X POST -H "X-Api-Key: %APIKEY%" -H "Content-Type: application/json" -d "{\"code\":\"1\"}" http://127.0.0.1:18080/api/js > "%TEMP%\tt-key.txt" 2>nul
+%TTADB% forward --remove tcp:18080 >nul 2>&1
+set /p KEYCODE=<"%TEMP%\tt-key.txt"
+del "%TEMP%\tt-key.txt" >nul 2>&1
+if "%KEYCODE%"=="200" echo  [OK] Card reader can reach the boarding screen - FreeKiosk accepted the key.
+exit /b 0
+
+:key_problem
+echo.
+if "%KEYCODE%"=="nocurl" echo  [!] Could not test the key on this PC - curl.exe is missing. Tap a card after setup to check.
+if "%KEYCODE%"=="401" echo  [X] FreeKiosk REJECTED the key. FreeKiosk has a different key, or the PIN was wrong so it kept its old key.
+if "%KEYCODE%"=="403" echo  [X] FreeKiosk REJECTED the key. FreeKiosk has a different key, or the PIN was wrong so it kept its old key.
+if "%KEYCODE%"=="000" echo  [X] FreeKiosk is not answering on port 8080 - its REST API is off, or FreeKiosk is not open.
+if "%KEYCODE%"=="" echo  [X] FreeKiosk did not answer. Check the USB connection and that FreeKiosk is open.
+echo      Until this passes, card taps will NOT reach the boarding screen.
+exit /b 0

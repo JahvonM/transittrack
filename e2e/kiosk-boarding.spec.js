@@ -197,3 +197,20 @@ test('the check-in slider only unlocks on a real slide, not a cancelled one or a
   await expect(page.getByRole('button', { name: 'Submit code', exact: true })).toBeVisible();
   expect(errors).toEqual([]);
 });
+
+test('the boarding screen says when the card reader helper stops reaching it', async ({ page }) => {
+  await page.clock.install();
+  await setup(page);
+  await page.addInitScript(() => localStorage.setItem('tt_badge_reader', '1'));
+  await page.goto('/kiosk');
+  await expect(page.getByText('Slide to check in', { exact: true })).toBeVisible();
+  const warning = page.getByText("Card reader isn't connected to this screen.");
+  await expect(warning).toHaveCount(0);
+  // The helper reports every minute; after 4 silent minutes the screen says so.
+  await page.clock.fastForward('04:00');
+  await expect(warning).toBeVisible();
+  // A report from the helper clears it.
+  await page.evaluate(() => { window.__ttHelperHealth = { at: Date.now(), version: '1.7' }; });
+  await page.clock.fastForward('00:31');
+  await expect(warning).toHaveCount(0);
+});

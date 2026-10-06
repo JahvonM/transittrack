@@ -15,3 +15,34 @@ export function helperHealthPayload() {
     return {};
   }
 }
+
+// Whether the helper can still reach this screen. The helper writes
+// __ttHelperHealth every minute through FreeKiosk's REST API, the same way it
+// delivers card taps, so if those reports stop, card taps aren't getting
+// through either (usually the REST API key in FreeKiosk and the helper no
+// longer match, or FreeKiosk's REST API is off).
+//   "ok"   - a report arrived recently (or the page only just opened)
+//   "lost" - this tablet has a helper, but nothing has arrived for 3 minutes
+//   "none" - no helper has ever announced itself on this tablet
+const LINK_GRACE_MS = 3 * 60 * 1000;
+const PAGE_OPENED_AT = Date.now();
+
+export function helperLink(now = Date.now()) {
+  try {
+    const h = typeof window !== "undefined" ? window.__ttHelperHealth : null;
+    if (h && typeof h.at === "number" && now - h.at <= LINK_GRACE_MS) return "ok";
+    if (localStorage.getItem("tt_badge_reader") !== "1") return "none";
+    return now - PAGE_OPENED_AT < LINK_GRACE_MS ? "ok" : "lost";
+  } catch {
+    return "none";
+  }
+}
+
+// Admin side: the tablet's app keeps checking in but its helper's reports
+// stopped, so the helper can't reach the screen.
+export function helperLinkLost(device, now = Date.now()) {
+  const fresh = (iso) => !!iso && now - Date.parse(iso) < 10 * 60 * 1000;
+  const app = device?.app_health;
+  const hasHelper = !!device?.helper_health || app?.reader === "usb_reader";
+  return hasHelper && fresh(app?.reported_at) && !fresh(device?.helper_health?.reported_at);
+}

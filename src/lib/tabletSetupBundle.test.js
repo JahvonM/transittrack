@@ -1,4 +1,5 @@
 import {describe,it,expect} from 'vitest';
+import {readFileSync} from 'node:fs';
 import {unzipSync,strFromU8} from 'fflate';
 import {tabletSetupBundle} from './tabletSetupBundle';
 const apk=new Uint8Array([80,75,3,4,1,7]);
@@ -29,5 +30,21 @@ describe('USB tablet setup bundle',()=>{
    expect(bat).not.toMatch(/[&%]/);
    expect(bat).toContain('set PRESET_TYPE=1');
    expect(bat).toContain('set PRESET_CODE=ABCD');
+ });
+ it('the real setup tool keeps FreeKiosk and the helper on the same, tested REST API key',()=>{
+   const bat=readFileSync(new URL('../../public/tools/TransitTrack-Tablet-Setup.bat',import.meta.url),'latin1');
+   // Windows batch labels break with bare LF line endings.
+   expect(bat.replace(/\r\n/g,'')).not.toMatch(/\n/);
+   // Keys used on existing tablets contain dashes.
+   expect(bat).not.toContain("'^[A-Za-z0-9]{16,128}$'");
+   expect(bat.match(/\^\[A-Za-z0-9_-\]\{16,128\}\$/g)?.length).toBe(2);
+   const update=bat.slice(bat.indexOf(':update_run'));
+   expect(update).toMatch(/--es rest_api_key "%APIKEY%"/);
+   expect(update).toMatch(/%HELPER%\/\.MainActivity --es api_key "%APIKEY%"/);
+   expect(update).toContain('call :check_key');
+   expect(bat.slice(bat.indexOf(':helper_set'),bat.indexOf(':key_ok_setup'))).toContain('call :check_key');
+   expect(bat).toContain('http://127.0.0.1:18080/api/js');
+   // Credentials are typed per tablet, never stored in the script.
+   expect(bat).toMatch(/\r\nset PIN=\r\nset APIKEY=\r\n/);
  });
 });

@@ -374,6 +374,23 @@ test('avatar can replace a photo in exported card artwork',async({page})=>{
  await expect(page.getByTestId('card-artwork-preview').locator('image')).toHaveCount(0);
 });
 
+test('admin sees when a tablet\'s card reader helper cannot reach its screen',async({page})=>{
+ await session(page,'admin');
+ const ago=m=>new Date(Date.now()-m*60000).toISOString();
+ await page.route('**/functions/entityAccess',route=>{
+  const b=route.request().postDataJSON(); let result=[];
+  if(b.entity==='User') result={id:'caller',role:'admin',email:'admin@test.invalid'};
+  if(b.entity==='KioskDevice') result=[
+   {id:'tab-broken',label:'bus one',kiosk_type:'bus_boarding',paired:true,status:'active',last_seen:ago(1),helper_health:{version:'1.7',reader:'Connected',reported_at:ago(2500)},app_health:{reader:'usb_reader',online:true,reported_at:ago(1)}},
+   {id:'tab-ok',label:'bus two',kiosk_type:'bus_boarding',paired:true,status:'active',last_seen:ago(1),helper_health:{version:'1.7',reader:'Connected',reported_at:ago(1)},app_health:{reader:'usb_reader',online:true,reported_at:ago(1)}}];
+  return route.fulfill({json:{result}});
+ });
+ await page.goto('/admin/kiosks');
+ const alerts=page.getByText(/Card reader helper can't reach this tablet's screen/);
+ await expect(alerts).toHaveCount(1);
+ await expect(alerts).toContainText('run Update in the tablet setup tool');
+});
+
 test('tablet details and admin menu stay aligned on narrow screens',async({page})=>{
  await session(page,'admin'); await page.setViewportSize({width:390,height:844});
  await page.route('**/functions/entityAccess',route=>{

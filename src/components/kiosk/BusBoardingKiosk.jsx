@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { helperLink } from "@/lib/helperHealth";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CreditCard, QrCode, ChevronLeft, CheckCircle2, LogIn, LogOut, AlertCircle, Delete, MapPin, CloudUpload, PartyPopper, Bus, Users, Loader2 } from "lucide-react";
@@ -227,6 +228,13 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo }) {
   const [occupancy, setOccupancy] = useState(0);
   const [attractSlide, setAttractSlide] = useState(0);
   const [listOpen, setListOpen] = useState(false);
+  // The reader helper stops reaching this screen when FreeKiosk's REST API
+  // key or setting changes; say so instead of cards silently doing nothing.
+  const [readerLink, setReaderLink] = useState(() => helperLink());
+  useEffect(() => {
+    const t = setInterval(() => setReaderLink(helperLink()), 30_000);
+    return () => clearInterval(t);
+  }, []);
   const resetTimer = useRef(null);
   // When the current card lookup started (0 = none). A lookup that never
   // answers (weak bus signal) must not block every tap after it.
@@ -714,6 +722,12 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo }) {
           ) : "Passenger list not downloaded. Connect to WiFi."}
         </div>
         <PassengerListDialog open={listOpen} onOpenChange={setListOpen} vehicleName={device?.vehicle_name} />
+        {readerLink === "lost" && (
+          <div className="mx-3 mt-2 rounded-xl border border-warning/50 bg-warning/10 px-3 py-2 text-center text-body-sm" role="alert">
+            <span className="font-semibold">Card reader isn't connected to this screen.</span> Use your code on the keypad instead.
+            <span className="block text-caption text-muted-foreground">Staff: run Update in the tablet setup tool for this tablet.</span>
+          </div>
+        )}
 
         <div className="flex-1 flex flex-col lg:flex-row items-center justify-center gap-6 p-6 lg:p-10 [@media(max-height:700px)]:!p-3">
           <div className="w-full max-w-md lg:max-w-xl">

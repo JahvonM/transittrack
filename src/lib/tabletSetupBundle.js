@@ -21,7 +21,9 @@ export function tabletSetupBundle(script, helperBytes, version, device = null, t
 1. Extract ALL files from this ZIP into one folder.
 2. Sync or export Saved Work, then plug the tablet into your Windows computer.
 3. Run ${scriptName} from that folder.
-4. Choose UPDATE for an existing tablet and enter its existing FreeKiosk exit PIN.
+4. Choose UPDATE for an existing tablet and enter its existing FreeKiosk exit PIN
+   and its FreeKiosk REST API key. The key is set in both FreeKiosk and the Helper
+   and then tested, so card taps always reach the boarding screen.
 5. After restarting, confirm Helper ${version}, pairing and a successful card tap.
 
 The Helper APK is already included with the correct name.
