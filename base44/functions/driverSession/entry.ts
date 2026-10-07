@@ -495,7 +495,11 @@ export default async function(req) {
         if (!vehicle || vehicle.company_id !== companyId) return Response.json({ error: 'Vehicle assignment mismatch' }, { status: 403 });
         if (!(await reserveAttempt(base44, 'driver-pin:' + vehicleId, 5, 15 * 60_000))) return Response.json({ error: 'Too many PIN attempts. Try again in 15 minutes.' }, { status: 429 });
         if (!(await verifyProtectedPin(base44, vehicle, body.pin))) return Response.json({ error: 'Incorrect PIN or no PIN configured' }, { status: 403 });
-        return Response.json({ ok: true, driver_grant: await issueGrant(base44, device, 'driver', vehicleId, 12 * 3600_000) });
+        // The grant has to outlast a full shift: at 12 hours it expired in the
+        // middle of a long day and dropped the driver back to the PIN screen
+        // while they were driving. The real daily gate is the tablet asking
+        // for the PIN again at the start of the next local day.
+        return Response.json({ ok: true, driver_grant: await issueGrant(base44, device, 'driver', vehicleId, 20 * 3600_000) });
       }
       case 'move_stop':
       case 'add_stop': {
