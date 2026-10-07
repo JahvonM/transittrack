@@ -69,12 +69,19 @@ export default function Buses() {
   const { user } = useAuth();
   const [routes, setRoutes] = useState([]);
   const [vehicles, setVehicles] = useState([]);
+  const [workplace, setWorkplace] = useState(null);
   const [loading, setLoading] = useState(true);
   const [now, setNow] = useState(() => Date.now());
   const [mapOpen, setMapOpen] = useState(false);
 
-  const load = () => Promise.all([base44.entities.Route.list(), base44.entities.Vehicle.list()])
-    .then(([r, v]) => { setRoutes(r.filter((x) => x.active)); setVehicles(v); })
+  const load = () => Promise.all([base44.entities.Route.list(), base44.entities.Vehicle.list(), base44.entities.Workplace.list()])
+    .then(([r, v, w]) => {
+      setRoutes(r.filter((x) => x.active));
+      setVehicles(v);
+      // The company's workplace: the drop-off pin on the map.
+      const placed = w.filter((x) => x.lat != null && x.lng != null);
+      setWorkplace(placed.find((x) => v.some((veh) => veh.company_id === x.company_id)) || placed[0] || null);
+    })
     .catch(() => loadFailed());
 
   useEffect(() => {
@@ -121,7 +128,7 @@ export default function Buses() {
               {mapOpen ? (
                 <div id="passenger-live-map">
                   <Suspense fallback={<div className="h-72 animate-pulse rounded-2xl bg-muted" />}>
-                    <LiveTransitMap className="h-72 rounded-2xl border border-border sm:h-96" vehicles={visible.filter((v) => v.current_lat != null)} routes={routes} label="Map of the company's buses" />
+                    <LiveTransitMap className="h-72 rounded-2xl border border-border sm:h-96" vehicles={visible.filter((v) => v.current_lat != null)} routes={routes} dropoff={workplace} label="Map of the company's buses" />
                   </Suspense>
                 </div>
               ) : (
