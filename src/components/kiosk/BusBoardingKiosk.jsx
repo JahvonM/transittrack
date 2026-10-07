@@ -210,6 +210,8 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
   const [now, setNow] = useState(() => new Date());
   const [mode, setMode] = useState("idle"); // idle | qr | confirm | result | badge_error
   const [qrHint, setQrHint] = useState("");
+  const [qrRetryAt, setQrRetryAt] = useState(0);
+  const qrCooldown = Math.max(0, Math.ceil((qrRetryAt - Date.now()) / 1000));
   const [pending, setPending] = useState(null); // { staff, next_status, method, code_type }
   const [result, setResult] = useState(null); // { staff_name, status, offline?, riderNumber? }
   const [badgeError, setBadgeError] = useState("");
@@ -405,7 +407,7 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
   };
 
   const handleQrDecode = async (text) => {
-    if (busy || mode !== "qr") return;
+    if (busy || mode !== "qr" || Date.now() < qrRetryAt) return;
     const decoded = parseCodeQrPayload(text);
     if (!decoded) {
       // Anything that isn't a one-time check-in code — a company join code, a
@@ -426,6 +428,7 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
       if (qrMode.current !== "qr" || handleUnpaired(e)) return;
       // Keep the camera open on a rejected code or a connection failure.
       // Only a verified passenger should move this screen to confirmation.
+      if (e?.response?.status === 429) setQrRetryAt(Date.now() + 60000);
       setQrHint(busMessage(e) || "That QR code isn't recognized. Show a fresh check-in QR from My Account.");
     } finally {
       setBusy(false);
@@ -531,15 +534,11 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
         <p className="text-base text-muted-foreground">
           {boarding ? "You're not on this bus yet." : `You're recorded as being on ${device?.vehicle_name || "this bus"}.`}
         </p>
-        <Button
-          variant="default"
-          className="w-full h-28 flex-col gap-1.5 rounded-2xl text-lg"
-          onClick={() => confirmCheckIn(boarding ? "boarded" : "off_board")}
-          disabled={busy}
-        >
-          {boarding ? <LogIn className="w-9 h-9" /> : <LogOut className="w-9 h-9" />}
-          <span>{boarding ? "Boarding" : "Exiting"}</span>
-        </Button>
+        <p className="text-sm text-muted-foreground">Choose Boarding or Exiting to finish your check-in.</p>
+        <div className="flex gap-3">
+          <Button variant={boarding ? "default" : "outline"} className="flex-1 h-28 flex-col gap-1.5 rounded-2xl text-lg" onClick={() => confirmCheckIn("boarded")} disabled={busy}><LogIn className="w-9 h-9" /><span>Boarding</span></Button>
+          <Button variant={boarding ? "outline" : "default"} className="flex-1 h-28 flex-col gap-1.5 rounded-2xl text-lg" onClick={() => confirmCheckIn("off_board")} disabled={busy}><LogOut className="w-9 h-9" /><span>Exiting</span></Button>
+        </div>
         <Button variant="ghost" onClick={() => { setMode("idle"); setPending(null); }}>Cancel</Button>
       </Screen>
     );
@@ -587,7 +586,8 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
       <Screen modeKey="qr" className="p-5 space-y-4">
         <Button variant="ghost" onClick={() => { setMode("idle"); setQrHint(""); }}><ChevronLeft className="w-5 h-5 mr-1" /> Back</Button>
         <p className="text-base text-center text-muted-foreground">Hold your check-in QR steady inside the square</p>
-        <QrScanner active onDecode={handleQrDecode} facingMode="user" requireFacingMode stableMs={800} />
+        <QrScanner active={qrCooldown === 0} onDecode={handleQrDecode} facingMode="user" requireFacingMode stableMs={800} />
+        {qrCooldown > 0 && <p role="status" className="text-sm text-center text-destructive">Scanning paused. Try again in {qrCooldown} seconds with a fresh QR.</p>}
         {busy ? <p className="text-sm text-center text-muted-foreground" role="status">Checking your code…</p> : qrHint && <p className="text-sm text-center text-destructive" role="status">{qrHint}</p>}
       </Screen>
     );

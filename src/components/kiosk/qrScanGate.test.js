@@ -38,7 +38,7 @@ describe("boarding camera read confirmation", () => {
     const gate = startGate();
     for (let t = 1000; t < 1800; t += 100) gate.read(CODE, t);
     expect(gate.read(CODE, 1800)).toBe(true);
-    for (let t = 1900; t <= 3000; t += 100) expect(gate.read(CODE, t)).toBe(false);
+    for (let t = 1900; t <= 90000; t += 100) expect(gate.read(CODE, t)).toBe(false);
   });
   it("preserves the default two-read behavior outside the boarding kiosk", () => {
     const gate = createQrScanGate();
