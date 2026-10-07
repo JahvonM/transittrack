@@ -6,7 +6,7 @@ import { MAPBOX_TOKEN, mapStyleFor, mapAccentFor, GPS_INTERVAL_MS } from "@/lib/
 import { useIsDark } from "@/lib/useTheme";
 import OfflineStatusBadge from "@/components/OfflineStatusBadge";
 import { useOfflineSync } from "@/hooks/useOfflineSync";
-import { fetchTurnByTurnRoutes } from "@/lib/geo";
+import { fetchTurnByTurnRoutes, haversineKm } from "@/lib/geo";
 import {
   formatDistance, formatDuration, metres, progressAt, projectOnRoute, routeAhead, speedLimitKmh, voicePromptAt,
 } from "@/lib/navigation";
@@ -92,6 +92,8 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
   const [pos, setPos] = useState(
     session?.vehicle?.current_lat != null ? { lat: session.vehicle.current_lat, lng: session.vehicle.current_lng } : null
   );
+  // The stop the driver tapped on the map: its name and how far away it is.
+  const [pickedStop, setPickedStop] = useState(null);
   const watchId = useRef(null);
   const lastFix = useRef(null);
   const lastPush = useRef(0);
@@ -118,6 +120,14 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
 
   const vehicle = session?.vehicle;
   const vehicleId = vehicle?.id;
+
+  // How far the bus is from the stop the driver tapped.
+  const pickedStopDistance = useMemo(() => {
+    if (!pickedStop) return null;
+    const from = pos || (vehicle?.current_lat != null ? { lat: vehicle.current_lat, lng: vehicle.current_lng } : null);
+    if (!from || pickedStop.lat == null) return null;
+    return haversineKm(from.lat, from.lng, pickedStop.lat, pickedStop.lng) * 1000;
+  }, [pickedStop, pos, vehicle?.current_lat, vehicle?.current_lng]);
 
   useEffect(() => { if (session?.route) setRoute(session.route); }, [session?.route]);
 
@@ -457,10 +467,14 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
             ))}
             {!navigating && orderedStops.filter((st) => st !== nextStop && st.lat != null && st.lng != null).map((st) => (
               <Marker key={`stop-${st.lat},${st.lng}`} longitude={st.lng} latitude={st.lat} anchor="center">
-                <div className="min-w-6 h-6 px-1 rounded-full bg-card border-2 border-foreground/70 shadow grid place-items-center text-[11px] font-bold tabular-nums"
-                  role="img" aria-label={`Stop ${orderedStops.indexOf(st) + 1}, ${st.name || ""}`} title={st.name}>
+                <button
+                  type="button"
+                  onClick={() => setPickedStop((cur) => (cur === st ? null : st))}
+                  className={`min-w-6 h-6 px-1 rounded-full bg-card border-2 shadow grid place-items-center text-[11px] font-bold tabular-nums ${pickedStop === st ? "border-primary ring-2 ring-primary/40" : "border-foreground/70"}`}
+                  aria-label={`Stop ${orderedStops.indexOf(st) + 1}, ${st.name || ""}. Show its name and how far away it is`}
+                  title={st.name}>
                   {orderedStops.indexOf(st) + 1}
-                </div>
+                </button>
               </Marker>
             ))}
             {nextStop && (
@@ -476,6 +490,26 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
               </Marker>
             )}
           </Map>
+        )}
+
+        {/* Tapped stop: what it is and how far away it is. */}
+        {!navigating && pickedStop && (
+          <div className="absolute left-1/2 top-3 z-20 w-[min(22rem,calc(100%-1.5rem))] -translate-x-1/2">
+            <div className="flex items-start gap-3 rounded-2xl border border-border bg-card/95 p-3 shadow-xl backdrop-blur" role="dialog" aria-label={`Stop details: ${pickedStop.name || ""}`}>
+              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-secondary font-display text-body-sm font-bold tabular-nums" aria-hidden="true">
+                {orderedStops.indexOf(pickedStop) + 1}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-semibold">{pickedStop.name || `Stop ${orderedStops.indexOf(pickedStop) + 1}`}</p>
+                <p className="text-body-sm text-muted-foreground">
+                  {pickedStopDistance == null ? "Distance unknown — waiting for a GPS fix" : `${formatDistance(pickedStopDistance)} away`}
+                </p>
+              </div>
+              <button type="button" onClick={() => setPickedStop(null)} className="-m-1 grid h-9 w-9 shrink-0 place-items-center rounded-full hover:bg-accent" aria-label="Close stop details">
+                <X className="h-4 w-4" aria-hidden="true" />
+              </button>
+            </div>
+          </div>
         )}
 
         {/* Top: next turn, Google-Maps style */}

@@ -288,6 +288,7 @@ function VehiclesTab({ company, routes, vehicles, onChange }) {
                 variant="page"
                 className="h-full w-full"
                 vehicles={vehicles.filter((v) => v.current_lat != null)}
+                routes={routes}
                 looseStops={routes.flatMap((r) => r.stops || []).filter((st) => st.lat != null)}
                 label="Live fleet map"
               />

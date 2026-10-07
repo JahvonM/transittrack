@@ -521,6 +521,7 @@ export default function StaffPortal() {
                   className="h-64 rounded-2xl border border-border sm:h-80 lg:h-[620px]"
                   vehicles={locatedVehicles}
                   focusVehicleId={busOnMap?.id || null}
+                  routes={routes}
                   stops={mapStops}
                   myStop={stop}
                   nextStopIndex={nextStopIndex}

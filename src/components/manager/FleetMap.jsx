@@ -74,6 +74,7 @@ export default function FleetMap({ vehicles }) {
               vehicles={liveVehicles.filter((v) => v.current_lat != null)}
               focusVehicleId={selected?.current_lat != null ? selected.id : null}
               focusKey={focus.n}
+              routes={routes}
               stops={selected ? selStops : []}
               userLocation={selected ? null : userLoc}
               callout={callout}

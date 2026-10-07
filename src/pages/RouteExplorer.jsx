@@ -101,6 +101,7 @@ export default function RouteExplorer() {
                 focusKey={focusKey}
                 userLocation={userLoc}
                 followUser={!focus}
+                routes={routes}
                 stops={focus ? focusStops : orderedStops}
                 looseStops={focus ? [] : allStops}
                 myStop={myStop}
