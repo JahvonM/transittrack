@@ -195,11 +195,10 @@ function PassengerListDialog({ open, onOpenChange, vehicleName }) {
 // chooser screen — NFC tap keeps listening in the background the whole time
 // idle, the keypad is always on-screen (not hidden behind a "don't have
 // your badge?" step), and QR scanning is one tap away via a small link.
-// After identifying someone, they're asked
-// explicitly whether they're boarding or exiting — the system's guess
-// (based on their last recorded state) is only a highlighted suggestion,
-// never the only option, since a missed tap or skipped stop would otherwise
-// leave no way to correct it.
+// After identifying someone, the screen offers the one action their record
+// allows: someone whose last recorded state is "on the bus" is only ever
+// leaving, and someone who isn't aboard is only ever boarding. Showing both
+// let a stray tap log a sign-out for a passenger who never got on.
 //
 // Layout: this component owns the full viewport (see Kiosk.jsx) rather than
 // sitting in a small centered card, so a big tablet doesn't end up mostly
@@ -501,7 +500,8 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
       </Screen>
     );
   } else if (mode === "confirm" && pending) {
-    const suggestBoarding = pending.next_status === "boarded";
+    // Their last recorded state decides which single action is offered.
+    const boarding = pending.next_status === "boarded";
     actionContent = (
       <Screen modeKey="confirm" className="p-8 text-center space-y-4">
         {/* A little card flies in and "taps" down before the person's info
@@ -515,27 +515,18 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
         )}
         <Avatar name={pending.staff.full_name} photoUrl={pending.staff.photo_url} />
         <p className="text-2xl font-bold">{pending.staff.full_name}</p>
-        <p className="text-base text-muted-foreground">Are you boarding or exiting?</p>
-        <div className="flex gap-3">
-          <Button
-            variant={suggestBoarding ? "default" : "outline"}
-            className="flex-1 h-24 flex-col gap-1.5 rounded-2xl text-base"
-            onClick={() => confirmCheckIn("boarded")}
-            disabled={busy}
-          >
-            <LogIn className="w-8 h-8" />
-            <span>Boarding</span>
-          </Button>
-          <Button
-            variant={suggestBoarding ? "outline" : "default"}
-            className="flex-1 h-24 flex-col gap-1.5 rounded-2xl text-base"
-            onClick={() => confirmCheckIn("off_board")}
-            disabled={busy}
-          >
-            <LogOut className="w-8 h-8" />
-            <span>Exiting</span>
-          </Button>
-        </div>
+        <p className="text-base text-muted-foreground">
+          {boarding ? "You're not on this bus yet." : `You're recorded as being on ${device?.vehicle_name || "this bus"}.`}
+        </p>
+        <Button
+          variant="default"
+          className="w-full h-28 flex-col gap-1.5 rounded-2xl text-lg"
+          onClick={() => confirmCheckIn(boarding ? "boarded" : "off_board")}
+          disabled={busy}
+        >
+          {boarding ? <LogIn className="w-9 h-9" /> : <LogOut className="w-9 h-9" />}
+          <span>{boarding ? "Boarding" : "Exiting"}</span>
+        </Button>
         <Button variant="ghost" onClick={() => { setMode("idle"); setPending(null); }}>Cancel</Button>
       </Screen>
     );

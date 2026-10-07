@@ -713,6 +713,28 @@ export default async function(req) {
           ended_at:new Date(time).toISOString(),duration_minutes:Math.round((time-startMs)/60000),
           notes:typeof body.notes==='string'?body.notes.slice(0,500):shift.notes,
         });
+        // The shift is over, so nobody is riding this bus any more: everyone
+        // still marked aboard is signed off automatically. A fresh record is
+        // written per person (the same shape the boarding kiosk writes) rather
+        // than editing the original sign-in, so the day's log keeps both the
+        // time they boarded and the time they were taken off.
+        try {
+          const rows = await tabletCheckIns(base44, companyId, vehicleId);
+          const latest = new Map();
+          for (const row of rows) {
+            const key = row.card_tag || row.staff_name;
+            if (!key) continue;
+            const prev = latest.get(key);
+            if (!prev || Date.parse(row.created_date) > Date.parse(prev.created_date)) latest.set(key, row);
+          }
+          const aboard = [...latest.values()].filter((r) => r.status === 'boarded');
+          if (aboard.length) await base44.asServiceRole.entities.StaffCheckIn.bulkCreate(aboard.map((r) => ({
+            staff_name: r.staff_name, staff_picture_url: r.staff_picture_url || '', card_tag: r.card_tag,
+            status: 'off_board', boarded_at: new Date(time).toISOString(), check_in_method: 'manual',
+            company_id: companyId, company_name: companyName, vehicle_id: vehicleId,
+            vehicle_name: r.vehicle_name || ended.vehicle_name || '',
+          })));
+        } catch { /* the shift is still ended; the kiosk corrects anyone left aboard */ }
         return Response.json({shift:ended});
       }
 
