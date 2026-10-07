@@ -151,38 +151,39 @@ export default function Admin() {
   const go = (s) => navigate("/admin/" + s);
 
   const load = async () => {
-    try {
-      const [u, c, v, r, t, insp, dr, fl, pt, sch, tmpl, ir] = await Promise.all([
-        base44.entities.User.list(),
-        base44.entities.Company.list(),
-        base44.entities.Vehicle.list(),
-        base44.entities.Route.list(),
-        base44.entities.Trip.list("-created_date", 1000),
-        base44.entities.Inspection.list("-created_date", 1000),
-        base44.entities.Driver.list(),
-        base44.entities.Fault.list("-created_date", 1000),
-        base44.entities.Part.list(),
-        base44.entities.MaintenanceSchedule.list(),
-        base44.entities.InspectionTemplate.list(),
-        base44.entities.InspectionResult.list("-inspection_date", 500),
-      ]);
-      setFaults(fl);
-      setParts(pt);
-      setSchedules(sch);
-      setTemplates(tmpl);
-      setInspectionResults(ir);
-      setUsers(u);
-      setCompanies(c);
-      setVehicles(v);
-      setRoutes(r);
-      setTrips(t);
-      setInspections(insp);
-      setDrivers(dr);
-    } catch {
-      loadFailed(load);
-    } finally {
-      setLoading(false);
-    }
+    // Each list settles on its own: one failure must not wipe the whole screen,
+    // so whatever loaded is shown and the rest keeps what it already had.
+    const results = await Promise.allSettled([
+      base44.entities.User.list(),
+      base44.entities.Company.list(),
+      base44.entities.Vehicle.list(),
+      base44.entities.Route.list(),
+      base44.entities.Trip.list("-created_date", 1000),
+      base44.entities.Inspection.list("-created_date", 1000),
+      base44.entities.Driver.list(),
+      base44.entities.Fault.list("-created_date", 1000),
+      base44.entities.Part.list(),
+      base44.entities.MaintenanceSchedule.list(),
+      base44.entities.InspectionTemplate.list(),
+      base44.entities.InspectionResult.list("-inspection_date", 500),
+    ]);
+    const [u, c, v, r, t, insp, dr, fl, pt, sch, tmpl, ir] = results.map((s) =>
+      s.status === "fulfilled" ? s.value : undefined
+    );
+    if (results.every((s) => s.status === "rejected")) loadFailed(load);
+    if (fl) setFaults(fl);
+    if (pt) setParts(pt);
+    if (sch) setSchedules(sch);
+    if (tmpl) setTemplates(tmpl);
+    if (ir) setInspectionResults(ir);
+    if (u) setUsers(u);
+    if (c) setCompanies(c);
+    if (v) setVehicles(v);
+    if (r) setRoutes(r);
+    if (t) setTrips(t);
+    if (insp) setInspections(insp);
+    if (dr) setDrivers(dr);
+    setLoading(false);
   };
   useEffect(() => {
     load();

@@ -1,4 +1,3 @@
-
 // All signed-in entity operations use scoped backend access. Direct subscriptions
 // would bypass the response projection, so scoped snapshots are polled instead.
 // Base44 rejects bursts of backend calls with 429 ("Too many requests"). One
@@ -28,10 +27,12 @@ export async function withRateLimitRetry(fn, { attempts = 6, baseMs = 800 } = {}
 }
 const hidden = () => typeof document !== 'undefined' && document.visibilityState === 'hidden';
 
-// Live lists re-check every 10s while someone is using the page and every 30s
-// when nobody has touched it for 2 minutes. Buses (SOS) and broadcasts always
-// stay at 10s.
-export const ACTIVE_POLL_MS = 10000, IDLE_POLL_MS = 30000, IDLE_AFTER_MS = 120000;
+// Live lists re-check while someone is using the page and more slowly once
+// nobody has touched it for 2 minutes. Every read goes through one shared,
+// rate-limited server call, so only buses (SOS) and broadcasts re-check as
+// often as every 10s — everything else at half that rate, which keeps the app
+// well clear of the limit that used to make screens report missing information.
+export const FAST_POLL_MS = 10000, ACTIVE_POLL_MS = 20000, IDLE_POLL_MS = 60000, IDLE_AFTER_MS = 120000;
 const ALWAYS_FAST = new Set(['Vehicle', 'Broadcast']);
 let lastActivity = Date.now(), watchingActivity = false;
 const watchActivity = () => {
@@ -39,7 +40,7 @@ const watchActivity = () => {
  watchingActivity = true;
  for (const type of ['pointerdown', 'keydown', 'touchstart', 'wheel']) window.addEventListener(type, () => { lastActivity = Date.now(); }, { passive: true, capture: true });
 };
-export const pollDelay = (entity, now = Date.now()) => (ALWAYS_FAST.has(entity) || now - lastActivity < IDLE_AFTER_MS ? ACTIVE_POLL_MS : IDLE_POLL_MS);
+export const pollDelay = (entity, now = Date.now()) => (ALWAYS_FAST.has(entity) ? FAST_POLL_MS : now - lastActivity < IDLE_AFTER_MS ? ACTIVE_POLL_MS : IDLE_POLL_MS);
 
 export function scopedEntities(client) {
  const call = async (entity, operation, args={}) => {
