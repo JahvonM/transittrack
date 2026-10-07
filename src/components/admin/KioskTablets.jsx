@@ -118,6 +118,19 @@ function HelperHealthLine({ h }) {
   );
 }
 
+// The latitude and longitude this tablet's GPS is getting (the helper's USB
+// receiver on a bus tablet, or the tablet's own), passed on in each heartbeat.
+function GpsCoordsLine({ device }) {
+  const { lat, lng } = device?.app_health || {};
+  if (typeof lat !== "number" || typeof lng !== "number") return null;
+  return (
+    <div className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+      <Navigation className="w-3 h-3 shrink-0" />
+      <span className="font-mono">Lat {lat.toFixed(6)} · Lng {lng.toFixed(6)}</span>
+    </div>
+  );
+}
+
 export default function KioskTablets({ vehicles, companies, onChange }) {
   const [devices, setDevices] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -343,6 +356,7 @@ export default function KioskTablets({ vehicles, companies, onChange }) {
                           <Clock className="w-3 h-3" /> Last seen: {timeAgo(d.last_seen)}
                         </div>
                         <HelperHealthLine h={d.helper_health} />
+                        <GpsCoordsLine device={d} />
                         {helperLinkLost(d) && (
                           <p className="mt-1 text-xs font-semibold text-danger" role="alert">
                             Card reader helper can't reach this tablet's screen: card taps aren't getting through. Usually FreeKiosk's REST API key no longer matches the helper's, or the REST API is off. Fix: run Update in the tablet setup tool with this tablet's PIN and API key.

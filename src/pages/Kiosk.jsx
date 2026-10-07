@@ -16,7 +16,7 @@ import KioskConnectionBadge from "@/components/kiosk/KioskConnectionBadge";
 import { saveDevice, loadDevice, forgetTablet, saveDirectory, directoryInfo, warmPhotos, offlineLookup, noteStatus } from "@/lib/kioskOffline";
 import { isNetworkFailure } from "@/lib/offlineQueue";
 import { helperHealthPayload } from "@/lib/helperHealth";
-import { appHealthPayload } from "@/lib/appHealth";
+import { appHealthPayload, noteGpsFix } from "@/lib/appHealth";
 import { idleFor, useTabletUpdates } from "@/lib/tabletUpdate";
 
 const TYPE_META = {
@@ -155,6 +155,19 @@ export default function Kiosk() {
     window.addEventListener("online", up);
     window.addEventListener("offline", down);
     return () => { window.removeEventListener("online", up); window.removeEventListener("offline", down); };
+  }, []);
+
+  // The GPS this tablet is getting (the helper's USB receiver on a bus tablet,
+  // or the tablet's own) is recorded here and passed on in every heartbeat, so
+  // admin sees the coordinates on the tablet's card in Admin → Kiosk Tablets.
+  useEffect(() => {
+    if (!navigator.geolocation) return undefined;
+    const id = navigator.geolocation.watchPosition(
+      (p) => noteGpsFix(Date.now(), p.coords.latitude, p.coords.longitude),
+      () => { /* no fix yet — keep the last one we had */ },
+      { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
+    );
+    return () => navigator.geolocation.clearWatch(id);
   }, []);
 
   // Refresh credential-free display metadata and replace any legacy directory.

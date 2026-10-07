@@ -23,7 +23,7 @@
     },
     "app_health": {
       "type": "object",
-      "description": "Reported by the TransitTrack app on the tablet every heartbeat: build, online, uploads waiting (GPS points, check-ins, other saved work), last GPS fix, card reader in use, saved staff list.",
+      "description": "Reported by the TransitTrack app on the tablet every heartbeat: build, online, uploads waiting (GPS points, check-ins, other saved work), last GPS fix, the latitude/longitude the tablet's GPS is getting, card reader in use, saved staff list.",
       "properties": {
         "reported_at": {
           "type": "string",
@@ -47,6 +47,14 @@
         "last_gps_fix": {
           "type": "string",
           "format": "date-time"
+        },
+        "lat": {
+          "type": "number",
+          "description": "Latitude of the last GPS fix this tablet reported."
+        },
+        "lng": {
+          "type": "number",
+          "description": "Longitude of the last GPS fix this tablet reported."
         },
         "reader": {
           "type": "string"

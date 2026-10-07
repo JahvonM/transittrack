@@ -305,9 +305,13 @@ function cleanAppHealth(h: unknown): Record<string, unknown> | null {
     typeof v === 'string' ? v.replace(/[\u0000-\u001f<>]/g, '').slice(0, n) : undefined;
   const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? Math.max(0, Math.min(100000, Math.round(v))) : undefined);
   const date = (v: unknown) => { const s = str(v, 40); return s && !Number.isNaN(Date.parse(s)) ? new Date(s).toISOString() : undefined; };
+  const coord = (v: unknown, max: number) =>
+    typeof v === 'number' && Number.isFinite(v) && Math.abs(v) <= max ? Math.round(v * 1e6) / 1e6 : undefined;
   const out: Record<string, unknown> = { reported_at: new Date().toISOString() };
   const set = (k: string, v: unknown) => { if (v !== undefined) out[k] = v; };
   set('build', str(o.build, 24));
+  set('lat', coord(o.lat, 90));
+  set('lng', coord(o.lng, 180));
   if (typeof o.online === 'boolean') out.online = o.online;
   set('queued_gps', num(o.queued_gps));
   set('queued_checkins', num(o.queued_checkins));

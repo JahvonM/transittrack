@@ -1,4 +1,5 @@
 import { saveDriverGrant } from "@/lib/deviceAuth";
+import { rememberPin, forgetPin, checkPinOffline, confirmPinWhenOnline } from "@/lib/offlinePin";
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -34,6 +35,8 @@ export default function PinGate({ vehicle, deviceId, invoke, onUnlock }) {
       const result = await invoke("verify_pin", { pin: value });
       if (result?.ok !== true) throw new Error("PIN verification failed");
       saveDriverGrant(deviceId, result.driver_grant);
+      // Keep this PIN usable on this tablet, so flaky Wi-Fi can't block a shift.
+      rememberPin(deviceId, value);
       onUnlock();
     } catch (e) {
       // Say what actually went wrong — a locked-out or offline tablet is not a
@@ -41,9 +44,20 @@ export default function PinGate({ vehicle, deviceId, invoke, onUnlock }) {
       const status = e?.response?.status;
       const serverMessage = e?.response?.data?.error;
       if (status === 429) setError(serverMessage || "Too many PIN tries. Wait 15 minutes and try again.");
-      else if (status === 403) setError(serverMessage || "That PIN is not right for this bus. Check the PIN, or ask your administrator.");
+      else if (status === 403) {
+        forgetPin(deviceId);
+        setError(serverMessage || "That PIN is not right for this bus. Check the PIN, or ask your administrator.");
+      }
       else if (status === 401) setError("This tablet is no longer paired to a bus. Ask your administrator to pair it again.");
-      else setError("No connection. Check the tablet's Wi-Fi, then try again.");
+      else if (await checkPinOffline(deviceId, value)) {
+        // No answer from the server, but this tablet checked this PIN online
+        // before: let the driver in and confirm with the server once Wi-Fi is
+        // back — that confirmation is what issues the pass everything else uses.
+        confirmPinWhenOnline(deviceId, value);
+        onUnlock();
+        return;
+      }
+      else setError("No connection, and this tablet hasn't checked this PIN before. Connect it to Wi-Fi once, then try again.");
       setPin("");
     } finally { setChecking(false); }
   };

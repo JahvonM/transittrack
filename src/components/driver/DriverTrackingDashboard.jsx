@@ -80,7 +80,7 @@ export default function DriverTrackingDashboard({ session, invoke, onReportIncid
   const handlePosition = useCallback(async (lat, lng, speed, extra = {}) => {
     const now = Date.now();
     setLastFixAt(now);
-    noteGpsFix(now);
+    noteGpsFix(now, lat, lng);
     setGpsProblem("");
     const v = vehicleRef.current;
     if (!v) return;
