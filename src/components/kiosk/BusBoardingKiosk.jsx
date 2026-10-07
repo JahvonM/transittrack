@@ -583,7 +583,7 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
       <Screen modeKey="qr" className="p-5 space-y-4">
         <Button variant="ghost" onClick={() => setMode("idle")}><ChevronLeft className="w-5 h-5 mr-1" /> Back</Button>
         <p className="text-base text-center text-muted-foreground">Show your QR code to the camera</p>
-        <QrScanner active onDecode={handleQrDecode} facingMode="user" />
+        <QrScanner active onDecode={handleQrDecode} facingMode="environment" />
       </Screen>
     );
   } else {
