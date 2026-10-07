@@ -241,6 +241,8 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
   // When the current card lookup started (0 = none). A lookup that never
   // answers (weak bus signal) must not block every tap after it.
   const lookupStarted = useRef(0);
+  const qrMode = useRef(mode);
+  qrMode.current = mode;
 
   // Web NFC needs the slide-to-unlock gesture before it can scan, but a USB
   // badge reader doesn't — so with one attached, a tap works straight from the
@@ -403,7 +405,7 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
   };
 
   const handleQrDecode = async (text) => {
-    if (busy) return;
+    if (busy || mode !== "qr") return;
     const decoded = parseCodeQrPayload(text);
     if (!decoded) {
       // Anything that isn't a one-time check-in code — a company join code, a
@@ -417,13 +419,14 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
     setBusy(true);
     try {
       const res = await invoke("lookup_code", { code: decoded });
+      if (qrMode.current !== "qr") return;
       setPending({ staff: res.staff, next_status: res.next_status, method: "qr", code_type: res.code_type, verification_grant: res.verification_grant });
       setMode("confirm");
     } catch (e) {
-      if (handleUnpaired(e)) return;
-      setBadgeError(busMessage(e) || "That QR code isn't recognized — it may have expired or already been used.");
-      setMode("badge_error");
-      resetSoon(3000);
+      if (qrMode.current !== "qr" || handleUnpaired(e)) return;
+      // Keep the camera open on a rejected code or a connection failure.
+      // Only a verified passenger should move this screen to confirmation.
+      setQrHint(busMessage(e) || "That QR code isn't recognized. Show a fresh check-in QR from My Account.");
     } finally {
       setBusy(false);
     }
@@ -583,9 +586,9 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
     actionContent = (
       <Screen modeKey="qr" className="p-5 space-y-4">
         <Button variant="ghost" onClick={() => { setMode("idle"); setQrHint(""); }}><ChevronLeft className="w-5 h-5 mr-1" /> Back</Button>
-        <p className="text-base text-center text-muted-foreground">Show your QR code to the camera</p>
-        <QrScanner active onDecode={handleQrDecode} facingMode="environment" />
-        {qrHint && <p className="text-sm text-center text-destructive">{qrHint}</p>}
+        <p className="text-base text-center text-muted-foreground">Hold your check-in QR steady inside the square</p>
+        <QrScanner active onDecode={handleQrDecode} facingMode="user" requireFacingMode stableMs={800} />
+        {busy ? <p className="text-sm text-center text-muted-foreground" role="status">Checking your code…</p> : qrHint && <p className="text-sm text-center text-destructive" role="status">{qrHint}</p>}
       </Screen>
     );
   } else {
@@ -687,7 +690,7 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
 
         <button
           type="button"
-          onClick={() => { setQrHint(""); setMode("qr"); }}
+          onClick={() => { clearTimeout(resetTimer.current); setQrHint(""); setMode("qr"); }}
           className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
         >
           <QrCode className="w-4 h-4" /> Scan QR code instead

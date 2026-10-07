@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { qrScanGate } from "@/lib/qrScanGate";
 import { Html5Qrcode } from "html5-qrcode";
 
 // Thin wrapper around html5-qrcode's camera-based decoder. Renders into a
@@ -7,19 +8,15 @@ import { Html5Qrcode } from "html5-qrcode";
 export default function QrScanner({ onDecode, active, facingMode = "environment" }) {
   const elementId = useRef(`qr-scanner-${Math.random().toString(36).slice(2)}`).current;
   const scannerRef = useRef(null);
+  const decodeRef = useRef(onDecode);
+  decodeRef.current = onDecode;
   const [error, setError] = useState("");
 
   useEffect(() => {
     if (!active) return;
     let stopped = false;
-    // The decoder reports every frame it sees a code — including one glimpsed
-    // in passing, held by someone in the queue, or only half resolved. Wait
-    // until the same code comes through twice in a row, then ignore repeats
-    // for a moment, so the kiosk only reacts once the passenger's code is
-    // properly in view and readable.
-    let lastText = "";
-    let streak = 0;
-    let lastFire = 0;
+    const gate = qrScanGate();
+    setError("");
     const scanner = new Html5Qrcode(elementId);
     scannerRef.current = scanner;
     const started = scanner.start(
@@ -34,11 +31,13 @@ export default function QrScanner({ onDecode, active, facingMode = "environment"
         useBarCodeDetectorIfSupported: true,
       },
       (decodedText) => {
-        if (stopped || Date.now() - lastFire < 2500) return;
-        if (decodedText === lastText) streak += 1; else { lastText = decodedText; streak = 1; }
-        if (streak >= 2) { lastFire = Date.now(); streak = 0; onDecode?.(decodedText); }
+        if (stopped || !gate.read(decodedText)) return;
+        Promise.resolve().then(() => { if (!stopped) return decodeRef.current?.(decodedText); })
+          .catch(() => { if (!stopped) setError("Couldn't check this QR. Close the camera and try again."); })
+          .finally(() => gate.done());
       },
-      () => { /* per-frame no-QR-found noise — ignore */ }
+      () => { gate.miss(); }
+
     );
     started.catch((e) => {
       if (stopped) return;
@@ -62,6 +61,7 @@ export default function QrScanner({ onDecode, active, facingMode = "environment"
   return (
     <div className="space-y-2">
       <div id={elementId} className="rounded-xl overflow-hidden bg-black/80 mx-auto" style={{ width: 260, height: 260 }} />
+      <p className="text-xs text-muted-foreground text-center">Hold the QR steady inside the square. To retry the same code, close and reopen the camera.</p>
       {error && <p className="text-xs text-destructive text-center">{error}</p>}
     </div>
   );
