@@ -35,6 +35,14 @@
     "duration_minutes": {
       "type": "number"
     },
+    "started_with": {
+      "type": "string",
+      "description": "How the shift began: phone (driver app scanned the tablet) or tablet."
+    },
+    "ended_with": {
+      "type": "string",
+      "description": "How the shift ended: phone or tablet."
+    },
     "notes": {
       "type": "string"
     },

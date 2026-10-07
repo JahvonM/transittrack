@@ -1,0 +1,83 @@
+{
+  "name": "PhoneUnlock",
+  "type": "object",
+  "description": "A short-lived code a driver tablet shows so a driver can start the shift and unlock it from the driver phone app. Server-only; never readable from the app.",
+  "properties": {
+    "device_id": {
+      "type": "string",
+      "description": "Driver tablet that showed the code."
+    },
+    "vehicle_id": {
+      "type": "string"
+    },
+    "company_id": {
+      "type": "string"
+    },
+    "code_hash": {
+      "type": "string",
+      "description": "SHA-256 of the short code; the code itself is never stored."
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "claimed",
+        "delivered"
+      ],
+      "default": "pending"
+    },
+    "driver_id": {
+      "type": "string"
+    },
+    "driver_email": {
+      "type": "string"
+    },
+    "driver_name": {
+      "type": "string"
+    },
+    "claimed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "delivered_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "shift_id": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "device_id",
+    "vehicle_id",
+    "company_id",
+    "code_hash",
+    "expires_at"
+  ],
+  "rls": {
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

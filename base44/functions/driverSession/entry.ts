@@ -401,6 +401,16 @@ function randomDigits(len) {
  while (out.length < len) { const b = crypto.getRandomValues(new Uint8Array(1))[0]; if (b < 250) out += b % 10; }
  return out;
 }
+// Short codes for "Start with the driver app": six characters a driver can
+// also type, without look-alikes (0/O, 1/I/L). They last two minutes.
+const PHONE_UNLOCK_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+const PHONE_UNLOCK_TTL_MS = 2 * 60_000;
+function phoneUnlockCode() {
+ let out = '';
+ const limit = Math.floor(256 / PHONE_UNLOCK_ALPHABET.length) * PHONE_UNLOCK_ALPHABET.length;
+ while (out.length < 6) { const b = crypto.getRandomValues(new Uint8Array(1))[0]; if (b < limit) out += PHONE_UNLOCK_ALPHABET[b % PHONE_UNLOCK_ALPHABET.length]; }
+ return out;
+}
 async function reserveAttempt(base44, key, limit, windowMs) {
  const rows = await base44.asServiceRole.entities.VerificationAttempt.filter({ scope: key }, '-created_date', limit);
  const recent = rows.filter(r => Date.parse(r.attempted_at) > Date.now() - windowMs);
@@ -503,7 +513,7 @@ export default async function(req) {
     const vehicleId = device.vehicle_id;
     if (!vehicleId) return Response.json({ error: 'No vehicle assigned to this device' }, { status: 400 });
 
-    if (!['heartbeat', 'verify_pin', 'request_pin_reset', 'register_push_token', 'sos'].includes(action) && !(await validGrant(base44, device, body.driver_grant, 'driver', vehicleId))) return Response.json({ error: 'Driver PIN verification required', code: 'DRIVER_PIN_REQUIRED' }, { status: 401 });
+    if (!['heartbeat', 'verify_pin', 'request_pin_reset', 'register_push_token', 'sos', 'phone_unlock_code', 'phone_unlock_status'].includes(action) && !(await validGrant(base44, device, body.driver_grant, 'driver', vehicleId))) return Response.json({ error: 'Driver PIN verification required', code: 'DRIVER_PIN_REQUIRED' }, { status: 401 });
 
     const helperHealth = cleanHelperHealth(body.helper_health);
     const appHealth = cleanAppHealth(body.app_health);
@@ -542,6 +552,38 @@ export default async function(req) {
         // while they were driving. The real daily gate is the tablet asking
         // for the PIN again at the start of the next local day.
         return Response.json({ ok: true, driver_grant: await issueGrant(base44, device, 'driver', vehicleId, 20 * 3600_000) });
+      }
+      // Start with the driver app: the locked tablet shows a short code (as a
+      // QR) for two minutes. A driver signed in to the phone app claims it
+      // (driverPhone claim_bus), which starts their shift; the tablet then
+      // collects the same driver pass a correct PIN would give it. The PIN
+      // keeps working as the backup.
+      case 'phone_unlock_code': {
+        const vehicle = await loadVehicle(base44, vehicleId);
+        if (!vehicle || vehicle.company_id !== companyId) return Response.json({ error: 'Vehicle assignment mismatch' }, { status: 403 });
+        if (!(await reserveAttempt(base44, 'phone-unlock-code:' + device.id, 20, 15 * 60_000))) return Response.json({ error: 'Too many codes requested. Use the PIN, or wait a few minutes.' }, { status: 429 });
+        const code = phoneUnlockCode();
+        const expiresAt = new Date(Date.now() + PHONE_UNLOCK_TTL_MS).toISOString();
+        const row = await base44.asServiceRole.entities.PhoneUnlock.create({
+          device_id: device.id, vehicle_id: vehicleId, company_id: companyId,
+          code_hash: await hashSecret('phone-unlock:' + code), expires_at: expiresAt, status: 'pending',
+        });
+        return Response.json({ unlock_id: row.id, code, expires_at: expiresAt });
+      }
+      case 'phone_unlock_status': {
+        const id = body.unlock_id;
+        if (typeof id !== 'string' || !id || id.length > 100) return Response.json({ error: 'Unlock request required' }, { status: 400 });
+        const row = await base44.asServiceRole.entities.PhoneUnlock.get(id).catch(() => null);
+        if (!row || row.device_id !== device.id || row.vehicle_id !== vehicleId || row.company_id !== companyId) return Response.json({ error: 'Unlock request not found' }, { status: 404 });
+        if (row.status === 'pending') return Response.json({ status: Date.parse(row.expires_at) > Date.now() ? 'pending' : 'expired' });
+        // Claimed by a driver: hand this tablet its pass. A reply lost on a
+        // weak signal is collected again on the next check, for ten minutes.
+        if (!(Date.parse(row.claimed_at) > Date.now() - 10 * 60_000)) return Response.json({ status: 'expired' });
+        if (row.status !== 'delivered') await base44.asServiceRole.entities.PhoneUnlock.update(row.id, { status: 'delivered', delivered_at: new Date().toISOString() });
+        return Response.json({
+          status: 'unlocked', driver_name: row.driver_name || '',
+          driver_grant: await issueGrant(base44, device, 'driver', vehicleId, 20 * 3600_000),
+        });
       }
       case 'move_stop':
       case 'add_stop': {

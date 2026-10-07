@@ -16,6 +16,64 @@ const REPORT_TYPES = ['breakdown', 'accident', 'delay', 'other'];
 const PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const MAX_PHOTOS = 3;
 const MAX_PHOTO_BYTES = 3 * 1024 * 1024;
+const TIME_ZONE = 'America/Grenada';
+const localDay = (date) => new Date(date).toLocaleDateString('en-CA', { timeZone: TIME_ZONE });
+
+// The walk-around check before getting in. Fixed list, so every phone check
+// reads the same in Inspection history; problems become mechanic faults.
+const WALKAROUND = [
+  { id: 'tyres', section: 'Outside', item: 'Tyres and wheels', critical: 'High' },
+  { id: 'lights', section: 'Outside', item: 'Lights and indicators', critical: 'High' },
+  { id: 'mirrors', section: 'Outside', item: 'Mirrors', critical: 'Medium' },
+  { id: 'windscreen', section: 'Outside', item: 'Windscreen and wipers', critical: 'Medium' },
+  { id: 'body', section: 'Outside', item: 'Bodywork (no new damage)', critical: 'Low' },
+  { id: 'leaks', section: 'Outside', item: 'No leaks under the bus', critical: 'High' },
+  { id: 'doors', section: 'Inside', item: 'Doors and emergency exits', critical: 'High' },
+  { id: 'interior', section: 'Inside', item: 'Seats, belts and floor', critical: 'Medium' },
+  { id: 'safety_kit', section: 'Inside', item: 'First aid kit and fire extinguisher', critical: 'Medium' },
+];
+const SEVERITY = { Low: 'low', Medium: 'medium', High: 'high', Critical: 'critical' };
+const MAX_WALKAROUND_PHOTOS = 6;
+
+// "Start with the driver app" codes, as the tablet shows them (see
+// driverSession phone_unlock_code). Typed codes may include spaces or dashes.
+const UNLOCK_CODE = /^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{6}$/;
+function unlockCodeFrom(value) {
+  const raw = String(value || '').trim();
+  const fromLink = /[?&]code=([^&#\s]+)/i.exec(raw);
+  return decodeURIComponent(fromLink ? fromLink[1] : raw).toUpperCase().replace(/[^A-Z0-9]/g, '');
+}
+async function claimFailuresExhausted(base44, userId) {
+  const rows = await base44.asServiceRole.entities.VerificationAttempt.filter({ scope: 'phone-claim:' + userId }, '-created_date', 10);
+  return rows.filter((r) => Date.parse(r.attempted_at) > Date.now() - 15 * 60_000).length >= 10;
+}
+const noteClaimFailure = (base44, userId) => base44.asServiceRole.entities.VerificationAttempt.create({ scope: 'phone-claim:' + userId, attempted_at: new Date().toISOString() });
+
+// When a shift starts or ends nobody is riding any more: close out anyone
+// the boarding tablet still counts as aboard (same as the bus tablet does).
+async function offboardEveryone(base44, { companyId, companyName, vehicleId, vehicleName, at }) {
+  const db = base44.asServiceRole.entities;
+  const rows = [];
+  for (let skip = 0; ; skip += 500) {
+    const batch = await db.StaffCheckIn.filter({ company_id: companyId, vehicle_id: vehicleId }, '-created_date', 500, skip);
+    rows.push(...batch);
+    if (batch.length < 500) break;
+  }
+  const latest = new Map();
+  for (const row of rows) {
+    const key = row.card_tag || row.staff_name;
+    if (!key) continue;
+    const prev = latest.get(key);
+    if (!prev || Date.parse(row.created_date) > Date.parse(prev.created_date)) latest.set(key, row);
+  }
+  const aboard = [...latest.values()].filter((r) => r.status === 'boarded');
+  if (!aboard.length) return;
+  await db.StaffCheckIn.bulkCreate(aboard.map((r) => ({
+    staff_name: r.staff_name, staff_picture_url: r.staff_picture_url || '', card_tag: r.card_tag,
+    status: 'off_board', boarded_at: new Date(at).toISOString(), check_in_method: 'manual',
+    company_id: companyId, company_name: companyName, vehicle_id: vehicleId, vehicle_name: r.vehicle_name || vehicleName || '',
+  })));
+}
 
 function fail(status, message) {
   throw Object.assign(new Error(message), { status });
@@ -165,9 +223,10 @@ async function pickupsFor(base44, companyId, vehicleId, stops) {
   }).sort((a, b) => a.name.localeCompare(b.name));
 }
 
-function shiftSummary(s) {
+function shiftSummary(s, email = '') {
   if (!s) return null;
   return {
+    id: s.id, mine: !!email && normEmail(s.driver_email) === email, started_with: s.started_with || 'tablet',
     started_at: s.started_at || null, ended_at: s.ended_at || null,
     duration_minutes: s.duration_minutes ?? null, driver_name: sanitize(s.driver_name), vehicle_name: sanitize(s.vehicle_name),
   };
@@ -223,13 +282,15 @@ export default async function(req) {
       case 'today': {
         const { buses, bus } = await pickBus(base44, driver, body.vehicle_id);
         if (!bus) return Response.json({ buses: [], bus: null, route: null, pickups: [], shift: null, last_shift: null, notices: [], contacts: null, workplace: null });
-        const [route, shifts, broadcasts, company, workplaces] = await Promise.all([
+        const [route, shifts, broadcasts, company, workplaces, inspections] = await Promise.all([
           bus.route_id ? db.Route.get(bus.route_id).catch(() => null) : null,
           db.DriverShift.filter({ vehicle_id: bus.id }, '-started_at', 5).catch(() => []),
           db.Broadcast.filter({ company_id: companyId }, '-created_date', 30).catch(() => []),
           db.Company.get(companyId).catch(() => null),
           db.Workplace.filter({ company_id: companyId }, '-updated_date', 5).catch(() => []),
+          db.Inspection.filter({ vehicle_id: bus.id }, '-created_date', 10).catch(() => []),
         ]);
+        const walk = inspections.find((i) => i.company_id === companyId && i.trigger === 'driver_phone' && localDay(i.created_date) === localDay(Date.now()));
         const routeOk = route && route.company_id === companyId;
         const stops = routeOk ? sortedStops(route) : [];
         const pickups = await pickupsFor(base44, companyId, bus.id, stops);
@@ -245,8 +306,9 @@ export default async function(req) {
           buses: buses.map(busSummary), bus: busSummary(bus),
           route: routeOk ? { id: route.id, name: sanitize(route.name), stops } : null,
           pickups,
-          shift: shiftSummary(busShifts.find((s) => !s.ended_at)),
-          last_shift: shiftSummary(busShifts.find((s) => s.ended_at)),
+          shift: shiftSummary(busShifts.find((s) => !s.ended_at), email),
+          last_shift: shiftSummary(busShifts.find((s) => s.ended_at), email),
+          walkaround: walk ? { status: walk.status, created_date: walk.created_date, driver_name: sanitize(walk.driver_name) } : null,
           notices,
           contacts: { dispatch_phone: company?.secretary_phone || '', manager_phone: company?.boss_phone || '' },
           workplace: workplace ? { name: sanitize(workplace.name) || 'Workplace' } : null,
@@ -317,6 +379,145 @@ export default async function(req) {
           data: { type: 'incident', incident_id: incident.id },
         });
         return Response.json({ ok: true, incident: { id: incident.id, type, photos: photoUris.length } });
+      }
+
+      case 'claim_bus': {
+        if (await claimFailuresExhausted(base44, user.id)) fail(429, 'Too many wrong codes. Wait 15 minutes, or use the bus PIN.');
+        const code = unlockCodeFrom(body.code);
+        if (!UNLOCK_CODE.test(code)) { await noteClaimFailure(base44, user.id); fail(400, 'That isn\'t a bus code. It has 6 letters and numbers.'); }
+        const rows = await db.PhoneUnlock.filter({ code_hash: await digest('phone-unlock:' + code) }, '-created_date', 3);
+        const row = rows.find((r) => r.status === 'pending' && Date.parse(r.expires_at) > Date.now());
+        // Another company's tablet reads exactly like a wrong code.
+        if (!row || row.company_id !== companyId) {
+          await noteClaimFailure(base44, user.id);
+          fail(404, 'That code didn\'t work. Codes last 2 minutes: tap "Start with the driver app" on the tablet again.');
+        }
+        const buses = await driverVehicles(base44, driver);
+        const bus = buses.find((v) => v.id === row.vehicle_id);
+        if (!bus) {
+          const other = await db.Vehicle.get(row.vehicle_id).catch(() => null);
+          fail(403, `${sanitize(other?.name) || 'This bus'} isn't assigned to you. Ask dispatch to assign it, or use the bus PIN.`);
+        }
+        const open = (await db.DriverShift.filter({ vehicle_id: bus.id }, '-started_at', 5)).find((x) => x.company_id === companyId && !x.ended_at);
+        if (open && normEmail(open.driver_email) && normEmail(open.driver_email) !== email) {
+          fail(409, `${sanitize(bus.name)} already has a shift open for ${sanitize(open.driver_name) || 'another driver'}. End it on the tablet first, or ask dispatch.`);
+        }
+        const now = new Date();
+        let shift = open;
+        if (!shift) {
+          shift = await db.DriverShift.create({
+            vehicle_id: bus.id, vehicle_name: bus.name, company_id: companyId, company_name: bus.company_name || driver.company_name || '',
+            driver_name: sanitize(driver.full_name), driver_email: driver.email, device_id: row.device_id,
+            started_at: now.toISOString(), started_with: 'phone',
+          });
+          try { await offboardEveryone(base44, { companyId, companyName: shift.company_name, vehicleId: bus.id, vehicleName: bus.name, at: now.getTime() }); }
+          catch { /* the shift still starts; the boarding tablet corrects anyone left aboard */ }
+        }
+        await db.PhoneUnlock.update(row.id, {
+          status: 'claimed', driver_id: driver.id, driver_email: driver.email, driver_name: sanitize(driver.full_name),
+          claimed_at: now.toISOString(), shift_id: shift.id,
+        });
+        return Response.json({ ok: true, bus: busSummary(bus), shift: shiftSummary(shift, email), resumed: !!open });
+      }
+
+      case 'end_shift': {
+        const buses = await driverVehicles(base44, driver);
+        const ids = new Set(buses.map((b) => b.id));
+        const mine = (await db.DriverShift.filter({ company_id: companyId }, '-started_at', 50))
+          .filter((x) => !x.ended_at && ids.has(x.vehicle_id) && normEmail(x.driver_email) === email)
+          .filter((x) => !body.vehicle_id || x.vehicle_id === body.vehicle_id);
+        const shift = mine[0];
+        if (!shift) fail(404, 'You have no shift open.');
+        const end = Date.now();
+        const startMs = Date.parse(shift.started_at);
+        const ended = await db.DriverShift.update(shift.id, {
+          ended_at: new Date(end).toISOString(), duration_minutes: Number.isFinite(startMs) ? Math.max(0, Math.round((end - startMs) / 60000)) : 0, ended_with: 'phone',
+        });
+        try { await offboardEveryone(base44, { companyId, companyName: shift.company_name, vehicleId: shift.vehicle_id, vehicleName: shift.vehicle_name, at: end }); }
+        catch { /* the shift is still ended */ }
+        return Response.json({ ok: true, shift: shiftSummary({ ...shift, ...ended }, email) });
+      }
+
+      case 'walkaround': {
+        const { bus } = await pickBus(base44, driver, body.vehicle_id);
+        if (!bus) fail(400, 'No bus is assigned to you');
+        const answers = Array.isArray(body.items) ? body.items : [];
+        const byId = new Map(answers.filter((a) => a && typeof a.id === 'string').map((a) => [a.id, a]));
+        if (WALKAROUND.some((w) => !byId.has(w.id))) fail(400, 'Check every item first');
+        const withPhotos = answers.filter((a) => typeof a?.photo_data === 'string' && a.photo_data);
+        if (withPhotos.length > MAX_WALKAROUND_PHOTOS) fail(400, `Up to ${MAX_WALKAROUND_PHOTOS} photos`);
+        if (withPhotos.some((a) => a.photo_data.length > Math.ceil(MAX_PHOTO_BYTES / 3) * 4)) fail(413, 'A photo is too large');
+        for (const w of WALKAROUND) {
+          const a = byId.get(w.id);
+          if (a.condition === 'FAILED' && !sanitize(a.notes) && !a.photo_data) fail(400, `Say what's wrong with: ${w.item}`);
+        }
+        const results = [];
+        for (const w of WALKAROUND) {
+          const a = byId.get(w.id);
+          const condition = a.condition === 'FAILED' ? 'FAILED' : 'GOOD';
+          const notes = sanitize(a.notes).slice(0, 1000);
+          let photo_url = '';
+          if (typeof a.photo_data === 'string' && a.photo_data) {
+            let bytes;
+            try { bytes = base64ToBytes(a.photo_data); } catch { fail(400, 'A photo could not be read'); }
+            const uploaded = await base44.asServiceRole.integrations.Core.UploadFile({ file: new File([bytes], `walkaround-${Date.now()}-${w.id}.jpg`, { type: 'image/jpeg' }) });
+            if (typeof uploaded?.file_url !== 'string' || !uploaded.file_url.startsWith('https://')) fail(502, 'A photo could not be uploaded');
+            photo_url = uploaded.file_url;
+          }
+          results.push({ section_name: w.section, item_name: w.item, zone: '', critical: w.critical, condition, notes, photo_url });
+        }
+        const failed = results.filter((r) => r.condition === 'FAILED');
+        const passed = !failed.length;
+        const now = new Date().toISOString();
+        const name = sanitize(driver.full_name) || 'Driver';
+        const base = { vehicle_id: bus.id, vehicle_name: bus.name, company_id: companyId, company_name: bus.company_name || driver.company_name || '' };
+        const inspection = await db.Inspection.create({
+          ...base, driver_name: name, driver_email: driver.email, date: localDay(now),
+          status: passed ? 'passed' : 'failed', template_name: 'Walk-around (driver app)', trigger: 'driver_phone',
+          results, checklist: {}, needs_service: !passed,
+          service_notes: passed ? '' : 'Problems: ' + failed.map((f) => f.item_name + (f.notes ? ` (${f.notes})` : '')).join('; ').slice(0, 1500),
+        });
+        // The same per-item rows a mechanic's check writes, so Inspection
+        // history counts the driver's walk-around too.
+        for (const r of results) {
+          await db.InspectionResult.create({
+            ...base, inspection_name: 'Walk-around (driver app)', section_name: r.section_name, inspection_item: r.item_name,
+            condition: r.condition, fault_found: r.condition === 'FAILED', fault_description: r.condition === 'FAILED' ? r.notes : '',
+            photo_url: r.photo_url || undefined, repair_required: r.condition === 'FAILED', notes: r.notes,
+            inspector_name: `${name} (driver)`, inspection_date: now,
+          });
+        }
+        if (failed.length) {
+          const settings = (await db.MaintenanceSettings.list().catch(() => []))[0];
+          if (settings?.auto_create_faults !== false) {
+            for (const f of failed) {
+              await db.Fault.create({
+                ...base, title: f.item_name.slice(0, 80),
+                description: (f.notes || 'Reported as a problem in the walk-around check.') + ' (walk-around, driver app)',
+                source: 'inspection', inspection_id: inspection.id, severity: SEVERITY[f.critical] || 'medium',
+                status: 'open', photo_url: f.photo_url || undefined, repair_required: true, reported_by: name,
+              });
+            }
+          }
+          await notify(base44, 'dispatch', companyId, {
+            title: `Walk-around problem · ${sanitize(bus.name)}`,
+            body: failed.map((f) => f.item_name).join(', ').slice(0, 200),
+            data: { type: 'inspection', inspection_id: inspection.id },
+          });
+        }
+        return Response.json({ ok: true, inspection: { id: inspection.id, status: inspection.status, problems: failed.length } });
+      }
+
+      case 'hours': {
+        const since = Date.now() - 35 * 86400_000;
+        const shifts = (await db.DriverShift.filter({ company_id: companyId }, '-started_at', 1000))
+          .filter((x) => normEmail(x.driver_email) === email && Date.parse(x.started_at) > since)
+          .map((x) => ({
+            id: x.id, vehicle_name: sanitize(x.vehicle_name), started_at: x.started_at, ended_at: x.ended_at || null,
+            minutes: x.ended_at ? (x.duration_minutes ?? Math.round((Date.parse(x.ended_at) - Date.parse(x.started_at)) / 60000)) : null,
+            started_with: x.started_with || 'tablet',
+          }));
+        return Response.json({ shifts });
       }
 
       case 'documents': {
