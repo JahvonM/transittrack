@@ -24,6 +24,7 @@ async function approvedStaffIds(base44, companyId) {
   return ids;
 }
 import { secrets } from 'base44:runtime';
+import { passengerPushTokens } from '../../shared/chatPush.ts';
 
 // --- Firebase Cloud Messaging (push) helpers — duplicated per-function, see notifyStaffPickup/entry.ts ---
 function base64UrlEncode(bytes) {
@@ -143,7 +144,7 @@ async function notificationForMessage(base44, user, body) {
   const pushBody = text || (message.message_type === 'image' ? '📷 Photo' : message.message_type === 'audio' ? '🎤 Voice note' : '');
   if (!pushBody) notificationFailure(400, 'Message has no text or media');
   return {
-    channel, companyId: vehicle.company_id,
+    channel, companyId: vehicle.company_id, vehicleId: message.vehicle_id,
     payload: {
       title: `${sanitize(vehicle.name).slice(0, 120) || 'Bus'} · ${sanitize(user.full_name || user.email).slice(0, 120) || 'Staff'}`,
       body: pushBody,
@@ -162,7 +163,12 @@ export default async function(req) {
     const serviceAccountJson = secrets.get('FIREBASE_SERVICE_ACCOUNT');
     if (serviceAccountJson) {
       const myTokens = new Set((await recipientRows(base44.asServiceRole.entities, 'PushToken', { email: user.email })).map(row => row.token));
-      const tokens = (await pushTokensForChannel(base44, notification.channel, notification.companyId)).filter(token => !myTokens.has(token));
+      // Staff posts go to the bus's own passengers as well as the admin team.
+      const audience = await pushTokensForChannel(base44, notification.channel, notification.companyId);
+      const passengers = notification.channel === 'staff'
+        ? await passengerPushTokens(base44, notification.vehicleId, { excludeEmails: [user.email] })
+        : [];
+      const tokens = [...new Set([...audience, ...passengers])].filter(token => !myTokens.has(token));
       if (tokens.length) await sendPushToTokens(serviceAccountJson, tokens, notification.payload);
     }
     return Response.json({ ok: true });

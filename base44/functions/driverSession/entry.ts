@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
+import { passengerPushTokens } from '../../shared/chatPush.ts';
 
 
 async function liveMembership(base44, row) {
@@ -1118,7 +1119,12 @@ export default async function(req) {
         try {
           const serviceAccountJson = secrets.get('FIREBASE_SERVICE_ACCOUNT');
           if (serviceAccountJson) {
-            const tokens = await pushTokensForChannel(base44, ch, companyId);
+            // The bus's own passengers ride this chat too, so they're told as
+            // well as the admin/company/mechanic audience.
+            const tokens = [...new Set([
+              ...(await pushTokensForChannel(base44, ch, companyId)),
+              ...(ch === 'staff' ? await passengerPushTokens(base44, vehicleId) : []),
+            ])];
             if (tokens.length) {
               await sendPushToTokens(serviceAccountJson, tokens, {
                 title: `${vehicle.name} · ${vehicle.driver_name || 'Driver'}`,
@@ -1159,7 +1165,10 @@ export default async function(req) {
         try {
           const serviceAccountJson = secrets.get('FIREBASE_SERVICE_ACCOUNT');
           if (serviceAccountJson) {
-            const tokens = await pushTokensForChannel(base44, ch, companyId);
+            const tokens = [...new Set([
+              ...(await pushTokensForChannel(base44, ch, companyId)),
+              ...(ch === 'staff' ? await passengerPushTokens(base44, vehicleId) : []),
+            ])];
             if (tokens.length) {
               await sendPushToTokens(serviceAccountJson, tokens, {
                 title: `${vehicle.name} · ${vehicle.driver_name || 'Driver'}`,

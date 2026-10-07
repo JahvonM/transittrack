@@ -6,12 +6,12 @@ import { blobToBase64 } from "@/lib/chatMedia";
 import { ChevronLeft, Users, Building2, Radio, Wrench, Camera, Mic } from "lucide-react";
 
 const QUICK_REPLIES = [
-  "Running late",
-  "On the way",
-  "Almost there",
-  "Arrived at stop",
-  "Stuck in traffic",
-  "Vehicle issue — delay expected",
+  "⏰ Running late",
+  "🚌 On the way",
+  "📍 Almost there",
+  "✅ Arrived at stop",
+  "🚦 Stuck in traffic",
+  "🔧 Vehicle issue — delay expected",
 ];
 
 const CONTACTS = [
@@ -43,9 +43,10 @@ export default function DriverChats({ session, invoke, onUnreadChange }) {
   const [activeChannel, setActiveChannel] = useState(null);
   const [localMessages, setLocalMessages] = useState({});
   const [sending, setSending] = useState(false);
-  const [seenIds, setSeenIds] = useState(() => new Set());
-  const [unreadChannels, setUnreadChannels] = useState(() => new Set());
-  const firstLoad = React.useRef(true);
+  // When each conversation was last read. Opening a chat marks it read and it
+  // stays read — including anything that arrives while you're reading it.
+  const [readAt, setReadAt] = useState({});
+  const seeded = React.useRef(false);
 
   const groupMessages = session?.group_messages || [];
   const broadcasts = session?.broadcasts || [];
@@ -94,35 +95,56 @@ export default function DriverChats({ session, invoke, onUnreadChange }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [groupMessages]);
 
-  // Track unread per channel — a new non-driver message in a channel that
-  // isn't currently open marks it unread.
-  useEffect(() => {
-    const allIncoming = [...groupMessages, ...broadcasts.map((b) => ({ id: `bc-${b.id}`, channel: "dispatch", sender_role: b.is_reply ? "driver" : "admin" }))];
-    if (firstLoad.current) {
-      setSeenIds(new Set(allIncoming.map((m) => m.id)));
-      firstLoad.current = false;
-      return;
-    }
-    setSeenIds((prevSeen) => {
-      const nextSeen = new Set(prevSeen);
-      let newlyUnread = null;
-      allIncoming.forEach((m) => {
-        if (nextSeen.has(m.id)) return;
-        nextSeen.add(m.id);
-        const ch = m.channel || "staff";
-        if (m.sender_role !== "driver" && ch !== activeChannel) newlyUnread = ch;
-      });
-      if (newlyUnread) setUnreadChannels((prev) => new Set(prev).add(newlyUnread));
-      return nextSeen;
+  // Newest message from someone else, per channel.
+  const lastIncoming = useMemo(() => {
+    const latest = {};
+    groupMessages.forEach((m) => {
+      if (m.sender_role === "driver") return;
+      const ch = m.channel || "staff";
+      const t = new Date(m.created_date).getTime();
+      if (!latest[ch] || t > latest[ch]) latest[ch] = t;
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    broadcasts.forEach((b) => {
+      if (b.is_reply) return;
+      const t = new Date(b.created_date).getTime();
+      if (!latest.dispatch || t > latest.dispatch) latest.dispatch = t;
+    });
+    return latest;
   }, [groupMessages, broadcasts]);
+
+  // First time this tablet sees the history, everything already there counts as
+  // read — otherwise every old message would light up the Chat tab.
+  useEffect(() => {
+    if (seeded.current || !Object.keys(lastIncoming).length) return;
+    seeded.current = true;
+    setReadAt((prev) => {
+      const next = { ...prev };
+      Object.entries(lastIncoming).forEach(([ch, t]) => { if (!next[ch]) next[ch] = t; });
+      return next;
+    });
+  }, [lastIncoming]);
+
+  // The conversation on screen is read, and anything arriving in it is read too.
+  useEffect(() => {
+    if (!activeChannel) return;
+    setReadAt((prev) => (
+      prev[activeChannel] >= (lastIncoming[activeChannel] || 0) ? prev : { ...prev, [activeChannel]: Date.now() }
+    ));
+  }, [activeChannel, lastIncoming]);
+
+  const unreadChannels = useMemo(() => {
+    const unread = new Set();
+    Object.entries(lastIncoming).forEach(([ch, t]) => {
+      if (ch !== activeChannel && t > (readAt[ch] || 0)) unread.add(ch);
+    });
+    return unread;
+  }, [lastIncoming, readAt, activeChannel]);
 
   useEffect(() => { onUnreadChange?.(unreadChannels.size > 0); }, [unreadChannels, onUnreadChange]);
 
   const openChannel = (ch) => {
     setActiveChannel(ch);
-    setUnreadChannels((prev) => { const next = new Set(prev); next.delete(ch); return next; });
+    setReadAt((prev) => ({ ...prev, [ch]: Date.now() }));
   };
 
   const send = async (text) => {
