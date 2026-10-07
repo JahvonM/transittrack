@@ -23,6 +23,7 @@ ENTITY_FIELDS.Advertisement.push('company_id');
 ENTITY_FIELDS.Driver.push('phone_app_access');
 ENTITY_FIELDS.Incident.push('photo_uris','source');
 ENTITY_FIELDS.DriverShift.push('started_with','ended_with');
+ENTITY_FIELDS.Vehicle.push('backup_gps_driver_email','backup_gps_since');
 const ADMIN_ONLY_FIELDS={Driver:new Set(['phone_app_access'])};
 const SERVER_ONLY_FIELDS={Incident:new Set(['photo_uris','source'])};
 const SECURITY_FIELDS={Company:new Set(['access_code','access_code_expires_at']),KioskDevice:new Set(['pairing_code','pairing_expires_at','paired','status'])};

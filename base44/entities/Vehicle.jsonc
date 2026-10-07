@@ -114,6 +114,14 @@
       ],
       "type": "string"
     },
+    "backup_gps_driver_email": {
+      "type": "string",
+      "description": "Backup GPS: while set, this driver's phone app sends the bus position during their open shift (dispatch turns it on when the bus tablet fails)."
+    },
+    "backup_gps_since": {
+      "type": "string",
+      "format": "date-time"
+    },
     "wired_gps_connected": {
       "default": false,
       "type": "boolean"

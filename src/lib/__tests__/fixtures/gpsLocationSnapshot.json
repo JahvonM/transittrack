@@ -1,0 +1,375 @@
+{
+ "responses": [
+  {
+   "status": 200,
+   "body": {
+    "ok": true,
+    "driving_event": null
+   }
+  },
+  {
+   "status": 200,
+   "body": {
+    "ok": true,
+    "driving_event": null
+   }
+  },
+  {
+   "status": 200,
+   "body": {
+    "ok": true,
+    "driving_event": null
+   }
+  },
+  {
+   "status": 200,
+   "body": {
+    "ok": true,
+    "driving_event": "hard_brake"
+   }
+  },
+  {
+   "status": 200,
+   "body": {
+    "ok": true,
+    "driving_event": "rapid_accel"
+   }
+  },
+  {
+   "status": 200,
+   "body": {
+    "ok": true,
+    "driving_event": "crash"
+   }
+  },
+  {
+   "status": 200,
+   "body": {
+    "ok": true,
+    "driving_event": null
+   }
+  },
+  {
+   "status": 200,
+   "body": {
+    "ok": true,
+    "ignored": "stale sample"
+   }
+  },
+  {
+   "status": 200,
+   "body": {
+    "ok": true,
+    "driving_event": null
+   }
+  },
+  {
+   "status": 400,
+   "body": {
+    "error": "lat and lng required"
+   }
+  },
+  {
+   "status": 400,
+   "body": {
+    "error": "Invalid GPS speed"
+   }
+  },
+  {
+   "status": 400,
+   "body": {
+    "error": "Invalid tracking status"
+   }
+  },
+  {
+   "status": 200,
+   "body": {
+    "ok": true,
+    "driving_event": null
+   }
+  },
+  {
+   "status": 200,
+   "body": {
+    "ok": true,
+    "driving_event": null
+   }
+  }
+ ],
+ "vehicle": {
+  "id": "bus-a",
+  "company_id": "a",
+  "name": "Bus A",
+  "driver_pin": "1234",
+  "route_id": "route-a",
+  "driver_name": "Dana",
+  "driver_email": "d@test.invalid",
+  "type": "staff_bus",
+  "current_lat": 12.0005,
+  "current_lng": -61.7801,
+  "speed": 0,
+  "status": "emergency",
+  "last_location_update": "2026-10-07T10:06:40.000Z",
+  "near_stop_id": "Grand Anse",
+  "last_ping_logged_at": "2026-10-07T10:06:40.000Z",
+  "trail": [
+   {
+    "lat": 12.05,
+    "lng": -61.75,
+    "t": "2026-10-07T10:00:00Z"
+   }
+  ]
+ },
+ "broadcasts": [
+  {
+   "type": "bus_arrived",
+   "title": "Bus A arrived",
+   "message": "Bus A has arrived at Town.",
+   "vehicle_name": "Bus A",
+   "company_id": "a",
+   "company_name": "A",
+   "driver_name": "Dana",
+   "driver_email": "d@test.invalid"
+  },
+  {
+   "type": "info",
+   "title": "Bus A departed",
+   "message": "Bus A has left Town.",
+   "vehicle_name": "Bus A",
+   "company_id": "a",
+   "company_name": "A",
+   "driver_name": "Dana",
+   "driver_email": "d@test.invalid"
+  },
+  {
+   "type": "bus_arrived",
+   "title": "Bus A arrived",
+   "message": "Bus A has arrived at True Blue.",
+   "vehicle_name": "Bus A",
+   "company_id": "a",
+   "company_name": "A",
+   "driver_name": "Dana",
+   "driver_email": "d@test.invalid"
+  },
+  {
+   "type": "info",
+   "title": "Bus A departed",
+   "message": "Bus A has left True Blue.",
+   "vehicle_name": "Bus A",
+   "company_id": "a",
+   "company_name": "A",
+   "driver_name": "Dana",
+   "driver_email": "d@test.invalid"
+  },
+  {
+   "type": "bus_arrived",
+   "title": "Bus A arrived",
+   "message": "Bus A has arrived at Grand Anse.",
+   "vehicle_name": "Bus A",
+   "company_id": "a",
+   "company_name": "A",
+   "driver_name": "Dana",
+   "driver_email": "d@test.invalid"
+  }
+ ],
+ "pings": [
+  {
+   "vehicle_id": "bus-a",
+   "company_id": "a",
+   "lat": 12.05,
+   "lng": -61.75,
+   "speed": 0,
+   "recorded_at": "2026-10-07T10:00:00.000Z"
+  },
+  {
+   "vehicle_id": "bus-a",
+   "company_id": "a",
+   "lat": 12.01,
+   "lng": -61.77,
+   "speed": 30,
+   "recorded_at": "2026-10-07T10:02:00.000Z"
+  },
+  {
+   "vehicle_id": "bus-a",
+   "company_id": "a",
+   "lat": 12.0005,
+   "lng": -61.7801,
+   "speed": 0,
+   "recorded_at": "2026-10-07T10:06:40.000Z"
+  }
+ ],
+ "incidents": [
+  {
+   "vehicle_id": "bus-a",
+   "vehicle_name": "Bus A",
+   "company_id": "a",
+   "company_name": "A",
+   "driver_name": "Dana",
+   "driver_email": "d@test.invalid",
+   "type": "other",
+   "details": "Possible hard stop detected (auto, unconfirmed) — sudden speed drop from 90 km/h. Not auto-escalated to SOS; review and use the SOS/incident tools if this needs a real response.",
+   "occurred_at": "2026-10-07T10:00:40.000Z"
+  },
+  {
+   "vehicle_id": "bus-a",
+   "vehicle_name": "Bus A",
+   "company_id": "a",
+   "company_name": "A",
+   "driver_name": "Dana",
+   "driver_email": "d@test.invalid",
+   "type": "speeding",
+   "details": "Speed recorded at 108 km/h",
+   "occurred_at": "2026-10-07T10:02:00.000Z"
+  }
+ ],
+ "events": [
+  {
+   "vehicle_id": "bus-a",
+   "vehicle_name": "Bus A",
+   "company_id": "a",
+   "company_name": "A",
+   "driver_name": "Dana",
+   "driver_email": "d@test.invalid",
+   "type": "hard_brake",
+   "speed_before_kmh": 90,
+   "speed_after_kmh": 14,
+   "lat": 12.035,
+   "lng": -61.755,
+   "occurred_at": "2026-10-07T10:00:24.000Z"
+  },
+  {
+   "vehicle_id": "bus-a",
+   "vehicle_name": "Bus A",
+   "company_id": "a",
+   "company_name": "A",
+   "driver_name": "Dana",
+   "driver_email": "d@test.invalid",
+   "type": "rapid_accel",
+   "speed_before_kmh": 14,
+   "speed_after_kmh": 90,
+   "lat": 12.03,
+   "lng": -61.757,
+   "occurred_at": "2026-10-07T10:00:32.000Z"
+  },
+  {
+   "vehicle_id": "bus-a",
+   "vehicle_name": "Bus A",
+   "company_id": "a",
+   "company_name": "A",
+   "driver_name": "Dana",
+   "driver_email": "d@test.invalid",
+   "type": "crash",
+   "speed_before_kmh": 90,
+   "speed_after_kmh": 4,
+   "lat": 12.025,
+   "lng": -61.758,
+   "occurred_at": "2026-10-07T10:00:40.000Z"
+  }
+ ],
+ "writes": [
+  {
+   "name": "Broadcast",
+   "method": "create"
+  },
+  {
+   "name": "Vehicle",
+   "method": "update"
+  },
+  {
+   "name": "LocationPing",
+   "method": "create"
+  },
+  {
+   "name": "Vehicle",
+   "method": "update"
+  },
+  {
+   "name": "Broadcast",
+   "method": "create"
+  },
+  {
+   "name": "Vehicle",
+   "method": "update"
+  },
+  {
+   "name": "Vehicle",
+   "method": "update"
+  },
+  {
+   "name": "Vehicle",
+   "method": "update"
+  },
+  {
+   "name": "DrivingEvent",
+   "method": "create"
+  },
+  {
+   "name": "Vehicle",
+   "method": "update"
+  },
+  {
+   "name": "DrivingEvent",
+   "method": "create"
+  },
+  {
+   "name": "Vehicle",
+   "method": "update"
+  },
+  {
+   "name": "DrivingEvent",
+   "method": "create"
+  },
+  {
+   "name": "Incident",
+   "method": "create"
+  },
+  {
+   "name": "Broadcast",
+   "method": "create"
+  },
+  {
+   "name": "Vehicle",
+   "method": "update"
+  },
+  {
+   "name": "Broadcast",
+   "method": "create"
+  },
+  {
+   "name": "Vehicle",
+   "method": "update"
+  },
+  {
+   "name": "LocationPing",
+   "method": "create"
+  },
+  {
+   "name": "Vehicle",
+   "method": "update"
+  },
+  {
+   "name": "Incident",
+   "method": "create"
+  },
+  {
+   "name": "Broadcast",
+   "method": "create"
+  },
+  {
+   "name": "Vehicle",
+   "method": "update"
+  },
+  {
+   "name": "Vehicle",
+   "method": "update"
+  },
+  {
+   "name": "LocationPing",
+   "method": "create"
+  },
+  {
+   "name": "Vehicle",
+   "method": "update"
+  }
+ ]
+}

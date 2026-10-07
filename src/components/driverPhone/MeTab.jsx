@@ -130,7 +130,7 @@ export default function MeTab({ me, documents, docsLoaded, onLoadDocs, shifts, o
       </section>
 
       <p className="px-1 text-body-sm text-muted-foreground">
-        This app never sends your location. It uses the phone's GPS only during your shift, to hide the screens while the bus is moving.
+        This app uses the phone's GPS only during your shift, to hide the screens while the bus is moving. It sends your location only if dispatch switches on backup GPS because the bus tablet isn't working, and only until that shift ends.
       </p>
 
       <button type="button" onClick={onSignOut} className="flex min-h-[48px] items-center justify-center gap-2 rounded-xl border border-border font-semibold hover:bg-accent">

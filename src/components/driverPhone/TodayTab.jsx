@@ -1,5 +1,5 @@
 import React from "react";
-import { Bus, CircleCheck, ClipboardCheck, Clock, Megaphone, MessageCircle, Phone, Play, Route as RouteIcon, Square, UserX } from "lucide-react";
+import { Bus, CircleCheck, ClipboardCheck, Clock, Megaphone, MessageCircle, Phone, Play, Radio, Route as RouteIcon, Square, UserX } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { telLink, whatsappLink } from "@/lib/driverPhone";
 
@@ -40,7 +40,7 @@ function ContactRow({ label, phone }) {
   );
 }
 
-export default function TodayTab({ today, driverName, onPickBus, onStartShift, onEndShift, onWalkaround }) {
+export default function TodayTab({ today, driverName, onPickBus, onStartShift, onEndShift, onWalkaround, backupSentAt }) {
   const { buses = [], bus, route, pickups = [], shift, last_shift: lastShift, notices = [], contacts, workplace, walkaround } = today || {};
   const first = (driverName || "").split(" ")[0] || "there";
   const hour = new Date().getHours();
@@ -116,6 +116,16 @@ export default function TodayTab({ today, driverName, onPickBus, onStartShift, o
               <Square className="h-4 w-4" aria-hidden="true" /> End shift
             </button>
           )}
+        </section>
+      )}
+
+      {today?.backup_gps && shift?.mine && (
+        <section role="status" className="rounded-2xl border border-primary/60 bg-primary/10 p-4" aria-label="Backup GPS">
+          <p className="flex items-center gap-2 text-title-sm font-bold"><Radio className="h-5 w-5 text-primary" aria-hidden="true" /> Backup GPS is on</p>
+          <p className="mt-1 text-body-sm text-muted-foreground">
+            Dispatch switched the bus position to this phone for your shift. Keep this app open and the phone on charge.
+            {backupSentAt ? ` Last sent ${backupSentAt.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" })}.` : " Waiting for the phone's GPS…"}
+          </p>
         </section>
       )}
 

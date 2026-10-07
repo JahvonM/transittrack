@@ -3,7 +3,7 @@ import { Bus } from "lucide-react";
 
 // Covers the whole app while the bus is moving: nothing to read or tap.
 // It lifts by itself once the bus has been stopped for a few seconds.
-export default function DrivingScreen({ busName, waiting }) {
+export default function DrivingScreen({ busName, waiting, sendingGps }) {
   return (
     <div role="alertdialog" aria-modal="true" aria-labelledby="driving-title" aria-describedby="driving-body"
       className="fixed inset-0 z-[60] flex flex-col items-center justify-center gap-5 bg-background px-6 text-center">
@@ -15,6 +15,7 @@ export default function DrivingScreen({ busName, waiting }) {
         Eyes on the road{busName ? `, ${busName}` : ""}. The app opens again when the bus stops.
       </p>
       {waiting > 0 && <p className="text-body text-muted-foreground">{waiting} new message{waiting === 1 ? "" : "s"} waiting</p>}
+      {sendingGps && <p className="text-body-sm font-semibold text-primary">Sending the bus position (backup GPS)</p>}
     </div>
   );
 }

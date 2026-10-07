@@ -18,6 +18,7 @@ import StartShift from "@/components/driverPhone/StartShift";
 import Walkaround from "@/components/driverPhone/Walkaround";
 import Requests from "@/components/driverPhone/Requests";
 import { confirmAction } from "@/components/ConfirmHost";
+import { GPS_INTERVAL_MS } from "@/lib/mapbox";
 
 const TABS = [
   { id: "today", label: "Today", icon: CalendarDays },
@@ -179,8 +180,38 @@ export default function DriverPhone() {
     else toast({ title: "Notifications on", description: "Dispatch messages will alert this phone." });
   };
 
+  // Backup GPS: only while dispatch has switched it on for this driver's open
+  // shift (the bus tablet has failed), the phone sends the bus position at the
+  // tablet's pace and keeps the screen awake. The server checks both again.
+  const backupOn = !!today?.backup_gps && !!today?.shift?.mine;
+  const [backupSentAt, setBackupSentAt] = useState(null);
+  useEffect(() => {
+    if (!backupOn || !navigator.geolocation?.watchPosition) return undefined;
+    let last = 0;
+    let lock = null;
+    const wake = async () => { try { lock = await navigator.wakeLock?.request("screen"); } catch { /* not supported */ } };
+    const onShow = () => { if (visible()) wake(); };
+    wake();
+    document.addEventListener("visibilitychange", onShow);
+    const id = navigator.geolocation.watchPosition((pos) => {
+      const now = Date.now();
+      if (now - last < GPS_INTERVAL_MS) return;
+      last = now;
+      const { latitude: lat, longitude: lng, speed } = pos.coords;
+      callDriverPhone("backup_location", {
+        vehicle_id: busRef.current || undefined, lat, lng, recorded_at: new Date(pos.timestamp || now).toISOString(),
+        ...(Number.isFinite(speed) && speed >= 0 && speed <= 100 ? { speed } : {}),
+      }).then(() => setBackupSentAt(new Date())).catch((error) => { if (error.status === 409) loadToday().catch(() => {}); });
+    }, () => {}, { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 });
+    return () => {
+      navigator.geolocation.clearWatch(id);
+      document.removeEventListener("visibilitychange", onShow);
+      lock?.release?.().catch(() => {});
+    };
+  }, [backupOn, loadToday]);
+
   // Driving screen: the phone's GPS is read only while a shift is open on the
-  // bus, and the readings stay on the phone. Nothing here is ever uploaded.
+  // bus. These readings stay on the phone (backup GPS above is separate).
   const onShift = !!today?.shift;
   useEffect(() => {
     if (!onShift || !navigator.geolocation?.watchPosition) { setDriving(false); return undefined; }
@@ -271,7 +302,7 @@ export default function DriverPhone() {
             onCancel={(id) => callDriverPhone("cancel_request", { request_id: id })} onBack={() => navigate("/driver-phone/me")} />
         )}
         {!screen && tab === "today" && (
-          <TodayTab today={today} driverName={me?.driver?.name} onPickBus={pickBus}
+          <TodayTab today={today} driverName={me?.driver?.name} onPickBus={pickBus} backupSentAt={backupSentAt}
             onStartShift={() => navigate("/driver-phone/start")} onEndShift={endShift} onWalkaround={() => navigate("/driver-phone/walkaround")} />
         )}
         {tab === "messages" && <MessagesTab messages={messages} loaded={messagesLoaded} hasBus={!!today?.bus} onSend={send} />}
@@ -307,7 +338,7 @@ export default function DriverPhone() {
         </ul>
       </nav>
 
-      {driving && <DrivingScreen busName={today?.bus?.name} waiting={unread} />}
+      {driving && <DrivingScreen busName={today?.bus?.name} waiting={unread} sendingGps={backupOn} />}
     </div>
   );
 }

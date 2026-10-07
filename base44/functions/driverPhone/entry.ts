@@ -2,6 +2,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 import { secrets } from 'base44:runtime';
 import { findPhoneDriver, driverVehicles, normEmail } from '../../shared/driverPhone.ts';
 import { sendPushToTokens } from '../../shared/fcm.ts';
+import { applyLocationUpdate } from '../../shared/vehicleLocation.ts';
 
 // The driver phone app. Drivers sign in with their own Google account; the
 // server matches that email to a Driver record an administrator switched on
@@ -160,6 +161,34 @@ async function pushTokensForChannel(base44, channel, companyId) {
   }
   return [...tokens];
 }
+// Same "one stop away" alert the bus tablet sends (driverSession
+// notifyStopAhead), for when the phone is the bus's backup GPS.
+async function notifyStopAhead(base44, route, departedName, vehicle, companyId) {
+  const serviceAccountJson = secrets.get('FIREBASE_SERVICE_ACCOUNT');
+  if (!serviceAccountJson) return;
+  const idx = route.stops.findIndex((s) => s.name === departedName);
+  const next = idx >= 0 ? route.stops[idx + 1] : null;
+  if (!next?.name) return;
+  const users = await base44.asServiceRole.entities.User.filter({ favorite_stop: next.name, stop_alerts: true });
+  const approvedIds = new Set((await approvedPassengerMemberships(base44, companyId)).map((row) => row.user_id));
+  const emails = users.filter((u) => approvedIds.has(u.id) && u.email).map((u) => u.email);
+  if (!emails.length) return;
+  const tokenLists = await Promise.all(emails.map((email) => base44.asServiceRole.entities.PushToken.filter({ email })));
+  const tokens = [...new Set(tokenLists.flat().map((t) => t.token))];
+  if (!tokens.length) return;
+  await sendPushToTokens(serviceAccountJson, tokens, {
+    title: `${vehicle.name} is one stop away`,
+    body: `It just left ${departedName}. Your stop, ${next.name}, is next.`,
+    data: { type: 'stop_ahead', vehicle_id: vehicle.id, stop: next.name },
+  });
+}
+// Backup GPS is on for this driver on this bus, and their shift is open.
+async function backupGpsShift(base44, bus, email) {
+  if (!bus || normEmail(bus.backup_gps_driver_email) !== email) return null;
+  const shifts = await base44.asServiceRole.entities.DriverShift.filter({ vehicle_id: bus.id }, '-started_at', 5);
+  return shifts.find((x) => x.company_id === bus.company_id && !x.ended_at && normEmail(x.driver_email) === email) || null;
+}
+
 async function notify(base44, channel, companyId, payload) {
   try {
     const serviceAccountJson = secrets.get('FIREBASE_SERVICE_ACCOUNT');
@@ -301,6 +330,7 @@ export default async function(req) {
           db.Workplace.filter({ company_id: companyId }, '-updated_date', 5).catch(() => []),
           db.Inspection.filter({ vehicle_id: bus.id }, '-created_date', 10).catch(() => []),
         ]);
+        const backupShift = await backupGpsShift(base44, bus, email);
         const walk = inspections.find((i) => i.company_id === companyId && i.trigger === 'driver_phone' && localDay(i.created_date) === localDay(Date.now()));
         const routeOk = route && route.company_id === companyId;
         const stops = routeOk ? sortedStops(route) : [];
@@ -319,6 +349,7 @@ export default async function(req) {
           pickups,
           shift: shiftSummary(busShifts.find((s) => !s.ended_at), email),
           last_shift: shiftSummary(busShifts.find((s) => s.ended_at), email),
+          backup_gps: !!backupShift,
           walkaround: walk ? { status: walk.status, created_date: walk.created_date, driver_name: sanitize(walk.driver_name) } : null,
           notices,
           contacts: { dispatch_phone: company?.secretary_phone || '', manager_phone: company?.boss_phone || '' },
@@ -446,6 +477,11 @@ export default async function(req) {
         });
         try { await offboardEveryone(base44, { companyId, companyName: shift.company_name, vehicleId: shift.vehicle_id, vehicleName: shift.vehicle_name, at: end }); }
         catch { /* the shift is still ended */ }
+        // Backup GPS is for one shift: it switches off when the shift ends.
+        const endedBus = buses.find((b) => b.id === shift.vehicle_id);
+        if (endedBus && normEmail(endedBus.backup_gps_driver_email) === email) {
+          await db.Vehicle.update(endedBus.id, { backup_gps_driver_email: '', backup_gps_since: null }).catch(() => {});
+        }
         return Response.json({ ok: true, shift: shiftSummary({ ...shift, ...ended }, email) });
       }
 
@@ -517,6 +553,25 @@ export default async function(req) {
           });
         }
         return Response.json({ ok: true, inspection: { id: inspection.id, status: inspection.status, problems: failed.length } });
+      }
+
+      // Backup GPS: the phone stands in for a failed bus tablet, only while
+      // dispatch has it switched on for this driver and their shift is open.
+      // The position goes through exactly the same processing as the tablet's.
+      case 'backup_location': {
+        const { bus } = await pickBus(base44, driver, body.vehicle_id);
+        if (!bus) fail(400, 'No bus is assigned to you');
+        if (!(await backupGpsShift(base44, bus, email))) fail(409, 'Backup GPS is off for this bus');
+        const clean = {
+          lat: body.lat, lng: body.lng, recorded_at: body.recorded_at,
+          ...(body.speed !== undefined && body.speed !== null ? { speed: body.speed } : {}),
+          ...(body.status !== undefined ? { status: body.status } : {}),
+        };
+        if (!bus.tracking_active) await db.Vehicle.update(bus.id, { tracking_active: true }).catch(() => {});
+        return applyLocationUpdate(base44, {
+          vehicleId: bus.id, companyId, companyName: bus.company_name || driver.company_name || '', body: clean,
+          onDepartedStop: (route, stopName, vehicle) => notifyStopAhead(base44, route, stopName, vehicle, companyId),
+        });
       }
 
       case 'hours': {
