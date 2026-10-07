@@ -5,12 +5,52 @@ import PullToRefresh from "@/components/PullToRefresh";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusChip } from "@/components/admin/kit";
 import { Button } from "@/components/ui/button";
-import { AlertOctagon } from "lucide-react";
+import { AlertOctagon, Image as ImageIcon, Loader2, Smartphone } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { loadFailed } from "@/lib/loadFailed";
 import BusLoader from "@/components/BusLoader";
 
 const STATUSES = ["open", "investigating", "resolved"];
+
+// Photos a driver sent from the phone app are private files: each is opened
+// through a link that only works for a few minutes.
+function IncidentPhotos({ uris }) {
+  const [urls, setUrls] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const show = async () => {
+    setBusy(true); setError("");
+    try {
+      const signed = await Promise.all(uris.map((file_uri) =>
+        base44.integrations.Core.CreateFileSignedUrl({ file_uri, expires_in: 300 }).then((r) => r?.signed_url || "")));
+      setUrls(signed.filter(Boolean));
+    } catch {
+      setError("Couldn't open the photos. Try again.");
+    } finally {
+      setBusy(false);
+    }
+  };
+  if (urls) {
+    return (
+      <div className="flex flex-wrap gap-2">
+        {urls.map((url, n) => (
+          <a key={url} href={url} target="_blank" rel="noreferrer" className="block h-24 w-24 overflow-hidden rounded-lg border border-border">
+            <img src={url} alt={`Report photo ${n + 1}`} className="h-full w-full object-cover" />
+          </a>
+        ))}
+      </div>
+    );
+  }
+  return (
+    <div className="flex items-center gap-2">
+      <Button size="sm" variant="outline" onClick={show} disabled={busy}>
+        {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImageIcon className="h-4 w-4" />}
+        View {uris.length} {uris.length === 1 ? "photo" : "photos"}
+      </Button>
+      {error && <span role="alert" className="text-body-sm text-danger">{error}</span>}
+    </div>
+  );
+}
 const next = (s) => STATUSES[(STATUSES.indexOf(s) + 1) % STATUSES.length];
 
 export default function IncidentReports() {
@@ -59,7 +99,11 @@ export default function IncidentReports() {
               </CardHeader>
               <CardContent className="text-sm space-y-2">
                 <div className="text-muted-foreground">{i.company_name || "—"} · {i.driver_name || "—"} · {i.occurred_at ? new Date(i.occurred_at).toLocaleString() : "—"}</div>
+                {i.source === "driver_phone" && (
+                  <StatusChip tone="info" dot={false}><Smartphone className="h-3.5 w-3.5" aria-hidden="true" /> Sent from the driver phone app</StatusChip>
+                )}
                 {i.details && <div>{i.details}</div>}
+                {Array.isArray(i.photo_uris) && i.photo_uris.length > 0 && <IncidentPhotos uris={i.photo_uris} />}
                 <div className="flex justify-end">
                   <Button size="sm" variant="outline" onClick={() => cycle(i)}>Advance status →</Button>
                 </div>

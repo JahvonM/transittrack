@@ -4,6 +4,7 @@ import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
@@ -18,8 +19,9 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/components/ui/use-toast";
+import { telLink, whatsappLink } from "@/lib/driverPhone";
 import DriverDocumentsDialog, { DocChips } from "@/components/admin/DriverDocuments";
-import { Bus, Camera, Car, Loader2, Mail, Pencil, Phone, Plus, Search, Trash2, User as UserIcon, X } from "lucide-react";
+import { Bus, Camera, Car, Loader2, Mail, Pencil, Phone, Plus, Search, Smartphone, Trash2, User as UserIcon, X } from "lucide-react";
 import { EmptyState, PageActions, StatusChip } from "@/components/admin/kit";
 
 const STATUSES = [
@@ -31,11 +33,10 @@ const STATUSES = [
 ];
 
 // Drivers are entered directly here (a plain Driver record) rather than
-// invited as a base44 login — the actual driver-tablet flow authenticates by
-// paired device + PIN (see driverSession), never by email/password, and the
-// platform won't let a User account be created without going through the
-// invite/signup flow anyway. So there's nothing an email invite would buy a
-// driver here — this is just their roster entry.
+// invited as a base44 login. The bus tablet authenticates by paired device +
+// PIN (see driverSession). The driver phone app is the one place a driver
+// signs in: with Google, using the email on this record, and only while
+// "Can use the phone app" is on (see driverPhone).
 function DriverFormFields({ form, setForm, companies }) {
   return (
     <div className="space-y-3">
@@ -44,12 +45,24 @@ function DriverFormFields({ form, setForm, companies }) {
         <Input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} placeholder="John D." />
       </div>
       <div className="space-y-1.5">
-        <Label>Email</Label>
+        <Label>Email (Gmail)</Label>
         <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="driver@example.com" />
       </div>
       <div className="space-y-1.5">
         <Label>Phone</Label>
         <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="+1 473-..." />
+      </div>
+      <div className="flex items-start justify-between gap-3 rounded-xl border border-border p-3">
+        <div className="min-w-0">
+          <Label htmlFor="driver-phone-app">Can use the phone app</Label>
+          <p className="text-body-sm text-muted-foreground">
+            {form.email.trim()
+              ? "The driver signs in with Google using the email above. Turn off to remove access."
+              : "Add the driver's Gmail address first."}
+          </p>
+        </div>
+        <Switch id="driver-phone-app" checked={!!form.phone_app_access && !!form.email.trim()} disabled={!form.email.trim()}
+          onCheckedChange={(on) => setForm({ ...form, phone_app_access: on })} />
       </div>
       <div className="space-y-1.5">
         <Label>Company</Label>
@@ -70,7 +83,7 @@ function DriverFormFields({ form, setForm, companies }) {
 function AddDriverDialog({ companies, onAdded }) {
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ full_name: "", email: "", phone: "", company_id: "" });
+  const [form, setForm] = useState({ full_name: "", email: "", phone: "", company_id: "", phone_app_access: false });
   const [saving, setSaving] = useState(false);
 
   const save = async () => {
@@ -84,9 +97,10 @@ function AddDriverDialog({ companies, onAdded }) {
         phone: form.phone.trim(),
         company_id: form.company_id || null,
         company_name: company?.name || "",
+        phone_app_access: !!form.phone_app_access && !!form.email.trim(),
       });
       toast({ title: "Driver added" });
-      setForm({ full_name: "", email: "", phone: "", company_id: "" });
+      setForm({ full_name: "", email: "", phone: "", company_id: "", phone_app_access: false });
       setOpen(false);
       onAdded();
     } catch (e) {
@@ -114,8 +128,8 @@ function AddDriverDialog({ companies, onAdded }) {
   );
 }
 
-function EditDriverDialog({ driver, companies, open, onOpenChange, onSaved }) {
-  const [form, setForm] = useState({ full_name: "", email: "", phone: "", company_id: "" });
+function EditDriverDialog({ driver, companies, vehicles = [], open, onOpenChange, onSaved }) {
+  const [form, setForm] = useState({ full_name: "", email: "", phone: "", company_id: "", phone_app_access: false });
   const [photoUrl, setPhotoUrl] = useState("");
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -127,6 +141,7 @@ function EditDriverDialog({ driver, companies, open, onOpenChange, onSaved }) {
         email: driver.email || "",
         phone: driver.phone || "",
         company_id: driver.company_id || "",
+        phone_app_access: !!driver.phone_app_access,
       });
       setPhotoUrl(driver.photo_url || "");
     }
@@ -146,14 +161,22 @@ function EditDriverDialog({ driver, companies, open, onOpenChange, onSaved }) {
     setSaving(true);
     try {
       const company = companies.find((c) => c.id === form.company_id);
+      const email = form.email.trim();
       await base44.entities.Driver.update(driver.id, {
         full_name: form.full_name.trim(),
-        email: form.email.trim(),
+        email,
         phone: form.phone.trim(),
         photo_url: photoUrl,
         company_id: form.company_id || null,
         company_name: company?.name || "",
+        phone_app_access: !!form.phone_app_access && !!email,
       });
+      // Buses are matched to drivers by email, so a new email keeps them.
+      const oldEmail = (driver.email || "").trim();
+      if (oldEmail && email && oldEmail.toLowerCase() !== email.toLowerCase()) {
+        await Promise.all(vehicles.filter((v) => v.driver_email === oldEmail)
+          .map((v) => base44.entities.Vehicle.update(v.id, { driver_email: email })));
+      }
       onSaved();
       onOpenChange(false);
     } finally {
@@ -292,8 +315,13 @@ function DriverCard({ driver, vehicles, companies, routes, docs = [], onDocsChan
             </p>
           )}
           {driver.phone && (
-            <p className="flex items-center gap-1.5 truncate text-body-sm text-muted-foreground">
-              <Phone className="h-3.5 w-3.5 shrink-0" aria-hidden="true" /> {driver.phone}
+            <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-body-sm text-muted-foreground">
+              <a href={telLink(driver.phone) || undefined} className="flex items-center gap-1.5 hover:text-foreground hover:underline">
+                <Phone className="h-3.5 w-3.5 shrink-0" aria-hidden="true" /> {driver.phone}
+              </a>
+              {whatsappLink(driver.phone) && (
+                <a href={whatsappLink(driver.phone)} target="_blank" rel="noreferrer" className="font-semibold hover:text-foreground hover:underline">WhatsApp</a>
+              )}
             </p>
           )}
           <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -301,6 +329,11 @@ function DriverCard({ driver, vehicles, companies, routes, docs = [], onDocsChan
             <StatusChip tone={assigned.length ? "success" : "neutral"} dot={false}>
               <Bus className="h-3.5 w-3.5" aria-hidden="true" /> {assigned.length} {assigned.length === 1 ? "bus" : "buses"}
             </StatusChip>
+            {driver.phone_app_access && driver.email && (
+              <StatusChip tone="info" dot={false}>
+                <Smartphone className="h-3.5 w-3.5" aria-hidden="true" /> Phone app
+              </StatusChip>
+            )}
           </div>
         </div>
         <div className="flex shrink-0 items-center">
@@ -369,7 +402,7 @@ function DriverCard({ driver, vehicles, companies, routes, docs = [], onDocsChan
         <DocChips docs={docs} onOpen={() => setDocsOpen(true)} />
       </div>
 
-      <EditDriverDialog driver={driver} companies={companies} open={editOpen} onOpenChange={setEditOpen} onSaved={onSaved} />
+      <EditDriverDialog driver={driver} companies={companies} vehicles={vehicles} open={editOpen} onOpenChange={setEditOpen} onSaved={onSaved} />
       <DriverDocumentsDialog driver={driver} docs={docs} open={docsOpen} onOpenChange={setDocsOpen} onChanged={onDocsChanged} />
     </li>
   );

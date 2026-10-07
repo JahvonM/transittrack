@@ -214,7 +214,8 @@ test('passenger can see other pickup spots nearby or drop their own pin',async({
  expect(second.pickup_lng).toBeCloseTo(-61.7);
  // Their own pin: off the road gets a warning, on the road saves with the route.
  // Saving keeps the pickup sheet open on the saved spot; close it first.
- await page.keyboard.press('Escape');
+ // The sheet can still be settling after the save, so press until it closes.
+ await expect(async()=>{ await page.keyboard.press('Escape'); await expect(page.getByRole('dialog')).toHaveCount(0,{timeout:1000}); }).toPass({timeout:10000});
  await page.getByRole('region',{name:'Your pickup'}).getByRole('button',{name:'Change'}).click();
  await page.getByRole('button',{name:'Pick my own spot on the map'}).click();
  const box=page.getByRole('region',{name:'Pick your own pickup spot'});

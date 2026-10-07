@@ -200,7 +200,7 @@ export default async function(req) {
       return Response.json({
         error: reason === 'ambiguous'
           ? 'Your email is on more than one company\'s driver list. Ask your administrator to fix it.'
-          : 'This account is not set up for the driver app. Ask your administrator to add your email to your driver record.',
+          : 'Ask your administrator to put this email on your driver record and switch on "Can use the phone app".',
         code: 'NOT_A_DRIVER',
       }, { status: 403 });
     }

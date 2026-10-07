@@ -26,6 +26,7 @@ import AccessRecovery from '@/components/system/AccessRecovery';
 import { companyGrantRejected, sessionRejected } from '@/lib/requestError';
 import { withRateLimitRetry } from '@/lib/scopedEntities';
 import BusLoader from "@/components/BusLoader";
+import { callDriverPhone } from "@/lib/driverPhone";
 import { routeProgress } from "@/components/TripProgress";
 import ArrivalHero from "@/components/passenger/ArrivalHero";
 import RouteTimeline from "@/components/passenger/RouteTimeline";
@@ -47,6 +48,24 @@ function useNow(ms = 15_000) {
     return () => clearInterval(t);
   }, [ms]);
   return now;
+}
+
+// Drivers sign in to the phone app with their own Google account, which has
+// no passenger company. Before asking for a company code, check whether an
+// administrator set this account up as a driver and, if so, open the driver
+// phone app instead.
+function DriverPhoneCheck({ children }) {
+  const [state, setState] = useState("checking");
+  useEffect(() => {
+    let alive = true;
+    callDriverPhone("me")
+      .then((data) => alive && setState(data?.driver?.email ? "driver" : "passenger"))
+      .catch(() => alive && setState("passenger"));
+    return () => { alive = false; };
+  }, []);
+  if (state === "driver") return <Navigate to="/driver-phone" replace />;
+  if (state === "checking") return <BusLoader className="py-8" />;
+  return children;
 }
 
 export default function StaffPortal() {
@@ -378,7 +397,7 @@ export default function StaffPortal() {
   const positionStale = busOnMap ? locationIsStale(busOnMap, now) : false;
   const stopEtas = useStopEtas({ bus: busOnMap, route: timelineRoute, stops: upcomingStops, record: timelineRoute ? travelTimes[timelineRoute.id] : null, enabled: onTrip && !positionStale });
 
-  if (user?.role === "driver") return <Navigate to="/driver" replace />;
+  if (user?.role === "driver") return <Navigate to="/driver-phone" replace />;
   if (user?.role === "company") return <Navigate to="/company" replace />;
   if (user?.role === "mechanic") return <Navigate to="/mechanic" replace />;
   // Same layout as the state below, so the page doesn't jump between the
@@ -388,7 +407,9 @@ export default function StaffPortal() {
   if (!company) {
     return (
       <AppLayout>
-        <CodeGate initialCode={joinCode} onUnlock={(c) => { setCompany(c); setCompanyPhone(c.phone || ""); }} />
+        <DriverPhoneCheck>
+          <CodeGate initialCode={joinCode} onUnlock={(c) => { setCompany(c); setCompanyPhone(c.phone || ""); }} />
+        </DriverPhoneCheck>
       </AppLayout>
     );
   }

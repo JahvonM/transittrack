@@ -28,7 +28,7 @@ import {
 
 const ROLES = {
   driver: {
-    to: "/driver",
+    to: "/driver-phone",
     title: "Driver",
     icon: Car,
     blurb: "Your shift, trips and one-tap GPS sharing.",

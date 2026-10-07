@@ -59,6 +59,7 @@ const ReviewerSandbox = lazy(() => import('@/pages/ReviewerSandbox'));
 const DrivingReports = lazy(() => import('@/pages/DrivingReports'));
 const DriverSchedule = lazy(() => import('@/pages/DriverSchedule'));
 const DriverProfile = lazy(() => import('@/pages/DriverProfile'));
+const DriverPhone = lazy(() => import('@/pages/DriverPhone'));
 // Add page imports here
 
 const RouteFallback = () => (
@@ -75,7 +76,8 @@ const AuthenticatedApp = () => {
   // Pages remount (and animate) when this key changes. The driver app's tabs
   // are all one page, so they share a key — switching tabs must not restart
   // it (that would stop GPS tracking and navigation).
-  const pageKey = location.pathname.startsWith("/driver") ? "/driver" : location.pathname;
+  const pageKey = /^\/driver(\/|$)/.test(location.pathname) ? "/driver"
+    : location.pathname.startsWith("/driver-phone") ? "/driver-phone" : location.pathname;
 
   // Show loading spinner while checking app public settings or auth
   if (!authPage && !tabletPage && (isLoadingPublicSettings || isLoadingAuth)) {
@@ -155,6 +157,8 @@ const AuthenticatedApp = () => {
         <Route path="/location-timeline" element={<Navigate to="/admin/location-timeline" replace />} />
         <Route path="/driver-schedule" element={<DriverSchedule />} />
         <Route path="/driver-profile" element={<DriverProfile />} />
+        {/* The driver phone app (Google sign-in); /driver is the bus tablet. */}
+        <Route path="/driver-phone/:tab?" element={<DriverPhone />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
       </Routes>
