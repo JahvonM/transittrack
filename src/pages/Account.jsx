@@ -4,6 +4,7 @@ import { CalendarClock, ChevronRight, IdCard, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import AppLayout from "@/components/AppLayout";
 import ProfileInfo from "@/components/ProfileInfo";
+import BoardingPass from "@/components/staff/BoardingPass";
 import ChangePassword from "@/components/ChangePassword";
 import ThemeToggle from "@/components/ThemeToggle";
 import AccentPicker from "@/components/AccentPicker";
@@ -22,6 +23,7 @@ export default function Account() {
       <div className="grid grid-cols-1 items-start gap-4 px-4 pb-6 md:px-0 lg:grid-cols-2">
         <div className="space-y-4">
         <ProfileInfo />
+        {['staff', 'passenger'].includes(user?.role) && <BoardingPass />}
         {user?.role === "driver" && (
           <Card>
             <CardHeader className="pb-2">

@@ -1,5 +1,6 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.52';
 import { retry429 } from '../../shared/retry429.ts';
+import { personalBoardingCredential, savePersonalBoardingCode } from '../../shared/boardingCredentials.ts';
 
 async function liveMembership(base44, row) {
  if (!row.expires_at && !row.code_hash) return true; // Explicit admin approval.
@@ -73,6 +74,20 @@ export default async function(req) {
     const companyIds = await approvedCompanies(base44, user, 'passenger');
     if (companyIds.length !== 1) return Response.json({ error: 'Verified company access required' }, { status: 403 });
     const companyId = companyIds[0];
+    const body = await req.json();
+    if (['boarding_get', 'boarding_set_code'].includes(body.action)) {
+      if (body.action === 'boarding_set_code') {
+        if (typeof body.code !== 'string' || !/^\d{6}$/.test(body.code)) return Response.json({ error: 'Choose a boarding code with exactly six digits.' }, { status: 400 });
+        const scope = 'boarding-code-change:' + user.id;
+        const recent = { scope, attempted_at: { $gt: new Date(Date.now() - 15 * 60_000).toISOString() } };
+        if (await retry429(() => base44.asServiceRole.entities.VerificationAttempt.count(recent)) >= 10) return Response.json({ error: 'Too many code changes. Try again in fifteen minutes.' }, { status: 429 });
+        await retry429(() => base44.asServiceRole.entities.VerificationAttempt.create({ scope, attempted_at: new Date().toISOString() }));
+      }
+      let credential = await personalBoardingCredential(base44, user, companyId);
+      if (body.action === 'boarding_set_code') credential = await savePersonalBoardingCode(base44, credential, body.code);
+      return Response.json({ qr_token: credential.qr_token, has_code: !!credential.token_hash, permanent: true });
+    }
+    if (body.action) return Response.json({ error: 'Unknown action' }, { status: 400 });
     if (!(await reserveAttempt(base44, 'otp-issue:' + user.id, 3, 30 * 60_000))) return Response.json({ error: 'Too many code requests. Try again later.' }, { status: 429 });
     const previous = await retry429(()=>base44.asServiceRole.entities.PassengerOneTimeCredential.filter({ user_id: user.id }, '-created_date', 100));
     for (const row of previous) if (!row.consumed_at) await retry429(()=>base44.asServiceRole.entities.PassengerOneTimeCredential.update(row.id, { consumed_at: new Date().toISOString() }));
@@ -88,6 +103,6 @@ export default async function(req) {
 
     return Response.json({ code, expires_at: expiresAt });
   } catch (error) {
-    return Response.json({ error: error.message }, { status: 500 });
+    return Response.json({ error: error.status ? error.message : 'Could not load or save your boarding code. Please try again.' }, { status: error.status || 500 });
   }
 }

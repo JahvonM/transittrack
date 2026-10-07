@@ -411,11 +411,11 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
     if (busy || mode !== "qr" || Date.now() < qrRetryAt) return;
     const decoded = parseCodeQrPayload(text);
     if (!decoded) {
-      // Anything that isn't a one-time check-in code — a company join code, a
+      // Anything that isn't a personal boarding code — a company join code, a
       // poster, another phone in the queue — is a code the scanner happened to
       // see, not the one being presented. Say so without leaving the camera,
       // so the scanner keeps waiting for the passenger's own code.
-      setQrHint("That isn't a check-in code. Open My Account → Check-in code and show that QR.");
+      setQrHint("That isn't a boarding QR. Open My Account → Bus boarding and show your permanent QR.");
       return;
     }
     setQrHint("");
@@ -430,7 +430,7 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
       // Keep the camera open on a rejected code or a connection failure.
       // Only a verified passenger should move this screen to confirmation.
       if (e?.response?.status === 429) setQrRetryAt(Date.now() + 60000);
-      setQrHint(busMessage(e) || "That QR code isn't recognized. Show a fresh check-in QR from My Account.");
+      setQrHint(busMessage(e) || "That QR code isn't recognized. Show your boarding QR from My Account.");
     } finally {
       setBusy(false);
     }
@@ -588,7 +588,7 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
         <Button variant="ghost" onClick={() => { setMode("idle"); setQrHint(""); }}><ChevronLeft className="w-5 h-5 mr-1" /> Back</Button>
         <p className="text-base text-center text-muted-foreground">Hold your check-in QR steady inside the square</p>
         <QrScanner active={qrCooldown === 0} onDecode={handleQrDecode} facingMode="user" requireFacingMode stableMs={800} />
-        {qrCooldown > 0 && <p role="status" className="text-sm text-center text-destructive">Scanning paused. Try again in {qrCooldown} seconds with a fresh QR.</p>}
+        {qrCooldown > 0 && <p role="status" className="text-sm text-center text-destructive">Scanning paused. Try again in {qrCooldown} seconds with your boarding QR.</p>}
         {busy ? <p className="text-sm text-center text-muted-foreground" role="status">Checking your code…</p> : qrHint && <p className="text-sm text-center text-destructive" role="status">{qrHint}</p>}
       </Screen>
     );
