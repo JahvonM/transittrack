@@ -6,6 +6,7 @@ import { useIsDark } from "@/lib/useTheme";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { LocateFixed } from "lucide-react";
+import PlaceSearch from "@/components/PlaceSearch";
 
 // Matches the declutter treatment on every other map in the app: hide
 // POI/transit icon clutter, keep road labels so the basemap still reads.
@@ -24,7 +25,7 @@ function declutterStyle(map) {
  * Tap-to-place / draggable-marker map for picking a GPS coordinate.
  * props: { lat, lng, onChange(lat, lng) }
  */
-export default function LocationPicker({ lat, lng, onChange }) {
+export default function LocationPicker({ lat, lng, onChange, onPlace }) {
   const isDark = useIsDark();
   const [viewport, setViewport] = useState({
     longitude: lng ?? -61.7,
@@ -48,8 +49,17 @@ export default function LocationPicker({ lat, lng, onChange }) {
     );
   };
 
+  // Picking a search result moves the marker there, so a place can be found
+  // by name instead of by tapping the map or typing coordinates.
+  const choosePlace = (place) => {
+    setViewport((v) => ({ ...v, longitude: place.lng, latitude: place.lat, zoom: 15 }));
+    onChange(place.lat, place.lng);
+    onPlace?.(place);
+  };
+
   return (
     <div className="space-y-2">
+      <PlaceSearch onSelect={choosePlace} proximity={hasPoint ? { lat, lng } : null} placeholder="Search a place by name" />
       <div className="rounded-lg overflow-hidden border border-border" style={{ height: 200 }}>
         <Map
           mapboxAccessToken={MAPBOX_TOKEN}

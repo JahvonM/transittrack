@@ -81,7 +81,7 @@ function addLayerInSlot(map, layer) {
 
 function stopElement(kind, name, onPick) {
   const el = document.createElement("div");
-  const label = kind === "mine" ? `Your stop, ${name}` : kind === "next" ? `Next stop, ${name}` : `Stop, ${name}`;
+  const label = kind === "mine" ? `Your stop, ${name}` : kind === "dropoff" ? `Drop-off, ${name}` : kind === "next" ? `Next stop, ${name}` : `Stop, ${name}`;
   el.setAttribute("role", onPick ? "button" : "img");
   el.setAttribute("aria-label", onPick ? `${label}. Show its name and how far away it is` : label);
   el.title = name;
@@ -89,9 +89,9 @@ function stopElement(kind, name, onPick) {
     el.style.cursor = "pointer";
     el.onclick = (e) => { e.stopPropagation(); onPick(); };
   }
-  if (kind === "mine") {
+  if (kind === "mine" || kind === "dropoff") {
     el.className = "tt-map-stop-mine";
-    el.innerHTML = `<span class="tt-map-stop-mine__pin"></span><span class="tt-map-stop-label"><b>Your stop</b></span>`;
+    el.innerHTML = `<span class="tt-map-stop-mine__pin"></span><span class="tt-map-stop-label"><b>${kind === "dropoff" ? "Drop-off" : "Your stop"}</b></span>`;
     el.querySelector("b").insertAdjacentText("afterend", ` · ${name}`);
   } else if (kind === "next") {
     el.className = "tt-map-stop tt-map-stop--next";
@@ -130,6 +130,7 @@ function FullMap({
   stops = [],
   routes = [], // so a tapped bus can show the stops on its own route
   looseStops = [], // stops drawn without a route line (e.g. every route at once)
+  dropoff = null, // the company's workplace: the main drop-off, drawn as its own pin
   myStop = null,
   nextStopIndex = null,
   userLocation: givenLocation = null,
@@ -218,7 +219,7 @@ function FullMap({
     return "How far away is unknown";
   }, [pickedStop, selected, focus, userLocation]);
 
-  stateRef.current = { focus, myStop, orderedStops, looseStops: (looseStops || []).filter((x) => x.lat != null && x.lng != null), located, userLocation, is3D, reduceMotion, accent, isDark };
+  stateRef.current = { focus, myStop, dropoff, orderedStops, looseStops: (looseStops || []).filter((x) => x.lat != null && x.lng != null), located, userLocation, is3D, reduceMotion, accent, isDark };
 
   // --- Map lifecycle ------------------------------------------------------
   useEffect(() => {
@@ -398,10 +399,13 @@ function FullMap({
       if (s.lat == null || s.lng == null || (s.name && s.name === mineName)) return;
       stopMarkersRef.current.push(new mapboxgl.Marker({ element: stopElement("upcoming", s.name || "Stop", () => setPickedStop(s)), anchor: "center" }).setLngLat([s.lng, s.lat]).addTo(map));
     });
+    if (dropoff?.lat != null && dropoff?.lng != null) {
+      stopMarkersRef.current.push(new mapboxgl.Marker({ element: stopElement("dropoff", dropoff.name || "Drop-off", () => setPickedStop(dropoff)), anchor: "bottom" }).setLngLat([dropoff.lng, dropoff.lat]).addTo(map));
+    }
     if (myStop?.lat != null) {
       stopMarkersRef.current.push(new mapboxgl.Marker({ element: stopElement("mine", myStop.name, () => setPickedStop(myStop)), anchor: "bottom" }).setLngLat([myStop.lng, myStop.lat]).addTo(map));
     }
-  }, [orderedStops, looseStops, myStop, nextStopIndex, loaded]);
+  }, [orderedStops, looseStops, dropoff, myStop, nextStopIndex, loaded]);
 
   // ETA callout that rides above the focus bus.
   useEffect(() => {
@@ -448,6 +452,9 @@ function FullMap({
       pts = [...pts, ...s.orderedStops.map((x) => [x.lng, x.lat])];
       if (!pts.length) pts = [...s.located.map((v) => [v.current_lng, v.current_lat]), ...s.looseStops.map((x) => [x.lng, x.lat])];
       if (!pts.length && s.userLocation) pts = [[s.userLocation.lng, s.userLocation.lat]];
+      // The drop-off stays in frame, whatever else the map is showing.
+      const drop = s.dropoff?.lat != null ? [s.dropoff.lng, s.dropoff.lat] : null;
+      if (drop && !pts.some((p) => p[0] === drop[0] && p[1] === drop[1])) pts.push(drop);
     }
     const b = boundsOf(pts);
     if (!b) return;
