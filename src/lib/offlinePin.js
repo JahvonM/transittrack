@@ -4,8 +4,8 @@
 // at the gate. Only a salted PBKDF2 hash is kept on the tablet, never the PIN.
 import { base44 } from "@/api/base44Client";
 import { deviceRequest, saveDriverGrant } from "@/lib/deviceAuth";
-import { localDayKey, forgetUnlockDay } from "@/lib/localDay";
-import { httpStatus } from '@/lib/requestError';
+import { localDayKey } from "@/lib/localDay";
+import { httpStatus, errorData } from '@/lib/requestError';
 
 const KEY = (id) => `tt_driver_pin_check_${id}`;
 const TRIES = (id) => `tt_driver_pin_tries_${id}`;
@@ -106,11 +106,12 @@ async function confirmPin() {
     stopConfirming();
   } catch (error) {
     if (pending !== confirmation) return;
-    if ([401, 403].includes(httpStatus(error))) {
-      if (httpStatus(error) === 403) forgetPin(deviceId);
-      stopConfirming();
-      forgetUnlockDay();
-      window.dispatchEvent(new Event('tt-driver-locked'));
-    }
+    const data = errorData(error);
+    // Only this tablet's own backend can say this PIN is no longer right. A
+    // dropped connection says nothing about the PIN, and locking the driver out
+    // of a moving bus over it is what made the PIN screen come back all shift —
+    // so anything else is simply retried.
+    if (httpStatus(error) === 403 && data.error) { forgetPin(deviceId); stopConfirming(); }
+    else if (data.code === 'DEVICE_ACCESS_REQUIRED') stopConfirming();
   } finally { confirming = false; }
 }

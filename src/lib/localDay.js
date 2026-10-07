@@ -16,9 +16,8 @@ export function rememberUnlockDay() {
   try { localStorage.setItem(KEY, localDayKey()); } catch { /* ignore */ }
 }
 
-// True only when this tablet was actually unlocked earlier today. Unlike
-// unlockedToday(), a tablet that has never been unlocked is not "unlocked" —
-// it still has to ask for the PIN.
+// True only when this tablet was actually unlocked earlier today. A tablet that
+// has never been unlocked is not "unlocked" — it still has to ask for the PIN.
 export function unlockDayMarked() {
   let stored = null;
   try { stored = localStorage.getItem(KEY); } catch { /* storage unavailable */ }
@@ -27,14 +26,4 @@ export function unlockDayMarked() {
 
 export function forgetUnlockDay() {
   try { localStorage.removeItem(KEY); } catch { /* ignore */ }
-}
-
-// True while this tablet's driver session is still valid for today. A missing
-// marker means the tablet was never unlocked (the lock state is already off)
-// or its storage is unavailable — either way, don't lock a driver who is
-// already driving.
-export function unlockedToday() {
-  let stored = null;
-  try { stored = localStorage.getItem(KEY); } catch { /* storage unavailable */ }
-  return stored === null || stored === localDayKey();
 }

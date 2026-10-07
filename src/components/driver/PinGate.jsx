@@ -37,7 +37,11 @@ export default function PinGate({ vehicle, deviceId, invoke, onUnlock }) {
     try {
       const result = await invoke("verify_pin", { pin: value });
       if (result?.ok !== true) throw new Error("PIN verification failed");
-      saveDriverGrant(deviceId, result.driver_grant);
+      // The pass every other action on this tablet needs. If it can't be kept,
+      // say so: unlocking into a screen that bounces straight back here is what
+      // made the PIN prompt come back all shift.
+      try { saveDriverGrant(deviceId, result.driver_grant); }
+      catch { setError("This tablet could not save the driver pass (its storage is full). Ask dispatch to free up space, then try again."); setPin(""); return; }
       // Finish writing and check storage before changing screens or reloading.
       const pinSaved = await rememberPin(deviceId, value);
       onUnlock({ pinSaved });
@@ -45,12 +49,13 @@ export default function PinGate({ vehicle, deviceId, invoke, onUnlock }) {
       // Say what actually went wrong — a locked-out or offline tablet is not a
       // wrong PIN, and drivers were reading all three as one.
       const status = httpStatus(e);
-      const serverMessage = errorData(e).error;
-      if (status === 429) setError(serverMessage || "Too many PIN tries. Wait 15 minutes and try again.");
-      else if (status === 403) {
-        setError(serverMessage || "That PIN is not right for this bus. Check the PIN, or ask your administrator.");
-      }
-      else if (status === 401) setError("This tablet is no longer paired to a bus. Ask your administrator to pair it again.");
+      const data = errorData(e);
+      // Only this tablet's own backend can judge the PIN. A request that never
+      // reached it (no signal, a platform-level error) must fall through to the
+      // remembered PIN below instead of pretending the tablet is unpaired.
+      if (status === 429) setError(data.error || "Too many PIN tries. Wait 15 minutes and try again.");
+      else if (status === 403 && data.error) setError(data.error);
+      else if (data.code === "DEVICE_ACCESS_REQUIRED") setError("This tablet is no longer paired to a bus. Ask your administrator to pair it again.");
       else if (await checkPinOffline(deviceId, value)) {
         // No answer from the server, but this tablet checked this PIN online
         // before: let the driver in and confirm with the server once Wi-Fi is

@@ -120,8 +120,10 @@ export function useDriverSession(deviceId, { intervalMs = 8000 } = {}) {
       const res = await base44.functions.invoke("driverSession", deviceRequest(deviceId, { ...payload, action }));
       return res.data;
     } catch (error) {
-      const data = errorData(error);
-      if (httpStatus(error) === 401 && (['DRIVER_PIN_REQUIRED', 'DEVICE_ACCESS_REQUIRED'].includes(data.code) || ['Driver PIN verification required', 'Invalid or unpaired driver device'].includes(data.error))) {
+      // Only this tablet's own backend can say the PIN is needed again. A
+      // request that never reached it (no signal, a platform-level 401) says
+      // nothing about the driver, so it must never raise the PIN screen.
+      if (httpStatus(error) === 401 && ['DRIVER_PIN_REQUIRED', 'DEVICE_ACCESS_REQUIRED'].includes(errorData(error).code)) {
         forgetUnlockDay();
         window.dispatchEvent(new Event('tt-driver-locked'));
       }
