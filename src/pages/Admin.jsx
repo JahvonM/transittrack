@@ -35,7 +35,6 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import {
   Car,
   ChevronDown,
-  DoorOpen,
   ExternalLink,
   FlaskConical,
   Hotel,
@@ -85,8 +84,7 @@ const ROLE_LINKS = [
 ];
 
 const PORTAL_LINKS = [
-  { to: "/admin/kiosks", label: "Bus Entry Kiosk", icon: Smartphone },
-  { to: "/admin/kiosks", label: "Front Desk Kiosk", icon: DoorOpen },
+  { to: "/admin/kiosks", label: "Kiosk tablets", icon: Smartphone },
   { to: "/reviewer-sandbox", label: "Reviewer Sandbox", icon: FlaskConical },
 ];
 

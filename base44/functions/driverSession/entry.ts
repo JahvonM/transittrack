@@ -1105,7 +1105,7 @@ export default async function(req) {
             try {
               const bytes = base64ToBytes(r.photo_data);
               const file = new File([bytes], `inspection-${Date.now()}-${photos}.jpg`, { type: 'image/jpeg' });
-              const uploaded = await base44.asServiceRole.integrations.Core.UploadFile({ file });
+              const uploaded = await base44.asServiceRole.integrations.Core.UploadPublicFile({ file });
               if(typeof uploaded?.file_url!=='string' || !uploaded.file_url.startsWith('https://')) throw new Error('Upload did not return a photo URL');
               photo_url = uploaded.file_url;
               photos += 1;
@@ -1225,7 +1225,7 @@ export default async function(req) {
           const type = mime_type || (message_type === 'image' ? 'image/jpeg' : 'audio/webm');
           const name = filename || `${message_type}-${Date.now()}`;
           const file = new File([bytes], name, { type });
-          const uploaded = await base44.asServiceRole.integrations.Core.UploadFile({ file });
+          const uploaded = await base44.asServiceRole.integrations.Core.UploadPublicFile({ file });
           mediaUrl = uploaded.file_url;
         } catch (e) {
           return Response.json({ error: `Upload failed: ${e.message}` }, { status: 500 });
@@ -1347,7 +1347,7 @@ export default async function(req) {
         try {
           const bytes = base64ToBytes(data_base64);
           const file = new File([bytes], `signature-${mode}-${Date.now()}.png`, { type: mime_type || 'image/png' });
-          const uploaded = await base44.asServiceRole.integrations.Core.UploadFile({ file });
+          const uploaded = await base44.asServiceRole.integrations.Core.UploadPublicFile({ file });
           fileUrl = uploaded.file_url;
         } catch (e) {
           return Response.json({ error: `Upload failed: ${e.message}` }, { status: 500 });

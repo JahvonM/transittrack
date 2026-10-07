@@ -48,7 +48,7 @@ describe('Step 6 independent-review production criteria',()=>{
  });
  it('B4 retains inspection photo failures instead of acknowledging completion',async()=>{
   const {sdk,send}=await driver();sdk.tables.InspectionTemplate=[{id:'daily',company_id:'a',name:'Daily',audience:'driver'}];
-  sdk.asServiceRole.integrations.Core.UploadFile=async()=>{throw new Error('upload unavailable');};
+  sdk.asServiceRole.integrations.Core.UploadPublicFile=async()=>{throw new Error('upload unavailable');};
   const response=await send({action:'submit_template_inspection',client_request_id:'photo-failure',template_id:'daily',results:[{item_name:'Tyre',condition:'FAILED',photo_data:'aGVsbG8='}]});
   expect(response.status).toBe(503);
  });

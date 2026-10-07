@@ -518,7 +518,7 @@ export default async function(req) {
             const bytes = new Uint8Array(binary.length);
             for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
             const file = new File([bytes], `signature-${Date.now()}.png`, { type: 'image/png' });
-            const uploaded = await base44.asServiceRole.integrations.Core.UploadFile({ file });
+            const uploaded = await base44.asServiceRole.integrations.Core.UploadPublicFile({ file });
             signatureUrl = uploaded.file_url;
           } catch { /* signature is a nice-to-have — sign-in still records without it */ }
         }

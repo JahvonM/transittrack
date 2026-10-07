@@ -460,7 +460,7 @@ export default async function(req) {
           if (typeof a.photo_data === 'string' && a.photo_data) {
             let bytes;
             try { bytes = base64ToBytes(a.photo_data); } catch { fail(400, 'A photo could not be read'); }
-            const uploaded = await base44.asServiceRole.integrations.Core.UploadFile({ file: new File([bytes], `walkaround-${Date.now()}-${w.id}.jpg`, { type: 'image/jpeg' }) });
+            const uploaded = await base44.asServiceRole.integrations.Core.UploadPublicFile({ file: new File([bytes], `walkaround-${Date.now()}-${w.id}.jpg`, { type: 'image/jpeg' }) });
             if (typeof uploaded?.file_url !== 'string' || !uploaded.file_url.startsWith('https://')) fail(502, 'A photo could not be uploaded');
             photo_url = uploaded.file_url;
           }
