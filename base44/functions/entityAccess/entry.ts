@@ -223,6 +223,8 @@ export default async function(req) {
  try {
   const base44=createClientFromRequest(req), db=base44.asServiceRole.entities;
   const body=await req.json(), name=body.entity, operation=body.operation;
+  // Refuse unknown or protected entities before looking anything up.
+  if(name!=='Bootstrap' && !Object.hasOwn(ENTITY_FIELDS,name)) fail(403,'Entity access denied');
   const ctx=await context(base44);
   // One call for the passenger home: the company's workplace, vehicles, routes
   // and the rides still to come. It used to be four separate calls, and on a

@@ -36,6 +36,9 @@ export default async function (req) {
   await Promise.allSettled(jobs);
   return Response.json({ ok: true, name });
  } catch (error) {
+  // auth.me() throws when nobody is signed in: that's a 401, not a server error.
+  const status = error?.status ?? error?.response?.status;
+  if (status === 401 || status === 403) return Response.json({ error: 'Unauthorized' }, { status: 401 });
   return Response.json({ error: error.message }, { status: 500 });
  }
 }

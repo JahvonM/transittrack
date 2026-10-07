@@ -3,9 +3,19 @@ import fs from 'node:fs';
 import ts from 'typescript';
 import {webcrypto,createHash} from 'node:crypto';
 export const digest=value=>createHash('sha256').update(value).digest('hex');
+// Functions import helpers from base44/shared/ (the platform bundles them).
+// Inline those here, once each, before the remaining import lines are dropped.
+export function inlineShared(source,seen=new Set()) {
+ return source.replace(/^import\s*\{[^}]*\}\s*from\s*'(?:\.\.\/\.\.\/shared\/|\.\/)([\w.-]+\.ts)';\s*$/gm,(_,file)=>{
+  if(seen.has(file))return '';
+  seen.add(file);
+  const shared=fs.readFileSync(new URL('../base44/shared/'+file,import.meta.url),'utf8').replace(/^export\s+(?=(?:async\s+)?function|const|let|class)/gm,'');
+  return inlineShared(shared,seen);
+ });
+}
 export function load(name,client,exportsList=[],cryptoApi=webcrypto) {
  const file=new URL('../base44/functions/'+name+'/entry.ts',import.meta.url);
- const source=fs.readFileSync(file,'utf8').replace(/npm:@noble\/hashes@1\.8\.0\//g, '@noble/hashes/').replace(/^import .*;\s*$/gm,'')+(exportsList.length?'\nexport { '+exportsList.join(',')+' };':'');
+ const source=inlineShared(fs.readFileSync(file,'utf8')).replace(/npm:@noble\/hashes@1\.8\.0\//g, '@noble/hashes/').replace(/^import .*;\s*$/gm,'')+(exportsList.length?'\nexport { '+exportsList.join(',')+' };':'');
  const js=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
  const exports={};
  new Function('exports','createClientFromRequest','crypto','secrets','require',js)(exports,()=>client,cryptoApi,{get:()=>null},createRequire(import.meta.url));

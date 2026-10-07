@@ -51,7 +51,8 @@ describe('saved-message notification authorization',()=>{
   const body={message_id:'message',channel:'dispatch',company_id:'b',vehicle_name:'FORGED',sender_name:'FORGED',text:'FORGED'};
   expect((await handler(request(body))).status).toBe(200);
   const notification=await notificationForMessage(sdk,sdk.tables.User[0],body);
-  expect(notification).toEqual({channel:'staff',companyId:'a',payload:{title:'Bus A · Caller',body:'Saved message text',data:{type:'group_message',channel:'staff'}}});
+  // The bus comes from the saved message, never from the request body.
+  expect(notification).toEqual({channel:'staff',companyId:'a',vehicleId:'bus-a',payload:{title:'Bus A · Caller',body:'Saved message text',data:{type:'group_message',channel:'staff'}}});
  });
  it('rejects fabricated notifications with no saved message ID',async()=>{
   const {sdk,default:handler}=notificationFixture();

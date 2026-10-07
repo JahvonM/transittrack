@@ -49,7 +49,7 @@ test('driver verifies PIN through backend with entity access blocked', async ({ 
   await mockApi(page, calls);
   await page.addInitScript(() => {
     localStorage.setItem('tt_driver_device_id', 'driver-test');
-    localStorage.setItem('tt_driver_unlock_date', new Date().toISOString().slice(0, 10));
+    localStorage.setItem('tt_driver_unlock_date', '2000-01-01'); // unlocked on an earlier day, so the PIN is asked
   });
   await page.goto('/driver');
   await expect(page.getByText('Driver PIN required')).toBeVisible();
@@ -207,6 +207,8 @@ test('driver tablet showcase keeps controls reachable in portrait and landscape'
   await expect(page.getByRole('button',{name:'Start tracking',exact:true})).toBeVisible();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
   await page.screenshot({path:`/tmp/tt-driver-${size.width}.png`});
+  // The PIN is asked once a day; forget today's unlock so the next size starts at the PIN screen.
+  await page.evaluate(()=>localStorage.removeItem('tt_driver_unlock_date'));
  }
 });
 
@@ -351,7 +353,7 @@ test('driver keypad unlocks on the fourth digit with big keys and no tablet keyb
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.addInitScript(() => {
     localStorage.setItem('tt_driver_device_id', 'driver-test');
-    localStorage.setItem('tt_driver_unlock_date', new Date().toISOString().slice(0, 10));
+    localStorage.setItem('tt_driver_unlock_date', '2000-01-01'); // unlocked on an earlier day, so the PIN is asked
   });
   await page.goto('/driver');
   await expect(page.getByText('Driver PIN required')).toBeVisible();

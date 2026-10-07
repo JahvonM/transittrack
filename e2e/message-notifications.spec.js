@@ -18,7 +18,8 @@ async function mockedChat(page,role) {
   if(url.includes('/functions/companyAccess'))return route.fulfill({json:{company:{id:'a',name:'Company A',phone:''}}});
   if(url.includes('/functions/entityAccess')) {
    const body=req.postDataJSON();let result=[];
-   if(body.entity==='User')result={id:'caller',role,email:'caller@test.invalid',full_name:'Test Caller',company_id:'a'};
+   if(body.entity==='Bootstrap')result={workplace:null,vehicles:[vehicle],routes:[],trips:[]}; // the passenger home's combined request
+   else if(body.entity==='User')result={id:'caller',role,email:'caller@test.invalid',full_name:'Test Caller',company_id:'a'};
    else if(body.entity==='Vehicle')result=[vehicle];
    else if(body.entity==='Company')result=[{id:'a',name:'Company A'}];
    else if(body.entity==='GroupMessage') {

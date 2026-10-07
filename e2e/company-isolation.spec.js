@@ -84,6 +84,7 @@ test('passenger previews walking directions then saves a separate roadside picku
  await page.route('**/functions/companyAccess',r=>r.fulfill({json:{company:{id:'a',name:'Company A'}}}));
  await page.route('**/functions/entityAccess',r=>{
   const body=r.request().postDataJSON();let result=[];
+  if(body.entity==='Bootstrap')result={workplace:null,vehicles:[],routes:[routeData],trips:[]};
   if(body.entity==='User'){ if(body.operation==='update'){saved.push(body.data);Object.assign(user,body.data);}result=user;}
   if(body.entity==='Route')result=[routeData];
   if(body.entity==='Company')result=[{id:'a',name:'Company A'}];
@@ -122,17 +123,23 @@ async function passengerShowcase(page, { stale = false, light = false } = {}) {
   const stops=[{name:"St. George's",lat:12.05,lng:-61.75,order:0},{name:'True Blue',lat:12.02,lng:-61.76,order:1},{name:'Grand Anse',lat:12.01,lng:-61.77,order:2},{name:'Morne Rouge',lat:12,lng:-61.78,order:3}];
   const bus={...vehicles[0],name:'TT-102',route_id:'route-a',current_lat:12.022,current_lng:-61.758,tracking_active:true,status:'on_trip',speed:25,driver_name:'K. Thomas',last_location_update:new Date(Date.now()-(stale ? 600000 : 20000)).toISOString()};
   await page.route('**/functions/companyAccess',r=>r.fulfill({json:{company:{id:'a',name:'Grenada Transport Co.'}}}));
+  const buses=[bus,{...bus,id:'bus-c',name:'TT-108'}];
+  const routes=[{id:'route-a',company_id:'a',name:'Coastal route',active:true,stops}];
+  const state={workplace:null};
   await page.route('**/functions/entityAccess',r=>{
     const b=r.request().postDataJSON();let result=[];
+    // The passenger home asks for its company's workplace, buses, routes and trips in one request.
+    if(b.entity==='Bootstrap') result={workplace:state.workplace,vehicles:buses,routes,trips:[]};
     if(b.entity==='User') result=passenger;
-    if(b.entity==='Vehicle') result=[bus,{...bus,id:'bus-c',name:'TT-108'}];
-    if(b.entity==='Route') result=[{id:'route-a',company_id:'a',name:'Coastal route',active:true,stops}];
+    if(b.entity==='Vehicle') result=buses;
+    if(b.entity==='Route') result=routes;
     return r.fulfill({json:{result}});
   });
   await page.route('https://api.mapbox.com/**',r=>r.fulfill({json:{routes:[{duration:180,distance:1500,geometry:{coordinates:stops.map(s=>[s.lng,s.lat])},legs:[{duration:180,distance:1500,steps:[]}]}]}}));
   await page.route('**/api.open-meteo.com/**',r=>r.fulfill({json:{current:{temperature_2m:28,weather_code:0}}}));
   await page.goto('/staff');
   await expect(page.getByLabel('Your bus',{exact:true})).toBeVisible();
+  return state;
 }
 
 test('approved passenger home shows ETA and opens its map only on request',async({page})=>{
@@ -175,6 +182,7 @@ test('passenger can see other pickup spots nearby or drop their own pin',async({
  await page.route('**/functions/companyAccess',r=>r.fulfill({json:{company:{id:'a',name:'Company A'}}}));
  await page.route('**/functions/entityAccess',r=>{
   const body=r.request().postDataJSON();let result=[];
+  if(body.entity==='Bootstrap')result={workplace:null,vehicles:[],routes:[routeData],trips:[]};
   if(body.entity==='User'){ if(body.operation==='update'){saved.push(body.data);Object.assign(user,body.data);}result=user;}
   if(body.entity==='Route')result=[routeData];
   if(body.entity==='Company')result=[{id:'a',name:'Company A'}];
@@ -205,6 +213,8 @@ test('passenger can see other pickup spots nearby or drop their own pin',async({
  expect(Math.abs(second.pickup_lat-12.005)).toBeGreaterThan(0.0009);
  expect(second.pickup_lng).toBeCloseTo(-61.7);
  // Their own pin: off the road gets a warning, on the road saves with the route.
+ // Saving keeps the pickup sheet open on the saved spot; close it first.
+ await page.keyboard.press('Escape');
  await page.getByRole('region',{name:'Your pickup'}).getByRole('button',{name:'Change'}).click();
  await page.getByRole('button',{name:'Pick my own spot on the map'}).click();
  const box=page.getByRole('region',{name:'Pick your own pickup spot'});
@@ -221,12 +231,13 @@ test('passenger can see other pickup spots nearby or drop their own pin',async({
 });
 
 test('passenger Home puts the roadside pickup up front and shows the workplace drop-off',async({page})=>{
-  await passengerShowcase(page);
+  const showcase=await passengerShowcase(page);
   const cta=page.getByRole('region',{name:'Get picked up near home'});
   await expect(cta).toBeVisible();
   await cta.getByRole('button',{name:'Find my pickup',exact:true}).click();
   await expect(page.getByText('Find a roadside pickup',{exact:true})).toBeVisible();
   await page.keyboard.press('Escape');
+  showcase.workplace={id:'w',company_id:'a',name:'Head office, True Blue',lat:12.0,lng:-61.78};
   await page.route('**/functions/entityAccess',async r=>{
     const b=r.request().postDataJSON();
     if(b.entity==='Workplace')return r.fulfill({json:{result:[{id:'w',company_id:'a',name:'Head office, True Blue',lat:12.0,lng:-61.78}]}});
@@ -425,7 +436,9 @@ test('company join QR checks its code after sign-in and keeps it out of the addr
 });
 
 test('company join QR asks a signed-out visitor to sign in first',async({page})=>{
- await page.route('**/api/**',r=>r.fulfill({status:401,json:{error:'Not signed in'}}));
+ await page.route('**/api/**',r=>r.request().url().includes('/public-settings/')
+  ? r.fulfill({json:{id:'test-app',public_settings:'public_without_login'}}) // answered even when signed out
+  : r.fulfill({status:401,json:{error:'Not signed in'}}));
  await page.goto('/join#code=ABCD2345EFGH');
  await expect(page.getByRole('heading',{name:'Join your bus company'})).toBeVisible();
  expect(new URL(page.url()).hash).toBe('');
@@ -434,7 +447,9 @@ test('company join QR asks a signed-out visitor to sign in first',async({page})=
 });
 
 test('a damaged company join QR is refused without calling the server',async({page})=>{
- await page.route('**/api/**',r=>r.fulfill({status:401,json:{error:'Not signed in'}}));
+ await page.route('**/api/**',r=>r.request().url().includes('/public-settings/')
+  ? r.fulfill({json:{id:'test-app',public_settings:'public_without_login'}}) // answered even when signed out
+  : r.fulfill({status:401,json:{error:'Not signed in'}}));
  await page.goto('/join#code=<script>');
  await expect(page.getByRole('heading',{name:"This QR code didn't work"})).toBeVisible();
  expect(await page.evaluate(()=>sessionStorage.getItem('tt_pending_company_code'))).toBeNull();
