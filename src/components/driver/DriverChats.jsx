@@ -92,7 +92,6 @@ export default function DriverChats({ session, invoke, onUnreadChange }) {
       });
       return changed ? next : prev;
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [groupMessages]);
 
   // Newest message from someone else, per channel.
