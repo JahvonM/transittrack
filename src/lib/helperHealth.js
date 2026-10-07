@@ -46,3 +46,17 @@ export function helperLinkLost(device, now = Date.now()) {
   const hasHelper = !!device?.helper_health || app?.reader === "usb_reader";
   return hasHelper && fresh(app?.reported_at) && !fresh(device?.helper_health?.reported_at);
 }
+
+// "GPS problem" tapped on a driver tablet: ask the TransitTrack Helper to
+// look for the USB GPS / card reader again now (Helper 1.8+, which listens on
+// 127.0.0.1:8765 on every tablet; older helpers ignore it), and tell this
+// page's location readers to start again so a GPS that has only just
+// appeared is picked up.
+export const GPS_RETRY_EVENT = "tt-gps-retry";
+export function retryGps() {
+  const url = `http://127.0.0.1:8765/rescan-usb?t=${Date.now()}`;
+  try {
+    fetch(url, { mode: "no-cors", cache: "no-store" }).catch(() => {});
+  } catch { /* no helper on this device */ }
+  try { window.dispatchEvent(new Event(GPS_RETRY_EVENT)); } catch { /* ignore */ }
+}

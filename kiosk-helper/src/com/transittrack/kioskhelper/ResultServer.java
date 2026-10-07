@@ -8,8 +8,16 @@ import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 
-/** The boarding page reports accepted/rejected to http://127.0.0.1:8765/result?ok=1|0. */
+/**
+ * Local commands from the TransitTrack page (127.0.0.1 only):
+ *   /result?ok=1|0  the boarding page reports a card accepted/rejected
+ *   /rescan-usb     look for the USB GPS / card reader again now
+ */
 final class ResultServer implements Runnable {
+    private final Runnable onRescan;
+
+    ResultServer(Runnable onRescan) { this.onRescan = onRescan; }
+
     private final Object lock = new Object();
     private Boolean result;
     private volatile boolean running = true;
@@ -50,6 +58,8 @@ final class ResultServer implements Runnable {
                 if ("GET".equals(method) && path.startsWith("/result")) {
                     boolean ok = path.contains("ok=1");
                     synchronized (lock) { result = ok; lock.notifyAll(); }
+                } else if ("GET".equals(method) && path.startsWith("/rescan-usb") && onRescan != null) {
+                    onRescan.run();
                 }
                 OutputStream os = s.getOutputStream();
                 os.write(("HTTP/1.1 204 No Content\r\n"

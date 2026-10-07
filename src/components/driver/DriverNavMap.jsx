@@ -11,6 +11,7 @@ import {
   formatDistance, formatDuration, metres, progressAt, projectOnRoute, routeAhead, speedLimitKmh, voicePromptAt,
 } from "@/lib/navigation";
 import { speak, stopSpeaking } from "@/lib/speech";
+import { GPS_RETRY_EVENT } from "@/lib/helperHealth";
 import useSmoothPosition from "@/hooks/useSmoothPosition";
 import { useBearing } from "@/components/MapBusPin";
 import TripProgress, { routeProgress } from "@/components/TripProgress";
@@ -126,6 +127,13 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
     try { await invoke("update_location", { lat, lng, status: "on_trip" }); } catch { /* offline — idempotent retry */ }
   }, [vehicleId, invoke]);
 
+  // "Check GPS again" on the Drive screen restarts this location reading too.
+  const [watchNonce, setWatchNonce] = useState(0);
+  useEffect(() => {
+    const again = () => setWatchNonce((n) => n + 1);
+    window.addEventListener(GPS_RETRY_EVENT, again);
+    return () => window.removeEventListener(GPS_RETRY_EVENT, again);
+  }, []);
   useEffect(() => {
     if (!vehicleId || !navigator.geolocation) return undefined;
     watchId.current = navigator.geolocation.watchPosition(
@@ -152,7 +160,7 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
       { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
     );
     return () => { if (watchId.current != null) navigator.geolocation.clearWatch(watchId.current); };
-  }, [vehicleId, pushLocation, shouldPush]);
+  }, [vehicleId, pushLocation, shouldPush, watchNonce]);
 
   const orderedStops = useMemo(
     () => (route?.stops?.length ? [...route.stops].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)) : []),

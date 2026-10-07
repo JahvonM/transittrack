@@ -36,6 +36,10 @@ final class UsbGps implements Runnable {
     private boolean prolific;
     private boolean providerAdded = false, providerDenied = false;
     private long waitingSince = 0, lastAsk = 0;
+    // Set from the page ("GPS problem" tapped): look again now, and ask for
+    // USB access straight away instead of after 15 s.
+    private final Object nap = new Object();
+    private volatile boolean rescanRequested = false, askNow = false;
     private int sats = 0;
     private float hdop = 0;
     private double altitude = Double.NaN;
@@ -48,6 +52,11 @@ final class UsbGps implements Runnable {
     }
 
     void stop() { running = false; }
+
+    void rescan() {
+        askNow = true;
+        synchronized (nap) { rescanRequested = true; nap.notifyAll(); }
+    }
 
     @Override public void run() {
         while (running) {
@@ -66,7 +75,8 @@ final class UsbGps implements Runnable {
                     setGps("Waiting for USB access");
                     long now = System.currentTimeMillis();
                     if (waitingSince == 0) waitingSince = now;
-                    if (now - waitingSince > 15000 && now - lastAsk > 60000) {
+                    if (askNow || (now - waitingSince > 15000 && now - lastAsk > 60000)) {
+                        askNow = false;
                         lastAsk = now;
                         Intent i = new Intent(CardReader.ACTION_PERMISSION).setPackage(ctx.getPackageName());
                         PendingIntent pi = PendingIntent.getBroadcast(ctx, 1, i, PendingIntent.FLAG_UPDATE_CURRENT);
@@ -301,7 +311,13 @@ final class UsbGps implements Runnable {
         Status.log("USB GPS position stopped");
     }
 
-    private static void sleep(long ms) {
-        try { Thread.sleep(ms); } catch (InterruptedException ignored) { }
+    /** Waits, but wakes early when the page asks for a rescan. */
+    private void sleep(long ms) {
+        synchronized (nap) {
+            if (!rescanRequested) {
+                try { nap.wait(ms); } catch (InterruptedException ignored) { }
+            }
+            rescanRequested = false;
+        }
     }
 }

@@ -150,6 +150,27 @@ test('driver map pins the stops and only gives directions after Navigate', async
   await expect(navigate).toBeVisible();
 });
 
+test('tapping a GPS problem asks the helper to look for the USB GPS again', async ({ page }) => {
+  await mockApi(page, [], driver);
+  const rescans = [];
+  await page.route('http://127.0.0.1:8765/**', (r) => { rescans.push(r.request().url()); return r.fulfill({ status: 204, body: '' }); });
+  await page.addInitScript(() => {
+    localStorage.setItem('tt_driver_device_id', 'driver-test');
+    localStorage.setItem('tt-map-engine', 'basic');
+    window.__ttHelperHealth = { at: Date.now(), version: '1.8', gps: 'Not plugged in' };
+  });
+  await page.goto('/driver/track');
+  await page.locator('input[type=password]').fill('1234');
+  await page.getByRole('button', { name: 'Unlock', exact: true }).click();
+  const gps = page.getByRole('button', { name: /GPS.*Tap to check again/ });
+  await expect(gps).toBeVisible({ timeout: 20000 });
+  await expect(gps).toContainText('GPS module: Not plugged in');
+  await gps.click();
+  await expect(page.getByText('Looking for the GPS again…').first()).toBeVisible();
+  await expect.poll(() => rescans.length).toBe(1);
+  expect(rescans[0]).toContain('/rescan-usb');
+});
+
 test('boarding passengers display full-screen IDs in sequence',async({page})=>{
  let reads=0;
  const live={...driver};

@@ -30,7 +30,7 @@ import org.json.JSONObject;
  *  - boarding tablets: join the bus hotspot automatically
  */
 public class HelperService extends Service {
-    static final String VERSION = "1.7";
+    static final String VERSION = "1.8";
     static volatile boolean plugged = true;
     static volatile boolean parked = false;
 
@@ -165,9 +165,13 @@ public class HelperService extends Service {
             joinBusWifi(10000);   // always-on tablet: keep working on battery
         }
 
+        // Local command listener: card results from the boarding page, and
+        // "look for USB devices again" from any TransitTrack page.
+        results = new ResultServer(new Runnable() {
+            @Override public void run() { main.post(new Runnable() { @Override public void run() { rescanUsb(); } }); }
+        });
+        new Thread(results, "tt-results").start();
         if (Config.reader(this)) {
-            results = new ResultServer();
-            new Thread(results, "tt-results").start();
             reader = new CardReader(this, results);
             new Thread(reader, "tt-reader").start();
         } else {
@@ -291,6 +295,14 @@ public class HelperService extends Service {
         int level = b.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
         int scale = b.getIntExtra(BatteryManager.EXTRA_SCALE, 100);
         return level < 0 || scale <= 0 ? -1 : Math.round(level * 100f / scale);
+    }
+
+    /** The page's GPS / card reader status was tapped: look for the USB devices now and report back. */
+    private void rescanUsb() {
+        Status.log("Screen asked to look for USB devices again");
+        if (reader != null) reader.reconnect();
+        if (gps != null) gps.rescan();
+        main.postDelayed(new Runnable() { @Override public void run() { pushHealth(); } }, 4000);
     }
 
     /** Puts the helper's status into the page; its heartbeat passes it on to Admin -> Kiosk Tablets. */

@@ -8,21 +8,35 @@ import { toneOf } from "@/components/system/status";
 
 /**
  * GPS, connection and tracking in one row. Each item:
- *   { key, icon, label, detail?, tone: live|success|warning|danger|info|offline|neutral }
+ *   { key, icon, label, detail?, tone: live|success|warning|danger|info|offline|neutral,
+ *     onClick?, actionLabel? }  — with onClick the item is a button.
  */
 export function StatusStrip({ items, className }) {
   return (
     <ul className={cn("grid grid-cols-3 divide-x divide-border overflow-hidden rounded-xl border border-border bg-card", className)} aria-label="Bus status">
-      {items.map(({ key, icon: Icon, label, detail, tone }) => {
+      {items.map(({ key, icon: Icon, label, detail, tone, onClick, actionLabel }) => {
         const t = toneOf(tone);
         const calm = tone === "success" || tone === "neutral";
-        return (
-          <li key={key} className={cn("flex min-w-0 items-center gap-2 px-2.5 py-2.5 sm:px-3", !calm && t.soft.split(" ")[0])}>
+        const body = (
+          <>
             <Icon className={cn("h-5 w-5 shrink-0", t.fg)} aria-hidden="true" />
             <span className="min-w-0" role="status">
               <span className={cn("block text-body-sm font-semibold leading-tight", calm ? "text-foreground" : t.text)}>{label}</span>
               {detail && <span className="block truncate text-caption text-muted-foreground">{detail}</span>}
+              {onClick && actionLabel && <span className={cn("block truncate text-caption font-semibold underline underline-offset-2", calm ? "text-foreground" : t.text)}>{actionLabel}</span>}
             </span>
+          </>
+        );
+        return (
+          <li key={key} className={cn("min-w-0", !calm && t.soft.split(" ")[0])}>
+            {onClick ? (
+              <button type="button" onClick={onClick} aria-label={`${label}. ${actionLabel || ""}`.trim()}
+                className="flex w-full min-w-0 items-center gap-2 px-2.5 py-2.5 sm:px-3 text-left hover:bg-accent/60 active:bg-accent">
+                {body}
+              </button>
+            ) : (
+              <div className="flex min-w-0 items-center gap-2 px-2.5 py-2.5 sm:px-3">{body}</div>
+            )}
           </li>
         );
       })}

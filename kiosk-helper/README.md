@@ -13,6 +13,10 @@ Small Android app for the bus tablets. Replaces the Termux scripts:
 - **Scanner reconnection (1.7)**: a detached reader is closed, then USB devices are checked
   every two seconds. The USB connection is reopened after a screen wake. Android must still
   grant USB access. This continues on battery and while GPS is parked.
+- **Look again for USB (1.8)**: every tablet now runs the 127.0.0.1:8765 listener (before, only
+  boarding tablets did). `GET /rescan-usb` (sent when the driver taps "GPS problem" on the Drive
+  screen) makes the GPS and card reader look for their USB device at once, asks for USB access
+  straight away instead of after 15 s, and reports status back to the page about 4 s later.
 - **Tap delivery (1.7)**: taps are held in page memory for at most 30 seconds while the page
   starts or wakes. One retry uses the same tap ID to prevent duplicate card lookups. Green
   feedback requires the page's acknowledgement; a REST response alone is not success.
@@ -53,7 +57,7 @@ Place a trusted, privately supplied `TransitTrack-Kiosk-Helper.apk` beside the
 Windows setup script. It no longer downloads the old public APK.
 
 Release delivery: the signed APK is served only through the admin-only
-`helperRelease` backend function (Admin -> Kiosk Tablets -> Helper app), never
+`helperRelease` backend function (built into the Admin -> Kiosk Tablets setup file), never
 under /public. To release a new version, build with build.sh and replace
 VERSION, VERSION_CODE, SHA256 and APK_BASE64 in base44/functions/helperRelease/entry.ts.
 
@@ -73,3 +77,9 @@ appear, and the helper should say the page recognized or rejected the card. Veri
 stays awake without a charger and with the scanner unplugged. Compilation and mocked browser
 tests do not replace this physical test. The admin-only Helper app download now supplies signed 1.7 with the existing development
 certificate. Install it on each tablet; publishing the website does not update installed helpers.
+
+1.8 validation: on a driver tablet with tracking on and the GPS unplugged, plug the GPS in and tap
+"GPS problem" on the Drive screen. Within a few seconds the status should leave "Not plugged in";
+if Android has not granted USB access yet, its popup should appear at once. The 1.8 source has
+been compile-checked only; build and sign it with build.sh and the existing key, then update
+helperRelease, and run this physical test before rolling it out.

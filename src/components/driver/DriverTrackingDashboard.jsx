@@ -10,6 +10,7 @@ import { AttentionItem, DeckButton, NextStopBlock, OnBoard, StatusStrip } from "
 import { useToast } from "@/components/ui/use-toast";
 import { queueGpsPoint, queuedGpsCount, flushGpsQueue, gpsSyncError, GPS_QUEUE_EVENT } from "@/lib/gpsQueue";
 import { noteGpsFix } from "@/lib/appHealth";
+import { retryGps, GPS_RETRY_EVENT } from "@/lib/helperHealth";
 
 // The Drive screen, laid out like a cockpit: the turn-by-turn map, then one
 // rail that reads top to bottom — status, next stop, people on board, things
@@ -134,10 +135,7 @@ export default function DriverTrackingDashboard({ session, invoke, onReportIncid
     setNearbyStaff(nearby);
   }, [playBeep, toast, invoke]);
 
-  const startTracking = async () => {
-    if (!navigator.geolocation || watchId.current != null) return;
-    setSharing(true);
-    try { await invoke("start_tracking"); } catch { /* tolerate */ }
+  const beginWatch = () => {
     watchId.current = navigator.geolocation.watchPosition(
       (p) => {
         if (p.coords.accuracy != null && p.coords.accuracy > 100) { setGpsProblem("Weak GPS signal"); return; }
@@ -155,6 +153,26 @@ export default function DriverTrackingDashboard({ session, invoke, onReportIncid
       { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
     );
   };
+
+  const startTracking = async () => {
+    if (!navigator.geolocation || watchId.current != null) return;
+    setSharing(true);
+    try { await invoke("start_tracking"); } catch { /* tolerate */ }
+    beginWatch();
+  };
+
+  // "Check GPS again": restart the location reading so a GPS module plugged
+  // in after tracking started is picked up.
+  useEffect(() => {
+    const restart = () => {
+      if (watchId.current == null || !navigator.geolocation) return;
+      navigator.geolocation.clearWatch(watchId.current);
+      setGpsProblem("");
+      beginWatch();
+    };
+    window.addEventListener(GPS_RETRY_EVENT, restart);
+    return () => window.removeEventListener(GPS_RETRY_EVENT, restart);
+  });
 
   const stopTracking = async () => {
     try {
@@ -237,6 +255,15 @@ export default function DriverTrackingDashboard({ session, invoke, onReportIncid
       : nav?.gpsStatus === "low" ? { tone: "warning", icon: SatelliteDish, label: "Weak GPS" }
         : { tone: "neutral", icon: SatelliteDish, label: "Finding GPS" };
   if (moduleGps && moduleGps.tone !== "ok") gpsItem.detail = `GPS module: ${moduleGps.text}`;
+  // GPS module plugged in late, or no fix: a tap asks the helper to look for
+  // the USB GPS again and restarts this page's location reading.
+  if (gpsItem.tone !== "success" || (moduleGps && moduleGps.tone === "bad")) {
+    gpsItem.onClick = () => {
+      retryGps();
+      toast({ title: "Looking for the GPS again…", description: "If the GPS module was just plugged in, it shows here within a few seconds." });
+    };
+    gpsItem.actionLabel = "Tap to check again";
+  }
   const connItem = !online
     ? { tone: "warning", icon: WifiOff, label: "Offline", detail: queued ? `${queued} point${queued === 1 ? "" : "s"} saved` : "Saving on tablet" }
     : queued ? { tone: "info", icon: CloudUpload, label: "Uploading", detail: `${queued} saved point${queued === 1 ? "" : "s"}` }
