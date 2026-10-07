@@ -1,50 +1,51 @@
 import React, { useEffect, useRef, useState } from "react";
-import { qrScanGate } from "@/lib/qrScanGate";
-import { Html5Qrcode } from "html5-qrcode";
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from "html5-qrcode";
+import createQrScanGate from "@/components/kiosk/qrScanGate";
 
-// Thin wrapper around html5-qrcode's camera-based decoder. Renders into a
-// fixed-id div (the library owns that element's DOM) and reports every
-// decoded payload upward — the caller decides what a valid payload means.
-export default function QrScanner({ onDecode, active, facingMode = "environment" }) {
+// Camera lifetime is independent of the parent's clock and request updates.
+export default function QrScanner({ onDecode, active, facingMode = "environment", requireFacingMode = false, stableMs = 0 }) {
   const elementId = useRef(`qr-scanner-${Math.random().toString(36).slice(2)}`).current;
   const scannerRef = useRef(null);
-  const decodeRef = useRef(onDecode);
-  decodeRef.current = onDecode;
+  const onDecodeRef = useRef(onDecode);
+  onDecodeRef.current = onDecode;
   const [error, setError] = useState("");
 
   useEffect(() => {
     if (!active) return;
     let stopped = false;
-    const gate = qrScanGate();
+    let delivering = false;
     setError("");
-    const scanner = new Html5Qrcode(elementId);
+    const gate = createQrScanGate({ stableMs, warmupMs: stableMs > 0 ? 1000 : 0 });
+    // Decoder settings belong to the constructor, not start(). Limit this
+    // QR scanner to QR codes so ordinary barcodes cannot trigger a lookup.
+    const scanner = new Html5Qrcode(elementId, {
+      formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
+      useBarCodeDetectorIfSupported: true,
+      verbose: false,
+    });
     scannerRef.current = scanner;
     const started = scanner.start(
-      { facingMode },
-      {
-        fps: 10,
-        qrbox: 220,
-        // Chrome and Android ship a hardware-accelerated barcode decoder. The
-        // library's own JavaScript decoder is far slower and drops codes that
-        // are angled, moving or under glare — which is most of them on a
-        // tablet held at arm's length.
-        useBarCodeDetectorIfSupported: true,
+      { facingMode: requireFacingMode ? { exact: facingMode } : facingMode },
+      { fps: 10, qrbox: 220 },
+      async (decodedText) => {
+        if (stopped || delivering || !gate.read(decodedText, Date.now())) return;
+        // Synchronous lock plus the latest callback: a slow lookup cannot
+        // start overlapping requests using an old copy of busy=false.
+        delivering = true;
+        try { await onDecodeRef.current?.(decodedText); }
+        finally { delivering = false; }
       },
-      (decodedText) => {
-        if (stopped || !gate.read(decodedText)) return;
-        Promise.resolve().then(() => { if (!stopped) return decodeRef.current?.(decodedText); })
-          .catch(() => { if (!stopped) setError("Couldn't check this QR. Close the camera and try again."); })
-          .finally(() => gate.done());
-      },
-      () => { gate.miss(); }
-
+      () => gate.miss(Date.now())
     );
+    started.then(() => { if (!stopped) gate.start(Date.now()); }, () => {});
     started.catch((e) => {
       if (stopped) return;
-      const raw = e?.message || (typeof e === "string" ? e : "");
+      const raw = e?.message || e?.name || (typeof e === "string" ? e : "");
       setError(/permission|denied|notallowed/i.test(raw)
         ? "Camera access is blocked on this tablet. Allow camera access, then tap Scan QR code again."
-        : raw || "Couldn't start the camera on this device.");
+        : requireFacingMode && /constraint|notfound/i.test(raw)
+          ? "The screen-facing camera isn't available. Check the tablet's camera settings."
+          : raw || "Couldn't start the camera on this device.");
     });
 
     // stop() throws if the camera never started, so wait for start first;
@@ -54,14 +55,13 @@ export default function QrScanner({ onDecode, active, facingMode = "environment"
       started.then(() => scanner.stop()).then(() => scanner.clear()).catch(() => {});
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active, facingMode]);
+  }, [active, facingMode, requireFacingMode, stableMs, elementId]);
 
   if (!active) return null;
 
   return (
     <div className="space-y-2">
       <div id={elementId} className="rounded-xl overflow-hidden bg-black/80 mx-auto" style={{ width: 260, height: 260 }} />
-      <p className="text-xs text-muted-foreground text-center">Hold the QR steady inside the square. To retry the same code, close and reopen the camera.</p>
       {error && <p className="text-xs text-destructive text-center">{error}</p>}
     </div>
   );
