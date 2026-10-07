@@ -23,7 +23,7 @@ import PullToRefresh from "@/components/PullToRefresh";
 import { useToast } from "@/components/ui/use-toast";
 import { loadFailed } from "@/lib/loadFailed";
 import AccessRecovery from '@/components/system/AccessRecovery';
-import { companyGrantRejected } from '@/lib/requestError';
+import { companyGrantRejected, sessionRejected } from '@/lib/requestError';
 import BusLoader from "@/components/BusLoader";
 import { routeProgress } from "@/components/TripProgress";
 import ArrivalHero from "@/components/passenger/ArrivalHero";
@@ -151,6 +151,12 @@ export default function StaffPortal() {
       if (companyGrantRejected(error)) {
         localStorage.removeItem('tt_company_access_grant');
         setCompany(null);
+      } else if (sessionRejected(error)) {
+        // The sign-in itself is gone, not the company pass. Only signing in
+        // again can fix that — the company screen's Retry never could, so
+        // passengers were left stuck on "Couldn't reconnect to your company"
+        // every time they opened the app.
+        base44.auth.redirectToLogin(window.location.href);
       } else setCompanyError(true);
     } finally {
       if (attempt === companyAttempt.current) setCompaniesLoaded(true);
