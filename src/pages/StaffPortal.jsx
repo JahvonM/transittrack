@@ -176,7 +176,9 @@ export default function StaffPortal() {
     Promise.allSettled([
       base44.entities.Vehicle.filter({ company_id: company.id }),
       base44.entities.Route.filter({ company_id: company.id }),
-      base44.entities.Trip.filter({ company_id: company.id }, "-scheduled_time", 500),
+      // Only rides that can still happen: finished and cancelled trips are
+      // never shown here, so the server leaves them out.
+      base44.entities.Trip.filter({ company_id: company.id, status: { $nin: ["completed", "cancelled"] } }, "-scheduled_time", 500),
     ]).then(([v, r, t]) => {
       if (v.status === 'fulfilled') setVehicles(v.value);
       if (r.status === 'fulfilled') setRoutes(r.value);
@@ -233,7 +235,7 @@ export default function StaffPortal() {
       const [v, r, t] = await Promise.all([
         base44.entities.Vehicle.filter({ company_id: company.id }),
         base44.entities.Route.filter({ company_id: company.id }),
-        base44.entities.Trip.filter({ company_id: company.id }, "-scheduled_time", 500),
+        base44.entities.Trip.filter({ company_id: company.id, status: { $nin: ["completed", "cancelled"] } }, "-scheduled_time", 500),
       ]);
       setVehicles(v);
       setRoutes(r);
@@ -387,7 +389,9 @@ export default function StaffPortal() {
   if (user?.role === "driver") return <Navigate to="/driver" replace />;
   if (user?.role === "company") return <Navigate to="/company" replace />;
   if (user?.role === "mechanic") return <Navigate to="/mechanic" replace />;
-  if (!companiesLoaded) return <AppLayout><BusLoader className="py-8" /></AppLayout>;
+  // Same layout as the state below, so the page doesn't jump between the
+  // company check and the data load — it reads as one wait.
+  if (!companiesLoaded) return <AppLayout variant="passenger"><BusLoader className="py-8" /></AppLayout>;
   if (companyError) return <AppLayout><AccessRecovery onRetry={restoreCompany} title="Couldn't reconnect to your company" description="Your saved company access has not been removed. Check your connection, then try again." /></AppLayout>;
   if (!company) {
     return (

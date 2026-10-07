@@ -15,7 +15,9 @@ export function useCompanyAlerts(companyId, limit = 3) {
   useEffect(() => {
     if (!companyId) return undefined;
     const relevant = (b) => b && SHOWN_TYPES.has(b.type) && !b.is_reply && (!b.company_id || b.company_id === companyId);
-    base44.entities.Broadcast.list("-created_date", 30)
+    // Only the last hour is news — the server leaves the rest behind.
+    const since = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    base44.entities.Broadcast.filter({ created_date: { $gte: since } }, "-created_date", 30)
       .then((rows) => setAlerts(rows.filter(relevant)))
       .catch(() => {});
     const unsub = base44.entities.Broadcast.subscribe((event) => {
