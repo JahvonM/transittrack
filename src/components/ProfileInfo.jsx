@@ -92,6 +92,9 @@ export default function ProfileInfo({ companyName }) {
       // the person types is saved on their own display_name field instead —
       // a real save that the app can read back.
       await base44.auth.updateMe({ display_name: fullName.trim(), phone, photo_url: photoUrl });
+      // Records that already carry this name (directory entry, boarding card,
+      // chat messages) follow the change.
+      await base44.functions.invoke("syncUserName", {}).catch(() => {});
       await checkUserAuth();
       setEditing(false);
       toast({ title: "Profile saved" });

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { haversineKm } from "@/lib/geo";
+import { accountName } from "@/lib/userName";
 import { GPS_INTERVAL_MS, PROXIMITY_TRIGGER_M, SPEEDING_THRESHOLD_KMH, TRAIL_MAX } from "@/lib/mapbox";
 import DriverNavMap from "@/components/driver/DriverNavMap";
 import StaffRouteList from "@/components/driver/StaffRouteList";
@@ -220,7 +221,7 @@ export default function DriverTrackingDashboard({ session, invoke, onReportIncid
 
   const staffPins = staff
     .filter((s) => s.home_lat != null && !s.skip_pickup_today)
-    .map((s) => ({ lat: s.home_lat, lng: s.home_lng, color: "#34d399", label: s.full_name }));
+    .map((s) => ({ lat: s.home_lat, lng: s.home_lng, color: "#34d399", label: accountName(s) }));
   const locked = !!liveVehicle?.remote_tracking_lock;
 
   // One line of tracking health: GPS fix freshness, upload state, saved points.
@@ -279,7 +280,7 @@ export default function DriverTrackingDashboard({ session, invoke, onReportIncid
   const attention = [];
   if (liveVehicle?.status === "speeding") attention.push(<AttentionItem key="speed" tone="danger" icon={Gauge} title="Slow down" detail="Speeding has been logged" />);
   if (nearbyStaff.length) {
-    const names = staff.filter((p) => nearbyStaff.includes(p.id)).map((p) => (p.full_name || p.email || "").split(" ")[0]).filter(Boolean);
+    const names = staff.filter((p) => nearbyStaff.includes(p.id)).map((p) => accountName(p).split(" ")[0]).filter(Boolean);
     attention.push(
       <AttentionItem key="near" tone="info" icon={BellRing}
         title={`${nearbyStaff.length} pickup${nearbyStaff.length === 1 ? "" : "s"} within 500 m`}

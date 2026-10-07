@@ -5,6 +5,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { Button } from "@/components/ui/button";
 import { MessageCircle, X, ChevronLeft, Bus, Camera, Mic } from "lucide-react";
 import ChatThread from "@/components/chat/ChatThread";
+import { accountName } from "@/lib/userName";
 
 function formatTime(iso) {
   if (!iso) return "";
@@ -34,7 +35,7 @@ export default function CompanyMessages({ vehicles = [] }) {
   const chatVehicles = useMemo(() => vehicles.filter((v) => v.id), [vehicles]);
   const activeVehicle = chatVehicles.find((v) => v.id === activeVehicleId) || null;
   const activeMessages = messagesByVehicle[activeVehicleId] || [];
-  const senderName = user?.full_name || "Company";
+  const senderName = accountName(user) || "Company";
 
   useEffect(() => {
     base44.entities.GroupMessage.filter({ channel: "company" }, "-created_date", 300)

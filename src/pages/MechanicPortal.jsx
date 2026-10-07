@@ -12,6 +12,7 @@ import ChatThread from "@/components/chat/ChatThread";
 import MechanicSettingsDialog from "@/components/MechanicSettingsDialog";
 import MechanicDashboardTab from "@/components/mechanic/MechanicDashboardTab";
 import { loadFailed } from "@/lib/loadFailed";
+import { accountName } from "@/lib/userName";
 import BusLoader from "@/components/BusLoader";
 import { PageActions, PageIntro } from "@/components/admin/kit";
 
@@ -48,7 +49,7 @@ export default function MechanicPortal() {
     email: user?.email, role: "mechanic",
   });
 
-  const senderName = user?.full_name || "Mechanic";
+  const senderName = accountName(user) || "Mechanic";
   const activeVehicle = vehicles.find((v) => v.id === activeVehicleId) || null;
   const activeMessages = messagesByVehicle[activeVehicleId] || [];
 
@@ -182,7 +183,7 @@ export default function MechanicPortal() {
 
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
-  const firstName = (user?.full_name || "").split(" ")[0];
+  const firstName = accountName(user).split(" ")[0];
 
   return (
     <AppLayout title="Mechanic">

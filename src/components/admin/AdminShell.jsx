@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { accountName, nameInitials } from "@/lib/userName";
 import {
   Activity,
   Bus,
@@ -267,7 +268,7 @@ export default function AdminShell({ active, onNavigate, children, alertVehicles
   const nav = (id) => { onNavigate(id); setOpen(false); };
   const current = ADMIN_SECTIONS.find((s) => s.id === active);
   const title = PRIMARY.find((p) => p.id === active)?.label || current?.label || "Admin";
-  const initials = (user?.full_name || user?.email || "A").split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join("");
+  const initials = nameInitials(user) || "A";
 
   const sidebar = (
     <div className="flex h-full flex-col">
@@ -281,7 +282,7 @@ export default function AdminShell({ active, onNavigate, children, alertVehicles
       <div className="flex shrink-0 items-center gap-3 border-t border-sidebar-border px-4 py-3">
         <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-sidebar-primary text-body-sm font-bold text-sidebar-primary-foreground" aria-hidden="true">{initials}</span>
         <span className="min-w-0">
-          <span className="block truncate text-body-sm font-semibold text-sidebar-foreground">{user?.full_name || user?.email || "Admin"}</span>
+          <span className="block truncate text-body-sm font-semibold text-sidebar-foreground">{accountName(user) || "Admin"}</span>
           <span className="block text-caption text-sidebar-foreground/60">Administrator</span>
         </span>
       </div>

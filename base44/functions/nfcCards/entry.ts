@@ -99,7 +99,7 @@ async function loadPeople(base44, companyFilter) {
   }
   for (const u of trustedUsers) {
     if (u.role !== 'mechanic' || !inCompany(u.company_id)) continue;
-    people.push({ source: 'user', id: u.id, type: 'mechanic', role: 'Mechanic', name: u.full_name || u.email, email: u.email || '',
+    people.push({ source: 'user', id: u.id, type: 'mechanic', role: 'Mechanic', name: u.display_name || u.full_name || u.email, email: u.email || '',
       employee_id: u.employee_id || '', company_id: u.company_id || '', company_name: '', assigned_vehicle: '', legacy_tag: '' });
   }
   const staffUsers = new Map(trustedUsers.filter((u) => ['staff','passenger'].includes(u.role) && inCompany(u.company_id)).map((u) => [(u.email || '').toLowerCase(), u]));
@@ -115,7 +115,7 @@ async function loadPeople(base44, companyFilter) {
     const accountCard = u.id && cards.find(card => card.holder_source === 'user' && card.holder_id === u.id && card.company_id === c.company_id && card.is_active);
     const contactCard = cards.find(card => card.holder_source === 'contact' && card.holder_id === c.id && card.is_active);
     const useAccount = !!accountCard && !contactCard;
-    people.push({ source: useAccount ? 'user' : 'contact', id: useAccount ? u.id : c.id, type: 'staff', directory_type: c.type || 'passenger', role: 'Staff', name: c.name || u.full_name || 'Staff', email: c.email || '',
+    people.push({ source: useAccount ? 'user' : 'contact', id: useAccount ? u.id : c.id, type: 'staff', directory_type: c.type || 'passenger', role: 'Staff', name: u.display_name || c.name || u.full_name || 'Staff', email: c.email || '',
       employee_id: c.employee_id || u.employee_id || '', company_id: c.company_id || '', company_name: c.company_name || '', phone: c.phone || u.phone || '', photo_url: u.photo_url || '', registered: !!u.id,
       pickup_name: c.pickup_name || u.pickup_name || '', pickup_lat: c.pickup_lat ?? u.pickup_lat, pickup_lng: c.pickup_lng ?? u.pickup_lng, dropoff_name: c.dropoff_name || '', dropoff_lat: c.dropoff_lat, dropoff_lng: c.dropoff_lng,
       vehicle_id: c.vehicle_id || '', assigned_vehicle: (c.vehicle_id && vehicleName.get(c.vehicle_id)) || c.vehicle_name || '',
@@ -123,7 +123,7 @@ async function loadPeople(base44, companyFilter) {
   }
   for (const [email, u] of staffUsers) {
     if (contactEmails.has(u.company_id + ':' + email) || !inCompany(u.company_id)) continue;
-    people.push({ source: 'user', id: u.id, type: 'staff', role: 'Staff', name: u.full_name || u.email, email: u.email || '',
+    people.push({ source: 'user', id: u.id, type: 'staff', role: 'Staff', name: u.display_name || u.full_name || u.email, email: u.email || '',
       employee_id: u.employee_id || '', company_id: u.company_id || '', company_name: companyName.get(u.company_id) || '', phone: u.phone || '', photo_url: u.photo_url || '', registered: true,
       pickup_name: u.pickup_name || '', pickup_lat: u.pickup_lat, pickup_lng: u.pickup_lng, vehicle_id: u.vehicle_id || '', assigned_vehicle: vehicleName.get(u.vehicle_id) || u.vehicle_name || '', legacy_tag: u.nfc_tag_id || '',
       access_code: '' });

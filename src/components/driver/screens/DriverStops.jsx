@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { haversineKm } from "@/lib/geo";
+import { accountName } from "@/lib/userName";
 import { routeProgress } from "@/components/TripProgress";
 import { arrivalClock, sortStops } from "@/components/passenger/passengerState";
 import useStopEtas from "@/components/passenger/useStopEtas";
@@ -91,7 +92,7 @@ export default function DriverStops({ session, passengers, trips, invoke, refres
       if (s.skip_pickup_today || s.home_lat == null || !stops.length) return;
       let best = null;
       stops.forEach((st) => { const d = haversineKm(s.home_lat, s.home_lng, st.lat, st.lng); if (!best || d < best.d) best = { d, name: st.name }; });
-      if (best) (out[best.name] = out[best.name] || []).push(s.full_name || "Passenger");
+      if (best) (out[best.name] = out[best.name] || []).push(accountName(s) || "Passenger");
     });
     return out;
   }, [session?.staff, stops]);

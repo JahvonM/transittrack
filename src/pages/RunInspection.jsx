@@ -11,6 +11,7 @@ import { StatusChip } from "@/components/admin/kit";
 import { useToast } from "@/components/ui/use-toast";
 import { CheckCircle2, AlertTriangle, XCircle, Camera, Loader2, PartyPopper } from "lucide-react";
 import { loadFailed } from "@/lib/loadFailed";
+import { accountName } from "@/lib/userName";
 import BusLoader from "@/components/BusLoader";
 import { submitSavedJob, isOfflineError } from "@/lib/offlineJobs";
 import { runMechanicInspection } from "@/lib/offlineRunners";
@@ -124,7 +125,7 @@ export default function RunInspection() {
     setSubmitting(true);
     try {
       const now = new Date().toISOString();
-      const inspectorName = user?.full_name || user?.email || "Mechanic";
+      const inspectorName = accountName(user) || "Mechanic";
 
       const resultRecords = allItems.map((it) => {
         const r = results[it.key];

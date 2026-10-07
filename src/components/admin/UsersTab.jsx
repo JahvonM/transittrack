@@ -17,6 +17,7 @@ import { EmptyState, PageActions, Segmented } from "@/components/admin/kit";
 
 const ROLE_LABEL = { company: "Company", driver: "Driver", staff: "Hotel staff", mechanic: "Mechanic", admin: "Admin" };
 import { exportToCSV, exportToPDF } from "@/lib/exporters";
+import { accountName, nameInitials } from "@/lib/userName";
 
 const USER_COLS = [
   { key: "full_name", label: "Full name" },
@@ -164,8 +165,8 @@ export default function UsersTab({ users, companies, currentUser, onChange }) {
   const q = query.trim().toLowerCase();
   const shown = users
     .filter((u) => role === "all" || u.role === role)
-    .filter((u) => !q || [u.full_name, u.email].some((x) => String(x || "").toLowerCase().includes(q)))
-    .sort((a, b) => String(a.full_name || a.email).localeCompare(String(b.full_name || b.email)));
+    .filter((u) => !q || [accountName(u), u.email].some((x) => String(x || "").toLowerCase().includes(q)))
+    .sort((a, b) => (accountName(a) || a.email || "").localeCompare(accountName(b) || b.email || ""));
   const roleCount = (r) => users.filter((u) => u.role === r).length;
   const companyName = (id) => companies.find((c) => c.id === id)?.name;
 
@@ -226,8 +227,8 @@ export default function UsersTab({ users, companies, currentUser, onChange }) {
           </div>
           <ul className="divide-y divide-border">
             {shown.map((u) => {
-              const initials = (u.full_name || u.email || "?").split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join("");
-              const label = u.full_name || u.email;
+              const initials = nameInitials(u);
+              const label = accountName(u) || u.email;
               return (
                 <li key={u.id} className="grid grid-cols-1 items-center gap-x-4 gap-y-2 px-4 py-3 md:grid-cols-[minmax(0,1.6fr)_160px_minmax(0,1fr)_44px]">
                   <div className="flex min-w-0 items-center gap-3">

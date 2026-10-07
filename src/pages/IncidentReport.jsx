@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/components/ui/use-toast";
 import { AlertTriangle } from "lucide-react";
+import { accountName } from "@/lib/userName";
 
 export default function IncidentReport() {
   const { user } = useAuth();
@@ -36,7 +37,7 @@ export default function IncidentReport() {
         vehicle_name: v?.name || "",
         company_id: v?.company_id || "",
         company_name: v?.company_name || "",
-        driver_name: user?.full_name || user?.email,
+        driver_name: accountName(user),
         driver_email: user?.email,
         type,
         details,

@@ -213,7 +213,7 @@ async function loadStaff(base44, companyId) {
     ...companyContacts.map((c) => {
       const u = userByEmail.get((c.email || '').toLowerCase()) || {};
       return {
-        id: c.id, full_name: c.name || u.full_name, email: c.email || u.email, phone: c.phone || u.phone,
+        id: c.id, full_name: u.display_name || c.name || u.full_name, email: c.email || u.email, phone: c.phone || u.phone,
         home_lat: c.pickup_lat != null ? c.pickup_lat : (u.pickup_lat ?? u.home_lat),
         home_lng: c.pickup_lng != null ? c.pickup_lng : (u.pickup_lng ?? u.home_lng),
         pickup_name: c.pickup_name || u.pickup_name, dropoff_name: c.dropoff_name,
@@ -222,7 +222,7 @@ async function loadStaff(base44, companyId) {
       };
     }),
     ...orphanUsers.map((u) => ({
-      id: u.id, full_name: u.full_name, email: u.email, phone: u.phone,
+      id: u.id, full_name: u.display_name || u.full_name, email: u.email, phone: u.phone,
       home_lat: u.pickup_lat ?? u.home_lat, home_lng: u.pickup_lng ?? u.home_lng, pickup_name: u.pickup_name, dropoff_name: undefined,
       skip_pickup_today: flagActive(u.skip_pickup_today, u.skip_pickup_until),
       late_snooze_active: flagActive(u.late_snooze_active, u.late_until),
