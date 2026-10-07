@@ -193,19 +193,23 @@ export default function DriverTrackingDashboard({ session, invoke, onReportIncid
     }
   };
 
-  // Auto-start GPS when admin forces lock on
+  // Tracking belongs to the bus, not to this screen. If the server already
+  // says this vehicle is sharing its location — the tablet was reloaded,
+  // restarted or rebooted mid-shift — pick the GPS watch straight back up
+  // instead of going quiet until someone taps Start again. This is also how
+  // dispatch's remote lock turns tracking on.
   const lockNotified = useRef(false);
   useEffect(() => {
     const locked = !!liveVehicle?.remote_tracking_lock;
-    if (locked && watchId.current == null) {
+    if ((locked || liveVehicle?.tracking_active) && watchId.current == null) {
       startTracking();
-      if (!lockNotified.current) {
+      if (locked && !lockNotified.current) {
         lockNotified.current = true;
         toast({ title: "Tracking started by dispatch (locked)", description: "Location sharing is now enforced — stop disabled.", variant: "default" });
       }
     }
     if (!locked) lockNotified.current = false;
-  }, [liveVehicle?.remote_tracking_lock]);
+  }, [liveVehicle?.remote_tracking_lock, liveVehicle?.tracking_active]);
 
   useEffect(() => { return () => { if (watchId.current != null) navigator.geolocation.clearWatch(watchId.current); }; }, []);
 

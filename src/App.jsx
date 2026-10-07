@@ -1,6 +1,7 @@
 import { Toaster } from "@/components/ui/toaster"
 import BusLoader from "@/components/BusLoader";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import AccessRecovery from '@/components/system/AccessRecovery';
 import ConfirmHost from "@/components/ConfirmHost";
 import OfflineJobsBanner from "@/components/OfflineJobsBanner";
 import OfflineNotice from "@/components/system/OfflineNotice";
@@ -67,15 +68,17 @@ const RouteFallback = () => (
 );
 
 const AuthenticatedApp = () => {
-  const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
+  const { isLoadingAuth, isLoadingPublicSettings, authError, checkAppState } = useAuth();
   const location = useLocation();
+  const authPage = ['/login', '/register', '/forgot-password', '/reset-password'].includes(location.pathname);
+  const tabletPage = /^\/(driver|kiosk)(\/|$)/.test(location.pathname);
   // Pages remount (and animate) when this key changes. The driver app's tabs
   // are all one page, so they share a key — switching tabs must not restart
   // it (that would stop GPS tracking and navigation).
   const pageKey = location.pathname.startsWith("/driver") ? "/driver" : location.pathname;
 
   // Show loading spinner while checking app public settings or auth
-  if (isLoadingPublicSettings || isLoadingAuth) {
+  if (!authPage && !tabletPage && (isLoadingPublicSettings || isLoadingAuth)) {
     return (
       <div className="fixed inset-0 flex items-center justify-center">
         <BusLoader />
@@ -83,15 +86,13 @@ const AuthenticatedApp = () => {
     );
   }
 
-  // Handle authentication errors
-  if (authError) {
-    if (authError.type === 'user_not_registered') {
-      return <UserNotRegisteredError />;
-    } else if (authError.type === 'auth_required') {
-      // Redirect to login automatically
-      navigateToLogin();
-      return null;
+  // Login and paired tablets must still open when an account token expires.
+  if (authError && !authPage && !tabletPage) {
+    if (authError.type === 'user_not_registered') return <UserNotRegisteredError />;
+    if (authError.type === 'auth_required') {
+      return <Navigate to={'/login?returnTo=' + encodeURIComponent(location.pathname + location.search)} replace />;
     }
+    return <AccessRecovery onRetry={checkAppState} />;
   }
 
   // Render the main app

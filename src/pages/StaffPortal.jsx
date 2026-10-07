@@ -1,12 +1,12 @@
 import CompanyBanner from "@/components/CompanyBanner";
-import React, { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
+import React, { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, Navigate, useSearchParams } from "react-router-dom";
 import { Bell, MapPin, UserRound } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import AppLayout from "@/components/AppLayout";
 import CodeGate from "@/components/CodeGate";
-import { takePendingJoinCode } from "@/lib/companyJoin";
+import { takePendingJoinCode, markCompanyLeft, hasLeftCompany } from "@/lib/companyJoin";
 import { useCompanyAlerts } from "@/components/StaffAlerts";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import useUserLocation from "@/hooks/useUserLocation";
@@ -22,6 +22,9 @@ import { locateOnRoute } from "@/lib/travelTimes";
 import PullToRefresh from "@/components/PullToRefresh";
 import { useToast } from "@/components/ui/use-toast";
 import { loadFailed } from "@/lib/loadFailed";
+import AccessRecovery from '@/components/system/AccessRecovery';
+import { companyGrantRejected, sessionRejected } from '@/lib/requestError';
+import { withRateLimitRetry } from '@/lib/scopedEntities';
 import BusLoader from "@/components/BusLoader";
 import { routeProgress } from "@/components/TripProgress";
 import ArrivalHero from "@/components/passenger/ArrivalHero";
@@ -54,6 +57,8 @@ export default function StaffPortal() {
   const statusRef = useRef({});
   const [company, setCompany] = useState(null);
   const [companiesLoaded, setCompaniesLoaded] = useState(false);
+  const [companyError, setCompanyError] = useState(false);
+  const companyAttempt = useRef(0);
   const [vehicles, setVehicles] = useState([]);
   const [routes, setRoutes] = useState([]);
   const [trips, setTrips] = useState([]);
@@ -124,42 +129,70 @@ export default function StaffPortal() {
   // restoring the saved company (it may be a different company).
   const [joinCode] = useState(() => takePendingJoinCode());
 
-  // Restore only a server-issued access grant; never compare cached join codes.
-  useEffect(() => {
-    localStorage.removeItem("tt_company_code");
-    if (joinCode) { setCompaniesLoaded(true); return; }
-    const grant = localStorage.getItem("tt_company_access_grant");
-    if (!grant) { setCompaniesLoaded(true); return; }
-    base44.functions.invoke("companyAccess", { action: "context", grant }).then(({ data }) => {
+  // Never erase a saved company pass just because the connection failed.
+  const restoreCompany = useCallback(async () => {
+    const attempt = ++companyAttempt.current;
+    setCompaniesLoaded(false);
+    setCompanyError(false);
+    try {
+      localStorage.removeItem('tt_company_code');
+      const grant = localStorage.getItem('tt_company_access_grant');
+      if (joinCode) return;
+      // restore: a device that has lost its saved pass (a new phone, a cleared
+      // browser) still gets back into the company this account belongs to, so
+      // staff aren't asked for the company code over and over. Never when they
+      // deliberately switched company.
+      // The platform refuses bursts of calls, and a device linking for the
+      // first time makes several at once — one rejected call used to look like
+      // the company was unreachable.
+      const { data } = await withRateLimitRetry(() => base44.functions.invoke('companyAccess', { action: 'context', grant, restore: !hasLeftCompany() }));
+      if (attempt !== companyAttempt.current) return;
+      if (data.grant) localStorage.setItem('tt_company_access_grant', data.grant);
       setCompany(data.company);
-      setCompanyPhone(data.company.phone || "");
-    }).catch(() => { localStorage.removeItem("tt_company_access_grant"); })
-      .finally(() => setCompaniesLoaded(true));
+      setCompanyPhone(data.company.phone || '');
+    } catch (error) {
+      if (attempt !== companyAttempt.current) return;
+      if (companyGrantRejected(error)) {
+        localStorage.removeItem('tt_company_access_grant');
+        setCompany(null);
+      } else if (sessionRejected(error)) {
+        // The sign-in itself is gone, not the company pass. Only signing in
+        // again can fix that — the company screen's Retry never could, so
+        // passengers were left stuck on "Couldn't reconnect to your company"
+        // every time they opened the app.
+        base44.auth.redirectToLogin(window.location.href);
+      } else setCompanyError(true);
+    } finally {
+      if (attempt === companyAttempt.current) setCompaniesLoaded(true);
+    }
   }, [user?.id, joinCode]);
+  useEffect(() => {
+    restoreCompany();
+    return () => { companyAttempt.current += 1; };
+  }, [restoreCompany]);
 
   // The company's workplace: where every pickup passenger is dropped off.
   const [workplace, setWorkplace] = useState(null);
-  useEffect(() => {
-    if (!company) { setWorkplace(null); return; }
-    base44.entities.Workplace.filter({ company_id: company.id })
-      .then((rows) => setWorkplace(rows.find((w) => w.lat != null && w.lng != null) || rows[0] || null))
-      .catch(() => setWorkplace(null));
-  }, [company]);
+
+  // Everything the passenger home needs — the workplace, the company's
+  // vehicles, its routes and the rides still to come — arrives in one call.
+  // It used to be four separate calls, and on a phone each one could hit the
+  // app's rate limit and then sit waiting to be retried, which is what made
+  // the passenger app slow to open.
+  const loadData = useCallback(async () => {
+    const { data } = await withRateLimitRetry(() => base44.functions.invoke('entityAccess', { entity: 'Bootstrap', operation: 'list', company_id: company.id }));
+    const result = data.result || {};
+    setWorkplace(result.workplace || null);
+    setVehicles(result.vehicles || []);
+    setRoutes(result.routes || []);
+    setTrips(result.trips || []);
+    statusRef.current = Object.fromEntries((result.trips || []).map((x) => [x.id, x.status]));
+  }, [company?.id]);
 
   useEffect(() => {
     if (!company) return undefined;
     setLoading(true);
-    Promise.all([
-      base44.entities.Vehicle.filter({ company_id: company.id }),
-      base44.entities.Route.filter({ company_id: company.id }),
-      base44.entities.Trip.filter({ company_id: company.id }, "-scheduled_time", 500),
-    ]).then(([v, r, t]) => {
-      setVehicles(v);
-      setRoutes(r);
-      setTrips(t);
-      statusRef.current = Object.fromEntries(t.map((x) => [x.id, x.status]));
-      setLoading(false);
-    }).catch(() => { setLoading(false); loadFailed(); });
+    loadData().catch(() => loadFailed()).finally(() => setLoading(false));
     const unsubVehicles = base44.entities.Vehicle.subscribe((event) => {
       setVehicles((prev) => {
         if (event.type === "delete") return prev.filter((x) => x.id !== event.id);
@@ -198,28 +231,17 @@ export default function StaffPortal() {
       unsubVehicles();
       unsubTrips();
     };
-  }, [company]);
+  }, [company, loadData]);
 
   const reload = async () => {
     if (!company) return;
-    try {
-      const [v, r, t] = await Promise.all([
-        base44.entities.Vehicle.filter({ company_id: company.id }),
-        base44.entities.Route.filter({ company_id: company.id }),
-        base44.entities.Trip.filter({ company_id: company.id }, "-scheduled_time", 500),
-      ]);
-      setVehicles(v);
-      setRoutes(r);
-      setTrips(t);
-      statusRef.current = Object.fromEntries(t.map((x) => [x.id, x.status]));
-    } catch {
-      loadFailed(reload);
-    }
+    try { await loadData(); } catch { loadFailed(reload); }
   };
 
   const switchCompany = () => {
     localStorage.removeItem("tt_company_code");
     localStorage.removeItem("tt_company_access_grant");
+    markCompanyLeft();
     setSheet(null);
     setCompany(null);
     setCompanyPhone("");
@@ -359,7 +381,10 @@ export default function StaffPortal() {
   if (user?.role === "driver") return <Navigate to="/driver" replace />;
   if (user?.role === "company") return <Navigate to="/company" replace />;
   if (user?.role === "mechanic") return <Navigate to="/mechanic" replace />;
-  if (!companiesLoaded) return <AppLayout><BusLoader className="py-8" /></AppLayout>;
+  // Same layout as the state below, so the page doesn't jump between the
+  // company check and the data load — it reads as one wait.
+  if (!companiesLoaded) return <AppLayout variant="passenger"><BusLoader className="py-8" /></AppLayout>;
+  if (companyError) return <AppLayout><AccessRecovery onRetry={restoreCompany} title="Couldn't reconnect to your company" description="Your saved company access has not been removed. Check your connection, then try again." /></AppLayout>;
   if (!company) {
     return (
       <AppLayout>
@@ -492,6 +517,7 @@ export default function StaffPortal() {
                   className="h-64 rounded-2xl border border-border sm:h-80 lg:h-[620px]"
                   vehicles={locatedVehicles}
                   focusVehicleId={busOnMap?.id || null}
+                  routes={routes}
                   stops={mapStops}
                   myStop={stop}
                   nextStopIndex={nextStopIndex}

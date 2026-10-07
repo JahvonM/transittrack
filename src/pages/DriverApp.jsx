@@ -2,6 +2,8 @@ import CompanyBanner from "@/components/CompanyBanner";
 import { ReportAppProblemButton } from "@/components/support/ReportAppProblem";
 import DriverDocumentsViewer from "@/components/driver/DriverDocumentsViewer";
 import { saveDeviceToken, forgetDeviceToken } from "@/lib/deviceAuth";
+import { forgetPin } from '@/lib/offlinePin';
+import ErrorState from '@/components/system/ErrorState';
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import useNoPageZoom from "@/hooks/useNoPageZoom";
 import BusLoader from "@/components/BusLoader";
@@ -37,7 +39,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/components/ui/use-toast";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { idleFor, useTabletUpdates } from "@/lib/tabletUpdate";
-import { rememberUnlockDay, forgetUnlockDay, unlockedToday } from "@/lib/localDay";
+import { rememberUnlockDay, forgetUnlockDay, unlockDayMarked, localDayKey } from "@/lib/localDay";
 
 // "navigate" is kept as an alias: Track and Navigate are one Drive screen.
 // Safety and Profile now live under More (old links still work).
@@ -58,14 +60,22 @@ export default function DriverApp() {
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
 
-  const [deviceId, setDeviceId] = useState(() => localStorage.getItem("tt_driver_device_id"));
-  const [unlocked, setUnlocked] = useState(() => false);
+  const [deviceId, setDeviceId] = useState(() => { try { return localStorage.getItem('tt_driver_device_id'); } catch { return null; } });
+  // Already unlocked earlier today on this tablet? Stay unlocked. Without this
+  // a reload (a sent update, the app being reopened, the tablet waking) threw
+  // the driver straight back to the PIN gate mid-shift — every single time.
+  const [unlocked, setUnlocked] = useState(() => unlockDayMarked());
+  // The day this tablet was unlocked, held in memory as well as in storage. A
+  // marker that can't be written back (storage filling up, which is exactly
+  // what a long offline stretch does to a tablet) used to make the 60-second
+  // check below ask for the PIN over and over, all shift long.
+  const unlockedDayRef = useRef(unlockDayMarked() ? localDayKey() : null);
   const [activeTab, setActiveTab] = useState(() => tabFromStage(urlStage) || "home");
   // Follow the URL (e.g. "Continue" after an inspection goes to /driver/track).
   useEffect(() => { const t = tabFromStage(urlStage); if (t) setActiveTab(t); }, [urlStage]);
-  const { session, loading, offline, invoke, refresh } = useDriverSession(deviceId);
+  const { session, loading, error: sessionError, offline, invoke, refresh } = useDriverSession(deviceId);
   useEffect(() => {
-    const lock = () => setUnlocked(false);
+    const lock = () => { unlockedDayRef.current = null; setUnlocked(false); };
     window.addEventListener("tt-driver-locked", lock);
     return () => window.removeEventListener("tt-driver-locked", lock);
   }, []);
@@ -184,7 +194,9 @@ export default function DriverApp() {
   // touched again, not just at load.
   useEffect(() => {
     const checkUnlockDate = () => {
-      if (!unlockedToday()) setUnlocked(false);
+      // Only a real calendar rollover asks for the PIN again — never a marker
+      // the tablet failed to save — and never a bus that is still in service.
+      if (unlockedDayRef.current !== localDayKey() && !session?.open_shift && !session?.vehicle?.tracking_active) setUnlocked(false);
     };
     const interval = setInterval(checkUnlockDate, 60000);
     document.addEventListener("visibilitychange", checkUnlockDate);
@@ -194,7 +206,7 @@ export default function DriverApp() {
       document.removeEventListener("visibilitychange", checkUnlockDate);
       window.removeEventListener("focus", checkUnlockDate);
     };
-  }, []);
+  }, [session?.open_shift?.id, session?.vehicle?.tracking_active]);
 
   const handleAlertReply = async (text) => {
     await invoke("send_group_message", { text, channel: "dispatch" });
@@ -292,7 +304,7 @@ export default function DriverApp() {
   };
 
   const handlePaired = (id) => { localStorage.setItem("tt_driver_device_id", id); setDeviceId(id); };
-  const handleUnpair = () => { forgetDeviceToken(deviceId); clearDriverSessionCache(); localStorage.removeItem("tt_driver_device_id"); forgetUnlockDay(); setDeviceId(null); setUnlocked(false); navigate("/driver"); };
+  const handleUnpair = () => { forgetPin(deviceId); forgetDeviceToken(deviceId); clearDriverSessionCache(); localStorage.removeItem("tt_driver_device_id"); forgetUnlockDay(); unlockedDayRef.current = null; setDeviceId(null); setUnlocked(false); navigate("/driver"); };
 
   // Handler to submit the incident report via the driver-session backend function.
   // (A direct base44.entities.Incident.create() call from here would be rejected —
@@ -328,6 +340,9 @@ export default function DriverApp() {
   if (loading && !session)
     return <div className="min-h-[100dvh] flex items-center justify-center"><BusLoader /></div>;
 
+  if (!session && sessionError)
+    return <div className="min-h-[100dvh] grid place-items-center p-6"><ErrorState title="Couldn't reconnect to this tablet" description={sessionError} onRetry={refresh} retrying={loading} /></div>;
+
   if (!session?.vehicle)
     return (
       <div className="min-h-[100dvh] flex flex-col items-center justify-center p-6 text-center">
@@ -352,7 +367,7 @@ export default function DriverApp() {
             <CompanyBanner name={session.company_name || vehicle.company_name} logoUrl={session.company_logo_url} compact />
             <DriverGreeting driverName={driverName} subtitle={vehicle.name} compact />
           </div>
-          <PinGate deviceId={deviceId} vehicle={vehicle} invoke={invoke} onUnlock={() => { rememberUnlockDay(); setUnlocked(true); if (dueInspections.length) openInspection(dueInspections[0], { from: "unlock" }); else goStage(urlStage && urlStage !== "pin" && urlStage !== "inspection" ? urlStage : session?.open_shift ? "track" : "home"); }} />
+          <PinGate deviceId={deviceId} vehicle={vehicle} invoke={invoke} onUnlock={({ pinSaved } = {}) => { if (pinSaved === false) toast({ title: 'PIN verified, but not saved on this tablet', description: 'Tablet storage is unavailable. You can continue now, but offline PIN entry will not work until storage is available.', variant: 'destructive' }); unlockedDayRef.current = localDayKey(); rememberUnlockDay(); setUnlocked(true); if (dueInspections.length) openInspection(dueInspections[0], { from: "unlock" }); else goStage(urlStage && urlStage !== "pin" && urlStage !== "inspection" ? urlStage : session?.open_shift ? "track" : "home"); }} />
         </div>
       </div>
     );

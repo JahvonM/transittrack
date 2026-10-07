@@ -82,6 +82,7 @@ test('card tap boards a passenger and the tablet locks again', async ({ page }) 
   await expect(page.getByText('Slide to check in', { exact: true })).toBeVisible();
   await tap(page);
   await expect(page.getByText('Are you boarding or exiting?')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Exiting', exact: true })).toBeVisible();
   await page.getByRole('button', { name: /Boarding/ }).click();
   await expect(page.getByText(/Welcome aboard, Maria!/)).toBeVisible();
   await expect(page.getByText('Slide to check in', { exact: true })).toBeVisible({ timeout: 6000 });

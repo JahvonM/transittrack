@@ -15,6 +15,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { FileSpreadsheet, FileText, LogIn, LogOut, RefreshCw, CreditCard, QrCode, Search, DoorOpen } from "lucide-react";
 import { exportToCSV, exportToPDF } from "@/lib/exporters";
 import BusLoader from "@/components/BusLoader";
+import DailyCheckInLog from "@/components/admin/DailyCheckInLog";
 
 const CHECKIN_COLS = [
   { key: "staff_name", label: "Passenger" },
@@ -203,10 +204,14 @@ export default function CheckInLog({ vehicles }) {
         <Tabs defaultValue="bus">
           <TabsList>
             <TabsTrigger value="bus">Bus check-ins</TabsTrigger>
+            <TabsTrigger value="daily">Daily log</TabsTrigger>
             <TabsTrigger value="visitors">Visitor sign-ins</TabsTrigger>
           </TabsList>
           <TabsContent value="bus" className="mt-4">
             <BusCheckIns vehicles={vehicles} />
+          </TabsContent>
+          <TabsContent value="daily" className="mt-4">
+            <DailyCheckInLog />
           </TabsContent>
           <TabsContent value="visitors" className="mt-4">
             <VisitorSignIns />

@@ -296,6 +296,7 @@ export default function LiveFleetTab({ vehicles, routes = [], onVehicleUpdate, i
                   vehicles={withLocation}
                   focusVehicleId={selected?.current_lat != null ? selected.id : null}
                   focusKey={focus.n}
+                  routes={routes}
                   stops={selected ? selStops : []}
                   userLocation={selected ? null : userLoc}
                   callout={callout}

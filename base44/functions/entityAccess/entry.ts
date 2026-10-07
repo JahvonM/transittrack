@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
+import { retry429 } from '../../shared/retry429.ts';
 const ENTITY_FIELDS = {"Company": ["name", "logo_url", "phone", "access_code", "service_types", "description", "boss_phone", "secretary_phone"], "AuditLog": ["actor_email", "actor_name", "actor_role", "action", "entity", "record_id", "summary", "changes", "page", "card_uid", "status"], "Vehicle": ["capacity", "company_id", "company_name", "current_lat", "current_lng", "current_odometer", "driver_email", "driver_name", "driver_pin", "entry_code", "heading", "image_url", "last_location_update", "last_ping_logged_at", "name", "near_stop_id", "plate_number", "remote_tracking_lock", "route_id", "speed", "status", "tracking_active", "trail", "type", "wired_gps_connected", "fleet_number", "make", "model", "year", "vin", "engine", "transmission", "hours", "fuel_type", "last_inspection_date", "in_service", "model_3d"], "Trip": ["vehicle_id", "vehicle_name", "plate_number", "route_id", "route_name", "company_id", "company_name", "driver_email", "driver_name", "passenger_name", "passenger_phone", "pickup_name", "pickup_lat", "pickup_lng", "dropoff_name", "dropoff_lat", "dropoff_lng", "scheduled_time", "status", "started_at", "arrived_at", "completed_at", "pickup_signature_url", "pickup_signed_by", "pickup_signed_at", "dropoff_signature_url", "dropoff_signed_by", "dropoff_signed_at"], "InspectionResult": ["vehicle_id", "vehicle_name", "company_id", "company_name", "inspection_name", "section_name", "inspection_item", "condition", "fault_found", "fault_description", "photo_url", "repair_required", "notes", "inspector_id", "inspector_name", "inspection_date"], "GroupMessage": ["vehicle_id", "vehicle_name", "company_id", "company_name", "channel", "sender_role", "sender_name", "text", "message_type", "media_url", "edited"], "MaintenanceSettings": ["auto_create_faults", "maintenance_reminder_days", "enable_photo_attachments", "inspection_reminder_days"], "Advertisement": ["title", "message", "image_url", "link", "active", "order"], "PushToken": ["token", "email", "device_id", "role", "company_id"], "LocationPing": ["company_id", "lat", "lng", "recorded_at", "speed", "vehicle_id"], "FrontDeskSignIns": ["full_name", "company_name", "reason", "signature_url", "signed_at"], "ClientError": ["message", "stack", "url", "user_email", "user_role", "user_agent", "source", "device_id", "emailed"], "Driver": ["full_name", "email", "phone", "photo_url", "company_id", "company_name", "employee_id", "nfc_card_uid"], "DriverShift": ["vehicle_id", "vehicle_name", "company_id", "company_name", "driver_name", "driver_email", "device_id", "started_at", "ended_at", "duration_minutes", "notes"], "NfcCard": ["card_uid", "card_type", "holder_type", "holder_source", "holder_id", "holder_name", "employee_id", "role", "assigned_vehicle", "company_id", "company_name", "access_level", "issue_date", "expiry_date", "issued_by", "is_active", "revoked_at", "revoked_by", "revoke_reason"], "Broadcast": ["type", "title", "message", "vehicle_name", "company_id", "company_name", "driver_name", "driver_email", "is_reply"], "KioskDevice": ["company_id", "company_name", "device_info", "update_requested_at", "directory_sent_at", "app_health", "helper_health", "kiosk_type", "label", "last_seen", "paired", "pairing_code", "status", "vehicle_id", "vehicle_name", "pairing_expires_at"], "Route": ["company_id", "company_name", "name", "type", "stops", "active"], "Inspection": ["driver_name", "driver_email", "vehicle_id", "vehicle_name", "company_id", "company_name", "date", "status", "checklist", "odometer_reading", "fuel_level", "needs_service", "service_notes", "template_id", "template_name", "trigger", "results"], "RouteTravelTimes": ["route_id", "route_name", "company_id", "legs", "dwells", "leg_samples", "pings_used", "vehicles_used", "days", "learned_at"], "Fault": ["vehicle_id", "vehicle_name", "company_id", "company_name", "title", "description", "source", "inspection_id", "severity", "status", "photo_url", "repair_required", "reported_by", "resolved_date"], "StaffCheckIn": ["staff_name", "staff_picture_url", "card_tag", "status", "boarded_at", "company_id", "company_name", "vehicle_id", "vehicle_name", "check_in_method"], "CardHolder": ["full_name", "employee_id", "role", "assigned_vehicle", "company_id", "company_name", "notes"], "DrivingEvent": ["company_id", "company_name", "driver_email", "driver_name", "lat", "lng", "occurred_at", "speed_after_kmh", "speed_before_kmh", "type", "vehicle_id", "vehicle_name"], "DriverDocument": ["driver_id", "driver_name", "company_id", "kind", "file_uri", "file_name", "document_number", "expiry_date", "notes"], "Part": ["company_id", "company_name", "part_name", "oem_number", "aftermarket_number", "vehicle_compatibility", "category", "quantity_in_stock", "unit_price", "supplier", "photo_url"], "User": ["role", "company_id", "phone", "photo_url", "home_lat", "home_lng", "home_address", "pickup_lat", "pickup_lng", "pickup_name", "pickup_route_id", "work_lat", "work_lng", "nfc_tag_id", "access_code", "one_time_code", "one_time_code_expires_at", "whatsapp_linked", "skip_pickup_today", "skip_pickup_until", "late_snooze_active", "late_until", "favorite_stop", "stop_alerts", "theme_accent", "employee_id"], "Workplace": ["name", "company_id", "company_name", "lat", "lng"], "Incident": ["vehicle_id", "vehicle_name", "company_id", "company_name", "driver_name", "driver_email", "type", "details", "occurred_at", "status"], "Contact": ["name", "phone", "email", "type", "nfc_card_tag", "access_code", "company_id", "company_name", "pickup_name", "pickup_lat", "pickup_lng", "dropoff_name", "dropoff_lat", "dropoff_lng", "employee_id", "vehicle_id", "vehicle_name"], "LostItemReport": ["company_id", "company_name", "reporter_name", "reporter_email", "contact", "vehicle_name", "description", "status", "admin_notes"], "InspectionTemplate": ["name", "category", "company_id", "company_name", "frequency_days", "audience", "driver_trigger", "driver_days", "driver_times", "driver_vehicle_ids", "xray_layout", "driver_from_time", "driver_required", "driver_sent_at", "sections"], "MaintenanceSchedule": ["vehicle_id", "vehicle_name", "company_id", "company_name", "service_type", "due_type", "interval_km", "interval_days", "last_service_mileage", "last_service_date", "status", "assigned_mechanic_id", "assigned_mechanic_name", "notes"]};
 function randomAccessCode() {
  const alphabet='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';let code='';
@@ -49,26 +50,26 @@ async function memberships(db, user) {
  return approved;
 }
 async function context(base44) {
- const session = await base44.auth.me().catch(()=>null);
+ const session = await base44.auth.me();
  if (!session) return { user:null, companies:[] };
  const user = await base44.asServiceRole.entities.User.get(session.id);
  if (!user || user.id !== session.id) fail(401,'Sign in required');
  const companies = user.role === 'admin' || user.role === 'mechanic' ? [] : (await memberships(base44.asServiceRole.entities,user)).map(m=>m.company_id);
- return {user,companies};
+ return {user,companies,parents:new Map()};
 }
-async function tenantOf(db, name, row) {
- if (name === 'Company') return row.id;
- if (row.vehicle_id) {
-  const vehicle = await db.Vehicle.get(row.vehicle_id).catch(()=>null);
-  if (!vehicle || (row.company_id && row.company_id !== vehicle.company_id)) return null;
-  return vehicle.company_id;
- }
- if (row.driver_id) {
-  const driver = await db.Driver.get(row.driver_id).catch(()=>null);
-  if (!driver || (row.company_id && row.company_id !== driver.company_id)) return null;
-  return driver.company_id;
- }
- return row.company_id || null;
+async function tenantOf(db, name, row, parents = new Map()) {
+  if (name === 'Company') return row.id;
+  const parent = row.vehicle_id ? ['Vehicle', row.vehicle_id] : row.driver_id ? ['Driver', row.driver_id] : null;
+  if (!parent) return row.company_id || null;
+  const key = parent.join(':');
+  // Request-local only: a page of trips/messages often shares the same bus.
+  if (!parents.has(key)) parents.set(key, db[parent[0]].get(parent[1]).catch(error => {
+    if (error.status === 404) return null;
+    throw error;
+  }));
+  const record = await parents.get(key);
+  if (!record || (row.company_id && row.company_id !== record.company_id)) return null;
+  return record.company_id;
 }
 async function visible(db, ctx, name, row) {
  const {user,companies} = ctx;
@@ -80,7 +81,7 @@ async function visible(db, ctx, name, row) {
  if(name==='LostItemReport' && user.role!=='company') return row.reporter_id===user.id && companies.includes(row.company_id);
  if(name==='Broadcast' && !row.company_id) return true;
  if (user.role === 'mechanic') return MAINTENANCE.has(name) || name === 'Company' || (name === 'GroupMessage' && row.channel === 'mechanic');
- const tenant = await tenantOf(db,name,row);
+ const tenant = await tenantOf(db,name,row,ctx.parents);
  if (!tenant || !companies.includes(tenant)) return false;
  if (user.role === 'company') return COMPANY_READ.has(name);
  if (!PASSENGER_READ.has(name)) return false;
@@ -222,8 +223,29 @@ export default async function(req) {
  try {
   const base44=createClientFromRequest(req), db=base44.asServiceRole.entities;
   const body=await req.json(), name=body.entity, operation=body.operation;
-  if(!Object.hasOwn(ENTITY_FIELDS,name)) fail(403,'Entity access denied');
   const ctx=await context(base44);
+  // One call for the passenger home: the company's workplace, vehicles, routes
+  // and the rides still to come. It used to be four separate calls, and on a
+  // phone each one could hit the app's rate limit and then sit waiting to be
+  // retried — which is what made the passenger app slow to open.
+  if(name==='Bootstrap') {
+   if(operation!=='list') fail(400,'Unsupported operation');
+   if(!ctx.user) fail(401,'Sign in required');
+   const companyId=typeof body.company_id==='string'?body.company_id:'';
+   if(!companyId) fail(400,'Company required');
+   const [workplaceRows,vehicleRows,routeRows,tripRows]=await Promise.all([
+    retry429(()=>db.Workplace.filter({company_id:companyId},'-created_date',50)),
+    retry429(()=>db.Vehicle.filter({company_id:companyId},'name',200)),
+    retry429(()=>db.Route.filter({company_id:companyId},'name',200)),
+    retry429(()=>db.Trip.filter({company_id:companyId,status:{$nin:['completed','cancelled']}},'-scheduled_time',500)),
+   ]);
+   const projected=async(entity,rows)=>{const out=[];for(const row of rows) if(await visible(db,ctx,entity,row)) out.push(await projectRecord(db,ctx,entity,row));return out;};
+   const [workplaces,vehicles,routes,trips]=await Promise.all([
+    projected('Workplace',workplaceRows),projected('Vehicle',vehicleRows),projected('Route',routeRows),projected('Trip',tripRows),
+   ]);
+   return Response.json({result:{workplace:workplaces.find(w=>w.lat!=null&&w.lng!=null)||workplaces[0]||null,vehicles,routes,trips}});
+  }
+  if(!Object.hasOwn(ENTITY_FIELDS,name)) fail(403,'Entity access denied');
   if(!ctx.user && !(name==='Advertisement' && ['list','filter','get'].includes(operation))) fail(401,'Sign in required');
   if(operation==='get') {
    const row=name==='User' && body.id==='me' ? ctx.user : await db[name].get(body.id);

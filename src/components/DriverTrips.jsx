@@ -1,3 +1,4 @@
+import { TRANSIT_TIME_ZONE } from "@/lib/localTime";
 import React, { useEffect, useState } from "react";
 import { StatusChip } from "@/components/admin/kit";
 import { CheckCircle2, ChevronRight, Clock, Flag, PenLine, Play, Route } from "lucide-react";
@@ -168,7 +169,7 @@ export default function DriverTrips({ trips, invoke, startSharing, refresh, comp
             </div>
             <p className="text-xs text-muted-foreground flex items-center gap-1.5 truncate">
               <Clock className="w-3.5 h-3.5 shrink-0" />
-              {focus.scheduled_time ? new Date(focus.scheduled_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "No time set"}
+              {focus.scheduled_time ? new Date(focus.scheduled_time).toLocaleTimeString([], { timeZone: TRANSIT_TIME_ZONE, hour: "2-digit", minute: "2-digit" }) : "No time set"}
               {focus.passenger_name ? ` · ${focus.passenger_name}` : ""}
             </p>
             {action && (

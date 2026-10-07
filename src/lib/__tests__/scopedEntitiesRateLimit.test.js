@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { scopedEntities, withRateLimitRetry, pollDelay, ACTIVE_POLL_MS, IDLE_POLL_MS } from "@/lib/scopedEntities";
+import { scopedEntities, withRateLimitRetry, pollDelay, FAST_POLL_MS, ACTIVE_POLL_MS, IDLE_POLL_MS, FIRST_POLL_MS } from "@/lib/scopedEntities";
 
 const tooMany = () => Object.assign(new Error("Too many requests"), { status: 429 });
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
@@ -63,18 +63,19 @@ describe("scoped entity calls under Base44 rate limits", () => {
     const a = vi.fn(), b = vi.fn();
     const stopA = entities.Vehicle.subscribe(a);
     const stopB = entities.Vehicle.subscribe(b);
-    await vi.advanceTimersByTimeAsync(0);
+    // The first snapshot waits for the page's own load to go out first.
+    await vi.advanceTimersByTimeAsync(FIRST_POLL_MS);
     expect(client.functions.invoke).toHaveBeenCalledTimes(1);
     version = 2;
-    await vi.advanceTimersByTimeAsync(ACTIVE_POLL_MS);
+    await vi.advanceTimersByTimeAsync(FAST_POLL_MS);
     expect(client.functions.invoke).toHaveBeenCalledTimes(2);
     expect(a).toHaveBeenCalledWith({ type: "update", id: "bus", data: { id: "bus", v: 2 } });
     expect(b).toHaveBeenCalledWith({ type: "update", id: "bus", data: { id: "bus", v: 2 } });
     stopA();
-    await vi.advanceTimersByTimeAsync(ACTIVE_POLL_MS);
+    await vi.advanceTimersByTimeAsync(FAST_POLL_MS);
     expect(client.functions.invoke).toHaveBeenCalledTimes(3); // b still watching
     stopB();
-    await vi.advanceTimersByTimeAsync(ACTIVE_POLL_MS * 3);
+    await vi.advanceTimersByTimeAsync(FAST_POLL_MS * 3);
     expect(client.functions.invoke).toHaveBeenCalledTimes(3); // nobody watching: no polling
   });
 
@@ -83,7 +84,7 @@ describe("scoped entity calls under Base44 rate limits", () => {
     expect(pollDelay("StaffCheckIn")).toBe(ACTIVE_POLL_MS);
     expect(pollDelay("StaffCheckIn", later)).toBe(IDLE_POLL_MS);
     expect(pollDelay("GroupMessage", later)).toBe(IDLE_POLL_MS);
-    expect(pollDelay("Vehicle", later)).toBe(ACTIVE_POLL_MS);
-    expect(pollDelay("Broadcast", later)).toBe(ACTIVE_POLL_MS);
+    expect(pollDelay("Vehicle", later)).toBe(FAST_POLL_MS);
+    expect(pollDelay("Broadcast", later)).toBe(FAST_POLL_MS);
   });
 });

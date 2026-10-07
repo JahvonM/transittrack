@@ -1,9 +1,10 @@
+import { TRANSIT_TIME_ZONE } from "@/lib/localTime";
 import React, { useState } from "react";
 import { BellRing, Bus, Car, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const KIND = { bus_arrived: { icon: Bus, title: "Bus arrived" }, taxi_arrived: { icon: Car, title: "Taxi arrived" }, info: { icon: Info, title: "Update" } };
-const time = (iso) => (iso ? new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "");
+const time = (iso) => (iso ? new Date(iso).toLocaleTimeString([], { timeZone: TRANSIT_TIME_ZONE, hour: "numeric", minute: "2-digit" }) : "");
 
 // Chats with staff, company, dispatch and mechanic, and the alerts dispatch
 // has sent. chats: the existing chat list component.

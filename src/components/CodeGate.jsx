@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScanCompanyQrButton, ScanCompanyQrDialog } from "@/components/ScanCompanyQr";
+import { clearCompanyLeft } from "@/lib/companyJoin";
+import { withRateLimitRetry } from "@/lib/scopedEntities";
 
 // initialCode comes from a company's join QR; it is checked straight away,
 // exactly as if the passenger had typed it.
@@ -21,10 +23,13 @@ export default function CodeGate({ onUnlock, initialCode = "" }) {
     setChecking(true);
     setError("");
     try {
-      const response = await base44.functions.invoke("companyAccess", { action: "verify", code: value });
+      // A new device links with several calls at once, and the platform refuses
+      // bursts — one rejected call used to read as a wrong code or no signal.
+      const response = await withRateLimitRetry(() => base44.functions.invoke("companyAccess", { action: "verify", code: value }));
       const { company, grant } = response.data;
       localStorage.removeItem("tt_company_code");
       localStorage.setItem("tt_company_access_grant", grant);
+      clearCompanyLeft();
       onUnlock(company);
     } catch (e) {
       setError(e?.response?.status === 429 ? "Too many attempts. Try again in 15 minutes." : "Could not verify. Check your code and connection.");

@@ -1,8 +1,9 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useState, useContext, useEffect, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
 import { appParams } from '@/lib/app-params';
 import { setAuditActor } from '@/lib/auditLog';
 import { ACCENT_KEY, applyAccent } from '@/lib/accents';
+import { httpStatus, errorData, sessionRejected } from '@/lib/requestError';
 
 const AuthContext = createContext();
 
@@ -14,101 +15,106 @@ export const AuthProvider = ({ children }) => {
   const [authError, setAuthError] = useState(null);
   const [authChecked, setAuthChecked] = useState(false);
   const [appPublicSettings, setAppPublicSettings] = useState(null); // Contains only { id, public_settings }
+  // True once the server has confirmed a session in this tab. Lets a failed
+  // check tell "your sign-in ended" apart from "that call didn't get through".
+  const sessionRef = useRef(false);
+  const authRequestRef = useRef(null);
+  const authEpoch = useRef(0);
 
   useEffect(() => {
     checkAppState();
   }, []);
 
   const checkAppState = async () => {
-    try {
-      setIsLoadingPublicSettings(true);
-      setAuthError(null);
-      
-      try {
-        const publicSettings = await base44.app.getPublicSettings();
-        setAppPublicSettings(publicSettings);
-        
-        // If we got the app public settings successfully, check if user is authenticated
-        if (appParams.token) {
-          await checkUserAuth();
-        } else {
-          setIsLoadingAuth(false);
-          setIsAuthenticated(false);
-          setAuthChecked(true);
-        }
-        setIsLoadingPublicSettings(false);
-      } catch (appError) {
-        console.error('App state check failed:', appError);
-        
-        // Handle app-level errors
-        if (appError.status === 403 && appError.data?.extra_data?.reason) {
-          const reason = appError.data.extra_data.reason;
-          if (reason === 'auth_required') {
-            setAuthError({
-              type: 'auth_required',
-              message: 'Authentication required'
-            });
-          } else if (reason === 'user_not_registered') {
-            setAuthError({
-              type: 'user_not_registered',
-              message: 'User not registered for this app'
-            });
-          } else {
-            setAuthError({
-              type: reason,
-              message: appError.message
-            });
-          }
-        } else {
-          setAuthError({
-            type: 'unknown',
-            message: appError.message || 'Failed to load app'
-          });
-        }
-        setIsLoadingPublicSettings(false);
-        setIsLoadingAuth(false);
-      }
-    } catch (error) {
-      console.error('Unexpected error:', error);
-      setAuthError({
-        type: 'unknown',
-        message: error.message || 'An unexpected error occurred'
-      });
-      setIsLoadingPublicSettings(false);
+    setIsLoadingPublicSettings(true);
+    setAuthError(null);
+    // Paired tablets use their own device credential, not an account login.
+    const tabletPage = /^\/(driver|kiosk)(\/|$)/.test(window.location.pathname);
+    const settingsRequest = base44.app.getPublicSettings();
+    const authRequest = appParams.token && !tabletPage ? checkUserAuth() : Promise.resolve();
+    if (!appParams.token || tabletPage) {
       setIsLoadingAuth(false);
+      setAuthChecked(true);
+    }
+    try {
+      const publicSettings = await settingsRequest;
+      setAppPublicSettings(publicSettings);
+      await authRequest;
+    } catch (error) {
+      await authRequest;
+      const reason = errorData(error).extra_data?.reason;
+      setAuthError({
+        type: httpStatus(error) === 403 && reason ? reason : 'app_unavailable',
+        message: error.message || 'Could not connect to the app'
+      });
+    } finally {
+      setIsLoadingPublicSettings(false);
     }
   };
 
-  const checkUserAuth = async () => {
+  const acceptUser = (currentUser) => {
+    sessionRef.current = true;
+    setUser(currentUser);
+    setAuditActor(currentUser);
     try {
-      // Now check if the user is authenticated
-      setIsLoadingAuth(true);
-      const currentUser = await base44.auth.me();
-      setUser(currentUser);
-      setAuditActor(currentUser);
-      try {
-        if (currentUser?.theme_accent && !localStorage.getItem(ACCENT_KEY)) applyAccent(currentUser.theme_accent);
-      } catch { /* storage blocked */ }
-      setIsAuthenticated(true);
-      setIsLoadingAuth(false);
-      setAuthChecked(true);
-    } catch (error) {
-      console.error('User auth check failed:', error);
-      setIsLoadingAuth(false);
-      setIsAuthenticated(false);
-      setAuthChecked(true);
-      
-      // If user auth fails, it might be an expired token
-      if (error.status === 401 || error.status === 403) {
-        setAuthError({
-          type: 'auth_required',
-          message: 'Authentication required'
-        });
+      if (currentUser?.theme_accent && !localStorage.getItem(ACCENT_KEY)) applyAccent(currentUser.theme_accent);
+    } catch { /* storage blocked */ }
+    setIsAuthenticated(true);
+    setAuthError(null);
+    setIsLoadingAuth(false);
+    setAuthChecked(true);
+  };
+
+  // The server has actually rejected the sign-in — the only case that ends a session.
+  const endSession = () => {
+    sessionRef.current = false;
+    setUser(null);
+    setAuditActor(null);
+    setIsAuthenticated(false);
+    setAuthError({ type: 'auth_required', message: 'Authentication required' });
+    setIsLoadingAuth(false);
+    setAuthChecked(true);
+  };
+
+  const checkUserAuth = () => {
+    if (authRequestRef.current) return authRequestRef.current;
+    const epoch = authEpoch.current;
+    // Background profile refreshes must not unmount the passenger's screen.
+    if (!sessionRef.current) setIsLoadingAuth(true);
+    setAuthError(null);
+    const pending = (async () => {
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          const currentUser = await base44.auth.me();
+          if (epoch === authEpoch.current) acceptUser(currentUser);
+          return;
+        } catch (error) {
+          if (epoch !== authEpoch.current) return;
+          if (sessionRejected(error)) { endSession(); return; }
+          if (errorData(error).extra_data?.reason === 'user_not_registered') {
+            setAuthError({ type: 'user_not_registered', message: error.message });
+            break;
+          }
+          if (sessionRef.current) break;
+          if (attempt === 0) await new Promise(resolve => setTimeout(resolve, 1500));
+          else setAuthError({ type: 'auth_unavailable', message: 'Could not check your sign-in' });
+        }
       }
-    }
+      if (epoch === authEpoch.current) {
+        setIsLoadingAuth(false);
+        setAuthChecked(true);
+      }
+    })().finally(() => {
+      if (authRequestRef.current === pending) authRequestRef.current = null;
+    });
+    authRequestRef.current = pending;
+    return pending;
   };
 
   const logout = (shouldRedirect = true) => {
+    authEpoch.current += 1;
+    authRequestRef.current = null;
+    sessionRef.current = false;
     setUser(null);
     setAuditActor(null);
     setIsAuthenticated(false);

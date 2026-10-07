@@ -1,3 +1,4 @@
+import { TRANSIT_TIME_ZONE, transitHour } from "@/lib/localTime";
 import React, { useEffect, useRef, useState } from "react";
 import { helperLink } from "@/lib/helperHealth";
 import { Card, CardContent } from "@/components/ui/card";
@@ -28,7 +29,7 @@ function safely(read, fallback) {
 }
 
 function greeting() {
-  const h = new Date().getHours();
+  const h = transitHour();
   if (h < 12) return "Good morning";
   if (h < 18) return "Good afternoon";
   return "Good evening";
@@ -98,7 +99,7 @@ function TopStatusBar({ device, vehicle, now, occupancy, pendingSyncCount, onlin
       )}
       <KioskConnectionBadge online={online} />
       <p className="font-bold tabular-nums shrink-0">
-        {now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+        {now.toLocaleTimeString([], { timeZone: TRANSIT_TIME_ZONE, hour: "2-digit", minute: "2-digit" })}
       </p>
     </div>
   );
@@ -195,11 +196,10 @@ function PassengerListDialog({ open, onOpenChange, vehicleName }) {
 // chooser screen — NFC tap keeps listening in the background the whole time
 // idle, the keypad is always on-screen (not hidden behind a "don't have
 // your badge?" step), and QR scanning is one tap away via a small link.
-// After identifying someone, they're asked
-// explicitly whether they're boarding or exiting — the system's guess
-// (based on their last recorded state) is only a highlighted suggestion,
-// never the only option, since a missed tap or skipped stop would otherwise
-// leave no way to correct it.
+// After identifying someone, the screen offers the one action their record
+// allows: someone whose last recorded state is "on the bus" is only ever
+// leaving, and someone who isn't aboard is only ever boarding. Showing both
+// let a stray tap log a sign-out for a passenger who never got on.
 //
 // Layout: this component owns the full viewport (see Kiosk.jsx) rather than
 // sitting in a small centered card, so a big tablet doesn't end up mostly
@@ -210,6 +210,9 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
   const [unlocked, setUnlocked] = useState(false);
   const [now, setNow] = useState(() => new Date());
   const [mode, setMode] = useState("idle"); // idle | qr | confirm | result | badge_error
+  const [qrHint, setQrHint] = useState("");
+  const [qrRetryAt, setQrRetryAt] = useState(0);
+  const qrCooldown = Math.max(0, Math.ceil((qrRetryAt - Date.now()) / 1000));
   const [pending, setPending] = useState(null); // { staff, next_status, method, code_type }
   const [result, setResult] = useState(null); // { staff_name, status, offline?, riderNumber? }
   const [badgeError, setBadgeError] = useState("");
@@ -241,6 +244,8 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
   // When the current card lookup started (0 = none). A lookup that never
   // answers (weak bus signal) must not block every tap after it.
   const lookupStarted = useRef(0);
+  const qrMode = useRef(mode);
+  qrMode.current = mode;
 
   // Web NFC needs the slide-to-unlock gesture before it can scan, but a USB
   // badge reader doesn't — so with one attached, a tap works straight from the
@@ -403,18 +408,29 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
   };
 
   const handleQrDecode = async (text) => {
+    if (busy || mode !== "qr" || Date.now() < qrRetryAt) return;
     const decoded = parseCodeQrPayload(text);
-    if (!decoded || busy) return;
+    if (!decoded) {
+      // Anything that isn't a one-time check-in code — a company join code, a
+      // poster, another phone in the queue — is a code the scanner happened to
+      // see, not the one being presented. Say so without leaving the camera,
+      // so the scanner keeps waiting for the passenger's own code.
+      setQrHint("That isn't a check-in code. Open My Account → Check-in code and show that QR.");
+      return;
+    }
+    setQrHint("");
     setBusy(true);
     try {
       const res = await invoke("lookup_code", { code: decoded });
+      if (qrMode.current !== "qr") return;
       setPending({ staff: res.staff, next_status: res.next_status, method: "qr", code_type: res.code_type, verification_grant: res.verification_grant });
       setMode("confirm");
     } catch (e) {
-      if (handleUnpaired(e)) return;
-      setBadgeError(busMessage(e) || "That QR code isn't recognized — it may have expired or already been used.");
-      setMode("badge_error");
-      resetSoon(3000);
+      if (qrMode.current !== "qr" || handleUnpaired(e)) return;
+      // Keep the camera open on a rejected code or a connection failure.
+      // Only a verified passenger should move this screen to confirmation.
+      if (e?.response?.status === 429) setQrRetryAt(Date.now() + 60000);
+      setQrHint(busMessage(e) || "That QR code isn't recognized. Show a fresh check-in QR from My Account.");
     } finally {
       setBusy(false);
     }
@@ -488,10 +504,10 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
       <Screen modeKey="lock" className="space-y-8 p-10 text-center [@media(max-height:820px)]:space-y-5 [@media(max-height:820px)]:p-6">
         <div>
           <p className="text-7xl lg:text-8xl font-heading font-bold tabular-nums tracking-tight [@media(max-height:820px)]:text-6xl">
-            {now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+            {now.toLocaleTimeString([], { timeZone: TRANSIT_TIME_ZONE, hour: "2-digit", minute: "2-digit" })}
           </p>
           <p className="text-base text-muted-foreground mt-2">
-            {now.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" })}
+            {now.toLocaleDateString([], { timeZone: TRANSIT_TIME_ZONE, weekday: "long", month: "long", day: "numeric" })}
           </p>
         </div>
         {device?.vehicle_name && <p className="text-xl font-semibold text-muted-foreground">{device.vehicle_name}</p>}
@@ -501,7 +517,8 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
       </Screen>
     );
   } else if (mode === "confirm" && pending) {
-    const suggestBoarding = pending.next_status === "boarded";
+    // Their last recorded state decides which single action is offered.
+    const boarding = pending.next_status === "boarded";
     actionContent = (
       <Screen modeKey="confirm" className="p-8 text-center space-y-4">
         {/* A little card flies in and "taps" down before the person's info
@@ -515,26 +532,13 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
         )}
         <Avatar name={pending.staff.full_name} photoUrl={pending.staff.photo_url} />
         <p className="text-2xl font-bold">{pending.staff.full_name}</p>
-        <p className="text-base text-muted-foreground">Are you boarding or exiting?</p>
+        <p className="text-base text-muted-foreground">
+          {boarding ? "You're not on this bus yet." : `You're recorded as being on ${device?.vehicle_name || "this bus"}.`}
+        </p>
+        <p className="text-sm text-muted-foreground">Are you boarding or exiting?</p>
         <div className="flex gap-3">
-          <Button
-            variant={suggestBoarding ? "default" : "outline"}
-            className="flex-1 h-24 flex-col gap-1.5 rounded-2xl text-base"
-            onClick={() => confirmCheckIn("boarded")}
-            disabled={busy}
-          >
-            <LogIn className="w-8 h-8" />
-            <span>Boarding</span>
-          </Button>
-          <Button
-            variant={suggestBoarding ? "outline" : "default"}
-            className="flex-1 h-24 flex-col gap-1.5 rounded-2xl text-base"
-            onClick={() => confirmCheckIn("off_board")}
-            disabled={busy}
-          >
-            <LogOut className="w-8 h-8" />
-            <span>Exiting</span>
-          </Button>
+          <Button variant={boarding ? "default" : "outline"} className="flex-1 h-28 flex-col gap-1.5 rounded-2xl text-lg" onClick={() => confirmCheckIn("boarded")} disabled={busy}><LogIn className="w-9 h-9" /><span>Boarding</span></Button>
+          <Button variant={boarding ? "outline" : "default"} className="flex-1 h-28 flex-col gap-1.5 rounded-2xl text-lg" onClick={() => confirmCheckIn("off_board")} disabled={busy}><LogOut className="w-9 h-9" /><span>Exiting</span></Button>
         </div>
         <Button variant="ghost" onClick={() => { setMode("idle"); setPending(null); }}>Cancel</Button>
       </Screen>
@@ -581,9 +585,11 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
   } else if (mode === "qr") {
     actionContent = (
       <Screen modeKey="qr" className="p-5 space-y-4">
-        <Button variant="ghost" onClick={() => setMode("idle")}><ChevronLeft className="w-5 h-5 mr-1" /> Back</Button>
-        <p className="text-base text-center text-muted-foreground">Show your QR code to the camera</p>
-        <QrScanner active onDecode={handleQrDecode} facingMode="user" />
+        <Button variant="ghost" onClick={() => { setMode("idle"); setQrHint(""); }}><ChevronLeft className="w-5 h-5 mr-1" /> Back</Button>
+        <p className="text-base text-center text-muted-foreground">Hold your check-in QR steady inside the square</p>
+        <QrScanner active={qrCooldown === 0} onDecode={handleQrDecode} facingMode="user" requireFacingMode stableMs={800} />
+        {qrCooldown > 0 && <p role="status" className="text-sm text-center text-destructive">Scanning paused. Try again in {qrCooldown} seconds with a fresh QR.</p>}
+        {busy ? <p className="text-sm text-center text-muted-foreground" role="status">Checking your code…</p> : qrHint && <p className="text-sm text-center text-destructive" role="status">{qrHint}</p>}
       </Screen>
     );
   } else {
@@ -685,7 +691,7 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
 
         <button
           type="button"
-          onClick={() => setMode("qr")}
+          onClick={() => { clearTimeout(resetTimer.current); setQrHint(""); setMode("qr"); }}
           className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
         >
           <QrCode className="w-4 h-4" /> Scan QR code instead
@@ -719,7 +725,7 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
         <div className="px-3 pt-2 text-center text-caption text-muted-foreground" role="status">
           {directoryInfo?.expires ? (
             <button type="button" onClick={() => setListOpen(true)} className="underline-offset-4 hover:underline">
-              Passenger list: {directoryInfo.count} card{directoryInfo.count === 1 ? "" : "s"} · updated {new Date(directoryInfo.updated).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })} · {Date.parse(directoryInfo.expires) > now.getTime() ? "ready for offline taps" : "expired, connect to refresh"} · <span className="font-semibold">See names</span>
+              Passenger list: {directoryInfo.count} card{directoryInfo.count === 1 ? "" : "s"} · updated {new Date(directoryInfo.updated).toLocaleString([], { timeZone: TRANSIT_TIME_ZONE, month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })} · {Date.parse(directoryInfo.expires) > now.getTime() ? "ready for offline taps" : "expired, connect to refresh"} · <span className="font-semibold">See names</span>
             </button>
           ) : "Passenger list not downloaded. Connect to WiFi."}
         </div>

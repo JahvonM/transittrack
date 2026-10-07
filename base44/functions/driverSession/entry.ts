@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
+import { passengerPushTokens } from '../../shared/chatPush.ts';
 
 
 async function liveMembership(base44, row) {
@@ -18,10 +19,12 @@ async function approvedCompanies(base44, user, scope) {
   return approved;
 }
 async function approvedPassengerMemberships(base44, companyId) {
-  const rows = await base44.asServiceRole.entities.CompanyMembership.filter({ company_id: companyId, active: true, scope: 'passenger' }, '-updated_date', 5000);
-  const live=[];
-  for(const row of rows) if(await liveMembership(base44,row)) live.push(row);
-  return live;
+   const rows = await base44.asServiceRole.entities.CompanyMembership.filter({ company_id: companyId, active: true, scope: 'passenger' }, '-updated_date', 5000);
+   // Every row here belongs to the same company: verify its code once, not
+   // once per passenger on every tablet heartbeat.
+   const company = rows.some(row => row.code_hash) ? await base44.asServiceRole.entities.Company.get(companyId) : null;
+   const codeHash = company ? await deviceDigest(company.access_code || '') : null;
+   return rows.filter(row => (!row.expires_at && !row.code_hash) || (row.code_hash && row.code_hash === codeHash));
 }
 async function approvedStaffIds(base44, companyId) {
   return new Set((await approvedPassengerMemberships(base44,companyId)).map(row=>row.user_id));
@@ -174,17 +177,18 @@ function base64ToBytes(b64) {
 
 async function resolveDriverDevice(base44, deviceId, token) {
   if (!deviceId || typeof deviceId !== 'string') return null;
-  try {
-    const device = await base44.asServiceRole.entities.KioskDevice.get(deviceId);
-    if (!device || device.kiosk_type !== 'driver' || !(await authenticatedTablet(base44, device, token))) return null;
-    return device;
-  } catch { return null; }
+  const device = await base44.asServiceRole.entities.KioskDevice.get(deviceId).catch(error => {
+    if (error.status === 404) return null;
+    throw error;
+  });
+  if (!device || device.kiosk_type !== 'driver' || !(await authenticatedTablet(base44, device, token))) return null;
+  return device;
 }
 
 async function loadVehicle(base44, vehicleId) {
   if (!vehicleId) return null;
   try { return await base44.asServiceRole.entities.Vehicle.get(vehicleId); }
-  catch { return null; }
+  catch (error) { if (error.status === 404) return null; throw error; }
 }
 
 // "Skip today" and "running late" carry an expiry so they switch themselves
@@ -363,6 +367,29 @@ async function tabletCheckIns(base44, companyId, vehicleId) {
     if (batch.length < 500) return rows;
   }
 }
+// Nobody is riding a bus when a shift begins or ends. Everyone still marked
+// aboard this vehicle is signed off with a fresh record (the same shape the
+// boarding kiosk writes) rather than editing the original sign-in, so the day's
+// log keeps both the time they boarded and the time they were taken off.
+async function offboardEveryone(base44, { companyId, companyName, vehicleId, vehicleName, at }) {
+  const rows = await tabletCheckIns(base44, companyId, vehicleId);
+  const latest = new Map();
+  for (const row of rows) {
+    const key = row.card_tag || row.staff_name;
+    if (!key) continue;
+    const prev = latest.get(key);
+    if (!prev || Date.parse(row.created_date) > Date.parse(prev.created_date)) latest.set(key, row);
+  }
+  const aboard = [...latest.values()].filter((r) => r.status === 'boarded');
+  if (!aboard.length) return 0;
+  await base44.asServiceRole.entities.StaffCheckIn.bulkCreate(aboard.map((r) => ({
+    staff_name: r.staff_name, staff_picture_url: r.staff_picture_url || '', card_tag: r.card_tag,
+    status: 'off_board', boarded_at: new Date(at).toISOString(), check_in_method: 'manual',
+    company_id: companyId, company_name: companyName, vehicle_id: vehicleId,
+    vehicle_name: r.vehicle_name || vehicleName || '',
+  })));
+  return aboard.length;
+}
 
 async function hashSecret(value) {
  const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
@@ -380,6 +407,17 @@ async function reserveAttempt(base44, key, limit, windowMs) {
  if (recent.length >= limit) return false;
  await base44.asServiceRole.entities.VerificationAttempt.create({ scope: key, attempted_at: new Date().toISOString() });
  return true;
+}
+async function noteWrongPin(base44, vehicleId) {
+ await base44.asServiceRole.entities.VerificationAttempt.create({ scope: 'driver-pin:' + vehicleId, attempted_at: new Date().toISOString() });
+}
+// Only a WRONG PIN counts against the limit. Counting the entries that worked
+// too meant a driver whose tablet asked for the PIN again (a reload, the app
+// being reopened) ran out of tries and was then refused a PIN that was
+// correct — which reads to a driver as "the code is wrong".
+async function pinAttemptsExhausted(base44, vehicleId) {
+ const rows = await base44.asServiceRole.entities.VerificationAttempt.filter({ scope: 'driver-pin:' + vehicleId }, '-created_date', 5);
+ return rows.filter(r => Date.parse(r.attempted_at) > Date.now() - 15 * 60_000).length >= 5;
 }
 async function driverCredentialVersion(base44,vehicleId) {
  const row=(await base44.asServiceRole.entities.DriverPinCredential.filter({vehicle_id:vehicleId},'-updated_date',1))[0];
@@ -458,18 +496,18 @@ export default async function(req) {
 
     const base44 = createClientFromRequest(req);
     const device = await resolveDriverDevice(base44, device_id, body.device_token);
-    if (!device) return Response.json({ error: 'Invalid or unpaired driver device' }, { status: 401 });
+    if (!device) return Response.json({ error: 'Invalid or unpaired driver device', code: 'DEVICE_ACCESS_REQUIRED' }, { status: 401 });
 
     const companyId = device.company_id;
     const companyName = device.company_name;
     const vehicleId = device.vehicle_id;
     if (!vehicleId) return Response.json({ error: 'No vehicle assigned to this device' }, { status: 400 });
 
-    if (!['heartbeat', 'verify_pin', 'request_pin_reset', 'register_push_token', 'sos'].includes(action) && !(await validGrant(base44, device, body.driver_grant, 'driver', vehicleId))) return Response.json({ error: 'Driver PIN verification required' }, { status: 401 });
+    if (!['heartbeat', 'verify_pin', 'request_pin_reset', 'register_push_token', 'sos'].includes(action) && !(await validGrant(base44, device, body.driver_grant, 'driver', vehicleId))) return Response.json({ error: 'Driver PIN verification required', code: 'DRIVER_PIN_REQUIRED' }, { status: 401 });
 
     const helperHealth = cleanHelperHealth(body.helper_health);
     const appHealth = cleanAppHealth(body.app_health);
-    await base44.asServiceRole.entities.KioskDevice.update(device_id, {
+    if (action === 'heartbeat') await base44.asServiceRole.entities.KioskDevice.update(device_id, {
       last_seen: new Date().toISOString(),
       // Sent once per app start: how this tablet draws maps (for support).
       ...(typeof body.device_info === 'string' ? { device_info: sanitize(body.device_info).slice(0, 400) } : {}),
@@ -497,8 +535,8 @@ export default async function(req) {
       case 'verify_pin': {
         const vehicle = await loadVehicle(base44, vehicleId);
         if (!vehicle || vehicle.company_id !== companyId) return Response.json({ error: 'Vehicle assignment mismatch' }, { status: 403 });
-        if (!(await reserveAttempt(base44, 'driver-pin:' + vehicleId, 5, 15 * 60_000))) return Response.json({ error: 'Too many PIN attempts. Try again in 15 minutes.' }, { status: 429 });
-        if (!(await verifyProtectedPin(base44, vehicle, body.pin))) return Response.json({ error: 'Incorrect PIN or no PIN configured' }, { status: 403 });
+        if (await pinAttemptsExhausted(base44, vehicleId)) return Response.json({ error: 'Too many PIN attempts. Try again in 15 minutes.' }, { status: 429 });
+        if (!(await verifyProtectedPin(base44, vehicle, body.pin))) { await noteWrongPin(base44, vehicleId); return Response.json({ error: 'Incorrect PIN or no PIN configured' }, { status: 403 }); }
         // The grant has to outlast a full shift: at 12 hours it expired in the
         // middle of a long day and dropped the driver back to the PIN screen
         // while they were driving. The real daily gate is the tablet asking
@@ -568,8 +606,8 @@ export default async function(req) {
         // even on an unlocked tablet, and shares the PIN attempt limit.
         const vehicle = await loadVehicle(base44, vehicleId);
         if (!vehicle || vehicle.company_id !== companyId) return Response.json({ error: 'Vehicle assignment mismatch' }, { status: 403 });
-        if (!(await reserveAttempt(base44, 'driver-pin:' + vehicleId, 5, 15 * 60_000))) return Response.json({ error: 'Too many PIN attempts. Try again in 15 minutes.' }, { status: 429 });
-        if (!(await verifyProtectedPin(base44, vehicle, body.pin))) return Response.json({ error: 'Incorrect PIN' }, { status: 403 });
+        if (await pinAttemptsExhausted(base44, vehicleId)) return Response.json({ error: 'Too many PIN attempts. Try again in 15 minutes.' }, { status: 429 });
+        if (!(await verifyProtectedPin(base44, vehicle, body.pin))) { await noteWrongPin(base44, vehicleId); return Response.json({ error: 'Incorrect PIN' }, { status: 403 }); }
         const email = String(vehicle.driver_email || '').trim().toLowerCase();
         if (!email) return Response.json({ ok: true, driver_name: '', documents: [] });
         const driver = (await base44.asServiceRole.entities.Driver.filter({ company_id: companyId }, '-updated_date', 500))
@@ -667,6 +705,11 @@ export default async function(req) {
           driver_name: vehicle.driver_name || '', driver_email: vehicle.driver_email || '',
           device_id, started_at: occurredAt(body.occurred_at).toISOString(),
         });
+        // A shift starts with an empty bus. If the previous shift was never
+        // closed properly its passengers were still counted aboard, so the new
+        // shift would open showing people on a bus that is standing empty.
+        try { await offboardEveryone(base44, { companyId, companyName, vehicleId, vehicleName: shift.vehicle_name || vehicle.name, at: Date.parse(shift.started_at) }); }
+        catch { /* the shift still starts; the kiosk corrects anyone left aboard */ }
         return Response.json({ shift });
       }
 
@@ -698,6 +741,9 @@ export default async function(req) {
           ended_at:new Date(time).toISOString(),duration_minutes:Math.round((time-startMs)/60000),
           notes:typeof body.notes==='string'?body.notes.slice(0,500):shift.notes,
         });
+        // The shift is over, so nobody is riding this bus any more.
+        try { await offboardEveryone(base44, { companyId, companyName, vehicleId, vehicleName: ended.vehicle_name, at: time }); }
+        catch { /* the shift is still ended; the kiosk corrects anyone left aboard */ }
         return Response.json({shift:ended});
       }
 
@@ -1104,7 +1150,12 @@ export default async function(req) {
         try {
           const serviceAccountJson = secrets.get('FIREBASE_SERVICE_ACCOUNT');
           if (serviceAccountJson) {
-            const tokens = await pushTokensForChannel(base44, ch, companyId);
+            // The bus's own passengers ride this chat too, so they're told as
+            // well as the admin/company/mechanic audience.
+            const tokens = [...new Set([
+              ...(await pushTokensForChannel(base44, ch, companyId)),
+              ...(ch === 'staff' ? await passengerPushTokens(base44, vehicleId) : []),
+            ])];
             if (tokens.length) {
               await sendPushToTokens(serviceAccountJson, tokens, {
                 title: `${vehicle.name} · ${vehicle.driver_name || 'Driver'}`,
@@ -1145,7 +1196,10 @@ export default async function(req) {
         try {
           const serviceAccountJson = secrets.get('FIREBASE_SERVICE_ACCOUNT');
           if (serviceAccountJson) {
-            const tokens = await pushTokensForChannel(base44, ch, companyId);
+            const tokens = [...new Set([
+              ...(await pushTokensForChannel(base44, ch, companyId)),
+              ...(ch === 'staff' ? await passengerPushTokens(base44, vehicleId) : []),
+            ])];
             if (tokens.length) {
               await sendPushToTokens(serviceAccountJson, tokens, {
                 title: `${vehicle.name} · ${vehicle.driver_name || 'Driver'}`,

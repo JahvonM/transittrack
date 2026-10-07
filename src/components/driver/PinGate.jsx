@@ -1,6 +1,7 @@
 import { saveDriverGrant } from "@/lib/deviceAuth";
-import { rememberPin, forgetPin, checkPinOffline, confirmPinWhenOnline } from "@/lib/offlinePin";
-import React, { useState } from "react";
+import { rememberPin, checkPinOffline, confirmPinWhenOnline } from "@/lib/offlinePin";
+import { httpStatus, errorData } from '@/lib/requestError';
+import React, { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +13,7 @@ export default function PinGate({ vehicle, deviceId, invoke, onUnlock }) {
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
   const [checking, setChecking] = useState(false);
+  const busyRef = useRef(false);
   const [forgot, setForgot] = useState(false);
   const [requesting, setRequesting] = useState(false);
   const [requested, setRequested] = useState(false);
@@ -28,27 +30,32 @@ export default function PinGate({ vehicle, deviceId, invoke, onUnlock }) {
   const navigate = useNavigate();
 
   const submit = async (value = pin) => {
-    if (checking) return;
+    if (busyRef.current) return;
     if (value === REVIEWER_PIN) { navigate("/reviewer-sandbox"); return; }
+    busyRef.current = true;
     setChecking(true);
     try {
       const result = await invoke("verify_pin", { pin: value });
       if (result?.ok !== true) throw new Error("PIN verification failed");
-      saveDriverGrant(deviceId, result.driver_grant);
-      // Keep this PIN usable on this tablet, so flaky Wi-Fi can't block a shift.
-      rememberPin(deviceId, value);
-      onUnlock();
+      // The pass every other action on this tablet needs. If it can't be kept,
+      // say so: unlocking into a screen that bounces straight back here is what
+      // made the PIN prompt come back all shift.
+      try { saveDriverGrant(deviceId, result.driver_grant); }
+      catch { setError("This tablet could not save the driver pass (its storage is full). Ask dispatch to free up space, then try again."); setPin(""); return; }
+      // Finish writing and check storage before changing screens or reloading.
+      const pinSaved = await rememberPin(deviceId, value);
+      onUnlock({ pinSaved });
     } catch (e) {
       // Say what actually went wrong — a locked-out or offline tablet is not a
       // wrong PIN, and drivers were reading all three as one.
-      const status = e?.response?.status;
-      const serverMessage = e?.response?.data?.error;
-      if (status === 429) setError(serverMessage || "Too many PIN tries. Wait 15 minutes and try again.");
-      else if (status === 403) {
-        forgetPin(deviceId);
-        setError(serverMessage || "That PIN is not right for this bus. Check the PIN, or ask your administrator.");
-      }
-      else if (status === 401) setError("This tablet is no longer paired to a bus. Ask your administrator to pair it again.");
+      const status = httpStatus(e);
+      const data = errorData(e);
+      // Only this tablet's own backend can judge the PIN. A request that never
+      // reached it (no signal, a platform-level error) must fall through to the
+      // remembered PIN below instead of pretending the tablet is unpaired.
+      if (status === 429) setError(data.error || "Too many PIN tries. Wait 15 minutes and try again.");
+      else if (status === 403 && data.error) setError(data.error);
+      else if (data.code === "DEVICE_ACCESS_REQUIRED") setError("This tablet is no longer paired to a bus. Ask your administrator to pair it again.");
       else if (await checkPinOffline(deviceId, value)) {
         // No answer from the server, but this tablet checked this PIN online
         // before: let the driver in and confirm with the server once Wi-Fi is
@@ -59,7 +66,7 @@ export default function PinGate({ vehicle, deviceId, invoke, onUnlock }) {
       }
       else setError("No connection, and this tablet hasn't checked this PIN before. Connect it to Wi-Fi once, then try again.");
       setPin("");
-    } finally { setChecking(false); }
+    } finally { busyRef.current = false; setChecking(false); }
   };
 
   // The driver's own keypad: big keys that work with gloves, and the tablet's

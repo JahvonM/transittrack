@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import EmojiPicker from "@/components/chat/EmojiPicker";
 import { MessageCircle, Send, Pencil, Trash2, Check, X, Image as ImageIcon, Mic, Square } from "lucide-react";
 
 function formatTime(iso) {
@@ -220,6 +221,7 @@ export default function ChatThread({
             {recording ? <Square className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
           </Button>
         )}
+        <EmojiPicker onPick={(emoji) => setText((current) => current + emoji)} disabled={uploading} />
         <Input
           value={text}
           onChange={(e) => setText(e.target.value)}

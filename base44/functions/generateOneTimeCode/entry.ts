@@ -1,10 +1,10 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
-
+import { retry429 } from '../../shared/retry429.ts';
 
 async function liveMembership(base44, row) {
  if (!row.expires_at && !row.code_hash) return true; // Explicit admin approval.
  if (!row.code_hash || (row.scope !== 'passenger' && !(Date.parse(row.expires_at) > Date.now()))) return false;
- const company=await base44.asServiceRole.entities.Company.get(row.company_id).catch(()=>null);
+ const company=await retry429(()=>base44.asServiceRole.entities.Company.get(row.company_id)).catch(()=>null);
  if(!company) return false;
  const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(company.access_code || ''));
  const hash=Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,'0')).join('');
@@ -12,13 +12,13 @@ async function liveMembership(base44, row) {
 }
 
 async function approvedCompanies(base44, user, scope) {
-  const rows = await base44.asServiceRole.entities.CompanyMembership.filter({ user_id: user.id, active: true }, '-updated_date', 100);
+  const rows = await retry429(()=>base44.asServiceRole.entities.CompanyMembership.filter({ user_id: user.id, active: true }, '-updated_date', 100));
   const approved=[];
   for(const row of rows) if(row.scope === (scope || (user.role === 'company' ? 'manager' : 'passenger')) && await liveMembership(base44,row)) approved.push(row.company_id);
   return approved;
 }
 async function approvedStaffIds(base44, companyId) {
-  const rows = await base44.asServiceRole.entities.CompanyMembership.filter({ company_id: companyId, active: true, scope: 'passenger' }, '-updated_date', 5000);
+  const rows = await retry429(()=>base44.asServiceRole.entities.CompanyMembership.filter({ company_id: companyId, active: true, scope: 'passenger' }, '-updated_date', 5000));
   const ids=new Set();
   for(const row of rows) if(await liveMembership(base44,row)) ids.add(row.user_id);
   return ids;
@@ -43,10 +43,10 @@ function randomDigits(len) {
  return out;
 }
 async function reserveAttempt(base44, key, limit, windowMs) {
- const rows = await base44.asServiceRole.entities.VerificationAttempt.filter({ scope: key }, '-created_date', limit);
+ const rows = await retry429(()=>base44.asServiceRole.entities.VerificationAttempt.filter({ scope: key }, '-created_date', limit));
  const recent = rows.filter(r => Date.parse(r.attempted_at) > Date.now() - windowMs);
  if (recent.length >= limit) return false;
- await base44.asServiceRole.entities.VerificationAttempt.create({ scope: key, attempted_at: new Date().toISOString() });
+ await retry429(()=>base44.asServiceRole.entities.VerificationAttempt.create({ scope: key, attempted_at: new Date().toISOString() }));
  return true;
 }
 async function issueGrant(base44, device, purpose, subject, ttlMs) {
@@ -74,17 +74,17 @@ export default async function(req) {
     if (companyIds.length !== 1) return Response.json({ error: 'Verified company access required' }, { status: 403 });
     const companyId = companyIds[0];
     if (!(await reserveAttempt(base44, 'otp-issue:' + user.id, 3, 30 * 60_000))) return Response.json({ error: 'Too many code requests. Try again later.' }, { status: 429 });
-    const previous = await base44.asServiceRole.entities.PassengerOneTimeCredential.filter({ user_id: user.id }, '-created_date', 100);
-    for (const row of previous) if (!row.consumed_at) await base44.asServiceRole.entities.PassengerOneTimeCredential.update(row.id, { consumed_at: new Date().toISOString() });
+    const previous = await retry429(()=>base44.asServiceRole.entities.PassengerOneTimeCredential.filter({ user_id: user.id }, '-created_date', 100));
+    for (const row of previous) if (!row.consumed_at) await retry429(()=>base44.asServiceRole.entities.PassengerOneTimeCredential.update(row.id, { consumed_at: new Date().toISOString() }));
     let code = '';
     for (let i = 0; i < 50; i++) {
       const candidate = randomDigits(6);
-      const matches = await base44.asServiceRole.entities.PassengerOneTimeCredential.filter({ company_id: companyId, token_hash: await hashSecret(candidate) }, '-created_date', 2);
+      const matches = await retry429(async ()=>base44.asServiceRole.entities.PassengerOneTimeCredential.filter({ company_id: companyId, token_hash: await hashSecret(candidate) }, '-created_date', 2));
       if (!matches.some(c => !c.consumed_at && Date.parse(c.expires_at) > Date.now())) { code = candidate; break; }
     }
     if (!code) return Response.json({ error: 'Could not allocate a unique code' }, { status: 503 });
     const expiresAt = new Date(Date.now() + CODE_TTL_MS).toISOString();
-    await base44.asServiceRole.entities.PassengerOneTimeCredential.create({ user_id: user.id, company_id: companyId, token_hash: await hashSecret(code), expires_at: expiresAt });
+    await retry429(async ()=>base44.asServiceRole.entities.PassengerOneTimeCredential.create({ user_id: user.id, company_id: companyId, token_hash: await hashSecret(code), expires_at: expiresAt }));
 
     return Response.json({ code, expires_at: expiresAt });
   } catch (error) {

@@ -53,7 +53,13 @@ describe('verification and credential protection', () => {
   expect(sdk.tables.Vehicle[0].driver_pin).toBe('');
   expect(sdk.tables.DriverPinCredential[0].pin_hash).toMatch(/^[a-f0-9]{64}$/);
   expect(JSON.stringify(sdk.tables.DriverPinCredential)).not.toContain('1234');
+  // Wrong tries are still limited...
   for(let i=0;i<4;i++) expect((await handler(req({device_id:'tablet',action:'verify_pin',pin:'0000'}))).status).toBe(403);
+  // ...but the right PIN is never refused just because the tablet asked for it
+  // again — only wrong tries may count against the limit.
+  expect((await handler(req({device_id:'tablet',action:'verify_pin',pin:'1234'}))).status).toBe(200);
+  // The fifth wrong try is the last one allowed; the next is refused.
+  expect((await handler(req({device_id:'tablet',action:'verify_pin',pin:'0000'}))).status).toBe(403);
   expect((await handler(req({device_id:'tablet',action:'verify_pin',pin:'1234'}))).status).toBe(429);
  });
  it('rejects driver mutations without a verified PIN grant', async()=>{

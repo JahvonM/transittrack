@@ -48,6 +48,22 @@ export function codeFromJoinQr(text) {
 
 // Keeps a scanned company code for this browser tab until the passenger is
 // signed in; StaffPortal then checks it once, like a typed code.
+// Set when someone deliberately switches company, so the app never quietly puts
+// them back into the company they just left. Cleared as soon as a code is verified.
+const LEFT = "tt_company_left";
+
+export function markCompanyLeft() {
+  try { localStorage.setItem(LEFT, "1"); } catch { /* ignore */ }
+}
+
+export function hasLeftCompany() {
+  try { return localStorage.getItem(LEFT) === "1"; } catch { return false; }
+}
+
+export function clearCompanyLeft() {
+  try { localStorage.removeItem(LEFT); } catch { /* ignore */ }
+}
+
 export function rememberJoinCode(code) {
   const value = String(code || "").trim().toUpperCase();
   if (!CODE.test(value)) return false;

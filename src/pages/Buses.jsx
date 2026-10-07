@@ -121,7 +121,7 @@ export default function Buses() {
               {mapOpen ? (
                 <div id="passenger-live-map">
                   <Suspense fallback={<div className="h-72 animate-pulse rounded-2xl bg-muted" />}>
-                    <LiveTransitMap className="h-72 rounded-2xl border border-border sm:h-96" vehicles={visible.filter((v) => v.current_lat != null)} label="Map of the company's buses" />
+                    <LiveTransitMap className="h-72 rounded-2xl border border-border sm:h-96" vehicles={visible.filter((v) => v.current_lat != null)} routes={routes} label="Map of the company's buses" />
                   </Suspense>
                 </div>
               ) : (

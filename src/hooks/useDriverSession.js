@@ -6,6 +6,8 @@ import { deviceMapInfo } from "@/lib/mapEngine";
 import { isOfflineError, pendingJobs } from "@/lib/offlineJobs";
 import { helperHealthPayload } from "@/lib/helperHealth";
 import { appHealthPayload } from "@/lib/appHealth";
+import { httpStatus, errorData } from '@/lib/requestError';
+import { forgetUnlockDay } from '@/lib/localDay';
 
 // The last good session is kept on the tablet so the driver app still opens
 // (vehicle summary, route, stops, staff list) when it starts with no WiFi.
@@ -43,10 +45,13 @@ const hasQueuedShift = () => pendingJobs().some((j) => j.kind === "driver_shift"
 
 export function useDriverSession(deviceId, { intervalMs = 8000 } = {}) {
   const [session, setSession] = useState(() => (deviceId ? readCache(deviceId) : null));
-  const [loading, setLoading] = useState(() => !(deviceId && readCache(deviceId)));
+  const [loading, setLoading] = useState(() => !!deviceId && !session);
   const [error, setError] = useState(null);
   const [offline, setOffline] = useState(false);
   const timerRef = useRef(null);
+  const heartbeatBusy = useRef(false);
+  const currentDevice = useRef(deviceId);
+  currentDevice.current = deviceId;
   // The first heartbeat also reports how this tablet draws maps.
   const sentInfoRef = useRef(false);
 
@@ -59,7 +64,8 @@ export function useDriverSession(deviceId, { intervalMs = 8000 } = {}) {
   }, [deviceId]);
 
   const heartbeat = useCallback(async () => {
-    if (!deviceId) return;
+    if (!deviceId || heartbeatBusy.current) return;
+    heartbeatBusy.current = true;
     const first = !sentInfoRef.current;
     try {
       sentInfoRef.current = true;
@@ -69,6 +75,7 @@ export function useDriverSession(deviceId, { intervalMs = 8000 } = {}) {
         ...helperHealthPayload(),
         ...appHealthPayload("driver"),
       }));
+      if (currentDevice.current !== deviceId) return;
       setSession((prev) => {
         // A shift started/ended offline wins until it has been uploaded.
         const next = cleanTabletSession(hasQueuedShift() && prev ? { ...res.data, open_shift: prev.open_shift } : res.data);
@@ -78,11 +85,13 @@ export function useDriverSession(deviceId, { intervalMs = 8000 } = {}) {
       setError(null);
       setOffline(false);
     } catch (e) {
+      if (currentDevice.current !== deviceId) return;
       if (first) sentInfoRef.current = false;
       if (isOfflineError(e)) setOffline(true);
-      setError(e?.response?.data?.error || e?.message || "Session error");
+      setError(errorData(e).error || e?.message || "Session error");
     } finally {
-      setLoading(false);
+      heartbeatBusy.current = false;
+      if (currentDevice.current === deviceId) setLoading(false);
     }
   }, [deviceId]);
 
@@ -111,7 +120,13 @@ export function useDriverSession(deviceId, { intervalMs = 8000 } = {}) {
       const res = await base44.functions.invoke("driverSession", deviceRequest(deviceId, { ...payload, action }));
       return res.data;
     } catch (error) {
-      if (error?.response?.status === 401) window.dispatchEvent(new Event("tt-driver-locked"));
+      // Only this tablet's own backend can say the PIN is needed again. A
+      // request that never reached it (no signal, a platform-level 401) says
+      // nothing about the driver, so it must never raise the PIN screen.
+      if (httpStatus(error) === 401 && ['DRIVER_PIN_REQUIRED', 'DEVICE_ACCESS_REQUIRED'].includes(errorData(error).code)) {
+        forgetUnlockDay();
+        window.dispatchEvent(new Event('tt-driver-locked'));
+      }
       throw error;
     }
   }, [deviceId]);

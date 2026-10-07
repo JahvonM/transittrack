@@ -12,14 +12,17 @@ export default function useCrowding(companyId) {
   useEffect(() => {
     if (!companyId) return undefined;
     let cancelled = false;
-    const load = () =>
-      base44.entities.StaffCheckIn.filter({ company_id: companyId }, "-created_date", 500)
+    const load = () => {
+      // Only this shift's boardings: the server drops the older ones, so the
+      // tablet never downloads a company's whole check-in history.
+      const since = new Date(Date.now() - WINDOW_MS).toISOString();
+      return base44.entities.StaffCheckIn.filter({ company_id: companyId, created_date: { $gte: since } }, "-created_date", 500)
         .then((rows) => {
           if (cancelled) return;
-          const since = Date.now() - WINDOW_MS;
-          setCounts(computeOccupancyByVehicle(rows.filter((r) => new Date(r.created_date).getTime() >= since)));
+          setCounts(computeOccupancyByVehicle(rows));
         })
         .catch(() => {});
+    };
     load();
     const t = setInterval(load, REFRESH_MS);
     return () => { cancelled = true; clearInterval(t); };
