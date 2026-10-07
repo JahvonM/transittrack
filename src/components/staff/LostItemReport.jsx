@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { MobileSelect } from "@/components/ui/mobile-select";
 import { useToast } from "@/components/ui/use-toast";
 import { CheckCircle2 } from "lucide-react";
+import { accountName } from "@/lib/userName";
 
 const STATUS_LABEL = { open: "Looking for it", found: "Found", returned: "Returned", closed: "Closed" };
 
@@ -39,7 +40,7 @@ export default function LostItemReport({ company, vehicles = [] }) {
       await base44.entities.LostItemReport.create({
         company_id: company?.id || user?.company_id || "",
         company_name: company?.name || "",
-        reporter_name: user?.full_name || "",
+        reporter_name: accountName(user),
         reporter_email: user?.email || "",
         contact: contact.trim(),
         vehicle_name: vehicleName,

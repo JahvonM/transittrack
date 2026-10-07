@@ -7,6 +7,7 @@ import { PageSlots } from "@/components/admin/kit";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import Logo from "@/components/Logo";
+import { accountName, nameInitials } from "@/lib/userName";
 
 // Set by the admin area when it shows a full page (Vehicle logs, Location
 // timeline…) inside its own sidebar — the page then skips its own header so
@@ -38,7 +39,7 @@ function PassengerLayout({ children, title, fullBleed = false, back = null }) {
   const { user, logout } = useAuth();
   const { pathname } = useLocation();
   if (STAFF_ROLES.has(user?.role)) return <FullLayout title={title}>{children}</FullLayout>;
-  const initials = (user?.full_name || user?.email || "?").split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join("");
+  const initials = nameInitials(user);
 
   return (
     <div className="tt-app-shell min-h-screen bg-background">
@@ -70,7 +71,7 @@ function PassengerLayout({ children, title, fullBleed = false, back = null }) {
           <div className="ml-auto flex items-center gap-2">
             <Link to="/account" className="flex items-center gap-2.5 rounded-full py-1 pl-1 pr-3 hover:bg-accent" aria-label="My account">
               <span className="grid h-9 w-9 place-items-center rounded-full bg-secondary text-body-sm font-bold" aria-hidden="true">{initials}</span>
-              <span className="max-w-[180px] truncate text-body-sm font-semibold">{user?.full_name || user?.email || "Account"}</span>
+              <span className="max-w-[180px] truncate text-body-sm font-semibold">{accountName(user) || "Account"}</span>
             </Link>
             <Button variant="ghost" size="icon" onClick={() => logout()} aria-label="Sign out" title="Sign out">
               <LogOut className="h-5 w-5" />
@@ -132,7 +133,7 @@ function FullLayout({ children, title }) {
   const nav = ROLE_NAV[user?.role] || [];
   const isActive = (to) => pathname === to || pathname.startsWith(to + "/");
   const onTopLevel = pathname === "/" || nav.some((n) => n.to === pathname) || ["/admin", "/staff", "/driver", "/notifications", "/account", "/route-explorer"].includes(pathname);
-  const initials = (user?.full_name || user?.email || "?").split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join("");
+  const initials = nameInitials(user);
 
   return (
     <div className="tt-app-shell min-h-screen bg-background">
@@ -168,7 +169,7 @@ function FullLayout({ children, title }) {
                   <button type="button" className="flex items-center gap-2.5 rounded-full py-1 pl-1 pr-1 hover:bg-accent md:pr-3" aria-label="Account menu">
                     <span className="grid h-9 w-9 place-items-center rounded-full bg-secondary text-body-sm font-bold" aria-hidden="true">{initials}</span>
                     <span className="hidden min-w-0 text-left md:block">
-                      <span className="block max-w-[180px] truncate text-body-sm font-semibold">{user.full_name || user.email}</span>
+                      <span className="block max-w-[180px] truncate text-body-sm font-semibold">{accountName(user)}</span>
                       <span className="block text-caption text-muted-foreground">{ROLE_LABEL[user.role] || "Signed in"}</span>
                     </span>
                   </button>

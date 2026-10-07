@@ -3,6 +3,7 @@ import { Hand } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import LiveClock from "@/components/LiveClock";
 import WeatherWidget from "@/components/WeatherWidget";
+import { accountName } from "@/lib/userName";
 
 const greetingWord = () => {
   const h = new Date().getHours();
@@ -13,7 +14,7 @@ const greetingWord = () => {
 
 export default function Greeting({ subtitle }) {
   const { user } = useAuth();
-  const name = (user?.full_name || user?.email || "").split("@")[0].split(" ")[0] || "there";
+  const name = accountName(user).split("@")[0].split(" ")[0] || "there";
   const dateStr = new Date().toLocaleDateString([], {
     weekday: "long",
     month: "long",
