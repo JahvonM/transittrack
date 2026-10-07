@@ -534,7 +534,7 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
         <p className="text-base text-muted-foreground">
           {boarding ? "You're not on this bus yet." : `You're recorded as being on ${device?.vehicle_name || "this bus"}.`}
         </p>
-        <p className="text-sm text-muted-foreground">Choose Boarding or Exiting to finish your check-in.</p>
+        <p className="text-sm text-muted-foreground">Are you boarding or exiting?</p>
         <div className="flex gap-3">
           <Button variant={boarding ? "default" : "outline"} className="flex-1 h-28 flex-col gap-1.5 rounded-2xl text-lg" onClick={() => confirmCheckIn("boarded")} disabled={busy}><LogIn className="w-9 h-9" /><span>Boarding</span></Button>
           <Button variant={boarding ? "outline" : "default"} className="flex-1 h-28 flex-col gap-1.5 rounded-2xl text-lg" onClick={() => confirmCheckIn("off_board")} disabled={busy}><LogOut className="w-9 h-9" /><span>Exiting</span></Button>
