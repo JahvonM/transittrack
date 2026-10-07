@@ -12,6 +12,10 @@ import { loadFailed } from "@/lib/loadFailed";
 const timeOf = (iso) => (iso ? new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "—");
 const dayOf = (iso) => new Date(iso).toLocaleDateString("en-CA");
 const dayLabel = (key) => new Date(`${key}T12:00:00`).toLocaleDateString([], { weekday: "long", day: "numeric", month: "long" });
+const dayBounds = (key) => {
+  const from = new Date(`${key}T00:00:00`).getTime();
+  return [from, from + 24 * 60 * 60 * 1000];
+};
 const hoursOf = (mins) => (mins / 60).toFixed(1);
 
 function shiftMinutes(s) {
@@ -65,6 +69,7 @@ export default function DailyCheckInLog() {
       const byBus = byDay.get(key);
       const busKey = r.vehicle_id || r.vehicle_name || "unknown";
       if (!byBus.has(busKey)) byBus.set(busKey, { key: busKey, name: r.vehicle_name || "Unknown bus", company: r.company_name || "", rows: [] });
+      if (r.vehicle_name && !byBus.get(busKey).name) byBus.get(busKey).name = r.vehicle_name;
       byBus.get(busKey).rows.push(r);
     }
     return [...byDay.entries()]
@@ -75,7 +80,17 @@ export default function DailyCheckInLog() {
           ...bus,
           rows: [...bus.rows].sort((a, b) => new Date(a.boarded_at || a.created_date) - new Date(b.boarded_at || b.created_date)),
           shifts: shifts
-            .filter((s) => s.vehicle_id === bus.key && s.started_at && dayOf(s.started_at) === key)
+            .filter((s) => {
+              if (!s.started_at) return false;
+              // Match the bus by id, falling back to its name for older rows.
+              const sameBus = s.vehicle_id === bus.key || (!s.vehicle_id && s.vehicle_name === bus.key);
+              if (!sameBus) return false;
+              // Any shift that was running at some point during this day.
+              const [from, to] = dayBounds(key);
+              const start = new Date(s.started_at).getTime();
+              const end = s.ended_at ? new Date(s.ended_at).getTime() : Infinity;
+              return start <= to && end >= from;
+            })
             .sort((a, b) => new Date(a.started_at) - new Date(b.started_at)),
         })),
       }));
@@ -128,16 +143,24 @@ export default function DailyCheckInLog() {
                   <Bus className="w-4 h-4 text-primary shrink-0" aria-hidden="true" />
                   <span className="font-semibold">{bus.name}</span>
                   {bus.company && <span className="text-xs text-muted-foreground">{bus.company}</span>}
-                  <span className="ml-auto flex flex-wrap items-center gap-1.5">
-                    {bus.shifts.length ? bus.shifts.map((s) => (
-                      <StatusChip key={s.id} tone={s.ended_at ? "neutral" : "success"}>
-                        Shift {timeOf(s.started_at)} – {s.ended_at ? timeOf(s.ended_at) : "now"} · {hoursOf(shiftMinutes(s))} h
-                      </StatusChip>
-                    )) : (
-                      <StatusChip tone="neutral">No driver shift logged</StatusChip>
-                    )}
-                  </span>
                 </div>
+
+                {bus.shifts.length ? (
+                  <div className="space-y-1">
+                    {bus.shifts.map((s) => (
+                      <div key={s.id} className="flex flex-wrap items-center gap-2 text-sm">
+                        <span className="text-muted-foreground">Shift</span>
+                        <span className="font-semibold tabular-nums">{timeOf(s.started_at)}</span>
+                        <span className="text-muted-foreground">to</span>
+                        <span className="font-semibold tabular-nums">{s.ended_at ? timeOf(s.ended_at) : "still open"}</span>
+                        <StatusChip tone={s.ended_at ? "neutral" : "success"}>{hoursOf(shiftMinutes(s))} h</StatusChip>
+                        {s.driver_name && <span className="text-muted-foreground">· {s.driver_name}</span>}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No driver shift logged for this bus.</p>
+                )}
 
                 <div className="divide-y divide-border">
                   {bus.rows.map((r) => {
