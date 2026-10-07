@@ -12,6 +12,14 @@ export default function QrScanner({ onDecode, active, facingMode = "environment"
   useEffect(() => {
     if (!active) return;
     let stopped = false;
+    // The decoder reports every frame it sees a code — including one glimpsed
+    // in passing, held by someone in the queue, or only half resolved. Wait
+    // until the same code comes through twice in a row, then ignore repeats
+    // for a moment, so the kiosk only reacts once the passenger's code is
+    // properly in view and readable.
+    let lastText = "";
+    let streak = 0;
+    let lastFire = 0;
     const scanner = new Html5Qrcode(elementId);
     scannerRef.current = scanner;
     const started = scanner.start(
@@ -25,7 +33,11 @@ export default function QrScanner({ onDecode, active, facingMode = "environment"
         // tablet held at arm's length.
         useBarCodeDetectorIfSupported: true,
       },
-      (decodedText) => { if (!stopped) onDecode?.(decodedText); },
+      (decodedText) => {
+        if (stopped || Date.now() - lastFire < 2500) return;
+        if (decodedText === lastText) streak += 1; else { lastText = decodedText; streak = 1; }
+        if (streak >= 2) { lastFire = Date.now(); streak = 0; onDecode?.(decodedText); }
+      },
       () => { /* per-frame no-QR-found noise — ignore */ }
     );
     started.catch((e) => {

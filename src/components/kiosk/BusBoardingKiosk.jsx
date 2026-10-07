@@ -209,6 +209,7 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
   const [unlocked, setUnlocked] = useState(false);
   const [now, setNow] = useState(() => new Date());
   const [mode, setMode] = useState("idle"); // idle | qr | confirm | result | badge_error
+  const [qrHint, setQrHint] = useState("");
   const [pending, setPending] = useState(null); // { staff, next_status, method, code_type }
   const [result, setResult] = useState(null); // { staff_name, status, offline?, riderNumber? }
   const [badgeError, setBadgeError] = useState("");
@@ -406,13 +407,13 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
     const decoded = parseCodeQrPayload(text);
     if (!decoded) {
       // Anything that isn't a one-time check-in code — a company join code, a
-      // phone's own QR, a barcode — used to be ignored silently, which read as
-      // the scanner being broken. Say what it is instead.
-      setBadgeError("That isn't a check-in code. Open My Account → Check-in code and show that QR.");
-      setMode("badge_error");
-      resetSoon(4000);
+      // poster, another phone in the queue — is a code the scanner happened to
+      // see, not the one being presented. Say so without leaving the camera,
+      // so the scanner keeps waiting for the passenger's own code.
+      setQrHint("That isn't a check-in code. Open My Account → Check-in code and show that QR.");
       return;
     }
+    setQrHint("");
     setBusy(true);
     try {
       const res = await invoke("lookup_code", { code: decoded });
@@ -581,9 +582,10 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
   } else if (mode === "qr") {
     actionContent = (
       <Screen modeKey="qr" className="p-5 space-y-4">
-        <Button variant="ghost" onClick={() => setMode("idle")}><ChevronLeft className="w-5 h-5 mr-1" /> Back</Button>
+        <Button variant="ghost" onClick={() => { setMode("idle"); setQrHint(""); }}><ChevronLeft className="w-5 h-5 mr-1" /> Back</Button>
         <p className="text-base text-center text-muted-foreground">Show your QR code to the camera</p>
         <QrScanner active onDecode={handleQrDecode} facingMode="environment" />
+        {qrHint && <p className="text-sm text-center text-destructive">{qrHint}</p>}
       </Screen>
     );
   } else {
@@ -685,7 +687,7 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
 
         <button
           type="button"
-          onClick={() => setMode("qr")}
+          onClick={() => { setQrHint(""); setMode("qr"); }}
           className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
         >
           <QrCode className="w-4 h-4" /> Scan QR code instead
