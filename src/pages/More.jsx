@@ -40,7 +40,7 @@ export default function More() {
           <Row to="/staff?sheet=pickup" icon={MapPinned} title="Pickup settings" sub="Pickup pin, WhatsApp updates, switch company" />
         </Group>
         <Group title="On the bus">
-          <Row to="/staff?sheet=badge" icon={KeyRound} title="Boarding code" sub="Forgot your badge? Get a one-time code" />
+          <Row to="/staff?sheet=badge" icon={KeyRound} title="Bus boarding" sub="Permanent QR, choose or reset your boarding code" />
           <Row to="/staff?sheet=assistant" icon={Sparkles} title="Ask about your bus" sub="Quick answers about times and stops" />
           <Row to="/staff?sheet=help" icon={LifeBuoy} title="Help and lost items" sub="Report something left on the bus" />
           <Row to="/safety-standards" icon={ShieldCheck} title="Safety standards" sub="How your company keeps rides safe" />

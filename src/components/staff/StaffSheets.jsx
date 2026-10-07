@@ -110,7 +110,7 @@ export function HelpSheet({ open, onOpenChange, company, vehicles }) {
 
 export function BadgeSheet({ open, onOpenChange }) {
   return (
-    <BottomSheet open={open} onOpenChange={onOpenChange} title="Forgot your badge?" description="Use this one-time code at the bus boarding kiosk.">
+    <BottomSheet open={open} onOpenChange={onOpenChange} title="Bus boarding" description="Your permanent QR and personal boarding code.">
       <div className="pb-4">{open && <OneTimeCode autoGenerate />}</div>
     </BottomSheet>
   );

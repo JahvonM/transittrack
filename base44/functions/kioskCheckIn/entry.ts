@@ -1,4 +1,5 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.52';
+import { boardingSecretHash, currentBoardingCode } from '../../shared/boardingCredentials.ts';
 
 
 async function liveMembership(base44, row) {
@@ -263,8 +264,10 @@ async function currentBoardingEligibility(base44,device,person,token,method) {
   if(!user||!['staff','passenger'].includes(user.role)||!(await approvedStaffIds(base44,device.company_id)).has(user.id))return false;
   if(person.member_user_id!==user.id)return false;
  }
- const cardMethod=['nfc','qr'].includes(method);
+ // The QR scanner submits a boarding credential, not an NFC card UID.
+ const cardMethod=method==='nfc';
  if(row.auth_kind&&row.auth_kind!==(cardMethod?'card':'code'))return false;
+ if(!cardMethod&&row.credential_version&&!(await currentBoardingCode(base44,device,person,row.credential_version)))return false;
  if(cardMethod) {
   const card=await currentCard(base44,device.company_id,person,person.nfc_tag);
   if(!card.valid)return false;
@@ -374,26 +377,29 @@ export default async function(req) {
         return Response.json({ staff: { id: person.id, full_name: person.full_name, photo_url: person.photo_url }, next_status: status, verification_grant: await issueGrant(base44, device, 'boarding', person.id, 24 * 3600_000,binding) });
       }
 
-      // --- bus_boarding: keypad code entry — either a permanent, admin-
-      // assigned access_code, or a staff member's own temporary one_time_code
-      // (self-generated from their app when they forgot their badge) ---
+      // Permanent personal QR, chosen keypad code, or a legacy temporary code.
       case 'lookup_code': {
         const code = sanitize(body.code);
-        if (!code) return Response.json({ error: 'code required' }, { status: 400 });
+        if (!code || code.length > 64) return Response.json({ error: 'Valid boarding code required' }, { status: 400 });
         const directory = await loadStaffDirectory(base44, companyId);
         const now = Date.now();
-        const legacyMatches=directory.filter(s=>s.access_code&&s.access_code===code);
-        const credentials = await base44.asServiceRole.entities.PassengerAccessCredential.filter({ company_id: companyId, token_hash: await hashSecret(code) }, '-updated_date', 2);
+        const permanentQr = /^[a-f0-9]{64}$/.test(code);
+        const legacyMatches=permanentQr?[]:directory.filter(s=>s.access_code&&s.access_code===code);
+        const credentials = permanentQr
+          ? (await base44.asServiceRole.entities.PassengerAccessCredential.filter({ company_id: companyId, qr_hash: await boardingSecretHash(code) }, { limit: 2 })).items
+          : await base44.asServiceRole.entities.PassengerAccessCredential.filter({ company_id: companyId, token_hash: await hashSecret(code) }, '-updated_date', 2);
         if (legacyMatches.length + credentials.length > 1) return Response.json({error:'Ambiguous keypad code; request reissue'},{status:409});
         let person=legacyMatches[0];
-        let codeType = 'access';
+        let codeType = permanentQr ? 'permanent_qr' : 'access';
         const credential=credentials[0];
+        let credentialVersion = legacyMatches[0] ? 'legacy:' + await hashSecret(code) : credential ? credential.id + ':' + (permanentQr ? 'qr:' + credential.qr_hash : 'pin:' + credential.token_hash) : '';
         if(!person&&credential?.contact_id)person=directory.find(s=>s.source==='contact'&&s.id===credential.contact_id);
         else if(!person&&credential?.user_id) {
           const user=await base44.asServiceRole.entities.User.get(credential.user_id);
           person=user?directory.find(s=>s.id===user.id||(s.email&&s.email.toLowerCase()===(user.email||'').toLowerCase())):null;
         }
-        if (!person) {
+        if (!person && !permanentQr) {
+          credentialVersion = '';
           const credentials = await base44.asServiceRole.entities.PassengerOneTimeCredential.filter({ company_id: companyId, token_hash: await hashSecret(code) }, '-created_date', 2);
           const credential = credentials.find(c => !c.consumed_at && Date.parse(c.expires_at) > now);
           const user = credential ? await base44.asServiceRole.entities.User.get(credential.user_id) : null;
@@ -401,6 +407,7 @@ export default async function(req) {
           codeType = 'one_time';
         }
         if (!person) return Response.json({ error: 'code_not_recognized' }, { status: 404 });
+        if (credential?.user_id && person.member_user_id !== credential.user_id) return Response.json({ error: 'Passenger company access is no longer active' }, { status: 403 });
         const refusal = wrongBus(person, vehicleId);
         if (refusal) return Response.json(refusal, { status: 403 });
         if (codeType === 'one_time') {
@@ -410,7 +417,8 @@ export default async function(req) {
           await base44.asServiceRole.entities.PassengerOneTimeCredential.update(current.id, { consumed_at: new Date().toISOString() });
         }
         const status = await nextStatus(base44, vehicleId, 'card_tag', person.nfc_tag || person.id);
-        return Response.json({ staff: { id: person.id, full_name: person.full_name, photo_url: person.photo_url }, next_status: status, code_type: codeType, verification_grant: await issueGrant(base44, device, 'boarding', person.id, 24 * 3600_000,await boardingBinding(base44,device,person,'code')) });
+        const binding = { ...await boardingBinding(base44,device,person,'code'), ...(credentialVersion ? { credential_version: credentialVersion } : {}) };
+        return Response.json({ staff: { id: person.id, full_name: person.full_name, photo_url: person.photo_url }, next_status: status, code_type: codeType, verification_grant: await issueGrant(base44, device, 'boarding', person.id, 24 * 3600_000,binding) });
       }
 
       // --- admin app (Staff Directory): generate a persistent access code for
