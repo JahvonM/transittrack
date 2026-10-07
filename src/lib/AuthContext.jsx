@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useState, useContext, useEffect, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
 import { appParams } from '@/lib/app-params';
 import { setAuditActor } from '@/lib/auditLog';
@@ -14,6 +14,9 @@ export const AuthProvider = ({ children }) => {
   const [authError, setAuthError] = useState(null);
   const [authChecked, setAuthChecked] = useState(false);
   const [appPublicSettings, setAppPublicSettings] = useState(null); // Contains only { id, public_settings }
+  // True once the server has confirmed a session in this tab. Lets a failed
+  // check tell "your sign-in ended" apart from "that call didn't get through".
+  const sessionRef = useRef(false);
 
   useEffect(() => {
     checkAppState();
@@ -79,36 +82,70 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const checkUserAuth = async () => {
+  const acceptUser = (currentUser) => {
+    sessionRef.current = true;
+    setUser(currentUser);
+    setAuditActor(currentUser);
     try {
-      // Now check if the user is authenticated
-      setIsLoadingAuth(true);
-      const currentUser = await base44.auth.me();
-      setUser(currentUser);
-      setAuditActor(currentUser);
-      try {
-        if (currentUser?.theme_accent && !localStorage.getItem(ACCENT_KEY)) applyAccent(currentUser.theme_accent);
-      } catch { /* storage blocked */ }
-      setIsAuthenticated(true);
-      setIsLoadingAuth(false);
-      setAuthChecked(true);
+      if (currentUser?.theme_accent && !localStorage.getItem(ACCENT_KEY)) applyAccent(currentUser.theme_accent);
+    } catch { /* storage blocked */ }
+    setIsAuthenticated(true);
+    setAuthError(null);
+    setIsLoadingAuth(false);
+    setAuthChecked(true);
+  };
+
+  // The server has actually rejected the sign-in — the only case that ends a session.
+  const endSession = () => {
+    sessionRef.current = false;
+    setUser(null);
+    setAuditActor(null);
+    setIsAuthenticated(false);
+    setAuthError({ type: 'auth_required', message: 'Authentication required' });
+    setIsLoadingAuth(false);
+    setAuthChecked(true);
+  };
+
+  const tokenRejected = (error) => error?.status === 401 || error?.status === 403;
+
+  const checkUserAuth = async () => {
+    setIsLoadingAuth(true);
+    try {
+      acceptUser(await base44.auth.me());
     } catch (error) {
       console.error('User auth check failed:', error);
-      setIsLoadingAuth(false);
-      setIsAuthenticated(false);
-      setAuthChecked(true);
-      
-      // If user auth fails, it might be an expired token
-      if (error.status === 401 || error.status === 403) {
-        setAuthError({
-          type: 'auth_required',
-          message: 'Authentication required'
-        });
+
+      if (tokenRejected(error)) {
+        endSession();
+        return;
+      }
+
+      // A call that didn't get through — no connection, a rate limit, a hiccup
+      // on the server — is not a sign-out. Keep the session already in hand.
+      if (sessionRef.current) {
+        setIsAuthenticated(true);
+        setIsLoadingAuth(false);
+        setAuthChecked(true);
+        return;
+      }
+
+      // Nothing confirmed yet in this tab: one quiet retry before the login screen.
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      try {
+        acceptUser(await base44.auth.me());
+      } catch (retryError) {
+        if (tokenRejected(retryError)) endSession();
+        else {
+          setIsAuthenticated(false);
+          setIsLoadingAuth(false);
+          setAuthChecked(true);
+        }
       }
     }
   };
 
   const logout = (shouldRedirect = true) => {
+    sessionRef.current = false;
     setUser(null);
     setAuditActor(null);
     setIsAuthenticated(false);
