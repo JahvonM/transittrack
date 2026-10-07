@@ -1,3 +1,4 @@
+import { TRANSIT_TIME_ZONE } from "@/lib/localTime";
 import React, { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Map, { Marker, Source, Layer } from "react-map-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
@@ -51,7 +52,7 @@ const NAV_ON_KEY = "tt_nav_on";
 const navWasOn = () => { try { return sessionStorage.getItem(NAV_ON_KEY) === "1"; } catch { return false; } };
 const HEADING_UP_KEY = "tt_nav_north_up";
 
-const clock = (ms) => new Date(ms).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+const clock = (ms) => new Date(ms).toLocaleTimeString([], { timeZone: TRANSIT_TIME_ZONE, hour: "numeric", minute: "2-digit" });
 
 // Zoom out a little at speed so the next turn is in view sooner.
 const zoomForSpeed = (kmh) => (kmh > 70 ? 15.6 : kmh > 40 ? 16.3 : 17);

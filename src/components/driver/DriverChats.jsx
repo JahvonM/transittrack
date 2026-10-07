@@ -1,3 +1,4 @@
+import { TRANSIT_TIME_ZONE } from "@/lib/localTime";
 import React, { useEffect, useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -23,7 +24,7 @@ const CONTACTS = [
 
 function formatTime(iso) {
   if (!iso) return "";
-  try { return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }); }
+  try { return new Date(iso).toLocaleTimeString([], { timeZone: TRANSIT_TIME_ZONE, hour: "2-digit", minute: "2-digit" }); }
   catch { return ""; }
 }
 

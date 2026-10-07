@@ -1,3 +1,4 @@
+import { TRANSIT_TIME_ZONE } from "@/lib/localTime";
 import React, { useEffect, useState } from "react";
 import { Clock, Play, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -102,7 +103,7 @@ export default function ShiftCard({ session, invoke, refresh, beforeStart, befor
           <>
             <p className="font-semibold truncate">On shift · {formatDuration(now - since.getTime())}</p>
             <p className="text-xs text-muted-foreground truncate">
-              Started {since.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+              Started {since.toLocaleTimeString([], { timeZone: TRANSIT_TIME_ZONE, hour: "2-digit", minute: "2-digit" })}
             </p>
           </>
         ) : (

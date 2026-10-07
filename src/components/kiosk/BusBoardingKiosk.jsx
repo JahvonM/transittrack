@@ -1,3 +1,4 @@
+import { TRANSIT_TIME_ZONE, transitHour } from "@/lib/localTime";
 import React, { useEffect, useRef, useState } from "react";
 import { helperLink } from "@/lib/helperHealth";
 import { Card, CardContent } from "@/components/ui/card";
@@ -28,7 +29,7 @@ function safely(read, fallback) {
 }
 
 function greeting() {
-  const h = new Date().getHours();
+  const h = transitHour();
   if (h < 12) return "Good morning";
   if (h < 18) return "Good afternoon";
   return "Good evening";
@@ -98,7 +99,7 @@ function TopStatusBar({ device, vehicle, now, occupancy, pendingSyncCount, onlin
       )}
       <KioskConnectionBadge online={online} />
       <p className="font-bold tabular-nums shrink-0">
-        {now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+        {now.toLocaleTimeString([], { timeZone: TRANSIT_TIME_ZONE, hour: "2-digit", minute: "2-digit" })}
       </p>
     </div>
   );
@@ -503,10 +504,10 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
       <Screen modeKey="lock" className="space-y-8 p-10 text-center [@media(max-height:820px)]:space-y-5 [@media(max-height:820px)]:p-6">
         <div>
           <p className="text-7xl lg:text-8xl font-heading font-bold tabular-nums tracking-tight [@media(max-height:820px)]:text-6xl">
-            {now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+            {now.toLocaleTimeString([], { timeZone: TRANSIT_TIME_ZONE, hour: "2-digit", minute: "2-digit" })}
           </p>
           <p className="text-base text-muted-foreground mt-2">
-            {now.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" })}
+            {now.toLocaleDateString([], { timeZone: TRANSIT_TIME_ZONE, weekday: "long", month: "long", day: "numeric" })}
           </p>
         </div>
         {device?.vehicle_name && <p className="text-xl font-semibold text-muted-foreground">{device.vehicle_name}</p>}
@@ -724,7 +725,7 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
         <div className="px-3 pt-2 text-center text-caption text-muted-foreground" role="status">
           {directoryInfo?.expires ? (
             <button type="button" onClick={() => setListOpen(true)} className="underline-offset-4 hover:underline">
-              Passenger list: {directoryInfo.count} card{directoryInfo.count === 1 ? "" : "s"} · updated {new Date(directoryInfo.updated).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })} · {Date.parse(directoryInfo.expires) > now.getTime() ? "ready for offline taps" : "expired, connect to refresh"} · <span className="font-semibold">See names</span>
+              Passenger list: {directoryInfo.count} card{directoryInfo.count === 1 ? "" : "s"} · updated {new Date(directoryInfo.updated).toLocaleString([], { timeZone: TRANSIT_TIME_ZONE, month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })} · {Date.parse(directoryInfo.expires) > now.getTime() ? "ready for offline taps" : "expired, connect to refresh"} · <span className="font-semibold">See names</span>
             </button>
           ) : "Passenger list not downloaded. Connect to WiFi."}
         </div>

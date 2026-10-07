@@ -1,3 +1,4 @@
+import { TRANSIT_TIME_ZONE } from "@/lib/localTime";
 import React, { useEffect, useRef } from "react";
 import { User as UserIcon, CreditCard, QrCode, Hash, Search } from "lucide-react";
 
@@ -27,7 +28,7 @@ export default function NewCheckInAlert({ checkIn, onDismiss }) {
   const method = METHOD_META[checkIn.check_in_method] || METHOD_META.manual;
   const MethodIcon = method.Icon;
   const time = checkIn.boarded_at
-    ? new Date(checkIn.boarded_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+    ? new Date(checkIn.boarded_at).toLocaleTimeString([], { timeZone: TRANSIT_TIME_ZONE, hour: "2-digit", minute: "2-digit" })
     : "";
 
   return (

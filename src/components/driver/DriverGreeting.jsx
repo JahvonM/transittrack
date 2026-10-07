@@ -1,3 +1,4 @@
+import { TRANSIT_TIME_ZONE } from "@/lib/localTime";
 import React from "react";
 import { Bus } from "lucide-react";
 import LiveClock from "@/components/LiveClock";
@@ -37,7 +38,7 @@ export function DriverTopBar({ driverName, busName, left, right }) {
 // `compact` is for tablets where the panel shares the screen with the PIN pad.
 export default function DriverGreeting({ driverName, subtitle, compact = false }) {
   const name = (driverName || "Driver").split("@")[0].split(" ")[0];
-  const dateStr = new Date().toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" });
+  const dateStr = new Date().toLocaleDateString([], { timeZone: TRANSIT_TIME_ZONE, weekday: "long", month: "long", day: "numeric" });
   const num = String(subtitle || "").match(/(\d+)\s*$/)?.[1];
   return (
     <section className={`flex flex-col ${compact ? "gap-3" : "gap-6"}`} aria-label="This tablet">
