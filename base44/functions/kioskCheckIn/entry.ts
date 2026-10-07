@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.52';
 import { boardingSecretHash, currentBoardingCode } from '../../shared/boardingCredentials.ts';
+import { reserveAttempt, claimOnce, createOnce } from '../../shared/atomicOps.ts';
 
 
 async function liveMembership(base44, row) {
@@ -44,16 +45,31 @@ async function authenticatedTablet(base44, device, token) {
   if (!device || !device.paired || device.status !== 'active') return false;
   const credentials = await base44.asServiceRole.entities.DeviceCredential.filter({ device_id: device.id }, '-issued_at', 1);
   const credential = credentials[0];
-  if (!credential) {
-    // No upgrade based on possession of an ID. Only older records may use legacy auth.
-    const created = Date.parse(device.created_date);
-    return Number.isFinite(created) && created < LEGACY_DEVICE_CUTOFF;
-  }
+  if (!credential) return false;
   if (typeof token !== 'string' || !/^[a-f0-9]{64}$/.test(token)) return false;
   if (!(Date.parse(credential.expires_at) > Date.now())) return false;
   if (credential.company_id !== device.company_id || credential.vehicle_id !== (device.vehicle_id || '') || credential.kiosk_type !== device.kiosk_type) return false;
   if (!sameDigest(credential.pairing_code_hash, await deviceDigest(device.pairing_code || ''))) return false;
   return sameDigest(credential.token_hash, await deviceDigest(token));
+}
+
+// A tablet paired before the credential ledger existed has no credential to
+// check, so its device record still authorises it — the one place a tokenless
+// device is accepted. Delete this block once every tablet has been re-paired
+// (see security-tests/tablet-repairing-plan.md); the verifier above is already
+// strictly token-based, so that deletion is the whole migration.
+async function legacyDeviceAccepted(base44, device) {
+  if (!device || device.paired !== true || device.status !== 'active') return false;
+  const created = Date.parse(device.created_date);
+  if (!(Number.isFinite(created) && created < LEGACY_DEVICE_CUTOFF)) return false;
+  const credentials = await base44.asServiceRole.entities.DeviceCredential.filter({ device_id: device.id }, '-issued_at', 1);
+  return credentials.length === 0;
+}
+
+// Token, or an un-migrated device record. Used to resolve which device a
+// request came from; it never authorises an action on its own.
+async function deviceAccepted(base44, device, token) {
+  return (await authenticatedTablet(base44, device, token)) || legacyDeviceAccepted(base44, device);
 }
 
 
@@ -63,7 +79,7 @@ async function resolveKioskDevice(base44, deviceId, token) {
   if (!deviceId || typeof deviceId !== 'string') return null;
   try {
     const device = await base44.asServiceRole.entities.KioskDevice.get(deviceId);
-    if (!device || device.kiosk_type === 'driver' || !(await authenticatedTablet(base44, device, token))) return null;
+    if (!device || device.kiosk_type === 'driver' || !(await deviceAccepted(base44, device, token))) return null;
     return device;
   } catch { return null; }
 }
@@ -209,13 +225,8 @@ function randomDigits(len) {
  while (out.length < len) { const b = crypto.getRandomValues(new Uint8Array(1))[0]; if (b < 250) out += b % 10; }
  return out;
 }
-async function reserveAttempt(base44, key, limit, windowMs) {
- const rows = await base44.asServiceRole.entities.VerificationAttempt.filter({ scope: key }, '-created_date', limit);
- const recent = rows.filter(r => Date.parse(r.attempted_at) > Date.now() - windowMs);
- if (recent.length >= limit) return false;
- await base44.asServiceRole.entities.VerificationAttempt.create({ scope: key, attempted_at: new Date().toISOString() });
- return true;
-}
+// Attempt limiting moved to shared/atomicOps.ts: the count and the write must
+// not interleave with a concurrent call, so they now run inside one lock.
 async function issueGrant(base44, device, purpose, subject, ttlMs, binding={}) {
  const secret = randomSecret();
  await base44.asServiceRole.entities.VerificationGrant.create({
@@ -414,6 +425,9 @@ export default async function(req) {
           const credentials = await base44.asServiceRole.entities.PassengerOneTimeCredential.filter({ company_id: companyId, token_hash: await hashSecret(code) }, '-created_date', 2);
           const current = credentials.find(c => !c.consumed_at && Date.parse(c.expires_at) > Date.now());
           if (!current) return Response.json({ error: 'code_not_recognized' }, { status: 404 });
+          // Exactly one lookup may spend a one-time code: two tablets, or a
+          // double tap, read the same unused row and would both accept it.
+          if (!claimOnce('one-time:' + current.id, 30 * 60_000)) return Response.json({ error: 'This code has already been used. Ask for a new one.' }, { status: 409 });
           await base44.asServiceRole.entities.PassengerOneTimeCredential.update(current.id, { consumed_at: new Date().toISOString() });
         }
         const status = await nextStatus(base44, vehicleId, 'card_tag', person.nfc_tag || person.id);
@@ -489,7 +503,9 @@ export default async function(req) {
           ? requestedStatus
           : await nextStatus(base44, vehicleId, 'card_tag', cardTag);
         const resolvedVehicleName = vehicleName || (await resolveVehicleName(base44, vehicleId));
-        const record = await base44.asServiceRole.entities.StaffCheckIn.create({
+        // Two identical requests (a retry racing the original) create one
+        // check-in and both get that same record back.
+        const record = await createOnce(requestId ? 'checkin:' + device.id + ':' + requestId : null, () => base44.asServiceRole.entities.StaffCheckIn.create({
           ...(requestId ? {client_request_id:requestId,request_hash:requestHash,device_id:device.id} : {}),
           ...(boardingGrantHash ? {boarding_grant_hash:boardingGrantHash,device_id:device.id} : {}),
           staff_name: person?.full_name || sanitize(staff_name) || 'Staff',
@@ -498,7 +514,7 @@ export default async function(req) {
           company_id: companyId, company_name: companyName,
           vehicle_id: vehicleId, vehicle_name: resolvedVehicleName,
           check_in_method: ['nfc', 'qr', 'manual', 'code'].includes(method) ? method : 'manual',
-        });
+        }));
         // A summary failure must not turn a completed write into a retry.
         let stats = {};
         try { stats = boardingStats(await tabletCheckIns(base44, companyId, vehicleId)); } catch { /* heartbeat refreshes counts later */ }

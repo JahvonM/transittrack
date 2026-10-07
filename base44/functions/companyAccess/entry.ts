@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 import { retry429 } from '../../shared/retry429.ts';
+import { reserveAttempt } from '../../shared/atomicOps.ts';
 
 async function hashSecret(value) {
  const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
@@ -11,13 +12,8 @@ function randomDigits(len) {
  while (out.length < len) { const b = crypto.getRandomValues(new Uint8Array(1))[0]; if (b < 250) out += b % 10; }
  return out;
 }
-async function reserveAttempt(base44, key, limit, windowMs) {
- const rows = await retry429(async ()=>base44.asServiceRole.entities.VerificationAttempt.filter({ scope: key }, '-created_date', limit));
- const recent = rows.filter(r => Date.parse(r.attempted_at) > Date.now() - windowMs);
- if (recent.length >= limit) return false;
- await retry429(async ()=>base44.asServiceRole.entities.VerificationAttempt.create({ scope: key, attempted_at: new Date().toISOString() }));
- return true;
-}
+// Attempt limiting moved to shared/atomicOps.ts: the count and the write must
+// not interleave with a concurrent call, so they now run inside one lock.
 async function issueGrant(base44, device, purpose, subject, ttlMs) {
  const secret = randomSecret();
  await retry429(async ()=>base44.asServiceRole.entities.VerificationGrant.create({

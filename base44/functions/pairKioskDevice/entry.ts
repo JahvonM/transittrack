@@ -16,11 +16,7 @@ async function authenticatedTablet(base44, device, token) {
   if (!device || !device.paired || device.status !== 'active') return false;
   const credentials = await base44.asServiceRole.entities.DeviceCredential.filter({ device_id: device.id }, '-issued_at', 1);
   const credential = credentials[0];
-  if (!credential) {
-    // No upgrade based on possession of an ID. Only older records may use legacy auth.
-    const created = Date.parse(device.created_date);
-    return Number.isFinite(created) && created < LEGACY_DEVICE_CUTOFF;
-  }
+  if (!credential) return false;
   if (typeof token !== 'string' || !/^[a-f0-9]{64}$/.test(token)) return false;
   if (!(Date.parse(credential.expires_at) > Date.now())) return false;
   if (credential.company_id !== device.company_id || credential.vehicle_id !== (device.vehicle_id || '') || credential.kiosk_type !== device.kiosk_type) return false;
