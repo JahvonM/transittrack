@@ -29,7 +29,9 @@ const TRIP_COLS = [
   { key: "dropoff_signature_url", label: "Drop-off signature" },
 ];
 
-export default function CompletedTripsTab({ trips }) {
+// The console loads the most recent page of completed trips; "Show more"
+// pulls the next one rather than a thousand rows up front.
+export default function CompletedTripsTab({ trips, hasMore = false, loadingMore = false, onLoadMore }) {
   const completed = trips
     .filter((t) => t.status === "completed")
     .sort((a, b) => (b.completed_at || "").localeCompare(a.completed_at || ""));
@@ -44,7 +46,9 @@ export default function CompletedTripsTab({ trips }) {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">{completed.length} completed trips</p>
+        <p className="text-sm text-muted-foreground">
+          {completed.length} completed trips{hasMore ? " loaded" : ""}
+        </p>
         <div className="flex gap-2">
           <Button size="sm" variant="outline" onClick={exportCsv} disabled={completed.length === 0}>
             <FileSpreadsheet className="w-4 h-4" /> Excel
@@ -94,6 +98,13 @@ export default function CompletedTripsTab({ trips }) {
               ))}
             </TableBody>
           </Table>
+        </div>
+      )}
+      {hasMore && (
+        <div className="flex justify-center">
+          <Button variant="outline" size="sm" loading={loadingMore} onClick={onLoadMore}>
+            Show more
+          </Button>
         </div>
       )}
     </div>

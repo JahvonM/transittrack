@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useEffect, useState } from "react";
+import React, { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import SupportNumberSetting from "@/components/admin/SupportNumberSetting";
 import { Navigate, Link, useParams, useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
@@ -66,6 +66,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { loadFailed } from "@/lib/loadFailed";
+import { DATASETS, PAGE, SECTION_DATA } from "@/lib/adminData";
 import BusLoader from "@/components/BusLoader";
 import ShiftsTab from "@/components/admin/ShiftsTab";
 import AuditLogTab from "@/components/admin/AuditLogTab";
@@ -132,73 +133,101 @@ export default function Admin() {
   const navigate = useNavigate();
   const { section: urlSection } = useParams();
   const section = urlSection === "location-timeline" ? "fleet" : urlSection || "overview";
-  const [users, setUsers] = useState([]);
-  const [companies, setCompanies] = useState([]);
-  const [vehicles, setVehicles] = useState([]);
-  const [routes, setRoutes] = useState([]);
-  const [trips, setTrips] = useState([]);
-  const [inspections, setInspections] = useState([]);
-  const [drivers, setDrivers] = useState([]);
-  const [faults, setFaults] = useState([]);
-  const [parts, setParts] = useState([]);
-  const [schedules, setSchedules] = useState([]);
-  const [templates, setTemplates] = useState([]);
-  const [inspectionResults, setInspectionResults] = useState([]);
-  const [loading, setLoading] = useState(true);
+  // Each section asks only for the lists it shows (see lib/adminData). Lists
+  // are kept once loaded, so coming back to a section is instant, and a change
+  // made inside a tab refreshes just that section's lists.
+  const [data, setData] = useState({});
+  const [settled, setSettled] = useState({});
+  const [attempted, setAttempted] = useState({});
+  const [more, setMore] = useState({});
+  const [moreBusy, setMoreBusy] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const [acknowledged, setAcknowledged] = useState(() => new Set());
+  const settledRef = useRef({});
 
   const go = (s) => navigate("/admin/" + s);
 
-  const load = async () => {
+  const sectionKeys = useMemo(
+    () => ["vehicles", ...(SECTION_DATA[section] || [])].filter((k, i, a) => a.indexOf(k) === i),
+    [section]
+  );
+
+  const ensure = useCallback(async (keys, force = false) => {
+    const need = keys.filter((k) => force || !settledRef.current[k]);
+    if (!need.length) return;
     // Each list settles on its own: one failure must not wipe the whole screen,
     // so whatever loaded is shown and the rest keeps what it already had.
-    const results = await Promise.allSettled([
-      base44.entities.User.list(),
-      base44.entities.Company.list(),
-      base44.entities.Vehicle.list(),
-      base44.entities.Route.list(),
-      base44.entities.Trip.list("-created_date", 1000),
-      base44.entities.Inspection.list("-created_date", 1000),
-      base44.entities.Driver.list(),
-      base44.entities.Fault.list("-created_date", 1000),
-      base44.entities.Part.list(),
-      base44.entities.MaintenanceSchedule.list(),
-      base44.entities.InspectionTemplate.list(),
-      base44.entities.InspectionResult.list("-inspection_date", 500),
-    ]);
-    const [u, c, v, r, t, insp, dr, fl, pt, sch, tmpl, ir] = results.map((s) =>
-      s.status === "fulfilled" ? s.value : undefined
-    );
-    if (results.every((s) => s.status === "rejected")) loadFailed(load);
-    if (fl) setFaults(fl);
-    if (pt) setParts(pt);
-    if (sch) setSchedules(sch);
-    if (tmpl) setTemplates(tmpl);
-    if (ir) setInspectionResults(ir);
-    if (u) setUsers(u);
-    if (c) setCompanies(c);
-    if (v) setVehicles(v);
-    if (r) setRoutes(r);
-    if (t) setTrips(t);
-    if (insp) setInspections(insp);
-    if (dr) setDrivers(dr);
-    setLoading(false);
-  };
-  useEffect(() => {
-    load();
+    const results = await Promise.allSettled(need.map((k) => DATASETS[k].load()));
+    if (results.every((r) => r.status === "rejected")) {
+      loadFailed(() => ensure(keys, true));
+      return;
+    }
+    const next = {}, done = {}, marks = {}, pages = {};
+    results.forEach((r, i) => {
+      const key = need[i];
+      marks[key] = true;
+      if (r.status !== "fulfilled") return;
+      next[key] = r.value;
+      done[key] = true;
+      if (DATASETS[key].page) pages[key] = r.value.length >= PAGE;
+    });
+    settledRef.current = { ...settledRef.current, ...done };
+    setData((prev) => ({ ...prev, ...next }));
+    setSettled((prev) => ({ ...prev, ...done }));
+    setAttempted((prev) => ({ ...prev, ...marks }));
+    setMore((prev) => ({ ...prev, ...pages }));
   }, []);
+
+  useEffect(() => {
+    ensure(sectionKeys);
+  }, [sectionKeys, ensure]);
+
+  // A tab that saved something re-reads its own section, not the whole console.
+  // Whatever another section had cached may now be out of date, so it re-reads
+  // the next time it is opened instead of showing a stale number.
+  const refresh = async () => {
+    await ensure(sectionKeys, true);
+    const keep = new Set(sectionKeys);
+    Object.keys(settledRef.current).forEach((k) => { if (!keep.has(k)) delete settledRef.current[k]; });
+    setSettled((prev) => Object.fromEntries(Object.entries(prev).filter(([k]) => keep.has(k))));
+  };
+
+  const loadMore = async (key) => {
+    setMoreBusy(true);
+    try {
+      const page = await DATASETS[key].page((data[key] || []).length);
+      setData((prev) => ({ ...prev, [key]: [...(prev[key] || []), ...page] }));
+      setMore((prev) => ({ ...prev, [key]: page.length >= PAGE }));
+    } finally {
+      setMoreBusy(false);
+    }
+  };
+
+  const {
+    vehicles = [], companies = [], routes = [], users = [], drivers = [], parts = [],
+    schedules = [], schedulesDue = [], templates = [], faults = [], faultsOpen = [],
+    trips = [], completedTrips = [], serviceQueue = [], inspectionResults = [],
+  } = data;
+
+  // Every list this section shows has been asked for at least once.
+  const ready = sectionKeys.every((k) => attempted[k]);
 
   // Keep vehicle statuses live so an SOS triggered by a driver lights up the
   // admin screen immediately, without waiting for a manual refresh.
   useEffect(() => {
     const unsub = base44.entities.Vehicle.subscribe((event) => {
-      setVehicles((prev) => {
-        if (event.type === "delete") return prev.filter((v) => v.id !== event.id);
-        const rec = event.data;
-        if (!rec) return prev;
-        const idx = prev.findIndex((v) => v.id === event.id);
-        return idx === -1 ? [...prev, rec] : prev.map((v) => (v.id === event.id ? rec : v));
+      setData((prev) => {
+        const list = prev.vehicles;
+        if (!list) return prev; // the fleet list itself is on its way
+        const next =
+          event.type === "delete"
+            ? list.filter((v) => v.id !== event.id)
+            : !event.data
+              ? list
+              : list.some((v) => v.id === event.id)
+                ? list.map((v) => (v.id === event.id ? event.data : v))
+                : [...list, event.data];
+        return next === list ? prev : { ...prev, vehicles: next };
       });
     });
     return unsub;
@@ -238,7 +267,10 @@ export default function Admin() {
   // from Acknowledge, which only dismisses the takeover without resolving it.
   const resolveAll = async () => {
     await Promise.all(unacknowledged.map((v) => base44.entities.Vehicle.update(v.id, { status: "on_trip" })));
-    setVehicles((prev) => prev.map((v) => (unacknowledged.some((u) => u.id === v.id) ? { ...v, status: "on_trip" } : v)));
+    setData((prev) => ({
+      ...prev,
+      vehicles: (prev.vehicles || []).map((v) => (unacknowledged.some((u) => u.id === v.id) ? { ...v, status: "on_trip" } : v)),
+    }));
     acknowledgeAll();
   };
 
@@ -277,7 +309,7 @@ export default function Admin() {
     </div>
   );
 
-  if (loading)
+  if (!ready)
     return (
       <>
         {emergencyOverlay}
@@ -345,8 +377,8 @@ export default function Admin() {
             vehicles={vehicles}
             routes={routes}
             trips={trips}
-            faults={faults}
-            schedules={schedules}
+            faults={faultsOpen}
+            schedules={schedulesDue}
             companies={companies}
             parts={parts}
             onNavigate={go}
@@ -355,7 +387,13 @@ export default function Admin() {
         )}
 
         {section === "trips" && (
-          <AssignTripsTab vehicles={vehicles} routes={routes} trips={trips} onChange={load} />
+          <AssignTripsTab
+            vehicles={vehicles}
+            routes={routes}
+            trips={trips}
+            completedTrips={completedTrips}
+            onChange={refresh}
+          />
         )}
         {section === "fleet" && (
           <LiveFleetTab
@@ -363,7 +401,10 @@ export default function Admin() {
             routes={routes}
             initialView={urlSection === "location-timeline" ? "history" : "live"}
             onVehicleUpdate={(updated) =>
-              setVehicles((prev) => prev.map((v) => (v.id === updated.id ? updated : v)))
+              setData((prev) => ({
+                ...prev,
+                vehicles: (prev.vehicles || []).map((v) => (v.id === updated.id ? updated : v)),
+              }))
             }
           />
         )}
@@ -372,37 +413,50 @@ export default function Admin() {
             vehicles={vehicles}
             companies={companies}
             routes={routes}
-            onChange={load}
-            faults={faults}
-            schedules={schedules}
+            onChange={refresh}
+            faults={faultsOpen}
+            schedules={schedulesDue}
             inspectionResults={inspectionResults}
           />
         )}
         {section === "health" && <FleetHealthTab vehicles={vehicles} />}
-        {section === "kiosks" && <KioskTablets vehicles={vehicles} companies={companies} onChange={load} />}
-        {section === "checkins" && <CheckInLog vehicles={vehicles} onChange={load} />}
-        {section === "billing" && <CompletedTripsTab trips={trips} />}
+        {section === "kiosks" && <KioskTablets vehicles={vehicles} companies={companies} onChange={refresh} />}
+        {section === "checkins" && <CheckInLog vehicles={vehicles} onChange={refresh} />}
+        {section === "billing" && (
+          <CompletedTripsTab
+            trips={completedTrips}
+            hasMore={!!more.completedTrips}
+            loadingMore={moreBusy}
+            onLoadMore={() => loadMore("completedTrips")}
+          />
+        )}
         {section === "users" && (
-          <UsersTab users={users} companies={companies} currentUser={user} onChange={load} />
+          <UsersTab users={users} companies={companies} currentUser={user} onChange={refresh} />
         )}
         {section === "service" && (
-          <ServiceQueueTab inspections={inspections} onChange={load} />
+          <ServiceQueueTab
+            inspections={serviceQueue}
+            onChange={refresh}
+            hasMore={!!more.serviceQueue}
+            loadingMore={moreBusy}
+            onLoadMore={() => loadMore("serviceQueue")}
+          />
         )}
-        {section === "faults" && <FaultsTab faults={faults} onChange={load} />}
-        {section === "parts" && <PartsTab parts={parts} companies={companies} onChange={load} />}
-        {section === "schedule" && <MaintenanceScheduleTab schedules={schedules} vehicles={vehicles} onChange={load} />}
+        {section === "faults" && <FaultsTab faults={faults} onChange={refresh} />}
+        {section === "parts" && <PartsTab parts={parts} companies={companies} onChange={refresh} />}
+        {section === "schedule" && <MaintenanceScheduleTab schedules={schedules} vehicles={vehicles} onChange={refresh} />}
         {section === "calendar" && <MaintenanceCalendarTab schedules={schedules} vehicles={vehicles} />}
-        {section === "templates" && <InspectionTemplatesTab templates={templates} companies={companies} vehicles={vehicles} onChange={load} />}
+        {section === "templates" && <InspectionTemplatesTab templates={templates} companies={companies} vehicles={vehicles} onChange={refresh} />}
         {section === "inspection-history" && <InspectionHistoryTab results={inspectionResults} vehicles={vehicles} />}
         {section === "drivers" && (
-          <DriversTab drivers={drivers} vehicles={vehicles} companies={companies} routes={routes} onChange={load} />
+          <DriversTab drivers={drivers} vehicles={vehicles} companies={companies} routes={routes} onChange={refresh} />
         )}
         {section === "shifts" && <ShiftsTab />}
         {section === "cards" && <CardIssuingTab companies={companies} />}
         {section === "card-designs" && <CardDesignerTab />}
         {section === "audit" && <AuditLogTab />}
         {section === "lost-items" && <LostItemsTab />}
-        {section === "companies" && <CompaniesTab companies={companies} onChange={load} />}
+        {section === "companies" && <CompaniesTab companies={companies} onChange={refresh} />}
         {section === "messaging" && <MessagingTab vehicles={vehicles} />}
         {section === "ads" && <AdsTab />}
         {section === "copilot" && <CopilotTab />}

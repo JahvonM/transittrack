@@ -19,7 +19,7 @@ const SERVICE_COLS = [
   { key: "created_date", label: "Reported" },
 ];
 
-export default function ServiceQueueTab({ inspections = [], onChange }) {
+export default function ServiceQueueTab({ inspections = [], onChange, hasMore = false, loadingMore = false, onLoadMore }) {
   const [resolving, setResolving] = useState(null);
   const { toast } = useToast();
 
@@ -102,6 +102,13 @@ export default function ServiceQueueTab({ inspections = [], onChange }) {
           </CardContent>
         </Card>
       ))}
+      {hasMore && (
+        <div className="flex justify-center">
+          <Button variant="outline" size="sm" loading={loadingMore} onClick={onLoadMore}>
+            Show more
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

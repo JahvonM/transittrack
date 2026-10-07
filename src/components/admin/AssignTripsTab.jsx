@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { STATUS_LABEL } from "@/lib/trip";
 
-export default function AssignTripsTab({ vehicles, routes, trips, onChange }) {
+export default function AssignTripsTab({ vehicles, routes, trips, completedTrips = [], onChange }) {
   const stopOptions = useMemo(
     () =>
       routes.flatMap((r) =>
@@ -69,7 +69,7 @@ export default function AssignTripsTab({ vehicles, routes, trips, onChange }) {
     .sort((a, b) => (a.scheduled_time || "").localeCompare(b.scheduled_time || ""));
 
   const today = new Date().toDateString();
-  const completedToday = trips.filter((t) => t.status === "completed" && t.completed_at && new Date(t.completed_at).toDateString() === today).length;
+  const completedToday = completedTrips.filter((t) => t.completed_at && new Date(t.completed_at).toDateString() === today).length;
   const byDay = upcoming.reduce((acc, t) => {
     const d = t.scheduled_time ? new Date(t.scheduled_time) : null;
     const key = d ? d.toDateString() : "No time";
