@@ -76,31 +76,32 @@ export async function fetchDrivingRoute(points) {
  * ("In 800 metres, turn right"), live traffic and speed limits along the way.
  * Returns the parsed route from lib/navigation (parseDirections) or null.
  *
- * heading: the bus's direction of travel in degrees, when known — makes the
- * route start the way the bus is already facing instead of telling the
- * driver to make a U-turn.
+ * The bus's own heading is deliberately NOT sent as a bearings constraint:
+ * that forces the route to set off facing the way the bus already faces and
+ * then hunt for somewhere to turn around. A U-turn is allowed anywhere here,
+ * so when the stop is behind the bus the directions should simply say "turn
+ * around" instead of sending it the long way round the block.
  *
  * @param {{lat:number,lng:number}} origin
  * @param {{lat:number,lng:number}} destination
  */
-export async function fetchTurnByTurnRoutes(origin, destination, { heading = null } = {}) {
+export async function fetchTurnByTurnRoutes(origin, destination) {
   if (!origin?.lat || !destination?.lat || !MAPBOX_TOKEN) return [];
   const coordsParam = `${roundCoord(origin.lng)},${roundCoord(origin.lat)};${roundCoord(destination.lng)},${roundCoord(destination.lat)}`;
-  const bearings = Number.isFinite(heading) ? `&bearings=${Math.round((heading + 360) % 360)},60;` : "";
-  const common = `geometries=geojson&overview=full&steps=true&alternatives=true&banner_instructions=true&voice_instructions=true&voice_units=metric${bearings}&access_token=${MAPBOX_TOKEN}`;
+  const common = `geometries=geojson&overview=full&steps=true&alternatives=true&banner_instructions=true&voice_instructions=true&voice_units=metric&continue_straight=false&access_token=${MAPBOX_TOKEN}`;
 
   try {
     // Live traffic first (like Google Maps); plain driving where that isn't
     // available. Traffic levels only come with the traffic profile.
     let res = await fetch(`https://api.mapbox.com/directions/v5/mapbox/driving-traffic/${coordsParam}?${common}&annotations=maxspeed,congestion`);
     if (!res.ok) res = await fetch(`https://api.mapbox.com/directions/v5/mapbox/driving/${coordsParam}?${common}&annotations=maxspeed`);
-    if (!res.ok) return bearings ? fetchTurnByTurnRoutes(origin, destination) : [];
+    if (!res.ok) return [];
     const data = await res.json();
     const options = (data.routes || []).map((r, i) => {
       const nav = parseDirections(data, i);
       return nav ? { ...nav, summary: r.legs?.map((l) => l.summary).filter(Boolean).join(" · ") || "Driving route", distanceM: r.distance } : null;
     }).filter(Boolean);
-    if (!options.length) return bearings ? fetchTurnByTurnRoutes(origin, destination) : [];
+    if (!options.length) return [];
     return options;
   } catch {
     return [];

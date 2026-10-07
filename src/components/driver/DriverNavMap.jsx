@@ -198,7 +198,7 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
   const loadRoute = useCallback(async (origin, stop, key, { reroute = false } = {}) => {
     const request = ++routeRequest.current;
     if (reroute) setRerouting(true); else { setLoadingRoute(true); setRouteOptions([]); }
-    const res = await fetchTurnByTurnRoutes(origin, { lat: stop.lat, lng: stop.lng }, { heading: headingRef.current });
+    const res = await fetchTurnByTurnRoutes(origin, { lat: stop.lat, lng: stop.lng });
     if (request !== routeRequest.current) return;
     if (res.length) {
       setRouteOptions(res);
