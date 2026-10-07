@@ -1,5 +1,5 @@
 import React from "react";
-import { Bus, CircleCheck, Clock, Megaphone, MessageCircle, Phone, Route as RouteIcon, UserX } from "lucide-react";
+import { Bus, CircleCheck, ClipboardCheck, Clock, Megaphone, MessageCircle, Phone, Play, Route as RouteIcon, Square, UserX } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { telLink, whatsappLink } from "@/lib/driverPhone";
 
@@ -40,8 +40,8 @@ function ContactRow({ label, phone }) {
   );
 }
 
-export default function TodayTab({ today, driverName, onPickBus }) {
-  const { buses = [], bus, route, pickups = [], shift, last_shift: lastShift, notices = [], contacts, workplace } = today || {};
+export default function TodayTab({ today, driverName, onPickBus, onStartShift, onEndShift, onWalkaround }) {
+  const { buses = [], bus, route, pickups = [], shift, last_shift: lastShift, notices = [], contacts, workplace, walkaround } = today || {};
   const first = (driverName || "").split(" ")[0] || "there";
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
@@ -88,12 +88,11 @@ export default function TodayTab({ today, driverName, onPickBus }) {
             {shift ? (
               <p className="flex items-center gap-2 font-semibold">
                 <CircleCheck className="h-5 w-5 text-success" aria-hidden="true" />
-                On shift since {time(shift.started_at)} · {duration(shift.started_at)}
+                {shift.mine ? "On shift" : `${shift.driver_name || "Another driver"} is on shift`} since {time(shift.started_at)} · {duration(shift.started_at)}
               </p>
             ) : (
               <p className="flex items-center gap-2 font-semibold">
-                <Clock className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
-                Not on shift. Start your shift on the bus tablet.
+                <Clock className="h-5 w-5 text-muted-foreground" aria-hidden="true" /> Not on shift
               </p>
             )}
             {!shift && lastShift?.started_at && (
@@ -101,7 +100,22 @@ export default function TodayTab({ today, driverName, onPickBus }) {
                 Last shift: {day(lastShift.started_at)}, {time(lastShift.started_at)} to {time(lastShift.ended_at)} ({duration(lastShift.started_at, lastShift.ended_at)})
               </p>
             )}
+            <p className="mt-1 flex items-center gap-2 text-body-sm text-muted-foreground">
+              <ClipboardCheck className="h-4 w-4 shrink-0" aria-hidden="true" />
+              {walkaround ? `Walk-around done at ${time(walkaround.created_date)}${walkaround.status === "failed" ? ", problems reported" : ""}` : "Walk-around not done today"}
+              {!walkaround && onWalkaround && <button type="button" onClick={onWalkaround} className="ml-auto font-semibold text-foreground underline underline-offset-2">Do it now</button>}
+            </p>
           </div>
+          {!shift && onStartShift && (
+            <button type="button" onClick={onStartShift} className="mt-3 flex min-h-[56px] w-full items-center justify-center gap-2 rounded-xl bg-primary text-title-sm font-bold text-primary-foreground">
+              <Play className="h-5 w-5" aria-hidden="true" /> Start shift
+            </button>
+          )}
+          {shift?.mine && onEndShift && (
+            <button type="button" onClick={onEndShift} className="mt-3 flex min-h-[52px] w-full items-center justify-center gap-2 rounded-xl border border-border font-semibold hover:bg-accent">
+              <Square className="h-4 w-4" aria-hidden="true" /> End shift
+            </button>
+          )}
         </section>
       )}
 

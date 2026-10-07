@@ -1,15 +1,17 @@
 import React, { useEffect, useState } from "react";
-import { Bell, BellOff, FileText, Loader2, LogOut, Mail, Phone } from "lucide-react";
+import { Bell, BellOff, Clock, FileText, Loader2, LogOut, Mail, Phone } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { expiryState } from "@/lib/driverPhone";
+import { expiryState, hoursText, weekHours } from "@/lib/driverPhone";
 
 const KIND = { license: "Driving licence", insurance: "Insurance" };
 const TONE = { success: "text-success", warning: "text-warning", danger: "text-danger", neutral: "text-muted-foreground" };
 
-export default function MeTab({ me, documents, docsLoaded, onLoadDocs, notifications, onEnableNotifications, onSignOut }) {
+export default function MeTab({ me, documents, docsLoaded, onLoadDocs, shifts, onLoadHours, notifications, onEnableNotifications, onSignOut }) {
   const [opening, setOpening] = useState("");
   const [enabling, setEnabling] = useState(false);
-  useEffect(() => { onLoadDocs(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { onLoadDocs(); onLoadHours?.(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const week = weekHours(shifts || []);
+  const recent = (shifts || []).slice(0, 5);
 
   // Links to the document files only work for two minutes, so fetch fresh
   // ones right before opening.
@@ -40,6 +42,33 @@ export default function MeTab({ me, documents, docsLoaded, onLoadDocs, notificat
           <p className="flex items-center gap-1.5 truncate text-body-sm text-muted-foreground"><Mail className="h-3.5 w-3.5 shrink-0" aria-hidden="true" /> {me?.driver?.email}</p>
           {me?.driver?.phone && <p className="flex items-center gap-1.5 text-body-sm text-muted-foreground"><Phone className="h-3.5 w-3.5 shrink-0" aria-hidden="true" /> {me.driver.phone}</p>}
         </div>
+      </section>
+
+      <section className="rounded-2xl border border-border bg-card p-4" aria-label="Hours">
+        <h2 className="mb-1 flex items-center gap-2 text-title-sm font-bold"><Clock className="h-5 w-5 text-muted-foreground" aria-hidden="true" /> Hours this week</h2>
+        {!shifts ? (
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" aria-label="Loading hours" />
+        ) : (
+          <>
+            <p className="text-headline tabular-nums">{hoursText(week.minutes)}</p>
+            <p className="text-body-sm text-muted-foreground">{week.count} shift{week.count === 1 ? "" : "s"} since Monday, from the shifts you started and ended.</p>
+            {recent.length > 0 && (
+              <ul className="mt-3 divide-y divide-border">
+                {recent.map((s) => (
+                  <li key={s.id} className="py-2 text-body-sm">
+                    <span className="block truncate font-semibold">
+                      {new Date(s.started_at).toLocaleDateString([], { weekday: "short", day: "numeric", month: "short" })} · {s.vehicle_name || "Bus"}
+                    </span>
+                    <span className="block tabular-nums text-muted-foreground">
+                      {new Date(s.started_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}–{s.ended_at ? new Date(s.ended_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "now"}
+                      {s.minutes != null ? ` · ${hoursText(s.minutes)}` : ""}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </>
+        )}
       </section>
 
       <section className="rounded-2xl border border-border bg-card p-4" aria-label="My documents">

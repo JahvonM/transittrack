@@ -57,7 +57,8 @@ test('a driver signing in lands on Today with the bus, stops and pickups',async(
  await expect(page).toHaveURL(/\/driver-phone$/);
  await expect(page.getByRole('heading',{name:/Dana$/})).toBeVisible();
  await expect(page.getByText('Bus 12',{exact:true})).toBeVisible();
- await expect(page.getByText('Not on shift. Start your shift on the bus tablet.')).toBeVisible();
+ await expect(page.getByText('Not on shift',{exact:true})).toBeVisible();
+ await expect(page.getByRole('button',{name:'Start shift'})).toBeVisible();
  await expect(page.getByText('Pick up Jane R., Marcus T. (running late)')).toBeVisible();
  await expect(page.getByText('Not riding today: Sam')).toBeVisible();
  await expect(page.getByRole('link',{name:'Call'}).first()).toHaveAttribute('href','tel:+14735550100');
@@ -129,7 +130,7 @@ test('while the bus moves the app shows only the Driving screen and sends no loc
   navigator.geolocation.watchPosition=(ok)=>{ const id=setInterval(()=>ok({coords:{latitude:12.01,longitude:-61.76,speed,accuracy:5},timestamp:Date.now()}),200); return id; };
   navigator.geolocation.clearWatch=id=>clearInterval(id);
  });
- const calls=await phone(page,{today:{...TODAY,shift:{started_at:new Date(Date.now()-3600e3).toISOString()}}});
+ const calls=await phone(page,{today:{...TODAY,shift:{mine:true,started_at:new Date(Date.now()-3600e3).toISOString()}}});
  await page.goto('/driver-phone');
  await expect(page.getByText(/^On shift since/)).toBeVisible();
  await page.evaluate(()=>window.__setSpeed(12));

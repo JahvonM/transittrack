@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 vi.mock("@/api/base44Client", () => ({ base44: {} }));
-import { expiryState, nextDrivingState, telLink, whatsappLink } from "@/lib/driverPhone";
+import { expiryState, nextDrivingState, telLink, unlockCodeFrom, UNLOCK_CODE, weekHours, whatsappLink } from "@/lib/driverPhone";
 
 describe("driving screen", () => {
   const run = (readings) => readings.reduce((s, r) => nextDrivingState(s, r), {});
@@ -37,5 +37,27 @@ describe("phone links", () => {
     expect(whatsappLink("+1 (473) 555-0123")).toBe("https://wa.me/14735550123");
     expect(telLink("n/a")).toBe("");
     expect(whatsappLink("")).toBe("");
+  });
+});
+
+describe("bus codes", () => {
+  it("reads typed codes and the QR link the same way", () => {
+    expect(unlockCodeFrom("k7q 4md")).toBe("K7Q4MD");
+    expect(unlockCodeFrom("K7Q-4MD")).toBe("K7Q4MD");
+    expect(unlockCodeFrom("https://x.test/driver-phone/start?code=K7Q4MD")).toBe("K7Q4MD");
+    expect(UNLOCK_CODE.test("K7Q4MD")).toBe(true);
+    expect(UNLOCK_CODE.test("K7Q4M0")).toBe(false);
+  });
+});
+
+describe("hours this week", () => {
+  it("counts from Monday, including a shift still open", () => {
+    const now = new Date(2026, 9, 7, 12, 0); // Wednesday
+    const shifts = [
+      { started_at: new Date(2026, 9, 5, 6, 30).toISOString(), ended_at: new Date(2026, 9, 5, 14, 30).toISOString(), minutes: 480 },
+      { started_at: new Date(2026, 9, 7, 10, 0).toISOString(), ended_at: null, minutes: null },
+      { started_at: new Date(2026, 9, 4, 6, 30).toISOString(), minutes: 300 }, // Sunday, last week
+    ];
+    expect(weekHours(shifts, now)).toEqual({ minutes: 600, count: 2 });
   });
 });

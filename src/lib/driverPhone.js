@@ -89,3 +89,31 @@ export const telLink = (phone) => {
   const clean = String(phone || "").replace(/[^\d+]/g, "");
   return clean.replace(/\D/g, "").length >= 7 ? `tel:${clean}` : "";
 };
+
+// Codes from the bus tablet's "Start with the driver app" screen: six
+// letters and numbers, typed with or without a space, or the QR's whole link.
+export const UNLOCK_CODE = /^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{6}$/;
+export function unlockCodeFrom(value) {
+  const raw = String(value || "").trim();
+  const fromLink = /[?&]code=([^&#\s]+)/i.exec(raw);
+  let text = fromLink ? fromLink[1] : raw;
+  try { text = decodeURIComponent(text); } catch { /* keep as typed */ }
+  return text.toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+
+// Hours for the Me tab: this week (Monday to now, phone's local time) from
+// the shifts the driver started and ended. Open shifts count up to now.
+export function weekHours(shifts = [], now = new Date()) {
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  start.setDate(start.getDate() - ((start.getDay() + 6) % 7));
+  let minutes = 0, count = 0;
+  for (const s of shifts) {
+    const from = Date.parse(s.started_at);
+    if (!Number.isFinite(from) || from < start.getTime()) continue;
+    const to = s.ended_at ? Date.parse(s.ended_at) : now.getTime();
+    minutes += s.minutes ?? Math.max(0, Math.round((to - from) / 60000));
+    count += 1;
+  }
+  return { minutes, count };
+}
+export const hoursText = (mins) => `${Math.floor(mins / 60)} h ${String(mins % 60).padStart(2, "0")} min`;

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { CalendarDays, LogOut, MessageSquare, TriangleAlert, User as UserIcon } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { cn } from "@/lib/utils";
@@ -14,6 +14,9 @@ import MessagesTab from "@/components/driverPhone/MessagesTab";
 import ReportTab from "@/components/driverPhone/ReportTab";
 import MeTab from "@/components/driverPhone/MeTab";
 import DrivingScreen from "@/components/driverPhone/DrivingScreen";
+import StartShift from "@/components/driverPhone/StartShift";
+import Walkaround from "@/components/driverPhone/Walkaround";
+import { confirmAction } from "@/components/ConfirmHost";
 
 const TABS = [
   { id: "today", label: "Today", icon: CalendarDays },
@@ -49,7 +52,12 @@ export default function DriverPhone() {
   const { toast } = useToast();
   const navigate = useNavigate();
   const { tab: tabParam } = useParams();
+  const [searchParams] = useSearchParams();
+  // Start shift and the walk-around are screens of their own under Today.
+  const screen = ["start", "walkaround"].includes(tabParam) ? tabParam : null;
   const tab = TABS.some((t) => t.id === tabParam) ? tabParam : "today";
+  const [shifts, setShifts] = useState(null);
+  const [startAfterWalk, setStartAfterWalk] = useState(false);
   const [status, setStatus] = useState("loading");
   const [refusal, setRefusal] = useState("");
   const [me, setMe] = useState(null);
@@ -195,6 +203,34 @@ export default function DriverPhone() {
     setMessages((all) => [...all, message]);
   };
   const report = (body) => callDriverPhone("report", { vehicle_id: busRef.current || undefined, ...body });
+  const loadHours = async () => {
+    try { setShifts((await callDriverPhone("hours")).shifts || []); }
+    catch (error) { if (!refused(error)) setShifts([]); }
+  };
+  const claim = async (code) => {
+    const res = await callDriverPhone("claim_bus", { code });
+    if (res.bus?.id) { busRef.current = res.bus.id; setBusId(res.bus.id); store.set(BUS_KEY, res.bus.id); }
+    loadToday().catch(() => {});
+    return res;
+  };
+  const walkaround = async (items) => {
+    const res = await callDriverPhone("walkaround", { vehicle_id: busRef.current || undefined, items });
+    loadToday().catch(() => {});
+    return res;
+  };
+  const endShift = async () => {
+    const ok = await confirmAction({ title: "End your shift?", description: `This ends your shift on ${today?.bus?.name || "the bus"} now. Anyone still checked in on the bus is checked out.`, confirmLabel: "End shift" });
+    if (!ok) return;
+    try {
+      const { shift } = await callDriverPhone("end_shift", { vehicle_id: busRef.current || undefined });
+      const mins = shift?.duration_minutes ?? 0;
+      toast({ title: "Shift ended", description: `${Math.floor(mins / 60)} h ${mins % 60} min. Thanks, drive home safe.` });
+      loadToday().catch(() => {});
+      if (shifts) loadHours();
+    } catch (error) {
+      toast({ title: "Couldn't end your shift", description: error.message, variant: "destructive" });
+    }
+  };
   const signOut = () => logout(true);
   const go = (id) => navigate(id === "today" ? "/driver-phone" : `/driver-phone/${id}`);
 
@@ -221,11 +257,22 @@ export default function DriverPhone() {
       </header>
 
       <main className="mx-auto max-w-xl px-4 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-4">
-        {tab === "today" && <TodayTab today={today} driverName={me?.driver?.name} onPickBus={pickBus} />}
+        {screen === "start" && (
+          <StartShift today={today} initialCode={searchParams.get("code") || ""} onClaim={claim}
+            onWalkaround={() => { setStartAfterWalk(true); navigate("/driver-phone/walkaround"); }} onBack={() => navigate("/driver-phone")} />
+        )}
+        {screen === "walkaround" && (
+          <Walkaround busName={today?.bus?.name} onSubmit={walkaround}
+            onBack={() => { const back = startAfterWalk; setStartAfterWalk(false); navigate(back ? "/driver-phone/start" : "/driver-phone"); }} />
+        )}
+        {!screen && tab === "today" && (
+          <TodayTab today={today} driverName={me?.driver?.name} onPickBus={pickBus}
+            onStartShift={() => navigate("/driver-phone/start")} onEndShift={endShift} onWalkaround={() => navigate("/driver-phone/walkaround")} />
+        )}
         {tab === "messages" && <MessagesTab messages={messages} loaded={messagesLoaded} hasBus={!!today?.bus} onSend={send} />}
         {tab === "report" && <ReportTab busName={today?.bus?.name} onSend={report} />}
         {tab === "me" && (
-          <MeTab me={me} documents={documents} docsLoaded={docsLoaded} onLoadDocs={loadDocs}
+          <MeTab me={me} documents={documents} docsLoaded={docsLoaded} onLoadDocs={loadDocs} shifts={shifts} onLoadHours={loadHours}
             notifications={notifications} onEnableNotifications={enableNotifications} onSignOut={signOut} />
         )}
       </main>

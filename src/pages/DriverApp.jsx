@@ -17,6 +17,7 @@ import { useBlockOtherSites, DRIVER_ALLOWED } from "@/lib/kioskLinkLock";
 import DriverPairing from "@/components/driver/DriverPairing";
 import DriverGreeting, { DriverTopBar } from "@/components/driver/DriverGreeting";
 import PinGate from "@/components/driver/PinGate";
+import PhoneUnlock from "@/components/driver/PhoneUnlock";
 import { DriverInspectionRunner, DueInspectionsBanner, DriverInspectionList, SentInspectionPrompt, readLocalDone, markLocalDone } from "@/components/driver/DriverInspection";
 import { dueFor, dueNow, sentAndPending, dueAtTime } from "@/lib/driverInspections";
 import DriverTrackingDashboard from "@/components/driver/DriverTrackingDashboard";
@@ -65,6 +66,8 @@ export default function DriverApp() {
   // a reload (a sent update, the app being reopened, the tablet waking) threw
   // the driver straight back to the PIN gate mid-shift — every single time.
   const [unlocked, setUnlocked] = useState(() => unlockDayMarked());
+  // The phone-unlock QR takes the PIN pad's place while it's showing.
+  const [phoneUnlockOpen, setPhoneUnlockOpen] = useState(false);
   // The day this tablet was unlocked, held in memory as well as in storage. A
   // marker that can't be written back (storage filling up, which is exactly
   // what a long offline stretch does to a tablet) used to make the 60-second
@@ -356,6 +359,8 @@ export default function DriverApp() {
   const driverName = session.driver_name || "Driver";
   const goStage = (s) => navigate("/driver/" + s);
 
+  const afterUnlock = () => { unlockedDayRef.current = localDayKey(); rememberUnlockDay(); setUnlocked(true); if (dueInspections.length) openInspection(dueInspections[0], { from: "unlock" }); else goStage(urlStage && urlStage !== "pin" && urlStage !== "inspection" ? urlStage : session?.open_shift ? "track" : "home"); };
+
   if (!unlocked) {
     return (
       <div className="min-h-[100dvh] grid place-items-center safe-area-top safe-area-x">
@@ -367,7 +372,12 @@ export default function DriverApp() {
             <CompanyBanner name={session.company_name || vehicle.company_name} logoUrl={session.company_logo_url} compact />
             <DriverGreeting driverName={driverName} subtitle={vehicle.name} compact />
           </div>
-          <PinGate deviceId={deviceId} vehicle={vehicle} invoke={invoke} onUnlock={({ pinSaved } = {}) => { if (pinSaved === false) toast({ title: 'PIN verified, but not saved on this tablet', description: 'Tablet storage is unavailable. You can continue now, but offline PIN entry will not work until storage is available.', variant: 'destructive' }); unlockedDayRef.current = localDayKey(); rememberUnlockDay(); setUnlocked(true); if (dueInspections.length) openInspection(dueInspections[0], { from: "unlock" }); else goStage(urlStage && urlStage !== "pin" && urlStage !== "inspection" ? urlStage : session?.open_shift ? "track" : "home"); }} />
+          <div className="flex flex-col gap-3">
+            {/* Step 2 of the driver phone app: scan instead of the shared PIN. */}
+            <PhoneUnlock deviceId={deviceId} vehicle={vehicle} invoke={invoke} onOpenChange={setPhoneUnlockOpen}
+              onUnlock={({ driverName }) => { toast({ title: `Unlocked for ${driverName || "the driver"}`, description: "Shift started from the driver app." }); refresh?.(); afterUnlock(); }} />
+            {!phoneUnlockOpen && <PinGate deviceId={deviceId} vehicle={vehicle} invoke={invoke} onUnlock={({ pinSaved } = {}) => { if (pinSaved === false) toast({ title: 'PIN verified, but not saved on this tablet', description: 'Tablet storage is unavailable. You can continue now, but offline PIN entry will not work until storage is available.', variant: 'destructive' }); afterUnlock(); }} />}
+          </div>
         </div>
       </div>
     );
