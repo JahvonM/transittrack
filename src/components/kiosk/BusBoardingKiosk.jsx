@@ -402,8 +402,17 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
   };
 
   const handleQrDecode = async (text) => {
+    if (busy) return;
     const decoded = parseCodeQrPayload(text);
-    if (!decoded || busy) return;
+    if (!decoded) {
+      // Anything that isn't a one-time check-in code — a company join code, a
+      // phone's own QR, a barcode — used to be ignored silently, which read as
+      // the scanner being broken. Say what it is instead.
+      setBadgeError("That isn't a check-in code. Open My Account → Check-in code and show that QR.");
+      setMode("badge_error");
+      resetSoon(4000);
+      return;
+    }
     setBusy(true);
     try {
       const res = await invoke("lookup_code", { code: decoded });

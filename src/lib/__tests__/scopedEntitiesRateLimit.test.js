@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { scopedEntities, withRateLimitRetry, pollDelay, FAST_POLL_MS, ACTIVE_POLL_MS, IDLE_POLL_MS } from "@/lib/scopedEntities";
+import { scopedEntities, withRateLimitRetry, pollDelay, FAST_POLL_MS, ACTIVE_POLL_MS, IDLE_POLL_MS, FIRST_POLL_MS } from "@/lib/scopedEntities";
 
 const tooMany = () => Object.assign(new Error("Too many requests"), { status: 429 });
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
@@ -63,7 +63,8 @@ describe("scoped entity calls under Base44 rate limits", () => {
     const a = vi.fn(), b = vi.fn();
     const stopA = entities.Vehicle.subscribe(a);
     const stopB = entities.Vehicle.subscribe(b);
-    await vi.advanceTimersByTimeAsync(0);
+    // The first snapshot waits for the page's own load to go out first.
+    await vi.advanceTimersByTimeAsync(FIRST_POLL_MS);
     expect(client.functions.invoke).toHaveBeenCalledTimes(1);
     version = 2;
     await vi.advanceTimersByTimeAsync(FAST_POLL_MS);

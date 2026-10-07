@@ -16,11 +16,25 @@ export default function QrScanner({ onDecode, active, facingMode = "environment"
     scannerRef.current = scanner;
     const started = scanner.start(
       { facingMode },
-      { fps: 10, qrbox: 220 },
+      {
+        fps: 10,
+        qrbox: 220,
+        // Chrome and Android ship a hardware-accelerated barcode decoder. The
+        // library's own JavaScript decoder is far slower and drops codes that
+        // are angled, moving or under glare — which is most of them on a
+        // tablet held at arm's length.
+        useBarCodeDetectorIfSupported: true,
+      },
       (decodedText) => { if (!stopped) onDecode?.(decodedText); },
       () => { /* per-frame no-QR-found noise — ignore */ }
     );
-    started.catch((e) => { if (!stopped) setError(e?.message || (typeof e === "string" ? e : "Couldn't start the camera.")); });
+    started.catch((e) => {
+      if (stopped) return;
+      const raw = e?.message || (typeof e === "string" ? e : "");
+      setError(/permission|denied|notallowed/i.test(raw)
+        ? "Camera access is blocked on this tablet. Allow camera access, then tap Scan QR code again."
+        : raw || "Couldn't start the camera on this device.");
+    });
 
     // stop() throws if the camera never started, so wait for start first;
     // this also turns off a camera that opens after the scanner was closed.

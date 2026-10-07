@@ -35,7 +35,7 @@ const hidden = () => typeof document !== 'undefined' && document.visibilityState
 export const FAST_POLL_MS = 10000, ACTIVE_POLL_MS = 20000, IDLE_POLL_MS = 60000, IDLE_AFTER_MS = 120000;
 // A subscribe used to fetch its first snapshot the instant it was created,
 // alongside the page's own load. Both competed for the app's rate limit.
-const FIRST_POLL_MS = 1500;
+export const FIRST_POLL_MS = 1500;
 const ALWAYS_FAST = new Set(['Vehicle', 'Broadcast']);
 let lastActivity = Date.now(), watchingActivity = false;
 const watchActivity = () => {
