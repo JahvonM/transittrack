@@ -18,6 +18,12 @@ ENTITY_FIELDS.GroupMessage.push('sender_id','sender_email');
 ENTITY_FIELDS.LostItemReport.push('reporter_id');
 ENTITY_FIELDS.Company.push('access_code_expires_at');
 ENTITY_FIELDS.Advertisement.push('company_id');
+// Driver phone app: the access switch, and the private photos a driver sends
+// with a problem report (written only by the driverPhone function).
+ENTITY_FIELDS.Driver.push('phone_app_access');
+ENTITY_FIELDS.Incident.push('photo_uris','source');
+const ADMIN_ONLY_FIELDS={Driver:new Set(['phone_app_access'])};
+const SERVER_ONLY_FIELDS={Incident:new Set(['photo_uris','source'])};
 const SECURITY_FIELDS={Company:new Set(['access_code','access_code_expires_at']),KioskDevice:new Set(['pairing_code','pairing_expires_at','paired','status'])};
 const META = ['id','created_date','updated_date','created_by','created_by_id'];
 const CREDENTIALS = new Set(['driver_pin','entry_code','access_code','one_time_code','one_time_code_expires_at','nfc_tag_id','nfc_card_tag','nfc_card_uid','card_uid','card_tag','pairing_code','token','token_hash','salt','pin_hash','password','device_token','driver_grant','verification_grant']);
@@ -131,6 +137,8 @@ async function prepare(db,ctx,name,input,existing=null) {
  if(name==='User') ['full_name','email'].forEach(k=>allowed.add(k));
  for (const key of Object.keys(input)) {
   if(SECURITY_FIELDS[name]?.has(key)) fail(403,'Use server access-code management');
+  if(SERVER_ONLY_FIELDS[name]?.has(key)) fail(403,'Set by the driver app only');
+  if(ADMIN_ONLY_FIELDS[name]?.has(key) && user.role!=='admin') fail(403,'Administrators only');
   if (!allowed.has(key)) fail(400,'Unsupported field: '+key);
   if (CREDENTIALS.has(key) && !(name==='Company' && key==='access_code') && !(name==='KioskDevice' && key==='pairing_code') && !(name==='PushToken' && key==='token')) fail(403,'Use the protected credential workflow');
  }

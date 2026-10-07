@@ -39,6 +39,17 @@
       "type": "string",
       "format": "date-time"
     },
+    "photo_uris": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Private photos sent with the report. Admins open them through short-lived signed links."
+    },
+    "source": {
+      "type": "string",
+      "description": "Where the report came from, e.g. driver_phone."
+    },
     "status": {
       "type": "string",
       "enum": [

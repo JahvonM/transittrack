@@ -25,6 +25,7 @@ async function approvedStaffIds(base44, companyId) {
 }
 import { secrets } from 'base44:runtime';
 import { passengerPushTokens } from '../../shared/chatPush.ts';
+import { driverPhoneTokens } from '../../shared/driverPhone.ts';
 
 // --- Firebase Cloud Messaging (push) helpers — duplicated per-function, see notifyStaffPickup/entry.ts ---
 function base64UrlEncode(bytes) {
@@ -168,7 +169,12 @@ export default async function(req) {
       const passengers = notification.channel === 'staff'
         ? await passengerPushTokens(base44, notification.vehicleId, { excludeEmails: [user.email] })
         : [];
-      const tokens = [...new Set([...audience, ...passengers])].filter(token => !myTokens.has(token));
+      // Dispatch and company messages also reach the bus's driver on the
+      // driver phone app, when an administrator has switched it on.
+      const driverPhones = ['dispatch', 'company'].includes(notification.channel)
+        ? await driverPhoneTokens(base44, await notificationRecord(base44.asServiceRole.entities, 'Vehicle', notification.vehicleId))
+        : [];
+      const tokens = [...new Set([...audience, ...passengers, ...driverPhones])].filter(token => !myTokens.has(token));
       if (tokens.length) await sendPushToTokens(serviceAccountJson, tokens, notification.payload);
     }
     return Response.json({ ok: true });
