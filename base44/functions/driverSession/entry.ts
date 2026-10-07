@@ -18,10 +18,12 @@ async function approvedCompanies(base44, user, scope) {
   return approved;
 }
 async function approvedPassengerMemberships(base44, companyId) {
-  const rows = await base44.asServiceRole.entities.CompanyMembership.filter({ company_id: companyId, active: true, scope: 'passenger' }, '-updated_date', 5000);
-  const live=[];
-  for(const row of rows) if(await liveMembership(base44,row)) live.push(row);
-  return live;
+   const rows = await base44.asServiceRole.entities.CompanyMembership.filter({ company_id: companyId, active: true, scope: 'passenger' }, '-updated_date', 5000);
+   // Every row here belongs to the same company: verify its code once, not
+   // once per passenger on every tablet heartbeat.
+   const company = rows.some(row => row.code_hash) ? await base44.asServiceRole.entities.Company.get(companyId) : null;
+   const codeHash = company ? await deviceDigest(company.access_code || '') : null;
+   return rows.filter(row => (!row.expires_at && !row.code_hash) || (row.code_hash && row.code_hash === codeHash));
 }
 async function approvedStaffIds(base44, companyId) {
   return new Set((await approvedPassengerMemberships(base44,companyId)).map(row=>row.user_id));
@@ -174,17 +176,18 @@ function base64ToBytes(b64) {
 
 async function resolveDriverDevice(base44, deviceId, token) {
   if (!deviceId || typeof deviceId !== 'string') return null;
-  try {
-    const device = await base44.asServiceRole.entities.KioskDevice.get(deviceId);
-    if (!device || device.kiosk_type !== 'driver' || !(await authenticatedTablet(base44, device, token))) return null;
-    return device;
-  } catch { return null; }
+  const device = await base44.asServiceRole.entities.KioskDevice.get(deviceId).catch(error => {
+    if (error.status === 404) return null;
+    throw error;
+  });
+  if (!device || device.kiosk_type !== 'driver' || !(await authenticatedTablet(base44, device, token))) return null;
+  return device;
 }
 
 async function loadVehicle(base44, vehicleId) {
   if (!vehicleId) return null;
   try { return await base44.asServiceRole.entities.Vehicle.get(vehicleId); }
-  catch { return null; }
+  catch (error) { if (error.status === 404) return null; throw error; }
 }
 
 // "Skip today" and "running late" carry an expiry so they switch themselves
@@ -469,18 +472,18 @@ export default async function(req) {
 
     const base44 = createClientFromRequest(req);
     const device = await resolveDriverDevice(base44, device_id, body.device_token);
-    if (!device) return Response.json({ error: 'Invalid or unpaired driver device' }, { status: 401 });
+    if (!device) return Response.json({ error: 'Invalid or unpaired driver device', code: 'DEVICE_ACCESS_REQUIRED' }, { status: 401 });
 
     const companyId = device.company_id;
     const companyName = device.company_name;
     const vehicleId = device.vehicle_id;
     if (!vehicleId) return Response.json({ error: 'No vehicle assigned to this device' }, { status: 400 });
 
-    if (!['heartbeat', 'verify_pin', 'request_pin_reset', 'register_push_token', 'sos'].includes(action) && !(await validGrant(base44, device, body.driver_grant, 'driver', vehicleId))) return Response.json({ error: 'Driver PIN verification required' }, { status: 401 });
+    if (!['heartbeat', 'verify_pin', 'request_pin_reset', 'register_push_token', 'sos'].includes(action) && !(await validGrant(base44, device, body.driver_grant, 'driver', vehicleId))) return Response.json({ error: 'Driver PIN verification required', code: 'DRIVER_PIN_REQUIRED' }, { status: 401 });
 
     const helperHealth = cleanHelperHealth(body.helper_health);
     const appHealth = cleanAppHealth(body.app_health);
-    await base44.asServiceRole.entities.KioskDevice.update(device_id, {
+    if (action === 'heartbeat') await base44.asServiceRole.entities.KioskDevice.update(device_id, {
       last_seen: new Date().toISOString(),
       // Sent once per app start: how this tablet draws maps (for support).
       ...(typeof body.device_info === 'string' ? { device_info: sanitize(body.device_info).slice(0, 400) } : {}),

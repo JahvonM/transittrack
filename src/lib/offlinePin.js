@@ -4,7 +4,8 @@
 // at the gate. Only a salted PBKDF2 hash is kept on the tablet, never the PIN.
 import { base44 } from "@/api/base44Client";
 import { deviceRequest, saveDriverGrant } from "@/lib/deviceAuth";
-import { localDayKey } from "@/lib/localDay";
+import { localDayKey, forgetUnlockDay } from "@/lib/localDay";
+import { httpStatus } from '@/lib/requestError';
 
 const KEY = (id) => `tt_driver_pin_check_${id}`;
 const TRIES = (id) => `tt_driver_pin_tries_${id}`;
@@ -26,12 +27,16 @@ export async function rememberPin(deviceId, pin) {
   try {
     const salt = toHex(crypto.getRandomValues(new Uint8Array(16)));
     const hash = await derive(pin, salt);
-    localStorage.setItem(KEY(deviceId), JSON.stringify({ salt, hash }));
+    const record = JSON.stringify({ salt, hash });
+    localStorage.setItem(KEY(deviceId), record);
+    if (localStorage.getItem(KEY(deviceId)) !== record) return false;
     localStorage.removeItem(TRIES(deviceId));
-  } catch { /* storage or crypto unavailable — offline entry stays off */ }
+    return true;
+  } catch { return false; }
 }
 
-// The server rejected the PIN, so any remembered one is out of date.
+// Clear only when the server rejects the previously verified PIN itself,
+// not when someone enters a different, incorrect PIN.
 export function forgetPin(deviceId) {
   try { localStorage.removeItem(KEY(deviceId)); localStorage.removeItem(TRIES(deviceId)); } catch { /* ignore */ }
 }
@@ -59,7 +64,8 @@ export async function checkPinOffline(deviceId, pin) {
   let stored = null;
   try { stored = JSON.parse(localStorage.getItem(KEY(deviceId)) || "null"); } catch { return false; }
   if (!stored?.salt || !stored?.hash) return false;
-  const ok = (await derive(pin, stored.salt)) === stored.hash;
+  let ok = false;
+  try { ok = (await derive(pin, stored.salt)) === stored.hash; } catch { return false; }
   if (ok) { try { localStorage.removeItem(TRIES(deviceId)); } catch { /* ignore */ } } else noteTry(deviceId);
   return ok;
 }
@@ -70,6 +76,7 @@ export async function checkPinOffline(deviceId, pin) {
 let pending = null;
 let timer = null;
 let listening = false;
+let confirming = false;
 
 export function confirmPinWhenOnline(deviceId, pin) {
   pending = { deviceId, pin };
@@ -87,17 +94,23 @@ function stopConfirming() {
 }
 
 async function confirmPin() {
-  if (!pending) return;
-  const { deviceId, pin } = pending;
+  if (!pending || confirming || (typeof navigator !== 'undefined' && navigator.onLine === false)) return;
+  const confirmation = pending;
+  const { deviceId, pin } = confirmation;
+  confirming = true;
   try {
-    const res = await base44.functions.invoke("driverSession", deviceRequest(deviceId, { action: "verify_pin", pin }));
-    if (res.data?.ok !== true) throw new Error("PIN verification failed");
+    const res = await base44.functions.invoke('driverSession', deviceRequest(deviceId, { action: 'verify_pin', pin }));
+    if (pending !== confirmation) return;
+    if (res.data?.ok !== true) throw new Error('PIN verification failed');
     saveDriverGrant(deviceId, res.data.driver_grant);
     stopConfirming();
-  } catch (e) {
-    // The server says this PIN is no longer right (an administrator changed it):
-    // stop trusting the remembered one.
-    if (e?.response?.status === 403) { forgetPin(deviceId); stopConfirming(); }
-    // Otherwise there is still no connection — try again on the next tick.
-  }
+  } catch (error) {
+    if (pending !== confirmation) return;
+    if ([401, 403].includes(httpStatus(error))) {
+      if (httpStatus(error) === 403) forgetPin(deviceId);
+      stopConfirming();
+      forgetUnlockDay();
+      window.dispatchEvent(new Event('tt-driver-locked'));
+    }
+  } finally { confirming = false; }
 }

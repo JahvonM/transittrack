@@ -49,26 +49,26 @@ async function memberships(db, user) {
  return approved;
 }
 async function context(base44) {
- const session = await base44.auth.me().catch(()=>null);
+ const session = await base44.auth.me();
  if (!session) return { user:null, companies:[] };
  const user = await base44.asServiceRole.entities.User.get(session.id);
  if (!user || user.id !== session.id) fail(401,'Sign in required');
  const companies = user.role === 'admin' || user.role === 'mechanic' ? [] : (await memberships(base44.asServiceRole.entities,user)).map(m=>m.company_id);
- return {user,companies};
+ return {user,companies,parents:new Map()};
 }
-async function tenantOf(db, name, row) {
- if (name === 'Company') return row.id;
- if (row.vehicle_id) {
-  const vehicle = await db.Vehicle.get(row.vehicle_id).catch(()=>null);
-  if (!vehicle || (row.company_id && row.company_id !== vehicle.company_id)) return null;
-  return vehicle.company_id;
- }
- if (row.driver_id) {
-  const driver = await db.Driver.get(row.driver_id).catch(()=>null);
-  if (!driver || (row.company_id && row.company_id !== driver.company_id)) return null;
-  return driver.company_id;
- }
- return row.company_id || null;
+async function tenantOf(db, name, row, parents = new Map()) {
+  if (name === 'Company') return row.id;
+  const parent = row.vehicle_id ? ['Vehicle', row.vehicle_id] : row.driver_id ? ['Driver', row.driver_id] : null;
+  if (!parent) return row.company_id || null;
+  const key = parent.join(':');
+  // Request-local only: a page of trips/messages often shares the same bus.
+  if (!parents.has(key)) parents.set(key, db[parent[0]].get(parent[1]).catch(error => {
+    if (error.status === 404) return null;
+    throw error;
+  }));
+  const record = await parents.get(key);
+  if (!record || (row.company_id && row.company_id !== record.company_id)) return null;
+  return record.company_id;
 }
 async function visible(db, ctx, name, row) {
  const {user,companies} = ctx;
@@ -80,7 +80,7 @@ async function visible(db, ctx, name, row) {
  if(name==='LostItemReport' && user.role!=='company') return row.reporter_id===user.id && companies.includes(row.company_id);
  if(name==='Broadcast' && !row.company_id) return true;
  if (user.role === 'mechanic') return MAINTENANCE.has(name) || name === 'Company' || (name === 'GroupMessage' && row.channel === 'mechanic');
- const tenant = await tenantOf(db,name,row);
+ const tenant = await tenantOf(db,name,row,ctx.parents);
  if (!tenant || !companies.includes(tenant)) return false;
  if (user.role === 'company') return COMPANY_READ.has(name);
  if (!PASSENGER_READ.has(name)) return false;
