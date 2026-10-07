@@ -367,6 +367,29 @@ async function tabletCheckIns(base44, companyId, vehicleId) {
     if (batch.length < 500) return rows;
   }
 }
+// Nobody is riding a bus when a shift begins or ends. Everyone still marked
+// aboard this vehicle is signed off with a fresh record (the same shape the
+// boarding kiosk writes) rather than editing the original sign-in, so the day's
+// log keeps both the time they boarded and the time they were taken off.
+async function offboardEveryone(base44, { companyId, companyName, vehicleId, vehicleName, at }) {
+  const rows = await tabletCheckIns(base44, companyId, vehicleId);
+  const latest = new Map();
+  for (const row of rows) {
+    const key = row.card_tag || row.staff_name;
+    if (!key) continue;
+    const prev = latest.get(key);
+    if (!prev || Date.parse(row.created_date) > Date.parse(prev.created_date)) latest.set(key, row);
+  }
+  const aboard = [...latest.values()].filter((r) => r.status === 'boarded');
+  if (!aboard.length) return 0;
+  await base44.asServiceRole.entities.StaffCheckIn.bulkCreate(aboard.map((r) => ({
+    staff_name: r.staff_name, staff_picture_url: r.staff_picture_url || '', card_tag: r.card_tag,
+    status: 'off_board', boarded_at: new Date(at).toISOString(), check_in_method: 'manual',
+    company_id: companyId, company_name: companyName, vehicle_id: vehicleId,
+    vehicle_name: r.vehicle_name || vehicleName || '',
+  })));
+  return aboard.length;
+}
 
 async function hashSecret(value) {
  const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
@@ -682,6 +705,11 @@ export default async function(req) {
           driver_name: vehicle.driver_name || '', driver_email: vehicle.driver_email || '',
           device_id, started_at: occurredAt(body.occurred_at).toISOString(),
         });
+        // A shift starts with an empty bus. If the previous shift was never
+        // closed properly its passengers were still counted aboard, so the new
+        // shift would open showing people on a bus that is standing empty.
+        try { await offboardEveryone(base44, { companyId, companyName, vehicleId, vehicleName: shift.vehicle_name || vehicle.name, at: Date.parse(shift.started_at) }); }
+        catch { /* the shift still starts; the kiosk corrects anyone left aboard */ }
         return Response.json({ shift });
       }
 
@@ -713,28 +741,9 @@ export default async function(req) {
           ended_at:new Date(time).toISOString(),duration_minutes:Math.round((time-startMs)/60000),
           notes:typeof body.notes==='string'?body.notes.slice(0,500):shift.notes,
         });
-        // The shift is over, so nobody is riding this bus any more: everyone
-        // still marked aboard is signed off automatically. A fresh record is
-        // written per person (the same shape the boarding kiosk writes) rather
-        // than editing the original sign-in, so the day's log keeps both the
-        // time they boarded and the time they were taken off.
-        try {
-          const rows = await tabletCheckIns(base44, companyId, vehicleId);
-          const latest = new Map();
-          for (const row of rows) {
-            const key = row.card_tag || row.staff_name;
-            if (!key) continue;
-            const prev = latest.get(key);
-            if (!prev || Date.parse(row.created_date) > Date.parse(prev.created_date)) latest.set(key, row);
-          }
-          const aboard = [...latest.values()].filter((r) => r.status === 'boarded');
-          if (aboard.length) await base44.asServiceRole.entities.StaffCheckIn.bulkCreate(aboard.map((r) => ({
-            staff_name: r.staff_name, staff_picture_url: r.staff_picture_url || '', card_tag: r.card_tag,
-            status: 'off_board', boarded_at: new Date(time).toISOString(), check_in_method: 'manual',
-            company_id: companyId, company_name: companyName, vehicle_id: vehicleId,
-            vehicle_name: r.vehicle_name || ended.vehicle_name || '',
-          })));
-        } catch { /* the shift is still ended; the kiosk corrects anyone left aboard */ }
+        // The shift is over, so nobody is riding this bus any more.
+        try { await offboardEveryone(base44, { companyId, companyName, vehicleId, vehicleName: ended.vehicle_name, at: time }); }
+        catch { /* the shift is still ended; the kiosk corrects anyone left aboard */ }
         return Response.json({shift:ended});
       }
 
