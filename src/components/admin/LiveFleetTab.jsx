@@ -1,5 +1,5 @@
 import React, { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
-import { Bus, History, Lock, MapPin, Radar, Radio, Search, Unlock, Users, X } from "lucide-react";
+import { Bus, History, Lock, MapPin, Radar, Radio, Search, Smartphone, Unlock, Users, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
 import { cn } from "@/lib/utils";
@@ -93,6 +93,25 @@ export default function LiveFleetTab({ vehicles, routes = [], onVehicleUpdate, i
       toast({ title: "Lock released", description: `${v.name} can now stop tracking manually.` });
     } catch {
       toast({ title: "Failed to release lock", variant: "destructive" });
+    } finally { setBusy(null); }
+  };
+
+  // Backup GPS: when a bus tablet fails, the assigned driver's phone app
+  // sends the bus position for their open shift. It switches itself off
+  // when the driver ends the shift on the phone.
+  const phoneGps = async (v, on) => {
+    setBusy(v.id);
+    const patch = on
+      ? { backup_gps_driver_email: v.driver_email, backup_gps_since: new Date().toISOString(), tracking_active: true }
+      : { backup_gps_driver_email: "", backup_gps_since: null };
+    try {
+      await base44.entities.Vehicle.update(v.id, patch);
+      onVehicleUpdate?.({ ...v, ...patch });
+      toast(on
+        ? { title: "Backup GPS on", description: `${v.driver_name || v.driver_email}'s phone will send ${v.name}'s position while their shift is open. They need the driver app open.` }
+        : { title: "Backup GPS off", description: `${v.name}'s position comes from its tablet again.` });
+    } catch {
+      toast({ title: "Couldn't change backup GPS", variant: "destructive" });
     } finally { setBusy(null); }
   };
 
@@ -211,6 +230,7 @@ export default function LiveFleetTab({ vehicles, routes = [], onVehicleUpdate, i
           ["Route", selRoute?.name || "None"],
           ["Driver", selected.driver_name || selected.driver_email || "Unassigned"],
           ["Company · plate", [selected.company_name, selected.plate_number].filter(Boolean).join(" · ") || "—"],
+          ...(selected.backup_gps_driver_email ? [["GPS source", `Driver's phone (backup) since ${new Date(selected.backup_gps_since || Date.now()).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`]] : []),
           ["Last fix", selected.current_lat != null ? formatAge(freshnessOf(selected.last_location_update, { now }).ageMs) || "Unknown" : "No location yet"],
           ["On board", occupancy[selected.id] > 0 ? `${occupancy[selected.id]}${selected.capacity ? ` of ${selected.capacity}` : ""}` : "0"],
         ].map(([k, val]) => (
@@ -228,6 +248,15 @@ export default function LiveFleetTab({ vehicles, routes = [], onVehicleUpdate, i
         {!selected.tracking_active && (
           <button type="button" disabled={busy === selected.id} onClick={() => remoteStart(selected)} className={cn(ACTION, "border-primary bg-primary text-primary-foreground hover:bg-primary/90")}>
             <Radar className="h-4 w-4" aria-hidden="true" /> Start tracking
+          </button>
+        )}
+        {selected.backup_gps_driver_email ? (
+          <button type="button" disabled={busy === selected.id} onClick={() => phoneGps(selected, false)} className={cn(ACTION, "border-border bg-background hover:bg-accent")}>
+            <Smartphone className="h-4 w-4" aria-hidden="true" /> Stop phone GPS
+          </button>
+        ) : selected.driver_email && (
+          <button type="button" disabled={busy === selected.id} onClick={() => phoneGps(selected, true)} className={cn(ACTION, "border-border bg-background hover:bg-accent")}>
+            <Smartphone className="h-4 w-4" aria-hidden="true" /> Use driver's phone for GPS
           </button>
         )}
         {selected.remote_tracking_lock && (
