@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import { useToast } from "@/components/ui/use-toast";
+import { accountName } from "@/lib/userName";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,7 +30,7 @@ const ROLE_LABEL = {
 };
 
 export default function ProfileInfo({ companyName }) {
-  const { user, logout } = useAuth();
+  const { user, logout, checkUserAuth } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [fullName, setFullName] = useState("");
@@ -42,10 +43,10 @@ export default function ProfileInfo({ companyName }) {
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
-    setFullName(user?.full_name || "");
+    setFullName(user?.display_name || user?.full_name || "");
     setPhone(user?.phone || "");
     setPhotoUrl(user?.photo_url || "");
-  }, [user?.full_name, user?.phone, user?.photo_url]);
+  }, [user?.display_name, user?.full_name, user?.phone, user?.photo_url]);
 
   useEffect(() => {
     if (companyName || !user?.company_id) return;
@@ -56,7 +57,7 @@ export default function ProfileInfo({ companyName }) {
 
   if (!user) return null;
 
-  const displayName = fullName || user.email;
+  const displayName = fullName || accountName(user) || user.email;
   const initials =
     (displayName.split(/\s+/).map((p) => p[0]).join("").slice(0, 2) || "·").toUpperCase();
 
@@ -87,12 +88,11 @@ export default function ProfileInfo({ companyName }) {
   const save = async () => {
     setSaving(true);
     try {
-      await base44.auth.updateMe({ phone, photo_url: photoUrl });
-      try {
-        await base44.entities.User.update(user.id, { full_name: fullName });
-      } catch {
-        /* name update may be restricted on some plans */
-      }
+      // The platform keeps the account name (full_name) read-only, so the name
+      // the person types is saved on their own display_name field instead —
+      // a real save that the app can read back.
+      await base44.auth.updateMe({ display_name: fullName.trim(), phone, photo_url: photoUrl });
+      await checkUserAuth();
       setEditing(false);
       toast({ title: "Profile saved" });
     } catch (e) {

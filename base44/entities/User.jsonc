@@ -17,6 +17,10 @@
     "company_id": {
       "type": "string"
     },
+    "display_name": {
+      "type": "string",
+      "description": "The name the person chose for themselves in My Account. The platform account name (full_name) is read-only, so a chosen name is kept here and shown wherever the person sees their own name."
+    },
     "phone": {
       "type": "string"
     },

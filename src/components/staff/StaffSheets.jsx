@@ -8,6 +8,7 @@ import { CheckCircle2, LogOut, MessageCircle, ShieldCheck } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { base44 } from "@/api/base44Client";
 import { waLink } from "@/lib/mapbox";
+import { accountName } from "@/lib/userName";
 import LocationPinner from "@/components/staff/LocationPinner";
 import LostItemReport from "@/components/staff/LostItemReport";
 import OneTimeCode from "@/components/staff/OneTimeCode";
@@ -40,7 +41,7 @@ function Section({ title, children }) {
 
 export function MyPickupSheet({ open, onOpenChange, pickupName, pickupOptions, onChoosePickup, stopAlerts, onToggleStopAlerts, pushUnsupported, companyPhone, onSwitchCompany }) {
   const { user, checkUserAuth } = useAuth();
-  const waOptIn = waLink(companyPhone, `Hi, this is ${user?.full_name || user?.email}. I'd like to receive staff bus updates via WhatsApp.`);
+  const waOptIn = waLink(companyPhone, `Hi, this is ${accountName(user)}. I'd like to receive staff bus updates via WhatsApp.`);
   const linkWhatsapp = async () => {
     await base44.auth.updateMe({ whatsapp_linked: true }).catch(() => {});
     checkUserAuth?.();

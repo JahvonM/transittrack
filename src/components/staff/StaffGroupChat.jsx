@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import ChatThread from "@/components/chat/ChatThread";
+import { accountName } from "@/lib/userName";
 
 const seenKey = (vehicleId) => `tt_staff_chat_seen_${vehicleId}`;
 
@@ -46,7 +47,7 @@ export default function StaffGroupChat({ vehicle }) {
   const { user } = useAuth();
   const [messages, setMessages] = useBusMessages(vehicle?.id);
   const [sending, setSending] = useState(false);
-  const displayName = user?.full_name || user?.email?.split("@")[0] || "Staff";
+  const displayName = accountName(user) || "Staff";
 
   const notifyAdmin = (message) => {
     base44.functions.invoke("notifyAdminMessage", { message_id: message.id }).catch(() => {});

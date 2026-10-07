@@ -8,6 +8,7 @@ import { base44 } from "@/api/base44Client";
 import LiveClock from "@/components/LiveClock";
 import WeatherWidget from "@/components/WeatherWidget";
 import Logo from "@/components/Logo";
+import { accountName, nameInitials } from "@/lib/userName";
 import { Button } from "@/components/ui/button";
 import {
   Car,
@@ -124,9 +125,9 @@ export default function Welcome() {
   }, [isAuthenticated, user, role, navigate]);
 
   const redirecting = isAuthenticated && !!user;
-  const displayName = (user?.full_name || user?.email || "").trim();
+  const displayName = accountName(user);
   const firstName = displayName.split(" ")[0].split("@")[0] || "there";
-  const initials = (displayName.split(/\s+/).map((p) => p[0]).join("").slice(0, 2) || "·").toUpperCase();
+  const initials = nameInitials(user);
   const dateStr = new Date().toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" });
 
   const cardKeys = !isAuthenticated || role === "admin" ? Object.keys(ROLES) : [role];
