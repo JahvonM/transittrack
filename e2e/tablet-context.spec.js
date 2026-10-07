@@ -105,6 +105,7 @@ test('driver can choose a returned route and its ETA updates', async ({ page, co
   await page.goto('/driver/track');
   await page.locator('input[type=password]').fill('1234');
   await page.getByRole('button', { name: 'Unlock', exact: true }).click();
+  await page.getByRole('button', { name: 'Navigate', exact: true }).click();
   const option = page.getByRole('button', { name: /Alternative test road/ });
   await expect(option).toBeVisible({ timeout: 20000 });
   expect(urls.some((u) => u.includes('alternatives=true'))).toBe(true);
@@ -112,6 +113,41 @@ test('driver can choose a returned route and its ETA updates', async ({ page, co
   await option.click();
   await expect(option).toHaveAttribute('aria-pressed', 'true');
   await expect.poll(() => page.getByTestId('nav-eta').innerText()).not.toBe(before);
+});
+
+test('driver map pins the stops and only gives directions after Navigate', async ({ page, context }) => {
+  const fixture = JSON.parse(readFileSync('src/lib/__tests__/fixtures/route-short.json', 'utf8'));
+  const [lng, lat] = fixture.routes[0].geometry.coordinates[0];
+  await context.grantPermissions(['geolocation']);
+  await context.setGeolocation({ latitude: lat, longitude: lng, accuracy: 5 });
+  await mockApi(page, [], { ...driver, route: { id: 'test-route', stops: [
+    { name: 'First stop', lat: 12.12, lng: -61.755, order: 0 },
+    { name: 'Second stop', lat: 12.13, lng: -61.75, order: 1 },
+  ] } });
+  const urls = [];
+  await page.route('https://api.mapbox.com/**', async (r) => {
+    if (r.request().url().includes('/directions/')) { urls.push(r.request().url()); return r.fulfill({ json: fixture }); }
+    return r.fulfill({ status: 404, body: '' });
+  });
+  await page.addInitScript(() => {
+    localStorage.setItem('tt_driver_device_id', 'driver-test');
+    localStorage.setItem('tt-map-engine', 'basic');
+  });
+  await page.goto('/driver/track');
+  await page.locator('input[type=password]').fill('1234');
+  await page.getByRole('button', { name: 'Unlock', exact: true }).click();
+  const navigate = page.getByRole('button', { name: 'Navigate', exact: true });
+  await expect(navigate).toBeVisible({ timeout: 20000 });
+  await expect(page.getByTestId('nav-eta')).toContainText('of 2');
+  await expect(page.getByTestId('nav-banner')).toHaveCount(0);
+  await page.waitForTimeout(2000);
+  expect(urls).toEqual([]); // no directions until the driver asks
+  await navigate.click();
+  await expect(page.getByTestId('nav-banner')).toBeVisible();
+  await expect.poll(() => urls.length).toBeGreaterThan(0);
+  await page.getByRole('button', { name: 'End navigation' }).click();
+  await expect(page.getByTestId('nav-banner')).toHaveCount(0);
+  await expect(navigate).toBeVisible();
 });
 
 test('boarding passengers display full-screen IDs in sequence',async({page})=>{

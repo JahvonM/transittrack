@@ -15,7 +15,7 @@ import useSmoothPosition from "@/hooks/useSmoothPosition";
 import { useBearing } from "@/components/MapBusPin";
 import TripProgress, { routeProgress } from "@/components/TripProgress";
 import { LaneArrow, ManeuverArrow, NavPuck } from "@/components/driver/NavIcons";
-import { Bus, Compass, LocateFixed, Route as RouteIcon, Satellite, Volume2, VolumeX } from "lucide-react";
+import { Bus, Compass, LocateFixed, Navigation, Route as RouteIcon, Satellite, Volume2, VolumeX, X } from "lucide-react";
 
 // Basic map for tablets without WebGL 2 — loaded only on those devices.
 const LiteMap = lazy(() => import("@/components/LiteMap"));
@@ -45,6 +45,10 @@ const OFF_ROUTE_M = 45; // this far from the blue line on two fixes in a row →
 const SNAP_M = 35; // closer than this, the arrow is drawn on the road
 const REROUTE_COOLDOWN_MS = 10000;
 const MUTE_KEY = "tt_nav_muted";
+// Directions only run after the driver presses Navigate; kept for this
+// session so switching screens mid-drive doesn't end them.
+const NAV_ON_KEY = "tt_nav_on";
+const navWasOn = () => { try { return sessionStorage.getItem(NAV_ON_KEY) === "1"; } catch { return false; } };
 const HEADING_UP_KEY = "tt_nav_north_up";
 
 const clock = (ms) => new Date(ms).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
@@ -97,7 +101,11 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
   const [basicMap, setBasicMap] = useState(() => mapEngine() === "basic");
   // The camera follows the bus (heading-up, tilted) until the driver drags
   // the map; "Re-centre" brings it back — like Google Maps.
-  const [following, setFollowing] = useState(true);
+  const [following, setFollowing] = useState(navWasOn);
+  // Off: a plain map with the route's stops pinned. On: turn-by-turn
+  // directions to the next stop (banner, voice, route line, rerouting).
+  const [navigating, setNavigating] = useState(navWasOn);
+  useEffect(() => { try { sessionStorage.setItem(NAV_ON_KEY, navigating ? "1" : "0"); } catch { /* ignore */ } }, [navigating]);
   const [northUp, setNorthUp] = useState(() => { try { return localStorage.getItem(HEADING_UP_KEY) === "1"; } catch { return false; } });
   const [muted, setMuted] = useState(() => { try { return localStorage.getItem(MUTE_KEY) === "1"; } catch { return false; } });
   const mutedRef = useRef(muted);
@@ -205,20 +213,32 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
   // New directions each time the next stop changes (not on every GPS tick).
   const requestedFor = useRef(null);
   useEffect(() => {
-    if (!pos || !nextStop || !nextStopKey || requestedFor.current === nextStopKey) return;
+    if (!navigating || !pos || !nextStop || !nextStopKey || requestedFor.current === nextStopKey) return;
     requestedFor.current = nextStopKey;
     loadRoute({ lat: pos.lat, lng: pos.lng }, nextStop, nextStopKey);
-  }, [pos, nextStop, nextStopKey, loadRoute]);
+  }, [navigating, pos, nextStop, nextStopKey, loadRoute]);
 
   // Where the bus is on the route, and everything that follows from it.
-  const routeNav = nav && navFor === nextStopKey ? nav : null;
+  const routeNav = navigating && nav && navFor === nextStopKey ? nav : null;
+
+  const startNavigation = () => { requestedFor.current = null; setNavigating(true); setFollowing(true); };
+  const endNavigation = () => {
+    routeRequest.current += 1; // drop any directions still loading
+    requestedFor.current = null;
+    stopSpeaking();
+    setNavigating(false);
+    setNav(null);
+    setRouteOptions([]);
+    setRerouting(false);
+    setLoadingRoute(false);
+  };
 
   // No directions yet (no signal, or the request failed): try again shortly.
   useEffect(() => {
-    if (routeNav || loadingRoute || !nextStopKey) return undefined;
+    if (!navigating || routeNav || loadingRoute || !nextStopKey) return undefined;
     const t = setTimeout(() => { requestedFor.current = null; setPos((p) => (p ? { ...p } : p)); }, online ? 15000 : 5000);
     return () => clearTimeout(t);
-  }, [routeNav, loadingRoute, nextStopKey, online]);
+  }, [navigating, routeNav, loadingRoute, nextStopKey, online]);
   const proj = useMemo(() => {
     if (!routeNav || !pos) return null;
     const p = projectOnRoute(routeNav, pos, projRef.current?.seg ?? null);
@@ -229,7 +249,7 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
 
   // Off the blue line on two fixes in a row → new directions from here.
   useEffect(() => {
-    if (!proj || !nextStop || rerouting) return;
+    if (!navigating || !proj || !nextStop || rerouting) return;
     const accurate = pos?.accuracy == null || pos.accuracy <= 40;
     if (proj.offM > OFF_ROUTE_M && accurate) offCount.current += 1; else offCount.current = 0;
     if ((offCount.current >= 2 || proj.offM > 150) && Date.now() - lastRerouteAt.current > REROUTE_COOLDOWN_MS) {
@@ -237,7 +257,7 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
       offCount.current = 0;
       loadRoute({ lat: pos.lat, lng: pos.lng }, nextStop, nextStopKey, { reroute: true });
     }
-  }, [proj, pos, nextStop, nextStopKey, rerouting, loadRoute]);
+  }, [navigating, proj, pos, nextStop, nextStopKey, rerouting, loadRoute]);
 
   // Spoken prompts, the same wording and timing Google Maps uses.
   useEffect(() => {
@@ -282,31 +302,45 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
     if (!map || !smooth || !following) return;
     const top = (bannerRef.current?.offsetHeight || 120) + 24;
     const bottom = (bottomRef.current?.offsetHeight || 90) + 40;
+    const flat = northUp || !navigating;
     map.easeTo({
       center: [smooth.lng, smooth.lat],
-      bearing: northUp ? 0 : heading,
-      pitch: northUp ? 0 : 55,
-      zoom: zoomForSpeed(kmh || 0),
-      padding: { top, bottom, left: 0, right: 0 },
+      bearing: flat ? 0 : heading,
+      pitch: flat ? 0 : 55,
+      zoom: navigating ? zoomForSpeed(kmh || 0) : 15,
+      padding: { top: navigating ? top : 24, bottom, left: 0, right: 0 },
       duration: 900,
       essential: true,
     });
-  }, [smooth?.lat, smooth?.lng, following, northUp]);
+  }, [smooth?.lat, smooth?.lng, following, northUp, navigating]);
 
   const stopFollowing = () => setFollowing(false);
   const recenter = () => setFollowing(true);
   const showOverview = () => {
     const map = mapRef.current;
-    const coords = ahead.flatMap((r) => r.coords);
+    const coords = navigating
+      ? ahead.flatMap((r) => r.coords)
+      : [...orderedStops.map((st) => [st.lng, st.lat]), ...(smooth ? [[smooth.lng, smooth.lat]] : [])];
     setFollowing(false);
     if (!map || coords.length < 2) return;
     let w = Infinity, s = Infinity, e = -Infinity, n = -Infinity;
     for (const [x, y] of coords) { w = Math.min(w, x); e = Math.max(e, x); s = Math.min(s, y); n = Math.max(n, y); }
     map.fitBounds([[w, s], [e, n]], {
-      padding: { top: (bannerRef.current?.offsetHeight || 120) + 40, bottom: (bottomRef.current?.offsetHeight || 90) + 50, left: 50, right: 50 },
+      padding: { top: navigating ? (bannerRef.current?.offsetHeight || 120) + 40 : 40, bottom: (bottomRef.current?.offsetHeight || 90) + 50, left: 50, right: 50 },
       bearing: 0, pitch: 0, duration: 800, maxZoom: 16,
     });
   };
+
+  // Without directions, open on the whole route: every stop and the bus.
+  const [mapReady, setMapReady] = useState(false);
+  const fittedStops = useRef(null);
+  const stopsKey = orderedStops.map((st) => `${st.lat},${st.lng}`).join(";");
+  useEffect(() => {
+    if (navigating || !mapReady || !orderedStops.length || fittedStops.current === stopsKey) return;
+    fittedStops.current = stopsKey;
+    showOverview();
+  }, [navigating, mapReady, stopsKey]);
+  useEffect(() => { if (navigating) fittedStops.current = null; }, [navigating]);
 
   // --- Banner -------------------------------------------------------------
   const gpsStatus = !pos ? "searching" : pos.accuracy != null && pos.accuracy <= 50 ? "locked" : pos.accuracy == null ? "locked" : "low";
@@ -381,7 +415,7 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
                 marker_color: ROUTE_COLOR.normal, marker_size: 40, marker_heading: heading ?? null,
               }] : []}
               stops={nextStop ? [{ ...nextStop, color: accent }] : []}
-              pins={pins}
+              pins={navigating ? pins : [...orderedStops.filter((st) => st !== nextStop).map((st) => ({ lat: st.lat, lng: st.lng, label: st.name, color: "#64748b" })), ...pins]}
               lines={[...alternateGeo.features.map((f) => ({ coords: f.geometry.coordinates, color: "#94a3b8", width: 5, opacity: 0.7 })), ...ahead.map((r) => ({ coords: r.coords, color: ROUTE_COLOR[r.level], width: 7, opacity: 0.95 }))]}
             />
           </Suspense>
@@ -393,7 +427,7 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
             initialViewState={startView}
             style={{ width: "100%", height: "100%" }}
             attributionControl={false}
-            onLoad={(e) => hidePoiLayers(e.target)}
+            onLoad={(e) => { hidePoiLayers(e.target); setMapReady(true); }}
             onError={(e) => { if (/webgl/i.test(e?.error?.message || "")) { markFullMapFailed(); setBasicMap(true); } }}
             onDragStart={stopFollowing}
             onRotateStart={(e) => { if (e.originalEvent) stopFollowing(); }}
@@ -421,6 +455,14 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
                 <div className="w-3.5 h-3.5 rounded-full border-2 border-white shadow" style={{ backgroundColor: p.color || "#34d399" }} title={p.label} />
               </Marker>
             ))}
+            {!navigating && orderedStops.filter((st) => st !== nextStop && st.lat != null && st.lng != null).map((st) => (
+              <Marker key={`stop-${st.lat},${st.lng}`} longitude={st.lng} latitude={st.lat} anchor="center">
+                <div className="min-w-6 h-6 px-1 rounded-full bg-card border-2 border-foreground/70 shadow grid place-items-center text-[11px] font-bold tabular-nums"
+                  role="img" aria-label={`Stop ${orderedStops.indexOf(st) + 1}, ${st.name || ""}`} title={st.name}>
+                  {orderedStops.indexOf(st) + 1}
+                </div>
+              </Marker>
+            ))}
             {nextStop && (
               <Marker longitude={nextStop.lng} latitude={nextStop.lat} anchor="bottom">
                 <div className="tt-map-stop-mine" title={nextStop.name} role="img" aria-label={`Next stop, ${nextStop.name || ""}`}>
@@ -437,7 +479,7 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
         )}
 
         {/* Top: next turn, Google-Maps style */}
-        <div ref={bannerRef} className="absolute top-3 left-3 right-3 z-10 max-w-xl space-y-1.5 pointer-events-none" data-testid="nav-banner">
+        {navigating && <div ref={bannerRef} className="absolute top-3 left-3 right-3 z-10 max-w-xl space-y-1.5 pointer-events-none" data-testid="nav-banner">
           <div className="rounded-2xl text-white shadow-xl overflow-hidden" style={{ background: BANNER }}>
             {bannerMain ? (
               <div className="px-4 py-3 flex items-center gap-3">
@@ -476,7 +518,7 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
               Then <ManeuverArrow type={thenStep.type} modifier={thenStep.modifier} drivingSide={drivingSide} className="w-6 h-6" />
             </div>
           )}
-        </div>
+        </div>}
 
         {/* Bottom: speed, time and distance left, arrival time */}
         <div ref={bottomRef} className="absolute left-3 right-3 bottom-3 z-10 space-y-2">
@@ -506,6 +548,32 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
             </div>
             {fill && showStatus && statusBadges}
           </div>
+          {!navigating ? (
+            <div className="rounded-2xl bg-card/95 backdrop-blur border border-border shadow-xl px-4 py-2.5 flex items-center gap-3" data-testid="nav-eta">
+              <div className="min-w-0 flex-1">
+                <div className="text-caption text-muted-foreground">{nextStop ? `Next stop · ${nextStopIndex + 1} of ${orderedStops.length}` : "Route"}</div>
+                <div className="text-title-sm font-bold truncate">{nextStop ? nextStop.name || "—" : orderedStops.length ? "No stops left on this route" : "No route assigned"}</div>
+              </div>
+              <button
+                type="button"
+                onClick={showOverview}
+                disabled={!orderedStops.length}
+                className="w-11 h-11 rounded-full border border-border grid place-items-center hover:bg-accent shrink-0 disabled:opacity-40"
+                title="See all stops"
+                aria-label="See all stops"
+              >
+                <RouteIcon className="w-5 h-5" />
+              </button>
+              <button
+                type="button"
+                onClick={startNavigation}
+                disabled={!nextStop}
+                className="h-12 px-5 rounded-full bg-primary text-primary-foreground font-semibold flex items-center gap-2 shadow-lg shrink-0 disabled:opacity-50"
+              >
+                <Navigation className="w-5 h-5" /> Navigate
+              </button>
+            </div>
+          ) : (
           <div className="rounded-2xl bg-card/95 backdrop-blur border border-border shadow-xl px-4 py-2.5 flex items-center gap-3" data-testid="nav-eta">
             <div className="min-w-0 flex-1">
               {progress && !progress.arrived ? (
@@ -542,6 +610,14 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
             </button>
             <button
               type="button"
+              onClick={endNavigation}
+              className="h-11 px-4 rounded-full border border-border flex items-center gap-1.5 hover:bg-accent shrink-0 font-semibold"
+              aria-label="End navigation"
+            >
+              <X className="w-5 h-5" /> End
+            </button>
+            <button
+              type="button"
               onClick={() => setMuted((m) => !m)}
               className="w-11 h-11 rounded-full border border-border grid place-items-center hover:bg-accent shrink-0"
               title={muted ? "Turn voice directions on" : "Mute voice directions"}
@@ -550,6 +626,7 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
               {muted ? <VolumeX className="w-5 h-5 text-muted-foreground" /> : <Volume2 className="w-5 h-5" />}
             </button>
           </div>
+          )}
         </div>
       </div>
     </div>
