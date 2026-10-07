@@ -1,20 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
-
-// The platform rejects bursts of entity calls with 429 ("Too many requests").
-// This handler makes several in a row, so a single rejected call used to fail
-// the whole request and the staff member just saw "Couldn't get a code". A 429
-// was never run, so waiting and asking again is safe.
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-async function retry429(fn) {
- for (let attempt = 0; ; attempt++) {
-  try { return await fn(); }
-  catch (error) {
-   const status = error?.status ?? error?.response?.status;
-   if (status !== 429 || attempt >= 3) throw error;
-   await sleep(600 * 2 ** attempt + Math.random() * 300);
-  }
- }
-}
+import { retry429 } from '../../shared/retry429.ts';
 
 async function liveMembership(base44, row) {
  if (!row.expires_at && !row.code_hash) return true; // Explicit admin approval.

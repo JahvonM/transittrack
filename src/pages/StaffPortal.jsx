@@ -24,6 +24,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { loadFailed } from "@/lib/loadFailed";
 import AccessRecovery from '@/components/system/AccessRecovery';
 import { companyGrantRejected, sessionRejected } from '@/lib/requestError';
+import { withRateLimitRetry } from '@/lib/scopedEntities';
 import BusLoader from "@/components/BusLoader";
 import { routeProgress } from "@/components/TripProgress";
 import ArrivalHero from "@/components/passenger/ArrivalHero";
@@ -141,7 +142,10 @@ export default function StaffPortal() {
       // browser) still gets back into the company this account belongs to, so
       // staff aren't asked for the company code over and over. Never when they
       // deliberately switched company.
-      const { data } = await base44.functions.invoke('companyAccess', { action: 'context', grant, restore: !hasLeftCompany() });
+      // The platform refuses bursts of calls, and a device linking for the
+      // first time makes several at once — one rejected call used to look like
+      // the company was unreachable.
+      const { data } = await withRateLimitRetry(() => base44.functions.invoke('companyAccess', { action: 'context', grant, restore: !hasLeftCompany() }));
       if (attempt !== companyAttempt.current) return;
       if (data.grant) localStorage.setItem('tt_company_access_grant', data.grant);
       setCompany(data.company);
