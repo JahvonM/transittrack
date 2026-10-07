@@ -381,6 +381,17 @@ async function reserveAttempt(base44, key, limit, windowMs) {
  await base44.asServiceRole.entities.VerificationAttempt.create({ scope: key, attempted_at: new Date().toISOString() });
  return true;
 }
+async function noteWrongPin(base44, vehicleId) {
+ await base44.asServiceRole.entities.VerificationAttempt.create({ scope: 'driver-pin:' + vehicleId, attempted_at: new Date().toISOString() });
+}
+// Only a WRONG PIN counts against the limit. Counting the entries that worked
+// too meant a driver whose tablet asked for the PIN again (a reload, the app
+// being reopened) ran out of tries and was then refused a PIN that was
+// correct — which reads to a driver as "the code is wrong".
+async function pinAttemptsExhausted(base44, vehicleId) {
+ const rows = await base44.asServiceRole.entities.VerificationAttempt.filter({ scope: 'driver-pin:' + vehicleId }, '-created_date', 5);
+ return rows.filter(r => Date.parse(r.attempted_at) > Date.now() - 15 * 60_000).length >= 5;
+}
 async function driverCredentialVersion(base44,vehicleId) {
  const row=(await base44.asServiceRole.entities.DriverPinCredential.filter({vehicle_id:vehicleId},'-updated_date',1))[0];
  return row ? hashSecret(JSON.stringify({company_id:row.company_id,pin_hash:row.pin_hash,salt:row.salt,enabled:row.enabled})) : 'legacy';
@@ -497,8 +508,8 @@ export default async function(req) {
       case 'verify_pin': {
         const vehicle = await loadVehicle(base44, vehicleId);
         if (!vehicle || vehicle.company_id !== companyId) return Response.json({ error: 'Vehicle assignment mismatch' }, { status: 403 });
-        if (!(await reserveAttempt(base44, 'driver-pin:' + vehicleId, 5, 15 * 60_000))) return Response.json({ error: 'Too many PIN attempts. Try again in 15 minutes.' }, { status: 429 });
-        if (!(await verifyProtectedPin(base44, vehicle, body.pin))) return Response.json({ error: 'Incorrect PIN or no PIN configured' }, { status: 403 });
+        if (await pinAttemptsExhausted(base44, vehicleId)) return Response.json({ error: 'Too many PIN attempts. Try again in 15 minutes.' }, { status: 429 });
+        if (!(await verifyProtectedPin(base44, vehicle, body.pin))) { await noteWrongPin(base44, vehicleId); return Response.json({ error: 'Incorrect PIN or no PIN configured' }, { status: 403 }); }
         // The grant has to outlast a full shift: at 12 hours it expired in the
         // middle of a long day and dropped the driver back to the PIN screen
         // while they were driving. The real daily gate is the tablet asking
@@ -568,8 +579,8 @@ export default async function(req) {
         // even on an unlocked tablet, and shares the PIN attempt limit.
         const vehicle = await loadVehicle(base44, vehicleId);
         if (!vehicle || vehicle.company_id !== companyId) return Response.json({ error: 'Vehicle assignment mismatch' }, { status: 403 });
-        if (!(await reserveAttempt(base44, 'driver-pin:' + vehicleId, 5, 15 * 60_000))) return Response.json({ error: 'Too many PIN attempts. Try again in 15 minutes.' }, { status: 429 });
-        if (!(await verifyProtectedPin(base44, vehicle, body.pin))) return Response.json({ error: 'Incorrect PIN' }, { status: 403 });
+        if (await pinAttemptsExhausted(base44, vehicleId)) return Response.json({ error: 'Too many PIN attempts. Try again in 15 minutes.' }, { status: 429 });
+        if (!(await verifyProtectedPin(base44, vehicle, body.pin))) { await noteWrongPin(base44, vehicleId); return Response.json({ error: 'Incorrect PIN' }, { status: 403 }); }
         const email = String(vehicle.driver_email || '').trim().toLowerCase();
         if (!email) return Response.json({ ok: true, driver_name: '', documents: [] });
         const driver = (await base44.asServiceRole.entities.Driver.filter({ company_id: companyId }, '-updated_date', 500))

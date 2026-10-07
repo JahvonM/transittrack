@@ -37,7 +37,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/components/ui/use-toast";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { idleFor, useTabletUpdates } from "@/lib/tabletUpdate";
-import { rememberUnlockDay, forgetUnlockDay, unlockedToday } from "@/lib/localDay";
+import { rememberUnlockDay, forgetUnlockDay, unlockedToday, unlockDayMarked } from "@/lib/localDay";
 
 // "navigate" is kept as an alias: Track and Navigate are one Drive screen.
 // Safety and Profile now live under More (old links still work).
@@ -59,7 +59,10 @@ export default function DriverApp() {
   const { toast } = useToast();
 
   const [deviceId, setDeviceId] = useState(() => localStorage.getItem("tt_driver_device_id"));
-  const [unlocked, setUnlocked] = useState(() => false);
+  // Already unlocked earlier today on this tablet? Stay unlocked. Without this
+  // a reload (a sent update, the app being reopened, the tablet waking) threw
+  // the driver straight back to the PIN gate mid-shift — every single time.
+  const [unlocked, setUnlocked] = useState(() => unlockDayMarked());
   const [activeTab, setActiveTab] = useState(() => tabFromStage(urlStage) || "home");
   // Follow the URL (e.g. "Continue" after an inspection goes to /driver/track).
   useEffect(() => { const t = tabFromStage(urlStage); if (t) setActiveTab(t); }, [urlStage]);

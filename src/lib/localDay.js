@@ -16,6 +16,15 @@ export function rememberUnlockDay() {
   try { localStorage.setItem(KEY, localDayKey()); } catch { /* ignore */ }
 }
 
+// True only when this tablet was actually unlocked earlier today. Unlike
+// unlockedToday(), a tablet that has never been unlocked is not "unlocked" —
+// it still has to ask for the PIN.
+export function unlockDayMarked() {
+  let stored = null;
+  try { stored = localStorage.getItem(KEY); } catch { /* storage unavailable */ }
+  return stored !== null && stored === localDayKey();
+}
+
 export function forgetUnlockDay() {
   try { localStorage.removeItem(KEY); } catch { /* ignore */ }
 }
