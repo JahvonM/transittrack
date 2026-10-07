@@ -43,6 +43,41 @@ async function recordPassengerMembership(base44,user,company,codeHash) {
 }
 
 const displayCompany = company => Object.fromEntries(['id','name','phone','logo_url','service_types'].filter(k => company[k] !== undefined).map(k => [k,company[k]]));
+
+// The company behind a saved pass — or null when the pass is unknown, belongs to
+// a removed member, or was issued against a code the operator has since changed.
+async function companyFromGrant(base44, user, grant) {
+ const rows = await base44.asServiceRole.entities.CompanyAccessGrant.filter({ user_id: user.id, token_hash: await hashSecret(grant) }, '-created_date', 1);
+ const row = rows[0];
+ if (!row) return null;
+ const company = await base44.asServiceRole.entities.Company.get(row.company_id).catch(() => null);
+ if (!company || row.code_hash !== await hashSecret(company.access_code || '')) return null;
+ if(['staff','passenger'].includes(user.role)) {
+  const memberships=await base44.asServiceRole.entities.CompanyMembership.filter({user_id:user.id,company_id:company.id,scope:'passenger',active:true},'-updated_date',100);
+  if(!memberships.some(m=>(!m.code_hash&&!m.expires_at)||m.code_hash===row.code_hash))return null;
+ }
+ return company;
+}
+
+// The company this account is still an approved member of, with a fresh pass so
+// the device is back to normal. Staff were being asked for the company code
+// again every time a device lost its saved pass (a new phone, a cleared or
+// evicted browser) although their membership was still live. That membership was
+// created by a code check, or by an admin, and stops counting the moment the
+// operator's code changes — so this hands back nothing the code did not grant.
+async function companyFromMembership(base44, user) {
+ const rows = await base44.asServiceRole.entities.CompanyMembership.filter({ user_id: user.id, scope: 'passenger', active: true }, '-updated_date', 100);
+ for (const row of rows) {
+  const company = await base44.asServiceRole.entities.Company.get(row.company_id).catch(() => null);
+  if (!company) continue;
+  const codeHash = await hashSecret(company.access_code || '');
+  if (row.code_hash ? row.code_hash !== codeHash : !!row.expires_at) continue;
+  const grant = randomSecret();
+  await base44.asServiceRole.entities.CompanyAccessGrant.create({ user_id: user.id, company_id: company.id, token_hash: await hashSecret(grant), code_hash: codeHash });
+  return { company, grant };
+ }
+ return null;
+}
 export default async function(req) {
  try {
   const base44 = createClientFromRequest(req);
@@ -50,17 +85,16 @@ export default async function(req) {
   if (!user || !['staff','passenger','admin','company'].includes(user.role)) return Response.json({ error: 'Sign in to continue' }, { status: 401 });
   const body = await req.json();
   if (body.action === 'context') {
-   if (typeof body.grant !== 'string' || !/^[a-f0-9]{64}$/.test(body.grant)) return Response.json({ error: 'Company code required', code: 'COMPANY_ACCESS_REQUIRED' }, { status: 401 });
-   const rows = await base44.asServiceRole.entities.CompanyAccessGrant.filter({ user_id: user.id, token_hash: await hashSecret(body.grant) }, '-created_date', 1);
-   const row = rows[0];
-   if (!row) return Response.json({ error: 'Company code required', code: 'COMPANY_ACCESS_REQUIRED' }, { status: 401 });
-   const company = await base44.asServiceRole.entities.Company.get(row.company_id);
-   if (!company || row.code_hash !== await hashSecret(company.access_code || '')) return Response.json({ error: 'Company code required', code: 'COMPANY_ACCESS_REQUIRED' }, { status: 401 });
-   if(['staff','passenger'].includes(user.role)) {
-    const memberships=await base44.asServiceRole.entities.CompanyMembership.filter({user_id:user.id,company_id:company.id,scope:'passenger',active:true},'-updated_date',100);
-    if(!memberships.some(m=>(!m.code_hash&&!m.expires_at)||m.code_hash===row.code_hash))return Response.json({error:'Company access removed',code:'COMPANY_ACCESS_REQUIRED'},{status:401});
+   const requested = typeof body.grant === 'string' && /^[a-f0-9]{64}$/.test(body.grant) ? body.grant : null;
+   const fromGrant = requested ? await companyFromGrant(base44, user, requested) : null;
+   if (fromGrant) return Response.json({ company: displayCompany(fromGrant) });
+   // No usable pass on this device. A signed-in member keeps their company; the
+   // app asks for this only when the person has not deliberately switched.
+   if (body.restore === true && ['staff','passenger'].includes(user.role)) {
+    const restored = await companyFromMembership(base44, user);
+    if (restored) return Response.json({ company: displayCompany(restored.company), grant: restored.grant });
    }
-   return Response.json({ company: displayCompany(company) });
+   return Response.json({ error: 'Company code required', code: 'COMPANY_ACCESS_REQUIRED' }, { status: 401 });
   }
   if (!(await reserveAttempt(base44, 'company-code:' + user.id, 5, 15 * 60_000))) return Response.json({ error: 'Too many attempts. Try again in 15 minutes.' }, { status: 429 });
   const code = typeof body.code === 'string' ? body.code.trim().toUpperCase() : '';

@@ -6,7 +6,7 @@ import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import AppLayout from "@/components/AppLayout";
 import CodeGate from "@/components/CodeGate";
-import { takePendingJoinCode } from "@/lib/companyJoin";
+import { takePendingJoinCode, markCompanyLeft, hasLeftCompany } from "@/lib/companyJoin";
 import { useCompanyAlerts } from "@/components/StaffAlerts";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import useUserLocation from "@/hooks/useUserLocation";
@@ -136,9 +136,14 @@ export default function StaffPortal() {
     try {
       localStorage.removeItem('tt_company_code');
       const grant = localStorage.getItem('tt_company_access_grant');
-      if (joinCode || !grant) return;
-      const { data } = await base44.functions.invoke('companyAccess', { action: 'context', grant });
+      if (joinCode) return;
+      // restore: a device that has lost its saved pass (a new phone, a cleared
+      // browser) still gets back into the company this account belongs to, so
+      // staff aren't asked for the company code over and over. Never when they
+      // deliberately switched company.
+      const { data } = await base44.functions.invoke('companyAccess', { action: 'context', grant, restore: !hasLeftCompany() });
       if (attempt !== companyAttempt.current) return;
+      if (data.grant) localStorage.setItem('tt_company_access_grant', data.grant);
       setCompany(data.company);
       setCompanyPhone(data.company.phone || '');
     } catch (error) {
@@ -242,6 +247,7 @@ export default function StaffPortal() {
   const switchCompany = () => {
     localStorage.removeItem("tt_company_code");
     localStorage.removeItem("tt_company_access_grant");
+    markCompanyLeft();
     setSheet(null);
     setCompany(null);
     setCompanyPhone("");
