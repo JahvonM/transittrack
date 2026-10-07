@@ -540,6 +540,7 @@ export default function StaffPortal() {
                   focusVehicleId={busOnMap?.id || null}
                   routes={routes}
                   stops={mapStops}
+                  dropoff={workplace}
                   myStop={stop}
                   nextStopIndex={nextStopIndex}
                   userLocation={userLoc}

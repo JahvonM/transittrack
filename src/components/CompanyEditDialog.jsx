@@ -116,7 +116,13 @@ export default function CompanyEditDialog({ company, open, onOpenChange, onSaved
             <Input id="tt-workplace-name" value={workplace.name} onChange={(e) => setWorkplace((w) => ({ ...w, name: e.target.value }))} placeholder="e.g. Head office, True Blue" />
             {workplace.loaded && (
               <Suspense fallback={<div className="h-[200px] animate-pulse rounded-lg bg-muted" />}>
-                <LocationPicker key={company?.id} lat={workplace.lat} lng={workplace.lng} onChange={(lat, lng) => setWorkplace((w) => ({ ...w, lat, lng }))} />
+                <LocationPicker
+                  key={company?.id}
+                  lat={workplace.lat}
+                  lng={workplace.lng}
+                  onChange={(lat, lng) => setWorkplace((w) => ({ ...w, lat, lng }))}
+                  onPlace={(place) => setWorkplace((w) => ({ ...w, name: w.name.trim() ? w.name : place.name }))}
+                />
               </Suspense>
             )}
           </div>

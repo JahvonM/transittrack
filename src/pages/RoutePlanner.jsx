@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import Map, { Marker, Source, Layer } from "react-map-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { MAPBOX_TOKEN, mapStyleFor, mapAccentFor } from "@/lib/mapbox";
@@ -10,9 +10,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/components/ui/use-toast";
-import { MapPinned, Plus, Route as RouteIcon, Trash2, Save } from "lucide-react";
+import { Building2, MapPinned, Plus, Route as RouteIcon, Trash2, Save } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { EmptyState, PageActions, Panel, StatusChip } from "@/components/admin/kit";
+import PlaceSearch from "@/components/PlaceSearch";
 
 // Matches the declutter treatment on every other map in the app: hide
 // POI/transit icon clutter, keep road labels so the basemap still reads.
@@ -38,14 +39,21 @@ export default function RoutePlanner() {
   const [companyId, setCompanyId] = useState("");
   const [type, setType] = useState("staff");
   const [stops, setStops] = useState([]);
-  const [stopName, setStopName] = useState("");
+  const [workplaces, setWorkplaces] = useState([]);
   const [saving, setSaving] = useState(false);
+  const mapRef = useRef(null);
 
   useEffect(() => {
-    Promise.all([base44.entities.Company.list(), base44.entities.Route.list("-created_date", 100)])
-      .then(([c, r]) => { setCompanies(c); setRoutes(r); })
+    Promise.all([base44.entities.Company.list(), base44.entities.Route.list("-created_date", 100), base44.entities.Workplace.list()])
+      .then(([c, r, w]) => { setCompanies(c); setRoutes(r); setWorkplaces(w); })
       .catch(() => {});
   }, []);
+
+  // The company's workplace: the drop-off every pickup passenger ends at.
+  const workplace = useMemo(
+    () => workplaces.find((w) => w.company_id === companyId && w.lat != null && w.lng != null) || null,
+    [workplaces, companyId]
+  );
 
   const loadRoute = (route) => {
     setSelectedRoute(route);
@@ -66,9 +74,14 @@ export default function RoutePlanner() {
   const onMapClick = (e) => {
     setStops((prev) => [
       ...prev,
-      { name: stopName || `Stop ${prev.length + 1}`, lat: e.lngLat.lat, lng: e.lngLat.lng, order: prev.length },
+      { name: `Stop ${prev.length + 1}`, lat: e.lngLat.lat, lng: e.lngLat.lng, order: prev.length },
     ]);
-    setStopName("");
+  };
+
+  // A searched place becomes a named stop exactly where that place is.
+  const addPlace = (place) => {
+    setStops((prev) => [...prev, { name: place.name, lat: place.lat, lng: place.lng, order: prev.length }]);
+    mapRef.current?.flyTo({ center: [place.lng, place.lat], zoom: 15 });
   };
 
   const removeStop = (i) => setStops((prev) => prev.filter((_, idx) => idx !== i));
@@ -145,6 +158,7 @@ export default function RoutePlanner() {
         <div className="min-w-0">
           <div className="relative h-[52vh] min-h-[360px] overflow-hidden rounded-2xl border border-border lg:h-[calc(100vh-13rem)]">
             <Map
+              ref={mapRef}
               mapboxAccessToken={MAPBOX_TOKEN}
               mapStyle={mapStyleFor(isDark)}
               initialViewState={{ longitude: center[0], latitude: center[1], zoom: 12 }}
@@ -165,9 +179,17 @@ export default function RoutePlanner() {
                   </div>
                 </Marker>
               ))}
+              {workplace && (
+                <Marker longitude={workplace.lng} latitude={workplace.lat} anchor="bottom">
+                  <div className="tt-map-stop-mine" title={workplace.name}>
+                    <span className="tt-map-stop-mine__pin" />
+                    <span className="tt-map-stop-label"><b>Drop-off</b></span>
+                  </div>
+                </Marker>
+              )}
             </Map>
             <p className="pointer-events-none absolute left-3 top-3 flex items-center gap-2 rounded-full border border-border bg-background/92 px-3 py-1.5 text-body-sm font-semibold shadow-md backdrop-blur">
-              <MapPinned className="h-4 w-4 text-muted-foreground" aria-hidden="true" /> Click the map to add stops in order
+              <MapPinned className="h-4 w-4 text-muted-foreground" aria-hidden="true" /> Search or click the map to add stops in order
             </p>
           </div>
         </div>
@@ -201,15 +223,16 @@ export default function RoutePlanner() {
                 </div>
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="rp-stopname">Name for the next stop (optional)</Label>
-                <Input id="rp-stopname" value={stopName} onChange={(e) => setStopName(e.target.value)} placeholder={`Stop ${stops.length + 1}`} />
+                <Label>Add a stop</Label>
+                <PlaceSearch onSelect={addPlace} proximity={workplace} placeholder="Search a place by name" />
+                <p className="text-caption text-muted-foreground">Search the place and pick it from the results, or click the map to drop a stop where you are looking.</p>
               </div>
             </div>
           </Panel>
 
           <Panel title={`Stops (${stops.length})`} bodyClassName="p-2 pt-0">
             {stops.length === 0 ? (
-              <EmptyState icon={MapPinned} title="No stops yet" className="m-2 border-0 py-6">Click the map to add stops.</EmptyState>
+              <EmptyState icon={MapPinned} title="No stops yet" className="m-2 border-0 py-6">Search a place or click the map to add stops.</EmptyState>
             ) : (
               <ol className="space-y-1">
                 {stops.map((st, i) => (
@@ -225,6 +248,12 @@ export default function RoutePlanner() {
                   </li>
                 ))}
               </ol>
+            )}
+            {workplace && (
+              <p className="mx-2 mb-1 flex items-center gap-2 rounded-lg bg-secondary/60 px-2 py-2 text-body-sm">
+                <Building2 className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+                <span className="min-w-0 truncate"><span className="font-semibold">{workplace.name}</span> <span className="text-muted-foreground">· Drop-off</span></span>
+              </p>
             )}
             <div className="p-2">
               <Button className="w-full" onClick={save} disabled={saving}>

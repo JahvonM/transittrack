@@ -16,6 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { NestedPage, PageIntro, StatusChip, humanize } from "@/components/admin/kit";
+import PlaceSearch from "@/components/PlaceSearch";
 import { useToast } from "@/components/ui/use-toast";
 import { STATUS_LABEL } from "@/lib/trip";
 import CompanyEditDialog from "@/components/CompanyEditDialog";
@@ -37,6 +38,7 @@ export default function CompanyDashboard() {
   const [vehicles, setVehicles] = useState([]);
   const [routes, setRoutes] = useState([]);
   const [trips, setTrips] = useState([]);
+  const [workplace, setWorkplace] = useState(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -44,15 +46,17 @@ export default function CompanyDashboard() {
 
   const loadAll = async () => {
     try {
-      const [cos, ve, ro, tr] = await Promise.all([
+      const [cos, ve, ro, tr, wp] = await Promise.all([
         base44.entities.Company.list(),
         base44.entities.Vehicle.list(),
         base44.entities.Route.list(),
         base44.entities.Trip.list("-created_date", 1000),
+        base44.entities.Workplace.list(),
       ]);
       const mine = (user.company_id && cos.find((c) => c.id === user.company_id))
         || cos.find((c) => c.created_by_id === user.id);
       setCompany(mine || null);
+      setWorkplace(wp.find((w) => w.company_id === mine?.id && w.lat != null && w.lng != null) || null);
       setVehicles(ve.filter((v) => v.company_id === mine?.id));
       setRoutes(ro.filter((r) => r.company_id === mine?.id));
       setTrips(tr.filter((t) => t.company_id === mine?.id));
@@ -133,10 +137,10 @@ export default function CompanyDashboard() {
           <TabsTrigger value="profile" className={TAB}><User className="mr-1.5 h-4 w-4" />Profile</TabsTrigger>
         </TabsList>
         <TabsContent value="vehicles" className="mt-4">
-          <VehiclesTab company={company} routes={routes} vehicles={vehicles} onChange={loadAll} />
+          <VehiclesTab company={company} routes={routes} vehicles={vehicles} workplace={workplace} onChange={loadAll} />
         </TabsContent>
         <TabsContent value="routes" className="mt-4">
-          <RoutesTab company={company} routes={routes} onChange={loadAll} />
+          <RoutesTab company={company} routes={routes} workplace={workplace} onChange={loadAll} />
         </TabsContent>
         <TabsContent value="trips" className="mt-4">
           <TripsTab trips={trips} vehicles={vehicles} onChange={loadAll} />
@@ -214,7 +218,7 @@ function CreateCompany({ onCreated }) {
   );
 }
 
-function VehiclesTab({ company, routes, vehicles, onChange }) {
+function VehiclesTab({ company, routes, vehicles, workplace, onChange }) {
   const { toast } = useToast();
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -290,32 +294,26 @@ function VehiclesTab({ company, routes, vehicles, onChange }) {
                 vehicles={vehicles.filter((v) => v.current_lat != null)}
                 routes={routes}
                 looseStops={routes.flatMap((r) => r.stops || []).filter((st) => st.lat != null)}
+                dropoff={workplace}
                 label="Live fleet map"
               />
             </Suspense>
           </div>
-          <p className="mt-2 text-body-sm text-muted-foreground">Live vehicle positions and your route stops.</p>
+          <p className="mt-2 text-body-sm text-muted-foreground">Live vehicle positions, your route stops and the drop-off.</p>
         </CardContent>
       </Card>
     </div>
   );
 }
 
-function RoutesTab({ company, routes, onChange }) {
+function RoutesTab({ company, routes, workplace, onChange }) {
   const { toast } = useToast();
   const [name, setName] = useState("");
   const [type, setType] = useState("staff");
   const [stops, setStops] = useState([]);
-  const [stopName, setStopName] = useState("");
-  const [lat, setLat] = useState("");
-  const [lng, setLng] = useState("");
   const [adding, setAdding] = useState(false);
 
-  const addStop = () => {
-    if (!stopName) return;
-    setStops([...stops, { name: stopName, lat: Number(lat), lng: Number(lng), order: stops.length }]);
-    setStopName(""); setLat(""); setLng("");
-  };
+  const addPlace = (place) => setStops((prev) => [...prev, { name: place.name, lat: place.lat, lng: place.lng, order: prev.length }]);
   const removeStop = (i) => setStops(stops.filter((_, x) => x !== i).map((s, idx) => ({ ...s, order: idx })));
 
   const save = async () => {
@@ -369,6 +367,13 @@ function RoutesTab({ company, routes, onChange }) {
                     {s.name}
                   </li>
                 ))}
+                {workplace && (
+                  <li className="flex items-center gap-2 text-sm">
+                    <Building2 className="w-4 h-4 shrink-0 text-primary" />
+                    <span className="truncate font-semibold">{workplace.name}</span>
+                    <span className="text-muted-foreground">Drop-off</span>
+                  </li>
+                )}
               </ol>
             </CardContent>
           </Card>
@@ -403,13 +408,8 @@ function RoutesTab({ company, routes, onChange }) {
                 </div>
               ))}
             </div>
-            <div className="grid grid-cols-[1fr_70px_70px_auto] gap-1.5">
-              <Input value={stopName} onChange={(e) => setStopName(e.target.value)} placeholder="Stop name" />
-              <Input value={lat} onChange={(e) => setLat(e.target.value)} placeholder="lat" />
-              <Input value={lng} onChange={(e) => setLng(e.target.value)} placeholder="lng" />
-              <Button variant="outline" size="icon" onClick={addStop}><Plus className="w-4 h-4" /></Button>
-            </div>
-            <p className="text-xs text-muted-foreground">Tip: use map coordinates. e.g. Airport 12.0042, -61.787</p>
+            <PlaceSearch onSelect={addPlace} proximity={workplace} placeholder="Search a stop by name" />
+            <p className="text-xs text-muted-foreground">Search the stop by name and pick it from the results — its location is set for you.</p>
           </div>
           <Button className="w-full" onClick={save} disabled={adding || !name || stops.length < 2}>
             {adding ? "Saving…" : "Save route"}
