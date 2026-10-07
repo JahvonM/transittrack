@@ -15,7 +15,7 @@ const empty = {
 };
 
 async function uploadPhoto(file) {
-  const { file_url } = await base44.integrations.Core.UploadFile({ file });
+  const { file_url } = await base44.integrations.Core.UploadPublicFile({ file });
   return file_url;
 }
 

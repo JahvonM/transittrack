@@ -150,7 +150,7 @@ function EditDriverDialog({ driver, companies, vehicles = [], open, onOpenChange
   const uploadPhoto = async (file) => {
     setUploading(true);
     try {
-      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      const { file_url } = await base44.integrations.Core.UploadPublicFile({ file });
       setPhotoUrl(file_url);
     } finally {
       setUploading(false);

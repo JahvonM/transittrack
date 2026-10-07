@@ -99,7 +99,7 @@ export default function RunInspection() {
   const uploadPhoto = async (key, file) => {
     setUploadingKey(key);
     try {
-      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      const { file_url } = await base44.integrations.Core.UploadPublicFile({ file });
       setResult(key, { photo_url: file_url });
     } finally {
       setUploadingKey(null);

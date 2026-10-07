@@ -38,7 +38,7 @@ export default function TripSignatureDialog({ open, onOpenChange, trip, mode, on
       if (onSign) {
         await onSign(file, name.trim());
       } else {
-        const { file_url } = await base44.integrations.Core.UploadFile({ file });
+        const { file_url } = await base44.integrations.Core.UploadPublicFile({ file });
         onSaved({ file_url, signed_by: name.trim(), signed_at: new Date().toISOString() });
       }
       onOpenChange(false);

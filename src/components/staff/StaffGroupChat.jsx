@@ -71,7 +71,7 @@ export default function StaffGroupChat({ vehicle }) {
     if (!vehicle?.id) return;
     const ext = messageType === "image" ? "jpg" : "webm";
     const file = new File([blob], `${messageType}-${Date.now()}.${ext}`, { type: blob.type });
-    const { file_url } = await base44.integrations.Core.UploadFile({ file });
+    const { file_url } = await base44.integrations.Core.UploadPublicFile({ file });
     const message = await base44.entities.GroupMessage.create({
       vehicle_id: vehicle.id, vehicle_name: vehicle.name,
       company_id: vehicle.company_id, company_name: vehicle.company_name,
