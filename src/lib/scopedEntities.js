@@ -33,6 +33,9 @@ const hidden = () => typeof document !== 'undefined' && document.visibilityState
 // often as every 10s — everything else at half that rate, which keeps the app
 // well clear of the limit that used to make screens report missing information.
 export const FAST_POLL_MS = 10000, ACTIVE_POLL_MS = 20000, IDLE_POLL_MS = 60000, IDLE_AFTER_MS = 120000;
+// A subscribe used to fetch its first snapshot the instant it was created,
+// alongside the page's own load. Both competed for the app's rate limit.
+const FIRST_POLL_MS = 1500;
 const ALWAYS_FAST = new Set(['Vehicle', 'Broadcast']);
 let lastActivity = Date.now(), watchingActivity = false;
 const watchActivity = () => {
@@ -75,7 +78,10 @@ export function scopedEntities(client) {
   const schedule=()=>{ if(!stopped) timer=setTimeout(async()=>{ await poll(); schedule(); },pollDelay(entity)); };
   const onVisible=()=>{ if(!hidden()) poll(); };
   if(typeof document!=='undefined') document.addEventListener('visibilitychange',onVisible);
-  poll(); schedule();
+  // The page's own data load goes first. A poll fired at the same instant used
+  // to compete with it for the app's rate limit, and the page — not the poll —
+  // is what the person is waiting for.
+  timer=setTimeout(()=>{ poll(); schedule(); },FIRST_POLL_MS);
   const live={listeners,stop:()=>{stopped=true;clearTimeout(timer);current=null;if(typeof document!=='undefined') document.removeEventListener('visibilitychange',onVisible);}};
   polls.set(entity,live);
   return live;

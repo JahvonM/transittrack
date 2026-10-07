@@ -173,32 +173,26 @@ export default function StaffPortal() {
 
   // The company's workplace: where every pickup passenger is dropped off.
   const [workplace, setWorkplace] = useState(null);
-  useEffect(() => {
-    if (!company) { setWorkplace(null); return; }
-    base44.entities.Workplace.filter({ company_id: company.id })
-      .then((rows) => setWorkplace(rows.find((w) => w.lat != null && w.lng != null) || rows[0] || null))
-      .catch(() => setWorkplace(null));
-  }, [company]);
+
+  // Everything the passenger home needs — the workplace, the company's
+  // vehicles, its routes and the rides still to come — arrives in one call.
+  // It used to be four separate calls, and on a phone each one could hit the
+  // app's rate limit and then sit waiting to be retried, which is what made
+  // the passenger app slow to open.
+  const loadData = useCallback(async () => {
+    const { data } = await withRateLimitRetry(() => base44.functions.invoke('entityAccess', { entity: 'Bootstrap', operation: 'list', company_id: company.id }));
+    const result = data.result || {};
+    setWorkplace(result.workplace || null);
+    setVehicles(result.vehicles || []);
+    setRoutes(result.routes || []);
+    setTrips(result.trips || []);
+    statusRef.current = Object.fromEntries((result.trips || []).map((x) => [x.id, x.status]));
+  }, [company?.id]);
 
   useEffect(() => {
     if (!company) return undefined;
     setLoading(true);
-    Promise.allSettled([
-      base44.entities.Vehicle.filter({ company_id: company.id }),
-      base44.entities.Route.filter({ company_id: company.id }),
-      // Only rides that can still happen: finished and cancelled trips are
-      // never shown here, so the server leaves them out.
-      base44.entities.Trip.filter({ company_id: company.id, status: { $nin: ["completed", "cancelled"] } }, "-scheduled_time", 500),
-    ]).then(([v, r, t]) => {
-      if (v.status === 'fulfilled') setVehicles(v.value);
-      if (r.status === 'fulfilled') setRoutes(r.value);
-      if (t.status === 'fulfilled') {
-        setTrips(t.value);
-        statusRef.current = Object.fromEntries(t.value.map(x => [x.id, x.status]));
-      }
-      setLoading(false);
-      if ([v, r, t].some(result => result.status === 'rejected')) loadFailed();
-    });
+    loadData().catch(() => loadFailed()).finally(() => setLoading(false));
     const unsubVehicles = base44.entities.Vehicle.subscribe((event) => {
       setVehicles((prev) => {
         if (event.type === "delete") return prev.filter((x) => x.id !== event.id);
@@ -237,23 +231,11 @@ export default function StaffPortal() {
       unsubVehicles();
       unsubTrips();
     };
-  }, [company]);
+  }, [company, loadData]);
 
   const reload = async () => {
     if (!company) return;
-    try {
-      const [v, r, t] = await Promise.all([
-        base44.entities.Vehicle.filter({ company_id: company.id }),
-        base44.entities.Route.filter({ company_id: company.id }),
-        base44.entities.Trip.filter({ company_id: company.id, status: { $nin: ["completed", "cancelled"] } }, "-scheduled_time", 500),
-      ]);
-      setVehicles(v);
-      setRoutes(r);
-      setTrips(t);
-      statusRef.current = Object.fromEntries(t.map((x) => [x.id, x.status]));
-    } catch {
-      loadFailed(reload);
-    }
+    try { await loadData(); } catch { loadFailed(reload); }
   };
 
   const switchCompany = () => {
