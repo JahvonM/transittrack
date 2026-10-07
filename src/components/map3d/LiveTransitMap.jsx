@@ -79,11 +79,16 @@ function addLayerInSlot(map, layer) {
   }
 }
 
-function stopElement(kind, name) {
+function stopElement(kind, name, onPick) {
   const el = document.createElement("div");
-  el.setAttribute("role", "img");
-  el.setAttribute("aria-label", kind === "mine" ? `Your stop, ${name}` : kind === "next" ? `Next stop, ${name}` : `Stop, ${name}`);
+  const label = kind === "mine" ? `Your stop, ${name}` : kind === "next" ? `Next stop, ${name}` : `Stop, ${name}`;
+  el.setAttribute("role", onPick ? "button" : "img");
+  el.setAttribute("aria-label", onPick ? `${label}. Show its name and how far away it is` : label);
   el.title = name;
+  if (onPick) {
+    el.style.cursor = "pointer";
+    el.onclick = (e) => { e.stopPropagation(); onPick(); };
+  }
   if (kind === "mine") {
     el.className = "tt-map-stop-mine";
     el.innerHTML = `<span class="tt-map-stop-mine__pin"></span><span class="tt-map-stop-label"><b>Your stop</b></span>`;
@@ -203,12 +208,15 @@ function FullMap({
       .filter((s) => s.lat != null && s.lng != null)
       .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
   }, [routes, selected]);
-  const pickedDistance = useMemo(
-    () => (pickedStop && selected?.current_lat != null
-      ? haversineKm(selected.current_lat, selected.current_lng, pickedStop.lat, pickedStop.lng) * 1000
-      : null),
-    [pickedStop, selected]
-  );
+  // How far away a tapped stop is: from the bus you picked (or the one you're
+  // watching), otherwise from where you are.
+  const pickedInfo = useMemo(() => {
+    if (!pickedStop) return null;
+    const bus = selected?.current_lat != null ? selected : focus?.current_lat != null ? focus : null;
+    if (bus) return `${formatDistance(haversineKm(bus.current_lat, bus.current_lng, pickedStop.lat, pickedStop.lng) * 1000)} from ${bus.name || "the bus"}`;
+    if (userLocation) return `${formatDistance(haversineKm(userLocation.lat, userLocation.lng, pickedStop.lat, pickedStop.lng) * 1000)} from you`;
+    return "How far away is unknown";
+  }, [pickedStop, selected, focus, userLocation]);
 
   stateRef.current = { focus, myStop, orderedStops, looseStops: (looseStops || []).filter((x) => x.lat != null && x.lng != null), located, userLocation, is3D, reduceMotion, accent, isDark };
 
@@ -384,14 +392,14 @@ function FullMap({
     orderedStops.forEach((s, i) => {
       if (s.name && s.name === mineName) return;
       const kind = nextStopIndex == null ? "upcoming" : i < nextStopIndex ? "passed" : i === nextStopIndex ? "next" : "upcoming";
-      stopMarkersRef.current.push(new mapboxgl.Marker({ element: stopElement(kind, s.name || `Stop ${i + 1}`), anchor: "center" }).setLngLat([s.lng, s.lat]).addTo(map));
+      stopMarkersRef.current.push(new mapboxgl.Marker({ element: stopElement(kind, s.name || `Stop ${i + 1}`, () => setPickedStop(s)), anchor: "center" }).setLngLat([s.lng, s.lat]).addTo(map));
     });
     (looseStops || []).forEach((s) => {
       if (s.lat == null || s.lng == null || (s.name && s.name === mineName)) return;
-      stopMarkersRef.current.push(new mapboxgl.Marker({ element: stopElement("upcoming", s.name || "Stop"), anchor: "center" }).setLngLat([s.lng, s.lat]).addTo(map));
+      stopMarkersRef.current.push(new mapboxgl.Marker({ element: stopElement("upcoming", s.name || "Stop", () => setPickedStop(s)), anchor: "center" }).setLngLat([s.lng, s.lat]).addTo(map));
     });
     if (myStop?.lat != null) {
-      stopMarkersRef.current.push(new mapboxgl.Marker({ element: stopElement("mine", myStop.name), anchor: "bottom" }).setLngLat([myStop.lng, myStop.lat]).addTo(map));
+      stopMarkersRef.current.push(new mapboxgl.Marker({ element: stopElement("mine", myStop.name, () => setPickedStop(myStop)), anchor: "bottom" }).setLngLat([myStop.lng, myStop.lat]).addTo(map));
     }
   }, [orderedStops, looseStops, myStop, nextStopIndex, loaded]);
 
@@ -639,9 +647,7 @@ function FullMap({
           <div className="flex items-start gap-3 rounded-2xl border border-border bg-card/96 p-3 shadow-xl backdrop-blur" role="dialog" aria-label={`Stop details: ${pickedStop.name || ""}`}>
             <div className="min-w-0 flex-1">
               <p className="truncate font-semibold">{pickedStop.name || "Stop"}</p>
-              <p className="text-body-sm text-muted-foreground">
-                {pickedDistance == null ? "How far away is unknown" : `${formatDistance(pickedDistance)} from ${selected?.name || "the bus"}`}
-              </p>
+              <p className="text-body-sm text-muted-foreground">{pickedInfo}</p>
             </div>
             <button type="button" onClick={() => setPickedStop(null)} className="-m-1 grid h-9 w-9 shrink-0 place-items-center rounded-full hover:bg-accent" aria-label="Close stop details">
               <X className="h-4 w-4" aria-hidden="true" />
