@@ -246,9 +246,12 @@ export default async function (req) {
       case 'people':
         return Response.json(await loadPeople(base44, companyFilter));
       case 'directory': {
-        const { people } = await loadPeople(base44, companyFilter);
+        const { people, vehicles } = await loadPeople(base44, companyFilter);
         const fields = ['key','source','id','name','email','phone','photo_url','company_id','company_name','employee_id','vehicle_id','assigned_vehicle','pickup_name','pickup_lat','pickup_lng','registered','status','directory_type','dropoff_name','dropoff_lat','dropoff_lng'];
-        return Response.json({ people: people.filter(p => p.type === 'staff').map(p => Object.fromEntries(fields.filter(k => p[k] !== undefined).map(k => [k,p[k]]))) });
+        return Response.json({
+          people: people.filter(p => p.type === 'staff').map(p => Object.fromEntries(fields.filter(k => p[k] !== undefined).map(k => [k,p[k]]))),
+          vehicles,
+        });
       }
 
       case 'issue': {

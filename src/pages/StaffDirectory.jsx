@@ -7,6 +7,7 @@ import PullToRefresh from "@/components/PullToRefresh";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Users, MessageCircle, Plus, Pencil, Trash2, Nfc, Search } from "lucide-react";
+import { useToast } from "@/components/ui/use-toast";
 import { EmptyState, PageActions, Segmented, StatusChip } from "@/components/admin/kit";
 import ContactFormDialog from "@/components/directory/ContactFormDialog";
 import { useAuth } from "@/lib/AuthContext";
@@ -15,23 +16,44 @@ import BusLoader from "@/components/BusLoader";
 
 // "staff" in the data = people from client companies who ride the buses.
 const TYPE_LABEL = { all: "All", staff: "Company passengers", passenger: "Other passengers" };
+const NO_BUS = "__none__";
 
 export default function StaffDirectory() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [contacts, setContacts] = useState([]);
+  const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all");
   const [companyFilter, setCompanyFilter] = useState("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [busyKey, setBusyKey] = useState("");
 
   const load = async () => {
     try {
       const res = await base44.functions.invoke("nfcCards", { action: "directory" });
       setContacts((res.data?.people || []).map(p => ({ ...p, type: p.directory_type || (p.company_id ? "staff" : "passenger") })));
+      setVehicles(res.data?.vehicles || []);
     } catch { loadFailed(); } finally { setLoading(false); }
   };
   useEffect(() => { load(); }, []);
+
+  // Put this passenger on a bus (or take them off one). Their card list is
+  // sent to that bus's boarding tablet, so the driver sees them on board.
+  const assignBus = async (c, vehicleId) => {
+    setBusyKey(c.key);
+    try {
+      const res = await base44.functions.invoke("nfcCards", { action: "set_bus", person_key: c.key, vehicle_id: vehicleId === NO_BUS ? "" : vehicleId });
+      const v = vehicles.find((x) => x.id === vehicleId);
+      toast(v
+        ? { title: `${c.name} now rides ${v.name}`, description: res.data?.sent_to_bus ? "Their card was sent to that bus's tablet." : "No boarding tablet on that bus yet — pair one in Kiosk tablets." }
+        : { title: `${c.name} taken off their bus` });
+      await load();
+    } catch (e) {
+      toast({ title: "Couldn't change the bus", description: e?.response?.data?.error || e.message, variant: "destructive" });
+    } finally { setBusyKey(""); }
+  };
 
   const openAdd = () => {
     setEditing(null);
@@ -118,7 +140,7 @@ export default function StaffDirectory() {
       ) : (
         <div className="overflow-hidden rounded-2xl border border-border bg-card">
           <div className="hidden grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1.3fr)_252px] gap-4 border-b border-border px-4 py-3 text-caption font-semibold uppercase tracking-wide text-muted-foreground lg:grid" aria-hidden="true">
-            <span>Passenger</span><span>Contact</span><span>Pickup and drop-off</span><span className="text-right">Actions</span>
+            <span>Passenger</span><span>Contact</span><span>Pickup, drop-off and bus</span><span className="text-right">Actions</span>
           </div>
           <ul className="divide-y divide-border">
             {filtered.map((c) => {
@@ -148,6 +170,16 @@ export default function StaffDirectory() {
                   <div className="min-w-0 text-body-sm">
                     <p className="truncate"><span className="text-muted-foreground">Pickup </span>{pickup || "Not set"}</p>
                     <p className="truncate"><span className="text-muted-foreground">Drop-off </span>{dropoff || "Not set"}</p>
+                    <Select value={c.vehicle_id || NO_BUS} onValueChange={(val) => assignBus(c, val)} disabled={busyKey === c.key}>
+                      <SelectTrigger className="mt-1.5 h-8 w-full max-w-[220px]" aria-label={`Bus for ${c.name}`}>
+                        <SelectValue placeholder="Assign a bus" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={NO_BUS}>No bus</SelectItem>
+                        {vehicles.filter((v) => !c.company_id || !v.company_id || v.company_id === c.company_id)
+                          .map((v) => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="flex flex-wrap items-center gap-1 lg:flex-nowrap lg:justify-end">
                     <Button asChild variant="outline" size="sm">
