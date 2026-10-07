@@ -18,6 +18,17 @@ const MAX_PHOTOS = 3;
 const MAX_PHOTO_BYTES = 3 * 1024 * 1024;
 const TIME_ZONE = 'America/Grenada';
 const localDay = (date) => new Date(date).toLocaleDateString('en-CA', { timeZone: TIME_ZONE });
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
+const validDay = (d) => typeof d === 'string' && ISO_DAY.test(d) && localDayOf(d) === d;
+const localDayOf = (d) => { const t = Date.parse(d + 'T12:00:00Z'); return Number.isFinite(t) ? new Date(t).toISOString().slice(0, 10) : ''; };
+const dayDiff = (a, b) => Math.round((Date.parse(b + 'T12:00:00Z') - Date.parse(a + 'T12:00:00Z')) / 86400_000);
+function requestSummary(r) {
+  return {
+    id: r.id, kind: r.kind, start_date: r.start_date, end_date: r.end_date || r.start_date, swap_with_name: sanitize(r.swap_with_name),
+    note: sanitize(r.note), status: r.status || 'pending', decision_note: sanitize(r.decision_note), decided_at: r.decided_at || null,
+    created_date: r.created_date || null,
+  };
+}
 
 // The walk-around check before getting in. Fixed list, so every phone check
 // reads the same in Inspection history; problems become mechanic faults.
@@ -518,6 +529,60 @@ export default async function(req) {
             started_with: x.started_with || 'tablet',
           }));
         return Response.json({ shifts });
+      }
+
+      case 'requests': {
+        const [rows, drivers] = await Promise.all([
+          db.DriverRequest.filter({ driver_id: driver.id }, '-created_date', 50),
+          db.Driver.filter({ company_id: companyId }, 'full_name', 500),
+        ]);
+        return Response.json({
+          requests: rows.filter((r) => r.company_id === companyId).map(requestSummary),
+          // Who a shift can be swapped with: the company's other drivers, names only.
+          colleagues: drivers.filter((d) => d.id !== driver.id && d.company_id === companyId && sanitize(d.full_name))
+            .map((d) => ({ id: d.id, name: sanitize(d.full_name) })),
+        });
+      }
+
+      case 'request': {
+        const kind = body.kind === 'swap' ? 'swap' : body.kind === 'day_off' ? 'day_off' : '';
+        if (!kind) fail(400, 'Choose a day off or a swap');
+        const start = body.start_date;
+        const end = body.end_date || start;
+        if (!validDay(start) || !validDay(end)) fail(400, 'Choose a date');
+        if (start < localDay(Date.now())) fail(400, 'That date has passed');
+        if (end < start) fail(400, 'The last day is before the first day');
+        if (dayDiff(start, end) > 30) fail(400, 'Ask for 31 days or fewer at a time');
+        if (kind === 'swap' && end !== start) fail(400, 'Swap one day at a time');
+        const note = sanitize(body.note).slice(0, 500);
+        let swapWith = null;
+        if (kind === 'swap') {
+          if (typeof body.swap_with_driver_id !== 'string' || !body.swap_with_driver_id) fail(400, 'Choose who to swap with');
+          swapWith = await db.Driver.get(body.swap_with_driver_id).catch(() => null);
+          if (!swapWith || swapWith.company_id !== companyId || swapWith.id === driver.id) fail(400, 'Choose a driver from your company');
+        }
+        const pending = (await db.DriverRequest.filter({ driver_id: driver.id, status: 'pending' }, '-created_date', 20)).filter((r) => r.company_id === companyId);
+        if (pending.length >= 10) fail(429, 'You have 10 requests waiting. Wait for an answer first.');
+        const row = await db.DriverRequest.create({
+          company_id: companyId, company_name: driver.company_name || '', driver_id: driver.id, driver_name: sanitize(driver.full_name), driver_email: driver.email,
+          kind, start_date: start, end_date: end, note, status: 'pending',
+          ...(swapWith ? { swap_with_driver_id: swapWith.id, swap_with_name: sanitize(swapWith.full_name) } : {}),
+        });
+        const when = start === end ? start : `${start} to ${end}`;
+        await notify(base44, 'dispatch', companyId, {
+          title: `${kind === 'swap' ? 'Swap request' : 'Day-off request'} · ${sanitize(driver.full_name) || 'Driver'}`,
+          body: kind === 'swap' ? `Swap ${when} with ${sanitize(swapWith.full_name)}${note ? `: ${note.slice(0, 120)}` : ''}` : `Off ${when}${note ? `: ${note.slice(0, 120)}` : ''}`,
+          data: { type: 'driver_request', request_id: row.id },
+        });
+        return Response.json({ ok: true, request: requestSummary(row) });
+      }
+
+      case 'cancel_request': {
+        const row = typeof body.request_id === 'string' ? await db.DriverRequest.get(body.request_id).catch(() => null) : null;
+        if (!row || row.driver_id !== driver.id || row.company_id !== companyId) fail(404, 'Request not found');
+        if (row.status !== 'pending') fail(409, 'This request has already been answered');
+        const updated = await db.DriverRequest.update(row.id, { status: 'cancelled' });
+        return Response.json({ ok: true, request: requestSummary({ ...row, ...updated }) });
       }
 
       case 'documents': {

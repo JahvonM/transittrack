@@ -35,3 +35,13 @@ export async function driverPhoneTokens(base44, vehicle) {
     .filter((row) => normEmail(row.email) === normEmail(driver.email) && typeof row.token === 'string' && row.token)
     .map((row) => row.token))];
 }
+
+// Phones of one driver record, for telling them about their own requests.
+// Nothing is sent once the phone app is switched off for them.
+export async function phoneTokensForDriver(base44, driver) {
+  if (!driver?.phone_app_access || !normEmail(driver.email) || !driver.company_id) return [];
+  const rows = await base44.asServiceRole.entities.PushToken.filter({ role: 'driver_phone', company_id: driver.company_id }, '-created_date', 500);
+  return [...new Set(rows
+    .filter((row) => normEmail(row.email) === normEmail(driver.email) && typeof row.token === 'string' && row.token)
+    .map((row) => row.token))];
+}

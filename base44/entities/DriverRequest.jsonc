@@ -1,0 +1,94 @@
+{
+  "name": "DriverRequest",
+  "type": "object",
+  "description": "A driver's day-off or shift-swap request from the driver phone app, approved or declined by an administrator.",
+  "properties": {
+    "company_id": {
+      "type": "string"
+    },
+    "company_name": {
+      "type": "string"
+    },
+    "driver_id": {
+      "type": "string"
+    },
+    "driver_name": {
+      "type": "string"
+    },
+    "driver_email": {
+      "type": "string"
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "day_off",
+        "swap"
+      ]
+    },
+    "start_date": {
+      "type": "string",
+      "description": "First day (YYYY-MM-DD, local)."
+    },
+    "end_date": {
+      "type": "string",
+      "description": "Last day (YYYY-MM-DD, local); same as start for one day."
+    },
+    "swap_with_driver_id": {
+      "type": "string"
+    },
+    "swap_with_name": {
+      "type": "string"
+    },
+    "note": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "approved",
+        "declined",
+        "cancelled"
+      ],
+      "default": "pending"
+    },
+    "decided_by_name": {
+      "type": "string"
+    },
+    "decided_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "decision_note": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "company_id",
+    "driver_id",
+    "kind",
+    "start_date"
+  ],
+  "rls": {
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

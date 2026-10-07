@@ -16,6 +16,7 @@ import MeTab from "@/components/driverPhone/MeTab";
 import DrivingScreen from "@/components/driverPhone/DrivingScreen";
 import StartShift from "@/components/driverPhone/StartShift";
 import Walkaround from "@/components/driverPhone/Walkaround";
+import Requests from "@/components/driverPhone/Requests";
 import { confirmAction } from "@/components/ConfirmHost";
 
 const TABS = [
@@ -54,8 +55,8 @@ export default function DriverPhone() {
   const { tab: tabParam } = useParams();
   const [searchParams] = useSearchParams();
   // Start shift and the walk-around are screens of their own under Today.
-  const screen = ["start", "walkaround"].includes(tabParam) ? tabParam : null;
-  const tab = TABS.some((t) => t.id === tabParam) ? tabParam : "today";
+  const screen = ["start", "walkaround", "requests"].includes(tabParam) ? tabParam : null;
+  const tab = TABS.some((t) => t.id === tabParam) ? tabParam : screen === "requests" ? "me" : "today";
   const [shifts, setShifts] = useState(null);
   const [startAfterWalk, setStartAfterWalk] = useState(false);
   const [status, setStatus] = useState("loading");
@@ -265,6 +266,10 @@ export default function DriverPhone() {
           <Walkaround busName={today?.bus?.name} onSubmit={walkaround}
             onBack={() => { const back = startAfterWalk; setStartAfterWalk(false); navigate(back ? "/driver-phone/start" : "/driver-phone"); }} />
         )}
+        {screen === "requests" && (
+          <Requests load={() => callDriverPhone("requests")} onCreate={(body) => callDriverPhone("request", body)}
+            onCancel={(id) => callDriverPhone("cancel_request", { request_id: id })} onBack={() => navigate("/driver-phone/me")} />
+        )}
         {!screen && tab === "today" && (
           <TodayTab today={today} driverName={me?.driver?.name} onPickBus={pickBus}
             onStartShift={() => navigate("/driver-phone/start")} onEndShift={endShift} onWalkaround={() => navigate("/driver-phone/walkaround")} />
@@ -272,7 +277,7 @@ export default function DriverPhone() {
         {tab === "messages" && <MessagesTab messages={messages} loaded={messagesLoaded} hasBus={!!today?.bus} onSend={send} />}
         {tab === "report" && <ReportTab busName={today?.bus?.name} onSend={report} />}
         {tab === "me" && (
-          <MeTab me={me} documents={documents} docsLoaded={docsLoaded} onLoadDocs={loadDocs} shifts={shifts} onLoadHours={loadHours}
+          <MeTab me={me} documents={documents} docsLoaded={docsLoaded} onLoadDocs={loadDocs} shifts={shifts} onLoadHours={loadHours} onOpenRequests={() => navigate("/driver-phone/requests")}
             notifications={notifications} onEnableNotifications={enableNotifications} onSignOut={signOut} />
         )}
       </main>

@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from "react";
-import { Bell, BellOff, Clock, FileText, Loader2, LogOut, Mail, Phone } from "lucide-react";
+import { Bell, BellOff, CalendarOff, ChevronRight, Clock, FileText, Loader2, LogOut, Mail, Phone } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { expiryState, hoursText, weekHours } from "@/lib/driverPhone";
 
 const KIND = { license: "Driving licence", insurance: "Insurance" };
 const TONE = { success: "text-success", warning: "text-warning", danger: "text-danger", neutral: "text-muted-foreground" };
 
-export default function MeTab({ me, documents, docsLoaded, onLoadDocs, shifts, onLoadHours, notifications, onEnableNotifications, onSignOut }) {
+export default function MeTab({ me, documents, docsLoaded, onLoadDocs, shifts, onLoadHours, onOpenRequests, notifications, onEnableNotifications, onSignOut }) {
   const [opening, setOpening] = useState("");
   const [enabling, setEnabling] = useState(false);
   useEffect(() => { onLoadDocs(); onLoadHours?.(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -70,6 +70,17 @@ export default function MeTab({ me, documents, docsLoaded, onLoadDocs, shifts, o
           </>
         )}
       </section>
+
+      {onOpenRequests && (
+        <button type="button" onClick={onOpenRequests} className="flex min-h-[64px] items-center gap-3 rounded-2xl border border-border bg-card p-4 text-left hover:bg-accent">
+          <CalendarOff className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden="true" />
+          <span className="min-w-0 flex-1">
+            <span className="block text-title-sm font-bold">Days off and swaps</span>
+            <span className="block text-body-sm text-muted-foreground">Ask for a day off or to swap a shift</span>
+          </span>
+          <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden="true" />
+        </button>
+      )}
 
       <section className="rounded-2xl border border-border bg-card p-4" aria-label="My documents">
         <h2 className="mb-3 flex items-center gap-2 text-title-sm font-bold"><FileText className="h-5 w-5 text-muted-foreground" aria-hidden="true" /> My documents</h2>

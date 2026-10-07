@@ -49,11 +49,11 @@ const DOTS = { success: "bg-success", warning: "bg-warning", danger: "bg-danger"
 // The usual meaning of the status words used across TransitTrack records.
 const STATUS_TONE = {
   on_trip: "success", active: "success", live: "success", tracking: "success", completed: "success", resolved: "success",
-  passed: "success", paired: "success", boarded: "success", signed_in: "success", confirmed: "success", returned: "success", ok: "success",
+  passed: "success", paired: "success", boarded: "success", signed_in: "success", confirmed: "success", returned: "success", ok: "success", approved: "success",
   on_the_way: "info", arrived: "info", scheduled: "info", in_progress: "info", investigating: "info", found: "info", pending: "warning",
   idle: "neutral", offline: "neutral", inactive: "neutral", cancelled: "neutral", archived: "neutral", off_board: "neutral", closed: "neutral",
   due: "warning", open: "warning", maintenance: "warning", medium: "warning", stale: "warning", reported: "warning", missing: "warning",
-  overdue: "danger", failed: "danger", emergency: "danger", critical: "danger", high: "danger", speeding: "danger", revoked: "danger", lost: "danger",
+  overdue: "danger", failed: "danger", emergency: "danger", critical: "danger", high: "danger", speeding: "danger", revoked: "danger", lost: "danger", declined: "danger",
   low: "neutral",
 };
 

@@ -21,6 +21,7 @@ import {
 import { useToast } from "@/components/ui/use-toast";
 import { telLink, whatsappLink } from "@/lib/driverPhone";
 import DriverDocumentsDialog, { DocChips } from "@/components/admin/DriverDocuments";
+import DriverRequestsPanel from "@/components/admin/DriverRequestsPanel";
 import { Bus, Camera, Car, Loader2, Mail, Pencil, Phone, Plus, Search, Smartphone, Trash2, User as UserIcon, X } from "lucide-react";
 import { EmptyState, PageActions, StatusChip } from "@/components/admin/kit";
 
@@ -476,6 +477,7 @@ export default function DriversTab({ drivers, vehicles, companies, routes, onCha
       <PageActions>
         <AddDriverDialog companies={companies} onAdded={onChange} />
       </PageActions>
+      <div className="mb-4"><DriverRequestsPanel /></div>
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <label className="relative min-w-[220px] flex-1 sm:max-w-sm">
           <span className="sr-only">Search drivers</span>
