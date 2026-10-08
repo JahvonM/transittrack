@@ -53,18 +53,30 @@ and `ios/App/App/Info.plist`.
 
 ## Push notifications
 
-Web push (Firebase Cloud Messaging via the browser) is already wired up for the
-PWA — see `src/lib/firebase.js`. Inside the native shells, that same web-push
-approach does **not** work on iOS (WKWebView doesn't support it), so native push
-still needs to be wired in separately:
+The website/PWA and the Trusted Web Activity in `driver-android/` use existing
+Firebase web push. A Capacitor Android build now uses
+`src/lib/nativePush.js`: it checks permission, installs token listeners before
+registering, cleans them up, and saves the FCM token through the existing
+authorized backend. Registration failures do not show “Notifications on”.
 
-1. In the Firebase console (same project as the web app), add an **Android app**
-   (package name must match `appId` above) and download `google-services.json` →
-   place it at `android/app/google-services.json`.
-2. Add an **iOS app** (bundle ID must match `appId`) and download
-   `GoogleService-Info.plist` → place it at `ios/App/App/GoogleService-Info.plist`.
-3. With both files in place, native push (via `@capacitor/push-notifications`,
-   already installed) can register real device tokens through the same
-   `PushToken` entity and `register_push_token`/`sendPushToTokens` backend
-   plumbing the web push already uses — ask Claude to wire this up once you
-   have those two files.
+For the Capacitor Android build:
+
+1. Register the Android package used by that build in the same Firebase project
+   as the current push sender.
+2. Supply its `google-services.json` at `android/app/google-services.json` during
+   the native build, then rebuild/sync. It is not present in this checkout.
+3. On a real device, enable notifications and verify delivery with the app
+   open, in the background, and closed. Browser mocks do not verify delivery.
+
+**iOS remains incomplete.** Capacitor PushNotifications gives an APNs token on
+iOS, whereas this backend sends via FCM. Adding a plist alone does not bridge
+that difference. An iOS Firebase Messaging bridge, its app configuration,
+Push Notifications capability, and APNs configuration in Firebase are needed,
+followed by a signed device test. Until then the code reports that native
+notification setup is required and does not store an APNs token as an FCM token.
+
+Keep APNs/private service-account credentials on the server or in the native
+build provider's secret storage. This change does not create signing keys,
+configure developer accounts, or submit either store build.
+
+Reference: https://capacitorjs.com/docs/v6/apis/push-notifications

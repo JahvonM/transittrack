@@ -124,7 +124,9 @@ export default function MechanicPortal() {
         company_id: activeVehicle.company_id, company_name: activeVehicle.company_name,
         channel: "mechanic", sender_role: "mechanic", sender_name: senderName, text,
       });
+      setMessagesByVehicle(prev=>({...prev,[message.vehicle_id]:[...(prev[message.vehicle_id]||[]).filter(m=>m.id!==message.id),message]}));
       base44.functions.invoke("notifyAdminMessage", { message_id: message.id }).catch(() => {});
+      return message;
     } finally {
       setSending(false);
     }
@@ -164,7 +166,7 @@ export default function MechanicPortal() {
             <Bus className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
             <span className="text-title-sm font-bold">{activeVehicle.name}</span>
           </div>
-          <ChatThread
+          <ChatThread key={activeVehicleId}
             messages={activeMessages}
             isMine={(m) => m.sender_role === "mechanic"}
             senderLabel={(m) => (m.sender_role === "driver" ? "Driver" : m.sender_name || "Mechanic")}

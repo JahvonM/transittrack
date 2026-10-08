@@ -66,7 +66,7 @@ export default function ChatThread({
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
 
-  useEffect(() => { bottomRef.current?.scrollIntoView({ block: "nearest" }); }, [messages.length]);
+  useEffect(() => { bottomRef.current?.scrollIntoView({ block: "nearest" }); }, [messages.length, pending?.id, pending?.__delivery]);
 
   const send = async (value) => {
     const trimmed = (value ?? text).trim();
