@@ -198,7 +198,7 @@ test('driver tablet showcase keeps controls reachable in portrait and landscape'
   localStorage.setItem('tt_driver_device_id','driver-test');
   localStorage.setItem('tt-map-engine','basic');
  });
- for(const size of [{width:1024,height:768},{width:390,height:844}]){
+ for(const size of [{width:1280,height:800},{width:800,height:1280}]){
   await page.setViewportSize(size);
   await page.goto('/driver/track');
   await page.locator('input[type=password]').fill('1234');

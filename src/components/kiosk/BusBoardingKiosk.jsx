@@ -64,7 +64,7 @@ function Avatar({ name, photoUrl }) {
 // libraries, just tailwindcss-animate's utilities keyed on mode.
 function Screen({ modeKey, className = "", children }) {
   return (
-    <Card className="rounded-3xl shadow-xl border-border/60 overflow-hidden">
+    <Card data-mode={modeKey} className="rounded-3xl shadow-xl border-border/60 overflow-hidden">
       <CardContent key={modeKey} className={`animate-in fade-in zoom-in-95 duration-300 ${className}`}>
         {children}
       </CardContent>
