@@ -4,7 +4,7 @@ import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { LogIn, Mail, Lock, Loader2, QrCode } from "lucide-react";
+import { LogIn, Mail, Lock, Loader2, QrCode, Eye, EyeOff } from "lucide-react";
 import AuthLayout from "@/components/AuthLayout";
 import GoogleIcon from "@/components/GoogleIcon";
 import PrivacyPolicyDialog from "@/components/PrivacyPolicyDialog";
@@ -16,6 +16,7 @@ import { ScanCompanyQrButton, ScanCompanyQrDialog } from "@/components/ScanCompa
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   // Post-login destination (e.g. the MCP OAuth consent page sends users here
@@ -55,8 +56,8 @@ export default function Login() {
   return (
     <AuthLayout
       icon={LogIn}
-      title="Welcome back"
-      subtitle="Log in to your account"
+      title="Your journey starts here"
+      subtitle="Sign in to track your bus and plan your pickup."
       footer={
         <div className="space-y-3 text-center">
           <div>
@@ -72,33 +73,6 @@ export default function Login() {
         </div>
       }
     >
-      {joinReady ? (
-        <div role="status" className="mb-4 flex items-start gap-3 rounded-xl bg-secondary p-3 text-body-sm">
-          <QrCode className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
-          <span><span className="font-semibold">Company QR scanned.</span> Log in or create an account and you'll be added to your bus company automatically.</span>
-        </div>
-      ) : (
-        <ScanCompanyQrButton className="mb-3 w-full h-12 text-sm font-medium" onClick={() => setScanOpen(true)} />
-      )}
-      <ScanCompanyQrDialog open={scanOpen} onOpenChange={setScanOpen} onCode={onScan} />
-      <Button
-        variant="outline"
-        className="w-full h-12 text-sm font-medium mb-6"
-        onClick={handleGoogle}
-      >
-        <GoogleIcon className="w-5 h-5 mr-2" />
-        Continue with Google
-      </Button>
-
-      <div className="relative mb-6">
-        <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-border" />
-        </div>
-        <div className="relative flex justify-center text-xs uppercase">
-          <span className="bg-card px-3 text-muted-foreground">or</span>
-        </div>
-      </div>
-
       {error && (
         <div className="mb-4 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
           {error}
@@ -107,14 +81,13 @@ export default function Login() {
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="email">Email</Label>
+          <Label htmlFor="email">Email address</Label>
           <div className="relative">
             <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
             <Input
               id="email"
               type="email"
               autoComplete="email"
-              autoFocus
               placeholder="you@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -134,27 +107,57 @@ export default function Login() {
             <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
             <Input
               id="password"
-              type="password"
+              type={showPassword ? "text" : "password"}
               autoComplete="current-password"
               placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="pl-10 h-12"
+              className="pl-10 pr-12 h-12"
               required
             />
+            <button type="button" aria-label={showPassword ? "Hide password" : "Show password"} onClick={() => setShowPassword(v => !v)} className="absolute right-0 top-0 h-12 w-12 grid place-items-center text-muted-foreground rounded-lg focus-visible:ring-2 focus-visible:ring-primary">{showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}</button>
           </div>
         </div>
         <Button type="submit" className="w-full h-12 font-medium" disabled={loading}>
           {loading ? (
             <>
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              Logging in...
+              Signing in…
             </>
           ) : (
-            "Log in"
+            "Sign in"
           )}
         </Button>
       </form>
+      <div className="mt-6">
+      <div className="relative mb-6">
+        <div className="absolute inset-0 flex items-center">
+          <div className="w-full border-t border-border" />
+        </div>
+        <div className="relative flex justify-center text-xs uppercase">
+          <span className="bg-card px-3 text-muted-foreground">or</span>
+        </div>
+      </div>
+
+      <Button
+        variant="outline"
+        className="w-full h-12 text-sm font-medium mb-6"
+        onClick={handleGoogle}
+      >
+        <GoogleIcon className="w-5 h-5 mr-2" />
+        Continue with Google
+      </Button>
+
+      {joinReady ? (
+        <div role="status" className="mb-4 flex items-start gap-3 rounded-xl bg-secondary p-3 text-body-sm">
+          <QrCode className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
+          <span><span className="font-semibold">Company QR scanned.</span> Log in or create an account and you'll be added to your bus company automatically.</span>
+        </div>
+      ) : (
+        <ScanCompanyQrButton className="mb-3 w-full h-12 text-sm font-medium" onClick={() => setScanOpen(true)} />
+      )}
+      <ScanCompanyQrDialog open={scanOpen} onOpenChange={setScanOpen} onCode={onScan} />
+      </div>
     </AuthLayout>
   );
 }
