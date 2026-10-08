@@ -25,6 +25,8 @@ import ResetPassword from '@/pages/ResetPassword';
 // Route-level pages are lazily loaded for code-splitting / performance
 const PageNotFound = lazy(() => import('./lib/PageNotFound'));
 const Welcome = lazy(() => import('@/pages/Welcome'));
+const PrivacyPolicy = lazy(() => import('@/pages/PrivacyPolicy'));
+const TermsOfService = lazy(() => import('@/pages/TermsOfService'));
 const BookTaxi = lazy(() => import('@/pages/BookTaxi'));
 const JoinCompany = lazy(() => import('@/pages/JoinCompany'));
 const CompanyDashboard = lazy(() => import('@/pages/CompanyDashboard'));
@@ -71,6 +73,9 @@ const AuthenticatedApp = () => {
   const location = useLocation();
   const authPage = ['/login', '/register', '/forgot-password', '/reset-password'].includes(location.pathname);
   const tabletPage = /^\/(driver|kiosk)(\/|$)/.test(location.pathname);
+  // The legal pages are linked from the app stores, so they must open for
+  // signed-out visitors instead of bouncing to the login screen.
+  const publicPage = authPage || ['/privacy', '/terms'].includes(location.pathname);
   // Pages remount (and animate) when this key changes. The driver app's tabs
   // are all one page, so they share a key — switching tabs must not restart
   // it (that would stop GPS tracking and navigation).
@@ -78,14 +83,14 @@ const AuthenticatedApp = () => {
     : location.pathname.startsWith("/driver-phone") ? "/driver-phone" : location.pathname;
 
   // Show loading spinner while checking app public settings or auth
-  if (!authPage && !tabletPage && (isLoadingPublicSettings || isLoadingAuth)) {
+  if (!publicPage && !tabletPage && (isLoadingPublicSettings || isLoadingAuth)) {
     return (
       <JourneyLoading label={isLoadingPublicSettings ? "Connecting to TransitTrack…" : "Checking your account…"} onRetry={checkAppState} />
     );
   }
 
   // Login and paired tablets must still open when an account token expires.
-  if (authError && !authPage && !tabletPage) {
+  if (authError && !publicPage && !tabletPage) {
     if (authError.type === 'user_not_registered') return <UserNotRegisteredError />;
     if (authError.type === 'auth_required') {
       return <Navigate to={'/login?returnTo=' + encodeURIComponent(location.pathname + location.search)} replace />;
@@ -115,6 +120,8 @@ const AuthenticatedApp = () => {
       <Route path="/book-taxi" element={<BookTaxi />} />
       <Route path="/join" element={<JoinCompany />} />
       <Route path="/oauth/consent" element={<OAuthConsent />} />
+      <Route path="/privacy" element={<PrivacyPolicy />} />
+      <Route path="/terms" element={<TermsOfService />} />
       {/* One route for /driver and /driver/<tab> so tab changes don't remount the app */}
       <Route path="/driver/:stage?" element={<DriverApp />} />
       <Route path="/kiosk" element={<Kiosk />} />
