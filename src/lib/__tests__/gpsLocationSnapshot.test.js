@@ -1,5 +1,6 @@
 import { it, expect } from "vitest";
 import fs from "node:fs";
+import process from "node:process";
 import { load, mock, request } from "../../../security-tests/helpers.js";
 
 // Replays a fixed set of GPS updates through the bus tablet's live position
