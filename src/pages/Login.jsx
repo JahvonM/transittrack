@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { LogIn, Mail, Lock, Loader2, QrCode, Eye, EyeOff } from "lucide-react";
 import AuthLayout from "@/components/AuthLayout";
 import GoogleIcon from "@/components/GoogleIcon";
+import AppleIcon from "@/components/AppleIcon";
 import PrivacyPolicyDialog from "@/components/PrivacyPolicyDialog";
 import { safeReturnTo } from "@/lib/authReturnTo";
 import { useAuth } from "@/lib/AuthContext";
@@ -51,6 +52,11 @@ export default function Login() {
 
   const handleGoogle = () => {
     base44.auth.loginWithProvider("google", returnTo);
+  };
+
+  // Apple requires this alongside Google sign-in (App Store guideline 4.8).
+  const handleApple = () => {
+    base44.auth.loginWithProvider("apple", returnTo);
   };
 
   return (
@@ -139,14 +145,24 @@ export default function Login() {
         </div>
       </div>
 
-      <Button
-        variant="outline"
-        className="w-full h-12 text-sm font-medium mb-6"
-        onClick={handleGoogle}
-      >
-        <GoogleIcon className="w-5 h-5 mr-2" />
-        Continue with Google
-      </Button>
+      <div className="mb-6 grid gap-3">
+        <Button
+          variant="outline"
+          className="w-full h-12 text-sm font-medium"
+          onClick={handleGoogle}
+        >
+          <GoogleIcon className="w-5 h-5 mr-2" />
+          Continue with Google
+        </Button>
+        <Button
+          variant="outline"
+          className="w-full h-12 text-sm font-medium"
+          onClick={handleApple}
+        >
+          <AppleIcon className="w-5 h-5 mr-2" />
+          Continue with Apple
+        </Button>
+      </div>
 
       {joinReady ? (
         <div role="status" className="mb-4 flex items-start gap-3 rounded-xl bg-secondary p-3 text-body-sm">

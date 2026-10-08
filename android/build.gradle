@@ -7,7 +7,9 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:8.2.1'
+        // 8.12 is the first plugin line that builds against API 36; it needs
+        // Gradle 8.13 (see gradle/wrapper/gradle-wrapper.properties).
+        classpath 'com.android.tools.build:gradle:8.12.0'
         classpath 'com.google.gms:google-services:4.4.0'
 
         // NOTE: Do not place your application dependencies here; they belong
