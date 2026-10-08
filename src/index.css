@@ -596,3 +596,71 @@ html.tt-future {
 @media(prefers-reduced-motion:reduce) {
  .tt-loading-route-light,.tt-loading-progress span { animation:none; }
 }
+
+/* Public welcome and authentication share the passenger navy/cyan style. */
+.tt-welcome { background:#041321; color:#f3f8ff; }
+.tt-welcome-header { max-width:1280px; margin:auto; padding:20px 28px; display:flex; align-items:center; justify-content:space-between; gap:16px; }
+.tt-welcome-main { max-width:1280px; margin:auto; padding:0 28px; }
+.tt-welcome-hero { position:relative; overflow:hidden; min-height:510px; display:flex; align-items:center; border-radius:28px; background:#041321; }
+.tt-welcome-art { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; object-position:center; }
+.tt-welcome-copy { position:relative; z-index:1; width:52%; padding:40px 32px; background:linear-gradient(90deg,#041321d9,#04132145,transparent); }
+.tt-welcome-copy h1 { font-size:clamp(38px,5.4vw,68px); line-height:1.02; letter-spacing:-.05em; font-weight:750; }
+.tt-welcome-copy p { max-width:430px; color:#c0d1e2; font-size:18px; line-height:1.6; margin:24px 0 30px; }
+.tt-welcome-actions { display:flex; gap:14px; flex-wrap:wrap; }
+.tt-welcome-actions > a { min-width:170px; }
+.tt-welcome-features { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:18px; margin:24px 0; }
+.tt-welcome-features > div { display:flex; align-items:center; gap:18px; padding:24px; border:1px solid #264052; background:linear-gradient(120deg,#0c2c3e90,#071725); border-radius:18px; }
+.tt-welcome-features > div > span { display:grid; place-items:center; flex-shrink:0; height:48px; width:48px; border-radius:14px; background:#15cdea14; color:#35dbf5; }
+.tt-welcome-features h2 { font-size:16px; font-weight:600; }
+.tt-welcome-extra { margin:20px 0 30px; }
+.tt-welcome-extra summary { cursor:pointer; color:#a9c4d8; padding:16px 8px; min-height:48px; }
+.tt-welcome-extra summary:focus-visible { outline:2px solid #36d9ef; border-radius:8px; }
+.tt-welcome-workspaces { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; padding:10px 0; }
+.tt-welcome-workspaces > a { display:flex; align-items:center; gap:12px; padding:18px; border:1px solid #264052; border-radius:14px; }
+.tt-welcome-workspaces span { flex:1; min-width:0; }
+.tt-welcome-workspaces strong,.tt-welcome-workspaces small { display:block; }
+.tt-welcome-workspaces small { margin-top:5px; color:#9eb7ca; font-size:12px; }
+.tt-welcome-footer { max-width:1224px; margin:auto; border-top:1px solid #203546; padding:22px 12px; display:flex; align-items:center; justify-content:space-between; gap:12px; color:#7fa5be; font-size:13px; }
+.tt-auth-layout { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); background:#041321; color:#f3f8ff; }
+.tt-auth-brand-panel { position:sticky; top:0; height:100dvh; min-height:650px; overflow:hidden; padding:40px; border-right:1px solid #203546; display:flex; flex-direction:column; justify-content:space-between; }
+.tt-auth-logo { display:inline-flex; align-items:center; gap:12px; font-size:26px; font-weight:700; position:relative; z-index:1; letter-spacing:-.03em; }
+.tt-auth-art { position:absolute; inset:0; height:100%; width:100%; object-fit:cover; object-position:75% center; opacity:.65; mask-image:linear-gradient(#000 35%,transparent 85%); }
+.tt-auth-brand-copy { position:relative; z-index:1; max-width:480px; padding-bottom:20px; }
+.tt-auth-brand-copy h2 { font-size:48px; line-height:1.05; letter-spacing:-.04em; font-weight:700; }
+.tt-auth-brand-copy p { font-size:18px; color:#b2c7d7; margin:22px 0; }
+.tt-auth-brand-copy ul { display:flex; flex-direction:column; gap:14px; margin-top:28px; }
+.tt-auth-brand-copy li { display:flex; align-items:center; gap:12px; color:#bfd4e5; font-size:14px; }
+.tt-auth-form-area { display:flex; align-items:center; justify-content:center; padding:48px 32px; }
+.tt-auth-mobile-hero { display:none; }
+.tt-auth-form-card { box-shadow:0 12px 40px #0003; }
+.tt-pickup-method { border:1px solid hsl(var(--border)); border-radius:14px; min-height:84px; padding:12px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; font-size:14px; font-weight:600; text-align:center; }
+.tt-pickup-method[aria-pressed="true"] { border-color:hsl(var(--primary)); background:hsl(var(--primary)/.08); color:hsl(var(--primary)); }
+.tt-pickup-method:focus-visible,.tt-pickup-stop:focus-visible { outline:2px solid hsl(var(--primary)); outline-offset:3px; }
+.tt-pickup-stop { display:flex; align-items:center; gap:12px; min-height:76px; width:100%; padding:14px; border:1px solid hsl(var(--border)); border-radius:14px; text-align:left; transition:background .15s; }
+.tt-pickup-stop[aria-pressed="true"] { border-color:hsl(var(--primary)); background:hsl(var(--primary)/.08); }
+.tt-pickup-stop strong { overflow-wrap:anywhere; }
+.tt-pickup-pin { display:grid; place-items:center; background:hsl(var(--primary)/.12); color:hsl(var(--primary)); width:42px; height:42px; border-radius:50%; flex-shrink:0; }
+.tt-pickup-confirm { background:hsl(var(--primary)/.04); }
+@media(max-width:1023px) {
+ .tt-auth-layout { display:block; }
+ .tt-auth-brand-panel { display:none; }
+ .tt-auth-form-area { padding:20px 20px 36px; }
+ .tt-auth-mobile-hero { display:block; margin-bottom:22px; }
+ .tt-auth-mobile-hero .tt-auth-logo { font-size:23px; margin-bottom:8px; }
+ .tt-auth-mobile-hero > img { width:100%; height:210px; object-fit:cover; object-position:75% center; border-radius:20px; mask-image:linear-gradient(#000 70%,transparent); }
+}
+@media(max-width:700px) {
+ .tt-welcome-header { padding:18px 20px; }
+ .tt-welcome-main { padding:0 20px; }
+ .tt-welcome-hero { display:block; min-height:0; border-radius:18px; }
+ .tt-welcome-art { position:relative; height:240px; object-position:75% center; mask-image:linear-gradient(#000 80%,transparent); }
+ .tt-welcome-copy { width:100%; padding:10px 0 4px; text-align:center; background:none; }
+ .tt-welcome-copy h1 { font-size:39px; }
+ .tt-welcome-copy p { font-size:16px; margin:18px auto 24px; }
+ .tt-welcome-actions { display:grid; grid-template-columns:1fr; }
+ .tt-welcome-features { grid-template-columns:1fr; gap:10px; margin-top:22px; }
+ .tt-welcome-features > div { padding:13px 16px; gap:14px; }
+ .tt-welcome-features > div > span { height:38px; width:38px; border-radius:12px; }
+ .tt-welcome-workspaces { grid-template-columns:1fr; }
+ .tt-welcome-footer { margin:0 20px; flex-wrap:wrap; }
+}
