@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import JourneyLoading from "@/components/JourneyLoading";
 import Logo from "@/components/Logo";
 import { useToast } from "@/components/ui/use-toast";
-import { requestPushToken, onForegroundMessage } from "@/lib/firebase";
+import { requestPushToken, pushPermission, onForegroundMessage } from "@/lib/firebase";
 import { PUSH_FAILURE } from "@/hooks/usePushNotifications";
 import { callDriverPhone, nextDrivingState, notADriver } from "@/lib/driverPhone";
 import TodayTab from "@/components/driverPhone/TodayTab";
@@ -169,8 +169,10 @@ export default function DriverPhone() {
     return "";
   }, []);
   useEffect(() => {
-    if (status !== "ready" || typeof Notification === "undefined" || Notification.permission !== "granted") return;
-    registerPush({ prompt: false }).catch(() => {});
+    if (status !== "ready") return;
+    let cancelled=false;
+    pushPermission().then(p=>{if(!cancelled&&p==="granted")registerPush({prompt:false}).catch(()=>{});});
+    return()=>{cancelled=true;};
   }, [status, registerPush]);
   useEffect(() => onForegroundMessage((payload) => {
     const { title, body } = payload.notification || {};

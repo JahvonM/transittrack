@@ -56,7 +56,8 @@ test('card designer exports a printable PNG using selected passenger details',as
  await session(page,'admin');
  await page.route('**/functions/nfcCards',route=>route.fulfill({json:{people:[{key:'user:email-passenger',name:'Email Passenger',company_name:'Company A',employee_id:'EMP-12',card:{card_uid:'SECRETUID'}}]}}));
  await page.goto('/admin/card-designs');
- await page.getByLabel('Card holder',{exact:true}).selectOption('user:email-passenger');
+ await page.getByLabel('Card holder',{exact:true}).click();
+ await page.getByRole('option',{name:'Email Passenger · Company A',exact:true}).click();
  await expect(page.getByTestId('card-artwork-preview')).toContainText('Email Passenger');
  await expect(page.getByTestId('card-artwork-preview')).toContainText('EMP-12');
  await expect(page.getByTestId('card-artwork-preview')).not.toContainText('SECRETUID');
@@ -802,7 +803,8 @@ test('admin overview filters actual companies and opens existing vehicle form',a
  await expect(fleet).toContainText('Bus B');
  await expect(health).toContainText('Helper reporting');
  await expect(health).toContainText('Reader: Not plugged in');
- await page.getByLabel('Overview company',{exact:true}).selectOption('a');
+ await page.getByLabel('Overview company',{exact:true}).click();
+ await page.getByRole('option',{name:'Company A',exact:true}).click();
  await expect(fleet).toContainText('Bus A');
  await expect(fleet).not.toContainText('Bus B');
  await expect(health).toContainText('Tablet A');

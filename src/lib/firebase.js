@@ -1,3 +1,4 @@
+import { nativePushPlatform, nativePushPermission, requestNativePush, nativeForegroundMessage } from "@/lib/nativePush";
 import { initializeApp } from "firebase/app";
 import { getMessaging, getToken, onMessage, isSupported } from "firebase/messaging";
 
@@ -30,6 +31,7 @@ const firebaseApp = initializeApp(firebaseConfig);
  * awaited work. With { prompt: false } it never asks, only reuses a grant.
  */
 export async function requestPushToken({ prompt = true } = {}) {
+  if (nativePushPlatform()) return requestNativePush({ prompt });
   try {
     if (typeof window === "undefined" || !("Notification" in window) || !("serviceWorker" in navigator)) return { token: null, reason: "unsupported" };
     let permission = Notification.permission;
@@ -54,6 +56,7 @@ export async function getFcmToken(options) {
 
 /** Fires `callback(payload)` for pushes that arrive while the tab is open and focused. */
 export function onForegroundMessage(callback) {
+  if (nativePushPlatform()) return nativeForegroundMessage(callback);
   let stop = null, cancelled = false;
   isSupported()
     .then((supported) => {
@@ -63,4 +66,9 @@ export function onForegroundMessage(callback) {
     .catch(() => {});
   // Returns an unsubscribe, so a page that re-renders doesn't stack listeners.
   return () => { cancelled = true; stop?.(); };
+}
+
+export async function pushPermission() {
+ if(nativePushPlatform())return nativePushPermission();
+ return typeof Notification === "undefined" ? "unsupported" : Notification.permission;
 }
