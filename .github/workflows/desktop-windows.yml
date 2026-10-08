@@ -1,0 +1,27 @@
+name: Desktop Windows
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  installer:
+    runs-on: windows-2022
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - run: npm run build:win
+      - uses: actions/upload-artifact@v5
+        with:
+          name: TransitTrack-Desktop-Windows
+          path: desktop/release/TransitTrack-Desktop-Setup-*.exe
+          if-no-files-found: error
