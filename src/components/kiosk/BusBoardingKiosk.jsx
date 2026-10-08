@@ -20,7 +20,6 @@ import QrScanner from "./QrScanner";
 import SlideToUnlock from "./SlideToUnlock";
 import KioskMascot from "./KioskMascot";
 import KioskConnectionBadge from "./KioskConnectionBadge";
-import { DrivingScene } from "@/components/AnimatedBus";
 
 const CODE_MAX_LEN = 12;
 const FLUSH_INTERVAL_MS = 15000;

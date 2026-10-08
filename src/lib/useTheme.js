@@ -25,7 +25,7 @@ function initialTheme() {
 // components that only need to *react* to the theme (e.g. picking a map
 // style) update the moment any toggle anywhere flips it.
 export function useIsDark() {
-  const read = () => !document.documentElement.classList.contains("light");
+  const read = () => document.documentElement.classList.contains("tt-future") || !document.documentElement.classList.contains("light");
   const [isDark, setIsDark] = useState(read);
   useEffect(() => {
     const obs = new MutationObserver(() => setIsDark(read()));
