@@ -1,3 +1,4 @@
+import useFutureAppearance from "@/hooks/useFutureAppearance";
 import CompanyBanner from "@/components/CompanyBanner";
 import { ReportAppProblemButton } from "@/components/support/ReportAppProblem";
 import DriverDocumentsViewer from "@/components/driver/DriverDocumentsViewer";
@@ -55,6 +56,7 @@ const DRIVER_TABS = [
 const tabFromStage = (st) => (st === "navigate" ? "track" : st === "safety" || st === "profile" ? "more" : TRACKING_TABS.includes(st) ? st : null);
 
 export default function DriverApp() {
+  useFutureAppearance();
   useNoPageZoom();
   const navigate = useNavigate();
   const { stage: urlStage } = useParams();

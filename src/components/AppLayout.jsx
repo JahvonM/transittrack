@@ -1,3 +1,4 @@
+import useFutureAppearance from "@/hooks/useFutureAppearance";
 import React from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/AuthContext";
@@ -38,6 +39,7 @@ const STAFF_ROLES = new Set(["admin", "driver", "company", "mechanic"]);
 function PassengerLayout({ children, title, fullBleed = false, back = null }) {
   const { user, logout } = useAuth();
   const { pathname } = useLocation();
+  useFutureAppearance(!STAFF_ROLES.has(user?.role));
   if (STAFF_ROLES.has(user?.role)) return <FullLayout title={title}>{children}</FullLayout>;
   const initials = nameInitials(user);
 
