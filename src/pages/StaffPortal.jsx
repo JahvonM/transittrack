@@ -32,7 +32,7 @@ import ArrivalHero from "@/components/passenger/ArrivalHero";
 import RouteTimeline from "@/components/passenger/RouteTimeline";
 import StopChooser from "@/components/passenger/StopChooser";
 import {
-  AlertBand, BookedRides, MapClosed, PickupCard, MapToggle, MoreList, OtherBuses, OtherBusesOverlay, PassengerChatBubble, SectionHead, SponsorLine, StopAlertRow, TripActions, TripFacts,
+  AlertBand, BookedRides, MapClosed, PickupCard, MapToggle, OtherBusesOverlay, PassengerChatBubble, SectionHead, SponsorLine, StopAlertRow, TripActions, TripFacts,
 } from "@/components/passenger/PassengerSections";
 import { clock, passengerTripState, sortStops } from "@/components/passenger/passengerState";
 import useStopEtas from "@/components/passenger/useStopEtas";
@@ -556,18 +556,7 @@ export default function StaffPortal() {
               )}
             </section>
             <div className="lg:order-3">
-              <OtherBuses buses={otherBuses} crowd={crowd} title={approaching ? "Other buses" : "All buses"} now={now} />
               <BookedRides trips={upcomingTrips} stopName={pickupName} />
-              <MoreList
-                companyName={companyName}
-                companyPhone={companyPhone}
-                onBadge={() => setSheet("badge")}
-                onAssistant={() => setSheet("assistant")}
-                onHelp={() => setSheet("help")}
-                onPickup={() => setSheet("pickup")}
-                onChat={() => setSheet("chat")}
-                chatUnread={chatUnread}
-              />
               <SponsorLine />
             </div>
           </div>
