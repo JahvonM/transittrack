@@ -324,10 +324,8 @@ test('admin showcase keeps metrics, fleet list and working section navigation',a
   await expect(page.getByText('Active buses',{exact:true})).toBeVisible();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
   await page.screenshot({path:'/tmp/tt-admin-desktop.png',fullPage:true});
-  // Card designer sits under All tools > Fleet Operations; groups stay closed until tapped.
-  await page.getByRole('button',{name:'All tools',exact:true}).click();
   await expect(page.getByRole('button',{name:'Card designer',exact:true})).toHaveCount(0);
-  await page.getByRole('button',{name:'Fleet Operations',exact:true}).click();
+  await page.getByRole('button',{name:'People & access',exact:true}).click();
   await page.getByRole('button',{name:'Card designer',exact:true}).click();
   await expect(page.getByRole('button',{name:'Download PNG',exact:true})).toBeVisible();
 });
@@ -477,34 +475,27 @@ test('company dashboard shows a passenger QR for its access code',async({page})=
 });
 
 test('admin keeps the current menu group open and message bubble stays above AI',async({page})=>{
- // ui-redesign: main sections are always listed; the rest sit under "All tools",
- // which opens itself when the current section is one of them. Messages and the
- // AI assistant sit side by side in the page header instead of floating.
  await session(page,'admin');
  await page.goto('/admin/drivers');
  const nav=page.getByRole('navigation',{name:'Admin'});
  await expect(nav.getByRole('button',{name:'Drivers',exact:true})).toHaveAttribute('aria-current','page');
+ await expect(nav.getByRole('button',{name:'People & access',exact:true})).toHaveAttribute('aria-expanded','true');
+ await expect(nav.getByRole('button',{name:'Fleet',exact:true})).toHaveAttribute('aria-expanded','false');
+ await nav.getByRole('button',{name:'Card designer',exact:true}).click();
+ await expect(nav.getByRole('button',{name:'Card designer',exact:true})).toHaveAttribute('aria-current','page');
+ await expect(nav.getByRole('button',{name:'People & access',exact:true})).toHaveAttribute('aria-expanded','true');
  const tools=nav.getByRole('button',{name:'All tools',exact:true});
  await expect(tools).toHaveAttribute('aria-expanded','false');
- await page.goto('/admin/card-designs');
- await expect(tools).toHaveAttribute('aria-expanded','true');
- await expect(nav.getByRole('button',{name:'Card designer',exact:true})).toHaveAttribute('aria-current','page');
- // Only the group holding the current page is open; the others wait for a tap.
- await expect(nav.getByRole('button',{name:'Fleet Operations',exact:true})).toHaveAttribute('aria-expanded','true');
- const admin=nav.getByRole('button',{name:'Admin',exact:true});
- await expect(admin).toHaveAttribute('aria-expanded','false');
  await expect(nav.getByRole('button',{name:'Change history',exact:true})).toHaveCount(0);
- await admin.click();
+ await tools.click();
  await expect(nav.getByRole('button',{name:'Change history',exact:true})).toBeVisible();
  await tools.click();
- await expect(tools).toHaveAttribute('aria-expanded','false');
- const header=page.getByRole('banner');
- const messages=header.getByRole('button',{name:'Open messages',exact:true});
- const ai=header.getByRole('button',{name:'Open AI assistant',exact:true});
+ const messages=page.getByRole('button',{name:'Open messages',exact:true});
+ const ai=page.getByRole('button',{name:'Open AI assistant',exact:true});
  await expect(messages).toBeVisible();
  await expect(ai).toBeVisible();
  const m=await messages.boundingBox(),a=await ai.boundingBox();
- expect(m.x+m.width).toBeLessThanOrEqual(a.x);
+ expect(m.y+m.height).toBeLessThanOrEqual(a.y);
 });
 
 test('message bubble starts a new conversation without prior messages',async({page})=>{
@@ -786,4 +777,48 @@ test('failed pickup save retains the old choice and allows retry',async({page})=
  fail=false;
  await dialog.getByRole('button',{name:'Confirm pickup',exact:true}).click();
  await expect(dialog).toHaveCount(0);
+});
+
+
+test('admin overview filters actual companies and opens existing vehicle form',async({page})=>{
+ await session(page,'admin');
+ const now=new Date().toISOString();
+ await page.route('**/functions/entityAccess',r=>{
+  const b=r.request().postDataJSON();let result=[];
+  if(b.entity==='User')result={id:'caller',role:'admin',email:'admin@test.invalid'};
+  if(b.entity==='Vehicle')result=vehicles;
+  if(b.entity==='Company')result=[{id:'a',name:'Company A'},{id:'b',name:'Company B'}];
+  if(b.entity==='KioskDevice')result=[
+   {id:'ka',name:'Tablet A',company_id:'a',vehicle_id:'bus-a',status:'active',paired:true,last_seen:now,helper_health:{reported_at:now,reader:'connected',battery:80}},
+   {id:'kb',name:'Tablet B',company_id:'b',vehicle_id:'bus-b',status:'active',paired:true,last_seen:now,helper_health:{reported_at:now,reader:'Not plugged in',battery:80}}
+  ];
+  return r.fulfill({json:{result}});
+ });
+ await page.goto('/admin');
+ const fleet=page.getByRole('region',{name:'Fleet status',exact:true});
+ const health=page.getByRole('region',{name:'Tablet health',exact:true});
+ await expect(fleet).toContainText('Bus A');
+ await expect(fleet).toContainText('Bus B');
+ await expect(health).toContainText('Helper reporting');
+ await expect(health).toContainText('Reader: Not plugged in');
+ await page.getByLabel('Overview company',{exact:true}).selectOption('a');
+ await expect(fleet).toContainText('Bus A');
+ await expect(fleet).not.toContainText('Bus B');
+ await expect(health).not.toContainText('Tablet B');
+ await page.getByRole('button',{name:'Add vehicle',exact:true}).click();
+ await expect(page.getByRole('dialog')).toBeVisible();
+ await expect(page).toHaveURL(/admin\/vehicles/);
+});
+
+test('admin overview fits a phone and opens grouped navigation',async({page})=>{
+ await page.setViewportSize({width:390,height:844});
+ await session(page,'admin');
+ await page.goto('/admin');
+ await expect(page.getByRole('region',{name:'Fleet status',exact:true})).toBeVisible();
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
+ await page.screenshot({path:'/tmp/tt-admin-mobile.png',fullPage:true});
+ await page.getByRole('button',{name:'Open menu',exact:true}).click();
+ await page.getByRole('button',{name:'People & access',exact:true}).click();
+ await page.getByRole('button',{name:'Drivers',exact:true}).click();
+ await expect(page).toHaveURL(/admin\/drivers/);
 });
