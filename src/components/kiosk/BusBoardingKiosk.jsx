@@ -714,7 +714,7 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
   const bgUrl = staticMapBackgroundUrl(vehicle?.current_lat, vehicle?.current_lng, isDark);
 
   return (
-    <div className="min-h-[100dvh] relative overflow-hidden bg-gradient-to-br from-primary/15 via-background to-background">
+    <div className="tt-boarding-future min-h-[100dvh] relative overflow-hidden bg-gradient-to-br from-primary/15 via-background to-background">
       {bgUrl && (
         <div className="absolute inset-0">
           <img src={bgUrl} alt="" className="w-full h-full object-cover" />
