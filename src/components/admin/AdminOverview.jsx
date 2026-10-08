@@ -1,10 +1,9 @@
 import React, { Suspense, lazy, useEffect, useMemo, useState } from "react";
-import { Bus, ChevronRight, CircleCheck, Gauge, OctagonAlert, SatelliteDish, Siren, Smartphone, Plus, Users, Wrench } from "lucide-react";
+import { Bus, ChevronRight, CircleCheck, Gauge, OctagonAlert, SatelliteDish, Siren, Smartphone, Plus, Wrench } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { cn } from "@/lib/utils";
 import { computeOccupancyByVehicle } from "@/lib/occupancy";
 import { freshnessOf, formatAge } from "@/components/system/status";
-import { busStatusLine } from "@/components/passenger/passengerState";
 import RecentActivityFeed from "@/components/admin/RecentActivityFeed";
 
 const LiveTransitMap = lazy(() => import("@/components/map3d/LiveTransitMap"));
@@ -124,7 +123,7 @@ export default function AdminOverview({ vehicles=[], routes=[], trips=[], faults
   <section aria-label="Fleet overview" className="tt-admin-stats grid grid-cols-2 gap-3 xl:grid-cols-4">
    <Stat icon={Bus} tone="bg-primary/15 text-primary" value={fleet.length} label="Vehicles" detail={scope==="all"?"Across all companies":"Selected company"} onClick={()=>onNavigate("vehicles")} />
    <Stat icon={Bus} tone="bg-info/15 text-info" value={onTrip.length} label="On trip" detail={live.length+" buses sharing location"} onClick={()=>onNavigate("fleet")} />
-   <Stat icon={OctagonAlert} tone="bg-danger/15 text-danger" value={openFaults.length>=500?"500+":openFaults.length} label="Open faults" detail="Unresolved fault records" onClick={()=>onNavigate("faults")} />
+   <Stat icon={OctagonAlert} tone="bg-danger/15 text-danger" value={openFaults.length>=500?"500+":openFaults.length} label="Open faults" detail="Loaded unresolved fault records" onClick={()=>onNavigate("faults")} />
    <Stat icon={Smartphone} tone="bg-warning/15 text-warning" value={kiosksReady?needsTablets.length:"—"} label="Tablets needing attention" detail={kiosksReady?"Current tablet reports":"Tablet data unavailable"} onClick={()=>onNavigate("kiosks")} />
   </section>
   <ul aria-label="Fleet totals" className="tt-admin-totals flex flex-wrap gap-x-6 gap-y-2 text-sm">

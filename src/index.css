@@ -664,3 +664,58 @@ html.tt-future {
  .tt-welcome-workspaces { grid-template-columns:1fr; }
  .tt-welcome-footer { margin:0 20px; flex-wrap:wrap; }
 }
+
+/* Shared Admin chrome and panels. All existing management tabs inherit it. */
+.tt-admin-shell {
+ background:radial-gradient(ellipse at 35% 0%,#0b2c3c66,transparent 50%),hsl(var(--background));
+}
+.tt-admin-shell > aside { width:240px; background:linear-gradient(180deg,#081b2a,#040f1c); }
+.tt-admin-shell header { background:#071624ed; }
+.tt-admin-shell section.rounded-2xl,
+.tt-admin-shell div.rounded-2xl.border,
+.tt-admin-stats > button {
+ background-image:linear-gradient(135deg,#0e273950,#06111e90);
+ box-shadow:inset 0 1px 0 #bcf6ff08,0 8px 24px #0002;
+}
+.tt-admin-group-toggle {
+ display:flex; align-items:center; gap:12px; width:100%; min-height:48px; padding:10px 12px;
+ text-align:left; border-radius:12px; color:#a9c6da; font-size:14px; font-weight:500;
+}
+.tt-admin-group-toggle span { flex:1; }
+.tt-admin-group-toggle:hover { background:#102d4155; color:#ecfaff; }
+.tt-admin-group-current { color:#40d9ee; background:#0c344444; }
+.tt-admin-group-items { margin:4px 0 10px 20px; padding-left:8px; border-left:1px solid #274153; }
+.tt-admin-nav-secondary { border-top:1px solid #244052; margin-top:18px; padding-top:16px; }
+.tt-admin-shell nav [aria-current="page"] { background:linear-gradient(110deg,#05657a66,#064e6977); border:1px solid #2fd9eb55; color:#e5fbff; box-shadow:0 0 18px #16d6ed10; }
+.tt-admin-shell nav button:focus-visible { outline:2px solid #3ee0f5; outline-offset:2px; }
+.tt-admin-stats > button { min-height:112px; border-radius:16px; }
+.tt-admin-totals { border-bottom:1px solid hsl(var(--border)); padding-bottom:10px; }
+.tt-admin-alert-list { padding-top:10px; }
+.tt-admin-attention-row {
+ display:flex; flex-wrap:wrap; align-items:center; gap:12px; width:100%; min-height:86px; padding:14px;
+ border:1px solid hsl(var(--border)); border-radius:14px; background:#102a3c55; text-align:left;
+}
+.tt-admin-attention-row:hover { border-color:#29b9d066; background:#12324777; }
+.tt-admin-attention-icon { display:grid; place-items:center; width:52px; height:52px; flex-shrink:0; border-radius:12px; color:#a2c5d9; background:#ffffff08; }
+.tt-admin-attention-action { display:inline-flex; align-items:center; gap:6px; flex-shrink:0; padding:7px 10px; font-size:12px; color:#a6e4f2; border:1px solid #356278; border-radius:9px; }
+.tt-admin-status-table { width:100%; min-width:520px; border-collapse:collapse; font-size:13px; }
+.tt-admin-status-table th { text-align:left; padding:13px 16px; font-size:12px; font-weight:500; color:#9fb7c9; border-bottom:1px solid hsl(var(--border)); }
+.tt-admin-status-table td { padding:12px 16px; border-bottom:1px solid hsl(var(--border)); vertical-align:middle; }
+.tt-admin-status-table tr:last-child td { border-bottom:0; }
+.tt-admin-status-table tbody tr:hover { background:#183c4d22; }
+.tt-admin-tablet-row { display:flex; align-items:center; gap:12px; min-height:88px; width:100%; text-align:left; padding:12px 0; border-bottom:1px solid hsl(var(--border)); font-size:13px; flex-wrap:wrap; }
+.tt-admin-tablet-row:last-child { border-bottom:0; }
+.tt-admin-overview [aria-label="Needs attention"] { max-height:580px; overflow:auto; }
+.tt-admin-shell main { padding-bottom:130px; }
+.tt-future button[aria-label="Open messages"] { border-color:#28d9ee; color:#2cd9ef; box-shadow:0 0 20px #00d5f322; }
+.tt-future button[aria-label="Open AI assistant"] { border-color:#31566a; color:#b5daeb; }
+@media(max-width:1279px) {
+ .tt-admin-attention-action { margin-left:auto; }
+}
+@media(max-width:600px) {
+ .tt-admin-stats > button { padding:14px; min-height:135px; }
+ .tt-admin-stats > button > span:last-child > span:last-child { white-space:normal; }
+ .tt-admin-map-panel .h-\[410px\] { height:300px; }
+ .tt-admin-attention-row { padding:12px; }
+ .tt-admin-tablet-row .text-body-sm { font-size:12px; }
+}
