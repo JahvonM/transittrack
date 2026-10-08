@@ -233,6 +233,25 @@ export default function Admin() {
     return unsub;
   }, []);
 
+  // Tablet reports update the overview while it is open, using the same
+  // authorized entity subscription as the fleet rather than polling all lists.
+  useEffect(() => {
+    if (section !== "overview") return;
+    return base44.entities.KioskDevice.subscribe((event) => {
+      setData((prev) => {
+        const list = prev.kiosks;
+        if (!list) return prev;
+        const next = event.type === "delete"
+          ? list.filter((d) => d.id !== event.id)
+          : !event.data ? list
+            : list.some((d) => d.id === event.id)
+              ? list.map((d) => d.id === event.id ? event.data : d)
+              : [...list, event.data];
+        return next === list ? prev : { ...prev, kiosks: next };
+      });
+    });
+  }, [section]);
+
   // An acknowledgment only clears a vehicle's CURRENT emergency — if it drops
   // out of emergency status and later fires SOS again, it must take over the
   // screen again rather than staying silently acknowledged forever.

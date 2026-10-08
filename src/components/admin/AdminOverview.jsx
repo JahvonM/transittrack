@@ -6,6 +6,11 @@ import { computeOccupancyByVehicle } from "@/lib/occupancy";
 import { freshnessOf, formatAge } from "@/components/system/status";
 import RecentActivityFeed from "@/components/admin/RecentActivityFeed";
 
+import BusArtwork from "@/components/BusArtwork";
+import { adminTabletHealth } from "@/lib/adminTabletHealth";
+import { PageActions } from "@/components/admin/kit";
+import { Button } from "@/components/ui/button";
+
 const LiveTransitMap = lazy(() => import("@/components/map3d/LiveTransitMap"));
 
 // One status word for a bus, for staff (emergencies included).
@@ -69,10 +74,6 @@ const ViewAll = ({ onClick, label = "View all" }) => (
   </button>
 );
 
-import BusArtwork from "@/components/BusArtwork";
-import { adminTabletHealth } from "@/lib/adminTabletHealth";
-import { PageActions } from "@/components/admin/kit";
-import { Button } from "@/components/ui/button";
 
 export default function AdminOverview({ vehicles=[], routes=[], trips=[], faults=[], schedules=[], companies=[], parts=[], kiosks=[], kiosksReady=false, onNavigate, tools }) {
  const [occupancy,setOccupancy]=useState({});
@@ -110,7 +111,7 @@ export default function AdminOverview({ vehicles=[], routes=[], trips=[], faults
   ...fleet.filter(v=>statuses[v.id].key==="speed").map(v=>({id:"speed-"+v.id,vehicle:v,icon:Gauge,title:v.name+": speeding",detail:v.driver_name||companyOf(v),go:"fleet",action:"View fleet",tone:"danger"})),
   ...openFaults.map(f=>({id:"fault-"+f.id,vehicle:fleet.find(v=>v.id===f.vehicle_id),icon:OctagonAlert,title:[f.vehicle_name||nameOf(f.vehicle_id),f.title||"Open fault"].filter(Boolean).join(" · "),detail:f.severity ? f.severity+" priority" : "Open fault",go:"faults",action:"Review fault",tone:f.severity==="critical"?"danger":"warning"})),
   ...due.map(m=>({id:"due-"+m.id,vehicle:fleet.find(v=>v.id===m.vehicle_id),icon:Wrench,title:[m.vehicle_name||nameOf(m.vehicle_id),m.service_type||"Maintenance"].filter(Boolean).join(" · "),detail:m.status==="overdue"?"Maintenance overdue":"Maintenance due",go:"schedule",action:"Maintenance",tone:"warning"})),
-  ...needsTablets.map(d=>({id:"tablet-"+d.id,icon:Smartphone,title:d.label||d.vehicle_name||"Tablet",detail:tabletStates[d.id].label,go:"kiosks",action:"View tablet",tone:"warning"})),
+  ...needsTablets.map(d=>({id:"tablet-"+d.id,icon:Smartphone,title:d.label||d.name||d.vehicle_name||"Tablet",detail:tabletStates[d.id].label,go:"kiosks",action:"View tablet",tone:"warning"})),
   ...signal.filter(v=>statuses[v.id].key==="lost").map(v=>({id:"lost-"+v.id,vehicle:v,icon:SatelliteDish,title:v.name+": signal lost",detail:"Last fix "+age(v.last_location_update),go:"fleet",action:"View fleet",tone:"warning"})),
  ];
  const tabletRows=[...devices].sort((a,b)=>Number(tabletStates[b.id]?.attention)-Number(tabletStates[a.id]?.attention)).slice(0,6);
@@ -155,7 +156,7 @@ export default function AdminOverview({ vehicles=[], routes=[], trips=[], faults
     {!fleet.length&&<p className="p-5 text-sm text-muted-foreground">No vehicles in this view.</p>}
    </Panel>
    <Panel title="Tablet health" action={<ViewAll onClick={()=>onNavigate("kiosks")} label="View tablets" />}>
-    <div className="px-4 pb-4 space-y-2">{tabletRows.map(d=><button key={d.id} type="button" onClick={()=>onNavigate("kiosks")} className="tt-admin-tablet-row"><Smartphone className="w-6 h-6 shrink-0 text-muted-foreground" /><span className="min-w-0 flex-1"><strong className="block break-words">{d.label||d.vehicle_name||"Tablet"}</strong><small className="block text-muted-foreground">{d.vehicle_name||"No vehicle"} · {companyOf(d)}</small><small className="block text-muted-foreground">Last seen: {age(d.last_seen)}</small></span><StatusPill status={tabletStates[d.id]} /></button>)}</div>
+    <div className="px-4 pb-4 space-y-2">{tabletRows.map(d=><button key={d.id} type="button" onClick={()=>onNavigate("kiosks")} className="tt-admin-tablet-row"><Smartphone className="w-6 h-6 shrink-0 text-muted-foreground" /><span className="min-w-0 flex-1"><strong className="block break-words">{d.label||d.name||d.vehicle_name||"Tablet"}</strong><small className="block text-muted-foreground">{d.vehicle_name||nameOf(d.vehicle_id)||"No vehicle"} · {companyOf(d)}</small><small className="block text-muted-foreground">Last seen: {age(d.last_seen)}</small></span><StatusPill status={tabletStates[d.id]} /></button>)}</div>
     {!devices.length&&<p className="p-5 text-sm text-muted-foreground">{kiosksReady?"No tablets in this view.":"Tablet data unavailable."}</p>}
    </Panel>
   </div>

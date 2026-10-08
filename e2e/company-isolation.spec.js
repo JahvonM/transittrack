@@ -789,8 +789,8 @@ test('admin overview filters actual companies and opens existing vehicle form',a
   if(b.entity==='Vehicle')result=vehicles;
   if(b.entity==='Company')result=[{id:'a',name:'Company A'},{id:'b',name:'Company B'}];
   if(b.entity==='KioskDevice')result=[
-   {id:'ka',name:'Tablet A',company_id:'a',vehicle_id:'bus-a',status:'active',paired:true,last_seen:now,helper_health:{reported_at:now,reader:'connected',battery:80}},
-   {id:'kb',name:'Tablet B',company_id:'b',vehicle_id:'bus-b',status:'active',paired:true,last_seen:now,helper_health:{reported_at:now,reader:'Not plugged in',battery:80}}
+   {id:'ka',label:'Tablet A',company_id:'a',vehicle_id:'bus-a',status:'active',paired:true,last_seen:now,helper_health:{reported_at:now,reader:'connected',battery:80}},
+   {id:'kb',label:'Tablet B',company_id:'b',vehicle_id:'bus-b',status:'active',paired:true,last_seen:now,helper_health:{reported_at:now,reader:'Not plugged in',battery:80}}
   ];
   return r.fulfill({json:{result}});
  });
@@ -804,6 +804,7 @@ test('admin overview filters actual companies and opens existing vehicle form',a
  await page.getByLabel('Overview company',{exact:true}).selectOption('a');
  await expect(fleet).toContainText('Bus A');
  await expect(fleet).not.toContainText('Bus B');
+ await expect(health).toContainText('Tablet A');
  await expect(health).not.toContainText('Tablet B');
  await page.getByRole('button',{name:'Add vehicle',exact:true}).click();
  await expect(page.getByRole('dialog')).toBeVisible();
@@ -821,4 +822,14 @@ test('admin overview fits a phone and opens grouped navigation',async({page})=>{
  await page.getByRole('button',{name:'People & access',exact:true}).click();
  await page.getByRole('button',{name:'Drivers',exact:true}).click();
  await expect(page).toHaveURL(/admin\/drivers/);
+});
+
+
+test('admin tool search routes to existing maintenance tools',async({page})=>{
+ await session(page,'admin');
+ await page.goto('/admin');
+ await page.getByLabel('Search admin',{exact:true}).fill('faults');
+ await page.getByRole('button',{name:'Faults',exact:true}).click();
+ await expect(page).toHaveURL(/admin\/faults/);
+ await expect(page.getByRole('navigation',{name:'Admin'}).getByRole('button',{name:'Maintenance',exact:true})).toHaveAttribute('aria-expanded','true');
 });
