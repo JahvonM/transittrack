@@ -53,6 +53,8 @@ export default function ChatThread({
   quickReplies,
 }) {
   const [text, setText] = useState("");
+  const [pending, setPending] = useState(null);
+  const sendBusy = useRef(false);
   const [sendError, setSendError] = useState("");
   const [editingId, setEditingId] = useState(null);
   const [editText, setEditText] = useState("");
@@ -64,19 +66,25 @@ export default function ChatThread({
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
 
-  useEffect(() => { bottomRef.current?.scrollIntoView({ block: "nearest" }); }, [messages.length]);
+  useEffect(() => { bottomRef.current?.scrollIntoView({ block: "nearest" }); }, [messages.length, pending?.id, pending?.__delivery]);
 
   const send = async (value) => {
     const trimmed = (value ?? text).trim();
-    if (!trimmed || sending) return;
-    setSendError("");
+    if (!trimmed || sending || sendBusy.current) return;
+    sendBusy.current = true;
+    const local = { id: "local-" + crypto.randomUUID(), text: trimmed, message_type: "text", created_date: new Date().toISOString(), __delivery: "Sending…" };
+    setPending(local); setSendError("");
     try {
-      await onSend(trimmed);
+      const result = await onSend(trimmed);
+      const record = result?.message || result;
+      setPending(record?.id ? { ...record, __delivery: "Sent" } : null);
       setText(current => current.trim() === trimmed ? "" : current);
     } catch {
+      setPending({ ...local, __delivery: "Not sent" });
       setSendError("Couldn't send. Your message is still here; try again.");
-    }
+    } finally { sendBusy.current = false; }
   };
+  const shown = pending && !messages.some(m=>m.id===pending.id) ? [...messages,pending] : messages;
 
   const handleFile = async (e) => {
     const file = e.target.files?.[0];
@@ -86,7 +94,7 @@ export default function ChatThread({
     try {
       const compressed = await compressImage(file);
       await onSendImage(compressed);
-    } finally {
+    } catch { setSendError("Couldn’t send the attachment. Try again."); } finally {
       setUploading(false);
     }
   };
@@ -132,16 +140,16 @@ export default function ChatThread({
   return (
     <div className="space-y-3">
       <div className="space-y-2 max-h-[50vh] overflow-y-auto">
-        {messages.length === 0 && (
+        {shown.length === 0 && (
           <p className="text-sm text-muted-foreground text-center py-8">
             <MessageCircle className="w-7 h-7 mx-auto mb-2 opacity-40" />
             {emptyText}
           </p>
         )}
-        {messages.map((m) => {
-          const mine = isMine(m);
+        {shown.map((m) => {
+          const mine = !!m.__delivery || isMine(m);
           const isEditing = editingId === m.id;
-          const isLocal = String(m.id).startsWith("local-");
+          const isLocal = !!m.__delivery || String(m.id).startsWith("local-");
           const isMedia = m.message_type === "image" || m.message_type === "audio";
           return (
             <div key={m.id} className={`flex flex-col ${mine ? "items-end" : "items-start"}`}>
@@ -173,7 +181,7 @@ export default function ChatThread({
                   <div className="text-sm whitespace-pre-wrap">{m.text}</div>
                 )}
                 <div className={`text-caption mt-0.5 ${mine ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
-                  {formatTime(m.created_date)}{m.edited ? " · edited" : ""}
+                  {formatTime(m.created_date)}{m.edited ? " · edited" : ""}{m.__delivery && <span role="status"> · {m.__delivery}</span>}
                 </div>
               </div>
               {mine && !isLocal && (
@@ -229,7 +237,7 @@ export default function ChatThread({
           onKeyDown={(e) => { if (e.key === "Enter") send(); }}
           disabled={uploading}
         />
-        <Button aria-label="Send message" onClick={() => send()} disabled={sending || uploading || !text.trim()}>
+        <Button aria-label="Send message" onClick={() => send()} disabled={sending || pending?.__delivery === "Sending…" || uploading || !text.trim()}>
           <Send className="w-4 h-4" />
         </Button>
       </div>

@@ -1,3 +1,4 @@
+import { ChoiceSelect } from "@/components/ui/choice-picker";
 import React, { Suspense, lazy, useEffect, useMemo, useState } from "react";
 import { Bus, ChevronRight, CircleCheck, Gauge, OctagonAlert, SatelliteDish, Siren, Smartphone, Plus, Wrench } from "lucide-react";
 import { base44 } from "@/api/base44Client";
@@ -118,7 +119,7 @@ export default function AdminOverview({ vehicles=[], routes=[], trips=[], faults
  return <div className="tt-admin-overview space-y-6">
   <PageActions>
    <label className="sr-only" htmlFor="tt-overview-company">Overview company</label>
-   <select id="tt-overview-company" value={scope} onChange={e=>setScope(e.target.value)} className="h-10 max-w-[230px] rounded-xl border border-input bg-card px-3 text-sm"><option value="all">All companies</option>{companies.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select>
+   <ChoiceSelect aria-label="Overview company" id="tt-overview-company" value={scope} onChange={e=>setScope(e.target.value)} className="h-10 max-w-[230px] rounded-xl border border-input bg-card px-3 text-sm"><option value="all">All companies</option>{companies.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</ChoiceSelect>
    <Button onClick={()=>onNavigate("vehicles?create=1")}><Plus className="w-4 h-4" />Add vehicle</Button>
   </PageActions>
   <section aria-label="Fleet overview" className="tt-admin-stats grid grid-cols-2 gap-3 xl:grid-cols-4">

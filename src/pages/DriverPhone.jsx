@@ -1,4 +1,5 @@
 import useFutureAppearance from "@/hooks/useFutureAppearance";
+import PullToRefresh from "@/components/PullToRefresh";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { CalendarDays, LogOut, MessageSquare, TriangleAlert, User as UserIcon } from "lucide-react";
@@ -7,7 +8,7 @@ import { cn } from "@/lib/utils";
 import JourneyLoading from "@/components/JourneyLoading";
 import Logo from "@/components/Logo";
 import { useToast } from "@/components/ui/use-toast";
-import { requestPushToken, onForegroundMessage } from "@/lib/firebase";
+import { requestPushToken, pushPermission, onForegroundMessage } from "@/lib/firebase";
 import { PUSH_FAILURE } from "@/hooks/usePushNotifications";
 import { callDriverPhone, nextDrivingState, notADriver } from "@/lib/driverPhone";
 import TodayTab from "@/components/driverPhone/TodayTab";
@@ -168,8 +169,10 @@ export default function DriverPhone() {
     return "";
   }, []);
   useEffect(() => {
-    if (status !== "ready" || typeof Notification === "undefined" || Notification.permission !== "granted") return;
-    registerPush({ prompt: false }).catch(() => {});
+    if (status !== "ready") return;
+    let cancelled=false;
+    pushPermission().then(p=>{if(!cancelled&&p==="granted")registerPush({prompt:false}).catch(()=>{});});
+    return()=>{cancelled=true;};
   }, [status, registerPush]);
   useEffect(() => onForegroundMessage((payload) => {
     const { title, body } = payload.notification || {};
@@ -234,7 +237,8 @@ export default function DriverPhone() {
   };
   const send = async (channel, text) => {
     const { message } = await callDriverPhone("send", { vehicle_id: busRef.current || undefined, channel, text });
-    setMessages((all) => [...all, message]);
+    setMessages((all) => [...all.filter(m=>m.id!==message.id), message]);
+    return message;
   };
   const report = (body) => callDriverPhone("report", { vehicle_id: busRef.current || undefined, ...body });
   const loadHours = async () => {
@@ -304,10 +308,10 @@ export default function DriverPhone() {
             onCancel={(id) => callDriverPhone("cancel_request", { request_id: id })} onBack={() => navigate("/driver-phone/me")} />
         )}
         {!screen && tab === "today" && (
-          <TodayTab today={today} driverName={me?.driver?.name} onPickBus={pickBus} backupSentAt={backupSentAt}
-            onStartShift={() => navigate("/driver-phone/start")} onEndShift={endShift} onWalkaround={() => navigate("/driver-phone/walkaround")} />
+          <PullToRefresh onRefresh={loadToday}><TodayTab today={today} driverName={me?.driver?.name} onPickBus={pickBus} backupSentAt={backupSentAt}
+            onStartShift={() => navigate("/driver-phone/start")} onEndShift={endShift} onWalkaround={() => navigate("/driver-phone/walkaround")} /></PullToRefresh>
         )}
-        {tab === "messages" && <MessagesTab messages={messages} loaded={messagesLoaded} hasBus={!!today?.bus} onSend={send} />}
+        {tab === "messages" && <PullToRefresh onRefresh={loadMessages}><MessagesTab messages={messages} loaded={messagesLoaded} hasBus={!!today?.bus} onSend={send} /></PullToRefresh>}
         {tab === "report" && <ReportTab busName={today?.bus?.name} onSend={report} />}
         {tab === "me" && (
           <MeTab me={me} documents={documents} docsLoaded={docsLoaded} onLoadDocs={loadDocs} shifts={shifts} onLoadHours={loadHours} onOpenRequests={() => navigate("/driver-phone/requests")}

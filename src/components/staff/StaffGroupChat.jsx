@@ -62,8 +62,10 @@ export default function StaffGroupChat({ vehicle }) {
         company_id: vehicle.company_id, company_name: vehicle.company_name,
         channel: "staff", sender_role: "staff", sender_name: displayName, text,
       });
+      setMessages(prev=>[...prev.filter(m=>m.id!==message.id),message]);
       notifyAdmin(message);
-    } catch { /* offline or blocked — nothing to recover client-side */ }
+      return message;
+    }
     finally { setSending(false); }
   };
 
@@ -99,7 +101,7 @@ export default function StaffGroupChat({ vehicle }) {
   }
 
   return (
-    <ChatThread
+    <ChatThread key={vehicle.id}
       messages={messages}
       isMine={(m) => m.created_by_id === user?.id}
       senderLabel={(m) => (m.sender_role === "driver" ? "Driver" : m.sender_role === "admin" ? "Admin" : (m.sender_name || "Staff"))}

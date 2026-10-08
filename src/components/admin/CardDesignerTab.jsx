@@ -1,3 +1,4 @@
+import { ChoiceSelect } from "@/components/ui/choice-picker";
 import AvatarPicker from "@/components/AvatarPicker";
 import React, { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
@@ -59,9 +60,9 @@ export default function CardDesignerTab() {
       <div className="grid lg:grid-cols-2 gap-5">
         <div className="space-y-3 rounded-2xl border p-4">
           <Label htmlFor="card-person">Card holder</Label>
-          <select id="card-person" className="w-full rounded-md border bg-background p-2" value={personKey} onChange={e => { setPersonKey(e.target.value); setPhoto(""); }}>
+          <ChoiceSelect aria-label="Card holder" id="card-person" className="w-full rounded-md border bg-background p-2" value={personKey} onChange={e => { setPersonKey(e.target.value); setPhoto(""); }}>
             <option value="">Sample passenger</option>{people.map(p => <option key={p.key} value={p.key}>{p.name} · {p.company_name || "No company"}</option>)}
-          </select>
+          </ChoiceSelect>
           {["title","subtitle","footer"].map(k => <div key={k}><Label htmlFor={"card-"+k}>{k === "title" ? "Heading" : k === "subtitle" ? "Card type" : "Footer"}</Label><Input id={"card-"+k} maxLength={70} value={design[k]} onChange={e => change({[k]:e.target.value})} /></div>)}
           <Label htmlFor="card-back">Back text</Label><textarea id="card-back" maxLength={400} className="w-full rounded-md border bg-background p-2" value={design.backText} onChange={e => change({backText:e.target.value})} />
           <div className="flex gap-4">{[["color","Accent"],["background","Background"],["text","Text"]].map(([k,label]) => <label key={k} className="text-sm">{label}<input type="color" className="block mt-1" value={design[k]} onChange={e => change({[k]:e.target.value})}/></label>)}</div>

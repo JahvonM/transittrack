@@ -3,12 +3,13 @@ import { Bus, Building2, Tablet, LogOut, Sun, Moon } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import { useIsDark } from "@/lib/useTheme";
 import useTheme from "@/hooks/useTheme";
 
 export default function DriverDevicePanel({ session, deviceId, onUnpair }) {
   const vehicle = session?.vehicle;
-  const { theme, toggle } = useTheme();
-  const isDark = theme === "dark";
+  const { toggle } = useTheme();
+  const isDark = useIsDark();
 
   return (
     <Card className="max-w-lg mx-auto">

@@ -1,53 +1,24 @@
 import { useEffect, useState } from "react";
-
-// v2: the old key was written on every mount (not just explicit choices), so
-// it can't tell a real preference from an OS default — reset once for the
-// dark + lime redesign.
-const STORAGE_KEY = "tt-theme-v2";
-
-function applyClass(theme) {
-  const root = document.documentElement;
-  root.classList.remove("dark", "light");
-  if (theme === "dark" || theme === "light") root.classList.add(theme);
+const STORAGE_KEY="tt-theme-v2", EVENT="tt-theme-change";
+const query=()=>window.matchMedia("(prefers-color-scheme: dark)");
+const preference=()=>{try{const t=localStorage.getItem(STORAGE_KEY);if(["dark","light","system"].includes(t))return t;}catch{/* unavailable */}return "system";};
+const resolved=t=>t==="system"?(query().matches?"dark":"light"):t;
+function apply(t){const root=document.documentElement;const mode=resolved(t);root.classList.remove("dark","light");root.classList.add(mode);root.style.colorScheme=mode;}
+export function useIsDark(){
+ const read=()=>document.documentElement.classList.contains("tt-future")||!document.documentElement.classList.contains("light");
+ const [dark,setDark]=useState(read);
+ useEffect(()=>{const o=new MutationObserver(()=>setDark(read()));o.observe(document.documentElement,{attributes:true,attributeFilter:["class","data-accent"]});return()=>o.disconnect();},[]);
+ return dark;
 }
-
-function initialTheme() {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved === "dark" || saved === "light") return saved;
-  } catch {
-    /* ignore */
-  }
-  return "dark";
-}
-
-// Tracks the live <html> class rather than holding its own state, so
-// components that only need to *react* to the theme (e.g. picking a map
-// style) update the moment any toggle anywhere flips it.
-export function useIsDark() {
-  const read = () => document.documentElement.classList.contains("tt-future") || !document.documentElement.classList.contains("light");
-  const [isDark, setIsDark] = useState(read);
-  useEffect(() => {
-    const obs = new MutationObserver(() => setIsDark(read()));
-    obs.observe(document.documentElement, { attributes: true, attributeFilter: ["class", "data-accent"] });
-    return () => obs.disconnect();
-  }, []);
-  return isDark;
-}
-
-export function useTheme() {
-  const [theme, setTheme] = useState(initialTheme);
-
-  useEffect(() => {
-    applyClass(theme);
-    try {
-      localStorage.setItem(STORAGE_KEY, theme);
-    } catch {
-      /* ignore */
-    }
-  }, [theme]);
-
-  const toggle = () => setTheme((t) => (t === "dark" ? "light" : "dark"));
-
-  return { theme, setTheme, toggle };
+export function useTheme(){
+ const [theme,update]=useState(preference);
+ useEffect(()=>{
+  const media=query();
+  const sync=()=>{const t=preference();update(t);apply(t);};
+  sync();media.addEventListener("change",sync);window.addEventListener(EVENT,sync);window.addEventListener("storage",sync);
+  return()=>{media.removeEventListener("change",sync);window.removeEventListener(EVENT,sync);window.removeEventListener("storage",sync);};
+ },[]);
+ const setTheme=t=>{if(!["system","dark","light"].includes(t))return;try{localStorage.setItem(STORAGE_KEY,t);}catch{/* unavailable */}update(t);apply(t);window.dispatchEvent(new Event(EVENT));};
+ const toggle=()=>setTheme(resolved(theme)==="dark"?"light":"dark");
+ return {theme,setTheme,toggle};
 }

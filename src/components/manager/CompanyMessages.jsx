@@ -100,7 +100,9 @@ export default function CompanyMessages({ vehicles = [] }) {
         company_id: activeVehicle.company_id, company_name: activeVehicle.company_name,
         channel: "company", sender_role: "company", sender_name: senderName, text,
       });
+      setMessagesByVehicle(prev=>({...prev,[message.vehicle_id]:[...(prev[message.vehicle_id]||[]).filter(m=>m.id!==message.id),message]}));
       notifyAdmin(message);
+      return message;
     } finally {
       setSending(false);
     }
@@ -187,7 +189,7 @@ export default function CompanyMessages({ vehicles = [] }) {
                 </Button>
               </div>
               <div className="flex-1 overflow-y-auto p-3">
-                <ChatThread
+                <ChatThread key={activeVehicleId}
                   messages={activeMessages}
                   isMine={(m) => m.sender_role === "company"}
                   senderLabel={(m) => (m.sender_role === "driver" ? "Driver" : m.sender_name || "Company")}

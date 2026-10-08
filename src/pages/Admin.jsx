@@ -5,6 +5,7 @@ import { Navigate, Link, useParams, useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import { EmbeddedLayout } from "@/components/AppLayout";
+import PullToRefresh from "@/components/PullToRefresh";
 import AdminShell from "@/components/admin/AdminShell";
 import AdminOverview from "@/components/admin/AdminOverview";
 import AssignTripsTab from "@/components/admin/AssignTripsTab";
@@ -387,6 +388,7 @@ export default function Admin() {
         pushPermission={pushPermission}
         onEnableNotifications={enableNotifications}
       >
+        <PullToRefresh onRefresh={refresh}>
         {section === "overview" && (
           <AdminOverview
             vehicles={vehicles}
@@ -538,6 +540,7 @@ export default function Admin() {
             </section>
           </div>
         )}
+        </PullToRefresh>
       </AdminShell>
       <FloatingMessages vehicles={vehicles} />
       <FloatingChatbot />

@@ -1,3 +1,4 @@
+import { ChoiceSelect } from "@/components/ui/choice-picker";
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -119,20 +120,20 @@ export default function KioskDeviceDialog({ open, onOpenChange, companies, vehic
           </div>
           <div className="space-y-2">
             <Label>Kiosk type</Label>
-            <select
-              value={kioskType}
+            <ChoiceSelect
+              aria-label="Kiosk type" value={kioskType}
               onChange={(e) => setKioskType(e.target.value)}
               className={selectClass}
             >
               {KIOSK_TYPES.map((t) => (
                 <option key={t.value} value={t.value}>{t.label}</option>
               ))}
-            </select>
+            </ChoiceSelect>
           </div>
           <div className="space-y-2">
             <Label>Company</Label>
-            <select
-              value={companyId}
+            <ChoiceSelect
+              aria-label="Company" value={companyId}
               onChange={(e) => { setCompanyId(e.target.value); setVehicleId(""); }}
               className={selectClass}
             >
@@ -140,13 +141,13 @@ export default function KioskDeviceDialog({ open, onOpenChange, companies, vehic
               {companies.map((c) => (
                 <option key={c.id} value={c.id}>{c.name}</option>
               ))}
-            </select>
+            </ChoiceSelect>
           </div>
           {needsVehicle && (
             <div className="space-y-2">
               <Label>Vehicle</Label>
-              <select
-                value={vehicleId}
+              <ChoiceSelect
+                aria-label="Vehicle" value={vehicleId}
                 onChange={(e) => setVehicleId(e.target.value)}
                 className={selectClass}
                 disabled={!companyId}
@@ -155,7 +156,7 @@ export default function KioskDeviceDialog({ open, onOpenChange, companies, vehic
                 {filteredVehicles.map((v) => (
                   <option key={v.id} value={v.id}>{v.name}{v.plate_number ? ` · ${v.plate_number}` : ""}</option>
                 ))}
-              </select>
+              </ChoiceSelect>
             </div>
           )}
         </div>

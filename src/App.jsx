@@ -11,6 +11,7 @@ import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-route
 import { Suspense, lazy } from 'react';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
+import { useTheme } from "@/lib/useTheme";
 import ScrollToTop from './components/ScrollToTop';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import MobileTabBar from '@/components/MobileTabBar';
@@ -75,7 +76,7 @@ const AuthenticatedApp = () => {
   const tabletPage = /^\/(driver|kiosk)(\/|$)/.test(location.pathname);
   // The legal pages are linked from the app stores, so they must open for
   // signed-out visitors instead of bouncing to the login screen.
-  const publicPage = authPage || ['/privacy', '/terms'].includes(location.pathname);
+  const publicPage = authPage || ['/privacy', '/terms', '/reviewer-sandbox'].includes(location.pathname);
   // Pages remount (and animate) when this key changes. The driver app's tabs
   // are all one page, so they share a key — switching tabs must not restart
   // it (that would stop GPS tracking and navigation).
@@ -122,6 +123,8 @@ const AuthenticatedApp = () => {
       <Route path="/oauth/consent" element={<OAuthConsent />} />
       <Route path="/privacy" element={<PrivacyPolicy />} />
       <Route path="/terms" element={<TermsOfService />} />
+      {/* Store reviewers open this without an account, so it sits outside the sign-in gate. */}
+      <Route path="/reviewer-sandbox" element={<ReviewerSandbox />} />
       {/* One route for /driver and /driver/<tab> so tab changes don't remount the app */}
       <Route path="/driver/:stage?" element={<DriverApp />} />
       <Route path="/kiosk" element={<Kiosk />} />
@@ -155,7 +158,6 @@ const AuthenticatedApp = () => {
         <Route path="/incident-report" element={<IncidentReport />} />
         <Route path="/support" element={<PassengerSupport />} />
         <Route path="/route-planner" element={<RoutePlanner />} />
-        <Route path="/reviewer-sandbox" element={<ReviewerSandbox />} />
         <Route path="/driving-reports" element={<DrivingReports />} />
         <Route path="/location-timeline" element={<Navigate to="/admin/location-timeline" replace />} />
         <Route path="/driver-schedule" element={<DriverSchedule />} />
@@ -176,6 +178,7 @@ const AuthenticatedApp = () => {
 
 
 function App() {
+  useTheme();
 
   return (
     <ErrorBoundary>

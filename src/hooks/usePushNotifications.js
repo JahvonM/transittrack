@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { base44 } from "@/api/base44Client";
-import { onForegroundMessage, requestPushToken } from "@/lib/firebase";
+import { onForegroundMessage, requestPushToken, pushPermission } from "@/lib/firebase";
 import { useToast } from "@/components/ui/use-toast";
 
 const currentPermission = () =>
@@ -8,8 +8,9 @@ const currentPermission = () =>
 
 // What to tell people when this device can't get notifications, by reason.
 export const PUSH_FAILURE = {
+  native_setup: { title: "Native notifications need setup", description: "This app build needs its Firebase notification configuration. Browser notifications remain available." },
   unsupported: { title: "This browser can't show notifications", description: "On iPhone, add TransitTrack to your Home Screen and open it from there, then try again." },
-  denied: { title: "Notifications are blocked", description: "Allow notifications for this site in your browser settings, then reload the page." },
+  denied: { title: "Notifications are blocked", description: "Allow TransitTrack notifications in this device’s app or browser settings, then try again." },
   dismissed: { title: "Notifications are still off", description: "The permission prompt was closed. Tap again and choose Allow." },
   no_token: { title: "Couldn't turn on notifications", description: "The notification service didn't respond. Check your connection and try again." },
   error: { title: "Couldn't turn on notifications", description: "The notification service didn't respond. Check your connection and try again." },
@@ -49,9 +50,15 @@ export function usePushNotifications({ email, role, companyId } = {}) {
 
   // Already granted on a previous visit: re-register quietly (never prompts).
   useEffect(() => {
-    if (autoChecked.current || !email || currentPermission() !== "granted") return;
+    if (autoChecked.current || !email) return;
     autoChecked.current = true;
-    requestPushToken({ prompt: false }).then(({ token }) => { if (token) saveToken(token); });
+    let cancelled=false;
+    pushPermission().then(async p=>{
+      if(cancelled)return;
+      setPermission(p==="granted"?"default":p);
+      if(p==="granted"){const {token}=await requestPushToken({prompt:false});if(token&&!cancelled&&(await saveToken(token)))setPermission("granted");}
+    });
+    return()=>{cancelled=true;autoChecked.current=false;};
   }, [email, role, companyId]);
 
   useEffect(() => onForegroundMessage((payload) => {
@@ -67,9 +74,11 @@ export function usePushNotifications({ email, role, companyId } = {}) {
       const fail = (key) => { toast({ ...PUSH_FAILURE[key], variant: "destructive" }); return false; };
       if (!email) return fail("signed_out");
       const { token, reason } = await requestPushToken();
-      setPermission(currentPermission());
+      const devicePermission=await pushPermission();
+      setPermission(devicePermission==="granted"?"default":devicePermission);
       if (!token) return fail(reason || "error");
       if (!(await saveToken(token))) return fail("not_saved");
+      setPermission("granted");
       toast({ title: "Notifications on", description: "This device will get your TransitTrack alerts." });
       return true;
     } finally {

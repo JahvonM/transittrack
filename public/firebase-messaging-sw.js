@@ -21,6 +21,7 @@ messaging.onBackgroundMessage((payload) => {
   const body = payload.notification?.body || "";
   self.registration.showNotification(title, {
     body,
+    icon: "/brand/icon-192.png?v=hiace1",
     tag: payload.data?.type || "transit-track",
     data: payload.data || {},
   });

@@ -1,7 +1,7 @@
 const {app,BrowserWindow,Menu,dialog,shell}=require('electron');
 const path=require('node:path');
 const {APP_ORIGIN,isAppUrl,externalUrl}=require('./policy.cjs');
-let mainWindow;
+let mainWindow,deviceSetup;
 app.enableSandbox();
 app.setAppUserModelId('com.transittrack.desktop');
 if(!app.requestSingleInstanceLock()) app.quit();
@@ -25,10 +25,10 @@ function createWindow() {
  mainWindow.once('ready-to-show',()=>mainWindow.show());
  mainWindow.webContents.on('page-title-updated',event=>{event.preventDefault();mainWindow.setTitle('TransitTrack Desktop');});
  const ses=mainWindow.webContents.session;
- ses.setPermissionCheckHandler((contents,permission,origin)=>isAppUrl(origin)&&['notifications','geolocation'].includes(permission));
+ ses.setPermissionCheckHandler((contents,permission,origin)=>isAppUrl(origin)&&['notifications','geolocation','loopback-network'].includes(permission));
  ses.setPermissionRequestHandler(async(contents,permission,callback)=>{
-  if(!isAppUrl(contents.getURL())||!['notifications','geolocation'].includes(permission)){callback(false);return;}
-  const {response}=await dialog.showMessageBox(mainWindow,{type:'question',title:'TransitTrack permission',message:permission==='geolocation'?'Allow TransitTrack to use your location?':'Allow TransitTrack desktop notifications?',buttons:['Deny','Allow'],defaultId:0,cancelId:0});
+  if(!isAppUrl(contents.getURL())||!['notifications','geolocation','loopback-network'].includes(permission)){callback(false);return;}
+  const {response}=await dialog.showMessageBox(mainWindow,{type:'question',title:'TransitTrack permission',message:permission==='loopback-network'?'Allow TransitTrack to connect to the local NFC reader?':permission==='geolocation'?'Allow TransitTrack to use your location?':'Allow TransitTrack desktop notifications?',buttons:['Deny','Allow'],defaultId:0,cancelId:0});
   callback(response===1);
  });
  mainWindow.webContents.on('will-navigate',(event,url)=>{if(!isAppUrl(url)){event.preventDefault();openExternal(url).catch(()=>{});}});
@@ -52,10 +52,13 @@ function createWindow() {
    {label:'Sign in / switch account',click:()=>openRoute('/login')},
    {type:'separator'},{role:'quit'}
   ]},
+  {label:'Devices',submenu:[{label:'Tablet & NFC setup',click:()=>{deviceSetup ||= require('./setup-main.cjs').createDeviceSetup(require('electron'),mainWindow);deviceSetup.open();}}]},
   {label:'Edit',submenu:[{role:'undo'},{role:'redo'},{type:'separator'},{role:'cut'},{role:'copy'},{role:'paste'},{role:'selectAll'}]},
   {label:'View',submenu:[{label:'Reconnect / reload',accelerator:'Ctrl+R',click:()=>isAppUrl(mainWindow?.webContents.getURL())?mainWindow.reload():openRoute('/')},{role:'resetZoom'},{role:'zoomIn'},{role:'zoomOut'},{role:'togglefullscreen'}]},
-  {label:'Help',submenu:[{label:'About TransitTrack Desktop',click:()=>dialog.showMessageBox(mainWindow,{type:'info',message:'TransitTrack Desktop 0.1.0',detail:'Admin and Mechanic workspaces. Uses your existing account permissions. Internet is needed for live data. This preview supports email/password sign-in; native NFC integration and automatic updates are not included.'})}]}
+  {label:'Help',submenu:[{label:'About TransitTrack Desktop',click:()=>dialog.showMessageBox(mainWindow,{type:'info',message:'TransitTrack Desktop 0.2.1',detail:'Admin and Mechanic workspaces. Uses your existing account permissions. Internet is needed for live data. This preview supports email/password sign-in; USB tablet setup and NFC reader controls are available under Devices. Automatic updates are not included.'})}]}
  ]));
  openRoute('/login?returnTo=%2F');
 }
 app.on('window-all-closed',()=>app.quit());
+
+app.on('before-quit',()=>deviceSetup?.stop());

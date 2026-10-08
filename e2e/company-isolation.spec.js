@@ -56,7 +56,8 @@ test('card designer exports a printable PNG using selected passenger details',as
  await session(page,'admin');
  await page.route('**/functions/nfcCards',route=>route.fulfill({json:{people:[{key:'user:email-passenger',name:'Email Passenger',company_name:'Company A',employee_id:'EMP-12',card:{card_uid:'SECRETUID'}}]}}));
  await page.goto('/admin/card-designs');
- await page.getByLabel('Card holder',{exact:true}).selectOption('user:email-passenger');
+ await page.getByLabel('Card holder',{exact:true}).click();
+ await page.getByRole('option',{name:'Email Passenger · Company A',exact:true}).click();
  await expect(page.getByTestId('card-artwork-preview')).toContainText('Email Passenger');
  await expect(page.getByTestId('card-artwork-preview')).toContainText('EMP-12');
  await expect(page.getByTestId('card-artwork-preview')).not.toContainText('SECRETUID');
@@ -802,7 +803,8 @@ test('admin overview filters actual companies and opens existing vehicle form',a
  await expect(fleet).toContainText('Bus B');
  await expect(health).toContainText('Helper reporting');
  await expect(health).toContainText('Reader: Not plugged in');
- await page.getByLabel('Overview company',{exact:true}).selectOption('a');
+ await page.getByLabel('Overview company',{exact:true}).click();
+ await page.getByRole('option',{name:'Company A',exact:true}).click();
  await expect(fleet).toContainText('Bus A');
  await expect(fleet).not.toContainText('Bus B');
  await expect(health).toContainText('Tablet A');
@@ -833,4 +835,87 @@ test('admin tool search routes to existing maintenance tools',async({page})=>{
  await page.getByRole('button',{name:'Faults',exact:true}).click();
  await expect(page).toHaveURL(/admin\/faults/);
  await expect(page.getByRole('navigation',{name:'Admin'}).getByRole('button',{name:'Maintenance',exact:true})).toHaveAttribute('aria-expanded','true');
+});
+
+test('system theme follows device changes without saving an automatic preference',async({page})=>{
+ await session(page,'admin');
+ await page.emulateMedia({colorScheme:'light'});
+ await page.goto('/privacy');
+ await expect(page.locator('html')).toHaveClass(/light/);
+ expect(await page.evaluate(()=>localStorage.getItem('tt-theme-v2'))).toBeNull();
+ await page.emulateMedia({colorScheme:'dark'});
+ await expect(page.locator('html')).toHaveClass(/dark/);
+ await page.evaluate(()=>localStorage.setItem('tt-theme-v2','light'));
+ await page.reload();
+ await expect(page.locator('html')).toHaveClass(/light/);
+});
+
+test('mobile overview company picker is a drawer with selectable options',async({page})=>{
+ await page.setViewportSize({width:390,height:844});
+ await session(page,'admin');
+ await page.goto('/admin');
+ await page.getByLabel('Overview company',{exact:true}).click();
+ const drawer=page.getByRole('dialog');
+ await expect(drawer).toBeVisible();
+ await page.screenshot({path:'/tmp/tt-choice-drawer.png',animations:'disabled'});
+ await drawer.getByRole('option',{name:'Company A',exact:true}).click();
+ await expect(drawer).toHaveCount(0);
+ await expect(page.getByLabel('Overview company',{exact:true})).toContainText('Company A');
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+});
+
+test('admin refresh reads lists again and preserves saved offline work',async({page})=>{
+ const {calls}=await session(page,'admin');
+ await page.addInitScript(()=>localStorage.setItem('tt_refresh_canary','saved offline work'));
+ await page.goto('/admin');
+ await expect(page.getByRole('region',{name:'Fleet status'})).toBeVisible();
+ const initial=calls.filter(c=>c.entity==='Vehicle'&&c.operation==='list').length;
+ await page.getByRole('button',{name:'Refresh list',exact:true}).click();
+ await expect.poll(()=>calls.filter(c=>c.entity==='Vehicle'&&c.operation==='list').length).toBeGreaterThan(initial);
+ expect(await page.evaluate(()=>localStorage.getItem('tt_refresh_canary'))).toBe('saved offline work');
+});
+
+test('chat shows sending immediately and retains text after a failed send',async({page})=>{
+ await session(page,'admin');
+ let release;
+ await page.route('**/functions/entityAccess',async r=>{
+  const b=r.request().postDataJSON();
+  if(b.entity==='GroupMessage'&&b.operation==='create'){
+   await new Promise(resolve=>release=resolve);
+   return r.fulfill({status:500,json:{error:'Test failure'}});
+  }
+  return r.fallback();
+ });
+ await page.goto('/admin');
+ await page.getByRole('button',{name:'Open messages',exact:true}).click();
+ await page.getByRole('button',{name:'New message',exact:true}).click();
+ await page.getByRole('button',{name:/Bus A.*No messages/}).click();
+ await page.getByRole('button',{name:/Passengers.*No messages/}).click();
+ const input=page.getByPlaceholder("Message this bus's passengers…");
+ await input.fill('Keep my unsent message');
+ await page.getByRole('button',{name:'Send message',exact:true}).click();
+ await expect(page.getByText('Keep my unsent message',{exact:true})).toBeVisible();
+ await expect(page.getByText('· Sending…',{exact:false})).toBeVisible();
+ release();
+ await expect(page.getByRole('alert').filter({hasText:"Couldn't send"})).toBeVisible();
+ await expect(input).toHaveValue('Keep my unsent message');
+ await expect(page.getByText('· Not sent',{exact:false})).toBeVisible();
+});
+
+test('pull gesture refreshes once and cancelled gestures preserve the current list',async({page})=>{
+ const {calls}=await session(page,'admin');
+ await page.setViewportSize({width:390,height:844});
+ await page.goto('/admin');
+ const panel=page.getByRole('region',{name:'Fleet overview'});
+ await expect(panel).toBeVisible();
+ const initial=calls.filter(c=>c.entity==='Vehicle'&&c.operation==='list').length;
+ const gesture=async(cancel)=>panel.evaluate((el,cancel)=>{
+  const emit=(type,y)=>el.dispatchEvent(new TouchEvent(type,{bubbles:true,touches:type==='touchend'||type==='touchcancel'?[]:[new Touch({identifier:1,target:el,clientX:100,clientY:y})]}));
+  emit('touchstart',200);emit('touchmove',350);emit(cancel?'touchcancel':'touchend',350);
+ },cancel);
+ await gesture(true);
+ await expect(page.getByRole('button',{name:'Refresh list',exact:true})).toBeEnabled();
+ expect(calls.filter(c=>c.entity==='Vehicle'&&c.operation==='list').length).toBe(initial);
+ await gesture(false);
+ await expect.poll(()=>calls.filter(c=>c.entity==='Vehicle'&&c.operation==='list').length).toBe(initial+1);
 });

@@ -60,7 +60,8 @@ test.describe('phone',()=>{
   await page.getByLabel('Day',{exact:true}).fill(iso(9));
   await page.getByRole('button',{name:'Send request'}).click();
   await expect(page.getByRole('alert')).toContainText('Choose who to swap with');
-  await page.getByLabel('Swap with').selectOption({label:'Sam Other'});
+  await page.getByLabel('Swap with',{exact:true}).click();
+  await page.getByRole('option',{name:'Sam Other',exact:true}).click();
   await page.getByRole('button',{name:'Send request'}).click();
   await expect(page.getByText(/^Swap .* with Sam Other$/)).toBeVisible();
   await page.getByRole('button',{name:'Cancel'}).first().click();

@@ -1,3 +1,4 @@
+import { ChoiceSelect } from "@/components/ui/choice-picker";
 import React, { useEffect, useState } from "react";
 import EmptyState from "@/components/EmptyState";
 import { base44 } from "@/api/base44Client";
@@ -69,10 +70,10 @@ export default function AdsTab({ companyId = "" }) {
       {!companyId && (
         <div className="max-w-sm space-y-1.5">
           <Label htmlFor="ad-owner">Owner of new advertisement</Label>
-          <select id="ad-owner" aria-label="Advertisement owner" value={form.company_id} onChange={e => setForm(f => ({ ...f, company_id: e.target.value }))} className="h-10 w-full rounded-md border border-input bg-card px-3 text-body-sm">
+          <ChoiceSelect id="ad-owner" aria-label="Advertisement owner" value={form.company_id} onChange={e => setForm(f => ({ ...f, company_id: e.target.value }))} className="h-10 w-full rounded-md border border-input bg-card px-3 text-body-sm">
             <option value="">Global — admin managed</option>
             {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
+          </ChoiceSelect>
         </div>
       )}
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-4">
@@ -82,9 +83,9 @@ export default function AdsTab({ companyId = "" }) {
           )}
           {ads.map((ad) => (
             <div key={ad.id} className="flex items-center gap-3 p-3 rounded-xl border bg-card">
-              {!companyId && <select aria-label={`Owner of ${ad.title}`} value={ad.company_id || ""} onChange={async e => { await base44.entities.Advertisement.update(ad.id, { company_id: e.target.value }); load(); }} className="max-w-40 border rounded-md text-xs">
+              {!companyId && <ChoiceSelect aria-label={`Owner of ${ad.title}`} value={ad.company_id || ""} onChange={async e => { await base44.entities.Advertisement.update(ad.id, { company_id: e.target.value }); load(); }} className="max-w-40 border rounded-md text-xs">
                 <option value="">Global</option>{companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>}
+              </ChoiceSelect>}
               {ad.image_url ? (
                 <Image src={ad.image_url} className="w-12 h-12 rounded-lg shrink-0" fittingType="fill" />
               ) : (
