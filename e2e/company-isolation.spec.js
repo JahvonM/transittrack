@@ -754,6 +754,10 @@ test('pickup selection is a draft until confirmed, supports search, and keeps th
  expect(saved).toHaveLength(0);
  expect(await page.evaluate(()=>localStorage.getItem('tt_staff_pickup'))).toBe('Grand Anse');
  await page.screenshot({path:'/tmp/tt-pickup-mobile.png'});
+ await dialog.getByRole('button',{name:'View stops on map',exact:true}).click();
+ await expect(dialog.getByLabel('Pickup stops map').locator('.leaflet-container')).toBeVisible();
+ await dialog.getByRole('button',{name:'Hide stops map',exact:true}).click();
+ await expect(dialog.getByLabel('Pickup stops map')).toHaveCount(0);
  await page.keyboard.press('Escape');
  expect(saved).toHaveLength(0);
  await page.getByRole('button',{name:'Find my pickup',exact:true}).click();

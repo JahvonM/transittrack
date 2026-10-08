@@ -2,7 +2,7 @@ import React, { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { Bus, Check, LocateFixed, Map, MapPin, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { haversineKm } from "@/lib/geo";
-import LocationPinner from "@/components/staff/LocationPinner";
+const LocationPinner = lazy(() => import("@/components/staff/LocationPinner"));
 const StopsMap = lazy(() => import("@/components/LiteMap"));
 const distance = km => km < 1 ? `${Math.round(km*1000/10)*10} m` : `${km.toFixed(1)} km`;
 
@@ -41,7 +41,7 @@ export default function PickupSelector({ options=[], routes=[], value, onChoose,
   </div>
   {mode==="near" ? <div className="space-y-3">
    <h3 className="font-semibold">Find a roadside pickup</h3><p className="text-sm text-muted-foreground">Use your location, search an address or choose your own point. Review the walking directions before saving.</p>
-   <LocationPinner onSaved={async name=>{await onChoose(name);onConfirmed?.();}} />
+   <Suspense fallback={<p role="status" className="text-sm text-muted-foreground">Opening pickup finder…</p>}><LocationPinner onSaved={async name=>{await onChoose(name);onConfirmed?.();}} /></Suspense>
   </div> : <>
    <label className="flex h-12 items-center gap-2 rounded-xl border bg-card px-3 focus-within:ring-2 focus-within:ring-primary">
     <Search className="w-5 h-5 text-muted-foreground" aria-hidden="true" /><span className="sr-only">Search stops or areas</span>
