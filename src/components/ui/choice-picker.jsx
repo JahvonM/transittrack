@@ -25,3 +25,9 @@ export default function ChoicePicker({ value, onValueChange, options, label, id,
   </SheetContent></Sheet>
  </>;
 }
+
+export function ChoiceSelect({children,onChange,value="",...props}){
+ const options=React.Children.toArray(children).filter(React.isValidElement).map(o=>({value:o.props.value,label:o.props.children,disabled:o.props.disabled}));
+ const label=props["aria-label"]||props.label||"Choose an option";
+ return <ChoicePicker value={value} onValueChange={v=>onChange?.({target:{value:v}})} options={options} label={label} id={props.id} disabled={props.disabled} className={props.className} />;
+}

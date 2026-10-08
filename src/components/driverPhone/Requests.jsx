@@ -1,3 +1,4 @@
+import { ChoiceSelect } from "@/components/ui/choice-picker";
 import PullToRefresh from "@/components/PullToRefresh";
 import React, { useEffect, useState } from "react";
 import { ArrowLeft, CalendarOff, Loader2, Repeat } from "lucide-react";
@@ -80,10 +81,10 @@ export default function Requests({ load, onCreate, onCancel, onBack }) {
         {kind === "swap" && (
           <label className="block">
             <span className="mb-1 block font-semibold">Swap with</span>
-            <select value={swapWith} onChange={(e) => setSwapWith(e.target.value)} className={field}>
+            <ChoiceSelect aria-label="Swap with" value={swapWith} onChange={(e) => setSwapWith(e.target.value)} className={field}>
               <option value="">Choose a driver</option>
               {(data?.colleagues || []).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
+            </ChoiceSelect>
           </label>
         )}
         <label className="block">
