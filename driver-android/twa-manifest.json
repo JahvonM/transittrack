@@ -1,0 +1,29 @@
+{
+  "packageId": "com.transittrack.driver",
+  "host": "eager-transit-track-go.base44.app",
+  "name": "TransitTrack Driver",
+  "launcherName": "Driver",
+  "display": "standalone",
+  "orientation": "portrait",
+  "themeColor": "#0D1520",
+  "navigationColor": "#0D1520",
+  "navigationColorDark": "#0D1520",
+  "backgroundColor": "#0D1520",
+  "enableNotifications": true,
+  "startUrl": "/driver-phone",
+  "iconUrl": "https://eager-transit-track-go.base44.app/brand/icon-512.png",
+  "maskableIconUrl": "https://eager-transit-track-go.base44.app/brand/maskable-512.png",
+  "webManifestUrl": "https://eager-transit-track-go.base44.app/manifest.webmanifest",
+  "splashScreenFadeOutDuration": 300,
+  "fallbackType": "customtabs",
+  "enableSiteSettingsShortcut": true,
+  "appVersionName": "1.0.0",
+  "appVersionCode": 1,
+  "minSdkVersion": 24,
+  "signingKey": {
+    "path": "REPLACE_WITH_THE_FULL_PATH_TO_YOUR_OWN_KEYSTORE",
+    "alias": "REPLACE_WITH_YOUR_KEY_ALIAS"
+  },
+  "features": {},
+  "shortcuts": []
+}
