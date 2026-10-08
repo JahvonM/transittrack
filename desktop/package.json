@@ -1,13 +1,13 @@
 {
   "name": "transittrack-desktop",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "TransitTrack Admin and Mechanic for Windows",
   "author": "TransitTrack",
   "main": "main.cjs",
   "scripts": {
     "start": "electron .",
-    "test": "node --test policy.test.cjs main.test.cjs",
+    "test": "node --test *.test.cjs",
     "build:win": "electron-builder --win nsis --x64 --publish never"
   },
   "devDependencies": {
@@ -25,7 +25,14 @@
       "policy.cjs",
       "offline.html",
       "package.json",
-      "assets/**"
+      "assets/**",
+      "device-policy.cjs",
+      "setup-main.cjs",
+      "setup-preload.cjs",
+      "setup.html",
+      "setup.css",
+      "setup.js",
+      "reader.ps1"
     ],
     "win": {
       "target": [
@@ -48,6 +55,18 @@
       "createStartMenuShortcut": true,
       "shortcutName": "TransitTrack Desktop",
       "deleteAppDataOnUninstall": false
-    }
+    },
+    "extraResources": [
+      {
+        "from": "native",
+        "to": "native",
+        "filter": [
+          "adb.exe",
+          "*.dll",
+          "NOTICE.txt",
+          "source.properties"
+        ]
+      }
+    ]
   }
 }
