@@ -613,7 +613,7 @@ test('company logo upload previews the banner and saves its URL',async({page})=>
  await session(page,'admin');
  let saved;
  await page.route('**/api/**',async r=>{
-  if(/UploadFile/i.test(r.request().url()))return r.fulfill({json:{file_url:'https://test.invalid/company-logo.png'}});
+  if(/Upload(?:Public)?File/i.test(r.request().url()))return r.fulfill({json:{file_url:'https://test.invalid/company-logo.png'}});
   return r.fallback();
  });
  await page.route('**/functions/entityAccess',async r=>{
@@ -621,6 +621,7 @@ test('company logo upload previews the banner and saves its URL',async({page})=>
   if(b.entity==='Company'&&b.operation==='create'){saved=b.data;return r.fulfill({json:{result:{id:'new-company',...b.data}}});}
   return r.fallback();
  });
+ await page.route('https://test.invalid/company-logo.png',r=>r.fulfill({path:'/app/public/images/transit-bus-3d.webp',contentType:'image/webp'}));
  await page.goto('/admin/companies');
  await page.getByPlaceholder('Island Transit Co.').fill('Logo Company');
  await page.getByLabel('Company logo',{exact:true}).setInputFiles({name:'logo.png',mimeType:'image/png',buffer:Buffer.from([137,80,78,71])});
