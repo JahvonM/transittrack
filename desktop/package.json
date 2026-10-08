@@ -1,0 +1,51 @@
+{
+  "name": "transittrack-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "TransitTrack Admin and Mechanic for Windows",
+  "author": "TransitTrack",
+  "main": "main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test policy.test.cjs",
+    "build:win": "electron-builder --win nsis --x64 --publish never"
+  },
+  "devDependencies": {
+    "electron": "44.7.0",
+    "electron-builder": "26.15.3"
+  },
+  "build": {
+    "appId": "com.transittrack.desktop",
+    "productName": "TransitTrack Desktop",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "main.cjs",
+      "policy.cjs",
+      "offline.html",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "signAndEditExecutable": false,
+      "artifactName": "TransitTrack-Desktop-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "TransitTrack Desktop",
+      "deleteAppDataOnUninstall": false
+    }
+  }
+}
