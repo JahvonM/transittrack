@@ -161,7 +161,7 @@ async function notify(base44, channel, companyId, payload) {
 function busSummary(v) {
   return {
     id: v.id, name: sanitize(v.name) || 'Bus', plate_number: v.plate_number || '', fleet_number: v.fleet_number || '',
-    type: v.type || '', capacity: v.capacity ?? null, route_id: v.route_id || '',
+    image_url: v.image_url || '', model_3d: v.model_3d || '', type: v.type || '', capacity: v.capacity ?? null, route_id: v.route_id || '',
     tracking_active: !!v.tracking_active, last_location_update: v.last_location_update || null,
   };
 }

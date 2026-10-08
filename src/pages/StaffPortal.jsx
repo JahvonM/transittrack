@@ -473,6 +473,7 @@ export default function StaffPortal() {
             </div>
 
             <CompanyBanner name={companyName} logoUrl={company.logo_url} compact className="mx-6 mb-4 lg:mx-0" />
+            <div className="tt-passenger-greeting mx-6 mb-5 lg:mx-0"><p className="text-body-sm text-muted-foreground">Your journey, connected</p><h1 className="text-headline font-bold">Welcome{user?.full_name ? `, ${user.full_name.split(" ")[0]}` : ""}</h1></div>
             <PickupCard
               pickupName={user?.pickup_lat != null ? user.pickup_name || "Your pinned pickup" : ""}
               dropoffName={workplace?.name || ""}

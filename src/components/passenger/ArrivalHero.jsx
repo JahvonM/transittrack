@@ -70,7 +70,7 @@ function StopsTrack({ stopsAway }) {
   );
 }
 
-const MINS = "font-display text-[3.25rem] font-semibold tabular-nums leading-[0.85] tracking-[-0.03em]";
+const MINS = "font-display text-[4.5rem] font-semibold tabular-nums leading-[0.85] tracking-[-0.03em]";
 const WORD = "font-display text-title font-semibold leading-tight";
 
 /**
@@ -131,7 +131,9 @@ export default function ArrivalHero({ state, stop, eta, trip, now = Date.now(), 
   return (
     <section className="px-6 pb-6 pt-2 lg:px-0" aria-label="Your bus" aria-describedby="tt-arrival-sub">
       <p className="sr-only" aria-live="polite" id="tt-arrival-sub">{spoken}</p>
-      <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+      <div className="tt-future-arrival rounded-2xl border border-border bg-card p-5 shadow-sm">
+        <p className="mb-4 text-body-sm font-semibold text-muted-foreground">Your next bus</p>
+        {bus && <BusArtwork vehicle={bus} width={260} className="tt-arrival-art h-40 w-full mb-4" />}
         {(onTrip || Source) && (
           <div className="mb-3 flex items-center justify-between gap-3">
             {onTrip ? <LiveLine state={state} fresh={fresh} /> : <span />}
@@ -147,7 +149,7 @@ export default function ArrivalHero({ state, stop, eta, trip, now = Date.now(), 
           <div className="min-w-0 flex-1">
             <div className="flex min-w-0 items-center gap-2">
               {bus && kind !== "no_eta" && (
-                <BusArtwork width={56} className={cn("-my-2 -ml-1 h-11 w-14 shrink-0", dim && "opacity-60 grayscale")} />
+                <BusArtwork vehicle={bus} width={56} className={cn("-my-2 -ml-1 h-11 w-14 shrink-0", dim && "opacity-60 grayscale")} />
               )}
               <span className={cn(
                 "inline-flex max-w-full items-center truncate rounded-md px-2 py-0.5 text-body-sm font-bold",

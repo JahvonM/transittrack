@@ -1,3 +1,5 @@
+import BusArtwork from "@/components/BusArtwork";
+import useFutureAppearance from "@/hooks/useFutureAppearance";
 import { TRANSIT_TIME_ZONE, transitHour } from "@/lib/localTime";
 import React, { useEffect, useRef, useState } from "react";
 import { helperLink } from "@/lib/helperHealth";
@@ -18,7 +20,7 @@ import QrScanner from "./QrScanner";
 import SlideToUnlock from "./SlideToUnlock";
 import KioskMascot from "./KioskMascot";
 import KioskConnectionBadge from "./KioskConnectionBadge";
-import AnimatedBus, { DrivingScene } from "@/components/AnimatedBus";
+import { DrivingScene } from "@/components/AnimatedBus";
 
 const CODE_MAX_LEN = 12;
 const FLUSH_INTERVAL_MS = 15000;
@@ -206,6 +208,7 @@ function PassengerListDialog({ open, onOpenChange, vehicleName }) {
 // empty space — a persistent top bar and, on large screens, a live info
 // rail (occupancy/weather/ads) fill the room around the actual check-in card.
 export default function BusBoardingKiosk({ invoke, device, directoryInfo, online }) {
+  useFutureAppearance();
   const isDark = useIsDark();
   const [unlocked, setUnlocked] = useState(false);
   const [now, setNow] = useState(() => new Date());
@@ -512,7 +515,8 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
         </div>
         {device?.vehicle_name && <p className="text-xl font-semibold text-muted-foreground">{device.vehicle_name}</p>}
         {/* Short landscape tablets: drop the scene so the slider stays on screen. */}
-        <div className="[@media(max-height:820px)]:hidden"><DrivingScene height={190} busWidth={260} className="-mx-10" /></div>
+        <div className="tt-boarding-art flex items-center justify-center gap-4"><BusArtwork vehicle={vehicle} width={280} className="h-36 sm:h-44 max-w-[60%]" /><div className="tt-nfc-target grid place-items-center w-24 h-24 rounded-full border border-primary/60 text-primary"><CreditCard className="w-10 h-10" /></div></div>
+        <div><p className="text-title font-bold">Welcome aboard</p><p className="text-body text-muted-foreground">Tap your card to begin</p></div>
         <SlideToUnlock label="Slide to check in" onUnlock={() => setUnlocked(true)} />
       </Screen>
     );
@@ -550,7 +554,7 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
         <CardContent key="result" className="p-10 text-center space-y-4 animate-in fade-in zoom-in-90 duration-500">
           {boarded && (
             <div className="flex justify-center -mb-2">
-              <AnimatedBus mode="arrive" width={220} doorOpen />
+              <BusArtwork vehicle={vehicle} width={220} className="h-32 tt-bus-arrive" />
             </div>
           )}
           <div className="flex items-center justify-center gap-3">

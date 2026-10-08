@@ -1,3 +1,4 @@
+import BusArtwork from "@/components/BusArtwork";
 import React from "react";
 import { Bus, CircleCheck, ClipboardCheck, Clock, Megaphone, MessageCircle, Phone, Play, Route as RouteIcon, Square, UserX } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -64,7 +65,8 @@ export default function TodayTab({ today, driverName, onPickBus, onStartShift, o
           <p className="text-body text-muted-foreground">Your administrator hasn't assigned you a bus yet. Messages and reports still reach dispatch.</p>
         </Section>
       ) : (
-        <section className="rounded-2xl border border-border bg-card p-4" aria-label="Your bus">
+        <section className="tt-driver-vehicle-hero rounded-2xl border border-border bg-card p-4" aria-label="Your bus">
+          <BusArtwork vehicle={bus} width={280} className="w-full h-40 mb-4" />
           <div className="flex items-center gap-3">
             <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-secondary" aria-hidden="true"><Bus className="h-6 w-6" /></span>
             <div className="min-w-0 flex-1">
