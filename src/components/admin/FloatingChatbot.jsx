@@ -39,7 +39,7 @@ export default function FloatingChatbot({ placement = "float" }) {
   return (
     <>
       {open && (
-        <div className={inHeader ? "fixed right-3 top-[4.5rem] z-50 flex h-[min(70vh,640px)] w-[calc(100vw-1.5rem)] max-w-sm flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl" : "fixed bottom-20 right-4 z-50 w-[92vw] max-w-sm h-[60vh] flex flex-col rounded-2xl border bg-card shadow-2xl"} role="dialog" aria-label="AI copilot">
+        <div className={inHeader ? "fixed right-3 top-[4.5rem] z-50 flex h-[min(70vh,640px)] w-[calc(100vw-1.5rem)] max-w-sm flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl" : "fixed bottom-[calc(5.0rem+env(safe-area-inset-bottom))] right-[calc(1rem+env(safe-area-inset-right))] z-50 w-[92vw] max-w-sm h-[60vh] flex flex-col rounded-2xl border bg-card shadow-2xl"} role="dialog" aria-label="AI copilot">
           <div className="flex items-center justify-between p-3 border-b">
             <div className="flex items-center gap-2 font-semibold text-sm">
               <Sparkles className="w-4 h-4 text-primary" /> AI copilot
@@ -78,7 +78,7 @@ export default function FloatingChatbot({ placement = "float" }) {
         </div>
       )}
       <Button
-        className={inHeader ? "relative h-10 w-10 rounded-full" : "fixed bottom-4 right-4 z-50 h-14 w-14 rounded-full border border-border bg-card text-foreground shadow-lg hover:bg-accent"}
+        className={inHeader ? "relative h-10 w-10 rounded-full" : "fixed bottom-[calc(1.0rem+env(safe-area-inset-bottom))] right-[calc(1rem+env(safe-area-inset-right))] z-50 h-14 w-14 rounded-full border border-border bg-card text-foreground shadow-lg hover:bg-accent"}
         variant={inHeader ? "ghost" : "default"}
         size="icon"
         aria-expanded={open}

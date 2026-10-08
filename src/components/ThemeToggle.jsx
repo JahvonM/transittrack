@@ -1,9 +1,10 @@
 import React from "react";
-import { Moon, Sun } from "lucide-react";
+import { Moon, Sun, Monitor } from "lucide-react";
 import { useTheme } from "@/lib/useTheme";
 import { cn } from "@/lib/utils";
 
 const OPTIONS = [
+  { id: "system", label: "System", icon: Monitor },
   { id: "light", label: "Light", icon: Sun },
   { id: "dark", label: "Dark", icon: Moon },
 ];
@@ -19,6 +20,7 @@ export default function ThemeToggle() {
           <button
             key={opt.id}
             type="button"
+            aria-pressed={active}
             onClick={() => setTheme(opt.id)}
             className={cn(
               "inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-medium transition-colors",

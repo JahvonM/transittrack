@@ -1,3 +1,4 @@
+import PullToRefresh from "@/components/PullToRefresh";
 import React, { useEffect, useState } from "react";
 import { ArrowLeft, CalendarOff, Loader2, Repeat } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -97,7 +98,7 @@ export default function Requests({ load, onCreate, onCancel, onBack }) {
         </button>
       </form>
 
-      <section aria-label="Your requests" className="rounded-2xl border border-border bg-card p-4">
+      <PullToRefresh onRefresh={refresh}><section aria-label="Your requests" className="rounded-2xl border border-border bg-card p-4">
         <h2 className="mb-2 text-title-sm font-bold">Your requests</h2>
         {!data ? <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" aria-label="Loading requests" />
           : data.requests.length === 0 ? <p className="text-muted-foreground">None yet.</p>
@@ -116,7 +117,7 @@ export default function Requests({ load, onCreate, onCancel, onBack }) {
               ))}
             </ul>
           )}
-      </section>
+      </section></PullToRefresh>
     </div>
   );
 }

@@ -11,6 +11,7 @@ import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-route
 import { Suspense, lazy } from 'react';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
+import { useTheme } from "@/lib/useTheme";
 import ScrollToTop from './components/ScrollToTop';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import MobileTabBar from '@/components/MobileTabBar';
@@ -177,6 +178,7 @@ const AuthenticatedApp = () => {
 
 
 function App() {
+  useTheme();
 
   return (
     <ErrorBoundary>

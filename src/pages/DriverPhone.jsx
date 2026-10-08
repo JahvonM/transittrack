@@ -1,4 +1,5 @@
 import useFutureAppearance from "@/hooks/useFutureAppearance";
+import PullToRefresh from "@/components/PullToRefresh";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { CalendarDays, LogOut, MessageSquare, TriangleAlert, User as UserIcon } from "lucide-react";
@@ -234,7 +235,8 @@ export default function DriverPhone() {
   };
   const send = async (channel, text) => {
     const { message } = await callDriverPhone("send", { vehicle_id: busRef.current || undefined, channel, text });
-    setMessages((all) => [...all, message]);
+    setMessages((all) => [...all.filter(m=>m.id!==message.id), message]);
+    return message;
   };
   const report = (body) => callDriverPhone("report", { vehicle_id: busRef.current || undefined, ...body });
   const loadHours = async () => {
@@ -304,10 +306,10 @@ export default function DriverPhone() {
             onCancel={(id) => callDriverPhone("cancel_request", { request_id: id })} onBack={() => navigate("/driver-phone/me")} />
         )}
         {!screen && tab === "today" && (
-          <TodayTab today={today} driverName={me?.driver?.name} onPickBus={pickBus} backupSentAt={backupSentAt}
-            onStartShift={() => navigate("/driver-phone/start")} onEndShift={endShift} onWalkaround={() => navigate("/driver-phone/walkaround")} />
+          <PullToRefresh onRefresh={loadToday}><TodayTab today={today} driverName={me?.driver?.name} onPickBus={pickBus} backupSentAt={backupSentAt}
+            onStartShift={() => navigate("/driver-phone/start")} onEndShift={endShift} onWalkaround={() => navigate("/driver-phone/walkaround")} /></PullToRefresh>
         )}
-        {tab === "messages" && <MessagesTab messages={messages} loaded={messagesLoaded} hasBus={!!today?.bus} onSend={send} />}
+        {tab === "messages" && <PullToRefresh onRefresh={loadMessages}><MessagesTab messages={messages} loaded={messagesLoaded} hasBus={!!today?.bus} onSend={send} /></PullToRefresh>}
         {tab === "report" && <ReportTab busName={today?.bus?.name} onSend={report} />}
         {tab === "me" && (
           <MeTab me={me} documents={documents} docsLoaded={docsLoaded} onLoadDocs={loadDocs} shifts={shifts} onLoadHours={loadHours} onOpenRequests={() => navigate("/driver-phone/requests")}

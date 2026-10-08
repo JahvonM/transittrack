@@ -719,3 +719,18 @@ html.tt-future {
  .tt-admin-attention-row { padding:12px; }
  .tt-admin-tablet-row .text-body-sm { font-size:12px; }
 }
+
+/* Mobile overlays stay within the device cutouts in portrait and landscape. */
+.tt-safe-sheet {
+ padding-top: max(1.5rem, env(safe-area-inset-top));
+ padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
+ padding-left: max(1.5rem, env(safe-area-inset-left));
+ padding-right: max(1.5rem, env(safe-area-inset-right));
+ max-height: 100dvh;
+}
+.tt-safe-sheet > button { top: max(1rem, env(safe-area-inset-top)); right: max(1rem, env(safe-area-inset-right)); }
+.tt-safe-dialog {
+ max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 2rem);
+ width: calc(100% - env(safe-area-inset-left) - env(safe-area-inset-right) - 2rem);
+ overflow-y: auto;
+}

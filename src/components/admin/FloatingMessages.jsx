@@ -158,7 +158,7 @@ export default function FloatingMessages({ vehicles = [], placement = "float" })
   return (
     <>
       {open && (
-        <div className={inHeader ? "fixed right-3 top-[4.5rem] z-50 flex h-[min(70vh,640px)] w-[calc(100vw-1.5rem)] max-w-sm flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl" : "fixed bottom-40 right-4 z-50 w-[92vw] max-w-sm h-[65vh] flex flex-col rounded-2xl border bg-card shadow-2xl overflow-hidden"} role="dialog" aria-label="Bus chats">
+        <div className={inHeader ? "fixed right-3 top-[4.5rem] z-50 flex h-[min(70vh,640px)] w-[calc(100vw-1.5rem)] max-w-sm flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl" : "fixed bottom-[calc(10.0rem+env(safe-area-inset-bottom))] right-[calc(1rem+env(safe-area-inset-right))] z-50 w-[92vw] max-w-sm h-[65vh] flex flex-col rounded-2xl border bg-card shadow-2xl overflow-hidden"} role="dialog" aria-label="Bus chats">
           <Button variant="outline" size="sm" className="m-2 shrink-0" onClick={newMessage}><SquarePen className="h-4 w-4" aria-hidden="true" /> New message</Button>
           {!activeVehicle ? (
             <>
@@ -272,7 +272,7 @@ export default function FloatingMessages({ vehicles = [], placement = "float" })
         </div>
       )}
       <Button
-        className={inHeader ? "relative h-10 w-10 rounded-full" : "fixed bottom-24 right-4 z-50 h-14 w-14 rounded-full border border-border bg-card text-foreground shadow-lg hover:bg-accent"}
+        className={inHeader ? "relative h-10 w-10 rounded-full" : "fixed bottom-[calc(6.0rem+env(safe-area-inset-bottom))] right-[calc(1rem+env(safe-area-inset-right))] z-50 h-14 w-14 rounded-full border border-border bg-card text-foreground shadow-lg hover:bg-accent"}
         variant={inHeader ? "ghost" : "default"}
         size="icon"
         aria-expanded={open}
