@@ -7,7 +7,7 @@
   "main": "main.cjs",
   "scripts": {
     "start": "electron .",
-    "test": "node --test policy.test.cjs",
+    "test": "node --test policy.test.cjs main.test.cjs",
     "build:win": "electron-builder --win nsis --x64 --publish never"
   },
   "devDependencies": {
@@ -24,7 +24,8 @@
       "main.cjs",
       "policy.cjs",
       "offline.html",
-      "package.json"
+      "package.json",
+      "assets/**"
     ],
     "win": {
       "target": [
@@ -35,8 +36,9 @@
           ]
         }
       ],
-      "signAndEditExecutable": false,
-      "artifactName": "TransitTrack-Desktop-Setup-${version}.${ext}"
+      "artifactName": "TransitTrack-Desktop-Setup-${version}.${ext}",
+      "signExecutable": false,
+      "icon": "assets/icon.ico"
     },
     "nsis": {
       "oneClick": false,

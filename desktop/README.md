@@ -19,8 +19,8 @@ npm run build:win
 ```
 The installer is written to release/. Development launch: npm start.
 Windows CI can build the same installer from the repository's Desktop Windows workflow.
-The initial cross-platform build disables executable metadata editing; sign production
-builds with an owner-controlled certificate and enable executable editing before release.
+The preview has application metadata and the TransitTrack icon. Sign production
+builds with an owner-controlled certificate before release.
 
 ## Current scope and limitations
 - Remote website updates appear when the app loads; desktop-shell upgrades require a new installer.

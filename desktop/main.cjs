@@ -21,7 +21,7 @@ async function openExternal(value) {
  if(response===1)await shell.openExternal(url);
 }
 function createWindow() {
- mainWindow=new BrowserWindow({width:1440,height:960,minWidth:1000,minHeight:700,title:'TransitTrack Desktop',backgroundColor:'#0d1520',show:false,webPreferences:{nodeIntegration:false,nodeIntegrationInWorker:false,contextIsolation:true,sandbox:true,webSecurity:true,allowRunningInsecureContent:false,webviewTag:false,partition:'persist:transittrack-desktop'}});
+ mainWindow=new BrowserWindow({width:1440,height:960,minWidth:1000,minHeight:700,title:'TransitTrack Desktop',backgroundColor:'#0d1520',icon:path.join(__dirname,'assets','icon.ico'),show:false,webPreferences:{nodeIntegration:false,nodeIntegrationInWorker:false,contextIsolation:true,sandbox:true,webSecurity:true,allowRunningInsecureContent:false,webviewTag:false,partition:'persist:transittrack-desktop'}});
  mainWindow.once('ready-to-show',()=>mainWindow.show());
  mainWindow.webContents.on('page-title-updated',event=>{event.preventDefault();mainWindow.setTitle('TransitTrack Desktop');});
  const ses=mainWindow.webContents.session;
