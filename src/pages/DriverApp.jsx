@@ -343,7 +343,7 @@ export default function DriverApp() {
   }
 
   if (loading && !session)
-    return <JourneyLoading context="Driver tablet" label="Loading your bus and route…" company={session?.company_name ? {name:session.company_name,logo_url:session.company_logo_url} : null} vehicle={session?.vehicle} onRetry={refresh} />;
+    return <JourneyLoading context="Driver tablet" label="Loading your bus and route…" company={session?.company_name ? {name:session.company_name,logo_url:session.company_logo_url} : null} vehicle={session?.vehicle} onRetry={() => window.location.reload()} />;
 
   if (!session && sessionError)
     return <div className="min-h-[100dvh] grid place-items-center p-6"><ErrorState title="Couldn't reconnect to this tablet" description={sessionError} onRetry={refresh} retrying={loading} /></div>;
