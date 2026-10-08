@@ -1,3 +1,4 @@
+import BusArtwork from "@/components/BusArtwork";
 import React, { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import mapboxgl from "mapbox-gl";
@@ -759,6 +760,7 @@ function SelectedVehicle({ vehicle, stops = [], now, userLocation, onPickStop, o
     : formatDistance(haversineKm(vehicle.current_lat, vehicle.current_lng, stop.lat, stop.lng) * 1000));
   return (
     <div className="rounded-2xl border border-border bg-card/96 p-4 shadow-xl backdrop-blur" role="dialog" aria-label={`${vehicle.name} details`}>
+      <BusArtwork vehicle={vehicle} width={160} className="h-24 w-full mb-3" />
       <div className="flex items-start gap-3">
         <div className="min-w-0 flex-1">
           <p className="truncate text-title-sm font-semibold">{vehicle.name}</p>
