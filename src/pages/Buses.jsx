@@ -1,3 +1,4 @@
+import BusArtwork from "@/components/BusArtwork";
 import React, { Suspense, lazy, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { ChevronRight } from "lucide-react";
@@ -11,7 +12,7 @@ import { haversineKm } from "@/lib/geo";
 import { loadFailed } from "@/lib/loadFailed";
 import { cn } from "@/lib/utils";
 import { freshnessOf } from "@/components/system/status";
-import { busNumber, busStatusLine } from "@/components/passenger/passengerState";
+import { busStatusLine } from "@/components/passenger/passengerState";
 import { MapClosed, MapToggle, PassengerChatBubble, SectionHead } from "@/components/passenger/PassengerSections";
 
 const LiveTransitMap = lazy(() => import("@/components/map3d/LiveTransitMap"));
@@ -23,13 +24,10 @@ function BusRow({ v, route, stop, now }) {
   const live = v.tracking_active && v.current_lat != null && fresh.state !== "lost" && v.in_service !== false;
   // Minutes to your stop, the same road estimate the home screen uses.
   const { mins } = useDrivingEta(live && stop ? { lat: v.current_lat, lng: v.current_lng } : null, stop ? { lat: stop.lat, lng: stop.lng } : null, v.speed || 25);
-  const num = busNumber(v.name);
   return (
-    <li>
+    <li className="tt-bus-card">
       <Link to={`/route-explorer?bus=${encodeURIComponent(v.id)}`} className="flex min-h-[72px] items-center gap-4 px-6 py-2 hover:bg-accent/50 md:px-3">
-        <span className={cn("grid h-12 w-12 shrink-0 place-items-center rounded-xl font-display text-headline font-semibold tabular-nums", live ? "bg-secondary" : "bg-secondary/60 text-muted-foreground")} aria-hidden="true">
-          {num || "·"}
-        </span>
+        <BusArtwork vehicle={v} width={120} className="h-24 w-24 sm:w-32 shrink-0" />
         <span className="min-w-0 flex-1">
           <span className="block truncate font-semibold">{v.name}{v.plate_number ? <span className="font-normal text-muted-foreground"> · {v.plate_number}</span> : null}</span>
           <span className="block truncate text-body-sm text-muted-foreground">{route?.name ? `${route.name} · ` : ""}{busStatusLine(v, route, now)}</span>

@@ -708,3 +708,24 @@ test('admin pages ride out Base44 "too many requests" instead of going blank',as
  await expect(page.getByText("Couldn't load devices")).toHaveCount(0);
  expect(limited.has('KioskDevice:list')).toBe(true);
 });
+
+test('admin uploads actual bus artwork and saves its URL',async({page})=>{
+ await session(page,'admin');
+ let saved;
+ await page.route('**/api/**',async r=>{
+  if(/UploadFile/i.test(r.request().url()))return r.fulfill({json:{file_url:'https://test.invalid/bus-render.webp'}});
+  return r.fallback();
+ });
+ await page.route('https://test.invalid/bus-render.webp',r=>r.fulfill({path:'/app/public/images/transit-bus-3d.webp',contentType:'image/webp'}));
+ await page.route('**/functions/entityAccess',async r=>{
+  const b=r.request().postDataJSON();
+  if(b.entity==='Vehicle'&&b.operation==='update'){saved=b.data;return r.fulfill({json:{result:{...vehicles[0],...b.data}}});}
+  return r.fallback();
+ });
+ await page.goto('/admin/vehicles');
+ await page.getByRole('button',{name:'Edit Bus A',exact:true}).click();
+ await page.getByLabel('Bus photo or 3D render',{exact:true}).setInputFiles({name:'bus.webp',mimeType:'image/webp',buffer:Buffer.from([82,73,70,70])});
+ await expect(page.getByRole('img',{name:'Bus A artwork preview'})).toHaveAttribute('src','https://test.invalid/bus-render.webp');
+ await page.getByRole('button',{name:'Save changes',exact:true}).click();
+ await expect.poll(()=>saved).toMatchObject({image_url:'https://test.invalid/bus-render.webp'});
+});

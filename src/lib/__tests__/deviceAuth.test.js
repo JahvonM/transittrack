@@ -9,7 +9,7 @@ const token = 'a'.repeat(64);
 const device = { id: 'test', paired: true, status: 'active', company_id: 'company', vehicle_id: 'bus', kiosk_type: 'driver', pairing_code: 'TESTCODE', created_date: '2026-10-02T00:00:00Z' };
 const credential = { id: 'credential', device_id: device.id, token_hash: digest(token), company_id: device.company_id, vehicle_id: device.vehicle_id, kiosk_type: device.kiosk_type, pairing_code_hash: digest(device.pairing_code), expires_at: '2099-01-01T00:00:00Z' };
 function load(name, client) {
- const source = fs.readFileSync(new URL(`../../../base44/functions/${name}/entry.ts`, import.meta.url), 'utf8').replace(/^import .*;\s*$/gm, '') + '\nexport { authenticatedTablet };';
+ const source = fs.readFileSync(new URL(`../../../base44/functions/${name}/entry.ts`, import.meta.url), 'utf8').replace(/^import .*;\s*$/gm, '') + '\nexport { authenticatedTablet, deviceAccepted };';
  const js = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
  const exports = {};
  new Function('exports', 'createClientFromRequest', 'crypto', js)(exports, () => client, webcrypto);
@@ -27,7 +27,10 @@ describe('device credential authentication', () => {
    expect(await auth(client(), { ...device, paired: false }, token)).toBe(false);
   });
   it(`${name} permits only older unenrolled development devices without a token`, async () => {
-   const auth = load(name).authenticatedTablet;
+   // The token check itself is strict; older tablets are let in by a separate
+   // check until every tablet has been re-paired.
+   const { authenticatedTablet, deviceAccepted: auth } = load(name);
+   expect(await authenticatedTablet(client([]), device)).toBe(false);
    expect(await auth(client([]), device)).toBe(true);
    expect(await auth(client([]), { ...device, created_date: '2099-01-01' })).toBe(false);
    expect(await auth(client([]), { ...device, created_date: undefined })).toBe(false);

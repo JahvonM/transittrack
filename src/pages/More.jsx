@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { ChevronRight, KeyRound, LifeBuoy, LogOut, MapPinned, MessageSquare, ShieldCheck, Sparkles, UserRound } from "lucide-react";
+import { ChevronRight, KeyRound, LifeBuoy, LogOut, MapPinned, ShieldCheck, Sparkles } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import AppLayout from "@/components/AppLayout";
 
@@ -30,13 +30,11 @@ function Group({ title, children }) {
 
 // Everything that isn't Home, Map or Buses.
 export default function More() {
-  const { user, logout } = useAuth();
+  const { logout } = useAuth();
   return (
     <AppLayout variant="passenger" title="More">
       <div className="max-w-2xl">
         <Group title="You">
-          <Row to="/notifications" icon={MessageSquare} title="Messages" sub="Announcements and arrivals from your company" />
-          <Row to="/account" icon={UserRound} title="Account" sub={user?.email || "Profile, password and appearance"} />
           <Row to="/staff?sheet=pickup" icon={MapPinned} title="Pickup settings" sub="Pickup pin, WhatsApp updates, switch company" />
         </Group>
         <Group title="On the bus">

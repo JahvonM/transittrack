@@ -4,8 +4,9 @@
 // tablet (driverSession update_location) and, when dispatch switches backup
 // GPS on, by the driver's phone (driverPhone backup_location).
 //
-// Moved here from driverSession unchanged; a recorded before/after replay
-// (zzGpsSnapshot test) shows the tablet produces exactly the same records.
+// Moved here from driverSession unchanged; a recorded replay
+// (gpsLocationSnapshot test) shows the tablet produces exactly the same records.
+import { registerStamp, isNewestStamp } from './atomicOps.ts';
 
 // Driving-event thresholds. These are heuristics derived from GPS speed deltas
 // between periodic pings (~8s apart) — not true accelerometer-based detection
@@ -33,6 +34,11 @@ async function locLoadVehicle(base44, vehicleId) {
 // onDepartedStop(route, stopName, vehicle) sends the "one stop away" alert.
 export async function applyLocationUpdate(base44, { vehicleId, companyId, companyName, body, onDepartedStop }) {
   const { lat, lng, speed, status, trail, log_speeding } = body;
+  // Registered before the vehicle is read, so two requests that read the
+  // same prior position still agree on which sample is the newer one.
+  const sampleKey = 'vehicle-position:' + vehicleId;
+  const registeredMs = body.recorded_at === undefined ? Date.now() : Date.parse(body.recorded_at);
+  if (Number.isFinite(registeredMs)) registerStamp(sampleKey, registeredMs);
   if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat)>90 || Math.abs(lng)>180)
     return Response.json({ error: 'lat and lng required' }, { status: 400 });
   const vehicle = await locLoadVehicle(base44, vehicleId);
@@ -43,6 +49,9 @@ export async function applyLocationUpdate(base44, { vehicleId, companyId, compan
   if(speed!==undefined && (!Number.isFinite(speed) || speed<0 || speed>100)) return Response.json({error:'Invalid GPS speed'},{status:400});
   if(vehicle.company_id!==companyId) return Response.json({error:'Vehicle assignment mismatch'},{status:403});
   if(sampleMs<=Date.parse(vehicle.last_location_update||'')) return Response.json({ok:true,ignored:'stale sample'});
+  // A newer sample already on its way (a live ping beside a queued one)
+  // must win, even though both read the same older stored position.
+  if(!isNewestStamp(sampleKey, sampleMs)) return Response.json({ok:true,ignored:'stale sample'});
   const now = new Date(sampleMs);
   const newSpeed = speed ?? 0;
   const prevSpeed = typeof vehicle.speed === 'number' ? vehicle.speed : null;

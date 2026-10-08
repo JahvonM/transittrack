@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest';
 import fs from 'node:fs';
 import ts from 'typescript';
 import { webcrypto } from 'node:crypto';
-import { mock, request, digest } from '../../../security-tests/helpers.js';
+import { mock, request, digest, inlineShared } from '../../../security-tests/helpers.js';
 
-const transpile = source => ts.transpileModule(source.replace(/^import .*;\s*$/gm, ''), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
+const transpile = source => ts.transpileModule(inlineShared(source).replace(/^import .*;\s*$/gm, ''), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
 const sharedSource = fs.readFileSync(new URL('../../../base44/shared/boardingCredentials.ts', import.meta.url), 'utf8');
 const shared = {};
 new Function('exports', 'crypto', 'retry429', transpile(sharedSource))(shared, webcrypto, fn => fn());

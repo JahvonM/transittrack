@@ -1,3 +1,4 @@
+import BusArtwork from "@/components/BusArtwork";
 import React, { useEffect, useRef, useState } from "react";
 import { getModel } from "@/lib/vehicleModels";
 
@@ -134,7 +135,8 @@ export function Vehicle3D({ model = "city_bus", kind, heading = 0, color = "#C8F
 
 // Map pin: the vehicle's chosen 3D model pointing where it's heading, with a
 // status-coloured glow (pulsing while on a trip).
-export default function MapBusPin({ color, driving = false, alert = false, heading = 0, model = "city_bus", kind }) {
+export default function MapBusPin({ color, driving = false, alert = false, heading = 0, model = "city_bus", kind, imageUrl }) {
+  if (imageUrl) return <div className="relative rounded-full" style={{width:82,height:82,filter:`drop-shadow(0 0 8px ${color || "#00dce6"})`}}><BusArtwork imageUrl={imageUrl} width={82} className="w-full h-full" /></div>;
   if (model === "city_bus" && kind !== "taxi") return <div className="relative" style={{width:82,height:82}}>
     <span className="absolute inset-2 rounded-full" style={{background:`radial-gradient(ellipse, ${color}55, transparent 70%)`}} />
     <div className="absolute inset-0" style={{transform:`rotate(${heading}deg)`,transition:"transform 1.2s ease-out"}}>

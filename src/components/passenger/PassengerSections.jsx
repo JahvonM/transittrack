@@ -1,3 +1,4 @@
+import BusArtwork from "@/components/BusArtwork";
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
@@ -171,14 +172,11 @@ export function OtherBuses({ buses, crowd = {}, title, now = Date.now() }) {
       <SectionHead id="tt-other-buses" title={title} aside={<Link to="/route-explorer" className="text-body-sm font-semibold underline-offset-4 hover:underline">See on map</Link>} />
       <ul className="divide-y divide-border border-y border-border">
         {buses.map((v) => {
-          const num = busNumber(v.name);
           const level = v.tracking_active ? crowdLevel(crowd[v.id] || 0, v.capacity) : null;
           return (
-            <li key={v.id}>
+            <li key={v.id} className="tt-bus-card">
               <Link to={`/route-explorer?bus=${encodeURIComponent(v.id)}`} className="flex min-h-[64px] items-center gap-4 py-2 hover:bg-accent/50">
-                <span className={cn("w-12 shrink-0 text-center font-display text-headline font-semibold tabular-nums", !v.tracking_active && "text-muted-foreground")} aria-hidden="true">
-                  {num || <span className="text-body-sm">{(v.name || "?").slice(0, 3)}</span>}
-                </span>
+                <BusArtwork vehicle={v} width={108} className="h-20 w-24 shrink-0" />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-semibold">{v.name}</span>
                   <span className="flex items-center gap-1.5 truncate text-body-sm text-muted-foreground">

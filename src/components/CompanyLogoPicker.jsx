@@ -15,7 +15,7 @@ export default function CompanyLogoPicker({ name, value, onChange, onBusyChange,
     }
     setError(""); setUploading(true); onBusyChange?.(true);
     try {
-      const result = await base44.integrations.Core.UploadFile({ file });
+      const result = await base44.integrations.Core.UploadPublicFile({ file });
       if (!result.file_url) throw new Error("Upload did not return a logo.");
       onChange(result.file_url);
     } catch { setError("Couldn't upload the logo. Try again."); }

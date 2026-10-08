@@ -1,10 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import ts from 'typescript';
+import { inlineShared } from '../../../security-tests/helpers.js';
 import { cleanTabletSession } from '../tabletSession';
 
 function handler(name, client) {
-  const source = fs.readFileSync(new URL(`../../../base44/functions/${name}/entry.ts`, import.meta.url), 'utf8').replace(/^import .*;\s*$/gm, '');
+  const source = inlineShared(fs.readFileSync(new URL(`../../../base44/functions/${name}/entry.ts`, import.meta.url), 'utf8')).replace(/^import .*;\s*$/gm, '');
   const js = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
   const exports = {};
   new Function('exports', 'createClientFromRequest', 'secrets', js)(exports, () => client, {});

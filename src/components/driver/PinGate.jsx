@@ -7,7 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Delete, Lock, Unlock } from "lucide-react";
 
-const REVIEWER_PIN = "9999";
+// The reviewer back door only exists in reviewer builds (VITE_REVIEWER_MODE),
+// so a production tablet has no PIN that skips verification.
+const REVIEWER_PIN = import.meta.env.VITE_REVIEWER_MODE === "true" ? "9999" : null;
 
 export default function PinGate({ vehicle, deviceId, invoke, onUnlock }) {
   const [pin, setPin] = useState("");
@@ -31,7 +33,7 @@ export default function PinGate({ vehicle, deviceId, invoke, onUnlock }) {
 
   const submit = async (value = pin) => {
     if (busyRef.current) return;
-    if (value === REVIEWER_PIN) { navigate("/reviewer-sandbox"); return; }
+    if (REVIEWER_PIN && value === REVIEWER_PIN) { navigate("/reviewer-sandbox"); return; }
     busyRef.current = true;
     setChecking(true);
     try {

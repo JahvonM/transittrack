@@ -110,7 +110,7 @@ export default function CompanyMessages({ vehicles = [] }) {
     if (!activeVehicle) return;
     const ext = messageType === "image" ? "jpg" : "webm";
     const file = new File([blob], `${messageType}-${Date.now()}.${ext}`, { type: blob.type });
-    const { file_url } = await base44.integrations.Core.UploadFile({ file });
+    const { file_url } = await base44.integrations.Core.UploadPublicFile({ file });
     const message = await base44.entities.GroupMessage.create({
       vehicle_id: activeVehicle.id, vehicle_name: activeVehicle.name,
       company_id: activeVehicle.company_id, company_name: activeVehicle.company_name,

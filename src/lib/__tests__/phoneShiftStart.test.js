@@ -12,7 +12,7 @@ function setup({ role = "staff", access = true, assigned = true, company = "a" }
   sdk.tables.StaffCheckIn = [{ id: "c1", company_id: "a", vehicle_id: "bus-a", staff_name: "Jane", card_tag: "T1", status: "boarded", created_date: "2026-10-07T05:00:00Z" }];
   sdk.tables.Inspection = []; sdk.tables.InspectionResult = []; sdk.tables.Fault = [];
   const uploads = [];
-  sdk.asServiceRole.integrations.Core.UploadFile = async ({ file }) => { uploads.push(file); return { file_url: `https://files.test/${file.name}` }; };
+  sdk.asServiceRole.integrations.Core.UploadPublicFile = async ({ file }) => { uploads.push(file); return { file_url: `https://files.test/${file.name}` }; };
   const tablet = load("driverSession", sdk, ["validGrant"]);
   const phone = load("driverPhone", sdk);
   const call = async (api, body) => { const r = await api.default(request(body)); return { status: r.status, body: await r.json() }; };

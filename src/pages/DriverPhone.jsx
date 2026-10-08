@@ -1,3 +1,4 @@
+import useFutureAppearance from "@/hooks/useFutureAppearance";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { CalendarDays, LogOut, MessageSquare, TriangleAlert, User as UserIcon } from "lucide-react";
@@ -50,6 +51,7 @@ function NotADriver({ email, message, onSignOut }) {
 }
 
 export default function DriverPhone() {
+  useFutureAppearance();
   const { user, logout } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -279,7 +281,7 @@ export default function DriverPhone() {
   }
 
   return (
-    <div className="min-h-[100dvh] bg-background">
+    <div className="tt-phone-future min-h-[100dvh] bg-background">
       <header className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-border bg-background/95 px-4 py-2 backdrop-blur-md safe-area-top">
         <div className="flex min-w-0 items-center gap-2">
           {me?.company?.logo_url ? <img src={me.company.logo_url} alt="" className="h-8 w-8 rounded-lg object-cover" /> : <Logo />}

@@ -201,7 +201,7 @@ async function notify(base44, channel, companyId, payload) {
 function busSummary(v) {
   return {
     id: v.id, name: sanitize(v.name) || 'Bus', plate_number: v.plate_number || '', fleet_number: v.fleet_number || '',
-    type: v.type || '', capacity: v.capacity ?? null, route_id: v.route_id || '',
+    image_url: v.image_url || '', model_3d: v.model_3d || '', type: v.type || '', capacity: v.capacity ?? null, route_id: v.route_id || '',
     tracking_active: !!v.tracking_active, last_location_update: v.last_location_update || null,
   };
 }
@@ -507,7 +507,7 @@ export default async function(req) {
           if (typeof a.photo_data === 'string' && a.photo_data) {
             let bytes;
             try { bytes = base64ToBytes(a.photo_data); } catch { fail(400, 'A photo could not be read'); }
-            const uploaded = await base44.asServiceRole.integrations.Core.UploadFile({ file: new File([bytes], `walkaround-${Date.now()}-${w.id}.jpg`, { type: 'image/jpeg' }) });
+            const uploaded = await base44.asServiceRole.integrations.Core.UploadPublicFile({ file: new File([bytes], `walkaround-${Date.now()}-${w.id}.jpg`, { type: 'image/jpeg' }) });
             if (typeof uploaded?.file_url !== 'string' || !uploaded.file_url.startsWith('https://')) fail(502, 'A photo could not be uploaded');
             photo_url = uploaded.file_url;
           }

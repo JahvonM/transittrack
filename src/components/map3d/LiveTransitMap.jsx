@@ -1,3 +1,4 @@
+import BusArtwork from "@/components/BusArtwork";
 import React, { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import mapboxgl from "mapbox-gl";
@@ -340,7 +341,7 @@ function FullMap({
     const layer = layerRef.current;
     if (!layer) return;
     layer.setVehicles(
-      located.map((v) => {
+      located.filter(v => !v.image_url).map((v) => {
         const fresh = freshnessOf(v.last_location_update, { now });
         return {
           id: v.id,
@@ -356,6 +357,25 @@ function FullMap({
       { accent, reduceMotion },
     );
   }, [located, focusVehicleId, accent, reduceMotion, now, styleTick]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return undefined;
+    const markers = located.filter(v => v.image_url).map(v => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.setAttribute("aria-label", `${v.name}, view bus details`);
+      button.style.cssText = "width:84px;height:70px;border:0;background:transparent;cursor:pointer;filter:drop-shadow(0 0 7px #00dce655)";
+      const img = document.createElement("img");
+      img.src = v.image_url; img.alt = "";
+      img.style.cssText = "width:100%;height:100%;object-fit:contain";
+      img.onerror = () => { img.onerror = null; img.src = "/images/transit-bus-3d.webp"; };
+      button.appendChild(img);
+      button.onclick = event => { event.stopPropagation(); setSelectedId(v.id); };
+      return new mapboxgl.Marker({element:button,anchor:"center"}).setLngLat([v.current_lng,v.current_lat]).addTo(map);
+    });
+    return () => markers.forEach(marker => marker.remove());
+  }, [located, styleTick]);
 
   // Road-following route through the stops; a straight dashed line until then.
   const stopsKey = orderedStops.map((s) => `${s.lng},${s.lat}`).join(";");
@@ -759,6 +779,7 @@ function SelectedVehicle({ vehicle, stops = [], now, userLocation, onPickStop, o
     : formatDistance(haversineKm(vehicle.current_lat, vehicle.current_lng, stop.lat, stop.lng) * 1000));
   return (
     <div className="rounded-2xl border border-border bg-card/96 p-4 shadow-xl backdrop-blur" role="dialog" aria-label={`${vehicle.name} details`}>
+      <BusArtwork vehicle={vehicle} width={160} className="h-24 w-full mb-3" />
       <div className="flex items-start gap-3">
         <div className="min-w-0 flex-1">
           <p className="truncate text-title-sm font-semibold">{vehicle.name}</p>

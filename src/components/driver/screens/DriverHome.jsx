@@ -1,3 +1,4 @@
+import BusArtwork from "@/components/BusArtwork";
 import React from "react";
 import { ChevronRight, CircleCheck, Navigation, Route as RouteIcon, ScanLine, TriangleAlert, WifiOff } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -26,6 +27,7 @@ export default function DriverHome({ session, shiftControl, shiftOpen, offline, 
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-4">
+      <section className="tt-driver-vehicle-hero rounded-2xl border border-border p-4 flex items-center gap-4"><BusArtwork vehicle={session?.vehicle} width={180} className="w-40 h-24" /><div><p className="text-body-sm text-muted-foreground">Your vehicle</p><h2 className="text-title font-bold">{session?.vehicle?.name || "Your bus"}</h2><p className="text-body-sm text-muted-foreground">{session?.vehicle?.plate_number || ""}</p></div></section>
       <section
         className={cn("rounded-2xl border p-4", ready ? "border-primary/60 bg-primary/10" : "border-warning/40 bg-warning/12")}
         aria-label="Readiness"

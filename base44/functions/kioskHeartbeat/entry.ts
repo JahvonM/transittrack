@@ -16,16 +16,31 @@ async function authenticatedTablet(base44, device, token) {
   if (!device || !device.paired || device.status !== 'active') return false;
   const credentials = await base44.asServiceRole.entities.DeviceCredential.filter({ device_id: device.id }, '-issued_at', 1);
   const credential = credentials[0];
-  if (!credential) {
-    // No upgrade based on possession of an ID. Only older records may use legacy auth.
-    const created = Date.parse(device.created_date);
-    return Number.isFinite(created) && created < LEGACY_DEVICE_CUTOFF;
-  }
+  if (!credential) return false;
   if (typeof token !== 'string' || !/^[a-f0-9]{64}$/.test(token)) return false;
   if (!(Date.parse(credential.expires_at) > Date.now())) return false;
   if (credential.company_id !== device.company_id || credential.vehicle_id !== (device.vehicle_id || '') || credential.kiosk_type !== device.kiosk_type) return false;
   if (!sameDigest(credential.pairing_code_hash, await deviceDigest(device.pairing_code || ''))) return false;
   return sameDigest(credential.token_hash, await deviceDigest(token));
+}
+
+// A tablet paired before the credential ledger existed has no credential to
+// check, so its device record still authorises it — the one place a tokenless
+// device is accepted. Delete this block once every tablet has been re-paired
+// (see security-tests/tablet-repairing-plan.md); the verifier above is already
+// strictly token-based, so that deletion is the whole migration.
+async function legacyDeviceAccepted(base44, device) {
+  if (!device || device.paired !== true || device.status !== 'active') return false;
+  const created = Date.parse(device.created_date);
+  if (!(Number.isFinite(created) && created < LEGACY_DEVICE_CUTOFF)) return false;
+  const credentials = await base44.asServiceRole.entities.DeviceCredential.filter({ device_id: device.id }, '-issued_at', 1);
+  return credentials.length === 0;
+}
+
+// Token, or an un-migrated device record. Used to resolve which device a
+// request came from; it never authorises an action on its own.
+async function deviceAccepted(base44, device, token) {
+  return (await authenticatedTablet(base44, device, token)) || legacyDeviceAccepted(base44, device);
 }
 
 
@@ -132,7 +147,7 @@ export default async function(req) {
     // status:'active'. Without this check the tablet keeps heartbeating
     // successfully and looking completely normal while every real action
     // (kioskCheckIn's resolveKioskDevice requires both) silently 401s.
-    if (!(await authenticatedTablet(base44, device, body.device_token))) {
+    if (!(await deviceAccepted(base44, device, body.device_token))) {
       return Response.json({ error: 'Device authentication required' }, { status: 401 });
     }
 

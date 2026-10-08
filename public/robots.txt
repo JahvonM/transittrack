@@ -1,0 +1,12 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /company
+Disallow: /manager
+Disallow: /driver
+Disallow: /driver-phone
+Disallow: /kiosk
+Disallow: /staff
+Disallow: /account
+Disallow: /api/
+Disallow: /functions/

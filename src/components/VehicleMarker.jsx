@@ -27,7 +27,7 @@ export default function VehicleMarker({ vehicle, onSelect, cameraBearing = 0 }) 
         title={`${vehicle.name} · ${vehicle.company_name || ""} · ${vehicle.status}`}
         aria-label={`${vehicle.name}, ${vehicle.status}`}
       >
-        <MapBusPin model={modelIdFor(vehicle)} color={ring} driving={driving} alert={alert} heading={heading - cameraBearing} />
+        <MapBusPin imageUrl={vehicle.image_url} model={modelIdFor(vehicle)} color={ring} driving={driving} alert={alert} heading={heading - cameraBearing} />
       </button>
     </Marker>
   );

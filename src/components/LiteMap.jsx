@@ -16,14 +16,15 @@ import { fetchDrivingRoute } from "@/lib/geo";
 const tileUrl = (isDark) =>
   `https://api.mapbox.com/styles/v1/mapbox/${isDark ? "dark-v11" : "streets-v12"}/tiles/512/{z}/{x}/{y}@2x?access_token=${MAPBOX_TOKEN}`;
 
-function busIcon(color, { size = 34, heading = null, label = "" } = {}) {
+function busIcon(color, { size = 34, heading = null, label = "", imageUrl = "" } = {}) {
   const arrow = heading == null ? "" :
     `<div style="position:absolute;inset:-9px;transform:rotate(${heading}deg)"><div style="margin:0 auto;width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:9px solid ${color}"></div></div>`;
+  const safeImage = (imageUrl || "/images/transit-bus-3d.webp").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const html = `
     <div style="position:relative;width:${size}px;height:${size}px">
       ${arrow}
       <div style="width:${size}px;height:${size}px;border-radius:50%;background:#0B0B0D;border:3px solid ${color};display:grid;place-items:center;box-shadow:0 2px 8px rgba(0,0,0,.45)">
-        <img src="/images/transit-bus-3d.webp" alt="" style="width:${size+12}px;height:${size+12}px;max-width:none;object-fit:contain;filter:drop-shadow(0 2px 3px #0008)" />
+        <img src="${safeImage}" alt="" style="width:${size+12}px;height:${size+12}px;max-width:none;object-fit:contain;filter:drop-shadow(0 2px 3px #0008)" />
       </div>
       ${label ? `<div style="position:absolute;top:${size + 2}px;left:50%;transform:translateX(-50%);white-space:nowrap;font:600 11px/1.2 system-ui,sans-serif;color:#fff;background:rgba(11,11,13,.8);padding:2px 6px;border-radius:999px">${label.replace(/[<>&"]/g, "")}</div>` : ""}
     </div>`;
@@ -182,7 +183,7 @@ export default function LiteMap({
           <Marker
             key={`v-${v.id}`}
             position={[v.current_lat, v.current_lng]}
-            icon={busIcon(v.marker_color || statusColor(v.status), { size: v.marker_size || 46, heading: v.marker_heading ?? null, label: v.marker_label ?? v.name })}
+            icon={busIcon(v.marker_color || statusColor(v.status), { size: v.marker_size || 46, heading: v.marker_heading ?? null, label: v.marker_label ?? v.name, imageUrl: v.image_url })}
           >
             {v.name && (
               <Popup>

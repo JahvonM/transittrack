@@ -1,3 +1,4 @@
+import VehicleArtworkPicker from "@/components/VehicleArtworkPicker";
 import React, { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -11,7 +12,7 @@ import { modelIdFor } from "@/lib/vehicleModels";
 
 const blank = {
   company_id: "", name: "", fleet_number: "", plate_number: "", type: "bus", capacity: "",
-  vin: "", current_odometer: "", make: "", model: "", year: "", route_id: "", entry_code: "", model_3d: "city_bus",
+  vin: "", current_odometer: "", make: "", model: "", year: "", route_id: "", entry_code: "", model_3d: "city_bus", image_url: "",
 };
 
 function Field({ label, hint, children }) {
@@ -32,6 +33,7 @@ export default function VehicleFormDialog({ open, onOpenChange, vehicle, compani
   const { toast } = useToast();
   const [form, setForm] = useState(blank);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const editing = !!vehicle?.id;
 
   useEffect(() => {
@@ -61,7 +63,7 @@ export default function VehicleFormDialog({ open, onOpenChange, vehicle, compani
   const canSave = form.name.trim() && companyId;
 
   const save = async () => {
-    if (!canSave) return;
+    if (!canSave || uploading) return;
     setSaving(true);
     const company = fixedCompany || companies.find((c) => c.id === companyId);
     const data = {
@@ -77,6 +79,7 @@ export default function VehicleFormDialog({ open, onOpenChange, vehicle, compani
       year: numOrNull(form.year),
       route_id: form.route_id || null,
       model_3d: form.model_3d,
+      image_url: form.image_url,
       company_id: companyId,
       company_name: company?.name || "",
     };
@@ -129,11 +132,12 @@ export default function VehicleFormDialog({ open, onOpenChange, vehicle, compani
               />
             </Field>
           </div>
+          <VehicleArtworkPicker value={form.image_url} name={form.name} onChange={(url) => set("image_url", url)} onBusyChange={setUploading} disabled={saving} />
           <Field label="3D model on the map" hint="How this vehicle looks on every live map.">
             <VehicleModelPicker value={form.model_3d} onChange={(v) => set("model_3d", v)} />
           </Field>
         </div>
-        <Button className="w-full" onClick={save} disabled={saving || !canSave}>
+        <Button className="w-full" onClick={save} disabled={saving || uploading || !canSave}>
           {saving ? "Saving…" : editing ? "Save changes" : "Add vehicle"}
         </Button>
       </DialogContent>
