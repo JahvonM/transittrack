@@ -4,11 +4,10 @@ import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { LogIn, Mail, Lock, Loader2, QrCode, Eye, EyeOff } from "lucide-react";
+import { LogIn, Mail, Lock, Loader2, QrCode, Eye, EyeOff, Shield } from "lucide-react";
 import AuthLayout from "@/components/AuthLayout";
 import GoogleIcon from "@/components/GoogleIcon";
 import AppleIcon from "@/components/AppleIcon";
-import PrivacyPolicyDialog from "@/components/PrivacyPolicyDialog";
 import { safeReturnTo } from "@/lib/authReturnTo";
 import { useAuth } from "@/lib/AuthContext";
 import { hasPendingJoinCode, rememberJoinCode } from "@/lib/companyJoin";
@@ -75,7 +74,13 @@ export default function Login() {
               Create an account
             </Link>
           </div>
-          <PrivacyPolicyDialog />
+          <Link
+            to="/privacy"
+            className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground hover:underline"
+          >
+            <Shield className="h-3 w-3" aria-hidden="true" />
+            Privacy Policy
+          </Link>
         </div>
       }
     >
