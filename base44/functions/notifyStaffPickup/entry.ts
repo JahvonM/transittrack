@@ -24,6 +24,7 @@ async function approvedStaffIds(base44, companyId) {
   return ids;
 }
 import { secrets } from 'base44:runtime';
+import { pushWithPolicy, emailWithPolicy } from '../../shared/notificationPolicy.ts';
 
 // --- Firebase Cloud Messaging (push) helpers ---
 // Functions can't share files across function boundaries in this runtime, so
@@ -74,7 +75,8 @@ async function sendPushToToken(serviceAccountJson, token, payload) {
   } catch { return false; }
 }
 async function sendPushToTokens(serviceAccountJson, tokens, payload) {
-  await Promise.all(tokens.map((t) => sendPushToToken(serviceAccountJson, t, payload)));
+  const results = await Promise.all(tokens.map((t) => sendPushToToken(serviceAccountJson, t, payload)));
+  return { sent: results.filter(Boolean).length };
 }
 
 const ALLOWED_ROLES = ['driver', 'company', 'admin'];
@@ -135,11 +137,10 @@ export default async function(req) {
       `${companyName ? ` for ${companyName}` : ''} and will arrive shortly. Please get ready to board.\n\n` +
       `— TransitTrack`;
 
-    await base44.asServiceRole.integrations.Core.SendEmail({
-      to,
-      subject,
-      body: message,
-    });
+    const email = await emailWithPolicy(base44, 'bus_approaching_email', [{ email: to }],
+      (r) => base44.asServiceRole.integrations.Core.SendEmail({ to: r.email, subject, body: message }),
+      { title: subject, companyId: vehicle.company_id });
+    if (email.failed) return Response.json({ error: 'The email could not be sent' }, { status: 502 });
 
     // Real device push — this is what actually reaches a staff member's phone
     // when they're not sitting in the app; email above stays as a fallback.
@@ -148,11 +149,13 @@ export default async function(req) {
       if (serviceAccountJson) {
         const tokens = await base44.asServiceRole.entities.PushToken.filter({ email: to });
         if (tokens.length) {
-          await sendPushToTokens(serviceAccountJson, tokens.map((t) => t.token), {
+          const payload = {
             title: `${vehicleName} is approaching`,
             body: `Arriving shortly${companyName ? ` — ${companyName}` : ''}. Get ready to board.`,
             data: { type: 'pickup_approaching', vehicle_id: vehicleId },
-          });
+          };
+          await pushWithPolicy(base44, 'bus_approaching_push', tokens.map((t) => t.token), payload,
+            (list) => sendPushToTokens(serviceAccountJson, list, payload), { companyId: vehicle.company_id });
         }
       }
     } catch { /* push is best-effort — email above already went out */ }

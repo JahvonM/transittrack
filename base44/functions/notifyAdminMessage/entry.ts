@@ -26,6 +26,7 @@ async function approvedStaffIds(base44, companyId) {
 import { secrets } from 'base44:runtime';
 import { passengerPushTokens } from '../../shared/chatPush.ts';
 import { driverPhoneTokens } from '../../shared/driverPhone.ts';
+import { pushWithPolicy } from '../../shared/notificationPolicy.ts';
 
 // --- Firebase Cloud Messaging (push) helpers — duplicated per-function, see notifyStaffPickup/entry.ts ---
 function base64UrlEncode(bytes) {
@@ -74,7 +75,8 @@ async function sendPushToToken(serviceAccountJson, token, payload) {
   } catch { return false; }
 }
 async function sendPushToTokens(serviceAccountJson, tokens, payload) {
-  await Promise.all(tokens.map((t) => sendPushToToken(serviceAccountJson, t, payload)));
+  const results = await Promise.all(tokens.map((t) => sendPushToToken(serviceAccountJson, t, payload)));
+  return { sent: results.filter(Boolean).length };
 }
 
 function sanitize(value) {
@@ -175,7 +177,7 @@ export default async function(req) {
         ? await driverPhoneTokens(base44, await notificationRecord(base44.asServiceRole.entities, 'Vehicle', notification.vehicleId))
         : [];
       const tokens = [...new Set([...audience, ...passengers, ...driverPhones])].filter(token => !myTokens.has(token));
-      if (tokens.length) await sendPushToTokens(serviceAccountJson, tokens, notification.payload);
+      if (tokens.length) await pushWithPolicy(base44, 'chat_message', tokens, notification.payload, (list) => sendPushToTokens(serviceAccountJson, list, notification.payload), { companyId: notification.companyId });
     }
     return Response.json({ ok: true });
   } catch (error) {

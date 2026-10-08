@@ -3,6 +3,7 @@ import { secrets } from 'base44:runtime';
 import { findPhoneDriver, driverVehicles, normEmail } from '../../shared/driverPhone.ts';
 import { sendPushToTokens } from '../../shared/fcm.ts';
 import { applyLocationUpdate } from '../../shared/vehicleLocation.ts';
+import { pushWithPolicy } from '../../shared/notificationPolicy.ts';
 
 // The driver phone app. Drivers sign in with their own Google account; the
 // server matches that email to a Driver record an administrator switched on
@@ -176,11 +177,12 @@ async function notifyStopAhead(base44, route, departedName, vehicle, companyId) 
   const tokenLists = await Promise.all(emails.map((email) => base44.asServiceRole.entities.PushToken.filter({ email })));
   const tokens = [...new Set(tokenLists.flat().map((t) => t.token))];
   if (!tokens.length) return;
-  await sendPushToTokens(serviceAccountJson, tokens, {
+  const payload = {
     title: `${vehicle.name} is one stop away`,
     body: `It just left ${departedName}. Your stop, ${next.name}, is next.`,
     data: { type: 'stop_ahead', vehicle_id: vehicle.id, stop: next.name },
-  });
+  };
+  await pushWithPolicy(base44, 'stop_ahead', tokens, payload, (list) => sendPushToTokens(serviceAccountJson, list, payload), { companyId });
 }
 // Backup GPS is on for this driver on this bus, and their shift is open.
 async function backupGpsShift(base44, bus, email) {
@@ -189,11 +191,13 @@ async function backupGpsShift(base44, bus, email) {
   return shifts.find((x) => x.company_id === bus.company_id && !x.ended_at && normEmail(x.driver_email) === email) || null;
 }
 
-async function notify(base44, channel, companyId, payload) {
+// `key` is the notification kind in Admin → Notifications.
+async function notify(base44, key, channel, companyId, payload) {
   try {
     const serviceAccountJson = secrets.get('FIREBASE_SERVICE_ACCOUNT');
     if (!serviceAccountJson) return;
-    await sendPushToTokens(serviceAccountJson, await pushTokensForChannel(base44, channel, companyId), payload);
+    const tokens = await pushTokensForChannel(base44, channel, companyId);
+    await pushWithPolicy(base44, key, tokens, payload, (list) => sendPushToTokens(serviceAccountJson, list, payload), { companyId });
   } catch { /* alerts are best effort; the record is already saved */ }
 }
 
@@ -378,7 +382,7 @@ export default async function(req) {
           channel, sender_role: 'driver', sender_name: sanitize(driver.full_name) || 'Driver', sender_email: user.email, sender_id: user.id,
           text, message_type: 'text',
         });
-        await notify(base44, channel, companyId, {
+        await notify(base44, 'chat_message', channel, companyId, {
           title: `${sanitize(bus.name) || 'Bus'} · ${sanitize(driver.full_name) || 'Driver'}`,
           body: text.slice(0, 500),
           data: { type: 'group_message', vehicle_id: bus.id, channel },
@@ -415,7 +419,7 @@ export default async function(req) {
           type, details, occurred_at: new Date().toISOString(), status: 'open',
           photo_uris: photoUris, source: 'driver_phone',
         });
-        await notify(base44, 'dispatch', companyId, {
+        await notify(base44, 'driver_problem', 'dispatch', companyId, {
           title: `Problem reported · ${sanitize(bus?.name) || sanitize(driver.full_name) || 'Driver'}`,
           body: `${type[0].toUpperCase()}${type.slice(1)}: ${details.slice(0, 200)}`,
           data: { type: 'incident', incident_id: incident.id },
@@ -546,7 +550,7 @@ export default async function(req) {
               });
             }
           }
-          await notify(base44, 'dispatch', companyId, {
+          await notify(base44, 'walkaround_problem', 'dispatch', companyId, {
             title: `Walk-around problem · ${sanitize(bus.name)}`,
             body: failed.map((f) => f.item_name).join(', ').slice(0, 200),
             data: { type: 'inspection', inspection_id: inspection.id },
@@ -624,7 +628,7 @@ export default async function(req) {
           ...(swapWith ? { swap_with_driver_id: swapWith.id, swap_with_name: sanitize(swapWith.full_name) } : {}),
         });
         const when = start === end ? start : `${start} to ${end}`;
-        await notify(base44, 'dispatch', companyId, {
+        await notify(base44, 'driver_request', 'dispatch', companyId, {
           title: `${kind === 'swap' ? 'Swap request' : 'Day-off request'} · ${sanitize(driver.full_name) || 'Driver'}`,
           body: kind === 'swap' ? `Swap ${when} with ${sanitize(swapWith.full_name)}${note ? `: ${note.slice(0, 120)}` : ''}` : `Off ${when}${note ? `: ${note.slice(0, 120)}` : ''}`,
           data: { type: 'driver_request', request_id: row.id },

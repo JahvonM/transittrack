@@ -36,19 +36,24 @@ async function fcmAccessToken(serviceAccount) {
 
 // Never throws: one stale token must not break the caller. The link opens
 // the page the notification is about when it is tapped.
+// Returns how many devices accepted it, for the notification log.
 export async function sendPushToTokens(serviceAccountJson, tokens, payload, link = '/') {
-  if (!serviceAccountJson || !tokens.length) return;
+  if (!tokens.length) return { sent: 0 };
+  if (!serviceAccountJson) return { sent: 0, error: 'Phone alerts are not set up' };
   let serviceAccount, accessToken;
   try {
     serviceAccount = JSON.parse(serviceAccountJson);
     accessToken = await fcmAccessToken(serviceAccount);
-  } catch { return; }
+  } catch { return { sent: 0, error: 'Could not sign in to Firebase' }; }
+  let sent = 0;
   await Promise.all(tokens.map(async (token) => {
     try {
-      await fetch(`https://fcm.googleapis.com/v1/projects/${serviceAccount.project_id}/messages:send`, {
+      const res = await fetch(`https://fcm.googleapis.com/v1/projects/${serviceAccount.project_id}/messages:send`, {
         method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
         body: JSON.stringify({ message: { token, notification: { title: payload.title, body: payload.body }, data: payload.data || {}, webpush: { fcm_options: { link } } } }),
       });
+      if (res.ok) sent++;
     } catch { /* best effort */ }
   }));
+  return { sent };
 }

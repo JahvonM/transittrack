@@ -2,6 +2,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 import { passengerPushTokens } from '../../shared/chatPush.ts';
 import { applyLocationUpdate } from '../../shared/vehicleLocation.ts';
 import { reserveAttempt, createOnce } from '../../shared/atomicOps.ts';
+import { pushWithPolicy, emailWithPolicy } from '../../shared/notificationPolicy.ts';
 
 
 async function liveMembership(base44, row) {
@@ -124,7 +125,8 @@ async function sendPushToToken(serviceAccountJson, token, payload) {
   } catch { return false; }
 }
 async function sendPushToTokens(serviceAccountJson, tokens, payload) {
-  await Promise.all(tokens.map((t) => sendPushToToken(serviceAccountJson, t, payload)));
+  const results = await Promise.all(tokens.map((t) => sendPushToToken(serviceAccountJson, t, payload)));
+  return { sent: results.filter(Boolean).length };
 }
 
 // Chat channels each reach a different audience beyond the always-included
@@ -176,11 +178,12 @@ async function notifyStopAhead(base44, route, departedName, vehicle, companyId) 
   const tokenLists = await Promise.all(emails.map((email) => base44.asServiceRole.entities.PushToken.filter({ email })));
   const tokens = [...new Set(tokenLists.flat().map((t) => t.token))];
   if (!tokens.length) return;
-  await sendPushToTokens(serviceAccountJson, tokens, {
+  const payload = {
     title: `${vehicle.name} is one stop away`,
     body: `It just left ${departedName}. Your stop, ${next.name}, is next.`,
     data: { type: 'stop_ahead', vehicle_id: vehicle.id, stop: next.name },
-  });
+  };
+  await pushWithPolicy(base44, 'stop_ahead', tokens, payload, (list) => sendPushToTokens(serviceAccountJson, list, payload), { companyId });
 }
 
 const CHAT_CHANNELS = ['staff', 'company', 'dispatch', 'mechanic'];
@@ -887,11 +890,12 @@ export default async function(req) {
           if (serviceAccountJson) {
             const adminTokens = await pushTokensForChannel(base44, 'dispatch', companyId);
             if (adminTokens.length) {
-              await sendPushToTokens(serviceAccountJson, adminTokens, {
+              const payload = {
                 title: '🚨 SOS — ' + vehicle.name,
                 body: `${vehicle.driver_name || 'Driver'} triggered SOS. Open the admin dashboard now.`,
                 data: { type: 'sos', vehicle_id: vehicleId },
-              });
+              };
+              await pushWithPolicy(base44, 'sos', adminTokens, payload, (list) => sendPushToTokens(serviceAccountJson, list, payload), { companyId });
             }
           }
         } catch { /* push is best-effort — the in-app takeover still works */ }
@@ -1081,11 +1085,12 @@ export default async function(req) {
               ...(ch === 'staff' ? await passengerPushTokens(base44, vehicleId) : []),
             ])];
             if (tokens.length) {
-              await sendPushToTokens(serviceAccountJson, tokens, {
+              const payload = {
                 title: `${vehicle.name} · ${vehicle.driver_name || 'Driver'}`,
                 body: cleanText,
                 data: { type: 'group_message', vehicle_id: vehicleId, channel: ch },
-              });
+              };
+              await pushWithPolicy(base44, 'chat_message', tokens, payload, (list) => sendPushToTokens(serviceAccountJson, list, payload), { companyId });
             }
           }
         } catch { /* push is best-effort */ }
@@ -1125,11 +1130,12 @@ export default async function(req) {
               ...(ch === 'staff' ? await passengerPushTokens(base44, vehicleId) : []),
             ])];
             if (tokens.length) {
-              await sendPushToTokens(serviceAccountJson, tokens, {
+              const payload = {
                 title: `${vehicle.name} · ${vehicle.driver_name || 'Driver'}`,
                 body: message_type === 'image' ? '📷 Photo' : '🎤 Voice note',
                 data: { type: 'group_message', vehicle_id: vehicleId, channel: ch },
-              });
+              };
+              await pushWithPolicy(base44, 'chat_message', tokens, payload, (list) => sendPushToTokens(serviceAccountJson, list, payload), { companyId });
             }
           }
         } catch { /* push is best-effort */ }
@@ -1185,8 +1191,10 @@ export default async function(req) {
           return Response.json({ error: 'Recipient not in your company' }, { status: 403 });
         const subject = `Your bus is approaching — ${sanitize(vehicle.name)}`;
         const msg = `Hello,\n\n${sanitize(vehicle.name)}${sanitize(vehicle.driver_name) ? ` (driver ${sanitize(vehicle.driver_name)})` : ''} is near your pickup location${sanitize(vehicle.company_name) ? ` for ${sanitize(vehicle.company_name)}` : ''} and will arrive shortly. Please get ready to board.\n\n— TransitTrack`;
-        await base44.asServiceRole.integrations.Core.SendEmail({ to, subject, body: msg });
-        return Response.json({ ok: true });
+        const email = await emailWithPolicy(base44, 'bus_approaching_email', [{ email: to }],
+          (r) => base44.asServiceRole.integrations.Core.SendEmail({ to: r.email, subject, body: msg }), { title: subject, companyId });
+        if (email.failed) return Response.json({ error: 'The email could not be sent' }, { status: 502 });
+        return Response.json({ ok: true, ...(email.sent ? {} : { held: true }) });
       }
 
       case 'update_trip_status': {

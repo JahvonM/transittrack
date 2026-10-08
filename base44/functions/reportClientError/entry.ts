@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
+import { emailWithPolicy } from '../../shared/notificationPolicy.ts';
 
 const HOUR_MS = 60 * 60 * 1000;
 // This endpoint is callable without a login, so cap what it can do per hour
@@ -53,11 +54,9 @@ export default async function (req) {
       const admins = (await base44.asServiceRole.entities.User.list()).filter((u) => u.role === 'admin' && u.email);
       const subjectLine = sanitize(message, 80) || 'unknown error';
       const text = `A screen in TransitTrack just crashed.\n\nReported error (untrusted, quoted verbatim):\n${quote(message, 500)}\n\nPage: ${sanitize(record.url, 300) || 'unknown'}\nUser: ${record.user_email || 'not signed in'}${record.user_role ? ` (${record.user_role})` : ''}\nDevice: ${sanitize(record.user_agent, 300) || 'unknown'}\n\nThe user saw a "Something went wrong" screen with a reload button. Repeats of this same error in the next hour won't send another email. Full details are in Admin → Data manager → ClientError.\n\n— TransitTrack`;
-      for (const a of admins) {
-        try {
-          await base44.asServiceRole.integrations.Core.SendEmail({ to: a.email, subject: `TransitTrack crash alert: ${subjectLine}`, text });
-        } catch { /* email is best-effort */ }
-      }
+      const subject = `TransitTrack crash alert: ${subjectLine}`;
+      await emailWithPolicy(base44, 'crash_alert', admins,
+        (a) => base44.asServiceRole.integrations.Core.SendEmail({ to: a.email, subject, body: text }), { title: subject });
     }
 
     return Response.json({ ok: true });

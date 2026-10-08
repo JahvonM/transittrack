@@ -28,6 +28,7 @@ import MaintenanceCalendarTab from "@/components/admin/MaintenanceCalendarTab";
 import InspectionTemplatesTab from "@/components/admin/InspectionTemplatesTab";
 import InspectionHistoryTab from "@/components/admin/InspectionHistoryTab";
 import DataTab from "@/components/admin/DataTab";
+import NotificationsTab from "@/components/admin/NotificationsTab";
 import FloatingChatbot from "@/components/admin/FloatingChatbot";
 import FloatingMessages from "@/components/admin/FloatingMessages";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
@@ -62,6 +63,7 @@ import {
   Building2,
   ListChecks,
   ScrollText,
+  BellRing,
   Database,
   ChevronRight,
 } from "lucide-react";
@@ -476,6 +478,7 @@ export default function Admin() {
         {section === "ads" && <AdsTab />}
         {section === "copilot" && <CopilotTab />}
         {section === "data" && <DataTab />}
+        {section === "notifications" && <NotificationsTab />}
         {section === "travel-times" && <TravelTimesTab />}
         {ADMIN_PAGES[section] && (
           <EmbeddedLayout.Provider value={true}>
@@ -498,6 +501,7 @@ export default function Admin() {
                   { go: "companies", icon: Building2, title: "Companies", detail: "Operators, contact numbers and access codes" },
                   { go: "kiosks", icon: Smartphone, title: "Kiosk tablets", detail: "Pair and update boarding and driver tablets" },
                   { go: "templates", icon: ListChecks, title: "Inspection templates", detail: "Checklists drivers and mechanics complete" },
+                  { go: "notifications", icon: BellRing, title: "Notifications", detail: "Who gets each email and phone alert" },
                   { go: "audit", icon: ScrollText, title: "Change history", detail: "Every create, edit and delete" },
                   { go: "data", icon: Database, title: "Data manager", detail: "Browse and export every collection" },
                 ].map((it) => {

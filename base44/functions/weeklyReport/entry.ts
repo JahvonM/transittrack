@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
+import { emailWithPolicy } from '../../shared/notificationPolicy.ts';
 
 // These jobs can be reached over plain HTTP with no login (that's how the
 // scheduler calls them), so outside an admin each one may only run once per
@@ -102,17 +103,13 @@ export default async function (req) {
     const body = lines.join('\n');
 
     const admins = users.filter((u) => u.role === 'admin' && u.email);
-    let sent = 0;
-    for (const a of admins) {
-      try {
-        await base44.asServiceRole.integrations.Core.SendEmail({
-          to: a.email,
-          subject: `TransitTrack weekly report · ${period}`,
-          body: `Hi ${a.full_name?.split(' ')[0] || 'there'},\n\n${body}`,
-        });
-        sent++;
-      } catch { /* one bad address shouldn't stop the rest */ }
-    }
+    const subject = `TransitTrack weekly report · ${period}`;
+    // One bad address doesn't stop the rest.
+    const { sent } = await emailWithPolicy(base44, 'weekly_report', admins, (a) => base44.asServiceRole.integrations.Core.SendEmail({
+      to: a.email,
+      subject,
+      body: `Hi ${a.full_name?.split(' ')[0] || 'there'},\n\n${body}`,
+    }), { title: subject });
     return Response.json({ ok: true, sent, period });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });

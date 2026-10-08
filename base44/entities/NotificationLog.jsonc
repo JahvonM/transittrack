@@ -1,0 +1,30 @@
+{
+  "name": "NotificationLog",
+  "type": "object",
+  "description": "One email or phone alert the app sent (or held back), for Admin → Notifications → Recent.",
+  "properties": {
+    "key": { "type": "string", "description": "Which notification." },
+    "channel": { "type": "string", "enum": ["email", "push"] },
+    "title": { "type": "string" },
+    "recipients": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Who it went to (emails; 'bus tablet' for a tablet). At most 50 are kept."
+    },
+    "recipient_count": { "type": "number" },
+    "sent": { "type": "number" },
+    "failed": { "type": "number" },
+    "skipped": { "type": "number", "description": "Held back by the admin's settings." },
+    "status": { "type": "string", "enum": ["sent", "partial", "failed", "held", "off"] },
+    "error": { "type": "string" },
+    "company_id": { "type": "string" },
+    "sent_at": { "type": "string", "format": "date-time" }
+  },
+  "required": ["key", "channel"],
+  "rls": {
+    "read": { "user_condition": { "role": "admin" } },
+    "create": { "user_condition": { "role": "admin" } },
+    "update": { "user_condition": { "role": "admin" } },
+    "delete": { "user_condition": { "role": "admin" } }
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "name": "NotificationSetting",
+  "type": "object",
+  "description": "Admin choices for one kind of notification (Admin → Notifications): whether it is sent at all, and the people who should not get it. A kind with no row is on for everyone who would normally get it.",
+  "properties": {
+    "key": {
+      "type": "string",
+      "description": "Which notification (see base44/shared/notificationPolicy.ts)."
+    },
+    "enabled": {
+      "type": "boolean",
+      "default": true
+    },
+    "blocked_emails": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Lower-case emails of people who should not get this notification."
+    },
+    "updated_by": {
+      "type": "string"
+    }
+  },
+  "required": ["key"],
+  "rls": {
+    "read": { "user_condition": { "role": "admin" } },
+    "create": { "user_condition": { "role": "admin" } },
+    "update": { "user_condition": { "role": "admin" } },
+    "delete": { "user_condition": { "role": "admin" } }
+  }
+}

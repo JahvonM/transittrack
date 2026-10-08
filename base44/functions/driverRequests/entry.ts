@@ -2,6 +2,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 import { secrets } from 'base44:runtime';
 import { phoneTokensForDriver } from '../../shared/driverPhone.ts';
 import { sendPushToTokens } from '../../shared/fcm.ts';
+import { pushWithPolicy } from '../../shared/notificationPolicy.ts';
 
 // Day-off and swap requests from the driver phone app: administrators (and a
 // company's own approved manager, for that company only) see them and answer.
@@ -72,11 +73,13 @@ export default async function(req) {
         const driver = await db.Driver.get(row.driver_id).catch(() => null);
         if (serviceAccountJson && driver && driver.company_id === row.company_id) {
           const when = row.start_date === (row.end_date || row.start_date) ? row.start_date : `${row.start_date} to ${row.end_date}`;
-          await sendPushToTokens(serviceAccountJson, await phoneTokensForDriver(base44, driver), {
+          const payload = {
             title: `${row.kind === 'swap' ? 'Swap' : 'Day off'} ${decision === 'approved' ? 'approved' : 'declined'}`,
             body: `${when}${note ? `: ${note.slice(0, 160)}` : ''}`,
             data: { type: 'driver_request', request_id: row.id, status: decision },
-          }, '/driver-phone/me');
+          };
+          await pushWithPolicy(base44, 'request_decision', await phoneTokensForDriver(base44, driver), payload,
+            (list) => sendPushToTokens(serviceAccountJson, list, payload, '/driver-phone/me'), { companyId: row.company_id });
         }
       } catch { /* the answer is saved; the alert is best effort */ }
       return Response.json({ ok: true, request: summary({ ...row, ...updated }) });

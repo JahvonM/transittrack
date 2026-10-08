@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
+import { emailWithPolicy } from '../../shared/notificationPolicy.ts';
 
 // These jobs can be reached over plain HTTP with no login (that's how the
 // scheduler calls them), so outside an admin each one may only run once per
@@ -145,20 +146,16 @@ export default async function (req) {
       }
 
       const adminItems = items.map(formatItem);
-      for (const r of recipients.values()) {
-        const list = r.isAdmin ? adminItems : (perMechanicItems.get(r.email) || []);
-        if (!list.length) continue;
-        try {
-          await base44.asServiceRole.integrations.Core.SendEmail({
-            to: r.email,
-            subject: `Maintenance Alert — ${list.length} service(s) due`,
-            body: buildEmail(r.name, r.isAdmin, list),
-          });
-          sendResults.push({ to: r.email, ok: true });
-        } catch (err) {
-          sendResults.push({ to: r.email, ok: false, error: err.message });
-        }
-      }
+      const listFor = (r) => (r.isAdmin ? adminItems : (perMechanicItems.get(r.email) || []));
+      const { results } = await emailWithPolicy(base44, 'maintenance_due', [...recipients.values()].filter((r) => listFor(r).length), (r) => {
+        const list = listFor(r);
+        return base44.asServiceRole.integrations.Core.SendEmail({
+          to: r.email,
+          subject: `Maintenance Alert — ${list.length} service(s) due`,
+          body: buildEmail(r.name, r.isAdmin, list),
+        });
+      }, { title: `Maintenance Alert — ${items.length} service(s) due`, companyId });
+      sendResults.push(...results);
     }
 
     if (statusUpdates.length) {

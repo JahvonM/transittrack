@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
+import { emailWithPolicy } from '../../shared/notificationPolicy.ts';
 
 // These jobs can be reached over plain HTTP with no login (that's how the
 // scheduler calls them), so outside an admin each one may only run once per
@@ -108,19 +109,12 @@ export default async function (req) {
 
     const recipients = users.filter((u) => (u.role === 'admin' || u.role === 'mechanic') && u.email);
     const itemLines = dueItems.map(formatItem);
-    const sendResults = [];
-    for (const r of recipients) {
-      try {
-        await base44.asServiceRole.integrations.Core.SendEmail({
-          to: r.email,
-          subject: `Inspection Reminder — ${dueItems.length} inspection(s) due`,
-          body: buildEmail(r.full_name || r.email, itemLines),
-        });
-        sendResults.push({ to: r.email, ok: true });
-      } catch (err) {
-        sendResults.push({ to: r.email, ok: false, error: err.message });
-      }
-    }
+    const subject = `Inspection Reminder — ${dueItems.length} inspection(s) due`;
+    const { results: sendResults } = await emailWithPolicy(base44, 'inspection_reminder', recipients, (r) => base44.asServiceRole.integrations.Core.SendEmail({
+      to: r.email,
+      subject,
+      body: buildEmail(r.full_name || r.email, itemLines),
+    }), { title: subject });
 
     return Response.json({ alerted: true, dueCount: dueItems.length, recipients: sendResults });
   } catch (error) {

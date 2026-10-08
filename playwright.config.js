@@ -4,7 +4,7 @@ import { defineConfig, devices } from '@playwright/test';
 // specs are excluded: they need migration and separately authorized test sessions.
 export default defineConfig({
   testDir: './e2e',
-  testMatch: ['company-isolation.spec.js','kiosk-boarding.spec.js','map-location.spec.js','qr-login.spec.js','offline-update.spec.js','tablet-context.spec.js','saved-work.spec.js','message-notifications.spec.js','server-codes.spec.js','driver-phone.spec.js','driver-phone-shift.spec.js','driver-phone-step3.spec.js'],
+  testMatch: ['company-isolation.spec.js','kiosk-boarding.spec.js','map-location.spec.js','qr-login.spec.js','offline-update.spec.js','tablet-context.spec.js','saved-work.spec.js','message-notifications.spec.js','server-codes.spec.js','driver-phone.spec.js','driver-phone-shift.spec.js','driver-phone-step3.spec.js','notifications.spec.js'],
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
