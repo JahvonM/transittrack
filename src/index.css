@@ -540,3 +540,59 @@ html.tt-future {
  .tt-boarding-future .tt-boarding-art { min-height:90px; }
  .tt-boarding-future .tt-boarding-art img { height:90px; }
 }
+
+/* Startup loading, built as responsive UI so status and company branding stay
+   live. The background is decorative and requires no map/API connection. */
+.tt-journey-loading {
+ position:relative; isolation:isolate; overflow:hidden; color:#f3f8ff;
+ background:radial-gradient(ellipse at 50% 48%,#0c3448 0%,#061a29 38%,#030e19 78%);
+ display:flex; flex-direction:column; padding:clamp(20px,3vw,40px);
+ font-family:inherit;
+}
+.tt-journey-loading-full { min-height:100dvh; }
+.tt-journey-loading-inline { min-height:70dvh; border-radius:24px; }
+.tt-loading-contours { position:absolute; z-index:-1; inset:0; opacity:.14;
+ background-image:repeating-radial-gradient(ellipse at 18% 20%,transparent 0 32px,#32c9ee 33px 34px,transparent 35px 62px);
+ mask-image:linear-gradient(#000,transparent 80%);
+}
+.tt-loading-header { display:flex; align-items:center; justify-content:space-between; gap:16px; }
+.tt-loading-brand { display:flex; align-items:center; gap:10px; font-size:clamp(20px,2vw,28px); font-weight:750; letter-spacing:-.04em; }
+.tt-loading-accent { color:#46d9ef; }
+.tt-loading-context { color:#99b5ce; font-size:11px; letter-spacing:.17em; text-transform:uppercase; text-align:right; }
+.tt-loading-body { flex:1; width:100%; max-width:900px; margin:auto; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:20px 0 26px; text-align:center; }
+.tt-loading-company { display:flex; align-items:center; gap:10px; max-width:100%; padding:10px 20px; border:1px solid #32c9ee60; border-radius:999px; background:#051522aa; font-size:14px; font-weight:600; }
+.tt-loading-company span { overflow-wrap:anywhere; }
+.tt-loading-company img { width:30px; height:30px; border-radius:50%; object-fit:contain; }
+.tt-loading-company svg { flex-shrink:0; color:#42daf3; }
+.tt-loading-scene { position:relative; width:min(100%,640px); height:clamp(190px,32vh,340px); display:grid; place-items:center; margin:8px 0 16px; }
+.tt-loading-halo { position:absolute; inset:30% 15% 0; background:radial-gradient(ellipse,#00d8ff33,transparent 65%); filter:blur(14px); }
+.tt-loading-road { position:absolute; bottom:0; width:100%; height:42%; color:#31d8f6; filter:drop-shadow(0 0 7px #18d9ff88); }
+.tt-loading-route-light { stroke-dashoffset:0; animation:tt-loading-route 5s linear infinite; }
+.tt-loading-bus { position:relative; z-index:1; width:min(86%,520px); height:100%; max-height:100%; filter:drop-shadow(0 16px 22px #000a); }
+.tt-loading-body h1 { margin:0; max-width:720px; font-weight:750; font-size:clamp(25px,3.1vw,42px); line-height:1.18; letter-spacing:-.035em; text-wrap:balance; }
+.tt-loading-status { color:#abcce3; font-size:clamp(15px,1.7vw,20px); line-height:1.5; margin:14px 0 20px; }
+.tt-loading-progress { width:min(100%,460px); height:6px; border-radius:999px; overflow:hidden; background:#153d55; }
+.tt-loading-progress span { display:block; width:36%; height:100%; border-radius:inherit; background:#25d5f8; box-shadow:0 0 14px #25d5f8; animation:tt-loading-shimmer 1.8s ease-in-out infinite; }
+.tt-loading-slow { margin-top:20px; color:#abcce3; font-size:14px; max-width:400px; }
+.tt-loading-slow button { display:block; margin:12px auto 0; min-height:48px; padding:10px 24px; border:1px solid #47cbe0; border-radius:12px; color:#e7fbff; background:#10354a; font-weight:600; }
+.tt-loading-slow button:focus-visible { outline:3px solid #fff; outline-offset:4px; }
+.tt-loading-footer { color:#7599b3; font-size:11px; letter-spacing:.24em; text-align:center; }
+@keyframes tt-loading-route { to { stroke-dashoffset:-1320; } }
+@keyframes tt-loading-shimmer { 0% { transform:translateX(-110%); } 100% { transform:translateX(390%); } }
+@media(max-width:600px) {
+ .tt-loading-context { max-width:110px; font-size:9px; letter-spacing:.08em; }
+ .tt-loading-body { padding-top:28px; }
+ .tt-loading-scene { height:clamp(200px,34vh,310px); }
+}
+@media(max-height:650px) and (min-width:600px) {
+ .tt-journey-loading { padding:16px 24px; }
+ .tt-loading-body { padding:8px 0 12px; }
+ .tt-loading-scene { height:165px; margin:0 0 6px; }
+ .tt-loading-company { padding:6px 14px; }
+ .tt-loading-status { margin:8px 0 12px; }
+ .tt-loading-body h1 { font-size:28px; }
+ .tt-loading-slow { margin-top:10px; }
+}
+@media(prefers-reduced-motion:reduce) {
+ .tt-loading-route-light,.tt-loading-progress span { animation:none; }
+}

@@ -1,5 +1,5 @@
 import { Toaster } from "@/components/ui/toaster"
-import BusLoader from "@/components/BusLoader";
+import JourneyLoading from "@/components/JourneyLoading";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import AccessRecovery from '@/components/system/AccessRecovery';
 import ConfirmHost from "@/components/ConfirmHost";
@@ -63,9 +63,7 @@ const DriverPhone = lazy(() => import('@/pages/DriverPhone'));
 // Add page imports here
 
 const RouteFallback = () => (
-  <div className="fixed inset-0 flex items-center justify-center">
-    <BusLoader />
-  </div>
+  <JourneyLoading label="Opening this screen…" onRetry={() => window.location.reload()} />
 );
 
 const AuthenticatedApp = () => {
@@ -82,9 +80,7 @@ const AuthenticatedApp = () => {
   // Show loading spinner while checking app public settings or auth
   if (!authPage && !tabletPage && (isLoadingPublicSettings || isLoadingAuth)) {
     return (
-      <div className="fixed inset-0 flex items-center justify-center">
-        <BusLoader />
-      </div>
+      <JourneyLoading label={isLoadingPublicSettings ? "Connecting to TransitTrack…" : "Checking your account…"} onRetry={checkAppState} />
     );
   }
 

@@ -4,7 +4,7 @@ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { CalendarDays, LogOut, MessageSquare, TriangleAlert, User as UserIcon } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { cn } from "@/lib/utils";
-import BusLoader from "@/components/BusLoader";
+import JourneyLoading from "@/components/JourneyLoading";
 import Logo from "@/components/Logo";
 import { useToast } from "@/components/ui/use-toast";
 import { requestPushToken, onForegroundMessage } from "@/lib/firebase";
@@ -236,7 +236,7 @@ export default function DriverPhone() {
   const signOut = () => logout(true);
   const go = (id) => navigate(id === "today" ? "/driver-phone" : `/driver-phone/${id}`);
 
-  if (status === "loading") return <div className="grid min-h-[100dvh] place-items-center bg-background"><BusLoader /></div>;
+  if (status === "loading") return <JourneyLoading label={me ? "Loading your bus and pickups…" : "Checking your driver account…"} context="Driver phone" company={me?.company} vehicle={today?.bus} onRetry={() => window.location.reload()} />;
   if (status === "refused") return <NotADriver email={user?.email} message={refusal} onSignOut={signOut} />;
   if (status === "error") {
     return (

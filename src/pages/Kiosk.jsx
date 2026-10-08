@@ -4,7 +4,7 @@ import { saveBoardingDirectory, localCardLookup } from "@/lib/boardingDirectory"
 import { deviceRequest, saveDeviceToken, forgetDeviceToken, pairingProfile } from "@/lib/deviceAuth";
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import useNoPageZoom from "@/hooks/useNoPageZoom";
-import BusLoader from "@/components/BusLoader";
+import JourneyLoading from "@/components/JourneyLoading";
 import { base44 } from "@/api/base44Client";
 import { Bus, Building2, DoorOpen, CreditCard, CheckCircle2, AlertCircle, WifiOff } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -228,9 +228,7 @@ export default function Kiosk() {
 
   if (status === "pairing")
     return (
-      <div className="min-h-[100dvh] flex items-center justify-center bg-gradient-to-br from-primary/15 via-background to-background">
-        <BusLoader label="Connecting this tablet…" />
-      </div>
+      <JourneyLoading context="Boarding tablet" label="Connecting this tablet…" company={device?.company_name ? {name:device.company_name,logo_url:device.company_logo_url} : null} vehicle={device?.context?.vehicle} onRetry={() => window.location.reload()} />
     );
 
   if (status === "error")
