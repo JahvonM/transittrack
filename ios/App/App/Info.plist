@@ -24,6 +24,10 @@
 	<true/>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>TransitTrack needs your location to show your position on the live map and track your route while you're using the app.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>TransitTrack uses the camera to scan staff boarding QR codes and badges on the bus tablet, and to take photos you attach to reports and messages.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>TransitTrack uses the microphone to record the voice notes you send in chats.</string>
 	<!-- "Always" (background) location is deliberately not requested yet —
 	     only add NSLocationAlwaysAndWhenInUseUsageDescription + the "location"
 	     UIBackgroundModes entry once background tracking (screen off / app
@@ -51,5 +55,10 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<!-- The app only uses HTTPS/TLS, which is exempt encryption. Declaring it
+	     here means App Store Connect stops asking about export compliance on
+	     every build upload. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 </dict>
 </plist>
