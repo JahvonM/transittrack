@@ -55,8 +55,8 @@ export function usePushNotifications({ email, role, companyId } = {}) {
     let cancelled=false;
     pushPermission().then(async p=>{
       if(cancelled)return;
-      setPermission(p);
-      if(p==="granted"){const {token}=await requestPushToken({prompt:false});if(token&&!cancelled)await saveToken(token);}
+      setPermission(p==="granted"?"default":p);
+      if(p==="granted"){const {token}=await requestPushToken({prompt:false});if(token&&!cancelled&&(await saveToken(token)))setPermission("granted");}
     });
     return()=>{cancelled=true;autoChecked.current=false;};
   }, [email, role, companyId]);
@@ -74,9 +74,11 @@ export function usePushNotifications({ email, role, companyId } = {}) {
       const fail = (key) => { toast({ ...PUSH_FAILURE[key], variant: "destructive" }); return false; };
       if (!email) return fail("signed_out");
       const { token, reason } = await requestPushToken();
-      setPermission(await pushPermission());
+      const devicePermission=await pushPermission();
+      setPermission(devicePermission==="granted"?"default":devicePermission);
       if (!token) return fail(reason || "error");
       if (!(await saveToken(token))) return fail("not_saved");
+      setPermission("granted");
       toast({ title: "Notifications on", description: "This device will get your TransitTrack alerts." });
       return true;
     } finally {
