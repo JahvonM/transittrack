@@ -9,28 +9,28 @@
   "theme_color": "#0D1520",
   "icons": [
     {
-      "src": "/brand/icon-192.png",
+      "src": "/brand/icon-192.png?v=hiace1",
       "type": "image/png",
       "sizes": "192x192",
       "purpose": "any"
     },
     {
-      "src": "/brand/icon-512.png",
+      "src": "/brand/icon-512.png?v=hiace1",
       "type": "image/png",
       "sizes": "512x512",
       "purpose": "any"
     },
     {
-      "src": "/brand/maskable-512.png",
+      "src": "/brand/maskable-192.png?v=hiace1",
       "type": "image/png",
-      "sizes": "512x512",
+      "sizes": "192x192",
       "purpose": "maskable"
     },
     {
-      "src": "/brand/icon.svg",
-      "type": "image/svg+xml",
-      "sizes": "any",
-      "purpose": "any"
+      "src": "/brand/maskable-512.png?v=hiace1",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "maskable"
     }
   ]
 }

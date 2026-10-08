@@ -5,7 +5,7 @@ Sign in with your existing email and password. Your role and backend permissions
 Admin opens /admin; Mechanic opens /mechanic. Menus do not grant additional access.
 
 ## Install
-Run TransitTrack-Desktop-Setup-0.2.0.exe on Windows 10/11 x64.
+Run TransitTrack-Desktop-Setup-0.2.1.exe on Windows 10/11 x64.
 The installer creates desktop and Start menu shortcuts. It installs for the current user.
 This preview installer is unsigned. Windows may show an unknown-publisher warning.
 Only install the file you obtained from the trusted project owner.

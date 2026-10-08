@@ -55,7 +55,7 @@ function createWindow() {
   {label:'Devices',submenu:[{label:'Tablet & NFC setup',click:()=>{deviceSetup ||= require('./setup-main.cjs').createDeviceSetup(require('electron'),mainWindow);deviceSetup.open();}}]},
   {label:'Edit',submenu:[{role:'undo'},{role:'redo'},{type:'separator'},{role:'cut'},{role:'copy'},{role:'paste'},{role:'selectAll'}]},
   {label:'View',submenu:[{label:'Reconnect / reload',accelerator:'Ctrl+R',click:()=>isAppUrl(mainWindow?.webContents.getURL())?mainWindow.reload():openRoute('/')},{role:'resetZoom'},{role:'zoomIn'},{role:'zoomOut'},{role:'togglefullscreen'}]},
-  {label:'Help',submenu:[{label:'About TransitTrack Desktop',click:()=>dialog.showMessageBox(mainWindow,{type:'info',message:'TransitTrack Desktop 0.2.0',detail:'Admin and Mechanic workspaces. Uses your existing account permissions. Internet is needed for live data. This preview supports email/password sign-in; USB tablet setup and NFC reader controls are available under Devices. Automatic updates are not included.'})}]}
+  {label:'Help',submenu:[{label:'About TransitTrack Desktop',click:()=>dialog.showMessageBox(mainWindow,{type:'info',message:'TransitTrack Desktop 0.2.1',detail:'Admin and Mechanic workspaces. Uses your existing account permissions. Internet is needed for live data. This preview supports email/password sign-in; USB tablet setup and NFC reader controls are available under Devices. Automatic updates are not included.'})}]}
  ]));
  openRoute('/login?returnTo=%2F');
 }
