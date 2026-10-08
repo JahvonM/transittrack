@@ -86,7 +86,7 @@ export default function DriverChats({ session, invoke, onUnreadChange }) {
       const next = {};
       Object.keys(prev).forEach((ch) => {
         const filtered = prev[ch].filter(
-          (lm) => !groupMessages.some((m) => (m.channel || "staff") === ch && m.text === lm.text && m.sender_role === "driver")
+          (lm) => !groupMessages.some((m) => m.id === lm.id)
         );
         if (filtered.length !== prev[ch].length) changed = true;
         next[ch] = filtered;
@@ -150,14 +150,10 @@ export default function DriverChats({ session, invoke, onUnreadChange }) {
   const send = async (text) => {
     setSending(true);
     try {
-      await invoke("send_group_message", { text, channel: activeChannel });
-      setLocalMessages((prev) => ({
-        ...prev,
-        [activeChannel]: [...(prev[activeChannel] || []), {
-          id: `local-${Date.now()}`, text, sender_role: "driver", message_type: "text",
-          created_date: new Date().toISOString(),
-        }],
-      }));
+      const result = await invoke("send_group_message", { text, channel: activeChannel });
+      const message = result?.message || result?.data?.message;
+      if (message?.id) setLocalMessages(prev=>({...prev,[activeChannel]:[...(prev[activeChannel]||[]).filter(m=>m.id!==message.id),message]}));
+      return message;
     } finally {
       setSending(false);
     }

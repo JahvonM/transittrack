@@ -127,6 +127,7 @@ export default function FloatingMessages({ vehicles = [], placement = "float" })
         const list = prev[created.vehicle_id] || [];
         return { ...prev, [created.vehicle_id]: list.some(m => m.id === created.id) ? list : [...list, created] };
       });
+      return created;
     } finally {
       setSending(false);
     }

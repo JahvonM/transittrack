@@ -100,7 +100,9 @@ export default function CompanyMessages({ vehicles = [] }) {
         company_id: activeVehicle.company_id, company_name: activeVehicle.company_name,
         channel: "company", sender_role: "company", sender_name: senderName, text,
       });
+      setMessagesByVehicle(prev=>({...prev,[message.vehicle_id]:[...(prev[message.vehicle_id]||[]).filter(m=>m.id!==message.id),message]}));
       notifyAdmin(message);
+      return message;
     } finally {
       setSending(false);
     }

@@ -12,24 +12,31 @@ export default function MessagesTab({ messages, loaded, hasBus, onSend }) {
   const [channel, setChannel] = useState("dispatch");
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
+  const [pending,setPending]=useState(null);
+  const busy=useRef(false);
   const [error, setError] = useState("");
   const end = useRef(null);
-  const shown = (messages || []).filter((m) => m.channel === channel);
+  const shown = [...(messages || []), ...(pending && !(messages||[]).some(m=>m.id===pending.id) ? [pending] : [])].filter((m) => m.channel === channel);
 
   useEffect(() => { end.current?.scrollIntoView?.({ block: "end" }); }, [shown.length, channel]);
 
   const send = async (e) => {
     e.preventDefault();
     const clean = text.trim();
-    if (!clean || sending) return;
+    if (!clean || sending || busy.current) return;
+    busy.current=true;
+    const local={id:"local-"+crypto.randomUUID(),channel,text:clean,mine:true,created_date:new Date().toISOString(),delivery:"Sending…"};
+    setPending(local);
     setSending(true); setError("");
     try {
-      await onSend(channel, clean);
-      setText("");
+      const message=await onSend(channel, clean);
+      setPending(message?.id?{...message,delivery:"Sent"}:null);
+      setText(current=>current.trim()===clean?"":current);
     } catch (err) {
+      setPending({...local,delivery:"Not sent"});
       setError(err.message || "Message not sent. Try again.");
     } finally {
-      setSending(false);
+      setSending(false); busy.current=false;
     }
   };
 
@@ -63,7 +70,7 @@ export default function MessagesTab({ messages, loaded, hasBus, onSend }) {
             ) : (
               <p className="whitespace-pre-wrap break-words text-body">{m.text}</p>
             )}
-            <p className="mt-0.5 text-caption text-muted-foreground">{stamp(m.created_date)}</p>
+            <p className="mt-0.5 text-caption text-muted-foreground">{stamp(m.created_date)}{m.delivery&&<span role="status"> · {m.delivery}</span>}</p>
           </li>
         ))}
         <li ref={end} aria-hidden="true" />

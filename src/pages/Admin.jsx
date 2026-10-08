@@ -335,8 +335,7 @@ export default function Admin() {
         {emergencyOverlay}
         <AdminShell active={section} onNavigate={go} alertVehicles={emergencyVehicles} user={user} onSignOut={() => logout()}>
           <BusLoader className="py-8" />
-          </PullToRefresh>
-      </AdminShell>
+        </AdminShell>
       </>
     );
 
