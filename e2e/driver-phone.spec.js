@@ -174,3 +174,25 @@ test('admin switches the phone app on for a driver',async({page})=>{
  await expect(page.getByText('Phone app',{exact:true})).toBeVisible();
  await expect(page.getByRole('link',{name:'WhatsApp'})).toHaveAttribute('href','https://wa.me/14735550123');
 });
+
+test('phone loading follows real requests, displays bus artwork, and respects reduced motion',async({page})=>{
+ await page.emulateMedia({reducedMotion:'reduce'});
+ await phone(page,{today:{...TODAY,bus:{...TODAY.bus,image_url:'/images/transit-bus-3d.webp'}}});
+ let release;const pending=new Promise(resolve=>{release=resolve});
+ await page.route('**/functions/driverPhone',async r=>{
+  if(r.request().postDataJSON().action==='messages')await pending;
+  return r.fallback();
+ });
+ await page.goto('/driver-phone');
+ const loading=page.getByRole('region',{name:'TransitTrack loading screen'});
+ await expect(loading).toBeVisible();
+ await expect(loading.getByText('Coyaba Transport',{exact:true})).toBeVisible();
+ await expect(loading.getByRole('status')).toHaveText('Loading your bus and pickups…');
+ await expect(loading.locator('.tt-loading-bus')).toHaveAttribute('src','/images/transit-bus-3d.webp');
+ expect(await loading.locator('.tt-loading-progress span').evaluate(el=>getComputedStyle(el).animationName)).toBe('none');
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+ await page.screenshot({path:'/tmp/tt-loading-phone.png'});
+ release();
+ await expect(loading).toHaveCount(0);
+ await expect(page.getByRole('button',{name:'Start shift',exact:true})).toBeVisible();
+});

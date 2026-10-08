@@ -64,7 +64,7 @@ function DriverPhoneCheck({ children }) {
     return () => { alive = false; };
   }, []);
   if (state === "driver") return <Navigate to="/driver-phone" replace />;
-  if (state === "checking") return <JourneyLoading fullScreen={false} context="Passenger" label="Loading your buses and arrival times…" company={company} vehicle={vehicles[0]} onRetry={() => window.location.reload()} />;
+  if (state === "checking") return <JourneyLoading fullScreen={false} label="Checking your account…" onRetry={() => window.location.reload()} />;
   return children;
 }
 
@@ -402,7 +402,7 @@ export default function StaffPortal() {
   if (user?.role === "mechanic") return <Navigate to="/mechanic" replace />;
   // Same layout as the state below, so the page doesn't jump between the
   // company check and the data load — it reads as one wait.
-  if (!companiesLoaded) return <AppLayout variant="passenger"><JourneyLoading fullScreen={false} context="Passenger" label="Loading your buses and arrival times…" company={company} vehicle={vehicles[0]} onRetry={() => window.location.reload()} /></AppLayout>;
+  if (!companiesLoaded) return <AppLayout variant="passenger"><JourneyLoading fullScreen={false} context="Passenger" label="Reconnecting to your company…" company={company} onRetry={restoreCompany} /></AppLayout>;
   if (companyError) return <AppLayout><AccessRecovery onRetry={restoreCompany} title="Couldn't reconnect to your company" description="Your saved company access has not been removed. Check your connection, then try again." /></AppLayout>;
   if (!company) {
     return (
