@@ -2,13 +2,11 @@ import { useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
 import { useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
-import BusLoader from '@/components/BusLoader';
+import JourneyLoading from '@/components/JourneyLoading';
 import AccessRecovery from '@/components/system/AccessRecovery';
 
 const DefaultFallback = () => (
-  <div className="fixed inset-0 flex items-center justify-center">
-    <BusLoader />
-  </div>
+  <JourneyLoading label="Checking your account…" onRetry={() => window.location.reload()} />
 );
 
 export default function ProtectedRoute({ fallback = <DefaultFallback />, unauthenticatedElement }) {

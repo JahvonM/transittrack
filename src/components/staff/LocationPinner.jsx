@@ -68,7 +68,7 @@ export default function LocationPinner({ onSaved }) {
         pickup_lat: suggestion.lat, pickup_lng: suggestion.lng, pickup_name: suggestion.name, pickup_route_id: suggestion.route_id,
       });
       await checkUserAuth?.();
-      onSaved?.(suggestion.name);
+      await onSaved?.(suggestion.name);
       setSuggestion(null);
       toast({ title: "Roadside pickup saved", description: "Your driver sees the bus-road point. Use the walking directions to reach it." });
     } catch { toast({ title: "Couldn't save your pickup", variant: "destructive" }); }
@@ -97,7 +97,7 @@ export default function LocationPinner({ onSaved }) {
         pickup_lat: own.lat, pickup_lng: own.lng, pickup_name: name, pickup_route_id: own.road.route_id,
       });
       await checkUserAuth?.();
-      onSaved?.(name);
+      await onSaved?.(name);
       setOwn(null);
       setSuggestion(null);
       toast({ title: "Pickup spot saved", description: "Your driver sees your pin on their stop list." });

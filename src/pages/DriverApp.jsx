@@ -7,7 +7,7 @@ import { forgetPin } from '@/lib/offlinePin';
 import ErrorState from '@/components/system/ErrorState';
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import useNoPageZoom from "@/hooks/useNoPageZoom";
-import BusLoader from "@/components/BusLoader";
+import JourneyLoading from "@/components/JourneyLoading";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useDriverSession, clearDriverSessionCache } from "@/hooks/useDriverSession";
@@ -338,12 +338,12 @@ export default function DriverApp() {
 
   if (!deviceId) {
     if (autoPairing)
-      return <div className="min-h-[100dvh] flex items-center justify-center"><BusLoader /></div>;
+      return <JourneyLoading context="Driver tablet" label="Connecting this tablet…" onRetry={() => window.location.reload()} />;
     return <DriverPairing onPaired={handlePaired} />;
   }
 
   if (loading && !session)
-    return <div className="min-h-[100dvh] flex items-center justify-center"><BusLoader /></div>;
+    return <JourneyLoading context="Driver tablet" label="Loading your bus and route…" company={session?.company_name ? {name:session.company_name,logo_url:session.company_logo_url} : null} vehicle={session?.vehicle} onRetry={() => window.location.reload()} />;
 
   if (!session && sessionError)
     return <div className="min-h-[100dvh] grid place-items-center p-6"><ErrorState title="Couldn't reconnect to this tablet" description={sessionError} onRetry={refresh} retrying={loading} /></div>;

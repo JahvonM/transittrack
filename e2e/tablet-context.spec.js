@@ -431,3 +431,22 @@ test('driver stops show who is picked up where, the drop-off, and fix a stop fro
   expect(calls[0]).toMatchObject({ action: 'move_stop', stop_name: 'True Blue' });
   expect(calls[0].lat).toBeUndefined();
 });
+
+test('driver tablet loading offers retry after a slow response without unlocking the tablet',async({page})=>{
+ await page.clock.install();
+ await page.setViewportSize({width:1280,height:800});
+ await mockApi(page,[]);
+ await page.addInitScript(()=>localStorage.setItem('tt_driver_device_id','driver-test'));
+ let release;const pending=new Promise(resolve=>{release=resolve});
+ await page.route('**/functions/driverSession',async r=>{await pending;return r.fallback();});
+ await page.goto('/driver');
+ const loading=page.getByRole('region',{name:'TransitTrack loading screen'});
+ await expect(loading).toBeVisible();
+ await expect(loading.getByRole('button',{name:'Try again'})).toHaveCount(0);
+ await page.clock.fastForward(12500);
+ await expect(loading.getByRole('button',{name:'Try again'})).toBeVisible();
+ await page.screenshot({path:'/tmp/tt-loading-driver.png'});
+ release();
+ await expect(loading).toHaveCount(0);
+ await expect(page.getByText('Driver PIN required')).toBeVisible();
+});

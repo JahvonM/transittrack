@@ -25,7 +25,7 @@ import { loadFailed } from "@/lib/loadFailed";
 import AccessRecovery from '@/components/system/AccessRecovery';
 import { companyGrantRejected, sessionRejected } from '@/lib/requestError';
 import { withRateLimitRetry } from '@/lib/scopedEntities';
-import BusLoader from "@/components/BusLoader";
+import JourneyLoading from "@/components/JourneyLoading";
 import { callDriverPhone } from "@/lib/driverPhone";
 import { routeProgress } from "@/components/TripProgress";
 import ArrivalHero from "@/components/passenger/ArrivalHero";
@@ -64,7 +64,7 @@ function DriverPhoneCheck({ children }) {
     return () => { alive = false; };
   }, []);
   if (state === "driver") return <Navigate to="/driver-phone" replace />;
-  if (state === "checking") return <BusLoader className="py-8" />;
+  if (state === "checking") return <JourneyLoading fullScreen={false} label="Checking your account…" onRetry={() => window.location.reload()} />;
   return children;
 }
 
@@ -108,10 +108,10 @@ export default function StaffPortal() {
     }
   }, [user]);
 
-  const choosePickup = (v) => {
+  const choosePickup = async (v) => {
+    if (user) await base44.auth.updateMe({ favorite_stop: v });
     setPickupName(v);
-    localStorage.setItem("tt_staff_pickup", v);
-    if (user) base44.auth.updateMe({ favorite_stop: v }).catch(() => {});
+    try { localStorage.setItem("tt_staff_pickup", v); } catch { /* Account still holds the saved pickup. */ }
   };
 
   const toggleStopAlerts = async (on) => {
@@ -276,7 +276,7 @@ export default function StaffPortal() {
       (r.stops || []).forEach((s) => {
         if (!s.name || seen.has(s.name)) return;
         seen.add(s.name);
-        out.push(s);
+        out.push({ ...s, route_id: r.id, routeName: r.name });
       })
     );
     if (user?.pickup_lat != null && routes.some(r => r.id === user.pickup_route_id)) out.push({ name: user.pickup_name, lat: user.pickup_lat, lng: user.pickup_lng, route_id: user.pickup_route_id, personal: true });
@@ -402,7 +402,7 @@ export default function StaffPortal() {
   if (user?.role === "mechanic") return <Navigate to="/mechanic" replace />;
   // Same layout as the state below, so the page doesn't jump between the
   // company check and the data load — it reads as one wait.
-  if (!companiesLoaded) return <AppLayout variant="passenger"><BusLoader className="py-8" /></AppLayout>;
+  if (!companiesLoaded) return <AppLayout variant="passenger"><JourneyLoading fullScreen={false} context="Passenger" label="Reconnecting to your company…" company={company} onRetry={restoreCompany} /></AppLayout>;
   if (companyError) return <AppLayout><AccessRecovery onRetry={restoreCompany} title="Couldn't reconnect to your company" description="Your saved company access has not been removed. Check your connection, then try again." /></AppLayout>;
   if (!company) {
     return (
@@ -413,7 +413,7 @@ export default function StaffPortal() {
       </AppLayout>
     );
   }
-  if (loading) return <AppLayout variant="passenger"><BusLoader className="py-8" /></AppLayout>;
+  if (loading) return <AppLayout variant="passenger"><JourneyLoading fullScreen={false} context="Passenger" label="Loading your buses and arrival times…" company={company} vehicle={vehicles[0]} onRetry={() => window.location.reload()} /></AppLayout>;
 
   const mins = tripState.mins;
   const roundMins = mins != null ? Math.max(1, Math.round(mins)) : null;
@@ -569,6 +569,8 @@ export default function StaffPortal() {
         onOpenChange={(o) => setSheet(o ? "pickup" : null)}
         pickupName={pickupName}
         pickupOptions={pickupOptions}
+        routes={routes}
+        userLoc={userLoc}
         onChoosePickup={choosePickup}
         stopAlerts={stopAlerts}
         onToggleStopAlerts={toggleStopAlerts}

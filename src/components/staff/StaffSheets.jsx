@@ -9,12 +9,12 @@ import { useAuth } from "@/lib/AuthContext";
 import { base44 } from "@/api/base44Client";
 import { waLink } from "@/lib/mapbox";
 import { accountName } from "@/lib/userName";
-import LocationPinner from "@/components/staff/LocationPinner";
 import LostItemReport from "@/components/staff/LostItemReport";
 import OneTimeCode from "@/components/staff/OneTimeCode";
 import StaffGroupChat from "@/components/staff/StaffGroupChat";
 import BusAssistant from "@/components/BusAssistant";
 import StopChooser from "@/components/passenger/StopChooser";
+import PickupSelector from "@/components/passenger/PickupSelector";
 
 function BottomSheet({ open, onOpenChange, title, description, children, tall = false }) {
   return (
@@ -39,7 +39,7 @@ function Section({ title, children }) {
   );
 }
 
-export function MyPickupSheet({ open, onOpenChange, pickupName, pickupOptions, onChoosePickup, stopAlerts, onToggleStopAlerts, pushUnsupported, companyPhone, onSwitchCompany }) {
+export function MyPickupSheet({ open, onOpenChange, pickupName, pickupOptions, routes, userLoc, onChoosePickup, stopAlerts, onToggleStopAlerts, pushUnsupported, companyPhone, onSwitchCompany }) {
   const { user, checkUserAuth } = useAuth();
   const waOptIn = waLink(companyPhone, `Hi, this is ${accountName(user)}. I'd like to receive staff bus updates via WhatsApp.`);
   const linkWhatsapp = async () => {
@@ -48,15 +48,10 @@ export function MyPickupSheet({ open, onOpenChange, pickupName, pickupOptions, o
   };
 
   return (
-    <BottomSheet open={open} onOpenChange={onOpenChange} title="My pickup" description="Where you get on, and how we let you know.">
+    <BottomSheet open={open} onOpenChange={onOpenChange} title="Where should we pick you up?" description="Choose a stop or find a pickup nearby.">
       <div className="space-y-6 pb-4">
-        <Section title="Pickup stop">
-          <MobileSelect
-            value={pickupName}
-            onValueChange={onChoosePickup}
-            placeholder="Choose your hotel / stop"
-            options={pickupOptions.map((s) => ({ value: s.name, label: s.name }))}
-          />
+        <PickupSelector options={pickupOptions} routes={routes} userLoc={userLoc} value={pickupName} onChoose={onChoosePickup} intro={false} onConfirmed={() => onOpenChange(false)} />
+        <Section title="Arrival alerts">
           <label className="flex items-center gap-3 cursor-pointer rounded-xl border px-3 py-3">
             <Switch checked={stopAlerts} onCheckedChange={onToggleStopAlerts} aria-label="Alert me when a bus is one stop away" />
             <span className="text-sm flex-1">
@@ -66,10 +61,6 @@ export function MyPickupSheet({ open, onOpenChange, pickupName, pickupOptions, o
               )}
             </span>
           </label>
-        </Section>
-
-        <Section title="Find a roadside pickup">
-          <LocationPinner onSaved={onChoosePickup} />
         </Section>
 
         {companyPhone && (
@@ -143,7 +134,7 @@ export function StopSheet({ open, onOpenChange, routes, value, onChoose, userLoc
   return (
     <BottomSheet open={open} onOpenChange={onOpenChange} title="Where do you get on?" description="Your stop decides which bus and arrival time you see.">
       <div className="-mx-6 pb-4">
-        <StopChooser routes={routes} value={value} userLoc={userLoc} intro={false} onChoose={(name) => { onChoose(name); onOpenChange(false); }} />
+        <StopChooser routes={routes} value={value} userLoc={userLoc} intro={false} onChoose={async (name) => { await onChoose(name); onOpenChange(false); }} />
       </div>
     </BottomSheet>
   );
