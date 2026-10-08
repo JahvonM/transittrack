@@ -836,3 +836,67 @@ test('admin tool search routes to existing maintenance tools',async({page})=>{
  await expect(page).toHaveURL(/admin\/faults/);
  await expect(page.getByRole('navigation',{name:'Admin'}).getByRole('button',{name:'Maintenance',exact:true})).toHaveAttribute('aria-expanded','true');
 });
+
+test('system theme follows device changes without saving an automatic preference',async({page})=>{
+ await session(page,'admin');
+ await page.emulateMedia({colorScheme:'light'});
+ await page.goto('/privacy');
+ await expect(page.locator('html')).toHaveClass(/light/);
+ expect(await page.evaluate(()=>localStorage.getItem('tt-theme-v2'))).toBeNull();
+ await page.emulateMedia({colorScheme:'dark'});
+ await expect(page.locator('html')).toHaveClass(/dark/);
+ await page.evaluate(()=>localStorage.setItem('tt-theme-v2','light'));
+ await page.reload();
+ await expect(page.locator('html')).toHaveClass(/light/);
+});
+
+test('mobile overview company picker is a drawer with selectable options',async({page})=>{
+ await page.setViewportSize({width:390,height:844});
+ await session(page,'admin');
+ await page.goto('/admin');
+ await page.getByLabel('Overview company',{exact:true}).click();
+ const drawer=page.getByRole('dialog');
+ await expect(drawer).toBeVisible();
+ await drawer.getByRole('option',{name:'Company A',exact:true}).click();
+ await expect(drawer).toHaveCount(0);
+ await expect(page.getByLabel('Overview company',{exact:true})).toContainText('Company A');
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+});
+
+test('admin refresh reads lists again and preserves saved offline work',async({page})=>{
+ const {calls}=await session(page,'admin');
+ await page.addInitScript(()=>localStorage.setItem('tt_refresh_canary','saved offline work'));
+ await page.goto('/admin');
+ await expect(page.getByRole('region',{name:'Fleet status'})).toBeVisible();
+ const initial=calls.filter(c=>c.entity==='Vehicle'&&c.operation==='list').length;
+ await page.getByRole('button',{name:'Refresh list',exact:true}).click();
+ await expect.poll(()=>calls.filter(c=>c.entity==='Vehicle'&&c.operation==='list').length).toBeGreaterThan(initial);
+ expect(await page.evaluate(()=>localStorage.getItem('tt_refresh_canary'))).toBe('saved offline work');
+});
+
+test('chat shows sending immediately and retains text after a failed send',async({page})=>{
+ await session(page,'admin');
+ let release;
+ await page.route('**/functions/entityAccess',async r=>{
+  const b=r.request().postDataJSON();
+  if(b.entity==='GroupMessage'&&b.operation==='create'){
+   await new Promise(resolve=>release=resolve);
+   return r.fulfill({status:500,json:{error:'Test failure'}});
+  }
+  return r.fallback();
+ });
+ await page.goto('/admin');
+ await page.getByRole('button',{name:'Open messages',exact:true}).click();
+ await page.getByRole('button',{name:'New message',exact:true}).click();
+ await page.getByRole('button',{name:/Bus A.*No messages/}).click();
+ await page.getByRole('button',{name:/Passengers.*No messages/}).click();
+ const input=page.getByPlaceholder("Message this bus's passengers…");
+ await input.fill('Keep my unsent message');
+ await page.getByRole('button',{name:'Send message',exact:true}).click();
+ await expect(page.getByText('Keep my unsent message',{exact:true})).toBeVisible();
+ await expect(page.getByText('· Sending…',{exact:false})).toBeVisible();
+ release();
+ await expect(page.getByRole('alert').filter({hasText:"Couldn't send"})).toBeVisible();
+ await expect(input).toHaveValue('Keep my unsent message');
+ await expect(page.getByText('· Not sent',{exact:false})).toBeVisible();
+});
