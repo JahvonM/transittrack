@@ -191,6 +191,9 @@ test('phone loading follows real requests, displays bus artwork, and respects re
  await expect(loading.locator('.tt-loading-bus')).toHaveAttribute('src','/images/transit-bus-3d.webp');
  expect(await loading.locator('.tt-loading-progress span').evaluate(el=>getComputedStyle(el).animationName)).toBe('none');
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+ const bus=await loading.locator('.tt-loading-bus').boundingBox();
+ const title=await loading.getByRole('heading').boundingBox();
+ expect(bus.y+bus.height).toBeLessThanOrEqual(title.y);
  await page.screenshot({path:'/tmp/tt-loading-phone.png'});
  release();
  await expect(loading).toHaveCount(0);

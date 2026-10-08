@@ -247,6 +247,9 @@ for(const size of [{width:1280,height:800},{width:800,height:1280},{width:1024,h
   const bounds=await loading.locator('.tt-loading-progress').boundingBox();
   expect(bounds.y+bounds.height).toBeLessThanOrEqual(size.height);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  const bus=await loading.locator('.tt-loading-bus').boundingBox();
+  const title=await loading.getByRole('heading').boundingBox();
+  expect(bus.y+bus.height).toBeLessThanOrEqual(title.y);
   await page.screenshot({path:'/tmp/tt-loading-boarding-'+size.width+'.png'});
   release();
   await expect(loading).toHaveCount(0);
