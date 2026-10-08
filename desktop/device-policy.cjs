@@ -25,7 +25,7 @@ function configuration(input){
   steps.push(['Landscape',['shell','settings','put','system','accelerometer_rotation','0']],['Landscape orientation',['shell','settings','put','system','user_rotation','1']]);
  }
  steps.push(['FreeKiosk settings permission',['shell','pm','grant','com.freekiosk','android.permission.WRITE_SECURE_SETTINGS']],['FreeKiosk camera permission',['shell','pm','grant','com.freekiosk','android.permission.CAMERA']],['FreeKiosk location permission',['shell','pm','grant','com.freekiosk','android.permission.ACCESS_FINE_LOCATION']],['FreeKiosk usage access',['shell','appops','set','com.freekiosk','GET_USAGE_STATS','allow']]);
- const kiosk=['shell','am','start','-n','com.freekiosk/.MainActivity','--es','pin',input.pin,'--es','rest_api_enabled','true','--es','rest_api_port','8080','--es','rest_api_key',input.apiKey];
+ const kiosk=['shell','am','start','-n','com.freekiosk/.MainActivity','--es','pin',input.pin,'--es','rest_api_enabled','true','--es','rest_api_port','8080','--es','rest_api_key',input.apiKey,'--es','managed_apps',"'[{\"packageName\":\"com.transittrack.kioskhelper\",\"showOnHomeScreen\":false},{\"packageName\":\"com.android.systemui\",\"showOnHomeScreen\":false}]'"];
  if(input.mode==='new')kiosk.push('--es','url',APP_ORIGIN+'/'+(input.type==='driver'?'driver':'kiosk')+'?code='+input.code,'--ez','kiosk_enabled','true','--es','auto_launch','true','--es','auto_relaunch','true');
  steps.push(['Configure FreeKiosk',kiosk]);
  const launch=['shell','am','start','-n',helper+'/.MainActivity','--es','api_key',input.apiKey,'--es','ignition','false'];
