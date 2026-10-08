@@ -48,29 +48,33 @@ async function liveMemberships(db, scope) {
 }
 
 // Everyone who could get a notification, by audience, for the "Who gets it" lists.
-async function people(db) {
+async function directory(db) {
   const [users, companies, managers, passengers, drivers] = await Promise.all([
     allRows(db, 'User'), allRows(db, 'Company'), liveMemberships(db, 'manager'), liveMemberships(db, 'passenger'),
     db.Driver.filter({ phone_app_access: true }, 'full_name', 2000),
   ]);
   const companyName = new Map(companies.map((c) => [c.id, sanitize(c.name)]));
+  const selfService = new Set(NOTIFICATION_TYPES.filter((t) => t.selfService).map((t) => t.key));
   const person = (u, companyId) => ({
     email: norm(u.email), name: sanitize(u.display_name || u.full_name) || norm(u.email),
-    company: companyId ? companyName.get(companyId) || '' : '',
+    company: companyId ? companyName.get(companyId) || '' : '', company_id: companyId || '',
+    // Kinds this person turned off in their own app.
+    opted_out: (Array.isArray(u.notification_opt_out) ? u.notification_opt_out : []).filter((k) => selfService.has(k)),
   });
   const firstCompany = (rows) => new Map(rows.map((m) => [m.user_id, m.company_id]));
   const managerOf = firstCompany(managers), passengerOf = firstCompany(passengers);
   const withEmail = users.filter((u) => EMAIL.test(norm(u.email)));
   const byName = (a, b) => a.name.localeCompare(b.name);
-  return {
+  const people = {
     admin: withEmail.filter((u) => u.role === 'admin').map((u) => person(u)).sort(byName),
     company: withEmail.filter((u) => u.role === 'company' && managerOf.has(u.id)).map((u) => person(u, managerOf.get(u.id))).sort(byName),
     mechanic: withEmail.filter((u) => u.role === 'mechanic').map((u) => person(u)).sort(byName),
     passenger: withEmail.filter((u) => ['staff', 'passenger'].includes(u.role) && passengerOf.has(u.id)).map((u) => person(u, passengerOf.get(u.id))).sort(byName),
     driver: drivers.filter((d) => d.company_id && EMAIL.test(norm(d.email)))
-      .map((d) => ({ email: norm(d.email), name: sanitize(d.full_name) || norm(d.email), company: companyName.get(d.company_id) || sanitize(d.company_name) }))
+      .map((d) => ({ email: norm(d.email), name: sanitize(d.full_name) || norm(d.email), company: companyName.get(d.company_id) || sanitize(d.company_name), company_id: d.company_id, opted_out: [] }))
       .sort(byName),
   };
+  return { people, companies: companies.map((c) => ({ id: c.id, name: sanitize(c.name) || 'Company' })).sort((a, b) => a.name.localeCompare(b.name)) };
 }
 
 const logRow = (r) => ({
@@ -94,15 +98,15 @@ export default async function(req) {
     if (body.action === 'overview') {
       const [settingRows, everyone, recent] = await Promise.all([
         db.NotificationSetting.list('-updated_date', 200).catch(() => []),
-        people(db),
+        directory(db),
         db.NotificationLog.list('-created_date', 150).catch(() => []),
       ]);
       const settings = {};
       for (const row of settingRows) {
         if (!NOTIFICATION_KEYS.has(row.key) || settings[row.key]) continue;
-        settings[row.key] = { enabled: row.enabled !== false, blocked_emails: (row.blocked_emails || []).map(norm), updated_by: sanitize(row.updated_by), updated_date: row.updated_date || null };
+        settings[row.key] = { enabled: row.enabled !== false, blocked_emails: (row.blocked_emails || []).map(norm), blocked_company_ids: row.blocked_company_ids || [], updated_by: sanitize(row.updated_by), updated_date: row.updated_date || null };
       }
-      return Response.json({ types: NOTIFICATION_TYPES, settings, people: everyone, recent: recent.map(logRow), me: norm(user.email) });
+      return Response.json({ types: NOTIFICATION_TYPES, settings, people: everyone.people, companies: everyone.companies, recent: recent.map(logRow), me: norm(user.email) });
     }
 
     if (body.action === 'save') {
@@ -111,21 +115,27 @@ export default async function(req) {
       if (typeof body.enabled !== 'boolean') fail(400, 'Say whether it is on or off');
       if (!Array.isArray(body.blocked_emails) || body.blocked_emails.length > 5000) fail(400, 'Invalid list of people');
       const blocked = [...new Set(body.blocked_emails.map(norm))].filter((e) => EMAIL.test(e));
+      if (body.blocked_company_ids !== undefined && (!Array.isArray(body.blocked_company_ids) || body.blocked_company_ids.length > 1000)) fail(400, 'Invalid list of companies');
+      let blockedCompanies = [];
+      if (type.perCompany && body.blocked_company_ids?.length) {
+        const known = new Set((await allRows(db, 'Company')).map((c) => c.id));
+        blockedCompanies = [...new Set(body.blocked_company_ids.filter((id) => typeof id === 'string' && known.has(id)))];
+      }
       if (type.locked && !body.enabled) fail(400, `${type.label} can't be switched off`);
       if (type.locked) {
-        const everyone = await people(db);
+        const everyone = (await directory(db)).people;
         const reachable = new Set(type.audiences.flatMap((a) => everyone[a] || []).map((p) => p.email));
         if (reachable.size && ![...reachable].some((e) => !blocked.includes(e))) fail(400, `${type.label} must reach at least one person`);
       }
-      const data = { key: type.key, enabled: body.enabled, blocked_emails: blocked, updated_by: sanitize(user.full_name || user.email) };
+      const data = { key: type.key, enabled: body.enabled, blocked_emails: blocked, blocked_company_ids: blockedCompanies, updated_by: sanitize(user.full_name || user.email) };
       const existing = (await db.NotificationSetting.filter({ key: type.key }, '-updated_date', 5))[0];
       const row = existing ? await db.NotificationSetting.update(existing.id, data) : await db.NotificationSetting.create(data);
       await db.AuditLog.create({
         actor_email: user.email || '', actor_name: user.full_name || user.email || '', actor_role: 'admin',
         action: 'update', entity: 'NotificationSetting', record_id: row?.id || existing?.id || '', page: '/admin/notifications',
-        summary: `${type.label} (${type.channel === 'email' ? 'email' : 'phone alert'}): ${body.enabled ? 'on' : 'off'}${blocked.length ? `, ${blocked.length} ${blocked.length === 1 ? 'person' : 'people'} left out` : ''}`,
+        summary: `${type.label} (${type.channel === 'email' ? 'email' : 'phone alert'}): ${body.enabled ? 'on' : 'off'}${blocked.length ? `, ${blocked.length} ${blocked.length === 1 ? 'person' : 'people'} left out` : ''}${blockedCompanies.length ? `, off for ${blockedCompanies.length} ${blockedCompanies.length === 1 ? 'company' : 'companies'}` : ''}`,
       }).catch(() => {});
-      return Response.json({ ok: true, setting: { enabled: data.enabled, blocked_emails: blocked, updated_by: data.updated_by, updated_date: row?.updated_date || new Date().toISOString() } });
+      return Response.json({ ok: true, setting: { enabled: data.enabled, blocked_emails: blocked, blocked_company_ids: blockedCompanies, updated_by: data.updated_by, updated_date: row?.updated_date || new Date().toISOString() } });
     }
 
     // A test to the admin's own inbox or phone, so they can see it arrives.

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import AppLayout from "@/components/AppLayout";
 import ProfileInfo from "@/components/ProfileInfo";
 import BoardingPass from "@/components/staff/BoardingPass";
+import MyNotifications from "@/components/staff/MyNotifications";
 import ChangePassword from "@/components/ChangePassword";
 import ThemeToggle from "@/components/ThemeToggle";
 import AccentPicker from "@/components/AccentPicker";
@@ -48,6 +49,7 @@ export default function Account() {
         <ChangePassword />
         </div>
         <div className="space-y-4">
+        {['staff', 'passenger'].includes(user?.role) && <MyNotifications />}
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base">Appearance</CardTitle>

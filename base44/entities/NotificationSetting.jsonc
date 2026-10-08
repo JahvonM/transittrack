@@ -16,6 +16,11 @@
       "items": { "type": "string" },
       "description": "Lower-case emails of people who should not get this notification."
     },
+    "blocked_company_ids": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Companies this notification is switched off for (only kinds about one company's buses)."
+    },
     "updated_by": {
       "type": "string"
     }

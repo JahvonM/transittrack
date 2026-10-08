@@ -40,10 +40,19 @@ function audienceOf(type, people) {
   return out;
 }
 
+// Why a person doesn't get this kind ("" when they do).
+function reasonOff(type, p, blocked, blockedCompanies) {
+  if (p.opted_out?.includes(type.key)) return "Turned off in their app";
+  if (type.perCompany && p.company_id && blockedCompanies.has(p.company_id)) return "Off for their company";
+  if (blocked.has(p.email)) return "Unticked";
+  return "";
+}
+const countGetting = (type, reach, blocked, blockedCompanies) => reach.filter((p) => !reasonOff(type, p, blocked, blockedCompanies)).length;
+
 function KindRow({ type, setting, reach, active, onSelect }) {
   const Icon = channelIcon(type.channel);
   const on = type.locked || setting.enabled;
-  const left = setting.blocked_emails.filter((e) => reach.some((p) => p.email === e)).length;
+  const getting = countGetting(type, reach, new Set(setting.blocked_emails), new Set(setting.blocked_company_ids || []));
   return (
     <li>
       <button type="button" onClick={onSelect} aria-current={active ? "true" : undefined}
@@ -52,7 +61,7 @@ function KindRow({ type, setting, reach, active, onSelect }) {
         <span className="min-w-0 flex-1">
           <span className="block truncate font-semibold">{type.label}</span>
           <span className="block text-body-sm text-muted-foreground">
-            {channelWord(type.channel)} · {on ? `${reach.length - left} of ${reach.length} ${reach.length === 1 ? "person" : "people"}` : "nobody"}
+            {channelWord(type.channel)} · {on ? `${getting} of ${reach.length} ${reach.length === 1 ? "person" : "people"}` : "nobody"}
           </span>
         </span>
         {type.locked ? <StatusChip tone="info"><Lock className="h-3 w-3" aria-hidden="true" /> Always on</StatusChip>
@@ -97,10 +106,13 @@ function RecentList({ rows, types, empty }) {
   );
 }
 
-function KindDetail({ type, setting, reach, recent, types, onSaved }) {
+function KindDetail({ type, setting, reach, companies, recent, types, onSaved }) {
   const { toast } = useToast();
   const [enabled, setEnabled] = useState(setting.enabled);
   const [blocked, setBlocked] = useState(() => new Set(setting.blocked_emails));
+  const savedCompanies = setting.blocked_company_ids || [];
+  const [blockedCompanies, setBlockedCompanies] = useState(() => new Set(savedCompanies));
+  const [companyFilter, setCompanyFilter] = useState("");
   const [q, setQ] = useState("");
   const [group, setGroup] = useState("all");
   const [limit, setLimit] = useState(PAGE);
@@ -110,11 +122,18 @@ function KindDetail({ type, setting, reach, recent, types, onSaved }) {
   const shown = useMemo(() => {
     const needle = q.trim().toLowerCase();
     return reach.filter((p) => (group === "all" || p.audience === group)
+      && (!companyFilter || p.company_id === companyFilter)
       && (!needle || [p.name, p.email, p.company].some((v) => String(v || "").toLowerCase().includes(needle))));
-  }, [reach, q, group]);
+  }, [reach, q, group, companyFilter]);
+  const reachCompanies = useMemo(() => {
+    const ids = new Set(reach.map((p) => p.company_id).filter(Boolean));
+    return companies.filter((c) => ids.has(c.id));
+  }, [reach, companies]);
   const dirty = enabled !== setting.enabled
-    || blocked.size !== setting.blocked_emails.length || setting.blocked_emails.some((e) => !blocked.has(e));
-  const getting = reach.filter((p) => !blocked.has(p.email)).length;
+    || blocked.size !== setting.blocked_emails.length || setting.blocked_emails.some((e) => !blocked.has(e))
+    || blockedCompanies.size !== savedCompanies.length || savedCompanies.some((id) => !blockedCompanies.has(id));
+  const getting = countGetting(type, reach, blocked, blockedCompanies);
+  const toggleCompany = (id, on) => setBlockedCompanies((b) => { const n = new Set(b); if (on) n.delete(id); else n.add(id); return n; });
   const on = type.locked || enabled;
 
   const toggle = (email, gets) => setBlocked((b) => { const n = new Set(b); if (gets) n.delete(email); else n.add(email); return n; });
@@ -123,7 +142,7 @@ function KindDetail({ type, setting, reach, recent, types, onSaved }) {
   const save = async () => {
     setSaving(true);
     try {
-      const res = await call({ action: "save", key: type.key, enabled: type.locked ? true : enabled, blocked_emails: [...blocked] });
+      const res = await call({ action: "save", key: type.key, enabled: type.locked ? true : enabled, blocked_emails: [...blocked], blocked_company_ids: [...blockedCompanies] });
       onSaved(type.key, res.setting);
       toast({ title: "Saved", description: `${type.label}: ${on ? `${getting} of ${reach.length} will get it` : "switched off"}.` });
     } catch (e) {
@@ -159,6 +178,27 @@ function KindDetail({ type, setting, reach, recent, types, onSaved }) {
           </p>
         )}
 
+        {type.perCompany && companies.length > 0 && (
+          <div className={cn("mb-5", !on && "opacity-60")}>
+            <h3 className="font-semibold">Companies <span className="font-normal text-muted-foreground">· on for {companies.length - companies.filter((c) => blockedCompanies.has(c.id)).length} of {companies.length}</span></h3>
+            <p className="mt-0.5 text-body-sm text-muted-foreground">Switch a company off and nothing of this kind is sent about its buses, to anyone.</p>
+            <ul className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2" aria-label="Companies">
+              {companies.map((c) => {
+                const cOn = !blockedCompanies.has(c.id);
+                return (
+                  <li key={c.id}>
+                    <label className="flex min-h-[48px] cursor-pointer items-center gap-3 rounded-xl border border-border px-3">
+                      <Switch className="!min-h-0" checked={cOn} onCheckedChange={(v) => toggleCompany(c.id, v)} aria-label={`${type.label} for ${c.name}`} />
+                      <span className="min-w-0 flex-1 truncate font-semibold">{c.name}</span>
+                      <span className="text-caption text-muted-foreground">{cOn ? "On" : "Off"}</span>
+                    </label>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
+
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h3 className="font-semibold">Who gets it <span className="font-normal text-muted-foreground">· {getting} of {reach.length}</span></h3>
           <div className="flex gap-1">
@@ -172,6 +212,13 @@ function KindDetail({ type, setting, reach, recent, types, onSaved }) {
             <input value={q} onChange={(e) => { setQ(e.target.value); setLimit(PAGE); }} placeholder="Search name, email or company"
               aria-label="Search people" className="h-full min-w-0 flex-1 bg-transparent text-body-sm outline-none placeholder:text-muted-foreground" />
           </label>
+          {reachCompanies.length > 1 && (
+            <select value={companyFilter} onChange={(e) => { setCompanyFilter(e.target.value); setLimit(PAGE); }} aria-label="Company"
+              className="h-10 rounded-lg border border-input bg-background px-3 text-body-sm">
+              <option value="">All companies</option>
+              {reachCompanies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          )}
           {groups.length > 1 && (
             <Segmented size="sm" label="Show" value={group} onChange={(v) => { setGroup(v); setLimit(PAGE); }}
               options={[{ value: "all", label: "Everyone" }, ...groups.map((g) => ({ value: g, label: AUDIENCE[g] }))]} />
@@ -185,14 +232,16 @@ function KindDetail({ type, setting, reach, recent, types, onSaved }) {
         ) : (
           <ul className={cn("mt-3 divide-y divide-border rounded-xl border border-border", !on && "opacity-60")} aria-label="People">
             {shown.slice(0, limit).map((p) => {
-              const gets = !blocked.has(p.email);
+              const own = p.opted_out?.includes(type.key);
+              const why = reasonOff(type, p, blocked, blockedCompanies);
               const id = `ntf-${type.key}-${p.email}`;
               return (
                 <li key={p.email} className="flex min-h-[52px] items-center gap-3 px-3 py-2">
-                  <Checkbox id={id} className="!min-h-0" checked={gets} onCheckedChange={(v) => toggle(p.email, v === true)} />
-                  <label htmlFor={id} className="min-w-0 flex-1 cursor-pointer">
+                  <Checkbox id={id} className="!min-h-0" checked={!own && !blocked.has(p.email)} disabled={own} onCheckedChange={(v) => toggle(p.email, v === true)} />
+                  <label htmlFor={id} className={cn("min-w-0 flex-1", !own && "cursor-pointer")}>
                     <span className="block truncate font-semibold">{p.name}</span>
                     <span className="block truncate text-body-sm text-muted-foreground">{[p.email, p.company].filter(Boolean).join(" · ")}</span>
+                    {why && why !== "Unticked" && <span className="block text-caption font-semibold text-warning">{why}</span>}
                   </label>
                   <span className="hidden shrink-0 text-caption text-muted-foreground sm:block">{AUDIENCE[p.audience]}</span>
                 </li>
@@ -203,13 +252,16 @@ function KindDetail({ type, setting, reach, recent, types, onSaved }) {
         {shown.length > limit && (
           <Button variant="ghost" size="sm" className="mt-2" onClick={() => setLimit((n) => n + PAGE)}>Show {Math.min(PAGE, shown.length - limit)} more</Button>
         )}
+        {type.selfService && (
+          <p className="mt-3 text-body-sm text-muted-foreground">Passengers can also turn this off for themselves in their app (Account → Notifications). You can't switch it back on for them.</p>
+        )}
         {type.key === "stop_ahead" && (
           <p className="mt-3 text-body-sm text-muted-foreground">Passengers who switched stop alerts off in their app don't get this, even if ticked here.</p>
         )}
 
         <div className="sticky bottom-0 -mx-5 -mb-5 mt-4 flex items-center justify-end gap-2 rounded-b-2xl border-t border-border bg-card px-5 py-3">
           {dirty && <span className="mr-auto text-body-sm text-muted-foreground">Unsaved changes</span>}
-          <Button variant="ghost" disabled={!dirty || saving} onClick={() => { setEnabled(setting.enabled); setBlocked(new Set(setting.blocked_emails)); }}>Undo</Button>
+          <Button variant="ghost" disabled={!dirty || saving} onClick={() => { setEnabled(setting.enabled); setBlocked(new Set(setting.blocked_emails)); setBlockedCompanies(new Set(savedCompanies)); }}>Undo</Button>
           <Button disabled={!dirty || saving} onClick={save}>{saving ? "Saving…" : "Save"}</Button>
         </div>
       </Panel>
@@ -243,7 +295,7 @@ export default function NotificationsTab() {
   useEffect(() => { load(); }, []);
 
   const types = data?.types || [];
-  const settingOf = (key) => data?.settings?.[key] || { enabled: true, blocked_emails: [] };
+  const settingOf = (key) => data?.settings?.[key] || { enabled: true, blocked_emails: [], blocked_company_ids: [] };
   const reachOf = useMemo(() => {
     const map = {};
     for (const t of types) map[t.key] = audienceOf(t, data?.people);
@@ -275,6 +327,7 @@ export default function NotificationsTab() {
   const current = types.find((t) => t.key === selected) || visible[0];
   const offCount = types.filter((t) => !t.locked && !settingOf(t.key).enabled).length;
   const leftOut = types.reduce((n, t) => n + settingOf(t.key).blocked_emails.filter((e) => reachOf[t.key]?.some((p) => p.email === e)).length, 0);
+  const ownChoices = types.reduce((n, t) => n + (reachOf[t.key] || []).filter((p) => p.opted_out?.includes(t.key)).length, 0);
   const day = Date.now() - 24 * 3600_000;
   const lastDay = data.recent.filter((r) => Date.parse(r.sent_at) > day);
   const problems = lastDay.filter((r) => r.status === "failed" || r.status === "partial").length;
@@ -289,7 +342,7 @@ export default function NotificationsTab() {
 
       <KpiRow>
         <Kpi icon={Bell} label="Switched on" value={`${types.length - offCount} of ${types.length}`} detail={offCount ? `${offCount} switched off` : "All kinds are on"} />
-        <Kpi icon={Mail} label="People left out" value={leftOut} detail="Across all kinds" />
+        <Kpi icon={Mail} label="People left out" value={leftOut} detail={ownChoices ? `Plus ${ownChoices} turned off by passengers` : "Across all kinds"} />
         <Kpi icon={Send} label="Sent today" value={lastDay.reduce((n, r) => n + r.sent, 0)} detail="Last 24 hours" />
         <Kpi icon={Smartphone} label="Problems today" value={problems} tone={problems ? "danger" : undefined} detail={problems ? "Some didn't arrive" : "Nothing failed"} />
       </KpiRow>
@@ -306,7 +359,7 @@ export default function NotificationsTab() {
         </Panel>
         {current && (
           <KindDetail key={current.key + JSON.stringify(settingOf(current.key))} type={current} setting={settingOf(current.key)}
-            reach={reachOf[current.key] || []} recent={data.recent} types={types} onSaved={onSaved} />
+            reach={reachOf[current.key] || []} companies={data.companies || []} recent={data.recent} types={types} onSaved={onSaved} />
         )}
       </div>
 

@@ -89,6 +89,11 @@
       "default": false,
       "description": "Send a push when a bus leaves the stop before favorite_stop."
     },
+    "notification_opt_out": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Notifications this person turned off for themselves (Account → Notifications), by key from base44/shared/notificationPolicy.ts."
+    },
     "theme_accent": {
       "type": "string",
       "description": "Chosen colour theme (see src/lib/accents.js), e.g. lime, ocean, sunset."

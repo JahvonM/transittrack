@@ -155,7 +155,7 @@ describe("notificationSettings function", () => {
     expect(status).toBe(200);
     expect(body.types.map((t) => t.key)).toContain("weekly_report");
     expect(body.people.admin.map((p) => p.email).sort()).toEqual(["boss@test.invalid", "caller@test.invalid"]);
-    expect(body.people.company).toEqual([{ email: "manager@test.invalid", name: "Manny", company: "A" }]);
+    expect(body.people.company).toEqual([{ email: "manager@test.invalid", name: "Manny", company: "A", company_id: "a", opted_out: [] }]);
     expect(body.people.mechanic.map((p) => p.email)).toEqual(["mech@test.invalid"]);
     // Only passengers with an approved company membership.
     expect(body.people.passenger.map((p) => p.email)).toEqual(["pat@test.invalid"]);
@@ -203,5 +203,95 @@ describe("senders honour the settings", () => {
     await load("reportClientError", sdk).default(request({ message: "Boom" }));
     expect(sdk.emails.length).toBe(2);
     expect(sdk.emails[0].body).toContain("Boom");
+  });
+});
+
+describe("company switches and passengers' own choices", () => {
+  it("a kind switched off for one company sends nothing about that company's buses, but still for others", async () => {
+    const sdk = setup();
+    sdk.tables.NotificationSetting.push({ id: "s", key: "chat_message", enabled: true, blocked_emails: [], blocked_company_ids: ["a"] });
+    const s = sender();
+    await P.pushWithPolicy(sdk, "chat_message", ["tok-ann"], { title: "x" }, s.send, { companyId: "a" });
+    expect(s.calls).toHaveLength(0);
+    expect(sdk.tables.NotificationLog[0]).toMatchObject({ status: "off", company_id: "a" });
+    await P.pushWithPolicy(sdk, "chat_message", ["tok-ann"], { title: "x" }, s.send, { companyId: "b" });
+    expect(s.calls).toEqual([["tok-ann"]]);
+    // SOS ignores company switches; kinds that aren't per company ignore them too.
+    sdk.tables.NotificationSetting.push({ id: "t", key: "sos", enabled: true, blocked_emails: [], blocked_company_ids: ["a"] });
+    await P.pushWithPolicy(sdk, "sos", ["tok-ann"], { title: "SOS" }, s.send, { companyId: "a" });
+    expect(s.calls).toHaveLength(2);
+  });
+
+  it("passengers who turned a kind off don't get it; a shared phone still does for the other person", async () => {
+    const sdk = setup();
+    sdk.tables.User.push(
+      { id: "u-bob", role: "passenger", email: "bob@test.invalid", notification_opt_out: ["chat_message"] },
+      { id: "u-ann", role: "passenger", email: "ann@test.invalid", notification_opt_out: ["weekly_report"] },
+    );
+    const s = sender();
+    await P.pushWithPolicy(sdk, "chat_message", allTokens, { title: "x" }, s.send);
+    expect(s.calls[0]).toEqual(["tok-ann", "tok-shared", "tok-tablet"]);
+    // Opting out only works for kinds passengers are allowed to choose.
+    const sent = [];
+    await P.emailWithPolicy(sdk, "weekly_report", [{ email: "ann@test.invalid" }], async (r) => { sent.push(r.email); });
+    expect(sent).toEqual(["ann@test.invalid"]);
+    sdk.tables.User.find((u) => u.id === "u-ann").notification_opt_out = ["bus_approaching_email"];
+    const r = await P.emailWithPolicy(sdk, "bus_approaching_email", [{ email: "ann@test.invalid" }], async (x) => { sent.push(x.email); });
+    expect(r).toMatchObject({ sent: 0, skipped: 1 });
+  });
+
+  it("the pickup email isn't sent when its company is switched off", async () => {
+    const { sdk } = adminSetup();
+    sdk.tables.Vehicle[0].driver_email = "";
+    sdk.tables.NotificationSetting.push({ id: "s", key: "bus_approaching_email", enabled: true, blocked_emails: [], blocked_company_ids: ["a"] });
+    const res = await load("notifyStaffPickup", sdk).default(request({ to_email: "pat@test.invalid", vehicle_id: "bus-a" }));
+    expect(res.status).toBe(200);
+    expect(sdk.emails).toEqual([]);
+  });
+
+  it("admins see companies and who turned things off; unknown companies are dropped on save", async () => {
+    const { sdk, call } = adminSetup();
+    sdk.tables.User.find((u) => u.id === "p1").notification_opt_out = ["chat_message", "nonsense"];
+    const { body } = await call({ action: "overview" });
+    expect(body.companies).toEqual([{ id: "a", name: "A" }, { id: "b", name: "B" }]);
+    expect(body.people.passenger[0]).toMatchObject({ email: "pat@test.invalid", company_id: "a", opted_out: ["chat_message"] });
+    await call({ action: "save", key: "chat_message", enabled: true, blocked_emails: [], blocked_company_ids: ["b", "ghost"] });
+    expect(sdk.tables.NotificationSetting[0].blocked_company_ids).toEqual(["b"]);
+    // Company switches only apply to kinds about one company's buses.
+    await call({ action: "save", key: "weekly_report", enabled: true, blocked_emails: [], blocked_company_ids: ["a"] });
+    expect(sdk.tables.NotificationSetting[1].blocked_company_ids).toEqual([]);
+    expect((await call({ action: "save", key: "chat_message", enabled: true, blocked_emails: [], blocked_company_ids: "a" })).status).toBe(400);
+  });
+});
+
+describe("myNotifications (passenger's own choices)", () => {
+  const mine = async (sdk, body) => { const r = await load("myNotifications", sdk).default(request(body)); return { status: r.status, body: await r.json() }; };
+  it("is for passengers only", async () => {
+    for (const role of ["admin", "company", "mechanic", "driver"]) expect((await mine(mock(role), { action: "get" })).status).toBe(403);
+  });
+  it("lists the kinds a passenger can choose and saves turning one off", async () => {
+    const sdk = mock("passenger");
+    sdk.tables.NotificationSetting = [];
+    const got = await mine(sdk, { action: "get" });
+    expect(got.body.choices.map((c) => [c.key, c.on, c.available])).toEqual([
+      ["chat_message", true, true], ["bus_approaching_push", true, true], ["bus_approaching_email", true, true],
+    ]);
+    const off = await mine(sdk, { action: "set", key: "chat_message", on: false });
+    expect(off.body.choices[0]).toMatchObject({ key: "chat_message", on: false });
+    expect(sdk.tables.User[0].notification_opt_out).toEqual(["chat_message"]);
+    await mine(sdk, { action: "set", key: "chat_message", on: true });
+    expect(sdk.tables.User[0].notification_opt_out).toEqual([]);
+    expect((await mine(sdk, { action: "set", key: "sos", on: false })).status).toBe(400);
+    expect((await mine(sdk, { action: "set", key: "weekly_report", on: false })).status).toBe(400);
+  });
+  it("shows a kind as unavailable when the admin switched it off for them, their company or everyone", async () => {
+    const sdk = mock("passenger");
+    sdk.tables.NotificationSetting = [
+      { id: "1", key: "chat_message", enabled: true, blocked_emails: [], blocked_company_ids: ["a"] },
+      { id: "2", key: "bus_approaching_push", enabled: true, blocked_emails: ["caller@test.invalid"] },
+      { id: "3", key: "bus_approaching_email", enabled: false, blocked_emails: [] },
+    ];
+    const got = await mine(sdk, { action: "get" });
+    expect(got.body.choices.map((c) => c.available)).toEqual([false, false, false]);
   });
 });
