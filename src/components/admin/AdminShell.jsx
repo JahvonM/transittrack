@@ -112,28 +112,20 @@ export const ADMIN_SECTIONS = [
   { id: "profile", label: "My profile", icon: User, group: null },
 ];
 
-const GROUP_ORDER = ["Fleet Operations", "Fleet management", "Dispatch", "Maintenance", "Admin"];
-
-// The main sections, in the order operations staff use them. Each points at
-// an existing section; everything else stays one click away under All tools.
-const PRIMARY = [
-  { id: "overview", label: "Overview", icon: LayoutDashboard },
-  { id: "fleet", label: "Live Fleet", icon: MapPin },
-  { id: "route-planner", label: "Routes", icon: Route },
-  { id: "vehicles", label: "Buses", icon: Bus },
-  { id: "drivers", label: "Drivers", icon: Car },
-  { id: "directory", label: "Passengers", icon: Users },
-  { id: "trips", label: "Trips", icon: CalendarPlus },
-  { id: "inspection-history", label: "Inspections", icon: ListChecks },
-  { id: "schedule", label: "Maintenance", icon: Wrench },
-  { id: "faults", label: "Faults", icon: AlertTriangle },
-  { id: "travel-times", label: "Travel Times", icon: Hourglass },
-  { id: "fleet-analytics", label: "Reports", icon: BarChart3 },
-  { id: "users", label: "Users", icon: Users },
-  { id: "profile", label: "Settings", icon: Settings },
+const NAV_GROUPS = [
+ {label:"Fleet",icon:Bus,ids:["fleet","vehicles","health","route-planner","route-explorer"]},
+ {label:"Maintenance",icon:Wrench,ids:["service","faults","parts","schedule","calendar","templates","inspection-history","service-history","incident-reports","safety-standards"]},
+ {label:"People & access",icon:Users,ids:["drivers","directory","users","cards","card-designs"]},
+ {label:"Operations",icon:Activity,ids:["trips","kiosks","shifts","checkins","billing","messaging","lost-items","ride-history","passenger-bookings","support"]},
+ {label:"Reports",icon:BarChart3,ids:["vehicle-logs","driving-reports","route-analytics","fleet-analytics","travel-times"]},
+ {label:"All tools",icon:Database,ids:["copilot","audit","data"]},
 ];
-const PRIMARY_IDS = new Set(PRIMARY.map((p) => p.id));
-
+const PRIMARY = [
+ {id:"overview",label:"Overview",icon:LayoutDashboard},
+ {id:"companies",label:"Companies",icon:Building2},
+ {id:"ads",label:"Advertisements",icon:ImageIcon},
+ {id:"profile",label:"Settings",icon:Settings},
+];
 function NavItem({ item, active, onNavigate }) {
   const Icon = item.icon;
   const on = active === item.id;
@@ -155,49 +147,30 @@ function NavItem({ item, active, onNavigate }) {
 }
 
 function SidebarNav({ active, onNavigate }) {
-  const activeInMore = !PRIMARY_IDS.has(active);
-  const [moreOpen, setMoreOpen] = useState(activeInMore);
-  // Each group stays closed until it is tapped; only the group holding the
-  // page you are on opens by itself.
-  const activeGroup = activeInMore ? ADMIN_SECTIONS.find((s) => s.id === active)?.group : null;
-  const [openGroups, setOpenGroups] = useState(() => (activeGroup ? { [activeGroup]: true } : {}));
-  useEffect(() => { if (activeInMore) setMoreOpen(true); }, [activeInMore]);
-  useEffect(() => { if (activeGroup) setOpenGroups((g) => (g[activeGroup] ? g : { ...g, [activeGroup]: true })); }, [activeGroup]);
-  return (
-    <nav className="space-y-0.5" aria-label="Admin">
-      {PRIMARY.map((p) => <NavItem key={p.id} item={p} active={active} onNavigate={onNavigate} />)}
-      <div className="pt-4">
-        <button
-          type="button"
-          onClick={() => setMoreOpen((v) => !v)}
-          aria-expanded={moreOpen}
-          className="flex min-h-[36px] w-full items-center justify-between rounded-lg px-3 text-body-sm font-semibold text-sidebar-foreground/70 hover:text-sidebar-foreground"
-        >
-          All tools
-          <ChevronDown className={cn("h-4 w-4 transition-transform", !moreOpen && "-rotate-90")} aria-hidden="true" />
-        </button>
-        {moreOpen && GROUP_ORDER.map((group) => {
-          const items = ADMIN_SECTIONS.filter((s) => s.group === group && !PRIMARY_IDS.has(s.id));
-          if (!items.length) return null;
-          const isCollapsed = !openGroups[group];
-          return (
-            <div key={group} className="pt-2">
-              <button
-                type="button"
-                onClick={() => setOpenGroups((g) => ({ ...g, [group]: !g[group] }))}
-                aria-expanded={!isCollapsed}
-                className="flex w-full items-center justify-between px-3 py-1 text-caption font-semibold text-sidebar-foreground/60 hover:text-sidebar-foreground"
-              >
-                {group}
-                <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", isCollapsed && "-rotate-90")} aria-hidden="true" />
-              </button>
-              {!isCollapsed && <div className="mt-0.5 space-y-0.5">{items.map((s) => <NavItem key={s.id} item={s} active={active} onNavigate={onNavigate} />)}</div>}
-            </div>
-          );
-        })}
-      </div>
-    </nav>
-  );
+ const activeGroup=NAV_GROUPS.find(g=>g.ids.includes(active))?.label;
+ const [openGroups,setOpenGroups]=useState(()=>activeGroup?{[activeGroup]:true}:{});
+ useEffect(()=>{if(activeGroup)setOpenGroups(g=>({...g,[activeGroup]:true}));},[activeGroup]);
+ const group=(g)=>{
+  const Icon=g.icon,expanded=!!openGroups[g.label];
+  return <div key={g.label} className="tt-admin-nav-group">
+   <button type="button" aria-expanded={expanded} onClick={()=>setOpenGroups(v=>({...v,[g.label]:!v[g.label]}))} className={cn("tt-admin-group-toggle",activeGroup===g.label && "tt-admin-group-current")}>
+    <Icon className="w-[18px] h-[18px] shrink-0" aria-hidden="true" /><span>{g.label}</span><ChevronDown className={cn("w-4 h-4 transition-transform",!expanded && "-rotate-90")} aria-hidden="true" />
+   </button>
+   {expanded && <div className="tt-admin-group-items">{g.ids.map(id=>{const item=ADMIN_SECTIONS.find(s=>s.id===id);return <NavItem key={id} item={item} active={active} onNavigate={onNavigate} />;})}</div>}
+  </div>;
+ };
+ return <nav aria-label="Admin" className="space-y-2">
+  <NavItem item={PRIMARY[0]} active={active} onNavigate={onNavigate} />
+  {NAV_GROUPS.slice(0,3).map(group)}
+  <NavItem item={PRIMARY[1]} active={active} onNavigate={onNavigate} />
+  {group(NAV_GROUPS[3])}
+  <div className="tt-admin-nav-secondary">
+   <NavItem item={PRIMARY[2]} active={active} onNavigate={onNavigate} />
+   {group(NAV_GROUPS[4])}
+   <NavItem item={PRIMARY[3]} active={active} onNavigate={onNavigate} />
+   {group(NAV_GROUPS[5])}
+  </div>
+ </nav>;
 }
 
 // Finds any admin section by name, from the top bar.
@@ -227,7 +200,7 @@ function SectionSearch({ onNavigate }) {
           onChange={(e) => { setQ(e.target.value); setOpen(true); }}
           onFocus={() => setOpen(true)}
           onKeyDown={(e) => { if (e.key === "Enter" && results[0]) go(results[0].id); if (e.key === "Escape") setOpen(false); }}
-          placeholder="Search sections, e.g. faults"
+          placeholder="Search admin tools, e.g. faults"
           className="h-full min-w-0 flex-1 bg-transparent text-body-sm outline-none placeholder:text-muted-foreground"
           role="combobox"
           aria-expanded={open && results.length > 0}
@@ -267,7 +240,7 @@ export default function AdminShell({ active, onNavigate, children, alertVehicles
   const slots = useMemo(() => ({ actions: actionsEl, intro: introEl }), [actionsEl, introEl]);
   const nav = (id) => { onNavigate(id); setOpen(false); };
   const current = ADMIN_SECTIONS.find((s) => s.id === active);
-  const title = PRIMARY.find((p) => p.id === active)?.label || current?.label || "Admin";
+  const title = active === "overview" ? "Fleet overview" : PRIMARY.find((p) => p.id === active)?.label || current?.label || "Admin";
   const initials = nameInitials(user) || "A";
 
   const sidebar = (
@@ -290,7 +263,7 @@ export default function AdminShell({ active, onNavigate, children, alertVehicles
   );
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="tt-admin-shell flex min-h-screen bg-background">
       <aside className="sticky top-0 hidden h-screen w-64 shrink-0 border-r border-sidebar-border bg-sidebar lg:block">{sidebar}</aside>
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent side="left" className="w-72 border-sidebar-border bg-sidebar p-0" aria-describedby={undefined}>
@@ -304,6 +277,7 @@ export default function AdminShell({ active, onNavigate, children, alertVehicles
           <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setOpen(true)} aria-label="Open menu">
             <Menu className="h-5 w-5" aria-hidden="true" />
           </Button>
+          <span className="tt-admin-breadcrumb hidden xl:block text-sm text-muted-foreground">Admin <span className="mx-2">/</span> {current?.label || "Overview"}</span>
           <SectionSearch onNavigate={nav} />
           <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
             <p className="hidden whitespace-nowrap text-body-sm text-muted-foreground md:block">
@@ -349,6 +323,7 @@ export default function AdminShell({ active, onNavigate, children, alertVehicles
           <div className="mb-5 flex flex-wrap items-end justify-between gap-x-4 gap-y-3">
             <div className="min-w-0">
               <h1 className="text-headline font-bold">{title}</h1>
+              {active === "overview" && <p className="mt-1 text-body-sm text-muted-foreground">Across all companies</p>}
               <div ref={setIntroEl} />
             </div>
             <div ref={setActionsEl} className="empty:hidden" />

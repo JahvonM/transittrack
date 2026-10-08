@@ -1,5 +1,6 @@
+import { useSearchParams } from "react-router-dom";
 import BusArtwork from "@/components/BusArtwork";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
@@ -30,7 +31,14 @@ const km = (n) => (n == null || n === "" ? null : `${Number(n).toLocaleString()}
 
 export default function VehiclesTab({ vehicles, companies, routes, onChange, faults = [], schedules = [], inspectionResults = [] }) {
   const { toast } = useToast();
-  const [formOpen, setFormOpen] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [formOpen, setFormOpen] = useState(() => searchParams.get("create") === "1");
+  useEffect(() => {
+    if (searchParams.get("create") !== "1") return;
+    setFormOpen(true);
+    const next = new URLSearchParams(searchParams); next.delete("create");
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
   const [editing, setEditing] = useState(null);
   const [historyVehicle, setHistoryVehicle] = useState(null);
 

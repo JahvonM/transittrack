@@ -18,6 +18,7 @@ const serviceQueue = (skip) =>
   base44.entities.Inspection.filter({ needs_service: true }, "-created_date", PAGE, skip);
 
 export const DATASETS = {
+  kiosks: { load: () => base44.entities.KioskDevice.list() },
   vehicles: { load: () => base44.entities.Vehicle.list() },
   companies: { load: () => base44.entities.Company.list() },
   routes: { load: () => base44.entities.Route.list() },
@@ -46,7 +47,7 @@ export const DATASETS = {
 // "vehicles" is added to every section by the console itself (the SOS banner
 // and the shell watch the fleet from any screen).
 export const SECTION_DATA = {
-  overview: ["routes", "companies", "parts", "faultsOpen", "schedulesDue", "trips"],
+  overview: ["routes", "companies", "parts", "faultsOpen", "schedulesDue", "trips", "kiosks"],
   trips: ["routes", "trips", "completedTrips"],
   fleet: ["routes"],
   vehicles: ["companies", "routes", "faultsOpen", "schedulesDue", "inspectionResults"],

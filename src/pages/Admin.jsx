@@ -1,3 +1,4 @@
+import useFutureAppearance from "@/hooks/useFutureAppearance";
 import React, { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import SupportNumberSetting from "@/components/admin/SupportNumberSetting";
 import { Navigate, Link, useParams, useNavigate } from "react-router-dom";
@@ -127,6 +128,7 @@ const MGMT_LINKS = [
 
 export default function Admin() {
   const { user, logout } = useAuth();
+  useFutureAppearance(user?.role === "admin");
   const { permission: pushPermission, enableNotifications } = usePushNotifications({ email: user?.email, role: "admin" });
   const navigate = useNavigate();
   const { section: urlSection } = useParams();
@@ -204,7 +206,7 @@ export default function Admin() {
   const {
     vehicles = [], companies = [], routes = [], users = [], drivers = [], parts = [],
     schedules = [], schedulesDue = [], templates = [], faults = [], faultsOpen = [],
-    trips = [], completedTrips = [], serviceQueue = [], inspectionResults = [],
+    trips = [], completedTrips = [], serviceQueue = [], inspectionResults = [], kiosks = [],
   } = data;
 
   // Every list this section shows has been asked for at least once.
@@ -363,16 +365,12 @@ export default function Admin() {
         onSignOut={() => logout()}
         pushPermission={pushPermission}
         onEnableNotifications={enableNotifications}
-        headerActions={
-          <>
-            <FloatingMessages vehicles={vehicles} placement="header" />
-            <FloatingChatbot placement="header" />
-          </>
-        }
       >
         {section === "overview" && (
           <AdminOverview
             vehicles={vehicles}
+            kiosks={kiosks}
+            kiosksReady={!!settled.kiosks}
             routes={routes}
             trips={trips}
             faults={faultsOpen}
@@ -518,7 +516,8 @@ export default function Admin() {
           </div>
         )}
       </AdminShell>
-
+      <FloatingMessages vehicles={vehicles} />
+      <FloatingChatbot />
     </>
   );
 }
