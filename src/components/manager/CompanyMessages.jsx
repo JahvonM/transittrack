@@ -189,7 +189,7 @@ export default function CompanyMessages({ vehicles = [] }) {
                 </Button>
               </div>
               <div className="flex-1 overflow-y-auto p-3">
-                <ChatThread
+                <ChatThread key={activeVehicleId}
                   messages={activeMessages}
                   isMine={(m) => m.sender_role === "company"}
                   senderLabel={(m) => (m.sender_role === "driver" ? "Driver" : m.sender_name || "Company")}

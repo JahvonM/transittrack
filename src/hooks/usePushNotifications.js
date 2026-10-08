@@ -10,7 +10,7 @@ const currentPermission = () =>
 export const PUSH_FAILURE = {
   native_setup: { title: "Native notifications need setup", description: "This app build needs its Firebase notification configuration. Browser notifications remain available." },
   unsupported: { title: "This browser can't show notifications", description: "On iPhone, add TransitTrack to your Home Screen and open it from there, then try again." },
-  denied: { title: "Notifications are blocked", description: "Allow notifications for this site in your browser settings, then reload the page." },
+  denied: { title: "Notifications are blocked", description: "Allow TransitTrack notifications in this device’s app or browser settings, then try again." },
   dismissed: { title: "Notifications are still off", description: "The permission prompt was closed. Tap again and choose Allow." },
   no_token: { title: "Couldn't turn on notifications", description: "The notification service didn't respond. Check your connection and try again." },
   error: { title: "Couldn't turn on notifications", description: "The notification service didn't respond. Check your connection and try again." },

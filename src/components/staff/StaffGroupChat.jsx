@@ -101,7 +101,7 @@ export default function StaffGroupChat({ vehicle }) {
   }
 
   return (
-    <ChatThread
+    <ChatThread key={vehicle.id}
       messages={messages}
       isMine={(m) => m.created_by_id === user?.id}
       senderLabel={(m) => (m.sender_role === "driver" ? "Driver" : m.sender_role === "admin" ? "Admin" : (m.sender_name || "Staff"))}

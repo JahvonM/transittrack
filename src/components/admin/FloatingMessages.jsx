@@ -255,7 +255,7 @@ export default function FloatingMessages({ vehicles = [], placement = "float" })
                 </Button>
               </div>
               <div className="flex-1 overflow-y-auto p-3">
-                <ChatThread
+                <ChatThread key={activeVehicleId + ":" + activeChannel}
                   messages={activeMessages}
                   isMine={(m) => m.sender_role === "admin"}
                   senderLabel={(m) => senderLabelFor(m, activeChannel)}

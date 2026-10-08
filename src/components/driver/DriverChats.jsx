@@ -183,7 +183,7 @@ export default function DriverChats({ session, invoke, onUnreadChange }) {
           <Icon className="w-4 h-4 text-primary" />
           <span className="font-medium text-sm">{contact.label}</span>
         </div>
-        <ChatThread
+        <ChatThread key={activeChannel}
           messages={byChannel[activeChannel]}
           isMine={(m) => !m.__broadcast && m.sender_role === "driver"}
           senderLabel={(m) => (m.sender_role === "driver" ? driverName : m.sender_name || contact.label)}

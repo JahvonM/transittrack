@@ -900,3 +900,21 @@ test('chat shows sending immediately and retains text after a failed send',async
  await expect(input).toHaveValue('Keep my unsent message');
  await expect(page.getByText('· Not sent',{exact:false})).toBeVisible();
 });
+
+test('pull gesture refreshes once and cancelled gestures preserve the current list',async({page})=>{
+ const {calls}=await session(page,'admin');
+ await page.setViewportSize({width:390,height:844});
+ await page.goto('/admin');
+ const panel=page.getByRole('region',{name:'Fleet overview'});
+ await expect(panel).toBeVisible();
+ const initial=calls.filter(c=>c.entity==='Vehicle'&&c.operation==='list').length;
+ const gesture=async(cancel)=>panel.evaluate((el,cancel)=>{
+  const emit=(type,y)=>el.dispatchEvent(new TouchEvent(type,{bubbles:true,touches:type==='touchend'||type==='touchcancel'?[]:[new Touch({identifier:1,target:el,clientX:100,clientY:y})]}));
+  emit('touchstart',200);emit('touchmove',350);emit(cancel?'touchcancel':'touchend',350);
+ },cancel);
+ await gesture(true);
+ await expect(page.getByRole('button',{name:'Refresh list',exact:true})).toBeEnabled();
+ expect(calls.filter(c=>c.entity==='Vehicle'&&c.operation==='list').length).toBe(initial);
+ await gesture(false);
+ await expect.poll(()=>calls.filter(c=>c.entity==='Vehicle'&&c.operation==='list').length).toBe(initial+1);
+});
