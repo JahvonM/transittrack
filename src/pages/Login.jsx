@@ -61,12 +61,12 @@ export default function Login() {
       footer={
         <div className="space-y-3 text-center">
           <div>
-            Don't have an account?{" "}
+            New here?{" "}
             <Link
               to={"/register" + (returnTo !== "/" ? "?returnTo=" + encodeURIComponent(returnTo) : "")}
               className="text-primary font-medium hover:underline"
             >
-              Create one
+              Create an account
             </Link>
           </div>
           <PrivacyPolicyDialog />
@@ -74,7 +74,7 @@ export default function Login() {
       }
     >
       {error && (
-        <div className="mb-4 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
+        <div role="alert" className="mb-4 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
           {error}
         </div>
       )}

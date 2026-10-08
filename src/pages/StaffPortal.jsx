@@ -276,7 +276,7 @@ export default function StaffPortal() {
       (r.stops || []).forEach((s) => {
         if (!s.name || seen.has(s.name)) return;
         seen.add(s.name);
-        out.push(s);
+        out.push({ ...s, route_id: r.id, routeName: r.name });
       })
     );
     if (user?.pickup_lat != null && routes.some(r => r.id === user.pickup_route_id)) out.push({ name: user.pickup_name, lat: user.pickup_lat, lng: user.pickup_lng, route_id: user.pickup_route_id, personal: true });

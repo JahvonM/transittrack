@@ -99,6 +99,7 @@ test('passenger previews walking directions then saves a separate roadside picku
  });
  await page.goto('/staff');
  await page.getByRole('button',{name:/^Pickup settings/}).click();
+ await page.getByRole('dialog').getByRole('button',{name:'Find a pickup near me',exact:true}).click();
  await page.getByRole('button',{name:'Use where I am now',exact:true}).click();
  await expect(page.getByText('Walk east to the main road',{exact:true})).toBeVisible();
  expect(saved.filter(d=>d.pickup_lat!==undefined)).toHaveLength(0);
@@ -203,6 +204,7 @@ test('passenger can see other pickup spots nearby or drop their own pin',async({
  });
  await page.goto('/staff');
  await page.getByRole('button',{name:/^Pickup settings/}).click();
+ await page.getByRole('dialog').getByRole('button',{name:'Find a pickup near me',exact:true}).click();
  await page.getByRole('button',{name:'Use where I am now',exact:true}).click();
  await expect(page.getByText(/^Spot 1 of [2-9] near you$/)).toBeVisible();
  await page.getByRole('button',{name:'Show another spot nearby'}).click();
@@ -217,6 +219,7 @@ test('passenger can see other pickup spots nearby or drop their own pin',async({
  // The sheet can still be settling after the save, so press until it closes.
  await expect(async()=>{ await page.keyboard.press('Escape'); await expect(page.getByRole('dialog')).toHaveCount(0,{timeout:1000}); }).toPass({timeout:10000});
  await page.getByRole('region',{name:'Your pickup'}).getByRole('button',{name:'Change'}).click();
+ await page.getByRole('dialog').getByRole('button',{name:'Find a pickup near me',exact:true}).click();
  await page.getByRole('button',{name:'Pick my own spot on the map'}).click();
  const box=page.getByRole('region',{name:'Pick your own pickup spot'});
  await box.getByLabel('Latitude').fill('12.004');
@@ -236,6 +239,8 @@ test('passenger Home puts the roadside pickup up front and shows the workplace d
   const cta=page.getByRole('region',{name:'Get picked up near home'});
   await expect(cta).toBeVisible();
   await cta.getByRole('button',{name:'Find my pickup',exact:true}).click();
+  await expect(page.getByRole('dialog',{name:'Where should we pick you up?'})).toBeVisible();
+  await page.getByRole('dialog').getByRole('button',{name:'Find a pickup near me',exact:true}).click();
   await expect(page.getByText('Find a roadside pickup',{exact:true})).toBeVisible();
   await page.keyboard.press('Escape');
   showcase.workplace={id:'w',company_id:'a',name:'Head office, True Blue',lat:12.0,lng:-61.78};
@@ -728,4 +733,53 @@ test('admin uploads actual bus artwork and saves its URL',async({page})=>{
  await expect(page.getByRole('img',{name:'Bus A artwork preview'})).toHaveAttribute('src','https://test.invalid/bus-render.webp');
  await page.getByRole('button',{name:'Save changes',exact:true}).click();
  await expect.poll(()=>saved).toMatchObject({image_url:'https://test.invalid/bus-render.webp'});
+});
+
+test('pickup selection is a draft until confirmed, supports search, and keeps the map optional',async({page})=>{
+ await page.setViewportSize({width:390,height:844});
+ await passengerShowcase(page);
+ const saved=[];
+ await page.route('**/functions/entityAccess',async r=>{
+  const b=r.request().postDataJSON();
+  if(b.entity==='User'&&b.operation==='update'){saved.push(b.data);return r.fulfill({json:{result:{id:'caller',...b.data}}});}
+  return r.fallback();
+ });
+ await page.getByRole('button',{name:/^Pickup settings/}).click();
+ let dialog=page.getByRole('dialog',{name:'Where should we pick you up?'});
+ await expect(dialog.getByText('Current pickup',{exact:true})).toBeVisible();
+ await expect(dialog.getByText('Coastal route',{exact:true}).first()).toBeVisible();
+ await expect(dialog.getByLabel('Pickup stops map')).toHaveCount(0);
+ await dialog.getByLabel('Search stops or areas').fill('True Blue');
+ await dialog.getByRole('button',{name:/^True Blue/}).click();
+ expect(saved).toHaveLength(0);
+ expect(await page.evaluate(()=>localStorage.getItem('tt_staff_pickup'))).toBe('Grand Anse');
+ await page.screenshot({path:'/tmp/tt-pickup-mobile.png'});
+ await page.keyboard.press('Escape');
+ expect(saved).toHaveLength(0);
+ await page.getByRole('button',{name:/^Pickup settings/}).click();
+ dialog=page.getByRole('dialog',{name:'Where should we pick you up?'});
+ await dialog.getByRole('button',{name:/^True Blue/}).click();
+ await dialog.getByRole('button',{name:'Confirm pickup',exact:true}).click();
+ await expect(dialog).toHaveCount(0);
+ expect(saved).toEqual([{favorite_stop:'True Blue'}]);
+ expect(await page.evaluate(()=>localStorage.getItem('tt_staff_pickup'))).toBe('True Blue');
+});
+test('failed pickup save retains the old choice and allows retry',async({page})=>{
+ await passengerShowcase(page);
+ let fail=true;
+ await page.route('**/functions/entityAccess',async r=>{
+  const b=r.request().postDataJSON();
+  if(b.entity==='User'&&b.operation==='update')return r.fulfill(fail?{status:503,json:{error:'Unavailable'}}:{json:{result:{id:'caller',...b.data}}});
+  return r.fallback();
+ });
+ await page.getByRole('button',{name:/^Pickup settings/}).click();
+ const dialog=page.getByRole('dialog',{name:'Where should we pick you up?'});
+ await dialog.getByRole('button',{name:/^True Blue/}).click();
+ await dialog.getByRole('button',{name:'Confirm pickup',exact:true}).click();
+ await expect(dialog.getByRole('alert')).toContainText("Couldn't save your pickup");
+ expect(await page.evaluate(()=>localStorage.getItem('tt_staff_pickup'))).toBe('Grand Anse');
+ await expect(dialog.getByRole('button',{name:'Confirm pickup',exact:true})).toBeEnabled();
+ fail=false;
+ await dialog.getByRole('button',{name:'Confirm pickup',exact:true}).click();
+ await expect(dialog).toHaveCount(0);
 });

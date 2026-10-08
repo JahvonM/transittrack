@@ -59,7 +59,7 @@ test('login screen scans a company QR and joins the passenger after they sign in
   await expect(page.getByRole('dialog')).toHaveCount(0, { timeout: 15000 });
   await expect(page.getByText('Company QR scanned.')).toBeVisible();
   expect(await page.evaluate(() => sessionStorage.getItem('tt_pending_company_code'))).toBe('ABCD2345EFGH');
-  await expect(page.getByRole('link', { name: 'Create one' })).toHaveAttribute('href', '/register?returnTo=%2Fjoin');
+  await expect(page.getByRole('link', { name: 'Create an account' })).toHaveAttribute('href', '/register?returnTo=%2Fjoin');
 });
 
 test('company code screen scans the QR in a pop-up and lets the passenger in', async ({ page }) => {
@@ -70,4 +70,45 @@ test('company code screen scans the QR in a pop-up and lets the passenger in', a
   await expect(page.getByRole('dialog')).toHaveCount(0, { timeout: 15000 });
   await expect.poll(() => verifies).toEqual(['ABCD2345EFGH']);
   await expect.poll(() => page.evaluate(() => localStorage.getItem('tt_company_access_grant'))).toBe('b'.repeat(64));
+});
+
+for(const size of [{width:390,height:844},{width:1440,height:1000}]) {
+ test('public welcome and sign-in fit '+size.width+' and keep access options',async({page})=>{
+  await page.setViewportSize(size);await mockApi(page);
+  await page.route('https://api.mapbox.com/**',r=>r.fulfill({status:404,body:''}));
+  await page.route('**/api.open-meteo.com/**',r=>r.fulfill({json:{current:{temperature_2m:29,weather_code:0}}}));
+  await page.goto('/');
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByRole('heading',{name:'Your journey, connected.'})).toBeVisible();
+  await expect(page.getByRole('link',{name:'Create an account',exact:true})).toHaveAttribute('href','/register');
+  await expect(page.locator('.tt-welcome-art')).toHaveJSProperty('complete',true);
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  await page.screenshot({path:'/tmp/tt-welcome-'+size.width+'.png',fullPage:true});
+  await page.getByText('Workspaces and tablet access',{exact:true}).click();
+  await expect(page.getByRole('link',{name:/Admin Fleet health/})).toHaveAttribute('href','/login?returnTo=%2Fadmin');
+  await page.goto('/login');
+  await expect(page.getByRole('heading',{name:'Your journey starts here'})).toBeVisible();
+  await expect(page.getByRole('button',{name:'Continue with Google'})).toBeVisible();
+  await expect(page.getByRole('button',{name:'Scan company QR code'})).toBeVisible();
+  await expect(page.getByRole('link',{name:'Forgot password?'})).toHaveAttribute('href','/forgot-password');
+  await page.getByLabel('Password',{exact:true}).fill('example-password');
+  await page.getByRole('button',{name:'Show password'}).click();
+  await expect(page.getByLabel('Password',{exact:true})).toHaveAttribute('type','text');
+  await page.getByRole('button',{name:'Hide password'}).click();
+  await expect(page.getByLabel('Password',{exact:true})).toHaveAttribute('type','password');
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  await page.screenshot({path:'/tmp/tt-sign-in-'+size.width+'.png',fullPage:true});
+ });
+}
+test('redesigned email sign-in keeps credentials and reports rejection',async({page})=>{
+ await mockApi(page);
+ let submitted;
+ await page.route('**/auth/login',r=>{submitted=r.request().postDataJSON();return r.fulfill({status:401,json:{message:'Invalid email or password'}})});
+ await page.goto('/login?returnTo=%2Fstaff');
+ await page.getByLabel('Email address',{exact:true}).fill('person@test.local');
+ await page.getByLabel('Password',{exact:true}).fill('wrong-test-password');
+ await page.getByRole('button',{name:'Sign in',exact:true}).click();
+ await expect(page.getByRole('alert')).toBeVisible();
+ expect(submitted).toMatchObject({email:'person@test.local',password:'wrong-test-password'});
+ await expect(page.getByRole('button',{name:'Sign in',exact:true})).toBeEnabled();
 });
