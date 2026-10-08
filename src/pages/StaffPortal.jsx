@@ -108,10 +108,10 @@ export default function StaffPortal() {
     }
   }, [user]);
 
-  const choosePickup = (v) => {
+  const choosePickup = async (v) => {
+    if (user) await base44.auth.updateMe({ favorite_stop: v });
     setPickupName(v);
-    localStorage.setItem("tt_staff_pickup", v);
-    if (user) base44.auth.updateMe({ favorite_stop: v }).catch(() => {});
+    try { localStorage.setItem("tt_staff_pickup", v); } catch { /* Account still holds the saved pickup. */ }
   };
 
   const toggleStopAlerts = async (on) => {
@@ -569,6 +569,8 @@ export default function StaffPortal() {
         onOpenChange={(o) => setSheet(o ? "pickup" : null)}
         pickupName={pickupName}
         pickupOptions={pickupOptions}
+        routes={routes}
+        userLoc={userLoc}
         onChoosePickup={choosePickup}
         stopAlerts={stopAlerts}
         onToggleStopAlerts={toggleStopAlerts}
