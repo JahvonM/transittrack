@@ -857,7 +857,7 @@ test('mobile overview company picker is a drawer with selectable options',async(
  await page.getByLabel('Overview company',{exact:true}).click();
  const drawer=page.getByRole('dialog');
  await expect(drawer).toBeVisible();
- await page.screenshot({path:'/tmp/tt-choice-drawer.png'});
+ await page.screenshot({path:'/tmp/tt-choice-drawer.png',animations:'disabled'});
  await drawer.getByRole('option',{name:'Company A',exact:true}).click();
  await expect(drawer).toHaveCount(0);
  await expect(page.getByLabel('Overview company',{exact:true})).toContainText('Company A');
