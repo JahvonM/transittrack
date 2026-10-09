@@ -172,7 +172,8 @@ test('passenger More has a WhatsApp link for app problems once admin sets the nu
   await passengerShowcase(page);
   await expect(page.getByRole('link',{name:/Report an app problem/})).toHaveCount(0);
   await page.route('**/functions/appSupport',r=>r.fulfill({json:{whatsapp_number:'14735551234'}}));
-  await page.goto('/staff');
+  // The passenger More page (its own page since the Oct 8 redesign).
+  await page.goto('/more');
   const link=page.getByRole('link',{name:/Report an app problem/});
   await expect(link).toHaveAttribute('href',/^https:\/\/wa\.me\/14735551234\?text=/);
   await expect(link).toHaveAttribute('target','_blank');
