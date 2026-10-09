@@ -939,4 +939,8 @@ test('reference bus directory filters real records and keeps bus selection',asyn
  await page.screenshot({path:'/tmp/tt-buses-reference.png'});
  await page.getByRole('link',{name:/Actual parked bus/}).click();
  await expect(page).toHaveURL(/route-explorer\?bus=actual-parked/);
+ await page.goto('/route-explorer?bus=actual-live');
+ await expect(page.getByRole('button',{name:'View bus',exact:true})).toBeVisible();
+ await page.getByRole('button',{name:'View bus',exact:true}).click();
+ await expect(page.getByRole('region',{name:'Routes and buses'}).getByRole('button').first()).toHaveAttribute('aria-expanded','true');
 });

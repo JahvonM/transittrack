@@ -1,6 +1,6 @@
 import BusArtwork from "@/components/BusArtwork";
 import React from "react";
-import { Bus, CircleCheck, ClipboardCheck, Clock, Megaphone, MessageCircle, Phone, Play, Radio, Route as RouteIcon, Square, UserX } from "lucide-react";
+import { Bus, CircleCheck, ClipboardCheck, Clock, Megaphone, MessageCircle, Phone, Play, Radio, Route as RouteIcon, Square, UserX, Users, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { telLink, whatsappLink } from "@/lib/driverPhone";
 
@@ -126,9 +126,9 @@ export default function TodayTab({ today, driverName, onPickBus, onStartShift, o
         <Section title="Your route"><p className="font-bold">{route?.name || "Not assigned"}</p><p className="text-body-sm text-muted-foreground">{stops.length} stops</p></Section>
       </div><div className="tt-phone-quick-actions grid grid-cols-2 gap-3" aria-label="Driver shortcuts">
         {onWalkaround && <button type="button" onClick={onWalkaround}><ClipboardCheck aria-hidden="true" />Inspection</button>}
-        <button type="button" onClick={() => document.getElementById("tt-phone-pickups")?.scrollIntoView({ behavior: "smooth", block: "start" })}><UserX aria-hidden="true" />Passenger list</button>
+        <button type="button" onClick={() => document.getElementById("tt-phone-pickups")?.scrollIntoView({ behavior: "smooth", block: "start" })}><Users aria-hidden="true" />Passenger list</button>
         {onMessages && <button type="button" onClick={onMessages}><MessageCircle aria-hidden="true" />Messages</button>}
-        {onDocuments && <button type="button" onClick={onDocuments}><Bus aria-hidden="true" />Documents</button>}
+        {onDocuments && <button type="button" onClick={onDocuments}><FileText aria-hidden="true" />Documents</button>}
       </div></>}
 
       {today?.backup_gps && shift?.mine && (
