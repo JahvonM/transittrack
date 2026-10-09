@@ -30,8 +30,14 @@ describe('verification and credential protection', () => {
    const sdk=mock(), {reserveAttempt}=load(name,sdk);
    for(let i=0;i<5;i++) expect(await reserveAttempt(sdk,'scope',5,60_000)).toBe(true);
    expect(await reserveAttempt(sdk,'scope',5,60_000)).toBe(false);
-   expect(sdk.tables.VerificationAttempt).toHaveLength(5);
-   sdk.tables.VerificationAttempt.forEach(r=>r.attempted_at='2000-01-01');
+   // Kept in the shared attempt store (not app tables), under a hashed scope only.
+   expect(sdk.tables.VerificationAttempt ?? []).toHaveLength(0);
+   expect(sdk.atomicCalls.every(c=>/^[a-f0-9]{64}$/.test(c.p_scope_hash))).toBe(true);
+   expect(JSON.stringify(sdk.atomicCalls)).not.toContain('scope');
+   const [policy]=[...sdk.atomicRows.values()];
+   expect([...policy.rows.values()].filter(r=>r.allowed)).toHaveLength(5);
+   // Attempts older than the window no longer count.
+   policy.rows.forEach(r=>{r.at=Date.parse('2000-01-01');});
    expect(await reserveAttempt(sdk,'scope',5,60_000)).toBe(true);
   });
   it(`${name} binds expiring grants to device, company, vehicle, purpose and pairing`, async()=>{
