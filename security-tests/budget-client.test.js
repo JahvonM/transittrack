@@ -3,6 +3,19 @@ import {createDurableAttemptBudget} from '../base44/shared/durableAttemptBudget'
 const id='12345678-1234-4234-8234-123456789abc';
 const config={url:'https://example.supabase.co',serviceRoleKey:'backend-test-key-never-real'};
 describe('durable attempt budget transport',()=>{
+ it('retains safe HTTP diagnostics and discards provider messages',async()=>{
+  const client=createDurableAttemptBudget({...config,fetchImpl:async()=>Response.json({code:'PGRST202',message:'sb_secret_PRIVATE'},{status:404})});
+  let error;try{await client.reserve('scope',id,5,60000);}catch(e){error=e;}
+  expect(error).toMatchObject({reason:'http',httpStatus:404,providerCode:'PGRST202'});
+  expect(error.message).toBe('Atomic budget unavailable');
+  expect(JSON.stringify(error)).not.toContain('PRIVATE');
+ });
+ it('never reflects arbitrary provider codes',async()=>{
+  const client=createDurableAttemptBudget({...config,fetchImpl:async()=>Response.json({code:'sb_secret_PRIVATE'},{status:401})});
+  let error;try{await client.reserve('scope',id,5,60000);}catch(e){error=e;}
+  expect(error.httpStatus).toBe(401);expect(error.providerCode).toBeUndefined();
+ });
+
  for (const key of ['sb_secret_synthetic-never-real-key', 'eyJsynthetic-legacy-key-never-real']) it('uses correct authentication headers for '+(key.startsWith('sb_')?'secret keys':'legacy JWTs'),async()=>{
   let headers;
   const client=createDurableAttemptBudget({...config,serviceRoleKey:key,fetchImpl:async(_url,init)=>{headers=init.headers;return Response.json(true);}});
