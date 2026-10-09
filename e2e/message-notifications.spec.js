@@ -10,7 +10,8 @@ async function mockedChat(page,role) {
  });
  await page.route('**/api/**',async route=>{
   const req=route.request(),url=req.url();
-  if(url.includes('/integration-endpoints/Core/UploadFile'))return route.fulfill({json:{file_url:'https://mock.invalid/photo.jpg'}});
+  // Chat photos use the public-file upload (UploadPublicFile); older code used UploadFile.
+  if(/\/integration-endpoints\/Core\/Upload(Public)?File\b/.test(url))return route.fulfill({json:{file_url:'https://mock.invalid/photo.jpg'}});
   if(url.includes('/entities/'))return route.fulfill({status:403,json:{error:'Direct access blocked'}});
   if(url.includes('/functions/notifyAdminMessage')) {
    notifications.push(req.postDataJSON());return route.fulfill({json:{ok:true}});
