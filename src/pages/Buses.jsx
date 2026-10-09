@@ -126,6 +126,13 @@ export default function Buses() {
             <div className="tt-bus-filters mx-6 mb-5 flex rounded-xl border border-border p-1 md:mx-0" role="group" aria-label="Filter buses">
               {[["all", "All"], ["road", "On route"], ["parked", "Parked"]].map(([id, label]) => <button type="button" key={id} aria-pressed={filter === id} onClick={() => setFilter(id)} className="min-h-11 flex-1 rounded-lg font-semibold">{label}</button>)}
             </div>
+            <section aria-label="Company bus directory">
+            <Group id="tt-buses-coming" title={stop ? `Coming to ${stop.name}` : "Serving your stop"} buses={filter === "parked" ? [] : coming} routes={routes} stop={stop} now={now} />
+            <Group id="tt-buses-road" title={coming.length ? "Other buses on the road" : "On the road"} buses={filter === "parked" ? [] : onRoad} routes={routes} stop={null} now={now} />
+            <Group id="tt-buses-parked" title="Not on the road" buses={filter === "road" ? [] : parked} routes={routes} stop={null} now={now} />
+            {visible.length > 0 && ((filter === "road" && coming.length + onRoad.length === 0) || (filter === "parked" && parked.length === 0)) && <p className="px-6 py-8 text-center text-muted-foreground">No buses in this view.</p>}
+            {!visible.length && <p className="px-6 py-10 text-center text-muted-foreground">No buses to show yet.</p>}
+            </section>
             <section className="px-6 pb-6 md:px-0" aria-labelledby="tt-buses-map">
               <SectionHead id="tt-buses-map" title="Map" aside={mapOpen ? <MapToggle open onToggle={() => setMapOpen(false)} /> : null} />
               {mapOpen ? (
@@ -137,13 +144,6 @@ export default function Buses() {
               ) : (
                 <MapClosed onOpen={() => setMapOpen(true)}>See every bus on a 3D map. The map uses more data and battery.</MapClosed>
               )}
-            </section>
-            <section aria-label="Company bus directory">
-            <Group id="tt-buses-coming" title={stop ? `Coming to ${stop.name}` : "Serving your stop"} buses={filter === "parked" ? [] : coming} routes={routes} stop={stop} now={now} />
-            <Group id="tt-buses-road" title={coming.length ? "Other buses on the road" : "On the road"} buses={filter === "parked" ? [] : onRoad} routes={routes} stop={null} now={now} />
-            <Group id="tt-buses-parked" title="Not on the road" buses={filter === "road" ? [] : parked} routes={routes} stop={null} now={now} />
-            {visible.length > 0 && ((filter === "road" && coming.length + onRoad.length === 0) || (filter === "parked" && parked.length === 0)) && <p className="px-6 py-8 text-center text-muted-foreground">No buses in this view.</p>}
-            {!visible.length && <p className="px-6 py-10 text-center text-muted-foreground">No buses to show yet.</p>}
             </section>
           </>
         )}
