@@ -808,3 +808,12 @@ html.tt-future {
 .tt-arrival-main>div:first-child>div>img {display:none}
 .tt-passenger-reference .tt-bus-card>a>span:last-of-type{max-width:90px}
 .tt-passenger-pickup-actions>section button>span:last-child{font-size:11px;line-height:1.35}
+
+.tt-cockpit-rail {display:contents}
+@media(min-width:900px){
+ .tt-driver-cockpit-reference{grid-template-areas:"map rail" "deck deck"!important;grid-template-rows:minmax(0,1fr) auto!important}
+ .tt-cockpit-rail{grid-area:rail;display:flex;flex-direction:column;gap:12px;min-height:0;overflow-y:auto;padding-right:3px;overscroll-behavior:contain}
+ .tt-cockpit-rail>*{flex:none}
+ .tt-cockpit-rail>[aria-label="Today's trips and pickups"]{min-height:170px}
+ .tt-cockpit-rail>[class*="grid-area:next"]{overflow:visible!important}
+}
