@@ -51,6 +51,6 @@ export default async function(req) {
 
     return Response.json({ success: true, trip_id: trip.id, company: company.name });
   } catch (error) {
-    return Response.json({ error: 'Something went wrong. Please try again.' }, { status: 500 });
+    return Response.json({ error: error?.status === 503 ? 'Verification service temporarily unavailable. Please try again.' : 'Something went wrong. Please try again.' }, { status: error?.status === 503 ? 503 : 500 });
   }
 }
