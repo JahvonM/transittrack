@@ -22,7 +22,10 @@ export function createDurableAttemptBudget(config: {
    try {
     const response = await fetchImpl(url.origin+'/rest/v1/rpc/tt_reserve_attempt', {
      method:'POST', redirect:'error', signal:AbortSignal.timeout(timeoutMs),
-     headers:{'Content-Type':'application/json',apikey:config.serviceRoleKey,Authorization:'Bearer '+config.serviceRoleKey},
+     // New Supabase secret keys are not JWTs: use apikey only.
+     // Preserve Bearer authentication for legacy service_role JWTs.
+     headers:{'Content-Type':'application/json',apikey:config.serviceRoleKey,
+      ...(config.serviceRoleKey.startsWith('sb_secret_') ? {} : {Authorization:'Bearer '+config.serviceRoleKey})},
      body:JSON.stringify({p_scope_hash:scopeHash,p_request_id:requestId,p_limit:limit,p_window_ms:windowMs}),
     });
     if (!response.ok) throw new Error('Unsuccessful budget response');
