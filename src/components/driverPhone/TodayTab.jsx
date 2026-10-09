@@ -41,7 +41,7 @@ function ContactRow({ label, phone }) {
   );
 }
 
-export default function TodayTab({ today, driverName, onPickBus, onStartShift, onEndShift, onWalkaround, backupSentAt }) {
+export default function TodayTab({ today, driverName, onPickBus, onStartShift, onEndShift, onWalkaround, backupSentAt, onMessages, onDocuments }) {
   const { buses = [], bus, route, pickups = [], shift, last_shift: lastShift, notices = [], contacts, workplace, walkaround } = today || {};
   const first = (driverName || "").split(" ")[0] || "there";
   const hour = new Date().getHours();
@@ -54,7 +54,7 @@ export default function TodayTab({ today, driverName, onPickBus, onStartShift, o
   const hasContacts = telLink(contacts?.dispatch_phone) || telLink(contacts?.manager_phone);
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="tt-phone-today flex flex-col gap-4">
       <header>
         <p className="text-body-sm text-muted-foreground">{new Date().toLocaleDateString([], { weekday: "long", day: "numeric", month: "long" })}</p>
         <h1 className="text-headline">{greeting}, {first}</h1>
@@ -66,7 +66,7 @@ export default function TodayTab({ today, driverName, onPickBus, onStartShift, o
         </Section>
       ) : (
         <section className="tt-driver-vehicle-hero rounded-2xl border border-border bg-card p-4" aria-label="Your bus">
-          <BusArtwork vehicle={bus} width={280} className="w-full h-40 mb-4" />
+          <BusArtwork vehicle={bus} fallbackUrl="/images/boarding-coaster.webp" width={280} className="w-full h-40 mb-4" />
           <div className="flex items-center gap-3">
             <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-secondary" aria-hidden="true"><Bus className="h-6 w-6" /></span>
             <div className="min-w-0 flex-1">
@@ -121,6 +121,16 @@ export default function TodayTab({ today, driverName, onPickBus, onStartShift, o
         </section>
       )}
 
+      {bus && <><div className="tt-phone-trip-summary grid grid-cols-2 gap-3">
+        <Section title="Pickups today"><p className="font-display text-3xl font-bold">{riding.length}</p><p className="text-body-sm text-muted-foreground">{skipping.length} skipping today</p></Section>
+        <Section title="Your route"><p className="font-bold">{route?.name || "Not assigned"}</p><p className="text-body-sm text-muted-foreground">{stops.length} stops</p></Section>
+      </div><div className="tt-phone-quick-actions grid grid-cols-2 gap-3" aria-label="Driver shortcuts">
+        {onWalkaround && <button type="button" onClick={onWalkaround}><ClipboardCheck aria-hidden="true" />Inspection</button>}
+        <button type="button" onClick={() => document.getElementById("tt-phone-pickups")?.scrollIntoView({ behavior: "smooth", block: "start" })}><UserX aria-hidden="true" />Passenger list</button>
+        {onMessages && <button type="button" onClick={onMessages}><MessageCircle aria-hidden="true" />Messages</button>}
+        {onDocuments && <button type="button" onClick={onDocuments}><Bus aria-hidden="true" />Documents</button>}
+      </div></>}
+
       {today?.backup_gps && shift?.mine && (
         <section role="status" className="rounded-2xl border border-primary/60 bg-primary/10 p-4" aria-label="Backup GPS">
           <p className="flex items-center gap-2 text-title-sm font-bold"><Radio className="h-5 w-5 text-primary" aria-hidden="true" /> Backup GPS is on</p>
@@ -145,7 +155,7 @@ export default function TodayTab({ today, driverName, onPickBus, onStartShift, o
       )}
 
       {bus && (
-        <Section title={route?.name || "No route assigned"} icon={RouteIcon}>
+        <div id="tt-phone-pickups" className="scroll-mt-20"><Section title={route?.name || "No route assigned"} icon={RouteIcon}>
           {!route ? (
             <p className="text-body text-muted-foreground">Ask dispatch to give this bus a route.</p>
           ) : (
@@ -188,7 +198,7 @@ export default function TodayTab({ today, driverName, onPickBus, onStartShift, o
               )}
             </>
           )}
-        </Section>
+        </Section></div>
       )}
 
       {hasContacts && (
