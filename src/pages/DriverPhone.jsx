@@ -285,7 +285,7 @@ export default function DriverPhone() {
   }
 
   return (
-    <div className="tt-phone-future min-h-[100dvh] bg-background">
+    <div className="tt-phone-future tt-driver-phone-reference min-h-[100dvh] bg-background">
       <header className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-border bg-background/95 px-4 py-2 backdrop-blur-md safe-area-top">
         <div className="flex min-w-0 items-center gap-2">
           {me?.company?.logo_url ? <img src={me.company.logo_url} alt="" className="h-8 w-8 rounded-lg object-cover" /> : <Logo />}
@@ -308,7 +308,7 @@ export default function DriverPhone() {
             onCancel={(id) => callDriverPhone("cancel_request", { request_id: id })} onBack={() => navigate("/driver-phone/me")} />
         )}
         {!screen && tab === "today" && (
-          <PullToRefresh onRefresh={loadToday}><TodayTab today={today} driverName={me?.driver?.name} onPickBus={pickBus} backupSentAt={backupSentAt}
+          <PullToRefresh onRefresh={loadToday}><TodayTab onMessages={() => navigate("/driver-phone/messages")} onDocuments={() => navigate("/driver-phone/me")} today={today} driverName={me?.driver?.name} onPickBus={pickBus} backupSentAt={backupSentAt}
             onStartShift={() => navigate("/driver-phone/start")} onEndShift={endShift} onWalkaround={() => navigate("/driver-phone/walkaround")} /></PullToRefresh>
         )}
         {tab === "messages" && <PullToRefresh onRefresh={loadMessages}><MessagesTab messages={messages} loaded={messagesLoaded} hasBus={!!today?.bus} onSend={send} /></PullToRefresh>}
