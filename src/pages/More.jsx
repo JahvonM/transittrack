@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { ChevronRight, KeyRound, LifeBuoy, LogOut, MapPinned, ShieldCheck, Sparkles } from "lucide-react";
+import { Bell, ChevronRight, KeyRound, LifeBuoy, LogOut, MapPinned, ShieldCheck, Sparkles } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import AppLayout from "@/components/AppLayout";
 
@@ -35,7 +35,8 @@ export default function More() {
     <AppLayout variant="passenger" title="More">
       <div className="max-w-2xl">
         <Group title="You">
-          <Row to="/staff?sheet=pickup" icon={MapPinned} title="Pickup settings" sub="Pickup pin, WhatsApp updates, switch company" />
+          <Row to="/staff?sheet=pickup" icon={MapPinned} title="Pickup settings" sub="Find a nearby pickup and review your walk" />
+          <Row to="/staff?sheet=notifications" icon={Bell} title="Notifications" sub="Arrival alerts, WhatsApp updates and company settings" />
         </Group>
         <Group title="On the bus">
           <Row to="/staff?sheet=badge" icon={KeyRound} title="Bus boarding" sub="Permanent QR, choose or reset your boarding code" />
