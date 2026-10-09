@@ -51,12 +51,16 @@ test('admin exports and reconciles before archiving; removal requires confirmati
  await expect(remove).toBeDisabled();
  await exportOriginal(page);
  await page.getByRole('checkbox').check();
- page.once('dialog',dialog=>dialog.dismiss());
+ // Answer each confirmation before setting up the next one (the box can open a moment after the click).
+ const answer=accept=>new Promise(resolve=>page.once('dialog',async dialog=>{await (accept?dialog.accept():dialog.dismiss());resolve();}));
+ let answered=answer(false);
  await remove.click();
+ await answered;
  saved=await page.evaluate(()=>JSON.parse(localStorage.getItem('tt_offline_jobs')));
  expect(saved).toHaveLength(1);
- page.once('dialog',dialog=>dialog.accept());
+ answered=answer(true);
  await remove.click();
+ await answered;
  await expect.poll(()=>page.evaluate(()=>JSON.parse(localStorage.getItem('tt_offline_jobs')).length)).toBe(0);
 });
 
