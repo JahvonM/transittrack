@@ -51,7 +51,7 @@ async function phone(page,{refuse=false,today=TODAY,user={id:'u1',email:'dana.dr
  return calls;
 }
 
-test('a driver signing in lands on Today with the bus, stops and pickups',async({page})=>{
+test('a driver opens stops and pickups from buttons on Today',async({page})=>{
  await phone(page);
  await page.goto('/staff');
  await expect(page).toHaveURL(/\/driver-phone$/);
@@ -59,6 +59,11 @@ test('a driver signing in lands on Today with the bus, stops and pickups',async(
  await expect(page.getByText('Bus 12',{exact:true})).toBeVisible();
  await expect(page.getByText('Not on shift',{exact:true})).toBeVisible();
  await expect(page.getByRole('button',{name:'Start shift'})).toBeVisible();
+ await expect(page.getByRole('list',{name:'Passengers to pick up'})).toHaveCount(0);
+ await expect(page.getByRole('dialog')).toHaveCount(0);
+ await expect(page.getByText('Town',{exact:true})).toHaveCount(0);
+ await page.getByRole('button',{name:'Passenger list',exact:true}).click();
+ await expect(page.getByRole('dialog',{name:'Passenger list',exact:true})).toBeVisible();
  // Who to pick up: name, with the stop beside it, in the order the bus reaches the stops.
  const rows=page.getByRole('list',{name:'Passengers to pick up'}).getByRole('listitem');
  await expect(rows).toHaveCount(3);
@@ -66,10 +71,22 @@ test('a driver signing in lands on Today with the bus, stops and pickups',async(
  await expect(rows.nth(1)).toContainText('Marcus T.');await expect(rows.nth(1)).toContainText('Running late');await expect(rows.nth(1)).toContainText('Town');
  await expect(rows.nth(2)).toContainText('Keisha B.');await expect(rows.nth(2)).toContainText('True Blue');
  await expect(page.getByText('Not riding today: Sam')).toBeVisible();
- await expect(page.getByRole('link',{name:'Call'}).first()).toHaveAttribute('href','tel:+14735550100');
- await shot(page,'01-today');
- await page.evaluate(()=>window.scrollTo(0,document.body.scrollHeight));
+ await shot(page,'01-today-passengers');
+ await page.getByRole('button',{name:'Close',exact:true}).click();
+ await expect(page.getByRole('list',{name:'Passengers to pick up'})).toHaveCount(0);
+ await expect(page.getByRole('button',{name:'Passenger list',exact:true})).toBeFocused();
+ await page.getByRole('button',{name:'Bus stops',exact:true}).click();
+ const stops=page.getByRole('dialog',{name:'Bus stops',exact:true});
+ await expect(stops).toBeVisible();
+ await expect(stops.getByRole('listitem')).toHaveCount(3);
+ await expect(stops.getByRole('listitem').nth(0)).toContainText('Town');
+ await expect(stops.getByRole('listitem').nth(1)).toContainText('True Blue');
+ await expect(stops.getByRole('listitem').nth(2)).toContainText('Grand Anse');
  await shot(page,'02-today-stops');
+ await page.keyboard.press('Escape');
+ await expect(page.getByRole('dialog')).toHaveCount(0);
+ await expect(page.getByRole('button',{name:'Bus stops',exact:true})).toBeFocused();
+ await expect(page.getByRole('link',{name:'Call'}).first()).toHaveAttribute('href','tel:+14735550100');
 });
 
 test('messages from dispatch show and the driver can reply',async({page})=>{
