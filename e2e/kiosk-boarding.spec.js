@@ -1,3 +1,8 @@
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import QRCode from 'qrcode';
+import { chromium } from '@playwright/test';
 import { test, expect } from '@playwright/test';
 
 // The bus boarding tablet, end to end, with the server mocked.
@@ -285,4 +290,45 @@ test('boarding home uses the actual company, counts and admin bus photo',async({
  await expect(page.locator('.tt-board-bus')).toHaveAttribute('src','/images/transit-bus-3d.webp');
  await expect(page.locator('.tt-board-occupancy')).toContainText('4');
  await expect(page.locator('.tt-board-occupancy')).toContainText('9 riders today');
+});
+function cameraOf(text) {
+  const W = 480, H = 480;
+  const qr = QRCode.create(text, { errorCorrectionLevel: 'M' });
+  const n = qr.modules.size, cell = Math.floor((W - 80) / (n + 8)), off = Math.floor((W - cell * n) / 2);
+  const y = Buffer.alloc(W * H, 235);
+  for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) {
+    if (!qr.modules.get(r, c)) continue;
+    for (let dy = 0; dy < cell; dy++) y.fill(16, (off + r * cell + dy) * W + off + c * cell, (off + r * cell + dy) * W + off + (c + 1) * cell);
+  }
+  const uv = Buffer.alloc((W / 2) * (H / 2), 128);
+  const frame = Buffer.concat([Buffer.from('FRAME\n'), y, uv, uv]);
+  const file = path.join(os.tmpdir(), `tt-qr-camera-${process.pid}.y4m`);
+  fs.writeFileSync(file, Buffer.concat([Buffer.from(`YUV4MPEG2 W${W} H${H} F10:1 Ip A1:1 C420jpeg\n`), frame, frame]));
+  return file;
+}
+
+test('home QR decodes once and keeps Boarding and Exiting available',async()=>{
+ const camera=cameraOf('tt-code:DEV-BOARDING-QR');
+ const browser=await chromium.launch({args:['--use-fake-ui-for-media-stream','--use-fake-device-for-media-stream','--use-file-for-fake-video-capture='+camera]});
+ try{
+ const page=await browser.newPage({viewport:{width:1024,height:600}});
+ // Chromium's fake webcam has no front-camera metadata. Record the actual
+ // request, then remove that constraint only in this isolated camera fixture.
+ await page.addInitScript(()=>{
+  const original=navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+  navigator.mediaDevices.getUserMedia=(constraints)=>{
+   window.testCameraFacing=constraints.video?.facingMode;
+   const video={...constraints.video};delete video.facingMode;
+   return original({...constraints,video});
+  };
+ });
+ const {calls,errors}=await setup(page,{checkIn:b=>b.action==='lookup_code'?{json:{staff:person,next_status:'boarded',code_type:'qr',verification_grant:'b'.repeat(64)}}:null});
+ await page.goto('/kiosk');await page.getByRole('button',{name:/Scan QR code/}).click();
+ await expect(page.getByText('Maria Joseph',{exact:true})).toBeVisible({timeout:15000});
+ await expect(page.getByRole('button',{name:'Boarding',exact:true})).toBeVisible();
+ await expect(page.getByRole('button',{name:'Exiting',exact:true})).toBeVisible();
+ expect(calls.filter(([a])=>a==='lookup_code')).toHaveLength(1);
+ expect(await page.evaluate(()=>window.testCameraFacing)).toEqual({exact:'user'});
+ expect(errors).toEqual([]);
+ }finally{await browser.close();fs.unlinkSync(camera);}
 });
