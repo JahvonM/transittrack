@@ -59,7 +59,12 @@ test('a driver signing in lands on Today with the bus, stops and pickups',async(
  await expect(page.getByText('Bus 12',{exact:true})).toBeVisible();
  await expect(page.getByText('Not on shift',{exact:true})).toBeVisible();
  await expect(page.getByRole('button',{name:'Start shift'})).toBeVisible();
- await expect(page.getByText('Pick up Jane R., Marcus T. (running late)')).toBeVisible();
+ // Who to pick up: name, with the stop beside it, in the order the bus reaches the stops.
+ const rows=page.getByRole('list',{name:'Passengers to pick up'}).getByRole('listitem');
+ await expect(rows).toHaveCount(3);
+ await expect(rows.nth(0)).toContainText('Jane R.');await expect(rows.nth(0)).toContainText('Town');
+ await expect(rows.nth(1)).toContainText('Marcus T.');await expect(rows.nth(1)).toContainText('Running late');await expect(rows.nth(1)).toContainText('Town');
+ await expect(rows.nth(2)).toContainText('Keisha B.');await expect(rows.nth(2)).toContainText('True Blue');
  await expect(page.getByText('Not riding today: Sam')).toBeVisible();
  await expect(page.getByRole('link',{name:'Call'}).first()).toHaveAttribute('href','tel:+14735550100');
  await shot(page,'01-today');
