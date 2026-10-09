@@ -1,13 +1,13 @@
 # S06 — durable concurrency foundation
 
-Status: implementation prepared; NOT activated. Existing application release blockers remain open.
+Status (9 October 2026): shared reserveAttempt request budgets activated in seven backend handlers. Specialized wrong-PIN/wrong-code counters and application write recovery are not migrated. Existing application release blockers remain open.
 
 The existing Maps serialize only requests inside the same JS module instance. They do not survive worker restarts and do not enforce a shared budget across workers. A new strict regression uses twenty separately evaluated backend modules against shared storage to expose that gap.
 
 ## Prepared files
 
 - `infra/postgres/001_attempt_budget.sql`: unique policy and reservation identities, a PostgreSQL row lock, rolling-window accounting using database time, and replay of a reservation decision using an immutable backend request UUID. Private schema and no browser-role execution privileges.
-- `base44/shared/durableAttemptBudget.ts`: HTTPS Supabase RPC transport, hashed scope keys, explicit backend credential configuration, timeout and fail-closed handling. It never falls back to a local mutex. This module is not yet imported by active handlers.
+- `base44/shared/durableAttemptBudget.ts`: HTTPS Supabase RPC transport, hashed scope keys, explicit backend credential configuration, timeout and fail-closed handling. It never falls back to a local mutex. Active shared request budgets import this transport through configuredAttemptBudget.ts and atomicOps.ts.
 - `tools/postgres-budget-check.mjs`: integration acceptance against a disposable localhost PostgreSQL database. Separate processes/connections race twenty attempts; tests retries/recreated callers, policy conflicts, window expiry, and denied browser roles.
 - `.github/workflows/atomic-storage.yml`: runs that database acceptance check against PostgreSQL 16.
 
@@ -40,4 +40,13 @@ Primary storage references: https://www.postgresql.org/docs/16/transaction-iso.h
 - Current app cross-worker regression: FAILED, 20 admitted against a five-attempt limit.
 - Full strict suite: 39 passed / 6 failed / 45 total. Five existing failures remain; the additional failure is the newly covered cross-worker defect. No assertions were skipped or weakened.
 - PostgreSQL 16 CI acceptance workflow is prepared; its remote GitHub execution has not been observed.
-- Hosted Supabase connectivity and runtime integration have not run; no project exists yet.
+- At this historical checkpoint, hosted connectivity and runtime integration had not run.
+
+## Execution evidence — 9 October 2026
+
+- User applied the SQL migration and configured Base44 backend secrets. Hosted checkAtomicStore returned ok:true, accepted:5 of 20, replayStable:true, extraDenied:true. This proves the diagnostic connection and RPC behavior, not application side-effect recovery.
+- Migrated shared reserveAttempt use in companyAccess, generateOneTimeCode, kioskCheckIn, driverSession, bookTaxi, busAssistant and notifyStaffPickup. Trusted backend scopes are namespaced and hashed; each incoming request gets a fresh UUID. Transport redirects retain that UUID. Unknown outcomes stop downstream work with 503; no entity or local fallback. A new client retry is a new charge, so an unknown committed reservation may conservatively consume budget.
+- Separate handler workers and a recreated caller share the budget boundary: five accepted, fifteen denied, and an additional restarted caller denied. This handler fixture is synthetic HTTP storage; actual database atomicity evidence remains the separate PostgreSQL checks and hosted diagnostic.
+- Missing secrets, publishable credentials, network/provider failure and invalid provider responses stop company verification with 503 and no grants/membership writes. Unsigned callers never reserve.
+- Full strict suite: 68 passed / 5 failed / 73 total. Remaining failures: concurrent pairing, duplicate shifts, duplicate inspection parents, duplicate mechanic results, and public crash-report email cap. Assertions were not skipped or weakened.
+- Driver wrong-PIN and kiosk wrong-code counters still use separate entity logic. Local createOnce/claimOnce/stamp helpers do not provide cross-worker guarantees. Production release remains blocked.
