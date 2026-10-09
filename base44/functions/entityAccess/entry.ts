@@ -259,6 +259,24 @@ export default async function(req) {
   // Refuse unknown or protected entities before looking anything up.
   if(name!=='Bootstrap' && !Object.hasOwn(ENTITY_FIELDS,name)) fail(403,'Entity access denied');
   const ctx=await context(base44);
+  // Push tokens are credentials: register through this authenticated action,
+  // never through client-side credential searches or client-supplied identity.
+  if(name==='PushToken' && operation==='register') {
+   if(!ctx.user) fail(401,'Sign in required');
+   const token=body.data?.token;
+   if(typeof token!=='string' || token.length<20 || token.length>4096 || /\s/.test(token)) fail(400,'Invalid notification token');
+   const rows=await retry429(()=>db.PushToken.filter({token},'-updated_date',100));
+   const data={token,email:ctx.user.email,role:ctx.user.role,company_id:ctx.companies[0]||'',device_id:''};
+   // Refresh identity and approved company after sign-in/company changes.
+   // A browser token must not keep receiving its previous account's alerts.
+   if(rows[0]) {
+    await retry429(()=>db.PushToken.update(rows[0].id,data));
+    for(const duplicate of rows.slice(1)) await retry429(()=>db.PushToken.delete(duplicate.id));
+   } else await retry429(()=>db.PushToken.create(data));
+   return Response.json({ok:true});
+  }
+
+
   // One call for the passenger home: the company's workplace, vehicles, routes
   // and the rides still to come. It used to be four separate calls, and on a
   // phone each one could hit the app's rate limit and then sit waiting to be
