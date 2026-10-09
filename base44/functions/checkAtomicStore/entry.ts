@@ -4,7 +4,7 @@ import { createDurableAttemptBudget } from '../../shared/durableAttemptBudget.ts
 
 // Setup diagnostic only. Does not activate application handlers.
 // Each run leaves one policy and twenty-one synthetic reservation rows.
-// Verified backend-only secret-key transport; no application activation.
+// Manual same-project RPC redirect handling; no application activation.
 export function createCheckAtomicStoreHandler(deps: {
  clientFromRequest: typeof createClientFromRequest;
  getSecret: (name: string) => string | null | undefined;
@@ -18,9 +18,13 @@ export function createCheckAtomicStoreHandler(deps: {
   if (!user) return Response.json({error:'Sign in required'}, {status:401});
   if (user.role !== 'admin') return Response.json({error:'Administrators only'}, {status:403});
   let stage = 'configuration';
+  let projectMatches: boolean | undefined;
+  let keyType: string | undefined;
   try {
    const url = deps.getSecret('TT_ATOMIC_STORE_URL')?.trim();
    const serviceRoleKey = deps.getSecret('TT_ATOMIC_SERVICE_ROLE_KEY')?.trim();
+   projectMatches = url === 'https://pfnawiilklehyawanmqd.supabase.co' || url === 'https://pfnawiilklehyawanmqd.supabase.co/';
+   keyType = serviceRoleKey?.startsWith('sb_secret_') ? 'secret' : serviceRoleKey?.startsWith('sb_publishable_') ? 'publishable' : 'legacy-or-other';
    if (!url || !serviceRoleKey) return Response.json({ok:false,error:'Missing atomic store backend secrets'}, {status:503});
    if (serviceRoleKey.startsWith('sb_publishable_')) return Response.json({ok:false,stage,error:'Use the backend secret key, not the publishable key.'}, {status:503});
    // Validate configuration before starting any network operations.
@@ -49,7 +53,9 @@ export function createCheckAtomicStoreHandler(deps: {
    const reason = reasons.includes(error?.reason) ? error.reason : 'unknown';
    const httpStatus = Number.isInteger(error?.httpStatus) && error.httpStatus >= 100 && error.httpStatus <= 599 ? error.httpStatus : undefined;
    const providerCode = codes.includes(error?.providerCode) ? error.providerCode : undefined;
-   return Response.json({ok:false,stage,reason,httpStatus,providerCode,error:'Atomic store check unavailable. Verify project URL, backend secret and SQL migration.'}, {status:503});
+   const networkKinds = ['dns','tls','permission','request-header','redirect','connection-refused','unclassified'];
+   const networkKind = networkKinds.includes(error?.networkKind) ? error.networkKind : undefined;
+   return Response.json({ok:false,stage,reason,httpStatus,providerCode,networkKind,projectMatches,keyType,error:'Atomic store check unavailable. Verify project URL, backend secret and SQL migration.'}, {status:503});
   }
  };
 }

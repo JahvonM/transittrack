@@ -3,6 +3,38 @@ import {createDurableAttemptBudget} from '../base44/shared/durableAttemptBudget'
 const id='12345678-1234-4234-8234-123456789abc';
 const config={url:'https://example.supabase.co',serviceRoleKey:'backend-test-key-never-real'};
 describe('durable attempt budget transport',()=>{
+ it('follows only a same-project RPC 307 with identical POST body and request ID',async()=>{
+  const calls=[];
+  const client=createDurableAttemptBudget({...config,fetchImpl:async(url,init)=>{
+   calls.push({url,init});
+   return calls.length===1?new Response(null,{status:307,headers:{location:'/rest/v1/rpc/tt_reserve_attempt/'}}):Response.json(true);
+  }});
+  expect(await client.reserve('scope',id,5,60000)).toBe(true);
+  expect(calls).toHaveLength(2);expect(calls[1].url).toBe(config.url+'/rest/v1/rpc/tt_reserve_attempt/');
+  expect(calls[1].init.method).toBe('POST');expect(calls[1].init.body).toBe(calls[0].init.body);
+  expect(calls[1].init.signal).toBe(calls[0].init.signal);
+ });
+ for(const location of ['https://evil.test/rpc','http://example.supabase.co/rest/v1/rpc/tt_reserve_attempt','/auth','/rest/v1/rpc/tt_reserve_attempt?key=secret'])it('blocks unsafe redirect without forwarding credentials: '+location,async()=>{
+  let calls=0;
+  const client=createDurableAttemptBudget({...config,fetchImpl:async()=>{calls++;return new Response(null,{status:307,headers:{location}});}});
+  await expect(client.reserve('scope',id,5,60000)).rejects.toThrow('Atomic budget unavailable');
+  expect(calls).toBe(1);
+ });
+ it('bounds redirect loops',async()=>{
+  let calls=0;
+  const client=createDurableAttemptBudget({...config,fetchImpl:async()=>{calls++;return new Response(null,{status:308,headers:{location:'/rest/v1/rpc/tt_reserve_attempt'}});}});
+  await expect(client.reserve('scope',id,5,60000)).rejects.toThrow('Atomic budget unavailable');expect(calls).toBe(3);
+ });
+
+ it('classifies DNS failures without returning the raw exception',async()=>{
+  const client=createDurableAttemptBudget({...config,fetchImpl:async()=>{throw Error('DNS resolve sb_secret_PRIVATE');}});
+  let error;try{await client.reserve('scope',id,5,60000);}catch(e){error=e;}
+  expect(error.networkKind).toBe('dns');expect(JSON.stringify(error)).not.toContain('PRIVATE');
+ });
+ it('rejects whitespace inside credentials before network access',()=>{
+  expect(()=>createDurableAttemptBudget({...config,serviceRoleKey:'sb_secret_invalid key with whitespace'})).toThrow('Missing atomic store backend credential');
+ });
+
  it('retains safe HTTP diagnostics and discards provider messages',async()=>{
   const client=createDurableAttemptBudget({...config,fetchImpl:async()=>Response.json({code:'PGRST202',message:'sb_secret_PRIVATE'},{status:404})});
   let error;try{await client.reserve('scope',id,5,60000);}catch(e){error=e;}
@@ -24,7 +56,7 @@ describe('durable attempt budget transport',()=>{
   if(key.startsWith('sb_secret_')) expect(headers).not.toHaveProperty('Authorization');
   else expect(headers.Authorization).toBe('Bearer '+key);
  });
- it('hashes scope and keeps request ID stable for unknown-outcome retries',async()=>{const calls=[];const client=createDurableAttemptBudget({...config,fetchImpl:async(url,init)=>{calls.push({url,init});return Response.json(true);}});await client.reserve('tenant:device:pin',id,5,60000);await client.reserve('tenant:device:pin',id,5,60000);const a=JSON.parse(calls[0].init.body);expect(a.p_scope_hash).toMatch(/^[a-f0-9]{64}$/);expect(a.p_request_id).toBe(id);expect(calls[1].init.body).toBe(calls[0].init.body);expect(calls[0].init.redirect).toBe('error');});
+ it('hashes scope and keeps request ID stable for unknown-outcome retries',async()=>{const calls=[];const client=createDurableAttemptBudget({...config,fetchImpl:async(url,init)=>{calls.push({url,init});return Response.json(true);}});await client.reserve('tenant:device:pin',id,5,60000);await client.reserve('tenant:device:pin',id,5,60000);const a=JSON.parse(calls[0].init.body);expect(a.p_scope_hash).toMatch(/^[a-f0-9]{64}$/);expect(a.p_request_id).toBe(id);expect(calls[1].init.body).toBe(calls[0].init.body);expect(calls[0].init.redirect).toBe('manual');});
  it('accepts denial without converting it into a provider failure',async()=>{const client=createDurableAttemptBudget({...config,fetchImpl:async()=>Response.json(false)});expect(await client.reserve('scope',id,5,60000)).toBe(false);});
  for(const response of [()=>new Response('secret-provider-error',{status:500}),()=>Response.json({allowed:true}),()=>{throw Error('secret-key');}])it('fails closed and hides provider details',async()=>{const client=createDurableAttemptBudget({...config,fetchImpl:async()=>response()});await expect(client.reserve('scope',id,5,60000)).rejects.toThrow('Atomic budget unavailable');});
  it('rejects insecure origins and invalid budgets before network access',async()=>{expect(()=>createDurableAttemptBudget({...config,url:'http://example.supabase.co'})).toThrow();expect(()=>createDurableAttemptBudget({...config,url:'https://example.supabase.co.evil.test'})).toThrow();expect(()=>createDurableAttemptBudget({...config,url:'https://user:pass@example.supabase.co'})).toThrow();const client=createDurableAttemptBudget({...config,fetchImpl:()=>{throw Error('must not call');}});await expect(client.reserve('scope',id,0,60000)).rejects.toThrow('Invalid budget request');});

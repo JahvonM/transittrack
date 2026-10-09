@@ -7,7 +7,7 @@ export function createDurableAttemptBudget(config: {
  if (url.protocol !== 'https:' || !/^[a-z0-9-]+\.supabase\.co$/.test(url.hostname)
   || url.port || url.username || url.password || url.search || url.hash
   || (url.pathname !== '/' && url.pathname !== '')) throw new Error('Invalid atomic store URL');
- if (!config.serviceRoleKey || config.serviceRoleKey.length < 20) throw new Error('Missing atomic store backend credential');
+ if (!config.serviceRoleKey || config.serviceRoleKey.length < 20 || /\s/.test(config.serviceRoleKey)) throw new Error('Missing atomic store backend credential');
  const timeoutMs = config.timeoutMs ?? 5000;
  if (!Number.isInteger(timeoutMs) || timeoutMs < 100 || timeoutMs > 30000) throw new Error('Invalid atomic store timeout');
  const fetchImpl = config.fetchImpl ?? fetch;
@@ -22,15 +22,34 @@ export function createDurableAttemptBudget(config: {
    let reason = 'network';
    let httpStatus: number | undefined;
    let providerCode: string | undefined;
+   let networkKind: string | undefined;
    try {
-    const response = await fetchImpl(url.origin+'/rest/v1/rpc/tt_reserve_attempt', {
-     method:'POST', redirect:'error', signal:AbortSignal.timeout(timeoutMs),
+    const rpcPath = '/rest/v1/rpc/tt_reserve_attempt';
+    let endpoint = url.origin + rpcPath;
+    const init: RequestInit = {
+     method:'POST', redirect:'manual', signal:AbortSignal.timeout(timeoutMs),
      // New Supabase secret keys are not JWTs: use apikey only.
      // Preserve Bearer authentication for legacy service_role JWTs.
      headers:{'Content-Type':'application/json',apikey:config.serviceRoleKey,
       ...(config.serviceRoleKey.startsWith('sb_secret_') ? {} : {Authorization:'Bearer '+config.serviceRoleKey})},
      body:JSON.stringify({p_scope_hash:scopeHash,p_request_id:requestId,p_limit:limit,p_window_ms:windowMs}),
-    });
+    };
+    let response: Response;
+    for (let hop = 0; ; hop++) {
+     response = await fetchImpl(endpoint, init);
+     httpStatus = response.status;
+     if (response.type === 'opaqueredirect') throw new Error('Unreadable redirect');
+     if (response.status < 300 || response.status >= 400) break;
+     // Preserve POST only for 307/308; reject other methods/unknown destinations.
+     if (![307,308].includes(response.status) || hop >= 2) throw new Error('Unsupported redirect');
+     const location = response.headers.get('location');
+     if (!location) throw new Error('Missing redirect destination');
+     const target = new URL(location, endpoint);
+     if (target.origin !== url.origin || target.username || target.password || target.search || target.hash
+      || ![rpcPath,rpcPath+'/'].includes(target.pathname)) throw new Error('Unsafe redirect destination');
+     await response.body?.cancel();
+     endpoint = target.href;
+    }
     httpStatus = response.status;
     if (!response.ok) {
      reason = 'http';
@@ -47,7 +66,18 @@ export function createDurableAttemptBudget(config: {
    } catch (error) {
     // Sanitized metadata only; never include the provider message/body/key.
     if (error?.name === 'TimeoutError' || error?.name === 'AbortError') reason = 'timeout';
-    throw Object.assign(new Error('Atomic budget unavailable'), {reason,httpStatus,providerCode});
+    if (reason === 'network') {
+     // Classify locally, but never disclose raw exception strings.
+     const text = String(error?.message || '')+' '+String(error?.cause?.code || '');
+     if (/dns|resolve|ENOTFOUND|EAI_AGAIN/i.test(text)) networkKind = 'dns';
+     else if (/certificate|tls|ssl/i.test(text)) networkKind = 'tls';
+     else if (/permission|notcapable|net access|network access.*denied/i.test(text)) networkKind = 'permission';
+     else if (/header|invalid character|ByteString/i.test(text)) networkKind = 'request-header';
+     else if (/redirect/i.test(text)) networkKind = 'redirect';
+     else if (/ECONNREFUSED|connection refused/i.test(text)) networkKind = 'connection-refused';
+     else networkKind = 'unclassified';
+    }
+    throw Object.assign(new Error('Atomic budget unavailable'), {reason,httpStatus,providerCode,networkKind});
    }
   },
  };
