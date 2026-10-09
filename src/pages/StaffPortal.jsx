@@ -539,7 +539,7 @@ export default function StaffPortal() {
             <section className="px-6 pt-10 lg:order-1 lg:px-0 lg:pt-0" aria-labelledby="tt-live-map">
               <SectionHead id="tt-live-map" title="Live map" aside={mapOpen ? <MapToggle open onToggle={() => setMapOpen(false)} /> : null} />
               {!mapOpen ? (
-                <MapClosed onOpen={() => setMapOpen(true)}>See {tripState.bus?.name || "the buses"} moving on a 3D map. The map uses more data and battery.</MapClosed>
+                <p className="text-body-sm text-muted-foreground">Use Show map beside Notify me to see {tripState.bus?.name || "the buses"} moving.</p>
               ) : (
               <div id="passenger-live-map">
               <Suspense fallback={<div className="h-64 animate-pulse rounded-2xl bg-muted lg:h-[620px]" />}>
