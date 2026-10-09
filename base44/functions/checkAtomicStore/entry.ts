@@ -51,7 +51,6 @@ export function createCheckAtomicStoreHandler(deps: {
    const providerCode = codes.includes(error?.providerCode) ? error.providerCode : undefined;
    return Response.json({ok:false,stage,reason,httpStatus,providerCode,error:'Atomic store check unavailable. Verify project URL, backend secret and SQL migration.'}, {status:503});
   }
-  }
  };
 }
 export default async function(req: Request) {
