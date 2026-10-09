@@ -16,11 +16,11 @@ import BusAssistant from "@/components/BusAssistant";
 import StopChooser from "@/components/passenger/StopChooser";
 import PickupSelector from "@/components/passenger/PickupSelector";
 
-function BottomSheet({ open, onOpenChange, title, description, children, tall = false }) {
+function BottomSheet({ open, onOpenChange, title, description, children, tall = false, pickup = false }) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className={`max-w-2xl mx-auto rounded-t-3xl overflow-y-auto safe-area-bottom ${tall ? "h-[88vh] flex flex-col" : "max-h-[88vh]"}`}>
-        <SheetHeader className="text-left">
+      <SheetContent side="bottom" className={`${pickup ? "tt-pickup-sheet " : ""}max-w-2xl mx-auto rounded-t-3xl overflow-y-auto safe-area-bottom ${tall ? "h-[88vh] flex flex-col" : "max-h-[88vh]"}`}>
+        <SheetHeader className={pickup ? "sr-only" : "text-left"}>
           <SheetTitle>{title}</SheetTitle>
           {description && <SheetDescription>{description}</SheetDescription>}
         </SheetHeader>
@@ -40,7 +40,7 @@ function Section({ title, children }) {
 }
 
 export function MyPickupSheet({ open, onOpenChange, pickupName, pickupOptions, routes, userLoc, onChoosePickup }) {
-  return <BottomSheet open={open} onOpenChange={onOpenChange} title="Pickup" tall>
+  return <BottomSheet open={open} onOpenChange={onOpenChange} title="Pickup" tall pickup>
     <PickupSelector options={pickupOptions} routes={routes} userLoc={userLoc} value={pickupName} onChoose={onChoosePickup} intro={false} onConfirmed={() => onOpenChange(false)} />
   </BottomSheet>;
 }

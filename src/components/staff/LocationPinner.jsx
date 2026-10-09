@@ -73,6 +73,7 @@ export default function LocationPinner({ onSaved }) {
       });
       await checkUserAuth?.();
       await onSaved?.(nickname.trim() || suggestion.name);
+      setPhase("choose");
       setSuggestion(null);
       toast({ title: "Roadside pickup saved", description: "Your driver sees the bus-road point. Use the walking directions to reach it." });
     } catch { toast({ title: "Couldn't save your pickup", variant: "destructive" }); }
@@ -104,6 +105,7 @@ export default function LocationPinner({ onSaved }) {
       await checkUserAuth?.();
       await onSaved?.(name);
       setOwn(null);
+      setPhase("choose");
       setSuggestion(null);
       toast({ title: "Pickup spot saved", description: "Your driver sees your pin on their stop list." });
     } catch { toast({ title: "Couldn't save your pickup", variant: "destructive" }); }

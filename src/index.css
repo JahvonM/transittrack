@@ -828,3 +828,12 @@ html.tt-future {
 @media(min-width:900px) and (max-height:700px){.tt-driver-reference>nav[aria-label="Driver sections"]>button{min-height:42px;height:42px;font-size:11px;gap:2px}.tt-driver-reference>nav[aria-label="Driver sections"]>button>svg{width:20px;height:20px}}
 .tt-cockpit-status {font-size:12px}
 @media(min-width:900px){.tt-cockpit-status [aria-label="Bus status"]>li>:is(button,div){flex-direction:column;align-items:center;gap:4px;padding:9px 5px;text-align:center}.tt-cockpit-status [role="status"]{max-width:100%}.tt-cockpit-status [role="status"]>span:first-child{font-size:12px;white-space:normal}}
+
+/* Focused two-step passenger pickup finder. */
+.tt-pickup-sheet { background: #07131e; color: #f1f6fa; border-color: #254555; }
+.tt-pickup-sheet .tt-pickup-finder { padding-bottom: 1.5rem; }
+.tt-pickup-sheet .tt-pickup-finder .text-muted-foreground { color: #a8bac9; }
+.tt-pickup-sheet .tt-pickup-finder input { background: #0c1c2a; border-color: #2b5065; color: #f1f6fa; }
+.tt-pickup-sheet .tt-pickup-finder .bg-card { background: #0c1c2a; }
+.tt-pickup-sheet .tt-pickup-finder .border { border-color: #2b5065; }
+.tt-pickup-sheet .tt-pickup-finder .border-primary { border-color: #00d7e8; }

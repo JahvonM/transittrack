@@ -113,6 +113,7 @@ export default function LocationPicker({ lat, lng, onChange, onPlace, showCoordi
           <LocateFixed className="w-4 h-4" />
         </Button>
       </div>}
+      {!showCoordinates && <Button type="button" variant="outline" onClick={useMyLocation}><LocateFixed className="w-4 h-4 mr-2" />Use my location</Button>}
     </div>
   );
 }
