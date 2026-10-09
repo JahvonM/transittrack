@@ -29,7 +29,7 @@ import DriverDevicePanel from "@/components/driver/DriverDevicePanel";
 import DriverTrips from "@/components/DriverTrips";
 import ShiftCard from "@/components/driver/ShiftCard";
 import SafetyStandardsContent from "@/components/SafetyStandardsContent";
-import { AlertCircle, AlertTriangle, ArrowLeft, Home, LayoutGrid, ListOrdered, MessageCircle, Navigation, WifiOff } from "lucide-react";
+import { AlertCircle, AlertTriangle, ArrowLeft, Home, LayoutGrid, ListOrdered, MessageCircle, Navigation, WifiOff, Users, ClipboardCheck, FileText, Settings } from "lucide-react";
 import DriverHome from "@/components/driver/screens/DriverHome";
 import DriverStops from "@/components/driver/screens/DriverStops";
 import DriverMessages from "@/components/driver/screens/DriverMessages";
@@ -45,12 +45,16 @@ import { rememberUnlockDay, forgetUnlockDay, unlockDayMarked, localDayKey } from
 
 // "navigate" is kept as an alias: Track and Navigate are one Drive screen.
 // Safety and Profile now live under More (old links still work).
-const TRACKING_TABS = ["home", "track", "navigate", "stops", "chat", "more", "safety", "profile"];
+const TRACKING_TABS = ["home", "track", "navigate", "stops", "chat", "more", "safety", "profile", "passengers", "inspection", "documents", "settings"];
 const DRIVER_TABS = [
   { id: "home", label: "Home", icon: Home },
   { id: "track", label: "Drive", icon: Navigation },
   { id: "stops", label: "Stops", icon: ListOrdered },
+  { id: "passengers", label: "Passengers", icon: Users },
+  { id: "inspection", label: "Inspection", icon: ClipboardCheck },
   { id: "chat", label: "Messages", icon: MessageCircle },
+  { id: "documents", label: "Documents", icon: FileText },
+  { id: "settings", label: "Settings", icon: Settings },
   { id: "more", label: "More", icon: LayoutGrid },
 ];
 const tabFromStage = (st) => (st === "navigate" ? "track" : st === "safety" || st === "profile" ? "more" : TRACKING_TABS.includes(st) ? st : null);
@@ -436,7 +440,7 @@ export default function DriverApp() {
   };
 
   return (
-    <div className="tt-driver-shell h-[100dvh] flex flex-col overflow-hidden bg-background safe-area-top safe-area-x">
+    <div className="tt-driver-shell tt-driver-reference h-[100dvh] flex flex-col overflow-hidden bg-background safe-area-top safe-area-x">
       <CompanyBanner name={session.company_name || vehicle.company_name} logoUrl={session.company_logo_url} compact className="shrink-0 mx-3 mt-2" />
       <DriverTopBar
         driverName={driverName}
@@ -461,6 +465,9 @@ export default function DriverApp() {
             invoke={invoke}
             onReportIncident={() => setIsReportOpen(true)}
             shiftActive={shiftOpen}
+            onOpenPassengers={() => selectTab("passengers")}
+            onOpenMessages={() => selectTab("chat")}
+            onOpenDocuments={() => selectTab("documents")}
             shiftControl={(
               <ShiftCard variant="deck" session={session} invoke={invoke} refresh={refresh} onChange={setShiftOpen} beforeStart={() => beforeShift("start_shift")} beforeEnd={() => beforeShift("end_shift")} />
             )}
@@ -511,6 +518,10 @@ export default function DriverApp() {
                 chats={<DriverChats session={session} invoke={invoke} onUnreadChange={setHasUnreadChat} />}
               />
             )}
+            {activeTab === "passengers" && <div className="mx-auto max-w-3xl space-y-4"><h1 className="text-title font-bold">Passenger list</h1><StaffRouteList staff={session.staff || []} vehicle={session.vehicle} nearbyStaff={[]} onAttend={() => {}} /></div>}
+            {activeTab === "inspection" && <div className="mx-auto max-w-3xl space-y-4"><h1 className="text-title font-bold">Inspection</h1><DriverInspectionList templates={inspTemplates} recent={recentInspections} localDone={localDone} onStart={(t) => openInspection(t, { from: "manual" })} /><SafetyStandardsContent /></div>}
+            {activeTab === "documents" && <div className="mx-auto max-w-3xl space-y-4"><h1 className="text-title font-bold">Licence & insurance</h1><DriverDocumentsViewer invoke={invoke} busName={vehicle?.name} /></div>}
+            {activeTab === "settings" && <div className="mx-auto max-w-3xl space-y-4"><h1 className="text-title font-bold">Tablet settings</h1><DriverDevicePanel session={session} deviceId={deviceId} onUnpair={handleUnpair} /><ReportAppProblemButton where="driver tablet" className="w-full justify-start" /></div>}
             {activeTab === "more" && (
               <div className="mx-auto max-w-3xl space-y-6">
                 <h1 className="text-title font-bold">More</h1>
