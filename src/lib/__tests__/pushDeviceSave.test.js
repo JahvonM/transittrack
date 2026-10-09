@@ -6,7 +6,7 @@ vi.mock("@/api/base44Client",()=>({base44:{functions:{invoke:fixture.invoke}}}))
 vi.mock("@/components/ui/use-toast",()=>({useToast:()=>({toast:fixture.toast})}));
 vi.mock("@/lib/firebase",()=>({requestPushToken:async()=>({token:"synthetic-notification-token-long-enough",reason:null}),pushPermission:async()=>"granted",onForegroundMessage:()=>()=>{}}));
 import { usePushNotifications } from "@/hooks/usePushNotifications";
-function setup(){let hook;function Host(){hook=usePushNotifications({email:"me@test.invalid",role:"staff",companyId:"editable-profile-company"});return null;}renderToString(<Host/>);return hook;}
+function setup(){let hook;function Host(){hook=usePushNotifications({email:"me@test.invalid",role:"staff",companyId:"editable-profile-company"});return null;}renderToString(React.createElement(Host));return hook;}
 beforeEach(()=>{fixture.invoke.mockReset();fixture.toast.mockReset();});
 describe("device registration confirmation",()=>{
  it("sends only the token to the protected action and waits for the server",async()=>{
