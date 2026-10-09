@@ -974,3 +974,13 @@ test('passenger arrival alerts stay off when notification setup fails',async({pa
  expect(updates.some(data=>data.stop_alerts===true)).toBe(false);
  await expect(page.getByText('Stop alerts on',{exact:true})).toHaveCount(0);
 });
+
+test('arrival settings are available through More without cluttering pickup',async({page})=>{
+ await passengerShowcase(page);
+ await page.goto('/more');
+ await page.getByRole('link',{name:/^Notifications Arrival alerts/}).click();
+ const dialog=page.getByRole('dialog',{name:'Notifications'});
+ await expect(dialog.getByRole('switch',{name:'Alert me when a bus is one stop away'})).toBeVisible();
+ await expect(dialog.getByRole('button',{name:'Switch company'})).toBeVisible();
+ await expect(dialog.getByRole('link',{name:'View company announcements'})).toBeVisible();
+});
