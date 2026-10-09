@@ -101,7 +101,10 @@ test('passenger previews walking directions then saves a separate roadside picku
  await page.goto('/staff');
  await page.getByRole('button',{name:'Find my pickup',exact:true}).click();
  await page.getByRole('button',{name:'Use my location',exact:true}).click();
+ await page.getByRole('button',{name:'Review this pickup',exact:true}).click();
+ await page.getByText('Walking directions',{exact:true}).click();
  await expect(page.getByText('Walk east to the main road',{exact:true})).toBeVisible();
+ await page.screenshot({path:'/tmp/tt-pickup-review.png'});
  expect(saved.filter(d=>d.pickup_lat!==undefined)).toHaveLength(0);
  await page.getByRole('button',{name:'Use this pickup',exact:true}).click();
  await expect.poll(()=>saved.filter(d=>d.pickup_lat!==undefined).length).toBe(1);
