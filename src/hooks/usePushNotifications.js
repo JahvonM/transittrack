@@ -4,7 +4,7 @@ import { onForegroundMessage, requestPushToken, pushPermission } from "@/lib/fir
 import { useToast } from "@/components/ui/use-toast";
 
 const currentPermission = () =>
-  typeof window !== "undefined" && "Notification" in window ? Notification.permission : "unsupported";
+  typeof window !== "undefined" && "Notification" in window ? (Notification.permission === "granted" ? "default" : Notification.permission) : "unsupported";
 
 // What to tell people when this device can't get notifications, by reason.
 export const PUSH_FAILURE = {
@@ -38,11 +38,10 @@ export function usePushNotifications({ email, role, companyId } = {}) {
   const saveToken = async (token) => {
     if (!token || !email) return false;
     try {
-      const existing = await base44.entities.PushToken.filter({ token });
-      if (existing.length === 0) {
-        await base44.entities.PushToken.create({ token, email, role: role || "", company_id: companyId || "" });
-      }
-      return true;
+      const response = await base44.functions.invoke("entityAccess", {
+        entity: "PushToken", operation: "register", data: { token },
+      });
+      return response.data?.ok === true;
     } catch {
       return false;
     }
@@ -56,7 +55,7 @@ export function usePushNotifications({ email, role, companyId } = {}) {
     pushPermission().then(async p=>{
       if(cancelled)return;
       setPermission(p==="granted"?"default":p);
-      if(p==="granted"){const {token}=await requestPushToken({prompt:false});if(token&&!cancelled&&(await saveToken(token)))setPermission("granted");}
+      if(p==="granted"){const {token}=await requestPushToken({prompt:false});if(token&&!cancelled&&(await saveToken(token))&&!cancelled)setPermission("granted");}
     });
     return()=>{cancelled=true;autoChecked.current=false;};
   }, [email, role, companyId]);
