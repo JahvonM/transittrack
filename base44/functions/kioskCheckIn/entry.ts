@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.52';
 import { boardingSecretHash, currentBoardingCode } from '../../shared/boardingCredentials.ts';
+// Shared request budgets use the configured Supabase RPC and fail closed.
 import { reserveAttempt, claimOnce, createOnce } from '../../shared/atomicOps.ts';
 
 
