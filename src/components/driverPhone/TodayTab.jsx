@@ -1,5 +1,6 @@
 import BusArtwork from "@/components/BusArtwork";
-import React from "react";
+import React, { useRef, useState } from "react";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Bus, CircleCheck, ClipboardCheck, Clock, MapPin, Megaphone, MessageCircle, Phone, Play, Radio, Route as RouteIcon, Square, UserX, Users, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { telLink, whatsappLink } from "@/lib/driverPhone";
@@ -43,6 +44,9 @@ function ContactRow({ label, phone }) {
 
 export default function TodayTab({ today, driverName, onPickBus, onStartShift, onEndShift, onWalkaround, backupSentAt, onMessages, onDocuments }) {
   const { buses = [], bus, route, pickups = [], shift, last_shift: lastShift, notices = [], contacts, workplace, walkaround } = today || {};
+  const [panel, setPanel] = useState(null);
+  const panelButton = useRef(null);
+  const openPanel = (name, event) => { panelButton.current = event.currentTarget; setPanel(name); };
   const first = (driverName || "").split(" ")[0] || "there";
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
@@ -127,8 +131,9 @@ export default function TodayTab({ today, driverName, onPickBus, onStartShift, o
         <Section title="Pickups today"><p className="font-display text-3xl font-bold">{riding.length}</p><p className="text-body-sm text-muted-foreground">{skipping.length} skipping today</p></Section>
         <Section title="Your route"><p className="font-bold">{route?.name || "Not assigned"}</p><p className="text-body-sm text-muted-foreground">{stops.length} stops</p></Section>
       </div><div className="tt-phone-quick-actions grid grid-cols-2 gap-3" aria-label="Driver shortcuts">
+        <button type="button" aria-haspopup="dialog" aria-expanded={panel === "stops"} onClick={(event) => openPanel("stops", event)}><RouteIcon aria-hidden="true" />Bus stops</button>
+        <button type="button" aria-haspopup="dialog" aria-expanded={panel === "passengers"} onClick={(event) => openPanel("passengers", event)}><Users aria-hidden="true" />Passenger list</button>
         {onWalkaround && <button type="button" onClick={onWalkaround}><ClipboardCheck aria-hidden="true" />Inspection</button>}
-        <button type="button" onClick={() => document.getElementById("tt-phone-pickups")?.scrollIntoView({ behavior: "smooth", block: "start" })}><Users aria-hidden="true" />Passenger list</button>
         {onMessages && <button type="button" onClick={onMessages}><MessageCircle aria-hidden="true" />Messages</button>}
         {onDocuments && <button type="button" onClick={onDocuments}><FileText aria-hidden="true" />Documents</button>}
       </div></>}
@@ -156,8 +161,11 @@ export default function TodayTab({ today, driverName, onPickBus, onStartShift, o
         </Section>
       )}
 
-      {bus && (
-        <div id="tt-phone-pickups" className="scroll-mt-20"><Section title="Who to pick up" icon={Users}>
+      {bus && <Dialog open={panel !== null} onOpenChange={(open) => { if (!open) setPanel(null); }}>
+        <DialogContent className="max-h-[85dvh] overflow-y-auto rounded-2xl p-4 pt-10" aria-describedby={undefined} onCloseAutoFocus={(event) => { event.preventDefault(); panelButton.current?.focus(); }}>
+          <DialogTitle className="sr-only">{panel === "stops" ? "Bus stops" : "Passenger list"}</DialogTitle>
+      {panel === "passengers" && (
+        <Section title="Who to pick up" icon={Users}>
           {inOrder.length === 0 ? (
             <p className="text-body text-muted-foreground">No pickups today.</p>
           ) : (
@@ -190,10 +198,10 @@ export default function TodayTab({ today, driverName, onPickBus, onStartShift, o
               Not riding today: {skipping.map((p) => p.name).join(", ")}
             </p>
           )}
-        </Section></div>
+        </Section>
       )}
 
-      {bus && (
+      {panel === "stops" && (
         <Section title={route?.name || "No route assigned"} icon={RouteIcon}>
           {!route ? (
             <p className="text-body text-muted-foreground">Ask dispatch to give this bus a route.</p>
@@ -226,6 +234,9 @@ export default function TodayTab({ today, driverName, onPickBus, onStartShift, o
           )}
         </Section>
       )}
+
+        </DialogContent>
+      </Dialog>}
 
       {hasContacts && (
         <Section title="Call for help" icon={Phone}>
