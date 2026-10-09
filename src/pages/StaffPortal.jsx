@@ -474,13 +474,14 @@ export default function StaffPortal() {
 
             <CompanyBanner name={companyName} logoUrl={company.logo_url} compact className="mx-6 mb-4 lg:mx-0" />
             <div className="tt-passenger-greeting mx-6 mb-5 lg:mx-0"><p className="text-body-sm text-muted-foreground">Your journey, connected</p><h1 className="text-headline font-bold">Welcome{user?.full_name ? `, ${user.full_name.split(" ")[0]}` : ""}</h1></div>
-            <PickupCard
+
+            {tripState.kind === "choose" ? (
+              <>
+                            <PickupCard
               pickupName={user?.pickup_lat != null ? user.pickup_name || "Your pinned pickup" : ""}
               dropoffName={workplace?.name || ""}
               onOpen={() => setSheet("pickup")}
             />
-            {tripState.kind === "choose" ? (
-              <>
                 <StopChooser routes={routes} value={pickupName} onChoose={choosePickup} userLoc={userLoc} companyName={companyName} />
                 {!userLoc && locError && <div className="px-6 pb-6 lg:px-0"><LocationPrompt onLocation={setPromptLoc} /></div>}
               </>
@@ -508,9 +509,15 @@ export default function StaffPortal() {
                 <div className={tripState.kind === "problem" || notice ? "pt-4" : ""}>
                   <ArrivalHero state={tripState} stop={stop} eta={eta} trip={onTheWayTrip} now={now} onChangeStop={() => setSheet("stop")} routeName={timelineRoute?.name || ""} stopsAway={stopsAway} />
                 </div>
+            <PickupCard
+              pickupName={user?.pickup_lat != null ? user.pickup_name || "Your pinned pickup" : ""}
+              dropoffName={workplace?.name || ""}
+              onOpen={() => setSheet("pickup")}
+            />
                 {timelineRoute && (
                   <RouteTimeline route={timelineRoute} bus={tripState.bus} kind={tripState.kind} stopName={stop.name} mins={mins} stopEtas={stopEtas} now={now} />
                 )}
+                <div className="tt-passenger-pickup-actions">
                 <StopAlertRow
                   busName={tripState.bus?.name}
                   stopAlerts={stopAlerts}
@@ -518,6 +525,8 @@ export default function StaffPortal() {
                   pushPermission={pushPermission}
                   onEnablePush={enableNotifications}
                 />
+                <button type="button" className="tt-show-map-button" onClick={() => { setMapOpen(true); requestAnimationFrame(() => document.getElementById("tt-live-map")?.scrollIntoView({ behavior: "smooth", block: "start" })); }}>Show map</button>
+                </div>
                 <TripActions onChat={() => setSheet("chat")} chatUnread={chatUnread} />
                 <TripFacts bus={tripState.bus} crowdCount={tripState.bus ? crowd[tripState.bus.id] || 0 : 0} />
                 {!userLoc && locError && <div className="px-6 pt-6 lg:px-0"><LocationPrompt onLocation={setPromptLoc} /></div>}
