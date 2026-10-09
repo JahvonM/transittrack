@@ -1,0 +1,35 @@
+name: Atomic storage acceptance
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  postgres-budget:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: tt_atomic_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready --health-interval 5s
+          --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Install test client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      - name: Independent PostgreSQL connections and permission checks
+        run: node tools/postgres-budget-check.mjs
+        env:
+          TT_TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/tt_atomic_test
