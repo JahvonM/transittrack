@@ -109,10 +109,11 @@ export default function RouteExplorer() {
                 myStop={myStop}
                 nextStopIndex={focusNextIndex}
                 callout={focus ? { primary: focus.name, secondary: focusNext ? `Next: ${focusNext.name}` : undefined, tone: live(focus) ? "live" : "lost" } : null}
-                summary={focus ? <div className="tt-map-bus-summary flex items-center gap-3 rounded-2xl border border-border bg-card/95 p-4 shadow-xl backdrop-blur"><BusArtwork vehicle={focus} fallbackUrl="/images/boarding-coaster.webp" width={100} className="h-20 w-24 shrink-0" /><div className="min-w-0 flex-1"><p className="font-bold">{focus.name}</p><p className="text-body-sm text-muted-foreground">{focusRoute?.name || "No route assigned"}</p><p className="text-caption text-muted-foreground">{busLine(focus, focusRoute, now)}</p></div><button type="button" onClick={() => { setExpanded(true); document.querySelector('[aria-label="Routes and buses"]')?.scrollIntoView({ behavior: "smooth", block: "nearest" }); }} className="min-h-11 rounded-xl bg-primary px-3 font-semibold text-primary-foreground">View bus</button></div> : null}
+
                 label={activeRoute ? `Live map of ${activeRoute.name}` : "Live map of all routes"}
               />
             </Suspense>
+            <div className="absolute inset-x-3 bottom-10 z-20 md:right-auto md:w-96">{focus ? <div className="tt-map-bus-summary flex items-center gap-3 rounded-2xl border border-border bg-card/95 p-4 shadow-xl backdrop-blur"><BusArtwork vehicle={focus} fallbackUrl="/images/boarding-coaster.webp" width={100} className="h-20 w-24 shrink-0" /><div className="min-w-0 flex-1"><p className="font-bold">{focus.name}</p><p className="text-body-sm text-muted-foreground">{focusRoute?.name || "No route assigned"}</p><p className="text-caption text-muted-foreground">{busLine(focus, focusRoute, now)}</p></div><button type="button" onClick={() => { setExpanded(true); document.querySelector('[aria-label="Routes and buses"]')?.scrollIntoView({ behavior: "smooth", block: "nearest" }); }} className="min-h-11 rounded-xl bg-primary px-3 font-semibold text-primary-foreground">View bus</button></div> : null}</div>
           </div>
 
           <section
