@@ -450,3 +450,30 @@ test('driver tablet loading offers retry after a slow response without unlocking
  await expect(loading).toHaveCount(0);
  await expect(page.getByText('Driver PIN required')).toBeVisible();
 });
+
+for (const size of [{width:1280,height:800},{width:1024,height:600},{width:800,height:1280}]) {
+ test(`driver reference cockpit keeps controls accessible at ${size.width}x${size.height}`,async({page})=>{
+  await page.setViewportSize(size);
+  await mockApi(page,[],{...driver,company_name:'Company A',staff:[{id:'rider-a',full_name:'Actual Passenger',home_lat:12.02,home_lng:-61.76}]});
+  await page.addInitScript(()=>{localStorage.setItem('tt_driver_device_id','driver-test');localStorage.setItem('tt-map-engine','basic');});
+  await page.route('https://api.mapbox.com/**',r=>r.fulfill({status:404,body:''}));
+  await page.goto('/driver/track');
+  await page.locator('input[type=password]').fill('1234');
+  await page.getByRole('button',{name:'Unlock',exact:true}).click();
+  const nav=page.getByRole('navigation',{name:'Driver sections'});
+  await expect(nav.getByRole('button',{name:'Drive',exact:true})).toHaveAttribute('aria-current','page');
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  const main=await page.locator('.tt-driver-reference>main').boundingBox();
+  const deck=await page.getByLabel('Driving controls',{exact:true}).boundingBox();
+  expect(deck.y+deck.height).toBeLessThanOrEqual(size.height+1);
+  if(size.width>=900){const sidebar=await nav.boundingBox();expect(sidebar.x+sidebar.width).toBeLessThanOrEqual(main.x+1);await expect(page.getByRole('button',{name:'Passenger list',exact:true})).toBeVisible();}
+  await page.screenshot({path:`/tmp/tt-driver-reference-${size.width}.png`});
+  await nav.getByRole('button',{name:'Passengers',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'Passenger list',exact:true})).toBeVisible();
+  await expect(page.getByText('Actual Passenger',{exact:true}).first()).toBeVisible();
+  await nav.getByRole('button',{name:'Documents',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'Licence & insurance',exact:true})).toBeVisible();
+  await nav.getByRole('button',{name:'Settings',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'Tablet settings',exact:true})).toBeVisible();
+ });
+}

@@ -919,3 +919,24 @@ test('pull gesture refreshes once and cancelled gestures preserve the current li
  await gesture(false);
  await expect.poll(()=>calls.filter(c=>c.entity==='Vehicle'&&c.operation==='list').length).toBe(initial+1);
 });
+
+test('reference bus directory filters real records and keeps bus selection',async({page})=>{
+ await page.setViewportSize({width:390,height:844});
+ await passengerShowcase(page);
+ const live={id:'actual-live',name:'Actual live bus',capacity:25,current_lat:12.02,current_lng:-61.76,tracking_active:true,last_location_update:new Date().toISOString(),status:'on_trip',image_url:'/images/transit-bus-3d.webp'};
+ const parked={id:'actual-parked',name:'Actual parked bus',capacity:18,tracking_active:false,status:'idle'};
+ await page.route('**/functions/entityAccess',r=>r.request().postDataJSON().entity==='Vehicle'?r.fulfill({json:{result:[live,parked]}}):r.fallback());
+ await page.goto('/buses');
+ await expect(page.getByText('Actual live bus',{exact:true})).toBeVisible();
+ await expect(page.getByText('Actual parked bus',{exact:true})).toBeVisible();
+ await expect(page.locator('img[src="/images/transit-bus-3d.webp"]')).toBeVisible();
+ await page.getByRole('button',{name:'On route',exact:true}).click();
+ await expect(page.getByText('Actual parked bus',{exact:true})).toHaveCount(0);
+ await page.getByRole('button',{name:'Parked',exact:true}).click();
+ await expect(page.getByText('Actual live bus',{exact:true})).toHaveCount(0);
+ await expect(page.getByText('18 seats')).toBeVisible();
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+ await page.screenshot({path:'/tmp/tt-buses-reference.png'});
+ await page.getByRole('link',{name:/Actual parked bus/}).click();
+ await expect(page).toHaveURL(/route-explorer\?bus=actual-parked/);
+});
