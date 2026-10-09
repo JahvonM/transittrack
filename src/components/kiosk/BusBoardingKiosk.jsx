@@ -405,7 +405,7 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
   let actionContent;
 
   if ((!unlocked && mode === "idle") || mode === "qr") {
-    actionContent = <section className="tt-board-home" aria-label="Boarding home">
+    actionContent = <section className={`tt-board-home${mode === "qr" ? " tt-board-camera-open" : ""}`} aria-label="Boarding home">
       <div className="tt-board-scene">
         <div className="tt-board-welcome"><h1>Welcome aboard</h1><p>Tap your card to begin</p></div>
         <BusArtwork vehicle={vehicle} fallbackUrl="/images/boarding-coaster.webp" width={650} className="tt-board-bus" />
