@@ -118,7 +118,7 @@ test('passenger previews walking directions then saves a separate roadside picku
  expect(pickup.pickup_route_id).toBe('route-a');
 });
 
-async function passengerShowcase(page, { stale = false, light = false } = {}) {
+async function passengerShowcase(page, { stale = false, light = false, parked = false } = {}) {
   await session(page,'staff');
   await page.addInitScript(({light}) => {
     localStorage.setItem('tt_company_access_grant','a'.repeat(64));
@@ -128,7 +128,7 @@ async function passengerShowcase(page, { stale = false, light = false } = {}) {
   }, {light});
   const passenger={id:'caller',role:'staff',email:'caller@test.local',full_name:'Test Passenger',company_id:'a',favorite_stop:'Grand Anse'};
   const stops=[{name:"St. George's",lat:12.05,lng:-61.75,order:0},{name:'True Blue',lat:12.02,lng:-61.76,order:1},{name:'Grand Anse',lat:12.01,lng:-61.77,order:2},{name:'Morne Rouge',lat:12,lng:-61.78,order:3}];
-  const bus={...vehicles[0],name:'TT-102',route_id:'route-a',current_lat:12.022,current_lng:-61.758,tracking_active:true,status:'on_trip',speed:25,driver_name:'K. Thomas',last_location_update:new Date(Date.now()-(stale ? 600000 : 20000)).toISOString()};
+  const bus={...vehicles[0],name:'TT-102',route_id:'route-a',current_lat:12.022,current_lng:-61.758,tracking_active:!parked,status:parked ? 'active' : 'on_trip',speed:parked ? 0 : 25,driver_name:'K. Thomas',last_location_update:new Date(Date.now()-(stale ? 600000 : 20000)).toISOString()};
   await page.route('**/functions/companyAccess',r=>r.fulfill({json:{company:{id:'a',name:'Grenada Transport Co.'}}}));
   const buses=[bus,{...bus,id:'bus-c',name:'TT-108'}];
   const routes=[{id:'route-a',company_id:'a',name:'Coastal route',active:true,stops}];
@@ -984,3 +984,21 @@ test('arrival settings are available through More without cluttering pickup',asy
  await expect(dialog.getByRole('button',{name:'Switch company'})).toBeVisible();
  await expect(dialog.getByRole('link',{name:'View company announcements'})).toBeVisible();
 });
+
+for (const width of [320,390,430]) {
+ for (const parked of [false,true]) {
+  test('arrival card has no overlapping text or bus at '+width+'px '+(parked?'parked':'live'),async({page})=>{
+   await page.setViewportSize({width,height:844});
+   await passengerShowcase(page,{parked});
+   const card=page.locator('.tt-arrival-reference');
+   if(parked) await expect(card.getByText('Not started',{exact:true})).toBeVisible();
+   const estimate=await card.locator('.tt-arrival-estimate').boundingBox();
+   const identity=await card.locator('.tt-arrival-main>div:first-child').boundingBox();
+   const art=await card.locator(':scope>.tt-arrival-art').boundingBox();
+   expect(estimate.y+estimate.height).toBeLessThanOrEqual(identity.y);
+   expect(identity.y+identity.height).toBeLessThanOrEqual(art.y);
+   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
+   if(width===390&&parked)await page.screenshot({path:'/tmp/tt-arrival-fixed.png',fullPage:true});
+  });
+ }
+}
