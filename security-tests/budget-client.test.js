@@ -1,0 +1,10 @@
+import {describe,it,expect} from 'vitest';
+import {createDurableAttemptBudget} from '../base44/shared/durableAttemptBudget';
+const id='12345678-1234-4234-8234-123456789abc';
+const config={url:'https://example.supabase.co',serviceRoleKey:'backend-test-key-never-real'};
+describe('durable attempt budget transport',()=>{
+ it('hashes scope and keeps request ID stable for unknown-outcome retries',async()=>{const calls=[];const client=createDurableAttemptBudget({...config,fetchImpl:async(url,init)=>{calls.push({url,init});return Response.json(true);}});await client.reserve('tenant:device:pin',id,5,60000);await client.reserve('tenant:device:pin',id,5,60000);const a=JSON.parse(calls[0].init.body);expect(a.p_scope_hash).toMatch(/^[a-f0-9]{64}$/);expect(a.p_request_id).toBe(id);expect(calls[1].init.body).toBe(calls[0].init.body);expect(calls[0].init.redirect).toBe('error');});
+ it('accepts denial without converting it into a provider failure',async()=>{const client=createDurableAttemptBudget({...config,fetchImpl:async()=>Response.json(false)});expect(await client.reserve('scope',id,5,60000)).toBe(false);});
+ for(const response of [()=>new Response('secret-provider-error',{status:500}),()=>Response.json({allowed:true}),()=>{throw Error('secret-key');}])it('fails closed and hides provider details',async()=>{const client=createDurableAttemptBudget({...config,fetchImpl:async()=>response()});await expect(client.reserve('scope',id,5,60000)).rejects.toThrow('Atomic budget unavailable');});
+ it('rejects insecure origins and invalid budgets before network access',async()=>{expect(()=>createDurableAttemptBudget({...config,url:'http://example.supabase.co'})).toThrow();expect(()=>createDurableAttemptBudget({...config,url:'https://example.supabase.co.evil.test'})).toThrow();expect(()=>createDurableAttemptBudget({...config,url:'https://user:pass@example.supabase.co'})).toThrow();const client=createDurableAttemptBudget({...config,fetchImpl:()=>{throw Error('must not call');}});await expect(client.reserve('scope',id,0,60000)).rejects.toThrow('Invalid budget request');});
+});
