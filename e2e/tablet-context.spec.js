@@ -328,9 +328,10 @@ test('completed code exit returns to swipe screen',async({page})=>{
    if(b.action==='check_in')return r.fulfill({json:{record:{id:'exit',staff_name:'Code Passenger',status:'off_board'},occupancy:6,today_count:12}});
    return r.fallback();
  });
- // A scanner tap also opens the keypad; cancel the card confirmation to enter a code.
- await page.evaluate(()=>window.dispatchEvent(new CustomEvent('tt-badge',{detail:'AABBCCDD'})));
- await page.getByRole('button',{name:'Cancel',exact:true}).click();
+ // Open the code keypad with the slider (Cancel on a card confirmation now returns to the home screen).
+ const track=await page.getByText('Slide to enter a code',{exact:true}).locator('..').boundingBox();
+ await page.mouse.move(track.x+36,track.y+track.height/2);await page.mouse.down();
+ await page.mouse.move(track.x+track.width-36,track.y+track.height/2,{steps:12});await page.mouse.up();
  for(const digit of ['1','2','3','4'])await page.getByRole('button',{name:digit,exact:true}).click();
  await page.getByRole('button',{name:'Submit code',exact:true}).click();
  await expect(page.getByText('Code Passenger',{exact:true})).toBeVisible();
