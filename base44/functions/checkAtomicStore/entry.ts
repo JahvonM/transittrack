@@ -3,7 +3,8 @@ import { secrets } from 'base44:runtime';
 import { createDurableAttemptBudget } from '../../shared/durableAttemptBudget.ts';
 
 // Setup diagnostic only. Does not activate application handlers.
-// Each run leaves one policy and twenty synthetic reservation rows.
+// Each run leaves one policy and twenty-one synthetic reservation rows.
+// Verified backend-only secret-key transport; no application activation.
 export function createCheckAtomicStoreHandler(deps: {
  clientFromRequest: typeof createClientFromRequest;
  getSecret: (name: string) => string | null | undefined;
