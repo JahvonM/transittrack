@@ -127,19 +127,7 @@ function PassengerListDialog({ open, onOpenChange, vehicleName }) {
   );
 }
 
-// bus_boarding kiosk: three ways in, all reachable without a click-through
-// chooser screen — NFC tap keeps listening in the background the whole time
-// idle, the keypad is always on-screen (not hidden behind a "don't have
-// your badge?" step), and QR scanning is one tap away via a small link.
-// After identifying someone, the screen offers the one action their record
-// allows: someone whose last recorded state is "on the bus" is only ever
-// leaving, and someone who isn't aboard is only ever boarding. Showing both
-// let a stray tap log a sign-out for a passenger who never got on.
-//
-// Layout: this component owns the full viewport (see Kiosk.jsx) rather than
-// sitting in a small centered card, so a big tablet doesn't end up mostly
-// empty space — a persistent top bar and, on large screens, a live info
-// rail (occupancy/weather/ads) fill the room around the actual check-in card.
+// The boarding home keeps NFC, QR and code entry beside live bus information.
 export default function BusBoardingKiosk({ invoke, device, directoryInfo, online }) {
   useFutureAppearance();
   const [unlocked, setUnlocked] = useState(false);
@@ -436,7 +424,7 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
       </div>
     </section>;
   } else if (mode === "confirm" && pending) {
-    // Their last recorded state decides which single action is offered.
+    // Highlight the suggested action while keeping both existing choices.
     const boarding = pending.next_status === "boarded";
     actionContent = (
       <Screen modeKey="confirm" className="p-8 text-center space-y-4">

@@ -64,6 +64,7 @@ for (const [w, h] of [[1280, 800], [800, 1280], [1024, 600], [1920, 1200]]) {
     const slider = page.getByText('Slide to enter a code', { exact: true }).locator('..');
     await expect(slider).toBeVisible();
     expect(await inView(slider, page)).toBe(true);
+    await page.screenshot({path: `/tmp/boarding-home-${w}.png`, fullPage:true});
     await unlock(page);
     const submit = page.getByRole('button', { name: 'Submit code', exact: true });
     await expect(submit).toBeVisible();
@@ -256,3 +257,32 @@ for(const size of [{width:1280,height:800},{width:800,height:1280},{width:1024,h
   await expect(page.getByText('Slide to enter a code',{exact:true})).toBeVisible();
  });
 }
+
+
+test('home QR camera stays beside NFC and a card still reaches both actions', async ({page}) => {
+  await page.setViewportSize({width:1024,height:600});
+  const {calls,errors}=await setup(page,{checkIn:b=>b.action==='lookup_tag'?{json:{staff:person,next_status:'boarded',verification_grant:'b'.repeat(64)}}:null});
+  await page.goto('/kiosk');
+  await page.getByRole('button',{name:/Scan QR code/}).click();
+  await expect(page.getByRole('region',{name:'Home QR scanner'})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'Welcome aboard',exact:true})).toBeVisible();
+  expect(await inView(page.getByRole('button',{name:'Close camera'}),page)).toBe(true);
+  await tap(page);
+  await expect(page.getByText('Maria Joseph',{exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'Boarding',exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'Exiting',exact:true})).toBeVisible();
+  await page.screenshot({path:'/tmp/boarding-passenger-id.png',fullPage:true});
+  await page.getByRole('button',{name:'Cancel',exact:true}).click();
+  await expect(page.getByRole('button',{name:/Scan QR code/})).toBeVisible();
+  expect(calls.filter(([a])=>a==='lookup_tag')).toHaveLength(1);
+  expect(errors).toEqual([]);
+});
+
+test('boarding home uses the actual company, counts and admin bus photo',async({page})=>{
+ const custom=device();custom.company_name='Island Transit Co.';custom.context.vehicle.image_url='/images/transit-bus-3d.webp';
+ await setup(page,{heartbeat:()=>({json:custom})});await page.goto('/kiosk');
+ await expect(page.getByRole('group',{name:'Company banner'})).toContainText('Island Transit Co.');
+ await expect(page.locator('.tt-board-bus')).toHaveAttribute('src','/images/transit-bus-3d.webp');
+ await expect(page.locator('.tt-board-occupancy')).toContainText('4');
+ await expect(page.locator('.tt-board-occupancy')).toContainText('9 riders today');
+});
