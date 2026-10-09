@@ -1,13 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import ts from 'typescript';
-import { inlineShared } from '../../../security-tests/helpers.js';
+import { inlineShared, budgetFetchFixture, TEST_ATOMIC_SECRETS } from '../../../security-tests/helpers.js';
 import { webcrypto } from 'node:crypto';
 function load(name, client) {
  const source = inlineShared(fs.readFileSync(new URL(`../../../base44/functions/${name}/entry.ts`, import.meta.url), 'utf8')).replace(/^import .*;\s*$/gm, '') + (['driverSession','kioskCheckIn'].includes(name) ? '\nexport { reserveAttempt, issueGrant, validGrant };' : '');
  const js = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
  const exports = {};
- new Function('exports', 'createClientFromRequest', 'crypto', 'secrets', js)(exports, () => client, webcrypto, {});
+ new Function('exports', 'createClientFromRequest', 'crypto', 'secrets', 'fetch', js)(exports, () => client, webcrypto, TEST_ATOMIC_SECRETS, client.atomicFetch ?? budgetFetchFixture(client));
  return exports;
 }
 const device = { id: 'tablet', created_date: '2026-10-02', paired: true, status: 'active', company_id: 'company', vehicle_id: 'bus', kiosk_type: 'driver', pairing_code: 'PAIR' };
