@@ -39,7 +39,7 @@ async function setup(page, { heartbeat = () => ({ json: device() }), checkIn = (
 }
 
 async function unlock(page) {
-  const track = page.getByText('Slide to check in', { exact: true }).locator('..');
+  const track = page.getByText('Slide to enter a code', { exact: true }).locator('..');
   const b = await track.boundingBox();
   await page.mouse.move(b.x + 36, b.y + b.height / 2);
   await page.mouse.down();
@@ -61,7 +61,7 @@ for (const [w, h] of [[1280, 800], [800, 1280], [1024, 600], [1920, 1200]]) {
     await page.setViewportSize({ width: w, height: h });
     const { errors } = await setup(page);
     await page.goto('/kiosk');
-    const slider = page.getByText('Slide to check in', { exact: true }).locator('..');
+    const slider = page.getByText('Slide to enter a code', { exact: true }).locator('..');
     await expect(slider).toBeVisible();
     expect(await inView(slider, page)).toBe(true);
     await unlock(page);
@@ -79,13 +79,13 @@ test('card tap boards a passenger and the tablet locks again', async ({ page }) 
       : b.action === 'check_in' ? { json: { record: { staff_name: 'Maria Joseph', status: b.status }, occupancy: 5, today_count: 10 } } : null,
   });
   await page.goto('/kiosk');
-  await expect(page.getByText('Slide to check in', { exact: true })).toBeVisible();
+  await expect(page.getByText('Slide to enter a code', { exact: true })).toBeVisible();
   await tap(page);
   await expect(page.getByText('Are you boarding or exiting?')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Exiting', exact: true })).toBeVisible();
   await page.getByRole('button', { name: /Boarding/ }).click();
   await expect(page.getByText(/Welcome aboard, Maria!/)).toBeVisible();
-  await expect(page.getByText('Slide to check in', { exact: true })).toBeVisible({ timeout: 6000 });
+  await expect(page.getByText('Slide to enter a code', { exact: true })).toBeVisible({ timeout: 6000 });
   expect(calls.filter(([a]) => a === 'check_in')).toEqual([['check_in', 'boarded']]);
 });
 
@@ -100,15 +100,15 @@ test('boarding tablet explains unknown cards, rate limits and lost pairing', asy
     },
   });
   await page.goto('/kiosk');
-  await expect(page.getByText('Slide to check in', { exact: true })).toBeVisible();
+  await expect(page.getByText('Slide to enter a code', { exact: true })).toBeVisible();
   await tap(page);
   await expect(page.getByText(/This card isn't registered yet/)).toBeVisible();
-  await expect(page.getByText('Slide to check in', { exact: true })).toBeVisible({ timeout: 6000 });
+  await expect(page.getByText('Slide to enter a code', { exact: true })).toBeVisible({ timeout: 6000 });
   state.mode = '429';
   await tap(page);
   await expect(page.getByText('Too many attempts. Try again in a minute.')).toBeVisible();
   await expect(page.getByText(/Connect to WiFi to verify/)).toHaveCount(0);
-  await expect(page.getByText('Slide to check in', { exact: true })).toBeVisible({ timeout: 8000 });
+  await expect(page.getByText('Slide to enter a code', { exact: true })).toBeVisible({ timeout: 8000 });
   state.mode = 'unpaired';
   await tap(page);
   await expect(page.getByText(/pairing was reset/)).toBeVisible();
@@ -141,7 +141,7 @@ test('an unpaired tablet keeps the real reason on screen', async ({ page }) => {
 test('pairing from a link removes the code from the address bar', async ({ page }) => {
   const { calls } = await setup(page, { paired: false });
   await page.goto('/kiosk?code=PAIRCODE123');
-  await expect(page.getByText('Slide to check in', { exact: true })).toBeVisible();
+  await expect(page.getByText('Slide to enter a code', { exact: true })).toBeVisible();
   expect(new URL(page.url()).search).toBe('');
   expect(calls[0]).toEqual(['pair', 'PAIRCODE123']);
 });
@@ -149,7 +149,7 @@ test('pairing from a link removes the code from the address bar', async ({ page 
 test('a damaged saved check-in list does not crash the boarding tablet', async ({ page }) => {
   const { errors } = await setup(page, { queue: '{not json' });
   await page.goto('/kiosk');
-  await expect(page.getByText('Slide to check in', { exact: true })).toBeVisible();
+  await expect(page.getByText('Slide to enter a code', { exact: true })).toBeVisible();
   await unlock(page);
   await expect(page.getByText(/Saved check-ins cannot be read/)).toBeVisible();
   await expect(page.getByRole('button', { name: 'Submit code', exact: true })).toBeVisible();
@@ -177,10 +177,10 @@ test('the tablet shows the names on its saved card list', async ({ page }) => {
 test('the check-in slider only unlocks on a real slide, not a cancelled one or a tap', async ({ page }) => {
   const { errors } = await setup(page);
   await page.goto('/kiosk');
-  const handle = page.getByRole('button', { name: 'Slide to check in' });
+  const handle = page.getByRole('button', { name: 'Slide to enter a code' });
   await expect(handle).toBeVisible();
   const b = await handle.boundingBox();
-  const track = await page.getByText('Slide to check in', { exact: true }).locator('..').boundingBox();
+  const track = await page.getByText('Slide to enter a code', { exact: true }).locator('..').boundingBox();
   // The system takes the gesture over half-way: springs back, stays locked.
   await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
   await page.mouse.down();
@@ -204,7 +204,7 @@ test('the boarding screen says when the card reader helper stops reaching it', a
   await setup(page);
   await page.addInitScript(() => localStorage.setItem('tt_badge_reader', '1'));
   await page.goto('/kiosk');
-  await expect(page.getByText('Slide to check in', { exact: true })).toBeVisible();
+  await expect(page.getByText('Slide to enter a code', { exact: true })).toBeVisible();
   const warning = page.getByText("Card reader isn't connected to this screen.");
   await expect(warning).toHaveCount(0);
   // The helper reports every minute; after 4 silent minutes the screen says so.
@@ -219,7 +219,7 @@ test('the boarding screen says when the card reader helper stops reaching it', a
 test('the boarding tablet cannot open other websites', async ({ page }) => {
   const { errors } = await setup(page);
   await page.goto('/kiosk');
-  await expect(page.getByText('Slide to check in', { exact: true })).toBeVisible();
+  await expect(page.getByText('Slide to enter a code', { exact: true })).toBeVisible();
   await page.evaluate(() => {
     const a = document.createElement('a');
     a.href = 'https://example.com/'; a.target = '_blank'; a.id = 'outside'; a.textContent = 'Outside link';
@@ -253,6 +253,6 @@ for(const size of [{width:1280,height:800},{width:800,height:1280},{width:1024,h
   await page.screenshot({path:'/tmp/tt-loading-boarding-'+size.width+'.png'});
   release();
   await expect(loading).toHaveCount(0);
-  await expect(page.getByText('Slide to check in',{exact:true})).toBeVisible();
+  await expect(page.getByText('Slide to enter a code',{exact:true})).toBeVisible();
  });
 }

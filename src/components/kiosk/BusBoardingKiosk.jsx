@@ -1,3 +1,4 @@
+import "./boardingShowcase.css";
 import BusArtwork from "@/components/BusArtwork";
 import useFutureAppearance from "@/hooks/useFutureAppearance";
 import { TRANSIT_TIME_ZONE } from "@/lib/localTime";
