@@ -2,7 +2,9 @@ const {app,BrowserWindow,Menu,dialog,shell}=require('electron');
 const path=require('node:path');
 const {APP_ORIGIN,isAppUrl,externalUrl}=require('./policy.cjs');
 const {startBrowserSignIn,providerFromLoginUrl,providerFromRedirect,returnPathFromLoginUrl,signedInUrl,PROVIDER_NAMES}=require('./browser-signin.cjs');
-let mainWindow,deviceSetup,browserSignIn=null;
+const {createUpdateChecker,startUpdateChecks}=require('./updates.cjs');
+const DESKTOP_VERSION=require('./package.json').version;
+let mainWindow,deviceSetup,browserSignIn=null,updateChecker,stopUpdateChecks;
 app.enableSandbox();
 app.setAppUserModelId('com.transittrack.desktop');
 if(!app.requestSingleInstanceLock()) app.quit();
@@ -83,6 +85,8 @@ function createWindow() {
  });
  mainWindow.webContents.on('will-attach-webview',event=>event.preventDefault());
  mainWindow.on('closed',()=>{mainWindow=null;});
+ updateChecker=createUpdateChecker({currentVersion:DESKTOP_VERSION,showMessage:options=>dialog.showMessageBox(mainWindow,options),openDownload:url=>shell.openExternal(url)});
+ if(app.isPackaged)stopUpdateChecks=startUpdateChecks(updateChecker);
  Menu.setApplicationMenu(Menu.buildFromTemplate([
   {label:'Workspace',submenu:[
    {label:'My workspace',accelerator:'Ctrl+Home',click:()=>openRoute('/')},
@@ -95,10 +99,10 @@ function createWindow() {
   {label:'Devices',submenu:[{label:'Tablet & NFC setup',click:()=>{deviceSetup ||= require('./setup-main.cjs').createDeviceSetup(require('electron'),mainWindow);deviceSetup.open();}}]},
   {label:'Edit',submenu:[{role:'undo'},{role:'redo'},{type:'separator'},{role:'cut'},{role:'copy'},{role:'paste'},{role:'selectAll'}]},
   {label:'View',submenu:[{label:'Reconnect / reload',accelerator:'Ctrl+R',click:()=>isAppUrl(mainWindow?.webContents.getURL())?mainWindow.reload():openRoute('/')},{role:'resetZoom'},{role:'zoomIn'},{role:'zoomOut'},{role:'togglefullscreen'}]},
-  {label:'Help',submenu:[{label:'About TransitTrack Desktop',click:()=>dialog.showMessageBox(mainWindow,{type:'info',message:'TransitTrack Desktop 0.2.2',detail:'Admin and Mechanic workspaces. Uses your existing account permissions. Internet is needed for live data. Sign in with email and password, or with Google or Apple through your web browser. USB tablet setup and NFC reader controls are available under Devices. Automatic updates are not included.'})}]}
+  {label:'Help',submenu:[{label:'Check for updates',click:()=>updateChecker.check(true)},{label:'About TransitTrack Desktop',click:()=>dialog.showMessageBox(mainWindow,{type:'info',message:'TransitTrack Desktop '+DESKTOP_VERSION,detail:'Admin and Mechanic workspaces. Uses your existing account permissions. Internet is needed for live data. Sign in with email and password, or with Google or Apple through your web browser. USB tablet setup and NFC reader controls are available under Devices. New Windows versions are checked at startup and every six hours. Use Help → Check for updates at any time.'})}]}
  ]));
  openRoute('/login?returnTo=%2F');
 }
 app.on('window-all-closed',()=>app.quit());
 
-app.on('before-quit',()=>{deviceSetup?.stop();browserSignIn?.cancel();});
+app.on('before-quit',()=>{stopUpdateChecks?.();updateChecker?.stop();deviceSetup?.stop();browserSignIn?.cancel();});
