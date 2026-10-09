@@ -13,6 +13,8 @@ export function inlineShared(source,seen=new Set()) {
   return inlineShared(shared,seen);
  });
 }
+// Synthetic settings for the fixture below; never real credentials.
+export const TEST_ATOMIC_SECRETS={get:name=>({TT_ATOMIC_STORE_URL:'https://example.supabase.co',TT_ATOMIC_SERVICE_ROLE_KEY:'sb_secret_synthetic-test-key-never-real'})[name]??null};
 // HTTP fixture models the database boundary for handler tests only.
 // Real database atomicity is checked separately by postgres-budget-check.mjs
 // and the hosted checkAtomicStore diagnostic.
