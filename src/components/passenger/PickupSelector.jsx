@@ -8,7 +8,7 @@ const distance = km => km < 1 ? `${Math.round(km*1000/10)*10} m` : `${km.toFixed
 
 export default function PickupSelector({ options=[], routes=[], value, onChoose, userLoc, intro=true, companyName, onConfirmed }) {
  const [draft,setDraft] = useState(value || "");
- const [mode,setMode] = useState("stops");
+ const [mode,setMode] = useState("near");
  const [query,setQuery] = useState("");
  const [mapOpen,setMapOpen] = useState(false);
  const [saving,setSaving] = useState(false);
@@ -31,17 +31,10 @@ export default function PickupSelector({ options=[], routes=[], value, onChoose,
   finally {setSaving(false);}
  };
  return <section className="tt-pickup-selector space-y-4" aria-label="Choose your pickup">
-  {intro && <div>{companyName && <p className="text-body-sm text-muted-foreground">{companyName}</p>}<h2 className="text-headline font-bold">Where should we pick you up?</h2><p className="mt-2 text-muted-foreground">Choose a stop or find a pickup nearby.</p></div>}
-  <div className="tt-pickup-current flex items-center gap-3 rounded-xl border p-3">
-   <MapPin className="w-6 h-6 text-primary shrink-0" aria-hidden="true" /><div><p className="text-xs uppercase tracking-wider text-muted-foreground">Current pickup</p><p className="font-semibold">{value || "No pickup selected yet"}</p></div>
-  </div>
-  <div className="grid grid-cols-2 gap-3" aria-label="Pickup method">
-   <button type="button" aria-pressed={mode==="stops"} disabled={saving} onClick={()=>setMode("stops")} className="tt-pickup-method"><Bus className="w-6 h-6" aria-hidden="true" />Choose a bus stop</button>
-   <button type="button" aria-pressed={mode==="near"} disabled={saving} onClick={()=>setMode("near")} className="tt-pickup-method"><LocateFixed className="w-6 h-6" aria-hidden="true" />Find a pickup near me</button>
-  </div>
+  {intro && companyName && <p className="text-body-sm text-muted-foreground">{companyName}</p>}
   {mode==="near" ? <div className="space-y-3">
-   <h3 className="font-semibold">Find a roadside pickup</h3><p className="text-sm text-muted-foreground">Use your location, search an address or choose your own point. Review the walking directions before saving.</p>
    <Suspense fallback={<p role="status" className="text-sm text-muted-foreground">Opening pickup finder…</p>}><LocationPinner onSaved={async name=>{await onChoose(name);onConfirmed?.();}} /></Suspense>
+   <Button variant="ghost" className="w-full" onClick={()=>setMode("stops")}><Bus className="w-4 h-4 mr-2" />Choose a company stop instead</Button>
   </div> : <>
    <label className="flex h-12 items-center gap-2 rounded-xl border bg-card px-3 focus-within:ring-2 focus-within:ring-primary">
     <Search className="w-5 h-5 text-muted-foreground" aria-hidden="true" /><span className="sr-only">Search stops or areas</span>
@@ -67,6 +60,7 @@ export default function PickupSelector({ options=[], routes=[], value, onChoose,
     {error && <p role="alert" className="text-sm text-danger">{error}</p>}
     {saved && <p role="status" className="text-sm text-primary">Pickup saved.</p>}
    </div>
+   <Button variant="ghost" className="w-full" onClick={()=>setMode("near")}><LocateFixed className="w-4 h-4 mr-2" />Find a pickup near me</Button>
   </>}
  </section>;
 }
