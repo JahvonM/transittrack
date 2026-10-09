@@ -3,7 +3,7 @@ import { Html5Qrcode, Html5QrcodeSupportedFormats } from "html5-qrcode";
 import createQrScanGate from "@/components/kiosk/qrScanGate";
 
 // Camera lifetime is independent of the parent's clock and request updates.
-export default function QrScanner({ onDecode, active, facingMode = "environment", requireFacingMode = false, stableMs = 0 }) {
+export default function QrScanner({ onDecode, active, facingMode = "environment", requireFacingMode = false, stableMs = 0, compact = false }) {
   const elementId = useRef(`qr-scanner-${Math.random().toString(36).slice(2)}`).current;
   const scannerRef = useRef(null);
   const onDecodeRef = useRef(onDecode);
@@ -26,7 +26,7 @@ export default function QrScanner({ onDecode, active, facingMode = "environment"
     scannerRef.current = scanner;
     const started = scanner.start(
       { facingMode: requireFacingMode ? { exact: facingMode } : facingMode },
-      { fps: 10, qrbox: 220 },
+      { fps: 10, qrbox: compact ? ((w, h) => ({width: Math.min(160, Math.floor(Math.min(w,h)*0.7)), height: Math.min(160, Math.floor(Math.min(w,h)*0.7))})) : 220 },
       async (decodedText) => {
         if (stopped || delivering || !gate.read(decodedText, Date.now())) return;
         // Synchronous lock plus the latest callback: a slow lookup cannot
@@ -55,13 +55,13 @@ export default function QrScanner({ onDecode, active, facingMode = "environment"
       started.then(() => scanner.stop()).then(() => scanner.clear()).catch(() => {});
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active, facingMode, requireFacingMode, stableMs, elementId]);
+  }, [active, facingMode, requireFacingMode, stableMs, elementId, compact]);
 
   if (!active) return null;
 
   return (
     <div className="space-y-2">
-      <div id={elementId} className="rounded-xl overflow-hidden bg-black/80 mx-auto" style={{ width: 260, height: 260 }} />
+      <div id={elementId} className="rounded-xl overflow-hidden bg-black/80 mx-auto" style={{ width: compact ? "100%" : 260, height: compact ? 180 : 260 }} />
       {error && <p className="text-xs text-destructive text-center">{error}</p>}
     </div>
   );
