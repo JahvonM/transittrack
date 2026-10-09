@@ -74,9 +74,9 @@ function InfoRail({ occupancy, vehicle, nearestStop, ads, todayCount, directoryI
       <span>{todayCount ?? "—"} riders today</span>
     </section>
     <section className="tt-board-panel">
-      {directoryInfo?.expires ? <button type="button" onClick={onList} aria-label={"Passenger list: " + directoryInfo.count + " cards"}>
+      {directoryInfo?.expires ? <button type="button" onClick={onList} aria-label={"Passenger list: " + directoryInfo.count + (directoryInfo.count === 1 ? " card" : " cards")}>
         <p><CreditCard size={16} /> Passenger list</p>
-        <strong>{directoryInfo.count} cards saved</strong>
+        <strong>{directoryInfo.count} {directoryInfo.count === 1 ? "card" : "cards"} saved</strong>
         <small>{Date.parse(directoryInfo.expires) > now.getTime() ? "Ready for offline taps" : "Expired, connect to refresh"}</small>
         <small>Updated {new Date(directoryInfo.updated).toLocaleString([], {timeZone: TRANSIT_TIME_ZONE, month:"short", day:"numeric", hour:"numeric", minute:"2-digit"})} · See names</small>
       </button> : <><p><CreditCard size={16} /> Passenger list</p><small>Not downloaded. Connect to WiFi.</small></>}
