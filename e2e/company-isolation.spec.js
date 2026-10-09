@@ -944,3 +944,22 @@ test('reference bus directory filters real records and keeps bus selection',asyn
  await page.getByRole('button',{name:'View bus',exact:true}).click();
  await expect(page.getByRole('region',{name:'Routes and buses'}).getByRole('button').first()).toHaveAttribute('aria-expanded','true');
 });
+
+test('passenger arrival alerts stay off when notification setup fails',async({page})=>{
+ await page.addInitScript(()=>{
+  const api={permission:'default',requestPermission:async()=>{api.permission='denied';return 'denied';}};
+  Object.defineProperty(window,'Notification',{value:api,configurable:true});
+ });
+ await passengerShowcase(page);
+ const updates=[];
+ await page.route('**/functions/entityAccess',r=>{
+  const b=r.request().postDataJSON();
+  if(b.entity==='User' && b.operation==='update'){updates.push(b.data);return r.fulfill({json:{result:{id:'caller',...b.data}}});}
+  return r.fallback();
+ });
+ await page.getByRole('button',{name:/Notify me/}).click();
+ await expect(page.getByText('Notifications are blocked',{exact:true})).toBeVisible();
+ await expect(page.getByRole('button',{name:/Notify me/})).toHaveAttribute('aria-pressed','false');
+ expect(updates.some(data=>data.stop_alerts===true)).toBe(false);
+ await expect(page.getByText('Stop alerts on',{exact:true})).toHaveCount(0);
+});

@@ -51,6 +51,10 @@ Bump desktop/package.json and its lockfile together, then push a matching deskto
 
 Older installations require one manual upgrade to 0.2.3 before automatic checks exist. This preview offers downloads, not silent binary replacement. Actual Windows checks and upgrade installation still need testing. Future signed automatic installation requires owner-controlled signing and a verified installation mechanism.
 
+## Update-check verification — 9 October 2026
+
+All 22 desktop Node tests passed, including version ordering, stable release filtering, rejected foreign downloads, explicit download choice, quiet offline checks, duplicate-request suppression and startup/periodic timer cleanup. Package and lockfile both report 0.2.3. Windows installer packaging was attempted in the Linux sandbox but failed when Wine could not run the NSIS uninstaller-generation step; no usable 0.2.3 installer or GitHub release has been produced here. Build with the Windows workflow above. Actual Windows notifications, browser downloads and upgrade installation remain unverified.
+
 ## Google and Apple sign-in
 Choosing "Continue with Google" (or Apple) in the desktop window does not load the provider inside the app.
 Instead `browser-signin.cjs`:

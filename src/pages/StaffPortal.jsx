@@ -120,7 +120,7 @@ export default function StaffPortal() {
       toast({ title: "Choose your pickup stop first" });
       return;
     }
-    if (on && pushPermission !== "granted") await enableNotifications();
+    if (on && pushPermission !== "granted" && !(await enableNotifications())) return;
     setStopAlerts(on);
     try {
       await base44.auth.updateMe({ stop_alerts: on, favorite_stop: pickupName });
