@@ -39,7 +39,13 @@ function Section({ title, children }) {
   );
 }
 
-export function MyPickupSheet({ open, onOpenChange, pickupName, pickupOptions, routes, userLoc, onChoosePickup, stopAlerts, onToggleStopAlerts, pushUnsupported, companyPhone, onSwitchCompany }) {
+export function MyPickupSheet({ open, onOpenChange, pickupName, pickupOptions, routes, userLoc, onChoosePickup }) {
+  return <BottomSheet open={open} onOpenChange={onOpenChange} title="Pickup" tall>
+    <PickupSelector options={pickupOptions} routes={routes} userLoc={userLoc} value={pickupName} onChoose={onChoosePickup} intro={false} onConfirmed={() => onOpenChange(false)} />
+  </BottomSheet>;
+}
+
+export function PassengerSettingsSheet({ open, onOpenChange, stopAlerts, onToggleStopAlerts, pushUnsupported, companyPhone, onSwitchCompany }) {
   const { user, checkUserAuth } = useAuth();
   const waOptIn = waLink(companyPhone, `Hi, this is ${accountName(user)}. I'd like to receive staff bus updates via WhatsApp.`);
   const linkWhatsapp = async () => {
@@ -48,9 +54,9 @@ export function MyPickupSheet({ open, onOpenChange, pickupName, pickupOptions, r
   };
 
   return (
-    <BottomSheet open={open} onOpenChange={onOpenChange} title="Where should we pick you up?" description="Choose a stop or find a pickup nearby.">
+    <BottomSheet open={open} onOpenChange={onOpenChange} title="Notifications" description="Manage arrival alerts and company updates.">
       <div className="space-y-6 pb-4">
-        <PickupSelector options={pickupOptions} routes={routes} userLoc={userLoc} value={pickupName} onChoose={onChoosePickup} intro={false} onConfirmed={() => onOpenChange(false)} />
+        <Button asChild variant="outline" className="w-full"><Link to="/notifications">View company announcements</Link></Button>
         <Section title="Arrival alerts">
           <label className="flex items-center gap-3 cursor-pointer rounded-xl border px-3 py-3">
             <Switch checked={stopAlerts} onCheckedChange={onToggleStopAlerts} aria-label="Alert me when a bus is one stop away" />
