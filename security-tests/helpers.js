@@ -13,12 +13,32 @@ export function inlineShared(source,seen=new Set()) {
   return inlineShared(shared,seen);
  });
 }
+// HTTP fixture models the database boundary for handler tests only.
+// Real database atomicity is checked separately by postgres-budget-check.mjs
+// and the hosted checkAtomicStore diagnostic.
+export function budgetFetchFixture(client) {
+ client.atomicRows ||= new Map();
+ return async (url,init) => {
+  if (url !== 'https://example.supabase.co/rest/v1/rpc/tt_reserve_attempt') throw Error('Unexpected test network destination');
+  const body=JSON.parse(init.body),now=Date.now();
+  const {p_scope_hash:scope,p_request_id:id,p_limit:limit,p_window_ms:windowMs}=body;
+  client.atomicCalls ||= [];client.atomicCalls.push(body);
+  if(!client.atomicRows.has(scope))client.atomicRows.set(scope,{limit,windowMs,rows:new Map()});
+  const policy=client.atomicRows.get(scope);
+  if(policy.limit!==limit||policy.windowMs!==windowMs)return Response.json({code:'22023'},{status:400});
+  if(policy.rows.has(id))return Response.json(policy.rows.get(id).allowed);
+  const count=[...policy.rows.values()].filter(r=>r.allowed&&r.at>now-windowMs).length;
+  const allowed=count<limit;policy.rows.set(id,{allowed,at:now});return Response.json(allowed);
+ };
+}
 export function load(name,client,exportsList=[],cryptoApi=webcrypto) {
  const file=new URL('../base44/functions/'+name+'/entry.ts',import.meta.url);
  const source=inlineShared(fs.readFileSync(file,'utf8')).replace(/npm:@noble\/hashes@1\.8\.0\//g, '@noble/hashes/').replace(/^import .*;\s*$/gm,'')+(exportsList.length?'\nexport { '+exportsList.join(',')+' };':'');
  const js=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
  const exports={};
- new Function('exports','createClientFromRequest','crypto','secrets','require',js)(exports,()=>client,cryptoApi,{get:()=>null},createRequire(import.meta.url));
+ const testSecrets=client.testSecrets??{TT_ATOMIC_STORE_URL:'https://example.supabase.co',TT_ATOMIC_SERVICE_ROLE_KEY:'sb_secret_synthetic-test-key-never-real'};
+ const cryptoWithUUID=cryptoApi.randomUUID?cryptoApi:{...cryptoApi,randomUUID:()=>webcrypto.randomUUID()};
+ new Function('exports','createClientFromRequest','crypto','secrets','require','fetch',js)(exports,()=>client,cryptoWithUUID,{get:name=>testSecrets[name]??null},createRequire(import.meta.url),client.atomicFetch??budgetFetchFixture(client));
  return exports;
 }
 export const request=body=>new Request('https://isolated.test',{method:'POST',body:JSON.stringify(body)});
