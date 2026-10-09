@@ -79,7 +79,7 @@ export default function DriverApp() {
   // what a long offline stretch does to a tablet) used to make the 60-second
   // check below ask for the PIN over and over, all shift long.
   const unlockedDayRef = useRef(unlockDayMarked() ? localDayKey() : null);
-  const [activeTab, setActiveTab] = useState(() => tabFromStage(urlStage) || "home");
+  const [activeTab, setActiveTab] = useState(() => tabFromStage(urlStage) || "track");
   // Follow the URL (e.g. "Continue" after an inspection goes to /driver/track).
   useEffect(() => { const t = tabFromStage(urlStage); if (t) setActiveTab(t); }, [urlStage]);
   const { session, loading, error: sessionError, offline, invoke, refresh } = useDriverSession(deviceId);
