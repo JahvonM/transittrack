@@ -131,11 +131,11 @@ export default function ArrivalHero({ state, stop, eta, trip, now = Date.now(), 
   return (
     <section className="px-6 pb-6 pt-2 lg:px-0" aria-label="Your bus" aria-describedby="tt-arrival-sub">
       <p className="sr-only" aria-live="polite" id="tt-arrival-sub">{spoken}</p>
-      <div className="tt-future-arrival rounded-2xl border border-border bg-card p-5 shadow-sm">
+      <div className="tt-future-arrival tt-arrival-reference rounded-2xl border border-border bg-card p-5 shadow-sm">
         <p className="mb-4 text-body-sm font-semibold text-muted-foreground">Your next bus</p>
-        {bus && <BusArtwork vehicle={bus} width={260} className="tt-arrival-art h-40 w-full mb-4" />}
+        {bus && <BusArtwork vehicle={bus} fallbackUrl="/images/boarding-coaster.webp" width={260} className="tt-arrival-art h-40 w-full mb-4" />}
         {(onTrip || Source) && (
-          <div className="mb-3 flex items-center justify-between gap-3">
+          <div className="tt-arrival-live mb-3 flex items-center justify-between gap-3">
             {onTrip ? <LiveLine state={state} fresh={fresh} /> : <span />}
             {Source && onTrip && (
               <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full border border-border text-muted-foreground" title={sourceText}>
@@ -145,7 +145,7 @@ export default function ArrivalHero({ state, stop, eta, trip, now = Date.now(), 
             )}
           </div>
         )}
-        <div className="flex items-start justify-between gap-3">
+        <div className="tt-arrival-main flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
             <div className="flex min-w-0 items-center gap-2">
               {bus && kind !== "no_eta" && (
@@ -169,7 +169,7 @@ export default function ArrivalHero({ state, stop, eta, trip, now = Date.now(), 
               <ChevronDown className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden="true" />
             </button>
           </div>
-          <div className="shrink-0 text-right" aria-hidden="true">
+          <div className="tt-arrival-estimate shrink-0 text-right" aria-hidden="true">
             <div className="flex justify-end">{answer}</div>
             {detail && <p className="mt-1 text-caption font-semibold text-muted-foreground">{detail}</p>}
           </div>
