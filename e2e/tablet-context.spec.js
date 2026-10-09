@@ -247,10 +247,10 @@ test('boarding tablet uses its saved card file after restart without a server lo
   localStorage.setItem('tt_badge_reader','1');
  });
  await page.goto('/kiosk');
- await expect(page.getByText(/Passenger list: 1 card\b/)).toBeVisible();
+ await expect(page.getByRole('button',{name:/Passenger list: 1 card\b/})).toBeVisible();
  offline=true;
  await page.reload();
- await expect(page.getByText(/Passenger list: 1 card\b/)).toBeVisible();
+ await expect(page.getByRole('button',{name:/Passenger list: 1 card\b/})).toBeVisible();
  await page.evaluate(()=>window.dispatchEvent(new CustomEvent('tt-badge',{detail:'AABBCCDD'})));
  await expect(page.getByText('Local Passenger',{exact:true})).toBeVisible();
  expect(lookups).toBe(0);
@@ -275,7 +275,7 @@ async function scannerBoarding(page) {
    localStorage.removeItem('tt_badge_reader');
  });
  await page.goto('/kiosk');
- await expect(page.getByText(/Passenger list: 1 card\b/)).toBeVisible({timeout:20000});
+ await expect(page.getByRole('button',{name:/Passenger list: 1 card\b/})).toBeVisible({timeout:20000});
 }
 test('first scanner tap works without a prior reader announcement',async({page})=>{
  await scannerBoarding(page);
@@ -336,7 +336,7 @@ test('completed code exit returns to swipe screen',async({page})=>{
  await expect(page.getByText('Code Passenger',{exact:true})).toBeVisible();
  await page.getByRole('button',{name:'Exiting',exact:true}).click();
  await expect(page.getByText('See you later, Code!')).toBeVisible();
- await expect(page.getByText('Slide to check in',{exact:true})).toBeVisible({timeout:10000});
+ await expect(page.getByText('Slide to enter a code',{exact:true})).toBeVisible({timeout:10000});
 });
 
 test('driver login displays the scoped company banner',async({page})=>{

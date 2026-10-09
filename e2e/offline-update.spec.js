@@ -8,7 +8,7 @@ const SHELL = 'tt-shell-v1';
 async function ready(page) {
   await page.route('**/api/**', (r) => r.fulfill({ json: { id: 'test-app', public_settings: { authentication_required: false } } }));
   await page.goto('/login');
-  await expect(page.getByText('Welcome back')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toBeVisible();
   await page.evaluate(() => navigator.serviceWorker.ready);
   await expect.poll(() => page.evaluate(async (name) => !!(await caches.match('/', { cacheName: name })), SHELL), { timeout: 30000 }).toBe(true);
   return page.evaluate(async (name) => (await (await caches.match('/', { cacheName: name })).text()), SHELL);
@@ -40,7 +40,7 @@ test('an update that cannot fully download keeps the last working version offlin
   await context.unrouteAll();
   await context.setOffline(true);
   await page.reload();
-  await expect(page.getByText('Welcome back')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toBeVisible();
 });
 
 test('a complete update becomes the offline copy and opens with no connection', async ({ page, context }) => {
@@ -52,5 +52,5 @@ test('a complete update becomes the offline copy and opens with no connection', 
   await context.unrouteAll();
   await context.setOffline(true);
   await page.reload();
-  await expect(page.getByText('Welcome back')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toBeVisible();
 });
