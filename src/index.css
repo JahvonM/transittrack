@@ -803,3 +803,8 @@ html.tt-future {
 }
 @media(min-width:1024px){.tt-passenger-pickup-actions{padding-left:0;padding-right:0}}
 @media(max-width:480px){.tt-passenger-reference .tt-bus-card .tt-bus-artwork{width:110px;height:95px}.tt-passenger-reference .tt-bus-card>a{gap:8px;padding:12px}.tt-passenger-reference .tt-bus-card>a>span:first-of-type>.font-semibold{font-size:17px}.tt-arrival-reference .tt-arrival-live{max-width:100%}.tt-arrival-reference .tt-arrival-estimate .text-title{font-size:22px}}
+
+@media(min-width:900px){.tt-driver-reference>header{grid-column:1/-1;grid-row:2}.tt-driver-reference>div[aria-label="Company banner"]{grid-column:1/-1;grid-row:1}}
+.tt-arrival-main>div:first-child>div>img {display:none}
+.tt-passenger-reference .tt-bus-card>a>span:last-of-type{max-width:90px}
+.tt-passenger-pickup-actions>section button>span:last-child{font-size:11px;line-height:1.35}
