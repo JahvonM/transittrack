@@ -470,7 +470,7 @@ for (const size of [{width:1280,height:800},{width:1024,height:600},{width:800,h
   await page.screenshot({path:`/tmp/tt-driver-reference-${size.width}.png`});
   await nav.getByRole('button',{name:'Passengers',exact:true}).click();
   await expect(page.getByRole('heading',{name:'Passenger list',exact:true})).toBeVisible();
-  await expect(page.getByText('Actual Passenger',{exact:true}).first()).toBeVisible();
+  await expect(page.locator('.tt-driver-reference>main>section').last().getByText('Actual Passenger',{exact:true})).toBeVisible();
   await nav.getByRole('button',{name:'Documents',exact:true}).click();
   await expect(page.getByRole('heading',{name:'Licence & insurance',exact:true})).toBeVisible();
   await nav.getByRole('button',{name:'Settings',exact:true}).click();
