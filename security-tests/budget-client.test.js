@@ -3,6 +3,14 @@ import {createDurableAttemptBudget} from '../base44/shared/durableAttemptBudget'
 const id='12345678-1234-4234-8234-123456789abc';
 const config={url:'https://example.supabase.co',serviceRoleKey:'backend-test-key-never-real'};
 describe('durable attempt budget transport',()=>{
+ for (const key of ['sb_secret_synthetic-never-real-key', 'eyJsynthetic-legacy-key-never-real']) it('uses correct authentication headers for '+(key.startsWith('sb_')?'secret keys':'legacy JWTs'),async()=>{
+  let headers;
+  const client=createDurableAttemptBudget({...config,serviceRoleKey:key,fetchImpl:async(_url,init)=>{headers=init.headers;return Response.json(true);}});
+  await client.reserve('scope',id,5,60000);
+  expect(headers.apikey).toBe(key);
+  if(key.startsWith('sb_secret_')) expect(headers).not.toHaveProperty('Authorization');
+  else expect(headers.Authorization).toBe('Bearer '+key);
+ });
  it('hashes scope and keeps request ID stable for unknown-outcome retries',async()=>{const calls=[];const client=createDurableAttemptBudget({...config,fetchImpl:async(url,init)=>{calls.push({url,init});return Response.json(true);}});await client.reserve('tenant:device:pin',id,5,60000);await client.reserve('tenant:device:pin',id,5,60000);const a=JSON.parse(calls[0].init.body);expect(a.p_scope_hash).toMatch(/^[a-f0-9]{64}$/);expect(a.p_request_id).toBe(id);expect(calls[1].init.body).toBe(calls[0].init.body);expect(calls[0].init.redirect).toBe('error');});
  it('accepts denial without converting it into a provider failure',async()=>{const client=createDurableAttemptBudget({...config,fetchImpl:async()=>Response.json(false)});expect(await client.reserve('scope',id,5,60000)).toBe(false);});
  for(const response of [()=>new Response('secret-provider-error',{status:500}),()=>Response.json({allowed:true}),()=>{throw Error('secret-key');}])it('fails closed and hides provider details',async()=>{const client=createDurableAttemptBudget({...config,fetchImpl:async()=>response()});await expect(client.reserve('scope',id,5,60000)).rejects.toThrow('Atomic budget unavailable');});
