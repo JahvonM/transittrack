@@ -335,3 +335,20 @@ test('home QR decodes once and keeps Boarding and Exiting available',async()=>{
  expect(errors).toEqual([]);
  }finally{await browser.close();fs.unlinkSync(camera);}
 });
+
+
+test('boarding scene assets load without a network after being saved',async({page,context})=>{
+ await setup(page);await page.goto('/kiosk');
+ await expect(page.getByRole('button',{name:/Scan QR code/})).toBeVisible();
+ await page.evaluate(()=>navigator.serviceWorker.ready);
+ await expect.poll(()=>page.evaluate(()=>!!navigator.serviceWorker.controller)).toBe(true);
+ await expect.poll(()=>page.evaluate(async()=>{
+  const paths=['/images/boarding-coast.webp','/images/boarding-coaster.webp'];
+  return (await Promise.all(paths.map(p=>caches.match(p,{cacheName:'tt-assets-v1'})))).every(Boolean);
+ }),{timeout:30000}).toBe(true);
+ await context.setOffline(true);
+ const loaded=await page.evaluate(async()=>Promise.all(['/images/boarding-coast.webp','/images/boarding-coaster.webp'].map(async p=>{
+  const r=await fetch(p);return r.ok && (await r.arrayBuffer()).byteLength>10000;
+ })));
+ expect(loaded).toEqual([true,true]);
+});

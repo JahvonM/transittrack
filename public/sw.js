@@ -152,7 +152,7 @@ self.addEventListener("fetch", (event) => {
   if (url.origin === self.location.origin) {
     if (url.pathname.startsWith("/api/") || url.pathname.startsWith("/functions/")) return;
     if (req.mode === "navigate") { event.respondWith(page(event)); return; }
-    if (url.pathname.startsWith("/assets/") || url.pathname.startsWith("/brand/") || url.pathname === "/manifest.webmanifest") {
+    if (url.pathname.startsWith("/assets/") || url.pathname.startsWith("/brand/") || url.pathname === "/manifest.webmanifest" || STATIC_FILES.includes(url.pathname)) {
       event.respondWith(cacheFirst(req, ASSETS));
     }
     return;
