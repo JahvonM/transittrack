@@ -74,6 +74,7 @@ test('card designer exports a printable PNG using selected passenger details',as
 });
 
 test('passenger previews walking directions then saves a separate roadside pickup',async({page,context})=>{
+ await page.setViewportSize({width:390,height:844});
  await session(page,'staff');
  await context.grantPermissions(['geolocation']);
  await context.setGeolocation({latitude:12.005,longitude:-61.701,accuracy:5});
@@ -101,6 +102,8 @@ test('passenger previews walking directions then saves a separate roadside picku
  await page.goto('/staff');
  await page.getByRole('button',{name:'Find my pickup',exact:true}).click();
  await page.getByRole('button',{name:'Use my location',exact:true}).click();
+ await expect(page.getByRole('dialog').getByText('Arrival alerts',{exact:true})).toHaveCount(0);
+ await page.screenshot({path:'/tmp/tt-pickup-choose-mobile.png'});
  await page.getByRole('button',{name:'Review this pickup',exact:true}).click();
  await page.getByText('Walking directions',{exact:true}).click();
  await expect(page.getByText('Walk east to the main road',{exact:true})).toBeVisible();
