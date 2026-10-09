@@ -30,6 +30,7 @@ import InspectionTemplatesTab from "@/components/admin/InspectionTemplatesTab";
 import InspectionHistoryTab from "@/components/admin/InspectionHistoryTab";
 import DataTab from "@/components/admin/DataTab";
 import NotificationsTab from "@/components/admin/NotificationsTab";
+import AppErrorsTab from "@/components/admin/AppErrorsTab";
 import FloatingChatbot from "@/components/admin/FloatingChatbot";
 import FloatingMessages from "@/components/admin/FloatingMessages";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
@@ -65,6 +66,7 @@ import {
   ListChecks,
   ScrollText,
   BellRing,
+  Bug,
   Database,
   ChevronRight,
 } from "lucide-react";
@@ -189,6 +191,8 @@ export default function Admin() {
   // Whatever another section had cached may now be out of date, so it re-reads
   // the next time it is opened instead of showing a stale number.
   const refresh = async () => {
+    // Pages that load their own data (App errors, Notifications) reload too.
+    window.dispatchEvent(new Event("tt-admin-refresh"));
     await ensure(sectionKeys, true);
     const keep = new Set(sectionKeys);
     Object.keys(settledRef.current).forEach((k) => { if (!keep.has(k)) delete settledRef.current[k]; });
@@ -481,6 +485,7 @@ export default function Admin() {
         {section === "copilot" && <CopilotTab />}
         {section === "data" && <DataTab />}
         {section === "notifications" && <NotificationsTab />}
+        {section === "app-errors" && <AppErrorsTab />}
         {section === "travel-times" && <TravelTimesTab />}
         {ADMIN_PAGES[section] && (
           <EmbeddedLayout.Provider value={true}>
@@ -504,6 +509,7 @@ export default function Admin() {
                   { go: "kiosks", icon: Smartphone, title: "Kiosk tablets", detail: "Pair and update boarding and driver tablets" },
                   { go: "templates", icon: ListChecks, title: "Inspection templates", detail: "Checklists drivers and mechanics complete" },
                   { go: "notifications", icon: BellRing, title: "Notifications", detail: "Who gets each email and phone alert" },
+                  { go: "app-errors", icon: Bug, title: "App errors", detail: "Crashes people hit, and what led to them" },
                   { go: "audit", icon: ScrollText, title: "Change history", detail: "Every create, edit and delete" },
                   { go: "data", icon: Database, title: "Data manager", detail: "Browse and export every collection" },
                 ].map((it) => {

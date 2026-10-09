@@ -1,3 +1,4 @@
+import { greetingName } from "@/lib/userName";
 import CompanyBanner from "@/components/CompanyBanner";
 import React, { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, Navigate, useSearchParams } from "react-router-dom";
@@ -473,7 +474,7 @@ export default function StaffPortal() {
             </div>
 
             <CompanyBanner name={companyName} logoUrl={company.logo_url} compact className="mx-6 mb-4 lg:mx-0" />
-            <div className="tt-passenger-greeting mx-6 mb-5 lg:mx-0"><p className="text-body-sm text-muted-foreground">Your journey, connected</p><h1 className="text-headline font-bold">Welcome{user?.full_name ? `, ${user.full_name.split(" ")[0]}` : ""}</h1></div>
+            <div className="tt-passenger-greeting mx-6 mb-5 lg:mx-0"><p className="text-body-sm text-muted-foreground">Your journey, connected</p><h1 className="text-headline font-bold">Welcome{greetingName(user) ? `, ${greetingName(user)}` : ""}</h1></div>
 
             {tripState.kind === "choose" ? (
               <>

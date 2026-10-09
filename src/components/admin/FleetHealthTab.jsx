@@ -216,7 +216,7 @@ export default function FleetHealthTab({ vehicles = [] }) {
                   {r.lowBattery && <p className="text-xs text-danger flex items-center gap-1 mt-1"><BatteryLow className="w-3.5 h-3.5" /> Low battery</p>}
                 </td>
                 <td className="px-3 py-2.5">
-                  {r.errs > 0 ? <Cell s={{ tone: "bad", text: `${r.errs}`, sub: "see Data manager → ClientError" }} /> : <span className="text-xs text-muted-foreground">0</span>}
+                  {r.errs > 0 ? <Cell s={{ tone: "bad", text: `${r.errs}`, sub: "see Admin → App errors" }} /> : <span className="text-xs text-muted-foreground">0</span>}
                 </td>
               </tr>
             ))}

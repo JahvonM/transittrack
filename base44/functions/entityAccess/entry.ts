@@ -24,6 +24,8 @@ ENTITY_FIELDS.Driver.push('phone_app_access');
 ENTITY_FIELDS.Incident.push('photo_uris','source');
 ENTITY_FIELDS.DriverShift.push('started_with','ended_with');
 ENTITY_FIELDS.Vehicle.push('backup_gps_driver_email','backup_gps_since');
+// Admin → App errors: what happened before an error, and marking it fixed.
+ENTITY_FIELDS.ClientError.push('area','context','breadcrumbs','status','resolved_at','resolved_by');
 const ADMIN_ONLY_FIELDS={Driver:new Set(['phone_app_access'])};
 const SERVER_ONLY_FIELDS={Incident:new Set(['photo_uris','source'])};
 const SECURITY_FIELDS={Company:new Set(['access_code','access_code_expires_at']),KioskDevice:new Set(['pairing_code','pairing_expires_at','paired','status'])};
@@ -196,7 +198,11 @@ async function prepare(db,ctx,name,input,existing=null) {
   return data;
  }
  if (name==='AuditLog') return {...data, actor_email:user.email,actor_name:user.full_name||'',actor_role:user.role};
- if (name==='ClientError') fail(403,'Use reportClientError');
+ if (name==='ClientError') {
+  // Errors are written by reportClientError; an administrator may only mark them fixed (or not).
+  if (user.role!=='admin' || !existing || Object.keys(data).some(k=>!['status','resolved_at','resolved_by'].includes(k)) || (data.status!==undefined && !['new','resolved'].includes(data.status))) fail(403,'Use reportClientError');
+  return {...data, resolved_by: data.status==='resolved' ? (user.full_name||user.email) : '', resolved_at: data.status==='resolved' ? new Date().toISOString() : null};
+ }
  if (name==='PushToken') return {...data,email:user.email,role:user.role,company_id:ctx.companies[0]||''};
  if (user.role !== 'admin') {
   if(user.role==='mechanic') {

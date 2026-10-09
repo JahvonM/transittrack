@@ -13,6 +13,24 @@ const clip = (v, n) => (typeof v === 'string' ? v.slice(0, n) : '');
 // alert or smuggle in extra fields/links of its own.
 const sanitize = (v, n) => clip(v, n).replace(/[\u0000-\u001f\u007f]+/g, ' ').replace(/[<>]/g, '').trim();
 const quote = (v, n) => clip(v, n).split(/\r?\n/).map((line) => `    | ${sanitize(line, n)}`).join('\n');
+const AREAS = ['Admin', 'Passenger app', 'Driver tablet', 'Boarding tablet', 'Driver phone app', 'Company manager', 'Mechanic'];
+const STEP_TYPES = ['page', 'tap', 'server', 'network', 'error'];
+// What the app says happened before the error: at most 25 short steps.
+function cleanBreadcrumbs(value) {
+  if (!Array.isArray(value)) return [];
+  return value.slice(-25).filter((b) => b && typeof b === 'object').map((b) => ({
+    t: Number.isFinite(Date.parse(b.t)) ? new Date(Date.parse(b.t)).toISOString() : '',
+    type: STEP_TYPES.includes(b.type) ? b.type : 'other',
+    text: sanitize(b.text, 160),
+  }));
+}
+function cleanContext(value) {
+  const c = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  return {
+    version: sanitize(c.version, 60), screen: /^\d{2,5}x\d{2,5}$/.test(String(c.screen || '')) ? c.screen : '',
+    online: c.online === true, installed: c.installed === true, language: sanitize(c.language, 20),
+  };
+}
 
 // Records a crash reported by the app (signed-in users, kiosks and driver
 // tablets alike, so it can't rely on the caller's own permissions) and emails
@@ -41,19 +59,24 @@ export default async function (req) {
     const record = await db.ClientError.create({
       message,
       stack: clip(body.stack, 4000),
-      url: clip(body.url, 300),
+      // Keep the page, and only the names of its ?parameters: links can carry codes.
+      url: (() => { const [path, query = ''] = clip(body.url, 300).split('?'); const keys = [...new URLSearchParams(query).keys()]; return path + (keys.length ? '?' + keys.join('&') : ''); })(),
       user_agent: clip(body.user_agent, 300),
       source: clip(body.source, 20),
       device_id: clip(body.device_id, 40),
       user_email: user?.email || '',
       user_role: user?.role || '',
       emailed: !alreadyAlerted,
+      area: AREAS.includes(body.context?.area) ? body.context.area : '',
+      context: cleanContext(body.context),
+      breadcrumbs: cleanBreadcrumbs(body.breadcrumbs),
+      status: 'new',
     });
 
     if (!alreadyAlerted) {
       const admins = (await base44.asServiceRole.entities.User.list()).filter((u) => u.role === 'admin' && u.email);
       const subjectLine = sanitize(message, 80) || 'unknown error';
-      const text = `A screen in TransitTrack just crashed.\n\nReported error (untrusted, quoted verbatim):\n${quote(message, 500)}\n\nPage: ${sanitize(record.url, 300) || 'unknown'}\nUser: ${record.user_email || 'not signed in'}${record.user_role ? ` (${record.user_role})` : ''}\nDevice: ${sanitize(record.user_agent, 300) || 'unknown'}\n\nThe user saw a "Something went wrong" screen with a reload button. Repeats of this same error in the next hour won't send another email. Full details are in Admin → Data manager → ClientError.\n\n— TransitTrack`;
+      const text = `A screen in TransitTrack just crashed.\n\nReported error (untrusted, quoted verbatim):\n${quote(message, 500)}\n\nPage: ${sanitize(record.url, 300) || 'unknown'}\nUser: ${record.user_email || 'not signed in'}${record.user_role ? ` (${record.user_role})` : ''}\nDevice: ${sanitize(record.user_agent, 300) || 'unknown'}\n\nThe user saw a "Something went wrong" screen with a reload button. Repeats of this same error in the next hour won't send another email. See what happened, step by step, in Admin → All tools → App errors.\n\n— TransitTrack`;
       const subject = `TransitTrack crash alert: ${subjectLine}`;
       await emailWithPolicy(base44, 'crash_alert', admins,
         (a) => base44.asServiceRole.integrations.Core.SendEmail({ to: a.email, subject, body: text }), { title: subject });

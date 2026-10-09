@@ -2,6 +2,7 @@ import { createClient } from '@base44/sdk';
 import { appParams } from '@/lib/app-params';
 import { scopedEntities, withRateLimitRetry } from '@/lib/scopedEntities';
 import { withAuditLog } from '@/lib/auditLog';
+import { addBreadcrumb } from '@/lib/breadcrumbs';
 
 const { appId, token, functionsVersion, appBaseUrl } = appParams;
 
@@ -12,6 +13,21 @@ export const base44 = createClient({
   serverUrl: '',
   appBaseUrl
 });
+
+// A failed server call is remembered for the next error report (Admin → App
+// errors shows it in "what happened before"). Only the function name and the
+// reply's status and message are kept, never what was sent.
+const originalInvoke = base44.functions.invoke.bind(base44.functions);
+base44.functions.invoke = async (name, ...rest) => {
+  try {
+    return await originalInvoke(name, ...rest);
+  } catch (error) {
+    const status = error?.status ?? error?.response?.status ?? "no connection";
+    const said = error?.response?.data?.error || error?.data?.error || error?.message || "";
+    if (name !== "reportClientError") addBreadcrumb("server", `${name} failed (${status})${said ? `: ${said}` : ""}`);
+    throw error;
+  }
+};
 
 // Record admin/staff edits in the AuditLog ("Change history" in Admin).
 base44.entities = withAuditLog(scopedEntities(base44));

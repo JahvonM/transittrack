@@ -292,7 +292,11 @@ export default function NotificationsTab() {
       setFailed(true);
     }
   };
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+    window.addEventListener("tt-admin-refresh", load);
+    return () => window.removeEventListener("tt-admin-refresh", load);
+  }, []);
 
   const types = data?.types || [];
   const settingOf = (key) => data?.settings?.[key] || { enabled: true, blocked_emails: [], blocked_company_ids: [] };

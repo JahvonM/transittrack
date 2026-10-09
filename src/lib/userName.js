@@ -11,3 +11,10 @@ export const nameInitials = (user) =>
     .slice(0, 2)
     .map((word) => word[0]?.toUpperCase())
     .join("") || "?";
+// The name a greeting uses: the name the person set for themselves, exactly as
+// they set it; otherwise the first name of their sign-in account (e.g. Google).
+export const greetingName = (user) => {
+  const chosen = String(user?.display_name || "").trim();
+  if (chosen) return chosen;
+  return String(user?.full_name || "").trim().split(/\s+/)[0] || "";
+};

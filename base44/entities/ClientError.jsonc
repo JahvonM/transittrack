@@ -34,6 +34,32 @@
     "emailed": {
       "type": "boolean",
       "default": false
+    },
+    "area": {
+      "type": "string",
+      "description": "Part of the app: Admin, Passenger app, Driver tablet, Boarding tablet, Driver phone app, Company manager, Mechanic"
+    },
+    "context": {
+      "type": "object",
+      "description": "App release, screen size, online, installed as an app, language"
+    },
+    "breadcrumbs": {
+      "type": "array",
+      "items": { "type": "object" },
+      "description": "What happened just before: pages, taps, failed server calls ({t, type, text})"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["new", "resolved"],
+      "default": "new",
+      "description": "Marked fixed in Admin → App errors"
+    },
+    "resolved_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "resolved_by": {
+      "type": "string"
     }
   },
   "required": [
