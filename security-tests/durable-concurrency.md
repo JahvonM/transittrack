@@ -32,3 +32,12 @@ Reservation rows require a reviewed retention and cleanup policy. Retain replay 
 Transport tests check the adapter contract, not deployed database atomicity. The real PostgreSQL acceptance check is a separate gate, not an in-memory emulator. Passing it does not establish hosted Supabase/Base44 connectivity, secrets configuration, endpoint integration, or crash recovery for application writes. S06 remains open until those checks and all affected handler migrations are complete.
 
 Primary storage references: https://www.postgresql.org/docs/16/transaction-iso.html ; https://www.postgresql.org/docs/16/explicit-locking.html ; https://supabase.com/docs/guides/database/functions .
+
+## Execution evidence — 8 October 2026, Grenada
+
+- Adapter contract: 6 tests passed.
+- Actual disposable PostgreSQL 15: independent-connection cap, recreated caller replay, policy conflict, browser-role rejection and rolling-window expiry all passed. Server was stopped after testing. No cloud/app records were used.
+- Current app cross-worker regression: FAILED, 20 admitted against a five-attempt limit.
+- Full strict suite: 39 passed / 6 failed / 45 total. Five existing failures remain; the additional failure is the newly covered cross-worker defect. No assertions were skipped or weakened.
+- PostgreSQL 16 CI acceptance workflow is prepared; its remote GitHub execution has not been observed.
+- Hosted Supabase connectivity and runtime integration have not run; no project exists yet.
