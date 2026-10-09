@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import fs from 'node:fs';
 import ts from 'typescript';
 import { webcrypto } from 'node:crypto';
-import { mock, request, digest, inlineShared } from '../../../security-tests/helpers.js';
+import { mock, request, digest, inlineShared, budgetFetchFixture, TEST_ATOMIC_SECRETS } from '../../../security-tests/helpers.js';
 
 const transpile = source => ts.transpileModule(inlineShared(source).replace(/^import .*;\s*$/gm, ''), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
 const sharedSource = fs.readFileSync(new URL('../../../base44/shared/boardingCredentials.ts', import.meta.url), 'utf8');
@@ -44,7 +44,7 @@ function fixture(role = 'staff') {
   function load(name) {
     const source = fs.readFileSync(new URL(`../../../base44/functions/${name}/entry.ts`, import.meta.url), 'utf8');
     const exports = {};
-    new Function('exports', 'createClientFromRequest', 'crypto', 'retry429', 'personalBoardingCredential', 'savePersonalBoardingCode', 'boardingSecretHash', 'currentBoardingCode', transpile(source))(exports, () => sdk, webcrypto, fn => fn(), personalBoardingCredential, savePersonalBoardingCode, boardingSecretHash, currentBoardingCode);
+    new Function('exports', 'createClientFromRequest', 'crypto', 'retry429', 'personalBoardingCredential', 'savePersonalBoardingCode', 'boardingSecretHash', 'currentBoardingCode', 'secrets', 'fetch', transpile(source))(exports, () => sdk, webcrypto, fn => fn(), personalBoardingCredential, savePersonalBoardingCode, boardingSecretHash, currentBoardingCode, TEST_ATOMIC_SECRETS, sdk.atomicFetch ?? budgetFetchFixture(sdk));
     return exports.default;
   }
   const passenger = load('generateOneTimeCode'), kiosk = load('kioskCheckIn');
