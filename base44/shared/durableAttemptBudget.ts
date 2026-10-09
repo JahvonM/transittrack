@@ -24,14 +24,32 @@ export function createDurableAttemptBudget(config: {
    let providerCode: string | undefined;
    let networkKind: string | undefined;
    try {
-    const response = await fetchImpl(url.origin+'/rest/v1/rpc/tt_reserve_attempt', {
-     method:'POST', redirect:'error', signal:AbortSignal.timeout(timeoutMs),
+    const rpcPath = '/rest/v1/rpc/tt_reserve_attempt';
+    let endpoint = url.origin + rpcPath;
+    const init: RequestInit = {
+     method:'POST', redirect:'manual', signal:AbortSignal.timeout(timeoutMs),
      // New Supabase secret keys are not JWTs: use apikey only.
      // Preserve Bearer authentication for legacy service_role JWTs.
      headers:{'Content-Type':'application/json',apikey:config.serviceRoleKey,
       ...(config.serviceRoleKey.startsWith('sb_secret_') ? {} : {Authorization:'Bearer '+config.serviceRoleKey})},
      body:JSON.stringify({p_scope_hash:scopeHash,p_request_id:requestId,p_limit:limit,p_window_ms:windowMs}),
-    });
+    };
+    let response: Response;
+    for (let hop = 0; ; hop++) {
+     response = await fetchImpl(endpoint, init);
+     httpStatus = response.status;
+     if (response.type === 'opaqueredirect') throw new Error('Unreadable redirect');
+     if (response.status < 300 || response.status >= 400) break;
+     // Preserve POST only for 307/308; reject other methods/unknown destinations.
+     if (![307,308].includes(response.status) || hop >= 2) throw new Error('Unsupported redirect');
+     const location = response.headers.get('location');
+     if (!location) throw new Error('Missing redirect destination');
+     const target = new URL(location, endpoint);
+     if (target.origin !== url.origin || target.username || target.password || target.search || target.hash
+      || ![rpcPath,rpcPath+'/'].includes(target.pathname)) throw new Error('Unsafe redirect destination');
+     await response.body?.cancel();
+     endpoint = target.href;
+    }
     httpStatus = response.status;
     if (!response.ok) {
      reason = 'http';
