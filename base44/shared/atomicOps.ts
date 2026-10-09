@@ -1,13 +1,7 @@
-// Atomicity helpers for flows the storage layer cannot make atomic on its own.
-//
-// Base44 has no conditional write, unique index or transaction, so a
-// "read, decide, write" sequence can interleave with another copy of itself:
-// two taps, a retry racing its original, or a queued upload landing beside a
-// live one. JavaScript runs one task at a time inside a backend instance, so a
-// short critical section here IS atomic for the requests that instance serves —
-// which is exactly the burst a single tablet or kiosk produces. These helpers
-// keep that section in one place so a future storage-level primitive can
-// replace them without touching the handlers.
+// Development-only process-local coordination. These Maps are NOT durable or
+// cross-worker atomicity. A tablet burst can reach independent server instances.
+// Keep release blocked until the durable adapter and operation recovery protocol
+// are deployed and verified; see security-tests/durable-concurrency.md.
 
 // --- Serialized critical section -------------------------------------------
 const locks = new Map<string, Promise<unknown>>();
@@ -90,9 +84,8 @@ export function isNewestStamp(key: string, atMs: number): boolean {
 }
 
 // --- Attempt budget backed by the database ----------------------------------
-// The count lives in VerificationAttempt so it survives a restart and applies
-// across instances; the lock only stops two calls in the same instance from
-// reading the same count and both deciding they are allowed.
+// Attempt rows persist, but count/read/create remains racy across instances.
+// The local lock only serializes callers inside this module instance.
 export function reserveAttempt(
   base44: any, key: string, limit: number, windowMs: number,
 ): Promise<boolean> {
