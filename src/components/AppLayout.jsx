@@ -44,7 +44,7 @@ function PassengerLayout({ children, title, fullBleed = false, back = null }) {
   const initials = nameInitials(user);
 
   return (
-    <div className="tt-app-shell min-h-screen bg-background">
+    <div className="tt-app-shell tt-passenger-reference min-h-screen bg-background">
       <header className="sticky top-0 z-40 hidden border-b border-border bg-background/90 backdrop-blur-md md:block">
         <div className="mx-auto flex h-16 max-w-6xl items-center gap-8 px-8">
           <Link to="/staff" className="flex items-center gap-2.5 font-heading text-title-sm font-bold">
