@@ -746,7 +746,6 @@ test('pickup selection is a draft until confirmed, supports search, and keeps th
  await page.getByRole('button',{name:'Find my pickup',exact:true}).click();
  let dialog=page.getByRole('dialog',{name:'Pickup'});
  await dialog.getByRole('button',{name:'Choose a company stop instead'}).click();
- await dialog.getByRole('button',{name:'Choose a company stop instead'}).click();
  await expect(dialog.getByText('Coastal route',{exact:true}).first()).toBeVisible();
  await expect(dialog.getByLabel('Pickup stops map')).toHaveCount(0);
  await dialog.getByLabel('Search stops or areas').fill('True Blue');
@@ -779,7 +778,6 @@ test('failed pickup save retains the old choice and allows retry',async({page})=
  });
  await page.getByRole('button',{name:'Find my pickup',exact:true}).click();
  const dialog=page.getByRole('dialog',{name:'Pickup'});
- await dialog.getByRole('button',{name:'Choose a company stop instead'}).click();
  await dialog.getByRole('button',{name:'Choose a company stop instead'}).click();
  await dialog.getByRole('button',{name:/^True Blue/}).click();
  await dialog.getByRole('button',{name:'Confirm pickup',exact:true}).click();
