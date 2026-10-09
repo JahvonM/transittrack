@@ -428,15 +428,6 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
     const boarding = pending.next_status === "boarded";
     actionContent = (
       <Screen modeKey="confirm" className="p-8 text-center space-y-4">
-        {/* A little card flies in and "taps" down before the person's info
-            appears — reinforces the physical action that just happened
-            instead of jumping straight to a static result. Only for a real
-            NFC tap; QR/code entry has no physical tap to echo. */}
-        {pending.method === "nfc" && (
-          <div className="mx-auto w-16 h-11 rounded-lg bg-gradient-to-br from-primary to-primary/70 shadow-lg grid place-items-center animate-in slide-in-from-top-20 fade-in duration-500">
-            <CreditCard className="w-6 h-6 text-primary-foreground" />
-          </div>
-        )}
         <div className="tt-board-id-layout">
           <Avatar name={pending.staff.full_name} photoUrl={pending.staff.photo_url} />
           <div><p className="tt-board-id-label">PASSENGER IDENTIFICATION</p><p className="tt-board-id-name">{pending.staff.full_name}</p><p className="tt-board-id-bus">Passenger · {device?.vehicle_name || "This bus"}</p></div>
@@ -459,7 +450,7 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
         <CardContent key="result" className="p-10 text-center space-y-4 animate-in fade-in zoom-in-90 duration-500">
           {boarded && (
             <div className="flex justify-center -mb-2">
-              <BusArtwork vehicle={vehicle} width={220} className="h-32 tt-bus-arrive" />
+              <BusArtwork vehicle={vehicle} fallbackUrl="/images/boarding-coaster.webp" width={220} className="h-32 tt-bus-arrive" />
             </div>
           )}
           <div className="flex items-center justify-center gap-3">

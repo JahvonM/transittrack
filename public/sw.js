@@ -17,7 +17,7 @@ const SHELL = "tt-shell-v" + VERSION;
 const ASSETS = "tt-assets-v" + VERSION;
 const RUNTIME = "tt-runtime-v" + VERSION;
 const NAV_TIMEOUT_MS = 4000;
-const STATIC_FILES = ["/manifest.webmanifest", "/brand/icon.svg", "/brand/favicon-32.png", "/brand/apple-touch-icon.png", "/brand/icon-192.png"];
+const STATIC_FILES = ["/images/boarding-coast.webp", "/images/boarding-coaster.webp", "/manifest.webmanifest", "/brand/icon.svg", "/brand/favicon-32.png", "/brand/apple-touch-icon.png", "/brand/icon-192.png"];
 
 // A version is only switched to once it's complete: the new page and every
 // file it (or any screen) needs must all be saved first. Until then the

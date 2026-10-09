@@ -276,6 +276,9 @@ test('home QR camera stays beside NFC and a card still reaches both actions', as
   await expect(page.getByText('Maria Joseph',{exact:true})).toBeVisible();
   await expect(page.getByRole('button',{name:'Boarding',exact:true})).toBeVisible();
   await expect(page.getByRole('button',{name:'Exiting',exact:true})).toBeVisible();
+  expect(await inView(page.getByRole('button',{name:'Boarding',exact:true}),page)).toBe(true);
+  expect(await inView(page.getByRole('button',{name:'Exiting',exact:true}),page)).toBe(true);
+  expect(await inView(page.getByRole('button',{name:'Cancel',exact:true}),page)).toBe(true);
   await page.screenshot({path:'/tmp/boarding-passenger-id.png',fullPage:true});
   await page.getByRole('button',{name:'Cancel',exact:true}).click();
   await expect(page.getByRole('button',{name:/Scan QR code/})).toBeVisible();

@@ -28,3 +28,5 @@
 .tt-board-id-layout{display:grid;grid-template-columns:190px minmax(0,1fr);align-items:center;gap:26px;text-align:left;max-width:650px;margin:0 auto}.tt-board-id-layout .tt-passenger-photo{width:190px;height:220px;font-size:54px;object-fit:cover}.tt-board-id-name{font-size:clamp(24px,3vw,40px);line-height:1.15;font-weight:750;overflow-wrap:anywhere;margin:14px 0}.tt-board-id-layout .tt-board-id-bus{margin-top:10px}
 @media(min-width:900px) and (max-height:700px){.tt-board-id-layout{grid-template-columns:150px 1fr;gap:20px}.tt-board-id-layout .tt-passenger-photo{width:150px;height:170px}}
 @media(max-width:599px){.tt-board-id-layout{grid-template-columns:100px 1fr;gap:14px}.tt-board-id-layout .tt-passenger-photo{width:100px;height:140px;font-size:36px}.tt-board-id-label{letter-spacing:1px;font-size:9px}}
+
+@media(min-width:900px) and (max-height:700px){.tt-board-action [data-mode=confirm] button.h-28{height:80px}}
