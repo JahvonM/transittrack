@@ -319,6 +319,7 @@ export default function DriverTrackingDashboard({ session, invoke, onReportIncid
         <DriverNavMap session={session} invoke={invoke} fill pushLocation={false} pins={staffPins} showProgress={false} showStatus={false} onStatus={onNavStatus} />
       </div>
 
+      <aside className="tt-cockpit-rail">
       <div className="tt-cockpit-status space-y-2 [grid-area:status]"><StatusStrip items={[{ key: "gps", ...gpsItem }, { key: "net", ...connItem }, { key: "track", ...trackItem }]} /><div className="tt-cockpit-shift">{shiftControl}{trackingButton}</div></div>
 
       <div className="hidden min-h-0 flex-col gap-4 overflow-y-auto py-1 [grid-area:next] md:flex md:overflow-hidden lg:overflow-visible">
@@ -332,6 +333,7 @@ export default function DriverTrackingDashboard({ session, invoke, onReportIncid
           arrived={nav?.arrived}
         />
         <OnBoard count={occupancy} capacity={liveVehicle?.capacity} />
+        {session?.check_ins?.length > 0 && <section className="rounded-xl border border-border bg-card p-3" aria-label="Latest boarding activity"><p className="text-caption text-muted-foreground">Latest boarding activity</p><p className="mt-1 font-semibold">{[...session.check_ins].sort((a,b) => Date.parse(b.boarded_at || b.created_date || 0)-Date.parse(a.boarded_at || a.created_date || 0))[0]?.staff_name || "Passenger"}</p></section>}
         {(panelTop || attention.length > 0) && (
           <div className="flex flex-col gap-2" aria-label="Needs attention">
             {attention}
@@ -347,6 +349,7 @@ export default function DriverTrackingDashboard({ session, invoke, onReportIncid
         </div>
       </section>
 
+      </aside>
       <div className="flex flex-col gap-2 [grid-area:deck]" aria-label="Driving controls">
         {/* Phone: next stop and passengers in one line (Stops and Home hold the rest). */}
         <div className="flex items-center justify-between gap-3 px-1 md:hidden">
