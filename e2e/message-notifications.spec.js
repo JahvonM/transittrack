@@ -48,7 +48,8 @@ for(const role of ['mechanic','company','staff'])test(role+' sends text and phot
   await page.getByRole('button',{name:/Bus A/}).click();
  } else {
   await page.goto('/staff');
-  await page.getByRole('button',{name:/Chat/}).click();
+  // The passenger home opens chat from its floating chat bubble.
+  await page.getByRole('button',{name:'Open passenger chat',exact:true}).click();
  }
  const input=page.getByPlaceholder(role!=='staff'?"Message this bus's driver…":'Message the driver…');
  await input.fill('Saved chat message');await input.press('Enter');
