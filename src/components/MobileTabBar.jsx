@@ -77,7 +77,7 @@ export default function MobileTabBar() {
   };
 
   return (
-    <nav className="md:hidden fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 backdrop-blur-md safe-area-bottom" aria-label="Passenger sections">
+    <nav className="tt-passenger-reference-tabs md:hidden fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 backdrop-blur-md safe-area-bottom" aria-label="Passenger sections">
       <div className="flex items-stretch justify-around">
         {TABS.map(({ to, label, icon: Icon, exact, also }) => {
           const also_ = Array.isArray(also) ? also : also ? [also] : [];
