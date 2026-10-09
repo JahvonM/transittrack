@@ -30,3 +30,33 @@
 @media(max-width:599px){.tt-board-id-layout{grid-template-columns:100px 1fr;gap:14px}.tt-board-id-layout .tt-passenger-photo{width:100px;height:140px;font-size:36px}.tt-board-id-label{letter-spacing:1px;font-size:9px}}
 
 @media(min-width:900px) and (max-height:700px){.tt-board-action [data-mode=confirm] button.h-28{height:80px}}
+
+/* 10.1" landscape tablets (about 1280x800, 1024x600 or 960x600 CSS px): the
+   whole screen fits exactly, never scrolls, and everything is a little smaller.
+   If one screen is ever taller than the space, only the middle panel scrolls. */
+@media(min-width:900px) and (max-height:820px){
+ .tt-boarding-showcase{height:100dvh;min-height:0;overflow:hidden}
+ .tt-board-header{min-height:0;padding:8px 18px;gap:12px}
+ .tt-board-company{gap:10px}.tt-board-company>img,.tt-board-company>svg{width:38px;height:38px}
+ .tt-board-company strong,.tt-board-trip>strong{font-size:15px}
+ .tt-board-company small,.tt-board-trip small{font-size:11px}
+ .tt-board-brand{font-size:19px;letter-spacing:2px}.tt-board-brand small{font-size:7px}
+ .tt-board-trip{gap:2px 10px}.tt-board-trip>span{font-size:17px}
+ .tt-board-layout{flex:1;min-height:0;padding:10px 16px 12px;gap:12px;grid-template-columns:minmax(0,1fr) 216px}
+ .tt-board-action{min-height:0;overflow-y:auto;scrollbar-width:none;justify-content:safe center}
+ .tt-board-action::-webkit-scrollbar{display:none}
+ .tt-board-home{min-height:0;flex:1}
+ .tt-board-scene{min-height:0}
+ .tt-board-welcome h1{font-size:clamp(26px,3vw,40px)}.tt-board-welcome p{font-size:17px}
+ .tt-board-nfc-ring{height:86px;width:86px}.tt-board-nfc-ring svg{width:40px;height:40px}.tt-board-nfc strong{margin-top:8px}
+ .tt-board-entry{padding:10px 12px;gap:12px}
+ .tt-board-slide>p{margin-bottom:8px}
+ .tt-board-qr-start{min-height:62px}.tt-board-qr-start>svg{width:42px;height:42px}.tt-board-qr-start strong{font-size:15px}
+ .tt-board-rail{min-height:0;overflow-y:auto;scrollbar-width:none;gap:8px}.tt-board-rail::-webkit-scrollbar{display:none}
+ .tt-board-panel{padding:9px 11px;border-radius:14px}.tt-board-panel strong{font-size:15px}
+ .tt-board-occupancy>strong{font-size:30px}.tt-board-occupancy strong small{font-size:16px}
+ .tt-board-reader-warning{padding:6px 18px;font-size:12px}
+ .tt-board-id-layout{grid-template-columns:150px minmax(0,1fr);gap:20px}.tt-board-id-layout .tt-passenger-photo{width:150px;height:170px}
+ .tt-board-id-name{font-size:clamp(22px,2.6vw,34px);margin:8px 0}
+ .tt-board-action [data-mode=confirm] button.h-28{height:84px}
+}

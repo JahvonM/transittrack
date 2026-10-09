@@ -1,10 +1,15 @@
 name: Desktop Windows
 on:
   workflow_dispatch:
+  push:
+    tags:
+      - 'desktop-v*'
 permissions:
   contents: read
 jobs:
   installer:
+    permissions:
+      contents: write
     runs-on: windows-2022
     timeout-minutes: 20
     defaults:
@@ -19,7 +24,26 @@ jobs:
           cache-dependency-path: desktop/package-lock.json
       - run: npm ci
       - run: npm test
+      - name: Verify release version
+        if: startsWith(github.ref, 'refs/tags/desktop-v')
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          $version = (Get-Content package.json | ConvertFrom-Json).version
+          if ($env:RELEASE_TAG -ne "desktop-v$version") { throw 'Release tag does not match desktop version' }
       - run: npm run build:win
+      - name: Publish Windows installer for update checks
+        if: startsWith(github.ref, 'refs/tags/desktop-v')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          $version = (Get-Content package.json | ConvertFrom-Json).version
+          gh release create "$env:RELEASE_TAG" "release/TransitTrack-Desktop-Setup-$version.exe" --verify-tag --title "TransitTrack Desktop $version" --notes "Windows desktop release. Download and run the installer to update."
+          if ($LASTEXITCODE -ne 0) { throw 'Release publication failed' }
       - uses: actions/upload-artifact@v6
         with:
           name: TransitTrack-Desktop-Windows
