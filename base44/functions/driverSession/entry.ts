@@ -1,6 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 import { passengerPushTokens } from '../../shared/chatPush.ts';
 import { applyLocationUpdate } from '../../shared/vehicleLocation.ts';
+// Shared request budgets use the configured Supabase RPC and fail closed.
 import { reserveAttempt, createOnce, withLock } from '../../shared/atomicOps.ts';
 import { pushWithPolicy, emailWithPolicy } from '../../shared/notificationPolicy.ts';
 
