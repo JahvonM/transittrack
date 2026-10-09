@@ -6,7 +6,7 @@ Sign in with your existing email and password, or with Google/Apple through your
 Admin opens /admin; Mechanic opens /mechanic. Menus do not grant additional access.
 
 ## Install
-Run TransitTrack-Desktop-Setup-0.2.2.exe on Windows 10/11 x64.
+Run TransitTrack-Desktop-Setup-0.2.3.exe on Windows 10/11 x64.
 The installer creates desktop and Start menu shortcuts. It installs for the current user.
 This preview installer is unsigned. Windows may show an unknown-publisher warning.
 Only install the file you obtained from the trusted project owner.
@@ -24,7 +24,7 @@ The preview has application metadata and the TransitTrack icon. Sign production
 builds with an owner-controlled certificate before release.
 
 ## Current scope and limitations
-- Remote website updates appear when the app loads; desktop-shell upgrades require a new installer.
+- Remote website updates appear when the app loads. Version 0.2.3 adds automatic Windows installer checks 15 seconds after startup and every six hours while open, plus Help → Check for updates. Checks notify once per new version per session; choose Download update to open the verified project release download in your browser. Installation remains manual and does not restart an active session. Offline background checks remain quiet.
 - Internet is needed for live tracking and writes. The local connection screen provides retry.
 - Existing web saved-work behavior is retained; no new offline guarantees are introduced.
 - Email/password sign-in works inside the window. Google, Apple, Microsoft and SSO sign-in finish in the
@@ -42,6 +42,14 @@ builds with an owner-controlled certificate before release.
 - No signing credentials, backend secrets, device credentials or database keys are packaged.
 - Security policy tests run in Node; installation and actual account login still need Windows testing.
 - This is a desktop preview, not approval for production launch. Existing release security blockers remain.
+
+## Publishing desktop updates
+
+The checker reads public GitHub releases in JahvonM/transittrack. Only stable, non-draft tags named desktop-vX.Y.Z with an uploaded TransitTrack-Desktop-Setup-X.Y.Z.exe asset are eligible. Other app releases and prereleases are ignored. No GitHub token is packaged.
+
+Bump desktop/package.json and its lockfile together, then push a matching desktop-vX.Y.Z tag for the intended commit. The Desktop Windows workflow tests, builds and publishes that installer to GitHub Releases. Manual workflow runs still produce an artifact without publishing it. A private repository or an unpublished installer cannot be detected by this public feed. The workflow has been prepared; no release is published merely by editing these files.
+
+Older installations require one manual upgrade to 0.2.3 before automatic checks exist. This preview offers downloads, not silent binary replacement. Actual Windows checks and upgrade installation still need testing. Future signed automatic installation requires owner-controlled signing and a verified installation mechanism.
 
 ## Google and Apple sign-in
 Choosing "Continue with Google" (or Apple) in the desktop window does not load the provider inside the app.
