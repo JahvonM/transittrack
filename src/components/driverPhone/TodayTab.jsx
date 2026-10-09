@@ -1,6 +1,6 @@
 import BusArtwork from "@/components/BusArtwork";
 import React from "react";
-import { Bus, CircleCheck, ClipboardCheck, Clock, Megaphone, MessageCircle, Phone, Play, Radio, Route as RouteIcon, Square, UserX, Users, FileText } from "lucide-react";
+import { Bus, CircleCheck, ClipboardCheck, Clock, MapPin, Megaphone, MessageCircle, Phone, Play, Radio, Route as RouteIcon, Square, UserX, Users, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { telLink, whatsappLink } from "@/lib/driverPhone";
 
@@ -49,8 +49,10 @@ export default function TodayTab({ today, driverName, onPickBus, onStartShift, o
   const stops = route?.stops || [];
   const riding = pickups.filter((p) => !p.skipping);
   const atStop = (name) => riding.filter((p) => p.stop === name);
-  const noPoint = riding.filter((p) => !p.stop);
   const skipping = pickups.filter((p) => p.skipping);
+  // Who to pick up, in the order the bus reaches their stops (no stop last).
+  const stopNumber = new Map(stops.map((s, i) => [s.name, i + 1]));
+  const inOrder = [...riding].sort((a, b) => ((stopNumber.get(a.stop) ?? Infinity) - (stopNumber.get(b.stop) ?? Infinity)) || a.name.localeCompare(b.name));
   const hasContacts = telLink(contacts?.dispatch_phone) || telLink(contacts?.manager_phone);
 
   return (
@@ -155,7 +157,44 @@ export default function TodayTab({ today, driverName, onPickBus, onStartShift, o
       )}
 
       {bus && (
-        <div id="tt-phone-pickups" className="scroll-mt-20"><Section title={route?.name || "No route assigned"} icon={RouteIcon}>
+        <div id="tt-phone-pickups" className="scroll-mt-20"><Section title="Who to pick up" icon={Users}>
+          {inOrder.length === 0 ? (
+            <p className="text-body text-muted-foreground">No pickups today.</p>
+          ) : (
+            <ul className="divide-y divide-border" aria-label="Passengers to pick up">
+              {inOrder.map((p, i) => {
+                const n = stopNumber.get(p.stop);
+                return (
+                  <li key={`${p.name}-${i}`} className="flex min-h-[52px] items-center gap-3 py-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-body font-semibold">{p.name}</p>
+                      {p.late && <p className="text-caption font-semibold text-warning">Running late</p>}
+                    </div>
+                    {p.stop ? (
+                      <p className="flex min-w-0 max-w-[58%] items-center justify-end gap-1.5 text-right text-body-sm font-medium">
+                        <MapPin className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+                        <span className="truncate">{p.stop}</span>
+                        {n && <span className="grid h-6 min-w-[1.5rem] shrink-0 place-items-center rounded-full bg-secondary px-1.5 text-caption font-bold" title={`Stop ${n}`}>{n}</span>}
+                      </p>
+                    ) : (
+                      <p className="max-w-[58%] text-right text-body-sm text-muted-foreground">No pickup point set</p>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+          {skipping.length > 0 && (
+            <p className="mt-3 flex items-start gap-2 text-body-sm text-muted-foreground">
+              <UserX className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+              Not riding today: {skipping.map((p) => p.name).join(", ")}
+            </p>
+          )}
+        </Section></div>
+      )}
+
+      {bus && (
+        <Section title={route?.name || "No route assigned"} icon={RouteIcon}>
           {!route ? (
             <p className="text-body text-muted-foreground">Ask dispatch to give this bus a route.</p>
           ) : (
@@ -175,30 +214,17 @@ export default function TodayTab({ today, driverName, onPickBus, onStartShift, o
                       </span>
                       <div className="min-w-0 flex-1 pt-0.5">
                         <p className="font-semibold">{s.name}</p>
-                        {people.length > 0 ? (
-                          <p className="text-body-sm text-muted-foreground">
-                            Pick up {people.map((p) => p.name + (p.late ? " (running late)" : "")).join(", ")}
-                          </p>
-                        ) : (
-                          <p className="text-body-sm text-muted-foreground">No pickups</p>
-                        )}
+                        <p className="text-body-sm text-muted-foreground">
+                          {people.length > 0 ? `${people.length} pickup${people.length === 1 ? "" : "s"}` : "No pickups"}
+                        </p>
                       </div>
                     </li>
                   );
                 })}
               </ol>
-              {noPoint.length > 0 && (
-                <p className="mt-3 text-body-sm text-muted-foreground">No pickup point set: {noPoint.map((p) => p.name).join(", ")}</p>
-              )}
-              {skipping.length > 0 && (
-                <p className="mt-2 flex items-start gap-2 text-body-sm text-muted-foreground">
-                  <UserX className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-                  Not riding today: {skipping.map((p) => p.name).join(", ")}
-                </p>
-              )}
             </>
           )}
-        </Section></div>
+        </Section>
       )}
 
       {hasContacts && (
