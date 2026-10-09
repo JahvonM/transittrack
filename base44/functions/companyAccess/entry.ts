@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 import { retry429 } from '../../shared/retry429.ts';
+// Shared request budgets use the configured Supabase RPC and fail closed.
 import { reserveAttempt } from '../../shared/atomicOps.ts';
 
 async function hashSecret(value) {
