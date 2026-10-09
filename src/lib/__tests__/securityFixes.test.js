@@ -133,3 +133,15 @@ describe("usage limits", () => {
     expect(sdk.tables.Trip || []).toHaveLength(0);
   });
 });
+
+describe("signed-out requests", () => {
+  it("get a sign-in answer, not an error, when the platform finds no session", async () => {
+    for (const [name, body] of [["bookTaxi", { action: "list" }], ["busAssistant", { question: "hi" }], ["generateOneTimeCode", {}], ["companyAccess", { action: "context" }], ["notifyStaffPickup", {}], ["applyUserRole", { role: "staff" }], ["deleteAccount", {}], ["adminCopilot", {}]]) {
+      const sdk = mock(null);
+      sdk.auth.me = async () => { throw Object.assign(new Error("Authentication required"), { status: 401 }); };
+      const res = await call(sdk, name, body);
+      expect([name, res.status]).toEqual([name, 401]);
+      expect(sdk.writes).toEqual([]);
+    }
+  });
+});

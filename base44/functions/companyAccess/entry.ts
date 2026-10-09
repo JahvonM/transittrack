@@ -78,7 +78,7 @@ async function companyFromMembership(base44, user) {
 export default async function(req) {
  try {
   const base44 = createClientFromRequest(req);
-  const user = await base44.auth.me();
+  const user = await base44.auth.me().catch((e) => { const s = e?.status ?? e?.response?.status; if (s === 401 || s === 403) return null; throw e; }); // no session: signed out; an outage stays an error
   if (!user || !['staff','passenger','admin','company'].includes(user.role)) return Response.json({ error: 'Sign in to continue' }, { status: 401 });
   const body = await req.json();
   if (body.action === 'context') {

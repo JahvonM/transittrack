@@ -8,7 +8,7 @@ const ALLOWED_ROLES = ["driver", "staff"];
 export default async function applyUserRole(req) {
   try {
     const base44 = createClientFromRequest(req);
-    const user = await base44.auth.me();
+    const user = await base44.auth.me().catch((e) => { const s = e?.status ?? e?.response?.status; if (s === 401 || s === 403) return null; throw e; }); // no session: signed out; an outage stays an error
     if (!user) {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
