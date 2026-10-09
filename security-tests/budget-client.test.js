@@ -3,6 +3,15 @@ import {createDurableAttemptBudget} from '../base44/shared/durableAttemptBudget'
 const id='12345678-1234-4234-8234-123456789abc';
 const config={url:'https://example.supabase.co',serviceRoleKey:'backend-test-key-never-real'};
 describe('durable attempt budget transport',()=>{
+ it('classifies DNS failures without returning the raw exception',async()=>{
+  const client=createDurableAttemptBudget({...config,fetchImpl:async()=>{throw Error('DNS resolve sb_secret_PRIVATE');}});
+  let error;try{await client.reserve('scope',id,5,60000);}catch(e){error=e;}
+  expect(error.networkKind).toBe('dns');expect(JSON.stringify(error)).not.toContain('PRIVATE');
+ });
+ it('rejects whitespace inside credentials before network access',()=>{
+  expect(()=>createDurableAttemptBudget({...config,serviceRoleKey:'sb_secret_invalid key with whitespace'})).toThrow('Missing atomic store backend credential');
+ });
+
  it('retains safe HTTP diagnostics and discards provider messages',async()=>{
   const client=createDurableAttemptBudget({...config,fetchImpl:async()=>Response.json({code:'PGRST202',message:'sb_secret_PRIVATE'},{status:404})});
   let error;try{await client.reserve('scope',id,5,60000);}catch(e){error=e;}
