@@ -734,3 +734,72 @@ html.tt-future {
  width: calc(100% - env(safe-area-inset-left) - env(safe-area-inset-right) - 2rem);
  overflow-y: auto;
 }
+
+/* Approved phone/tablet references: presentation only; live data stays in its existing components. */
+.tt-passenger-reference,.tt-driver-reference,.tt-driver-phone-reference {
+  --background:218 61% 6%;--foreground:205 50% 96%;--card:216 48% 11%;--card-foreground:205 50% 96%;
+  --primary:186 95% 50%;--primary-foreground:218 70% 7%;--secondary:215 42% 16%;--secondary-foreground:205 50% 96%;
+  --muted:215 35% 15%;--muted-foreground:210 22% 70%;--border:204 34% 24%;--accent:207 44% 20%;--accent-foreground:205 50% 96%;
+  color:hsl(var(--foreground));background:radial-gradient(ellipse at 90% 0%,#12384d80,transparent 50%),#050d1b;
+}
+.tt-passenger-reference button,.tt-driver-reference button,.tt-driver-phone-reference button { border-radius:14px; }
+.tt-passenger-reference button:focus-visible,.tt-driver-reference button:focus-visible,.tt-driver-phone-reference button:focus-visible{outline:2px solid #28e5f4;outline-offset:3px}
+.tt-passenger-reference :is(.bg-card,.tt-bus-card),.tt-driver-phone-reference section,.tt-driver-reference :is(.bg-card,.bg-secondary) {
+  background:linear-gradient(145deg,#14263eee,#0c192cee);border-color:#29465b;box-shadow:inset 0 1px 0 #8be7ff0a,0 8px 25px #0002;
+}
+.tt-passenger-reference .tt-passenger-greeting h1,.tt-driver-phone-reference h1 {font-size:clamp(25px,6vw,34px);letter-spacing:-.035em}
+.tt-arrival-reference {position:relative;isolation:isolate;overflow:hidden;min-height:310px;background:linear-gradient(90deg,#081a2df2 0%,#091c30bb 45%,#091b3060),url('/images/boarding-coast.webp') center/cover!important;border:1px solid #2e6477!important;box-shadow:0 8px 35px #0005,inset 0 0 36px #27e4ff09!important}
+.tt-arrival-reference>.tt-arrival-art {position:absolute;right:-8px;top:35px;width:64%;height:190px;margin:0;z-index:-1;filter:drop-shadow(0 18px 15px #0009)}
+.tt-arrival-reference>p:first-child{margin-bottom:12px;color:#c1dfeb}
+.tt-arrival-reference .tt-arrival-live {position:relative;margin-top:105px;max-width:60%}
+.tt-arrival-main>div:first-child {padding-top:4px}
+.tt-arrival-main>div:first-child>div>.tt-bus-artwork {display:none}
+.tt-arrival-reference .tt-arrival-estimate {position:absolute;left:20px;top:56px;text-align:left;max-width:47%}
+.tt-arrival-estimate>div{justify-content:flex-start}
+.tt-arrival-estimate .text-title {font-size:26px}
+.tt-arrival-estimate .text-caption {font-size:14px}
+.tt-passenger-pickup-actions {display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;padding:0 24px 16px}
+.tt-passenger-pickup-actions>section,.tt-passenger-pickup-actions>div {padding:0!important;min-width:0}
+.tt-show-map-button {min-height:56px;background:linear-gradient(120deg,#06cce7,#2898ed);color:#041322;font-weight:750;box-shadow:0 5px 24px #04cde52b}
+.tt-bus-filters{background:#0d1d32;border-color:#2a455a}
+.tt-bus-filters [aria-pressed="true"] {background:linear-gradient(120deg,#13d7e5,#168dcc);color:#041322;box-shadow:0 0 18px #14ddec22}
+.tt-passenger-reference section[aria-label="Company bus directory"] ul {display:flex;flex-direction:column;gap:14px;background:transparent;border:0}
+.tt-passenger-reference .tt-bus-card{border:1px solid #29495e;border-radius:20px;overflow:hidden}
+.tt-passenger-reference .tt-bus-card>a{padding:15px;gap:12px;min-height:150px}
+.tt-passenger-reference .tt-bus-card>a>span:first-of-type>.font-semibold {font-size:20px}
+.tt-passenger-reference .tt-bus-card .tt-bus-artwork{width:145px;height:110px}
+.tt-passenger-reference-tabs {background:#071222f2!important;border-color:#274257!important;color:#a5bbc9}
+.tt-passenger-reference-tabs [aria-current="page"] {color:#25e1ef;text-shadow:0 0 20px #1ceafa55}
+.tt-driver-phone-reference .tt-driver-vehicle-hero{position:relative;overflow:hidden;background:linear-gradient(180deg,#0b1d3580,#0a172cf5),url('/images/boarding-coast.webp') center top/cover!important}
+.tt-driver-phone-reference .tt-driver-vehicle-hero>.tt-bus-artwork {filter:drop-shadow(0 16px 10px #0008);height:150px}
+.tt-driver-phone-reference .tt-phone-quick-actions>button {display:flex;align-items:center;gap:12px;min-height:66px;padding:14px 16px;background:linear-gradient(125deg,#16324b,#0f2036);border:1px solid #34566e;box-shadow:inset 0 1px 0 #82e8ff15;color:#e4f6fc;text-align:left;font-weight:650}
+.tt-phone-quick-actions svg{width:23px;height:23px;color:#2fe0ec}
+.tt-phone-trip-summary section {padding:16px}
+.tt-phone-trip-summary h2 {font-size:14px;color:#9db6c9}
+.tt-driver-phone-reference nav{background:#071222f5!important;border-color:#274257}
+.tt-driver-phone-reference nav [aria-current="page"]{color:#2ee4ed}
+.tt-cockpit-shift,.tt-cockpit-shortcut{display:none}
+.tt-driver-reference nav[aria-label="Driver sections"]{display:flex;overflow-x:auto}
+.tt-driver-reference nav[aria-label="Driver sections"]>button{min-width:76px;flex:1;border-radius:0}
+@media(min-width:900px){
+ .tt-driver-reference{display:grid!important;grid-template-columns:110px minmax(0,1fr);grid-template-rows:auto auto minmax(0,1fr);gap:0}
+ .tt-driver-reference>.tt-company-banner{grid-column:1/-1}
+ .tt-driver-reference>div:not([role]) {grid-column:1/-1}
+ .tt-driver-reference>main{grid-column:2;grid-row:3;min-width:0}
+ .tt-driver-reference>nav[aria-label="Driver sections"]{grid-column:1;grid-row:3;display:flex;flex-direction:column;overflow-y:auto;border-top:0;border-right:1px solid #27465d;padding:8px 6px;background:#071426}
+ .tt-driver-reference>nav[aria-label="Driver sections"]>button{min-height:54px;flex:none;gap:4px;margin:3px 0;font-size:12px;border-radius:12px}
+ .tt-driver-reference>nav [aria-current="page"]{background:linear-gradient(90deg,#0fcce929,#128abb16);box-shadow:inset 3px 0 #26def0;color:#5eeef7}
+ .tt-driver-reference>nav [aria-current="page"]>span[aria-hidden]{display:none}
+ .tt-driver-cockpit-reference {grid-template-columns:minmax(0,1fr) 285px!important;grid-template-areas:"map status" "map next" "map more" "deck deck"!important;grid-template-rows:auto auto minmax(0,1fr) auto!important;gap:12px}
+ .tt-driver-cockpit-reference>[style],.tt-driver-cockpit-reference>div:first-child{border:1px solid #2c566b;border-radius:20px;overflow:hidden}
+ .tt-cockpit-shift{display:grid;grid-template-columns:1fr;gap:8px;margin-top:8px}
+ .tt-cockpit-status {min-width:0}
+ .tt-driver-cockpit-reference>[aria-label="Driving controls"]>div:not(.tt-cockpit-actions){display:none}
+ .tt-cockpit-mobile-shift{display:none!important}
+ .tt-cockpit-actions {grid-template-columns:repeat(3,minmax(0,1fr)) auto minmax(120px,.7fr)!important;align-items:stretch}
+ .tt-cockpit-shortcut{display:flex;background:linear-gradient(125deg,#18384f,#102238);border-color:#355974;font-size:14px}
+ .tt-driver-cockpit-reference [aria-label="Today's trips and pickups"]{overflow-y:auto}
+ .tt-driver-cockpit-reference>[class*="grid-area:next"]{overflow-y:auto!important;gap:12px}
+}
+@media(min-width:1024px){.tt-passenger-pickup-actions{padding-left:0;padding-right:0}}
+@media(max-width:480px){.tt-passenger-reference .tt-bus-card .tt-bus-artwork{width:110px;height:95px}.tt-passenger-reference .tt-bus-card>a{gap:8px;padding:12px}.tt-passenger-reference .tt-bus-card>a>span:first-of-type>.font-semibold{font-size:17px}.tt-arrival-reference .tt-arrival-live{max-width:100%}.tt-arrival-reference .tt-arrival-estimate .text-title{font-size:22px}}
