@@ -86,8 +86,15 @@ describe("passenger-chosen boarding codes", () => {
   });
   it("allows only five changes a day", async () => {
     const sdk = mock("staff");
-    sdk.tables.VerificationAttempt = Array.from({ length: 5 }, (_, i) => ({ id: "c" + i, scope: "boarding-code-change:caller", attempted_at: new Date().toISOString() }));
-    expect((await setCode(sdk, "583920")).status).toBe(429);
+    // One shared limiter instance, as in production.
+    const handler = load("generateOneTimeCode", sdk).default;
+    const statuses = [];
+    for (const code of ["583920", "471638", "902817", "364059", "718246", "250973"]) {
+      const r = await handler(request({ action: "boarding_set_code", code }));
+      statuses.push(r.status);
+    }
+    expect(statuses.slice(0, 5).every((st) => st !== 429)).toBe(true);
+    expect(statuses[5]).toBe(429);
   });
 });
 
@@ -127,10 +134,12 @@ describe("usage limits", () => {
   it("a passenger can make at most ten taxi bookings an hour", async () => {
     const sdk = mock("staff");
     sdk.tables.Company[1].service_types = ["taxi"];
-    sdk.tables.VerificationAttempt = Array.from({ length: 10 }, (_, i) => ({ id: "b" + i, scope: "taxi-booking:caller", attempted_at: new Date().toISOString() }));
-    const res = await call(sdk, "bookTaxi", { passenger_name: "Pat", phone: "555", pickup_name: "Here", dropoff_name: "There", company_id: "b" });
-    expect(res.status).toBe(429);
-    expect(sdk.tables.Trip || []).toHaveLength(0);
+    const handler = load("bookTaxi", sdk).default;
+    const booking = { passenger_name: "Pat", phone: "555", pickup_name: "Here", dropoff_name: "There", company_id: "b" };
+    const statuses = [];
+    for (let i = 0; i < 11; i++) statuses.push((await handler(request(booking))).status);
+    expect(statuses).toEqual([...Array(10).fill(200), 429]);
+    expect(sdk.tables.Trip).toHaveLength(10);
   });
 });
 
