@@ -668,7 +668,7 @@ test('passenger Buses is distinct from Home and chat bubble works on both',async
  await expect(page.getByRole('heading',{name:'Company buses',exact:true})).toBeVisible();
  await expect(page.getByLabel('Your bus',{exact:true})).toHaveCount(0);
  await expect(page.getByRole('button',{name:/Notify me/})).toHaveCount(0);
- await expect(page.getByText('All company buses',{exact:true})).toBeVisible();
+ await expect(page.getByRole('group',{name:'Filter buses',exact:true})).toBeVisible();
  await expect(page.getByLabel('Company bus directory').getByText('TT-102',{exact:true})).toBeVisible();
  await expect(page.locator('#passenger-live-map')).toHaveCount(0);
  await page.getByRole('button',{name:'Show map',exact:true}).click();
@@ -920,7 +920,10 @@ test('pull gesture refreshes once and cancelled gestures preserve the current li
  await page.goto('/admin');
  const panel=page.getByRole('region',{name:'Fleet overview'});
  await expect(panel).toBeVisible();
- const initial=calls.filter(c=>c.entity==='Vehicle'&&c.operation==='list').length;
+ const vehicleLists=()=>calls.filter(c=>c.entity==='Vehicle'&&c.operation==='list').length;
+ // The page's own load, then the live list's first check 1.5 s later (FIRST_POLL_MS in scopedEntities).
+ await expect.poll(vehicleLists,{timeout:8000}).toBeGreaterThanOrEqual(2);
+ const initial=vehicleLists();
  const gesture=async(cancel)=>panel.evaluate((el,cancel)=>{
   const emit=(type,y)=>el.dispatchEvent(new TouchEvent(type,{bubbles:true,touches:type==='touchend'||type==='touchcancel'?[]:[new Touch({identifier:1,target:el,clientX:100,clientY:y})]}));
   emit('touchstart',200);emit('touchmove',350);emit(cancel?'touchcancel':'touchend',350);
