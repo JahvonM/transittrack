@@ -27,10 +27,11 @@ function BusRow({ v, route, stop, now }) {
   return (
     <li className="tt-bus-card">
       <Link to={`/route-explorer?bus=${encodeURIComponent(v.id)}`} className="flex min-h-[72px] items-center gap-4 px-6 py-2 hover:bg-accent/50 md:px-3">
-        <BusArtwork vehicle={v} width={120} className="h-24 w-24 sm:w-32 shrink-0" />
+        <BusArtwork vehicle={v} fallbackUrl="/images/boarding-coaster.webp" width={120} className="h-24 w-24 sm:w-32 shrink-0" />
         <span className="min-w-0 flex-1">
           <span className="block truncate font-semibold">{v.name}{v.plate_number ? <span className="font-normal text-muted-foreground"> · {v.plate_number}</span> : null}</span>
           <span className="block truncate text-body-sm text-muted-foreground">{route?.name ? `${route.name} · ` : ""}{busStatusLine(v, route, now)}</span>
+          {v.capacity > 0 && <span className="mt-2 block text-caption text-muted-foreground">{v.capacity} seats</span>}
         </span>
         {live && stop && mins != null ? (
           <span className="shrink-0 text-right">
@@ -71,6 +72,7 @@ export default function Buses() {
   const [loading, setLoading] = useState(true);
   const [now, setNow] = useState(() => Date.now());
   const [mapOpen, setMapOpen] = useState(false);
+  const [filter, setFilter] = useState("all");
 
   const load = () => Promise.all([base44.entities.Route.list(), base44.entities.Vehicle.list(), base44.entities.Workplace.list()])
     .then(([r, v, w]) => {
@@ -118,9 +120,12 @@ export default function Buses() {
         {loading ? <BusLoader className="py-10" /> : (
           <>
             <p className="px-6 pb-4 text-body text-muted-foreground md:px-0">
-              <span className="font-semibold text-foreground">All company buses</span>
+              <span className="text-title font-bold text-foreground">Choose your ride</span>
               <span className="block">{coming.length + onRoad.length} of {visible.length} on the road now.</span>
             </p>
+            <div className="tt-bus-filters mx-6 mb-5 flex rounded-xl border border-border p-1 md:mx-0" role="group" aria-label="Filter buses">
+              {[["all", "All"], ["road", "On route"], ["parked", "Parked"]].map(([id, label]) => <button type="button" key={id} aria-pressed={filter === id} onClick={() => setFilter(id)} className="min-h-11 flex-1 rounded-lg font-semibold">{label}</button>)}
+            </div>
             <section className="px-6 pb-6 md:px-0" aria-labelledby="tt-buses-map">
               <SectionHead id="tt-buses-map" title="Map" aside={mapOpen ? <MapToggle open onToggle={() => setMapOpen(false)} /> : null} />
               {mapOpen ? (
@@ -134,9 +139,10 @@ export default function Buses() {
               )}
             </section>
             <section aria-label="Company bus directory">
-            <Group id="tt-buses-coming" title={stop ? `Coming to ${stop.name}` : "Serving your stop"} buses={coming} routes={routes} stop={stop} now={now} />
-            <Group id="tt-buses-road" title={coming.length ? "Other buses on the road" : "On the road"} buses={onRoad} routes={routes} stop={null} now={now} />
-            <Group id="tt-buses-parked" title="Not on the road" buses={parked} routes={routes} stop={null} now={now} />
+            <Group id="tt-buses-coming" title={stop ? `Coming to ${stop.name}` : "Serving your stop"} buses={filter === "parked" ? [] : coming} routes={routes} stop={stop} now={now} />
+            <Group id="tt-buses-road" title={coming.length ? "Other buses on the road" : "On the road"} buses={filter === "parked" ? [] : onRoad} routes={routes} stop={null} now={now} />
+            <Group id="tt-buses-parked" title="Not on the road" buses={filter === "road" ? [] : parked} routes={routes} stop={null} now={now} />
+            {visible.length > 0 && ((filter === "road" && coming.length + onRoad.length === 0) || (filter === "parked" && parked.length === 0)) && <p className="px-6 py-8 text-center text-muted-foreground">No buses in this view.</p>}
             {!visible.length && <p className="px-6 py-10 text-center text-muted-foreground">No buses to show yet.</p>}
             </section>
           </>
