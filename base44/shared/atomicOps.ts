@@ -1,3 +1,6 @@
+import { secrets } from 'base44:runtime';
+import { createConfiguredAttemptReservation } from './configuredAttemptBudget.ts';
+
 // Development-only process-local coordination. These Maps are NOT durable or
 // cross-worker atomicity. A tablet burst can reach independent server instances.
 // Keep release blocked until the durable adapter and operation recovery protocol
@@ -83,19 +86,14 @@ export function isNewestStamp(key: string, atMs: number): boolean {
   return seen === undefined || atMs >= seen;
 }
 
-// --- Attempt budget backed by the database ----------------------------------
-// Attempt rows persist, but count/read/create remains racy across instances.
-// The local lock only serializes callers inside this module instance.
+// --- Durable request budget -------------------------------------------------
+// Supabase serializes decisions across workers. Unknown outcomes fail closed;
+// entity rows and process-local locks are never used as a fallback.
+const reserveConfiguredAttempt = createConfiguredAttemptReservation(name => secrets.get(name));
 export function reserveAttempt(
-  base44: any, key: string, limit: number, windowMs: number,
+  _base44: any, key: string, limit: number, windowMs: number,
 ): Promise<boolean> {
-  return withLock('attempt:' + key, async () => {
-    const rows = await base44.asServiceRole.entities.VerificationAttempt.filter({ scope: key }, '-created_date', Math.max(limit, 50));
-    const recent = rows.filter((row: any) => Date.parse(row.attempted_at) > Date.now() - windowMs);
-    if (recent.length >= limit) return false;
-    await base44.asServiceRole.entities.VerificationAttempt.create({ scope: key, attempted_at: new Date().toISOString() });
-    return true;
-  });
+  return reserveConfiguredAttempt(key, limit, windowMs);
 }
 
 function cap(map: Map<string, unknown>, max: number): void {
