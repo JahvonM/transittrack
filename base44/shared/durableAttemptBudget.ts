@@ -7,7 +7,7 @@ export function createDurableAttemptBudget(config: {
  if (url.protocol !== 'https:' || !/^[a-z0-9-]+\.supabase\.co$/.test(url.hostname)
   || url.port || url.username || url.password || url.search || url.hash
   || (url.pathname !== '/' && url.pathname !== '')) throw new Error('Invalid atomic store URL');
- if (!config.serviceRoleKey || config.serviceRoleKey.length < 20 || /\\s/.test(config.serviceRoleKey)) throw new Error('Missing atomic store backend credential');
+ if (!config.serviceRoleKey || config.serviceRoleKey.length < 20 || /\s/.test(config.serviceRoleKey)) throw new Error('Missing atomic store backend credential');
  const timeoutMs = config.timeoutMs ?? 5000;
  if (!Number.isInteger(timeoutMs) || timeoutMs < 100 || timeoutMs > 30000) throw new Error('Invalid atomic store timeout');
  const fetchImpl = config.fetchImpl ?? fetch;
