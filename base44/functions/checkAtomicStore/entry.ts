@@ -4,7 +4,7 @@ import { createDurableAttemptBudget } from '../../shared/durableAttemptBudget.ts
 
 // Setup diagnostic only. Does not activate application handlers.
 // Each run leaves one policy and twenty-one synthetic reservation rows.
-// Verified backend-only secret-key transport; no application activation.
+// Manual same-project RPC redirect handling; no application activation.
 export function createCheckAtomicStoreHandler(deps: {
  clientFromRequest: typeof createClientFromRequest;
  getSecret: (name: string) => string | null | undefined;
