@@ -2,7 +2,7 @@ import React, { Suspense, lazy, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import { MAPBOX_TOKEN } from "@/lib/mapbox";
-import { MapPin, Search, Crosshair, RefreshCw, Hand } from "lucide-react";
+import { MapPin, Search, Crosshair, Hand, Check, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
@@ -39,9 +39,13 @@ export default function LocationPinner({ onSaved }) {
   const [origin, setOrigin] = useState(null);
   const [saving, setSaving] = useState(false);
   const [finding, setFinding] = useState(false);
+  const [phase, setPhase] = useState("choose");
+  const [nickname, setNickname] = useState("");
 
   const pin = async (lat, lng, address) => {
     setFinding(true);
+    setPhase("choose");
+    setNickname("");
     setSuggestion(null);
     setOwn(null);
     setOrigin({ lat, lng });
@@ -65,10 +69,10 @@ export default function LocationPinner({ onSaved }) {
     try {
       await base44.entities.User.update(user.id, {
         home_lat: origin.lat, home_lng: origin.lng, home_address: suggestion.address,
-        pickup_lat: suggestion.lat, pickup_lng: suggestion.lng, pickup_name: suggestion.name, pickup_route_id: suggestion.route_id,
+        pickup_lat: suggestion.lat, pickup_lng: suggestion.lng, pickup_name: nickname.trim() || suggestion.name, pickup_route_id: suggestion.route_id,
       });
       await checkUserAuth?.();
-      await onSaved?.(suggestion.name);
+      await onSaved?.(nickname.trim() || suggestion.name);
       setSuggestion(null);
       toast({ title: "Roadside pickup saved", description: "Your driver sees the bus-road point. Use the walking directions to reach it." });
     } catch { toast({ title: "Couldn't save your pickup", variant: "destructive" }); }
@@ -77,6 +81,7 @@ export default function LocationPinner({ onSaved }) {
 
   const startOwnSpot = () => {
     const at = suggestion || origin || (user?.pickup_lat != null ? { lat: user.pickup_lat, lng: user.pickup_lng } : null);
+    setPhase("choose");
     setOwn({ lat: at?.lat ?? null, lng: at?.lng ?? null, label: "", road: null, checking: false });
   };
   const moveOwnSpot = async (lat, lng) => {
@@ -154,82 +159,72 @@ export default function LocationPinner({ onSaved }) {
 
   const hasPin = user?.pickup_lat != null;
 
+  const busy = locating || searching || finding || saving;
+  const map = suggestion && <div className="h-60 overflow-hidden rounded-2xl border">
+    <LiteMap fill vehicles={[]} stops={phase === "review" ? [{ name: suggestion.name, lat: suggestion.lat, lng: suggestion.lng }] : options}
+      pins={origin ? [{ ...origin, label: "You", color: "#00d7e8" }] : []}
+      lines={phase === "review" ? [{ coords: suggestion.geometry, color: "#00d7e8", width: 4 }] : []} />
+  </div>;
+
   return (
-    <div className="space-y-3">
-      <div className="flex items-start gap-2 text-sm">
-        <MapPin className="w-4 h-4 text-primary mt-0.5 shrink-0" />
-        <span className={hasPin ? "" : "text-muted-foreground"}>
-          {hasPin ? user.pickup_name || "Roadside pickup saved" : "Set your location to find a pickup on a road your company bus uses."}
-        </span>
+    <div className="tt-pickup-finder space-y-4">
+      <div>
+        <p className="text-xs uppercase tracking-widest text-primary">TransitTrack · Pickup finder</p>
+        <h2 className="text-2xl font-bold mt-2">{phase === "review" ? "Your walk to the bus" : "Find your pickup"}</h2>
+        <p className="text-sm text-muted-foreground mt-1">{phase === "review" ? "Check your meeting point before confirming." : "Choose a nearby stop on your bus route."}</p>
       </div>
-      {suggestion && (
-        <div className="space-y-3 rounded-xl border p-3">
-          <p className="font-semibold">{suggestion.name}</p>
-          <p className="text-sm">{Math.round(suggestion.walkM)} m · about {Math.max(1, Math.round(suggestion.walkMin))} min walk</p>
-          <div className="h-56 overflow-hidden rounded-lg">
-            <LiteMap fill vehicles={[]} stops={[{ name: suggestion.name, lat: suggestion.lat, lng: suggestion.lng }]}
-              pins={[{ ...origin, label: "Your location", color: "#3b82f6" }]} lines={[{ coords: suggestion.geometry, color: "#10b981", width: 4 }]} />
-          </div>
-          <ol className="text-sm list-decimal pl-5">{suggestion.steps.map((s,i) => <li key={i}>{s}</li>)}</ol>
-          <p className="text-xs text-muted-foreground">Suggested point on the bus route. Confirm with dispatch that the bus can stop here and that your walking path is accessible.</p>
-          <div className="flex flex-wrap gap-2">
-            <Button onClick={saveSuggestion} disabled={saving}>{saving ? "Saving…" : "Use this pickup point"}</Button>
-            {options.length > 1 && (
-              <Button variant="outline" onClick={() => setChoice((c) => (c + 1) % options.length)} disabled={saving}>
-                <RefreshCw className="w-4 h-4" aria-hidden="true" /> Show another spot nearby
-              </Button>
-            )}
-            <Button variant="outline" onClick={startOwnSpot} disabled={saving}>
-              <Hand className="w-4 h-4" aria-hidden="true" /> Pick my own spot
-            </Button>
-            <Button variant="ghost" onClick={() => setSuggestion(null)}>Cancel</Button>
-          </div>
-          {options.length > 1 && <p className="text-xs text-muted-foreground" role="status">Spot {choice + 1} of {options.length} near you</p>}
-          {options.length === 1 && <p className="text-xs text-muted-foreground">This is the only walkable spot on a bus road near you. You can still pick your own spot.</p>}
-        </div>
-      )}
-      {own && (
-        <section className="space-y-3 rounded-xl border p-3" aria-label="Pick your own pickup spot">
-          <p className="font-semibold">Pick your own spot</p>
-          <p className="text-sm text-muted-foreground">Tap the map or drag the pin to where you want the bus to pick you up. Choose a safe place on the road the bus uses.</p>
-          <Suspense fallback={<div className="h-[200px] animate-pulse rounded-lg bg-muted" />}>
-            <LocationPicker lat={own.lat} lng={own.lng} onChange={moveOwnSpot} />
+      {phase === "choose" && <>
+        <Button className="w-full h-14 text-base rounded-2xl" onClick={useGps} disabled={busy}>
+          <Crosshair className="w-5 h-5 mr-2" />{locating ? "Locating…" : "Use my location"}
+        </Button>
+        <form className="flex gap-2" onSubmit={e => { e.preventDefault(); searchAddress(); }}>
+          <Input aria-label="Search an address" placeholder="Or search an address" value={query} onChange={e=>setQuery(e.target.value)} className="h-12 rounded-xl" />
+          <Button type="submit" variant="outline" className="h-12 w-12 shrink-0 rounded-xl" disabled={busy || !query.trim()} aria-label="Search address"><Search className="w-5 h-5" /></Button>
+        </form>
+        {finding && <p role="status" className="text-sm text-primary">Finding walkable pickup spots on your bus route…</p>}
+        {!own && map}
+        {!own && !!options.length && <section aria-label="Nearby pickup spots" className="space-y-2">
+          <h3 className="font-semibold">Nearby pickup spots</h3>
+          {options.map((spot,i)=><button key={i} type="button" aria-pressed={i===choice} disabled={busy} onClick={()=>{setChoice(i);setNickname("");}}
+            className={"w-full text-left flex items-center gap-3 rounded-2xl border p-4 " + (i===choice ? "border-primary bg-primary/10" : "bg-card")}>
+            <MapPin className="w-5 h-5 shrink-0 text-primary" />
+            <span className="flex-1 min-w-0"><strong className="block">{spot.name}</strong><span className="block text-sm text-muted-foreground">{Math.max(1,Math.round(spot.walkMin))} min walk · {Math.round(spot.walkM)} m</span>{i===0 && <span className="text-xs text-primary">Suggested · shortest walk</span>}</span>
+            {i===choice && <Check className="w-5 h-5 text-primary shrink-0" />}
+          </button>)}
+        </section>}
+        {own && <section aria-label="Pick your own pickup spot" className="space-y-3">
+          <h3 className="font-semibold">Choose your meeting point</h3>
+          <p className="text-sm text-muted-foreground">Tap the map or drag the pin to a place on your bus route.</p>
+          <Suspense fallback={<div className="h-[200px] animate-pulse bg-muted rounded-xl" />}>
+            <LocationPicker lat={own.lat} lng={own.lng} onChange={moveOwnSpot} showCoordinates={false} />
           </Suspense>
-          <label htmlFor="tt-own-spot" className="sr-only">Name this spot</label>
-          <Input id="tt-own-spot" value={own.label} maxLength={60} onChange={(e) => setOwn((o) => ({ ...o, label: e.target.value }))} placeholder="Name it, e.g. Outside Joe's shop" />
-          {own.checking && <p className="text-sm" role="status">Checking the bus roads…</p>}
-          {own.road === false && <p className="text-sm text-danger" role="alert">That spot is more than 2 km from every bus road. Pick a spot closer to a road your bus uses.</p>}
-          {own.road && own.road.distanceM > OWN_SPOT_WARN_M && (
-            <p className="text-sm text-warning" role="alert">This spot is about {Math.round(own.road.distanceM)} m from the {own.road.route_name || "bus"} road. Your driver may not be able to stop there, so check with dispatch.</p>
-          )}
-          {own.road && own.road.distanceM <= OWN_SPOT_WARN_M && <p className="text-sm text-success" role="status">On the {own.road.route_name || "bus"} road.</p>}
-          <div className="flex flex-wrap gap-2">
-            <Button onClick={saveOwnSpot} disabled={saving || own.checking || !own.road}>{saving ? "Saving…" : "Use this spot"}</Button>
-            <Button variant="ghost" onClick={() => setOwn(null)}>Cancel</Button>
-          </div>
-        </section>
-      )}
-      {!suggestion && !own && (
-        <Button variant="outline" className="w-full" onClick={startOwnSpot} disabled={locating || searching || finding}>
-          <Hand className="w-4 h-4 mr-2" aria-hidden="true" /> Pick my own spot on the map
-        </Button>
-      )}
-      {hasPin && user?.home_lat != null && <Button variant="outline" disabled={searching || locating || finding} onClick={async () => { setSearching(true); await pin(user.home_lat,user.home_lng,user.home_address); setSearching(false); }}>Review walking directions</Button>}
-      <div className="flex gap-2">
-        <Input
-          placeholder="Search an address…"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && searchAddress()}
-        />
-        <Button variant="outline" size="icon" onClick={searchAddress} disabled={searching || locating || finding} aria-label="Search address">
-          <Search className="w-4 h-4" />
-        </Button>
-      </div>
-      <Button variant="outline" className="w-full" onClick={useGps} disabled={locating || searching || finding}>
-        <Crosshair className="w-4 h-4 mr-2" />
-        {locating ? "Locating…" : "Use where I am now"}
-      </Button>
+          {own.checking && <p role="status">Checking the bus roads…</p>}
+          {own.road === false && <p role="alert" className="text-sm text-danger">Choose a point closer to a road your company bus uses.</p>}
+          {own.road && <p className="text-sm text-muted-foreground">{own.road.distanceM > OWN_SPOT_WARN_M ? "This point is about " + Math.round(own.road.distanceM) + " m from the bus road. Check with dispatch." : "Near the " + (own.road.route_name || "bus") + " road."}</p>}
+          <Button variant="ghost" onClick={()=>setOwn(null)}>Back to nearby spots</Button>
+        </section>}
+        {!own && <Button variant="outline" className="w-full h-12 rounded-xl" onClick={startOwnSpot} disabled={busy}><Hand className="w-4 h-4 mr-2" />Choose a different spot on the map</Button>}
+        {!suggestion && !own && <p className="text-sm text-muted-foreground">{hasPin ? "Current pickup: " + (user.pickup_name || "Your saved spot") + ". Finding nearby spots won't change it until you confirm." : "Use your location or an address to see reachable pickup spots."}</p>}
+        {hasPin && user?.home_lat != null && !options.length && !own && <Button variant="ghost" disabled={busy} onClick={()=>pin(user.home_lat,user.home_lng,user.home_address)}>Review saved walking directions</Button>}
+        <Button className="w-full h-14 rounded-2xl text-base" disabled={busy || (own ? own.checking || !own.road : !suggestion)} onClick={()=>setPhase("review")}>Review this pickup</Button>
+      </>}
+      {phase === "review" && <>
+        {!own && map}
+        {own && <div className="h-60 overflow-hidden rounded-2xl border"><LiteMap fill vehicles={[]} stops={[{name:"Your meeting point",lat:own.lat,lng:own.lng}]} pins={origin ? [{...origin,label:"You",color:"#00d7e8"}] : []} /></div>}
+        <div className="rounded-2xl border bg-card p-4 space-y-2">
+          <p className="text-2xl font-bold">{own ? "Your meeting point" : Math.max(1,Math.round(suggestion.walkMin)) + " min walk"}</p>
+          {!own && <p className="text-sm text-muted-foreground">{Math.round(suggestion.walkM)} m · walking route</p>}
+          <p className="font-semibold">{own ? own.road.route_name || "Company bus route" : suggestion.name}</p>
+          <p className="text-sm text-muted-foreground">Meet the bus at this point. Confirm with dispatch that the bus can stop here and the path is accessible.</p>
+          {own && <p className="text-sm text-warning">Walking directions aren't available for this manually chosen point. Check the route before walking.</p>}
+        </div>
+        {!own && <details className="rounded-xl border p-3"><summary className="cursor-pointer font-semibold">Walking directions</summary><ol className="list-decimal pl-5 mt-3 space-y-2 text-sm">{suggestion.steps.map((step,i)=><li key={i}>{step}</li>)}</ol></details>}
+        <label className="block text-sm font-semibold" htmlFor="tt-pickup-nickname">Name this spot (optional)</label>
+        <Input id="tt-pickup-nickname" maxLength={60} placeholder="e.g. Outside Joe's shop" value={own ? own.label : nickname} onChange={e=>own ? setOwn(o=>({...o,label:e.target.value})) : setNickname(e.target.value)} className="h-12 rounded-xl" />
+        <Button className="w-full h-14 rounded-2xl text-base" disabled={saving} onClick={own ? saveOwnSpot : saveSuggestion}>{saving ? "Saving…" : "Use this pickup"}</Button>
+        <Button variant="outline" className="w-full h-12 rounded-xl" disabled={saving} onClick={()=>setPhase("choose")}><ArrowLeft className="w-4 h-4 mr-2" />Choose another spot</Button>
+      </>}
     </div>
   );
 }
+
