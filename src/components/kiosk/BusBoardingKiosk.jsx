@@ -437,8 +437,10 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
             <CreditCard className="w-6 h-6 text-primary-foreground" />
           </div>
         )}
-        <p className="tt-board-id-label">PASSENGER IDENTIFICATION</p><Avatar name={pending.staff.full_name} photoUrl={pending.staff.photo_url} />
-        <p className="text-2xl font-bold">{pending.staff.full_name}</p><p className="tt-board-id-bus">Passenger · {device?.vehicle_name || "This bus"}</p>
+        <div className="tt-board-id-layout">
+          <Avatar name={pending.staff.full_name} photoUrl={pending.staff.photo_url} />
+          <div><p className="tt-board-id-label">PASSENGER IDENTIFICATION</p><p className="tt-board-id-name">{pending.staff.full_name}</p><p className="tt-board-id-bus">Passenger · {device?.vehicle_name || "This bus"}</p></div>
+        </div>
         <p className="text-base text-muted-foreground">
           {boarding ? "You're not on this bus yet." : `You're recorded as being on ${device?.vehicle_name || "this bus"}.`}
         </p>
