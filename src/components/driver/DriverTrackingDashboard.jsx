@@ -20,7 +20,7 @@ import { retryGps, GPS_RETRY_EVENT } from "@/lib/helperHealth";
 // panelTop: items that need attention now (e.g. a due inspection).
 // panelBottom: today's booked trips.
 // shiftActive: whether a shift is open, only to highlight the next step.
-export default function DriverTrackingDashboard({ session, invoke, onReportIncident, panelTop = null, panelBottom = null, shiftControl = null, shiftActive = false }) {
+export default function DriverTrackingDashboard({ session, invoke, onReportIncident, panelTop = null, panelBottom = null, shiftControl = null, shiftActive = false, onOpenPassengers, onOpenMessages, onOpenDocuments }) {
   const { toast } = useToast();
   const [staff, setStaff] = useState([]);
   const [sharing, setSharing] = useState(false);
@@ -309,7 +309,7 @@ export default function DriverTrackingDashboard({ session, invoke, onReportIncid
   return (
     <div
       className={[
-        "grid h-full min-h-0 gap-2 overflow-hidden md:gap-3",
+        "tt-driver-cockpit-reference grid h-full min-h-0 gap-2 overflow-hidden md:gap-3",
         "grid-cols-1 [grid-template-areas:'map'_'status'_'deck'] grid-rows-[minmax(0,1fr)_max-content_max-content]",
         "md:overflow-hidden md:grid-cols-2 md:[grid-template-areas:'map_map'_'status_status'_'next_more'_'deck_deck'] md:grid-rows-[minmax(0,1fr)_auto_minmax(220px,30%)_auto]",
         "lg:grid-cols-[minmax(0,1fr)_400px] lg:[grid-template-areas:'map_status'_'map_next'_'map_more'_'map_deck'] lg:grid-rows-[auto_auto_minmax(0,1fr)_auto]",
@@ -319,7 +319,7 @@ export default function DriverTrackingDashboard({ session, invoke, onReportIncid
         <DriverNavMap session={session} invoke={invoke} fill pushLocation={false} pins={staffPins} showProgress={false} showStatus={false} onStatus={onNavStatus} />
       </div>
 
-      <StatusStrip className="[grid-area:status]" items={[{ key: "gps", ...gpsItem }, { key: "net", ...connItem }, { key: "track", ...trackItem }]} />
+      <div className="tt-cockpit-status space-y-2 [grid-area:status]"><StatusStrip items={[{ key: "gps", ...gpsItem }, { key: "net", ...connItem }, { key: "track", ...trackItem }]} /><div className="tt-cockpit-shift">{shiftControl}{trackingButton}</div></div>
 
       <div className="hidden min-h-0 flex-col gap-4 overflow-y-auto py-1 [grid-area:next] md:flex md:overflow-hidden lg:overflow-visible">
         <NextStopBlock
@@ -359,14 +359,17 @@ export default function DriverTrackingDashboard({ session, invoke, onReportIncid
           )}
         </div>
         <div className="grid grid-cols-2 gap-2">
-          <div className="hidden md:block">{shiftControl}</div>
+          <div className="tt-cockpit-mobile-shift hidden md:block">{shiftControl}</div>
           <div className="flex min-h-[88px] flex-col justify-between rounded-xl border border-border bg-card px-4 py-3 md:hidden" aria-label="Passengers on board">
             <span className="text-body-sm text-muted-foreground">Passengers</span>
             <span className="font-display text-headline font-semibold leading-none tabular-nums">{occupancy}{liveVehicle?.capacity ? <span className="text-title-sm font-medium text-muted-foreground">/{liveVehicle.capacity}</span> : null}</span>
           </div>
-          {trackingButton}
+          <div className="tt-cockpit-mobile-shift">{trackingButton}</div>
         </div>
-        <div className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-2">
+        <div className="tt-cockpit-actions grid grid-cols-[auto_minmax(0,1fr)] items-start gap-2">
+          {onOpenPassengers && <Button variant="outline" className="tt-cockpit-shortcut h-[52px]" onClick={onOpenPassengers}>Passenger list</Button>}
+          {onOpenMessages && <Button variant="outline" className="tt-cockpit-shortcut h-[52px]" onClick={onOpenMessages}>Messages</Button>}
+          {onOpenDocuments && <Button variant="outline" className="tt-cockpit-shortcut h-[52px]" onClick={onOpenDocuments}>Licence & insurance</Button>}
           {onReportIncident && (
             <Button variant="outline" className="h-[52px] px-4" onClick={onReportIncident} aria-label="Report an incident">
               <AlertTriangle className="h-5 w-5 text-danger" aria-hidden="true" /><span className="ml-1.5">Report</span>
