@@ -163,15 +163,28 @@ function occurredAt(value) {
 
 // A passenger's card or code only works on the bus they're assigned to in
 // Admin → Card issuing. Returns the refusal to send back, or null if fine.
+// The refusal never names the person or their bus: a code typed on the
+// keypad may be a guess, and the reply must not say whose code it was.
 function wrongBus(person, vehicleId) {
   if (!person || !vehicleId) return null;
   if (!person.vehicle_id) {
-    return { error: 'no_bus', staff_name: person.full_name, message: `${person.full_name} isn't assigned to a bus yet. Ask the office to pick their bus in Card issuing.` };
+    return { error: 'no_bus', message: 'This card or code isn\'t set up for a bus yet. Ask the office to choose your bus.' };
   }
   if (person.vehicle_id !== vehicleId) {
-    return { error: 'wrong_bus', staff_name: person.full_name, bus_name: person.vehicle_name || '', message: `${person.full_name} rides ${person.vehicle_name || 'another bus'}, not this one.` };
+    return { error: 'wrong_bus', message: 'This card or code is for a different bus. Ask the office which bus you ride.' };
   }
   return null;
+}
+// Keypad codes that matched nobody, per tablet: a run of wrong codes looks
+// like guessing, so the keypad pauses. Taps and correct codes don't count.
+const CODE_MISS_LIMIT = 30;
+const CODE_MISS_WINDOW_MS = 60 * 60_000;
+async function codeMissesExhausted(base44, deviceId) {
+  const rows = await base44.asServiceRole.entities.VerificationAttempt.filter({ scope: 'passenger-code-miss:' + deviceId }, '-created_date', CODE_MISS_LIMIT);
+  return rows.filter((r) => Date.parse(r.attempted_at) > Date.now() - CODE_MISS_WINDOW_MS).length >= CODE_MISS_LIMIT;
+}
+async function noteCodeMiss(base44, deviceId) {
+  await base44.asServiceRole.entities.VerificationAttempt.create({ scope: 'passenger-code-miss:' + deviceId, attempted_at: new Date().toISOString() }).catch(() => {});
 }
 
 const VEHICLE_ONLY_ACTIONS = new Set(['check_in', 'lookup_tag', 'lookup_code']);
@@ -392,6 +405,7 @@ export default async function(req) {
       case 'lookup_code': {
         const code = sanitize(body.code);
         if (!code || code.length > 64) return Response.json({ error: 'Valid boarding code required' }, { status: 400 });
+        if (await codeMissesExhausted(base44, device.id)) return Response.json({ error: 'Too many codes that didn\'t match. The keypad is paused for a while; cards still work.' }, { status: 429 });
         const directory = await loadStaffDirectory(base44, companyId);
         const now = Date.now();
         const permanentQr = /^[a-f0-9]{64}$/.test(code);
@@ -417,7 +431,7 @@ export default async function(req) {
           person = user ? directory.find(s => s.id === user.id || (s.email && s.email.toLowerCase() === (user.email || '').toLowerCase())) : null;
           codeType = 'one_time';
         }
-        if (!person) return Response.json({ error: 'code_not_recognized' }, { status: 404 });
+        if (!person) { await noteCodeMiss(base44, device.id); return Response.json({ error: 'code_not_recognized' }, { status: 404 }); }
         if (credential?.user_id && person.member_user_id !== credential.user_id) return Response.json({ error: 'Passenger company access is no longer active' }, { status: 403 });
         const refusal = wrongBus(person, vehicleId);
         if (refusal) return Response.json(refusal, { status: 403 });
@@ -527,6 +541,7 @@ export default async function(req) {
         const name = sanitize(full_name);
         if (!name) return Response.json({ error: 'full_name required' }, { status: 400 });
         let signatureUrl = '';
+        if (signature_base64 && String(signature_base64).length > 1_400_000) return Response.json({ error: 'Signature is too large' }, { status: 413 });
         if (signature_base64) {
           try {
             const b64 = String(signature_base64).replace(/^data:image\/\w+;base64,/, '');

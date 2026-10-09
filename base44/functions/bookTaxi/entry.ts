@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
+import { reserveAttempt } from '../../shared/atomicOps.ts';
 
 export default async function(req) {
   try {
@@ -34,6 +35,8 @@ export default async function(req) {
     if (!company) return Response.json({ error: 'Company not found' }, { status: 404 });
     if (!Array.isArray(company.service_types) || !company.service_types.includes('taxi')) return Response.json({ error: 'Company does not offer taxi service' }, { status: 403 });
 
+    // A person can't flood an operator with bookings.
+    if (!(await reserveAttempt(base44, 'taxi-booking:' + user.id, 10, 60 * 60_000))) return Response.json({ error: 'You have made several bookings in the last hour. Please call the operator.' }, { status: 429 });
     const trip = await base44.asServiceRole.entities.Trip.create({
       passenger_name: passenger_name.trim().slice(0, 80),
       passenger_phone: phone.trim().slice(0, 40),
@@ -48,6 +51,6 @@ export default async function(req) {
 
     return Response.json({ success: true, trip_id: trip.id, company: company.name });
   } catch (error) {
-    return Response.json({ error: error.message }, { status: 500 });
+    return Response.json({ error: 'Something went wrong. Please try again.' }, { status: 500 });
   }
 }

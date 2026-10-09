@@ -34,6 +34,28 @@ const PASSENGER_READ = new Set(['Company','Vehicle','Route','RouteTravelTimes','
 const COMPANY_READ = new Set([...COMPANY_ENTITIES, 'Company','Advertisement']);
 const PROFILE_FIELDS = new Set(['full_name','display_name','phone','photo_url','home_lat','home_lng','home_address','pickup_lat','pickup_lng','pickup_name','pickup_route_id','work_lat','work_lng','whatsapp_linked','skip_pickup_today','skip_pickup_until','late_snooze_active','late_until','favorite_stop','stop_alerts','theme_accent']);
 function fail(status, message) { throw Object.assign(new Error(message), { status }); }
+// Photos, voice notes, logos and the like are files uploaded through the app,
+// so anyone but an administrator may only point these fields at the app's own
+// file storage. That stops a chat "photo" that is really a link to another
+// site (which would see who opened it) or a script link.
+function appStorageUrl(value) {
+ try {
+  const url = new URL(value);
+  if (url.protocol !== 'https:') return false;
+  const host = url.hostname;
+  return host === 'base44.app' || host.endsWith('.base44.app') || host === 'base44.com' || host.endsWith('.base44.com')
+   || (host.endsWith('.supabase.co') && url.pathname.startsWith('/storage/v1/object/public/'));
+ } catch { return false; }
+}
+function checkLinks(user, data) {
+ for (const [key, value] of Object.entries(data)) {
+  if (!/_url$/.test(key) || value === '' || value === null) continue;
+  if (typeof value !== 'string' || value.length > 2000) fail(400, 'Invalid link: ' + key);
+  if (user.role === 'admin' ? !/^https:\/\//i.test(value) : !appStorageUrl(value)) fail(400, 'Use a file uploaded in the app for ' + key);
+ }
+ if (data.link !== undefined && data.link !== '' && data.link !== null && (typeof data.link !== 'string' || !/^https?:\/\//i.test(data.link))) fail(400, 'Links must start with https://');
+ if (data.message_type !== undefined && !['text', 'image', 'audio'].includes(data.message_type)) fail(400, 'Invalid message type');
+}
 function pick(row, fields) { return Object.fromEntries(fields.filter(k => row[k] !== undefined).map(k => [k,row[k]])); }
 function scrub(value, allowCodes=false) {
  if (Array.isArray(value)) return value.map(v=>scrub(v,allowCodes));
@@ -144,6 +166,7 @@ async function prepare(db,ctx,name,input,existing=null) {
   if (!allowed.has(key)) fail(400,'Unsupported field: '+key);
   if (CREDENTIALS.has(key) && !(name==='Company' && key==='access_code') && !(name==='KioskDevice' && key==='pairing_code') && !(name==='PushToken' && key==='token')) fail(403,'Use the protected credential workflow');
  }
+ checkLinks(user, input);
  if(input.client_request_id!==undefined && (existing || typeof input.client_request_id!=='string' || !/^[a-zA-Z0-9_-]{8,100}$/.test(input.client_request_id))) fail(400,'Invalid immutable request ID');
  const data={...input};
  if(name==='Advertisement') {

@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
+import { reserveAttempt } from '../../shared/atomicOps.ts';
 
 
 async function liveMembership(base44, row) {
@@ -31,7 +32,9 @@ export default async function(req) {
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
     const body = await req.json().catch(() => ({}));
     const { question, company_id, user_lat, user_lng } = body || {};
-    if (!question) return Response.json({ error: 'Question required' }, { status: 400 });
+    if (!question || typeof question !== 'string') return Response.json({ error: 'Question required' }, { status: 400 });
+    if (question.length > 500) return Response.json({ error: 'Please ask a shorter question.' }, { status: 400 });
+    if (!(await reserveAttempt(base44, 'bus-assistant:' + user.id, 30, 60 * 60_000))) return Response.json({ error: 'You have asked a lot of questions this hour. Try again later.' }, { status: 429 });
 
     const approved = await approvedCompanies(base44, user);
     if (user.role !== 'admin' && (!company_id || !approved.includes(company_id))) return Response.json({ error: 'Company access denied' }, { status: 403 });
@@ -66,6 +69,6 @@ ${JSON.stringify(context)}`;
     const answer = await base44.asServiceRole.integrations.Core.InvokeLLM({ prompt });
     return Response.json({ answer });
   } catch (error) {
-    return Response.json({ error: error.message }, { status: 500 });
+    return Response.json({ error: 'Something went wrong. Please try again.' }, { status: 500 });
   }
 }

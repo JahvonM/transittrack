@@ -302,3 +302,22 @@ Backend/entity edits auto-sync; frontend was not published. No live accounts,
 company codes, ads, memberships, grants or tablets were mutated through function
 calls. No signing/production credential changes. Atomic guarantees remain
 unconfirmed; the platform questions have not been sent.
+
+
+## Audit follow-up — 2026-10-09 UTC
+
+Fixes from the October audit (unit tests in src/lib/__tests__/securityFixes.test.js):
+
+| Finding | Fix |
+|---|---|
+| Driver tablet sent the company's passenger list (names, emails, phones, pickup points) before the PIN | Heartbeat returns passengers, trips and chat only with a valid driver grant, and only riders of this bus plus unassigned passengers |
+| Boarding tablet named the code holder and their bus on a wrong-bus code | Generic wrong_bus / no_bus messages |
+| Chosen six-digit codes could be discovered through "already in use" | Easy codes refused; five code changes per day (atomic); keypad pauses after 30 unmatched codes per tablet per hour |
+| Parallel wrong PINs could all pass the five-try check | Limit check, PIN check and recording run as one step per bus |
+| Chat media_url and other *_url fields accepted any link | Non-admins may only use app file-storage https links; admins https only; message_type enum; Advertisement link must be http(s) |
+| Tablet uploads accepted any type and size | Chat media image/audio types only, 8 MB; trip signatures PNG only, 1 MB; front-desk signatures capped |
+| Unlimited taxi bookings, pickup notices, assistant questions | Per-person/per-bus hourly limits |
+| Internal error text returned by several functions | Generic 500 messages |
+| Package advisories | npm audit fix (non-breaking): production advisories 29 → 21; remaining are Firebase server-side parts and build tools |
+
+Still open: tablet re-pairing (ID-only legacy tablets), live check that users can't change their own role, and the five atomic-storage criteria above.

@@ -34,6 +34,6 @@ export default async function applyUserRole(req) {
     await base44.asServiceRole.entities.User.update(user.id, { role });
     return Response.json({ success: true, role });
   } catch (error) {
-    return Response.json({ error: error.message }, { status: 500 });
+    return Response.json({ error: 'Something went wrong. Please try again.' }, { status: 500 });
   }
 }

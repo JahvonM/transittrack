@@ -103,6 +103,6 @@ export default async function(req) {
       driver_name
     });
   } catch (error) {
-    return Response.json({ error: error.message }, { status: 500 });
+    return Response.json({ error: 'Something went wrong. Please try again.' }, { status: 500 });
   }
 }

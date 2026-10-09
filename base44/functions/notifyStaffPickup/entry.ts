@@ -24,6 +24,7 @@ async function approvedStaffIds(base44, companyId) {
   return ids;
 }
 import { secrets } from 'base44:runtime';
+import { reserveAttempt } from '../../shared/atomicOps.ts';
 import { pushWithPolicy, emailWithPolicy } from '../../shared/notificationPolicy.ts';
 
 // --- Firebase Cloud Messaging (push) helpers ---
@@ -115,6 +116,7 @@ export default async function(req) {
       (user.role === 'company' && (await approvedCompanies(base44, user)).includes(vehicle.company_id)) ||
       (user.role === 'driver' && vehicle.driver_email === user.email);
     if (!isAuthorized) return Response.json({ error: 'Forbidden' }, { status: 403 });
+    if (!(await reserveAttempt(base44, 'pickup-notice:' + user.id, 60, 60 * 60_000))) return Response.json({ error: 'Too many pickup notices this hour. Try again later.' }, { status: 429 });
 
     // Recipient must be a registered user in the same company as the vehicle.
     let recipient = null;
@@ -162,6 +164,6 @@ export default async function(req) {
 
     return Response.json({ ok: true });
   } catch (error) {
-    return Response.json({ error: error.message }, { status: 500 });
+    return Response.json({ error: 'Something went wrong. Please try again.' }, { status: 500 });
   }
 }

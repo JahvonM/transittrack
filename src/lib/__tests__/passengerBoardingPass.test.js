@@ -72,12 +72,12 @@ describe('permanent personal boarding QR and chosen code', () => {
   });
   it('accepts a chosen code repeatedly and stores only its hash', async () => {
     const f = fixture();
-    expect((await setCode(f, '246810')).status).toBe(200);
+    expect((await setCode(f, '583920')).status).toBe(200);
     const credential = f.sdk.tables.PassengerAccessCredential[0];
-    expect(credential.token_hash).toBe(digest('246810'));
-    expect(JSON.stringify(credential)).not.toContain('246810');
+    expect(credential.token_hash).toBe(digest('583920'));
+    expect(JSON.stringify(credential)).not.toContain('583920');
     expect(f.sdk.tables.Contact[0].access_code).toBe('');
-    for (let i = 0; i < 2; i++) expect((await f.tablet({ action: 'lookup_code', code: '246810' })).status).toBe(200);
+    for (let i = 0; i < 2; i++) expect((await f.tablet({ action: 'lookup_code', code: '583920' })).status).toBe(200);
   });
   it('uses the same QR for both boarding and exiting without consuming it', async () => {
     const f = fixture(), pass = await getPass(f);
@@ -94,37 +94,37 @@ describe('permanent personal boarding QR and chosen code', () => {
   });
   it('resets a forgotten code without the old code, invalidates old grants and preserves the QR', async () => {
     const f = fixture();
-    await setCode(f, '246810');
+    await setCode(f, '583920');
     const before = await getPass(f);
-    const oldLookup = await f.tablet({ action: 'lookup_code', code: '246810' });
+    const oldLookup = await f.tablet({ action: 'lookup_code', code: '583920' });
     const old = await oldLookup.json();
-    expect((await setCode(f, '135790')).status).toBe(200);
+    expect((await setCode(f, '471638')).status).toBe(200);
     expect((await getPass(f)).qr_token).toBe(before.qr_token);
-    expect((await f.tablet({ action: 'lookup_code', code: '246810' })).status).toBe(404);
-    expect((await f.tablet({ action: 'lookup_code', code: '135790' })).status).toBe(200);
+    expect((await f.tablet({ action: 'lookup_code', code: '583920' })).status).toBe(404);
+    expect((await f.tablet({ action: 'lookup_code', code: '471638' })).status).toBe(200);
     expect((await f.tablet({ action: 'check_in', staff_id: old.staff.id, method: 'code', status: 'boarded', verification_grant: old.verification_grant })).status).toBe(403);
     expect((await f.tablet({ action: 'lookup_code', code: before.qr_token })).status).toBe(200);
   });
   it('rejects an already chosen code without replacing the passenger code', async () => {
     const f = fixture();
-    await setCode(f, '246810');
-    f.sdk.tables.PassengerAccessCredential.push({ id: 'other', company_id: 'a', user_id: 'someone-else', token_hash: digest('135790') });
-    expect((await setCode(f, '135790')).status).toBe(409);
-    expect(f.sdk.tables.PassengerAccessCredential[0].token_hash).toBe(digest('246810'));
+    await setCode(f, '583920');
+    f.sdk.tables.PassengerAccessCredential.push({ id: 'other', company_id: 'a', user_id: 'someone-else', token_hash: digest('471638') });
+    expect((await setCode(f, '471638')).status).toBe(409);
+    expect(f.sdk.tables.PassengerAccessCredential[0].token_hash).toBe(digest('583920'));
   });
   it('refuses collisions with another passenger temporary code', async () => {
     const f = fixture();
-    f.sdk.tables.PassengerOneTimeCredential = [{ company_id: 'a', token_hash: digest('246810'), expires_at: '2099-01-01T00:00:00Z' }];
-    expect((await setCode(f, '246810')).status).toBe(409);
+    f.sdk.tables.PassengerOneTimeCredential = [{ company_id: 'a', token_hash: digest('583920'), expires_at: '2099-01-01T00:00:00Z' }];
+    expect((await setCode(f, '583920')).status).toBe(409);
   });
   it.each([null, 'mechanic', 'driver'])('refuses self-service for %s', async role => {
     const f = fixture(role);
-    expect((await setCode(f, '246810')).status).toBe(401);
+    expect((await setCode(f, '583920')).status).toBe(401);
     expect(f.sdk.writes).toHaveLength(0);
   });
   it('ignores caller-selected identities and companies', async () => {
     const f = fixture();
-    const response = await f.account({ action: 'boarding_set_code', code: '246810', user_id: 'someone-else', company_id: 'b' });
+    const response = await f.account({ action: 'boarding_set_code', code: '583920', user_id: 'someone-else', company_id: 'b' });
     expect(response.status).toBe(200);
     expect(f.sdk.tables.PassengerAccessCredential[0]).toMatchObject({ user_id: 'caller', company_id: 'a' });
   });

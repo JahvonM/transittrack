@@ -199,6 +199,6 @@ export default async function(req) {
       update_requested_at: device.update_requested_at || null,
     });
   } catch (error) {
-    return Response.json({ error: error.message }, { status: 500 });
+    return Response.json({ error: 'Something went wrong. Please try again.' }, { status: 500 });
   }
 }

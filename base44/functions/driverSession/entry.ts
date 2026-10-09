@@ -1,7 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 import { passengerPushTokens } from '../../shared/chatPush.ts';
 import { applyLocationUpdate } from '../../shared/vehicleLocation.ts';
-import { reserveAttempt, createOnce } from '../../shared/atomicOps.ts';
+import { reserveAttempt, createOnce, withLock } from '../../shared/atomicOps.ts';
 import { pushWithPolicy, emailWithPolicy } from '../../shared/notificationPolicy.ts';
 
 
@@ -187,6 +187,13 @@ async function notifyStopAhead(base44, route, departedName, vehicle, companyId) 
 }
 
 const CHAT_CHANNELS = ['staff', 'company', 'dispatch', 'mechanic'];
+// What a tablet may upload: photos and voice notes for chat, a PNG signature
+// for a trip. Anything else (a web page, a script, a huge file) is refused,
+// because uploads are stored as public files.
+const CHAT_MEDIA_TYPES = { image: ['image/jpeg', 'image/png', 'image/webp', 'image/gif'], audio: ['audio/webm', 'audio/ogg', 'audio/mp4', 'audio/mpeg', 'audio/aac', 'audio/wav'] };
+const MAX_CHAT_MEDIA_BYTES = 8 * 1024 * 1024;
+const MAX_SIGNATURE_BYTES = 1024 * 1024;
+const base64Fits = (b64, maxBytes) => typeof b64 === 'string' && b64.length <= Math.ceil(maxBytes / 3) * 4 + 4;
 
 function base64ToBytes(b64) {
   const binary = atob(b64);
@@ -215,9 +222,14 @@ async function loadVehicle(base44, vehicleId) {
 // off; a flag with no expiry (set before expiries existed) counts as expired.
 const flagActive = (on, until) => !!on && !!until && new Date(until).getTime() > Date.now();
 
-async function loadStaff(base44, companyId) {
+// Passengers this bus picks up: the ones assigned to it, and the company's
+// passengers not assigned to any bus yet (the same rule as the driver phone).
+// Riders of the company's other buses are left out.
+async function loadStaff(base44, companyId, vehicleId) {
   const approvedRows = await approvedPassengerMemberships(base44,companyId);
   const approvedIds = new Set(approvedRows.map(row=>row.user_id));
+  const busOf = new Map(approvedRows.map(row=>[row.user_id,row.vehicle_id||'']));
+  const ridesHere = (bus) => !bus || bus === vehicleId;
   const [users, contacts] = await Promise.all([
     base44.asServiceRole.entities.User.list(),
     base44.asServiceRole.entities.Contact.filter({ company_id: companyId }, '-updated_date', 500),
@@ -228,9 +240,12 @@ async function loadStaff(base44, companyId) {
   );
   const companyContacts = contacts.filter((c) => c.company_id === companyId && ['staff','passenger'].includes(c.type));
   const contactEmails = new Set(companyContacts.map((c) => (c.email || '').toLowerCase()));
-  const orphanUsers = [...userByEmail.values()].filter((u) => !contactEmails.has((u.email || '').toLowerCase()));
+  const orphanUsers = [...userByEmail.values()].filter((u) => !contactEmails.has((u.email || '').toLowerCase()) && ridesHere(busOf.get(u.id)));
   const merged = [
-    ...companyContacts.map((c) => {
+    ...companyContacts.filter((c) => {
+      const u = userByEmail.get((c.email || '').toLowerCase());
+      return ridesHere(c.vehicle_id || (u ? busOf.get(u.id) : ''));
+    }).map((c) => {
       const u = userByEmail.get((c.email || '').toLowerCase()) || {};
       return {
         id: c.id, full_name: u.display_name || c.name || u.full_name, email: c.email || u.email, phone: c.phone || u.phone,
@@ -436,6 +451,16 @@ async function noteWrongPin(base44, vehicleId) {
 // too meant a driver whose tablet asked for the PIN again (a reload, the app
 // being reopened) ran out of tries and was then refused a PIN that was
 // correct — which reads to a driver as "the code is wrong".
+// Checking the limit, checking the PIN and recording a wrong one happen as one
+// step per bus, so a burst of guesses sent at once can't all slip under the
+// limit before any of them is recorded.
+function pinAttempt(base44, vehicle, pin) {
+ return withLock('driver-pin:' + vehicle.id, async () => {
+  if (await pinAttemptsExhausted(base44, vehicle.id)) return 'locked';
+  if (!(await verifyProtectedPin(base44, vehicle, pin))) { await noteWrongPin(base44, vehicle.id); return 'wrong'; }
+  return 'ok';
+ });
+}
 async function pinAttemptsExhausted(base44, vehicleId) {
  const rows = await base44.asServiceRole.entities.VerificationAttempt.filter({ scope: 'driver-pin:' + vehicleId }, '-created_date', 5);
  return rows.filter(r => Date.parse(r.attempted_at) > Date.now() - 15 * 60_000).length >= 5;
@@ -556,8 +581,9 @@ export default async function(req) {
       case 'verify_pin': {
         const vehicle = await loadVehicle(base44, vehicleId);
         if (!vehicle || vehicle.company_id !== companyId) return Response.json({ error: 'Vehicle assignment mismatch' }, { status: 403 });
-        if (await pinAttemptsExhausted(base44, vehicleId)) return Response.json({ error: 'Too many PIN attempts. Try again in 15 minutes.' }, { status: 429 });
-        if (!(await verifyProtectedPin(base44, vehicle, body.pin))) { await noteWrongPin(base44, vehicleId); return Response.json({ error: 'Incorrect PIN or no PIN configured' }, { status: 403 }); }
+        const pinResult = await pinAttempt(base44, vehicle, body.pin);
+        if (pinResult === 'locked') return Response.json({ error: 'Too many PIN attempts. Try again in 15 minutes.' }, { status: 429 });
+        if (pinResult === 'wrong') return Response.json({ error: 'Incorrect PIN or no PIN configured' }, { status: 403 });
         // The grant has to outlast a full shift: at 12 hours it expired in the
         // middle of a long day and dropped the driver back to the PIN screen
         // while they were driving. The real daily gate is the tablet asking
@@ -659,8 +685,9 @@ export default async function(req) {
         // even on an unlocked tablet, and shares the PIN attempt limit.
         const vehicle = await loadVehicle(base44, vehicleId);
         if (!vehicle || vehicle.company_id !== companyId) return Response.json({ error: 'Vehicle assignment mismatch' }, { status: 403 });
-        if (await pinAttemptsExhausted(base44, vehicleId)) return Response.json({ error: 'Too many PIN attempts. Try again in 15 minutes.' }, { status: 429 });
-        if (!(await verifyProtectedPin(base44, vehicle, body.pin))) { await noteWrongPin(base44, vehicleId); return Response.json({ error: 'Incorrect PIN' }, { status: 403 }); }
+        const pinResult = await pinAttempt(base44, vehicle, body.pin);
+        if (pinResult === 'locked') return Response.json({ error: 'Too many PIN attempts. Try again in 15 minutes.' }, { status: 429 });
+        if (pinResult === 'wrong') return Response.json({ error: 'Incorrect PIN' }, { status: 403 });
         const email = String(vehicle.driver_email || '').trim().toLowerCase();
         if (!email) return Response.json({ ok: true, driver_name: '', documents: [] });
         const driver = (await base44.asServiceRole.entities.Driver.filter({ company_id: companyId }, '-updated_date', 500))
@@ -685,8 +712,11 @@ export default async function(req) {
         const vehicle = await loadVehicle(base44, vehicleId);
         if (!vehicle) return Response.json({ error: 'Vehicle not found' }, { status: 404 });
         if (vehicle.company_id !== companyId) return Response.json({ error: 'Vehicle assignment mismatch' }, { status: 403 });
+        // Passengers' names, contact details and pickup points only reach a
+        // tablet the driver has unlocked with the bus PIN (or the phone app).
+        const unlocked = await validGrant(base44, device, body.driver_grant, 'driver', vehicleId);
         const [staff, broadcasts, checkIns, groupMessages, vehicleTrips, openShifts, allTemplates, recentInspections] = await Promise.all([
-          loadStaff(base44, companyId),
+          unlocked ? loadStaff(base44, companyId, vehicleId) : [],
           base44.asServiceRole.entities.Broadcast.filter({}, '-created_date', 20),
           tabletCheckIns(base44, companyId, vehicleId),
           base44.asServiceRole.entities.GroupMessage.filter({ vehicle_id: vehicleId }, '-created_date', 200),
@@ -724,7 +754,7 @@ export default async function(req) {
           vehicle: tabletVehicle(vehicle), driver_name: vehicle.driver_name || '', has_driver_pin: !!vehicle.driver_pin || !!(await base44.asServiceRole.entities.DriverPinCredential.filter({ vehicle_id: vehicleId }, '-updated_date', 1))[0]?.enabled,
           company_id: companyId, company_name: companyDisplayName, company_logo_url: companyLogoUrl, staff, route: tabletRoute(route, companyId), workplace, emergency_contacts: emergencyContacts, ...boardingStats(checkIns),
           broadcasts: relevantBroadcasts, check_ins: checkIns.slice(0, 20).filter((c) => c.status === 'boarded').map(tabletCheckIn),
-          group_messages: [...groupMessages].reverse(), trips,
+          group_messages: unlocked ? [...groupMessages].reverse() : [], trips: unlocked ? trips : [],
           open_shift: openShifts.find((s) => !s.ended_at) || null,
           inspection_templates: driverTemplates(allTemplates, companyId, vehicleId),
           recent_inspections: recentInspections.map((i) => ({
@@ -1104,13 +1134,16 @@ export default async function(req) {
           return Response.json({ error: 'message_type must be image or audio' }, { status: 400 });
         if (!data_base64 || typeof data_base64 !== 'string')
           return Response.json({ error: 'data_base64 required' }, { status: 400 });
+        const type = String(mime_type || (message_type === 'image' ? 'image/jpeg' : 'audio/webm')).split(';')[0].trim().toLowerCase();
+        if (!CHAT_MEDIA_TYPES[message_type].includes(type)) return Response.json({ error: 'That kind of file can\'t be sent' }, { status: 400 });
+        if (!base64Fits(data_base64, MAX_CHAT_MEDIA_BYTES)) return Response.json({ error: 'That file is too large' }, { status: 413 });
         const vehicle = await loadVehicle(base44, vehicleId);
         if (!vehicle) return Response.json({ error: 'Vehicle not found' }, { status: 404 });
         let mediaUrl;
         try {
           const bytes = base64ToBytes(data_base64);
-          const type = mime_type || (message_type === 'image' ? 'image/jpeg' : 'audio/webm');
-          const name = filename || `${message_type}-${Date.now()}`;
+          const ext = type.split('/')[1].replace('jpeg', 'jpg').replace('mpeg', 'mp3');
+          const name = `${message_type}-${Date.now()}.${ext}`;
           const file = new File([bytes], name, { type });
           const uploaded = await base44.asServiceRole.integrations.Core.UploadPublicFile({ file });
           mediaUrl = uploaded.file_url;
@@ -1180,6 +1213,7 @@ export default async function(req) {
         const { to_email } = body;
         const to = sanitize(to_email);
         if (!to) return Response.json({ error: 'Missing recipient' }, { status: 400 });
+        if (!(await reserveAttempt(base44, 'pickup-notice:' + vehicleId, 30, 60 * 60_000))) return Response.json({ error: 'Too many pickup notices this hour. Try again later.' }, { status: 429 });
         const vehicle = await loadVehicle(base44, vehicleId);
         if (!vehicle) return Response.json({ error: 'Vehicle not found' }, { status: 404 });
         let recipient = null;
@@ -1227,6 +1261,8 @@ export default async function(req) {
           return Response.json({ error: 'trip_id and mode required' }, { status: 400 });
         if (!data_base64 || typeof data_base64 !== 'string')
           return Response.json({ error: 'data_base64 required' }, { status: 400 });
+        if (mime_type && String(mime_type).split(';')[0].trim().toLowerCase() !== 'image/png') return Response.json({ error: 'Signatures must be PNG images' }, { status: 400 });
+        if (!base64Fits(String(data_base64).replace(/^data:image\/png;base64,/, ''), MAX_SIGNATURE_BYTES)) return Response.json({ error: 'Signature is too large' }, { status: 413 });
         let existing = null;
         try { existing = await base44.asServiceRole.entities.Trip.get(trip_id); }
         catch { /* trip may not exist */ }
@@ -1236,7 +1272,7 @@ export default async function(req) {
         let fileUrl;
         try {
           const bytes = base64ToBytes(data_base64);
-          const file = new File([bytes], `signature-${mode}-${Date.now()}.png`, { type: mime_type || 'image/png' });
+          const file = new File([bytes], `signature-${mode}-${Date.now()}.png`, { type: 'image/png' });
           const uploaded = await base44.asServiceRole.integrations.Core.UploadPublicFile({ file });
           fileUrl = uploaded.file_url;
         } catch (e) {

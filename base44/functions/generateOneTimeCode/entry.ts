@@ -26,6 +26,19 @@ async function approvedStaffIds(base44, companyId) {
   return ids;
 }
 
+// Codes anyone would try first. A passenger's own six-digit code is how they
+// board without their card, so these are refused when they choose one.
+function weakBoardingCode(code) {
+  if (/^(\d)\1{5}$/.test(code)) return true; // 111111
+  const digits = [...code].map(Number);
+  const steps = digits.slice(1).map((d, i) => (d - digits[i] + 10) % 10);
+  if (steps.every((s) => s === 1) || steps.every((s) => s === 9)) return true; // 123456, 654321
+  if (/^(\d\d)\1\1$/.test(code) || /^(\d{3})\1$/.test(code) || /^(\d)\1(\d)\2(\d)\3$/.test(code)) return true; // 121212, 123123, 112233
+  return ['159753', '147258', '258369', '147852', '753951', '246810', '135790', '102030', '696969', '424242', '789456', '456789', '000001', '100000'].includes(code);
+}
+// Changing a boarding code also says whether a code is already taken, so
+// changes are few per day: enough for a typo or two, too few to search.
+const CODE_CHANGES_PER_DAY = 5;
 const CODE_TTL_MS = 30 * 60 * 1000; // 30 minutes — long enough to walk to the bus, short enough to matter if lost
 
 
@@ -74,10 +87,8 @@ export default async function(req) {
     if (['boarding_get', 'boarding_set_code'].includes(body.action)) {
       if (body.action === 'boarding_set_code') {
         if (typeof body.code !== 'string' || !/^\d{6}$/.test(body.code)) return Response.json({ error: 'Choose a boarding code with exactly six digits.' }, { status: 400 });
-        const scope = 'boarding-code-change:' + user.id;
-        const recent = { scope, attempted_at: { $gt: new Date(Date.now() - 15 * 60_000).toISOString() } };
-        if (await retry429(() => base44.asServiceRole.entities.VerificationAttempt.count(recent)) >= 10) return Response.json({ error: 'Too many code changes. Try again in fifteen minutes.' }, { status: 429 });
-        await retry429(() => base44.asServiceRole.entities.VerificationAttempt.create({ scope, attempted_at: new Date().toISOString() }));
+        if (weakBoardingCode(body.code)) return Response.json({ error: 'That code is too easy to guess. Avoid repeated digits, runs like 123456 and patterns.' }, { status: 400 });
+        if (!(await reserveAttempt(base44, 'boarding-code-change:' + user.id, CODE_CHANGES_PER_DAY, 24 * 3600_000))) return Response.json({ error: 'You have changed your code several times today. Try again tomorrow.' }, { status: 429 });
       }
       let credential = await personalBoardingCredential(base44, user, companyId);
       if (body.action === 'boarding_set_code') credential = await savePersonalBoardingCode(base44, credential, body.code);
