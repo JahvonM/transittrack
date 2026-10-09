@@ -1,6 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.52';
 import { retry429 } from '../../shared/retry429.ts';
 import { personalBoardingCredential, savePersonalBoardingCode } from '../../shared/boardingCredentials.ts';
+// Shared request budgets use the configured Supabase RPC and fail closed.
 import { reserveAttempt } from '../../shared/atomicOps.ts';
 
 async function liveMembership(base44, row) {
