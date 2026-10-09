@@ -1,11 +1,12 @@
 # TransitTrack Desktop (Windows preview)
 
 Admin and Mechanic workspaces using the existing TransitTrack website and backend.
-Sign in with your existing email and password. Your role and backend permissions still apply.
+Sign in with your existing email and password, or with Google/Apple through your web browser
+(see "Google and Apple sign-in" below). Your role and backend permissions still apply.
 Admin opens /admin; Mechanic opens /mechanic. Menus do not grant additional access.
 
 ## Install
-Run TransitTrack-Desktop-Setup-0.2.1.exe on Windows 10/11 x64.
+Run TransitTrack-Desktop-Setup-0.2.2.exe on Windows 10/11 x64.
 The installer creates desktop and Start menu shortcuts. It installs for the current user.
 This preview installer is unsigned. Windows may show an unknown-publisher warning.
 Only install the file you obtained from the trusted project owner.
@@ -26,7 +27,8 @@ builds with an owner-controlled certificate before release.
 - Remote website updates appear when the app loads; desktop-shell upgrades require a new installer.
 - Internet is needed for live tracking and writes. The local connection screen provides retry.
 - Existing web saved-work behavior is retained; no new offline guarantees are introduced.
-- Email/password sign-in only. Google/OAuth desktop sign-in has not been integrated or verified.
+- Email/password sign-in works inside the window. Google, Apple, Microsoft and SSO sign-in finish in the
+  person's own web browser (providers block sign-in inside app windows); see below.
 - Print dialogs, file selection and downloads use Electron/Chromium's default handling.
 - Devices → Tablet & NFC setup includes USB discovery, health checks, Helper update installs, tablet configuration, and Windows NFC start/status/card/beep tests.
 - Official Windows ADB is bundled with its NOTICE. Enable USB debugging and approve the connection on the tablet. Manufacturer USB drivers may be needed.
@@ -40,5 +42,18 @@ builds with an owner-controlled certificate before release.
 - No signing credentials, backend secrets, device credentials or database keys are packaged.
 - Security policy tests run in Node; installation and actual account login still need Windows testing.
 - This is a desktop preview, not approval for production launch. Existing release security blockers remain.
+
+## Google and Apple sign-in
+Choosing "Continue with Google" (or Apple) in the desktop window does not load the provider inside the app.
+Instead `browser-signin.cjs`:
+1. starts a one-time listener on `127.0.0.1` (random port) with a random 256-bit `state`;
+2. opens `https://eager-transit-track-go.base44.app/desktop-signin?port=…&state=…&provider=google`
+   in the default browser, where the person signs in normally;
+3. after they choose "Open TransitTrack Desktop" on that page, it POSTs the session to
+   `http://127.0.0.1:<port>/callback` (`src/pages/DesktopSignIn.jsx`, `src/lib/desktopSignIn.js`);
+4. the listener checks the Host, Origin and `state`, then closes; the desktop window loads the app
+   with that session (the same `access_token` hand-off the website's own sign-in uses).
+The listener closes after success, cancel or 10 minutes. If the browser asks to let the site connect
+to apps on this device, choose Allow. The /desktop-signin page must be published on the website.
 
 The site URL is fixed in policy.cjs to https://eager-transit-track-go.base44.app.

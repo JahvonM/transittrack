@@ -1,6 +1,7 @@
+import "./boardingShowcase.css";
 import BusArtwork from "@/components/BusArtwork";
 import useFutureAppearance from "@/hooks/useFutureAppearance";
-import { TRANSIT_TIME_ZONE, transitHour } from "@/lib/localTime";
+import { TRANSIT_TIME_ZONE } from "@/lib/localTime";
 import React, { useEffect, useRef, useState } from "react";
 import { helperLink } from "@/lib/helperHealth";
 import { Card, CardContent } from "@/components/ui/card";
@@ -9,8 +10,6 @@ import { CreditCard, QrCode, ChevronLeft, CheckCircle2, LogIn, LogOut, AlertCirc
 import { useNfcTap, reportBadgeResult } from "@/hooks/useNfcTap";
 import { parseCodeQrPayload } from "@/lib/qr";
 import { haversineKm, etaMinutes, formatEta } from "@/lib/geo";
-import { MAPBOX_TOKEN, mapStyleFor } from "@/lib/mapbox";
-import { useIsDark } from "@/lib/useTheme";
 import { submitSavedCheckIn, hasSavedCheckIn, queueLength, queueSyncError, isNetworkFailure, flushQueue } from "@/lib/offlineQueue";
 import { noteStatus, burnOneTimeCode } from "@/lib/kioskOffline";
 import { boardingDirectoryNames } from "@/lib/boardingDirectory";
@@ -23,34 +22,13 @@ import KioskConnectionBadge from "./KioskConnectionBadge";
 
 const CODE_MAX_LEN = 12;
 const FLUSH_INTERVAL_MS = 15000;
-const ATTRACT_INTERVAL_MS = 7000;
 
 function safely(read, fallback) {
   try { return read(); } catch (e) { return typeof fallback === "string" ? e.message : fallback; }
 }
 
-function greeting() {
-  const h = transitHour();
-  if (h < 12) return "Good morning";
-  if (h < 18) return "Good afternoon";
-  return "Good evening";
-}
-
-// A single static (non-interactive) map image centered on the vehicle, used
-// purely as ambient backdrop texture on big-tablet layouts — deliberately
-// NOT the full interactive MapboxMap component, which renders its own
-// zoom/satellite/fullscreen controls that would float uselessly (and
-// confusingly) over a background nobody can actually tap.
-function staticMapBackgroundUrl(lat, lng, isDark) {
-  if (lat == null || lng == null || !MAPBOX_TOKEN) return null;
-  const styleId = mapStyleFor(isDark).replace("mapbox://styles/", "");
-  // Mapbox's Static Images API caps width/height at 1280 each (the @2x
-  // modifier then doubles the actual rendered resolution to 2560x1600).
-  return `https://api.mapbox.com/styles/v1/${styleId}/static/${lng},${lat},13,0/1280x800@2x?access_token=${MAPBOX_TOKEN}`;
-}
-
 function Avatar({ name, photoUrl }) {
-  if (photoUrl) return <img src={photoUrl} alt={name} className="w-28 h-28 rounded-full object-cover mx-auto shadow-lg ring-4 ring-primary/10" />;
+  if (photoUrl) return <img src={photoUrl} alt={name} className="tt-passenger-photo w-28 h-28 rounded-2xl object-cover mx-auto shadow-lg ring-4 ring-primary/10" />;
   const initials = (name || "?").trim().split(/\s+/).map((p) => p[0]).slice(0, 2).join("").toUpperCase();
   return (
     <div className="w-28 h-28 rounded-full bg-gradient-to-br from-primary/25 to-primary/10 text-primary grid place-items-center mx-auto text-4xl font-bold shadow-lg ring-4 ring-primary/10">
@@ -72,86 +50,42 @@ function Screen({ modeKey, className = "", children }) {
   );
 }
 
-// Persistent header across every mode — company identity, vehicle, live
-// clock, occupancy, and sync status always visible instead of being buried
-// inside whichever card happens to be showing.
-function TopStatusBar({ device, vehicle, now, occupancy, pendingSyncCount, online }) {
-  return (
-    <div className="w-full flex items-center gap-3 px-5 sm:px-8 py-3 bg-card/70 backdrop-blur-md border-b border-border/60">
-      {device?.company_logo_url ? (
-        <img src={device.company_logo_url} alt="" className="w-10 h-10 rounded-xl object-cover shadow shrink-0" />
-      ) : (
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/60 grid place-items-center shadow shrink-0">
-          <Bus className="w-5 h-5 text-primary-foreground" />
-        </div>
-      )}
-      <div className="min-w-0" role="group" aria-label="Company banner">
-        <p className="font-semibold text-sm truncate">{device?.company_name || "Bus boarding"}</p>
-        {device?.vehicle_name && <p className="text-xs text-muted-foreground truncate">{device.vehicle_name}</p>}
-      </div>
-      <div className="flex-1" />
-      <div className="hidden sm:flex items-center gap-1.5 text-sm text-muted-foreground shrink-0">
-        <Users className="w-4 h-4" /> {occupancy}{vehicle?.capacity ? `/${vehicle.capacity}` : ""}
-      </div>
-      {pendingSyncCount > 0 && (
-        <div className="flex items-center gap-1 text-xs text-warning shrink-0">
-          <CloudUpload className="w-3.5 h-3.5" /> {pendingSyncCount}
-        </div>
-      )}
-      <KioskConnectionBadge online={online} />
-      <p className="font-bold tabular-nums shrink-0">
-        {now.toLocaleTimeString([], { timeZone: TRANSIT_TIME_ZONE, hour: "2-digit", minute: "2-digit" })}
-      </p>
+function TopStatusBar({ device, vehicle, route, now, online }) {
+  return <header className="tt-board-header">
+    <div className="tt-board-company" role="group" aria-label="Company banner">
+      {device?.company_logo_url ? <img src={device.company_logo_url} alt="" /> : <Bus aria-hidden="true" />}
+      <div><strong>{device?.company_name || "Bus boarding"}</strong><small>Welcome aboard</small></div>
     </div>
-  );
+    <div className="tt-board-brand">TRANSIT<span>TRACK</span><small>YOUR JOURNEY, CONNECTED</small></div>
+    <div className="tt-board-trip"><strong>{vehicle?.name || device?.vehicle_name || "Your bus"}</strong>
+      {route?.name && <small>{route.name}</small>}
+      <span>{now.toLocaleTimeString([], { timeZone: TRANSIT_TIME_ZONE, hour: "2-digit", minute: "2-digit" })}</span>
+      <small>{now.toLocaleDateString([], { timeZone: TRANSIT_TIME_ZONE, weekday: "short", month: "short", day: "numeric" })}</small>
+      <KioskConnectionBadge online={online} />
+    </div>
+  </header>;
 }
 
-// Persistent right-hand rail on big screens only — occupancy, nearest stop,
-// weather, and any active company ads, all visible at once instead of
-// rotating through a single line inside the action card. Hidden below the
-// `lg` breakpoint, where the idle screen's own attract-mode rotation covers
-// the same ground since there's no room for a separate column.
-function InfoRail({ occupancy, vehicle, nearestStop, ads, todayCount }) {
-  return (
-    <div className="hidden lg:flex lg:w-80 xl:w-96 flex-col gap-4 shrink-0 max-h-full overflow-y-auto">
-      <div className="rounded-2xl border border-border/60 bg-card/70 backdrop-blur-md p-5">
-        <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground mb-1">
-          <Users className="w-4 h-4" /> Occupancy
-        </div>
-        <p className="text-4xl font-bold">
-          {occupancy}
-          {vehicle?.capacity ? <span className="text-lg text-muted-foreground font-normal"> / {vehicle.capacity}</span> : null}
-        </p>
-        {todayCount > 0 && <p className="text-xs text-muted-foreground mt-1">{todayCount} rider{todayCount === 1 ? "" : "s"} today so far</p>}
-      </div>
-      {nearestStop && (
-        <div className="rounded-2xl border border-border/60 bg-card/70 backdrop-blur-md p-5">
-          <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground mb-1">
-            <MapPin className="w-4 h-4" /> Nearest stop
-          </div>
-          <p className="text-lg font-bold truncate">{nearestStop.name}</p>
-          <p className="text-sm text-muted-foreground">{formatEta(nearestStop.mins)}</p>
-        </div>
-      )}
-      <div className="rounded-2xl border border-border/60 bg-card/70 backdrop-blur-md p-5 flex justify-center">
-        <WeatherWidget variant="hero" />
-      </div>
-      {ads.length > 0 && (
-        <div className="rounded-2xl border border-border/60 bg-card/70 backdrop-blur-md p-5 space-y-3">
-          <p className="text-sm font-semibold text-muted-foreground">Announcements</p>
-          {ads.map((ad) => (
-            <div key={ad.id} className="flex items-center gap-3">
-              {ad.image_url && <img src={ad.image_url} alt="" className="w-12 h-12 rounded-lg object-cover shrink-0" />}
-              <div className="min-w-0">
-                <p className="font-medium text-sm truncate">{ad.title}</p>
-                {ad.message && <p className="text-xs text-muted-foreground truncate">{ad.message}</p>}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
+function InfoRail({ occupancy, vehicle, nearestStop, ads, todayCount, directoryInfo, now, onList, pendingSyncCount, syncError }) {
+  return <aside className="tt-board-rail" aria-label="Bus information">
+    <section className="tt-board-panel tt-board-occupancy"><p><Users size={16} /> Occupancy</p>
+      <strong>{occupancy}<small>{vehicle?.capacity ? " / " + vehicle.capacity : ""}</small></strong>
+      <div className="tt-board-meter"><i style={{width: vehicle?.capacity ? Math.min(100, occupancy / vehicle.capacity * 100) + "%" : "0%"}} /></div>
+      <span>{todayCount ?? "—"} riders today</span>
+    </section>
+    <section className="tt-board-panel">
+      {directoryInfo?.expires ? <button type="button" onClick={onList} aria-label={"Passenger list: " + directoryInfo.count + " cards"}>
+        <p><CreditCard size={16} /> Passenger list</p>
+        <strong>{directoryInfo.count} cards saved</strong>
+        <small>{Date.parse(directoryInfo.expires) > now.getTime() ? "Ready for offline taps" : "Expired, connect to refresh"}</small>
+        <small>Updated {new Date(directoryInfo.updated).toLocaleString([], {timeZone: TRANSIT_TIME_ZONE, month:"short", day:"numeric", hour:"numeric", minute:"2-digit"})} · See names</small>
+      </button> : <><p><CreditCard size={16} /> Passenger list</p><small>Not downloaded. Connect to WiFi.</small></>}
+    </section>
+    <section className="tt-board-panel"><p>Local weather</p><WeatherWidget variant="hero" /></section>
+    <section className="tt-board-panel"><p><MapPin size={16} /> Nearest stop</p><strong>{nearestStop?.name || "No stop location yet"}</strong>{nearestStop && <small>{formatEta(nearestStop.mins)}</small>}</section>
+    <section className="tt-board-panel" role="status"><p><CloudUpload size={16} /> Saved check-ins</p><strong>{pendingSyncCount} waiting to sync</strong>{syncError && <small className="text-warning">{syncError}</small>}</section>
+    {ads.length > 0 && <section className="tt-board-panel"><p>Announcements</p>{ads.map(ad => <div key={ad.id} className="tt-board-ad">{ad.image_url && <img src={ad.image_url} alt="" />}<div><strong>{ad.title}</strong>{ad.message && <small>{ad.message}</small>}</div></div>)}</section>}
+  </aside>;
 }
 
 // Speaks a short confirmation aloud on successful check-in — free, no
@@ -193,22 +127,9 @@ function PassengerListDialog({ open, onOpenChange, vehicleName }) {
   );
 }
 
-// bus_boarding kiosk: three ways in, all reachable without a click-through
-// chooser screen — NFC tap keeps listening in the background the whole time
-// idle, the keypad is always on-screen (not hidden behind a "don't have
-// your badge?" step), and QR scanning is one tap away via a small link.
-// After identifying someone, the screen offers the one action their record
-// allows: someone whose last recorded state is "on the bus" is only ever
-// leaving, and someone who isn't aboard is only ever boarding. Showing both
-// let a stray tap log a sign-out for a passenger who never got on.
-//
-// Layout: this component owns the full viewport (see Kiosk.jsx) rather than
-// sitting in a small centered card, so a big tablet doesn't end up mostly
-// empty space — a persistent top bar and, on large screens, a live info
-// rail (occupancy/weather/ads) fill the room around the actual check-in card.
+// The boarding home keeps NFC, QR and code entry beside live bus information.
 export default function BusBoardingKiosk({ invoke, device, directoryInfo, online }) {
   useFutureAppearance();
-  const isDark = useIsDark();
   const [unlocked, setUnlocked] = useState(false);
   const [now, setNow] = useState(() => new Date());
   const [mode, setMode] = useState("idle"); // idle | qr | confirm | result | badge_error
@@ -233,7 +154,6 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
   const [ads, setAds] = useState([]);
   const [todayCount, setTodayCount] = useState(null);
   const [occupancy, setOccupancy] = useState(0);
-  const [attractSlide, setAttractSlide] = useState(0);
   const [listOpen, setListOpen] = useState(false);
   // The reader helper stops reaching this screen when FreeKiosk's REST API
   // key or setting changes; say so instead of cards silently doing nothing.
@@ -254,8 +174,8 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
   // attract screen too. A new tap is also taken on the confirm, welcome and
   // error screens (it replaces what's showing), so a person who walks away
   // without pressing Boarding/Exiting can't leave the reader dead for the next.
-  const idleListening = mode !== "qr";
-  const { supported: nfcSupported, listening: nfcListening, nfcError } = useNfcTap(
+  const idleListening = true;
+  const { listening: nfcListening, nfcError } = useNfcTap(
     (tag) => handleTag(tag),
     idleListening,
     { webActive: unlocked && idleListening }
@@ -327,26 +247,6 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
     return best ? { name: best.name, mins: etaMinutes(bestKm) } : null;
   })();
 
-  // Attract mode (small screens only — large screens have the permanent
-  // info rail instead): while nobody's interacting, the top of the idle
-  // screen slowly rotates through the welcome message, live weather, and
-  // any active company ads. Never touches the tap-to-check-in icon or the
-  // help button below it, so it can't get in the way of actually checking
-  // in. Resets to the welcome slide every time the kiosk returns to idle.
-  useEffect(() => {
-    if (mode !== "idle") return;
-    setAttractSlide(0);
-    const t = setInterval(() => setAttractSlide((s) => s + 1), ATTRACT_INTERVAL_MS);
-    return () => clearInterval(t);
-  }, [mode]);
-
-  const attractSlides = [
-    { type: "welcome" },
-    { type: "weather" },
-    ...ads.map((ad) => ({ type: "ad", ad })),
-  ];
-  const currentAttractSlide = attractSlides[attractSlide % attractSlides.length];
-
   const resetSoon = (ms = 2500) => {
     clearTimeout(resetTimer.current);
     resetTimer.current = setTimeout(() => {
@@ -410,7 +310,7 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
   };
 
   const handleQrDecode = async (text) => {
-    if (busy || mode !== "qr" || Date.now() < qrRetryAt) return;
+    if (busy || mode !== "qr" || Date.now() < qrRetryAt || lookupStarted.current) return;
     const decoded = parseCodeQrPayload(text);
     if (!decoded) {
       // Anything that isn't a personal boarding code — a company join code, a
@@ -420,11 +320,13 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
       setQrHint("That isn't a boarding QR. Open My Account → Bus boarding and show your permanent QR.");
       return;
     }
+    lookupStarted.current = Date.now();
     setQrHint("");
     setBusy(true);
     try {
       const res = await invoke("lookup_code", { code: decoded });
       if (qrMode.current !== "qr") return;
+      setUnlocked(true);
       setPending({ staff: res.staff, next_status: res.next_status, method: "qr", code_type: res.code_type, verification_grant: res.verification_grant });
       setMode("confirm");
     } catch (e) {
@@ -434,6 +336,7 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
       if (e?.response?.status === 429) setQrRetryAt(Date.now() + 60000);
       setQrHint(busMessage(e) || "That QR code isn't recognized. Show your boarding QR from My Account.");
     } finally {
+      lookupStarted.current = 0;
       setBusy(false);
     }
   };
@@ -501,40 +404,34 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
 
   let actionContent;
 
-  if (!unlocked) {
-    actionContent = (
-      <Screen modeKey="lock" className="space-y-8 p-10 text-center [@media(max-height:820px)]:space-y-5 [@media(max-height:820px)]:p-6">
-        <div>
-          <p className="text-7xl lg:text-8xl font-heading font-bold tabular-nums tracking-tight [@media(max-height:820px)]:text-6xl">
-            {now.toLocaleTimeString([], { timeZone: TRANSIT_TIME_ZONE, hour: "2-digit", minute: "2-digit" })}
-          </p>
-          <p className="text-base text-muted-foreground mt-2">
-            {now.toLocaleDateString([], { timeZone: TRANSIT_TIME_ZONE, weekday: "long", month: "long", day: "numeric" })}
-          </p>
-        </div>
-        {device?.vehicle_name && <p className="text-xl font-semibold text-muted-foreground">{device.vehicle_name}</p>}
-        {/* Short landscape tablets: drop the scene so the slider stays on screen. */}
-        <div className="tt-boarding-art flex items-center justify-center gap-4"><BusArtwork vehicle={vehicle} width={280} className="h-36 sm:h-44 max-w-[60%]" /><div className="tt-nfc-target grid place-items-center w-24 h-24 rounded-full border border-primary/60 text-primary"><CreditCard className="w-10 h-10" /></div></div>
-        <div><p className="text-title font-bold">Welcome aboard</p><p className="text-body text-muted-foreground">Tap your card to begin</p></div>
-        <SlideToUnlock label="Slide to check in" onUnlock={() => setUnlocked(true)} />
-      </Screen>
-    );
+  if ((!unlocked && mode === "idle") || mode === "qr") {
+    actionContent = <section className={`tt-board-home${mode === "qr" ? " tt-board-camera-open" : ""}`} aria-label="Boarding home">
+      <div className="tt-board-scene">
+        <div className="tt-board-welcome"><h1>Welcome aboard</h1><p>Tap your card to begin</p></div>
+        <BusArtwork vehicle={vehicle} fallbackUrl="/images/boarding-coaster.webp" width={650} className="tt-board-bus" />
+        <div className="tt-board-nfc"><div className="tt-board-nfc-ring"><CreditCard aria-hidden="true" /></div><strong>NFC CARD TAP</strong><small>{nfcListening ? "Ready to scan" : "Tap your NFC card"}</small></div>
+        {nfcError && <p className="tt-board-reader-note">{nfcError}</p>}
+      </div>
+      <div className="tt-board-entry">
+        <div className="tt-board-slide"><p>Prefer to use your code?</p><SlideToUnlock label="Slide to enter a code" onUnlock={() => { setUnlocked(true); setMode("idle"); }} /></div>
+        <section className="tt-board-qr" aria-label="Home QR scanner">
+          {mode === "qr" ? <><QrScanner compact active={qrCooldown === 0} onDecode={handleQrDecode} facingMode="user" requireFacingMode stableMs={800} />
+            <button type="button" onClick={() => {setMode("idle"); setUnlocked(false); setQrHint("");}}>Close camera</button>
+            {qrCooldown > 0 && <p role="status">Scanning paused. Try again in {qrCooldown} seconds with your boarding QR.</p>}
+            {busy ? <p role="status">Checking your code…</p> : qrHint && <p role="status">{qrHint}</p>}
+          </> : <button type="button" className="tt-board-qr-start" onClick={() => {clearTimeout(resetTimer.current); setQrHint(""); setMode("qr");}}><QrCode aria-hidden="true" /><span><strong>Scan QR code</strong><small>Show your boarding QR to the camera</small></span></button>}
+        </section>
+      </div>
+    </section>;
   } else if (mode === "confirm" && pending) {
-    // Their last recorded state decides which single action is offered.
+    // Highlight the suggested action while keeping both existing choices.
     const boarding = pending.next_status === "boarded";
     actionContent = (
       <Screen modeKey="confirm" className="p-8 text-center space-y-4">
-        {/* A little card flies in and "taps" down before the person's info
-            appears — reinforces the physical action that just happened
-            instead of jumping straight to a static result. Only for a real
-            NFC tap; QR/code entry has no physical tap to echo. */}
-        {pending.method === "nfc" && (
-          <div className="mx-auto w-16 h-11 rounded-lg bg-gradient-to-br from-primary to-primary/70 shadow-lg grid place-items-center animate-in slide-in-from-top-20 fade-in duration-500">
-            <CreditCard className="w-6 h-6 text-primary-foreground" />
-          </div>
-        )}
-        <Avatar name={pending.staff.full_name} photoUrl={pending.staff.photo_url} />
-        <p className="text-2xl font-bold">{pending.staff.full_name}</p>
+        <div className="tt-board-id-layout">
+          <Avatar name={pending.staff.full_name} photoUrl={pending.staff.photo_url} />
+          <div><p className="tt-board-id-label">PASSENGER IDENTIFICATION</p><p className="tt-board-id-name">{pending.staff.full_name}</p><p className="tt-board-id-bus">Passenger · {device?.vehicle_name || "This bus"}</p></div>
+        </div>
         <p className="text-base text-muted-foreground">
           {boarding ? "You're not on this bus yet." : `You're recorded as being on ${device?.vehicle_name || "this bus"}.`}
         </p>
@@ -543,7 +440,7 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
           <Button variant={boarding ? "default" : "outline"} className="flex-1 h-28 flex-col gap-1.5 rounded-2xl text-lg" onClick={() => confirmCheckIn("boarded")} disabled={busy}><LogIn className="w-9 h-9" /><span>Boarding</span></Button>
           <Button variant={boarding ? "outline" : "default"} className="flex-1 h-28 flex-col gap-1.5 rounded-2xl text-lg" onClick={() => confirmCheckIn("off_board")} disabled={busy}><LogOut className="w-9 h-9" /><span>Exiting</span></Button>
         </div>
-        <Button variant="ghost" onClick={() => { setMode("idle"); setPending(null); }}>Cancel</Button>
+        <Button variant="ghost" onClick={() => { setUnlocked(false); setMode("idle"); setPending(null); }}>Cancel</Button>
       </Screen>
     );
   } else if (mode === "result" && result) {
@@ -553,7 +450,7 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
         <CardContent key="result" className="p-10 text-center space-y-4 animate-in fade-in zoom-in-90 duration-500">
           {boarded && (
             <div className="flex justify-center -mb-2">
-              <BusArtwork vehicle={vehicle} width={220} className="h-32 tt-bus-arrive" />
+              <BusArtwork vehicle={vehicle} fallbackUrl="/images/boarding-coaster.webp" width={220} className="h-32 tt-bus-arrive" />
             </div>
           )}
           <div className="flex items-center justify-center gap-3">
@@ -585,90 +482,11 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
         <p className="text-base text-muted-foreground">{badgeError}</p>
       </Screen>
     );
-  } else if (mode === "qr") {
-    actionContent = (
-      <Screen modeKey="qr" className="p-5 space-y-4">
-        <Button variant="ghost" onClick={() => { setMode("idle"); setQrHint(""); }}><ChevronLeft className="w-5 h-5 mr-1" /> Back</Button>
-        <p className="text-base text-center text-muted-foreground">Hold your check-in QR steady inside the square</p>
-        <QrScanner active={qrCooldown === 0} onDecode={handleQrDecode} facingMode="user" requireFacingMode stableMs={800} />
-        {qrCooldown > 0 && <p role="status" className="text-sm text-center text-destructive">Scanning paused. Try again in {qrCooldown} seconds with your boarding QR.</p>}
-        {busy ? <p className="text-sm text-center text-muted-foreground" role="status">Checking your code…</p> : qrHint && <p className="text-sm text-center text-destructive" role="status">{qrHint}</p>}
-      </Screen>
-    );
   } else {
-    // idle — the home screen. NFC tap keeps listening in the background the
-    // whole time; the keypad below is always visible instead of hidden
-    // behind a chooser step, and QR scanning is one tap away via a small
-    // link. Large screens keep the header simple (the info rail covers
-    // weather/ads/nearest-stop); small screens rotate the same info through
-    // here instead, since there's no room for a side rail.
-    const vehicleName = device?.vehicle_name;
-    const press = (d) => setCode((prev) => (prev.length < CODE_MAX_LEN ? prev + d : prev));
-    actionContent = (
-      <Screen modeKey="idle" className="p-8 lg:p-10 text-center space-y-6 [@media(max-height:700px)]:!p-4 [@media(max-height:700px)]:!space-y-3">
-        <div className="min-h-[60px] flex flex-col items-center justify-center [@media(max-height:700px)]:hidden">
-          <div className="hidden lg:block animate-in fade-in duration-500">
-            <p className="text-sm text-muted-foreground">{greeting()}</p>
-            <p className="text-2xl xl:text-3xl font-heading font-bold tracking-tight">
-              Welcome{vehicleName ? ` aboard ${vehicleName}` : ""}
-            </p>
-          </div>
-          <div key={attractSlide} className="lg:hidden animate-in fade-in duration-500">
-            {currentAttractSlide.type === "welcome" && (
-              <>
-                <p className="text-base text-muted-foreground">{greeting()}</p>
-                <p className="text-3xl font-heading font-bold tracking-tight">
-                  Welcome{vehicleName ? ` aboard ${vehicleName}` : ""}
-                </p>
-                {nearestStop && (
-                  <p className="text-sm text-muted-foreground mt-1.5 flex items-center justify-center gap-1.5">
-                    <MapPin className="w-3.5 h-3.5" /> Nearest stop: {nearestStop.name} · {formatEta(nearestStop.mins)}
-                  </p>
-                )}
-                {todayCount > 0 && (
-                  <p className="text-xs text-muted-foreground mt-1">{todayCount} rider{todayCount === 1 ? "" : "s"} today so far</p>
-                )}
-              </>
-            )}
-            {currentAttractSlide.type === "weather" && (
-              <div className="scale-125">
-                <WeatherWidget variant="hero" />
-              </div>
-            )}
-            {currentAttractSlide.type === "ad" && (
-              <div className="flex items-center gap-3">
-                {currentAttractSlide.ad.image_url && (
-                  <img src={currentAttractSlide.ad.image_url} alt="" className="w-14 h-14 rounded-xl object-cover shadow" />
-                )}
-                <div className="text-left">
-                  <p className="font-semibold">{currentAttractSlide.ad.title}</p>
-                  {currentAttractSlide.ad.message && <p className="text-sm text-muted-foreground">{currentAttractSlide.ad.message}</p>}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-        <div className="flex flex-col items-center gap-1.5">
-          <div className="relative w-20 h-20 lg:w-24 lg:h-24 grid place-items-center [@media(max-height:700px)]:hidden">
-            {nfcListening && (
-              <>
-                <span className="absolute inset-0 rounded-full bg-primary/20 animate-ping" />
-                <span className="absolute inset-2 rounded-full bg-primary/10 animate-ping [animation-delay:150ms]" />
-              </>
-            )}
-            <div className="relative w-full h-full rounded-full bg-gradient-to-br from-primary/20 to-primary/5 grid place-items-center shadow-inner">
-              <CreditCard className={`w-9 h-9 lg:w-10 lg:h-10 text-primary ${nfcListening ? "animate-pulse" : ""}`} />
-            </div>
-            <div className="absolute -bottom-1 -right-1">
-              <KioskMascot mood="wave" size={32} />
-            </div>
-          </div>
-          <p className="text-sm font-medium text-muted-foreground">
-            {nfcSupported ? "Tap your badge, or enter your code below" : "Enter your code below"}
-          </p>
-          {nfcError && <p className="text-xs text-destructive">{nfcError}</p>}
-        </div>
-
+    const press = (d) => setCode(prev => prev.length < CODE_MAX_LEN ? prev + d : prev);
+    actionContent = <Screen modeKey="idle" className="tt-board-keypad p-5 text-center space-y-3">
+      <Button variant="ghost" onClick={() => {setUnlocked(false); setCode(""); setMode("idle");}}><ChevronLeft size={18} /> Back</Button>
+      <h1 className="text-xl font-bold">Enter your boarding code</h1>
         <div className="space-y-3">
           <div className="flex flex-wrap justify-center gap-1 max-w-xs mx-auto">
             {Array.from({ length: Math.max(code.length, 4) }).map((_, i) => (
@@ -692,69 +510,16 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
           </Button>
         </div>
 
-        <button
-          type="button"
-          onClick={() => { clearTimeout(resetTimer.current); setQrHint(""); setMode("qr"); }}
-          className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
-        >
-          <QrCode className="w-4 h-4" /> Scan QR code instead
-        </button>
-
-        {(pendingSyncCount > 0 || syncError) && (
-          <p className="text-caption text-muted-foreground flex items-center justify-center gap-1.5" role="status">
-            <CloudUpload className="w-3.5 h-3.5" aria-hidden="true" />
-            {pendingSyncCount > 0 ? `${pendingSyncCount} check-in${pendingSyncCount === 1 ? "" : "s"} waiting to sync` : ""}
-            {pendingSyncCount > 0 && syncError ? " · " : ""}{syncError}
-          </p>
-        )}
-      </Screen>
-    );
+    </Screen>;
   }
 
-  const bgUrl = staticMapBackgroundUrl(vehicle?.current_lat, vehicle?.current_lng, isDark);
-
-  return (
-    <div className="tt-boarding-future min-h-[100dvh] relative overflow-hidden bg-gradient-to-br from-primary/15 via-background to-background">
-      {bgUrl && (
-        <div className="absolute inset-0">
-          <img src={bgUrl} alt="" className="w-full h-full object-cover" />
-          <div className="absolute inset-0 bg-background/85 backdrop-blur-md" />
-        </div>
-      )}
-      <div className="relative z-10 flex flex-col min-h-[100dvh]">
-        {/* The top bar carries the company name and logo; a second banner
-            pushed the slider and keypad off short landscape tablets. */}
-        <TopStatusBar device={device} vehicle={vehicle} now={now} occupancy={occupancy} pendingSyncCount={pendingSyncCount} online={online} />
-        <div className="px-3 pt-2 text-center text-caption text-muted-foreground" role="status">
-          {directoryInfo?.expires ? (
-            <button type="button" onClick={() => setListOpen(true)} className="underline-offset-4 hover:underline">
-              Passenger list: {directoryInfo.count} card{directoryInfo.count === 1 ? "" : "s"} · updated {new Date(directoryInfo.updated).toLocaleString([], { timeZone: TRANSIT_TIME_ZONE, month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })} · {Date.parse(directoryInfo.expires) > now.getTime() ? "ready for offline taps" : "expired, connect to refresh"} · <span className="font-semibold">See names</span>
-            </button>
-          ) : "Passenger list not downloaded. Connect to WiFi."}
-        </div>
-        <PassengerListDialog open={listOpen} onOpenChange={setListOpen} vehicleName={device?.vehicle_name} />
-        {readerLink === "lost" && (
-          <div className="mx-3 mt-2 rounded-xl border border-warning/50 bg-warning/10 px-3 py-2 text-center text-body-sm" role="alert">
-            <span className="font-semibold">Card reader isn't connected to this screen.</span> Use your code on the keypad instead.
-            <span className="block text-caption text-muted-foreground">Staff: run Update in the tablet setup tool for this tablet.</span>
-          </div>
-        )}
-
-        <div className="flex-1 flex flex-col lg:flex-row items-center justify-center gap-6 p-6 lg:p-10 [@media(max-height:700px)]:!p-3">
-          <div className="w-full max-w-md lg:max-w-xl">
-            {actionContent}
-          </div>
-          <InfoRail occupancy={occupancy} vehicle={vehicle} nearestStop={nearestStop} ads={ads} todayCount={todayCount} />
-        </div>
-      </div>
-      {checkingCard && (
-        <div className="absolute inset-0 z-20 flex items-center justify-center bg-background/70 backdrop-blur-sm" role="status" aria-live="polite">
-          <div className="flex flex-col items-center gap-3 rounded-2xl border bg-card px-10 py-8 shadow-lg">
-            <Loader2 className="w-12 h-12 animate-spin text-primary" />
-            <p className="text-2xl font-semibold">Checking your card…</p>
-          </div>
-        </div>
-      )}
-    </div>
-  );
+  return <div className="tt-boarding-future tt-boarding-showcase">
+    <TopStatusBar device={device} vehicle={vehicle} route={route} now={now} online={online} />
+    <PassengerListDialog open={listOpen} onOpenChange={setListOpen} vehicleName={device?.vehicle_name} />
+    {readerLink === "lost" && <div className="tt-board-reader-warning" role="alert"><strong>Card reader isn't connected to this screen.</strong> Use your code on the keypad instead.<small>Staff: run Update in the tablet setup tool for this tablet.</small></div>}
+    <main className="tt-board-layout"><div className="tt-board-action">{actionContent}</div>
+      <InfoRail occupancy={occupancy} vehicle={vehicle} nearestStop={nearestStop} ads={ads} todayCount={todayCount} directoryInfo={directoryInfo} now={now} onList={() => setListOpen(true)} pendingSyncCount={pendingSyncCount} syncError={syncError} />
+    </main>
+    {checkingCard && <div className="absolute inset-0 z-20 flex items-center justify-center bg-background/70 backdrop-blur-sm" role="status" aria-live="polite"><div className="flex flex-col items-center gap-3 rounded-2xl border bg-card px-10 py-8 shadow-lg"><Loader2 className="w-12 h-12 animate-spin text-primary" /><p className="text-2xl font-semibold">Checking your card…</p></div></div>}
+  </div>;
 }

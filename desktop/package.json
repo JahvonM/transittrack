@@ -1,6 +1,6 @@
 {
   "name": "transittrack-desktop",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "private": true,
   "description": "TransitTrack Admin and Mechanic for Windows",
   "author": "TransitTrack",
@@ -22,6 +22,7 @@
     },
     "files": [
       "main.cjs",
+      "browser-signin.cjs",
       "policy.cjs",
       "offline.html",
       "package.json",

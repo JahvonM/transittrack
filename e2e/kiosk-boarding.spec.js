@@ -1,3 +1,8 @@
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import QRCode from 'qrcode';
+import { chromium } from '@playwright/test';
 import { test, expect } from '@playwright/test';
 
 // The bus boarding tablet, end to end, with the server mocked.
@@ -39,7 +44,7 @@ async function setup(page, { heartbeat = () => ({ json: device() }), checkIn = (
 }
 
 async function unlock(page) {
-  const track = page.getByText('Slide to check in', { exact: true }).locator('..');
+  const track = page.getByText('Slide to enter a code', { exact: true }).locator('..');
   const b = await track.boundingBox();
   await page.mouse.move(b.x + 36, b.y + b.height / 2);
   await page.mouse.down();
@@ -61,9 +66,10 @@ for (const [w, h] of [[1280, 800], [800, 1280], [1024, 600], [1920, 1200]]) {
     await page.setViewportSize({ width: w, height: h });
     const { errors } = await setup(page);
     await page.goto('/kiosk');
-    const slider = page.getByText('Slide to check in', { exact: true }).locator('..');
+    const slider = page.getByText('Slide to enter a code', { exact: true }).locator('..');
     await expect(slider).toBeVisible();
     expect(await inView(slider, page)).toBe(true);
+    await page.screenshot({path: `/tmp/boarding-home-${w}.png`, fullPage:true});
     await unlock(page);
     const submit = page.getByRole('button', { name: 'Submit code', exact: true });
     await expect(submit).toBeVisible();
@@ -79,13 +85,13 @@ test('card tap boards a passenger and the tablet locks again', async ({ page }) 
       : b.action === 'check_in' ? { json: { record: { staff_name: 'Maria Joseph', status: b.status }, occupancy: 5, today_count: 10 } } : null,
   });
   await page.goto('/kiosk');
-  await expect(page.getByText('Slide to check in', { exact: true })).toBeVisible();
+  await expect(page.getByText('Slide to enter a code', { exact: true })).toBeVisible();
   await tap(page);
   await expect(page.getByText('Are you boarding or exiting?')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Exiting', exact: true })).toBeVisible();
   await page.getByRole('button', { name: /Boarding/ }).click();
   await expect(page.getByText(/Welcome aboard, Maria!/)).toBeVisible();
-  await expect(page.getByText('Slide to check in', { exact: true })).toBeVisible({ timeout: 6000 });
+  await expect(page.getByText('Slide to enter a code', { exact: true })).toBeVisible({ timeout: 6000 });
   expect(calls.filter(([a]) => a === 'check_in')).toEqual([['check_in', 'boarded']]);
 });
 
@@ -100,15 +106,15 @@ test('boarding tablet explains unknown cards, rate limits and lost pairing', asy
     },
   });
   await page.goto('/kiosk');
-  await expect(page.getByText('Slide to check in', { exact: true })).toBeVisible();
+  await expect(page.getByText('Slide to enter a code', { exact: true })).toBeVisible();
   await tap(page);
   await expect(page.getByText(/This card isn't registered yet/)).toBeVisible();
-  await expect(page.getByText('Slide to check in', { exact: true })).toBeVisible({ timeout: 6000 });
+  await expect(page.getByText('Slide to enter a code', { exact: true })).toBeVisible({ timeout: 6000 });
   state.mode = '429';
   await tap(page);
   await expect(page.getByText('Too many attempts. Try again in a minute.')).toBeVisible();
   await expect(page.getByText(/Connect to WiFi to verify/)).toHaveCount(0);
-  await expect(page.getByText('Slide to check in', { exact: true })).toBeVisible({ timeout: 8000 });
+  await expect(page.getByText('Slide to enter a code', { exact: true })).toBeVisible({ timeout: 8000 });
   state.mode = 'unpaired';
   await tap(page);
   await expect(page.getByText(/pairing was reset/)).toBeVisible();
@@ -141,7 +147,7 @@ test('an unpaired tablet keeps the real reason on screen', async ({ page }) => {
 test('pairing from a link removes the code from the address bar', async ({ page }) => {
   const { calls } = await setup(page, { paired: false });
   await page.goto('/kiosk?code=PAIRCODE123');
-  await expect(page.getByText('Slide to check in', { exact: true })).toBeVisible();
+  await expect(page.getByText('Slide to enter a code', { exact: true })).toBeVisible();
   expect(new URL(page.url()).search).toBe('');
   expect(calls[0]).toEqual(['pair', 'PAIRCODE123']);
 });
@@ -149,7 +155,7 @@ test('pairing from a link removes the code from the address bar', async ({ page 
 test('a damaged saved check-in list does not crash the boarding tablet', async ({ page }) => {
   const { errors } = await setup(page, { queue: '{not json' });
   await page.goto('/kiosk');
-  await expect(page.getByText('Slide to check in', { exact: true })).toBeVisible();
+  await expect(page.getByText('Slide to enter a code', { exact: true })).toBeVisible();
   await unlock(page);
   await expect(page.getByText(/Saved check-ins cannot be read/)).toBeVisible();
   await expect(page.getByRole('button', { name: 'Submit code', exact: true })).toBeVisible();
@@ -177,10 +183,10 @@ test('the tablet shows the names on its saved card list', async ({ page }) => {
 test('the check-in slider only unlocks on a real slide, not a cancelled one or a tap', async ({ page }) => {
   const { errors } = await setup(page);
   await page.goto('/kiosk');
-  const handle = page.getByRole('button', { name: 'Slide to check in' });
+  const handle = page.getByRole('button', { name: 'Slide to enter a code' });
   await expect(handle).toBeVisible();
   const b = await handle.boundingBox();
-  const track = await page.getByText('Slide to check in', { exact: true }).locator('..').boundingBox();
+  const track = await page.getByText('Slide to enter a code', { exact: true }).locator('..').boundingBox();
   // The system takes the gesture over half-way: springs back, stays locked.
   await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
   await page.mouse.down();
@@ -204,7 +210,7 @@ test('the boarding screen says when the card reader helper stops reaching it', a
   await setup(page);
   await page.addInitScript(() => localStorage.setItem('tt_badge_reader', '1'));
   await page.goto('/kiosk');
-  await expect(page.getByText('Slide to check in', { exact: true })).toBeVisible();
+  await expect(page.getByText('Slide to enter a code', { exact: true })).toBeVisible();
   const warning = page.getByText("Card reader isn't connected to this screen.");
   await expect(warning).toHaveCount(0);
   // The helper reports every minute; after 4 silent minutes the screen says so.
@@ -219,7 +225,7 @@ test('the boarding screen says when the card reader helper stops reaching it', a
 test('the boarding tablet cannot open other websites', async ({ page }) => {
   const { errors } = await setup(page);
   await page.goto('/kiosk');
-  await expect(page.getByText('Slide to check in', { exact: true })).toBeVisible();
+  await expect(page.getByText('Slide to enter a code', { exact: true })).toBeVisible();
   await page.evaluate(() => {
     const a = document.createElement('a');
     a.href = 'https://example.com/'; a.target = '_blank'; a.id = 'outside'; a.textContent = 'Outside link';
@@ -253,6 +259,96 @@ for(const size of [{width:1280,height:800},{width:800,height:1280},{width:1024,h
   await page.screenshot({path:'/tmp/tt-loading-boarding-'+size.width+'.png'});
   release();
   await expect(loading).toHaveCount(0);
-  await expect(page.getByText('Slide to check in',{exact:true})).toBeVisible();
+  await expect(page.getByText('Slide to enter a code',{exact:true})).toBeVisible();
  });
 }
+
+
+test('home QR camera stays beside NFC and a card still reaches both actions', async ({page}) => {
+  await page.setViewportSize({width:1024,height:600});
+  const {calls,errors}=await setup(page,{checkIn:b=>b.action==='lookup_tag'?{json:{staff:person,next_status:'boarded',verification_grant:'b'.repeat(64)}}:null});
+  await page.goto('/kiosk');
+  await page.getByRole('button',{name:/Scan QR code/}).click();
+  await expect(page.getByRole('region',{name:'Home QR scanner'})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'Welcome aboard',exact:true})).toBeVisible();
+  expect(await inView(page.getByRole('button',{name:'Close camera'}),page)).toBe(true);
+  await tap(page);
+  await expect(page.getByText('Maria Joseph',{exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'Boarding',exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'Exiting',exact:true})).toBeVisible();
+  expect(await inView(page.getByRole('button',{name:'Boarding',exact:true}),page)).toBe(true);
+  expect(await inView(page.getByRole('button',{name:'Exiting',exact:true}),page)).toBe(true);
+  expect(await inView(page.getByRole('button',{name:'Cancel',exact:true}),page)).toBe(true);
+  await page.screenshot({path:'/tmp/boarding-passenger-id.png',fullPage:true});
+  await page.getByRole('button',{name:'Cancel',exact:true}).click();
+  await expect(page.getByRole('button',{name:/Scan QR code/})).toBeVisible();
+  expect(calls.filter(([a])=>a==='lookup_tag')).toHaveLength(1);
+  expect(errors).toEqual([]);
+});
+
+test('boarding home uses the actual company, counts and admin bus photo',async({page})=>{
+ const custom=device();custom.company_name='Island Transit Co.';custom.context.vehicle.image_url='/images/transit-bus-3d.webp';
+ await setup(page,{heartbeat:()=>({json:custom})});await page.goto('/kiosk');
+ await expect(page.getByRole('group',{name:'Company banner'})).toContainText('Island Transit Co.');
+ await expect(page.locator('.tt-board-bus')).toHaveAttribute('src','/images/transit-bus-3d.webp');
+ await expect(page.locator('.tt-board-occupancy')).toContainText('4');
+ await expect(page.locator('.tt-board-occupancy')).toContainText('9 riders today');
+});
+function cameraOf(text) {
+  const W = 480, H = 480;
+  const qr = QRCode.create(text, { errorCorrectionLevel: 'M' });
+  const n = qr.modules.size, cell = Math.floor((W - 80) / (n + 8)), off = Math.floor((W - cell * n) / 2);
+  const y = Buffer.alloc(W * H, 235);
+  for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) {
+    if (!qr.modules.get(r, c)) continue;
+    for (let dy = 0; dy < cell; dy++) y.fill(16, (off + r * cell + dy) * W + off + c * cell, (off + r * cell + dy) * W + off + (c + 1) * cell);
+  }
+  const uv = Buffer.alloc((W / 2) * (H / 2), 128);
+  const frame = Buffer.concat([Buffer.from('FRAME\n'), y, uv, uv]);
+  const file = path.join(os.tmpdir(), `tt-qr-camera-${process.pid}.y4m`);
+  fs.writeFileSync(file, Buffer.concat([Buffer.from(`YUV4MPEG2 W${W} H${H} F10:1 Ip A1:1 C420jpeg\n`), frame, frame]));
+  return file;
+}
+
+test('home QR decodes once and keeps Boarding and Exiting available',async()=>{
+ const camera=cameraOf('tt-code:DEV-BOARDING-QR');
+ const browser=await chromium.launch({args:['--use-fake-ui-for-media-stream','--use-fake-device-for-media-stream','--use-file-for-fake-video-capture='+camera]});
+ try{
+ const page=await browser.newPage({viewport:{width:1024,height:600}});
+ // Chromium's fake webcam has no front-camera metadata. Record the actual
+ // request, then remove that constraint only in this isolated camera fixture.
+ await page.addInitScript(()=>{
+  const original=navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+  navigator.mediaDevices.getUserMedia=(constraints)=>{
+   window.testCameraFacing=constraints.video?.facingMode;
+   const video={...constraints.video};delete video.facingMode;
+   return original({...constraints,video});
+  };
+ });
+ const {calls,errors}=await setup(page,{checkIn:b=>b.action==='lookup_code'?{json:{staff:person,next_status:'boarded',code_type:'qr',verification_grant:'b'.repeat(64)}}:null});
+ await page.goto('/kiosk');await page.getByRole('button',{name:/Scan QR code/}).click();
+ await expect(page.getByText('Maria Joseph',{exact:true})).toBeVisible({timeout:15000});
+ await expect(page.getByRole('button',{name:'Boarding',exact:true})).toBeVisible();
+ await expect(page.getByRole('button',{name:'Exiting',exact:true})).toBeVisible();
+ expect(calls.filter(([a])=>a==='lookup_code')).toHaveLength(1);
+ expect(await page.evaluate(()=>window.testCameraFacing)).toEqual({exact:'user'});
+ expect(errors).toEqual([]);
+ }finally{await browser.close();fs.unlinkSync(camera);}
+});
+
+
+test('boarding scene assets load without a network after being saved',async({page,context})=>{
+ await setup(page);await page.goto('/kiosk');
+ await expect(page.getByRole('button',{name:/Scan QR code/})).toBeVisible();
+ await page.evaluate(()=>navigator.serviceWorker.ready);
+ await expect.poll(()=>page.evaluate(()=>!!navigator.serviceWorker.controller)).toBe(true);
+ await expect.poll(()=>page.evaluate(async()=>{
+  const paths=['/images/boarding-coast.webp','/images/boarding-coaster.webp'];
+  return (await Promise.all(paths.map(p=>caches.match(p,{cacheName:'tt-assets-v1'})))).every(Boolean);
+ }),{timeout:30000}).toBe(true);
+ await context.setOffline(true);
+ const loaded=await page.evaluate(async()=>Promise.all(['/images/boarding-coast.webp','/images/boarding-coaster.webp'].map(async p=>{
+  const r=await fetch(p);return r.ok && (await r.arrayBuffer()).byteLength>10000;
+ })));
+ expect(loaded).toEqual([true,true]);
+});

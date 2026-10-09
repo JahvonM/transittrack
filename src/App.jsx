@@ -39,6 +39,7 @@ const MechanicPortal = lazy(() => import('@/pages/MechanicPortal'));
 const RunInspection = lazy(() => import('@/pages/RunInspection'));
 const ManagerDashboard = lazy(() => import('@/pages/ManagerDashboard'));
 const OAuthConsent = lazy(() => import('@/pages/OAuthConsent'));
+const DesktopSignIn = lazy(() => import('@/pages/DesktopSignIn'));
 const RouteAnalytics = lazy(() => import('@/pages/RouteAnalytics'));
 const IncidentReports = lazy(() => import('@/pages/IncidentReports'));
 const PassengerBookings = lazy(() => import('@/pages/PassengerBookings'));
@@ -76,7 +77,8 @@ const AuthenticatedApp = () => {
   const tabletPage = /^\/(driver|kiosk)(\/|$)/.test(location.pathname);
   // The legal pages are linked from the app stores, so they must open for
   // signed-out visitors instead of bouncing to the login screen.
-  const publicPage = authPage || ['/privacy', '/terms', '/reviewer-sandbox'].includes(location.pathname);
+  // /desktop-signin handles its own sign-in (TransitTrack Desktop's browser hand-off).
+  const publicPage = authPage || ['/privacy', '/terms', '/reviewer-sandbox', '/desktop-signin'].includes(location.pathname);
   // Pages remount (and animate) when this key changes. The driver app's tabs
   // are all one page, so they share a key — switching tabs must not restart
   // it (that would stop GPS tracking and navigation).
@@ -121,6 +123,7 @@ const AuthenticatedApp = () => {
       <Route path="/book-taxi" element={<BookTaxi />} />
       <Route path="/join" element={<JoinCompany />} />
       <Route path="/oauth/consent" element={<OAuthConsent />} />
+      <Route path="/desktop-signin" element={<DesktopSignIn />} />
       <Route path="/privacy" element={<PrivacyPolicy />} />
       <Route path="/terms" element={<TermsOfService />} />
       {/* Store reviewers open this without an account, so it sits outside the sign-in gate. */}
