@@ -19,6 +19,9 @@ export function createDurableAttemptBudget(config: {
     || !Number.isInteger(windowMs) || windowMs < 1000 || windowMs > 86400000) throw new Error('Invalid budget request');
    const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(scope));
    const scopeHash = [...new Uint8Array(digest)].map(x=>x.toString(16).padStart(2,'0')).join('');
+   let reason = 'network';
+   let httpStatus: number | undefined;
+   let providerCode: string | undefined;
    try {
     const response = await fetchImpl(url.origin+'/rest/v1/rpc/tt_reserve_attempt', {
      method:'POST', redirect:'error', signal:AbortSignal.timeout(timeoutMs),
@@ -28,14 +31,23 @@ export function createDurableAttemptBudget(config: {
       ...(config.serviceRoleKey.startsWith('sb_secret_') ? {} : {Authorization:'Bearer '+config.serviceRoleKey})},
      body:JSON.stringify({p_scope_hash:scopeHash,p_request_id:requestId,p_limit:limit,p_window_ms:windowMs}),
     });
-    if (!response.ok) throw new Error('Unsuccessful budget response');
+    httpStatus = response.status;
+    if (!response.ok) {
+     reason = 'http';
+     // Return only known error codes, never provider messages/details.
+     const body = await response.json().catch(()=>null);
+     const codes = ['PGRST202','PGRST301','PGRST302','42501','22023','23505','42P01','42883'];
+     if (codes.includes(body?.code)) providerCode = body.code;
+     throw new Error('Unsuccessful budget response');
+    }
+    reason = 'response';
     const value = await response.json();
     if (typeof value !== 'boolean') throw new Error('Invalid budget response');
     return value;
-   } catch {
-    // Do not log provider response bodies, URLs containing credentials or keys.
-    // Never fail open or silently fall back to a process-local lock.
-    throw new Error('Atomic budget unavailable');
+   } catch (error) {
+    // Sanitized metadata only; never include the provider message/body/key.
+    if (error?.name === 'TimeoutError' || error?.name === 'AbortError') reason = 'timeout';
+    throw Object.assign(new Error('Atomic budget unavailable'), {reason,httpStatus,providerCode});
    }
   },
  };
