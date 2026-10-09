@@ -25,7 +25,7 @@ function declutterStyle(map) {
  * Tap-to-place / draggable-marker map for picking a GPS coordinate.
  * props: { lat, lng, onChange(lat, lng) }
  */
-export default function LocationPicker({ lat, lng, onChange, onPlace }) {
+export default function LocationPicker({ lat, lng, onChange, onPlace, showCoordinates = true }) {
   const isDark = useIsDark();
   const [viewport, setViewport] = useState({
     longitude: lng ?? -61.7,
@@ -82,7 +82,7 @@ export default function LocationPicker({ lat, lng, onChange, onPlace }) {
           )}
         </Map>
       </div>
-      <div className="flex items-center gap-2">
+      {showCoordinates && <div className="flex items-center gap-2">
         <Input
           type="number"
           step="any"
@@ -112,7 +112,7 @@ export default function LocationPicker({ lat, lng, onChange, onPlace }) {
         >
           <LocateFixed className="w-4 h-4" />
         </Button>
-      </div>
+      </div>}
     </div>
   );
 }
