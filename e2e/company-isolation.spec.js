@@ -1035,3 +1035,40 @@ test('native setup opens focused NFC view and switches to tablet without running
  await page.getByRole('button',{name:'Start reader',exact:true}).click();
  await expect.poll(()=>page.evaluate(()=>window.nativeCalls)).toEqual(['startReader']);
 });
+
+test('older desktop restart restores a valid saved session instead of showing login',async({page})=>{
+ await session(page,'admin');
+ await page.addInitScript(()=>Object.defineProperty(navigator,'userAgent',{get:()=> 'TransitTrack Electron/44.7.0'}));
+ await page.goto('/login?returnTo=%2F');
+ await expect(page).toHaveURL(/\/admin$/);
+ await expect(page.getByLabel('Email address')).toHaveCount(0);
+ await page.goto('/login?returnTo=%2F');
+ await expect(page).toHaveURL(/\/admin$/);
+ expect(await page.evaluate(()=>localStorage.getItem('base44_access_token'))).toBe('mock-authenticated-session');
+});
+test('desktop explicit switch account still opens the sign-in form',async({page})=>{
+ await session(page,'admin');
+ await page.addInitScript(()=>Object.defineProperty(navigator,'userAgent',{get:()=> 'TransitTrack Electron/44.7.0'}));
+ await page.goto('/login');
+ await expect(page.getByLabel('Email address')).toBeVisible();
+ await expect(page).toHaveURL(/\/login$/);
+});
+for(const status of [401,503]){
+ test('desktop restart handles session response '+status+' without bypassing authentication',async({page})=>{
+  await session(page,'admin');
+  await page.addInitScript(()=>Object.defineProperty(navigator,'userAgent',{get:()=> 'TransitTrack Electron/44.7.0'}));
+  await page.route('**/functions/entityAccess',r=>{
+   const b=r.request().postDataJSON();
+   if(b.entity==='User'&&b.id==='me')return r.fulfill({status,json:{error:status===401?'Authentication required':'Temporarily unavailable'}});
+   return r.fallback();
+  });
+  await page.goto('/login?returnTo=%2F');
+  if(status===401)await expect(page.getByLabel('Email address')).toBeVisible();
+  else{
+   await expect(page.getByRole('heading',{name:"Couldn't check your sign-in"})).toBeVisible();
+   await expect(page.getByLabel('Email address')).toHaveCount(0);
+  }
+  expect(await page.evaluate(()=>localStorage.getItem('base44_access_token'))).toBe('mock-authenticated-session');
+  await expect(page).toHaveURL(/\/login\?returnTo=/);
+ });
+}
