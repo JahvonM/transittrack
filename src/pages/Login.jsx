@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LogIn, Mail, Lock, Loader2, QrCode, Eye, EyeOff, Shield } from "lucide-react";
 import AuthLayout from "@/components/AuthLayout";
+import JourneyLoading from "@/components/JourneyLoading";
+import AccessRecovery from "@/components/system/AccessRecovery";
 import GoogleIcon from "@/components/GoogleIcon";
 import AppleIcon from "@/components/AppleIcon";
 import { safeReturnTo } from "@/lib/authReturnTo";
@@ -23,12 +25,22 @@ export default function Login() {
   // with returnTo so the grant flow can resume). Same-origin paths only.
   const askedReturn = safeReturnTo();
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isLoadingAuth, isLoadingPublicSettings, authError, checkAppState } = useAuth();
+  // Older Windows versions start at /login?returnTo=/ on every launch.
+  // Resume only after the server confirms the saved session. The explicit
+  // switch-account menu uses /login without returnTo and keeps its form.
+  const desktopResume = (window.transittrackDesktop || /Electron\//i.test(navigator.userAgent)) &&
+    new URLSearchParams(window.location.search).has("returnTo");
   // Company QR scanned here: once signed in, /join adds the passenger to that
   // company with no code to type. Scanning never signs anyone in by itself.
   const [scanOpen, setScanOpen] = useState(false);
   const [joinReady, setJoinReady] = useState(() => hasPendingJoinCode());
   const returnTo = joinReady && askedReturn === "/" ? "/join" : askedReturn;
+  useEffect(() => {
+    if (desktopResume && isAuthenticated && !isLoadingAuth && !isLoadingPublicSettings && !authError) {
+      navigate(returnTo.startsWith("/login") ? "/" : returnTo, { replace: true });
+    }
+  }, [desktopResume, isAuthenticated, isLoadingAuth, isLoadingPublicSettings, authError, returnTo, navigate]);
   const onScan = (code) => {
     if (!rememberJoinCode(code)) return;
     setJoinReady(true);
@@ -57,6 +69,13 @@ export default function Login() {
   const handleApple = () => {
     base44.auth.loginWithProvider("apple", returnTo);
   };
+
+  if (desktopResume && (isLoadingAuth || isLoadingPublicSettings || (isAuthenticated && !authError))) {
+    return <JourneyLoading label="Restoring your sign-in…" onRetry={checkAppState} />;
+  }
+  if (desktopResume && authError && authError.type !== "auth_required") {
+    return <AccessRecovery onRetry={checkAppState} />;
+  }
 
   return (
     <AuthLayout

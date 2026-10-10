@@ -70,3 +70,5 @@ The listener closes after success, cancel or 10 minutes. If the browser asks to 
 to apps on this device, choose Allow. The /desktop-signin page must be published on the website.
 
 The site URL is fixed in policy.cjs to https://eager-transit-track-go.base44.app.
+
+- Startup restores the saved session through the home route. The published login page also resumes valid sessions for older desktop versions that open /login?returnTo=/. Explicit account switching and server-rejected sessions still show sign-in.
