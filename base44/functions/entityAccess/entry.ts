@@ -25,6 +25,8 @@ ENTITY_FIELDS.Incident.push('photo_uris','source');
 ENTITY_FIELDS.DriverShift.push('started_with','ended_with');
 ENTITY_FIELDS.Vehicle.push('backup_gps_driver_email','backup_gps_since');
 // Admin → App errors: what happened before an error, and marking it fixed.
+// The latest Wi-Fi/hotspot command's status for Admin → Kiosk tablets (never the command itself, which can hold a Wi-Fi password).
+ENTITY_FIELDS.KioskDevice.push('network_status');
 ENTITY_FIELDS.ClientError.push('area','context','breadcrumbs','status','resolved_at','resolved_by');
 const ADMIN_ONLY_FIELDS={Driver:new Set(['phone_app_access'])};
 const SERVER_ONLY_FIELDS={Incident:new Set(['photo_uris','source'])};
