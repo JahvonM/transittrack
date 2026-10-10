@@ -76,3 +76,29 @@ describe("directory pickup editing", () => {
     expect(pat).toMatchObject({ pickup: { name: point.pickup_name, lat: point.pickup_lat, lng: point.pickup_lng }, status: "ok", route_id: "r1" });
   });
 });
+
+describe("company address drop-off", () => {
+  it("derives contact and account destinations from their trusted company, ignoring stale profile and contact destinations", async () => {
+    const sdk = setup();
+    sdk.tables.Workplace = [{id:"wa", company_id:"a", name:"Hotel entrance", lat:12.04, lng:-61.75},
+      {id:"wb", company_id:"b", name:"Other company", lat:12.1, lng:-61.6}];
+    sdk.tables.User.push({id:"orphan", role:"staff", email:"orphan@test.invalid", company_id:"b"});
+    sdk.tables.CompanyMembership.push({id:"om",user_id:"orphan",company_id:"a",scope:"passenger",active:true});
+    const read = async () => (await (await load("nfcCards",sdk).default(request({action:"directory"}))).json()).people;
+    let people = await read();
+    for (const key of ["contact:pat-card","user:orphan"]) expect(people.find(p=>p.key===key)).toMatchObject({
+      company_id:"a",dropoff_name:"Hotel entrance",dropoff_lat:12.04,dropoff_lng:-61.75
+    });
+    sdk.tables.Workplace[0].name = "New company entrance";
+    people = await read();
+    expect(people.find(p=>p.key==="contact:pat-card").dropoff_name).toBe("New company entrance");
+    expect(sdk.tables.Contact[0].dropoff_name).toBe("Hotel");
+  });
+  it("never falls back to a passenger destination or another company's workplace when company address is missing", async () => {
+    const sdk=setup();sdk.tables.Workplace=[{id:"wb",company_id:"b",name:"Other",lat:12,lng:-61}];
+    const response=await load("nfcCards",sdk).default(request({action:"directory"}));
+    expect((await response.json()).people.find(p=>p.key==="contact:pat-card")).toMatchObject({
+      dropoff_name:"",dropoff_lat:null,dropoff_lng:null
+    });
+  });
+});
