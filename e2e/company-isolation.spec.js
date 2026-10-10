@@ -118,7 +118,7 @@ test('passenger previews walking directions then saves a separate roadside picku
  expect(pickup.pickup_route_id).toBe('route-a');
 });
 
-async function passengerShowcase(page, { stale = false, light = false, parked = false, assigned = { current: true }, pickup = 'Grand Anse' } = {}) {
+async function passengerShowcase(page, { stale = false, light = false, parked = false, assigned = { current: true }, pickup = 'Grand Anse', extra = {}, sharedStop = null } = {}) {
   await session(page,'staff');
   await page.addInitScript(({light,pickup}) => {
     localStorage.setItem('tt_company_access_grant','a'.repeat(64));
@@ -126,7 +126,9 @@ async function passengerShowcase(page, { stale = false, light = false, parked = 
     localStorage.setItem('tt-map-engine','basic');
     localStorage.setItem('tt-theme-v2',light ? 'light' : 'dark');
   }, {light,pickup});
-  const passenger={id:'caller',role:'staff',email:'caller@test.local',full_name:'Test Passenger',company_id:'a',...(pickup ? {favorite_stop:pickup} : {})};
+  const passenger={id:'caller',role:'staff',email:'caller@test.local',full_name:'Test Passenger',company_id:'a',...(pickup ? {favorite_stop:pickup} : {}),...extra};
+  // Where this passenger's pickup was merged with neighbours' along the road.
+  await page.route('**/functions/routeStops',r=>r.fulfill({json:{stop:sharedStop}}));
   const stops=[{name:"St. George's",lat:12.05,lng:-61.75,order:0},{name:'True Blue',lat:12.02,lng:-61.76,order:1},{name:'Grand Anse',lat:12.01,lng:-61.77,order:2},{name:'Morne Rouge',lat:12,lng:-61.78,order:3}];
   const bus={...vehicles[0],name:'TT-102',route_id:'route-a',current_lat:12.022,current_lng:-61.758,tracking_active:!parked,status:parked ? 'active' : 'on_trip',speed:parked ? 0 : 25,driver_name:'K. Thomas',last_location_update:new Date(Date.now()-(stale ? 600000 : 20000)).toISOString()};
   // The bus Admin → Passengers put this passenger on; null once it's removed.
@@ -690,6 +692,16 @@ test('a passenger who has not picked a stop still sees the bus they are assigned
  assigned.current=false;
  await page.getByRole('button',{name:'Refresh list',exact:true}).click();
  await expect(card).toContainText('No bus assigned yet');
+});
+
+test('a pickup merged with neighbours says where to meet and how far it is',async({page})=>{
+ await page.setViewportSize({width:390,height:844});
+ await passengerShowcase(page,{pickup:'My spot',extra:{pickup_name:'My spot',pickup_lat:12.02,pickup_lng:-61.76,pickup_route_id:'route-a'},
+  sharedStop:{name:"Outside Joe's shop",lat:12.0207,lng:-61.7603,shared_with:2,moved_m:80,fixed:false}});
+ const card=page.getByLabel('Your pickup',{exact:true});
+ await expect(card).toContainText("Meet at Outside Joe's shop, 80 m from your spot · shared with 2 others");
+ await card.evaluate(el=>el.scrollIntoView({block:'center'}));
+ if(process.env.TT_SHOT_DIR) await page.screenshot({path:`${process.env.TT_SHOT_DIR}/shared-pickup.png`});
 });
 
 test('passenger Buses is distinct from Home and chat bubble works on both',async({page})=>{

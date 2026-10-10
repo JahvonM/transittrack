@@ -256,7 +256,7 @@ function MoreRow({ icon: Icon, title, sub, onClick, href, external = false }) {
 
 // Roadside pickup, near the top of Home: a prompt until one is saved, then
 // where you're picked up (and dropped off) with a quick way to change it.
-export function PickupCard({ pickupName, dropoffName, onOpen }) {
+export function PickupCard({ pickupName, dropoffName, onOpen, shared = null }) {
   if (!pickupName) {
     return (
       <section className="mx-6 mb-4 flex items-center gap-4 rounded-2xl border border-primary/40 bg-primary/10 p-4 lg:mx-0" aria-labelledby="tt-pickup-cta">
@@ -274,6 +274,13 @@ export function PickupCard({ pickupName, dropoffName, onOpen }) {
       <MapPinned className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden="true" />
       <p className="min-w-0 flex-1 text-body-sm">
         <span className="block truncate"><span className="text-muted-foreground">Pickup:</span> <span className="font-semibold">{pickupName}</span></span>
+        {/* Neighbours' pickups along the road share one stop. */}
+        {shared && (shared.shared_with > 0 || shared.moved_m > 15) && (
+          <span className="block text-primary">
+            {shared.moved_m > 15 ? `Meet at ${shared.name}, ${shared.moved_m} m from your spot` : `Meet at ${shared.name}`}
+            {shared.shared_with > 0 ? ` · shared with ${shared.shared_with} other${shared.shared_with === 1 ? "" : "s"}` : ""}
+          </span>
+        )}
         {dropoffName && <span className="block truncate"><span className="text-muted-foreground">Drop-off:</span> <span className="font-semibold">{dropoffName}</span></span>}
       </p>
       <Button variant="ghost" size="sm" onClick={onOpen}>Change</Button>

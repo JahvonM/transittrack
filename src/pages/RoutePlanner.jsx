@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/components/ui/use-toast";
-import { Building2, MapPinned, Plus, Route as RouteIcon, Trash2, Save, Undo2, Spline, Loader2 } from "lucide-react";
+import { Building2, MapPinned, Plus, Route as RouteIcon, Trash2, Save, Undo2, Spline, Loader2, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { EmptyState, PageActions, Panel, StatusChip } from "@/components/admin/kit";
 import PlaceSearch from "@/components/PlaceSearch";
@@ -55,6 +55,18 @@ export default function RoutePlanner() {
   const [road, setRoad] = useState(null); // [lng, lat] pairs snapped to streets
   const [snapping, setSnapping] = useState(false);
   const snapId = useRef(0);
+  // Pickups that close along the road share one stop (metres).
+  const [mergeM, setMergeM] = useState(150);
+  // The saved route's stops along its road: passengers' pickups, merged.
+  const [pickupPlan, setPickupPlan] = useState(null);
+  const loadPickupPlan = async (routeId) => {
+    setPickupPlan(null);
+    if (!routeId) return;
+    try {
+      const { data } = await base44.functions.invoke("routeStops", { action: "route", route_id: routeId });
+      setPickupPlan(data?.has_road ? data : null);
+    } catch { setPickupPlan(null); }
+  };
 
   // Snap the road through the tapped points onto the streets.
   const resnap = async (points) => {
@@ -98,6 +110,8 @@ export default function RoutePlanner() {
     setSnapping(false);
     setVia((route.path_via || []).filter((p) => Number.isFinite(p?.lat) && Number.isFinite(p?.lng)));
     setRoad(drawnRoad(route));
+    setMergeM(Number.isFinite(route.pickup_merge_m) ? route.pickup_merge_m : 150);
+    loadPickupPlan(drawnRoad(route) ? route.id : null);
   };
 
   const newRoute = () => {
@@ -110,6 +124,8 @@ export default function RoutePlanner() {
     setSnapping(false);
     setVia([]);
     setRoad(null);
+    setMergeM(150);
+    setPickupPlan(null);
   };
 
   const onMapClick = (e) => {
@@ -175,17 +191,21 @@ export default function RoutePlanner() {
         // The drawn road (empty: follow the roads between the stops).
         path: road ? road.map(([lng, lat]) => ({ lat, lng })) : [],
         path_via: road ? via : [],
+        pickup_merge_m: Math.max(0, Math.min(500, Math.round(Number(mergeM) || 0))),
         active: true,
       };
+      let savedId = selectedRoute?.id || null;
       if (selectedRoute) {
         await base44.entities.Route.update(selectedRoute.id, payload);
       } else {
-        await base44.entities.Route.create(payload);
+        savedId = (await base44.entities.Route.create(payload))?.id || null;
       }
       toast({ title: "Route saved" });
       const r = await base44.entities.Route.list("-created_date", 100);
       setRoutes(r);
-      newRoute();
+      // Keep the saved route open, so its pickup stops show.
+      const saved = savedId ? r.find((x) => x.id === savedId) : null;
+      if (saved) loadRoute(saved); else newRoute();
     } catch (e) {
       toast({ title: "Failed to save", description: e.message, variant: "destructive" });
     }
@@ -266,6 +286,13 @@ export default function RoutePlanner() {
                   <Layer id="planner-route-line" type="line" layout={{ "line-cap": "round", "line-join": "round" }} paint={{ "line-color": accent, "line-width": 5, "line-opacity": 0.85, "line-dasharray": [2, 1.5] }} />
                 </Source>
               )}
+              {pickupPlan?.stops?.map((st) => (
+                <Marker key={st.key} longitude={st.lng} latitude={st.lat} anchor="bottom">
+                  <div className="rounded-full border-2 border-background bg-primary px-2 py-0.5 text-caption font-bold text-primary-foreground shadow-md" title={`${st.name}: ${st.riders.map((r) => r.name).join(", ")}`}>
+                    {st.riders.length}
+                  </div>
+                </Marker>
+              ))}
               {tapMode === "road" && via.map((p, i) => (
                 <Marker key={`via-${i}`} longitude={p.lng} latitude={p.lat} anchor="center">
                   <div className={cn("rounded-full border-2 border-background shadow", i === via.length - 1 ? "h-4 w-4 bg-primary" : "h-3 w-3 bg-foreground/70")} title={i === 0 ? "Road start" : `Road point ${i + 1}`} />
@@ -345,6 +372,13 @@ export default function RoutePlanner() {
             ) : (
               <p className="text-body-sm text-muted-foreground">{via.length === 1 ? "Tap one more point to draw the road." : "No road drawn: the route follows the fastest roads between its stops. Switch the map to Road and tap along the roads the bus really takes."}</p>
             )}
+            {road && (
+              <div className="mt-3 flex items-center gap-2">
+                <Label htmlFor="rp-merge" className="text-body-sm">Pickups closer than</Label>
+                <Input id="rp-merge" type="number" min={0} max={500} step={10} value={mergeM} onChange={(e) => setMergeM(e.target.value)} className="h-9 w-20" />
+                <span className="text-body-sm text-muted-foreground">m share one stop</span>
+              </div>
+            )}
             {snapping && <p className="mt-2 flex items-center gap-2 text-body-sm text-muted-foreground" role="status"><Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> Following the streets…</p>}
             <div className="mt-3 flex gap-2">
               <Button size="sm" variant="outline" onClick={() => setTapMode("road")} disabled={tapMode === "road"}><Spline className="h-4 w-4" /> {road ? "Extend road" : "Draw road"}</Button>
@@ -352,6 +386,33 @@ export default function RoutePlanner() {
               <Button size="sm" variant="ghost" onClick={clearRoad} disabled={!via.length && !road} className="text-danger hover:text-danger">Clear</Button>
             </div>
           </Panel>
+
+          {pickupPlan && (
+            <Panel title={`Pickup stops (${pickupPlan.stops.filter((st) => st.riders.length).length})`} icon={Users} bodyClassName="p-2 pt-0">
+              <p className="px-2 pb-2 text-caption text-muted-foreground">Passengers' pickups on this road, in the order the bus reaches them. Saved changes to the road or merge distance update this list.</p>
+              {pickupPlan.stops.length === 0 ? (
+                <p className="px-2 pb-2 text-body-sm text-muted-foreground">No passenger has picked a pickup on this road yet.</p>
+              ) : (
+                <ol className="space-y-1" aria-label="Pickup stops">
+                  {pickupPlan.stops.map((st, i) => (
+                    <li key={st.key} className="flex items-start gap-3 rounded-lg px-2 py-1.5">
+                      <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-primary text-caption font-bold text-primary-foreground" aria-hidden="true">{i + 1}</span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate font-semibold">{st.name}{st.fixed ? " · fixed stop" : ""}</span>
+                        <span className="block text-caption text-muted-foreground">{st.riders.length ? st.riders.map((r) => r.name).join(", ") : "No pickups here yet"}</span>
+                      </span>
+                      <span className="shrink-0 text-caption tabular-nums text-muted-foreground">{(st.along / 1000).toFixed(1)} km</span>
+                    </li>
+                  ))}
+                </ol>
+              )}
+              {pickupPlan.off_road.length > 0 && (
+                <p className="m-2 rounded-lg bg-warning/10 px-2 py-2 text-body-sm">
+                  <span className="font-semibold">Too far from this road:</span> {pickupPlan.off_road.map((r) => r.name).join(", ")}
+                </p>
+              )}
+            </Panel>
+          )}
 
           <Panel title={`Stops (${stops.length})`} bodyClassName="p-2 pt-0">
             {stops.length === 0 ? (

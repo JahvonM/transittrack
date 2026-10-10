@@ -22,6 +22,10 @@ async function planner(page){
  });
  await page.route('**/api/**',async route=>{
   const url=route.request().url();
+  if(url.includes('/functions/routeStops')) return route.fulfill({json:{has_road:true,merge_m:150,
+   stops:[{key:'pickup:user:a',name:"Outside Joe's shop",lat:12.045,lng:-61.752,along:600,fixed:false,riders:[{id:'user:a',name:'Ann Lee',moved_m:0},{id:'user:b',name:'Ben Cole',moved_m:80}]},
+          {key:'pickup:contact:c',name:'Pickup 1',lat:12.035,lng:-61.757,along:1800,fixed:false,riders:[{id:'contact:c',name:'Cara Diaz',moved_m:0}]}],
+   off_road:[{id:'user:far',name:'Far Away'}]}});
   if(url.includes('/entities/User/me')) return route.fulfill({json:{id:'admin',role:'admin',email:'admin@test.local',full_name:'Ada Admin'}});
   if(url.includes('/functions/entityAccess')){
    const body=route.request().postDataJSON();let result=[];
@@ -49,6 +53,23 @@ test('a saved route shows its drawn road',async({page})=>{
  await expect(road).toContainText('2.5 km');
  await expect(road).toContainText('drawn through 2 points');
  await expect(page.getByRole('region',{name:'Stops (0)'})).toContainText('Stops are optional on a drawn road');
+});
+
+test('a saved road lists its pickup stops in order, with merged neighbours',async({page})=>{
+ const {saved}=await planner(page);
+ await page.goto('/admin/route-planner');
+ await page.getByRole('button',{name:/Coastal road/}).last().click();
+ const list=page.getByRole('list',{name:'Pickup stops'});
+ await expect(list.getByRole('listitem')).toHaveCount(2);
+ await expect(list.getByRole('listitem').first()).toContainText("Outside Joe's shop");
+ await expect(list.getByRole('listitem').first()).toContainText('Ann Lee, Ben Cole');
+ await expect(page.getByText('Too far from this road:')).toBeVisible();
+ await expect(page.getByLabel('Pickups closer than')).toHaveValue('150');
+ await shot(page,'pickup-stops');
+ await page.getByLabel('Pickups closer than').fill('80');
+ await page.getByRole('button',{name:'Save changes',exact:true}).click();
+ await expect.poll(()=>saved.length).toBe(1);
+ expect(saved[0].data.pickup_merge_m).toBe(80);
 });
 
 test('draw a road by tapping the map, undo a point, and save it with no stops',async({page})=>{

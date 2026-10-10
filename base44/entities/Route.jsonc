@@ -58,6 +58,10 @@
         }
       }
     },
+    "pickup_merge_m": {
+      "type": "number",
+      "description": "Passengers' pickups this close along the drawn road (metres) share one stop. Default 150; 0 = never merge."
+    },
     "path_via": {
       "type": "array",
       "description": "The points tapped to draw the road, in order (what the road was snapped through).",

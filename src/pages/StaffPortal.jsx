@@ -84,6 +84,9 @@ export default function StaffPortal() {
   const [companiesLoaded, setCompaniesLoaded] = useState(false);
   // The bus the company put this passenger on (Admin → Passengers): { id, name } or null.
   const [myBus, setMyBus] = useState(null);
+  // Where this passenger actually gets on when their pickup is merged with
+  // neighbours' along a drawn road: { name, lat, lng, shared_with, moved_m } or null.
+  const [sharedStop, setSharedStop] = useState(null);
   const [companyError, setCompanyError] = useState(false);
   const companyAttempt = useRef(0);
   const [vehicles, setVehicles] = useState([]);
@@ -211,6 +214,14 @@ export default function StaffPortal() {
       if (data?.company) setMyBus(data.my_bus || null);
     } catch { /* keep what's shown; the next check tries again */ }
   }, []);
+  const refreshSharedStop = useCallback(async () => {
+    if (user?.pickup_lat == null || !user?.pickup_route_id) { setSharedStop(null); return; }
+    try {
+      const { data } = await base44.functions.invoke('routeStops', { action: 'mine' });
+      setSharedStop(data?.stop || null);
+    } catch { /* keep the pickup as saved */ }
+  }, [user?.pickup_lat, user?.pickup_lng, user?.pickup_route_id]);
+  useEffect(() => { if (company?.id) refreshSharedStop(); }, [company?.id, refreshSharedStop]);
   useEffect(() => {
     if (!company?.id) return undefined;
     const onShow = () => { if (document.visibilityState === 'visible') refreshMyBus(); };
@@ -314,9 +325,10 @@ export default function StaffPortal() {
         out.push({ ...s, route_id: r.id, routeName: r.name });
       })
     );
-    if (user?.pickup_lat != null && routes.some(r => r.id === user.pickup_route_id)) out.push({ name: user.pickup_name, lat: user.pickup_lat, lng: user.pickup_lng, route_id: user.pickup_route_id, personal: true });
+    // Your own pickup, or the shared stop it was merged into along the road.
+    if (user?.pickup_lat != null && routes.some(r => r.id === user.pickup_route_id)) out.push({ name: user.pickup_name, lat: sharedStop?.lat ?? user.pickup_lat, lng: sharedStop?.lng ?? user.pickup_lng, route_id: user.pickup_route_id, personal: true, shared: sharedStop });
     return out;
-  }, [routes, user?.pickup_lat, user?.pickup_lng, user?.pickup_name, user?.pickup_route_id]);
+  }, [routes, user?.pickup_lat, user?.pickup_lng, user?.pickup_name, user?.pickup_route_id, sharedStop]);
 
   const stop = pickupOptions.find((s) => s.name === pickupName) || null;
 
@@ -477,7 +489,7 @@ export default function StaffPortal() {
 
   return (
     <AppLayout variant="passenger">
-      <PullToRefresh onRefresh={() => Promise.all([reload(), refreshMyBus()])}>
+      <PullToRefresh onRefresh={() => Promise.all([reload(), refreshMyBus(), refreshSharedStop()])}>
         <div className={`mx-auto max-w-2xl ${mapOpen ? "lg:grid lg:max-w-none lg:grid-cols-[440px_minmax(0,1fr)] lg:items-start lg:gap-14" : ""}`}>
           {/* Left: your trip */}
           <div className="min-w-0">
@@ -540,6 +552,7 @@ export default function StaffPortal() {
               pickupName={user?.pickup_lat != null ? user.pickup_name || "Your pinned pickup" : ""}
               dropoffName={workplace?.name || ""}
               onOpen={() => setSheet("pickup")}
+              shared={user?.pickup_lat != null ? sharedStop : null}
             />
                 {timelineRoute && (
                   <RouteTimeline route={timelineRoute} bus={tripState.bus} kind={tripState.kind} stopName={stop.name} mins={mins} stopEtas={stopEtas} now={now} />
