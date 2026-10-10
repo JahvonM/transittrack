@@ -8,6 +8,7 @@ import { helperHealthPayload } from "@/lib/helperHealth";
 import { appHealthPayload } from "@/lib/appHealth";
 import { httpStatus, errorData } from '@/lib/requestError';
 import { forgetUnlockDay } from '@/lib/localDay';
+import { handleNetworkCommand, networkAckPayload, withoutNetworkCommand } from '@/lib/tabletNetwork';
 
 // The last good session is kept on the tablet so the driver app still opens
 // (vehicle summary, route, stops, staff list) when it starts with no WiFi.
@@ -74,11 +75,15 @@ export function useDriverSession(deviceId, { intervalMs = 8000 } = {}) {
         ...(first ? { device_info: deviceMapInfo() } : {}),
         ...helperHealthPayload(),
         ...appHealthPayload("driver"),
+        ...networkAckPayload(),
       }));
       if (currentDevice.current !== deviceId) return;
+      // The hotspot switch from Admin → Kiosk tablets goes to the helper app.
+      handleNetworkCommand(res.data?.network_command).catch(() => {});
+      const data = withoutNetworkCommand(res.data);
       setSession((prev) => {
         // A shift started/ended offline wins until it has been uploaded.
-        const next = cleanTabletSession(hasQueuedShift() && prev ? { ...res.data, open_shift: prev.open_shift } : res.data);
+        const next = cleanTabletSession(hasQueuedShift() && prev ? { ...data, open_shift: prev.open_shift } : data);
         writeCache(deviceId, next);
         return next;
       });
