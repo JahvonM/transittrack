@@ -118,15 +118,15 @@ test('passenger previews walking directions then saves a separate roadside picku
  expect(pickup.pickup_route_id).toBe('route-a');
 });
 
-async function passengerShowcase(page, { stale = false, light = false, parked = false, assigned = { current: true } } = {}) {
+async function passengerShowcase(page, { stale = false, light = false, parked = false, assigned = { current: true }, pickup = 'Grand Anse' } = {}) {
   await session(page,'staff');
-  await page.addInitScript(({light}) => {
+  await page.addInitScript(({light,pickup}) => {
     localStorage.setItem('tt_company_access_grant','a'.repeat(64));
-    localStorage.setItem('tt_staff_pickup','Grand Anse');
+    if (pickup) localStorage.setItem('tt_staff_pickup',pickup);
     localStorage.setItem('tt-map-engine','basic');
     localStorage.setItem('tt-theme-v2',light ? 'light' : 'dark');
-  }, {light});
-  const passenger={id:'caller',role:'staff',email:'caller@test.local',full_name:'Test Passenger',company_id:'a',favorite_stop:'Grand Anse'};
+  }, {light,pickup});
+  const passenger={id:'caller',role:'staff',email:'caller@test.local',full_name:'Test Passenger',company_id:'a',...(pickup ? {favorite_stop:pickup} : {})};
   const stops=[{name:"St. George's",lat:12.05,lng:-61.75,order:0},{name:'True Blue',lat:12.02,lng:-61.76,order:1},{name:'Grand Anse',lat:12.01,lng:-61.77,order:2},{name:'Morne Rouge',lat:12,lng:-61.78,order:3}];
   const bus={...vehicles[0],name:'TT-102',route_id:'route-a',current_lat:12.022,current_lng:-61.758,tracking_active:!parked,status:parked ? 'active' : 'on_trip',speed:parked ? 0 : 25,driver_name:'K. Thomas',last_location_update:new Date(Date.now()-(stale ? 600000 : 20000)).toISOString()};
   // The bus Admin → Passengers put this passenger on; null once it's removed.
@@ -677,6 +677,19 @@ test('the bus an admin assigns shows on the phone, and goes when it is removed',
  assigned.current=true;
  await page.getByRole('button',{name:'Refresh list',exact:true}).click();
  await expect(card).toContainText('TT-102');
+});
+
+test('a passenger who has not picked a stop still sees the bus they are assigned to',async({page})=>{
+ await page.setViewportSize({width:390,height:844});
+ const assigned={current:true};
+ await passengerShowcase(page,{assigned,pickup:null});
+ const card=page.getByLabel('Your bus',{exact:true});
+ await expect(card).toContainText('TT-102');
+ await expect(page.getByText('Choose your stop below to see when it reaches you.')).toBeVisible();
+ if(process.env.TT_SHOT_DIR) await page.screenshot({path:`${process.env.TT_SHOT_DIR}/no-stop-assigned.png`});
+ assigned.current=false;
+ await page.getByRole('button',{name:'Refresh list',exact:true}).click();
+ await expect(card).toContainText('No bus assigned yet');
 });
 
 test('passenger Buses is distinct from Home and chat bubble works on both',async({page})=>{

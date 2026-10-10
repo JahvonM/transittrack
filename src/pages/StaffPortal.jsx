@@ -497,6 +497,12 @@ export default function StaffPortal() {
 
             {tripState.kind === "choose" ? (
               <>
+                {/* The bus the company assigned shows even before a stop is picked. */}
+                <section aria-label="Your bus" className="mx-6 mb-4 rounded-2xl border border-border bg-card p-4 lg:mx-0">
+                  <p className="text-body-sm font-semibold text-muted-foreground">Your bus</p>
+                  <p className="mt-1 text-title-sm font-bold">{myVehicle ? myVehicle.name : "No bus assigned yet"}</p>
+                  <p className="mt-1 text-body-sm text-muted-foreground">{myVehicle ? "Choose your stop below to see when it reaches you." : "Your company adds you to a bus."}</p>
+                </section>
                             <PickupCard
               pickupName={user?.pickup_lat != null ? user.pickup_name || "Your pinned pickup" : ""}
               dropoffName={workplace?.name || ""}
