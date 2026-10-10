@@ -23,12 +23,18 @@ public class MainActivity extends Activity {
                     + "Page:       " + Status.delivery + "\n"
                     + "Last card:  " + Status.lastCard + "\n"
                     + "USB GPS:    " + Status.gps + "\n"
-                    + "Hotspot:    " + (Config.hotspot(MainActivity.this) ? Status.hotspot : "Not used") + "\n"
-                    + "Bus Wi-Fi:  " + (Config.joinSsid(MainActivity.this).isEmpty() ? "Not used" : Status.wifi) + "\n\n"
+                    + "Hotspot:    " + (Config.hotspot(MainActivity.this)
+                            ? Status.hotspot + (Config.hotspotAlways(MainActivity.this) ? "  (always on)" : "  (while the bus runs)")
+                            : "Not used") + "\n"
+                    + "Bus Wi-Fi:  " + (Config.joinSsid(MainActivity.this).isEmpty() ? "Not used" : Status.wifi) + "\n"
+                    + "Wi-Fi now:  " + (Config.hotspot(MainActivity.this) ? "-" : orDash(WifiControl.currentSsid(MainActivity.this)))
+                    + (WifiControl.joinState.isEmpty() ? "" : "\nLast change: " + WifiControl.joinMessage) + "\n\n"
                     + "Recent:\n" + Status.recent());
             handler.postDelayed(this, 1000);
         }
     };
+
+    private static String orDash(String s) { return s == null || s.isEmpty() ? "Not connected" : s; }
 
     @Override protected void onCreate(Bundle b) {
         super.onCreate(b);
