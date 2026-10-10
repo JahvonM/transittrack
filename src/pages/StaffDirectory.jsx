@@ -7,9 +7,10 @@ import AppLayout from "@/components/AppLayout";
 import PullToRefresh from "@/components/PullToRefresh";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Users, MessageCircle, Plus, Pencil, Trash2, Nfc, Search } from "lucide-react";
+import { Users, MessageCircle, Plus, Pencil, Trash2, Nfc, Search, MapPin } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { EmptyState, PageActions, Segmented, StatusChip } from "@/components/admin/kit";
+import PassengerPickupDialog from "@/components/directory/PassengerPickupDialog";
 import ContactFormDialog from "@/components/directory/ContactFormDialog";
 import { useAuth } from "@/lib/AuthContext";
 import { loadFailed } from "@/lib/loadFailed";
@@ -32,6 +33,7 @@ export default function StaffDirectory() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [busyKey, setBusyKey] = useState("");
+  const [pickupPerson, setPickupPerson] = useState(null);
 
   const load = async () => {
     try {
@@ -206,7 +208,8 @@ export default function StaffDirectory() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="flex flex-wrap items-center gap-1 lg:flex-nowrap lg:justify-end">
+                  <div className="flex flex-wrap items-center gap-1 lg:justify-end">
+                    <Button variant="outline" size="sm" onClick={() => setPickupPerson(c)} aria-label={`Set pickup for ${c.name}`}><MapPin className="h-4 w-4" />{pickup ? "Edit pickup" : "Add pickup"}</Button>
                     <Button asChild variant="outline" size="sm">
                       <Link to={(user?.role === "admin" ? "/admin/cards" : "/company/cards") + "?person=" + encodeURIComponent(c.key)}><Nfc className="h-4 w-4" /> {c.status === "Card Issued" ? "Manage card" : "Issue card"}</Link>
                     </Button>
@@ -225,6 +228,7 @@ export default function StaffDirectory() {
         </div>
       )}
 
+      {pickupPerson && <PassengerPickupDialog key={pickupPerson.key} person={pickupPerson} onClose={() => setPickupPerson(null)} onSaved={load} />}
       <ContactFormDialog
         open={dialogOpen}
         onClose={() => setDialogOpen(false)}
