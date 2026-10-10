@@ -38,7 +38,7 @@ import {
 import { clock, passengerTripState, sortStops } from "@/components/passenger/passengerState";
 import useStopEtas from "@/components/passenger/useStopEtas";
 import { drawnRoad } from "@/lib/routeRoad";
-import { pickupMissesBus } from "@/lib/pickupOnBus";
+import { pickupMissesBus, pickupMovedNote } from "@/lib/pickupOnBus";
 import { Button } from "@/components/ui/button";
 
 // The live 3D map (mapbox-gl + three.js) loads after the page around it.
@@ -542,6 +542,7 @@ export default function StaffPortal() {
               pickupName={user?.pickup_lat != null ? user.pickup_name || "Your pinned pickup" : ""}
               dropoffName={workplace?.name || ""}
               onOpen={() => setSheet("pickup")}
+              movedNote={pickupMovedNote(user)}
             />
                 <StopChooser routes={routes} value={pickupName} onChoose={choosePickup} userLoc={userLoc} companyName={companyName} bus={pinnerBus} />
                 {!userLoc && locError && <div className="px-6 pb-6 lg:px-0"><LocationPrompt onLocation={setPromptLoc} /></div>}
@@ -576,6 +577,7 @@ export default function StaffPortal() {
               dropoffName={workplace?.name || ""}
               onOpen={() => setSheet("pickup")}
               shared={user?.pickup_lat != null ? sharedStop : null}
+              movedNote={pickupMovedNote(user)}
             />
                 {timelineRoute && (
                   <RouteTimeline route={timelineRoute} bus={tripState.bus} kind={tripState.kind} stopName={stop.name} mins={mins} stopEtas={stopEtas} now={now} />

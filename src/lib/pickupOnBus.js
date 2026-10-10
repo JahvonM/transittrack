@@ -16,3 +16,14 @@ export function pickupMissesBus(user, busRoute) {
   const near = nearestRoutePoint({ lat: Number(user.pickup_lat), lng: Number(user.pickup_lng) }, drawnRoad(busRoute));
   return !(near && near.distanceM <= ON_ROAD_M);
 }
+
+// "Your driver moved your pickup": shown while the pickup is still where the
+// driver put it, for two weeks.
+export function pickupMovedNote(user, now = Date.now()) {
+  const moved = user?.pickup_moved;
+  if (!moved?.at || !(now - Date.parse(moved.at) < 14 * 86400_000)) return null;
+  const same = (a, b) => Math.abs(Number(a) - Number(b)) < 1e-6;
+  if (!same(moved.lat, user.pickup_lat) || !same(moved.lng, user.pickup_lng)) return null;
+  const day = new Date(moved.at).toLocaleDateString(undefined, { day: "numeric", month: "short" });
+  return `${moved.by || "Your driver"} moved your pickup ${Math.round(moved.m || 0)} m along the road on ${day}, to where the bus can stop.`;
+}

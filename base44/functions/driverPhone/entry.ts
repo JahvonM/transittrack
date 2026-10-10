@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 import { secrets } from 'base44:runtime';
+import { busRoadStops } from '../../shared/routeRiders.ts';
 import { findPhoneDriver, driverVehicles, normEmail } from '../../shared/driverPhone.ts';
 import { sendPushToTokens } from '../../shared/fcm.ts';
 import { applyLocationUpdate } from '../../shared/vehicleLocation.ts';
@@ -223,10 +224,17 @@ function sortedStops(route) {
     .sort((a, b) => a.order - b.order);
 }
 
-// Passengers who ride this bus, each listed at the stop nearest their
+// The drawn road's stops for the phone, in the order the bus reaches them.
+// Pickup stops go by name only: their points stay on the server.
+function phoneRoadStops(plan) {
+  return plan.stops.map((s, i) => ({ name: sanitize(s.name) || `Stop ${i + 1}`, lat: s.fixed ? s.lat : null, lng: s.fixed ? s.lng : null, order: i, fixed: !!s.fixed }));
+}
+
+// Passengers who ride this bus, each listed at their stop: on a drawn road,
+// the pickup stop they meet at (`roadPlan`); otherwise the stop nearest their
 // pinned pickup point (as on the bus tablet). Names only: no addresses,
 // phone numbers or pickup coordinates leave the server.
-async function pickupsFor(base44, companyId, vehicleId, stops) {
+async function pickupsFor(base44, companyId, vehicleId, stops, roadPlan = null) {
   const db = base44.asServiceRole.entities;
   const memberships = await approvedPassengerMemberships(base44, companyId);
   const membershipByUser = new Map(memberships.map((m) => [m.user_id, m]));
@@ -245,6 +253,7 @@ async function pickupsFor(base44, companyId, vehicleId, stops) {
     if (bus && bus !== vehicleId) continue;
     if (c.email) seen.add(normEmail(c.email));
     people.push({
+      keys: ['contact:' + c.id, u.id ? 'user:' + u.id : ''],
       name: u.display_name || c.name || u.full_name,
       lat: c.pickup_lat ?? u.pickup_lat ?? u.home_lat, lng: c.pickup_lng ?? u.pickup_lng ?? u.home_lng,
       pickup_name: c.pickup_name || u.pickup_name || '',
@@ -256,15 +265,20 @@ async function pickupsFor(base44, companyId, vehicleId, stops) {
     const bus = membershipByUser.get(u.id)?.vehicle_id || '';
     if (bus && bus !== vehicleId) continue;
     people.push({
+      keys: ['user:' + u.id],
       name: u.display_name || u.full_name, lat: u.pickup_lat ?? u.home_lat, lng: u.pickup_lng ?? u.home_lng,
       pickup_name: u.pickup_name || '',
       skipping: flagActive(u.skip_pickup_today, u.skip_pickup_until), late: flagActive(u.late_snooze_active, u.late_until),
     });
   }
   const located = stops.filter((s) => s.lat != null && s.lng != null);
+  const stopOf = new Map();
+  for (const s of roadPlan?.stops || []) for (const r of s.riders) stopOf.set(r.id, sanitize(s.name));
   return people.map((p) => {
     let stop = '';
-    if (p.lat != null && p.lng != null && located.length) {
+    if (roadPlan) {
+      stop = p.keys.map((k) => stopOf.get(k)).find(Boolean) || '';
+    } else if (p.lat != null && p.lng != null && located.length) {
       let best = null;
       for (const s of located) { const d = haversineMeters(Number(p.lat), Number(p.lng), s.lat, s.lng); if (!best || d < best.d) best = { d, name: s.name }; }
       stop = best.name;
@@ -345,8 +359,9 @@ export default async function(req) {
         const backupShift = await backupGpsShift(base44, bus, email);
         const walk = inspections.find((i) => i.company_id === companyId && i.trigger === 'driver_phone' && localDay(i.created_date) === localDay(Date.now()));
         const routeOk = route && route.company_id === companyId;
-        const stops = routeOk ? sortedStops(route) : [];
-        const pickups = await pickupsFor(base44, companyId, bus.id, stops);
+        const roadPlan = routeOk ? await busRoadStops(db, route, bus.id).catch(() => null) : null;
+        const stops = roadPlan ? phoneRoadStops(roadPlan) : routeOk ? sortedStops(route) : [];
+        const pickups = await pickupsFor(base44, companyId, bus.id, stops, roadPlan);
         const busShifts = shifts.filter((s) => s.company_id === companyId);
         const weekAgo = Date.now() - 7 * 86400_000;
         const notices = broadcasts

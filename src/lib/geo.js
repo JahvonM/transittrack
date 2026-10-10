@@ -82,18 +82,29 @@ export async function fetchDrivingRoute(points) {
  * so when the stop is behind the bus the directions should simply say "turn
  * around" instead of sending it the long way round the block.
  *
+ * `via`: points on the road the admin drew (Route Planner) to pass through
+ * on the way, so the directions follow that road. They are silent: no
+ * "arrived" and no extra legs, only the origin and destination are stops.
+ *
  * @param {{lat:number,lng:number}} origin
  * @param {{lat:number,lng:number}} destination
+ * @param {{ via?: Array<{lat:number,lng:number}> }} [options]
  */
-export async function fetchTurnByTurnRoutes(origin, destination) {
+export async function fetchTurnByTurnRoutes(origin, destination, { via = [] } = {}) {
   if (!origin?.lat || !destination?.lat || !MAPBOX_TOKEN) return [];
-  const coordsParam = `${roundCoord(origin.lng)},${roundCoord(origin.lat)};${roundCoord(destination.lng)},${roundCoord(destination.lat)}`;
-  const common = `geometries=geojson&overview=full&steps=true&alternatives=true&banner_instructions=true&voice_instructions=true&voice_units=metric&continue_straight=false&access_token=${MAPBOX_TOKEN}`;
+  const pass = (via || []).filter((p) => Number.isFinite(p?.lat) && Number.isFinite(p?.lng)).slice(0, MAX_DIRECTIONS_WAYPOINTS - 2);
+  const points = [origin, ...pass, destination];
+  const coordsParam = points.map((p) => `${roundCoord(p.lng)},${roundCoord(p.lat)}`).join(";");
+  const silent = pass.length ? `&waypoints=0;${points.length - 1}` : "";
+  const common = `geometries=geojson&overview=full&steps=true&alternatives=${pass.length ? "false" : "true"}&banner_instructions=true&voice_instructions=true&voice_units=metric&continue_straight=false${silent}&access_token=${MAPBOX_TOKEN}`;
 
   try {
     // Live traffic first (like Google Maps); plain driving where that isn't
-    // available. Traffic levels only come with the traffic profile.
-    let res = await fetch(`https://api.mapbox.com/directions/v5/mapbox/driving-traffic/${coordsParam}?${common}&annotations=maxspeed,congestion`);
+    // available. Traffic levels only come with the traffic profile, which
+    // takes at most 3 points, so a long drawn road goes by plain driving.
+    let res = points.length <= 3
+      ? await fetch(`https://api.mapbox.com/directions/v5/mapbox/driving-traffic/${coordsParam}?${common}&annotations=maxspeed,congestion`)
+      : { ok: false };
     if (!res.ok) res = await fetch(`https://api.mapbox.com/directions/v5/mapbox/driving/${coordsParam}?${common}&annotations=maxspeed`);
     if (!res.ok) return [];
     const data = await res.json();

@@ -223,7 +223,7 @@ export default function TodayTab({ today, driverName, onPickBus, onStartShift, o
                       <div className="min-w-0 flex-1 pt-0.5">
                         <p className="font-semibold">{s.name}</p>
                         <p className="text-body-sm text-muted-foreground">
-                          {people.length > 0 ? `${people.length} pickup${people.length === 1 ? "" : "s"}` : "No pickups"}
+                          {s.fixed === false ? "Pickup stop · " : ""}{people.length > 0 ? `${people.length} pickup${people.length === 1 ? "" : "s"}` : "No pickups"}
                         </p>
                       </div>
                     </li>

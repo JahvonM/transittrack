@@ -119,5 +119,13 @@ export function pickupStops({ road, fixed = [], pickups = [], mergeM = DEFAULT_M
     .sort((a, b) => a.along - b.along);
   let n = 0;
   for (const s of stops) if (!s.name) s.name = `Pickup ${++n}`;
+  // Names are how drivers and passengers tell stops apart: keep them unique.
+  const seen = new Map();
+  for (const s of stops) {
+    const k = s.name.toLowerCase();
+    const count = (seen.get(k) || 0) + 1;
+    seen.set(k, count);
+    if (count > 1) s.name = `${s.name} (${count})`;
+  }
   return { stops, offRoad };
 }

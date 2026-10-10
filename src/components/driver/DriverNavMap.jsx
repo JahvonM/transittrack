@@ -16,6 +16,7 @@ import { GPS_RETRY_EVENT } from "@/lib/helperHealth";
 import useSmoothPosition from "@/hooks/useSmoothPosition";
 import { useBearing } from "@/components/MapBusPin";
 import TripProgress, { routeProgress } from "@/components/TripProgress";
+import { busOnRoad, nextRoadStopIndex, roadStopsOf, roadVia } from "@/lib/roadStops";
 import { LaneArrow, ManeuverArrow, NavPuck } from "@/components/driver/NavIcons";
 import { Bus, Compass, LocateFixed, Navigation, Route as RouteIcon, Satellite, Volume2, VolumeX, X } from "lucide-react";
 
@@ -173,18 +174,24 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
     return () => { if (watchId.current != null) navigator.geolocation.clearWatch(watchId.current); };
   }, [vehicleId, pushLocation, shouldPush, watchNonce]);
 
+  // On a drawn road (once unlocked): its stops, pickups included, in the
+  // order the bus reaches them. Otherwise the route's own stops in order.
+  const roadStops = roadStopsOf({ ...session, route });
   const orderedStops = useMemo(
-    () => (route?.stops?.length ? [...route.stops].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)) : []),
-    [route]
+    () => roadStops || (route?.stops?.length ? [...route.stops].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)) : []),
+    [route, roadStops]
   );
+  const busOnDrawnRoad = roadStops ? busOnRoad(route, pos?.lat, pos?.lng) : null;
+  const roadNext = roadStops ? nextRoadStopIndex(orderedStops, busOnDrawnRoad) : null;
   // The stop ahead of the bus — advances as each stop is passed. Before the
   // first GPS fix, the first stop.
   const nextStopIndex = useMemo(() => {
     if (!orderedStops.length) return -1;
+    if (roadNext != null) return roadNext < orderedStops.length ? roadNext : -1;
     const p = routeProgress(orderedStops, pos?.lat, pos?.lng);
     if (!p) return 0;
     return Math.max(0, orderedStops.indexOf(p.stops[p.nextIndex]));
-  }, [orderedStops, pos?.lat, pos?.lng]);
+  }, [orderedStops, pos?.lat, pos?.lng, roadNext]);
   const nextStop = nextStopIndex >= 0 ? orderedStops[nextStopIndex] : null;
   const nextStopKey = nextStop ? `${nextStop.lat},${nextStop.lng}` : null;
 
@@ -207,7 +214,10 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
   const loadRoute = useCallback(async (origin, stop, key, { reroute = false } = {}) => {
     const request = ++routeRequest.current;
     if (reroute) setRerouting(true); else { setLoadingRoute(true); setRouteOptions([]); }
-    const res = await fetchTurnByTurnRoutes(origin, { lat: stop.lat, lng: stop.lng });
+    // On a drawn road, pass through it on the way so the directions follow it.
+    const from = roadStops ? busOnRoad(route, origin.lat, origin.lng) : null;
+    const via = from && from.off <= 200 && Number.isFinite(Number(stop.along)) ? roadVia(route, from.along, Number(stop.along)) : [];
+    const res = await fetchTurnByTurnRoutes(origin, { lat: stop.lat, lng: stop.lng }, { via });
     if (request !== routeRequest.current) return;
     if (res.length) {
       setRouteOptions(res);
@@ -219,7 +229,7 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
     if (!res.length) { setNav(null); setRouteOptions([]); }
     setRerouting(false);
     setLoadingRoute(false);
-  }, []);
+  }, [route, roadStops]);
 
   const chooseRoute = (option) => {
     stopSpeaking();

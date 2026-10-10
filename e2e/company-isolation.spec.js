@@ -718,6 +718,16 @@ test('a pickup the assigned bus does not drive past asks to pick again on its ro
  if(process.env.TT_SHOT_DIR) await page.screenshot({path:`${process.env.TT_SHOT_DIR}/repick-finder.png`});
 });
 
+test('a pickup the driver moved says so on the pickup card',async({page})=>{
+ await page.setViewportSize({width:390,height:844});
+ await passengerShowcase(page,{extra:{pickup_name:'My spot',pickup_lat:12.02,pickup_lng:-61.76,pickup_route_id:'route-a',
+  pickup_moved:{at:new Date(Date.now()-3600e3).toISOString(),by:'Kofi',m:70,lat:12.02,lng:-61.76}}});
+ const card=page.getByLabel('Your pickup',{exact:true});
+ await expect(card).toContainText(/Kofi moved your pickup 70 m along the road on .+, to where the bus can stop\./);
+ await card.evaluate(el=>el.scrollIntoView({block:'center'}));
+ if(process.env.TT_SHOT_DIR) await page.screenshot({path:`${process.env.TT_SHOT_DIR}/pickup-moved-note.png`});
+});
+
 test('no prompt when the pickup is on the assigned bus road',async({page})=>{
  await passengerShowcase(page,{extra:{pickup_name:'My spot',pickup_lat:12.02,pickup_lng:-61.76,pickup_route_id:'route-a'}});
  await expect(page.getByLabel('Your pickup',{exact:true})).toBeVisible();

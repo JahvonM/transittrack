@@ -5,6 +5,8 @@ import { cleanNetworkHealth, networkCheckIn } from '../../shared/tabletNetwork.t
 // Shared request budgets use the configured Supabase RPC and fail closed.
 import { reserveAttempt, createOnce, withLock } from '../../shared/atomicOps.ts';
 import { pushWithPolicy, emailWithPolicy } from '../../shared/notificationPolicy.ts';
+import { placeOnRoad, roadPointsToLine } from '../../shared/pickupStops.ts';
+import { busRoadStops } from '../../shared/routeRiders.ts';
 
 
 async function liveMembership(base44, row) {
@@ -186,6 +188,32 @@ async function notifyStopAhead(base44, route, departedName, vehicle, companyId) 
     data: { type: 'stop_ahead', vehicle_id: vehicle.id, stop: next.name },
   };
   await pushWithPolicy(base44, 'stop_ahead', tokens, payload, (list) => sendPushToTokens(serviceAccountJson, list, payload), { companyId });
+}
+
+// A driver moved some passengers' pickup: tell each of them on their phone.
+async function notifyPickupMoved(base44, riders, payload, companyId) {
+  const serviceAccountJson = secrets.get('FIREBASE_SERVICE_ACCOUNT');
+  const emails = [...new Set(riders.filter((r) => r.user_id && r.email).map((r) => r.email))];
+  if (!serviceAccountJson || !emails.length) return;
+  const rows = await base44.asServiceRole.entities.PushToken.filter({ email: { $in: emails } }, '-created_date', 500).catch(() => []);
+  const tokens = [...new Set(rows.map((t) => t.token).filter((t) => typeof t === 'string' && t))];
+  if (!tokens.length) return;
+  await pushWithPolicy(base44, 'pickup_moved', tokens, payload, (list) => sendPushToTokens(serviceAccountJson, list, payload), { companyId });
+}
+
+// The drawn road's stops for an unlocked tablet: where the bus stops, in the
+// order it reaches them, and who gets on there. `ref` is the passenger's id
+// in the tablet's `staff` list; no emails or account details.
+function tabletRoadStops(plan) {
+  if (!plan) return null;
+  const ref = (r) => r.contact_id || r.user_id;
+  return {
+    stops: plan.stops.map((s) => ({
+      key: s.key, name: s.name, lat: s.lat, lng: s.lng, along: s.along, fixed: !!s.fixed,
+      riders: s.riders.map((r) => ({ ref: ref(r), name: r.name || 'Passenger', moved_m: r.moved_m })),
+    })),
+    off_road: plan.off_road.map((r) => ({ ref: ref(r), name: r.name || 'Passenger' })),
+  };
 }
 
 const CHAT_CHANNELS = ['staff', 'company', 'dispatch', 'mechanic'];
@@ -632,10 +660,12 @@ export default async function(req) {
         });
       }
       case 'move_stop':
-      case 'add_stop': {
+      case 'add_stop':
+      case 'move_pickup': {
         // Drivers fix stops where the map is wrong. The new point is always the
         // bus's own last GPS fix held on the server (never coordinates sent by
         // the tablet), so a stop can only be placed where the bus really is.
+        // On a route with a drawn road, only on that road (within ROAD_EDIT_M).
         const vehicle = await loadVehicle(base44, vehicleId);
         if (!vehicle || vehicle.company_id !== companyId) return Response.json({ error: 'Vehicle assignment mismatch' }, { status: 403 });
         if (!vehicle.route_id) return Response.json({ error: 'This bus has no route yet. Ask dispatch to assign one.' }, { status: 400 });
@@ -649,6 +679,46 @@ export default async function(req) {
         }
         if (!(await reserveAttempt(base44, 'stop-edit:' + vehicleId, 20, 60 * 60_000))) return Response.json({ error: 'Too many stop changes this hour. Try again later.' }, { status: 429 });
         const RADIUS = 150;
+        const ROAD_EDIT_M = 50;
+        const road = roadPointsToLine(route.path);
+        const onRoad = road.length >= 2 ? placeOnRoad(road, lat, lng) : null;
+        if (road.length >= 2 && !(onRoad && onRoad.off <= ROAD_EDIT_M)) {
+          return Response.json({ error: `The bus is ${onRoad ? Math.round(onRoad.off) : 'too far'} m from this route's road. Stops can only be changed on the road the bus drives (within ${ROAD_EDIT_M} m).` }, { status: 400 });
+        }
+        if (action === 'move_pickup') {
+          // Move a pickup stop (the passengers who meet there) to where the bus
+          // is now, on the road. Each passenger is told, and it is logged.
+          if (!onRoad) return Response.json({ error: 'This route has no drawn road. Ask dispatch to draw it in the Route Planner.' }, { status: 400 });
+          const db = base44.asServiceRole.entities;
+          const plan = await busRoadStops(db, route, vehicleId);
+          const key = sanitize(body.stop_key).slice(0, 120);
+          const stop = plan?.stops.find((st) => st.key === key && !st.fixed);
+          if (!stop || !stop.riders.length) return Response.json({ error: 'That pickup has changed. Refresh and try again.' }, { status: 404 });
+          const away = haversineMeters(lat, lng, stop.lat, stop.lng);
+          if (away > RADIUS) return Response.json({ error: `The bus must be within ${RADIUS} m of ${stop.name} to move it.` }, { status: 400 });
+          const to = { lat: Number(onRoad.lat.toFixed(6)), lng: Number(onRoad.lng.toFixed(6)) };
+          const movedM = Math.round(haversineMeters(stop.lat, stop.lng, to.lat, to.lng));
+          const driverName = vehicle.driver_name || 'Your driver';
+          const at = new Date().toISOString();
+          for (const r of stop.riders) {
+            if (r.user_id) await db.User.update(r.user_id, { pickup_lat: to.lat, pickup_lng: to.lng, pickup_route_id: route.id, pickup_moved: { at, by: driverName, m: movedM, lat: to.lat, lng: to.lng } });
+            if (r.contact_id) {
+              const card = r.user_id ? await db.Contact.get(r.contact_id).catch(() => null) : { pickup_lat: 0 };
+              if (card && card.pickup_lat != null) await db.Contact.update(r.contact_id, { pickup_lat: to.lat, pickup_lng: to.lng });
+            }
+          }
+          await db.AuditLog.create({
+            actor_name: vehicle.driver_name || 'Driver tablet', actor_role: 'driver', action: 'update', entity: 'Route',
+            record_id: route.id, page: 'driver tablet',
+            summary: `Moved pickup "${stop.name}" ${movedM} m to the bus's position for ${stop.riders.length} passenger${stop.riders.length === 1 ? '' : 's'} from ${vehicle.name} on ${route.name || 'route'}`,
+          }).catch(() => {});
+          await notifyPickupMoved(base44, stop.riders, {
+            title: 'Your pickup has moved',
+            body: `${driverName} moved your pickup ${movedM} m along ${route.name || 'the route'}, to where the bus can stop. Open the app to see where to wait.`,
+            data: { type: 'pickup_moved', route_id: route.id },
+          }, companyId).catch(() => {});
+          return Response.json({ ok: true, moved: stop.riders.length, moved_m: movedM, road_stops: tabletRoadStops(await busRoadStops(db, route, vehicleId)) });
+        }
         const stops = (route.stops || []).slice().sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
         const located = stops.filter((st) => Number.isFinite(Number(st.lat)) && Number.isFinite(Number(st.lng)));
         const nearest = located.map((st) => ({ st, d: haversineMeters(lat, lng, Number(st.lat), Number(st.lng)) })).sort((a, b) => a.d - b.d)[0];
@@ -680,6 +750,11 @@ export default async function(req) {
           }
           next = [...stops.slice(0, at), { name, lat, lng }, ...stops.slice(at)];
           summary = `Added stop "${name}" at the bus's position from ${vehicle.name}`;
+        }
+        // With a drawn road, the stops go in the order the bus reaches them on it.
+        if (road.length >= 2) {
+          const along = (st) => (Number.isFinite(Number(st.lat)) && Number.isFinite(Number(st.lng)) ? placeOnRoad(road, Number(st.lat), Number(st.lng))?.along ?? Infinity : Infinity);
+          next = next.map((st, i) => ({ st, i, a: along(st) })).sort((x, y) => x.a - y.a || x.i - y.i).map((x) => x.st);
         }
         next = next.map((st, i) => ({ ...st, order: i }));
         const updated = await base44.asServiceRole.entities.Route.update(route.id, { stops: next });
@@ -747,6 +822,11 @@ export default async function(req) {
           try { route = await base44.asServiceRole.entities.Route.get(vehicle.route_id); }
           catch { /* route may be missing */ }
         }
+        // Pickup stops along the drawn road name passengers, so only an
+        // unlocked tablet gets them (like `staff`).
+        const roadStops = unlocked && route && route.company_id === companyId
+          ? tabletRoadStops(await busRoadStops(base44.asServiceRole.entities, route, vehicleId).catch(() => null))
+          : null;
         // Where every pickup passenger is dropped off: the company's workplace.
         const workplaceRow = (await base44.asServiceRole.entities.Workplace.filter({ company_id: companyId }, '-updated_date', 5).catch(() => []))
           .find((w) => w.company_id === companyId && Number.isFinite(Number(w.lat)) && Number.isFinite(Number(w.lng)));
@@ -761,7 +841,7 @@ export default async function(req) {
         } catch { /* optional company display and contacts */ }
         return Response.json({
           vehicle: tabletVehicle(vehicle), driver_name: vehicle.driver_name || '', has_driver_pin: !!vehicle.driver_pin || !!(await base44.asServiceRole.entities.DriverPinCredential.filter({ vehicle_id: vehicleId }, '-updated_date', 1))[0]?.enabled,
-          company_id: companyId, company_name: companyDisplayName, company_logo_url: companyLogoUrl, staff, route: tabletRoute(route, companyId), workplace, emergency_contacts: emergencyContacts, ...boardingStats(checkIns),
+          company_id: companyId, company_name: companyDisplayName, company_logo_url: companyLogoUrl, staff, route: tabletRoute(route, companyId), road_stops: roadStops, workplace, emergency_contacts: emergencyContacts, ...boardingStats(checkIns),
           broadcasts: relevantBroadcasts, check_ins: checkIns.slice(0, 20).filter((c) => c.status === 'boarded').map(tabletCheckIn),
           group_messages: unlocked ? [...groupMessages].reverse() : [], trips: unlocked ? trips : [],
           open_shift: openShifts.find((s) => !s.ended_at) || null,

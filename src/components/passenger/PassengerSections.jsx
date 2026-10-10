@@ -256,7 +256,7 @@ function MoreRow({ icon: Icon, title, sub, onClick, href, external = false }) {
 
 // Roadside pickup, near the top of Home: a prompt until one is saved, then
 // where you're picked up (and dropped off) with a quick way to change it.
-export function PickupCard({ pickupName, dropoffName, onOpen, shared = null }) {
+export function PickupCard({ pickupName, dropoffName, onOpen, shared = null, movedNote = null }) {
   if (!pickupName) {
     return (
       <section className="mx-6 mb-4 flex items-center gap-4 rounded-2xl border border-primary/40 bg-primary/10 p-4 lg:mx-0" aria-labelledby="tt-pickup-cta">
@@ -281,6 +281,7 @@ export function PickupCard({ pickupName, dropoffName, onOpen, shared = null }) {
             {shared.shared_with > 0 ? ` · shared with ${shared.shared_with} other${shared.shared_with === 1 ? "" : "s"}` : ""}
           </span>
         )}
+        {movedNote && <span className="block text-warning">{movedNote}</span>}
         {dropoffName && <span className="block truncate"><span className="text-muted-foreground">Drop-off:</span> <span className="font-semibold">{dropoffName}</span></span>}
       </p>
       <Button variant="ghost" size="sm" onClick={onOpen}>Change</Button>

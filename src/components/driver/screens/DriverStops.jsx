@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { Building2, MapPinPlus, MapPinned, Users } from "lucide-react";
+import { Building2, MapPinOff, MapPinPlus, MapPinned, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -8,20 +8,25 @@ import { accountName } from "@/lib/userName";
 import { routeProgress } from "@/components/TripProgress";
 import { arrivalClock, sortStops } from "@/components/passenger/passengerState";
 import useStopEtas from "@/components/passenger/useStopEtas";
+import { confirmAction } from "@/components/ConfirmHost";
+import { ROAD_EDIT_M, busOnRoad, nextRoadStopIndex, roadStopsOf } from "@/lib/roadStops";
 
 /**
  * Stops and passengers for this bus. Stops: the route in order with the
  * time each stop ahead is reached (same estimates as everywhere else) and
- * how many pickups are pinned nearest to it. Passengers: the pickup list
- * and booked trips, passed in by the app.
+ * who gets on there. On a drawn road (Route Planner) that is the road's own
+ * stop list: the route's stops and the passengers' pickups, in the order
+ * the bus reaches them. Otherwise each pickup is listed at the stop nearest
+ * it. Passengers: the pickup list and booked trips, passed in by the app.
  */
 const EDIT_RADIUS_M = 150;
 const FRESH_MS = 2 * 60_000;
 
 // "Fix a stop" for places the map gets wrong. Uses the bus's last GPS fix:
-// near a stop it offers to move that stop here, anywhere else to add a new
-// stop here. The server re-checks everything against its own GPS fix.
-function StopEditor({ vehicle, stops, invoke, refresh }) {
+// near a stop it offers to move that stop here (a pickup: everyone who meets
+// there, and they're told), anywhere else to add a new stop here. On a drawn
+// road only on the road. The server re-checks everything against its own GPS fix.
+function StopEditor({ vehicle, route, stops, onDrawnRoad, invoke, refresh }) {
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState(null);
@@ -34,6 +39,17 @@ function StopEditor({ vehicle, stops, invoke, refresh }) {
   }, [fresh, stops, vehicle?.current_lat, vehicle?.current_lng]);
   if (!invoke) return null;
   const near = nearest && nearest.d <= EDIT_RADIUS_M ? nearest : null;
+  const road = onDrawnRoad && fresh ? busOnRoad(route, vehicle.current_lat, vehicle.current_lng) : null;
+  const offRoad = onDrawnRoad && fresh && !(road && road.off <= ROAD_EDIT_M);
+  const movePickup = async (stop) => {
+    const names = stop.riders.map((r) => r.name);
+    if (!(await confirmAction({
+      title: `Move ${stop.name} here?`,
+      description: `${names.join(", ")} will meet the bus here from now on. They get a message on their phone.`,
+      confirmLabel: "Move pickup",
+    }))) return;
+    run("move_pickup", { stop_key: stop.key }, `${stop.name} moved here. ${names.length === 1 ? "The passenger has" : `All ${names.length} passengers have`} been told.`);
+  };
 
   const run = async (action, payload, done) => {
     setBusy(true); setMsg(null);
@@ -53,6 +69,15 @@ function StopEditor({ vehicle, stops, invoke, refresh }) {
       <h2 id="tt-fix-stop" className="flex items-center gap-2 font-semibold"><MapPinned className="h-5 w-5 text-muted-foreground" aria-hidden="true" /> Fix a stop on the map</h2>
       {!fresh ? (
         <p className="mt-1 text-body-sm text-muted-foreground">Turn on location sharing and stop the bus where the stop really is.</p>
+      ) : offRoad ? (
+        <p className="mt-1 text-body-sm text-muted-foreground">The bus is {road ? `${Math.round(road.off)} m` : "too far"} from this route&apos;s road. Stops can only be changed on the road the bus drives (within {ROAD_EDIT_M} m).</p>
+      ) : near && near.stop.fixed === false ? (
+        <>
+          <p className="mt-1 text-body-sm text-muted-foreground">The bus is {Math.round(near.d)} m from <span className="font-semibold text-foreground">{near.stop.name}</span>, where {near.stop.riders.map((r) => r.name).join(", ")} get{near.stop.riders.length === 1 ? "s" : ""} on.</p>
+          <Button className="mt-3 w-full" size="lg" disabled={busy} onClick={() => movePickup(near.stop)}>
+            <MapPinned className="h-5 w-5" aria-hidden="true" /> Move this pickup here
+          </Button>
+        </>
       ) : near ? (
         <>
           <p className="mt-1 text-body-sm text-muted-foreground">The bus is {Math.round(near.d)} m from <span className="font-semibold text-foreground">{near.stop.name}</span>.</p>
@@ -79,15 +104,23 @@ export default function DriverStops({ session, passengers, trips, invoke, refres
   const [tab, setTab] = useState("stops");
   const vehicle = session?.vehicle;
   const route = session?.route;
-  const stops = useMemo(() => sortStops(route?.stops).filter((s) => s.lat != null && s.lng != null), [route]);
-  const p = vehicle?.current_lat != null && stops.length > 1 ? routeProgress(stops, vehicle.current_lat, vehicle.current_lng) : null;
-  const nextIndex = p ? p.nextIndex : null;
+  const roadStops = roadStopsOf(session);
+  const stops = useMemo(() => (roadStops || sortStops(route?.stops)).filter((s) => s.lat != null && s.lng != null), [roadStops, route]);
+  const roadNext = roadStops && vehicle?.current_lat != null ? nextRoadStopIndex(stops, busOnRoad(route, vehicle.current_lat, vehicle.current_lng)) : null;
+  const p = roadNext == null && vehicle?.current_lat != null && stops.length > 1 ? routeProgress(stops, vehicle.current_lat, vehicle.current_lng) : null;
+  const nextIndex = roadNext != null ? roadNext : p ? p.nextIndex : null;
   const ahead = useMemo(() => (nextIndex == null ? [] : stops.slice(nextIndex)), [stops, nextIndex]);
   const etas = useStopEtas({ bus: vehicle, route, stops: ahead, record: null, enabled: !!vehicle?.tracking_active && ahead.length > 0 });
 
-  // Each pickup listed at the stop nearest their pinned pickup point.
+  // Who gets on at each stop: on a drawn road, the passengers who meet
+  // there; otherwise each pickup at the stop nearest their pinned point.
   const perStop = useMemo(() => {
     const out = {};
+    if (roadStops) {
+      const skipping = new Set((session?.staff || []).filter((s) => s.skip_pickup_today).map((s) => s.id));
+      roadStops.forEach((st) => { out[st.key] = st.riders.filter((r) => !skipping.has(r.ref)).map((r) => r.name); });
+      return out;
+    }
     (session?.staff || []).forEach((s) => {
       if (s.skip_pickup_today || s.home_lat == null || !stops.length) return;
       let best = null;
@@ -95,8 +128,9 @@ export default function DriverStops({ session, passengers, trips, invoke, refres
       if (best) (out[best.name] = out[best.name] || []).push(accountName(s) || "Passenger");
     });
     return out;
-  }, [session?.staff, stops]);
+  }, [session?.staff, stops, roadStops]);
   const workplace = session?.workplace;
+  const offRoadRiders = roadStops ? session?.road_stops?.off_road || [] : [];
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -115,7 +149,7 @@ export default function DriverStops({ session, passengers, trips, invoke, refres
         ))}
       </div>
 
-      {tab === "stops" && route && <StopEditor vehicle={vehicle} stops={stops} invoke={invoke} refresh={refresh} />}
+      {tab === "stops" && route && <StopEditor vehicle={vehicle} route={route} stops={stops} onDrawnRoad={!!roadStops} invoke={invoke} refresh={refresh} />}
       {tab === "stops" ? (
         stops.length === 0 ? (
           <p className="py-8 text-center text-muted-foreground">This bus has no stops yet. Ask dispatch to assign a route.</p>
@@ -125,10 +159,10 @@ export default function DriverStops({ session, passengers, trips, invoke, refres
               const passed = nextIndex != null && i < nextIndex;
               const isNext = i === nextIndex;
               const e = etas[st.name];
-              const names = perStop[st.name] || [];
+              const names = perStop[roadStops ? st.key : st.name] || [];
               const count = names.length;
               return (
-                <li key={st.name} className={cn("grid min-h-[64px] grid-cols-[32px_minmax(0,1fr)_auto_auto] items-center gap-x-3 rounded-xl pr-2", isNext && "bg-card ring-1 ring-primary/50", passed && "text-muted-foreground")}>
+                <li key={st.key || st.name} className={cn("grid min-h-[64px] grid-cols-[32px_minmax(0,1fr)_auto_auto] items-center gap-x-3 rounded-xl pr-2", isNext && "bg-card ring-1 ring-primary/50", passed && "text-muted-foreground")}>
                   <span className="relative h-full" aria-hidden="true">
                     {i > 0 && <span className={cn("absolute left-[14px] top-0 h-1/2 w-1", passed || isNext ? "bg-primary" : "bg-border")} />}
                     {i < stops.length - 1 && <span className={cn("absolute bottom-0 left-[14px] top-1/2 w-1", passed ? "bg-primary" : "bg-border")} />}
@@ -136,7 +170,7 @@ export default function DriverStops({ session, passengers, trips, invoke, refres
                   </span>
                   <span className="min-w-0 py-2">
                     <span className="block truncate font-semibold">{st.name}</span>
-                    <span className="block text-body-sm text-muted-foreground">{passed ? "Passed" : isNext ? "Next stop" : i === stops.length - 1 && !workplace ? "Last stop" : " "}</span>
+                    <span className="block text-body-sm text-muted-foreground">{passed ? "Passed" : isNext ? "Next stop" : i === stops.length - 1 && !workplace ? "Last stop" : roadStops && !st.fixed ? "Pickup stop" : " "}</span>
                     {names.length > 0 && (
                       <span className="block text-body-sm text-foreground" aria-label={`Picking up ${names.join(", ")}`}>
                         {names.slice(0, 4).join(", ")}{names.length > 4 ? ` +${names.length - 4} more` : ""}
@@ -161,7 +195,14 @@ export default function DriverStops({ session, passengers, trips, invoke, refres
                 </span>
               </li>
             )}
-          </ol></div>
+          </ol>
+          {offRoadRiders.length > 0 && (
+            <p className="mt-3 flex items-start gap-2 rounded-xl bg-secondary p-3 text-body-sm" role="note">
+              <MapPinOff className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+              <span><span className="font-semibold">Pickup too far from this road:</span> {offRoadRiders.map((r) => r.name).join(", ")}. Dispatch can sort this out in Plan pickups.</span>
+            </p>
+          )}
+          </div>
         )
       ) : (
         <div className="space-y-4" role="tabpanel">

@@ -117,6 +117,17 @@
     "pickup_route_id": {
       "type": "string",
       "description": "Passenger-confirmed roadside pickup suggestion; separate from their home location."
+    },
+    "pickup_moved": {
+      "type": "object",
+      "description": "Set by the server when a driver moves this passenger's pickup on the bus road: when, by whom, how far, and the new point. The passenger app shows a note while the pickup is still at that point.",
+      "properties": {
+        "at": { "type": "string" },
+        "by": { "type": "string" },
+        "m": { "type": "number" },
+        "lat": { "type": "number" },
+        "lng": { "type": "number" }
+      }
     }
   },
   "required": []
