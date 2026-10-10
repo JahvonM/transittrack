@@ -30,7 +30,8 @@ builds with an owner-controlled certificate before release.
 - Email/password sign-in works inside the window. Google, Apple, Microsoft and SSO sign-in finish in the
   person's own web browser (providers block sign-in inside app windows); see below.
 - Print dialogs, file selection and downloads use Electron/Chromium's default handling.
-- Devices → Tablet & NFC setup includes USB discovery, health checks, Helper update installs, tablet configuration, and Windows NFC start/status/card/beep tests.
+- Admin → Card issuing: NFC setup and Connect reader open the Windows NFC setup view directly. Admin → Kiosk tablets: Open tablet setup opens USB setup directly; Setup file also opens it after downloading the signed bundle. Browser users keep the existing downloads.
+- Devices → Tablet & NFC setup remains available. NFC and tablet setup have separate views with buttons to switch between them. Opening a view does not install apps or change tablet settings; those actions keep their existing review prompts.
 - Official Windows ADB is bundled with its NOTICE. Enable USB debugging and approve the connection on the tablet. Manufacturer USB drivers may be needed.
 - Select the signed setup BAT downloaded from Admin → Kiosk Tablets. The embedded APK is extracted and its declared hash checked; the BAT is never executed. Android enforces signing-key compatibility on update installation.
 - Existing-tablet mode preserves the start URL, pairing and reader/GPS settings. Installs use adb install -r. No reset, uninstall or data-clear command is provided.
