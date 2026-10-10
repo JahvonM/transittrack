@@ -114,6 +114,23 @@ export function checkInUpdates(device: Record<string, any>, ack: unknown, now = 
   return {};
 }
 
+// Shows "sent to the tablet" in Admin the first time a check-in hands the command over.
+export function sentUpdates(device: Record<string, any>, handed: { id: string } | null, now = Date.now()): Record<string, unknown> {
+  const status = device?.network_status;
+  if (!handed || !status || typeof status !== 'object' || status.id !== handed.id || status.state !== 'waiting') return {};
+  return { network_status: { ...status, state: 'sent', sent_at: new Date(now).toISOString() } };
+}
+
+// Everything one check-in does: what to save on the device and what to hand the tablet.
+export function networkCheckIn(device: Record<string, any>, ack: unknown, authenticated: boolean, now = Date.now()) {
+  const cleared = checkInUpdates(device, ack, now);
+  const current = 'network_command' in cleared
+    ? { ...device, network_command: cleared.network_command, network_status: cleared.network_status ?? device.network_status }
+    : device;
+  const handed = commandForTablet(current, authenticated, now);
+  return { updates: { ...cleared, ...sentUpdates(current, handed, now) }, command: handed };
+}
+
 // The network part of the helper's health report: the boarding tablet's Wi-Fi
 // (current network, latest scan, latest join) and a driver tablet's always-on
 // switch. Everything is length-limited text, numbers or known words.
