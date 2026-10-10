@@ -191,15 +191,17 @@ export default function StaffPortal() {
       } else setCompanyError(true);
     } finally {
       if (attempt === companyAttempt.current) setCompaniesLoaded(true);
-      // A brand-new account is made a passenger by that check; refresh the
-      // profile so the rest of the app sees it too.
-      if (user?.role === 'user') checkAuthRef.current();
     }
   }, [user?.id, joinCode]);
   useEffect(() => {
     restoreCompany();
     return () => { companyAttempt.current += 1; };
   }, [restoreCompany]);
+  // The company check makes a brand-new account (platform role "user") a
+  // passenger; refresh the profile so the rest of the app sees it too.
+  useEffect(() => {
+    if (companiesLoaded && user?.role === 'user') checkAuthRef.current();
+  }, [companiesLoaded, user?.role]);
 
   // The company's workplace: where every pickup passenger is dropped off.
   const [workplace, setWorkplace] = useState(null);
