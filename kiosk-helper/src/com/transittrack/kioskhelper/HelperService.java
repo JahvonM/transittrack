@@ -27,10 +27,14 @@ import org.json.JSONObject;
  *  - page refresh when the bus starts after a long park (or at 3 AM if never unplugged)
  *  - health report to the page every minute (battery, reader, GPS, last card)
  *  - driver tablets: Wi-Fi hotspot on while the bus runs, off when parked
- *  - boarding tablets: join the bus hotspot automatically
+ *    (or on all the time when Admin switches "Always on")
+ *  - boarding tablets: join the bus hotspot automatically; scan for / switch to
+ *    another Wi-Fi network when Admin asks
  */
 public class HelperService extends Service {
-    static final String VERSION = "1.8";
+    static final String VERSION = "1.9";
+    /** "Always on" hotspot pauses below this on battery so the tablet can't run flat (it can't power itself back on). */
+    private static final int HOTSPOT_MIN_BATTERY = 20;
     static volatile boolean plugged = true;
     static volatile boolean parked = false;
 
@@ -95,8 +99,8 @@ public class HelperService extends Service {
 
     private final Runnable health = new Runnable() {
         @Override public void run() {
+            applyHotspot();
             if (!parked) {
-                if (plugged) keepHotspot(true);
                 if (plugged || !Config.ignition(HelperService.this)) joinBusWifi(0);
                 int battery = batteryPercent();
                 int low = Config.ignition(HelperService.this) ? LOW_BATTERY : CRITICAL_BATTERY;
@@ -154,9 +158,10 @@ public class HelperService extends Service {
         Status.power = plugged ? "Plugged in" : "Unplugged";
         Status.log("Helper " + VERSION + " started (" + Status.power + ")");
         if (!Config.ignition(this)) Status.screen = "Always on (charger or battery)";
+        if (Config.hotspotAlways(this)) disableHotspotTimeout();
+        main.postDelayed(new Runnable() { @Override public void run() { applyHotspot(); } }, 20000);
         if (plugged) {
             if (Config.ignition(this)) setScreen(true);
-            main.postDelayed(new Runnable() { @Override public void run() { keepHotspot(true); } }, 20000);
             joinBusWifi(10000);
         } else if (Config.ignition(this)) {
             main.postDelayed(screenOff, UNPLUG_DELAY_MS);
@@ -169,7 +174,7 @@ public class HelperService extends Service {
         // "look for USB devices again" from any TransitTrack page.
         results = new ResultServer(new Runnable() {
             @Override public void run() { main.post(new Runnable() { @Override public void run() { rescanUsb(); } }); }
-        });
+        }, commands);
         new Thread(results, "tt-results").start();
         if (Config.reader(this)) {
             reader = new CardReader(this, results);
@@ -205,7 +210,7 @@ public class HelperService extends Service {
             leaveParked();
             if (Config.ignition(this)) setScreen(true);
             if (longPark) reloadPage("bus started after a long park");
-            main.postDelayed(new Runnable() { @Override public void run() { keepHotspot(true); } }, 3000);
+            main.postDelayed(new Runnable() { @Override public void run() { applyHotspot(); } }, 3000);
             joinBusWifi(15000);
             joinBusWifi(45000);
             main.postDelayed(new Runnable() { @Override public void run() { pushHealth(); } }, 5000);
@@ -224,12 +229,15 @@ public class HelperService extends Service {
         Status.power = "Unplugged (parked)";
         Status.log("Parked (" + why + "): GPS paused; card reader keeps reconnecting");
         if (Config.ignition(this)) setScreen(false);
-        keepHotspot(false);
+        applyHotspot();   // off when parked, unless Admin set it to always on
         pushHealth();
         // Keep the scanner thread awake, including while waiting for reconnection.
-        // Tablets with the reader disabled can sleep after the GPS thread stops.
+        // Tablets with the reader disabled can sleep after the GPS thread stops
+        // (not with an always-on hotspot: the helper keeps checking it).
         main.postDelayed(new Runnable() {
-            @Override public void run() { if (parked && !Config.reader(HelperService.this) && wakeLock.isHeld()) wakeLock.release(); }
+            @Override public void run() {
+                if (parked && !Config.reader(HelperService.this) && !Config.hotspotAlways(HelperService.this) && wakeLock.isHeld()) wakeLock.release();
+            }
         }, 15000);
     }
 
@@ -254,6 +262,95 @@ public class HelperService extends Service {
 
     private long lastHotspotTry = 0;
     private String lastHotspotResult = "";
+    private boolean hotspotPausedForBattery = false;
+
+    /**
+     * Driver tablets: whether the hotspot should be on right now.
+     *  - Always on (from Admin): on all the time, parked too; paused only below
+     *    HOTSPOT_MIN_BATTERY while unplugged, back on when charging.
+     *  - Normal: on while the bus runs, off once parked.
+     */
+    private void applyHotspot() {
+        if (!Config.hotspot(this)) return;
+        if (Config.hotspotAlways(this)) {
+            int battery = batteryPercent();
+            boolean low = !plugged && battery >= 0 && battery <= HOTSPOT_MIN_BATTERY;
+            if (low != hotspotPausedForBattery) {
+                Status.log(low ? "Hotspot paused: battery " + battery + "% (back on when charging)" : "Hotspot back on");
+                hotspotPausedForBattery = low;
+            }
+            keepHotspot(!low);
+        } else if (parked) {
+            keepHotspot(false);
+        } else if (plugged) {
+            keepHotspot(true);
+        }
+    }
+
+    /** Android turns an idle hotspot off after a while; an always-on hotspot must not. */
+    private void disableHotspotTimeout() {
+        try {
+            if (Settings.Global.getInt(getContentResolver(), "soft_ap_timeout_enabled", 1) != 0) {
+                Settings.Global.putInt(getContentResolver(), "soft_ap_timeout_enabled", 0);
+                Status.log("Hotspot auto-off timer switched off");
+            }
+        } catch (SecurityException e) {
+            Status.log("Hotspot auto-off timer not changed: run  adb shell pm grant " + getPackageName() + " android.permission.WRITE_SECURE_SETTINGS");
+        }
+    }
+
+    /** Admin -> Kiosk tablets switched "Always on" for this driver tablet's hotspot. */
+    private void setHotspotAlways(final boolean always) {
+        Config.prefs(this).edit()
+                .putBoolean("hotspot_always", always)
+                .putBoolean("hotspot", always || Config.hotspot(this))
+                .apply();
+        Status.log(always ? "Admin: keep the hotspot on all the time" : "Admin: hotspot back to normal (on while the bus runs)");
+        if (always) disableHotspotTimeout();
+        lastHotspotTry = 0;
+        main.post(new Runnable() { @Override public void run() { applyHotspot(); } });
+        main.postDelayed(new Runnable() { @Override public void run() { pushHealth(); } }, 6000);
+    }
+
+    private final Runnable reportNow = new Runnable() {
+        @Override public void run() { main.post(new Runnable() { @Override public void run() { pushHealth(); } }); }
+    };
+
+    private static String cut(String s, int max) {
+        if (s == null) return "";
+        return s.length() > max ? s.substring(0, max) : s;
+    }
+
+    /** Network commands from Admin -> Kiosk tablets, passed on by the page (see ResultServer). */
+    private final ResultServer.Commands commands = new ResultServer.Commands() {
+        @Override public void run(final String route, final Map<String, String> q) {
+            final String id = cut(q.get("id"), 64);
+            final boolean driverTablet = Config.hotspot(HelperService.this);
+            if ("/hotspot".equals(route)) {
+                setHotspotAlways("1".equals(q.get("always")));
+                return;
+            }
+            if (driverTablet) {
+                Status.log("Wi-Fi command ignored: this tablet shares its hotspot");
+                return;
+            }
+            if ("/wifi/scan".equals(route)) {
+                new Thread(new Runnable() {
+                    @Override public void run() { WifiControl.scan(HelperService.this); reportNow.run(); }
+                }, "tt-wifi-scan").start();
+            } else if ("/wifi/join".equals(route)) {
+                final String ssid = q.get("ssid");
+                final String pass = q.get("pass") == null ? "" : q.get("pass");
+                if (ssid == null || ssid.trim().isEmpty() || ssid.length() > 32 || pass.length() > 63 || (!pass.isEmpty() && pass.length() < 8)) {
+                    Status.log("Wi-Fi join ignored: invalid network name or password length");
+                    return;
+                }
+                new Thread(new Runnable() {
+                    @Override public void run() { WifiControl.join(HelperService.this, id, ssid, pass, reportNow); }
+                }, "tt-wifi-join").start();
+            }
+        }
+    };
 
     /** Driver tablets: hotspot on while the bus runs (re-checked every minute), off when parked. */
     private void keepHotspot(final boolean on) {
@@ -318,8 +415,33 @@ public class HelperService extends Service {
             if (Config.reader(this) && Config.seen(this, "reader")) h.put("reader", Status.reader);
             if (Status.lastCardIso != null) h.put("last_card_at", Status.lastCardIso);
             if (Config.gps(this) && Config.seen(this, "gps")) h.put("gps", Status.gps);
-            if (Config.hotspot(this)) h.put("hotspot", Status.hotspot);
-            js = "window.__ttHelperHealth=Object.assign(" + h.toString() + ",{at:Date.now()})";
+            if (Config.hotspot(this)) {
+                h.put("hotspot", Status.hotspot);
+                h.put("hotspot_always", Config.hotspotAlways(this));
+            } else {
+                // Boarding tablets: the Wi-Fi they're on and the latest scan / join, for Admin.
+                JSONObject w = new JSONObject();
+                String ssid = WifiControl.currentSsid(this);
+                w.put("ssid", ssid);
+                if (!ssid.isEmpty()) w.put("bars", WifiControl.currentBars(this));
+                if (WifiControl.networks != null) {
+                    w.put("networks", WifiControl.networks);
+                    w.put("scanned_at", Status.iso(WifiControl.scannedAt));
+                }
+                if (!WifiControl.joinState.isEmpty()) {
+                    JSONObject j = new JSONObject();
+                    j.put("id", WifiControl.joinId);
+                    j.put("ssid", WifiControl.joinSsid);
+                    j.put("state", WifiControl.joinState);
+                    j.put("message", WifiControl.joinMessage);
+                    j.put("at", Status.iso(WifiControl.joinAt));
+                    w.put("join", j);
+                }
+                h.put("wifi", w);
+            }
+            // The page key for network commands goes beside the report, not in it (reports go to the server).
+            js = "window.__ttHelperKey=" + Kiosk.quote(ResultServer.KEY)
+                    + ";window.__ttHelperHealth=Object.assign(" + h.toString() + ",{at:Date.now()})";
         } catch (Exception e) {
             return;
         }
