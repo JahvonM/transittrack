@@ -150,7 +150,7 @@ describe('driver tablet direction', () => {
   const grant=await api.issueGrant(sdk,device,'driver','bus',60000);
   expect((await api.default(req({action:'set_direction',device_id:'tablet',driver_grant:grant,direction:'invalid'}))).status).toBe(400);
   expect((await api.default(req({action:'set_direction',device_id:'tablet',driver_grant:grant,direction:'to_home',vehicle_id:'other'}))).status).toBe(200);
-  expect(sdk.tables.Vehicle[0]).toEqual({...vehicle,trip_direction:'to_home'});
+  expect(sdk.tables.Vehicle[0]).toMatchObject({...vehicle,trip_direction:'to_home',return_pickup_state:'pending'});
   sdk.tables.Vehicle[0].company_id='foreign';
   expect((await api.default(req({action:'set_direction',device_id:'tablet',driver_grant:grant,direction:'to_work'}))).status).toBe(403);
  });

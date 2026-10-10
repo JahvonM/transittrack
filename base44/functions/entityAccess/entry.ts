@@ -119,7 +119,7 @@ async function visible(db, ctx, name, row) {
  if (!tenant || !companies.includes(tenant)) return false;
  if (name === 'Broadcast' && row.return_pickup && !['company','admin'].includes(user.role)) {
   if (!row.vehicle_id) return false;
-  return ctx.memberships.some(m=>m.scope==='passenger' && m.company_id===tenant && m.vehicle_id===row.vehicle_id);
+  return (await memberships(db,user)).some(m=>m.scope==='passenger' && m.company_id===tenant && m.vehicle_id===row.vehicle_id);
  }
  if (user.role === 'company') return COMPANY_READ.has(name);
  if (!PASSENGER_READ.has(name)) return false;

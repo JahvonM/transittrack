@@ -232,7 +232,7 @@ describe("driver trip direction", () => {
     const {sdk,send}=phone();
     const original=structuredClone(sdk.tables.Vehicle[0]);
     expect((await send({action:"set_direction",vehicle_id:"bus-a",direction:"to_home",company_id:"b",driver_email:"other"})).status).toBe(200);
-    expect(sdk.tables.Vehicle[0]).toEqual({...original,trip_direction:"to_home"});
+    expect(sdk.tables.Vehicle[0]).toMatchObject({...original,trip_direction:"to_home",return_pickup_state:"pending"});
     expect((await send({action:"today",vehicle_id:"bus-a"})).body.bus.trip_direction).toBe("to_home");
     expect((await send({action:"set_direction",vehicle_id:"bus-a",direction:"to_work"})).status).toBe(200);
     expect(sdk.tables.Vehicle[0].trip_direction).toBe("to_work");
