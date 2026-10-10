@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { StatusChip } from "@/components/admin/kit";
 import KioskDeviceDialog from "@/components/admin/KioskDeviceDialog";
+import TabletNetworkControls from "@/components/admin/TabletNetworkControls";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -356,6 +357,7 @@ export default function KioskTablets({ vehicles, companies, onChange }) {
                           <Clock className="w-3 h-3" /> Last seen: {timeAgo(d.last_seen)}
                         </div>
                         <HelperHealthLine h={d.helper_health} />
+                        <TabletNetworkControls device={d} onRefresh={loadDevices} />
                         <GpsCoordsLine device={d} />
                         {helperLinkLost(d) && (
                           <p className="mt-1 text-xs font-semibold text-danger" role="alert">
