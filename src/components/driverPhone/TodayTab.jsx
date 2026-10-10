@@ -175,7 +175,7 @@ export default function TodayTab({ today, driverName, onPickBus, onStartShift, o
           {inOrder.length === 0 ? (
             <p className="text-body text-muted-foreground">No pickups today.</p>
           ) : (
-            <ul className="divide-y divide-border" aria-label="Passengers to pick up">
+            <ul className="divide-y divide-border" aria-label={home ? "Passengers to drop off" : "Passengers to pick up"}>
               {inOrder.map((p, i) => {
                 const n = stopNumber.get(p.stop);
                 return (
@@ -218,6 +218,7 @@ export default function TodayTab({ today, driverName, onPickBus, onStartShift, o
                 {workplace?.name ? ` · ${home ? "pickup" : "drop-off"} at ${workplace.name}` : ""}
               </p>
               <ol className="relative space-y-0">
+                {home && workplace && <li className="mb-3 rounded-xl bg-primary/10 p-3"><p className="font-semibold">{workplace.name}</p><p className="text-body-sm text-muted-foreground">Pickup · everyone boards here</p></li>}
                 {stops.map((s, i) => {
                   const people = atStop(s.name);
                   return (
@@ -229,7 +230,7 @@ export default function TodayTab({ today, driverName, onPickBus, onStartShift, o
                       <div className="min-w-0 flex-1 pt-0.5">
                         <p className="font-semibold">{s.name}</p>
                         <p className="text-body-sm text-muted-foreground">
-                          {s.fixed === false ? (home ? "Home drop-off · " : "Pickup stop · ") : ""}{people.length > 0 ? `${people.length} pickup${people.length === 1 ? "" : "s"}` : "No pickups"}
+                          {s.fixed === false ? (home ? "Home drop-off · " : "Pickup stop · ") : ""}{people.length > 0 ? `${people.length} ${home ? "drop-off" : "pickup"}${people.length === 1 ? "" : "s"}` : home ? "No drop-offs" : "No pickups"}
                         </p>
                       </div>
                     </li>

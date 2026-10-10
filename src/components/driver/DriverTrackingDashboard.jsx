@@ -122,7 +122,7 @@ export default function DriverTrackingDashboard({ session, invoke, onReportIncid
     setLiveVehicle((prev) => prev ? { ...prev, current_lat: lat, current_lng: lng, speed: speed || 0, status, trail: nextTrail } : prev);
     const nearby = [];
     staffRef.current.forEach((s) => {
-      if (s.skip_pickup_today || s.home_lat == null) return;
+      if (s.trip_direction === "to_home" || s.skip_pickup_today || s.home_lat == null) return;
       const distM = haversineKm(lat, lng, s.home_lat, s.home_lng) * 1000;
       if (distM <= PROXIMITY_TRIGGER_M) {
         nearby.push(s.id);
@@ -316,7 +316,7 @@ export default function DriverTrackingDashboard({ session, invoke, onReportIncid
       ].join(" ")}
     >
       <div className="min-h-0 [grid-area:map]">
-        <DriverNavMap session={session} invoke={invoke} fill pushLocation={false} pins={staffPins} showProgress={false} showStatus={false} onStatus={onNavStatus} />
+        <DriverNavMap key={(session?.vehicle?.id || "") + session?.trip_direction} session={session} invoke={invoke} fill pushLocation={false} pins={staffPins} showProgress={false} showStatus={false} onStatus={onNavStatus} />
       </div>
 
       <aside className="tt-cockpit-rail">

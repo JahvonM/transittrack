@@ -1314,6 +1314,9 @@ export default async function(req) {
       }
 
       case 'notify_pickup': {
+        const currentBus = await loadVehicle(base44, vehicleId);
+        if (currentBus?.trip_direction === 'to_home') return Response.json({ ok: true, skipped: true });
+
         const { to_email } = body;
         const to = sanitize(to_email);
         if (!to) return Response.json({ error: 'Missing recipient' }, { status: 400 });

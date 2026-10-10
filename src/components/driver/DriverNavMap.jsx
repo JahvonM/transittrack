@@ -178,8 +178,15 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
   // order the bus reaches them. Otherwise the route's own stops in order.
   const roadStops = roadStopsOf({ ...session, route });
   const orderedStops = useMemo(
-    () => roadStops || (route?.stops?.length ? [...route.stops].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)) : []),
-    [route, roadStops]
+    () => {
+      const stops = roadStops || (route?.stops?.length ? [...route.stops].sort((a,b)=>(a.order ?? 0)-(b.order ?? 0)) : []);
+      const wp = session?.workplace;
+      if (session?.trip_direction === "to_home" || wp?.lat == null || wp?.lng == null) return stops;
+      if (stops.some(s=>Math.abs(s.lat-wp.lat)<0.00001 && Math.abs(s.lng-wp.lng)<0.00001)) return stops;
+      return [...stops, { ...wp, key:"company-destination", fixed:true, riders:[],
+        along: Math.max(0,...stops.map(s=>Number(s.along)||0)) + 500 }];
+    },
+    [route, roadStops, session?.workplace, session?.trip_direction]
   );
   const busOnDrawnRoad = roadStops ? busOnRoad(route, pos?.lat, pos?.lng) : null;
   const roadNext = roadStops ? nextRoadStopIndex(orderedStops, busOnDrawnRoad) : null;

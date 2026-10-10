@@ -43,7 +43,7 @@ export default function StaffRouteList({ staff = [], vehicle, nearbyStaff = [], 
       <div className="h-full min-h-0 flex flex-col rounded-2xl border bg-card p-3 gap-2">
         <div className="flex items-center justify-between gap-2 shrink-0">
           <p className="text-sm font-semibold flex items-center gap-2">
-            <MapPin className="w-4 h-4 text-primary" /> Pickups ({enriched.length})
+            <MapPin className="w-4 h-4 text-primary" /> {vehicle?.trip_direction === "to_home" ? "Home drop-offs" : "Pickups"} ({enriched.length})
           </p>
           {enriched.length > 0 && (
             <Button variant="ghost" size="sm" className="h-8 -mr-1" onClick={() => setAllOpen(true)}>
