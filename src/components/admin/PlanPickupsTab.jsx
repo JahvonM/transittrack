@@ -46,7 +46,7 @@ function Seats({ bus }) {
     <div className="min-w-0">
       <div className="flex items-baseline justify-between gap-2">
         <span className="truncate font-semibold">{bus.name}</span>
-        <span className="shrink-0 text-body-sm tabular-nums">{bus.riders}{cap ? ` / ${cap}` : ""} <span className="text-muted-foreground">seats</span></span>
+        <span className="shrink-0 text-body-sm tabular-nums">{bus.riders}{cap ? ` / ${cap}` : ""} <span className="text-muted-foreground">assigned</span></span>
       </div>
       <p className="truncate text-caption text-muted-foreground">{bus.route_name || "No route"}</p>
       {cap > 0 && (
@@ -195,7 +195,7 @@ export default function PlanPickupsTab() {
     if (view === "attention" && issue !== "all" && p.status !== issue) return false;
     return [p.name, p.pickup?.name, p.bus_name, p.route_name, p.suggested?.name].join(" ").toLowerCase().includes(search.trim().toLowerCase());
   }).sort((a, b) => a.name.localeCompare(b.name));
-  const active = people.find((p) => p.key === activeKey) || visible[0] || null;
+  const active = visible.find((p) => p.key === activeKey) || visible[0] || null;
   const eligible = active ? buses.filter((b) => b.company_id === active.company_id && (
     (active.route_id && b.route_id === active.route_id) || b.id === active.nearby?.bus_id || b.id === active.bus_id
   )) : [];
@@ -279,7 +279,7 @@ export default function PlanPickupsTab() {
           <Panel title={active ? `${active.name}’s pickup` : "Pickups on the map"} icon={MapPin} bodyClassName="space-y-3">
             {active?.pickup || !active ? <div className="h-[280px] overflow-hidden rounded-xl border border-border sm:h-[320px]">
               <Suspense fallback={<div className="h-full animate-pulse bg-muted" />}>
-                <LiteMap key={active?.key || "overview"} fill vehicles={[]} pins={pins} lines={lines} showUserDot={false} showRecenter={false} />
+                <LiteMap key={(active?.key || "overview") + ":" + (chosen?.route_id || "")} fill vehicles={[]} pins={pins} lines={lines} showUserDot={false} showRecenter={false} />
               </Suspense>
             </div> : <EmptyState icon={UserX} title="No pickup set">This passenger needs to use Find my pickup in their app.</EmptyState>}
             {active && <div className="rounded-xl bg-secondary/50 p-3 text-body-sm">
