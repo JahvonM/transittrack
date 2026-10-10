@@ -1083,7 +1083,7 @@ test('welcome waits for Google callback session verification before opening acco
   return r.fallback();
  });
  await page.goto('/?access_token=mock-google-callback');
- await expect(page.getByText('Opening your app…',{exact:true})).toBeVisible();
+ await expect(page.getByRole('region',{name:'TransitTrack loading screen'})).toBeVisible();
  await expect(page.getByRole('link',{name:/^Sign in/})).toHaveCount(0);
  release();
  await expect(page).toHaveURL(/\/admin$/);
