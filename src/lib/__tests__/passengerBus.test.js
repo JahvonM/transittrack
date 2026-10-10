@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { load, mock, request } from "../../../security-tests/helpers.js";
+import { passengerTripState } from "@/components/passenger/passengerState";
 
 // The bus a passenger is put on in Admin → Passengers reaches their phone,
 // and taking it away takes it off their phone.
@@ -74,8 +75,7 @@ describe("adding and removing a passenger's bus keeps their card and account in 
 });
 
 describe("the passenger home with no bus assigned", () => {
-  it("says so instead of guessing a bus", async () => {
-    const { passengerTripState } = await import("@/components/passenger/passengerState");
+  it("says so instead of guessing a bus", () => {
     const stop = { name: "Town", lat: 12, lng: -61 };
     expect(passengerTripState({ stop, approaching: null, eta: null, myVehicle: null, busAssigned: false }).kind).toBe("unassigned");
     expect(passengerTripState({ stop: null, approaching: null, eta: null, myVehicle: null, busAssigned: false }).kind).toBe("choose");
