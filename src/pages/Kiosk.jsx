@@ -18,6 +18,7 @@ import { isNetworkFailure } from "@/lib/offlineQueue";
 import { helperHealthPayload } from "@/lib/helperHealth";
 import { appHealthPayload, noteGpsFix } from "@/lib/appHealth";
 import { idleFor, useTabletUpdates } from "@/lib/tabletUpdate";
+import { handleNetworkCommand, networkAckPayload, withoutNetworkCommand } from "@/lib/tabletNetwork";
 
 const TYPE_META = {
   bus_boarding: { label: "Bus boarding", icon: Bus },
@@ -96,8 +97,14 @@ export default function Kiosk() {
   // how actively it was being used — it only ever checked in once, at pairing.
   const heartbeat = (id) => {
     base44.functions
-      .invoke("kioskHeartbeat", deviceRequest(id, { ...helperHealthPayload(), ...appHealthPayload("boarding") }))
-      .then((res) => {
+      .invoke("kioskHeartbeat", deviceRequest(id, { ...helperHealthPayload(), ...appHealthPayload("boarding"), ...networkAckPayload() }))
+      .then((rawRes) => {
+        // A Wi-Fi change/scan from Admin → Kiosk tablets goes to the helper app;
+        // check in again soon so Admin sees the result (and the command is deleted).
+        handleNetworkCommand(rawRes.data?.network_command)
+          .then((r) => { if (r === "sent") setTimeout(() => heartbeat(id), 12000); })
+          .catch(() => {});
+        const res = { ...rawRes, data: withoutNetworkCommand(rawRes.data) };
         if (res.data?.error) {
           setStatus("error");
           setError("This device is no longer paired. Ask your administrator for a new pairing link.");
