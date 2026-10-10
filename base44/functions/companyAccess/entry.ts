@@ -113,10 +113,21 @@ export default async function(req) {
   const rows = await retry429(async ()=>base44.asServiceRole.entities.Company.filter({ access_code: code }, '-created_date', 2));
   if (rows.length !== 1) return Response.json({ error: 'Invalid company code' }, { status: 403 });
   const company = rows[0];
+  // Only a verified company join converts an ordinary passenger to hotel staff.
+  // Re-read the authoritative role so a stale session cannot demote an admin,
+  // manager, driver or mechanic.
+  const freshUser = await retry429(async ()=>base44.asServiceRole.entities.User.get(user.id));
+  if (!freshUser) return Response.json({ error: 'Sign in required' }, { status: 401 });
+  user.role = freshUser.role;
+  if (user.role === 'passenger') {
+   await retry429(async ()=>base44.asServiceRole.entities.User.update(user.id,{role:'staff'}));
+   user.role='staff';
+  }
+  if (!['staff','admin','company'].includes(user.role)) return Response.json({error:'This account does not use the passenger app',code:'PASSENGER_ROLE_REQUIRED'},{status:403});
   const grant = randomSecret();
   await retry429(async ()=>base44.asServiceRole.entities.CompanyAccessGrant.create({ user_id: user.id, company_id: company.id, token_hash: await hashSecret(grant), code_hash: await hashSecret(code) }));
   await recordPassengerMembership(base44,user,company,await hashSecret(code));
-  // Verified passenger access never grants manager scope, ownership or a role.
-  return Response.json({ company: displayCompany(company), grant });
+  // Verified passenger access never grants manager scope or ownership.
+  return Response.json({ company: displayCompany(company), grant, role:user.role });
  } catch (error) { return Response.json({ error: 'Could not verify company access' }, { status: error.status || 500 }); }
 }

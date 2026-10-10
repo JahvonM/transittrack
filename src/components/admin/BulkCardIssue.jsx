@@ -19,11 +19,11 @@ const NO_BUS = "__nobus__";
 // press Start, then tap blank cards on the reader one after another. Each
 // card goes to the next person automatically and is sent to their bus
 // tablet. A USB reader that types the card ID (keyboard style) works too.
-export default function BulkCardIssue({ people, vehicles, companies, companyName, tapRef, feedback, addLog, readerReady, onIssued }) {
-  const [company, setCompany] = useState(companies.length === 1 ? companies[0].id : "all");
+export default function BulkCardIssue({ people, vehicles, companies, companyName, tapRef, feedback, addLog, readerReady, onIssued, initialKeys = [], loading = false }) {
+  const [company, setCompany] = useState(!initialKeys.length && companies.length === 1 ? companies[0].id : "all");
   const [bus, setBus] = useState("all");
-  const [type, setType] = useState("staff");
-  const [onlyNew, setOnlyNew] = useState(true);
+  const [type, setType] = useState(initialKeys.length ? "all" : "staff");
+  const [onlyNew, setOnlyNew] = useState(!initialKeys.length);
   const [unticked, setUnticked] = useState(() => new Set());
   const [stage, setStage] = useState("pick"); // pick | run | done
   const [queue, setQueue] = useState([]);
@@ -34,15 +34,19 @@ export default function BulkCardIssue({ people, vehicles, companies, companyName
   const [paused, setPaused] = useState(false);
   const [typed, setTyped] = useState("");
   const typedRef = useRef(null);
+  const busyRef = useRef(false);
+  const usedUids = useRef(new Set());
+  const autoStarted = useRef(false);
 
   const buses = vehicles.filter((v) => company === "all" || v.company_id === company);
   const group = useMemo(() => people
+    .filter(p => !initialKeys.length || initialKeys.includes(p.key))
     .filter((p) => type === "all" || p.type === type)
     .filter((p) => company === "all" || p.company_id === company)
     .filter((p) => bus === "all" || (bus === NO_BUS ? !p.vehicle_id && !p.assigned_vehicle : p.vehicle_id === bus))
     .filter((p) => !onlyNew || p.status !== "Card Issued")
     .sort((a, b) => (a.assigned_vehicle || "~").localeCompare(b.assigned_vehicle || "~", undefined, { numeric: true }) || (a.name || "").localeCompare(b.name || "")),
-  [people, type, company, bus, onlyNew]);
+  [people, type, company, bus, onlyNew, initialKeys]);
   const picked = group.filter((p) => !unticked.has(p.key));
 
   const current = stage === "run" ? queue[idx] : null;
@@ -50,6 +54,7 @@ export default function BulkCardIssue({ people, vehicles, companies, companyName
 
   const start = () => {
     if (!picked.length) return;
+    usedUids.current.clear();
     setQueue(picked);
     setIdx(0);
     setResults([]);
@@ -59,6 +64,13 @@ export default function BulkCardIssue({ people, vehicles, companies, companyName
     addLog?.(`Bulk setup: ${picked.length} cards to program`, "ok");
   };
 
+  useEffect(() => {
+    if (initialKeys.length && !loading && picked.length && !autoStarted.current) {
+      autoStarted.current = true;
+      start();
+    }
+  }, [loading, picked.length, initialKeys]);
+
   const advance = (i) => {
     if (i + 1 >= queue.length) { setStage("done"); onIssued?.(); return; }
     setIdx(i + 1);
@@ -67,7 +79,9 @@ export default function BulkCardIssue({ people, vehicles, companies, companyName
 
   const issue = async (uidRaw, cardType = "") => {
     const uid = normalizeUid(uidRaw);
-    if (stage !== "run" || paused || busy || !current || uid.length < 8) return;
+    if (stage !== "run" || paused || busyRef.current || !current || uid.length < 8) return;
+    if (usedUids.current.has(uid)) { setError("This card was already used in this batch. Remove it and tap a different card."); return; }
+    busyRef.current = true;
     setBusy(true);
     setError("");
     const person = current;
@@ -81,13 +95,15 @@ export default function BulkCardIssue({ people, vehicles, companies, companyName
       feedback?.("success", { beep: true, led: true });
       addLog?.(`CARD_PROGRAMMED · ${formatUid(uid)} → ${person.name}`, "ok");
       setResults((r) => [...r, { key: person.key, name: person.name, bus: person.assigned_vehicle, uid, ok: true, sent: !!data.sent_to_bus }]);
-      setTimeout(() => advance(at), 500);
+      usedUids.current.add(uid);
+      advance(at);
     } catch (e) {
       const msg = e?.response?.data?.error || e.message;
       feedback?.("error", { beep: true, led: true });
       addLog?.(`CARD_REJECTED · ${formatUid(uid)} · ${msg}`, "error");
       setError(msg);
     } finally {
+      busyRef.current = false;
       setBusy(false);
     }
   };
@@ -201,7 +217,7 @@ export default function BulkCardIssue({ people, vehicles, companies, companyName
             <CheckCircle2 className="w-10 h-10 mx-auto text-success" />
             <p className="text-xl font-bold">All done</p>
             <p className="text-sm text-muted-foreground">
-              {doneCount} card{doneCount === 1 ? "" : "s"} issued{results.some((r) => r.skipped) ? ` · ${results.filter((r) => r.skipped).length} skipped` : ""}. Each card was sent to its bus tablet.
+              {doneCount} card{doneCount === 1 ? "" : "s"} issued{results.some((r) => r.skipped) ? ` · ${results.filter((r) => r.skipped).length} skipped` : ""}. {results.filter(r => r.sent).length} cards sent to bus tablets.
             </p>
             <Button variant="outline" onClick={() => setStage("pick")}><RotateCcw className="w-4 h-4" /> Set up more cards</Button>
           </div>
@@ -227,7 +243,7 @@ export default function BulkCardIssue({ people, vehicles, companies, companyName
               <Button type="submit" variant="outline" disabled={!typed || paused || busy}>Use ID</Button>
               <Button type="button" variant="outline" onClick={skip} disabled={busy}><SkipForward className="w-4 h-4" /> Skip</Button>
               <Button type="button" variant="outline" onClick={() => setPaused((p) => !p)}>{paused ? <><Play className="w-4 h-4" /> Resume</> : <><Pause className="w-4 h-4" /> Pause</>}</Button>
-              <Button type="button" variant="ghost" onClick={() => { setStage("done"); onIssued?.(); }}>Finish</Button>
+              <Button type="button" variant="ghost" disabled={busy} onClick={() => { setStage("done"); onIssued?.(); }}>Finish</Button>
             </form>
           </>
         )}

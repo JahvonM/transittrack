@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { Checkbox } from "@/components/ui/checkbox";
 import { confirmAction } from "@/components/ConfirmHost";
 import { base44 } from "@/api/base44Client";
 import AppLayout from "@/components/AppLayout";
@@ -20,6 +21,8 @@ const NO_BUS = "__none__";
 
 export default function StaffDirectory() {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const [selectedKeys, setSelectedKeys] = useState(() => new Set());
   const { toast } = useToast();
   const [contacts, setContacts] = useState([]);
   const [vehicles, setVehicles] = useState([]);
@@ -98,6 +101,18 @@ export default function StaffDirectory() {
   const filtered = (filter === "all" ? contacts : contacts.filter((c) => c.type === filter))
     .filter((c) => companyFilter === "all" || c.company_id === companyFilter)
     .filter((c) => !q || [c.name, c.phone, c.email, c.pickup_name, c.dropoff_name, c.company_name].some((x) => String(x || "").toLowerCase().includes(q)));
+  const selectedPassengers = contacts.filter(c => selectedKeys.has(c.key) && c.company_id);
+  const toggleSelected = (key, checked) => setSelectedKeys(previous => {
+    const next = new Set(previous); if (checked) next.add(key); else next.delete(key); return next;
+  });
+  const bulkIssue = async () => {
+    if (!selectedPassengers.length) return;
+    const replacements = selectedPassengers.filter(c => c.status === "Card Issued").length;
+    if (!(await confirmAction({ title: `Bulk issue cards for ${selectedPassengers.length} passengers?`,
+      description: `Each name will appear one at a time. Tap one card, then move to the next person.${replacements ? ` ${replacements} existing cards will be replaced and deactivated.` : ""}`,
+      confirmLabel: "Start bulk issuing" }))) return;
+    navigate(user?.role === "admin" ? "/admin/cards" : "/company/cards", { state: { bulkPersonKeys: selectedPassengers.map(c => c.key) } });
+  };
   const place = (name, lat, lng) => name || (lat != null ? `${lat?.toFixed(4)}, ${lng?.toFixed(4)}` : "");
 
   return (
@@ -129,6 +144,14 @@ export default function StaffDirectory() {
         }))} />
       </div>
 
+      {!loading && contacts.length > 0 && <div className="mb-3 flex flex-wrap items-center gap-3 rounded-xl border bg-card p-3">
+        <label className="flex items-center gap-2 text-sm"><Checkbox aria-label="Select visible passengers"
+          checked={filtered.some(c => c.company_id) && filtered.filter(c => c.company_id).every(c => selectedKeys.has(c.key))}
+          onCheckedChange={checked => setSelectedKeys(previous => { const next = new Set(previous); for (const c of filtered) if (c.company_id) { if (checked) next.add(c.key); else next.delete(c.key); } return next; })} />Select visible passengers</label>
+        <span className="text-sm text-muted-foreground">{selectedPassengers.length} selected</span>
+        <Button size="sm" onClick={bulkIssue} disabled={!selectedPassengers.length}><Nfc className="h-4 w-4" /> Bulk issue cards</Button>
+        {selectedKeys.size > 0 && <Button size="sm" variant="ghost" onClick={() => setSelectedKeys(new Set())}>Clear selection</Button>}
+      </div>}
       {loading ? (
         <BusLoader className="py-8" />
       ) : contacts.length === 0 ? (
@@ -151,6 +174,8 @@ export default function StaffDirectory() {
               return (
                 <li key={c.key} className="grid grid-cols-1 gap-x-4 gap-y-2 px-4 py-3 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1.3fr)_252px] lg:items-center">
                   <div className="flex min-w-0 items-center gap-3">
+                    <Checkbox aria-label={`Select ${c.name}`} checked={selectedKeys.has(c.key)} disabled={!c.company_id}
+                      onCheckedChange={checked => toggleSelected(c.key, checked)} />
                     <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-secondary text-body-sm font-bold" aria-hidden="true">{initials}</span>
                     <div className="min-w-0">
                       <p className="truncate font-semibold">{c.name}</p>

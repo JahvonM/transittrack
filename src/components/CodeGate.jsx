@@ -7,10 +7,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ScanCompanyQrButton, ScanCompanyQrDialog } from "@/components/ScanCompanyQr";
 import { clearCompanyLeft } from "@/lib/companyJoin";
 import { withRateLimitRetry } from "@/lib/scopedEntities";
+import { useAuth } from "@/lib/AuthContext";
 
 // initialCode comes from a company's join QR; it is checked straight away,
 // exactly as if the passenger had typed it.
 export default function CodeGate({ onUnlock, initialCode = "" }) {
+  const { checkUserAuth } = useAuth();
   const [code, setCode] = useState(initialCode);
   const [error, setError] = useState("");
   const [checking, setChecking] = useState(false);
@@ -31,6 +33,7 @@ export default function CodeGate({ onUnlock, initialCode = "" }) {
       localStorage.setItem("tt_company_access_grant", grant);
       clearCompanyLeft();
       onUnlock(company);
+      checkUserAuth();
     } catch (e) {
       setError(e?.response?.status === 429 ? "Too many attempts. Try again in 15 minutes." : "Could not verify. Check your code and connection.");
     } finally { setChecking(false); }
