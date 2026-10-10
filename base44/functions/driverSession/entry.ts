@@ -1,6 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 import { passengerPushTokens } from '../../shared/chatPush.ts';
 import { applyLocationUpdate } from '../../shared/vehicleLocation.ts';
+import { cleanNetworkHealth, networkCheckIn } from '../../shared/tabletNetwork.ts';
 // Shared request budgets use the configured Supabase RPC and fail closed.
 import { reserveAttempt, createOnce, withLock } from '../../shared/atomicOps.ts';
 import { pushWithPolicy, emailWithPolicy } from '../../shared/notificationPolicy.ts';
@@ -329,6 +330,8 @@ function cleanHelperHealth(h: unknown): Record<string, unknown> | null {
   const gps = str(o.gps, 40); if (gps) out.gps = gps;
   const hotspot = str(o.hotspot, 40); if (hotspot) out.hotspot = hotspot;
   const lastCard = str(o.last_card_at, 40); if (lastCard) out.last_card_at = lastCard;
+  // Helper 1.9: whether Admin set this driver tablet's hotspot to always on.
+  Object.assign(out, cleanNetworkHealth(o));
   return out;
 }
 
@@ -554,7 +557,11 @@ export default async function(req) {
 
     const helperHealth = cleanHelperHealth(body.helper_health);
     const appHealth = cleanAppHealth(body.app_health);
+    // The hotspot switch from Admin → Kiosk tablets (see shared/tabletNetwork.ts).
+    // Driver tablets never receive Wi-Fi passwords, so no device-key check is needed here.
+    const network = action === 'heartbeat' ? networkCheckIn(device, body.network_ack, false) : null;
     if (action === 'heartbeat') await base44.asServiceRole.entities.KioskDevice.update(device_id, {
+      ...(network ? network.updates : {}),
       last_seen: new Date().toISOString(),
       // Sent once per app start: how this tablet draws maps (for support).
       ...(typeof body.device_info === 'string' ? { device_info: sanitize(body.device_info).slice(0, 400) } : {}),
@@ -763,6 +770,7 @@ export default async function(req) {
             status: i.status, created_date: i.created_date,
           })),
           update_requested_at: device.update_requested_at || null,
+          network_command: network?.command || null,
         });
       }
 
