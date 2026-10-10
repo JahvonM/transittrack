@@ -83,6 +83,64 @@
         "hotspot": {
           "type": "string"
         },
+        "hotspot_always": {
+          "description": "Driver tablets (Helper 1.9+): Admin set the hotspot to stay on all the time.",
+          "type": "boolean"
+        },
+        "wifi": {
+          "description": "Boarding tablets (Helper 1.9+): the Wi-Fi network it is on, the latest scan of nearby networks, and the latest network change from Admin.",
+          "type": "object",
+          "properties": {
+            "ssid": {
+              "type": "string"
+            },
+            "bars": {
+              "type": "number"
+            },
+            "networks": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "ssid": {
+                    "type": "string"
+                  },
+                  "bars": {
+                    "type": "number"
+                  },
+                  "lock": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "scanned_at": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "join": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "ssid": {
+                  "type": "string"
+                },
+                "state": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "at": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              }
+            }
+          }
+        },
         "last_card_at": {
           "type": "string"
         },
@@ -143,6 +201,71 @@
     "pairing_expires_at": {
       "type": "string",
       "format": "date-time"
+    },
+    "network_command": {
+      "description": "Admin \u2192 Kiosk tablets: a pending Wi-Fi or hotspot command for this tablet (a Wi-Fi change includes its password). Not returned by entityAccess; given only to the tablet on check-in and deleted once the tablet confirms it, or after 10 minutes.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        },
+        "ssid": {
+          "type": "string"
+        },
+        "password": {
+          "type": "string"
+        },
+        "always_on": {
+          "type": "boolean"
+        },
+        "requested_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "network_status": {
+      "description": "What Admin shows about the latest Wi-Fi or hotspot command (never a password): waiting, sent, delivered or expired.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        },
+        "ssid": {
+          "type": "string"
+        },
+        "always_on": {
+          "type": "boolean"
+        },
+        "requested_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "requested_by": {
+          "type": "string"
+        },
+        "state": {
+          "type": "string"
+        },
+        "sent_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "delivered_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "expired_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
     }
   },
   "required": [
