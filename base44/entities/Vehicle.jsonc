@@ -192,6 +192,10 @@
         "departed"
       ],
       "description": "Company boarding state for a return journey."
+    },
+    "return_pickup_date": {
+      "type": "string",
+      "description": "Server-local service date for resetting company boarding state."
     }
   },
   "rls": {

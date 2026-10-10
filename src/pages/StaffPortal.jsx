@@ -485,7 +485,12 @@ export default function StaffPortal() {
   const notice = visibleAlerts[0];
   const companyName = company.name;
 
-  const mapSummary = stop && tripState.bus ? (
+  const mapSummary = returning && stop ? (
+    <div className="rounded-2xl border border-border bg-card/95 p-4 shadow-xl backdrop-blur">
+      <p className="font-bold">Going home · Pickup: {stop.name}</p>
+      <p className="text-body-sm">See Home for the company pickup ETA and bus status.</p>
+    </div>
+  ) : stop && tripState.bus ? (
     <div className="rounded-2xl border border-border bg-card/95 p-4 shadow-xl backdrop-blur">
       <p className="text-body-sm text-muted-foreground">{tripState.bus.name} to {stop.name}</p>
       <p className="mt-1 font-display text-display font-semibold tabular-nums">
@@ -503,7 +508,7 @@ export default function StaffPortal() {
       <p className="min-w-0 flex-1">
         <span className="block truncate font-bold">{stop.name}</span>
         <span className="block text-body-sm text-muted-foreground">
-          {roundMins != null && onTrip ? `${roundMins} min` : "No arrival time yet"}
+          {returning ? "Company boarding point · Going home" : roundMins != null && onTrip ? `${roundMins} min` : "No arrival time yet"}
           {myStopEta?.km != null && onTrip ? ` · ${myStopEta.km < 1 ? `${Math.round(myStopEta.km * 1000)} m` : `${myStopEta.km.toFixed(1)} km`}` : ""}
         </span>
       </p>
