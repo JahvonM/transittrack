@@ -349,7 +349,7 @@ export default async function(req) {
         if (!['to_work', 'to_home'].includes(body.direction)) fail(400, 'Choose To work or To home');
         const { bus } = await pickBus(base44, driver, body.vehicle_id);
         if (!bus || bus.company_id !== companyId) fail(403, 'This bus is not assigned to you');
-        await db.Vehicle.update(bus.id, { trip_direction: body.direction });
+        await db.Vehicle.update(bus.id, { trip_direction: body.direction, ...(bus.trip_direction !== body.direction ? { trip_direction_started_at: new Date().toISOString(), return_pickup_state: 'pending' } : {}) });
         return Response.json({ ok: true, direction: body.direction });
       }
 

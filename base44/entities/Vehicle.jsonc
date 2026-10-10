@@ -178,6 +178,20 @@
       ],
       "default": "to_work",
       "description": "Current staff transport direction, selected by the authorized driver."
+    },
+    "trip_direction_started_at": {
+      "type": "string",
+      "description": "Server timestamp identifying the current staff journey."
+    },
+    "return_pickup_state": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "near",
+        "arrived",
+        "departed"
+      ],
+      "description": "Company boarding state for a return journey."
     }
   },
   "rls": {

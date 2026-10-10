@@ -865,7 +865,7 @@ export default async function(req) {
         if (!['to_work', 'to_home'].includes(body.direction)) return Response.json({ error: 'Choose To work or To home' }, { status: 400 });
         const vehicle = await loadVehicle(base44, vehicleId);
         if (!vehicle || vehicle.company_id !== companyId) return Response.json({ error: 'Vehicle assignment mismatch' }, { status: 403 });
-        await base44.asServiceRole.entities.Vehicle.update(vehicleId, { trip_direction: body.direction });
+        await base44.asServiceRole.entities.Vehicle.update(vehicleId, { trip_direction: body.direction, ...(vehicle.trip_direction !== body.direction ? { trip_direction_started_at: new Date().toISOString(), return_pickup_state: 'pending' } : {}) });
         return Response.json({ ok: true, direction: body.direction });
       }
 

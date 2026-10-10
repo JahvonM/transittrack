@@ -1,3 +1,4 @@
+import { updateReturnPickup } from './returnPickup.ts';
 // A bus's live position update: moves the bus on the map, records its
 // history, raises stop arrival/departure alerts ("one stop away") and flags
 // hard braking, rapid acceleration and possible crashes. Used by the bus
@@ -123,7 +124,7 @@ export async function applyLocationUpdate(base44, { vehicleId, companyId, compan
             vehicle_name: vehicle.name, company_id: companyId, company_name: companyName,
             driver_name: vehicle.driver_name || '', driver_email: vehicle.driver_email || '',
           }).catch(() => {});
-          try { await onDepartedStop(route, prevNearId, vehicle); }
+          try { if(vehicle.trip_direction!=='to_home') await onDepartedStop(route, prevNearId, vehicle); }
           catch { /* alerts are best-effort */ }
         }
       }
@@ -131,6 +132,7 @@ export async function applyLocationUpdate(base44, { vehicleId, companyId, compan
   }
 
   await base44.asServiceRole.entities.Vehicle.update(vehicleId, update);
+  await updateReturnPickup(base44, vehicle, update).catch(() => {});
 
   // --- Location history, for the "replay this vehicle's day" timeline ---
   // Throttled to roughly once a minute so a day of history stays a manageable size.

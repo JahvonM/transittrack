@@ -35,6 +35,13 @@
     "is_reply": {
       "type": "boolean",
       "default": false
+    },
+    "vehicle_id": {
+      "type": "string"
+    },
+    "return_pickup": {
+      "type": "boolean",
+      "default": false
     }
   },
   "required": [
