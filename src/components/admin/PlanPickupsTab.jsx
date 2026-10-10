@@ -44,8 +44,8 @@ function Seats({ bus }) {
   const pct = cap ? Math.min(100, Math.round((bus.riders / cap) * 100)) : 0;
   return (
     <div className="min-w-0">
-      <div className="flex items-baseline justify-between gap-2">
-        <span className="truncate font-semibold">{bus.name}</span>
+      <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
+        <span className="break-words font-semibold">{bus.name}</span>
         <span className="shrink-0 text-body-sm tabular-nums">{bus.riders}{cap ? ` / ${cap}` : ""} <span className="text-muted-foreground">assigned</span></span>
       </div>
       <p className="truncate text-caption text-muted-foreground">{bus.route_name || "No route"}</p>
@@ -275,11 +275,11 @@ export default function PlanPickupsTab() {
           </div>
         </Panel>
 
-        <div ref={detailRef} className="min-w-0 scroll-mt-20 space-y-4 lg:sticky lg:top-4">
+        <div ref={detailRef} className="min-w-0 scroll-mt-20 space-y-4 lg:sticky lg:top-24">
           <Panel title={active ? `${active.name}’s pickup` : "Pickups on the map"} icon={MapPin} bodyClassName="space-y-3">
             {active?.pickup || !active ? <div className="h-[280px] overflow-hidden rounded-xl border border-border sm:h-[320px]">
               <Suspense fallback={<div className="h-full animate-pulse bg-muted" />}>
-                <LiteMap key={(active?.key || "overview") + ":" + (chosen?.route_id || "")} fill vehicles={[]} pins={pins} lines={lines} showUserDot={false} showRecenter={false} />
+                <LiteMap key={(active?.key || "overview") + ":" + (chosen?.route_id || "")} fill vehicles={[]} road={activeRoute ? drawnRoad(activeRoute) : null} pins={pins} lines={activeRoute ? [] : lines} showUserDot={false} showRecenter={false} />
               </Suspense>
             </div> : <EmptyState icon={UserX} title="No pickup set">This passenger needs to use Find my pickup in their app.</EmptyState>}
             {active && <div className="rounded-xl bg-secondary/50 p-3 text-body-sm">
