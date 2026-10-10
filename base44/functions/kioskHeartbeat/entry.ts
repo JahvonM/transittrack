@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
+import { cleanNetworkHealth, networkCheckIn } from '../../shared/tabletNetwork.ts';
 // Random device credentials are stored only as hashes in protected DeviceCredential.
 // Existing development tablets remain legacy-compatible until explicitly re-paired.
 const LEGACY_DEVICE_CUTOFF = Date.parse('2026-10-03T23:35:39Z');
@@ -60,6 +61,8 @@ function cleanHelperHealth(h: unknown): Record<string, unknown> | null {
   const gps = str(o.gps, 40); if (gps) out.gps = gps;
   const hotspot = str(o.hotspot, 40); if (hotspot) out.hotspot = hotspot;
   const lastCard = str(o.last_card_at, 40); if (lastCard) out.last_card_at = lastCard;
+  // Helper 1.9: the boarding tablet's Wi-Fi (current network, latest scan / join).
+  Object.assign(out, cleanNetworkHealth(o));
   return out;
 }
 
@@ -147,17 +150,22 @@ export default async function(req) {
     // status:'active'. Without this check the tablet keeps heartbeating
     // successfully and looking completely normal while every real action
     // (kioskCheckIn's resolveKioskDevice requires both) silently 401s.
-    if (!(await deviceAccepted(base44, device, body.device_token))) {
+    // Only a tablet that presented its device key may receive a Wi-Fi password.
+    const tokenOk = !!(await authenticatedTablet(base44, device, body.device_token));
+    if (!(tokenOk || (await legacyDeviceAccepted(base44, device)))) {
       return Response.json({ error: 'Device authentication required' }, { status: 401 });
     }
 
     // Update last_seen — kiosk is unauthenticated, use service role
     const helperHealth = cleanHelperHealth(body.helper_health);
     const appHealth = cleanAppHealth(body.app_health);
+    // Wi-Fi commands from Admin → Kiosk tablets (see shared/tabletNetwork.ts).
+    const network = networkCheckIn(device, body.network_ack, tokenOk);
     await base44.asServiceRole.entities.KioskDevice.update(device_id, {
       last_seen: new Date().toISOString(),
       ...(helperHealth ? { helper_health: helperHealth } : {}),
       ...(appHealth ? { app_health: appHealth } : {}),
+      ...network.updates,
     });
 
     let company_logo_url = '';
@@ -197,6 +205,7 @@ export default async function(req) {
       paired: device.paired,
       directory_sent_at: device.directory_sent_at || null,
       update_requested_at: device.update_requested_at || null,
+      network_command: network.command,
     });
   } catch (error) {
     return Response.json({ error: 'Something went wrong. Please try again.' }, { status: 500 });
