@@ -59,7 +59,7 @@ export default function DriverHome({ session, shiftControl, shiftOpen, offline, 
           <span className="min-w-0 flex-1">
             <span className="block truncate text-title-sm font-bold">{route.name || "Your route"}</span>
             {stops.length > 1 && <span className="block truncate text-body-sm text-muted-foreground">{stops[0].name} to {stops[stops.length - 1].name}</span>}
-            <span className="block text-body-sm text-muted-foreground">{stops.length} stops · {pickups} pickup{pickups === 1 ? "" : "s"} today</span>
+            <span className="block text-body-sm text-muted-foreground">{stops.length} stops · {pickups} {session?.trip_direction === "to_home" ? "drop-off" : "pickup"}{pickups === 1 ? "" : "s"} today</span>
           </span>
           <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden="true" />
         </button>

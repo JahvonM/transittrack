@@ -196,7 +196,7 @@ export default function StaffDirectory() {
                   </div>
                   <div className="min-w-0 text-body-sm">
                     <p className="truncate"><span className="text-muted-foreground">Pickup </span>{pickup || "Not set"}</p>
-                    <p className="truncate"><span className="text-muted-foreground">Drop-off </span>{dropoff || "Company address not set"}</p>
+                    <p className="truncate"><span className="text-muted-foreground">Company </span>{dropoff || "Company address not set"}</p>
                     <Select value={c.vehicle_id || NO_BUS} onValueChange={(val) => assignBus(c, val)} disabled={busyKey === c.key}>
                       <SelectTrigger className="mt-1.5 h-8 w-full max-w-[220px]" aria-label={`Bus for ${c.name}`}>
                         <SelectValue placeholder="Assign a bus" />

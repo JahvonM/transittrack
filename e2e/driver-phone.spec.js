@@ -23,9 +23,10 @@ const MESSAGES=[
 ];
 const in20days=new Date(Date.now()+20*86400e3).toISOString().slice(0,10);
 
-async function phone(page,{refuse=false,today=TODAY,messages=MESSAGES,user={id:'u1',email:'dana.driver@gmail.com',full_name:'Dana Driver',role:'user'}}={}) {
+async function phone(page,{refuse=false,failDirection=false,today=TODAY,messages=MESSAGES,user={id:'u1',email:'dana.driver@gmail.com',full_name:'Dana Driver',role:'user'}}={}) {
  const calls=[];
  let currentToday=structuredClone(today);
+ let directionFailed=false;
  await page.addInitScript(()=>{ localStorage.setItem('base44_access_token','mock-authenticated-session'); });
  await page.route('https://api.mapbox.com/**',r=>r.fulfill({status:404,body:''}));
  await page.route('**/api/**',async route=>{
@@ -34,6 +35,8 @@ async function phone(page,{refuse=false,today=TODAY,messages=MESSAGES,user={id:'
    const body=route.request().postDataJSON();calls.push(body);
    if(refuse) return route.fulfill({status:403,json:{error:'Ask your administrator to put this email on your driver record and switch on "Can use the phone app".',code:'NOT_A_DRIVER'}});
    if(body.action==='set_direction') {
+     if(failDirection && !directionFailed) {directionFailed=true;return route.fulfill({status:503,json:{error:"Couldn't save direction. Try again."}});}
+
      currentToday.bus.trip_direction=body.direction;
      return route.fulfill({json:{ok:true,direction:body.direction}});
    }
@@ -263,4 +266,15 @@ test('trip direction changes the phone stop order and survives a reload',async({
  await expect(page.getByRole('button',{name:'To home',exact:true})).toHaveAttribute('aria-pressed','true');
  await page.getByRole('button',{name:'To work',exact:true}).click();
  await expect(page.getByRole('button',{name:'To work',exact:true})).toHaveAttribute('aria-pressed','true');
+});
+
+test('trip direction keeps the old selection after a failed save and allows retry',async({page})=>{
+ await phone(page,{failDirection:true});
+ await page.goto('/driver-phone');
+ await page.getByRole('button',{name:'To home',exact:true}).click();
+ await expect(page.getByRole('alert').filter({hasText:"Couldn't save direction"})).toBeVisible();
+ await expect(page.getByRole('button',{name:'To work',exact:true})).toHaveAttribute('aria-pressed','true');
+ await page.getByRole('button',{name:'To home',exact:true}).click();
+ await expect(page.getByRole('button',{name:'To home',exact:true})).toHaveAttribute('aria-pressed','true');
+ await expect(page.getByRole('alert').filter({hasText:"Couldn't save direction"})).toHaveCount(0);
 });

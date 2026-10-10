@@ -190,10 +190,10 @@ export default function ContactFormDialog({ open, onClose, onSave, contact }) {
 
           <div className="rounded-lg border border-border p-3 space-y-2">
             <div className="flex items-center gap-1.5 text-sm font-medium">
-              <MapPin className="w-4 h-4 text-primary" /> Drop-off point
+              <MapPin className="w-4 h-4 text-primary" /> Company address
             </div>
             <p className="text-sm text-muted-foreground">
-              Automatically uses this passenger’s company address. Only their pickup spot needs to be set here.
+              The company address and home pickup spot are used in both directions. The driver chooses To work or To home.
             </p>
           </div>
         </div>
