@@ -80,7 +80,20 @@ export default async function(req) {
  try {
   const base44 = createClientFromRequest(req);
   const user = await base44.auth.me().catch((e) => { const s = e?.status ?? e?.response?.status; if (s === 401 || s === 403) return null; throw e; }); // no session: signed out; an outage stays an error
-  if (!user || !['staff','passenger','admin','company'].includes(user.role)) return Response.json({ error: 'Sign in to continue' }, { status: 401 });
+  if (!user) return Response.json({ error: 'Sign in to continue' }, { status: 401 });
+  // Google and Apple sign-in (and a registration whose role step did not finish)
+  // leave a new account with the platform's default role "user". Passenger
+  // screens and functions only know "staff", so every new account was refused
+  // here with a sign-in answer, and the passenger screen sent the person back to
+  // the login page, round and round. A default account becomes a passenger: the
+  // same non-privileged role anyone can choose when registering (applyUserRole).
+  if (!user.role || user.role === 'user') {
+   const fresh = await retry429(async ()=>base44.asServiceRole.entities.User.get(user.id)).catch(() => null);
+   if (fresh && fresh.role && fresh.role !== 'user') user.role = fresh.role;
+   else if (fresh) { await retry429(async ()=>base44.asServiceRole.entities.User.update(user.id, { role: 'staff' })); user.role = 'staff'; }
+  }
+  // A signed-in account of another kind is not a lost sign-in: say so plainly.
+  if (!['staff','passenger','admin','company'].includes(user.role)) return Response.json({ error: 'This account does not use the passenger app', code: 'PASSENGER_ROLE_REQUIRED' }, { status: 403 });
   const body = await req.json();
   if (body.action === 'context') {
    const requested = typeof body.grant === 'string' && /^[a-f0-9]{64}$/.test(body.grant) ? body.grant : null;
