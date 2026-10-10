@@ -1106,3 +1106,29 @@ test('welcome shows recovery after Google callback verification failure and retr
  await page.getByRole('button',{name:/Try again/i}).click();
  await expect(page).toHaveURL(/\/admin$/);
 });
+
+test('Google return screen opens the server-confirmed account on a phone',async({page})=>{
+ await session(page,'admin');
+ await page.goto('/login?authReturn=1&returnTo=%2F&access_token=mock-google-return');
+ await expect(page).toHaveURL(/\/admin$/);
+ expect(await page.evaluate(()=>localStorage.getItem('base44_access_token'))).toBe('mock-google-return');
+});
+test('Google return without a session shows incomplete sign-in instead of Welcome',async({page})=>{
+ await session(page,'staff');
+ await page.addInitScript(()=>{localStorage.removeItem('base44_access_token');localStorage.removeItem('token');});
+ await page.goto('/login?authReturn=1&returnTo=%2F');
+ await expect(page.getByRole('alert')).toContainText('Sign-in did not complete');
+ await expect(page.getByRole('button',{name:'Continue with Google',exact:true})).toBeVisible();
+ await expect(page).toHaveURL(/\/login\?/);
+});
+test('Google button returns through session verification and preserves destination',async({page})=>{
+ await session(page,'staff');
+ await page.route('**/api/apps/auth/login?*',r=>r.fulfill({contentType:'text/html',body:'<p>Mock Google redirect</p>'}));
+ await page.goto('/login?returnTo=%2Fstaff');
+ await page.getByRole('button',{name:'Continue with Google',exact:true}).click();
+ await expect(page.getByText('Mock Google redirect')).toBeVisible();
+ const destination=new URL(new URL(page.url()).searchParams.get('from_url'));
+ expect(destination.pathname).toBe('/login');
+ expect(destination.searchParams.get('authReturn')).toBe('1');
+ expect(destination.searchParams.get('returnTo')).toBe('/staff');
+});
