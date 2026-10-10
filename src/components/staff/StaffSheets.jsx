@@ -3,7 +3,6 @@ import { Link } from "react-router-dom";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
-import { MobileSelect } from "@/components/ui/mobile-select";
 import { CheckCircle2, LogOut, MessageCircle, ShieldCheck } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { base44 } from "@/api/base44Client";
@@ -114,22 +113,12 @@ export function BadgeSheet({ open, onOpenChange }) {
   );
 }
 
-export function ChatSheet({ open, onOpenChange, vehicle, vehicles, chosenVehicleId, onChooseVehicle }) {
+export function ChatSheet({ open, onOpenChange, vehicle }) {
   return (
     <BottomSheet open={open} onOpenChange={onOpenChange} tall title={vehicle ? `${vehicle.name} chat` : "Bus chat"} description="Your driver and the staff on this bus.">
       <div className="flex-1 min-h-0 flex flex-col gap-3">
         <div className="flex-1 min-h-0 overflow-y-auto">
           <StaffGroupChat vehicle={vehicle} />
-        </div>
-        <div className="flex items-center gap-2 text-xs text-muted-foreground pb-2">
-          <span>Wrong bus?</span>
-          <MobileSelect
-            value={chosenVehicleId || "auto"}
-            onValueChange={onChooseVehicle}
-            placeholder="Auto-detected"
-            options={[{ value: "auto", label: "Auto-detect" }, ...vehicles.map((v) => ({ value: v.id, label: v.name }))]}
-            triggerClassName="h-8 text-xs w-auto"
-          />
         </div>
       </div>
     </BottomSheet>

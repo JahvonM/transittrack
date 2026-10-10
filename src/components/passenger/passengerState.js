@@ -13,12 +13,14 @@ import { routeProgress } from "@/components/TripProgress";
  *   live        – on its way, with an ETA when one is known
  *   not_started – your bus exists but isn't on a trip yet
  *   no_eta      – no bus serves this stop right now
+ *   unassigned  – the company hasn't put this passenger on a bus
  *
  * Emergencies are never shown to passengers (SOS is admin-only); callers pass
  * vehicles with that status already masked.
  */
-export function passengerTripState({ stop, approaching, eta, myVehicle, now = Date.now() }) {
+export function passengerTripState({ stop, approaching, eta, myVehicle, now = Date.now(), busAssigned = true }) {
   if (!stop) return { kind: "choose", bus: null, fresh: null, mins: null };
+  if (!busAssigned) return { kind: "unassigned", bus: null, fresh: null, mins: null };
   const bus = approaching?.v || myVehicle || null;
   const fresh = bus ? freshnessOf(bus.last_location_update, { now }) : null;
   if (bus && bus.in_service === false) return { kind: "problem", bus, fresh, mins: null };

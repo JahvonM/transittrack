@@ -110,6 +110,10 @@ export default function ArrivalHero({ state, stop, eta, trip, now = Date.now(), 
     case "problem":
       answer = <span className={cn(WORD, "text-danger")}>Out of service</span>;
       break;
+    case "unassigned":
+      answer = <span className={cn(WORD, "text-muted-foreground")}>No bus assigned yet</span>;
+      detail = "Your company adds you to a bus";
+      break;
     default:
       answer = <span className={cn(WORD, "text-muted-foreground")}>No bus yet</span>;
       detail = "Shows when a bus starts its trip";
@@ -121,6 +125,7 @@ export default function ArrivalHero({ state, stop, eta, trip, now = Date.now(), 
         : kind === "signal_lost" ? `${name} has lost its signal. ${detail}.`
           : kind === "not_started" ? `${name} hasn't started its trip`
             : kind === "problem" ? `${name} has been taken out of service`
+              : kind === "unassigned" ? "No bus assigned yet. Your company adds you to a bus."
               : `No bus serving ${stop.name} is on the road right now`;
 
   const onTrip = kind === "live" || kind === "arriving" || kind === "signal_lost";

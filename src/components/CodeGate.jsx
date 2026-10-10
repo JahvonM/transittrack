@@ -30,7 +30,7 @@ export default function CodeGate({ onUnlock, initialCode = "" }) {
       localStorage.removeItem("tt_company_code");
       localStorage.setItem("tt_company_access_grant", grant);
       clearCompanyLeft();
-      onUnlock(company);
+      onUnlock(company, response.data);
     } catch (e) {
       setError(e?.response?.status === 429 ? "Too many attempts. Try again in 15 minutes." : "Could not verify. Check your code and connection.");
     } finally { setChecking(false); }

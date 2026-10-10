@@ -81,6 +81,8 @@ export default function StaffPortal() {
   const statusRef = useRef({});
   const [company, setCompany] = useState(null);
   const [companiesLoaded, setCompaniesLoaded] = useState(false);
+  // The bus the company put this passenger on (Admin → Passengers): { id, name } or null.
+  const [myBus, setMyBus] = useState(null);
   const [companyError, setCompanyError] = useState(false);
   const companyAttempt = useRef(0);
   const [vehicles, setVehicles] = useState([]);
@@ -174,6 +176,7 @@ export default function StaffPortal() {
       if (data.grant) localStorage.setItem('tt_company_access_grant', data.grant);
       setCompany(data.company);
       setCompanyPhone(data.company.phone || '');
+      setMyBus(data.my_bus || null);
     } catch (error) {
       if (attempt !== companyAttempt.current) return;
       if (companyGrantRejected(error)) {
@@ -197,6 +200,23 @@ export default function StaffPortal() {
     restoreCompany();
     return () => { companyAttempt.current += 1; };
   }, [restoreCompany]);
+  // An admin can add or remove this passenger's bus at any time: check again
+  // when the app comes back to the screen, and every minute while it's open.
+  const refreshMyBus = useCallback(async () => {
+    const grant = localStorage.getItem('tt_company_access_grant');
+    if (!grant || !navigator.onLine) return;
+    try {
+      const { data } = await base44.functions.invoke('companyAccess', { action: 'context', grant });
+      if (data?.company) setMyBus(data.my_bus || null);
+    } catch { /* keep what's shown; the next check tries again */ }
+  }, []);
+  useEffect(() => {
+    if (!company?.id) return undefined;
+    const onShow = () => { if (document.visibilityState === 'visible') refreshMyBus(); };
+    const id = setInterval(onShow, 60_000);
+    document.addEventListener('visibilitychange', onShow);
+    return () => { clearInterval(id); document.removeEventListener('visibilitychange', onShow); };
+  }, [company?.id, refreshMyBus]);
   // The company check makes a brand-new account (platform role "user") a
   // passenger; refresh the profile so the rest of the app sees it too.
   useEffect(() => {
@@ -277,6 +297,7 @@ export default function StaffPortal() {
     setSheet(null);
     setCompany(null);
     setCompanyPhone("");
+    setMyBus(null);
     setVehicles([]);
     setRoutes([]);
     setTrips([]);
@@ -313,20 +334,14 @@ export default function StaffPortal() {
     [stop, routes]
   );
 
-  // The bus coming to your stop: the closest *tracking* bus on a route that
-  // serves it. Only if no route lists the stop do we fall back to any bus.
+  // The bus coming to your stop: your own bus, while it's tracking.
   const approaching = useMemo(() => {
-    if (!stop) return null;
-    const routeIds = new Set(servingRoutes.map((r) => r.id));
-    let best = null;
-    locatedVehicles.forEach((v) => {
-      if (!v.tracking_active) return;
-      if (routeIds.size && !routeIds.has(v.route_id)) return;
-      const dist = haversineKm(v.current_lat, v.current_lng, stop.lat, stop.lng);
-      if (best == null || dist < best.dist) best = { v, dist, mins: etaMinutes(dist, v.speed || 25) };
-    });
-    return best;
-  }, [stop, locatedVehicles, servingRoutes]);
+    if (!stop || !myBus) return null;
+    const v = locatedVehicles.find((x) => x.id === myBus.id);
+    if (!v || !v.tracking_active) return null;
+    const dist = haversineKm(v.current_lat, v.current_lng, stop.lat, stop.lng);
+    return { v, dist, mins: etaMinutes(dist, v.speed || 25) };
+  }, [stop, locatedVehicles, myBus]);
 
   // Refine the straight-line candidate above with an actual driving ETA (roads,
   // not a straight line), falling back to the straight-line estimate while it loads.
@@ -347,22 +362,14 @@ export default function StaffPortal() {
     [approaching, approachingRoute, travelTimes, stop]
   );
 
-  // "My bus" for group chat: an explicit manual pick always wins, then the
-  // bus coming to your stop, then any bus assigned to a route serving it.
-  const [chosenVehicleId, setChosenVehicleId] = useState(() => localStorage.getItem("tt_staff_vehicle_id") || "");
-  const chooseVehicle = (id) => {
-    const value = id === "auto" ? "" : id;
-    setChosenVehicleId(value);
-    if (value) localStorage.setItem("tt_staff_vehicle_id", value);
-    else localStorage.removeItem("tt_staff_vehicle_id");
-  };
-  const myVehicle = useMemo(() => {
-    const chosen = chosenVehicleId ? vehicles.find((v) => v.id === chosenVehicleId) : null;
-    if (chosen) return chosen;
-    if (approaching?.v) return approaching.v;
-    const routeIds = new Set(servingRoutes.map((r) => r.id));
-    return vehicles.find((v) => routeIds.has(v.route_id)) || null;
-  }, [chosenVehicleId, vehicles, approaching, servingRoutes]);
+  // "My bus" is only ever the bus the company assigned. With none assigned the
+  // app shows no bus: it no longer guesses one from the stop or keeps a bus
+  // picked on this phone (that pick outlived the admin removing the bus).
+  useEffect(() => { try { localStorage.removeItem("tt_staff_vehicle_id"); } catch { /* storage blocked */ } }, []);
+  const myVehicle = useMemo(
+    () => (myBus ? vehicles.find((v) => v.id === myBus.id) || { id: myBus.id, name: myBus.name } : null),
+    [myBus, vehicles]
+  );
 
   const chatUnread = useChatUnread(myVehicle?.id, sheet === "chat");
 
@@ -387,7 +394,7 @@ export default function StaffPortal() {
   const alerts = useCompanyAlerts(company?.id, 3);
   const [dismissedAlerts, setDismissedAlerts] = useState({});
   const eta = approaching ? (approachingDriving.stale ? approachingDriving : approachingLearned || approachingDriving) : null;
-  const tripState = passengerTripState({ stop, approaching, eta, myVehicle, now });
+  const tripState = passengerTripState({ stop, approaching, eta, myVehicle, now, busAssigned: !!myBus });
   const timelineRoute = approachingRoute
     || (myVehicle ? routes.find((r) => r.id === myVehicle.route_id && (r.stops || []).some((s) => s.name === stop?.name)) : null)
     || servingRoutes[0] || null;
@@ -421,7 +428,7 @@ export default function StaffPortal() {
     return (
       <AppLayout>
         <DriverPhoneCheck>
-          <CodeGate initialCode={joinCode} onUnlock={(c) => { setCompany(c); setCompanyPhone(c.phone || ""); }} />
+          <CodeGate initialCode={joinCode} onUnlock={(c, reply) => { setCompany(c); setCompanyPhone(c.phone || ""); setMyBus(reply?.my_bus || null); }} />
         </DriverPhoneCheck>
       </AppLayout>
     );
@@ -609,9 +616,6 @@ export default function StaffPortal() {
         open={sheet === "chat"}
         onOpenChange={(o) => setSheet(o ? "chat" : null)}
         vehicle={myVehicle}
-        vehicles={vehicles}
-        chosenVehicleId={chosenVehicleId}
-        onChooseVehicle={chooseVehicle}
       />
     </AppLayout>
   );

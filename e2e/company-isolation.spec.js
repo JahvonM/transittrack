@@ -118,7 +118,7 @@ test('passenger previews walking directions then saves a separate roadside picku
  expect(pickup.pickup_route_id).toBe('route-a');
 });
 
-async function passengerShowcase(page, { stale = false, light = false, parked = false } = {}) {
+async function passengerShowcase(page, { stale = false, light = false, parked = false, assigned = { current: true } } = {}) {
   await session(page,'staff');
   await page.addInitScript(({light}) => {
     localStorage.setItem('tt_company_access_grant','a'.repeat(64));
@@ -129,7 +129,8 @@ async function passengerShowcase(page, { stale = false, light = false, parked = 
   const passenger={id:'caller',role:'staff',email:'caller@test.local',full_name:'Test Passenger',company_id:'a',favorite_stop:'Grand Anse'};
   const stops=[{name:"St. George's",lat:12.05,lng:-61.75,order:0},{name:'True Blue',lat:12.02,lng:-61.76,order:1},{name:'Grand Anse',lat:12.01,lng:-61.77,order:2},{name:'Morne Rouge',lat:12,lng:-61.78,order:3}];
   const bus={...vehicles[0],name:'TT-102',route_id:'route-a',current_lat:12.022,current_lng:-61.758,tracking_active:!parked,status:parked ? 'active' : 'on_trip',speed:parked ? 0 : 25,driver_name:'K. Thomas',last_location_update:new Date(Date.now()-(stale ? 600000 : 20000)).toISOString()};
-  await page.route('**/functions/companyAccess',r=>r.fulfill({json:{company:{id:'a',name:'Grenada Transport Co.'}}}));
+  // The bus Admin → Passengers put this passenger on; null once it's removed.
+  await page.route('**/functions/companyAccess',r=>r.fulfill({json:{company:{id:'a',name:'Grenada Transport Co.'},my_bus:assigned.current ? {id:bus.id,name:bus.name} : null}}));
   const buses=[bus,{...bus,id:'bus-c',name:'TT-108'}];
   const routes=[{id:'route-a',company_id:'a',name:'Coastal route',active:true,stops}];
   const state={workplace:null};
@@ -653,6 +654,29 @@ test('fleet explains denied location permission and allows retry',async({page})=
  await expect(page.getByText('Location permission denied. Enable location access to see yourself on the map.')).toBeVisible();
  await page.getByRole('button',{name:'My location',exact:true}).click();
  await expect(page.getByText('Location permission denied. Enable location access to see yourself on the map.')).toBeVisible();
+});
+
+test('the bus an admin assigns shows on the phone, and goes when it is removed',async({page})=>{
+ await page.setViewportSize({width:390,height:844});
+ const assigned={current:true};
+ await passengerShowcase(page,{assigned});
+ const card=page.getByLabel('Your bus',{exact:true});
+ await expect(card).toContainText('TT-102');
+ await expect(card).not.toContainText('TT-108');
+ if(process.env.TT_SHOT_DIR) await page.screenshot({path:`${process.env.TT_SHOT_DIR}/bus-assigned.png`});
+ // The admin removes the bus; the phone notices when the app comes back into view.
+ assigned.current=false;
+ await page.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));
+ await expect(card.getByText('No bus assigned yet',{exact:true})).toBeVisible();
+ await expect(card).not.toContainText('TT-102');
+ if(process.env.TT_SHOT_DIR) await page.screenshot({path:`${process.env.TT_SHOT_DIR}/bus-removed.png`});
+ await page.getByRole('button',{name:'Open passenger chat',exact:true}).click();
+ await expect(page.getByText(/No bus assigned yet\. Your bus's group chat opens here/)).toBeVisible();
+ await page.keyboard.press('Escape');
+ // And added back.
+ assigned.current=true;
+ await page.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));
+ await expect(card).toContainText('TT-102');
 });
 
 test('passenger Buses is distinct from Home and chat bubble works on both',async({page})=>{

@@ -16,7 +16,7 @@ async function mockedChat(page,role) {
   if(url.includes('/functions/notifyAdminMessage')) {
    notifications.push(req.postDataJSON());return route.fulfill({json:{ok:true}});
   }
-  if(url.includes('/functions/companyAccess'))return route.fulfill({json:{company:{id:'a',name:'Company A',phone:''}}});
+  if(url.includes('/functions/companyAccess'))return route.fulfill({json:{company:{id:'a',name:'Company A',phone:''},my_bus:{id:'bus-a',name:'Bus A'}}});
   if(url.includes('/functions/entityAccess')) {
    const body=req.postDataJSON();let result=[];
    if(body.entity==='Bootstrap')result={workplace:null,vehicles:[vehicle],routes:[],trips:[]}; // the passenger home's combined request

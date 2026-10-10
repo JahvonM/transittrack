@@ -76,6 +76,31 @@ async function companyFromMembership(base44, user) {
  }
  return null;
 }
+// The bus an admin or the company put this passenger on (Admin → Passengers),
+// read the way that page shows it: the passenger's directory card in this
+// company when there is one, otherwise their app membership. Only the
+// caller's own assignment, and only a bus of this company. null = no bus.
+async function assignedBus(base44, user, companyId) {
+ if (!companyId || !['staff','passenger'].includes(user.role)) return null;
+ const db = base44.asServiceRole.entities;
+ const email = String(user.email || '').trim();
+ const lower = email.toLowerCase();
+ let vehicleId = '';
+ const cards = [];
+ for (const value of [...new Set([email, lower])].filter(Boolean)) {
+  cards.push(...await retry429(async ()=>db.Contact.filter({ company_id: companyId, email: value }, '-updated_date', 10)));
+ }
+ const card = cards.find(c => c.company_id === companyId && String(c.email || '').trim().toLowerCase() === lower && (!c.type || ['staff','passenger'].includes(c.type)));
+ if (card) vehicleId = card.vehicle_id || '';
+ else {
+  const rows = await retry429(async ()=>db.CompanyMembership.filter({ user_id: user.id, company_id: companyId, scope: 'passenger', active: true }, '-updated_date', 100));
+  vehicleId = rows.find(r => r.company_id === companyId && r.vehicle_id)?.vehicle_id || '';
+ }
+ if (!vehicleId) return null;
+ const bus = await retry429(async ()=>db.Vehicle.get(vehicleId)).catch(() => null);
+ return bus && bus.company_id === companyId ? { id: bus.id, name: bus.name || 'Bus' } : null;
+}
+
 export default async function(req) {
  try {
   const base44 = createClientFromRequest(req);
@@ -98,12 +123,12 @@ export default async function(req) {
   if (body.action === 'context') {
    const requested = typeof body.grant === 'string' && /^[a-f0-9]{64}$/.test(body.grant) ? body.grant : null;
    const fromGrant = requested ? await companyFromGrant(base44, user, requested) : null;
-   if (fromGrant) return Response.json({ company: displayCompany(fromGrant) });
+   if (fromGrant) return Response.json({ company: displayCompany(fromGrant), my_bus: await assignedBus(base44, user, fromGrant.id) });
    // No usable pass on this device. A signed-in member keeps their company; the
    // app asks for this only when the person has not deliberately switched.
    if (body.restore === true && ['staff','passenger'].includes(user.role)) {
     const restored = await companyFromMembership(base44, user);
-    if (restored) return Response.json({ company: displayCompany(restored.company), grant: restored.grant });
+    if (restored) return Response.json({ company: displayCompany(restored.company), grant: restored.grant, my_bus: await assignedBus(base44, user, restored.company.id) });
    }
    return Response.json({ error: 'Company code required', code: 'COMPANY_ACCESS_REQUIRED' }, { status: 401 });
   }
@@ -117,6 +142,6 @@ export default async function(req) {
   await retry429(async ()=>base44.asServiceRole.entities.CompanyAccessGrant.create({ user_id: user.id, company_id: company.id, token_hash: await hashSecret(grant), code_hash: await hashSecret(code) }));
   await recordPassengerMembership(base44,user,company,await hashSecret(code));
   // Verified passenger access never grants manager scope, ownership or a role.
-  return Response.json({ company: displayCompany(company), grant });
+  return Response.json({ company: displayCompany(company), grant, my_bus: await assignedBus(base44, user, company.id) });
  } catch (error) { return Response.json({ error: 'Could not verify company access' }, { status: error.status || 500 }); }
 }

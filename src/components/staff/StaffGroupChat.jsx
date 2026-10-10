@@ -95,7 +95,7 @@ export default function StaffGroupChat({ vehicle }) {
   if (!vehicle) {
     return (
       <p className="p-6 text-sm text-muted-foreground text-center">
-        Choose your pickup stop or your bus first to join its group chat.
+        No bus assigned yet. Your bus's group chat opens here once your company adds you to a bus.
       </p>
     );
   }
