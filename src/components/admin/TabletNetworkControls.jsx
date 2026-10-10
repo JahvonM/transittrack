@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -46,11 +46,13 @@ const problemText = (e) => errorData(e).error || e?.message || "Try again.";
 
 // While something is on its way, refresh the tablet list so results show up.
 function useRefreshWhile(active, onRefresh, ms = 8000) {
+  const latest = useRef(onRefresh);
+  latest.current = onRefresh;
   useEffect(() => {
-    if (!active || !onRefresh) return undefined;
-    const t = setInterval(() => onRefresh(), ms);
+    if (!active) return undefined;
+    const t = setInterval(() => latest.current?.(), ms);
     return () => clearInterval(t);
-  }, [active, onRefresh, ms]);
+  }, [active, ms]);
 }
 
 function NeedsHelper() {
@@ -186,7 +188,8 @@ function BoardingWifi({ device, onRefresh }) {
   const ready = helperAtLeast(h.version);
   const wifi = h.wifi || {};
   const join = latestJoin(device);
-  useRefreshWhile(!!pendingCommand(device) || join?.state === "joining", onRefresh, 10000);
+  // (The open chooser refreshes on its own.)
+  useRefreshWhile(!open && (!!pendingCommand(device) || join?.state === "joining"), onRefresh, 10000);
   return (
     <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
       <span className="flex items-center gap-1.5">
