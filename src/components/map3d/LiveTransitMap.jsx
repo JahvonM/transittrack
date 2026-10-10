@@ -117,7 +117,7 @@ export default function LiveTransitMap(props) {
     return (
       <div className={cn("relative overflow-hidden", props.className)} style={props.style}>
         <Suspense fallback={<div className="h-full w-full animate-pulse bg-muted" />}>
-          <LiteMap vehicles={props.vehicles} stops={props.stops} userLocation={props.userLocation} followUser={!!props.followUser} focusVehicleId={props.focusVehicleId} focusKey={props.focusKey} fill />
+          <LiteMap vehicles={props.vehicles} stops={props.stops} road={props.road} userLocation={props.userLocation} followUser={!!props.followUser} focusVehicleId={props.focusVehicleId} focusKey={props.focusKey} fill />
         </Suspense>
       </div>
     );
@@ -129,6 +129,7 @@ function FullMap({
   vehicles = [],
   focusVehicleId = null,
   stops = [],
+  road = null, // the route's drawn road as [lng, lat] pairs (Route Planner); else the road between the stops
   routes = [], // so a tapped bus can show the stops on its own route
   looseStops = [], // stops drawn without a route line (e.g. every route at once)
   dropoff = null, // the company's workplace: the main drop-off, drawn as its own pin
@@ -201,6 +202,7 @@ function FullMap({
   const focus = located.find((v) => v.id === focusVehicleId) || null;
   const focusFresh = focus ? freshnessOf(focus.last_location_update, { now }) : null;
   const orderedStops = useMemo(() => (stops || []).filter((s) => s.lat != null && s.lng != null), [stops]);
+  const drawn = Array.isArray(road) && road.length >= 2 ? road : null;
   const selected = located.find((v) => v.id === selectedId) || null;
 
   // The selected bus's own route and its stops, in order.
@@ -220,7 +222,7 @@ function FullMap({
     return "How far away is unknown";
   }, [pickedStop, selected, focus, userLocation]);
 
-  stateRef.current = { focus, myStop, dropoff, orderedStops, looseStops: (looseStops || []).filter((x) => x.lat != null && x.lng != null), located, userLocation, is3D, reduceMotion, accent, isDark };
+  stateRef.current = { focus, myStop, dropoff, orderedStops, drawn, looseStops: (looseStops || []).filter((x) => x.lat != null && x.lng != null), located, userLocation, is3D, reduceMotion, accent, isDark };
 
   // --- Map lifecycle ------------------------------------------------------
   useEffect(() => {
@@ -378,9 +380,14 @@ function FullMap({
   }, [located, styleTick]);
 
   // Road-following route through the stops; a straight dashed line until then.
-  const stopsKey = orderedStops.map((s) => `${s.lng},${s.lat}`).join(";");
+  const stopsKey = (drawn ? "road:" + drawn.length + ":" + drawn[0].join(",") + ":" + drawn[drawn.length - 1].join(",") + "|" : "") + orderedStops.map((s) => `${s.lng},${s.lat}`).join(";");
   useEffect(() => {
     let cancelled = false;
+    if (drawn) {
+      routeRef.current = { line: drawn, followsRoads: true };
+      setRouteLine(drawn);
+      return undefined;
+    }
     const straight = orderedStops.map((s) => [s.lng, s.lat]);
     routeRef.current = { line: straight, followsRoads: false };
     setRouteLine(straight);
@@ -470,6 +477,8 @@ function FullMap({
     let pts = [busPt, stopPt].filter(Boolean);
     if (pts.length < 2) {
       pts = [...pts, ...s.orderedStops.map((x) => [x.lng, x.lat])];
+      // A drawn road with no stops: frame the road itself.
+      if (!s.orderedStops.length && s.drawn) pts = [...pts, ...s.drawn.filter((_, i, all) => i % Math.max(1, Math.floor(all.length / 50)) === 0 || i === all.length - 1)];
       if (!pts.length) pts = [...s.located.map((v) => [v.current_lng, v.current_lat]), ...s.looseStops.map((x) => [x.lng, x.lat])];
       if (!pts.length && s.userLocation) pts = [[s.userLocation.lng, s.userLocation.lat]];
       // The drop-off stays in frame, whatever else the map is showing.
@@ -497,12 +506,12 @@ function FullMap({
   // First view once the map and data are ready.
   useEffect(() => {
     if (!loaded || fittedRef.current) return;
-    if (!focus && !myStop && !orderedStops.length && !located.length && !userLocation) return;
+    if (!focus && !myStop && !orderedStops.length && !drawn && !located.length && !userLocation) return;
     fittedRef.current = true;
     if (followUser && userLocation && !focus) { meCenteredRef.current = true; goToMe(true); return; }
     frame(true);
      
-  }, [loaded, focus?.id, myStop?.name, orderedStops.length, located.length, !!userLocation]);
+  }, [loaded, focus?.id, myStop?.name, orderedStops.length, !!drawn, located.length, !!userLocation]);
 
   // Follow mode keeps the bus and your stop in view as new fixes arrive.
   useEffect(() => {

@@ -1,5 +1,5 @@
 import { MAPBOX_TOKEN } from "@/lib/mapbox";
-import { fetchDrivingRoute } from "@/lib/geo";
+import { routeRoadGeometry } from "@/lib/routeRoad";
 import { buildNav, projectOnRoute } from "@/lib/navigation";
 
 export function nearestRoutePoint(origin, geometry) {
@@ -33,11 +33,11 @@ const SIDE_STEPS_M = [-400, -200, 200, 400];
 export async function suggestPickups(origin, routes, { max = 5 } = {}) {
   const candidates = [];
   for (const route of (routes || []).filter(r => r.active !== false).slice(0, 12)) {
-    const stops = [...(route.stops || [])].sort((a,b) => (a.order ?? 0) - (b.order ?? 0));
-    if (stops.length < 2) continue;
-    const road = await fetchDrivingRoute(stops);
-    if (!road?.geometry || road.geometry.length < 2) continue;
-    const nav = buildNav({ geometry: road.geometry, steps: [] });
+    // The drawn road when there is one, else the road between the stops.
+    const geometry = await routeRoadGeometry(route);
+    if (!geometry) continue;
+    const road = { geometry };
+    const nav = buildNav({ geometry, steps: [] });
     const near = projectOnRoute(nav, origin);
     if (!near || near.offM > 2000) continue;
     candidates.push({ lat: near.point[1], lng: near.point[0], distanceM: near.offM, route, road });
@@ -81,10 +81,7 @@ export async function suggestPickup(origin, routes) {
 export async function nearestBusRoad(spot, routes) {
   let best = null;
   for (const route of (routes || []).filter(r => r.active !== false).slice(0, 12)) {
-    const stops = [...(route.stops || [])].sort((a,b) => (a.order ?? 0) - (b.order ?? 0));
-    if (stops.length < 2) continue;
-    const road = await fetchDrivingRoute(stops);
-    const p = nearestRoutePoint(spot, road?.geometry);
+    const p = nearestRoutePoint(spot, await routeRoadGeometry(route));
     if (p && p.distanceM <= 2000 && (!best || p.distanceM < best.distanceM)) best = { route_id: route.id, route_name: route.name, distanceM: p.distanceM };
   }
   return best;

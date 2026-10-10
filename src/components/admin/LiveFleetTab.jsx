@@ -11,6 +11,7 @@ import { freshnessOf, formatAge } from "@/components/system/status";
 import { busNumber, busStatusLine, sortStops } from "@/components/passenger/passengerState";
 import { fleetStatus, StatusPill } from "@/components/admin/AdminOverview";
 import LocationReplay from "@/components/replay/LocationReplay";
+import { drawnRoad } from "@/lib/routeRoad";
 
 const LiveTransitMap = lazy(() => import("@/components/map3d/LiveTransitMap"));
 
@@ -327,6 +328,7 @@ export default function LiveFleetTab({ vehicles, routes = [], onVehicleUpdate, i
                   focusKey={focus.n}
                   routes={routes}
                   stops={selected ? selStops : []}
+                  road={selected ? drawnRoad(selRoute) : null}
                   userLocation={selected ? null : userLoc}
                   callout={callout}
                   label="Live fleet map"

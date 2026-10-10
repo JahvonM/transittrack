@@ -211,6 +211,12 @@ function busSummary(v) {
     tracking_active: !!v.tracking_active, last_location_update: v.last_location_update || null,
   };
 }
+// The road drawn in the Route Planner (and the points it was drawn through).
+function roadPoints(points) {
+  return (Array.isArray(points) ? points : [])
+    .map((p) => ({ lat: Number(p?.lat), lng: Number(p?.lng) }))
+    .filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lng));
+}
 function sortedStops(route) {
   return [...(route?.stops || [])]
     .map((s, i) => ({ name: sanitize(s.name) || `Stop ${i + 1}`, lat: Number.isFinite(Number(s.lat)) ? Number(s.lat) : null, lng: Number.isFinite(Number(s.lng)) ? Number(s.lng) : null, order: Number.isFinite(Number(s.order)) ? Number(s.order) : i }))
@@ -351,7 +357,7 @@ export default async function(req) {
         const workplace = workplaces.find((w) => w.company_id === companyId);
         return Response.json({
           buses: buses.map(busSummary), bus: busSummary(bus),
-          route: routeOk ? { id: route.id, name: sanitize(route.name), stops } : null,
+          route: routeOk ? { id: route.id, name: sanitize(route.name), stops, path: roadPoints(route.path), path_via: roadPoints(route.path_via) } : null,
           pickups,
           shift: shiftSummary(busShifts.find((s) => !s.ended_at), email),
           last_shift: shiftSummary(busShifts.find((s) => s.ended_at), email),

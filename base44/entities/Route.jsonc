@@ -42,6 +42,36 @@
     "active": {
       "type": "boolean",
       "default": true
+    },
+    "path": {
+      "type": "array",
+      "description": "The road the bus drives, drawn in the Route Planner and snapped to streets, start to finish. Empty: the road is worked out between the stops.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "lat": {
+            "type": "number"
+          },
+          "lng": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    "path_via": {
+      "type": "array",
+      "description": "The points tapped to draw the road, in order (what the road was snapped through).",
+      "items": {
+        "type": "object",
+        "properties": {
+          "lat": {
+            "type": "number"
+          },
+          "lng": {
+            "type": "number"
+          }
+        }
+      }
     }
   },
   "required": [

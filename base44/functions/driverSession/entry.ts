@@ -376,7 +376,8 @@ function tabletVehicle(row) {
 }
 function tabletRoute(row, companyId) {
   if (!row || row.company_id !== companyId) return null;
-  return { ...tabletFields(row, ['id', 'name', 'type', 'active', 'company_id']), stops: (row.stops || []).map((s) => tabletFields(s, ['name', 'lat', 'lng', 'order'])) };
+  const point = (p) => tabletFields(p, ['lat', 'lng']);
+  return { ...tabletFields(row, ['id', 'name', 'type', 'active', 'company_id']), stops: (row.stops || []).map((s) => tabletFields(s, ['name', 'lat', 'lng', 'order'])), path: (row.path || []).map(point), path_via: (row.path_via || []).map(point) };
 }
 function tabletCheckIn(row) {
   return tabletFields(row, ['id', 'staff_name', 'staff_picture_url', 'company_name', 'status', 'boarded_at', 'created_date', 'vehicle_id', 'vehicle_name', 'check_in_method']);

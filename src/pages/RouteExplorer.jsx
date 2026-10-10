@@ -12,6 +12,7 @@ import { loadFailed } from "@/lib/loadFailed";
 import { cn } from "@/lib/utils";
 import useUserLocation from "@/hooks/useUserLocation";
 import { busNumber, busStatusLine, clock, sortStops } from "@/components/passenger/passengerState";
+import { drawnRoad } from "@/lib/routeRoad";
 
 const LiveTransitMap = lazy(() => import("@/components/map3d/LiveTransitMap"));
 const STAFF_ROLES = new Set(["admin", "company"]);
@@ -105,6 +106,7 @@ export default function RouteExplorer() {
                 followUser={!focus}
                 routes={routes}
                 stops={focus ? focusStops : orderedStops}
+                road={drawnRoad(focus ? focusRoute : activeRoute)}
                 looseStops={focus ? [] : allStops}
                 myStop={myStop}
                 nextStopIndex={focusNextIndex}

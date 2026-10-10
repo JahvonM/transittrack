@@ -97,6 +97,7 @@ function FocusOn({ target, nonce }) {
 export default function LiteMap({
   vehicles = [],
   stops = [],
+  road = null, // drawn road as [lng, lat] pairs; else the road between the stops
   userLocation = null,
   center = null,
   className = "",
@@ -122,10 +123,12 @@ export default function LiteMap({
   const stopPts = (stops || []).filter((s) => s.lat != null && s.lng != null);
 
   // Road-following route through the stops, like the full map.
-  const stopSig = stopPts.map((s) => `${s.lng},${s.lat}`).join(";");
+  const drawn = Array.isArray(road) && road.length >= 2 ? road : null;
+  const stopSig = (drawn ? "road:" + drawn.length + ":" + drawn[0].join(",") + "|" : "") + stopPts.map((s) => `${s.lng},${s.lat}`).join(";");
   const [routeGeom, setRouteGeom] = useState(null);
   useEffect(() => {
     let cancelled = false;
+    if (drawn) { setRouteGeom(drawn); return undefined; }
     if (stopPts.length < 2) { setRouteGeom(null); return undefined; }
     fetchDrivingRoute(stopPts.map((s) => ({ lat: s.lat, lng: s.lng }))).then((res) => { if (!cancelled) setRouteGeom(res?.geometry || null); });
     return () => { cancelled = true; };
@@ -135,6 +138,8 @@ export default function LiteMap({
   const fitPoints = useMemo(() => [
     ...liveVehicles.map((v) => [v.current_lat, v.current_lng]),
     ...stopPts.map((s) => [s.lat, s.lng]),
+    // A drawn road with no stops still frames the map: its two ends.
+    ...(drawn && !stopPts.length ? [drawn[0], drawn[drawn.length - 1]].map(([lng, lat]) => [lat, lng]) : []),
     ...(pins || []).filter((p) => p.lat != null && p.lng != null).map((p) => [p.lat, p.lng]),
     ...(userLocation ? [[userLocation.lat, userLocation.lng]] : []),
   ], [liveVehicles.length, stopSig, pins?.length, !!userLocation]); // eslint-disable-line react-hooks/exhaustive-deps

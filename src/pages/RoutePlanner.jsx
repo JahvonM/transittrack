@@ -10,11 +10,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/components/ui/use-toast";
-import { Building2, MapPinned, Plus, Route as RouteIcon, Trash2, Save } from "lucide-react";
+import { Building2, MapPinned, Plus, Route as RouteIcon, Trash2, Save, Undo2, Spline, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { EmptyState, PageActions, Panel, StatusChip } from "@/components/admin/kit";
 import PlaceSearch from "@/components/PlaceSearch";
 import { confirmAction } from "@/components/ConfirmHost";
+import { drawnRoad, roadLengthKm, simplifyRoad, snapRoad } from "@/lib/routeRoad";
+import { nearestRoutePoint } from "@/lib/pickupSuggestion";
+
+const MAX_ROAD_POINTS = 200;
+// A stop tapped this close to the drawn road is placed on the road itself.
+const STOP_SNAP_M = 60;
 
 // Matches the declutter treatment on every other map in the app: hide
 // POI/transit icon clutter, keep road labels so the basemap still reads.
@@ -43,6 +49,32 @@ export default function RoutePlanner() {
   const [workplaces, setWorkplaces] = useState([]);
   const [saving, setSaving] = useState(false);
   const mapRef = useRef(null);
+  // What a tap on the map adds: a stop, or a point the road passes through.
+  const [tapMode, setTapMode] = useState("stops");
+  const [via, setVia] = useState([]); // tapped road points, in order
+  const [road, setRoad] = useState(null); // [lng, lat] pairs snapped to streets
+  const [snapping, setSnapping] = useState(false);
+  const snapId = useRef(0);
+
+  // Snap the road through the tapped points onto the streets.
+  const resnap = async (points) => {
+    const id = ++snapId.current;
+    if (points.length < 2) { setRoad(null); setSnapping(false); return; }
+    setSnapping(true);
+    let line = null;
+    try { line = await snapRoad(points); } catch { line = null; }
+    if (id !== snapId.current) return;
+    setSnapping(false);
+    if (!line) {
+      toast({ title: "Couldn't follow the streets there", description: "Tap closer to a road the bus can drive on.", variant: "destructive" });
+      setVia(points.slice(0, -1));
+      return;
+    }
+    // Keep a very long road small enough to save.
+    let simple = line;
+    for (let tol = 8; simple.length > 5000 && tol < 200; tol *= 2) simple = simplifyRoad(line, tol);
+    setRoad(simple);
+  };
 
   useEffect(() => {
     Promise.all([base44.entities.Company.list(), base44.entities.Route.list("-created_date", 100), base44.entities.Workplace.list()])
@@ -62,6 +94,10 @@ export default function RoutePlanner() {
     setCompanyId(route.company_id);
     setType(route.type || "staff");
     setStops(route.stops || []);
+    snapId.current += 1;
+    setSnapping(false);
+    setVia((route.path_via || []).filter((p) => Number.isFinite(p?.lat) && Number.isFinite(p?.lng)));
+    setRoad(drawnRoad(route));
   };
 
   const newRoute = () => {
@@ -70,13 +106,43 @@ export default function RoutePlanner() {
     setCompanyId("");
     setType("staff");
     setStops([]);
+    snapId.current += 1;
+    setSnapping(false);
+    setVia([]);
+    setRoad(null);
   };
 
   const onMapClick = (e) => {
+    const tap = { lat: e.lngLat.lat, lng: e.lngLat.lng };
+    if (tapMode === "road") {
+      if (via.length >= MAX_ROAD_POINTS) {
+        toast({ title: `A road can have up to ${MAX_ROAD_POINTS} points`, description: "Split a very long route into two." });
+        return;
+      }
+      const next = [...via, tap];
+      setVia(next);
+      resnap(next);
+      return;
+    }
+    // On a drawn road, a stop tapped near it goes on the road itself.
+    const onRoad = road ? nearestRoutePoint(tap, road) : null;
+    const at = onRoad && onRoad.distanceM <= STOP_SNAP_M ? { lat: onRoad.lat, lng: onRoad.lng } : tap;
     setStops((prev) => [
       ...prev,
-      { name: `Stop ${prev.length + 1}`, lat: e.lngLat.lat, lng: e.lngLat.lng, order: prev.length },
+      { name: `Stop ${prev.length + 1}`, lat: at.lat, lng: at.lng, order: prev.length },
     ]);
+  };
+  const undoRoadPoint = () => {
+    const next = via.slice(0, -1);
+    setVia(next);
+    resnap(next);
+  };
+  const clearRoad = async () => {
+    if (!(await confirmAction({ title: "Clear the drawn road?", description: "The route goes back to following the roads between its stops. Nothing is saved until you save the route.", confirmLabel: "Clear road" }))) return;
+    snapId.current += 1;
+    setSnapping(false);
+    setVia([]);
+    setRoad(null);
   };
 
   // A searched place becomes a named stop exactly where that place is.
@@ -92,6 +158,10 @@ export default function RoutePlanner() {
       toast({ title: "Name and company are required", variant: "destructive" });
       return;
     }
+    if (snapping) {
+      toast({ title: "Still drawing the road", description: "Try again in a moment." });
+      return;
+    }
     setSaving(true);
     try {
       const company = companies.find((c) => c.id === companyId);
@@ -102,6 +172,9 @@ export default function RoutePlanner() {
         company_name: company?.name || "",
         type,
         stops: orderedStops,
+        // The drawn road (empty: follow the roads between the stops).
+        path: road ? road.map(([lng, lat]) => ({ lat, lng })) : [],
+        path_via: road ? via : [],
         active: true,
       };
       if (selectedRoute) {
@@ -134,7 +207,8 @@ export default function RoutePlanner() {
   };
 
   const routeCoords = stops.map((s) => [s.lng, s.lat]);
-  const center = stops.length > 0 ? [stops[0].lng, stops[0].lat] : [-61.7, 12.05];
+  const center = stops.length > 0 ? [stops[0].lng, stops[0].lat] : via.length ? [via[0].lng, via[0].lat] : [-61.7, 12.05];
+  const roadKm = road ? roadLengthKm(road) : 0;
 
   const routeList = (
     <Panel title="Routes" icon={RouteIcon} bodyClassName="p-2 pt-0">
@@ -152,7 +226,7 @@ export default function RoutePlanner() {
               >
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-semibold">{r.name}</span>
-                  <span className="block truncate text-body-sm text-muted-foreground">{[r.company_name, `${r.stops?.length || 0} stops`].filter(Boolean).join(" · ")}</span>
+                  <span className="block truncate text-body-sm text-muted-foreground">{[r.company_name, `${r.stops?.length || 0} stops`, drawnRoad(r) ? "road drawn" : ""].filter(Boolean).join(" · ")}</span>
                 </span>
                 <StatusChip tone="neutral" dot={false}>{r.type === "airport" ? "Airport" : "Staff"}</StatusChip>
               </button>
@@ -183,11 +257,20 @@ export default function RoutePlanner() {
               attributionControl={false}
               onLoad={(e) => declutterStyle(e.target)}
             >
-              {routeCoords.length > 1 && (
+              {road ? (
+                <Source id="planner-road" type="geojson" data={{ type: "Feature", geometry: { type: "LineString", coordinates: road } }}>
+                  <Layer id="planner-road-line" type="line" layout={{ "line-cap": "round", "line-join": "round" }} paint={{ "line-color": accent, "line-width": 6, "line-opacity": 0.9 }} />
+                </Source>
+              ) : routeCoords.length > 1 && (
                 <Source id="planner-route" type="geojson" data={{ type: "Feature", geometry: { type: "LineString", coordinates: routeCoords } }}>
-                  <Layer id="planner-route-line" type="line" layout={{ "line-cap": "round", "line-join": "round" }} paint={{ "line-color": accent, "line-width": 5, "line-opacity": 0.85 }} />
+                  <Layer id="planner-route-line" type="line" layout={{ "line-cap": "round", "line-join": "round" }} paint={{ "line-color": accent, "line-width": 5, "line-opacity": 0.85, "line-dasharray": [2, 1.5] }} />
                 </Source>
               )}
+              {tapMode === "road" && via.map((p, i) => (
+                <Marker key={`via-${i}`} longitude={p.lng} latitude={p.lat} anchor="center">
+                  <div className={cn("rounded-full border-2 border-background shadow", i === via.length - 1 ? "h-4 w-4 bg-primary" : "h-3 w-3 bg-foreground/70")} title={i === 0 ? "Road start" : `Road point ${i + 1}`} />
+                </Marker>
+              ))}
               {stops.map((st, i) => (
                 <Marker key={i} longitude={st.lng} latitude={st.lat} anchor="center">
                   <div className="grid h-8 w-8 place-items-center rounded-full border-[3px] border-primary bg-background text-caption font-bold text-foreground shadow-md">
@@ -204,9 +287,19 @@ export default function RoutePlanner() {
                 </Marker>
               )}
             </Map>
-            <p className="pointer-events-none absolute left-3 top-3 flex items-center gap-2 rounded-full border border-border bg-background/92 px-3 py-1.5 text-body-sm font-semibold shadow-md backdrop-blur">
-              <MapPinned className="h-4 w-4 text-muted-foreground" aria-hidden="true" /> Search or click the map to add stops in order
-            </p>
+            <div className="absolute left-3 top-3 flex max-w-[calc(100%-1.5rem)] flex-wrap items-center gap-2">
+              <div className="flex rounded-full border border-border bg-background/95 p-1 shadow-md backdrop-blur" role="group" aria-label="Map taps add">
+                {[["stops", "Stops", MapPinned], ["road", "Road", Spline]].map(([value, label, Icon]) => (
+                  <button key={value} type="button" aria-pressed={tapMode === value} onClick={() => setTapMode(value)}
+                    className={cn("flex min-h-9 items-center gap-1.5 rounded-full px-3 text-body-sm font-semibold", tapMode === value ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")}>
+                    <Icon className="h-4 w-4" aria-hidden="true" />{label}
+                  </button>
+                ))}
+              </div>
+              <p className="pointer-events-none rounded-full border border-border bg-background/92 px-3 py-1.5 text-body-sm font-semibold shadow-md backdrop-blur">
+                {tapMode === "road" ? "Tap along the roads the bus drives, start to finish" : "Search or click the map to add stops in order"}
+              </p>
+            </div>
           </div>
         </div>
 
@@ -246,9 +339,23 @@ export default function RoutePlanner() {
             </div>
           </Panel>
 
+          <Panel title="Road" icon={Spline}>
+            {road ? (
+              <p className="text-body-sm"><span className="font-semibold tabular-nums">{roadKm.toFixed(1)} km</span> <span className="text-muted-foreground">drawn through {via.length} point{via.length === 1 ? "" : "s"}. Passengers' pickups and the bus's line on every map follow this road.</span></p>
+            ) : (
+              <p className="text-body-sm text-muted-foreground">{via.length === 1 ? "Tap one more point to draw the road." : "No road drawn: the route follows the fastest roads between its stops. Switch the map to Road and tap along the roads the bus really takes."}</p>
+            )}
+            {snapping && <p className="mt-2 flex items-center gap-2 text-body-sm text-muted-foreground" role="status"><Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> Following the streets…</p>}
+            <div className="mt-3 flex gap-2">
+              <Button size="sm" variant="outline" onClick={() => setTapMode("road")} disabled={tapMode === "road"}><Spline className="h-4 w-4" /> {road ? "Extend road" : "Draw road"}</Button>
+              <Button size="sm" variant="outline" onClick={undoRoadPoint} disabled={!via.length}><Undo2 className="h-4 w-4" /> Undo</Button>
+              <Button size="sm" variant="ghost" onClick={clearRoad} disabled={!via.length && !road} className="text-danger hover:text-danger">Clear</Button>
+            </div>
+          </Panel>
+
           <Panel title={`Stops (${stops.length})`} bodyClassName="p-2 pt-0">
             {stops.length === 0 ? (
-              <EmptyState icon={MapPinned} title="No stops yet" className="m-2 border-0 py-6">Search a place or click the map to add stops.</EmptyState>
+              <EmptyState icon={MapPinned} title="No stops yet" className="m-2 border-0 py-6">{road ? "Stops are optional on a drawn road: passengers' pickups become the stops. Add fixed stops if you want them." : "Search a place or click the map to add stops."}</EmptyState>
             ) : (
               <ol className="space-y-1">
                 {stops.map((st, i) => (

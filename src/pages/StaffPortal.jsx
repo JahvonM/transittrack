@@ -37,6 +37,7 @@ import {
 } from "@/components/passenger/PassengerSections";
 import { clock, passengerTripState, sortStops } from "@/components/passenger/passengerState";
 import useStopEtas from "@/components/passenger/useStopEtas";
+import { drawnRoad } from "@/lib/routeRoad";
 
 // The live 3D map (mapbox-gl + three.js) loads after the page around it.
 const LiveTransitMap = lazy(() => import("@/components/map3d/LiveTransitMap"));
@@ -576,6 +577,7 @@ export default function StaffPortal() {
                   focusVehicleId={busOnMap?.id || null}
                   routes={routes}
                   stops={mapStops}
+                  road={drawnRoad(timelineRoute)}
                   dropoff={workplace}
                   myStop={stop}
                   nextStopIndex={nextStopIndex}

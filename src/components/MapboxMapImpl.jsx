@@ -53,6 +53,7 @@ function declutterStyle(map) {
 export default function MapboxMap({
   vehicles = [],
   stops = [],
+  road = null, // drawn road as [lng, lat] pairs; else the road between the stops
   userLocation = null,
   center = null,
   className = "",
@@ -227,11 +228,16 @@ export default function MapboxMap({
 
   // Fetch the real driving route through the stops (roads, not a straight line).
   // Keyed on a stable signature so it only refetches when the stops actually change.
-  const routeStopsSignature = routeCoords.map((c) => c.join(",")).join(";");
+  const drawn = Array.isArray(road) && road.length >= 2 ? road : null;
+  const routeStopsSignature = (drawn ? "road:" + drawn.length + ":" + drawn[0].join(",") + "|" : "") + routeCoords.map((c) => c.join(",")).join(";");
   const [drivingRouteGeom, setDrivingRouteGeom] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
+    if (drawn) {
+      setDrivingRouteGeom(drawn);
+      return;
+    }
     if (routeCoords.length < 2) {
       setDrivingRouteGeom(null);
       return;
