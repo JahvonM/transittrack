@@ -3,8 +3,8 @@
 //  - driver tablets:   keep the hotspot on all the time, or back to normal
 //
 // How a command travels: kioskNetwork (admin only) stores it on the KioskDevice
-// record as `network_command`. entityAccess never returns that field, so a Wi-Fi
-// password is not readable from Admin or anywhere else. The tablet's next
+// record as `network_command`. entityAccess never returns that field, so the app
+// never shows a Wi-Fi password (only admins can read the record directly). The tablet's next
 // check-in (kioskHeartbeat / driverSession) hands it to the tablet, whose page
 // passes it to the helper app. The tablet confirms with `network_ack` on the
 // following check-in, which deletes the command; unconfirmed commands are
