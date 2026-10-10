@@ -213,9 +213,12 @@ function DriverHotspot({ device, onRefresh }) {
   const ready = helperAtLeast(h.version);
   const pending = pendingCommand(device);
   const [busy, setBusy] = useState(false);
-  const checked = hotspotAlwaysOn(device);
+  const [requested, setRequested] = useState(null);
+  // Show the new position straight away; then what the server and tablet say.
+  const checked = busy && requested !== null ? requested : hotspotAlwaysOn(device);
   useRefreshWhile(pending?.type === "hotspot", onRefresh, 10000);
   const change = async (on) => {
+    setRequested(on);
     setBusy(true);
     try {
       await sendCommand(device, { action: "hotspot", always_on: on });
@@ -228,7 +231,7 @@ function DriverHotspot({ device, onRefresh }) {
   return (
     <div className="mt-2 space-y-1 text-sm">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <span className="flex items-center gap-1.5"><Radio className="h-3.5 w-3.5" /> Hotspot: {h.hotspot || "unknown"}</span>
+        <span className="flex items-center gap-1.5"><Radio className="h-3.5 w-3.5" /> Hotspot</span>
         {ready ? (
           <label className="flex items-center gap-2">
             <Switch checked={checked} disabled={busy} onCheckedChange={change} aria-label="Keep the hotspot on all the time" />
