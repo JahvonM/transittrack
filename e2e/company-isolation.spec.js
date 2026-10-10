@@ -1132,3 +1132,69 @@ test('Google button returns through session verification and preserves destinati
  expect(destination.searchParams.get('authReturn')).toBe('1');
  expect(destination.searchParams.get('returnTo')).toBe('/staff');
 });
+
+test('directory batch selection issues one card per selected name and stays on a failed card',async({page})=>{
+ await session(page,'admin');
+ const people=['Alice','Beth','Carla'].map((name,i)=>({key:'user:'+i,id:String(i),source:'user',name,email:name+'@test.invalid',company_id:'a',company_name:'A',type:'staff',directory_type:'staff',status:'Unassigned',default_access:'STAFF_BUS_BOARDING',registered:true}));
+ const issued=[];
+ await page.route('**/functions/nfcCards',r=>{
+  const body=r.request().postDataJSON();
+  if(body.action==='directory'||body.action==='people')return r.fulfill({json:{people,cards:[],vehicles:[],tablets:[]}});
+  if(body.action==='issue'){
+   issued.push(body);
+   if(body.uid==='BAD00000')return r.fulfill({status:409,json:{error:'Card already assigned'}});
+   return r.fulfill({json:{ok:true}});
+  }
+  return r.fulfill({json:{ok:true}});
+ });
+ await page.goto('/admin/directory');
+ await page.getByRole('checkbox',{name:'Select Alice',exact:true}).check();
+ await page.getByRole('checkbox',{name:'Select Beth',exact:true}).check();
+ await page.getByRole('button',{name:'Bulk issue cards',exact:true}).click();
+ await expect(page.getByRole('alertdialog')).toContainText('2 passengers');
+ await page.getByRole('button',{name:'Start bulk issuing',exact:true}).click();
+ await expect(page).toHaveURL(/\/admin\/cards$/);
+ const active=page.getByRole('status').filter({hasText:'Place a card for'});
+ await expect(active).toContainText('Alice');
+ await page.getByRole('textbox',{name:'Card ID',exact:true}).fill('BAD00000');
+ await page.getByRole('button',{name:'Use ID',exact:true}).click();
+ await expect(active).toContainText('Card already assigned');
+ await expect(active).toContainText('Alice');
+ await page.getByRole('textbox',{name:'Card ID',exact:true}).fill('AABB0001');
+ await page.getByRole('button',{name:'Use ID',exact:true}).click();
+ await expect(active).toContainText('Beth');
+ await page.getByRole('textbox',{name:'Card ID',exact:true}).fill('AABB0001');
+ await page.getByRole('button',{name:'Use ID',exact:true}).click();
+ await expect(active).toContainText('already used in this batch');
+ expect(issued).toHaveLength(2);
+ await page.getByRole('textbox',{name:'Card ID',exact:true}).fill('AABB0002');
+ await page.getByRole('button',{name:'Use ID',exact:true}).click();
+ await expect(page.getByText('All done',{exact:true})).toBeVisible();
+ expect(issued.map(x=>x.person_key)).toEqual(['user:0','user:0','user:1']);
+ expect(issued.some(x=>x.person_key==='user:2')).toBe(false);
+});
+
+test('route deletion requires confirmation and removes only the selected route',async({page})=>{
+ await session(page,'admin');
+ const routes=[{id:'route-a',name:'Morning route',company_id:'a',company_name:'A',type:'staff',stops:[]},{id:'route-b',name:'Evening route',company_id:'a',company_name:'A',type:'staff',stops:[]}];
+ const deletes=[];
+ await page.route('**/functions/entityAccess',r=>{
+  const body=r.request().postDataJSON();
+  if(body.entity==='Route'){
+   if(body.operation==='delete'){deletes.push(body.id);return r.fulfill({json:{result:{ok:true}}});}
+   return r.fulfill({json:{result:routes}});
+  }
+  return r.fallback();
+ });
+ await page.goto('/admin/route-planner');
+ await page.getByRole('button',{name:/Morning route A/}).last().click();
+ await page.getByRole('button',{name:'Delete route',exact:true}).click();
+ await page.getByRole('alertdialog').getByRole('button',{name:'Cancel',exact:true}).click();
+ expect(deletes).toEqual([]);
+ await page.getByRole('button',{name:'Delete route',exact:true}).click();
+ await page.getByRole('alertdialog').getByRole('button',{name:'Delete route',exact:true}).click();
+ await expect(page.getByText('Route deleted',{exact:true})).toBeVisible();
+ expect(deletes).toEqual(['route-a']);
+ await expect(page.getByRole('button',{name:/Morning route A/})).toHaveCount(0);
+ await expect(page.getByRole('button',{name:/Evening route A/}).last()).toBeVisible();
+});
