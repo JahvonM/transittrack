@@ -1065,7 +1065,7 @@ for(const status of [401,503]){
   await page.goto('/login?returnTo=%2F');
   if(status===401)await expect(page.getByLabel('Email address')).toBeVisible();
   else{
-   await expect(page.getByRole('heading',{name:"Couldn't check your sign-in"})).toBeVisible();
+   await expect(page.getByRole('alert').getByText("Couldn't check your sign-in",{exact:true})).toBeVisible();
    await expect(page.getByLabel('Email address')).toHaveCount(0);
   }
   expect(await page.evaluate(()=>localStorage.getItem('base44_access_token'))).toBe('mock-authenticated-session');
