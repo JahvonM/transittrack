@@ -134,7 +134,7 @@ export default function TodayTab({ today, driverName, onPickBus, onStartShift, o
       )}
 
       {bus && <><div className="tt-phone-trip-summary grid grid-cols-2 gap-3">
-        <Section title="Pickups today"><p className="font-display text-3xl font-bold">{riding.length}</p><p className="text-body-sm text-muted-foreground">{skipping.length} skipping today</p></Section>
+        <Section title={home ? "Home drop-offs today" : "Pickups today"}><p className="font-display text-3xl font-bold">{riding.length}</p><p className="text-body-sm text-muted-foreground">{skipping.length} skipping today</p></Section>
         <Section title="Your route"><p className="font-bold">{route?.name || "Not assigned"}</p><p className="text-body-sm text-muted-foreground">{stops.length} stops</p></Section>
       </div><div className="tt-phone-quick-actions grid grid-cols-2 gap-3" aria-label="Driver shortcuts">
         <button type="button" aria-haspopup="dialog" aria-expanded={panel === "stops"} onClick={(event) => openPanel("stops", event)}><RouteIcon aria-hidden="true" />Bus stops</button>
@@ -171,9 +171,9 @@ export default function TodayTab({ today, driverName, onPickBus, onStartShift, o
         <DialogContent className="max-h-[85dvh] overflow-y-auto rounded-2xl p-4 pt-10" aria-describedby={undefined} onCloseAutoFocus={(event) => { event.preventDefault(); panelButton.current?.focus(); }}>
           <DialogTitle className="sr-only">{panel === "stops" ? "Bus stops" : "Passenger list"}</DialogTitle>
       {panel === "passengers" && (
-        <Section title="Who to pick up" icon={Users}>
+        <Section title={home ? "Who to drop off" : "Who to pick up"} icon={Users}>
           {inOrder.length === 0 ? (
-            <p className="text-body text-muted-foreground">No pickups today.</p>
+            <p className="text-body text-muted-foreground">{home ? "No home drop-offs today." : "No pickups today."}</p>
           ) : (
             <ul className="divide-y divide-border" aria-label={home ? "Passengers to drop off" : "Passengers to pick up"}>
               {inOrder.map((p, i) => {
@@ -214,7 +214,7 @@ export default function TodayTab({ today, driverName, onPickBus, onStartShift, o
           ) : (
             <>
               <p className="-mt-2 mb-3 text-body-sm text-muted-foreground">
-                {stops.length} stop{stops.length === 1 ? "" : "s"} · {riding.length} pickup{riding.length === 1 ? "" : "s"} today
+                {stops.length} stop{stops.length === 1 ? "" : "s"} · {riding.length} {home ? "drop-off" : "pickup"}{riding.length === 1 ? "" : "s"} today
                 {workplace?.name ? ` · ${home ? "pickup" : "drop-off"} at ${workplace.name}` : ""}
               </p>
               <ol className="relative space-y-0">

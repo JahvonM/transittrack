@@ -143,3 +143,15 @@ it("reports a safe PIN storage reference without exposing credential material",a
  expect(data.code).toBe("PIN_STORE_WRITE");
  expect(JSON.stringify(data)).not.toMatch(/5678|SECRET_DATABASE_DETAIL|pin_hash|salt/);
 });
+describe('driver tablet direction', () => {
+ it('requires the current PIN grant and changes only its assigned bus', async()=>{
+  const sdk=mock(), api=load('driverSession',sdk);
+  expect((await api.default(req({action:'set_direction',device_id:'tablet',direction:'to_home'}))).status).toBe(401);
+  const grant=await api.issueGrant(sdk,device,'driver','bus',60000);
+  expect((await api.default(req({action:'set_direction',device_id:'tablet',driver_grant:grant,direction:'invalid'}))).status).toBe(400);
+  expect((await api.default(req({action:'set_direction',device_id:'tablet',driver_grant:grant,direction:'to_home',vehicle_id:'other'}))).status).toBe(200);
+  expect(sdk.tables.Vehicle[0]).toEqual({...vehicle,trip_direction:'to_home'});
+  sdk.tables.Vehicle[0].company_id='foreign';
+  expect((await api.default(req({action:'set_direction',device_id:'tablet',driver_grant:grant,direction:'to_work'}))).status).toBe(403);
+ });
+});

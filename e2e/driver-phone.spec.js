@@ -25,6 +25,7 @@ const in20days=new Date(Date.now()+20*86400e3).toISOString().slice(0,10);
 
 async function phone(page,{refuse=false,today=TODAY,messages=MESSAGES,user={id:'u1',email:'dana.driver@gmail.com',full_name:'Dana Driver',role:'user'}}={}) {
  const calls=[];
+ let currentToday=structuredClone(today);
  await page.addInitScript(()=>{ localStorage.setItem('base44_access_token','mock-authenticated-session'); });
  await page.route('https://api.mapbox.com/**',r=>r.fulfill({status:404,body:''}));
  await page.route('**/api/**',async route=>{
@@ -32,7 +33,11 @@ async function phone(page,{refuse=false,today=TODAY,messages=MESSAGES,user={id:'
   if(url.includes('/functions/driverPhone')) {
    const body=route.request().postDataJSON();calls.push(body);
    if(refuse) return route.fulfill({status:403,json:{error:'Ask your administrator to put this email on your driver record and switch on "Can use the phone app".',code:'NOT_A_DRIVER'}});
-   const reply={me:ME,today,messages:{messages},documents:{documents:[
+   if(body.action==='set_direction') {
+     currentToday.bus.trip_direction=body.direction;
+     return route.fulfill({json:{ok:true,direction:body.direction}});
+   }
+   const reply={me:ME,today:currentToday,messages:{messages},documents:{documents:[
      {id:'d1',kind:'license',document_number:'GD-55821',expiry_date:in20days,file_name:'licence.jpg',url:'https://files.test/licence.jpg'},
      {id:'d2',kind:'insurance',document_number:'',expiry_date:'2027-08-31',file_name:'insurance.pdf',url:'https://files.test/ins.pdf'}]},
     send:{message:{id:'g3',channel:body.channel,sender_role:'driver',sender_name:'Dana Driver',text:body.text,created_date:new Date().toISOString(),mine:true}},
@@ -241,4 +246,21 @@ test('phone loading follows real requests, displays bus artwork, and respects re
  release();
  await expect(loading).toHaveCount(0);
  await expect(page.getByRole('button',{name:'Start shift',exact:true})).toBeVisible();
+});
+
+test('trip direction changes the phone stop order and survives a reload',async({page})=>{
+ const calls=await phone(page);
+ await page.goto('/driver-phone');
+ await page.getByRole('button',{name:'To home',exact:true}).click();
+ await expect(page.getByRole('button',{name:'To home',exact:true})).toHaveAttribute('aria-pressed','true');
+ await expect(page.getByText('Coyaba Resort → home pickup spots',{exact:true})).toBeVisible();
+ expect(calls.some(c=>c.action==='set_direction'&&c.vehicle_id==='bus-a'&&c.direction==='to_home')).toBe(true);
+ await page.getByRole('button',{name:'Bus stops',exact:true}).click();
+ const stops=page.getByRole('dialog').getByRole('listitem');
+ await expect(stops).toHaveText([/Coyaba Resort/,/Grand Anse/,/True Blue/,/Town/]);
+ await page.getByRole('button',{name:'Close',exact:true}).click();
+ await page.reload();
+ await expect(page.getByRole('button',{name:'To home',exact:true})).toHaveAttribute('aria-pressed','true');
+ await page.getByRole('button',{name:'To work',exact:true}).click();
+ await expect(page.getByRole('button',{name:'To work',exact:true})).toHaveAttribute('aria-pressed','true');
 });

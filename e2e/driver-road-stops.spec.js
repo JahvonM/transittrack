@@ -35,6 +35,7 @@ async function tablet(page, { bus = onFirstLeg(0.48) } = {}) {
     const body = r.request().postDataJSON();
     if (url.includes('/functions/kioskHeartbeat')) return r.fulfill({ json: kiosk });
     if (url.includes('/functions/driverSession')) {
+      if (body?.action === 'set_direction') { calls.push(body); live.vehicle.trip_direction=body.direction; return r.fulfill({json:{ok:true,direction:body.direction}}); }
       if (body?.action === 'verify_pin') return r.fulfill({ json: { ok: true, driver_grant: 'a'.repeat(64) } });
       if (['move_pickup', 'move_stop', 'add_stop'].includes(body?.action)) { calls.push(body); return r.fulfill({ json: { ok: true, moved: 2 } }); }
       return r.fulfill({ json: live });
@@ -116,4 +117,16 @@ test('directions follow the drawn road to the next pickup', async ({ page, conte
   // through on the way (silent: only the start and the stop are stops).
   expect(urls[0]).toMatch(/;-61\.751,12\.047;-61\.752,12\.044\?/);
   expect(urls[0]).toContain('waypoints=0;2');
+});
+
+test('trip direction reverses the tablet stops and persists in the cached session',async({page})=>{
+ const calls=await tablet(page);
+ await page.goto('/driver/stops');await unlock(page);
+ await page.getByRole('button',{name:'To home',exact:true}).click();
+ await expect(page.getByRole('button',{name:'To home',exact:true})).toHaveAttribute('aria-pressed','true');
+ await expect(page.getByRole('tabpanel').getByRole('listitem')).toHaveText([/Grand Anse/,/True Blue/,/Pickup 3/,/Pickup 1/,/Town/]);
+ expect(calls.some(c=>c.action==='set_direction'&&c.direction==='to_home'&&c.driver_grant)).toBe(true);
+ await expect.poll(()=>page.evaluate(()=>JSON.parse(localStorage.getItem('tt_driver_session_cache')).session.vehicle.trip_direction)).toBe('to_home');
+ await page.getByRole('button',{name:'To work',exact:true}).click();
+ await expect(page.getByRole('tabpanel').getByRole('listitem').first()).toContainText('Town');
 });
