@@ -25,7 +25,8 @@ export default async function applyUserRole(req) {
     const isAdmin = fresh.role === 'admin';
     // Only an admin, or a brand-new user (default role) setting their role once during
     // registration, may set it. Anyone already assigned a role must ask an admin.
-    if (!isAdmin && fresh.role && fresh.role !== 'passenger') {
+    // The platform's default role for a new account is "user".
+    if (!isAdmin && fresh.role && !['user', 'passenger'].includes(fresh.role)) {
       return Response.json(
         { error: 'Your role is already set. Contact an admin to change it.' },
         { status: 403 }
