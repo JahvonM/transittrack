@@ -3,6 +3,8 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/AuthContext";
 import useFutureAppearance from "@/hooks/useFutureAppearance";
 import JourneyLoading from "@/components/JourneyLoading";
+import AccessRecovery from "@/components/system/AccessRecovery";
+import UserNotRegisteredError from "@/components/UserNotRegisteredError";
 import Logo from "@/components/Logo";
 import LiveClock from "@/components/LiveClock";
 import WeatherWidget from "@/components/WeatherWidget";
@@ -68,13 +70,15 @@ const ROLES = {
 
 export default function Welcome() {
  useFutureAppearance();
- const { user, isAuthenticated } = useAuth();
+ const { user, isAuthenticated, isLoadingAuth, isLoadingPublicSettings, authError, checkAppState } = useAuth();
  const navigate = useNavigate();
  const role = user?.role || "staff";
  useEffect(() => {
   if (isAuthenticated && user) navigate(ROLES[role]?.to || "/staff", {replace:true});
  }, [isAuthenticated,user,role,navigate]);
- if (isAuthenticated && user) return <JourneyLoading label="Opening your app…" />;
+ if (isLoadingAuth || isLoadingPublicSettings || (isAuthenticated && user)) return <JourneyLoading label="Opening your app…" onRetry={checkAppState} />;
+ if (authError?.type === "user_not_registered") return <UserNotRegisteredError />;
+ if (authError && authError.type !== "auth_required") return <AccessRecovery onRetry={checkAppState} />;
  return <div className="tt-welcome min-h-[100dvh]">
   <header className="tt-welcome-header">
    <Link to="/" className="flex items-center gap-2 font-bold text-xl"><Logo /><span>Transit<span className="text-primary">Track</span></span></Link>
