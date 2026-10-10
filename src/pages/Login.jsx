@@ -31,16 +31,18 @@ export default function Login() {
   // switch-account menu uses /login without returnTo and keeps its form.
   const desktopResume = (window.transittrackDesktop || /Electron\//i.test(navigator.userAgent)) &&
     new URLSearchParams(window.location.search).has("returnTo");
+  const providerReturn = new URLSearchParams(window.location.search).get("authReturn") === "1";
+  const resumeSignIn = desktopResume || providerReturn;
   // Company QR scanned here: once signed in, /join adds the passenger to that
   // company with no code to type. Scanning never signs anyone in by itself.
   const [scanOpen, setScanOpen] = useState(false);
   const [joinReady, setJoinReady] = useState(() => hasPendingJoinCode());
   const returnTo = joinReady && askedReturn === "/" ? "/join" : askedReturn;
   useEffect(() => {
-    if (desktopResume && isAuthenticated && !isLoadingAuth && !isLoadingPublicSettings && !authError) {
+    if (resumeSignIn && isAuthenticated && !isLoadingAuth && !isLoadingPublicSettings && !authError) {
       navigate(returnTo.startsWith("/login") ? "/" : returnTo, { replace: true });
     }
-  }, [desktopResume, isAuthenticated, isLoadingAuth, isLoadingPublicSettings, authError, returnTo, navigate]);
+  }, [resumeSignIn, isAuthenticated, isLoadingAuth, isLoadingPublicSettings, authError, returnTo, navigate]);
   const onScan = (code) => {
     if (!rememberJoinCode(code)) return;
     setJoinReady(true);
@@ -62,7 +64,7 @@ export default function Login() {
   };
 
   const handleGoogle = () => {
-    base44.auth.loginWithProvider("google", returnTo);
+    base44.auth.loginWithProvider("google", `/login?authReturn=1&returnTo=${encodeURIComponent(returnTo)}`);
   };
 
   // Apple requires this alongside Google sign-in (App Store guideline 4.8).
@@ -70,10 +72,10 @@ export default function Login() {
     base44.auth.loginWithProvider("apple", returnTo);
   };
 
-  if (desktopResume && (isLoadingAuth || isLoadingPublicSettings || (isAuthenticated && !authError))) {
+  if (resumeSignIn && (isLoadingAuth || isLoadingPublicSettings || (isAuthenticated && !authError))) {
     return <JourneyLoading label="Restoring your sign-in…" onRetry={checkAppState} />;
   }
-  if (desktopResume && authError && authError.type !== "auth_required") {
+  if (resumeSignIn && authError && authError.type !== "auth_required") {
     return <AccessRecovery onRetry={checkAppState} />;
   }
 
@@ -105,6 +107,11 @@ export default function Login() {
         </div>
       }
     >
+      {providerReturn && !isAuthenticated && !isLoadingAuth && !isLoadingPublicSettings && (
+        <div role="alert" className="mb-4 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
+          Sign-in did not complete. TransitTrack could not confirm your account after returning from Google. Try signing in again, or use your email and password.
+        </div>
+      )}
       {error && (
         <div role="alert" className="mb-4 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
           {error}
