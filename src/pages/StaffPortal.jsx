@@ -476,7 +476,7 @@ export default function StaffPortal() {
 
   return (
     <AppLayout variant="passenger">
-      <PullToRefresh onRefresh={reload}>
+      <PullToRefresh onRefresh={() => Promise.all([reload(), refreshMyBus()])}>
         <div className={`mx-auto max-w-2xl ${mapOpen ? "lg:grid lg:max-w-none lg:grid-cols-[440px_minmax(0,1fr)] lg:items-start lg:gap-14" : ""}`}>
           {/* Left: your trip */}
           <div className="min-w-0">

@@ -673,9 +673,9 @@ test('the bus an admin assigns shows on the phone, and goes when it is removed',
  await page.getByRole('button',{name:'Open passenger chat',exact:true}).click();
  await expect(page.getByText(/No bus assigned yet\. Your bus's group chat opens here/)).toBeVisible();
  await page.keyboard.press('Escape');
- // And added back.
+ // And added back: pulling down to refresh (or tapping Refresh) picks it up at once.
  assigned.current=true;
- await page.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));
+ await page.getByRole('button',{name:'Refresh list',exact:true}).click();
  await expect(card).toContainText('TT-102');
 });
 
