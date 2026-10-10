@@ -1324,3 +1324,40 @@ for (const source of ['user','contact']) test('directory pickup editor saves and
  await expect(page.getByRole('dialog').getByLabel('Pickup name')).toHaveValue('Belmont junction');
  expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });
+
+async function returnPassenger(page,phase,stale=false) {
+ await page.setViewportSize({width:390,height:844});
+ await session(page,'staff');
+ await page.addInitScript(()=>localStorage.setItem('tt_company_access_grant','a'.repeat(64)));
+ const user={id:'caller',role:'staff',email:'caller@test.local',full_name:'Test Passenger',company_id:'a',pickup_name:'Home gate',pickup_lat:12.02,pickup_lng:-61.7};
+ const bus={...vehicles[0],trip_direction:'to_home',return_pickup_state:phase,tracking_active:true,current_lat:12.005,current_lng:-61.7,last_location_update:new Date(Date.now()-(stale?300000:0)).toISOString()};
+ await page.route('**/functions/companyAccess',r=>r.fulfill({json:{company:{id:'a',name:'Company A'},my_bus:{id:'bus-a',name:'Bus A'}}}));
+ await page.route('**/functions/entityAccess',r=>{
+  const body=r.request().postDataJSON();let result=[];
+  if(body.entity==='User')result=user;
+  if(body.entity==='Bootstrap')result={workplace:{id:'work',company_id:'a',name:'Company A',lat:12,lng:-61.7},vehicles:[bus],routes:[],trips:[]};
+  if(body.entity==='Company')result=[{id:'a',name:'Company A'}];
+  return r.fulfill({json:{result}});
+ });
+ await page.route('https://api.mapbox.com/**',r=>r.fulfill({json:{routes:[{distance:2200,duration:420,geometry:{coordinates:[[-61.7,12.005],[-61.7,12]]}}]}}));
+ await page.goto('/staff');
+ return page.getByRole('region',{name:'Going home pickup'});
+}
+test('return pickup shows road ETA to company with home stop and actions',async({page})=>{
+ const card=await returnPassenger(page,'near');
+ await expect(card.getByText('About 7 min to your company')).toBeVisible();
+ await expect(card.getByText('Home stop: Home gate')).toBeVisible();
+ await expect(card.getByRole('button',{name:'Show map'})).toBeVisible();
+ await expect(card.getByRole('button',{name:'Message driver'})).toBeVisible();
+});
+test('return pickup shows arrival and departure status',async({page})=>{
+ let card=await returnPassenger(page,'arrived');
+ await expect(card.getByText('Your bus is here')).toBeVisible();
+ card=await returnPassenger(page,'departed');
+ await expect(card.getByText('Bus has left the company')).toBeVisible();
+});
+test('return pickup never shows an ETA from stale GPS',async({page})=>{
+ const card=await returnPassenger(page,'near',true);
+ await expect(card.getByText('Waiting for a fresh bus location')).toBeVisible();
+ await expect(card.getByText(/About .* min/)).toHaveCount(0);
+});

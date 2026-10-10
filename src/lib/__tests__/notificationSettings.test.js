@@ -274,10 +274,11 @@ describe("myNotifications (passenger's own choices)", () => {
     sdk.tables.NotificationSetting = [];
     const got = await mine(sdk, { action: "get" });
     expect(got.body.choices.map((c) => [c.key, c.on, c.available])).toEqual([
+      ["return_pickup_push", true, true], ["return_pickup_email", true, true],
       ["chat_message", true, true], ["bus_approaching_push", true, true], ["bus_approaching_email", true, true],
     ]);
     const off = await mine(sdk, { action: "set", key: "chat_message", on: false });
-    expect(off.body.choices[0]).toMatchObject({ key: "chat_message", on: false });
+    expect(off.body.choices.find(c => c.key === "chat_message")).toMatchObject({ key: "chat_message", on: false });
     expect(sdk.tables.User[0].notification_opt_out).toEqual(["chat_message"]);
     await mine(sdk, { action: "set", key: "chat_message", on: true });
     expect(sdk.tables.User[0].notification_opt_out).toEqual([]);
@@ -292,6 +293,6 @@ describe("myNotifications (passenger's own choices)", () => {
       { id: "3", key: "bus_approaching_email", enabled: false, blocked_emails: [] },
     ];
     const got = await mine(sdk, { action: "get" });
-    expect(got.body.choices.map((c) => c.available)).toEqual([false, false, false]);
+    expect(got.body.choices.map((c) => c.available)).toEqual([true, true, false, false, false]);
   });
 });
