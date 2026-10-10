@@ -4,6 +4,7 @@ import { findPhoneDriver, driverVehicles, normEmail } from '../../shared/driverP
 import { sendPushToTokens } from '../../shared/fcm.ts';
 import { applyLocationUpdate } from '../../shared/vehicleLocation.ts';
 import { pushWithPolicy } from '../../shared/notificationPolicy.ts';
+import { passengerPushTokens } from '../../shared/chatPush.ts';
 
 // The driver phone app. Drivers sign in with their own Google account; the
 // server matches that email to a Driver record an administrator switched on
@@ -13,7 +14,8 @@ import { pushWithPolicy } from '../../shared/notificationPolicy.ts';
 //
 // The phone never sends its location: tracking stays on the bus tablet.
 
-const PHONE_CHANNELS = ['dispatch', 'company'];
+// 'staff' is the bus's passenger chat, shared with the bus tablet.
+const PHONE_CHANNELS = ['dispatch', 'company', 'staff'];
 const REPORT_TYPES = ['breakdown', 'accident', 'delay', 'other'];
 const PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const MAX_PHOTOS = 3;
@@ -382,11 +384,20 @@ export default async function(req) {
           channel, sender_role: 'driver', sender_name: sanitize(driver.full_name) || 'Driver', sender_email: user.email, sender_id: user.id,
           text, message_type: 'text',
         });
-        await notify(base44, 'chat_message', channel, companyId, {
+        const payload = {
           title: `${sanitize(bus.name) || 'Bus'} · ${sanitize(driver.full_name) || 'Driver'}`,
           body: text.slice(0, 500),
           data: { type: 'group_message', vehicle_id: bus.id, channel },
-        });
+        };
+        await notify(base44, 'chat_message', channel, companyId, payload);
+        // The passengers riding this bus, as when the driver posts from the tablet.
+        if (channel === 'staff') {
+          try {
+            const serviceAccountJson = secrets.get('FIREBASE_SERVICE_ACCOUNT');
+            const tokens = serviceAccountJson ? await passengerPushTokens(base44, bus.id, { excludeEmails: [user.email] }) : [];
+            if (tokens.length) await pushWithPolicy(base44, 'chat_message', tokens, payload, (list) => sendPushToTokens(serviceAccountJson, list, payload), { companyId });
+          } catch { /* alerts are best effort; the message is already saved */ }
+        }
         return Response.json({ message: phoneMessage(message, email) });
       }
 

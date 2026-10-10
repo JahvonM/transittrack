@@ -104,21 +104,40 @@ describe("driver phone today", () => {
 });
 
 describe("driver phone messages", () => {
-  it("shows only dispatch and company messages for the driver's bus", async () => {
+  it("shows dispatch, manager and passenger messages for the driver's own bus only", async () => {
     const { send } = phone();
     const res = await send({ action: "messages" });
-    expect(res.body.messages.map((m) => m.id)).toEqual(["g1"]);
+    expect(res.body.messages.map((m) => [m.id, m.channel])).toEqual([["g1", "dispatch"], ["g2", "staff"]]);
+    expect(res.body.messages[1]).toMatchObject({ sender_name: "Jane", text: "Passenger chat", mine: false });
   });
 
-  it("sends as the driver on the dispatch channel", async () => {
+  it("sends as the driver, on dispatch unless another chat is chosen", async () => {
     const { sdk, send } = phone();
-    const res = await send({ action: "send", channel: "staff", text: " Running <b>5</b> min late " });
+    const res = await send({ action: "send", channel: "mechanic", text: " Running <b>5</b> min late " });
     expect(res.status).toBe(200);
     expect(sdk.tables.GroupMessage.at(-1)).toMatchObject({
       vehicle_id: "bus-a", company_id: "a", channel: "dispatch", sender_role: "driver", sender_name: "Dana Driver", text: "Running b5/b min late",
     });
     expect(res.body.message.mine).toBe(true);
     expect((await send({ action: "send", text: "   " })).status).toBe(400);
+  });
+
+  it("replies to the bus's passengers and alerts the passengers riding it", async () => {
+    const { sdk } = phone();
+    sdk.testSecrets = { TT_ATOMIC_STORE_URL: "https://example.supabase.co", TT_ATOMIC_SERVICE_ROLE_KEY: "sb_secret_synthetic-test-key-never-real", FIREBASE_SERVICE_ACCOUNT: "{}" };
+    const api = load("driverPhone", sdk); // push switched on
+    const send = async (body) => { const r = await api.default(request(body)); return { status: r.status, body: await r.json() }; };
+    sdk.tables.NotificationLog = [];
+    sdk.tables.PushToken = [
+      { email: "p1@test.invalid", token: "RIDER-THIS-BUS" },
+      { email: "p2@test.invalid", token: "RIDER-OTHER-BUS" },
+    ];
+    const res = await send({ action: "send", channel: "staff", text: "Two minutes away" });
+    expect(res.status).toBe(200);
+    expect(sdk.tables.GroupMessage.at(-1)).toMatchObject({ vehicle_id: "bus-a", company_id: "a", channel: "staff", sender_role: "driver", text: "Two minutes away" });
+    const told = sdk.tables.NotificationLog.flatMap((row) => row.recipients || []);
+    expect(told).toContain("p1@test.invalid");
+    expect(told).not.toContain("p2@test.invalid");
   });
 });
 
@@ -189,5 +208,21 @@ describe("driver phone fields in admin screens", () => {
     const admin = mock("admin");
     admin.tables.Incident = [{ id: "inc", company_id: "a", type: "other" }];
     expect((await call(admin, { entity: "Incident", operation: "update", id: "inc", data: { photo_uris: ["private/licence.jpg"] } })).status).toBe(403);
+  });
+});
+
+describe("passenger messages reach the driver phone", () => {
+  it("alerts the bus's driver when a passenger writes in the bus chat", async () => {
+    const sdk = mock("staff");
+    sdk.testSecrets = { TT_ATOMIC_STORE_URL: "https://example.supabase.co", TT_ATOMIC_SERVICE_ROLE_KEY: "sb_secret_synthetic-test-key-never-real", FIREBASE_SERVICE_ACCOUNT: "{}" };
+    sdk.tables.Driver = [{ id: "drv", full_name: "Dana Driver", email: "dana@test.invalid", company_id: "a", phone_app_access: true }];
+    sdk.tables.Vehicle[0].driver_email = "dana@test.invalid";
+    sdk.tables.CompanyMembership[0].vehicle_id = "bus-a";
+    sdk.tables.GroupMessage = [{ id: "m1", sender_id: "caller", vehicle_id: "bus-a", company_id: "a", channel: "staff", sender_role: "staff", text: "Are you close?" }];
+    sdk.tables.PushToken = [{ email: "dana@test.invalid", role: "driver_phone", company_id: "a", token: "DANA-PHONE" }];
+    sdk.tables.NotificationLog = [];
+    const res = await load("notifyAdminMessage", sdk).default(request({ message_id: "m1" }));
+    expect(res.status).toBe(200);
+    expect(sdk.tables.NotificationLog.flatMap((row) => row.recipients || [])).toContain("dana@test.invalid");
   });
 });

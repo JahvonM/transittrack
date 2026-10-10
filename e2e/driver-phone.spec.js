@@ -23,7 +23,7 @@ const MESSAGES=[
 ];
 const in20days=new Date(Date.now()+20*86400e3).toISOString().slice(0,10);
 
-async function phone(page,{refuse=false,today=TODAY,user={id:'u1',email:'dana.driver@gmail.com',full_name:'Dana Driver',role:'user'}}={}) {
+async function phone(page,{refuse=false,today=TODAY,messages=MESSAGES,user={id:'u1',email:'dana.driver@gmail.com',full_name:'Dana Driver',role:'user'}}={}) {
  const calls=[];
  await page.addInitScript(()=>{ localStorage.setItem('base44_access_token','mock-authenticated-session'); });
  await page.route('https://api.mapbox.com/**',r=>r.fulfill({status:404,body:''}));
@@ -32,7 +32,7 @@ async function phone(page,{refuse=false,today=TODAY,user={id:'u1',email:'dana.dr
   if(url.includes('/functions/driverPhone')) {
    const body=route.request().postDataJSON();calls.push(body);
    if(refuse) return route.fulfill({status:403,json:{error:'Ask your administrator to put this email on your driver record and switch on "Can use the phone app".',code:'NOT_A_DRIVER'}});
-   const reply={me:ME,today,messages:{messages:MESSAGES},documents:{documents:[
+   const reply={me:ME,today,messages:{messages},documents:{documents:[
      {id:'d1',kind:'license',document_number:'GD-55821',expiry_date:in20days,file_name:'licence.jpg',url:'https://files.test/licence.jpg'},
      {id:'d2',kind:'insurance',document_number:'',expiry_date:'2027-08-31',file_name:'insurance.pdf',url:'https://files.test/ins.pdf'}]},
     send:{message:{id:'g3',channel:body.channel,sender_role:'driver',sender_name:'Dana Driver',text:body.text,created_date:new Date().toISOString(),mine:true}},
@@ -98,6 +98,27 @@ test('messages from dispatch show and the driver can reply',async({page})=>{
  await expect(page.getByText('Flat tyre at True Blue, waiting for help')).toBeVisible();
  expect(calls.find(c=>c.action==='send')).toMatchObject({channel:'dispatch',vehicle_id:'bus-a',text:'Flat tyre at True Blue, waiting for help'});
  await shot(page,'03-messages');
+});
+
+test('passenger messages show on the phone and the driver can reply to them',async({page})=>{
+ const fromRider={id:'g9',channel:'staff',sender_role:'staff',sender_name:'Jane R.',text:'Are you close to Town?',created_date:'2026-10-07T10:10:00Z',mine:false};
+ const calls=await phone(page,{messages:[...MESSAGES,fromRider]});
+ await page.goto('/driver-phone/messages');
+ // Opens on the conversation with the newest message.
+ await expect(page.getByRole('tab',{name:/^Passengers/})).toHaveAttribute('aria-selected','true');
+ await expect(page.getByText('Are you close to Town?')).toBeVisible();
+ await expect(page.getByText('Jane R.',{exact:true})).toBeVisible();
+ await expect(page.getByText('Morning Dana, Bus 12 is fuelled and ready.')).toHaveCount(0);
+ await expect(page.getByRole('tab',{name:'Dispatch (new)'})).toBeVisible();
+ await page.getByLabel('Message',{exact:true}).fill('Two minutes away');
+ await page.getByRole('button',{name:'Send message'}).click();
+ await expect(page.getByText('Two minutes away')).toBeVisible();
+ expect(calls.find(c=>c.action==='send')).toMatchObject({channel:'staff',vehicle_id:'bus-a',text:'Two minutes away'});
+ await shot(page,'03b-passenger-messages');
+ await page.getByRole('tab',{name:'Dispatch (new)'}).click();
+ await expect(page.getByText('Morning Dana, Bus 12 is fuelled and ready.')).toBeVisible();
+ await expect(page.getByRole('tab',{name:'Dispatch',exact:true})).toBeVisible();
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth+1)).toBe(true);
 });
 
 test('a problem report goes out with its photo',async({page})=>{

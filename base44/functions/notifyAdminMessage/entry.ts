@@ -171,9 +171,9 @@ export default async function(req) {
       const passengers = notification.channel === 'staff'
         ? await passengerPushTokens(base44, notification.vehicleId, { excludeEmails: [user.email] })
         : [];
-      // Dispatch and company messages also reach the bus's driver on the
-      // driver phone app, when an administrator has switched it on.
-      const driverPhones = ['dispatch', 'company'].includes(notification.channel)
+      // Passenger, dispatch and company messages also reach the bus's driver
+      // on the driver phone app, when an administrator has switched it on.
+      const driverPhones = ['staff', 'dispatch', 'company'].includes(notification.channel)
         ? await driverPhoneTokens(base44, await notificationRecord(base44.asServiceRole.entities, 'Vehicle', notification.vehicleId))
         : [];
       const tokens = [...new Set([...audience, ...passengers, ...driverPhones])].filter(token => !myTokens.has(token));

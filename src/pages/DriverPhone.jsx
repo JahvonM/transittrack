@@ -182,7 +182,7 @@ export default function DriverPhone() {
   const enableNotifications = async () => {
     const failure = await registerPush({ prompt: true }).catch(() => "error");
     if (failure) toast({ ...(PUSH_FAILURE[failure] || PUSH_FAILURE.error), variant: "destructive" });
-    else toast({ title: "Notifications on", description: "Dispatch messages will alert this phone." });
+    else toast({ title: "Notifications on", description: "New messages will alert this phone." });
   };
 
   // Backup GPS: only while dispatch has switched it on for this driver's open
@@ -311,7 +311,7 @@ export default function DriverPhone() {
           <PullToRefresh onRefresh={loadToday}><TodayTab onMessages={() => navigate("/driver-phone/messages")} onDocuments={() => navigate("/driver-phone/me")} today={today} driverName={me?.driver?.name} onPickBus={pickBus} backupSentAt={backupSentAt}
             onStartShift={() => navigate("/driver-phone/start")} onEndShift={endShift} onWalkaround={() => navigate("/driver-phone/walkaround")} /></PullToRefresh>
         )}
-        {tab === "messages" && <PullToRefresh onRefresh={loadMessages}><MessagesTab messages={messages} loaded={messagesLoaded} hasBus={!!today?.bus} onSend={send} /></PullToRefresh>}
+        {tab === "messages" && <PullToRefresh onRefresh={loadMessages}><MessagesTab messages={messages} loaded={messagesLoaded} hasBus={!!today?.bus} onSend={send} seen={seen} /></PullToRefresh>}
         {tab === "report" && <ReportTab busName={today?.bus?.name} onSend={report} />}
         {tab === "me" && (
           <MeTab me={me} documents={documents} docsLoaded={docsLoaded} onLoadDocs={loadDocs} shifts={shifts} onLoadHours={loadHours} onOpenRequests={() => navigate("/driver-phone/requests")}
