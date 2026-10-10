@@ -704,6 +704,26 @@ test('a pickup merged with neighbours says where to meet and how far it is',asyn
  if(process.env.TT_SHOT_DIR) await page.screenshot({path:`${process.env.TT_SHOT_DIR}/shared-pickup.png`});
 });
 
+test('a pickup the assigned bus does not drive past asks to pick again on its road',async({page})=>{
+ await page.setViewportSize({width:390,height:844});
+ // Saved on another route, before an admin put them on TT-102 (Coastal route).
+ await passengerShowcase(page,{extra:{pickup_name:'Old spot',pickup_lat:12.1,pickup_lng:-61.7,pickup_route_id:'route-old'}});
+ const prompt=page.getByRole('status').filter({hasText:"Your bus doesn't pass your pickup"});
+ await expect(prompt).toContainText('TT-102 drives Coastal route. Choose a pickup on its road so the driver stops for you.');
+ await prompt.evaluate(el=>el.scrollIntoView({block:'center'}));
+ if(process.env.TT_SHOT_DIR) await page.screenshot({path:`${process.env.TT_SHOT_DIR}/repick-prompt.png`});
+ await prompt.getByRole('button',{name:'Choose a pickup on its road'}).click();
+ // The pickup finder only offers the road that bus drives.
+ await expect(page.getByRole('dialog').getByText('Spots on the road TT-102 drives (Coastal route).')).toBeVisible();
+ if(process.env.TT_SHOT_DIR) await page.screenshot({path:`${process.env.TT_SHOT_DIR}/repick-finder.png`});
+});
+
+test('no prompt when the pickup is on the assigned bus road',async({page})=>{
+ await passengerShowcase(page,{extra:{pickup_name:'My spot',pickup_lat:12.02,pickup_lng:-61.76,pickup_route_id:'route-a'}});
+ await expect(page.getByLabel('Your pickup',{exact:true})).toBeVisible();
+ await expect(page.getByText("Your bus doesn't pass your pickup")).toHaveCount(0);
+});
+
 test('passenger Buses is distinct from Home and chat bubble works on both',async({page})=>{
  await page.setViewportSize({width:390,height:844});
  await passengerShowcase(page);

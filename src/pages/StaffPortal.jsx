@@ -38,6 +38,8 @@ import {
 import { clock, passengerTripState, sortStops } from "@/components/passenger/passengerState";
 import useStopEtas from "@/components/passenger/useStopEtas";
 import { drawnRoad } from "@/lib/routeRoad";
+import { pickupMissesBus } from "@/lib/pickupOnBus";
+import { Button } from "@/components/ui/button";
 
 // The live 3D map (mapbox-gl + three.js) loads after the page around it.
 const LiveTransitMap = lazy(() => import("@/components/map3d/LiveTransitMap"));
@@ -383,6 +385,25 @@ export default function StaffPortal() {
     () => (myBus ? vehicles.find((v) => v.id === myBus.id) || { id: myBus.id, name: myBus.name } : null),
     [myBus, vehicles]
   );
+  // The road the assigned bus drives. A pickup saved somewhere else is one
+  // the bus doesn't stop at: ask the passenger to pick again on its road, and
+  // only offer spots on that road while they do.
+  const busRoute = useMemo(
+    () => (myVehicle?.route_id ? routes.find((r) => r.id === myVehicle.route_id) || null : null),
+    [myVehicle, routes]
+  );
+  const pinnerBus = busRoute ? { name: myVehicle.name || "Your bus", routeId: busRoute.id, routeName: busRoute.name || "" } : null;
+  const missesBus = pickupMissesBus(user, busRoute);
+  const pickupPrompt = missesBus ? (
+    <div className="mb-4">
+      <AlertBand
+        tone="warning"
+        title="Your bus doesn't pass your pickup"
+        body={`${pinnerBus.name} drives ${pinnerBus.routeName || "a different road"}. Choose a pickup on its road so the driver stops for you.`}
+        action={<Button size="sm" className="mt-3" onClick={() => setSheet("pickup")}>Choose a pickup on its road</Button>}
+      />
+    </div>
+  ) : null;
 
   const chatUnread = useChatUnread(myVehicle?.id, sheet === "chat");
 
@@ -516,12 +537,13 @@ export default function StaffPortal() {
                   <p className="mt-1 text-title-sm font-bold">{myVehicle ? myVehicle.name : "No bus assigned yet"}</p>
                   <p className="mt-1 text-body-sm text-muted-foreground">{myVehicle ? "Choose your stop below to see when it reaches you." : "Your company adds you to a bus."}</p>
                 </section>
+                {pickupPrompt}
                             <PickupCard
               pickupName={user?.pickup_lat != null ? user.pickup_name || "Your pinned pickup" : ""}
               dropoffName={workplace?.name || ""}
               onOpen={() => setSheet("pickup")}
             />
-                <StopChooser routes={routes} value={pickupName} onChoose={choosePickup} userLoc={userLoc} companyName={companyName} />
+                <StopChooser routes={routes} value={pickupName} onChoose={choosePickup} userLoc={userLoc} companyName={companyName} bus={pinnerBus} />
                 {!userLoc && locError && <div className="px-6 pb-6 lg:px-0"><LocationPrompt onLocation={setPromptLoc} /></div>}
               </>
             ) : (
@@ -548,6 +570,7 @@ export default function StaffPortal() {
                 <div className={tripState.kind === "problem" || notice ? "pt-4" : ""}>
                   <ArrivalHero state={tripState} stop={stop} eta={eta} trip={onTheWayTrip} now={now} onChangeStop={() => setSheet("stop")} routeName={timelineRoute?.name || ""} stopsAway={stopsAway} />
                 </div>
+                {pickupPrompt && <div className="pt-4">{pickupPrompt}</div>}
             <PickupCard
               pickupName={user?.pickup_lat != null ? user.pickup_name || "Your pinned pickup" : ""}
               dropoffName={workplace?.name || ""}
@@ -622,6 +645,7 @@ export default function StaffPortal() {
         routes={routes}
         userLoc={userLoc}
         onChoosePickup={choosePickup}
+        bus={pinnerBus}
         stopAlerts={stopAlerts}
         onToggleStopAlerts={toggleStopAlerts}
         pushUnsupported={pushPermission === "unsupported"}

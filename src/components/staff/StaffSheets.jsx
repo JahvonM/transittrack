@@ -38,9 +38,9 @@ function Section({ title, children }) {
   );
 }
 
-export function MyPickupSheet({ open, onOpenChange, pickupName, pickupOptions, routes, userLoc, onChoosePickup }) {
+export function MyPickupSheet({ open, onOpenChange, pickupName, pickupOptions, routes, userLoc, onChoosePickup, bus }) {
   return <BottomSheet open={open} onOpenChange={onOpenChange} title="Pickup" tall pickup>
-    <PickupSelector options={pickupOptions} routes={routes} userLoc={userLoc} value={pickupName} onChoose={onChoosePickup} intro={false} onConfirmed={() => onOpenChange(false)} />
+    <PickupSelector options={pickupOptions} routes={routes} userLoc={userLoc} value={pickupName} onChoose={onChoosePickup} intro={false} onConfirmed={() => onOpenChange(false)} bus={bus} />
   </BottomSheet>;
 }
 

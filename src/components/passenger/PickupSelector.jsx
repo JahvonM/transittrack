@@ -6,7 +6,7 @@ const LocationPinner = lazy(() => import("@/components/staff/LocationPinner"));
 const StopsMap = lazy(() => import("@/components/LiteMap"));
 const distance = km => km < 1 ? `${Math.round(km*1000/10)*10} m` : `${km.toFixed(1)} km`;
 
-export default function PickupSelector({ options=[], routes=[], value, onChoose, userLoc, intro=true, companyName, onConfirmed }) {
+export default function PickupSelector({ options=[], routes=[], value, onChoose, userLoc, intro=true, companyName, onConfirmed, bus }) {
  const [draft,setDraft] = useState(value || "");
  const [mode,setMode] = useState("near");
  const [query,setQuery] = useState("");
@@ -33,7 +33,7 @@ export default function PickupSelector({ options=[], routes=[], value, onChoose,
  return <section className="tt-pickup-selector space-y-4" aria-label="Choose your pickup">
   {intro && companyName && <p className="text-body-sm text-muted-foreground">{companyName}</p>}
   {mode==="near" ? <div className="space-y-3">
-   <Suspense fallback={<p role="status" className="text-sm text-muted-foreground">Opening pickup finder…</p>}><LocationPinner onSaved={async name=>{await onChoose(name);onConfirmed?.();}} /></Suspense>
+   <Suspense fallback={<p role="status" className="text-sm text-muted-foreground">Opening pickup finder…</p>}><LocationPinner bus={bus} onSaved={async name=>{await onChoose(name);onConfirmed?.();}} /></Suspense>
    <Button variant="ghost" className="w-full" onClick={()=>setMode("stops")}><Bus className="w-4 h-4 mr-2" />Choose a company stop instead</Button>
   </div> : <>
    <label className="flex h-12 items-center gap-2 rounded-xl border bg-card px-3 focus-within:ring-2 focus-within:ring-primary">

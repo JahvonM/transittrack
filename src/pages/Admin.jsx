@@ -103,6 +103,7 @@ const ADMIN_PAGES = {
   "fleet-analytics": lazy(() => import("@/pages/FleetAnalytics")),
   "route-planner": lazy(() => import("@/pages/RoutePlanner")),
   "route-explorer": lazy(() => import("@/pages/RouteExplorer")),
+  "plan-pickups": lazy(() => import("@/components/admin/PlanPickupsTab")),
   "service-history": lazy(() => import("@/pages/ServiceHistory")),
   "incident-reports": lazy(() => import("@/pages/IncidentReports")),
   "safety-standards": lazy(() => import("@/pages/SafetyStandards")),

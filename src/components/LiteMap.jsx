@@ -177,7 +177,9 @@ export default function LiteMap({
           <Polyline key={`trail-${v.id}`} positions={v.trail.filter((p) => p.lat != null && p.lng != null).map((p) => [p.lat, p.lng])} pathOptions={{ color: accent, weight: 3, opacity: 0.4 }} />
         ))}
         {(pins || []).filter((p) => p.lat != null && p.lng != null).map((p, i) => (
-          <CircleMarker key={`pin-${i}`} center={[p.lat, p.lng]} radius={7} pathOptions={{ color: "#fff", weight: 2, fillColor: p.color || "#34d399", fillOpacity: 1 }} />
+          <CircleMarker key={`pin-${i}`} center={[p.lat, p.lng]} radius={7} pathOptions={{ color: "#fff", weight: 2, fillColor: p.color || "#34d399", fillOpacity: 1 }}>
+            {p.label && <Popup>{p.label}</Popup>}
+          </CircleMarker>
         ))}
         {stopPts.map((s, i) => (
           <CircleMarker key={`stop-${i}`} center={[s.lat, s.lng]} radius={8} pathOptions={{ color: "#0B0B0D", weight: 2.5, fillColor: s.color || accent, fillOpacity: 1 }}>

@@ -82,6 +82,7 @@ export const ADMIN_SECTIONS = [
   { id: "fleet-analytics", label: "Fleet analysis", icon: BarChart3, group: "Fleet management" },
   { id: "route-planner", label: "Route planner", icon: MapIcon, group: "Fleet management" },
   { id: "route-explorer", label: "Route explorer", icon: Route, group: "Fleet management" },
+  { id: "plan-pickups", label: "Plan pickups", icon: Users, group: "Fleet management" },
   { id: "travel-times", label: "Travel times", icon: Hourglass, group: "Fleet management" },
 
   { id: "service", label: "Service Queue", icon: Wrench, group: "Maintenance" },
@@ -117,7 +118,7 @@ export const ADMIN_SECTIONS = [
 ];
 
 const NAV_GROUPS = [
- {label:"Fleet",icon:Bus,ids:["fleet","vehicles","health","route-planner","route-explorer"]},
+ {label:"Fleet",icon:Bus,ids:["fleet","vehicles","health","route-planner","route-explorer","plan-pickups"]},
  {label:"Maintenance",icon:Wrench,ids:["service","faults","parts","schedule","calendar","templates","inspection-history","service-history","incident-reports","safety-standards"]},
  {label:"People & access",icon:Users,ids:["drivers","directory","users","cards","card-designs"]},
  {label:"Operations",icon:Activity,ids:["trips","kiosks","shifts","checkins","billing","messaging","lost-items","ride-history","passenger-bookings","support"]},

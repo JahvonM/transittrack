@@ -22,8 +22,10 @@ async function reverseGeocode(lat, lng) {
   }
 }
 
-// Roadside pickup on a company bus route, with walking directions.
-export default function LocationPinner({ onSaved }) {
+// Roadside pickup on a company bus route, with walking directions. With a
+// bus assigned (`bus`: { name, routeId, routeName }) only that bus's road is
+// offered, so the pickup is one the bus actually drives past.
+export default function LocationPinner({ onSaved, bus = null }) {
   const { user, checkUserAuth } = useAuth();
   const { toast } = useToast();
   const [locating, setLocating] = useState(false);
@@ -41,6 +43,10 @@ export default function LocationPinner({ onSaved }) {
   const [finding, setFinding] = useState(false);
   const [phase, setPhase] = useState("choose");
   const [nickname, setNickname] = useState("");
+  const busRoutes = async () => {
+    const all = await base44.entities.Route.list();
+    return bus?.routeId ? all.filter((r) => r.id === bus.routeId) : all;
+  };
 
   const pin = async (lat, lng, address) => {
     setFinding(true);
@@ -50,10 +56,11 @@ export default function LocationPinner({ onSaved }) {
     setOwn(null);
     setOrigin({ lat, lng });
     try {
-      const routes = await base44.entities.Route.list();
-      const found = await suggestPickups({ lat, lng }, routes);
+      const found = await suggestPickups({ lat, lng }, await busRoutes());
       if (!found.length) {
-        toast({ title: "No reachable bus-road pickup found", description: "Pick your own spot on the map, or ask dispatch to add a pickup stop. Your saved pickup has not changed." });
+        toast(bus?.routeId
+          ? { title: `${bus.name} doesn't pass within walking distance`, description: "Pick your own spot on its road on the map, or message dispatch. Your saved pickup has not changed." }
+          : { title: "No reachable bus-road pickup found", description: "Pick your own spot on the map, or ask dispatch to add a pickup stop. Your saved pickup has not changed." });
         return;
       }
       const where = address || (await reverseGeocode(lat, lng));
@@ -89,7 +96,7 @@ export default function LocationPinner({ onSaved }) {
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
     setOwn((o) => ({ ...o, lat, lng, road: null, checking: true }));
     try {
-      const road = await nearestBusRoad({ lat, lng }, await base44.entities.Route.list());
+      const road = await nearestBusRoad({ lat, lng }, await busRoutes());
       setOwn((o) => (o && o.lat === lat && o.lng === lng ? { ...o, road: road || false, checking: false } : o));
     } catch { setOwn((o) => (o ? { ...o, checking: false } : o)); }
   };
@@ -173,7 +180,7 @@ export default function LocationPinner({ onSaved }) {
       <div>
         <p className="text-xs uppercase tracking-widest text-primary">TransitTrack · Pickup finder</p>
         <h2 className="text-2xl font-bold mt-2">{phase === "review" ? "Your walk to the bus" : "Find your pickup"}</h2>
-        <p className="text-sm text-muted-foreground mt-1">{phase === "review" ? "Check your meeting point before confirming." : "Choose a nearby stop on your bus route."}</p>
+        <p className="text-sm text-muted-foreground mt-1">{phase === "review" ? "Check your meeting point before confirming." : bus?.routeId ? `Spots on the road ${bus.name} drives${bus.routeName ? ` (${bus.routeName})` : ""}.` : "Choose a nearby stop on your bus route."}</p>
       </div>
       {phase === "choose" && <>
         <Button className="w-full h-14 text-base rounded-2xl" onClick={useGps} disabled={busy}>
@@ -201,7 +208,7 @@ export default function LocationPinner({ onSaved }) {
             <LocationPicker lat={own.lat} lng={own.lng} onChange={moveOwnSpot} showCoordinates={false} />
           </Suspense>
           {own.checking && <p role="status">Checking the bus roads…</p>}
-          {own.road === false && <p role="alert" className="text-sm text-danger">Choose a point closer to a road your company bus uses.</p>}
+          {own.road === false && <p role="alert" className="text-sm text-danger">{bus?.routeId ? `Choose a point closer to the road ${bus.name} drives.` : "Choose a point closer to a road your company bus uses."}</p>}
           {own.road && <p className="text-sm text-muted-foreground">{own.road.distanceM > OWN_SPOT_WARN_M ? "This point is about " + Math.round(own.road.distanceM) + " m from the bus road. Check with dispatch." : "Near the " + (own.road.route_name || "bus") + " road."}</p>}
           <Button variant="ghost" onClick={()=>setOwn(null)}>Back to nearby spots</Button>
         </section>}
