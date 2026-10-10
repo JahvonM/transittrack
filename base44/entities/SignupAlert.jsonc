@@ -1,0 +1,36 @@
+{
+  "name": "SignupAlert",
+  "type": "object",
+  "description": "Server-only delivery ledger for new-account admin alerts.",
+  "properties": {
+    "user_id": {
+      "type": "string"
+    },
+    "completed": {
+      "type": "boolean"
+    },
+    "delivered_emails": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "notified_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "user_id"
+  ],
+  "rls": {
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "create": false,
+    "update": false,
+    "delete": false
+  }
+}
