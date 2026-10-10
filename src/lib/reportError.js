@@ -1,5 +1,6 @@
 import { base44 } from "@/api/base44Client";
 import { addBreadcrumb, appArea, appVersion, breadcrumbs, installBreadcrumbs, safePath } from "@/lib/breadcrumbs";
+import { installUpdateReload, reloadingForUpdate } from "@/lib/updateReload";
 
 // Fire-and-forget crash report. Never throws; de-duplicates in this tab so a
 // render loop can't flood the backend.
@@ -7,6 +8,8 @@ const sent = new Set();
 
 export function reportError(error, { source = "window", extra = "" } = {}) {
   try {
+    // The page is already reloading into the new version; nothing to report.
+    if (reloadingForUpdate()) return;
     const message = String(error?.message || error || "Unknown error").slice(0, 500);
     const key = `${source}:${message}`;
     if (sent.has(key) || sent.size > 20) return;
@@ -43,6 +46,7 @@ export function installGlobalErrorReporting() {
   if (installed || typeof window === "undefined") return;
   installed = true;
   installBreadcrumbs();
+  installUpdateReload();
   window.addEventListener("error", (e) => {
     // Ignore browser noise that isn't an app crash.
     if (!e.error || /ResizeObserver loop/.test(e.message || "")) return;

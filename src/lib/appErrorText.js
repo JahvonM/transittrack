@@ -20,7 +20,7 @@ export function describeDevice(ua = "") {
 // What an error most likely means, in plain words.
 export function errorHint(message = "") {
   if (/Loading chunk|dynamically imported module|Importing a module script failed|Failed to fetch dynamically/i.test(message))
-    return "The app was updated while this person had it open, so a screen couldn't load. Reloading fixes it; nothing needs changing.";
+    return "The app was updated while this person had it open, so a screen couldn't load. The app now reloads itself once when this happens, so you'll only see it if that reload didn't help (for example a weak connection). If it keeps coming back, send it to Claude.";
   if (/Network ?Error|Failed to fetch|Load failed|NetworkError|timeout/i.test(message))
     return "The device lost its connection to the server. Usually a weak signal; it only needs fixing if it keeps happening on good Wi-Fi.";
   if (/Quota|storage is full|exceeded the quota/i.test(message))
