@@ -209,7 +209,7 @@ function busSummary(v) {
   return {
     id: v.id, name: sanitize(v.name) || 'Bus', plate_number: v.plate_number || '', fleet_number: v.fleet_number || '',
     image_url: v.image_url || '', model_3d: v.model_3d || '', type: v.type || '', capacity: v.capacity ?? null, route_id: v.route_id || '',
-    tracking_active: !!v.tracking_active, last_location_update: v.last_location_update || null,
+    trip_direction: v.trip_direction === 'to_home' ? 'to_home' : 'to_work', tracking_active: !!v.tracking_active, last_location_update: v.last_location_update || null,
   };
 }
 // The road drawn in the Route Planner (and the points it was drawn through).
@@ -343,6 +343,14 @@ export default async function(req) {
           company: { id: companyId, name: sanitize(company?.name || driver.company_name), logo_url: company?.logo_url || '' },
           buses: buses.map(busSummary),
         });
+      }
+
+      case 'set_direction': {
+        if (!['to_work', 'to_home'].includes(body.direction)) fail(400, 'Choose To work or To home');
+        const { bus } = await pickBus(base44, driver, body.vehicle_id);
+        if (!bus || bus.company_id !== companyId) fail(403, 'This bus is not assigned to you');
+        await db.Vehicle.update(bus.id, { trip_direction: body.direction });
+        return Response.json({ ok: true, direction: body.direction });
       }
 
       case 'today': {

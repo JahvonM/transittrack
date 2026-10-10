@@ -1,5 +1,7 @@
+import { directionView } from "@/lib/driverDirection";
+import TripDirectionControl from "@/components/driver/TripDirectionControl";
 import BusArtwork from "@/components/BusArtwork";
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useMemo } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Bus, CircleCheck, ClipboardCheck, Clock, MapPin, Megaphone, MessageCircle, Phone, Play, Radio, Route as RouteIcon, Square, UserX, Users, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -42,8 +44,10 @@ function ContactRow({ label, phone }) {
   );
 }
 
-export default function TodayTab({ today, driverName, onPickBus, onStartShift, onEndShift, onWalkaround, backupSentAt, onMessages, onDocuments }) {
-  const { buses = [], bus, route, pickups = [], shift, last_shift: lastShift, notices = [], contacts, workplace, walkaround } = today || {};
+export default function TodayTab({ today, driverName, onPickBus, onStartShift, onEndShift, onWalkaround, backupSentAt, onMessages, onDocuments, onDirectionChange }) {
+  const view = useMemo(() => directionView(today), [today]);
+  const home = view?.trip_direction === "to_home";
+  const { buses = [], bus, route, pickups = [], shift, last_shift: lastShift, notices = [], contacts, workplace, walkaround } = view || {};
   const [panel, setPanel] = useState(null);
   const panelButton = useRef(null);
   const openPanel = (name, event) => { panelButton.current = event.currentTarget; setPanel(name); };
@@ -65,6 +69,8 @@ export default function TodayTab({ today, driverName, onPickBus, onStartShift, o
         <p className="text-body-sm text-muted-foreground">{new Date().toLocaleDateString([], { weekday: "long", day: "numeric", month: "long" })}</p>
         <h1 className="text-headline">{greeting}, {first}</h1>
       </header>
+
+      {bus && <TripDirectionControl bus={bus} workplace={workplace} onChange={onDirectionChange} />}
 
       {!bus ? (
         <Section title="No bus assigned" icon={Bus}>
@@ -209,7 +215,7 @@ export default function TodayTab({ today, driverName, onPickBus, onStartShift, o
             <>
               <p className="-mt-2 mb-3 text-body-sm text-muted-foreground">
                 {stops.length} stop{stops.length === 1 ? "" : "s"} · {riding.length} pickup{riding.length === 1 ? "" : "s"} today
-                {workplace?.name ? ` · drop-off at ${workplace.name}` : ""}
+                {workplace?.name ? ` · ${home ? "pickup" : "drop-off"} at ${workplace.name}` : ""}
               </p>
               <ol className="relative space-y-0">
                 {stops.map((s, i) => {
@@ -223,7 +229,7 @@ export default function TodayTab({ today, driverName, onPickBus, onStartShift, o
                       <div className="min-w-0 flex-1 pt-0.5">
                         <p className="font-semibold">{s.name}</p>
                         <p className="text-body-sm text-muted-foreground">
-                          {s.fixed === false ? "Pickup stop · " : ""}{people.length > 0 ? `${people.length} pickup${people.length === 1 ? "" : "s"}` : "No pickups"}
+                          {s.fixed === false ? (home ? "Home drop-off · " : "Pickup stop · ") : ""}{people.length > 0 ? `${people.length} pickup${people.length === 1 ? "" : "s"}` : "No pickups"}
                         </p>
                       </div>
                     </li>

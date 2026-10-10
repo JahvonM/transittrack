@@ -404,7 +404,7 @@ function tabletFields(row, fields) {
   return Object.fromEntries(fields.filter((k) => row[k] !== undefined).map((k) => [k, row[k]]));
 }
 function tabletVehicle(row) {
-  const out = tabletFields(row, ['id', 'name', 'type', 'plate_number', 'company_id', 'company_name', 'capacity', 'route_id', 'current_lat', 'current_lng', 'speed', 'heading', 'status', 'driver_name', 'driver_email', 'image_url', 'model_3d', 'tracking_active', 'remote_tracking_lock', 'last_location_update', 'current_odometer']);
+  const out = tabletFields(row, ['id', 'name', 'type', 'plate_number', 'company_id', 'company_name', 'capacity', 'route_id', 'current_lat', 'current_lng', 'speed', 'heading', 'status', 'driver_name', 'driver_email', 'image_url', 'model_3d', 'tracking_active', 'remote_tracking_lock', 'last_location_update', 'current_odometer', 'trip_direction']);
   if (out && Array.isArray(row.trail)) out.trail = row.trail.map((t) => tabletFields(t, ['lat', 'lng', 't']));
   return out;
 }
@@ -859,6 +859,14 @@ export default async function(req) {
           update_requested_at: device.update_requested_at || null,
           network_command: network?.command || null,
         });
+      }
+
+      case 'set_direction': {
+        if (!['to_work', 'to_home'].includes(body.direction)) return Response.json({ error: 'Choose To work or To home' }, { status: 400 });
+        const vehicle = await loadVehicle(base44, vehicleId);
+        if (!vehicle || vehicle.company_id !== companyId) return Response.json({ error: 'Vehicle assignment mismatch' }, { status: 403 });
+        await base44.asServiceRole.entities.Vehicle.update(vehicleId, { trip_direction: body.direction });
+        return Response.json({ ok: true, direction: body.direction });
       }
 
       case 'start_shift': {
