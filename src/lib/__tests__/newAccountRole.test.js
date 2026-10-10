@@ -53,3 +53,20 @@ describe('a brand-new account (platform role "user")', () => {
     }
   });
 });
+
+describe('verified company join assigns hotel staff',()=>{
+ it('converts a passenger only after a valid company code',async()=>{
+  const sdk=mock('passenger');sdk.tables.CompanyMembership=[];
+  expect((await call(sdk,{action:'verify',code:'WRONG1234567'})).status).toBe(403);
+  expect(sdk.tables.User[0].role).toBe('passenger');
+  const response=await call(sdk,{action:'verify',code:'JOIN12345678'});
+  expect(response.status).toBe(200);expect((await response.json()).role).toBe('staff');expect(sdk.tables.User[0].role).toBe('staff');
+ });
+ it('preserves a privileged role when the session still says passenger',async()=>{
+  for(const role of ['admin','company','driver','mechanic']){
+   const sdk=mock(role);sdk.auth.me=async()=>({...sdk.tables.User[0],role:'passenger'});
+   await call(sdk,{action:'verify',code:'JOIN12345678'});expect(sdk.tables.User[0].role).toBe(role);
+   expect(sdk.writes.some(w=>w.name==='User')).toBe(false);
+  }
+ });
+});

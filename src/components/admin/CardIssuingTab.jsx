@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useCardReader, formatUid, normalizeUid, HELPER_DOWNLOAD, HELPER_URL } from "@/lib/cardReader";
 import BulkCardIssue from "@/components/admin/BulkCardIssue";
+import { useLocation } from "react-router-dom";
 
 const ROLE_FILTERS = [
   { id: "all", label: "All" },
@@ -334,6 +335,8 @@ function IssuedCards({ cards, people, companies = [], onRevoked }) {
 
 // ---------------------------------------------------------------------------
 export default function CardIssuingTab({ companies = [] }) {
+  const location = useLocation();
+  const [bulkPersonKeys] = useState(() => Array.isArray(location.state?.bulkPersonKeys) ? location.state.bulkPersonKeys.filter(k => typeof k === "string") : []);
   const { toast } = useToast();
   const [people, setPeople] = useState([]);
   const [cards, setCards] = useState([]);
@@ -341,7 +344,7 @@ export default function CardIssuingTab({ companies = [] }) {
   const [tablets, setTablets] = useState([]);
   const [companyFilter, setCompanyFilter] = useState("all");
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState("issue"); // issue | cards
+  const [view, setView] = useState(bulkPersonKeys.length ? "bulk" : "issue"); // issue | cards
   const [mode, setMode] = useState("issue"); // issue | check
   const [q, setQ] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
@@ -570,7 +573,7 @@ export default function CardIssuingTab({ companies = [] }) {
         <IssuedCards cards={cards} people={people} companies={companies} onRevoked={load} />
       ) : view === "bulk" ? (
         <BulkCardIssue
-          people={people} vehicles={vehicles} companies={companies} companyName={companyName}
+          people={people} vehicles={vehicles} companies={companies} companyName={companyName} initialKeys={bulkPersonKeys} loading={loading}
           tapRef={bulkTapRef} feedback={feedback} addLog={addLog} readerReady={helper === "connected" || webNfc} onIssued={load}
         />
       ) : (

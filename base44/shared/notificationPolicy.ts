@@ -17,6 +17,7 @@
 // company's buses and can be switched off company by company. `selfService`
 // kinds are ones passengers may turn off for themselves.
 export const NOTIFICATION_TYPES = [
+  { key: 'account_created', channel: 'email', label: 'New account created', when: 'A newly created account completes its first verified sign-in, including Google and Apple.', audiences: ['admin'] },
   { key: 'sos', channel: 'push', label: 'SOS alert', when: 'A driver holds the SOS button on the bus tablet.', audiences: ['admin'], locked: true },
   { key: 'chat_message', channel: 'push', label: 'Chat messages', when: 'Someone posts in a bus chat: passengers, drivers, managers, mechanics or dispatch.', audiences: ['admin', 'company', 'mechanic', 'passenger', 'driver'], perCompany: true, selfService: true, passengerLabel: 'Messages in my bus chat', passengerWhen: 'A phone alert when someone posts in your bus\'s chat.' },
   { key: 'stop_ahead', channel: 'push', label: 'Bus one stop away', when: 'A bus leaves the stop before a passenger\'s favourite stop. Passengers also switch this on or off themselves, where they choose their pickup stop.', audiences: ['passenger'], perCompany: true },

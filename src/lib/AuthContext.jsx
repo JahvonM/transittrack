@@ -25,6 +25,25 @@ export const AuthProvider = ({ children }) => {
     checkAppState();
   }, []);
 
+  // Signup email runs independently: a delivery failure must not block login.
+  // One delayed retry while this signed-in screen remains open; the server
+  // keeps the delivery ledger and ignores existing accounts on rollout.
+  useEffect(() => {
+    if (!isAuthenticated || !user?.id) return;
+    let stopped = false;
+    let timer;
+    const notify = async (canRetry) => {
+      try {
+        const response = await base44.functions.invoke('notifyAccountCreated', {});
+        if (!stopped && canRetry && response.data?.retry_after_ms) timer = setTimeout(() => notify(false), 60_000);
+      } catch {
+        if (!stopped && canRetry) timer = setTimeout(() => notify(false), 60_000);
+      }
+    };
+    notify(true);
+    return () => { stopped = true; clearTimeout(timer); };
+  }, [isAuthenticated, user?.id]);
+
   const checkAppState = async () => {
     setIsLoadingPublicSettings(true);
     setAuthError(null);

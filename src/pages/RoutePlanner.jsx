@@ -14,6 +14,7 @@ import { Building2, MapPinned, Plus, Route as RouteIcon, Trash2, Save } from "lu
 import { cn } from "@/lib/utils";
 import { EmptyState, PageActions, Panel, StatusChip } from "@/components/admin/kit";
 import PlaceSearch from "@/components/PlaceSearch";
+import { confirmAction } from "@/components/ConfirmHost";
 
 // Matches the declutter treatment on every other map in the app: hide
 // POI/transit icon clutter, keep road labels so the basemap still reads.
@@ -118,6 +119,20 @@ export default function RoutePlanner() {
     setSaving(false);
   };
 
+  const deleteRoute = async () => {
+    if (!selectedRoute || saving) return;
+    const route = selectedRoute;
+    if (!(await confirmAction({ title: `Delete route ${route.name}?`, description: "This removes the route from the route list. Recorded trip history is kept.", confirmLabel: "Delete route" }))) return;
+    setSaving(true);
+    try {
+      await base44.entities.Route.delete(route.id);
+      setRoutes(previous => previous.filter(r => r.id !== route.id));
+      newRoute();
+      toast({ title: "Route deleted" });
+    } catch (error) { toast({ title: "Couldn't delete route", description: error.message, variant: "destructive" }); }
+    finally { setSaving(false); }
+  };
+
   const routeCoords = stops.map((s) => [s.lng, s.lat]);
   const center = stops.length > 0 ? [stops[0].lng, stops[0].lat] : [-61.7, 12.05];
 
@@ -151,7 +166,8 @@ export default function RoutePlanner() {
   return (
     <AppLayout title="Route Planner">
       <PageActions>
-        <Button size="sm" variant="outline" onClick={newRoute}><Plus className="h-4 w-4" /> New route</Button>
+        {selectedRoute && <Button size="sm" variant="destructive" onClick={deleteRoute} disabled={saving}><Trash2 className="h-4 w-4" /> Delete route</Button>}
+        <Button size="sm" variant="outline" disabled={saving} onClick={newRoute}><Plus className="h-4 w-4" /> New route</Button>
       </PageActions>
       <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_340px] 2xl:grid-cols-[280px_minmax(0,1fr)_340px]">
         <div className="hidden 2xl:block">{routeList}</div>
