@@ -24,12 +24,12 @@ ENTITY_FIELDS.Driver.push('phone_app_access');
 ENTITY_FIELDS.Incident.push('photo_uris','source');
 ENTITY_FIELDS.DriverShift.push('started_with','ended_with');
 ENTITY_FIELDS.Vehicle.push('backup_gps_driver_email','backup_gps_since');
-// Admin → App errors: what happened before an error, and marking it fixed.
 // The latest Wi-Fi/hotspot command's status for Admin → Kiosk tablets (never the command itself, which can hold a Wi-Fi password).
 ENTITY_FIELDS.KioskDevice.push('network_status');
+// Admin → App errors: what happened before an error, and marking it fixed.
 ENTITY_FIELDS.ClientError.push('area','context','breadcrumbs','status','resolved_at','resolved_by');
 const ADMIN_ONLY_FIELDS={Driver:new Set(['phone_app_access'])};
-const SERVER_ONLY_FIELDS={Incident:new Set(['photo_uris','source'])};
+const SERVER_ONLY_FIELDS={Incident:new Set(['photo_uris','source']),KioskDevice:new Set(['network_status'])};
 const SECURITY_FIELDS={Company:new Set(['access_code','access_code_expires_at']),KioskDevice:new Set(['pairing_code','pairing_expires_at','paired','status'])};
 const META = ['id','created_date','updated_date','created_by','created_by_id'];
 const CREDENTIALS = new Set(['driver_pin','entry_code','access_code','one_time_code','one_time_code_expires_at','nfc_tag_id','nfc_card_tag','nfc_card_uid','card_uid','card_tag','pairing_code','token','token_hash','salt','pin_hash','password','device_token','driver_grant','verification_grant']);
