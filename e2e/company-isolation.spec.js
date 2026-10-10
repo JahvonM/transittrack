@@ -1072,3 +1072,37 @@ for(const status of [401,503]){
   await expect(page).toHaveURL(/\/login\?returnTo=/);
  });
 }
+
+test('welcome waits for Google callback session verification before opening account',async({page})=>{
+ await session(page,'admin');
+ let release;
+ const gate=new Promise(resolve=>{release=resolve;});
+ await page.route('**/functions/entityAccess',async r=>{
+  const b=r.request().postDataJSON();
+  if(b.entity==='User'&&b.id==='me')await gate;
+  return r.fallback();
+ });
+ await page.goto('/?access_token=mock-google-callback');
+ await expect(page.getByText('Opening your app…',{exact:true})).toBeVisible();
+ await expect(page.getByRole('link',{name:/^Sign in/})).toHaveCount(0);
+ release();
+ await expect(page).toHaveURL(/\/admin$/);
+ expect(await page.evaluate(()=>localStorage.getItem('base44_access_token'))).toBe('mock-google-callback');
+});
+
+test('welcome shows recovery after Google callback verification failure and retry opens account',async({page})=>{
+ await session(page,'admin');
+ let failing=true;
+ await page.route('**/functions/entityAccess',r=>{
+  const b=r.request().postDataJSON();
+  if(failing&&b.entity==='User'&&b.id==='me')return r.fulfill({status:503,json:{error:'Temporarily unavailable'}});
+  return r.fallback();
+ });
+ await page.goto('/?access_token=mock-google-callback');
+ await expect(page.getByRole('alert').getByText("Couldn't check your sign-in",{exact:true})).toBeVisible();
+ await expect(page.getByRole('link',{name:/^Sign in/})).toHaveCount(0);
+ expect(await page.evaluate(()=>localStorage.getItem('base44_access_token'))).toBe('mock-google-callback');
+ failing=false;
+ await page.getByRole('button',{name:/Try again/i}).click();
+ await expect(page).toHaveURL(/\/admin$/);
+});
