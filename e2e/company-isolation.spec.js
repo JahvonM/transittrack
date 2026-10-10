@@ -1006,3 +1006,32 @@ for (const width of [320,390,430]) {
   });
  }
 }
+
+test('desktop setup buttons open the requested native view directly',async({page})=>{
+ await session(page,'admin');
+ await page.addInitScript(()=>{window.setupCalls=[];window.transittrackDesktop={openSetup:async view=>{window.setupCalls.push(view);return {ok:true};}};});
+ await page.route('**/functions/nfcCards',r=>r.fulfill({json:{people:[],cards:[],vehicles:[],tablets:[]}}));
+ await page.goto('/admin/cards');
+ await page.getByRole('button',{name:'NFC setup',exact:true}).click();
+ expect(await page.evaluate(()=>window.setupCalls)).toEqual(['nfc']);
+ await page.getByRole('button',{name:'Connect reader',exact:true}).click();
+ expect(await page.evaluate(()=>window.setupCalls)).toEqual(['nfc','nfc']);
+ await page.goto('/admin/kiosks');
+ await page.getByRole('button',{name:'Open tablet setup',exact:true}).click();
+ expect(await page.evaluate(()=>window.setupCalls)).toEqual(['tablet']);
+});
+test('native setup opens focused NFC view and switches to tablet without running operations',async({page})=>{
+ await page.addInitScript(()=>{window.nativeCalls=[];window.deviceSetup={onView:()=>{},onReaderEvent:()=>{},run:async action=>{window.nativeCalls.push(action);return {message:'Ready'};}};});
+ await page.goto('file:///app/desktop/setup.html#nfc');
+ await expect(page.getByRole('heading',{name:'NFC reader setup',exact:true})).toBeVisible();
+ await expect(page.getByRole('button',{name:'Start reader',exact:true})).toBeVisible();
+ await expect(page.getByRole('button',{name:'Find tablets',exact:true})).toBeHidden();
+ expect(await page.evaluate(()=>window.nativeCalls)).toEqual([]);
+ await page.getByRole('button',{name:'Tablet setup',exact:true}).click();
+ await expect(page.getByRole('button',{name:'Find tablets',exact:true})).toBeVisible();
+ await expect(page.getByRole('button',{name:'Start reader',exact:true})).toBeHidden();
+ expect(await page.evaluate(()=>window.nativeCalls)).toEqual([]);
+ await page.getByRole('button',{name:'NFC reader setup',exact:true}).click();
+ await page.getByRole('button',{name:'Start reader',exact:true}).click();
+ await expect.poll(()=>page.evaluate(()=>window.nativeCalls)).toEqual(['startReader']);
+});
