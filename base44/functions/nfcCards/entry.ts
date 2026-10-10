@@ -351,6 +351,56 @@ export default async function (req) {
         return Response.json({ ok: true, person_key: `contact:${contact.id}`, contact });
       }
 
+      // Set a passenger's pickup without changing their card, bus or role.
+      // Resolve linked records on the server; never accept a user/contact ID list.
+      case 'set_pickup': {
+        const actor = await sr.User.get(user.id).catch(() => null);
+        if (!actor || actor.role !== user.role || !['admin', 'company'].includes(actor.role)) {
+          return Response.json({ error: 'Administrator or approved company manager required' }, { status: 403 });
+        }
+        const lat = body.pickup_lat, lng = body.pickup_lng;
+        const name = clean(body.pickup_name, 120);
+        if (typeof lat !== 'number' || typeof lng !== 'number' || !Number.isFinite(lat) || !Number.isFinite(lng) ||
+            Math.abs(lat) > 90 || Math.abs(lng) > 180 || !name) {
+          return Response.json({ error: 'Choose a valid pickup point and give it a name' }, { status: 400 });
+        }
+        const { people } = await loadPeople(base44, companyFilter);
+        const person = people.find((p) => p.key === body.person_key && p.type === 'staff');
+        if (!person) return Response.json({ error: 'Passenger not found' }, { status: 404 });
+        const patch = { pickup_name: name, pickup_lat: lat, pickup_lng: lng };
+        const email = String(person.email || '').trim().toLowerCase();
+        const contacts = person.company_id && email
+          ? (await sr.Contact.filter({ company_id: person.company_id }, '-updated_date', 2000))
+              .filter((c) => c.company_id === person.company_id && ['staff', 'passenger'].includes(c.type || 'passenger') &&
+                String(c.email || '').trim().toLowerCase() === email)
+          : [];
+        const accountIds = new Set();
+        if (person.source === 'user') {
+          const account = await sr.User.get(person.id);
+          if (!['staff', 'passenger'].includes(account.role)) return Response.json({ error: 'Passenger not found' }, { status: 404 });
+          accountIds.add(account.id);
+        } else if (email && person.company_id) {
+          const liveIds = await approvedStaffIds(base44, person.company_id);
+          const accounts = (await sr.User.filter({ email: person.email }, '-updated_date', 5))
+            .concat(email !== person.email ? await sr.User.filter({ email }, '-updated_date', 5) : []);
+          for (const account of accounts) {
+            if (liveIds.has(account.id) && ['staff', 'passenger'].includes(account.role) &&
+                String(account.email || '').trim().toLowerCase() === email) accountIds.add(account.id);
+          }
+        }
+        const contactIds = new Set(contacts.map((c) => c.id));
+        if (person.source === 'contact') contactIds.add(person.id);
+        // Reset a previous chosen route so Plan pickups evaluates the new point.
+        // Save both representations; retries safely repeat the same location.
+        for (const id of accountIds) await sr.User.update(id, { ...patch, pickup_route_id: '' });
+        for (const id of contactIds) await sr.Contact.update(id, patch);
+        await audit(base44, actor, { action: 'update', entity: person.source === 'user' ? 'User' : 'Contact',
+          record_id: person.id, page: '/admin/passengers', summary: `Updated pickup for ${person.name}: ${name}` });
+        const vehicle = person.vehicle_id ? await loadVehicleFor(base44, person.vehicle_id, person.company_id || companyFilter) : null;
+        const delivery = vehicle ? await sendToBus(base44, actor, vehicle.id).catch(() => ({ sent: 0 })) : { sent: 0 };
+        return Response.json({ ok: true, person_key: person.key, ...patch, sent_to_bus: delivery.sent });
+      }
+
       // Move a staff member to another bus (or take them off one).
       case 'set_bus': {
         const { people } = await loadPeople(base44, companyFilter);
