@@ -19,7 +19,8 @@ test('the real entry creates an isolated window and rejects foreign navigation',
  assert.equal(window.options.webPreferences.sandbox,true);
  assert.equal(window.options.webPreferences.webSecurity,true);
  assert.equal(window.options.webPreferences.webviewTag,false);
- assert.equal(window.url,'https://eager-transit-track-go.base44.app/login?returnTo=%2F');
+ assert.equal(window.url,'https://eager-transit-track-go.base44.app/');
+ assert.equal(window.options.webPreferences.partition,'persist:transittrack-desktop');
  let prevented=false;window.webContents.emit('will-navigate',{preventDefault(){prevented=true;}},'file:///secret');
  assert.equal(prevented,true);assert.deepEqual(external,[]);
  assert.equal(window.popup({url:'javascript:alert(1)'}).action,'deny');
