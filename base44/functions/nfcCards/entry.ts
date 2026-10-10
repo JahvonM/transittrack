@@ -395,7 +395,7 @@ export default async function (req) {
         for (const id of accountIds) await sr.User.update(id, { ...patch, pickup_route_id: '' });
         for (const id of contactIds) await sr.Contact.update(id, patch);
         await audit(base44, actor, { action: 'update', entity: person.source === 'user' ? 'User' : 'Contact',
-          record_id: person.id, page: '/admin/passengers', summary: `Updated pickup for ${person.name}: ${name}` });
+          record_id: person.id, page: '/admin/directory', summary: `Updated pickup for ${person.name}: ${name}` });
         const vehicle = person.vehicle_id ? await loadVehicleFor(base44, person.vehicle_id, person.company_id || companyFilter) : null;
         const delivery = vehicle ? await sendToBus(base44, actor, vehicle.id).catch(() => ({ sent: 0 })) : { sent: 0 };
         return Response.json({ ok: true, person_key: person.key, ...patch, sent_to_bus: delivery.sent });

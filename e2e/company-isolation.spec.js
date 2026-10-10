@@ -1277,3 +1277,50 @@ test('route deletion requires confirmation and removes only the selected route',
  await expect(page.getByRole('button',{name:/Morning route A/})).toHaveCount(0);
  await expect(page.getByRole('button',{name:/Evening route A/}).last()).toBeVisible();
 });
+
+for (const source of ['user','contact']) test('directory pickup editor saves and retries for '+source,async({page})=>{
+ await session(page,'admin');
+ const writes=[];
+ let fail=true;
+ let person={key:source+':pat',source,id:'pat',name:'Pat Passenger',company_id:'a',company_name:'Company A',registered:source==='user',directory_type:'staff',status:'Card Issued'};
+ await page.route('**/functions/nfcCards',async r=>{
+  const b=r.request().postDataJSON();
+  if(b.action==='directory')return r.fulfill({json:{people:[person],vehicles:[vehicles[0]]}});
+  if(b.action==='set_pickup'){
+    writes.push(b);
+    if(fail)return r.fulfill({status:503,json:{error:'Pickup could not be saved'}});
+    person={...person,pickup_name:b.pickup_name,pickup_lat:b.pickup_lat,pickup_lng:b.pickup_lng};
+    return r.fulfill({json:{ok:true,...person}});
+  }
+  return r.fulfill({json:{ok:true}});
+ });
+ await page.route('https://api.mapbox.com/geocoding/**',r=>r.fulfill({json:{features:[{id:'belmont',text:'Belmont junction',place_name:'Belmont junction, Grenada',center:[-61.748,12.049]}]}}));
+ await page.goto('/admin/directory');
+ await page.getByRole('button',{name:'Set pickup for Pat Passenger'}).click();
+ const dialog=page.getByRole('dialog');
+ await expect(dialog.getByRole('heading',{name:'Pickup spot for Pat Passenger'})).toBeVisible();
+ await expect(dialog.getByRole('button',{name:'Save pickup spot'})).toBeDisabled();
+ await dialog.getByRole('textbox',{name:'Search a place by name'}).fill('Belmont');
+ await dialog.getByRole('button',{name:/Belmont junction.*Grenada/}).click();
+ await expect(dialog.getByLabel('Pickup name')).toHaveValue('Belmont junction');
+ await expect(dialog.getByLabel('Latitude',{exact:true})).toHaveValue('12.049');
+ await expect(dialog.getByLabel('Longitude',{exact:true})).toHaveValue('-61.748');
+ await dialog.getByRole('button',{name:'Save pickup spot'}).click();
+ await expect(dialog.getByRole('alert')).toContainText('Pickup could not be saved');
+ await expect(dialog.getByLabel('Pickup name')).toHaveValue('Belmont junction');
+ fail=false;
+ await dialog.getByRole('button',{name:'Save pickup spot'}).click();
+ await expect(dialog).toHaveCount(0);
+ expect(writes).toHaveLength(2);
+ expect(writes[1]).toEqual({action:'set_pickup',person_key:source+':pat',pickup_name:'Belmont junction',pickup_lat:12.049,pickup_lng:-61.748});
+ await expect(page.locator('li').filter({has:page.getByRole('button',{name:'Set pickup for Pat Passenger'})})).toContainText('Belmont junction');
+ await page.getByRole('button',{name:'Set pickup for Pat Passenger'}).click();
+ await expect(page.getByRole('dialog').getByLabel('Pickup name')).toHaveValue('Belmont junction');
+ await page.getByRole('dialog').getByLabel('Pickup name').fill('Unsaved edit');
+ await page.getByRole('dialog').getByRole('button',{name:'Cancel',exact:true}).click();
+ expect(writes).toHaveLength(2);
+ await page.setViewportSize({width:390,height:844});
+ await page.getByRole('button',{name:'Set pickup for Pat Passenger'}).click();
+ await expect(page.getByRole('dialog').getByLabel('Pickup name')).toHaveValue('Belmont junction');
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+});
