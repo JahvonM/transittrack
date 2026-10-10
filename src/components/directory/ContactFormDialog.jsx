@@ -49,7 +49,7 @@ export default function ContactFormDialog({ open, onClose, onSave, contact }) {
     if (!form.name?.trim()) return;
     // Cards are issued (and replaced / revoked) only in Admin > Card issuing,
     // so saving this form never touches the card on file.
-    const { nfc_card_tag: _card, access_code: _code, ...rest } = form;
+    const { nfc_card_tag: _card, access_code: _code, dropoff_name: _dropoff, dropoff_lat: _dropLat, dropoff_lng: _dropLng, ...rest } = form;
     onSave(rest);
   };
 
@@ -192,19 +192,9 @@ export default function ContactFormDialog({ open, onClose, onSave, contact }) {
             <div className="flex items-center gap-1.5 text-sm font-medium">
               <MapPin className="w-4 h-4 text-primary" /> Drop-off point
             </div>
-            <Input
-              value={form.dropoff_name || ""}
-              onChange={(e) => set("dropoff_name", e.target.value)}
-              placeholder="Drop-off location name"
-            />
-            <LocationPicker
-              lat={form.dropoff_lat}
-              lng={form.dropoff_lng}
-              onChange={(lat, lng) => {
-                set("dropoff_lat", lat);
-                set("dropoff_lng", lng);
-              }}
-            />
+            <p className="text-sm text-muted-foreground">
+              Automatically uses this passenger’s company address. Only their pickup spot needs to be set here.
+            </p>
           </div>
         </div>
 

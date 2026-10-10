@@ -135,6 +135,23 @@ async function loadPeople(base44, companyFilter) {
       assigned_vehicle: h.assigned_vehicle || '', legacy_tag: '' });
   }
 
+  // Company workplace is authoritative; legacy per-person destinations are ignored.
+  const destinations = new Map(await Promise.all(
+    [...new Set(people.filter(p => p.type === 'staff' && p.company_id).map(p => p.company_id))].map(async companyId => {
+      const rows = await sr.Workplace.filter({ company_id: companyId }, '-updated_date', 5);
+      const place = rows.find(w => w.company_id === companyId && w.lat != null && w.lng != null
+        && Number.isFinite(Number(w.lat)) && Math.abs(Number(w.lat)) <= 90
+        && Number.isFinite(Number(w.lng)) && Math.abs(Number(w.lng)) <= 180);
+      return [companyId, place];
+    })
+  ));
+  for (const p of people) if (p.type === 'staff') {
+    const place = destinations.get(p.company_id);
+    p.dropoff_name = place?.name || (place ? companyName.get(p.company_id) || 'Company address' : '');
+    p.dropoff_lat = place ? Number(place.lat) : null;
+    p.dropoff_lng = place ? Number(place.lng) : null;
+  }
+
   const today = new Date().toISOString().slice(0, 10);
   const cardsByHolder = new Map();
   for (const c of cards) {

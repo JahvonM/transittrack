@@ -260,10 +260,16 @@ async function loadStaff(base44, companyId, vehicleId) {
   const approvedIds = new Set(approvedRows.map(row=>row.user_id));
   const busOf = new Map(approvedRows.map(row=>[row.user_id,row.vehicle_id||'']));
   const ridesHere = (bus) => !bus || bus === vehicleId;
-  const [users, contacts] = await Promise.all([
+  const [users, contacts, workplaces] = await Promise.all([
     base44.asServiceRole.entities.User.list(),
     base44.asServiceRole.entities.Contact.filter({ company_id: companyId }, '-updated_date', 500),
+    base44.asServiceRole.entities.Workplace.filter({ company_id: companyId }, '-updated_date', 5),
   ]);
+  const workplace = workplaces.find(w => w.company_id === companyId && w.lat != null && w.lng != null
+    && Number.isFinite(Number(w.lat)) && Math.abs(Number(w.lat)) <= 90
+    && Number.isFinite(Number(w.lng)) && Math.abs(Number(w.lng)) <= 180);
+  const dropoff = { dropoff_name: workplace?.name || (workplace ? 'Company address' : ''),
+    dropoff_lat: workplace ? Number(workplace.lat) : null, dropoff_lng: workplace ? Number(workplace.lng) : null };
   const userByEmail = new Map(
     users.filter((u) => ['staff','passenger'].includes(u.role) && approvedIds.has(u.id))
       .map((u) => [(u.email || '').toLowerCase(), u])
@@ -281,14 +287,14 @@ async function loadStaff(base44, companyId, vehicleId) {
         id: c.id, full_name: u.display_name || c.name || u.full_name, email: c.email || u.email, phone: c.phone || u.phone,
         home_lat: c.pickup_lat != null ? c.pickup_lat : (u.pickup_lat ?? u.home_lat),
         home_lng: c.pickup_lng != null ? c.pickup_lng : (u.pickup_lng ?? u.home_lng),
-        pickup_name: c.pickup_name || u.pickup_name, dropoff_name: c.dropoff_name,
+        pickup_name: c.pickup_name || u.pickup_name, ...dropoff,
         skip_pickup_today: flagActive(u.skip_pickup_today, u.skip_pickup_until),
         late_snooze_active: flagActive(u.late_snooze_active, u.late_until),
       };
     }),
     ...orphanUsers.map((u) => ({
       id: u.id, full_name: u.display_name || u.full_name, email: u.email, phone: u.phone,
-      home_lat: u.pickup_lat ?? u.home_lat, home_lng: u.pickup_lng ?? u.home_lng, pickup_name: u.pickup_name, dropoff_name: undefined,
+      home_lat: u.pickup_lat ?? u.home_lat, home_lng: u.pickup_lng ?? u.home_lng, pickup_name: u.pickup_name, ...dropoff,
       skip_pickup_today: flagActive(u.skip_pickup_today, u.skip_pickup_until),
       late_snooze_active: flagActive(u.late_snooze_active, u.late_until),
     })),
