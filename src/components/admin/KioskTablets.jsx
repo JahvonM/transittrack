@@ -284,8 +284,8 @@ export default function KioskTablets({ vehicles, companies, onChange }) {
           </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap border-t pt-3">
-          <Button variant="outline" disabled={downloadingSetup} onClick={() => downloadBundle()}>
-            <Download className="w-4 h-4 mr-1" /> {downloadingSetup ? "Preparing setup…" : "Setup tool"}
+          <Button variant="outline" disabled={downloadingSetup} onClick={() => window.transittrackDesktop?.openSetup ? window.transittrackDesktop.openSetup("tablet").catch(()=>toast({title:"Couldn't open tablet setup",description:"Update TransitTrack Desktop and try again.",variant:"destructive"})) : downloadBundle()}>
+            <Download className="w-4 h-4 mr-1" /> {downloadingSetup ? "Preparing setup…" : (window.transittrackDesktop?.openSetup ? "Open tablet setup" : "Setup tool")}
           </Button>
           <Button variant="outline" disabled={busyId === "upd-all" || !devices.some(updatable)} onClick={() => sendUpdate(devices)}>
             <ArrowUpCircle className="w-4 h-4 mr-1" /> Update all tablets
@@ -396,7 +396,7 @@ export default function KioskTablets({ vehicles, companies, onChange }) {
                           size="sm"
                           variant="outline"
                           disabled={downloadingSetup}
-                          onClick={() => downloadBundle(d, meta.label)}
+                          onClick={async () => { await downloadBundle(d, meta.label); if(window.transittrackDesktop?.openSetup)await window.transittrackDesktop.openSetup("tablet").catch(()=>toast({title:"Couldn't open tablet setup",variant:"destructive"})); }}
                         >
                           <Download className="w-3.5 h-3.5" /> Setup file
                         </Button>

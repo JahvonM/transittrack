@@ -1,4 +1,4 @@
-const {app,BrowserWindow,Menu,dialog,shell}=require('electron');
+const {app,BrowserWindow,Menu,dialog,shell,ipcMain}=require('electron');
 const path=require('node:path');
 const {APP_ORIGIN,isAppUrl,externalUrl}=require('./policy.cjs');
 const {startBrowserSignIn,providerFromLoginUrl,providerFromRedirect,returnPathFromLoginUrl,signedInUrl,PROVIDER_NAMES}=require('./browser-signin.cjs');
@@ -52,8 +52,13 @@ async function openExternal(value) {
  const {response}=await dialog.showMessageBox(mainWindow,{type:'question',title:'Open in your browser?',message:'This link opens outside TransitTrack Desktop.',detail:new URL(url).origin,buttons:['Cancel','Open browser'],defaultId:0,cancelId:0});
  if(response===1)await shell.openExternal(url);
 }
+function openDeviceSetup(target='tablet') {
+ deviceSetup ||= require('./setup-main.cjs').createDeviceSetup(require('electron'),mainWindow);
+ deviceSetup.open(target);
+}
+require('./setup-launch.cjs').registerSetupLauncher(ipcMain,()=>mainWindow,openDeviceSetup);
 function createWindow() {
- mainWindow=new BrowserWindow({width:1440,height:960,minWidth:1000,minHeight:700,title:'TransitTrack Desktop',backgroundColor:'#0d1520',icon:path.join(__dirname,'assets','icon.ico'),show:false,webPreferences:{nodeIntegration:false,nodeIntegrationInWorker:false,contextIsolation:true,sandbox:true,webSecurity:true,allowRunningInsecureContent:false,webviewTag:false,partition:'persist:transittrack-desktop'}});
+ mainWindow=new BrowserWindow({width:1440,height:960,minWidth:1000,minHeight:700,title:'TransitTrack Desktop',backgroundColor:'#0d1520',icon:path.join(__dirname,'assets','icon.ico'),show:false,webPreferences:{preload:path.join(__dirname,'preload.cjs'),nodeIntegration:false,nodeIntegrationInWorker:false,contextIsolation:true,sandbox:true,webSecurity:true,allowRunningInsecureContent:false,webviewTag:false,partition:'persist:transittrack-desktop'}});
  mainWindow.once('ready-to-show',()=>mainWindow.show());
  mainWindow.webContents.on('page-title-updated',event=>{event.preventDefault();mainWindow.setTitle('TransitTrack Desktop');});
  const ses=mainWindow.webContents.session;
@@ -96,7 +101,7 @@ function createWindow() {
    {label:'Sign in / switch account',click:()=>openRoute('/login')},
    {type:'separator'},{role:'quit'}
   ]},
-  {label:'Devices',submenu:[{label:'Tablet & NFC setup',click:()=>{deviceSetup ||= require('./setup-main.cjs').createDeviceSetup(require('electron'),mainWindow);deviceSetup.open();}}]},
+  {label:'Devices',submenu:[{label:'Tablet & NFC setup',click:()=>{openDeviceSetup();}}]},
   {label:'Edit',submenu:[{role:'undo'},{role:'redo'},{type:'separator'},{role:'cut'},{role:'copy'},{role:'paste'},{role:'selectAll'}]},
   {label:'View',submenu:[{label:'Reconnect / reload',accelerator:'Ctrl+R',click:()=>isAppUrl(mainWindow?.webContents.getURL())?mainWindow.reload():openRoute('/')},{role:'resetZoom'},{role:'zoomIn'},{role:'zoomOut'},{role:'togglefullscreen'}]},
   {label:'Help',submenu:[{label:'Check for updates',click:()=>updateChecker.check(true)},{label:'About TransitTrack Desktop',click:()=>dialog.showMessageBox(mainWindow,{type:'info',message:'TransitTrack Desktop '+DESKTOP_VERSION,detail:'Admin and Mechanic workspaces. Uses your existing account permissions. Internet is needed for live data. Sign in with email and password, or with Google or Apple through your web browser. USB tablet setup and NFC reader controls are available under Devices. New Windows versions are checked at startup and every six hours. Use Help → Check for updates at any time.'})}]}

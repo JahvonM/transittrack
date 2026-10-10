@@ -67,7 +67,7 @@ function createDeviceSetup({app,BrowserWindow,dialog,ipcMain},parent){
   testReader:()=>readerRequest('/feedback?kind=success&beep=1&led=1'),
  };
  ipcMain.handle('device-setup',async(event,action,input)=>{
-  if(!window||event.sender!==window.webContents||event.senderFrame!==window.webContents.mainFrame||event.senderFrame.url!==trustedUrl)throw Error('Setup access denied.');
+  if(!window||event.sender!==window.webContents||event.senderFrame!==window.webContents.mainFrame||event.senderFrame.url.split('#')[0]!==trustedUrl)throw Error('Setup access denied.');
   if(!Object.hasOwn(actions,action)||!input||typeof input!=='object'||Array.isArray(input))throw Error('Unsupported setup request.');
   if(busy)throw Error('Wait for the current device operation to finish.');
   busy=true;try{return await actions[action](input);}finally{busy=false;}
@@ -82,13 +82,14 @@ function createDeviceSetup({app,BrowserWindow,dialog,ipcMain},parent){
    res.on('end',()=>{events=null;});res.on('close',()=>{events=null;});res.on('error',()=>{events=null;});
   });events.on('error',()=>{events=null;});
  }
- function open(){
-  if(window&&!window.isDestroyed()){window.focus();return;}
+ function open(view='tablet'){
+  view=['tablet','nfc'].includes(view)?view:'tablet';
+  if(window&&!window.isDestroyed()){window.focus();window.webContents.send('setup-view',view);return;}
   window=new BrowserWindow({parent,width:1120,height:900,minWidth:900,minHeight:720,title:'TransitTrack • Tablet & NFC setup',backgroundColor:'#0d1520',webPreferences:{preload:path.join(__dirname,'setup-preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true,webSecurity:true,partition:'setup-ui'}});
   window.webContents.session.setPermissionCheckHandler(()=>false);window.webContents.session.setPermissionRequestHandler((_contents,_permission,callback)=>callback(false));
   window.webContents.on('will-navigate',e=>e.preventDefault());window.webContents.setWindowOpenHandler(()=>({action:'deny'}));
   window.on('closed',()=>{window=null;helper=null;kiosk=null;clearInterval(pollTimer);pollTimer=null;events?.destroy();events=null;});
-  window.loadFile(page);
+  window.loadFile(page,{hash:view});
   window.webContents.once('did-finish-load',()=>{pollTimer=setInterval(()=>{if(!window||window.isDestroyed()){clearInterval(pollTimer);return;}connectEvents();},2000);});
  }
  function stop(){clearInterval(pollTimer);reader?.kill();events?.destroy();}

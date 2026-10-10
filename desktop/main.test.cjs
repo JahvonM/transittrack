@@ -11,7 +11,7 @@ test('the real entry creates an isolated window and rejects foreign navigation',
  }
  const app=new EventEmitter();Object.assign(app,{enableSandbox(){},setAppUserModelId(){},requestSingleInstanceLock:()=>true,whenReady:()=>Promise.resolve(),quit(){}});
  const external=[];
- const electron={app,BrowserWindow:Window,Menu:{buildFromTemplate:t=>(template=t),setApplicationMenu(){}},dialog:{showMessageBox:async()=>({response:0})},shell:{openExternal:async url=>external.push(url)}};
+ const electron={ipcMain:{handle(){}},app,BrowserWindow:Window,Menu:{buildFromTemplate:t=>(template=t),setApplicationMenu(){}},dialog:{showMessageBox:async()=>({response:0})},shell:{openExternal:async url=>external.push(url)}};
  vm.runInNewContext(fs.readFileSync(__dirname+'/main.cjs','utf8'),{require:name=>name==='electron'?electron:require(name),__dirname,URL,AbortController});
  await new Promise(resolve=>setImmediate(resolve));
  assert.equal(window.options.webPreferences.nodeIntegration,false);

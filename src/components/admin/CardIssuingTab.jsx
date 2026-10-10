@@ -507,6 +507,7 @@ export default function CardIssuingTab({ companies = [] }) {
           ))}
         </div>
         <div className="ml-auto flex items-center gap-2">
+          {window.transittrackDesktop?.openSetup && <Button variant="outline" onClick={()=>window.transittrackDesktop.openSetup('nfc').catch(()=>toast({title:"Couldn't open NFC setup",description:"Update TransitTrack Desktop and try again.",variant:"destructive"}))}><Usb className="w-4 h-4" />NFC setup</Button>}
           <ReaderBadge helper={helper} reader={reader} webNfc={webNfc} />
           <SendAllToTablets tablets={tablets} vehicles={vehicles} onSent={load} />
           <Button variant="ghost" size="icon" onClick={load} aria-label="Reload"><RefreshCw className="w-4 h-4" /></Button>
@@ -557,8 +558,8 @@ export default function CardIssuingTab({ companies = [] }) {
               <Button onClick={() => window.open(window.location.href, "_blank", "noopener")}><ExternalLink className="w-4 h-4" /> Open in new tab</Button>
             ) : (
               <>
-                <Button variant="outline" asChild><a href={HELPER_DOWNLOAD} download><Download className="w-4 h-4" /> Download helper</a></Button>
-                <Button onClick={connect}><Usb className="w-4 h-4" /> {helper === "offline" ? "Try again" : "Connect reader"}</Button>
+                {window.transittrackDesktop?.openSetup ? <Button variant="outline" onClick={()=>window.transittrackDesktop.openSetup("nfc").catch(()=>toast({title:"Couldn't open NFC setup",variant:"destructive"}))}><Usb className="w-4 h-4" />Open NFC setup</Button> : <Button variant="outline" asChild><a href={HELPER_DOWNLOAD} download><Download className="w-4 h-4" /> Download helper</a></Button>}
+                <Button onClick={window.transittrackDesktop?.openSetup && helper !== "connected" ? ()=>window.transittrackDesktop.openSetup("nfc").catch(()=>toast({title:"Couldn't open NFC setup",variant:"destructive"})) : connect}><Usb className="w-4 h-4" /> {helper === "offline" ? "Try again" : "Connect reader"}</Button>
               </>
             )}
           </div>

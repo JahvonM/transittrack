@@ -18,3 +18,16 @@ bind('installKiosk',()=>run('installKiosk',selected()));
 bind('configure',async()=>{try{const input={...selected()};for(const name of ['mode','type','pin','apiKey','code','bus','hotspotPassword'])input[name]=$(name).value.trim();await run('configure',input);}finally{for(const name of ['pin','apiKey','hotspotPassword'])$(name).value='';}});
 for(const action of ['startReader','readerStatus','testReader'])bind(action,async()=>{$('reader').textContent=show(await run(action));});
 window.deviceSetup.onReaderEvent(event=>{if(event.type==='card')$('uid').textContent=String(event.uid||'').slice(0,64);if(event.type==='status')$('reader').textContent=event.reader||'Helper running. Plug in a supported reader.';});
+
+function selectView(view){
+ const nfc=view==='nfc';
+ document.querySelectorAll('section[data-view]').forEach(section=>section.hidden=section.dataset.view!==(nfc?'nfc':'tablet'));
+ $('showTablet').setAttribute('aria-pressed',String(!nfc));
+ $('showNfc').setAttribute('aria-pressed',String(nfc));
+ document.querySelector('h1').textContent=nfc?'NFC reader setup':'Tablet setup';
+ window.scrollTo(0,0);
+}
+$('showTablet').addEventListener('click',()=>selectView('tablet'));
+$('showNfc').addEventListener('click',()=>selectView('nfc'));
+window.deviceSetup.onView(selectView);
+selectView(location.hash.slice(1));

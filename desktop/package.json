@@ -1,6 +1,6 @@
 {
   "name": "transittrack-desktop",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "private": true,
   "description": "TransitTrack Admin and Mechanic for Windows",
   "author": "TransitTrack",
@@ -34,7 +34,9 @@
       "setup.html",
       "setup.css",
       "setup.js",
-      "reader.ps1"
+      "reader.ps1",
+      "preload.cjs",
+      "setup-launch.cjs"
     ],
     "win": {
       "target": [
