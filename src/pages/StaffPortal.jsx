@@ -70,7 +70,11 @@ function DriverPhoneCheck({ children }) {
 }
 
 export default function StaffPortal() {
-  const { user } = useAuth();
+  const { user, checkUserAuth } = useAuth();
+  // The account check is recreated on every sign-in update; read the latest
+  // without restarting the company check each time.
+  const checkAuthRef = useRef(checkUserAuth);
+  checkAuthRef.current = checkUserAuth;
   const { permission: pushPermission, enableNotifications } = usePushNotifications({ email: user?.email, role: user?.role, companyId: user?.company_id });
   const { toast } = useToast();
   const pickupRef = useRef("");
@@ -176,11 +180,14 @@ export default function StaffPortal() {
         localStorage.removeItem('tt_company_access_grant');
         setCompany(null);
       } else if (sessionRejected(error)) {
-        // The sign-in itself is gone, not the company pass. Only signing in
-        // again can fix that — the company screen's Retry never could, so
-        // passengers were left stuck on "Couldn't reconnect to your company"
-        // every time they opened the app.
-        base44.auth.redirectToLogin(window.location.href);
+        // Maybe the sign-in itself is gone, not the company pass. Ask the
+        // account check: if the server really ended the sign-in, the app opens
+        // the login page and comes back here afterwards. One refused call alone
+        // must not send a signed-in person to the login page — brand-new
+        // accounts went there, signed in again and landed straight back here,
+        // round and round.
+        await checkAuthRef.current();
+        if (attempt === companyAttempt.current) setCompanyError(true);
       } else setCompanyError(true);
     } finally {
       if (attempt === companyAttempt.current) setCompaniesLoaded(true);
@@ -190,6 +197,11 @@ export default function StaffPortal() {
     restoreCompany();
     return () => { companyAttempt.current += 1; };
   }, [restoreCompany]);
+  // The company check makes a brand-new account (platform role "user") a
+  // passenger; refresh the profile so the rest of the app sees it too.
+  useEffect(() => {
+    if (companiesLoaded && user?.role === 'user') checkAuthRef.current();
+  }, [companiesLoaded, user?.role]);
 
   // The company's workplace: where every pickup passenger is dropped off.
   const [workplace, setWorkplace] = useState(null);
