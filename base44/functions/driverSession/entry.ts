@@ -123,7 +123,7 @@ async function sendPushToToken(serviceAccountJson, token, payload) {
     const accessToken = await getFcmAccessToken(serviceAccount);
     const res = await fetch(`https://fcm.googleapis.com/v1/projects/${serviceAccount.project_id}/messages:send`, {
       method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-      body: JSON.stringify({ message: { token, notification: { title: payload.title, body: payload.body }, data: payload.data || {}, webpush: { fcm_options: { link: '/' } } } }),
+      body: JSON.stringify({ message: { token, notification: { title: payload.title, body: payload.body }, data: payload.data || {}, webpush: { fcm_options: { link: '/' } }, apns: { payload: { aps: { sound: 'default' } } } } }),
     });
     return res.ok;
   } catch { return false; }
