@@ -22,7 +22,10 @@ export const PROXIMITY_TRIGGER_M = 500;
 export const ATTENDANCE_TRIGGER_M = 1500; // ~15 min walk / close proximity
 export const SPEEDING_THRESHOLD_KMH = 100;
 export const TRAIL_MAX = 60;
-export const GPS_INTERVAL_MS = 5000;
+// How often a bus tablet (or a driver's phone) sends its position. Every 5 s
+// it was the biggest share of the app's server calls and kept it over Base44's
+// request limit, so other calls (boardings, check-ins) were refused.
+export const GPS_INTERVAL_MS = 10000;
 
 // Normalise a phone number for wa.me (strip non-digits, ensure no leading +)
 export function waNumber(phone) {

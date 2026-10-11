@@ -79,11 +79,15 @@ async function deviceAccepted(base44, device, token) {
 // so every write here goes through the service role.
 async function resolveKioskDevice(base44, deviceId, token) {
   if (!deviceId || typeof deviceId !== 'string') return null;
-  try {
-    const device = await base44.asServiceRole.entities.KioskDevice.get(deviceId);
-    if (!device || device.kiosk_type === 'driver' || !(await deviceAccepted(base44, device, token))) return null;
-    return device;
-  } catch { return null; }
+  // Only a device that doesn't exist is "not a kiosk". A busy platform (429)
+  // or a server error must come back as itself: answered as "unpaired", the
+  // boarding screen restarted and saved boardings waited behind it.
+  const device = await base44.asServiceRole.entities.KioskDevice.get(deviceId).catch((error) => {
+    if ([400, 404].includes(error?.status ?? error?.response?.status)) return null;
+    throw error;
+  });
+  if (!device || device.kiosk_type === 'driver' || !(await deviceAccepted(base44, device, token))) return null;
+  return device;
 }
 
 // Same merge as driverSession's loadStaff (duplicated — functions can't
@@ -579,6 +583,10 @@ export default async function(req) {
         return Response.json({ error: 'Unknown action' }, { status: 400 });
     }
   } catch (error) {
+    const status = error?.status ?? error?.response?.status;
+    // The platform refused a read under load: the tablet saves the boarding
+    // and tries again, so say it's busy rather than passing on its wording.
+    if (status === 429) return Response.json({ error: 'Server is busy. Please try again shortly.' }, { status: 429 });
     return Response.json({ error: error.status?error.message:'Request failed' }, { status: error.status||500 });
   }
 }

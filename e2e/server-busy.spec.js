@@ -100,7 +100,8 @@ test.describe('driver tablet', () => {
     expect(beats.slice(before)).toContain('full');
 
     // Busy: still online.
-    const status = page.getByRole('status').filter({ hasText: /^\s*Offline\s*$/ });
+    // The driver header shows "Offline" in place of the clock.
+    const status = page.getByRole('banner').getByText('Offline', { exact: true });
     reply = 'busy';
     const busyFrom = beats.length;
     await page.clock.fastForward(16000);
