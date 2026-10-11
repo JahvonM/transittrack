@@ -1,3 +1,4 @@
+import { createPollBudget, startTabletPoll } from "@/lib/tabletPolling";
 import { deviceRequest } from "@/lib/deviceAuth";
 import { cleanTabletSession } from "@/lib/tabletSession";
 import { useEffect, useState, useRef, useCallback } from "react";
@@ -60,6 +61,7 @@ export function useDriverSession(deviceId, { intervalMs = 15000 } = {}) {
   const [offline, setOffline] = useState(false);
   const timerRef = useRef(null);
   const heartbeatBusy = useRef(false);
+  const pollBudget=useRef(createPollBudget());
   const currentDevice = useRef(deviceId);
   currentDevice.current = deviceId;
   // The first heartbeat also reports how this tablet draws maps.
@@ -73,11 +75,12 @@ export function useDriverSession(deviceId, { intervalMs = 15000 } = {}) {
     setSession(cached);
     setLoading(!!deviceId && !cached);
     sentInfoRef.current = false;
+    pollBudget.current.succeeded();
     forceFull.current = true;
   }, [deviceId]);
 
   const heartbeat = useCallback(async () => {
-    if (!deviceId || heartbeatBusy.current) return;
+    if (!deviceId || heartbeatBusy.current || !pollBudget.current.allowed()) return;
     heartbeatBusy.current = true;
     const first = !sentInfoRef.current;
     const grant = grantOf(deviceId);
@@ -107,10 +110,12 @@ export function useDriverSession(deviceId, { intervalMs = 15000 } = {}) {
         writeCache(deviceId, next);
         return next;
       });
+      pollBudget.current.succeeded();
       setError(null);
       setOffline(false);
     } catch (e) {
       if (currentDevice.current !== deviceId) return;
+      pollBudget.current.failed(e);
       if (first) sentInfoRef.current = false;
       if (isOfflineError(e) && !serverAnswered(e)) setOffline(true);
       setError(errorData(e).error || e?.message || "Session error");
@@ -123,10 +128,10 @@ export function useDriverSession(deviceId, { intervalMs = 15000 } = {}) {
   useEffect(() => {
     if (!deviceId) { setLoading(false); return; }
     heartbeat();
-    timerRef.current = setInterval(heartbeat, intervalMs);
+    timerRef.current = startTabletPoll(heartbeat, intervalMs);
     const onUp = () => heartbeat();
     window.addEventListener("online", onUp);
-    return () => { clearInterval(timerRef.current); window.removeEventListener("online", onUp); };
+    return () => { timerRef.current?.(); window.removeEventListener("online", onUp); };
   }, [heartbeat, intervalMs, deviceId]);
 
   useEffect(() => {

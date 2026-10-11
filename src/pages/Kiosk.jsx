@@ -1,3 +1,4 @@
+import { createPollBudget, startTabletPoll } from "@/lib/tabletPolling";
 import { useKeepAwake } from "@/hooks/useKeepAwake";
 import { useBlockOtherSites } from "@/lib/kioskLinkLock";
 import { saveBoardingDirectory, localCardLookup } from "@/lib/boardingDirectory";
@@ -54,6 +55,7 @@ export default function Kiosk() {
   const [pairing, setPairing] = useState(false);
   const heartbeatId = useRef(null);
   const heartbeatBusy = useRef(false);
+  const heartbeatBudget=useRef(createPollBudget());
   // New versions install themselves while the tablet is charging and nobody
   // has tapped it for a while; "Send update" in admin applies when idle.
   useTabletUpdates({ requestedAt: device?.update_requested_at, isIdle: () => idleFor(90 * 1000) });
@@ -84,7 +86,8 @@ export default function Kiosk() {
         // (and out of anyone's view or screenshot of the tablet).
         if (new URLSearchParams(window.location.search).has("code")) window.history.replaceState(null, "", window.location.pathname);
         heartbeat(res.data.device_id);
-        heartbeatId.current = setInterval(() => heartbeat(res.data.device_id), HEARTBEAT_MS);
+        heartbeatId.current?.();
+        heartbeatId.current = startTabletPoll(()=>heartbeat(res.data.device_id),HEARTBEAT_MS);
       })
       .catch((e) => {
         setStatus("error");
@@ -98,11 +101,12 @@ export default function Kiosk() {
   // Without this, a paired kiosk looked perpetually stale to admin no matter
   // how actively it was being used — it only ever checked in once, at pairing.
   const heartbeat = (id) => {
-    if (heartbeatBusy.current) return;
+    if (heartbeatBusy.current || !heartbeatBudget.current.allowed()) return;
     heartbeatBusy.current = true;
-    base44.functions
+    return base44.functions
       .invoke("kioskHeartbeat", deviceRequest(id, { ...helperHealthPayload(), ...appHealthPayload("boarding"), ...networkAckPayload() }))
       .then((rawRes) => {
+        heartbeatBudget.current.succeeded();
         // A Wi-Fi change/scan from Admin → Kiosk tablets goes to the helper app;
         // check in again soon so Admin sees the result (and the command is deleted).
         handleNetworkCommand(rawRes.data?.network_command)
@@ -115,7 +119,7 @@ export default function Kiosk() {
           forgetDeviceToken(id);
           localStorage.removeItem("tt_kiosk_device_id");
           forgetTablet();
-          if (heartbeatId.current) clearInterval(heartbeatId.current);
+          if (heartbeatId.current) heartbeatId.current();
           return;
         }
         saveDevice({ ...res.data, device_id: id });
@@ -125,6 +129,7 @@ export default function Kiosk() {
         setOnline(true);
       })
       .catch((e) => {
+        heartbeatBudget.current.failed(e);
         // No connection: keep running from the saved setup. A real "no" from
         // the server (e.g. device removed) arrives as res.data.error above,
         // or as a 4xx here. A busy server (429) or a server error still
@@ -138,7 +143,7 @@ export default function Kiosk() {
           forgetDeviceToken(id);
           localStorage.removeItem("tt_kiosk_device_id");
           forgetTablet();
-          if (heartbeatId.current) clearInterval(heartbeatId.current);
+          if (heartbeatId.current) heartbeatId.current();
         }
       })
       .finally(() => { heartbeatBusy.current = false; });
@@ -154,13 +159,14 @@ export default function Kiosk() {
 
     if (storedId) {
       heartbeat(storedId);
-      heartbeatId.current = setInterval(() => heartbeat(storedId), HEARTBEAT_MS);
-      return () => { if (heartbeatId.current) clearInterval(heartbeatId.current); };
+      heartbeatId.current?.();
+      heartbeatId.current = startTabletPoll(()=>heartbeat(storedId),HEARTBEAT_MS);
+      return () => { if (heartbeatId.current) heartbeatId.current(); };
     }
 
     pairWithCode(code);
 
-    return () => { if (heartbeatId.current) clearInterval(heartbeatId.current); };
+    return () => { if (heartbeatId.current) heartbeatId.current(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [code, storedId]);
 
@@ -191,25 +197,27 @@ export default function Kiosk() {
   useEffect(() => {
     if (!deviceId || !isBoarding) return undefined;
     let stopped = false, refreshing = false;
+    const budget=createPollBudget();
     const refresh = () => {
-      if (stopped || refreshing) return;
+      if (stopped || refreshing || !budget.allowed()) return;
       refreshing = true;
-      base44.functions.invoke("kioskCheckIn", deviceRequest(deviceId, { action: "offline_directory" }))
+      return base44.functions.invoke("kioskCheckIn", deviceRequest(deviceId, { action: "offline_directory" }))
         .then((res) => {
+          budget.succeeded();
           if (stopped || !res.data?.staff) return;
           saveBoardingDirectory(res.data, device);
           saveDirectory(res.data);
           setSavedList(directoryInfo());
           warmPhotos(res.data.staff);
         })
-        .catch(() => { /* offline - keep the list we have */ })
+        .catch(error => { budget.failed(error); /* keep the saved list */ })
         .finally(() => { refreshing = false; });
     };
     refresh();
-    const t = setInterval(refresh, DIRECTORY_MS);
+    const stopPoll = startTabletPoll(refresh,DIRECTORY_MS);
     const onUp = () => refresh();
     window.addEventListener("online", onUp);
-    return () => { stopped = true; clearInterval(t); window.removeEventListener("online", onUp); };
+    return () => { stopped = true; stopPoll(); window.removeEventListener("online", onUp); };
   }, [deviceId, isBoarding, sentAt, device?.company_id, device?.vehicle_id]);
 
   // Every kiosk action (search/lookup/check-in/register/sign-in) goes
