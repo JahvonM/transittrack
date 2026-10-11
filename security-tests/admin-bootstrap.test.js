@@ -48,3 +48,13 @@ it("boarding data keeps names and statuses but never returns card identifiers",a
  expect(result.datasets.checkIns[0]).toMatchObject({staff_name:"Actual Rider",status:"boarded"});
  expect(JSON.stringify(result)).not.toContain("PRIVATEUID");
 });
+
+it.each([429,503,401])("preserves nested SDK status %s before dataset reads",async status=>{
+ const client=mock("admin");
+ client.auth.me=async()=>{throw Object.assign(new Error("PRIVATE credential detail"),{response:{status}});};
+ const response=await load("entityAccess",client).default(request({entity:"AdminBootstrap",operation:"list",datasets:["users"]}));
+ expect(response.status).toBe(status);
+ expect(JSON.stringify(await response.json())).not.toContain("PRIVATE");
+ if(status===429)expect(response.headers.get("Retry-After")).toBe("30");
+ expect(client.writes).toEqual([]);
+});

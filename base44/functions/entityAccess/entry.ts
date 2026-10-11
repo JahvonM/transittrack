@@ -417,5 +417,13 @@ export default async function(req) {
   }
   const row=operation==='create' ? await replayCreate(db,ctx,name,data) : await db[name].update(body.id,data);
   return Response.json({result:await projectRecord(db,ctx,name,row)});
- } catch(error) { return Response.json({error:error.status ? error.message : 'Entity request failed'}, {status:error.status||500}); }
+ } catch(error) {
+  // SDK transport errors may carry their status on response rather than directly.
+  // Preserve throttling so clients back off instead of treating it as a server crash.
+  const raw=Number(error?.status ?? error?.response?.status ?? error?.originalError?.response?.status);
+  const status=Number.isInteger(raw)&&raw>=400&&raw<=599?raw:500;
+  console.error(JSON.stringify({event:'entity_request_failed',status}));
+  return Response.json({error:status===429?'Service busy. Please try again shortly.':error.status ? error.message : 'Entity request failed'},
+   {status,headers:status===429?{'Retry-After':'30'}:{}});
+ }
 }
