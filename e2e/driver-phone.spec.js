@@ -103,7 +103,7 @@ test('messages from dispatch show and the driver can reply',async({page})=>{
  await expect(page.getByText('Morning Dana, Bus 12 is fuelled and ready.')).toBeVisible();
  await page.getByLabel('Message',{exact:true}).fill('Flat tyre at True Blue, waiting for help');
  await page.getByRole('button',{name:'Send message'}).click();
- await expect(page.getByText('Flat tyre at True Blue, waiting for help')).toBeVisible();
+ await expect(page.getByRole('list',{name:'Messages'}).getByText('Flat tyre at True Blue, waiting for help')).toBeVisible();
  expect(calls.find(c=>c.action==='send')).toMatchObject({channel:'dispatch',vehicle_id:'bus-a',text:'Flat tyre at True Blue, waiting for help'});
  await shot(page,'03-messages');
 });
