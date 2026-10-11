@@ -26,6 +26,7 @@ public class MainActivity extends Activity {
                     + "Hotspot:    " + (Config.hotspot(MainActivity.this)
                             ? Status.hotspot + (Config.hotspotAlways(MainActivity.this) ? "  (always on)" : "  (while the bus runs)")
                             : "Not used") + "\n"
+                    + "Bluetooth:  " + (Config.reader(MainActivity.this) && !Config.hotspot(MainActivity.this) ? BleBoarding.status : "Not used") + "\n"
                     + "Bus Wi-Fi:  " + (Config.joinSsid(MainActivity.this).isEmpty() ? "Not used" : Status.wifi) + "\n"
                     + "Wi-Fi now:  " + (Config.hotspot(MainActivity.this) ? "-" : orDash(WifiControl.currentSsid(MainActivity.this)))
                     + (WifiControl.joinState.isEmpty() ? "" : "\nLast change: " + WifiControl.joinMessage) + "\n\n"
