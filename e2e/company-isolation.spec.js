@@ -1107,7 +1107,7 @@ test('desktop setup opens native views while Connect reader connects to the runn
  expect(await page.evaluate(()=>window.setupCalls)).toEqual([]);
  expect(await page.evaluate(()=>window.readerStreams.map(stream=>stream.url))).toEqual(['http://127.0.0.1:8765/events']);
  await page.evaluate(()=>window.readerStreams[0].onmessage({data:JSON.stringify({type:'card',uid:'04AABBCC',cardType:'MIFARE'})}));
- await expect(page.getByText(/Card detected · UID 04:AA:BB:CC/)).toBeVisible();
+ await expect(page.getByRole('button',{name:/Reader log · Card detected · UID 04:AA:BB:CC/})).toBeVisible();
  await page.goto('/admin/kiosks');
  await page.getByRole('button',{name:'Open tablet setup',exact:true}).click();
  expect(await page.evaluate(()=>window.setupCalls)).toEqual(['tablet']);
