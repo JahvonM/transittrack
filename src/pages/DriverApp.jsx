@@ -1,3 +1,5 @@
+import "./../components/driver/driverPortrait.css";
+import { DriverKioskHeader, DriverKioskMore, DriverKioskPassengers } from "@/components/driver/DriverPortraitPanels";
 import { directionView } from "@/lib/driverDirection";
 import TripDirectionControl from "@/components/driver/TripDirectionControl";
 import useFutureAppearance from "@/hooks/useFutureAppearance";
@@ -18,7 +20,7 @@ import { requestPushToken } from "@/lib/firebase";
 import { useKeepAwake } from "@/hooks/useKeepAwake";
 import { useBlockOtherSites, DRIVER_ALLOWED } from "@/lib/kioskLinkLock";
 import DriverPairing from "@/components/driver/DriverPairing";
-import DriverGreeting, { DriverTopBar } from "@/components/driver/DriverGreeting";
+import DriverGreeting from "@/components/driver/DriverGreeting";
 import PinGate from "@/components/driver/PinGate";
 import PhoneUnlock from "@/components/driver/PhoneUnlock";
 import { DriverInspectionRunner, DueInspectionsBanner, DriverInspectionList, SentInspectionPrompt, readLocalDone, markLocalDone } from "@/components/driver/DriverInspection";
@@ -31,8 +33,7 @@ import DriverDevicePanel from "@/components/driver/DriverDevicePanel";
 import DriverTrips from "@/components/DriverTrips";
 import ShiftCard from "@/components/driver/ShiftCard";
 import SafetyStandardsContent from "@/components/SafetyStandardsContent";
-import { AlertCircle, AlertTriangle, ArrowLeft, Home, LayoutGrid, ListOrdered, MessageCircle, Navigation, WifiOff, Users, ClipboardCheck, FileText, Settings } from "lucide-react";
-import DriverHome from "@/components/driver/screens/DriverHome";
+import { AlertCircle, AlertTriangle, ArrowLeft, LayoutGrid, Navigation, Users } from "lucide-react";
 import DriverStops from "@/components/driver/screens/DriverStops";
 import DriverMessages from "@/components/driver/screens/DriverMessages";
 import StaffRouteList from "@/components/driver/StaffRouteList";
@@ -49,17 +50,11 @@ import { rememberUnlockDay, forgetUnlockDay, unlockDayMarked, localDayKey } from
 // Safety and Profile now live under More (old links still work).
 const TRACKING_TABS = ["home", "track", "navigate", "stops", "chat", "more", "safety", "profile", "passengers", "inspection", "documents", "settings"];
 const DRIVER_TABS = [
-  { id: "home", label: "Home", icon: Home },
   { id: "track", label: "Drive", icon: Navigation },
-  { id: "stops", label: "Stops", icon: ListOrdered },
   { id: "passengers", label: "Passengers", icon: Users },
-  { id: "inspection", label: "Inspection", icon: ClipboardCheck },
-  { id: "chat", label: "Messages", icon: MessageCircle },
-  { id: "documents", label: "Documents", icon: FileText },
-  { id: "settings", label: "Settings", icon: Settings },
   { id: "more", label: "More", icon: LayoutGrid },
 ];
-const tabFromStage = (st) => (st === "navigate" ? "track" : st === "safety" || st === "profile" ? "more" : TRACKING_TABS.includes(st) ? st : null);
+const tabFromStage = (st) => (st === "navigate" || st === "home" ? "track" : st === "profile" ? "settings" : [...TRACKING_TABS,"trips","help"].includes(st) ? st : null);
 
 export default function DriverApp() {
   useFutureAppearance();
@@ -261,7 +256,7 @@ export default function DriverApp() {
   // "/driver" root.
   const goBack = () => {
     if (stage === "inspection") { navigate("/driver"); return; }
-    if (activeTab !== "home" && activeTab !== "track") { setActiveTab("home"); goStage("home"); return; }
+    if (activeTab !== "track") { setActiveTab("track"); goStage("track"); return; }
     navigate("/driver");
   };
 
@@ -449,32 +444,18 @@ export default function DriverApp() {
   };
 
   return (
-    <div className="tt-driver-shell tt-driver-reference h-[100dvh] flex flex-col overflow-hidden bg-background safe-area-top safe-area-x">
-      <CompanyBanner name={session.company_name || vehicle.company_name} logoUrl={session.company_logo_url} compact className="shrink-0 mx-3 mt-2" />
-      <DriverTopBar
-        driverName={driverName}
-        busName={vehicle.name}
-        left={activeTab !== "track" && activeTab !== "home" ? (
-          <Button variant="ghost" size="icon" className="min-w-[44px] min-h-[44px] -ml-1" onClick={goBack} aria-label="Back to Home">
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-        ) : null}
-        right={offline && activeTab !== "track" ? (
-          <span role="status" className="flex items-center gap-1.5 rounded-full border border-warning/40 bg-warning/12 text-warning px-3 py-1 text-body-sm font-semibold shrink-0">
-            <WifiOff className="w-4 h-4" aria-hidden="true" /> Offline
-          </span>
-        ) : null}
-      />
-
-      <div className="shrink-0 mx-3 mb-2"><TripDirectionControl bus={session.vehicle} workplace={session.workplace} onChange={changeDirection} disabled={offline} /></div>
+    <div className="tt-driver-shell tt-driver-reference tt-driver-portrait h-[100dvh] flex flex-col overflow-hidden bg-background safe-area-top safe-area-x">
+      <DriverKioskHeader session={session} offline={offline} unread={hasUnreadChat} onMessages={()=>selectTab("chat")}/>
       <main className="flex-1 min-h-0 relative">
         {/* Drive stays mounted so GPS tracking keeps running while another tab is open. */}
-        <section className={`absolute inset-0 p-3 lg:p-4 ${activeTab === "track" ? "" : "invisible pointer-events-none"}`} aria-hidden={activeTab !== "track"}>
+        <section className={`absolute inset-0 ${activeTab === "track" ? "" : "invisible pointer-events-none"}`} aria-hidden={activeTab !== "track"}>
           <DriverTrackingDashboard
             session={session}
             invoke={invoke}
             onReportIncident={() => setIsReportOpen(true)}
             shiftActive={shiftOpen}
+            directionControl={<TripDirectionControl bus={session.vehicle} workplace={session.workplace} onChange={changeDirection} disabled={offline}/>}
+            onOpenStops={()=>selectTab("stops")}
             onOpenPassengers={() => selectTab("passengers")}
             onOpenMessages={() => selectTab("chat")}
             onOpenDocuments={() => selectTab("documents")}
@@ -496,22 +477,8 @@ export default function DriverApp() {
           />
         </section>
         {activeTab !== "track" && (
-          <section className="absolute inset-0 overflow-y-auto overscroll-contain p-4 sm:p-6">
-            {activeTab === "home" && (
-              <DriverHome
-                session={session}
-                offline={offline}
-                shiftOpen={shiftOpen}
-                shiftControl={<ShiftCard variant="deck" session={session} invoke={invoke} refresh={refresh} onChange={setShiftOpen} beforeStart={() => beforeShift("start_shift")} beforeEnd={() => beforeShift("end_shift")} />}
-                dueInspections={dueInspections}
-                onStartInspection={(t) => openInspection(t, { from: "unlock" })}
-                onOpenDrive={() => selectTab("track")}
-                onOpenStops={() => selectTab("stops")}
-                trips={session.trips?.length > 0 ? (
-                  <DriverTrips compact trips={session.trips} invoke={invoke} refresh={refresh} startSharing={() => invoke("start_tracking").catch(() => {})} />
-                ) : null}
-              />
-            )}
+          <section className="absolute inset-0 overflow-y-auto overscroll-contain">
+            {activeTab!=="more" && activeTab!=="passengers" && <div className="dk-content"><Button variant="outline" className="dk-back self-start" onClick={()=>selectTab("more")}><ArrowLeft/>Back to More</Button></div>}
             {activeTab === "stops" && (
               <DriverStops
                 session={session}
@@ -528,37 +495,22 @@ export default function DriverApp() {
                 chats={<DriverChats session={session} invoke={invoke} onUnreadChange={setHasUnreadChat} />}
               />
             )}
-            {activeTab === "passengers" && <div className="mx-auto max-w-3xl space-y-4"><h1 className="text-title font-bold">Passenger list</h1><StaffRouteList staff={session.staff || []} vehicle={session.vehicle} nearbyStaff={[]} onAttend={() => {}} /></div>}
+            {activeTab === "passengers" && <DriverKioskPassengers session={session}/>}
             {activeTab === "inspection" && <div className="mx-auto max-w-3xl space-y-4"><h1 className="text-title font-bold">Inspection</h1><DriverInspectionList templates={inspTemplates} recent={recentInspections} localDone={localDone} onStart={(t) => openInspection(t, { from: "manual" })} /><SafetyStandardsContent /></div>}
             {activeTab === "documents" && <div className="mx-auto max-w-3xl space-y-4"><h1 className="text-title font-bold">Licence & insurance</h1><DriverDocumentsViewer invoke={invoke} busName={vehicle?.name} /></div>}
             {activeTab === "settings" && <div className="mx-auto max-w-3xl space-y-4"><h1 className="text-title font-bold">Tablet settings</h1><DriverDevicePanel session={session} deviceId={deviceId} onUnpair={handleUnpair} /><ReportAppProblemButton where="driver tablet" className="w-full justify-start" /></div>}
-            {activeTab === "more" && (
-              <div className="mx-auto max-w-3xl space-y-6">
-                <h1 className="text-title font-bold">More</h1>
-                <Button variant="outline" size="lg" className="w-full justify-start" onClick={() => setIsReportOpen(true)}>
-                  <AlertTriangle className="h-5 w-5 text-danger" aria-hidden="true" /> Report an incident
-                </Button>
-                <section aria-label="Safety" className="space-y-4">
-                  <DriverInspectionList
-                    templates={inspTemplates}
-                    recent={recentInspections}
-                    localDone={localDone}
-                    onStart={(t) => openInspection(t, { from: "manual" })}
-                  />
-                  <SafetyStandardsContent />
-                </section>
-                <DriverDevicePanel session={session} deviceId={deviceId} onUnpair={handleUnpair} />
-                <DriverDocumentsViewer invoke={invoke} busName={vehicle?.name} />
-                <ReportAppProblemButton where="driver tablet" className="w-full justify-start" />
-              </div>
-            )}
+            {activeTab === "trips" && <div className="dk-content"><h1>Trip history</h1>{session.trips?.length?<DriverTrips trips={session.trips} invoke={invoke} refresh={refresh} startSharing={()=>invoke("start_tracking").catch(()=>{})}/>:<p>No booked trips for this tablet.</p>}<h2>Shift</h2><ShiftCard session={session} invoke={invoke} refresh={refresh} beforeStart={()=>beforeShift("start_shift")} beforeEnd={()=>beforeShift("end_shift")}/><DriverKioskPassengers session={session}/></div>}
+            {activeTab === "safety" && <div className="dk-content"><h1>Safety standards</h1><SafetyStandardsContent/></div>}
+            {activeTab === "help" && <div className="dk-content"><h1>Help & support</h1><p className="dk-muted">Contact your transport team through Messages, or report an app problem below.</p><Button onClick={()=>selectTab("chat")}>Message your bus team</Button><ReportAppProblemButton where="driver tablet" className="w-full justify-start"/></div>}
+            {activeTab === "more" && <DriverKioskMore session={session} selectTab={selectTab} onReport={()=>setIsReportOpen(true)} unread={hasUnreadChat} onHelp={()=>selectTab("help")}/>}
+
           </section>
         )}
       </main>
 
       <nav className="shrink-0 grid grid-cols-5 border-t border-border bg-background/95 backdrop-blur safe-area-bottom" aria-label="Driver sections">
         {DRIVER_TABS.map(({ id, label, icon: Icon }) => {
-          const active = activeTab === id;
+          const active = id==="more" ? !["track","passengers"].includes(activeTab) : activeTab === id;
           return (
             <button
               key={id}
@@ -570,7 +522,7 @@ export default function DriverApp() {
               {active && <span className="absolute top-0 left-1/2 -translate-x-1/2 h-[3px] w-12 rounded-b-full bg-primary" aria-hidden="true" />}
               <Icon className="w-6 h-6" strokeWidth={active ? 2.2 : 1.8} aria-hidden="true" />
               {label}
-              {id === "chat" && hasUnreadChat && <span className="absolute top-2.5 left-1/2 ml-2.5 w-2.5 h-2.5 rounded-full bg-danger" aria-label="Unread messages" />}
+              {id === "more" && hasUnreadChat && <span className="absolute top-2.5 left-1/2 ml-2.5 w-2.5 h-2.5 rounded-full bg-danger" aria-label="Unread messages" />}
             </button>
           );
         })}
