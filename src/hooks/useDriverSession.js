@@ -44,6 +44,15 @@ export function patchDriverSession(patch) {
 
 const hasQueuedShift = () => pendingJobs().some((j) => j.kind === "driver_shift");
 
+// The passenger list, road stops, inspection forms and company details rarely
+// change, so they come with a full check-in once a minute (and straight after
+// an unlock or lock); the check-ins in between ask only for what changes
+// quickly. Asking for everything every time went over Base44's request limit.
+const FULL_EVERY_MS = 60_000;
+const grantOf = (deviceId) => { try { return localStorage.getItem("tt_driver_grant_" + deviceId) || ""; } catch { return ""; } };
+// A busy server (429) or a server error still answered: that isn't "offline".
+const serverAnswered = (e) => { const status = httpStatus(e); return status === 429 || status >= 500; };
+
 export function useDriverSession(deviceId, { intervalMs = 15000 } = {}) {
   const [session, setSession] = useState(() => (deviceId ? readCache(deviceId) : null));
   const [loading, setLoading] = useState(() => !!deviceId && !session);
@@ -55,6 +64,8 @@ export function useDriverSession(deviceId, { intervalMs = 15000 } = {}) {
   currentDevice.current = deviceId;
   // The first heartbeat also reports how this tablet draws maps.
   const sentInfoRef = useRef(false);
+  const lastFull = useRef({ at: 0, grant: null });
+  const forceFull = useRef(true);
 
   // A different tablet id (re-pair) starts from that tablet's own cache.
   useEffect(() => {
@@ -62,16 +73,20 @@ export function useDriverSession(deviceId, { intervalMs = 15000 } = {}) {
     setSession(cached);
     setLoading(!!deviceId && !cached);
     sentInfoRef.current = false;
+    forceFull.current = true;
   }, [deviceId]);
 
   const heartbeat = useCallback(async () => {
     if (!deviceId || heartbeatBusy.current) return;
     heartbeatBusy.current = true;
     const first = !sentInfoRef.current;
+    const grant = grantOf(deviceId);
+    const full = first || forceFull.current || grant !== lastFull.current.grant || Date.now() - lastFull.current.at >= FULL_EVERY_MS;
     try {
       sentInfoRef.current = true;
       const res = await base44.functions.invoke("driverSession", deviceRequest(deviceId, {
         action: "heartbeat",
+        ...(full ? {} : { light: true }),
         ...(first ? { device_info: deviceMapInfo() } : {}),
         ...helperHealthPayload(),
         ...appHealthPayload("driver"),
@@ -80,8 +95,13 @@ export function useDriverSession(deviceId, { intervalMs = 15000 } = {}) {
       if (currentDevice.current !== deviceId) return;
       // The hotspot switch from Admin → Kiosk tablets goes to the helper app.
       handleNetworkCommand(res.data?.network_command).catch(() => {});
-      const data = withoutNetworkCommand(res.data);
+      const reply = withoutNetworkCommand(res.data);
+      const light = reply?.light === true;
+      if (light) delete reply.light;
+      if (full) { lastFull.current = { at: Date.now(), grant }; forceFull.current = false; }
       setSession((prev) => {
+        // A light check-in leaves out the slow-changing parts: keep ours.
+        const data = light && prev ? { ...prev, ...reply } : reply;
         // A shift started/ended offline wins until it has been uploaded.
         const next = cleanTabletSession(hasQueuedShift() && prev ? { ...data, open_shift: prev.open_shift } : data);
         writeCache(deviceId, next);
@@ -92,7 +112,7 @@ export function useDriverSession(deviceId, { intervalMs = 15000 } = {}) {
     } catch (e) {
       if (currentDevice.current !== deviceId) return;
       if (first) sentInfoRef.current = false;
-      if (isOfflineError(e)) setOffline(true);
+      if (isOfflineError(e) && !serverAnswered(e)) setOffline(true);
       setError(errorData(e).error || e?.message || "Session error");
     } finally {
       heartbeatBusy.current = false;
@@ -136,5 +156,8 @@ export function useDriverSession(deviceId, { intervalMs = 15000 } = {}) {
     }
   }, [deviceId]);
 
-  return { session, loading, error, offline, refresh: heartbeat, invoke };
+  // Asked for on purpose (after an unlock, "Try again"): everything, now.
+  const refresh = useCallback(() => { forceFull.current = true; return heartbeat(); }, [heartbeat]);
+
+  return { session, loading, error, offline, refresh, invoke };
 }

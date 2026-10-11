@@ -805,15 +805,21 @@ export default async function(req) {
         // Passengers' names, contact details and pickup points only reach a
         // tablet the driver has unlocked with the bus PIN (or the phone app).
         const unlocked = await validGrant(base44, device, body.driver_grant, 'driver', vehicleId);
+        // A light check-in: the tablet already has the parts that rarely
+        // change (passenger list, road stops, inspection forms, company
+        // details) from a full check-in in the last minute, so only what
+        // changes quickly is read. Every tablet checking in every few seconds
+        // with the full set went over the platform's request limit.
+        const light = body.light === true;
         const [staff, broadcasts, checkIns, groupMessages, vehicleTrips, openShifts, allTemplates, recentInspections] = await Promise.all([
-          unlocked ? loadStaff(base44, companyId, vehicleId) : [],
+          unlocked && !light ? loadStaff(base44, companyId, vehicleId) : [],
           base44.asServiceRole.entities.Broadcast.filter({}, '-created_date', 20),
           tabletCheckIns(base44, companyId, vehicleId),
           base44.asServiceRole.entities.GroupMessage.filter({ vehicle_id: vehicleId }, '-created_date', 200),
           base44.asServiceRole.entities.Trip.filter({ vehicle_id: vehicleId }, 'scheduled_time', 100).catch(() => []),
           base44.asServiceRole.entities.DriverShift.filter({ vehicle_id: vehicleId }, '-started_at', 3).catch(() => []),
-          base44.asServiceRole.entities.InspectionTemplate.list().catch(() => []),
-          base44.asServiceRole.entities.Inspection.filter({ vehicle_id: vehicleId }, '-created_date', 30).catch(() => []),
+          light ? [] : base44.asServiceRole.entities.InspectionTemplate.list().catch(() => []),
+          light ? [] : base44.asServiceRole.entities.Inspection.filter({ vehicle_id: vehicleId }, '-created_date', 30).catch(() => []),
         ]);
         const trips = vehicleTrips.filter((t) => ['scheduled', 'on_the_way', 'arrived'].includes(t.status));
         const driverEmail = vehicle.driver_email || '';
@@ -824,7 +830,7 @@ export default async function(req) {
           return targeted || broadcast;
         });
         let route = null;
-        if (vehicle.route_id) {
+        if (vehicle.route_id && !light) {
           try { route = await base44.asServiceRole.entities.Route.get(vehicle.route_id); }
           catch { /* route may be missing */ }
         }
@@ -834,19 +840,20 @@ export default async function(req) {
           ? tabletRoadStops(await busRoadStops(base44.asServiceRole.entities, route, vehicleId).catch(() => null))
           : null;
         // Where every pickup passenger is dropped off: the company's workplace.
-        const workplaceRow = (await base44.asServiceRole.entities.Workplace.filter({ company_id: companyId }, '-updated_date', 5).catch(() => []))
+        const workplaceRow = light ? null : (await base44.asServiceRole.entities.Workplace.filter({ company_id: companyId }, '-updated_date', 5).catch(() => []))
           .find((w) => w.company_id === companyId && Number.isFinite(Number(w.lat)) && Number.isFinite(Number(w.lng)));
         const workplace = workplaceRow ? { name: workplaceRow.name || 'Workplace', lat: Number(workplaceRow.lat), lng: Number(workplaceRow.lng) } : null;
         let emergencyContacts = { boss_phone: '', secretary_phone: '' };
         let companyLogoUrl = '', companyDisplayName = companyName;
-        try {
+        if (!light) try {
           const company = await base44.asServiceRole.entities.Company.get(companyId);
           emergencyContacts = { boss_phone: company?.boss_phone || '', secretary_phone: company?.secretary_phone || '' };
           companyLogoUrl = company?.logo_url || '';
           companyDisplayName = company?.name || companyName;
         } catch { /* optional company display and contacts */ }
-        return Response.json({
-          vehicle: tabletVehicle(vehicle), driver_name: vehicle.driver_name || '', has_driver_pin: !!vehicle.driver_pin || !!(await base44.asServiceRole.entities.DriverPinCredential.filter({ vehicle_id: vehicleId }, '-updated_date', 1))[0]?.enabled,
+        const hasDriverPin = light ? null : !!vehicle.driver_pin || !!(await base44.asServiceRole.entities.DriverPinCredential.filter({ vehicle_id: vehicleId }, '-updated_date', 1))[0]?.enabled;
+        const reply = {
+          vehicle: tabletVehicle(vehicle), driver_name: vehicle.driver_name || '', has_driver_pin: hasDriverPin,
           company_id: companyId, company_name: companyDisplayName, company_logo_url: companyLogoUrl, staff, route: tabletRoute(route, companyId), road_stops: roadStops, workplace, emergency_contacts: emergencyContacts, ...boardingStats(checkIns),
           broadcasts: relevantBroadcasts, check_ins: checkIns.slice(0, 20).filter((c) => c.status === 'boarded').map(tabletCheckIn),
           group_messages: unlocked ? [...groupMessages].reverse() : [], trips: unlocked ? trips : [],
@@ -858,7 +865,15 @@ export default async function(req) {
           })),
           update_requested_at: device.update_requested_at || null,
           network_command: network?.command || null,
-        });
+        };
+        if (light) {
+          // Left out, so the tablet keeps what the last full check-in sent. A
+          // locked tablet still gets an empty passenger list and no stops.
+          for (const key of ['has_driver_pin', 'company_name', 'company_logo_url', 'route', 'workplace', 'emergency_contacts', 'inspection_templates', 'recent_inspections']) delete reply[key];
+          if (unlocked) { delete reply.staff; delete reply.road_stops; }
+          reply.light = true;
+        }
+        return Response.json(reply);
       }
 
       case 'set_direction': {

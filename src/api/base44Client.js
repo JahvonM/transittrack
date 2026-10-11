@@ -3,7 +3,6 @@ import { appParams } from '@/lib/app-params';
 import { scopedEntities, withRateLimitRetry } from '@/lib/scopedEntities';
 import { withAuditLog } from '@/lib/auditLog';
 import { addBreadcrumb } from '@/lib/breadcrumbs';
-import { createFunctionTransport } from '@/lib/functionTransport';
 
 const { appId, token, functionsVersion, appBaseUrl } = appParams;
 
@@ -18,7 +17,12 @@ export const base44 = createClient({
 // A failed server call is remembered for the next error report (Admin → App
 // errors shows it in "what happened before"). Only the function name and the
 // reply's status and message are kept, never what was sent.
-const originalInvoke = createFunctionTransport(base44.functions.invoke.bind(base44.functions));
+// createFunctionTransport (one shared queue, two calls at a time, a pause
+// after any "busy" answer) is switched off for now: with it the passenger
+// pickup screen kept re-rendering and couldn't be used, and a single busy
+// answer froze every screen. The tablets' load is cut at the source instead
+// (light driver check-ins).
+const originalInvoke = base44.functions.invoke.bind(base44.functions);
 base44.functions.invoke = async (name, ...rest) => {
   try {
     return await originalInvoke(name, ...rest);

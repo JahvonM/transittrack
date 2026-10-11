@@ -127,8 +127,11 @@ export default function Kiosk() {
       .catch((e) => {
         // No connection: keep running from the saved setup. A real "no" from
         // the server (e.g. device removed) arrives as res.data.error above,
-        // or as a 4xx here.
-        if (isNetworkFailure(e)) { setOnline(false); return; }
+        // or as a 4xx here. A busy server (429) or a server error still
+        // answered, so the tablet stays online and checks in again next time
+        // instead of flashing "Offline".
+        if (!e?.response) { setOnline(false); return; }
+        if (isNetworkFailure(e)) return;
         if (e?.response?.status === 404 || e?.response?.status === 401) {
           setStatus("error");
           setError("This device is no longer paired. Ask your administrator for a new pairing link.");
@@ -230,7 +233,9 @@ export default function Kiosk() {
       // "Too many attempts" (429) is the server answering, not a lost
       // connection: show it as it is rather than falling back offline.
       if (isNetworkFailure(e) && httpStatus(e) !== 429 && (action === "lookup_tag" || action === "lookup_code")) {
-        setOnline(false);
+        // Only a request with no answer means the connection is gone; a
+        // server error still uses the saved list but keeps the tablet online.
+        if (!e?.response) setOnline(false);
         const local = offlineLookup(action, payload);
         if (local) return local;
       }
