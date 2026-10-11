@@ -36,6 +36,7 @@ import org.json.JSONObject;
  *  - boarding tablets (1.12): the same from their screen, behind the bus PIN;
  *    Wi-Fi switched off there comes back on by itself after 30 minutes
  *  - boarding tablets (1.13): backup boarding over Bluetooth (BleBoarding)
+ *  - 1.14: a SIM in the second slot of a two-slot tablet counts as a SIM
  */
 public class HelperService extends Service {
     static final String VERSION = "1.14";
