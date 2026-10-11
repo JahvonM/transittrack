@@ -83,6 +83,10 @@
         "hotspot": {
           "type": "string"
         },
+        "ble": {
+          "description": "Boarding tablets (Helper 1.13+): backup boarding over Bluetooth, e.g. \"Ready as Bus 12\" or why it isn't available.",
+          "type": "string"
+        },
         "hotspot_always": {
           "description": "Driver tablets (Helper 1.9+): Admin set the hotspot to stay on all the time.",
           "type": "boolean"

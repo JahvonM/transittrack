@@ -41,7 +41,8 @@
         "nfc",
         "qr",
         "manual",
-        "code"
+        "code",
+        "bluetooth"
       ],
       "default": "manual"
     },
