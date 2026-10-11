@@ -37,7 +37,8 @@ builds with an owner-controlled certificate before release.
 - Existing-tablet mode preserves the start URL, pairing and reader/GPS settings. Installs use adb install -r. No reset, uninstall or data-clear command is provided.
 - New-tablet mode requires no accounts/device owner. Check pairing and driver hotspot settings on the tablet. Failed operations report partial completion.
 - The NFC helper runs hidden while the desktop app is open and uses the existing Windows Smart Card integration on local port 8765. Use a supported reader and drivers. Card issuing still uses Admin → Card issuing → Connect reader.
-- Windows policies may block PowerShell/Add-Type; the panel reports failure and does not change policy.
+- Version 0.2.6 runs a bundled compiled NFC helper. Installed builds no longer invoke PowerShell/Add-Type. Development mode retains the script. Startup allows 30 seconds and reports helper startup errors; no Windows security policy is changed.
+- Build the Windows installer on Windows: build:win compiles the helper from tools/card-reader/TTCardReader.cs before packaging. Website publishing alone cannot update this installed helper.
 - Actual Windows installation, tablet setup and NFC hardware tests remain required.
 - Electron web push delivery is not guaranteed; the app does not add a native push service.
 - No signing credentials, backend secrets, device credentials or database keys are packaged.
