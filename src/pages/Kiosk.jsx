@@ -15,6 +15,7 @@ import FrontDeskKiosk from "@/components/kiosk/FrontDeskKiosk";
 import KioskConnectionBadge from "@/components/kiosk/KioskConnectionBadge";
 import { saveDevice, loadDevice, forgetTablet, saveDirectory, directoryInfo, warmPhotos, offlineLookup, noteStatus } from "@/lib/kioskOffline";
 import { isNetworkFailure } from "@/lib/offlineQueue";
+import { httpStatus } from "@/lib/requestError";
 import { helperHealthPayload } from "@/lib/helperHealth";
 import { appHealthPayload, noteGpsFix } from "@/lib/appHealth";
 import { idleFor, useTabletUpdates } from "@/lib/tabletUpdate";
@@ -52,6 +53,7 @@ export default function Kiosk() {
   const [manualCode, setManualCode] = useState("");
   const [pairing, setPairing] = useState(false);
   const heartbeatId = useRef(null);
+  const heartbeatBusy = useRef(false);
   // New versions install themselves while the tablet is charging and nobody
   // has tapped it for a while; "Send update" in admin applies when idle.
   useTabletUpdates({ requestedAt: device?.update_requested_at, isIdle: () => idleFor(90 * 1000) });
@@ -96,6 +98,8 @@ export default function Kiosk() {
   // Without this, a paired kiosk looked perpetually stale to admin no matter
   // how actively it was being used — it only ever checked in once, at pairing.
   const heartbeat = (id) => {
+    if (heartbeatBusy.current) return;
+    heartbeatBusy.current = true;
     base44.functions
       .invoke("kioskHeartbeat", deviceRequest(id, { ...helperHealthPayload(), ...appHealthPayload("boarding"), ...networkAckPayload() }))
       .then((rawRes) => {
@@ -133,7 +137,8 @@ export default function Kiosk() {
           forgetTablet();
           if (heartbeatId.current) clearInterval(heartbeatId.current);
         }
-      });
+      })
+      .finally(() => { heartbeatBusy.current = false; });
   };
 
   useEffect(() => {
@@ -182,8 +187,10 @@ export default function Kiosk() {
   const sentAt = device?.directory_sent_at || null;
   useEffect(() => {
     if (!deviceId || !isBoarding) return undefined;
-    let stopped = false;
+    let stopped = false, refreshing = false;
     const refresh = () => {
+      if (stopped || refreshing) return;
+      refreshing = true;
       base44.functions.invoke("kioskCheckIn", deviceRequest(deviceId, { action: "offline_directory" }))
         .then((res) => {
           if (stopped || !res.data?.staff) return;
@@ -192,7 +199,8 @@ export default function Kiosk() {
           setSavedList(directoryInfo());
           warmPhotos(res.data.staff);
         })
-        .catch(() => { /* offline - keep the list we have */ });
+        .catch(() => { /* offline - keep the list we have */ })
+        .finally(() => { refreshing = false; });
     };
     refresh();
     const t = setInterval(refresh, DIRECTORY_MS);
@@ -221,7 +229,7 @@ export default function Kiosk() {
     } catch (e) {
       // "Too many attempts" (429) is the server answering, not a lost
       // connection: show it as it is rather than falling back offline.
-      if (isNetworkFailure(e) && e?.response?.status !== 429 && (action === "lookup_tag" || action === "lookup_code")) {
+      if (isNetworkFailure(e) && httpStatus(e) !== 429 && (action === "lookup_tag" || action === "lookup_code")) {
         setOnline(false);
         const local = offlineLookup(action, payload);
         if (local) return local;
