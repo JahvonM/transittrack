@@ -74,3 +74,23 @@ test('passenger directory opens while fleet loading is unavailable',async({page}
  expect(directoryReads).toBe(1);
  await expect(page.getByText("Server couldn't load admin data",{exact:true})).toHaveCount(0);
 });
+
+test('activity updates use supplied rows without reloading all activity lists',async({page})=>{
+ await session(page,'admin');let version=1;const reads=[];
+ await page.route('**/functions/entityAccess',withAdminBatch(route=>{
+  const b=route.request().postDataJSON();reads.push(b);
+  if(b.entity==='User'&&b.id==='me')return route.fulfill({json:{result:{id:'caller',role:'admin',full_name:'Test Admin'}}});
+  let result=[];
+  if(b.entity==='Vehicle')result=[vehicles[0]];
+  if(b.entity==='Fault')result=[{id:'fault',title:`Fault version ${version}`,created_date:'2026-10-11T23:00:00Z',company_id:'a'}];
+  return route.fulfill({json:{result}});
+ }));
+ await page.goto('/admin');
+ await expect(page.getByText('Fault version 1',{exact:true})).toBeVisible({timeout:15000});
+ await page.waitForTimeout(3500);
+ await page.clock.install();version=2;
+ await page.clock.runFor(25000);
+ await expect(page.getByText('Fault version 2',{exact:true})).toBeVisible({timeout:10000});
+ expect(reads.filter(b=>b.entity==='Fault'&&b.limit===20)).toHaveLength(1);
+ expect(reads.filter(b=>b.entity==='Incident'&&b.limit===20)).toHaveLength(1);
+});
