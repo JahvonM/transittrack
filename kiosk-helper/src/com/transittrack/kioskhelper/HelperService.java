@@ -27,15 +27,17 @@ import org.json.JSONObject;
  *  - parked mode: 2 min after power is lost, pause GPS; keep scanning for the card reader
  *  - page refresh when the bus starts after a long park (or at 3 AM if never unplugged)
  *  - health report to the page every minute (battery, reader, GPS, last card)
- *  - driver tablets: Wi-Fi hotspot on while the bus runs, off when parked
- *    (or on all the time when Admin switches "Always on")
+ *  - driver tablets: Wi-Fi hotspot on while the bus runs and no Wi-Fi is around,
+ *    off when parked (or on all the time when Admin switches "Always on")
  *  - boarding tablets: join the bus hotspot automatically; scan for / switch to
  *    another Wi-Fi network when Admin asks
  */
 public class HelperService extends Service {
-    static final String VERSION = "1.9";
+    static final String VERSION = "1.10";
     /** "Always on" hotspot pauses below this on battery so the tablet can't run flat (it can't power itself back on). */
     private static final int HOTSPOT_MIN_BATTERY = 20;
+    /** Normal hotspot: how long without Wi-Fi first (Wi-Fi can take a minute to reconnect). */
+    private static final long HOTSPOT_AFTER_NO_WIFI_MS = 2 * 60 * 1000;
     static volatile boolean plugged = true;
     static volatile boolean parked = false;
 
@@ -264,12 +266,21 @@ public class HelperService extends Service {
     private long lastHotspotTry = 0;
     private String lastHotspotResult = "";
     private boolean hotspotPausedForBattery = false;
+    /** Last time this tablet was on a working Wi-Fi network (start counts, so a fresh start waits for Wi-Fi). */
+    private long lastOnWifiAt = System.currentTimeMillis();
+    private String hotspotWaitLogged = "";
 
     /**
      * Driver tablets: whether the hotspot should be on right now.
      *  - Always on (from Admin): on all the time, parked too; paused only below
      *    HOTSPOT_MIN_BATTERY while unplugged, back on when charging.
-     *  - Normal: on while the bus runs, off once parked.
+     *  - Normal: on while the bus runs and the tablet has had no Wi-Fi for 2
+     *    minutes; off once parked. Near a working Wi-Fi network (depot, home)
+     *    the tablet stays on it: starting the hotspot switches this tablet's own
+     *    Wi-Fi off, and Android switches an unused hotspot off again after a few
+     *    minutes, so the Wi-Fi kept dropping and coming back. Once on, the
+     *    hotspot stays on (the tablet can't see Wi-Fi while it is on). No SIM:
+     *    nothing to share, so no hotspot.
      */
     private void applyHotspot() {
         if (!Config.hotspot(this)) return;
@@ -283,8 +294,49 @@ public class HelperService extends Service {
             keepHotspot(!low);
         } else if (parked) {
             keepHotspot(false);
+        } else if (!hasSim()) {
+            noteHotspotWait("Off (no SIM card)");
+            keepHotspot(false);
         } else if (plugged) {
-            keepHotspot(true);
+            long now = System.currentTimeMillis();
+            if (Hotspot.isOn(this)) {
+                keepHotspot(true);
+            } else if (onWifi()) {
+                lastOnWifiAt = now;
+                String ssid = WifiControl.currentSsid(this);
+                noteHotspotWait(ssid.isEmpty() ? "Off (on Wi-Fi)" : "Off (on Wi-Fi " + ssid + ")");
+            } else if (now - lastOnWifiAt < HOTSPOT_AFTER_NO_WIFI_MS) {
+                noteHotspotWait("Off (waiting for Wi-Fi)");
+            } else {
+                hotspotWaitLogged = "";
+                keepHotspot(true);
+            }
+        }
+    }
+
+    private void noteHotspotWait(String status) {
+        Status.hotspot = status;
+        if (!status.equals(hotspotWaitLogged)) Status.log("Hotspot " + status.toLowerCase());
+        hotspotWaitLogged = status;
+    }
+
+    private boolean onWifi() {
+        try {
+            android.net.ConnectivityManager cm = (android.net.ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+            android.net.NetworkInfo ni = cm.getActiveNetworkInfo();
+            return ni != null && ni.isConnected() && ni.getType() == android.net.ConnectivityManager.TYPE_WIFI;
+        } catch (RuntimeException e) {
+            return false;
+        }
+    }
+
+    /** Only a missing SIM counts: a SIM still starting up (or an eSIM) may share data in a moment. */
+    private boolean hasSim() {
+        try {
+            android.telephony.TelephonyManager tm = (android.telephony.TelephonyManager) getSystemService(Context.TELEPHONY_SERVICE);
+            return tm == null || tm.getSimState() != android.telephony.TelephonyManager.SIM_STATE_ABSENT;
+        } catch (RuntimeException e) {
+            return true;
         }
     }
 
