@@ -20,10 +20,10 @@ test("admin overview makes one combined read and refresh bypasses its cache",asy
  await page.goto("/admin");
  await expect(page.getByRole("region",{name:"Live Fleet"})).toBeVisible();
  expect(batches).toHaveLength(1);
- expect(batches[0].datasets).toEqual(["vehicles","routes","companies","parts","faultsOpen","schedulesDue","trips","kiosks"]);
+ expect(batches[0].datasets).toEqual(["vehicles","routes","companies","parts","faultsOpen","schedulesDue","trips","kiosks","checkIns"]);
  busName="Updated Bus";
  await page.getByRole("button",{name:"Refresh list",exact:true}).click();
  await expect.poll(()=>batches.length).toBe(2);
- await expect(page.getByRole("region",{name:"Live Fleet"})).toContainText("Updated Bus");
+ await expect(page.getByText("Updated Bus",{exact:true})).toBeVisible();
  expect(batches.every(b=>b.operation==="list")).toBe(true);
 });

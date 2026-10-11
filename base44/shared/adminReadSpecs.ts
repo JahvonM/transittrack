@@ -1,5 +1,6 @@
 // Fixed server-owned queries. No client entity names, filters or credentials.
 export const ADMIN_READ_SPECS = {
+ checkIns:{entity:"StaffCheckIn",query:{},sort:"-created_date",limit:500},
  kiosks:{entity:"KioskDevice",query:{},sort:"-created_date",limit:1000},
  vehicles:{entity:"Vehicle",query:{},sort:"-created_date",limit:1000},
  companies:{entity:"Company",query:{},sort:"-created_date",limit:1000},

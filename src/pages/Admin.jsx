@@ -204,6 +204,20 @@ export default function Admin() {
     ensure(sectionKeys);
   }, [sectionKeys, ensure]);
 
+  useEffect(()=>{
+    if(section!=="overview")return undefined;
+    return base44.entities.StaffCheckIn.subscribe(event=>{
+      setData(prev=>{
+        const rows=prev.checkIns || [];
+        if(event.type==="delete")return {...prev,checkIns:rows.filter(r=>r.id!==event.id)};
+        if(!event.data)return prev;
+        const next=[event.data,...rows.filter(r=>r.id!==event.id)]
+          .sort((a,b)=>Date.parse(b.created_date||b.boarded_at||0)-Date.parse(a.created_date||a.boarded_at||0)).slice(0,500);
+        return {...prev,checkIns:next};
+      });
+    });
+  },[section]);
+
   // A tab that saved something re-reads its own section, not the whole console.
   // Whatever another section had cached may now be out of date, so it re-reads
   // the next time it is opened instead of showing a stale number.
@@ -426,6 +440,8 @@ export default function Admin() {
             vehicles={vehicles}
             kiosks={kiosks}
             kiosksReady={!!settled.kiosks}
+            checkIns={data.checkIns || []}
+            checkInsReady={!!settled.checkIns}
             routes={routes}
             trips={trips}
             faults={faultsOpen}
