@@ -476,6 +476,15 @@ export default async function (req) {
         return Response.json({ error: 'Unknown action' }, { status: 400 });
     }
   } catch (e) {
+    const status = e?.status ?? e?.response?.status ?? e?.originalError?.response?.status;
+    if (status === 429) {
+      const upstream = e?.originalError?.response?.headers ?? e?.response?.headers;
+      const retryAfter = upstream?.get?.('retry-after') ?? upstream?.['retry-after'];
+      return Response.json({ error: 'Rate limit exceeded. Please wait and try again.' }, {
+        status: 429,
+        headers: { 'Retry-After': String(retryAfter || 30) },
+      });
+    }
     return Response.json({ error: e?.message || 'Something went wrong' }, { status: 500 });
   }
 }
