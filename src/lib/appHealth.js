@@ -46,7 +46,7 @@ function readerInUse() {
 export function appHealthPayload(kind = "driver") {
   try {
     const h = {
-      request_metrics: (({functions,...summary})=>summary)(requestMetrics()),
+      request_metrics: (({functions:_functions,...summary})=>summary)(requestMetrics()),
       build: APP_BUILD,
       online: typeof navigator === "undefined" ? true : navigator.onLine !== false,
       queued_jobs: pendingJobs().length,
