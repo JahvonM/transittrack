@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Image } from "@/components/ui/image";
 import BoardingCodeForm from "@/components/staff/BoardingCodeForm";
 import useBoardingPass from "@/components/staff/useBoardingPass";
+import BluetoothBoardButton from "@/components/staff/BluetoothBoardButton";
 
 export default function BoardingPass() {
   const { pass, loading, saving, save, problem, saveError, retry } = useBoardingPass();
@@ -20,6 +21,7 @@ export default function BoardingPass() {
             <p className="text-sm text-muted-foreground">Scan this each time you board or exit your assigned bus. It doesn't expire and stays the same when you change your code.</p>
             <p className="text-xs text-muted-foreground">Keep your QR private, just like your badge.</p>
           </div>
+          <BluetoothBoardButton qrToken={pass.qr_token} />
           <BoardingCodeForm hasCode={pass.has_code} saving={saving} onSave={save} error={saveError} />
         </>}
       </CardContent>

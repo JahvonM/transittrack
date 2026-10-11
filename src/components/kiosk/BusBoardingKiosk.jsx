@@ -21,6 +21,8 @@ import SlideToUnlock from "./SlideToUnlock";
 import KioskMascot from "./KioskMascot";
 import KioskConnectionBadge from "./KioskConnectionBadge";
 import BoardingSettingsGate, { useHold } from "./BoardingSettingsGate";
+import { takeBleCodes, markBleCodeSeen } from "@/lib/bluetoothBoarding";
+import { sendLocalCommand, helperKey } from "@/lib/tabletNetwork";
 
 const CODE_MAX_LEN = 12;
 const FLUSH_INTERVAL_MS = 15000;
@@ -345,6 +347,58 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
       setBusy(false);
     }
   };
+
+  // Backup boarding over Bluetooth (Helper 1.13): a passenger's phone sends the
+  // same code as their boarding QR, checked the same way, then confirmed here.
+  const bleWaiting = useRef(null);
+  const handleBleCode = async (text) => {
+    const decoded = parseCodeQrPayload(text);
+    if (!decoded) return;
+    if (busy || lookupStarted.current || !["idle", "qr"].includes(mode)) { bleWaiting.current = { text, at: Date.now() }; return; }
+    bleWaiting.current = null;
+    lookupStarted.current = Date.now();
+    clearTimeout(resetTimer.current);
+    setBusy(true);
+    try {
+      const res = await invoke("lookup_code", { code: decoded });
+      setUnlocked(true);
+      setPending({ staff: res.staff, next_status: res.next_status, method: "bluetooth", code_type: res.code_type, verification_grant: res.verification_grant });
+      setMode("confirm");
+    } catch (e) {
+      if (handleUnpaired(e)) return;
+      setBadgeError(busMessage(e) || "That phone's boarding code isn't recognized. Use your card, QR or code.");
+      setMode("badge_error");
+      resetSoon(4000);
+    } finally {
+      lookupStarted.current = 0;
+      setBusy(false);
+    }
+  };
+  const bleHandler = useRef(handleBleCode);
+  bleHandler.current = handleBleCode;
+  useEffect(() => {
+    const onCode = (e) => { if (markBleCodeSeen(e.detail)) bleHandler.current(e.detail.code); };
+    window.addEventListener("tt-ble-code", onCode);
+    for (const code of takeBleCodes()) bleHandler.current(code);
+    return () => window.removeEventListener("tt-ble-code", onCode);
+  }, []);
+  // A code that arrived while the screen was busy is taken once it's free again.
+  useEffect(() => {
+    const waiting = bleWaiting.current;
+    if (!waiting || busy || !["idle", "qr"].includes(mode)) return;
+    if (Date.now() - waiting.at > 20000) { bleWaiting.current = null; return; }
+    bleHandler.current(waiting.text);
+  }, [mode, busy]);
+  // Phones show this bus's name in their Bluetooth list.
+  const busName = device?.vehicle_name || "";
+  useEffect(() => {
+    if (!busName) return undefined;
+    let done = false;
+    const tell = async () => { if (!done && helperKey() && (await sendLocalCommand("/ble/name", { name: busName })) === "sent") done = true; };
+    tell();
+    const t = setInterval(tell, 15000);
+    return () => clearInterval(t);
+  }, [busName]);
 
   const submitCode = async () => {
     if (!code || checkingCode) return;

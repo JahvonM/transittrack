@@ -106,6 +106,11 @@ export function localCommandUrl(route, params = {}, key = helperKey()) {
     // Chosen on the tablet itself: a boarding tablet keeps the bus hotspot as
     // the network it goes back to (Admin's Choose Wi-Fi changes that instead).
     q.set("here", "1");
+  } else if (route === "/ble/name") {
+    // Boarding tablets (Helper 1.13): the bus name phones see for Bluetooth boarding.
+    const name = typeof params.name === "string" ? params.name.trim().slice(0, 40) : "";
+    if (!name) return null;
+    q.set("name", name);
   } else if (route !== "/health") {
     return null;
   }
