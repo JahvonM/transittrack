@@ -591,9 +591,10 @@ set "TTADB=adb"
 if defined SERIAL if not "%SERIAL%"=="unknown" set "TTADB=adb -s "%SERIAL%""
 set TT_APN=
 call :apn_run check
-if "%TT_APN_RES%"=="HAVE" (echo  [OK] Mobile data is already set up - APN %TT_APN_NUM%. & exit /b 0)
+if "%TT_APN_RES%"=="HAVE" goto apn_have
 if "%TT_APN_RES%"=="NOSIM" (echo  [!] No SIM card found. Put the Flow SIM in, then run Update again. & exit /b 0)
 if "%TT_APN_RES%"=="OTHER" goto apn_other
+:apn_pick
 echo    [P]  Prepaid / top-up Flow SIM  - APN ppinternet
 echo    [M]  Monthly plan Flow SIM      - APN internet
 echo    [S]  Skip for now
@@ -619,6 +620,12 @@ echo  Then open the menu, tap Save, and tap the circle next to Flow Internet.
 echo  If that screen did not open, exit FreeKiosk with its PIN and open
 echo  Settings - Network and internet - SIMs - Access Point Names.
 pause
+exit /b 0
+:apn_have
+echo  [OK] Mobile data is set up - APN %TT_APN_NUM%.
+echo      Data not working? Change it to the other Flow APN.
+choice /c KC /n /m "  [K] Keep it  [C] Change it: "
+if errorlevel 2 goto apn_pick
 exit /b 0
 :apn_other
 echo  [!] This SIM is not Flow Grenada - network code %TT_APN_NUM%.
