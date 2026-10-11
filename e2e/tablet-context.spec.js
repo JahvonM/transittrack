@@ -587,7 +587,7 @@ test('boarding tablet opens its Internet settings after holding the top bar and 
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await page.mouse.down(); await page.waitForTimeout(3300); await page.mouse.up();
   const dialog = page.getByRole('dialog');
-  await expect(dialog.getByText('Bus PIN')).toBeVisible();
+  await expect(dialog.getByText('Bus PIN', { exact: true })).toBeVisible();
   for (const d of '0000') await dialog.getByRole('button', { name: d, exact: true }).click();
   await expect(dialog.getByRole('alert')).toContainText('Wrong PIN');
   for (const d of '1234') await dialog.getByRole('button', { name: d, exact: true }).click();
