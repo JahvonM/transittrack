@@ -188,7 +188,9 @@ export default function RouteExplorer() {
           </section>
         </div>
       )}
-      <PassengerChatBubble />
+      {/* Opens the passenger home's bus chat, so only for passengers (for
+          staff roles it sat on top of their own message and assistant buttons). */}
+      {["staff", "passenger"].includes(user?.role) && <PassengerChatBubble />}
     </AppLayout>
   );
 }

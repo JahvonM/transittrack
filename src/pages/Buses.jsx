@@ -148,7 +148,7 @@ export default function Buses() {
           </>
         )}
       </PullToRefresh>
-      <PassengerChatBubble />
+      {["staff", "passenger"].includes(user?.role) && <PassengerChatBubble />}
     </AppLayout>
   );
 }

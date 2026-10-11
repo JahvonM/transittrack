@@ -101,8 +101,8 @@ export default function AdsTab({ companyId = "" }) {
               <Button variant="outline" size="sm" onClick={() => toggle(ad)}>
                 {ad.active ? "Hide" : "Show"}
               </Button>
-              <Button variant="ghost" size="icon" onClick={() => remove(ad.id)}>
-                <Trash2 className="w-4 h-4 text-destructive" />
+              <Button variant="ghost" size="icon" onClick={() => remove(ad.id)} aria-label={`Delete ${ad.title || "advertisement"}`}>
+                <Trash2 className="w-4 h-4 text-destructive" aria-hidden="true" />
               </Button>
             </div>
           ))}
