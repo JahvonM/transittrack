@@ -563,3 +563,74 @@ test('driver tablet with an always-on hotspot keeps Wi-Fi off and says why', asy
   await expect(page.getByText('On · Flow · LTE')).toBeVisible();
   await expect(page.getByRole('button', { name: /Wi-Fi network/ })).toHaveCount(0);
 });
+
+test('boarding tablet opens its Internet settings after holding the top bar and the bus PIN', async ({ page }) => {
+  const calls = [], helper = [];
+  await mockApi(page, calls);
+  await page.route('**/functions/kioskCheckIn', (route) => {
+    const body = route.request().postDataJSON();
+    if (body?.action !== 'verify_settings_pin') return route.fallback();
+    return route.fulfill(body.pin === '1234' ? { json: { ok: true } } : { status: 403, json: { error: 'Incorrect PIN' } });
+  });
+  await page.route('http://127.0.0.1:8765/**', (route) => { helper.push(route.request().url()); return route.fulfill({ status: 204, body: '' }); });
+  await page.addInitScript(() => {
+    localStorage.setItem('tt_kiosk_device_id', 'kiosk-test');
+    window.__ttHelperKey = 'k'.repeat(32);
+    window.__ttHelperHealth = { version: '1.12', at: Date.now(), wifi: { enabled: true, ssid: 'TT-BUS1', bars: 4 } };
+  });
+  await page.goto('/kiosk');
+  const header = page.locator('header.tt-board-header');
+  await expect(header).toBeVisible();
+  // A short press does nothing; passengers never see a settings button.
+  await header.hover();
+  await page.mouse.down(); await page.waitForTimeout(800); await page.mouse.up();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await page.mouse.down(); await page.waitForTimeout(3300); await page.mouse.up();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.getByText('Bus PIN')).toBeVisible();
+  for (const d of '0000') await dialog.getByRole('button', { name: d, exact: true }).click();
+  await expect(dialog.getByRole('alert')).toContainText('Wrong PIN');
+  for (const d of '1234') await dialog.getByRole('button', { name: d, exact: true }).click();
+  await expect(dialog.getByText('Connected to TT-BUS1')).toBeVisible();
+  await expect(dialog.getByText('Mobile data')).toHaveCount(0);
+  await dialog.getByRole('switch', { name: 'Wi-Fi' }).click();
+  await expect.poll(() => helper.some((u) => u.includes('/wifi/power?') && u.includes('on=0'))).toBe(true);
+  await page.evaluate(() => {
+    window.__ttHelperHealth = { ...window.__ttHelperHealth, at: Date.now(), wifi: { enabled: false, ssid: '', off_until: new Date(Date.now() + 30 * 60000).toISOString() } };
+  });
+  await expect(dialog.getByText(/^Off until /)).toBeVisible();
+  await expect(dialog.getByText(/Card taps still work from the saved list/)).toBeVisible();
+  await dialog.getByRole('button', { name: 'Done' }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+});
+
+test('boarding tablet joins a Wi-Fi chosen on its screen without changing its bus hotspot', async ({ page }) => {
+  const calls = [], helper = [];
+  await mockApi(page, calls);
+  await page.route('**/functions/kioskCheckIn', (route) => {
+    const body = route.request().postDataJSON();
+    return body?.action === 'verify_settings_pin' ? route.fulfill({ json: { ok: true } }) : route.fallback();
+  });
+  await page.route('http://127.0.0.1:8765/**', (route) => { helper.push(route.request().url()); return route.fulfill({ status: 204, body: '' }); });
+  await page.addInitScript(() => {
+    localStorage.setItem('tt_kiosk_device_id', 'kiosk-test');
+    window.__ttHelperKey = 'k'.repeat(32);
+    window.__ttHelperHealth = { version: '1.12', at: Date.now(), wifi: { enabled: true, ssid: '', networks: [] } };
+  });
+  await page.goto('/kiosk');
+  await page.locator('header.tt-board-header').hover();
+  await page.mouse.down(); await page.waitForTimeout(3300); await page.mouse.up();
+  const dialog = page.getByRole('dialog').first();
+  for (const d of '1234') await dialog.getByRole('button', { name: d, exact: true }).click();
+  await page.getByRole('button', { name: 'Choose a Wi-Fi network' }).click();
+  await expect.poll(() => helper.some((u) => u.includes('/wifi/scan?'))).toBe(true);
+  await page.evaluate(() => {
+    const h = window.__ttHelperHealth;
+    window.__ttHelperHealth = { ...h, at: Date.now(), wifi: { ...h.wifi, scanned_at: new Date().toISOString(), networks: [{ ssid: 'Depot', bars: 3, lock: 'open' }] } };
+  });
+  await page.getByRole('button', { name: /Depot/ }).click();
+  await expect.poll(() => helper.find((u) => u.includes('/wifi/join?')) || '').toContain('ssid=Depot');
+  const join = new URL(helper.find((u) => u.includes('/wifi/join?')));
+  expect(join.searchParams.get('here')).toBe('1');
+  expect(join.searchParams.get('pass')).toBe('');
+});
