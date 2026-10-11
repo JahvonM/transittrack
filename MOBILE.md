@@ -149,8 +149,8 @@ Still to do (needs the Apple Developer account and the Firebase console):
    configuration → upload the `.p8` with its Key ID and Team ID.
 4. Build on a Mac/Codemagic (`npm install`, `npx cap sync ios`,
    `pod install`), install on a real iPhone (the simulator can't receive
-   pushes), sign in, turn notifications on, then Admin → Notifications →
-   send a test. Check it arrives with the app open, in the background, and
+   pushes), sign in as an admin, turn notifications on, then Admin →
+   Notifications → **Test alert to me**. Check it arrives with the app open, in the background, and
    closed, and that tapping it opens the right page.
 
 Keep APNs/private service-account credentials on the server or in the native
