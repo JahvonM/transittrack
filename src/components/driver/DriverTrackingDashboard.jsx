@@ -1,3 +1,5 @@
+import DriverPortraitDrive from "./DriverPortraitDrive";
+import { getNavTarget, onNavTarget } from "@/lib/navTarget";
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { haversineKm } from "@/lib/geo";
 import { accountName } from "@/lib/userName";
@@ -20,8 +22,14 @@ import { retryGps, GPS_RETRY_EVENT } from "@/lib/helperHealth";
 // panelTop: items that need attention now (e.g. a due inspection).
 // panelBottom: today's booked trips.
 // shiftActive: whether a shift is open, only to highlight the next step.
-export default function DriverTrackingDashboard({ session, invoke, onReportIncident, panelTop = null, panelBottom = null, shiftControl = null, shiftActive = false, onOpenPassengers, onOpenMessages, onOpenDocuments }) {
+export default function DriverTrackingDashboard({ session, invoke, onReportIncident, panelTop = null, panelBottom = null, shiftControl = null, shiftActive = false, onOpenPassengers, onOpenMessages, onOpenDocuments, onOpenStops, directionControl }) {
   const { toast } = useToast();
+  const [mapOpen,setMapOpen]=useState(()=>!!getNavTarget() || sessionStorage.getItem("tt_nav_on")==="1");
+  const [mapLoaded,setMapLoaded]=useState(mapOpen);
+  const openNavigation=()=>{setMapLoaded(true);setMapOpen(true);};
+  useEffect(()=>onNavTarget(()=>{if(getNavTarget())openNavigation();}),[]);
+  useEffect(()=>{if(mapOpen)requestAnimationFrame(()=>window.dispatchEvent(new Event("resize")));},[mapOpen]);
+
   const [staff, setStaff] = useState([]);
   const [sharing, setSharing] = useState(false);
   const [nearbyStaff, setNearbyStaff] = useState([]);
@@ -293,7 +301,7 @@ export default function DriverTrackingDashboard({ session, invoke, onReportIncid
     <DeckButton
       icon={sharing ? (locked ? Lock : NavigationOff) : Navigation}
       state={sharing ? (locked ? "Locked on by dispatch" : "Sharing location") : "Location not shared"}
-      action={sharing ? (locked ? "Can't stop" : "End tracking") : "Start tracking"}
+      action={sharing ? (locked ? "Locked by dispatch" : "End trip") : "Start trip"}
       onClick={sharing ? stopTracking : startTracking}
       disabled={sharing && locked}
       active={sharing}
@@ -303,84 +311,19 @@ export default function DriverTrackingDashboard({ session, invoke, onReportIncid
     />
   );
 
-  // Phone: everything scrolls under a fixed-height map (max-content rows, so
-  // nothing gets squeezed to zero by the fixed-height scroller). Tablet portrait:
-  // map on top, rail below in two columns. Landscape: map | rail.
-  return (
-    <div
-      className={[
-        "tt-driver-cockpit-reference grid h-full min-h-0 gap-2 overflow-hidden md:gap-3",
-        "grid-cols-1 [grid-template-areas:'map'_'status'_'deck'] grid-rows-[minmax(0,1fr)_max-content_max-content]",
-        "md:overflow-hidden md:grid-cols-2 md:[grid-template-areas:'map_map'_'status_status'_'next_more'_'deck_deck'] md:grid-rows-[minmax(0,1fr)_auto_minmax(220px,30%)_auto]",
-        "lg:grid-cols-[minmax(0,1fr)_400px] lg:[grid-template-areas:'map_status'_'map_next'_'map_more'_'map_deck'] lg:grid-rows-[auto_auto_minmax(0,1fr)_auto]",
-      ].join(" ")}
-    >
-      <div className="min-h-0 [grid-area:map]">
-        <DriverNavMap key={(session?.vehicle?.id || "") + session?.trip_direction} session={session} invoke={invoke} fill pushLocation={false} pins={staffPins} showProgress={false} showStatus={false} onStatus={onNavStatus} />
-      </div>
 
-      <aside className="tt-cockpit-rail">
-      <div className="tt-cockpit-status space-y-2 [grid-area:status]"><StatusStrip items={[{ key: "gps", ...gpsItem }, { key: "net", ...connItem }, { key: "track", ...trackItem }]} /><div className="tt-cockpit-shift">{shiftControl}{trackingButton}</div></div>
-
-      <div className="hidden min-h-0 flex-col gap-4 overflow-y-auto py-1 [grid-area:next] md:flex md:overflow-hidden lg:overflow-visible">
-        <NextStopBlock
-          stop={nav?.nextStop || null}
-          index={nav?.nextStopIndex ?? 0}
-          total={nav?.total ?? (session?.route?.stops?.length || 0)}
-          routeName={nav?.routeName || session?.route?.name}
-          remainingS={nav?.remainingS}
-          remainingM={nav?.remainingM}
-          arrived={nav?.arrived}
-        />
-        <OnBoard count={occupancy} capacity={liveVehicle?.capacity} />
-        {session?.check_ins?.length > 0 && <section className="rounded-xl border border-border bg-card p-3" aria-label="Latest boarding activity"><p className="text-caption text-muted-foreground">Latest boarding activity</p><p className="mt-1 font-semibold">{[...session.check_ins].sort((a,b) => Date.parse(b.boarded_at || b.created_date || 0)-Date.parse(a.boarded_at || a.created_date || 0))[0]?.staff_name || "Passenger"}</p></section>}
-        {(panelTop || attention.length > 0) && (
-          <div className="flex flex-col gap-2" aria-label="Needs attention">
-            {attention}
-            {panelTop}
-          </div>
-        )}
-      </div>
-
-      <section className="hidden min-h-0 flex-col gap-2 [grid-area:more] md:flex" aria-label="Today's trips and pickups">
-        {panelBottom}
-        <div className="min-h-[140px] flex-1 md:min-h-0">
-          <StaffRouteList staff={staff} vehicle={liveVehicle} nearbyStaff={nearbyStaff} onAttend={markAttended} compact />
-        </div>
-      </section>
-
-      </aside>
-      <div className="flex flex-col gap-2 [grid-area:deck]" aria-label="Driving controls">
-        {/* Phone: next stop and passengers in one line (Stops and Home hold the rest). */}
-        <div className="flex items-center justify-between gap-3 px-1 md:hidden">
-          <p className="min-w-0">
-            <span className="block text-caption text-muted-foreground">{nav?.arrived ? "Arrived at" : "Next stop"}</span>
-            <span className="block truncate text-title-sm font-bold">{nav?.nextStop?.name || "No stop ahead"}</span>
-          </p>
-          {nav?.remainingS != null && !nav?.arrived && (
-            <p className="shrink-0 font-display text-title font-semibold tabular-nums">{Math.max(1, Math.round(nav.remainingS / 60))}<span className="ml-1 text-body-sm font-medium text-muted-foreground">min</span></p>
-          )}
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          <div className="tt-cockpit-mobile-shift hidden md:block">{shiftControl}</div>
-          <div className="flex min-h-[88px] flex-col justify-between rounded-xl border border-border bg-card px-4 py-3 md:hidden" aria-label="Passengers on board">
-            <span className="text-body-sm text-muted-foreground">Passengers</span>
-            <span className="font-display text-headline font-semibold leading-none tabular-nums">{occupancy}{liveVehicle?.capacity ? <span className="text-title-sm font-medium text-muted-foreground">/{liveVehicle.capacity}</span> : null}</span>
-          </div>
-          <div className="tt-cockpit-mobile-shift">{trackingButton}</div>
-        </div>
-        <div className="tt-cockpit-actions grid grid-cols-[auto_minmax(0,1fr)] items-start gap-2">
-          {onOpenPassengers && <Button variant="outline" className="tt-cockpit-shortcut h-[52px]" onClick={onOpenPassengers}>Passenger list</Button>}
-          {onOpenMessages && <Button variant="outline" className="tt-cockpit-shortcut h-[52px]" onClick={onOpenMessages}>Messages</Button>}
-          {onOpenDocuments && <Button variant="outline" className="tt-cockpit-shortcut h-[52px]" onClick={onOpenDocuments}>Licence & insurance</Button>}
-          {onReportIncident && (
-            <Button variant="outline" className="h-[52px] px-4" onClick={onReportIncident} aria-label="Report an incident">
-              <AlertTriangle className="h-5 w-5 text-danger" aria-hidden="true" /><span className="ml-1.5">Report</span>
-            </Button>
-          )}
-          <SosButton vehicle={liveVehicle} invoke={invoke} emergencyContacts={session?.emergency_contacts} compact />
-        </div>
+  return <div className="h-full min-h-0">
+    <div className="dk-navigation-screen" style={{display:mapOpen?"flex":"none"}} aria-hidden={!mapOpen}>
+      <Button variant="outline" onClick={()=>setMapOpen(false)}>Back to journey</Button>
+      <div className="dk-navigation-map" aria-label="Driver navigation map">
+        {mapLoaded && <DriverNavMap key={(session?.vehicle?.id || "")+session?.trip_direction} session={session} invoke={invoke} fill pushLocation={false} pins={staffPins} showProgress={false} showStatus onStatus={onNavStatus}/>}
       </div>
     </div>
-  );
+    {!mapOpen && <DriverPortraitDrive session={session} vehicle={liveVehicle} nav={nav} sharing={sharing}
+      shiftActive={shiftActive} directionControl={directionControl} shiftControl={shiftControl} trackingButton={trackingButton}
+      statusItems={[{key:"gps",...gpsItem},{key:"net",...connItem},{key:"track",...trackItem}]}
+      attention={attention} panelTop={panelTop} panelBottom={panelBottom}
+      onOpenNavigation={openNavigation} onOpenPassengers={onOpenPassengers} onOpenStops={onOpenStops}
+      onOpenMessages={onOpenMessages} onReportIncident={onReportIncident} invoke={invoke}/>}
+  </div>;
 }
