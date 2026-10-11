@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.52';
+import { reserveAttempt } from '../../shared/atomicOps.ts';
 // Own card status and boarding history only. NFC identifiers never leave the server.
 async function approvedCompany(db, user) {
  const rows = await db.CompanyMembership.filter({user_id:user.id,active:true,scope:'passenger'},'-updated_date',100);
@@ -24,11 +25,12 @@ export default async function(req) {
   if(!companyId) return Response.json({error:'Verified company access required'},{status:403});
   const body=await req.json(), action=body.action || 'summary';
   if(!['summary','report_lost_card','report_missed_pickup'].includes(action)) return Response.json({error:'Unknown action'},{status:400});
+  if(action!=='summary' && !(await reserveAttempt(client,'passenger-report:'+action+':'+user.id,3,60_000))) return Response.json({error:'Please wait before sending another report.'},{status:429,headers:{'Retry-After':'60'}});
   const contacts=(await db.Contact.filter({company_id:companyId,email:user.email},'-updated_date',100)).filter(c=>c.company_id===companyId && c.email?.toLowerCase()===user.email?.toLowerCase());
   const cards=await db.NfcCard.filter({company_id:companyId,holder_source:'user',holder_id:user.id},'-issue_date',100);
   for(const contact of contacts) cards.push(...await db.NfcCard.filter({company_id:companyId,holder_source:'contact',holder_id:contact.id},'-issue_date',100));
   const owned=cards.filter(c=>c.company_id===companyId && (c.holder_source==='user' && c.holder_id===user.id || c.holder_source==='contact' && contacts.some(x=>x.id===c.holder_id)));
-  const active=owned.filter(c=>c.is_active && (!c.expiry_date || c.expiry_date>=new Date().toISOString().slice(0,10)));
+  const active=owned.filter(c=>c.is_active && !c.revoked_at && (!c.expiry_date || c.expiry_date>=new Date().toISOString().slice(0,10)));
   if(action==='report_lost_card') {
    if(!active.length) return Response.json({ok:true,already_inactive:true});
    for(const card of active) await db.NfcCard.update(card.id,{is_active:false,revoked_at:new Date().toISOString(),revoked_by:user.email,revoke_reason:'Card reported lost by its holder'});

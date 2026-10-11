@@ -432,7 +432,7 @@ export default function StaffPortal() {
   const eta = approaching ? (approachingDriving.stale ? approachingDriving : approachingLearned || approachingDriving) : null;
   const tripState = passengerTripState({ stop, approaching, eta, myVehicle, now, busAssigned: !!myBus });
   const timelineRoute = approachingRoute
-    || (myVehicle ? routes.find((r) => r.id === myVehicle.route_id && (r.stops || []).some((s) => s.name === stop?.name)) : null)
+    || (myVehicle ? routes.find((r) => r.id === myVehicle.route_id) : null)
     || servingRoutes[0] || null;
   const mapStops = useMemo(() => sortStops(timelineRoute?.stops).filter((s) => s.lat != null && s.lng != null), [timelineRoute]);
   const onTrip = ["live", "arriving", "signal_lost"].includes(tripState.kind);
@@ -522,7 +522,7 @@ export default function StaffPortal() {
           pickupPrompt={pickupPrompt} notice={notice} chatUnread={chatUnread} stopAlerts={stopAlerts} pushPermission={pushPermission}
           toggleStopAlerts={toggleStopAlerts} enableNotifications={enableNotifications} setSheet={setSheet}
           mapOpen={mapOpen} setMapOpen={setMapOpen} bookedTrips={upcomingTrips} pickupName={pickupName}
-          logout={logout} lastSynced={lastSynced} offline={offline}
+          logout={()=>{clearPassengerSnapshot();logout();}} lastSynced={lastSynced} offline={offline}
           renderMap={() => <Suspense fallback={<div className="h-72 animate-pulse bg-muted" />}>
             <LiveTransitMap defaultSatellite className="h-80 lg:h-[520px]" vehicles={locatedVehicles}
               focusVehicleId={busOnMap?.id || myVehicle?.id || null} routes={routes} stops={mapStops}
