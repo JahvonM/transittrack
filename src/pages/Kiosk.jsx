@@ -135,9 +135,11 @@ export default function Kiosk() {
         // or as a 4xx here. A busy server (429) or a server error still
         // answered, so the tablet stays online and checks in again next time
         // instead of flashing "Offline".
-        if (!e?.response) { setOnline(false); return; }
+        const status=httpStatus(e);
+        if(status===429 || status>=500)return;
+        if (!status) { setOnline(false); return; }
         if (isNetworkFailure(e)) return;
-        if (e?.response?.status === 404 || e?.response?.status === 401) {
+        if (status === 404 || status === 401) {
           setStatus("error");
           setError("This device is no longer paired. Ask your administrator for a new pairing link.");
           forgetDeviceToken(id);

@@ -21,7 +21,7 @@ export function createPollBudget({now=()=>Date.now(),baseMs=30000,maxMs=120000}=
 // out without ever increasing their configured polling frequency.
 export function startTabletPoll(run,intervalMs,{random=Math.random}={}) {
  let stopped=false,timer;
- const schedule=()=>{timer=setTimeout(async()=>{try{await run();}finally{if(!stopped)schedule();}},intervalMs*(1+random()*.2));};
+ const schedule=()=>{timer=setTimeout(async()=>{try{await run();}catch{/* The caller owns its error display; polling continues. */}finally{if(!stopped)schedule();}},intervalMs*(1+random()*.2));};
  schedule();
  return()=>{stopped=true;clearTimeout(timer);};
 }
