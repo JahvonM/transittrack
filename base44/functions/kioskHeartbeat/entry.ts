@@ -208,6 +208,12 @@ export default async function(req) {
       network_command: network.command,
     });
   } catch (error) {
+    const status = error?.status ?? error?.response?.status ?? error?.originalError?.response?.status;
+    if (status === 429) {
+      const headers = error?.originalError?.response?.headers ?? error?.response?.headers ?? error?.headers;
+      const retryAfter = headers?.get?.('retry-after') ?? headers?.['retry-after'] ?? headers?.['Retry-After'] ?? '15';
+      return Response.json({ error: 'Server is busy. Please try again shortly.' }, { status: 429, headers: { 'Retry-After': String(retryAfter) } });
+    }
     return Response.json({ error: 'Something went wrong. Please try again.' }, { status: 500 });
   }
 }
