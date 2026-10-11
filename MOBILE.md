@@ -43,12 +43,26 @@ site inside its own window, so:
 If the site moves to another address (a custom domain), change `server.url`
 and `allowNavigation` and ship a new store build.
 
-**Sign-in inside the app:** email/password and Sign in with Apple stay inside
-the app. Google blocks its sign-in page inside apps' web views, so the Google
-button opens Safari/Chrome and the user ends up signed in there, not in the
-app. Fix before launch if passengers use Google sign-in (for example, hide
-the Google button in the phone app, or hand sign-in to the system browser and
-back, as the desktop app does).
+**Sign-in inside the app:** email/password signs in inside the app. Google
+blocks its sign-in page inside apps' web views, so in the phone app
+"Continue with Google" and "Continue with Apple" open the phone's browser
+(`@capacitor/browser`: a Safari view on iPhone, a Chrome tab on Android) at
+`/phone-signin`, and the browser hands the session back through the link
+`com.transittrack.app://signin`, the same way TransitTrack Desktop does with
+its loopback listener. Details and the safety checks are in
+`src/lib/phoneSignIn.js`:
+
+- the app makes a random state and key; the key travels only in the `#` part
+  of the browser link, so no server ever sees it;
+- the browser page asks the person to tap "Open TransitTrack app", then seals
+  the session with that key (AES-GCM, bound to the state);
+- the app accepts only its own state, once, within 10 minutes.
+
+The link name is registered in `Info.plist` (`CFBundleURLTypes`) and in the
+Android manifest (intent filter on `MainActivity`). If you change the app ID,
+keep `PHONE_SIGNIN_SCHEME` in step with both. A stronger option later:
+Universal Links / App Links on the site's own address (needs the Apple Team
+ID and the Android signing certificate).
 
 ## Board by Bluetooth
 
