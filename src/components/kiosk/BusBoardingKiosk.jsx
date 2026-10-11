@@ -273,7 +273,7 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
   // "Wrong bus" / "no bus yet" from the server or the saved list.
   const busMessage = (e) => {
     // 429 counts as a "network failure" for queueing, so check it first.
-    if (httpStatus(e) === 429) return errorData(e).error || "Server is busy. Try again in a minute.";
+    if (httpStatus(e) === 429) return errorData(e).code === "CLIENT_RATE_COOLDOWN" ? errorData(e).error : /attempt/i.test(errorData(e).error || "") ? "Too many attempts. Try again in a minute." : "Server is busy. Try again in a minute.";
     if (e?.response?.data?.error === "verification_requires_connection" || isNetworkFailure(e)) return "Connect to WiFi to verify your card or code.";
     return ["wrong_bus", "no_bus"].includes(e?.response?.data?.error) ? e.response.data.message : "";
   };
