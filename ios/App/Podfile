@@ -24,6 +24,9 @@ end
 target 'App' do
   capacitor_pods
   # Add your Pods here
+  # iPhone notifications go through Firebase like Android and the website
+  # (see AppDelegate.swift). 11.x is the last line that supports iOS 13.
+  pod 'FirebaseMessaging', '~> 11.15'
 end
 
 post_install do |installer|
