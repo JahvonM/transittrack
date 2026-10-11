@@ -20,9 +20,9 @@ import { retryGps, GPS_RETRY_EVENT } from "@/lib/helperHealth";
 // panelTop: items that need attention now (e.g. a due inspection).
 // panelBottom: today's booked trips.
 // shiftActive: whether a shift is open, only to highlight the next step.
-export default function DriverTrackingDashboard({ session, invoke, onReportIncident, panelTop = null, panelBottom = null, shiftControl = null, shiftActive = false, onOpenPassengers, onOpenMessages, onOpenDocuments, onOpenStops, directionControl }) {
+export default function DriverTrackingDashboard({ session, invoke, onReportIncident, panelTop = null, panelBottom = null, shiftControl = null, shiftActive = false, onOpenPassengers, onOpenMessages, onOpenStops, directionControl }) {
   const { toast } = useToast();
-  const [mapOpen,setMapOpen]=useState(()=>!!getNavTarget() || sessionStorage.getItem("tt_nav_on")==="1");
+  const [mapOpen,setMapOpen]=useState(()=>{try{return !!getNavTarget() || sessionStorage.getItem("tt_nav_on")==="1";}catch{return false;}});
   const [mapLoaded,setMapLoaded]=useState(mapOpen);
   const openNavigation=()=>{setMapLoaded(true);setMapOpen(true);};
   useEffect(()=>onNavTarget(()=>{if(getNavTarget())openNavigation();}),[]);
@@ -32,7 +32,6 @@ export default function DriverTrackingDashboard({ session, invoke, onReportIncid
   const [sharing, setSharing] = useState(false);
   const [nearbyStaff, setNearbyStaff] = useState([]);
   const [liveVehicle, setLiveVehicle] = useState(session?.vehicle || null);
-  const [occupancy, setOccupancy] = useState(0);
 
   const watchId = useRef(null);
   const lastUpdate = useRef(0);
@@ -70,7 +69,6 @@ export default function DriverTrackingDashboard({ session, invoke, onReportIncid
     }
   }, [session?.vehicle]);
 
-  useEffect(() => { setOccupancy(session?.occupancy || 0); }, [session?.occupancy]);
 
   const playBeep = useCallback(() => {
     try {
@@ -220,11 +218,6 @@ export default function DriverTrackingDashboard({ session, invoke, onReportIncid
 
   useEffect(() => { return () => { if (watchId.current != null) navigator.geolocation.clearWatch(watchId.current); }; }, []);
 
-  const markAttended = (staffId) => {
-    setNearbyStaff((prev) => prev.filter((id) => id !== staffId));
-    toast({ title: "Attendance marked", description: "Staff member picked up." });
-  };
-
   const staffPins = staff
     .filter((s) => s.home_lat != null && !s.skip_pickup_today)
     .map((s) => ({ lat: s.home_lat, lng: s.home_lng, color: "#34d399", label: accountName(s) }));
@@ -317,7 +310,7 @@ export default function DriverTrackingDashboard({ session, invoke, onReportIncid
         {mapLoaded && <DriverNavMap key={(session?.vehicle?.id || "")+session?.trip_direction} session={session} invoke={invoke} fill pushLocation={false} pins={staffPins} showProgress={false} showStatus onStatus={onNavStatus}/>}
       </div>
     </div>
-    {!mapOpen && <DriverPortraitDrive session={session} vehicle={liveVehicle} nav={nav} sharing={sharing}
+    {!mapOpen && <DriverPortraitDrive session={session} vehicle={lastFixAt?{...liveVehicle,last_location_update:new Date(lastFixAt).toISOString()}:liveVehicle} nav={nav} sharing={sharing}
       shiftActive={shiftActive} directionControl={directionControl} shiftControl={shiftControl} trackingButton={trackingButton}
       statusItems={[{key:"gps",...gpsItem},{key:"net",...connItem},{key:"track",...trackItem}]}
       attention={attention} panelTop={panelTop} panelBottom={panelBottom}

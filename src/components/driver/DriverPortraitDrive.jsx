@@ -12,7 +12,12 @@ import SosButton from "./SosButton";
 export default function DriverPortraitDrive({session,vehicle,nav,sharing,shiftActive,directionControl,shiftControl,trackingButton,
  statusItems,attention,panelTop,panelBottom,onOpenNavigation,onOpenPassengers,onOpenStops,onOpenMessages,onReportIncident,invoke}) {
  const home=session?.trip_direction==="to_home";
- const stops=useMemo(()=>roadStopsOf(session) || sortStops(session?.route?.stops).filter(s=>s.lat!=null&&s.lng!=null),[session?.route,session?.road_stops]);
+ const stops=useMemo(()=>{
+  const raw=roadStopsOf(session) || sortStops(session?.route?.stops).filter(s=>s.lat!=null&&s.lng!=null);
+  const wp=session?.workplace;
+  if(home || wp?.lat==null || wp?.lng==null || raw.some(s=>Math.abs(s.lat-wp.lat)<.00001&&Math.abs(s.lng-wp.lng)<.00001))return raw;
+  return [...raw,{...wp,key:"company-destination",fixed:true,riders:[],along:Math.max(0,...raw.map(s=>Number(s.along)||0))+500}];
+ },[session?.route,session?.road_stops,session?.workplace,home]);
  const fresh=vehicle?.current_lat!=null && Date.now()-Date.parse(vehicle?.last_location_update || "")<120000;
  const index=useMemo(()=>{
   if(!sharing || !fresh)return 0;

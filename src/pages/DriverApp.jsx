@@ -1,4 +1,4 @@
-import "./../components/driver/driverPortrait.css";
+import "@/components/driver/driverPortrait.css";
 import { DriverKioskHeader, DriverKioskMore, DriverKioskPassengers } from "@/components/driver/DriverPortraitPanels";
 import { directionView } from "@/lib/driverDirection";
 import TripDirectionControl from "@/components/driver/TripDirectionControl";
@@ -458,7 +458,6 @@ export default function DriverApp() {
             onOpenStops={()=>selectTab("stops")}
             onOpenPassengers={() => selectTab("passengers")}
             onOpenMessages={() => selectTab("chat")}
-            onOpenDocuments={() => selectTab("documents")}
             shiftControl={(
               <ShiftCard variant="deck" session={session} invoke={invoke} refresh={refresh} onChange={setShiftOpen} beforeStart={() => beforeShift("start_shift")} beforeEnd={() => beforeShift("end_shift")} />
             )}
@@ -496,9 +495,9 @@ export default function DriverApp() {
               />
             )}
             {activeTab === "passengers" && <DriverKioskPassengers session={session}/>}
-            {activeTab === "inspection" && <div className="mx-auto max-w-3xl space-y-4"><h1 className="text-title font-bold">Inspection</h1><DriverInspectionList templates={inspTemplates} recent={recentInspections} localDone={localDone} onStart={(t) => openInspection(t, { from: "manual" })} /><SafetyStandardsContent /></div>}
-            {activeTab === "documents" && <div className="mx-auto max-w-3xl space-y-4"><h1 className="text-title font-bold">Licence & insurance</h1><DriverDocumentsViewer invoke={invoke} busName={vehicle?.name} /></div>}
-            {activeTab === "settings" && <div className="mx-auto max-w-3xl space-y-4"><h1 className="text-title font-bold">Tablet settings</h1><DriverDevicePanel session={session} deviceId={deviceId} onUnpair={handleUnpair} /><ReportAppProblemButton where="driver tablet" className="w-full justify-start" /></div>}
+            {activeTab === "inspection" && <div className="dk-content"><h1 className="text-title font-bold">Inspection</h1><DriverInspectionList templates={inspTemplates} recent={recentInspections} localDone={localDone} onStart={(t) => openInspection(t, { from: "manual" })} /><SafetyStandardsContent /></div>}
+            {activeTab === "documents" && <div className="dk-content"><h1 className="text-title font-bold">Licence & insurance</h1><DriverDocumentsViewer invoke={invoke} busName={vehicle?.name} /></div>}
+            {activeTab === "settings" && <div className="dk-content"><h1 className="text-title font-bold">Tablet settings</h1><DriverDevicePanel session={session} deviceId={deviceId} onUnpair={handleUnpair} /><ReportAppProblemButton where="driver tablet" className="w-full justify-start" /></div>}
             {activeTab === "trips" && <div className="dk-content"><h1>Trip history</h1>{session.trips?.length?<DriverTrips trips={session.trips} invoke={invoke} refresh={refresh} startSharing={()=>invoke("start_tracking").catch(()=>{})}/>:<p>No booked trips for this tablet.</p>}<h2>Shift</h2><ShiftCard session={session} invoke={invoke} refresh={refresh} beforeStart={()=>beforeShift("start_shift")} beforeEnd={()=>beforeShift("end_shift")}/><DriverKioskPassengers session={session}/></div>}
             {activeTab === "safety" && <div className="dk-content"><h1>Safety standards</h1><SafetyStandardsContent/></div>}
             {activeTab === "help" && <div className="dk-content"><h1>Help & support</h1><p className="dk-muted">Contact your transport team through Messages, or report an app problem below.</p><Button onClick={()=>selectTab("chat")}>Message your bus team</Button><ReportAppProblemButton where="driver tablet" className="w-full justify-start"/></div>}
@@ -508,7 +507,7 @@ export default function DriverApp() {
         )}
       </main>
 
-      <nav className="shrink-0 grid grid-cols-5 border-t border-border bg-background/95 backdrop-blur safe-area-bottom" aria-label="Driver sections">
+      <nav className="shrink-0 grid grid-cols-3 border-t border-border bg-background/95 backdrop-blur safe-area-bottom" aria-label="Driver sections">
         {DRIVER_TABS.map(({ id, label, icon: Icon }) => {
           const active = id==="more" ? !["track","passengers"].includes(activeTab) : activeTab === id;
           return (
