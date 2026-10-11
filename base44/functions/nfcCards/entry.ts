@@ -1,3 +1,4 @@
+import { retry429 } from '../../shared/retry429.ts';
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 
 
@@ -70,16 +71,15 @@ async function audit(base44, user, fields) {
 // (directory contacts merged with staff logins) and extra card holders.
 async function loadPeople(base44, companyFilter) {
   const sr = base44.asServiceRole.entities;
-  const [drivers, users, contacts, holders, vehicles, cards, kiosks, companies] = await Promise.all([
-    sr.Driver.list('-updated_date', 1000),
-    sr.User.list(),
-    sr.Contact.list('-updated_date', 1000),
-    sr.CardHolder.list('-updated_date', 1000).catch(() => []),
-    sr.Vehicle.list('-updated_date', 500),
-    sr.NfcCard.list('-issue_date', 3000).catch(() => []),
-    sr.KioskDevice.filter({ kiosk_type: 'bus_boarding' }).catch(() => []),
-    sr.Company.list('-updated_date',1000),
-  ]);
+  // Directory reads must not burst or turn a failed card ledger into "no card".
+  const drivers = await retry429(() => sr.Driver.list('-updated_date', 1000));
+  const users = await retry429(() => sr.User.list());
+  const contacts = await retry429(() => sr.Contact.list('-updated_date', 1000));
+  const holders = await retry429(() => sr.CardHolder.list('-updated_date', 1000));
+  const vehicles = await retry429(() => sr.Vehicle.list('-updated_date', 500));
+  const cards = await retry429(() => sr.NfcCard.list('-issue_date', 3000));
+  const kiosks = await retry429(() => sr.KioskDevice.filter({ kiosk_type: 'bus_boarding' }));
+  const companies = await retry429(() => sr.Company.list('-updated_date', 1000));
   const companyName = new Map(companies.map(c=>[c.id,c.name]));
   const vehicleName = new Map(vehicles.map((v) => [v.id, v.fleet_number ? `${v.name} (${v.fleet_number})` : v.name]));
   const inCompany = (cid) => !companyFilter || cid === companyFilter;
@@ -88,7 +88,7 @@ async function loadPeople(base44, companyFilter) {
     const key = (v.driver_email || '').toLowerCase();
     if (key && !vehicleByDriver.has(key)) vehicleByDriver.set(key, v.fleet_number ? `${v.name} (${v.fleet_number})` : v.name);
   }
-  const memberships = await sr.CompanyMembership.filter({ active: true, scope: 'passenger' }, '-updated_date', 5000);
+  const memberships = await retry429(() => sr.CompanyMembership.filter({ active: true, scope: 'passenger' }, '-updated_date', 5000));
   const live=[];
   // The directory has already read these companies. Reuse only this request's
   // snapshot rather than reading the same company once for every passenger.
@@ -144,15 +144,14 @@ async function loadPeople(base44, companyFilter) {
   }
 
   // Company workplace is authoritative; legacy per-person destinations are ignored.
-  const destinations = new Map(await Promise.all(
-    [...new Set(people.filter(p => p.type === 'staff' && p.company_id).map(p => p.company_id))].map(async companyId => {
-      const rows = await sr.Workplace.filter({ company_id: companyId }, '-updated_date', 5);
-      const place = rows.find(w => w.company_id === companyId && w.lat != null && w.lng != null
-        && Number.isFinite(Number(w.lat)) && Math.abs(Number(w.lat)) <= 90
-        && Number.isFinite(Number(w.lng)) && Math.abs(Number(w.lng)) <= 180);
-      return [companyId, place];
-    })
-  ));
+  const destinations = new Map();
+  for (const companyId of new Set(people.filter(p => p.type === 'staff' && p.company_id).map(p => p.company_id))) {
+    const rows = await retry429(() => sr.Workplace.filter({ company_id: companyId }, '-updated_date', 5));
+    const place = rows.find(w => w.company_id === companyId && w.lat != null && w.lng != null
+      && Number.isFinite(Number(w.lat)) && Math.abs(Number(w.lat)) <= 90
+      && Number.isFinite(Number(w.lng)) && Math.abs(Number(w.lng)) <= 180);
+    destinations.set(companyId, place);
+  }
   for (const p of people) if (p.type === 'staff') {
     const place = destinations.get(p.company_id);
     p.dropoff_name = place?.name || (place ? companyName.get(p.company_id) || 'Company address' : '');
@@ -260,7 +259,7 @@ export default async function (req) {
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me().catch(() => null);
     if (!user || !['admin', 'company'].includes(user.role)) return Response.json({ error: 'Admins only' }, { status: 403 });
-    const approved = await approvedCompanies(base44, user);
+    const approved = user.role === 'admin' ? [] : await approvedCompanies(base44, user);
     if (user.role === 'company' && approved.length !== 1) return Response.json({ error: 'Approved company membership required' }, { status: 403 });
     const companyFilter = user.role === 'company' ? approved[0] : null;
     const operator = user.full_name || user.email || 'Operator';
