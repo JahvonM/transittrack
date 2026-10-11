@@ -563,7 +563,7 @@ export default function CardIssuingTab({ companies = [] }) {
             ) : (
               <>
                 {window.transittrackDesktop?.openSetup ? <Button variant="outline" onClick={()=>window.transittrackDesktop.openSetup("nfc").catch(()=>toast({title:"Couldn't open NFC setup",variant:"destructive"}))}><Usb className="w-4 h-4" />Open NFC setup</Button> : <Button variant="outline" asChild><a href={HELPER_DOWNLOAD} download><Download className="w-4 h-4" /> Download helper</a></Button>}
-                <Button onClick={window.transittrackDesktop?.openSetup && helper !== "connected" ? ()=>window.transittrackDesktop.openSetup("nfc").catch(()=>toast({title:"Couldn't open NFC setup",variant:"destructive"})) : connect}><Usb className="w-4 h-4" /> {helper === "offline" ? "Try again" : "Connect reader"}</Button>
+                <Button onClick={connect}><Usb className="w-4 h-4" /> {helper === "offline" ? "Try again" : "Connect reader"}</Button>
               </>
             )}
           </div>
