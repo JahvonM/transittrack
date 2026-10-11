@@ -9,7 +9,7 @@ export function withAdminBatch(handler) {
   for(const key of body.datasets || []) {
    const spec=ADMIN_READ_SPECS[key];let reply;
    if(!spec){errors[key]={status:400,error:"Unknown dataset"};continue;}
-   const single={entity:spec.entity,operation:"filter",query:spec.query,sort:spec.sort,limit:spec.limit,skip:0};
+   const single={entity:spec.entity,operation:Object.keys(spec.query).length?"filter":"list",query:spec.query,sort:spec.sort,limit:spec.limit,skip:0};
    const virtualRequest=new Proxy(request,{get(target,prop){if(prop==="postDataJSON")return()=>single;if(prop==="postData")return()=>JSON.stringify(single);const value=target[prop];return typeof value==="function"?value.bind(target):value;}});
    const virtualRoute=new Proxy(route,{get(target,prop){if(prop==="request")return()=>virtualRequest;if(prop==="fulfill")return async value=>{reply=value;};const value=target[prop];return typeof value==="function"?value.bind(target):value;}});
    await handler(virtualRoute);
