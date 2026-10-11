@@ -42,3 +42,9 @@ it("bounds retries at four attempts", async () => {
  await vi.runAllTimersAsync(); await check;
  expect(invoke).toHaveBeenCalledTimes(4);
 });
+
+it("keeps directory and card issuing responses separate",async()=>{
+ const invoke=vi.fn(async(name,{action})=>({data:{people:[action]}}));const client={functions:{invoke}};
+ const [cards,directory]=await Promise.all([loadCardDirectory(client),loadCardDirectory(client,"directory")]);
+ expect(cards.people).toEqual(["people"]);expect(directory.people).toEqual(["directory"]);
+});
