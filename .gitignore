@@ -44,3 +44,5 @@ base44/.app.jsonc
 /test-results/
 /playwright-report/
 /blob-report/
+
+/desktop/native/TransitTrack-Card-Reader.exe

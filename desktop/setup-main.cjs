@@ -2,12 +2,13 @@ const path=require('node:path');
 const fs=require('node:fs/promises');
 const os=require('node:os');
 const {pathToFileURL}=require('node:url');
-const {execFile,spawn}=require('node:child_process');
+const {execFile}=require('node:child_process');
+const {createReaderProcess}=require('./reader-process.cjs');
 const http=require('node:http');
 const {APP_ORIGIN}=require('./policy.cjs');
 const policy=require('./device-policy.cjs');
 function createDeviceSetup({app,BrowserWindow,dialog,ipcMain},parent){
- let window,helper,kiosk,reader,busy=false;
+ let window,helper,kiosk,busy=false;
  const native=app.isPackaged?path.join(process.resourcesPath,'native'):path.join(__dirname,'native');
  const adb=path.join(native,'adb.exe'),page=path.join(__dirname,'setup.html');
  const trustedUrl=pathToFileURL(page).href;
@@ -17,6 +18,7 @@ function createDeviceSetup({app,BrowserWindow,dialog,ipcMain},parent){
  function readerRequest(route){return new Promise((resolve,reject)=>{
   const req=http.get({hostname:'127.0.0.1',port:8765,path:route,headers:{Origin:APP_ORIGIN},timeout:5000},res=>{let text='';res.on('data',b=>{text+=b;if(text.length>65536)req.destroy(Error('Reader response too large'));});res.on('end',()=>{try{if(res.statusCode!==200)throw Error('Reader unavailable');resolve(JSON.parse(text));}catch(e){reject(e);}});});req.on('timeout',()=>req.destroy(Error('Reader timed out')));req.on('error',()=>reject(Error('Reader is not running. Click Start reader and check the USB connection.')));
  });}
+ const readerProcess=createReaderProcess({native,script:path.join(__dirname,'reader.ps1'),isPackaged:app.isPackaged,request:readerRequest});
  async function confirm(message,detail){const r=await dialog.showMessageBox(window,{type:'question',message,detail,buttons:['Cancel','Continue'],defaultId:0,cancelId:0});return r.response===1;}
  const actions={
   scan:async()=>{if(process.platform!=='win32')throw Error('Device setup runs on Windows.');return {devices:policy.devices(await execute(['devices','-l']))};},
@@ -56,13 +58,7 @@ function createDeviceSetup({app,BrowserWindow,dialog,ipcMain},parent){
    for(const [name,args]of steps){try{await selected(input.serial,args);completed.push(name);}catch{throw Error(name+' failed. '+completed.length+' earlier steps applied. Inspect the tablet before retrying; no data was cleared.');}}
    return {message:'Settings applied. On the tablet, check FreeKiosk opens, approve USB reader access, and test a card.',steps:completed};
   },
-  startReader:async()=>{
-   if(process.platform!=='win32')throw Error('The NFC reader helper runs on Windows.');
-   try{return await readerRequest('/status');}catch{}
-   if(!reader){const exe=path.join(process.env.SystemRoot||'C:\\Windows','System32','WindowsPowerShell','v1.0','powershell.exe');reader=spawn(exe,['-NoLogo','-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',path.join(__dirname,'reader.ps1')],{windowsHide:true,shell:false,stdio:'ignore',env:{...process.env,TT_NO_INSTALL:'1',TT_SIMULATE:'0'}});reader.on('error',()=>{reader=null;});reader.on('exit',()=>{reader=null;});}
-   for(let i=0;i<16;i++){await new Promise(r=>setTimeout(r,500));try{return await readerRequest('/status');}catch{}}
-   throw Error('Reader helper did not start. Windows may block PowerShell/Add-Type, or the Smart Card driver may be missing.');
-  },
+  startReader:()=>readerProcess.launch(),
   readerStatus:()=>readerRequest('/status'),
   testReader:()=>readerRequest('/feedback?kind=success&beep=1&led=1'),
  };
@@ -92,7 +88,7 @@ function createDeviceSetup({app,BrowserWindow,dialog,ipcMain},parent){
   window.loadFile(page,{hash:view});
   window.webContents.once('did-finish-load',()=>{pollTimer=setInterval(()=>{if(!window||window.isDestroyed()){clearInterval(pollTimer);return;}connectEvents();},2000);});
  }
- function stop(){clearInterval(pollTimer);reader?.kill();events?.destroy();}
+ function stop(){clearInterval(pollTimer);readerProcess.stop();events?.destroy();}
  return {open,stop};
 }
 module.exports={createDeviceSetup};

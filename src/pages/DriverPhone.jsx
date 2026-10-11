@@ -308,7 +308,12 @@ export default function DriverPhone() {
             onCancel={(id) => callDriverPhone("cancel_request", { request_id: id })} onBack={() => navigate("/driver-phone/me")} />
         )}
         {!screen && tab === "today" && (
-          <PullToRefresh onRefresh={loadToday}><TodayTab onMessages={() => navigate("/driver-phone/messages")} onDocuments={() => navigate("/driver-phone/me")} today={today} driverName={me?.driver?.name} onPickBus={pickBus} backupSentAt={backupSentAt}
+          <PullToRefresh onRefresh={loadToday}><TodayTab onDirectionChange={async (direction) => {
+            const vehicleId = today?.bus?.id;
+            const result = await callDriverPhone("set_direction", { vehicle_id: vehicleId, direction });
+            if (!result?.ok) throw new Error("Couldn't save direction. Try again.");
+            setToday(prev => prev?.bus?.id === vehicleId ? { ...prev, bus: { ...prev.bus, trip_direction: direction } } : prev);
+          }} onMessages={() => navigate("/driver-phone/messages")} onDocuments={() => navigate("/driver-phone/me")} today={today} driverName={me?.driver?.name} onPickBus={pickBus} backupSentAt={backupSentAt}
             onStartShift={() => navigate("/driver-phone/start")} onEndShift={endShift} onWalkaround={() => navigate("/driver-phone/walkaround")} /></PullToRefresh>
         )}
         {tab === "messages" && <PullToRefresh onRefresh={loadMessages}><MessagesTab messages={messages} loaded={messagesLoaded} hasBus={!!today?.bus} onSend={send} seen={seen} /></PullToRefresh>}

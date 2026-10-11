@@ -226,3 +226,23 @@ describe("passenger messages reach the driver phone", () => {
     expect(sdk.tables.NotificationLog.flatMap((row) => row.recipients || [])).toContain("dana@test.invalid");
   });
 });
+
+describe("driver trip direction", () => {
+  it("saves only direction on the assigned bus and returns it after reload", async () => {
+    const {sdk,send}=phone();
+    const original=structuredClone(sdk.tables.Vehicle[0]);
+    expect((await send({action:"set_direction",vehicle_id:"bus-a",direction:"to_home",company_id:"b",driver_email:"other"})).status).toBe(200);
+    expect(sdk.tables.Vehicle[0]).toMatchObject({...original,trip_direction:"to_home",return_pickup_state:"pending"});
+    expect((await send({action:"today",vehicle_id:"bus-a"})).body.bus.trip_direction).toBe("to_home");
+    expect((await send({action:"set_direction",vehicle_id:"bus-a",direction:"to_work"})).status).toBe(200);
+    expect(sdk.tables.Vehicle[0].trip_direction).toBe("to_work");
+  });
+  it("refuses invalid directions, foreign buses and non-drivers", async () => {
+    const {sdk,send}=phone();
+    expect((await send({action:"set_direction",vehicle_id:"bus-a",direction:"elsewhere"})).status).toBe(400);
+    expect((await send({action:"set_direction",vehicle_id:"bus-b",direction:"to_home"})).status).toBe(403);
+    sdk.tables.Driver=[];
+    expect((await send({action:"set_direction",vehicle_id:"bus-a",direction:"to_home"})).status).toBe(403);
+    expect(sdk.tables.Vehicle.every(v=>!v.trip_direction)).toBe(true);
+  });
+});

@@ -1,6 +1,6 @@
 {
   "name": "transittrack-desktop",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "private": true,
   "description": "TransitTrack Admin and Mechanic for Windows",
   "author": "TransitTrack",
@@ -8,7 +8,9 @@
   "scripts": {
     "start": "electron .",
     "test": "node --test *.test.cjs",
-    "build:win": "electron-builder --win nsis --x64 --publish never"
+    "build:win": "npm run build:reader && npm run test:reader && electron-builder --win nsis --x64 --publish never",
+    "build:reader": "powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File build-reader.ps1",
+    "test:reader": "powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File test-reader.ps1"
   },
   "devDependencies": {
     "electron": "44.7.0",
@@ -36,7 +38,8 @@
       "setup.js",
       "reader.ps1",
       "preload.cjs",
-      "setup-launch.cjs"
+      "setup-launch.cjs",
+      "reader-process.cjs"
     ],
     "win": {
       "target": [
@@ -68,7 +71,8 @@
           "adb.exe",
           "*.dll",
           "NOTICE.txt",
-          "source.properties"
+          "source.properties",
+          "TransitTrack-Card-Reader.exe"
         ]
       }
     ]

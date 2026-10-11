@@ -1,3 +1,5 @@
+import { directionView } from "@/lib/driverDirection";
+import TripDirectionControl from "@/components/driver/TripDirectionControl";
 import useFutureAppearance from "@/hooks/useFutureAppearance";
 import CompanyBanner from "@/components/CompanyBanner";
 import { ReportAppProblemButton } from "@/components/support/ReportAppProblem";
@@ -5,12 +7,12 @@ import DriverDocumentsViewer from "@/components/driver/DriverDocumentsViewer";
 import { saveDeviceToken, forgetDeviceToken } from "@/lib/deviceAuth";
 import { forgetPin } from '@/lib/offlinePin';
 import ErrorState from '@/components/system/ErrorState';
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import useNoPageZoom from "@/hooks/useNoPageZoom";
 import JourneyLoading from "@/components/JourneyLoading";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { useDriverSession, clearDriverSessionCache } from "@/hooks/useDriverSession";
+import { useDriverSession, clearDriverSessionCache, patchDriverSession } from "@/hooks/useDriverSession";
 import { shiftAction } from "@/lib/driverShift";
 import { requestPushToken } from "@/lib/firebase";
 import { useKeepAwake } from "@/hooks/useKeepAwake";
@@ -82,7 +84,14 @@ export default function DriverApp() {
   const [activeTab, setActiveTab] = useState(() => tabFromStage(urlStage) || "track");
   // Follow the URL (e.g. "Continue" after an inspection goes to /driver/track).
   useEffect(() => { const t = tabFromStage(urlStage); if (t) setActiveTab(t); }, [urlStage]);
-  const { session, loading, error: sessionError, offline, invoke, refresh } = useDriverSession(deviceId);
+  const { session: rawSession, loading, error: sessionError, offline, invoke, refresh } = useDriverSession(deviceId);
+  const session = useMemo(() => directionView(rawSession), [rawSession]);
+  const changeDirection = async (direction) => {
+    const result = await invoke("set_direction", { direction });
+    if (!result?.ok) throw new Error("Couldn't save direction. Try again.");
+    patchDriverSession({ vehicle: { ...rawSession.vehicle, trip_direction: direction } });
+    await refresh().catch(() => {});
+  };
   useEffect(() => {
     const lock = () => { unlockedDayRef.current = null; setUnlocked(false); };
     window.addEventListener("tt-driver-locked", lock);
@@ -457,6 +466,7 @@ export default function DriverApp() {
         ) : null}
       />
 
+      <div className="shrink-0 mx-3 mb-2"><TripDirectionControl bus={session.vehicle} workplace={session.workplace} onChange={changeDirection} disabled={offline} /></div>
       <main className="flex-1 min-h-0 relative">
         {/* Drive stays mounted so GPS tracking keeps running while another tab is open. */}
         <section className={`absolute inset-0 p-3 lg:p-4 ${activeTab === "track" ? "" : "invisible pointer-events-none"}`} aria-hidden={activeTab !== "track"}>

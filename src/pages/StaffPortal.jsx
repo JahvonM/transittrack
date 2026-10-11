@@ -1,3 +1,4 @@
+import ReturnPickupCard from "@/components/passenger/ReturnPickupCard";
 import { greetingName } from "@/lib/userName";
 import CompanyBanner from "@/components/CompanyBanner";
 import React, { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -332,7 +333,10 @@ export default function StaffPortal() {
     return out;
   }, [routes, user?.pickup_lat, user?.pickup_lng, user?.pickup_name, user?.pickup_route_id, sharedStop]);
 
-  const stop = pickupOptions.find((s) => s.name === pickupName) || null;
+  const returnBus = myBus ? vehicles.find(v=>v.id===myBus.id) : null;
+  const returning = returnBus?.trip_direction === "to_home";
+  const stop = returning ? (workplace?.lat!=null && workplace?.lng!=null ? workplace : null)
+    : pickupOptions.find((s) => s.name === pickupName) || null;
 
   // SOS is admin/management-only — never surface the "emergency" status to
   // staff/passengers here (it drives the map pin color and its tooltip text).
@@ -351,12 +355,12 @@ export default function StaffPortal() {
 
   // The bus coming to your stop: your own bus, while it's tracking.
   const approaching = useMemo(() => {
-    if (!stop || !myBus) return null;
+    if (returning || !stop || !myBus) return null;
     const v = locatedVehicles.find((x) => x.id === myBus.id);
     if (!v || !v.tracking_active) return null;
     const dist = haversineKm(v.current_lat, v.current_lng, stop.lat, stop.lng);
     return { v, dist, mins: etaMinutes(dist, v.speed || 25) };
-  }, [stop, locatedVehicles, myBus]);
+  }, [stop, locatedVehicles, myBus, returning]);
 
   // Refine the straight-line candidate above with an actual driving ETA (roads,
   // not a straight line), falling back to the straight-line estimate while it loads.
@@ -481,7 +485,12 @@ export default function StaffPortal() {
   const notice = visibleAlerts[0];
   const companyName = company.name;
 
-  const mapSummary = stop && tripState.bus ? (
+  const mapSummary = returning && stop ? (
+    <div className="rounded-2xl border border-border bg-card/95 p-4 shadow-xl backdrop-blur">
+      <p className="font-bold">Going home · Pickup: {stop.name}</p>
+      <p className="text-body-sm">See Home for the company pickup ETA and bus status.</p>
+    </div>
+  ) : stop && tripState.bus ? (
     <div className="rounded-2xl border border-border bg-card/95 p-4 shadow-xl backdrop-blur">
       <p className="text-body-sm text-muted-foreground">{tripState.bus.name} to {stop.name}</p>
       <p className="mt-1 font-display text-display font-semibold tabular-nums">
@@ -499,7 +508,7 @@ export default function StaffPortal() {
       <p className="min-w-0 flex-1">
         <span className="block truncate font-bold">{stop.name}</span>
         <span className="block text-body-sm text-muted-foreground">
-          {roundMins != null && onTrip ? `${roundMins} min` : "No arrival time yet"}
+          {returning ? "Company boarding point · Going home" : roundMins != null && onTrip ? `${roundMins} min` : "No arrival time yet"}
           {myStopEta?.km != null && onTrip ? ` · ${myStopEta.km < 1 ? `${Math.round(myStopEta.km * 1000)} m` : `${myStopEta.km.toFixed(1)} km`}` : ""}
         </span>
       </p>
@@ -529,7 +538,10 @@ export default function StaffPortal() {
             <CompanyBanner name={companyName} logoUrl={company.logo_url} compact className="mx-6 mb-4 lg:mx-0" />
             <div className="tt-passenger-greeting mx-6 mb-5 lg:mx-0"><p className="text-body-sm text-muted-foreground">Your journey, connected</p><h1 className="text-headline font-bold">Welcome{greetingName(user) ? `, ${greetingName(user)}` : ""}</h1></div>
 
-            {tripState.kind === "choose" ? (
+            {returning ? (
+              <ReturnPickupCard bus={returnBus} workplace={workplace} homeName={user?.pickup_name}
+                onMap={()=>setMapOpen(true)} onChat={()=>setSheet("chat")} onEditPickup={()=>setSheet("pickup")} />
+            ) : tripState.kind === "choose" ? (
               <>
                 {/* The bus the company assigned shows even before a stop is picked. */}
                 <section aria-label="Your bus" className="mx-6 mb-4 rounded-2xl border border-border bg-card p-4 lg:mx-0">
@@ -604,7 +616,7 @@ export default function StaffPortal() {
             <section className="px-6 pt-10 lg:order-1 lg:px-0 lg:pt-0" aria-labelledby="tt-live-map">
               <SectionHead id="tt-live-map" title="Live map" aside={mapOpen ? <MapToggle open onToggle={() => setMapOpen(false)} /> : null} />
               {!mapOpen ? (
-                tripState.kind === "choose" ? <MapClosed onOpen={() => setMapOpen(true)}>See the buses on a map.</MapClosed> : <p className="text-body-sm text-muted-foreground">Use Show map beside Notify me to see {tripState.bus?.name || "the buses"} moving.</p>
+                tripState.kind === "choose" ? <MapClosed onOpen={() => setMapOpen(true)}>See the buses on a map.</MapClosed> : <p className="text-body-sm text-muted-foreground">Use Show map to see {tripState.bus?.name || "the buses"} moving.</p>
               ) : (
               <div id="passenger-live-map">
               <Suspense fallback={<div className="h-64 animate-pulse rounded-2xl bg-muted lg:h-[620px]" />}>

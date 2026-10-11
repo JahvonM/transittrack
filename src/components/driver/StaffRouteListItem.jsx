@@ -14,6 +14,7 @@ import { accountName } from "@/lib/userName";
 export default function StaffRouteListItem({ s, vehicle, onAttend }) {
   const navigate = useNavigate();
   const { pathname } = useLocation();
+  const home = s.trip_direction === "to_home";
   const skipped = s.skip_pickup_today;
   const late = s.late_snooze_active;
   const close = s.dist != null && s.dist <= PROXIMITY_TRIGGER_M;
@@ -51,7 +52,7 @@ export default function StaffRouteListItem({ s, vehicle, onAttend }) {
         <div className="text-xs text-muted-foreground">
           {s.dist != null
             ? close
-              ? "Within 500m — alert now"
+              ? home ? "Home drop-off within 500 m" : "Within 500m — alert now"
               : `${formatEta(mins)} away${isDriving ? " · by road" : ""}`
             : "No location pinned"}
         </div>
@@ -60,7 +61,7 @@ export default function StaffRouteListItem({ s, vehicle, onAttend }) {
       <Button size="icon" variant="ghost" className="h-11 w-11" onClick={navTo} disabled={s.home_lat == null || skipped} aria-label={`Directions to ${name || "pickup"}`}>
         <Navigation className="w-5 h-5" aria-hidden="true" />
       </Button>
-      {close && !skipped && s.phone && (
+      {close && !home && !skipped && s.phone && (
         <a
           href={wa}
           target="_blank"

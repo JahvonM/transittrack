@@ -77,70 +77,115 @@ const confirm=async(page,label)=>{ const d=page.getByRole('alertdialog').or(page
 
 test.use({viewport:{width:1440,height:900}});
 
-test('passengers are sorted by whether their bus drives past their pickup',async({page})=>{
+test('pickup workspace searches, filters, reviews details and fits tablet and phone',async({page})=>{
  await admin(page);
  await page.goto('/admin/plan-pickups');
- await expect(page.getByRole('heading',{name:'Needs a bus (2)'})).toBeVisible();
- await expect(page.getByRole('list',{name:'Needs a bus'})).toContainText('Nia Needs');
- await expect(page.getByRole('list',{name:'Wrong bus'})).toContainText('On Blue bus · pickup on Coastal');
- await expect(page.getByRole('region',{name:'New estate: waiting'})).toContainText('White bus passes 1.1 km away (Coastal)');
- await expect(page.getByRole('list',{name:'No route reaches them'})).toContainText('No bus passes within 1.5 km');
- await expect(page.getByRole('list',{name:'On the right bus'})).toContainText('Olu Okafor');
- await expect(page.getByRole('list',{name:'Seats on each bus'})).toContainText('19 / 20');
- // Both companies' passengers show until one company is picked.
- await expect(page.getByRole('list',{name:'No pickup yet'})).toContainText('Bea Bee');
- await page.getByRole('group',{name:'Company'}).getByRole('button',{name:'Company A'}).click();
- await expect(page.getByRole('list',{name:'No pickup yet'})).not.toContainText('Bea Bee');
+ const list=page.getByRole('list',{name:'Pickup passengers'});
+ await expect(list).toContainText('Nia Needs');
+ await expect(list).not.toContainText('Olu Okafor');
+ await page.getByRole('button',{name:'Review Wes Wrong',exact:true}).click();
+ await expect(page.getByRole('heading',{name:'Wes Wrong’s pickup'})).toBeVisible();
+ await expect(page.getByRole('button',{name:'Assign Wes Wrong to White bus'})).toBeVisible();
+ await page.getByRole('combobox',{name:'Filter pickup issues'}).click();
+ await page.getByRole('option',{name:'Needs a bus',exact:true}).click();
+ await expect(list).not.toContainText('Wes Wrong');
+ await page.getByRole('textbox',{name:'Search passenger or pickup'}).fill('Church');
+ await expect(list).toContainText('Nia Needs');
+ await expect(list).not.toContainText('Ned North');
+ await page.getByRole('textbox',{name:'Search passenger or pickup'}).fill('');
+ await page.getByRole('group',{name:'Passenger status'}).getByRole('button',{name:/Ready/}).click();
+ await expect(list).toContainText('Olu Okafor');
+ await page.getByRole('group',{name:'Passenger status'}).getByRole('button',{name:/No pickup/}).click();
+ await expect(list).toContainText('Bea Bee');
+ await page.getByRole('combobox',{name:'Company',exact:true}).click();
+ await page.getByRole('option',{name:'Company A',exact:true}).click();
+ await expect(list).not.toContainText('Bea Bee');
+ await page.getByRole('group',{name:'Passenger status'}).getByRole('button',{name:/Needs attention/}).click();
+ await page.getByRole('combobox',{name:'Filter pickup issues'}).click();
+ await page.getByRole('option',{name:'All issues',exact:true}).click();
+ await page.getByRole('button',{name:'Review Nia Needs',exact:true}).click();
  await shot(page,'plan-pickups');
- await page.setViewportSize({width:390,height:844});
- await expect(page.getByRole('list',{name:'Needs a bus'})).toBeVisible();
- expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+ for(const width of [1024,800,390]){
+   await page.setViewportSize({width,height:900});
+   await expect(list).toBeVisible();
+   expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+ }
  await shot(page,'plan-pickups-phone');
 });
 
-test('nothing changes until the admin assigns, one at a time or all suggested',async({page})=>{
+test('single and selected assignments require confirmation and send exact passenger and bus IDs',async({page})=>{
  const calls=await admin(page);
  await page.goto('/admin/plan-pickups');
- await expect(page.getByRole('heading',{name:'Needs a bus (2)'})).toBeVisible();
+ await page.getByRole('button',{name:'Review Nia Needs',exact:true}).click();
+ await page.getByRole('button',{name:'Assign Nia Needs to White bus'}).click();
+ expect(calls.setBus).toHaveLength(0);
+ await confirm(page,'Cancel');
  expect(calls.setBus).toHaveLength(0);
  await page.getByRole('button',{name:'Assign Nia Needs to White bus'}).click();
+ await confirm(page,'Assign passenger');
  await expect.poll(()=>calls.setBus.length).toBe(1);
  expect(calls.setBus[0]).toEqual({action:'set_bus',person_key:'contact:needs',vehicle_id:'bus-1'});
- await expect(page.getByRole('heading',{name:'Needs a bus (1)'})).toBeVisible();
- await expect(page.getByRole('list',{name:'On the right bus'})).toContainText('Nia Needs');
- // Assign all: the one left who needs a bus and the one on the wrong bus.
- await page.getByRole('button',{name:'Assign all suggested (2)'}).click();
- await confirm(page,'Assign all');
+ await page.getByRole('checkbox',{name:'Select Ned North',exact:true}).check();
+ await page.getByRole('checkbox',{name:'Select Wes Wrong',exact:true}).check();
+ await page.getByRole('button',{name:'Review assignments'}).click();
+ await expect(page.getByRole('alertdialog')).toContainText('Ned North → Blue bus');
+ await expect(page.getByRole('alertdialog')).toContainText('Wes Wrong → White bus');
+ expect(calls.setBus).toHaveLength(1);
+ await confirm(page,'Confirm assignments');
  await expect.poll(()=>calls.setBus.length).toBe(3);
  expect(calls.setBus.slice(1).map(c=>[c.person_key,c.vehicle_id])).toEqual([['user:needs2','bus-2'],['user:wrong','bus-1']]);
- await expect(page.getByRole('heading',{name:'Wrong bus (0)'})).toBeVisible();
+ await expect(page.getByRole('button',{name:'Review assignments'})).toBeDisabled();
 });
 
-test('a route with no bus: put a bus on it, or use a bus that passes nearby',async({page})=>{
+test('route without a bus retains company-safe route placement without assigning passengers',async({page})=>{
  const calls=await admin(page);
  await page.goto('/admin/plan-pickups');
+ await page.getByRole('button',{name:'Review Ella Estate',exact:true}).click();
  const group=page.getByRole('region',{name:'New estate: waiting'});
- // Only this company's buses can be put on the route.
- await expect(group.getByLabel('Bus for New estate').locator('option')).toHaveText(['Choose a bus…','White bus (now Coastal)','Blue bus (now Hills)','Spare van']);
- await group.getByLabel('Bus for New estate').selectOption('bus-3');
+ await group.getByRole('combobox',{name:'Bus for New estate'}).click();
+ await expect(page.getByRole('option',{name:/Other company bus/})).toHaveCount(0);
+ await page.getByRole('option',{name:'Spare van',exact:true}).click();
  await group.getByRole('button',{name:'Put bus on route'}).click();
+ expect(calls.vehicle).toHaveLength(0);
  await confirm(page,'Put bus on route');
  await expect.poll(()=>calls.vehicle.length).toBe(1);
  expect(calls.vehicle[0]).toMatchObject({entity:'Vehicle',operation:'update',id:'bus-3',data:{route_id:'r3'}});
- // They now need a bus, and the van is suggested, but nobody is assigned yet.
- await expect(page.getByRole('list',{name:'Needs a bus'})).toContainText('Ella Estate');
  await expect(page.getByRole('button',{name:'Assign Ella Estate to Spare van'})).toBeVisible();
  expect(calls.setBus).toHaveLength(0);
 });
 
-test('use a nearby bus for someone whose route has none',async({page})=>{
+test('nearby bus requires pickup warning and does not hide unresolved pickup',async({page})=>{
  const calls=await admin(page);
  await page.goto('/admin/plan-pickups');
- const group=page.getByRole('region',{name:'New estate: waiting'});
- await group.getByRole('button',{name:'Use White bus'}).click();
+ await page.getByRole('button',{name:'Review Ella Estate',exact:true}).click();
+ await expect(page.getByText('Their pickup must move onto this bus’s route.')).toBeVisible();
+ await page.getByRole('button',{name:'Assign Ella Estate to White bus'}).click();
+ await expect(page.getByRole('alertdialog')).toContainText('pickup still needs to move');
+ await confirm(page,'Assign passenger');
  await expect.poll(()=>calls.setBus.length).toBe(1);
  expect(calls.setBus[0]).toMatchObject({person_key:'user:nobus',vehicle_id:'bus-1'});
- // On the bus now; it passes 1.1 km away, so their app asks them to pick again.
- await expect(group).toContainText('On White bus, which passes 1.1 km away. Their app asks them to pick a pickup on Coastal.');
- await expect(group.getByRole('button',{name:'Use White bus'})).toHaveCount(0);
+ await expect(page.getByText(/On White bus, which passes 1.1 km away/)).toBeVisible();
+ await expect(page.getByRole('button',{name:'Assign Ella Estate to White bus'})).toHaveCount(0);
 });
+
+test('selected assignments keep failed passengers selected and continue later passengers',async({page})=>{
+ const calls=await admin(page);
+ let rejected=0;
+ await page.route('**/functions/nfcCards',async route=>{
+   const body=route.request().postDataJSON();
+   if(body.person_key==='user:needs2'){rejected++;return route.fulfill({status:503,json:{error:'Try again later'}});}
+   return route.fallback();
+ });
+ await page.goto('/admin/plan-pickups');
+ await page.getByRole('checkbox',{name:'Select Ned North',exact:true}).check();
+ await page.getByRole('checkbox',{name:'Select Wes Wrong',exact:true}).check();
+ await page.getByRole('button',{name:'Review assignments'}).click();
+ await confirm(page,'Confirm assignments');
+ await expect.poll(()=>rejected).toBe(1);
+ await expect.poll(()=>calls.setBus.length).toBe(1);
+ expect(calls.setBus[0].person_key).toBe('user:wrong');
+ await expect(page.getByRole('checkbox',{name:'Select Ned North',exact:true})).toBeChecked();
+ await expect(page.getByRole('button',{name:'Review assignments'})).toBeEnabled();
+ await expect(page.getByText('1 selected',{exact:true})).toBeVisible();
+});
+

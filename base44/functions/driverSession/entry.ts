@@ -260,10 +260,16 @@ async function loadStaff(base44, companyId, vehicleId) {
   const approvedIds = new Set(approvedRows.map(row=>row.user_id));
   const busOf = new Map(approvedRows.map(row=>[row.user_id,row.vehicle_id||'']));
   const ridesHere = (bus) => !bus || bus === vehicleId;
-  const [users, contacts] = await Promise.all([
+  const [users, contacts, workplaces] = await Promise.all([
     base44.asServiceRole.entities.User.list(),
     base44.asServiceRole.entities.Contact.filter({ company_id: companyId }, '-updated_date', 500),
+    base44.asServiceRole.entities.Workplace.filter({ company_id: companyId }, '-updated_date', 5),
   ]);
+  const workplace = workplaces.find(w => w.company_id === companyId && w.lat != null && w.lng != null
+    && Number.isFinite(Number(w.lat)) && Math.abs(Number(w.lat)) <= 90
+    && Number.isFinite(Number(w.lng)) && Math.abs(Number(w.lng)) <= 180);
+  const dropoff = { dropoff_name: workplace?.name || (workplace ? 'Company address' : ''),
+    dropoff_lat: workplace ? Number(workplace.lat) : null, dropoff_lng: workplace ? Number(workplace.lng) : null };
   const userByEmail = new Map(
     users.filter((u) => ['staff','passenger'].includes(u.role) && approvedIds.has(u.id))
       .map((u) => [(u.email || '').toLowerCase(), u])
@@ -281,14 +287,14 @@ async function loadStaff(base44, companyId, vehicleId) {
         id: c.id, full_name: u.display_name || c.name || u.full_name, email: c.email || u.email, phone: c.phone || u.phone,
         home_lat: c.pickup_lat != null ? c.pickup_lat : (u.pickup_lat ?? u.home_lat),
         home_lng: c.pickup_lng != null ? c.pickup_lng : (u.pickup_lng ?? u.home_lng),
-        pickup_name: c.pickup_name || u.pickup_name, dropoff_name: c.dropoff_name,
+        pickup_name: c.pickup_name || u.pickup_name, ...dropoff,
         skip_pickup_today: flagActive(u.skip_pickup_today, u.skip_pickup_until),
         late_snooze_active: flagActive(u.late_snooze_active, u.late_until),
       };
     }),
     ...orphanUsers.map((u) => ({
       id: u.id, full_name: u.display_name || u.full_name, email: u.email, phone: u.phone,
-      home_lat: u.pickup_lat ?? u.home_lat, home_lng: u.pickup_lng ?? u.home_lng, pickup_name: u.pickup_name, dropoff_name: undefined,
+      home_lat: u.pickup_lat ?? u.home_lat, home_lng: u.pickup_lng ?? u.home_lng, pickup_name: u.pickup_name, ...dropoff,
       skip_pickup_today: flagActive(u.skip_pickup_today, u.skip_pickup_until),
       late_snooze_active: flagActive(u.late_snooze_active, u.late_until),
     })),
@@ -398,7 +404,7 @@ function tabletFields(row, fields) {
   return Object.fromEntries(fields.filter((k) => row[k] !== undefined).map((k) => [k, row[k]]));
 }
 function tabletVehicle(row) {
-  const out = tabletFields(row, ['id', 'name', 'type', 'plate_number', 'company_id', 'company_name', 'capacity', 'route_id', 'current_lat', 'current_lng', 'speed', 'heading', 'status', 'driver_name', 'driver_email', 'image_url', 'model_3d', 'tracking_active', 'remote_tracking_lock', 'last_location_update', 'current_odometer']);
+  const out = tabletFields(row, ['id', 'name', 'type', 'plate_number', 'company_id', 'company_name', 'capacity', 'route_id', 'current_lat', 'current_lng', 'speed', 'heading', 'status', 'driver_name', 'driver_email', 'image_url', 'model_3d', 'tracking_active', 'remote_tracking_lock', 'last_location_update', 'current_odometer', 'trip_direction']);
   if (out && Array.isArray(row.trail)) out.trail = row.trail.map((t) => tabletFields(t, ['lat', 'lng', 't']));
   return out;
 }
@@ -855,6 +861,14 @@ export default async function(req) {
         });
       }
 
+      case 'set_direction': {
+        if (!['to_work', 'to_home'].includes(body.direction)) return Response.json({ error: 'Choose To work or To home' }, { status: 400 });
+        const vehicle = await loadVehicle(base44, vehicleId);
+        if (!vehicle || vehicle.company_id !== companyId) return Response.json({ error: 'Vehicle assignment mismatch' }, { status: 403 });
+        await base44.asServiceRole.entities.Vehicle.update(vehicleId, { trip_direction: body.direction, ...(vehicle.trip_direction !== body.direction ? { trip_direction_started_at: new Date().toISOString(), return_pickup_state: 'pending' } : {}) });
+        return Response.json({ ok: true, direction: body.direction });
+      }
+
       case 'start_shift': {
         const requestId=body.client_request_id;
         if(requestId!==undefined && (typeof requestId!=='string' || !/^[a-zA-Z0-9_-]{8,100}$/.test(requestId))) return Response.json({error:'Invalid request ID'},{status:400});
@@ -1300,6 +1314,9 @@ export default async function(req) {
       }
 
       case 'notify_pickup': {
+        const currentBus = await loadVehicle(base44, vehicleId);
+        if (currentBus?.trip_direction === 'to_home') return Response.json({ ok: true, skipped: true });
+
         const { to_email } = body;
         const to = sanitize(to_email);
         if (!to) return Response.json({ error: 'Missing recipient' }, { status: 400 });

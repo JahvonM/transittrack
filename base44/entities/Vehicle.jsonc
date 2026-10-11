@@ -169,6 +169,33 @@
     "model_3d": {
       "type": "string",
       "description": "Which 3D model draws this vehicle on maps (see src/lib/vehicleModels.js), e.g. city_bus, coach, school_bus, taxi."
+    },
+    "trip_direction": {
+      "type": "string",
+      "enum": [
+        "to_work",
+        "to_home"
+      ],
+      "default": "to_work",
+      "description": "Current staff transport direction, selected by the authorized driver."
+    },
+    "trip_direction_started_at": {
+      "type": "string",
+      "description": "Server timestamp identifying the current staff journey."
+    },
+    "return_pickup_state": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "near",
+        "arrived",
+        "departed"
+      ],
+      "description": "Company boarding state for a return journey."
+    },
+    "return_pickup_date": {
+      "type": "string",
+      "description": "Server-local service date for resetting company boarding state."
     }
   },
   "rls": {

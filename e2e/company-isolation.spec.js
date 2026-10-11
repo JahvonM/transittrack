@@ -1277,3 +1277,87 @@ test('route deletion requires confirmation and removes only the selected route',
  await expect(page.getByRole('button',{name:/Morning route A/})).toHaveCount(0);
  await expect(page.getByRole('button',{name:/Evening route A/}).last()).toBeVisible();
 });
+
+for (const source of ['user','contact']) test('directory pickup editor saves and retries for '+source,async({page})=>{
+ await session(page,'admin');
+ const writes=[];
+ let fail=true;
+ let person={key:source+':pat',source,id:'pat',name:'Pat Passenger',company_id:'a',company_name:'Company A',registered:source==='user',directory_type:'staff',status:'Card Issued'};
+ await page.route('**/functions/nfcCards',async r=>{
+  const b=r.request().postDataJSON();
+  if(b.action==='directory')return r.fulfill({json:{people:[person],vehicles:[vehicles[0]]}});
+  if(b.action==='set_pickup'){
+    writes.push(b);
+    if(fail)return r.fulfill({status:503,json:{error:'Pickup could not be saved'}});
+    person={...person,pickup_name:b.pickup_name,pickup_lat:b.pickup_lat,pickup_lng:b.pickup_lng};
+    return r.fulfill({json:{ok:true,...person}});
+  }
+  return r.fulfill({json:{ok:true}});
+ });
+ await page.route('https://api.mapbox.com/geocoding/**',r=>r.fulfill({json:{features:[{id:'belmont',text:'Belmont junction',place_name:'Belmont junction, Grenada',center:[-61.748,12.049]}]}}));
+ await page.goto('/admin/directory');
+ await page.getByRole('button',{name:'Set pickup for Pat Passenger'}).click();
+ const dialog=page.getByRole('dialog');
+ await expect(dialog.getByRole('heading',{name:'Pickup spot for Pat Passenger'})).toBeVisible();
+ await expect(dialog.getByRole('button',{name:'Save pickup spot'})).toBeDisabled();
+ await dialog.getByRole('textbox',{name:'Search a place by name'}).fill('Belmont');
+ await dialog.getByRole('button',{name:/Belmont junction.*Grenada/}).click();
+ await expect(dialog.getByLabel('Pickup name')).toHaveValue('Belmont junction');
+ await expect(dialog.getByLabel('Latitude',{exact:true})).toHaveValue('12.049');
+ await expect(dialog.getByLabel('Longitude',{exact:true})).toHaveValue('-61.748');
+ await dialog.getByRole('button',{name:'Save pickup spot'}).click();
+ await expect(dialog.getByRole('alert')).toContainText('Pickup could not be saved');
+ await expect(dialog.getByLabel('Pickup name')).toHaveValue('Belmont junction');
+ fail=false;
+ await dialog.getByRole('button',{name:'Save pickup spot'}).click();
+ await expect(dialog).toHaveCount(0);
+ expect(writes).toHaveLength(2);
+ expect(writes[1]).toEqual({action:'set_pickup',person_key:source+':pat',pickup_name:'Belmont junction',pickup_lat:12.049,pickup_lng:-61.748});
+ await expect(page.locator('li').filter({has:page.getByRole('button',{name:'Set pickup for Pat Passenger'})})).toContainText('Belmont junction');
+ await page.getByRole('button',{name:'Set pickup for Pat Passenger'}).click();
+ await expect(page.getByRole('dialog').getByLabel('Pickup name')).toHaveValue('Belmont junction');
+ await page.getByRole('dialog').getByLabel('Pickup name').fill('Unsaved edit');
+ await page.getByRole('dialog').getByRole('button',{name:'Cancel',exact:true}).click();
+ expect(writes).toHaveLength(2);
+ await page.setViewportSize({width:390,height:844});
+ await page.getByRole('button',{name:'Set pickup for Pat Passenger'}).click();
+ await expect(page.getByRole('dialog').getByLabel('Pickup name')).toHaveValue('Belmont junction');
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+});
+
+async function returnPassenger(page,phase,stale=false) {
+ await page.setViewportSize({width:390,height:844});
+ await session(page,'staff');
+ await page.addInitScript(()=>localStorage.setItem('tt_company_access_grant','a'.repeat(64)));
+ const user={id:'caller',role:'staff',email:'caller@test.local',full_name:'Test Passenger',company_id:'a',pickup_name:'Home gate',pickup_lat:12.02,pickup_lng:-61.7};
+ const bus={...vehicles[0],trip_direction:'to_home',return_pickup_state:phase,tracking_active:true,current_lat:12.005,current_lng:-61.7,last_location_update:new Date(Date.now()-(stale?300000:0)).toISOString()};
+ await page.route('**/functions/companyAccess',r=>r.fulfill({json:{company:{id:'a',name:'Company A'},my_bus:{id:'bus-a',name:'Bus A'}}}));
+ await page.route('**/functions/entityAccess',r=>{
+  const body=r.request().postDataJSON();let result=[];
+  if(body.entity==='User')result=user;
+  if(body.entity==='Bootstrap')result={workplace:{id:'work',company_id:'a',name:'Company A',lat:12,lng:-61.7},vehicles:[bus],routes:[],trips:[]};
+  if(body.entity==='Company')result=[{id:'a',name:'Company A'}];
+  return r.fulfill({json:{result}});
+ });
+ await page.route('https://api.mapbox.com/**',r=>r.fulfill({json:{routes:[{distance:2200,duration:420,geometry:{coordinates:[[-61.7,12.005],[-61.7,12]]}}]}}));
+ await page.goto('/staff');
+ return page.getByRole('region',{name:'Going home pickup'});
+}
+test('return pickup shows road ETA to company with home stop and actions',async({page})=>{
+ const card=await returnPassenger(page,'near');
+ await expect(card.getByText('About 7 min to your company')).toBeVisible();
+ await expect(card.getByText('Home stop: Home gate')).toBeVisible();
+ await expect(card.getByRole('button',{name:'Show map'})).toBeVisible();
+ await expect(card.getByRole('button',{name:'Message driver'})).toBeVisible();
+});
+test('return pickup shows arrival and departure status',async({page})=>{
+ let card=await returnPassenger(page,'arrived');
+ await expect(card.getByText('Your bus is here')).toBeVisible();
+ card=await returnPassenger(page,'departed');
+ await expect(card.getByText('Bus has left the company')).toBeVisible();
+});
+test('return pickup never shows an ETA from stale GPS',async({page})=>{
+ const card=await returnPassenger(page,'near',true);
+ await expect(card.getByText('Waiting for a fresh bus location')).toBeVisible();
+ await expect(card.getByText(/About .* min/)).toHaveCount(0);
+});

@@ -102,6 +102,7 @@ function StopEditor({ vehicle, route, stops, onDrawnRoad, invoke, refresh }) {
 
 export default function DriverStops({ session, passengers, trips, invoke, refresh }) {
   const [tab, setTab] = useState("stops");
+  const home = session?.trip_direction === "to_home";
   const vehicle = session?.vehicle;
   const route = session?.route;
   const roadStops = roadStopsOf(session);
@@ -154,7 +155,9 @@ export default function DriverStops({ session, passengers, trips, invoke, refres
         stops.length === 0 ? (
           <p className="py-8 text-center text-muted-foreground">This bus has no stops yet. Ask dispatch to assign a route.</p>
         ) : (
-          <div role="tabpanel"><ol className="m-0 list-none p-0">
+          <div role="tabpanel">
+            {home && workplace && <div className="mb-3 rounded-xl border border-primary/40 bg-primary/10 p-3"><p className="font-semibold">{workplace.name}</p><p className="text-body-sm text-muted-foreground">Pickup · everyone boards here, then gets off at their home stop</p></div>}
+            <ol className="m-0 list-none p-0">
             {stops.map((st, i) => {
               const passed = nextIndex != null && i < nextIndex;
               const isNext = i === nextIndex;
@@ -170,9 +173,9 @@ export default function DriverStops({ session, passengers, trips, invoke, refres
                   </span>
                   <span className="min-w-0 py-2">
                     <span className="block truncate font-semibold">{st.name}</span>
-                    <span className="block text-body-sm text-muted-foreground">{passed ? "Passed" : isNext ? "Next stop" : i === stops.length - 1 && !workplace ? "Last stop" : roadStops && !st.fixed ? "Pickup stop" : " "}</span>
+                    <span className="block text-body-sm text-muted-foreground">{passed ? "Passed" : isNext ? "Next stop" : i === stops.length - 1 && !workplace ? "Last stop" : roadStops && !st.fixed ? (home ? "Home drop-off" : "Pickup stop") : " "}</span>
                     {names.length > 0 && (
-                      <span className="block text-body-sm text-foreground" aria-label={`Picking up ${names.join(", ")}`}>
+                      <span className="block text-body-sm text-foreground" aria-label={`${home ? "Dropping off" : "Picking up"} ${names.join(", ")}`}>
                         {names.slice(0, 4).join(", ")}{names.length > 4 ? ` +${names.length - 4} more` : ""}
                       </span>
                     )}
@@ -180,13 +183,13 @@ export default function DriverStops({ session, passengers, trips, invoke, refres
                   <span className="text-right font-display text-title-sm font-semibold tabular-nums">
                     {!passed && e?.mins != null ? arrivalClock(e.mins) : ""}
                   </span>
-                  <span className={cn("inline-flex min-w-[3rem] items-center justify-end gap-1 font-display text-title-sm font-semibold tabular-nums", count ? "text-foreground" : "text-muted-foreground")} aria-label={`${count} pickup${count === 1 ? "" : "s"}`}>
+                  <span className={cn("inline-flex min-w-[3rem] items-center justify-end gap-1 font-display text-title-sm font-semibold tabular-nums", count ? "text-foreground" : "text-muted-foreground")} aria-label={`${count} ${home ? "drop-off" : "pickup"}${count === 1 ? "" : "s"}`}>
                     <Users className="h-4 w-4" aria-hidden="true" />{count}
                   </span>
                 </li>
               );
             })}
-            {workplace && (
+            {workplace && !home && (
               <li className="grid min-h-[64px] grid-cols-[32px_minmax(0,1fr)] items-center gap-x-3 rounded-xl pr-2">
                 <span className="grid place-items-center" aria-hidden="true"><Building2 className="h-5 w-5 text-primary" /></span>
                 <span className="min-w-0 py-2">

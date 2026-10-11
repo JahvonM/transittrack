@@ -1,5 +1,7 @@
+import { directionView } from "@/lib/driverDirection";
+import TripDirectionControl from "@/components/driver/TripDirectionControl";
 import BusArtwork from "@/components/BusArtwork";
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useMemo } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Bus, CircleCheck, ClipboardCheck, Clock, MapPin, Megaphone, MessageCircle, Phone, Play, Radio, Route as RouteIcon, Square, UserX, Users, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -42,8 +44,10 @@ function ContactRow({ label, phone }) {
   );
 }
 
-export default function TodayTab({ today, driverName, onPickBus, onStartShift, onEndShift, onWalkaround, backupSentAt, onMessages, onDocuments }) {
-  const { buses = [], bus, route, pickups = [], shift, last_shift: lastShift, notices = [], contacts, workplace, walkaround } = today || {};
+export default function TodayTab({ today, driverName, onPickBus, onStartShift, onEndShift, onWalkaround, backupSentAt, onMessages, onDocuments, onDirectionChange }) {
+  const view = useMemo(() => directionView(today), [today]);
+  const home = view?.trip_direction === "to_home";
+  const { buses = [], bus, route, pickups = [], shift, last_shift: lastShift, notices = [], contacts, workplace, walkaround } = view || {};
   const [panel, setPanel] = useState(null);
   const panelButton = useRef(null);
   const openPanel = (name, event) => { panelButton.current = event.currentTarget; setPanel(name); };
@@ -65,6 +69,8 @@ export default function TodayTab({ today, driverName, onPickBus, onStartShift, o
         <p className="text-body-sm text-muted-foreground">{new Date().toLocaleDateString([], { weekday: "long", day: "numeric", month: "long" })}</p>
         <h1 className="text-headline">{greeting}, {first}</h1>
       </header>
+
+      {bus && <TripDirectionControl bus={bus} workplace={workplace} onChange={onDirectionChange} />}
 
       {!bus ? (
         <Section title="No bus assigned" icon={Bus}>
@@ -128,7 +134,7 @@ export default function TodayTab({ today, driverName, onPickBus, onStartShift, o
       )}
 
       {bus && <><div className="tt-phone-trip-summary grid grid-cols-2 gap-3">
-        <Section title="Pickups today"><p className="font-display text-3xl font-bold">{riding.length}</p><p className="text-body-sm text-muted-foreground">{skipping.length} skipping today</p></Section>
+        <Section title={home ? "Home drop-offs today" : "Pickups today"}><p className="font-display text-3xl font-bold">{riding.length}</p><p className="text-body-sm text-muted-foreground">{skipping.length} skipping today</p></Section>
         <Section title="Your route"><p className="font-bold">{route?.name || "Not assigned"}</p><p className="text-body-sm text-muted-foreground">{stops.length} stops</p></Section>
       </div><div className="tt-phone-quick-actions grid grid-cols-2 gap-3" aria-label="Driver shortcuts">
         <button type="button" aria-haspopup="dialog" aria-expanded={panel === "stops"} onClick={(event) => openPanel("stops", event)}><RouteIcon aria-hidden="true" />Bus stops</button>
@@ -165,11 +171,11 @@ export default function TodayTab({ today, driverName, onPickBus, onStartShift, o
         <DialogContent className="max-h-[85dvh] overflow-y-auto rounded-2xl p-4 pt-10" aria-describedby={undefined} onCloseAutoFocus={(event) => { event.preventDefault(); panelButton.current?.focus(); }}>
           <DialogTitle className="sr-only">{panel === "stops" ? "Bus stops" : "Passenger list"}</DialogTitle>
       {panel === "passengers" && (
-        <Section title="Who to pick up" icon={Users}>
+        <Section title={home ? "Who to drop off" : "Who to pick up"} icon={Users}>
           {inOrder.length === 0 ? (
-            <p className="text-body text-muted-foreground">No pickups today.</p>
+            <p className="text-body text-muted-foreground">{home ? "No home drop-offs today." : "No pickups today."}</p>
           ) : (
-            <ul className="divide-y divide-border" aria-label="Passengers to pick up">
+            <ul className="divide-y divide-border" aria-label={home ? "Passengers to drop off" : "Passengers to pick up"}>
               {inOrder.map((p, i) => {
                 const n = stopNumber.get(p.stop);
                 return (
@@ -208,10 +214,11 @@ export default function TodayTab({ today, driverName, onPickBus, onStartShift, o
           ) : (
             <>
               <p className="-mt-2 mb-3 text-body-sm text-muted-foreground">
-                {stops.length} stop{stops.length === 1 ? "" : "s"} · {riding.length} pickup{riding.length === 1 ? "" : "s"} today
-                {workplace?.name ? ` · drop-off at ${workplace.name}` : ""}
+                {stops.length} stop{stops.length === 1 ? "" : "s"} · {riding.length} {home ? "drop-off" : "pickup"}{riding.length === 1 ? "" : "s"} today
+                {workplace?.name ? ` · ${home ? "pickup" : "drop-off"} at ${workplace.name}` : ""}
               </p>
               <ol className="relative space-y-0">
+                {home && workplace && <li className="mb-3 rounded-xl bg-primary/10 p-3"><p className="font-semibold">{workplace.name}</p><p className="text-body-sm text-muted-foreground">Pickup · everyone boards here</p></li>}
                 {stops.map((s, i) => {
                   const people = atStop(s.name);
                   return (
@@ -223,7 +230,7 @@ export default function TodayTab({ today, driverName, onPickBus, onStartShift, o
                       <div className="min-w-0 flex-1 pt-0.5">
                         <p className="font-semibold">{s.name}</p>
                         <p className="text-body-sm text-muted-foreground">
-                          {s.fixed === false ? "Pickup stop · " : ""}{people.length > 0 ? `${people.length} pickup${people.length === 1 ? "" : "s"}` : "No pickups"}
+                          {s.fixed === false ? (home ? "Home drop-off · " : "Pickup stop · ") : ""}{people.length > 0 ? `${people.length} ${home ? "drop-off" : "pickup"}${people.length === 1 ? "" : "s"}` : home ? "No drop-offs" : "No pickups"}
                         </p>
                       </div>
                     </li>
