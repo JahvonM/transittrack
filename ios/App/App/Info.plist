@@ -16,6 +16,20 @@
 	<string>$(PRODUCT_NAME)</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
+	<!-- Google/Apple sign-in happens in the phone's browser, which hands the
+	     (sealed) session back through com.transittrack.app://signin. Keep this
+	     in step with PHONE_SIGNIN_SCHEME in src/lib/phoneSignIn.js. -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.transittrack.app.signin</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.transittrack.app</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleShortVersionString</key>
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
