@@ -545,7 +545,7 @@ export default function StaffPortal() {
     <AppLayout variant="passenger">
       <PullToRefresh onRefresh={() => Promise.all([reload(), refreshMyBus(), refreshSharedStop()])}>
         <PassengerExperience view={view} user={user} company={company} workplace={workplace} myVehicle={myVehicle}
-          returning={returning} tripState={tripState} stopsAway={stopsAway} timelineRoute={timelineRoute} stopEtas={stopEtas}
+          returning={returning} tripState={tripState} pickupStop={stop} stopsAway={stopsAway} timelineRoute={timelineRoute} stopEtas={stopEtas}
           now={now} homeName={user?.pickup_name || pickupName} sharedStop={sharedStop}
           pickupPrompt={pickupPrompt} notice={notice} chatUnread={chatUnread} stopAlerts={stopAlerts} pushPermission={pushPermission}
           toggleStopAlerts={toggleStopAlerts} enableNotifications={enableNotifications} setSheet={setSheet}
