@@ -1086,15 +1086,28 @@ for (const width of [320,390,430]) {
  }
 }
 
-test('desktop setup buttons open the requested native view directly',async({page})=>{
+test('desktop setup opens native views while Connect reader connects to the running helper',async({page})=>{
  await session(page,'admin');
  await page.addInitScript(()=>{window.setupCalls=[];window.transittrackDesktop={openSetup:async view=>{window.setupCalls.push(view);return {ok:true};}};});
  await page.route('**/functions/nfcCards',r=>r.fulfill({json:{people:[],cards:[],vehicles:[],tablets:[]}}));
  await page.goto('/admin/cards');
  await page.getByRole('button',{name:'NFC setup',exact:true}).click();
  expect(await page.evaluate(()=>window.setupCalls)).toEqual(['nfc']);
+ await page.route('http://127.0.0.1:8765/status',r=>r.fulfill({json:{reader:'ACS ACR122U'}}));
+ await page.addInitScript(()=>{
+  window.readerStreams=[];
+  window.EventSource=class {
+   constructor(url){this.url=url;window.readerStreams.push(this);setTimeout(()=>{this.onopen?.();this.onmessage?.({data:JSON.stringify({type:'status',reader:'ACS ACR122U'})});},0);}
+   close(){}
+  };
+ });
+ await page.reload();
  await page.getByRole('button',{name:'Connect reader',exact:true}).click();
- expect(await page.evaluate(()=>window.setupCalls)).toEqual(['nfc','nfc']);
+ await expect(page.getByText('ACS ACR122U',{exact:true})).toBeVisible();
+ expect(await page.evaluate(()=>window.setupCalls)).toEqual([]);
+ expect(await page.evaluate(()=>window.readerStreams.map(stream=>stream.url))).toEqual(['http://127.0.0.1:8765/events']);
+ await page.evaluate(()=>window.readerStreams[0].onmessage({data:JSON.stringify({type:'card',uid:'04AABBCC',cardType:'MIFARE'})}));
+ await expect(page.getByText(/Card detected · UID 04:AA:BB:CC/)).toBeVisible();
  await page.goto('/admin/kiosks');
  await page.getByRole('button',{name:'Open tablet setup',exact:true}).click();
  expect(await page.evaluate(()=>window.setupCalls)).toEqual(['tablet']);
