@@ -1,4 +1,5 @@
 import {test,expect} from '@playwright/test';
+const tab=(page,name)=>page.getByRole(page.viewportSize().width<768?'button':'link',{name,exact:true});
 const vehicles=[{id:'bus-a',name:'Bus A',company_id:'a',company_name:'Company A',type:'staff_bus',status:'idle',capacity:25},{id:'bus-b',name:'Bus B',company_id:'b',company_name:'Company B',type:'staff_bus',status:'idle',capacity:25}];
 async function session(page,role) {
  const calls=[],direct=[];
@@ -62,18 +63,18 @@ test('four passenger tabs retain data and open map only on request',async({page}
  await page.route('**/functions/generateBoardingQr',r=>r.fulfill({json:{token:'TEST-QR'}}));
  await expect(page.getByLabel('Your next bus')).toBeVisible();
  await expect(page.getByLabel('Live journey map')).toHaveCount(0);
- await page.getByRole('link',{name:'Journey',exact:true}).click();
+ await tab(page,'Journey').click();
  await expect(page.getByRole('button',{name:'View live map',exact:true})).toBeVisible();
  await page.getByRole('button',{name:'View live map',exact:true}).click();
  await expect(page.getByLabel('Live journey map')).toBeVisible();
  await page.getByRole('button',{name:'Hide live map',exact:true}).click();
- await page.getByRole('link',{name:'My card',exact:true}).click();
+ await tab(page,'My card').click();
  await expect(page.getByText('Issued · Active',{exact:true})).toBeVisible();
  await expect(page.getByRole('button',{name:'Report lost card'})).toBeEnabled();
- await page.getByRole('link',{name:'More',exact:true}).click();
+ await tab(page,'More').click();
  await expect(page.getByRole('heading',{name:'Your account'})).toBeVisible();
  await expect(page.getByText('Offline access',{exact:true})).toBeVisible();
- await page.getByRole('link',{name:'Home',exact:true}).click();
+ await tab(page,'Home').click();
  await expect(page.getByLabel('Your next bus')).toBeVisible();
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
  await page.screenshot({path:'/tmp/passenger-applied-home.png',fullPage:true});
@@ -82,7 +83,7 @@ for(const width of [320,430,768])test('passenger layout fits '+width,async({page
  await page.setViewportSize({width,height:950});await passengerShowcase(page);
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
  const hero=page.getByLabel('Your next bus');await expect(hero).toBeVisible();
- await page.getByRole('link',{name:'Journey',exact:true}).click();
+ await tab(page,'Journey').click();
  await expect(page.getByRole('button',{name:'View live map',exact:true})).toBeVisible();
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
 });
@@ -95,7 +96,7 @@ test('return trip uses company pickup and home dropoff',async({page})=>{
  return r.fulfill({json:{result}});
  });
  await page.reload();await expect(page.getByLabel('Your next bus')).toBeVisible();
- await page.getByRole('link',{name:'Journey',exact:true}).click();
+ await tab(page,'Journey').click();
  await expect(page.getByLabel('Pickup and drop-off')).toContainText('Hotel entrance');
  await expect(page.getByLabel('Pickup and drop-off')).toContainText('My home');
 });
