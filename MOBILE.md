@@ -119,12 +119,39 @@ For the Capacitor Android build:
 3. On a real device, enable notifications and verify delivery with the app
    open, in the background, and closed. Browser mocks do not verify delivery.
 
-**iOS remains incomplete.** Capacitor PushNotifications gives an APNs token on
-iOS, whereas this backend sends via FCM. Adding a plist alone does not bridge
-that difference. An iOS Firebase Messaging bridge, its app configuration,
-Push Notifications capability, and APNs configuration in Firebase are needed,
-followed by a signed device test. Until then the code reports that native
-notification setup is required and does not store an APNs token as an FCM token.
+**iPhone.** The code side is in place; it goes through Firebase like
+Android and the website, so the server needs no Apple keys:
+
+- `ios/App/App/AppDelegate.swift` starts Firebase and swaps Apple's APNs
+  token for this phone's Firebase token before the app sees it (Capacitor's
+  "Push Notifications with Firebase" guide). Firebase starts only when
+  `ios/App/App/firebase/GoogleService-Info.plist` is in the build; without it
+  the app still runs and says notifications need setup.
+- `ios/App/Podfile` adds `FirebaseMessaging ~> 11.15` (the last line that
+  supports iOS 13, the app's minimum).
+- `ios/App/App/App.entitlements` turns on the Push Notifications capability.
+- `src/lib/nativePush.js` never saves a raw APNs token (64 hex characters),
+  so a build without the swap can't claim notifications work.
+- The server adds `apns.payload.aps.sound = default` (iPhone alerts are
+  silent without it) and `data.link`, which the phone app opens when the
+  alert is tapped (Android too).
+
+Still to do (needs the Apple Developer account and the Firebase console):
+
+1. Apple Developer → Certificates, IDs & Profiles → Keys → **+** → tick
+   **Apple Push Notifications service (APNs)** → download the `.p8` file
+   (only downloadable once). Note its **Key ID** and your **Team ID**.
+2. Firebase console, project `transit-track-1e9e4` → Project settings →
+   **Add app** → iOS → bundle ID (the final one, `com.transittrack.app`
+   for now) → download `GoogleService-Info.plist` → put it in
+   `ios/App/App/firebase/`. It isn't a secret and can be committed.
+3. Firebase → Project settings → **Cloud Messaging** → Apple app
+   configuration → upload the `.p8` with its Key ID and Team ID.
+4. Build on a Mac/Codemagic (`npm install`, `npx cap sync ios`,
+   `pod install`), install on a real iPhone (the simulator can't receive
+   pushes), sign in, turn notifications on, then Admin → Notifications →
+   send a test. Check it arrives with the app open, in the background, and
+   closed, and that tapping it opens the right page.
 
 Keep APNs/private service-account credentials on the server or in the native
 build provider's secret storage. This change does not create signing keys,
