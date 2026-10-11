@@ -105,6 +105,7 @@ test('driver can choose a returned route and its ETA updates', async ({ page, co
   await page.goto('/driver/track');
   await page.locator('input[type=password]').fill('1234');
   await page.getByRole('button', { name: 'Unlock', exact: true }).click();
+  await page.getByRole('button', { name: 'Navigation', exact: true }).click();
   await page.getByRole('button', { name: 'Navigate', exact: true }).click();
   const option = page.getByRole('button', { name: /Alternative test road/ });
   await expect(option).toBeVisible({ timeout: 20000 });
@@ -136,6 +137,7 @@ test('driver map pins the stops and only gives directions after Navigate', async
   await page.goto('/driver/track');
   await page.locator('input[type=password]').fill('1234');
   await page.getByRole('button', { name: 'Unlock', exact: true }).click();
+  await page.getByRole('button', { name: 'Navigation', exact: true }).click();
   const navigate = page.getByRole('button', { name: 'Navigate', exact: true });
   await expect(navigate).toBeVisible({ timeout: 20000 });
   await expect(page.getByTestId('nav-eta')).toContainText('of 2');
@@ -162,6 +164,7 @@ test('tapping a GPS problem asks the helper to look for the USB GPS again', asyn
   await page.goto('/driver/track');
   await page.locator('input[type=password]').fill('1234');
   await page.getByRole('button', { name: 'Unlock', exact: true }).click();
+  await page.getByText('Trip details',{exact:true}).click();
   const gps = page.getByRole('button', { name: /GPS.*Tap to check again/ });
   await expect(gps).toBeVisible({ timeout: 20000 });
   await expect(gps).toContainText('GPS module: Not plugged in');
@@ -381,7 +384,7 @@ test('driver More has a WhatsApp button for app problems', async ({ page }) => {
 test('driver opens their licence and insurance with the bus PIN, and nothing is kept', async ({ page }) => {
   await mockApi(page, []);
   await page.addInitScript(() => localStorage.setItem('tt_driver_device_id', 'driver-test'));
-  await page.goto('/driver/profile');
+  await page.goto('/driver/documents');
   await page.locator('input[type=password]').fill('1234');
   await page.getByRole('button', { name: 'Unlock', exact: true }).click();
   await page.getByRole('button', { name: /My licence & insurance/ }).click();
@@ -467,14 +470,17 @@ for (const size of [{width:1280,height:800},{width:1024,height:600},{width:800,h
   const main=await page.locator('.tt-driver-reference>main').boundingBox();
   const deck=await page.getByLabel('Driving controls',{exact:true}).boundingBox();
   expect(deck.y+deck.height).toBeLessThanOrEqual(size.height+1);
-  if(size.width>=900){const sidebar=await nav.boundingBox();expect(sidebar.x+sidebar.width).toBeLessThanOrEqual(main.x+1);await expect(page.getByRole('button',{name:'Passenger list',exact:true})).toBeVisible();}
+  expect(main.width).toBeGreaterThan(0);
+  await expect(nav.getByRole('button')).toHaveCount(3);
   await page.screenshot({path:`/tmp/tt-driver-reference-${size.width}.png`});
   await nav.getByRole('button',{name:'Passengers',exact:true}).click();
-  await expect(page.getByRole('heading',{name:'Passenger list',exact:true})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'Passengers',exact:true})).toBeVisible();
   await expect(page.locator('.tt-driver-reference>main>section').last().getByText('Actual Passenger',{exact:true})).toBeVisible();
-  await nav.getByRole('button',{name:'Documents',exact:true}).click();
+  await nav.getByRole('button',{name:'More',exact:true}).click();
+  await page.getByRole('button',{name:'Licence & insurance',exact:true}).click();
   await expect(page.getByRole('heading',{name:'Licence & insurance',exact:true})).toBeVisible();
-  await nav.getByRole('button',{name:'Settings',exact:true}).click();
+  await page.getByRole('button',{name:'Back to More',exact:true}).click();
+  await page.getByRole('button',{name:'Tablet & reader',exact:false}).click();
   await expect(page.getByRole('heading',{name:'Tablet settings',exact:true})).toBeVisible();
  });
 }
