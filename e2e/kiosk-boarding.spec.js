@@ -96,6 +96,7 @@ test('card tap boards a passenger and the tablet locks again', async ({ page }) 
 });
 
 test('boarding tablet explains unknown cards, rate limits and lost pairing', async ({ page }) => {
+  await page.clock.install();
   const state = { mode: 'unknown' };
   await setup(page, {
     checkIn: (b) => {
@@ -115,6 +116,7 @@ test('boarding tablet explains unknown cards, rate limits and lost pairing', asy
   await expect(page.getByText('Too many attempts. Try again in a minute.')).toBeVisible();
   await expect(page.getByText(/Connect to WiFi to verify/)).toHaveCount(0);
   await expect(page.getByText('Slide to enter a code', { exact: true })).toBeVisible({ timeout: 8000 });
+  await page.clock.fastForward(16000);
   state.mode = 'unpaired';
   await tap(page);
   await expect(page.getByText(/pairing was reset/)).toBeVisible();
