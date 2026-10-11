@@ -23,7 +23,7 @@ it("expires cached lists and bypasses them on explicit refresh",async()=>{
  load.invalidate();await load(["vehicles"]);expect(invoke).toHaveBeenCalledTimes(4);
 });
 it("does not cache a failed dataset or throw away its successful siblings",async()=>{
- const invoke=vi.fn().mockResolvedValueOnce({data:{result:{datasets:{vehicles:[{id:"kept"}]},errors:{parts:{status:429,error:"Busy"}}}}).mockResolvedValueOnce(reply({parts:[]}));
+ const invoke=vi.fn().mockResolvedValueOnce({data:{result:{datasets:{vehicles:[{id:"kept"}]},errors:{parts:{status:429,error:"Busy"}}}}}).mockResolvedValueOnce(reply({parts:[]}));
  const load=createAdminBatchLoader(invoke),results=await load(["vehicles","parts"]);
  expect(results[0].status).toBe("fulfilled");expect(results[1].reason.status).toBe(429);
  await load(["vehicles","parts"]);expect(invoke.mock.calls[1][0]).toEqual(["parts"]);
