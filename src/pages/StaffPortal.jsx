@@ -1,9 +1,7 @@
-import ReturnPickupCard from "@/components/passenger/ReturnPickupCard";
-import { greetingName } from "@/lib/userName";
-import CompanyBanner from "@/components/CompanyBanner";
+import PassengerExperience from "@/components/passenger/PassengerExperience";
 import React, { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, Navigate, useSearchParams } from "react-router-dom";
-import { Bell, MapPin, UserRound } from "lucide-react";
+import { Navigate, useSearchParams, useLocation } from "react-router-dom";
+import { MapPin } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import AppLayout from "@/components/AppLayout";
@@ -12,7 +10,6 @@ import { takePendingJoinCode, markCompanyLeft, hasLeftCompany } from "@/lib/comp
 import { useCompanyAlerts } from "@/components/StaffAlerts";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import useUserLocation from "@/hooks/useUserLocation";
-import LocationPrompt from "@/components/LocationPrompt";
 import { useChatUnread } from "@/components/staff/StaffGroupChat";
 import { MyPickupSheet, PassengerSettingsSheet, HelpSheet, BadgeSheet, ChatSheet, StopSheet, AssistantSheet } from "@/components/staff/StaffSheets";
 import useCrowding from "@/hooks/useCrowding";
@@ -30,16 +27,13 @@ import { withRateLimitRetry } from '@/lib/scopedEntities';
 import JourneyLoading from "@/components/JourneyLoading";
 import { callDriverPhone } from "@/lib/driverPhone";
 import { routeProgress } from "@/components/TripProgress";
-import ArrivalHero from "@/components/passenger/ArrivalHero";
-import RouteTimeline from "@/components/passenger/RouteTimeline";
-import StopChooser from "@/components/passenger/StopChooser";
 import {
-  AlertBand, BookedRides, MapClosed, PickupCard, MapToggle, OtherBusesOverlay, PassengerChatBubble, SectionHead, SponsorLine, StopAlertRow, TripActions, TripFacts,
+  AlertBand, OtherBusesOverlay,
 } from "@/components/passenger/PassengerSections";
 import { clock, passengerTripState, sortStops } from "@/components/passenger/passengerState";
 import useStopEtas from "@/components/passenger/useStopEtas";
 import { drawnRoad } from "@/lib/routeRoad";
-import { pickupMissesBus, pickupMovedNote } from "@/lib/pickupOnBus";
+import { pickupMissesBus } from "@/lib/pickupOnBus";
 import { Button } from "@/components/ui/button";
 
 // The live 3D map (mapbox-gl + three.js) loads after the page around it.
@@ -74,7 +68,11 @@ function DriverPhoneCheck({ children }) {
 }
 
 export default function StaffPortal() {
-  const { user, checkUserAuth } = useAuth();
+  const { user, checkUserAuth, logout } = useAuth();
+  const { pathname } = useLocation();
+  const view = pathname === "/journey" ? "journey" : pathname === "/my-card" ? "card" : pathname === "/more" ? "more" : "home";
+  const [lastSynced, setLastSynced] = useState(null);
+  const [offline, setOffline] = useState(false);
   // The account check is recreated on every sign-in update; read the latest
   // without restarting the company check each time.
   const checkAuthRef = useRef(checkUserAuth);
@@ -253,6 +251,8 @@ export default function StaffPortal() {
     setVehicles(result.vehicles || []);
     setRoutes(result.routes || []);
     setTrips(result.trips || []);
+    setLastSynced(new Date().toISOString());
+    setOffline(false);
     statusRef.current = Object.fromEntries((result.trips || []).map((x) => [x.id, x.status]));
   }, [company?.id]);
 
@@ -520,137 +520,24 @@ export default function StaffPortal() {
   return (
     <AppLayout variant="passenger">
       <PullToRefresh onRefresh={() => Promise.all([reload(), refreshMyBus(), refreshSharedStop()])}>
-        <div className={`mx-auto max-w-2xl ${mapOpen ? "lg:grid lg:max-w-none lg:grid-cols-[440px_minmax(0,1fr)] lg:items-start lg:gap-14" : ""}`}>
-          {/* Left: your trip */}
-          <div className="min-w-0">
-            <div className="flex h-[60px] items-center justify-between pl-6 pr-3 md:hidden">
-              <p className="font-heading text-title font-bold tracking-[-0.01em]">Transit<span className="text-primary">Track</span></p>
-              <div className="flex items-center">
-                <Link to="/notifications" className="grid h-11 w-11 place-items-center rounded-xl hover:bg-accent" aria-label="Messages and announcements">
-                  <Bell className="h-[22px] w-[22px]" aria-hidden="true" />
-                </Link>
-                <Link to="/account" className="grid h-11 w-11 place-items-center rounded-xl hover:bg-accent" aria-label="Account">
-                  <UserRound className="h-[22px] w-[22px]" aria-hidden="true" />
-                </Link>
-              </div>
-            </div>
-
-            <CompanyBanner name={companyName} logoUrl={company.logo_url} compact className="mx-6 mb-4 lg:mx-0" />
-            <div className="tt-passenger-greeting mx-6 mb-5 lg:mx-0"><p className="text-body-sm text-muted-foreground">Your journey, connected</p><h1 className="text-headline font-bold">Welcome{greetingName(user) ? `, ${greetingName(user)}` : ""}</h1></div>
-
-            {returning ? (
-              <ReturnPickupCard bus={returnBus} workplace={workplace} homeName={user?.pickup_name}
-                onMap={()=>setMapOpen(true)} onChat={()=>setSheet("chat")} onEditPickup={()=>setSheet("pickup")} />
-            ) : tripState.kind === "choose" ? (
-              <>
-                {/* The bus the company assigned shows even before a stop is picked. */}
-                <section aria-label="Your bus" className="mx-6 mb-4 rounded-2xl border border-border bg-card p-4 lg:mx-0">
-                  <p className="text-body-sm font-semibold text-muted-foreground">Your bus</p>
-                  <p className="mt-1 text-title-sm font-bold">{myVehicle ? myVehicle.name : "No bus assigned yet"}</p>
-                  <p className="mt-1 text-body-sm text-muted-foreground">{myVehicle ? "Choose your stop below to see when it reaches you." : "Your company adds you to a bus."}</p>
-                </section>
-                {pickupPrompt}
-                            <PickupCard
-              pickupName={user?.pickup_lat != null ? user.pickup_name || "Your pinned pickup" : ""}
-              dropoffName={workplace?.name || ""}
-              onOpen={() => setSheet("pickup")}
-              movedNote={pickupMovedNote(user)}
-            />
-                <StopChooser routes={routes} value={pickupName} onChoose={choosePickup} userLoc={userLoc} companyName={companyName} bus={pinnerBus} />
-                {!userLoc && locError && <div className="px-6 pb-6 lg:px-0"><LocationPrompt onLocation={setPromptLoc} /></div>}
-              </>
-            ) : (
-              <>
-                {tripState.kind === "problem" && (
-                  <AlertBand
-                    tone="danger"
-                    title={`${tripState.bus.name} is out of service`}
-                    body={`It has been taken off the road for now. Message the driver${companyPhone ? ` or call ${companyName}` : ""} to find another way.`}
-                  />
-                )}
-                {notice && (
-                  <div className={tripState.kind === "problem" ? "mt-px" : ""}>
-                    <AlertBand
-                      tone="warning"
-                      title={notice.type === "info" ? notice.title || "Announcement" : notice.type === "taxi_arrived" ? "Taxi arrived" : "Bus arrived"}
-                      body={notice.message}
-                      meta={[notice.company_name || companyName, notice.vehicle_name, notice.created_date && clock(notice.created_date)].filter(Boolean).join(", ")}
-                      onDismiss={() => setDismissedAlerts((d) => ({ ...d, [notice.id]: true }))}
-                      action={visibleAlerts.length > 1 ? <Link to="/notifications" className="mt-2 inline-block text-body-sm font-semibold underline underline-offset-4">{visibleAlerts.length - 1} more</Link> : null}
-                    />
-                  </div>
-                )}
-                <div className={tripState.kind === "problem" || notice ? "pt-4" : ""}>
-                  <ArrivalHero state={tripState} stop={stop} eta={eta} trip={onTheWayTrip} now={now} onChangeStop={() => setSheet("stop")} routeName={timelineRoute?.name || ""} stopsAway={stopsAway} />
-                </div>
-                {pickupPrompt && <div className="pt-4">{pickupPrompt}</div>}
-            <PickupCard
-              pickupName={user?.pickup_lat != null ? user.pickup_name || "Your pinned pickup" : ""}
-              dropoffName={workplace?.name || ""}
-              onOpen={() => setSheet("pickup")}
-              shared={user?.pickup_lat != null ? sharedStop : null}
-              movedNote={pickupMovedNote(user)}
-            />
-                {timelineRoute && (
-                  <RouteTimeline route={timelineRoute} bus={tripState.bus} kind={tripState.kind} stopName={stop.name} mins={mins} stopEtas={stopEtas} now={now} />
-                )}
-                <div className="tt-passenger-pickup-actions">
-                <StopAlertRow
-                  busName={tripState.bus?.name}
-                  stopAlerts={stopAlerts}
-                  onToggle={toggleStopAlerts}
-                  pushPermission={pushPermission}
-                  onEnablePush={enableNotifications}
-                />
-                <button type="button" className="tt-show-map-button" onClick={() => { setMapOpen(true); requestAnimationFrame(() => document.getElementById("tt-live-map")?.scrollIntoView({ behavior: "smooth", block: "start" })); }}>Show map</button>
-                </div>
-                <TripActions onChat={() => setSheet("chat")} chatUnread={chatUnread} />
-                <TripFacts bus={tripState.bus} crowdCount={tripState.bus ? crowd[tripState.bus.id] || 0 : 0} />
-                {!userLoc && locError && <div className="px-6 pt-6 lg:px-0"><LocationPrompt onLocation={setPromptLoc} /></div>}
-              </>
-            )}
-          </div>
-
-          {/* Right: map and details */}
-          <div className="flex min-w-0 flex-col">
-            <section className="px-6 pt-10 lg:order-1 lg:px-0 lg:pt-0" aria-labelledby="tt-live-map">
-              <SectionHead id="tt-live-map" title="Live map" aside={mapOpen ? <MapToggle open onToggle={() => setMapOpen(false)} /> : null} />
-              {!mapOpen ? (
-                tripState.kind === "choose" ? <MapClosed onOpen={() => setMapOpen(true)}>See the buses on a map.</MapClosed> : <p className="text-body-sm text-muted-foreground">Use Show map to see {tripState.bus?.name || "the buses"} moving.</p>
-              ) : (
-              <div id="passenger-live-map">
-              <Suspense fallback={<div className="h-64 animate-pulse rounded-2xl bg-muted lg:h-[620px]" />}>
-                <LiveTransitMap
-                  defaultSatellite
-                  className="h-64 rounded-2xl border border-border sm:h-80 lg:h-[620px]"
-                  vehicles={locatedVehicles}
-                  focusVehicleId={busOnMap?.id || null}
-                  routes={routes}
-                  stops={mapStops}
-                  road={drawnRoad(timelineRoute)}
-                  dropoff={workplace}
-                  myStop={stop}
-                  nextStopIndex={nextStopIndex}
-                  userLocation={userLoc}
-                  callout={callout}
-                  summary={mapSummary}
-                  topCard={mapTopCard}
-                  overlay={<OtherBusesOverlay buses={routeBuses} stop={stop} now={now} />}
-                  label={stop ? `Live map of ${tripState.bus?.name || "buses"} and ${stop.name}` : "Live map of buses"}
-                />
-              </Suspense>
-              </div>
-              )}
-            </section>
-            <div className="lg:order-3">
-              <BookedRides trips={upcomingTrips} stopName={pickupName} />
-              <SponsorLine />
-            </div>
-          </div>
-        </div>
+        <PassengerExperience view={view} user={user} company={company} workplace={workplace} myVehicle={myVehicle}
+          returning={returning} tripState={tripState} eta={eta} stop={stop} timelineRoute={timelineRoute} stopEtas={stopEtas}
+          stopsAway={stopsAway} now={now} homeName={user?.pickup_name || pickupName} sharedStop={sharedStop}
+          pickupPrompt={pickupPrompt} notice={notice} chatUnread={chatUnread} stopAlerts={stopAlerts} pushPermission={pushPermission}
+          toggleStopAlerts={toggleStopAlerts} enableNotifications={enableNotifications} setSheet={setSheet}
+          mapOpen={mapOpen} setMapOpen={setMapOpen} trips={trips} bookedTrips={upcomingTrips} pickupName={pickupName}
+          logout={logout} lastSynced={lastSynced} offline={offline}
+          renderMap={() => <Suspense fallback={<div className="h-72 animate-pulse bg-muted" />}>
+            <LiveTransitMap defaultSatellite className="h-80 lg:h-[520px]" vehicles={locatedVehicles}
+              focusVehicleId={busOnMap?.id || myVehicle?.id || null} routes={routes} stops={mapStops}
+              road={drawnRoad(timelineRoute)} dropoff={returning ? {name:user?.pickup_name,lat:user?.pickup_lat,lng:user?.pickup_lng} : workplace}
+              myStop={stop} nextStopIndex={nextStopIndex} userLocation={userLoc} callout={callout}
+              summary={mapSummary} topCard={mapTopCard}
+              overlay={<OtherBusesOverlay buses={routeBuses} stop={stop} now={now} />}
+              label={stop ? `Live map of ${myVehicle?.name || "buses"} and ${stop.name}` : "Live map of buses"} />
+          </Suspense>} />
       </PullToRefresh>
 
-      <PassengerChatBubble unread={chatUnread} open={sheet === "chat"} onClick={() => setSheet(sheet === "chat" ? null : "chat")} />
       <MyPickupSheet
         open={sheet === "pickup"}
         onOpenChange={(o) => setSheet(o ? "pickup" : null)}

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Bell, Building2, Bus, ChevronRight, Clock, CreditCard, Home, LifeBuoy, LogOut, Map, MapPin, Megaphone, MessageCircle, QrCode, ShieldCheck, Sparkles, TriangleAlert, UserRound, Wifi } from "lucide-react";
+import { Bell, Building2, Bus, ChevronRight, Clock, CreditCard, Home, LifeBuoy, LogOut, Map, MapPin, Megaphone, MessageCircle, QrCode, ShieldCheck, Sparkles, TriangleAlert, Wifi } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { confirmAction } from "@/components/ConfirmHost";
@@ -39,7 +39,7 @@ function useReturnEta(bus,workplace,enabled,now) {
   fetchDrivingRoute([{lat:bus.current_lat,lng:bus.current_lng},{lat:Number(workplace.lat),lng:Number(workplace.lng)}]).then(r=>{if(alive)setMins(r?.durationMin ?? null);}).catch(()=>{});
   return()=>{alive=false;};
   // Road ETA uses the same 30-second refresh as the previous return-trip screen.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
  },[bus?.id,fresh,workplace?.lat,workplace?.lng,bucket,bus?.return_pickup_state]);
  return fresh?mins:null;
 }
