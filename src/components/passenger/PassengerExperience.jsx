@@ -71,7 +71,7 @@ export default function PassengerExperience({view,user,company,workplace,myVehic
  const stopCount=live && fresh?(atStop?0:!returning?stopsAway:null):null;
  const etaDetails=live?<div className="px-eta-details" aria-label="Bus arrival details">
   <span><Clock aria-hidden="true"/>{atStop?"At your pickup stop":trustedEta?`Estimated pickup ${arrivalClock(mins,now)}`:"Estimated pickup unavailable"}</span>
-  <span><MapPin aria-hidden="true"/>{stopCount==null?"Stops away unavailable":stopCount===0?(atStop?(arrival?.kind==="arrived"?"Ready for boarding":"At your stop"):"Your stop is next"):`${stopCount} stop${stopCount===1?"":"s"} away`}</span>
+  <span><MapPin aria-hidden="true"/>{stopCount==null?(returning?"Heading to your company pickup":"Heading to your pickup"):stopCount===0?(atStop?(arrival?.kind==="arrived"?"Ready for boarding":"At your stop"):"Your stop is next"):`${stopCount} stop${stopCount===1?"":"s"} away`}</span>
  </div>:null;
 
  const reportMissed=async()=>{
