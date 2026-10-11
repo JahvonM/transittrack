@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { webcrypto } from 'node:crypto';
 
 const env = vi.hoisted(() => ({ native: false, plugins: new Set() }));
+vi.mock('@/api/base44Client', () => ({ base44: { auth: { setToken: () => {} } } }));
 vi.mock('@capacitor/core', () => ({
   Capacitor: {
     isNativePlatform: () => env.native,
