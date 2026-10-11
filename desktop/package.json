@@ -8,8 +8,9 @@
   "scripts": {
     "start": "electron .",
     "test": "node --test *.test.cjs",
-    "build:win": "npm run build:reader && electron-builder --win nsis --x64 --publish never",
-    "build:reader": "powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File build-reader.ps1"
+    "build:win": "npm run build:reader && npm run test:reader && electron-builder --win nsis --x64 --publish never",
+    "build:reader": "powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File build-reader.ps1",
+    "test:reader": "powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File test-reader.ps1"
   },
   "devDependencies": {
     "electron": "44.7.0",

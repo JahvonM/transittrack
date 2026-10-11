@@ -24,7 +24,7 @@ function createReaderProcess({native,script,isPackaged,request,platform=process.
     if(failure)break;
    }
    // Startup output only; never retain card events or write diagnostic files.
-   const detail=diagnostic.split(/\r?\n/).filter(line=>!/\b(uid|card detected|card removed)\b/i.test(line)).join('\n').replace(/[\u001b\u0000-\u0008]/g,'').trim().slice(-2400);
+   const detail=diagnostic.split(/\r?\n/).filter(line=>!/\b(uid|card detected|card removed)\b|\bCard\s+[0-9a-f]{4,}\b/i.test(line)).join('\n').replace(/[\u001b\u0000-\u0008]/g,'').trim().slice(-2400);
    throw Error((failure||'The NFC reader service did not become ready within 30 seconds.')+(detail?'\nReader startup details:\n'+detail:'')+'\nClose any other reader helper, check the reader USB cable, then retry.');
   }catch(error){if(child===owned)stop();throw error;}
  }

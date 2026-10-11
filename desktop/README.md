@@ -6,7 +6,7 @@ Sign in with your existing email and password, or with Google/Apple through your
 Admin opens /admin; Mechanic opens /mechanic. Menus do not grant additional access.
 
 ## Install
-Run TransitTrack-Desktop-Setup-0.2.3.exe on Windows 10/11 x64.
+Run the latest published TransitTrack Desktop installer on Windows 10/11 x64.
 The installer creates desktop and Start menu shortcuts. It installs for the current user.
 This preview installer is unsigned. Windows may show an unknown-publisher warning.
 Only install the file you obtained from the trusted project owner.
@@ -38,7 +38,7 @@ builds with an owner-controlled certificate before release.
 - New-tablet mode requires no accounts/device owner. Check pairing and driver hotspot settings on the tablet. Failed operations report partial completion.
 - The NFC helper runs hidden while the desktop app is open and uses the existing Windows Smart Card integration on local port 8765. Use a supported reader and drivers. Card issuing still uses Admin → Card issuing → Connect reader.
 - Version 0.2.6 runs a bundled compiled NFC helper. Installed builds no longer invoke PowerShell/Add-Type. Development mode retains the script. Startup allows 30 seconds and reports helper startup errors; no Windows security policy is changed.
-- Build the Windows installer on Windows: build:win compiles the helper from tools/card-reader/TTCardReader.cs before packaging. Website publishing alone cannot update this installed helper.
+- Build the Windows installer on Windows: build:win compiles the helper from tools/card-reader/TTCardReader.cs and checks its local status protocol in simulation before packaging. Website publishing alone cannot update this installed helper.
 - Actual Windows installation, tablet setup and NFC hardware tests remain required.
 - Electron web push delivery is not guaranteed; the app does not add a native push service.
 - No signing credentials, backend secrets, device credentials or database keys are packaged.
