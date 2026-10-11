@@ -11,6 +11,7 @@ import GoogleIcon from "@/components/GoogleIcon";
 import AppleIcon from "@/components/AppleIcon";
 import { toast } from "@/components/ui/use-toast";
 import { safeReturnTo } from "@/lib/authReturnTo";
+import { phoneSignInAvailable, openPhoneSignIn } from "@/lib/phoneSignIn";
 
 export default function Register() {
   const [email, setEmail] = useState("");
@@ -21,6 +22,7 @@ export default function Register() {
   const [showOtp, setShowOtp] = useState(false);
   const [otpCode, setOtpCode] = useState("");
   const [role, setRole] = useState("staff");
+  const [inBrowser, setInBrowser] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -76,12 +78,26 @@ export default function Register() {
     }
   };
 
+  // In the phone app, Google and Apple sign in through the phone's browser
+  // (Google blocks sign-in inside apps); the app signs in when it hands back.
+  const signInInBrowser = async (provider) => {
+    setError("");
+    try {
+      await openPhoneSignIn(provider, safeReturnTo());
+      setInBrowser(true);
+    } catch {
+      setError("Couldn't open the browser to sign in. Try again, or use your email and a password.");
+    }
+  };
+
   const handleGoogle = () => {
+    if (phoneSignInAvailable()) return signInInBrowser("google");
     base44.auth.loginWithProvider("google", safeReturnTo());
   };
 
   // Apple requires this alongside Google sign-in (App Store guideline 4.8).
   const handleApple = () => {
+    if (phoneSignInAvailable()) return signInInBrowser("apple");
     base44.auth.loginWithProvider("apple", safeReturnTo());
   };
 
@@ -187,6 +203,11 @@ export default function Register() {
       {error && (
         <div className="mb-4 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
           {error}
+        </div>
+      )}
+      {inBrowser && !error && (
+        <div role="status" className="mb-4 p-3 rounded-lg bg-secondary text-sm">
+          Finish signing in in the browser window. The app signs in by itself when you tap Open TransitTrack app there.
         </div>
       )}
 
