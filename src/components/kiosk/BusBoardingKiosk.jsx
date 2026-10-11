@@ -20,6 +20,7 @@ import QrScanner from "./QrScanner";
 import SlideToUnlock from "./SlideToUnlock";
 import KioskMascot from "./KioskMascot";
 import KioskConnectionBadge from "./KioskConnectionBadge";
+import BoardingSettingsGate, { useHold } from "./BoardingSettingsGate";
 
 const CODE_MAX_LEN = 12;
 const FLUSH_INTERVAL_MS = 15000;
@@ -51,8 +52,9 @@ function Screen({ modeKey, className = "", children }) {
   );
 }
 
-function TopStatusBar({ device, vehicle, route, now, online }) {
-  return <header className="tt-board-header">
+// Holding this bar for 3 seconds asks for the bus PIN (tablet settings).
+function TopStatusBar({ device, vehicle, route, now, online, holdProps }) {
+  return <header className="tt-board-header" {...holdProps}>
     <div className="tt-board-company" role="group" aria-label="Company banner">
       {device?.company_logo_url ? <img src={device.company_logo_url} alt="" /> : <Bus aria-hidden="true" />}
       <div><strong>{device?.company_name || "Bus boarding"}</strong><small>Welcome aboard</small></div>
@@ -131,6 +133,8 @@ function PassengerListDialog({ open, onOpenChange, vehicleName }) {
 // The boarding home keeps NFC, QR and code entry beside live bus information.
 export default function BusBoardingKiosk({ invoke, device, directoryInfo, online }) {
   useFutureAppearance();
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const settingsHold = useHold(() => setSettingsOpen(true));
   const [unlocked, setUnlocked] = useState(false);
   const [now, setNow] = useState(() => new Date());
   const [mode, setMode] = useState("idle"); // idle | qr | confirm | result | badge_error
@@ -515,7 +519,8 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
   }
 
   return <div className="tt-boarding-future tt-boarding-showcase">
-    <TopStatusBar device={device} vehicle={vehicle} route={route} now={now} online={online} />
+    <TopStatusBar device={device} vehicle={vehicle} route={route} now={now} online={online} holdProps={settingsHold} />
+    <BoardingSettingsGate open={settingsOpen} onClose={() => setSettingsOpen(false)} deviceId={device?.device_id || device?.id} invoke={invoke} />
     <PassengerListDialog open={listOpen} onOpenChange={setListOpen} vehicleName={device?.vehicle_name} />
     {readerLink === "lost" && <div className="tt-board-reader-warning" role="alert"><strong>Card reader isn't connected to this screen.</strong> Use your code on the keypad instead.<small>Staff: run Update in the tablet setup tool for this tablet.</small></div>}
     <main className="tt-board-layout"><div className="tt-board-action">{actionContent}</div>
