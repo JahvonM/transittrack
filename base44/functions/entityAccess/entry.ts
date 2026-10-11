@@ -287,12 +287,15 @@ async function replayCreate(db,ctx,name,data) {
  return db[name].create({...data,request_hash:hash,request_actor_id:ctx.user.id});
 }
 export default async function(req) {
+ let failureStage='request';
  try {
   const base44=createClientFromRequest(req), db=base44.asServiceRole.entities;
   const body=await req.json(), name=body.entity, operation=body.operation;
   // Refuse unknown or protected entities before looking anything up.
   if(!['Bootstrap','AdminBootstrap'].includes(name) && !Object.hasOwn(ENTITY_FIELDS,name)) fail(403,'Entity access denied');
+  failureStage='authentication';
   const ctx=await context(base44);
+  failureStage='entity_operation';
   if(name==='AdminBootstrap') {
    if(!ctx.user) fail(401,'Sign in required');
    if(ctx.user.role!=='admin') fail(403,'Administrators only');
@@ -316,6 +319,7 @@ export default async function(req) {
     } catch(error) {
      const status=error?.status ?? error?.response?.status ?? error?.originalError?.response?.status ?? 500;
      errors[key]={status,error:'Could not load '+key};
+     console.error(JSON.stringify({event:'admin_dataset_failed',dataset:key,status}));
     }
    }
    return Response.json({result:{datasets,errors}});
@@ -422,7 +426,7 @@ export default async function(req) {
   // Preserve throttling so clients back off instead of treating it as a server crash.
   const raw=Number(error?.status ?? error?.response?.status ?? error?.originalError?.response?.status);
   const status=Number.isInteger(raw)&&raw>=400&&raw<=599?raw:500;
-  console.error(JSON.stringify({event:'entity_request_failed',status}));
+  if(status===429||status>=500)console.error(JSON.stringify({event:'entity_request_failed',stage:failureStage,status}));
   return Response.json({error:status===429?'Service busy. Please try again shortly.':error.status ? error.message : 'Entity request failed'},
    {status,headers:status===429?{'Retry-After':'30'}:{}});
  }
