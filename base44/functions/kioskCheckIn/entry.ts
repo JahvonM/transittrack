@@ -2,6 +2,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.52';
 import { boardingSecretHash, currentBoardingCode } from '../../shared/boardingCredentials.ts';
 // Shared request budgets use the configured Supabase RPC and fail closed.
 import { reserveAttempt, claimOnce, createOnce } from '../../shared/atomicOps.ts';
+import { checkBusPin } from '../../shared/busPin.ts';
 
 
 async function liveMembership(base44, row) {
@@ -534,6 +535,19 @@ export default async function(req) {
         let stats = {};
         try { stats = boardingStats(await tabletCheckIns(base44, companyId, vehicleId)); } catch { /* heartbeat refreshes counts later */ }
         return Response.json({ record: tabletCheckIn(record), ...stats });
+      }
+
+      // --- bus_boarding: the bus PIN opens this tablet's Internet settings ---
+      // Nothing is unlocked on the server: the tablet only learns that the PIN
+      // is right (and keeps a salted check so it also works offline later).
+      case 'verify_settings_pin': {
+        if (!device || device.kiosk_type !== 'bus_boarding' || !vehicleId) return Response.json({ error: 'Assigned bus boarding tablets only' }, { status: 403 });
+        const vehicle = await base44.asServiceRole.entities.Vehicle.get(vehicleId).catch(() => null);
+        if (!vehicle || vehicle.company_id !== companyId) return Response.json({ error: 'Vehicle assignment mismatch' }, { status: 403 });
+        const result = await checkBusPin(base44, vehicle, body.pin);
+        if (result === 'locked') return Response.json({ error: 'Too many PIN attempts. Try again in 15 minutes.' }, { status: 429 });
+        if (result === 'wrong') return Response.json({ error: 'Incorrect PIN' }, { status: 403 });
+        return Response.json({ ok: true });
       }
 
       // --- front_desk: visitor sign-in with a captured signature ---
