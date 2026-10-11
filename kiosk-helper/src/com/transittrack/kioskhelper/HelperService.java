@@ -38,7 +38,7 @@ import org.json.JSONObject;
  *  - boarding tablets (1.13): backup boarding over Bluetooth (BleBoarding)
  */
 public class HelperService extends Service {
-    static final String VERSION = "1.13";
+    static final String VERSION = "1.14";
     /** "Always on" hotspot pauses below this on battery so the tablet can't run flat (it can't power itself back on). */
     private static final int HOTSPOT_MIN_BATTERY = 20;
     /** Normal hotspot: how long without Wi-Fi first (Wi-Fi can take a minute to reconnect). */
@@ -374,10 +374,33 @@ public class HelperService extends Service {
     private boolean hasSim() {
         try {
             android.telephony.TelephonyManager tm = (android.telephony.TelephonyManager) getSystemService(Context.TELEPHONY_SERVICE);
-            return tm == null || tm.getSimState() != android.telephony.TelephonyManager.SIM_STATE_ABSENT;
+            return tm == null || simState(tm) != android.telephony.TelephonyManager.SIM_STATE_ABSENT;
         } catch (RuntimeException e) {
             return true;
         }
+    }
+
+    /**
+     * SIM state over every SIM slot. Two-slot tablets can hold the SIM in the
+     * second slot while the default slot reads "absent". A ready SIM in any slot
+     * wins; then a SIM that is present but not ready (PIN, locked, starting);
+     * "absent" only when no slot has one.
+     */
+    static int simState(android.telephony.TelephonyManager tm) {
+        final int ABSENT = android.telephony.TelephonyManager.SIM_STATE_ABSENT;
+        final int UNKNOWN = android.telephony.TelephonyManager.SIM_STATE_UNKNOWN;
+        final int READY = android.telephony.TelephonyManager.SIM_STATE_READY;
+        int best = tm.getSimState();
+        if (best == READY || Build.VERSION.SDK_INT < 26) return best;
+        int slots = 1;
+        try { slots = tm.getPhoneCount(); } catch (RuntimeException e) { /* one slot */ }
+        for (int i = 0; i < slots; i++) {
+            int s;
+            try { s = tm.getSimState(i); } catch (RuntimeException e) { continue; }
+            if (s == READY) return READY;
+            if ((best == ABSENT || best == UNKNOWN) && s != ABSENT && s != UNKNOWN) best = s;
+        }
+        return best;
     }
 
     /** Android turns an idle hotspot off after a while; an always-on hotspot must not. */
@@ -463,7 +486,7 @@ public class HelperService extends Service {
         android.telephony.TelephonyManager tm = null;
         try { tm = (android.telephony.TelephonyManager) getSystemService(Context.TELEPHONY_SERVICE); } catch (RuntimeException e) { /* no phone */ }
         if (tm == null) { m.put("sim", "none"); return m; }
-        int sim = tm.getSimState();
+        int sim = simState(tm);
         m.put("sim", sim == android.telephony.TelephonyManager.SIM_STATE_READY ? "ready"
                 : sim == android.telephony.TelephonyManager.SIM_STATE_ABSENT ? "none" : "not ready");
         if (Build.VERSION.SDK_INT >= 26) {
