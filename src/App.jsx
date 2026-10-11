@@ -53,7 +53,7 @@ const VehicleLogs = lazy(() => import('@/pages/VehicleLogs'));
 const ServiceHistory = lazy(() => import('@/pages/ServiceHistory'));
 const SafetyStandards = lazy(() => import('@/pages/SafetyStandards'));
 const Buses = lazy(() => import('@/pages/Buses'));
-const More = lazy(() => import('@/pages/More'));
+// Passenger More shares StaffPortal data with Home, Journey and My card.
 const RideHistory = lazy(() => import('@/pages/RideHistory'));
 const FleetAnalytics = lazy(() => import('@/pages/FleetAnalytics'));
 const Notifications = lazy(() => import('@/pages/Notifications'));
@@ -86,7 +86,7 @@ const AuthenticatedApp = () => {
   // Pages remount (and animate) when this key changes. The driver app's tabs
   // are all one page, so they share a key — switching tabs must not restart
   // it (that would stop GPS tracking and navigation).
-  const pageKey = /^\/driver(\/|$)/.test(location.pathname) ? "/driver"
+  const pageKey = ["/staff","/journey","/my-card","/more"].includes(location.pathname) ? "/passenger-experience" : /^\/driver(\/|$)/.test(location.pathname) ? "/driver"
     : location.pathname.startsWith("/driver-phone") ? "/driver-phone" : location.pathname;
 
   // Show loading spinner while checking app public settings or auth
@@ -144,6 +144,8 @@ const AuthenticatedApp = () => {
         <Route path="/admin/:section" element={<Admin />} />
         <Route path="/account" element={<Account />} />
         <Route path="/staff" element={<StaffPortal />} />
+        <Route path="/journey" element={<StaffPortal />} />
+        <Route path="/my-card" element={<StaffPortal />} />
         <Route path="/mechanic" element={<MechanicPortal />} />
         <Route path="/run-inspection" element={<RunInspection />} />
         <Route path="/manager" element={<ManagerDashboard />} />
@@ -153,7 +155,7 @@ const AuthenticatedApp = () => {
         <Route path="/passenger-bookings" element={<PassengerBookings />} />
         <Route path="/route-explorer" element={<RouteExplorer />} />
         <Route path="/buses" element={<Buses />} />
-        <Route path="/more" element={<More />} />
+        <Route path="/more" element={<StaffPortal />} />
         <Route path="/staff-directory" element={<StaffDirectory />} />
         <Route path="/vehicle-logs" element={<VehicleLogs />} />
         <Route path="/service-history" element={<ServiceHistory />} />
