@@ -166,6 +166,8 @@ public static class TTCardReader
 
     static void ReaderLoop()
     {
+        // Simulation must bypass PC/SC on Windows too, not only when winscard.dll is absent.
+        if (Simulate) { SimulatedLoop(); return; }
         bool warnedService = false;
         bool warnedNoReader = false;
         while (true)
