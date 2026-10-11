@@ -29,12 +29,13 @@ export async function withRateLimitRetry(fn, { attempts = 6, baseMs = 800 } = {}
   try {
    // A request already in flight may have extended the shared cooldown.
    while (Date.now() < cooldownUntil) await sleep(cooldownUntil - Date.now());
+   cooldownUntil = 0;
    return await fn();
   } catch (e) {
    error = e;
    if (statusOf(e) === 429) {
     const delay = retryAfterMs(e) || baseMs * 2 ** attempt + Math.random() * 400;
-    cooldownUntil = Math.max(cooldownUntil, Date.now() + delay);
+    cooldownUntil = Math.max(cooldownUntil, Date.now() + Math.ceil(delay));
    }
   } finally { release(); }
   if (statusOf(error) !== 429 || attempt >= attempts - 1) throw error;
