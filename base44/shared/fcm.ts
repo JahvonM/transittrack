@@ -50,7 +50,9 @@ export async function sendPushToTokens(serviceAccountJson, tokens, payload, link
     try {
       const res = await fetch(`https://fcm.googleapis.com/v1/projects/${serviceAccount.project_id}/messages:send`, {
         method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-        body: JSON.stringify({ message: { token, notification: { title: payload.title, body: payload.body }, data: payload.data || {}, webpush: { fcm_options: { link } } } }),
+        // data.link: the phone app opens this page when the alert is tapped.
+        // apns sound: iPhone alerts are silent without it.
+        body: JSON.stringify({ message: { token, notification: { title: payload.title, body: payload.body }, data: { ...(payload.data || {}), link: String(link) }, webpush: { fcm_options: { link } }, apns: { payload: { aps: { sound: 'default' } } } } }),
       });
       if (res.ok) sent++;
     } catch { /* best effort */ }
