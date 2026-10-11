@@ -107,6 +107,7 @@ function HelperHealthLine({ h }) {
   if (h.reader) parts.push(`Reader: ${h.reader}`);
   if (h.gps) parts.push(`GPS: ${h.gps}`);
   if (h.hotspot) parts.push(`Hotspot: ${h.hotspot}`);
+  if (h.ble) parts.push(`Bluetooth: ${h.ble}`);
   if (h.last_card_at) parts.push(`Last card ${timeAgo(h.last_card_at)}`);
   if (stale) parts.push(`reported ${timeAgo(h.reported_at)}`);
   const lowBattery = typeof h.battery === "number" && h.battery <= 20 && !h.charging;

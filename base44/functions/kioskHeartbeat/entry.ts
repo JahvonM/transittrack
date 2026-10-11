@@ -61,6 +61,8 @@ function cleanHelperHealth(h: unknown): Record<string, unknown> | null {
   const gps = str(o.gps, 40); if (gps) out.gps = gps;
   const hotspot = str(o.hotspot, 40); if (hotspot) out.hotspot = hotspot;
   const lastCard = str(o.last_card_at, 40); if (lastCard) out.last_card_at = lastCard;
+  // Helper 1.13: backup boarding over Bluetooth ("Ready as Bus 12", or why not).
+  const ble = str(o.ble, 60); if (ble) out.ble = ble;
   // Helper 1.9: the boarding tablet's Wi-Fi (current network, latest scan / join).
   Object.assign(out, cleanNetworkHealth(o));
   return out;

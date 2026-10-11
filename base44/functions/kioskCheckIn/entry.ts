@@ -497,14 +497,14 @@ export default async function(req) {
           locallyVerified = sameDigest(body.card_fingerprint,fingerprint) &&
             (await currentCard(base44,companyId,person,person.nfc_tag)).valid;
         }
-        if (['nfc', 'qr', 'code'].includes(method) && !locallyVerified && (!person || !(await validGrant(base44, device, body.verification_grant, 'boarding', person.id)) || !(await currentBoardingEligibility(base44,device,person,body.verification_grant,method)))) return Response.json({ error: 'Card authorization expired or changed. Refresh the tablet passenger list.' }, { status: 403 });
+        if (['nfc', 'qr', 'code', 'bluetooth'].includes(method) && !locallyVerified && (!person || !(await validGrant(base44, device, body.verification_grant, 'boarding', person.id)) || !(await currentBoardingEligibility(base44,device,person,body.verification_grant,method)))) return Response.json({ error: 'Card authorization expired or changed. Refresh the tablet passenger list.' }, { status: 403 });
         // Directory grants are reusable for offline card verification. Lookup
         // grants authorize one completed check-in. Identical request-ID retries
         // already returned above. Save the digest with the record so a failed
         // create leaves the grant retryable. Sequential protection only;
         // concurrent exclusion still needs atomic storage.
         let boardingGrantHash = '';
-        if (['nfc', 'qr', 'code'].includes(method) && !locallyVerified) {
+        if (['nfc', 'qr', 'code', 'bluetooth'].includes(method) && !locallyVerified) {
           boardingGrantHash = await hashSecret(body.verification_grant);
           const used = await base44.asServiceRole.entities.StaffCheckIn.filter({
             device_id: device.id, company_id: companyId, vehicle_id: vehicleId,
@@ -529,7 +529,7 @@ export default async function(req) {
           card_tag: cardTag, status, boarded_at: occurredAt(body.occurred_at),
           company_id: companyId, company_name: companyName,
           vehicle_id: vehicleId, vehicle_name: resolvedVehicleName,
-          check_in_method: ['nfc', 'qr', 'manual', 'code'].includes(method) ? method : 'manual',
+          check_in_method: ['nfc', 'qr', 'manual', 'code', 'bluetooth'].includes(method) ? method : 'manual',
         }));
         // A summary failure must not turn a completed write into a retry.
         let stats = {};
