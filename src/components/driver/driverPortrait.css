@@ -48,3 +48,10 @@
 .dk-subpage{max-width:760px;margin:0 auto}.dk-back{margin-bottom:14px;min-height:48px}
 @media(max-width:599px){.dk-content{padding:16px;gap:13px}.dk-brand-row{padding:8px 16px}.dk-company-row{padding:8px 16px;font-size:12px}.dk-brand-row>strong{font-size:21px}.dk-next{padding:16px;gap:12px}.dk-bus-strip img{width:100px;height:68px}.dk-bus-strip{gap:12px}.dk-shortcuts>button{font-size:15px}.dk-tool-grid{gap:10px}.dk-tool strong{font-size:16px}.dk-tool-grid>.dk-tool{min-height:110px;padding:15px}.dk-counts{padding:14px}}
 @media(orientation:landscape){.dk-content{max-width:850px}.dk-stop-preview{display:flex;gap:16px}.dk-stop-preview>li{flex:1;min-width:0}.dk-stop-preview>li:not(:last-child):before{display:none}}
+
+.dk-passenger-list{border:1px solid #315672;border-radius:15px;padding:0 16px;background:#0a2036}
+.dk-passenger-row{display:flex;align-items:center;gap:12px;min-height:82px}
+.dk-passenger-row+.dk-passenger-row{border-top:1px solid #29465e}
+.dk-avatar{width:44px;height:44px;display:grid;place-items:center;flex-shrink:0;border-radius:50%;background:linear-gradient(145deg,#5181a9,#173d67);font-size:16px;font-weight:650}
+.dk-passenger-row>div:last-child{border:0!important;background:transparent!important;flex:1;min-width:0;padding:13px 0}
+@media(max-width:599px){.dk-avatar{width:35px;height:35px;font-size:14px}.dk-passenger-row{gap:8px}.dk-passenger-list{padding:0 10px}}
