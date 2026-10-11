@@ -19,6 +19,15 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- Google/Apple sign-in happens in the phone's browser, which hands
+                 the (sealed) session back through com.transittrack.app://signin.
+                 Keep in step with PHONE_SIGNIN_SCHEME in src/lib/phoneSignIn.js. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="com.transittrack.app" android:host="signin" />
+            </intent-filter>
         </activity>
 
         <provider
