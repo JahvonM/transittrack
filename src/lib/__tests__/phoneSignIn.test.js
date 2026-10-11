@@ -40,7 +40,7 @@ function memoryStore() {
 }
 
 // The app starts; returns what the browser page would see.
-async function appStarts({ provider = 'google', returnTo = '/staff', now = 1_000_000 } = {}) {
+async function appStarts({ provider = 'google', returnTo = '/staff', now = Date.now() } = {}) {
   const appStorage = memoryStore();
   let opened = '';
   await startPhoneSignIn({ provider, returnTo, origin: 'https://tt.example', storage: appStorage, openBrowser: async (u) => { opened = u; }, cryptoImpl, now });
