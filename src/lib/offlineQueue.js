@@ -27,8 +27,29 @@ export async function submitSavedCheckIn(invoke,payload) {
  enqueueCheckIn(payload);
  inFlight.add(payload.client_request_id);
  try {const result=await invoke("check_in",payload);acknowledgeCheckIn(payload.client_request_id);return result;}
- catch(error) {if(isPermanentRejection(error))quarantineCheckIn(payload.client_request_id,error);throw error;}
+ catch(error) {
+  // A refusal answered while the passenger stands at the tablet is shown on
+  // screen and nobody boarded, so there is nothing to review later. Keeping it
+  // only put up a "needs review" notice nobody at a tablet can clear, and held
+  // back that passenger's later saved check-ins. Refusals of check-ins saved
+  // offline (replayed by flushQueue) still stay for review.
+  if(isPermanentRejection(error))acknowledgeCheckIn(payload.client_request_id);
+  throw error;
+ }
  finally {inFlight.delete(payload.client_request_id);}
+}
+// Older versions kept live refusals for review too: refused within seconds of
+// being saved, while the person was still at the tablet.
+const LIVE_REFUSAL_MS=10000;
+export function isLiveRefusal(item) {
+ if(item?.state!=="needs_review")return false;
+ const gap=Date.parse(item.failed_at)-Date.parse(item.queued_at);
+ return Number.isFinite(gap)&&gap>=0&&gap<LIVE_REFUSAL_MS;
+}
+export function clearLiveRefusals() {
+ const queue=readQueue(),kept=queue.filter(item=>!isLiveRefusal(item));
+ if(kept.length!==queue.length)writeQueue(kept);
+ return queue.length-kept.length;
 }
 const scope=item=>[item.payload.expected_vehicle_id||"",item.payload.staff_id||item.payload.staff_name||item.id].join(":");
 let flushing=false;
@@ -36,6 +57,7 @@ export async function flushQueue(invoke) {
  if(flushing)return 0;
  flushing=true;let synced=0;
  try {
+  clearLiveRefusals();
   const queue=readQueue();
   let migrated=false;
   for(const item of queue)if(!item.payload.client_request_id){item.payload.client_request_id=crypto.randomUUID();migrated=true;}
