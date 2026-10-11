@@ -23,7 +23,7 @@ async function session(page,role) {
  });
  return {calls,direct};
 }
-async function passengerShowcase(page, { stale = false, light = false, parked = false, assigned = { current: true }, pickup = 'Grand Anse', extra = {}, sharedStop = null } = {}) {
+async function passengerShowcase(page, { stale = false, light = false, parked = false, assigned = { current: true }, pickup = 'Grand Anse', extra = {}, sharedStop = null, busExtra = {} } = {}) {
   await session(page,'staff');
   await page.addInitScript(({light,pickup}) => {
     localStorage.setItem('tt_company_access_grant','a'.repeat(64));
@@ -35,7 +35,7 @@ async function passengerShowcase(page, { stale = false, light = false, parked = 
   // Where this passenger's pickup was merged with neighbours' along the road.
   await page.route('**/functions/routeStops',r=>r.fulfill({json:{stop:sharedStop}}));
   const stops=[{name:"St. George's",lat:12.05,lng:-61.75,order:0},{name:'True Blue',lat:12.02,lng:-61.76,order:1},{name:'Grand Anse',lat:12.01,lng:-61.77,order:2},{name:'Morne Rouge',lat:12,lng:-61.78,order:3}];
-  const bus={...vehicles[0],name:'TT-102',route_id:'route-a',current_lat:12.022,current_lng:-61.758,tracking_active:!parked,status:parked ? 'active' : 'on_trip',speed:parked ? 0 : 25,driver_name:'K. Thomas',last_location_update:new Date(Date.now()-(stale ? 600000 : 20000)).toISOString()};
+  const bus={...vehicles[0],name:'TT-102',route_id:'route-a',current_lat:12.022,current_lng:-61.758,tracking_active:!parked,status:parked ? 'active' : 'on_trip',speed:parked ? 0 : 25,driver_name:'K. Thomas',last_location_update:new Date(Date.now()-(stale ? 600000 : 20000)).toISOString(),...busExtra};
   // The bus Admin → Passengers put this passenger on; null once it's removed.
   await page.route('**/functions/companyAccess',r=>r.fulfill({json:{company:{id:'a',name:'Grenada Transport Co.'},my_bus:assigned.current ? {id:bus.id,name:bus.name} : null}}));
   const buses=[bus,{...bus,id:'bus-c',name:'TT-108'}];
@@ -101,4 +101,19 @@ test('return trip uses company pickup and home dropoff',async({page})=>{
  await tab(page,'Journey').click();
  await expect(page.getByLabel('Pickup and drop-off')).toContainText('Hotel entrance');
  await expect(page.getByLabel('Pickup and drop-off')).toContainText('My home');
+});
+
+for(const item of [
+ {name:'nearby',lat:12.012,speed:0,label:'Bus close to your stop'},
+ {name:'at stop',lat:12.01,speed:5,label:'Bus at your stop'},
+ {name:'arrived',lat:12.01,speed:0,label:'Bus arrived'},
+])test('passenger card shows '+item.name+' from fresh bus location',async({page})=>{
+ await passengerShowcase(page,{busExtra:{current_lat:item.lat,current_lng:-61.77,speed:item.speed}});
+ await expect(page.getByLabel('Your next bus').getByRole('status')).toHaveText(item.label);
+ await tab(page,'Journey').click();
+ await expect(page.locator('.px-bus-identity')).toContainText(item.label);
+});
+test('stale location cannot claim the bus has arrived',async({page})=>{
+ await passengerShowcase(page,{stale:true,busExtra:{current_lat:12.01,current_lng:-61.77,speed:0}});
+ await expect(page.getByLabel('Your next bus').getByRole('status')).toHaveText('Location delayed');
 });
