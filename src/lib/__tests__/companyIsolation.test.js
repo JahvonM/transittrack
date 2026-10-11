@@ -189,7 +189,7 @@ describe('company and role access boundaries',()=>{
   const directory=new URL('../../../base44/entities/',import.meta.url);
   for(const file of fs.readdirSync(directory).filter(f=>f.endsWith('.jsonc') && f!=='User.jsonc')) {
    const schema=JSON.parse(fs.readFileSync(new URL(file,directory),'utf8'));
-   for(const operation of ['create','update','delete']) expect(schema.rls[operation]).toEqual({user_condition:{role:'admin'}});
+   for(const operation of ['create','update','delete']) expect(schema.rls[operation],file+' '+operation).toEqual(file==='SignupAlert.jsonc'?false:{user_condition:{role:'admin'}});
    expect(schema.rls.read).toEqual(file==='Advertisement.jsonc'?{}:{user_condition:{role:'admin'}});
   }
  });

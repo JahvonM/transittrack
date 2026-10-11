@@ -38,11 +38,11 @@ describe("email account directory",()=>{
   expect(people.find(p=>p.email==="caller@test.invalid")).toMatchObject({key:"user:caller",status:"Card Issued"});
   expect(JSON.stringify(people)).not.toContain("SECRETUID");
  });
- it("lets a passenger verify the company code but never grants a manager role",async()=>{
+ it("makes a code-joined passenger hotel staff but never grants a manager role",async()=>{
   const sdk=mock("passenger");
   const res=await call(sdk,{action:"verify",code:"JOIN12345678"},"companyAccess");
   expect(res.status).toBe(200);
-  expect(sdk.tables.User[0].role).toBe("passenger");
+  expect(sdk.tables.User[0].role).toBe("staff");
   expect(sdk.tables.CompanyMembership.some(m=>m.active && m.scope==="passenger" && m.company_id==="a")).toBe(true);
  });
  it("issues a card to an approved email passenger and verifies it at the company tablet",async()=>{
