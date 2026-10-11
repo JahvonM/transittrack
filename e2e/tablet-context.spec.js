@@ -634,3 +634,27 @@ test('boarding tablet joins a Wi-Fi chosen on its screen without changing its bu
   expect(join.searchParams.get('here')).toBe('1');
   expect(join.searchParams.get('pass')).toBe('');
 });
+
+test('a boarding code sent over Bluetooth shows the passenger to confirm, like a QR', async ({ page }) => {
+  const checkIns = [], lookups = [], helper = [];
+  await page.addInitScript(() => { window.__ttHelperKey = 'k'.repeat(32); });
+  await page.route('http://127.0.0.1:8765/**', (route) => { helper.push(route.request().url()); return route.fulfill({ status: 204, body: '' }); });
+  await scannerBoarding(page);
+  await page.route('**/functions/kioskCheckIn', (route) => {
+    const b = route.request().postDataJSON();
+    if (b.action === 'lookup_code') { lookups.push(b.code); return route.fulfill({ json: { staff: { id: 'rider', full_name: 'Phone Passenger' }, next_status: 'boarded', code_type: 'permanent_qr', verification_grant: 'c'.repeat(64) } }); }
+    if (b.action === 'check_in') { checkIns.push(b); return route.fulfill({ json: { record: { id: 'in', staff_name: 'Phone Passenger', status: 'boarded' }, occupancy: 7, today_count: 13 } }); }
+    return route.fallback();
+  });
+  // Phones see this bus's name in their Bluetooth list.
+  await expect.poll(() => helper.some((u) => u.includes('/ble/name?'))).toBe(true);
+  // Something that isn't a boarding code is ignored.
+  await page.evaluate(() => { const t = { code: 'hello', id: 'ble-0', at: Date.now() }; window.dispatchEvent(new CustomEvent('tt-ble-code', { detail: t })); });
+  await page.evaluate(() => { const t = { code: 'tt-code:QRTOKEN1', id: 'ble-1', at: Date.now() }; window.__ttBleInbox = [t]; window.dispatchEvent(new CustomEvent('tt-ble-code', { detail: t })); });
+  await expect(page.getByText('Phone Passenger', { exact: true })).toBeVisible();
+  expect(lookups).toEqual(['QRTOKEN1']);
+  await page.getByRole('button', { name: 'Boarding', exact: true }).click();
+  await expect.poll(() => checkIns.length).toBe(1);
+  expect(checkIns[0]).toMatchObject({ method: 'bluetooth', staff_id: 'rider', status: 'boarded', verification_grant: 'c'.repeat(64) });
+  await expect(page.getByText('Welcome aboard, Phone')).toBeVisible();
+});
