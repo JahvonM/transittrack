@@ -31,7 +31,7 @@ export default function DriverPortraitDrive({session,vehicle,nav,sharing,shiftAc
  const finish=!home?session?.workplace:null;
  const timeline=finish && !upcoming.some(s=>s.name===finish.name)?[...upcoming.slice(0,2),finish]:upcoming;
  const count=focus?.riders?.filter(r=>!session?.staff?.find(s=>s.id===r.ref)?.skip_pickup_today).length;
- return <div className="dk-drive-scroll">
+ return <div className="dk-drive-frame"><div className="dk-drive-scroll">
   <div className="dk-content">
    <header className="dk-page-title"><h1>Your journey</h1>{session?.route?.name && <p>{session.route.name}</p>}</header>
    {directionControl}
@@ -48,7 +48,7 @@ export default function DriverPortraitDrive({session,vehicle,nav,sharing,shiftAc
    {(panelTop || attention.length>0) && <section className="dk-attention" aria-label="Needs attention">{attention}{panelTop}</section>}
    <div className="dk-shortcuts"><Button variant="outline" onClick={onOpenNavigation}><Navigation/>Navigation</Button><Button variant="outline" onClick={onOpenPassengers}><Users/>Passengers</Button></div>
    <details className="dk-details"><summary>Trip details<ChevronRight/></summary><div><StatusStrip items={statusItems}/><Button variant="outline" onClick={onOpenStops}>All stops & pickup tools</Button>{panelBottom}<Button variant="outline" onClick={onReportIncident}>Report an incident</Button></div></details>
-   <div className="dk-drive-controls" aria-label="Driving controls">{!shiftActive && shiftControl}{trackingButton}{shiftActive && shiftControl}</div>
+  </div></div><div className="dk-fixed-controls"><div className="dk-drive-controls" aria-label="Driving controls">{!shiftActive && shiftControl}{trackingButton}{shiftActive && shiftControl}</div>
    <div className="dk-drive-footer"><Button variant="ghost" onClick={onOpenMessages}><MessageCircle/>Messages</Button><SosButton vehicle={vehicle} invoke={invoke} emergencyContacts={session?.emergency_contacts} compact/></div>
   </div>
  </div>;

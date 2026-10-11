@@ -11,7 +11,7 @@
 .dk-content{max-width:760px;margin:0 auto;padding:20px 22px;display:flex;flex-direction:column;gap:16px;width:100%;min-width:0}
 .dk-content h1{font-size:clamp(25px,4vw,34px);font-weight:750;letter-spacing:-.03em;line-height:1.15}
 .dk-content h2{font-size:19px;font-weight:650}.dk-page-title p,.dk-muted{font-size:14px;color:#a9bfd3;margin-top:5px}
-.dk-drive-scroll{height:100%;overflow-y:auto;overscroll-behavior:contain}
+.dk-drive-frame{height:100%;display:flex;flex-direction:column;min-height:0}.dk-drive-scroll{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain}.dk-fixed-controls{flex-shrink:0;width:100%;max-width:760px;margin:0 auto;padding:12px 22px 8px;background:#041421;border-top:1px solid #254760}.dk-fixed-controls>.dk-drive-footer{margin-top:8px}
 .dk-content>[aria-label="Trip direction"]{padding:0;border:0;background:none!important}.dk-content [aria-label="Choose trip direction"]{gap:0;border:1px solid #2283a0;border-radius:14px;overflow:hidden}
 .dk-content [aria-label="Choose trip direction"]>button{border:0;min-height:50px;border-radius:12px;font-size:17px}
 .dk-content [aria-label="Choose trip direction"]>[aria-pressed="true"]{background:#00d6ec;color:#04202e}

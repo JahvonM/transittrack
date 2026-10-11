@@ -447,6 +447,7 @@ test('driver tablet loading offers retry after a slow response without unlocking
  const loading=page.getByRole('region',{name:'TransitTrack loading screen'});
  await expect(loading).toBeVisible();
  await expect(loading.getByRole('button',{name:'Try again'})).toHaveCount(0);
+ await expect(loading.getByRole('status')).toHaveText('Loading your bus and route…');
  await page.clock.fastForward(12500);
  await expect(loading.getByRole('button',{name:'Try again'})).toBeVisible();
  await page.screenshot({path:'/tmp/tt-loading-driver.png'});
