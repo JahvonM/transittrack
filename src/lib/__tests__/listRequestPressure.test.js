@@ -1,5 +1,16 @@
 import { expect, it } from "vitest";
 import { load, mock, request, digest } from "../../../security-tests/helpers.js";
+it.each(["sdk","axios"])("preserves a kiosk heartbeat platform cooldown: %s",async shape=>{
+ const sdk=mock("admin"), original=sdk.asServiceRole.entities;
+ sdk.asServiceRole.entities=new Proxy(original,{get:(target,name)=>{
+  const entity=target[name];
+  return name==="KioskDevice"?{...entity,get:async()=>{throw shape==="sdk"?{status:429,headers:{"retry-after":"45"}}:{response:{status:429,headers:{"retry-after":"45"}}};}}:entity;
+ }});
+ const response=await load("kioskHeartbeat",sdk).default(request({device_id:"tablet"}));
+ expect(response.status).toBe(429);
+ expect(response.headers.get("retry-after")).toBe("45");
+ expect(await response.json()).toEqual({error:"Server is busy. Please try again shortly."});
+});
 const setup = () => {
  const sdk=mock("admin");
  for(let i=0;i<30;i++) {
