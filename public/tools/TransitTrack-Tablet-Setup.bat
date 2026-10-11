@@ -307,6 +307,7 @@ rem ---------- Step 6: hotspot name - driver only ----------
 echo.
 echo  --- Step 6 of 7: Bus hotspot ---
 if "%TYPE%"=="2" goto hotspot_skip
+call :set_apn
 adb shell am start -n com.android.settings/.TetherSettings > "%TEMP%\tt-tether.txt" 2>&1
 findstr /i "Error" "%TEMP%\tt-tether.txt" >nul
 if not errorlevel 1 adb shell am start -a android.settings.SETTINGS >nul 2>&1
@@ -468,6 +469,7 @@ call :upd_adb shell appops set %HELPER% android:mock_location allow
 if errorlevel 1 goto upd_failed
 call :upd_adb shell settings put global hidden_api_policy 1
 if errorlevel 1 goto upd_failed
+call :set_apn
 :upd_settings_done
 rem Android activity launch success is NOT proof of FreeKiosk configuration acceptance.
 call :upd_adb shell am start -n %FK% --es pin "%PIN%" --es rest_api_enabled "true" --es rest_api_port "8080" --es rest_api_key "%APIKEY%" --es managed_apps '[{\"packageName\":\"com.transittrack.kioskhelper\",\"showOnHomeScreen\":false},{\"packageName\":\"com.android.systemui\",\"showOnHomeScreen\":false}]'
@@ -574,6 +576,73 @@ pause
 exit /b 0
 
 rem -----------------------------------------------------------------
+rem  Driver tablets: mobile data for the bus SIM. Android does not let an
+rem  app add an APN (only system or carrier apps, or the device owner -
+rem  FreeKiosk holds that), so this adds it over USB. For a Flow Grenada
+rem  SIM (network code 352 110) it adds "Flow Internet" and makes it the
+rem  one in use. The tablet-side script is built into the end of this file
+rem  (::TTAPN lines). Another SIM, or a tablet that refuses, gets the APN
+rem  screen opened to add it by hand.
+rem -----------------------------------------------------------------
+:set_apn
+echo.
+echo  Mobile data for the SIM in this driver tablet:
+set "TTADB=adb"
+if defined SERIAL if not "%SERIAL%"=="unknown" set "TTADB=adb -s "%SERIAL%""
+set TT_APN=
+call :apn_run check
+if "%TT_APN_RES%"=="HAVE" (echo  [OK] Mobile data is already set up - APN %TT_APN_NUM%. & exit /b 0)
+if "%TT_APN_RES%"=="NOSIM" (echo  [!] No SIM card found. Put the Flow SIM in, then run Update again. & exit /b 0)
+if "%TT_APN_RES%"=="OTHER" goto apn_other
+echo    [P]  Prepaid / top-up Flow SIM  - APN ppinternet
+echo    [M]  Monthly plan Flow SIM      - APN internet
+echo    [S]  Skip for now
+choice /c PMS /n /m "  Which Flow SIM is in this tablet? [P/M/S]: "
+set TT_PICK=%errorlevel%
+if "%TT_PICK%"=="3" exit /b 0
+set TT_APN=ppinternet
+if "%TT_PICK%"=="2" set TT_APN=internet
+call :apn_run %TT_APN%
+if "%TT_APN_RES%"=="OK" (echo  [OK] Mobile data APN set: Flow Internet - %TT_APN%. & exit /b 0)
+if "%TT_APN_RES%"=="SAVED" (echo  [!] Flow Internet was added but could not be selected. & goto apn_by_hand)
+echo  [!] This tablet would not take the APN from this computer.
+:apn_by_hand
+%TTADB% shell am start -a android.settings.APN_SETTINGS >nul 2>&1
+echo.
+echo  ON THE TABLET - Access Point Names should be open. Tap + and enter:
+echo    Name:                 Flow Internet
+echo    APN:                  %TT_APN%
+echo    Authentication type:  PAP
+echo    APN type:             default,supl
+echo    MCC and MNC:          leave what the tablet fills in - 352 and 110 for Flow
+echo  Then open the menu, tap Save, and tap the circle next to Flow Internet.
+echo  If that screen did not open, exit FreeKiosk with its PIN and open
+echo  Settings - Network and internet - SIMs - Access Point Names.
+pause
+exit /b 0
+:apn_other
+echo  [!] This SIM is not Flow Grenada - network code %TT_APN_NUM%.
+echo      Add the APN its network gives you on the screen that opens now.
+%TTADB% shell am start -a android.settings.APN_SETTINGS >nul 2>&1
+pause
+exit /b 0
+
+:apn_run
+set TT_APN_RES=
+set TT_APN_NUM=
+set "TT_APN_SH=%TEMP%\tt-apn-%RANDOM%.sh"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$p='::TT'+'APN '; $l=@(Get-Content -LiteralPath $env:TT_SELF | Where-Object { $_.StartsWith($p) } | ForEach-Object { $_.Substring($p.Length) }); if ($l.Count -eq 0) { exit 2 }; [IO.File]::WriteAllText($env:TT_APN_SH, (($l -join [char]10) + [char]10), (New-Object Text.UTF8Encoding $false))"
+if errorlevel 1 (set "TT_APN_RES=FAIL" & exit /b 0)
+%TTADB% push "%TT_APN_SH%" /data/local/tmp/tt-apn.sh >nul 2>&1
+del "%TT_APN_SH%" >nul 2>&1
+set TT_APN_OUT=
+for /f "delims=" %%r in ('%TTADB% shell sh /data/local/tmp/tt-apn.sh %1 2^>nul') do set "TT_APN_OUT=%%r"
+%TTADB% shell rm -f /data/local/tmp/tt-apn.sh >nul 2>&1
+for /f "tokens=1,2" %%a in ("%TT_APN_OUT%") do (set "TT_APN_RES=%%a" & set "TT_APN_NUM=%%b")
+if not defined TT_APN_RES set TT_APN_RES=FAIL
+exit /b 0
+
+rem -----------------------------------------------------------------
 rem  The signed TransitTrack Helper is built into the end of this file as
 rem  base64 lines. This unpacks it to a temporary file, checks its SHA-256
 rem  and sets HELPER_APK. An older download with the APK beside this file
@@ -628,3 +697,31 @@ if "%KEYCODE%"=="000" echo  [X] FreeKiosk is not answering on port 8080 - its RE
 if "%KEYCODE%"=="" echo  [X] FreeKiosk did not answer. Check the USB connection and that FreeKiosk is open.
 echo      Until this passes, card taps will NOT reach the boarding screen.
 exit /b 0
+rem ===== Mobile data APN script - copied to the tablet by :apn_run =====
+::TTAPN # TransitTrack setup: mobile data APN for the bus SIM, run over USB.
+::TTAPN # Usage: sh tt-apn.sh check | internet | ppinternet
+::TTAPN # Prints one line: RESULT VALUE .
+::TTAPN MODE="$1"
+::TTAPN U=content://telephony/carriers
+::TTAPN NUM=""
+::TTAPN for n in $(getprop gsm.sim.operator.numeric | tr ',' ' '); do NUM="$n"; break; done
+::TTAPN if [ -z "$NUM" ]; then echo "NOSIM - ."; exit 0; fi
+::TTAPN if [ "$NUM" != "352110" ]; then echo "OTHER $NUM ."; exit 0; fi
+::TTAPN idof() { sed -n 's/.*_id=\([0-9][0-9]*\).*/\1/p' | head -n 1; }
+::TTAPN if [ "$MODE" = "check" ]; then
+::TTAPN   PREF=$(content query --uri $U/preferapn --projection _id:apn:numeric 2>/dev/null)
+::TTAPN   case "$PREF" in
+::TTAPN     *numeric=352110*) A=$(echo "$PREF" | sed -n 's/.*apn=\([^,]*\).*/\1/p' | head -n 1); echo "HAVE ${A:-set} ."; exit 0;;
+::TTAPN   esac
+::TTAPN   echo "NEED - ."; exit 0
+::TTAPN fi
+::TTAPN case "$MODE" in internet|ppinternet) ;; *) echo "FAIL usage ."; exit 0;; esac
+::TTAPN W="name='Flow Internet' AND numeric='352110'"
+::TTAPN content delete --uri $U --where "$W" >/dev/null 2>&1
+::TTAPN content insert --uri $U --bind name:s:"Flow Internet" --bind numeric:s:352110 --bind mcc:s:352 --bind mnc:s:110 --bind apn:s:"$MODE" --bind authtype:i:1 --bind type:s:default,supl --bind protocol:s:IPV4V6 --bind roaming_protocol:s:IPV4V6 --bind carrier_enabled:i:1 >/dev/null 2>&1
+::TTAPN ID=$(content query --uri $U --projection _id --where "$W" 2>/dev/null | idof)
+::TTAPN if [ -z "$ID" ]; then echo "FAIL insert ."; exit 0; fi
+::TTAPN content insert --uri $U/preferapn --bind apn_id:i:"$ID" >/dev/null 2>&1
+::TTAPN P=$(content query --uri $U/preferapn --projection _id 2>/dev/null | idof)
+::TTAPN svc data enable >/dev/null 2>&1
+::TTAPN if [ "$P" = "$ID" ]; then echo "OK $ID ."; else echo "SAVED $ID ."; fi
