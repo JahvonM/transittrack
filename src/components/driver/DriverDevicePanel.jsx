@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useIsDark } from "@/lib/useTheme";
 import useTheme from "@/hooks/useTheme";
+import TabletNetworkPanel from "@/components/driver/TabletNetworkPanel";
 
 export default function DriverDevicePanel({ session, deviceId, onUnpair }) {
   const vehicle = session?.vehicle;
@@ -12,6 +13,8 @@ export default function DriverDevicePanel({ session, deviceId, onUnpair }) {
   const isDark = useIsDark();
 
   return (
+    <>
+    <TabletNetworkPanel />
     <Card className="max-w-lg mx-auto">
       <CardHeader className="pb-3">
         <CardTitle className="text-base">Tablet &amp; vehicle</CardTitle>
@@ -54,5 +57,6 @@ export default function DriverDevicePanel({ session, deviceId, onUnpair }) {
         <p className="text-xs text-muted-foreground text-center">Unpairing will require a new pairing code to use this tablet again.</p>
       </CardContent>
     </Card>
+    </>
   );
 }

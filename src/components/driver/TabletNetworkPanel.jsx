@@ -76,7 +76,6 @@ function WifiChooser({ open, onOpenChange, h, current }) {
     if (open) scan();
     else { setChosen(null); setPassword(""); setShow(false); setError(""); setSince(0); }
     // Scan once each time the list opens.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
   // Re-render while waiting so "still looking" turns into a message.
   const [, tick] = useState(0);
