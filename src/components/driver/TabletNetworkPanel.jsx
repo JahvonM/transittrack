@@ -10,9 +10,10 @@ import { helperAtLeast, wifiPasswordProblem } from "@/lib/tabletNetworkAdmin";
 import { LOCAL_NETWORK_HELPER_VERSION, helperKey, localCommandId, sendLocalCommand } from "@/lib/tabletNetwork";
 import { wifiStatus, mobileStatus, hotspotStatus, freshNetworks, joinFor } from "@/lib/tabletNetworkStatus";
 
-// Driver tablet → Tablet settings → Internet (behind the driver's PIN).
+// A tablet's own Internet settings: driver tablet → Tablet settings (behind
+// the driver's PIN); boarding tablet → hold the top bar, then the bus PIN.
 // Wi-Fi on/off and choosing a network go straight to the TransitTrack Helper
-// on this tablet (Helper 1.11); the password never leaves the tablet. Mobile
+// on this tablet (Helper 1.12); the password never leaves the tablet. Mobile
 // data is shown only: Android lets just its own settings switch it.
 
 // The helper writes its status into the page (window.__ttHelperHealth); read it
@@ -177,7 +178,12 @@ function WifiChooser({ open, onOpenChange, h, current }) {
   );
 }
 
-export default function TabletNetworkPanel() {
+const clockTime = (iso) => {
+  const t = Date.parse(iso || "");
+  return Number.isFinite(t) ? new Date(t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "";
+};
+
+export default function TabletNetworkPanel({ boarding = false, className = "max-w-lg mx-auto" }) {
   const h = useHelperStatus();
   const ready = !!h && helperAtLeast(h.version, LOCAL_NETWORK_HELPER_VERSION) && !!helperKey();
   const wifi = wifiStatus(h);
@@ -211,10 +217,12 @@ export default function TabletNetworkPanel() {
   };
 
   const switchOn = wanted ?? wifi.enabled;
-  const wifiDetail = wanted !== null ? (wanted ? "Switching on…" : "Switching off…") : wifi.text;
+  const offUntil = !wifi.enabled && wanted === null ? clockTime(h?.wifi?.off_until) : "";
+  const wifiDetail = wanted !== null ? (wanted ? "Switching on…" : "Switching off…") : offUntil ? `Off until ${offUntil}` : wifi.text;
+  const hasMobile = !!h?.mobile;
 
   return (
-    <Card className="max-w-lg mx-auto">
+    <Card className={className}>
       <CardHeader className="pb-3">
         <CardTitle className="text-base">Internet</CardTitle>
       </CardHeader>
@@ -234,6 +242,13 @@ export default function TabletNetworkPanel() {
         {!alwaysHotspot && ready && !wifi.enabled && hotspot?.text === "On" && (
           <p className="text-xs text-muted-foreground">Switching Wi-Fi on stops the hotspot, so the boarding tablet loses internet. The hotspot comes back by itself if no Wi-Fi connects within about 3 minutes.</p>
         )}
+        {boarding && ready && (offUntil || (wifi.enabled && wanted === null)) && (
+          <p className="text-xs text-muted-foreground">
+            {offUntil
+              ? `Card taps still work from the saved list. Wi-Fi comes back on by itself at ${offUntil}, so the tablet doesn't stay offline.`
+              : "If you switch Wi-Fi off, it comes back on by itself after 30 minutes. A network chosen here is used now; the tablet still goes back to the bus hotspot when it's around."}
+          </p>
+        )}
         {problem && <p role="alert" className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{problem}</p>}
         {ready && wifi.enabled && !alwaysHotspot && wanted === null && (
           <Button variant="outline" className="h-12 w-full justify-start text-base" onClick={() => setChooserOpen(true)}>
@@ -241,13 +256,15 @@ export default function TabletNetworkPanel() {
           </Button>
         )}
 
-        <Row icon={Signal} title="Mobile data" detail={mobile.text}>
-          {mobile.bars !== null && mobile.tone === "ok" && <Bars n={mobile.bars} label="Mobile signal" />}
-        </Row>
+        {(hasMobile || !boarding) && (
+          <Row icon={Signal} title="Mobile data" detail={mobile.text}>
+            {mobile.bars !== null && mobile.tone === "ok" && <Bars n={mobile.bars} label="Mobile signal" />}
+          </Row>
+        )}
         {hotspot && (
           <Row icon={Radio} title="Hotspot for the boarding tablet" detail={`${hotspot.text}${hotspot.always ? " · Always on (set in Admin)" : ""}`} />
         )}
-        <p className="text-xs text-muted-foreground">Mobile data can only be switched on or off in Android's own settings; the setup tool's Update switches it on.</p>
+        {(hasMobile || !boarding) && <p className="text-xs text-muted-foreground">Mobile data can only be switched on or off in Android's own settings; the setup tool's Update switches it on.</p>}
       </CardContent>
       {ready && <WifiChooser open={chooserOpen} onOpenChange={setChooserOpen} h={h} current={wifi.ssid} />}
     </Card>
