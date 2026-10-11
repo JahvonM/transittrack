@@ -28,6 +28,8 @@
 	<string>TransitTrack uses the camera to scan staff boarding QR codes and badges on the bus tablet, and to take photos you attach to reports and messages.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>TransitTrack uses the microphone to record the voice notes you send in chats.</string>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>TransitTrack uses Bluetooth to send your boarding code to the bus tablet when you tap Board by Bluetooth at the bus door.</string>
 	<!-- "Always" (background) location is deliberately not requested yet —
 	     only add NSLocationAlwaysAndWhenInUseUsageDescription + the "location"
 	     UIBackgroundModes entry once background tracking (screen off / app
