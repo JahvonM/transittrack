@@ -31,13 +31,17 @@ import org.json.JSONObject;
  *    off when parked (or on all the time when Admin switches "Always on")
  *  - boarding tablets: join the bus hotspot automatically; scan for / switch to
  *    another Wi-Fi network when Admin asks
+ *  - driver tablets: Wi-Fi on/off, scan and join from the tablet's own Tablet
+ *    settings screen; mobile data status for that screen
  */
 public class HelperService extends Service {
-    static final String VERSION = "1.10";
+    static final String VERSION = "1.11";
     /** "Always on" hotspot pauses below this on battery so the tablet can't run flat (it can't power itself back on). */
     private static final int HOTSPOT_MIN_BATTERY = 20;
     /** Normal hotspot: how long without Wi-Fi first (Wi-Fi can take a minute to reconnect). */
     private static final long HOTSPOT_AFTER_NO_WIFI_MS = 2 * 60 * 1000;
+    /** Wi-Fi switched on / a network being chosen on the tablet's screen: the hotspot waits this long. */
+    private static final long WIFI_SETUP_HOLD_MS = 3 * 60 * 1000;
     static volatile boolean plugged = true;
     static volatile boolean parked = false;
 
@@ -269,6 +273,7 @@ public class HelperService extends Service {
     /** Last time this tablet was on a working Wi-Fi network (start counts, so a fresh start waits for Wi-Fi). */
     private long lastOnWifiAt = System.currentTimeMillis();
     private String hotspotWaitLogged = "";
+    private volatile long hotspotHoldUntil = 0;
 
     /**
      * Driver tablets: whether the hotspot should be on right now.
@@ -305,6 +310,8 @@ public class HelperService extends Service {
                 lastOnWifiAt = now;
                 String ssid = WifiControl.currentSsid(this);
                 noteHotspotWait(ssid.isEmpty() ? "Off (on Wi-Fi)" : "Off (on Wi-Fi " + ssid + ")");
+            } else if (now < hotspotHoldUntil) {
+                noteHotspotWait("Off (Wi-Fi being set up on the tablet)");
             } else if (now - lastOnWifiAt < HOTSPOT_AFTER_NO_WIFI_MS) {
                 noteHotspotWait("Off (waiting for Wi-Fi)");
             } else {
@@ -365,6 +372,80 @@ public class HelperService extends Service {
         main.postDelayed(new Runnable() { @Override public void run() { pushHealth(); } }, 6000);
     }
 
+    private void holdHotspotForWifi() {
+        hotspotHoldUntil = System.currentTimeMillis() + WIFI_SETUP_HOLD_MS;
+    }
+
+    /**
+     * Wi-Fi switched on/off on the tablet's screen. A driver tablet can't share
+     * its hotspot and use Wi-Fi at the same time, so switching Wi-Fi on stops the
+     * hotspot (unless Admin keeps it always on); the hotspot then waits while a
+     * network is chosen, and comes back by itself if no Wi-Fi connects.
+     */
+    private void setWifiPower(boolean on) {
+        try {
+            android.net.wifi.WifiManager w = (android.net.wifi.WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+            if (on) {
+                if (Config.hotspotAlways(this)) {
+                    Status.log("Wi-Fi not switched on: Admin keeps this tablet's hotspot always on");
+                } else {
+                    if (Config.hotspot(this)) {
+                        holdHotspotForWifi();
+                        if (Hotspot.isOn(this)) {
+                            Hotspot.set(this, false);
+                            try { Thread.sleep(2500); } catch (InterruptedException e) { return; }
+                        }
+                    }
+                    boolean ok = w.setWifiEnabled(true);
+                    Status.log(ok ? "Wi-Fi switched on from the tablet screen" : "Could not switch Wi-Fi on");
+                }
+            } else {
+                hotspotHoldUntil = 0;
+                boolean ok = w.setWifiEnabled(false);
+                Status.log(ok ? "Wi-Fi switched off from the tablet screen" : "Could not switch Wi-Fi off");
+            }
+        } catch (RuntimeException e) {
+            Status.log("Wi-Fi switch error: " + e.getMessage());
+        }
+        reportNow.run();
+        main.postDelayed(new Runnable() { @Override public void run() { pushHealth(); } }, 5000);
+        main.postDelayed(new Runnable() { @Override public void run() { pushHealth(); } }, 12000);
+    }
+
+    /** Mobile data for the tablet's screen: SIM, data switched on, connected, network type, operator, signal. */
+    private JSONObject mobileHealth() throws org.json.JSONException {
+        JSONObject m = new JSONObject();
+        android.telephony.TelephonyManager tm = null;
+        try { tm = (android.telephony.TelephonyManager) getSystemService(Context.TELEPHONY_SERVICE); } catch (RuntimeException e) { /* no phone */ }
+        if (tm == null) { m.put("sim", "none"); return m; }
+        int sim = tm.getSimState();
+        m.put("sim", sim == android.telephony.TelephonyManager.SIM_STATE_READY ? "ready"
+                : sim == android.telephony.TelephonyManager.SIM_STATE_ABSENT ? "none" : "not ready");
+        if (Build.VERSION.SDK_INT >= 26) {
+            try { m.put("data", tm.isDataEnabled()); } catch (RuntimeException e) { /* not allowed on this tablet */ }
+        }
+        try {
+            String op = tm.getNetworkOperatorName();
+            if (op != null && !op.trim().isEmpty()) m.put("operator", op.trim());
+        } catch (RuntimeException e) { /* ignore */ }
+        if (Build.VERSION.SDK_INT >= 28) {
+            try {
+                android.telephony.SignalStrength s = tm.getSignalStrength();
+                if (s != null) m.put("bars", s.getLevel());
+            } catch (RuntimeException e) { /* ignore */ }
+        }
+        try {
+            android.net.ConnectivityManager cm = (android.net.ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+            android.net.NetworkInfo ni = cm.getNetworkInfo(android.net.ConnectivityManager.TYPE_MOBILE);
+            if (ni != null) {
+                m.put("connected", ni.isConnected());
+                String type = ni.getSubtypeName();
+                if (type != null && !type.trim().isEmpty()) m.put("type", type.trim());
+            }
+        } catch (RuntimeException e) { /* ignore */ }
+        return m;
+    }
+
     private final Runnable reportNow = new Runnable() {
         @Override public void run() { main.post(new Runnable() { @Override public void run() { pushHealth(); } }); }
     };
@@ -383,13 +464,22 @@ public class HelperService extends Service {
                 setHotspotAlways("1".equals(q.get("always")));
                 return;
             }
-            if (driverTablet) {
-                Status.log("Wi-Fi command ignored: this tablet shares its hotspot");
+            if ("/health".equals(route)) {
+                reportNow.run();
                 return;
             }
+            if ("/wifi/power".equals(route)) {
+                final boolean on = "1".equals(q.get("on"));
+                new Thread(new Runnable() {
+                    @Override public void run() { setWifiPower(on); }
+                }, "tt-wifi-power").start();
+                return;
+            }
+            // On a driver tablet these come from its own Tablet settings screen.
+            if (driverTablet) holdHotspotForWifi();
             if ("/wifi/scan".equals(route)) {
                 new Thread(new Runnable() {
-                    @Override public void run() { WifiControl.scan(HelperService.this); reportNow.run(); }
+                    @Override public void run() { WifiControl.scan(HelperService.this, !driverTablet); reportNow.run(); }
                 }, "tt-wifi-scan").start();
             } else if ("/wifi/join".equals(route)) {
                 final String ssid = q.get("ssid");
@@ -399,7 +489,10 @@ public class HelperService extends Service {
                     return;
                 }
                 new Thread(new Runnable() {
-                    @Override public void run() { WifiControl.join(HelperService.this, id, ssid, pass, reportNow); }
+                    @Override public void run() {
+                        if (driverTablet) WifiControl.joinHere(HelperService.this, id, ssid, pass, reportNow);
+                        else WifiControl.join(HelperService.this, id, ssid, pass, reportNow);
+                    }
                 }, "tt-wifi-join").start();
             }
         }
@@ -471,9 +564,16 @@ public class HelperService extends Service {
             if (Config.hotspot(this)) {
                 h.put("hotspot", Status.hotspot);
                 h.put("hotspot_always", Config.hotspotAlways(this));
-            } else {
-                // Boarding tablets: the Wi-Fi they're on and the latest scan / join, for Admin.
+                h.put("mobile", mobileHealth());
+            }
+            {
+                // The Wi-Fi the tablet is on and the latest scan / join: for Admin
+                // (boarding tablets) and the driver tablet's own Tablet settings.
                 JSONObject w = new JSONObject();
+                try {
+                    android.net.wifi.WifiManager wm = (android.net.wifi.WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+                    w.put("enabled", wm.isWifiEnabled());
+                } catch (RuntimeException e) { /* ignore */ }
                 String ssid = WifiControl.currentSsid(this);
                 w.put("ssid", ssid);
                 if (!ssid.isEmpty()) w.put("bars", WifiControl.currentBars(this));
