@@ -88,3 +88,25 @@ describe("scoped entity calls under Base44 rate limits", () => {
     expect(pollDelay("Broadcast", later)).toBe(FAST_POLL_MS);
   });
 });
+it("shares overlapping identical reads, keeps distinct reads and writes separate", async () => {
+ const invoke=vi.fn(async (_name,payload)=>({data:{result:[{id:payload.entity}]}}));
+ const entities=scopedEntities({functions:{invoke}});
+ await Promise.all(Array.from({length:30},()=>entities.Vehicle.list("-created_date",20)));
+ expect(invoke).toHaveBeenCalledTimes(1);
+ await entities.Vehicle.list("-created_date",20);
+ expect(invoke).toHaveBeenCalledTimes(2);
+ await Promise.all([entities.Vehicle.list("-created_date",30),entities.Vehicle.list("-created_date",40)]);
+ expect(invoke).toHaveBeenCalledTimes(4);
+ await Promise.all([entities.Vehicle.update("bus",{name:"A"}),entities.Vehicle.update("bus",{name:"A"})]);
+ expect(invoke).toHaveBeenCalledTimes(6);
+});
+
+it("releases a failed shared read so a manual retry can fetch again", async () => {
+ const invoke=vi.fn().mockRejectedValueOnce({status:403}).mockResolvedValue({data:{result:[]}});
+ const entities=scopedEntities({functions:{invoke}});
+ const results=await Promise.allSettled([entities.Vehicle.list(),entities.Vehicle.list()]);
+ expect(results.every(r=>r.status==="rejected")).toBe(true);
+ expect(invoke).toHaveBeenCalledTimes(1);
+ await expect(entities.Vehicle.list()).resolves.toEqual([]);
+ expect(invoke).toHaveBeenCalledTimes(2);
+});
