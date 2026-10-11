@@ -5,6 +5,7 @@ import AccessRecovery from '@/components/system/AccessRecovery';
 import ConfirmHost from "@/components/ConfirmHost";
 import OfflineJobsBanner from "@/components/OfflineJobsBanner";
 import PhoneSignInListener from "@/components/PhoneSignInListener";
+import NativeNotificationTaps from "@/components/NativeNotificationTaps";
 import OfflineNotice from "@/components/system/OfflineNotice";
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
@@ -197,6 +198,7 @@ function App() {
           <OfflineNotice />
           <OfflineJobsBanner />
           <PhoneSignInListener />
+          <NativeNotificationTaps />
         </Router>
         <Toaster />
         <ConfirmHost />
