@@ -22,7 +22,11 @@ export default function BroadcastInbox() {
 
   useEffect(() => {
     load();
-    const unsub = base44.entities.Broadcast.subscribe(() => load());
+    const unsub = base44.entities.Broadcast.subscribe(event => setItems(previous => {
+      const remaining = previous.filter(row => row.id !== event.id);
+      if (event.type === "delete" || !event.data) return remaining;
+      return [event.data,...remaining].sort((a,b) => Date.parse(b.created_date || 0)-Date.parse(a.created_date || 0)).slice(0,30);
+    }));
     return unsub;
   }, []);
 

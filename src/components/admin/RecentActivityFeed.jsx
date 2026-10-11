@@ -48,10 +48,17 @@ export default function RecentActivityFeed({ onNavigate }) {
 
   useEffect(() => {
     load();
+    // The scoped poll already supplied each changed row. Refetching all three
+    // lists for every event amplified one refresh into many server requests.
+    const update = (setter, timeField, completedOnly = false) => event => setter(previous => {
+      const remaining = previous.filter(row => row.id !== event.id);
+      if (event.type === "delete" || !event.data || (completedOnly && event.data.status !== "completed")) return remaining;
+      return [event.data, ...remaining].sort((a,b) => Date.parse(b[timeField] || 0) - Date.parse(a[timeField] || 0)).slice(0,20);
+    });
     const unsubs = [
-      base44.entities.Fault.subscribe(load),
-      base44.entities.Incident.subscribe(load),
-      base44.entities.Trip.subscribe(load),
+      base44.entities.Fault.subscribe(update(setFaults, "created_date")),
+      base44.entities.Incident.subscribe(update(setIncidents, "occurred_at")),
+      base44.entities.Trip.subscribe(update(setTrips, "completed_at", true)),
     ];
     return () => unsubs.forEach((u) => u && u());
   }, []);
