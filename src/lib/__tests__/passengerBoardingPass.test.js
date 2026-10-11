@@ -149,3 +149,25 @@ describe('permanent personal boarding QR and chosen code', () => {
     expect(JSON.stringify(await response.json())).not.toContain(pass.qr_token);
   });
 });
+// Backup boarding over Bluetooth: the phone sends the same code as the QR, and
+// the check-in is verified exactly like a scanned QR.
+describe('Bluetooth boarding uses the boarding QR credential', () => {
+  it('records a verified Bluetooth check-in', async () => {
+    const f = fixture(), pass = await getPass(f);
+    const lookup = await f.tablet({ action: 'lookup_code', code: pass.qr_token });
+    expect(lookup.status).toBe(200);
+    const data = await lookup.json();
+    const response = await f.tablet({ action: 'check_in', staff_id: data.staff.id, method: 'bluetooth', status: 'boarded', verification_grant: data.verification_grant, client_request_id: 'ble-boarding-1', occurred_at: new Date().toISOString() });
+    expect(response.status).toBe(200);
+    expect(f.sdk.tables.StaffCheckIn).toHaveLength(1);
+    expect(f.sdk.tables.StaffCheckIn[0].check_in_method).toBe('bluetooth');
+  });
+  it('refuses a Bluetooth check-in without a valid lookup', async () => {
+    const f = fixture(), pass = await getPass(f);
+    const data = await (await f.tablet({ action: 'lookup_code', code: pass.qr_token })).json();
+    for (const verification_grant of [undefined, 'f'.repeat(64)]) {
+      expect((await f.tablet({ action: 'check_in', staff_id: data.staff.id, method: 'bluetooth', status: 'boarded', verification_grant })).status).toBe(403);
+    }
+    expect(f.sdk.tables.StaffCheckIn || []).toHaveLength(0);
+  });
+});
