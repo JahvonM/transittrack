@@ -14,6 +14,12 @@ import { safeReturnTo } from "@/lib/authReturnTo";
 import { useAuth } from "@/lib/AuthContext";
 import { hasPendingJoinCode, rememberJoinCode } from "@/lib/companyJoin";
 import { ScanCompanyQrButton, ScanCompanyQrDialog } from "@/components/ScanCompanyQr";
+import { phoneSignInAvailable, openPhoneSignIn } from "@/lib/phoneSignIn";
+
+const PHONE_SIGNIN_PROBLEMS = {
+  failed: "Sign-in didn't finish, so the app isn't signed in. Tap Continue with Google or Apple again, or use your email and password.",
+  expired: "That sign-in took too long. Tap Continue with Google or Apple again.",
+};
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -63,12 +69,28 @@ export default function Login() {
     }
   };
 
+  // In the phone app, Google and Apple sign in through the phone's browser
+  // (Google blocks sign-in inside apps); the app signs in when it hands back.
+  const phoneProblem = PHONE_SIGNIN_PROBLEMS[new URLSearchParams(window.location.search).get("phoneSignIn")] || "";
+  const [inBrowser, setInBrowser] = useState(false);
+  const signInInBrowser = async (provider) => {
+    setError("");
+    try {
+      await openPhoneSignIn(provider, returnTo);
+      setInBrowser(true);
+    } catch {
+      setError("Couldn't open the browser to sign in. Try again, or use your email and password.");
+    }
+  };
+
   const handleGoogle = () => {
+    if (phoneSignInAvailable()) return signInInBrowser("google");
     base44.auth.loginWithProvider("google", `/login?authReturn=1&returnTo=${encodeURIComponent(returnTo)}`);
   };
 
   // Apple requires this alongside Google sign-in (App Store guideline 4.8).
   const handleApple = () => {
+    if (phoneSignInAvailable()) return signInInBrowser("apple");
     base44.auth.loginWithProvider("apple", returnTo);
   };
 
@@ -115,6 +137,16 @@ export default function Login() {
       {error && (
         <div role="alert" className="mb-4 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
           {error}
+        </div>
+      )}
+      {phoneProblem && !error && !inBrowser && (
+        <div role="alert" className="mb-4 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
+          {phoneProblem}
+        </div>
+      )}
+      {inBrowser && (
+        <div role="status" className="mb-4 p-3 rounded-lg bg-secondary text-sm">
+          Finish signing in in the browser window. The app signs in by itself when you tap Open TransitTrack app there.
         </div>
       )}
 
