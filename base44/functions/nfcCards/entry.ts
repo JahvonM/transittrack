@@ -257,7 +257,10 @@ async function allocatePassengerCode(base44,person,companyId) {
 export default async function (req) {
   try {
     const base44 = createClientFromRequest(req);
-    const user = await base44.auth.me().catch(() => null);
+    const user = await base44.auth.me().catch(error => {
+      if ((error?.status ?? error?.response?.status) === 401) return null;
+      throw error;
+    });
     if (!user || !['admin', 'company'].includes(user.role)) return Response.json({ error: 'Admins only' }, { status: 403 });
     const approved = user.role === 'admin' ? [] : await approvedCompanies(base44, user);
     if (user.role === 'company' && approved.length !== 1) return Response.json({ error: 'Approved company membership required' }, { status: 403 });
