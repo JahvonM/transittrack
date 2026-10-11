@@ -22,6 +22,10 @@ import java.util.Map;
  *   /wifi/scan?id=..             boarding tablet: list the Wi-Fi networks around it
  *   /wifi/join?id=..&ssid=..&pass=..  boarding tablet: switch to a chosen network
  *   /hotspot?id=..&always=1|0    driver tablet: keep the hotspot on all the time (or not)
+ * Helper 1.11, from the driver tablet's own Tablet settings (also need ?k=KEY):
+ *   /wifi/power?on=1|0           switch the tablet's Wi-Fi on or off
+ *   /wifi/scan, /wifi/join       as above, on the driver tablet too
+ *   /health                      put the latest status into the page now
  * KEY is random for each helper start and only ever given to the page FreeKiosk
  * shows (window.__ttHelperKey, with the health report), so nothing else on the
  * tablet can change its Wi-Fi.
@@ -111,7 +115,8 @@ final class ResultServer implements Runnable {
                 } else if ("GET".equals(method) && path.startsWith("/rescan-usb") && onRescan != null) {
                     onRescan.run();
                 } else if ("GET".equals(method) && commands != null
-                        && ("/wifi/scan".equals(route) || "/wifi/join".equals(route) || "/hotspot".equals(route))) {
+                        && ("/wifi/scan".equals(route) || "/wifi/join".equals(route) || "/hotspot".equals(route)
+                            || "/wifi/power".equals(route) || "/health".equals(route))) {
                     Map<String, String> q = query(qi < 0 ? "" : path.substring(qi + 1));
                     if (keyMatches(q.get("k"))) commands.run(route, q);
                     else Status.log("Ignored a network command without the page key");
