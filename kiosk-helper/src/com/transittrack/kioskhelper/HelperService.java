@@ -295,8 +295,8 @@ public class HelperService extends Service {
         } else if (parked) {
             keepHotspot(false);
         } else if (!hasSim()) {
-            noteHotspotWait("Off (no SIM card)");
-            keepHotspot(false);
+            if (Hotspot.isOn(this)) keepHotspot(false);
+            else noteHotspotWait("Off (no SIM card)");
         } else if (plugged) {
             long now = System.currentTimeMillis();
             if (Hotspot.isOn(this)) {
