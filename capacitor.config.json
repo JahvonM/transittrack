@@ -3,7 +3,9 @@
   "appName": "TransitTrack",
   "webDir": "dist",
   "server": {
-    "androidScheme": "https"
+    "androidScheme": "https",
+    "url": "https://eager-transit-track-go.base44.app",
+    "allowNavigation": ["eager-transit-track-go.base44.app", "base44.app", "*.base44.app", "appleid.apple.com"]
   },
   "plugins": {
     "SplashScreen": {
@@ -14,6 +16,14 @@
     },
     "PushNotifications": {
       "presentationOptions": ["badge", "sound", "alert"]
+    },
+    "BluetoothLe": {
+      "displayStrings": {
+        "scanning": "Looking for buses...",
+        "cancel": "Cancel",
+        "availableDevices": "Pick your bus",
+        "noDeviceFound": "No bus found nearby"
+      }
     }
   }
 }
