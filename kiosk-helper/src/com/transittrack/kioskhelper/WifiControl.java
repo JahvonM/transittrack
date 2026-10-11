@@ -24,6 +24,8 @@ import java.util.Map;
  *    the tablet on (WifiJoin). If it hasn't connected within 45 s (wrong password,
  *    out of range) the tablet goes back to the network it was using, so a mistake
  *    can't leave the boarding tablet offline.
+ * Driver tablets, from their own Tablet settings screen (Helper 1.11): scan, and
+ * joinHere - connect to a network without making it a bus hotspot to stick to.
  * Uses the classic Wi-Fi API, allowed because the helper targets Android 9 (API 28).
  */
 final class WifiControl {
@@ -83,11 +85,19 @@ final class WifiControl {
         }
     }
 
-    /** Looks for networks (Android allows only a few scans every 2 minutes; then the latest list is used). */
-    static void scan(Context c) {
+    static void scan(Context c) { scan(c, true); }
+
+    /**
+     * Looks for networks (Android allows only a few scans every 2 minutes; then the latest list is used).
+     * mayTurnOn false: a driver tablet whose Wi-Fi is off (its hotspot may be sharing data) is left alone.
+     */
+    static void scan(Context c, boolean mayTurnOn) {
         WifiManager w = wm(c);
         try {
-            if (!w.isWifiEnabled()) w.setWifiEnabled(true);
+            if (!w.isWifiEnabled()) {
+                if (!mayTurnOn) { Status.log("Wi-Fi scan skipped: Wi-Fi is off"); return; }
+                w.setWifiEnabled(true);
+            }
             boolean started = w.startScan();
             try { Thread.sleep(started ? 6000 : 1500); } catch (InterruptedException e) { return; }
             List<ScanResult> results = w.getScanResults();
@@ -155,6 +165,83 @@ final class WifiControl {
         joinMessage = message;
         joinAt = System.currentTimeMillis();
         if (report != null) report.run();
+    }
+
+    /** Saves a network (replacing this helper's own earlier copy); -1 if Android refused. */
+    private static int save(WifiManager w, String ssid, String pass) {
+        int old = networkId(w, ssid);
+        if (old != -1) w.removeNetwork(old);   // only works for networks this helper saved
+        WifiConfiguration n = new WifiConfiguration();
+        n.SSID = "\"" + ssid + "\"";
+        if (pass.isEmpty()) {
+            n.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.NONE);
+        } else {
+            n.preSharedKey = "\"" + pass + "\"";
+            n.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA_PSK);
+        }
+        int id = w.addNetwork(n);
+        if (id != -1) w.saveConfiguration();
+        return id;
+    }
+
+    /**
+     * Driver tablets: connect to ssid from the tablet's own screen. Unlike join, it
+     * doesn't become a network the helper keeps the tablet on; Android remembers it
+     * like any saved Wi-Fi. If it can't connect within 45 s it goes back to the
+     * network it was on and forgets a network it had only just saved.
+     */
+    static void joinHere(Context c, String id, String ssid, String pass, Runnable report) {
+        synchronized (JOIN_LOCK) {
+            joinId = id == null ? "" : id;
+            joinSsid = ssid;
+            state("joining", "Connecting to " + ssid + "...", report);
+            Status.log("Tablet screen: joining " + ssid);
+            WifiManager w = wm(c);
+            String wasOn = currentSsid(c);
+            try {
+                if (!w.isWifiEnabled()) {
+                    w.setWifiEnabled(true);
+                    try { Thread.sleep(4000); } catch (InterruptedException e) { return; }
+                }
+                int before = networkId(w, ssid);
+                int newId = save(w, ssid, pass);
+                if (newId == -1) newId = before;   // saved earlier in Android's settings: use that
+                boolean ok = false;
+                if (newId != -1) {
+                    w.enableNetwork(newId, true);
+                    w.reconnect();
+                    ok = waitFor(c, ssid, JOIN_WAIT_MS);
+                }
+                enableAll(w);
+                if (ok) {
+                    Status.log("Connected to " + ssid + " (chosen on the tablet)");
+                    state("connected", "Connected to " + ssid, report);
+                    return;
+                }
+                if (newId != -1 && before == -1) {
+                    w.removeNetwork(newId);
+                    w.saveConfiguration();
+                }
+                boolean backOk = false;
+                int backId = networkId(w, wasOn);
+                if (backId != -1) {
+                    w.enableNetwork(backId, true);
+                    w.reconnect();
+                    backOk = waitFor(c, wasOn, 30000);
+                    enableAll(w);
+                }
+                String why = newId == -1 ? "Couldn't save " + ssid + " (check the password)"
+                        : "Couldn't connect to " + ssid + " (wrong password or out of range)";
+                Status.log(why + (backOk ? "; back on " + wasOn : ""));
+                state("failed", why + (backOk ? ". Went back to " + wasOn + "." : "."), report);
+            } catch (SecurityException e) {
+                Status.log("Wi-Fi change blocked: run  adb shell pm grant " + c.getPackageName() + " android.permission.ACCESS_FINE_LOCATION");
+                state("failed", "Wi-Fi change blocked on this tablet (location permission).", report);
+            } catch (RuntimeException e) {
+                Status.log("Wi-Fi change error: " + e.getMessage());
+                state("failed", "Wi-Fi change error on the tablet.", report);
+            }
+        }
     }
 
     /** Switches to ssid (pass "" for an open network); falls back to the previous network on failure. */
