@@ -8,7 +8,7 @@ const time=value=>value?new Date(value).toLocaleTimeString([], {timeZone:TRANSIT
 export function DriverKioskHeader({session,offline,onMessages,unread}) {
  const [now,setNow]=useState(Date.now());
  useEffect(()=>{const t=setInterval(()=>setNow(Date.now()),30000);return()=>clearInterval(t);},[]);
- return <header className="dk-header"><div className="dk-brand-row"><strong>Transit<span>Track</span></strong><button aria-label="Open driver messages" onClick={onMessages}><MessageCircle/>{unread&&<span className="dk-unread" aria-label="Unread messages"/>}</button></div><div className="dk-company-row"><span>{session.company_logo_url&&<img src={session.company_logo_url} alt=""/>}{session.company_name || session.vehicle?.company_name || "Company"} · {session.vehicle?.name}</span><span>{offline?"Offline":time(now)}</span></div></header>;
+ return <header className="dk-header"><div className="dk-brand-row"><strong>Transit<span>Track</span></strong><button aria-label="Open driver messages" onClick={onMessages}><MessageCircle/>{unread&&<span className="dk-unread" aria-label="Unread messages"/>}</button></div><div className="dk-company-row"><span>{session.company_logo_url&&<img src={session.company_logo_url} alt=""/>}{session.company_name || session.vehicle?.company_name || "Company"} · {session.vehicle?.name}</span><span role={offline?"status":undefined}>{offline?"Offline":time(now)}</span></div></header>;
 }
 function Tool({icon:Icon,title,sub,onClick,badge}) {
  return <button className="dk-tool" onClick={onClick}><Icon aria-hidden="true"/><span><strong>{title}</strong>{sub&&<small>{sub}</small>}</span>{badge&&<span className="dk-unread"/>}<ChevronRight className="dk-chevron"/></button>;
