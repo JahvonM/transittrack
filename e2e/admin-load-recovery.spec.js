@@ -76,7 +76,7 @@ test('passenger directory opens while fleet loading is unavailable',async({page}
 });
 
 test('activity updates use supplied rows without reloading all activity lists',async({page})=>{
- await session(page,'admin');let version=1;const reads=[];
+ await session(page,'admin');await page.clock.install();let version=1;const reads=[];
  await page.route('**/functions/entityAccess',withAdminBatch(route=>{
   const b=route.request().postDataJSON();reads.push(b);
   if(b.entity==='User'&&b.id==='me')return route.fulfill({json:{result:{id:'caller',role:'admin',full_name:'Test Admin'}}});
@@ -87,8 +87,9 @@ test('activity updates use supplied rows without reloading all activity lists',a
  }));
  await page.goto('/admin');
  await expect(page.getByText('Fault version 1',{exact:true})).toBeVisible({timeout:15000});
- await page.waitForTimeout(3500);
- await page.clock.install();version=2;
+ await page.clock.runFor(25000);
+ await expect.poll(()=>reads.filter(b=>b.entity==='Fault'&&b.limit===5000).length).toBeGreaterThan(0);
+ version=2;
  await page.clock.runFor(25000);
  await expect(page.getByText('Fault version 2',{exact:true})).toBeVisible({timeout:10000});
  expect(reads.filter(b=>b.entity==='Fault'&&b.limit===20)).toHaveLength(1);
