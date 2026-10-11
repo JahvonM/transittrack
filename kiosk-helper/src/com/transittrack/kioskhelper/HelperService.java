@@ -35,9 +35,10 @@ import org.json.JSONObject;
  *    settings screen; mobile data status for that screen
  *  - boarding tablets (1.12): the same from their screen, behind the bus PIN;
  *    Wi-Fi switched off there comes back on by itself after 30 minutes
+ *  - boarding tablets (1.13): backup boarding over Bluetooth (BleBoarding)
  */
 public class HelperService extends Service {
-    static final String VERSION = "1.12";
+    static final String VERSION = "1.13";
     /** "Always on" hotspot pauses below this on battery so the tablet can't run flat (it can't power itself back on). */
     private static final int HOTSPOT_MIN_BATTERY = 20;
     /** Normal hotspot: how long without Wi-Fi first (Wi-Fi can take a minute to reconnect). */
@@ -111,6 +112,7 @@ public class HelperService extends Service {
     private final Runnable health = new Runnable() {
         @Override public void run() {
             applyHotspot();
+            ensureBle();
             if (!parked) {
                 if (plugged || !Config.ignition(HelperService.this)) joinBusWifi(0);
                 int battery = batteryPercent();
@@ -192,6 +194,17 @@ public class HelperService extends Service {
             new Thread(reader, "tt-reader").start();
         } else {
             Status.reader = "Card reader off";
+        }
+        if (Config.reader(this) && !Config.hotspot(this)) {
+            // Boarding tablets: backup boarding over Bluetooth.
+            ble = new BleBoarding(this, new BleBoarding.Sink() {
+                @Override public void code(final String text) {
+                    new Thread(new Runnable() {
+                        @Override public void run() { Kiosk.bleCode(HelperService.this, text); }
+                    }, "tt-ble-code").start();
+                }
+            });
+            main.postDelayed(new Runnable() { @Override public void run() { ensureBle(); } }, 12000);
         }
         if (Config.gps(this)) {
             gps = new UsbGps(this);
@@ -279,6 +292,21 @@ public class HelperService extends Service {
     private String hotspotWaitLogged = "";
     private volatile long hotspotHoldUntil = 0;
     private volatile long wifiOffUntil = 0;
+    private BleBoarding ble;
+
+    /** The name phones see for Bluetooth boarding: set by the boarding page, else the bus hotspot's name. */
+    private String bleName() {
+        String n = Config.prefs(this).getString("ble_name", "").trim();
+        if (n.isEmpty()) n = Config.joinSsid(this);
+        return n;
+    }
+
+    private void ensureBle() {
+        if (ble == null) return;
+        new Thread(new Runnable() {
+            @Override public void run() { ble.ensure(bleName()); }
+        }, "tt-ble").start();
+    }
 
     /**
      * Driver tablets: whether the hotspot should be on right now.
@@ -485,6 +513,14 @@ public class HelperService extends Service {
                 reportNow.run();
                 return;
             }
+            if ("/ble/name".equals(route)) {
+                String name = BleBoarding.clip(q.get("name"));
+                if (!name.equals(Config.prefs(HelperService.this).getString("ble_name", ""))) {
+                    Config.prefs(HelperService.this).edit().putString("ble_name", name).apply();
+                    ensureBle();
+                }
+                return;
+            }
             if ("/wifi/power".equals(route)) {
                 final boolean on = "1".equals(q.get("on"));
                 new Thread(new Runnable() {
@@ -583,6 +619,7 @@ public class HelperService extends Service {
             if (Config.reader(this) && Config.seen(this, "reader")) h.put("reader", Status.reader);
             if (Status.lastCardIso != null) h.put("last_card_at", Status.lastCardIso);
             if (Config.gps(this) && Config.seen(this, "gps")) h.put("gps", Status.gps);
+            if (ble != null) h.put("ble", BleBoarding.status);
             if (Config.hotspot(this)) {
                 h.put("hotspot", Status.hotspot);
                 h.put("hotspot_always", Config.hotspotAlways(this));

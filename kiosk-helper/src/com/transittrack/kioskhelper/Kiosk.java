@@ -33,6 +33,16 @@ final class Kiosk {
             + "var e=new CustomEvent(\"tt-badge\",{detail:t.uid});e.ttTapId=t.id;e.ttTapAt=t.at;window.dispatchEvent(e)})()");
     }
 
+    /** Boarding tablets (1.13): a boarding code a phone sent over Bluetooth (\"tt-code:...\"). */
+    static boolean bleCode(Context c, String text) {
+        long at = System.currentTimeMillis();
+        String item = "{code:" + quote(text) + ",id:" + quote("ble-" + Long.toString(at, 36)) + ",at:" + at + "}";
+        return js(c, "(function(){var t=" + item + ";"
+            + "window.__ttBleInbox=(window.__ttBleInbox||[]).filter(function(x){return Date.now()-x.at<30000&&x.id!==t.id}).slice(-4);"
+            + "window.__ttBleInbox.push(t);"
+            + "window.dispatchEvent(new CustomEvent(\"tt-ble-code\",{detail:t}))})()");
+    }
+
     static boolean js(Context c, String code) {
         return post(c, "/api/js", "{\"code\":" + quote(code) + "}");
     }

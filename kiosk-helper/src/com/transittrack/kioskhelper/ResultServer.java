@@ -26,6 +26,8 @@ import java.util.Map;
  *   /wifi/power?on=1|0           switch the tablet's Wi-Fi on or off
  *   /wifi/scan, /wifi/join       as above, on the driver tablet too
  *   /health                      put the latest status into the page now
+ * Helper 1.13, boarding tablets (need ?k=KEY):
+ *   /ble/name?name=..            the bus name phones see for Bluetooth boarding
  * KEY is random for each helper start and only ever given to the page FreeKiosk
  * shows (window.__ttHelperKey, with the health report), so nothing else on the
  * tablet can change its Wi-Fi.
@@ -116,7 +118,7 @@ final class ResultServer implements Runnable {
                     onRescan.run();
                 } else if ("GET".equals(method) && commands != null
                         && ("/wifi/scan".equals(route) || "/wifi/join".equals(route) || "/hotspot".equals(route)
-                            || "/wifi/power".equals(route) || "/health".equals(route))) {
+                            || "/wifi/power".equals(route) || "/health".equals(route) || "/ble/name".equals(route))) {
                     Map<String, String> q = query(qi < 0 ? "" : path.substring(qi + 1));
                     if (keyMatches(q.get("k"))) commands.run(route, q);
                     else Status.log("Ignored a network command without the page key");
