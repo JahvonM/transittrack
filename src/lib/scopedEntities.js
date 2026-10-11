@@ -3,7 +3,7 @@
 // Base44 rejects bursts of backend calls with 429 ("Too many requests"). One
 // rejected list used to blank a whole page (Admin loads 12 at once, plus live
 // lists every 10s in every open tab), so calls run a few at a time and a
-// rate-limited call waits and tries again. A 429 was never run, so a retry is safe.
+// rate-limited call waits and tries again.
 const MAX_IN_FLIGHT = 4;
 let inFlight = 0;
 const waiting = [];
@@ -11,9 +11,13 @@ const acquire = () => new Promise(resolve => { if (inFlight < MAX_IN_FLIGHT) { i
 const release = () => { const next = waiting.shift(); if (next) next(); else inFlight--; };
 const statusOf = e => e?.status ?? e?.response?.status ?? e?.originalError?.response?.status;
 const retryAfterMs = e => {
- const headers = e?.originalError?.response?.headers;
- const seconds = Number(headers?.get?.('retry-after') ?? headers?.['retry-after']);
- return Number.isFinite(seconds) && seconds > 0 ? Math.min(seconds * 1000, 10000) : 0;
+ const headers = e?.originalError?.response?.headers ?? e?.response?.headers;
+ const value = headers?.get?.('retry-after') ?? headers?.['retry-after'] ?? headers?.['Retry-After'];
+ if (value == null || String(value).trim() === '') return 0;
+ const seconds = Number(value);
+ if (Number.isFinite(seconds)) return seconds > 0 ? seconds * 1000 : 0;
+ const deadline = Date.parse(value);
+ return Number.isFinite(deadline) ? Math.max(0, deadline - Date.now()) : 0;
 };
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 export async function withRateLimitRetry(fn, { attempts = 6, baseMs = 800 } = {}) {
