@@ -5,7 +5,7 @@
   "server": {
     "androidScheme": "https",
     "url": "https://eager-transit-track-go.base44.app",
-    "allowNavigation": ["eager-transit-track-go.base44.app", "base44.app", "*.base44.app"]
+    "allowNavigation": ["eager-transit-track-go.base44.app"]
   },
   "plugins": {
     "SplashScreen": {
