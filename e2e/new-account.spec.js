@@ -65,3 +65,41 @@ test('a sign-in the server really ended still goes to the login page and back', 
   await page.goto('/staff');
   await expect(page).toHaveURL(/\/login\?returnTo=%2Fstaff$/);
 });
+
+// Nobody has set the account up yet: say so (it used to get only the company
+// code box), keep the code box for passengers who have one, and let them in as
+// soon as an admin adds them.
+test('an account nobody has set up yet sees it is waiting, and gets in once an admin adds it', async ({ page }) => {
+  let approved = false;
+  const state = await newAccount(page, {
+    companyAccess: () => approved
+      ? { json: { company: { id: 'a', name: 'Company A' }, grant: 'c'.repeat(64), my_bus: null } }
+      : { status: 401, json: { error: 'Company code required', code: 'COMPANY_ACCESS_REQUIRED' } },
+  });
+  await page.goto('/staff');
+  await expect(page.getByRole('heading', { name: 'Your account is waiting to be set up' })).toBeVisible();
+  await expect(page.getByRole('main').getByText('New Person')).toBeVisible();
+  await expect(page.getByRole('main').getByText('new@test.local')).toBeVisible();
+  // Passengers with a code can still join on their own.
+  await expect(page.getByText('Enter your company code')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible();
+
+  const before = state.companyChecks;
+  await page.getByRole('button', { name: 'Check again' }).click();
+  await expect(page.getByRole('status').filter({ hasText: /^Still waiting · checked at/ })).toBeVisible();
+  expect(state.companyChecks).toBeGreaterThan(before);
+
+  approved = true;
+  await page.getByRole('button', { name: 'Check again' }).click();
+  await expect(page.getByRole('heading', { name: 'Your account is waiting to be set up' })).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('tt_company_access_grant'))).toBe('c'.repeat(64));
+  expect(state.logins).toEqual([]);
+});
+
+test('a join link still checks its code straight away, without the waiting screen', async ({ page }) => {
+  await newAccount(page, { companyAccess: () => ({ status: 401, json: { error: 'Company code required', code: 'COMPANY_ACCESS_REQUIRED' } }) });
+  await page.addInitScript(() => sessionStorage.setItem('tt_pending_company_code', 'ABCD2345EFGH'));
+  await page.goto('/staff');
+  await expect(page.getByText('Enter your company code')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Your account is waiting to be set up' })).toHaveCount(0);
+});

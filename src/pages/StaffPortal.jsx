@@ -6,6 +6,7 @@ import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import AppLayout from "@/components/AppLayout";
 import CodeGate from "@/components/CodeGate";
+import AccountWaiting from "@/components/AccountWaiting";
 import { takePendingJoinCode, markCompanyLeft, hasLeftCompany } from "@/lib/companyJoin";
 import { useCompanyAlerts } from "@/components/StaffAlerts";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
@@ -207,6 +208,21 @@ export default function StaffPortal() {
     restoreCompany();
     return () => { companyAttempt.current += 1; };
   }, [restoreCompany]);
+  // "Check again" on the waiting screen: the account first (an admin may have
+  // made it a manager, mechanic or driver, which opens their own app), then
+  // the company, without swapping the screen for the loading one.
+  const checkAgain = useCallback(async () => {
+    await checkAuthRef.current?.();
+    try {
+      const grant = localStorage.getItem('tt_company_access_grant');
+      const { data } = await withRateLimitRetry(() => base44.functions.invoke('companyAccess', { action: 'context', grant, restore: !hasLeftCompany() }));
+      if (!data?.company) return;
+      if (data.grant) localStorage.setItem('tt_company_access_grant', data.grant);
+      setCompany(data.company);
+      setCompanyPhone(data.company.phone || '');
+      setMyBus(data.my_bus || null);
+    } catch { /* still no company: keep waiting */ }
+  }, []);
   // An admin can add or remove this passenger's bus at any time: check again
   // when the app comes back to the screen, and every minute while it's open.
   const refreshMyBus = useCallback(async () => {
@@ -461,10 +477,19 @@ export default function StaffPortal() {
   if (!companiesLoaded) return <AppLayout variant="passenger"><JourneyLoading fullScreen={false} context="Passenger" label="Reconnecting to your company…" company={company} onRetry={restoreCompany} /></AppLayout>;
   if (companyError) return <AppLayout><AccessRecovery onRetry={restoreCompany} title="Couldn't reconnect to your company" description="Your saved company access has not been removed. Check your connection, then try again." /></AppLayout>;
   if (!company) {
+    const unlockCompany = (c, reply) => { setCompany(c); setCompanyPhone(c.phone || ""); setMyBus(reply?.my_bus || null); };
+    // A join link's code is checked straight away, and admins only use this
+    // to look at a company's passenger app, so neither is "waiting".
     return (
       <AppLayout>
         <DriverPhoneCheck>
-          <CodeGate initialCode={joinCode} onUnlock={(c, reply) => { setCompany(c); setCompanyPhone(c.phone || ""); setMyBus(reply?.my_bus || null); }} />
+          {joinCode || user?.role === "admin" ? (
+            <CodeGate initialCode={joinCode} onUnlock={unlockCompany} />
+          ) : (
+            <AccountWaiting onCheck={checkAgain}>
+              <CodeGate className="mt-0" onUnlock={unlockCompany} />
+            </AccountWaiting>
+          )}
         </DriverPhoneCheck>
       </AppLayout>
     );

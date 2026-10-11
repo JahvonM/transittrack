@@ -11,7 +11,7 @@ import { useAuth } from "@/lib/AuthContext";
 
 // initialCode comes from a company's join QR; it is checked straight away,
 // exactly as if the passenger had typed it.
-export default function CodeGate({ onUnlock, initialCode = "" }) {
+export default function CodeGate({ onUnlock, initialCode = "", className = "mt-10 sm:mt-20" }) {
   const { checkUserAuth } = useAuth();
   const [code, setCode] = useState(initialCode);
   const [error, setError] = useState("");
@@ -52,7 +52,7 @@ export default function CodeGate({ onUnlock, initialCode = "" }) {
   const onScan = (found) => { setCode(found); submit(null, found); };
 
   return (
-    <div className="max-w-sm mx-auto mt-10 sm:mt-20">
+    <div className={`max-w-sm mx-auto ${className}`}>
       <Card>
         <CardHeader className="text-center">
           <div className="mx-auto w-12 h-12 rounded-xl bg-primary text-primary-foreground grid place-items-center mb-2">
