@@ -154,12 +154,12 @@ test('trip direction reverses the tablet stops and persists in the cached sessio
  await page.getByRole('navigation',{name:'Driver sections'}).getByRole('button',{name:'Drive',exact:true}).click();
  await page.getByRole('button',{name:'To home',exact:true}).click();
  await expect(page.getByRole('button',{name:'To home',exact:true})).toHaveAttribute('aria-pressed','true');
- await page.getByRole('button',{name:'View next stop and route'}).click();
+ await page.getByRole('button',{name:'Change stop',exact:true}).click();
  await expect(page.getByRole('tabpanel').getByRole('listitem')).toHaveText([/Grand Anse/,/True Blue/,/Pickup 3/,/Pickup 1/,/Town/]);
  expect(calls.some(c=>c.action==='set_direction'&&c.direction==='to_home'&&c.driver_grant)).toBe(true);
  await expect.poll(()=>page.evaluate(()=>JSON.parse(localStorage.getItem('tt_driver_session_cache')).session.vehicle.trip_direction)).toBe('to_home');
  await page.getByRole('navigation',{name:'Driver sections'}).getByRole('button',{name:'Drive',exact:true}).click();
  await page.getByRole('button',{name:'To work',exact:true}).click();
- await page.getByRole('button',{name:'View next stop and route'}).click();
+ await page.getByRole('button',{name:'Change stop',exact:true}).click();
  await expect(page.getByRole('tabpanel').getByRole('listitem').first()).toContainText('Town');
 });

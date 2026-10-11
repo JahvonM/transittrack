@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { ArrowRight, Navigation, Users, ChevronRight, MessageCircle } from "lucide-react";
+import { ArrowRight, Navigation, Users, ChevronRight, MessageCircle, MapPinned } from "lucide-react";
 import BusArtwork from "@/components/BusArtwork";
 import { Button } from "@/components/ui/button";
 import { routeProgress } from "@/components/TripProgress";
@@ -33,7 +33,7 @@ export default function DriverPortraitDrive({session,vehicle,nav,sharing,shiftAc
  const count=focus?.riders?.filter(r=>!session?.staff?.find(s=>s.id===r.ref)?.skip_pickup_today).length;
  return <div className="dk-drive-frame"><div className="dk-drive-scroll">
   <div className="dk-content">
-   <header className="dk-page-title"><h1>Your journey</h1>{session?.route?.name && <p>{session.route.name}</p>}</header>
+   <header className="dk-page-title"><div><h1>Your journey</h1>{session?.route?.name && <p>{session.route.name}</p>}</div><Button variant="outline" className="dk-change-stop" onClick={onOpenStops}><MapPinned/>Change stop</Button></header>
    {directionControl}
    <button className="dk-next" onClick={onOpenStops} aria-label="View next stop and route">
     <span><small>{atWork?"COMPANY PICKUP":home?"NEXT DROP-OFF":"NEXT PICKUP"}</small><strong>{focus?.name || (stops.length?"Route complete":"No route assigned")}</strong>

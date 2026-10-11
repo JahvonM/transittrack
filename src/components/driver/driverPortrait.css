@@ -55,3 +55,7 @@
 .dk-avatar{width:44px;height:44px;display:grid;place-items:center;flex-shrink:0;border-radius:50%;background:linear-gradient(145deg,#5181a9,#173d67);font-size:16px;font-weight:650}
 .dk-passenger-row>div:last-child{border:0!important;background:transparent!important;flex:1;min-width:0;padding:13px 0}
 @media(max-width:599px){.dk-avatar{width:35px;height:35px;font-size:14px}.dk-passenger-row{gap:8px}.dk-passenger-list{padding:0 10px}}
+
+.dk-page-title{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.dk-page-title>div{min-width:0;flex:1}
+.dk-page-title>.dk-change-stop{min-height:48px;padding:10px 14px;flex-shrink:0;border-color:#00b8d4;color:#00d9ed;background:#092536;font-size:15px;gap:8px}
