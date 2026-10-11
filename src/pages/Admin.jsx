@@ -1,4 +1,6 @@
-import { createAdminLoader, adminLoadProblem } from "@/lib/adminLoader";
+import { createAdminBatchLoader } from "@/lib/adminBatchLoader";
+import { withRateLimitRetry } from "@/lib/scopedEntities";
+import { adminLoadProblem } from "@/lib/adminLoader";
 import ErrorState from "@/components/system/ErrorState";
 import { addBreadcrumb } from "@/lib/breadcrumbs";
 import useFutureAppearance from "@/hooks/useFutureAppearance";
@@ -154,7 +156,7 @@ export default function Admin() {
   const settledRef = useRef({});
   const [failed,setFailed]=useState({});
   const [loadingKeys,setLoadingKeys]=useState({});
-  const adminLoader=useMemo(()=>createAdminLoader(DATASETS),[]);
+  const adminLoader=useMemo(()=>createAdminBatchLoader(keys=>withRateLimitRetry(()=>base44.functions.invoke("entityAccess",{entity:"AdminBootstrap",operation:"list",datasets:keys}))),[user?.id]);
 
 
   const go = (s) => navigate("/admin/" + s);
@@ -170,7 +172,7 @@ export default function Admin() {
     // Each list settles on its own: one failure must not wipe the whole screen,
     // so whatever loaded is shown and the rest keeps what it already had.
     setLoadingKeys(prev=>({...prev,...Object.fromEntries(need.map(k=>[k,true]))}));
-    const results = await adminLoader(need);
+    const results = await adminLoader(need,{force});
     const next = {}, done = {}, marks = {}, pages = {}, failures = {};
     results.forEach((r, i) => {
       const key = need[i];
@@ -205,6 +207,7 @@ export default function Admin() {
   const refresh = async () => {
     // Pages that load their own data (App errors, Notifications) reload too.
     window.dispatchEvent(new Event("tt-admin-refresh"));
+    adminLoader.invalidate();
     await ensure(sectionKeys, true);
     const keep = new Set(sectionKeys);
     Object.keys(settledRef.current).forEach((k) => { if (!keep.has(k)) delete settledRef.current[k]; });
