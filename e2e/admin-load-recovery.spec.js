@@ -1,3 +1,4 @@
+import {withAdminBatch} from "./helpers/adminBatchMock.js";
 import {test,expect} from '@playwright/test';
 const vehicles=[{id:'bus-a',name:'Bus A',company_id:'a',company_name:'Company A',type:'staff_bus',status:'idle',capacity:25},{id:'bus-b',name:'Bus B',company_id:'b',company_name:'Company B',type:'staff_bus',status:'idle',capacity:25}];
 async function session(page,role) {
@@ -7,7 +8,7 @@ async function session(page,role) {
    localStorage.setItem('tt-map-engine','basic');
  });
  await page.route('https://api.mapbox.com/**', r=>r.fulfill({status:404,body:''}));
- await page.route('**/api/**',async route=>{
+ await page.route('**/api/**',withAdminBatch(async route=>{
   const request=route.request(), url=request.url();
   if(url.includes('/entities/')) {direct.push(url);return route.fulfill({status:403,json:{error:'Direct entity access blocked'}});}
   if(url.includes('/functions/entityAccess')) {
@@ -19,7 +20,7 @@ async function session(page,role) {
    return route.fulfill({json:{result}});
   }
   return route.fulfill({json:{id:'test-app',public_settings:{authentication_required:false}}});
- });
+ }));
  return {calls,direct};
 }
 
@@ -27,12 +28,12 @@ test('admin recovers from a fully failed load without leaving a spinner or showi
  await session(page,'admin');
  let failing=true;
  const reads=[];
- await page.route('**/functions/entityAccess',r=>{
+ await page.route('**/functions/entityAccess',withAdminBatch(r=>{
   const b=r.request().postDataJSON();reads.push(b);
   if(b.entity==='User'&&b.id==='me')return r.fulfill({json:{result:{id:'caller',role:'admin',full_name:'Test Admin',email:'test@invalid'}}});
   if(failing)return r.fulfill({status:503,json:{error:'Isolated outage'}});
   return r.fulfill({json:{result:b.entity==='Vehicle'?[vehicles[0]]:[]}});
- });
+ }));
  await page.goto('/admin');
  await expect(page.getByText("Server couldn't load admin data",{exact:true})).toBeVisible({timeout:20000});
  await expect(page.getByRole('region',{name:'Live Fleet'})).toHaveCount(0);
@@ -44,12 +45,12 @@ test('admin recovers from a fully failed load without leaving a spinner or showi
 });
 test('admin partial failure keeps its loaded fleet and retry only loads the missing dataset',async({page})=>{
  await session(page,'admin');let failParts=true;const reads=[];
- await page.route('**/functions/entityAccess',r=>{
+ await page.route('**/functions/entityAccess',withAdminBatch(r=>{
   const b=r.request().postDataJSON();reads.push(b);
   if(b.entity==='User'&&b.id==='me')return r.fulfill({json:{result:{id:'caller',role:'admin',full_name:'Test Admin'}}});
   if(b.entity==='Part'&&failParts)return r.fulfill({status:503,json:{error:'Parts temporarily unavailable'}});
   return r.fulfill({json:{result:b.entity==='Vehicle'?[vehicles[0]]:[]}});
- });
+ }));
  await page.goto('/admin');
  await expect(page.getByRole('region',{name:'Live Fleet'})).toBeVisible({timeout:20000});
  await expect(page.getByText("Server couldn't load admin data",{exact:true})).toBeVisible();

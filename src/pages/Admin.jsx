@@ -154,6 +154,7 @@ export default function Admin() {
   const [moreOpen, setMoreOpen] = useState(false);
   const [acknowledged, setAcknowledged] = useState(() => new Set());
   const settledRef = useRef({});
+  const loadVersions=useRef({});
   const [failed,setFailed]=useState({});
   const [loadingKeys,setLoadingKeys]=useState({});
   const adminLoader=useMemo(()=>createAdminBatchLoader(keys=>withRateLimitRetry(()=>base44.functions.invoke("entityAccess",{entity:"AdminBootstrap",operation:"list",datasets:keys}))),[user?.id]);
@@ -172,10 +173,12 @@ export default function Admin() {
     // Each list settles on its own: one failure must not wipe the whole screen,
     // so whatever loaded is shown and the rest keeps what it already had.
     setLoadingKeys(prev=>({...prev,...Object.fromEntries(need.map(k=>[k,true]))}));
+    const versions=Object.fromEntries(need.map(k=>[k,loadVersions.current[k]=(loadVersions.current[k] || 0)+1]));
     const results = await adminLoader(need,{force});
     const next = {}, done = {}, marks = {}, pages = {}, failures = {};
     results.forEach((r, i) => {
       const key = need[i];
+      if(loadVersions.current[key]!==versions[key])return;
       marks[key] = true;
       if (r.status !== "fulfilled") {
         failures[key]=r.reason;
@@ -194,7 +197,7 @@ export default function Admin() {
     setAttempted((prev) => ({ ...prev, ...marks }));
     setMore((prev) => ({ ...prev, ...pages }));
     setFailed(prev=>({...prev,...failures}));
-    setLoadingKeys(prev=>({...prev,...Object.fromEntries(need.map(k=>[k,false]))}));
+    setLoadingKeys(prev=>({...prev,...Object.fromEntries(need.filter(k=>loadVersions.current[k]===versions[k]).map(k=>[k,false]))}));
   }, [adminLoader]);
 
   useEffect(() => {
