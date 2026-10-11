@@ -60,3 +60,17 @@ test('admin partial failure keeps its loaded fleet and retry only loads the miss
  expect(reads.filter(b=>b.entity==='Part')).toHaveLength(1);
  expect(reads.filter(b=>b.entity==='Company'||b.entity==='Route')).toHaveLength(0);
 });
+
+test('passenger directory opens while fleet loading is unavailable',async({page})=>{
+ await session(page,'admin');let directoryReads=0;
+ await page.route('**/functions/entityAccess',withAdminBatch(route=>{
+  const body=route.request().postDataJSON();
+  if(body.entity==='User'&&body.id==='me')return route.fulfill({json:{result:{id:'caller',role:'admin',full_name:'Test Admin'}}});
+  return route.fulfill({status:503,json:{error:'Fleet unavailable'}});
+ }));
+ await page.route('**/functions/nfcCards',route=>{directoryReads++;return route.fulfill({json:{people:[{key:'contact:p',id:'p',source:'contact',name:'Directory Passenger',company_id:'a',company_name:'Company A'}],vehicles:[]}});});
+ await page.goto('/admin/directory');
+ await expect(page.getByText('Directory Passenger',{exact:true})).toBeVisible({timeout:15000});
+ expect(directoryReads).toBe(1);
+ await expect(page.getByText("Server couldn't load admin data",{exact:true})).toHaveCount(0);
+});

@@ -163,7 +163,7 @@ export default function Admin() {
   const go = (s) => navigate("/admin/" + s);
 
   const sectionKeys = useMemo(
-    () => ["vehicles", ...(SECTION_DATA[section] || [])].filter((k, i, a) => a.indexOf(k) === i),
+    () => section === "directory" ? [] : ["vehicles", ...(SECTION_DATA[section] || [])].filter((k, i, a) => a.indexOf(k) === i),
     [section]
   );
 
@@ -251,7 +251,7 @@ export default function Admin() {
   // Every list this section shows has been asked for at least once.
   const ready = sectionKeys.every((k) => attempted[k]);
   const failedKeys=sectionKeys.filter(k=>failed[k]);
-  const allFailed=ready && sectionKeys.every(k=>failed[k] && !settled[k]);
+  const allFailed=sectionKeys.length>0 && ready && sectionKeys.every(k=>failed[k] && !settled[k]);
   const problem=adminLoadProblem(failedKeys.map(k=>failed[k]));
   const retrying=sectionKeys.some(k=>loadingKeys[k]);
   const retryFailed=async()=>{
