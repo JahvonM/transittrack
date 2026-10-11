@@ -2,6 +2,7 @@ import { ChoiceSelect } from "@/components/ui/choice-picker";
 import AvatarPicker from "@/components/AvatarPicker";
 import React, { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
+import { loadCardDirectory } from "@/lib/cardDirectory";
 import { useAuth } from "@/lib/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,7 +23,7 @@ export default function CardDesignerTab() {
   const person = people.find(p => p.key === personKey);
   const templateKey = "tt-card-artwork:" + (user?.id || "anonymous");
   useEffect(() => {
-    base44.functions.invoke("nfcCards", { action: "people" }).then(r => setPeople(r.data?.people || [])).catch(() => toast({ title: "Couldn't load card holders", variant: "destructive" }));
+    loadCardDirectory(base44).then(data => setPeople(data?.people || [])).catch(() => toast({ title: "Couldn't load card holders", variant: "destructive" }));
     try { const saved = JSON.parse(localStorage.getItem(templateKey) || "null"); if (saved) setDesign({ ...DEFAULT_CARD_DESIGN, ...saved }); } catch { /* default */ }
   }, [templateKey, toast]);
   const change = patch => setDesign(d => ({ ...d, ...patch }));
