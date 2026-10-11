@@ -6,6 +6,7 @@
 // rate-limited call waits and tries again.
 const MAX_IN_FLIGHT = 4;
 let inFlight = 0;
+let cooldownUntil = 0;
 const waiting = [];
 const acquire = () => new Promise(resolve => { if (inFlight < MAX_IN_FLIGHT) { inFlight++; resolve(); } else waiting.push(resolve); });
 const release = () => { const next = waiting.shift(); if (next) next(); else inFlight--; };
@@ -22,11 +23,21 @@ const retryAfterMs = e => {
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 export async function withRateLimitRetry(fn, { attempts = 6, baseMs = 800 } = {}) {
  for (let attempt = 0; ; attempt++) {
+  while (Date.now() < cooldownUntil) await sleep(cooldownUntil - Date.now());
   await acquire();
   let error;
-  try { return await fn(); } catch (e) { error = e; } finally { release(); }
+  try {
+   // A request already in flight may have extended the shared cooldown.
+   while (Date.now() < cooldownUntil) await sleep(cooldownUntil - Date.now());
+   return await fn();
+  } catch (e) {
+   error = e;
+   if (statusOf(e) === 429) {
+    const delay = retryAfterMs(e) || baseMs * 2 ** attempt + Math.random() * 400;
+    cooldownUntil = Math.max(cooldownUntil, Date.now() + delay);
+   }
+  } finally { release(); }
   if (statusOf(error) !== 429 || attempt >= attempts - 1) throw error;
-  await sleep(retryAfterMs(error) || baseMs * 2 ** attempt + Math.random() * 400);
  }
 }
 const hidden = () => typeof document !== 'undefined' && document.visibilityState === 'hidden';
