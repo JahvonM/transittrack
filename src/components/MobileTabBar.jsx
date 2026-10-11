@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 import { useLocation, useNavigate, useNavigationType } from "react-router-dom";
-import { Bus, Home, LayoutGrid, Map } from "lucide-react";
+import { CreditCard, Home, LayoutGrid, Route } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/AuthContext";
 
@@ -22,8 +22,8 @@ const HIDDEN_PREFIXES = [
 const TABS = [
   // The passenger home lives at /staff ("/" sends each role to its own home).
   { to: "/", label: "Home", icon: Home, exact: true, also: "/staff" },
-  { to: "/route-explorer", label: "Map", icon: Map },
-  { to: "/buses", label: "Buses", icon: Bus },
+  { to: "/journey", label: "Journey", icon: Route, also: ["/route-explorer", "/buses"] },
+  { to: "/my-card", label: "My card", icon: CreditCard },
   // Messages and Account live under More.
   { to: "/more", label: "More", icon: LayoutGrid, also: ["/notifications", "/account", "/safety-standards"] },
 ];
