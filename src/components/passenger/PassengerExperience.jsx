@@ -59,6 +59,7 @@ export default function PassengerExperience({view,user,company,workplace,myVehic
   mins=returnEta;
   kind=!myVehicle?"unassigned":myVehicle.in_service===false?"problem":!myVehicle.tracking_active?"not_started":!fresh?"signal_lost":myVehicle.return_pickup_state==="arrived"?"arriving":myVehicle.return_pickup_state==="departed"?"departed":"live";
  }
+ if(!fresh && ["live","arriving"].includes(kind))kind="signal_lost";
  const states={choose:"Choose your pickup",unassigned:"No bus assigned",problem:"Out of service",signal_lost:"Location delayed",arriving:"Bus approaching your stop",not_started:"Not started",no_eta:"Arrival time unavailable",departed:"Bus has left"};
  const arrival=pickupArrival({bus:myVehicle,pickup:pickupStop,mins,now,confirmedArrival:returning && myVehicle?.return_pickup_state==="arrived"});
  const atStop=["arrived","at_stop"].includes(arrival?.kind);
@@ -70,7 +71,7 @@ export default function PassengerExperience({view,user,company,workplace,myVehic
  const stopCount=live && fresh?(atStop?0:!returning?stopsAway:null):null;
  const etaDetails=live?<div className="px-eta-details" aria-label="Bus arrival details">
   <span><Clock aria-hidden="true"/>{atStop?"At your pickup stop":trustedEta?`Estimated pickup ${arrivalClock(mins,now)}`:"Estimated pickup unavailable"}</span>
-  <span><MapPin aria-hidden="true"/>{stopCount==null?"Stops away unavailable":stopCount===0?(atStop?"Ready for boarding":"Your stop is next"):`${stopCount} stop${stopCount===1?"":"s"} away`}</span>
+  <span><MapPin aria-hidden="true"/>{stopCount==null?"Stops away unavailable":stopCount===0?(atStop?(arrival?.kind==="arrived"?"Ready for boarding":"At your stop"):"Your stop is next"):`${stopCount} stop${stopCount===1?"":"s"} away`}</span>
  </div>:null;
 
  const reportMissed=async()=>{
@@ -121,7 +122,7 @@ export default function PassengerExperience({view,user,company,workplace,myVehic
    <section className="px-panel px-bus-identity"><BusArtwork vehicle={myVehicle} className="h-24 w-28" /><div><h2>{myVehicle?.name || "No bus assigned"}</h2><p>{routeName || "Your company transport"}</p><span className={live?"px-status active":"px-status"}>{status}</span><small>{myVehicle?.last_location_update?`Updated ${lastSeen(myVehicle.last_location_update,now)}`:"Waiting for a bus update"}</small></div></section>
    <section className="px-panel px-map-action"><h2><Clock />{estimate}{!atStop && kind==="live" && mins!=null?" away":""}</h2>{etaDetails}<Button variant="outline" className="w-full" onClick={()=>setMapOpen(!mapOpen)} aria-expanded={mapOpen}><Map />{mapOpen?"Hide live map":"View live map"}</Button></section>
    {mapOpen && <section className="px-map-view" aria-label="Live journey map">{renderMap()}</section>}
-   <section className="px-panel"><h2>Your trip today</h2>{journeyPanel}{live && mins!=null && <p className="px-trip-time">Estimated pickup {arrivalClock(mins,now)}</p>}</section>
+   <section className="px-panel"><h2>Your trip today</h2>{journeyPanel}{trustedEta && !atStop && <p className="px-trip-time">Estimated pickup {arrivalClock(mins,now)}</p>}</section>
    <section className="px-panel px-wait"><MapPin /><div><h2>Where to wait</h2><p>{returning?`Meet the bus at ${workplace?.name || "your company boarding point"}.`:pickup?`Meet the bus at ${pickup}.`:"Choose a safe roadside pickup on your bus route."}</p><Button variant="outline" onClick={()=>setSheet("pickup")}>Walking directions</Button></div></section>
    {pickupPrompt}
    {timelineRoute && <><button className="px-message" aria-expanded={showStops} onClick={()=>setShowStops(!showStops)}><Map />{showStops?"Hide route stops":"All route stops"}<ChevronRight /></button>{showStops && <RouteTimeline route={returning?{...timelineRoute,stops:[...(timelineRoute.stops || [])].reverse().map((s,order)=>({...s,order}))}:timelineRoute} bus={myVehicle} kind={kind} stopName={pickup} mins={mins} stopEtas={returning?{}:stopEtas} now={now} />}</>}
