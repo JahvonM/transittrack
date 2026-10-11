@@ -308,329 +308,27 @@ echo.
 echo  --- Step 6 of 7: Bus hotspot ---
 if "%TYPE%"=="2" goto hotspot_skip
 call :set_apn
-adb shell am start -n com.android.settings/.TetherSettings > "%TEMP%\tt-tether.txt" 2>&1
-findstr /i "Error" "%TEMP%\tt-tether.txt" >nul
-if not errorlevel 1 adb shell am start -a android.settings.SETTINGS >nul 2>&1
 echo.
-echo  ON THE TABLET - you can also use scrcpy on this computer:
-echo    1. Open  Wi-Fi hotspot  - in Settings: Network and internet, Hotspot and tethering
-echo    2. Hotspot name:      %SSID%
-echo    3. Hotspot password:  %HPASS%
-echo    4. Security:          WPA2-Personal
-echo    5. Make sure Mobile data is ON - a SIM card must be in the tablet
-echo.
-echo  You do NOT need to switch the hotspot on - the helper does that by itself.
-echo.
-pause
-goto step7
-:hotspot_skip
-echo  This tablet will join %SSID% by itself whenever the bus is running.
-
-rem ---------- Step 7: lock ----------
-:step7
-echo.
-echo  --- Step 7 of 7: Locking the tablet ---
-adb shell am start -n %FK% --es pin "%PIN%" --ez kiosk_enabled true --es auto_launch "true" --es auto_relaunch "true" --es test_mode "false"
-timeout /t 5 /nobreak >nul
-
-set LOG=%USERPROFILE%\Documents\TransitTrack-tablets.csv
-if not exist "%LOG%" >"%LOG%" echo Date,Time,Type,Bus,Code,Hotspot,Serial
->>"%LOG%" echo %DATE%,%TIME%,%KIND%,%BUS%,,%SSID%,%SERIAL%
-
-cls
-echo.
-echo  ==========================================================
-echo    SETUP FINISHED - %KIND% tablet for bus %BUS%
-echo  ==========================================================
-echo    Link:      %URL%
-echo    Hotspot:   %SSID%
-echo    Serial:    %SERIAL%
-echo    Logged in: Documents\TransitTrack-tablets.csv
-echo  ==========================================================
-echo.
-echo  The tablet restarts when you press a key. After it restarts:
-echo.
-if "%TYPE%"=="1" goto finish_driver
-echo    1. Unplug this computer. Plug in the ACR122U reader through the
-echo       OTG charging cable, with the charger connected.
-echo    2. Any USB popup closes by itself. The reader light turns RED.
-echo    3. Tap an issued card: beep and GREEN. Unknown card: 3 beeps and RED.
-echo    4. When the driver tablet's hotspot is on, this tablet joins %SSID%.
-goto finish_common
-:finish_driver
-echo    1. Unplug this computer. Plug in the VFAN GPS through the
-echo       OTG charging cable, with the charger connected.
-echo    2. Any USB popup closes by itself. Put it near a window for a GPS fix.
-echo    3. About a minute after start-up, %SSID% appears as a Wi-Fi network.
-:finish_common
-echo    -  The screen never turns off - on the charger and on battery.
-echo    -  Admin - Kiosk Tablets shows battery, reader / GPS and hotspot.
-echo.
-echo  Problem? Plug in this computer and run:  adb logcat -d ^| findstr TTHelper
-echo.
-pause
-adb reboot
-echo  Restarting. You can set up the next tablet now.
-pause
-exit /b 0
-
-rem =================================================================
-rem   UPDATE MODE - tablet already set up: latest helper + settings
-rem =================================================================
-:update_ask
-echo.
-echo  Which tablet are you updating?
-echo    [1]  Driver tablet
-echo    [2]  Bus boarding tablet
-set TYPE=
-set /p TYPE=  Type 1 or 2 and press Enter: 
-if "%TYPE%"=="1" goto update_run
-if "%TYPE%"=="2" goto update_run
-goto update_ask
-
-:update_run
-if "%TYPE%"=="1" set KIND=Driver
-if "%TYPE%"=="2" set KIND=Bus boarding
-echo.
-echo  This file installs TransitTrack Helper %HELPER_VERSION%, built in, signed with the existing key.
-echo  Saved Work must be synced or exported before proceeding.
-echo  This update keeps existing pairing, Helper settings and FreeKiosk data.
-:upd_pin
-set PIN=
-set /p PIN=  EXISTING FreeKiosk exit PIN for this tablet: 
-powershell -NoProfile -Command "if ($env:PIN -notmatch '^[0-9]{4,12}$') { exit 1 }"
-if errorlevel 1 goto upd_pin
-:upd_api_key
-echo.
-echo  FreeKiosk REST API key for this tablet - the card reader helper uses it to
-echo  send card taps to the boarding screen. It is set in BOTH FreeKiosk and the
-echo  helper below, so they always match.
-set APIKEY=
-set /p APIKEY=  API key - letters, numbers, - or _ (16 or more): 
-powershell -NoProfile -Command "if ($env:APIKEY -notmatch '^[A-Za-z0-9_-]{16,128}$') { exit 1 }"
-if errorlevel 1 goto upd_api_key
-
-:upd_check_device
-set STATE=
-for /f %%s in ('adb -d get-state 2^>nul') do set STATE=%%s
-if "%STATE%"=="device" goto upd_device_ok
-echo.
-echo  [X] Connect exactly ONE USB tablet, wake it, and approve USB debugging.
-pause
-goto upd_check_device
-:upd_device_ok
-set SERIAL=
-for /f %%s in ('adb -d get-serialno 2^>nul') do set SERIAL=%%s
-powershell -NoProfile -Command "if ($env:SERIAL -notmatch '^[A-Za-z0-9._:-]+$' -or $env:SERIAL -eq 'unknown') { exit 1 }"
-if errorlevel 1 goto upd_failed
-echo  Target tablet: %SERIAL%
-echo  Check this is the intended %KIND% tablet before continuing.
-choice /c YN /n /m "  Continue with this tablet? [Y/N]: "
-if errorlevel 2 exit /b 1
-
-echo.
-echo  --- Update 1 of 3: TransitTrack Helper %HELPER_VERSION% ---
-call :extract_helper
-if errorlevel 1 goto upd_failed
-call :upd_adb install -r "%HELPER_APK%"
-if errorlevel 1 goto upd_failed
-call :cleanup_helper
-rem Preserve older helper apps; removing them needs separate migration verification.
-
-echo.
-echo  --- Update 2 of 3: Settings ---
-call :upd_adb shell pm grant %HELPER% android.permission.WRITE_SECURE_SETTINGS
-if errorlevel 1 goto upd_failed
-call :upd_adb shell dumpsys deviceidle whitelist +%HELPER%
-if errorlevel 1 goto upd_failed
-call :upd_adb shell settings put global stay_on_while_plugged_in 7
-if errorlevel 1 goto upd_failed
-call :upd_adb shell settings put system sound_effects_enabled 0
-if errorlevel 1 goto upd_failed
-rem Bus tablets: the screen never times out, on the charger or on battery.
-call :upd_adb shell settings put system screen_off_timeout 2147483647
-if errorlevel 1 goto upd_failed
-call :upd_adb shell appops set %HELPER% WRITE_SETTINGS allow
-if errorlevel 1 goto upd_failed
-call :upd_adb shell settings put global low_power 0 >nul 2>&1
-call :upd_adb shell settings put global low_power_trigger_level 0 >nul 2>&1
-if "%TYPE%"=="1" goto upd_driver
-call :upd_adb shell pm grant %HELPER% android.permission.ACCESS_FINE_LOCATION
-if errorlevel 1 goto upd_failed
-call :upd_adb shell settings put secure location_mode 3
-if errorlevel 1 goto upd_failed
-call :upd_adb shell settings put system screen_brightness_mode 0
-if errorlevel 1 goto upd_failed
-call :upd_adb shell settings put system screen_brightness %KIOSK_BRIGHTNESS%
-if errorlevel 1 goto upd_failed
-goto upd_settings_done
-:upd_driver
-call :upd_adb shell appops set %HELPER% android:mock_location allow
-if errorlevel 1 goto upd_failed
-call :upd_adb shell settings put global hidden_api_policy 1
-if errorlevel 1 goto upd_failed
-call :set_apn
-:upd_settings_done
-rem Android activity launch success is NOT proof of FreeKiosk configuration acceptance.
-call :upd_adb shell am start -n %FK% --es pin "%PIN%" --es rest_api_enabled "true" --es rest_api_port "8080" --es rest_api_key "%APIKEY%" --es managed_apps '[{\"packageName\":\"com.transittrack.kioskhelper\",\"showOnHomeScreen\":false},{\"packageName\":\"com.android.systemui\",\"showOnHomeScreen\":false}]'
-if errorlevel 1 goto upd_failed
-call :upd_adb shell am start -n %HELPER%/.MainActivity --es api_key "%APIKEY%" --es ignition false
-if errorlevel 1 goto upd_failed
-timeout /t 8 /nobreak >nul
-call :upd_adb shell am start -n %FK%
-:upd_key_check
-call :check_key
-if "%KEYCODE%"=="200" goto upd_key_ok
-call :key_problem
-if "%KEYCODE%"=="nocurl" goto upd_key_ok
-choice /c RS /n /m "  [R] Retry the check  [S] Stop the update: "
-if errorlevel 2 goto upd_failed
-goto upd_key_check
-:upd_key_ok
-set PIN=
-echo  On the tablet, verify FreeKiosk accepted the settings with no PIN error.
-echo  Check managed apps includes TransitTrack Helper and Android System UI.
-choice /c YN /n /m "  Settings verified on the tablet? [Y/N]: "
-if errorlevel 2 goto upd_failed
-
-echo.
-echo  --- Update 3 of 3: Restart ---
-choice /c YN /n /m "  Restart this tablet now? [Y/N]: "
-if errorlevel 2 exit /b 1
-call :upd_adb reboot
-if errorlevel 1 goto upd_failed
-echo  Restart requested. Update verification is still pending.
-echo  After restart, check Admin - Kiosk Tablets for the expected Helper version,
-echo  fresh last-seen time, and correct reader / GPS / hotspot status.
-echo  Confirm pairing and Saved Work are intact before updating another tablet.
-pause
-exit /b 0
-
-:upd_failed
-set PIN=
-call :cleanup_helper
-echo.
-echo  [X] UPDATE STOPPED. No successful update has been recorded.
-echo      Check the USB connection and PIN. Download this setup file again if the
-echo      Helper did not install - it must be signed with the existing key.
-echo      Some earlier settings may already have applied; inspect the tablet.
-echo      Existing app data and older helpers have not been deliberately removed.
-echo      Do not uninstall FreeKiosk or clear app data to work around this error.
-pause
-exit /b 1
-
-:upd_adb
-adb -s "%SERIAL%" %*
-exit /b %errorlevel%
-
-rem =================================================================
-rem   CHECK MODE - read only: Helper version, screen and battery, and
-rem   (optional) the card reader key. Changes nothing on the tablet.
-rem =================================================================
-:check_tablet
-cls
-echo.
-echo  --- Check a tablet - nothing is changed ---
-:chk_device
-set STATE=
-for /f %%s in ('adb -d get-state 2^>nul') do set STATE=%%s
-if "%STATE%"=="device" goto chk_device_ok
-echo.
-echo  [X] Connect exactly ONE USB tablet, wake it, and approve USB debugging.
-pause
-goto chk_device
-:chk_device_ok
-set SERIAL=
-for /f %%s in ('adb -d get-serialno 2^>nul') do set SERIAL=%%s
-echo.
-echo  Helper built into this file:  %HELPER_VERSION%
-set HV=not installed
-for /f "tokens=2 delims==" %%v in ('adb -s "%SERIAL%" shell dumpsys package %HELPER% ^| findstr /c:"versionName"') do set HV=%%v
-echo  Helper on the tablet:         %HV%
-set ST=
-for /f %%v in ('adb -s "%SERIAL%" shell settings get system screen_off_timeout') do set ST=%%v
-if "%ST%"=="2147483647" echo  Screen timeout:               never - OK, on the charger and on battery
-if not "%ST%"=="2147483647" echo  Screen timeout:               %ST% ms - run Update to set it to never
-set SP=
-for /f %%v in ('adb -s "%SERIAL%" shell settings get global stay_on_while_plugged_in') do set SP=%%v
-echo  Stay on while charging:       %SP% - 7 is correct
-for /f "tokens=*" %%v in ('adb -s "%SERIAL%" shell dumpsys battery ^| findstr /c:"level:"') do echo  Battery %%v
-echo.
-echo  Last Helper messages:
-adb -s "%SERIAL%" logcat -d -t 12 -s TTHelper
-echo.
-choice /c YN /n /m "  Test the card reader key? You need this tablet's FreeKiosk REST API key. [Y/N]: "
-if errorlevel 2 goto chk_done
-:chk_key_ask
-set APIKEY=
-set /p APIKEY=  API key - letters, numbers, - or _ (16 or more): 
-powershell -NoProfile -Command "if ($env:APIKEY -notmatch '^[A-Za-z0-9_-]{16,128}$') { exit 1 }"
-if errorlevel 1 goto chk_key_ask
-call :check_key
-if not "%KEYCODE%"=="200" call :key_problem
-if not "%KEYCODE%"=="200" echo      Fix it with UPDATE - it sets the same key in FreeKiosk and the Helper.
-:chk_done
-set APIKEY=
-echo.
-pause
-exit /b 0
-
-rem -----------------------------------------------------------------
-rem  Driver tablets: mobile data for the bus SIM. Android does not let an
-rem  app add an APN (only system or carrier apps, or the device owner -
-rem  FreeKiosk holds that), so this adds it over USB. For a Flow Grenada
-rem  SIM (network code 352 110) it adds "Flow Internet" and makes it the
-rem  one in use. The tablet-side script is built into the end of this file
-rem  (::TTAPN lines). Another SIM, or a tablet that refuses, gets the APN
-rem  screen opened to add it by hand.
-rem -----------------------------------------------------------------
-:set_apn
-echo.
-echo  Mobile data for the SIM in this driver tablet:
+echo  Mobile data - adding the Flow Internet APN...
 set "TTADB=adb"
 if defined SERIAL if not "%SERIAL%"=="unknown" set "TTADB=adb -s "%SERIAL%""
-set TT_APN=
-call :apn_run check
-if "%TT_APN_RES%"=="HAVE" goto apn_have
-if "%TT_APN_RES%"=="NOSIM" (echo  [!] No SIM card found. Put the Flow SIM in, then run Update again. & exit /b 0)
-if "%TT_APN_RES%"=="OTHER" goto apn_other
-:apn_pick
-echo    [P]  Prepaid / top-up Flow SIM  - APN ppinternet
-echo    [M]  Monthly plan Flow SIM      - APN internet
-echo    [S]  Skip for now
-choice /c PMS /n /m "  Which Flow SIM is in this tablet? [P/M/S]: "
-set TT_PICK=%errorlevel%
-if "%TT_PICK%"=="3" exit /b 0
-set TT_APN=ppinternet
-if "%TT_PICK%"=="2" set TT_APN=internet
-call :apn_run %TT_APN%
-if "%TT_APN_RES%"=="OK" (echo  [OK] Mobile data APN set: Flow Internet - %TT_APN%. & exit /b 0)
-if "%TT_APN_RES%"=="SAVED" (echo  [!] Flow Internet was added but could not be selected. & goto apn_by_hand)
-echo  [!] This tablet would not take the APN from this computer.
-:apn_by_hand
+call :apn_run add
+if "%TT_APN_RES%"=="OK" (echo  [OK] Mobile data APN added and in use: Flow Internet - internet. & exit /b 0)
+if "%TT_APN_RES%"=="NOSIM" (echo  [!] No SIM card found - put the Flow SIM in, then run Update again. & exit /b 0)
+if "%TT_APN_RES%"=="OTHER" (echo  [!] This SIM is not Flow Grenada - network code %TT_APN_NUM%. APN not added. & exit /b 0)
+if "%TT_APN_RES%"=="SAVED" echo  [!] Flow Internet was added but could not be selected.
+if not "%TT_APN_RES%"=="SAVED" echo  [!] This tablet would not take the APN from this computer.
 %TTADB% shell am start -a android.settings.APN_SETTINGS >nul 2>&1
 echo.
 echo  ON THE TABLET - Access Point Names should be open. Tap + and enter:
 echo    Name:                 Flow Internet
-echo    APN:                  %TT_APN%
+echo    APN:                  internet
 echo    Authentication type:  PAP
-echo    APN type:             default,supl
+echo    APN type:             default
 echo    MCC and MNC:          leave what the tablet fills in - 352 and 110 for Flow
 echo  Then open the menu, tap Save, and tap the circle next to Flow Internet.
 echo  If that screen did not open, exit FreeKiosk with its PIN and open
 echo  Settings - Network and internet - SIMs - Access Point Names.
-pause
-exit /b 0
-:apn_have
-echo  [OK] Mobile data is set up - APN %TT_APN_NUM%.
-echo      Data not working? Change it to the other Flow APN.
-choice /c KC /n /m "  [K] Keep it  [C] Change it: "
-if errorlevel 2 goto apn_pick
-exit /b 0
-:apn_other
-echo  [!] This SIM is not Flow Grenada - network code %TT_APN_NUM%.
-echo      Add the APN its network gives you on the screen that opens now.
-%TTADB% shell am start -a android.settings.APN_SETTINGS >nul 2>&1
 pause
 exit /b 0
 
@@ -705,28 +403,23 @@ if "%KEYCODE%"=="" echo  [X] FreeKiosk did not answer. Check the USB connection 
 echo      Until this passes, card taps will NOT reach the boarding screen.
 exit /b 0
 rem ===== Mobile data APN script - copied to the tablet by :apn_run =====
-::TTAPN # TransitTrack setup: mobile data APN for the bus SIM, run over USB.
-::TTAPN # Usage: sh tt-apn.sh check | internet | ppinternet
+::TTAPN # TransitTrack setup: adds the Flow Grenada mobile data APN, run over USB.
+::TTAPN # Adds "Flow Internet" (APN internet) and makes it the one in use, plus
+::TTAPN # "Flow Internet prepaid" (APN ppinternet) in the list as the alternative.
 ::TTAPN # Prints one line: RESULT VALUE .
-::TTAPN MODE="$1"
 ::TTAPN U=content://telephony/carriers
 ::TTAPN NUM=""
 ::TTAPN for n in $(getprop gsm.sim.operator.numeric | tr ',' ' '); do NUM="$n"; break; done
 ::TTAPN if [ -z "$NUM" ]; then echo "NOSIM - ."; exit 0; fi
 ::TTAPN if [ "$NUM" != "352110" ]; then echo "OTHER $NUM ."; exit 0; fi
 ::TTAPN idof() { sed -n 's/.*_id=\([0-9][0-9]*\).*/\1/p' | head -n 1; }
-::TTAPN if [ "$MODE" = "check" ]; then
-::TTAPN   PREF=$(content query --uri $U/preferapn --projection _id:apn:numeric 2>/dev/null)
-::TTAPN   case "$PREF" in
-::TTAPN     *numeric=352110*) A=$(echo "$PREF" | sed -n 's/.*apn=\([^,]*\).*/\1/p' | head -n 1); echo "HAVE ${A:-set} ."; exit 0;;
-::TTAPN   esac
-::TTAPN   echo "NEED - ."; exit 0
-::TTAPN fi
-::TTAPN case "$MODE" in internet|ppinternet) ;; *) echo "FAIL usage ."; exit 0;; esac
-::TTAPN W="name='Flow Internet' AND numeric='352110'"
-::TTAPN content delete --uri $U --where "$W" >/dev/null 2>&1
-::TTAPN content insert --uri $U --bind name:s:"Flow Internet" --bind numeric:s:352110 --bind mcc:s:352 --bind mnc:s:110 --bind apn:s:"$MODE" --bind authtype:i:1 --bind type:s:default,supl --bind protocol:s:IPV4V6 --bind roaming_protocol:s:IPV4V6 --bind carrier_enabled:i:1 >/dev/null 2>&1
-::TTAPN ID=$(content query --uri $U --projection _id --where "$W" 2>/dev/null | idof)
+::TTAPN add() {
+::TTAPN   content delete --uri $U --where "name='$1' AND numeric='352110'" >/dev/null 2>&1
+::TTAPN   content insert --uri $U --bind name:s:"$1" --bind numeric:s:352110 --bind mcc:s:352 --bind mnc:s:110 --bind apn:s:"$2" --bind authtype:i:1 --bind type:s:default --bind carrier_enabled:i:1 >/dev/null 2>&1
+::TTAPN }
+::TTAPN add "Flow Internet prepaid" ppinternet
+::TTAPN add "Flow Internet" internet
+::TTAPN ID=$(content query --uri $U --projection _id --where "name='Flow Internet' AND numeric='352110'" 2>/dev/null | idof)
 ::TTAPN if [ -z "$ID" ]; then echo "FAIL insert ."; exit 0; fi
 ::TTAPN content insert --uri $U/preferapn --bind apn_id:i:"$ID" >/dev/null 2>&1
 ::TTAPN P=$(content query --uri $U/preferapn --projection _id 2>/dev/null | idof)
