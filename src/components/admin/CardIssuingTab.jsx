@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { base44 } from "@/api/base44Client";
+import { loadCardDirectory } from "@/lib/cardDirectory";
 import { useToast } from "@/components/ui/use-toast";
 import { confirmAction } from "@/components/ConfirmHost";
 import { Button } from "@/components/ui/button";
@@ -374,12 +375,12 @@ export default function CardIssuingTab({ companies = [] }) {
 
   const load = useCallback(async () => {
     try {
-      const res = await base44.functions.invoke("nfcCards", { action: "people" });
-      setPeople(res.data?.people || []);
-      setCards(res.data?.cards || []);
-      setVehicles(res.data?.vehicles || []);
-      setTablets(res.data?.tablets || []);
-      return res.data?.people || [];
+      const data = await loadCardDirectory(base44);
+      setPeople(data?.people || []);
+      setCards(data?.cards || []);
+      setVehicles(data?.vehicles || []);
+      setTablets(data?.tablets || []);
+      return data?.people || [];
     } catch (e) {
       toast({ title: "Couldn't load people", description: e?.response?.data?.error || e.message, variant: "destructive" });
     } finally { setLoading(false); }
