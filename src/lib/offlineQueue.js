@@ -39,16 +39,19 @@ export async function submitSavedCheckIn(invoke,payload) {
  finally {inFlight.delete(payload.client_request_id);}
 }
 // Older versions kept live refusals for review too: refused within seconds of
-// being saved, while the person was still at the tablet.
-const LIVE_REFUSAL_MS=10000;
+// being saved, while the person was still at the tablet. Cleared once; this
+// version never keeps new ones, so later refusals are never touched.
+const LIVE_REFUSAL_MS=10000,LIVE_REFUSALS_CLEARED="tt_live_refusals_cleared";
 export function isLiveRefusal(item) {
  if(item?.state!=="needs_review")return false;
  const gap=Date.parse(item.failed_at)-Date.parse(item.queued_at);
  return Number.isFinite(gap)&&gap>=0&&gap<LIVE_REFUSAL_MS;
 }
 export function clearLiveRefusals() {
+ try {if(localStorage.getItem(LIVE_REFUSALS_CLEARED))return 0;} catch {return 0;}
  const queue=readQueue(),kept=queue.filter(item=>!isLiveRefusal(item));
  if(kept.length!==queue.length)writeQueue(kept);
+ try {localStorage.setItem(LIVE_REFUSALS_CLEARED,new Date().toISOString());} catch { /* tried again next time */ }
  return queue.length-kept.length;
 }
 const scope=item=>[item.payload.expected_vehicle_id||"",item.payload.staff_id||item.payload.staff_name||item.id].join(":");
