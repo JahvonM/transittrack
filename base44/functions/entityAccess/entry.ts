@@ -67,20 +67,25 @@ function scrub(value, allowCodes=false) {
  return Object.fromEntries(Object.entries(value).filter(([k]) => !CREDENTIALS.has(k) || (allowCodes && ['access_code','pairing_code'].includes(k))).map(([k,v])=>[k,scrub(v,allowCodes)]));
 }
 
-async function liveMembership(db, row) {
+async function liveMembership(db, row, companyReads = new Map()) {
  if (!row.expires_at && !row.code_hash) return true; // Explicit admin approval.
  if (!row.code_hash || (row.scope !== 'passenger' && !(Date.parse(row.expires_at) > Date.now()))) return false;
- const company=await db.Company.get(row.company_id).catch(()=>null);
+ if (!companyReads.has(row.company_id)) companyReads.set(row.company_id,
+  db.Company.get(row.company_id).catch(error => {
+   if ((error.status ?? error.response?.status) === 404) return null;
+   throw error;
+  }));
+ const company=await companyReads.get(row.company_id);
  if(!company) return false;
  const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(company.access_code || ''));
  const hash=Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,'0')).join('');
  return row.code_hash===hash;
 }
 
-async function memberships(db, user) {
- const rows = await db.CompanyMembership.filter({ user_id:user.id, active:true }, '-updated_date', 100);
+async function memberships(db, user, ctx = {}) {
+ const rows = ctx.membershipRows?.get(user.id) ?? await db.CompanyMembership.filter({ user_id:user.id, active:true }, '-updated_date', 100);
  const approved=[];
- for(const row of rows) if(row.scope === (user.role === 'company' ? 'manager' : 'passenger') && await liveMembership(db,row)) approved.push(row);
+ for(const row of rows) if(row.scope === (user.role === 'company' ? 'manager' : 'passenger') && await liveMembership(db,row,ctx.companyReads)) approved.push(row);
  return approved;
 }
 async function context(base44) {
@@ -89,7 +94,7 @@ async function context(base44) {
  const user = await base44.asServiceRole.entities.User.get(session.id);
  if (!user || user.id !== session.id) fail(401,'Sign in required');
  const companies = user.role === 'admin' || user.role === 'mechanic' ? [] : (await memberships(base44.asServiceRole.entities,user)).map(m=>m.company_id);
- return {user,companies,parents:new Map()};
+ return {user,companies,parents:new Map(),companyReads:new Map()};
 }
 async function tenantOf(db, name, row, parents = new Map()) {
   if (name === 'Company') return row.id;
@@ -119,7 +124,7 @@ async function visible(db, ctx, name, row) {
  if (!tenant || !companies.includes(tenant)) return false;
  if (name === 'Broadcast' && row.return_pickup && !['company','admin'].includes(user.role)) {
   if (!row.vehicle_id) return false;
-  return (await memberships(db,user)).some(m=>m.scope==='passenger' && m.company_id===tenant && m.vehicle_id===row.vehicle_id);
+  return (await memberships(db,user,ctx)).some(m=>m.scope==='passenger' && m.company_id===tenant && m.vehicle_id===row.vehicle_id);
  }
  if (user.role === 'company') return COMPANY_READ.has(name);
  if (!PASSENGER_READ.has(name)) return false;
@@ -143,7 +148,7 @@ function project(ctx,name,row) {
 async function projectRecord(db,ctx,name,row) {
  const out=project(ctx,name,row);
  if(name==='User' && row && ctx.user?.role==='admin') {
-  const approved=await memberships(db,row);
+  const approved=await memberships(db,row,ctx);
   out.company_id=approved[0]?.company_id || '';
   out.company_membership_approved=approved.length>0;
  }
@@ -343,6 +348,14 @@ export default async function(req) {
    const limit=Math.min(Math.max(Number(body.limit)||1000,1),5000), skip=Math.max(Number(body.skip)||0,0);
    if(body.sort && !/^-?[A-Za-z_]+$/.test(body.sort)) fail(400,'Invalid sort');
    const rows=await db[name].filter(query,body.sort||'-created_date',limit,skip);
+   if (name === 'User' && ctx.user?.role === 'admin' && rows.length) {
+    const membershipRows = await db.CompanyMembership.filter(
+     {user_id:{$in:rows.map(row=>row.id)},active:true}, '-updated_date', 5000);
+    // A capped batch may be incomplete: fall back to the original per-user
+    // query at the cap. Below it, keep the same sorted 100-row user limit.
+    if (membershipRows.length < 5000) ctx.membershipRows = new Map(
+     rows.map(row=>[row.id,membershipRows.filter(m=>m.user_id===row.id).slice(0,100)]));
+   }
    const result=[];
    for(const row of rows) if(await visible(db,ctx,name,row)) result.push(await projectRecord(db,ctx,name,row));
    return Response.json({result});

@@ -1,10 +1,15 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 
 
-async function liveMembership(base44, row) {
+async function liveMembership(base44, row, companyReads = new Map()) {
  if (!row.expires_at && !row.code_hash) return true; // Explicit admin approval.
  if (!row.code_hash || (row.scope !== 'passenger' && !(Date.parse(row.expires_at) > Date.now()))) return false;
- const company=await base44.asServiceRole.entities.Company.get(row.company_id).catch(()=>null);
+ if (!companyReads.has(row.company_id)) companyReads.set(row.company_id,
+  base44.asServiceRole.entities.Company.get(row.company_id).catch(error => {
+   if ((error.status ?? error.response?.status) === 404) return null;
+   throw error;
+  }));
+ const company = await companyReads.get(row.company_id);
  if(!company) return false;
  const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(company.access_code || ''));
  const hash=Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,'0')).join('');
@@ -85,7 +90,10 @@ async function loadPeople(base44, companyFilter) {
   }
   const memberships = await sr.CompanyMembership.filter({ active: true, scope: 'passenger' }, '-updated_date', 5000);
   const live=[];
-  for(const row of memberships) if(await liveMembership(base44,row)) live.push(row);
+  // The directory has already read these companies. Reuse only this request's
+  // snapshot rather than reading the same company once for every passenger.
+  const companyReads = new Map(companies.map(company => [company.id, company]));
+  for(const row of memberships) if(await liveMembership(base44,row,companyReads)) live.push(row);
   const trustedUsers = users.map(u => {
     const membership=live.find(m=>m.user_id===u.id && (!companyFilter || m.company_id===companyFilter));
     return {...u,company_id:membership?.company_id || '',vehicle_id:membership?.vehicle_id || '',vehicle_name:membership?.vehicle_name || ''};
