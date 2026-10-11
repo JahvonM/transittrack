@@ -44,7 +44,7 @@ export function patchDriverSession(patch) {
 
 const hasQueuedShift = () => pendingJobs().some((j) => j.kind === "driver_shift");
 
-export function useDriverSession(deviceId, { intervalMs = 8000 } = {}) {
+export function useDriverSession(deviceId, { intervalMs = 15000 } = {}) {
   const [session, setSession] = useState(() => (deviceId ? readCache(deviceId) : null));
   const [loading, setLoading] = useState(() => !!deviceId && !session);
   const [error, setError] = useState(null);
