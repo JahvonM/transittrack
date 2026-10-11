@@ -85,6 +85,18 @@ export async function startPhoneSignIn({ provider, returnTo, origin, storage, op
   return url;
 }
 
+// "Continue with Google/Apple" in the phone app: opens the phone's browser.
+export async function openPhoneSignIn(provider, returnTo) {
+  const { Browser } = await import("@capacitor/browser");
+  return startPhoneSignIn({
+    provider,
+    returnTo,
+    origin: window.location.origin,
+    storage: window.localStorage,
+    openBrowser: (url) => Browser.open({ url }),
+  });
+}
+
 export function isPhoneSignInLink(url) {
   return typeof url === "string" && url.toLowerCase().startsWith(`${PHONE_SIGNIN_SCHEME}://signin`);
 }
