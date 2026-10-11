@@ -21,7 +21,7 @@ const HIDDEN_PREFIXES = [
 
 const TABS = [
   // The passenger home lives at /staff ("/" sends each role to its own home).
-  { to: "/", label: "Home", icon: Home, exact: true, also: "/staff" },
+  { to: "/staff", label: "Home", icon: Home, exact: true, also: "/" },
   { to: "/journey", label: "Journey", icon: Route, also: ["/route-explorer", "/buses"] },
   { to: "/my-card", label: "My card", icon: CreditCard },
   // Messages and Account live under More.
@@ -36,8 +36,8 @@ const TABS = [
 const tabStacks = {};
 
 function tabFor(pathname) {
-  if (pathname === "/" || pathname.startsWith("/staff")) return "/";
-  const match = TABS.find((t) => t.to !== "/" && (pathname.startsWith(t.to) || (Array.isArray(t.also) && t.also.some((p) => pathname.startsWith(p)))));
+  if (pathname === "/" || pathname.startsWith("/staff")) return "/staff";
+  const match = TABS.find((t) => t.to !== "/staff" && (pathname.startsWith(t.to) || (Array.isArray(t.also) && t.also.some((p) => pathname.startsWith(p)))));
   return match ? match.to : null;
 }
 
@@ -81,7 +81,7 @@ export default function MobileTabBar() {
       <div className="flex items-stretch justify-around">
         {TABS.map(({ to, label, icon: Icon, exact, also }) => {
           const also_ = Array.isArray(also) ? also : also ? [also] : [];
-          const active = exact ? pathname === to || also_.some((p) => pathname.startsWith(p)) : pathname.startsWith(to) || also_.some((p) => pathname.startsWith(p));
+          const active = exact ? pathname === to || also_.some((p) => (p === "/" ? pathname === "/" : pathname.startsWith(p))) : pathname.startsWith(to) || also_.some((p) => pathname.startsWith(p));
           return (
             <button
               key={to}
