@@ -62,6 +62,8 @@ test('four passenger tabs retain data and open map only on request',async({page}
  await page.route('**/functions/passengerAccount',r=>r.fulfill({json:{card:{issued:true,active:true,status:'Active'},history:[{id:'mine',vehicle_name:'TT-102',status:'boarded',boarded_at:'2026-10-11T10:00:00Z'}]}}));
  await page.route('**/functions/generateBoardingQr',r=>r.fulfill({json:{token:'TEST-QR'}}));
  await expect(page.getByLabel('Your next bus')).toBeVisible();
+ await expect(page.getByLabel('Bus arrival details')).toContainText('Estimated pickup');
+ await expect(page.getByLabel('Bus arrival details')).toContainText('1 stop away');
  await expect(page.getByLabel('Live journey map')).toHaveCount(0);
  await tab(page,'Journey').click();
  await expect(page.getByRole('button',{name:'View live map',exact:true})).toBeVisible();

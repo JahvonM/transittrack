@@ -461,7 +461,10 @@ export default function StaffPortal() {
     const end = mine >= nextStopIndex ? mine : mapStops.length - 1;
     return [...mapStops.slice(nextStopIndex, end + 1), ...(end < mapStops.length - 1 ? [mapStops[mapStops.length - 1]] : [])];
   }, [mapStops, nextStopIndex, stop]);
-  // How many stops the bus still has before yours, from the same route progress.
+  // Stops before the passenger's pickup, excluding their own stop.
+  const pickupIndex = mapStops.findIndex(s=>s.name===stop?.name);
+  const stopsAway = !returning && onTrip && busOnMap && !locationIsStale(busOnMap,now)
+    && nextStopIndex!=null && pickupIndex>=nextStopIndex ? pickupIndex-nextStopIndex : null;
 
 
   // Same rule as the main estimate: no stop times from a position more than
@@ -542,7 +545,7 @@ export default function StaffPortal() {
     <AppLayout variant="passenger">
       <PullToRefresh onRefresh={() => Promise.all([reload(), refreshMyBus(), refreshSharedStop()])}>
         <PassengerExperience view={view} user={user} company={company} workplace={workplace} myVehicle={myVehicle}
-          returning={returning} tripState={tripState} timelineRoute={timelineRoute} stopEtas={stopEtas}
+          returning={returning} tripState={tripState} stopsAway={stopsAway} timelineRoute={timelineRoute} stopEtas={stopEtas}
           now={now} homeName={user?.pickup_name || pickupName} sharedStop={sharedStop}
           pickupPrompt={pickupPrompt} notice={notice} chatUnread={chatUnread} stopAlerts={stopAlerts} pushPermission={pushPermission}
           toggleStopAlerts={toggleStopAlerts} enableNotifications={enableNotifications} setSheet={setSheet}

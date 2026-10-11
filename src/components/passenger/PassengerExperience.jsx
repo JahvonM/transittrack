@@ -43,7 +43,7 @@ function useReturnEta(bus,workplace,enabled,now) {
  },[bus?.id,fresh,workplace?.lat,workplace?.lng,bucket,bus?.return_pickup_state]);
  return fresh?mins:null;
 }
-export default function PassengerExperience({view,user,company,workplace,myVehicle,returning,tripState,timelineRoute,stopEtas,now,homeName,sharedStop,pickupPrompt,notice,chatUnread,stopAlerts,pushPermission,toggleStopAlerts,enableNotifications,setSheet,mapOpen,setMapOpen,renderMap,bookedTrips,pickupName,logout,lastSynced,offline}) {
+export default function PassengerExperience({view,user,company,workplace,myVehicle,returning,tripState,stopsAway,timelineRoute,stopEtas,now,homeName,sharedStop,pickupPrompt,notice,chatUnread,stopAlerts,pushPermission,toggleStopAlerts,enableNotifications,setSheet,mapOpen,setMapOpen,renderMap,bookedTrips,pickupName,logout,lastSynced,offline}) {
  const {toast}=useToast();
  const support=useSupportWhatsApp();
  const account=usePassengerAccount(user,company.id,view==="card");
@@ -63,6 +63,13 @@ export default function PassengerExperience({view,user,company,workplace,myVehic
  const estimate=kind==="live" && mins!=null?`${Math.max(1,Math.round(mins))} min`:status;
  const live=["live","arriving"].includes(kind);
  const routeName=timelineRoute?.name || "";
+ const trustedEta=live && fresh && mins!=null && Number.isFinite(mins);
+ const stopCount=kind==="arriving"?0:!returning && live && fresh?stopsAway:null;
+ const etaDetails=live?<div className="px-eta-details" aria-label="Bus arrival details">
+  <span><Clock aria-hidden="true"/>{trustedEta?`Estimated pickup ${arrivalClock(mins,now)}`:"Estimated pickup unavailable"}</span>
+  <span><MapPin aria-hidden="true"/>{stopCount==null?"Stops away unavailable":stopCount===0?"Your stop is next":`${stopCount} stop${stopCount===1?"":"s"} away`}</span>
+ </div>:null;
+
  const reportMissed=async()=>{
   if(reportBusy || !(await confirmAction({title:"Report a missed pickup?",description:"Send your bus team a message asking for help with this journey.",confirmLabel:"Send report"})))return;
   setReportBusy(true);
@@ -97,6 +104,7 @@ export default function PassengerExperience({view,user,company,workplace,myVehic
    <section className="px-hero" aria-label="Your next bus">
     <div className="px-hero-copy"><p className={live?"px-service live":"px-service"}><span />{status}</p><h2>{estimate}</h2><p>{live?`Until pickup ${returning?"at work":"near home"}`:kind==="unassigned"?"Your company assigns your bus":kind==="signal_lost"?"Waiting for a fresh location":kind==="choose"?"Choose a stop to see your ETA":"Your next trip will appear here"}</p><strong>{myVehicle?.name || "No bus assigned"}{routeName?` · ${routeName}`:""}</strong></div>
     {myVehicle && <BusArtwork vehicle={myVehicle} fallbackUrl="/images/boarding-coaster.webp" className="px-hero-bus" width={260} />}
+    {etaDetails}
    </section>
    {pickupPrompt}
    {journeyPanel}
@@ -108,7 +116,7 @@ export default function PassengerExperience({view,user,company,workplace,myVehic
   {view==="journey" && <>
    <header className="px-page-title"><h1>My journey</h1><p>{returning?"To home":"To work"} · Today</p></header>
    <section className="px-panel px-bus-identity"><BusArtwork vehicle={myVehicle} className="h-24 w-28" /><div><h2>{myVehicle?.name || "No bus assigned"}</h2><p>{routeName || "Your company transport"}</p><span className={live?"px-status active":"px-status"}>{status}</span><small>{myVehicle?.last_location_update?`Updated ${lastSeen(myVehicle.last_location_update,now)}`:"Waiting for a bus update"}</small></div></section>
-   <section className="px-panel px-map-action"><h2><Clock />{estimate}{kind==="live" && mins!=null?" to pickup":""}</h2><Button variant="outline" className="w-full" onClick={()=>setMapOpen(!mapOpen)} aria-expanded={mapOpen}><Map />{mapOpen?"Hide live map":"View live map"}</Button></section>
+   <section className="px-panel px-map-action"><h2><Clock />{estimate}{kind==="live" && mins!=null?" away":""}</h2>{etaDetails}<Button variant="outline" className="w-full" onClick={()=>setMapOpen(!mapOpen)} aria-expanded={mapOpen}><Map />{mapOpen?"Hide live map":"View live map"}</Button></section>
    {mapOpen && <section className="px-map-view" aria-label="Live journey map">{renderMap()}</section>}
    <section className="px-panel"><h2>Your trip today</h2>{journeyPanel}{live && mins!=null && <p className="px-trip-time">Estimated pickup {arrivalClock(mins,now)}</p>}</section>
    <section className="px-panel px-wait"><MapPin /><div><h2>Where to wait</h2><p>{returning?`Meet the bus at ${workplace?.name || "your company boarding point"}.`:pickup?`Meet the bus at ${pickup}.`:"Choose a safe roadside pickup on your bus route."}</p><Button variant="outline" onClick={()=>setSheet("pickup")}>Walking directions</Button></div></section>
