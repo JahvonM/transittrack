@@ -222,7 +222,7 @@ function DriverHotspot({ device, onRefresh }) {
     setBusy(true);
     try {
       await sendCommand(device, { action: "hotspot", always_on: on });
-      toast({ title: on ? "Hotspot: always on" : "Hotspot: back to normal", description: on ? "The tablet keeps its hotspot on all the time, also when the bus is off." : "The hotspot is on while the bus runs and off once it's parked." });
+      toast({ title: on ? "Hotspot: always on" : "Hotspot: back to normal", description: on ? "The tablet keeps its hotspot on all the time, also when the bus is off." : "The hotspot comes on while the bus runs and there's no Wi-Fi nearby." });
       await onRefresh?.();
     } catch (e) {
       toast({ title: "Couldn't change the hotspot", description: problemText(e), variant: "destructive" });
@@ -243,7 +243,7 @@ function DriverHotspot({ device, onRefresh }) {
         <p className="text-xs text-muted-foreground">
           {checked
             ? "On all the time, also when the bus is off. Pauses below 20% battery when unplugged, so the tablet can't run flat."
-            : "Normal: on while the bus runs, off once it's parked."}
+            : "Normal: on while the bus runs with no Wi-Fi nearby. Near Wi-Fi (depot, home) the tablet stays on the Wi-Fi."}
           {pending?.type === "hotspot" ? ` ${commandProgress(device)}` : ""}
         </p>
       )}
