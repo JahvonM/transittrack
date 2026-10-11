@@ -478,3 +478,88 @@ for (const size of [{width:1280,height:800},{width:1024,height:600},{width:800,h
   await expect(page.getByRole('heading',{name:'Tablet settings',exact:true})).toBeVisible();
  });
 }
+
+// Driver tablet → More / Tablet settings → Internet (Helper 1.11).
+async function driverWithHelper(page, health) {
+  const calls = [], bodies = [], helper = [];
+  await mockApi(page, calls);
+  page.on('request', (r) => { if (r.url().includes('/api/')) bodies.push(r.postData() || ''); });
+  await page.route('http://127.0.0.1:8765/**', (route) => { helper.push(route.request().url()); return route.fulfill({ status: 204, body: '' }); });
+  await page.addInitScript((h) => {
+    localStorage.setItem('tt_driver_device_id', 'driver-test');
+    window.__ttHelperKey = 'k'.repeat(32);
+    window.__ttHelperHealth = { ...h, at: Date.now() };
+  }, health);
+  await page.goto('/driver/profile');
+  await page.locator('input[type=password]').fill('1234');
+  await page.getByRole('button', { name: 'Unlock', exact: true }).click();
+  return { bodies, helper };
+}
+const tabletHealth = {
+  version: '1.11', hotspot: 'Off (on Wi-Fi Depot)', hotspot_always: false,
+  wifi: { enabled: true, ssid: 'Depot', bars: 3 },
+  mobile: { sim: 'ready', data: true, connected: false, operator: 'Flow', type: 'LTE', bars: 3 },
+};
+
+test('driver tablet chooses Wi-Fi on its own screen and the password stays on the tablet', async ({ page }) => {
+  const { bodies, helper } = await driverWithHelper(page, tabletHealth);
+  await expect(page.getByText('Connected to Depot')).toBeVisible();
+  await expect(page.getByText('On · Flow · standing by while Wi-Fi is used')).toBeVisible();
+  await page.getByRole('button', { name: 'Change Wi-Fi network' }).click();
+  await expect.poll(() => helper.some((u) => u.includes('/wifi/scan?'))).toBe(true);
+  await expect(page.getByText('Looking for networks…')).toBeVisible();
+  await page.evaluate(() => {
+    const h = window.__ttHelperHealth;
+    window.__ttHelperHealth = { ...h, at: Date.now(), wifi: { ...h.wifi, scanned_at: new Date().toISOString(),
+      networks: [{ ssid: 'Depot', bars: 3, lock: 'password' }, { ssid: 'Office', bars: 2, lock: 'password' }, { ssid: 'Corp', bars: 1, lock: 'unsupported' }] } };
+  });
+  await expect(page.getByRole('button', { name: /Corp/ })).toBeDisabled();
+  await page.getByRole('button', { name: /Office/ }).click();
+  await page.getByLabel('Wi-Fi password').fill('short');
+  await page.getByRole('button', { name: 'Connect', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('at least 8 characters');
+  await page.getByLabel('Wi-Fi password').fill('secretpass1');
+  await page.getByRole('button', { name: 'Connect', exact: true }).click();
+  await expect.poll(() => helper.find((u) => u.includes('/wifi/join?')) || '').toContain('ssid=Office');
+  const join = new URL(helper.find((u) => u.includes('/wifi/join?')));
+  expect(join.searchParams.get('pass')).toBe('secretpass1');
+  expect(join.searchParams.get('k')).toBe('k'.repeat(32));
+  await page.evaluate((id) => {
+    const h = window.__ttHelperHealth;
+    window.__ttHelperHealth = { ...h, at: Date.now(), wifi: { ...h.wifi, ssid: 'Office', join: { id, ssid: 'Office', state: 'connected', message: 'Connected to Office' } } };
+  }, join.searchParams.get('id'));
+  await expect(page.getByRole('dialog').getByRole('status')).toContainText('Connected to Office');
+  // The password never goes to the server.
+  expect(bodies.join('\n')).not.toContain('secretpass1');
+});
+
+test('driver tablet switches its Wi-Fi off and on from Tablet settings', async ({ page }) => {
+  const { helper } = await driverWithHelper(page, tabletHealth);
+  const wifi = page.getByRole('switch', { name: 'Wi-Fi' });
+  await expect(wifi).toBeChecked();
+  await wifi.click();
+  await expect.poll(() => helper.some((u) => u.includes('/wifi/power?') && u.includes('on=0'))).toBe(true);
+  await expect(page.getByText('Switching off…')).toBeVisible();
+  await page.evaluate(() => {
+    const h = window.__ttHelperHealth;
+    window.__ttHelperHealth = { ...h, at: Date.now(), hotspot: 'On', wifi: { enabled: false, ssid: '' } };
+  });
+  await expect(page.getByText('Off', { exact: true })).toBeVisible();
+  await expect(wifi).not.toBeChecked();
+  await expect(page.getByText(/Switching Wi-Fi on stops the hotspot/)).toBeVisible();
+  await expect(page.getByText('On · Flow · LTE')).toHaveCount(0);
+});
+
+test('driver tablet explains an old helper and an always-on hotspot instead of offering Wi-Fi', async ({ page }) => {
+  await driverWithHelper(page, { ...tabletHealth, version: '1.10' });
+  await expect(page.getByText(/update the TransitTrack Helper on this tablet to 1.11/)).toBeVisible();
+  await expect(page.getByRole('switch', { name: 'Wi-Fi' })).toBeDisabled();
+});
+
+test('driver tablet with an always-on hotspot keeps Wi-Fi off and says why', async ({ page }) => {
+  await driverWithHelper(page, { ...tabletHealth, hotspot: 'On', hotspot_always: true, wifi: { enabled: false, ssid: '' }, mobile: { sim: 'ready', data: true, connected: true, operator: 'Flow', type: 'LTE', bars: 4 } });
+  await expect(page.getByRole('switch', { name: 'Wi-Fi' })).toBeDisabled();
+  await expect(page.getByText(/set to Always on in Admin/)).toBeVisible();
+  await expect(page.getByText('On · Flow · LTE')).toBeVisible();
+  await expect(page.getByRole('button', { name: /Wi-Fi network/ })).toHaveCount(0);
+});
