@@ -73,12 +73,13 @@ export function withoutNetworkCommand(data) {
 }
 
 // ---------------------------------------------------------------------------
-// The driver tablet's own Tablet settings (Helper 1.11): Wi-Fi on/off, scan and
-// join go straight to the helper on this tablet. A Wi-Fi password typed there
+// A tablet's own Internet settings (driver: Tablet settings; boarding: hold the
+// top bar + bus PIN; Helper 1.12): Wi-Fi on/off, scan and join go straight to
+// the helper on this tablet. A Wi-Fi password typed there
 // goes only to the helper (127.0.0.1); it is never sent to the server or saved
 // by this page. Results come back in the helper's status report
 // (window.__ttHelperHealth.wifi).
-export const LOCAL_NETWORK_HELPER_VERSION = "1.11";
+export const LOCAL_NETWORK_HELPER_VERSION = "1.12";
 
 export function localCommandId() {
   const bytes = new Uint8Array(9);
@@ -102,6 +103,9 @@ export function localCommandUrl(route, params = {}, key = helperKey()) {
     q.set("id", params.id);
     q.set("ssid", ssid);
     q.set("pass", pass);
+    // Chosen on the tablet itself: a boarding tablet keeps the bus hotspot as
+    // the network it goes back to (Admin's Choose Wi-Fi changes that instead).
+    q.set("here", "1");
   } else if (route !== "/health") {
     return null;
   }

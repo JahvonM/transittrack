@@ -496,7 +496,7 @@ async function driverWithHelper(page, health) {
   return { bodies, helper };
 }
 const tabletHealth = {
-  version: '1.11', hotspot: 'Off (on Wi-Fi Depot)', hotspot_always: false,
+  version: '1.12', hotspot: 'Off (on Wi-Fi Depot)', hotspot_always: false,
   wifi: { enabled: true, ssid: 'Depot', bars: 3 },
   mobile: { sim: 'ready', data: true, connected: false, operator: 'Flow', type: 'LTE', bars: 3 },
 };
@@ -551,8 +551,8 @@ test('driver tablet switches its Wi-Fi off and on from Tablet settings', async (
 });
 
 test('driver tablet explains an old helper and an always-on hotspot instead of offering Wi-Fi', async ({ page }) => {
-  await driverWithHelper(page, { ...tabletHealth, version: '1.10' });
-  await expect(page.getByText(/update the TransitTrack Helper on this tablet to 1.11/)).toBeVisible();
+  await driverWithHelper(page, { ...tabletHealth, version: '1.11' });
+  await expect(page.getByText(/update the TransitTrack Helper on this tablet to 1.12/)).toBeVisible();
   await expect(page.getByRole('switch', { name: 'Wi-Fi' })).toBeDisabled();
 });
 
