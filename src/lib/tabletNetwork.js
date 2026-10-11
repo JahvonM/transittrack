@@ -72,6 +72,55 @@ export function withoutNetworkCommand(data) {
   return rest;
 }
 
+// ---------------------------------------------------------------------------
+// The driver tablet's own Tablet settings (Helper 1.11): Wi-Fi on/off, scan and
+// join go straight to the helper on this tablet. A Wi-Fi password typed there
+// goes only to the helper (127.0.0.1); it is never sent to the server or saved
+// by this page. Results come back in the helper's status report
+// (window.__ttHelperHealth.wifi).
+export const LOCAL_NETWORK_HELPER_VERSION = "1.11";
+
+export function localCommandId() {
+  const bytes = new Uint8Array(9);
+  crypto.getRandomValues(bytes);
+  return "tab-" + Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+export function localCommandUrl(route, params = {}, key = helperKey()) {
+  if (!key) return null;
+  const q = new URLSearchParams({ k: key });
+  if (route === "/wifi/power") {
+    q.set("on", params.on ? "1" : "0");
+  } else if (route === "/wifi/scan") {
+    if (!ID.test(params.id || "")) return null;
+    q.set("id", params.id);
+  } else if (route === "/wifi/join") {
+    const ssid = typeof params.ssid === "string" ? params.ssid : "";
+    const pass = typeof params.pass === "string" ? params.pass : "";
+    if (!ID.test(params.id || "") || !ssid.trim() || ssid.length > 32) return null;
+    if (pass && (pass.length < 8 || pass.length > 63)) return null;
+    q.set("id", params.id);
+    q.set("ssid", ssid);
+    q.set("pass", pass);
+  } else if (route !== "/health") {
+    return null;
+  }
+  return `${HELPER_URL}${route}?${q}`;
+}
+
+// "sent", "no-helper" (no key from a helper yet), "invalid" or "unreachable".
+export async function sendLocalCommand(route, params = {}, { fetchImpl = (url, opts) => fetch(url, opts), key = helperKey() } = {}) {
+  if (!key) return "no-helper";
+  const url = localCommandUrl(route, params, key);
+  if (!url) return "invalid";
+  try {
+    await fetchImpl(url, { mode: "no-cors", cache: "no-store" });
+    return "sent";
+  } catch {
+    return "unreachable";
+  }
+}
+
 // Tests only.
 export function resetNetworkState() {
   ack = null;
