@@ -28,6 +28,43 @@ If you don't have a Mac, a cloud Mac build service like
 4. You'll need an [Apple Developer account](https://developer.apple.com/programs/) ($99/year).
 5. Product > Archive, then submit through App Store Connect.
 
+## How the phone app loads TransitTrack
+
+`capacitor.config.json` sets `server.url` to the live site
+(`https://eager-transit-track-go.base44.app`). The phone app opens the live
+site inside its own window, so:
+
+- sign-in, server calls and cookies work exactly as on the website (a bundled
+  copy would run from `capacitor://localhost`, where the app's relative `/api`
+  calls and the sign-in return address don't work);
+- every Publish reaches the phone app straight away; a new store build is only
+  needed when native parts change (plugins, permissions, icons).
+
+If the site moves to another address (a custom domain), change `server.url`
+and `allowNavigation` and ship a new store build.
+
+**Sign-in inside the app:** email/password and Sign in with Apple stay inside
+the app. Google blocks its sign-in page inside apps' web views, so the Google
+button opens Safari/Chrome and the user ends up signed in there, not in the
+app. Fix before launch if passengers use Google sign-in (for example, hide
+the Google button in the phone app, or hand sign-in to the system browser and
+back, as the desktop app does).
+
+## Board by Bluetooth
+
+`@capacitor-community/bluetooth-le` lets the phone app send the passenger's
+boarding code to the bus tablet (TransitTrack Helper 1.13+), on iPhone and
+Android. The web code (`src/lib/bluetoothBoarding.js`) uses it only when the
+installed app includes the plugin; older installs and browsers fall back to
+Web Bluetooth (Chrome on Android) or the "show your QR" note.
+
+- iOS: `NSBluetoothAlwaysUsageDescription` in `Info.plist`.
+- Android: the plugin adds its permissions; the app manifest marks
+  `BLUETOOTH_SCAN` as `neverForLocation` so Android 12+ only asks for
+  "Nearby devices".
+- After pulling: `npm install`, `npx cap sync`, then `pod install` in
+  `ios/App` on the Mac/Codemagic.
+
 ## App identity
 
 - `appId` is currently `com.transittrack.app` (in `capacitor.config.json`) — this is
