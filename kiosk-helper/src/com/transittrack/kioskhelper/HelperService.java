@@ -33,15 +33,19 @@ import org.json.JSONObject;
  *    another Wi-Fi network when Admin asks
  *  - driver tablets: Wi-Fi on/off, scan and join from the tablet's own Tablet
  *    settings screen; mobile data status for that screen
+ *  - boarding tablets (1.12): the same from their screen, behind the bus PIN;
+ *    Wi-Fi switched off there comes back on by itself after 30 minutes
  */
 public class HelperService extends Service {
-    static final String VERSION = "1.11";
+    static final String VERSION = "1.12";
     /** "Always on" hotspot pauses below this on battery so the tablet can't run flat (it can't power itself back on). */
     private static final int HOTSPOT_MIN_BATTERY = 20;
     /** Normal hotspot: how long without Wi-Fi first (Wi-Fi can take a minute to reconnect). */
     private static final long HOTSPOT_AFTER_NO_WIFI_MS = 2 * 60 * 1000;
     /** Wi-Fi switched on / a network being chosen on the tablet's screen: the hotspot waits this long. */
     private static final long WIFI_SETUP_HOLD_MS = 3 * 60 * 1000;
+    /** Boarding tablets: Wi-Fi switched off on the screen stays off this long at most (it's their only internet). */
+    private static final long BOARDING_WIFI_OFF_MS = 30 * 60 * 1000;
     static volatile boolean plugged = true;
     static volatile boolean parked = false;
 
@@ -274,6 +278,7 @@ public class HelperService extends Service {
     private long lastOnWifiAt = System.currentTimeMillis();
     private String hotspotWaitLogged = "";
     private volatile long hotspotHoldUntil = 0;
+    private volatile long wifiOffUntil = 0;
 
     /**
      * Driver tablets: whether the hotspot should be on right now.
@@ -385,7 +390,19 @@ public class HelperService extends Service {
     private void setWifiPower(boolean on) {
         try {
             android.net.wifi.WifiManager w = (android.net.wifi.WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
-            if (on) {
+            if (!Config.hotspot(this)) {
+                // Boarding tablet: Wi-Fi is its only internet, so "off" lasts 30 minutes at most.
+                if (on) {
+                    wifiOffUntil = 0;
+                    boolean ok = w.setWifiEnabled(true);
+                    Status.log(ok ? "Wi-Fi switched on from the tablet screen" : "Could not switch Wi-Fi on");
+                    joinBusWifi(4000);
+                } else {
+                    wifiOffUntil = System.currentTimeMillis() + BOARDING_WIFI_OFF_MS;
+                    boolean ok = w.setWifiEnabled(false);
+                    Status.log(ok ? "Wi-Fi switched off from the tablet screen (back on by itself in 30 min)" : "Could not switch Wi-Fi off");
+                }
+            } else if (on) {
                 if (Config.hotspotAlways(this)) {
                     Status.log("Wi-Fi not switched on: Admin keeps this tablet's hotspot always on");
                 } else {
@@ -477,9 +494,12 @@ public class HelperService extends Service {
             }
             // On a driver tablet these come from its own Tablet settings screen.
             if (driverTablet) holdHotspotForWifi();
+            // From the tablet's own screen (not Admin): connect without making it the bus hotspot to stick to.
+            final boolean here = driverTablet || "1".equals(q.get("here"));
             if ("/wifi/scan".equals(route)) {
+                final boolean mayTurnOn = !driverTablet && System.currentTimeMillis() >= wifiOffUntil;
                 new Thread(new Runnable() {
-                    @Override public void run() { WifiControl.scan(HelperService.this, !driverTablet); reportNow.run(); }
+                    @Override public void run() { WifiControl.scan(HelperService.this, mayTurnOn); reportNow.run(); }
                 }, "tt-wifi-scan").start();
             } else if ("/wifi/join".equals(route)) {
                 final String ssid = q.get("ssid");
@@ -490,7 +510,8 @@ public class HelperService extends Service {
                 }
                 new Thread(new Runnable() {
                     @Override public void run() {
-                        if (driverTablet) WifiControl.joinHere(HelperService.this, id, ssid, pass, reportNow);
+                        wifiOffUntil = 0;
+                        if (here) WifiControl.joinHere(HelperService.this, id, ssid, pass, reportNow);
                         else WifiControl.join(HelperService.this, id, ssid, pass, reportNow);
                     }
                 }, "tt-wifi-join").start();
@@ -525,6 +546,7 @@ public class HelperService extends Service {
         if (Config.joinSsid(this).isEmpty()) return;
         main.postDelayed(new Runnable() {
             @Override public void run() {
+                if (System.currentTimeMillis() < wifiOffUntil) return;   // switched off on the screen for now
                 new Thread(new Runnable() {
                     @Override public void run() { WifiJoin.ensure(HelperService.this); }
                 }, "tt-wifi").start();
@@ -574,6 +596,7 @@ public class HelperService extends Service {
                     android.net.wifi.WifiManager wm = (android.net.wifi.WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
                     w.put("enabled", wm.isWifiEnabled());
                 } catch (RuntimeException e) { /* ignore */ }
+                if (System.currentTimeMillis() < wifiOffUntil) w.put("off_until", Status.iso(wifiOffUntil));
                 String ssid = WifiControl.currentSsid(this);
                 w.put("ssid", ssid);
                 if (!ssid.isEmpty()) w.put("bars", WifiControl.currentBars(this));
