@@ -1,5 +1,7 @@
 import React from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { formatEta } from "@/lib/geo";
+import { setNavTarget } from "@/lib/navTarget";
 import useDrivingEta from "@/hooks/useDrivingEta";
 import { waLink, PROXIMITY_TRIGGER_M } from "@/lib/mapbox";
 import { Navigation, MessageCircle, UserCheck, Volume2 } from "lucide-react";
@@ -10,6 +12,8 @@ import { accountName } from "@/lib/userName";
 // component can call useDrivingEta once per staff member (hooks can't be called a
 // variable number of times inside a .map(), but a per-item component is fine).
 export default function StaffRouteListItem({ s, vehicle, onAttend }) {
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
   const skipped = s.skip_pickup_today;
   const late = s.late_snooze_active;
   const close = s.dist != null && s.dist <= PROXIMITY_TRIGGER_M;
@@ -24,9 +28,12 @@ export default function StaffRouteListItem({ s, vehicle, onAttend }) {
     `Hi ${name}, the staff bus is approaching your pickup point now. Please be ready.`
   );
 
+  // In-app turn-by-turn to their pickup on the Drive screen (no hand-off to
+  // another maps app, which would take the driver out of TransitTrack).
   const navTo = () => {
     if (s.home_lat == null) return;
-    window.open(`https://www.google.com/maps/dir/?api=1&destination=${s.home_lat},${s.home_lng}`, "_blank");
+    setNavTarget({ name: name || "Pickup", lat: s.home_lat, lng: s.home_lng });
+    if (!pathname.startsWith("/driver/track")) navigate("/driver/track");
   };
 
   return (

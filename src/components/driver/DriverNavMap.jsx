@@ -17,6 +17,7 @@ import useSmoothPosition from "@/hooks/useSmoothPosition";
 import { useBearing } from "@/components/MapBusPin";
 import TripProgress, { routeProgress } from "@/components/TripProgress";
 import { busOnRoad, nextRoadStopIndex, roadStopsOf, roadVia } from "@/lib/roadStops";
+import { clearNavTarget, getNavTarget, onNavTarget } from "@/lib/navTarget";
 import { LaneArrow, ManeuverArrow, NavPuck } from "@/components/driver/NavIcons";
 import { Bus, Compass, LocateFixed, Navigation, Route as RouteIcon, Satellite, Volume2, VolumeX, X } from "lucide-react";
 
@@ -34,7 +35,8 @@ const BANNER_DARK = "#0C1722";
 // Hide POI/transit icon clutter but keep road labels — a driver needs
 // street names to navigate.
 function hidePoiLayers(map) {
-  const style = map.getStyle();
+  let style;
+  try { style = map.getStyle(); } catch { return; } // style not loaded yet
   if (!style || !style.layers) return;
   style.layers.forEach((layer) => {
     const id = layer.id || "";
@@ -192,8 +194,13 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
     if (!p) return 0;
     return Math.max(0, orderedStops.indexOf(p.stops[p.nextIndex]));
   }, [orderedStops, pos?.lat, pos?.lng, roadNext]);
-  const nextStop = nextStopIndex >= 0 ? orderedStops[nextStopIndex] : null;
-  const nextStopKey = nextStop ? `${nextStop.lat},${nextStop.lng}` : null;
+  // "Directions to <passenger>" from the passenger list: go there first,
+  // then back to the route's next stop.
+  const [target, setTarget] = useState(getNavTarget);
+  useEffect(() => onNavTarget(setTarget), []);
+  const routeStop = nextStopIndex >= 0 ? orderedStops[nextStopIndex] : null;
+  const nextStop = target || routeStop;
+  const nextStopKey = nextStop ? `${target ? "target:" : ""}${nextStop.lat},${nextStop.lng}` : null;
 
   // --- Directions ------------------------------------------------------
   const [nav, setNav] = useState(null);
@@ -215,7 +222,7 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
     const request = ++routeRequest.current;
     if (reroute) setRerouting(true); else { setLoadingRoute(true); setRouteOptions([]); }
     // On a drawn road, pass through it on the way so the directions follow it.
-    const from = roadStops ? busOnRoad(route, origin.lat, origin.lng) : null;
+    const from = roadStops && Number.isFinite(Number(stop.along)) ? busOnRoad(route, origin.lat, origin.lng) : null;
     const via = from && from.off <= 200 && Number.isFinite(Number(stop.along)) ? roadVia(route, from.along, Number(stop.along)) : [];
     const res = await fetchTurnByTurnRoutes(origin, { lat: stop.lat, lng: stop.lng }, { via });
     if (request !== routeRequest.current) return;
@@ -251,7 +258,10 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
   const routeNav = navigating && nav && navFor === nextStopKey ? nav : null;
 
   const startNavigation = () => { requestedFor.current = null; setNavigating(true); setFollowing(true); };
+  // A passenger picked in the list starts directions straight away.
+  useEffect(() => { if (target) { requestedFor.current = null; setNavigating(true); setFollowing(true); } }, [target]);
   const endNavigation = () => {
+    clearNavTarget();
     routeRequest.current += 1; // drop any directions still loading
     requestedFor.current = null;
     stopSpeaking();
@@ -295,12 +305,14 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
       if (arrivedFor.current !== nextStopKey) {
         arrivedFor.current = nextStopKey;
         if (!mutedRef.current) speak(`You have arrived at ${nextStop?.name || "the stop"}.`);
+        // At the passenger's pickup: carry on to the route's next stop.
+        if (target) setTimeout(clearNavTarget, 4000);
       }
       return;
     }
     const v = voicePromptAt(routeNav, progress, spokenRef.current);
     if (v && !mutedRef.current) speak(v.text);
-  }, [routeNav, progress, nextStop, nextStopKey]);
+  }, [routeNav, progress, nextStop, nextStopKey, target]);
 
   useEffect(() => () => stopSpeaking(), []);
 

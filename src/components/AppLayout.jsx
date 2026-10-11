@@ -142,7 +142,12 @@ function FullLayout({ children, title }) {
       <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur safe-area-top">
         <div className="mx-auto flex h-16 max-w-7xl items-center gap-2 px-4 safe-area-x sm:px-6">
           {!onTopLevel && (
-            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground" onClick={() => navigate(-1)} aria-label="Go back">
+            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground" onClick={() => {
+              // Opened straight from a link or notification there's no earlier
+              // page in the app: go home instead of leaving the app.
+              if ((window.history.state?.idx ?? 0) > 0) navigate(-1);
+              else navigate(ROLE_HOME[user?.role] || (user ? "/staff" : "/"), { replace: true });
+            }} aria-label="Go back">
               <ArrowLeft className="h-5 w-5" />
             </Button>
           )}

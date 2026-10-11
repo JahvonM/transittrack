@@ -25,7 +25,7 @@ const roadStops = { stops: [
   { key: 'fixed:True Blue', name: 'True Blue', ...ROAD[1], along: 3491, fixed: true, riders: [] },
   { key: 'fixed:Grand Anse', name: 'Grand Anse', ...ROAD[2], along: 6560, fixed: true, riders: [] },
 ], off_road: [{ ref: 'faye', name: 'Faye Far' }] };
-const staff = [{ id: 'ann', full_name: 'Ann Lee' }, { id: 'ben', full_name: 'Ben Cole', skip_pickup_today: true }, { id: 'cara', full_name: 'Cara Diaz' }, { id: 'faye', full_name: 'Faye Far' }];
+const staff = [{ id: 'ann', full_name: 'Ann Lee', home_lat: 12.0349, home_lng: -61.7551 }, { id: 'ben', full_name: 'Ben Cole', skip_pickup_today: true }, { id: 'cara', full_name: 'Cara Diaz' }, { id: 'faye', full_name: 'Faye Far' }];
 
 async function tablet(page, { bus = onFirstLeg(0.48) } = {}) {
   const calls = [];
@@ -111,9 +111,37 @@ test('directions follow the drawn road to the next pickup', async ({ page, conte
   await expect(navigate).toBeVisible({ timeout: 20000 });
   await expect(page.getByTestId('nav-eta')).toContainText('of 5');
   await navigate.click();
-  await expect.poll(() => urls.length).toBeGreaterThan(0);
+  // Turn-by-turn requests only (the passenger list also asks for arrival times).
+  const turnByTurn = () => urls.filter((u) => u.includes('steps=true'));
+  await expect.poll(() => turnByTurn().length).toBeGreaterThan(0);
   // To the next stop, Pickup 1, through the point the road was drawn
   // through on the way (silent: only the start and the stop are stops).
-  expect(urls[0]).toMatch(/;-61\.751,12\.047;-61\.752,12\.044\?/);
-  expect(urls[0]).toContain('waypoints=0;2');
+  expect(turnByTurn()[0]).toMatch(/;-61\.751,12\.047;-61\.752,12\.044\?/);
+  expect(turnByTurn()[0]).toContain('waypoints=0;2');
+});
+
+test('directions to a passenger stay in the app and lead to their pickup', async ({ page, context }) => {
+  const fixture = JSON.parse(readFileSync('src/lib/__tests__/fixtures/route-short.json', 'utf8'));
+  const start = onFirstLeg(0.02);
+  await context.grantPermissions(['geolocation']);
+  await context.setGeolocation({ latitude: start.lat, longitude: start.lng, accuracy: 5 });
+  await tablet(page, { bus: start });
+  const urls = [];
+  await page.route('https://api.mapbox.com/**', async (r) => {
+    if (r.request().url().includes('/directions/')) { urls.push(r.request().url()); return r.fulfill({ json: fixture }); }
+    return r.fulfill({ status: 404, body: '' });
+  });
+  const popups = [];
+  page.on('popup', (p) => popups.push(p.url()));
+  await page.goto('/driver/passengers');
+  await unlock(page);
+  await page.getByRole('button', { name: 'Directions to Ann Lee' }).click({ timeout: 15000 });
+  await expect(page).toHaveURL(/\/driver\/track$/);
+  await expect(page.getByTestId('nav-banner')).toBeVisible({ timeout: 15000 });
+  const turnByTurn = () => urls.filter((u) => u.includes('steps=true'));
+  await expect.poll(() => turnByTurn().length).toBeGreaterThan(0);
+  expect(turnByTurn().at(-1)).toContain('-61.7551,12.0349');
+  expect(popups).toEqual([]);
+  await page.getByRole('button', { name: 'End navigation' }).click();
+  expect(await page.evaluate(() => sessionStorage.getItem('tt_nav_target'))).toBeNull();
 });

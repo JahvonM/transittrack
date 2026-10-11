@@ -30,8 +30,15 @@ const VEHICLE_ICON = (type) =>
 // Hides busy default-style clutter (POI icons, transit icons) so the map reads
 // cleaner — road labels stay on, since without them the basemap goes blank
 // and unreadable wherever there's no live vehicle/stop data yet.
+// Only once the style has loaded: asking for it earlier throws ("Style is not
+// done loading"), which crashed the passenger home on iPhones. The
+// "style.load" listener below runs it again when the style is ready.
 function declutterStyle(map) {
-  const style = map.getStyle();
+  let style;
+  try {
+    if (!map?.isStyleLoaded?.()) return;
+    style = map.getStyle();
+  } catch { return; }
   if (!style || !style.layers) return;
   style.layers.forEach((layer) => {
     const id = layer.id || "";
