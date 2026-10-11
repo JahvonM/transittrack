@@ -21,6 +21,7 @@
   "dependencies": {
     "@base44/sdk": "^0.8.53",
     "@base44/vite-plugin": "^1.0.44",
+    "@capacitor-community/bluetooth-le": "^6.1.0",
     "@capacitor-community/keep-awake": "^5.0.1",
     "@capacitor/android": "^6.1.2",
     "@capacitor/app": "^6.0.1",
