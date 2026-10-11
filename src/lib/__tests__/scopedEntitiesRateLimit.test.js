@@ -110,3 +110,20 @@ it("releases a failed shared read so a manual retry can fetch again", async () =
  await expect(entities.Vehicle.list()).resolves.toEqual([]);
  expect(invoke).toHaveBeenCalledTimes(2);
 });
+
+it("background rate limits back off without delaying a foreground page read",async()=>{
+ vi.useFakeTimers();vi.setSystemTime(new Date("2027-01-01T00:00:00Z"));
+ const invoke=vi.fn(async(_,body)=>{if(body.entity==="Vehicle")throw {status:429,response:{headers:{"retry-after":"60"}}};return {data:{result:[]}};});
+ const entities=scopedEntities({functions:{invoke}});const stop=entities.Vehicle.subscribe(()=>{});
+ await vi.advanceTimersByTimeAsync(FIRST_POLL_MS);expect(invoke).toHaveBeenCalledTimes(1);
+ await expect(entities.User.list()).resolves.toEqual([]);
+ await vi.advanceTimersByTimeAsync(59999);expect(invoke).toHaveBeenCalledTimes(2);
+ await vi.advanceTimersByTimeAsync(1);expect(invoke).toHaveBeenCalledTimes(3);stop();
+});
+it("unsubscribing during a slow initial poll leaves no further refresh",async()=>{
+ vi.useFakeTimers();let finish;
+ const invoke=vi.fn(()=>new Promise(r=>{finish=r;}));
+ const stop=scopedEntities({functions:{invoke}}).Vehicle.subscribe(()=>{});
+ await vi.advanceTimersByTimeAsync(FIRST_POLL_MS);stop();finish({data:{result:[]}});
+ await vi.advanceTimersByTimeAsync(120000);expect(invoke).toHaveBeenCalledTimes(1);
+});
