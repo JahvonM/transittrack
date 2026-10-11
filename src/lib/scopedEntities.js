@@ -62,9 +62,16 @@ const watchActivity = () => {
 export const pollDelay = (entity, now = Date.now()) => (ALWAYS_FAST.has(entity) ? FAST_POLL_MS : now - lastActivity < IDLE_AFTER_MS ? ACTIVE_POLL_MS : IDLE_POLL_MS);
 
 export function scopedEntities(client) {
- const call = async (entity, operation, args={}) => {
-  const response = await withRateLimitRetry(() => client.functions.invoke('entityAccess', { entity, operation, ...args }));
-  return response.data.result;
+ const reads = new Map();
+ const call = (entity, operation, args={}) => {
+  const readOnly = ['list','filter','get'].includes(operation);
+  const key = readOnly ? JSON.stringify([entity,operation,args]) : null;
+  if (readOnly && reads.has(key)) return reads.get(key);
+  const pending = withRateLimitRetry(() => client.functions.invoke('entityAccess', { entity, operation, ...args }))
+   .then(response => response.data.result)
+   .finally(() => { if (readOnly) reads.delete(key); });
+  if (readOnly) reads.set(key,pending);
+  return pending;
  };
  const polls=new Map();
  const startPoll=(entity)=>{
