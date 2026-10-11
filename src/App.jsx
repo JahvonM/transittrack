@@ -191,10 +191,10 @@ function App() {
           <ScrollToTop />
           <AuthenticatedApp />
           <OfflineNotice />
+          <OfflineJobsBanner />
         </Router>
         <Toaster />
         <ConfirmHost />
-        <OfflineJobsBanner />
       </QueryClientProvider>
     </AuthProvider>
     </ErrorBoundary>
