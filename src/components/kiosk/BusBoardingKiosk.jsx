@@ -4,6 +4,7 @@ import useFutureAppearance from "@/hooks/useFutureAppearance";
 import { TRANSIT_TIME_ZONE } from "@/lib/localTime";
 import React, { useEffect, useRef, useState } from "react";
 import { helperLink } from "@/lib/helperHealth";
+import { httpStatus, errorData } from "@/lib/requestError";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CreditCard, QrCode, ChevronLeft, CheckCircle2, LogIn, LogOut, AlertCircle, Delete, MapPin, CloudUpload, PartyPopper, Bus, Users, Loader2 } from "lucide-react";
@@ -272,7 +273,7 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
   // "Wrong bus" / "no bus yet" from the server or the saved list.
   const busMessage = (e) => {
     // 429 counts as a "network failure" for queueing, so check it first.
-    if (e?.response?.status === 429) return "Too many attempts. Try again in a minute.";
+    if (httpStatus(e) === 429) return errorData(e).error || "Server is busy. Try again in a minute.";
     if (e?.response?.data?.error === "verification_requires_connection" || isNetworkFailure(e)) return "Connect to WiFi to verify your card or code.";
     return ["wrong_bus", "no_bus"].includes(e?.response?.data?.error) ? e.response.data.message : "";
   };
@@ -333,7 +334,7 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
       if (qrMode.current !== "qr" || handleUnpaired(e)) return;
       // Keep the camera open on a rejected code or a connection failure.
       // Only a verified passenger should move this screen to confirmation.
-      if (e?.response?.status === 429) setQrRetryAt(Date.now() + 60000);
+      if (httpStatus(e) === 429) setQrRetryAt(Date.now() + 60000);
       setQrHint(busMessage(e) || "That QR code isn't recognized. Show your boarding QR from My Account.");
     } finally {
       lookupStarted.current = 0;
