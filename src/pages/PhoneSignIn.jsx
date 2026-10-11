@@ -55,7 +55,6 @@ export default function PhoneSignIn() {
       /* storage blocked: still start once */
     }
     if (!tried) startProvider();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [usable, isLoadingAuth, isAuthenticated]);
 
   // Signed in: prepare the sealed link ahead of the tap, so opening the app
