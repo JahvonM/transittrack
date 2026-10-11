@@ -1,8 +1,8 @@
 // What each Admin section actually shows, and how much of it to ask for.
 //
-// Every list is one rate-limited round trip to the server, so the console no
-// longer loads all twelve lists up front: a section loads only its own, once,
-// and keeps them (returning to a section is instant). The long histories —
+// Initial lists are combined through AdminBootstrap using fixed server queries.
+// The individual loaders remain for paginated reads and existing tools. A
+// section loads only its own lists and keeps them. The long histories —
 // completed trips, the service queue — load a page at a time and can be
 // extended with "Show more" instead of pulling a thousand rows at once.
 import { base44 } from "@/api/base44Client";

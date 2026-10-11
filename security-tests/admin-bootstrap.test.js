@@ -39,3 +39,12 @@ it("keeps the approved user membership projection",async()=>{
  expect(rows.find(r=>r.id==="passenger")).toMatchObject({company_id:"a",company_membership_approved:true});
  expect(JSON.stringify(rows)).not.toContain("PRIVATE");
 });
+
+it("boarding data keeps names and statuses but never returns card identifiers",async()=>{
+ const client=mock("admin");
+ client.tables.StaffCheckIn=[{id:"boarding",staff_name:"Actual Rider",vehicle_id:"bus-a",status:"boarded",card_tag:"PRIVATEUID"}];
+ const response=await load("entityAccess",client).default(request({entity:"AdminBootstrap",operation:"list",datasets:["checkIns"]}));
+ const result=(await response.json()).result;
+ expect(result.datasets.checkIns[0]).toMatchObject({staff_name:"Actual Rider",status:"boarded"});
+ expect(JSON.stringify(result)).not.toContain("PRIVATEUID");
+});
