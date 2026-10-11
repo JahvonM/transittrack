@@ -64,7 +64,7 @@ export default function PassengerExperience({view,user,company,workplace,myVehic
  const live=["live","arriving"].includes(kind);
  const routeName=timelineRoute?.name || "";
  const trustedEta=live && fresh && mins!=null && Number.isFinite(mins);
- const stopCount=kind==="arriving"?0:!returning && live && fresh?stopsAway:null;
+ const stopCount=live && fresh?(kind==="arriving"?0:!returning?stopsAway:null):null;
  const etaDetails=live?<div className="px-eta-details" aria-label="Bus arrival details">
   <span><Clock aria-hidden="true"/>{trustedEta?`Estimated pickup ${arrivalClock(mins,now)}`:"Estimated pickup unavailable"}</span>
   <span><MapPin aria-hidden="true"/>{stopCount==null?"Stops away unavailable":stopCount===0?"Your stop is next":`${stopCount} stop${stopCount===1?"":"s"} away`}</span>
