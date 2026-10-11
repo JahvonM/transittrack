@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { Bell, Building2, Bus, ChevronRight, Clock, CreditCard, Home, LifeBuoy, LogOut, Map, MapPin, Megaphone, MessageCircle, QrCode, ShieldCheck, Sparkles, TriangleAlert, Wifi } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -43,8 +43,8 @@ function useReturnEta(bus,workplace,enabled,now) {
  },[bus?.id,fresh,workplace?.lat,workplace?.lng,bucket,bus?.return_pickup_state]);
  return fresh?mins:null;
 }
-export default function PassengerExperience({view,user,company,workplace,myVehicle,returning,tripState,eta,stop,timelineRoute,stopEtas,stopsAway,now,homeName,sharedStop,pickupPrompt,notice,chatUnread,stopAlerts,pushPermission,toggleStopAlerts,enableNotifications,setSheet,mapOpen,setMapOpen,renderMap,trips,bookedTrips,pickupName,logout,lastSynced,offline}) {
- const navigate=useNavigate(),{toast}=useToast();
+export default function PassengerExperience({view,user,company,workplace,myVehicle,returning,tripState,timelineRoute,stopEtas,now,homeName,sharedStop,pickupPrompt,notice,chatUnread,stopAlerts,pushPermission,toggleStopAlerts,enableNotifications,setSheet,mapOpen,setMapOpen,renderMap,bookedTrips,pickupName,logout,lastSynced,offline}) {
+ const {toast}=useToast();
  const support=useSupportWhatsApp();
  const account=usePassengerAccount(user,company.id,view==="card");
  const [reportBusy,setReportBusy]=useState(false);
@@ -63,7 +63,6 @@ export default function PassengerExperience({view,user,company,workplace,myVehic
  const estimate=kind==="live" && mins!=null?`${Math.max(1,Math.round(mins))} min`:status;
  const live=["live","arriving"].includes(kind);
  const routeName=timelineRoute?.name || "";
- const openMap=()=>{setMapOpen(true);navigate("/journey");};
  const reportMissed=async()=>{
   if(reportBusy || !(await confirmAction({title:"Report a missed pickup?",description:"Send your bus team a message asking for help with this journey.",confirmLabel:"Send report"})))return;
   setReportBusy(true);

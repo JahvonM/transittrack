@@ -12,7 +12,7 @@ import { usePushNotifications } from "@/hooks/usePushNotifications";
 import useUserLocation from "@/hooks/useUserLocation";
 import { useChatUnread } from "@/components/staff/StaffGroupChat";
 import { MyPickupSheet, PassengerSettingsSheet, HelpSheet, BadgeSheet, ChatSheet, StopSheet, AssistantSheet } from "@/components/staff/StaffSheets";
-import useCrowding from "@/hooks/useCrowding";
+import { savePassengerSnapshot, loadPassengerSnapshot, clearPassengerSnapshot } from "@/lib/passengerSnapshot";
 import { haversineKm, etaMinutes } from "@/lib/geo";
 import useTravelTimes, { etaFromLearned } from "@/hooks/useTravelTimes";
 import useBusEta from "@/hooks/useBusEta";
@@ -148,12 +148,10 @@ export default function StaffPortal() {
   useEffect(() => {
     pickupRef.current = pickupName;
   }, [pickupName]);
-  const { location: watchedLoc, error: locError } = useUserLocation();
+  const { location: watchedLoc } = useUserLocation();
   // Fallback fix from the explicit "Allow location" prompt, for when the
   // background watch was denied or timed out.
-  const [promptLoc, setPromptLoc] = useState(null);
-  const userLoc = watchedLoc || promptLoc;
-  const crowd = useCrowding(company?.id);
+  const userLoc = watchedLoc;
   const [loading, setLoading] = useState(true);
 
   // A company join QR scanned in this tab: check its code instead of
@@ -184,7 +182,11 @@ export default function StaffPortal() {
       setMyBus(data.my_bus || null);
     } catch (error) {
       if (attempt !== companyAttempt.current) return;
-      if (companyGrantRejected(error)) {
+      const saved = navigator.onLine === false ? loadPassengerSnapshot(user?.id) : null;
+      if (saved) {
+        setCompany(saved.company); setCompanyPhone(saved.company.phone || ""); setMyBus(saved.myBus);
+        setLastSynced(saved.savedAt); setOffline(true);
+      } else if (companyGrantRejected(error)) {
         localStorage.removeItem('tt_company_access_grant');
         setCompany(null);
       } else if (sessionRejected(error)) {
@@ -245,16 +247,16 @@ export default function StaffPortal() {
   // app's rate limit and then sit waiting to be retried, which is what made
   // the passenger app slow to open.
   const loadData = useCallback(async () => {
-    const { data } = await withRateLimitRetry(() => base44.functions.invoke('entityAccess', { entity: 'Bootstrap', operation: 'list', company_id: company.id }));
-    const result = data.result || {};
+    const saved = navigator.onLine === false ? loadPassengerSnapshot(user?.id, company.id) : null;
+    const result = saved ? saved.result : (await withRateLimitRetry(() => base44.functions.invoke('entityAccess', { entity: 'Bootstrap', operation: 'list', company_id: company.id }))).data.result || {};
     setWorkplace(result.workplace || null);
     setVehicles(result.vehicles || []);
     setRoutes(result.routes || []);
     setTrips(result.trips || []);
-    setLastSynced(new Date().toISOString());
-    setOffline(false);
+    setLastSynced(saved ? saved.savedAt : savePassengerSnapshot(user?.id,company,myBus,result));
+    setOffline(!!saved);
     statusRef.current = Object.fromEntries((result.trips || []).map((x) => [x.id, x.status]));
-  }, [company?.id]);
+  }, [company?.id, user?.id]);
 
   useEffect(() => {
     if (!company) return undefined;
@@ -309,6 +311,7 @@ export default function StaffPortal() {
     localStorage.removeItem("tt_company_code");
     localStorage.removeItem("tt_company_access_grant");
     markCompanyLeft();
+    clearPassengerSnapshot();
     setSheet(null);
     setCompany(null);
     setCompanyPhone("");
@@ -411,11 +414,6 @@ export default function StaffPortal() {
 
   const chatUnread = useChatUnread(myVehicle?.id, sheet === "chat");
 
-  const onTheWayTrip = useMemo(
-    () => trips.find((t) => t.pickup_name === pickupName && t.status === "on_the_way") || null,
-    [trips, pickupName]
-  );
-
   const upcomingTrips = useMemo(
     () =>
       trips
@@ -430,7 +428,7 @@ export default function StaffPortal() {
   // Presentation only: which arrival state to show, from the values above.
   const now = useNow();
   const alerts = useCompanyAlerts(company?.id, 3);
-  const [dismissedAlerts, setDismissedAlerts] = useState({});
+  const [dismissedAlerts] = useState({});
   const eta = approaching ? (approachingDriving.stale ? approachingDriving : approachingLearned || approachingDriving) : null;
   const tripState = passengerTripState({ stop, approaching, eta, myVehicle, now, busAssigned: !!myBus });
   const timelineRoute = approachingRoute
@@ -448,8 +446,8 @@ export default function StaffPortal() {
     return [...mapStops.slice(nextStopIndex, end + 1), ...(end < mapStops.length - 1 ? [mapStops[mapStops.length - 1]] : [])];
   }, [mapStops, nextStopIndex, stop]);
   // How many stops the bus still has before yours, from the same route progress.
-  const myStopIndex = stop ? mapStops.findIndex((x) => x.name === stop.name) : -1;
-  const stopsAway = nextStopIndex != null && myStopIndex >= nextStopIndex ? myStopIndex - nextStopIndex : null;
+
+
   // Same rule as the main estimate: no stop times from a position more than
   // two minutes old.
   const positionStale = busOnMap ? locationIsStale(busOnMap, now) : false;
@@ -483,7 +481,6 @@ export default function StaffPortal() {
 
   const visibleAlerts = alerts.filter((a) => !dismissedAlerts[a.id]);
   const notice = visibleAlerts[0];
-  const companyName = company.name;
 
   const mapSummary = returning && stop ? (
     <div className="rounded-2xl border border-border bg-card/95 p-4 shadow-xl backdrop-blur">
@@ -500,7 +497,6 @@ export default function StaffPortal() {
     </div>
   ) : null;
 
-  const nextStop = nextStopIndex != null ? mapStops[nextStopIndex] : null;
   const myStopEta = stop ? stopEtas[stop.name] : null;
   const mapTopCard = stop ? (
     <div className="flex items-center gap-3 rounded-2xl border border-border bg-card/95 px-4 py-3 shadow-xl backdrop-blur">
@@ -521,11 +517,11 @@ export default function StaffPortal() {
     <AppLayout variant="passenger">
       <PullToRefresh onRefresh={() => Promise.all([reload(), refreshMyBus(), refreshSharedStop()])}>
         <PassengerExperience view={view} user={user} company={company} workplace={workplace} myVehicle={myVehicle}
-          returning={returning} tripState={tripState} eta={eta} stop={stop} timelineRoute={timelineRoute} stopEtas={stopEtas}
-          stopsAway={stopsAway} now={now} homeName={user?.pickup_name || pickupName} sharedStop={sharedStop}
+          returning={returning} tripState={tripState} timelineRoute={timelineRoute} stopEtas={stopEtas}
+          now={now} homeName={user?.pickup_name || pickupName} sharedStop={sharedStop}
           pickupPrompt={pickupPrompt} notice={notice} chatUnread={chatUnread} stopAlerts={stopAlerts} pushPermission={pushPermission}
           toggleStopAlerts={toggleStopAlerts} enableNotifications={enableNotifications} setSheet={setSheet}
-          mapOpen={mapOpen} setMapOpen={setMapOpen} trips={trips} bookedTrips={upcomingTrips} pickupName={pickupName}
+          mapOpen={mapOpen} setMapOpen={setMapOpen} bookedTrips={upcomingTrips} pickupName={pickupName}
           logout={logout} lastSynced={lastSynced} offline={offline}
           renderMap={() => <Suspense fallback={<div className="h-72 animate-pulse bg-muted" />}>
             <LiveTransitMap defaultSatellite className="h-80 lg:h-[520px]" vehicles={locatedVehicles}
