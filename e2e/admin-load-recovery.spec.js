@@ -95,3 +95,16 @@ test('activity updates use supplied rows without reloading all activity lists',a
  expect(reads.filter(b=>b.entity==='Fault'&&b.limit===20)).toHaveLength(1);
  expect(reads.filter(b=>b.entity==='Incident'&&b.limit===20)).toHaveLength(1);
 });
+
+test('admin navigation retains loaded overview data rather than restarting all reads',async({page})=>{
+ const {calls}=await session(page,'admin');
+ await page.route('**/functions/nfcCards',r=>r.fulfill({json:{people:[],vehicles:[]}}));
+ await page.goto('/admin');
+ await expect(page.getByRole('region',{name:'Live Fleet'})).toBeVisible({timeout:15000});
+ const initial=calls.filter(b=>b.entity==='Vehicle'&&b.limit!==5000).length;
+ await page.evaluate(()=>{history.pushState({},'', '/admin/directory');dispatchEvent(new PopStateEvent('popstate'));});
+ await expect(page.getByRole('button',{name:'Add passenger',exact:true})).toBeVisible();
+ await page.evaluate(()=>{history.pushState({},'', '/admin');dispatchEvent(new PopStateEvent('popstate'));});
+ await expect(page.getByRole('region',{name:'Live Fleet'})).toBeVisible();
+ expect(calls.filter(b=>b.entity==='Vehicle'&&b.limit!==5000)).toHaveLength(initial);
+});
