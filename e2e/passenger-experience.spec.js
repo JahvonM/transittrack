@@ -150,6 +150,60 @@ test('drawn road: tells the passenger once when the bus is close',async({page})=
  await page.waitForTimeout(1000);
  await expect(page.getByText('Your bus is close',{exact:true})).toHaveCount(0);
 });
+// Choosing a pickup: the one tapped glows and says "Selected" (on the map
+// too), and tapping another moves it there, so it's clear which is picked.
+test('the pickup a passenger taps glows, and tapping another moves it',async({page})=>{
+ await page.setViewportSize({width:390,height:844});
+ await page.addInitScript(()=>{ navigator.geolocation.getCurrentPosition=ok=>ok({coords:{latitude:12.021,longitude:-61.7555,accuracy:5}}); });
+ await passengerShowcase(page);
+ await page.route('https://api.mapbox.com/**',r=>{
+  const url=r.request().url();
+  if(url.includes('/walking/')){
+   // Walks end exactly where they were asked to go.
+   const [from,to]=decodeURIComponent(url.split('/walking/')[1].split('?')[0]).split(';').map(p=>p.split(',').map(Number));
+   const dist=Math.round(Math.hypot((to[1]-from[1])*111000,(to[0]-from[0])*108000));
+   return r.fulfill({json:{routes:[{distance:dist,duration:dist/1.3,geometry:{coordinates:[from,to]},legs:[{steps:[{mode:'walking',maneuver:{instruction:'Walk to the main road'}}]}]}],waypoints:[{location:from},{location:to}]}});
+  }
+  if(url.includes('/geocoding/'))return r.fulfill({json:{features:[{place_name:'Test home, Grenada'}]}});
+  return r.fallback();
+ });
+ const glows=(el)=>el.evaluate(n=>getComputedStyle(n).boxShadow!=='none');
+ await page.getByRole('region',{name:'Pickup and drop-off'}).getByRole('button',{name:'Change'}).click();
+ const dialog=page.getByRole('dialog');
+ await dialog.getByRole('button',{name:'Use my location',exact:true}).click();
+ const spots=dialog.getByRole('region',{name:'Nearby pickup spots'}).getByRole('button');
+ await expect(spots.nth(2)).toBeVisible();
+ await expect(spots.nth(0)).toHaveAttribute('aria-pressed','true');
+ await spots.nth(2).click();
+ await expect(spots.nth(2)).toHaveAttribute('aria-pressed','true');
+ await expect(spots.nth(0)).toHaveAttribute('aria-pressed','false');
+ await expect(spots.nth(2)).toContainText('Selected');
+ await expect(dialog.getByText('Selected',{exact:true})).toHaveCount(1);
+ expect(await glows(spots.nth(2))).toBe(true);
+ expect(await glows(spots.nth(0))).toBe(false);
+ await expect(dialog.locator('.tt-map-picked')).toHaveCount(1);
+ await expect(dialog.locator('.tt-map-picked')).toContainText('Your pick');
+ await page.waitForTimeout(700);
+ await page.screenshot({path:'/tmp/tt-pickup-picked.png'});
+ await spots.nth(1).click();
+ await expect(spots.nth(1)).toHaveAttribute('aria-pressed','true');
+ await expect(spots.nth(2)).toHaveAttribute('aria-pressed','false');
+ expect(await glows(spots.nth(2))).toBe(false);
+ // Company stops: the same.
+ await dialog.getByRole('button',{name:'Choose a company stop instead'}).click();
+ await dialog.getByRole('button',{name:/^True Blue/}).click();
+ await expect(dialog.getByRole('button',{name:/^True Blue/})).toHaveAttribute('aria-pressed','true');
+ await expect(dialog.getByRole('button',{name:/^Grand Anse/})).toHaveAttribute('aria-pressed','false');
+ expect(await glows(dialog.getByRole('button',{name:/^True Blue/}))).toBe(true);
+ await dialog.getByRole('button',{name:'View stops on map',exact:true}).click();
+ await expect(dialog.locator('.tt-map-picked')).toHaveText('True Blue');
+ await dialog.getByRole('button',{name:/^Morne Rouge/}).click();
+ await expect(dialog.locator('.tt-map-picked')).toHaveText('Morne Rouge');
+ await expect(dialog.getByRole('button',{name:/^True Blue/})).toHaveAttribute('aria-pressed','false');
+ await dialog.getByRole('button',{name:/^Morne Rouge/}).scrollIntoViewIfNeeded();
+ await page.waitForTimeout(700);
+ await page.screenshot({path:'/tmp/tt-pickup-stop-picked.png'});
+});
 test('stale location cannot claim the bus has arrived',async({page})=>{
  await passengerShowcase(page,{stale:true,busExtra:{current_lat:12.01,current_lng:-61.77,speed:0}});
  await expect(page.getByLabel('Your next bus').getByRole('status')).toHaveText('Location delayed');
