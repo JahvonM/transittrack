@@ -24,7 +24,7 @@ ENTITY_FIELDS.Advertisement.push('company_id');
 ENTITY_FIELDS.Driver.push('phone_app_access');
 ENTITY_FIELDS.Incident.push('photo_uris','source');
 ENTITY_FIELDS.DriverShift.push('started_with','ended_with');
-ENTITY_FIELDS.Vehicle.push('backup_gps_driver_email','backup_gps_since');
+ENTITY_FIELDS.Vehicle.push('backup_gps_driver_email','backup_gps_since','road_next_stop');
 // The latest Wi-Fi/hotspot command's status for Admin → Kiosk tablets (never the command itself, which can hold a Wi-Fi password).
 ENTITY_FIELDS.KioskDevice.push('network_status');
 // Admin → App errors: what happened before an error, and marking it fixed.
@@ -138,7 +138,7 @@ function project(ctx,name,row) {
  let fields=[...META,...(ENTITY_FIELDS[name] || [])];
  if (name === 'User') fields=[...META,'email','full_name','role','company_id',...PROFILE_FIELDS];
  if (name === 'Company' && !['admin','company'].includes(role)) fields=[...META,'name','phone','logo_url','service_types','description'];
- if (!['admin','company','mechanic'].includes(role) && name === 'Vehicle') fields=[...META,'name','type','company_id','company_name','capacity','route_id','current_lat','current_lng','speed','heading','status','driver_name','image_url','model_3d','tracking_active','last_location_update','trail','trip_direction','return_pickup_state'];
+ if (!['admin','company','mechanic'].includes(role) && name === 'Vehicle') fields=[...META,'name','type','company_id','company_name','capacity','route_id','current_lat','current_lng','speed','heading','status','driver_name','image_url','model_3d','tracking_active','last_location_update','trail','trip_direction','return_pickup_state','road_next_stop'];
  if (!['admin','company'].includes(role) && name === 'Trip') fields=[...META,'company_id','vehicle_id','vehicle_name','route_id','route_name','pickup_name','dropoff_name','scheduled_time','status','started_at','arrived_at','completed_at'];
  const allowCodes=['admin','company'].includes(role) && ['Company','KioskDevice'].includes(name);
  const out=scrub(pick(row,fields),allowCodes);
