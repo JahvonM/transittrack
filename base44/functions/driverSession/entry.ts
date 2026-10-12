@@ -191,6 +191,38 @@ async function notifyStopAhead(base44, route, departedName, vehicle, companyId) 
   await pushWithPolicy(base44, 'stop_ahead', tokens, payload, (list) => sendPushToTokens(serviceAccountJson, list, payload), { companyId });
 }
 
+// On a drawn road the stops are passengers' pickups along it, not named route
+// stops, so the alert above never fires. The tablet reports which of the
+// bus's stops is next (road_next): tell the passengers at that stop, if they
+// switched pickup alerts on. Runs once per stop, as the bus moves on.
+async function notifyRoadStopNext(base44, route, nextIndex, vehicle, companyId) {
+  const serviceAccountJson = secrets.get('FIREBASE_SERVICE_ACCOUNT');
+  if (!serviceAccountJson) return;
+  const db = base44.asServiceRole.entities;
+  const plan = await busRoadStops(db, route, vehicle.id);
+  const stop = plan?.stops?.[nextIndex];
+  const userIds = [...new Set((stop?.riders || []).map((r) => r.user_id).filter(Boolean))];
+  if (!userIds.length) return;
+  const users = await db.User.filter({ id: { $in: userIds }, stop_alerts: true }, '-updated_date', 200);
+  const approvedIds = await approvedStaffIds(base44, companyId);
+  const emails = [...new Set(users.filter((u) => approvedIds.has(u.id) && u.email).map((u) => u.email))];
+  if (!emails.length) return;
+  const rows = await db.PushToken.filter({ email: { $in: emails } }, '-created_date', 500).catch(() => []);
+  const tokens = [...new Set(rows.map((t) => t.token).filter((t) => typeof t === 'string' && t))];
+  if (!tokens.length) return;
+  const payload = {
+    title: `${vehicle.name} is on its way to you`,
+    body: nextIndex === 0 ? 'Your stop is its first stop. Head to your pickup.' : 'It just passed the stop before yours. Your stop is next: head to your pickup.',
+    data: { type: 'stop_ahead', vehicle_id: vehicle.id },
+  };
+  await pushWithPolicy(base44, 'stop_ahead', tokens, payload, (list) => sendPushToTokens(serviceAccountJson, list, payload), { companyId });
+}
+
+// A new trip counts its stops from the start again.
+async function clearRoadNext(base44, vehicleId) {
+  await base44.asServiceRole.entities.Vehicle.update(vehicleId, { road_next_stop: null }).catch(() => {});
+}
+
 // A driver moved some passengers' pickup: tell each of them on their phone.
 async function notifyPickupMoved(base44, riders, payload, companyId) {
   const serviceAccountJson = secrets.get('FIREBASE_SERVICE_ACCOUNT');
@@ -882,7 +914,7 @@ export default async function(req) {
         if (!['to_work', 'to_home'].includes(body.direction)) return Response.json({ error: 'Choose To work or To home' }, { status: 400 });
         const vehicle = await loadVehicle(base44, vehicleId);
         if (!vehicle || vehicle.company_id !== companyId) return Response.json({ error: 'Vehicle assignment mismatch' }, { status: 403 });
-        await base44.asServiceRole.entities.Vehicle.update(vehicleId, { trip_direction: body.direction, ...(vehicle.trip_direction !== body.direction ? { trip_direction_started_at: new Date().toISOString(), return_pickup_state: 'pending' } : {}) });
+        await base44.asServiceRole.entities.Vehicle.update(vehicleId, { trip_direction: body.direction, ...(vehicle.trip_direction !== body.direction ? { trip_direction_started_at: new Date().toISOString(), return_pickup_state: 'pending', road_next_stop: null } : {}) });
         return Response.json({ ok: true, direction: body.direction });
       }
 
@@ -914,6 +946,7 @@ export default async function(req) {
         // shift would open showing people on a bus that is standing empty.
         try { await offboardEveryone(base44, { companyId, companyName, vehicleId, vehicleName: shift.vehicle_name || vehicle.name, at: Date.parse(shift.started_at) }); }
         catch { /* the shift still starts; the kiosk corrects anyone left aboard */ }
+        await clearRoadNext(base44, vehicleId);
         return Response.json({ shift });
       }
 
@@ -954,7 +987,7 @@ export default async function(req) {
       case 'start_tracking': {
         const vehicle = await loadVehicle(base44, vehicleId);
         if (!vehicle) return Response.json({ error: 'Vehicle not found' }, { status: 404 });
-        await base44.asServiceRole.entities.Vehicle.update(vehicleId, { tracking_active: true });
+        await base44.asServiceRole.entities.Vehicle.update(vehicleId, { tracking_active: true, road_next_stop: null });
         return Response.json({ ok: true });
       }
 
@@ -968,7 +1001,9 @@ export default async function(req) {
       }
 
       case 'update_location': {
-        return applyLocationUpdate(base44, { vehicleId, companyId, companyName, body, onDepartedStop: (route, stopName, vehicle) => notifyStopAhead(base44, route, stopName, vehicle, companyId) });
+        return applyLocationUpdate(base44, { vehicleId, companyId, companyName, body,
+          onDepartedStop: (route, stopName, vehicle) => notifyStopAhead(base44, route, stopName, vehicle, companyId),
+          onRoadNext: (route, index, vehicle) => notifyRoadStopNext(base44, route, index, vehicle, companyId) });
       }
 
       // GPS points the tablet saved while it had no connection. They go into
