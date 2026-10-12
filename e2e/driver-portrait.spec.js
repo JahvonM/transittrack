@@ -129,3 +129,20 @@ test('change stop and map tap choose the next stop without modifying the route',
  await page.getByRole('button',{name:'Cancel',exact:true}).click();
  await expect(page.getByRole('region',{name:'Next stop'})).toContainText('Second Stop');
 });
+
+test('overview recenters on the bus five seconds after a drag',async({page})=>{
+ await page.setViewportSize({width:800,height:1280});
+ await openDriver(page,{vehicle:{...vehicle,current_lat:12.02,current_lng:-61.76,last_location_update:new Date().toISOString()},route:{name:'Route',stops:[{name:'Stop',lat:12.02,lng:-61.76,order:0}]}});
+ const map=page.locator('.dk-overview-map');const marker=map.locator('.leaflet-marker-icon').first();
+ await expect(marker).toBeVisible();
+ const box=await map.boundingBox();const original=await marker.boundingBox();
+ await page.mouse.move(box.x+box.width/2+70,box.y+box.height/2+70);await page.mouse.down();await page.mouse.move(box.x+box.width/2+190,box.y+box.height/2+130,{steps:10});await page.mouse.up();
+ await expect.poll(async()=>Math.abs((await marker.boundingBox()).x-original.x)).toBeGreaterThan(70);
+ await expect.poll(async()=>Math.abs((await marker.boundingBox()).x-original.x),{timeout:8000}).toBeLessThan(15);
+});
+test('tile failures offer retry and use smaller images',async({page})=>{
+ const tiles=[];page.on('request',request=>{if(request.url().includes('/tiles/'))tiles.push(request.url());});
+ await openDriver(page,{route:{name:'Route',stops:[{name:'Stop',lat:12.02,lng:-61.76,order:0}]}});
+ await expect(page.getByRole('button',{name:'Retry map',exact:true})).toBeVisible();
+ expect(tiles.length).toBeGreaterThan(0);expect(tiles.every(url=>!url.includes('@2x'))).toBe(true);
+});
