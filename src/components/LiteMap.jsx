@@ -192,7 +192,7 @@ export default function LiteMap({
           <React.Fragment key={`picked-${i}`}>
             <CircleMarker center={[s.lat, s.lng]} radius={26} interactive={false} pathOptions={{ stroke: false, fillColor: s.color || accent, fillOpacity: 0.28 }} />
             <CircleMarker eventHandlers={onStopClick ? { click: () => onStopClick(s) } : undefined} center={[s.lat, s.lng]} radius={15} pathOptions={{ color: "#ffffff", weight: 4, fillColor: s.color || accent, fillOpacity: 1 }}>
-              {s.name && <Tooltip permanent direction="top" offset={[0, -16]} className="tt-map-picked">{s.name}</Tooltip>}
+              {(s.pickLabel || s.name) && <Tooltip permanent direction="top" offset={[0, -16]} className="tt-map-picked">{s.pickLabel || s.name}</Tooltip>}
             </CircleMarker>
           </React.Fragment>
         ))}
