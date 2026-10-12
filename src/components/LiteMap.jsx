@@ -110,6 +110,7 @@ export default function LiteMap({
   showUserDot = true,
   showRecenter = true,
   onDragStart,
+  onStopClick,
   fill = false, // fill the parent box instead of using `height`
   focusVehicleId = null,
   focusKey = 0,
@@ -182,8 +183,8 @@ export default function LiteMap({
           </CircleMarker>
         ))}
         {stopPts.map((s, i) => (
-          <CircleMarker key={`stop-${i}`} center={[s.lat, s.lng]} radius={8} pathOptions={{ color: "#0B0B0D", weight: 2.5, fillColor: s.color || accent, fillOpacity: 1 }}>
-            {s.name && <Popup>{s.name}</Popup>}
+          <CircleMarker eventHandlers={onStopClick ? { click: () => onStopClick(s) } : undefined} key={`stop-${i}`} center={[s.lat, s.lng]} radius={onStopClick ? 13 : 8} pathOptions={{ color: "#0B0B0D", weight: 2.5, fillColor: s.color || accent, fillOpacity: 1 }}>
+            {s.name && !onStopClick && <Popup>{s.name}</Popup>}
           </CircleMarker>
         ))}
         {liveVehicles.map((v) => (

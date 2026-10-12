@@ -1,6 +1,7 @@
-import React, { useMemo } from "react";
-import { ArrowRight, Navigation, Users, ChevronRight, MessageCircle, MapPinned } from "lucide-react";
-import BusArtwork from "@/components/BusArtwork";
+import React, { useMemo, useState, useEffect } from "react";
+import { Navigation, Users, ChevronRight, MessageCircle, MapPinned } from "lucide-react";
+import LiteMap from "@/components/LiteMap";
+import { getNavTarget, setNavTarget, onNavTarget } from "@/lib/navTarget";
 import { Button } from "@/components/ui/button";
 import { routeProgress } from "@/components/TripProgress";
 import { roadStopsOf, busOnRoad, nextRoadStopIndex } from "@/lib/roadStops";
@@ -11,6 +12,10 @@ import SosButton from "./SosButton";
 // Presentation only: existing session, shift and tracking handlers own all writes.
 export default function DriverPortraitDrive({session,vehicle,nav,sharing,shiftActive,directionControl,shiftControl,trackingButton,
  statusItems,attention,panelTop,panelBottom,onOpenNavigation,onOpenPassengers,onOpenStops,onOpenMessages,onReportIncident,invoke}) {
+ const [pickedStop,setPickedStop]=useState(null);
+ const [choosing,setChoosing]=useState(false);
+ const [target,setTarget]=useState(getNavTarget);
+ useEffect(()=>onNavTarget(setTarget),[]);
  const home=session?.trip_direction==="to_home";
  const stops=useMemo(()=>{
   const raw=roadStopsOf(session) || sortStops(session?.route?.stops).filter(s=>s.lat!=null&&s.lng!=null);
@@ -26,30 +31,33 @@ export default function DriverPortraitDrive({session,vehicle,nav,sharing,shiftAc
  },[stops,session?.route,vehicle?.current_lat,vehicle?.current_lng,sharing,fresh]);
  const next=nav?.nextStop || stops[index] || null;
  const atWork=home && session?.workplace && !sharing;
- const focus=atWork?session.workplace:next;
- const upcoming=atWork?[session.workplace,...stops.slice(0,2)]:stops.slice(index,index+3);
- const finish=!home?session?.workplace:null;
- const timeline=finish && !upcoming.some(s=>s.name===finish.name)?[...upcoming.slice(0,2),finish]:upcoming;
+ const focus=target || (atWork?session.workplace:next);
  const count=focus?.riders?.filter(r=>!session?.staff?.find(s=>s.id===r.ref)?.skip_pickup_today).length;
  return <div className="dk-drive-frame"><div className="dk-drive-scroll">
   <div className="dk-content">
-   <header className="dk-page-title"><div><h1>Your journey</h1>{session?.route?.name && <p>{session.route.name}</p>}</div><Button variant="outline" className="dk-change-stop" onClick={onOpenStops}><MapPinned/>Change stop</Button></header>
+   <h1 className="sr-only">Your journey</h1>
    {directionControl}
-   <button className="dk-next" onClick={onOpenStops} aria-label="View next stop and route">
-    <span><small>{atWork?"COMPANY PICKUP":home?"NEXT DROP-OFF":"NEXT PICKUP"}</small><strong>{focus?.name || (stops.length?"Route complete":"No route assigned")}</strong>
-     <span>{atWork?"Pick up at work, then take passengers home":count!=null?count+" assigned to this stop":home?"Home drop-off":focus?"View passengers and pickup details":"Ask dispatch to assign a route"}</span>
-     {sharing && fresh && nav?.remainingS!=null && <span>{Math.max(1,Math.round(nav.remainingS/60))} min · navigation estimate</span>}
-    </span><ArrowRight aria-hidden="true"/>
-   </button>
-   {timeline.length>0 && <ol className="dk-stop-preview" aria-label="Journey stop preview">
-    {timeline.map((s,i)=><li key={s.key || s.name+i}><span className={i===0?"dk-stop-dot next":"dk-stop-dot"}/><span><strong>{s.name}</strong><small>{i===0?(atWork?"Company pickup":home?"Next drop-off":"Next pickup"):s===finish?"Company drop-off":"Upcoming"}</small></span></li>)}
-   </ol>}
-   <div className="dk-bus-strip"><BusArtwork vehicle={vehicle} fallbackUrl="/images/boarding-coaster.webp" width={170}/><span><strong>{vehicle?.name}</strong><small>{shiftActive?"Shift active":"Off shift"} · {sharing?"Sharing location":"Ready to depart"}</small><small>{session?.occupancy ?? 0} on board{vehicle?.capacity?" · "+vehicle.capacity+" seats":""}</small></span></div>
+   <section className="dk-simple-next" aria-label="Next stop">
+    <small>{atWork && !target?"COMPANY PICKUP":home?"NEXT DROP-OFF":"NEXT PICKUP"}</small>
+    <h2>{focus?.name || (stops.length?"Route complete":"No route assigned")}</h2>
+    <p>{sharing && fresh && nav?.remainingS!=null ? Math.max(1,Math.round(nav.remainingS/60))+" min away" : target?"Selected next stop":count!=null?count+" assigned to this stop":focus?"Ready to navigate":"Ask dispatch to assign a route"}</p>
+    <div className="dk-next-actions"><Button onClick={()=>{if(focus)setNavTarget(focus);onOpenNavigation();}} disabled={!focus}><Navigation/>Navigate</Button><Button variant="outline" onClick={()=>{setPickedStop(null);setChoosing(true);}}><MapPinned/>Change stop</Button></div>
+   </section>
+   <section className="dk-overview-map" aria-label="Route overview">
+    <LiteMap vehicles={vehicle?.current_lat!=null?[vehicle]:[]} stops={stops} road={session?.route?.path?.map(p=>[p.lng,p.lat])} height="100%" fill onStopClick={stop=>{setPickedStop(stop);setChoosing(true);}}/>
+    <span className="dk-map-hint">Tap a stop to choose it</span>
+   </section>
+   <p className="dk-simple-shift">{shiftActive?"Shift active":"Off shift"} · {vehicle?.name}{sharing?" · Sharing location":""}</p>
    {(panelTop || attention.length>0) && <section className="dk-attention" aria-label="Needs attention">{attention}{panelTop}</section>}
-   <div className="dk-shortcuts"><Button variant="outline" onClick={onOpenNavigation}><Navigation/>Navigation</Button><Button variant="outline" onClick={onOpenPassengers}><Users/>Passengers</Button></div>
-   <details className="dk-details"><summary>Trip details<ChevronRight/></summary><div><StatusStrip items={statusItems}/><Button variant="outline" onClick={onOpenStops}>All stops & pickup tools</Button>{panelBottom}<Button variant="outline" onClick={onReportIncident}>Report an incident</Button></div></details>
+
+   <details className="dk-details"><summary>Trip details<ChevronRight/></summary><div><p>{session?.occupancy ?? 0} on board{vehicle?.capacity?" · "+vehicle.capacity+" seats":""}</p><Button variant="outline" onClick={onOpenPassengers}><Users/>Passengers</Button><StatusStrip items={statusItems}/><Button variant="outline" onClick={onOpenStops}>All stops & pickup tools</Button>{panelBottom}<Button variant="outline" onClick={onReportIncident}>Report an incident</Button></div></details>
   </div></div><div className="dk-fixed-controls"><div className="dk-drive-controls" aria-label="Driving controls">{!shiftActive && shiftControl}{trackingButton}{shiftActive && shiftControl}</div>
    <div className="dk-drive-footer"><Button variant="ghost" onClick={onOpenMessages}><MessageCircle/>Messages</Button><SosButton vehicle={vehicle} invoke={invoke} emergencyContacts={session?.emergency_contacts} compact/></div>
   </div>
+ {choosing && <div className="dk-stop-sheet-backdrop" onClick={()=>setChoosing(false)}><section className="dk-stop-sheet" role="dialog" aria-modal="true" aria-label="Choose next stop" onClick={e=>e.stopPropagation()}>
+  <h2>{pickedStop?.name || "Change stop"}</h2>
+  {pickedStop ? <><p>Choose your next stop</p><Button onClick={()=>{setNavTarget(pickedStop);setChoosing(false);}}>Make this my next stop</Button><Button variant="outline" onClick={()=>{setNavTarget(pickedStop);setChoosing(false);onOpenNavigation();}}><Navigation/>Navigate here</Button></> : <div className="dk-stop-options">{stops.length?stops.map((stop,i)=><Button key={stop.key || i} variant="outline" onClick={()=>setPickedStop(stop)}>{stop.name || "Stop "+(i+1)}</Button>):<p>No stops assigned to this bus.</p>}<Button variant="outline" onClick={()=>{setChoosing(false);onOpenStops();}}>All stops & pickup tools</Button></div>}
+  <Button variant="ghost" onClick={()=>setChoosing(false)}>Cancel</Button>
+ </section></div>}
  </div>;
 }
