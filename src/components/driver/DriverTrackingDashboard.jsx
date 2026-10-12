@@ -12,6 +12,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { queueGpsPoint, queuedGpsCount, flushGpsQueue, gpsSyncError, GPS_QUEUE_EVENT } from "@/lib/gpsQueue";
 import { noteGpsFix } from "@/lib/appHealth";
 import { retryGps, GPS_RETRY_EVENT } from "@/lib/helperHealth";
+import { roadStopsOf, busOnRoad, nextRoadStopIndex } from "@/lib/roadStops";
 
 // The Drive screen, laid out like a cockpit: the turn-by-turn map, then one
 // rail that reads top to bottom — status, next stop, people on board, things
@@ -36,6 +37,8 @@ export default function DriverTrackingDashboard({ session, invoke, onReportIncid
   const watchId = useRef(null);
   const lastUpdate = useRef(0);
   const vehicleRef = useRef(session?.vehicle);
+  const sessionRef = useRef(session);
+  sessionRef.current = session;
   const trailRef = useRef(session?.vehicle?.trail || []);
   const staffRef = useRef([]);
   const alertedRef = useRef(new Set());
@@ -110,8 +113,16 @@ export default function DriverTrackingDashboard({ session, invoke, onReportIncid
         toast({ title: "Speeding logged", description: "You exceeded the 100 km/h limit.", variant: "destructive" });
       }
     } else { speedingLoggedRef.current = false; }
+    // Which of this bus's stops on the drawn road is next, so passengers see
+    // how many stops away the bus is and get a heads-up when theirs is next.
+    let roadNext = null;
     try {
-      await invoke("update_location", { lat, lng, speed: speed || 0, status, trail: nextTrail, log_speeding: logSpeeding, recorded_at: new Date(extra.ts || now).toISOString() });
+      const s = sessionRef.current;
+      const roadStops = roadStopsOf(s);
+      if (roadStops) roadNext = nextRoadStopIndex(roadStops, busOnRoad(s.route, lat, lng));
+    } catch { /* stop position is optional */ }
+    try {
+      await invoke("update_location", { lat, lng, speed: speed || 0, status, trail: nextTrail, log_speeding: logSpeeding, recorded_at: new Date(extra.ts || now).toISOString(), ...(Number.isInteger(roadNext) ? { road_next: roadNext } : {}) });
       setLastSentAt(Date.now());
       // Back online: send anything saved while there was no connection.
       if (queuedGpsCount()) flushGpsQueue(invoke).catch(e=>setGpsProblem(e.message));
