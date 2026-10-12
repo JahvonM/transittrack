@@ -185,6 +185,7 @@ test('the pickup a passenger taps glows, and tapping another moves it',async({pa
  await expect(dialog.locator('.tt-map-picked')).toContainText('Your pick');
  await page.waitForTimeout(700);
  await page.screenshot({path:'/tmp/tt-pickup-picked.png'});
+ await dialog.locator('.leaflet-container').first().screenshot({path:'/tmp/tt-pickup-map.png'});
  await spots.nth(1).click();
  await expect(spots.nth(1)).toHaveAttribute('aria-pressed','true');
  await expect(spots.nth(2)).toHaveAttribute('aria-pressed','false');
