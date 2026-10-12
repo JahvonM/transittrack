@@ -463,8 +463,14 @@ export default function StaffPortal() {
   }, [mapStops, nextStopIndex, stop]);
   // Stops before the passenger's pickup, excluding their own stop.
   const pickupIndex = mapStops.findIndex(s=>s.name===stop?.name);
-  const stopsAway = !returning && onTrip && busOnMap && !locationIsStale(busOnMap,now)
-    && nextStopIndex!=null && pickupIndex>=nextStopIndex ? pickupIndex-nextStopIndex : null;
+  const liveForCount = !returning && onTrip && busOnMap && !locationIsStale(busOnMap,now);
+  // On a drawn road the stops are other riders' pickups, which a passenger
+  // never sees: count with the bus's next stop number (from the tablet) and
+  // where your stop falls in the bus's list (from the server).
+  const roadStopsAway = liveForCount && stop?.personal && drawnRoad(timelineRoute)
+    && sharedStop?.bus_id === busOnMap.id && Number.isInteger(sharedStop?.bus_order) && Number.isInteger(busOnMap.road_next_stop)
+    && sharedStop.bus_order >= busOnMap.road_next_stop ? sharedStop.bus_order - busOnMap.road_next_stop : null;
+  const stopsAway = liveForCount && nextStopIndex!=null && pickupIndex>=nextStopIndex ? pickupIndex-nextStopIndex : roadStopsAway;
 
 
   // Same rule as the main estimate: no stop times from a position more than
