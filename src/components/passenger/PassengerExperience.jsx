@@ -1,5 +1,5 @@
 import { pickupArrival } from "@/lib/pickupArrival";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Bell, Building2, Bus, ChevronRight, Clock, CreditCard, Home, LifeBuoy, LogOut, Map, MapPin, Megaphone, MessageCircle, QrCode, ShieldCheck, Sparkles, TriangleAlert, Wifi } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -73,6 +73,20 @@ export default function PassengerExperience({view,user,company,workplace,myVehic
   <span><Clock aria-hidden="true"/>{atStop?"At your pickup stop":trustedEta?`Estimated pickup ${arrivalClock(mins,now)}`:"Estimated pickup unavailable"}</span>
   <span><MapPin aria-hidden="true"/>{stopCount==null?(returning?"Heading to your company pickup":"Heading to your pickup"):stopCount===0?(atStop?(arrival?.kind==="arrived"?"Ready for boarding":"At your stop"):"Your stop is next"):`${stopCount} stop${stopCount===1?"":"s"} away`}</span>
  </div>:null;
+
+ // Tell the passenger once when their bus gets close (or reaches the stop
+ // first), with a buzz, so they don't have to keep watching the screen.
+ const nearKind=!returning && live && fresh && ["nearby","at_stop","arrived"].includes(arrival?.kind)?arrival.kind:null;
+ const nearAlerted=useRef("");
+ useEffect(()=>{
+  if(!nearKind || !myVehicle?.id)return;
+  const key=`tt_bus_near_${myVehicle.id}_${new Date().toDateString()}`;
+  if(nearAlerted.current===key)return;
+  nearAlerted.current=key;
+  try { if(localStorage.getItem(key))return; localStorage.setItem(key,"1"); } catch { /* storage blocked: once per visit */ }
+  toast({title:nearKind==="nearby"?"Your bus is close":"Your bus is at your stop",description:nearKind==="nearby"?`${myVehicle.name || "Your bus"} is almost at your pickup. Head there now.`:"Meet the bus at your pickup point."});
+  try { navigator.vibrate?.([250,120,250]); } catch { /* no vibration */ }
+ },[nearKind,myVehicle?.id,myVehicle?.name,toast]);
 
  const reportMissed=async()=>{
   if(reportBusy || !(await confirmAction({title:"Report a missed pickup?",description:"Send your bus team a message asking for help with this journey.",confirmLabel:"Send report"})))return;
