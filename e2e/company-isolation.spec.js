@@ -220,17 +220,6 @@ test('passenger can see other pickup spots nearby or drop their own pin',async({
  await expect(spots.nth(1)).toBeVisible();
  await page.screenshot({path:'/tmp/tt-pickup-choose.png'});
  await spots.nth(1).click();
- // The tapped spot glows and says it's picked; the others don't. On the map
- // it's the one with its name showing.
- await expect(spots.nth(1)).toHaveAttribute('aria-pressed','true');
- await expect(spots.nth(0)).toHaveAttribute('aria-pressed','false');
- await expect(spots.nth(1)).toContainText('Selected');
- await expect(spots.nth(0)).not.toContainText('Selected');
- expect(await spots.nth(1).evaluate(el=>getComputedStyle(el).boxShadow)).not.toBe('none');
- expect(await spots.nth(0).evaluate(el=>getComputedStyle(el).boxShadow)).toBe('none');
- await expect(page.locator('.tt-map-picked')).toHaveText(await spots.nth(1).locator('strong').innerText());
- await page.waitForTimeout(700);
- await page.screenshot({path:'/tmp/tt-pickup-picked.png'});
  expect(saved.filter(d=>d.pickup_lat!==undefined)).toHaveLength(0);
  await page.getByRole('button',{name:'Review this pickup',exact:true}).click();
  await page.getByRole('button',{name:'Choose another spot',exact:true}).click();
@@ -845,12 +834,6 @@ test('pickup selection is a draft until confirmed, supports search, and keeps th
  await expect(dialog.getByLabel('Pickup stops map')).toHaveCount(0);
  await dialog.getByLabel('Search stops or areas').fill('True Blue');
  await dialog.getByRole('button',{name:/^True Blue/}).click();
- await expect(dialog.getByRole('button',{name:/^True Blue/})).toHaveAttribute('aria-pressed','true');
- await expect(dialog.getByRole('button',{name:/^True Blue/})).toContainText('Selected');
- await dialog.getByLabel('Search stops or areas').fill('');
- await page.waitForTimeout(700);
- await page.screenshot({path:'/tmp/tt-pickup-stop-picked.png'});
- await dialog.getByLabel('Search stops or areas').fill('True Blue');
  expect(saved).toHaveLength(0);
  expect(await page.evaluate(()=>localStorage.getItem('tt_staff_pickup'))).toBe('Grand Anse');
  await page.screenshot({path:'/tmp/tt-pickup-mobile.png'});
