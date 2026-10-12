@@ -127,3 +127,10 @@ it("unsubscribing during a slow initial poll leaves no further refresh",async()=
  await vi.advanceTimersByTimeAsync(FIRST_POLL_MS);stop();finish({data:{result:[]}});
  await vi.advanceTimersByTimeAsync(120000);expect(invoke).toHaveBeenCalledTimes(1);
 });
+
+it("a repeated long server cooldown exits within the retry budget without another request",async()=>{
+ vi.useFakeTimers();vi.setSystemTime(new Date("2028-01-01T00:00:00Z"));
+ const error={status:429,response:{headers:{"retry-after":"30"}}};const invoke=vi.fn().mockRejectedValue(error);
+ const pending=withRateLimitRetry(invoke);const check=expect(pending).rejects.toBe(error);
+ await vi.advanceTimersByTimeAsync(30000);await check;expect(invoke).toHaveBeenCalledTimes(2);
+});

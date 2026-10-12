@@ -21,18 +21,27 @@ const retryAfterMs = e => {
  return Number.isFinite(deadline) ? Math.max(0, deadline - Date.now()) : 0;
 };
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
-export async function withRateLimitRetry(fn, { attempts = 6, baseMs = 800 } = {}) {
+export async function withRateLimitRetry(fn, { attempts = 6, baseMs = 800, maxWaitMs = 45000 } = {}) {
+ const deadline=Date.now()+maxWaitMs;
+ let lastError;
+ const waitForCooldown=async()=>{
+  while(Date.now()<cooldownUntil) {
+   const delay=cooldownUntil-Date.now();
+   if(Date.now()+delay>deadline)throw lastError || Object.assign(new Error("Server is busy. Try again shortly."),{status:429});
+   await sleep(delay);
+  }
+ };
  for (let attempt = 0; ; attempt++) {
-  while (Date.now() < cooldownUntil) await sleep(cooldownUntil - Date.now());
+  await waitForCooldown();
   await acquire();
   let error;
   try {
    // A request already in flight may have extended the shared cooldown.
-   while (Date.now() < cooldownUntil) await sleep(cooldownUntil - Date.now());
+   await waitForCooldown();
    cooldownUntil = 0;
    return await fn();
   } catch (e) {
-   error = e;
+   error = e;lastError=e;
    if (statusOf(e) === 429) {
     const delay = retryAfterMs(e) || baseMs * 2 ** attempt + Math.random() * 400;
     cooldownUntil = Math.max(cooldownUntil, Date.now() + Math.ceil(delay));
