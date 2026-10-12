@@ -170,7 +170,8 @@ export default function LocationPinner({ onSaved, bus = null }) {
 
   const busy = locating || searching || finding || saving;
   const map = suggestion && <div className="h-60 overflow-hidden rounded-2xl border">
-    <LiteMap fill vehicles={[]} stops={phase === "review" ? [{ name: suggestion.name, lat: suggestion.lat, lng: suggestion.lng }] : options}
+    <LiteMap fill vehicles={[]} stops={phase === "review" ? [{ name: suggestion.name, lat: suggestion.lat, lng: suggestion.lng, selected: true }] : options.map((o, i) => ({ ...o, selected: i === choice, index: i }))}
+      onStopClick={phase === "review" || busy ? undefined : (s) => { if (Number.isInteger(s.index)) { setChoice(s.index); setNickname(""); } }}
       pins={origin ? [{ ...origin, label: "You", color: "#00d7e8" }] : []}
       lines={phase === "review" ? [{ coords: suggestion.geometry, color: "#00d7e8", width: 4 }] : []} />
   </div>;
@@ -194,11 +195,13 @@ export default function LocationPinner({ onSaved, bus = null }) {
         {!own && map}
         {!own && !!options.length && <section aria-label="Nearby pickup spots" className="space-y-2">
           <h3 className="font-semibold">Nearby pickup spots</h3>
+          {options.length > 1 && <p className="text-sm text-muted-foreground">Tap a spot to pick it. Tap another to change.</p>}
           {options.map((spot,i)=><button key={i} type="button" aria-pressed={i===choice} disabled={busy} onClick={()=>{setChoice(i);setNickname("");}}
-            className={"w-full text-left flex items-center gap-3 rounded-2xl border p-4 " + (i===choice ? "border-primary bg-primary/10" : "bg-card")}>
+            className={"tt-pick-choice w-full text-left flex items-center gap-3 rounded-2xl border p-4 " + (i===choice ? "" : "bg-card")}>
             <MapPin className="w-5 h-5 shrink-0 text-primary" />
             <span className="flex-1 min-w-0"><strong className="block">{spot.name}</strong><span className="block text-sm text-muted-foreground">{Math.max(1,Math.round(spot.walkMin))} min walk · {Math.round(spot.walkM)} m</span>{i===0 && <span className="text-xs text-primary">Suggested · shortest walk</span>}</span>
-            {i===choice && <Check className="w-5 h-5 text-primary shrink-0" />}
+            {i===choice && <span className="tt-pick-tag">Selected</span>}
+            <span className="tt-pick-mark" aria-hidden="true">{i===choice && <Check className="w-4 h-4" strokeWidth={3} />}</span>
           </button>)}
         </section>}
         {own && <section aria-label="Pick your own pickup spot" className="space-y-3">
