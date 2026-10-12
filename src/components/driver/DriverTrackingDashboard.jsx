@@ -23,10 +23,10 @@ import { roadStopsOf, busOnRoad, nextRoadStopIndex } from "@/lib/roadStops";
 // shiftActive: whether a shift is open, only to highlight the next step.
 export default function DriverTrackingDashboard({ session, invoke, onReportIncident, panelTop = null, panelBottom = null, shiftControl = null, shiftActive = false, onOpenPassengers, onOpenMessages, onOpenStops, directionControl }) {
   const { toast } = useToast();
-  const [mapOpen,setMapOpen]=useState(()=>{try{return !!getNavTarget() || sessionStorage.getItem("tt_nav_on")==="1";}catch{return false;}});
+  const [mapOpen,setMapOpen]=useState(()=>{try{return (!!getNavTarget() && getNavTarget().navigate !== false) || sessionStorage.getItem("tt_nav_on")==="1";}catch{return false;}});
   const [mapLoaded,setMapLoaded]=useState(mapOpen);
   const openNavigation=()=>{setMapLoaded(true);setMapOpen(true);};
-  useEffect(()=>onNavTarget(()=>{if(getNavTarget())openNavigation();}),[]);
+  useEffect(()=>onNavTarget(()=>{if(getNavTarget() && getNavTarget().navigate !== false)openNavigation();}),[]);
   useEffect(()=>{if(mapOpen)requestAnimationFrame(()=>window.dispatchEvent(new Event("resize")));},[mapOpen]);
 
   const [staff, setStaff] = useState([]);

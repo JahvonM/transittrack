@@ -40,7 +40,7 @@ export default function DriverPortraitDrive({session,vehicle,nav,sharing,shiftAc
    <section className="dk-simple-next" aria-label="Next stop">
     <small>{atWork && !target?"COMPANY PICKUP":home?"NEXT DROP-OFF":"NEXT PICKUP"}</small>
     <h2>{focus?.name || (stops.length?"Route complete":"No route assigned")}</h2>
-    <p>{sharing && fresh && nav?.remainingS!=null ? Math.max(1,Math.round(nav.remainingS/60))+" min away" : target?"Selected next stop":count!=null?count+" assigned to this stop":focus?"Ready to navigate":"Ask dispatch to assign a route"}</p>
+    <p>{sharing && fresh && nav?.remainingS!=null && nav?.nextStop?.lat===focus?.lat && nav?.nextStop?.lng===focus?.lng ? Math.max(1,Math.round(nav.remainingS/60))+" min away" : target?"Selected next stop":count!=null?count+" assigned to this stop":focus?"Ready to navigate":"Ask dispatch to assign a route"}</p>
     <div className="dk-next-actions"><Button onClick={()=>{if(focus)setNavTarget(focus);onOpenNavigation();}} disabled={!focus}><Navigation/>Navigate</Button><Button variant="outline" onClick={()=>{setPickedStop(null);setChoosing(true);}}><MapPinned/>Change stop</Button></div>
    </section>
    <section className="dk-overview-map" aria-label="Route overview">
@@ -56,7 +56,7 @@ export default function DriverPortraitDrive({session,vehicle,nav,sharing,shiftAc
   </div>
  {choosing && <div className="dk-stop-sheet-backdrop" onClick={()=>setChoosing(false)}><section className="dk-stop-sheet" role="dialog" aria-modal="true" aria-label="Choose next stop" onClick={e=>e.stopPropagation()}>
   <h2>{pickedStop?.name || "Change stop"}</h2>
-  {pickedStop ? <><p>Choose your next stop</p><Button onClick={()=>{setNavTarget(pickedStop);setChoosing(false);}}>Make this my next stop</Button><Button variant="outline" onClick={()=>{setNavTarget(pickedStop);setChoosing(false);onOpenNavigation();}}><Navigation/>Navigate here</Button></> : <div className="dk-stop-options">{stops.length?stops.map((stop,i)=><Button key={stop.key || i} variant="outline" onClick={()=>setPickedStop(stop)}>{stop.name || "Stop "+(i+1)}</Button>):<p>No stops assigned to this bus.</p>}<Button variant="outline" onClick={()=>{setChoosing(false);onOpenStops();}}>All stops & pickup tools</Button></div>}
+  {pickedStop ? <><p>Choose your next stop</p><Button onClick={()=>{setNavTarget(pickedStop,{navigate:false});setChoosing(false);}}>Make this my next stop</Button><Button variant="outline" onClick={()=>{setNavTarget(pickedStop);setChoosing(false);onOpenNavigation();}}><Navigation/>Navigate here</Button></> : <div className="dk-stop-options">{stops.length?stops.map((stop,i)=><Button key={stop.key || i} variant="outline" onClick={()=>setPickedStop(stop)}>{stop.name || "Stop "+(i+1)}</Button>):<p>No stops assigned to this bus.</p>}<Button variant="outline" onClick={()=>{setChoosing(false);onOpenStops();}}>All stops & pickup tools</Button></div>}
   <Button variant="ghost" onClick={()=>setChoosing(false)}>Cancel</Button>
  </section></div>}
  </div>;

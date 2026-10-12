@@ -74,8 +74,9 @@ for(const size of [{width:800,height:1280},{width:600,height:1024},{width:1280,h
 test('navigation is on demand and passenger directions open it',async({page})=>{
  await page.setViewportSize({width:800,height:1280});
  await openDriver(page,{route:{name:'Real Route',stops:[{name:'Real Pickup',lat:12.02,lng:-61.76,order:0},{name:'Real Destination',lat:12.03,lng:-61.75,order:1}]},staff:[{id:'one',full_name:'Real Passenger',home_lat:12.02,home_lng:-61.76}]});
- await expect(page.locator('.leaflet-container')).toHaveCount(0);
- await page.getByRole('button',{name:'Navigation',exact:true}).click();
+ await expect(page.getByLabel('Route overview')).toBeVisible();
+ await expect(page.getByLabel('Driver navigation map')).toBeHidden();
+ await page.getByRole('button',{name:'Navigate',exact:true}).click();
  await expect(page.getByLabel('Driver navigation map')).toBeVisible();
  await page.getByRole('button',{name:'Back to journey'}).click();
  await expect(page.getByLabel('Driver navigation map')).toBeHidden();
@@ -110,4 +111,21 @@ test('More fault report preserves existing handler and fields',async({page})=>{
  await page.getByRole('button',{name:'Submit report'}).click();
  await expect.poll(()=>sent.length).toBe(1);
  expect(sent[0]).toMatchObject({action:'report_incident',type:'breakdown',details:'Real inspection finding',device_id:'driver-test'});
+});
+
+test('change stop and map tap choose the next stop without modifying the route',async({page})=>{
+ await page.setViewportSize({width:800,height:1280});
+ const route={name:'Real Route',stops:[{name:'First Stop',lat:12.02,lng:-61.76,order:0},{name:'Second Stop',lat:12.03,lng:-61.75,order:1}]};
+ await openDriver(page,{route});
+ await page.getByRole('button',{name:'Change stop',exact:true}).click();
+ await page.getByRole('dialog',{name:'Choose next stop'}).getByRole('button',{name:'Second Stop',exact:true}).click();
+ await page.getByRole('button',{name:'Make this my next stop',exact:true}).click();
+ await expect(page.getByRole('region',{name:'Next stop'})).toContainText('Second Stop');
+ await expect(page.getByLabel('Driver navigation map')).toBeHidden();
+ expect(await page.evaluate(()=>JSON.parse(sessionStorage.getItem('tt_nav_target')).navigate)).toBe(false);
+ // Stop circles follow the route polyline in the lightweight map.
+ await page.locator('.dk-overview-map path[fill-opacity="1"]').first().click({force:true});
+ await expect(page.getByRole('dialog',{name:'Choose next stop'})).toContainText('First Stop');
+ await page.getByRole('button',{name:'Cancel',exact:true}).click();
+ await expect(page.getByRole('region',{name:'Next stop'})).toContainText('Second Stop');
 });

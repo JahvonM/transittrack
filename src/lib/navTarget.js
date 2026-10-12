@@ -13,9 +13,9 @@ export function getNavTarget() {
   } catch { return null; }
 }
 
-export function setNavTarget(target) {
+export function setNavTarget(target, { navigate = true } = {}) {
   const t = target && Number.isFinite(Number(target.lat)) && Number.isFinite(Number(target.lng))
-    ? { name: String(target.name || "Pickup").slice(0, 80), lat: Number(target.lat), lng: Number(target.lng) }
+    ? { name: String(target.name || "Pickup").slice(0, 80), lat: Number(target.lat), lng: Number(target.lng), navigate }
     : null;
   try { if (t) sessionStorage.setItem(KEY, JSON.stringify(t)); else sessionStorage.removeItem(KEY); } catch { /* private mode */ }
   window.dispatchEvent(new CustomEvent(EVENT, { detail: t }));

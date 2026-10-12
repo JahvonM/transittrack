@@ -266,7 +266,7 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
 
   const startNavigation = () => { requestedFor.current = null; setNavigating(true); setFollowing(true); };
   // A passenger picked in the list starts directions straight away.
-  useEffect(() => { if (target) { requestedFor.current = null; setNavigating(true); setFollowing(true); } }, [target]);
+  useEffect(() => { if (target && target.navigate !== false) { requestedFor.current = null; setNavigating(true); setFollowing(true); } }, [target]);
   const endNavigation = () => {
     clearNavTarget();
     routeRequest.current += 1; // drop any directions still loading
