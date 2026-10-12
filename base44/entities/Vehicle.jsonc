@@ -60,6 +60,10 @@
       "description": "Name of the route stop the vehicle is currently within arrival radius of, if any \u2014 used to detect arrival/departure transitions for place alerts without re-alerting every GPS tick.",
       "type": "string"
     },
+    "road_next_stop": {
+      "description": "On a route with a drawn road: the position (0 = first) of the next stop the bus reaches, in the bus's own stop order. Sent by the bus tablet. Passengers count stops away from it; it never holds anyone's pickup location. Cleared when a trip starts.",
+      "type": "number"
+    },
     "plate_number": {
       "type": "string"
     },
