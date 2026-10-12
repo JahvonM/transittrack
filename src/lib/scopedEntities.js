@@ -150,9 +150,8 @@ export function scopedEntities(client) {
        if(Array.isArray(result.lists[entity])) apply(live,result.lists[entity]);
        else failed(live,{status:result.errors?.[entity]?.status||500});
       }
-     } else if(error && statusOf(error)===401) {
-      for(const [,live] of take) failed(live,error);
      } else if(error && ![400,403,404].includes(statusOf(error))) {
+      // Busy (429), signed out (401) or unreachable: each list backs off or stops.
       for(const [,live] of take) failed(live,error);
      } else batch=false; // a server without LiveLists: refresh each list on its own
     }
