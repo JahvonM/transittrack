@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { MapContainer, TileLayer, Marker, Polyline, CircleMarker, Popup, Tooltip, useMap, useMapEvents } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Polyline, CircleMarker, Popup, useMap, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { LocateFixed } from "lucide-react";
@@ -92,6 +92,18 @@ function FocusOn({ target, nonce }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [target?.id, nonce]);
   return null;
+}
+
+// The name over a picked stop. A marker rather than a Leaflet tooltip, which
+// can leave an empty bubble behind when the pick moves to another stop.
+const pickedIcons = new Map();
+function pickedLabelIcon(text) {
+  const label = String(text).slice(0, 60);
+  if (!pickedIcons.has(label)) {
+    if (pickedIcons.size > 50) pickedIcons.clear();
+    pickedIcons.set(label, L.divIcon({ className: "tt-map-picked-anchor", iconSize: [0, 0], html: `<div class="tt-map-picked">${label.replace(/[<>&"]/g, "")}</div>` }));
+  }
+  return pickedIcons.get(label);
 }
 
 export default function LiteMap({
@@ -192,8 +204,8 @@ export default function LiteMap({
           <React.Fragment key={`picked-${i}`}>
             <CircleMarker center={[s.lat, s.lng]} radius={26} interactive={false} pathOptions={{ stroke: false, fillColor: s.color || accent, fillOpacity: 0.28 }} />
             <CircleMarker eventHandlers={onStopClick ? { click: () => onStopClick(s) } : undefined} center={[s.lat, s.lng]} radius={15} pathOptions={{ color: "#ffffff", weight: 4, fillColor: s.color || accent, fillOpacity: 1 }}>
-              {(s.pickLabel || s.name) && <Tooltip permanent direction="top" offset={[0, -16]} className="tt-map-picked">{s.pickLabel || s.name}</Tooltip>}
             </CircleMarker>
+            {(s.pickLabel || s.name) && <Marker position={[s.lat, s.lng]} icon={pickedLabelIcon(s.pickLabel || s.name)} interactive={false} keyboard={false} zIndexOffset={1000} />}
           </React.Fragment>
         ))}
         {liveVehicles.map((v) => (
