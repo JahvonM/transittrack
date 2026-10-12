@@ -1,6 +1,9 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { scopedEntities, withRateLimitRetry, pollDelay, FAST_POLL_MS, ACTIVE_POLL_MS, IDLE_POLL_MS, FIRST_POLL_MS } from "@/lib/scopedEntities";
 
+// The server's one-call refresh of every watched list.
+const liveLists = (lists, errors = {}) => ({ data: { result: { lists, errors } } });
+
 const tooMany = () => Object.assign(new Error("Too many requests"), { status: 429 });
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
 
@@ -58,7 +61,7 @@ describe("scoped entity calls under Base44 rate limits", () => {
   it("screens watching the same list share one poll", async () => {
     vi.useFakeTimers();
     let version = 1;
-    const client = { functions: { invoke: vi.fn(async () => ({ data: { result: [{ id: "bus", v: version }] } })) } };
+    const client = { functions: { invoke: vi.fn(async () => liveLists({ Vehicle: [{ id: "bus", v: version }] })) } };
     const entities = scopedEntities(client);
     const a = vi.fn(), b = vi.fn();
     const stopA = entities.Vehicle.subscribe(a);
@@ -113,7 +116,7 @@ it("releases a failed shared read so a manual retry can fetch again", async () =
 
 it("background rate limits back off without delaying a foreground page read",async()=>{
  vi.useFakeTimers();vi.setSystemTime(new Date("2027-01-01T00:00:00Z"));
- const invoke=vi.fn(async(_,body)=>{if(body.entity==="Vehicle")throw {status:429,response:{headers:{"retry-after":"60"}}};return {data:{result:[]}};});
+ const invoke=vi.fn(async(_,body)=>{if(body.entity==="LiveLists")throw {status:429,response:{headers:{"retry-after":"60"}}};return {data:{result:[]}};});
  const entities=scopedEntities({functions:{invoke}});const stop=entities.Vehicle.subscribe(()=>{});
  await vi.advanceTimersByTimeAsync(FIRST_POLL_MS);expect(invoke).toHaveBeenCalledTimes(1);
  await expect(entities.User.list()).resolves.toEqual([]);
