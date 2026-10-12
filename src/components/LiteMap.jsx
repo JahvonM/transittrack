@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { MapContainer, TileLayer, Marker, Polyline, CircleMarker, Popup, useMap, useMapEvents } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Polyline, CircleMarker, Popup, Tooltip, useMap, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { LocateFixed } from "lucide-react";
@@ -182,10 +182,19 @@ export default function LiteMap({
             {p.label && <Popup>{p.label}</Popup>}
           </CircleMarker>
         ))}
-        {stopPts.map((s, i) => (
+        {stopPts.map((s, i) => [s, i]).filter(([s]) => !s.selected).map(([s, i]) => (
           <CircleMarker eventHandlers={onStopClick ? { click: () => onStopClick(s) } : undefined} key={`stop-${i}`} center={[s.lat, s.lng]} radius={onStopClick ? 13 : 8} pathOptions={{ color: "#0B0B0D", weight: 2.5, fillColor: s.color || accent, fillOpacity: 1 }}>
             {s.name && !onStopClick && <Popup>{s.name}</Popup>}
           </CircleMarker>
+        ))}
+        {/* The stop someone just picked: on top, bigger, with a glow and its name. */}
+        {stopPts.map((s, i) => [s, i]).filter(([s]) => s.selected).map(([s, i]) => (
+          <React.Fragment key={`picked-${i}`}>
+            <CircleMarker center={[s.lat, s.lng]} radius={26} interactive={false} pathOptions={{ stroke: false, fillColor: s.color || accent, fillOpacity: 0.28 }} />
+            <CircleMarker eventHandlers={onStopClick ? { click: () => onStopClick(s) } : undefined} center={[s.lat, s.lng]} radius={15} pathOptions={{ color: "#ffffff", weight: 4, fillColor: s.color || accent, fillOpacity: 1 }}>
+              {s.name && <Tooltip permanent direction="top" offset={[0, -16]} className="tt-map-picked">{s.name}</Tooltip>}
+            </CircleMarker>
+          </React.Fragment>
         ))}
         {liveVehicles.map((v) => (
           <Marker
