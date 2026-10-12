@@ -179,8 +179,8 @@ test('the pickup a passenger taps glows, and tapping another moves it',async({pa
  await expect(spots.nth(0)).toHaveAttribute('aria-pressed','false');
  await expect(spots.nth(2)).toContainText('Selected');
  await expect(dialog.getByText('Selected',{exact:true})).toHaveCount(1);
- expect(await glows(spots.nth(2))).toBe(true);
- expect(await glows(spots.nth(0))).toBe(false);
+ await expect.poll(()=>glows(spots.nth(2))).toBe(true);
+ await expect.poll(()=>glows(spots.nth(0))).toBe(false);
  await expect(dialog.locator('.tt-map-picked')).toHaveCount(1);
  await expect(dialog.locator('.tt-map-picked')).toContainText('Your pick');
  await page.waitForTimeout(700);
@@ -188,13 +188,13 @@ test('the pickup a passenger taps glows, and tapping another moves it',async({pa
  await spots.nth(1).click();
  await expect(spots.nth(1)).toHaveAttribute('aria-pressed','true');
  await expect(spots.nth(2)).toHaveAttribute('aria-pressed','false');
- expect(await glows(spots.nth(2))).toBe(false);
+ await expect.poll(()=>glows(spots.nth(2))).toBe(false);
  // Company stops: the same.
  await dialog.getByRole('button',{name:'Choose a company stop instead'}).click();
  await dialog.getByRole('button',{name:/^True Blue/}).click();
  await expect(dialog.getByRole('button',{name:/^True Blue/})).toHaveAttribute('aria-pressed','true');
  await expect(dialog.getByRole('button',{name:/^Grand Anse/})).toHaveAttribute('aria-pressed','false');
- expect(await glows(dialog.getByRole('button',{name:/^True Blue/}))).toBe(true);
+ await expect.poll(()=>glows(dialog.getByRole('button',{name:/^True Blue/}))).toBe(true);
  await dialog.getByRole('button',{name:'View stops on map',exact:true}).click();
  await expect(dialog.locator('.tt-map-picked')).toHaveText('True Blue');
  await dialog.getByRole('button',{name:/^Morne Rouge/}).click();
