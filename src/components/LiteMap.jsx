@@ -100,6 +100,18 @@ function FocusOn({ target, nonce }) {
   return null;
 }
 
+// A numbered stop (s.number), so a list beside the map can say "Spot 3".
+const numberIcons = new Map();
+function numberIcon(n, picked) {
+  const num = Math.max(0, Math.min(99, Math.round(Number(n)) || 0));
+  const key = num + (picked ? "p" : "");
+  if (!numberIcons.has(key)) {
+    numberIcons.set(key, L.divIcon({ className: "tt-map-num-anchor", iconSize: [0, 0], html: `<div class="tt-map-num${picked ? " picked" : ""}">${num}</div>` }));
+  }
+  return numberIcons.get(key);
+}
+const numbered = (s) => s.number != null && Number.isFinite(Number(s.number));
+
 // The name over a picked stop. A marker rather than a Leaflet tooltip, which
 // can leave an empty bubble behind when the pick moves to another stop.
 const pickedIcons = new Map();
@@ -204,7 +216,9 @@ export default function LiteMap({
             {p.label && <Popup>{p.label}</Popup>}
           </CircleMarker>
         ))}
-        {stopPts.map((s, i) => [s, i]).filter(([s]) => !s.selected).map(([s, i]) => (
+        {stopPts.map((s, i) => [s, i]).filter(([s]) => !s.selected).map(([s, i]) => numbered(s) ? (
+          <Marker key={`stop-num-${i}`} position={[s.lat, s.lng]} icon={numberIcon(s.number, false)} title={`Spot ${s.number}`} eventHandlers={onStopClick ? { click: () => onStopClick(s) } : undefined} interactive={!!onStopClick} />
+        ) : (
           <CircleMarker eventHandlers={onStopClick ? { click: () => onStopClick(s) } : undefined} key={`stop-${i}`} center={[s.lat, s.lng]} radius={onStopClick ? 13 : 8} pathOptions={{ color: "#0B0B0D", weight: 2.5, fillColor: s.color || accent, fillOpacity: 1 }}>
             {s.name && !onStopClick && <Popup>{s.name}</Popup>}
           </CircleMarker>
@@ -213,8 +227,11 @@ export default function LiteMap({
         {stopPts.map((s, i) => [s, i]).filter(([s]) => s.selected).map(([s, i]) => (
           <React.Fragment key={`picked-${i}`}>
             <CircleMarker center={[s.lat, s.lng]} radius={26} interactive={false} pathOptions={{ stroke: false, fillColor: s.color || accent, fillOpacity: 0.28 }} />
-            <CircleMarker eventHandlers={onStopClick ? { click: () => onStopClick(s) } : undefined} center={[s.lat, s.lng]} radius={15} pathOptions={{ color: "#ffffff", weight: 4, fillColor: s.color || accent, fillOpacity: 1 }}>
-            </CircleMarker>
+            {numbered(s) ? (
+              <Marker position={[s.lat, s.lng]} icon={numberIcon(s.number, true)} title={`Spot ${s.number}`} eventHandlers={onStopClick ? { click: () => onStopClick(s) } : undefined} interactive={!!onStopClick} zIndexOffset={900} />
+            ) : (
+              <CircleMarker eventHandlers={onStopClick ? { click: () => onStopClick(s) } : undefined} center={[s.lat, s.lng]} radius={15} pathOptions={{ color: "#ffffff", weight: 4, fillColor: s.color || accent, fillOpacity: 1 }} />
+            )}
             {(s.pickLabel || s.name) && <Marker position={[s.lat, s.lng]} icon={pickedLabelIcon(s.pickLabel || s.name)} interactive={false} keyboard={false} zIndexOffset={1000} />}
           </React.Fragment>
         ))}
