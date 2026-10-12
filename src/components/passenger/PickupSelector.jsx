@@ -40,19 +40,20 @@ export default function PickupSelector({ options=[], routes=[], value, onChoose,
     <Search className="w-5 h-5 text-muted-foreground" aria-hidden="true" /><span className="sr-only">Search stops or areas</span>
     <input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search stops or areas" className="w-full min-w-0 bg-transparent outline-none" />
    </label>
-   <div><h3 className="mb-2 text-sm text-muted-foreground">Available stops</h3>
+   <div><h3 className="mb-2 text-sm text-muted-foreground">Available stops{filtered.length > 1 ? " · tap one to pick it, tap another to change" : ""}</h3>
     <ul className="space-y-2" aria-label="Available pickup stops">{filtered.map(s=><li key={s.name}>
-     <button type="button" disabled={saving} aria-pressed={draft===s.name} onClick={()=>{setDraft(s.name);setSaved(false);setError("");}} className="tt-pickup-stop">
+     <button type="button" disabled={saving} aria-pressed={draft===s.name} onClick={()=>{setDraft(s.name);setSaved(false);setError("");}} className="tt-pickup-stop tt-pick-choice">
       <span className="tt-pickup-pin"><MapPin className="w-5 h-5" aria-hidden="true" /></span>
       <span className="min-w-0 flex-1"><strong className="block">{s.name}</strong>{s.routeName && <span className="block text-sm text-muted-foreground">{s.routeName}</span>}{s.personal && <span className="block text-xs text-muted-foreground">Your saved roadside pickup</span>}{s.km!=null && <span className="block text-xs text-muted-foreground">{distance(s.km)} away · straight-line distance</span>}</span>
-      {draft===s.name ? <Check className="w-5 h-5 shrink-0 text-primary" aria-label="Selected" /> : <span className="w-5 h-5 rounded-full border shrink-0" aria-hidden="true" />}
+      {draft===s.name && <span className="tt-pick-tag">Selected</span>}
+      <span className="tt-pick-mark" aria-hidden="true">{draft===s.name && <Check className="w-4 h-4" strokeWidth={3} />}</span>
      </button>
     </li>)}</ul>
     {!filtered.length && <p className="rounded-xl border p-4 text-sm text-muted-foreground">{stops.length ? "No stops match that search. Try another stop or route name." : "Your company hasn't added stops yet. You can still find a roadside pickup."}</p>}
    </div>
    {!!stops.filter(s=>Number.isFinite(s.lat)&&Number.isFinite(s.lng)).length && <>
     <Button type="button" variant="outline" className="w-full h-12" onClick={()=>setMapOpen(v=>!v)} aria-expanded={mapOpen}><Map className="w-5 h-5" />{mapOpen ? "Hide stops map" : "View stops on map"}</Button>
-    {mapOpen && <div className="h-64 overflow-hidden rounded-xl border" aria-label="Pickup stops map"><Suspense fallback={<p className="p-4 text-sm">Opening stops map…</p>}><StopsMap fill vehicles={[]} stops={stops} userLocation={userLoc} /></Suspense></div>}
+    {mapOpen && <div className="h-64 overflow-hidden rounded-xl border" aria-label="Pickup stops map"><Suspense fallback={<p className="p-4 text-sm">Opening stops map…</p>}><StopsMap fill vehicles={[]} stops={stops.map(s=>({...s,selected:s.name===draft}))} userLocation={userLoc} onStopClick={saving ? undefined : s=>{setDraft(s.name);setSaved(false);setError("");}} /></Suspense></div>}
    </>}
    <div className="tt-pickup-confirm rounded-xl border p-4 space-y-3">
     <div><p className="text-xs uppercase tracking-wider text-muted-foreground">Your pickup</p><p className="text-lg font-semibold">{draft || "Select a stop above"}</p></div>

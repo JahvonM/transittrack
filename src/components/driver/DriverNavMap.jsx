@@ -17,7 +17,7 @@ import useSmoothPosition from "@/hooks/useSmoothPosition";
 import { useBearing } from "@/components/MapBusPin";
 import TripProgress, { routeProgress } from "@/components/TripProgress";
 import { busOnRoad, nextRoadStopIndex, roadStopsOf, roadVia } from "@/lib/roadStops";
-import { clearNavTarget, getNavTarget, onNavTarget } from "@/lib/navTarget";
+import { clearNavTarget, getNavTarget, onNavTarget, setNavTarget } from "@/lib/navTarget";
 import { LaneArrow, ManeuverArrow, NavPuck } from "@/components/driver/NavIcons";
 import { Bus, Compass, LocateFixed, Navigation, Route as RouteIcon, Satellite, Volume2, VolumeX, X } from "lucide-react";
 
@@ -462,8 +462,9 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
                 current_lat: smooth.lat, current_lng: smooth.lng,
                 marker_color: ROUTE_COLOR.normal, marker_size: 40, marker_heading: heading ?? null,
               }] : []}
-              stops={nextStop ? [{ ...nextStop, color: accent }] : []}
-              pins={navigating ? pins : [...orderedStops.filter((st) => st !== nextStop).map((st) => ({ lat: st.lat, lng: st.lng, label: st.name, color: "#64748b" })), ...pins]}
+              stops={orderedStops}
+              onStopClick={setPickedStop}
+              pins={pins}
               lines={[...alternateGeo.features.map((f) => ({ coords: f.geometry.coordinates, color: "#94a3b8", width: 5, opacity: 0.7 })), ...ahead.map((r) => ({ coords: r.coords, color: ROUTE_COLOR[r.level], width: 7, opacity: 0.95 }))]}
             />
           </Suspense>
@@ -503,12 +504,12 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
                 <div className="w-3.5 h-3.5 rounded-full border-2 border-white shadow" style={{ backgroundColor: p.color || "#34d399" }} title={p.label} />
               </Marker>
             ))}
-            {!navigating && orderedStops.filter((st) => st !== nextStop && st.lat != null && st.lng != null).map((st) => (
+            {orderedStops.filter((st) => st !== nextStop && st.lat != null && st.lng != null).map((st) => (
               <Marker key={`stop-${st.lat},${st.lng}`} longitude={st.lng} latitude={st.lat} anchor="center">
                 <button
                   type="button"
                   onClick={() => setPickedStop((cur) => (cur === st ? null : st))}
-                  className={`min-w-6 h-6 px-1 rounded-full bg-card border-2 shadow grid place-items-center text-[11px] font-bold tabular-nums ${pickedStop === st ? "border-primary ring-2 ring-primary/40" : "border-foreground/70"}`}
+                  className={`min-w-11 h-11 px-2 rounded-full bg-card border-2 shadow grid place-items-center text-[11px] font-bold tabular-nums ${pickedStop === st ? "border-primary ring-2 ring-primary/40" : "border-foreground/70"}`}
                   aria-label={`Stop ${orderedStops.indexOf(st) + 1}, ${st.name || ""}. Show its name and how far away it is`}
                   title={st.name}>
                   {orderedStops.indexOf(st) + 1}
@@ -517,9 +518,9 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
             ))}
             {nextStop && (
               <Marker longitude={nextStop.lng} latitude={nextStop.lat} anchor="bottom">
-                <div className="tt-map-stop-mine" title={nextStop.name} role="img" aria-label={`Next stop, ${nextStop.name || ""}`}>
+                <button type="button" onClick={()=>setPickedStop(nextStop)} className="tt-map-stop-mine" title={nextStop.name} aria-label={`Next stop, ${nextStop.name || ""}`}>
                   <span className="tt-map-stop-mine__pin" />
-                </div>
+                </button>
               </Marker>
             )}
             {smooth && (
@@ -531,7 +532,7 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
         )}
 
         {/* Tapped stop: what it is and how far away it is. */}
-        {!navigating && pickedStop && (
+        {pickedStop && (
           <div className="absolute left-1/2 top-3 z-20 w-[min(22rem,calc(100%-1.5rem))] -translate-x-1/2">
             <div className="flex items-start gap-3 rounded-2xl border border-border bg-card/95 p-3 shadow-xl backdrop-blur" role="dialog" aria-label={`Stop details: ${pickedStop.name || ""}`}>
               <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-secondary font-display text-body-sm font-bold tabular-nums" aria-hidden="true">
@@ -542,6 +543,7 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
                 <p className="text-body-sm text-muted-foreground">
                   {pickedStopDistance == null ? "Distance unknown — waiting for a GPS fix" : `${formatDistance(pickedStopDistance)} away`}
                 </p>
+                <div className="mt-3 grid gap-2"><button type="button" className="min-h-12 rounded-xl bg-primary px-3 font-semibold text-primary-foreground" onClick={()=>{setNavTarget(pickedStop,{navigate:false});setPickedStop(null);}}>Make this my next stop</button><button type="button" className="min-h-12 rounded-xl border border-border px-3 font-semibold" onClick={()=>{setNavTarget(pickedStop);setPickedStop(null);}}>Navigate here</button></div>
               </div>
               <button type="button" onClick={() => setPickedStop(null)} className="-m-1 grid h-9 w-9 shrink-0 place-items-center rounded-full hover:bg-accent" aria-label="Close stop details">
                 <X className="h-4 w-4" aria-hidden="true" />
