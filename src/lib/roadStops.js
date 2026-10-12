@@ -16,9 +16,9 @@ function metresBetween(a, b) {
 export const ROAD_EDIT_M = 50;
 // The bus counts as on the road this close to it (else stop order falls back
 // to the nearest stop, as on routes without a drawn road).
-const ON_ROAD_M = 200;
+export const ON_ROAD_M = 200;
 // A stop this far behind the bus along the road has been passed.
-const PASSED_M = 30;
+export const PASSED_M = 30;
 
 // The drawn road's stops from the tablet session (sent once unlocked), else null.
 export function roadStopsOf(session) {
