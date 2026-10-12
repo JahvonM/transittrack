@@ -286,13 +286,60 @@ async function replayCreate(db,ctx,name,data) {
  if(prior) { if(prior.request_hash!==hash) fail(409,'Request ID reused with different data'); return prior; }
  return db[name].create({...data,request_hash:hash,request_actor_id:ctx.user.id});
 }
+// A page of trips or messages usually covers several buses. Reading those
+// buses one by one cost one database call each, on every refresh of every
+// screen; one batched read fills the same request-local cache instead.
+async function prefetchParents(db, rows, parents) {
+ const ids = { Vehicle: new Set(), Driver: new Set() };
+ for (const row of rows) {
+  if (row?.vehicle_id) ids.Vehicle.add(row.vehicle_id);
+  else if (row?.driver_id) ids.Driver.add(row.driver_id);
+ }
+ for (const [entity, wanted] of Object.entries(ids)) {
+  const missing = [...wanted].filter(id => typeof id === 'string' && !parents.has(entity + ':' + id));
+  if (missing.length < 2) continue;
+  for (let i = 0; i < missing.length; i += 100) {
+   const chunk = missing.slice(i, i + 100);
+   const found = await retry429(() => db[entity].filter({ id: { $in: chunk } }, '-created_date', chunk.length, 0));
+   const byId = new Map(found.map(row => [row.id, row]));
+   for (const id of chunk) parents.set(entity + ':' + id, Promise.resolve(byId.get(id) || null));
+  }
+ }
+}
+
+async function listRows(db, ctx, name, operation, body) {
+ if(!Object.hasOwn(ENTITY_FIELDS,name)) fail(403,'Entity access denied');
+ if(!ctx.user && name!=='Advertisement') fail(401,'Sign in required');
+ const query=cleanQuery(name,operation==='filter' ? body.query||{} : {},ctx.user?.role);
+ if(name==='Company' && ctx.user && !['admin','mechanic'].includes(ctx.user.role)) query.id={$in:ctx.companies};
+ else if(COMPANY_ENTITIES.has(name) && ctx.user && !['admin','mechanic'].includes(ctx.user.role)) query.company_id={$in:ctx.companies};
+ else if(name==='User' && ctx.user?.role!=='admin') query.id=ctx.user.id;
+ else if(name==='PushToken' && ctx.user?.role!=='admin') query.email=ctx.user.email;
+ if(name==='LostItemReport' && ctx.user?.role!=='admin' && ctx.user?.role!=='company') { delete query.created_by_id; query.reporter_id=ctx.user.id; }
+ const limit=Math.min(Math.max(Number(body.limit)||1000,1),5000), skip=Math.max(Number(body.skip)||0,0);
+ if(body.sort && !/^-?[A-Za-z_]+$/.test(body.sort)) fail(400,'Invalid sort');
+ const rows=await db[name].filter(query,body.sort||'-created_date',limit,skip);
+ if (name === 'User' && ctx.user?.role === 'admin' && rows.length) {
+  const membershipRows = await db.CompanyMembership.filter(
+   {user_id:{$in:rows.map(row=>row.id)},active:true}, '-updated_date', 5000);
+  // A capped batch may be incomplete: fall back to the original per-user
+  // query at the cap. Below it, keep the same sorted 100-row user limit.
+  if (membershipRows.length < 5000) ctx.membershipRows = new Map(
+   rows.map(row=>[row.id,membershipRows.filter(m=>m.user_id===row.id).slice(0,100)]));
+ }
+ if (ctx.user && !['admin','mechanic'].includes(ctx.user.role)) await prefetchParents(db, rows, ctx.parents);
+ const result=[];
+ for(const row of rows) if(await visible(db,ctx,name,row)) result.push(await projectRecord(db,ctx,name,row));
+ return result;
+}
+
 export default async function(req) {
  let failureStage='request';
  try {
   const base44=createClientFromRequest(req), db=base44.asServiceRole.entities;
   const body=await req.json(), name=body.entity, operation=body.operation;
   // Refuse unknown or protected entities before looking anything up.
-  if(!['Bootstrap','AdminBootstrap'].includes(name) && !Object.hasOwn(ENTITY_FIELDS,name)) fail(403,'Entity access denied');
+  if(!['Bootstrap','AdminBootstrap','LiveLists'].includes(name) && !Object.hasOwn(ENTITY_FIELDS,name)) fail(403,'Entity access denied');
   failureStage='authentication';
   const ctx=await context(base44);
   failureStage='entity_operation';
@@ -357,11 +404,35 @@ export default async function(req) {
     retry429(()=>db.Route.filter({company_id:companyId},'name',200)),
     retry429(()=>db.Trip.filter({company_id:companyId,status:{$nin:['completed','cancelled']}},'-scheduled_time',500)),
    ]);
+   // The trips' buses were just read above: reuse them instead of one read per trip's bus.
+   for(const row of vehicleRows) ctx.parents.set('Vehicle:'+row.id,Promise.resolve(row));
    const projected=async(entity,rows)=>{const out=[];for(const row of rows) if(await visible(db,ctx,entity,row)) out.push(await projectRecord(db,ctx,entity,row));return out;};
    const [workplaces,vehicles,routes,trips]=await Promise.all([
     projected('Workplace',workplaceRows),projected('Vehicle',vehicleRows),projected('Route',routeRows),projected('Trip',tripRows),
    ]);
    return Response.json({result:{workplace:workplaces.find(w=>w.lat!=null&&w.lng!=null)||workplaces[0]||null,vehicles,routes,trips}});
+  }
+  // Live lists: every list a device is watching, refreshed in one call. Each
+  // list goes through exactly the same checks as its own call; only the
+  // sign-in and membership lookups are shared, and they were most of the
+  // database calls behind every refresh.
+  if(name==='LiveLists') {
+   if(operation!=='list') fail(400,'Read-only operation required');
+   if(!ctx.user) fail(401,'Sign in required');
+   const names=body.entities;
+   if(!Array.isArray(names) || !names.length || names.length>16 ||
+      names.some(n=>typeof n!=='string' || !Object.hasOwn(ENTITY_FIELDS,n))) fail(400,'Invalid lists');
+   const lists={},errors={};
+   for(const entity of new Set(names)) {
+    try { lists[entity]=await listRows(db,ctx,entity,'list',{limit:body.limit}); }
+    catch(error) {
+     const status=Number(error?.status ?? error?.response?.status ?? error?.originalError?.response?.status) || 500;
+     // A busy database: the whole refresh backs off together.
+     if(status===429) throw error;
+     errors[entity]={status,error:status<500 && error?.message ? error.message : 'Could not load '+entity};
+    }
+   }
+   return Response.json({result:{lists,errors}});
   }
   if(!Object.hasOwn(ENTITY_FIELDS,name)) fail(403,'Entity access denied');
   if(!ctx.user && !(name==='Advertisement' && ['list','filter','get'].includes(operation))) fail(401,'Sign in required');
@@ -370,28 +441,7 @@ export default async function(req) {
    if(!row || !(await visible(db,ctx,name,row))) fail(404,'Record not found');
    return Response.json({result:await projectRecord(db,ctx,name,row)});
   }
-  if(['list','filter'].includes(operation)) {
-   const query=cleanQuery(name,operation==='filter' ? body.query||{} : {},ctx.user?.role);
-   if(name==='Company' && ctx.user && !['admin','mechanic'].includes(ctx.user.role)) query.id={$in:ctx.companies};
-   else if(COMPANY_ENTITIES.has(name) && ctx.user && !['admin','mechanic'].includes(ctx.user.role)) query.company_id={$in:ctx.companies};
-   else if(name==='User' && ctx.user?.role!=='admin') query.id=ctx.user.id;
-   else if(name==='PushToken' && ctx.user?.role!=='admin') query.email=ctx.user.email;
-   if(name==='LostItemReport' && ctx.user?.role!=='admin' && ctx.user?.role!=='company') { delete query.created_by_id; query.reporter_id=ctx.user.id; }
-   const limit=Math.min(Math.max(Number(body.limit)||1000,1),5000), skip=Math.max(Number(body.skip)||0,0);
-   if(body.sort && !/^-?[A-Za-z_]+$/.test(body.sort)) fail(400,'Invalid sort');
-   const rows=await db[name].filter(query,body.sort||'-created_date',limit,skip);
-   if (name === 'User' && ctx.user?.role === 'admin' && rows.length) {
-    const membershipRows = await db.CompanyMembership.filter(
-     {user_id:{$in:rows.map(row=>row.id)},active:true}, '-updated_date', 5000);
-    // A capped batch may be incomplete: fall back to the original per-user
-    // query at the cap. Below it, keep the same sorted 100-row user limit.
-    if (membershipRows.length < 5000) ctx.membershipRows = new Map(
-     rows.map(row=>[row.id,membershipRows.filter(m=>m.user_id===row.id).slice(0,100)]));
-   }
-   const result=[];
-   for(const row of rows) if(await visible(db,ctx,name,row)) result.push(await projectRecord(db,ctx,name,row));
-   return Response.json({result});
-  }
+  if(['list','filter'].includes(operation)) return Response.json({result:await listRows(db,ctx,name,operation,body)});
   if(!['create','update','delete','bulkCreate'].includes(operation)) fail(400,'Unsupported operation');
   if(!ctx.user) fail(401,'Sign in required');
   if(name==='User' && ['create','delete','bulkCreate'].includes(operation) && ctx.user.role!=='admin') fail(403,'Admins only');
