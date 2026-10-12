@@ -362,8 +362,13 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
     });
   }, [smooth?.lat, smooth?.lng, following, northUp, navigating]);
 
-  const stopFollowing = () => setFollowing(false);
-  const recenter = () => setFollowing(true);
+  const followTimer=useRef(null);
+  useEffect(()=>()=>clearTimeout(followTimer.current),[]);
+  const stopFollowing = () => {
+    setFollowing(false);clearTimeout(followTimer.current);
+    followTimer.current=setTimeout(()=>setFollowing(true),5000);
+  };
+  const recenter = () => {clearTimeout(followTimer.current);setFollowing(true);};
   const showOverview = () => {
     const map = mapRef.current;
     const coords = navigating
@@ -479,6 +484,7 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
             onLoad={(e) => { hidePoiLayers(e.target); setMapReady(true); }}
             onError={(e) => { if (/webgl/i.test(e?.error?.message || "")) { markFullMapFailed(); setBasicMap(true); } }}
             onDragStart={stopFollowing}
+            onDrag={stopFollowing}
             onRotateStart={(e) => { if (e.originalEvent) stopFollowing(); }}
             onPitchStart={(e) => { if (e.originalEvent) stopFollowing(); }}
           >

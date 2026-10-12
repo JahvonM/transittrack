@@ -14,7 +14,7 @@ import { fetchDrivingRoute } from "@/lib/geo";
 // plus a few the driver's Navigate screen uses.
 
 const tileUrl = (isDark) =>
-  `https://api.mapbox.com/styles/v1/mapbox/${isDark ? "dark-v11" : "streets-v12"}/tiles/512/{z}/{x}/{y}@2x?access_token=${MAPBOX_TOKEN}`;
+  `https://api.mapbox.com/styles/v1/mapbox/${isDark ? "dark-v11" : "streets-v12"}/tiles/512/{z}/{x}/{y}?access_token=${MAPBOX_TOKEN}`;
 
 function busIcon(color, { size = 34, heading = null, label = "", imageUrl = "" } = {}) {
   const arrow = heading == null ? "" :
@@ -45,10 +45,16 @@ function FitOnce({ points, skip }) {
 }
 
 // Keeps the camera on the user while following; a drag turns following off.
-function Follow({ target, following, onDragStart }) {
+function Follow({ target, following, onDragStart, autoRecenterMs = 0, onRecenter }) {
   const map = useMap();
   const first = useRef(true);
-  useMapEvents({ dragstart: () => onDragStart?.() });
+  const timer=useRef(null);
+  const pause=()=>{
+    onDragStart?.();clearTimeout(timer.current);
+    if(autoRecenterMs>0)timer.current=setTimeout(()=>onRecenter?.(),autoRecenterMs);
+  };
+  useMapEvents({ dragstart: pause, drag: pause });
+  useEffect(()=>()=>clearTimeout(timer.current),[]);
   useEffect(() => {
     if (!following || !target) return;
     if (first.current) { first.current = false; map.setView([target.lat, target.lng], Math.max(map.getZoom(), 15)); }
@@ -123,6 +129,7 @@ export default function LiteMap({
   showRecenter = true,
   onDragStart,
   onStopClick,
+  autoRecenterMs = 0,
   fill = false, // fill the parent box instead of using `height`
   focusVehicleId = null,
   focusKey = 0,
@@ -130,6 +137,8 @@ export default function LiteMap({
   const isDark = useIsDark();
   const accent = mapAccentFor(isDark);
   const [following, setFollowing] = useState(followUser);
+  const [tileProblem,setTileProblem]=useState(false);
+  const [tileVersion,setTileVersion]=useState(0);
   useEffect(() => { setFollowing(followUser); }, [followUser]);
 
   const liveVehicles = vehicles.filter((v) => v.current_lat != null && v.current_lng != null);
@@ -161,6 +170,7 @@ export default function LiteMap({
 
   return (
     <div className={`relative isolate ${className}`} style={fill ? { height: "100%" } : { height }}>
+      {tileProblem && <div role="status" className="absolute left-3 right-3 top-3 z-[600] rounded-xl border border-border bg-background/95 p-3 text-sm">Some map tiles couldn’t load. Check the connection.<button type="button" className="ml-3 min-h-11 rounded-lg border px-3 font-semibold" onClick={()=>{setTileProblem(false);setTileVersion(v=>v+1);}}>Retry map</button></div>}
       <MapContainer
         center={start}
         zoom={center || userLocation ? 15 : 13}
@@ -172,13 +182,13 @@ export default function LiteMap({
         touchZoom={interactive}
         attributionControl={false}
       >
-        <TileLayer key={isDark ? "dark" : "light"} url={tileUrl(isDark)} tileSize={512} zoomOffset={-1} maxZoom={19} />
+        <TileLayer key={(isDark ? "dark" : "light")+tileVersion} url={tileUrl(isDark)} tileSize={512} zoomOffset={-1} maxZoom={19} keepBuffer={1} updateWhenIdle eventHandlers={{tileerror:()=>setTileProblem(true)}} />
         <SizeWatch />
         <FitOnce points={fitPoints} skip={!!center || !!userLocation || followUser || !!focusVehicleId} />
         <LocateOnce target={userLocation} skip={!!center || followUser || !!focusVehicleId} />
         <FocusOn target={liveVehicles.find((v) => v.id === focusVehicleId) || null} nonce={focusKey} />
         {followUser && (
-          <Follow target={userLocation} following={following} onDragStart={() => { setFollowing(false); onDragStart?.(); }} />
+          <Follow target={userLocation} following={following} autoRecenterMs={autoRecenterMs} onRecenter={()=>setFollowing(true)} onDragStart={() => { setFollowing(false); onDragStart?.(); }} />
         )}
         {routeLine.length > 1 && (
           <Polyline positions={routeLine} pathOptions={{ color: accent, weight: 4, opacity: routeGeom ? 0.9 : 0.7, dashArray: routeGeom ? null : "6 6" }} />

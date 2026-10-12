@@ -44,7 +44,7 @@ export default function DriverPortraitDrive({session,vehicle,nav,sharing,shiftAc
     <div className="dk-next-actions"><Button onClick={()=>{if(focus)setNavTarget(focus);onOpenNavigation();}} disabled={!focus}><Navigation/>Navigate</Button><Button variant="outline" onClick={()=>{setPickedStop(null);setChoosing(true);}}><MapPinned/>Change stop</Button></div>
    </section>
    <section className="dk-overview-map" aria-label="Route overview">
-    <LiteMap vehicles={vehicle?.current_lat!=null?[vehicle]:[]} stops={stops} road={session?.route?.path?.map(p=>[p.lng,p.lat])} height="100%" fill onStopClick={stop=>{setPickedStop(stop);setChoosing(true);}}/>
+    <LiteMap vehicles={vehicle?.current_lat!=null?[vehicle]:[]} stops={stops} road={session?.route?.path?.map(p=>[p.lng,p.lat])} height="100%" fill followUser={vehicle?.current_lat!=null && vehicle?.current_lng!=null} userLocation={vehicle?.current_lat!=null && vehicle?.current_lng!=null ? {lat:vehicle.current_lat,lng:vehicle.current_lng} : null} showUserDot={false} autoRecenterMs={5000} onStopClick={stop=>{setPickedStop(stop);setChoosing(true);}}/>
     <span className="dk-map-hint">Tap a stop to choose it</span>
    </section>
    <p className="dk-simple-shift">{shiftActive?"Shift active":"Off shift"} · {vehicle?.name}{sharing?" · Sharing location":""}</p>
