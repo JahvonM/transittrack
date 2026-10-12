@@ -466,11 +466,13 @@ export default function StaffPortal() {
   const liveForCount = !returning && onTrip && busOnMap && !locationIsStale(busOnMap,now);
   // On a drawn road the stops are other riders' pickups, which a passenger
   // never sees: count with the bus's next stop number (from the tablet) and
-  // where your stop falls in the bus's list (from the server).
+  // where your stop falls in the bus's list (from the server). It counts the
+  // same stops the driver sees, so it's used first when it's known.
   const roadStopsAway = liveForCount && stop?.personal && drawnRoad(timelineRoute)
     && sharedStop?.bus_id === busOnMap.id && Number.isInteger(sharedStop?.bus_order) && Number.isInteger(busOnMap.road_next_stop)
     && sharedStop.bus_order >= busOnMap.road_next_stop ? sharedStop.bus_order - busOnMap.road_next_stop : null;
-  const stopsAway = liveForCount && nextStopIndex!=null && pickupIndex>=nextStopIndex ? pickupIndex-nextStopIndex : roadStopsAway;
+  const stopsAway = roadStopsAway != null ? roadStopsAway
+    : liveForCount && nextStopIndex!=null && pickupIndex>=nextStopIndex ? pickupIndex-nextStopIndex : null;
 
 
   // Same rule as the main estimate: no stop times from a position more than
