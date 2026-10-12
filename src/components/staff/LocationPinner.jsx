@@ -170,7 +170,7 @@ export default function LocationPinner({ onSaved, bus = null }) {
 
   const busy = locating || searching || finding || saving;
   const map = suggestion && <div className="h-60 overflow-hidden rounded-2xl border">
-    <LiteMap fill vehicles={[]} stops={phase === "review" ? [{ name: suggestion.name, lat: suggestion.lat, lng: suggestion.lng, selected: true }] : options.map((o, i) => ({ ...o, selected: i === choice, index: i, pickLabel: `Your pick · ${Math.max(1, Math.round(o.walkMin))} min walk` }))}
+    <LiteMap fill vehicles={[]} stops={phase === "review" ? [{ name: suggestion.name, lat: suggestion.lat, lng: suggestion.lng, selected: true, pickLabel: "Your pickup" }] : options.map((o, i) => ({ ...o, selected: i === choice, index: i, pickLabel: `Your pick · ${Math.max(1, Math.round(o.walkMin))} min walk` }))}
       onStopClick={phase === "review" || busy ? undefined : (s) => { if (Number.isInteger(s.index)) { setChoice(s.index); setNickname(""); } }}
       pins={origin ? [{ ...origin, label: "You", color: "#00d7e8" }] : []}
       lines={phase === "review" ? [{ coords: suggestion.geometry, color: "#00d7e8", width: 4 }] : []} />
