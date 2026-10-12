@@ -33,7 +33,9 @@ async function locLoadVehicle(base44, vehicleId) {
 }
 
 // onDepartedStop(route, stopName, vehicle) sends the "one stop away" alert.
-export async function applyLocationUpdate(base44, { vehicleId, companyId, companyName, body, onDepartedStop }) {
+// onRoadNext(route, index, vehicle): on a drawn road, the bus's next stop
+// (body.road_next, from the tablet's own stop list) moved on to `index`.
+export async function applyLocationUpdate(base44, { vehicleId, companyId, companyName, body, onDepartedStop, onRoadNext = null }) {
   const { lat, lng, speed, status, trail, log_speeding } = body;
   // Registered before the vehicle is read, so two requests that read the
   // same prior position still agree on which sample is the newer one.
@@ -95,9 +97,19 @@ export async function applyLocationUpdate(base44, { vehicleId, companyId, compan
       drivingEvent = 'rapid_accel';
     }
   }
+  // --- Drawn road: which of the bus's stops is next (for passengers' "stops away") ---
+  // Only a count along the bus's own stop list; never anyone's pickup location.
+  let roadAlert = null;
+  const roadNext = body.road_next;
+  if (Number.isInteger(roadNext) && roadNext >= 0 && roadNext <= 1000) {
+    const prev = Number.isInteger(vehicle.road_next_stop) ? vehicle.road_next_stop : null;
+    if (prev !== roadNext) update.road_next_stop = roadNext;
+    // Forward only, once per stop: GPS wobble back past a stop must not alert again.
+    if (onRoadNext && vehicle.trip_direction !== 'to_home' && (prev === null || roadNext > prev)) roadAlert = roadNext;
+  }
   // --- Place alerts: geofence arrival/departure at the vehicle's route stops ---
+  let route = null;
   if (vehicle.route_id) {
-    let route = null;
     try { route = await base44.asServiceRole.entities.Route.get(vehicle.route_id); } catch { /* route may be missing */ }
     if (route?.stops?.length) {
       let nearest = null;
@@ -133,6 +145,9 @@ export async function applyLocationUpdate(base44, { vehicleId, companyId, compan
 
   await base44.asServiceRole.entities.Vehicle.update(vehicleId, update);
   await updateReturnPickup(base44, vehicle, update).catch(() => {});
+  if (roadAlert !== null && route) {
+    try { await onRoadNext(route, roadAlert, vehicle); } catch { /* alerts are best-effort */ }
+  }
 
   // --- Location history, for the "replay this vehicle's day" timeline ---
   // Throttled to roughly once a minute so a day of history stays a manageable size.
