@@ -7,7 +7,7 @@ it("shares pending reads and fetches fresh after completion", async () => {
  const client = {functions:{invoke}};
  const a=loadCardDirectory(client), b=loadCardDirectory(client);
  expect(a).toBe(b);
- await Promise.resolve();
+ await vi.waitFor(()=>expect(invoke).toHaveBeenCalledTimes(1));
  expect(invoke).toHaveBeenCalledTimes(1);
  finish({data:{people:["p"]}});
  await expect(a).resolves.toEqual({people:["p"]});
@@ -41,4 +41,13 @@ it("bounds retries at four attempts", async () => {
  const check=expect(loadCardDirectory({functions:{invoke}})).rejects.toBe(error);
  await vi.runAllTimersAsync(); await check;
  expect(invoke).toHaveBeenCalledTimes(4);
+});
+
+it("keeps directory and card issuing responses separate",async()=>{
+ const invoke=vi.fn(async(name,{action})=>({data:{people:[action]}}));const client={functions:{invoke}};
+ vi.useFakeTimers();
+ const pending=Promise.all([loadCardDirectory(client),loadCardDirectory(client,"directory")]);
+ await vi.runAllTimersAsync();
+ const [cards,directory]=await pending;
+ expect(cards.people).toEqual(["people"]);expect(directory.people).toEqual(["directory"]);
 });

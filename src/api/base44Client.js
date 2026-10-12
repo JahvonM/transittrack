@@ -1,3 +1,5 @@
+import { recordRequest } from "@/lib/requestMetrics";
+import { httpStatus } from "@/lib/requestError";
 import { createClient } from '@base44/sdk';
 import { appParams } from '@/lib/app-params';
 import { scopedEntities, withRateLimitRetry } from '@/lib/scopedEntities';
@@ -24,9 +26,14 @@ export const base44 = createClient({
 // (light driver check-ins).
 const originalInvoke = base44.functions.invoke.bind(base44.functions);
 base44.functions.invoke = async (name, ...rest) => {
+  const started=performance.now();
   try {
-    return await originalInvoke(name, ...rest);
+    const result=await originalInvoke(name,...rest);
+    const partialStatuses=Object.values(result?.data?.result?.errors || {}).map(e=>e?.status);
+    recordRequest(name,{status:200,durationMs:performance.now()-started,partialStatuses});
+    return result;
   } catch (error) {
+    recordRequest(name,{status:httpStatus(error),durationMs:performance.now()-started});
     const status = error?.status ?? error?.response?.status ?? "no connection";
     const said = error?.response?.data?.error || error?.data?.error || error?.message || "";
     if (name !== "reportClientError") addBreadcrumb("server", `${name} failed (${status})${said ? `: ${said}` : ""}`);

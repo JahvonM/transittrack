@@ -21,18 +21,27 @@ const retryAfterMs = e => {
  return Number.isFinite(deadline) ? Math.max(0, deadline - Date.now()) : 0;
 };
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
-export async function withRateLimitRetry(fn, { attempts = 6, baseMs = 800 } = {}) {
+export async function withRateLimitRetry(fn, { attempts = 6, baseMs = 800, maxWaitMs = 45000 } = {}) {
+ const deadline=Date.now()+maxWaitMs;
+ let lastError;
+ const waitForCooldown=async()=>{
+  while(Date.now()<cooldownUntil) {
+   const delay=cooldownUntil-Date.now();
+   if(Date.now()+delay>deadline)throw lastError || Object.assign(new Error("Server is busy. Try again shortly."),{status:429});
+   await sleep(delay);
+  }
+ };
  for (let attempt = 0; ; attempt++) {
-  while (Date.now() < cooldownUntil) await sleep(cooldownUntil - Date.now());
+  await waitForCooldown();
   await acquire();
   let error;
   try {
    // A request already in flight may have extended the shared cooldown.
-   while (Date.now() < cooldownUntil) await sleep(cooldownUntil - Date.now());
+   await waitForCooldown();
    cooldownUntil = 0;
    return await fn();
   } catch (e) {
-   error = e;
+   error = e;lastError=e;
    if (statusOf(e) === 429) {
     const delay = retryAfterMs(e) || baseMs * 2 ** attempt + Math.random() * 400;
     cooldownUntil = Math.max(cooldownUntil, Date.now() + Math.ceil(delay));
@@ -76,15 +85,23 @@ export function scopedEntities(client) {
  const polls=new Map();
  const startPoll=(entity)=>{
   watchActivity();
-  let stopped=false, current=null, pending=false, timer=null;
+  let stopped=false, current=null, pending=false, timer=null, failures=0, nextAllowed=0;
   const listeners=new Set();
   const emit=(event)=>{ for(const listener of [...listeners]) { try { listener(event); } catch { /* one screen's error doesn't stop the others */ } } };
   const poll=async()=>{
    // A tab in the background doesn't poll; it catches up when shown again.
-   if(stopped||pending||hidden()) return;
+   if(stopped||pending||hidden()||Date.now()<nextAllowed||Date.now()<cooldownUntil||inFlight>=MAX_IN_FLIGHT||waiting.length||reads.size) return;
    pending=true;
    try {
-    const rows=await call(entity,'list',{limit:5000});
+    // Background reads never occupy the foreground retry queue. On failure
+    // they wait for their next scheduled refresh instead of retrying in a burst.
+    await acquire();
+    let rows;
+    try {
+     const response=await client.functions.invoke('entityAccess',{entity,operation:'list',limit:5000});
+     rows=response.data.result;
+    } finally { release(); }
+    failures=0;nextAllowed=0;
     if(stopped)return;
     const next=new Map(rows.map(row=>[row.id,row]));
     if(current) {
@@ -95,16 +112,23 @@ export function scopedEntities(client) {
      for(const id of current.keys()) if(!next.has(id)) emit({type:'delete',id});
     }
     current=next;
-   } catch { /* No stale snapshot is delivered after authorization failure. */ }
+   } catch(error) {
+    const status=statusOf(error);
+    if(status===401||status===403){current=null;stopped=true;}
+    else {
+     failures++;
+     nextAllowed=Date.now()+Math.max(retryAfterMs(error),Math.min(120000,30000*2**Math.min(failures-1,2)));
+    }
+   }
    finally {pending=false;}
   };
-  const schedule=()=>{ if(!stopped) timer=setTimeout(async()=>{ await poll(); schedule(); },pollDelay(entity)); };
+  const schedule=()=>{ if(!stopped) timer=setTimeout(async()=>{ await poll(); schedule(); },Math.max(pollDelay(entity),nextAllowed-Date.now())); };
   const onVisible=()=>{ if(!hidden()) poll(); };
   if(typeof document!=='undefined') document.addEventListener('visibilitychange',onVisible);
   // The page's own data load goes first. A poll fired at the same instant used
   // to compete with it for the app's rate limit, and the page — not the poll —
   // is what the person is waiting for.
-  timer=setTimeout(()=>{ poll(); schedule(); },FIRST_POLL_MS);
+  timer=setTimeout(async()=>{ await poll(); schedule(); },FIRST_POLL_MS);
   const live={listeners,stop:()=>{stopped=true;clearTimeout(timer);current=null;if(typeof document!=='undefined') document.removeEventListener('visibilitychange',onVisible);}};
   polls.set(entity,live);
   return live;

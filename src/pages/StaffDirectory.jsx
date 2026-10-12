@@ -13,7 +13,8 @@ import { EmptyState, PageActions, Segmented, StatusChip } from "@/components/adm
 import PassengerPickupDialog from "@/components/directory/PassengerPickupDialog";
 import ContactFormDialog from "@/components/directory/ContactFormDialog";
 import { useAuth } from "@/lib/AuthContext";
-import { loadFailed } from "@/lib/loadFailed";
+import { loadCardDirectory } from "@/lib/cardDirectory";
+import { adminLoadProblem } from "@/lib/adminLoader";
 import BusLoader from "@/components/BusLoader";
 
 // "staff" in the data = people from client companies who ride the buses.
@@ -28,6 +29,7 @@ export default function StaffDirectory() {
   const [contacts, setContacts] = useState([]);
   const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
   const [filter, setFilter] = useState("all");
   const [companyFilter, setCompanyFilter] = useState("all");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -37,10 +39,11 @@ export default function StaffDirectory() {
 
   const load = async () => {
     try {
-      const res = await base44.functions.invoke("nfcCards", { action: "directory" });
-      setContacts((res.data?.people || []).map(p => ({ ...p, type: p.directory_type || (p.company_id ? "staff" : "passenger") })));
-      setVehicles(res.data?.vehicles || []);
-    } catch { loadFailed(); } finally { setLoading(false); }
+      const data = await loadCardDirectory(base44, "directory");
+      setLoadError(null);
+      setContacts((data?.people || []).map(p => ({ ...p, type: p.directory_type || (p.company_id ? "staff" : "passenger") })));
+      setVehicles(data?.vehicles || []);
+    } catch (error) { setLoadError(adminLoadProblem([error])); } finally { setLoading(false); }
   };
   useEffect(() => { load(); }, []);
 
@@ -154,9 +157,10 @@ export default function StaffDirectory() {
         <Button size="sm" onClick={bulkIssue} disabled={!selectedPassengers.length}><Nfc className="h-4 w-4" /> Bulk issue cards</Button>
         {selectedKeys.size > 0 && <Button size="sm" variant="ghost" onClick={() => setSelectedKeys(new Set())}>Clear selection</Button>}
       </div>}
+      {loadError && <div role="alert" className="mb-4 rounded-xl border border-destructive/40 bg-card p-4"><p className="font-semibold">{loadError.title}</p><p className="text-sm text-muted-foreground">{loadError.description}</p><Button className="mt-3" disabled={loading} onClick={() => { setLoading(true); load(); }}>Try again</Button></div>}
       {loading ? (
         <BusLoader className="py-8" />
-      ) : contacts.length === 0 ? (
+      ) : loadError && contacts.length === 0 ? null : contacts.length === 0 ? (
         <EmptyState icon={Users} title="No passengers yet" action={<Button size="sm" onClick={openAdd}><Plus className="h-4 w-4" /> Add passenger</Button>}>
           Add the people who ride your buses so drivers and kiosks know them.
         </EmptyState>

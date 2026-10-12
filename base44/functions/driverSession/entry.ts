@@ -1,3 +1,4 @@
+import { cleanRequestMetrics } from '../../shared/requestMetrics.ts';
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 import { passengerPushTokens } from '../../shared/chatPush.ts';
 import { applyLocationUpdate } from '../../shared/vehicleLocation.ts';
@@ -389,6 +390,7 @@ function cleanAppHealth(h: unknown): Record<string, unknown> | null {
   set('queued_gps', num(o.queued_gps));
   set('queued_checkins', num(o.queued_checkins));
   set('queued_jobs', num(o.queued_jobs));
+  set('request_metrics',cleanRequestMetrics(o.request_metrics));
   set('last_gps_fix', date(o.last_gps_fix));
   set('reader', str(o.reader, 24));
   set('saved_list_at', date(o.saved_list_at));

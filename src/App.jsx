@@ -87,7 +87,7 @@ const AuthenticatedApp = () => {
   // are all one page, so they share a key — switching tabs must not restart
   // it (that would stop GPS tracking and navigation).
   const pageKey = ["/staff","/journey","/my-card","/more"].includes(location.pathname) ? "/passenger-experience" : /^\/driver(\/|$)/.test(location.pathname) ? "/driver"
-    : location.pathname.startsWith("/driver-phone") ? "/driver-phone" : location.pathname;
+    : location.pathname.startsWith("/driver-phone") ? "/driver-phone" : /^\/admin(\/|$)/.test(location.pathname) ? "/admin" : location.pathname;
 
   // Show loading spinner while checking app public settings or auth
   if (!publicPage && !tabletPage && (isLoadingPublicSettings || isLoadingAuth)) {
@@ -140,8 +140,7 @@ const AuthenticatedApp = () => {
         <Route path="/passenger" element={<Navigate to="/staff" replace />} />
         <Route path="/company" element={<CompanyDashboard />} />
         <Route path="/company/:tab" element={<CompanyDashboard />} />
-        <Route path="/admin" element={<Admin />} />
-        <Route path="/admin/:section" element={<Admin />} />
+        <Route path="/admin/:section?" element={<Admin />} />
         <Route path="/account" element={<Account />} />
         <Route path="/staff" element={<StaffPortal />} />
         <Route path="/journey" element={<StaffPortal />} />

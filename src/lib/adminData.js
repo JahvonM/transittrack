@@ -1,8 +1,8 @@
 // What each Admin section actually shows, and how much of it to ask for.
 //
-// Every list is one rate-limited round trip to the server, so the console no
-// longer loads all twelve lists up front: a section loads only its own, once,
-// and keeps them (returning to a section is instant). The long histories —
+// Initial lists are combined through AdminBootstrap using fixed server queries.
+// The individual loaders remain for paginated reads and existing tools. A
+// section loads only its own lists and keeps them. The long histories —
 // completed trips, the service queue — load a page at a time and can be
 // extended with "Show more" instead of pulling a thousand rows at once.
 import { base44 } from "@/api/base44Client";
@@ -18,6 +18,7 @@ const serviceQueue = (skip) =>
   base44.entities.Inspection.filter({ needs_service: true }, "-created_date", PAGE, skip);
 
 export const DATASETS = {
+  checkIns: {load:()=>base44.entities.StaffCheckIn.list("-created_date",500)},
   kiosks: { load: () => base44.entities.KioskDevice.list() },
   vehicles: { load: () => base44.entities.Vehicle.list() },
   companies: { load: () => base44.entities.Company.list() },
@@ -47,7 +48,7 @@ export const DATASETS = {
 // "vehicles" is added to every section by the console itself (the SOS banner
 // and the shell watch the fleet from any screen).
 export const SECTION_DATA = {
-  overview: ["routes", "companies", "parts", "faultsOpen", "schedulesDue", "trips", "kiosks"],
+  overview: ["routes", "companies", "parts", "faultsOpen", "schedulesDue", "trips", "kiosks", "checkIns"],
   trips: ["routes", "trips", "completedTrips"],
   fleet: ["routes"],
   vehicles: ["companies", "routes", "faultsOpen", "schedulesDue", "inspectionResults"],

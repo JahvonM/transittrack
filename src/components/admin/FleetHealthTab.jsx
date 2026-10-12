@@ -1,3 +1,4 @@
+import RequestHealth from "./RequestHealth";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
@@ -159,6 +160,7 @@ export default function FleetHealthTab({ vehicles = [] }) {
 
   return (
     <div className="space-y-4">
+      <RequestHealth devices={devices}/>
       <div className="flex flex-wrap items-center gap-3">
         <span className="text-body-sm text-muted-foreground">Updated {loadedAt ? loadedAt.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" }) : "…"} · refreshes every 30 s · current version {APP_BUILD}</span>
         <div className="ml-auto flex items-center gap-3">

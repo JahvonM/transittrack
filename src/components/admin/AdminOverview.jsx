@@ -1,7 +1,6 @@
 import { ChoiceSelect } from "@/components/ui/choice-picker";
 import React, { Suspense, lazy, useEffect, useMemo, useState } from "react";
 import { Bus, ChevronRight, CircleCheck, Gauge, OctagonAlert, SatelliteDish, Siren, Smartphone, Plus, Wrench } from "lucide-react";
-import { base44 } from "@/api/base44Client";
 import { cn } from "@/lib/utils";
 import { computeOccupancyByVehicle } from "@/lib/occupancy";
 import { freshnessOf, formatAge } from "@/components/system/status";
@@ -76,17 +75,12 @@ const ViewAll = ({ onClick, label = "View all" }) => (
 );
 
 
-export default function AdminOverview({ vehicles=[], routes=[], trips=[], faults=[], schedules=[], companies=[], parts=[], kiosks=[], kiosksReady=false, onNavigate, tools }) {
- const [occupancy,setOccupancy]=useState({});
- const [occupancyReady,setOccupancyReady]=useState(false);
+export default function AdminOverview({ vehicles=[], routes=[], trips=[], faults=[], schedules=[], companies=[], parts=[], kiosks=[], kiosksReady=false, checkIns=[], checkInsReady=false, onNavigate, tools }) {
+ const occupancy=useMemo(()=>computeOccupancyByVehicle(checkIns),[checkIns]);
+ const occupancyReady=checkInsReady;
  const [scope,setScope]=useState("all");
  const [now,setNow]=useState(()=>Date.now());
- useEffect(()=>{
-  const load=()=>base44.entities.StaffCheckIn.list("-created_date",500).then(rows=>{setOccupancy(computeOccupancyByVehicle(rows));setOccupancyReady(true);}).catch(()=>{});
-  load();const unsub=base44.entities.StaffCheckIn.subscribe(load);
-  const timer=setInterval(()=>setNow(Date.now()),30000);
-  return()=>{unsub?.();clearInterval(timer);};
- },[]);
+ useEffect(()=>{const timer=setInterval(()=>setNow(Date.now()),30000);return()=>clearInterval(timer);},[]);
  const fleet=vehicles.filter(v=>scope==="all"||v.company_id===scope);
  const ids=new Set(fleet.map(v=>v.id));
  const belongs=row=>scope==="all"||row.company_id===scope||ids.has(row.vehicle_id);

@@ -1,3 +1,8 @@
+import { createAdminBatchLoader } from "@/lib/adminBatchLoader";
+import { withRateLimitRetry } from "@/lib/scopedEntities";
+import { adminLoadProblem } from "@/lib/adminLoader";
+import ErrorState from "@/components/system/ErrorState";
+import { addBreadcrumb } from "@/lib/breadcrumbs";
 import useFutureAppearance from "@/hooks/useFutureAppearance";
 import React, { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import SupportNumberSetting from "@/components/admin/SupportNumberSetting";
@@ -70,7 +75,6 @@ import {
   Database,
   ChevronRight,
 } from "lucide-react";
-import { loadFailed } from "@/lib/loadFailed";
 import { DATASETS, PAGE, SECTION_DATA } from "@/lib/adminData";
 import BusLoader from "@/components/BusLoader";
 import ShiftsTab from "@/components/admin/ShiftsTab";
@@ -133,7 +137,7 @@ const MGMT_LINKS = [
 ];
 
 export default function Admin() {
-  const { user, logout } = useAuth();
+  const { user, logout, checkUserAuth } = useAuth();
   useFutureAppearance(user?.role === "admin");
   const { permission: pushPermission, enableNotifications } = usePushNotifications({ email: user?.email, role: "admin" });
   const navigate = useNavigate();
@@ -150,11 +154,16 @@ export default function Admin() {
   const [moreOpen, setMoreOpen] = useState(false);
   const [acknowledged, setAcknowledged] = useState(() => new Set());
   const settledRef = useRef({});
+  const loadVersions=useRef({});
+  const [failed,setFailed]=useState({});
+  const [loadingKeys,setLoadingKeys]=useState({});
+  const adminLoader=useMemo(()=>createAdminBatchLoader(keys=>withRateLimitRetry(()=>base44.functions.invoke("entityAccess",{entity:"AdminBootstrap",operation:"list",datasets:keys}))),[user?.id]);
+
 
   const go = (s) => navigate("/admin/" + s);
 
   const sectionKeys = useMemo(
-    () => ["vehicles", ...(SECTION_DATA[section] || [])].filter((k, i, a) => a.indexOf(k) === i),
+    () => section === "directory" ? [] : ["vehicles", ...(SECTION_DATA[section] || [])].filter((k, i, a) => a.indexOf(k) === i),
     [section]
   );
 
@@ -163,16 +172,21 @@ export default function Admin() {
     if (!need.length) return;
     // Each list settles on its own: one failure must not wipe the whole screen,
     // so whatever loaded is shown and the rest keeps what it already had.
-    const results = await Promise.allSettled(need.map((k) => DATASETS[k].load()));
-    if (results.every((r) => r.status === "rejected")) {
-      loadFailed(() => ensure(keys, true));
-      return;
-    }
-    const next = {}, done = {}, marks = {}, pages = {};
+    setLoadingKeys(prev=>({...prev,...Object.fromEntries(need.map(k=>[k,true]))}));
+    const versions=Object.fromEntries(need.map(k=>[k,loadVersions.current[k]=(loadVersions.current[k] || 0)+1]));
+    const results = await adminLoader(need,{force});
+    const next = {}, done = {}, marks = {}, pages = {}, failures = {};
     results.forEach((r, i) => {
       const key = need[i];
+      if(loadVersions.current[key]!==versions[key])return;
       marks[key] = true;
-      if (r.status !== "fulfilled") return;
+      if (r.status !== "fulfilled") {
+        failures[key]=r.reason;
+        const status=r.reason?.status ?? r.reason?.response?.status ?? r.reason?.originalError?.response?.status;
+        addBreadcrumb("admin-data",key+" failed ("+(status || "no connection")+")");
+        return;
+      }
+      failures[key]=null;
       next[key] = r.value;
       done[key] = true;
       if (DATASETS[key].page) pages[key] = r.value.length >= PAGE;
@@ -182,11 +196,27 @@ export default function Admin() {
     setSettled((prev) => ({ ...prev, ...done }));
     setAttempted((prev) => ({ ...prev, ...marks }));
     setMore((prev) => ({ ...prev, ...pages }));
-  }, []);
+    setFailed(prev=>({...prev,...failures}));
+    setLoadingKeys(prev=>({...prev,...Object.fromEntries(need.filter(k=>loadVersions.current[k]===versions[k]).map(k=>[k,false]))}));
+  }, [adminLoader]);
 
   useEffect(() => {
     ensure(sectionKeys);
   }, [sectionKeys, ensure]);
+
+  useEffect(()=>{
+    if(section!=="overview")return undefined;
+    return base44.entities.StaffCheckIn.subscribe(event=>{
+      setData(prev=>{
+        const rows=prev.checkIns || [];
+        if(event.type==="delete")return {...prev,checkIns:rows.filter(r=>r.id!==event.id)};
+        if(!event.data)return prev;
+        const next=[event.data,...rows.filter(r=>r.id!==event.id)]
+          .sort((a,b)=>Date.parse(b.created_date||b.boarded_at||0)-Date.parse(a.created_date||a.boarded_at||0)).slice(0,500);
+        return {...prev,checkIns:next};
+      });
+    });
+  },[section]);
 
   // A tab that saved something re-reads its own section, not the whole console.
   // Whatever another section had cached may now be out of date, so it re-reads
@@ -194,6 +224,7 @@ export default function Admin() {
   const refresh = async () => {
     // Pages that load their own data (App errors, Notifications) reload too.
     window.dispatchEvent(new Event("tt-admin-refresh"));
+    adminLoader.invalidate();
     await ensure(sectionKeys, true);
     const keep = new Set(sectionKeys);
     Object.keys(settledRef.current).forEach((k) => { if (!keep.has(k)) delete settledRef.current[k]; });
@@ -219,6 +250,15 @@ export default function Admin() {
 
   // Every list this section shows has been asked for at least once.
   const ready = sectionKeys.every((k) => attempted[k]);
+  const failedKeys=sectionKeys.filter(k=>failed[k]);
+  const allFailed=sectionKeys.length>0 && ready && sectionKeys.every(k=>failed[k] && !settled[k]);
+  const problem=adminLoadProblem(failedKeys.map(k=>failed[k]));
+  const retrying=sectionKeys.some(k=>loadingKeys[k]);
+  const retryFailed=async()=>{
+    if(retrying)return;
+    if(failedKeys.some(k=>(failed[k]?.status ?? failed[k]?.response?.status)===401))await checkUserAuth();
+    await ensure(failedKeys,true);
+  };
 
   // Keep vehicle statuses live so an SOS triggered by a driver lights up the
   // admin screen immediately, without waiting for a manual refresh.
@@ -336,12 +376,12 @@ export default function Admin() {
     </div>
   );
 
-  if (!ready)
+  if (!ready || allFailed)
     return (
       <>
         {emergencyOverlay}
         <AdminShell active={section} onNavigate={go} alertVehicles={emergencyVehicles} user={user} onSignOut={() => logout()}>
-          <BusLoader className="py-8" />
+          {allFailed?<ErrorState title={problem.title} description={problem.description} onRetry={retryFailed} retrying={retrying}/>:<BusLoader className="py-8"/>}
         </AdminShell>
       </>
     );
@@ -394,11 +434,14 @@ export default function Admin() {
         onEnableNotifications={enableNotifications}
       >
         <PullToRefresh onRefresh={refresh}>
+        {failedKeys.length>0 && <ErrorState compact title={problem.title} description={problem.description} onRetry={retryFailed} retrying={retrying}/>}
         {section === "overview" && (
           <AdminOverview
             vehicles={vehicles}
             kiosks={kiosks}
             kiosksReady={!!settled.kiosks}
+            checkIns={data.checkIns || []}
+            checkInsReady={!!settled.checkIns}
             routes={routes}
             trips={trips}
             faults={faultsOpen}

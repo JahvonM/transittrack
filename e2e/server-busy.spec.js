@@ -38,7 +38,7 @@ test.describe('boarding tablet', () => {
     for (const kind of ['busy', 'error']) {
       reply = kind;
       const before = beats;
-      await page.clock.fastForward(31000);
+      await page.clock.fastForward(37000);
       await expect.poll(() => beats).toBeGreaterThan(before);
       await page.waitForTimeout(300);
       await expect(offline).toHaveCount(0);
@@ -46,7 +46,7 @@ test.describe('boarding tablet', () => {
 
     reply = 'down';
     // Past the app's short pause after a "busy" answer, then a check-in that never gets through.
-    for (let i = 0; i < 4 && !(await offline.count()); i++) { await page.clock.fastForward(31000); await page.waitForTimeout(300); }
+    for (let i = 0; i < 4 && !(await offline.count()); i++) { await page.clock.fastForward(37000); await page.waitForTimeout(300); }
     await expect(offline).toBeVisible();
   });
 });
@@ -88,7 +88,7 @@ test.describe('driver tablet', () => {
 
     // The next check-ins are light, and the list is kept.
     const before = beats.length;
-    await page.clock.fastForward(16000);
+    await page.clock.fastForward(19000);
     await expect.poll(() => beats.length).toBeGreaterThan(before);
     expect(beats.at(-1)).toBe('light');
     await page.waitForTimeout(300);
@@ -96,7 +96,7 @@ test.describe('driver tablet', () => {
     await expect(page.getByText('Cara Diaz').filter({ visible: true }).first()).toBeVisible();
 
     // A minute on, a full one again.
-    for (let i = 0; i < 4; i++) { await page.clock.fastForward(16000); await page.waitForTimeout(200); }
+    for (let i = 0; i < 4; i++) { await page.clock.fastForward(19000); await page.waitForTimeout(200); }
     expect(beats.slice(before)).toContain('full');
 
     // Busy: still online.
@@ -104,14 +104,14 @@ test.describe('driver tablet', () => {
     const status = page.getByRole('banner').getByText('Offline', { exact: true });
     reply = 'busy';
     const busyFrom = beats.length;
-    await page.clock.fastForward(16000);
+    await page.clock.fastForward(19000);
     await expect.poll(() => beats.length).toBeGreaterThan(busyFrom);
     await page.waitForTimeout(300);
     await expect(status).toHaveCount(0);
 
     // No answer at all: offline.
     reply = 'down';
-    for (let i = 0; i < 4 && !(await status.count()); i++) { await page.clock.fastForward(16000); await page.waitForTimeout(300); }
+    for (let i = 0; i < 4 && !(await status.count()); i++) { await page.clock.fastForward(19000); await page.waitForTimeout(300); }
     await expect(status).toBeVisible();
   });
 });

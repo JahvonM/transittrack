@@ -1,3 +1,4 @@
+import {withAdminBatch} from "./helpers/adminBatchMock.js";
 import {createHash} from 'node:crypto';
 import {test,expect} from '@playwright/test';
 const vehicles=[{id:'bus-a',name:'Bus A',company_id:'a',company_name:'Company A',type:'staff_bus',status:'idle',capacity:25},{id:'bus-b',name:'Bus B',company_id:'b',company_name:'Company B',type:'staff_bus',status:'idle',capacity:25}];
@@ -8,7 +9,7 @@ async function session(page,role) {
    localStorage.setItem('tt-map-engine','basic');
  });
  await page.route('https://api.mapbox.com/**', r=>r.fulfill({status:404,body:''}));
- await page.route('**/api/**',async route=>{
+ await page.route('**/api/**',withAdminBatch(async route=>{
   const request=route.request(), url=request.url();
   if(url.includes('/entities/')) {direct.push(url);return route.fulfill({status:403,json:{error:'Direct entity access blocked'}});}
   if(url.includes('/functions/entityAccess')) {
@@ -20,7 +21,7 @@ async function session(page,role) {
    return route.fulfill({json:{result}});
   }
   return route.fulfill({json:{id:'test-app',public_settings:{authentication_required:false}}});
- });
+ }));
  return {calls,direct};
 }
 test('mechanic sees vehicles from both companies through scoped backend access',async({page})=>{
@@ -84,14 +85,14 @@ test('passenger previews walking directions then saves a separate roadside picku
  const user={id:'caller',role:'staff',email:'caller@test.local',full_name:'Test Passenger',company_id:'a'};
  const routeData={id:'route-a',company_id:'a',name:'Main road route',active:true,stops:[{name:'Start',lat:12,lng:-61.7,order:0},{name:'End',lat:12.01,lng:-61.7,order:1}]};
  await page.route('**/functions/companyAccess',r=>r.fulfill({json:{company:{id:'a',name:'Company A'}}}));
- await page.route('**/functions/entityAccess',r=>{
+ await page.route('**/functions/entityAccess',withAdminBatch(r=>{
   const body=r.request().postDataJSON();let result=[];
   if(body.entity==='Bootstrap')result={workplace:null,vehicles:[],routes:[routeData],trips:[]};
   if(body.entity==='User'){ if(body.operation==='update'){saved.push(body.data);Object.assign(user,body.data);}result=user;}
   if(body.entity==='Route')result=[routeData];
   if(body.entity==='Company')result=[{id:'a',name:'Company A'}];
   return r.fulfill({json:{result}});
- });
+ }));
  await page.route('https://api.mapbox.com/**',r=>{
   const url=r.request().url();
   if(url.includes('/walking/'))return r.fulfill({json:{routes:[{distance:120,duration:90,geometry:{coordinates:[[-61.701,12.005],[-61.7,12.005]]},legs:[{steps:[{mode:'walking',maneuver:{instruction:'Walk east to the main road'}}]}]}],waypoints:[{}, {location:[-61.7,12.005]}]}});
@@ -136,7 +137,7 @@ async function passengerShowcase(page, { stale = false, light = false, parked = 
   const buses=[bus,{...bus,id:'bus-c',name:'TT-108'}];
   const routes=[{id:'route-a',company_id:'a',name:'Coastal route',active:true,stops}];
   const state={workplace:null};
-  await page.route('**/functions/entityAccess',r=>{
+  await page.route('**/functions/entityAccess',withAdminBatch(r=>{
     const b=r.request().postDataJSON();let result=[];
     // The passenger home asks for its company's workplace, buses, routes and trips in one request.
     if(b.entity==='Bootstrap') result={workplace:state.workplace,vehicles:buses,routes,trips:[]};
@@ -144,7 +145,7 @@ async function passengerShowcase(page, { stale = false, light = false, parked = 
     if(b.entity==='Vehicle') result=buses;
     if(b.entity==='Route') result=routes;
     return r.fulfill({json:{result}});
-  });
+  }));
   await page.route('https://api.mapbox.com/**',r=>r.fulfill({json:{routes:[{duration:180,distance:1500,geometry:{coordinates:stops.map(s=>[s.lng,s.lat])},legs:[{duration:180,distance:1500,steps:[]}]}]}}));
   await page.route('**/api.open-meteo.com/**',r=>r.fulfill({json:{current:{temperature_2m:28,weather_code:0}}}));
   await page.goto('/staff');
@@ -191,14 +192,14 @@ test('passenger can see other pickup spots nearby or drop their own pin',async({
  const user={id:'caller',role:'staff',email:'caller@test.local',full_name:'Test Passenger',company_id:'a'};
  const routeData={id:'route-a',company_id:'a',name:'Main road route',active:true,stops:[{name:'Start',lat:12,lng:-61.7,order:0},{name:'End',lat:12.01,lng:-61.7,order:1}]};
  await page.route('**/functions/companyAccess',r=>r.fulfill({json:{company:{id:'a',name:'Company A'}}}));
- await page.route('**/functions/entityAccess',r=>{
+ await page.route('**/functions/entityAccess',withAdminBatch(r=>{
   const body=r.request().postDataJSON();let result=[];
   if(body.entity==='Bootstrap')result={workplace:null,vehicles:[],routes:[routeData],trips:[]};
   if(body.entity==='User'){ if(body.operation==='update'){saved.push(body.data);Object.assign(user,body.data);}result=user;}
   if(body.entity==='Route')result=[routeData];
   if(body.entity==='Company')result=[{id:'a',name:'Company A'}];
   return r.fulfill({json:{result}});
- });
+ }));
  await page.route('https://api.mapbox.com/**',r=>{
   const url=r.request().url();
   if(url.includes('/walking/')){
@@ -258,12 +259,12 @@ test('passenger Home puts the roadside pickup up front and shows the workplace d
    await expect(page.getByText('Find your pickup',{exact:true})).toBeVisible();
   await page.keyboard.press('Escape');
   showcase.workplace={id:'w',company_id:'a',name:'Head office, True Blue',lat:12.0,lng:-61.78};
-  await page.route('**/functions/entityAccess',async r=>{
+  await page.route('**/functions/entityAccess',withAdminBatch(async r=>{
     const b=r.request().postDataJSON();
     if(b.entity==='Workplace')return r.fulfill({json:{result:[{id:'w',company_id:'a',name:'Head office, True Blue',lat:12.0,lng:-61.78}]}});
     if(b.entity==='User')return r.fulfill({json:{result:{id:'caller',role:'staff',email:'caller@test.local',full_name:'Test Passenger',company_id:'a',favorite_stop:'Grand Anse',pickup_lat:12.02,pickup_lng:-61.76,pickup_name:'Roadside by the church',pickup_route_id:'route-a'}}});
     return r.fallback();
-  });
+  }));
   await page.goto('/staff');
   const card=page.getByRole('region',{name:'Your pickup'});
   await expect(card).toContainText('Roadside by the church');
@@ -348,14 +349,14 @@ test('admin showcase keeps metrics, fleet list and working section navigation',a
 test('driver PIN is saved explicitly and retains input after a server failure',async({page})=>{
  await session(page,'admin');
  let fail=true; const pins=[];
- await page.route('**/functions/entityAccess',route=>{
+ await page.route('**/functions/entityAccess',withAdminBatch(route=>{
   const b=route.request().postDataJSON(); let result=[];
   if(b.entity==='User') result={id:'caller',role:'admin',email:'admin@test.invalid'};
   if(b.entity==='Driver') result=[{id:'d',full_name:'Test Driver',email:'driver@test.invalid',company_id:'a'}];
   if(b.entity==='Vehicle') result=[{...vehicles[0],driver_email:'driver@test.invalid'}];
   if(b.entity==='Company') result=[{id:'a',name:'Company A'}];
   return route.fulfill({json:{result}});
- });
+ }));
  await page.route('**/functions/manageDriverPin',route=>{
   pins.push(route.request().postDataJSON());
   return route.fulfill(fail?{status:500,json:{error:'Please retry PIN save'}}:{json:{ok:true}});
@@ -405,14 +406,14 @@ test('avatar can replace a photo in exported card artwork',async({page})=>{
 test('admin sees when a tablet\'s card reader helper cannot reach its screen',async({page})=>{
  await session(page,'admin');
  const ago=m=>new Date(Date.now()-m*60000).toISOString();
- await page.route('**/functions/entityAccess',route=>{
+ await page.route('**/functions/entityAccess',withAdminBatch(route=>{
   const b=route.request().postDataJSON(); let result=[];
   if(b.entity==='User') result={id:'caller',role:'admin',email:'admin@test.invalid'};
   if(b.entity==='KioskDevice') result=[
    {id:'tab-broken',label:'bus one',kiosk_type:'bus_boarding',paired:true,status:'active',last_seen:ago(1),helper_health:{version:'1.7',reader:'Connected',reported_at:ago(2500)},app_health:{reader:'usb_reader',online:true,reported_at:ago(1)}},
    {id:'tab-ok',label:'bus two',kiosk_type:'bus_boarding',paired:true,status:'active',last_seen:ago(1),helper_health:{version:'1.7',reader:'Connected',reported_at:ago(1)},app_health:{reader:'usb_reader',online:true,reported_at:ago(1)}}];
   return route.fulfill({json:{result}});
- });
+ }));
  await page.goto('/admin/kiosks');
  const alerts=page.getByText(/Card reader helper can't reach this tablet's screen/);
  await expect(alerts).toHaveCount(1);
@@ -421,12 +422,12 @@ test('admin sees when a tablet\'s card reader helper cannot reach its screen',as
 
 test('tablet details and admin menu stay aligned on narrow screens',async({page})=>{
  await session(page,'admin'); await page.setViewportSize({width:390,height:844});
- await page.route('**/functions/entityAccess',route=>{
+ await page.route('**/functions/entityAccess',withAdminBatch(route=>{
   const b=route.request().postDataJSON(); let result=[];
   if(b.entity==='User') result={id:'caller',role:'admin',email:'admin@test.invalid'};
   if(b.entity==='KioskDevice') result=[{id:'tablet-test',label:'Bus 2 long tablet name',kiosk_type:'driver',company_name:'Island Transit Company',vehicle_name:'Test vehicle with a long name',paired:true,status:'active',pairing_code:'TESTPAIRCODE12',helper_health:{version:'1.5',battery:79,parked:true,gps:'Not plugged in',reader:'Connected',reported_at:new Date().toISOString()},app_health:{build:'2026-10-04 12:00'}}];
   return route.fulfill({json:{result}});
- });
+ }));
  await page.goto('/admin/kiosks');
  await expect(page.getByText('Battery 79%',{exact:true})).toBeVisible();
  await expect(page.getByText('GPS: Not plugged in',{exact:true})).toBeVisible();
@@ -454,9 +455,9 @@ test('company join QR checks its code after sign-in and keeps it out of the addr
 });
 
 test('company join QR asks a signed-out visitor to sign in first',async({page})=>{
- await page.route('**/api/**',r=>r.request().url().includes('/public-settings/')
+ await page.route('**/api/**',withAdminBatch(r=>r.request().url().includes('/public-settings/')
   ? r.fulfill({json:{id:'test-app',public_settings:'public_without_login'}}) // answered even when signed out
-  : r.fulfill({status:401,json:{error:'Not signed in'}}));
+  : r.fulfill({status:401,json:{error:'Not signed in'}})));
  await page.goto('/join#code=ABCD2345EFGH');
  await expect(page.getByRole('heading',{name:'Join your bus company'})).toBeVisible();
  expect(new URL(page.url()).hash).toBe('');
@@ -465,9 +466,9 @@ test('company join QR asks a signed-out visitor to sign in first',async({page})=
 });
 
 test('a damaged company join QR is refused without calling the server',async({page})=>{
- await page.route('**/api/**',r=>r.request().url().includes('/public-settings/')
+ await page.route('**/api/**',withAdminBatch(r=>r.request().url().includes('/public-settings/')
   ? r.fulfill({json:{id:'test-app',public_settings:'public_without_login'}}) // answered even when signed out
-  : r.fulfill({status:401,json:{error:'Not signed in'}}));
+  : r.fulfill({status:401,json:{error:'Not signed in'}})));
  await page.goto('/join#code=<script>');
  await expect(page.getByRole('heading',{name:"This QR code didn't work"})).toBeVisible();
  expect(await page.evaluate(()=>sessionStorage.getItem('tt_pending_company_code'))).toBeNull();
@@ -475,12 +476,12 @@ test('a damaged company join QR is refused without calling the server',async({pa
 
 test('company dashboard shows a passenger QR for its access code',async({page})=>{
  await session(page,'company');
- await page.route('**/functions/entityAccess',r=>{
+ await page.route('**/functions/entityAccess',withAdminBatch(r=>{
   const b=r.request().postDataJSON(); let result=[];
   if(b.entity==='User') result={id:'caller',email:'caller@test.local',full_name:'Test Caller',role:'company',company_id:'a'};
   if(b.entity==='Company') result=b.operation==='get'?{id:'a',name:'Company A',access_code:'ABCD2345EFGH'}:[{id:'a',name:'Company A',access_code:'ABCD2345EFGH'}];
   return r.fulfill({json:{result}});
- });
+ }));
  await page.goto('/company');
  await page.getByRole('button',{name:'Show QR',exact:true}).click();
  const img=page.getByRole('img',{name:'QR code to join Company A'});
@@ -515,13 +516,13 @@ test('admin keeps the current menu group open and message bubble stays above AI'
 test('message bubble starts a new conversation without prior messages',async({page})=>{
  await session(page,'admin');
  const sent=[];
- await page.route('**/functions/entityAccess', async r=>{
+ await page.route('**/functions/entityAccess', withAdminBatch(async r=>{
    const b=r.request().postDataJSON();let result=[];
    if(b.entity==='User')result={id:'caller',email:'caller@test.local',role:'admin'};
    if(b.entity==='Vehicle')result=vehicles;
    if(b.entity==='GroupMessage' && b.operation==='create'){sent.push(b.data);result={...b.data,id:'sent-1',created_date:new Date().toISOString()};}
    return r.fulfill({json:{result}});
- });
+ }));
  await page.goto('/admin');
  await page.getByRole('button',{name:'Open messages',exact:true}).click();
  await page.getByRole('button',{name:'New message',exact:true}).click();
@@ -538,7 +539,7 @@ test('fleet history opens latest recorded day for an offline bus and replaces ti
  await session(page,'admin');
  await page.addInitScript(()=>localStorage.setItem('tt-map-engine','basic'));
  const recorded='2026-09-30';
- await page.route('**/functions/entityAccess',async r=>{
+ await page.route('**/functions/entityAccess',withAdminBatch(async r=>{
    const b=r.request().postDataJSON();let result=[];
    if(b.entity==='User')result={id:'caller',role:'admin',email:'caller@test.local'};
    if(b.entity==='Vehicle')result=vehicles;
@@ -547,7 +548,7 @@ test('fleet history opens latest recorded day for an offline bus and replaces ti
      result=b.limit===1?[pings[1]]:b.query?.recorded_at?.$gte?.startsWith(recorded)?pings:[];
    }
    return r.fulfill({json:{result}});
- });
+ }));
  await page.goto('/location-timeline');
  await expect(page.getByRole('heading',{name:'Location timeline',exact:true})).toBeVisible();
  await expect(page.getByLabel('Day',{exact:true})).toHaveValue(recorded);
@@ -595,12 +596,12 @@ test('tablet setup download is one file with the verified helper built in',async
  await session(page,'admin');
  const apk=Buffer.from([80,75,3,4,1,7]);
  await page.route('**/functions/helperRelease',r=>r.fulfill({json:{version:'1.7',version_code:8,file_name:'TransitTrack-Kiosk-Helper.apk',sha256:createHash('sha256').update(apk).digest('hex'),apk_base64:apk.toString('base64')}}));
- await page.route('**/functions/entityAccess',r=>{
+ await page.route('**/functions/entityAccess',withAdminBatch(r=>{
    const b=r.request().postDataJSON();let result=[];
    if(b.entity==='User')result={id:'caller',role:'admin',email:'admin@test.invalid'};
    if(b.entity==='KioskDevice')result=[{id:'tablet-test',label:'Bus 2',kiosk_type:'bus_boarding',paired:true,status:'active',vehicle_name:'Bus 2',pairing_code:'TESTPAIR12'}];
    return r.fulfill({json:{result}});
- });
+ }));
  await page.goto('/admin/kiosks');
  const getBat=async(button,name)=>{
    const pending=page.waitForEvent('download');
@@ -626,15 +627,15 @@ test('tablet setup download is one file with the verified helper built in',async
 test('company logo upload previews the banner and saves its URL',async({page})=>{
  await session(page,'admin');
  let saved;
- await page.route('**/api/**',async r=>{
+ await page.route('**/api/**',withAdminBatch(async r=>{
   if(/Upload(?:Public)?File/i.test(r.request().url()))return r.fulfill({json:{file_url:'https://test.invalid/company-logo.png'}});
   return r.fallback();
- });
- await page.route('**/functions/entityAccess',async r=>{
+ }));
+ await page.route('**/functions/entityAccess',withAdminBatch(async r=>{
   const b=r.request().postDataJSON();
   if(b.entity==='Company'&&b.operation==='create'){saved=b.data;return r.fulfill({json:{result:{id:'new-company',...b.data}}});}
   return r.fallback();
- });
+ }));
  await page.route('https://test.invalid/company-logo.png',r=>r.fulfill({path:'/app/public/images/transit-bus-3d.webp',contentType:'image/webp'}));
  await page.goto('/admin/companies');
  await page.getByPlaceholder('Island Transit Co.').fill('Logo Company');
@@ -779,7 +780,7 @@ test('card issuing sends the card list to every paired boarding tablet at once',
 test('admin pages ride out Base44 "too many requests" instead of going blank',async({page})=>{
  await session(page,'admin');
  const limited=new Set();
- await page.route('**/functions/entityAccess',r=>{
+ await page.route('**/functions/entityAccess',withAdminBatch(r=>{
    const b=r.request().postDataJSON();
    // The first request for each list is rate limited, as Base44 does under a burst.
    const key=`${b.entity}:${b.operation}`;
@@ -788,7 +789,7 @@ test('admin pages ride out Base44 "too many requests" instead of going blank',as
    if(b.entity==='User')result=b.operation==='get'?{id:'caller',role:'admin',email:'admin@test.invalid'}:[];
    if(b.entity==='KioskDevice')result=[{id:'tablet-test',label:'Bus 2',kiosk_type:'bus_boarding',paired:true,status:'active',vehicle_name:'Bus 2',pairing_code:'TESTPAIR12'}];
    return r.fulfill({json:{result}});
- });
+ }));
  await page.goto('/admin/kiosks');
  await expect(page.getByRole('button',{name:'Copy pairing code for Bus 2'})).toBeVisible({timeout:15000});
  await expect(page.getByText('No kiosk tablets registered yet.')).toHaveCount(0);
@@ -799,16 +800,16 @@ test('admin pages ride out Base44 "too many requests" instead of going blank',as
 test('admin uploads actual bus artwork and saves its URL',async({page})=>{
  await session(page,'admin');
  let saved;
- await page.route('**/api/**',async r=>{
+ await page.route('**/api/**',withAdminBatch(async r=>{
   if(/UploadFile/i.test(r.request().url()))return r.fulfill({json:{file_url:'https://test.invalid/bus-render.webp'}});
   return r.fallback();
- });
+ }));
  await page.route('https://test.invalid/bus-render.webp',r=>r.fulfill({path:'/app/public/images/transit-bus-3d.webp',contentType:'image/webp'}));
- await page.route('**/functions/entityAccess',async r=>{
+ await page.route('**/functions/entityAccess',withAdminBatch(async r=>{
   const b=r.request().postDataJSON();
   if(b.entity==='Vehicle'&&b.operation==='update'){saved=b.data;return r.fulfill({json:{result:{...vehicles[0],...b.data}}});}
   return r.fallback();
- });
+ }));
  await page.goto('/admin/vehicles');
  await page.getByRole('button',{name:'Edit Bus A',exact:true}).click();
  await page.getByLabel('Bus photo or 3D render',{exact:true}).setInputFiles({name:'bus.webp',mimeType:'image/webp',buffer:Buffer.from([82,73,70,70])});
@@ -821,11 +822,11 @@ test('pickup selection is a draft until confirmed, supports search, and keeps th
  await page.setViewportSize({width:390,height:844});
  await passengerShowcase(page);
  const saved=[];
- await page.route('**/functions/entityAccess',async r=>{
+ await page.route('**/functions/entityAccess',withAdminBatch(async r=>{
   const b=r.request().postDataJSON();
   if(b.entity==='User'&&b.operation==='update'){saved.push(b.data);return r.fulfill({json:{result:{id:'caller',...b.data}}});}
   return r.fallback();
- });
+ }));
  await page.getByRole('button',{name:'Find my pickup',exact:true}).click();
  let dialog=page.getByRole('dialog',{name:'Pickup'});
  await dialog.getByRole('button',{name:'Choose a company stop instead'}).click();
@@ -854,11 +855,11 @@ test('pickup selection is a draft until confirmed, supports search, and keeps th
 test('failed pickup save retains the old choice and allows retry',async({page})=>{
  await passengerShowcase(page);
  let fail=true;
- await page.route('**/functions/entityAccess',async r=>{
+ await page.route('**/functions/entityAccess',withAdminBatch(async r=>{
   const b=r.request().postDataJSON();
   if(b.entity==='User'&&b.operation==='update')return r.fulfill(fail?{status:503,json:{error:'Unavailable'}}:{json:{result:{id:'caller',...b.data}}});
   return r.fallback();
- });
+ }));
  await page.getByRole('button',{name:'Find my pickup',exact:true}).click();
  const dialog=page.getByRole('dialog',{name:'Pickup'});
  await dialog.getByRole('button',{name:'Choose a company stop instead'}).click();
@@ -876,7 +877,7 @@ test('failed pickup save retains the old choice and allows retry',async({page})=
 test('admin overview filters actual companies and opens existing vehicle form',async({page})=>{
  await session(page,'admin');
  const now=new Date().toISOString();
- await page.route('**/functions/entityAccess',r=>{
+ await page.route('**/functions/entityAccess',withAdminBatch(r=>{
   const b=r.request().postDataJSON();let result=[];
   if(b.entity==='User')result={id:'caller',role:'admin',email:'admin@test.invalid'};
   if(b.entity==='Vehicle')result=vehicles;
@@ -886,7 +887,7 @@ test('admin overview filters actual companies and opens existing vehicle form',a
    {id:'kb',label:'Tablet B',company_id:'b',vehicle_id:'bus-b',status:'active',paired:true,last_seen:now,helper_health:{reported_at:now,reader:'Not plugged in',battery:80}}
   ];
   return r.fulfill({json:{result}});
- });
+ }));
  await page.goto('/admin');
  const fleet=page.getByRole('region',{name:'Fleet status',exact:true});
  const health=page.getByRole('region',{name:'Tablet health',exact:true});
@@ -969,14 +970,14 @@ test('admin refresh reads lists again and preserves saved offline work',async({p
 test('chat shows sending immediately and retains text after a failed send',async({page})=>{
  await session(page,'admin');
  let release;
- await page.route('**/functions/entityAccess',async r=>{
+ await page.route('**/functions/entityAccess',withAdminBatch(async r=>{
   const b=r.request().postDataJSON();
   if(b.entity==='GroupMessage'&&b.operation==='create'){
    await new Promise(resolve=>release=resolve);
    return r.fulfill({status:500,json:{error:'Test failure'}});
   }
   return r.fallback();
- });
+ }));
  await page.goto('/admin');
  await page.getByRole('button',{name:'Open messages',exact:true}).click();
  await page.getByRole('button',{name:'New message',exact:true}).click();
@@ -1019,7 +1020,7 @@ test('reference bus directory filters real records and keeps bus selection',asyn
  await passengerShowcase(page);
  const live={id:'actual-live',name:'Actual live bus',capacity:25,current_lat:12.02,current_lng:-61.76,tracking_active:true,last_location_update:new Date().toISOString(),status:'on_trip',image_url:'/images/transit-bus-3d.webp'};
  const parked={id:'actual-parked',name:'Actual parked bus',capacity:18,tracking_active:false,status:'idle'};
- await page.route('**/functions/entityAccess',r=>r.request().postDataJSON().entity==='Vehicle'?r.fulfill({json:{result:[live,parked]}}):r.fallback());
+ await page.route('**/functions/entityAccess',withAdminBatch(r=>r.request().postDataJSON().entity==='Vehicle'?r.fulfill({json:{result:[live,parked]}}):r.fallback()));
  await page.goto('/buses');
  await expect(page.getByText('Actual live bus',{exact:true})).toBeVisible();
  await expect(page.getByText('Actual parked bus',{exact:true})).toBeVisible();
@@ -1046,11 +1047,11 @@ test('passenger arrival alerts stay off when notification setup fails',async({pa
  });
  await passengerShowcase(page);
  const updates=[];
- await page.route('**/functions/entityAccess',r=>{
+ await page.route('**/functions/entityAccess',withAdminBatch(r=>{
   const b=r.request().postDataJSON();
   if(b.entity==='User' && b.operation==='update'){updates.push(b.data);return r.fulfill({json:{result:{id:'caller',...b.data}}});}
   return r.fallback();
- });
+ }));
  await page.getByRole('button',{name:/Notify me/}).click();
  await expect(page.getByText('Notifications are blocked',{exact:true})).toBeVisible();
  await expect(page.getByRole('button',{name:/Notify me/})).toHaveAttribute('aria-pressed','false');
@@ -1149,11 +1150,11 @@ for(const status of [401,503]){
  test('desktop restart handles session response '+status+' without bypassing authentication',async({page})=>{
   await session(page,'admin');
   await page.addInitScript(()=>Object.defineProperty(navigator,'userAgent',{get:()=> 'TransitTrack Electron/44.7.0'}));
-  await page.route('**/functions/entityAccess',r=>{
+  await page.route('**/functions/entityAccess',withAdminBatch(r=>{
    const b=r.request().postDataJSON();
    if(b.entity==='User'&&b.id==='me')return r.fulfill({status,json:{error:status===401?'Authentication required':'Temporarily unavailable'}});
    return r.fallback();
-  });
+  }));
   await page.goto('/login?returnTo=%2F');
   if(status===401)await expect(page.getByLabel('Email address')).toBeVisible();
   else{
@@ -1169,11 +1170,11 @@ test('welcome waits for Google callback session verification before opening acco
  await session(page,'admin');
  let release;
  const gate=new Promise(resolve=>{release=resolve;});
- await page.route('**/functions/entityAccess',async r=>{
+ await page.route('**/functions/entityAccess',withAdminBatch(async r=>{
   const b=r.request().postDataJSON();
   if(b.entity==='User'&&b.id==='me')await gate;
   return r.fallback();
- });
+ }));
  await page.goto('/?access_token=mock-google-callback');
  await expect(page.getByRole('region',{name:'TransitTrack loading screen'})).toBeVisible();
  await expect(page.getByRole('link',{name:/^Sign in/})).toHaveCount(0);
@@ -1185,11 +1186,11 @@ test('welcome waits for Google callback session verification before opening acco
 test('welcome shows recovery after Google callback verification failure and retry opens account',async({page})=>{
  await session(page,'admin');
  let failing=true;
- await page.route('**/functions/entityAccess',r=>{
+ await page.route('**/functions/entityAccess',withAdminBatch(r=>{
   const b=r.request().postDataJSON();
   if(failing&&b.entity==='User'&&b.id==='me')return r.fulfill({status:503,json:{error:'Temporarily unavailable'}});
   return r.fallback();
- });
+ }));
  await page.goto('/?access_token=mock-google-callback');
  await expect(page.getByRole('alert').getByText("Couldn't check your sign-in",{exact:true})).toBeVisible();
  await expect(page.getByRole('link',{name:/^Sign in/})).toHaveCount(0);
@@ -1270,14 +1271,14 @@ test('route deletion requires confirmation and removes only the selected route',
  await session(page,'admin');
  const routes=[{id:'route-a',name:'Morning route',company_id:'a',company_name:'A',type:'staff',stops:[]},{id:'route-b',name:'Evening route',company_id:'a',company_name:'A',type:'staff',stops:[]}];
  const deletes=[];
- await page.route('**/functions/entityAccess',r=>{
+ await page.route('**/functions/entityAccess',withAdminBatch(r=>{
   const body=r.request().postDataJSON();
   if(body.entity==='Route'){
    if(body.operation==='delete'){deletes.push(body.id);return r.fulfill({json:{result:{ok:true}}});}
    return r.fulfill({json:{result:routes}});
   }
   return r.fallback();
- });
+ }));
  await page.goto('/admin/route-planner');
  await page.getByRole('button',{name:/Morning route A/}).last().click();
  await page.getByRole('button',{name:'Delete route',exact:true}).click();
@@ -1345,13 +1346,13 @@ async function returnPassenger(page,phase,stale=false) {
  const user={id:'caller',role:'staff',email:'caller@test.local',full_name:'Test Passenger',company_id:'a',pickup_name:'Home gate',pickup_lat:12.02,pickup_lng:-61.7};
  const bus={...vehicles[0],trip_direction:'to_home',return_pickup_state:phase,tracking_active:true,current_lat:12.005,current_lng:-61.7,last_location_update:new Date(Date.now()-(stale?300000:0)).toISOString()};
  await page.route('**/functions/companyAccess',r=>r.fulfill({json:{company:{id:'a',name:'Company A'},my_bus:{id:'bus-a',name:'Bus A'}}}));
- await page.route('**/functions/entityAccess',r=>{
+ await page.route('**/functions/entityAccess',withAdminBatch(r=>{
   const body=r.request().postDataJSON();let result=[];
   if(body.entity==='User')result=user;
   if(body.entity==='Bootstrap')result={workplace:{id:'work',company_id:'a',name:'Company A',lat:12,lng:-61.7},vehicles:[bus],routes:[],trips:[]};
   if(body.entity==='Company')result=[{id:'a',name:'Company A'}];
   return r.fulfill({json:{result}});
- });
+ }));
  await page.route('https://api.mapbox.com/**',r=>r.fulfill({json:{routes:[{distance:2200,duration:420,geometry:{coordinates:[[-61.7,12.005],[-61.7,12]]}}]}}));
  await page.goto('/staff');
  return page.getByRole('region',{name:'Going home pickup'});

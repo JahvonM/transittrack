@@ -1,3 +1,4 @@
+import { requestMetrics } from "./requestMetrics";
 /* global __APP_BUILD__ */
 // What this tablet's copy of TransitTrack reports about itself on each
 // heartbeat (alongside the Android helper app's battery/reader report):
@@ -45,6 +46,7 @@ function readerInUse() {
 export function appHealthPayload(kind = "driver") {
   try {
     const h = {
+      request_metrics: (({functions:_functions,...summary})=>summary)(requestMetrics()),
       build: APP_BUILD,
       online: typeof navigator === "undefined" ? true : navigator.onLine !== false,
       queued_jobs: pendingJobs().length,
