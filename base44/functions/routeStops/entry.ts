@@ -185,17 +185,23 @@ export default async function(req) {
       for (const row of rows) if (row.user_id === user.id && await riderMembershipLive(db, row)) live.push(row);
       if (!live.length) return Response.json({ stop: null });
       let route = null;
+      let routeBus = null; // the caller's bus that drives `route`, if any
+      const buses = [];
       for (const row of live) {
         const card = user.email ? (await db.Contact.filter({ company_id: row.company_id, email: user.email }, '-updated_date', 5)).find((c) => c.company_id === row.company_id) : null;
         const busId = card?.vehicle_id || row.vehicle_id;
         const bus = busId ? await db.Vehicle.get(busId).catch(() => null) : null;
+        if (bus?.company_id === row.company_id) buses.push(bus);
         const busRoute = bus?.company_id === row.company_id && bus.route_id ? await db.Route.get(bus.route_id).catch(() => null) : null;
         const at = busRoute?.company_id === row.company_id ? placeOnRoad(roadPointsToLine(busRoute.path), lat, lng) : null;
-        if (at && at.off <= MAX_OFF_ROAD_M) { route = busRoute; break; }
+        if (at && at.off <= MAX_OFF_ROAD_M) { route = busRoute; routeBus = bus; break; }
       }
       if (!route && user.pickup_route_id) {
         const chosen = await db.Route.get(user.pickup_route_id).catch(() => null);
-        if (chosen && live.some((row) => row.company_id === chosen.company_id)) route = chosen;
+        if (chosen && live.some((row) => row.company_id === chosen.company_id)) {
+          route = chosen;
+          routeBus = buses.find((b) => b.route_id === chosen.id && b.company_id === chosen.company_id) || null;
+        }
       }
       if (!route) return Response.json({ stop: null });
       const result = await routeStopPlan(db, route);
@@ -203,9 +209,21 @@ export default async function(req) {
       const stop = result.stops.find((s) => s.riders.some((r) => r.id === me));
       if (!stop) return Response.json({ stop: null, off_road: result.off_road.includes(me) });
       const mine = stop.riders.find((r) => r.id === me);
+      // Where their stop falls in their own bus's stop list (the same list the
+      // driver tablet counts along: busRoadStops), so "stops away" can be the
+      // bus's next stop index subtracted from this. Just a number: no one
+      // else's pickup leaves the server.
+      let busOrder = null;
+      if (routeBus) {
+        const byId = new Map(result.riders.map((r) => [r.id, r]));
+        const ridesBus = (r) => !!r && (!r.bus_id || r.bus_id === routeBus.id);
+        const busStops = result.stops.filter((s) => s.fixed || s.riders.some((x) => ridesBus(byId.get(x.id))));
+        const at = busStops.findIndex((s) => s.key === stop.key);
+        if (at >= 0) busOrder = at;
+      }
       return Response.json({
         route_id: route.id,
-        stop: { name: stop.name, lat: stop.lat, lng: stop.lng, fixed: stop.fixed, shared_with: stop.riders.length - 1, moved_m: mine.moved_m, order: result.stops.indexOf(stop) },
+        stop: { name: stop.name, lat: stop.lat, lng: stop.lng, fixed: stop.fixed, shared_with: stop.riders.length - 1, moved_m: mine.moved_m, order: result.stops.indexOf(stop), bus_id: routeBus?.id || null, bus_order: busOrder },
       });
     }
 
