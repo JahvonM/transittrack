@@ -22,7 +22,11 @@ export const PROXIMITY_TRIGGER_M = 500;
 export const ATTENDANCE_TRIGGER_M = 1500; // ~15 min walk / close proximity
 export const SPEEDING_THRESHOLD_KMH = 100;
 export const TRAIL_MAX = 60;
-export const GPS_INTERVAL_MS = 5000;
+// How often a driver's position is sent to the server. Every send is several
+// database calls, and Base44 limits the app's database calls, so 5 seconds
+// per bus used up much of the allowance on its own. The driver's own map
+// still moves with every GPS fix; only the upload is spaced out.
+export const GPS_INTERVAL_MS = 15000;
 
 // Normalise a phone number for wa.me (strip non-digits, ensure no leading +)
 export function waNumber(phone) {
