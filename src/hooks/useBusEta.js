@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { fetchDrivingRoute } from "@/lib/geo";
-import { locationIsStale, remainingBusPoints } from "@/lib/busEta";
+import { locationIsStale, remainingBusPoints, roughMinutes } from "@/lib/busEta";
 
 export default function useBusEta(route, vehicle, stop) {
   const [now, setNow] = useState(Date.now);
@@ -20,7 +20,11 @@ export default function useBusEta(route, vehicle, stop) {
     setLoading(true);
     const waypoints = JSON.parse(key).map(([lat, lng]) => ({ lat, lng }));
     fetchDrivingRoute(waypoints).then((r) => {
-      if (alive) { setResult(r ? { mins: r.durationMin, km: r.distanceKm, isDriving: true } : null); setLoading(false); }
+      if (!alive) return;
+      // No directions (no signal for the map service, say): a rough time from
+      // the distance along the road, rather than no time at all.
+      setResult(r ? { mins: r.durationMin, km: r.distanceKm, isDriving: true } : { ...roughMinutes(waypoints), estimated: true });
+      setLoading(false);
     });
     return () => { alive = false; };
   }, [key, stale]);
