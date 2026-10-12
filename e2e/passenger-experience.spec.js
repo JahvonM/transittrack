@@ -23,7 +23,7 @@ async function session(page,role) {
  });
  return {calls,direct};
 }
-async function passengerShowcase(page, { stale = false, light = false, parked = false, assigned = { current: true }, pickup = 'Grand Anse', extra = {}, sharedStop = null, busExtra = {} } = {}) {
+async function passengerShowcase(page, { stale = false, light = false, parked = false, assigned = { current: true }, pickup = 'Grand Anse', extra = {}, sharedStop = null, busExtra = {}, routeList = null, driveSecs = 180 } = {}) {
   await session(page,'staff');
   await page.addInitScript(({light,pickup}) => {
     localStorage.setItem('tt_company_access_grant','a'.repeat(64));
@@ -39,7 +39,7 @@ async function passengerShowcase(page, { stale = false, light = false, parked = 
   // The bus Admin → Passengers put this passenger on; null once it's removed.
   await page.route('**/functions/companyAccess',r=>r.fulfill({json:{company:{id:'a',name:'Grenada Transport Co.'},my_bus:assigned.current ? {id:bus.id,name:bus.name} : null}}));
   const buses=[bus,{...bus,id:'bus-c',name:'TT-108'}];
-  const routes=[{id:'route-a',company_id:'a',name:'Coastal route',active:true,stops}];
+  const routes=routeList || [{id:'route-a',company_id:'a',name:'Coastal route',active:true,stops}];
   const state={workplace:null};
   await page.route('**/functions/entityAccess',r=>{
     const b=r.request().postDataJSON();let result=[];
@@ -50,7 +50,7 @@ async function passengerShowcase(page, { stale = false, light = false, parked = 
     if(b.entity==='Route') result=routes;
     return r.fulfill({json:{result}});
   });
-  await page.route('https://api.mapbox.com/**',r=>r.fulfill({json:{routes:[{duration:180,distance:1500,geometry:{coordinates:stops.map(s=>[s.lng,s.lat])},legs:[{duration:180,distance:1500,steps:[]}]}]}}));
+  await page.route('https://api.mapbox.com/**',r=>driveSecs==null?r.fulfill({status:503,body:''}):r.fulfill({json:{routes:[{duration:driveSecs,distance:1500,geometry:{coordinates:stops.map(s=>[s.lng,s.lat])},legs:[{duration:driveSecs,distance:1500,steps:[]}]}]}}));
   await page.route('**/api.open-meteo.com/**',r=>r.fulfill({json:{current:{temperature_2m:28,weather_code:0}}}));
   await page.goto('/staff');
   await expect(page.getByLabel('Your next bus',{exact:true})).toBeVisible();
@@ -112,6 +112,43 @@ for(const item of [
  await expect(page.getByLabel('Your next bus').getByRole('status')).toHaveText(item.label);
  await tab(page,'Journey').click();
  await expect(page.locator('.px-bus-identity')).toContainText(item.label);
+});
+// A route with only a drawn road (Route Planner) and no named stops: the
+// passenger's pickup is merged onto the road; the server says where it falls
+// in the bus's stop list, the bus says which of its stops is next.
+const ROAD=[{lat:12.05,lng:-61.75},{lat:12.02,lng:-61.76},{lat:12.0,lng:-61.78}];
+const along=(t)=>({lat:12.05-0.03*t,lng:-61.75-0.01*t});
+function drawnRoadPassenger({bus=along(0.1),next=1,driveSecs=600}={}) {
+ return {
+  pickup:'My pickup', driveSecs,
+  extra:{pickup_name:'My pickup',pickup_route_id:'route-a',pickup_lat:along(0.6).lat,pickup_lng:along(0.6).lng-0.0005},
+  sharedStop:{name:'Pickup 3',lat:along(0.6).lat,lng:along(0.6).lng,fixed:false,shared_with:1,moved_m:50,order:2,bus_id:'bus-a',bus_order:2},
+  routeList:[{id:'route-a',company_id:'a',name:'Country',active:true,stops:[],path:ROAD}],
+  busExtra:{current_lat:bus.lat,current_lng:bus.lng,road_next_stop:next},
+ };
+}
+test('drawn road with no named stops: arrival time and stops away',async({page})=>{
+ await passengerShowcase(page,drawnRoadPassenger());
+ const hero=page.getByLabel('Your next bus');
+ await expect(hero).toContainText('10 min');
+ await expect(page.getByLabel('Bus arrival details').first()).toContainText('1 stop away');
+ await expect(page.getByLabel('Bus arrival details').first()).not.toContainText('unavailable');
+});
+test('drawn road: a rough arrival time when directions are unavailable',async({page})=>{
+ await passengerShowcase(page,drawnRoadPassenger({driveSecs:null}));
+ await expect(page.getByLabel('Your next bus')).toContainText(/\d+ min/);
+ await expect(page.getByLabel('Bus arrival details').first()).toContainText('Estimated pickup');
+ await expect(page.getByLabel('Bus arrival details').first()).not.toContainText('unavailable');
+});
+test('drawn road: tells the passenger once when the bus is close',async({page})=>{
+ await passengerShowcase(page,drawnRoadPassenger({bus:along(0.45),next:2,driveSecs:120}));
+ await expect(page.getByLabel('Your next bus').getByRole('status')).toHaveText('Bus close to your stop');
+ await expect(page.getByLabel('Bus arrival details').first()).toContainText('Your stop is next');
+ await expect(page.getByText('Your bus is close',{exact:true})).toBeVisible();
+ await page.reload();
+ await expect(page.getByLabel('Your next bus').getByRole('status')).toHaveText('Bus close to your stop');
+ await page.waitForTimeout(1000);
+ await expect(page.getByText('Your bus is close',{exact:true})).toHaveCount(0);
 });
 test('stale location cannot claim the bus has arrived',async({page})=>{
  await passengerShowcase(page,{stale:true,busExtra:{current_lat:12.01,current_lng:-61.77,speed:0}});
