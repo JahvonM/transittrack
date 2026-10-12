@@ -7,7 +7,7 @@ it("shares pending reads and fetches fresh after completion", async () => {
  const client = {functions:{invoke}};
  const a=loadCardDirectory(client), b=loadCardDirectory(client);
  expect(a).toBe(b);
- await Promise.resolve();
+ await vi.waitFor(()=>expect(invoke).toHaveBeenCalledTimes(1));
  expect(invoke).toHaveBeenCalledTimes(1);
  finish({data:{people:["p"]}});
  await expect(a).resolves.toEqual({people:["p"]});

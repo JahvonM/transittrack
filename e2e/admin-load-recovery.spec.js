@@ -103,7 +103,7 @@ test('admin navigation retains loaded overview data rather than restarting all r
  await expect(page.getByRole('region',{name:'Live Fleet'})).toBeVisible({timeout:15000});
  const initial=calls.filter(b=>b.entity==='Vehicle'&&b.limit!==5000).length;
  await page.evaluate(()=>{history.pushState({},'', '/admin/directory');dispatchEvent(new PopStateEvent('popstate'));});
- await expect(page.getByRole('button',{name:'Add passenger',exact:true})).toBeVisible();
+ await expect(page.getByRole('button',{name:'Add passenger',exact:true}).first()).toBeVisible();
  await page.evaluate(()=>{history.pushState({},'', '/admin');dispatchEvent(new PopStateEvent('popstate'));});
  await expect(page.getByRole('region',{name:'Live Fleet'})).toBeVisible();
  expect(calls.filter(b=>b.entity==='Vehicle'&&b.limit!==5000)).toHaveLength(initial);
