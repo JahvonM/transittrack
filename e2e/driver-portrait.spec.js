@@ -124,7 +124,10 @@ test('change stop and map tap choose the next stop without modifying the route',
  await expect(page.getByLabel('Driver navigation map')).toBeHidden();
  expect(await page.evaluate(()=>JSON.parse(sessionStorage.getItem('tt_nav_target')).navigate)).toBe(false);
  // Stop circles follow the route polyline in the lightweight map.
- await page.locator('.dk-overview-map path[fill-opacity="1"]').first().click({force:true});
+ await page.waitForTimeout(500);
+ console.log(await page.locator('.dk-overview-map').boundingBox(),await page.locator('.dk-overview-map path[fill-opacity="1"]').first().boundingBox());
+ await page.screenshot({path:'/tmp/driver-map-selection.png'});
+ await page.locator('.dk-overview-map path[fill-opacity="1"]').first().click();
  await expect(page.getByRole('dialog',{name:'Choose next stop'})).toContainText('First Stop');
  await page.getByRole('button',{name:'Cancel',exact:true}).click();
  await expect(page.getByRole('region',{name:'Next stop'})).toContainText('Second Stop');
