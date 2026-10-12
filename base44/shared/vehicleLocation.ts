@@ -104,10 +104,14 @@ export async function applyLocationUpdate(base44, { vehicleId, companyId, compan
   if (Number.isInteger(roadNext) && roadNext >= 0 && roadNext <= 1000) {
     const prev = Number.isInteger(vehicle.road_next_stop) ? vehicle.road_next_stop : null;
     // Forward only (it's cleared when a trip starts): GPS wobble back past a
-    // stop must not move it back, or alert that stop's passengers twice.
+    // stop must not move it back, or alert that stop's passengers twice. Two
+    // or more stops back is a new run along the road: count from there, and
+    // alert again as it moves on.
     if (prev === null || roadNext > prev) {
       update.road_next_stop = roadNext;
       if (onRoadNext && vehicle.trip_direction !== 'to_home') roadAlert = roadNext;
+    } else if (roadNext <= prev - 2) {
+      update.road_next_stop = roadNext;
     }
   }
   // --- Place alerts: geofence arrival/departure at the vehicle's route stops ---
