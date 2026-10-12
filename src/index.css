@@ -867,5 +867,5 @@ html.tt-future {
 }
 @media (prefers-reduced-motion: reduce) { .tt-pick-choice[aria-pressed="true"], .tt-pickup-sheet .tt-pickup-finder .tt-pick-choice[aria-pressed="true"] { animation: none; } }
 @media (max-width: 360px) { .tt-pick-tag { display: none; } }
-.leaflet-tooltip.tt-map-picked { background: #04121c; color: #fff; border: 2px solid var(--tt-pick, #00d7e8); border-radius: 999px; padding: 3px 10px; font: 700 12px/1.2 system-ui, sans-serif; box-shadow: 0 2px 10px rgba(0,0,0,.45); }
-.leaflet-tooltip-top.tt-map-picked::before { border-top-color: var(--tt-pick, #00d7e8); }
+.tt-map-picked-anchor { background: none; border: 0; }
+.tt-map-picked-anchor .tt-map-picked { position: absolute; left: 0; bottom: 22px; transform: translateX(-50%); white-space: nowrap; pointer-events: none; background: #04121c; color: #fff; border: 2px solid var(--tt-pick, #00d7e8); border-radius: 999px; padding: 3px 10px; font: 700 12px/1.2 system-ui, sans-serif; box-shadow: 0 2px 10px rgba(0,0,0,.45); }
