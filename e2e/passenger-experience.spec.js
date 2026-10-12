@@ -182,7 +182,12 @@ test('the pickup a passenger taps glows, and tapping another moves it',async({pa
  await expect.poll(()=>glows(spots.nth(2))).toBe(true);
  await expect.poll(()=>glows(spots.nth(0))).toBe(false);
  await expect(dialog.locator('.tt-map-picked')).toHaveCount(1);
- await expect(dialog.locator('.tt-map-picked')).toContainText('Your pick');
+ await expect(dialog.locator('.tt-map-picked')).toHaveText('Spot 3 · Your pick');
+ // Spots are numbered, the same in the list and on the map.
+ const count=await spots.count();
+ for(let i=0;i<count;i++) await expect(spots.nth(i).locator('strong')).toHaveText(`Spot ${i+1}`);
+ await expect(dialog.locator('.tt-map-num')).toHaveCount(count);
+ await expect(dialog.locator('.tt-map-num.picked')).toHaveText('3');
  await page.waitForTimeout(700);
  await page.screenshot({path:'/tmp/tt-pickup-picked.png'});
  await dialog.locator('.leaflet-container').first().screenshot({path:'/tmp/tt-pickup-map.png'});
@@ -190,6 +195,14 @@ test('the pickup a passenger taps glows, and tapping another moves it',async({pa
  await expect(spots.nth(1)).toHaveAttribute('aria-pressed','true');
  await expect(spots.nth(2)).toHaveAttribute('aria-pressed','false');
  await expect.poll(()=>glows(spots.nth(2))).toBe(false);
+ // Tapping a number on the map picks that spot.
+ await dialog.locator('.tt-map-num',{hasText:/^1$/}).dispatchEvent('click');
+ await expect(spots.nth(0)).toHaveAttribute('aria-pressed','true');
+ await expect(spots.nth(1)).toHaveAttribute('aria-pressed','false');
+ await expect(dialog.locator('.tt-map-picked')).toHaveText('Spot 1 · Your pick');
+ await dialog.getByRole('button',{name:'Review this pickup',exact:true}).click();
+ await expect(dialog.getByText(/^Spot 1 · Roadside pickup/)).toBeVisible();
+ await dialog.getByRole('button',{name:'Choose another spot',exact:true}).click();
  // Company stops: the same.
  await dialog.getByRole('button',{name:'Choose a company stop instead'}).click();
  await dialog.getByRole('button',{name:/^True Blue/}).click();
