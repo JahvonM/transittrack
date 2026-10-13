@@ -218,6 +218,43 @@ test('the pickup a passenger taps glows, and tapping another moves it',async({pa
  await page.waitForTimeout(700);
  await page.screenshot({path:'/tmp/tt-pickup-stop-picked.png'});
 });
+// Only the stops on the route of the passenger's bus are offered or used,
+// even when another route has a stop with the same name.
+const coastalRoute={id:'route-a',company_id:'a',name:'Coastal route',active:true,stops:[{name:"St. George's",lat:12.05,lng:-61.75,order:0},{name:'True Blue',lat:12.02,lng:-61.76,order:1},{name:'Grand Anse',lat:12.01,lng:-61.77,order:2},{name:'Morne Rouge',lat:12,lng:-61.78,order:3}]};
+const otherRoute={id:'route-b',company_id:'a',name:'Other route',active:true,stops:[{name:'Stop 5',lat:12.1,lng:-61.7,order:0},{name:'Grand Anse',lat:12.2,lng:-61.6,order:1}]};
+async function companyStops(page){
+ await page.getByRole('region',{name:'Pickup and drop-off'}).getByRole('button',{name:'Change'}).click();
+ const dialog=page.getByRole('dialog');
+ await dialog.getByRole('button',{name:'Choose a company stop instead'}).click();
+ return dialog.getByRole('list',{name:'Available pickup stops'});
+}
+test('only the stops on the bus route are offered',async({page})=>{
+ await passengerShowcase(page,{routeList:[otherRoute,coastalRoute]});
+ await expect(page.getByRole('region',{name:'Pickup and drop-off'})).toContainText('Grand Anse');
+ const list=await companyStops(page);
+ await expect(list.getByRole('button')).toHaveCount(4);
+ await expect(list).not.toContainText('Stop 5');
+ await expect(list).not.toContainText('Other route');
+ const grandAnse=list.getByRole('button',{name:/^Grand Anse/});
+ await expect(grandAnse).toHaveAttribute('aria-pressed','true');
+ await expect(grandAnse).toContainText('Coastal route');
+});
+test('a saved stop the bus does not make asks for one on its route',async({page})=>{
+ await passengerShowcase(page,{routeList:[otherRoute,coastalRoute],pickup:'Stop 5'});
+ const prompt=page.getByText("Your bus doesn't stop there");
+ await expect(prompt).toBeVisible();
+ await expect(page.getByText('TT-102 drives Coastal route, which doesn\'t stop at "Stop 5".',{exact:false})).toBeVisible();
+ await expect(page.getByLabel('Your next bus').getByRole('status')).toHaveText('Choose your pickup');
+ await page.getByRole('button',{name:'Choose a stop on its route'}).click();
+ await page.getByRole('dialog').getByRole('button',{name:'Choose a company stop instead'}).click();
+ await expect(page.getByRole('dialog').getByRole('list',{name:'Available pickup stops'})).not.toContainText('Stop 5');
+});
+test('with no bus assigned, every route\'s stops are offered',async({page})=>{
+ await passengerShowcase(page,{routeList:[otherRoute,coastalRoute],assigned:{current:false}});
+ const list=await companyStops(page);
+ await expect(list).toContainText('Stop 5');
+ await expect(list).toContainText('True Blue');
+});
 test('stale location cannot claim the bus has arrived',async({page})=>{
  await passengerShowcase(page,{stale:true,busExtra:{current_lat:12.01,current_lng:-61.77,speed:0}});
  await expect(page.getByLabel('Your next bus').getByRole('status')).toHaveText('Location delayed');
