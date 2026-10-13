@@ -337,25 +337,40 @@ export default function StaffPortal() {
     setTrips([]);
   };
 
+  // The route of the bus the company put this passenger on. With one, only
+  // its stops are offered and matched: other routes' stops (often with the
+  // same names, like "Stop 5") are places this bus doesn't go.
+  const assignedRoute = useMemo(() => {
+    const id = myBus ? vehicles.find((v) => v.id === myBus.id)?.route_id : null;
+    return id ? routes.find((r) => r.id === id) || null : null;
+  }, [myBus, vehicles, routes]);
+  const pickupRoutes = useMemo(() => (assignedRoute ? [assignedRoute] : routes), [assignedRoute, routes]);
+
   const pickupOptions = useMemo(() => {
     const seen = new Set();
     const out = [];
-    routes.forEach((r) =>
+    pickupRoutes.forEach((r) =>
       (r.stops || []).forEach((s) => {
         if (!s.name || seen.has(s.name)) return;
         seen.add(s.name);
         out.push({ ...s, route_id: r.id, routeName: r.name });
       })
     );
-    // Your own pickup, or the shared stop it was merged into along the road.
-    if (user?.pickup_lat != null && routes.some(r => r.id === user.pickup_route_id)) out.push({ name: user.pickup_name, lat: sharedStop?.lat ?? user.pickup_lat, lng: sharedStop?.lng ?? user.pickup_lng, route_id: user.pickup_route_id, personal: true, shared: sharedStop });
+    // Your own pickup, or the shared stop it was merged into along the road:
+    // only while your bus drives past it.
+    if (user?.pickup_lat != null && routes.some(r => r.id === user.pickup_route_id) && !(assignedRoute && pickupMissesBus(user, assignedRoute))) {
+      const routeId = assignedRoute ? assignedRoute.id : user.pickup_route_id;
+      if (!seen.has(user.pickup_name)) out.push({ name: user.pickup_name, lat: sharedStop?.lat ?? user.pickup_lat, lng: sharedStop?.lng ?? user.pickup_lng, route_id: routeId, personal: true, shared: sharedStop });
+    }
     return out;
-  }, [routes, user?.pickup_lat, user?.pickup_lng, user?.pickup_name, user?.pickup_route_id, sharedStop]);
+  }, [pickupRoutes, routes, assignedRoute, user, sharedStop]);
 
   const returnBus = myBus ? vehicles.find(v=>v.id===myBus.id) : null;
   const returning = returnBus?.trip_direction === "to_home";
-  const stop = returning ? (workplace?.lat!=null && workplace?.lng!=null ? workplace : null)
-    : pickupOptions.find((s) => s.name === pickupName) || null;
+  // Where the passenger is picked up (and, going home, dropped off): one of
+  // their bus's stops, or their own pickup beside its road.
+  const homeStop = pickupOptions.find((s) => s.name === pickupName) || null;
+  const stop = returning ? (workplace?.lat!=null && workplace?.lng!=null ? workplace : null) : homeStop;
 
   // SOS is admin/management-only — never surface the "emergency" status to
   // staff/passengers here (it drives the map pin color and its tooltip text).
@@ -368,8 +383,8 @@ export default function StaffPortal() {
 
   // Routes that actually stop at the chosen pickup point.
   const servingRoutes = useMemo(
-    () => (stop ? routes.filter((r) => stop.personal ? r.id === stop.route_id : (r.stops || []).some((s) => s.name === stop.name)) : []),
-    [stop, routes]
+    () => (stop ? pickupRoutes.filter((r) => stop.personal ? r.id === stop.route_id : (r.stops || []).some((s) => s.name === stop.name)) : []),
+    [stop, pickupRoutes]
   );
 
   // The bus coming to your stop: your own bus, while it's tracking.
@@ -411,13 +426,24 @@ export default function StaffPortal() {
   // The road the assigned bus drives. A pickup saved somewhere else is one
   // the bus doesn't stop at: ask the passenger to pick again on its road, and
   // only offer spots on that road while they do.
-  const busRoute = useMemo(
-    () => (myVehicle?.route_id ? routes.find((r) => r.id === myVehicle.route_id) || null : null),
-    [myVehicle, routes]
-  );
-  const pinnerBus = busRoute ? { name: myVehicle.name || "Your bus", routeId: busRoute.id, routeName: busRoute.name || "" } : null;
-  const missesBus = pickupMissesBus(user, busRoute);
-  const pickupPrompt = missesBus ? (
+  const busRoute = assignedRoute;
+  const pinnerBus = busRoute ? { name: myVehicle?.name || "Your bus", routeId: busRoute.id, routeName: busRoute.name || "" } : null;
+  // A company stop on the bus's route is a fine pickup, wherever the
+  // passenger's own roadside spot is.
+  const onBusStop = !!stop && !stop.personal && !!busRoute && (busRoute.stops || []).some((s) => s.name === stop.name);
+  const missesBus = !onBusStop && pickupMissesBus(user, busRoute);
+  // A saved stop the bus doesn't make (one on another route).
+  const stopOffRoute = !missesBus && !!busRoute && !returning && !!pickupName && !stop;
+  const pickupPrompt = stopOffRoute ? (
+    <div className="mb-4">
+      <AlertBand
+        tone="warning"
+        title="Your bus doesn't stop there"
+        body={`${pinnerBus.name} drives ${pinnerBus.routeName || "a different route"}, which doesn't stop at "${pickupName}". Choose one of its stops so the driver stops for you.`}
+        action={<Button size="sm" className="mt-3" onClick={() => setSheet("pickup")}>Choose a stop on its route</Button>}
+      />
+    </div>
+  ) : missesBus ? (
     <div className="mb-4">
       <AlertBand
         tone="warning"
@@ -554,7 +580,7 @@ export default function StaffPortal() {
       <PullToRefresh onRefresh={() => Promise.all([reload(), refreshMyBus(), refreshSharedStop()])}>
         <PassengerExperience view={view} user={user} company={company} workplace={workplace} myVehicle={myVehicle}
           returning={returning} tripState={tripState} pickupStop={stop} stopsAway={stopsAway} timelineRoute={timelineRoute} stopEtas={stopEtas}
-          now={now} homeName={user?.pickup_name || pickupName} sharedStop={sharedStop}
+          now={now} homeName={homeStop && !homeStop.personal ? homeStop.name : user?.pickup_name || pickupName} sharedStop={homeStop?.personal ? sharedStop : null}
           pickupPrompt={pickupPrompt} notice={notice} chatUnread={chatUnread} stopAlerts={stopAlerts} pushPermission={pushPermission}
           toggleStopAlerts={toggleStopAlerts} enableNotifications={enableNotifications} setSheet={setSheet}
           mapOpen={mapOpen} setMapOpen={setMapOpen} bookedTrips={upcomingTrips} pickupName={pickupName}
@@ -586,7 +612,7 @@ export default function StaffPortal() {
         onSwitchCompany={switchCompany}
       />
       <PassengerSettingsSheet open={sheet === "notifications"} onOpenChange={o => setSheet(o ? "notifications" : null)} stopAlerts={stopAlerts} onToggleStopAlerts={toggleStopAlerts} pushUnsupported={pushPermission === "unsupported"} companyPhone={companyPhone} onSwitchCompany={switchCompany} />
-      <StopSheet open={sheet === "stop"} onOpenChange={(o) => setSheet(o ? "stop" : null)} routes={routes} value={pickupName} onChoose={choosePickup} userLoc={userLoc} />
+      <StopSheet open={sheet === "stop"} onOpenChange={(o) => setSheet(o ? "stop" : null)} routes={pickupRoutes} value={pickupName} onChoose={choosePickup} userLoc={userLoc} />
       <AssistantSheet open={sheet === "assistant"} onOpenChange={(o) => setSheet(o ? "assistant" : null)} company={company} userLoc={userLoc} />
       <HelpSheet open={sheet === "help"} onOpenChange={(o) => setSheet(o ? "help" : null)} company={company} vehicles={vehicles} />
       <BadgeSheet open={sheet === "badge"} onOpenChange={(o) => setSheet(o ? "badge" : null)} />
