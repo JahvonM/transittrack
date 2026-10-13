@@ -78,3 +78,15 @@ export function addMinutesToInput(value, minutes) {
   const iso = fromLocalInput(value);
   return iso ? toLocalInput(new Date(Date.parse(iso) + minutes * 60_000).toISOString()) : "";
 }
+
+// On a signing tablet: the job waiting for the guests' signature. Pickup once
+// the driver has started it, drop-off once the driver has arrived. signed:
+// "<job id>:<pickup|dropoff>" already signed on this tablet.
+export function waitingSignature(jobs, signed = new Set()) {
+  const sorted = [...(jobs || [])].sort((a, b) => String(a.scheduled_time || "").localeCompare(String(b.scheduled_time || "")));
+  for (const job of sorted) {
+    if (job.status === "on_the_way" && !job.pickup_signed_at && !signed.has(`${job.id}:pickup`)) return { job, mode: "pickup" };
+    if (job.status === "arrived" && !job.dropoff_signed_at && !signed.has(`${job.id}:dropoff`)) return { job, mode: "dropoff" };
+  }
+  return null;
+}

@@ -86,7 +86,8 @@ async function resolveKioskDevice(base44, deviceId, token) {
     if ([400, 404].includes(error?.status ?? error?.response?.status)) return null;
     throw error;
   });
-  if (!device || device.kiosk_type === 'driver' || !(await deviceAccepted(base44, device, token))) return null;
+  // Driver and signing tablets have their own functions and can't use these.
+  if (!device || device.kiosk_type === 'driver' || device.kiosk_type === 'job_signing' || !(await deviceAccepted(base44, device, token))) return null;
   return device;
 }
 

@@ -7,12 +7,13 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import useNoPageZoom from "@/hooks/useNoPageZoom";
 import JourneyLoading from "@/components/JourneyLoading";
 import { base44 } from "@/api/base44Client";
-import { Bus, Building2, DoorOpen, CreditCard, CheckCircle2, AlertCircle, WifiOff } from "lucide-react";
+import { Bus, Building2, DoorOpen, CreditCard, CheckCircle2, AlertCircle, WifiOff, PenLine } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import BusBoardingKiosk from "@/components/kiosk/BusBoardingKiosk";
 import FrontDeskKiosk from "@/components/kiosk/FrontDeskKiosk";
+import JobSigningKiosk from "@/components/kiosk/JobSigningKiosk";
 import KioskConnectionBadge from "@/components/kiosk/KioskConnectionBadge";
 import { saveDevice, loadDevice, forgetTablet, saveDirectory, directoryInfo, warmPhotos, offlineLookup, noteStatus } from "@/lib/kioskOffline";
 import { isNetworkFailure } from "@/lib/offlineQueue";
@@ -26,6 +27,7 @@ const TYPE_META = {
   bus_boarding: { label: "Bus boarding", icon: Bus },
   front_desk: { label: "Front-desk sign-in", icon: DoorOpen },
   badge_registry: { label: "Retired kiosk mode", icon: CreditCard },
+  job_signing: { label: "Signing tablet", icon: PenLine },
 };
 
 const HEARTBEAT_MS = 30000;
@@ -294,6 +296,9 @@ export default function Kiosk() {
   // bus_boarding owns the whole viewport (top status bar, live map backdrop,
   // two-panel layout) — it doesn't fit inside the generic small centered
   // card the other two kiosk types use, and a big tablet has room to spare.
+  // The signing tablet is the guests' own screen for signing for jobs.
+  if (device?.kiosk_type === "job_signing") return <JobSigningKiosk device={device} deviceId={deviceId} online={online} />;
+
   if (device?.kiosk_type === "bus_boarding") {
     return (
       <>

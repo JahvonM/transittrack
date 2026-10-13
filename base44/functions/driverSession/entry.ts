@@ -8,6 +8,7 @@ import { reserveAttempt, createOnce, withLock } from '../../shared/atomicOps.ts'
 import { pushWithPolicy, emailWithPolicy } from '../../shared/notificationPolicy.ts';
 import { placeOnRoad, roadPointsToLine } from '../../shared/pickupStops.ts';
 import { busRoadStops } from '../../shared/routeRiders.ts';
+import { JOB_STEPS, jobForBus, jobStepTime, signJob, tabletTrip } from '../../shared/jobSignature.ts';
 
 
 async function liveMembership(base44, row) {
@@ -255,7 +256,6 @@ const CHAT_CHANNELS = ['staff', 'company', 'dispatch', 'mechanic'];
 // because uploads are stored as public files.
 const CHAT_MEDIA_TYPES = { image: ['image/jpeg', 'image/png', 'image/webp', 'image/gif'], audio: ['audio/webm', 'audio/ogg', 'audio/mp4', 'audio/mpeg', 'audio/aac', 'audio/wav'] };
 const MAX_CHAT_MEDIA_BYTES = 8 * 1024 * 1024;
-const MAX_SIGNATURE_BYTES = 1024 * 1024;
 const base64Fits = (b64, maxBytes) => typeof b64 === 'string' && b64.length <= Math.ceil(maxBytes / 3) * 4 + 4;
 
 function base64ToBytes(b64) {
@@ -450,34 +450,6 @@ function tabletRoute(row, companyId) {
 function tabletCheckIn(row) {
   return tabletFields(row, ['id', 'staff_name', 'staff_picture_url', 'company_name', 'status', 'boarded_at', 'created_date', 'vehicle_id', 'vehicle_name', 'check_in_method']);
 }
-// What the driver needs to do a job. Prices, invoices and the signature files
-// stay with dispatch; the signing time tells the tablet it was signed.
-function tabletTrip(row) {
-  const out = tabletFields(row, ['id', 'job_type', 'status', 'vehicle_id', 'vehicle_name', 'plate_number', 'route_id', 'route_name', 'company_id', 'company_name',
-    'driver_name', 'passenger_name', 'passenger_phone', 'client_name', 'pickup_name', 'pickup_address', 'pickup_lat', 'pickup_lng', 'dropoff_name',
-    'dropoff_address', 'dropoff_lat', 'dropoff_lng', 'scheduled_time', 'end_time', 'flight_number', 'flight_time', 'guests', 'luggage', 'notes',
-    'started_at', 'arrived_at', 'completed_at', 'pickup_signed_by', 'pickup_signed_at', 'dropoff_signed_by', 'dropoff_signed_at', 'created_date', 'updated_date']);
-  out.stops = Array.isArray(row.stops) ? row.stops.map((s) => tabletFields(s, ['name', 'address', 'lat', 'lng', 'reached_at'])) : [];
-  return out;
-}
-const JOB_STEPS = ['scheduled', 'on_the_way', 'arrived', 'completed'];
-// The job a step is for, if it is still this bus's. A step saved offline for a
-// job dispatch has since moved or cancelled is let go instead of being held
-// for review, which would hold back the tablet's other saved work too.
-async function tabletJob(base44, body, companyId, vehicleId) {
-  if (!body.trip_id || typeof body.trip_id !== 'string') return { reply: Response.json({ error: 'trip_id required' }, { status: 400 }) };
-  const trip = await base44.asServiceRole.entities.Trip.get(body.trip_id).catch((e) => {
-    if ([400, 404].includes(e?.status ?? e?.response?.status)) return null;
-    throw e;
-  });
-  const gone = !trip ? 'Job not found'
-    : trip.company_id !== companyId || trip.vehicle_id !== vehicleId ? 'This job is no longer on this bus'
-    : trip.status === 'cancelled' ? 'Dispatch cancelled this job' : '';
-  if (gone && body.queue_replay) return { reply: Response.json({ skipped: true, reason: gone }) };
-  if (gone) return { reply: Response.json({ error: gone, code: 'JOB_GONE' }, { status: !trip ? 404 : trip.status === 'cancelled' ? 409 : 403 }) };
-  return { trip };
-}
-const stepTime = (body) => (body.queue_replay ? occurredAt(body.occurred_at) : new Date()).toISOString();
 function boardingStats(rows) {
   const latest = new Map();
   const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Grenada' });
@@ -916,8 +888,10 @@ export default async function(req) {
           companyDisplayName = company?.name || companyName;
         } catch { /* optional company display and contacts */ }
         const hasDriverPin = light ? null : !!vehicle.driver_pin || !!(await base44.asServiceRole.entities.DriverPinCredential.filter({ vehicle_id: vehicleId }, '-updated_date', 1))[0]?.enabled;
+        // A guest-facing signing tablet on this bus (full check-ins only; it rarely changes).
+        const hasSigningTablet = light ? null : (await base44.asServiceRole.entities.KioskDevice.filter({ vehicle_id: vehicleId, kiosk_type: 'job_signing', status: 'active' }, '-created_date', 1).catch(() => [])).some((d) => d.paired && d.company_id === companyId);
         const reply = {
-          vehicle: tabletVehicle(vehicle), driver_name: vehicle.driver_name || '', has_driver_pin: hasDriverPin,
+          vehicle: tabletVehicle(vehicle), driver_name: vehicle.driver_name || '', has_driver_pin: hasDriverPin, has_signing_tablet: hasSigningTablet,
           company_id: companyId, company_name: companyDisplayName, company_logo_url: companyLogoUrl, staff, route: tabletRoute(route, companyId), road_stops: roadStops, workplace, emergency_contacts: emergencyContacts, ...boardingStats(checkIns),
           broadcasts: relevantBroadcasts, check_ins: checkIns.slice(0, 20).filter((c) => c.status === 'boarded').map(tabletCheckIn),
           group_messages: unlocked ? [...groupMessages].reverse() : [], trips: unlocked ? trips : [],
@@ -935,7 +909,7 @@ export default async function(req) {
         if (light) {
           // Left out, so the tablet keeps what the last full check-in sent. A
           // locked tablet still gets an empty passenger list and no stops.
-          for (const key of ['has_driver_pin', 'company_name', 'company_logo_url', 'route', 'workplace', 'emergency_contacts', 'inspection_templates', 'recent_inspections']) delete reply[key];
+          for (const key of ['has_driver_pin', 'has_signing_tablet', 'company_name', 'company_logo_url', 'route', 'workplace', 'emergency_contacts', 'inspection_templates', 'recent_inspections']) delete reply[key];
           if (unlocked) { delete reply.staff; delete reply.road_stops; }
           reply.light = true;
         }
@@ -1426,12 +1400,12 @@ export default async function(req) {
         const { status } = body;
         if (!['on_the_way', 'arrived', 'completed'].includes(status))
           return Response.json({ error: 'Invalid status' }, { status: 400 });
-        const { trip: existing, reply } = await tabletJob(base44, body, companyId, vehicleId);
+        const { trip: existing, reply } = await jobForBus(base44, body, companyId, vehicleId);
         if (reply) return reply;
         // A step sent again after being offline, or one the job is already
         // past, changes nothing.
         if (JOB_STEPS.indexOf(existing.status) >= JOB_STEPS.indexOf(status)) return Response.json({ trip: tabletTrip(existing) });
-        const at = stepTime(body);
+        const at = jobStepTime(body);
         const update = { status };
         if (status === 'on_the_way') update.started_at = at;
         if (status === 'arrived') update.arrived_at = at;
@@ -1445,62 +1419,20 @@ export default async function(req) {
       case 'reach_stop': {
         // A tour stop the driver has reached.
         const index = Number(body.index);
-        const { trip: existing, reply } = await tabletJob(base44, body, companyId, vehicleId);
+        const { trip: existing, reply } = await jobForBus(base44, body, companyId, vehicleId);
         if (reply) return reply;
         const stops = Array.isArray(existing.stops) ? existing.stops : [];
         if (!Number.isInteger(index) || index < 0 || index >= stops.length) return Response.json({ error: 'Unknown tour stop' }, { status: 400 });
         if (stops[index].reached_at) return Response.json({ trip: tabletTrip(existing) });
-        const at = stepTime(body);
+        const at = jobStepTime(body);
         const trip = await base44.asServiceRole.entities.Trip.update(existing.id, { stops: stops.map((s, i) => (i === index ? { ...s, reached_at: at } : s)) });
         return Response.json({ trip: tabletTrip(trip) });
       }
 
-      case 'sign_trip': {
+      case 'sign_trip':
         // Pickup / drop-off signature captured on the tablet. Drivers have no
-        // login, so the upload and trip update run here with the service role.
-        // The signature is a private file: only an administrator can open it.
-        const { mode, data_base64, mime_type, signed_by } = body;
-        if (!['pickup', 'dropoff'].includes(mode))
-          return Response.json({ error: 'trip_id and mode required' }, { status: 400 });
-        if (!data_base64 || typeof data_base64 !== 'string')
-          return Response.json({ error: 'data_base64 required' }, { status: 400 });
-        if (mime_type && String(mime_type).split(';')[0].trim().toLowerCase() !== 'image/png') return Response.json({ error: 'Signatures must be PNG images' }, { status: 400 });
-        if (!base64Fits(String(data_base64).replace(/^data:image\/png;base64,/, ''), MAX_SIGNATURE_BYTES)) return Response.json({ error: 'Signature is too large' }, { status: 413 });
-        const hasGuests = body.guests !== undefined && body.guests !== null && body.guests !== '';
-        const guests = hasGuests ? Number(body.guests) : null;
-        if (hasGuests && (!Number.isInteger(guests) || guests < 0 || guests > 500)) return Response.json({ error: 'Invalid number of guests' }, { status: 400 });
-        const requestId = typeof body.client_request_id === 'string' && /^[a-zA-Z0-9_-]{8,100}$/.test(body.client_request_id) ? body.client_request_id : '';
-        const { trip: existing, reply } = await tabletJob(base44, body, companyId, vehicleId);
-        if (reply) return reply;
-        // Sent again after being offline: it is already saved.
-        if (requestId && existing[`${mode}_signature_request_id`] === requestId) return Response.json({ trip: tabletTrip(existing) });
-        if (existing[`${mode}_signed_at`]) {
-          if (body.queue_replay) return Response.json({ skipped: true, reason: 'Already signed' });
-          return Response.json({ error: 'This job is already signed', code: 'ALREADY_SIGNED' }, { status: 409 });
-        }
-        let fileUri;
-        try {
-          const bytes = base64ToBytes(String(data_base64).replace(/^data:image\/png;base64,/, ''));
-          const file = new File([bytes], `signature-${mode}-${Date.now()}.png`, { type: 'image/png' });
-          fileUri = (await base44.asServiceRole.integrations.Core.UploadPrivateFile({ file }))?.file_uri;
-        } catch { fileUri = ''; }
-        if (!fileUri) return Response.json({ error: 'The signature could not be saved. Try again.' }, { status: 502 });
-        // Where it was signed, when the tablet knows (best effort: a missing
-        // or bad position never stops the signature).
-        const lat = Number(body.lat), lng = Number(body.lng);
-        const located = body.lat != null && body.lng != null && Number.isFinite(lat) && Number.isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180;
-        const at = stepTime(body);
-        const update = {
-          [`${mode}_signature_uri`]: fileUri, [`${mode}_signed_by`]: sanitize(signed_by).slice(0, 120), [`${mode}_signed_at`]: at,
-          [`${mode}_signed_guests`]: guests, [`${mode}_signed_lat`]: located ? lat : null, [`${mode}_signed_lng`]: located ? lng : null,
-          ...(requestId ? { [`${mode}_signature_request_id`]: requestId } : {}),
-        };
-        if (mode === 'pickup' && existing.status === 'scheduled') Object.assign(update, { status: 'on_the_way', started_at: at });
-        if (mode === 'dropoff' && existing.status !== 'completed') Object.assign(update, { status: 'completed', completed_at: at });
-        const trip = await base44.asServiceRole.entities.Trip.update(existing.id, update);
-        if (mode === 'dropoff') await base44.asServiceRole.entities.Vehicle.update(vehicleId, { status: 'idle' });
-        return Response.json({ trip: tabletTrip(trip) });
-      }
+        // login, so the upload and trip update run with the service role.
+        return signJob(base44, body, companyId, vehicleId);
 
       default:
         return Response.json({ error: 'Unknown action' }, { status: 400 });

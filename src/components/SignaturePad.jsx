@@ -2,7 +2,8 @@ import React, { forwardRef, useEffect, useImperativeHandle, useRef, useState } f
 import { Eraser } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-const SignaturePad = forwardRef(({ onChange }, ref) => {
+// canvasClassName: the drawing area's size (a bigger one on the signing tablet).
+const SignaturePad = forwardRef(({ onChange, canvasClassName = "h-40" }, ref) => {
   const canvasRef = useRef(null);
   const ctxRef = useRef(null);
   const drawing = useRef(false);
@@ -77,7 +78,7 @@ const SignaturePad = forwardRef(({ onChange }, ref) => {
     <div>
       <canvas
         ref={canvasRef}
-        className="w-full h-40 rounded-xl border-2 border-dashed bg-white touch-none cursor-crosshair"
+        className={`w-full ${canvasClassName} rounded-xl border-2 border-dashed bg-white touch-none cursor-crosshair`}
         style={{ touchAction: "none" }}
         onPointerDown={down}
         onPointerMove={move}

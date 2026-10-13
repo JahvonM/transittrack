@@ -71,3 +71,18 @@ describe("driver steps saved on the tablet", () => {
     expect(out[1]).toBe(other);
   });
 });
+
+describe("signing tablet", () => {
+  it("asks for the pickup signature once the job has started, the drop-off once arrived", async () => {
+    const { waitingSignature } = await import("../jobs");
+    const jobs = [
+      { id: "later", status: "scheduled", scheduled_time: "2026-10-20T15:00:00Z" },
+      { id: "now", status: "on_the_way", scheduled_time: "2026-10-20T10:00:00Z" },
+    ];
+    expect(waitingSignature(jobs)).toMatchObject({ job: { id: "now" }, mode: "pickup" });
+    expect(waitingSignature([{ ...jobs[1], pickup_signed_at: "x" }])).toBeNull();
+    expect(waitingSignature([{ ...jobs[1], status: "arrived", pickup_signed_at: "x" }])).toMatchObject({ mode: "dropoff" });
+    expect(waitingSignature(jobs, new Set(["now:pickup"]))).toBeNull();
+    expect(waitingSignature([jobs[0]])).toBeNull();
+  });
+});

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { load, mock, request } from "../../../security-tests/helpers.js";
+import { digest, load, mock, request } from "../../../security-tests/helpers.js";
 
 // Jobs dispatch gives a bus (airport runs, hotel tours, transfers): what the
 // driver tablet gets and sends, who can read and change jobs, places, clients
@@ -282,5 +282,66 @@ describe("invoices", () => {
     expect(status).toBe(200);
     expect(body.pickup).toBe("data:image/png;base64," + Buffer.from("png-bytes").toString("base64"));
     expect(body.dropoff).toBe("https://base44.app/old.png");
+  });
+});
+
+describe("signing tablet", () => {
+  const TOKEN = "c".repeat(64);
+  const signer = { id: "signer", kiosk_type: "job_signing", status: "active", paired: true, company_id: "a", company_name: "A", vehicle_id: "bus-a", vehicle_name: "Bus A", pairing_code: "PAIRSIGN1234", created_date: "2026-10-12T00:00:00Z" };
+  const setup = (trips = [job({ status: "on_the_way", passenger_phone: "+1 473 555 0100", notes: "VIP guest" })]) => {
+    const sdk = mock(null);
+    sdk.tables.KioskDevice.push(structuredClone(signer));
+    sdk.tables.DeviceCredential = [{ id: "cred", device_id: "signer", token_hash: digest(TOKEN), company_id: "a", vehicle_id: "bus-a", kiosk_type: "job_signing", pairing_code_hash: digest("PAIRSIGN1234"), issued_at: "2026-10-12T00:00:00Z", expires_at: "2099-01-01T00:00:00Z" }];
+    sdk.tables.Trip = trips.map((t) => structuredClone(t));
+    sdk.asServiceRole.integrations.Core.UploadPrivateFile = async () => ({ file_uri: "private/guest-sig.png" });
+    const handler = load("jobSigning", sdk).default;
+    const call = async (body, token = TOKEN) => { const res = await handler(request({ device_id: "signer", device_token: token, ...body })); return { status: res.status, body: await res.json() }; };
+    return { sdk, call };
+  };
+
+  it("shows the bus's open jobs with only what guests may see", async () => {
+    const { call } = setup([job({ status: "on_the_way", passenger_phone: "+1 473 555 0100", notes: "VIP guest" }), job({ id: "done", status: "completed" }), job({ id: "other-bus", vehicle_id: "bus-b" })]);
+    const { status, body } = await call({ action: "state" });
+    expect(status).toBe(200);
+    expect(body.jobs.map((j) => j.id)).toEqual(["job-1"]);
+    expect(body.jobs[0]).toMatchObject({ pickup_name: "Airport", dropoff_name: "Grand Hotel", guests: 3, flight_number: "AA 123" });
+    for (const key of ["passenger_phone", "notes", "price", "client_name", "client_id", "invoice_id", "pickup_signature_uri"]) expect(body.jobs[0]).not.toHaveProperty(key);
+  });
+
+  it("only its own current token lets it in, and only signing tablets", async () => {
+    const { sdk, call } = setup();
+    expect((await call({ action: "state" }, "d".repeat(64))).status).toBe(401);
+    expect((await call({ action: "state" }, "")).status).toBe(401);
+    sdk.tables.KioskDevice.find((d) => d.id === "signer").kiosk_type = "bus_boarding";
+    expect((await call({ action: "state" })).status).toBe(401);
+  });
+
+  it("saves the guest's signature privately and refuses it twice", async () => {
+    const { sdk, call } = setup();
+    const res = await call({ action: "sign", trip_id: "job-1", mode: "pickup", data_base64: PNG, signed_by: "Mr Smith", guests: 4, client_request_id: "guest-req-1" });
+    expect(res.status).toBe(200);
+    expect(sdk.tables.Trip[0]).toMatchObject({ pickup_signature_uri: "private/guest-sig.png", pickup_signed_by: "Mr Smith", pickup_signed_guests: 4 });
+    expect(res.body.trip).not.toHaveProperty("notes");
+    expect((await call({ action: "sign", trip_id: "job-1", mode: "pickup", data_base64: PNG, signed_by: "Someone else", client_request_id: "guest-req-2" })).status).toBe(409);
+  });
+
+  it("can't sign another bus's job, or replay work saved for another tablet", async () => {
+    const { call } = setup([job({ id: "other", vehicle_id: "bus-b", status: "on_the_way" })]);
+    expect((await call({ action: "sign", trip_id: "other", mode: "pickup", data_base64: PNG })).status).toBe(403);
+    expect((await call({ action: "sign", trip_id: "other", mode: "pickup", data_base64: PNG, queue_replay: true, expected_device_id: "someone", expected_company_id: "a", expected_vehicle_id: "bus-a" })).status).toBe(409);
+  });
+
+  it("can't use the boarding tablet's passenger lookups", async () => {
+    const { sdk } = setup();
+    const res = await load("kioskCheckIn", sdk).default(request({ device_id: "signer", device_token: TOKEN, action: "search_staff", query: "Ca" }));
+    expect(res.status).toBe(401);
+  });
+
+  it("the driver tablet knows the bus has one", async () => {
+    const { send, sdk } = await tablet();
+    expect((await send({ action: "heartbeat" })).body.has_signing_tablet).toBe(false);
+    sdk.tables.KioskDevice.push(structuredClone(signer));
+    expect((await send({ action: "heartbeat" })).body.has_signing_tablet).toBe(true);
+    expect((await send({ action: "heartbeat", light: true })).body).not.toHaveProperty("has_signing_tablet");
   });
 });

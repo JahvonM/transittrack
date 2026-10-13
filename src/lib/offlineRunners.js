@@ -69,8 +69,17 @@ export async function runDriverTrip(payload, save = () => {}) {
   return res.data;
 }
 
+// A guest's signature on a bus's signing tablet, saved with no signal.
+export async function runKioskJobSign(payload, save = () => {}) {
+  if(!payload.expected_device_id || !payload.expected_company_id || !payload.expected_vehicle_id) throw Object.assign(new Error("Saved signature lacks its tablet assignment; export for review"),{response:{status:409}});
+  payload = {...payload,queue_replay:true}; save(payload);
+  const res = await base44.functions.invoke("jobSigning", deviceRequest(payload.device_id, payload));
+  return res.data;
+}
+
 export function installOfflineRunners() {
   registerRunner("driver_trip", runDriverTrip);
+  registerRunner("kiosk_job_sign", runKioskJobSign);
   registerRunner("driver_shift", runDriverShift);
   registerRunner("mechanic_inspection", runMechanicInspection);
   registerRunner("driver_inspection", runDriverInspection);

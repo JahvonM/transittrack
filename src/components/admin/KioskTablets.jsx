@@ -35,6 +35,7 @@ import {
   Activity,
   Download,
   ArrowUpCircle,
+  PenLine,
 } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 
@@ -43,6 +44,7 @@ const TYPE_META = {
   bus_boarding: { label: "Bus boarding", icon: Bus },
   driver: { label: "Driver tablet", icon: Navigation },
   front_desk: { label: "Front-desk", icon: DoorOpen },
+  job_signing: { label: "Signing tablet", icon: PenLine },
   badge_registry: { label: "Retired mode - edit to switch to Bus boarding", icon: CreditCard },
 };
 
@@ -392,7 +394,7 @@ export default function KioskTablets({ vehicles, companies, onChange }) {
                           Copy URL
                         </Button>
                       )}
-                      {hasCode && !isRevoked && (d.kiosk_type === "driver" || d.kiosk_type === "bus_boarding") && (
+                      {hasCode && !isRevoked && ["driver", "bus_boarding", "job_signing"].includes(d.kiosk_type) && (
                         <Button
                           size="sm"
                           variant="outline"

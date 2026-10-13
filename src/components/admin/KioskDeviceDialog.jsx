@@ -18,6 +18,7 @@ import { toast } from "@/components/ui/use-toast";
 const KIOSK_TYPES = [
   { value: "bus_boarding", label: "Bus boarding" },
   { value: "driver", label: "Driver tablet" },
+  { value: "job_signing", label: "Signing tablet (guests sign for jobs)" },
   { value: "front_desk", label: "Front-desk sign-in" },
 ];
 
@@ -42,10 +43,11 @@ export default function KioskDeviceDialog({ open, onOpenChange, companies, vehic
     if (!companyId) return [];
     const byCompany = v.company_id === companyId;
     if (kioskType === "bus_boarding" || kioskType === "driver") return byCompany && v.type === "bus";
+    // Jobs can go to any vehicle, so its signing tablet can be on any vehicle.
     return byCompany;
   });
 
-  const needsVehicle = kioskType === "bus_boarding" || kioskType === "driver";
+  const needsVehicle = kioskType === "bus_boarding" || kioskType === "driver" || kioskType === "job_signing";
 
   const handleSave = async () => {
     if (!label.trim()) {

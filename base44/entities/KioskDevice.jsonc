@@ -170,7 +170,8 @@
         "bus_boarding",
         "front_desk",
         "badge_registry",
-        "driver"
+        "driver",
+        "job_signing"
       ],
       "type": "string"
     },

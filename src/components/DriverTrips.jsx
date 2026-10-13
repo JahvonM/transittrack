@@ -29,7 +29,7 @@ const hasPoint = (lat, lng) => lat != null && lng != null && Number.isFinite(Num
 // is kept on the tablet and sent later (lib/driverJobs).
 // compact: the Drive screen shows just the job in progress (or the next one)
 // with its one action button; the full list opens in a sheet.
-export default function DriverTrips({ trips, invoke, startSharing, refresh, vehicle, compact = false }) {
+export default function DriverTrips({ trips, invoke, startSharing, refresh, vehicle, signingTablet = false, compact = false }) {
   const { toast } = useToast();
   const navigate = useNavigate();
   const { pathname } = useLocation();
@@ -187,6 +187,9 @@ export default function DriverTrips({ trips, invoke, startSharing, refresh, vehi
               </Button>
             )}
           </div>
+          {signingTablet && action?.icon === PenLine && (
+            <p className="text-xs text-muted-foreground">The guests can sign on the bus's signing tablet; this updates when they do.</p>
+          )}
 
           {(pickupSigned(trip) || dropoffSigned(trip)) && (
             <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">

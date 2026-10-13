@@ -130,3 +130,56 @@ test('the driver tablet alerts a new job and records the pickup signature with t
   expect(steps[1].data_base64.length).toBeGreaterThan(100);
   await expect(page.getByText(/Pickup signed by Mr Smith/)).toBeVisible();
 });
+
+test('the signing tablet asks guests to sign at pickup, then at drop-off', async ({ page }) => {
+  const device = { device_id: 'signer', paired: true, status: 'active', kiosk_type: 'job_signing', company_id: 'a', company_name: 'Island Transit Co.', vehicle_id: 'bus-a', vehicle_name: 'Bus 12' };
+  const job = { id: 'job-1', job_type: 'airport_pickup', status: 'scheduled', pickup_name: 'Maurice Bishop Airport', dropoff_name: 'Grand Hotel', scheduled_time: new Date().toISOString(), flight_number: 'AA 1234', guests: 3, passenger_name: 'Mr Smith' };
+  let jobs = [];
+  const signs = [];
+  await page.addInitScript((TOKEN) => { localStorage.setItem('tt_kiosk_device_id', 'signer'); localStorage.setItem('tt_device_token_signer', TOKEN); }, 'e'.repeat(64));
+  await page.route('https://api.mapbox.com/**', (r) => r.fulfill({ status: 404, body: '' }));
+  await page.route('**/api/**', (r) => {
+    const url = r.request().url(), body = r.request().postDataJSON();
+    if (url.includes('/functions/kioskHeartbeat')) return r.fulfill({ json: device });
+    if (url.includes('/functions/jobSigning')) {
+      expect(body.device_token).toBe('e'.repeat(64));
+      if (body.action === 'state') return r.fulfill({ json: { bus: { id: 'bus-a', name: 'Bus 12' }, jobs } });
+      if (body.action === 'sign') {
+        signs.push(body);
+        jobs = jobs.map((j) => (j.id === body.trip_id ? { ...j, [`${body.mode}_signed_at`]: new Date().toISOString() } : j));
+        return r.fulfill({ json: { trip: jobs.find((j) => j.id === body.trip_id) } });
+      }
+    }
+    if (url.includes('/functions/kioskCheckIn')) return r.fulfill({ status: 401, json: { error: 'Invalid or unpaired kiosk device' } });
+    return r.fulfill({ json: { id: 'test-app', public_settings: { authentication_required: false } } });
+  });
+  await page.clock.install();
+  await page.goto('/kiosk');
+  await expect(page.getByText('Welcome aboard', { exact: true })).toBeVisible();
+  await expect(page.getByText("You'll be asked to sign here at pickup and at drop-off.")).toBeVisible();
+
+  // The driver starts the job: the pickup signature comes up by itself.
+  jobs = [{ ...job, status: 'on_the_way' }];
+  await page.clock.fastForward(31000);
+  await expect(page.getByText('Please sign to confirm your pickup.')).toBeVisible();
+  await expect(page.getByText('Flight AA 1234')).toBeVisible();
+  await expect(page.getByLabel('Your name')).toHaveValue('Mr Smith');
+  await expect(page.getByLabel('Number of guests')).toHaveValue('3');
+  const confirm = page.getByRole('button', { name: 'Confirm', exact: true });
+  await expect(confirm).toBeDisabled();
+  const pad = await page.locator('canvas').boundingBox();
+  await page.mouse.move(pad.x + 30, pad.y + 40);
+  await page.mouse.down();
+  await page.mouse.move(pad.x + 220, pad.y + 90, { steps: 6 });
+  await page.mouse.up();
+  await confirm.click();
+  await expect(page.getByText('Thank you, Mr Smith!')).toBeVisible();
+  expect(signs[0]).toMatchObject({ action: 'sign', trip_id: 'job-1', mode: 'pickup', signed_by: 'Mr Smith', guests: 3, mime_type: 'image/png' });
+  expect(signs[0].data_base64.length).toBeGreaterThan(100);
+
+  // Arrived: the drop-off signature.
+  jobs = jobs.map((j) => ({ ...j, status: 'arrived' }));
+  await page.clock.fastForward(11000);
+  await expect(page.getByText('Please sign to confirm your drop-off.')).toBeVisible();
+  await expect(page.getByText('Thank you for travelling with us')).toBeVisible();
+});

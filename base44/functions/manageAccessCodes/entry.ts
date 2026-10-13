@@ -58,7 +58,7 @@ export default async function(req) {
   }
   if(body.action==='issue_pairing'&&device.status!=='active')fail(409,'Reactivate this device first');
   if(device.paired&&body.replace_existing!==true)fail(409,'Explicit confirmation is required to replace a paired device');
-  if(['driver','bus_boarding'].includes(device.kiosk_type)&&!device.vehicle_id)fail(400,'Vehicle assignment required');
+  if(['driver','bus_boarding','job_signing'].includes(device.kiosk_type)&&!device.vehicle_id)fail(400,'Vehicle assignment required');
   if(device.vehicle_id) {
    const vehicle=await getRecord(db,"Vehicle",device.vehicle_id);if(!vehicle||vehicle.company_id!==device.company_id)fail(403,'Vehicle assignment mismatch');
   }
