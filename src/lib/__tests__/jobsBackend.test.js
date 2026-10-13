@@ -299,8 +299,9 @@ describe("signing tablet", () => {
     return { sdk, call };
   };
 
-  it("shows the bus's open jobs with only what guests may see", async () => {
-    const { call } = setup([job({ status: "on_the_way", passenger_phone: "+1 473 555 0100", notes: "VIP guest" }), job({ id: "done", status: "completed" }), job({ id: "other-bus", vehicle_id: "bus-b" })]);
+  it("shows only the bus's jobs under way, with only what guests may see", async () => {
+    const { call } = setup([job({ status: "on_the_way", passenger_phone: "+1 473 555 0100", notes: "VIP guest" }), job({ id: "done", status: "completed" }),
+      job({ id: "later", status: "scheduled", passenger_name: "Next group" }), job({ id: "other-bus", vehicle_id: "bus-b", status: "on_the_way" })]);
     const { status, body } = await call({ action: "state" });
     expect(status).toBe(200);
     expect(body.jobs.map((j) => j.id)).toEqual(["job-1"]);

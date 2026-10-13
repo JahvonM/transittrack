@@ -46,9 +46,10 @@ export default async function(req) {
 
     switch (body.action) {
       case 'state': {
-        // The bus's open jobs, as guests may see them. The screen asks for a
+        // Only jobs under way, as guests may see them: the screen asks for a
         // signature when a job has started (pickup) or arrived (drop-off).
-        const rows = await base44.asServiceRole.entities.Trip.filter({ vehicle_id: vehicleId, status: { $in: ['scheduled', 'on_the_way', 'arrived'] } }, 'scheduled_time', 50);
+        // Later groups' names and flights never reach this tablet.
+        const rows = await base44.asServiceRole.entities.Trip.filter({ vehicle_id: vehicleId, status: { $in: ['on_the_way', 'arrived'] } }, 'scheduled_time', 20);
         return Response.json({
           bus: { id: vehicleId, name: device.vehicle_name || '' }, company_name: device.company_name || '',
           jobs: rows.filter((t) => t.company_id === companyId).map(guestTrip),
