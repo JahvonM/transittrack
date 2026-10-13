@@ -367,8 +367,10 @@ export default function StaffPortal() {
 
   const returnBus = myBus ? vehicles.find(v=>v.id===myBus.id) : null;
   const returning = returnBus?.trip_direction === "to_home";
-  const stop = returning ? (workplace?.lat!=null && workplace?.lng!=null ? workplace : null)
-    : pickupOptions.find((s) => s.name === pickupName) || null;
+  // Where the passenger is picked up (and, going home, dropped off): one of
+  // their bus's stops, or their own pickup beside its road.
+  const homeStop = pickupOptions.find((s) => s.name === pickupName) || null;
+  const stop = returning ? (workplace?.lat!=null && workplace?.lng!=null ? workplace : null) : homeStop;
 
   // SOS is admin/management-only — never surface the "emergency" status to
   // staff/passengers here (it drives the map pin color and its tooltip text).
@@ -578,7 +580,7 @@ export default function StaffPortal() {
       <PullToRefresh onRefresh={() => Promise.all([reload(), refreshMyBus(), refreshSharedStop()])}>
         <PassengerExperience view={view} user={user} company={company} workplace={workplace} myVehicle={myVehicle}
           returning={returning} tripState={tripState} pickupStop={stop} stopsAway={stopsAway} timelineRoute={timelineRoute} stopEtas={stopEtas}
-          now={now} homeName={user?.pickup_name || pickupName} sharedStop={sharedStop}
+          now={now} homeName={homeStop && !homeStop.personal ? homeStop.name : user?.pickup_name || pickupName} sharedStop={homeStop?.personal ? sharedStop : null}
           pickupPrompt={pickupPrompt} notice={notice} chatUnread={chatUnread} stopAlerts={stopAlerts} pushPermission={pushPermission}
           toggleStopAlerts={toggleStopAlerts} enableNotifications={enableNotifications} setSheet={setSheet}
           mapOpen={mapOpen} setMapOpen={setMapOpen} bookedTrips={upcomingTrips} pickupName={pickupName}
