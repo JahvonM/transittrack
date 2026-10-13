@@ -177,8 +177,20 @@ async function notifyStopAhead(base44, route, departedName, vehicle, companyId) 
   const next = idx >= 0 ? route.stops[idx + 1] : null;
   if (!next?.name) return;
   const users = await base44.asServiceRole.entities.User.filter({ favorite_stop: next.name, stop_alerts: true });
-  const approvedIds = await approvedStaffIds(base44, companyId);
-  const emails = users.filter((u) => approvedIds.has(u.id) && u.email).map((u) => u.email);
+  // Stop names repeat across routes ("Stop 5"): only passengers who ride this
+  // bus (or have no bus yet) are told, not those waiting at another route's
+  // stop of the same name. Their directory card's bus wins, as on the tablet.
+  const busOf = new Map();
+  for (const row of await approvedPassengerMemberships(base44, companyId)) if (row.user_id) busOf.set(row.user_id, busOf.get(row.user_id) || row.vehicle_id || '');
+  const norm = (e) => String(e || '').trim().toLowerCase();
+  const candidates = users.filter((u) => busOf.has(u.id) && u.email);
+  const lookup = [...new Set(candidates.flatMap((u) => [u.email, norm(u.email)]))];
+  const cards = lookup.length ? await base44.asServiceRole.entities.Contact.filter({ company_id: companyId, email: { $in: lookup } }, '-updated_date', 500).catch(() => []) : [];
+  const cardBus = new Map(cards.filter((c) => c.company_id === companyId && c.email && c.vehicle_id).map((c) => [norm(c.email), c.vehicle_id]));
+  const emails = candidates.filter((u) => {
+    const bus = cardBus.get(norm(u.email)) || busOf.get(u.id) || '';
+    return !bus || bus === vehicle.id;
+  }).map((u) => u.email);
   if (!emails.length) return;
   const tokenLists = await Promise.all(emails.map((email) => base44.asServiceRole.entities.PushToken.filter({ email })));
   const tokens = [...new Set(tokenLists.flat().map((t) => t.token))];
