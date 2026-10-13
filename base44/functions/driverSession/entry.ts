@@ -184,8 +184,8 @@ async function notifyStopAhead(base44, route, departedName, vehicle, companyId) 
   for (const row of await approvedPassengerMemberships(base44, companyId)) if (row.user_id) busOf.set(row.user_id, busOf.get(row.user_id) || row.vehicle_id || '');
   const norm = (e) => String(e || '').trim().toLowerCase();
   const candidates = users.filter((u) => busOf.has(u.id) && u.email);
-  const lookup = [...new Set(candidates.flatMap((u) => [u.email, norm(u.email)]))];
-  const cards = lookup.length ? await base44.asServiceRole.entities.Contact.filter({ company_id: companyId, email: { $in: lookup } }, '-updated_date', 500).catch(() => []) : [];
+  // Directory emails may differ in case, so match them here rather than in the query.
+  const cards = candidates.length ? await base44.asServiceRole.entities.Contact.filter({ company_id: companyId }, '-updated_date', 2000).catch(() => []) : [];
   const cardBus = new Map(cards.filter((c) => c.company_id === companyId && c.email && c.vehicle_id).map((c) => [norm(c.email), c.vehicle_id]));
   const emails = candidates.filter((u) => {
     const bus = cardBus.get(norm(u.email)) || busOf.get(u.id) || '';
