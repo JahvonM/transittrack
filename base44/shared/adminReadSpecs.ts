@@ -17,4 +17,8 @@ export const ADMIN_READ_SPECS = {
  completedTrips:{entity:"Trip",query:{status:"completed"},sort:"-completed_at",limit:200},
  serviceQueue:{entity:"Inspection",query:{needs_service:true},sort:"-created_date",limit:200},
  inspectionResults:{entity:"InspectionResult",query:{},sort:"-inspection_date",limit:500},
+ // Jobs: saved places, clients and invoices.
+ places:{entity:"Place",query:{},sort:"name",limit:1000},
+ clients:{entity:"Client",query:{},sort:"name",limit:1000},
+ invoices:{entity:"Invoice",query:{},sort:"-issued_at",limit:500},
 };

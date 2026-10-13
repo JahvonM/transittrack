@@ -450,6 +450,34 @@ function tabletRoute(row, companyId) {
 function tabletCheckIn(row) {
   return tabletFields(row, ['id', 'staff_name', 'staff_picture_url', 'company_name', 'status', 'boarded_at', 'created_date', 'vehicle_id', 'vehicle_name', 'check_in_method']);
 }
+// What the driver needs to do a job. Prices, invoices and the signature files
+// stay with dispatch; the signing time tells the tablet it was signed.
+function tabletTrip(row) {
+  const out = tabletFields(row, ['id', 'job_type', 'status', 'vehicle_id', 'vehicle_name', 'plate_number', 'route_id', 'route_name', 'company_id', 'company_name',
+    'driver_name', 'passenger_name', 'passenger_phone', 'client_name', 'pickup_name', 'pickup_address', 'pickup_lat', 'pickup_lng', 'dropoff_name',
+    'dropoff_address', 'dropoff_lat', 'dropoff_lng', 'scheduled_time', 'end_time', 'flight_number', 'flight_time', 'guests', 'luggage', 'notes',
+    'started_at', 'arrived_at', 'completed_at', 'pickup_signed_by', 'pickup_signed_at', 'dropoff_signed_by', 'dropoff_signed_at', 'created_date', 'updated_date']);
+  out.stops = Array.isArray(row.stops) ? row.stops.map((s) => tabletFields(s, ['name', 'address', 'lat', 'lng', 'reached_at'])) : [];
+  return out;
+}
+const JOB_STEPS = ['scheduled', 'on_the_way', 'arrived', 'completed'];
+// The job a step is for, if it is still this bus's. A step saved offline for a
+// job dispatch has since moved or cancelled is let go instead of being held
+// for review, which would hold back the tablet's other saved work too.
+async function tabletJob(base44, body, companyId, vehicleId) {
+  if (!body.trip_id || typeof body.trip_id !== 'string') return { reply: Response.json({ error: 'trip_id required' }, { status: 400 }) };
+  const trip = await base44.asServiceRole.entities.Trip.get(body.trip_id).catch((e) => {
+    if ([400, 404].includes(e?.status ?? e?.response?.status)) return null;
+    throw e;
+  });
+  const gone = !trip ? 'Job not found'
+    : trip.company_id !== companyId || trip.vehicle_id !== vehicleId ? 'This job is no longer on this bus'
+    : trip.status === 'cancelled' ? 'Dispatch cancelled this job' : '';
+  if (gone && body.queue_replay) return { reply: Response.json({ skipped: true, reason: gone }) };
+  if (gone) return { reply: Response.json({ error: gone, code: 'JOB_GONE' }, { status: !trip ? 404 : trip.status === 'cancelled' ? 409 : 403 }) };
+  return { trip };
+}
+const stepTime = (body) => (body.queue_replay ? occurredAt(body.occurred_at) : new Date()).toISOString();
 function boardingStats(rows) {
   const latest = new Map();
   const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Grenada' });
@@ -850,12 +878,14 @@ export default async function(req) {
           base44.asServiceRole.entities.Broadcast.filter({}, '-created_date', 20),
           tabletCheckIns(base44, companyId, vehicleId),
           base44.asServiceRole.entities.GroupMessage.filter({ vehicle_id: vehicleId }, '-created_date', 200),
-          base44.asServiceRole.entities.Trip.filter({ vehicle_id: vehicleId }, 'scheduled_time', 100).catch(() => []),
+          // Open jobs only: with every past job included, a bus's 100 oldest
+          // trips filled the list and new jobs never reached the tablet.
+          base44.asServiceRole.entities.Trip.filter({ vehicle_id: vehicleId, status: { $in: ['scheduled', 'on_the_way', 'arrived'] } }, 'scheduled_time', 100).catch(() => []),
           base44.asServiceRole.entities.DriverShift.filter({ vehicle_id: vehicleId }, '-started_at', 3).catch(() => []),
           light ? [] : base44.asServiceRole.entities.InspectionTemplate.list().catch(() => []),
           light ? [] : base44.asServiceRole.entities.Inspection.filter({ vehicle_id: vehicleId }, '-created_date', 30).catch(() => []),
         ]);
-        const trips = vehicleTrips.filter((t) => ['scheduled', 'on_the_way', 'arrived'].includes(t.status));
+        const trips = vehicleTrips.filter((t) => ['scheduled', 'on_the_way', 'arrived'].includes(t.status) && t.company_id === companyId).map(tabletTrip);
         const driverEmail = vehicle.driver_email || '';
         const relevantBroadcasts = broadcasts.filter((b) => {
           if (b.company_id && b.company_id !== companyId) return false;
@@ -891,6 +921,8 @@ export default async function(req) {
           company_id: companyId, company_name: companyDisplayName, company_logo_url: companyLogoUrl, staff, route: tabletRoute(route, companyId), road_stops: roadStops, workplace, emergency_contacts: emergencyContacts, ...boardingStats(checkIns),
           broadcasts: relevantBroadcasts, check_ins: checkIns.slice(0, 20).filter((c) => c.status === 'boarded').map(tabletCheckIn),
           group_messages: unlocked ? [...groupMessages].reverse() : [], trips: unlocked ? trips : [],
+          // Lets the tablet tell "no jobs" from "jobs hidden while locked".
+          driver_unlocked: !!unlocked,
           open_shift: openShifts.find((s) => !s.ended_at) || null,
           inspection_templates: driverTemplates(allTemplates, companyId, vehicleId),
           recent_inspections: recentInspections.map((i) => ({
@@ -1391,60 +1423,83 @@ export default async function(req) {
       }
 
       case 'update_trip_status': {
-        const { trip_id, status } = body;
-        if (!trip_id) return Response.json({ error: 'trip_id required' }, { status: 400 });
-        // Ownership check: the trip must belong to this device's company (and vehicle).
-        let existing = null;
-        try { existing = await base44.asServiceRole.entities.Trip.get(trip_id); }
-        catch { /* trip may not exist */ }
-        if (!existing) return Response.json({ error: 'Trip not found' }, { status: 404 });
-        if (existing.company_id !== companyId || existing.vehicle_id !== vehicleId)
-          return Response.json({ error: 'Trip does not belong to this device' }, { status: 403 });
+        const { status } = body;
         if (!['on_the_way', 'arrived', 'completed'].includes(status))
           return Response.json({ error: 'Invalid status' }, { status: 400 });
+        const { trip: existing, reply } = await tabletJob(base44, body, companyId, vehicleId);
+        if (reply) return reply;
+        // A step sent again after being offline, or one the job is already
+        // past, changes nothing.
+        if (JOB_STEPS.indexOf(existing.status) >= JOB_STEPS.indexOf(status)) return Response.json({ trip: tabletTrip(existing) });
+        const at = stepTime(body);
         const update = { status };
-        if (status === 'on_the_way') update.started_at = new Date().toISOString();
-        if (status === 'arrived') update.arrived_at = new Date().toISOString();
-        if (status === 'completed') update.completed_at = new Date().toISOString();
-        const trip = await base44.asServiceRole.entities.Trip.update(trip_id, update);
+        if (status === 'on_the_way') update.started_at = at;
+        if (status === 'arrived') update.arrived_at = at;
+        if (status === 'completed') update.completed_at = at;
+        const trip = await base44.asServiceRole.entities.Trip.update(existing.id, update);
         if (status === 'on_the_way') await base44.asServiceRole.entities.Vehicle.update(vehicleId, { status: 'on_trip' });
         if (status === 'completed') await base44.asServiceRole.entities.Vehicle.update(vehicleId, { status: 'idle' });
-        return Response.json({ trip });
+        return Response.json({ trip: tabletTrip(trip) });
+      }
+
+      case 'reach_stop': {
+        // A tour stop the driver has reached.
+        const index = Number(body.index);
+        const { trip: existing, reply } = await tabletJob(base44, body, companyId, vehicleId);
+        if (reply) return reply;
+        const stops = Array.isArray(existing.stops) ? existing.stops : [];
+        if (!Number.isInteger(index) || index < 0 || index >= stops.length) return Response.json({ error: 'Unknown tour stop' }, { status: 400 });
+        if (stops[index].reached_at) return Response.json({ trip: tabletTrip(existing) });
+        const at = stepTime(body);
+        const trip = await base44.asServiceRole.entities.Trip.update(existing.id, { stops: stops.map((s, i) => (i === index ? { ...s, reached_at: at } : s)) });
+        return Response.json({ trip: tabletTrip(trip) });
       }
 
       case 'sign_trip': {
         // Pickup / drop-off signature captured on the tablet. Drivers have no
         // login, so the upload and trip update run here with the service role.
-        const { trip_id, mode, data_base64, mime_type, signed_by } = body;
-        if (!trip_id || !['pickup', 'dropoff'].includes(mode))
+        // The signature is a private file: only an administrator can open it.
+        const { mode, data_base64, mime_type, signed_by } = body;
+        if (!['pickup', 'dropoff'].includes(mode))
           return Response.json({ error: 'trip_id and mode required' }, { status: 400 });
         if (!data_base64 || typeof data_base64 !== 'string')
           return Response.json({ error: 'data_base64 required' }, { status: 400 });
         if (mime_type && String(mime_type).split(';')[0].trim().toLowerCase() !== 'image/png') return Response.json({ error: 'Signatures must be PNG images' }, { status: 400 });
         if (!base64Fits(String(data_base64).replace(/^data:image\/png;base64,/, ''), MAX_SIGNATURE_BYTES)) return Response.json({ error: 'Signature is too large' }, { status: 413 });
-        let existing = null;
-        try { existing = await base44.asServiceRole.entities.Trip.get(trip_id); }
-        catch { /* trip may not exist */ }
-        if (!existing) return Response.json({ error: 'Trip not found' }, { status: 404 });
-        if (existing.company_id !== companyId || existing.vehicle_id !== vehicleId)
-          return Response.json({ error: 'Trip does not belong to this device' }, { status: 403 });
-        let fileUrl;
-        try {
-          const bytes = base64ToBytes(data_base64);
-          const file = new File([bytes], `signature-${mode}-${Date.now()}.png`, { type: 'image/png' });
-          const uploaded = await base44.asServiceRole.integrations.Core.UploadPublicFile({ file });
-          fileUrl = uploaded.file_url;
-        } catch (e) {
-          return Response.json({ error: `Upload failed: ${e.message}` }, { status: 500 });
+        const hasGuests = body.guests !== undefined && body.guests !== null && body.guests !== '';
+        const guests = hasGuests ? Number(body.guests) : null;
+        if (hasGuests && (!Number.isInteger(guests) || guests < 0 || guests > 500)) return Response.json({ error: 'Invalid number of guests' }, { status: 400 });
+        const requestId = typeof body.client_request_id === 'string' && /^[a-zA-Z0-9_-]{8,100}$/.test(body.client_request_id) ? body.client_request_id : '';
+        const { trip: existing, reply } = await tabletJob(base44, body, companyId, vehicleId);
+        if (reply) return reply;
+        // Sent again after being offline: it is already saved.
+        if (requestId && existing[`${mode}_signature_request_id`] === requestId) return Response.json({ trip: tabletTrip(existing) });
+        if (existing[`${mode}_signed_at`]) {
+          if (body.queue_replay) return Response.json({ skipped: true, reason: 'Already signed' });
+          return Response.json({ error: 'This job is already signed', code: 'ALREADY_SIGNED' }, { status: 409 });
         }
-        const now = new Date().toISOString();
-        const name = String(signed_by || '').slice(0, 120);
-        const update = mode === 'pickup'
-          ? { pickup_signature_url: fileUrl, pickup_signed_by: name, pickup_signed_at: now }
-          : { dropoff_signature_url: fileUrl, dropoff_signed_by: name, dropoff_signed_at: now, status: 'completed', completed_at: now };
-        const trip = await base44.asServiceRole.entities.Trip.update(trip_id, update);
+        let fileUri;
+        try {
+          const bytes = base64ToBytes(String(data_base64).replace(/^data:image\/png;base64,/, ''));
+          const file = new File([bytes], `signature-${mode}-${Date.now()}.png`, { type: 'image/png' });
+          fileUri = (await base44.asServiceRole.integrations.Core.UploadPrivateFile({ file }))?.file_uri;
+        } catch { fileUri = ''; }
+        if (!fileUri) return Response.json({ error: 'The signature could not be saved. Try again.' }, { status: 502 });
+        // Where it was signed, when the tablet knows (best effort: a missing
+        // or bad position never stops the signature).
+        const lat = Number(body.lat), lng = Number(body.lng);
+        const located = body.lat != null && body.lng != null && Number.isFinite(lat) && Number.isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180;
+        const at = stepTime(body);
+        const update = {
+          [`${mode}_signature_uri`]: fileUri, [`${mode}_signed_by`]: sanitize(signed_by).slice(0, 120), [`${mode}_signed_at`]: at,
+          [`${mode}_signed_guests`]: guests, [`${mode}_signed_lat`]: located ? lat : null, [`${mode}_signed_lng`]: located ? lng : null,
+          ...(requestId ? { [`${mode}_signature_request_id`]: requestId } : {}),
+        };
+        if (mode === 'pickup' && existing.status === 'scheduled') Object.assign(update, { status: 'on_the_way', started_at: at });
+        if (mode === 'dropoff' && existing.status !== 'completed') Object.assign(update, { status: 'completed', completed_at: at });
+        const trip = await base44.asServiceRole.entities.Trip.update(existing.id, update);
         if (mode === 'dropoff') await base44.asServiceRole.entities.Vehicle.update(vehicleId, { status: 'idle' });
-        return Response.json({ trip });
+        return Response.json({ trip: tabletTrip(trip) });
       }
 
       default:

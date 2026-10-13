@@ -29,8 +29,62 @@ ENTITY_FIELDS.Vehicle.push('backup_gps_driver_email','backup_gps_since','road_ne
 ENTITY_FIELDS.KioskDevice.push('network_status');
 // Admin → App errors: what happened before an error, and marking it fixed.
 ENTITY_FIELDS.ClientError.push('area','context','breadcrumbs','status','resolved_at','resolved_by');
-const ADMIN_ONLY_FIELDS={Driver:new Set(['phone_app_access'])};
-const SERVER_ONLY_FIELDS={Incident:new Set(['photo_uris','source']),KioskDevice:new Set(['network_status'])};
+// Jobs dispatch gives a bus. The signatures (and where and by how many guests
+// they were given) come from the driver tablet only, and the invoice a job is
+// on from billing only.
+const JOB_SIGNATURE_FIELDS=['pickup_signature_uri','pickup_signed_guests','pickup_signed_lat','pickup_signed_lng','pickup_signature_request_id','dropoff_signature_uri','dropoff_signed_guests','dropoff_signed_lat','dropoff_signed_lng','dropoff_signature_request_id'];
+ENTITY_FIELDS.Trip.push('job_type','client_id','client_name','pickup_address','dropoff_address','flight_number','flight_time','guests','luggage','notes','stops','end_time','price','currency','cancelled_at','invoice_id','invoice_number',...JOB_SIGNATURE_FIELDS);
+// Saved places, clients and invoices for jobs. None is a company list, so only
+// an administrator can read or change them.
+ENTITY_FIELDS.Place=['company_id','name','kind','address','lat','lng','notes'];
+ENTITY_FIELDS.Client=['company_id','name','kind','contact_name','email','phone','address','currency','notes'];
+ENTITY_FIELDS.Invoice=['company_id','company_name','client_id','client_name','client_email','client_address','number','period_start','period_end','issued_at','due_date','lines','total','currency','status','sent_at','paid_at','voided_at','notes'];
+const ADMIN_ONLY_FIELDS={Driver:new Set(['phone_app_access']),Trip:new Set(['client_id','client_name','price','currency'])};
+const SERVER_ONLY_FIELDS={Incident:new Set(['photo_uris','source']),KioskDevice:new Set(['network_status']),Trip:new Set([...JOB_SIGNATURE_FIELDS,'invoice_id','invoice_number'])};
+const JOB_TYPES=new Set(['airport_pickup','airport_dropoff','hotel_tour','staff_run','transfer']);
+const CURRENCIES=new Set(['XCD','USD']);
+const text=(data,field,max)=>{ if(!Object.hasOwn(data,field)||data[field]===null) return; if(typeof data[field]!=='string'||data[field].length>max) fail(400,'Invalid '+field.replace(/_/g,' ')); data[field]=data[field].trim(); };
+const wholeNumber=(data,field,max)=>{ if(!Object.hasOwn(data,field)) return; if(data[field]===null||data[field]==='') { data[field]=null; return; } const n=Number(data[field]); if(!Number.isInteger(n)||n<0||n>max) fail(400,'Invalid '+field.replace(/_/g,' ')); data[field]=n; };
+const when=(data,field)=>{ if(!Object.hasOwn(data,field)) return; if(data[field]===null||data[field]==='') { data[field]=null; return; } if(typeof data[field]!=='string'||!Number.isFinite(Date.parse(data[field]))) fail(400,'Invalid '+field.replace(/_/g,' ')); };
+const point=(lat,lng,what)=>{ if(lat==null&&lng==null) return; const a=Number(lat),b=Number(lng); if(lat==null||lng==null||!Number.isFinite(a)||!Number.isFinite(b)||Math.abs(a)>90||Math.abs(b)>180) fail(400,'Invalid '+what+' location'); };
+function cleanJob(data) {
+ if(Object.hasOwn(data,'job_type')&&data.job_type!==null&&!JOB_TYPES.has(data.job_type)) fail(400,'Invalid job type');
+ for(const [field,max] of [['client_id',100],['client_name',120],['pickup_address',300],['dropoff_address',300],['flight_number',20],['notes',2000]]) text(data,field,max);
+ for(const [field,max] of [['guests',500],['luggage',500]]) wholeNumber(data,field,max);
+ for(const field of ['flight_time','end_time','cancelled_at']) when(data,field);
+ point(data.pickup_lat,data.pickup_lng,'pickup');point(data.dropoff_lat,data.dropoff_lng,'drop-off');
+ if(Object.hasOwn(data,'price')&&data.price!==null&&data.price!=='') {
+  const price=Number(data.price);
+  if(!Number.isFinite(price)||price<0||price>10_000_000) fail(400,'Invalid price');
+  data.price=Math.round(price*100)/100;
+ } else if(Object.hasOwn(data,'price')) data.price=null;
+ if(Object.hasOwn(data,'currency')&&data.currency!==null&&!CURRENCIES.has(data.currency)) fail(400,'Invalid currency');
+ if(Object.hasOwn(data,'stops')) {
+  const stops=data.stops??[];
+  if(!Array.isArray(stops)||stops.length>30) fail(400,'A tour can have up to 30 stops');
+  data.stops=stops.map(s=>{
+   if(!s||typeof s!=='object'||typeof s.name!=='string'||!s.name.trim()||s.name.length>120||(s.address!=null&&(typeof s.address!=='string'||s.address.length>300))) fail(400,'Invalid tour stop');
+   point(s.lat,s.lng,'tour stop');
+   const stop={name:s.name.trim(),address:s.address||'',lat:s.lat==null?null:Number(s.lat),lng:s.lng==null?null:Number(s.lng)};
+   if(typeof s.reached_at==='string'&&Number.isFinite(Date.parse(s.reached_at))) stop.reached_at=s.reached_at;
+   return stop;
+  });
+ }
+}
+function cleanPlace(data,existing) {
+ if(!existing&&(typeof data.name!=='string'||!data.name.trim())) fail(400,'A place needs a name');
+ for(const [field,max] of [['name',120],['address',300],['notes',1000]]) text(data,field,max);
+ if(Object.hasOwn(data,'kind')&&!['airport','hotel','attraction','other'].includes(data.kind)) fail(400,'Invalid kind of place');
+ if(Object.hasOwn(data,'lat')!==Object.hasOwn(data,'lng')) fail(400,'Place coordinates must be supplied together');
+ point(data.lat,data.lng,'place');
+}
+function cleanClient(data,existing) {
+ if(!existing&&(typeof data.name!=='string'||!data.name.trim())) fail(400,'A client needs a name');
+ for(const [field,max] of [['name',120],['contact_name',120],['email',200],['phone',40],['address',300],['notes',2000]]) text(data,field,max);
+ if(data.email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) fail(400,'Invalid email');
+ if(Object.hasOwn(data,'kind')&&!['hotel','company','tour_operator','person','other'].includes(data.kind)) fail(400,'Invalid kind of client');
+ if(Object.hasOwn(data,'currency')&&!CURRENCIES.has(data.currency)) fail(400,'Invalid currency');
+}
 const SECURITY_FIELDS={Company:new Set(['access_code','access_code_expires_at']),KioskDevice:new Set(['pairing_code','pairing_expires_at','paired','status'])};
 const META = ['id','created_date','updated_date','created_by','created_by_id'];
 const CREDENTIALS = new Set(['driver_pin','entry_code','access_code','one_time_code','one_time_code_expires_at','nfc_tag_id','nfc_card_tag','nfc_card_uid','card_uid','card_tag','pairing_code','token','token_hash','salt','pin_hash','password','device_token','driver_grant','verification_grant']);
@@ -183,6 +237,17 @@ async function prepare(db,ctx,name,input,existing=null) {
  checkLinks(user, input);
  if(input.client_request_id!==undefined && (existing || typeof input.client_request_id!=='string' || !/^[a-zA-Z0-9_-]{8,100}$/.test(input.client_request_id))) fail(400,'Invalid immutable request ID');
  const data={...input};
+ if(name==='Invoice') fail(403,'Invoices are made and changed in Completed & billing');
+ if(name==='Trip') {
+  cleanJob(data);
+  if(data.client_id) {
+   const client=await db.Client.get(data.client_id).catch(()=>null);
+   if(!client) fail(400,'Client not found');
+   data.client_name=client.name;
+  } else if(Object.hasOwn(data,'client_id')) data.client_name='';
+ }
+ if(name==='Place') cleanPlace(data,existing);
+ if(name==='Client') cleanClient(data,existing);
  // A drawn road is a list of map points only, of a sane size.
  if(name==='Route' && Object.hasOwn(data,'pickup_merge_m') && data.pickup_merge_m!==null) {
   const m=Number(data.pickup_merge_m);

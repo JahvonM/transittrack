@@ -19,7 +19,7 @@ export function DriverKioskMore({session,selectTab,onReport,unread,onHelp}) {
  <Tool icon={ClipboardCheck} title="Inspection" onClick={()=>selectTab("inspection")}/>
  <Tool icon={Wrench} title="Report fault" onClick={onReport}/>
  <Tool icon={MessageCircle} title="Messages" badge={unread} onClick={()=>selectTab("chat")}/>
- <Tool icon={Clock} title="Trip history" onClick={()=>selectTab("trips")}/>
+ <Tool icon={Clock} title="Jobs & history" onClick={()=>selectTab("trips")}/>
  </div>
  <Tool icon={Tablet} title="Tablet & reader" sub="Status and settings" onClick={()=>selectTab("settings")}/>
  <Tool icon={ListOrdered} title="Stops & pickups" onClick={()=>selectTab("stops")}/>

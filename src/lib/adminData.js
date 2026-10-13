@@ -43,19 +43,23 @@ export const DATASETS = {
   completedTrips: { load: () => completedTrips(0), page: completedTrips },
   serviceQueue: { load: () => serviceQueue(0), page: serviceQueue },
   inspectionResults: { load: () => base44.entities.InspectionResult.list("-inspection_date", 500) },
+  // Jobs: saved places, clients and invoices (administrators only).
+  places: { load: () => base44.entities.Place.list("name", 1000) },
+  clients: { load: () => base44.entities.Client.list("name", 1000) },
+  invoices: { load: () => base44.entities.Invoice.list("-issued_at", 500) },
 };
 
 // "vehicles" is added to every section by the console itself (the SOS banner
 // and the shell watch the fleet from any screen).
 export const SECTION_DATA = {
   overview: ["routes", "companies", "parts", "faultsOpen", "schedulesDue", "trips", "kiosks", "checkIns"],
-  trips: ["routes", "trips", "completedTrips"],
+  trips: ["routes", "trips", "completedTrips", "places", "clients"],
   fleet: ["routes"],
   vehicles: ["companies", "routes", "faultsOpen", "schedulesDue", "inspectionResults"],
   health: [],
   kiosks: ["companies"],
   checkins: [],
-  billing: ["completedTrips"],
+  billing: ["completedTrips", "clients", "invoices", "companies"],
   users: ["users", "companies"],
   service: ["serviceQueue"],
   faults: ["faults"],

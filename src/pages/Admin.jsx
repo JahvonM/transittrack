@@ -13,7 +13,7 @@ import { EmbeddedLayout } from "@/components/AppLayout";
 import PullToRefresh from "@/components/PullToRefresh";
 import AdminShell from "@/components/admin/AdminShell";
 import AdminOverview from "@/components/admin/AdminOverview";
-import AssignTripsTab from "@/components/admin/AssignTripsTab";
+import JobsTab from "@/components/jobs/JobsTab";
 import LiveFleetTab from "@/components/admin/LiveFleetTab";
 import CompletedTripsTab from "@/components/admin/CompletedTripsTab";
 import ProfileInfo from "@/components/ProfileInfo";
@@ -246,6 +246,7 @@ export default function Admin() {
     vehicles = [], companies = [], routes = [], users = [], drivers = [], parts = [],
     schedules = [], schedulesDue = [], templates = [], faults = [], faultsOpen = [],
     trips = [], completedTrips = [], serviceQueue = [], inspectionResults = [], kiosks = [],
+    places = [], clients = [], invoices = [],
   } = data;
 
   // Every list this section shows has been asked for at least once.
@@ -454,11 +455,13 @@ export default function Admin() {
         )}
 
         {section === "trips" && (
-          <AssignTripsTab
+          <JobsTab
             vehicles={vehicles}
             routes={routes}
             trips={trips}
             completedTrips={completedTrips}
+            places={places}
+            clients={clients}
             onChange={refresh}
           />
         )}
@@ -492,6 +495,10 @@ export default function Admin() {
         {section === "billing" && (
           <CompletedTripsTab
             trips={completedTrips}
+            clients={clients}
+            invoices={invoices}
+            companies={companies}
+            onChange={refresh}
             hasMore={!!more.completedTrips}
             loadingMore={moreBusy}
             onLoadMore={() => loadMore("completedTrips")}

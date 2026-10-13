@@ -65,7 +65,7 @@ import { PageSlots } from "@/components/admin/kit";
 export const ADMIN_SECTIONS = [
   { id: "overview", label: "Overview", icon: LayoutDashboard, group: null },
 
-  { id: "trips", label: "Trips", icon: CalendarPlus, group: "Fleet Operations" },
+  { id: "trips", label: "Jobs", icon: CalendarPlus, group: "Fleet Operations" },
   { id: "fleet", label: "Live fleet", icon: MapPin, group: "Fleet Operations" },
   { id: "vehicles", label: "Vehicles", icon: Bus, group: "Fleet Operations" },
   { id: "drivers", label: "Drivers", icon: Car, group: "Fleet Operations" },

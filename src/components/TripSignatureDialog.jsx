@@ -12,11 +12,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-// onSign(file, signedBy) lets callers without a login (driver tablets) upload
-// through their own backend; otherwise the file is uploaded here and onSaved
-// receives its URL.
-export default function TripSignatureDialog({ open, onOpenChange, trip, mode, onSaved, onSign }) {
+// onSign(file, signedBy, guests) lets callers without a login (driver tablets)
+// upload through their own backend; otherwise the file is uploaded here and
+// onSaved receives its URL. With askGuests, the signer also confirms how many
+// guests there are (filled in from the job).
+export default function TripSignatureDialog({ open, onOpenChange, trip, mode, onSaved, onSign, askGuests = false }) {
   const [name, setName] = useState("");
+  const [guests, setGuests] = useState("");
   const [hasInk, setHasInk] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -25,6 +27,7 @@ export default function TripSignatureDialog({ open, onOpenChange, trip, mode, on
   useEffect(() => {
     if (open) {
       setName("");
+      setGuests(trip?.guests != null ? String(trip.guests) : "");
       setHasInk(false);
       setError("");
     }
@@ -36,7 +39,7 @@ export default function TripSignatureDialog({ open, onOpenChange, trip, mode, on
     try {
       const file = await padRef.current.toFile();
       if (onSign) {
-        await onSign(file, name.trim());
+        await onSign(file, name.trim(), askGuests && guests !== "" ? Number(guests) : null);
       } else {
         const { file_url } = await base44.integrations.Core.UploadPublicFile({ file });
         onSaved({ file_url, signed_by: name.trim(), signed_at: new Date().toISOString() });
@@ -70,6 +73,12 @@ export default function TripSignatureDialog({ open, onOpenChange, trip, mode, on
               placeholder="e.g. Hotel receptionist"
             />
           </div>
+          {askGuests && (
+            <div className="space-y-1.5">
+              <Label htmlFor="signer-guests">Number of guests</Label>
+              <Input id="signer-guests" type="number" inputMode="numeric" min={0} max={500} value={guests} onChange={(e) => setGuests(e.target.value)} />
+            </div>
+          )}
           <div className="space-y-1.5">
             <Label>Signature</Label>
             <SignaturePad ref={padRef} onChange={setHasInk} />

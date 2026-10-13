@@ -99,6 +99,125 @@
     "dropoff_signed_at": {
       "type": "string",
       "format": "date-time"
+    },
+    "job_type": {
+      "type": "string",
+      "enum": [
+        "airport_pickup",
+        "airport_dropoff",
+        "hotel_tour",
+        "staff_run",
+        "transfer"
+      ],
+      "description": "Kind of job; trips made before job types read as a transfer"
+    },
+    "client_id": {
+      "type": "string"
+    },
+    "client_name": {
+      "type": "string"
+    },
+    "pickup_address": {
+      "type": "string"
+    },
+    "dropoff_address": {
+      "type": "string"
+    },
+    "flight_number": {
+      "type": "string"
+    },
+    "flight_time": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Landing time (airport pickup) or departure time (airport drop-off), as told to dispatch"
+    },
+    "guests": {
+      "type": "integer"
+    },
+    "luggage": {
+      "type": "integer"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "stops": {
+      "type": "array",
+      "description": "Tour stops in order",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "address": {
+            "type": "string"
+          },
+          "lat": {
+            "type": "number"
+          },
+          "lng": {
+            "type": "number"
+          },
+          "reached_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      }
+    },
+    "end_time": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the job should be finished; used to warn about overlapping jobs"
+    },
+    "price": {
+      "type": "number"
+    },
+    "currency": {
+      "type": "string",
+      "default": "XCD"
+    },
+    "invoice_id": {
+      "type": "string"
+    },
+    "invoice_number": {
+      "type": "string"
+    },
+    "cancelled_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "pickup_signature_uri": {
+      "type": "string",
+      "description": "Private file; opened through jobBilling"
+    },
+    "pickup_signed_guests": {
+      "type": "integer"
+    },
+    "pickup_signed_lat": {
+      "type": "number"
+    },
+    "pickup_signed_lng": {
+      "type": "number"
+    },
+    "pickup_signature_request_id": {
+      "type": "string"
+    },
+    "dropoff_signature_uri": {
+      "type": "string",
+      "description": "Private file; opened through jobBilling"
+    },
+    "dropoff_signed_guests": {
+      "type": "integer"
+    },
+    "dropoff_signed_lat": {
+      "type": "number"
+    },
+    "dropoff_signed_lng": {
+      "type": "number"
+    },
+    "dropoff_signature_request_id": {
+      "type": "string"
     }
   },
   "required": [

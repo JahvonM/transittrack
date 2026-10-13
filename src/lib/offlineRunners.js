@@ -61,7 +61,16 @@ export async function runDriverShift(payload, save = () => {}) {
   return res.data;
 }
 
+// A step on a dispatch job (start, arrived, tour stop, signature) made with no
+// signal; carries the time it really happened (see lib/driverJobs).
+export async function runDriverTrip(payload, save = () => {}) {
+  payload = savedDriverPayload({...payload,client_request_id:payload.client_request_id||crypto.randomUUID()}); save(payload);
+  const res = await base44.functions.invoke("driverSession", deviceRequest(payload.device_id, payload));
+  return res.data;
+}
+
 export function installOfflineRunners() {
+  registerRunner("driver_trip", runDriverTrip);
   registerRunner("driver_shift", runDriverShift);
   registerRunner("mechanic_inspection", runMechanicInspection);
   registerRunner("driver_inspection", runDriverInspection);
