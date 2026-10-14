@@ -47,7 +47,7 @@ describe("copy data to Supabase", () => {
   it("is for administrators only", async () => {
     for (const role of ["staff", "company", "mechanic", null]) {
       const { supa, send } = setup(role);
-      expect((await send({ action: "copy", entity: "Vehicle" })).status).toBe(role ? 403 : 403);
+      expect((await send({ action: "copy", entity: "Vehicle" })).status).toBe(403);
       expect(supa.calls).toHaveLength(0);
     }
   });
