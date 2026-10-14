@@ -107,7 +107,7 @@ for (const file of files) {
   if (entity === "User") indexes.push(["email"]);
   const desc = schema.description ? ` -- ${schema.description.replace(/\s+/g, " ").slice(0, 200)}` : "";
   out.push(`\n-- ${entity}${desc}\ncreate table if not exists public.${ident(table)} (\n${cols.join(",\n")}\n);`);
-  out.push(`create trigger ${table}_touch before update on public.${ident(table)} for each row execute function public.touch_updated_date();`);
+  out.push(`create or replace trigger ${table}_touch before update on public.${ident(table)} for each row execute function public.touch_updated_date();`);
   for (const [name, expr] of checks) {
     out.push(`alter table public.${ident(table)} add constraint ${ident(name.slice(0, 63))} check (${expr}) not valid;`);
   }
