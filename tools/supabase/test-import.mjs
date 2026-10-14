@@ -54,6 +54,5 @@ const ur = (await one("select public.import_rows($1,'app_user',$2::jsonb) r", [t
 check("copies users", ur.copied === 1, JSON.stringify(ur));
 const grants = await one("select has_function_privilege('authenticated','public.import_rows(text,text,jsonb)','execute') a, has_function_privilege('anon','public.import_rows(text,text,jsonb)','execute') b");
 check("only the anonymous key can call it (the copy key guards it)", grants.a === false && grants.b === true);
-if (extra === undefined && fs.existsSync(path.join(dir, "zz"))) console.log();
 console.log(failures ? `${failures} failed` : "all passed");
 process.exit(failures ? 1 : 0);
