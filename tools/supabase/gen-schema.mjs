@@ -6,6 +6,11 @@
 // Writes supabase/migrations/20261014000000_tables.sql and
 // supabase/entity-tables.json (entity name -> table name, for the data layer).
 //
+// That migration is already applied to the Supabase project (the repo is
+// linked, so files in supabase/migrations are applied when they reach GitHub).
+// A later schema change goes in a NEW, dated migration file, never by
+// re-running this over the applied one.
+//
 // Choices, so the Base44 data copies across as it is:
 // - ids stay text (Base44's 24-character ids); new rows get the same shape.
 // - Base44's own fields (created_date, updated_date, created_by, ...) are kept.
