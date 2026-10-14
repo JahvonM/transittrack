@@ -19,6 +19,7 @@ function fakeSupabase() {
       return new Response(JSON.stringify({ definitions: Object.fromEntries(Object.entries(columns).map(([t, c]) => [t, { properties: Object.fromEntries(c.map((k) => [k, {}])) }])) }), { status: 200 });
     }
     const table = u.pathname.split("/").at(-1);
+    if (!tables[table]) return new Response(JSON.stringify({ message: "relation does not exist" }), { status: 404 });
     if ((init.method || "GET") === "GET") return new Response("[]", { status: 200, headers: { "content-range": `0-0/${tables[table].length}` } });
     const rows = JSON.parse(init.body);
     if (rows.some((r) => typeof r.capacity === "string")) return new Response(JSON.stringify({ message: 'invalid input syntax for type double precision: "lots"' }), { status: 400 });
@@ -84,6 +85,9 @@ describe("copy data to Supabase", () => {
     await send({ action: "copy", entity: "Vehicle" });
     const { body } = await send({ action: "counts" });
     expect(body.counts.Vehicle).toBe(1);
+    expect(body.counts.Company).toBe(0);
+    // A table Supabase couldn't count shows as unknown, not zero.
+    expect(body.counts.Trip).toBeNull();
   });
 
   it("says what to set up when the secrets are missing or the public key was used", async () => {
