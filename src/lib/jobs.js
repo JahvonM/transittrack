@@ -90,3 +90,20 @@ export function waitingSignature(jobs, signed = new Set()) {
   }
   return null;
 }
+
+// Who confirms a pickup or drop-off: a guest, or the hotel's front desk.
+export const SIGNER_ROLES = [
+  { value: "guest", label: "Guest" },
+  { value: "reception", label: "Hotel front desk" },
+];
+export const signerLabel = (role) => (role === "reception" ? "hotel front desk" : role === "guest" ? "guest" : "");
+// The hotel end of a job is confirmed at its front desk: drop-off of an airport
+// pickup, pickup of an airport drop-off, both ends of a hotel tour. Elsewhere
+// (the airport, staff runs, transfers) the guest signs. The driver can change it.
+export function defaultSigner(trip, mode) {
+  const type = jobTypeOf(trip);
+  if (type === "hotel_tour") return "reception";
+  if (type === "airport_pickup") return mode === "dropoff" ? "reception" : "guest";
+  if (type === "airport_dropoff") return mode === "pickup" ? "reception" : "guest";
+  return "guest";
+}

@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from "react";
-import { ClipboardCheck, Wrench, MessageCircle, FileText, Tablet, ChevronRight, LifeBuoy, ListOrdered, ShieldCheck, User, Clock, Users, Search } from "lucide-react";
+import { ClipboardCheck, Wrench, MessageCircle, FileText, Tablet, ChevronRight, LifeBuoy, ListOrdered, ShieldCheck, User, Clock, Users, Search, IdCard } from "lucide-react";
 import { accountName } from "@/lib/userName";
 import StaffRouteListItem from "./StaffRouteListItem";
 import { haversineKm } from "@/lib/geo";
@@ -13,7 +13,7 @@ export function DriverKioskHeader({session,offline,onMessages,unread}) {
 function Tool({icon:Icon,title,sub,onClick,badge}) {
  return <button className="dk-tool" onClick={onClick}><Icon aria-hidden="true"/><span><strong>{title}</strong>{sub&&<small>{sub}</small>}</span>{badge&&<span className="dk-unread"/>}<ChevronRight className="dk-chevron"/></button>;
 }
-export function DriverKioskMore({session,selectTab,onReport,unread,onHelp}) {
+export function DriverKioskMore({session,selectTab,onReport,unread,onHelp,onNameSign}) {
  return <div className="dk-content dk-more"><h1>More</h1><Tool icon={User} title={session.driver_name || "Driver & tablet"} sub="Tablet settings & pairing" onClick={()=>selectTab("settings")}/>
  <h2>Tools</h2><div className="dk-tool-grid">
  <Tool icon={ClipboardCheck} title="Inspection" onClick={()=>selectTab("inspection")}/>
@@ -21,6 +21,7 @@ export function DriverKioskMore({session,selectTab,onReport,unread,onHelp}) {
  <Tool icon={MessageCircle} title="Messages" badge={unread} onClick={()=>selectTab("chat")}/>
  <Tool icon={Clock} title="Jobs & history" onClick={()=>selectTab("trips")}/>
  </div>
+ {onNameSign&&<Tool icon={IdCard} title="Name sign" sub="Company logo and a guest's name, full screen" onClick={onNameSign}/>}
  <Tool icon={Tablet} title="Tablet & reader" sub="Status and settings" onClick={()=>selectTab("settings")}/>
  <Tool icon={ListOrdered} title="Stops & pickups" onClick={()=>selectTab("stops")}/>
  <Tool icon={FileText} title="Licence & insurance" onClick={()=>selectTab("documents")}/>

@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/components/ui/use-toast";
 import { StatusChip } from "@/components/admin/kit";
 import JobTypeIcon from "@/components/jobs/JobTypeIcon";
-import { CURRENCIES, formatMoney, jobTypeLabel } from "@/lib/jobs";
+import { CURRENCIES, formatMoney, jobTypeLabel, signerLabel } from "@/lib/jobs";
 import { jobSheetPdf } from "@/lib/jobDocuments";
 import { TRANSIT_TIME_ZONE } from "@/lib/localTime";
 import { STATUS_LABEL } from "@/lib/trip";
@@ -87,7 +87,7 @@ export default function JobRecordDialog({ open, onOpenChange, job, clients = [],
         {!at && !image ? <p className="text-caption text-muted-foreground">Not signed.</p> : (
           <>
             <p className="text-caption text-muted-foreground">
-              {job[`${mode}_signed_by`] || "—"} · {when(at)}
+              {job[`${mode}_signed_by`] || "—"}{job[`${mode}_signed_role`] ? ` (${signerLabel(job[`${mode}_signed_role`])})` : ""} · {when(at)}
               {job[`${mode}_signed_guests`] != null ? ` · ${job[`${mode}_signed_guests`]} guest${job[`${mode}_signed_guests`] === 1 ? "" : "s"}` : ""}
             </p>
             {lat != null && lng != null && (

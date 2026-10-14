@@ -17,12 +17,13 @@ describe("job documents", () => {
     await jobSheetPdf({
       id: "abcdef123456", job_type: "airport_pickup", company_name: "Island Transit Co.", client_name: "Grand Hotel",
       pickup_name: "Airport", dropoff_name: "Grand Hotel", flight_number: "AA 1", guests: 3, scheduled_time: "2026-10-20T14:00:00Z",
-      completed_at: "2026-10-20T15:00:00Z", pickup_signed_at: "2026-10-20T14:05:00Z", pickup_signed_by: "Ms Lee", pickup_signed_lat: 12.0, pickup_signed_lng: -61.7,
+      completed_at: "2026-10-20T15:00:00Z", pickup_signed_at: "2026-10-20T14:05:00Z", pickup_signed_by: "Ms Lee", pickup_signed_role: "reception", pickup_signed_lat: 12.0, pickup_signed_lng: -61.7,
       stops: [{ name: "Fort George", reached_at: "2026-10-20T14:30:00Z" }], price: 60, currency: "USD",
     }, { pickup: PNG, dropoff: null });
     const doc = saved.at(-1);
     expect(doc.name).toBe("job-Airport-2026-10-20.pdf");
-    expect(doc.text).toContain("Ms Lee");
+    // The PDF escapes brackets in its text.
+    expect(doc.text).toContain("Ms Lee \\(hotel front desk\\)");
     expect(doc.text).toContain("US$60.00");
     expect(doc.text).toContain("Not signed");
   });

@@ -556,30 +556,6 @@ export default async function(req) {
       }
 
       // --- front_desk: visitor sign-in with a captured signature ---
-      case 'front_desk_sign_in': {
-        const { full_name, company_name: visitorCompanyName, reason, signature_base64 } = body;
-        const name = sanitize(full_name);
-        if (!name) return Response.json({ error: 'full_name required' }, { status: 400 });
-        let signatureUrl = '';
-        if (signature_base64 && String(signature_base64).length > 1_400_000) return Response.json({ error: 'Signature is too large' }, { status: 413 });
-        if (signature_base64) {
-          try {
-            const b64 = String(signature_base64).replace(/^data:image\/\w+;base64,/, '');
-            const binary = atob(b64);
-            const bytes = new Uint8Array(binary.length);
-            for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-            const file = new File([bytes], `signature-${Date.now()}.png`, { type: 'image/png' });
-            const uploaded = await base44.asServiceRole.integrations.Core.UploadPublicFile({ file });
-            signatureUrl = uploaded.file_url;
-          } catch { /* signature is a nice-to-have — sign-in still records without it */ }
-        }
-        const signIn = await base44.asServiceRole.entities.FrontDeskSignIns.create({
-          full_name: name, company_name: sanitize(visitorCompanyName), reason: sanitize(reason),
-          signature_url: signatureUrl, signed_at: new Date().toISOString(),
-        });
-        return Response.json({ sign_in: signIn });
-      }
-
       default:
         return Response.json({ error: 'Unknown action' }, { status: 400 });
     }

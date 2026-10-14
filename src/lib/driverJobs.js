@@ -41,7 +41,7 @@ export function applyStep(trip, p) {
     return { ...trip, stops: (trip.stops || []).map((s, i) => (i === Number(p.index) && !s.reached_at ? { ...s, reached_at: at } : s)) };
   }
   if (p.action === "sign_trip" && ["pickup", "dropoff"].includes(p.mode) && !trip[`${p.mode}_signed_at`]) {
-    const next = { ...trip, [`${p.mode}_signed_at`]: at, [`${p.mode}_signed_by`]: p.signed_by || "" };
+    const next = { ...trip, [`${p.mode}_signed_at`]: at, [`${p.mode}_signed_by`]: p.signed_by || "", [`${p.mode}_signed_role`]: p.signed_role === "reception" ? "reception" : "guest" };
     if (p.mode === "pickup" && trip.status === "scheduled") Object.assign(next, { status: "on_the_way", started_at: at });
     if (p.mode === "dropoff") Object.assign(next, { status: "completed", completed_at: at });
     return next;

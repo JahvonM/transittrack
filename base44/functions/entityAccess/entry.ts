@@ -32,7 +32,7 @@ ENTITY_FIELDS.ClientError.push('area','context','breadcrumbs','status','resolved
 // Jobs dispatch gives a bus. The signatures (and where and by how many guests
 // they were given) come from the driver tablet only, and the invoice a job is
 // on from billing only.
-const JOB_SIGNATURE_FIELDS=['pickup_signature_uri','pickup_signed_guests','pickup_signed_lat','pickup_signed_lng','pickup_signature_request_id','dropoff_signature_uri','dropoff_signed_guests','dropoff_signed_lat','dropoff_signed_lng','dropoff_signature_request_id'];
+const JOB_SIGNATURE_FIELDS=['pickup_signature_uri','pickup_signed_role','pickup_signed_guests','pickup_signed_lat','pickup_signed_lng','pickup_signature_request_id','dropoff_signature_uri','dropoff_signed_role','dropoff_signed_guests','dropoff_signed_lat','dropoff_signed_lng','dropoff_signature_request_id'];
 ENTITY_FIELDS.Trip.push('job_type','client_id','client_name','pickup_address','dropoff_address','flight_number','flight_time','guests','luggage','notes','stops','end_time','price','currency','cancelled_at','invoice_id','invoice_number',...JOB_SIGNATURE_FIELDS);
 // Saved places, clients and invoices for jobs. None is a company list, so only
 // an administrator can read or change them.

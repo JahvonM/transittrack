@@ -19,7 +19,6 @@ const KIOSK_TYPES = [
   { value: "bus_boarding", label: "Bus boarding" },
   { value: "driver", label: "Driver tablet" },
   { value: "job_signing", label: "Signing tablet (guests sign for jobs)" },
-  { value: "front_desk", label: "Front-desk sign-in" },
 ];
 
 export default function KioskDeviceDialog({ open, onOpenChange, companies, vehicles, device, onSaved }) {
@@ -33,7 +32,8 @@ export default function KioskDeviceDialog({ open, onOpenChange, companies, vehic
   useEffect(() => {
     if (open) {
       setLabel(device?.label || "");
-      setKioskType(device?.kiosk_type && device.kiosk_type !== "badge_registry" ? device.kiosk_type : "bus_boarding");
+      // Retired types (card registry, front-desk sign-in) switch to bus boarding when edited.
+      setKioskType(device?.kiosk_type && !["badge_registry", "front_desk"].includes(device.kiosk_type) ? device.kiosk_type : "bus_boarding");
       setCompanyId(device?.company_id || "");
       setVehicleId(device?.vehicle_id || "");
     }

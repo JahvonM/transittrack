@@ -1,6 +1,6 @@
 // PDFs for jobs: a job sheet (the record of one job, with its signatures) and
 // a client invoice. Built in the browser with jsPDF, like the other exports.
-import { formatMoney, jobTypeLabel } from "@/lib/jobs";
+import { formatMoney, jobTypeLabel, signerLabel } from "@/lib/jobs";
 import { TRANSIT_TIME_ZONE } from "@/lib/localTime";
 
 const when = (iso) => (iso ? new Date(iso).toLocaleString([], { timeZone: TRANSIT_TIME_ZONE, day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit" }) : "—");
@@ -74,7 +74,7 @@ export async function jobSheetPdf(job, signatures = {}) {
     const signedAt = job[`${mode}_signed_at`];
     w.heading(mode === "pickup" ? "Pickup signature" : "Drop-off signature");
     if (!signedAt) { w.field("Signed", "Not signed"); continue; }
-    w.field("Signed by", job[`${mode}_signed_by`] || "—");
+    w.field("Signed by", `${job[`${mode}_signed_by`] || "—"}${job[`${mode}_signed_role`] ? ` (${signerLabel(job[`${mode}_signed_role`])})` : ""}`);
     w.field("Signed at", when(signedAt));
     w.field("Guests", job[`${mode}_signed_guests`] ?? "");
     const lat = job[`${mode}_signed_lat`], lng = job[`${mode}_signed_lng`];

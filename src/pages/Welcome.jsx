@@ -9,7 +9,7 @@ import Logo from "@/components/Logo";
 import LiveClock from "@/components/LiveClock";
 import WeatherWidget from "@/components/WeatherWidget";
 import { Button } from "@/components/ui/button";
-import { Bus, MapPin, MessageCircle, Car, ChevronRight, FlaskConical, Hotel, LayoutDashboard, Navigation, PenLine, ShieldCheck, Usb, Wrench } from "lucide-react";
+import { Bus, MapPin, MessageCircle, Car, ChevronRight, FlaskConical, Hotel, LayoutDashboard, Navigation, ShieldCheck, Usb, Wrench } from "lucide-react";
 const ROLES = {
   driver: {
     to: "/driver-phone",
@@ -52,12 +52,6 @@ const ROLES = {
     title: "Driver Kiosk",
     icon: Navigation,
     blurb: "High-accuracy GPS sharing and turn-by-turn nav.",
-  },
-  kiosk_front_desk: {
-    to: "/kiosk",
-    title: "Front Desk Sign-In",
-    icon: PenLine,
-    blurb: "Visitor sign-in with signature capture.",
   },
   reviewer_sandbox: {
     to: "/reviewer-sandbox",

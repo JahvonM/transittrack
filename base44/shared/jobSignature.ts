@@ -11,7 +11,8 @@ export function tabletTrip(row: any) {
   const out: any = jobFields(row, ['id', 'job_type', 'status', 'vehicle_id', 'vehicle_name', 'plate_number', 'route_id', 'route_name', 'company_id', 'company_name',
     'driver_name', 'passenger_name', 'passenger_phone', 'client_name', 'pickup_name', 'pickup_address', 'pickup_lat', 'pickup_lng', 'dropoff_name',
     'dropoff_address', 'dropoff_lat', 'dropoff_lng', 'scheduled_time', 'end_time', 'flight_number', 'flight_time', 'guests', 'luggage', 'notes',
-    'started_at', 'arrived_at', 'completed_at', 'pickup_signed_by', 'pickup_signed_at', 'dropoff_signed_by', 'dropoff_signed_at', 'created_date', 'updated_date']);
+    'started_at', 'arrived_at', 'completed_at', 'pickup_signed_by', 'pickup_signed_role', 'pickup_signed_at', 'dropoff_signed_by', 'dropoff_signed_role', 'dropoff_signed_at',
+    'created_date', 'updated_date']);
   out.stops = Array.isArray(row.stops) ? row.stops.map((s: any) => jobFields(s || {}, ['name', 'address', 'lat', 'lng', 'reached_at'])) : [];
   return out;
 }
@@ -55,7 +56,9 @@ export async function jobForBus(base44: any, body: any, companyId: string, vehic
 const MAX_JOB_SIGNATURE_BYTES = 1024 * 1024;
 const jobText = (value: unknown) => (value == null ? '' : String(value).replace(/[\u0000-\u001F\u007F]/g, '').replace(/[<>]/g, '').trim());
 
-// A pickup or drop-off signature: who signed, how many guests, where and when.
+// A pickup or drop-off signature: who signed (a guest, or the hotel's front
+// desk confirming the guests were picked up or dropped off there), how many
+// guests, where and when.
 // The picture is a private file only an administrator can open (jobBilling).
 // view: how the reply shows the job (tabletTrip for the driver, guestTrip for
 // the signing tablet).
@@ -94,6 +97,7 @@ export async function signJob(base44: any, body: any, companyId: string, vehicle
   const at = jobStepTime(body);
   const update: any = {
     [`${mode}_signature_uri`]: fileUri, [`${mode}_signed_by`]: jobText(signed_by).slice(0, 120), [`${mode}_signed_at`]: at,
+    [`${mode}_signed_role`]: body.signed_role === 'reception' ? 'reception' : 'guest',
     [`${mode}_signed_guests`]: guests, [`${mode}_signed_lat`]: located ? lat : null, [`${mode}_signed_lng`]: located ? lng : null,
     ...(requestId ? { [`${mode}_signature_request_id`]: requestId } : {}),
   };

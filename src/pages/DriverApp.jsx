@@ -30,6 +30,7 @@ import DriverChats from "@/components/driver/DriverChats";
 import DriverMessageAlert from "@/components/driver/DriverMessageAlert";
 import NewCheckInAlert from "@/components/driver/NewCheckInAlert";
 import JobAlert from "@/components/driver/JobAlert";
+import NameSign from "@/components/driver/NameSign";
 import useJobAlerts from "@/hooks/useJobAlerts";
 import DriverDevicePanel from "@/components/driver/DriverDevicePanel";
 import DriverTrips from "@/components/DriverTrips";
@@ -167,6 +168,10 @@ export default function DriverApp() {
       }
     });
   }, [session?.broadcasts, playAlertSound]);
+
+  // The full-screen meet-and-greet sign: { name, subtitle } (no name: just the company).
+  const [nameSign, setNameSign] = useState(null);
+  const showNameSign = (job) => setNameSign(job ? { name: job.passenger_name || job.client_name || "", subtitle: job.passenger_name ? job.client_name || "" : "" } : { name: "", subtitle: "" });
 
   // Jobs dispatch gives this bus, changes or takes off it (only once the
   // server has sent the jobs, i.e. the tablet is unlocked).
@@ -478,7 +483,7 @@ export default function DriverApp() {
               <DriverTrips
                 compact
                 trips={session.trips}
-                vehicle={session.vehicle} signingTablet={!!session.has_signing_tablet}
+                vehicle={session.vehicle} signingTablet={!!session.has_signing_tablet} onNameSign={showNameSign}
                 invoke={invoke}
                 refresh={refresh}
                 startSharing={() => invoke("start_tracking").catch(() => {})}
@@ -494,7 +499,7 @@ export default function DriverApp() {
                 session={session}
                 invoke={invoke}
                 refresh={refresh}
-                trips={session.trips?.length > 0 ? <DriverTrips trips={session.trips} vehicle={session.vehicle} signingTablet={!!session.has_signing_tablet} invoke={invoke} refresh={refresh} startSharing={() => invoke("start_tracking").catch(() => {})} /> : null}
+                trips={session.trips?.length > 0 ? <DriverTrips trips={session.trips} vehicle={session.vehicle} signingTablet={!!session.has_signing_tablet} onNameSign={showNameSign} invoke={invoke} refresh={refresh} startSharing={() => invoke("start_tracking").catch(() => {})} /> : null}
                 passengers={<StaffRouteList staff={session.staff || []} vehicle={session.vehicle} nearbyStaff={[]} onAttend={() => {}} />}
               />
             )}
@@ -509,10 +514,10 @@ export default function DriverApp() {
             {activeTab === "inspection" && <div className="dk-content"><h1 className="text-title font-bold">Inspection</h1><DriverInspectionList templates={inspTemplates} recent={recentInspections} localDone={localDone} onStart={(t) => openInspection(t, { from: "manual" })} /><SafetyStandardsContent /></div>}
             {activeTab === "documents" && <div className="dk-content"><h1 className="text-title font-bold">Licence & insurance</h1><DriverDocumentsViewer invoke={invoke} busName={vehicle?.name} /></div>}
             {activeTab === "settings" && <div className="dk-content"><h1 className="text-title font-bold">Tablet settings</h1><DriverDevicePanel session={session} deviceId={deviceId} onUnpair={handleUnpair} /><ReportAppProblemButton where="driver tablet" className="w-full justify-start" /></div>}
-            {activeTab === "trips" && <div className="dk-content"><h1>Jobs & history</h1>{session.trips?.length?<DriverTrips trips={session.trips} vehicle={session.vehicle} signingTablet={!!session.has_signing_tablet} invoke={invoke} refresh={refresh} startSharing={()=>invoke("start_tracking").catch(()=>{})}/>:<p>No jobs for this bus.</p>}<h2>Shift</h2><ShiftCard session={session} invoke={invoke} refresh={refresh} beforeStart={()=>beforeShift("start_shift")} beforeEnd={()=>beforeShift("end_shift")}/><DriverKioskHistory session={session}/></div>}
+            {activeTab === "trips" && <div className="dk-content"><h1>Jobs & history</h1>{session.trips?.length?<DriverTrips trips={session.trips} vehicle={session.vehicle} signingTablet={!!session.has_signing_tablet} onNameSign={showNameSign} invoke={invoke} refresh={refresh} startSharing={()=>invoke("start_tracking").catch(()=>{})}/>:<p>No jobs for this bus.</p>}<h2>Shift</h2><ShiftCard session={session} invoke={invoke} refresh={refresh} beforeStart={()=>beforeShift("start_shift")} beforeEnd={()=>beforeShift("end_shift")}/><DriverKioskHistory session={session}/></div>}
             {activeTab === "safety" && <div className="dk-content"><h1>Safety standards</h1><SafetyStandardsContent/></div>}
             {activeTab === "help" && <div className="dk-content"><h1>Help & support</h1><p className="dk-muted">Contact your transport team through Messages, or report an app problem below.</p><Button onClick={()=>selectTab("chat")}>Message your bus team</Button><ReportAppProblemButton where="driver tablet" className="w-full justify-start"/></div>}
-            {activeTab === "more" && <DriverKioskMore session={session} selectTab={selectTab} onReport={()=>setIsReportOpen(true)} unread={hasUnreadChat} onHelp={()=>selectTab("help")}/>}
+            {activeTab === "more" && <DriverKioskMore session={session} selectTab={selectTab} onReport={()=>setIsReportOpen(true)} unread={hasUnreadChat} onHelp={()=>selectTab("help")} onNameSign={()=>showNameSign(null)}/>}
 
           </section>
         )}
@@ -540,6 +545,7 @@ export default function DriverApp() {
 
       <DriverMessageAlert alert={alert} onAcknowledge={() => setAlert(null)} onReply={handleAlertReply} />
       <NewCheckInAlert checkIn={checkInAlert} onDismiss={() => setCheckInAlerts(previous => previous.slice(1))} />
+      <NameSign sign={nameSign} company={{ name: session?.company_name, logo_url: session?.company_logo_url }} onClose={() => setNameSign(null)} />
       <JobAlert alert={jobAlerts[0] || null} onDismiss={() => setJobAlerts((previous) => previous.slice(1))} onOpen={() => selectTab("trips")} />
       <SentInspectionPrompt pending={promptPending} onStart={(t) => openInspection(t, { from: "unlock" })} />
 

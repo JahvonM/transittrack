@@ -2,7 +2,7 @@ import { TRANSIT_TIME_ZONE } from "@/lib/localTime";
 import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { StatusChip } from "@/components/admin/kit";
-import { CheckCircle2, ChevronRight, Circle, Clock, CloudOff, Flag, MapPin, Navigation, PenLine, Phone, Plane, Play, Route, StickyNote, Users } from "lucide-react";
+import { CheckCircle2, ChevronRight, Circle, Clock, CloudOff, Flag, IdCard, MapPin, Navigation, PenLine, Phone, Plane, Play, Route, StickyNote, Users } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -29,7 +29,8 @@ const hasPoint = (lat, lng) => lat != null && lng != null && Number.isFinite(Num
 // is kept on the tablet and sent later (lib/driverJobs).
 // compact: the Drive screen shows just the job in progress (or the next one)
 // with its one action button; the full list opens in a sheet.
-export default function DriverTrips({ trips, invoke, startSharing, refresh, vehicle, signingTablet = false, compact = false }) {
+// onNameSign(job): show the full-screen meet-and-greet sign for a job.
+export default function DriverTrips({ trips, invoke, startSharing, refresh, vehicle, signingTablet = false, onNameSign, compact = false }) {
   const { toast } = useToast();
   const navigate = useNavigate();
   const { pathname } = useLocation();
@@ -76,12 +77,12 @@ export default function DriverTrips({ trips, invoke, startSharing, refresh, vehi
   const markArrived = (trip) => tryStep(trip, "update_trip_status", { status: "arrived" }, "Arrived");
   const reachStop = (trip, index) => tryStep(trip, "reach_stop", { index }, "Tour stop");
 
-  const signTrip = async (file, signedBy, guests) => {
+  const signTrip = async (file, signedBy, guests, role) => {
     if (!dialog) return;
     const { trip, mode } = dialog;
     const data_base64 = await blobToBase64(file);
     const where = await currentPosition(vehicle);
-    await step(trip, "sign_trip", { mode, data_base64, mime_type: "image/png", signed_by: signedBy, guests, ...(where || {}) },
+    await step(trip, "sign_trip", { mode, data_base64, mime_type: "image/png", signed_by: signedBy, guests, signed_role: role, ...(where || {}) },
       mode === "pickup" ? "Pickup signature" : "Drop-off signature");
     if (mode === "dropoff") markJobDone(trip.id);
   };
@@ -186,6 +187,11 @@ export default function DriverTrips({ trips, invoke, startSharing, refresh, vehi
                 <Navigation className="h-4 w-4" /> Directions
               </Button>
             )}
+            {onNameSign && !pickupSigned(trip) && (
+              <Button variant="outline" onClick={() => { setAllOpen(false); onNameSign(trip); }}>
+                <IdCard className="h-4 w-4" /> Name sign
+              </Button>
+            )}
           </div>
           {signingTablet && action?.icon === PenLine && (
             <p className="text-xs text-muted-foreground">The guests can sign on the bus's signing tablet; this updates when they do.</p>
@@ -196,13 +202,13 @@ export default function DriverTrips({ trips, invoke, startSharing, refresh, vehi
               {pickupSigned(trip) && (
                 <span className="inline-flex items-center gap-1">
                   <CheckCircle2 className="h-3.5 w-3.5 text-success" />
-                  Pickup signed by {trip.pickup_signed_by} ({fmtDateTime(trip.pickup_signed_at)})
+                  Pickup signed by {trip.pickup_signed_by}{trip.pickup_signed_role === "reception" ? ", hotel front desk" : ""} ({fmtDateTime(trip.pickup_signed_at)})
                 </span>
               )}
               {dropoffSigned(trip) && (
                 <span className="inline-flex items-center gap-1">
                   <CheckCircle2 className="h-3.5 w-3.5 text-success" />
-                  Drop-off signed by {trip.dropoff_signed_by} ({fmtDateTime(trip.dropoff_signed_at)})
+                  Drop-off signed by {trip.dropoff_signed_by}{trip.dropoff_signed_role === "reception" ? ", hotel front desk" : ""} ({fmtDateTime(trip.dropoff_signed_at)})
                 </span>
               )}
             </div>

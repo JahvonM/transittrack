@@ -8,7 +8,7 @@ import JobTypeIcon from "@/components/jobs/JobTypeIcon";
 import JobRecordDialog from "@/components/jobs/JobRecordDialog";
 import InvoicesPanel from "@/components/jobs/InvoicesPanel";
 import { exportToCSV, exportToPDF } from "@/lib/exporters";
-import { JOB_TYPES, dropoffSigned, formatMoney, jobTypeLabel, jobTypeOf, pickupSigned } from "@/lib/jobs";
+import { JOB_TYPES, dropoffSigned, formatMoney, jobTypeLabel, jobTypeOf, pickupSigned, signerLabel } from "@/lib/jobs";
 
 const TRIP_COLS = [
   { key: "completed_at", label: "Completed" },
@@ -26,7 +26,9 @@ const TRIP_COLS = [
   { key: "scheduled_time", label: "Scheduled" },
   { key: "started_at", label: "Started" },
   { key: "pickup_signed_by", label: "Pickup signed by" },
+  { key: "pickup_signed_as", label: "Pickup signed as" },
   { key: "dropoff_signed_by", label: "Drop-off signed by" },
+  { key: "dropoff_signed_as", label: "Drop-off signed as" },
   { key: "price", label: "Price" },
   { key: "currency", label: "Currency" },
   { key: "invoice_number", label: "Invoice" },
@@ -61,7 +63,7 @@ export default function CompletedTripsTab({ trips, clients = [], invoices = [], 
   });
   const current = open ? trips.find((t) => t.id === open) || null : null;
 
-  const rows = shown.map((t) => ({ ...t, job_label: jobTypeLabel(t) }));
+  const rows = shown.map((t) => ({ ...t, job_label: jobTypeLabel(t), pickup_signed_as: signerLabel(t.pickup_signed_role), dropoff_signed_as: signerLabel(t.dropoff_signed_role) }));
   const stamp = new Date().toISOString().slice(0, 10);
   const exportCsv = () => exportToCSV(`job-records-${stamp}`, TRIP_COLS, rows);
   const exportPdf = () => exportToPDF(`job-records-${stamp}`, "Completed jobs", TRIP_COLS.filter((c) => !["company_name", "plate_number", "started_at", "currency"].includes(c.key)), rows);
@@ -144,8 +146,8 @@ export default function CompletedTripsTab({ trips, clients = [], invoices = [], 
                       </td>
                       <td className={tableClass.td}>
                         <span className="flex flex-col gap-0.5 text-caption">
-                          <span className={pickupSigned(t) ? "text-success" : "text-muted-foreground"}>{pickupSigned(t) && <CheckCircle2 className="mr-1 inline h-3.5 w-3.5" aria-hidden="true" />}Pickup</span>
-                          <span className={dropoffSigned(t) ? "text-success" : "text-muted-foreground"}>{dropoffSigned(t) && <CheckCircle2 className="mr-1 inline h-3.5 w-3.5" aria-hidden="true" />}Drop-off</span>
+                          <span className={pickupSigned(t) ? "text-success" : "text-muted-foreground"}>{pickupSigned(t) && <CheckCircle2 className="mr-1 inline h-3.5 w-3.5" aria-hidden="true" />}Pickup{t.pickup_signed_role === "reception" ? " · front desk" : ""}</span>
+                          <span className={dropoffSigned(t) ? "text-success" : "text-muted-foreground"}>{dropoffSigned(t) && <CheckCircle2 className="mr-1 inline h-3.5 w-3.5" aria-hidden="true" />}Drop-off{t.dropoff_signed_role === "reception" ? " · front desk" : ""}</span>
                         </span>
                       </td>
                     </tr>

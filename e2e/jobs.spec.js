@@ -115,7 +115,9 @@ test('the driver tablet alerts a new job and records the pickup signature with t
   await expect.poll(() => steps.map((s) => s.action)).toEqual(['update_trip_status']);
   await page.getByRole('button', { name: 'Confirm pickup — signature', exact: true }).click();
   const sign = page.getByRole('dialog');
-  await sign.getByLabel("Signer's name").fill('Mr Smith');
+  // At the airport the guest signs.
+  await expect(sign.getByRole('button', { name: 'Guest' })).toHaveAttribute('aria-pressed', 'true');
+  await sign.getByLabel("Guest's name").fill('Mr Smith');
   await expect(sign.getByLabel('Number of guests')).toHaveValue('3');
   await sign.getByLabel('Number of guests').fill('4');
   const pad = await sign.locator('canvas').boundingBox();
@@ -125,7 +127,7 @@ test('the driver tablet alerts a new job and records the pickup signature with t
   await page.mouse.up();
   await sign.getByRole('button', { name: 'Confirm signature', exact: true }).click();
   await expect.poll(() => steps.length).toBe(2);
-  expect(steps[1]).toMatchObject({ action: 'sign_trip', trip_id: 'job-1', mode: 'pickup', signed_by: 'Mr Smith', guests: 4, mime_type: 'image/png' });
+  expect(steps[1]).toMatchObject({ action: 'sign_trip', trip_id: 'job-1', mode: 'pickup', signed_by: 'Mr Smith', guests: 4, mime_type: 'image/png', signed_role: 'guest' });
   expect(steps[1].lat).toBeCloseTo(12.0045, 3);
   expect(steps[1].data_base64.length).toBeGreaterThan(100);
   await expect(page.getByText(/Pickup signed by Mr Smith/)).toBeVisible();
@@ -182,4 +184,68 @@ test('the signing tablet asks guests to sign at pickup, then at drop-off', async
   await page.clock.fastForward(11000);
   await expect(page.getByText('Please sign to confirm your drop-off.')).toBeVisible();
   await expect(page.getByText('Thank you for travelling with us')).toBeVisible();
+});
+
+test('at the hotel the front desk confirms the drop-off; the driver shows a meet-and-greet name sign', async ({ page }) => {
+  let job = {
+    id: 'job-1', job_type: 'airport_pickup', status: 'arrived', vehicle_id: 'bus-a', company_id: 'company-a',
+    pickup_name: 'Maurice Bishop Airport', dropoff_name: 'Grand Hotel', scheduled_time: new Date().toISOString(),
+    flight_number: 'AA 1234', guests: 2, passenger_name: 'Mr Smith', client_name: 'Grand Hotel', stops: [],
+    pickup_signed_at: new Date().toISOString(), pickup_signed_by: 'Mr Smith', pickup_signed_role: 'guest',
+  };
+  const second = { ...job, id: 'job-2', status: 'scheduled', pickup_signed_at: undefined, pickup_signed_by: undefined, passenger_name: 'Ms Jones', client_name: 'Calabash Hotel' };
+  const kiosk = { id: 'driver-test', kiosk_type: 'driver', vehicle_id: 'bus-a', company_id: 'company-a', company_name: 'Island Transit Co.', status: 'active', paired: true };
+  const vehicle = { id: 'bus-a', name: 'Bus 12', company_id: 'company-a', capacity: 25, status: 'idle', tracking_active: false };
+  const signs = [];
+  await page.route('**/api/**', async (r) => {
+    const url = r.request().url();
+    const body = r.request().postDataJSON();
+    if (url.includes('/functions/kioskHeartbeat')) return r.fulfill({ json: kiosk });
+    if (url.includes('/functions/driverSession')) {
+      if (body?.action === 'verify_pin') return r.fulfill({ json: { ok: true, driver_grant: 'b'.repeat(64) } });
+      if (body?.action === 'heartbeat') return r.fulfill({ json: { vehicle, driver_name: 'Kofi Charles', occupancy: 0, check_ins: [], broadcasts: [], group_messages: [], trips: [job, second].filter((t) => t.status !== 'completed'), driver_unlocked: true, open_shift: null, staff: [], has_driver_pin: true, company_name: 'Island Transit Co.' } });
+      if (body?.action === 'sign_trip') {
+        signs.push(body);
+        job = { ...job, status: 'completed', dropoff_signed_at: new Date().toISOString(), dropoff_signed_by: body.signed_by, dropoff_signed_role: body.signed_role };
+        return r.fulfill({ json: { trip: job } });
+      }
+      return r.fulfill({ json: { ok: true } });
+    }
+    if (url.includes('/entities/')) return r.fulfill({ status: 403, json: {} });
+    return r.fulfill({ json: { id: 'test-app', public_settings: { authentication_required: false } } });
+  });
+  await page.route('https://api.mapbox.com/**', (r) => r.fulfill({ status: 404, body: '' }));
+  await page.addInitScript(() => { localStorage.setItem('tt_driver_device_id', 'driver-test'); localStorage.setItem('tt-map-engine', 'basic'); });
+  await page.goto('/driver/trips');
+  await page.locator('input[type=password]').fill('1234');
+  await page.getByRole('button', { name: 'Unlock', exact: true }).click();
+
+  // At the hotel: the front desk confirms the guests were dropped off.
+  await page.getByRole('button', { name: 'Confirm drop-off — signature', exact: true }).click({ timeout: 15000 });
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.getByRole('button', { name: 'Hotel front desk' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(dialog.getByText('Ask the front desk at Grand Hotel to confirm the guests were dropped off here, and sign below.')).toBeVisible();
+  await dialog.getByLabel("Receptionist's name").fill('Mary');
+  const pad = await dialog.locator('canvas').boundingBox();
+  await page.mouse.move(pad.x + 30, pad.y + 40);
+  await page.mouse.down();
+  await page.mouse.move(pad.x + 200, pad.y + 80, { steps: 6 });
+  await page.mouse.up();
+  await dialog.getByRole('button', { name: 'Confirm signature', exact: true }).click();
+  await expect.poll(() => signs.length).toBe(1);
+  expect(signs[0]).toMatchObject({ action: 'sign_trip', trip_id: 'job-1', mode: 'dropoff', signed_by: 'Mary', signed_role: 'reception', guests: 2 });
+
+  // At arrivals for the next job: the guest's name, full screen, under the company.
+  await page.getByRole('button', { name: 'Name sign', exact: true }).click();
+  const sign = page.getByRole('dialog', { name: 'Name sign' });
+  await expect(sign).toBeVisible();
+  await expect(sign.getByText('Island Transit Co.', { exact: true })).toBeVisible();
+  await expect(sign.getByText('Ms Jones', { exact: true })).toBeVisible();
+  await expect(sign.getByText('Calabash Hotel', { exact: true })).toBeVisible();
+  await sign.getByRole('button', { name: 'Change the name' }).click();
+  await sign.getByLabel('Name on the sign').fill('The Jones family');
+  await sign.getByRole('button', { name: 'Show', exact: true }).click();
+  await expect(sign.getByText('The Jones family', { exact: true })).toBeVisible();
+  await sign.getByRole('button', { name: 'Close the sign' }).click();
+  await expect(sign).toHaveCount(0);
 });

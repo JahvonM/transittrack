@@ -12,7 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { FileSpreadsheet, FileText, LogIn, LogOut, RefreshCw, CreditCard, QrCode, Search, DoorOpen } from "lucide-react";
+import { FileSpreadsheet, FileText, LogIn, LogOut, RefreshCw, CreditCard, QrCode, Search } from "lucide-react";
 import { exportToCSV, exportToPDF } from "@/lib/exporters";
 import BusLoader from "@/components/BusLoader";
 import DailyCheckInLog from "@/components/admin/DailyCheckInLog";
@@ -26,13 +26,6 @@ const CHECKIN_COLS = [
   { key: "card_tag", label: "Badge tag" },
   { key: "boarded_at", label: "Time" },
   { key: "created_date", label: "Logged" },
-];
-
-const SIGNIN_COLS = [
-  { key: "full_name", label: "Visitor" },
-  { key: "company_name", label: "Company" },
-  { key: "reason", label: "Reason" },
-  { key: "signed_at", label: "Time" },
 ];
 
 const METHOD_META = {
@@ -133,70 +126,6 @@ function BusCheckIns({ vehicles }) {
   );
 }
 
-function VisitorSignIns() {
-  const [records, setRecords] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  const load = async () => {
-    setLoading(true);
-    try {
-      const list = await base44.entities.FrontDeskSignIns.list("-signed_at", 200);
-      setRecords(list || []);
-    } catch {
-      setRecords([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => { load(); }, []);
-
-  return (
-    <div className="space-y-3">
-      <div className="flex justify-end gap-2">
-        <Button size="sm" variant="outline" onClick={() => exportToCSV("visitor-signins", SIGNIN_COLS, records)} disabled={!records.length}>
-          <FileSpreadsheet className="w-4 h-4" /> Excel
-        </Button>
-        <Button size="sm" variant="outline" onClick={() => exportToPDF("visitor-signins", "Visitor sign-in log", SIGNIN_COLS, records)} disabled={!records.length}>
-          <FileText className="w-4 h-4" /> PDF
-        </Button>
-        <Button size="sm" variant="outline" onClick={load}>
-          <RefreshCw className="w-4 h-4" /> Refresh
-        </Button>
-      </div>
-
-      {loading ? (
-        <BusLoader className="py-8" />
-      ) : records.length === 0 ? (
-        <EmptyState text="No visitor sign-ins recorded yet." />
-      ) : (
-        <div className="space-y-2">
-          {records.map((r) => (
-            <div key={r.id} className="flex items-center gap-3 p-3 rounded-xl border bg-card">
-              {r.signature_url ? (
-                <img src={r.signature_url} alt="Signature" className="w-16 h-10 object-contain rounded border bg-white shrink-0" />
-              ) : (
-                <div className="w-9 h-9 rounded-full bg-primary/10 grid place-items-center shrink-0">
-                  <DoorOpen className="w-4 h-4 text-primary" />
-                </div>
-              )}
-              <div className="flex-1 min-w-0">
-                <div className="font-medium truncate">{r.full_name}</div>
-                <div className="text-xs text-muted-foreground truncate">
-                  {r.company_name || "—"}{r.reason ? ` · ${r.reason}` : ""}
-                </div>
-              </div>
-              <div className="text-xs text-muted-foreground shrink-0">
-                {r.signed_at ? new Date(r.signed_at).toLocaleString() : "—"}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
 export default function CheckInLog({ vehicles }) {
   return (
     <Card>
@@ -205,16 +134,12 @@ export default function CheckInLog({ vehicles }) {
           <TabsList>
             <TabsTrigger value="bus">Bus check-ins</TabsTrigger>
             <TabsTrigger value="daily">Daily log</TabsTrigger>
-            <TabsTrigger value="visitors">Visitor sign-ins</TabsTrigger>
           </TabsList>
           <TabsContent value="bus" className="mt-4">
             <BusCheckIns vehicles={vehicles} />
           </TabsContent>
           <TabsContent value="daily" className="mt-4">
             <DailyCheckInLog />
-          </TabsContent>
-          <TabsContent value="visitors" className="mt-4">
-            <VisitorSignIns />
           </TabsContent>
         </Tabs>
       </CardContent>

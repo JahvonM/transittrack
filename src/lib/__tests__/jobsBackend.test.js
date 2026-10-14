@@ -99,6 +99,14 @@ describe("driver tablet jobs", () => {
     expect((await send({ action: "sign_trip", trip_id: "job-1", mode: "pickup", data_base64: PNG, signed_by: "Someone", client_request_id: "req-pickup-2" })).status).toBe(409);
   });
 
+  it("records whether the guest or the hotel front desk signed", async () => {
+    const { sdk, send } = await tablet([job({ status: "arrived" }), job({ id: "job-2", status: "on_the_way" })]);
+    expect((await send({ action: "sign_trip", trip_id: "job-1", mode: "dropoff", data_base64: PNG, signed_by: "Mary", signed_role: "reception" })).body.trip.dropoff_signed_role).toBe("reception");
+    expect(sdk.tables.Trip[0].dropoff_signed_role).toBe("reception");
+    await send({ action: "sign_trip", trip_id: "job-2", mode: "pickup", data_base64: PNG, signed_by: "Ann", signed_role: "boss" });
+    expect(sdk.tables.Trip[1].pickup_signed_role).toBe("guest");
+  });
+
   it("the drop-off signature finishes the job; a bad position never stops it", async () => {
     const { sdk, send } = await tablet([job({ status: "arrived" })]);
     const res = await send({ action: "sign_trip", trip_id: "job-1", mode: "dropoff", data_base64: PNG, signed_by: "Desk", lat: 999, lng: "x" });
@@ -344,5 +352,15 @@ describe("signing tablet", () => {
     sdk.tables.KioskDevice.push(structuredClone(signer));
     expect((await send({ action: "heartbeat" })).body.has_signing_tablet).toBe(true);
     expect((await send({ action: "heartbeat", light: true })).body).not.toHaveProperty("has_signing_tablet");
+  });
+});
+
+describe("front-desk kiosk", () => {
+  it("the front-desk sign-in is gone", async () => {
+    const sdk = mock(null);
+    Object.assign(sdk.tables.KioskDevice[0], { kiosk_type: "front_desk", vehicle_id: "" });
+    const res = await load("kioskCheckIn", sdk).default(request({ device_id: "tablet", action: "front_desk_sign_in", full_name: "Visitor" }));
+    expect(res.status).toBe(400);
+    expect(sdk.tables.FrontDeskSignIns).toBeUndefined();
   });
 });

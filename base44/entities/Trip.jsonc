@@ -218,6 +218,22 @@
     },
     "dropoff_signature_request_id": {
       "type": "string"
+    },
+    "pickup_signed_role": {
+      "type": "string",
+      "enum": [
+        "guest",
+        "reception"
+      ],
+      "description": "Who signed for the pickup: a guest, or the hotel's front desk"
+    },
+    "dropoff_signed_role": {
+      "type": "string",
+      "enum": [
+        "guest",
+        "reception"
+      ],
+      "description": "Who signed for the drop-off: a guest, or the hotel's front desk"
     }
   },
   "required": [

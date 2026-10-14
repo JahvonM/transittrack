@@ -43,7 +43,7 @@ import { toast } from "@/components/ui/use-toast";
 const TYPE_META = {
   bus_boarding: { label: "Bus boarding", icon: Bus },
   driver: { label: "Driver tablet", icon: Navigation },
-  front_desk: { label: "Front-desk", icon: DoorOpen },
+  front_desk: { label: "Retired mode - edit to switch to Bus boarding", icon: DoorOpen },
   job_signing: { label: "Signing tablet", icon: PenLine },
   badge_registry: { label: "Retired mode - edit to switch to Bus boarding", icon: CreditCard },
 };

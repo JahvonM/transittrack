@@ -103,7 +103,7 @@ const CREATE_FIELDS = {
 
 const UNCREATABLE_NOTES = {
   User: "New users are created from the Users & Roles tab (Invite), so they get a real login.",
-  FrontDeskSignIns: "Sign-ins are created by the front-desk kiosk itself, not added by hand here.",
+  FrontDeskSignIns: "Old visitor sign-ins from the retired front-desk kiosk; nothing new is added.",
 };
 
 const ENTITIES = [

@@ -86,3 +86,16 @@ describe("signing tablet", () => {
     expect(waitingSignature([jobs[0]])).toBeNull();
   });
 });
+
+describe("who confirms a pickup or drop-off", () => {
+  it("is the hotel front desk at the hotel end of a job, the guest elsewhere", async () => {
+    const { defaultSigner } = await import("../jobs");
+    expect(defaultSigner({ job_type: "airport_pickup" }, "pickup")).toBe("guest");
+    expect(defaultSigner({ job_type: "airport_pickup" }, "dropoff")).toBe("reception");
+    expect(defaultSigner({ job_type: "airport_dropoff" }, "pickup")).toBe("reception");
+    expect(defaultSigner({ job_type: "airport_dropoff" }, "dropoff")).toBe("guest");
+    expect(defaultSigner({ job_type: "hotel_tour" }, "dropoff")).toBe("reception");
+    expect(defaultSigner({ job_type: "staff_run" }, "pickup")).toBe("guest");
+    expect(defaultSigner({}, "dropoff")).toBe("guest");
+  });
+});
