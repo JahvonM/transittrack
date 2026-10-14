@@ -26,7 +26,7 @@ create table if not exists public.advertisement (
   "order" double precision default 0,
   company_id text
 );
-create trigger advertisement_touch before update on public.advertisement for each row execute function public.touch_updated_date();
+create or replace trigger advertisement_touch before update on public.advertisement for each row execute function public.touch_updated_date();
 alter table public.advertisement add constraint advertisement_title_required check (title is not null) not valid;
 create index if not exists advertisement_company_id_idx on public.advertisement (company_id);
 create index if not exists advertisement_created_date_idx on public.advertisement (created_date desc);
@@ -41,7 +41,7 @@ create table if not exists public.app_support_setting (
   is_sample boolean default false,
   whatsapp_number text
 );
-create trigger app_support_setting_touch before update on public.app_support_setting for each row execute function public.touch_updated_date();
+create or replace trigger app_support_setting_touch before update on public.app_support_setting for each row execute function public.touch_updated_date();
 create index if not exists app_support_setting_created_date_idx on public.app_support_setting (created_date desc);
 
 -- AuditLog
@@ -64,7 +64,7 @@ create table if not exists public.audit_log (
   card_uid text,
   status text
 );
-create trigger audit_log_touch before update on public.audit_log for each row execute function public.touch_updated_date();
+create or replace trigger audit_log_touch before update on public.audit_log for each row execute function public.touch_updated_date();
 alter table public.audit_log add constraint audit_log_action_allowed check (action is null or action in ('create', 'update', 'delete', 'card_programmed', 'card_verified', 'card_rejected', 'card_revoked')) not valid;
 alter table public.audit_log add constraint audit_log_status_allowed check (status is null or status in ('SUCCESS', 'ERROR')) not valid;
 create index if not exists audit_log_actor_email_idx on public.audit_log (actor_email);
@@ -91,7 +91,7 @@ create table if not exists public.broadcast (
   vehicle_id text,
   return_pickup boolean default false
 );
-create trigger broadcast_touch before update on public.broadcast for each row execute function public.touch_updated_date();
+create or replace trigger broadcast_touch before update on public.broadcast for each row execute function public.touch_updated_date();
 alter table public.broadcast add constraint broadcast_type_allowed check ("type" is null or "type" in ('bus_arrived', 'taxi_arrived', 'info')) not valid;
 alter table public.broadcast add constraint broadcast_type_required check ("type" is not null) not valid;
 alter table public.broadcast add constraint broadcast_message_required check (message is not null) not valid;
@@ -116,7 +116,7 @@ create table if not exists public.card_holder (
   company_name text,
   notes text
 );
-create trigger card_holder_touch before update on public.card_holder for each row execute function public.touch_updated_date();
+create or replace trigger card_holder_touch before update on public.card_holder for each row execute function public.touch_updated_date();
 alter table public.card_holder add constraint card_holder_role_allowed check (role is null or role in ('Dispatcher', 'Inspector', 'Supervisor', 'Cleaner', 'Security', 'Other')) not valid;
 alter table public.card_holder add constraint card_holder_full_name_required check (full_name is not null) not valid;
 create index if not exists card_holder_employee_id_idx on public.card_holder (employee_id);
@@ -141,7 +141,7 @@ create table if not exists public.client (
   currency text default 'XCD',
   notes text
 );
-create trigger client_touch before update on public.client for each row execute function public.touch_updated_date();
+create or replace trigger client_touch before update on public.client for each row execute function public.touch_updated_date();
 alter table public.client add constraint client_kind_allowed check (kind is null or kind in ('hotel', 'company', 'tour_operator', 'person', 'other')) not valid;
 alter table public.client add constraint client_name_required check (name is not null) not valid;
 create index if not exists client_company_id_idx on public.client (company_id);
@@ -172,7 +172,7 @@ create table if not exists public.client_error (
   resolved_at timestamptz,
   resolved_by text
 );
-create trigger client_error_touch before update on public.client_error for each row execute function public.touch_updated_date();
+create or replace trigger client_error_touch before update on public.client_error for each row execute function public.touch_updated_date();
 alter table public.client_error add constraint client_error_status_allowed check (status is null or status in ('new', 'resolved')) not valid;
 alter table public.client_error add constraint client_error_message_required check (message is not null) not valid;
 create index if not exists client_error_user_email_idx on public.client_error (user_email);
@@ -197,7 +197,7 @@ create table if not exists public.company (
   secretary_phone text,
   access_code_expires_at timestamptz
 );
-create trigger company_touch before update on public.company for each row execute function public.touch_updated_date();
+create or replace trigger company_touch before update on public.company for each row execute function public.touch_updated_date();
 alter table public.company add constraint company_name_required check (name is not null) not valid;
 create index if not exists company_created_date_idx on public.company (created_date desc);
 
@@ -215,7 +215,7 @@ create table if not exists public.company_access_grant (
   code_hash text,
   expires_at text
 );
-create trigger company_access_grant_touch before update on public.company_access_grant for each row execute function public.touch_updated_date();
+create or replace trigger company_access_grant_touch before update on public.company_access_grant for each row execute function public.touch_updated_date();
 create index if not exists company_access_grant_user_id_idx on public.company_access_grant (user_id);
 create index if not exists company_access_grant_company_id_idx on public.company_access_grant (company_id);
 create index if not exists company_access_grant_created_date_idx on public.company_access_grant (created_date desc);
@@ -237,7 +237,7 @@ create table if not exists public.company_membership (
   vehicle_id text,
   vehicle_name text
 );
-create trigger company_membership_touch before update on public.company_membership for each row execute function public.touch_updated_date();
+create or replace trigger company_membership_touch before update on public.company_membership for each row execute function public.touch_updated_date();
 alter table public.company_membership add constraint company_membership_scope_allowed check (scope is null or scope in ('manager', 'passenger')) not valid;
 alter table public.company_membership add constraint company_membership_user_id_required check (user_id is not null) not valid;
 alter table public.company_membership add constraint company_membership_company_id_required check (company_id is not null) not valid;
@@ -274,7 +274,7 @@ create table if not exists public.contact (
   vehicle_id text,
   vehicle_name text
 );
-create trigger contact_touch before update on public.contact for each row execute function public.touch_updated_date();
+create or replace trigger contact_touch before update on public.contact for each row execute function public.touch_updated_date();
 alter table public.contact add constraint contact_type_allowed check ("type" is null or "type" in ('staff', 'passenger')) not valid;
 alter table public.contact add constraint contact_name_required check (name is not null) not valid;
 alter table public.contact add constraint contact_type_required check ("type" is not null) not valid;
@@ -301,7 +301,7 @@ create table if not exists public.device_credential (
   issued_at text,
   expires_at text
 );
-create trigger device_credential_touch before update on public.device_credential for each row execute function public.touch_updated_date();
+create or replace trigger device_credential_touch before update on public.device_credential for each row execute function public.touch_updated_date();
 alter table public.device_credential add constraint device_credential_device_id_required check (device_id is not null) not valid;
 alter table public.device_credential add constraint device_credential_token_hash_required check (token_hash is not null) not valid;
 alter table public.device_credential add constraint device_credential_issued_at_required check (issued_at is not null) not valid;
@@ -329,7 +329,7 @@ create table if not exists public.driver (
   nfc_card_uid text,
   phone_app_access boolean default false
 );
-create trigger driver_touch before update on public.driver for each row execute function public.touch_updated_date();
+create or replace trigger driver_touch before update on public.driver for each row execute function public.touch_updated_date();
 alter table public.driver add constraint driver_full_name_required check (full_name is not null) not valid;
 create index if not exists driver_email_idx on public.driver (email);
 create index if not exists driver_company_id_idx on public.driver (company_id);
@@ -354,7 +354,7 @@ create table if not exists public.driver_document (
   expiry_date date,
   notes text
 );
-create trigger driver_document_touch before update on public.driver_document for each row execute function public.touch_updated_date();
+create or replace trigger driver_document_touch before update on public.driver_document for each row execute function public.touch_updated_date();
 alter table public.driver_document add constraint driver_document_kind_allowed check (kind is null or kind in ('license', 'insurance')) not valid;
 alter table public.driver_document add constraint driver_document_driver_id_required check (driver_id is not null) not valid;
 alter table public.driver_document add constraint driver_document_kind_required check (kind is not null) not valid;
@@ -376,7 +376,7 @@ create table if not exists public.driver_pin_credential (
   pin_hash text,
   enabled boolean
 );
-create trigger driver_pin_credential_touch before update on public.driver_pin_credential for each row execute function public.touch_updated_date();
+create or replace trigger driver_pin_credential_touch before update on public.driver_pin_credential for each row execute function public.touch_updated_date();
 create index if not exists driver_pin_credential_vehicle_id_idx on public.driver_pin_credential (vehicle_id);
 create index if not exists driver_pin_credential_company_id_idx on public.driver_pin_credential (company_id);
 create index if not exists driver_pin_credential_created_date_idx on public.driver_pin_credential (created_date desc);
@@ -405,7 +405,7 @@ create table if not exists public.driver_request (
   decided_at timestamptz,
   decision_note text
 );
-create trigger driver_request_touch before update on public.driver_request for each row execute function public.touch_updated_date();
+create or replace trigger driver_request_touch before update on public.driver_request for each row execute function public.touch_updated_date();
 alter table public.driver_request add constraint driver_request_kind_allowed check (kind is null or kind in ('day_off', 'swap')) not valid;
 alter table public.driver_request add constraint driver_request_status_allowed check (status is null or status in ('pending', 'approved', 'declined', 'cancelled')) not valid;
 alter table public.driver_request add constraint driver_request_company_id_required check (company_id is not null) not valid;
@@ -444,7 +444,7 @@ create table if not exists public.driver_shift (
   end_request_id text,
   end_request_hash text
 );
-create trigger driver_shift_touch before update on public.driver_shift for each row execute function public.touch_updated_date();
+create or replace trigger driver_shift_touch before update on public.driver_shift for each row execute function public.touch_updated_date();
 alter table public.driver_shift add constraint driver_shift_vehicle_id_required check (vehicle_id is not null) not valid;
 alter table public.driver_shift add constraint driver_shift_started_at_required check (started_at is not null) not valid;
 create index if not exists driver_shift_vehicle_id_idx on public.driver_shift (vehicle_id);
@@ -476,7 +476,7 @@ create table if not exists public.driving_event (
   vehicle_id text,
   vehicle_name text
 );
-create trigger driving_event_touch before update on public.driving_event for each row execute function public.touch_updated_date();
+create or replace trigger driving_event_touch before update on public.driving_event for each row execute function public.touch_updated_date();
 alter table public.driving_event add constraint driving_event_type_allowed check ("type" is null or "type" in ('hard_brake', 'rapid_accel', 'crash')) not valid;
 alter table public.driving_event add constraint driving_event_vehicle_id_required check (vehicle_id is not null) not valid;
 alter table public.driving_event add constraint driving_event_company_id_required check (company_id is not null) not valid;
@@ -513,7 +513,7 @@ create table if not exists public.fault (
   request_hash text,
   request_actor_id text
 );
-create trigger fault_touch before update on public.fault for each row execute function public.touch_updated_date();
+create or replace trigger fault_touch before update on public.fault for each row execute function public.touch_updated_date();
 alter table public.fault add constraint fault_source_allowed check (source is null or source in ('inspection', 'manual')) not valid;
 alter table public.fault add constraint fault_severity_allowed check (severity is null or severity in ('low', 'medium', 'high', 'critical')) not valid;
 alter table public.fault add constraint fault_status_allowed check (status is null or status in ('open', 'in_progress', 'resolved')) not valid;
@@ -541,7 +541,7 @@ create table if not exists public.front_desk_sign_ins (
   signature_url text,
   signed_at timestamptz
 );
-create trigger front_desk_sign_ins_touch before update on public.front_desk_sign_ins for each row execute function public.touch_updated_date();
+create or replace trigger front_desk_sign_ins_touch before update on public.front_desk_sign_ins for each row execute function public.touch_updated_date();
 alter table public.front_desk_sign_ins add constraint front_desk_sign_ins_full_name_required check (full_name is not null) not valid;
 alter table public.front_desk_sign_ins add constraint front_desk_sign_ins_signed_at_required check (signed_at is not null) not valid;
 create index if not exists front_desk_sign_ins_created_date_idx on public.front_desk_sign_ins (created_date desc);
@@ -568,7 +568,7 @@ create table if not exists public.group_message (
   sender_id text,
   sender_email text
 );
-create trigger group_message_touch before update on public.group_message for each row execute function public.touch_updated_date();
+create or replace trigger group_message_touch before update on public.group_message for each row execute function public.touch_updated_date();
 alter table public.group_message add constraint group_message_channel_allowed check (channel is null or channel in ('staff', 'company', 'dispatch', 'mechanic')) not valid;
 alter table public.group_message add constraint group_message_sender_role_allowed check (sender_role is null or sender_role in ('driver', 'staff', 'admin', 'company', 'mechanic')) not valid;
 alter table public.group_message add constraint group_message_message_type_allowed check (message_type is null or message_type in ('text', 'image', 'audio')) not valid;
@@ -602,7 +602,7 @@ create table if not exists public.incident (
   source text,
   status text default 'open'
 );
-create trigger incident_touch before update on public.incident for each row execute function public.touch_updated_date();
+create or replace trigger incident_touch before update on public.incident for each row execute function public.touch_updated_date();
 alter table public.incident add constraint incident_type_allowed check ("type" is null or "type" in ('speeding', 'emergency', 'breakdown', 'accident', 'delay', 'other')) not valid;
 alter table public.incident add constraint incident_status_allowed check (status is null or status in ('open', 'investigating', 'resolved')) not valid;
 alter table public.incident add constraint incident_type_required check ("type" is not null) not valid;
@@ -641,7 +641,7 @@ create table if not exists public.inspection (
   request_hash text,
   request_actor_id text
 );
-create trigger inspection_touch before update on public.inspection for each row execute function public.touch_updated_date();
+create or replace trigger inspection_touch before update on public.inspection for each row execute function public.touch_updated_date();
 alter table public.inspection add constraint inspection_status_allowed check (status is null or status in ('passed', 'failed')) not valid;
 alter table public.inspection add constraint inspection_driver_name_required check (driver_name is not null) not valid;
 alter table public.inspection add constraint inspection_vehicle_id_required check (vehicle_id is not null) not valid;
@@ -683,7 +683,7 @@ create table if not exists public.inspection_result (
   request_hash text,
   request_actor_id text
 );
-create trigger inspection_result_touch before update on public.inspection_result for each row execute function public.touch_updated_date();
+create or replace trigger inspection_result_touch before update on public.inspection_result for each row execute function public.touch_updated_date();
 alter table public.inspection_result add constraint inspection_result_condition_allowed check (condition is null or condition in ('GOOD', 'WARNING', 'FAILED', 'PENDING')) not valid;
 alter table public.inspection_result add constraint inspection_result_vehicle_id_required check (vehicle_id is not null) not valid;
 alter table public.inspection_result add constraint inspection_result_inspection_name_required check (inspection_name is not null) not valid;
@@ -719,7 +719,7 @@ create table if not exists public.inspection_template (
   driver_sent_at timestamptz,
   sections jsonb
 );
-create trigger inspection_template_touch before update on public.inspection_template for each row execute function public.touch_updated_date();
+create or replace trigger inspection_template_touch before update on public.inspection_template for each row execute function public.touch_updated_date();
 alter table public.inspection_template add constraint inspection_template_audience_allowed check (audience is null or audience in ('mechanic', 'driver', 'both')) not valid;
 alter table public.inspection_template add constraint inspection_template_driver_trigger_allowed check (driver_trigger is null or driver_trigger in ('start_of_day', 'at_times', 'shift_start', 'shift_end', 'on_demand')) not valid;
 alter table public.inspection_template add constraint inspection_template_xray_layout_allowed check (xray_layout is null or xray_layout in ('front_engine', 'minibus', 'city_rear')) not valid;
@@ -755,7 +755,7 @@ create table if not exists public.invoice (
   voided_at timestamptz,
   notes text
 );
-create trigger invoice_touch before update on public.invoice for each row execute function public.touch_updated_date();
+create or replace trigger invoice_touch before update on public.invoice for each row execute function public.touch_updated_date();
 alter table public.invoice add constraint invoice_status_allowed check (status is null or status in ('draft', 'sent', 'paid', 'void')) not valid;
 alter table public.invoice add constraint invoice_client_id_required check (client_id is not null) not valid;
 alter table public.invoice add constraint invoice_number_required check (number is not null) not valid;
@@ -777,7 +777,7 @@ create table if not exists public.job_run (
   trigger text,
   summary text
 );
-create trigger job_run_touch before update on public.job_run for each row execute function public.touch_updated_date();
+create or replace trigger job_run_touch before update on public.job_run for each row execute function public.touch_updated_date();
 alter table public.job_run add constraint job_run_trigger_allowed check (trigger is null or trigger in ('schedule', 'admin')) not valid;
 alter table public.job_run add constraint job_run_job_required check (job is not null) not valid;
 alter table public.job_run add constraint job_run_ran_at_required check (ran_at is not null) not valid;
@@ -810,7 +810,7 @@ create table if not exists public.kiosk_device (
   network_command jsonb,
   network_status jsonb
 );
-create trigger kiosk_device_touch before update on public.kiosk_device for each row execute function public.touch_updated_date();
+create or replace trigger kiosk_device_touch before update on public.kiosk_device for each row execute function public.touch_updated_date();
 alter table public.kiosk_device add constraint kiosk_device_kiosk_type_allowed check (kiosk_type is null or kiosk_type in ('bus_boarding', 'front_desk', 'badge_registry', 'driver', 'job_signing')) not valid;
 alter table public.kiosk_device add constraint kiosk_device_status_allowed check (status is null or status in ('active', 'revoked')) not valid;
 alter table public.kiosk_device add constraint kiosk_device_label_required check (label is not null) not valid;
@@ -834,7 +834,7 @@ create table if not exists public.location_ping (
   speed double precision,
   vehicle_id text
 );
-create trigger location_ping_touch before update on public.location_ping for each row execute function public.touch_updated_date();
+create or replace trigger location_ping_touch before update on public.location_ping for each row execute function public.touch_updated_date();
 alter table public.location_ping add constraint location_ping_vehicle_id_required check (vehicle_id is not null) not valid;
 alter table public.location_ping add constraint location_ping_company_id_required check (company_id is not null) not valid;
 alter table public.location_ping add constraint location_ping_lat_required check (lat is not null) not valid;
@@ -863,7 +863,7 @@ create table if not exists public.lost_item_report (
   admin_notes text,
   reporter_id text
 );
-create trigger lost_item_report_touch before update on public.lost_item_report for each row execute function public.touch_updated_date();
+create or replace trigger lost_item_report_touch before update on public.lost_item_report for each row execute function public.touch_updated_date();
 alter table public.lost_item_report add constraint lost_item_report_status_allowed check (status is null or status in ('open', 'found', 'returned', 'closed')) not valid;
 alter table public.lost_item_report add constraint lost_item_report_description_required check (description is not null) not valid;
 create index if not exists lost_item_report_company_id_idx on public.lost_item_report (company_id);
@@ -894,7 +894,7 @@ create table if not exists public.maintenance_schedule (
   assigned_mechanic_name text,
   notes text
 );
-create trigger maintenance_schedule_touch before update on public.maintenance_schedule for each row execute function public.touch_updated_date();
+create or replace trigger maintenance_schedule_touch before update on public.maintenance_schedule for each row execute function public.touch_updated_date();
 alter table public.maintenance_schedule add constraint maintenance_schedule_due_type_allowed check (due_type is null or due_type in ('mileage', 'days')) not valid;
 alter table public.maintenance_schedule add constraint maintenance_schedule_status_allowed check (status is null or status in ('upcoming', 'due', 'overdue', 'completed')) not valid;
 alter table public.maintenance_schedule add constraint maintenance_schedule_vehicle_id_required check (vehicle_id is not null) not valid;
@@ -918,7 +918,7 @@ create table if not exists public.maintenance_settings (
   enable_photo_attachments boolean default true,
   inspection_reminder_days double precision default 1
 );
-create trigger maintenance_settings_touch before update on public.maintenance_settings for each row execute function public.touch_updated_date();
+create or replace trigger maintenance_settings_touch before update on public.maintenance_settings for each row execute function public.touch_updated_date();
 create index if not exists maintenance_settings_created_date_idx on public.maintenance_settings (created_date desc);
 
 -- NfcCard
@@ -949,7 +949,7 @@ create table if not exists public.nfc_card (
   revoked_by text,
   revoke_reason text
 );
-create trigger nfc_card_touch before update on public.nfc_card for each row execute function public.touch_updated_date();
+create or replace trigger nfc_card_touch before update on public.nfc_card for each row execute function public.touch_updated_date();
 alter table public.nfc_card add constraint nfc_card_holder_type_allowed check (holder_type is null or holder_type in ('driver', 'mechanic', 'staff', 'other')) not valid;
 alter table public.nfc_card add constraint nfc_card_holder_source_allowed check (holder_source is null or holder_source in ('driver', 'user', 'contact', 'cardholder')) not valid;
 alter table public.nfc_card add constraint nfc_card_card_uid_required check (card_uid is not null) not valid;
@@ -980,7 +980,7 @@ create table if not exists public.notification_log (
   company_id text,
   sent_at timestamptz
 );
-create trigger notification_log_touch before update on public.notification_log for each row execute function public.touch_updated_date();
+create or replace trigger notification_log_touch before update on public.notification_log for each row execute function public.touch_updated_date();
 alter table public.notification_log add constraint notification_log_channel_allowed check (channel is null or channel in ('email', 'push')) not valid;
 alter table public.notification_log add constraint notification_log_status_allowed check (status is null or status in ('sent', 'partial', 'failed', 'held', 'off')) not valid;
 alter table public.notification_log add constraint notification_log_key_required check (key is not null) not valid;
@@ -1002,7 +1002,7 @@ create table if not exists public.notification_setting (
   blocked_company_ids jsonb,
   updated_by text
 );
-create trigger notification_setting_touch before update on public.notification_setting for each row execute function public.touch_updated_date();
+create or replace trigger notification_setting_touch before update on public.notification_setting for each row execute function public.touch_updated_date();
 alter table public.notification_setting add constraint notification_setting_key_required check (key is not null) not valid;
 create index if not exists notification_setting_created_date_idx on public.notification_setting (created_date desc);
 
@@ -1026,7 +1026,7 @@ create table if not exists public.part (
   supplier text,
   photo_url text
 );
-create trigger part_touch before update on public.part for each row execute function public.touch_updated_date();
+create or replace trigger part_touch before update on public.part for each row execute function public.touch_updated_date();
 alter table public.part add constraint part_part_name_required check (part_name is not null) not valid;
 create index if not exists part_company_id_idx on public.part (company_id);
 create index if not exists part_created_date_idx on public.part (created_date desc);
@@ -1048,7 +1048,7 @@ create table if not exists public.passenger_access_credential (
   qr_hash text,
   qr_issued_at timestamptz
 );
-create trigger passenger_access_credential_touch before update on public.passenger_access_credential for each row execute function public.touch_updated_date();
+create or replace trigger passenger_access_credential_touch before update on public.passenger_access_credential for each row execute function public.touch_updated_date();
 alter table public.passenger_access_credential add constraint passenger_access_credential_company_id_required check (company_id is not null) not valid;
 alter table public.passenger_access_credential add constraint passenger_access_credential_token_hash_required check (token_hash is not null) not valid;
 create index if not exists passenger_access_credential_user_id_idx on public.passenger_access_credential (user_id);
@@ -1070,7 +1070,7 @@ create table if not exists public.passenger_one_time_credential (
   expires_at text,
   consumed_at text
 );
-create trigger passenger_one_time_credential_touch before update on public.passenger_one_time_credential for each row execute function public.touch_updated_date();
+create or replace trigger passenger_one_time_credential_touch before update on public.passenger_one_time_credential for each row execute function public.touch_updated_date();
 create index if not exists passenger_one_time_credential_user_id_idx on public.passenger_one_time_credential (user_id);
 create index if not exists passenger_one_time_credential_company_id_idx on public.passenger_one_time_credential (company_id);
 create index if not exists passenger_one_time_credential_created_date_idx on public.passenger_one_time_credential (created_date desc);
@@ -1096,7 +1096,7 @@ create table if not exists public.phone_unlock (
   delivered_at timestamptz,
   shift_id text
 );
-create trigger phone_unlock_touch before update on public.phone_unlock for each row execute function public.touch_updated_date();
+create or replace trigger phone_unlock_touch before update on public.phone_unlock for each row execute function public.touch_updated_date();
 alter table public.phone_unlock add constraint phone_unlock_status_allowed check (status is null or status in ('pending', 'claimed', 'delivered')) not valid;
 alter table public.phone_unlock add constraint phone_unlock_device_id_required check (device_id is not null) not valid;
 alter table public.phone_unlock add constraint phone_unlock_vehicle_id_required check (vehicle_id is not null) not valid;
@@ -1127,7 +1127,7 @@ create table if not exists public.place (
   lng double precision,
   notes text
 );
-create trigger place_touch before update on public.place for each row execute function public.touch_updated_date();
+create or replace trigger place_touch before update on public.place for each row execute function public.touch_updated_date();
 alter table public.place add constraint place_kind_allowed check (kind is null or kind in ('airport', 'hotel', 'attraction', 'other')) not valid;
 alter table public.place add constraint place_name_required check (name is not null) not valid;
 create index if not exists place_company_id_idx on public.place (company_id);
@@ -1147,7 +1147,7 @@ create table if not exists public.push_token (
   role text,
   company_id text
 );
-create trigger push_token_touch before update on public.push_token for each row execute function public.touch_updated_date();
+create or replace trigger push_token_touch before update on public.push_token for each row execute function public.touch_updated_date();
 alter table public.push_token add constraint push_token_token_required check (token is not null) not valid;
 create index if not exists push_token_email_idx on public.push_token (email);
 create index if not exists push_token_device_id_idx on public.push_token (device_id);
@@ -1172,7 +1172,7 @@ create table if not exists public.route (
   pickup_merge_m double precision,
   path_via jsonb
 );
-create trigger route_touch before update on public.route for each row execute function public.touch_updated_date();
+create or replace trigger route_touch before update on public.route for each row execute function public.touch_updated_date();
 alter table public.route add constraint route_type_allowed check ("type" is null or "type" in ('staff', 'airport')) not valid;
 alter table public.route add constraint route_name_required check (name is not null) not valid;
 alter table public.route add constraint route_company_id_required check (company_id is not null) not valid;
@@ -1198,7 +1198,7 @@ create table if not exists public.route_travel_times (
   days double precision,
   learned_at timestamptz
 );
-create trigger route_travel_times_touch before update on public.route_travel_times for each row execute function public.touch_updated_date();
+create or replace trigger route_travel_times_touch before update on public.route_travel_times for each row execute function public.touch_updated_date();
 alter table public.route_travel_times add constraint route_travel_times_route_id_required check (route_id is not null) not valid;
 create index if not exists route_travel_times_route_id_idx on public.route_travel_times (route_id);
 create index if not exists route_travel_times_company_id_idx on public.route_travel_times (company_id);
@@ -1217,7 +1217,7 @@ create table if not exists public.signup_alert (
   delivered_emails jsonb,
   notified_at timestamptz
 );
-create trigger signup_alert_touch before update on public.signup_alert for each row execute function public.touch_updated_date();
+create or replace trigger signup_alert_touch before update on public.signup_alert for each row execute function public.touch_updated_date();
 alter table public.signup_alert add constraint signup_alert_user_id_required check (user_id is not null) not valid;
 create index if not exists signup_alert_user_id_idx on public.signup_alert (user_id);
 create index if not exists signup_alert_created_date_idx on public.signup_alert (created_date desc);
@@ -1245,7 +1245,7 @@ create table if not exists public.staff_check_in (
   boarding_grant_hash text,
   device_id text
 );
-create trigger staff_check_in_touch before update on public.staff_check_in for each row execute function public.touch_updated_date();
+create or replace trigger staff_check_in_touch before update on public.staff_check_in for each row execute function public.touch_updated_date();
 alter table public.staff_check_in add constraint staff_check_in_status_allowed check (status is null or status in ('boarded', 'off_board')) not valid;
 alter table public.staff_check_in add constraint staff_check_in_check_in_method_allowed check (check_in_method is null or check_in_method in ('nfc', 'qr', 'manual', 'code', 'bluetooth')) not valid;
 alter table public.staff_check_in add constraint staff_check_in_card_tag_required check (card_tag is not null) not valid;
@@ -1322,7 +1322,7 @@ create table if not exists public.trip (
   pickup_signed_role text,
   dropoff_signed_role text
 );
-create trigger trip_touch before update on public.trip for each row execute function public.touch_updated_date();
+create or replace trigger trip_touch before update on public.trip for each row execute function public.touch_updated_date();
 alter table public.trip add constraint trip_status_allowed check (status is null or status in ('scheduled', 'on_the_way', 'arrived', 'completed', 'cancelled')) not valid;
 alter table public.trip add constraint trip_job_type_allowed check (job_type is null or job_type in ('airport_pickup', 'airport_dropoff', 'hotel_tour', 'staff_run', 'transfer')) not valid;
 alter table public.trip add constraint trip_pickup_signed_role_allowed check (pickup_signed_role is null or pickup_signed_role in ('guest', 'reception')) not valid;
@@ -1380,7 +1380,7 @@ create table if not exists public.app_user (
   pickup_route_id text,
   pickup_moved jsonb
 );
-create trigger app_user_touch before update on public.app_user for each row execute function public.touch_updated_date();
+create or replace trigger app_user_touch before update on public.app_user for each row execute function public.touch_updated_date();
 create index if not exists app_user_company_id_idx on public.app_user (company_id);
 create index if not exists app_user_nfc_tag_id_idx on public.app_user (nfc_tag_id);
 create index if not exists app_user_employee_id_idx on public.app_user (employee_id);
@@ -1441,7 +1441,7 @@ create table if not exists public.vehicle (
   return_pickup_state text,
   return_pickup_date text
 );
-create trigger vehicle_touch before update on public.vehicle for each row execute function public.touch_updated_date();
+create or replace trigger vehicle_touch before update on public.vehicle for each row execute function public.touch_updated_date();
 alter table public.vehicle add constraint vehicle_status_allowed check (status is null or status in ('offline', 'idle', 'on_trip', 'speeding', 'emergency')) not valid;
 alter table public.vehicle add constraint vehicle_type_allowed check ("type" is null or "type" in ('bus', 'taxi')) not valid;
 alter table public.vehicle add constraint vehicle_trip_direction_allowed check (trip_direction is null or trip_direction in ('to_work', 'to_home')) not valid;
@@ -1467,7 +1467,7 @@ create table if not exists public.verification_attempt (
   scope text,
   attempted_at text
 );
-create trigger verification_attempt_touch before update on public.verification_attempt for each row execute function public.touch_updated_date();
+create or replace trigger verification_attempt_touch before update on public.verification_attempt for each row execute function public.touch_updated_date();
 create index if not exists verification_attempt_created_date_idx on public.verification_attempt (created_date desc);
 
 -- VerificationGrant
@@ -1493,7 +1493,7 @@ create table if not exists public.verification_grant (
   card_id text,
   card_tag_hash text
 );
-create trigger verification_grant_touch before update on public.verification_grant for each row execute function public.touch_updated_date();
+create or replace trigger verification_grant_touch before update on public.verification_grant for each row execute function public.touch_updated_date();
 create index if not exists verification_grant_device_id_idx on public.verification_grant (device_id);
 create index if not exists verification_grant_company_id_idx on public.verification_grant (company_id);
 create index if not exists verification_grant_vehicle_id_idx on public.verification_grant (vehicle_id);
@@ -1515,7 +1515,7 @@ create table if not exists public.workplace (
   lat double precision,
   lng double precision
 );
-create trigger workplace_touch before update on public.workplace for each row execute function public.touch_updated_date();
+create or replace trigger workplace_touch before update on public.workplace for each row execute function public.touch_updated_date();
 alter table public.workplace add constraint workplace_name_required check (name is not null) not valid;
 create index if not exists workplace_company_id_idx on public.workplace (company_id);
 create index if not exists workplace_created_date_idx on public.workplace (created_date desc);
