@@ -171,7 +171,7 @@ export default async function(req) {
     const helperHealth = cleanHelperHealth(body.helper_health);
     const appHealth = cleanAppHealth(body.app_health);
     // Wi-Fi commands from Admin → Kiosk tablets (see shared/tabletNetwork.ts).
-    const network = networkCheckIn(device, body.network_ack, tokenOk);
+    const network = networkCheckIn(device, body.network_ack, tokenOk, Date.now(), body.network_result);
     await base44.asServiceRole.entities.KioskDevice.update(device_id, {
       last_seen: new Date().toISOString(),
       ...(helperHealth ? { helper_health: helperHealth } : {}),

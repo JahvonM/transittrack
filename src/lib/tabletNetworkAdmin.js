@@ -27,6 +27,8 @@ export function commandProgress(device) {
   if (!s || !s.state) return "";
   if (s.state === "waiting") return "Waiting for the tablet to check in (it needs internet)…";
   if (s.state === "sent") return "Sent to the tablet…";
+  if (["applied", "blocked", "failed"].includes(s.state)) return s.message || "Tablet reported a network result.";
+  if (s.state === "delivered") return "Delivered to the helper; connection is not yet confirmed.";
   if (s.state === "expired") return "The tablet didn't pick this up within 10 minutes. It may be offline, or its Helper is older than 1.9.";
   return "";
 }

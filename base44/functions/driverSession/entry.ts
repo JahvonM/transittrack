@@ -640,7 +640,7 @@ export default async function(req) {
     const appHealth = cleanAppHealth(body.app_health);
     // The hotspot switch from Admin → Kiosk tablets (see shared/tabletNetwork.ts).
     // Driver tablets never receive Wi-Fi passwords, so no device-key check is needed here.
-    const network = action === 'heartbeat' ? networkCheckIn(device, body.network_ack, false) : null;
+    const network = action === 'heartbeat' ? networkCheckIn(device, body.network_ack, false, Date.now(), body.network_result) : null;
     if (action === 'heartbeat') await base44.asServiceRole.entities.KioskDevice.update(device_id, {
       ...(network ? network.updates : {}),
       last_seen: new Date().toISOString(),
