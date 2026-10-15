@@ -170,6 +170,7 @@ export function networkCheckIn(device: Record<string, any>, ack: unknown, authen
 export function cleanNetworkHealth(o: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   if (typeof o.network_native === 'boolean') out.network_native = o.network_native;
+  if (typeof o.network_available === 'boolean') out.network_available = o.network_available;
   const text = (v: unknown, n: number) => (typeof v === 'string' ? v.replace(/[\u0000-\u001f\u007f<>]/g, '').slice(0, n) : undefined);
   const bars = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? Math.max(0, Math.min(4, Math.round(v))) : undefined);
   const date = (v: unknown) => { const s = text(v, 40); return s && !Number.isNaN(Date.parse(s)) ? new Date(s).toISOString() : undefined; };

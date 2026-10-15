@@ -55,7 +55,8 @@ function useRefreshWhile(active, onRefresh, ms = 8000) {
   }, [active, ms]);
 }
 
-function NeedsHelper() {
+function NeedsHelper({ nativeAvailable = false }) {
+  if (nativeAvailable) return <span className="text-muted-foreground">enable integrated Internet controls on the tablet, or use the existing helper</span>;
   return <span className="text-muted-foreground">needs Helper {NETWORK_HELPER_VERSION}+ on the tablet (run Update in the setup tool)</span>;
 }
 
@@ -195,7 +196,7 @@ function BoardingWifi({ device, onRefresh }) {
       <span className="flex items-center gap-1.5">
         {wifi.ssid ? <Wifi className="h-3.5 w-3.5" /> : <WifiOff className="h-3.5 w-3.5 text-muted-foreground" />}
         Wi-Fi:{" "}
-        {!ready ? <NeedsHelper /> : wifi.ssid ? <><b>{wifi.ssid}</b> <Bars n={wifi.bars} /></> : <span className="text-muted-foreground">not connected</span>}
+        {!ready ? <NeedsHelper nativeAvailable={h.network_available === true} /> : wifi.ssid ? <><b>{wifi.ssid}</b> <Bars n={wifi.bars} /></> : <span className="text-muted-foreground">not connected</span>}
       </span>
       {ready && (
         <Button size="sm" variant="outline" className="h-8" onClick={() => setOpen(true)}>
@@ -237,7 +238,7 @@ function DriverHotspot({ device, onRefresh }) {
             <Switch checked={checked} disabled={busy} onCheckedChange={change} aria-label="Keep the hotspot on all the time" />
             <span>Always on</span>
           </label>
-        ) : <NeedsHelper />}
+        ) : <NeedsHelper nativeAvailable={h.network_available === true} />}
       </div>
       {ready && h.network_native === true && <p className="text-xs text-muted-foreground">Integrated policy runs while the driver app is open, pauses at low battery and depends on Android permissions. Turning it off leaves hotspot power unchanged.</p>}
       {h.network_native === true && commandProgress(device) && <p role="status" className="text-xs">{commandProgress(device)}</p>}

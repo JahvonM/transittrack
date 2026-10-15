@@ -31,8 +31,9 @@ export function helperHealthPayload() {
       }
     }
     const direct = typeof window !== "undefined" ? window.__ttNativeNetwork : null;
-    const network = fresh(direct) && direct.enabled ? direct : n?.networkControl?.enabled ? n.networkControl : null;
-    if (network) {
+    const network = fresh(direct) ? direct : n?.networkControl;
+    if (network?.available) { report.network_available = true; report.network_native = network.enabled === true; }
+    if (network?.enabled) {
       report.network_native = true;
       report.hotspot = network.hotspot;
       report.hotspot_always = network.hotspot_always === true;

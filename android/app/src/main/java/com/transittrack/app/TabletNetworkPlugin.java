@@ -41,7 +41,8 @@ public class TabletNetworkPlugin extends Plugin {
             if (enabled && always && foreground && mode.equals("driver") && !hotspotAttempt && policyFailures < 2) {
                 if (power.parked()) {
                     if (ownedHotspot && Boolean.TRUE.equals(TabletHotspotApi.isOn(getContext()))) {
-                        TabletHotspotApi.request(getContext(), false, ok -> {});
+                        policyFailures++;
+                        if (!TabletHotspotApi.request(getContext(), false, ok -> {})) policyFailures = 2;
                         hotspot = "Paused: low battery"; publish();
                     }
                 } else if (pendingCall == null && !Boolean.TRUE.equals(TabletHotspotApi.isOn(getContext()))) {
@@ -110,8 +111,8 @@ public class TabletNetworkPlugin extends Plugin {
         w.put("networks", networks); if (!scannedAt.isEmpty()) w.put("scanned_at", scannedAt);
         w.put("join", join); out.put("wifi", w);
         Boolean on = TabletHotspotApi.isOn(getContext());
-        out.put("hotspot", power.parked() && always ? "Paused: low battery" : hotspotAttempt ? "Starting"
-            : policyFailures >= 2 ? "Blocked - retry in settings" : on == null ? hotspot : on ? "On" : "Off");
+        out.put("hotspot", power.parked() && always ? (Boolean.TRUE.equals(on) ? "On - low battery stop pending" : Boolean.FALSE.equals(on) ? "Paused: low battery" : "Low battery - state unknown") : hotspotAttempt ? "Starting"
+            : policyFailures >= 2 ? (Boolean.TRUE.equals(on) ? "On - automation paused" : "Blocked - retry in settings") : on == null ? hotspot : on ? "On" : "Off");
         out.put("hotspot_always", always); out.put("last_code", lastCode);
         return out;
     }
@@ -278,7 +279,9 @@ public class TabletNetworkPlugin extends Plugin {
         });
     }
     private void updatePower() {
-        Intent b = getContext().registerReceiver(null, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
+        Intent b;
+        try { b = getContext().registerReceiver(null, new IntentFilter(Intent.ACTION_BATTERY_CHANGED)); }
+        catch (RuntimeException ignored) { return; }
         if (b == null) return;
         int level = b.getIntExtra(BatteryManager.EXTRA_LEVEL, -1), scale = b.getIntExtra(BatteryManager.EXTRA_SCALE, -1);
         int plugged = b.getIntExtra(BatteryManager.EXTRA_PLUGGED, -1);

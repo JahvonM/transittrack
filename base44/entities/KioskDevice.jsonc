@@ -185,6 +185,9 @@
         "network_native": {
           "type": "boolean",
           "description": "Integrated native network controls enabled."
+        },
+        "network_available": {
+          "type": "boolean"
         }
       },
       "type": "object"
