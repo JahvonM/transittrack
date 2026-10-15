@@ -52,6 +52,8 @@ describe("native kiosk Bluetooth delivery", () => {
     expect(validNativeBoardingCode({ ...e, code: "tt-code:" + "A".repeat(192) })).toBe(true);
     expect(validNativeBoardingCode({ ...e, code: "tt-code:" + "A".repeat(193) })).toBe(false);
     expect(validNativeBoardingCode({ ...e, code: "tt-code:é" })).toBe(false);
+    expect(validNativeBoardingCode({ ...e, code: "tt-code:PASS\n" })).toBe(false);
+    expect(validNativeBoardingCode({ ...e, id: e.id + "\n" })).toBe(false);
   });
   it("keeps opt-in as an explicit setting and reports unavailable state safely", async () => {
     expect(await enableBoardingBluetooth(true)).toEqual({ enabled: true });

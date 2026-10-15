@@ -18,7 +18,9 @@ export function onBoardingBluetoothState(callback) {
 }
 export function validNativeBoardingCode(value, now = Date.now()) {
   return typeof value?.id === "string" && /^ble-native-[a-z0-9-]{16,64}$/i.test(value.id)
-    && typeof value.code === "string" && /^tt-code:[\x21-\x7e]{1,192}$/.test(value.code)
+    && !/\s/.test(value.id)
+    && typeof value.code === "string" && value.code.startsWith("tt-code:")
+    && value.code.length > 8 && value.code.length <= 200 && !/[^\x21-\x7e]/.test(value.code)
     && Number.isFinite(value.at) && now - value.at < 30000 && value.at <= now + 2000;
 }
 // No disk inbox: native waits until this listener is installed and the boarding
