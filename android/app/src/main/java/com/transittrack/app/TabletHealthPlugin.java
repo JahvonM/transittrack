@@ -38,6 +38,13 @@ public class TabletHealthPlugin extends Plugin {
         out.put("androidVersion", Build.VERSION.RELEASE);
         out.put("androidApi", Build.VERSION.SDK_INT);
         try {
+            android.content.pm.PackageInfo info = getContext().getPackageManager().getPackageInfo(getContext().getPackageName(), 0);
+            out.put("appPackage", info.packageName);
+            out.put("appVersion", info.versionName);
+            out.put("appVersionCode", Build.VERSION.SDK_INT >= 28 ? info.getLongVersionCode() : info.versionCode);
+            out.put("updateAvailable", true);
+        } catch (Exception ignored) { out.put("updateAvailable", false); }
+        try {
             Intent b = getContext().registerReceiver(null, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
             if (b != null) {
                 int level = b.getIntExtra(BatteryManager.EXTRA_LEVEL, -1), scale = b.getIntExtra(BatteryManager.EXTRA_SCALE, -1);

@@ -15,7 +15,11 @@ export function helperHealthPayload() {
     const { at, ...report } = h || {};
     if (n) {
       report.version = report.version || "native-0.2";
-      report.native_version = "0.2";
+      report.native_version = "0.2"; // bridge capability, not installed APK version
+      report.native_app_version = n.appVersion;
+      report.native_app_code = n.appVersionCode;
+      report.native_app_package = n.appPackage;
+      report.native_update_available = n.updateAvailable === true;
       if (Number.isFinite(n.battery)) report.battery = n.battery;
       if (typeof n.charging === "boolean") report.charging = n.charging;
       report.battery_temperature = n.batteryTemperature;

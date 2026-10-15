@@ -197,6 +197,18 @@
         },
         "management_locked": {
           "type": "boolean"
+        },
+        "native_app_version": {
+          "type": "string"
+        },
+        "native_app_code": {
+          "type": "integer"
+        },
+        "native_app_package": {
+          "type": "string"
+        },
+        "native_update_available": {
+          "type": "boolean"
         }
       },
       "type": "object"
@@ -348,6 +360,9 @@
           "type": "string"
         },
         "lock_until": {
+          "type": "string"
+        },
+        "release_id": {
           "type": "string"
         }
       }

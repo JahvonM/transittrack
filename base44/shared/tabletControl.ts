@@ -6,13 +6,18 @@ export const CONTROL_RESULTS: Record<string, { state: string; message: string; a
   LOCKED: { state: 'applied', message: 'Android confirmed the temporary kiosk lock.', actions: ['lock_test'] },
   RELEASED: { state: 'applied', message: 'Android confirmed release of this app’s temporary lock.', actions: ['release'] },
   NO_LOCK: { state: 'applied', message: 'This app has no temporary lock to release.', actions: ['release'] },
-  REBOOT_REQUESTED: { state: 'requested', message: 'Android restart requested. Wait for a fresh tablet check-in.', actions: ['reboot'] },
+  REBOOT_REQUESTED: { state: 'requested', message: 'Android restart requested. Wait for a fresh tablet check-in.', actions: ['reboot', 'app_update'] },
+  UPDATE_REQUESTED: { state: 'requested', message: 'Android installation requested; installed version is not confirmed yet.', actions: ['app_update'] },
+  UPDATE_INSTALLED: { state: 'applied', message: 'Tablet confirmed the expected installed APK version and signing identity.', actions: ['app_update'] },
+  UPDATE_FAILED: { state: 'failed', message: 'Native update failed. The existing installation was not uninstalled.', actions: ['app_update'] },
+  UPDATE_INVALID: { state: 'blocked', message: 'APK integrity, package, version or signing identity did not match.', actions: ['app_update'] },
+  UPDATE_CONFIRMATION_REQUIRED: { state: 'blocked', message: 'Android requires local installation approval. Automatic update was abandoned.', actions: ['app_update'] },
   DEVICE_OWNER_REQUIRED: { state: 'blocked', message: 'Android managed-device ownership is required.' },
-  TABLET_BUSY: { state: 'blocked', message: 'Tablet is in use, tracking, or has saved work. Finish and sync before retrying.', actions: ['reboot'] },
+  TABLET_BUSY: { state: 'blocked', message: 'Tablet is in use, tracking, or has saved work. Finish and sync before retrying.', actions: ['reboot', 'app_update'] },
   UNSUPPORTED: { state: 'blocked', message: 'This Android version does not support the action.' },
   ALREADY_LOCKED: { state: 'blocked', message: 'Another kiosk lock is already active. This test did not take it over.', actions: ['lock_test'] },
   INTERRUPTED: { state: 'unknown', message: 'Execution was interrupted. Inspect tablet status before sending another request.' },
-  CONTROL_COOLDOWN: { state: 'blocked', message: 'Wait two minutes before another restart request.', actions: ['reboot'] },
+  CONTROL_COOLDOWN: { state: 'blocked', message: 'Wait two minutes before another restart request.', actions: ['reboot', 'app_update'] },
   RECOVERY_UNAVAILABLE: { state: 'blocked', message: 'Android cannot guarantee a native expiry alarm. Lock test was not started.', actions: ['lock_test'] },
   APP_NOT_VISIBLE: { state: 'blocked', message: 'Open the kiosk app on the tablet before retrying.' },
   EXPIRED: { state: 'blocked', message: 'Command expired before Android execution.' },
@@ -21,7 +26,7 @@ export const CONTROL_RESULTS: Record<string, { state: string; message: string; a
 };
 export function currentControl(device: Record<string, any>, now = Date.now()) {
   const c = device?.control_command;
-  if (!c || !controlId(c.id) || !['lock_test', 'release', 'reboot'].includes(c.action)) return null;
+  if (!c || !controlId(c.id) || !['lock_test', 'release', 'reboot', 'app_update'].includes(c.action)) return null;
   const issued = Date.parse(c.requested_at), expires = Date.parse(c.expires_at);
   if (!Number.isFinite(issued) || issued > now + 5_000 || expires <= now || expires - issued !== CONTROL_TTL) return null;
   if (c.company_id !== device.company_id || c.vehicle_id !== (device.vehicle_id || '') || c.kiosk_type !== device.kiosk_type) return null;
@@ -33,7 +38,7 @@ export function controlNotice(device: Record<string, any>, now = Date.now()) {
   return c && device.control_status?.state === 'waiting' ? { id: c.id } : null;
 }
 export function newControl(device: Record<string, any>, action: unknown, adminId: string, now = Date.now()) {
-  if (!['lock_test', 'release', 'reboot'].includes(action as string)) throw new Error('Choose a supported tablet action.');
+  if (!['lock_test', 'release', 'reboot', 'app_update'].includes(action as string)) throw new Error('Choose a supported tablet action.');
   const id = Array.from(crypto.getRandomValues(new Uint8Array(16)), n => n.toString(16).padStart(2, '0')).join('');
   const command = { id, action, requested_by: adminId, requested_at: new Date(now).toISOString(),
     expires_at: new Date(now + CONTROL_TTL).toISOString(), company_id: device.company_id,

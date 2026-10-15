@@ -1,3 +1,4 @@
+import { NATIVE_RELEASE, validNativeRelease } from '../../shared/nativeRelease.ts';
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 import { CONTROL_TTL, controlId, currentControl, newControl, strictControlDevice, controlCompletion } from '../../shared/tabletControl.ts';
 const reply = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
@@ -11,14 +12,26 @@ export default async function(req) {
     if (typeof deviceId !== 'string' || !/^[A-Za-z0-9_-]{6,64}$/.test(deviceId)) return reply({ error: 'Choose a tablet' }, 400);
     // Check administrator identity before looking up a tablet on admin routes.
     let admin = null;
-    if (input.operation === 'request') {
+    if (['request', 'release'].includes(input.operation)) {
       admin = await base44.auth.me().catch(() => null);
       if (admin?.role !== 'admin') return reply({ error: 'Admins only' }, 403);
     } else if (!['claim', 'result'].includes(input.operation)) return reply({ error: 'Unknown operation' }, 400);
     const device = await db.KioskDevice.get(deviceId).catch(() => null);
     if (!device) return reply({ error: 'Tablet unavailable' }, 404);
     const now = Date.now();
+    if (admin && input.operation === 'release') {
+      const r = NATIVE_RELEASE;
+      return reply({ release: validNativeRelease(r) ? { id: r.id, version_name: r.version_name, version_code: r.version_code } : null });
+    }
     if (admin) {
+      if (input.action === 'app_update') {
+        if (!validNativeRelease(NATIVE_RELEASE) || input.release_id !== NATIVE_RELEASE.id) return reply({ error: 'No approved combined kiosk release available' }, 409);
+        const h = device.helper_health;
+        if (h?.native_update_available !== true || h?.management_owner !== true ||
+            h?.native_app_package !== NATIVE_RELEASE.package_name || !Number.isSafeInteger(h?.native_app_code) ||
+            h.native_app_code >= NATIVE_RELEASE.version_code || !(now - Date.parse(h.reported_at) < 300000))
+          return reply({ error: 'Tablet must report a recent compatible managed installation' }, 409);
+      }
       if (device.status !== 'active' || device.paired !== true) return reply({ error: 'Pair this tablet first' }, 409);
       const prior = device.control_command;
       if (currentControl(device, now) && device.control_status?.state === 'waiting') return reply({ error: 'A tablet command is already waiting. Wait for completion or expiry.' }, 409);
@@ -27,6 +40,7 @@ export default async function(req) {
       if (!credential || !(Date.parse(credential.expires_at) > now)) return reply({ error: 'Secure tablet pairing is required for managed controls.' }, 409);
       let built; try { built = newControl(device, input.action, admin.id, now); }
       catch { return reply({ error: 'Choose a supported tablet action' }, 400); }
+      if (input.action === 'app_update') built.command.release_id = NATIVE_RELEASE.id;
       await db.KioskDevice.update(device.id, { control_command: built.command, control_status: built.status });
       // No credentials or arbitrary remote code in audit records.
       await db.AuditLog.create({ actor_email: admin.email || '', actor_role: 'admin', action: 'update',
@@ -44,21 +58,23 @@ export default async function(req) {
       if (!status) return reply({ error: 'Invalid receipt' }, 400);
       if (device.control_status?.state === 'cancelled') return reply({ error: 'Request cancelled' }, 409);
       // Once completion is recorded, lost-response retries cannot rewrite it.
-      if (device.control_status?.state === 'waiting') await db.KioskDevice.update(device.id, { control_status: status });
+      if (device.control_status?.state === 'waiting' || (command.action === 'app_update' && device.control_status?.result_code === 'UPDATE_REQUESTED' && input.code !== 'UPDATE_REQUESTED')) await db.KioskDevice.update(device.id, { control_status: status });
       return reply({ ok: true });
     }
     const active = currentControl(device, now);
     if (!active || device.control_status?.state !== 'waiting') return reply({ error: 'Command expired or completed' }, 410);
     const requester = await db.User.get(active.requested_by).catch(() => null);
     if (requester?.role !== 'admin') return reply({ error: 'Administrator access changed' }, 403);
+    if (active.action === 'app_update' && (!validNativeRelease(NATIVE_RELEASE) || active.release_id !== NATIVE_RELEASE.id)) return reply({ error: 'Release withdrawn' }, 410);
     const proof = (blocked = false) => {
       const ttl = Date.parse(active.expires_at) - Date.now();
       if (ttl <= 0) return reply({ error: 'Command expired' }, 410);
       return reply({ id: active.id, action: active.action, ttl_ms: ttl,
+        ...(active.action === 'app_update' ? { release: NATIVE_RELEASE } : {}),
         ...(blocked ? { blocked_code: 'TABLET_BUSY' } : {}),
         ...(active.action === 'lock_test' ? { lease_ms: Date.parse(active.lock_until) - Date.now() } : {}) });
     };
-    if (active.action === 'reboot') {
+    if (['reboot', 'app_update'].includes(active.action)) {
       // Server corroborates the local idle/queue gate, including boarding tablets.
       if (!device.vehicle_id) return proof(true);
       const vehicle = await db.Vehicle.get(device.vehicle_id).catch(() => null);

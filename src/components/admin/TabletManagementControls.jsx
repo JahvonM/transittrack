@@ -1,3 +1,4 @@
+import TabletNativeUpdate from "./TabletNativeUpdate";
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
@@ -31,11 +32,12 @@ export default function TabletManagementControls({ device, onRefresh }) {
         {!available ? <p className="text-sm text-muted-foreground">Requires the new combined kiosk installation. Keep your current helper until final testing.</p>
           : !managed ? <p className="text-sm text-muted-foreground">Android has not granted this app managed-device ownership. Lock and restart remain blocked. No ownership changes are made here.</p>
           : <p className="text-sm">Managed Android controls are available. Last reported lock: {health.management_locked ? "on" : "off"}.</p>}
+        <TabletNativeUpdate device={device} onRefresh={onRefresh} />
         {status && <div role="status" className="rounded-lg bg-muted p-3 text-sm space-y-1">
-          <p>{labels[status.action] || "Tablet request"} · {pending ? "Waiting for tablet" : status.state === "waiting" ? "Expired without confirmation" : status.state}</p>
+          <p>{status.action === "app_update" ? "Native app update" : labels[status.action] || "Tablet request"} · {pending ? "Waiting for tablet" : status.state === "waiting" ? "Expired without confirmation" : status.state}</p>
           {status.message && <p>{status.message}</p>}
           {status.action === "lock_test" && status.lock_until && <p>Test release deadline: {new Date(status.lock_until).toLocaleTimeString()}.</p>}
-          {status.state === "requested" && <p>Restart completion is not confirmed. Last check-in: {device.last_seen ? new Date(device.last_seen).toLocaleString() : "unknown"}.</p>}
+          {status.state === "requested" && status.action === "reboot" && <p>Restart completion is not confirmed. Last check-in: {device.last_seen ? new Date(device.last_seen).toLocaleString() : "unknown"}.</p>}
         </div>}
         <div className="flex flex-wrap gap-2">{Object.entries(labels).map(([action, label]) =>
           <Button key={action} variant="outline" disabled={busy || pending || !available || !managed || device.paired !== true} onClick={() => { setChoice(action); setError(""); }}>{label}</Button>)}</div>
