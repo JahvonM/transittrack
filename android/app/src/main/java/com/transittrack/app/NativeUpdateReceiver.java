@@ -5,7 +5,7 @@ import android.content.pm.PackageInstaller;
 public class NativeUpdateReceiver extends BroadcastReceiver {
     @Override public void onReceive(Context context, Intent intent) {
         SharedPreferences p = NativeAppUpdate.prefs(context);
-        if (!NativeAppUpdate.pending(context) || !intent.getAction().equals(context.getPackageName() + ".UPDATE_RESULT." + p.getString("nonce", "")) ||
+        if (!NativeAppUpdate.pending(context) || !(context.getPackageName() + ".UPDATE_RESULT." + p.getString("nonce", "")).equals(intent.getAction()) ||
             intent.getIntExtra(PackageInstaller.EXTRA_SESSION_ID, -2) != p.getInt("session", -1)) return;
         int status = intent.getIntExtra(PackageInstaller.EXTRA_STATUS, PackageInstaller.STATUS_FAILURE);
         if (status == PackageInstaller.STATUS_SUCCESS) return; // success confirmed from installed package on next start/health

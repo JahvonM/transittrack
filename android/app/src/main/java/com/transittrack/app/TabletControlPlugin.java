@@ -80,6 +80,7 @@ public class TabletControlPlugin extends Plugin {
     }
     @PluginMethod public void getState(PluginCall call) {
         main.post(() -> {
+            NativeAppUpdate.reconcile(getContext(), ledger);
             checkLease();
             JSObject out = new JSObject();
             out.put("available", true); out.put("deviceOwner", owner());
@@ -139,6 +140,51 @@ public class TabletControlPlugin extends Plugin {
             return "ANDROID_ERROR";
         }
     }
+    private String updateGate(String device, long deadline) {
+        if (SystemClock.elapsedRealtime() >= deadline) return "EXPIRED";
+        if (!owner()) return "DEVICE_OWNER_REQUIRED";
+        if (getActivity().isFinishing() || getActivity().isDestroyed() || !getActivity().hasWindowFocus()) return "APP_NOT_VISIBLE";
+        if (!device.equals(safeDevice) || !TabletControlPolicy.rebootSafe(safe, safetyAt, interactionAt, SystemClock.elapsedRealtime())) return "TABLET_BUSY";
+        return "";
+    }
+    private String gateOnMain(String device, long deadline) throws InterruptedException {
+        String[] result = {"INTERRUPTED"}; CountDownLatch latch = new CountDownLatch(1);
+        main.post(() -> { try { result[0] = updateGate(device, deadline); } finally { latch.countDown(); } });
+        latch.await(); return result[0];
+    }
+    private String update(JSONObject request, JSONObject proof, String device, String id, long deadline) {
+        int session = -1;
+        try {
+            if (NativeAppUpdate.pending(getContext())) return "TABLET_BUSY";
+            String gate = gateOnMain(device, deadline); if (!gate.isEmpty()) return gate;
+            JSONObject release = proof.getJSONObject("release");
+            java.io.File file = NativeAppUpdate.download(getContext(), release, Math.min(deadline, SystemClock.elapsedRealtime() + 60000));
+            session = NativeAppUpdate.prepare(getContext(), file);
+            // Re-authorize AFTER download/session preparation: same request, release and current admin.
+            long started = SystemClock.elapsedRealtime();
+            JSONObject fresh = post(new JSONObject(request.toString()).put("operation", "claim"));
+            if (!TabletControlPolicy.proof(fresh.optString("id"), id, fresh.optString("action"), fresh.optLong("ttl_ms"), 0) ||
+                !"app_update".equals(fresh.optString("action")) || !fresh.optString("blocked_code").isEmpty() ||
+                !release.toString().equals(fresh.getJSONObject("release").toString())) {
+                NativeAppUpdate.abandon(getContext(), session); return "TABLET_BUSY";
+            }
+            final int prepared = session;
+            final long expires = Math.min(deadline, started + fresh.optLong("ttl_ms"));
+            String[] result = {"INTERRUPTED"}; CountDownLatch latch = new CountDownLatch(1);
+            main.post(() -> {
+                try {
+                    String reason = updateGate(device, expires);
+                    result[0] = reason.isEmpty() ? NativeAppUpdate.commit(getContext(), prepared, id, release) : reason;
+                    if (!reason.isEmpty()) NativeAppUpdate.abandon(getContext(), prepared);
+                } finally { latch.countDown(); }
+            });
+            latch.await(); return result[0];
+        } catch (Exception e) {
+            if (session >= 0) NativeAppUpdate.abandon(getContext(), session);
+            return "UPDATE_INVALID".equals(e.getMessage()) ? "UPDATE_INVALID" :
+                "STORAGE_ERROR".equals(e.getMessage()) ? "STORAGE_ERROR" : "UPDATE_FAILED";
+        }
+    }
     private String activeDevice = "";
     private String activeId = ""; // worker serialises executions; UI is joined before next task
     private boolean reserve(String id) { return ledger.reserve(id, activeDevice, System.currentTimeMillis()); }
@@ -149,6 +195,7 @@ public class TabletControlPlugin extends Plugin {
         return saved;
     }
     @PluginMethod public void pendingReceipts(PluginCall call) {
+        NativeAppUpdate.reconcile(getContext(), ledger);
         JSArray ids = new JSArray();
         for (String id : ledger.pending(call.getString("device_id", ""), System.currentTimeMillis())) ids.put(id);
         JSObject out = new JSObject(); out.put("ids", ids); call.resolve(out);
@@ -182,6 +229,7 @@ public class TabletControlPlugin extends Plugin {
         }
         if (!executing.compareAndSet(false, true)) { call.reject("Tablet control is already being checked."); return; }
         worker.execute(() -> {
+            NativeAppUpdate.reconcile(getContext(), ledger);
             String code = receipt(id);
             try {
                 JSONObject request = new JSONObject().put("device_id", device).put("device_token", token).put("command_id", id);
@@ -192,7 +240,7 @@ public class TabletControlPlugin extends Plugin {
                     long ttl = proof.optLong("ttl_ms", 0), lease = proof.optLong("lease_ms", 0);
                     if (!TabletControlPolicy.proof(proof.optString("id"), id, action, ttl, lease)) throw new java.io.IOException("INVALID_PROOF");
                     String blocked = proof.optString("blocked_code", "");
-                    if (!blocked.isEmpty() && !("reboot".equals(action) && "TABLET_BUSY".equals(blocked))) throw new java.io.IOException("INVALID_PROOF");
+                    if (!blocked.isEmpty() && !(("reboot".equals(action) || "app_update".equals(action)) && "TABLET_BUSY".equals(blocked))) throw new java.io.IOException("INVALID_PROOF");
                     long deadline = started + ttl;
                     long remainingLease = Math.max(0, lease - (SystemClock.elapsedRealtime() - started));
                     activeDevice = device;
@@ -200,9 +248,13 @@ public class TabletControlPlugin extends Plugin {
                     activeId = id;
                     final String[] result = { "INTERRUPTED" };
                     CountDownLatch done = new CountDownLatch(1);
-                    main.post(() -> { try { result[0] = blocked.isEmpty() ? perform(action, remainingLease, device, deadline) : blocked; } finally { done.countDown(); } });
-                    // No timed-out UI runnable can execute later: keep worker joined until UI finishes.
-                    done.await();
+                    if ("app_update".equals(action) && blocked.isEmpty()) {
+                        result[0] = update(request, proof, device, id, deadline);
+                    } else {
+                        main.post(() -> { try { result[0] = blocked.isEmpty() ? perform(action, remainingLease, device, deadline) : blocked; } finally { done.countDown(); } });
+                        // No timed-out UI runnable can execute later: keep worker joined until UI finishes.
+                        done.await();
+                    }
                     code = result[0];
                     if (!saveReceipt(id, code)) code = "INTERRUPTED";
                 }

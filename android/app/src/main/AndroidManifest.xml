@@ -62,6 +62,7 @@
             <meta-data android:name="android.app.device_admin" android:resource="@xml/transit_device_admin" />
             <intent-filter><action android:name="android.app.action.DEVICE_ADMIN_ENABLED" /></intent-filter>
         </receiver>
+        <receiver android:name=".NativeUpdateReceiver" android:exported="false" />
         <receiver android:name=".TabletLockExpiryReceiver" android:exported="false">
             <intent-filter><action android:name="android.intent.action.BOOT_COMPLETED" /></intent-filter>
         </receiver>
