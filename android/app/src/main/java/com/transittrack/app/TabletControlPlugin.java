@@ -31,6 +31,7 @@ public class TabletControlPlugin extends Plugin {
     private static final String ENDPOINT = "https://eager-transit-track-go.base44.app/api/apps/6a98b192be27b5f9635020ba/functions/tabletControl";
     private final ExecutorService worker = Executors.newSingleThreadExecutor();
     private final Handler main = new Handler(Looper.getMainLooper());
+    private android.app.ProgressDialog updateDialog;
     private SharedPreferences prefs;
     private ControlReceiptLedger ledger;
     private final AtomicBoolean executing = new AtomicBoolean(false);
@@ -59,6 +60,7 @@ public class TabletControlPlugin extends Plugin {
         main.post(expiry);
     }
     @Override protected void handleOnDestroy() {
+        if (updateDialog != null) { updateDialog.dismiss(); updateDialog = null; }
         main.removeCallbacks(expiry); worker.shutdownNow();
         super.handleOnDestroy();
     }
@@ -81,6 +83,9 @@ public class TabletControlPlugin extends Plugin {
     @PluginMethod public void getState(PluginCall call) {
         main.post(() -> {
             NativeAppUpdate.reconcile(getContext(), ledger);
+            if (updateDialog != null && !NativeAppUpdate.pending(getContext())) {
+                updateDialog.dismiss(); updateDialog = null;
+            }
             checkLease();
             JSObject out = new JSObject();
             out.put("available", true); out.put("deviceOwner", owner());
@@ -176,8 +181,19 @@ public class TabletControlPlugin extends Plugin {
             main.post(() -> {
                 try {
                     String reason = updateGate(device, expires);
-                    result[0] = reason.isEmpty() ? NativeAppUpdate.commit(getContext(), prepared, id, release) : reason;
-                    if (!reason.isEmpty()) NativeAppUpdate.abandon(getContext(), prepared);
+                    if (reason.isEmpty()) {
+                        // Prevent new boarding/shift input between commit and process replacement.
+                        updateDialog = new android.app.ProgressDialog(getActivity());
+                        updateDialog.setTitle("Updating kiosk app");
+                        updateDialog.setMessage("Installing the verified update. Keep the tablet powered on.");
+                        updateDialog.setIndeterminate(true); updateDialog.setCancelable(false);
+                        updateDialog.show();
+                        result[0] = NativeAppUpdate.commit(getContext(), prepared, id, release);
+                        if (!"UPDATE_REQUESTED".equals(result[0])) { updateDialog.dismiss(); updateDialog = null; }
+                    } else { result[0] = reason; NativeAppUpdate.abandon(getContext(), prepared); }
+                } catch (RuntimeException ignored) {
+                    NativeAppUpdate.abandon(getContext(), prepared); result[0] = "UPDATE_FAILED";
+                    if (updateDialog != null) { updateDialog.dismiss(); updateDialog = null; }
                 } finally { latch.countDown(); }
             });
             latch.await(); return result[0];
