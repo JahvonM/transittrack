@@ -32,6 +32,7 @@ public class TabletControlPlugin extends Plugin {
     private final ExecutorService worker = Executors.newSingleThreadExecutor();
     private final Handler main = new Handler(Looper.getMainLooper());
     private SharedPreferences prefs;
+    private ControlReceiptLedger ledger;
     private final AtomicBoolean executing = new AtomicBoolean(false);
     private volatile boolean safe = false;
     private volatile String safeDevice = "";
@@ -42,6 +43,19 @@ public class TabletControlPlugin extends Plugin {
     }};
     @Override public void load() {
         prefs = getContext().getSharedPreferences("tt_tablet_control", Context.MODE_PRIVATE);
+        ledger = new ControlReceiptLedger(new ControlReceiptLedger.Store() {
+            public Map<String,String> read() {
+                Map<String,String> rows = new java.util.LinkedHashMap<>();
+                for (Map.Entry<String, ?> item : prefs.getAll().entrySet()) if (item.getKey().startsWith("receipt.")) rows.put(item.getKey().substring(8), String.valueOf(item.getValue()));
+                return rows;
+            }
+            public boolean commit(Map<String,String> rows) {
+                SharedPreferences.Editor edit = prefs.edit();
+                for (String key : prefs.getAll().keySet()) if (key.startsWith("receipt.") && !rows.containsKey(key.substring(8))) edit.remove(key);
+                for (Map.Entry<String,String> item : rows.entrySet()) edit.putString("receipt." + item.getKey(), item.getValue());
+                return edit.commit();
+            }
+        });
         main.post(expiry);
     }
     @Override protected void handleOnDestroy() {
@@ -112,7 +126,7 @@ public class TabletControlPlugin extends Plugin {
                 return "LOCKED";
             }
             if (Build.VERSION.SDK_INT < 24) return "UNSUPPORTED";
-            long lastReboot = prefs.getLong("lastRebootAt", 0);
+            long lastReboot = ledger.lastRebootAt();
             if (lastReboot > 0 && System.currentTimeMillis() - lastReboot < 120000) return "CONTROL_COOLDOWN";
             if (!device.equals(safeDevice) || !TabletControlPolicy.rebootSafe(safe, safetyAt, interactionAt, SystemClock.elapsedRealtime())) return "TABLET_BUSY";
             // Persist the requested outcome BEFORE reboot. If process exits immediately,
@@ -127,51 +141,19 @@ public class TabletControlPlugin extends Plugin {
     }
     private String activeDevice = "";
     private String activeId = ""; // worker serialises executions; UI is joined before next task
-    private boolean reserve(String id) {
-        SharedPreferences.Editor edit = prefs.edit();
-        long now = System.currentTimeMillis(); int retained = 0;
-        for (Map.Entry<String, ?> item : prefs.getAll().entrySet()) {
-            if (!item.getKey().startsWith("receipt.")) continue;
-            try {
-                JSONObject entry = new JSONObject(String.valueOf(item.getValue()));
-                if (now - entry.getLong("at") > 24 * 3600_000L) edit.remove(item.getKey()); else retained++;
-            } catch (Exception bad) { retained++; } // corrupt ledger fails closed; no fresh entries evicted
-        }
-        if (retained >= 128) return false;
-        try { return edit.putString("receipt." + id, new JSONObject().put("at", now).put("device", activeDevice).put("reported", false).put("code", "INTERRUPTED").toString()).commit(); }
-        catch (Exception impossible) { return false; }
-    }
-    private String receipt(String id) {
-        String stored = prefs.getString("receipt." + id, null);
-        if (stored == null) return null;
-        try { return new JSONObject(stored).getString("code"); } catch (Exception ignored) { return "INTERRUPTED"; }
-    }
+    private boolean reserve(String id) { return ledger.reserve(id, activeDevice, System.currentTimeMillis()); }
+    private String receipt(String id) { return ledger.receipt(id); }
     private boolean saveReceipt(String id, String code) {
-        try {
-            SharedPreferences.Editor edit = prefs.edit().putString("receipt." + id,
-                new JSONObject().put("at", System.currentTimeMillis()).put("device", activeDevice)
-                    .put("reported", false).put("code", code).toString()).putString("lastCode", code);
-            if ("REBOOT_REQUESTED".equals(code)) edit.putLong("lastRebootAt", System.currentTimeMillis());
-            return edit.commit();
-        } catch (Exception ignored) { return false; }
+        boolean saved = ledger.complete(id, code);
+        if (saved) prefs.edit().putString("lastCode", code).apply();
+        return saved;
     }
     @PluginMethod public void pendingReceipts(PluginCall call) {
-        String device = call.getString("device_id", "");
         JSArray ids = new JSArray();
-        for (Map.Entry<String, ?> item : prefs.getAll().entrySet()) {
-            if (!item.getKey().startsWith("receipt.")) continue;
-            try {
-                JSONObject row = new JSONObject(String.valueOf(item.getValue()));
-                if (device.equals(row.optString("device")) && !row.optBoolean("reported") &&
-                    System.currentTimeMillis() - row.getLong("at") <= 24 * 3600_000L && ids.length() < 4) ids.put(item.getKey().substring(8));
-            } catch (Exception ignored) { }
-        }
+        for (String id : ledger.pending(call.getString("device_id", ""), System.currentTimeMillis())) ids.put(id);
         JSObject out = new JSObject(); out.put("ids", ids); call.resolve(out);
     }
-    private void reported(String id) {
-        try { JSONObject row = new JSONObject(prefs.getString("receipt." + id, "{}")); row.put("reported", true);
-            prefs.edit().putString("receipt." + id, row.toString()).commit(); } catch (Exception ignored) { }
-    }
+    private void reported(String id) { ledger.reported(id); }
     private static final class ControlDenied extends java.io.IOException {
         final int status; ControlDenied(int status) { super("CONTROL_DENIED"); this.status = status; }
     }
@@ -180,6 +162,7 @@ public class TabletControlPlugin extends Plugin {
         try {
             connection.setInstanceFollowRedirects(false); connection.setRequestMethod("POST");
             connection.setConnectTimeout(8000); connection.setReadTimeout(8000);
+            connection.setRequestProperty("X-App-Id", "6a98b192be27b5f9635020ba");
             connection.setDoOutput(true); connection.setRequestProperty("Content-Type", "application/json");
             byte[] bytes = body.toString().getBytes(StandardCharsets.UTF_8);
             connection.setFixedLengthStreamingMode(bytes.length);
