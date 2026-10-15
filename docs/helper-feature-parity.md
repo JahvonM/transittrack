@@ -19,7 +19,7 @@ Baseline: current helper source, manifest version 1.14 / code 15. This is the mi
 | Boot/USB-attach recovery and persistent service | Optional Android Home handler and known USB attach handlers integrated; no persistent service/watchdog yet | User selects Home/USB defaults explicitly at final setup; physical reboot/unlock/OEM test pending |
 | Scheduled/wake page refresh | Separate helper still required | Improve by checking active trip and unsynced work before any reload |
 | FreeKiosk REST transport, localhost command/result endpoints and random page key | Existing helper transport | Replace with typed in-process native calls/events; retain authorization and correlated results |
-| Admin-command relay over authenticated heartbeat | Native typed network execution plus compatible keyed legacy path; fixed applied/blocked/failed acknowledgements | Admin-only/type/credential tests and matching heartbeat feedback pass; no password in cached profiles or diagnostic result text |
+| Admin-command relay over authenticated heartbeat | Native typed network relay plus separately verified admin lock/release/reboot IDs; durable native receipts and fixed results | Compile/unit/browser checks pass. Native control HTTPS connectivity and physical device-owner/recovery checks pending; see integrated-tablet-controls.md |
 | Private signed helper release/setup workflow | Existing helper release remains valid | Combined app updates must use its existing signing identity; never generate replacement keys or ship a secret in the public repo |
 
 ## USB auto-accept in the combined app
@@ -90,3 +90,8 @@ The kiosk activity owns keep-screen-on across page changes. Native USB GPS parks
 ## Integrated network checkpoint (2026-10-15)
 
 Adds default-off native Wi-Fi scans, privilege-gated managed join/power and best-effort Android-10 OEM hotspot control/foreground keep-on policy, explicit permission setup, low-battery parking and bounded retry. Native commands report action-compatible fixed result codes through existing heartbeats; admin distinguishes delivery from applied/blocked/failed. Legacy transport remains where the helper key is available. Capacitor debug argument logging is disabled in source and synced Android config to keep credentials out of bridge logs. Passive device-admin declaration does not enroll or reset anything. See integrated-tablet-network.md for capabilities, validation and remaining physical/OS dependencies. No installation needed until final handover.
+
+
+## Verified managed controls checkpoint (2026-10-15)
+
+Adds admin-only bounded kiosk lock/release and guarded restart requests through independent native HTTPS verification, strict current device credentials and a live requester role check. Native receipt persistence gates side effects; alarm/boot recovery releases only this app’s temporary lock. Restart requires quiet/idle state, no shift/tracking/motion and empty readable saved-work queues; unknown contexts block it. No ownership enrollment or tablet command was performed. See integrated-tablet-controls.md for transport verification limits and acceptance checks. Targeted checks pass, but the broader release suite still has five pre-existing concurrency failures, reproduced against the prior checkpoint. Native update delivery, watchdog/carrier parity, remote screen/camera sessions and the separate passenger binary remain pending. Keep installation until final combined handover.
