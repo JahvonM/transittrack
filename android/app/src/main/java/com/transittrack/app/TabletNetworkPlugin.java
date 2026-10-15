@@ -245,11 +245,16 @@ public class TabletNetworkPlugin extends Plugin {
     }
     private void join(String ssid, String password) {
         int before = -1, target = -1; boolean created = false, ok = false;
+        Set<Integer> enabledBefore = new HashSet<>();
         try {
             before = wifi.getConnectionInfo().getNetworkId();
             String quoted = NetworkInputPolicy.quote(ssid);
             List<WifiConfiguration> saved = wifi.getConfiguredNetworks();
-            if (saved != null) for (WifiConfiguration n : saved) if (quoted.equals(n.SSID)) { target = n.networkId; break; }
+            if (saved == null) throw new IllegalStateException("Saved network access unavailable");
+            for (WifiConfiguration n : saved) {
+                if (n.status != WifiConfiguration.Status.DISABLED) enabledBefore.add(n.networkId);
+                if (quoted.equals(n.SSID)) target = n.networkId;
+            }
             // Existing Android credentials are never overwritten: change them in Android settings.
             if (target == -1) {
                 WifiConfiguration n = new WifiConfiguration(); n.SSID = quoted;
@@ -262,12 +267,14 @@ public class TabletNetworkPlugin extends Plugin {
         if (!ok) {
             try {
                 if (created && target != -1) wifi.removeNetwork(target);
+                else if (target != -1 && !enabledBefore.contains(target)) wifi.disableNetwork(target);
                 if (before != -1) { wifi.enableNetwork(before, true); wifi.reconnect(); }
             } catch (RuntimeException ignored) { }
         }
         try {
             List<WifiConfiguration> saved = wifi.getConfiguredNetworks();
-            if (saved != null) for (WifiConfiguration n : saved) wifi.enableNetwork(n.networkId, false);
+            if (saved != null) for (WifiConfiguration n : saved)
+                if (enabledBefore.contains(n.networkId) || (ok && n.networkId == target)) wifi.enableNetwork(n.networkId, false);
         } catch (RuntimeException ignored) { }
         final boolean connected = ok;
         main.post(() -> {

@@ -31,6 +31,7 @@ public class TabletHealthPlugin extends Plugin {
     }
 
     @PluginMethod public void getSnapshot(PluginCall call) {
+        getActivity().runOnUiThread(() -> {
         JSObject out = new JSObject();
         out.put("available", true); out.put("at", System.currentTimeMillis());
         out.put("model", Build.MANUFACTURER + " " + Build.MODEL);
@@ -81,5 +82,6 @@ public class TabletHealthPlugin extends Plugin {
         } catch (Exception ignored) { }
         out.put("events", TabletDiagnostics.snapshot());
         call.resolve(out);
+        });
     }
 }
