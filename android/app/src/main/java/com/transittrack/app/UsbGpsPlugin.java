@@ -6,6 +6,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.os.Build;
+import android.os.BatteryManager;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
@@ -19,6 +20,10 @@ import java.util.concurrent.Executors;
 public class UsbGpsPlugin extends Plugin {
     private final ExecutorService worker = Executors.newSingleThreadExecutor();
     private UsbGpsReader reader;
+    private final TabletPowerPolicy power = new TabletPowerPolicy();
+    private final BroadcastReceiver batteryChanged = new BroadcastReceiver() {
+        @Override public void onReceive(Context context, Intent intent) { updateBattery(intent); }
+    };
     private SharedPreferences preferences;
     private volatile String status = "Off";
     private volatile long lastFixAt;
@@ -41,7 +46,29 @@ public class UsbGpsPlugin extends Plugin {
         IntentFilter filter = new IntentFilter(UsbGpsReader.ACTION_PERMISSION);
         if (Build.VERSION.SDK_INT >= 33) getContext().registerReceiver(permissionResult, filter, Context.RECEIVER_NOT_EXPORTED);
         else getContext().registerReceiver(permissionResult, filter);
+        IntentFilter batteryFilter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
+        Intent battery;
+        if (Build.VERSION.SDK_INT >= 33) battery = getContext().registerReceiver(batteryChanged, batteryFilter, Context.RECEIVER_NOT_EXPORTED);
+        else battery = getContext().registerReceiver(batteryChanged, batteryFilter);
+        updateBattery(battery);
         if (enabled) startReader();
+    }
+
+    private void updateBattery(Intent battery) {
+        if (battery == null) return;
+        int level = battery.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
+        int scale = battery.getIntExtra(BatteryManager.EXTRA_SCALE, -1);
+        int percent = level >= 0 && scale > 0 && level <= scale ? Math.round(level * 100f / scale) : -1;
+        int plugged = battery.getIntExtra(BatteryManager.EXTRA_PLUGGED, -1);
+        boolean wasParked = power.parked();
+        boolean parked = power.update(percent, plugged < 0 ? null : plugged != 0);
+        if (wasParked == parked) return;
+        TabletDiagnostics.record("gps", parked ? "GPS_LOW_BATTERY_PARKED" : "GPS_POWER_RESTORED");
+        if (parked) {
+            stopReader();
+            if (enabled) report("GPS paused: low battery - connect charger");
+        } else if (enabled && foreground) startReader();
+        notifyListeners("gpsState", state());
     }
 
     JSObject state() {
@@ -49,6 +76,7 @@ public class UsbGpsPlugin extends Plugin {
         value.put("available", true);
         value.put("autoAcceptEnabled", UsbAutoAcceptService.isEnabled(getContext()));
         value.put("enabled", enabled);
+        value.put("powerParked", power.parked());
         value.put("status", status);
         value.put("lastFixAt", lastFixAt);
         return value;
@@ -62,13 +90,14 @@ public class UsbGpsPlugin extends Plugin {
 
     private void startReader() {
         if (!enabled || !foreground || reader != null) return;
+        if (power.parked()) { report("GPS paused: low battery - connect charger"); return; }
         report("Looking for USB GPS");
         UsbGpsReader next = new UsbGpsReader(getContext(), new UsbGpsReader.Listener() {
             @Override public void onStatus(String message) {
-                if (enabled && foreground) report(message);
+                if (enabled && foreground && !power.parked()) report(message);
             }
             @Override public void onFix(NmeaGpsParser.Fix fix) {
-                if (!enabled || !foreground) return;
+                if (!enabled || !foreground || power.parked()) return;
                 lastFixAt = fix.timestamp;
                 JSObject coords = new JSObject();
                 coords.put("latitude", fix.latitude); coords.put("longitude", fix.longitude);
@@ -139,6 +168,7 @@ public class UsbGpsPlugin extends Plugin {
 
     @Override protected void handleOnDestroy() {
         foreground = false; stopReader(); worker.shutdownNow();
+        try { getContext().unregisterReceiver(batteryChanged); } catch (IllegalArgumentException ignored) { }
         try { getContext().unregisterReceiver(permissionResult); } catch (IllegalArgumentException ignored) { }
     }
 }
