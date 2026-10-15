@@ -150,7 +150,11 @@ export async function emailWithPolicy(base44, key, recipients, sendOne, { title 
   let sent = 0, failed = 0, skipped = 0, error = '';
   for (const [email, recipient] of unique) {
     if (off || policy.blocked.has(email) || optedOut.has(email)) { skipped++; results.push({ to: recipient.email, ok: false, skipped: true }); continue; }
-    try { await sendOne(recipient); sent++; delivered.push(email); results.push({ to: recipient.email, ok: true }); }
+    try {
+      const result = await sendOne(recipient);
+      if (result?.skipped === true) { skipped++; results.push({to:recipient.email,ok:false,skipped:true}); continue; }
+      sent++; delivered.push(email); results.push({ to: recipient.email, ok: true });
+    }
     catch (e) { failed++; error = e?.message || 'Email failed'; delivered.push(email); results.push({ to: recipient.email, ok: false, error }); }
   }
   await recordNotification(base44, { key, channel: 'email', title, recipients: delivered, sent, failed, skipped, off: off && unique.length > 0, error, company_id: companyId });

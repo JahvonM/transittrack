@@ -70,7 +70,7 @@ export default async function (req) {
       device_id: clip(body.device_id, 40),
       user_email: user?.email || '',
       user_role: user?.role || '',
-      emailed: !alreadyAlerted,
+      emailed: false,
       area: AREAS.includes(body.context?.area) ? body.context.area : '',
       context: cleanContext(body.context),
       breadcrumbs: cleanBreadcrumbs(body.breadcrumbs),
@@ -82,12 +82,13 @@ export default async function (req) {
       const subjectLine = sanitize(message, 80) || 'unknown error';
       const text = `A screen in TransitTrack just crashed.\n\nReported error (untrusted, quoted verbatim):\n${quote(message, 500)}\n\nPage: ${sanitize(record.url, 300) || 'unknown'}\nUser: ${record.user_email || 'not signed in'}${record.user_role ? ` (${record.user_role})` : ''}\nDevice: ${sanitize(record.user_agent, 300) || 'unknown'}\n\nThe user saw a "Something went wrong" screen with a reload button. Repeats of this same error in the next hour won't send another email. See what happened, step by step, in Admin → All tools → App errors.\n\n— TransitTrack`;
       const subject = `TransitTrack crash alert: ${subjectLine}`;
-      await emailWithPolicy(base44, 'crash_alert', admins,
+      const delivery = await emailWithPolicy(base44, 'crash_alert', admins,
         async (a) => {
           // Charge each actual recipient BEFORE the provider call. Unknown delivery is never retried here.
-          if(await reserveAttempt(base44,'crash-emails:v2',MAX_EMAILS_PER_HOUR,HOUR_MS))
-            await base44.asServiceRole.integrations.Core.SendEmail({ to: a.email, subject, body: text });
+          if(!(await reserveAttempt(base44,'crash-emails:v2',MAX_EMAILS_PER_HOUR,HOUR_MS))) return {skipped:true};
+          await base44.asServiceRole.integrations.Core.SendEmail({ to: a.email, subject, body: text });
         }, { title: subject });
+      if(delivery.sent>0) await db.ClientError.update(record.id,{emailed:true});
     }
 
     return Response.json({ ok: true });
