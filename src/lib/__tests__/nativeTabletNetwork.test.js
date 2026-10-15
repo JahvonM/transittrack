@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 const env = vi.hoisted(() => ({ available: true, plugin: {} }));
 vi.mock("@capacitor/core", () => ({
@@ -110,5 +111,15 @@ describe("native network health and explicit permissions", () => {
     const remove = vi.fn(); env.plugin.addListener.mockResolvedValue({ remove });
     const stop = onNativeNetworkState(vi.fn()); stop(); await Promise.resolve();
     expect(remove).toHaveBeenCalledOnce();
+  });
+});
+
+
+describe("native transport log privacy", () => {
+  it("disables argument-logging in both source and synced Android config", () => {
+    for (const path of ["../../../capacitor.config.json", "../../../android/app/src/main/assets/capacitor.config.json"]) {
+      const config = JSON.parse(fs.readFileSync(new URL(path, import.meta.url), "utf8"));
+      expect(config.android.loggingBehavior).toBe("none");
+    }
   });
 });
