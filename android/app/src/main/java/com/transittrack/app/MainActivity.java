@@ -23,6 +23,9 @@ public class MainActivity extends BridgeActivity {
     }
     @Override public void onUserInteraction() {
         super.onUserInteraction();
+        noteTabletInteraction();
+    }
+    void noteTabletInteraction() {
         if (getBridge() != null && getBridge().getPlugin("TabletControl") != null) {
             ((TabletControlPlugin) getBridge().getPlugin("TabletControl").getInstance()).noteInteraction();
         }

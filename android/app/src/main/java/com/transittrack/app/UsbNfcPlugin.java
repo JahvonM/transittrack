@@ -63,6 +63,7 @@ public class UsbNfcPlugin extends Plugin {
             @Override public boolean isReady() { return ready && enabled && foreground; }
             @Override public void onTap(String uid, String tapId, long at) {
                 if (!isReady()) return;
+                if (getActivity() instanceof MainActivity) ((MainActivity) getActivity()).noteTabletInteraction();
                 lastTapAt = at;
                 JSObject tap = new JSObject();
                 tap.put("uid", uid); tap.put("tapId", tapId); tap.put("at", at);

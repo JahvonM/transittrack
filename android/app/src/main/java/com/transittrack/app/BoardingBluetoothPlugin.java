@@ -27,6 +27,7 @@ public class BoardingBluetoothPlugin extends Plugin {
             @Override public void status(String message) { report(message); }
             @Override public void code(String code) {
                 if (destroyed || !enabled || !ready || !foreground) return;
+                if (getActivity() instanceof MainActivity) ((MainActivity) getActivity()).noteTabletInteraction();
                 JSObject event = new JSObject();
                 event.put("id", "ble-native-" + UUID.randomUUID()); event.put("code", code);
                 event.put("at", System.currentTimeMillis());
