@@ -92,12 +92,12 @@ describe("real tabletControl endpoint against isolated database", () => {
   it("requires parked vehicle, tracking off, no open shifts, including older history pages", async () => {
     for (const over of [{ tracking_active: true }, { speed: 3 }, { speed: null }]) {
       const c = fixture(), id = await issue(c, "reboot"); Object.assign(c.tables.Vehicle[0], over);
-      expect((await run(c, { operation: "claim", command_id: id, device_token: TOKEN })).status).toBe(409);
+      expect(await (await run(c, { operation: "claim", command_id: id, device_token: TOKEN })).json()).toMatchObject({ action: "reboot", blocked_code: "TABLET_BUSY" });
     }
     const c = fixture(), id = await issue(c, "reboot");
     c.tables.DriverShift = [...Array.from({ length: 100 }, (_, i) => ({ id: String(i), company_id: "a", vehicle_id: "bus-a", started_at: "2026-10-14", ended_at: "2026-10-15" })),
       { id: "old", company_id: "a", vehicle_id: "bus-a", started_at: "2026-01-01" }];
-    expect((await run(c, { operation: "claim", command_id: id, device_token: TOKEN })).status).toBe(409);
+    expect(await (await run(c, { operation: "claim", command_id: id, device_token: TOKEN })).json()).toMatchObject({ action: "reboot", blocked_code: "TABLET_BUSY" });
     c.tables.DriverShift[100].ended_at = "2026-01-02";
     expect((await run(c, { operation: "claim", command_id: id, device_token: TOKEN })).status).toBe(200);
   });

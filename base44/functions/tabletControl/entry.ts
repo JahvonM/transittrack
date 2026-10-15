@@ -51,22 +51,28 @@ export default async function(req) {
     if (!active || device.control_status?.state !== 'waiting') return reply({ error: 'Command expired or completed' }, 410);
     const requester = await db.User.get(active.requested_by).catch(() => null);
     if (requester?.role !== 'admin') return reply({ error: 'Administrator access changed' }, 403);
+    const proof = (blocked = false) => {
+      const ttl = Date.parse(active.expires_at) - Date.now();
+      if (ttl <= 0) return reply({ error: 'Command expired' }, 410);
+      return reply({ id: active.id, action: active.action, ttl_ms: ttl,
+        ...(blocked ? { blocked_code: 'TABLET_BUSY' } : {}),
+        ...(active.action === 'lock_test' ? { lease_ms: Date.parse(active.lock_until) - Date.now() } : {}) });
+    };
     if (active.action === 'reboot') {
       // Server corroborates the local idle/queue gate, including boarding tablets.
-      if (!device.vehicle_id) return reply({ error: 'Vehicle state is unavailable' }, 409);
+      if (!device.vehicle_id) return proof(true);
       const vehicle = await db.Vehicle.get(device.vehicle_id).catch(() => null);
       if (!vehicle || vehicle.company_id !== device.company_id || vehicle.tracking_active !== false ||
-        typeof vehicle.speed !== 'number' || !Number.isFinite(vehicle.speed) || vehicle.speed < 0 || vehicle.speed >= 0.5) return reply({ error: 'Vehicle must be parked with tracking off' }, 409);
+        typeof vehicle.speed !== 'number' || !Number.isFinite(vehicle.speed) || vehicle.speed < 0 || vehicle.speed >= 0.5) return proof(true);
       let exhausted = false;
       for (let page = 0; page < 10; page++) {
         const shifts = await db.DriverShift.filter({ vehicle_id: device.vehicle_id, company_id: device.company_id }, '-started_at', 100, page * 100);
-        if (shifts.some(row => !row.ended_at)) return reply({ error: 'End the driver shift before restarting' }, 409);
+        if (shifts.some(row => !row.ended_at)) return proof(true);
         if (shifts.length < 100) { exhausted = true; break; }
       }
-      if (!exhausted) return reply({ error: 'Shift history could not be fully checked; restart locally' }, 409);
+      if (!exhausted) return proof(true);
     }
     // Native validates TLS, endpoint, command ID, duration and action itself.
-    return reply({ id: active.id, action: active.action, ttl_ms: Date.parse(active.expires_at) - now,
-      ...(active.action === 'lock_test' ? { lease_ms: Date.parse(active.lock_until) - now } : {}) });
+    return proof();
   } catch { return reply({ error: 'Tablet control unavailable. Try again later.' }, 500); }
 }

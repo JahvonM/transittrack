@@ -191,6 +191,8 @@ public class TabletControlPlugin extends Plugin {
                     String action = proof.optString("action");
                     long ttl = proof.optLong("ttl_ms", 0), lease = proof.optLong("lease_ms", 0);
                     if (!TabletControlPolicy.proof(proof.optString("id"), id, action, ttl, lease)) throw new java.io.IOException("INVALID_PROOF");
+                    String blocked = proof.optString("blocked_code", "");
+                    if (!blocked.isEmpty() && !("reboot".equals(action) && "TABLET_BUSY".equals(blocked))) throw new java.io.IOException("INVALID_PROOF");
                     long deadline = started + ttl;
                     long remainingLease = Math.max(0, lease - (SystemClock.elapsedRealtime() - started));
                     activeDevice = device;
@@ -198,7 +200,7 @@ public class TabletControlPlugin extends Plugin {
                     activeId = id;
                     final String[] result = { "INTERRUPTED" };
                     CountDownLatch done = new CountDownLatch(1);
-                    main.post(() -> { try { result[0] = perform(action, remainingLease, device, deadline); } finally { done.countDown(); } });
+                    main.post(() -> { try { result[0] = blocked.isEmpty() ? perform(action, remainingLease, device, deadline) : blocked; } finally { done.countDown(); } });
                     // No timed-out UI runnable can execute later: keep worker joined until UI finishes.
                     done.await();
                     code = result[0];
