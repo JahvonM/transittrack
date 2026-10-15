@@ -1,3 +1,4 @@
+import NativeNetworkPanel from "@/components/driver/NativeNetworkPanel";
 import TabletRecoveryPanel from "@/components/driver/TabletRecoveryPanel";
 import TabletDiagnosticsPanel from "@/components/driver/TabletDiagnosticsPanel";
 import UsbGpsPanel from "@/components/driver/UsbGpsPanel";
@@ -21,6 +22,7 @@ export default function DriverDevicePanel({ session, deviceId, onUnpair }) {
     <UsbGpsPanel />
     <TabletDiagnosticsPanel />
     <TabletRecoveryPanel />
+    <NativeNetworkPanel />
     <TabletNetworkPanel />
     <Card className="max-w-lg mx-auto">
       <CardHeader className="pb-3">

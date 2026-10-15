@@ -11,7 +11,7 @@ export function helperHealthPayload() {
     const fresh = value => value && typeof value === "object" && typeof value.at === "number" && Date.now() - value.at <= MAX_AGE_MS && value.at <= Date.now() + 5000;
     const h = legacy && (typeof legacy.at !== "number" || fresh(legacy)) ? legacy : null;
     const n = fresh(native) && native.available ? native : null;
-    if (!h && !n) return {};
+    if (!h && !n && !(typeof window !== "undefined" && fresh(window.__ttNativeNetwork) && window.__ttNativeNetwork.enabled)) return {};
     const { at, ...report } = h || {};
     if (n) {
       report.version = report.version || "native-0.2";
@@ -29,6 +29,20 @@ export function helperHealthPayload() {
         report.reader = n.reader.status;
         if (n.reader.lastTapAt) report.last_card_at = new Date(n.reader.lastTapAt).toISOString();
       }
+    }
+    const direct = typeof window !== "undefined" ? window.__ttNativeNetwork : null;
+    const network = fresh(direct) && direct.enabled ? direct : n?.networkControl?.enabled ? n.networkControl : null;
+    if (network) {
+      report.network_native = true;
+      report.hotspot = network.hotspot;
+      report.hotspot_always = network.hotspot_always === true;
+      const w = network.wifi || {};
+      report.wifi = {
+        enabled: w.enabled === true, ssid: typeof w.ssid === "string" ? w.ssid.slice(0, 32) : "",
+        bars: w.bars, scanned_at: w.scanned_at,
+        networks: Array.isArray(w.networks) ? w.networks.slice(0, 25).map(x => ({ ssid: x.ssid, bars: x.bars, lock: x.lock })) : [],
+        ...(w.join && typeof w.join === "object" ? { join: { id: w.join.id, ssid: w.join.ssid, state: w.join.state, message: w.join.message, at: w.join.at } } : {}),
+      };
     }
     return { helper_health: report };
   } catch {

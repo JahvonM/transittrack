@@ -181,6 +181,10 @@
         },
         "usb_devices": {
           "type": "number"
+        },
+        "network_native": {
+          "type": "boolean",
+          "description": "Integrated native network controls enabled."
         }
       },
       "type": "object"
@@ -254,7 +258,7 @@
       }
     },
     "network_status": {
-      "description": "What Admin shows about the latest Wi-Fi or hotspot command (never a password): waiting, sent, delivered or expired.",
+      "description": "Latest admin network command delivery and native completion status; no passwords.",
       "type": "object",
       "properties": {
         "id": {
@@ -288,6 +292,16 @@
           "format": "date-time"
         },
         "expired_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "message": {
+          "type": "string"
+        },
+        "result_code": {
+          "type": "string"
+        },
+        "completed_at": {
           "type": "string",
           "format": "date-time"
         }
