@@ -26,7 +26,8 @@ ENTITY_FIELDS.Incident.push('photo_uris','source');
 ENTITY_FIELDS.DriverShift.push('started_with','ended_with');
 ENTITY_FIELDS.Vehicle.push('backup_gps_driver_email','backup_gps_since','road_next_stop');
 // The latest Wi-Fi/hotspot command's status for Admin → Kiosk tablets (never the command itself, which can hold a Wi-Fi password).
-ENTITY_FIELDS.KioskDevice.push('network_status', 'control_status');
+ENTITY_FIELDS.KioskDevice.push('network_status');
+ENTITY_FIELDS.KioskDevice.push('control_status');
 // Admin → App errors: what happened before an error, and marking it fixed.
 ENTITY_FIELDS.ClientError.push('area','context','breadcrumbs','status','resolved_at','resolved_by');
 // Jobs dispatch gives a bus. The signatures (and where and by how many guests
