@@ -387,9 +387,10 @@ async function installNativeHelper(page, enabled = true, bleEnabled = false) {
       retry: async () => { window.__nativeBleRetried = true; return { ...bleState }; },
       openSettings: async () => { window.__nativeBluetoothSettingsOpened = true; },
     };
+    const recovery = { getState: async () => ({ available: true, defaultHome: false }), openHomeSettings: async () => { window.__nativeHomeSettingsOpened = true; } };
     const gps = { openAutoAcceptSettings: async () => { window.__autoAcceptSettingsOpened = true; } };
     const other = new Proxy({}, { get: (_, key) => key === 'addListener' ? async () => ({ remove: async () => {} }) : async () => ({}) });
-    window.CapacitorPlatforms = { platforms: new Map(), currentPlatform: { name: 'android', getPlatform: () => 'android', isNativePlatform: () => true, isPluginAvailable: name => ['UsbNfc', 'TabletHealth', 'UsbGps', 'BoardingBluetooth'].includes(name), registerPlugin: name => name === 'BoardingBluetooth' ? ble : name === 'UsbNfc' ? nfc : name === 'TabletHealth' ? health : name === 'UsbGps' ? gps : other } };
+    window.CapacitorPlatforms = { platforms: new Map(), currentPlatform: { name: 'android', getPlatform: () => 'android', isNativePlatform: () => true, isPluginAvailable: name => ['UsbNfc', 'TabletHealth', 'UsbGps', 'BoardingBluetooth', 'TabletRecovery'].includes(name), registerPlugin: name => name === 'TabletRecovery' ? recovery : name === 'BoardingBluetooth' ? ble : name === 'UsbNfc' ? nfc : name === 'TabletHealth' ? health : name === 'UsbGps' ? gps : other } };
   }, { enabled, bleEnabled });
 }
 
@@ -503,4 +504,21 @@ test('native Bluetooth control remains behind the boarding settings PIN', async 
   await page.screenshot({ path: '/tmp/tt-ble-settings.png', fullPage: true });
   await dialog.getByRole('link', { name: 'Choose tablet screen', exact: true }).click();
   await expect.poll(() => page.evaluate(() => window.__nativeBleReady)).toBe(false);
+});
+
+test('startup recovery settings are PIN gated and never change Home automatically', async ({ page }) => {
+  await installNativeHelper(page, false, false);
+  await setup(page, { checkIn: b => b.action === 'verify_settings_pin' ? { json: { ok: b.pin === '1234' } } : null });
+  await page.goto('/kiosk');
+  await expect(page.getByRole('button', { name: 'Open Android Home settings', exact: true })).toHaveCount(0);
+  await page.locator('.tt-board-header').dispatchEvent('pointerdown');
+  await page.waitForTimeout(3100);
+  await page.locator('.tt-board-header').dispatchEvent('pointerup');
+  const dialog = page.getByRole('dialog');
+  for (const digit of '1234') await dialog.getByRole('button', { name: digit, exact: true }).click();
+  await expect(dialog.getByText("Android Home app has not been set to TransitTrack.", { exact: true })).toBeVisible();
+  expect(await page.evaluate(() => window.__nativeHomeSettingsOpened)).toBeUndefined();
+  await dialog.getByRole('button', { name: 'Open Android Home settings', exact: true }).click();
+  await expect.poll(() => page.evaluate(() => window.__nativeHomeSettingsOpened)).toBe(true);
+  await page.screenshot({ path: '/tmp/tt-recovery-settings.png', fullPage: true });
 });
