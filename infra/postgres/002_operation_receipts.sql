@@ -33,7 +33,9 @@ create or replace function public.tt_operation_complete(p_scope_hash text,p_payl
 returns boolean language plpgsql security definer set search_path = '' as $$
 declare r tt_atomic.operation_receipt%rowtype;
 begin
- if p_record_id is null or p_record_id !~ '^[A-Za-z0-9_-]{1,128}$' then
+ if p_scope_hash is null or p_scope_hash !~ '^[a-f0-9]{64}$' or
+ p_payload_hash is null or p_payload_hash !~ '^[a-f0-9]{64}$' or p_owner_id is null or
+ p_record_id is null or p_record_id !~ '^[A-Za-z0-9_-]{1,128}$' then
  raise exception 'Invalid record identity' using errcode='22023'; end if;
  select * into r from tt_atomic.operation_receipt where scope_hash=p_scope_hash for update;
  if not found or r.payload_hash <> p_payload_hash or r.owner_id <> p_owner_id then return false; end if;

@@ -47,6 +47,7 @@ await sql(`update tt_atomic.operation_receipt set created_at=clock_timestamp()-i
 assert.equal((await claim(randomUUID())).state,'pending');
 console.log('PASS: twenty independent operation claims have one winner; restart/time cannot reclaim');
 const complete=(owner,id)=>sql(`set role service_role; select public.tt_operation_complete('${opScope}','${hash}','${owner}','${id}');`);
+await assert.rejects(sql(`set role service_role;select public.tt_operation_complete('${opScope}',null,null,'record-1');`),/Invalid record identity/);
 assert.equal(await complete(loser,'wrong'),'f');
 assert.equal(await complete(winner,'record-1'),'t');
 assert.equal(await complete(winner,'record-1'),'t');

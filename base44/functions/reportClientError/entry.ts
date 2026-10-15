@@ -86,7 +86,7 @@ export default async function (req) {
         async (a) => {
           // Charge each actual recipient BEFORE the provider call. Unknown delivery is never retried here.
           if(!(await reserveAttempt(base44,'crash-emails:v2',MAX_EMAILS_PER_HOUR,HOUR_MS))) return {skipped:true};
-          await base44.asServiceRole.integrations.Core.SendEmail({ to: a.email, subject, body: text });
+          return base44.asServiceRole.integrations.Core.SendEmail({ to: a.email, subject, body: text });
         }, { title: subject });
       if(delivery.sent>0) await db.ClientError.update(record.id,{emailed:true});
     }
