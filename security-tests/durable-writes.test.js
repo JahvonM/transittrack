@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { load, mock, request, budgetFetchFixture, digest } from './helpers';
+import { load, mock, request, budgetFetchFixture } from './helpers';
 const secrets={TT_DURABLE_WRITES_ENABLED:'true',TT_ATOMIC_STORE_URL:'https://example.supabase.co',TT_ATOMIC_SERVICE_ROLE_KEY:'sb_secret_synthetic-test-key-never-real'};
 const resultBody={entity:'InspectionResult',operation:'create',data:{vehicle_id:'bus-a',company_id:'a',inspection_item:'Tyre',condition:'GOOD',client_request_id:'durable-result-123'}};
 const send=(c,b=resultBody)=>load('entityAccess',c).default(request(b));
@@ -85,7 +85,29 @@ describe('durable application writes across recreated backend workers',()=>{
  });
  it('does not send or record anonymous reports if durable budget storage is unavailable',async()=>{
   const c=mock(null);c.atomicFetch=async()=>{throw new Error('offline');};
-  expect((await load('reportClientError',c).default(request({message:'Test'}))).status).toBe(500);
+  expect((await load('reportClientError',c).default(request({message:'Test'}))).status).toBe(503);
   expect(c.emails).toHaveLength(0);expect(c.writes).toHaveLength(0);
+ });
+});
+
+describe('durable conflict and notification semantics',()=>{
+ it('refuses two different payloads racing with one immutable request ID',async()=>{
+  const c=mock('mechanic');
+  const responses=await Promise.all([send(c),send(c,{...resultBody,data:{...resultBody.data,condition:'FAILED'}})]);
+  expect(responses.map(r=>r.status).sort()).toEqual([200,409]);
+  expect(c.tables.InspectionResult).toHaveLength(1);
+ });
+ it('sends only one alert for simultaneous reports of the same crash',async()=>{
+  const c=mock(null);c.tables.User=[{id:'admin',role:'admin',email:'admin@test.invalid'}];
+  const responses=await Promise.all(Array.from({length:10},()=>load('reportClientError',c).default(request({message:'Same crash'}))));
+  expect(responses.every(r=>r.status===200)).toBe(true);
+  expect(c.emails).toHaveLength(1);
+ });
+ it('keeps provider delivery failures charged rather than retrying uncertain emails',async()=>{
+  const c=mock(null);c.tables.User=[{id:'admin',role:'admin',email:'admin@test.invalid'}];
+  let attempts=0;c.asServiceRole.integrations.Core.SendEmail=async()=>{attempts++;throw new Error('provider response lost');};
+  await Promise.all(Array.from({length:10},(_,i)=>load('reportClientError',c).default(request({message:'Crash '+i}))));
+  expect(attempts).toBe(5);
+  expect(c.tables.NotificationLog.reduce((n,r)=>n+r.sent,0)).toBe(0);
  });
 });
