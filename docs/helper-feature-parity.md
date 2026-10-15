@@ -70,3 +70,8 @@ Validation:
 - No live records, accounts, tablets, credentials or signing keys changed. No APK was signed or published. VFAN/ACR122U hardware validation remains necessary.
 
 Remaining replacement work includes Bluetooth boarding, automatic managed Wi-Fi/hotspot operations, SIM/carrier health, low-battery policy, boot/background service/watchdog recovery, remote command execution/diagnostics, native update delivery and managed kiosk lockdown. Camera/screen support remains a separate authenticated-session integration. The separate helper and FreeKiosk must remain installed until the required rows are physically verified.
+
+
+## Kiosk-only launch checkpoint (2026-10-15)
+
+The installed Android helper build now opens driver or boarding/signing screens, remembers the selected mode, resumes a single existing pairing on upgrade and redirects passenger/account links to the tablet flow. Driver settings and PIN-gated boarding settings include a deliberate screen chooser. Phone OAuth and notification navigation listeners are disabled for this build. Android launcher label is TransitTrack Kiosk; application ID, signing identity, saved credentials/queues and server records are unchanged. See kiosk-app-boundary.md for validation and upgrade checks. A separately packaged passenger binary without helper plugins is still pending. This checkpoint does not complete the helper parity rows above.
