@@ -3,6 +3,7 @@ import { base44 } from '@/api/base44Client';
 import { appParams } from '@/lib/app-params';
 import { setAuditActor } from '@/lib/auditLog';
 import { ACCENT_KEY, applyAccent } from '@/lib/accents';
+import { isKioskInstall } from '@/lib/kioskApp';
 import { httpStatus, errorData, sessionRejected } from '@/lib/requestError';
 
 const AuthContext = createContext();
@@ -48,7 +49,7 @@ export const AuthProvider = ({ children }) => {
     setIsLoadingPublicSettings(true);
     setAuthError(null);
     // Paired tablets use their own device credential, not an account login.
-    const tabletPage = /^\/(driver|kiosk|tablet)(\/|$)/.test(window.location.pathname);
+    const tabletPage = isKioskInstall() || /^\/(driver|kiosk|tablet)(\/|$)/.test(window.location.pathname);
     const settingsRequest = base44.app.getPublicSettings();
     const authRequest = appParams.token && !tabletPage ? checkUserAuth() : Promise.resolve();
     if (!appParams.token || tabletPage) {
