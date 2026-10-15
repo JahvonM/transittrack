@@ -54,6 +54,7 @@ export function helperLinkLost(device, now = Date.now()) {
 // appeared is picked up.
 export const GPS_RETRY_EVENT = "tt-gps-retry";
 export function retryGps() {
+  import("@/lib/driverGps").then(({ rescanUsbGps }) => rescanUsbGps()).catch(() => {});
   const url = `http://127.0.0.1:8765/rescan-usb?t=${Date.now()}`;
   try {
     fetch(url, { mode: "no-cors", cache: "no-store" }).catch(() => {});

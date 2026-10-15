@@ -1,3 +1,4 @@
+import { watchDriverPosition, clearDriverWatch } from "@/lib/driverGps";
 import { TRANSIT_TIME_ZONE } from "@/lib/localTime";
 import React, { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Map, { Marker, Source, Layer } from "react-map-gl";
@@ -149,8 +150,8 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
     return () => window.removeEventListener(GPS_RETRY_EVENT, again);
   }, []);
   useEffect(() => {
-    if (!vehicleId || !navigator.geolocation) return undefined;
-    watchId.current = navigator.geolocation.watchPosition(
+    if (!vehicleId) return undefined;
+    watchId.current = watchDriverPosition(
       (p) => {
         if (p.coords.accuracy != null && p.coords.accuracy > 100) return;
         // Some GPS units don't report speed; work it out from the last fix.
@@ -173,7 +174,7 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
       () => {},
       { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
     );
-    return () => { if (watchId.current != null) navigator.geolocation.clearWatch(watchId.current); };
+    return () => { if (watchId.current != null) clearDriverWatch(watchId.current); };
   }, [vehicleId, pushLocation, shouldPush, watchNonce]);
 
   // On a drawn road (once unlocked): its stops, pickups included, in the

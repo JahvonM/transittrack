@@ -1,3 +1,4 @@
+import UsbGpsPanel from "@/components/driver/UsbGpsPanel";
 import React from "react";
 import { Bus, Building2, Tablet, LogOut, Sun, Moon } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,6 +15,7 @@ export default function DriverDevicePanel({ session, deviceId, onUnpair }) {
 
   return (
     <>
+    <UsbGpsPanel />
     <TabletNetworkPanel />
     <Card className="max-w-lg mx-auto">
       <CardHeader className="pb-3">

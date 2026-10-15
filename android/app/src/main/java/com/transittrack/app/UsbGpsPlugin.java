@@ -23,10 +23,14 @@ public class UsbGpsPlugin extends Plugin {
     private volatile String status = "Off";
     private volatile long lastFixAt;
     private volatile boolean enabled;
-    private boolean foreground = true;
+    private volatile boolean foreground = true;
     private final BroadcastReceiver permissionResult = new BroadcastReceiver() {
         @Override public void onReceive(Context context, Intent intent) {
-            if (reader != null) reader.rescan();
+            if (!intent.getBooleanExtra(android.hardware.usb.UsbManager.EXTRA_PERMISSION_GRANTED, false)) {
+                enabled = false;
+                preferences.edit().putBoolean("enabled", false).apply();
+                stopReader(); report("USB permission denied. Enable USB GPS to try again.");
+            } else if (reader != null) reader.rescan();
         }
     };
 
