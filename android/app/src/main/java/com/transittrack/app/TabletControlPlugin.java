@@ -22,7 +22,7 @@ import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import javax.net.ssl.HttpsURLConnection;
 
 /** WebView supplies only an ID and existing device key. Actions come from fixed HTTPS server. */
@@ -32,6 +32,7 @@ public class TabletControlPlugin extends Plugin {
     private final ExecutorService worker = Executors.newSingleThreadExecutor();
     private final Handler main = new Handler(Looper.getMainLooper());
     private SharedPreferences prefs;
+    private final AtomicBoolean executing = new AtomicBoolean(false);
     private volatile boolean safe = false;
     private volatile String safeDevice = "";
     private volatile long safetyAt = 0;
@@ -75,33 +76,13 @@ public class TabletControlPlugin extends Plugin {
             call.resolve(out);
         });
     }
-    private String[] previousPackages() {
-        try {
-            JSONArray array = new JSONArray(prefs.getString("previousPackages", "[]"));
-            String[] out = new String[array.length()];
-            for (int i = 0; i < out.length; i++) out[i] = array.getString(i);
-            return out;
-        } catch (Exception ignored) { return new String[0]; }
-    }
     private boolean releaseLease() {
-        if (!prefs.getBoolean("lease", false)) return true;
-        try {
-            if (locked()) getActivity().stopLockTask();
-            if (owner()) policy().setLockTaskPackages(admin(), previousPackages());
-            if (locked()) return false;
-            return prefs.edit().putBoolean("lease", false).remove("previousPackages")
-                .remove("leaseWall").remove("leaseElapsed").commit();
-        } catch (RuntimeException ignored) { return false; }
+        try { if (prefs.getBoolean("lease", false) && locked()) getActivity().stopLockTask(); }
+        catch (RuntimeException ignored) { /* native policy removal is the independent fallback */ }
+        return TabletLockRecovery.release(getContext()) && !locked();
     }
     private void checkLease() {
-        if (prefs == null || !prefs.getBoolean("lease", false)) return;
-        long now = SystemClock.elapsedRealtime(), until = prefs.getLong("leaseElapsed", 0);
-        long wall = prefs.getLong("leaseWall", 0), start = prefs.getLong("leaseStartedElapsed", 0);
-        // Wall deadline and elapsed deadline: clock changes never extend a live lease.
-        // After a reboot, release on load (elapsed clock reset or deadline reached).
-        if (now < start || now >= until || System.currentTimeMillis() >= wall) {
-            if (releaseLease()) prefs.edit().putString("lastCode", "LEASE_RELEASED").apply();
-        }
+        if (prefs != null && TabletLockRecovery.due(getContext())) releaseLease();
     }
     private String perform(String action, long leaseMs, String device, long deadline) {
         if (SystemClock.elapsedRealtime() >= deadline) return "EXPIRED";
@@ -110,7 +91,9 @@ public class TabletControlPlugin extends Plugin {
         try {
             if ("release".equals(action)) return prefs.getBoolean("lease", false) ? (releaseLease() ? "RELEASED" : "ANDROID_ERROR") : "NO_LOCK";
             if ("lock_test".equals(action)) {
-                if (locked() || prefs.getBoolean("lease", false)) return "ALREADY_LOCKED";
+                if (Build.VERSION.SDK_INT < 23) return "UNSUPPORTED";
+                if (locked() || prefs.getBoolean("lease", false) || policy().isLockTaskPermitted(getContext().getPackageName())) return "ALREADY_LOCKED";
+                if (!TabletLockRecovery.canSchedule(getContext())) return "RECOVERY_UNAVAILABLE";
                 long now = SystemClock.elapsedRealtime();
                 String[] previous = policy().getLockTaskPackages(admin());
                 JSONArray old = new JSONArray();
@@ -121,6 +104,7 @@ public class TabletControlPlugin extends Plugin {
                 if (!prefs.edit().putBoolean("lease", true).putString("previousPackages", old.toString())
                     .putLong("leaseStartedElapsed", now).putLong("leaseElapsed", now + leaseMs)
                     .putLong("leaseWall", System.currentTimeMillis() + leaseMs).commit()) return "STORAGE_ERROR";
+                TabletLockRecovery.schedule(getContext(), now + leaseMs);
                 policy().setLockTaskPackages(admin(), allowed.toArray(new String[0]));
                 getActivity().startLockTask();
                 if (!locked()) { releaseLease(); return "ANDROID_ERROR"; }
@@ -139,6 +123,7 @@ public class TabletControlPlugin extends Plugin {
             return "ANDROID_ERROR";
         }
     }
+    private String activeDevice = "";
     private String activeId = ""; // worker serialises executions; UI is joined before next task
     private boolean reserve(String id) {
         SharedPreferences.Editor edit = prefs.edit();
@@ -151,7 +136,7 @@ public class TabletControlPlugin extends Plugin {
             } catch (Exception bad) { retained++; } // corrupt ledger fails closed; no fresh entries evicted
         }
         if (retained >= 128) return false;
-        try { return edit.putString("receipt." + id, new JSONObject().put("at", now).put("code", "INTERRUPTED").toString()).commit(); }
+        try { return edit.putString("receipt." + id, new JSONObject().put("at", now).put("device", activeDevice).put("reported", false).put("code", "INTERRUPTED").toString()).commit(); }
         catch (Exception impossible) { return false; }
     }
     private String receipt(String id) {
@@ -160,9 +145,29 @@ public class TabletControlPlugin extends Plugin {
         try { return new JSONObject(stored).getString("code"); } catch (Exception ignored) { return "INTERRUPTED"; }
     }
     private boolean saveReceipt(String id, String code) {
-        try { return prefs.edit().putString("receipt." + id, new JSONObject().put("at", System.currentTimeMillis()).put("code", code).toString())
+        try { return prefs.edit().putString("receipt." + id, new JSONObject().put("at", System.currentTimeMillis()).put("device", activeDevice).put("reported", false).put("code", code).toString())
             .putString("lastCode", code).commit(); }
         catch (Exception ignored) { return false; }
+    }
+    @PluginMethod public void pendingReceipts(PluginCall call) {
+        String device = call.getString("device_id", "");
+        JSArray ids = new JSArray();
+        for (Map.Entry<String, ?> item : prefs.getAll().entrySet()) {
+            if (!item.getKey().startsWith("receipt.")) continue;
+            try {
+                JSONObject row = new JSONObject(String.valueOf(item.getValue()));
+                if (device.equals(row.optString("device")) && !row.optBoolean("reported") &&
+                    System.currentTimeMillis() - row.getLong("at") <= 24 * 3600_000L && ids.length() < 4) ids.put(item.getKey().substring(8));
+            } catch (Exception ignored) { }
+        }
+        JSObject out = new JSObject(); out.put("ids", ids); call.resolve(out);
+    }
+    private void reported(String id) {
+        try { JSONObject row = new JSONObject(prefs.getString("receipt." + id, "{}")); row.put("reported", true);
+            prefs.edit().putString("receipt." + id, row.toString()).commit(); } catch (Exception ignored) { }
+    }
+    private static final class ControlDenied extends java.io.IOException {
+        final int status; ControlDenied(int status) { super("CONTROL_DENIED"); this.status = status; }
     }
     private JSONObject post(JSONObject body) throws Exception {
         HttpsURLConnection connection = (HttpsURLConnection) new URL(ENDPOINT).openConnection();
@@ -173,7 +178,7 @@ public class TabletControlPlugin extends Plugin {
             byte[] bytes = body.toString().getBytes(StandardCharsets.UTF_8);
             connection.setFixedLengthStreamingMode(bytes.length);
             try (java.io.OutputStream out = connection.getOutputStream()) { out.write(bytes); }
-            if (connection.getResponseCode() != 200) throw new java.io.IOException("CONTROL_DENIED");
+            if (connection.getResponseCode() != 200) throw new ControlDenied(connection.getResponseCode());
             try (InputStream in = connection.getInputStream(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
                 byte[] chunk = new byte[1024]; int n;
                 while ((n = in.read(chunk)) != -1) { if (out.size() + n > 16384) throw new java.io.IOException("CONTROL_SIZE"); out.write(chunk, 0, n); }
@@ -186,6 +191,7 @@ public class TabletControlPlugin extends Plugin {
         if (!device.matches("[A-Za-z0-9_-]{6,64}") || !TabletControlPolicy.token(token) || !TabletControlPolicy.id(id)) {
             call.reject("Secure device pairing and command ID required."); return;
         }
+        if (!executing.compareAndSet(false, true)) { call.reject("Tablet control is already being checked."); return; }
         worker.execute(() -> {
             String code = receipt(id);
             try {
@@ -198,6 +204,7 @@ public class TabletControlPlugin extends Plugin {
                     if (!TabletControlPolicy.proof(proof.optString("id"), id, action, ttl, lease)) throw new java.io.IOException("INVALID_PROOF");
                     long deadline = started + ttl;
                     long remainingLease = Math.max(0, lease - (SystemClock.elapsedRealtime() - started));
+                    activeDevice = device;
                     if (!reserve(id)) { call.reject("Tablet cannot persist a command receipt."); return; }
                     activeId = id;
                     final String[] result = { "INTERRUPTED" };
@@ -209,12 +216,14 @@ public class TabletControlPlugin extends Plugin {
                     if (!saveReceipt(id, code)) code = "INTERRUPTED";
                 }
                 boolean reported = false;
-                try { post(new JSONObject(request.toString()).put("operation", "result").put("code", code)); reported = true; } catch (Exception ignored) { }
+                try { post(new JSONObject(request.toString()).put("operation", "result").put("code", code)); reported = true; reported(id);
+                } catch (ControlDenied denied) { if (denied.status == 409 || denied.status == 410) reported(id); }
+                catch (Exception ignored) { }
                 JSObject out = new JSObject(); out.put("code", code); out.put("reported", reported); call.resolve(out);
             } catch (Exception ignored) {
                 // Fixed message only: never log credentials, server bodies or exceptions.
                 call.reject("Command could not be verified. No unverified action was started.");
-            }
+            } finally { executing.set(false); }
         });
     }
 }

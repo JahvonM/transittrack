@@ -62,10 +62,15 @@
             <meta-data android:name="android.app.device_admin" android:resource="@xml/transit_device_admin" />
             <intent-filter><action android:name="android.app.action.DEVICE_ADMIN_ENABLED" /></intent-filter>
         </receiver>
+        <receiver android:name=".TabletLockExpiryReceiver" android:exported="false">
+            <intent-filter><action android:name="android.intent.action.BOOT_COMPLETED" /></intent-filter>
+        </receiver>
     </application>
 
     <uses-feature android:name="android.hardware.usb.host" android:required="false" />
 
+    <!-- Native expiry receiver only releases a temporary lock; it does not launch or track. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <!-- Permissions -->
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
