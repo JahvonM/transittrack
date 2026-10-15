@@ -6,7 +6,7 @@ Baseline: current helper source, manifest version 1.14 / code 15. This is the mi
 | --- | --- | --- |
 | VFAN/PL2303/u-blox/CDC USB GPS, baud search, reconnect/rescan | Integrated, opt-in | Native compilation + parser/source tests pass; actual receiver test pending |
 | USB prompt auto-OK | Integrated, optional user-enabled accessibility service | Native compilation, 5 prompt policy tests and settings browser test pass; actual Android dialog test pending |
-| Always-on screen on charger and battery | Existing native keep-awake hook | Physical battery/charger/wake test pending; does not equal kiosk lockdown |
+| Always-on screen on charger and battery | Native activity-owned keep-awake flag across screen changes; older shells keep hook fallback | Native compile/browser regressions pass; physical charger/wake test pending; not kiosk lockdown |
 | ACR122U CCID card reading and reconnect after detach/wake | Integrated, opt-in on boarding tablet | Native compilation and mocked boarding tests pass; physical USB/wake test pending |
 | Accepted/rejected reader lights and buzzer based on page acknowledgement | Integrated with per-tap receipts | Late/wrong/duplicate/expired response tests pass; actual lights/buzzer require hardware |
 | Tap buffering/retry while page starts or wakes | Integrated reader waits for page readiness; retries same ID, memory only, 30-second expiry | Browser tests confirm one lookup/boarding on delivery retry; no UID persistence |
@@ -15,8 +15,8 @@ Baseline: current helper source, manifest version 1.14 / code 15. This is the mi
 | Wi-Fi scan/join/reconnect/power and local network PIN | Separate helper still required | Android 10 helper relies on API-28 Wi-Fi behaviour; modern target needs managed-device or OS-supported path, verified on tablet |
 | Hotspot enable/disable, always-on mode and timeout handling | Separate helper still required | Firmware/ADB-grant dependent; must report blocked operations honestly |
 | Mobile data/SIM/carrier/signal health | Separate helper still required | Preserve unknown/permission-denied states and avoid repeated permission requests |
-| Low-battery parking and power transitions | Separate helper still required | Preserve 5% GPS/hotspot parking, reader/screen behaviour; do not reintroduce ignition-based sleep |
-| Boot/USB-attach recovery and persistent service | Separate helper still required | Integrate with current Android foreground-service rules; test real reboot and USB attachment |
+| Low-battery parking and power transitions | Integrated USB GPS parks at 5%, resumes on charger/8%; hotspot policy still pending | Native policy tests pass; physical power transitions pending; reader/screen stay active |
+| Boot/USB-attach recovery and persistent service | Optional Android Home handler and known USB attach handlers integrated; no persistent service/watchdog yet | User selects Home/USB defaults explicitly at final setup; physical reboot/unlock/OEM test pending |
 | Scheduled/wake page refresh | Separate helper still required | Improve by checking active trip and unsynced work before any reload |
 | FreeKiosk REST transport, localhost command/result endpoints and random page key | Existing helper transport | Replace with typed in-process native calls/events; retain authorization and correlated results |
 | Admin-command relay over authenticated heartbeat | Existing helper still executes network actions | New native endpoint must preserve server-approved actions and acknowledgements |
@@ -80,3 +80,8 @@ The installed Android helper build now opens driver or boarding/signing screens,
 ## Integrated Bluetooth boarding checkpoint (2026-10-15)
 
 BoardingBluetooth native receiver now receives the existing passenger phone protocol directly in the kiosk app. Off by default; enabled through the bus-PIN settings, only while the boarding page is ready and foreground. Preserves service/characteristic IDs, bus name and existing backend lookup/Boarding-or-Exiting confirmation. Adds bounded/expiring prepared writes, synchronized transport limits, lifecycle invalidation, duplicate-event filtering, status/retry/settings and local health status. Rejected-code messages are visible on the locked boarding screen. See integrated-boarding-bluetooth.md for validation and physical acceptance. Keep the separate helper and FreeKiosk installed until all required hardware/parity checks pass.
+
+
+## Power and optional startup recovery checkpoint (2026-10-15)
+
+The kiosk activity owns keep-screen-on across page changes. Native USB GPS parks at 5% unplugged and resumes at 8% or on power; reader/screen/queues remain active. Adds optional Home-app and known USB-attachment handler setup through explicit Android choices, with PIN-gated local recovery guidance. This does not silently replace FreeKiosk or enroll a device owner, and is not a background service/watchdog or guaranteed offline cold-start solution. See kiosk-power-recovery.md. Automatic Wi-Fi/hotspot controls, hotspot battery policy, SIM/carrier health, managed lockdown/remote actions and update/streaming integrations remain incomplete. User will install once at final handover, not after each checkpoint.
