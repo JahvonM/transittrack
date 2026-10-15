@@ -48,6 +48,7 @@ public class TabletNetworkPlugin extends Plugin {
                     beginHotspot(null, "");
                 }
             }
+            if (enabled && foreground) publish();
             main.postDelayed(this, 30000);
         }
     };
@@ -90,7 +91,11 @@ public class TabletNetworkPlugin extends Plugin {
             return s.startsWith("\"") && s.endsWith("\"") ? s.substring(1, s.length() - 1) : s;
         } catch (RuntimeException ignored) { return ""; }
     }
-    private String iso() { return java.time.Instant.ofEpochMilli(System.currentTimeMillis()).toString(); }
+    private String iso() {
+        java.text.SimpleDateFormat format = new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.US);
+        format.setTimeZone(java.util.TimeZone.getTimeZone("UTC"));
+        return format.format(new java.util.Date());
+    }
     JSObject state() {
         JSObject out = new JSObject(), w = new JSObject(), capabilities = new JSObject();
         out.put("available", true); out.put("enabled", enabled); out.put("at", System.currentTimeMillis());
@@ -216,7 +221,7 @@ public class TabletNetworkPlugin extends Plugin {
                 ScanResult old = best.get(r.SSID);
                 if (old == null || old.level < r.level) best.put(r.SSID, r);
             }
-            List<ScanResult> list = new ArrayList<>(best.values()); list.sort((a, b) -> Integer.compare(b.level, a.level));
+            List<ScanResult> list = new ArrayList<>(best.values()); Collections.sort(list, (a, b) -> Integer.compare(b.level, a.level));
             networks = new JSArray();
             for (int i = 0; i < Math.min(25, list.size()); i++) {
                 ScanResult r = list.get(i); JSObject n = new JSObject();
