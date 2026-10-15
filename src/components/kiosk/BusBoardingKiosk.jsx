@@ -21,6 +21,7 @@ import SlideToUnlock from "./SlideToUnlock";
 import KioskMascot from "./KioskMascot";
 import KioskConnectionBadge from "./KioskConnectionBadge";
 import BoardingSettingsGate, { useHold } from "./BoardingSettingsGate";
+import { startBoardingBluetooth, nativeBoardingBluetoothAvailable, boardingBluetoothState } from "@/lib/nativeBoardingBluetooth";
 import { takeBleCodes, markBleCodeSeen } from "@/lib/bluetoothBoarding";
 import { sendLocalCommand, helperKey } from "@/lib/tabletNetwork";
 
@@ -389,12 +390,13 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
     if (Date.now() - waiting.at > 20000) { bleWaiting.current = null; return; }
     bleHandler.current(waiting.text);
   }, [mode, busy]);
+  useEffect(() => startBoardingBluetooth(device?.vehicle_name, text => bleHandler.current(text)), [device?.vehicle_name]);
   // Phones show this bus's name in their Bluetooth list.
   const busName = device?.vehicle_name || "";
   useEffect(() => {
     if (!busName) return undefined;
     let done = false;
-    const tell = async () => { if (!done && helperKey() && (await sendLocalCommand("/ble/name", { name: busName })) === "sent") done = true; };
+    const tell = async () => { if (nativeBoardingBluetoothAvailable() && (await boardingBluetoothState()).enabled) return; if (!done && helperKey() && (await sendLocalCommand("/ble/name", { name: busName })) === "sent") done = true; };
     tell();
     const t = setInterval(tell, 15000);
     return () => clearInterval(t);

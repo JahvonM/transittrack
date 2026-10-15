@@ -17,7 +17,7 @@ public class BoardingBluetoothPlugin extends Plugin {
     private String busName = "", status = "Off";
     private final BroadcastReceiver adapterChanged = new BroadcastReceiver() {
         @Override public void onReceive(Context context, Intent intent) {
-            getActivity().runOnUiThread(() -> { if (!destroyed) update(); });
+            getActivity().runOnUiThread(() -> { if (!destroyed) { receiver.stop(); update(); } });
         }
     };
     @Override public void load() {

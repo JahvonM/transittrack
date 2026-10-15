@@ -75,6 +75,7 @@
         android:name="android.permission.BLUETOOTH_SCAN"
         android:usesPermissionFlags="neverForLocation"
         tools:targetApi="s" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" tools:targetApi="s" />
     <!-- ACCESS_BACKGROUND_LOCATION is deliberately NOT included yet: it triggers
          a stricter Google Play review (a prominent in-app disclosure + written
          justification) and only matters if the driver app must keep tracking
