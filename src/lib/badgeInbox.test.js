@@ -29,3 +29,11 @@ describe('scanner page handoff',()=>{
    expect(w.__ttBadgeInbox).toEqual([]);
  });
 });
+
+it('keeps native tap receipts attached to the card while deduplicating retries',()=>{
+ const at=Date.now();
+ const w={__ttBadgeInbox:[{uid:'AABBCCDD',id:'native-receipt-123456',at,source:'native'}]};
+ const take=badgeInbox(w,{metadata:true});
+ expect(take({detail:'AABBCCDD',ttTapId:'native-receipt-123456',ttTapAt:at,ttSource:'native'})).toEqual([{uid:'AABBCCDD',tapId:'native-receipt-123456',source:'native'}]);
+ expect(take({detail:'AABBCCDD',ttTapId:'native-receipt-123456',ttTapAt:at,ttSource:'native'})).toEqual([]);
+});
