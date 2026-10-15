@@ -72,6 +72,8 @@
 
     <!-- Native expiry receiver only releases a temporary lock; it does not launch or track. -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- Managed combined-kiosk APK updates only; never used by the passenger binary. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <!-- Permissions -->
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />

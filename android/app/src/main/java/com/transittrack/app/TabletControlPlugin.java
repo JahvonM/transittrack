@@ -141,6 +141,7 @@ public class TabletControlPlugin extends Plugin {
         }
     }
     private String updateGate(String device, long deadline) {
+        if (Build.VERSION.SDK_INT < 24) return "UNSUPPORTED";
         if (SystemClock.elapsedRealtime() >= deadline) return "EXPIRED";
         if (!owner()) return "DEVICE_OWNER_REQUIRED";
         if (getActivity().isFinishing() || getActivity().isDestroyed() || !getActivity().hasWindowFocus()) return "APP_NOT_VISIBLE";
