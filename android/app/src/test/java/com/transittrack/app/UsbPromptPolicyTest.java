@@ -14,6 +14,7 @@ public class UsbPromptPolicyTest {
         assertFalse(allowed("com.android.settings", "Allow TransitTrack to access VFAN GPS?", "VFAN GPS", true, 1000, 2000));
         assertFalse(allowed("com.android.systemui", "Allow Other App to access VFAN GPS?", "VFAN GPS", true, 1000, 2000));
         assertFalse(allowed("com.android.systemui", "Allow TransitTrack Helper to access VFAN GPS?", "VFAN GPS", true, 1000, 2000));
+        assertFalse(allowed("com.android.systemui", "Allow TransitTrack Clone to access VFAN GPS?", "VFAN GPS", true, 1000, 2000));
         assertFalse(allowed("com.android.systemui", "Allow TransitTracker to access VFAN GPS?", "VFAN GPS", true, 1000, 2000));
         assertFalse(allowed("com.android.systemui", "Allow TransitTrack to access ACR122U?", "VFAN GPS", true, 1000, 2000));
     }

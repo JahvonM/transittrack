@@ -13,7 +13,7 @@ public final class UsbPromptPolicy {
         String lower = text.toLowerCase(Locale.ROOT);
         // The old helper has a similar app name. Its prompts must remain its own.
         if (lower.contains((appLabel + " Helper").toLowerCase(Locale.ROOT))) return false;
-        String app = "(?<![\\p{L}\\p{N}])" + Pattern.quote(appLabel) + "(?![\\p{L}\\p{N}])";
+        String app = "(?i)(?:allow|open|use)\\s+" + Pattern.quote(appLabel) + "\\s+(?:to\\s+access|for\\b|when\\b)";
         if (!Pattern.compile(app, Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE).matcher(text).find()) return false;
         String device = deviceLabel == null ? "" : deviceLabel.trim().toLowerCase(Locale.ROOT);
         // Require the actual receiver name; fall back to an explicit USB label
