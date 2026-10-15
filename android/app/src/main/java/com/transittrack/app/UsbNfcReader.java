@@ -172,10 +172,12 @@ final class UsbNfcReader implements Runnable {
     }
 
     private void handleCard(String uid) {
+        if (!running || !listener.isReady()) return;
         long at = System.currentTimeMillis();
         String tapId = "native-" + java.util.UUID.randomUUID().toString();
         ledRead();
         results.begin(tapId, at);
+        if (!running) { results.cancel(); return; }
         listener.onDelivery("Waiting for app confirmation");
         listener.onTap(uid, tapId, at);
         Boolean ok = results.await(tapId, at + 10000);
