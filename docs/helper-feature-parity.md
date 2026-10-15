@@ -12,14 +12,14 @@ Baseline: current helper source, manifest version 1.14 / code 15. This is the mi
 | Tap buffering/retry while page starts or wakes | Integrated reader waits for page readiness; retries same ID, memory only, 30-second expiry | Browser tests confirm one lookup/boarding on delivery retry; no UID persistence |
 | Bluetooth boarding advertisement and code delivery | Integrated, opt-in on boarding screen | Native compilation/protocol tests and mocked boarding/PIN settings tests pass; actual phone/tablet advertising and long-write test pending |
 | Per-minute health report and local diagnostics | Native battery/power/temperature/storage/network/USB/GPS/NFC status integrated; bounded local timeline | Existing heartbeat carries allowlisted metadata to admin. Full hotspot/BLE/carrier health still pending |
-| Wi-Fi scan/join/reconnect/power and local network PIN | Separate helper still required | Android 10 helper relies on API-28 Wi-Fi behaviour; modern target needs managed-device or OS-supported path, verified on tablet |
-| Hotspot enable/disable, always-on mode and timeout handling | Separate helper still required | Firmware/ADB-grant dependent; must report blocked operations honestly |
+| Wi-Fi scan/join/reconnect/power and local network PIN | Integrated opt-in scan and capability-gated managed join/power, with PIN UI and rollback request | Compile/unit/browser checks pass; standard Android 10 direct changes remain blocked without managed/system privileges; physical validation pending |
+| Hotspot enable/disable, always-on mode and timeout handling | Opt-in Android-10 OEM path with observed-state confirmation, foreground maintenance/backoff and low-battery parking | Compile/transport/UI checks pass; firmware/special permission and real power/idle-timeout tests pending; no persistent/background guarantee |
 | Mobile data/SIM/carrier/signal health | Separate helper still required | Preserve unknown/permission-denied states and avoid repeated permission requests |
 | Low-battery parking and power transitions | Integrated USB GPS parks at 5%, resumes on charger/8%; hotspot policy still pending | Native policy tests pass; physical power transitions pending; reader/screen stay active |
 | Boot/USB-attach recovery and persistent service | Optional Android Home handler and known USB attach handlers integrated; no persistent service/watchdog yet | User selects Home/USB defaults explicitly at final setup; physical reboot/unlock/OEM test pending |
 | Scheduled/wake page refresh | Separate helper still required | Improve by checking active trip and unsynced work before any reload |
 | FreeKiosk REST transport, localhost command/result endpoints and random page key | Existing helper transport | Replace with typed in-process native calls/events; retain authorization and correlated results |
-| Admin-command relay over authenticated heartbeat | Existing helper still executes network actions | New native endpoint must preserve server-approved actions and acknowledgements |
+| Admin-command relay over authenticated heartbeat | Native typed network execution plus compatible keyed legacy path; fixed applied/blocked/failed acknowledgements | Admin-only/type/credential tests and matching heartbeat feedback pass; no password in cached profiles or diagnostic result text |
 | Private signed helper release/setup workflow | Existing helper release remains valid | Combined app updates must use its existing signing identity; never generate replacement keys or ship a secret in the public repo |
 
 ## USB auto-accept in the combined app
@@ -85,3 +85,8 @@ BoardingBluetooth native receiver now receives the existing passenger phone prot
 ## Power and optional startup recovery checkpoint (2026-10-15)
 
 The kiosk activity owns keep-screen-on across page changes. Native USB GPS parks at 5% unplugged and resumes at 8% or on power; reader/screen/queues remain active. Adds optional Home-app and known USB-attachment handler setup through explicit Android choices, with PIN-gated local recovery guidance. This does not silently replace FreeKiosk or enroll a device owner, and is not a background service/watchdog or guaranteed offline cold-start solution. See kiosk-power-recovery.md. Automatic Wi-Fi/hotspot controls, hotspot battery policy, SIM/carrier health, managed lockdown/remote actions and update/streaming integrations remain incomplete. User will install once at final handover, not after each checkpoint.
+
+
+## Integrated network checkpoint (2026-10-15)
+
+Adds default-off native Wi-Fi scans, privilege-gated managed join/power and best-effort Android-10 OEM hotspot control/foreground keep-on policy, explicit permission setup, low-battery parking and bounded retry. Native commands report action-compatible fixed result codes through existing heartbeats; admin distinguishes delivery from applied/blocked/failed. Legacy transport remains where the helper key is available. Capacitor debug argument logging is disabled in source and synced Android config to keep credentials out of bridge logs. Passive device-admin declaration does not enroll or reset anything. See integrated-tablet-network.md for capabilities, validation and remaining physical/OS dependencies. No installation needed until final handover.
