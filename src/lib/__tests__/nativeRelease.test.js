@@ -47,3 +47,59 @@ describe("native kiosk release boundary", () => {
     expect(controlCompletion(c, "REBOOT_REQUESTED")).toBeNull();
   });
 });
+
+import fs from "node:fs";
+import ts from "typescript";
+import { webcrypto } from "node:crypto";
+import { inlineShared, digest } from "../../../security-tests/helpers.js";
+// Replace only the empty release catalog in an isolated copy, never live config.
+function releasedHandler(c) {
+  let source = inlineShared(fs.readFileSync(new URL("../../../base44/functions/tabletControl/entry.ts", import.meta.url), "utf8"));
+  source = source.replace("const NATIVE_RELEASE: NativeRelease | null = null;", "const NATIVE_RELEASE = " + JSON.stringify(release) + ";").replace(/^import .*;\s*$/gm, "");
+  const js = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
+  const exports = {}; new Function("exports", "createClientFromRequest", "crypto", js)(exports, () => c, webcrypto);
+  return b => exports.default(request({ device_id: "tablet", ...b }));
+}
+function releasedFixture() {
+  const c = mock("admin"), token = "b".repeat(64), d = c.tables.KioskDevice[0];
+  d.helper_health = { reported_at: new Date().toISOString(), native_update_available: true, management_owner: true, native_app_package: release.package_name, native_app_code: 1 };
+  c.tables.DeviceCredential = [{ device_id: d.id, company_id: d.company_id, vehicle_id: d.vehicle_id, kiosk_type: d.kiosk_type,
+    issued_at: new Date().toISOString(), expires_at: "2099-01-01", token_hash: digest(token), pairing_code_hash: digest(d.pairing_code) }];
+  Object.assign(c.tables.Vehicle[0], { tracking_active: false, speed: 0 });
+  c.tables.DriverShift = [];
+  return { c, token, d, run: releasedHandler(c) };
+}
+describe("configured release lifecycle with isolated catalog", () => {
+  it("pins server release, rechecks activity and requester, then accepts final completion once", async () => {
+    const { c, token, d, run } = releasedFixture();
+    const issued = await run({ operation: "request", action: "app_update", release_id: release.id, url: "https://evil.test" });
+    expect(issued.status).toBe(200);
+    const id = (await issued.json()).status.id;
+    const claim = () => run({ operation: "claim", command_id: id, device_token: token });
+    expect(await (await claim()).json()).toMatchObject({ action: "app_update", release });
+    c.tables.Vehicle[0].tracking_active = true;
+    expect(await (await claim()).json()).toMatchObject({ blocked_code: "TABLET_BUSY" });
+    c.tables.Vehicle[0].tracking_active = false; c.tables.User[0].role = "company";
+    expect((await claim()).status).toBe(403);
+    c.tables.User[0].role = "admin";
+    const report = code => run({ operation: "result", command_id: id, device_token: token, code });
+    expect((await report("UPDATE_REQUESTED")).status).toBe(200);
+    expect(d.control_status.state).toBe("requested");
+    expect((await report("UPDATE_INSTALLED")).status).toBe(200);
+    expect(d.control_status.state).toBe("applied");
+    await report("UPDATE_FAILED");
+    expect(d.control_status.state).toBe("applied");
+  });
+  it("requires recent compatible native health and rejects changed release identity", async () => {
+    for (const change of [{ management_owner: false }, { native_update_available: false }, { native_app_code: 2 },
+      { reported_at: "2020-01-01" }, { native_app_package: "helper" }]) {
+      const { d, run, c } = releasedFixture(); Object.assign(d.helper_health, change);
+      expect((await run({ operation: "request", action: "app_update", release_id: release.id })).status).toBe(409);
+      expect(c.writes).toHaveLength(0);
+    }
+    const { run, d, token } = releasedFixture();
+    const r = await run({ operation: "request", action: "app_update", release_id: release.id });
+    const id = (await r.json()).status.id; d.control_command.release_id = "withdrawn";
+    expect((await run({ operation: "claim", command_id: id, device_token: token })).status).toBe(410);
+  });
+});

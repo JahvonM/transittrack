@@ -34,6 +34,8 @@ export default async function(req) {
       }
       if (device.status !== 'active' || device.paired !== true) return reply({ error: 'Pair this tablet first' }, 409);
       const prior = device.control_command;
+      if (prior?.action === 'app_update' && device.control_status?.result_code === 'UPDATE_REQUESTED' && now - Date.parse(prior.requested_at) < 600000)
+        return reply({ error: 'Native installation is awaiting confirmation. Wait for tablet status before another command.' }, 409);
       if (currentControl(device, now) && device.control_status?.state === 'waiting') return reply({ error: 'A tablet command is already waiting. Wait for completion or expiry.' }, 409);
       if (input.action !== 'release' && prior && now - Date.parse(prior.requested_at) < CONTROL_TTL) return reply({ error: 'Wait two minutes between tablet commands.' }, 429);
       const credential = (await db.DeviceCredential.filter({ device_id: device.id }, '-issued_at', 1))[0];

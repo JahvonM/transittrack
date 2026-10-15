@@ -126,6 +126,7 @@ public class TabletControlPlugin extends Plugin {
                 Toast.makeText(getContext(), "Admin kiosk lock test: releases automatically within 10 minutes", Toast.LENGTH_LONG).show();
                 return "LOCKED";
             }
+            if (NativeAppUpdate.pending(getContext())) return "TABLET_BUSY";
             if (Build.VERSION.SDK_INT < 24) return "UNSUPPORTED";
             long lastReboot = ledger.lastRebootAt();
             if (lastReboot > 0 && System.currentTimeMillis() - lastReboot < 120000) return "CONTROL_COOLDOWN";
