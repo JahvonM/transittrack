@@ -1,0 +1,220 @@
+package com.transittrack.app;
+
+import android.app.ActivityManager;
+import android.app.admin.DevicePolicyManager;
+import android.content.ComponentName;
+import android.content.Context;
+import android.content.SharedPreferences;
+import android.os.Build;
+import android.os.Handler;
+import android.os.Looper;
+import android.os.SystemClock;
+import android.widget.Toast;
+import com.getcapacitor.*;
+import com.getcapacitor.annotation.CapacitorPlugin;
+import org.json.JSONArray;
+import org.json.JSONObject;
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
+import javax.net.ssl.HttpsURLConnection;
+
+/** WebView supplies only an ID and existing device key. Actions come from fixed HTTPS server. */
+@CapacitorPlugin(name = "TabletControl")
+public class TabletControlPlugin extends Plugin {
+    private static final String ENDPOINT = "https://eager-transit-track-go.base44.app/api/apps/6a98b192be27b5f9635020ba/functions/tabletControl";
+    private final ExecutorService worker = Executors.newSingleThreadExecutor();
+    private final Handler main = new Handler(Looper.getMainLooper());
+    private SharedPreferences prefs;
+    private volatile boolean safe = false;
+    private volatile String safeDevice = "";
+    private volatile long safetyAt = 0;
+    private volatile long interactionAt = SystemClock.elapsedRealtime();
+    private final Runnable expiry = new Runnable() { public void run() {
+        checkLease(); main.postDelayed(this, 1000);
+    }};
+    @Override public void load() {
+        prefs = getContext().getSharedPreferences("tt_tablet_control", Context.MODE_PRIVATE);
+        main.post(expiry);
+    }
+    @Override protected void handleOnDestroy() {
+        main.removeCallbacks(expiry); worker.shutdownNow();
+        super.handleOnDestroy();
+    }
+    @Override protected void handleOnPause() { safe = false; safetyAt = 0; super.handleOnPause(); }
+    @Override protected void handleOnResume() { checkLease(); super.handleOnResume(); }
+    void noteInteraction() { interactionAt = SystemClock.elapsedRealtime(); safe = false; }
+    @PluginMethod public void setWorkSafety(PluginCall call) {
+        safe = Boolean.TRUE.equals(call.getBoolean("safe", false));
+        safeDevice = call.getString("device_id", "");
+        safetyAt = SystemClock.elapsedRealtime();
+        call.resolve();
+    }
+    private DevicePolicyManager policy() { return (DevicePolicyManager) getContext().getSystemService(Context.DEVICE_POLICY_SERVICE); }
+    private ComponentName admin() { return new ComponentName(getContext(), TransitDeviceAdminReceiver.class); }
+    private boolean owner() { DevicePolicyManager d = policy(); return d != null && d.isDeviceOwnerApp(getContext().getPackageName()); }
+    private boolean locked() {
+        ActivityManager a = (ActivityManager) getContext().getSystemService(Context.ACTIVITY_SERVICE);
+        return a != null && (Build.VERSION.SDK_INT >= 23 ? a.getLockTaskModeState() != ActivityManager.LOCK_TASK_MODE_NONE : a.isInLockTaskMode());
+    }
+    @PluginMethod public void getState(PluginCall call) {
+        main.post(() -> {
+            checkLease();
+            JSObject out = new JSObject();
+            out.put("available", true); out.put("deviceOwner", owner());
+            out.put("locked", locked()); out.put("temporaryLock", prefs.getBoolean("lease", false));
+            out.put("leaseSeconds", Math.max(0, (prefs.getLong("leaseElapsed", 0) - SystemClock.elapsedRealtime()) / 1000));
+            out.put("rebootSupported", Build.VERSION.SDK_INT >= 24);
+            out.put("lastCode", prefs.getString("lastCode", ""));
+            call.resolve(out);
+        });
+    }
+    private String[] previousPackages() {
+        try {
+            JSONArray array = new JSONArray(prefs.getString("previousPackages", "[]"));
+            String[] out = new String[array.length()];
+            for (int i = 0; i < out.length; i++) out[i] = array.getString(i);
+            return out;
+        } catch (Exception ignored) { return new String[0]; }
+    }
+    private boolean releaseLease() {
+        if (!prefs.getBoolean("lease", false)) return true;
+        try {
+            if (locked()) getActivity().stopLockTask();
+            if (owner()) policy().setLockTaskPackages(admin(), previousPackages());
+            if (locked()) return false;
+            return prefs.edit().putBoolean("lease", false).remove("previousPackages")
+                .remove("leaseWall").remove("leaseElapsed").commit();
+        } catch (RuntimeException ignored) { return false; }
+    }
+    private void checkLease() {
+        if (prefs == null || !prefs.getBoolean("lease", false)) return;
+        long now = SystemClock.elapsedRealtime(), until = prefs.getLong("leaseElapsed", 0);
+        long wall = prefs.getLong("leaseWall", 0), start = prefs.getLong("leaseStartedElapsed", 0);
+        // Wall deadline and elapsed deadline: clock changes never extend a live lease.
+        // After a reboot, release on load (elapsed clock reset or deadline reached).
+        if (now < start || now >= until || System.currentTimeMillis() >= wall) {
+            if (releaseLease()) prefs.edit().putString("lastCode", "LEASE_RELEASED").apply();
+        }
+    }
+    private String perform(String action, long leaseMs, String device, long deadline) {
+        if (SystemClock.elapsedRealtime() >= deadline) return "EXPIRED";
+        if (!getActivity().hasWindowFocus()) return "APP_NOT_VISIBLE";
+        if (!owner()) return "DEVICE_OWNER_REQUIRED";
+        try {
+            if ("release".equals(action)) return prefs.getBoolean("lease", false) ? (releaseLease() ? "RELEASED" : "ANDROID_ERROR") : "NO_LOCK";
+            if ("lock_test".equals(action)) {
+                if (locked() || prefs.getBoolean("lease", false)) return "ALREADY_LOCKED";
+                long now = SystemClock.elapsedRealtime();
+                String[] previous = policy().getLockTaskPackages(admin());
+                JSONArray old = new JSONArray();
+                java.util.LinkedHashSet<String> allowed = new java.util.LinkedHashSet<>();
+                for (String p : previous) { old.put(p); allowed.add(p); }
+                allowed.add(getContext().getPackageName());
+                // Recovery lease persisted before modifying Android policy.
+                if (!prefs.edit().putBoolean("lease", true).putString("previousPackages", old.toString())
+                    .putLong("leaseStartedElapsed", now).putLong("leaseElapsed", now + leaseMs)
+                    .putLong("leaseWall", System.currentTimeMillis() + leaseMs).commit()) return "STORAGE_ERROR";
+                policy().setLockTaskPackages(admin(), allowed.toArray(new String[0]));
+                getActivity().startLockTask();
+                if (!locked()) { releaseLease(); return "ANDROID_ERROR"; }
+                Toast.makeText(getContext(), "Admin kiosk lock test: releases automatically within 10 minutes", Toast.LENGTH_LONG).show();
+                return "LOCKED";
+            }
+            if (Build.VERSION.SDK_INT < 24) return "UNSUPPORTED";
+            if (!device.equals(safeDevice) || !TabletControlPolicy.rebootSafe(safe, safetyAt, interactionAt, SystemClock.elapsedRealtime())) return "TABLET_BUSY";
+            // Persist the requested outcome BEFORE reboot. If process exits immediately,
+            // next heartbeat can forward this receipt without repeating the side effect.
+            if (!saveReceipt(activeId, "REBOOT_REQUESTED")) return "STORAGE_ERROR";
+            policy().reboot(admin());
+            return "REBOOT_REQUESTED";
+        } catch (RuntimeException ignored) {
+            if ("lock_test".equals(action)) releaseLease();
+            return "ANDROID_ERROR";
+        }
+    }
+    private String activeId = ""; // worker serialises executions; UI is joined before next task
+    private boolean reserve(String id) {
+        SharedPreferences.Editor edit = prefs.edit();
+        long now = System.currentTimeMillis(); int retained = 0;
+        for (Map.Entry<String, ?> item : prefs.getAll().entrySet()) {
+            if (!item.getKey().startsWith("receipt.")) continue;
+            try {
+                JSONObject entry = new JSONObject(String.valueOf(item.getValue()));
+                if (now - entry.getLong("at") > 24 * 3600_000L) edit.remove(item.getKey()); else retained++;
+            } catch (Exception bad) { retained++; } // corrupt ledger fails closed; no fresh entries evicted
+        }
+        if (retained >= 128) return false;
+        try { return edit.putString("receipt." + id, new JSONObject().put("at", now).put("code", "INTERRUPTED").toString()).commit(); }
+        catch (Exception impossible) { return false; }
+    }
+    private String receipt(String id) {
+        String stored = prefs.getString("receipt." + id, null);
+        if (stored == null) return null;
+        try { return new JSONObject(stored).getString("code"); } catch (Exception ignored) { return "INTERRUPTED"; }
+    }
+    private boolean saveReceipt(String id, String code) {
+        try { return prefs.edit().putString("receipt." + id, new JSONObject().put("at", System.currentTimeMillis()).put("code", code).toString())
+            .putString("lastCode", code).commit(); }
+        catch (Exception ignored) { return false; }
+    }
+    private JSONObject post(JSONObject body) throws Exception {
+        HttpsURLConnection connection = (HttpsURLConnection) new URL(ENDPOINT).openConnection();
+        try {
+            connection.setInstanceFollowRedirects(false); connection.setRequestMethod("POST");
+            connection.setConnectTimeout(8000); connection.setReadTimeout(8000);
+            connection.setDoOutput(true); connection.setRequestProperty("Content-Type", "application/json");
+            byte[] bytes = body.toString().getBytes(StandardCharsets.UTF_8);
+            connection.setFixedLengthStreamingMode(bytes.length);
+            try (java.io.OutputStream out = connection.getOutputStream()) { out.write(bytes); }
+            if (connection.getResponseCode() != 200) throw new java.io.IOException("CONTROL_DENIED");
+            try (InputStream in = connection.getInputStream(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+                byte[] chunk = new byte[1024]; int n;
+                while ((n = in.read(chunk)) != -1) { if (out.size() + n > 16384) throw new java.io.IOException("CONTROL_SIZE"); out.write(chunk, 0, n); }
+                return new JSONObject(new String(out.toByteArray(), StandardCharsets.UTF_8));
+            }
+        } finally { connection.disconnect(); }
+    }
+    @PluginMethod public void execute(PluginCall call) {
+        final String device = call.getString("device_id", ""), token = call.getString("device_token", ""), id = call.getString("command_id", "");
+        if (!device.matches("[A-Za-z0-9_-]{6,64}") || !TabletControlPolicy.token(token) || !TabletControlPolicy.id(id)) {
+            call.reject("Secure device pairing and command ID required."); return;
+        }
+        worker.execute(() -> {
+            String code = receipt(id);
+            try {
+                JSONObject request = new JSONObject().put("device_id", device).put("device_token", token).put("command_id", id);
+                if (code == null) {
+                    long started = SystemClock.elapsedRealtime();
+                    JSONObject proof = post(new JSONObject(request.toString()).put("operation", "claim"));
+                    String action = proof.optString("action");
+                    long ttl = proof.optLong("ttl_ms", 0), lease = proof.optLong("lease_ms", 0);
+                    if (!TabletControlPolicy.proof(proof.optString("id"), id, action, ttl, lease)) throw new java.io.IOException("INVALID_PROOF");
+                    long deadline = started + ttl;
+                    long remainingLease = Math.max(0, lease - (SystemClock.elapsedRealtime() - started));
+                    if (!reserve(id)) { call.reject("Tablet cannot persist a command receipt."); return; }
+                    activeId = id;
+                    final String[] result = { "INTERRUPTED" };
+                    CountDownLatch done = new CountDownLatch(1);
+                    main.post(() -> { try { result[0] = perform(action, remainingLease, device, deadline); } finally { done.countDown(); } });
+                    // No timed-out UI runnable can execute later: keep worker joined until UI finishes.
+                    done.await();
+                    code = result[0];
+                    if (!saveReceipt(id, code)) code = "INTERRUPTED";
+                }
+                boolean reported = false;
+                try { post(new JSONObject(request.toString()).put("operation", "result").put("code", code)); reported = true; } catch (Exception ignored) { }
+                JSObject out = new JSObject(); out.put("code", code); out.put("reported", reported); call.resolve(out);
+            } catch (Exception ignored) {
+                // Fixed message only: never log credentials, server bodies or exceptions.
+                call.reject("Command could not be verified. No unverified action was started.");
+            }
+        });
+    }
+}
