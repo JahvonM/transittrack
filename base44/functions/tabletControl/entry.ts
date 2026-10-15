@@ -11,7 +11,7 @@ export default async function(req) {
     if (typeof deviceId !== 'string' || !/^[A-Za-z0-9_-]{6,64}$/.test(deviceId)) return reply({ error: 'Choose a tablet' }, 400);
     // Check administrator identity before looking up a tablet on admin routes.
     let admin = null;
-    if (input.operation === 'request' || input.operation === 'cancel') {
+    if (input.operation === 'request') {
       admin = await base44.auth.me().catch(() => null);
       if (admin?.role !== 'admin') return reply({ error: 'Admins only' }, 403);
     } else if (!['claim', 'result'].includes(input.operation)) return reply({ error: 'Unknown operation' }, 400);
@@ -20,16 +20,9 @@ export default async function(req) {
     const now = Date.now();
     if (admin) {
       if (device.status !== 'active' || device.paired !== true) return reply({ error: 'Pair this tablet first' }, 409);
-      if (input.operation === 'cancel') {
-        // Cancellation can stop waiting delivery; it cannot undo an action already claimed.
-        if (!controlId(input.command_id) || device.control_command?.id !== input.command_id || device.control_status?.state !== 'waiting') return reply({ error: 'Request is no longer waiting' }, 409);
-        const status = { ...device.control_status, state: 'cancelled', message: 'Waiting request cancelled.', completed_at: new Date(now).toISOString() };
-        await db.KioskDevice.update(device.id, { control_command: null, control_status: status });
-        return reply({ ok: true, status });
-      }
       const prior = device.control_command;
-      if (currentControl(device, now) && device.control_status?.state === 'waiting') return reply({ error: 'A tablet command is already waiting. Cancel it first.' }, 409);
-      if (prior && now - Date.parse(prior.requested_at) < CONTROL_TTL) return reply({ error: 'Wait two minutes between tablet commands.' }, 429);
+      if (currentControl(device, now) && device.control_status?.state === 'waiting') return reply({ error: 'A tablet command is already waiting. Wait for completion or expiry.' }, 409);
+      if (input.action !== 'release' && prior && now - Date.parse(prior.requested_at) < CONTROL_TTL) return reply({ error: 'Wait two minutes between tablet commands.' }, 429);
       const credential = (await db.DeviceCredential.filter({ device_id: device.id }, '-issued_at', 1))[0];
       if (!credential || !(Date.parse(credential.expires_at) > now)) return reply({ error: 'Secure tablet pairing is required for managed controls.' }, 409);
       let built; try { built = newControl(device, input.action, admin.id, now); }
@@ -58,6 +51,20 @@ export default async function(req) {
     if (!active || device.control_status?.state !== 'waiting') return reply({ error: 'Command expired or completed' }, 410);
     const requester = await db.User.get(active.requested_by).catch(() => null);
     if (requester?.role !== 'admin') return reply({ error: 'Administrator access changed' }, 403);
+    if (active.action === 'reboot') {
+      // Server corroborates the local idle/queue gate, including boarding tablets.
+      if (!device.vehicle_id) return reply({ error: 'Vehicle state is unavailable' }, 409);
+      const vehicle = await db.Vehicle.get(device.vehicle_id).catch(() => null);
+      if (!vehicle || vehicle.company_id !== device.company_id || vehicle.tracking_active !== false ||
+        typeof vehicle.speed !== 'number' || !Number.isFinite(vehicle.speed) || vehicle.speed < 0 || vehicle.speed >= 0.5) return reply({ error: 'Vehicle must be parked with tracking off' }, 409);
+      let exhausted = false;
+      for (let page = 0; page < 10; page++) {
+        const shifts = await db.DriverShift.filter({ vehicle_id: device.vehicle_id, company_id: device.company_id }, '-started_at', 100, page * 100);
+        if (shifts.some(row => !row.ended_at)) return reply({ error: 'End the driver shift before restarting' }, 409);
+        if (shifts.length < 100) { exhausted = true; break; }
+      }
+      if (!exhausted) return reply({ error: 'Shift history could not be fully checked; restart locally' }, 409);
+    }
     // Native validates TLS, endpoint, command ID, duration and action itself.
     return reply({ id: active.id, action: active.action, ttl_ms: Date.parse(active.expires_at) - now,
       ...(active.action === 'lock_test' ? { lease_ms: Date.parse(active.lock_until) - now } : {}) });

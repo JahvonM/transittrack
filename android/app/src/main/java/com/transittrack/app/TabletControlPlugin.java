@@ -112,6 +112,8 @@ public class TabletControlPlugin extends Plugin {
                 return "LOCKED";
             }
             if (Build.VERSION.SDK_INT < 24) return "UNSUPPORTED";
+            long lastReboot = prefs.getLong("lastRebootAt", 0);
+            if (lastReboot > 0 && System.currentTimeMillis() - lastReboot < 120000) return "CONTROL_COOLDOWN";
             if (!device.equals(safeDevice) || !TabletControlPolicy.rebootSafe(safe, safetyAt, interactionAt, SystemClock.elapsedRealtime())) return "TABLET_BUSY";
             // Persist the requested outcome BEFORE reboot. If process exits immediately,
             // next heartbeat can forward this receipt without repeating the side effect.
@@ -145,9 +147,13 @@ public class TabletControlPlugin extends Plugin {
         try { return new JSONObject(stored).getString("code"); } catch (Exception ignored) { return "INTERRUPTED"; }
     }
     private boolean saveReceipt(String id, String code) {
-        try { return prefs.edit().putString("receipt." + id, new JSONObject().put("at", System.currentTimeMillis()).put("device", activeDevice).put("reported", false).put("code", code).toString())
-            .putString("lastCode", code).commit(); }
-        catch (Exception ignored) { return false; }
+        try {
+            SharedPreferences.Editor edit = prefs.edit().putString("receipt." + id,
+                new JSONObject().put("at", System.currentTimeMillis()).put("device", activeDevice)
+                    .put("reported", false).put("code", code).toString()).putString("lastCode", code);
+            if ("REBOOT_REQUESTED".equals(code)) edit.putLong("lastRebootAt", System.currentTimeMillis());
+            return edit.commit();
+        } catch (Exception ignored) { return false; }
     }
     @PluginMethod public void pendingReceipts(PluginCall call) {
         String device = call.getString("device_id", "");

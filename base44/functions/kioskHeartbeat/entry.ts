@@ -90,7 +90,6 @@ function cleanAppHealth(h: unknown): Record<string, unknown> | null {
   const coord = (v: unknown, max: number) =>
     typeof v === 'number' && Number.isFinite(v) && Math.abs(v) <= max ? Math.round(v * 1e6) / 1e6 : undefined;
   const out: Record<string, unknown> = { reported_at: new Date().toISOString() };
-  for (const k of ['management_available', 'management_owner', 'management_locked']) if (typeof o[k] === 'boolean') out[k] = o[k];
   const set = (k: string, v: unknown) => { if (v !== undefined) out[k] = v; };
   set('build', str(o.build, 24));
   set('lat', coord(o.lat, 90));
