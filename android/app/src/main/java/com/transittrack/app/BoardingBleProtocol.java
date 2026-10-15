@@ -5,6 +5,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayDeque;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Iterator;
 
 /** Bounded, synchronized transport policy; no persisted codes or phone addresses. */
 final class BoardingBleProtocol {
@@ -32,7 +33,8 @@ final class BoardingBleProtocol {
     // Includes malformed complete messages, so junk does not bypass the budget.
     synchronized boolean reserve(String phone, long now) {
         while (!attempts.isEmpty() && now - attempts.peekFirst() >= 60000) attempts.removeFirst();
-        phones.entrySet().removeIf(e -> now - e.getValue() >= 60000);
+        Iterator<Map.Entry<String, Long>> phoneIt = phones.entrySet().iterator();
+        while (phoneIt.hasNext()) if (now - phoneIt.next().getValue() >= 60000) phoneIt.remove();
         Long last = phones.get(phone);
         if (attempts.size() >= 20 || (last != null && now - last < 3000)) return false;
         phones.put(phone, now);
@@ -40,7 +42,8 @@ final class BoardingBleProtocol {
         return true;
     }
     synchronized boolean append(String phone, int offset, byte[] bytes, long now) {
-        pending.entrySet().removeIf(e -> now - e.getValue().at >= 10000);
+        Iterator<Map.Entry<String, Pending>> pendingIt = pending.entrySet().iterator();
+        while (pendingIt.hasNext()) if (now - pendingIt.next().getValue().at >= 10000) pendingIt.remove();
         Pending item = pending.get(phone);
         if (bytes == null || bytes.length == 0 || offset < 0 ||
             (item == null && (offset != 0 || pending.size() >= 8)) ||
