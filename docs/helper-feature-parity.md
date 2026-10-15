@@ -10,7 +10,7 @@ Baseline: current helper source, manifest version 1.14 / code 15. This is the mi
 | ACR122U CCID card reading and reconnect after detach/wake | Integrated, opt-in on boarding tablet | Native compilation and mocked boarding tests pass; physical USB/wake test pending |
 | Accepted/rejected reader lights and buzzer based on page acknowledgement | Integrated with per-tap receipts | Late/wrong/duplicate/expired response tests pass; actual lights/buzzer require hardware |
 | Tap buffering/retry while page starts or wakes | Integrated reader waits for page readiness; retries same ID, memory only, 30-second expiry | Browser tests confirm one lookup/boarding on delivery retry; no UID persistence |
-| Bluetooth boarding advertisement and code delivery | Separate helper still required | Preserve service/characteristic UUIDs, name, validation and attempt limits |
+| Bluetooth boarding advertisement and code delivery | Integrated, opt-in on boarding screen | Native compilation/protocol tests and mocked boarding/PIN settings tests pass; actual phone/tablet advertising and long-write test pending |
 | Per-minute health report and local diagnostics | Native battery/power/temperature/storage/network/USB/GPS/NFC status integrated; bounded local timeline | Existing heartbeat carries allowlisted metadata to admin. Full hotspot/BLE/carrier health still pending |
 | Wi-Fi scan/join/reconnect/power and local network PIN | Separate helper still required | Android 10 helper relies on API-28 Wi-Fi behaviour; modern target needs managed-device or OS-supported path, verified on tablet |
 | Hotspot enable/disable, always-on mode and timeout handling | Separate helper still required | Firmware/ADB-grant dependent; must report blocked operations honestly |
@@ -69,9 +69,14 @@ Validation:
 - Production web build, changed-file lint and diff whitespace check passed. Settings screenshot inspected.
 - No live records, accounts, tablets, credentials or signing keys changed. No APK was signed or published. VFAN/ACR122U hardware validation remains necessary.
 
-Remaining replacement work includes Bluetooth boarding, automatic managed Wi-Fi/hotspot operations, SIM/carrier health, low-battery policy, boot/background service/watchdog recovery, remote command execution/diagnostics, native update delivery and managed kiosk lockdown. Camera/screen support remains a separate authenticated-session integration. The separate helper and FreeKiosk must remain installed until the required rows are physically verified.
+Remaining replacement work includes automatic managed Wi-Fi/hotspot operations, SIM/carrier health, low-battery policy, boot/background service/watchdog recovery, remote command execution/diagnostics, native update delivery and managed kiosk lockdown. Camera/screen support remains a separate authenticated-session integration. The separate helper and FreeKiosk must remain installed until the required rows are physically verified.
 
 
 ## Kiosk-only launch checkpoint (2026-10-15)
 
 The installed Android helper build now opens driver or boarding/signing screens, remembers the selected mode, resumes a single existing pairing on upgrade and redirects passenger/account links to the tablet flow. Driver settings and PIN-gated boarding settings include a deliberate screen chooser. Phone OAuth and notification navigation listeners are disabled for this build. Android launcher label is TransitTrack Kiosk; application ID, signing identity, saved credentials/queues and server records are unchanged. See kiosk-app-boundary.md for validation and upgrade checks. A separately packaged passenger binary without helper plugins is still pending. This checkpoint does not complete the helper parity rows above.
+
+
+## Integrated Bluetooth boarding checkpoint (2026-10-15)
+
+BoardingBluetooth native receiver now receives the existing passenger phone protocol directly in the kiosk app. Off by default; enabled through the bus-PIN settings, only while the boarding page is ready and foreground. Preserves service/characteristic IDs, bus name and existing backend lookup/Boarding-or-Exiting confirmation. Adds bounded/expiring prepared writes, synchronized transport limits, lifecycle invalidation, duplicate-event filtering, status/retry/settings and local health status. Rejected-code messages are visible on the locked boarding screen. See integrated-boarding-bluetooth.md for validation and physical acceptance. Keep the separate helper and FreeKiosk installed until all required hardware/parity checks pass.
