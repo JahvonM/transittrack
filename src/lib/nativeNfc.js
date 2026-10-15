@@ -6,15 +6,17 @@ export async function nativeNfcState() {
   try { return await UsbNfc.getState(); } catch { return { available: false, enabled: false }; }
 }
 export const setNativeNfcEnabled = enabled => UsbNfc.setEnabled({ enabled: !!enabled });
+let cardListening = false, desiredReady = false;
 export async function setNativeNfcReady(ready) {
-  if (nativeNfcAvailable()) await UsbNfc.setReady({ ready: !!ready });
+  desiredReady = !!ready;
+  if (nativeNfcAvailable() && (!ready || cardListening)) await UsbNfc.setReady({ ready: !!ready });
 }
 export async function retryNativeNfc() { if (nativeNfcAvailable()) await UsbNfc.rescan(); }
 export const onNativeNfcState = callback => listen("readerState", callback);
-function listen(name, callback) {
+function listen(name, callback, onReady) {
   let stopped = false, handle;
   if (nativeNfcAvailable()) UsbNfc.addListener(name, value => { if (!stopped) callback(value); })
-    .then(h => { if (stopped) void h.remove(); else handle = h; }).catch(() => {});
+    .then(h => { if (stopped) void h.remove(); else { handle = h; onReady?.(); } }).catch(() => {});
   return () => { stopped = true; void handle?.remove(); };
 }
 
@@ -62,7 +64,7 @@ export function bridgeNativeNfc(target = window) {
       const event = new CustomEvent("tt-badge", { detail: tap.uid });
       event.ttTapId = tap.id; event.ttTapAt = tap.at; event.ttSource = "native";
       target.dispatchEvent(event);
-    });
+    }, () => { cardListening = true; void setNativeNfcReady(desiredReady).catch(() => {}); });
     detach = () => { stopState(); stopCard(); };
   }
   let stopped = false;
@@ -70,6 +72,7 @@ export function bridgeNativeNfc(target = window) {
     if (stopped) return;
     stopped = true;
     if (--clients === 0) {
+      cardListening = false;
       detach?.(); detach = null;
       void setNativeNfcReady(false).catch(() => {});
     }
