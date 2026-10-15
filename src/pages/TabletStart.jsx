@@ -1,10 +1,8 @@
 import { Link, Navigate, useSearchParams } from "react-router-dom";
 import { Bus, ScanLine, ShieldCheck, ChevronRight } from "lucide-react";
 import { savedTabletPath, rememberTabletMode } from "@/lib/kioskApp";
-import { useKeepAwake } from "@/hooks/useKeepAwake";
 
 export default function TabletStart() {
-  useKeepAwake();
   const [params] = useSearchParams();
   const saved = savedTabletPath();
   if (params.get("choose") !== "1" && saved !== "/tablet") return <Navigate to={saved} replace />;

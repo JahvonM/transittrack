@@ -8,12 +8,13 @@ export function isKioskInstall() {
     && (Capacitor.isPluginAvailable("UsbGps") || Capacitor.isPluginAvailable("UsbNfc"));
 }
 const MODE_KEY = "tt_tablet_mode";
-export function rememberTabletMode(mode, storage = localStorage) {
+export function rememberTabletMode(mode, storage) {
   if (!["driver", "kiosk"].includes(mode)) return;
-  try { storage.setItem(MODE_KEY, mode); } catch { /* Session still works without storage. */ }
+  try { (storage || globalThis.localStorage).setItem(MODE_KEY, mode); } catch { /* Session still works without storage. */ }
 }
-export function savedTabletPath(storage = localStorage) {
+export function savedTabletPath(storage) {
   try {
+    storage = storage || globalThis.localStorage;
     const mode = storage.getItem(MODE_KEY);
     if (mode === "driver" || mode === "kiosk") return "/" + mode;
     // Upgrade an existing paired install without clearing credentials or queues.
