@@ -12,6 +12,8 @@ export const CONTROL_RESULTS: Record<string, { state: string; message: string; a
   UNSUPPORTED: { state: 'blocked', message: 'This Android version does not support the action.' },
   ALREADY_LOCKED: { state: 'blocked', message: 'Another kiosk lock is already active. This test did not take it over.', actions: ['lock_test'] },
   INTERRUPTED: { state: 'unknown', message: 'Execution was interrupted. Inspect tablet status before sending another request.' },
+  APP_NOT_VISIBLE: { state: 'blocked', message: 'Open the kiosk app on the tablet before retrying.' },
+  EXPIRED: { state: 'blocked', message: 'Command expired before Android execution.' },
   ANDROID_ERROR: { state: 'failed', message: 'Android could not complete the action.' },
   STORAGE_ERROR: { state: 'blocked', message: 'Tablet could not save its command receipt. No new action was started.' },
 };

@@ -16,9 +16,16 @@ public class MainActivity extends BridgeActivity {
         initialPlugins.add(TabletHealthPlugin.class);
         initialPlugins.add(TabletRecoveryPlugin.class);
         initialPlugins.add(TabletNetworkPlugin.class);
+        initialPlugins.add(TabletControlPlugin.class);
         initialPlugins.add(SafePushNotificationsPlugin.class);
         super.onCreate(savedInstanceState);
         keepTabletAwake();
+    }
+    @Override public void onUserInteraction() {
+        super.onUserInteraction();
+        if (getBridge() != null && getBridge().getPlugin("TabletControl") != null) {
+            ((TabletControlPlugin) getBridge().getPlugin("TabletControl").getInstance()).noteInteraction();
+        }
     }
     private void keepTabletAwake() {
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
