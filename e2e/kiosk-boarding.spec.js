@@ -355,8 +355,8 @@ test('boarding scene assets load without a network after being saved',async({pag
  expect(loaded).toEqual([true,true]);
 });
 
-async function installNativeHelper(page, enabled = true) {
-  await page.addInitScript(({ enabled }) => {
+async function installNativeHelper(page, enabled = true, bleEnabled = false) {
+  await page.addInitScript(({ enabled, bleEnabled }) => {
     let state = { available: true, enabled, status: enabled ? 'Connected' : 'Off', delivery: 'No tap yet', lastTapAt: 0, autoAcceptEnabled: false };
     const listeners = new Map();
     window.__nativeTapResults = [];
@@ -376,10 +376,21 @@ async function installNativeHelper(page, enabled = true) {
       openWifiSettings: async () => { window.__wifiSettingsOpened = true; },
       openHotspotSettings: async () => { window.__hotspotSettingsOpened = true; },
     };
+    let bleState = { available: true, enabled: bleEnabled, status: 'Off', permissionGranted: true };
+    window.__nativeBleEnabled = bleEnabled; window.__nativeBleReady = false;
+    window.__emitNativeBle = value => { if (bleState.enabled && window.__nativeBleReady) for (const cb of listeners.get('boardingCode') || []) cb(value); };
+    const ble = {
+      getState: async () => ({ ...bleState }),
+      addListener: nfc.addListener,
+      setReady: async ({ ready }) => { window.__nativeBleReady = ready; return { ...bleState }; },
+      setEnabled: async ({ enabled }) => { bleState = { ...bleState, enabled, status: enabled ? 'Ready as Bus 12' : 'Off' }; window.__nativeBleEnabled = enabled; for (const cb of listeners.get('receiverState') || []) cb({ ...bleState }); return { ...bleState }; },
+      retry: async () => { window.__nativeBleRetried = true; return { ...bleState }; },
+      openSettings: async () => { window.__nativeBluetoothSettingsOpened = true; },
+    };
     const gps = { openAutoAcceptSettings: async () => { window.__autoAcceptSettingsOpened = true; } };
     const other = new Proxy({}, { get: (_, key) => key === 'addListener' ? async () => ({ remove: async () => {} }) : async () => ({}) });
-    window.CapacitorPlatforms = { platforms: new Map(), currentPlatform: { name: 'android', getPlatform: () => 'android', isNativePlatform: () => true, isPluginAvailable: name => ['UsbNfc', 'TabletHealth', 'UsbGps'].includes(name), registerPlugin: name => name === 'UsbNfc' ? nfc : name === 'TabletHealth' ? health : name === 'UsbGps' ? gps : other } };
-  }, { enabled });
+    window.CapacitorPlatforms = { platforms: new Map(), currentPlatform: { name: 'android', getPlatform: () => 'android', isNativePlatform: () => true, isPluginAvailable: name => ['UsbNfc', 'TabletHealth', 'UsbGps', 'BoardingBluetooth'].includes(name), registerPlugin: name => name === 'BoardingBluetooth' ? ble : name === 'UsbNfc' ? nfc : name === 'TabletHealth' ? health : name === 'UsbGps' ? gps : other } };
+  }, { enabled, bleEnabled });
 }
 
 test('integrated NFC reader correlates accepted taps and retries without duplicate boarding', async ({ page }) => {
@@ -439,4 +450,57 @@ test('boarding settings expose integrated reader, USB auto-accept and tablet hea
   await dialog.getByRole('button', { name: 'Wi-Fi settings', exact: true }).click();
   await expect.poll(() => page.evaluate(() => window.__wifiSettingsOpened)).toBe(true);
   await page.screenshot({ path: '/tmp/native-helper-boarding-settings.png', fullPage: true });
+});
+
+test('native Bluetooth uses existing code verification and confirms before boarding', async ({ page }) => {
+  await installNativeHelper(page, true, true);
+  const { calls, errors } = await setup(page, { checkIn: b =>
+    b.action === 'lookup_code' ? { json: { staff: person, next_status: 'boarded', verification_grant: 'b'.repeat(64) } }
+    : b.action === 'check_in' ? { json: { record: { staff_name: person.full_name, status: b.status }, occupancy: 5, today_count: 10 } } : null });
+  await page.goto('/kiosk');
+  await expect.poll(() => page.evaluate(() => window.__nativeBleReady)).toBe(true);
+  const event = { id: 'ble-native-accepted-12345678', code: 'tt-code:QRTOKEN123456', at: await page.evaluate(() => Date.now()) };
+  await page.evaluate(e => { window.__emitNativeBle(e); window.__emitNativeBle(e); }, event);
+  await expect(page.getByText('Are you boarding or exiting?')).toBeVisible();
+  expect(calls.filter(([a]) => a === 'lookup_code')).toHaveLength(1);
+  expect(calls.filter(([a]) => a === 'check_in')).toHaveLength(0);
+  await page.getByRole('button', { name: /Boarding/ }).click();
+  await expect(page.getByText(/Welcome aboard, Maria!/)).toBeVisible();
+  expect(calls.filter(([a]) => a === 'check_in')).toHaveLength(1);
+  expect(await page.evaluate(() => Object.values(localStorage).join(' '))).not.toContain(event.code);
+  expect(errors).toEqual([]);
+});
+test('native Bluetooth rejected and expired codes cannot board a passenger', async ({ page }) => {
+  await installNativeHelper(page, true, true);
+  const { calls } = await setup(page, { checkIn: b => b.action === 'lookup_code' ? { status: 403, json: { error: 'Boarding code rejected' } } : null });
+  await page.goto('/kiosk');
+  await expect.poll(() => page.evaluate(() => window.__nativeBleReady)).toBe(true);
+  await page.evaluate(() => window.__emitNativeBle({ id: 'ble-native-expired-12345678', code: 'tt-code:QRTOKEN123456', at: Date.now() - 31000 }));
+  await page.evaluate(() => window.__emitNativeBle({ id: 'ble-native-rejected-12345678', code: 'tt-code:QRTOKEN123456', at: Date.now() }));
+  await expect(page.getByText('Boarding code rejected', { exact: true })).toBeVisible();
+  expect(calls.filter(([a]) => a === 'lookup_code')).toHaveLength(1);
+  expect(calls.filter(([a]) => a === 'check_in')).toHaveLength(0);
+});
+test('native Bluetooth control remains behind the boarding settings PIN', async ({ page }) => {
+  await installNativeHelper(page, true, false);
+  await setup(page, { checkIn: b => b.action === 'verify_settings_pin' ? { json: { ok: true } } : null });
+  await page.goto('/kiosk');
+  await expect(page.getByRole('switch', { name: 'Use integrated Bluetooth boarding' })).toHaveCount(0);
+  const bar = page.locator('.tt-board-topbar');
+  await bar.dispatchEvent('pointerdown');
+  await page.waitForTimeout(3100);
+  await bar.dispatchEvent('pointerup');
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.getByText('Bus PIN', { exact: true })).toBeVisible();
+  for (const n of ['1', '2', '3', '4']) await dialog.getByRole('button', { name: n, exact: true }).click();
+  await expect(dialog.getByRole('switch', { name: 'Use integrated Bluetooth boarding' })).toBeVisible();
+  await dialog.getByRole('switch', { name: 'Use integrated Bluetooth boarding' }).click();
+  await expect.poll(() => page.evaluate(() => window.__nativeBleEnabled)).toBe(true);
+  await dialog.getByRole('button', { name: 'Retry Bluetooth boarding', exact: true }).click();
+  await expect.poll(() => page.evaluate(() => window.__nativeBleRetried)).toBe(true);
+  await dialog.getByRole('button', { name: 'Open Android Bluetooth settings', exact: true }).click();
+  await expect.poll(() => page.evaluate(() => window.__nativeBluetoothSettingsOpened)).toBe(true);
+  await dialog.getByRole('button', { name: 'Done', exact: true }).click();
+  await page.goto('/tablet?choose=1');
+  await expect.poll(() => page.evaluate(() => window.__nativeBleReady)).toBe(false);
 });
