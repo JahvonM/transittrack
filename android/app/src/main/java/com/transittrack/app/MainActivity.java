@@ -11,6 +11,7 @@ public class MainActivity extends BridgeActivity {
         initialPlugins.add(TabletSupportPlugin.class);
         initialPlugins.add(UsbGpsPlugin.class);
         initialPlugins.add(UsbNfcPlugin.class);
+        initialPlugins.add(TabletHealthPlugin.class);
         initialPlugins.add(SafePushNotificationsPlugin.class);
         super.onCreate(savedInstanceState);
     }

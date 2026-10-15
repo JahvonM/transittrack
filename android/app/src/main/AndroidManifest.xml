@@ -54,6 +54,7 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <!-- The boarding kiosk scans a staff check-in QR with the tablet's camera
          through the WebView. Without this declared, Android denies the page's
          camera request and the scanner can never pick a code up. -->

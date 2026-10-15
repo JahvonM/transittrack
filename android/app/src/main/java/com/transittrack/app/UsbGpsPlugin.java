@@ -44,7 +44,7 @@ public class UsbGpsPlugin extends Plugin {
         if (enabled) startReader();
     }
 
-    private JSObject state() {
+    JSObject state() {
         JSObject value = new JSObject();
         value.put("available", true);
         value.put("autoAcceptEnabled", UsbAutoAcceptService.isEnabled(getContext()));
@@ -56,6 +56,7 @@ public class UsbGpsPlugin extends Plugin {
 
     private void report(String message) {
         status = message;
+        TabletDiagnostics.record("gps", message.startsWith("Fix (") ? "GPS_FIX" : message.equals("Not plugged in") ? "GPS_DISCONNECTED" : "GPS_STATUS_CHANGED");
         notifyListeners("gpsState", state());
     }
 

@@ -42,7 +42,7 @@ public class UsbNfcPlugin extends Plugin {
         else getContext().registerReceiver(permissionResult, filter);
         // Wait for the boarding screen to announce readiness before claiming USB.
     }
-    private JSObject state() {
+    JSObject state() {
         JSObject out = new JSObject();
         out.put("available", true); out.put("enabled", enabled); out.put("ready", ready);
         out.put("status", status); out.put("delivery", delivery); out.put("lastTapAt", lastTapAt);
@@ -51,6 +51,9 @@ public class UsbNfcPlugin extends Plugin {
     }
     private void report(String message) {
         status = message;
+        TabletDiagnostics.record("reader", message.equals("Connected") ? "READER_CONNECTED"
+            : message.equals("Not plugged in") ? "READER_DISCONNECTED"
+            : message.startsWith("USB permission denied") ? "USB_PERMISSION_DENIED" : "READER_STATUS_CHANGED");
         notifyListeners("readerState", state());
     }
     private void startReader() {
@@ -68,7 +71,12 @@ public class UsbNfcPlugin extends Plugin {
             @Override public void onStatus(String message) { if (enabled && foreground) report(message); }
             @Override public void onDelivery(String message) {
                 if (!enabled || !foreground) return;
-                delivery = message; notifyListeners("readerState", state());
+                delivery = message;
+                TabletDiagnostics.record("reader", message.startsWith("Card recognized") ? "TAP_ACCEPTED"
+                    : message.startsWith("Card rejected") ? "TAP_REJECTED"
+                    : message.startsWith("Retrying") ? "TAP_RETRY"
+                    : message.startsWith("App did not") ? "TAP_UNCONFIRMED" : "TAP_PENDING");
+                notifyListeners("readerState", state());
             }
         });
         reader = next; worker.execute(next);
