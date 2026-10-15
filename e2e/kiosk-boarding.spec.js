@@ -355,8 +355,8 @@ test('boarding scene assets load without a network after being saved',async({pag
  expect(loaded).toEqual([true,true]);
 });
 
-async function installNativeHelper(page, enabled = true, bleEnabled = false) {
-  await page.addInitScript(({ enabled, bleEnabled }) => {
+async function installNativeHelper(page, enabled = true, bleEnabled = false, networkOptions = {}) {
+  await page.addInitScript(({ enabled, bleEnabled, networkOptions }) => {
     let state = { available: true, enabled, status: enabled ? 'Connected' : 'Off', delivery: 'No tap yet', lastTapAt: 0, autoAcceptEnabled: false };
     const listeners = new Map();
     window.__nativeTapResults = [];
@@ -387,11 +387,33 @@ async function installNativeHelper(page, enabled = true, bleEnabled = false) {
       retry: async () => { window.__nativeBleRetried = true; return { ...bleState }; },
       openSettings: async () => { window.__nativeBluetoothSettingsOpened = true; },
     };
+    let network = { available: true, enabled: !!networkOptions.enabled, capabilities: { managedWifi: !!networkOptions.managed, scanPermission: false, locationOn: true, writeSettings: false, hotspotOemPath: true }, wifi: { enabled: true, ssid: '', networks: [] }, hotspot: 'Off', hotspot_always: false };
+    window.__nativeNetworkCommands = []; window.__nativeNetworkScanPrompts = 0;
+    const networkEmit = () => { for (const cb of listeners.get('networkState') || []) cb({ ...network, at: Date.now() }); };
+    const net = {
+      getState: async () => ({ ...network, at: Date.now() }), addListener: nfc.addListener,
+      setMode: async ({ mode }) => { window.__nativeNetworkMode = mode; },
+      setEnabled: async ({ enabled }) => { network = { ...network, enabled }; networkEmit(); return { ...network }; },
+      requestScanAccess: async () => { window.__nativeNetworkScanPrompts++; network.capabilities = { ...network.capabilities, scanPermission: true }; networkEmit(); return { ...network }; },
+      openHotspotPermission: async () => { window.__nativeHotspotPermissionOpened = true; },
+      execute: async ({ command }) => {
+        window.__nativeNetworkCommands.push(command);
+        let code = 'NETWORK_ERROR';
+        if (command.type === 'wifi_scan') {
+          code = network.capabilities.scanPermission ? 'WIFI_SCAN_COMPLETE' : 'LOCATION_PERMISSION_REQUIRED';
+          if (network.capabilities.scanPermission) network.wifi = { ...network.wifi, networks: [{ ssid: 'Depot Test', bars: 4, lock: 'password' }], scanned_at: new Date().toISOString() };
+        } else if (command.type === 'wifi_join') {
+          code = network.capabilities.managedWifi ? 'WIFI_JOIN_CONNECTED' : 'MANAGED_WIFI_REQUIRED';
+          if (network.capabilities.managedWifi) network.wifi = { ...network.wifi, ssid: command.ssid };
+        }
+        network.last_code = code; networkEmit(); return { id: command.id, code };
+      },
+    };
     const recovery = { getState: async () => ({ available: true, defaultHome: false }), openHomeSettings: async () => { window.__nativeHomeSettingsOpened = true; } };
     const gps = { openAutoAcceptSettings: async () => { window.__autoAcceptSettingsOpened = true; } };
     const other = new Proxy({}, { get: (_, key) => key === 'addListener' ? async () => ({ remove: async () => {} }) : async () => ({}) });
-    window.CapacitorPlatforms = { platforms: new Map(), currentPlatform: { name: 'android', getPlatform: () => 'android', isNativePlatform: () => true, isPluginAvailable: name => ['UsbNfc', 'TabletHealth', 'UsbGps', 'BoardingBluetooth', 'TabletRecovery'].includes(name), registerPlugin: name => name === 'TabletRecovery' ? recovery : name === 'BoardingBluetooth' ? ble : name === 'UsbNfc' ? nfc : name === 'TabletHealth' ? health : name === 'UsbGps' ? gps : other } };
-  }, { enabled, bleEnabled });
+    window.CapacitorPlatforms = { platforms: new Map(), currentPlatform: { name: 'android', getPlatform: () => 'android', isNativePlatform: () => true, isPluginAvailable: name => ['UsbNfc', 'TabletHealth', 'UsbGps', 'BoardingBluetooth', 'TabletRecovery', 'TabletNetwork'].includes(name), registerPlugin: name => name === 'TabletNetwork' ? net : name === 'TabletRecovery' ? recovery : name === 'BoardingBluetooth' ? ble : name === 'UsbNfc' ? nfc : name === 'TabletHealth' ? health : name === 'UsbGps' ? gps : other } };
+  }, { enabled, bleEnabled, networkOptions });
 }
 
 test('integrated NFC reader correlates accepted taps and retries without duplicate boarding', async ({ page }) => {
@@ -521,4 +543,65 @@ test('startup recovery settings are PIN gated and never change Home automaticall
   await dialog.getByRole('button', { name: 'Open Android Home settings', exact: true }).click();
   await expect.poll(() => page.evaluate(() => window.__nativeHomeSettingsOpened)).toBe(true);
   await page.screenshot({ path: '/tmp/tt-recovery-settings.png', fullPage: true });
+});
+
+async function openNativeNetworkSettings(page) {
+  await expect(page.getByText('Slide to enter a code', { exact: true })).toBeVisible();
+  await page.locator('.tt-board-header').dispatchEvent('pointerdown');
+  await page.waitForTimeout(3100);
+  await page.locator('.tt-board-header').dispatchEvent('pointerup');
+  const dialog = page.getByRole('dialog');
+  for (const digit of '1234') await dialog.getByRole('button', { name: digit, exact: true }).click();
+  return dialog;
+}
+test('integrated network settings are PIN gated and scan access is explicit', async ({ page }) => {
+  await installNativeHelper(page, false, false);
+  await setup(page, { checkIn: b => b.action === 'verify_settings_pin' ? { json: { ok: b.pin === '1234' } } : null });
+  await page.goto('/kiosk');
+  await expect(page.getByRole('switch', { name: 'Use integrated network controls' })).toHaveCount(0);
+  const dialog = await openNativeNetworkSettings(page);
+  expect(await page.evaluate(() => window.__nativeNetworkCommands.length)).toBe(0);
+  await dialog.getByRole('switch', { name: 'Use integrated network controls' }).click();
+  expect(await page.evaluate(() => window.__nativeNetworkScanPrompts)).toBe(0);
+  await dialog.getByRole('button', { name: 'Allow Wi-Fi scan access', exact: true }).click();
+  await expect.poll(() => page.evaluate(() => window.__nativeNetworkScanPrompts)).toBe(1);
+  await dialog.getByRole('button', { name: 'Scan nearby Wi-Fi', exact: true }).click();
+  await expect(dialog.getByRole('list', { name: 'Integrated nearby Wi-Fi' })).toContainText('Depot Test');
+  await expect(dialog.getByRole('button', { name: /Depot Test/ })).toBeDisabled();
+  await expect(dialog.getByText(/Direct joining and Wi-Fi power changes are blocked/)).toBeVisible();
+  await dialog.getByRole('button', { name: 'Android Wi-Fi settings', exact: true }).click();
+  await expect.poll(() => page.evaluate(() => window.__wifiSettingsOpened)).toBe(true);
+  await page.screenshot({ path: '/tmp/tt-native-network-settings.png', fullPage: true });
+});
+test('managed integrated Wi-Fi join keeps password off server and disk', async ({ page }) => {
+  await installNativeHelper(page, false, false, { enabled: true, managed: true });
+  await setup(page, { checkIn: b => b.action === 'verify_settings_pin' ? { json: { ok: true } } : null });
+  await page.goto('/kiosk');
+  const dialog = await openNativeNetworkSettings(page);
+  await dialog.getByRole('button', { name: 'Allow Wi-Fi scan access', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Scan nearby Wi-Fi', exact: true }).click();
+  await dialog.getByRole('button', { name: /Depot Test/ }).click();
+  await dialog.getByRole('textbox', { name: 'Integrated Wi-Fi password' }).fill('PRIVATE-TEST-PASS');
+  await dialog.getByRole('button', { name: 'Connect selected Wi-Fi', exact: true }).click();
+  await expect(dialog.getByText('Wi-Fi: Depot Test', { exact: true })).toBeVisible();
+  expect(await page.evaluate(() => window.__nativeNetworkCommands.find(c => c.type === 'wifi_join'))).toMatchObject({ ssid: 'Depot Test', password: 'PRIVATE-TEST-PASS' });
+  expect(await page.evaluate(() => Object.values(localStorage).join(' '))).not.toContain('PRIVATE-TEST-PASS');
+  await expect(dialog.getByRole('textbox', { name: 'Integrated Wi-Fi password' })).toHaveCount(0);
+});
+test('integrated remote network completion is acknowledged on existing heartbeat', async ({ page }) => {
+  await installNativeHelper(page, false, false, { enabled: true });
+  await page.clock.install();
+  let receipt = null;
+  const cmd = { id: 'remote-network-12345678', type: 'wifi_join', ssid: 'Depot Test', password: 'PRIVATE-REMOTE-PASS' };
+  await setup(page, { heartbeat: b => {
+    if (b.network_ack === cmd.id) receipt = b;
+    return { json: { ...device(), network_command: receipt ? null : cmd } };
+  } });
+  await page.goto('/kiosk');
+  await expect.poll(() => page.evaluate(() => window.__nativeNetworkCommands.length)).toBe(1);
+  await page.clock.fastForward(31000);
+  await expect.poll(() => receipt?.network_result?.code).toBe('MANAGED_WIFI_REQUIRED');
+  expect(receipt.network_result.id).toBe(cmd.id);
+  expect(JSON.stringify(receipt)).not.toContain('PRIVATE-REMOTE-PASS');
+  expect(await page.evaluate(() => Object.values(localStorage).join(' '))).not.toContain('PRIVATE-REMOTE-PASS');
 });
