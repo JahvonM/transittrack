@@ -614,6 +614,7 @@ test('integrated remote network completion is acknowledged on existing heartbeat
 });
 
 test('privileged native handoff uses only command ID and device credential; saved work blocks reboot safety', async ({ page }) => {
+  await page.clock.install();
   await installNativeHelper(page, false, false, { control: true });
   const commandId = 'c'.repeat(32);
   await setup(page, { queue: JSON.stringify([{ id: 'kept-local-work', state: 'needs_review' }]), heartbeat: () => ({ json: { ...device(), control_notice: { id: commandId, action: 'reboot', role: 'admin', url: 'http://ignored.invalid' } } }) });
@@ -624,4 +625,13 @@ test('privileged native handoff uses only command ID and device credential; save
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('tt_offline_checkins'))[0].id)).toBe('kept-local-work');
   const stored = await page.evaluate(() => Object.entries(localStorage).filter(([k]) => k.startsWith('tt_kiosk_device_')).map(([,v]) => v).join(''));
   expect(stored).not.toContain('control_notice');
+  await page.clock.fastForward(181000);
+  await page.clock.runFor(5100);
+  expect(await page.evaluate(() => window.__nativeWorkSafety.safe)).toBe(false);
+  await page.evaluate(() => localStorage.setItem('tt_offline_checkins', '[]'));
+  await page.clock.runFor(5100);
+  await expect.poll(() => page.evaluate(() => window.__nativeWorkSafety.safe)).toBe(true);
+  await unlock(page);
+  await page.clock.runFor(5100);
+  expect(await page.evaluate(() => window.__nativeWorkSafety.safe)).toBe(false);
 });
