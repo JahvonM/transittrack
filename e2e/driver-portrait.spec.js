@@ -153,6 +153,7 @@ test('Android USB GPS settings can enable, report reconnect status and roll back
   const listeners=new Set();
   const usb={
    getState:async()=>({...state}),
+   openAutoAcceptSettings:async()=>{window.__usbAutoAcceptSettingsOpened=true;},
    addListener:async(name,cb)=>{if(name==='gpsState')listeners.add(cb);return {remove:async()=>listeners.delete(cb)};},
    setEnabled:async({enabled})=>{state={...state,enabled,status:enabled?'Waiting for USB access':'Off'};for(const cb of listeners)cb({...state});return {...state};},
    rescan:async()=>{state={...state,status:'Looking for USB GPS'};for(const cb of listeners)cb({...state});return {...state};}
@@ -174,5 +175,7 @@ test('Android USB GPS settings can enable, report reconnect status and roll back
  await toggle.click();
  await expect(toggle).not.toBeChecked();
  await expect(page.getByText('Using tablet GPS / existing helper',{exact:true})).toBeVisible();
+ await page.getByRole('button',{name:'Set up USB auto-accept',exact:true}).click();
+ await expect.poll(()=>page.evaluate(()=>window.__usbAutoAcceptSettingsOpened)).toBe(true);
  await page.screenshot({path:'/tmp/driver-usb-gps-settings.png',fullPage:true});
 });
