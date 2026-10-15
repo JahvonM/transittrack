@@ -103,8 +103,13 @@ function HelperHealthLine({ h }) {
   if (!h || !h.reported_at) return null;
   const stale = Date.now() - new Date(h.reported_at).getTime() > 10 * 60 * 1000;
   const parts = [];
-  if (h.version) parts.push(`Helper ${h.version}`);
+  if (h.native_version) parts.push(`App hardware ${h.native_version}${h.version && !h.version.startsWith("native-") ? " + Helper " + h.version : ""}`);
+  else if (h.version) parts.push(`Helper ${h.version}`);
   if (typeof h.battery === "number") parts.push(`Battery ${h.battery}%${h.charging ? " (charging)" : ""}`);
+  if (Number.isFinite(h.battery_temperature)) parts.push(`Battery ${h.battery_temperature}°C`);
+  if (Number.isFinite(h.free_storage_mb)) parts.push(`${(h.free_storage_mb / 1024).toFixed(1)} GB free`);
+  if (h.network_type) parts.push(`Network: ${h.network_type}`);
+  if (h.model) parts.push(h.model);
   if (h.parked) parts.push("Parked");
   if (h.reader) parts.push(`Reader: ${h.reader}`);
   if (h.gps) parts.push(`GPS: ${h.gps}`);
@@ -115,7 +120,7 @@ function HelperHealthLine({ h }) {
   const lowBattery = typeof h.battery === "number" && h.battery <= 20 && !h.charging;
   const problem = (h.reader && !OK_STATES.test(h.reader)) || (h.gps && !OK_STATES.test(h.gps) && !/^searching/i.test(h.gps)) || (h.hotspot && /^(blocked|failed)/i.test(h.hotspot) && !h.parked);
   return (
-    <div className={`text-sm flex items-start gap-2 mt-2 ${lowBattery || problem ? "text-destructive" : "text-muted-foreground"}`}>
+    <div className={`text-sm flex items-start gap-2 mt-2 ${lowBattery || h.battery_temperature >= 45 || h.free_storage_mb < 200 || problem ? "text-destructive" : "text-muted-foreground"}`}>
       <Activity className="w-3 h-3 mt-0.5 shrink-0" />
       <span className="flex flex-wrap gap-x-4 gap-y-1 min-w-0">{parts.map(part => <span key={part} className="break-words">{part}</span>)}</span>
     </div>

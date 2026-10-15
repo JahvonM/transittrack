@@ -6,10 +6,30 @@ const MAX_AGE_MS = 5 * 60 * 1000;
 
 export function helperHealthPayload() {
   try {
-    const h = typeof window !== "undefined" ? window.__ttHelperHealth : null;
-    if (!h || typeof h !== "object") return {};
-    if (typeof h.at === "number" && Date.now() - h.at > MAX_AGE_MS) return {};
-    const { at, ...report } = h;
+    const legacy = typeof window !== "undefined" ? window.__ttHelperHealth : null;
+    const native = typeof window !== "undefined" ? window.__ttNativeHealth : null;
+    const fresh = value => value && typeof value === "object" && typeof value.at === "number" && Date.now() - value.at <= MAX_AGE_MS && value.at <= Date.now() + 5000;
+    const h = legacy && (typeof legacy.at !== "number" || fresh(legacy)) ? legacy : null;
+    const n = fresh(native) && native.available ? native : null;
+    if (!h && !n) return {};
+    const { at, ...report } = h || {};
+    if (n) {
+      report.version = report.version || "native-0.2";
+      report.native_version = "0.2";
+      if (Number.isFinite(n.battery)) report.battery = n.battery;
+      if (typeof n.charging === "boolean") report.charging = n.charging;
+      report.battery_temperature = n.batteryTemperature;
+      report.free_storage_mb = n.freeStorageMb;
+      report.model = n.model;
+      report.android_version = n.androidVersion;
+      report.network_type = n.network;
+      report.usb_devices = n.usbDevices;
+      if (n.gps?.enabled) report.gps = n.gps.status;
+      if (n.reader?.enabled) {
+        report.reader = n.reader.status;
+        if (n.reader.lastTapAt) report.last_card_at = new Date(n.reader.lastTapAt).toISOString();
+      }
+    }
     return { helper_health: report };
   } catch {
     return {};
@@ -29,6 +49,8 @@ const PAGE_OPENED_AT = Date.now();
 
 export function helperLink(now = Date.now()) {
   try {
+    const n = typeof window !== "undefined" ? window.__ttNativeHealth : null;
+    if (n?.reader?.enabled && typeof n.at === "number" && now - n.at <= LINK_GRACE_MS) return "ok";
     const h = typeof window !== "undefined" ? window.__ttHelperHealth : null;
     if (h && typeof h.at === "number" && now - h.at <= LINK_GRACE_MS) return "ok";
     if (localStorage.getItem("tt_badge_reader") !== "1") return "none";

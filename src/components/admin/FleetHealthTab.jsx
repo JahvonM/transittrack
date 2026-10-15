@@ -59,9 +59,12 @@ function tabletStatus(d, kind) {
   const m = minsSince(d.last_seen);
   const extra = [];
   if (typeof h.battery === "number") extra.push(`battery ${h.battery}%${h.charging ? " ⚡" : ""}`);
+  if (h.battery_temperature >= 45) extra.push("battery hot");
+  if (h.free_storage_mb < 200) extra.push("storage almost full");
   if (a.build && a.build !== APP_BUILD) extra.push("older version");
   const sub = [d.label, ...extra].filter(Boolean).join(" · ");
   if (h.parked && m >= 2) return { tone: "idle", text: "Parked", sub };
+  if (m < 2 && (h.battery_temperature >= 45 || h.free_storage_mb < 200)) return { tone: "warn", text: "Needs attention", sub };
   if (m < 2) return { tone: a.online === false ? "warn" : "ok", text: a.online === false ? "No internet" : "Online", sub };
   if (m < 30) return { tone: "warn", text: `Not seen ${Math.floor(m)} min`, sub };
   return { tone: "bad", text: m === Infinity ? "Never connected" : `Offline ${ago(d.last_seen)}`, sub };

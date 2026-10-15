@@ -21,6 +21,15 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 public class TabletHealthPlugin extends Plugin {
     @Override public void load() { TabletDiagnostics.record("system", "APP_STARTED"); }
 
+    @PluginMethod public void openWifiSettings(PluginCall call) { openSettings(call, android.provider.Settings.ACTION_WIFI_SETTINGS); }
+    @PluginMethod public void openHotspotSettings(PluginCall call) { openSettings(call, "android.settings.TETHER_SETTINGS"); }
+    private void openSettings(PluginCall call, String action) {
+        getActivity().runOnUiThread(() -> {
+            try { getActivity().startActivity(new Intent(action)); call.resolve(); }
+            catch (RuntimeException error) { call.reject("Could not open Android network settings."); }
+        });
+    }
+
     @PluginMethod public void getSnapshot(PluginCall call) {
         JSObject out = new JSObject();
         out.put("available", true); out.put("at", System.currentTimeMillis());

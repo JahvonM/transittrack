@@ -1,3 +1,4 @@
+import NativeTabletHealth from "@/components/NativeTabletHealth";
 import { Toaster } from "@/components/ui/toaster"
 import JourneyLoading from "@/components/JourneyLoading";
 import ErrorBoundary from "@/components/ErrorBoundary";
@@ -200,6 +201,7 @@ function App() {
           <OfflineJobsBanner />
           <PhoneSignInListener />
           <NativeNotificationTaps />
+          <NativeTabletHealth />
         </Router>
         <Toaster />
         <ConfirmHost />

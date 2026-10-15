@@ -160,6 +160,27 @@
         },
         "version": {
           "type": "string"
+        },
+        "native_version": {
+          "type": "string"
+        },
+        "model": {
+          "type": "string"
+        },
+        "android_version": {
+          "type": "string"
+        },
+        "network_type": {
+          "type": "string"
+        },
+        "battery_temperature": {
+          "type": "number"
+        },
+        "free_storage_mb": {
+          "type": "number"
+        },
+        "usb_devices": {
+          "type": "number"
         }
       },
       "type": "object"

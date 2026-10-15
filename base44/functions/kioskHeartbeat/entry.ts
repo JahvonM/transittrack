@@ -62,6 +62,13 @@ function cleanHelperHealth(h: unknown): Record<string, unknown> | null {
   const gps = str(o.gps, 40); if (gps) out.gps = gps;
   const hotspot = str(o.hotspot, 40); if (hotspot) out.hotspot = hotspot;
   const lastCard = str(o.last_card_at, 40); if (lastCard) out.last_card_at = lastCard;
+  const nativeVersion = str(o.native_version, 16); if (nativeVersion) out.native_version = nativeVersion;
+  const model = str(o.model, 80); if (model) out.model = model;
+  const androidVersion = str(o.android_version, 24); if (androidVersion) out.android_version = androidVersion;
+  const network = str(o.network_type, 16); if (network && ['wifi','mobile','offline','other','unknown'].includes(network)) out.network_type = network;
+  if (typeof o.battery_temperature === 'number' && Number.isFinite(o.battery_temperature) && o.battery_temperature >= -30 && o.battery_temperature <= 100) out.battery_temperature = o.battery_temperature;
+  if (typeof o.free_storage_mb === 'number' && Number.isFinite(o.free_storage_mb) && o.free_storage_mb >= 0 && o.free_storage_mb <= 10000000) out.free_storage_mb = Math.floor(o.free_storage_mb);
+  if (typeof o.usb_devices === 'number' && Number.isFinite(o.usb_devices)) out.usb_devices = Math.max(0, Math.min(64, Math.floor(o.usb_devices)));
   // Helper 1.13: backup boarding over Bluetooth ("Ready as Bus 12", or why not).
   const ble = str(o.ble, 60); if (ble) out.ble = ble;
   // Helper 1.9: the boarding tablet's Wi-Fi (current network, latest scan / join).
