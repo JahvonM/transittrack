@@ -59,7 +59,8 @@ export function controlCompletion(command: Record<string, any>, code: unknown, n
   if (typeof code !== 'string' || !Object.prototype.hasOwnProperty.call(CONTROL_RESULTS, code)) return null;
   const result = CONTROL_RESULTS[code];
   if (result.actions && !result.actions.includes(command.action)) return null;
+  const { actions: _actions, ...safeResult } = result;
   return { id: command.id, action: command.action, requested_at: command.requested_at,
     ...(command.lock_until ? { lock_until: command.lock_until } : {}),
-    ...result, actions: undefined, result_code: code, completed_at: new Date(now).toISOString() };
+    ...safeResult, result_code: code, completed_at: new Date(now).toISOString() };
 }

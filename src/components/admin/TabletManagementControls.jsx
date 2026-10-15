@@ -25,7 +25,7 @@ export default function TabletManagementControls({ device, onRefresh }) {
   return <>
     <Button variant="outline" size="sm" onClick={() => setOpen(true)}>Tablet controls</Button>
     <Dialog open={open} onOpenChange={v => { setOpen(v); if (!v) { setChoice(null); setError(""); } }}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg max-h-[90dvh] overflow-y-auto">
         <DialogHeader><DialogTitle>Tablet controls · {device.label}</DialogTitle>
           <DialogDescription>Admin controls for the integrated Android kiosk app. Requests expire after two minutes.</DialogDescription></DialogHeader>
         {!available ? <p className="text-sm text-muted-foreground">Requires the new combined kiosk installation. Keep your current helper until final testing.</p>

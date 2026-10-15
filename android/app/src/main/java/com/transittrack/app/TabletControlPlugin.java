@@ -100,7 +100,7 @@ public class TabletControlPlugin extends Plugin {
     }
     private String perform(String action, long leaseMs, String device, long deadline) {
         if (SystemClock.elapsedRealtime() >= deadline) return "EXPIRED";
-        if (!getActivity().hasWindowFocus()) return "APP_NOT_VISIBLE";
+        if (getActivity().isFinishing() || getActivity().isDestroyed() || !getActivity().hasWindowFocus()) return "APP_NOT_VISIBLE";
         if (!owner()) return "DEVICE_OWNER_REQUIRED";
         try {
             if ("release".equals(action)) return prefs.getBoolean("lease", false) ? (releaseLease() ? "RELEASED" : "ANDROID_ERROR") : "NO_LOCK";

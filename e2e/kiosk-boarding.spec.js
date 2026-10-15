@@ -409,10 +409,17 @@ async function installNativeHelper(page, enabled = true, bleEnabled = false, net
         network.last_code = code; networkEmit(); return { id: command.id, code };
       },
     };
+    window.__nativeControlCommands = []; window.__nativeWorkSafety = null;
+    const control = {
+      getState: async () => ({ available: true, deviceOwner: false, locked: false }),
+      setWorkSafety: async value => { window.__nativeWorkSafety = value; },
+      pendingReceipts: async () => ({ ids: [] }),
+      execute: async value => { window.__nativeControlCommands.push(value); return { code: 'DEVICE_OWNER_REQUIRED', reported: true }; },
+    };
     const recovery = { getState: async () => ({ available: true, defaultHome: false }), openHomeSettings: async () => { window.__nativeHomeSettingsOpened = true; } };
     const gps = { openAutoAcceptSettings: async () => { window.__autoAcceptSettingsOpened = true; } };
     const other = new Proxy({}, { get: (_, key) => key === 'addListener' ? async () => ({ remove: async () => {} }) : async () => ({}) });
-    window.CapacitorPlatforms = { platforms: new Map(), currentPlatform: { name: 'android', getPlatform: () => 'android', isNativePlatform: () => true, isPluginAvailable: name => ['UsbNfc', 'TabletHealth', 'UsbGps', 'BoardingBluetooth', 'TabletRecovery', 'TabletNetwork'].includes(name), registerPlugin: name => name === 'TabletNetwork' ? net : name === 'TabletRecovery' ? recovery : name === 'BoardingBluetooth' ? ble : name === 'UsbNfc' ? nfc : name === 'TabletHealth' ? health : name === 'UsbGps' ? gps : other } };
+    window.CapacitorPlatforms = { platforms: new Map(), currentPlatform: { name: 'android', getPlatform: () => 'android', isNativePlatform: () => true, isPluginAvailable: name => ['UsbNfc', 'TabletHealth', 'UsbGps', 'BoardingBluetooth', 'TabletRecovery', 'TabletNetwork', ...(networkOptions.control ? ['TabletControl'] : [])].includes(name), registerPlugin: name => name === 'TabletControl' ? control : name === 'TabletNetwork' ? net : name === 'TabletRecovery' ? recovery : name === 'BoardingBluetooth' ? ble : name === 'UsbNfc' ? nfc : name === 'TabletHealth' ? health : name === 'UsbGps' ? gps : other } };
   }, { enabled, bleEnabled, networkOptions });
 }
 
@@ -604,4 +611,17 @@ test('integrated remote network completion is acknowledged on existing heartbeat
   expect(receipt.network_result.id).toBe(cmd.id);
   expect(JSON.stringify(receipt)).not.toContain('PRIVATE-REMOTE-PASS');
   expect(await page.evaluate(() => Object.values(localStorage).join(' '))).not.toContain('PRIVATE-REMOTE-PASS');
+});
+
+test('privileged native handoff uses only command ID and device credential; saved work blocks reboot safety', async ({ page }) => {
+  await installNativeHelper(page, false, false, { control: true });
+  const commandId = 'c'.repeat(32);
+  await setup(page, { queue: JSON.stringify([{ id: 'kept-local-work', state: 'needs_review' }]), heartbeat: () => ({ json: { ...device(), control_notice: { id: commandId, action: 'reboot', role: 'admin', url: 'http://ignored.invalid' } } }) });
+  await page.goto('/kiosk');
+  await expect.poll(() => page.evaluate(() => window.__nativeControlCommands.length)).toBe(1);
+  expect(await page.evaluate(() => window.__nativeControlCommands[0])).toEqual({ device_id: 'tab-1', device_token: TOKEN, command_id: commandId });
+  await expect.poll(() => page.evaluate(() => window.__nativeWorkSafety?.safe)).toBe(false);
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('tt_offline_checkins'))[0].id)).toBe('kept-local-work');
+  const stored = await page.evaluate(() => Object.entries(localStorage).filter(([k]) => k.startsWith('tt_kiosk_device_')).map(([,v]) => v).join(''));
+  expect(stored).not.toContain('control_notice');
 });
