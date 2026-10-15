@@ -8,6 +8,7 @@ export async function readUsbGpsState() {
   try { return await UsbGps.getState(); } catch { return unsupported; }
 }
 export async function setUsbGpsEnabled(enabled) { return UsbGps.setEnabled({ enabled: !!enabled }); }
+export async function openUsbAutoAcceptSettings() { await UsbGps.openAutoAcceptSettings(); }
 export async function rescanUsbGps() {
   if (integratedGpsAvailable()) await UsbGps.rescan();
 }

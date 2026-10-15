@@ -3,7 +3,7 @@ import { Satellite, RefreshCw } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
-import { readUsbGpsState, setUsbGpsEnabled, onUsbGpsState, rescanUsbGps } from "@/lib/driverGps";
+import { readUsbGpsState, setUsbGpsEnabled, onUsbGpsState, rescanUsbGps, openUsbAutoAcceptSettings } from "@/lib/driverGps";
 
 export default function UsbGpsPanel() {
   const [state, setState] = useState(null);
@@ -35,6 +35,11 @@ export default function UsbGpsPanel() {
         <p className="text-xs text-muted-foreground">Allow Android USB access when asked. This receiver reconnects automatically while TransitTrack is open. Keep the app on screen while driving.</p>
         <Button variant="outline" className="w-full" onClick={() => { setError(""); rescanUsbGps().catch(() => setError("Could not retry USB GPS.")); }}><RefreshCw className="h-4 w-4 mr-2" /> Check GPS again</Button>
       </>}
+      <div className="space-y-2 border-t border-border pt-3">
+        <p className="text-sm font-medium">USB auto-accept: {state.autoAcceptEnabled ? "On" : "Off"}</p>
+        <p className="text-xs text-muted-foreground">Automatically confirms this app's GPS USB access prompts, like the helper. Android asks you to enable this once in Accessibility settings.</p>
+        <Button variant="outline" className="w-full" onClick={() => { setError(""); openUsbAutoAcceptSettings().catch(() => setError("Open tablet Settings → Accessibility → TransitTrack USB auto-accept.")); }}>{state.autoAcceptEnabled ? "Manage USB auto-accept" : "Set up USB auto-accept"}</Button>
+      </div>
       {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
     </CardContent>
   </Card>;

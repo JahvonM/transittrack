@@ -26,6 +26,7 @@ public class UsbGpsPlugin extends Plugin {
     private volatile boolean foreground = true;
     private final BroadcastReceiver permissionResult = new BroadcastReceiver() {
         @Override public void onReceive(Context context, Intent intent) {
+            preferences.edit().remove(UsbAutoAcceptService.PENDING_AT).remove(UsbAutoAcceptService.DEVICE_LABEL).apply();
             if (!intent.getBooleanExtra(android.hardware.usb.UsbManager.EXTRA_PERMISSION_GRANTED, false)) {
                 enabled = false;
                 preferences.edit().putBoolean("enabled", false).apply();
@@ -46,6 +47,7 @@ public class UsbGpsPlugin extends Plugin {
     private JSObject state() {
         JSObject value = new JSObject();
         value.put("available", true);
+        value.put("autoAcceptEnabled", UsbAutoAcceptService.isEnabled(getContext()));
         value.put("enabled", enabled);
         value.put("status", status);
         value.put("lastFixAt", lastFixAt);
@@ -96,8 +98,21 @@ public class UsbGpsPlugin extends Plugin {
             enabled = Boolean.TRUE.equals(call.getBoolean("enabled", false));
             preferences.edit().putBoolean("enabled", enabled).apply();
             if (enabled) startReader();
-            else { stopReader(); report("Off"); }
+            else {
+                stopReader();
+                preferences.edit().remove(UsbAutoAcceptService.PENDING_AT).remove(UsbAutoAcceptService.DEVICE_LABEL).apply();
+                report("Off");
+            }
             call.resolve(state());
+        });
+    }
+
+    @PluginMethod public void openAutoAcceptSettings(PluginCall call) {
+        getActivity().runOnUiThread(() -> {
+            try {
+                getActivity().startActivity(new Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS));
+                call.resolve();
+            } catch (RuntimeException error) { call.reject("Could not open Android Accessibility settings."); }
         });
     }
 
@@ -118,6 +133,7 @@ public class UsbGpsPlugin extends Plugin {
     @Override protected void handleOnResume() {
         foreground = true;
         if (enabled) startReader();
+        else report(status);
     }
 
     @Override protected void handleOnDestroy() {
