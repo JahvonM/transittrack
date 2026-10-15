@@ -14,6 +14,7 @@ const HIDDEN_PREFIXES = [
   "/forgot-password",
   "/reset-password",
   "/kiosk",
+  "/tablet",
   "/reviewer-sandbox",
   "/driver",
   "/admin",

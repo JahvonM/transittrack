@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import TabletDiagnosticsPanel from "@/components/driver/TabletDiagnosticsPanel";
 import UsbNfcPanel from "@/components/driver/UsbNfcPanel";
 import React, { useEffect, useRef, useState } from "react";
@@ -113,6 +114,7 @@ export default function BoardingSettingsGate({ open, onClose, deviceId, invoke }
         </DialogHeader>
         {unlocked ? (
           <div className="space-y-3">
+            <Button asChild variant="outline" className="w-full"><Link to="/tablet?choose=1">Choose tablet screen</Link></Button>
             <UsbNfcPanel />
             <TabletDiagnosticsPanel />
             <TabletNetworkPanel boarding className="border-0 shadow-none" />

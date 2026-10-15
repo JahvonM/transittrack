@@ -1,4 +1,5 @@
 import NativeTabletHealth from "@/components/NativeTabletHealth";
+import KioskAppBoundary from "@/components/KioskAppBoundary";
 import { Toaster } from "@/components/ui/toaster"
 import JourneyLoading from "@/components/JourneyLoading";
 import ErrorBoundary from "@/components/ErrorBoundary";
@@ -29,6 +30,7 @@ import ResetPassword from '@/pages/ResetPassword';
 // Route-level pages are lazily loaded for code-splitting / performance
 const PageNotFound = lazy(() => import('./lib/PageNotFound'));
 const Welcome = lazy(() => import('@/pages/Welcome'));
+const TabletStart = lazy(() => import('@/pages/TabletStart'));
 const PrivacyPolicy = lazy(() => import('@/pages/PrivacyPolicy'));
 const TermsOfService = lazy(() => import('@/pages/TermsOfService'));
 const BookTaxi = lazy(() => import('@/pages/BookTaxi'));
@@ -78,7 +80,7 @@ const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, checkAppState } = useAuth();
   const location = useLocation();
   const authPage = ['/login', '/register', '/forgot-password', '/reset-password'].includes(location.pathname);
-  const tabletPage = /^\/(driver|kiosk)(\/|$)/.test(location.pathname);
+  const tabletPage = /^\/(driver|kiosk|tablet)(\/|$)/.test(location.pathname);
   // The legal pages are linked from the app stores, so they must open for
   // signed-out visitors instead of bouncing to the login screen.
   // /desktop-signin and /phone-signin handle their own sign-in (the desktop
@@ -137,6 +139,7 @@ const AuthenticatedApp = () => {
       {/* One route for /driver and /driver/<tab> so tab changes don't remount the app */}
       <Route path="/driver/:stage?" element={<DriverApp />} />
       <Route path="/kiosk" element={<Kiosk />} />
+      <Route path="/tablet" element={<TabletStart />} />
       <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login" replace />} />}>
         <Route path="/passenger" element={<Navigate to="/staff" replace />} />
         <Route path="/company" element={<CompanyDashboard />} />
@@ -196,7 +199,7 @@ function App() {
       <QueryClientProvider client={queryClientInstance}>
         <Router>
           <ScrollToTop />
-          <AuthenticatedApp />
+          <KioskAppBoundary><AuthenticatedApp /></KioskAppBoundary>
           <OfflineNotice />
           <OfflineJobsBanner />
           <PhoneSignInListener />

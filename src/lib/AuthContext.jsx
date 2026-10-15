@@ -48,7 +48,7 @@ export const AuthProvider = ({ children }) => {
     setIsLoadingPublicSettings(true);
     setAuthError(null);
     // Paired tablets use their own device credential, not an account login.
-    const tabletPage = /^\/(driver|kiosk)(\/|$)/.test(window.location.pathname);
+    const tabletPage = /^\/(driver|kiosk|tablet)(\/|$)/.test(window.location.pathname);
     const settingsRequest = base44.app.getPublicSettings();
     const authRequest = appParams.token && !tabletPage ? checkUserAuth() : Promise.resolve();
     if (!appParams.token || tabletPage) {

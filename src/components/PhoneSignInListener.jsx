@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { isKioskInstall } from "@/lib/kioskApp";
 import { base44 } from "@/api/base44Client";
 import { phoneSignInAvailable, isPhoneSignInLink, openPhoneSignInLink, afterPhoneSignInPath } from "@/lib/phoneSignIn";
 
@@ -22,7 +23,7 @@ export async function acceptPhoneSignInLink(url, { storage, setToken, go, closeB
 
 export default function PhoneSignInListener() {
   useEffect(() => {
-    if (!phoneSignInAvailable()) return undefined;
+    if (isKioskInstall() || !phoneSignInAvailable()) return undefined;
     let stopped = false;
     let handle = null;
     const accept = async (url) => {
