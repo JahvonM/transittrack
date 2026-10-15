@@ -1,3 +1,4 @@
+import { acquireOperation, durableWritesEnabled, operationHash } from '../../shared/durableOperation.ts';
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 // Random device credentials are stored only as hashes in protected DeviceCredential.
 // Existing development tablets remain legacy-compatible until explicitly re-paired.
@@ -50,8 +51,7 @@ export default async function(req) {
     if(devices.length!==1)return Response.json({error:'Pairing code is ambiguous; request a new code'},{status:409});
     const device = devices[0];
 
-    // Reject sequential reuse. Base44 does not expose an atomic consume here;
-    // simultaneous pairing requests still require a transactional backend guard.
+    // Reject sequential reuse; the staged durable guard below handles concurrent use.
     if (device.paired) {
       return Response.json({ error: 'This code has already been used to pair a tablet. Ask an admin to generate a new one.' }, { status: 409 });
     }
@@ -60,6 +60,16 @@ export default async function(req) {
     if (body.expected_type === 'kiosk' && device.kiosk_type === 'driver') return Response.json({ error: 'Not a kiosk tablet' }, { status: 400 });
     if (!(Date.parse(device.pairing_expires_at) > Date.now()) || Date.parse(device.pairing_expires_at) > Date.now()+15*60_000) return Response.json({ error: 'Pairing code expired' }, { status: 410 });
     if (!device.company_id) return Response.json({ error: 'Company assignment required' }, { status: 400 });
+    if (durableWritesEnabled()) {
+      const binding=JSON.stringify([device.id,device.company_id,device.vehicle_id||'',device.kiosk_type,device.pairing_expires_at]);
+      const op=await acquireOperation(JSON.stringify(['pair',device.id,await deviceDigest(device.pairing_code)]),await operationHash(binding));
+      if(op.state.state!=='acquired') return Response.json({error:'Pairing already claimed. If setup was interrupted, request a new code.'},{status:409});
+      const fresh=await base44.asServiceRole.entities.KioskDevice.get(device.id);
+      if(!fresh || fresh.paired || fresh.status!=='active' || fresh.pairing_code!==device.pairing_code ||
+       JSON.stringify([fresh.id,fresh.company_id,fresh.vehicle_id||'',fresh.kiosk_type,fresh.pairing_expires_at])!==binding ||
+       !(Date.parse(fresh.pairing_expires_at)>Date.now())) return Response.json({error:'Pairing changed. Request a new code.'},{status:409});
+      // Permanently spent claim: raw device token is never cached for other callers.
+    }
     const token = Array.from(crypto.getRandomValues(new Uint8Array(32)), (b) => b.toString(16).padStart(2, '0')).join('');
     const issued = new Date();
     const data = {
@@ -103,6 +113,6 @@ export default async function(req) {
       driver_name
     });
   } catch (error) {
-    return Response.json({ error: 'Something went wrong. Please try again.' }, { status: 500 });
+    return Response.json({ error: 'Something went wrong. Please try again.' }, { status: error.status === 503 ? 503 : 500 });
   }
 }

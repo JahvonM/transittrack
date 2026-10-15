@@ -1,3 +1,4 @@
+import { durableCreate } from '../../shared/durableOperation.ts';
 import { ADMIN_READ_SPECS } from '../../shared/adminReadSpecs.ts';
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 import { retry429 } from '../../shared/retry429.ts';
@@ -350,7 +351,8 @@ async function replayCreate(db,ctx,name,data) {
  const hash=Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,'0')).join('');
  const prior=(await db[name].filter({client_request_id:data.client_request_id,request_actor_id:ctx.user.id},'-created_date',1))[0];
  if(prior) { if(prior.request_hash!==hash) fail(409,'Request ID reused with different data'); return prior; }
- return db[name].create({...data,request_hash:hash,request_actor_id:ctx.user.id});
+ return durableCreate(JSON.stringify(['entity',name,ctx.user.id,data.client_request_id]),hash,
+  ()=>db[name].create({...data,request_hash:hash,request_actor_id:ctx.user.id}),id=>db[name].get(id));
 }
 // A page of trips or messages usually covers several buses. Reading those
 // buses one by one cost one database call each, on every refresh of every

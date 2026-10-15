@@ -1,3 +1,4 @@
+import { reserveAttempt } from '../../shared/atomicOps.ts';
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 import { emailWithPolicy } from '../../shared/notificationPolicy.ts';
 
@@ -47,6 +48,9 @@ export default async function (req) {
     try { user = await base44.auth.me(); } catch { /* kiosk / signed out */ }
 
     const db = base44.asServiceRole.entities;
+    // Already configured shared database budget; failures produce no emails or writes.
+    if (!(await reserveAttempt(base44,'crash-records:v2',MAX_RECORDS_PER_HOUR,HOUR_MS)))
+      return Response.json({ok:true,throttled:true});
     const since = new Date(Date.now() - HOUR_MS).toISOString();
     const latest = await db.ClientError.list('-created_date', MAX_RECORDS_PER_HOUR);
     if (latest.length >= MAX_RECORDS_PER_HOUR && latest[latest.length - 1].created_date >= since) {
@@ -79,7 +83,11 @@ export default async function (req) {
       const text = `A screen in TransitTrack just crashed.\n\nReported error (untrusted, quoted verbatim):\n${quote(message, 500)}\n\nPage: ${sanitize(record.url, 300) || 'unknown'}\nUser: ${record.user_email || 'not signed in'}${record.user_role ? ` (${record.user_role})` : ''}\nDevice: ${sanitize(record.user_agent, 300) || 'unknown'}\n\nThe user saw a "Something went wrong" screen with a reload button. Repeats of this same error in the next hour won't send another email. See what happened, step by step, in Admin → All tools → App errors.\n\n— TransitTrack`;
       const subject = `TransitTrack crash alert: ${subjectLine}`;
       await emailWithPolicy(base44, 'crash_alert', admins,
-        (a) => base44.asServiceRole.integrations.Core.SendEmail({ to: a.email, subject, body: text }), { title: subject });
+        async (a) => {
+          // Charge each actual recipient BEFORE the provider call. Unknown delivery is never retried here.
+          if(await reserveAttempt(base44,'crash-emails:v2',MAX_EMAILS_PER_HOUR,HOUR_MS))
+            await base44.asServiceRole.integrations.Core.SendEmail({ to: a.email, subject, body: text });
+        }, { title: subject });
     }
 
     return Response.json({ ok: true });

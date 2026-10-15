@@ -1,3 +1,4 @@
+import { durableCreate, operationHash } from '../../shared/durableOperation.ts';
 import { nativeReleaseHealth } from '../../shared/nativeRelease.ts';
 import { controlNotice } from '../../shared/tabletControl.ts';
 import { cleanRequestMetrics } from '../../shared/requestMetrics.ts';
@@ -618,11 +619,19 @@ async function replayInspection(base44,device,body) {
  if(prior && prior.request_hash!==hash) throw Object.assign(new Error('Request ID reused with different data'),{status:409});
  return {fields:{client_request_id:id,request_hash:hash,request_actor_id:device.id},prior};
 }
+async function createInspection(base44,device,replay,data) {
+ const key=replay.fields.client_request_id;
+ const db=base44.asServiceRole.entities.Inspection;
+ return replay.prior || durableCreate(key ? JSON.stringify(['inspection',device.id,device.company_id,device.vehicle_id,key]) : null,
+  replay.fields.request_hash || await operationHash(JSON.stringify(data)),()=>db.create(data),id=>db.get(id));
+}
 async function inspectionChild(base44,name,data,key,actor) {
  if(!key) return base44.asServiceRole.entities[name].create(data);
  const db=base44.asServiceRole.entities[name];
  const prior=(await db.filter({client_request_id:key,request_actor_id:actor,company_id:data.company_id,vehicle_id:data.vehicle_id},'-created_date',1))[0];
- return prior || db.create({...data,client_request_id:key,request_actor_id:actor});
+ const {photo_url,inspection_date,...stable}=data;
+ return prior || durableCreate(JSON.stringify(['inspection-child',name,actor,data.company_id,data.vehicle_id,key]),
+  await operationHash(JSON.stringify(stable)),()=>db.create({...data,client_request_id:key,request_actor_id:actor}),id=>db.get(id));
 }
 export default async function(req) {
   try {
@@ -958,6 +967,7 @@ export default async function(req) {
         const open = (await base44.asServiceRole.entities.DriverShift.filter({ vehicle_id: vehicleId }, '-started_at', 5))
           .filter((s) => !s.ended_at);
         if (open.length) return Response.json({ shift: open[0] });
+        const shift = await durableCreate(requestId ? JSON.stringify(['shift',device.id,companyId,vehicleId,requestId]) : null,requestHash,async()=>{
         const shift = await base44.asServiceRole.entities.DriverShift.create({
           ...(requestId ? {client_request_id:requestId,request_hash:requestHash} : {}),
           vehicle_id: vehicleId, vehicle_name: vehicle.name, company_id: companyId, company_name: companyName,
@@ -970,6 +980,8 @@ export default async function(req) {
         try { await offboardEveryone(base44, { companyId, companyName, vehicleId, vehicleName: shift.vehicle_name || vehicle.name, at: Date.parse(shift.started_at) }); }
         catch { /* the shift still starts; the kiosk corrects anyone left aboard */ }
         await clearRoadNext(base44, vehicleId);
+        return shift;
+        },id=>base44.asServiceRole.entities.DriverShift.get(id));
         return Response.json({ shift });
       }
 
@@ -1141,7 +1153,7 @@ export default async function(req) {
         if (!vehicle) return Response.json({ error: 'Vehicle not found' }, { status: 404 });
         const replay = await replayInspection(base44,device,body);
         const passed = status !== 'failed';
-        const inspection = replay.prior || await base44.asServiceRole.entities.Inspection.create({
+        const inspection = await createInspection(base44,device,replay,{
           ...replay.fields,
           driver_name: vehicle.driver_name || '', driver_email: vehicle.driver_email || '',
           vehicle_id: vehicleId, vehicle_name: vehicle.name, company_id: companyId, company_name: companyName,
@@ -1215,7 +1227,7 @@ export default async function(req) {
         const failed = clean.filter((r) => r.condition === 'FAILED');
         const passed = failed.length === 0;
         const now = replay.prior?.created_date || new Date().toISOString();
-        const inspection = replay.prior || await base44.asServiceRole.entities.Inspection.create({
+        const inspection = await createInspection(base44,device,replay,{
           ...replay.fields,
           driver_name: vehicle.driver_name || '', driver_email: vehicle.driver_email || '',
           vehicle_id: vehicleId, vehicle_name: vehicle.name, company_id: companyId, company_name: companyName,
