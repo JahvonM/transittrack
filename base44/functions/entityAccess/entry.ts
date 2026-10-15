@@ -26,7 +26,7 @@ ENTITY_FIELDS.Incident.push('photo_uris','source');
 ENTITY_FIELDS.DriverShift.push('started_with','ended_with');
 ENTITY_FIELDS.Vehicle.push('backup_gps_driver_email','backup_gps_since','road_next_stop');
 // The latest Wi-Fi/hotspot command's status for Admin → Kiosk tablets (never the command itself, which can hold a Wi-Fi password).
-ENTITY_FIELDS.KioskDevice.push('network_status');
+ENTITY_FIELDS.KioskDevice.push('network_status', 'control_status');
 // Admin → App errors: what happened before an error, and marking it fixed.
 ENTITY_FIELDS.ClientError.push('area','context','breadcrumbs','status','resolved_at','resolved_by');
 // Jobs dispatch gives a bus. The signatures (and where and by how many guests
@@ -40,7 +40,7 @@ ENTITY_FIELDS.Place=['company_id','name','kind','address','lat','lng','notes'];
 ENTITY_FIELDS.Client=['company_id','name','kind','contact_name','email','phone','address','currency','notes'];
 ENTITY_FIELDS.Invoice=['company_id','company_name','client_id','client_name','client_email','client_address','number','period_start','period_end','issued_at','due_date','lines','total','currency','status','sent_at','paid_at','voided_at','notes'];
 const ADMIN_ONLY_FIELDS={Driver:new Set(['phone_app_access']),Trip:new Set(['client_id','client_name','price','currency'])};
-const SERVER_ONLY_FIELDS={Incident:new Set(['photo_uris','source']),KioskDevice:new Set(['network_status']),Trip:new Set([...JOB_SIGNATURE_FIELDS,'invoice_id','invoice_number'])};
+const SERVER_ONLY_FIELDS={Incident:new Set(['photo_uris','source']),KioskDevice:new Set(['network_status', 'control_status']),Trip:new Set([...JOB_SIGNATURE_FIELDS,'invoice_id','invoice_number'])};
 const JOB_TYPES=new Set(['airport_pickup','airport_dropoff','hotel_tour','staff_run','transfer']);
 const CURRENCIES=new Set(['XCD','USD']);
 const text=(data,field,max)=>{ if(!Object.hasOwn(data,field)||data[field]===null) return; if(typeof data[field]!=='string'||data[field].length>max) fail(400,'Invalid '+field.replace(/_/g,' ')); data[field]=data[field].trim(); };

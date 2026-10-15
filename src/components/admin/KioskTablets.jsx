@@ -1,3 +1,4 @@
+import TabletManagementControls from "@/components/admin/TabletManagementControls";
 import { tabletSetupBundle } from "@/lib/tabletSetupBundle";
 import { helperLinkLost } from "@/lib/helperHealth";
 import React, { useState, useEffect } from "react";
@@ -366,6 +367,7 @@ export default function KioskTablets({ vehicles, companies, onChange }) {
                         </div>
                         <HelperHealthLine h={d.helper_health} />
                         <TabletNetworkControls device={d} onRefresh={loadDevices} />
+                        <TabletManagementControls device={d} onRefresh={loadDevices} />
                         <GpsCoordsLine device={d} />
                         {helperLinkLost(d) && (
                           <p className="mt-1 text-xs font-semibold text-danger" role="alert">

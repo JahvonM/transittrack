@@ -1,3 +1,4 @@
+import { useTabletWorkSafety } from "@/lib/nativeTabletControl";
 import "./boardingShowcase.css";
 import BusArtwork from "@/components/BusArtwork";
 import useFutureAppearance from "@/hooks/useFutureAppearance";
@@ -170,6 +171,8 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
     const t = setInterval(() => setReaderLink(helperLink()), 30_000);
     return () => clearInterval(t);
   }, []);
+  useTabletWorkSafety(device?.device_id || device?.id, mode === "idle" && !unlocked && !busy && !checkingCard &&
+    !checkingCode && !pending && !settingsOpen && !listOpen && code.length === 0);
   const resetTimer = useRef(null);
   // When the current card lookup started (0 = none). A lookup that never
   // answers (weak bus signal) must not block every tap after it.

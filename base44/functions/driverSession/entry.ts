@@ -1,3 +1,4 @@
+import { controlNotice } from '../../shared/tabletControl.ts';
 import { cleanRequestMetrics } from '../../shared/requestMetrics.ts';
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 import { passengerPushTokens } from '../../shared/chatPush.ts';
@@ -401,6 +402,7 @@ function cleanHelperHealth(h: unknown): Record<string, unknown> | null {
   const str = (v: unknown, n: number) =>
     typeof v === 'string' ? v.replace(/[\u0000-\u001f<>]/g, '').slice(0, n) : undefined;
   const out: Record<string, unknown> = { reported_at: new Date().toISOString() };
+  for (const k of ['management_available', 'management_owner', 'management_locked']) if (typeof o[k] === 'boolean') out[k] = o[k];
   const version = str(o.version, 16); if (version) out.version = version;
   if (typeof o.battery === 'number' && Number.isFinite(o.battery)) out.battery = Math.max(0, Math.min(100, Math.round(o.battery)));
   if (typeof o.charging === 'boolean') out.charging = o.charging;
@@ -426,6 +428,7 @@ function cleanAppHealth(h: unknown): Record<string, unknown> | null {
   const coord = (v: unknown, max: number) =>
     typeof v === 'number' && Number.isFinite(v) && Math.abs(v) <= max ? Math.round(v * 1e6) / 1e6 : undefined;
   const out: Record<string, unknown> = { reported_at: new Date().toISOString() };
+  for (const k of ['management_available', 'management_owner', 'management_locked']) if (typeof o[k] === 'boolean') out[k] = o[k];
   const set = (k: string, v: unknown) => { if (v !== undefined) out[k] = v; };
   set('build', str(o.build, 24));
   set('lat', coord(o.lat, 90));
@@ -917,6 +920,7 @@ export default async function(req) {
           })),
           update_requested_at: device.update_requested_at || null,
           network_command: network?.command || null,
+          control_notice: controlNotice(device),
         };
         if (light) {
           // Left out, so the tablet keeps what the last full check-in sent. A

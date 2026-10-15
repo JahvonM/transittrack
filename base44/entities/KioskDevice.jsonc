@@ -188,6 +188,15 @@
         },
         "network_available": {
           "type": "boolean"
+        },
+        "management_available": {
+          "type": "boolean"
+        },
+        "management_owner": {
+          "type": "boolean"
+        },
+        "management_locked": {
+          "type": "boolean"
         }
       },
       "type": "object"
@@ -307,6 +316,72 @@
         "completed_at": {
           "type": "string",
           "format": "date-time"
+        }
+      }
+    },
+    "control_command": {
+      "type": "object",
+      "description": "Private admin command; native executor verifies over fixed HTTPS endpoint. Never exposed through entity gateway.",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "action": {
+          "type": "string"
+        },
+        "requested_by": {
+          "type": "string"
+        },
+        "requested_at": {
+          "type": "string"
+        },
+        "expires_at": {
+          "type": "string"
+        },
+        "company_id": {
+          "type": "string"
+        },
+        "vehicle_id": {
+          "type": "string"
+        },
+        "kiosk_type": {
+          "type": "string"
+        },
+        "lock_until": {
+          "type": "string"
+        }
+      }
+    },
+    "control_status": {
+      "type": "object",
+      "description": "Safe command progress. Requested is not proof that reboot completed.",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "action": {
+          "type": "string"
+        },
+        "state": {
+          "type": "string"
+        },
+        "requested_at": {
+          "type": "string"
+        },
+        "expires_at": {
+          "type": "string"
+        },
+        "lock_until": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "result_code": {
+          "type": "string"
+        },
+        "completed_at": {
+          "type": "string"
         }
       }
     }

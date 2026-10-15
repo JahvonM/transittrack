@@ -1,3 +1,4 @@
+import { useTabletWorkSafety } from "@/lib/nativeTabletControl";
 import "@/components/driver/driverPortrait.css";
 import { DriverKioskHeader, DriverKioskMore, DriverKioskPassengers, DriverKioskHistory } from "@/components/driver/DriverPortraitPanels";
 import { directionView } from "@/lib/driverDirection";
@@ -84,6 +85,9 @@ export default function DriverApp() {
   useEffect(() => { const t = tabFromStage(urlStage); if (t) setActiveTab(t); }, [urlStage]);
   const { session: rawSession, loading, error: sessionError, offline, invoke, refresh } = useDriverSession(deviceId);
   const session = useMemo(() => directionView(rawSession), [rawSession]);
+  useTabletWorkSafety(deviceId, !!session && !loading && !offline && !unlocked && !phoneUnlockOpen &&
+    !session.open_shift && session.vehicle?.tracking_active === false &&
+    typeof session.vehicle?.speed === "number" && session.vehicle.speed >= 0 && session.vehicle.speed < 0.5);
   const changeDirection = async (direction) => {
     const result = await invoke("set_direction", { direction });
     if (!result?.ok) throw new Error("Couldn't save direction. Try again.");

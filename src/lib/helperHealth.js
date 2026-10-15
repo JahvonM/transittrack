@@ -45,6 +45,12 @@ export function helperHealthPayload() {
         ...(w.join && typeof w.join === "object" ? { join: { id: w.join.id, ssid: w.join.ssid, state: w.join.state, message: w.join.message, at: w.join.at } } : {}),
       };
     }
+    const management = typeof window !== "undefined" ? window.__ttNativeControl : null;
+    if (fresh(management) && management.available === true) {
+      report.management_available = true;
+      report.management_owner = management.deviceOwner === true;
+      report.management_locked = management.locked === true;
+    }
     return { helper_health: report };
   } catch {
     return {};
