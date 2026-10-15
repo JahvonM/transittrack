@@ -1,3 +1,4 @@
+import { nativeTabletHealthAvailable } from "@/lib/nativeTabletHealth";
 import React, { useEffect, useRef, useState } from "react";
 import { Wifi, WifiOff, Signal, Radio, Lock, Loader2, RefreshCw, CheckCircle2, AlertTriangle, Eye, EyeOff, ChevronLeft } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -220,6 +221,9 @@ export default function TabletNetworkPanel({ boarding = false, className = "max-
   const offUntil = !wifi.enabled && wanted === null ? clockTime(h?.wifi?.off_until) : "";
   const wifiDetail = wanted !== null ? (wanted ? "Switching on…" : "Switching off…") : offUntil ? `Off until ${offUntil}` : wifi.text;
   const hasMobile = !!h?.mobile;
+  // The native health card shows the real connection and Android settings.
+  // Do not render a disabled, misleading "Wi-Fi off" legacy-helper card.
+  if (!h && nativeTabletHealthAvailable()) return null;
 
   return (
     <Card className={className}>
