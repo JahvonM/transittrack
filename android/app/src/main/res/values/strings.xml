@@ -5,5 +5,5 @@
     <string name="package_name">com.transittrack.app</string>
     <string name="custom_url_scheme">com.transittrack.app</string>
     <string name="usb_auto_accept_label">TransitTrack USB auto-accept</string>
-    <string name="usb_auto_accept_description">Automatically confirms TransitTrack GPS USB access prompts on this tablet. Only checks Android System UI while a TransitTrack GPS permission request is pending. Does not record, store, or send screen content. Turn this service off here at any time.</string>
+    <string name="usb_auto_accept_description">Automatically confirms TransitTrack GPS or card-reader USB access prompts on this tablet. Only checks Android System UI while a TransitTrack USB permission request is pending. Does not record, store, or send screen content. Turn this service off here at any time.</string>
 </resources>

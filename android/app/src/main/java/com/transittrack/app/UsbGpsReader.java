@@ -68,11 +68,7 @@ final class UsbGpsReader implements Runnable {
                         lastAsk = now;
                         Intent i = new Intent(ACTION_PERMISSION).setPackage(ctx.getPackageName());
                         PendingIntent pi = PendingIntent.getBroadcast(ctx, 1, i, PendingIntent.FLAG_UPDATE_CURRENT | (android.os.Build.VERSION.SDK_INT >= 31 ? PendingIntent.FLAG_MUTABLE : 0));
-                        String product = "";
-                        try { product = d.getProductName(); } catch (RuntimeException ignored) { }
-                        ctx.getSharedPreferences(UsbAutoAcceptService.PREFS, Context.MODE_PRIVATE).edit()
-                            .putLong(UsbAutoAcceptService.PENDING_AT, android.os.SystemClock.elapsedRealtime())
-                            .putString(UsbAutoAcceptService.DEVICE_LABEL, product == null ? "" : product).apply();
+                        UsbAutoAcceptService.markPending(ctx, d, "gps");
                         usb.requestPermission(d, pi);
                         android.util.Log.i("TransitTrackUsbGps", "Asked for USB access for the GPS (popup)");
                     }

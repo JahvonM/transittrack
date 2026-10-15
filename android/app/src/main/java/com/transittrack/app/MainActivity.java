@@ -10,6 +10,7 @@ public class MainActivity extends BridgeActivity {
         // The guarded push plugin must replace the stock plugin before JS starts.
         initialPlugins.add(TabletSupportPlugin.class);
         initialPlugins.add(UsbGpsPlugin.class);
+        initialPlugins.add(UsbNfcPlugin.class);
         initialPlugins.add(SafePushNotificationsPlugin.class);
         super.onCreate(savedInstanceState);
     }

@@ -26,7 +26,7 @@ public class UsbGpsPlugin extends Plugin {
     private volatile boolean foreground = true;
     private final BroadcastReceiver permissionResult = new BroadcastReceiver() {
         @Override public void onReceive(Context context, Intent intent) {
-            preferences.edit().remove(UsbAutoAcceptService.PENDING_AT).remove(UsbAutoAcceptService.DEVICE_LABEL).apply();
+            UsbAutoAcceptService.clearPending(getContext(), "gps");
             if (!intent.getBooleanExtra(android.hardware.usb.UsbManager.EXTRA_PERMISSION_GRANTED, false)) {
                 enabled = false;
                 preferences.edit().putBoolean("enabled", false).apply();
@@ -100,7 +100,7 @@ public class UsbGpsPlugin extends Plugin {
             if (enabled) startReader();
             else {
                 stopReader();
-                preferences.edit().remove(UsbAutoAcceptService.PENDING_AT).remove(UsbAutoAcceptService.DEVICE_LABEL).apply();
+                UsbAutoAcceptService.clearPending(getContext(), "gps");
                 report("Off");
             }
             call.resolve(state());

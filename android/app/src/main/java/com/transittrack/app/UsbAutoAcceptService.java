@@ -21,6 +21,24 @@ public class UsbAutoAcceptService extends AccessibilityService {
     static final String DEVICE_LABEL = "usb_permission_device";
     private long lastClick;
 
+    static void markPending(Context context, android.hardware.usb.UsbDevice device, String source) {
+        String product = "";
+        try { product = device.getProductName(); } catch (RuntimeException ignored) { }
+        context.getSharedPreferences(PREFS, MODE_PRIVATE).edit()
+            .putLong(PENDING_AT, SystemClock.elapsedRealtime()).putString("usb_permission_source", source)
+            .putString(DEVICE_LABEL, product == null ? "" : product).apply();
+    }
+    static void clearPending(Context context, String source) {
+        SharedPreferences p = context.getSharedPreferences(PREFS, MODE_PRIVATE);
+        if (source.equals(p.getString("usb_permission_source", "gps")))
+            p.edit().remove(PENDING_AT).remove(DEVICE_LABEL).remove("usb_permission_source").apply();
+    }
+    private boolean requestEnabled(SharedPreferences p) {
+        return "nfc".equals(p.getString("usb_permission_source", "gps"))
+            ? getSharedPreferences(UsbNfcPlugin.PREFS, MODE_PRIVATE).getBoolean("enabled", false)
+            : p.getBoolean("enabled", false);
+    }
+
     static boolean isEnabled(Context context) {
         String services = Settings.Secure.getString(context.getContentResolver(), Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
         if (services == null) return false;
@@ -32,7 +50,7 @@ public class UsbAutoAcceptService extends AccessibilityService {
     @Override public void onAccessibilityEvent(AccessibilityEvent event) {
         long now = SystemClock.elapsedRealtime();
         SharedPreferences p = getSharedPreferences(PREFS, MODE_PRIVATE);
-        if (now - lastClick < 1500 || !p.getBoolean("enabled", false) ||
+        if (now - lastClick < 1500 || !requestEnabled(p) ||
             p.getLong(PENDING_AT, 0) <= 0 || now - p.getLong(PENDING_AT, 0) > 45000) return;
         if (tryConfirm(getRootInActiveWindow(), p, now)) return;
         List<AccessibilityWindowInfo> windows = getWindows();
@@ -58,7 +76,7 @@ public class UsbAutoAcceptService extends AccessibilityService {
         }
         String app = getApplicationInfo().loadLabel(getPackageManager()).toString();
         if (!UsbPromptPolicy.eligible(root.getPackageName().toString(), text.toString(), app,
-                p.getString(DEVICE_LABEL, ""), p.getBoolean("enabled", false),
+                p.getString(DEVICE_LABEL, ""), requestEnabled(p),
                 p.getLong(PENDING_AT, 0), now)) return false;
         for (String id : new String[] { "com.android.systemui:id/alwaysUse", "android:id/alwaysUse", "android:id/checkbox" }) {
             List<AccessibilityNodeInfo> boxes = root.findAccessibilityNodeInfosByViewId(id);
@@ -70,7 +88,7 @@ public class UsbAutoAcceptService extends AccessibilityService {
         if (buttons != null) for (AccessibilityNodeInfo button : buttons) {
             if (button.isEnabled() && button.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
                 lastClick = now;
-                p.edit().remove(PENDING_AT).remove(DEVICE_LABEL).apply();
+                p.edit().remove(PENDING_AT).remove(DEVICE_LABEL).remove("usb_permission_source").apply();
                 return true;
             }
         }
