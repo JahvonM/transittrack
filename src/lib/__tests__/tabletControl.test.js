@@ -48,6 +48,19 @@ describe("privileged tablet command policy", () => {
   });
 });
 describe("real tabletControl endpoint against isolated database", () => {
+  it("gateway exposes only safe progress and refuses direct status/command edits", async () => {
+    const c = fixture(); await issue(c);
+    const access = body => load("entityAccess", c).default(request(body));
+    const read = await access({ entity: "KioskDevice", operation: "get", id: device.id });
+    expect(read.status).toBe(200);
+    const data = (await read.json()).result;
+    expect(data.control_status.state).toBe("waiting");
+    expect(data.control_command).toBeUndefined();
+    for (const data of [{ control_command: { action: "reboot" } }, { control_status: { state: "applied" } }]) {
+      const r = await access({ entity: "KioskDevice", operation: "update", id: device.id, data });
+      expect(r.status).toBeGreaterThanOrEqual(400);
+    }
+  });
   it("rejects signed-out, passenger, driver, mechanic and company control requests before reads", async () => {
     for (const role of [null, "staff", "driver", "mechanic", "company"]) {
       const c = fixture(role);
