@@ -196,7 +196,7 @@ function BoardingWifi({ device, onRefresh }) {
       <span className="flex items-center gap-1.5">
         {wifi.ssid ? <Wifi className="h-3.5 w-3.5" /> : <WifiOff className="h-3.5 w-3.5 text-muted-foreground" />}
         Wi-Fi:{" "}
-        {!ready ? <NeedsHelper nativeAvailable={h.network_available === true} /> : wifi.ssid ? <><b>{wifi.ssid}</b> <Bars n={wifi.bars} /></> : <span className="text-muted-foreground">not connected</span>}
+        {!ready ? <NeedsHelper nativeAvailable={h.network_available === true} /> : wifi.ssid ? <><b>{wifi.ssid}</b> <Bars n={wifi.bars} /></> : <span className="text-muted-foreground">{wifi.enabled === false ? "off" : h.network_native ? "network name unavailable" : "not connected"}</span>}
       </span>
       {ready && (
         <Button size="sm" variant="outline" className="h-8" onClick={() => setOpen(true)}>
@@ -240,6 +240,7 @@ function DriverHotspot({ device, onRefresh }) {
           </label>
         ) : <NeedsHelper nativeAvailable={h.network_available === true} />}
       </div>
+      {ready && h.network_native === true && <p className="text-xs">Current hotspot: {h.hotspot || "Unknown"}</p>}
       {ready && h.network_native === true && <p className="text-xs text-muted-foreground">Integrated policy runs while the driver app is open, pauses at low battery and depends on Android permissions. Turning it off leaves hotspot power unchanged.</p>}
       {h.network_native === true && commandProgress(device) && <p role="status" className="text-xs">{commandProgress(device)}</p>}
       {ready && h.network_native !== true && (

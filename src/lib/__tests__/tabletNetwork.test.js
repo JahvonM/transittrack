@@ -237,3 +237,31 @@ describe('Admin display helpers', () => {
     expect(hotspotAlwaysOn({ helper_health: { hotspot_always: true }, network_status: { type: 'hotspot', always_on: false, state: 'waiting' } })).toBe(false);
   });
 });
+
+
+describe('native completion through authenticated heartbeat handlers', () => {
+  it('stores a blocked native Wi-Fi result and removes the password', async () => {
+    const d = { ...boarding, network_command: joinCmd({ requested_at: new Date().toISOString() }), network_status: { id: 'cmd123456789', type: 'wifi_join', state: 'sent' } };
+    const f = fakeClient({ device: d, credentials: [credentialFor(d)] });
+    const response = await handler('kioskHeartbeat', f.client)(post({ device_id: d.id, device_token: TOKEN, network_ack: 'cmd123456789', network_result: { id: 'cmd123456789', code: 'MANAGED_WIFI_REQUIRED', message: 'secret-pass-1' } }));
+    expect(response.status).toBe(200);
+    const saved = f.writes.find(w => w.name === 'KioskDevice').data;
+    expect(saved.network_command).toBeNull(); expect(saved.network_status.state).toBe('blocked');
+    expect(JSON.stringify(saved)).not.toContain('secret-pass-1');
+  });
+  it('records driver hotspot failure without claiming activation', async () => {
+    const d = { ...driver, network_command: { id: 'cmd123456789', type: 'hotspot', always_on: true, requested_at: new Date().toISOString() }, network_status: { id: 'cmd123456789', type: 'hotspot', state: 'sent' } };
+    const f = fakeClient({ device: d, credentials: [credentialFor(d)] });
+    const response = await handler('driverSession', f.client)(post({ device_id: d.id, device_token: TOKEN, action: 'heartbeat', network_ack: 'cmd123456789', network_result: { id: 'cmd123456789', code: 'HOTSPOT_NOT_CONFIRMED' } }));
+    expect(response.status).toBe(200);
+    const saved = f.writes.find(w => w.name === 'KioskDevice').data;
+    expect(saved.network_status.state).toBe('failed'); expect(saved.network_command).toBeNull();
+  });
+  it('remote network commands reject passengers, managers, mechanics and signed-out callers', async () => {
+    for (const role of [null, 'staff', 'company', 'mechanic', 'driver']) {
+      const f = fakeClient({ device: boarding, credentials: [credentialFor(boarding)], user: role ? { id: 'user', role } : null });
+      expect((await handler('kioskNetwork', f.client)(post({ device_id: boarding.id, action: 'scan' }))).status).toBe(403);
+      expect(f.writes.some(w => w.name === 'KioskDevice')).toBe(false);
+    }
+  });
+});

@@ -179,6 +179,7 @@ export function cleanNetworkHealth(o: Record<string, unknown>): Record<string, u
   if (w && typeof w === 'object' && !Array.isArray(w)) {
     const wifi = w as Record<string, unknown>;
     const clean: Record<string, unknown> = {};
+    if (typeof wifi.enabled === 'boolean') clean.enabled = wifi.enabled;
     const ssid = text(wifi.ssid, 32);
     if (ssid !== undefined) clean.ssid = ssid;
     const b = bars(wifi.bars); if (b !== undefined) clean.bars = b;

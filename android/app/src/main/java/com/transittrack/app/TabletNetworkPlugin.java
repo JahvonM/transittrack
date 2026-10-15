@@ -218,7 +218,8 @@ public class TabletNetworkPlugin extends Plugin {
         try {
             Map<String, ScanResult> best = new HashMap<>();
             for (ScanResult r : wifi.getScanResults()) {
-                if (!NetworkInputPolicy.ssid(r.SSID) || SystemClock.elapsedRealtime() - r.timestamp / 1000 > 30000) continue;
+                long age = SystemClock.elapsedRealtime() - r.timestamp / 1000;
+                if (!NetworkInputPolicy.ssid(r.SSID) || r.timestamp <= 0 || age > 30000 || age < -2000) continue;
                 ScanResult old = best.get(r.SSID);
                 if (old == null || old.level < r.level) best.put(r.SSID, r);
             }
