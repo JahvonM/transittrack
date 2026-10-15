@@ -235,8 +235,8 @@ function DriverHotspot({ device, onRefresh }) {
         <span className="flex items-center gap-1.5"><Radio className="h-3.5 w-3.5" /> Hotspot</span>
         {ready ? (
           <label className="flex items-center gap-2">
-            <Switch checked={checked} disabled={busy} onCheckedChange={change} aria-label="Keep the hotspot on all the time" />
-            <span>Always on</span>
+            <Switch checked={checked} disabled={busy} onCheckedChange={change} aria-label={h.network_native ? "Keep hotspot on while driver app is open" : "Keep the hotspot on all the time"} />
+            <span>{h.network_native ? "Keep on while app is open" : "Always on"}</span>
           </label>
         ) : <NeedsHelper nativeAvailable={h.network_available === true} />}
       </div>

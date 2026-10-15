@@ -169,13 +169,13 @@ public class TabletNetworkPlugin extends Plugin {
     }
     private void executeOnMain(PluginCall call, JSObject cmd) {
         String id = cmd.optString("id", ""), type = cmd.optString("type", "");
-        if (!NetworkInputPolicy.id(id)) { call.reject("Invalid network command."); return; }
+        if (!(cmd.opt("id") instanceof String) || !(cmd.opt("type") instanceof String) || !NetworkInputPolicy.id(id)) { call.reject("Invalid network command."); return; }
         if (completed.containsKey(id)) { call.resolve(completed.get(id)); return; }
         if (pendingCall != null || hotspotAttempt) { call.reject("Network action already in progress."); return; }
         if (!enabled) { call.resolve(result(id, "NETWORK_DISABLED")); return; }
         if (!foreground || mode.isEmpty()) { call.resolve(result(id, "NETWORK_CONTEXT_REQUIRED")); return; }
         if (!Arrays.asList("wifi_scan", "wifi_join", "wifi_power", "hotspot").contains(type)) { call.reject("Unknown network command."); return; }
-        if (type.equals("wifi_join") && (!NetworkInputPolicy.ssid(cmd.optString("ssid", "")) || !NetworkInputPolicy.password(cmd.optString("password", "")))) {
+        if (type.equals("wifi_join") && (!(cmd.opt("ssid") instanceof String) || !(cmd.opt("password") instanceof String) || !NetworkInputPolicy.ssid(cmd.optString("ssid", "")) || !NetworkInputPolicy.password(cmd.optString("password", "")))) {
             call.reject("Invalid Wi-Fi details."); return;
         }
         if ((type.equals("hotspot") && !(cmd.opt("always_on") instanceof Boolean)) ||
@@ -293,7 +293,9 @@ public class TabletNetworkPlugin extends Plugin {
         if (b == null) return;
         int level = b.getIntExtra(BatteryManager.EXTRA_LEVEL, -1), scale = b.getIntExtra(BatteryManager.EXTRA_SCALE, -1);
         int plugged = b.getIntExtra(BatteryManager.EXTRA_PLUGGED, -1);
+        boolean wasParked = power.parked();
         power.update(level >= 0 && scale > 0 && level <= scale ? Math.round(level * 100f / scale) : -1, plugged < 0 ? null : plugged != 0);
+        if (wasParked && !power.parked()) policyFailures = 0;
     }
     private void beginHotspot(PluginCall call, String id) {
         updatePower();
@@ -312,7 +314,7 @@ public class TabletNetworkPlugin extends Plugin {
                 if (destroyed) return;
                 if (failed[0]) { hotspotAttempt = false; hotspotFailed(call, "HOTSPOT_NOT_CONFIRMED"); return; }
                 if (Boolean.TRUE.equals(TabletHotspotApi.isOn(getContext()))) {
-                    hotspotAttempt = false; ownedHotspot = true; always = true; policyFailures = 0; hotspot = "On";
+                    hotspotAttempt = false; ownedHotspot = true; always = true; policyFailures = 0; hotspot = "On"; lastCode = "HOTSPOT_ON";
                     prefs.edit().putBoolean("always", true).apply();
                     if (call != null) complete("HOTSPOT_ON"); else publish();
                 } else if (SystemClock.elapsedRealtime() >= expires) {
@@ -323,7 +325,7 @@ public class TabletNetworkPlugin extends Plugin {
         main.post(check);
     }
     private void hotspotFailed(PluginCall call, String code) {
-        policyFailures++; hotspot = "Blocked - check Android hotspot settings";
+        policyFailures++; lastCode = code; hotspot = "Blocked - check Android hotspot settings";
         if (call != null) complete(code); else publish();
     }
     @Override protected void handleOnPause() { foreground = false; }
