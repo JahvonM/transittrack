@@ -1,3 +1,4 @@
+import TabletRecoveryPanel from "@/components/driver/TabletRecoveryPanel";
 import TabletDiagnosticsPanel from "@/components/driver/TabletDiagnosticsPanel";
 import UsbGpsPanel from "@/components/driver/UsbGpsPanel";
 import React from "react";
@@ -19,6 +20,7 @@ export default function DriverDevicePanel({ session, deviceId, onUnpair }) {
     <>
     <UsbGpsPanel />
     <TabletDiagnosticsPanel />
+    <TabletRecoveryPanel />
     <TabletNetworkPanel />
     <Card className="max-w-lg mx-auto">
       <CardHeader className="pb-3">

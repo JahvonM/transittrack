@@ -19,6 +19,16 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- Optional Home handler: selected only through Android's explicit chooser/settings. -->
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.HOME" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED" />
+            </intent-filter>
+            <meta-data android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED" android:resource="@xml/tablet_usb_devices" />
             <!-- Google/Apple sign-in happens in the phone's browser, which hands
                  the (sealed) session back through com.transittrack.app://signin.
                  Keep in step with PHONE_SIGNIN_SCHEME in src/lib/phoneSignIn.js. -->

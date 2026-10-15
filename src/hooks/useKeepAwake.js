@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { tabletRecoveryAvailable } from "@/lib/tabletRecovery";
 
 /**
  * Keeps the screen on while active — for driver tablets that are mounted and
@@ -18,6 +19,7 @@ export function useKeepAwake(enabled = true) {
     let wakeLock = null;
     let cancelled = false;
     let usedNative = false;
+    let activityManaged = false;
     let acquiring = false;
     let retry = null;
 
@@ -48,6 +50,9 @@ export function useKeepAwake(enabled = true) {
       try {
         const { Capacitor } = await import("@capacitor/core");
         if (Capacitor.isNativePlatform()) {
+          // New kiosk builds keep their native activity awake across page/tab changes.
+          // Do not clear its flag when one screen unmounts. Older shells use the plugin.
+          if (tabletRecoveryAvailable()) { usedNative = true; activityManaged = true; return; }
           const { KeepAwake } = await import("@capacitor-community/keep-awake");
           await KeepAwake.keepAwake();
           usedNative = true;
@@ -68,7 +73,7 @@ export function useKeepAwake(enabled = true) {
       clearTimeout(retry);
       document.removeEventListener("visibilitychange", onVisibilityChange);
       window.removeEventListener("pageshow", onVisibilityChange);
-      if (usedNative) {
+      if (usedNative && !activityManaged) {
         import("@capacitor-community/keep-awake").then(({ KeepAwake }) => KeepAwake.allowSleep()).catch(() => {});
       } else if (wakeLock) {
         wakeLock.release().catch(() => {});
