@@ -1,3 +1,4 @@
+import { bridgeNativeNfc, acknowledgeNativeTap, setNativeNfcReady } from "@/lib/nativeNfc";
 import { useEffect, useRef, useState } from "react";
 import { badgeInbox } from "@/lib/badgeInbox";
 import { bridgeHelperToBadgeEvents } from "@/lib/cardReader";
@@ -37,7 +38,11 @@ function normalizeTag(value) {
 // sent, so the reader can flash green (accepted) or red + 3 beeps (rejected).
 // The bridge listens only on the tablet itself (127.0.0.1). Fire-and-forget:
 // if it isn't reachable, the reader just falls back to its default flash.
-export function reportBadgeResult(ok) {
+export function reportBadgeResult(ok, receipt = {}) {
+  if (receipt.source === "native") {
+    void acknowledgeNativeTap(receipt.tapId, ok).catch(() => {});
+    return;
+  }
   if (!hasExternalReader()) return;
   const url = `http://127.0.0.1:8765/result?ok=${ok ? 1 : 0}&t=${Date.now()}`;
   const viaImage = () => { try { new Image().src = url; } catch { /* ignore */ } };
@@ -56,7 +61,7 @@ export function useNfcTap(onTag, active, { webActive = active } = {}) {
   const [resumeVersion, setResumeVersion] = useState(0);
   const readerRef = useRef(null);
   const takeBadges = useRef(null);
-  if (!takeBadges.current) takeBadges.current = badgeInbox();
+  if (!takeBadges.current) takeBadges.current = badgeInbox(window, { metadata: true });
   const onTagRef = useRef(onTag);
   onTagRef.current = onTag;
 
@@ -65,10 +70,13 @@ export function useNfcTap(onTag, active, { webActive = active } = {}) {
     // On a Windows PC that has the TransitTrack Card Reader helper, its taps
     // arrive as the same `tt-badge` events.
     bridgeHelperToBadgeEvents();
+    const stopNative = bridgeNativeNfc();
     const onReader = () => setExternal(true);
     window.addEventListener("tt-badge-reader", onReader);
-    return () => window.removeEventListener("tt-badge-reader", onReader);
+    return () => { window.removeEventListener("tt-badge-reader", onReader); stopNative(); };
   }, []);
+
+  useEffect(() => { void setNativeNfcReady(active).catch(() => {}); }, [active]);
 
   // External USB reader taps — only acted on while this screen is listening,
   // same as Web NFC, so a tap on a confirm/result screen doesn't re-trigger.
@@ -77,11 +85,11 @@ export function useNfcTap(onTag, active, { webActive = active } = {}) {
       setExternal(true);
       if (!active) { takeBadges.current(event); return; }
       if (document.visibilityState === "hidden") return;
-      for (const tag of takeBadges.current(event)) onTagRef.current?.(tag);
+      for (const tap of takeBadges.current(event)) onTagRef.current?.(tap.uid, { tapId: tap.tapId, source: tap.source });
     };
     const resume = () => {
       if (document.visibilityState !== "hidden" && active) {
-        for (const tag of takeBadges.current()) onTagRef.current?.(tag);
+        for (const tap of takeBadges.current()) onTagRef.current?.(tap.uid, { tapId: tap.tapId, source: tap.source });
       }
     };
     window.addEventListener("tt-badge", onBadge);

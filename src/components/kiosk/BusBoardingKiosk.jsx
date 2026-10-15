@@ -183,7 +183,7 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
   // without pressing Boarding/Exiting can't leave the reader dead for the next.
   const idleListening = true;
   const { listening: nfcListening, nfcError } = useNfcTap(
-    (tag) => handleTag(tag),
+    (tag, receipt) => handleTag(tag, receipt),
     idleListening,
     { webActive: unlocked && idleListening }
   );
@@ -284,8 +284,8 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
     return ["wrong_bus", "no_bus"].includes(e?.response?.data?.error) ? e.response.data.message : "";
   };
 
-  const handleTag = async (tag) => {
-    if (lookupStarted.current && Date.now() - lookupStarted.current < 12000) return;
+  const handleTag = async (tag, receipt = {}) => {
+    if (lookupStarted.current && Date.now() - lookupStarted.current < 12000) { reportBadgeResult(false, receipt); return; }
     lookupStarted.current = Date.now();
     setCheckingCard(true);
     clearTimeout(resetTimer.current);
@@ -297,9 +297,9 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
       setUnlocked(true);
       setPending({ staff: res.staff, next_status: res.next_status, method: "nfc", verification_grant: res.verification_grant, directory_grant:res.directory_grant, card_fingerprint:res.card_fingerprint });
       setMode("confirm");
-      reportBadgeResult(true);
+      reportBadgeResult(true, receipt);
     } catch (e) {
-      reportBadgeResult(false);
+      reportBadgeResult(false, receipt);
       if (handleUnpaired(e)) return;
       setUnlocked(true);
       setBadgeError(busMessage(e) || (e?.response?.data?.error === "badge_not_registered"
