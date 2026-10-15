@@ -76,6 +76,9 @@ public class TabletHealthPlugin extends Plugin {
         try {
             out.put("bluetooth", ((BoardingBluetoothPlugin) getBridge().getPlugin("BoardingBluetooth").getInstance()).state());
         } catch (Exception ignored) { }
+        try {
+            out.put("networkControl", ((TabletNetworkPlugin) getBridge().getPlugin("TabletNetwork").getInstance()).state());
+        } catch (Exception ignored) { }
         out.put("events", TabletDiagnostics.snapshot());
         call.resolve(out);
     }

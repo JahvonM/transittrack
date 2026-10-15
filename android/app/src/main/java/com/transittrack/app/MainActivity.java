@@ -15,6 +15,7 @@ public class MainActivity extends BridgeActivity {
         initialPlugins.add(BoardingBluetoothPlugin.class);
         initialPlugins.add(TabletHealthPlugin.class);
         initialPlugins.add(TabletRecoveryPlugin.class);
+        initialPlugins.add(TabletNetworkPlugin.class);
         initialPlugins.add(SafePushNotificationsPlugin.class);
         super.onCreate(savedInstanceState);
         keepTabletAwake();
