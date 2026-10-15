@@ -104,7 +104,7 @@ final class UsbGpsReader implements Runnable {
 
     private boolean open(UsbDevice d) {
         con = usb.openDevice(d);
-        if (con == null) { android.util.Log.i("TransitTrackUsbGps", "Could not open the GPS"); return false; }
+        if (con == null) { setGps("Receiver unavailable - stop the separate helper and retry"); return false; }
         prolific = d.getVendorId() == PROLIFIC;
         dataIntf = null; ctrlIntf = null;
         if (prolific) {
@@ -125,14 +125,14 @@ final class UsbGpsReader implements Runnable {
                 }
             }
         }
-        if (dataIntf == null || !con.claimInterface(dataIntf, false)) { android.util.Log.i("TransitTrackUsbGps", "Could not claim the GPS"); return false; }
+        if (dataIntf == null || !con.claimInterface(dataIntf, false)) { setGps("Receiver busy - stop the separate helper and retry"); return false; }
         if (ctrlIntf != null) con.claimInterface(ctrlIntf, false);
         in = null;
         for (int j = 0; j < dataIntf.getEndpointCount(); j++) {
             UsbEndpoint ep = dataIntf.getEndpoint(j);
             if (ep.getType() == UsbConstants.USB_ENDPOINT_XFER_BULK && ep.getDirection() == UsbConstants.USB_DIR_IN) in = ep;
         }
-        if (in == null) { android.util.Log.i("TransitTrackUsbGps", "GPS data endpoint not found"); return false; }
+        if (in == null) { setGps("Unsupported USB GPS data interface"); return false; }
         if (prolific) prolificInit();
         return true;
     }
