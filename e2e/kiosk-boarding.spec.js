@@ -477,7 +477,7 @@ test('native Bluetooth rejected and expired codes cannot board a passenger', asy
   await expect.poll(() => page.evaluate(() => window.__nativeBleReady)).toBe(true);
   await page.evaluate(() => window.__emitNativeBle({ id: 'ble-native-expired-12345678', code: 'tt-code:QRTOKEN123456', at: Date.now() - 31000 }));
   await page.evaluate(() => window.__emitNativeBle({ id: 'ble-native-rejected-12345678', code: 'tt-code:QRTOKEN123456', at: Date.now() }));
-  await expect(page.getByText('Boarding code rejected', { exact: true })).toBeVisible();
+  await expect(page.getByText("That phone's boarding code isn't recognized. Use your card, QR or code.", { exact: true })).toBeVisible();
   expect(calls.filter(([a]) => a === 'lookup_code')).toHaveLength(1);
   expect(calls.filter(([a]) => a === 'check_in')).toHaveLength(0);
 });
@@ -486,7 +486,7 @@ test('native Bluetooth control remains behind the boarding settings PIN', async 
   await setup(page, { checkIn: b => b.action === 'verify_settings_pin' ? { json: { ok: true } } : null });
   await page.goto('/kiosk');
   await expect(page.getByRole('switch', { name: 'Use integrated Bluetooth boarding' })).toHaveCount(0);
-  const bar = page.locator('.tt-board-topbar');
+  const bar = page.locator('.tt-board-header');
   await bar.dispatchEvent('pointerdown');
   await page.waitForTimeout(3100);
   await bar.dispatchEvent('pointerup');
@@ -500,7 +500,7 @@ test('native Bluetooth control remains behind the boarding settings PIN', async 
   await expect.poll(() => page.evaluate(() => window.__nativeBleRetried)).toBe(true);
   await dialog.getByRole('button', { name: 'Open Android Bluetooth settings', exact: true }).click();
   await expect.poll(() => page.evaluate(() => window.__nativeBluetoothSettingsOpened)).toBe(true);
-  await dialog.getByRole('button', { name: 'Done', exact: true }).click();
-  await page.goto('/tablet?choose=1');
+  await page.screenshot({ path: '/tmp/tt-ble-settings.png', fullPage: true });
+  await dialog.getByRole('link', { name: 'Choose tablet screen', exact: true }).click();
   await expect.poll(() => page.evaluate(() => window.__nativeBleReady)).toBe(false);
 });

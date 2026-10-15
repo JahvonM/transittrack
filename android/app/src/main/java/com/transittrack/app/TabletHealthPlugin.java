@@ -73,6 +73,9 @@ public class TabletHealthPlugin extends Plugin {
             out.put("gps", ((UsbGpsPlugin) getBridge().getPlugin("UsbGps").getInstance()).state());
             out.put("reader", ((UsbNfcPlugin) getBridge().getPlugin("UsbNfc").getInstance()).state());
         } catch (Exception ignored) { }
+        try {
+            out.put("bluetooth", ((BoardingBluetoothPlugin) getBridge().getPlugin("BoardingBluetooth").getInstance()).state());
+        } catch (Exception ignored) { }
         out.put("events", TabletDiagnostics.snapshot());
         call.resolve(out);
     }

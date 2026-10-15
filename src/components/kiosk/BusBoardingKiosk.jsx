@@ -367,6 +367,7 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
       setMode("confirm");
     } catch (e) {
       if (handleUnpaired(e)) return;
+      setUnlocked(true);
       setBadgeError(busMessage(e) || "That phone's boarding code isn't recognized. Use your card, QR or code.");
       setMode("badge_error");
       resetSoon(4000);

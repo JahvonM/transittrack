@@ -29,6 +29,7 @@ export default function TabletDiagnosticsPanel() {
         <div><dt className="text-muted-foreground">Storage</dt><dd>{storage}</dd></div>
         <div><dt className="text-muted-foreground">Network</dt><dd>{health.network || "Unknown"}{health.internetValidated === false ? " · Internet unconfirmed" : ""}</dd></div>
         <div><dt className="text-muted-foreground">USB accessories</dt><dd>{health.usbDevices ?? "Unknown"}</dd></div>
+        {health.bluetooth && <div className="col-span-2"><dt className="text-muted-foreground">Bluetooth boarding</dt><dd>{health.bluetooth.status || "Unavailable"}</dd></div>}
       </dl>
       {health.battery <= 10 && !health.charging && <p role="alert" className="text-sm text-warning">Battery is low. Check the charger and cable.</p>}
       {health.batteryTemperature >= 45 && <p role="alert" className="text-sm text-warning">Tablet battery is hot. Move it out of direct sunlight.</p>}
