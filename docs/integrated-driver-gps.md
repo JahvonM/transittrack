@@ -35,3 +35,11 @@ Rollback: turn the integrated switch off first, then restart the helper. Never r
 - JavaScript tests cover the existing source by default, direct USB mode, switching, late callbacks, cleanup, old Android builds and sample validation.
 - Existing GPS snapshot and backup-GPS tests verify backend trip and stop-alert behaviour is preserved.
 - Hardware, firmware-specific serial compatibility and USB permissions require the physical tablet test above.
+
+### Results for this checkpoint
+
+- Android compileDebugJavaWithJavac: passed against API 36 using JDK 17; testDebugUnitTest: 4 parser tests passed.
+- Targeted JavaScript suite: 14 tests passed (8 source-selection tests, 1 existing GPS snapshot, 5 existing backup GPS tests).
+- Web production build and changed-file lint: passed.
+- Browser driver suite: 10 passed initially; the landscape case timed out during its final screenshot after assertions passed. That case passed when run alone (5.7 seconds). All 11 scenarios have passing results, including the mocked native USB settings toggle/status/rollback scenario. Its screenshot was inspected.
+- No APK was signed or published; no tablet, live data, pairing credential or helper source was changed. Real VFAN USB testing is still required.
