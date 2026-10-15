@@ -354,3 +354,89 @@ test('boarding scene assets load without a network after being saved',async({pag
  })));
  expect(loaded).toEqual([true,true]);
 });
+
+async function installNativeHelper(page, enabled = true) {
+  await page.addInitScript(({ enabled }) => {
+    let state = { available: true, enabled, status: enabled ? 'Connected' : 'Off', delivery: 'No tap yet', lastTapAt: 0, autoAcceptEnabled: false };
+    const listeners = new Map();
+    window.__nativeTapResults = [];
+    window.__nativeReady = false;
+    window.__emitNativeCard = raw => { for (const cb of listeners.get('card') || []) cb(raw); };
+    const emitState = () => { for (const cb of listeners.get('readerState') || []) cb({ ...state }); };
+    const nfc = {
+      getState: async () => ({ ...state }),
+      setReady: async ({ ready }) => { window.__nativeReady = ready; return { ...state }; },
+      addListener: async (name, cb) => { if (!listeners.has(name)) listeners.set(name, new Set()); listeners.get(name).add(cb); return { remove: async () => listeners.get(name).delete(cb) }; },
+      acknowledge: async result => { window.__nativeTapResults.push(result); return { acknowledged: true }; },
+      setEnabled: async ({ enabled }) => { state = { ...state, enabled, status: enabled ? 'Looking for USB reader' : 'Off' }; emitState(); return { ...state }; },
+      rescan: async () => { state = { ...state, status: 'Reconnecting' }; emitState(); return { ...state }; },
+    };
+    const health = {
+      getSnapshot: async () => ({ available: true, at: Date.now(), battery: 67, charging: true, batteryTemperature: 32.5, freeStorageMb: 8192, totalStorageMb: 32768, model: 'Test tablet', androidVersion: '10', network: 'wifi', internetValidated: true, usbDevices: 1, reader: { ...state }, gps: { enabled: false }, events: [{ at: Date.now(), component: 'reader', code: 'READER_CONNECTED' }] }),
+      openWifiSettings: async () => { window.__wifiSettingsOpened = true; },
+      openHotspotSettings: async () => { window.__hotspotSettingsOpened = true; },
+    };
+    const gps = { openAutoAcceptSettings: async () => { window.__autoAcceptSettingsOpened = true; } };
+    const other = new Proxy({}, { get: (_, key) => key === 'addListener' ? async () => ({ remove: async () => {} }) : async () => ({}) });
+    window.CapacitorPlatforms = { platforms: new Map(), currentPlatform: { name: 'android', getPlatform: () => 'android', isNativePlatform: () => true, isPluginAvailable: name => ['UsbNfc', 'TabletHealth', 'UsbGps'].includes(name), registerPlugin: name => name === 'UsbNfc' ? nfc : name === 'TabletHealth' ? health : name === 'UsbGps' ? gps : other } };
+  }, { enabled });
+}
+
+test('integrated NFC reader correlates accepted taps and retries without duplicate boarding', async ({ page }) => {
+  await installNativeHelper(page);
+  const { calls, errors } = await setup(page, {
+    checkIn: b => b.action === 'lookup_tag' ? { json: { staff: person, next_status: 'boarded', verification_grant: 'b'.repeat(64) } }
+      : b.action === 'check_in' ? { json: { record: { staff_name: person.full_name, status: b.status }, occupancy: 5, today_count: 10 } } : null,
+  });
+  await page.goto('/kiosk');
+  await expect.poll(() => page.evaluate(() => window.__nativeReady)).toBe(true);
+  const raw = { uid: 'AABBCCDD', tapId: 'native-test-accepted-00001', at: await page.evaluate(() => Date.now()) };
+  await page.evaluate(raw => window.__emitNativeCard(raw), raw);
+  await expect(page.getByText('Are you boarding or exiting?')).toBeVisible();
+  await expect.poll(() => page.evaluate(() => window.__nativeTapResults)).toContainEqual({ tapId: raw.tapId, accepted: true });
+  await page.evaluate(raw => window.__emitNativeCard(raw), raw);
+  await expect.poll(() => page.evaluate(() => window.__nativeTapResults.length)).toBe(2);
+  expect(calls.filter(([a]) => a === 'lookup_tag')).toHaveLength(1);
+  await page.getByRole('button', { name: /Boarding/ }).click();
+  await expect(page.getByText(/Welcome aboard, Maria!/)).toBeVisible();
+  expect(calls.filter(([a]) => a === 'check_in')).toHaveLength(1);
+  expect(await page.evaluate(() => Object.values(localStorage).join(' '))).not.toContain(raw.uid);
+  expect(errors).toEqual([]);
+});
+
+test('integrated NFC reader reports a rejection for that tap', async ({ page }) => {
+  await installNativeHelper(page);
+  await setup(page, { checkIn: b => b.action === 'lookup_tag' ? { status: 404, json: { error: 'badge_not_registered' } } : null });
+  await page.goto('/kiosk');
+  await expect.poll(() => page.evaluate(() => window.__nativeReady)).toBe(true);
+  const tapId = 'native-test-rejected-00001';
+  await page.evaluate(tapId => window.__emitNativeCard({ uid: '11223344', tapId, at: Date.now() }), tapId);
+  await expect(page.getByText(/This card isn't registered yet/)).toBeVisible();
+  await expect.poll(() => page.evaluate(() => window.__nativeTapResults)).toContainEqual({ tapId, accepted: false });
+});
+
+test('boarding settings expose integrated reader, USB auto-accept and tablet health behind the PIN', async ({ page }) => {
+  await installNativeHelper(page, false);
+  await setup(page, { checkIn: b => b.action === 'verify_settings_pin' ? { json: { ok: b.pin === '1234' } } : null });
+  await page.goto('/kiosk');
+  await expect(page.getByText('Slide to enter a code', { exact: true })).toBeVisible();
+  await expect(page.getByRole('switch', { name: 'Use integrated USB card reader' })).toHaveCount(0);
+  await page.locator('.tt-board-header').dispatchEvent('pointerdown');
+  await page.waitForTimeout(3100);
+  await page.locator('.tt-board-header').dispatchEvent('pointerup');
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.getByText('Bus PIN', { exact: true })).toBeVisible();
+  for (const d of '1234') await dialog.getByRole('button', { name: d, exact: true }).click();
+  await expect(dialog.getByText('Tablet settings', { exact: true })).toBeVisible();
+  const toggle = dialog.getByRole('switch', { name: 'Use integrated USB card reader' });
+  await expect(toggle).not.toBeChecked(); await toggle.click(); await expect(toggle).toBeChecked();
+  await dialog.getByRole('button', { name: 'Check card reader again' }).click();
+  await expect(dialog.getByText('Reconnecting', { exact: true })).toBeVisible();
+  await dialog.getByRole('button', { name: 'Set up USB auto-accept' }).click();
+  await expect.poll(() => page.evaluate(() => window.__autoAcceptSettingsOpened)).toBe(true);
+  await expect(dialog.getByText('Test tablet · Android 10')).toBeVisible();
+  await expect(dialog.getByText('32.5°C', { exact: true })).toBeVisible();
+  await dialog.getByRole('button', { name: 'Wi-Fi settings', exact: true }).click();
+  await expect.poll(() => page.evaluate(() => window.__wifiSettingsOpened)).toBe(true);
+  await page.screenshot({ path: '/tmp/native-helper-boarding-settings.png', fullPage: true });
+});
