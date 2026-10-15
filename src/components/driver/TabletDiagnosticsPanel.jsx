@@ -39,7 +39,7 @@ export default function TabletDiagnosticsPanel() {
       </div>
       {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
       <details><summary className="cursor-pointer text-sm">Recent diagnostics</summary>
-        <ul className="mt-2 space-y-1 text-xs text-muted-foreground">{(health.events || []).slice(-12).reverse().map((event, i) => <li key={i}>{new Date(event.at).toLocaleTimeString()} · {event.component}: {event.code.toLowerCase().replaceAll("_", " ")}</li>)}</ul>
+        <ul className="mt-2 space-y-1 text-xs text-muted-foreground">{(health.events || []).slice(-12).reverse().map((event, i) => <li key={i}>{new Date(event.at).toLocaleTimeString()} · {event.component}: {event.code.toLowerCase().replace(/_/g, " ")}</li>)}</ul>
       </details>
     </CardContent>
   </Card>;
