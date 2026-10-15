@@ -108,6 +108,13 @@ export default function Login() {
       subtitle="Sign in to track your bus and plan your pickup."
       footer={
         <div className="space-y-3 text-center">
+          <div className="rounded-xl border border-border p-3 text-sm">
+            <p className="mb-2 text-muted-foreground">Setting up a bus tablet? Use pairing, then your driver PIN.</p>
+            <div className="flex flex-wrap justify-center gap-4">
+              <Link to="/driver" className="text-primary font-medium hover:underline">Driver tablet</Link>
+              <Link to="/kiosk" className="text-primary font-medium hover:underline">Boarding kiosk</Link>
+            </div>
+          </div>
           <div>
             New here?{" "}
             <Link
