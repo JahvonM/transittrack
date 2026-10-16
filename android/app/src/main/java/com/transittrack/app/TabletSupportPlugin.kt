@@ -83,12 +83,13 @@ class TabletSupportPlugin : Plugin() {
  @ActivityCallback private fun screenResult(call:PluginCall?, result:ActivityResult) {
   val s=current
   call?.resolve()
-  if(s==null)return
+  if(s==null || call?.getString("session_id")!=s.id)return
   if(result.resultCode!=Activity.RESULT_OK || result.data==null) {finish(s,"denied");return}
   startCapture(s,result.data)
  }
  @PermissionCallback private fun cameraResult(call:PluginCall) {
   call.resolve();val s=current ?:return
+  if(call.getString("session_id")!=s.id)return
   if(getPermissionState("camera")==PermissionState.GRANTED)startCapture(s,null) else finish(s,"denied")
  }
  private fun ensureCurrent(s:Session) { check(current===s); if(s.deadline>0)check(SystemClock.elapsedRealtime()<s.deadline) }
@@ -101,6 +102,11 @@ class TabletSupportPlugin : Plugin() {
     require(auth.getString("id")==s.id && auth.getString("capability")==s.capability && auth.getLong("ttl_ms")>0)
     val url=java.net.URI(auth.getString("url"))
     require(url.scheme=="wss" && url.host.matches(Regex("[a-z0-9-]+\\.livekit\\.cloud")) && url.port==-1 && url.userInfo==null)
+    if(s.capability!="screen") {
+     val manager=context.getSystemService(android.content.Context.CAMERA_SERVICE) as android.hardware.camera2.CameraManager
+     val facing=if(s.capability=="camera_back")android.hardware.camera2.CameraCharacteristics.LENS_FACING_BACK else android.hardware.camera2.CameraCharacteristics.LENS_FACING_FRONT
+     require(manager.cameraIdList.any{manager.getCameraCharacteristics(it).get(android.hardware.camera2.CameraCharacteristics.LENS_FACING)==facing})
+    }
     val options=RoomOptions(
      videoTrackCaptureDefaults=LocalVideoTrackOptions(position=if(s.capability=="camera_back")CameraPosition.BACK else CameraPosition.FRONT,
       captureParams=VideoCaptureParameter(640,360,15)),

@@ -22,6 +22,7 @@ apply from: "variables.gradle"
 
 allprojects {
     repositories {
+        maven { url "https://jitpack.io"; content { includeGroup "com.github.davidliu" } }
         google()
         mavenCentral()
     }
