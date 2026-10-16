@@ -28,6 +28,7 @@ export function createSupportViewer({ video, onEnded, isCancelled = () => false,
   const media=auth.sdp.split(/\r?\n/).filter(l=>l.startsWith("m="));
   if(media.length!==1 || !media[0].startsWith("m=video ") || !auth.sdp.split(/\r?\n/).includes("a=sendonly"))
    throw new Error("Expected video-only sender");
+  if(!auth.sdp.includes("a=candidate:")) throw new Error("No tablet connection address. Configure a STUN/TURN server.");
   pc.setConfiguration({iceServers:auth.iceServers});
   await pc.setRemoteDescription({type:"offer",sdp:auth.sdp});assertOpen();
   for(const transceiver of pc.getTransceivers()) transceiver.direction="recvonly";
@@ -39,6 +40,7 @@ export function createSupportViewer({ video, onEnded, isCancelled = () => false,
    if(pc.iceGatheringState==="complete"){clearTimeout(timer);pendingReject=null;resolve();}
   });
   assertOpen();
+  if(!pc.localDescription?.sdp.includes("a=candidate:")) throw new Error("No viewer connection address. Configure a STUN/TURN server.");
   await sendAnswer(pc.localDescription.sdp);
   assertOpen();
  };

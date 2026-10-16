@@ -85,7 +85,9 @@ class DirectSupportPeer(private val context:Context, private val capability:Stri
   setDescription(pc,offer,true)
   withTimeout(15000){gathered.await()}
   check(!closed)
-  return pc.localDescription.description
+  val sdp=pc.localDescription.description
+  require(sdp.contains("a=candidate:")){"No connection address; STUN/TURN configuration required"}
+  return sdp
  }
  suspend fun answer(sdp:String) {
   require(sdp.length<=65536 && sdp.lines().count{it.startsWith("m=")}==1 && sdp.contains("a=recvonly") && !sdp.contains("m=audio") && !sdp.contains("m=application"))
