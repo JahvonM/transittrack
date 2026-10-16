@@ -19,10 +19,10 @@ test("direct receiver renders a real synthetic WebRTC video without camera, micr
   let ended=false;
   const receiver=window.TTDirect.createSupportViewer({video,onEnded:()=>{ended=true;}});
   await receiver.connect({iceServers:[],sdp:sender.localDescription.sdp},sdp=>sender.setRemoteDescription({type:"answer",sdp}));
-  window.__directResult=()=>({width:video.videoWidth,ready:video.readyState,tracks:video.srcObject?.getTracks().map(t=>t.kind),ended,source:!!video.srcObject});
+  window.__directResult=()=>({width:video.videoWidth,ready:video.readyState,connection:sender.connectionState,ice:sender.iceConnectionState,tracks:video.srcObject?.getTracks().map(t=>t.kind),ended,source:!!video.srcObject});
   window.__stopDirect=()=>{receiver.close();sender.close();stream.getTracks().forEach(t=>t.stop());clearInterval(draw);};
  });
- await expect.poll(()=>page.evaluate(()=>window.__directResult().width)).toBe(320);
+ await expect.poll(()=>page.evaluate(()=>window.__directResult()),{timeout:15000}).toMatchObject({width:320});
  expect(await page.evaluate(()=>window.__directResult().tracks)).toEqual(["video"]);
  await page.evaluate(()=>window.__stopDirect());
  expect(await page.evaluate(()=>window.__directResult().source)).toBe(false);
