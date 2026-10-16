@@ -23,14 +23,15 @@ const finite = (lat, lng) => Number.isFinite(Number(lat)) && Number.isFinite(Num
 // Within this distance of another bus's drawn road counts as "nearby".
 const NEARBY_M = 1500;
 
-async function plan(db) {
+async function plan(db, companyId = '') {
+  const scope = companyId ? { company_id: companyId } : {};
   const [companies, routes, vehicles, memberships, contacts, cards] = await Promise.all([
-    db.Company.list('-updated_date', 1000),
-    db.Route.list('-created_date', 500),
-    db.Vehicle.list('-updated_date', 1000),
-    db.CompanyMembership.filter({ scope: 'passenger', active: true }, '-updated_date', 5000),
-    db.Contact.list('-updated_date', 5000),
-    db.NfcCard.filter({ is_active: true }, '-issue_date', 5000).catch(() => []),
+    companyId ? db.Company.filter({ id: companyId }, '-updated_date', 1000) : db.Company.list('-updated_date', 1000),
+    db.Route.filter(scope, '-created_date', 500),
+    db.Vehicle.filter(scope, '-updated_date', 1000),
+    db.CompanyMembership.filter({ ...scope, scope: 'passenger', active: true }, '-updated_date', 5000),
+    db.Contact.filter(scope, '-updated_date', 5000),
+    db.NfcCard.filter({ ...scope, is_active: true }, '-issue_date', 5000).catch(() => []),
   ]);
   const live = [];
   const codes = new Map();
@@ -171,7 +172,9 @@ export default async function(req) {
 
     if (body.action === 'plan') {
       if (user.role !== 'admin') fail(403, 'Administrators only');
-      return Response.json(await plan(db));
+      if (body.company_id !== undefined && (typeof body.company_id !== 'string' || !body.company_id || body.company_id.length > 200)) fail(400, 'Invalid company');
+      if (body.company_id && !(await db.Company.get(body.company_id))) fail(404, 'Company not found');
+      return Response.json(await plan(db, body.company_id || ''));
     }
 
     if (body.action === 'mine') {
