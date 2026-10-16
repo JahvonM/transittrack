@@ -11,16 +11,16 @@ async function invoke(operation, extra = {}) {
 export default function TabletRemoteViewer({device}) {
  const [enabled, setEnabled] = useState(null), [session, setSession] = useState(null);
  const [busy, setBusy] = useState(false), [error, setError] = useState(""), [live, setLive] = useState(false);
- const video = useRef(null), room = useRef(null), sessionRef = useRef(null), alive = useRef(false), connecting = useRef(false);
+ const video = useRef(null), room = useRef(null), sessionRef = useRef(null), alive = useRef(false), connecting = useRef(false), epoch = useRef(0);
  const clearRoom = () => { const r = room.current; room.current = null; r?.disconnect(); if (video.current) video.current.srcObject = null; };
  useEffect(() => {
   alive.current = true;
   invoke("config").then(r => { if (alive.current) setEnabled(r.enabled === true); }).catch(() => { if (alive.current) setError("Could not check viewing availability."); });
-  return () => { alive.current = false; clearRoom(); const s = sessionRef.current; sessionRef.current = null; if(s) void invoke("end", {session_id:s.id}).catch(()=>{}); };
+  return () => { alive.current = false; epoch.current++; clearRoom(); const s = sessionRef.current; sessionRef.current = null; if(s) void invoke("end", {session_id:s.id}).catch(()=>{}); };
  }, []);
  const stop = async () => {
   const s = sessionRef.current;
-  clearRoom(); setLive(false); setBusy(true);
+  epoch.current++; clearRoom(); setLive(false); setBusy(true);
   try { if (s) await invoke("end", {session_id:s.id}); sessionRef.current = null; setSession(null); }
   catch { setError("Viewer closed. Could not confirm tablet shutdown; its authorization check and expiry remain active."); }
   finally { if(alive.current) setBusy(false); }
@@ -37,12 +37,13 @@ export default function TabletRemoteViewer({device}) {
  useEffect(() => {
   if (!session?.id) return undefined;
   let cancelled = false, timer, polling = false;
+  const generation = epoch.current, isCancelled = () => cancelled || generation !== epoch.current;
   const tick = async () => {
-   if(cancelled || polling) return;
+   if(isCancelled() || polling) return;
    polling = true;
    try {
     const result = await invoke("status", {session_id:session.id});
-    if(cancelled) return;
+    if(isCancelled()) return;
     const s = result.session; setSession(s);
     if(ended(s.state) || Date.parse(s.expires_at) <= Date.now()) {
      clearRoom(); setLive(false); sessionRef.current = null; return;
@@ -51,23 +52,23 @@ export default function TabletRemoteViewer({device}) {
      connecting.current = true;
      try {
       const [auth, sdk] = await Promise.all([invoke("viewer", {session_id:s.id}), import("livekit-client")]);
-      if(cancelled) return;
+      if(isCancelled()) return;
       const r = new sdk.Room({adaptiveStream:true, dynacast:true});
       room.current = r;
       r.on(sdk.RoomEvent.TrackSubscribed, (track, pub, participant) => {
-       if(cancelled || room.current !== r || participant.identity !== auth.publisher || track.kind !== sdk.Track.Kind.Video) return;
+       if(isCancelled() || room.current !== r || participant.identity !== auth.publisher || track.kind !== sdk.Track.Kind.Video) return;
        if(video.current) { track.attach(video.current); setLive(true); }
       });
-      r.on(sdk.RoomEvent.TrackUnsubscribed, () => { if(!cancelled) setLive(false); });
-      r.on(sdk.RoomEvent.Disconnected, () => { if(!cancelled) { setLive(false); setError("Video connection ended. Stop this session before trying again."); } });
+      r.on(sdk.RoomEvent.TrackUnsubscribed, () => { if(!isCancelled()) setLive(false); });
+      r.on(sdk.RoomEvent.Disconnected, () => { if(!isCancelled()) { setLive(false); setError("Video connection ended. Stop this session before trying again."); } });
       await r.connect(auth.url, auth.token);
-      if(cancelled) r.disconnect();
+      if(isCancelled()) r.disconnect();
      } finally { connecting.current = false; }
     }
    } catch {
-    if(!cancelled) { clearRoom(); setLive(false); setError("Viewing connection lost. End this session before trying again."); void invoke("end", {session_id:session.id}).catch(()=>{}); return; }
+    if(!isCancelled()) { clearRoom(); setLive(false); setError("Viewing connection lost. End this session before trying again."); void invoke("end", {session_id:session.id}).catch(()=>{}); return; }
    } finally { polling = false; }
-   if(!cancelled) timer = setTimeout(tick, 5000);
+   if(!isCancelled()) timer = setTimeout(tick, 5000);
   };
   void tick();
   return () => { cancelled = true; clearTimeout(timer); clearRoom(); };
