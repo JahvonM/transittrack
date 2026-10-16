@@ -98,3 +98,7 @@ Adds admin-only bounded kiosk lock/release and guarded restart requests through 
 
 ## Native APK update delivery (2026-10-15)
 Admin release checks, installed APK metadata, guarded same-key PackageInstaller delivery and persistent completion receipts are implemented. Catalog remains empty; signed artifact, endpoint reachability and physical acceptance are pending. See native-kiosk-updates.md. No installation or key changes were performed.
+
+
+## 16 October — remote viewing implementation
+Admin screen/front/rear-camera viewer and consent-based native Android streaming are now implemented. LiveKit service configuration, native endpoint reachability, the final combined signed install and physical streaming validation are still pending. See tablet-remote-support.md. Earlier pending lists above describe their historical checkpoint, not the latest code. Passenger binary, watchdog/background and SIM/carrier parity remain separate work.
