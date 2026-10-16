@@ -190,6 +190,7 @@
         "network_available": {
           "type": "boolean"
         },
+        "support_available": {"type":"boolean"},
         "management_available": {
           "type": "boolean"
         },

@@ -1,14 +1,19 @@
 import { test, expect } from "@playwright/test";
 
-async function setup(page, { managed = true, release = null } = {}) {
-  const controls = [], writes = [];
+async function setup(page, { managed = true, release = null, supportEnabled = false } = {}) {
+  const controls = [], writes = [], support = [];
   const device = { id: "tablet-managed", label: "Driver tablet test", company_id: "a", kiosk_type: "driver", vehicle_id: "bus-a",
     vehicle_name: "Bus A", status: "active", paired: true, last_seen: new Date().toISOString(),
-    helper_health: { reported_at: new Date().toISOString(), management_available: true, management_owner: managed, management_locked: false, native_app_package: "com.transittrack.app", native_app_version: "1.0", native_app_code: 1, native_update_available: true } };
+    helper_health: { reported_at: new Date().toISOString(), support_available: supportEnabled, management_available: true, management_owner: managed, management_locked: false, native_app_package: "com.transittrack.app", native_app_version: "1.0", native_app_code: 1, native_update_available: true } };
   await page.addInitScript(() => localStorage.setItem("base44_access_token", "isolated-test-session"));
   await page.route("https://api.mapbox.com/**", r => r.fulfill({ status: 404, body: "" }));
   await page.route("**/api/**", r => {
     const url = r.request().url(), b = r.request().postDataJSON() || {};
+    if (url.includes("/functions/tabletSupport")) {
+      support.push(b);
+      if(b.operation==="config")return r.fulfill({json:{enabled:supportEnabled}});
+      return r.fulfill({json:{session:{id:"support-session",state:b.operation==="end"?"ended":"waiting_permission",expires_at:new Date(Date.now()+600000).toISOString()}}});
+    }
     if (url.includes("/functions/tabletControl")) {
       if (b.operation === "release") return r.fulfill({ json: { release } });
       controls.push(b); device.control_status = { id: "a".repeat(32), action: b.action, state: "waiting", requested_at: new Date().toISOString(), expires_at: new Date(Date.now()+120000).toISOString() };
@@ -23,7 +28,7 @@ async function setup(page, { managed = true, release = null } = {}) {
     }
     return r.fulfill({ json: { id: "test-app", public_settings: { authentication_required: false } } });
   });
-  return { controls, writes };
+  return { controls, writes, support };
 }
 test("admin tablet actions require a deliberate confirmation and never edit device records directly", async ({ page }) => {
   const { controls, writes } = await setup(page);
@@ -72,4 +77,35 @@ test("native update has its own deliberate admin request, with no client APK URL
   await expect.poll(() => controls.length).toBe(1);
   expect(controls[0]).toEqual({ operation: "request", device_id: "tablet-managed", action: "app_update", release_id: "kiosk-2" });
   expect(writes).toHaveLength(0);
+});
+
+test("remote viewing stays unavailable without service configuration", async ({ page }) => {
+ await setup(page);
+ await page.route("**/functions/tabletSupport", r=>r.fulfill({json:{enabled:false}}));
+ await page.goto("/admin/kiosks");
+ await page.getByRole("button",{name:"Tablet controls",exact:true}).click();
+ await expect(page.getByText("Streaming service is not configured yet.")).toBeVisible();
+ await expect(page.getByRole("button",{name:"View screen",exact:true})).toBeDisabled();
+});
+test("admin requests permission and can stop before capture", async ({ page }) => {
+ const {support}=await setup(page,{supportEnabled:true});
+ await page.goto("/admin/kiosks");
+ await page.getByRole("button",{name:"Tablet controls",exact:true}).click();
+ await page.getByRole("button",{name:"View screen",exact:true}).click();
+ await expect(page.getByText("Waiting for approval on the tablet")).toBeVisible();
+ expect(support.filter(x=>x.operation==="request")).toEqual([{operation:"request",device_id:"tablet-managed",capability:"screen"}]);
+ expect(support.some(x=>x.operation==="viewer")).toBe(false);
+ await page.getByRole("button",{name:"Stop viewing",exact:true}).click();
+ await expect.poll(()=>support.some(x=>x.operation==="end")).toBe(true);
+ await expect(page.getByRole("button",{name:"View screen",exact:true})).toBeEnabled();
+ await page.screenshot({path:"/tmp/tt-support-admin.png",fullPage:true});
+});
+test("closing the admin controls ends a pending viewing session", async ({page})=>{
+ const {support}=await setup(page,{supportEnabled:true});
+ await page.goto("/admin/kiosks");
+ await page.getByRole("button",{name:"Tablet controls",exact:true}).click();
+ await page.getByRole("button",{name:"View front camera",exact:true}).click();
+ await expect(page.getByText("Waiting for approval on the tablet")).toBeVisible();
+ await page.keyboard.press("Escape");
+ await expect.poll(()=>support.some(x=>x.operation==="end")).toBe(true);
 });
