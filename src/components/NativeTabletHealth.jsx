@@ -1,3 +1,4 @@
+import { stopTabletSupport } from "@/lib/nativeTabletSupport";
 import { refreshNativeControl } from "@/lib/nativeTabletControl";
 import { setNativeNetworkMode } from "@/lib/nativeTabletNetwork";
 import { useEffect } from "react";
@@ -17,7 +18,7 @@ export default function NativeTabletHealth() {
       void refreshNativeControl(id).catch(() => {});
     };
     tick(); const timer = setInterval(tick, 5000);
-    return () => { clearInterval(timer); void refreshNativeControl("").catch(() => {}); };
+    return () => { clearInterval(timer); void stopTabletSupport().catch(() => {}); void refreshNativeControl("").catch(() => {}); };
   }, [tablet, mode]);
   return null;
 }

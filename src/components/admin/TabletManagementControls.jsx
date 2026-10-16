@@ -1,3 +1,4 @@
+import TabletRemoteViewer from "./TabletRemoteViewer";
 import TabletNativeUpdate from "./TabletNativeUpdate";
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
@@ -33,6 +34,7 @@ export default function TabletManagementControls({ device, onRefresh }) {
           : !managed ? <p className="text-sm text-muted-foreground">Android has not granted this app managed-device ownership. Lock and restart remain blocked. No ownership changes are made here.</p>
           : <p className="text-sm">Managed Android controls are available. Last reported lock: {health.management_locked ? "on" : "off"}.</p>}
         <TabletNativeUpdate device={device} onRefresh={onRefresh} />
+        {open && <TabletRemoteViewer device={device} />}
         {status && <div role="status" className="rounded-lg bg-muted p-3 text-sm space-y-1">
           <p>{status.action === "app_update" ? "Native app update" : labels[status.action] || "Tablet request"} · {pending ? "Waiting for tablet" : status.state === "waiting" ? "Expired without confirmation" : status.state}</p>
           {status.message && <p>{status.message}</p>}

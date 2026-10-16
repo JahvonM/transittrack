@@ -1,3 +1,4 @@
+import { supportCapabilities } from "@/lib/nativeTabletSupport";
 import { Capacitor, registerPlugin } from "@capacitor/core";
 const TabletHealth = registerPlugin("TabletHealth");
 export const nativeTabletHealthAvailable = () => Capacitor.isNativePlatform() && Capacitor.getPlatform() === "android" && Capacitor.isPluginAvailable("TabletHealth");
@@ -16,6 +17,7 @@ export function startNativeTabletHealth(target = window) {
     try {
       const snapshot = await tabletSnapshot();
       if (!stopped && snapshot?.available) {
+        snapshot.supportAvailable = (await supportCapabilities().catch(() => null))?.remoteViewingReady === true;
         target.__ttNativeHealth = snapshot;
         target.dispatchEvent(new Event("tt-native-health"));
       }

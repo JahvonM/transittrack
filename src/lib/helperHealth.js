@@ -19,6 +19,7 @@ export function helperHealthPayload() {
       report.native_app_version = n.appVersion;
       report.native_app_code = n.appVersionCode;
       report.native_app_package = n.appPackage;
+      report.support_available = n.supportAvailable === true;
       report.native_update_available = n.updateAvailable === true;
       if (Number.isFinite(n.battery)) report.battery = n.battery;
       if (typeof n.charging === "boolean") report.charging = n.charging;
