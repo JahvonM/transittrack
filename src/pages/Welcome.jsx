@@ -70,7 +70,7 @@ export default function Welcome() {
  const navigate = useNavigate();
  const role = user?.role || "staff";
  useEffect(() => {
-  if (isAuthenticated && user) navigate(ROLES[role]?.to || "/staff", {replace:true});
+  if (isAuthenticated && user) navigate(user.access_role ? "/workspace" : ROLES[role]?.to || "/staff", {replace:true});
  }, [isAuthenticated,user,role,navigate]);
  if (isLoadingAuth || isLoadingPublicSettings || (isAuthenticated && user)) return <JourneyLoading label="Opening your app…" onRetry={checkAppState} />;
  if (authError?.type === "user_not_registered") return <UserNotRegisteredError />;

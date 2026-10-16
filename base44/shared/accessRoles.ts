@@ -190,7 +190,7 @@ export function roleSections(value) {
  return [...new Set(value)];
 }
 export async function assignedAccessRole(db, user) {
- if (!user || user.role === 'admin') return null;
+ if (!user || user.role === 'admin' || !user.access_role_id) return null;
  const [assignment] = await db.RoleAssignment.filter({user_id:user.id},'-updated_date',1);
  if (!assignment?.role_id) return null;
  const role = await db.AccessRole.get(assignment.role_id).catch(error => {

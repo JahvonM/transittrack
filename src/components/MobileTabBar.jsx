@@ -18,6 +18,7 @@ const HIDDEN_PREFIXES = [
   "/reviewer-sandbox",
   "/driver",
   "/admin",
+  "/workspace",
 ];
 
 const TABS = [

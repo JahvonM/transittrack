@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import JourneyLoading from '@/components/JourneyLoading';
@@ -10,7 +10,9 @@ const DefaultFallback = () => (
 );
 
 export default function ProtectedRoute({ fallback = <DefaultFallback />, unauthenticatedElement }) {
-  const { isAuthenticated, isLoadingAuth, authChecked, authError, checkUserAuth } = useAuth();
+  const { user, isAuthenticated, isLoadingAuth, authChecked, authError, checkUserAuth } = useAuth();
+
+  const { pathname } = useLocation();
 
   useEffect(() => {
     if (!authChecked && !isLoadingAuth) {
@@ -34,5 +36,7 @@ export default function ProtectedRoute({ fallback = <DefaultFallback />, unauthe
     return unauthenticatedElement;
   }
 
+  if (user?.access_role && !pathname.startsWith("/workspace") && pathname !== "/account")
+    return <Navigate to="/workspace" replace />;
   return <Outlet />;
 }

@@ -28,6 +28,7 @@ import ForgotPassword from '@/pages/ForgotPassword';
 import ResetPassword from '@/pages/ResetPassword';
 
 // Route-level pages are lazily loaded for code-splitting / performance
+const RoleWorkspace = lazy(() => import('@/pages/RoleWorkspace'));
 const PageNotFound = lazy(() => import('./lib/PageNotFound'));
 const Welcome = lazy(() => import('@/pages/Welcome'));
 const TabletStart = lazy(() => import('@/pages/TabletStart'));
@@ -145,7 +146,8 @@ const AuthenticatedApp = () => {
         <Route path="/company" element={<CompanyDashboard />} />
         <Route path="/company/:tab" element={<CompanyDashboard />} />
         <Route path="/admin/:section?" element={<Admin />} />
-        <Route path="/account" element={<Account />} />
+        <Route path="/workspace/:section?" element={<RoleWorkspace />} />
+      <Route path="/account" element={<Account />} />
         <Route path="/staff" element={<StaffPortal />} />
         <Route path="/journey" element={<StaffPortal />} />
         <Route path="/my-card" element={<StaffPortal />} />
