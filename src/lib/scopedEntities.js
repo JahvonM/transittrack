@@ -195,6 +195,11 @@ export function scopedEntities(client) {
  const watchVisibility=()=>{
   if(watchingVisibility || typeof document==='undefined' || !document.addEventListener) return;
   watchingVisibility=true;
+  if(typeof window!=='undefined' && window.addEventListener) window.addEventListener('tt-chat-wake',()=>{
+   if(hidden())return;
+   const live=polls.get('GroupMessage');
+   if(live && !live.dead) {live.due=Date.now();arm();}
+  });
   document.addEventListener('visibilitychange',()=>{
    if(hidden()||!polls.size) return;
    const now=Date.now();
