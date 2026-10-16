@@ -140,6 +140,8 @@ export default function LiteMap({
   lines = [],
   showUserDot = true,
   showRecenter = true,
+  alwaysShowRecenter = false,
+  showEngineLabel = true,
   onDragStart,
   onStopClick,
   autoRecenterMs = 0,
@@ -193,9 +195,9 @@ export default function LiteMap({
         scrollWheelZoom={interactive}
         doubleClickZoom={interactive}
         touchZoom={interactive}
-        attributionControl={false}
+        attributionControl={mapStyle === "satellite"}
       >
-        <TileLayer key={(mapStyle || (isDark ? "dark" : "light"))+tileVersion} url={mapStyle === "satellite" ? tileUrl(isDark).replace(/(?:dark-v11|streets-v12)/, "satellite-streets-v12") : tileUrl(isDark)} tileSize={512} zoomOffset={-1} maxZoom={19} keepBuffer={1} updateWhenIdle eventHandlers={{tileerror:()=>setTileProblem(true)}} />
+        <TileLayer key={(mapStyle || (isDark ? "dark" : "light"))+tileVersion} url={mapStyle === "satellite" ? tileUrl(isDark).replace(/(?:dark-v11|streets-v12)/, "satellite-streets-v12") : tileUrl(isDark)} attribution={mapStyle === "satellite" ? '<a href="https://www.mapbox.com/about/maps/">© Mapbox</a> <a href="https://www.openstreetmap.org/copyright">© OpenStreetMap</a>' : undefined} tileSize={512} zoomOffset={-1} maxZoom={19} keepBuffer={1} updateWhenIdle eventHandlers={{tileerror:()=>setTileProblem(true)}} />
         <SizeWatch />
         <FitOnce points={fitPoints} skip={!!center || !!userLocation || followUser || !!focusVehicleId} />
         <LocateOnce target={userLocation} skip={!!center || followUser || !!focusVehicleId} />
@@ -254,7 +256,7 @@ export default function LiteMap({
           <CircleMarker center={[userLocation.lat, userLocation.lng]} radius={8} pathOptions={{ color: "#0B0B0D", weight: 3, fillColor: accent, fillOpacity: 1 }} />
         )}
       </MapContainer>
-      {showRecenter && userLocation && followUser && !following && (
+      {showRecenter && userLocation && followUser && (alwaysShowRecenter || !following) && (
         <button
           type="button"
           onClick={() => setFollowing(true)}
@@ -265,9 +267,9 @@ export default function LiteMap({
           <LocateFixed className="w-5 h-5 text-primary-foreground" />
         </button>
       )}
-      <div className="absolute left-1/2 -translate-x-1/2 bottom-2 z-[500] px-2 py-0.5 rounded-full bg-black/60 text-caption text-white/85 pointer-events-none">
+      {showEngineLabel && <div className="absolute left-1/2 -translate-x-1/2 bottom-2 z-[500] px-2 py-0.5 rounded-full bg-black/60 text-caption text-white/85 pointer-events-none">
         Basic map
-      </div>
+      </div>}
     </div>
   );
 }

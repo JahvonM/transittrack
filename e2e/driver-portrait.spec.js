@@ -52,9 +52,9 @@ for(const size of [{width:800,height:1280},{width:600,height:1024},{width:1280,h
  await page.setViewportSize(size);
  await openDriver(page,{staff:[{id:'one',full_name:'Real Passenger',home_lat:12.02,home_lng:-61.76}],occupancy:7});
  const nav=sections(page);
- await expect(nav.getByRole('button')).toHaveCount(3);
+ await expect(nav.getByRole('button')).toHaveCount(size.width>=960?5:3);
  await expect(nav.getByRole('button',{name:'Drive',exact:true})).toHaveAttribute('aria-current','page');
- await expect(page.getByText('Real Company · Bus A',{exact:true})).toBeVisible();
+ if(size.width>=960)await expect(page.locator('.dl-company')).toContainText('Real Company');else await expect(page.getByText('Real Company · Bus A',{exact:true})).toBeVisible();
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
  const box=await nav.boundingBox();expect(box.y+box.height).toBeLessThanOrEqual(size.height+1);
  await nav.getByRole('button',{name:'Passengers',exact:true}).click();
