@@ -13,14 +13,6 @@ import android.widget.FrameLayout
 import androidx.activity.result.ActivityResult
 import com.getcapacitor.*
 import com.getcapacitor.annotation.*
-import io.livekit.android.LiveKit
-import io.livekit.android.RoomOptions
-import io.livekit.android.ConnectOptions
-import io.livekit.android.events.RoomEvent
-import io.livekit.android.events.collect
-import io.livekit.android.room.Room
-import io.livekit.android.room.track.*
-import io.livekit.android.room.track.screencapture.ScreenCaptureParams
 import kotlinx.coroutines.*
 import org.json.JSONObject
 import java.net.URL
@@ -31,7 +23,7 @@ import javax.net.ssl.HttpsURLConnection
 class TabletSupportPlugin : Plugin() {
  private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
  private data class Session(val id:String, val device:String, val key:String, var capability:String="", var deadline:Long=0,
-                            var events:Job?=null, var job:Job?=null, var watchdog:Job?=null, var pulse:Job?=null, var room:Room?=null,
+                            var job:Job?=null, var watchdog:Job?=null, var pulse:Job?=null, var peer:DirectSupportPeer?=null,
                             var dialog:AlertDialog?=null, var button:Button?=null, var capturing:Boolean=false)
  private var current:Session?=null
  private var resumed=true
@@ -40,7 +32,7 @@ class TabletSupportPlugin : Plugin() {
 
  @PluginMethod fun getCapabilities(call:PluginCall) {
   call.resolve(JSObject().put("remoteViewingReady",true).put("screenConsentRequired",true)
-   .put("localApprovalRequired",true).put("audio",false).put("recording",false))
+   .put("transport","webrtc").put("localApprovalRequired",true).put("audio",false).put("recording",false))
  }
  @PluginMethod fun getState(call:PluginCall) {call.resolve(JSObject().put("cameraReserved",current?.capability?.startsWith("camera_")==true))}
  private fun stateChanged() {notifyListeners("state",JSObject().put("cameraReserved",current?.capability?.startsWith("camera_")==true))}
@@ -102,46 +94,50 @@ class TabletSupportPlugin : Plugin() {
  private fun startCapture(s:Session, projection:Intent?) {
   s.job=scope.launch {
    try {
-    // Android dispatches permission results before onResume on some tablets.
     repeat(20) { if(!resumed)delay(100) }; check(resumed); ensureCurrent(s)
     val auth=api(s,"publish");ensureCurrent(s)
     require(auth.getString("id")==s.id && auth.getString("capability")==s.capability && auth.getLong("ttl_ms")>0)
-    val url=java.net.URI(auth.getString("url"))
-    require(url.scheme=="wss" && url.host.matches(Regex("[a-z0-9-]+\\.livekit\\.cloud")) && url.port==-1 && url.userInfo==null)
-    if(s.capability!="screen") {
-     val manager=context.getSystemService(android.content.Context.CAMERA_SERVICE) as android.hardware.camera2.CameraManager
-     val facing=if(s.capability=="camera_back")android.hardware.camera2.CameraCharacteristics.LENS_FACING_BACK else android.hardware.camera2.CameraCharacteristics.LENS_FACING_FRONT
-     require(manager.cameraIdList.any{manager.getCameraCharacteristics(it).get(android.hardware.camera2.CameraCharacteristics.LENS_FACING)==facing})
-    }
-    val options=RoomOptions(
-     videoTrackCaptureDefaults=LocalVideoTrackOptions(position=if(s.capability=="camera_back")CameraPosition.BACK else CameraPosition.FRONT,
-      captureParams=VideoCaptureParameter(640,360,15)),
-     screenShareTrackCaptureDefaults=LocalVideoTrackOptions(isScreencast=true,captureParams=VideoCaptureParameter(720,1280,10)))
-    val room=LiveKit.create(context,options);s.room=room
-    s.events=scope.launch {room.events.collect {if(it is RoomEvent.Disconnected && current===s)finish(s,"failed")}}
-    room.connect(auth.getString("url"),auth.getString("token"),ConnectOptions(autoSubscribe=false,audio=false,video=false))
-    ensureCurrent(s);check(resumed)
-    // Recheck after network setup, immediately before turning on hardware.
     val pulse=api(s,"pulse");require(pulse.optBoolean("ok") && pulse.optLong("ttl_ms")>0)
     ensureCurrent(s);check(resumed)
     val button=Button(activity).apply {
-     text="LIVE ADMIN VIEW · STOP";setTextColor(android.graphics.Color.WHITE);setBackgroundColor(0xffb91c1c.toInt())
+     text="ADMIN VIEW CONNECTING · STOP";setTextColor(android.graphics.Color.WHITE);setBackgroundColor(0xffb91c1c.toInt())
      setOnClickListener {finish(s,"ended")}
     }
     s.button=button
     (activity.window.decorView as ViewGroup).addView(button,FrameLayout.LayoutParams(
      ViewGroup.LayoutParams.WRAP_CONTENT,ViewGroup.LayoutParams.WRAP_CONTENT,Gravity.TOP or Gravity.CENTER_HORIZONTAL).apply{topMargin=48})
     s.capturing=true
-    val ok=if(s.capability=="screen") {
+    if(s.capability=="screen") {
      require(projection!=null)
-     room.localParticipant.setScreenShareEnabled(true,ScreenCaptureParams(projection,onStop={scope.launch{finish(s,"ended")}}))
-    } else room.localParticipant.setCameraEnabled(true)
-    check(ok);ensureCurrent(s)
-    val started=api(s,"started");require(started.optBoolean("ok"))
+     SupportProjectionService.ready=false
+     SupportProjectionService.stopAction={scope.launch {finish(s,"ended")}}
+     val service=Intent(context,SupportProjectionService::class.java)
+     if(android.os.Build.VERSION.SDK_INT>=26)context.startForegroundService(service)else context.startService(service)
+     withTimeout(3000){while(!SupportProjectionService.ready)delay(50)}
+    }
+    ensureCurrent(s);check(resumed)
+    val peer=DirectSupportPeer(context,s.capability){scope.launch{finish(s,"failed")}};s.peer=peer
+    val offer=withTimeout(25000){peer.offer(auth.getJSONArray("iceServers"),projection)}
+    ensureCurrent(s)
+    require(api(s,"offer",sdp=offer).optBoolean("ok"))
+    var answer:String?=null
+    withTimeout(45000) {
+     while(answer==null) {
+      ensureCurrent(s)
+      val response=api(s,"answer_poll")
+      if(!response.isNull("sdp"))answer=response.getString("sdp")
+      if(answer==null)delay(3000)
+     }
+    }
+    ensureCurrent(s)
+    peer.answer(answer!!)
+    ensureCurrent(s)
+    require(api(s,"started").optBoolean("ok"))
+    s.button?.text="LIVE ADMIN VIEW · STOP"
    } catch(_:Exception) {finish(s,"failed")}
   }
  }
- private suspend fun api(s:Session, op:String, reason:String?=null):JSONObject=withContext(Dispatchers.IO) {
+ private suspend fun api(s:Session, op:String, reason:String?=null, sdp:String?=null):JSONObject=withContext(Dispatchers.IO) {
   withTimeout(10000) {
    val connection=URL(endpoint).openConnection() as HttpsURLConnection
    try {
@@ -151,11 +147,12 @@ class TabletSupportPlugin : Plugin() {
     connection.doOutput=true
     val body=JSONObject().put("operation",op).put("session_id",s.id).put("device_id",s.device).put("device_token",s.key)
     if(reason!=null)body.put("reason",reason)
+    if(sdp!=null)body.put("sdp",sdp)
     connection.outputStream.use{it.write(body.toString().toByteArray(Charsets.UTF_8))}
     check(connection.responseCode==200)
     val bytes=connection.inputStream.use { input ->
      val output=java.io.ByteArrayOutputStream(); val buffer=ByteArray(2048)
-     while(true) { val count=input.read(buffer); if(count<0)break; require(output.size()+count<=16384); output.write(buffer,0,count) }
+     while(true) { val count=input.read(buffer); if(count<0)break; require(output.size()+count<=98304); output.write(buffer,0,count) }
      output.toByteArray()
     }
     JSONObject(String(bytes,Charsets.UTF_8))
@@ -166,12 +163,12 @@ class TabletSupportPlugin : Plugin() {
   if(current!==s)return
   current=null
   stateChanged()
-  s.events?.cancel()
   s.job?.cancel();s.pulse?.cancel();s.watchdog?.cancel()
   s.dialog?.dismiss();s.button?.let{(it.parent as? ViewGroup)?.removeView(it)}
-  // Room disconnect disposes local tracks, including the camera/projection, synchronously.
-  try{s.room?.disconnect();s.room?.release()}catch(_:Exception){}
-  s.room=null
+  try{s.peer?.close()}catch(_:Exception){}
+  s.peer=null
+  SupportProjectionService.stopAction=null
+  context.stopService(Intent(context,SupportProjectionService::class.java))
   scope.launch {try{api(s,"stop",reason)}catch(_:Exception){}}
  }
  @PluginMethod fun stop(call:PluginCall) {activity.runOnUiThread {current?.let{finish(it,"ended")};call.resolve()}}

@@ -406,6 +406,7 @@ function cleanHelperHealth(h: unknown): Record<string, unknown> | null {
     typeof v === 'string' ? v.replace(/[\u0000-\u001f<>]/g, '').slice(0, n) : undefined;
   const out: Record<string, unknown> = { reported_at: new Date().toISOString() };
   Object.assign(out, nativeReleaseHealth(o));
+  if (o.support_transport === 'webrtc') out.support_transport = 'webrtc';
   for (const k of ['support_available', 'management_available', 'management_owner', 'management_locked']) if (typeof o[k] === 'boolean') out[k] = o[k];
   const version = str(o.version, 16); if (version) out.version = version;
   if (typeof o.battery === 'number' && Number.isFinite(o.battery)) out.battery = Math.max(0, Math.min(100, Math.round(o.battery)));
