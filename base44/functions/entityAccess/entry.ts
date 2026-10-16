@@ -13,6 +13,7 @@ async function uniqueAccessCode(db,entity,field) {
  for(let i=0;i<50;i++) {const code=randomAccessCode();if(!(await db[entity].filter({[field]:code},'-created_date',1)).length)return code;}
  fail(503,'Could not allocate a unique code');
 }
+ENTITY_FIELDS.KioskDevice.push('display_layout');
 const MAINTENANCE = new Set(["Vehicle", "Fault", "Inspection", "InspectionResult", "InspectionTemplate", "Part", "MaintenanceSchedule", "MaintenanceSettings"]);
 
 for(const name of ['InspectionResult','Fault']) ENTITY_FIELDS[name].push('client_request_id');
@@ -239,6 +240,7 @@ async function prepare(db,ctx,name,input,existing=null) {
  checkLinks(user, input);
  if(input.client_request_id!==undefined && (existing || typeof input.client_request_id!=='string' || !/^[a-zA-Z0-9_-]{8,100}$/.test(input.client_request_id))) fail(400,'Invalid immutable request ID');
  const data={...input};
+ if(name==='KioskDevice' && data.display_layout!==undefined && !['auto','tablet','phone'].includes(data.display_layout)) fail(400,'Invalid kiosk layout');
  if(name==='Invoice') fail(403,'Invoices are made and changed in Completed & billing');
  if(name==='Trip') {
   cleanJob(data);

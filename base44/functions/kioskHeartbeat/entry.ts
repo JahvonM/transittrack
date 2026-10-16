@@ -219,6 +219,8 @@ export default async function(req) {
       vehicle_id: device.vehicle_id,
       vehicle_name: device.vehicle_name,
       kiosk_type: device.kiosk_type,
+      display_layout: device.display_layout || 'auto',
+      pickup_sign: ['bus_boarding','job_signing'].includes(device.kiosk_type) && Date.parse(device.pickup_sign?.expires_at) > Date.now() ? device.pickup_sign : null,
       paired: device.paired,
       directory_sent_at: device.directory_sent_at || null,
       update_requested_at: device.update_requested_at || null,

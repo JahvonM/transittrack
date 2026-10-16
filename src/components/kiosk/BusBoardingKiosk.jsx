@@ -1,6 +1,7 @@
 import { useTabletWorkSafety } from "@/lib/nativeTabletControl";
 import "./boardingShowcase.css";
 import BusArtwork from "@/components/BusArtwork";
+import BoardingPickupSign from "@/components/kiosk/BoardingPickupSign";
 import useFutureAppearance from "@/hooks/useFutureAppearance";
 import { TRANSIT_TIME_ZONE } from "@/lib/localTime";
 import React, { useEffect, useRef, useState } from "react";
@@ -135,7 +136,9 @@ function PassengerListDialog({ open, onOpenChange, vehicleName }) {
 }
 
 // The boarding home keeps NFC, QR and code entry beside live bus information.
-export default function BusBoardingKiosk({ invoke, device, directoryInfo, online }) {
+export default function BusBoardingKiosk({ invoke, device, directoryInfo, online, layout = "tablet" }) {
+  const phoneLayout = layout === "phone";
+  const [phoneInfo, setPhoneInfo] = useState(false);
   useFutureAppearance();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const settingsHold = useHold(() => setSettingsOpen(true));
@@ -578,11 +581,18 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
     </Screen>;
   }
 
-  return <div className="tt-boarding-future tt-boarding-showcase">
+  return <div data-layout={layout} className={`tt-boarding-future tt-boarding-showcase${phoneLayout ? " tt-kiosk-phone" : ""}${phoneInfo ? " tt-kiosk-phone-info" : ""}`}>
     <TopStatusBar device={device} vehicle={vehicle} route={route} now={now} online={online} holdProps={settingsHold} />
     <BoardingSettingsGate open={settingsOpen} onClose={() => setSettingsOpen(false)} deviceId={device?.device_id || device?.id} invoke={invoke} />
     <PassengerListDialog open={listOpen} onOpenChange={setListOpen} vehicleName={device?.vehicle_name} />
     {readerLink === "lost" && <div className="tt-board-reader-warning" role="alert"><strong>Card reader isn't connected to this screen.</strong> Use your code on the keypad instead.<small>Staff: run Update in the tablet setup tool for this tablet.</small></div>}
+    {phoneLayout && <nav className="tt-phone-kiosk-nav" aria-label="Phone kiosk">
+      <button type="button" aria-pressed={!phoneInfo && mode === "idle" && !unlocked} onClick={() => { setPhoneInfo(false); setMode("idle"); setUnlocked(false); }}><CreditCard />Tap card</button>
+      <button type="button" aria-pressed={!phoneInfo && mode === "idle" && unlocked} onClick={() => { setPhoneInfo(false); setMode("idle"); setUnlocked(true); }}><LogIn />Enter code</button>
+      <button type="button" aria-pressed={!phoneInfo && mode === "qr"} onClick={() => { setPhoneInfo(false); setMode("qr"); setUnlocked(false); }}><QrCode />Scan QR</button>
+      <button type="button" aria-pressed={phoneInfo} onClick={() => setPhoneInfo(value => !value)}><Bus />Bus info</button>
+    </nav>}
+    <BoardingPickupSign device={device} enabled={mode === "idle" && !busy && !checkingCard} />
     <main className="tt-board-layout"><div className="tt-board-action">{actionContent}</div>
       <InfoRail occupancy={occupancy} vehicle={vehicle} nearestStop={nearestStop} ads={ads} todayCount={todayCount} directoryInfo={directoryInfo} now={now} onList={() => setListOpen(true)} pendingSyncCount={pendingSyncCount} syncError={syncError} />
     </main>

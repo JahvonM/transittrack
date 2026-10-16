@@ -1,7 +1,17 @@
 {
   "name": "KioskDevice",
   "properties": {
-    "support_request": {"type":"object","properties":{"id":{"type":"string"},"expires_at":{"type":"string"}}},
+    "support_request": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "expires_at": {
+          "type": "string"
+        }
+      }
+    },
     "company_id": {
       "type": "string"
     },
@@ -190,8 +200,12 @@
         "network_available": {
           "type": "boolean"
         },
-        "support_transport": {"type":"string"},
-        "support_available": {"type":"boolean"},
+        "support_transport": {
+          "type": "string"
+        },
+        "support_available": {
+          "type": "boolean"
+        },
         "management_available": {
           "type": "boolean"
         },
@@ -399,6 +413,35 @@
           "type": "string"
         },
         "completed_at": {
+          "type": "string"
+        }
+      }
+    },
+    "display_layout": {
+      "type": "string",
+      "enum": [
+        "auto",
+        "tablet",
+        "phone"
+      ],
+      "default": "auto"
+    },
+    "pickup_sign": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "subtitle": {
+          "type": "string"
+        },
+        "shown_at": {
+          "type": "string"
+        },
+        "expires_at": {
           "type": "string"
         }
       }

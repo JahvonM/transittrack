@@ -60,3 +60,35 @@
  .tt-board-id-name{font-size:clamp(22px,2.6vw,34px);margin:8px 0}
  .tt-board-action [data-mode=confirm] button.h-28{height:84px}
 }
+
+/* A selected phone kiosk has a thumb-sized mode bar and one focused panel. */
+.tt-kiosk-phone{max-width:600px;margin:0 auto;height:auto;min-height:100dvh;overflow:auto}
+.tt-kiosk-phone .tt-board-header{grid-template-columns:1fr auto;padding:12px;min-height:72px;gap:10px}
+.tt-kiosk-phone .tt-board-brand,.tt-kiosk-phone .tt-board-company small,.tt-kiosk-phone .tt-board-trip>small{display:none}
+.tt-kiosk-phone .tt-board-company strong,.tt-kiosk-phone .tt-board-trip>strong{font-size:14px}
+.tt-kiosk-phone .tt-board-trip>span{font-size:16px}
+.tt-phone-kiosk-nav{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;padding:10px;background:#0b1d32;position:sticky;top:0;z-index:15}
+.tt-phone-kiosk-nav button{min-height:62px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;border-radius:14px;font-size:11px;font-weight:700;color:#c9e7f6;border:1px solid #7edfff30}
+.tt-phone-kiosk-nav button[aria-pressed=true]{background:#163f59;border-color:#8aeaff;color:#fff}
+.tt-phone-kiosk-nav svg{height:21px;width:21px}
+.tt-kiosk-phone .tt-board-layout{display:flex;flex-direction:column;padding:10px;min-height:0}
+.tt-kiosk-phone .tt-board-action{min-height:0;overflow:visible}
+.tt-kiosk-phone .tt-board-rail{display:none}
+.tt-kiosk-phone-info .tt-board-rail{display:grid;grid-template-columns:1fr 1fr}
+.tt-kiosk-phone-info .tt-board-action{display:none}
+.tt-kiosk-phone .tt-board-home{min-height:0}
+.tt-kiosk-phone .tt-board-scene{min-height:310px}
+.tt-kiosk-phone .tt-board-welcome{position:static;text-align:center;padding:20px 10px}
+.tt-kiosk-phone .tt-board-welcome h1{font-size:28px}
+.tt-kiosk-phone .tt-board-welcome p{font-size:15px}
+.tt-kiosk-phone .tt-board-bus{display:none}
+.tt-kiosk-phone .tt-board-nfc{top:115px;left:0;right:0}
+.tt-kiosk-phone .tt-board-nfc-ring{width:100px;height:100px}
+.tt-kiosk-phone .tt-board-entry{display:block;padding:12px}
+.tt-kiosk-phone .tt-board-slide{display:none}
+.tt-kiosk-phone .tt-board-qr-start{min-height:54px}
+.tt-kiosk-phone .tt-board-action>[data-mode]>div{padding:18px}
+.tt-kiosk-phone .tt-board-keypad{max-width:360px}
+.tt-kiosk-phone .tt-board-id-layout{grid-template-columns:85px minmax(0,1fr);gap:12px}
+.tt-kiosk-phone .tt-board-id-layout .tt-passenger-photo{width:85px;height:110px}
+.tt-kiosk-phone .tt-board-id-name{font-size:22px}

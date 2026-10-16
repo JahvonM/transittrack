@@ -28,10 +28,12 @@ export default function KioskDeviceDialog({ open, onOpenChange, companies, vehic
   const [companyId, setCompanyId] = useState("");
   const [vehicleId, setVehicleId] = useState("");
   const [saving, setSaving] = useState(false);
+  const [displayLayout, setDisplayLayout] = useState("auto");
 
   useEffect(() => {
     if (open) {
       setLabel(device?.label || "");
+      setDisplayLayout(device?.display_layout || "auto");
       // Retired types (card registry, front-desk sign-in) switch to bus boarding when edited.
       setKioskType(device?.kiosk_type && !["badge_registry", "front_desk"].includes(device.kiosk_type) ? device.kiosk_type : "bus_boarding");
       setCompanyId(device?.company_id || "");
@@ -72,6 +74,7 @@ export default function KioskDeviceDialog({ open, onOpenChange, companies, vehic
         await base44.entities.KioskDevice.update(device.id, {
           label: label.trim(),
           kiosk_type: kioskType,
+          display_layout: displayLayout,
           company_id: companyId,
           company_name: company?.name || "",
           vehicle_id: needsVehicle ? vehicleId : "",
@@ -82,6 +85,7 @@ export default function KioskDeviceDialog({ open, onOpenChange, companies, vehic
         const created = await base44.entities.KioskDevice.create({
           label: label.trim(),
           kiosk_type: kioskType,
+          display_layout: displayLayout,
           company_id: companyId,
           company_name: company?.name || "",
           vehicle_id: needsVehicle ? vehicleId : "",
@@ -145,6 +149,12 @@ export default function KioskDeviceDialog({ open, onOpenChange, companies, vehic
               ))}
             </ChoiceSelect>
           </div>
+          {kioskType !== "driver" && <div className="space-y-2">
+            <Label htmlFor="kiosk-layout">Screen layout</Label>
+            <ChoiceSelect id="kiosk-layout" aria-label="Screen layout" value={displayLayout} onChange={e => setDisplayLayout(e.target.value)} className={selectClass}>
+              <option value="auto">Automatic / device choice</option><option value="tablet">Kiosk tablet</option><option value="phone">Kiosk phone</option>
+            </ChoiceSelect>
+          </div>}
           {needsVehicle && (
             <div className="space-y-2">
               <Label>Vehicle</Label>
