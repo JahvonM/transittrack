@@ -65,7 +65,7 @@ function BusChoice({ value, onChange, buses, label, disabled }) {
   </Select>;
 }
 
-export default function PlanPickupsTab() {
+export default function PlanPickupsTab({ companyId: fixedCompanyId = '' }) {
   const { toast } = useToast();
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
@@ -85,12 +85,12 @@ export default function PlanPickupsTab() {
   const load = useCallback(async () => {
     setError("");
     try {
-      const { data: plan } = await base44.functions.invoke("routeStops", { action: "plan" });
+      const { data: plan } = await base44.functions.invoke("routeStops", { action: "plan", ...(fixedCompanyId ? { company_id: fixedCompanyId } : {}) });
       setData(plan);
     } catch (e) {
       setError(e?.response?.data?.error || e.message || "Couldn't load the plan");
     }
-  }, []);
+  }, [fixedCompanyId]);
   useEffect(() => { load(); }, [load]);
   useEffect(() => {
     const onRefresh = () => load();
@@ -98,7 +98,8 @@ export default function PlanPickupsTab() {
     return () => window.removeEventListener("tt-admin-refresh", onRefresh);
   }, [load]);
 
-  const inCompany = useCallback((row) => companyId === "all" || row.company_id === companyId, [companyId]);
+  const effectiveCompanyId = fixedCompanyId || companyId;
+  const inCompany = useCallback((row) => effectiveCompanyId === "all" || row.company_id === effectiveCompanyId, [effectiveCompanyId]);
   const people = useMemo(() => (data?.people || []).filter(inCompany), [data, inCompany]);
   const buses = useMemo(() => (data?.buses || []).filter(inCompany), [data, inCompany]);
   const routes = useMemo(() => (data?.routes || []).filter(inCompany), [data, inCompany]);
@@ -225,7 +226,7 @@ export default function PlanPickupsTab() {
     <div className="space-y-4">
       <PageIntro>Review pickups and assign the right bus. Changes apply only after confirmation.</PageIntro>
       <div className="flex flex-wrap items-center justify-end gap-2">
-        {companies.length > 1 && <div className="w-full sm:w-60"><Select value={companyId} onValueChange={changeCompany} disabled={!!busy}>
+        {!fixedCompanyId && companies.length > 1 && <div className="w-full sm:w-60"><Select value={companyId} onValueChange={changeCompany} disabled={!!busy}>
           <SelectTrigger aria-label="Company" className="rounded-xl"><SelectValue /></SelectTrigger>
           <SelectContent><SelectItem value="all">All companies</SelectItem>{companies.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
         </Select></div>}
