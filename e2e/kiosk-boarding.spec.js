@@ -652,6 +652,7 @@ test('native support handoff forwards IDs only and releases the QR camera until 
  await page.goto('/kiosk');
  await expect.poll(()=>page.evaluate(()=>window.__supportOffers.length)).toBeGreaterThan(0);
  expect(await page.evaluate(()=>window.__supportOffers[0])).toEqual({device_id:'tab-1',device_token:TOKEN,session_id:'support-session'});
+ await page.getByRole('button',{name:/Scan QR code/}).click();
  await page.evaluate(()=>window.__supportReserve(true));
  await expect(page.getByText('QR camera paused for tablet support.',{exact:false})).toBeVisible();
  await expect(page.getByText('Slide to enter a code',{exact:true})).toBeVisible();
