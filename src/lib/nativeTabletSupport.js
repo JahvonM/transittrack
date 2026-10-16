@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Capacitor, registerPlugin } from "@capacitor/core";
 import { deviceRequest } from "@/lib/deviceAuth";
 const Support = registerPlugin("TabletSupport");
@@ -15,4 +16,20 @@ export async function handleTabletSupport(deviceId, notice) {
 }
 export async function stopTabletSupport() {
  if (nativeSupportAvailable()) await Support.stop();
+}
+
+export function useSupportCameraReserved() {
+ const [reserved, setReserved] = useState(false);
+ useEffect(() => {
+  if (!nativeSupportAvailable()) return undefined;
+  let active = true, listener;
+  const update = s => { if(active) setReserved(s.cameraReserved === true); };
+  void (async () => {
+   listener = await Support.addListener("state", update);
+   if(!active) { await listener.remove(); return; }
+   update(await Support.getState());
+  })().catch(() => {});
+  return () => { active = false; void listener?.remove(); };
+ }, []);
+ return reserved;
 }

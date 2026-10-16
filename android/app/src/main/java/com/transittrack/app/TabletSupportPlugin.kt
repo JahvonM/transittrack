@@ -16,6 +16,8 @@ import com.getcapacitor.annotation.*
 import io.livekit.android.LiveKit
 import io.livekit.android.RoomOptions
 import io.livekit.android.ConnectOptions
+import io.livekit.android.events.RoomEvent
+import io.livekit.android.events.collect
 import io.livekit.android.room.Room
 import io.livekit.android.room.track.*
 import io.livekit.android.room.track.screencapture.ScreenCaptureParams
@@ -29,7 +31,7 @@ import javax.net.ssl.HttpsURLConnection
 class TabletSupportPlugin : Plugin() {
  private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
  private data class Session(val id:String, val device:String, val key:String, var capability:String="", var deadline:Long=0,
-                            var job:Job?=null, var watchdog:Job?=null, var pulse:Job?=null, var room:Room?=null,
+                            var events:Job?=null, var job:Job?=null, var watchdog:Job?=null, var pulse:Job?=null, var room:Room?=null,
                             var dialog:AlertDialog?=null, var button:Button?=null, var capturing:Boolean=false)
  private var current:Session?=null
  private var resumed=true
@@ -40,6 +42,8 @@ class TabletSupportPlugin : Plugin() {
   call.resolve(JSObject().put("remoteViewingReady",true).put("screenConsentRequired",true)
    .put("localApprovalRequired",true).put("audio",false).put("recording",false))
  }
+ @PluginMethod fun getState(call:PluginCall) {call.resolve(JSObject().put("cameraReserved",current?.capability?.startsWith("camera_")==true))}
+ private fun stateChanged() {notifyListeners("state",JSObject().put("cameraReserved",current?.capability?.startsWith("camera_")==true))}
  @PluginMethod fun offer(call:PluginCall) {
   val id=call.getString("session_id") ?: ""; val device=call.getString("device_id") ?: ""; val key=call.getString("device_token") ?: ""
   activity.runOnUiThread {
@@ -55,6 +59,7 @@ class TabletSupportPlugin : Plugin() {
      require(proof.getString("id")==s.id)
      val ttl=proof.getLong("ttl_ms").coerceAtMost(600000); require(ttl>0)
      s.deadline=SystemClock.elapsedRealtime()+ttl
+     stateChanged()
      seen.add(id); while(seen.size>64)seen.remove(seen.first())
      s.watchdog=scope.launch { delay(ttl); finish(s,"expired") }
      // Authorization checks continue while approval is pending, too.
@@ -112,6 +117,7 @@ class TabletSupportPlugin : Plugin() {
       captureParams=VideoCaptureParameter(640,360,15)),
      screenShareTrackCaptureDefaults=LocalVideoTrackOptions(isScreencast=true,captureParams=VideoCaptureParameter(720,1280,10)))
     val room=LiveKit.create(context,options);s.room=room
+    s.events=scope.launch {room.events.collect {if(it is RoomEvent.Disconnected && current===s)finish(s,"failed")}}
     room.connect(auth.getString("url"),auth.getString("token"),ConnectOptions(autoSubscribe=false,audio=false,video=false))
     ensureCurrent(s);check(resumed)
     // Recheck after network setup, immediately before turning on hardware.
@@ -158,6 +164,8 @@ class TabletSupportPlugin : Plugin() {
  private fun finish(s:Session,reason:String) {
   if(current!==s)return
   current=null
+  stateChanged()
+  s.events?.cancel()
   s.job?.cancel();s.pulse?.cancel();s.watchdog?.cancel()
   s.dialog?.dismiss();s.button?.let{(it.parent as? ViewGroup)?.removeView(it)}
   // Room disconnect disposes local tracks, including the camera/projection, synchronously.
