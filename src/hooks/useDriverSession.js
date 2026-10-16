@@ -56,7 +56,7 @@ const grantOf = (deviceId) => { try { return localStorage.getItem("tt_driver_gra
 // A busy server (429) or a server error still answered: that isn't "offline".
 const serverAnswered = (e) => { const status = httpStatus(e); return status === 429 || status >= 500; };
 
-export function useDriverSession(deviceId, { intervalMs = 15000 } = {}) {
+export function useDriverSession(deviceId, { intervalMs = 15000, chatActive = false } = {}) {
   const [session, setSession] = useState(() => (deviceId ? readCache(deviceId) : null));
   const [loading, setLoading] = useState(() => !!deviceId && !session);
   const [error, setError] = useState(null);
@@ -152,7 +152,21 @@ export function useDriverSession(deviceId, { intervalMs = 15000 } = {}) {
   const invoke = useCallback(async (action, payload = {}) => {
     try {
       const res = await base44.functions.invoke("driverSession", deviceRequest(deviceId, { ...payload, action }));
-      return res.data;
+      const result = res.data;
+      if (["send_group_message", "send_chat_media", "edit_group_message", "delete_group_message"].includes(action)) {
+        setSession(previous => {
+          if (!previous) return previous;
+          const rows = previous.group_messages || [];
+          const message = result?.message;
+          const nextRows = action === "delete_group_message" ? rows.filter(m => m.id !== payload.message_id)
+            : message?.id ? [...new Map([...rows, message].map(m => [m.id, m])).values()]
+            : action === "edit_group_message" ? rows.map(m => m.id === payload.message_id ? { ...m, text: payload.text, edited: true } : m) : rows;
+          const next = { ...previous, group_messages: nextRows };
+          writeCache(deviceId, next);
+          return next;
+        });
+      }
+      return result;
     } catch (error) {
       // Only this tablet's own backend can say the PIN is needed again. A
       // request that never reached it (no signal, a platform-level 401) says
@@ -164,6 +178,25 @@ export function useDriverSession(deviceId, { intervalMs = 15000 } = {}) {
       throw error;
     }
   }, [deviceId]);
+
+  useEffect(() => {
+    if (!deviceId || !chatActive) return undefined;
+    let busy = false, stopped = false;
+    const budget = createPollBudget();
+    const read = async () => {
+      if (busy || stopped || document.visibilityState === "hidden" || !budget.allowed() || !grantOf(deviceId)) return;
+      busy = true;
+      try {
+        const result = await invoke("messages");
+        budget.succeeded();
+        if (!stopped && currentDevice.current === deviceId) setSession(previous => previous ? { ...previous, group_messages: result.group_messages || [] } : previous);
+      } catch (error) { budget.failed(error); }
+      finally { busy = false; }
+    };
+    read();
+    const stop = startTabletPoll(read, 8000);
+    return () => { stopped = true; stop(); };
+  }, [deviceId, chatActive, invoke]);
 
   // Asked for on purpose (after an unlock, "Try again"): everything, now.
   const refresh = useCallback(() => { forceFull.current = true; return heartbeat(); }, [heartbeat]);

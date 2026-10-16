@@ -670,6 +670,28 @@ export default async function(req) {
     if(!matchesAssignment(body) || (action==='upload_track' && Array.isArray(body.points) && body.points.some(p=>!matchesAssignment(p||{})))) return Response.json({error:'Saved work belongs to a different tablet assignment'},{status:409});
 
     switch (action) {
+      case 'messages': {
+        const vehicle = await loadVehicle(base44, vehicleId);
+        if (!vehicle || vehicle.company_id !== companyId) return Response.json({error:'Vehicle assignment mismatch'},{status:403});
+        const messages = await base44.asServiceRole.entities.GroupMessage.filter({vehicle_id:vehicleId},'-created_date',200);
+        return Response.json({group_messages:messages.filter(m=>m.company_id===companyId).reverse()});
+      }
+      case 'show_pickup_sign': {
+        const db = base44.asServiceRole.entities;
+        const vehicle = await loadVehicle(base44, vehicleId);
+        if (!vehicle || vehicle.company_id !== companyId) return Response.json({error:'Vehicle assignment mismatch'},{status:403});
+        const trip = body.trip_id ? await db.Trip.get(body.trip_id) : null;
+        if (body.trip_id && (!trip || trip.vehicle_id !== vehicleId || trip.company_id !== companyId || !['scheduled','on_the_way','arrived'].includes(trip.status)))
+          return Response.json({error:'Job is not assigned to this bus'},{status:403});
+        const devices = (await db.KioskDevice.filter({vehicle_id:vehicleId,company_id:companyId,status:'active'},'-created_date',100))
+          .filter(d=>d.paired && ['bus_boarding','job_signing'].includes(d.kiosk_type));
+        if (!devices.length) return Response.json({error:'Pair a boarding/sign-in device with this bus first.'},{status:409});
+        const sign = {id:crypto.randomUUID(),name:trip?.passenger_name || trip?.client_name || '',
+          subtitle:trip?.passenger_name ? trip?.client_name || '' : '', shown_at:new Date().toISOString(),
+          expires_at:new Date(Date.now()+30*60_000).toISOString()};
+        for (const target of devices) await db.KioskDevice.update(target.id,{pickup_sign:sign});
+        return Response.json({ok:true,devices:devices.length});
+      }
       case 'request_pin_reset': {
         const vehicle = await loadVehicle(base44, vehicleId);
         if (!vehicle || vehicle.company_id !== companyId) return Response.json({ error: 'Vehicle assignment mismatch' }, { status: 403 });

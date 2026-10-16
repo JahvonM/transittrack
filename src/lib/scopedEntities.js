@@ -81,7 +81,19 @@ export function scopedEntities(client) {
   const key = readOnly ? JSON.stringify([entity,operation,args]) : null;
   if (readOnly && reads.has(key)) return reads.get(key);
   const pending = withRateLimitRetry(() => client.functions.invoke('entityAccess', { entity, operation, ...args }))
-   .then(response => response.data.result)
+   .then(response => {
+    const result = response.data.result;
+    if (entity === "GroupMessage" && ["create","update","delete"].includes(operation)) {
+     const live = polls.get(entity);
+     const event = operation === "delete" ? { type:"delete",id:args.id }
+       : { type:operation === "create" ? "create" : "update",id:result?.id,data:result };
+     if (live && event.id) {
+      if (live.current) operation === "delete" ? live.current.delete(event.id) : live.current.set(event.id,result);
+      for (const listener of [...live.listeners]) { try { listener(event); } catch { /* independent views */ } }
+     }
+    }
+    return result;
+   })
    .finally(() => { if (readOnly) reads.delete(key); });
   if (readOnly) reads.set(key,pending);
   return pending;

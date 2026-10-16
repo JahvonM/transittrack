@@ -48,6 +48,8 @@ export default function FloatingMessages({ vehicles = [], placement = "float" })
   const [unreadKeys, setUnreadKeys] = useState(() => new Set());
   const seenIds = useRef(new Set());
   const firstLoad = useRef(true);
+  const currentThread = useRef({});
+  currentThread.current = { open, activeVehicleId, activeChannel };
 
   const chatVehicles = useMemo(() => vehicles.filter((v) => v.id), [vehicles]);
   const activeVehicle = chatVehicles.find((v) => v.id === activeVehicleId) || null;
@@ -94,7 +96,7 @@ export default function FloatingMessages({ vehicles = [], placement = "float" })
         seenIds.current.add(rec.id);
         const key = `${rec.vehicle_id}:${ch}`;
         setUnreadKeys((prev) => {
-          if (key === `${activeVehicleId}:${activeChannel}` && open) return prev;
+          if (key === `${currentThread.current.activeVehicleId}:${currentThread.current.activeChannel}` && currentThread.current.open) return prev;
           const next = new Set(prev);
           next.add(key);
           return next;
