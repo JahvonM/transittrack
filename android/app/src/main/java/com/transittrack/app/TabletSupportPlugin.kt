@@ -52,12 +52,13 @@ class TabletSupportPlugin : Plugin() {
    val s=Session(id,device,key); current=s
    s.job=scope.launch {
     try {
+     val sentAt=SystemClock.elapsedRealtime()
      val proof=api(s,"prepare")
      ensureCurrent(s)
      s.capability=proof.getString("capability")
      require(s.capability in listOf("screen","camera_front","camera_back"))
      require(proof.getString("id")==s.id)
-     val ttl=proof.getLong("ttl_ms").coerceAtMost(600000); require(ttl>0)
+     val ttl=proof.getLong("ttl_ms").coerceAtMost(600000)-(SystemClock.elapsedRealtime()-sentAt); require(ttl>0)
      s.deadline=SystemClock.elapsedRealtime()+ttl
      stateChanged()
      seen.add(id); while(seen.size>64)seen.remove(seen.first())

@@ -416,10 +416,20 @@ async function installNativeHelper(page, enabled = true, bleEnabled = false, net
       pendingReceipts: async () => ({ ids: [] }),
       execute: async value => { window.__nativeControlCommands.push(value); return { code: 'DEVICE_OWNER_REQUIRED', reported: true }; },
     };
+    let reserved = false;
+    window.__supportOffers = [];
+    window.__supportReserve = value => { reserved = value; for(const cb of listeners.get('supportState') || []) cb({cameraReserved:reserved}); };
+    const support = {
+      getCapabilities: async () => ({remoteViewingReady:true}),
+      getState: async () => ({cameraReserved:reserved}),
+      addListener: async (name,cb) => nfc.addListener('supportState',cb),
+      offer: async value => {window.__supportOffers.push(value);},
+      stop: async () => window.__supportReserve(false),
+    };
     const recovery = { getState: async () => ({ available: true, defaultHome: false }), openHomeSettings: async () => { window.__nativeHomeSettingsOpened = true; } };
     const gps = { openAutoAcceptSettings: async () => { window.__autoAcceptSettingsOpened = true; } };
     const other = new Proxy({}, { get: (_, key) => key === 'addListener' ? async () => ({ remove: async () => {} }) : async () => ({}) });
-    window.CapacitorPlatforms = { platforms: new Map(), currentPlatform: { name: 'android', getPlatform: () => 'android', isNativePlatform: () => true, isPluginAvailable: name => ['UsbNfc', 'TabletHealth', 'UsbGps', 'BoardingBluetooth', 'TabletRecovery', 'TabletNetwork', ...(networkOptions.control ? ['TabletControl'] : [])].includes(name), registerPlugin: name => name === 'TabletControl' ? control : name === 'TabletNetwork' ? net : name === 'TabletRecovery' ? recovery : name === 'BoardingBluetooth' ? ble : name === 'UsbNfc' ? nfc : name === 'TabletHealth' ? health : name === 'UsbGps' ? gps : other } };
+    window.CapacitorPlatforms = { platforms: new Map(), currentPlatform: { name: 'android', getPlatform: () => 'android', isNativePlatform: () => true, isPluginAvailable: name => ['UsbNfc', 'TabletHealth', 'UsbGps', 'BoardingBluetooth', 'TabletRecovery', 'TabletNetwork', ...(networkOptions.support ? ['TabletSupport'] : []), ...(networkOptions.control ? ['TabletControl'] : [])].includes(name), registerPlugin: name => name === 'TabletSupport' ? support : name === 'TabletControl' ? control : name === 'TabletNetwork' ? net : name === 'TabletRecovery' ? recovery : name === 'BoardingBluetooth' ? ble : name === 'UsbNfc' ? nfc : name === 'TabletHealth' ? health : name === 'UsbGps' ? gps : other } };
   }, { enabled, bleEnabled, networkOptions });
 }
 
@@ -634,4 +644,18 @@ test('privileged native handoff uses only command ID and device credential; save
   await unlock(page);
   await page.clock.runFor(5100);
   expect(await page.evaluate(() => window.__nativeWorkSafety.safe)).toBe(false);
+});
+
+test('native support handoff forwards IDs only and releases the QR camera until viewing ends', async ({page})=>{
+ await installNativeHelper(page,true,false,{support:true});
+ const {errors}=await setup(page,{heartbeat:()=>({json:{...device(),support_notice:{id:'support-session',capability:'camera_back',token:'must-not-forward'}}})});
+ await page.goto('/kiosk');
+ await expect.poll(()=>page.evaluate(()=>window.__supportOffers.length)).toBeGreaterThan(0);
+ expect(await page.evaluate(()=>window.__supportOffers[0])).toEqual({device_id:'tab-1',device_token:TOKEN,session_id:'support-session'});
+ await page.evaluate(()=>window.__supportReserve(true));
+ await expect(page.getByText('QR camera paused for tablet support.',{exact:false})).toBeVisible();
+ await expect(page.getByText('Slide to enter a code',{exact:true})).toBeVisible();
+ await page.evaluate(()=>window.__supportReserve(false));
+ await expect(page.getByText('QR camera paused for tablet support.',{exact:false})).toHaveCount(0);
+ expect(errors).toEqual([]);
 });
