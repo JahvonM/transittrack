@@ -58,3 +58,12 @@ Preserve com.transittrack.app, existing signing identity, pairing/PINs and saved
 5. Test expiry, role demotion, reassignment, revoked device credential, connection loss, permission callbacks after cancellation and simultaneous admin requests.
 6. Verify local capture stops and a fresh approval is needed for another session.
 7. Native iPad remote capture, passenger-binary separation and remaining full backend migration are separate work.
+
+## Tablet startup diagnostics — 16 October 2026
+A real tablet reached local approval and the red connecting control, then the Admin reported a failed session. The exact capture/ICE/signaling failure is not established yet. Do not treat the relay allocation check as proof of working tablet video.
+
+Native capture now reports fixed stage/error codes (including HTTP status and timeouts) through a local toast and the private session. The backend accepts only a strict allowlist of stage/code formats; arbitrary exception text, SDP and credentials are discarded. Admin explains the stage when the updated UI is published. No approval, audio, recording or expiry rules changed.
+
+Validation: 158 release security tests and 11 focused JS tests pass. New native Kotlin changes have not been compiled in this reset sandbox (Android toolchain unavailable); build and device verification remain required on the operator PC. No APK was generated or installed and no frontend was published. Backend/schema source auto-syncs. A repeat attempt with the updated native diagnostic code is required to identify the actual failure.
+
+Operator has separately reported deploying coturn at relay.mcsweenstransport.com, successful TLS/renewal tests, authenticated browser relay candidates, monitoring/alert delivery and an encrypted configuration backup. These are operator-run results; master relay secret and monitoring URL were never retrieved here.
