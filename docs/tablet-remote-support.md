@@ -74,3 +74,10 @@ The owner explicitly requested automatic acceptance of camera/screen permission 
 This does not auto-click or bypass Android dialogs. Camera capture uses a valid runtime permission and asks Android if it is missing. Screen capture still calls createScreenCaptureIntent and requires Android's successful Activity result for each new session. Permission denial ends the session. The QR camera reservation event is emitted before native capture, with a short release interval before camera initialization.
 
 This section supersedes earlier statements that every request requires the app-owned local approval dialog. Android system permission is separate. Existing installed builds retain their prior behavior until updated. Actual tablet video startup failure is still under diagnosis; a diagnostic build and another device attempt are required.
+
+## Native ICE startup recovery — 16 October 2026
+The operator's uploaded ADB log shows camera initialization progressing without a camera error, followed by app shutdown at ICE_GATHERING_ERROR. It does not establish the underlying network cause or prove the server was reached.
+
+Native gathering now preserves individual candidate callbacks, merges missing candidates into the single-video offer without duplicating them, and waits up to 20 seconds for usable addresses rather than failing immediately on an empty first COMPLETE. Continuous gathering allows Android network discovery after initial startup. When TURN is configured, the offer waits for a relay candidate. Timeout still fails closed. Capture callbacks now report CAPTURE_ERROR separately from PEER_CONNECT_ERROR.
+
+Five JVM regression cases cover delayed candidates after empty completion, required relay vs host-only, stale local SDP, duplicate/foreign/injected candidate rejection and multi-media rejection. Native debug Java/Kotlin compilation and app JVM tests pass. The 40 focused backend security tests and six frontend diagnostic tests pass. No signed APK generated, tablet installation performed, frontend published, relay setting changed or credential read. Live tablet-to-admin video remains unverified; rebuild/install over the existing app and retest.
