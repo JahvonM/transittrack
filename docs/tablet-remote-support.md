@@ -67,3 +67,10 @@ Native capture now reports fixed stage/error codes (including HTTP status and ti
 Validation: 158 release security tests and 11 focused JS tests pass. New native Kotlin changes have not been compiled in this reset sandbox (Android toolchain unavailable); build and device verification remain required on the operator PC. No APK was generated or installed and no frontend was published. Backend/schema source auto-syncs. A repeat attempt with the updated native diagnostic code is required to identify the actual failure.
 
 Operator has separately reported deploying coturn at relay.mcsweenstransport.com, successful TLS/renewal tests, authenticated browser relay candidates, monitoring/alert delivery and an encrypted configuration backup. These are operator-run results; master relay secret and monitoring URL were never retrieved here.
+
+## Fleet owner approval policy update — 16 October 2026
+The owner explicitly requested automatic acceptance of camera/screen permission messages. New native builds therefore remove the app-owned Allow/Decline dialog for authenticated admin requests. Native server authorization, assignment binding, current role/device checks, expiry, visible connecting/live Stop control, background stop and no-audio/no-recording restrictions remain.
+
+This does not auto-click or bypass Android dialogs. Camera capture uses a valid runtime permission and asks Android if it is missing. Screen capture still calls createScreenCaptureIntent and requires Android's successful Activity result for each new session. Permission denial ends the session. The QR camera reservation event is emitted before native capture, with a short release interval before camera initialization.
+
+This section supersedes earlier statements that every request requires the app-owned local approval dialog. Android system permission is separate. Existing installed builds retain their prior behavior until updated. Actual tablet video startup failure is still under diagnosis; a diagnostic build and another device attempt are required.

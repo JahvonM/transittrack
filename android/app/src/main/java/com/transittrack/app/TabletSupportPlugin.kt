@@ -2,7 +2,6 @@ package com.transittrack.app
 
 import android.Manifest
 import android.app.Activity
-import android.app.AlertDialog
 import android.content.Intent
 import android.media.projection.MediaProjectionManager
 import android.os.SystemClock
@@ -21,13 +20,13 @@ import org.json.JSONObject
 import java.net.URL
 import javax.net.ssl.HttpsURLConnection
 
-/** The page supplies IDs only. Native HTTPS verifies every request; no capture without local approval. */
+/** The page supplies IDs only. Native HTTPS authorizes admin requests; Android owns system consent. */
 @CapacitorPlugin(name="TabletSupport", permissions=[Permission(alias="camera", strings=[Manifest.permission.CAMERA])])
 class TabletSupportPlugin : Plugin() {
  private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
  private data class Session(val id:String, val device:String, val key:String, var capability:String="", var deadline:Long=0,
                             var job:Job?=null, var watchdog:Job?=null, var pulse:Job?=null, var peer:DirectSupportPeer?=null,
-                            var dialog:AlertDialog?=null, var button:Button?=null, var capturing:Boolean=false, var stage:String="PREPARE")
+                            var button:Button?=null, var capturing:Boolean=false, var stage:String="PREPARE")
  private var current:Session?=null
  private var resumed=true
  private val seen=LinkedHashSet<String>()
@@ -35,7 +34,7 @@ class TabletSupportPlugin : Plugin() {
 
  @PluginMethod fun getCapabilities(call:PluginCall) {
   call.resolve(JSObject().put("remoteViewingReady",true).put("screenConsentRequired",true)
-   .put("transport","webrtc").put("localApprovalRequired",true).put("audio",false).put("recording",false))
+   .put("transport","webrtc").put("localApprovalRequired",false).put("audio",false).put("recording",false))
  }
  @PluginMethod fun getState(call:PluginCall) {call.resolve(JSObject().put("cameraReserved",current?.capability?.startsWith("camera_")==true))}
  private fun stateChanged() {notifyListeners("state",JSObject().put("cameraReserved",current?.capability?.startsWith("camera_")==true))}
@@ -58,25 +57,22 @@ class TabletSupportPlugin : Plugin() {
      stateChanged()
      seen.add(id); while(seen.size>64)seen.remove(seen.first())
      s.watchdog=scope.launch { delay(ttl); finish(s,"expired") }
-     // Authorization checks continue while approval is pending, too.
+     // Authorization checks continue while Android permission is pending, too.
      s.pulse=scope.launch {
       try { while(current===s) { delay(5000); val r=api(s,"pulse"); require(r.optBoolean("ok") && r.optString("id")==s.id && r.optLong("ttl_ms")>0) } }
       catch(e:Exception) { if(current===s) fail(s,e) }
      }
-     val label=when(s.capability) {"screen"->"screen";"camera_front"->"front camera";else->"rear camera"}
-     s.dialog=AlertDialog.Builder(activity).setTitle("Allow admin live viewing?")
-      .setMessage("${proof.optString("admin_name","Administrator")} requests your $label. Video only, no audio or recording. Ends within 10 minutes. You can stop at any time.")
-      .setPositiveButton("Allow") {_,_ ->
-       if(current!==s)return@setPositiveButton
-       if(s.capability=="screen") {
-        val manager=activity.getSystemService(Activity.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
-        startActivityForResult(call,manager.createScreenCaptureIntent(),"screenResult")
-       } else if(getPermissionState("camera") != PermissionState.GRANTED) {
-        requestPermissionForAlias("camera",call,"cameraResult")
-       } else { call.resolve(); startCapture(s,null) }
-      }.setNegativeButton("Decline") {_,_->call.resolve();finish(s,"denied")}
-      .setOnCancelListener {call.resolve();finish(s,"denied")}.create()
-     s.dialog?.show()
+     // The fleet owner authorizes admin requests automatically. Android still owns
+     // runtime camera permission and each MediaProjection consent result.
+     if(s.capability=="screen") {
+      val manager=activity.getSystemService(Activity.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
+      startActivityForResult(call,manager.createScreenCaptureIntent(),"screenResult")
+     } else if(getPermissionState("camera") != PermissionState.GRANTED) {
+      requestPermissionForAlias("camera",call,"cameraResult")
+     } else {
+      call.resolve()
+      startCapture(s,null)
+     }
     } catch(e:Exception) { call.reject("Remote viewing request unavailable"); fail(s,e) }
    }
   }
@@ -122,6 +118,8 @@ class TabletSupportPlugin : Plugin() {
     }
     ensureCurrent(s);check(resumed)
     s.stage="CAPTURE"
+    if(s.capability.startsWith("camera_"))delay(500)
+    ensureCurrent(s)
     val peer=DirectSupportPeer(context,s.capability){scope.launch{fail(s,IllegalStateException())}};s.peer=peer
     val offer=withTimeout(25000){peer.offer(auth.getJSONArray("iceServers"),projection){s.stage=it}}
     ensureCurrent(s)
@@ -191,7 +189,7 @@ class TabletSupportPlugin : Plugin() {
   current=null
   stateChanged()
   s.job?.cancel();s.pulse?.cancel();s.watchdog?.cancel()
-  s.dialog?.dismiss();s.button?.let{(it.parent as? ViewGroup)?.removeView(it)}
+  s.button?.let{(it.parent as? ViewGroup)?.removeView(it)}
   try{s.peer?.close()}catch(_:Exception){}
   s.peer=null
   SupportProjectionService.stopAction=null

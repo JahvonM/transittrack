@@ -74,13 +74,13 @@ export default function TabletRemoteViewer({device}) {
  const active = session && !ended(session.state);
  return <section className="space-y-3 border rounded-xl p-3" aria-label="Remote tablet viewing">
   <h3 className="font-semibold">Screen & camera</h3>
-  <p className="text-sm text-muted-foreground">Admin-only live viewing. Someone at the tablet must approve each session. Video only, no recording; ends after 10 minutes.</p>
+  <p className="text-sm text-muted-foreground">Admin-only live viewing. Updated fleet tablets accept requests automatically. Android may still ask for camera or screen-sharing permission. A Stop button stays visible. Video only, no recording; ends after 10 minutes.</p>
   {enabled === false && <p role="status" className="text-sm">Direct remote viewing is not enabled yet.</p>}
   {enabled === true && !relay && <p className="text-sm">Direct connection mode. Some mobile and Wi-Fi networks need a relay before video can connect.</p>}
   {device.helper_health?.support_transport !== "webrtc" && <p className="text-sm">Requires the direct-viewing kiosk update.</p>}
   <div className="flex flex-wrap gap-2">{Object.entries(labels).map(([key,label]) => <Button key={key} variant="outline" disabled={busy || active || enabled !== true || device.helper_health?.support_available !== true || device.helper_health?.support_transport !== "webrtc" || !device.paired} onClick={()=>request(key)}>{label}</Button>)}</div>
   {session && <div className="space-y-2">
-   <p role="status">{live ? "Live video" : session.state === "requested" ? "Waiting for tablet to check in" : session.state === "waiting_permission" ? "Waiting for approval on the tablet" : ["connecting","active"].includes(session.state) ? "Connecting video…" : "Session " + session.state}</p>
+   <p role="status">{live ? "Live video" : session.state === "requested" ? "Waiting for tablet to check in" : session.state === "waiting_permission" ? "Waiting for tablet startup or Android permission" : ["connecting","active"].includes(session.state) ? "Connecting video…" : "Session " + session.state}</p>
    {session.state === "failed" && session.failure_code && <p role="alert" className="text-sm text-destructive">{tabletSupportFailure(session.failure_code)}</p>}
    {active && <p className="text-xs">Ends by {new Date(session.expires_at).toLocaleTimeString()}</p>}
    <video ref={video} onPlaying={() => { if(room.current && video.current?.readyState >= 2) setLive(true); }} autoPlay playsInline muted aria-label="Tablet live video" className={live ? "w-full max-h-[55dvh] bg-black rounded-lg object-contain" : "hidden"} />
