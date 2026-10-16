@@ -117,3 +117,30 @@ describe("direct WebRTC tablet viewing handlers",()=>{
   expect(fs.readFileSync("base44/functions/entityAccess/entry.ts","utf8")).not.toContain("'TabletSupportSession'");
  });
 });
+
+describe("safe tablet failure diagnostics",()=>{
+ it("returns a fixed failure stage to the requesting admin and clears private signaling",async()=>{
+  const f=fixture(),b=await f.begin();await f.call("prepare",b);
+  await f.call("offer",{...b,sdp:offer});
+  expect((await f.call("stop",{...b,reason:"failed",failure_code:"ICE_GATHERING_TIMEOUT"})).body.session.failure_code).toBe("ICE_GATHERING_TIMEOUT");
+  const status=await f.call("status",b);
+  expect(status.body.session).toMatchObject({state:"failed",failure_code:"ICE_GATHERING_TIMEOUT"});
+  expect(f.c.tables.TabletSupportSession[0].offer_sdp).toBe("");
+ });
+ it("discards arbitrary diagnostics that could contain tokens or SDP",async()=>{
+  const f=fixture(),b=await f.begin();
+  const r=await f.call("stop",{...b,reason:"failed",failure_code:"credential="+f.token});
+  expect(r.body.session.failure_code).toBeNull();
+  expect(JSON.stringify(f.c.tables.TabletSupportSession)).not.toContain(f.token);
+ });
+ it("rejects forged diagnostic writes from an unauthenticated device",async()=>{
+  const f=fixture(),b=await f.begin();
+  expect((await f.call("stop",{...b,device_token:"b".repeat(64),reason:"failed",failure_code:"CAPTURE_ERROR"})).status).toBe(401);
+  expect(f.c.tables.TabletSupportSession[0].state).toBe("requested");
+ });
+ it("does not allow an admin stop to inject native failure details",async()=>{
+  const f=fixture(),b=await f.begin();
+  const r=await f.call("end",{...b,reason:"failed",failure_code:"CAPTURE_ERROR"});
+  expect(r.body.session).toMatchObject({state:"ended",failure_code:null});
+ });
+});

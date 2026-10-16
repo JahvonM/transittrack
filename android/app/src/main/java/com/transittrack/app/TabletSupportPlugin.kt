@@ -110,6 +110,7 @@ class TabletSupportPlugin : Plugin() {
     s.button=button
     (activity.window.decorView as ViewGroup).addView(button,FrameLayout.LayoutParams(
      ViewGroup.LayoutParams.WRAP_CONTENT,ViewGroup.LayoutParams.WRAP_CONTENT,Gravity.TOP or Gravity.CENTER_HORIZONTAL).apply{topMargin=48})
+    s.stage="CAPTURE"
     s.capturing=true
     if(s.capability=="screen") {
      require(projection!=null)
@@ -160,7 +161,7 @@ class TabletSupportPlugin : Plugin() {
     if(failureCode!=null)body.put("failure_code",failureCode)
     connection.outputStream.use{it.write(body.toString().toByteArray(Charsets.UTF_8))}
     val status=connection.responseCode
-    if(status!=200)throw SupportHttpException(op.uppercase(),status)
+    if(status!=200)throw SupportHttpException(op.uppercase(java.util.Locale.ROOT),status)
     val bytes=connection.inputStream.use { input ->
      val output=java.io.ByteArrayOutputStream(); val buffer=ByteArray(2048)
      while(true) { val count=input.read(buffer); if(count<0)break; require(output.size()+count<=98304); output.write(buffer,0,count) }
