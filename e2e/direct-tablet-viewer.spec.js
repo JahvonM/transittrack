@@ -15,7 +15,7 @@ test("direct receiver renders a real synthetic WebRTC video without camera, micr
   const stream=canvas.captureStream(10),sender=new RTCPeerConnection({iceServers:[]});
   sender.addTransceiver(stream.getVideoTracks()[0],{direction:"sendonly"});
   await sender.setLocalDescription(await sender.createOffer());
-  if(sender.iceGatheringState!=="complete")await new Promise((resolve,reject)=>{const t=setTimeout(()=>reject(new Error("Sender ICE timed out: "+sender.iceGatheringState)),10000);sender.onicegatheringstatechange=()=>{if(sender.iceGatheringState==="complete"){clearTimeout(t);resolve();}};});
+  if(sender.iceGatheringState!=="complete")await new Promise((resolve,reject)=>{const t=setTimeout(()=>reject(new Error("Sender ICE timed out: "+sender.iceGatheringState+" candidates="+(sender.localDescription?.sdp.match(/a=candidate:/g)||[]).length)),10000);sender.onicegatheringstatechange=()=>{if(sender.iceGatheringState==="complete"){clearTimeout(t);resolve();}};});
   let ended=false;
   const receiver=window.TTDirect.createSupportViewer({video,onEnded:()=>{ended=true;}});
   await receiver.connect({iceServers:[],sdp:sender.localDescription.sdp},sdp=>sender.setRemoteDescription({type:"answer",sdp}));
