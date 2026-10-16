@@ -28,6 +28,7 @@ export default function CompanyWorkspace({ company, tab, onTab, onBack, onChange
   finally{if(version===request.current)setLoading(false);}
  },[company.id]);
  useEffect(()=>{load();return()=>{request.current++;};},[load]);
+ useEffect(()=>{window.addEventListener("tt-admin-refresh",load);return()=>window.removeEventListener("tt-admin-refresh",load);},[load]);
  const saveRoute=async(vehicle,routeId)=>{
   if(busy)return;
   setBusy(vehicle.id);
@@ -89,6 +90,6 @@ export default function CompanyWorkspace({ company, tab, onTab, onBack, onChange
      {tab==="pickups" && <><div className="rounded-xl border bg-muted/30 p-4 text-sm"><p className="font-medium">{workplace ? "Workplace: "+workplace.name : "Add a workplace pin in Edit details / workplace."}</p><p className="mt-1 text-muted-foreground">Review passenger pickup points and bus assignments for {company.name}. Trip direction is selected on the driver screen.</p></div><NestedPage><PlanPickupsTab key={company.id} companyId={company.id}/></NestedPage></>}
     </>}
   </section>
-  <CompanyEditDialog company={company} open={editing} onOpenChange={setEditing} onSaved={()=>{onChange();load();}}/>
+  <CompanyEditDialog company={company} open={editing} onOpenChange={setEditing} onSaved={onChange}/>
  </div>;
 }
