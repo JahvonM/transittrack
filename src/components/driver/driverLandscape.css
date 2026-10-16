@@ -99,3 +99,8 @@
  .dl-map-caption{padding:9px 12px;min-height:58px;gap:10px;max-width:54%;bottom:17px;left:14px}.dl-map-caption strong{font-size:16px}.dl-map-caption small{font-size:12px}.dl-map-caption>svg:first-child{width:26px;height:26px}
  .dl-map-stage .dl-details{right:14px;bottom:20px;max-width:39%}.dl-map-stage .dl-details>summary{font-size:11px;padding:8px 10px}
 }
+
+@media (min-width:960px) and (orientation:landscape) and (max-height:700px) {
+ .dl-panel-scroll{gap:4px}.dl-next{padding-top:7px;padding-bottom:7px}
+ .dl-stats>button{min-height:54px;padding-top:5px;padding-bottom:5px}.dl-stats strong{font-size:23px;line-height:1}.dl-stats>button>span>span{line-height:1.1;margin-top:1px}
+}
