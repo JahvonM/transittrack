@@ -1,6 +1,7 @@
 {
   "name": "KioskDevice",
   "properties": {
+    "support_request": {"type":"object","properties":{"id":{"type":"string"},"expires_at":{"type":"string"}}},
     "company_id": {
       "type": "string"
     },

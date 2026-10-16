@@ -34,7 +34,7 @@ export default async function(req) {
    if(d.helper_health?.support_available!==true)return reply({error:'Install the combined kiosk viewing update first'},409);
    if(supportNotice(d)) {
     const prior=await db.TabletSupportSession.get(d.support_request.id).catch(()=>null);
-    if(prior && !terminal(prior.state)) return reply({error:'A viewing session is already open'},409);
+    if(prior && !(prior.ended_at || terminal(prior.state))) return reply({error:'A viewing session is already open'},409);
    }
    const s=await db.TabletSupportSession.create({...built,requested_name:String(admin.full_name||'Administrator').slice(0,80),
     company_id:d.company_id,vehicle_id:d.vehicle_id||'',kiosk_type:d.kiosk_type,room_name:'tt-support-'+crypto.randomUUID()});
@@ -49,11 +49,11 @@ export default async function(req) {
    if(b.device_id!==s.device_id || !await strictControlDevice(db,d,b.device_token))return reply({error:'Device authentication required'},401);
   } else if(b.operation!=='end' && s.requested_by!==admin.id) return reply({error:'Session belongs to another administrator'},403);
   if(b.operation==='end' || b.operation==='stop') {
-   if(terminal(s.state)) return reply({ok:true,session:publicSupport(s)});
+   if((s.ended_at || terminal(s.state))) return reply({ok:true,session:publicSupport(s)});
    return finish(s,native && ['denied','failed'].includes(b.reason)?b.reason:'ended');
   }
-  if(terminal(s.state))return b.operation==='status'?reply({session:publicSupport(s)}):reply({error:'Session ended'},410);
-  if(!(Date.parse(s.expires_at)>Date.now()))return finish(s,'expired');
+  if((s.ended_at || terminal(s.state)))return b.operation==='status'?reply({session:publicSupport(s)}):reply({error:'Session ended'},410);
+  if(!(Date.parse(s.expires_at)>Date.now())){const ended=await finish(s,'expired');return b.operation==='status'?ended:reply({error:'Session expired'},410);}
   const requester=await db.User.get(s.requested_by).catch(()=>null);
   if(requester?.role!=='admin' || !d || d.status!=='active' || !d.paired || !supportBinding(s,d)) {
    await finish(s,'ended');return reply({error:'Viewing authorization changed'},403);

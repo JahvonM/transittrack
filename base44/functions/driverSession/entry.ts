@@ -1,3 +1,4 @@
+import { supportNotice } from '../../shared/tabletStreaming.ts';
 import { durableCreate, operationHash } from '../../shared/durableOperation.ts';
 import { nativeReleaseHealth } from '../../shared/nativeRelease.ts';
 import { controlNotice } from '../../shared/tabletControl.ts';
@@ -405,7 +406,7 @@ function cleanHelperHealth(h: unknown): Record<string, unknown> | null {
     typeof v === 'string' ? v.replace(/[\u0000-\u001f<>]/g, '').slice(0, n) : undefined;
   const out: Record<string, unknown> = { reported_at: new Date().toISOString() };
   Object.assign(out, nativeReleaseHealth(o));
-  for (const k of ['management_available', 'management_owner', 'management_locked']) if (typeof o[k] === 'boolean') out[k] = o[k];
+  for (const k of ['support_available', 'management_available', 'management_owner', 'management_locked']) if (typeof o[k] === 'boolean') out[k] = o[k];
   const version = str(o.version, 16); if (version) out.version = version;
   if (typeof o.battery === 'number' && Number.isFinite(o.battery)) out.battery = Math.max(0, Math.min(100, Math.round(o.battery)));
   if (typeof o.charging === 'boolean') out.charging = o.charging;
@@ -931,6 +932,7 @@ export default async function(req) {
           update_requested_at: device.update_requested_at || null,
           network_command: network?.command || null,
           control_notice: controlNotice(device),
+          support_notice: supportNotice(device),
         };
         if (light) {
           // Left out, so the tablet keeps what the last full check-in sent. A

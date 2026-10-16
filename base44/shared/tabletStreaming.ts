@@ -15,7 +15,7 @@ export function supportNotice(device:any,now=Date.now()) {
  Date.parse(n.expires_at)>now ? {id:n.id} : null;
 }
 export function publicSupport(s:any) {
- return {id:s.id,device_id:s.device_id,capability:s.capability,state:s.state,expires_at:s.expires_at,requested_name:s.requested_name};
+ return {id:s.id,device_id:s.device_id,capability:s.capability,state:s.ended_at ? (['denied','failed','expired'].includes(s.state)?s.state:'ended') : s.state,expires_at:s.expires_at,requested_name:s.requested_name};
 }
 export function supportBinding(s:any,d:any) {
  return s.device_id===d.id && s.company_id===d.company_id && s.vehicle_id===(d.vehicle_id||'') &&

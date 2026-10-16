@@ -1,3 +1,4 @@
+import { handleTabletSupport } from "@/lib/nativeTabletSupport";
 import { handleTabletControl } from "@/lib/nativeTabletControl";
 import { createPollBudget, startTabletPoll } from "@/lib/tabletPolling";
 import { deviceRequest } from "@/lib/deviceAuth";
@@ -100,6 +101,7 @@ export function useDriverSession(deviceId, { intervalMs = 15000 } = {}) {
       // The hotspot switch from Admin → Kiosk tablets goes to the helper app.
       handleNetworkCommand(res.data?.network_command).catch(() => {});
       void handleTabletControl(deviceId, res.data?.control_notice).catch(() => {});
+      void handleTabletSupport(deviceId, res.data?.support_notice).catch(() => {});
       const reply = withoutNetworkCommand(res.data);
       const light = reply?.light === true;
       if (light) delete reply.light;
