@@ -91,8 +91,10 @@
     },
     "notification_opt_out": {
       "type": "array",
-      "items": { "type": "string" },
-      "description": "Notifications this person turned off for themselves (Account → Notifications), by key from base44/shared/notificationPolicy.ts."
+      "items": {
+        "type": "string"
+      },
+      "description": "Notifications this person turned off for themselves (Account \u2192 Notifications), by key from base44/shared/notificationPolicy.ts."
     },
     "theme_accent": {
       "type": "string",
@@ -122,12 +124,26 @@
       "type": "object",
       "description": "Set by the server when a driver moves this passenger's pickup on the bus road: when, by whom, how far, and the new point. The passenger app shows a note while the pickup is still at that point.",
       "properties": {
-        "at": { "type": "string" },
-        "by": { "type": "string" },
-        "m": { "type": "number" },
-        "lat": { "type": "number" },
-        "lng": { "type": "number" }
+        "at": {
+          "type": "string"
+        },
+        "by": {
+          "type": "string"
+        },
+        "m": {
+          "type": "number"
+        },
+        "lat": {
+          "type": "number"
+        },
+        "lng": {
+          "type": "number"
+        }
       }
+    },
+    "access_role_id": {
+      "type": "string",
+      "description": "Administrative routing hint only. RoleAssignment is the protected source of authorization."
     }
   },
   "required": []
