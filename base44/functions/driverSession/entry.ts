@@ -943,7 +943,7 @@ export default async function(req) {
           vehicle: tabletVehicle(vehicle), driver_name: vehicle.driver_name || '', has_driver_pin: hasDriverPin, has_signing_tablet: hasSigningTablet,
           company_id: companyId, company_name: companyDisplayName, company_logo_url: companyLogoUrl, staff, route: tabletRoute(route, companyId), road_stops: roadStops, workplace, emergency_contacts: emergencyContacts, ...boardingStats(checkIns),
           broadcasts: relevantBroadcasts, check_ins: checkIns.slice(0, 20).filter((c) => c.status === 'boarded').map(tabletCheckIn),
-          group_messages: unlocked ? [...groupMessages].reverse() : [], trips: unlocked ? trips : [],
+          group_messages: unlocked ? [...groupMessages].filter(message=>message.company_id===companyId).reverse() : [], trips: unlocked ? trips : [],
           // Lets the tablet tell "no jobs" from "jobs hidden while locked".
           driver_unlocked: !!unlocked,
           open_shift: openShifts.find((s) => !s.ended_at) || null,
