@@ -35,7 +35,13 @@
     "kiosk_type": {
       "type": "string"
     },
-    "room_name": {
+    "transport": {
+      "type": "string"
+    },
+    "offer_sdp": {
+      "type": "string"
+    },
+    "answer_sdp": {
       "type": "string"
     }
   },
