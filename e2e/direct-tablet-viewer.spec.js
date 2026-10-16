@@ -2,7 +2,7 @@ import {test,expect} from "@playwright/test";
 import {build} from "esbuild";
 test("direct receiver renders a real synthetic WebRTC video without camera, microphone or a streaming provider",async({page})=>{
  const bundle=await build({entryPoints:["src/lib/directTabletViewer.js"],bundle:true,write:false,format:"iife",globalName:"TTDirect",platform:"browser"});
- await page.goto("/");
+ await page.setContent("<html><body></body></html>");
  await page.addScriptTag({content:bundle.outputFiles[0].text});
  await page.evaluate(async()=>{
   const video=document.createElement("video");video.autoplay=true;video.muted=true;video.playsInline=true;document.body.appendChild(video);
