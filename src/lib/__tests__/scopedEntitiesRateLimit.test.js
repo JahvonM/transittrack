@@ -139,8 +139,10 @@ it("a repeated long server cooldown exits within the retry budget without anothe
 });
 
 it("publishes acknowledged chat creates, edits and deletes without waiting for a poll",async()=>{
+ await vi.resetModules();
+ const {scopedEntities: freshEntities}=await import("@/lib/scopedEntities");
  const invoke=vi.fn(async (_name,body)=>({data:{result:body.operation==="delete"?{ok:true}:{id:body.id || "chat-1",...body.data}}}));
- const entities=scopedEntities({functions:{invoke}});
+ const entities=freshEntities({functions:{invoke}});
  const listener=vi.fn(),stop=entities.GroupMessage.subscribe(listener);
  await entities.GroupMessage.create({text:"Hello"});
  expect(listener).toHaveBeenLastCalledWith({type:"create",id:"chat-1",data:{id:"chat-1",text:"Hello"}});
