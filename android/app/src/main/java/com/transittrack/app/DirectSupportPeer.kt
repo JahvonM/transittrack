@@ -10,7 +10,7 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
 /** Single video-only sender. It never creates an audio track, renderer or data channel. */
-class DirectSupportPeer(private val context:Context, private val capability:String, private val onClosed:()->Unit) {
+class DirectSupportPeer(private val context:Context, private val capability:String, private val onClosed:(String)->Unit) {
  private val egl=EglBase.create()
  private val factory:PeerConnectionFactory
  private var peer:PeerConnection?=null
@@ -18,7 +18,8 @@ class DirectSupportPeer(private val context:Context, private val capability:Stri
  private var track:VideoTrack?=null
  private var capturer:VideoCapturer?=null
  private var texture:SurfaceTextureHelper?=null
- private val gathered=CompletableDeferred<Unit>()
+ private val candidates=SupportIceCandidates()
+ @Volatile private var gatheringComplete=false
  private val connected=CompletableDeferred<Unit>()
  @Volatile private var closed=false
  init {
@@ -29,15 +30,19 @@ class DirectSupportPeer(private val context:Context, private val capability:Stri
  }
  suspend fun offer(ice:JSONArray, projection:Intent?, onStage:(String)->Unit={}):String {
   val servers=mutableListOf<PeerConnection.IceServer>()
+  var requireRelay=false
   require(ice.length()<=4)
   for(i in 0 until ice.length()) {
    val item=ice.getJSONObject(i);val urls=item.getJSONArray("urls")
    require(urls.length() in 1..3)
    val values=(0 until urls.length()).map{urls.getString(it)}
    require(values.all{it.matches(Regex("^(stun|turn|turns):[A-Za-z0-9.-]+:[0-9]{1,5}(\\?transport=(udp|tcp))?$"))})
+   if(values.any{it.startsWith("turn:") || it.startsWith("turns:")})requireRelay=true
    servers.add(PeerConnection.IceServer.builder(values).setUsername(item.optString("username")).setPassword(item.optString("credential")).createIceServer())
   }
-  val cfg=PeerConnection.RTCConfiguration(servers).apply {sdpSemantics=PeerConnection.SdpSemantics.UNIFIED_PLAN}
+  val cfg=PeerConnection.RTCConfiguration(servers).apply {sdpSemantics=PeerConnection.SdpSemantics.UNIFIED_PLAN
+   continualGatheringPolicy=PeerConnection.ContinualGatheringPolicy.GATHER_CONTINUALLY
+  }
   peer=factory.createPeerConnection(cfg,object:PeerConnection.Observer {
    override fun onSignalingChange(state:PeerConnection.SignalingState) {}
    override fun onIceConnectionChange(state:PeerConnection.IceConnectionState) {
@@ -47,10 +52,10 @@ class DirectSupportPeer(private val context:Context, private val capability:Stri
     if(state==PeerConnection.PeerConnectionState.CONNECTED)connected.complete(Unit)
     else if(state==PeerConnection.PeerConnectionState.FAILED || state==PeerConnection.PeerConnectionState.DISCONNECTED)lost()
    }
-   private fun lost(){if(!closed)onClosed()}
+   private fun lost(){if(!closed)onClosed("PEER_CONNECT")}
    override fun onIceConnectionReceivingChange(receiving:Boolean) {}
-   override fun onIceGatheringChange(state:PeerConnection.IceGatheringState) {if(state==PeerConnection.IceGatheringState.COMPLETE)gathered.complete(Unit)}
-   override fun onIceCandidate(candidate:IceCandidate) {}
+   override fun onIceGatheringChange(state:PeerConnection.IceGatheringState) {gatheringComplete=state==PeerConnection.IceGatheringState.COMPLETE}
+   override fun onIceCandidate(candidate:IceCandidate) {candidates.add(candidate.sdpMLineIndex,candidate.sdp)}
    override fun onIceCandidatesRemoved(candidates:Array<out IceCandidate>) {}
    override fun onAddStream(stream:MediaStream) {lost()}
    override fun onRemoveStream(stream:MediaStream) {}
@@ -60,15 +65,15 @@ class DirectSupportPeer(private val context:Context, private val capability:Stri
   val screen=capability=="screen"
   capturer=if(screen) {
    require(projection!=null)
-   ScreenCapturerAndroid(projection,object:MediaProjection.Callback(){override fun onStop(){if(!closed)onClosed()}})
+   ScreenCapturerAndroid(projection,object:MediaProjection.Callback(){override fun onStop(){if(!closed)onClosed("CAPTURE")}})
   } else {
    val enumerator=Camera2Enumerator(context)
    val name=enumerator.deviceNames.firstOrNull{if(capability=="camera_front")enumerator.isFrontFacing(it) else enumerator.isBackFacing(it)}
     ?: error("Selected camera unavailable")
    enumerator.createCapturer(name,object:CameraVideoCapturer.CameraEventsHandler {
-    override fun onCameraError(errorDescription:String){if(!closed)onClosed()}
-    override fun onCameraDisconnected(){if(!closed)onClosed()}
-    override fun onCameraFreezed(errorDescription:String){if(!closed)onClosed()}
+    override fun onCameraError(errorDescription:String){if(!closed)onClosed("CAPTURE")}
+    override fun onCameraDisconnected(){if(!closed)onClosed("CAPTURE")}
+    override fun onCameraFreezed(errorDescription:String){if(!closed)onClosed("CAPTURE")}
     override fun onCameraOpening(cameraName:String){}
     override fun onFirstFrameAvailable(){}
     override fun onCameraClosed(){}
@@ -84,11 +89,18 @@ class DirectSupportPeer(private val context:Context, private val capability:Stri
   val offer=createOffer(pc)
   setDescription(pc,offer,true)
   onStage("ICE_GATHERING")
-  withTimeout(15000){gathered.await()}
-  check(!closed)
-  val sdp=pc.localDescription.description
-  require(sdp.contains("a=candidate:")){"No connection address; STUN/TURN configuration required"}
-  return sdp
+  // An early empty COMPLETE is not terminal: Android may discover Wi-Fi afterward.
+  // Keep callback addresses too; localDescription can lag the callback on some builds.
+  return withTimeout(20000) {
+   var readySdp:String?=null
+   while(readySdp==null) {
+    check(!closed)
+    val current=candidates.merge(pc.localDescription.description)
+    if(SupportIceCandidates.ready(current,gatheringComplete,requireRelay))readySdp=current
+    else delay(100)
+   }
+   readySdp
+  }
  }
  suspend fun answer(sdp:String) {
   require(sdp.length<=65536 && sdp.lines().count{it.startsWith("m=")}==1 && sdp.contains("a=recvonly") && !sdp.contains("m=audio") && !sdp.contains("m=application"))

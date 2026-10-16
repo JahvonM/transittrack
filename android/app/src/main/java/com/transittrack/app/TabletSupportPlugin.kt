@@ -120,7 +120,7 @@ class TabletSupportPlugin : Plugin() {
     s.stage="CAPTURE"
     if(s.capability.startsWith("camera_"))delay(500)
     ensureCurrent(s)
-    val peer=DirectSupportPeer(context,s.capability){scope.launch{fail(s,IllegalStateException())}};s.peer=peer
+    val peer=DirectSupportPeer(context,s.capability){stage->scope.launch{fail(s,IllegalStateException(),stage)}};s.peer=peer
     val offer=withTimeout(25000){peer.offer(auth.getJSONArray("iceServers"),projection){s.stage=it}}
     ensureCurrent(s)
     s.stage="OFFER"
@@ -170,9 +170,9 @@ class TabletSupportPlugin : Plugin() {
   }
  }
  private class SupportHttpException(val operation:String,val status:Int):Exception()
- private fun fail(s:Session,error:Exception) {
+ private fun fail(s:Session,error:Exception,callbackStage:String?=null) {
   if(current!==s)return
-  val stage=if(error is SupportHttpException)error.operation else s.stage
+  val stage=if(error is SupportHttpException)error.operation else callbackStage ?: s.stage
   val suffix=when(error) {
    is SupportHttpException->"HTTP_"+error.status
    is TimeoutCancellationException,is SocketTimeoutException->"TIMEOUT"
