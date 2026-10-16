@@ -112,6 +112,9 @@ function dispatch(action) {
 
 function toast({ ...props }) {
   const id = genId();
+  // Routine tablet notices clear quickly; errors keep their normal duration.
+  if (props.duration == null && props.variant !== "destructive" &&
+      typeof window !== "undefined" && /^\/(driver|kiosk)(?:\/|$)/.test(window.location.pathname)) props.duration = 2000;
 
   const update = (props) =>
     dispatch({

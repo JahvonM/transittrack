@@ -529,7 +529,9 @@ export default async function(req) {
   if(operation==='delete') {
    if(ctx.user.role!=='admin'&&MAINTENANCE.has(name))fail(403,'Maintenance deletion is admin-only');
    if(ctx.user.role!=='admin' && !(ctx.user.role==='company' && COMPANY_READ.has(name) && name!=='Company') && !(ctx.user.role==='mechanic' && MAINTENANCE.has(name) && name!=='Vehicle') && !(name==='GroupMessage' && existing.sender_id===ctx.user.id)) fail(403,'Delete forbidden');
-   await prepare(db,ctx,name,{},existing);
+   // Deleting an old schedule does not need its now-removed vehicle/company
+   // to pass create/update validation. Visibility and admin checks ran above.
+   if(name!=='MaintenanceSchedule') await prepare(db,ctx,name,{},existing);
    await db[name].delete(body.id);
    return Response.json({result:{ok:true}});
   }

@@ -401,6 +401,12 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
   const step = progress?.step;
   const banner = progress?.banner;
   const drivingSide = step?.drivingSide || "right";
+  const [dismissedArrival, setDismissedArrival] = useState(null);
+  useEffect(() => {
+    if (!progress?.arrived || !nextStopKey) return undefined;
+    const timer = setTimeout(() => setDismissedArrival(nextStopKey), 2000);
+    return () => clearTimeout(timer);
+  }, [progress?.arrived, nextStopKey]);
   let bannerMain;
   if (!nextStop) {
     bannerMain = { title: orderedStops.length ? "Route finished" : "No route assigned", sub: orderedStops.length ? "" : "Ask dispatch to give this bus a route" };
@@ -560,7 +566,7 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
         )}
 
         {/* Top: next turn, Google-Maps style */}
-        {navigating && <div ref={bannerRef} className="absolute top-3 left-3 right-3 z-10 max-w-xl space-y-1.5 pointer-events-none" data-testid="nav-banner">
+        {navigating && !(progress?.arrived && dismissedArrival === nextStopKey) && <div ref={bannerRef} className="absolute top-3 left-3 right-3 z-10 max-w-xl space-y-1.5 pointer-events-none" data-testid="nav-banner">
           <div className="rounded-2xl text-white shadow-xl overflow-hidden" style={{ background: BANNER }}>
             {bannerMain ? (
               <div className="px-4 py-3 flex items-center gap-3">
