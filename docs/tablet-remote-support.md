@@ -44,8 +44,9 @@ Before release:
 8. iPad remote capture and the separate passenger binary are not implemented by this Android kiosk feature.
 
 ## Validation
-- Android Java/Kotlin compilation and existing JVM tests pass, including new protection against USB auto-approval of capture prompts.
+- Android Java/Kotlin compilation and 42 JVM tests pass, including new protection against USB auto-approval of capture prompts.
 - 28 focused backend support tests pass, including real SDK token verification with synthetic keys and mocked database/streaming boundaries.
-- Seven mocked Chromium admin-control scenarios pass, including unavailable service, request/approval waiting, stop and close cleanup.
+- Seven mocked Chromium admin-control scenarios pass, including unavailable service, request/approval waiting, stop and close cleanup. A separate mocked native handoff/QR camera reservation scenario also passes.
+- All 32 existing boarding browser scenarios passed in the combined regression run before the outer 60-second command limit interrupted its later admin tests; the remaining three admin cases were rerun and passed.
 - Relevant native health/network/update unit tests pass (28).
 - The release security suite passed 145/146 in a parallel run; its existing cross-worker timing test timed out under compilation load and passed individually. No live hardware or hosted video stream was tested.
