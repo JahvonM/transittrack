@@ -403,7 +403,7 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
   const drivingSide = step?.drivingSide || "right";
   const [dismissedArrival, setDismissedArrival] = useState(null);
   useEffect(() => {
-    if (!progress?.arrived || !nextStopKey) return undefined;
+    if (!progress?.arrived || !nextStopKey) { setDismissedArrival(null); return undefined; }
     const timer = setTimeout(() => setDismissedArrival(nextStopKey), 2000);
     return () => clearTimeout(timer);
   }, [progress?.arrived, nextStopKey]);

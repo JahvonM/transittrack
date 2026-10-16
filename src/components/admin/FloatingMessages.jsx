@@ -4,6 +4,8 @@ import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { MessageCircle, X, ChevronLeft, Bus, Users, Building2, Radio, Wrench, Camera, Mic, SquarePen } from "lucide-react";
 import ChatThread from "@/components/chat/ChatThread";
+import { onForegroundMessage } from "@/lib/firebase";
+import { useChatActivity } from "@/hooks/useChatActivity";
 
 function formatTime(iso) {
   if (!iso) return "";
@@ -48,6 +50,9 @@ export default function FloatingMessages({ vehicles = [], placement = "float" })
   const [unreadKeys, setUnreadKeys] = useState(() => new Set());
   const seenIds = useRef(new Set());
   const firstLoad = useRef(true);
+  useChatActivity(open && !!activeChannel);
+  useEffect(() => onForegroundMessage(() => { window.dispatchEvent(new Event("tt-chat-wake")); }), []);
+  const notify = message => { if (message?.id) base44.functions.invoke("notifyAdminMessage",{message_id:message.id}).catch(()=>{}); };
   const currentThread = useRef({});
   currentThread.current = { open, activeVehicleId, activeChannel };
 
@@ -129,6 +134,7 @@ export default function FloatingMessages({ vehicles = [], placement = "float" })
         const list = prev[created.vehicle_id] || [];
         return { ...prev, [created.vehicle_id]: list.some(m => m.id === created.id) ? list : [...list, created] };
       });
+      notify(created);
       return created;
     } finally {
       setSending(false);
@@ -140,12 +146,14 @@ export default function FloatingMessages({ vehicles = [], placement = "float" })
     const ext = messageType === "image" ? "jpg" : "webm";
     const file = new File([blob], `${messageType}-${Date.now()}.${ext}`, { type: blob.type });
     const { file_url } = await base44.integrations.Core.UploadPublicFile({ file });
-    await base44.entities.GroupMessage.create({
+    const created = await base44.entities.GroupMessage.create({
       vehicle_id: activeVehicle.id, vehicle_name: activeVehicle.name,
       company_id: activeVehicle.company_id, company_name: activeVehicle.company_name,
       channel: activeChannel, sender_role: "admin", sender_name: "Admin",
       text: "", message_type: messageType, media_url: file_url,
     });
+    notify(created);
+    return created;
   };
 
   const editMessage = async (m, text) => {

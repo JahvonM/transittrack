@@ -145,6 +145,7 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
   const [unlocked, setUnlocked] = useState(false);
   const [now, setNow] = useState(() => new Date());
   const [mode, setMode] = useState("idle"); // idle | qr | confirm | result | badge_error
+  useEffect(() => { if (mode !== "idle" && mode !== "qr") setPhoneInfo(false); }, [mode]);
   const [qrHint, setQrHint] = useState("");
   const [qrRetryAt, setQrRetryAt] = useState(0);
   const qrCooldown = Math.max(0, Math.ceil((qrRetryAt - Date.now()) / 1000));

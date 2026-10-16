@@ -66,13 +66,20 @@ export const COALESCE_MS = 10000;
 // alongside the page's own load. Both competed for the app's rate limit.
 export const FIRST_POLL_MS = 1500;
 const ALWAYS_FAST = new Set(['Vehicle', 'Broadcast']);
+let activeChats = 0;
+export function activateChatRefresh() {
+ activeChats++;
+ if (typeof window !== 'undefined') window.dispatchEvent(new Event('tt-chat-wake'));
+ let stopped = false;
+ return () => { if (!stopped) { stopped = true; activeChats = Math.max(0,activeChats-1); } };
+}
 let lastActivity = Date.now(), watchingActivity = false;
 const watchActivity = () => {
  if (watchingActivity || typeof window === 'undefined' || !window.addEventListener) return;
  watchingActivity = true;
  for (const type of ['pointerdown', 'keydown', 'touchstart', 'wheel']) window.addEventListener(type, () => { lastActivity = Date.now(); }, { passive: true, capture: true });
 };
-export const pollDelay = (entity, now = Date.now()) => (ALWAYS_FAST.has(entity) ? FAST_POLL_MS : now - lastActivity < IDLE_AFTER_MS ? ACTIVE_POLL_MS : IDLE_POLL_MS);
+export const pollDelay = (entity, now = Date.now()) => (entity === 'GroupMessage' && activeChats > 0 ? 8000 : ALWAYS_FAST.has(entity) ? FAST_POLL_MS : now - lastActivity < IDLE_AFTER_MS ? ACTIVE_POLL_MS : IDLE_POLL_MS);
 
 export function scopedEntities(client) {
  const reads = new Map();
