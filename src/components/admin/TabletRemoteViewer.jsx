@@ -57,7 +57,7 @@ export default function TabletRemoteViewer({device}) {
       room.current = r;
       r.on(sdk.RoomEvent.TrackSubscribed, (track, pub, participant) => {
        if(isCancelled() || room.current !== r || participant.identity !== auth.publisher || track.kind !== sdk.Track.Kind.Video) return;
-       if(video.current) { track.attach(video.current); setLive(true); }
+       if(video.current) { track.attach(video.current); }
       });
       r.on(sdk.RoomEvent.TrackUnsubscribed, () => { if(!isCancelled()) setLive(false); });
       r.on(sdk.RoomEvent.Disconnected, () => { if(!isCancelled()) { setLive(false); setError("Video connection ended. Stop this session before trying again."); } });
@@ -83,7 +83,7 @@ export default function TabletRemoteViewer({device}) {
   {session && <div className="space-y-2">
    <p role="status">{live ? "Live video" : session.state === "requested" ? "Waiting for tablet to check in" : session.state === "waiting_permission" ? "Waiting for approval on the tablet" : session.state === "active" ? "Connecting video…" : "Session " + session.state}</p>
    {active && <p className="text-xs">Ends by {new Date(session.expires_at).toLocaleTimeString()}</p>}
-   <video ref={video} autoPlay playsInline muted aria-label="Tablet live video" className={live ? "w-full max-h-[55dvh] bg-black rounded-lg object-contain" : "hidden"} />
+   <video ref={video} onPlaying={() => { if(room.current && video.current?.readyState >= 2) setLive(true); }} autoPlay playsInline muted aria-label="Tablet live video" className={live ? "w-full max-h-[55dvh] bg-black rounded-lg object-contain" : "hidden"} />
    {active && <Button disabled={busy} variant="destructive" onClick={stop}>Stop viewing</Button>}
   </div>}
   {error && <p role="alert" className="text-sm text-destructive">{error}</p>}

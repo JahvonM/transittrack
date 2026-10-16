@@ -22,6 +22,10 @@ public class UsbPromptPolicyTest {
         assertFalse(allowed("com.android.systemui", "Allow TransitTrack camera access?", "VFAN GPS", true, 1000, 2000));
         assertFalse(allowed("com.android.systemui", "Allow TransitTrack to record your screen?", "", true, 1000, 2000));
     }
+    @Test public void usbNameCannotApproveScreenOrCameraConsent() {
+        assertFalse(allowed("com.android.systemui", "Allow TransitTrack to access this USB screen recording?", "", true, 1000, 2000));
+        assertFalse(allowed("com.android.systemui", "Allow TransitTrack to access VFAN GPS camera?", "VFAN GPS", true, 1000, 2000));
+    }
     @Test public void requiresEnabledGpsAndUnexpiredRequest() {
         String text = "Allow TransitTrack to access VFAN GPS?";
         assertFalse(allowed("com.android.systemui", text, "VFAN GPS", false, 1000, 2000));
