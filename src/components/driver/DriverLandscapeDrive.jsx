@@ -15,6 +15,7 @@ export default function DriverLandscapeDrive({session,vehicle,focus,count,stops,
    {map}
    <div className="dl-route-label"><Route aria-hidden="true"/><div><strong>{session?.route?.name || "Route overview"}</strong><span>{home ? (session?.workplace?.name || "Company")+" → home" : "Pickup stops → "+(session?.workplace?.name || session?.company_name || "company")}</span></div></div>
    <button className="dl-map-caption" onClick={onOpenStops}><Navigation aria-hidden="true"/><span><strong>Route overview</strong><small>Tap a stop to select</small></span><ChevronRight aria-hidden="true"/></button>
+    <details className="dl-details"><summary>Trip details & GPS<ChevronRight/></summary><div><StatusStrip items={statusItems}/>{panelBottom}<Button variant="outline" onClick={onReportIncident}>Report an incident</Button></div></details>
   </div>
   <aside className="dl-trip-panel" aria-label="Journey controls">
    <div className="dl-panel-scroll">
@@ -33,7 +34,7 @@ export default function DriverLandscapeDrive({session,vehicle,focus,count,stops,
     </div>
     <div className="dl-trip-status"><span><i className={shiftActive?"is-active":""}/>{shiftActive?"Shift active":"Off shift"}</span><span><MapPin aria-hidden="true"/>{sharing?"Location sharing on":"Location sharing off"}</span></div>
     {(attention.length>0 || panelTop) && <section className="dk-attention" aria-label="Needs attention">{attention}{panelTop}</section>}
-    <details className="dl-details"><summary>Trip details & GPS<ChevronRight/></summary><div><StatusStrip items={statusItems}/>{panelBottom}<Button variant="outline" onClick={onReportIncident}>Report an incident</Button></div></details>
+
    </div>
    <div className="dl-control-dock"><div className="dl-trip-actions" aria-label="Driving controls">{!shiftActive&&shiftControl}{trackingButton}{shiftActive&&shiftControl}</div><SosButton vehicle={vehicle} invoke={invoke} emergencyContacts={session?.emergency_contacts} compact/></div>
   </aside>

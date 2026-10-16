@@ -45,7 +45,7 @@ final class SupportIceCandidates {
         for (String line : sdp.split("\r?\n")) {
             if (line.startsWith("a=candidate:")) {
                 any = true;
-                if (line.matches(".*\\s typ relay(?:\\s.*)?")) relay = true;
+                if (line.matches(".*\\s+typ\\s+relay(?:\\s.*)?")) relay = true;
             }
         }
         return any && (requireRelay ? relay : complete);

@@ -185,7 +185,7 @@ export default function LiteMap({
 
   return (
     <div className={`relative isolate ${className}`} style={fill ? { height: "100%" } : { height }}>
-      {tileProblem && <div role="status" className="absolute left-3 right-3 top-3 z-[600] rounded-xl border border-border bg-background/95 p-3 text-sm">Some map tiles couldn’t load. Check the connection.<button type="button" className="ml-3 min-h-11 rounded-lg border px-3 font-semibold" onClick={()=>{setTileProblem(false);setTileVersion(v=>v+1);}}>Retry map</button></div>}
+      {tileProblem && <div data-map-tile-error role="status" className="absolute left-3 right-3 top-3 z-[600] rounded-xl border border-border bg-background/95 p-3 text-sm">Some map tiles couldn’t load. Check the connection.<button type="button" className="ml-3 min-h-11 rounded-lg border px-3 font-semibold" onClick={()=>{setTileProblem(false);setTileVersion(v=>v+1);}}>Retry map</button></div>}
       <MapContainer
         center={start}
         zoom={center || userLocation ? 15 : 13}

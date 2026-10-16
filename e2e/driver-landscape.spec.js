@@ -58,6 +58,7 @@ for(const size of [{width:1280,height:800},{width:1024,height:600}])test('approv
  const map=await page.locator('.dl-map-stage').boundingBox(),panel=await page.locator('.dl-trip-panel').boundingBox();
  expect(map.width).toBeGreaterThan(size.width*.55);expect(panel.x).toBeGreaterThan(map.x+map.width-1);
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+ expect(await page.locator('.dl-panel-scroll').evaluate(e=>e.scrollHeight<=e.clientHeight+1)).toBe(true);
  for(const element of [page.getByRole('button',{name:'Navigate',exact:true}),page.getByRole('button',{name:'Change stop',exact:true}),page.getByRole('button',{name:'Start tracking',exact:true}),page.getByRole('button',{name:'Start shift',exact:true}),page.getByRole('button',{name:/^SOS/}),sections(page)]) {
   await expect(element).toBeVisible();const box=await element.boundingBox();
   expect(box.y).toBeGreaterThanOrEqual(0);expect(box.y+box.height).toBeLessThanOrEqual(size.height+1);expect(box.height).toBeGreaterThanOrEqual(44);
