@@ -234,6 +234,7 @@ async function prepare(db,ctx,name,input,existing=null) {
  const allowed=new Set(ENTITY_FIELDS[name]);
  if(name==='User') ['full_name','email'].forEach(k=>allowed.add(k));
  for (const key of Object.keys(input)) {
+  if(name==='User' && key==='access_role_id') fail(403,'Use custom role assignment');
   if(SECURITY_FIELDS[name]?.has(key)) fail(403,'Use server access-code management');
   if(SERVER_ONLY_FIELDS[name]?.has(key)) fail(403,'Set by the driver app only');
   if(ADMIN_ONLY_FIELDS[name]?.has(key) && user.role!=='admin') fail(403,'Administrators only');

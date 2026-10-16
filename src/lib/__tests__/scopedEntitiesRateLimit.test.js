@@ -137,3 +137,16 @@ it("a repeated long server cooldown exits within the retry budget without anothe
  const pending=withRateLimitRetry(invoke);const check=expect(pending).rejects.toBe(error);
  await vi.advanceTimersByTimeAsync(30000);await check;expect(invoke).toHaveBeenCalledTimes(2);
 });
+
+it("publishes acknowledged chat creates, edits and deletes without waiting for a poll",async()=>{
+ const invoke=vi.fn(async (_name,body)=>({data:{result:body.operation==="delete"?{ok:true}:{id:body.id || "chat-1",...body.data}}}));
+ const entities=scopedEntities({functions:{invoke}});
+ const listener=vi.fn(),stop=entities.GroupMessage.subscribe(listener);
+ await entities.GroupMessage.create({text:"Hello"});
+ expect(listener).toHaveBeenLastCalledWith({type:"create",id:"chat-1",data:{id:"chat-1",text:"Hello"}});
+ await entities.GroupMessage.update("chat-1",{text:"Edited"});
+ expect(listener).toHaveBeenLastCalledWith({type:"update",id:"chat-1",data:{id:"chat-1",text:"Edited"}});
+ await entities.GroupMessage.delete("chat-1");
+ expect(listener).toHaveBeenLastCalledWith({type:"delete",id:"chat-1"});
+ stop();
+});
