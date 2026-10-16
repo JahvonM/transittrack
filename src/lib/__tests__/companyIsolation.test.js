@@ -189,8 +189,8 @@ describe('company and role access boundaries',()=>{
   const directory=new URL('../../../base44/entities/',import.meta.url);
   for(const file of fs.readdirSync(directory).filter(f=>f.endsWith('.jsonc') && f!=='User.jsonc')) {
    const schema=JSON.parse(fs.readFileSync(new URL(file,directory),'utf8'));
-   for(const operation of ['create','update','delete']) expect([{user_condition:{role:'admin'}},{user_condition:{role:'__server_only__'}}],file+' '+operation).toContainEqual(schema.rls[operation]);
-   if(file==='Advertisement.jsonc') expect(schema.rls.read).toEqual({}); else expect(['admin','__server_only__'],file+' read').toContain(schema.rls.read?.user_condition?.role);
+   for(const operation of ['create','update','delete']) expect([false,{user_condition:{role:'admin'}},{user_condition:{role:'__server_only__'}}],file+' '+operation).toContainEqual(schema.rls[operation]);
+   if(file==='Advertisement.jsonc') expect(schema.rls.read).toEqual({}); else expect([false,{user_condition:{role:'admin'}},{user_condition:{role:'__server_only__'}}],file+' read').toContainEqual(schema.rls.read);
   }
  });
  for(const name of ['weeklyReport','inspectionAlerts','maintenanceAlerts','learnTravelTimes']) it(`${name} rejects anonymous scheduling impersonation`,async()=>{
