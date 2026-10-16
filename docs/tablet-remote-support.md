@@ -41,10 +41,10 @@ Direct connections can fail across carrier NAT, guest Wi-Fi or firewalls. For re
 infra/turn/ contains a configuration example and host requirements. It has not been deployed or exposed publicly. No relay server, account, domain, paid service, secret or signing key was provisioned.
 
 ## Validation and limits
-- 36 focused backend policy/signaling tests pass. Includes non-admin/wrong-device rejection, terminal state, restricted SDP, synthetic TURN HMAC validation and legacy-transport rejection.
+- The full release security suite passes: 154 tests. Within it, 36 focused backend policy/signaling tests pass. Includes non-admin/wrong-device rejection, terminal state, restricted SDP, synthetic TURN HMAC validation and legacy-transport rejection.
 - 43 relevant JS tests pass, including receive-only configuration, cancellation, disconnect cleanup and no-address rejection.
 - Android Java/Kotlin compilation and 42 JVM tests pass. These do not exercise real capture hardware.
-- Seven mocked Admin browser scenarios pass.
+- Seven mocked Admin browser scenarios pass; the native handoff/QR reservation scenario also passes.
 - A real browser-to-browser synthetic video test was attempted. The sandbox produced zero ICE candidates; allowing loopback allowed gathering to finish but still produced no candidates or media. It did not pass. The opt-in e2e/direct-tablet-viewer.spec.js retains the test for a network-capable environment (TT_RUN_WEBRTC_MEDIA=1). Do not interpret mocked tests as proof of working tablet video.
 - No real tablet capture, mobile network, TURN allocation or hosted native HTTPS test has been performed.
 
