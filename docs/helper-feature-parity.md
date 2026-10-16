@@ -102,3 +102,7 @@ Admin release checks, installed APK metadata, guarded same-key PackageInstaller 
 
 ## 16 October — remote viewing implementation
 Admin screen/front/rear-camera viewer and consent-based native Android streaming are now implemented. LiveKit service configuration, native endpoint reachability, the final combined signed install and physical streaming validation are still pending. See tablet-remote-support.md. Earlier pending lists above describe their historical checkpoint, not the latest code. Passenger binary, watchdog/background and SIM/carrier parity remain separate work.
+
+
+## 16 October — direct WebRTC replaces LiveKit
+At the owner’s request, the LiveKit dependency/account requirement has been removed. One-way native WebRTC and the Admin receiver now use existing server authorization/signaling, with optional operator-owned coturn connectivity. No relay is deployed and no actual media stream has been validated on a tablet. Earlier LiveKit notes are historical. See tablet-remote-support.md for current configuration and limits.
