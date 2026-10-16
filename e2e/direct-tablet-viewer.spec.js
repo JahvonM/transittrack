@@ -2,7 +2,8 @@ import {test,expect} from "@playwright/test";
 import {build} from "esbuild";
 // The isolated Linux container has no mDNS responder. Only this transport test uses raw local ICE candidates.
 test.use({launchOptions:{args:["--disable-features=WebRtcHideLocalIpsWithMdns", "--allow-loopback-in-peer-connection"]}});
-test("direct receiver renders a real synthetic WebRTC video without camera, microphone or a streaming provider",async({page})=>{
+test("direct receiver renders a real synthetic WebRTC video without camera, microphone or a streaming provider",async({page,context})=>{
+ await context.grantPermissions(["local-network-access"],{origin:"http://localhost:4198"});
  const bundle=await build({entryPoints:["src/lib/directTabletViewer.js"],bundle:true,write:false,format:"iife",globalName:"TTDirect",platform:"browser"});
  await page.route("**/rtc-test",r=>r.fulfill({contentType:"text/html",body:"<html><body></body></html>"}));
  await page.goto("/rtc-test");
@@ -19,7 +20,7 @@ test("direct receiver renders a real synthetic WebRTC video without camera, micr
   let ended=false;
   const receiver=window.TTDirect.createSupportViewer({video,onEnded:()=>{ended=true;}});
   await receiver.connect({iceServers:[],sdp:sender.localDescription.sdp},sdp=>sender.setRemoteDescription({type:"answer",sdp}));
-  window.__directResult=()=>({width:video.videoWidth,ready:video.readyState,connection:sender.connectionState,ice:sender.iceConnectionState,tracks:video.srcObject?.getTracks().map(t=>t.kind),ended,source:!!video.srcObject});
+  window.__directResult=()=>({width:video.videoWidth,ready:video.readyState,offerCandidates:(sender.localDescription.sdp.match(/a=candidate:/g)||[]).length,answerCandidates:(sender.remoteDescription.sdp.match(/a=candidate:/g)||[]).length,connection:sender.connectionState,ice:sender.iceConnectionState,tracks:video.srcObject?.getTracks().map(t=>t.kind),ended,source:!!video.srcObject});
   window.__stopDirect=()=>{receiver.close();sender.close();stream.getTracks().forEach(t=>t.stop());clearInterval(draw);};
  });
  try { await expect.poll(()=>page.evaluate(()=>window.__directResult()),{timeout:7000}).toMatchObject({width:320}); } catch(e) { console.log(await page.evaluate(()=>window.__directResult())); throw e; }
