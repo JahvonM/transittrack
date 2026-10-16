@@ -18,6 +18,7 @@ import io.livekit.android.RoomOptions
 import io.livekit.android.ConnectOptions
 import io.livekit.android.room.Room
 import io.livekit.android.room.track.*
+import io.livekit.android.room.track.screencapture.ScreenCaptureParams
 import kotlinx.coroutines.*
 import org.json.JSONObject
 import java.net.URL
@@ -139,7 +140,11 @@ class TabletSupportPlugin : Plugin() {
     if(reason!=null)body.put("reason",reason)
     connection.outputStream.use{it.write(body.toString().toByteArray(Charsets.UTF_8))}
     check(connection.responseCode==200)
-    val bytes=connection.inputStream.use{it.readNBytes(16385)};require(bytes.size<=16384)
+    val bytes=connection.inputStream.use { input ->
+     val output=java.io.ByteArrayOutputStream(); val buffer=ByteArray(2048)
+     while(true) { val count=input.read(buffer); if(count<0)break; require(output.size()+count<=16384); output.write(buffer,0,count) }
+     output.toByteArray()
+    }
     JSONObject(String(bytes,Charsets.UTF_8))
    } finally {connection.disconnect()}
   }
