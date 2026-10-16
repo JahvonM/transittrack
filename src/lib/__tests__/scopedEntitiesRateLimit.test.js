@@ -152,3 +152,29 @@ it("publishes acknowledged chat creates, edits and deletes without waiting for a
  expect(listener).toHaveBeenLastCalledWith({type:"delete",id:"chat-1"});
  stop();
 });
+
+it("a poll that started before an acknowledged chat send cannot erase that message",async()=>{
+ await vi.resetModules();
+ const {scopedEntities: freshEntities, FIRST_POLL_MS, ACTIVE_POLL_MS}=await import("@/lib/scopedEntities");
+ vi.useFakeTimers();
+ let reads=0,finish;
+ const invoke=vi.fn(async(_name,body)=>{
+  if(body.entity==="LiveLists") {
+   reads++;
+   if(reads===1)return {data:{result:{lists:{GroupMessage:[]},errors:{}}}};
+   return new Promise(resolve=>{finish=resolve;});
+  }
+  return {data:{result:{id:"new-chat",...body.data}}};
+ });
+ const entities=freshEntities({functions:{invoke}}),listener=vi.fn();
+ const stop=entities.GroupMessage.subscribe(listener);
+ await vi.advanceTimersByTimeAsync(FIRST_POLL_MS);
+ await vi.advanceTimersByTimeAsync(ACTIVE_POLL_MS);
+ expect(reads).toBe(2);
+ await entities.GroupMessage.create({text:"Just sent"});
+ expect(listener).toHaveBeenCalledWith({type:"create",id:"new-chat",data:{id:"new-chat",text:"Just sent"}});
+ finish({data:{result:{lists:{GroupMessage:[]},errors:{}}}});
+ await vi.advanceTimersByTimeAsync(0);
+ expect(listener).not.toHaveBeenCalledWith({type:"delete",id:"new-chat"});
+ stop();
+});

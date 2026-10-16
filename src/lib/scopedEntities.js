@@ -174,7 +174,7 @@ export function scopedEntities(client) {
      if(!error && result && typeof result==='object' && !Array.isArray(result) && result.lists && typeof result.lists==='object') {
       for(const [entity,live] of take) {
        if(live.stopped) continue;
-       if(Array.isArray(result.lists[entity])) apply(live,result.lists[entity]);
+       if(Array.isArray(result.lists[entity])) apply(live,result.lists[entity],snapshotRevision);
        else failed(live,{status:result.errors?.[entity]?.status||500});
       }
      } else if(error && ![400,403,404].includes(statusOf(error))) {
