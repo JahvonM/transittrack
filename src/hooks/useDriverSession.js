@@ -70,6 +70,7 @@ export function useDriverSession(deviceId, { intervalMs = 15000, chatActive = fa
   const sentInfoRef = useRef(false);
   const lastFull = useRef({ at: 0, grant: null });
   const forceFull = useRef(true);
+  const chatRevision = useRef(0);
 
   // A different tablet id (re-pair) starts from that tablet's own cache.
   useEffect(() => {
@@ -85,6 +86,7 @@ export function useDriverSession(deviceId, { intervalMs = 15000, chatActive = fa
     if (!deviceId || heartbeatBusy.current || !pollBudget.current.allowed()) return;
     heartbeatBusy.current = true;
     const first = !sentInfoRef.current;
+    const chatStamp = ++chatRevision.current;
     const grant = grantOf(deviceId);
     const full = first || forceFull.current || grant !== lastFull.current.grant || Date.now() - lastFull.current.at >= FULL_EVERY_MS;
     try {
@@ -108,7 +110,10 @@ export function useDriverSession(deviceId, { intervalMs = 15000, chatActive = fa
       if (full) { lastFull.current = { at: Date.now(), grant }; forceFull.current = false; }
       setSession((prev) => {
         // A light check-in leaves out the slow-changing parts: keep ours.
-        const data = light && prev ? { ...prev, ...reply } : reply;
+        const data = light && prev ? { ...prev, ...reply } : { ...reply };
+        // A newer chat read or acknowledged write wins over an older heartbeat.
+        if (prev && reply?.driver_unlocked !== false && chatStamp !== chatRevision.current)
+          data.group_messages = prev.group_messages;
         // A shift started/ended offline wins until it has been uploaded.
         const next = cleanTabletSession(hasQueuedShift() && prev ? { ...data, open_shift: prev.open_shift } : data);
         writeCache(deviceId, next);
@@ -153,7 +158,8 @@ export function useDriverSession(deviceId, { intervalMs = 15000, chatActive = fa
     try {
       const res = await base44.functions.invoke("driverSession", deviceRequest(deviceId, { ...payload, action }));
       const result = res.data;
-      if (["send_group_message", "send_chat_media", "edit_group_message", "delete_group_message"].includes(action)) {
+      if (currentDevice.current === deviceId && ["send_group_message", "send_chat_media", "edit_group_message", "delete_group_message"].includes(action)) {
+        chatRevision.current++;
         setSession(previous => {
           if (!previous) return previous;
           const rows = previous.group_messages || [];
@@ -186,10 +192,11 @@ export function useDriverSession(deviceId, { intervalMs = 15000, chatActive = fa
     const read = async () => {
       if (busy || stopped || document.visibilityState === "hidden" || !budget.allowed() || !grantOf(deviceId)) return;
       busy = true;
+      const stamp = ++chatRevision.current;
       try {
         const result = await invoke("messages");
         budget.succeeded();
-        if (!stopped && currentDevice.current === deviceId) setSession(previous => previous ? { ...previous, group_messages: result.group_messages || [] } : previous);
+        if (!stopped && currentDevice.current === deviceId && stamp === chatRevision.current) setSession(previous => previous ? { ...previous, group_messages: result.group_messages || [] } : previous);
       } catch (error) { budget.failed(error); }
       finally { busy = false; }
     };

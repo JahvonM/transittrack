@@ -83,6 +83,7 @@ export const pollDelay = (entity, now = Date.now()) => (entity === 'GroupMessage
 
 export function scopedEntities(client) {
  const reads = new Map();
+ let chatRevision = 0;
  const call = (entity, operation, args={}) => {
   const readOnly = ['list','filter','get'].includes(operation);
   const key = readOnly ? JSON.stringify([entity,operation,args]) : null;
@@ -95,6 +96,7 @@ export function scopedEntities(client) {
      const event = operation === "delete" ? { type:"delete",id:args.id }
        : { type:operation === "create" ? "create" : "update",id:result?.id,data:result };
      if (live && event.id) {
+      live.localWrites.set(event.id,{revision:++chatRevision,event});
       if (live.current) operation === "delete" ? live.current.delete(event.id) : live.current.set(event.id,result);
       for (const listener of [...live.listeners]) { try { listener(event); } catch { /* independent views */ } }
      }
@@ -108,9 +110,14 @@ export function scopedEntities(client) {
  // Every list this device is watching, refreshed together by one timer.
  const polls=new Map();
  let timer=null, running=false, batch=true, watchingVisibility=false;
- const apply=(live,rows)=>{
+ const apply=(live,rows,snapshotRevision)=>{
   live.failures=0;live.nextAllowed=0;
   const next=new Map(rows.map(row=>[row.id,row]));
+  for(const [id,write] of live.localWrites) {
+   if(write.revision > snapshotRevision) {
+    if(write.event.type==='delete')next.delete(id);else next.set(id,write.event.data);
+   } else live.localWrites.delete(id);
+  }
   if(live.current) {
    const emit=(event)=>{ for(const listener of [...live.listeners]) { try { listener(event); } catch { /* one screen's error doesn't stop the others */ } } };
    for(const [id,row] of next) {
@@ -153,6 +160,7 @@ export function scopedEntities(client) {
   // Lists due soon ride along: one call instead of one per list.
   const take=alive.filter(([,live])=>live.nextAllowed<=now && live.due<=now+COALESCE_MS);
   running=true;
+  const snapshotRevision=chatRevision;
   try {
    // Background refreshes never occupy the foreground retry queue. On failure
    // they wait for their next scheduled refresh instead of retrying in a burst.
@@ -179,7 +187,7 @@ export function scopedEntities(client) {
       if(live.stopped) continue;
       try {
        const response=await client.functions.invoke('entityAccess',{entity,operation:'list',limit:5000});
-       if(!live.stopped) apply(live,response.data.result);
+       if(!live.stopped) apply(live,response.data.result,snapshotRevision);
       } catch(error) { failed(live,error); }
      }
     }
@@ -213,7 +221,7 @@ export function scopedEntities(client) {
   // The page's own data load goes first. A refresh fired at the same instant
   // used to compete with it for the app's rate limit, and the page — not the
   // refresh — is what the person is waiting for.
-  const live={listeners:new Set(),current:null,due:Date.now()+FIRST_POLL_MS,nextAllowed:0,failures:0,dead:false,stopped:false,
+  const live={listeners:new Set(),localWrites:new Map(),current:null,due:Date.now()+FIRST_POLL_MS,nextAllowed:0,failures:0,dead:false,stopped:false,
    stop:()=>{live.stopped=true;live.current=null;if(polls.get(entity)===live)polls.delete(entity);arm();}};
   polls.set(entity,live);
   arm();
