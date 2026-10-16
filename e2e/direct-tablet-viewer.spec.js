@@ -22,7 +22,7 @@ test("direct receiver renders a real synthetic WebRTC video without camera, micr
   window.__directResult=()=>({width:video.videoWidth,ready:video.readyState,connection:sender.connectionState,ice:sender.iceConnectionState,tracks:video.srcObject?.getTracks().map(t=>t.kind),ended,source:!!video.srcObject});
   window.__stopDirect=()=>{receiver.close();sender.close();stream.getTracks().forEach(t=>t.stop());clearInterval(draw);};
  });
- await expect.poll(()=>page.evaluate(()=>window.__directResult()),{timeout:15000}).toMatchObject({width:320});
+ try { await expect.poll(()=>page.evaluate(()=>window.__directResult()),{timeout:7000}).toMatchObject({width:320}); } catch(e) { console.log(await page.evaluate(()=>window.__directResult())); throw e; }
  expect(await page.evaluate(()=>window.__directResult().tracks)).toEqual(["video"]);
  await page.evaluate(()=>window.__stopDirect());
  expect(await page.evaluate(()=>window.__directResult().source)).toBe(false);
