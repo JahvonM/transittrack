@@ -1,6 +1,5 @@
 import { useTabletWorkSafety } from "@/lib/nativeTabletControl";
 import "@/components/driver/driverPortrait.css";
-import "@/components/driver/driverLandscape.css";
 import { DriverKioskHeader, DriverKioskMore, DriverKioskPassengers, DriverKioskHistory } from "@/components/driver/DriverPortraitPanels";
 import { directionView } from "@/lib/driverDirection";
 import TripDirectionControl from "@/components/driver/TripDirectionControl";
@@ -37,7 +36,7 @@ import DriverDevicePanel from "@/components/driver/DriverDevicePanel";
 import DriverTrips from "@/components/DriverTrips";
 import ShiftCard from "@/components/driver/ShiftCard";
 import SafetyStandardsContent from "@/components/SafetyStandardsContent";
-import { AlertCircle, AlertTriangle, ArrowLeft, LayoutGrid, Navigation, Users, MapPinned, MessageCircle } from "lucide-react";
+import { AlertCircle, AlertTriangle, ArrowLeft, LayoutGrid, Navigation, Users } from "lucide-react";
 import DriverStops from "@/components/driver/screens/DriverStops";
 import DriverMessages from "@/components/driver/screens/DriverMessages";
 import StaffRouteList from "@/components/driver/StaffRouteList";
@@ -58,22 +57,12 @@ const DRIVER_TABS = [
   { id: "passengers", label: "Passengers", icon: Users },
   { id: "more", label: "More", icon: LayoutGrid },
 ];
-const LANDSCAPE_TABS = [DRIVER_TABS[0], {id:"stops",label:"Bus stops",icon:MapPinned}, DRIVER_TABS[1], {id:"chat",label:"Messages",icon:MessageCircle}, DRIVER_TABS[2]];
-const LANDSCAPE_QUERY = "(min-width: 960px) and (orientation: landscape)";
 const tabFromStage = (st) => (st === "navigate" || st === "home" ? "track" : st === "profile" ? "settings" : [...TRACKING_TABS,"trips","help"].includes(st) ? st : null);
 
 export default function DriverApp() {
   useFutureAppearance();
   useNoPageZoom();
   const navigate = useNavigate();
-  const [landscape, setLandscape] = useState(() => window.matchMedia(LANDSCAPE_QUERY).matches);
-  useEffect(() => {
-    const media = window.matchMedia(LANDSCAPE_QUERY);
-    const change = () => setLandscape(media.matches);
-    change();
-    if (media.addEventListener) media.addEventListener("change", change); else media.addListener(change);
-    return () => { if (media.removeEventListener) media.removeEventListener("change", change); else media.removeListener(change); };
-  }, []);
   const { stage: urlStage } = useParams();
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
@@ -567,8 +556,8 @@ export default function DriverApp() {
       </main>
 
       <nav className="shrink-0 grid grid-cols-3 border-t border-border bg-background/95 backdrop-blur safe-area-bottom" aria-label="Driver sections">
-        {(landscape ? LANDSCAPE_TABS : DRIVER_TABS).map(({ id, label, icon: Icon }) => {
-          const active = id==="more" ? !(landscape ? ["track","passengers","stops","chat"] : ["track","passengers"]).includes(activeTab) : activeTab === id;
+        {DRIVER_TABS.map(({ id, label, icon: Icon }) => {
+          const active = id==="more" ? !["track","passengers"].includes(activeTab) : activeTab === id;
           return (
             <button
               key={id}
@@ -580,7 +569,7 @@ export default function DriverApp() {
               {active && <span className="absolute top-0 left-1/2 -translate-x-1/2 h-[3px] w-12 rounded-b-full bg-primary" aria-hidden="true" />}
               <Icon className="w-6 h-6" strokeWidth={active ? 2.2 : 1.8} aria-hidden="true" />
               {label}
-              {id === (landscape ? "chat" : "more") && hasUnreadChat && <span className="absolute top-2.5 left-1/2 ml-2.5 w-2.5 h-2.5 rounded-full bg-danger" aria-label="Unread messages" />}
+              {id === "more" && hasUnreadChat && <span className="absolute top-2.5 left-1/2 ml-2.5 w-2.5 h-2.5 rounded-full bg-danger" aria-label="Unread messages" />}
             </button>
           );
         })}
