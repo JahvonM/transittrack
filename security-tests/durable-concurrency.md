@@ -50,3 +50,7 @@ Primary storage references: https://www.postgresql.org/docs/16/transaction-iso.h
 - Missing secrets, publishable credentials, network/provider failure and invalid provider responses stop company verification with 503 and no grants/membership writes. Unsigned callers never reserve.
 - Full strict suite: 68 passed / 5 failed / 73 total. Remaining failures: concurrent pairing, duplicate shifts, duplicate inspection parents, duplicate mechanic results, and public crash-report email cap. Assertions were not skipped or weakened.
 - Driver wrong-PIN and kiosk wrong-code counters still use separate entity logic. Local createOnce/claimOnce/stamp helpers do not provide cross-worker guarantees. Production release remains blocked.
+
+## Prepared application guards — 15 October 2026
+
+Permanent operation receipts, staged pairing/replay guards and admin-only checkDurableWrites are implemented. No expiry takeover; unresolved external writes remain pending for reconciliation. Crash-email budgets use the existing durable reservation RPC. Full strict suite: 131 passing with synthetic activation; local PostgreSQL independent-connection tests passed. Hosted SQL/activation remains pending. See docs/durable-write-rollout.md for scope, limitations and activation sequence.

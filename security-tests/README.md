@@ -1,5 +1,7 @@
 # Security regression and release-readiness status
 
+Latest prepared-code check (15 October 2026): **131 passed, zero failed** with the staged durable-write flag enabled in isolated fixtures. Hosted migration/activation and physical acceptance remain pending. See `docs/durable-write-rollout.md`. Older results below are historical, not the current test count.
+
 TransitTrack is pre-production. Step 7 first reproduced 33 failing release
 criteria. The authorized remediation batch satisfied 12. Step 8 added five
 additional criteria. The notification/booking follow-up now brings the strict
