@@ -20,11 +20,11 @@ export default async function(req) {
   const rooms=new RoomServiceClient(config.http,config.key,config.secret,{requestTimeout:8});
   const audit=async(s,event)=>db.AuditLog.create({actor_role:native?'device':'admin',actor_email:admin?.email||'',
    action:'update',entity:'KioskDevice',record_id:s.device_id,page:'/admin/kiosks',
-   summary:'Remote support '+event+' · '+s.capability+' · session '+s.id}).catch(()=>{});
+   summary:'Remote support '+event+' · '+s.capability+' · session '+s.id});
   const finish=async(s,state)=>{
    // Persist termination before room cleanup. Native pulse and fixed local deadline also stop capture.
    await db.TabletSupportSession.update(s.id,{state,ended_at:new Date().toISOString()});
-   await audit(s,state);
+   await audit(s,state).catch(()=>{});
    await rooms.deleteRoom(s.room_name).catch(()=>{});
    return reply({ok:true,session:publicSupport({...s,state})});
   };
@@ -73,6 +73,7 @@ export default async function(req) {
   if(b.operation==='publish' && s.state!=='waiting_permission')return reply({error:'Permission request is not active'},409);
   if(b.operation==='viewer' && s.state!=='active')return reply({error:'Waiting for tablet approval'},409);
   if(b.operation==='publish')await rooms.createRoom({name:s.room_name,emptyTimeout:120,departureTimeout:15,maxParticipants:2});
+  await audit(s,native?'publisher_authorized':'viewer_authorized');
   const jwt=new AccessToken(config.key,config.secret,{identity:native?'tablet:'+s.device_id:'admin:'+admin.id,ttl:30});
   jwt.addGrant({roomJoin:true,room:s.room_name,canPublish:native,canSubscribe:!native,canPublishData:false,
    ...(native?{canPublishSources:[s.capability==='screen'?TrackSource.SCREEN_SHARE:TrackSource.CAMERA]}:{})});

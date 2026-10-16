@@ -11,6 +11,9 @@ public final class UsbPromptPolicy {
             requestedAt <= 0 || now < requestedAt || now - requestedAt > 45000 ||
             text == null || appLabel == null || appLabel.isEmpty()) return false;
         String lower = text.toLowerCase(Locale.ROOT);
+        // Remote support consent must always be a human decision, even while USB is reconnecting.
+        if (lower.contains("screen") || lower.contains("record") || lower.contains("camera") ||
+            lower.contains("microphone") || lower.contains("cast") || lower.contains("display")) return false;
         // The old helper has a similar app name. Its prompts must remain its own.
         if (lower.contains((appLabel + " Helper").toLowerCase(Locale.ROOT))) return false;
         String app = "(?i)(?:allow|open|use)\\s+" + Pattern.quote(appLabel) + "\\s+(?:to\\s+access|for\\b|when\\b)";
