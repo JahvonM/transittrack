@@ -4,7 +4,7 @@ async function setup(page, { managed = true, release = null, supportEnabled = fa
   const controls = [], writes = [], support = [];
   const device = { id: "tablet-managed", label: "Driver tablet test", company_id: "a", kiosk_type: "driver", vehicle_id: "bus-a",
     vehicle_name: "Bus A", status: "active", paired: true, last_seen: new Date().toISOString(),
-    helper_health: { reported_at: new Date().toISOString(), support_available: supportEnabled, management_available: true, management_owner: managed, management_locked: false, native_app_package: "com.transittrack.app", native_app_version: "1.0", native_app_code: 1, native_update_available: true } };
+    helper_health: { reported_at: new Date().toISOString(), support_available: supportEnabled, support_transport: "webrtc", management_available: true, management_owner: managed, management_locked: false, native_app_package: "com.transittrack.app", native_app_version: "1.0", native_app_code: 1, native_update_available: true } };
   await page.addInitScript(() => localStorage.setItem("base44_access_token", "isolated-test-session"));
   await page.route("https://api.mapbox.com/**", r => r.fulfill({ status: 404, body: "" }));
   await page.route("**/api/**", r => {
@@ -84,7 +84,7 @@ test("remote viewing stays unavailable without service configuration", async ({ 
  await page.route("**/functions/tabletSupport", r=>r.fulfill({json:{enabled:false}}));
  await page.goto("/admin/kiosks");
  await page.getByRole("button",{name:"Tablet controls",exact:true}).click();
- await expect(page.getByText("Streaming service is not configured yet.")).toBeVisible();
+ await expect(page.getByText("Direct remote viewing is not enabled yet.")).toBeVisible();
  await expect(page.getByRole("button",{name:"View screen",exact:true})).toBeDisabled();
 });
 test("admin requests permission and can stop before capture", async ({ page }) => {

@@ -420,7 +420,7 @@ async function installNativeHelper(page, enabled = true, bleEnabled = false, net
     window.__supportOffers = [];
     window.__supportReserve = value => { reserved = value; for(const cb of listeners.get('supportState') || []) cb({cameraReserved:reserved}); };
     const support = {
-      getCapabilities: async () => ({remoteViewingReady:true}),
+      getCapabilities: async () => ({remoteViewingReady:true,transport:"webrtc"}),
       getState: async () => ({cameraReserved:reserved}),
       addListener: async (name,cb) => nfc.addListener('supportState',cb),
       offer: async value => {window.__supportOffers.push(value);},
