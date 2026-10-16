@@ -7,7 +7,7 @@ import { StatusStrip } from "./cockpit/CockpitParts";
 
 export default function DriverLandscapeDrive({session,vehicle,focus,count,stops,stopIndex,map,stopChooser,home,atWork,target,
  sharing,shiftActive,directionControl,shiftControl,trackingButton,statusItems,attention,panelTop,panelBottom,
- onOpenNavigation,onChangeStop,onOpenPassengers,onOpenStops,onReportIncident}) {
+ onOpenNavigation,onChangeStop,onOpenPassengers,onOpenStops,onReportIncident,invoke}) {
  const capacity=Number(vehicle?.capacity)||0;
  return <div className="dl-journey" data-testid="landscape-journey">
   <h1 className="sr-only">Your journey</h1>
@@ -35,7 +35,7 @@ export default function DriverLandscapeDrive({session,vehicle,focus,count,stops,
     {(attention.length>0 || panelTop) && <section className="dk-attention" aria-label="Needs attention">{attention}{panelTop}</section>}
     <details className="dl-details"><summary>Trip details & GPS<ChevronRight/></summary><div><StatusStrip items={statusItems}/>{panelBottom}<Button variant="outline" onClick={onReportIncident}>Report an incident</Button></div></details>
    </div>
-   <div className="dl-control-dock"><div className="dl-trip-actions" aria-label="Driving controls">{!shiftActive&&shiftControl}{trackingButton}{shiftActive&&shiftControl}</div><SosButton vehicle={vehicle} invoke={session.invoke} emergencyContacts={session?.emergency_contacts} compact/></div>
+   <div className="dl-control-dock"><div className="dl-trip-actions" aria-label="Driving controls">{!shiftActive&&shiftControl}{trackingButton}{shiftActive&&shiftControl}</div><SosButton vehicle={vehicle} invoke={invoke} emergencyContacts={session?.emergency_contacts} compact/></div>
   </aside>
   {stopChooser}
  </div>;

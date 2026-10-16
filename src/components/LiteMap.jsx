@@ -125,6 +125,7 @@ function pickedLabelIcon(text) {
 }
 
 export default function LiteMap({
+  mapStyle = null,
   vehicles = [],
   stops = [],
   road = null, // drawn road as [lng, lat] pairs; else the road between the stops
@@ -194,7 +195,7 @@ export default function LiteMap({
         touchZoom={interactive}
         attributionControl={false}
       >
-        <TileLayer key={(isDark ? "dark" : "light")+tileVersion} url={tileUrl(isDark)} tileSize={512} zoomOffset={-1} maxZoom={19} keepBuffer={1} updateWhenIdle eventHandlers={{tileerror:()=>setTileProblem(true)}} />
+        <TileLayer key={(mapStyle || (isDark ? "dark" : "light"))+tileVersion} url={mapStyle === "satellite" ? tileUrl(isDark).replace(/(?:dark-v11|streets-v12)/, "satellite-streets-v12") : tileUrl(isDark)} tileSize={512} zoomOffset={-1} maxZoom={19} keepBuffer={1} updateWhenIdle eventHandlers={{tileerror:()=>setTileProblem(true)}} />
         <SizeWatch />
         <FitOnce points={fitPoints} skip={!!center || !!userLocation || followUser || !!focusVehicleId} />
         <LocateOnce target={userLocation} skip={!!center || followUser || !!focusVehicleId} />
