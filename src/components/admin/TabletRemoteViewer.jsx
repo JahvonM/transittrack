@@ -1,3 +1,4 @@
+import { tabletSupportFailure } from "@/lib/tabletSupportFailure";
 import { createSupportViewer } from "@/lib/directTabletViewer";
 import React, { useEffect, useRef, useState } from "react";
 import { base44 } from "@/api/base44Client";
@@ -80,6 +81,7 @@ export default function TabletRemoteViewer({device}) {
   <div className="flex flex-wrap gap-2">{Object.entries(labels).map(([key,label]) => <Button key={key} variant="outline" disabled={busy || active || enabled !== true || device.helper_health?.support_available !== true || device.helper_health?.support_transport !== "webrtc" || !device.paired} onClick={()=>request(key)}>{label}</Button>)}</div>
   {session && <div className="space-y-2">
    <p role="status">{live ? "Live video" : session.state === "requested" ? "Waiting for tablet to check in" : session.state === "waiting_permission" ? "Waiting for approval on the tablet" : ["connecting","active"].includes(session.state) ? "Connecting video…" : "Session " + session.state}</p>
+   {session.state === "failed" && session.failure_code && <p role="alert" className="text-sm text-destructive">{tabletSupportFailure(session.failure_code)}</p>}
    {active && <p className="text-xs">Ends by {new Date(session.expires_at).toLocaleTimeString()}</p>}
    <video ref={video} onPlaying={() => { if(room.current && video.current?.readyState >= 2) setLive(true); }} autoPlay playsInline muted aria-label="Tablet live video" className={live ? "w-full max-h-[55dvh] bg-black rounded-lg object-contain" : "hidden"} />
    {active && <Button disabled={busy} variant="destructive" onClick={stop}>Stop viewing</Button>}

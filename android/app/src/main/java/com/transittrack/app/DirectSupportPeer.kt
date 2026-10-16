@@ -27,7 +27,7 @@ class DirectSupportPeer(private val context:Context, private val capability:Stri
    .setVideoEncoderFactory(DefaultVideoEncoderFactory(egl.eglBaseContext,true,true))
    .setVideoDecoderFactory(DefaultVideoDecoderFactory(egl.eglBaseContext)).createPeerConnectionFactory()
  }
- suspend fun offer(ice:JSONArray, projection:Intent?):String {
+ suspend fun offer(ice:JSONArray, projection:Intent?, onStage:(String)->Unit={}):String {
   val servers=mutableListOf<PeerConnection.IceServer>()
   require(ice.length()<=4)
   for(i in 0 until ice.length()) {
@@ -83,6 +83,7 @@ class DirectSupportPeer(private val context:Context, private val capability:Stri
   capturer!!.startCapture(if(screen)720 else 640,if(screen)1280 else 360,if(screen)10 else 15)
   val offer=createOffer(pc)
   setDescription(pc,offer,true)
+  onStage("ICE_GATHERING")
   withTimeout(15000){gathered.await()}
   check(!closed)
   val sdp=pc.localDescription.description

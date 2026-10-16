@@ -10,6 +10,9 @@ import android.view.Gravity
 import android.view.ViewGroup
 import android.widget.Button
 import android.widget.FrameLayout
+import android.widget.Toast
+import android.util.Log
+import java.net.SocketTimeoutException
 import androidx.activity.result.ActivityResult
 import com.getcapacitor.*
 import com.getcapacitor.annotation.*
@@ -24,7 +27,7 @@ class TabletSupportPlugin : Plugin() {
  private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
  private data class Session(val id:String, val device:String, val key:String, var capability:String="", var deadline:Long=0,
                             var job:Job?=null, var watchdog:Job?=null, var pulse:Job?=null, var peer:DirectSupportPeer?=null,
-                            var dialog:AlertDialog?=null, var button:Button?=null, var capturing:Boolean=false)
+                            var dialog:AlertDialog?=null, var button:Button?=null, var capturing:Boolean=false, var stage:String="PREPARE")
  private var current:Session?=null
  private var resumed=true
  private val seen=LinkedHashSet<String>()
@@ -58,7 +61,7 @@ class TabletSupportPlugin : Plugin() {
      // Authorization checks continue while approval is pending, too.
      s.pulse=scope.launch {
       try { while(current===s) { delay(5000); val r=api(s,"pulse"); require(r.optBoolean("ok") && r.optString("id")==s.id && r.optLong("ttl_ms")>0) } }
-      catch(_:Exception) { if(current===s) finish(s,"failed") }
+      catch(e:Exception) { if(current===s) fail(s,e) }
      }
      val label=when(s.capability) {"screen"->"screen";"camera_front"->"front camera";else->"rear camera"}
      s.dialog=AlertDialog.Builder(activity).setTitle("Allow admin live viewing?")
@@ -74,7 +77,7 @@ class TabletSupportPlugin : Plugin() {
       }.setNegativeButton("Decline") {_,_->call.resolve();finish(s,"denied")}
       .setOnCancelListener {call.resolve();finish(s,"denied")}.create()
      s.dialog?.show()
-    } catch(_:Exception) { call.reject("Remote viewing request unavailable"); finish(s,"failed") }
+    } catch(e:Exception) { call.reject("Remote viewing request unavailable"); fail(s,e) }
    }
   }
  }
@@ -95,6 +98,7 @@ class TabletSupportPlugin : Plugin() {
   s.job=scope.launch {
    try {
     repeat(20) { if(!resumed)delay(100) }; check(resumed); ensureCurrent(s)
+    s.stage="PUBLISH"
     val auth=api(s,"publish");ensureCurrent(s)
     require(auth.getString("id")==s.id && auth.getString("capability")==s.capability && auth.getLong("ttl_ms")>0)
     val pulse=api(s,"pulse");require(pulse.optBoolean("ok") && pulse.optLong("ttl_ms")>0)
@@ -116,10 +120,13 @@ class TabletSupportPlugin : Plugin() {
      withTimeout(3000){while(!SupportProjectionService.ready)delay(50)}
     }
     ensureCurrent(s);check(resumed)
-    val peer=DirectSupportPeer(context,s.capability){scope.launch{finish(s,"failed")}};s.peer=peer
-    val offer=withTimeout(25000){peer.offer(auth.getJSONArray("iceServers"),projection)}
+    s.stage="CAPTURE"
+    val peer=DirectSupportPeer(context,s.capability){scope.launch{fail(s,IllegalStateException())}};s.peer=peer
+    val offer=withTimeout(25000){peer.offer(auth.getJSONArray("iceServers"),projection){s.stage=it}}
     ensureCurrent(s)
+    s.stage="OFFER"
     require(api(s,"offer",sdp=offer).optBoolean("ok"))
+    s.stage="ANSWER_POLL"
     var answer:String?=null
     withTimeout(45000) {
      while(answer==null) {
@@ -130,14 +137,16 @@ class TabletSupportPlugin : Plugin() {
      }
     }
     ensureCurrent(s)
+    s.stage="PEER_CONNECT"
     peer.answer(answer!!)
     ensureCurrent(s)
+    s.stage="STARTED"
     require(api(s,"started").optBoolean("ok"))
     s.button?.text="LIVE ADMIN VIEW · STOP"
-   } catch(_:Exception) {finish(s,"failed")}
+   } catch(e:Exception) {fail(s,e)}
   }
  }
- private suspend fun api(s:Session, op:String, reason:String?=null, sdp:String?=null):JSONObject=withContext(Dispatchers.IO) {
+ private suspend fun api(s:Session, op:String, reason:String?=null, sdp:String?=null, failureCode:String?=null):JSONObject=withContext(Dispatchers.IO) {
   withTimeout(10000) {
    val connection=URL(endpoint).openConnection() as HttpsURLConnection
    try {
@@ -148,8 +157,10 @@ class TabletSupportPlugin : Plugin() {
     val body=JSONObject().put("operation",op).put("session_id",s.id).put("device_id",s.device).put("device_token",s.key)
     if(reason!=null)body.put("reason",reason)
     if(sdp!=null)body.put("sdp",sdp)
+    if(failureCode!=null)body.put("failure_code",failureCode)
     connection.outputStream.use{it.write(body.toString().toByteArray(Charsets.UTF_8))}
-    check(connection.responseCode==200)
+    val status=connection.responseCode
+    if(status!=200)throw SupportHttpException(op.uppercase(),status)
     val bytes=connection.inputStream.use { input ->
      val output=java.io.ByteArrayOutputStream(); val buffer=ByteArray(2048)
      while(true) { val count=input.read(buffer); if(count<0)break; require(output.size()+count<=98304); output.write(buffer,0,count) }
@@ -159,7 +170,22 @@ class TabletSupportPlugin : Plugin() {
    } finally {connection.disconnect()}
   }
  }
- private fun finish(s:Session,reason:String) {
+ private class SupportHttpException(val operation:String,val status:Int):Exception()
+ private fun fail(s:Session,error:Exception) {
+  if(current!==s)return
+  val stage=if(error is SupportHttpException)error.operation else s.stage
+  val suffix=when(error) {
+   is SupportHttpException->"HTTP_"+error.status
+   is TimeoutCancellationException,is SocketTimeoutException->"TIMEOUT"
+   else->"ERROR"
+  }
+  val code=stage+"_"+suffix
+  // Fixed operation/status only. Never log exception text, request body, SDP or device keys.
+  Log.w("TT-RemoteSupport","Session failed: "+code)
+  Toast.makeText(activity,"Live viewing failed: "+code,Toast.LENGTH_LONG).show()
+  finish(s,"failed",code)
+ }
+ private fun finish(s:Session,reason:String,failureCode:String?=null) {
   if(current!==s)return
   current=null
   stateChanged()
@@ -169,7 +195,7 @@ class TabletSupportPlugin : Plugin() {
   s.peer=null
   SupportProjectionService.stopAction=null
   context.stopService(Intent(context,SupportProjectionService::class.java))
-  scope.launch {try{api(s,"stop",reason)}catch(_:Exception){}}
+  scope.launch {try{api(s,"stop",reason,failureCode=failureCode)}catch(_:Exception){}}
  }
  @PluginMethod fun stop(call:PluginCall) {activity.runOnUiThread {current?.let{finish(it,"ended")};call.resolve()}}
  override fun handleOnResume() {resumed=true}

@@ -1,5 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
-import { streamingConfig, supportIce, validateSupportSdp, supportNotice, publicSupport, supportBinding } from '../../shared/tabletStreaming.ts';
+import { streamingConfig, supportIce, validateSupportSdp, supportNotice, publicSupport, supportBinding, supportFailureCode } from '../../shared/tabletStreaming.ts';
 import { strictControlDevice } from '../../shared/tabletControl.ts';
 import { authorizeSupportAdmin, supportRequest } from '../../shared/tabletSupportPolicy.ts';
 const reply=(body,status=200)=>Response.json(body,{status,headers:{'Cache-Control':'no-store'}});
@@ -20,10 +20,10 @@ export default async function(req) {
   const audit=async(s,event)=>db.AuditLog.create({actor_role:native?'device':'admin',actor_email:admin?.email||'',
    action:'update',entity:'KioskDevice',record_id:s.device_id,page:'/admin/kiosks',
    summary:'Remote support '+event+' · '+s.capability+' · session '+s.id});
-  const finish=async(s,state)=>{
-   await db.TabletSupportSession.update(s.id,{state,ended_at:new Date().toISOString(),offer_sdp:'',answer_sdp:''});
+  const finish=async(s,state,failure_code=null)=>{
+   await db.TabletSupportSession.update(s.id,{state,ended_at:new Date().toISOString(),offer_sdp:'',answer_sdp:'',failure_code:state==='failed'?supportFailureCode(failure_code):null});
    await audit(s,state).catch(()=>{});
-   return reply({ok:true,session:publicSupport({...s,state})});
+   return reply({ok:true,session:publicSupport({...s,state,failure_code})});
   };
   if(b.operation==='request') {
    if(!config)return reply({error:'Direct remote viewing is not enabled yet'},503);
@@ -48,7 +48,7 @@ export default async function(req) {
   } else if(b.operation!=='end' && s.requested_by!==admin.id)return reply({error:'Session belongs to another administrator'},403);
   if(b.operation==='end' || b.operation==='stop') {
    if(terminal(s))return reply({ok:true,session:publicSupport(s)});
-   return finish(s,native && ['denied','failed'].includes(b.reason)?b.reason:'ended');
+   return finish(s,native && ['denied','failed'].includes(b.reason)?b.reason:'ended',native?b.failure_code:null);
   }
   if(terminal(s))return b.operation==='status'?reply({session:publicSupport(s)}):reply({error:'Session ended'},410);
   if(!(Date.parse(s.expires_at)>Date.now())){const ended=await finish(s,'expired');return b.operation==='status'?ended:reply({error:'Session expired'},410);}

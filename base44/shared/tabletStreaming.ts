@@ -43,8 +43,12 @@ export function supportNotice(device:any,now=Date.now()) {
  return n && typeof n.id==='string' && /^[A-Za-z0-9_-]{6,128}$/.test(n.id) &&
  Date.parse(n.expires_at)>now ? {id:n.id} : null;
 }
+// Accept fixed stages/status codes only; never persist exception text, SDP or credentials.
+export function supportFailureCode(value:any) {
+ return typeof value==='string' && /^(PREPARE|PUBLISH|PULSE|OFFER|ANSWER_POLL|STARTED|CAPTURE|ICE_GATHERING|PEER_CONNECT)_(ERROR|TIMEOUT|HTTP_[1-5][0-9]{2})$/.test(value) ? value : null;
+}
 export function publicSupport(s:any) {
- return {id:s.id,device_id:s.device_id,capability:s.capability,state:s.ended_at ? (['denied','failed','expired'].includes(s.state)?s.state:'ended') : s.state,expires_at:s.expires_at,requested_name:s.requested_name};
+ return {id:s.id,device_id:s.device_id,capability:s.capability,state:s.ended_at ? (['denied','failed','expired'].includes(s.state)?s.state:'ended') : s.state,expires_at:s.expires_at,requested_name:s.requested_name,failure_code:s.state==='failed'?supportFailureCode(s.failure_code):null};
 }
 export function supportBinding(s:any,d:any) {
  return s.device_id===d.id && s.company_id===d.company_id && s.vehicle_id===(d.vehicle_id||'') &&

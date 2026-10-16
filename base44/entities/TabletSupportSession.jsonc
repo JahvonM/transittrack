@@ -43,6 +43,9 @@
     },
     "answer_sdp": {
       "type": "string"
+    },
+    "failure_code": {
+      "type": "string"
     }
   },
   "required": [
