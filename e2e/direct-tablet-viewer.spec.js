@@ -1,5 +1,7 @@
 import {test,expect} from "@playwright/test";
 import {build} from "esbuild";
+// The isolated Linux container has no mDNS responder. Only this transport test uses raw local ICE candidates.
+test.use({launchOptions:{args:["--disable-features=WebRtcHideLocalIpsWithMdns"]}});
 test("direct receiver renders a real synthetic WebRTC video without camera, microphone or a streaming provider",async({page})=>{
  const bundle=await build({entryPoints:["src/lib/directTabletViewer.js"],bundle:true,write:false,format:"iife",globalName:"TTDirect",platform:"browser"});
  await page.route("**/rtc-test",r=>r.fulfill({contentType:"text/html",body:"<html><body></body></html>"}));
