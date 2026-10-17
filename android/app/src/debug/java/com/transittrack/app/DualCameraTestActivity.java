@@ -39,6 +39,7 @@ public final class DualCameraTestActivity extends Activity {
     private Button startButton;
     private volatile boolean running;
     private long started;
+    private final Runnable tickTask = this::tick;
     private final Runnable deadline = () -> stopTest("Test timed out. Cameras are being released.");
 
     @Override public void onCreate(Bundle state) {
@@ -124,8 +125,9 @@ public final class DualCameraTestActivity extends Activity {
                 }
                 openPreview(front, 0); openPreview(rear, 1);
                 if (stopped.get()) { releaseCameras(); return; }
+                for (int i = 0; i < 2; i++) { frames[i].set(0); lastFrame[i].set(0); }
                 started = SystemClock.elapsedRealtime();
-                worker.postDelayed(this::tick, 1_000);
+                worker.postDelayed(tickTask, 1_000);
             } catch (Exception e) {
                 complete(false, "Could not open both previews together. Close other camera users and retry."
                         + "\nThis alone does not prove dual recording is unsupported.");
@@ -151,7 +153,12 @@ public final class DualCameraTestActivity extends Activity {
             }
         }
         camera.setParameters(p);
-        camera.setDisplayOrientation(90);
+        Camera.CameraInfo info = new Camera.CameraInfo(); Camera.getCameraInfo(id, info);
+        int degrees = getWindowManager().getDefaultDisplay().getRotation() * 90;
+        int orientation = info.facing == Camera.CameraInfo.CAMERA_FACING_FRONT
+                ? (360 - (info.orientation + degrees) % 360) % 360
+                : (info.orientation - degrees + 360) % 360;
+        camera.setDisplayOrientation(orientation);
         camera.setPreviewDisplay(holders[index]);
         int bufferBytes = 640 * 480 * ImageFormat.getBitsPerPixel(ImageFormat.NV21) / 8;
         camera.setPreviewCallbackWithBuffer((bytes, source) -> {
@@ -182,7 +189,7 @@ public final class DualCameraTestActivity extends Activity {
             if (!stopped.get()) status.setText("Testing: " + elapsed / 1000 + "/10 seconds\n"
                     + "Front frames: " + front + " · Rear frames: " + rear);
         });
-        worker.postDelayed(this::tick, 1_000);
+        worker.postDelayed(tickTask, 1_000);
     }
     private void complete(boolean pass, String message) {
         if (!stopped.compareAndSet(false, true)) return;
@@ -204,7 +211,7 @@ public final class DualCameraTestActivity extends Activity {
         });
     }
     private void releaseCameras() {
-        worker.removeCallbacksAndMessages(null);
+        worker.removeCallbacks(tickTask);
         for (int i = 0; i < cameras.length; i++) {
             Camera c = cameras[i]; cameras[i] = null;
             if (c == null) continue;
