@@ -3,6 +3,9 @@ package com.transittrack.app
 import android.content.Context
 import android.content.Intent
 import android.media.projection.MediaProjection
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
+import android.util.Log
 import org.json.JSONArray
 import org.webrtc.*
 import kotlinx.coroutines.*
@@ -20,6 +23,23 @@ class DirectSupportPeer(private val context:Context, private val capability:Stri
  private var texture:SurfaceTextureHelper?=null
  private val candidates=SupportIceCandidates()
  @Volatile private var gatheringComplete=false
+ @Volatile private var iceCounts="H0/S0/R0"
+ @Volatile private var relayError=0
+ @Volatile private var relayTransport="NONE"
+ @Volatile private var relayErrorEvents=0
+ fun diagnostics():String {
+  val network=try {
+   val manager=context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+   val caps=manager.getNetworkCapabilities(manager.activeNetwork)
+   when {
+    caps==null->"NONE"
+    caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)->"WIFI"
+    caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)->"CELL"
+    else->"OTHER"
+   }
+  }catch(_:Exception){"UNKNOWN"}
+  return iceCounts+" E"+relayError+" "+relayTransport+" "+network
+ }
  private val connected=CompletableDeferred<Unit>()
  @Volatile private var closed=false
  init {
@@ -37,7 +57,14 @@ class DirectSupportPeer(private val context:Context, private val capability:Stri
    require(urls.length() in 1..3)
    val values=(0 until urls.length()).map{urls.getString(it)}
    require(values.all{it.matches(Regex("^(stun|turn|turns):[A-Za-z0-9.-]+:[0-9]{1,5}(\\?transport=(udp|tcp))?$"))})
-   if(values.any{it.startsWith("turn:") || it.startsWith("turns:")})requireRelay=true
+   if(values.any{it.startsWith("turn:") || it.startsWith("turns:")}) {
+    requireRelay=true
+    relayTransport=when {
+     values.any{it.startsWith("turns:")}->"TLS"
+     values.any{it.endsWith("transport=tcp")}->"TCP"
+     else->"UDP"
+    }
+   }
    servers.add(PeerConnection.IceServer.builder(values).setUsername(item.optString("username")).setPassword(item.optString("credential")).createIceServer())
   }
   val cfg=PeerConnection.RTCConfiguration(servers).apply {sdpSemantics=PeerConnection.SdpSemantics.UNIFIED_PLAN
@@ -56,6 +83,13 @@ class DirectSupportPeer(private val context:Context, private val capability:Stri
    override fun onIceConnectionReceivingChange(receiving:Boolean) {}
    override fun onIceGatheringChange(state:PeerConnection.IceGatheringState) {gatheringComplete=state==PeerConnection.IceGatheringState.COMPLETE}
    override fun onIceCandidate(candidate:IceCandidate) {candidates.add(candidate.sdpMLineIndex,candidate.sdp)}
+   override fun onIceCandidateError(event:IceCandidateErrorEvent) {
+    // Do not log errorText, URL, address, candidate SDP or TURN credentials.
+    if(event.url.startsWith("turn:") || event.url.startsWith("turns:")) {
+     relayError=SupportIceDiagnostics.safeError(event.errorCode)
+     if(relayErrorEvents++<8)Log.w("TT-RemoteSupport","Relay callback code="+relayError)
+    }
+   }
    override fun onIceCandidatesRemoved(candidates:Array<out IceCandidate>) {}
    override fun onAddStream(stream:MediaStream) {lost()}
    override fun onRemoveStream(stream:MediaStream) {}
@@ -96,6 +130,7 @@ class DirectSupportPeer(private val context:Context, private val capability:Stri
    while(readySdp==null) {
     check(!closed)
     val current=candidates.merge(pc.localDescription.description)
+    iceCounts=SupportIceDiagnostics.counts(current)
     if(SupportIceCandidates.ready(current,gatheringComplete,requireRelay))readySdp=current
     else delay(100)
    }

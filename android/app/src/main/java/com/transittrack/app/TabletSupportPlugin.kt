@@ -180,8 +180,10 @@ class TabletSupportPlugin : Plugin() {
   }
   val code=stage+"_"+suffix
   // Fixed operation/status only. Never log exception text, request body, SDP or device keys.
+  val details=if(stage=="ICE_GATHERING")s.peer?.diagnostics() else null
   Log.w("TT-RemoteSupport","Session failed: "+code)
-  Toast.makeText(activity,"Live viewing failed: "+code,Toast.LENGTH_LONG).show()
+  if(details!=null)Log.w("TT-RemoteSupport","ICE diagnostics: "+details)
+  Toast.makeText(activity,"Live viewing failed: "+code+(details?.let{"\n"+it} ?: ""),Toast.LENGTH_LONG).show()
   finish(s,"failed",code)
  }
  private fun finish(s:Session,reason:String,failureCode:String?=null) {
