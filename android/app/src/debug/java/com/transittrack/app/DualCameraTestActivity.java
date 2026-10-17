@@ -166,7 +166,8 @@ public final class DualCameraTestActivity extends Activity {
             frames[index].incrementAndGet();
             lastFrame[index].set(SystemClock.elapsedRealtime());
             // Recycle immediately; never inspect, retain, record or transmit image bytes.
-            source.addCallbackBuffer(bytes);
+            try { source.addCallbackBuffer(bytes); }
+            catch (RuntimeException e) { complete(false, "Preview buffer delivery failed."); }
         });
         for (int i = 0; i < 3; i++) camera.addCallbackBuffer(new byte[bufferBytes]);
         camera.startPreview();
