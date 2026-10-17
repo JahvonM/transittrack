@@ -37,7 +37,7 @@ class RearDashcamActivity:Activity() {
   val row=LinearLayout(this)
   start=Button(this).apply{text="Start recording";setOnClickListener{startPressed()}}
   stop=Button(this).apply{text="Stop";setOnClickListener{send(RearDashcamService.STOP)}}
-  row.addView(start,LinearLayout.LayoutParams(0,-2,1));row.addView(stop,LinearLayout.LayoutParams(0,-2,1));root.addView(row)
+  row.addView(start,LinearLayout.LayoutParams(0,-2,1f));row.addView(stop,LinearLayout.LayoutParams(0,-2,1f));root.addView(row)
   incident=Button(this).apply{text="Save incident · protect current and previous clip";setOnClickListener{send(RearDashcamService.PROTECT)}}
   root.addView(incident)
   root.addView(CheckBox(this).apply {
@@ -85,7 +85,7 @@ class RearDashcamActivity:Activity() {
   val flags=(if(DashcamFiles.protectedClip(file))" · Protected" else "")+(if(file.name.contains("-incomplete"))" · Interrupted, may not play" else "")
   clips.addView(text(date+" · "+(file.length()/1024/1024)+" MB"+flags))
   val row=LinearLayout(this)
-  fun button(label:String,action:()->Unit){row.addView(Button(this).apply{text=label;setOnClickListener{action()}},LinearLayout.LayoutParams(0,-2,1))}
+  fun button(label:String,action:()->Unit){row.addView(Button(this).apply{text=label;setOnClickListener{action()}},LinearLayout.LayoutParams(0,-2,1f))}
   button("Play"){play(file.name)}
   button("Export"){export(file.name)}
   button("Delete"){

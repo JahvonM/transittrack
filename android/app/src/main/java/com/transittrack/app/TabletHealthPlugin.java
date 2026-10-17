@@ -32,9 +32,12 @@ public class TabletHealthPlugin extends Plugin {
         String action = call.getString("action");
         getActivity().runOnUiThread(() -> {
             if ("end_shift".equals(action)) {
-                if (RearDashcamService.active())
-                    getContext().startService(new Intent(getContext(), RearDashcamService.class).setAction(RearDashcamService.STOP));
-                call.resolve(); return;
+                try {
+                    if (RearDashcamService.active())
+                        getContext().startService(new Intent(getContext(), RearDashcamService.class).setAction(RearDashcamService.STOP));
+                    call.resolve();
+                } catch (RuntimeException e) { call.reject("Rear dashcam could not stop. Use its visible Stop control."); }
+                return;
             }
             if (!"start_shift".equals(action) || !RearDashcamService.automatic(getContext()) || RearDashcamService.active()) {
                 call.resolve(); return;
