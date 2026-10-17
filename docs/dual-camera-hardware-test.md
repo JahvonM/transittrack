@@ -46,3 +46,12 @@ installed. If it reports camera unavailable/busy, close other camera sessions
 before interpreting the outcome. This test is not included in release builds.
 No dashcam recording, storage retention, video download or recording UI is
 implemented by this change.
+
+## Validation — 17 October 2026 UTC
+Android debug Kotlin/Java compilation and all 58 JVM tests pass, including eight
+new frame-window acceptance tests. The generated debug manifest includes the
+test activity; the generated release manifest excludes it. Empty/incomplete frame
+callbacks fail the test. The final source was recompiled and unit-tested after
+the frame guard change. No APK generated, signed, installed or published here.
+No physical dual-camera test has been run by the agent; hardware acceptance is
+pending the operator's result.

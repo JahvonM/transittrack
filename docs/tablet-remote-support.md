@@ -102,3 +102,13 @@ installation and another controlled attempt remain required. No server settings,
 permissions, signing identity, authentication or backend session schema changed.
 
 GNEW/GGATHERING/GCOMPLETE also reports the gathering state, using a fixed native enum. Final Android debug Java/Kotlin compilation passes; 50 JVM tests pass with zero failures/errors, including three diagnostic count/privacy/bounds tests. No APK generated or installed and no frontend published. Backend behavior unchanged.
+
+## Operator live-view confirmation — 17 October 2026 UTC
+After adding the missing inbound relay rules to the DigitalOcean cloud firewall
+and re-entering TT_SUPPORT_TURN_URL as the direct server IPv4 UDP endpoint, the
+operator reported that live viewing works. The agent separately received a
+matching unauthenticated STUN Binding success response from UDP 3478, verifying
+outside reachability but not media or TURN credential correctness on its own.
+Actual video success is operator-reported, not an agent-observed device test.
+The operator now requests local dashcam recording; docs/dual-camera-hardware-test.md
+covers the preview-only hardware gate. No recording feature has been enabled.
