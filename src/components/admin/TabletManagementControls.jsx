@@ -1,3 +1,4 @@
+import TabletRecordingsViewer from "./TabletRecordingsViewer";
 import TabletRemoteViewer from "./TabletRemoteViewer";
 import TabletNativeUpdate from "./TabletNativeUpdate";
 import React, { useState } from "react";
@@ -35,6 +36,7 @@ export default function TabletManagementControls({ device, onRefresh }) {
           : <p className="text-sm">Managed Android controls are available. Last reported lock: {health.management_locked ? "on" : "off"}.</p>}
         <TabletNativeUpdate device={device} onRefresh={onRefresh} />
         {open && <TabletRemoteViewer device={device} />}
+        {open && <TabletRecordingsViewer key={device.id} device={device} />}
         {status && <div role="status" className="rounded-lg bg-muted p-3 text-sm space-y-1">
           <p>{status.action === "app_update" ? "Native app update" : labels[status.action] || "Tablet request"} · {pending ? "Waiting for tablet" : status.state === "waiting" ? "Expired without confirmation" : status.state}</p>
           {status.message && <p>{status.message}</p>}
