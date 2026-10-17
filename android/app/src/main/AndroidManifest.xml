@@ -62,6 +62,9 @@
             <meta-data android:name="android.app.device_admin" android:resource="@xml/transit_device_admin" />
             <intent-filter><action android:name="android.app.action.DEVICE_ADMIN_ENABLED" /></intent-filter>
         </receiver>
+        <activity android:name=".RearDashcamActivity" android:exported="false"
+            android:theme="@android:style/Theme.Material.NoActionBar" android:label="Rear dashcam" />
+        <service android:name=".RearDashcamService" android:exported="false" android:foregroundServiceType="camera" />
         <service android:name=".SupportProjectionService" android:exported="false" android:foregroundServiceType="mediaProjection" />
         <receiver android:name=".NativeUpdateReceiver" android:exported="false" />
         <receiver android:name=".TabletLockExpiryReceiver" android:exported="false">
@@ -76,6 +79,7 @@
     <!-- Managed combined-kiosk APK updates only; never used by the passenger binary. -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
     <!-- Permissions -->
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
