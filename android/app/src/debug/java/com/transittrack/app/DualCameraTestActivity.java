@@ -56,10 +56,16 @@ public final class DualCameraTestActivity extends Activity {
                 + "This test shows both cameras for 10 seconds at 640 × 480.\n"
                 + "No video or audio is saved or sent.", 16);
         layout.addView(status);
+        LinearLayout previews = new LinearLayout(this);
+        previews.setOrientation(LinearLayout.HORIZONTAL);
+        layout.addView(previews, new LinearLayout.LayoutParams(-1, 0, 1));
         String[] names = {"FRONT — inside bus", "REAR — road"};
         for (int i = 0; i < 2; i++) {
             final int index = i;
-            layout.addView(label(names[i], 15));
+            LinearLayout column = new LinearLayout(this);
+            column.setOrientation(LinearLayout.VERTICAL);
+            previews.addView(column, new LinearLayout.LayoutParams(0, -1, 1));
+            column.addView(label(names[i], 15));
             SurfaceView preview = new SurfaceView(this);
             holders[i] = preview.getHolder();
             holders[i].addCallback(new SurfaceHolder.Callback() {
@@ -73,7 +79,7 @@ public final class DualCameraTestActivity extends Activity {
                     updateStart();
                 }
             });
-            layout.addView(preview, new LinearLayout.LayoutParams(-1, 0, 1));
+            column.addView(preview, new LinearLayout.LayoutParams(-1, 0, 1));
         }
         startButton = new Button(this);
         startButton.setText("Start 10-second test");
@@ -83,11 +89,14 @@ public final class DualCameraTestActivity extends Activity {
                 requestPermissions(new String[]{Manifest.permission.CAMERA}, 42);
             } else beginTest();
         });
-        layout.addView(startButton);
+        LinearLayout buttons = new LinearLayout(this);
+        buttons.setOrientation(LinearLayout.HORIZONTAL);
+        layout.addView(buttons);
+        buttons.addView(startButton, new LinearLayout.LayoutParams(0, -2, 1));
         Button close = new Button(this);
         close.setText("Stop and return to kiosk");
         close.setOnClickListener(v -> { stopTest("Stopped by operator."); finish(); });
-        layout.addView(close);
+        buttons.addView(close, new LinearLayout.LayoutParams(0, -2, 1));
         setContentView(layout); updateStart();
     }
 
