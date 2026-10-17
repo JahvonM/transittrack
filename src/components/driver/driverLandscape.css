@@ -104,3 +104,47 @@
  .dl-panel-scroll{gap:4px}.dl-next{padding-top:7px;padding-bottom:7px}
  .dl-stats>button{min-height:54px;padding-top:5px;padding-bottom:5px}.dl-stats strong{font-size:23px;line-height:1}.dl-stats>button>span>span{line-height:1.1;margin-top:1px}
 }
+
+/* Smaller side cards leave room for the full journey panel and fixed controls. */
+@media (min-width:960px) and (orientation:landscape) {
+ .dl-trip-panel{padding:10px}
+ .dl-panel-scroll{gap:6px}
+ .dl-panel-scroll [aria-label="Choose trip direction"]>button{min-height:46px;font-size:16px}
+ .dl-next{padding:10px 12px}
+ .dl-next h2{font-size:clamp(26px,2.5vw,34px);margin:4px 0}
+ .dl-next-description{display:none}
+ .dl-next-label small{font-size:12px}.dl-next-label svg{width:23px;height:23px}
+ .dl-stop-riders{font-size:14px;margin-top:6px}
+ .dl-stop-progress{font-size:13px;margin-top:7px;padding-top:6px}
+ .dl-next-actions{margin-top:7px;gap:8px}
+ .dl-next-actions>button{min-height:48px;padding:8px;font-size:14px}
+ .dl-next-actions>button:first-child{font-size:18px}
+ .dl-stats>button{min-height:60px;padding:8px 12px;gap:10px}
+ .dl-stats strong{font-size:26px;line-height:1.1}.dl-stats strong small{font-size:20px}
+ .dl-stats>button>span>span{font-size:12px;line-height:1.2;margin-top:2px}
+ .dl-stats>button>svg{width:25px;height:25px}
+ .dl-trip-status{min-height:36px;padding:7px 10px;font-size:11px}
+ .dl-control-dock{gap:7px;padding-top:7px}
+ .dl-trip-actions>button{min-height:48px;padding:8px 10px}
+ .dl-trip-actions>button>span:last-child{font-size:15px}
+ .dl-control-dock>div:last-child>button{min-height:46px}
+}
+@media (min-width:960px) and (orientation:landscape) and (max-height:700px) {
+ .dl-trip-panel{padding:8px}.dl-panel-scroll{gap:3px}
+ .dl-panel-scroll [aria-label="Choose trip direction"]>button{min-height:44px;font-size:15px}
+ .dl-next{padding:5px 10px}.dl-next h2{font-size:24px;line-height:1.08;margin:3px 0}
+ .dl-next-label small{font-size:11px}.dl-next-label svg{width:18px;height:18px}
+ .dl-stop-riders{font-size:13px;margin-top:4px}
+ .dl-stop-progress{font-size:12px;margin-top:4px;padding-top:4px}
+ .dl-next-actions{margin-top:5px;gap:6px}
+ .dl-next-actions>button{min-height:44px;padding:6px;font-size:12px}
+ .dl-next-actions>button:first-child{font-size:16px}
+ .dl-stats>button{min-height:48px;padding:4px 9px}
+ .dl-stats strong{font-size:22px;line-height:1}.dl-stats strong small{font-size:18px}
+ .dl-stats>button>span>span{font-size:11px;line-height:1.1;margin-top:1px}
+ .dl-trip-status{min-height:32px;font-size:10px;padding:5px 7px}
+ .dl-control-dock{gap:5px;padding-top:5px}
+ .dl-trip-actions>button{min-height:44px;padding:6px 8px}
+ .dl-trip-actions>button>span:last-child{font-size:14px}
+ .dl-control-dock>div:last-child>button{min-height:44px;padding:5px 10px}
+}
