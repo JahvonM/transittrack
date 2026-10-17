@@ -226,6 +226,9 @@
         },
         "native_update_available": {
           "type": "boolean"
+        },
+        "recordings_available": {
+          "type": "boolean"
         }
       },
       "type": "object"
@@ -439,6 +442,17 @@
           "type": "string"
         },
         "shown_at": {
+          "type": "string"
+        },
+        "expires_at": {
+          "type": "string"
+        }
+      }
+    },
+    "recordings_request": {
+      "type": "object",
+      "properties": {
+        "id": {
           "type": "string"
         },
         "expires_at": {

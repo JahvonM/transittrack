@@ -44,7 +44,7 @@ ENTITY_FIELDS.Place=['company_id','name','kind','address','lat','lng','notes'];
 ENTITY_FIELDS.Client=['company_id','name','kind','contact_name','email','phone','address','currency','notes'];
 ENTITY_FIELDS.Invoice=['company_id','company_name','client_id','client_name','client_email','client_address','number','period_start','period_end','issued_at','due_date','lines','total','currency','status','sent_at','paid_at','voided_at','notes'];
 const ADMIN_ONLY_FIELDS={Driver:new Set(['phone_app_access']),Trip:new Set(['client_id','client_name','price','currency'])};
-const SERVER_ONLY_FIELDS={Incident:new Set(['photo_uris','source']),KioskDevice:new Set(['support_request','network_status', 'control_status']),Trip:new Set([...JOB_SIGNATURE_FIELDS,'invoice_id','invoice_number'])};
+const SERVER_ONLY_FIELDS={Incident:new Set(['photo_uris','source']),KioskDevice:new Set(['recordings_request','support_request','network_status', 'control_status']),Trip:new Set([...JOB_SIGNATURE_FIELDS,'invoice_id','invoice_number'])};
 const JOB_TYPES=new Set(['airport_pickup','airport_dropoff','hotel_tour','staff_run','transfer']);
 const CURRENCIES=new Set(['XCD','USD']);
 const text=(data,field,max)=>{ if(!Object.hasOwn(data,field)||data[field]===null) return; if(typeof data[field]!=='string'||data[field].length>max) fail(400,'Invalid '+field.replace(/_/g,' ')); data[field]=data[field].trim(); };
