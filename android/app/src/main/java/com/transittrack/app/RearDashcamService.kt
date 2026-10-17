@@ -76,9 +76,9 @@ class RearDashcamService:Service() {
  override fun onStartCommand(intent:Intent?,flags:Int,startId:Int):Int {
   when(intent?.action) {
    STOP->{worker.post{shutdown("Rear dashcam stopped.",false)};return START_NOT_STICKY}
-   PROTECT->{worker.post{protectIncident()};return START_NOT_STICKY}
+   PROTECT->{if(active())worker.post{protectIncident()} else stopSelf();return START_NOT_STICKY}
   }
-  if(intent==null){stopSelf();return START_NOT_STICKY}
+  if(intent?.action!="START"){stopSelf();return START_NOT_STICKY}
   if(active())return START_NOT_STICKY
   if(Build.VERSION.SDK_INT>=23 && checkSelfPermission(Manifest.permission.CAMERA)!=PackageManager.PERMISSION_GRANTED) {
    phase="ERROR";message="Allow camera access in Rear dashcam before recording.";stopSelf();return START_NOT_STICKY
@@ -146,6 +146,7 @@ class RearDashcamService:Service() {
     shutdown("Storage limit reached. Protected clips were kept.",true);return
    }
    val output=store.create(System.currentTimeMillis());file=output;activeFile=output.name
+   val token=++generation
    val r=MediaRecorder();recorder=r
    r.setVideoSource(MediaRecorder.VideoSource.SURFACE)
    r.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
@@ -153,12 +154,11 @@ class RearDashcamService:Service() {
    r.setVideoSize(640,480);r.setVideoFrameRate(15);r.setVideoEncodingBitRate(1000000)
    r.setOrientationHint(orientation);r.setOutputFile(output.path)
    r.setMaxFileSize(24L*1024*1024)
-   r.setOnErrorListener{_,_,_->worker.post{shutdown("Video encoder failed. The unfinished clip was retained.",true)}}
-   r.setOnInfoListener{_,what,_->if(what==MediaRecorder.MEDIA_RECORDER_INFO_MAX_FILESIZE_REACHED)worker.post{rotateClip()}}
+   r.setOnErrorListener{_,_,_->worker.post{if(token==generation)shutdown("Video encoder failed. The unfinished clip was retained.",true)}}
+   r.setOnInfoListener{_,what,_->if(what==MediaRecorder.MEDIA_RECORDER_INFO_MAX_FILESIZE_REACHED)worker.post{if(token==generation)rotateClip()}}
    r.prepare()
    val surface=r.surface
    val device=camera?:error("No camera")
-   val token=++generation
    val request=device.createCaptureRequest(CameraDevice.TEMPLATE_RECORD).apply{
     addTarget(surface);set(CaptureRequest.CONTROL_MODE,CaptureRequest.CONTROL_MODE_AUTO)
     fps?.let{set(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE,it)}
