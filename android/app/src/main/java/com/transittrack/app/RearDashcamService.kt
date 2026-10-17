@@ -25,7 +25,11 @@ class RearDashcamService:Service() {
   @Volatile var activeFile=""; private set
   @Volatile var since=0L; private set
   @JvmStatic fun active()=phase in listOf("STARTING","RECORDING","STOPPING")
-  @JvmStatic fun files(context:Context)=DashcamFiles(File(context.noBackupFilesDir,"rear_dashcam"))
+  private var clipStore:DashcamFiles?=null
+  // Share the synchronized store between recorder cleanup, local playback and remote reads.
+  @Synchronized @JvmStatic fun files(context:Context):DashcamFiles {
+   return clipStore ?: DashcamFiles(File(context.noBackupFilesDir,"rear_dashcam")).also{clipStore=it}
+  }
   @JvmStatic fun automatic(context:Context)=context.getSharedPreferences("rear_dashcam",MODE_PRIVATE).getBoolean("auto_shift",false)
   @JvmStatic fun state(context:Context)=com.getcapacitor.JSObject()
    .put("available",true).put("active",active()).put("recording",phase=="RECORDING")
