@@ -137,15 +137,47 @@ class RearDashcamActivity:Activity() {
  }
  private fun play(name:String) {
   try {
-   val file=RearDashcamService.files(this).protect(name) // Hold it out of loop deletion while playing.
+   val file=RearDashcamService.files(this).protect(name)
    val player=VideoView(this);video=player
-   player.setMediaController(MediaController(this).apply{setAnchorView(player)})
-   player.setVideoPath(file.path)
-   val dialog=AlertDialog.Builder(this).setTitle("Saved rear-camera clip").setView(player)
-    .setPositiveButton("Close"){_,_->player.stopPlayback();video=null}.create()
-   dialog.setOnDismissListener{player.stopPlayback();video=null}
-   player.setOnErrorListener{_,_,_->Toast.makeText(this,"This clip could not be played. You can still export it.",Toast.LENGTH_LONG).show();true}
-   dialog.show();player.layoutParams=player.layoutParams.apply{width=-1;height=(resources.displayMetrics.heightPixels*0.6).toInt()};player.start()
+   val layout=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(dp(16),dp(12),dp(16),dp(12));setBackgroundColor(Color.rgb(8,20,32))}
+   val at=file.name.substringBefore("-").toLongOrNull()?:0
+   layout.addView(text(SimpleDateFormat("dd MMM · h:mm a",Locale.getDefault()).format(Date(at)),20f))
+   layout.addView(text("Saved rear-camera video · no sound",14f))
+   layout.addView(player,LinearLayout.LayoutParams(-1,0,1f))
+   val clock=text("Loading video…");layout.addView(clock)
+   val seek=SeekBar(this).apply{isEnabled=false};layout.addView(seek)
+   val controls=LinearLayout(this)
+   val pause=action("Pause"){if(player.isPlaying)player.pause()else player.start()}
+   controls.addView(action("−10 sec"){player.seekTo(maxOf(0,player.currentPosition-10000))},LinearLayout.LayoutParams(0,-2,1f))
+   controls.addView(pause,LinearLayout.LayoutParams(0,-2,1f))
+   controls.addView(action("+10 sec"){player.seekTo(minOf(player.duration,player.currentPosition+10000))},LinearLayout.LayoutParams(0,-2,1f))
+   layout.addView(controls)
+   val dialog=Dialog(this,android.R.style.Theme_Material_NoActionBar)
+   layout.addView(action("Close video"){dialog.dismiss()})
+   dialog.setContentView(layout)
+   var dragging=false
+   fun time(ms:Int):String {val seconds=maxOf(0,ms)/1000;return String.format(Locale.getDefault(),"%02d:%02d",seconds/60,seconds%60)}
+   val tick=object:Runnable{override fun run(){
+    if(!dialog.isShowing)return
+    if(!dragging)seek.progress=player.currentPosition
+    clock.text=time(player.currentPosition)+" / "+time(player.duration)
+    pause.text=if(player.isPlaying)"Pause"else"Play"
+    main.postDelayed(this,500)
+   }}
+   seek.setOnSeekBarChangeListener(object:SeekBar.OnSeekBarChangeListener{
+    override fun onStartTrackingTouch(bar:SeekBar){dragging=true}
+    override fun onStopTrackingTouch(bar:SeekBar){player.seekTo(bar.progress);dragging=false}
+    override fun onProgressChanged(bar:SeekBar,value:Int,fromUser:Boolean){if(fromUser)clock.text=time(value)+" / "+time(player.duration)}
+   })
+   player.setOnPreparedListener{seek.max=player.duration;seek.isEnabled=true;player.start()}
+   player.setOnCompletionListener{pause.text="Play"}
+   player.setOnErrorListener{_,_,_->
+    seek.isEnabled=false;controls.visibility=android.view.View.GONE
+    main.removeCallbacks(tick);clock.text="This video could not be played. Close it and use Save a copy to try another player.";true
+   }
+   dialog.setOnDismissListener{main.removeCallbacks(tick);player.stopPlayback();if(video===player)video=null}
+   dialog.show();dialog.window?.setLayout(-1,-1)
+   player.setVideoPath(file.path);main.post(tick)
    listKey=""
   }catch(_:Exception){Toast.makeText(this,"Clip is unavailable.",Toast.LENGTH_LONG).show()}
  }
