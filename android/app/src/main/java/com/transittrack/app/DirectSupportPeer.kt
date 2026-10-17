@@ -23,6 +23,7 @@ class DirectSupportPeer(private val context:Context, private val capability:Stri
  private var texture:SurfaceTextureHelper?=null
  private val candidates=SupportIceCandidates()
  @Volatile private var gatheringComplete=false
+ @Volatile private var gatheringState="NEW"
  @Volatile private var iceCounts="H0/S0/R0"
  @Volatile private var relayError=0
  @Volatile private var relayTransport="NONE"
@@ -38,7 +39,7 @@ class DirectSupportPeer(private val context:Context, private val capability:Stri
     else->"OTHER"
    }
   }catch(_:Exception){"UNKNOWN"}
-  return iceCounts+" E"+relayError+" "+relayTransport+" "+network
+  return iceCounts+" E"+relayError+" "+relayTransport+" "+network+" G"+gatheringState
  }
  private val connected=CompletableDeferred<Unit>()
  @Volatile private var closed=false
@@ -81,7 +82,7 @@ class DirectSupportPeer(private val context:Context, private val capability:Stri
    }
    private fun lost(){if(!closed)onClosed("PEER_CONNECT")}
    override fun onIceConnectionReceivingChange(receiving:Boolean) {}
-   override fun onIceGatheringChange(state:PeerConnection.IceGatheringState) {gatheringComplete=state==PeerConnection.IceGatheringState.COMPLETE}
+   override fun onIceGatheringChange(state:PeerConnection.IceGatheringState) {gatheringState=state.name;gatheringComplete=state==PeerConnection.IceGatheringState.COMPLETE}
    override fun onIceCandidate(candidate:IceCandidate) {candidates.add(candidate.sdpMLineIndex,candidate.sdp)}
    override fun onIceCandidateError(event:IceCandidateErrorEvent) {
     // Do not log errorText, URL, address, candidate SDP or TURN credentials.
