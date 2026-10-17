@@ -172,6 +172,9 @@ public final class DualCameraTestActivity extends Activity {
         int bufferBytes = 640 * 480 * ImageFormat.getBitsPerPixel(ImageFormat.NV21) / 8;
         camera.setPreviewCallbackWithBuffer((bytes, source) -> {
             if (stopped.get()) return;
+            if (bytes == null || bytes.length < bufferBytes) {
+                complete(false, "Camera returned an empty or incomplete frame."); return;
+            }
             frames[index].incrementAndGet();
             lastFrame[index].set(SystemClock.elapsedRealtime());
             // Recycle immediately; never inspect, retain, record or transmit image bytes.
