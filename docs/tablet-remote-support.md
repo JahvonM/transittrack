@@ -81,3 +81,22 @@ The operator's uploaded ADB log shows camera initialization progressing without 
 Native gathering now preserves individual candidate callbacks, merges missing candidates into the single-video offer without duplicating them, and waits up to 20 seconds for usable addresses rather than failing immediately on an empty first COMPLETE. Continuous gathering allows Android network discovery after initial startup. When TURN is configured, the offer waits for a relay candidate. Timeout still fails closed. Capture callbacks now report CAPTURE_ERROR separately from PEER_CONNECT_ERROR.
 
 Five JVM regression cases cover delayed candidates after empty completion, required relay vs host-only, stale local SDP, duplicate/foreign/injected candidate rejection and multi-media rejection. Native debug Java/Kotlin compilation and app JVM tests pass. The 40 focused backend security tests and six frontend diagnostic tests pass. No signed APK generated, tablet installation performed, frontend published, relay setting changed or credential read. Live tablet-to-admin video remains unverified; rebuild/install over the existing app and retest.
+
+## Native relay diagnostics — 17 October 2026 UTC
+The operator supplied a current native log: camera capture runs at approximately
+15–17 fps, then ICE_GATHERING_TIMEOUT occurs after 20 seconds. The operator
+reports the UDP endpoint test also fails. This establishes capture startup and
+an ICE readiness timeout, not the network/authentication root cause.
+
+Native code now handles onIceCandidateError and reports only bounded numeric
+TURN error codes. The timeout toast and TT-RemoteSupport log include H/S/R
+(host/server-reflexive/relay candidate counts), E (latest available relay error),
+configured transport (TLS/TCP/UDP/NONE) and current network type
+(WIFI/CELL/OTHER/NONE/UNKNOWN). E0 means no usable error callback was observed,
+not successful relay access. Authentication challenge codes alone must not be
+treated as proof of bad credentials. No raw error text, SDP, URLs, addresses,
+usernames, passwords or device credentials are logged or displayed.
+
+This is diagnostic instrumentation, not a proven connection fix. Native update
+installation and another controlled attempt remain required. No server settings,
+permissions, signing identity, authentication or backend session schema changed.
