@@ -48,6 +48,7 @@ class RearDashcamActivity:Activity() {
   root.addView(text("2-minute clips · 1 GB loop limit · 512 MB kept free\nOld unprotected clips are deleted automatically. Protected clips stay; recording stops if storage cannot be freed."))
   root.addView(text("While recording, stop the dashcam before camera live viewing or QR scanning. NFC and GPS do not use this camera."))
   root.addView(Button(this).apply{text="Return to kiosk";setOnClickListener{finish()}})
+  root.addView(text("Playing or exporting a clip also protects it. Delete it here when you no longer need it."))
   root.addView(text("Saved clips",21f));clips=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL};root.addView(clips)
  }
  private fun startPressed() {

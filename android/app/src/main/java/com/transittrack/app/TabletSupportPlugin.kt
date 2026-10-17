@@ -193,12 +193,13 @@ class TabletSupportPlugin : Plugin() {
  private fun finish(s:Session,reason:String,failureCode:String?=null) {
   if(current!==s)return
   current=null
-  if(s.cameraLease){TabletCameraLease.release("support");s.cameraLease=false}
   stateChanged()
   s.job?.cancel();s.pulse?.cancel();s.watchdog?.cancel()
   s.button?.let{(it.parent as? ViewGroup)?.removeView(it)}
   try{s.peer?.close()}catch(_:Exception){}
   s.peer=null
+  if(s.cameraLease){TabletCameraLease.release("support");s.cameraLease=false}
+  stateChanged()
   SupportProjectionService.stopAction=null
   context.stopService(Intent(context,SupportProjectionService::class.java))
   scope.launch {try{api(s,"stop",reason,failureCode=failureCode)}catch(_:Exception){}}

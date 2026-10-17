@@ -118,6 +118,9 @@ public final class DualCameraTestActivity extends Activity {
     private void beginTest() {
         if (running || stopped.get() || !surfacesReady[0] || !surfacesReady[1]
                 || isFinishing() || !hasWindowFocus()) return;
+        if (TabletCameraLease.occupied()) {
+            status.setText("Stop rear dashcam or camera live viewing before this test."); return;
+        }
         running = true; updateStart();
         status.setText("Opening both cameras. Both previews must keep moving.");
         main.postDelayed(deadline, 20_000);

@@ -121,7 +121,9 @@ class RearDashcamService:Service() {
    val info=manager.getCameraCharacteristics(id)
    val sizes=info.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)?.getOutputSizes(MediaRecorder::class.java)
    require(sizes?.any{it==Size(640,480)}==true)
-   orientation=info.get(CameraCharacteristics.SENSOR_ORIENTATION)?:90
+   val sensorOrientation=info.get(CameraCharacteristics.SENSOR_ORIENTATION)?:90
+   val displayRotation=(getSystemService(WINDOW_SERVICE) as android.view.WindowManager).defaultDisplay.rotation*90
+   orientation=(sensorOrientation-displayRotation+360)%360
    fps=info.get(CameraCharacteristics.CONTROL_AE_AVAILABLE_TARGET_FPS_RANGES)?.firstOrNull{it.lower==15 && it.upper==15}
     ?:info.get(CameraCharacteristics.CONTROL_AE_AVAILABLE_TARGET_FPS_RANGES)?.firstOrNull{it.lower<=15 && it.upper>=15}
    opening=true

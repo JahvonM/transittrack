@@ -60,7 +60,7 @@ export default function QrScanner({ onDecode, active, facingMode = "environment"
   }, [active, supportCameraReserved, facingMode, requireFacingMode, stableMs, elementId, compact]);
 
   if (!active) return null;
-  if (supportCameraReserved) return <p role="status" className="p-3 text-sm">QR camera paused for tablet support. Card taps and keypad remain available.</p>;
+  if (supportCameraReserved) return <p role="status" className="p-3 text-sm">QR camera paused while native camera capture is active. Card taps and keypad remain available.</p>;
 
   return (
     <div className="space-y-2">
