@@ -28,3 +28,7 @@ There are short capture gaps between clips (500ms plus camera setup); this is no
 The initial native implementation compiled debug Java/Kotlin, processed the release manifest and passed 70 JVM tests. Later small edits added orientation/callback guards and tightened camera lease cleanup; the remote sandbox reset removed the temporary Android toolchain before the final native rerun could be confirmed. Android Studio must compile the final revision before installation.
 
 Final frontend build exited successfully. Four focused JS test files passed 29 tests, covering the bridge, shift acceptance/offline durability, recording policy and existing remediation behavior. Physical recording has not yet been verified on the user's tablet. No APK was signed, installed or published by this change.
+
+### Startup diagnostic update
+
+Startup failures now display a stage/category code directly on the local recording screen and emit the same code under Android log tag TT-RearDashcam. Exception messages, clip paths and video data are not logged. This is diagnostic instrumentation, not a confirmed hardware fix. The five recording-boundary checks pass; native compilation of this update remains required in Android Studio.
