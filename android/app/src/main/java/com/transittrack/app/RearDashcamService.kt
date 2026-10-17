@@ -40,9 +40,9 @@ class RearDashcamService:Service() {
  private var recorder:MediaRecorder?=null
  private var file:File?=null
  private var started=false
- private var stopping=false
+ @Volatile private var stopping=false
  private var opening=false
- private var destroyed=false
+ @Volatile private var destroyed=false
  private var protectCurrent=false
  private var generation=0
  private var lastFrame=0L
@@ -80,7 +80,7 @@ class RearDashcamService:Service() {
   }
   if(intent==null){stopSelf();return START_NOT_STICKY}
   if(active())return START_NOT_STICKY
-  if(checkSelfPermission(Manifest.permission.CAMERA)!=PackageManager.PERMISSION_GRANTED) {
+  if(Build.VERSION.SDK_INT>=23 && checkSelfPermission(Manifest.permission.CAMERA)!=PackageManager.PERMISSION_GRANTED) {
    phase="ERROR";message="Allow camera access in Rear dashcam before recording.";stopSelf();return START_NOT_STICKY
   }
   if(!TabletCameraLease.acquire("dashcam")) {
@@ -226,7 +226,7 @@ class RearDashcamService:Service() {
   try{camera?.close()}catch(_:Exception){};camera=null
   TabletCameraLease.release("dashcam")
   phase=if(error)"ERROR" else "IDLE";message=reason;since=0
-  main.post{stopForeground(STOP_FOREGROUND_REMOVE);stopSelf()}
+  main.post{if(Build.VERSION.SDK_INT>=24)stopForeground(STOP_FOREGROUND_REMOVE) else stopForeground(true);stopSelf()}
  }
  override fun onTaskRemoved(rootIntent:Intent?) {worker.post{shutdown("Rear dashcam stopped when the app was closed.",false)};super.onTaskRemoved(rootIntent)}
  override fun onDestroy() {

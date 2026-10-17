@@ -3,13 +3,11 @@ package com.transittrack.app;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 
 /** Only manages its own clips in the app-private, backup-excluded directory. */
-final class DashcamFiles {
+public final class DashcamFiles {
     static final long LIMIT = 1024L * 1024 * 1024;
     static final long MIN_FREE = 512L * 1024 * 1024;
     static final long RESERVE = 32L * 1024 * 1024;
@@ -33,7 +31,7 @@ final class DashcamFiles {
             try { File file = find(entry.getName()); if (file.isFile()) out.add(file); }
             catch (IOException ignored) { /* Never traverse or delete unrelated paths. */ }
         }
-        out.sort(Comparator.comparing(File::getName));
+        java.util.Collections.sort(out, (a, b) -> a.getName().compareTo(b.getName()));
         return out;
     }
     static boolean partial(File file) { return file.getName().endsWith("-partial.mp4"); }

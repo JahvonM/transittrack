@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools">
     <application>
+        <activity android:name=".RearDashcamActivity" android:exported="true" tools:replace="android:exported" />
         <!-- Local operator diagnostic only. This component does not exist in release builds. -->
         <activity android:name=".DualCameraTestActivity"
             android:exported="true"
