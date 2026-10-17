@@ -40,6 +40,7 @@ export default function TabletRecordingsViewer({device}) {
   let cancelled = false, timer, polling = false;
   const generation = epoch.current, stale = () => cancelled || !alive.current || generation !== epoch.current;
   const lost = message => {if (!stale()) {setError(message || "Connection lost. Reconnect to retry."); void end();}};
+  const connectTimeout = setTimeout(() => lost("The tablet did not connect in time. Keep the kiosk open and online, then reconnect."), 120000);
   const tick = async () => {
    if (stale() || polling) return;
    polling = true;
@@ -50,7 +51,7 @@ export default function TabletRecordingsViewer({device}) {
      connecting.current = true;
      try {
       const auth = await invoke("viewer", {session_id: session.id}); if (stale()) return;
-      const connection = createRecordingViewer({isCancelled: stale, onReady: () => {if (!stale()) setReady(true);}, onEnded: lost,
+      const connection = createRecordingViewer({isCancelled: stale, onReady: () => {if (!stale()) {clearTimeout(connectTimeout); setReady(true);}}, onEnded: lost,
        onProgress: (received, total) => {if (!stale()) setProgress({received, total});}});
       peer.current = connection;
       await connection.connect(auth, sdp => invoke("answer", {session_id: session.id, sdp}));
@@ -62,7 +63,7 @@ export default function TabletRecordingsViewer({device}) {
    if (!stale()) timer = setTimeout(tick, 5000);
   };
   void tick();
-  return () => {cancelled = true; clearTimeout(timer);};
+  return () => {cancelled = true; clearTimeout(timer); clearTimeout(connectTimeout);};
  }, [session?.id]);
  const load = async (offset = 0) => {
   if (!peer.current) return;
@@ -93,7 +94,7 @@ export default function TabletRecordingsViewer({device}) {
   <p className="text-sm text-muted-foreground">Rear-camera videos stored on this tablet. Admin access only. The kiosk must be open and online. Selected videos are protected from automatic deletion.</p>
   {!available && <p className="text-sm">Install the recordings kiosk update, then wait for a fresh tablet check-in.</p>}
   {!session ? <Button variant="outline" disabled={busy || !available} onClick={request}>{busy ? "Requesting…" : "Browse recordings"}</Button> : <>
-   <div className="flex items-center justify-between gap-2"><p role="status" className="text-sm">{ready ? "Connected to tablet" : "Waiting for tablet connection…"}</p><Button variant="outline" onClick={() => void end()}>Disconnect</Button></div>
+   <div className="flex items-center justify-between gap-2"><p role="status" className="text-sm">{ready ? "Connected to tablet" : "Waiting for tablet connection (up to 2 minutes)…"}</p><Button variant="outline" onClick={() => void end()}>Disconnect</Button></div>
    <p className="text-xs text-muted-foreground">Session ends by {new Date(session.expires_at).toLocaleTimeString()}. Videos show the time reported by the tablet.</p>
    {ready && <>
     <label className="block text-sm">Recording date <input aria-label="Recording date" type="date" value={date} disabled={busy} onChange={e => setDate(e.target.value)} className="mt-1 block w-full rounded-lg border bg-background p-2" /></label>
