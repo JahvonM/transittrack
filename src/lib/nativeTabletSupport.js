@@ -19,7 +19,7 @@ export async function stopTabletSupport() {
 }
 
 export function useSupportCameraReserved() {
- const [reserved, setReserved] = useState(false);
+ const [reserved, setReserved] = useState(() => nativeSupportAvailable());
  useEffect(() => {
   if (!nativeSupportAvailable()) return undefined;
   let active = true, listener;
@@ -29,7 +29,9 @@ export function useSupportCameraReserved() {
    if(!active) { await listener.remove(); return; }
    update(await Support.getState());
   })().catch(() => {});
-  return () => { active = false; void listener?.remove(); };
+  // Local native state only: dashcam leases change without a server support request.
+  const timer = setInterval(() => { void Support.getState().then(update).catch(() => {}); }, 1000);
+  return () => { active = false; clearInterval(timer); void listener?.remove(); };
  }, []);
  return reserved;
 }

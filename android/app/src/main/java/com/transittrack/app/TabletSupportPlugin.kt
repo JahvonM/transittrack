@@ -26,7 +26,7 @@ class TabletSupportPlugin : Plugin() {
  private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
  private data class Session(val id:String, val device:String, val key:String, var capability:String="", var deadline:Long=0,
                             var job:Job?=null, var watchdog:Job?=null, var pulse:Job?=null, var peer:DirectSupportPeer?=null,
-                            var button:Button?=null, var capturing:Boolean=false, var stage:String="PREPARE")
+                            var button:Button?=null, var cameraLease:Boolean=false, var capturing:Boolean=false, var stage:String="PREPARE")
  private var current:Session?=null
  private var resumed=true
  private val seen=LinkedHashSet<String>()
@@ -36,8 +36,8 @@ class TabletSupportPlugin : Plugin() {
   call.resolve(JSObject().put("remoteViewingReady",true).put("screenConsentRequired",true)
    .put("transport","webrtc").put("localApprovalRequired",false).put("audio",false).put("recording",false))
  }
- @PluginMethod fun getState(call:PluginCall) {call.resolve(JSObject().put("cameraReserved",current?.capability?.startsWith("camera_")==true))}
- private fun stateChanged() {notifyListeners("state",JSObject().put("cameraReserved",current?.capability?.startsWith("camera_")==true))}
+ @PluginMethod fun getState(call:PluginCall) {call.resolve(JSObject().put("cameraReserved",(current?.capability?.startsWith("camera_")==true || TabletCameraLease.occupied())))}
+ private fun stateChanged() {notifyListeners("state",JSObject().put("cameraReserved",(current?.capability?.startsWith("camera_")==true || TabletCameraLease.occupied())))}
  @PluginMethod fun offer(call:PluginCall) {
   val id=call.getString("session_id") ?: ""; val device=call.getString("device_id") ?: ""; val key=call.getString("device_token") ?: ""
   activity.runOnUiThread {
@@ -120,6 +120,10 @@ class TabletSupportPlugin : Plugin() {
     s.stage="CAPTURE"
     if(s.capability.startsWith("camera_"))delay(500)
     ensureCurrent(s)
+    if(s.capability.startsWith("camera_")) {
+     require(TabletCameraLease.acquire("support")){"Camera busy"}
+     s.cameraLease=true
+    }
     val peer=DirectSupportPeer(context,s.capability){stage->scope.launch{fail(s,IllegalStateException(),stage)}};s.peer=peer
     val offer=withTimeout(25000){peer.offer(auth.getJSONArray("iceServers"),projection){s.stage=it}}
     ensureCurrent(s)
@@ -189,6 +193,7 @@ class TabletSupportPlugin : Plugin() {
  private fun finish(s:Session,reason:String,failureCode:String?=null) {
   if(current!==s)return
   current=null
+  if(s.cameraLease){TabletCameraLease.release("support");s.cameraLease=false}
   stateChanged()
   s.job?.cancel();s.pulse?.cancel();s.watchdog?.cancel()
   s.button?.let{(it.parent as? ViewGroup)?.removeView(it)}

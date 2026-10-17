@@ -21,6 +21,36 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 public class TabletHealthPlugin extends Plugin {
     @Override public void load() { TabletDiagnostics.record("system", "APP_STARTED"); }
 
+    @PluginMethod public void getDashcamState(PluginCall call) { call.resolve(RearDashcamService.state(getContext())); }
+    @PluginMethod public void openDashcam(PluginCall call) {
+        getActivity().runOnUiThread(() -> {
+            try { getActivity().startActivity(new Intent(getActivity(), RearDashcamActivity.class)); call.resolve(); }
+            catch (RuntimeException e) { call.reject("Could not open rear dashcam."); }
+        });
+    }
+    @PluginMethod public void dashcamShift(PluginCall call) {
+        String action = call.getString("action");
+        getActivity().runOnUiThread(() -> {
+            if ("end_shift".equals(action)) {
+                if (RearDashcamService.active())
+                    getContext().startService(new Intent(getContext(), RearDashcamService.class).setAction(RearDashcamService.STOP));
+                call.resolve(); return;
+            }
+            if (!"start_shift".equals(action) || !RearDashcamService.automatic(getContext()) || RearDashcamService.active()) {
+                call.resolve(); return;
+            }
+            if (!getActivity().hasWindowFocus() || (android.os.Build.VERSION.SDK_INT >= 23 &&
+                    getContext().checkSelfPermission(android.Manifest.permission.CAMERA) != android.content.pm.PackageManager.PERMISSION_GRANTED)) {
+                call.resolve(new JSObject().put("needsSetup", true)); return;
+            }
+            try {
+                Intent intent = new Intent(getContext(), RearDashcamService.class).setAction("START");
+                if (android.os.Build.VERSION.SDK_INT >= 26) getContext().startForegroundService(intent); else getContext().startService(intent);
+                call.resolve(new JSObject().put("requested", true));
+            } catch (RuntimeException e) { call.reject("Rear dashcam could not start."); }
+        });
+    }
+
     @PluginMethod public void openWifiSettings(PluginCall call) { openSettings(call, android.provider.Settings.ACTION_WIFI_SETTINGS); }
     @PluginMethod public void openHotspotSettings(PluginCall call) { openSettings(call, "android.settings.TETHER_SETTINGS"); }
     private void openSettings(PluginCall call, String action) {
@@ -87,6 +117,7 @@ public class TabletHealthPlugin extends Plugin {
         try {
             out.put("networkControl", ((TabletNetworkPlugin) getBridge().getPlugin("TabletNetwork").getInstance()).state());
         } catch (Exception ignored) { }
+        out.put("dashcam", RearDashcamService.state(getContext()));
         out.put("events", TabletDiagnostics.snapshot());
         call.resolve(out);
         });
