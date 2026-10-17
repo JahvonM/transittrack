@@ -20,36 +20,60 @@ class RearDashcamActivity:Activity() {
  private lateinit var start:Button
  private lateinit var stop:Button
  private lateinit var incident:Button
+ private lateinit var heading:TextView
+ private lateinit var libraryButton:Button
+ private var libraryOpen=false
  private var listKey=""
  private var exportName:String?=null
  private var video:VideoView?=null
  private val poll=object:Runnable{override fun run(){refresh();main.postDelayed(this,1000)}}
- private fun text(value:String,size:Float=16f)=TextView(this).apply{setText(value);textSize=size;setTextColor(Color.WHITE);setPadding(0,8,0,8)}
+ private fun dp(value:Int)=(value*resources.displayMetrics.density).toInt()
+ private fun text(value:String,size:Float=16f)=TextView(this).apply{setText(value);textSize=size;setTextColor(Color.rgb(222,235,244));setPadding(0,dp(6),0,dp(6))}
+ private fun panel()=LinearLayout(this).apply{
+  orientation=LinearLayout.VERTICAL;setPadding(dp(18),dp(14),dp(18),dp(14))
+  background=android.graphics.drawable.GradientDrawable().apply{setColor(Color.rgb(15,34,49));cornerRadius=dp(18).toFloat();setStroke(dp(1),Color.rgb(38,69,87))}
+  layoutParams=LinearLayout.LayoutParams(-1,-2).apply{bottomMargin=dp(14)}
+ }
+ private fun action(label:String,primary:Boolean=false,run:()->Unit)=Button(this).apply{
+  text=label;isAllCaps=false;textSize=18f;minHeight=dp(56)
+  setTextColor(if(primary)Color.rgb(4,23,33) else Color.WHITE)
+  backgroundTintList=android.content.res.ColorStateList.valueOf(if(primary)Color.rgb(0,207,223) else Color.rgb(29,54,73))
+  setOnClickListener{run()}
+ }
  override fun onCreate(saved:Bundle?) {
   super.onCreate(saved)
   exportName=saved?.getString("export_name")
   window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-  val root=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(24,20,24,20);setBackgroundColor(Color.rgb(8,20,32))}
+  window.statusBarColor=Color.rgb(8,20,32);window.navigationBarColor=Color.rgb(8,20,32)
+  val root=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(dp(20),dp(16),dp(20),dp(20));setBackgroundColor(Color.rgb(8,20,32))}
   val scroll=ScrollView(this);scroll.addView(root);setContentView(scroll)
-  root.addView(text("Rear dashcam",24f))
-  root.addView(text("Rear camera only · automatic video size · no audio\nSaved on this tablet, including when offline."))
-  status=text("Checking recording status…");root.addView(status)
+  root.addView(action("‹ Back to driver screen"){finish()})
+  root.addView(text("Rear dashcam",28f))
+  root.addView(text("Video saved on this tablet · no sound"))
+  val control=panel();root.addView(control)
+  heading=text("Ready to record",24f);control.addView(heading)
+  status=text("Checking recording status…");control.addView(status)
   val row=LinearLayout(this)
-  start=Button(this).apply{text="Start recording";setOnClickListener{startPressed()}}
-  stop=Button(this).apply{text="Stop";setOnClickListener{send(RearDashcamService.STOP)}}
-  row.addView(start,LinearLayout.LayoutParams(0,-2,1f));row.addView(stop,LinearLayout.LayoutParams(0,-2,1f));root.addView(row)
-  incident=Button(this).apply{text="Save incident · protect current and previous clip";setOnClickListener{send(RearDashcamService.PROTECT)}}
-  root.addView(incident)
-  root.addView(CheckBox(this).apply {
-   text="Start automatically with a driver shift";setTextColor(Color.WHITE)
+  start=action("Start recording",true){startPressed()}
+  stop=action("Stop recording"){send(RearDashcamService.STOP)}.apply{text="Stop"}
+  row.addView(start,LinearLayout.LayoutParams(-1,-2));row.addView(stop,LinearLayout.LayoutParams(-1,-2));control.addView(row)
+  incident=action("Save incident"){send(RearDashcamService.PROTECT);Toast.makeText(this,"Protecting the current and previous clip",Toast.LENGTH_SHORT).show()}
+  control.addView(incident)
+  control.addView(text("Save incident keeps the current and previous video from being deleted automatically.",14f))
+  libraryButton=action("View saved videos"){libraryOpen=!libraryOpen;clips.visibility=if(libraryOpen)android.view.View.VISIBLE else android.view.View.GONE;listKey="";refresh()}
+  root.addView(libraryButton)
+  clips=panel().apply{visibility=android.view.View.GONE};root.addView(clips)
+  val settings=panel().apply{visibility=android.view.View.GONE}
+  root.addView(action("Recording settings & help"){settings.visibility=if(settings.visibility==android.view.View.VISIBLE)android.view.View.GONE else android.view.View.VISIBLE})
+  settings.addView(Switch(this).apply {
+   text="Record automatically with my shift";textSize=16f;setTextColor(Color.WHITE);minHeight=dp(56)
    isChecked=RearDashcamService.automatic(this@RearDashcamActivity)
    setOnCheckedChangeListener{_,value->getSharedPreferences("rear_dashcam",MODE_PRIVATE).edit().putBoolean("auto_shift",value).apply()}
   })
-  root.addView(text("2-minute clips · 1 GB loop limit · 512 MB kept free\nOld unprotected clips are deleted automatically. Protected clips stay; recording stops if storage cannot be freed."))
-  root.addView(text("While recording, stop the dashcam before camera live viewing or QR scanning. NFC and GPS do not use this camera."))
-  root.addView(Button(this).apply{text="Return to kiosk";setOnClickListener{finish()}})
-  root.addView(text("Playing or exporting a clip also protects it. Delete it here when you no longer need it."))
-  root.addView(text("Saved clips",21f));clips=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL};root.addView(clips)
+  settings.addView(text("Saves a new video every 2 minutes. Short gaps occur between clips. Uses up to 1 GB and keeps 512 MB free. Old unprotected videos are replaced automatically. If saved incidents fill storage, recording stops.",14f))
+  settings.addView(text("Stop recording before QR scanning or live camera viewing. NFC and GPS can continue. Returning to the driver screen keeps recording; closing the app stops it.",14f))
+  settings.addView(text("Playing or exporting protects a video. Delete it when you no longer need it. Export copies it to a location you choose; nothing is uploaded automatically.",14f))
+  root.addView(settings)
  }
  private fun startPressed() {
   if(Build.VERSION.SDK_INT>=23 && checkSelfPermission(Manifest.permission.CAMERA)!=PackageManager.PERMISSION_GRANTED) {
@@ -69,10 +93,22 @@ class RearDashcamActivity:Activity() {
  private fun send(action:String) {if(RearDashcamService.active())startService(Intent(this,RearDashcamService::class.java).setAction(action))}
  private fun refresh() {
   val s=RearDashcamService.state(this)
-  status.text=s.optString("message")+(if(s.optBoolean("active"))"\n● "+s.optString("phase") else "")
-  start.isEnabled=!RearDashcamService.active();stop.isEnabled=RearDashcamService.active();incident.isEnabled=RearDashcamService.active()
+  val phase=s.optString("phase")
+  val active=RearDashcamService.active()
+  val elapsed=if(s.optLong("since")>0)maxOf(0L,(System.currentTimeMillis()-s.optLong("since"))/1000)else 0L
+  val timer=String.format(Locale.getDefault(),"%02d:%02d",elapsed/60,elapsed%60)
+  heading.text=when(phase){"RECORDING"->"● Recording · $timer";"STARTING"->"Starting camera…";"STOPPING"->"Saving video…";"ERROR"->"Recording stopped";else->"Ready to record"}
+  heading.setTextColor(if(phase=="RECORDING")Color.rgb(255,113,121)else Color.WHITE)
+  status.text=s.optString("message")
+  start.visibility=if(active)android.view.View.GONE else android.view.View.VISIBLE
+  stop.visibility=if(active)android.view.View.VISIBLE else android.view.View.GONE
+  stop.text="Stop recording";stop.isEnabled=phase!="STOPPING"
+  incident.isEnabled=phase=="RECORDING"
+  incident.alpha=if(incident.isEnabled)1f else 0.45f
   try {
    val files=RearDashcamService.files(this).clips().filter{!DashcamFiles.partial(it)}.reversed()
+   libraryButton.text=(if(libraryOpen)"Hide saved videos" else "View saved videos")+" (${files.size})"
+   if(!libraryOpen)return
    val key=files.joinToString("|"){it.name}
    if(listKey==key && clips.childCount>0)return
    listKey=key;clips.removeAllViews()
@@ -88,7 +124,7 @@ class RearDashcamActivity:Activity() {
   val row=LinearLayout(this)
   fun button(label:String,action:()->Unit){row.addView(Button(this).apply{text=label;setOnClickListener{action()}},LinearLayout.LayoutParams(0,-2,1f))}
   button("Play"){play(file.name)}
-  button("Export"){export(file.name)}
+  button("Save a copy"){export(file.name)}
   button("Delete"){
    AlertDialog.Builder(this).setTitle("Delete this clip?").setMessage(if(DashcamFiles.protectedClip(file))"This protected incident clip will be permanently removed from this tablet." else "This clip will be permanently removed from this tablet.")
     .setNegativeButton("Keep",null).setPositiveButton("Delete"){_,_->
