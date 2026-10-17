@@ -3,8 +3,12 @@ package com.transittrack.app;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
-/** Retains callback addresses for our single video m-line. Never persists or logs SDP. */
+/** Retains callback addresses for one explicitly selected media type. Never persists or logs SDP. */
 final class SupportIceCandidates {
+    private final boolean recordings;
+    SupportIceCandidates() { this(false); }
+    private SupportIceCandidates(boolean recordings) { this.recordings = recordings; }
+    static SupportIceCandidates forRecordings() { return new SupportIceCandidates(true); }
     private final Set<String> candidates = new LinkedHashSet<>();
 
     synchronized void add(int mediaLine, String candidate) {
@@ -19,13 +23,18 @@ final class SupportIceCandidates {
         String normalized = sdp.replace("\r\n", "\n");
         String[] lines = normalized.split("\n");
         int media = 0;
-        boolean video = false;
+        boolean expectedMedia = false;
         Set<String> existing = new LinkedHashSet<>();
         for (String line : lines) {
-            if (line.startsWith("m=")) { media++; video = line.startsWith("m=video "); }
+            if (line.startsWith("m=")) {
+                media++;
+                expectedMedia = recordings
+                        ? line.matches("m=application [1-9][0-9]* UDP/DTLS/SCTP webrtc-datachannel")
+                        : line.startsWith("m=video ");
+            }
             if (line.startsWith("a=candidate:")) existing.add(line);
         }
-        if (media != 1 || !video) throw new IllegalArgumentException("Expected one video");
+        if (media != 1 || !expectedMedia) throw new IllegalArgumentException(recordings ? "Expected one recording data channel" : "Expected one video");
         StringBuilder result = new StringBuilder();
         for (String line : lines) {
             if (line.equals("a=end-of-candidates")) continue;

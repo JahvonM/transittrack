@@ -16,7 +16,7 @@ class DirectRecordingPeer(private val context:Context, private val onCommand:(St
  private var peer:PeerConnection?=null
  private var channel:DataChannel?=null
  private val transportLock=Any()
- private val candidates=SupportIceCandidates()
+ private val candidates=SupportIceCandidates.forRecordings()
  @Volatile private var gatheringComplete=false
  @Volatile private var gatheringState="NEW"
  @Volatile private var iceCounts="H0/S0/R0"
