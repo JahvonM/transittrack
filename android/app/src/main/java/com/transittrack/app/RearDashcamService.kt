@@ -60,6 +60,7 @@ class RearDashcamService:Service() {
   android.util.Log.e("TT-RearDashcam","Startup failed: $code")
   shutdown("Rear dashcam could not start. Code: $code",true)
  }
+ private var recordingSize=Size(640,480)
  private var orientation=90
  private var fps:Range<Int>?=null
  private val rotate=Runnable { rotateClip() }
@@ -137,7 +138,15 @@ class RearDashcamService:Service() {
    val info=manager.getCameraCharacteristics(id)
    startupStage="RECORDING_SIZE"
    val sizes=info.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)?.getOutputSizes(MediaRecorder::class.java)
-   require(sizes?.any{it==Size(640,480)}==true)
+   // Select only sizes advertised for MediaRecorder, never invent a capture size.
+   val supported=sizes?.filter{it.width>0 && it.height>0 && maxOf(it.width,it.height)<=1920 && minOf(it.width,it.height)<=1080}.orEmpty()
+   if(supported.isEmpty()) {
+    shutdown("The tablet reports no usable rear video sizes. Code: RECORDING_SIZE/EMPTY",true);return
+   }
+   recordingSize=supported.firstOrNull{it==Size(640,480)}
+    ?:supported.filter{it.width.toLong()*it.height<=640L*480}.maxByOrNull{it.width.toLong()*it.height}
+    ?:supported.minByOrNull{it.width.toLong()*it.height}!!
+   android.util.Log.i("TT-RearDashcam","Rear recording size: ${recordingSize.width}x${recordingSize.height}")
    startupStage="ORIENTATION"
    val sensorOrientation=info.get(CameraCharacteristics.SENSOR_ORIENTATION)?:90
    val displayRotation=(getSystemService(WINDOW_SERVICE) as android.view.WindowManager).defaultDisplay.rotation*90
@@ -173,7 +182,7 @@ class RearDashcamService:Service() {
    r.setVideoSource(MediaRecorder.VideoSource.SURFACE)
    r.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
    r.setVideoEncoder(MediaRecorder.VideoEncoder.H264)
-   r.setVideoSize(640,480);r.setVideoFrameRate(15);r.setVideoEncodingBitRate(1000000)
+   r.setVideoSize(recordingSize.width,recordingSize.height);r.setVideoFrameRate(15);r.setVideoEncodingBitRate(1000000)
    r.setOrientationHint(orientation);r.setOutputFile(output.path)
    r.setMaxFileSize(24L*1024*1024)
    r.setOnErrorListener{_,_,_->worker.post{if(token==generation)shutdown("Video encoder failed. The unfinished clip was retained.",true)}}
@@ -202,7 +211,7 @@ class RearDashcamService:Service() {
       r.start();started=true
       if(since==0L)since=System.currentTimeMillis()
       lastFrame=SystemClock.elapsedRealtime()
-      phase="RECORDING";message="Rear camera recording · 480p · no audio."
+      phase="RECORDING";message="Rear camera recording · ${recordingSize.width}×${recordingSize.height} · no audio."
       worker.removeCallbacks(startupTimeout);worker.removeCallbacks(checkHealth);worker.postDelayed(checkHealth,5000)
       worker.postDelayed(rotate,CLIP_MS)
       main.post{if(!stopping)try{foreground()}catch(_:Exception){worker.post{shutdown("Recording notification failed.",true)}}}

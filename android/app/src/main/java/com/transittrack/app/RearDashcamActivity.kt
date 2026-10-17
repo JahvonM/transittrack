@@ -32,7 +32,7 @@ class RearDashcamActivity:Activity() {
   val root=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(24,20,24,20);setBackgroundColor(Color.rgb(8,20,32))}
   val scroll=ScrollView(this);scroll.addView(root);setContentView(scroll)
   root.addView(text("Rear dashcam",24f))
-  root.addView(text("Rear camera only · 480p · video without audio\nSaved on this tablet, including when offline."))
+  root.addView(text("Rear camera only · automatic video size · no audio\nSaved on this tablet, including when offline."))
   status=text("Checking recording status…");root.addView(status)
   val row=LinearLayout(this)
   start=Button(this).apply{text="Start recording";setOnClickListener{startPressed()}}
