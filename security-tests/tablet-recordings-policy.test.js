@@ -36,3 +36,28 @@ describe('saved recordings authorization and protocol policy',()=>{
   expect(p.recordingsTerminal(session)).toBe(false);
  });
 });
+
+describe('driver and boarding heartbeat integration',()=>{
+ for(const name of ['driverSession','kioskHeartbeat']){
+  const file=fs.readFileSync(`base44/functions/${name}/entry.ts`,'utf8');
+  const ast=ts.createSourceFile('heartbeat.ts',file,ts.ScriptTarget.Latest,true);
+  it(`${name} preserves boolean recording capability and rejects forged types`,()=>{
+   const fn=ast.statements.find(n=>ts.isFunctionDeclaration(n) && n.name?.text==='cleanHelperHealth');
+   const code=ts.transpileModule(fn.getText(ast),{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText;
+   const clean=new Function('nativeReleaseHealth','cleanNetworkHealth',code+';return cleanHelperHealth;')(()=>({}),()=>({}));
+   expect(clean({recordings_available:true}).recordings_available).toBe(true);
+   expect(clean({recordings_available:'true'}).recordings_available).toBeUndefined();
+   expect(clean({recordings_available:false}).recordings_available).toBe(false);
+  });
+  it(`${name} delivers only a bounded live recording notice`,()=>{
+   let property;
+   function visit(n){if(ts.isPropertyAssignment(n) && n.name.getText(ast)==='recordings_notice')property=n;ts.forEachChild(n,visit);}
+   visit(ast);expect(property).toBeTruthy();
+   const notice=new Function('recordingsNotice','device','tokenOk','return '+property.initializer.getText(ast));
+   const live={...bound,recordings_request:{id:'session1',expires_at:new Date(Date.now()+60000).toISOString()}};
+   expect(notice(p.recordingsNotice,live,true)).toEqual({id:'session1'});
+   expect(notice(p.recordingsNotice,{...live,recordings_request:{...live.recordings_request,expires_at:new Date(0).toISOString()}},true)).toBeNull();
+   if(name==='kioskHeartbeat')expect(notice(p.recordingsNotice,live,false)).toBeNull();
+  });
+ }
+});
