@@ -100,3 +100,5 @@ usernames, passwords or device credentials are logged or displayed.
 This is diagnostic instrumentation, not a proven connection fix. Native update
 installation and another controlled attempt remain required. No server settings,
 permissions, signing identity, authentication or backend session schema changed.
+
+GNEW/GGATHERING/GCOMPLETE also reports the gathering state, using a fixed native enum. Final Android debug Java/Kotlin compilation passes; 50 JVM tests pass with zero failures/errors, including three diagnostic count/privacy/bounds tests. No APK generated or installed and no frontend published. Backend behavior unchanged.
