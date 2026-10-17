@@ -2,7 +2,7 @@ import {createRecordingReceiver} from "./recordingTransfer";
 export function createRecordingViewer({onReady, onEnded, onProgress, isCancelled = () => false, Peer = globalThis.RTCPeerConnection}) {
  if (!Peer) throw new Error("Use a browser that supports WebRTC to view recordings.");
  const pc = new Peer({iceServers: []});
- let closed = false, channel, timer, rejectGather, received = Promise.resolve();
+ let closed = false, channel, timer, rejectGather, received = Promise.resolve(), queued = 0;
  const assertOpen = () => { if (closed || isCancelled()) throw new Error("Recordings connection closed."); };
  const receiver = createRecordingReceiver({send: text => {assertOpen(); if (channel?.readyState !== "open") throw new Error("Not connected"); channel.send(text);}, onProgress});
  const close = () => {
@@ -21,7 +21,12 @@ export function createRecordingViewer({onReady, onEnded, onProgress, isCancelled
   channel = event.channel; channel.binaryType = "arraybuffer";
   channel.onopen = () => {if (!closed && !isCancelled()) onReady?.();};
   channel.onclose = () => lost(); channel.onerror = () => lost();
-  channel.onmessage = e => {received = received.then(() => receiver.receive(e.data)).catch(() => lost("Video transfer was interrupted or invalid. Reconnect to retry."));};
+  channel.onmessage = e => {
+   const size = typeof e.data === "string" ? e.data.length : e.data?.byteLength;
+   if (!Number.isInteger(size) || size > (typeof e.data === "string" ? 24000 : 16384) || queued + size > 34 * 1024 * 1024) {lost("Recording channel exceeded its transfer limit."); return;}
+   queued += size;
+   received = received.then(() => receiver.receive(e.data)).catch(() => lost("Video transfer was interrupted or invalid. Reconnect to retry.")).finally(() => {queued -= size;});
+  };
  };
  const connect = async (auth, sendAnswer) => {
   assertOpen();

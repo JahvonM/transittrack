@@ -21,11 +21,15 @@ export default async function(req){
    const d=await db.KioskDevice.get(b.device_id).catch(()=>null),built=recordingsRequest(admin,d);
    if(recordingsNotice(d)){
     const prior=await db.TabletRecordingSession.get(d.recordings_request.id).catch(()=>null);
-    if(prior && !recordingsTerminal(prior))return reply({error:'A recordings session is already open. Close it before reconnecting.'},409);
+    if(prior && !recordingsTerminal(prior)){
+     if(prior.requested_by===admin.id && recordingsBinding(prior,d))return reply({session:publicRecordings(prior)});
+     return reply({error:'A recordings session is already open. Close it before reconnecting.'},409);
+    }
    }
    const s=await db.TabletRecordingSession.create(built);
-   await db.KioskDevice.update(d.id,{recordings_request:{id:s.id,expires_at:s.expires_at}});
-   await audit(s,'requested');return reply({session:publicRecordings(s)});
+   try{await audit(s,'requested');await db.KioskDevice.update(d.id,{recordings_request:{id:s.id,expires_at:s.expires_at}});}
+   catch(error){await finish(s,'failed').catch(()=>{});throw error;}
+   return reply({session:publicRecordings(s)});
   }
   const s=typeof b.session_id==='string'?await db.TabletRecordingSession.get(b.session_id).catch(()=>null):null;
   if(!s)return reply({error:'Session unavailable'},404);
