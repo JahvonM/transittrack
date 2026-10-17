@@ -1,4 +1,4 @@
-import { handleTabletSupport } from "@/lib/nativeTabletSupport";
+import { handleTabletSupport, handleTabletRecordings } from "@/lib/nativeTabletSupport";
 import { handleTabletControl } from "@/lib/nativeTabletControl";
 import { createPollBudget, startTabletPoll } from "@/lib/tabletPolling";
 import { useKeepAwake } from "@/hooks/useKeepAwake";
@@ -122,6 +122,7 @@ export default function Kiosk() {
       .then((rawRes) => {
         heartbeatBudget.current.succeeded();
         void handleTabletControl(id, rawRes.data?.control_notice).catch(() => {});
+      void handleTabletRecordings(id, rawRes.data?.recordings_notice).catch(() => {});
       void handleTabletSupport(id, rawRes.data?.support_notice).catch(() => {});
         // A Wi-Fi change/scan from Admin → Kiosk tablets goes to the helper app;
         // check in again soon so Admin sees the result (and the command is deleted).

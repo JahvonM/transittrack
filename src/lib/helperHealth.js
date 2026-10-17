@@ -19,6 +19,7 @@ export function helperHealthPayload() {
       report.native_app_version = n.appVersion;
       report.native_app_code = n.appVersionCode;
       report.native_app_package = n.appPackage;
+      report.recordings_available = n.recordingsAvailable === true;
       report.support_available = n.supportAvailable === true;
       if(n.supportTransport === "webrtc") report.support_transport = "webrtc";
       report.native_update_available = n.updateAvailable === true;

@@ -35,3 +35,10 @@ export function useSupportCameraReserved() {
  }, []);
  return reserved;
 }
+
+export async function handleTabletRecordings(deviceId, notice) {
+ if (!nativeSupportAvailable() || !/^[A-Za-z0-9_-]{6,128}$/.test(notice?.id || "")) return;
+ const request = deviceRequest(deviceId);
+ if (!/^[a-f0-9]{64}$/.test(request.device_token || "")) return;
+ return Support.offerRecordings({...request, session_id:notice.id});
+}

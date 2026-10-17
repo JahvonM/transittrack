@@ -18,6 +18,7 @@ export function startNativeTabletHealth(target = window) {
       const snapshot = await tabletSnapshot();
       if (!stopped && snapshot?.available) {
         const support = await supportCapabilities().catch(() => null);
+        snapshot.recordingsAvailable = support?.recordingsReady === true;
         snapshot.supportAvailable = support?.remoteViewingReady === true;
         snapshot.supportTransport = support?.transport;
         target.__ttNativeHealth = snapshot;

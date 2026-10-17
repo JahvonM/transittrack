@@ -18,10 +18,10 @@ class TabletRecordings(private val activity:Activity) {
  private val scope=CoroutineScope(SupervisorJob()+Dispatchers.Main.immediate)
  private data class Session(val id:String,val device:String,val token:String,var deadline:Long=0,
   var peer:DirectRecordingPeer?=null,var job:Job?=null,var pulse:Job?=null,var expiry:Job?=null,
-  var transfer:Job?=null,var button:Button?=null,var authorizedUntil:Long=0)
- private var current:Session?=null
+  var transfer:Job?=null,var button:Button?=null,@Volatile var authorizedUntil:Long=0)
+ @Volatile private var current:Session?=null
  private val seen=LinkedHashSet<String>()
- private var resumed=true
+ @Volatile private var resumed=true
  private val endpoint="https://eager-transit-track-go.base44.app/api/apps/6a98b192be27b5f9635020ba/functions/tabletRecordings"
  fun offer(call:PluginCall){
   val id=call.getString("session_id")?:"";val device=call.getString("device_id")?:"";val token=call.getString("device_token")?:""

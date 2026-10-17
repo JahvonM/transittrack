@@ -30,11 +30,13 @@ class TabletSupportPlugin : Plugin() {
  private var current:Session?=null
  private var resumed=true
  private val seen=LinkedHashSet<String>()
+ private val recordings by lazy{TabletRecordings(activity)}
+ @PluginMethod fun offerRecordings(call:PluginCall){activity.runOnUiThread{recordings.offer(call)}}
  private val endpoint="https://eager-transit-track-go.base44.app/api/apps/6a98b192be27b5f9635020ba/functions/tabletSupport"
 
  @PluginMethod fun getCapabilities(call:PluginCall) {
   call.resolve(JSObject().put("remoteViewingReady",true).put("screenConsentRequired",true)
-   .put("transport","webrtc").put("localApprovalRequired",false).put("audio",false).put("recording",false))
+   .put("recordingsReady",true).put("transport","webrtc").put("localApprovalRequired",false).put("audio",false).put("recording",false))
  }
  @PluginMethod fun getState(call:PluginCall) {call.resolve(JSObject().put("cameraReserved",(current?.capability?.startsWith("camera_")==true || TabletCameraLease.occupied())))}
  private fun stateChanged() {notifyListeners("state",JSObject().put("cameraReserved",(current?.capability?.startsWith("camera_")==true || TabletCameraLease.occupied())))}
@@ -205,7 +207,7 @@ class TabletSupportPlugin : Plugin() {
   scope.launch {try{api(s,"stop",reason,failureCode=failureCode)}catch(_:Exception){}}
  }
  @PluginMethod fun stop(call:PluginCall) {activity.runOnUiThread {current?.let{finish(it,"ended")};call.resolve()}}
- override fun handleOnResume() {resumed=true}
- override fun handleOnPause() {resumed=false;current?.let{if(it.capturing)finish(it,"ended")}}
- override fun handleOnDestroy() {current?.let{finish(it,"ended")};scope.cancel()}
+ override fun handleOnResume() {resumed=true;recordings.resume()}
+ override fun handleOnPause() {resumed=false;recordings.pause();current?.let{if(it.capturing)finish(it,"ended")}}
+ override fun handleOnDestroy() {recordings.destroy();current?.let{finish(it,"ended")};scope.cancel()}
 }
