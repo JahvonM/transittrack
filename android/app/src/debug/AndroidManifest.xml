@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <!-- Local operator diagnostic only. This component does not exist in release builds. -->
+        <activity android:name=".DualCameraTestActivity"
+            android:exported="true"
+            android:configChanges="orientation|screenSize"
+            android:theme="@android:style/Theme.Material.NoActionBar"
+            android:label="Camera hardware test" />
+    </application>
+</manifest>
