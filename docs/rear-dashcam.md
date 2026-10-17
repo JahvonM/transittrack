@@ -40,3 +40,7 @@ The device returned RECORDING_SIZE/FORMAT at the hard-coded 640x480 check. Recor
 ### Playback usability update
 
 Local clips open in a full-screen player with date/time, Play/Pause, a seek timeline, elapsed/total time and 10-second skip controls. Local controls now show a recording timer and hide settings until opened. No saved recordings are exposed remotely. Five recording-policy source checks pass. Android compilation, visual layout and playback controls require device validation; no native build toolchain is currently installed in the remote sandbox.
+
+## Admin playback
+
+On-demand admin playback has now been implemented separately; see `docs/tablet-recordings.md` for installation, authorization, transfer limits and physical validation. Previous statements above describe the original local-only pilot. The new transfer does not upload recordings to cloud storage.
