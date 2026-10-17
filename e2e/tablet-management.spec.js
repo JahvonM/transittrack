@@ -92,7 +92,7 @@ test("admin requests permission and can stop before capture", async ({ page }) =
  await page.goto("/admin/kiosks");
  await page.getByRole("button",{name:"Tablet controls",exact:true}).click();
  await page.getByRole("button",{name:"View screen",exact:true}).click();
- await expect(page.getByText("Waiting for approval on the tablet")).toBeVisible();
+ await expect(page.getByText("Waiting for tablet startup or Android permission")).toBeVisible();
  expect(support.filter(x=>x.operation==="request")).toEqual([{operation:"request",device_id:"tablet-managed",capability:"screen"}]);
  expect(support.some(x=>x.operation==="viewer")).toBe(false);
  await page.getByRole("button",{name:"Stop viewing",exact:true}).click();
@@ -105,7 +105,7 @@ test("closing the admin controls ends a pending viewing session", async ({page})
  await page.goto("/admin/kiosks");
  await page.getByRole("button",{name:"Tablet controls",exact:true}).click();
  await page.getByRole("button",{name:"View front camera",exact:true}).click();
- await expect(page.getByText("Waiting for approval on the tablet")).toBeVisible();
+ await expect(page.getByText("Waiting for tablet startup or Android permission")).toBeVisible();
  await page.keyboard.press("Escape");
  await expect.poll(()=>support.some(x=>x.operation==="end")).toBe(true);
 });

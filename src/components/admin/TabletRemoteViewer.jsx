@@ -74,7 +74,7 @@ export default function TabletRemoteViewer({device}) {
  const active = session && !ended(session.state);
  return <section className="space-y-3 border rounded-xl p-3" aria-label="Remote tablet viewing">
   <h3 className="font-semibold">Screen & camera</h3>
-  <p className="text-sm text-muted-foreground">Admin-only live viewing. Updated fleet tablets accept requests automatically. Android may still ask for camera or screen-sharing permission. A Stop button stays visible. Video only, no recording; ends after 10 minutes.</p>
+  <p className="text-sm text-muted-foreground">Admin-only live viewing. Updated fleet tablets accept requests automatically. Android may still ask for camera or screen-sharing permission. A Stop button stays visible. Live sessions are not recorded here; ends after 10 minutes. Saved dashcam videos are under Saved recordings.</p>
   {enabled === false && <p role="status" className="text-sm">Direct remote viewing is not enabled yet.</p>}
   {enabled === true && !relay && <p className="text-sm">Direct connection mode. Some mobile and Wi-Fi networks need a relay before video can connect.</p>}
   {device.helper_health?.support_transport !== "webrtc" && <p className="text-sm">Requires the direct-viewing kiosk update.</p>}

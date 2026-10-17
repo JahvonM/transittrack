@@ -1,8 +1,6 @@
 package com.transittrack.app
 
 import android.content.Context
-import android.content.Intent
-import android.media.projection.MediaProjection
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.util.Log
@@ -84,7 +82,7 @@ class DirectRecordingPeer(private val context:Context, private val onCommand:(St
     if(closed)return
     if(event.url?.startsWith("turn:")==true || event.url?.startsWith("turns:")==true) {
      relayError=SupportIceDiagnostics.safeError(event.errorCode)
-     if(relayErrorEvents++<8)Log.w("TT-RemoteSupport","Relay callback code="+relayError)
+     if(relayErrorEvents++<8)Log.w("TT-Recordings","Relay callback code="+relayError)
     }
    }
    override fun onIceCandidatesRemoved(candidates:Array<out IceCandidate>) {}
