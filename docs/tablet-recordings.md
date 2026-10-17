@@ -44,3 +44,9 @@ Physical tablet-to-admin transfer and native Android video playback cannot be ve
 - Focused lint and production frontend build passed. The tests do not claim a real remote WebRTC transfer or real MP4 decoding; the physical pilot remains required.
 
 Anonymous deployment check: POST request to the deployed recordings endpoint returned HTTP 401 with Sign in required. No live sessions, clip reads, role edits or device mutations were used for verification.
+
+## Connection startup correction (17 October)
+
+A physical attempt reported only "Recordings session ended". Code review found that DirectRecordingPeer reused the default SupportIceCandidates merger, which deliberately permits one video media section. Every valid recording data-channel offer was rejected by that helper before it could be signaled. An isolated run against the original helper reproduced `Expected one video` with a valid SCTP offer.
+
+DirectRecordingPeer now explicitly requests a recording-only merger. Live screen/camera peers retain their default video-only merger. Both modes require exactly one matching media section; mixed media and other application protocols remain rejected. Six JVM regression cases cover data-channel relay candidates/readiness, retained live-video rejection and mismatched/mixed media. This fix requires a native Android update, with no relay configuration or frontend publish required. Physical tablet-to-admin playback must be retried after installation.
