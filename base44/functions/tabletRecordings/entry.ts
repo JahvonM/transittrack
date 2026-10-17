@@ -22,8 +22,9 @@ export default async function(req){
    if(recordingsNotice(d)){
     const prior=await db.TabletRecordingSession.get(d.recordings_request.id).catch(()=>null);
     if(prior && !recordingsTerminal(prior)){
-     if(prior.requested_by===admin.id && recordingsBinding(prior,d))return reply({session:publicRecordings(prior)});
-     return reply({error:'A recordings session is already open. Close it before reconnecting.'},409);
+     if(prior.requested_by!==admin.id)return reply({error:'A recordings session is already open. Close it before reconnecting.'},409);
+     if(recordingsBinding(prior,d) && prior.state==='requested')return reply({session:publicRecordings(prior)});
+     await finish(prior,'ended');
     }
    }
    const s=await db.TabletRecordingSession.create(built);

@@ -17,6 +17,7 @@ class DirectRecordingPeer(private val context:Context, private val onCommand:(St
  private val factory:PeerConnectionFactory
  private var peer:PeerConnection?=null
  private var channel:DataChannel?=null
+ private val transportLock=Any()
  private val candidates=SupportIceCandidates()
  @Volatile private var gatheringComplete=false
  @Volatile private var gatheringState="NEW"
@@ -148,17 +149,19 @@ class DirectRecordingPeer(private val context:Context, private val onCommand:(St
   }
   if(local)pc.setLocalDescription(observer,sdp)else pc.setRemoteDescription(observer,sdp)
  }
- fun sendJson(value:org.json.JSONObject) {
+ fun sendJson(value:org.json.JSONObject) = synchronized(transportLock) {
   check(!closed && channel?.state()==DataChannel.State.OPEN)
   check(channel!!.send(DataChannel.Buffer(java.nio.ByteBuffer.wrap(value.toString().toByteArray(Charsets.UTF_8)),false)))
  }
  suspend fun sendBytes(bytes:ByteArray) {
   require(bytes.size in 1..16384)
-  withTimeout(15000){while((channel?.bufferedAmount()?:0)>262144){check(!closed);delay(20)}}
-  check(!closed && channel?.state()==DataChannel.State.OPEN)
-  check(channel!!.send(DataChannel.Buffer(java.nio.ByteBuffer.wrap(bytes),true)))
+  withTimeout(15000){while(synchronized(transportLock){check(!closed);(channel?.bufferedAmount()?:0)>262144}){check(!closed);delay(20)}}
+  synchronized(transportLock){
+   check(!closed && channel?.state()==DataChannel.State.OPEN)
+   check(channel!!.send(DataChannel.Buffer(java.nio.ByteBuffer.wrap(bytes),true)))
+  }
  }
- fun close() {
+ fun close() = synchronized(transportLock) {
   if(closed)return
   closed=true
   try{channel?.unregisterObserver();channel?.close()}catch(_:Exception){}
