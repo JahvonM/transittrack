@@ -161,7 +161,7 @@ class RearDashcamActivity:Activity() {
     if(!dialog.isShowing)return
     if(!dragging)seek.progress=player.currentPosition
     clock.text=time(player.currentPosition)+" / "+time(player.duration)
-    pause.text=if(player.isPlaying)"Pause"else"Play"
+    pause.text=if(player.isPlaying) "Pause" else "Play"
     main.postDelayed(this,500)
    }}
    seek.setOnSeekBarChangeListener(object:SeekBar.OnSeekBarChangeListener{

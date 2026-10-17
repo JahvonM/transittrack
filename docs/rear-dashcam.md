@@ -36,3 +36,7 @@ Startup failures now display a stage/category code directly on the local recordi
 ### Recording-size compatibility fix
 
 The device returned RECORDING_SIZE/FORMAT at the hard-coded 640x480 check. Recording now selects an actual MediaRecorder-advertised rear size and passes that size to the encoder. Empty capability lists report RECORDING_SIZE/EMPTY rather than trying an unadvertised size. No front camera or audio fallback is used. Native compilation and actual capture of this revision still require the tablet update.
+
+### Playback usability update
+
+Local clips open in a full-screen player with date/time, Play/Pause, a seek timeline, elapsed/total time and 10-second skip controls. Local controls now show a recording timer and hide settings until opened. No saved recordings are exposed remotely. Five recording-policy source checks pass. Android compilation, visual layout and playback controls require device validation; no native build toolchain is currently installed in the remote sandbox.
