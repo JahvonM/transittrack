@@ -46,6 +46,20 @@ class RearDashcamService:Service() {
  private var protectCurrent=false
  private var generation=0
  private var lastFrame=0L
+ private var startupStage="STORAGE"
+ private fun startupFailure(error:Exception) {
+  val category=when(error) {
+   is CameraAccessException->"CAMERA_${error.reason}"
+   is SecurityException->"PERMISSION"
+   is IllegalArgumentException->"FORMAT"
+   is java.io.IOException->"IO"
+   is IllegalStateException->"STATE"
+   else->"UNEXPECTED"
+  }
+  val code="$startupStage/$category"
+  android.util.Log.e("TT-RearDashcam","Startup failed: $code")
+  shutdown("Rear dashcam could not start. Code: $code",true)
+ }
  private var orientation=90
  private var fps:Range<Int>?=null
  private val rotate=Runnable { rotateClip() }
@@ -111,21 +125,27 @@ class RearDashcamService:Service() {
  private fun openRear() {
   if(stopping)return
   try {
+   startupStage="STORAGE"
    store=files(this);store.recover()
    if(!store.roomForNext{StatFs(noBackupFilesDir.path).availableBytes}) {
     shutdown("Storage limit reached. Export or delete protected clips before recording.",true);return
    }
+   startupStage="CAMERA_LIST"
    val manager=getSystemService(CAMERA_SERVICE) as CameraManager
    val id=manager.cameraIdList.firstOrNull{manager.getCameraCharacteristics(it).get(CameraCharacteristics.LENS_FACING)==CameraCharacteristics.LENS_FACING_BACK}
     ?:error("Rear unavailable")
    val info=manager.getCameraCharacteristics(id)
+   startupStage="RECORDING_SIZE"
    val sizes=info.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)?.getOutputSizes(MediaRecorder::class.java)
    require(sizes?.any{it==Size(640,480)}==true)
+   startupStage="ORIENTATION"
    val sensorOrientation=info.get(CameraCharacteristics.SENSOR_ORIENTATION)?:90
    val displayRotation=(getSystemService(WINDOW_SERVICE) as android.view.WindowManager).defaultDisplay.rotation*90
    orientation=(sensorOrientation-displayRotation+360)%360
+   startupStage="FPS"
    fps=info.get(CameraCharacteristics.CONTROL_AE_AVAILABLE_TARGET_FPS_RANGES)?.firstOrNull{it.lower==15 && it.upper==15}
     ?:info.get(CameraCharacteristics.CONTROL_AE_AVAILABLE_TARGET_FPS_RANGES)?.firstOrNull{it.lower<=15 && it.upper>=15}
+   startupStage="OPEN_CAMERA"
    opening=true
    manager.openCamera(id,object:CameraDevice.StateCallback(){
     override fun onOpened(device:CameraDevice) {
@@ -136,7 +156,7 @@ class RearDashcamService:Service() {
     override fun onDisconnected(device:CameraDevice){opening=false;device.close();shutdown("Rear camera disconnected.",true);if(destroyed)thread.quitSafely()}
     override fun onError(device:CameraDevice,error:Int){opening=false;device.close();shutdown("Rear camera is unavailable. Close other camera users and retry.",true);if(destroyed)thread.quitSafely()}
    },worker)
-  }catch(_:Exception){opening=false;shutdown("Could not start rear-camera recording on this tablet.",true)}
+  }catch(error:Exception){opening=false;startupFailure(error)}
  }
  @Suppress("DEPRECATION")
  private fun beginClip() {
@@ -145,8 +165,10 @@ class RearDashcamService:Service() {
    if(!store.roomForNext{StatFs(noBackupFilesDir.path).availableBytes}) {
     shutdown("Storage limit reached. Protected clips were kept.",true);return
    }
+   startupStage="CLIP_FILE"
    val output=store.create(System.currentTimeMillis());file=output;activeFile=output.name
    val token=++generation
+   startupStage="ENCODER_SETUP"
    val r=MediaRecorder();recorder=r
    r.setVideoSource(MediaRecorder.VideoSource.SURFACE)
    r.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
@@ -156,7 +178,9 @@ class RearDashcamService:Service() {
    r.setMaxFileSize(24L*1024*1024)
    r.setOnErrorListener{_,_,_->worker.post{if(token==generation)shutdown("Video encoder failed. The unfinished clip was retained.",true)}}
    r.setOnInfoListener{_,what,_->if(what==MediaRecorder.MEDIA_RECORDER_INFO_MAX_FILESIZE_REACHED)worker.post{if(token==generation)rotateClip()}}
+   startupStage="ENCODER_PREPARE"
    r.prepare()
+   startupStage="CAPTURE_SESSION"
    val surface=r.surface
    val device=camera?:error("No camera")
    val request=device.createCaptureRequest(CameraDevice.TEMPLATE_RECORD).apply{
@@ -168,11 +192,13 @@ class RearDashcamService:Service() {
      if(stopping || token!=generation){value.close();return}
      session=value
      try {
+      startupStage="CAPTURE_REQUEST"
       value.setRepeatingRequest(request,object:CameraCaptureSession.CaptureCallback(){
        override fun onCaptureCompleted(s:CameraCaptureSession,q:CaptureRequest,result:TotalCaptureResult) {
         if(token==generation)lastFrame=SystemClock.elapsedRealtime()
        }
       },worker)
+      startupStage="ENCODER_START"
       r.start();started=true
       if(since==0L)since=System.currentTimeMillis()
       lastFrame=SystemClock.elapsedRealtime()
@@ -180,11 +206,11 @@ class RearDashcamService:Service() {
       worker.removeCallbacks(startupTimeout);worker.removeCallbacks(checkHealth);worker.postDelayed(checkHealth,5000)
       worker.postDelayed(rotate,CLIP_MS)
       main.post{if(!stopping)try{foreground()}catch(_:Exception){worker.post{shutdown("Recording notification failed.",true)}}}
-     }catch(_:Exception){shutdown("Could not start the rear video encoder.",true)}
+     }catch(error:Exception){startupFailure(error)}
     }
     override fun onConfigureFailed(value:CameraCaptureSession){value.close();if(token==generation)shutdown("Rear recording format was rejected by this tablet.",true)}
    },worker)
-  }catch(_:Exception){shutdown("Could not create the next rear-camera clip.",true)}
+  }catch(error:Exception){startupFailure(error)}
  }
  private fun finishClip():Boolean {
   generation++;worker.removeCallbacks(rotate)
