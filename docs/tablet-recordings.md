@@ -12,7 +12,7 @@ Videos remain in the tablet's app-private, backup-excluded recorder directory. T
 
 The admin browser receives the whole selected clip before playback, up to 32 MiB, in ordered 16 KiB chunks with sender backpressure. Completion requires the announced length and a matching SHA-256 hash. Incomplete downloads are discarded. One request is allowed at a time and transfers time out after three minutes; retries start from the beginning. The browser holds one selected clip in memory, not in persistent app storage. Its blob URL is revoked on replacement or disconnect. An explicit download remains under the admin's control after saving.
 
-Only completed recorder filenames are readable. Partial clips, traversal, unrelated files and arbitrary paths are refused. Interrupted/finalized clips are labeled as possibly unplayable. Selecting a video protects it before reading, keeping normal loop cleanup from deleting it. Protection persists: delete unwanted protected clips locally to avoid filling the 1 GiB budget. No remote delete or record-start command is introduced. Recording, NFC and GPS continue while saved clips are read; actual concurrent use needs the device pilot below.
+Only completed recorder filenames are readable. Partial clips, traversal, unrelated files and arbitrary paths are refused. Interrupted/finalized clips are labeled as possibly unplayable. Selecting a video protects it before reading, keeping normal loop cleanup from deleting it. The recorder, local player and remote transfer share the same synchronized clip store. Protection persists: delete unwanted protected clips locally to avoid filling the 1 GiB budget. No remote delete or record-start command is introduced. Recording, NFC and GPS continue while saved clips are read; actual concurrent use needs the device pilot below.
 
 ## Authorization boundary
 
@@ -38,7 +38,9 @@ Physical tablet-to-admin transfer and native Android video playback cannot be ve
 ## Validation performed
 
 - Android debug Kotlin/Java compilation, release manifest processing and 70 JVM tests passed. Release recorder Activity/Service remain unexported.
-- 66 isolated security tests passed across recording policy/function, existing support policy and streaming validation. Tests use mocked stores; they do not create live records or change roles/devices.
-- 37 focused JS tests passed for bounded recording reception and existing dashcam/shift/support behavior, including partial data, length/digest mismatch, wrong request IDs, oversize messages, disconnect, timeout and close-during-hash.
+- 70 isolated security tests passed across recording policy/function, existing support policy and streaming validation, including both driver and boarding heartbeat capability/notice delivery. Tests use mocked stores; they do not create live records or change roles/devices.
+- 42 focused JS tests passed for bounded recording reception and existing dashcam/shift/support behavior, including partial data, length/digest mismatch, wrong request IDs, oversize messages, disconnect, timeout and close-during-hash.
 - Four Chromium recording UI tests passed with mocked transport/API: deliberate request, date filtering, verified-only playback/copy, blob cleanup, partial rejection and old-tablet gating. Existing tablet controls checks passed after correcting two outdated expected labels to the already-existing Android permission wording.
 - Focused lint and production frontend build passed. The tests do not claim a real remote WebRTC transfer or real MP4 decoding; the physical pilot remains required.
+
+Anonymous deployment check: POST request to the deployed recordings endpoint returned HTTP 401 with Sign in required. No live sessions, clip reads, role edits or device mutations were used for verification.
