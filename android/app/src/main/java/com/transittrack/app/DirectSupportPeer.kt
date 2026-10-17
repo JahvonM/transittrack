@@ -85,7 +85,8 @@ class DirectSupportPeer(private val context:Context, private val capability:Stri
    override fun onIceCandidate(candidate:IceCandidate) {candidates.add(candidate.sdpMLineIndex,candidate.sdp)}
    override fun onIceCandidateError(event:IceCandidateErrorEvent) {
     // Do not log errorText, URL, address, candidate SDP or TURN credentials.
-    if(event.url.startsWith("turn:") || event.url.startsWith("turns:")) {
+    if(closed)return
+    if(event.url?.startsWith("turn:")==true || event.url?.startsWith("turns:")==true) {
      relayError=SupportIceDiagnostics.safeError(event.errorCode)
      if(relayErrorEvents++<8)Log.w("TT-RemoteSupport","Relay callback code="+relayError)
     }
