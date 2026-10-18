@@ -14,8 +14,21 @@ import { FILE_COLUMNS, base44FileKind, fileValues, applyFileMap, copyOneFile, lo
 const PAGE = 200;
 // Shown with every error, so a message on screen says which copy of this
 // code answered (an app window left open can call an older one).
-const VERSION = 'copy v7';
+const VERSION = 'copy v8';
 function fail(status: number, message: string): never { throw Object.assign(new Error(message), { status }); }
+const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// Base44 sometimes refuses or drops a request for a moment (once it answered
+// "access this app through the support panel" for one table, mid-copy). Try
+// again before giving up, and then say which Base44 answer it was.
+async function base44Read<T>(read: () => Promise<T>, what: string): Promise<T> {
+  let last: unknown;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (attempt) await pause(400 * 3 ** (attempt - 1));
+    try { return await read(); } catch (error) { last = error; }
+  }
+  fail(502, `Base44 didn't hand over ${what} just now: ${String((last as Error)?.message || last).slice(0, 160)}`);
+}
 
 // App secrets reach backend functions through base44:runtime and as
 // environment variables; read whichever answers.
@@ -114,7 +127,7 @@ async function upsert(sb: ReturnType<typeof supabaseConfig>, table: string, rows
 async function setUpSignInAccounts(base44: ReturnType<typeof createClientFromRequest>, sb: ReturnType<typeof supabaseConfig>) {
   const people: Record<string, unknown>[] = [];
   for (let skip = 0; ; skip += PAGE) {
-    const page = await base44.asServiceRole.entities.User.filter({}, 'created_date', PAGE, skip);
+    const page = await base44Read(() => base44.asServiceRole.entities.User.filter({}, 'created_date', PAGE, skip), 'the people');
     people.push(...page);
     if (page.length < PAGE) break;
   }
@@ -165,7 +178,7 @@ async function copyFiles(base44: ReturnType<typeof createClientFromRequest>, sb:
   if (typeof entity !== 'string' || !Object.hasOwn(FILE_COLUMNS, entity)) fail(400, 'Unknown table');
   const table = SUPABASE_TABLES[entity];
   const skip = Number.isInteger(body.skip) && (body.skip as number) >= 0 ? body.skip as number : 0;
-  const rows = await base44.asServiceRole.entities[entity].filter({}, 'created_date', PAGE, skip);
+  const rows = await base44Read(() => base44.asServiceRole.entities[entity].filter({}, 'created_date', PAGE, skip), entity);
   const map = await loadFileMap(sb).catch(() => fail(502, 'Could not read which files are copied'));
   const signedUrl = async (uri: string) => (await base44.asServiceRole.integrations.Core.CreateFileSignedUrl({ file_uri: uri, expires_in: 120 }))?.signed_url || '';
   let files = 0, copied = 0, already = 0;
@@ -214,7 +227,20 @@ async function countRows(sb: ReturnType<typeof supabaseConfig>, table: string, f
 export default async function (req: Request) {
   try {
     const base44 = createClientFromRequest(req);
-    const user = await base44.auth.me().catch(() => null);
+    // Who is asking. Not signed in, or not an administrator: refused. Base44
+    // failing to answer is said as such, not as "administrators only".
+    let user: { role?: string } | null = null;
+    let meError: unknown = null;
+    for (let attempt = 0; attempt < 2 && !user; attempt++) {
+      if (attempt) await pause(400);
+      try { user = await base44.auth.me(); meError = null; } catch (error) {
+        meError = error;
+        if ([401, 403].includes(Number((error as { status?: number; response?: { status?: number } })?.status ?? (error as { response?: { status?: number } })?.response?.status))) break;
+      }
+    }
+    if (!user && meError && ![401, 403].includes(Number((meError as { status?: number; response?: { status?: number } })?.status ?? (meError as { response?: { status?: number } })?.response?.status))) {
+      fail(503, 'Base44 could not confirm who you are just now. Please press the button again.');
+    }
     if (!user || user.role !== 'admin') fail(403, 'Administrators only');
     const body = await req.json().catch(() => ({}));
     if (body.action === 'tables') return Response.json({ entities: Object.keys(SUPABASE_TABLES), files: Object.keys(FILE_COLUMNS) });
@@ -235,7 +261,7 @@ export default async function (req: Request) {
 
     const cols = (await tableColumns(sb))[table];
     if (!cols?.size) fail(502, `Supabase has no ${table} table yet`);
-    const rows = await base44.asServiceRole.entities[entity].filter({}, 'created_date', PAGE, skip);
+    const rows = await base44Read(() => base44.asServiceRole.entities[entity].filter({}, 'created_date', PAGE, skip), entity);
     const dropped: Record<string, number> = {};
     // Files already copied keep pointing at their Supabase copy.
     const fileMap = FILE_COLUMNS[entity] ? await loadFileMap(sb).catch(() => fail(502, 'Could not read which files are copied')) : null;
