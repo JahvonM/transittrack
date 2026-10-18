@@ -1,3 +1,4 @@
+import { stopBackgroundGps } from "@/lib/driverBackground";
 import { stopTabletSupport } from "@/lib/nativeTabletSupport";
 import { refreshNativeControl } from "@/lib/nativeTabletControl";
 import { setNativeNetworkMode } from "@/lib/nativeTabletNetwork";
@@ -9,7 +10,7 @@ export default function NativeTabletHealth() {
   const tablet = /^\/(driver|kiosk)(\/|$)/.test(pathname);
   useEffect(() => tablet ? startNativeTabletHealth() : undefined, [tablet]);
   const mode = /^\/driver(\/|$)/.test(pathname) ? "driver" : /^\/kiosk\/?$/.test(pathname) ? "boarding" : "";
-  useEffect(() => { void setNativeNetworkMode(mode).catch(() => {}); }, [mode]);
+  useEffect(() => { if (mode === "boarding") void stopBackgroundGps().catch(() => {}); void setNativeNetworkMode(mode).catch(() => {}); }, [mode]);
   useEffect(() => {
     if (!tablet) return undefined;
     const tick = () => {

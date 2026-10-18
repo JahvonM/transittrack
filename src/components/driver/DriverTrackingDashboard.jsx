@@ -1,4 +1,4 @@
-import { useDriverBackgroundTracking } from "@/lib/driverBackground";
+import { stopBackgroundGps, useDriverBackgroundTracking } from "@/lib/driverBackground";
 import { watchDriverPosition, clearDriverWatch } from "@/lib/driverGps";
 import DriverPortraitDrive from "./DriverPortraitDrive";
 import { getNavTarget, onNavTarget } from "@/lib/navTarget";
@@ -204,6 +204,7 @@ export default function DriverTrackingDashboard({ session, invoke, onReportIncid
         return;
       }
     }
+    await stopBackgroundGps().catch(() => {});
     setSharing(false);
     if (watchId.current != null) { clearDriverWatch(watchId.current); watchId.current = null; }
     const v = vehicleRef.current;

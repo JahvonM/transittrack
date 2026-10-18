@@ -1,3 +1,4 @@
+import { stopBackgroundGps } from "@/lib/driverBackground";
 import { useTabletWorkSafety } from "@/lib/nativeTabletControl";
 import "@/components/driver/driverPortrait.css";
 import "@/components/driver/driverLandscape.css";
@@ -368,7 +369,7 @@ export default function DriverApp() {
   };
 
   const handlePaired = (id) => { localStorage.setItem("tt_driver_device_id", id); setDeviceId(id); };
-  const handleUnpair = () => { forgetPin(deviceId); forgetDeviceToken(deviceId); clearDriverSessionCache(); localStorage.removeItem("tt_driver_device_id"); forgetUnlockDay(); unlockedDayRef.current = null; setDeviceId(null); setUnlocked(false); navigate("/driver"); };
+  const handleUnpair = async () => { await stopBackgroundGps(); forgetPin(deviceId); forgetDeviceToken(deviceId); clearDriverSessionCache(); localStorage.removeItem("tt_driver_device_id"); forgetUnlockDay(); unlockedDayRef.current = null; setDeviceId(null); setUnlocked(false); navigate("/driver"); };
 
   // Handler to submit the incident report via the driver-session backend function.
   // (A direct base44.entities.Incident.create() call from here would be rejected —
