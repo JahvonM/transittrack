@@ -5,6 +5,7 @@ export function adminTabletHealth(device, now=Date.now()) {
  if(device.status && device.status!=="active")return report("Inactive","offline");
  if(!device.paired)return report("Not paired","offline");
  if(!fresh(device.last_seen))return report(device.last_seen?"Not reporting":"No tablet report","warning",true);
+ if(device.helper_health && fresh(device.helper_health.reported_at) && typeof device.helper_health.battery==="number" && device.helper_health.battery<=20 && !device.helper_health.charging)return report("Low battery","warning",true);
  if(device.kiosk_type==="driver" && device.native_tracking_health?.active && fresh(device.native_tracking_health.reported_at) && now-Date.parse(device.native_tracking_health.reported_at)<=180000)return report(device.native_tracking_health.review>0?"Background GPS: saved points need review":"Background GPS reporting",device.native_tracking_health.review>0?"warning":"success",device.native_tracking_health.review>0);
  if(helperLinkLost(device,now))return report("Helper cannot reach screen","warning",true);
  const h=device.helper_health;
