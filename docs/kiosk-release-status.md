@@ -1,5 +1,7 @@
 # Kiosk release status — 18 October 2026
 
+Current source version: Android 1.2 / build 3. Background tracking details and acceptance limits: [background-driver-gps.md](background-driver-gps.md).
+
 Cloud recording upload/storage is deferred at the owner's request. Rear-camera recordings remain on the tablet; admin playback transfers a selected clip on demand and still requires the tablet to be online. Supabase is not a video archive in this release.
 
 ## Verified in this finishing pass
@@ -23,7 +25,7 @@ Cloud recording upload/storage is deferred at the owner's request. Rear-camera r
 | Admin saved-recording playback | Implemented; latest native data-channel ICE fix passed prior native tests | User has not confirmed playback after that update |
 | Native update delivery | Guarded same-package/same-signer updater implemented; release catalog intentionally empty | Existing signing environment, immutable signed artifact and safe physical upgrade acceptance |
 | SIM/carrier health | Read-only SIM state, carrier and cached signal integrated into driver, boarding and admin health; no new phone permission prompts or identifiers | Physical SIM, no-SIM, Wi-Fi-only and OEM-restricted readings still need acceptance |
-| Renderer recovery and background watchdog | Confirmed WebView renderer death opens a native fallback and retries at most twice per ten minutes while visible; manual reopen after retry budget | Hardware renderer-kill acceptance remains; full-process/ANR watchdog and background GPS service are not implemented |
+| Renderer recovery and background watchdog | Confirmed WebView renderer death opens a native fallback and retries at most twice per ten minutes while visible; manual reopen after retry budget | Hardware renderer-kill acceptance remains; native foreground GPS and Android 10 restart recovery are implemented; whole-process ANR/force-stop recovery is not guaranteed |
 | Separate passenger installation | Kiosk routes are restricted; separate passenger binary not packaged | Passenger package must exclude kiosk permissions/plugins |
 
 The finishing native build passed Kotlin/Java compilation and 79 JVM tests on 18 October. Three focused mocked browser checks passed for NFC delivery, PIN-gated recovery/mobile status and admin health. The security suite passed all 188 tests with one test worker; a parallel run during toolchain installation hit a test timeout. Recording capability tests now load actual shared helpers rather than dropping imports. No signed production APK was produced and no native release catalog entry was activated.
@@ -47,7 +49,7 @@ This is a current handover checklist, not a declaration that every hardware feat
 
 Fixed a confirmed driver endpoint issue: it discarded native model, Android version, network, temperature, storage and USB metadata while boarding retained them. Both now use the same bounded hardware normalizer. Mobile status and screen recovery travel on the existing heartbeat; no additional server polling was introduced.
 
-Renderer recovery never treats rate limits, slow requests or loss of Internet as a reason to restart. A dead WebView is removed/destroyed; the failed activity finishes into a non-exported native fallback. Retry budget is persisted before automatic relaunch, foreground-only and clock-rollback safe. Existing cookies, pairing, queues and recordings are not cleared. In-memory input that had never been saved cannot be recovered from an already-dead renderer. Background renderer loss waits for the user to bring the kiosk forward. Full-process death, Android force-stop, OS permission bypass and always-on background GPS are not covered by this mechanism.
+Renderer recovery never treats rate limits, slow requests or loss of Internet as a reason to restart. A dead WebView is removed/destroyed; the failed activity finishes into a non-exported native fallback. Retry budget is persisted before automatic relaunch, foreground-only and clock-rollback safe. Existing cookies, pairing, queues and recordings are not cleared. In-memory input that had never been saved cannot be recovered from an already-dead renderer. Background renderer loss waits for the user to bring the kiosk forward. That renderer-only mechanism does not itself cover full-process death or background GPS. The subsequent native foreground-service update is documented in background-driver-gps.md; Android force-stop and OS permission bypass remain outside its scope.
 
 To validate on a development tablet while parked, first ensure forms are saved and sync state is understood, then exercise a renderer termination through Android/WebView diagnostics. Confirm a native fallback, restored saved mode/pairing/queue, and a manual Reopen kiosk button after repeated failure. Do not add a production crash URL or a remotely triggerable renderer-kill command.
 
@@ -59,4 +61,8 @@ To validate on a development tablet while parked, first ensure forms are saved a
 4. Check Driver settings or PIN-gated Boarding settings → Mobile connection and Startup & recovery. Admin → Kiosk tablets shows the new status after the existing heartbeat arrives.
 5. Test Saved recordings admin playback after the previously fixed data-channel update. Recording upload/cloud retention remains out of scope.
 
-No approved production-signed APK or native release-catalog entry was created by this pass. The package and signing configuration remain unchanged. Android version is now 1.1 / build 2 so Admin can distinguish this native update from build 1. The native release catalog remains empty.
+No approved production-signed APK or native release-catalog entry was created by this pass. The package and signing configuration remain unchanged. Android version is now 1.2 / build 3 so Admin can distinguish this native update from build 1. The native release catalog remains empty.
+
+## Background GPS finishing pass
+
+Added the opt-in native GPS service, private durable assigned queue, independent server authorization, current-binding export, native health reporting and restart recovery. Existing helper and FreeKiosk remain until hardware acceptance. The SQLite/Keystore tests include persisted rows across reopen, exact acknowledgement, review retention, ciphertext round-trip, wrong-key refusal and old-generation cleanup. See background-driver-gps.md for final verification results and limits.

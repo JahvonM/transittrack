@@ -16,8 +16,8 @@ import java.util.concurrent.atomic.AtomicBoolean
 class DriverBackgroundPlugin:Plugin() {
  private val worker=Executors.newSingleThreadExecutor()
  private val configuring=AtomicBoolean(false)
- private var exportKey=""
- private var exportAt=0L
+ @Volatile private var exportKey=""
+ @Volatile private var exportAt=0L
  private val revision=java.util.concurrent.atomic.AtomicLong(0)
  private fun enabled()=context.getSharedPreferences("tt_driver_background",Context.MODE_PRIVATE).getBoolean("enabled",false)
  @PluginMethod fun beginUpload(call:PluginCall){
@@ -52,7 +52,7 @@ class DriverBackgroundPlugin:Plugin() {
   call.resolve(JSObject().put("enabled",true))
  }
  @PluginMethod fun stop(call:PluginCall){
-  revision.incrementAndGet()
+  revision.incrementAndGet();exportKey="";exportAt=0
   DriverLocationService.stop(context)
   worker.execute{try{val store=DriverTrackingStore(context);try{store.clearLease()}finally{store.close()};call.resolve()}catch(_:Exception){call.reject("Could not clear tracking session. Stop GPS from Android notifications.")}}
  }
@@ -101,7 +101,7 @@ class DriverBackgroundPlugin:Plugin() {
    finally{store?.close();configuring.set(false)}
   }
  }
- @PluginMethod fun savedPoints(call:PluginCall){worker.execute{try{
+ @PluginMethod fun savedPoints(call:PluginCall){val currentRevision=revision.get();worker.execute{try{
   val auth=JSONObject()
   val fields=listOf("device_id","device_token","driver_grant","expected_device_id","expected_company_id","expected_vehicle_id")
   for(key in fields)auth.put(key,call.getString(key)?:"")
@@ -110,8 +110,9 @@ class DriverBackgroundPlugin:Plugin() {
   if(key!=exportKey || now-exportAt>60000 || (call.getLong("cursor")?:0L)==0L){
    check(activity.hasWindowFocus())
    check(DriverTrackingHttp.post(DriverTrackingHttp.credentials(auth,"background_export_check")).optBoolean("ok"))
-   exportKey=key;exportAt=now
+   check(currentRevision==revision.get());exportKey=key;exportAt=now
   }
+  check(currentRevision==revision.get())
   val store=DriverTrackingStore(context);try{call.resolve(JSObject.fromJSONObject(store.page((call.getLong("cursor")?:0L).coerceAtLeast(0),(call.getLong("max")?:0L).coerceAtLeast(0),DriverTrackingHttp.binding(auth))))}finally{store.close()}
  }catch(_:Exception){call.reject("Saved GPS could not be exported. Data has not been cleared.")}}}
  override fun handleOnDestroy(){revision.incrementAndGet();exportKey="";worker.shutdown()}
