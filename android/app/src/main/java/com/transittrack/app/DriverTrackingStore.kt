@@ -16,6 +16,7 @@ import javax.crypto.spec.GCMParameterSpec
 
 /** Credentials stay encrypted in no-backup storage. GPS rows contain no credentials. */
 internal class DriverTrackingStore(context:Context) {
+ companion object { private val leaseLock=Any() }
  private val lease=AtomicFile(File(context.noBackupFilesDir,"driver_tracking_lease"))
  private val db=SQLiteDatabase.openOrCreateDatabase(File(context.noBackupFilesDir,"driver_tracking.sqlite"),null)
  init { db.execSQL("CREATE TABLE IF NOT EXISTS points (id INTEGER PRIMARY KEY AUTOINCREMENT, queue_id TEXT UNIQUE NOT NULL, binding TEXT NOT NULL, t INTEGER NOT NULL, body TEXT NOT NULL, state TEXT NOT NULL DEFAULT 'pending')") }
@@ -27,19 +28,20 @@ internal class DriverTrackingStore(context:Context) {
     .setBlockModes(KeyProperties.BLOCK_MODE_GCM).setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE).build())
   }.generateKey()
  }
- @Synchronized fun saveLease(value:JSONObject) {
+ @Synchronized fun saveLease(value:JSONObject) = synchronized(leaseLock) {
   val cipher=Cipher.getInstance("AES/GCM/NoPadding");cipher.init(Cipher.ENCRYPT_MODE,key())
   val bytes=cipher.iv+cipher.doFinal(value.toString().toByteArray(Charsets.UTF_8))
   val stream=lease.startWrite()
   try {stream.write(bytes);lease.finishWrite(stream)}catch(e:Exception){lease.failWrite(stream);throw e}
  }
- @Synchronized fun readLease():JSONObject? {
-  if(!lease.baseFile.exists())return null
+ @Synchronized fun readLease():JSONObject? = synchronized(leaseLock) {
+  if(!lease.baseFile.exists())return@synchronized null
   val bytes=lease.readFully();require(bytes.size in 29..8192)
   val cipher=Cipher.getInstance("AES/GCM/NoPadding");cipher.init(Cipher.DECRYPT_MODE,key(),GCMParameterSpec(128,bytes.copyOfRange(0,12)))
-  return JSONObject(String(cipher.doFinal(bytes.copyOfRange(12,bytes.size)),Charsets.UTF_8))
+  JSONObject(String(cipher.doFinal(bytes.copyOfRange(12,bytes.size)),Charsets.UTF_8))
  }
- @Synchronized fun clearLease(){lease.delete()}
+ @Synchronized fun clearLease() = synchronized(leaseLock){lease.delete()}
+ @Synchronized fun clearLeaseGeneration(generation:String) = synchronized(leaseLock){if(readLease()?.optString("generation")==generation)lease.delete()}
  @Synchronized fun count(state:String?=null):Int = db.rawQuery("SELECT COUNT(*) FROM points"+(if(state!=null)" WHERE state=?" else ""),state?.let{arrayOf(it)}).use{it.moveToFirst();it.getInt(0)}
  @Synchronized fun add(binding:String,point:JSONObject) {
   check(count()<10000){"QUEUE_FULL"}

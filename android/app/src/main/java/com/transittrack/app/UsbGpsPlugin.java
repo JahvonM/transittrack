@@ -18,7 +18,19 @@ import java.util.concurrent.Executors;
 /** Foreground driver GPS. Off by default; no mock-location grant or network server. */
 @CapacitorPlugin(name = "UsbGps")
 public class UsbGpsPlugin extends Plugin {
-    private final ExecutorService worker = Executors.newSingleThreadExecutor();
+    private final ExecutorService worker = GpsUsbRuntime.worker;
+    private static volatile java.lang.ref.WeakReference<UsbGpsPlugin> current = new java.lang.ref.WeakReference<>(null);
+    static void nativeOwnershipChanged() {
+        UsbGpsPlugin p = current.get();
+        if (p != null) p.getActivity().runOnUiThread(() -> {
+            if (DriverLocationService.active()) p.stopReader(); else if (p.enabled && p.foreground) p.startReader();
+            p.notifyListeners("gpsState", p.state());
+        });
+    }
+    static void nativePosition(JSObject position) {
+        UsbGpsPlugin p = current.get();
+        if (p != null && p.foreground) p.notifyListeners("gpsPosition", position);
+    }
     private UsbGpsReader reader;
     private final TabletPowerPolicy power = new TabletPowerPolicy();
     private final BroadcastReceiver batteryChanged = new BroadcastReceiver() {
@@ -41,6 +53,7 @@ public class UsbGpsPlugin extends Plugin {
     };
 
     @Override public void load() {
+        current = new java.lang.ref.WeakReference<>(this);
         preferences = getContext().getSharedPreferences("transittrack_usb_gps", Context.MODE_PRIVATE);
         enabled = preferences.getBoolean("enabled", false);
         IntentFilter filter = new IntentFilter(UsbGpsReader.ACTION_PERMISSION);
@@ -79,6 +92,13 @@ public class UsbGpsPlugin extends Plugin {
         value.put("powerParked", power.parked());
         value.put("status", status);
         value.put("lastFixAt", lastFixAt);
+        value.put("backgroundManaged", DriverLocationService.active());
+        if (DriverLocationService.active()) {
+            value.put("status", DriverLocationService.status());
+            JSObject latest = DriverLocationService.position();
+            if (latest != null) value.put("lastFixAt", latest.optLong("timestamp"));
+            value.put("lastSentAt", DriverLocationService.lastSentAt());
+        }
         return value;
     }
 
@@ -89,7 +109,7 @@ public class UsbGpsPlugin extends Plugin {
     }
 
     private void startReader() {
-        if (!enabled || !foreground || reader != null) return;
+        if (!enabled || !foreground || reader != null || DriverLocationService.active()) return;
         if (power.parked()) { report("GPS paused: low battery - connect charger"); return; }
         report("Looking for USB GPS");
         UsbGpsReader next = new UsbGpsReader(getContext(), new UsbGpsReader.Listener() {
@@ -127,6 +147,7 @@ public class UsbGpsPlugin extends Plugin {
         getActivity().runOnUiThread(() -> {
             enabled = Boolean.TRUE.equals(call.getBoolean("enabled", false));
             preferences.edit().putBoolean("enabled", enabled).apply();
+            if (DriverLocationService.active()) DriverLocationService.sourceChanged();
             if (enabled) startReader();
             else {
                 stopReader();
@@ -167,7 +188,8 @@ public class UsbGpsPlugin extends Plugin {
     }
 
     @Override protected void handleOnDestroy() {
-        foreground = false; stopReader(); worker.shutdownNow();
+        foreground = false; stopReader();
+        if (current.get() == this) current.clear();
         try { getContext().unregisterReceiver(batteryChanged); } catch (IllegalArgumentException ignored) { }
         try { getContext().unregisterReceiver(permissionResult); } catch (IllegalArgumentException ignored) { }
     }

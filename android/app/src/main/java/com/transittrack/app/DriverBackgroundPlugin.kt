@@ -16,6 +16,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 class DriverBackgroundPlugin:Plugin() {
  private val worker=Executors.newSingleThreadExecutor()
  private val configuring=AtomicBoolean(false)
+ private val revision=java.util.concurrent.atomic.AtomicLong(0)
  private fun enabled()=context.getSharedPreferences("tt_driver_background",Context.MODE_PRIVATE).getBoolean("enabled",false)
  @PluginMethod fun getState(call:PluginCall){worker.execute{try{
   val store=DriverTrackingStore(context)
@@ -43,6 +44,7 @@ class DriverBackgroundPlugin:Plugin() {
   call.resolve(JSObject().put("enabled",true))
  }
  @PluginMethod fun stop(call:PluginCall){
+  revision.incrementAndGet()
   DriverLocationService.stop(context)
   worker.execute{try{val store=DriverTrackingStore(context);try{store.clearLease()}finally{store.close()};call.resolve()}catch(_:Exception){call.reject("Could not clear tracking session. Stop GPS from Android notifications.")}}
  }
@@ -55,6 +57,7 @@ class DriverBackgroundPlugin:Plugin() {
   };data.put(k,v)}
   if(!activity.hasWindowFocus() || getPermissionState("location")!=PermissionState.GRANTED){call.reject("Open the driver app and allow location to start background GPS.");return}
   if(!configuring.compareAndSet(false,true)){call.reject("GPS setup is already being checked.");return}
+  val generation=revision.get()
   worker.execute{
    var store:DriverTrackingStore?=null
    try{
@@ -72,9 +75,10 @@ class DriverBackgroundPlugin:Plugin() {
     data.put("verified_at",now).put("expires_ms",expiry).put("generation",UUID.randomUUID().toString())
     // Never overwrite a running service's credentials or bus assignment.
     if(DriverLocationService.active()){DriverLocationService.stop(context);call.reject("GPS session is changing. Try again in a moment.");return@execute}
+    check(generation==revision.get()){ "CANCELLED" }
     store.saveLease(data)
     activity.runOnUiThread{
-     if(!activity.hasWindowFocus() || !enabled()){call.reject("Return to the driver app to start GPS.");return@runOnUiThread}
+     if(!activity.hasWindowFocus() || !enabled() || generation!=revision.get()){call.reject("Return to the driver app to start GPS.");return@runOnUiThread}
      try{context.startForegroundService(Intent(context,DriverLocationService::class.java));call.resolve(JSObject().put("managed",true))}
      catch(_:Exception){call.reject("Android could not start background GPS. Foreground GPS remains available.")}
     }
@@ -85,5 +89,5 @@ class DriverBackgroundPlugin:Plugin() {
  @PluginMethod fun savedPoints(call:PluginCall){worker.execute{try{
   val store=DriverTrackingStore(context);try{call.resolve(JSObject.fromJSONObject(store.page((call.getLong("cursor")?:0L).coerceAtLeast(0),(call.getLong("max")?:0L).coerceAtLeast(0))))}finally{store.close()}
  }catch(_:Exception){call.reject("Saved GPS could not be exported. Data has not been cleared.")}}}
- override fun handleOnDestroy(){worker.shutdown()}
+ override fun handleOnDestroy(){revision.incrementAndGet();worker.shutdown()}
 }

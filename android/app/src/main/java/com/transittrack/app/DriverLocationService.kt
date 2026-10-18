@@ -44,6 +44,8 @@ class DriverLocationService:Service() {
  private var busy=false
  private var closed=false
  private var checkedAt=0L
+ private var historyAt=0L
+ @Volatile private var durableLatest:JSONObject?=null
  private val ticks=object:Runnable{override fun run(){tick();if(!closed)main.postDelayed(this,15000)}}
  private val locationListener=object:LocationListener {
   override fun onLocationChanged(p:Location) { sample(p.latitude,p.longitude,if(p.hasAccuracy())p.accuracy.toDouble() else 999.0,if(p.hasSpeed())p.speed.toDouble() else 0.0,if(p.hasBearing())p.bearing.toDouble() else Double.NaN,p.time) }
@@ -127,7 +129,7 @@ class DriverLocationService:Service() {
    .put("timestamp",t).put("t",java.time.Instant.ofEpochMilli(t).toString())
   if(heading.isFinite())point.put("heading",heading)
   for(key in listOf("expected_device_id","expected_company_id","expected_vehicle_id"))point.put(key,l.getString(key))
-  try{store.add(DriverTrackingHttp.binding(l),point);lastSaved=now;tick()}catch(e:Exception){report("GPS storage needs attention; reopen driver app");stopSources()}
+  try{store.add(DriverTrackingHttp.binding(l),point);durableLatest=point;lastSaved=now;tick()}catch(e:Exception){report("GPS storage needs attention; reopen driver app");stopSources()}
  }
  private fun tick(){
   if(closed)return
@@ -140,33 +142,34 @@ class DriverLocationService:Service() {
    var denied=false;var retry=0L
    try{
     // Check revocation/tracking even when GPS has no fix. This never renews a grant.
-    val check=DriverTrackingHttp.post(DriverTrackingHttp.credentials(l,"background_check"))
-    if(check.optBoolean("tracking")!=true){denied=true;throw IllegalStateException()}
-    checkedAt=now
+    if(now-checkedAt>=60000){
+     val response=DriverTrackingHttp.post(DriverTrackingHttp.credentials(l,"background_check"))
+     if(response.optBoolean("tracking")!=true){denied=true;throw IllegalStateException()}
+     checkedAt=now
+    }
     val bind=DriverTrackingHttp.binding(l);store.reviewOld(bind,now)
     val points=store.batch(bind)
-    val newest=points.lastOrNull()
+    val newest=durableLatest
     if(newest!=null && now-newest.getLong("timestamp")<=30000){
      val live=DriverTrackingHttp.credentials(l,"background_location").put("lat",newest.getDouble("lat")).put("lng",newest.getDouble("lng"))
-      .put("speed",newest.getDouble("speed")).put("status","on_trip").put("recorded_at",newest.getString("t"))
+      .put("speed",newest.getDouble("speed")).put("status",if(newest.getDouble("speed")*3.6>100)"speeding" else "on_trip").put("recorded_at",newest.getString("t"))
      val result=DriverTrackingHttp.post(live)
      if(result.opt("tracking")==false){denied=true;throw IllegalStateException()}
      check(result.optBoolean("ok"));lastSent=System.currentTimeMillis()
     }
-    if(points.isNotEmpty()){
+    if(points.isNotEmpty() && now-historyAt>=60000){
      val body=DriverTrackingHttp.credentials(l,"upload_track").put("queue_replay",true).put("points",JSONArray(points))
-     try{val result=DriverTrackingHttp.post(body);check(result.optBoolean("ok")&&result.optInt("received")==points.size);store.acknowledge(points)}
+     try{val result=DriverTrackingHttp.post(body);check(result.optBoolean("ok")&&result.optInt("received")==points.size);store.acknowledge(points);historyAt=now}
      catch(e:DriverTrackingHttp.Rejected){if(e.status==400||e.status==409)store.acknowledge(points,true)else throw e}
     }
-    failures=0;nextNetwork=SystemClock.elapsedRealtime() // overwritten below with wall-clock interval
-    nextNetwork=System.currentTimeMillis()+15000
+    failures=0;nextNetwork=System.currentTimeMillis()+15000
    }catch(e:Exception){
     if(e is DriverTrackingHttp.Rejected){denied=denied||e.status in listOf(401,403,404,409);retry=e.retrySeconds}
     failures++;nextNetwork=System.currentTimeMillis()+DriverTrackingPolicy.retryDelay(failures,retry)
     if(!denied)message="GPS saved on tablet; waiting to upload"
    }finally{main.post{
     busy=false
-    if(denied){try{store.clearLease()}catch(_:Exception){};report("Driver verification or assignment changed; reopen app");stopSelf()}
+    if(denied){try{store.clearLeaseGeneration(l.optString("generation"))}catch(_:Exception){};report("Driver verification or assignment changed; reopen app");stopSelf()}
     else if(!closed)UsbGpsPlugin.nativeOwnershipChanged()
    }}
   }
