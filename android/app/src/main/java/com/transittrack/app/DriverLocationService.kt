@@ -153,7 +153,7 @@ class DriverLocationService:Service() {
     check(!closed)
     // Check revocation/tracking even when GPS has no fix. This never renews a grant.
     if(now-checkedAt>=60000){
-     val response=DriverTrackingHttp.post(DriverTrackingHttp.credentials(l,"background_check"))
+     val response=DriverTrackingHttp.post(DriverTrackingHttp.credentials(l,"background_check").put("native_tracking_health",JSONObject().put("pending",store.count("pending")).put("review",store.count("needs_review")).put("last_fix_at",latest?.optLong("timestamp")?:0)))
      if(response.optBoolean("tracking")!=true){denied=true;throw IllegalStateException()}
      checkedAt=now
     }

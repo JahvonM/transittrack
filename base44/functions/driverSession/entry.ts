@@ -665,6 +665,12 @@ export default async function(req) {
       if (action !== 'upload_track' && !current.tracking_active && !current.remote_tracking_lock)
         return Response.json({ok:true,tracking:false});
       if (action === 'background_check') {
+        const status = body.native_tracking_health;
+        const finiteCount = v => typeof v === 'number' && Number.isFinite(v) ? Math.max(0,Math.min(10000,Math.floor(v))) : 0;
+        const lastFix = typeof status?.last_fix_at === 'number' && Number.isFinite(status.last_fix_at) && status.last_fix_at <= Date.now()+2000 ? new Date(status.last_fix_at).toISOString() : null;
+        await base44.asServiceRole.entities.KioskDevice.update(device.id, {last_seen:new Date().toISOString(),native_tracking_health:{
+          active:true,reported_at:new Date().toISOString(),pending:finiteCount(status?.pending),review:finiteCount(status?.review),last_fix_at:lastFix,
+        }});
         const grant = (await base44.asServiceRole.entities.VerificationGrant.filter({token_hash:await hashSecret(body.driver_grant)},'-created_date',1))[0];
         return Response.json({ok:true,tracking:true,expires_at:grant.expires_at,server_time:new Date().toISOString()});
       }

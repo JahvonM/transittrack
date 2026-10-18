@@ -370,6 +370,7 @@ export default function KioskTablets({ vehicles, companies, onChange }) {
                           <Clock className="w-3 h-3" /> Last seen: {timeAgo(d.last_seen)}
                         </div>
                         <HelperHealthLine h={d.helper_health} />
+                        {d.native_tracking_health?.active && <p className="text-sm text-muted-foreground mt-1">Background GPS · {Date.now()-Date.parse(d.native_tracking_health.reported_at)<180000 ? "reporting" : "report is stale"} · {d.native_tracking_health.pending || 0} saved · {d.native_tracking_health.review || 0} need review</p>}
                         <TabletNetworkControls device={d} onRefresh={loadDevices} />
                         <TabletManagementControls device={d} onRefresh={loadDevices} />
                         <GpsCoordsLine device={d} />

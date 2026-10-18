@@ -480,6 +480,31 @@
           "type": "string"
         }
       }
+    },
+    "native_tracking_health": {
+      "type": "object",
+      "description": "Server-timestamped native background GPS telemetry; never an authorization source.",
+      "properties": {
+        "active": {
+          "type": "boolean"
+        },
+        "reported_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "pending": {
+          "type": "number"
+        },
+        "review": {
+          "type": "number"
+        },
+        "last_fix_at": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
     }
   },
   "required": [
