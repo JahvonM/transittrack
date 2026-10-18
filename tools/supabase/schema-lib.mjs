@@ -140,7 +140,7 @@ export function appliedSchema(dir = migrationDir) {
 // reported in `warnings` for a person to decide.
 export function schemaChanges(desired = desiredTables(), applied = appliedSchema()) {
   const out = [];
-  const summary = { newTables: [], newColumns: [], checks: [], warnings: [] };
+  const summary = { newTables: [], newColumns: [], checks: [], indexes: [], warnings: [] };
   if (!applied.helpers) {
     out.push(`-- New ids look like Base44's: 24 hex characters.
 create or replace function public.new_id() returns text
@@ -150,9 +150,10 @@ language sql volatile set search_path = '' as $$ select substr(replace(gen_rando
 create or replace function public.touch_updated_date() returns trigger
 language plpgsql set search_path = '' as $$ begin new.updated_date := now(); return new; end $$;`);
   }
-  const addCheck = (table, name, expr) => out.push(`do $$ begin
+  // A plain "add constraint" fails if the file runs twice.
+  const addCheck = (table, name, expr) => `do $$ begin
   alter table public.${ident(table)} add constraint ${ident(name)} check (${expr}) not valid;
-exception when duplicate_object then null; end $$;`);
+exception when duplicate_object then null; end $$;`;
   for (const t of desired) {
     const have = applied.tables.get(t.table);
     const block = [];
@@ -182,7 +183,7 @@ create or replace trigger ${t.table}_touch before update on public.${ident(t.tab
       if (old === expr) continue;
       summary.checks.push(`${old === undefined ? "add" : "update"} ${name}`);
       if (old !== undefined) block.push(`alter table public.${ident(t.table)} drop constraint if exists ${ident(name)};`);
-      block.push(`alter table public.${ident(t.table)} add constraint ${ident(name)} check (${expr}) not valid;`);
+      block.push(addCheck(t.table, name, expr));
     }
     if (have) {
       for (const name of applied.checks.keys()) {
@@ -193,15 +194,14 @@ create or replace trigger ${t.table}_touch before update on public.${ident(t.tab
       }
     }
     for (const [name, cols] of t.indexes) {
-      if (!applied.indexes.has(name)) block.push(`create index if not exists ${ident(name)} on public.${ident(t.table)} (${cols});`);
+      if (applied.indexes.has(name)) continue;
+      summary.indexes.push(name);
+      block.push(`create index if not exists ${ident(name)} on public.${ident(t.table)} (${cols});`);
     }
     if (block.length) out.push(block.join("\n"));
   }
-  // A plain "add constraint" fails if the file runs twice; wrap them.
-  const sql = out.join("\n\n").replace(/alter table public\.(\S+) add constraint (\S+) check \((.*)\) not valid;/g, (_, table, name, expr) =>
-    `do $$ begin\n  alter table public.${table} add constraint ${name} check (${expr}) not valid;\nexception when duplicate_object then null; end $$;`);
-  void addCheck;
-  return { sql, summary, empty: !summary.newTables.length && !summary.newColumns.length && !summary.checks.length && !out.some((b) => /create index/.test(b)) };
+  const empty = !summary.newTables.length && !summary.newColumns.length && !summary.checks.length && !summary.indexes.length;
+  return { sql: empty ? "" : out.join("\n\n") + "\n", summary, empty };
 }
 
 // Entity -> table maps for the app and the server functions.
