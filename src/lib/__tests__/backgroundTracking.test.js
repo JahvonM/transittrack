@@ -42,7 +42,7 @@ describe('native background driver GPS authorization',()=>{
   const {send,sdk}=await setup();
   const r=await send({action:'background_location',lat:12.05,lng:-61.75,speed:3,status:'on_trip',recorded_at:new Date().toISOString()});
   expect(r.status).toBe(200);expect(r.body.ok).toBe(true);
-  expect(sdk.writes.some(w=>w.name==='Vehicle' && w.data?.current_lat===12.05)).toBe(true);
+  expect(sdk.tables.Vehicle[0]).toMatchObject({current_lat:12.05,current_lng:-61.75});
  });
  it('rejects an expired grant and a revoked device before any location write',async()=>{
   const {send,sdk}=await setup();sdk.tables.VerificationGrant[0].expires_at='2000-01-01T00:00:00Z';

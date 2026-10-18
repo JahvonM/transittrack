@@ -19,7 +19,7 @@ internal class DriverTrackingStore(context:Context) {
  companion object { private val leaseLock=Any() }
  private val lease=AtomicFile(File(context.noBackupFilesDir,"driver_tracking_lease"))
  private val db=SQLiteDatabase.openOrCreateDatabase(File(context.noBackupFilesDir,"driver_tracking.sqlite"),null)
- init { db.execSQL("CREATE TABLE IF NOT EXISTS points (id INTEGER PRIMARY KEY AUTOINCREMENT, queue_id TEXT UNIQUE NOT NULL, binding TEXT NOT NULL, t INTEGER NOT NULL, body TEXT NOT NULL, state TEXT NOT NULL DEFAULT 'pending')") }
+ init { db.execSQL("PRAGMA synchronous=FULL"); db.execSQL("CREATE TABLE IF NOT EXISTS points (id INTEGER PRIMARY KEY AUTOINCREMENT, queue_id TEXT UNIQUE NOT NULL, binding TEXT NOT NULL, t INTEGER NOT NULL, body TEXT NOT NULL, state TEXT NOT NULL DEFAULT 'pending')") }
  private fun key():SecretKey {
   val ks=KeyStore.getInstance("AndroidKeyStore").apply{load(null)}
   (ks.getKey("tt_driver_tracking_local",null) as? SecretKey)?.let{return it}

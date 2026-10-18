@@ -47,7 +47,8 @@ class DriverLocationService:Service() {
  private var nextNetwork=0L
  private var failures=0
  private var busy=false
- private var closed=false
+ @Volatile private var closed=false
+ private var storageBlocked=false
  private var checkedAt=0L
  private var historyAt=0L
  private var wake:PowerManager.WakeLock?=null
@@ -137,7 +138,7 @@ class DriverLocationService:Service() {
    .put("timestamp",t).put("t",java.time.Instant.ofEpochMilli(t).toString())
   if(heading.isFinite())point.put("heading",heading)
   for(key in listOf("expected_device_id","expected_company_id","expected_vehicle_id"))point.put(key,l.getString(key))
-  try{store.add(DriverTrackingHttp.binding(l),point);durableLatest=point;lastSaved=now;latest!!.put("nativePersisted",true);UsbGpsPlugin.nativePosition(latest!!);tick()}catch(e:Exception){report("GPS storage needs attention; reopen driver app");stopSources()}
+  try{store.add(DriverTrackingHttp.binding(l),point);durableLatest=point;lastSaved=now;latest!!.put("nativePersisted",true);UsbGpsPlugin.nativePosition(latest!!);tick()}catch(e:Exception){storageBlocked=true;report("GPS storage needs attention; reopen driver app");stopSources()}
  }
  private fun tick(){
   if(closed)return
@@ -149,6 +150,7 @@ class DriverLocationService:Service() {
   network.execute{
    var denied=false;var retry=0L
    try{
+    check(!closed)
     // Check revocation/tracking even when GPS has no fix. This never renews a grant.
     if(now-checkedAt>=60000){
      val response=DriverTrackingHttp.post(DriverTrackingHttp.credentials(l,"background_check"))
@@ -161,11 +163,13 @@ class DriverLocationService:Service() {
     if(!pageUploading() && newest!=null && now-newest.getLong("timestamp")<=30000){
      val live=DriverTrackingHttp.credentials(l,"background_location").put("lat",newest.getDouble("lat")).put("lng",newest.getDouble("lng"))
       .put("speed",newest.getDouble("speed")).put("status",if(newest.getDouble("speed")*3.6>100)"speeding" else "on_trip").put("recorded_at",newest.getString("t"))
+     check(!closed)
      val result=DriverTrackingHttp.post(live)
      if(result.opt("tracking")==false){denied=true;throw IllegalStateException()}
      check(result.optBoolean("ok"));lastSent=System.currentTimeMillis()
     }
     if(points.isNotEmpty() && now-historyAt>=60000){
+     check(!closed)
      val body=DriverTrackingHttp.credentials(l,"upload_track").put("queue_replay",true).put("points",JSONArray(points))
      try{val result=DriverTrackingHttp.post(body);check(result.optBoolean("ok")&&result.optInt("received")==points.size);store.acknowledge(points);historyAt=now}
      catch(e:DriverTrackingHttp.Rejected){if(e.status==400||e.status==409)store.acknowledge(points,true)else throw e}
@@ -178,7 +182,7 @@ class DriverLocationService:Service() {
    }finally{main.post{
     busy=false
     if(denied){try{store.clearLeaseGeneration(l.optString("generation"))}catch(_:Exception){};report("Driver verification or assignment changed; reopen app");stopSelf()}
-    else if(!closed)UsbGpsPlugin.nativeOwnershipChanged()
+    else if(!closed){if(storageBlocked && store.count()<9500){storageBlocked=false;changeSource()};UsbGpsPlugin.nativeOwnershipChanged()}
    }}
   }
  }
@@ -187,7 +191,7 @@ class DriverLocationService:Service() {
   try{unregisterReceiver(battery)}catch(_:Exception){};try{unregisterReceiver(permission)}catch(_:Exception){}
   instance=null;latest=null;network.shutdown()
   // A worker may still finish an acknowledged upload; close only once it has exited.
-  Thread{try{network.awaitTermination(30,java.util.concurrent.TimeUnit.SECONDS)}catch(_:Exception){};store.close()}.start()
+  Thread{try{network.awaitTermination(120,java.util.concurrent.TimeUnit.SECONDS)}catch(_:Exception){};store.close()}.start()
   UsbGpsPlugin.nativeOwnershipChanged();stopForeground(STOP_FOREGROUND_REMOVE);super.onDestroy()
  }
  override fun onBind(intent:Intent?):IBinder?=null
