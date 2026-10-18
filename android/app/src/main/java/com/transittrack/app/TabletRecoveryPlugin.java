@@ -15,6 +15,7 @@ public class TabletRecoveryPlugin extends Plugin {
         out.put("available", true);
         out.put("keepScreenOn", true);
         out.put("backgroundTracking", false);
+        out.put("screenRecovery", TabletScreenRecovery.snapshot(getContext()));
         boolean home = false;
         try {
             Intent intent = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME);

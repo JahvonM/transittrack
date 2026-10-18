@@ -5,6 +5,7 @@ import android.view.WindowManager;
 import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
+    private TabletScreenRecovery screenRecovery;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         // These are appended after auto-discovered plugins by BridgeActivity.load().
@@ -20,6 +21,8 @@ public class MainActivity extends BridgeActivity {
         initialPlugins.add(SafePushNotificationsPlugin.class);
         super.onCreate(savedInstanceState);
         keepTabletAwake();
+        screenRecovery = new TabletScreenRecovery(this);
+        if (getBridge() != null) getBridge().addWebViewListener(screenRecovery);
     }
     @Override public void onUserInteraction() {
         super.onUserInteraction();
@@ -33,7 +36,14 @@ public class MainActivity extends BridgeActivity {
     private void keepTabletAwake() {
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
     }
-    @Override public void onResume() { super.onResume(); keepTabletAwake(); }
+    @Override public void onResume() {
+        super.onResume(); keepTabletAwake();
+        if (screenRecovery != null) screenRecovery.resumed();
+    }
+    @Override public void onPause() {
+        if (screenRecovery != null) screenRecovery.paused();
+        super.onPause();
+    }
     @Override public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
         if (hasFocus) keepTabletAwake();
