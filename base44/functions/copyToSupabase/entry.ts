@@ -13,7 +13,7 @@ import { SUPABASE_TABLES } from '../../shared/supabaseTables.ts';
 const PAGE = 200;
 // Shown with every error, so a message on screen says which copy of this
 // code answered (an app window left open can call an older one).
-const VERSION = 'copy v3';
+const VERSION = 'copy v4';
 function fail(status: number, message: string): never { throw Object.assign(new Error(message), { status }); }
 
 // App secrets reach backend functions through base44:runtime and as
@@ -24,7 +24,24 @@ function readSecret(name: string): string {
   if (typeof value !== 'string' || !value.trim()) {
     try { value = Deno.env.get(name); } catch { value = undefined; }
   }
-  return typeof value === 'string' ? value.trim() : '';
+  // Pasted values sometimes keep the quotes they were copied with.
+  return typeof value === 'string' ? value.trim().replace(/^(['"`])(.*)\1$/s, '$2').trim() : '';
+}
+
+// Accepts the project address the way people paste it: with or without
+// https://, with a trailing slash or /rest/v1, or the dashboard link for the
+// project. Anything that isn't a supabase.co project is refused, so the
+// secret key is only ever sent to Supabase.
+export function supabaseOrigin(raw: string): string | null {
+  const value = raw.trim();
+  const dashboard = value.match(/supabase\.com\/dashboard\/project\/([a-z0-9]{20})(?:[/?#]|$)/i);
+  if (dashboard) return `https://${dashboard[1].toLowerCase()}.supabase.co`;
+  if (/^[a-z0-9]{20}$/i.test(value)) return `https://${value.toLowerCase()}.supabase.co`;
+  let url: URL;
+  try { url = new URL(/^[a-z][a-z0-9+.-]*:\/\//i.test(value) ? value : 'https://' + value); } catch { return null; }
+  if (url.protocol !== 'https:' || url.username || url.password || url.port) return null;
+  if (!/^[a-z0-9-]+\.supabase\.co$/.test(url.hostname)) return null;
+  return url.origin;
 }
 
 function supabaseConfig() {
@@ -33,14 +50,13 @@ function supabaseConfig() {
   // Which settings this server can see (never their values), for the logs.
   console.log(VERSION, JSON.stringify({ runtimeSecrets: typeof secrets?.get === 'function', urlSet: !!rawUrl, keySet: !!key }));
   if (!rawUrl) fail(503, 'Supabase is not set up yet: this server can\'t see SUPABASE_URL in the app secrets.');
-  let url: URL;
-  try { url = new URL(rawUrl); } catch { fail(503, 'SUPABASE_URL should look like https://<project>.supabase.co'); }
-  if (url.protocol !== 'https:' || !/^[a-z0-9-]+\.supabase\.co$/.test(url.hostname)) fail(503, 'SUPABASE_URL should look like https://<project>.supabase.co');
+  const origin = supabaseOrigin(rawUrl);
+  if (!origin) fail(503, 'SUPABASE_URL should look like https://<project>.supabase.co');
   if (!key || /\s/.test(key)) fail(503, 'Supabase is not set up yet: this server can\'t see SUPABASE_SECRET_KEY in the app secrets.');
   if (key.startsWith('sb_publishable_') || jwtRole(key) === 'anon') fail(503, 'SUPABASE_SECRET_KEY is the public key. Use the secret key from Supabase -> Project Settings -> API Keys.');
   // New Supabase secret keys are not JWTs: apikey only.
   const headers: Record<string, string> = { apikey: key, ...(key.startsWith('sb_secret_') ? {} : { Authorization: 'Bearer ' + key }) };
-  return { origin: url.origin, headers };
+  return { origin, headers };
 }
 function jwtRole(key: string) {
   const part = key.split('.')[1];
