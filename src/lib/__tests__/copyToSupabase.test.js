@@ -38,7 +38,8 @@ function fakeSupabase() {
     if ((init.method || "GET") === "GET") return new Response("[]", { status: 200, headers: { "content-range": `0-0/${tables[table].length}` } });
     const rows = JSON.parse(init.body);
     if (rows.some((r) => typeof r.capacity === "string")) return new Response(JSON.stringify({ message: 'invalid input syntax for type double precision: "lots"' }), { status: 400 });
-    for (const r of rows) { const i = tables[table].findIndex((x) => x.id === r.id); if (i >= 0) tables[table][i] = r; else tables[table].push(r); }
+    // Like PostgREST's merge-duplicates: only the columns sent are updated.
+    for (const r of rows) { const i = tables[table].findIndex((x) => x.id === r.id); if (i >= 0) tables[table][i] = { ...tables[table][i], ...r }; else tables[table].push(r); }
     return new Response(null, { status: 201 });
   };
   return { tables, calls, accounts, fetch };
@@ -198,6 +199,17 @@ describe("copy data to Supabase", () => {
       const { body } = await send({ action: "accounts" });
       expect(body).toMatchObject({ created: 0, existing: 3, linked: 3 });
       expect(supa.accounts).toHaveLength(3);
+    });
+
+    it("copying from Base44 never changes who is linked", async () => {
+      const { sdk, supa, send } = setup();
+      const admin = people(sdk);
+      await send({ action: "accounts" });
+      const before = supa.tables.app_user.find((r) => r.id === admin.id).auth_user_id;
+      // Even a Base44 record carrying the field can't re-point the link.
+      sdk.tables.User.find((u) => u.id === admin.id).auth_user_id = "someone-else";
+      await send({ action: "copy", entity: "User" });
+      expect(supa.tables.app_user.find((r) => r.id === admin.id).auth_user_id).toBe(before);
     });
   });
 
