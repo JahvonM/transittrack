@@ -1,4 +1,4 @@
-import { stopBackgroundGps, useDriverBackgroundTracking } from "@/lib/driverBackground";
+import { BACKGROUND_EVENT, stopBackgroundGps, useDriverBackgroundTracking } from "@/lib/driverBackground";
 import { watchDriverPosition, clearDriverWatch } from "@/lib/driverGps";
 import DriverPortraitDrive from "./DriverPortraitDrive";
 import { getNavTarget, onNavTarget } from "@/lib/navTarget";
@@ -178,6 +178,7 @@ export default function DriverTrackingDashboard({ session, invoke, onReportIncid
     if (watchId.current != null) return;
     setSharing(true);
     try { await invoke("start_tracking"); } catch { /* tolerate */ }
+    window.dispatchEvent(new Event(BACKGROUND_EVENT));
     beginWatch();
   };
 

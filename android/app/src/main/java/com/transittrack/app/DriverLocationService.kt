@@ -63,7 +63,8 @@ class DriverLocationService:Service() {
  private val battery=object:BroadcastReceiver(){override fun onReceive(context:Context,intent:Intent){
   val level=intent.getIntExtra(BatteryManager.EXTRA_LEVEL,-1);val scale=intent.getIntExtra(BatteryManager.EXTRA_SCALE,-1)
   val percent=if(level>=0&&scale>0)level*100/scale else -1
-  val old=power.parked();power.update(percent,intent.getIntExtra(BatteryManager.EXTRA_PLUGGED,0)!=0)
+  val plugged=intent.getIntExtra(BatteryManager.EXTRA_PLUGGED,-1)
+  val old=power.parked();power.update(percent,if(plugged<0)null else plugged!=0)
   if(old!=power.parked())changeSource()
  }}
  private val permission=object:BroadcastReceiver(){override fun onReceive(context:Context,intent:Intent){

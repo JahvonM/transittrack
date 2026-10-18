@@ -28,12 +28,13 @@ export async function configureBackgroundGps(vehicle) {
 export function useDriverBackgroundTracking(sharing, vehicle) {
  useEffect(() => {
   if (!sharing || !backgroundGpsAvailable()) return undefined;
-  let stopped = false, busy = false;
+  let stopped = false, busy = false, retry = false;
   const sync = async () => {
-   if (stopped || busy || document.visibilityState === "hidden") return;
+   if (stopped || document.visibilityState === "hidden") return;
+   if (busy) { retry = true; return; }
    busy = true;
    try { await configureBackgroundGps(vehicle); } catch { /* native setup/status explains a failure; ordinary foreground GPS stays available */ }
-   finally { busy = false; }
+   finally { busy = false; if (retry && !stopped) { retry = false; void sync(); } }
   };
   const pulse = () => { if (document.visibilityState !== "hidden") void Native.pulse().catch(() => {}); };
   void sync(); pulse();
