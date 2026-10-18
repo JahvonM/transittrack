@@ -6,7 +6,7 @@ Cloud recording upload/storage is deferred at the owner's request. Rear-camera r
 
 - Security release suite: 188 tests passed across 17 files, including concurrent operation and credential/session boundary checks. These are isolated tests with synthetic RPC fixtures; hosted Supabase migrations, flags and production atomicity were not verified.
 - Corrected three stale test fixtures: pairing now loads the actual shared durable-operation helpers; driver messages carry a company and explicitly exclude another company's messages; direct entity access tests recognize server-only support/recording sessions and forbid both through the generic gateway for every role, including admin.
-- Focused regression run: 45 tests passed. Full unit suite and frontend build results are recorded below after completion.
+- Focused regression run: 45 tests passed. Full src/lib unit suite: 974 tests passed across 108 files. npm run build (crash-guard lint and frontend production build) exited successfully.
 - No application security rules were loosened. No accounts, tablet assignments, PINs, credentials, saved queues or server settings were changed.
 
 ## Feature and acceptance status
