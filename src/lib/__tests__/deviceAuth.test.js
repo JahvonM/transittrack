@@ -4,6 +4,8 @@ import ts from 'typescript';
 import { createHash, webcrypto } from 'node:crypto';
 import { deviceRequest, saveDeviceToken, pairingProfile } from '../deviceAuth';
 import { cleanTabletSession } from '../tabletSession';
+// Brings in the shared backend modules (pairing's durable claim), unlike load() below.
+import { load as loadWithShared } from '../../../security-tests/helpers.js';
 const digest = value => createHash('sha256').update(value).digest('hex');
 const token = 'a'.repeat(64);
 const device = { id: 'test', paired: true, status: 'active', company_id: 'company', vehicle_id: 'bus', kiosk_type: 'driver', pairing_code: 'TESTCODE', created_date: '2026-10-02T00:00:00Z' };
@@ -41,11 +43,12 @@ describe('device credential authentication', () => {
   const row = { ...device, paired: false, pairing_code: 'TESTCODE2345', pairing_expires_at: new Date(Date.now()+60000).toISOString() };
   let saved;
   const sdk = { asServiceRole: { entities: {
-   KioskDevice: { filter: async () => [row], update: async (_, data) => Object.assign(row, data) },
+   // Pairing re-reads the tablet once it holds the durable claim on the code.
+   KioskDevice: { filter: async () => [row], get: async () => ({ ...row }), update: async (_, data) => Object.assign(row, data) },
    DeviceCredential: { filter: async () => [], create: async data => { saved = data; } },
    Vehicle: { get: async () => ({}) }, Company: { get: async () => ({}) },
   } } };
-  const pair = load('pairKioskDevice', sdk).default;
+  const pair = loadWithShared('pairKioskDevice', sdk).default;
   const request = () => new Request('https://test.local', { method: 'POST', body: JSON.stringify({ pairing_code: 'TESTCODE2345', expected_type: 'driver' }) });
   const response = await pair(request());
   expect(response.status).toBe(200);

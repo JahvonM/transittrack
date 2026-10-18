@@ -26,7 +26,7 @@ export function DriverKioskMore({session,selectTab,onReport,unread,onHelp,onName
  <Tool icon={MessageCircle} title="Messages" badge={unread} onClick={()=>selectTab("chat")}/>
  <Tool icon={Clock} title="Jobs & history" onClick={()=>selectTab("trips")}/>
  </div>
- {onNameSign&&<Tool icon={IdCard} title="Name sign" sub="Company logo and a guest's name, full screen" onClick={onNameSign}/>}
+ {onNameSign&&<Tool icon={IdCard} title="Name sign" sub="Shows on the boarding tablet" onClick={onNameSign}/>}
  <RearDashcamTool/>
  <Tool icon={Tablet} title="Tablet & reader" sub="Status and settings" onClick={()=>selectTab("settings")}/>
  <Tool icon={ListOrdered} title="Stops & pickups" onClick={()=>selectTab("stops")}/>

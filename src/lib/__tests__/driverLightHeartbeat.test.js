@@ -19,7 +19,11 @@ async function tablet() {
   sdk.tables.Route = [{ id: "route-a", company_id: "a", name: "Coastal", path: ROAD, stops: [{ name: "Town", lat: 12.05, lng: -61.75, order: 0 }] }];
   sdk.tables.User.push({ id: "ann", role: "staff", email: "ann@test.invalid", full_name: "Ann Lee", pickup_route_id: "route-a", pickup_lat: 12.03, pickup_lng: -61.762 });
   sdk.tables.CompanyMembership.push({ id: "m-ann", user_id: "ann", company_id: "a", scope: "passenger", active: true, vehicle_id: "bus-a" });
-  sdk.tables.GroupMessage = [{ id: "g1", vehicle_id: "bus-a", text: "Morning", created_date: new Date().toISOString() }];
+  // Only this bus's company's messages reach its tablet.
+  sdk.tables.GroupMessage = [
+    { id: "g1", vehicle_id: "bus-a", company_id: "a", text: "Morning", created_date: new Date().toISOString() },
+    { id: "g2", vehicle_id: "bus-a", company_id: "b", text: "Another company", created_date: new Date().toISOString() },
+  ];
   const api = load("driverSession", sdk, ["issueGrant"]);
   const grant = await api.issueGrant(sdk, sdk.tables.KioskDevice[0], "driver", "bus-a", 60000);
   const send = async (body, withGrant = true) => {
