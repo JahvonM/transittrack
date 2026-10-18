@@ -32,7 +32,7 @@ function readSecret(name: string): string {
 // https://, with a trailing slash or /rest/v1, or the dashboard link for the
 // project. Anything that isn't a supabase.co project is refused, so the
 // secret key is only ever sent to Supabase.
-export function supabaseOrigin(raw: string): string | null {
+function supabaseOrigin(raw: string): string | null {
   const value = raw.trim();
   const dashboard = value.match(/supabase\.com\/dashboard\/project\/([a-z0-9]{20})(?:[/?#]|$)/i);
   if (dashboard) return `https://${dashboard[1].toLowerCase()}.supabase.co`;
