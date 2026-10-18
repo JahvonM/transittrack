@@ -11,15 +11,32 @@ import { SUPABASE_TABLES } from '../../shared/supabaseTables.ts';
 // counts, the ids of rows that failed with the reason, and field names.
 
 const PAGE = 200;
+// Shown with every error, so a message on screen says which copy of this
+// code answered (an app window left open can call an older one).
+const VERSION = 'copy v3';
 function fail(status: number, message: string): never { throw Object.assign(new Error(message), { status }); }
 
+// App secrets reach backend functions through base44:runtime and as
+// environment variables; read whichever answers.
+function readSecret(name: string): string {
+  let value: unknown;
+  try { value = typeof secrets?.get === 'function' ? secrets.get(name) : undefined; } catch { value = undefined; }
+  if (typeof value !== 'string' || !value.trim()) {
+    try { value = Deno.env.get(name); } catch { value = undefined; }
+  }
+  return typeof value === 'string' ? value.trim() : '';
+}
+
 function supabaseConfig() {
+  const rawUrl = readSecret('SUPABASE_URL');
+  const key = readSecret('SUPABASE_SECRET_KEY');
+  // Which settings this server can see (never their values), for the logs.
+  console.log(VERSION, JSON.stringify({ runtimeSecrets: typeof secrets?.get === 'function', urlSet: !!rawUrl, keySet: !!key }));
+  if (!rawUrl) fail(503, 'Supabase is not set up yet: this server can\'t see SUPABASE_URL in the app secrets.');
   let url: URL;
-  try { url = new URL(String(secrets.get('SUPABASE_URL') || '').trim()); }
-  catch { fail(503, 'Supabase is not set up yet: add SUPABASE_URL to the app secrets.'); }
+  try { url = new URL(rawUrl); } catch { fail(503, 'SUPABASE_URL should look like https://<project>.supabase.co'); }
   if (url.protocol !== 'https:' || !/^[a-z0-9-]+\.supabase\.co$/.test(url.hostname)) fail(503, 'SUPABASE_URL should look like https://<project>.supabase.co');
-  const key = String(secrets.get('SUPABASE_SECRET_KEY') || '').trim();
-  if (!key || /\s/.test(key)) fail(503, 'Supabase is not set up yet: add SUPABASE_SECRET_KEY to the app secrets.');
+  if (!key || /\s/.test(key)) fail(503, 'Supabase is not set up yet: this server can\'t see SUPABASE_SECRET_KEY in the app secrets.');
   if (key.startsWith('sb_publishable_') || jwtRole(key) === 'anon') fail(503, 'SUPABASE_SECRET_KEY is the public key. Use the secret key from Supabase -> Project Settings -> API Keys.');
   // New Supabase secret keys are not JWTs: apikey only.
   const headers: Record<string, string> = { apikey: key, ...(key.startsWith('sb_secret_') ? {} : { Authorization: 'Bearer ' + key }) };
@@ -112,9 +129,10 @@ export default async function (req: Request) {
         }
       }
     }
-    return Response.json({ entity, read: rows.length, copied, failed, dropped_fields: dropped, next_skip: skip + rows.length, done: rows.length < PAGE });
+    return Response.json({ version: VERSION, entity, read: rows.length, copied, failed, dropped_fields: dropped, next_skip: skip + rows.length, done: rows.length < PAGE });
   } catch (error) {
     const status = (error as { status?: number }).status;
-    return Response.json({ error: status ? (error as Error).message : 'Copy failed' }, { status: status || 500 });
+    if (!status) console.log(VERSION, 'failed:', String((error as Error)?.message || error).slice(0, 300));
+    return Response.json({ error: `${status ? (error as Error).message : 'Copy failed'} (${VERSION})` }, { status: status || 500 });
   }
 }
