@@ -109,7 +109,7 @@ test('background GPS is opt-in, bound to this bus and can export saved points',a
   const state={available:true,enabled:false,active:false,pending:1,review:1,status:'Background tracking is off'};
   const listeners=new Map();window.__backgroundConfigs=[];window.__backgroundStops=0;
   const gps={getState:async()=>({available:true,enabled:false,backgroundManaged:state.active,status:state.active?'Fix (tablet background GPS)':'Off'}),addListener:async(name,cb)=>{listeners.set(name,cb);return {remove:async()=>listeners.delete(name)}}};
-  const background={getState:async()=>({...state}),setEnabled:async({enabled})=>{state.enabled=enabled;if(!enabled)state.active=false;return {...state}},
+  const background={getState:async()=>({...state}),setEnabled:async({enabled})=>{state.enabled=enabled;if(!enabled){state.active=false;window.__backgroundStops++;}return {...state}},
    configure:async data=>{window.__backgroundConfigs.push(data);state.active=true;state.status='Fix (tablet background GPS)';listeners.get('gpsState')?.(await gps.getState());return {managed:true}},
    pulse:async()=>({}),stop:async()=>{window.__backgroundStops++;state.active=false;listeners.get('gpsState')?.({available:true,enabled:false,backgroundManaged:false,status:'Off'});},
    savedPoints:async()=>({points:[{queue_id:'saved-one',expected_vehicle_id:'bus-a',lat:12,lng:-61,state:'needs_review'}],cursor:1,max:1,done:true})};
