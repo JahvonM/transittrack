@@ -1,12 +1,53 @@
 import React, { useRef, useState } from "react";
-import { DatabaseZap } from "lucide-react";
+import { DatabaseZap, KeyRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
 
-// Admin -> Settings: step 3 of the move to Supabase. Copies every table into
-// the new database, keeping the same ids; safe to run again (rows already
-// there are updated). The app keeps running on Base44 the whole time.
+// Admin -> Settings: steps 3 and 4 of the move to Supabase. Copies every
+// table into the new database, keeping the same ids; safe to run again (rows
+// already there are updated). Then sets up a Supabase sign-in account for each
+// verified person, linked by email. The app keeps running on Base44 the whole
+// time, and nobody is emailed.
 const errorOf = (e) => e?.response?.data?.error || e?.data?.error || e?.message || "Something went wrong";
+const plural = (n, one, many = one + "s") => `${n} ${n === 1 ? one : many}`;
+
+export function accountsSummary(r) {
+  const parts = [`${plural(r.linked ?? 0, "person", "people")} of ${r.people} now have a Supabase sign-in account.`];
+  if (r.created) parts.push(`${r.created} set up just now.`);
+  if (r.unverified) parts.push(`${plural(r.unverified, "person", "people")} never confirmed their email, so they'll sign up again after the switch.`);
+  if (r.no_email) parts.push(`${plural(r.no_email, "person", "people")} have no email.`);
+  if (r.failed?.length) parts.push(`${plural(r.failed.length, "account")} couldn't be set up (see below).`);
+  return parts.join(" ");
+}
+
+function SignInAccounts() {
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState("");
+  const run = async () => {
+    setBusy(true); setError(""); setResult(null);
+    try {
+      setResult((await base44.functions.invoke("copyToSupabase", { action: "accounts" })).data);
+    } catch (e) {
+      setError(errorOf(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="mt-5 border-t border-border pt-4">
+      <h3 className="flex items-center gap-2 text-body font-semibold"><KeyRound className="h-4 w-4 text-muted-foreground" aria-hidden="true" /> Sign-in accounts</h3>
+      <p className="mt-1 text-body-sm text-muted-foreground">Sets up a Supabase sign-in account for each person with a verified email, linked to them by email. No passwords are copied and nobody is emailed; you can run this again.</p>
+      <Button type="button" variant="outline" className="mt-3" onClick={run} disabled={busy}>{busy ? "Setting up…" : "Set up sign-in accounts"}</Button>
+      {(result || error) && <p role="status" className="mt-3 text-body-sm">{error || accountsSummary(result)}</p>}
+      {result?.failed?.length > 0 && (
+        <ul className="mt-2 space-y-1 text-body-sm">
+          {result.failed.slice(0, 10).map((f) => <li key={f.id}><b>{f.id}</b>: {f.error}</li>)}
+        </ul>
+      )}
+    </div>
+  );
+}
 
 export default function SupabaseCopy() {
   const [running, setRunning] = useState(false);
@@ -105,6 +146,7 @@ export default function SupabaseCopy() {
           )}
         </details>
       )}
+      <SignInAccounts />
     </section>
   );
 }
