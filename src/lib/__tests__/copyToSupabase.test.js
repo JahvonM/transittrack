@@ -119,12 +119,16 @@ describe("copy data to Supabase", () => {
 
   it("leaves Base44's own account fields behind without reporting them", async () => {
     const { sdk, supa, send } = setup();
-    sdk.tables.User = [{ id: "u1", created_date: "2026-09-01T10:00:00", updated_date: "2026-09-01T10:00:00", email: "a@example.com", role: "user", app_id: "x", is_service: false, collaborator_role: "editor", _app_role: "user", force_password_reset: false, leftover_test_field: 1 }];
+    // The test users stay (the signed-in admin is one of them); one more with
+    // Base44's account fields and a stray field joins them.
+    const known = new Set(["id", "created_date", "updated_date", "email", "role"]);
+    for (const u of sdk.tables.User) for (const k of Object.keys(u)) if (!known.has(k)) delete u[k];
+    sdk.tables.User.push({ id: "u-extra", created_date: "2026-09-01T10:00:00", updated_date: "2026-09-01T10:00:00", email: "a@example.com", role: "user", app_id: "x", is_service: false, collaborator_role: "editor", _app_role: "user", force_password_reset: false, leftover_test_field: 1 });
     const { body } = await send({ action: "copy", entity: "User" });
-    expect(body).toMatchObject({ read: 1, copied: 1, failed: [] });
+    expect(body).toMatchObject({ read: sdk.tables.User.length, copied: sdk.tables.User.length, failed: [] });
     // Only a field nobody planned for is reported.
     expect(body.dropped_fields).toEqual({ leftover_test_field: 1 });
-    expect(Object.keys(supa.tables.app_user[0]).sort()).toEqual(["created_date", "email", "id", "role", "updated_date"]);
+    expect(Object.keys(supa.tables.app_user.find((u) => u.id === "u-extra")).sort()).toEqual(["created_date", "email", "id", "role", "updated_date"]);
   });
 
   it("refuses tables it doesn't know", async () => {
