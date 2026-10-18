@@ -499,10 +499,7 @@
           "type": "number"
         },
         "last_fix_at": {
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": "string"
         }
       }
     }
