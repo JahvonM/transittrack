@@ -6,7 +6,6 @@ import android.graphics.Color;
 import android.view.ViewGroup;
 import android.webkit.RenderProcessGoneDetail;
 import android.webkit.WebView;
-import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import com.getcapacitor.JSObject;
@@ -16,7 +15,7 @@ import com.getcapacitor.WebViewListener;
  * Android Home selection handles startup; this never launches an activity in the background.
  */
 final class TabletScreenRecovery extends WebViewListener {
-    private static final String STORE = "tt_screen_recovery";
+    static final String STORE = "tt_screen_recovery";
     private final MainActivity activity;
     private boolean dead, foreground, queued;
     TabletScreenRecovery(MainActivity activity) { this.activity = activity; }
@@ -46,22 +45,12 @@ final class TabletScreenRecovery extends WebViewListener {
     void resumed() { foreground = true; if (dead) recoverAutomatically(); }
     void paused() { foreground = false; }
     private void recoverAutomatically() {
-        if (queued || activity.isFinishing() || activity.isDestroyed()) return;
-        SharedPreferences p = prefs();
-        long now = System.currentTimeMillis(), start = p.getLong("window", 0);
-        int attempts = p.getInt("attempts", 0);
-        if (!ScreenRecoveryPolicy.automatic(now, start, attempts, foreground)) {
-            p.edit().putString("state", "retry_required").apply(); return;
-        }
-        if (ScreenRecoveryPolicy.newWindow(now, start)) { start = now; attempts = 0; }
-        boolean saved = p.edit().putLong("window", start).putInt("attempts", attempts + 1)
-            .putInt("total", Math.min(100000, p.getInt("total", 0) + 1)).putString("state", "waiting").commit();
-        if (!saved) return; // no durable retry budget: show the native Retry button instead
+        if (queued || !foreground || activity.isFinishing() || activity.isDestroyed()) return;
         queued = true;
-        new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
-            queued = false;
-            if (foreground && !activity.isFinishing() && !activity.isDestroyed()) activity.recreate();
-        }, 1500);
+        // Move to a native Activity so the dead Capacitor bridge is destroyed normally,
+        // even when automatic retries have been exhausted. Never retain it on the Retry screen.
+        activity.startActivity(new android.content.Intent(activity, TabletRecoveryActivity.class));
+        activity.finish();
     }
     private void showRecovery() {
         LinearLayout panel = new LinearLayout(activity);
@@ -73,8 +62,7 @@ final class TabletScreenRecovery extends WebViewListener {
         TextView text = new TextView(activity);
         text.setText("Android closed the app's display. Saved records, recordings and pairing have not been cleared. If this repeats, restart the tablet when parked.");
         text.setTextSize(18); text.setTextColor(Color.LTGRAY); text.setPadding(0, 24, 0, 24); panel.addView(text);
-        Button retry = new Button(activity); retry.setText("Reopen kiosk");
-        retry.setOnClickListener(v -> { if (!queued) activity.recreate(); }); panel.addView(retry);
+
         activity.setContentView(panel);
     }
 }
