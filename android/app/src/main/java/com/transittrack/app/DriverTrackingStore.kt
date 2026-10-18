@@ -15,12 +15,13 @@ import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 
 /** Credentials stay encrypted in no-backup storage. GPS rows contain no credentials. */
-internal class DriverTrackingStore(context:Context) {
+internal class DriverTrackingStore(context:Context, private val testKey:(()->SecretKey)?=null) {
  companion object { private val leaseLock=Any() }
  private val lease=AtomicFile(File(context.noBackupFilesDir,"driver_tracking_lease"))
  private val db=SQLiteDatabase.openOrCreateDatabase(File(context.noBackupFilesDir,"driver_tracking.sqlite"),null)
  init { db.execSQL("PRAGMA synchronous=FULL"); db.execSQL("CREATE TABLE IF NOT EXISTS points (id INTEGER PRIMARY KEY AUTOINCREMENT, queue_id TEXT UNIQUE NOT NULL, binding TEXT NOT NULL, t INTEGER NOT NULL, body TEXT NOT NULL, state TEXT NOT NULL DEFAULT 'pending')") }
  private fun key():SecretKey {
+  testKey?.let{return it()}
   val ks=KeyStore.getInstance("AndroidKeyStore").apply{load(null)}
   (ks.getKey("tt_driver_tracking_local",null) as? SecretKey)?.let{return it}
   return KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES,"AndroidKeyStore").apply{

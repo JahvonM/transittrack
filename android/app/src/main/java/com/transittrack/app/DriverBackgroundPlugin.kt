@@ -66,7 +66,14 @@ class DriverBackgroundPlugin:Plugin() {
     val prior=store.readLease()
     val now=System.currentTimeMillis()
     val same=prior!=null && fields.all{prior.optString(it)==data.optString(it)} && DriverTrackingPolicy.leaseValid(now,prior.optLong("verified_at"),prior.optLong("expires_ms"))
-    if(same && DriverLocationService.active()){call.resolve(JSObject().put("managed",true));return@execute}
+    if(same){
+     activity.runOnUiThread{
+      if(generation!=revision.get() || !enabled() || !activity.hasWindowFocus()){call.reject("Return to the driver app to resume GPS.");return@runOnUiThread}
+      try{if(!DriverLocationService.active())context.startForegroundService(Intent(context,DriverLocationService::class.java));call.resolve(JSObject().put("managed",true))}
+      catch(_:Exception){call.reject("Android could not resume background GPS.")}
+     }
+     return@execute
+    }
     val response=DriverTrackingHttp.post(DriverTrackingHttp.credentials(data,"background_check"))
     if(response.optBoolean("ok")!=true || response.optBoolean("tracking")!=true){call.resolve(JSObject().put("managed",false));return@execute}
     val server=java.time.Instant.parse(response.getString("server_time")).toEpochMilli()
