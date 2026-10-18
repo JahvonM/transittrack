@@ -13,7 +13,7 @@ import { SUPABASE_TABLES } from '../../shared/supabaseTables.ts';
 const PAGE = 200;
 // Shown with every error, so a message on screen says which copy of this
 // code answered (an app window left open can call an older one).
-const VERSION = 'copy v5';
+const VERSION = 'copy v6';
 function fail(status: number, message: string): never { throw Object.assign(new Error(message), { status }); }
 
 // App secrets reach backend functions through base44:runtime and as
@@ -83,10 +83,12 @@ const BARE_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?$/;
 // Base44's own account plumbing on User records. Supabase sign-in replaces
 // it, so it is left behind on purpose and not reported as missing.
 const BASE44_ONLY: Record<string, Set<string>> = { User: new Set(['app_id', 'is_service', 'collaborator_role', '_app_role', 'force_password_reset']) };
+// Columns only Supabase writes: who a person's sign-in account is.
+const SUPABASE_ONLY: Record<string, Set<string>> = { User: new Set(['auth_user_id']) };
 function cleanRow(entity: string, row: Record<string, unknown>, cols: Set<string>, dropped: Record<string, number>) {
   const out: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(row)) {
-    if (BASE44_ONLY[entity]?.has(key)) continue;
+    if (BASE44_ONLY[entity]?.has(key) || SUPABASE_ONLY[entity]?.has(key)) continue;
     if (!cols.has(key)) { dropped[key] = (dropped[key] || 0) + 1; continue; }
     out[key] = (key === 'created_date' || key === 'updated_date') && typeof value === 'string' && BARE_TIME.test(value) ? value + 'Z' : value;
   }
@@ -102,8 +104,59 @@ async function upsert(sb: ReturnType<typeof supabaseConfig>, table: string, rows
   });
 }
 
-async function countRows(sb: ReturnType<typeof supabaseConfig>, table: string) {
-  const res = await fetch(`${sb.origin}/rest/v1/${table}?select=id&limit=1`, { headers: { ...sb.headers, Prefer: 'count=exact' } });
+// Step 4: a Supabase sign-in account for each person in Base44, by email.
+// Only emails Base44 had verified are set up (as confirmed, with no password
+// and no email sent); the database then links each account to its person
+// (supabase/migrations/*_link_sign_in_accounts.sql). Someone unverified signs
+// up again and is linked once they confirm their email. Replies hold counts
+// and Base44 ids, never emails.
+async function setUpSignInAccounts(base44: ReturnType<typeof createClientFromRequest>, sb: ReturnType<typeof supabaseConfig>) {
+  const people: Record<string, unknown>[] = [];
+  for (let skip = 0; ; skip += PAGE) {
+    const page = await base44.asServiceRole.entities.User.filter({}, 'created_date', PAGE, skip);
+    people.push(...page);
+    if (page.length < PAGE) break;
+  }
+  // Everyone is copied first, so each account links to the person with the
+  // same Base44 id instead of the database making a new person for it.
+  const cols = (await tableColumns(sb)).app_user;
+  if (!cols?.size) fail(502, 'Supabase has no app_user table yet');
+  if (people.length) {
+    const copy = await upsert(sb, 'app_user', people.map((p) => cleanRow('User', p, cols, {})));
+    if (!copy.ok) fail(502, 'Could not copy the people to Supabase first: ' + await supabaseError(copy));
+    await copy.body?.cancel().catch(() => {});
+  }
+  let created = 0, existing = 0, unverified = 0, noEmail = 0;
+  const failed: { id: string; error: string }[] = [];
+  for (const person of people) {
+    const email = String(person.email ?? '').trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { noEmail++; continue; }
+    if (person.is_verified !== true) { unverified++; continue; }
+    const name = String(person.full_name ?? '').trim().slice(0, 200);
+    const res = await fetch(`${sb.origin}/auth/v1/admin/users`, {
+      method: 'POST',
+      headers: { ...sb.headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email,
+        email_confirm: true,
+        ...(name ? { user_metadata: { full_name: name } } : {}),
+        // Someone switched off in Base44 can't sign in to Supabase either.
+        ...(person.disabled === true ? { ban_duration: '876000h' } : {}),
+      }),
+    });
+    if (res.ok) { created++; await res.body?.cancel().catch(() => {}); continue; }
+    const text = await res.text().catch(() => '');
+    if (res.status === 422 && /email_exists|already been registered/i.test(text)) { existing++; continue; }
+    let error = text.slice(0, 200) || 'HTTP ' + res.status;
+    try { const j = JSON.parse(text); error = String(j.msg || j.message || j.error_description || j.error || error).slice(0, 200); } catch { /* not JSON */ }
+    failed.push({ id: String(person.id ?? ''), error });
+  }
+  const linked = await countRows(sb, 'app_user', '&auth_user_id=not.is.null');
+  return { people: people.length, created, existing, unverified, no_email: noEmail, failed, linked };
+}
+
+async function countRows(sb: ReturnType<typeof supabaseConfig>, table: string, filter = '') {
+  const res = await fetch(`${sb.origin}/rest/v1/${table}?select=id&limit=1${filter}`, { headers: { ...sb.headers, Prefer: 'count=exact' } });
   if (!res.ok) return null;
   const total = Number((res.headers.get('content-range') || '').split('/')[1]);
   return Number.isFinite(total) ? total : null;
@@ -123,6 +176,7 @@ export default async function (req: Request) {
       for (const [entity, table] of Object.entries(SUPABASE_TABLES)) counts[entity] = await countRows(sb, table);
       return Response.json({ counts });
     }
+    if (body.action === 'accounts') return Response.json({ version: VERSION, ...(await setUpSignInAccounts(base44, sb)) });
     if (body.action !== 'copy') fail(400, 'Unknown action');
     const entity = body.entity;
     if (typeof entity !== 'string' || !Object.hasOwn(SUPABASE_TABLES, entity)) fail(400, 'Unknown table');
