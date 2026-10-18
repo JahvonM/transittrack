@@ -18,6 +18,7 @@ class DriverBackgroundPlugin:Plugin() {
  private val configuring=AtomicBoolean(false)
  private val revision=java.util.concurrent.atomic.AtomicLong(0)
  private fun enabled()=context.getSharedPreferences("tt_driver_background",Context.MODE_PRIVATE).getBoolean("enabled",false)
+ @PluginMethod fun pulse(call:PluginCall){DriverLocationService.pulse();call.resolve()}
  @PluginMethod fun getState(call:PluginCall){worker.execute{try{
   val store=DriverTrackingStore(context)
   try{call.resolve(JSObject().put("available",Build.VERSION.SDK_INT>=26).put("enabled",enabled()).put("active",DriverLocationService.active())

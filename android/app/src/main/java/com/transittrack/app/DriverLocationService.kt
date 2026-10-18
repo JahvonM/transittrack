@@ -23,6 +23,11 @@ class DriverLocationService:Service() {
   @Volatile private var message="Background tracking is off"
   @Volatile private var latest:JSObject?=null
   @Volatile private var lastSent=0L
+  @Volatile private var visible=false
+  @Volatile private var pulseAt=0L
+  @JvmStatic fun setVisible(value:Boolean){visible=value}
+  @JvmStatic fun pulse(){pulseAt=SystemClock.elapsedRealtime()}
+  private fun pageUploading()=visible && SystemClock.elapsedRealtime()-pulseAt<=20000
   @JvmStatic fun active()=instance!=null
   @JvmStatic fun status()=message
   @JvmStatic fun position()=latest
@@ -45,6 +50,7 @@ class DriverLocationService:Service() {
  private var closed=false
  private var checkedAt=0L
  private var historyAt=0L
+ private var wake:PowerManager.WakeLock?=null
  @Volatile private var durableLatest:JSONObject?=null
  private val ticks=object:Runnable{override fun run(){tick();if(!closed)main.postDelayed(this,15000)}}
  private val locationListener=object:LocationListener {
@@ -75,7 +81,7 @@ class DriverLocationService:Service() {
    val open=PendingIntent.getActivity(this,938,Intent(this,MainActivity::class.java),PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
    val stop=PendingIntent.getService(this,939,Intent(this,DriverLocationService::class.java).setAction(STOP),PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
    val notice=Notification.Builder(this,CHANNEL).setSmallIcon(android.R.drawable.ic_menu_mylocation).setContentTitle("Bus location sharing is active")
-    .setContentText("GPS continues with the screen off. Tap to open the driver app.").setContentIntent(open).setOngoing(true).addAction(Notification.Action.Builder(null,"Stop GPS",stop).build()).build()
+    .setContentText("GPS continues with the screen off. Tap to open the driver app.").setContentIntent(open).setOngoing(true).addAction(Notification.Action.Builder(null,"Stop background GPS",stop).build()).build()
    if(Build.VERSION.SDK_INT>=29)startForeground(NOTICE,notice,ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)else startForeground(NOTICE,notice)
    val flags=if(Build.VERSION.SDK_INT>=33)Context.RECEIVER_NOT_EXPORTED else 0
    if(Build.VERSION.SDK_INT>=33){registerReceiver(battery,IntentFilter(Intent.ACTION_BATTERY_CHANGED),flags);registerReceiver(permission,IntentFilter(UsbGpsReader.ACTION_PERMISSION),flags)}
@@ -93,11 +99,14 @@ class DriverLocationService:Service() {
   return DriverTrackingPolicy.leaseValid(System.currentTimeMillis(),l.optLong("verified_at"),l.optLong("expires_ms")) && getSharedPreferences("tt_driver_background",MODE_PRIVATE).getBoolean("enabled",false)
  }
  private fun report(value:String){message=value;UsbGpsPlugin.nativeOwnershipChanged()}
- private fun stopSources(){reader?.stop();reader=null;location?.removeUpdates(locationListener);location=null}
+ private fun stopSources(){reader?.stop();reader=null;location?.removeUpdates(locationListener);location=null;wake?.let{if(it.isHeld)it.release()};wake=null}
  private fun changeSource(){
   if(closed)return
   stopSources()
   if(power.parked()){report("GPS paused: low battery - connect charger");return}
+  val remaining=(lease?.optLong("expires_ms")?:0)-System.currentTimeMillis()
+  if(remaining<=0){stopSelf();return}
+  wake=(getSystemService(POWER_SERVICE) as PowerManager).newWakeLock(PowerManager.PARTIAL_WAKE_LOCK,"TransitTrack:DriverGPS").apply{setReferenceCounted(false);acquire(minOf(remaining+5000,20*3600000L))}
   usb=getSharedPreferences("transittrack_usb_gps",MODE_PRIVATE).getBoolean("enabled",false)
   if(usb){
    report("Looking for USB GPS")
@@ -122,14 +131,13 @@ class DriverLocationService:Service() {
   if(heading.isFinite())coords.put("heading",heading)
   latest=JSObject().put("coords",coords).put("timestamp",t).put("nativeManaged",true)
   message=if(usb)"Fix (USB background GPS)" else "Fix (tablet background GPS)"
-  UsbGpsPlugin.nativePosition(latest!!)
-  if(now-lastSaved<15000)return
+  if(now-lastSaved<8000){latest!!.put("nativePersisted",false);UsbGpsPlugin.nativePosition(latest!!);return}
   val l=lease?:return
   val point=JSONObject().put("queue_id",UUID.randomUUID().toString()).put("lat",lat).put("lng",lng).put("speed",speed).put("accuracy",accuracy)
    .put("timestamp",t).put("t",java.time.Instant.ofEpochMilli(t).toString())
   if(heading.isFinite())point.put("heading",heading)
   for(key in listOf("expected_device_id","expected_company_id","expected_vehicle_id"))point.put(key,l.getString(key))
-  try{store.add(DriverTrackingHttp.binding(l),point);durableLatest=point;lastSaved=now;tick()}catch(e:Exception){report("GPS storage needs attention; reopen driver app");stopSources()}
+  try{store.add(DriverTrackingHttp.binding(l),point);durableLatest=point;lastSaved=now;latest!!.put("nativePersisted",true);UsbGpsPlugin.nativePosition(latest!!);tick()}catch(e:Exception){report("GPS storage needs attention; reopen driver app");stopSources()}
  }
  private fun tick(){
   if(closed)return
@@ -150,7 +158,7 @@ class DriverLocationService:Service() {
     val bind=DriverTrackingHttp.binding(l);store.reviewOld(bind,now)
     val points=store.batch(bind)
     val newest=durableLatest
-    if(newest!=null && now-newest.getLong("timestamp")<=30000){
+    if(!pageUploading() && newest!=null && now-newest.getLong("timestamp")<=30000){
      val live=DriverTrackingHttp.credentials(l,"background_location").put("lat",newest.getDouble("lat")).put("lng",newest.getDouble("lng"))
       .put("speed",newest.getDouble("speed")).put("status",if(newest.getDouble("speed")*3.6>100)"speeding" else "on_trip").put("recorded_at",newest.getString("t"))
      val result=DriverTrackingHttp.post(live)

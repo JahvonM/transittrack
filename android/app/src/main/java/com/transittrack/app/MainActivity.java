@@ -39,9 +39,11 @@ public class MainActivity extends BridgeActivity {
     }
     @Override public void onResume() {
         super.onResume(); keepTabletAwake();
+        DriverLocationService.setVisible(true);
         if (screenRecovery != null) screenRecovery.resumed();
     }
     @Override public void onPause() {
+        DriverLocationService.setVisible(false);
         if (screenRecovery != null) screenRecovery.paused();
         super.onPause();
     }
