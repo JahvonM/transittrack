@@ -101,3 +101,29 @@ test('SOS retains hold activation and uses the authenticated session',async({pag
  await expect.poll(()=>sent.length).toBe(1);await page.mouse.up();
  expect(sent[0]).toMatchObject({action:'sos',device_id:'driver-test'});
 });
+
+test('background GPS is opt-in, bound to this bus and can export saved points',async({page})=>{
+ await page.setViewportSize({width:1280,height:800});
+ await page.addInitScript(()=>{
+  localStorage.setItem('tt_device_token_driver-test','c'.repeat(64));
+  const state={available:true,enabled:false,active:false,pending:1,review:1,status:'Background tracking is off'};
+  const listeners=new Map();window.__backgroundConfigs=[];window.__backgroundStops=0;
+  const gps={getState:async()=>({available:true,enabled:false,backgroundManaged:state.active,status:state.active?'Fix (tablet background GPS)':'Off'}),addListener:async(name,cb)=>{listeners.set(name,cb);return {remove:async()=>listeners.delete(name)}}};
+  const background={getState:async()=>({...state}),setEnabled:async({enabled})=>{state.enabled=enabled;if(!enabled)state.active=false;return {...state}},
+   configure:async data=>{window.__backgroundConfigs.push(data);state.active=true;state.status='Fix (tablet background GPS)';listeners.get('gpsState')?.(await gps.getState());return {managed:true}},
+   pulse:async()=>({}),stop:async()=>{window.__backgroundStops++;state.active=false;listeners.get('gpsState')?.({available:true,enabled:false,backgroundManaged:false,status:'Off'});},
+   savedPoints:async()=>({points:[{queue_id:'saved-one',expected_vehicle_id:'bus-a',lat:12,lng:-61,state:'needs_review'}],cursor:1,max:1,done:true})};
+  const other=new Proxy({},{get:(_,key)=>key==='addListener'?async()=>({remove:async()=>{}}):async()=>({})});
+  window.CapacitorPlatforms={platforms:new Map(),currentPlatform:{name:'android',getPlatform:()=> 'android',isNativePlatform:()=>true,isPluginAvailable:name=>['UsbGps','DriverBackground'].includes(name),registerPlugin:name=>name==='DriverBackground'?background:name==='UsbGps'?gps:other}};
+ });
+ await openDriver(page,{vehicle:{...vehicle,tracking_active:true}});
+ expect(await page.evaluate(()=>window.__backgroundConfigs.length)).toBe(0);
+ await sections(page).getByRole('button',{name:'More',exact:true}).click();
+ await page.getByRole('button',{name:/Test Driver.*Tablet settings/}).click();
+ const toggle=page.getByRole('switch',{name:'Keep driver GPS in background'});
+ await expect(toggle).not.toBeChecked();await toggle.click();
+ await expect.poll(()=>page.evaluate(()=>window.__backgroundConfigs.length)).toBeGreaterThan(0);
+ expect(await page.evaluate(()=>window.__backgroundConfigs[0])).toMatchObject({device_id:'driver-test',expected_company_id:'company-a',expected_vehicle_id:'bus-a'});
+ const download=page.waitForEvent('download');await page.getByRole('button',{name:'Export saved GPS',exact:true}).click();expect((await download).suggestedFilename()).toBe('saved-driver-gps.json');
+ await toggle.click();await expect.poll(()=>page.evaluate(()=>window.__backgroundStops)).toBeGreaterThan(0);
+});
