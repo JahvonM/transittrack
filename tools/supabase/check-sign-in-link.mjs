@@ -25,7 +25,7 @@ await db.exec(fs.readFileSync(path.join(root, "supabase/migrations", migration),
 const one = async (sql, params = []) => (await db.query(sql, params)).rows[0];
 const results = [];
 const check = (name, ok) => { results.push(`${ok ? "ok  " : "FAIL"} ${name}`); if (!ok) process.exitCode = 1; };
-const A = "00000000-0000-0000-0000-00000000000a", B = "00000000-0000-0000-0000-00000000000b", C = "00000000-0000-0000-0000-00000000000c";
+const A = "00000000-0000-0000-0000-00000000000a", B = "00000000-0000-0000-0000-00000000000b", D = "00000000-0000-0000-0000-00000000000d", E = "00000000-0000-0000-0000-00000000000e";
 
 await db.query(`insert into public.app_user (id, email, role) values ('admin1', 'Boss@Example.com', 'admin')`);
 await db.query(`insert into auth.users (id, email) values ($1, 'boss@example.com')`, [A]);
@@ -44,10 +44,12 @@ await db.query(`update auth.users set email = 'boss.new@example.com' where id = 
 check("a changed sign-in email keeps the link and updates the person", (await one(`select email from public.app_user where id = 'admin1'`)).email === "boss.new@example.com");
 
 await db.query(`insert into public.app_user (id, email, role) values ('staff1', 'staff@example.com', 'staff')`);
-await db.query(`update public.app_user set auth_user_id = $1 where id = 'staff1'`, [C]).catch(() => {});
-await db.query(`insert into auth.users (id, email, email_confirmed_at) values ($1, 'other@example.com', now())`, [C]).catch(() => {});
-const rows = Number((await one(`select count(*) as n from public.app_user`)).n);
-check("one row per person (no duplicates made)", rows === 3 || rows === 4);
+await db.query(`insert into auth.users (id, email, email_confirmed_at) values ($1, 'staff@example.com', now())`, [D]);
+// (Supabase itself allows one account per email; this stand-in doesn't, to
+// prove the rule holds even if a second one appeared.)
+await db.query(`insert into auth.users (id, email, email_confirmed_at) values ($1, 'STAFF@example.com', now())`, [E]);
+check("a second account can't take over a linked person", (await one(`select auth_user_id from public.app_user where id = 'staff1'`)).auth_user_id === D);
+check("and no duplicate person is made for it", Number((await one(`select count(*) as n from public.app_user where lower(email) = 'staff@example.com'`)).n) === 1);
 
 await db.query(`delete from auth.users where id = $1`, [B]);
 const left = await one(`select auth_user_id from public.app_user where email = 'new@example.com'`);
