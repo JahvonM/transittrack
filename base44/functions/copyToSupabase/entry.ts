@@ -115,6 +115,15 @@ async function setUpSignInAccounts(base44: ReturnType<typeof createClientFromReq
     people.push(...page);
     if (page.length < PAGE) break;
   }
+  // Everyone is copied first, so each account links to the person with the
+  // same Base44 id instead of the database making a new person for it.
+  const cols = (await tableColumns(sb)).app_user;
+  if (!cols?.size) fail(502, 'Supabase has no app_user table yet');
+  if (people.length) {
+    const copy = await upsert(sb, 'app_user', people.map((p) => cleanRow('User', p, cols, {})));
+    if (!copy.ok) fail(502, 'Could not copy the people to Supabase first: ' + await supabaseError(copy));
+    await copy.body?.cancel().catch(() => {});
+  }
   let created = 0, existing = 0, unverified = 0, noEmail = 0;
   const failed: { id: string; error: string }[] = [];
   for (const person of people) {
