@@ -70,3 +70,5 @@ Added the opt-in native GPS service, private durable assigned queue, independent
 ## Keep screen on control
 
 Driver tablet settings and PIN-gated boarding settings → Startup & recovery now include Keep screen on. Defaults on, persists per tablet, applies immediately and after resume/restart. Off uses the Android screen timeout; it does not force sleep or disable background GPS. The native recovery screen follows the preference. The separate rear-camera recording activity keeps its existing awake requirement. Older installed binaries show an update hint instead of a nonfunctional switch. Requires the rebuilt kiosk APK; physical timeout/power/restart acceptance is pending.
+
+Display-switch validation: focused recovery helper tests passed (4), changed frontend files passed the crash-guard lint, Vite build exited successfully and diff whitespace checks passed. The refreshed sandbox has no Java/Android SDK, so this switch's native compilation was not rerun; the earlier 1.2 background GPS build results predate this switch. Compile and verify screen timeout, resume and persistence with the combined native update before rollout.
