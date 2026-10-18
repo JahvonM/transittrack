@@ -118,3 +118,16 @@
  .tt-driver-shell .dl-route-label,.tt-driver-shell .dl-map-caption,.tt-driver-shell .dl-map-stage .dl-details>summary {background:#152b43}
  .tt-driver-shell :is(.dl-trip-panel,.dl-stats>button,.dk-tool,.dk-details) {border-color:#6a8199}
 }
+
+/* Visible emergency text keeps strong contrast; hold behaviour stays in SosButton. */
+.tt-driver-shell .dk-drive-footer>div>button .text-danger,
+.tt-driver-shell .dk-drive-footer>div>button .text-destructive,
+.tt-driver-shell .dl-control-dock>div:last-child>button .text-danger,
+.tt-driver-shell .dl-control-dock>div:last-child>button .text-destructive {color:#ffacb7}
+.tt-driver-shell .dk-drive-controls>button[aria-label="Start shift"],
+.tt-driver-shell .dk-drive-controls>button[aria-label="Start tracking"] {background:#98f4d5;color:#103c3e;border-color:#98f4d5;box-shadow:none}
+.tt-driver-shell .dk-drive-controls>button {border-radius:17px}
+.tt-driver-shell .dk-drive-footer>div>button {background:#432b38;border-color:#a95d71}
+@media(prefers-reduced-motion:reduce) {
+ .tt-driver-shell *, .tt-driver-shell *::before,.tt-driver-shell *::after {animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+}
