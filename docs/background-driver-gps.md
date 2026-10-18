@@ -40,3 +40,13 @@ Native reboot/update gates refuse while the driver location service is active. S
 ## Physical acceptance
 
 On a development tablet while parked: verify permission denial and opt-in; test USB and internal GPS separately; hide the app and switch the screen off; confirm live fleet updates and notification; disconnect/reconnect the receiver; test airplane mode/reconnect and saved-point export; stop sharing and verify the service stops; test process kill/reboot and expired/revoked grants; test low battery/charger recovery and same-key upgrade. Confirm boarding-reader recovery separately after wake. Keep the existing helper and FreeKiosk until required hardware checks pass.
+
+## Automated verification — 18 October 2026
+
+- Android debug compilation and native unit suite: 89 tests, zero failures/errors, including SQLite persistence/encrypted lease tests and upload ownership policy. Final native build was repeated after export-cache invalidation cleanup.
+- Broad JavaScript unit suite: 112 files / 1,003 tests passed. An additional export-authorization case was subsequently added; the final focused background GPS, driver GPS and admin health run passed all 27 tests.
+- Security suite: 17 files / 188 tests passed.
+- Production web build passed. Three focused browser scenarios passed: background GPS opt-in/export/disable, driver rotation/navigation watcher ownership, and integrated boarding NFC correlation/retry.
+- git diff --check passed.
+
+These checks do not substitute for the physical acceptance above. No signed APK was created or installed, and no physical screen-off, reboot, receiver reconnection or fleet rollout test was performed by this pass.
