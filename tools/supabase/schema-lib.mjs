@@ -127,8 +127,11 @@ export function appliedSchema(dir = migrationDir) {
       cols.set(unident(m[2]), m[3].trim());
       tables.set(unident(m[1]), cols);
     }
-    for (const m of sql.matchAll(new RegExp(String.raw`alter table public\.${NAME} drop constraint if exists ${NAME};`, "g"))) checks.delete(unident(m[2]));
-    for (const m of sql.matchAll(new RegExp(String.raw`alter table public\.${NAME} add constraint ${NAME} check \((.*)\) not valid;`, "g"))) checks.set(unident(m[2]), m[3]);
+    // Constraint names are only unique per table (client_... could be
+    // table client or client_error), so they are kept under their table.
+    const key = (table, name) => `${unident(table)}\u0000${unident(name)}`;
+    for (const m of sql.matchAll(new RegExp(String.raw`alter table public\.${NAME} drop constraint if exists ${NAME};`, "g"))) checks.delete(key(m[1], m[2]));
+    for (const m of sql.matchAll(new RegExp(String.raw`alter table public\.${NAME} add constraint ${NAME} check \((.*)\) not valid;`, "g"))) checks.set(key(m[1], m[2]), m[3]);
     for (const m of sql.matchAll(new RegExp(String.raw`create index if not exists ${NAME} on public\.`, "g"))) indexes.add(unident(m[1]));
   }
   return { tables, checks, indexes, helpers };
@@ -177,17 +180,18 @@ create or replace trigger ${t.table}_touch before update on public.${ident(t.tab
     }
     // CHECKs: add new ones, replace changed ones (an enum gained a value),
     // drop ours that the schema no longer asks for.
-    const ours = new RegExp(`^${t.table}_.+_(allowed|required)$`);
+    const key = (name) => `${t.table}\u0000${name}`;
     for (const [name, expr] of t.checks) {
-      const old = applied.checks.get(name);
+      const old = applied.checks.get(key(name));
       if (old === expr) continue;
       summary.checks.push(`${old === undefined ? "add" : "update"} ${name}`);
       if (old !== undefined) block.push(`alter table public.${ident(t.table)} drop constraint if exists ${ident(name)};`);
       block.push(addCheck(t.table, name, expr));
     }
     if (have) {
-      for (const name of applied.checks.keys()) {
-        if (ours.test(name) && !t.checks.has(name)) {
+      for (const k of applied.checks.keys()) {
+        const [table, name] = k.split("\u0000");
+        if (table === t.table && /_(allowed|required)$/.test(name) && !t.checks.has(name)) {
           summary.checks.push(`drop ${name}`);
           block.push(`alter table public.${ident(t.table)} drop constraint if exists ${ident(name)};`);
         }
