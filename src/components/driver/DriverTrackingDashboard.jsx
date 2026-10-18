@@ -1,4 +1,4 @@
-import { BACKGROUND_EVENT, stopBackgroundGps, useDriverBackgroundTracking } from "@/lib/driverBackground";
+import { beginNativeGpsUpload, endNativeGpsUpload, BACKGROUND_EVENT, stopBackgroundGps, useDriverBackgroundTracking } from "@/lib/driverBackground";
 import { watchDriverPosition, clearDriverWatch } from "@/lib/driverGps";
 import DriverPortraitDrive from "./DriverPortraitDrive";
 import { getNavTarget, onNavTarget } from "@/lib/navTarget";
@@ -125,6 +125,11 @@ export default function DriverTrackingDashboard({ session, invoke, onReportIncid
       const roadStops = roadStopsOf(s);
       if (roadStops) roadNext = nextRoadStopIndex(roadStops, busOnRoad(s.route, lat, lng));
     } catch { /* stop position is optional */ }
+    let nativeUploadLease = null;
+    if (extra.nativeManaged) {
+      try { nativeUploadLease = await beginNativeGpsUpload(); } catch { return; }
+      if (!nativeUploadLease) return; // durable native queue keeps this sample
+    }
     try {
       await invoke("update_location", { lat, lng, speed: speed || 0, status, trail: nextTrail, log_speeding: logSpeeding, recorded_at: new Date(extra.ts || now).toISOString(), ...(Number.isInteger(roadNext) ? { road_next: roadNext } : {}) });
       setLastSentAt(Date.now());
@@ -138,6 +143,7 @@ export default function DriverTrackingDashboard({ session, invoke, onReportIncid
         catch (storageError) { toast({ title: "GPS could not be saved", description: storageError.message, variant: "destructive" }); }
       }
     }
+    finally { if (nativeUploadLease) await endNativeGpsUpload(nativeUploadLease).catch(() => {}); }
     setLiveVehicle((prev) => prev ? { ...prev, current_lat: lat, current_lng: lng, speed: speed || 0, status, trail: nextTrail } : prev);
     const nearby = [];
     staffRef.current.forEach((s) => {

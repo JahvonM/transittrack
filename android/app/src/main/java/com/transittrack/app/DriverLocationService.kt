@@ -27,6 +27,8 @@ class DriverLocationService:Service() {
   @Volatile private var pulseAt=0L
   @JvmStatic fun setVisible(value:Boolean){visible=value}
   @JvmStatic fun pulse(){pulseAt=SystemClock.elapsedRealtime()}
+  @JvmStatic fun pageBegin(id:String)=instance?.gate?.pageBegin(id,SystemClock.elapsedRealtime())?:false
+  @JvmStatic fun pageEnd(id:String){instance?.gate?.pageEnd(id)}
   private fun pageUploading()=visible && SystemClock.elapsedRealtime()-pulseAt<=20000
   @JvmStatic fun active()=instance!=null
   @JvmStatic fun status()=message
@@ -35,6 +37,7 @@ class DriverLocationService:Service() {
   @JvmStatic fun sourceChanged(){instance?.let{it.main.post{it.changeSource()}}}
   @JvmStatic fun stop(context:Context){context.stopService(Intent(context,DriverLocationService::class.java))}
  }
+ private val gate=DriverUploadGate()
  private val main=Handler(Looper.getMainLooper())
  private val network=Executors.newSingleThreadExecutor()
  private lateinit var store:DriverTrackingStore
@@ -147,6 +150,7 @@ class DriverLocationService:Service() {
   val now=System.currentTimeMillis()
   if(busy||now<nextNetwork)return
   val l=lease?:return
+  if(!gate.nativeBegin(SystemClock.elapsedRealtime()))return
   busy=true
   network.execute{
    var denied=false;var retry=0L
@@ -180,7 +184,7 @@ class DriverLocationService:Service() {
     if(e is DriverTrackingHttp.Rejected){denied=denied||e.status in listOf(401,403,404,409);retry=e.retrySeconds}
     failures++;nextNetwork=System.currentTimeMillis()+DriverTrackingPolicy.retryDelay(failures,retry)
     if(!denied)message="GPS saved on tablet; waiting to upload"
-   }finally{main.post{
+   }finally{gate.nativeEnd();main.post{
     busy=false
     if(denied){try{store.clearLeaseGeneration(l.optString("generation"))}catch(_:Exception){};report("Driver verification or assignment changed; reopen app");stopSelf()}
     else if(!closed){if(storageBlocked && store.count()<9500){storageBlocked=false;changeSource()};UsbGpsPlugin.nativeOwnershipChanged()}

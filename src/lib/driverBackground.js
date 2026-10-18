@@ -56,3 +56,12 @@ export async function exportBackgroundGps() {
  }
  throw new Error("Saved GPS export exceeded its limit.");
 }
+
+export async function beginNativeGpsUpload() {
+ if (!backgroundGpsAvailable()) return null;
+ const lease = await Native.beginUpload();
+ return lease.granted === true && typeof lease.id === "string" ? lease.id : null;
+}
+export async function endNativeGpsUpload(id) {
+ if (backgroundGpsAvailable() && id) await Native.endUpload({ id });
+}

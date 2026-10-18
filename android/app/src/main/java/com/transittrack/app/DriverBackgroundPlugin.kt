@@ -18,6 +18,11 @@ class DriverBackgroundPlugin:Plugin() {
  private val configuring=AtomicBoolean(false)
  private val revision=java.util.concurrent.atomic.AtomicLong(0)
  private fun enabled()=context.getSharedPreferences("tt_driver_background",Context.MODE_PRIVATE).getBoolean("enabled",false)
+ @PluginMethod fun beginUpload(call:PluginCall){
+  val id=UUID.randomUUID().toString()
+  call.resolve(JSObject().put("granted",DriverLocationService.pageBegin(id)).put("id",id))
+ }
+ @PluginMethod fun endUpload(call:PluginCall){DriverLocationService.pageEnd(call.getString("id")?:"");call.resolve()}
  @PluginMethod fun pulse(call:PluginCall){DriverLocationService.pulse();call.resolve()}
  @PluginMethod fun getState(call:PluginCall){worker.execute{try{
   val store=DriverTrackingStore(context)
