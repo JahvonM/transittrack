@@ -19,7 +19,7 @@ public class TabletRecoveryActivity extends Activity {
     private final Runnable reopen = this::openKiosk;
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
-        getWindow().addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        TabletDisplay.apply(this);
         LinearLayout panel = new LinearLayout(this);
         panel.setOrientation(LinearLayout.VERTICAL); panel.setPadding(40, 64, 40, 40);
         panel.setBackgroundColor(Color.rgb(7, 20, 32));

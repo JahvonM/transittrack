@@ -66,3 +66,7 @@ No approved production-signed APK or native release-catalog entry was created by
 ## Background GPS finishing pass
 
 Added the opt-in native GPS service, private durable assigned queue, independent server authorization, current-binding export, native health reporting and restart recovery. Existing helper and FreeKiosk remain until hardware acceptance. The SQLite/Keystore tests include persisted rows across reopen, exact acknowledgement, review retention, ciphertext round-trip, wrong-key refusal and old-generation cleanup. See background-driver-gps.md for final verification results and limits.
+
+## Keep screen on control
+
+Driver tablet settings and PIN-gated boarding settings → Startup & recovery now include Keep screen on. Defaults on, persists per tablet, applies immediately and after resume/restart. Off uses the Android screen timeout; it does not force sleep or disable background GPS. The native recovery screen follows the preference. The separate rear-camera recording activity keeps its existing awake requirement. Older installed binaries show an update hint instead of a nonfunctional switch. Requires the rebuilt kiosk APK; physical timeout/power/restart acceptance is pending.
