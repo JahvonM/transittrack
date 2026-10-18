@@ -186,7 +186,7 @@ test('the signing tablet asks guests to sign at pickup, then at drop-off', async
   await expect(page.getByText('Thank you for travelling with us')).toBeVisible();
 });
 
-test('at the hotel the front desk confirms the drop-off; the driver shows a meet-and-greet name sign', async ({ page }) => {
+test('at the hotel the front desk confirms the drop-off; the driver sends a meet-and-greet name sign', async ({ page }) => {
   let job = {
     id: 'job-1', job_type: 'airport_pickup', status: 'arrived', vehicle_id: 'bus-a', company_id: 'company-a',
     pickup_name: 'Maurice Bishop Airport', dropoff_name: 'Grand Hotel', scheduled_time: new Date().toISOString(),
@@ -197,6 +197,7 @@ test('at the hotel the front desk confirms the drop-off; the driver shows a meet
   const kiosk = { id: 'driver-test', kiosk_type: 'driver', vehicle_id: 'bus-a', company_id: 'company-a', company_name: 'Island Transit Co.', status: 'active', paired: true };
   const vehicle = { id: 'bus-a', name: 'Bus 12', company_id: 'company-a', capacity: 25, status: 'idle', tracking_active: false };
   const signs = [];
+  const nameSigns = [];
   await page.route('**/api/**', async (r) => {
     const url = r.request().url();
     const body = r.request().postDataJSON();
@@ -208,6 +209,10 @@ test('at the hotel the front desk confirms the drop-off; the driver shows a meet
         signs.push(body);
         job = { ...job, status: 'completed', dropoff_signed_at: new Date().toISOString(), dropoff_signed_by: body.signed_by, dropoff_signed_role: body.signed_role };
         return r.fulfill({ json: { trip: job } });
+      }
+      if (body?.action === 'show_pickup_sign') {
+        nameSigns.push(body);
+        return r.fulfill({ json: { ok: true, devices: 1 } });
       }
       return r.fulfill({ json: { ok: true } });
     }
@@ -235,17 +240,12 @@ test('at the hotel the front desk confirms the drop-off; the driver shows a meet
   await expect.poll(() => signs.length).toBe(1);
   expect(signs[0]).toMatchObject({ action: 'sign_trip', trip_id: 'job-1', mode: 'dropoff', signed_by: 'Mary', signed_role: 'reception', guests: 2 });
 
-  // At arrivals for the next job: the guest's name, full screen, under the company.
+  // At arrivals for the next job: the guest's name goes to the bus's
+  // boarding/sign-in tablet, which shows it full screen under the company.
   await page.getByRole('button', { name: 'Name sign', exact: true }).click();
-  const sign = page.getByRole('dialog', { name: 'Name sign' });
-  await expect(sign).toBeVisible();
-  await expect(sign.getByText('Island Transit Co.', { exact: true })).toBeVisible();
-  await expect(sign.getByText('Ms Jones', { exact: true })).toBeVisible();
-  await expect(sign.getByText('Calabash Hotel', { exact: true })).toBeVisible();
-  await sign.getByRole('button', { name: 'Change the name' }).click();
-  await sign.getByLabel('Name on the sign').fill('The Jones family');
-  await sign.getByRole('button', { name: 'Show', exact: true }).click();
-  await expect(sign.getByText('The Jones family', { exact: true })).toBeVisible();
-  await sign.getByRole('button', { name: 'Close the sign' }).click();
-  await expect(sign).toHaveCount(0);
+  await expect.poll(() => nameSigns.length).toBe(1);
+  expect(nameSigns[0]).toMatchObject({ action: 'show_pickup_sign', trip_id: 'job-2' });
+  await expect(page.getByText('Pickup sign sent', { exact: true })).toBeVisible();
+  await expect(page.getByText('Showing on 1 boarding/sign-in device(s).', { exact: true })).toBeVisible();
+  await expect(page.getByRole('dialog', { name: 'Name sign' })).toHaveCount(0);
 });
