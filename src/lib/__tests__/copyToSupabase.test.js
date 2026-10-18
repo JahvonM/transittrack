@@ -10,7 +10,7 @@ const SECRETS = { SUPABASE_URL: "https://proj.supabase.co", SUPABASE_SECRET_KEY:
 // A stand-in for Supabase's REST API with two tables.
 function fakeSupabase() {
   const tables = { vehicle: [], company: [], app_user: [] };
-  const columns = { vehicle: ["id", "created_date", "updated_date", "name", "company_id", "capacity"], company: ["id", "created_date", "updated_date", "name"], app_user: ["id", "created_date", "updated_date", "email", "role"] };
+  const columns = { vehicle: ["id", "created_date", "updated_date", "name", "company_id", "capacity"], company: ["id", "created_date", "updated_date", "name"], app_user: ["id", "created_date", "updated_date", "email", "role", "full_name", "is_verified", "disabled", "auth_user_id"] };
   const calls = [];
   // Supabase Auth: accounts by email; the database links them to app_user.
   const accounts = [];
