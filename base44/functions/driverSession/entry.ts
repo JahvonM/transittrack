@@ -1,3 +1,4 @@
+import { cleanHardwareHealth } from '../../shared/tabletHardwareHealth.ts';
 import { recordingsNotice } from '../../shared/tabletRecordings.ts';
 import { supportNotice } from '../../shared/tabletStreaming.ts';
 import { durableCreate, operationHash } from '../../shared/durableOperation.ts';
@@ -406,7 +407,7 @@ function cleanHelperHealth(h: unknown): Record<string, unknown> | null {
   const str = (v: unknown, n: number) =>
     typeof v === 'string' ? v.replace(/[\u0000-\u001f<>]/g, '').slice(0, n) : undefined;
   const out: Record<string, unknown> = { reported_at: new Date().toISOString() };
-  Object.assign(out, nativeReleaseHealth(o));
+  Object.assign(out, nativeReleaseHealth(o), cleanHardwareHealth(o));
   if (o.support_transport === 'webrtc') out.support_transport = 'webrtc';
   for (const k of ['recordings_available', 'support_available', 'management_available', 'management_owner', 'management_locked']) if (typeof o[k] === 'boolean') out[k] = o[k];
   const version = str(o.version, 16); if (version) out.version = version;

@@ -30,6 +30,13 @@ export function helperHealthPayload() {
       report.model = n.model;
       report.android_version = n.androidVersion;
       report.network_type = n.network;
+      report.internet_validated = n.internetValidated;
+      report.cellular_state = n.cellular?.state;
+      report.cellular_carrier = n.cellular?.carrier;
+      report.cellular_bars = n.cellular?.bars;
+      report.recovery_available = n.recovery?.available === true;
+      report.recovery_state = n.recovery?.state;
+      report.recovery_count = n.recovery?.count;
       report.usb_devices = n.usbDevices;
       if (n.gps?.enabled) report.gps = n.gps.status;
       if (n.reader?.enabled) {
