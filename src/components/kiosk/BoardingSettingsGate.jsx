@@ -1,3 +1,4 @@
+import TabletCellularPanel from "@/components/driver/TabletCellularPanel";
 import NativeNetworkPanel from "@/components/driver/NativeNetworkPanel";
 import TabletRecoveryPanel from "@/components/driver/TabletRecoveryPanel";
 import BoardingBluetoothPanel from "@/components/driver/BoardingBluetoothPanel";
@@ -122,6 +123,7 @@ export default function BoardingSettingsGate({ open, onClose, deviceId, invoke }
             <BoardingBluetoothPanel />
             <TabletDiagnosticsPanel />
     <TabletRecoveryPanel />
+    <TabletCellularPanel />
     <NativeNetworkPanel boarding />
             <TabletNetworkPanel boarding className="border-0 shadow-none" />
             <Button variant="outline" className="h-12 w-full text-base" onClick={onClose}><X className="mr-2 h-4 w-4" /> Done</Button>

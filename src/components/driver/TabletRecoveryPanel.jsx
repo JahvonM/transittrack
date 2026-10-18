@@ -18,6 +18,7 @@ export default function TabletRecoveryPanel() {
   return <Card className="max-w-lg mx-auto">
     <CardHeader><CardTitle className="text-base flex items-center gap-2"><Home className="w-5 h-5" /> Startup &amp; recovery</CardTitle></CardHeader>
     <CardContent className="space-y-3">
+      {state.screenRecovery?.available && <p className="text-sm">Screen recovery is ready. If Android closes the app’s display, the kiosk reopens it, with a limit to prevent repeated restarts. Saved pairing and records stay on this tablet.</p>}
       <p className="text-sm">Screen stays awake while TransitTrack is visible, on battery or charger.</p>
       <p role="status" className="text-sm">{state.defaultHome ? "TransitTrack is the tablet's Home app." : "Android Home app has not been set to TransitTrack."}</p>
       <p className="text-xs text-muted-foreground">Optional: choose TransitTrack Kiosk as the Home app to open it when Android starts its home screen after unlock. This replaces the current Home app, including FreeKiosk if selected. You can change it back in Android settings.</p>

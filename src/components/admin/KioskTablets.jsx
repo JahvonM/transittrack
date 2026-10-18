@@ -1,3 +1,4 @@
+import { cellularSummary, recoverySummary } from "@/lib/tabletHealthSummary";
 import TabletManagementControls from "@/components/admin/TabletManagementControls";
 import { tabletSetupBundle } from "@/lib/tabletSetupBundle";
 import { helperLinkLost } from "@/lib/helperHealth";
@@ -110,6 +111,9 @@ function HelperHealthLine({ h }) {
   if (Number.isFinite(h.battery_temperature)) parts.push(`Battery ${h.battery_temperature}°C`);
   if (Number.isFinite(h.free_storage_mb)) parts.push(`${(h.free_storage_mb / 1024).toFixed(1)} GB free`);
   if (h.network_type) parts.push(`Network: ${h.network_type}`);
+  if (h.internet_validated === false) parts.push("Internet not verified by Android");
+  const cellular = cellularSummary(h); if (cellular) parts.push(cellular);
+  const recovery = recoverySummary(h); if (recovery) parts.push(recovery);
   if (h.model) parts.push(h.model);
   if (h.parked) parts.push("Parked");
   if (h.reader) parts.push(`Reader: ${h.reader}`);
