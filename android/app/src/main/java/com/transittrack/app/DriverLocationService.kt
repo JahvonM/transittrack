@@ -40,6 +40,7 @@ class DriverLocationService:Service() {
  private val gate=DriverUploadGate()
  private val main=Handler(Looper.getMainLooper())
  private val network=Executors.newSingleThreadExecutor()
+ private val disk=Executors.newSingleThreadExecutor()
  private lateinit var store:DriverTrackingStore
  private var lease:JSONObject?=null
  private var reader:UsbGpsReader?=null
@@ -142,7 +143,15 @@ class DriverLocationService:Service() {
    .put("timestamp",t).put("t",java.time.Instant.ofEpochMilli(t).toString())
   if(heading.isFinite())point.put("heading",heading)
   for(key in listOf("expected_device_id","expected_company_id","expected_vehicle_id"))point.put(key,l.getString(key))
-  try{store.add(DriverTrackingHttp.binding(l),point);durableLatest=point;lastSaved=now;latest!!.put("nativePersisted",true);UsbGpsPlugin.nativePosition(latest!!);tick()}catch(e:Exception){storageBlocked=true;report("GPS storage needs attention; reopen driver app");stopSources()}
+  lastSaved=now
+  val savedPosition=latest!!
+  disk.execute{
+   try{
+    store.add(DriverTrackingHttp.binding(l),point)
+    durableLatest=point
+    main.post{if(!closed){savedPosition.put("nativePersisted",true);UsbGpsPlugin.nativePosition(savedPosition);tick()}}
+   }catch(_:Exception){main.post{if(!closed){storageBlocked=true;report("GPS storage needs attention; reopen driver app");stopSources()}}}
+  }
  }
  private fun tick(){
   if(closed)return
@@ -194,9 +203,9 @@ class DriverLocationService:Service() {
  override fun onDestroy(){
   closed=true;main.removeCallbacks(ticks);stopSources()
   try{unregisterReceiver(battery)}catch(_:Exception){};try{unregisterReceiver(permission)}catch(_:Exception){}
-  instance=null;latest=null;network.shutdown()
+  instance=null;latest=null;network.shutdown();disk.shutdown()
   // A worker may still finish an acknowledged upload; close only once it has exited.
-  Thread{try{network.awaitTermination(120,java.util.concurrent.TimeUnit.SECONDS)}catch(_:Exception){};store.close()}.start()
+  Thread{try{network.awaitTermination(120,java.util.concurrent.TimeUnit.SECONDS);disk.awaitTermination(120,java.util.concurrent.TimeUnit.SECONDS)}catch(_:Exception){};store.close()}.start()
   UsbGpsPlugin.nativeOwnershipChanged();stopForeground(STOP_FOREGROUND_REMOVE);super.onDestroy()
  }
  override fun onBind(intent:Intent?):IBinder?=null

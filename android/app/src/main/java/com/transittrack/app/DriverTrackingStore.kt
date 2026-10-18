@@ -17,6 +17,7 @@ import javax.crypto.spec.GCMParameterSpec
 /** Credentials stay encrypted in no-backup storage. GPS rows contain no credentials. */
 internal class DriverTrackingStore(context:Context, private val testKey:(()->SecretKey)?=null) {
  companion object { private val leaseLock=Any() }
+ private val directory=context.noBackupFilesDir
  private val lease=AtomicFile(File(context.noBackupFilesDir,"driver_tracking_lease"))
  private val db=SQLiteDatabase.openOrCreateDatabase(File(context.noBackupFilesDir,"driver_tracking.sqlite"),null)
  init { db.execSQL("PRAGMA synchronous=FULL"); db.execSQL("CREATE TABLE IF NOT EXISTS points (id INTEGER PRIMARY KEY AUTOINCREMENT, queue_id TEXT UNIQUE NOT NULL, binding TEXT NOT NULL, t INTEGER NOT NULL, body TEXT NOT NULL, state TEXT NOT NULL DEFAULT 'pending')") }
@@ -45,7 +46,7 @@ internal class DriverTrackingStore(context:Context, private val testKey:(()->Sec
  @Synchronized fun clearLeaseGeneration(generation:String) = synchronized(leaseLock){if(readLease()?.optString("generation")==generation)lease.delete()}
  @Synchronized fun count(state:String?=null):Int = db.rawQuery("SELECT COUNT(*) FROM points"+(if(state!=null)" WHERE state=?" else ""),state?.let{arrayOf(it)}).use{it.moveToFirst();it.getInt(0)}
  @Synchronized fun add(binding:String,point:JSONObject) {
-  check(count()<10000){"QUEUE_FULL"}
+  check(count()<10000 && directory.usableSpace>128L*1024*1024){"QUEUE_FULL"}
   db.execSQL("INSERT OR IGNORE INTO points(queue_id,binding,t,body) VALUES(?,?,?,?)",arrayOf(point.getString("queue_id"),binding,point.getLong("timestamp"),point.toString()))
  }
  @Synchronized fun reviewOld(binding:String,now:Long) {
