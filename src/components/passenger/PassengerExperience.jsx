@@ -1,7 +1,7 @@
 import { pickupArrival } from "@/lib/pickupArrival";
 import React, { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { Bell, Building2, Bus, ChevronRight, Clock, CreditCard, Home, LifeBuoy, LogOut, Map, MapPin, Megaphone, MessageCircle, QrCode, ShieldCheck, Sparkles, TriangleAlert, Wifi } from "lucide-react";
+import { Bell, BellOff, Building2, Bus, ChevronRight, Clock, CreditCard, Home, LifeBuoy, LogOut, Map, MapPin, Megaphone, MessageCircle, QrCode, ShieldCheck, Sparkles, TriangleAlert, Wifi } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { confirmAction } from "@/components/ConfirmHost";
@@ -19,6 +19,7 @@ import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 import { useSupportWhatsApp } from "@/components/support/ReportAppProblem";
 import { whatsappLink } from "@/lib/appSupport";
+import { useStaffFlags } from "@/components/staff/QuickActions";
 import "./passengerExperience.css";
 
 function Portrait({ user }) {
@@ -51,6 +52,7 @@ export default function PassengerExperience({view,user,company,workplace,myVehic
  const [reportBusy,setReportBusy]=useState(false);
  const [showStops,setShowStops]=useState(false);
  const returnEta=useReturnEta(myVehicle,workplace,returning,now);
+ const {late,skip,lateUntil,toggleLate,toggleSkip}=useStaffFlags();
  const pickup=returning?workplace?.name || company.name:sharedStop?.name || homeName || pickupName;
  const dropoff=returning?homeName || pickupName:workplace?.name || company.name;
  const fresh=myVehicle?.last_location_update && !locationIsStale(myVehicle,now);
@@ -112,6 +114,12 @@ export default function PassengerExperience({view,user,company,workplace,myVehic
   <Switch aria-label="Pickup alerts" checked={stopAlerts && pushPermission==="granted"} onCheckedChange={toggleStopAlerts} />
   {stopAlerts && pushPermission!=="granted" && <Button size="sm" variant="outline" onClick={enableNotifications}>Retry notifications</Button>}
  </section>;
+ // The driver sees both on the bus tablet and the driver phone. Each turns
+ // itself off: running late after a few hours, skip today at midnight.
+ const flagsPanel=<div className="px-flags" role="group" aria-label="Tell your driver">
+  <button type="button" aria-pressed={late} onClick={toggleLate}><Clock aria-hidden="true" /><span><strong>{late?"Running late":"I'm running late"}</strong>{late && lateUntil && <small>Until {clock(lateUntil)}</small>}</span></button>
+  <button type="button" aria-pressed={skip} onClick={toggleSkip}><BellOff aria-hidden="true" /><span><strong>{skip?"Skipping today":"Skip today"}</strong>{skip && <small>Back on tomorrow</small>}</span></button>
+ </div>;
  return <div className="px-experience">
   {view==="home" && <>
    <header className="px-top"><p>Transit<span>Track</span></p><div><Link to="/notifications" aria-label="Messages and announcements"><Bell /></Link><Link to="/account" aria-label="Account"><Portrait user={user} /></Link></div></header>
@@ -126,6 +134,7 @@ export default function PassengerExperience({view,user,company,workplace,myVehic
    </section>
    {pickupPrompt}
    {journeyPanel}
+   {flagsPanel}
    {alertPanel}
    <div className="px-quick"><Link to="/journey"><Map />View journey</Link><Link to="/my-card"><QrCode />Boarding pass</Link></div>
    <button className="px-message" onClick={()=>setSheet("chat")}><MessageCircle />Need anything? Message us{chatUnread>0 && <b className="px-count">{chatUnread}</b>}<ChevronRight /></button>

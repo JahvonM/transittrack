@@ -89,6 +89,34 @@ for(const width of [320,430,768])test('passenger layout fits '+width,async({page
  await expect(page.getByRole('button',{name:'View live map',exact:true})).toBeVisible();
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
 });
+test('the passenger can tell their driver they are running late or skipping today',async({page})=>{
+ await page.setViewportSize({width:390,height:844});await passengerShowcase(page);
+ const me={id:'caller',role:'staff',email:'caller@test.local',full_name:'Test Passenger',company_id:'a',favorite_stop:'Grand Anse'};
+ const updates=[];
+ await page.route('**/functions/entityAccess',r=>{
+  const b=r.request().postDataJSON();
+  if(b.entity!=='User')return r.fallback();
+  if(b.operation==='update'){updates.push(b.data);Object.assign(me,b.data);}
+  return r.fulfill({json:{result:me}});
+ });
+ const flags=page.getByRole('group',{name:'Tell your driver'});
+ await flags.getByRole('button',{name:"I'm running late"}).click();
+ await expect(flags.getByRole('button',{name:/^Running late/})).toHaveAttribute('aria-pressed','true');
+ await expect(flags.getByText(/^Until /)).toBeVisible();
+ expect(updates[0]).toMatchObject({late_snooze_active:true});
+ expect(Date.parse(updates[0].late_until)).toBeGreaterThan(Date.now());
+ await flags.getByRole('button',{name:'Skip today'}).click();
+ await expect(flags.getByRole('button',{name:/^Skipping today/})).toHaveAttribute('aria-pressed','true');
+ await expect(flags.getByText('Back on tomorrow')).toBeVisible();
+ expect(updates[1]).toMatchObject({skip_pickup_today:true});
+ // Tapping again turns it back off.
+ await flags.getByRole('button',{name:/^Running late/}).click();
+ await expect(flags.getByRole('button',{name:"I'm running late"})).toHaveAttribute('aria-pressed','false');
+ expect(updates[2]).toMatchObject({late_snooze_active:false,late_until:null});
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+ await flags.evaluate(el=>el.scrollIntoView({block:'center'}));
+ await flags.screenshot({path:'/tmp/passenger-running-late.png'});
+});
 test('return trip uses company pickup and home dropoff',async({page})=>{
  const state=await passengerShowcase(page,{extra:{pickup_name:'My home',pickup_lat:12.01,pickup_lng:-61.77}});
  state.workplace={name:'Hotel entrance',lat:12.05,lng:-61.75};
