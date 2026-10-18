@@ -17,6 +17,10 @@ const PAGE = 200;
 const VERSION = 'copy v8';
 function fail(status: number, message: string): never { throw Object.assign(new Error(message), { status }); }
 const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+const statusOf = (error: unknown) => {
+  const e = error as { status?: number; response?: { status?: number } } | null;
+  return Number(e?.status ?? e?.response?.status ?? 0);
+};
 
 // Base44 sometimes refuses or drops a request for a moment (once it answered
 // "access this app through the support panel" for one table, mid-copy). Try
@@ -235,10 +239,10 @@ export default async function (req: Request) {
       if (attempt) await pause(400);
       try { user = await base44.auth.me(); meError = null; } catch (error) {
         meError = error;
-        if ([401, 403].includes(Number((error as { status?: number; response?: { status?: number } })?.status ?? (error as { response?: { status?: number } })?.response?.status))) break;
+        if ([401, 403].includes(statusOf(error))) break;
       }
     }
-    if (!user && meError && ![401, 403].includes(Number((meError as { status?: number; response?: { status?: number } })?.status ?? (meError as { response?: { status?: number } })?.response?.status))) {
+    if (!user && meError && ![401, 403].includes(statusOf(meError))) {
       fail(503, 'Base44 could not confirm who you are just now. Please press the button again.');
     }
     if (!user || user.role !== 'admin') fail(403, 'Administrators only');
