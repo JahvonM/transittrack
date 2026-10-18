@@ -59,4 +59,4 @@ To validate on a development tablet while parked, first ensure forms are saved a
 4. Check Driver settings or PIN-gated Boarding settings → Mobile connection and Startup & recovery. Admin → Kiosk tablets shows the new status after the existing heartbeat arrives.
 5. Test Saved recordings admin playback after the previously fixed data-channel update. Recording upload/cloud retention remains out of scope.
 
-No approved production-signed APK or native release-catalog entry was created by this pass. The app's package, versionCode and signing configuration remain unchanged.
+No approved production-signed APK or native release-catalog entry was created by this pass. The package and signing configuration remain unchanged. Android version is now 1.1 / build 2 so Admin can distinguish this native update from build 1. The native release catalog remains empty.

@@ -2,7 +2,7 @@
 
 > Current release status: [kiosk-release-status.md](kiosk-release-status.md) (18 October 2026). Earlier checkpoint results below are historical.
 
-Status: implemented, release catalog intentionally empty. No APK was built, signed, installed or published in this stage. Package identity remains `com.transittrack.app`; versionCode 1/versionName 1.0 are unchanged. Do not use the separate helper APK as a combined-app release.
+Status: implemented, release catalog intentionally empty. No APK was built, signed, installed or published in this stage. At this historical checkpoint package identity remained `com.transittrack.app` with versionCode 1/versionName 1.0. The 18 October finishing update advances the source build to versionCode 2/versionName 1.1; package and signing configuration are retained. Do not use the separate helper APK as a combined-app release.
 
 ## Admin and device flow
 - Admin → Kiosk tablets → Tablet controls → Installed kiosk app reports actual Android package version/code, separately from helper capability and web build. Reports are telemetry, not attestation.
