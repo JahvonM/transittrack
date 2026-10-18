@@ -20,9 +20,3 @@ export function computeOccupancyByVehicle(checkIns) {
   }
   return counts;
 }
-
-// Same as above but scoped to one vehicle, for callers that already filtered
-// (or only ever fetch) a single vehicle's check-ins.
-export function computeOccupancy(checkIns, vehicleId) {
-  return computeOccupancyByVehicle(checkIns)[vehicleId] || 0;
-}

@@ -10,6 +10,19 @@ export const MAPBOX_STYLE_DARK = "mapbox://styles/mapbox/dark-v11";
 
 export const mapStyleFor = (isDark) => (isDark ? MAPBOX_STYLE_DARK : MAPBOX_STYLE);
 
+// The declutter treatment the maps share: hide POI/transit icon clutter, keep
+// road labels so the basemap still reads. Call it once the map has loaded.
+export function declutterStyle(map) {
+  const style = map.getStyle();
+  if (!style || !style.layers) return;
+  style.layers.forEach((layer) => {
+    const id = layer.id || "";
+    if (id.includes("poi") || id.includes("transit")) {
+      try { map.setLayoutProperty(id, "visibility", "none"); } catch { /* some layers can't be toggled */ }
+    }
+  });
+}
+
 // Route/stop/"you are here" accent drawn on the map. Pure lime on the dark
 // basemap; the deeper olive-lime on the light streets basemap, where pure
 // lime would vanish against pale roads.

@@ -2,19 +2,14 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import EmptyState from "@/components/EmptyState";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
-import { MessageCircle, X, ChevronLeft, Bus, Users, Building2, Radio, Wrench, Camera, Mic, SquarePen } from "lucide-react";
+import { MessageCircle, X, ChevronLeft, Bus, Users, Building2, Radio, Wrench, SquarePen } from "lucide-react";
 import ChatThread from "@/components/chat/ChatThread";
+import { previewText } from "@/components/chat/previewText";
 
 function formatTime(iso) {
   if (!iso) return "";
   try { return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }); }
   catch { return ""; }
-}
-function previewText(m) {
-  if (!m) return "";
-  if (m.message_type === "image") return <><Camera className="inline w-3.5 h-3.5 mr-1 -mt-0.5" aria-hidden="true" />Photo</>;
-  if (m.message_type === "audio") return <><Mic className="inline w-3.5 h-3.5 mr-1 -mt-0.5" aria-hidden="true" />Voice note</>;
-  return m.text;
 }
 
 const CHANNELS = [

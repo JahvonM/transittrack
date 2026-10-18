@@ -84,7 +84,7 @@ async function deviceAccepted(base44, device, token) {
 
 import { secrets } from 'base44:runtime';
 
-// --- Firebase Cloud Messaging (push) helpers — duplicated per-function, see notifyStaffPickup/entry.ts ---
+// --- Firebase Cloud Messaging (push) helpers — a copy of base44/shared/fcm.ts ---
 function base64UrlEncode(bytes) {
   const arr = new Uint8Array(bytes);
   let binary = '';

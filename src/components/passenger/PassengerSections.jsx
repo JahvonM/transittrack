@@ -1,22 +1,13 @@
-import BusArtwork from "@/components/BusArtwork";
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import {
-  Bell, BellOff, BellRing, Bus, ChevronRight, Clock, CircleAlert, KeyRound, LifeBuoy, MapPinned, MessageCircle, OctagonAlert,
-  Map as MapIcon, MessageSquareWarning, Phone, Sparkles, TriangleAlert, UserRound, Users, X,
-} from "lucide-react";
-import { useSupportWhatsApp } from "@/components/support/ReportAppProblem";
-import { whatsappLink } from "@/lib/appSupport";
+import { Bus, MessageCircle, OctagonAlert, Map as MapIcon, TriangleAlert, X } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 import { Image } from "@/components/ui/image";
-import { crowdLevel } from "@/hooks/useCrowding";
 import useDrivingEta from "@/hooks/useDrivingEta";
 import { freshnessOf } from "@/components/system/status";
 import { STATUS_LABEL } from "@/lib/trip";
-import { useStaffFlags } from "@/components/staff/QuickActions";
-import { busNumber, clock, lastSeen } from "./passengerState";
+import { busNumber, clock } from "./passengerState";
 
 export function SectionHead({ id, title, aside }) {
   return (
@@ -49,147 +40,6 @@ export function AlertBand({ tone = "warning", title, body, meta, onDismiss, acti
           <X className="h-5 w-5" aria-hidden="true" />
         </button>
       )}
-    </section>
-  );
-}
-
-// The "one stop away" alert as one big action. Same switch as before
-// (onToggle), with a way to turn notifications on when this phone hasn't
-// allowed them yet.
-export function StopAlertRow({ busName, stopAlerts, onToggle, pushPermission, onEnablePush }) {
-  const needsPush = stopAlerts && pushPermission !== "granted" && pushPermission !== "unsupported";
-  return (
-    <section className="px-6 pt-5 lg:px-0">
-      <button
-        type="button"
-        onClick={() => onToggle(!stopAlerts)}
-        aria-pressed={stopAlerts}
-        className={cn(
-          "flex min-h-[64px] w-full flex-col items-center justify-center rounded-xl px-4 py-2.5 text-center transition-[background-color,transform] duration-fast active:scale-[0.99]",
-          stopAlerts ? "border border-border bg-card hover:bg-accent" : "bg-primary text-primary-foreground hover:shadow-md",
-        )}
-      >
-        <span className="flex items-center gap-2 text-title-sm font-bold">
-          {stopAlerts ? <BellRing className="h-5 w-5 text-primary" aria-hidden="true" /> : <Bell className="h-5 w-5" aria-hidden="true" />}
-          {stopAlerts ? "You'll be notified" : "Notify me"}
-        </span>
-        <span className={cn("text-body-sm", stopAlerts ? "text-muted-foreground" : "text-primary-foreground")}>
-          {stopAlerts ? `When ${busName || "a bus"} is one stop away · tap to turn off` : `When ${busName || "the bus"} is one stop away`}
-        </span>
-      </button>
-      {stopAlerts && pushPermission === "unsupported" && (
-        <p className="mt-2 text-body-sm text-muted-foreground">This device can't show notifications. Add the app to your home screen to get them.</p>
-      )}
-      {needsPush && (
-        <p className="mt-2 flex items-center gap-2 text-body-sm text-muted-foreground">
-          <CircleAlert className="h-4 w-4 shrink-0 text-warning" aria-hidden="true" />
-          <span className="flex-1">Notifications are off on this phone.</span>
-          <Button size="sm" variant="ghost" className="text-foreground underline underline-offset-4" onClick={onEnablePush}>Turn on</Button>
-        </p>
-      )}
-    </section>
-  );
-}
-
-const fmtUntil = (iso) => (iso ? clock(iso) : "");
-
-// Running late, skip today and message the driver, as one segmented row.
-export function TripActions({ onChat, chatUnread = 0 }) {
-  const { late, skip, lateUntil, toggleLate, toggleSkip } = useStaffFlags();
-  const btn = "relative flex min-h-[60px] flex-1 flex-col items-center justify-center gap-1 px-2 py-2 text-center text-caption font-semibold transition-colors focus-visible:z-10";
-  return (
-    <section className="px-6 pt-3 lg:px-0" aria-label="Trip actions">
-      <div className="flex overflow-hidden rounded-xl border border-border bg-card divide-x divide-border">
-        <button type="button" onClick={toggleLate} aria-pressed={late} className={cn(btn, late ? "bg-primary text-primary-foreground" : "hover:bg-accent")}>
-          <Clock className="h-5 w-5" aria-hidden="true" />
-          <span>{late ? `Late until ${fmtUntil(lateUntil)}` : "Running late"}</span>
-        </button>
-        <button type="button" onClick={toggleSkip} aria-pressed={skip} className={cn(btn, skip ? "bg-primary text-primary-foreground" : "hover:bg-accent")}>
-          <BellOff className="h-5 w-5" aria-hidden="true" />
-          <span>{skip ? "Skipping today" : "Skip today"}</span>
-        </button>
-        <button type="button" onClick={onChat} className={cn(btn, "hover:bg-accent")}>
-          <MessageCircle className="h-5 w-5" aria-hidden="true" />
-          <span>Message driver</span>
-          {chatUnread > 0 && (
-            <span className="absolute right-2 top-2 grid h-5 min-w-5 place-items-center rounded-full bg-danger px-1 text-caption font-bold text-danger-foreground">
-              <span className="sr-only">, </span>{chatUnread > 9 ? "9+" : chatUnread}<span className="sr-only"> unread</span>
-            </span>
-          )}
-        </button>
-      </div>
-    </section>
-  );
-}
-
-// Driver, vehicle and how full it is, side by side.
-export function TripFacts({ bus, crowdCount = 0 }) {
-  if (!bus) return null;
-  const crowd = crowdLevel(crowdCount, bus.capacity);
-  const cells = [
-    { icon: UserRound, k: "Driver", v: bus.driver_name || "Not assigned" },
-    { icon: Bus, k: "Vehicle", v: bus.name, note: bus.plate_number || null },
-    ...(crowd ? [{
-      icon: Users, k: "Occupancy",
-      v: bus.capacity ? `${crowdCount}/${bus.capacity} seats` : crowd.label,
-      tone: crowd.tone === "full" ? "text-danger" : crowd.tone === "busy" ? "text-warning" : "text-success",
-      note: bus.capacity ? crowd.label : null,
-    }] : []),
-  ];
-  return (
-    <section className="px-6 pt-8 lg:px-0" aria-labelledby="tt-vehicle-details">
-      <h2 id="tt-vehicle-details" className="mb-2 text-title-sm font-bold">Vehicle details</h2>
-      <dl className={cn("grid divide-x divide-border rounded-xl border border-border bg-card", cells.length === 3 ? "grid-cols-3" : "grid-cols-2")}>
-        {cells.map(({ icon: Icon, k, v, tone, note }) => (
-          <div key={k} className="flex min-w-0 flex-col gap-1 px-3 py-3">
-            <dt className="flex items-center gap-1.5 text-caption text-muted-foreground">
-              <Icon className={cn("h-4 w-4 shrink-0", tone)} aria-hidden="true" /> {k}
-            </dt>
-            <dd className="text-body-sm font-semibold leading-snug">
-              {v}
-              {note && <span className="block text-caption font-normal text-muted-foreground">{note}</span>}
-            </dd>
-          </div>
-        ))}
-      </dl>
-    </section>
-  );
-}
-
-function otherBusLine(v, now) {
-  if (v.in_service === false) return "Out of service";
-  if (v.tracking_active) return v.status === "on_trip" ? "On a trip" : "On the road";
-  if (!v.last_location_update) return "Not on the road today";
-  const seen = new Date(v.last_location_update);
-  const sameDay = seen.toDateString() === new Date(now).toDateString();
-  return sameDay ? `Not tracking since ${clock(seen)}` : `Not on the road today · last seen ${lastSeen(v.last_location_update, now)}`;
-}
-
-export function OtherBuses({ buses, crowd = {}, title, now = Date.now() }) {
-  if (!buses.length) return null;
-  return (
-    <section className="px-6 pt-10 lg:px-0" aria-labelledby="tt-other-buses">
-      <SectionHead id="tt-other-buses" title={title} aside={<Link to="/route-explorer" className="text-body-sm font-semibold underline-offset-4 hover:underline">See on map</Link>} />
-      <ul className="divide-y divide-border border-y border-border">
-        {buses.map((v) => {
-          const level = v.tracking_active ? crowdLevel(crowd[v.id] || 0, v.capacity) : null;
-          return (
-            <li key={v.id} className="tt-bus-card">
-              <Link to={`/route-explorer?bus=${encodeURIComponent(v.id)}`} className="flex min-h-[64px] items-center gap-4 py-2 hover:bg-accent/50">
-                <BusArtwork vehicle={v} width={108} className="h-20 w-24 shrink-0" />
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate font-semibold">{v.name}</span>
-                  <span className="flex items-center gap-1.5 truncate text-body-sm text-muted-foreground">
-                    {v.tracking_active && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" aria-hidden="true" />}
-                    {otherBusLine(v, now)}{level ? ` · ${level.label}` : ""}
-                  </span>
-                </span>
-                <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden="true" />
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
     </section>
   );
 }
@@ -234,76 +84,6 @@ export function BookedRides({ trips, stopName }) {
             </li>
           );
         })}
-      </ul>
-    </section>
-  );
-}
-
-function MoreRow({ icon: Icon, title, sub, onClick, href, external = false }) {
-  const body = (
-    <>
-      <Icon className="h-[22px] w-[22px] shrink-0 text-muted-foreground" aria-hidden="true" />
-      <span className="min-w-0 flex-1">
-        <span className="block font-semibold">{title}</span>
-        {sub && <span className="block truncate text-body-sm text-muted-foreground">{sub}</span>}
-      </span>
-      <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden="true" />
-    </>
-  );
-  const cls = "flex min-h-[64px] w-full items-center gap-4 py-2 text-left hover:bg-accent/50";
-  return <li>{href ? <a href={href} className={cls} {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}>{body}</a> : <button type="button" onClick={onClick} className={cls}>{body}</button>}</li>;
-}
-
-// Roadside pickup, near the top of Home: a prompt until one is saved, then
-// where you're picked up (and dropped off) with a quick way to change it.
-export function PickupCard({ pickupName, dropoffName, onOpen, shared = null, movedNote = null }) {
-  if (!pickupName) {
-    return (
-      <section className="mx-6 mb-4 flex items-center gap-4 rounded-2xl border border-primary/40 bg-primary/10 p-4 lg:mx-0" aria-labelledby="tt-pickup-cta">
-        <MapPinned className="h-7 w-7 shrink-0 text-primary" aria-hidden="true" />
-        <div className="min-w-0 flex-1">
-          <h2 id="tt-pickup-cta" className="font-semibold">Get picked up near home</h2>
-          <p className="text-body-sm text-muted-foreground">Find a roadside pickup on a road your bus uses, with walking directions.</p>
-        </div>
-        <Button onClick={onOpen} className="shrink-0">Find my pickup</Button>
-      </section>
-    );
-  }
-  return (
-    <section className="mx-6 mb-4 flex items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3 lg:mx-0" aria-label="Your pickup">
-      <MapPinned className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden="true" />
-      <p className="min-w-0 flex-1 text-body-sm">
-        <span className="block truncate"><span className="text-muted-foreground">Pickup:</span> <span className="font-semibold">{pickupName}</span></span>
-        {/* Neighbours' pickups along the road share one stop. */}
-        {shared && (shared.shared_with > 0 || shared.moved_m > 15) && (
-          <span className="block text-primary">
-            {shared.moved_m > 15 ? `Meet at ${shared.name}, ${shared.moved_m} m from your spot` : `Meet at ${shared.name}`}
-            {shared.shared_with > 0 ? ` · shared with ${shared.shared_with} other${shared.shared_with === 1 ? "" : "s"}` : ""}
-          </span>
-        )}
-        {movedNote && <span className="block text-warning">{movedNote}</span>}
-        {dropoffName && <span className="block truncate"><span className="text-muted-foreground">Drop-off:</span> <span className="font-semibold">{dropoffName}</span></span>}
-      </p>
-      <Button variant="ghost" size="sm" onClick={onOpen}>Change</Button>
-    </section>
-  );
-}
-
-export function MoreList({ companyName, companyPhone, onBadge, onAssistant, onHelp, onPickup, pickupSummary, onChat, chatUnread = 0 }) {
-  const tel = (companyPhone || "").trim();
-  const support = useSupportWhatsApp();
-  return (
-    <section className="px-6 pt-10 lg:px-0" aria-labelledby="tt-more">
-      <SectionHead id="tt-more" title="More" />
-      <ul className="divide-y divide-border border-y border-border">
-        {/* Also here so the chat is reachable before a stop is chosen. */}
-        {onChat && <MoreRow icon={MessageCircle} title="Chat with your driver" sub={chatUnread > 0 ? `${chatUnread} unread` : "Your driver and the people on this bus"} onClick={onChat} />}
-        <MoreRow icon={KeyRound} title="Boarding code" sub="Forgot your badge? Get a one-time code" onClick={onBadge} />
-        <MoreRow icon={Sparkles} title="Ask about your bus" sub="Quick answers about times and stops" onClick={onAssistant} />
-        {tel && <MoreRow icon={Phone} title={`Call ${companyName || "the operator"}`} sub={tel} href={`tel:${tel}`} />}
-        <MoreRow icon={LifeBuoy} title="Help and lost items" sub="Report something left on the bus, safety rules" onClick={onHelp} />
-        <MoreRow icon={MapPinned} title="Pickup settings" sub={pickupSummary || "Pickup pin, WhatsApp updates, switch company"} onClick={onPickup} />
-        {support && <MoreRow icon={MessageSquareWarning} title="Report an app problem" sub="WhatsApp the TransitTrack team" href={whatsappLink(support, "passenger app")} external />}
       </ul>
     </section>
   );

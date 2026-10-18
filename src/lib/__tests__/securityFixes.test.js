@@ -145,7 +145,7 @@ describe("usage limits", () => {
 
 describe("signed-out requests", () => {
   it("get a sign-in answer, not an error, when the platform finds no session", async () => {
-    for (const [name, body] of [["bookTaxi", { action: "list" }], ["busAssistant", { question: "hi" }], ["generateOneTimeCode", {}], ["companyAccess", { action: "context" }], ["notifyStaffPickup", {}], ["applyUserRole", { role: "staff" }], ["deleteAccount", {}], ["adminCopilot", {}]]) {
+    for (const [name, body] of [["bookTaxi", { action: "list" }], ["busAssistant", { question: "hi" }], ["generateOneTimeCode", {}], ["companyAccess", { action: "context" }], ["applyUserRole", { role: "staff" }], ["deleteAccount", {}], ["adminCopilot", {}]]) {
       const sdk = mock(null);
       sdk.auth.me = async () => { throw Object.assign(new Error("Authentication required"), { status: 401 }); };
       const res = await call(sdk, name, body);

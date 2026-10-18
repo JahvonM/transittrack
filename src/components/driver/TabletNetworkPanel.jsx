@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Wifi, WifiOff, Signal, Radio, Lock, Loader2, RefreshCw, CheckCircle2, AlertTriangle, Eye, EyeOff, ChevronLeft } from "lucide-react";
+import { Wifi, WifiOff, Signal, Radio, Lock, Loader2, RefreshCw, Eye, EyeOff, ChevronLeft } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { helperAtLeast, wifiPasswordProblem } from "@/lib/tabletNetworkAdmin";
 import { LOCAL_NETWORK_HELPER_VERSION, helperKey, localCommandId, sendLocalCommand } from "@/lib/tabletNetwork";
 import { wifiStatus, mobileStatus, hotspotStatus, freshNetworks, joinFor } from "@/lib/tabletNetworkStatus";
+import { JoinStatus, SignalBars as Bars } from "@/components/system/WifiParts";
 
 // A tablet's own Internet settings: driver tablet → Tablet settings (behind
 // the driver's PIN); boarding tablet → hold the top bar, then the bus PIN.
@@ -30,16 +31,6 @@ function useHelperStatus() {
     return () => clearInterval(t);
   }, []);
   return h;
-}
-
-function Bars({ n = 0, label = "Signal" }) {
-  return (
-    <span className="inline-flex items-end gap-0.5 h-3.5" role="img" aria-label={`${label} ${n} of 4`}>
-      {[1, 2, 3, 4].map((i) => (
-        <span key={i} className={`w-1 rounded-sm ${i <= n ? "bg-foreground/70" : "bg-muted-foreground/25"}`} style={{ height: `${i * 25}%` }} />
-      ))}
-    </span>
-  );
 }
 
 function Row({ icon: Icon, title, detail, children }) {
@@ -108,12 +99,7 @@ function WifiChooser({ open, onOpenChange, h, current }) {
           </DialogDescription>
         </DialogHeader>
 
-        {join && (
-          <div role="status" className={`flex items-start gap-2 rounded-lg p-3 text-sm ${join.state === "failed" ? "bg-destructive/10 text-destructive" : join.state === "connected" ? "bg-success/10" : "bg-muted"}`}>
-            {join.state === "joining" ? <Loader2 className="mt-0.5 h-4 w-4 shrink-0 animate-spin" /> : join.state === "connected" ? <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-success" /> : <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />}
-            <span>{join.message || join.state}</span>
-          </div>
-        )}
+        <JoinStatus join={join} />
         {joinId && !join && <p role="status" className="text-sm text-muted-foreground"><Loader2 className="mr-1 inline h-3.5 w-3.5 animate-spin" />Connecting…</p>}
         {error && <p role="alert" className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{error}</p>}
 

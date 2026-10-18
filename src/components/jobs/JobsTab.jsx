@@ -14,10 +14,8 @@ import ClientDialog, { CLIENT_KINDS } from "@/components/jobs/ClientDialog";
 import { ACTIVE_JOB_STATUSES, findClashes, formatMoney, jobTypeLabel, jobWindow } from "@/lib/jobs";
 import { STATUS_LABEL } from "@/lib/trip";
 import { errorData } from "@/lib/requestError";
+import { localDayKey as dayKey, shiftDayKey as shiftDay } from "@/lib/localDay";
 
-const pad = (n) => String(n).padStart(2, "0");
-const dayKey = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-const shiftDay = (key, by) => { const d = new Date(`${key}T12:00`); d.setDate(d.getDate() + by); return dayKey(d); };
 const timeOf = (ms) => new Date(ms).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 const kindLabel = (list, value) => list.find((k) => k.value === value)?.label || "Other";
 

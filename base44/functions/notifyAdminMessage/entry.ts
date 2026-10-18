@@ -28,7 +28,7 @@ import { passengerPushTokens } from '../../shared/chatPush.ts';
 import { driverPhoneTokens } from '../../shared/driverPhone.ts';
 import { pushWithPolicy } from '../../shared/notificationPolicy.ts';
 
-// --- Firebase Cloud Messaging (push) helpers — duplicated per-function, see notifyStaffPickup/entry.ts ---
+// --- Firebase Cloud Messaging (push) helpers — a copy of base44/shared/fcm.ts ---
 function base64UrlEncode(bytes) {
   const arr = new Uint8Array(bytes);
   let binary = '';

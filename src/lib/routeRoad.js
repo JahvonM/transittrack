@@ -31,17 +31,17 @@ export async function routeRoadGeometry(route) {
 }
 
 // Metres between two [lng, lat] points (equirectangular; fine at road scale).
-function metres(a, b) {
+export function roadMetres(a, b) {
   const rad = Math.PI / 180;
   const x = (b[0] - a[0]) * rad * Math.cos(((a[1] + b[1]) / 2) * rad);
   const y = (b[1] - a[1]) * rad;
   return Math.hypot(x, y) * 6371000;
 }
 function offsetFromSegment(p, a, b) {
-  const len = metres(a, b);
-  if (len === 0) return metres(p, a);
+  const len = roadMetres(a, b);
+  if (len === 0) return roadMetres(p, a);
   const t = Math.max(0, Math.min(1, ((p[0] - a[0]) * (b[0] - a[0]) + (p[1] - a[1]) * (b[1] - a[1])) / ((b[0] - a[0]) ** 2 + (b[1] - a[1]) ** 2)));
-  return metres(p, [a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1])]);
+  return roadMetres(p, [a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1])]);
 }
 
 // Fewer points, same road: drops points within `toleranceM` of the line
@@ -88,6 +88,6 @@ export async function snapRoad(points, { fetcher = fetch } = {}) {
 // Road length in km, for the planner's summary.
 export function roadLengthKm(coords) {
   let m = 0;
-  for (let i = 1; i < (coords || []).length; i++) m += metres(coords[i - 1], coords[i]);
+  for (let i = 1; i < (coords || []).length; i++) m += roadMetres(coords[i - 1], coords[i]);
   return m / 1000;
 }

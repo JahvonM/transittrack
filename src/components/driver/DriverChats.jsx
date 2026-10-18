@@ -4,7 +4,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import ChatThread from "@/components/chat/ChatThread";
 import { blobToBase64 } from "@/lib/chatMedia";
-import { ChevronLeft, Users, Building2, Radio, Wrench, Camera, Mic } from "lucide-react";
+import { ChevronLeft, Users, Building2, Radio, Wrench } from "lucide-react";
+import { previewText } from "@/components/chat/previewText";
 
 const QUICK_REPLIES = [
   "⏰ Running late",
@@ -26,13 +27,6 @@ function formatTime(iso) {
   if (!iso) return "";
   try { return new Date(iso).toLocaleTimeString([], { timeZone: TRANSIT_TIME_ZONE, hour: "2-digit", minute: "2-digit" }); }
   catch { return ""; }
-}
-
-function previewText(m) {
-  if (!m) return "";
-  if (m.message_type === "image") return <><Camera className="inline w-3.5 h-3.5 mr-1 -mt-0.5" aria-hidden="true" />Photo</>;
-  if (m.message_type === "audio") return <><Mic className="inline w-3.5 h-3.5 mr-1 -mt-0.5" aria-hidden="true" />Voice note</>;
-  return m.text;
 }
 
 // Driver's WhatsApp-style chat list — merges what used to be two separate

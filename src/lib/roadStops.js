@@ -1,16 +1,10 @@
 import { placeOnRoad } from "../../base44/shared/pickupStops.ts";
-import { drawnRoad } from "@/lib/routeRoad";
+// Metres between two [lng, lat] points (the same sum placeOnRoad uses).
+import { drawnRoad, roadMetres as metresBetween } from "@/lib/routeRoad";
 
 // Driver stops on a route with a drawn road (Route Planner): the stops in the
 // order the bus reaches them along the road, where the bus is on it, and the
 // points directions should pass through so they follow it.
-
-// Metres between two [lng, lat] points (the same sum placeOnRoad uses).
-function metresBetween(a, b) {
-  const rad = Math.PI / 180;
-  const x = (b[0] - a[0]) * rad * Math.cos(((a[1] + b[1]) / 2) * rad);
-  return Math.hypot(x, (b[1] - a[1]) * rad) * 6371000;
-}
 
 // Stop edits only on the road: the same distance the server checks.
 export const ROAD_EDIT_M = 50;

@@ -49,11 +49,6 @@ export async function requestPushToken({ prompt = true } = {}) {
   }
 }
 
-/** The device token, or null when push isn't available (see requestPushToken). */
-export async function getFcmToken(options) {
-  return (await requestPushToken(options)).token;
-}
-
 /** Fires `callback(payload)` for pushes that arrive while the tab is open and focused. */
 export function onForegroundMessage(callback) {
   if (nativePushPlatform()) return nativeForegroundMessage(callback);

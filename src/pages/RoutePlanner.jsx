@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import Map, { Marker, Source, Layer } from "react-map-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
-import { MAPBOX_TOKEN, mapStyleFor, mapAccentFor } from "@/lib/mapbox";
+import { MAPBOX_TOKEN, declutterStyle, mapStyleFor, mapAccentFor } from "@/lib/mapbox";
 import { useIsDark } from "@/lib/useTheme";
 import { base44 } from "@/api/base44Client";
 import AppLayout from "@/components/AppLayout";
@@ -21,19 +21,6 @@ import { nearestRoutePoint } from "@/lib/pickupSuggestion";
 const MAX_ROAD_POINTS = 200;
 // A stop tapped this close to the drawn road is placed on the road itself.
 const STOP_SNAP_M = 60;
-
-// Matches the declutter treatment on every other map in the app: hide
-// POI/transit icon clutter, keep road labels so the basemap still reads.
-function declutterStyle(map) {
-  const style = map.getStyle();
-  if (!style || !style.layers) return;
-  style.layers.forEach((layer) => {
-    const id = layer.id || "";
-    if (id.includes("poi") || id.includes("transit")) {
-      try { map.setLayoutProperty(id, "visibility", "none"); } catch { /* some layers can't be toggled */ }
-    }
-  });
-}
 
 export default function RoutePlanner() {
   const isDark = useIsDark();

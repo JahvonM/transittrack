@@ -9,6 +9,7 @@ import JobRecordDialog from "@/components/jobs/JobRecordDialog";
 import InvoicesPanel from "@/components/jobs/InvoicesPanel";
 import { exportToCSV, exportToPDF } from "@/lib/exporters";
 import { JOB_TYPES, dropoffSigned, formatMoney, jobTypeLabel, jobTypeOf, pickupSigned, signerLabel } from "@/lib/jobs";
+import { localDayKey } from "@/lib/localDay";
 
 const TRIP_COLS = [
   { key: "completed_at", label: "Completed" },
@@ -35,8 +36,6 @@ const TRIP_COLS = [
 ];
 const ALL = "__all";
 const NONE = "__none";
-const pad = (n) => String(n).padStart(2, "0");
-const localDay = (iso) => { const d = new Date(iso); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
 
 // Admin → Completed & billing: the record of every finished job (with its
 // signatures and a job sheet) and the client invoices made from them.
@@ -54,7 +53,7 @@ export default function CompletedTripsTab({ trips, clients = [], invoices = [], 
   const drivers = [...new Set(completed.map((t) => t.driver_name).filter(Boolean))].sort();
   const q = filters.q.trim().toLowerCase();
   const shown = completed.filter((t) => {
-    const done = t.completed_at ? localDay(t.completed_at) : "";
+    const done = t.completed_at ? localDayKey(new Date(t.completed_at)) : "";
     return (filters.type === ALL || jobTypeOf(t) === filters.type)
       && (filters.client === ALL || (filters.client === NONE ? !t.client_id : t.client_id === filters.client))
       && (filters.driver === ALL || t.driver_name === filters.driver)

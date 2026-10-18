@@ -11,6 +11,14 @@ export function localDayKey(d = new Date()) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
+// The day `by` days before or after a day key. Noon keeps a daylight-saving
+// change from landing it on the wrong day.
+export function shiftDayKey(key, by) {
+  const d = new Date(`${key}T12:00:00`);
+  d.setDate(d.getDate() + by);
+  return localDayKey(d);
+}
+
 export function rememberUnlockDay() {
   // A tablet whose storage is full must not lose an unlocked session over it.
   try { localStorage.setItem(KEY, localDayKey()); } catch { /* ignore */ }

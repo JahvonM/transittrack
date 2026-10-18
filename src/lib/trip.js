@@ -5,11 +5,3 @@ export const STATUS_LABEL = {
   completed: "Completed",
   cancelled: "Cancelled",
 };
-
-export const STATUS_VARIANT = {
-  scheduled: "outline",
-  on_the_way: "default",
-  arrived: "secondary",
-  completed: "secondary",
-  cancelled: "destructive",
-};

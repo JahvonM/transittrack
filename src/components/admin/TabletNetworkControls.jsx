@@ -5,13 +5,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Wifi, WifiOff, Lock, Radio, Loader2, RefreshCw, CheckCircle2, AlertTriangle, Eye, EyeOff, ChevronLeft } from "lucide-react";
+import { Wifi, WifiOff, Lock, Radio, Loader2, RefreshCw, Eye, EyeOff, ChevronLeft } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 import { errorData } from "@/lib/requestError";
 import {
   NETWORK_HELPER_VERSION, helperAtLeast, pendingCommand, commandProgress, latestJoin,
   scannedNetworks, wifiPasswordProblem, hotspotAlwaysOn,
 } from "@/lib/tabletNetworkAdmin";
+import { JoinStatus, SignalBars as Bars } from "@/components/system/WifiParts";
 
 // Admin → Kiosk tablets: choose a boarding tablet's Wi-Fi, or keep a driver
 // tablet's hotspot on all the time. The command reaches the tablet on its next
@@ -25,16 +26,6 @@ function timeAgo(iso) {
   if (mins < 60) return `${mins} min ago`;
   const hrs = Math.floor(mins / 60);
   return hrs < 24 ? `${hrs} h ago` : `${Math.floor(hrs / 24)} d ago`;
-}
-
-function Bars({ n = 0 }) {
-  return (
-    <span className="inline-flex items-end gap-0.5 h-3.5" role="img" aria-label={`Signal ${n} of 4`}>
-      {[1, 2, 3, 4].map((i) => (
-        <span key={i} className={`w-1 rounded-sm ${i <= n ? "bg-foreground/70" : "bg-muted-foreground/25"}`} style={{ height: `${i * 25}%` }} />
-      ))}
-    </span>
-  );
 }
 
 async function sendCommand(device, payload) {
@@ -104,12 +95,7 @@ function WifiPicker({ device, open, onOpenChange, onRefresh }) {
           </DialogDescription>
         </DialogHeader>
 
-        {join && (
-          <div role="status" className={`flex items-start gap-2 rounded-lg p-3 text-sm ${join.state === "failed" ? "bg-destructive/10 text-destructive" : join.state === "connected" ? "bg-success/10" : "bg-muted"}`}>
-            {join.state === "joining" ? <Loader2 className="mt-0.5 h-4 w-4 shrink-0 animate-spin" /> : join.state === "connected" ? <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-success" /> : <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />}
-            <span>{join.message || join.state}{join.at ? ` · ${timeAgo(join.at)}` : ""}</span>
-          </div>
-        )}
+        <JoinStatus join={join} when={join?.at ? timeAgo(join.at) : ""} />
         {progress && <p role="status" className="text-sm text-muted-foreground">{progress}</p>}
         {error && <p role="alert" className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{error}</p>}
 

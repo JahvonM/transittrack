@@ -1,6 +1,6 @@
 import { MAPBOX_TOKEN } from "@/lib/mapbox";
 import { routeRoadGeometry } from "@/lib/routeRoad";
-import { buildNav, projectOnRoute } from "@/lib/navigation";
+import { buildNav, metres, projectOnRoute } from "@/lib/navigation";
 
 export function nearestRoutePoint(origin, geometry) {
   if (!Number.isFinite(origin?.lat) || !Number.isFinite(origin?.lng) || !geometry?.length || geometry.length < 2) return null;
@@ -17,12 +17,7 @@ function pointAlong(nav, along) {
   const t = seg > 0 ? (d - cum[i]) / seg : 0;
   return { lng: g[i][0] + (g[i + 1][0] - g[i][0]) * t, lat: g[i][1] + (g[i + 1][1] - g[i][1]) * t };
 }
-const metresBetween = (a, b) => {
-  const R = 6371000, rad = (x) => (x * Math.PI) / 180;
-  const dLat = rad(b.lat - a.lat), dLng = rad(b.lng - a.lng);
-  const h = Math.sin(dLat / 2) ** 2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLng / 2) ** 2;
-  return 2 * R * Math.asin(Math.sqrt(h));
-};
+const metresBetween = (a, b) => metres([a.lng, a.lat], [b.lng, b.lat]);
 
 // Spots on the bus roads you could walk to from `origin`, closest walk
 // first: the nearest point on each road, plus points about 200 m and 400 m

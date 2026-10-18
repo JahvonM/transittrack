@@ -10,19 +10,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import BusLoader from "@/components/BusLoader";
+// Calendar day in the viewer's own time zone (toISOString would give UTC,
+// which is "tomorrow" for part of the evening in the Americas).
+import { localDayKey as localDay, shiftDayKey as shiftDay } from "@/lib/localDay";
 
 const ReplayMapGL = lazy(() => import("@/components/replay/ReplayMapGL"));
 const ReplayMapLite = lazy(() => import("@/components/replay/ReplayMapLite"));
 
-const pad = (n) => String(n).padStart(2, "0");
-// Calendar day in the viewer's own time zone (toISOString would give UTC,
-// which is "tomorrow" for part of the evening in the Americas).
-const localDay = (d = new Date()) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-const shiftDay = (day, n) => {
-  const d = new Date(`${day}T12:00:00`);
-  d.setDate(d.getDate() + n);
-  return localDay(d);
-};
 const clock = (ms) => new Date(ms).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" });
 const hhmm = (ms) => new Date(ms).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 

@@ -1,20 +1,9 @@
 import React, { useEffect, useRef } from "react";
 import Map, { Marker, Source, Layer } from "react-map-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
-import { MAPBOX_TOKEN, mapStyleFor, mapAccentFor } from "@/lib/mapbox";
+import { MAPBOX_TOKEN, declutterStyle, mapStyleFor, mapAccentFor } from "@/lib/mapbox";
 import { useIsDark } from "@/lib/useTheme";
 import { ReplayBusIcon, StopPin } from "@/components/replay/ReplayMarkers";
-
-function declutterStyle(map) {
-  const style = map.getStyle();
-  if (!style || !style.layers) return;
-  style.layers.forEach((layer) => {
-    const id = layer.id || "";
-    if (id.includes("poi") || id.includes("transit")) {
-      try { map.setLayoutProperty(id, "visibility", "none"); } catch { /* some layers can't be toggled */ }
-    }
-  });
-}
 
 function boundsOf(line) {
   let w = Infinity, s = Infinity, e = -Infinity, n = -Infinity;

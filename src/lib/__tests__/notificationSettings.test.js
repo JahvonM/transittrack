@@ -242,11 +242,13 @@ describe("company switches and passengers' own choices", () => {
 
   it("the pickup email isn't sent when its company is switched off", async () => {
     const { sdk } = adminSetup();
-    sdk.tables.Vehicle[0].driver_email = "";
     sdk.tables.NotificationSetting.push({ id: "s", key: "bus_approaching_email", enabled: true, blocked_emails: [], blocked_company_ids: ["a"] });
-    const res = await load("notifyStaffPickup", sdk).default(request({ to_email: "pat@test.invalid", vehicle_id: "bus-a" }));
-    expect(res.status).toBe(200);
-    expect(sdk.emails).toEqual([]);
+    const sent = [];
+    const send = async (r) => { sent.push(r.email); };
+    await P.emailWithPolicy(sdk, "bus_approaching_email", [{ email: "pat@test.invalid" }], send, { companyId: "a" });
+    expect(sent).toEqual([]);
+    await P.emailWithPolicy(sdk, "bus_approaching_email", [{ email: "pat@test.invalid" }], send, { companyId: "b" });
+    expect(sent).toEqual(["pat@test.invalid"]);
   });
 
   it("admins see companies and who turned things off; unknown companies are dropped on save", async () => {

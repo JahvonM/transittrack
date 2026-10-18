@@ -3,22 +3,10 @@
 // the once-a-minute location records, instead of hopping from record to
 // record (which looked jumpy and cut across buildings).
 
-const R = 6371000;
-const rad = (d) => (d * Math.PI) / 180;
+// Metres between two [lng, lat] points, and the compass heading from a to b.
+import { metres as distM, bearing } from "./navigation";
 
-// Metres between two [lng, lat] points.
-export function distM(a, b) {
-  const dLat = rad(b[1] - a[1]);
-  const dLng = rad(b[0] - a[0]);
-  const h = Math.sin(dLat / 2) ** 2 + Math.cos(rad(a[1])) * Math.cos(rad(b[1])) * Math.sin(dLng / 2) ** 2;
-  return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
-}
-
-export function bearing(a, b) {
-  const y = Math.sin(rad(b[0] - a[0])) * Math.cos(rad(b[1]));
-  const x = Math.cos(rad(a[1])) * Math.sin(rad(b[1])) - Math.sin(rad(a[1])) * Math.cos(rad(b[1])) * Math.cos(rad(b[0] - a[0]));
-  return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
-}
+export { distM, bearing };
 
 const MAX_KMH = 160; // anything faster between two records is a GPS glitch
 

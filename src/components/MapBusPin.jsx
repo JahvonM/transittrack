@@ -2,22 +2,6 @@ import BusArtwork from "@/components/BusArtwork";
 import React, { useEffect, useRef, useState } from "react";
 import { getModel } from "@/lib/vehicleModels";
 
-// Remembers which way a vehicle last moved east/west (kept for callers that
-// only need left/right).
-export function useFacingRight(lng) {
-  const prev = useRef(lng);
-  const [faceRight, setFaceRight] = useState(false);
-  useEffect(() => {
-    if (lng == null) return;
-    if (prev.current != null) {
-      const d = lng - prev.current;
-      if (Math.abs(d) > 0.00002) setFaceRight(d > 0);
-    }
-    prev.current = lng;
-  }, [lng]);
-  return faceRight;
-}
-
 // Compass bearing (0 = north, clockwise) of the vehicle's travel, from its
 // last two positions. Moves of under ~6 m are GPS jitter and ignored, so a
 // parked bus keeps pointing the way it arrived. Falls back to `initial`.

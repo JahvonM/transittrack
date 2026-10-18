@@ -119,10 +119,6 @@ export async function fetchTurnByTurnRoutes(origin, destination, { via = [] } = 
   }
 }
 
-export async function fetchTurnByTurnRoute(origin, destination, options) {
-  return (await fetchTurnByTurnRoutes(origin, destination, options))[0] || null;
-}
-
 const MAX_MATCH_POINTS = 100; // Mapbox Map Matching API limit per request
 
 /**

@@ -43,31 +43,27 @@ const ManagerDashboard = lazy(() => import('@/pages/ManagerDashboard'));
 const OAuthConsent = lazy(() => import('@/pages/OAuthConsent'));
 const DesktopSignIn = lazy(() => import('@/pages/DesktopSignIn'));
 const PhoneSignIn = lazy(() => import('@/pages/PhoneSignIn'));
-const RouteAnalytics = lazy(() => import('@/pages/RouteAnalytics'));
-const IncidentReports = lazy(() => import('@/pages/IncidentReports'));
 const PassengerBookings = lazy(() => import('@/pages/PassengerBookings'));
 const Kiosk = lazy(() => import('@/pages/Kiosk'));
 const RouteExplorer = lazy(() => import('@/pages/RouteExplorer'));
 const StaffDirectory = lazy(() => import('@/pages/StaffDirectory'));
-const VehicleLogs = lazy(() => import('@/pages/VehicleLogs'));
 const ServiceHistory = lazy(() => import('@/pages/ServiceHistory'));
 const SafetyStandards = lazy(() => import('@/pages/SafetyStandards'));
 const Buses = lazy(() => import('@/pages/Buses'));
 // Passenger More shares StaffPortal data with Home, Journey and My card.
-const RideHistory = lazy(() => import('@/pages/RideHistory'));
-const FleetAnalytics = lazy(() => import('@/pages/FleetAnalytics'));
 const Notifications = lazy(() => import('@/pages/Notifications'));
 const VehicleRegistry = lazy(() => import('@/pages/VehicleRegistry'));
 const VehicleDetail = lazy(() => import('@/pages/VehicleDetail'));
 const IncidentReport = lazy(() => import('@/pages/IncidentReport'));
-const PassengerSupport = lazy(() => import('@/pages/PassengerSupport'));
-const RoutePlanner = lazy(() => import('@/pages/RoutePlanner'));
 const ReviewerSandbox = lazy(() => import('@/pages/ReviewerSandbox'));
-const DrivingReports = lazy(() => import('@/pages/DrivingReports'));
 const DriverSchedule = lazy(() => import('@/pages/DriverSchedule'));
 const DriverProfile = lazy(() => import('@/pages/DriverProfile'));
 const DriverPhone = lazy(() => import('@/pages/DriverPhone'));
 // Add page imports here
+
+// Pages that moved inside the admin area. Their old addresses still work for
+// bookmarks; nothing in the app links to them any more.
+const MOVED_TO_ADMIN = ["route-analytics", "fleet-analytics", "vehicle-logs", "driving-reports", "route-planner", "ride-history", "incident-reports", "support", "location-timeline"];
 
 const RouteFallback = () => (
   <JourneyLoading label="Opening this screen…" onRetry={() => window.location.reload()} />
@@ -149,26 +145,18 @@ const AuthenticatedApp = () => {
         <Route path="/run-inspection" element={<RunInspection />} />
         <Route path="/manager" element={<ManagerDashboard />} />
         <Route path="/manager/:tab" element={<ManagerDashboard />} />
-        <Route path="/route-analytics" element={<RouteAnalytics />} />
-        <Route path="/incident-reports" element={<IncidentReports />} />
         <Route path="/passenger-bookings" element={<PassengerBookings />} />
         <Route path="/route-explorer" element={<RouteExplorer />} />
         <Route path="/buses" element={<Buses />} />
         <Route path="/more" element={<StaffPortal />} />
         <Route path="/staff-directory" element={<StaffDirectory />} />
-        <Route path="/vehicle-logs" element={<VehicleLogs />} />
         <Route path="/service-history" element={<ServiceHistory />} />
         <Route path="/safety-standards" element={<SafetyStandards />} />
-        <Route path="/ride-history" element={<RideHistory />} />
-        <Route path="/fleet-analytics" element={<FleetAnalytics />} />
         <Route path="/notifications" element={<Notifications />} />
         <Route path="/vehicle-registry" element={<VehicleRegistry />} />
         <Route path="/vehicle/:id" element={<VehicleDetail />} />
         <Route path="/incident-report" element={<IncidentReport />} />
-        <Route path="/support" element={<PassengerSupport />} />
-        <Route path="/route-planner" element={<RoutePlanner />} />
-        <Route path="/driving-reports" element={<DrivingReports />} />
-        <Route path="/location-timeline" element={<Navigate to="/admin/location-timeline" replace />} />
+        {MOVED_TO_ADMIN.map((id) => <Route key={id} path={`/${id}`} element={<Navigate to={`/admin/${id}`} replace />} />)}
         <Route path="/driver-schedule" element={<DriverSchedule />} />
         <Route path="/driver-profile" element={<DriverProfile />} />
         {/* The driver phone app (Google sign-in); /driver is the bus tablet. */}

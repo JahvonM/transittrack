@@ -1,25 +1,12 @@
 import React, { useState } from "react";
 import Map, { Marker } from "react-map-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
-import { MAPBOX_TOKEN, mapStyleFor } from "@/lib/mapbox";
+import { MAPBOX_TOKEN, declutterStyle, mapStyleFor } from "@/lib/mapbox";
 import { useIsDark } from "@/lib/useTheme";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { LocateFixed } from "lucide-react";
 import PlaceSearch from "@/components/PlaceSearch";
-
-// Matches the declutter treatment on every other map in the app: hide
-// POI/transit icon clutter, keep road labels so the basemap still reads.
-function declutterStyle(map) {
-  const style = map.getStyle();
-  if (!style || !style.layers) return;
-  style.layers.forEach((layer) => {
-    const id = layer.id || "";
-    if (id.includes("poi") || id.includes("transit")) {
-      try { map.setLayoutProperty(id, "visibility", "none"); } catch { /* some layers can't be toggled */ }
-    }
-  });
-}
 
 /**
  * Tap-to-place / draggable-marker map for picking a GPS coordinate.

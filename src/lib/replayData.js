@@ -1,8 +1,7 @@
 // Reads historical points independently of the bus's current online/GPS status.
-export function replayDay(date = new Date()) {
-  const pad = n => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-}
+import { localDayKey as replayDay } from "./localDay";
+
+export { replayDay };
 export async function latestReplayDay(store, vehicleId) {
   const rows = await store.filter({ vehicle_id: vehicleId }, "-recorded_at", 1);
   const date = new Date(rows?.[0]?.recorded_at);
