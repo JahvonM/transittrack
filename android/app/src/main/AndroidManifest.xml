@@ -66,6 +66,10 @@
             android:theme="@android:style/Theme.Material.NoActionBar" android:label="Kiosk recovery" />
         <activity android:name=".RearDashcamActivity" android:exported="false"
             android:theme="@android:style/Theme.Material.NoActionBar" android:label="Rear dashcam" />
+        <service android:name=".DriverLocationService" android:exported="false" android:foregroundServiceType="location" />
+        <receiver android:name=".DriverTrackingRecoveryReceiver" android:exported="false">
+            <intent-filter><action android:name="android.intent.action.BOOT_COMPLETED" /><action android:name="android.intent.action.MY_PACKAGE_REPLACED" /></intent-filter>
+        </receiver>
         <service android:name=".RearDashcamService" android:exported="false" android:foregroundServiceType="camera" />
         <service android:name=".SupportProjectionService" android:exported="false" android:foregroundServiceType="mediaProjection" />
         <receiver android:name=".NativeUpdateReceiver" android:exported="false" />
@@ -82,6 +86,7 @@
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
     <!-- Permissions -->
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
@@ -116,7 +121,9 @@
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" tools:targetApi="s" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" tools:targetApi="s" />
-    <!-- ACCESS_BACKGROUND_LOCATION is deliberately NOT included yet: it triggers
+    <!-- Driver GPS now uses a visible location foreground service started from the driver UI.
+         No all-the-time location grant is requested. Android 11+ boot recovery waits for opening.
+         ACCESS_BACKGROUND_LOCATION is deliberately NOT included: it triggers
          a stricter Google Play review (a prominent in-app disclosure + written
          justification) and only matters if the driver app must keep tracking
          with the screen off/app minimized. Add it (and the matching iOS
