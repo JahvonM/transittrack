@@ -22,7 +22,7 @@ final class TabletScreenRecovery extends WebViewListener {
     private SharedPreferences prefs() { return activity.getSharedPreferences(STORE, Context.MODE_PRIVATE); }
     static JSObject snapshot(Context context) {
         SharedPreferences p = context.getSharedPreferences(STORE, Context.MODE_PRIVATE);
-        return new JSObject().put("available", true).put("state", p.getString("state", "ready"))
+        return new JSObject().put("available", android.os.Build.VERSION.SDK_INT >= 26).put("state", p.getString("state", "ready"))
             .put("count", p.getInt("total", 0));
     }
     @Override public void onPageLoaded(WebView view) {
