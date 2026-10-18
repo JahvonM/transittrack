@@ -24,7 +24,7 @@ export default function TabletRecoveryPanel() {
       <p className="text-xs text-muted-foreground">Optional: choose TransitTrack Kiosk as the Home app to open it when Android starts its home screen after unlock. This replaces the current Home app, including FreeKiosk if selected. You can change it back in Android settings.</p>
       <Button variant="outline" className="w-full" onClick={() => openTabletHomeSettings().catch(e => setError(e?.message || "Open Default apps → Home app in Android settings."))}>Open Android Home settings</Button>
       <p className="text-xs text-muted-foreground">USB readers reconnect while this app is open. Android may ask which app should open for an attached reader or GPS receiver; choose TransitTrack Kiosk only when ready to switch from the helper.</p>
-      <p className="text-xs text-muted-foreground">USB GPS pauses at 5% battery when unplugged. It resumes when charging or at 8%. The card reader and visible screen stay active. Tracking does not continue in the background.</p>
+      <p className="text-xs text-muted-foreground">USB GPS pauses at 5% battery when unplugged. It resumes when charging or at 8%. The card reader and visible screen stay active. Background tracking needs the separate “GPS with screen off” setting in driver mode.</p>
       {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
     </CardContent>
   </Card>;

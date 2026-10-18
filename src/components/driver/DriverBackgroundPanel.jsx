@@ -1,0 +1,44 @@
+import { useEffect, useState } from "react";
+import { Satellite, Download } from "lucide-react";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
+import { Button } from "@/components/ui/button";
+import { backgroundGpsState, setBackgroundGpsEnabled, exportBackgroundGps } from "@/lib/driverBackground";
+
+export default function DriverBackgroundPanel() {
+ const [state, setState] = useState(null), [busy, setBusy] = useState(false), [error, setError] = useState("");
+ useEffect(() => {
+  let stopped = false;
+  const refresh = () => { void backgroundGpsState().then(s => { if (!stopped) setState(s); }).catch(() => {}); };
+  refresh(); const timer = setInterval(refresh, 5000);
+  return () => { stopped = true; clearInterval(timer); };
+ }, []);
+ if (!state?.available) return null;
+ const toggle = async enabled => {
+  setBusy(true); setError("");
+  try { await setBackgroundGpsEnabled(enabled); setState(await backgroundGpsState()); }
+  catch (e) { setError(e?.message || "Could not change background GPS."); }
+  finally { setBusy(false); }
+ };
+ const download = async () => {
+  setBusy(true); setError("");
+  try {
+   const points = await exportBackgroundGps();
+   const url = URL.createObjectURL(new Blob([JSON.stringify({ format: "driver-gps-export-v1", exported_at: new Date().toISOString(), points }, null, 2)], { type: "application/json" }));
+   const a = document.createElement("a"); a.href = url; a.download = "saved-driver-gps.json"; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 30000);
+  } catch (e) { setError(e?.message || "Could not export saved GPS. Nothing was cleared."); }
+  finally { setBusy(false); }
+ };
+ return <Card className="max-w-lg mx-auto">
+  <CardHeader><CardTitle className="text-base flex items-center gap-2"><Satellite className="w-5 h-5" /> GPS with screen off</CardTitle></CardHeader>
+  <CardContent className="space-y-3">
+   <div className="flex items-center gap-3"><div className="flex-1"><p className="font-medium text-sm">Keep sharing in the background</p><p className="text-xs text-muted-foreground">Uses the selected USB receiver or tablet GPS.</p></div><Switch aria-label="Keep driver GPS in background" checked={state.enabled === true} disabled={busy} onCheckedChange={toggle} /></div>
+   <p className="text-sm">{state.active ? state.status : state.enabled ? "Ready. Starts when this bus is sharing and the driver PIN is verified." : "Background GPS is off. Foreground tracking is unchanged."}</p>
+   <p className="text-xs text-muted-foreground">A tracking notification stays visible while active. GPS points are saved on this tablet before upload and keep their original bus/company. Android can still stop the app; reopening restores a valid session. On Android 10, restart recovery also attempts to resume an unexpired session.</p>
+   <p className="text-sm">Saved GPS: {state.pending || 0} waiting · {state.review || 0} need review</p>
+   {(state.pending > 0 || state.review > 0) && <Button variant="outline" disabled={busy} onClick={download}><Download className="w-4 h-4 mr-2" /> Export saved GPS</Button>}
+   <p className="text-xs text-muted-foreground">Export keeps the originals. Failed or old-assignment points are retained for review. Locations are private; share exports only with your transport administrator.</p>
+   {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+  </CardContent>
+ </Card>;
+}

@@ -22,7 +22,7 @@ class DriverBackgroundPlugin:Plugin() {
  @PluginMethod fun getState(call:PluginCall){worker.execute{try{
   val store=DriverTrackingStore(context)
   try{call.resolve(JSObject().put("available",Build.VERSION.SDK_INT>=26).put("enabled",enabled()).put("active",DriverLocationService.active())
-   .put("status",DriverLocationService.status()).put("pending",store.count("pending")).put("review",store.count("needs_review"))
+   .put("status",DriverLocationService.status()).put("pending",store.count("pending")).put("review",store.count("needs_review")))
   }finally{store.close()}
  }catch(_:Exception){call.reject("GPS storage could not be read. Do not clear tablet data.")}}}
  @PluginMethod fun setEnabled(call:PluginCall){

@@ -32,7 +32,7 @@ export default function UsbGpsPanel() {
       <p role="status" className="text-sm">{state.enabled ? state.status : "Using tablet GPS / existing helper"}</p>
       {!state.enabled && <p className="text-xs text-muted-foreground">Before switching on, stop the separate helper so both apps do not compete for the receiver. Keep it installed. Switch this off and restart the helper to go back.</p>}
       {state.enabled && <>
-        <p className="text-xs text-muted-foreground">Allow Android USB access when asked. This receiver reconnects automatically while TransitTrack is open. Keep the app on screen while driving.</p>
+        <p className="text-xs text-muted-foreground">Allow Android USB access when asked. This receiver reconnects automatically. Enable “GPS with screen off” below to continue sharing when the driver app is in the background.</p>
         <Button variant="outline" className="w-full" onClick={() => { setError(""); rescanUsbGps().catch(() => setError("Could not retry USB GPS.")); }}><RefreshCw className="h-4 w-4 mr-2" /> Check GPS again</Button>
       </>}
       <div className="space-y-2 border-t border-border pt-3">

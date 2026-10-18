@@ -1,3 +1,4 @@
+import DriverBackgroundPanel from "@/components/driver/DriverBackgroundPanel";
 import TabletCellularPanel from "@/components/driver/TabletCellularPanel";
 import NativeNetworkPanel from "@/components/driver/NativeNetworkPanel";
 import TabletRecoveryPanel from "@/components/driver/TabletRecoveryPanel";
@@ -21,6 +22,7 @@ export default function DriverDevicePanel({ session, deviceId, onUnpair }) {
   return (
     <>
     <UsbGpsPanel />
+    <DriverBackgroundPanel />
     <TabletDiagnosticsPanel />
     <TabletRecoveryPanel />
     <TabletCellularPanel />
