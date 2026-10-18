@@ -1,6 +1,7 @@
 import {describe,it,expect} from 'vitest';
 import fs from 'node:fs';
 import ts from 'typescript';
+import {load,mock} from './helpers.js';
 const source=fs.readFileSync('base44/shared/tabletRecordings.ts','utf8');
 const js=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
 const p={};new Function('exports',js)(p);
@@ -42,9 +43,7 @@ describe('driver and boarding heartbeat integration',()=>{
   const file=fs.readFileSync(`base44/functions/${name}/entry.ts`,'utf8');
   const ast=ts.createSourceFile('heartbeat.ts',file,ts.ScriptTarget.Latest,true);
   it(`${name} preserves boolean recording capability and rejects forged types`,()=>{
-   const fn=ast.statements.find(n=>ts.isFunctionDeclaration(n) && n.name?.text==='cleanHelperHealth');
-   const code=ts.transpileModule(fn.getText(ast),{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText;
-   const clean=new Function('nativeReleaseHealth','cleanNetworkHealth',code+';return cleanHelperHealth;')(()=>({}),()=>({}));
+   const clean=load(name,mock(null),['cleanHelperHealth']).cleanHelperHealth;
    expect(clean({recordings_available:true}).recordings_available).toBe(true);
    expect(clean({recordings_available:'true'}).recordings_available).toBeUndefined();
    expect(clean({recordings_available:false}).recordings_available).toBe(false);
