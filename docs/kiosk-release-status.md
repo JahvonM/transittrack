@@ -6,7 +6,7 @@ Cloud recording upload/storage is deferred at the owner's request. Rear-camera r
 
 - Security release suite: 188 tests passed across 17 files, including concurrent operation and credential/session boundary checks. These are isolated tests with synthetic RPC fixtures; hosted Supabase migrations, flags and production atomicity were not verified.
 - Corrected three stale test fixtures: pairing now loads the actual shared durable-operation helpers; driver messages carry a company and explicitly exclude another company's messages; direct entity access tests recognize server-only support/recording sessions and forbid both through the generic gateway for every role, including admin.
-- Focused regression run: 45 tests passed. Full src/lib unit suite: 974 tests passed across 108 files. npm run build (crash-guard lint and frontend production build) exited successfully.
+- Focused regression run: 45 tests passed. Full src/lib unit suite after the finishing changes: 985 tests passed across 109 files. npm run build (crash-guard lint and frontend production build) exited successfully.
 - No application security rules were loosened. No accounts, tablet assignments, PINs, credentials, saved queues or server settings were changed.
 
 ## Feature and acceptance status
@@ -22,10 +22,11 @@ Cloud recording upload/storage is deferred at the owner's request. Rear-camera r
 | Rear dashcam and local playback | User reported rear recording works | Confirm saved clip playback, rotation and protected-clip behavior on installed build |
 | Admin saved-recording playback | Implemented; latest native data-channel ICE fix passed prior native tests | User has not confirmed playback after that update |
 | Native update delivery | Guarded same-package/same-signer updater implemented; release catalog intentionally empty | Existing signing environment, immutable signed artifact and safe physical upgrade acceptance |
-| SIM/carrier health and background watchdog | Incomplete helper parity | Implementation and OEM acceptance remain separate work |
+| SIM/carrier health | Read-only SIM state, carrier and cached signal integrated into driver, boarding and admin health; no new phone permission prompts or identifiers | Physical SIM, no-SIM, Wi-Fi-only and OEM-restricted readings still need acceptance |
+| Renderer recovery and background watchdog | Confirmed WebView renderer death opens a native fallback and retries at most twice per ten minutes while visible; manual reopen after retry budget | Hardware renderer-kill acceptance remains; full-process/ANR watchdog and background GPS service are not implemented |
 | Separate passenger installation | Kiosk routes are restricted; separate passenger binary not packaged | Passenger package must exclude kiosk permissions/plugins |
 
-The previous native build passed Kotlin/Java compilation and 76 JVM tests on 17 October. Native sources were not changed or recompiled in this finishing pass. No signed production APK was produced and no native release catalog entry was activated.
+The finishing native build passed Kotlin/Java compilation and 79 JVM tests on 18 October. Three focused mocked browser checks passed for NFC delivery, PIN-gated recovery/mobile status and admin health. The security suite passed all 188 tests with one test worker; a parallel run during toolchain installation hit a test timeout. Recording capability tests now load actual shared helpers rather than dropping imports. No signed production APK was produced and no native release catalog entry was activated.
 
 ## Final tablet acceptance sequence
 
@@ -41,3 +42,21 @@ Use the existing Windows checkout and existing signing identity. Do not uninstal
 8. Before fleet rollout, test a non-debuggable newer same-key APK update preserving pairing, PIN flow, settings and queued work. Publish a reviewed native catalog entry only after the exact artifact and update flow pass.
 
 This is a current handover checklist, not a declaration that every hardware feature or production deployment has passed.
+
+## 18 October implementation update
+
+Fixed a confirmed driver endpoint issue: it discarded native model, Android version, network, temperature, storage and USB metadata while boarding retained them. Both now use the same bounded hardware normalizer. Mobile status and screen recovery travel on the existing heartbeat; no additional server polling was introduced.
+
+Renderer recovery never treats rate limits, slow requests or loss of Internet as a reason to restart. A dead WebView is removed/destroyed; the failed activity finishes into a non-exported native fallback. Retry budget is persisted before automatic relaunch, foreground-only and clock-rollback safe. Existing cookies, pairing, queues and recordings are not cleared. In-memory input that had never been saved cannot be recovered from an already-dead renderer. Background renderer loss waits for the user to bring the kiosk forward. Full-process death, Android force-stop, OS permission bypass and always-on background GPS are not covered by this mechanism.
+
+To validate on a development tablet while parked, first ensure forms are saved and sync state is understood, then exercise a renderer termination through Android/WebView diagnostics. Confirm a native fallback, restored saved mode/pairing/queue, and a manual Reopen kiosk button after repeated failure. Do not add a production crash URL or a remotely triggerable renderer-kill command.
+
+### Final PC handover
+
+1. Publish the web changes from the Base44 dashboard after the repository sync completes.
+2. On the Windows PC, open PowerShell in `C:\Users\Gameo\StudioProjects\transittrack`, run `git pull --ff-only`, then `npm install` and `npm run cap:android`. Keep the existing public Base44 environment values/project configuration.
+3. In Android Studio, select the connected tablet and use the existing build/signing configuration to update it in place. Do not uninstall or replace its signing key. A signature mismatch needs the original signing environment, not a reset.
+4. Check Driver settings or PIN-gated Boarding settings → Mobile connection and Startup & recovery. Admin → Kiosk tablets shows the new status after the existing heartbeat arrives.
+5. Test Saved recordings admin playback after the previously fixed data-channel update. Recording upload/cloud retention remains out of scope.
+
+No approved production-signed APK or native release-catalog entry was created by this pass. The app's package, versionCode and signing configuration remain unchanged.

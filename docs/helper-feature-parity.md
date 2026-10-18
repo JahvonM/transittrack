@@ -108,3 +108,7 @@ Admin screen/front/rear-camera viewer and consent-based native Android streaming
 
 ## 16 October — direct WebRTC replaces LiveKit
 At the owner’s request, the LiveKit dependency/account requirement has been removed. One-way native WebRTC and the Admin receiver now use existing server authorization/signaling, with optional operator-owned coturn connectivity. No relay is deployed and no actual media stream has been validated on a tablet. Earlier LiveKit notes are historical. See tablet-remote-support.md for current configuration and limits.
+
+## 18 October — mobile health and display recovery
+
+SIM state/carrier/cached signal reporting is integrated without phone identifiers or new permission prompts. Driver and boarding endpoints now retain the same hardware metadata. Confirmed WebView renderer loss has a bounded native fallback, foreground-only automatic retries and manual reopen. This is not full-process/ANR recovery or background GPS. See kiosk-release-status.md for current checks and physical acceptance; earlier remaining-work lists are historical.
