@@ -14,7 +14,7 @@ function fakeSupabase() {
   const calls = [];
   const fetch = async (url, init = {}) => {
     const u = new URL(url);
-    calls.push({ url: u.pathname + u.search, method: init.method || "GET", headers: init.headers || {} });
+    calls.push({ host: u.host, url: u.pathname + u.search, method: init.method || "GET", headers: init.headers || {} });
     if (u.pathname === "/rest/v1/") {
       return new Response(JSON.stringify({ definitions: Object.fromEntries(Object.entries(columns).map(([t, c]) => [t, { properties: Object.fromEntries(c.map((k) => [k, {}])) }])) }), { status: 200 });
     }
@@ -96,6 +96,25 @@ describe("copy data to Supabase", () => {
     expect(publicKey.status).toBe(503);
     expect(publicKey.body.error).toMatch(/public key/);
     expect((await setup("admin", { ...SECRETS, SUPABASE_URL: "https://evil.example.com" }).send({ action: "counts" })).status).toBe(503);
+  });
+
+  it("accepts the project address the way it is usually pasted, and only ever calls supabase.co", async () => {
+    const ref = "abcdefghijklmnopqrst";
+    for (const pasted of [`https://${ref}.supabase.co`, `https://${ref}.supabase.co/`, `"https://${ref}.supabase.co"`, `${ref}.supabase.co`, `https://${ref}.supabase.co/rest/v1/`, `https://supabase.com/dashboard/project/${ref}/settings/api`, ref]) {
+      const { supa, send } = setup("admin", { ...SECRETS, SUPABASE_URL: pasted });
+      const { status } = await send({ action: "counts" });
+      expect(status, pasted).toBe(200);
+      expect([...new Set(supa.calls.map((c) => c.host))], pasted).toEqual([`${ref}.supabase.co`]);
+    }
+    for (const pasted of ["http://proj.supabase.co", "https://proj.supabase.co.evil.com", "https://evil.com/?x=proj.supabase.co", "https://user:pw@proj.supabase.co", "https://proj.supabase.co:8443", "sb_secret_pasted-in-the-wrong-box"]) {
+      const { supa, send } = setup("admin", { ...SECRETS, SUPABASE_URL: pasted });
+      const { status, body } = await send({ action: "counts" });
+      expect(status, pasted).toBe(503);
+      expect(body.error, pasted).toMatch(/should look like/);
+      // The pasted value is never shown back.
+      expect(body.error).not.toContain(pasted);
+      expect(supa.calls, pasted).toHaveLength(0);
+    }
   });
 
   it("refuses tables it doesn't know", async () => {
