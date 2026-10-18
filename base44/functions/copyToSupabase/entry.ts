@@ -13,7 +13,7 @@ import { SUPABASE_TABLES } from '../../shared/supabaseTables.ts';
 const PAGE = 200;
 // Shown with every error, so a message on screen says which copy of this
 // code answered (an app window left open can call an older one).
-const VERSION = 'copy v4';
+const VERSION = 'copy v5';
 function fail(status: number, message: string): never { throw Object.assign(new Error(message), { status }); }
 
 // App secrets reach backend functions through base44:runtime and as
@@ -80,9 +80,13 @@ async function tableColumns(sb: ReturnType<typeof supabaseConfig>) {
 
 // Base44 stores its own times without a zone; they are UTC.
 const BARE_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?$/;
-function cleanRow(row: Record<string, unknown>, cols: Set<string>, dropped: Record<string, number>) {
+// Base44's own account plumbing on User records. Supabase sign-in replaces
+// it, so it is left behind on purpose and not reported as missing.
+const BASE44_ONLY: Record<string, Set<string>> = { User: new Set(['app_id', 'is_service', 'collaborator_role', '_app_role', 'force_password_reset']) };
+function cleanRow(entity: string, row: Record<string, unknown>, cols: Set<string>, dropped: Record<string, number>) {
   const out: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(row)) {
+    if (BASE44_ONLY[entity]?.has(key)) continue;
     if (!cols.has(key)) { dropped[key] = (dropped[key] || 0) + 1; continue; }
     out[key] = (key === 'created_date' || key === 'updated_date') && typeof value === 'string' && BARE_TIME.test(value) ? value + 'Z' : value;
   }
@@ -129,7 +133,7 @@ export default async function (req: Request) {
     if (!cols?.size) fail(502, `Supabase has no ${table} table yet`);
     const rows = await base44.asServiceRole.entities[entity].filter({}, 'created_date', PAGE, skip);
     const dropped: Record<string, number> = {};
-    const clean = rows.map((r: Record<string, unknown>) => cleanRow(r, cols, dropped));
+    const clean = rows.map((r: Record<string, unknown>) => cleanRow(entity, r, cols, dropped));
     let copied = 0;
     const failed: { id: string; error: string }[] = [];
     if (clean.length) {
