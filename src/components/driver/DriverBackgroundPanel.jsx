@@ -5,7 +5,7 @@ import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { backgroundGpsState, setBackgroundGpsEnabled, exportBackgroundGps } from "@/lib/driverBackground";
 
-export default function DriverBackgroundPanel() {
+export default function DriverBackgroundPanel({ vehicle }) {
  const [state, setState] = useState(null), [busy, setBusy] = useState(false), [error, setError] = useState("");
  useEffect(() => {
   let stopped = false;
@@ -23,7 +23,7 @@ export default function DriverBackgroundPanel() {
  const download = async () => {
   setBusy(true); setError("");
   try {
-   const points = await exportBackgroundGps();
+   const points = await exportBackgroundGps(vehicle);
    const url = URL.createObjectURL(new Blob([JSON.stringify({ format: "driver-gps-export-v1", exported_at: new Date().toISOString(), points }, null, 2)], { type: "application/json" }));
    const a = document.createElement("a"); a.href = url; a.download = "saved-driver-gps.json"; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 30000);
   } catch (e) { setError(e?.message || "Could not export saved GPS. Nothing was cleared."); }
@@ -37,7 +37,7 @@ export default function DriverBackgroundPanel() {
    <p className="text-xs text-muted-foreground">A tracking notification stays visible while active. GPS points are saved on this tablet before upload and keep their original bus/company. Android can still stop the app; reopening restores a valid session. On Android 10, restart recovery also attempts to resume an unexpired session.</p>
    <p className="text-sm">Saved GPS: {state.pending || 0} waiting · {state.review || 0} need review</p>
    {(state.pending > 0 || state.review > 0) && <Button variant="outline" disabled={busy} onClick={download}><Download className="w-4 h-4 mr-2" /> Export saved GPS</Button>}
-   <p className="text-xs text-muted-foreground">Export keeps the originals. Failed or old-assignment points are retained for review. Locations are private; share exports only with your transport administrator.</p>
+   <p className="text-xs text-muted-foreground">Export keeps the originals. Failed points are retained. Exports cover this bus only; records from an old assignment stay private for administrator recovery. Locations are private; share exports only with your transport administrator.</p>
    {state.enabled && !state.active && state.setupError && <p role="alert" className="text-sm text-destructive">{state.setupError}</p>}
    {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
   </CardContent>

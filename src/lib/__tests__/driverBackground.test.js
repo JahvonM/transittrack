@@ -24,11 +24,11 @@ describe('native background GPS bridge',()=>{
  });
  it('exports every page in one snapshot without removing the originals',async()=>{
   f.native.savedPoints=vi.fn().mockResolvedValueOnce({points:[{queue_id:'one'}],cursor:100,max:101,done:false}).mockResolvedValueOnce({points:[{queue_id:'two'}],cursor:101,max:101,done:true});
-  expect(await exportBackgroundGps()).toEqual([{queue_id:'one'},{queue_id:'two'}]);
-  expect(f.native.savedPoints).toHaveBeenLastCalledWith({cursor:100,max:101});expect(f.native.stop).not.toHaveBeenCalled();
+  expect(await exportBackgroundGps({id:"bus",company_id:"company"})).toEqual([{queue_id:'one'},{queue_id:'two'}]);
+  expect(f.native.savedPoints).toHaveBeenLastCalledWith(expect.objectContaining({cursor:100,max:101,expected_vehicle_id:"bus",expected_company_id:"company"}));expect(f.native.stop).not.toHaveBeenCalled();
  });
  it('rejects a non-advancing export rather than returning a partial file',async()=>{
   f.native.savedPoints=vi.fn(async()=>({points:[],cursor:0,max:100,done:false}));
-  await expect(exportBackgroundGps()).rejects.toThrow('could not continue');
+  await expect(exportBackgroundGps({id:"bus",company_id:"company"})).rejects.toThrow('could not continue');
  });
 });

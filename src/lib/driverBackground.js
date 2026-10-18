@@ -43,11 +43,15 @@ export function useDriverBackgroundTracking(sharing, vehicle) {
   return () => { stopped = true; clearInterval(timer); clearInterval(heartbeat); window.removeEventListener(BACKGROUND_EVENT, sync); document.removeEventListener("visibilitychange", sync); };
  }, [sharing, vehicle?.id, vehicle?.company_id]);
 }
-export async function exportBackgroundGps() {
+export async function exportBackgroundGps(vehicle) {
  if (!backgroundGpsAvailable()) return [];
+ const id = localStorage.getItem("tt_driver_device_id");
+ const auth = deviceRequest(id);
+ if (!vehicle?.id || !vehicle.company_id || !id || !auth.device_token || !auth.driver_grant) throw new Error("Unlock the current driver tablet to export this bus’s saved GPS.");
+ const binding = { ...auth, expected_device_id: id, expected_vehicle_id: vehicle.id, expected_company_id: vehicle.company_id };
  const points = []; let cursor = 0, max = 0;
  for (let guard = 0; guard < 101; guard++) {
-  const page = await Native.savedPoints({ cursor, max });
+  const page = await Native.savedPoints({ ...binding, cursor, max });
   if (!Array.isArray(page.points)) throw new Error("Could not read saved GPS points.");
   points.push(...page.points);
   if (page.done) return points;

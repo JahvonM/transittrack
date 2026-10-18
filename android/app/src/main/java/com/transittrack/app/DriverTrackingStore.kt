@@ -60,10 +60,11 @@ internal class DriverTrackingStore(context:Context, private val testKey:(()->Sec
    db.setTransactionSuccessful()
   }finally{db.endTransaction()}
  }
- @Synchronized fun page(after:Long,max:Long):JSONObject {
+ @Synchronized fun page(after:Long,max:Long,binding:String?=null):JSONObject {
   val bound=if(max>0)max else db.rawQuery("SELECT COALESCE(MAX(id),0) FROM points",null).use{it.moveToFirst();it.getLong(0)}
   val rows=JSONArray();var last=after
-  db.rawQuery("SELECT id,body,state FROM points WHERE id>? AND id<=? ORDER BY id LIMIT 100",arrayOf(after.toString(),bound.toString())).use{c->while(c.moveToNext()){
+  val args=mutableListOf(after.toString(),bound.toString());if(binding!=null)args.add(binding)
+  db.rawQuery("SELECT id,body,state FROM points WHERE id>? AND id<=?"+(if(binding!=null)" AND binding=?" else "")+" ORDER BY id LIMIT 100",args.toTypedArray()).use{c->while(c.moveToNext()){
    last=c.getLong(0);rows.put(JSONObject(c.getString(1)).put("state",c.getString(2)))
   }}
   return JSONObject().put("points",rows).put("cursor",last).put("max",bound).put("done",rows.length()<100 || last>=bound)

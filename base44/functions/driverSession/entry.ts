@@ -653,17 +653,18 @@ export default async function(req) {
 
     if (!['heartbeat', 'verify_pin', 'request_pin_reset', 'register_push_token', 'sos', 'phone_unlock_code', 'phone_unlock_status'].includes(action) && !(await validGrant(base44, device, body.driver_grant, 'driver', vehicleId))) return Response.json({ error: 'Driver PIN verification required', code: 'DRIVER_PIN_REQUIRED' }, { status: 401 });
 
-    const nativeBackground = ['background_check','background_location'].includes(action) || body.native_background === true;
+    const nativeBackground = ['background_check','background_location','background_export_check'].includes(action) || body.native_background === true;
     if (nativeBackground) {
-      if (!['background_check','background_location','upload_track'].includes(action) ||
+      if (!['background_check','background_location','background_export_check','upload_track'].includes(action) ||
           !(await authenticatedTablet(base44, device, body.device_token)))
         return Response.json({error:'Current enrolled driver tablet required'}, {status:403});
       if (body.expected_device_id !== device.id || body.expected_company_id !== companyId || body.expected_vehicle_id !== vehicleId)
         return Response.json({error:'Background tracking assignment mismatch'}, {status:409});
       const current = await loadVehicle(base44, vehicleId);
       if (!current || current.company_id !== companyId) return Response.json({error:'Vehicle assignment mismatch'}, {status:409});
-      if (action !== 'upload_track' && !current.tracking_active && !current.remote_tracking_lock)
+      if (!['upload_track','background_export_check'].includes(action) && !current.tracking_active && !current.remote_tracking_lock)
         return Response.json({ok:true,tracking:false});
+      if (action === 'background_export_check') return Response.json({ok:true});
       if (action === 'background_check') {
         const status = body.native_tracking_health;
         const finiteCount = v => typeof v === 'number' && Number.isFinite(v) ? Math.max(0,Math.min(10000,Math.floor(v))) : 0;

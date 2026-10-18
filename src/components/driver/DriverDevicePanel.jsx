@@ -22,7 +22,7 @@ export default function DriverDevicePanel({ session, deviceId, onUnpair }) {
   return (
     <>
     <UsbGpsPanel />
-    <DriverBackgroundPanel />
+    <DriverBackgroundPanel vehicle={vehicle} />
     <TabletDiagnosticsPanel />
     <TabletRecoveryPanel />
     <TabletCellularPanel />
