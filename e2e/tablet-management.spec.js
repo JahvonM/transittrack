@@ -4,7 +4,7 @@ async function setup(page, { managed = true, release = null, supportEnabled = fa
   const controls = [], writes = [], support = [];
   const device = { id: "tablet-managed", label: "Driver tablet test", company_id: "a", kiosk_type: "driver", vehicle_id: "bus-a",
     vehicle_name: "Bus A", status: "active", paired: true, last_seen: new Date().toISOString(),
-    helper_health: { reported_at: new Date().toISOString(), support_available: supportEnabled, support_transport: "webrtc", management_available: true, management_owner: managed, management_locked: false, native_app_package: "com.transittrack.app", native_app_version: "1.0", native_app_code: 1, native_update_available: true } };
+    helper_health: { reported_at: new Date().toISOString(), support_available: supportEnabled, support_transport: "webrtc", management_available: true, management_owner: managed, management_locked: false, native_app_package: "com.transittrack.app", native_app_version: "1.0", native_app_code: 1, native_update_available: true, cellular_state: "ready", cellular_carrier: "FLOW", cellular_bars: 2, recovery_available: true, recovery_state: "recovered", internet_validated: true } };
   await page.addInitScript(() => localStorage.setItem("base44_access_token", "isolated-test-session"));
   await page.route("https://api.mapbox.com/**", r => r.fulfill({ status: 404, body: "" }));
   await page.route("**/api/**", r => {
@@ -108,4 +108,12 @@ test("closing the admin controls ends a pending viewing session", async ({page})
  await expect(page.getByText("Waiting for tablet startup or Android permission")).toBeVisible();
  await page.keyboard.press("Escape");
  await expect.poll(()=>support.some(x=>x.operation==="end")).toBe(true);
+});
+
+test("admin sees cellular and screen recovery health without starting a control session", async ({ page }) => {
+  const { controls, writes, support } = await setup(page);
+  await page.goto("/admin/kiosks");
+  await expect(page.getByText("FLOW · 2/4 signal (last reading)", { exact: true })).toBeVisible();
+  await expect(page.getByText("Kiosk screen recovered", { exact: true })).toBeVisible();
+  expect(controls).toEqual([]); expect(writes).toEqual([]); expect(support).toEqual([]);
 });

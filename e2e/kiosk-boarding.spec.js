@@ -372,7 +372,7 @@ async function installNativeHelper(page, enabled = true, bleEnabled = false, net
       rescan: async () => { state = { ...state, status: 'Reconnecting' }; emitState(); return { ...state }; },
     };
     const health = {
-      getSnapshot: async () => ({ available: true, at: Date.now(), battery: 67, charging: true, batteryTemperature: 32.5, freeStorageMb: 8192, totalStorageMb: 32768, model: 'Test tablet', androidVersion: '10', network: 'wifi', internetValidated: true, usbDevices: 1, reader: { ...state }, gps: { enabled: false }, events: [{ at: Date.now(), component: 'reader', code: 'READER_CONNECTED' }] }),
+      getSnapshot: async () => ({ available: true, at: Date.now(), battery: 67, charging: true, batteryTemperature: 32.5, freeStorageMb: 8192, totalStorageMb: 32768, model: 'Test tablet', androidVersion: '10', network: 'wifi', internetValidated: true, cellular: { state: 'ready', carrier: 'FLOW', bars: 0 }, usbDevices: 1, reader: { ...state }, gps: { enabled: false }, events: [{ at: Date.now(), component: 'reader', code: 'READER_CONNECTED' }] }),
       openWifiSettings: async () => { window.__wifiSettingsOpened = true; },
       openHotspotSettings: async () => { window.__hotspotSettingsOpened = true; },
     };
@@ -426,7 +426,7 @@ async function installNativeHelper(page, enabled = true, bleEnabled = false, net
       offer: async value => {window.__supportOffers.push(value);},
       stop: async () => window.__supportReserve(false),
     };
-    const recovery = { getState: async () => ({ available: true, defaultHome: false }), openHomeSettings: async () => { window.__nativeHomeSettingsOpened = true; } };
+    const recovery = { getState: async () => ({ available: true, defaultHome: false, screenRecovery: { available: true, state: 'ready', count: 0 } }), openHomeSettings: async () => { window.__nativeHomeSettingsOpened = true; } };
     const gps = { openAutoAcceptSettings: async () => { window.__autoAcceptSettingsOpened = true; } };
     const other = new Proxy({}, { get: (_, key) => key === 'addListener' ? async () => ({ remove: async () => {} }) : async () => ({}) });
     window.CapacitorPlatforms = { platforms: new Map(), currentPlatform: { name: 'android', getPlatform: () => 'android', isNativePlatform: () => true, isPluginAvailable: name => ['UsbNfc', 'TabletHealth', 'UsbGps', 'BoardingBluetooth', 'TabletRecovery', 'TabletNetwork', ...(networkOptions.support ? ['TabletSupport'] : []), ...(networkOptions.control ? ['TabletControl'] : [])].includes(name), registerPlugin: name => name === 'TabletSupport' ? support : name === 'TabletControl' ? control : name === 'TabletNetwork' ? net : name === 'TabletRecovery' ? recovery : name === 'BoardingBluetooth' ? ble : name === 'UsbNfc' ? nfc : name === 'TabletHealth' ? health : name === 'UsbGps' ? gps : other } };
@@ -556,6 +556,9 @@ test('startup recovery settings are PIN gated and never change Home automaticall
   const dialog = page.getByRole('dialog');
   for (const digit of '1234') await dialog.getByRole('button', { name: digit, exact: true }).click();
   await expect(dialog.getByText("Android Home app has not been set to TransitTrack.", { exact: true })).toBeVisible();
+  await expect(dialog.getByText('FLOW · 0/4 signal (last reading)', { exact: true })).toBeVisible();
+  await expect(dialog.getByText('Android reports Internet access.', { exact: true })).toBeVisible();
+  await expect(dialog.getByText(/Screen recovery is ready/)).toBeVisible();
   expect(await page.evaluate(() => window.__nativeHomeSettingsOpened)).toBeUndefined();
   await dialog.getByRole('button', { name: 'Open Android Home settings', exact: true }).click();
   await expect.poll(() => page.evaluate(() => window.__nativeHomeSettingsOpened)).toBe(true);
