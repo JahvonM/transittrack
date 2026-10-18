@@ -19,7 +19,8 @@ async function tablet() {
   sdk.tables.Route = [{ id: "route-a", company_id: "a", name: "Coastal", path: ROAD, stops: [{ name: "Town", lat: 12.05, lng: -61.75, order: 0 }] }];
   sdk.tables.User.push({ id: "ann", role: "staff", email: "ann@test.invalid", full_name: "Ann Lee", pickup_route_id: "route-a", pickup_lat: 12.03, pickup_lng: -61.762 });
   sdk.tables.CompanyMembership.push({ id: "m-ann", user_id: "ann", company_id: "a", scope: "passenger", active: true, vehicle_id: "bus-a" });
-  sdk.tables.GroupMessage = [{ id: "g1", vehicle_id: "bus-a", text: "Morning", created_date: new Date().toISOString() }];
+  sdk.tables.GroupMessage = [{ id: "g1", company_id: "a", vehicle_id: "bus-a", text: "Morning", created_date: new Date().toISOString() }];
+  sdk.tables.GroupMessage.push({ id: "g2", company_id: "b", vehicle_id: "bus-a", text: "Other company", created_date: new Date().toISOString() });
   const api = load("driverSession", sdk, ["issueGrant"]);
   const grant = await api.issueGrant(sdk, sdk.tables.KioskDevice[0], "driver", "bus-a", 60000);
   const send = async (body, withGrant = true) => {
@@ -37,6 +38,7 @@ describe("light driver check-ins", () => {
     expect(status).toBe(200);
     for (const key of SLOW) expect(body).toHaveProperty(key);
     expect(body.light).toBeUndefined();
+    expect(body.group_messages.map((m) => m.text)).toEqual(["Morning"]);
     expect(body.road_stops.stops.length).toBeGreaterThan(0);
     expect(body.staff.length).toBeGreaterThan(0);
   });

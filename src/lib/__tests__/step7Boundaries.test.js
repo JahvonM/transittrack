@@ -3,7 +3,7 @@ import {execFileSync} from 'node:child_process';
 import {describe,it,expect} from 'vitest';
 import {load,mock,request} from '../../../security-tests/helpers';
 describe('Step 7 security boundaries',()=>{
- const protectedEntities=['DeviceCredential','DriverPinCredential','VerificationGrant','VerificationAttempt','PassengerAccessCredential','PassengerOneTimeCredential','CompanyAccessGrant','CompanyMembership','JobRun'];
+ const protectedEntities=['DeviceCredential','DriverPinCredential','VerificationGrant','VerificationAttempt','PassengerAccessCredential','PassengerOneTimeCredential','CompanyAccessGrant','CompanyMembership','JobRun','TabletSupportSession','TabletRecordingSession'];
  for(const role of [null,'staff','passenger','driver','company','mechanic','admin']) it(String(role)+' cannot expose credential ledgers through generic entity access',async()=>{
   const sdk=mock(role),handler=load('entityAccess',sdk).default;
   for(const entity of protectedEntities) for(const operation of ['list','get','create','update','delete','bulkCreate']) {
@@ -31,9 +31,10 @@ describe('Step 7 security boundaries',()=>{
  });
  it('keeps all custom entity direct reads and writes closed except public ad reads',()=>{
   const dir=new URL('../../../base44/entities/',import.meta.url);
+  const serverOnly=new Set(['TabletSupportSession.jsonc','TabletRecordingSession.jsonc']);
   for(const file of fs.readdirSync(dir).filter(file=>file.endsWith('.jsonc')&&file!=='User.jsonc')) {
    const schema=JSON.parse(fs.readFileSync(new URL(file,dir),'utf8'));
-   for(const operation of ['read','create','update','delete']) expect(schema.rls[operation],file+' '+operation).toEqual(file==='Advertisement.jsonc'&&operation==='read'?{}:file==='SignupAlert.jsonc'&&operation!=='read'?false:{user_condition:{role:'admin'}});
+   for(const operation of ['read','create','update','delete']) expect(schema.rls[operation],file+' '+operation).toEqual(file==='Advertisement.jsonc'&&operation==='read'?{}:file==='SignupAlert.jsonc'&&operation!=='read'?false:{user_condition:{role:serverOnly.has(file)?'__server_only__':'admin'}});
   }
  });
  it('ignores role and company spoofing in a request body',async()=>{
