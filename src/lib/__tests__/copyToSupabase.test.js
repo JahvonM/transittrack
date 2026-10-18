@@ -9,8 +9,8 @@ const SECRETS = { SUPABASE_URL: "https://proj.supabase.co", SUPABASE_SECRET_KEY:
 
 // A stand-in for Supabase's REST API with two tables.
 function fakeSupabase() {
-  const tables = { vehicle: [], company: [] };
-  const columns = { vehicle: ["id", "created_date", "updated_date", "name", "company_id", "capacity"], company: ["id", "created_date", "updated_date", "name"] };
+  const tables = { vehicle: [], company: [], app_user: [] };
+  const columns = { vehicle: ["id", "created_date", "updated_date", "name", "company_id", "capacity"], company: ["id", "created_date", "updated_date", "name"], app_user: ["id", "created_date", "updated_date", "email", "role"] };
   const calls = [];
   const fetch = async (url, init = {}) => {
     const u = new URL(url);
@@ -120,19 +120,11 @@ describe("copy data to Supabase", () => {
   it("leaves Base44's own account fields behind without reporting them", async () => {
     const { sdk, supa, send } = setup();
     sdk.tables.User = [{ id: "u1", created_date: "2026-09-01T10:00:00", updated_date: "2026-09-01T10:00:00", email: "a@example.com", role: "user", app_id: "x", is_service: false, collaborator_role: "editor", _app_role: "user", force_password_reset: false, leftover_test_field: 1 }];
-    const columns = ["id", "created_date", "updated_date", "email", "role"];
-    const fetch = supa.fetch;
-    sdk.atomicFetch = async (url, init = {}) => {
-      const u = new URL(url);
-      if (u.pathname === "/rest/v1/") return new Response(JSON.stringify({ definitions: { app_user: { properties: Object.fromEntries(columns.map((k) => [k, {}])) } } }), { status: 200 });
-      if (u.pathname === "/rest/v1/app_user") { supa.calls.push({ url: u.pathname, method: init.method, body: init.body }); return new Response(null, { status: 201 }); }
-      return fetch(url, init);
-    };
     const { body } = await send({ action: "copy", entity: "User" });
-    expect(body.copied).toBe(1);
+    expect(body).toMatchObject({ read: 1, copied: 1, failed: [] });
     // Only a field nobody planned for is reported.
     expect(body.dropped_fields).toEqual({ leftover_test_field: 1 });
-    expect(Object.keys(JSON.parse(supa.calls.at(-1).body)[0]).sort()).toEqual([...columns].sort());
+    expect(Object.keys(supa.tables.app_user[0]).sort()).toEqual(["created_date", "email", "id", "role", "updated_date"]);
   });
 
   it("refuses tables it doesn't know", async () => {
