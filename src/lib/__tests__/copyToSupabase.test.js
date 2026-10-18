@@ -12,9 +12,24 @@ function fakeSupabase() {
   const tables = { vehicle: [], company: [], app_user: [] };
   const columns = { vehicle: ["id", "created_date", "updated_date", "name", "company_id", "capacity"], company: ["id", "created_date", "updated_date", "name"], app_user: ["id", "created_date", "updated_date", "email", "role"] };
   const calls = [];
+  // Supabase Auth: accounts by email; the database links them to app_user.
+  const accounts = [];
   const fetch = async (url, init = {}) => {
     const u = new URL(url);
     calls.push({ host: u.host, url: u.pathname + u.search, method: init.method || "GET", headers: init.headers || {} });
+    if (u.pathname === "/auth/v1/admin/users" && init.method === "POST") {
+      const body = JSON.parse(init.body);
+      if (body.email.startsWith("broken")) return new Response(JSON.stringify({ msg: "Database error creating new user" }), { status: 500 });
+      if (accounts.some((a) => a.email === body.email)) return new Response(JSON.stringify({ code: "email_exists", msg: "A user with this email address has already been registered" }), { status: 422 });
+      const account = { id: `auth-${accounts.length + 1}`, ...body };
+      accounts.push(account);
+      if (body.email_confirm) for (const row of tables.app_user) if (String(row.email).toLowerCase() === body.email && !row.auth_user_id) row.auth_user_id = account.id;
+      return new Response(JSON.stringify(account), { status: 200 });
+    }
+    if ((init.method || "GET") === "GET" && u.searchParams.get("auth_user_id") === "not.is.null") {
+      const n = (tables[u.pathname.split("/").at(-1)] || []).filter((r) => r.auth_user_id).length;
+      return new Response("[]", { status: 200, headers: { "content-range": `0-0/${n}` } });
+    }
     if (u.pathname === "/rest/v1/") {
       return new Response(JSON.stringify({ definitions: Object.fromEntries(Object.entries(columns).map(([t, c]) => [t, { properties: Object.fromEntries(c.map((k) => [k, {}])) }])) }), { status: 200 });
     }
@@ -26,7 +41,7 @@ function fakeSupabase() {
     for (const r of rows) { const i = tables[table].findIndex((x) => x.id === r.id); if (i >= 0) tables[table][i] = r; else tables[table].push(r); }
     return new Response(null, { status: 201 });
   };
-  return { tables, calls, fetch };
+  return { tables, calls, accounts, fetch };
 }
 
 function setup(role = "admin", secrets = SECRETS) {
@@ -129,6 +144,61 @@ describe("copy data to Supabase", () => {
     // Only a field nobody planned for is reported.
     expect(body.dropped_fields).toEqual({ leftover_test_field: 1 });
     expect(Object.keys(supa.tables.app_user.find((u) => u.id === "u-extra")).sort()).toEqual(["created_date", "email", "id", "role", "updated_date"]);
+  });
+
+  describe("sign-in accounts (step 4)", () => {
+    const people = (sdk) => {
+      // The signed-in admin stays one of the people.
+      const admin = sdk.tables.User.find((u) => u.role === "admin");
+      sdk.tables.User = [
+        { id: admin.id, created_date: "2026-09-01T10:00:00", updated_date: "2026-09-01T10:00:00", email: admin.email, full_name: "Boss", role: "admin", is_verified: true },
+        { id: "p-staff", created_date: "2026-09-02T10:00:00", updated_date: "2026-09-02T10:00:00", email: "Staff@Example.com", full_name: "Sam", role: "staff", is_verified: true },
+        { id: "p-unverified", created_date: "2026-09-03T10:00:00", updated_date: "2026-09-03T10:00:00", email: "new@example.com", role: "user", is_verified: false },
+        { id: "p-off", created_date: "2026-09-04T10:00:00", updated_date: "2026-09-04T10:00:00", email: "gone@example.com", role: "user", is_verified: true, disabled: true },
+        { id: "p-broken", created_date: "2026-09-05T10:00:00", updated_date: "2026-09-05T10:00:00", email: "broken@example.com", role: "user", is_verified: true },
+        { id: "p-noemail", created_date: "2026-09-06T10:00:00", updated_date: "2026-09-06T10:00:00", email: "", role: "user", is_verified: true },
+      ];
+      return admin;
+    };
+
+    it("is for administrators only", async () => {
+      for (const role of ["staff", "company", "mechanic", null]) {
+        const { supa, send } = setup(role);
+        expect((await send({ action: "accounts" })).status).toBe(403);
+        expect(supa.accounts).toHaveLength(0);
+      }
+    });
+
+    it("copies the people first, then sets up confirmed accounts for verified emails only", async () => {
+      const { sdk, supa, send } = setup();
+      people(sdk);
+      const { status, body } = await send({ action: "accounts" });
+      expect(status).toBe(200);
+      expect(body).toMatchObject({ people: 6, created: 3, existing: 0, unverified: 1, no_email: 1, linked: 3 });
+      expect(body.failed).toEqual([{ id: "p-broken", error: "Database error creating new user" }]);
+      // Every person is in Supabase with their Base44 id before any account.
+      expect(supa.tables.app_user.map((r) => r.id).sort()).toEqual(sdk.tables.User.map((u) => u.id).sort());
+      const firstAccount = supa.calls.findIndex((c) => c.url === "/auth/v1/admin/users");
+      expect(supa.calls.findIndex((c) => c.url.startsWith("/rest/v1/app_user?on_conflict=id"))).toBeLessThan(firstAccount);
+      // Confirmed, lower-case email, name kept, no password, nothing about roles.
+      const staff = supa.accounts.find((a) => a.email === "staff@example.com");
+      expect(staff).toMatchObject({ email_confirm: true, user_metadata: { full_name: "Sam" } });
+      for (const a of supa.accounts) { expect(a.password).toBeUndefined(); expect(a.app_metadata).toBeUndefined(); expect(JSON.stringify(a)).not.toMatch(/admin|staff"/); }
+      // Unverified emails get no account; switched-off people are banned.
+      expect(supa.accounts.some((a) => a.email === "new@example.com")).toBe(false);
+      expect(supa.accounts.find((a) => a.email === "gone@example.com").ban_duration).toBe("876000h");
+      // The reply never carries emails.
+      expect(JSON.stringify(body)).not.toMatch(/@/);
+    });
+
+    it("can be pressed again: existing accounts are counted, not doubled", async () => {
+      const { sdk, supa, send } = setup();
+      people(sdk);
+      await send({ action: "accounts" });
+      const { body } = await send({ action: "accounts" });
+      expect(body).toMatchObject({ created: 0, existing: 3, linked: 3 });
+      expect(supa.accounts).toHaveLength(3);
+    });
   });
 
   it("refuses tables it doesn't know", async () => {
