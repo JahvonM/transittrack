@@ -9,7 +9,7 @@ export default function DriverBackgroundPanel() {
  const [state, setState] = useState(null), [busy, setBusy] = useState(false), [error, setError] = useState("");
  useEffect(() => {
   let stopped = false;
-  const refresh = () => { void backgroundGpsState().then(s => { if (!stopped) setState(s); }).catch(() => {}); };
+  const refresh = () => { void backgroundGpsState().then(s => { if (!stopped) setState({ ...s, setupError: window.__ttBackgroundSetupError || "" }); }).catch(() => {}); };
   refresh(); const timer = setInterval(refresh, 5000);
   return () => { stopped = true; clearInterval(timer); };
  }, []);
@@ -38,6 +38,7 @@ export default function DriverBackgroundPanel() {
    <p className="text-sm">Saved GPS: {state.pending || 0} waiting · {state.review || 0} need review</p>
    {(state.pending > 0 || state.review > 0) && <Button variant="outline" disabled={busy} onClick={download}><Download className="w-4 h-4 mr-2" /> Export saved GPS</Button>}
    <p className="text-xs text-muted-foreground">Export keeps the originals. Failed or old-assignment points are retained for review. Locations are private; share exports only with your transport administrator.</p>
+   {state.enabled && !state.active && state.setupError && <p role="alert" className="text-sm text-destructive">{state.setupError}</p>}
    {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
   </CardContent>
  </Card>;

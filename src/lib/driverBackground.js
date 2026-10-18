@@ -33,7 +33,7 @@ export function useDriverBackgroundTracking(sharing, vehicle) {
    if (stopped || document.visibilityState === "hidden") return;
    if (busy) { retry = true; return; }
    busy = true;
-   try { await configureBackgroundGps(vehicle); } catch { /* native setup/status explains a failure; ordinary foreground GPS stays available */ }
+   try { if (await configureBackgroundGps(vehicle)) window.__ttBackgroundSetupError = ""; } catch (e) { window.__ttBackgroundSetupError = e?.message || "Could not start background GPS."; }
    finally { busy = false; if (retry && !stopped) { retry = false; void sync(); } }
   };
   const pulse = () => { if (document.visibilityState !== "hidden") void Native.pulse().catch(() => {}); };
