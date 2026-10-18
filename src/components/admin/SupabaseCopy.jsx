@@ -44,8 +44,9 @@ export default function SupabaseCopy() {
       const total = results.reduce((n, r) => n + r.read, 0);
       const failed = results.reduce((n, r) => n + r.failed.length, 0);
       const short = results.filter((r) => r.inSupabase !== r.read);
+      const leftOut = results.filter((r) => Object.keys(r.dropped).length);
       setStatus(stopRef.current ? "Stopped. Press Copy again to carry on (rows already copied are updated, not doubled)."
-        : `Done: ${total} rows read from Base44, ${failed} could not be copied. ${short.length ? `${short.length} table${short.length === 1 ? "" : "s"} don't match yet (see below).` : "Every table matches."}`);
+        : `Done: ${total} rows read from Base44, ${failed} could not be copied. ${short.length ? `${short.length} table${short.length === 1 ? "" : "s"} don't match yet (see below).` : "Every table matches."} ${leftOut.length ? `${leftOut.length} table${leftOut.length === 1 ? " has" : "s have"} fields with no place in Supabase yet (see below).` : "No fields were left out."}`);
     } catch (e) {
       setStatus(errorOf(e));
     } finally {
@@ -53,7 +54,7 @@ export default function SupabaseCopy() {
     }
   };
 
-  const problems = rows.filter((r) => r.failed.length || (r.inSupabase !== null && r.inSupabase !== r.read));
+  const problems = rows.filter((r) => r.failed.length || Object.keys(r.dropped).length || (r.inSupabase !== null && r.inSupabase !== r.read));
   return (
     <section className="rounded-2xl border border-border bg-card p-5" aria-labelledby="tt-supabase-copy">
       <h2 id="tt-supabase-copy" className="flex items-center gap-2 text-title-sm font-bold">
@@ -91,6 +92,16 @@ export default function SupabaseCopy() {
                 <li key={r.entity + f.id}><b>{r.entity}</b> {f.id}: {f.error}</li>
               )))}
             </ul>
+          )}
+          {problems.some((r) => Object.keys(r.dropped).length) && (
+            <div className="mt-2 text-body-sm">
+              <p className="font-semibold">Fields with no place in Supabase yet (not copied)</p>
+              <ul className="mt-1 space-y-1">
+                {problems.filter((r) => Object.keys(r.dropped).length).map((r) => (
+                  <li key={r.entity + "-dropped"}><b>{r.entity}</b>: {Object.entries(r.dropped).map(([k, n]) => `${k} (${n} row${n === 1 ? "" : "s"})`).join(", ")}</li>
+                ))}
+              </ul>
+            </div>
           )}
         </details>
       )}
