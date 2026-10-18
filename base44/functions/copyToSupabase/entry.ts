@@ -83,10 +83,12 @@ const BARE_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?$/;
 // Base44's own account plumbing on User records. Supabase sign-in replaces
 // it, so it is left behind on purpose and not reported as missing.
 const BASE44_ONLY: Record<string, Set<string>> = { User: new Set(['app_id', 'is_service', 'collaborator_role', '_app_role', 'force_password_reset']) };
+// Columns only Supabase writes: who a person's sign-in account is.
+const SUPABASE_ONLY: Record<string, Set<string>> = { User: new Set(['auth_user_id']) };
 function cleanRow(entity: string, row: Record<string, unknown>, cols: Set<string>, dropped: Record<string, number>) {
   const out: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(row)) {
-    if (BASE44_ONLY[entity]?.has(key)) continue;
+    if (BASE44_ONLY[entity]?.has(key) || SUPABASE_ONLY[entity]?.has(key)) continue;
     if (!cols.has(key)) { dropped[key] = (dropped[key] || 0) + 1; continue; }
     out[key] = (key === 'created_date' || key === 'updated_date') && typeof value === 'string' && BARE_TIME.test(value) ? value + 'Z' : value;
   }
