@@ -117,6 +117,24 @@ describe("copy data to Supabase", () => {
     }
   });
 
+  it("leaves Base44's own account fields behind without reporting them", async () => {
+    const { sdk, supa, send } = setup();
+    sdk.tables.User = [{ id: "u1", created_date: "2026-09-01T10:00:00", updated_date: "2026-09-01T10:00:00", email: "a@example.com", role: "user", app_id: "x", is_service: false, collaborator_role: "editor", _app_role: "user", force_password_reset: false, leftover_test_field: 1 }];
+    const columns = ["id", "created_date", "updated_date", "email", "role"];
+    const fetch = supa.fetch;
+    sdk.atomicFetch = async (url, init = {}) => {
+      const u = new URL(url);
+      if (u.pathname === "/rest/v1/") return new Response(JSON.stringify({ definitions: { app_user: { properties: Object.fromEntries(columns.map((k) => [k, {}])) } } }), { status: 200 });
+      if (u.pathname === "/rest/v1/app_user") { supa.calls.push({ url: u.pathname, method: init.method, body: init.body }); return new Response(null, { status: 201 }); }
+      return fetch(url, init);
+    };
+    const { body } = await send({ action: "copy", entity: "User" });
+    expect(body.copied).toBe(1);
+    // Only a field nobody planned for is reported.
+    expect(body.dropped_fields).toEqual({ leftover_test_field: 1 });
+    expect(Object.keys(JSON.parse(supa.calls.at(-1).body)[0]).sort()).toEqual([...columns].sort());
+  });
+
   it("refuses tables it doesn't know", async () => {
     const { supa, send } = setup();
     expect((await send({ action: "copy", entity: "constructor" })).status).toBe(400);
