@@ -1,4 +1,9 @@
+import NativeNetworkPanel from "@/components/driver/NativeNetworkPanel";
+import TabletRecoveryPanel from "@/components/driver/TabletRecoveryPanel";
+import TabletDiagnosticsPanel from "@/components/driver/TabletDiagnosticsPanel";
+import UsbGpsPanel from "@/components/driver/UsbGpsPanel";
 import React from "react";
+import { Link } from "react-router-dom";
 import { Bus, Building2, Tablet, LogOut, Sun, Moon } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,6 +19,10 @@ export default function DriverDevicePanel({ session, deviceId, onUnpair }) {
 
   return (
     <>
+    <UsbGpsPanel />
+    <TabletDiagnosticsPanel />
+    <TabletRecoveryPanel />
+    <NativeNetworkPanel />
     <TabletNetworkPanel />
     <Card className="max-w-lg mx-auto">
       <CardHeader className="pb-3">
@@ -51,6 +60,7 @@ export default function DriverDevicePanel({ session, deviceId, onUnpair }) {
             <Switch checked={isDark} onCheckedChange={toggle} aria-label="Toggle dark mode" />
           </div>
         </div>
+        <Button asChild variant="outline" className="w-full"><Link to="/tablet?choose=1">Choose tablet screen</Link></Button>
         <Button variant="outline" className="w-full" onClick={onUnpair}>
           <LogOut className="w-4 h-4 mr-2" /> Unpair tablet
         </Button>

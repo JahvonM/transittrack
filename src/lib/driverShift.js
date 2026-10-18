@@ -1,3 +1,4 @@
+import {notifyDashcamShift} from "@/lib/nativeDashcam";
 import {submitSavedJob,isOfflineError,bindDriverPayload} from "@/lib/offlineJobs";
 import {patchDriverSession} from "@/hooks/useDriverSession";
 export async function shiftAction(invoke,action,selectedShift) {
@@ -13,6 +14,7 @@ export async function shiftAction(invoke,action,selectedShift) {
  if(action==="end_shift"&&!payload.shift_id&&!payload.start_request_id)throw new Error("Refresh the current shift before ending it.");
  try {
   const result=await submitSavedJob("driver_shift",payload,action==="start_shift"?"Start shift":"End shift",p=>invoke(action,p));
+  void notifyDashcamShift(action);
   return {...result,queued:false};
  } catch(error) {
   if(!isOfflineError(error))throw error;
@@ -20,6 +22,6 @@ export async function shiftAction(invoke,action,selectedShift) {
   const {pendingJobs}=await import("@/lib/offlineJobs");
   if(!pendingJobs().some(job=>job.payload.client_request_id===client_request_id))throw error;
   const shift=action==="start_shift"?{id:"local-"+client_request_id,client_request_id,started_at:occurred_at,offline:true}:null;
-  patchDriverSession({open_shift:shift});return {shift,queued:true};
+  patchDriverSession({open_shift:shift});void notifyDashcamShift(action);return {shift,queued:true};
  }
 }

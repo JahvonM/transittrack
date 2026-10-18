@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
+import { secrets } from 'base44:runtime';
 import { SUPABASE_TABLES } from '../../shared/supabaseTables.ts';
 
 // Step 3 of the move to Supabase (Admin -> Settings -> Copy data to Supabase):

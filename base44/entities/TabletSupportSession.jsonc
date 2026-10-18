@@ -1,0 +1,80 @@
+{
+  "name": "TabletSupportSession",
+  "type": "object",
+  "properties": {
+    "device_id": {
+      "type": "string"
+    },
+    "requested_by": {
+      "type": "string"
+    },
+    "requested_name": {
+      "type": "string"
+    },
+    "capability": {
+      "type": "string"
+    },
+    "state": {
+      "type": "string"
+    },
+    "created_at": {
+      "type": "string"
+    },
+    "expires_at": {
+      "type": "string"
+    },
+    "ended_at": {
+      "type": "string"
+    },
+    "company_id": {
+      "type": "string"
+    },
+    "vehicle_id": {
+      "type": "string"
+    },
+    "kiosk_type": {
+      "type": "string"
+    },
+    "transport": {
+      "type": "string"
+    },
+    "offer_sdp": {
+      "type": "string"
+    },
+    "answer_sdp": {
+      "type": "string"
+    },
+    "failure_code": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "device_id",
+    "requested_by",
+    "capability",
+    "state",
+    "expires_at"
+  ],
+  "rls": {
+    "read": {
+      "user_condition": {
+        "role": "__server_only__"
+      }
+    },
+    "create": {
+      "user_condition": {
+        "role": "__server_only__"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "__server_only__"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "__server_only__"
+      }
+    }
+  }
+}

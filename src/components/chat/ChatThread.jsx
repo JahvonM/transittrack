@@ -116,7 +116,9 @@ export default function ChatThread({
         stream.getTracks().forEach((t) => t.stop());
         const blob = new Blob(chunksRef.current, { type: rec.mimeType || "audio/webm" });
         setUploading(true);
-        try { await onSendAudio(blob); } finally { setUploading(false); }
+        try { await onSendAudio(blob); }
+        catch { setSendError("Couldn't send the voice note. Try again."); }
+        finally { setUploading(false); }
       };
       rec.start();
       mediaRecorderRef.current = rec;
@@ -131,10 +133,12 @@ export default function ChatThread({
   const saveEdit = async (m) => {
     const trimmed = editText.trim();
     if (!trimmed) return;
-    try { await onEdit(m, trimmed); } finally { cancelEdit(); }
+    try { await onEdit(m, trimmed); cancelEdit(); setSendError(""); }
+    catch { setSendError("Couldn't edit. Your changes are still here; try again."); }
   };
   const removeMessage = async (id) => {
-    try { await onDelete(id); } finally { setConfirmDeleteId(null); }
+    try { await onDelete(id); setConfirmDeleteId(null); setSendError(""); }
+    catch { setSendError("Couldn't delete the message. Try again."); }
   };
 
   return (

@@ -1,3 +1,9 @@
+import NativeNetworkPanel from "@/components/driver/NativeNetworkPanel";
+import TabletRecoveryPanel from "@/components/driver/TabletRecoveryPanel";
+import BoardingBluetoothPanel from "@/components/driver/BoardingBluetoothPanel";
+import { Link } from "react-router-dom";
+import TabletDiagnosticsPanel from "@/components/driver/TabletDiagnosticsPanel";
+import UsbNfcPanel from "@/components/driver/UsbNfcPanel";
 import React, { useEffect, useRef, useState } from "react";
 import { Delete, Loader2, Lock, X } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -111,6 +117,12 @@ export default function BoardingSettingsGate({ open, onClose, deviceId, invoke }
         </DialogHeader>
         {unlocked ? (
           <div className="space-y-3">
+            <Button asChild variant="outline" className="w-full"><Link to="/tablet?choose=1">Choose tablet screen</Link></Button>
+            <UsbNfcPanel />
+            <BoardingBluetoothPanel />
+            <TabletDiagnosticsPanel />
+    <TabletRecoveryPanel />
+    <NativeNetworkPanel boarding />
             <TabletNetworkPanel boarding className="border-0 shadow-none" />
             <Button variant="outline" className="h-12 w-full text-base" onClick={onClose}><X className="mr-2 h-4 w-4" /> Done</Button>
           </div>

@@ -52,9 +52,9 @@ for(const size of [{width:800,height:1280},{width:600,height:1024},{width:1280,h
  await page.setViewportSize(size);
  await openDriver(page,{staff:[{id:'one',full_name:'Real Passenger',home_lat:12.02,home_lng:-61.76}],occupancy:7});
  const nav=sections(page);
- await expect(nav.getByRole('button')).toHaveCount(3);
+ await expect(nav.getByRole('button')).toHaveCount(size.width>=960?5:3);
  await expect(nav.getByRole('button',{name:'Drive',exact:true})).toHaveAttribute('aria-current','page');
- await expect(page.getByText('Real Company · Bus A',{exact:true})).toBeVisible();
+ if(size.width>=960)await expect(page.locator('.dl-company')).toContainText('Real Company');else await expect(page.getByText('Real Company · Bus A',{exact:true})).toBeVisible();
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
  const box=await nav.boundingBox();expect(box.y+box.height).toBeLessThanOrEqual(size.height+1);
  await nav.getByRole('button',{name:'Passengers',exact:true}).click();
@@ -145,4 +145,37 @@ test('tile failures offer retry and use smaller images',async({page})=>{
  await openDriver(page,{route:{name:'Route',stops:[{name:'Stop',lat:12.02,lng:-61.76,order:0}]}});
  await expect(page.getByRole('button',{name:'Retry map',exact:true})).toBeVisible();
  expect(tiles.length).toBeGreaterThan(0);expect(tiles.every(url=>!url.includes('@2x'))).toBe(true);
+});
+
+test('Android USB GPS settings can enable, report reconnect status and roll back',async({page})=>{
+ await page.addInitScript(()=>{
+  let state={available:true,enabled:false,status:'Off',lastFixAt:0};
+  const listeners=new Set();
+  const usb={
+   getState:async()=>({...state}),
+   openAutoAcceptSettings:async()=>{window.__usbAutoAcceptSettingsOpened=true;},
+   addListener:async(name,cb)=>{if(name==='gpsState')listeners.add(cb);return {remove:async()=>listeners.delete(cb)};},
+   setEnabled:async({enabled})=>{state={...state,enabled,status:enabled?'Waiting for USB access':'Off'};for(const cb of listeners)cb({...state});return {...state};},
+   rescan:async()=>{state={...state,status:'Looking for USB GPS'};for(const cb of listeners)cb({...state});return {...state};}
+  };
+  const other=new Proxy({},{get:(_,key)=>key==='addListener'?async()=>({remove:async()=>{}}):async()=>({})});
+  window.CapacitorPlatforms={platforms:new Map(),currentPlatform:{name:'android',getPlatform:()=> 'android',isNativePlatform:()=>true,isPluginAvailable:name=>name==='UsbGps',registerPlugin:name=>name==='UsbGps'?usb:other}};
+ });
+ await openDriver(page);
+ await sections(page).getByRole('button',{name:'More',exact:true}).click();
+ await page.getByRole('button',{name:'Tablet & reader',exact:false}).click();
+ const toggle=page.getByRole('switch',{name:'Use integrated USB GPS'});
+ await expect(toggle).not.toBeChecked();
+ await expect(page.getByText('Before switching on, stop the separate helper',{exact:false})).toBeVisible();
+ await toggle.click();
+ await expect(toggle).toBeChecked();
+ await expect(page.getByText('Waiting for USB access',{exact:true})).toBeVisible();
+ await page.getByRole('button',{name:'Check GPS again',exact:true}).click();
+ await expect(page.getByText('Looking for USB GPS',{exact:true})).toBeVisible();
+ await toggle.click();
+ await expect(toggle).not.toBeChecked();
+ await expect(page.getByText('Using tablet GPS / existing helper',{exact:true})).toBeVisible();
+ await page.getByRole('button',{name:'Set up USB auto-accept',exact:true}).click();
+ await expect.poll(()=>page.evaluate(()=>window.__usbAutoAcceptSettingsOpened)).toBe(true);
+ await page.screenshot({path:'/tmp/driver-usb-gps-settings.png',fullPage:true});
 });

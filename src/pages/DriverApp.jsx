@@ -1,4 +1,7 @@
+import { useTabletWorkSafety } from "@/lib/nativeTabletControl";
 import "@/components/driver/driverPortrait.css";
+import "@/components/driver/driverLandscape.css";
+import useDriverLandscape from "@/hooks/useDriverLandscape";
 import { DriverKioskHeader, DriverKioskMore, DriverKioskPassengers, DriverKioskHistory } from "@/components/driver/DriverPortraitPanels";
 import { directionView } from "@/lib/driverDirection";
 import TripDirectionControl from "@/components/driver/TripDirectionControl";
@@ -16,7 +19,7 @@ import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useDriverSession, clearDriverSessionCache, patchDriverSession } from "@/hooks/useDriverSession";
 import { shiftAction } from "@/lib/driverShift";
-import { requestPushToken } from "@/lib/firebase";
+import { requestPushToken, onForegroundMessage } from "@/lib/firebase";
 import { useKeepAwake } from "@/hooks/useKeepAwake";
 import { useBlockOtherSites, DRIVER_ALLOWED } from "@/lib/kioskLinkLock";
 import DriverPairing from "@/components/driver/DriverPairing";
@@ -30,13 +33,12 @@ import DriverChats from "@/components/driver/DriverChats";
 import DriverMessageAlert from "@/components/driver/DriverMessageAlert";
 import NewCheckInAlert from "@/components/driver/NewCheckInAlert";
 import JobAlert from "@/components/driver/JobAlert";
-import NameSign from "@/components/driver/NameSign";
 import useJobAlerts from "@/hooks/useJobAlerts";
 import DriverDevicePanel from "@/components/driver/DriverDevicePanel";
 import DriverTrips from "@/components/DriverTrips";
 import ShiftCard from "@/components/driver/ShiftCard";
 import SafetyStandardsContent from "@/components/SafetyStandardsContent";
-import { AlertCircle, AlertTriangle, ArrowLeft, LayoutGrid, Navigation, Users } from "lucide-react";
+import { AlertCircle, AlertTriangle, ArrowLeft, LayoutGrid, Navigation, Users, MapPinned, MessageCircle } from "lucide-react";
 import DriverStops from "@/components/driver/screens/DriverStops";
 import DriverMessages from "@/components/driver/screens/DriverMessages";
 import StaffRouteList from "@/components/driver/StaffRouteList";
@@ -57,12 +59,14 @@ const DRIVER_TABS = [
   { id: "passengers", label: "Passengers", icon: Users },
   { id: "more", label: "More", icon: LayoutGrid },
 ];
+const LANDSCAPE_TABS = [DRIVER_TABS[0],{id:"stops",label:"Bus stops",icon:MapPinned},DRIVER_TABS[1],{id:"chat",label:"Messages",icon:MessageCircle},DRIVER_TABS[2]];
 const tabFromStage = (st) => (st === "navigate" || st === "home" ? "track" : st === "profile" ? "settings" : [...TRACKING_TABS,"trips","help"].includes(st) ? st : null);
 
 export default function DriverApp() {
   useFutureAppearance();
   useNoPageZoom();
   const navigate = useNavigate();
+  const landscape=useDriverLandscape();
   const { stage: urlStage } = useParams();
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
@@ -82,8 +86,11 @@ export default function DriverApp() {
   const [activeTab, setActiveTab] = useState(() => tabFromStage(urlStage) || "track");
   // Follow the URL (e.g. "Continue" after an inspection goes to /driver/track).
   useEffect(() => { const t = tabFromStage(urlStage); if (t) setActiveTab(t); }, [urlStage]);
-  const { session: rawSession, loading, error: sessionError, offline, invoke, refresh } = useDriverSession(deviceId);
+  const { session: rawSession, loading, error: sessionError, offline, invoke, refresh } = useDriverSession(deviceId, { chatActive: activeTab === "chat" || activeTab === "more" });
   const session = useMemo(() => directionView(rawSession), [rawSession]);
+  useTabletWorkSafety(deviceId, !!session && !loading && !offline && !unlocked && !phoneUnlockOpen &&
+    !session.open_shift && session.vehicle?.tracking_active === false &&
+    typeof session.vehicle?.speed === "number" && session.vehicle.speed >= 0 && session.vehicle.speed < 0.5);
   const changeDirection = async (direction) => {
     const result = await invoke("set_direction", { direction });
     if (!result?.ok) throw new Error("Couldn't save direction. Try again.");
@@ -169,9 +176,38 @@ export default function DriverApp() {
     });
   }, [session?.broadcasts, playAlertSound]);
 
-  // The full-screen meet-and-greet sign: { name, subtitle } (no name: just the company).
-  const [nameSign, setNameSign] = useState(null);
-  const showNameSign = (job) => setNameSign(job ? { name: job.passenger_name || job.client_name || "", subtitle: job.passenger_name ? job.client_name || "" : "" } : { name: "", subtitle: "" });
+  const chatSeen = useRef(new Set());
+  const chatSeeded = useRef(false);
+  useEffect(() => {
+    if (!unlocked || session?.driver_unlocked === false || !Array.isArray(session?.group_messages)) return;
+    const rows = session.group_messages;
+    if (!chatSeeded.current) {
+      rows.forEach(message => chatSeen.current.add(message.id));
+      chatSeeded.current = true;
+      return;
+    }
+    const fresh = rows.filter(message => !chatSeen.current.has(message.id));
+    fresh.forEach(message => chatSeen.current.add(message.id));
+    const incoming = fresh.filter(message => message.sender_role !== "driver");
+    const latest = incoming.at(-1);
+    if (latest) {
+      playAlertSound();
+      setAlert({ id: "chat-" + latest.id, title: latest.sender_name || "New bus message",
+        message: latest.text || (latest.message_type === "image" ? "Photo received" : "Voice note received"),
+        vehicle_name: session.vehicle?.name });
+    }
+  }, [session?.group_messages, unlocked, session?.driver_unlocked, playAlertSound]);
+  useEffect(() => onForegroundMessage(() => { refresh(); }), [refresh]);
+
+  // The meet-and-greet sign is displayed on boarding/sign-in devices.
+  const showNameSign = async (job) => {
+    try {
+      const result = await invoke("show_pickup_sign", { trip_id: job?.id || null });
+      toast({ title: "Pickup sign sent", description: `Showing on ${result.devices} boarding/sign-in device(s).`, duration: 2000 });
+    } catch (error) {
+      toast({ title: "Couldn't show pickup sign", description: error?.response?.data?.error || error.message, variant: "destructive" });
+    }
+  };
 
   // Jobs dispatch gives this bus, changes or takes off it (only once the
   // server has sent the jobs, i.e. the tablet is unlocked).
@@ -524,8 +560,8 @@ export default function DriverApp() {
       </main>
 
       <nav className="shrink-0 grid grid-cols-3 border-t border-border bg-background/95 backdrop-blur safe-area-bottom" aria-label="Driver sections">
-        {DRIVER_TABS.map(({ id, label, icon: Icon }) => {
-          const active = id==="more" ? !["track","passengers"].includes(activeTab) : activeTab === id;
+        {(landscape ? LANDSCAPE_TABS : DRIVER_TABS).map(({ id, label, icon: Icon }) => {
+          const active = id==="more" ? !(landscape ? ["track","passengers","stops","chat"] : ["track","passengers"]).includes(activeTab) : activeTab === id;
           return (
             <button
               key={id}
@@ -537,7 +573,7 @@ export default function DriverApp() {
               {active && <span className="absolute top-0 left-1/2 -translate-x-1/2 h-[3px] w-12 rounded-b-full bg-primary" aria-hidden="true" />}
               <Icon className="w-6 h-6" strokeWidth={active ? 2.2 : 1.8} aria-hidden="true" />
               {label}
-              {id === "more" && hasUnreadChat && <span className="absolute top-2.5 left-1/2 ml-2.5 w-2.5 h-2.5 rounded-full bg-danger" aria-label="Unread messages" />}
+              {id === (landscape ? "chat" : "more") && hasUnreadChat && <span className="absolute top-2.5 left-1/2 ml-2.5 w-2.5 h-2.5 rounded-full bg-danger" aria-label="Unread messages" />}
             </button>
           );
         })}
@@ -545,7 +581,6 @@ export default function DriverApp() {
 
       <DriverMessageAlert alert={alert} onAcknowledge={() => setAlert(null)} onReply={handleAlertReply} />
       <NewCheckInAlert checkIn={checkInAlert} onDismiss={() => setCheckInAlerts(previous => previous.slice(1))} />
-      <NameSign sign={nameSign} company={{ name: session?.company_name, logo_url: session?.company_logo_url }} onClose={() => setNameSign(null)} />
       <JobAlert alert={jobAlerts[0] || null} onDismiss={() => setJobAlerts((previous) => previous.slice(1))} onOpen={() => selectTab("trips")} />
       <SentInspectionPrompt pending={promptPending} onStart={(t) => openInspection(t, { from: "unlock" })} />
 

@@ -29,6 +29,7 @@ async function planner(page){
   if(url.includes('/entities/User/me')) return route.fulfill({json:{id:'admin',role:'admin',email:'admin@test.local',full_name:'Ada Admin'}});
   if(url.includes('/functions/entityAccess')){
    const body=route.request().postDataJSON();let result=[];
+   if(body.entity==='AdminBootstrap') return route.fulfill({json:{result:{datasets:Object.fromEntries((body.datasets||[]).map(key=>[key,key==='vehicles'?[{id:'bus-a',company_id:'a',name:'Bus A'}]:[]])),errors:{}}}});
    if(body.entity==='User'&&body.operation==='get') result={id:'admin',role:'admin',email:'admin@test.local',full_name:'Ada Admin'};
    else if(body.entity==='Route'&&(body.operation==='create'||body.operation==='update')){saved.push(body);result={id:body.id||'route-new',...body.data};}
    else if(body.entity==='Route') result=routes;

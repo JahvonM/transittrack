@@ -1,14 +1,19 @@
+import { RearDashcamTool, RearDashcamIndicator } from "./RearDashcamControls";
 import React, { useState, useMemo, useEffect } from "react";
-import { ClipboardCheck, Wrench, MessageCircle, FileText, Tablet, ChevronRight, LifeBuoy, ListOrdered, ShieldCheck, User, Clock, Users, Search, IdCard } from "lucide-react";
+import useDriverLandscape from "@/hooks/useDriverLandscape";
+import { Bus, MapPin, ClipboardCheck, Wrench, MessageCircle, FileText, Tablet, ChevronRight, LifeBuoy, ListOrdered, ShieldCheck, User, Clock, Users, Search, IdCard } from "lucide-react";
 import { accountName } from "@/lib/userName";
 import StaffRouteListItem from "./StaffRouteListItem";
 import { haversineKm } from "@/lib/geo";
 import { TRANSIT_TIME_ZONE } from "@/lib/localTime";
 const time=value=>value?new Date(value).toLocaleTimeString([], {timeZone:TRANSIT_TIME_ZONE,hour:"numeric",minute:"2-digit"}):"";
 export function DriverKioskHeader({session,offline,onMessages,unread}) {
+ const landscape=useDriverLandscape();
  const [now,setNow]=useState(Date.now());
  useEffect(()=>{const t=setInterval(()=>setNow(Date.now()),30000);return()=>clearInterval(t);},[]);
- return <header className="dk-header"><div className="dk-brand-row"><strong>Transit<span>Track</span></strong><button aria-label="Open driver messages" onClick={onMessages}><MessageCircle/>{unread&&<span className="dk-unread" aria-label="Unread messages"/>}</button></div><div className="dk-company-row"><span>{session.company_logo_url&&<img src={session.company_logo_url} alt=""/>}{session.company_name || session.vehicle?.company_name || "Company"} · {session.vehicle?.name}</span><span role={offline?"status":undefined}>{offline?"Offline":time(now)}</span></div></header>;
+ const gpsReady=session.vehicle?.current_lat!=null && session.vehicle?.current_lng!=null && now-Date.parse(session.vehicle?.last_location_update||"")<120000;
+ if(landscape)return <header className="dl-header"><strong className="dl-brand"><Bus aria-hidden="true"/><span>Transit<span>Track</span></span></strong><div className="dl-company">{session.company_logo_url&&<img src={session.company_logo_url} alt=""/>}<span>{session.company_name || session.vehicle?.company_name || "Company"}</span><strong>{session.vehicle?.name || "Bus"}</strong></div><div className="dl-header-status"><span className={offline?"dl-offline":""}><i/>{offline?"Offline":"Online"}</span><span><MapPin aria-hidden="true"/>{gpsReady?"GPS ready":"Finding GPS"}</span><RearDashcamIndicator/><time>{time(now)}</time></div></header>;
+ return <header className="dk-header"><div className="dk-brand-row"><strong>Transit<span>Track</span></strong><button aria-label="Open driver messages" onClick={onMessages}><MessageCircle/>{unread&&<span className="dk-unread" aria-label="Unread messages"/>}</button></div><div className="dk-company-row"><span>{session.company_logo_url&&<img src={session.company_logo_url} alt=""/>}{session.company_name || session.vehicle?.company_name || "Company"} · {session.vehicle?.name}</span><RearDashcamIndicator/><span role={offline?"status":undefined}>{offline?"Offline":time(now)}</span></div></header>;
 }
 function Tool({icon:Icon,title,sub,onClick,badge}) {
  return <button className="dk-tool" onClick={onClick}><Icon aria-hidden="true"/><span><strong>{title}</strong>{sub&&<small>{sub}</small>}</span>{badge&&<span className="dk-unread"/>}<ChevronRight className="dk-chevron"/></button>;
@@ -22,6 +27,7 @@ export function DriverKioskMore({session,selectTab,onReport,unread,onHelp,onName
  <Tool icon={Clock} title="Jobs & history" onClick={()=>selectTab("trips")}/>
  </div>
  {onNameSign&&<Tool icon={IdCard} title="Name sign" sub="Company logo and a guest's name, full screen" onClick={onNameSign}/>}
+ <RearDashcamTool/>
  <Tool icon={Tablet} title="Tablet & reader" sub="Status and settings" onClick={()=>selectTab("settings")}/>
  <Tool icon={ListOrdered} title="Stops & pickups" onClick={()=>selectTab("stops")}/>
  <Tool icon={FileText} title="Licence & insurance" onClick={()=>selectTab("documents")}/>

@@ -46,7 +46,8 @@ function useRefreshWhile(active, onRefresh, ms = 8000) {
   }, [active, ms]);
 }
 
-function NeedsHelper() {
+function NeedsHelper({ nativeAvailable = false }) {
+  if (nativeAvailable) return <span className="text-muted-foreground">enable integrated Internet controls on the tablet, or use the existing helper</span>;
   return <span className="text-muted-foreground">needs Helper {NETWORK_HELPER_VERSION}+ on the tablet (run Update in the setup tool)</span>;
 }
 
@@ -171,7 +172,7 @@ function WifiPicker({ device, open, onOpenChange, onRefresh }) {
 function BoardingWifi({ device, onRefresh }) {
   const [open, setOpen] = useState(false);
   const h = device.helper_health || {};
-  const ready = helperAtLeast(h.version);
+  const ready = helperAtLeast(h.version) || h.network_native === true;
   const wifi = h.wifi || {};
   const join = latestJoin(device);
   // (The open chooser refreshes on its own.)
@@ -181,7 +182,7 @@ function BoardingWifi({ device, onRefresh }) {
       <span className="flex items-center gap-1.5">
         {wifi.ssid ? <Wifi className="h-3.5 w-3.5" /> : <WifiOff className="h-3.5 w-3.5 text-muted-foreground" />}
         Wi-Fi:{" "}
-        {!ready ? <NeedsHelper /> : wifi.ssid ? <><b>{wifi.ssid}</b> <Bars n={wifi.bars} /></> : <span className="text-muted-foreground">not connected</span>}
+        {!ready ? <NeedsHelper nativeAvailable={h.network_available === true} /> : wifi.ssid ? <><b>{wifi.ssid}</b> <Bars n={wifi.bars} /></> : <span className="text-muted-foreground">{wifi.enabled === false ? "off" : h.network_native ? "network name unavailable" : "not connected"}</span>}
       </span>
       {ready && (
         <Button size="sm" variant="outline" className="h-8" onClick={() => setOpen(true)}>
@@ -196,7 +197,7 @@ function BoardingWifi({ device, onRefresh }) {
 
 function DriverHotspot({ device, onRefresh }) {
   const h = device.helper_health || {};
-  const ready = helperAtLeast(h.version);
+  const ready = helperAtLeast(h.version) || h.network_native === true;
   const pending = pendingCommand(device);
   const [busy, setBusy] = useState(false);
   const [requested, setRequested] = useState(null);
@@ -208,7 +209,7 @@ function DriverHotspot({ device, onRefresh }) {
     setBusy(true);
     try {
       await sendCommand(device, { action: "hotspot", always_on: on });
-      toast({ title: on ? "Hotspot: always on" : "Hotspot: back to normal", description: on ? "The tablet keeps its hotspot on all the time, also when the bus is off." : "The hotspot comes on while the bus runs and there's no Wi-Fi nearby." });
+      toast({ title: on ? "Hotspot: always on" : "Hotspot: back to normal", description: on ? "Requested. Check the tablet result below; Android may block this action." : "Requested: stop automatic hotspot maintenance." });
       await onRefresh?.();
     } catch (e) {
       toast({ title: "Couldn't change the hotspot", description: problemText(e), variant: "destructive" });
@@ -220,12 +221,15 @@ function DriverHotspot({ device, onRefresh }) {
         <span className="flex items-center gap-1.5"><Radio className="h-3.5 w-3.5" /> Hotspot</span>
         {ready ? (
           <label className="flex items-center gap-2">
-            <Switch checked={checked} disabled={busy} onCheckedChange={change} aria-label="Keep the hotspot on all the time" />
-            <span>Always on</span>
+            <Switch checked={checked} disabled={busy} onCheckedChange={change} aria-label={h.network_native ? "Keep hotspot on while driver app is open" : "Keep the hotspot on all the time"} />
+            <span>{h.network_native ? "Keep on while app is open" : "Always on"}</span>
           </label>
-        ) : <NeedsHelper />}
+        ) : <NeedsHelper nativeAvailable={h.network_available === true} />}
       </div>
-      {ready && (
+      {ready && h.network_native === true && <p className="text-xs">Current hotspot: {h.hotspot || "Unknown"}</p>}
+      {ready && h.network_native === true && <p className="text-xs text-muted-foreground">Integrated policy runs while the driver app is open, pauses at low battery and depends on Android permissions. Turning it off leaves hotspot power unchanged.</p>}
+      {h.network_native === true && commandProgress(device) && <p role="status" className="text-xs">{commandProgress(device)}</p>}
+      {ready && h.network_native !== true && (
         <p className="text-xs text-muted-foreground">
           {checked
             ? "On all the time, also when the bus is off. Pauses below 20% battery when unplugged, so the tablet can't run flat."

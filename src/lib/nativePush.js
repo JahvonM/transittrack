@@ -15,6 +15,12 @@ export async function nativePushPermission(){
 export async function requestNativePush({prompt=true}={}){
  if(!nativePushReady())return {token:null,reason:"native_setup"};
  try{
+  // Older Android builds crash the native process when Firebase is missing;
+  // a JS catch cannot intercept that. Require the guarded native implementation.
+  if(nativePushPlatform()==="android"){
+   const support=await PushNotifications.getRegistrationSupport();
+   if(support?.guarded!==true||support?.configured!==true)return {token:null,reason:"native_setup"};
+  }
   let p=await PushNotifications.checkPermissions();
   if(p.receive==="denied")return {token:null,reason:"denied"};
   if(p.receive!=="granted"&&prompt)p=await PushNotifications.requestPermissions();

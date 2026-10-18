@@ -1,3 +1,4 @@
+import { reserveAttempt } from '../../shared/atomicOps.ts';
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 import { emailWithPolicy } from '../../shared/notificationPolicy.ts';
 
@@ -47,6 +48,9 @@ export default async function (req) {
     try { user = await base44.auth.me(); } catch { /* kiosk / signed out */ }
 
     const db = base44.asServiceRole.entities;
+    // Already configured shared database budget; failures produce no emails or writes.
+    if (!(await reserveAttempt(base44,'crash-records:v2',MAX_RECORDS_PER_HOUR,HOUR_MS)))
+      return Response.json({ok:true,throttled:true});
     const since = new Date(Date.now() - HOUR_MS).toISOString();
     const latest = await db.ClientError.list('-created_date', MAX_RECORDS_PER_HOUR);
     if (latest.length >= MAX_RECORDS_PER_HOUR && latest[latest.length - 1].created_date >= since) {
@@ -66,24 +70,29 @@ export default async function (req) {
       device_id: clip(body.device_id, 40),
       user_email: user?.email || '',
       user_role: user?.role || '',
-      emailed: !alreadyAlerted,
+      emailed: false,
       area: AREAS.includes(body.context?.area) ? body.context.area : '',
       context: cleanContext(body.context),
       breadcrumbs: cleanBreadcrumbs(body.breadcrumbs),
       status: 'new',
     });
 
-    if (!alreadyAlerted) {
+    if (!alreadyAlerted && await reserveAttempt(base44,'crash-message:v2:'+message,1,HOUR_MS)) {
       const admins = (await base44.asServiceRole.entities.User.list()).filter((u) => u.role === 'admin' && u.email);
       const subjectLine = sanitize(message, 80) || 'unknown error';
       const text = `A screen in TransitTrack just crashed.\n\nReported error (untrusted, quoted verbatim):\n${quote(message, 500)}\n\nPage: ${sanitize(record.url, 300) || 'unknown'}\nUser: ${record.user_email || 'not signed in'}${record.user_role ? ` (${record.user_role})` : ''}\nDevice: ${sanitize(record.user_agent, 300) || 'unknown'}\n\nThe user saw a "Something went wrong" screen with a reload button. Repeats of this same error in the next hour won't send another email. See what happened, step by step, in Admin → All tools → App errors.\n\n— TransitTrack`;
       const subject = `TransitTrack crash alert: ${subjectLine}`;
-      await emailWithPolicy(base44, 'crash_alert', admins,
-        (a) => base44.asServiceRole.integrations.Core.SendEmail({ to: a.email, subject, body: text }), { title: subject });
+      const delivery = await emailWithPolicy(base44, 'crash_alert', admins,
+        async (a) => {
+          // Charge each actual recipient BEFORE the provider call. Unknown delivery is never retried here.
+          if(!(await reserveAttempt(base44,'crash-emails:v2',MAX_EMAILS_PER_HOUR,HOUR_MS))) return {skipped:true};
+          return base44.asServiceRole.integrations.Core.SendEmail({ to: a.email, subject, body: text });
+        }, { title: subject });
+      if(delivery.sent>0) await db.ClientError.update(record.id,{emailed:true});
     }
 
     return Response.json({ ok: true });
   } catch (error) {
-    return Response.json({ error: 'Something went wrong. Please try again.' }, { status: 500 });
+    return Response.json({ error: 'Something went wrong. Please try again.' }, { status: error.status === 503 ? 503 : 500 });
   }
 }

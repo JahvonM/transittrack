@@ -68,7 +68,7 @@ export default function DriverChats({ session, invoke, onUnreadChange }) {
     });
     Object.keys(map).forEach((ch) => {
       const local = localMessages[ch] || [];
-      map[ch] = [...map[ch], ...local].sort((a, b) => new Date(a.created_date) - new Date(b.created_date));
+      map[ch] = [...new Map([...local, ...map[ch]].map(message => [message.id, message])).values()].sort((a, b) => new Date(a.created_date) - new Date(b.created_date));
     });
     return map;
   }, [groupMessages, broadcasts, localMessages, driverName]);

@@ -1,3 +1,8 @@
+import { recordingsNotice } from '../../shared/tabletRecordings.ts';
+import { supportNotice } from '../../shared/tabletStreaming.ts';
+import { durableCreate, operationHash } from '../../shared/durableOperation.ts';
+import { nativeReleaseHealth } from '../../shared/nativeRelease.ts';
+import { controlNotice } from '../../shared/tabletControl.ts';
 import { cleanRequestMetrics } from '../../shared/requestMetrics.ts';
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 import { passengerPushTokens } from '../../shared/chatPush.ts';
@@ -401,6 +406,9 @@ function cleanHelperHealth(h: unknown): Record<string, unknown> | null {
   const str = (v: unknown, n: number) =>
     typeof v === 'string' ? v.replace(/[\u0000-\u001f<>]/g, '').slice(0, n) : undefined;
   const out: Record<string, unknown> = { reported_at: new Date().toISOString() };
+  Object.assign(out, nativeReleaseHealth(o));
+  if (o.support_transport === 'webrtc') out.support_transport = 'webrtc';
+  for (const k of ['recordings_available', 'support_available', 'management_available', 'management_owner', 'management_locked']) if (typeof o[k] === 'boolean') out[k] = o[k];
   const version = str(o.version, 16); if (version) out.version = version;
   if (typeof o.battery === 'number' && Number.isFinite(o.battery)) out.battery = Math.max(0, Math.min(100, Math.round(o.battery)));
   if (typeof o.charging === 'boolean') out.charging = o.charging;
@@ -614,11 +622,19 @@ async function replayInspection(base44,device,body) {
  if(prior && prior.request_hash!==hash) throw Object.assign(new Error('Request ID reused with different data'),{status:409});
  return {fields:{client_request_id:id,request_hash:hash,request_actor_id:device.id},prior};
 }
+async function createInspection(base44,device,replay,data) {
+ const key=replay.fields.client_request_id;
+ const db=base44.asServiceRole.entities.Inspection;
+ return replay.prior || durableCreate(key ? JSON.stringify(['inspection',device.id,device.company_id,device.vehicle_id,key]) : null,
+  replay.fields.request_hash || await operationHash(JSON.stringify(data)),()=>db.create(data),id=>db.get(id));
+}
 async function inspectionChild(base44,name,data,key,actor) {
  if(!key) return base44.asServiceRole.entities[name].create(data);
  const db=base44.asServiceRole.entities[name];
  const prior=(await db.filter({client_request_id:key,request_actor_id:actor,company_id:data.company_id,vehicle_id:data.vehicle_id},'-created_date',1))[0];
- return prior || db.create({...data,client_request_id:key,request_actor_id:actor});
+ const {photo_url,inspection_date,...stable}=data;
+ return prior || durableCreate(JSON.stringify(['inspection-child',name,actor,data.company_id,data.vehicle_id,key]),
+  await operationHash(JSON.stringify(stable)),()=>db.create({...data,client_request_id:key,request_actor_id:actor}),id=>db.get(id));
 }
 export default async function(req) {
   try {
@@ -640,7 +656,7 @@ export default async function(req) {
     const appHealth = cleanAppHealth(body.app_health);
     // The hotspot switch from Admin → Kiosk tablets (see shared/tabletNetwork.ts).
     // Driver tablets never receive Wi-Fi passwords, so no device-key check is needed here.
-    const network = action === 'heartbeat' ? networkCheckIn(device, body.network_ack, false) : null;
+    const network = action === 'heartbeat' ? networkCheckIn(device, body.network_ack, false, Date.now(), body.network_result) : null;
     if (action === 'heartbeat') await base44.asServiceRole.entities.KioskDevice.update(device_id, {
       ...(network ? network.updates : {}),
       last_seen: new Date().toISOString(),
@@ -655,6 +671,28 @@ export default async function(req) {
     if(!matchesAssignment(body) || (action==='upload_track' && Array.isArray(body.points) && body.points.some(p=>!matchesAssignment(p||{})))) return Response.json({error:'Saved work belongs to a different tablet assignment'},{status:409});
 
     switch (action) {
+      case 'messages': {
+        const vehicle = await loadVehicle(base44, vehicleId);
+        if (!vehicle || vehicle.company_id !== companyId) return Response.json({error:'Vehicle assignment mismatch'},{status:403});
+        const messages = await base44.asServiceRole.entities.GroupMessage.filter({vehicle_id:vehicleId},'-created_date',200);
+        return Response.json({group_messages:messages.filter(m=>m.company_id===companyId).reverse()});
+      }
+      case 'show_pickup_sign': {
+        const db = base44.asServiceRole.entities;
+        const vehicle = await loadVehicle(base44, vehicleId);
+        if (!vehicle || vehicle.company_id !== companyId) return Response.json({error:'Vehicle assignment mismatch'},{status:403});
+        const trip = body.trip_id ? await db.Trip.get(body.trip_id) : null;
+        if (body.trip_id && (!trip || trip.vehicle_id !== vehicleId || trip.company_id !== companyId || !['scheduled','on_the_way','arrived'].includes(trip.status)))
+          return Response.json({error:'Job is not assigned to this bus'},{status:403});
+        const devices = (await db.KioskDevice.filter({vehicle_id:vehicleId,company_id:companyId,status:'active'},'-created_date',100))
+          .filter(d=>d.paired && ['bus_boarding','job_signing'].includes(d.kiosk_type));
+        if (!devices.length) return Response.json({error:'Pair a boarding/sign-in device with this bus first.'},{status:409});
+        const sign = {id:crypto.randomUUID(),name:trip?.passenger_name || trip?.client_name || '',
+          subtitle:trip?.passenger_name ? trip?.client_name || '' : '', shown_at:new Date().toISOString(),
+          expires_at:new Date(Date.now()+30*60_000).toISOString()};
+        for (const target of devices) await db.KioskDevice.update(target.id,{pickup_sign:sign});
+        return Response.json({ok:true,devices:devices.length});
+      }
       case 'request_pin_reset': {
         const vehicle = await loadVehicle(base44, vehicleId);
         if (!vehicle || vehicle.company_id !== companyId) return Response.json({ error: 'Vehicle assignment mismatch' }, { status: 403 });
@@ -906,7 +944,7 @@ export default async function(req) {
           vehicle: tabletVehicle(vehicle), driver_name: vehicle.driver_name || '', has_driver_pin: hasDriverPin, has_signing_tablet: hasSigningTablet,
           company_id: companyId, company_name: companyDisplayName, company_logo_url: companyLogoUrl, staff, route: tabletRoute(route, companyId), road_stops: roadStops, workplace, emergency_contacts: emergencyContacts, ...boardingStats(checkIns),
           broadcasts: relevantBroadcasts, check_ins: checkIns.slice(0, 20).filter((c) => c.status === 'boarded').map(tabletCheckIn),
-          group_messages: unlocked ? [...groupMessages].reverse() : [], trips: unlocked ? trips : [],
+          group_messages: unlocked ? [...groupMessages].filter(message=>message.company_id===companyId).reverse() : [], trips: unlocked ? trips : [],
           // Lets the tablet tell "no jobs" from "jobs hidden while locked".
           driver_unlocked: !!unlocked,
           open_shift: openShifts.find((s) => !s.ended_at) || null,
@@ -917,6 +955,9 @@ export default async function(req) {
           })),
           update_requested_at: device.update_requested_at || null,
           network_command: network?.command || null,
+          control_notice: controlNotice(device),
+          support_notice: supportNotice(device),
+          recordings_notice: recordingsNotice(device),
         };
         if (light) {
           // Left out, so the tablet keeps what the last full check-in sent. A
@@ -953,6 +994,7 @@ export default async function(req) {
         const open = (await base44.asServiceRole.entities.DriverShift.filter({ vehicle_id: vehicleId }, '-started_at', 5))
           .filter((s) => !s.ended_at);
         if (open.length) return Response.json({ shift: open[0] });
+        const shift = await durableCreate(requestId ? JSON.stringify(['shift',device.id,companyId,vehicleId,requestId]) : null,requestHash,async()=>{
         const shift = await base44.asServiceRole.entities.DriverShift.create({
           ...(requestId ? {client_request_id:requestId,request_hash:requestHash} : {}),
           vehicle_id: vehicleId, vehicle_name: vehicle.name, company_id: companyId, company_name: companyName,
@@ -965,6 +1007,8 @@ export default async function(req) {
         try { await offboardEveryone(base44, { companyId, companyName, vehicleId, vehicleName: shift.vehicle_name || vehicle.name, at: Date.parse(shift.started_at) }); }
         catch { /* the shift still starts; the kiosk corrects anyone left aboard */ }
         await clearRoadNext(base44, vehicleId);
+        return shift;
+        },id=>base44.asServiceRole.entities.DriverShift.get(id));
         return Response.json({ shift });
       }
 
@@ -1136,7 +1180,7 @@ export default async function(req) {
         if (!vehicle) return Response.json({ error: 'Vehicle not found' }, { status: 404 });
         const replay = await replayInspection(base44,device,body);
         const passed = status !== 'failed';
-        const inspection = replay.prior || await base44.asServiceRole.entities.Inspection.create({
+        const inspection = await createInspection(base44,device,replay,{
           ...replay.fields,
           driver_name: vehicle.driver_name || '', driver_email: vehicle.driver_email || '',
           vehicle_id: vehicleId, vehicle_name: vehicle.name, company_id: companyId, company_name: companyName,
@@ -1210,7 +1254,7 @@ export default async function(req) {
         const failed = clean.filter((r) => r.condition === 'FAILED');
         const passed = failed.length === 0;
         const now = replay.prior?.created_date || new Date().toISOString();
-        const inspection = replay.prior || await base44.asServiceRole.entities.Inspection.create({
+        const inspection = await createInspection(base44,device,replay,{
           ...replay.fields,
           driver_name: vehicle.driver_name || '', driver_email: vehicle.driver_email || '',
           vehicle_id: vehicleId, vehicle_name: vehicle.name, company_id: companyId, company_name: companyName,

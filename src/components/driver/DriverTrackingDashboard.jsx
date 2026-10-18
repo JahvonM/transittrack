@@ -1,3 +1,4 @@
+import { watchDriverPosition, clearDriverWatch } from "@/lib/driverGps";
 import DriverPortraitDrive from "./DriverPortraitDrive";
 import { getNavTarget, onNavTarget } from "@/lib/navTarget";
 import React, { useEffect, useRef, useState, useCallback } from "react";
@@ -152,7 +153,7 @@ export default function DriverTrackingDashboard({ session, invoke, onReportIncid
   }, [playBeep, toast, invoke]);
 
   const beginWatch = () => {
-    watchId.current = navigator.geolocation.watchPosition(
+    watchId.current = watchDriverPosition(
       (p) => {
         if (p.coords.accuracy != null && p.coords.accuracy > 100) { setGpsProblem("Weak GPS signal"); return; }
         handlePosition(p.coords.latitude, p.coords.longitude, p.coords.speed, { heading: p.coords.heading, accuracy: p.coords.accuracy, ts: p.timestamp });
@@ -163,7 +164,7 @@ export default function DriverTrackingDashboard({ session, invoke, onReportIncid
           setGpsProblem("Location permission is off");
           setSharing(false);
         } else {
-          setGpsProblem(err.code === err.POSITION_UNAVAILABLE ? "GPS is off or unavailable" : "Waiting for GPS signal");
+          setGpsProblem(err.source === "usb" ? err.message : err.code === err.POSITION_UNAVAILABLE ? "GPS is off or unavailable" : "Waiting for GPS signal");
         }
       },
       { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
@@ -171,7 +172,7 @@ export default function DriverTrackingDashboard({ session, invoke, onReportIncid
   };
 
   const startTracking = async () => {
-    if (!navigator.geolocation || watchId.current != null) return;
+    if (watchId.current != null) return;
     setSharing(true);
     try { await invoke("start_tracking"); } catch { /* tolerate */ }
     beginWatch();
@@ -181,8 +182,8 @@ export default function DriverTrackingDashboard({ session, invoke, onReportIncid
   // in after tracking started is picked up.
   useEffect(() => {
     const restart = () => {
-      if (watchId.current == null || !navigator.geolocation) return;
-      navigator.geolocation.clearWatch(watchId.current);
+      if (watchId.current == null) return;
+      clearDriverWatch(watchId.current);
       setGpsProblem("");
       beginWatch();
     };
@@ -201,7 +202,7 @@ export default function DriverTrackingDashboard({ session, invoke, onReportIncid
       }
     }
     setSharing(false);
-    if (watchId.current != null) { navigator.geolocation.clearWatch(watchId.current); watchId.current = null; }
+    if (watchId.current != null) { clearDriverWatch(watchId.current); watchId.current = null; }
     const v = vehicleRef.current;
     if (v) {
       try { await invoke("update_location", { lat: v.current_lat, lng: v.current_lng, speed: 0, status: "idle" }); } catch { /* ignore */ }
@@ -227,7 +228,7 @@ export default function DriverTrackingDashboard({ session, invoke, onReportIncid
     if (!locked) lockNotified.current = false;
   }, [liveVehicle?.remote_tracking_lock, liveVehicle?.tracking_active]);
 
-  useEffect(() => { return () => { if (watchId.current != null) navigator.geolocation.clearWatch(watchId.current); }; }, []);
+  useEffect(() => { return () => { if (watchId.current != null) clearDriverWatch(watchId.current); }; }, []);
 
   const staffPins = staff
     .filter((s) => s.home_lat != null && !s.skip_pickup_today)

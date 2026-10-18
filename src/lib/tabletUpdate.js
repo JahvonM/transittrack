@@ -19,7 +19,7 @@ const PAGE_LOADED_AT = Date.now();
 let lastInteraction = Date.now();
 if (typeof window !== "undefined") {
   const touch = () => { lastInteraction = Date.now(); };
-  ["pointerdown", "keydown", "touchstart", "tt-badge"].forEach((e) => window.addEventListener(e, touch, { passive: true, capture: true }));
+  ["pointerdown", "keydown", "touchstart", "tt-badge", "tt-ble-code"].forEach((e) => window.addEventListener(e, touch, { passive: true, capture: true }));
 }
 
 // Nobody has touched the screen (or tapped a card) for this long.

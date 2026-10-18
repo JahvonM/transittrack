@@ -1,0 +1,9 @@
+import { Capacitor, registerPlugin } from "@capacitor/core";
+const TabletRecovery = registerPlugin("TabletRecovery");
+export const tabletRecoveryAvailable = () => Capacitor.isNativePlatform()
+  && Capacitor.getPlatform() === "android" && Capacitor.isPluginAvailable("TabletRecovery");
+export async function tabletRecoveryState() {
+  if (!tabletRecoveryAvailable()) return { available: false };
+  try { return await TabletRecovery.getState(); } catch { return { available: false }; }
+}
+export const openTabletHomeSettings = () => TabletRecovery.openHomeSettings();

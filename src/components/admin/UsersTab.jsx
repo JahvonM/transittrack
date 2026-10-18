@@ -1,3 +1,4 @@
+import CustomRoles from "@/components/admin/CustomRoles";
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
@@ -182,6 +183,7 @@ export default function UsersTab({ users, companies, currentUser, onChange }) {
         <CreateAccountDialog companies={companies} onCreated={onChange} />
       </PageActions>
 
+      <CustomRoles users={users} onChange={onChange} />
       <section className="mb-4 rounded-2xl border border-border bg-card p-4" aria-label="Invite a user">
         <h2 className="mb-3 flex items-center gap-2 text-title-sm font-bold"><UserPlus className="h-[18px] w-[18px] text-muted-foreground" aria-hidden="true" /> Invite someone</h2>
         <div className="flex flex-wrap items-center gap-2">

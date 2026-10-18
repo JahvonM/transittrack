@@ -1,6 +1,17 @@
 {
   "name": "KioskDevice",
   "properties": {
+    "support_request": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "expires_at": {
+          "type": "string"
+        }
+      }
+    },
     "company_id": {
       "type": "string"
     },
@@ -160,6 +171,64 @@
         },
         "version": {
           "type": "string"
+        },
+        "native_version": {
+          "type": "string"
+        },
+        "model": {
+          "type": "string"
+        },
+        "android_version": {
+          "type": "string"
+        },
+        "network_type": {
+          "type": "string"
+        },
+        "battery_temperature": {
+          "type": "number"
+        },
+        "free_storage_mb": {
+          "type": "number"
+        },
+        "usb_devices": {
+          "type": "number"
+        },
+        "network_native": {
+          "type": "boolean",
+          "description": "Integrated native network controls enabled."
+        },
+        "network_available": {
+          "type": "boolean"
+        },
+        "support_transport": {
+          "type": "string"
+        },
+        "support_available": {
+          "type": "boolean"
+        },
+        "management_available": {
+          "type": "boolean"
+        },
+        "management_owner": {
+          "type": "boolean"
+        },
+        "management_locked": {
+          "type": "boolean"
+        },
+        "native_app_version": {
+          "type": "string"
+        },
+        "native_app_code": {
+          "type": "integer"
+        },
+        "native_app_package": {
+          "type": "string"
+        },
+        "native_update_available": {
+          "type": "boolean"
+        },
+        "recordings_available": {
+          "type": "boolean"
         }
       },
       "type": "object"
@@ -233,7 +302,7 @@
       }
     },
     "network_status": {
-      "description": "What Admin shows about the latest Wi-Fi or hotspot command (never a password): waiting, sent, delivered or expired.",
+      "description": "Latest admin network command delivery and native completion status; no passwords.",
       "type": "object",
       "properties": {
         "id": {
@@ -269,6 +338,125 @@
         "expired_at": {
           "type": "string",
           "format": "date-time"
+        },
+        "message": {
+          "type": "string"
+        },
+        "result_code": {
+          "type": "string"
+        },
+        "completed_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "control_command": {
+      "type": "object",
+      "description": "Private admin command; native executor verifies over fixed HTTPS endpoint. Never exposed through entity gateway.",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "action": {
+          "type": "string"
+        },
+        "requested_by": {
+          "type": "string"
+        },
+        "requested_at": {
+          "type": "string"
+        },
+        "expires_at": {
+          "type": "string"
+        },
+        "company_id": {
+          "type": "string"
+        },
+        "vehicle_id": {
+          "type": "string"
+        },
+        "kiosk_type": {
+          "type": "string"
+        },
+        "lock_until": {
+          "type": "string"
+        },
+        "release_id": {
+          "type": "string"
+        }
+      }
+    },
+    "control_status": {
+      "type": "object",
+      "description": "Safe command progress. Requested is not proof that reboot completed.",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "action": {
+          "type": "string"
+        },
+        "state": {
+          "type": "string"
+        },
+        "requested_at": {
+          "type": "string"
+        },
+        "expires_at": {
+          "type": "string"
+        },
+        "lock_until": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "result_code": {
+          "type": "string"
+        },
+        "completed_at": {
+          "type": "string"
+        }
+      }
+    },
+    "display_layout": {
+      "type": "string",
+      "enum": [
+        "auto",
+        "tablet",
+        "phone"
+      ],
+      "default": "auto"
+    },
+    "pickup_sign": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "subtitle": {
+          "type": "string"
+        },
+        "shown_at": {
+          "type": "string"
+        },
+        "expires_at": {
+          "type": "string"
+        }
+      }
+    },
+    "recordings_request": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "expires_at": {
+          "type": "string"
         }
       }
     }

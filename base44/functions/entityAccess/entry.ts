@@ -1,5 +1,7 @@
+import { durableCreate } from '../../shared/durableOperation.ts';
 import { ADMIN_READ_SPECS } from '../../shared/adminReadSpecs.ts';
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
+import { assignedAccessRole } from '../../shared/accessRoles.ts';
 import { retry429 } from '../../shared/retry429.ts';
 const ENTITY_FIELDS = {"Company": ["name", "logo_url", "phone", "access_code", "service_types", "description", "boss_phone", "secretary_phone"], "AuditLog": ["actor_email", "actor_name", "actor_role", "action", "entity", "record_id", "summary", "changes", "page", "card_uid", "status"], "Vehicle": ["capacity", "company_id", "company_name", "current_lat", "current_lng", "current_odometer", "driver_email", "driver_name", "driver_pin", "entry_code", "heading", "image_url", "last_location_update", "last_ping_logged_at", "name", "near_stop_id", "plate_number", "remote_tracking_lock", "route_id", "speed", "status", "tracking_active", "trail", "type", "wired_gps_connected", "fleet_number", "make", "model", "year", "vin", "engine", "transmission", "hours", "fuel_type", "last_inspection_date", "in_service", "model_3d", "trip_direction", "return_pickup_state"], "Trip": ["vehicle_id", "vehicle_name", "plate_number", "route_id", "route_name", "company_id", "company_name", "driver_email", "driver_name", "passenger_name", "passenger_phone", "pickup_name", "pickup_lat", "pickup_lng", "dropoff_name", "dropoff_lat", "dropoff_lng", "scheduled_time", "status", "started_at", "arrived_at", "completed_at", "pickup_signature_url", "pickup_signed_by", "pickup_signed_at", "dropoff_signature_url", "dropoff_signed_by", "dropoff_signed_at"], "InspectionResult": ["vehicle_id", "vehicle_name", "company_id", "company_name", "inspection_name", "section_name", "inspection_item", "condition", "fault_found", "fault_description", "photo_url", "repair_required", "notes", "inspector_id", "inspector_name", "inspection_date"], "GroupMessage": ["vehicle_id", "vehicle_name", "company_id", "company_name", "channel", "sender_role", "sender_name", "text", "message_type", "media_url", "edited"], "MaintenanceSettings": ["auto_create_faults", "maintenance_reminder_days", "enable_photo_attachments", "inspection_reminder_days"], "Advertisement": ["title", "message", "image_url", "link", "active", "order"], "PushToken": ["token", "email", "device_id", "role", "company_id"], "LocationPing": ["company_id", "lat", "lng", "recorded_at", "speed", "vehicle_id"], "FrontDeskSignIns": ["full_name", "company_name", "reason", "signature_url", "signed_at"], "ClientError": ["message", "stack", "url", "user_email", "user_role", "user_agent", "source", "device_id", "emailed"], "Driver": ["full_name", "email", "phone", "photo_url", "company_id", "company_name", "employee_id", "nfc_card_uid"], "DriverShift": ["vehicle_id", "vehicle_name", "company_id", "company_name", "driver_name", "driver_email", "device_id", "started_at", "ended_at", "duration_minutes", "notes"], "NfcCard": ["card_uid", "card_type", "holder_type", "holder_source", "holder_id", "holder_name", "employee_id", "role", "assigned_vehicle", "company_id", "company_name", "access_level", "issue_date", "expiry_date", "issued_by", "is_active", "revoked_at", "revoked_by", "revoke_reason"], "Broadcast": ["type", "title", "message", "vehicle_name", "company_id", "company_name", "driver_name", "driver_email", "is_reply", "vehicle_id", "return_pickup"], "KioskDevice": ["company_id", "company_name", "device_info", "update_requested_at", "directory_sent_at", "app_health", "helper_health", "kiosk_type", "label", "last_seen", "paired", "pairing_code", "status", "vehicle_id", "vehicle_name", "pairing_expires_at"], "Route": ["company_id", "company_name", "name", "type", "stops", "active", "path", "path_via", "pickup_merge_m"], "Inspection": ["driver_name", "driver_email", "vehicle_id", "vehicle_name", "company_id", "company_name", "date", "status", "checklist", "odometer_reading", "fuel_level", "needs_service", "service_notes", "template_id", "template_name", "trigger", "results"], "RouteTravelTimes": ["route_id", "route_name", "company_id", "legs", "dwells", "leg_samples", "pings_used", "vehicles_used", "days", "learned_at"], "Fault": ["vehicle_id", "vehicle_name", "company_id", "company_name", "title", "description", "source", "inspection_id", "severity", "status", "photo_url", "repair_required", "reported_by", "resolved_date"], "StaffCheckIn": ["staff_name", "staff_picture_url", "card_tag", "status", "boarded_at", "company_id", "company_name", "vehicle_id", "vehicle_name", "check_in_method"], "CardHolder": ["full_name", "employee_id", "role", "assigned_vehicle", "company_id", "company_name", "notes"], "DrivingEvent": ["company_id", "company_name", "driver_email", "driver_name", "lat", "lng", "occurred_at", "speed_after_kmh", "speed_before_kmh", "type", "vehicle_id", "vehicle_name"], "DriverDocument": ["driver_id", "driver_name", "company_id", "kind", "file_uri", "file_name", "document_number", "expiry_date", "notes"], "Part": ["company_id", "company_name", "part_name", "oem_number", "aftermarket_number", "vehicle_compatibility", "category", "quantity_in_stock", "unit_price", "supplier", "photo_url"], "User": ["role", "company_id", "display_name", "phone", "photo_url", "home_lat", "home_lng", "home_address", "pickup_lat", "pickup_lng", "pickup_name", "pickup_route_id", "pickup_moved", "work_lat", "work_lng", "nfc_tag_id", "access_code", "one_time_code", "one_time_code_expires_at", "whatsapp_linked", "skip_pickup_today", "skip_pickup_until", "late_snooze_active", "late_until", "favorite_stop", "stop_alerts", "theme_accent", "employee_id"], "Workplace": ["name", "company_id", "company_name", "lat", "lng"], "Incident": ["vehicle_id", "vehicle_name", "company_id", "company_name", "driver_name", "driver_email", "type", "details", "occurred_at", "status"], "Contact": ["name", "phone", "email", "type", "nfc_card_tag", "access_code", "company_id", "company_name", "pickup_name", "pickup_lat", "pickup_lng", "dropoff_name", "dropoff_lat", "dropoff_lng", "employee_id", "vehicle_id", "vehicle_name"], "LostItemReport": ["company_id", "company_name", "reporter_name", "reporter_email", "contact", "vehicle_name", "description", "status", "admin_notes"], "InspectionTemplate": ["name", "category", "company_id", "company_name", "frequency_days", "audience", "driver_trigger", "driver_days", "driver_times", "driver_vehicle_ids", "xray_layout", "driver_from_time", "driver_required", "driver_sent_at", "sections"], "MaintenanceSchedule": ["vehicle_id", "vehicle_name", "company_id", "company_name", "service_type", "due_type", "interval_km", "interval_days", "last_service_mileage", "last_service_date", "status", "assigned_mechanic_id", "assigned_mechanic_name", "notes"]};
 function randomAccessCode() {
@@ -12,6 +14,7 @@ async function uniqueAccessCode(db,entity,field) {
  for(let i=0;i<50;i++) {const code=randomAccessCode();if(!(await db[entity].filter({[field]:code},'-created_date',1)).length)return code;}
  fail(503,'Could not allocate a unique code');
 }
+ENTITY_FIELDS.KioskDevice.push('display_layout');
 const MAINTENANCE = new Set(["Vehicle", "Fault", "Inspection", "InspectionResult", "InspectionTemplate", "Part", "MaintenanceSchedule", "MaintenanceSettings"]);
 
 for(const name of ['InspectionResult','Fault']) ENTITY_FIELDS[name].push('client_request_id');
@@ -27,6 +30,7 @@ ENTITY_FIELDS.DriverShift.push('started_with','ended_with');
 ENTITY_FIELDS.Vehicle.push('backup_gps_driver_email','backup_gps_since','road_next_stop');
 // The latest Wi-Fi/hotspot command's status for Admin → Kiosk tablets (never the command itself, which can hold a Wi-Fi password).
 ENTITY_FIELDS.KioskDevice.push('network_status');
+ENTITY_FIELDS.KioskDevice.push('control_status');
 // Admin → App errors: what happened before an error, and marking it fixed.
 ENTITY_FIELDS.ClientError.push('area','context','breadcrumbs','status','resolved_at','resolved_by');
 // Jobs dispatch gives a bus. The signatures (and where and by how many guests
@@ -40,7 +44,7 @@ ENTITY_FIELDS.Place=['company_id','name','kind','address','lat','lng','notes'];
 ENTITY_FIELDS.Client=['company_id','name','kind','contact_name','email','phone','address','currency','notes'];
 ENTITY_FIELDS.Invoice=['company_id','company_name','client_id','client_name','client_email','client_address','number','period_start','period_end','issued_at','due_date','lines','total','currency','status','sent_at','paid_at','voided_at','notes'];
 const ADMIN_ONLY_FIELDS={Driver:new Set(['phone_app_access']),Trip:new Set(['client_id','client_name','price','currency'])};
-const SERVER_ONLY_FIELDS={Incident:new Set(['photo_uris','source']),KioskDevice:new Set(['network_status']),Trip:new Set([...JOB_SIGNATURE_FIELDS,'invoice_id','invoice_number'])};
+const SERVER_ONLY_FIELDS={Incident:new Set(['photo_uris','source']),KioskDevice:new Set(['recordings_request','support_request','network_status', 'control_status']),Trip:new Set([...JOB_SIGNATURE_FIELDS,'invoice_id','invoice_number'])};
 const JOB_TYPES=new Set(['airport_pickup','airport_dropoff','hotel_tour','staff_run','transfer']);
 const CURRENCIES=new Set(['XCD','USD']);
 const text=(data,field,max)=>{ if(!Object.hasOwn(data,field)||data[field]===null) return; if(typeof data[field]!=='string'||data[field].length>max) fail(400,'Invalid '+field.replace(/_/g,' ')); data[field]=data[field].trim(); };
@@ -202,6 +206,8 @@ function project(ctx,name,row) {
 }
 async function projectRecord(db,ctx,name,row) {
  const out=project(ctx,name,row);
+ if(name==='User' && row?.id===ctx.user?.id) out.access_role=await assignedAccessRole(db,ctx.user);
+ if(name==='User' && ctx.user?.role==='admin') out.access_role_id=row?.access_role_id || '';
  if(name==='User' && row && ctx.user?.role==='admin') {
   const approved=await memberships(db,row,ctx);
   out.company_id=approved[0]?.company_id || '';
@@ -228,6 +234,7 @@ async function prepare(db,ctx,name,input,existing=null) {
  const allowed=new Set(ENTITY_FIELDS[name]);
  if(name==='User') ['full_name','email'].forEach(k=>allowed.add(k));
  for (const key of Object.keys(input)) {
+  if(name==='User' && key==='access_role_id') fail(403,'Use custom role assignment');
   if(SECURITY_FIELDS[name]?.has(key)) fail(403,'Use server access-code management');
   if(SERVER_ONLY_FIELDS[name]?.has(key)) fail(403,'Set by the driver app only');
   if(ADMIN_ONLY_FIELDS[name]?.has(key) && user.role!=='admin') fail(403,'Administrators only');
@@ -237,6 +244,7 @@ async function prepare(db,ctx,name,input,existing=null) {
  checkLinks(user, input);
  if(input.client_request_id!==undefined && (existing || typeof input.client_request_id!=='string' || !/^[a-zA-Z0-9_-]{8,100}$/.test(input.client_request_id))) fail(400,'Invalid immutable request ID');
  const data={...input};
+ if(name==='KioskDevice' && data.display_layout!==undefined && !['auto','tablet','phone'].includes(data.display_layout)) fail(400,'Invalid kiosk layout');
  if(name==='Invoice') fail(403,'Invoices are made and changed in Completed & billing');
  if(name==='Trip') {
   cleanJob(data);
@@ -349,7 +357,8 @@ async function replayCreate(db,ctx,name,data) {
  const hash=Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,'0')).join('');
  const prior=(await db[name].filter({client_request_id:data.client_request_id,request_actor_id:ctx.user.id},'-created_date',1))[0];
  if(prior) { if(prior.request_hash!==hash) fail(409,'Request ID reused with different data'); return prior; }
- return db[name].create({...data,request_hash:hash,request_actor_id:ctx.user.id});
+ return durableCreate(JSON.stringify(['entity',name,ctx.user.id,data.client_request_id]),hash,
+  ()=>db[name].create({...data,request_hash:hash,request_actor_id:ctx.user.id}),id=>db[name].get(id));
 }
 // A page of trips or messages usually covers several buses. Reading those
 // buses one by one cost one database call each, on every refresh of every
@@ -408,6 +417,11 @@ export default async function(req) {
   failureStage='authentication';
   const ctx=await context(base44);
   failureStage='entity_operation';
+  if(ctx.user?.role!=='admin' && ctx.user?.access_role_id) {
+   const ownProfile=name==='User' && (operation==='get' && (body.id==='me' || body.id===ctx.user.id) || operation==='update' && body.id===ctx.user.id);
+   const ownPush=name==='PushToken' && operation==='register';
+   if(!ownProfile && !ownPush)fail(403,'Use your assigned role workspace');
+  }
   if(name==='AdminBootstrap') {
    if(!ctx.user) fail(401,'Sign in required');
    if(ctx.user.role!=='admin') fail(403,'Administrators only');
@@ -526,7 +540,9 @@ export default async function(req) {
   if(operation==='delete') {
    if(ctx.user.role!=='admin'&&MAINTENANCE.has(name))fail(403,'Maintenance deletion is admin-only');
    if(ctx.user.role!=='admin' && !(ctx.user.role==='company' && COMPANY_READ.has(name) && name!=='Company') && !(ctx.user.role==='mechanic' && MAINTENANCE.has(name) && name!=='Vehicle') && !(name==='GroupMessage' && existing.sender_id===ctx.user.id)) fail(403,'Delete forbidden');
-   await prepare(db,ctx,name,{},existing);
+   // Deleting an old schedule does not need its now-removed vehicle/company
+   // to pass create/update validation. Visibility and admin checks ran above.
+   if(name!=='MaintenanceSchedule') await prepare(db,ctx,name,{},existing);
    await db[name].delete(body.id);
    return Response.json({result:{ok:true}});
   }

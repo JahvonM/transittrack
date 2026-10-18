@@ -1,3 +1,4 @@
+import { watchDriverPosition, clearDriverWatch } from "@/lib/driverGps";
 import { TRANSIT_TIME_ZONE } from "@/lib/localTime";
 import React, { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Map, { Marker, Source, Layer } from "react-map-gl";
@@ -149,8 +150,8 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
     return () => window.removeEventListener(GPS_RETRY_EVENT, again);
   }, []);
   useEffect(() => {
-    if (!vehicleId || !navigator.geolocation) return undefined;
-    watchId.current = navigator.geolocation.watchPosition(
+    if (!vehicleId) return undefined;
+    watchId.current = watchDriverPosition(
       (p) => {
         if (p.coords.accuracy != null && p.coords.accuracy > 100) return;
         // Some GPS units don't report speed; work it out from the last fix.
@@ -173,7 +174,7 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
       () => {},
       { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
     );
-    return () => { if (watchId.current != null) navigator.geolocation.clearWatch(watchId.current); };
+    return () => { if (watchId.current != null) clearDriverWatch(watchId.current); };
   }, [vehicleId, pushLocation, shouldPush, watchNonce]);
 
   // On a drawn road (once unlocked): its stops, pickups included, in the
@@ -400,6 +401,12 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
   const step = progress?.step;
   const banner = progress?.banner;
   const drivingSide = step?.drivingSide || "right";
+  const [dismissedArrival, setDismissedArrival] = useState(null);
+  useEffect(() => {
+    if (!progress?.arrived || !nextStopKey) { setDismissedArrival(null); return undefined; }
+    const timer = setTimeout(() => setDismissedArrival(nextStopKey), 2000);
+    return () => clearTimeout(timer);
+  }, [progress?.arrived, nextStopKey]);
   let bannerMain;
   if (!nextStop) {
     bannerMain = { title: orderedStops.length ? "Route finished" : "No route assigned", sub: orderedStops.length ? "" : "Ask dispatch to give this bus a route" };
@@ -559,7 +566,7 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
         )}
 
         {/* Top: next turn, Google-Maps style */}
-        {navigating && <div ref={bannerRef} className="absolute top-3 left-3 right-3 z-10 max-w-xl space-y-1.5 pointer-events-none" data-testid="nav-banner">
+        {navigating && !(progress?.arrived && dismissedArrival === nextStopKey) && <div ref={bannerRef} className="absolute top-3 left-3 right-3 z-10 max-w-xl space-y-1.5 pointer-events-none" data-testid="nav-banner">
           <div className="rounded-2xl text-white shadow-xl overflow-hidden" style={{ background: BANNER }}>
             {bannerMain ? (
               <div className="px-4 py-3 flex items-center gap-3">

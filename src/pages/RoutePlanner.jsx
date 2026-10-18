@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import Map, { Marker, Source, Layer } from "react-map-gl";
+import Map, { Marker, Source, Layer, GeolocateControl } from "react-map-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { MAPBOX_TOKEN, declutterStyle, mapStyleFor, mapAccentFor } from "@/lib/mapbox";
 import { useIsDark } from "@/lib/useTheme";
@@ -18,6 +18,13 @@ import { confirmAction } from "@/components/ConfirmHost";
 import { drawnRoad, roadLengthKm, simplifyRoad, snapRoad } from "@/lib/routeRoad";
 import { nearestRoutePoint } from "@/lib/pickupSuggestion";
 
+const PLANNER_STYLES = {
+ auto: "Match app theme", streets: "Streets", satellite: "Satellite", outdoors: "Terrain", light: "Light", dark: "Dark",
+};
+const STYLE_URLS = {
+ streets: "mapbox://styles/mapbox/streets-v12", satellite: "mapbox://styles/mapbox/satellite-streets-v12",
+ outdoors: "mapbox://styles/mapbox/outdoors-v12", light: "mapbox://styles/mapbox/light-v11", dark: "mapbox://styles/mapbox/dark-v11",
+};
 const MAX_ROAD_POINTS = 200;
 // A stop tapped this close to the drawn road is placed on the road itself.
 const STOP_SNAP_M = 60;
@@ -26,6 +33,7 @@ export default function RoutePlanner() {
   const isDark = useIsDark();
   const accent = mapAccentFor(isDark);
   const { toast } = useToast();
+  const [mapStyle, setMapStyle] = useState("auto");
   const [companies, setCompanies] = useState([]);
   const [routes, setRoutes] = useState([]);
   const [selectedRoute, setSelectedRoute] = useState(null);
@@ -254,16 +262,25 @@ export default function RoutePlanner() {
         <div className="hidden 2xl:block">{routeList}</div>
         <div className="min-w-0">
           <div className="relative h-[52vh] min-h-[360px] overflow-hidden rounded-2xl border border-border lg:h-[calc(100vh-13rem)]">
+            <label className="absolute bottom-3 left-3 z-10 flex items-center gap-2 rounded-xl border bg-background/95 p-2 shadow-md">
+              <span className="text-sm font-semibold">Map style</span>
+              <select aria-label="Map style" value={mapStyle} onChange={e => setMapStyle(e.target.value)} className="min-h-10 rounded-lg border bg-background px-2 text-sm">
+                {Object.entries(PLANNER_STYLES).map(([value,label]) => <option key={value} value={value}>{label}</option>)}
+              </select>
+            </label>
             <Map
               ref={mapRef}
               mapboxAccessToken={MAPBOX_TOKEN}
-              mapStyle={mapStyleFor(isDark)}
+              mapStyle={STYLE_URLS[mapStyle] || mapStyleFor(isDark)}
               initialViewState={{ longitude: center[0], latitude: center[1], zoom: 12 }}
               style={{ width: "100%", height: "100%" }}
               onClick={onMapClick}
               attributionControl={false}
               onLoad={(e) => declutterStyle(e.target)}
             >
+              <GeolocateControl position="bottom-right" trackUserLocation showUserLocation showAccuracyCircle
+                positionOptions={{ enableHighAccuracy: true, timeout: 15000 }}
+                onError={() => toast({ title: "Couldn't get your location", description: "Allow location access for TransitTrack and try the location button again.", variant: "destructive" })} />
               {road ? (
                 <Source id="planner-road" type="geojson" data={{ type: "Feature", geometry: { type: "LineString", coordinates: road } }}>
                   <Layer id="planner-road-line" type="line" layout={{ "line-cap": "round", "line-join": "round" }} paint={{ "line-color": accent, "line-width": 6, "line-opacity": 0.9 }} />

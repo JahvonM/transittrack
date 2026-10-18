@@ -5,7 +5,9 @@
   "server": {
     "androidScheme": "https",
     "url": "https://eager-transit-track-go.base44.app",
-    "allowNavigation": ["eager-transit-track-go.base44.app"]
+    "allowNavigation": [
+      "eager-transit-track-go.base44.app"
+    ]
   },
   "plugins": {
     "SplashScreen": {
@@ -15,7 +17,11 @@
       "showSpinner": false
     },
     "PushNotifications": {
-      "presentationOptions": ["badge", "sound", "alert"]
+      "presentationOptions": [
+        "badge",
+        "sound",
+        "alert"
+      ]
     },
     "BluetoothLe": {
       "displayStrings": {
@@ -25,5 +31,8 @@
         "noDeviceFound": "No bus found nearby"
       }
     }
+  },
+  "android": {
+    "loggingBehavior": "none"
   }
 }

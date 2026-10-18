@@ -1,5 +1,7 @@
+import { useTabletWorkSafety } from "@/lib/nativeTabletControl";
 import "./boardingShowcase.css";
 import BusArtwork from "@/components/BusArtwork";
+import BoardingPickupSign from "@/components/kiosk/BoardingPickupSign";
 import useFutureAppearance from "@/hooks/useFutureAppearance";
 import { TRANSIT_TIME_ZONE } from "@/lib/localTime";
 import React, { useEffect, useRef, useState } from "react";
@@ -21,6 +23,7 @@ import SlideToUnlock from "./SlideToUnlock";
 import KioskMascot from "./KioskMascot";
 import KioskConnectionBadge from "./KioskConnectionBadge";
 import BoardingSettingsGate, { useHold } from "./BoardingSettingsGate";
+import { startBoardingBluetooth, nativeBoardingBluetoothAvailable, boardingBluetoothState } from "@/lib/nativeBoardingBluetooth";
 import { takeBleCodes, markBleCodeSeen } from "@/lib/bluetoothBoarding";
 import { sendLocalCommand, helperKey } from "@/lib/tabletNetwork";
 
@@ -133,13 +136,16 @@ function PassengerListDialog({ open, onOpenChange, vehicleName }) {
 }
 
 // The boarding home keeps NFC, QR and code entry beside live bus information.
-export default function BusBoardingKiosk({ invoke, device, directoryInfo, online }) {
+export default function BusBoardingKiosk({ invoke, device, directoryInfo, online, layout = "tablet" }) {
+  const phoneLayout = layout === "phone";
+  const [phoneInfo, setPhoneInfo] = useState(false);
   useFutureAppearance();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const settingsHold = useHold(() => setSettingsOpen(true));
   const [unlocked, setUnlocked] = useState(false);
   const [now, setNow] = useState(() => new Date());
   const [mode, setMode] = useState("idle"); // idle | qr | confirm | result | badge_error
+  useEffect(() => { if (mode !== "idle" && mode !== "qr") setPhoneInfo(false); }, [mode]);
   const [qrHint, setQrHint] = useState("");
   const [qrRetryAt, setQrRetryAt] = useState(0);
   const qrCooldown = Math.max(0, Math.ceil((qrRetryAt - Date.now()) / 1000));
@@ -169,6 +175,8 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
     const t = setInterval(() => setReaderLink(helperLink()), 30_000);
     return () => clearInterval(t);
   }, []);
+  useTabletWorkSafety(device?.device_id || device?.id, mode === "idle" && !unlocked && !busy && !checkingCard &&
+    !checkingCode && !pending && !settingsOpen && !listOpen && code.length === 0);
   const resetTimer = useRef(null);
   // When the current card lookup started (0 = none). A lookup that never
   // answers (weak bus signal) must not block every tap after it.
@@ -183,7 +191,7 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
   // without pressing Boarding/Exiting can't leave the reader dead for the next.
   const idleListening = true;
   const { listening: nfcListening, nfcError } = useNfcTap(
-    (tag) => handleTag(tag),
+    (tag, receipt) => handleTag(tag, receipt),
     idleListening,
     { webActive: unlocked && idleListening }
   );
@@ -284,8 +292,8 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
     return ["wrong_bus", "no_bus"].includes(e?.response?.data?.error) ? e.response.data.message : "";
   };
 
-  const handleTag = async (tag) => {
-    if (lookupStarted.current && Date.now() - lookupStarted.current < 12000) return;
+  const handleTag = async (tag, receipt = {}) => {
+    if (lookupStarted.current && Date.now() - lookupStarted.current < 12000) { reportBadgeResult(false, receipt); return; }
     lookupStarted.current = Date.now();
     setCheckingCard(true);
     clearTimeout(resetTimer.current);
@@ -297,9 +305,9 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
       setUnlocked(true);
       setPending({ staff: res.staff, next_status: res.next_status, method: "nfc", verification_grant: res.verification_grant, directory_grant:res.directory_grant, card_fingerprint:res.card_fingerprint });
       setMode("confirm");
-      reportBadgeResult(true);
+      reportBadgeResult(true, receipt);
     } catch (e) {
-      reportBadgeResult(false);
+      reportBadgeResult(false, receipt);
       if (handleUnpaired(e)) return;
       setUnlocked(true);
       setBadgeError(busMessage(e) || (e?.response?.data?.error === "badge_not_registered"
@@ -366,6 +374,7 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
       setMode("confirm");
     } catch (e) {
       if (handleUnpaired(e)) return;
+      setUnlocked(true);
       setBadgeError(busMessage(e) || "That phone's boarding code isn't recognized. Use your card, QR or code.");
       setMode("badge_error");
       resetSoon(4000);
@@ -389,12 +398,13 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
     if (Date.now() - waiting.at > 20000) { bleWaiting.current = null; return; }
     bleHandler.current(waiting.text);
   }, [mode, busy]);
+  useEffect(() => startBoardingBluetooth(device?.vehicle_name, text => bleHandler.current(text)), [device?.vehicle_name]);
   // Phones show this bus's name in their Bluetooth list.
   const busName = device?.vehicle_name || "";
   useEffect(() => {
     if (!busName) return undefined;
     let done = false;
-    const tell = async () => { if (!done && helperKey() && (await sendLocalCommand("/ble/name", { name: busName })) === "sent") done = true; };
+    const tell = async () => { if (nativeBoardingBluetoothAvailable() && (await boardingBluetoothState()).enabled) return; if (!done && helperKey() && (await sendLocalCommand("/ble/name", { name: busName })) === "sent") done = true; };
     tell();
     const t = setInterval(tell, 15000);
     return () => clearInterval(t);
@@ -572,11 +582,18 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
     </Screen>;
   }
 
-  return <div className="tt-boarding-future tt-boarding-showcase">
+  return <div data-layout={layout} className={`tt-boarding-future tt-boarding-showcase${phoneLayout ? " tt-kiosk-phone" : ""}${phoneInfo ? " tt-kiosk-phone-info" : ""}`}>
     <TopStatusBar device={device} vehicle={vehicle} route={route} now={now} online={online} holdProps={settingsHold} />
     <BoardingSettingsGate open={settingsOpen} onClose={() => setSettingsOpen(false)} deviceId={device?.device_id || device?.id} invoke={invoke} />
     <PassengerListDialog open={listOpen} onOpenChange={setListOpen} vehicleName={device?.vehicle_name} />
     {readerLink === "lost" && <div className="tt-board-reader-warning" role="alert"><strong>Card reader isn't connected to this screen.</strong> Use your code on the keypad instead.<small>Staff: run Update in the tablet setup tool for this tablet.</small></div>}
+    {phoneLayout && <nav className="tt-phone-kiosk-nav" aria-label="Phone kiosk">
+      <button type="button" aria-pressed={!phoneInfo && mode === "idle" && !unlocked} onClick={() => { setPhoneInfo(false); setMode("idle"); setUnlocked(false); }}><CreditCard />Tap card</button>
+      <button type="button" aria-pressed={!phoneInfo && mode === "idle" && unlocked} onClick={() => { setPhoneInfo(false); setMode("idle"); setUnlocked(true); }}><LogIn />Enter code</button>
+      <button type="button" aria-pressed={!phoneInfo && mode === "qr"} onClick={() => { setPhoneInfo(false); setMode("qr"); setUnlocked(false); }}><QrCode />Scan QR</button>
+      <button type="button" aria-pressed={phoneInfo} onClick={() => setPhoneInfo(value => !value)}><Bus />Bus info</button>
+    </nav>}
+    <BoardingPickupSign device={device} enabled={mode === "idle" && !busy && !checkingCard} />
     <main className="tt-board-layout"><div className="tt-board-action">{actionContent}</div>
       <InfoRail occupancy={occupancy} vehicle={vehicle} nearestStop={nearestStop} ads={ads} todayCount={todayCount} directoryInfo={directoryInfo} now={now} onList={() => setListOpen(true)} pendingSyncCount={pendingSyncCount} syncError={syncError} />
     </main>

@@ -97,15 +97,48 @@ export function commandForTablet(device: Record<string, any>, authenticated: boo
   return { id: cmd.id, type: 'wifi_join', ssid: cmd.ssid, password: cmd.password || '' };
 }
 
+
+// Native completion codes use fixed server text: no tablet-supplied message,
+// password, SSID, stack trace or arbitrary payload is accepted as a result.
+const NATIVE_RESULTS: Record<string, { state: string; message: string; types?: string[] }> = {
+  WIFI_SCAN_COMPLETE: { state: 'applied', message: 'Fresh Wi-Fi scan completed.', types: ['wifi_scan'] },
+  WIFI_JOIN_CONNECTED: { state: 'applied', message: 'Connected to the selected Wi-Fi; internet access is checked separately.', types: ['wifi_join'] },
+  WIFI_JOIN_FAILED: { state: 'failed', message: 'Wi-Fi join failed. Previous network was requested again; check tablet connectivity.', types: ['wifi_join'] },
+  WIFI_SCAN_UNAVAILABLE: { state: 'failed', message: 'No fresh scan. Android may be limiting scans; wait and retry.', types: ['wifi_scan'] },
+  HOTSPOT_ON: { state: 'applied', message: 'Android confirmed that the hotspot is on.', types: ['hotspot'] },
+  HOTSPOT_POLICY_OFF: { state: 'applied', message: 'Automatic hotspot maintenance stopped; hotspot power was left unchanged.', types: ['hotspot'] },
+  HOTSPOT_UNSUPPORTED: { state: 'blocked', message: 'Android blocked hotspot automation. Use tablet hotspot settings.', types: ['hotspot'] },
+  HOTSPOT_PERMISSION_REQUIRED: { state: 'blocked', message: 'Allow Modify system settings on the tablet, then retry.', types: ['hotspot'] },
+  HOTSPOT_NOT_CONFIRMED: { state: 'failed', message: 'Android did not confirm hotspot activation.', types: ['hotspot'] },
+  LOW_BATTERY: { state: 'blocked', message: 'Connect the tablet charger before enabling the hotspot.', types: ['hotspot'] },
+  MANAGED_WIFI_REQUIRED: { state: 'blocked', message: 'Direct Wi-Fi changes require managed-device access. Use Android Wi-Fi settings or the current helper.', types: ['wifi_join'] },
+  LOCATION_PERMISSION_REQUIRED: { state: 'blocked', message: 'Allow Wi-Fi scan access on the tablet.', types: ['wifi_scan', 'wifi_join'] },
+  LOCATION_SERVICES_REQUIRED: { state: 'blocked', message: 'Turn Android Location on to use Wi-Fi scanning.', types: ['wifi_scan', 'wifi_join'] },
+  WIFI_OFF: { state: 'blocked', message: 'Wi-Fi is off. Turn it on in Android settings.', types: ['wifi_scan', 'wifi_join'] },
+  NETWORK_DISABLED: { state: 'blocked', message: 'Integrated network controls are off.' },
+  NETWORK_CONTEXT_REQUIRED: { state: 'blocked', message: 'Open the matching driver or boarding screen.' },
+  NETWORK_ERROR: { state: 'failed', message: 'Android could not complete the network action.' },
+};
+function nativeCompletion(cmd: NetworkCommand, raw: unknown) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const r = raw as Record<string, unknown>;
+  if (r.id !== cmd.id || typeof r.code !== 'string' || !Object.prototype.hasOwnProperty.call(NATIVE_RESULTS, r.code)) return null;
+  const allowed = NATIVE_RESULTS[r.code];
+  if (allowed.types && !allowed.types.includes(cmd.type)) return null;
+  if (cmd.type === 'hotspot' && ((r.code === 'HOTSPOT_ON' && cmd.always_on !== true) || (r.code === 'HOTSPOT_POLICY_OFF' && cmd.always_on !== false))) return null;
+  return { state: allowed.state, message: allowed.message, result_code: r.code };
+}
+
 // Fields to save on this check-in: delete a command the tablet confirmed
 // (network_ack) or one that has expired, and update what Admin shows.
-export function checkInUpdates(device: Record<string, any>, ack: unknown, now = Date.now()): Record<string, unknown> {
+export function checkInUpdates(device: Record<string, any>, ack: unknown, now = Date.now(), result?: unknown): Record<string, unknown> {
   const cmd = device?.network_command;
   if (!cmd) return {};
   const status = device.network_status && typeof device.network_status === 'object' ? device.network_status : {};
   const at = new Date(now).toISOString();
   if (wellFormed(cmd) && typeof ack === 'string' && ack === cmd.id) {
-    return { network_command: null, network_status: { ...status, id: cmd.id, state: 'delivered', delivered_at: at } };
+    const completion = nativeCompletion(cmd, result);
+    return { network_command: null, network_status: { ...status, id: cmd.id, state: 'delivered', delivered_at: at, ...(completion ? { ...completion, completed_at: at } : {}) } };
   }
   if (!wellFormed(cmd) || expired(cmd, now)) {
     const same = wellFormed(cmd) && status.id === cmd.id;
@@ -122,8 +155,8 @@ export function sentUpdates(device: Record<string, any>, handed: { id: string } 
 }
 
 // Everything one check-in does: what to save on the device and what to hand the tablet.
-export function networkCheckIn(device: Record<string, any>, ack: unknown, authenticated: boolean, now = Date.now()) {
-  const cleared = checkInUpdates(device, ack, now);
+export function networkCheckIn(device: Record<string, any>, ack: unknown, authenticated: boolean, now = Date.now(), result?: unknown) {
+  const cleared = checkInUpdates(device, ack, now, result);
   const current = 'network_command' in cleared
     ? { ...device, network_command: cleared.network_command, network_status: cleared.network_status ?? device.network_status }
     : device;
@@ -136,6 +169,8 @@ export function networkCheckIn(device: Record<string, any>, ack: unknown, authen
 // switch. Everything is length-limited text, numbers or known words.
 export function cleanNetworkHealth(o: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
+  if (typeof o.network_native === 'boolean') out.network_native = o.network_native;
+  if (typeof o.network_available === 'boolean') out.network_available = o.network_available;
   const text = (v: unknown, n: number) => (typeof v === 'string' ? v.replace(/[\u0000-\u001f\u007f<>]/g, '').slice(0, n) : undefined);
   const bars = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? Math.max(0, Math.min(4, Math.round(v))) : undefined);
   const date = (v: unknown) => { const s = text(v, 40); return s && !Number.isNaN(Date.parse(s)) ? new Date(s).toISOString() : undefined; };
@@ -144,6 +179,7 @@ export function cleanNetworkHealth(o: Record<string, unknown>): Record<string, u
   if (w && typeof w === 'object' && !Array.isArray(w)) {
     const wifi = w as Record<string, unknown>;
     const clean: Record<string, unknown> = {};
+    if (typeof wifi.enabled === 'boolean') clean.enabled = wifi.enabled;
     const ssid = text(wifi.ssid, 32);
     if (ssid !== undefined) clean.ssid = ssid;
     const b = bars(wifi.bars); if (b !== undefined) clean.bars = b;

@@ -33,3 +33,32 @@ assert.equal(await reserve(scope,randomUUID()),'t');
 console.log('PASS: rolling-window capacity recovers after expiry');
 // Delete only this test's synthetic namespace, retaining other tests' rows.
 await sql(`delete from tt_atomic.attempt_reservation where scope_hash='${scope}';delete from tt_atomic.budget_policy where scope_hash='${scope}';`);
+
+await sql(await readFile(new URL('../infra/postgres/002_operation_receipts.sql',import.meta.url),'utf8'));
+const opScope=randomUUID().replaceAll('-','').repeat(2),hash='a'.repeat(64),owners=Array.from({length:20},()=>randomUUID());
+const claim=(owner,payload=hash)=>sql(`set role service_role; select public.tt_operation_claim('${opScope}','${payload}','${owner}');`).then(JSON.parse);
+const claimed=await Promise.all(owners.map(owner=>claim(owner)));
+assert.equal(claimed.filter(r=>r.state==='acquired').length,1);
+assert.equal(claimed.filter(r=>r.state==='pending').length,19);
+const winner=owners[claimed.findIndex(r=>r.state==='acquired')],loser=owners.find(x=>x!==winner);
+assert.equal((await claim(winner)).state,'pending');
+assert.equal((await claim(randomUUID(),'b'.repeat(64))).state,'conflict');
+await sql(`update tt_atomic.operation_receipt set created_at=clock_timestamp()-interval '365 days' where scope_hash='${opScope}';`);
+assert.equal((await claim(randomUUID())).state,'pending');
+console.log('PASS: twenty independent operation claims have one winner; restart/time cannot reclaim');
+const complete=(owner,id)=>sql(`set role service_role; select public.tt_operation_complete('${opScope}','${hash}','${owner}','${id}');`);
+await assert.rejects(sql(`set role service_role;select public.tt_operation_complete('${opScope}',null,null,'record-1');`),/Invalid record identity/);
+assert.equal(await complete(loser,'wrong'),'f');
+assert.equal(await complete(winner,'record-1'),'t');
+assert.equal(await complete(winner,'record-1'),'t');
+assert.equal(await complete(winner,'record-2'),'f');
+assert.deepEqual(await claim(randomUUID()),{state:'done',record_id:'record-1'});
+console.log('PASS: owner-bound immutable completion and cross-process result recovery');
+for(const role of ['anon','authenticated']) {
+ await assert.rejects(sql(`set role ${role};select public.tt_operation_claim('${opScope}','${hash}','${randomUUID()}');`),/permission denied/);
+ await assert.rejects(sql(`set role ${role};select public.tt_operation_complete('${opScope}','${hash}','${winner}','record-1');`),/permission denied/);
+ await assert.rejects(sql(`set role ${role};select * from tt_atomic.operation_receipt;`),/permission denied/);
+}
+await assert.rejects(sql('set role service_role;select * from tt_atomic.operation_receipt;'),/permission denied/);
+console.log('PASS: receipt table private; only backend service role can invoke RPCs');
+await sql(`delete from tt_atomic.operation_receipt where scope_hash='${opScope}';`);

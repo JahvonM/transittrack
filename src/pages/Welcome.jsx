@@ -42,12 +42,14 @@ const ROLES = {
     blurb: "Vehicle issues and maintenance chat with drivers.",
   },
   kiosk_bus: {
+    tablet: true,
     to: "/kiosk",
     title: "Bus Entry Kiosk",
     icon: Usb,
     blurb: "NFC badge tap-in board at the vehicle door.",
   },
   kiosk_driver: {
+    tablet: true,
     to: "/driver",
     title: "Driver Kiosk",
     icon: Navigation,
@@ -68,7 +70,7 @@ export default function Welcome() {
  const navigate = useNavigate();
  const role = user?.role || "staff";
  useEffect(() => {
-  if (isAuthenticated && user) navigate(ROLES[role]?.to || "/staff", {replace:true});
+  if (isAuthenticated && user) navigate(user.access_role ? "/workspace" : ROLES[role]?.to || "/staff", {replace:true});
  }, [isAuthenticated,user,role,navigate]);
  if (isLoadingAuth || isLoadingPublicSettings || (isAuthenticated && user)) return <JourneyLoading label="Opening your app…" onRetry={checkAppState} />;
  if (authError?.type === "user_not_registered") return <UserNotRegisteredError />;
@@ -94,11 +96,16 @@ export default function Welcome() {
     {[[Bus,"Live bus updates"],[MapPin,"Easy pickup planning"],[MessageCircle,"Messages on the go"]].map(([Icon,text])=><div key={text}><span><Icon aria-hidden="true" /></span><h2>{text}</h2></div>)}
    </section>
    <div className="tt-welcome-extra">
+    <div className="flex flex-wrap justify-center gap-3" aria-label="Tablet setup">
+     <Button asChild variant="outline"><Link to="/driver"><Navigation className="w-4 h-4" /> Driver tablet</Link></Button>
+     <Button asChild variant="outline"><Link to="/kiosk"><Usb className="w-4 h-4" /> Boarding kiosk</Link></Button>
+    </div>
+    <p className="text-center text-sm text-muted-foreground">Tablets use an admin pairing code. Drivers unlock with their PIN—no email account needed.</p>
     <Button asChild variant="ghost"><Link to="/book-taxi"><Car className="w-4 h-4" /> Book a taxi</Link></Button>
     <details>
      <summary>Workspaces and tablet access</summary>
      <div className="tt-welcome-workspaces">
-      {Object.entries(ROLES).map(([key,r])=>{const Icon=r.icon;return <Link key={key} to={`/login?returnTo=${encodeURIComponent(r.to)}`}><Icon className="w-5 h-5 text-primary" /><span><strong>{r.title}</strong><small>{r.blurb}</small></span><ChevronRight className="w-4 h-4 shrink-0" /></Link>})}
+      {Object.entries(ROLES).map(([key,r])=>{const Icon=r.icon;return <Link key={key} to={r.tablet ? r.to : `/login?returnTo=${encodeURIComponent(r.to)}`}><Icon className="w-5 h-5 text-primary" /><span><strong>{r.title}</strong><small>{r.blurb}</small></span><ChevronRight className="w-4 h-4 shrink-0" /></Link>})}
      </div>
     </details>
    </div>

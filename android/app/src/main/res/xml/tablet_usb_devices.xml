@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Known helper hardware. Android asks which app to use; no forced takeover. -->
+    <usb-device vendor-id="1839" />
+    <usb-device vendor-id="1659" />
+    <usb-device vendor-id="5446" />
+</resources>

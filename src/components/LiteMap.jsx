@@ -16,14 +16,14 @@ import { fetchDrivingRoute } from "@/lib/geo";
 const tileUrl = (isDark) =>
   `https://api.mapbox.com/styles/v1/mapbox/${isDark ? "dark-v11" : "streets-v12"}/tiles/512/{z}/{x}/{y}?access_token=${MAPBOX_TOKEN}`;
 
-function busIcon(color, { size = 34, heading = null, label = "", imageUrl = "" } = {}) {
+function busIcon(color, { size = 34, heading = null, label = "", imageUrl = "", plain = false } = {}) {
   const arrow = heading == null ? "" :
     `<div style="position:absolute;inset:-9px;transform:rotate(${heading}deg)"><div style="margin:0 auto;width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:9px solid ${color}"></div></div>`;
   const safeImage = (imageUrl || "/images/transit-bus-3d.webp").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const html = `
     <div style="position:relative;width:${size}px;height:${size}px">
       ${arrow}
-      <div style="width:${size}px;height:${size}px;border-radius:50%;background:#0B0B0D;border:3px solid ${color};display:grid;place-items:center;box-shadow:0 2px 8px rgba(0,0,0,.45)">
+      <div style="width:${size}px;height:${size}px;border-radius:50%;background:${plain ? "transparent" : "#0B0B0D"};border:${plain ? "0" : "3px solid "+color};display:grid;place-items:center;box-shadow:0 2px 8px rgba(0,0,0,.45)">
         <img src="${safeImage}" alt="" style="width:${size+12}px;height:${size+12}px;max-width:none;object-fit:contain;filter:drop-shadow(0 2px 3px #0008)" />
       </div>
       ${label ? `<div style="position:absolute;top:${size + 2}px;left:50%;transform:translateX(-50%);white-space:nowrap;font:600 11px/1.2 system-ui,sans-serif;color:#fff;background:rgba(11,11,13,.8);padding:2px 6px;border-radius:999px">${label.replace(/[<>&"]/g, "")}</div>` : ""}
@@ -125,6 +125,7 @@ function pickedLabelIcon(text) {
 }
 
 export default function LiteMap({
+  mapStyle = null,
   vehicles = [],
   stops = [],
   road = null, // drawn road as [lng, lat] pairs; else the road between the stops
@@ -139,6 +140,8 @@ export default function LiteMap({
   lines = [],
   showUserDot = true,
   showRecenter = true,
+  alwaysShowRecenter = false,
+  showEngineLabel = true,
   onDragStart,
   onStopClick,
   autoRecenterMs = 0,
@@ -182,7 +185,7 @@ export default function LiteMap({
 
   return (
     <div className={`relative isolate ${className}`} style={fill ? { height: "100%" } : { height }}>
-      {tileProblem && <div role="status" className="absolute left-3 right-3 top-3 z-[600] rounded-xl border border-border bg-background/95 p-3 text-sm">Some map tiles couldn’t load. Check the connection.<button type="button" className="ml-3 min-h-11 rounded-lg border px-3 font-semibold" onClick={()=>{setTileProblem(false);setTileVersion(v=>v+1);}}>Retry map</button></div>}
+      {tileProblem && <div data-map-tile-error role="status" className="absolute left-3 right-3 top-3 z-[600] rounded-xl border border-border bg-background/95 p-3 text-sm">Some map tiles couldn’t load. Check the connection.<button type="button" className="ml-3 min-h-11 rounded-lg border px-3 font-semibold" onClick={()=>{setTileProblem(false);setTileVersion(v=>v+1);}}>Retry map</button></div>}
       <MapContainer
         center={start}
         zoom={center || userLocation ? 15 : 13}
@@ -192,9 +195,9 @@ export default function LiteMap({
         scrollWheelZoom={interactive}
         doubleClickZoom={interactive}
         touchZoom={interactive}
-        attributionControl={false}
+        attributionControl={mapStyle === "satellite"}
       >
-        <TileLayer key={(isDark ? "dark" : "light")+tileVersion} url={tileUrl(isDark)} tileSize={512} zoomOffset={-1} maxZoom={19} keepBuffer={1} updateWhenIdle eventHandlers={{tileerror:()=>setTileProblem(true)}} />
+        <TileLayer key={(mapStyle || (isDark ? "dark" : "light"))+tileVersion} url={mapStyle === "satellite" ? tileUrl(isDark).replace(/(?:dark-v11|streets-v12)/, "satellite-streets-v12") : tileUrl(isDark)} attribution={mapStyle === "satellite" ? '<a href="https://www.mapbox.com/about/maps/">© Mapbox</a> <a href="https://www.openstreetmap.org/copyright">© OpenStreetMap</a>' : undefined} tileSize={512} zoomOffset={-1} maxZoom={19} keepBuffer={1} updateWhenIdle eventHandlers={{tileerror:()=>setTileProblem(true)}} />
         <SizeWatch />
         <FitOnce points={fitPoints} skip={!!center || !!userLocation || followUser || !!focusVehicleId} />
         <LocateOnce target={userLocation} skip={!!center || followUser || !!focusVehicleId} />
@@ -239,7 +242,7 @@ export default function LiteMap({
           <Marker
             key={`v-${v.id}`}
             position={[v.current_lat, v.current_lng]}
-            icon={busIcon(v.marker_color || statusColor(v.status), { size: v.marker_size || 46, heading: v.marker_heading ?? null, label: v.marker_label ?? v.name, imageUrl: v.image_url })}
+            icon={busIcon(v.marker_color || statusColor(v.status), { size: v.marker_size || 46, heading: v.marker_heading ?? null, label: v.marker_label ?? v.name, imageUrl: v.image_url, plain: v.marker_plain === true })}
           >
             {v.name && (
               <Popup>
@@ -253,7 +256,7 @@ export default function LiteMap({
           <CircleMarker center={[userLocation.lat, userLocation.lng]} radius={8} pathOptions={{ color: "#0B0B0D", weight: 3, fillColor: accent, fillOpacity: 1 }} />
         )}
       </MapContainer>
-      {showRecenter && userLocation && followUser && !following && (
+      {showRecenter && userLocation && followUser && (alwaysShowRecenter || !following) && (
         <button
           type="button"
           onClick={() => setFollowing(true)}
@@ -264,9 +267,9 @@ export default function LiteMap({
           <LocateFixed className="w-5 h-5 text-primary-foreground" />
         </button>
       )}
-      <div className="absolute left-1/2 -translate-x-1/2 bottom-2 z-[500] px-2 py-0.5 rounded-full bg-black/60 text-caption text-white/85 pointer-events-none">
+      {showEngineLabel && <div className="absolute left-1/2 -translate-x-1/2 bottom-2 z-[500] px-2 py-0.5 rounded-full bg-black/60 text-caption text-white/85 pointer-events-none">
         Basic map
-      </div>
+      </div>}
     </div>
   );
 }

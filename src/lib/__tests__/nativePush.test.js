@@ -2,14 +2,30 @@ import {describe,it,expect,vi,beforeEach} from "vitest";
 const f=vi.hoisted(()=>({platform:"android",permission:"granted",listeners:{},removes:[],fail:false,prompts:0,token:"NATIVE-FCM-TOKEN"}));
 vi.mock("@capacitor/core",()=>({Capacitor:{isNativePlatform:()=>f.platform!=="web",getPlatform:()=>f.platform}}));
 vi.mock("@capacitor/push-notifications",()=>({PushNotifications:{
+ getRegistrationSupport:async()=>{if(f.oldBuild)throw new Error("not implemented");return f.support;},
  checkPermissions:async()=>({receive:f.permission}),
  requestPermissions:async()=>{f.prompts++;return {receive:"granted"};},
  addListener:async(name,cb)=>{f.listeners[name]=cb;return {remove:async()=>{f.removes.push(name);delete f.listeners[name];}};},
- register:async()=>{if(f.fail)f.listeners.registrationError({});else f.listeners.registration({value:f.token});}
+ register:async()=>{f.registrations++;if(f.fail)f.listeners.registrationError({});else f.listeners.registration({value:f.token});}
 }}));
 import {requestNativePush,nativePushPermission,notificationLink,onNativeNotificationTap,looksLikeApnsToken} from "../nativePush";
-beforeEach(()=>Object.assign(f,{platform:"android",permission:"granted",listeners:{},removes:[],fail:false,prompts:0,token:"NATIVE-FCM-TOKEN"}));
+beforeEach(()=>Object.assign(f,{support:{configured:true,guarded:true},oldBuild:false,registrations:0,platform:"android",permission:"granted",listeners:{},removes:[],fail:false,prompts:0,token:"NATIVE-FCM-TOKEN"}));
 describe("native FCM registration",()=>{
+ it("does not invoke native registration when Firebase configuration is missing",async()=>{
+  f.support={configured:false,guarded:true};
+  expect(await requestNativePush()).toEqual({token:null,reason:"native_setup"});
+  expect(f.registrations).toBe(0);expect(f.prompts).toBe(0);expect(f.removes).toEqual([]);
+ });
+ it("does not invoke the crashing registration method in an older Android build",async()=>{
+  f.oldBuild=true;
+  expect(await requestNativePush()).toEqual({token:null,reason:"native_setup"});
+  expect(f.registrations).toBe(0);
+ });
+ it("requires the native crash guard even when configuration exists",async()=>{
+  f.support={configured:true,guarded:false};
+  expect(await requestNativePush()).toEqual({token:null,reason:"native_setup"});
+  expect(f.registrations).toBe(0);
+ });
  it("installs listeners before registration and cleans both up",async()=>{
   expect(await requestNativePush()).toEqual({token:"NATIVE-FCM-TOKEN",reason:null});
   expect(f.removes.sort()).toEqual(["registration","registrationError"]);

@@ -21,6 +21,20 @@ export const TEST_ATOMIC_SECRETS={get:name=>({TT_ATOMIC_STORE_URL:'https://examp
 export function budgetFetchFixture(client) {
  client.atomicRows ||= new Map();
  return async (url,init) => {
+  if (url === 'https://example.supabase.co/rest/v1/rpc/tt_operation_claim' ||
+      url === 'https://example.supabase.co/rest/v1/rpc/tt_operation_complete') {
+   client.operationRows ||= new Map(); client.operationCalls ||= [];
+   const b=JSON.parse(init.body); client.operationCalls.push({url,body:b});
+   const row=client.operationRows.get(b.p_scope_hash);
+   if(url.endsWith('tt_operation_complete')) {
+    if(!row || row.hash!==b.p_payload_hash || row.owner!==b.p_owner_id) return Response.json(false);
+    if(row.record) return Response.json(row.record===b.p_record_id);
+    row.record=b.p_record_id; return Response.json(true);
+   }
+   if(!row) { client.operationRows.set(b.p_scope_hash,{hash:b.p_payload_hash,owner:b.p_owner_id}); return Response.json({state:'acquired'}); }
+   if(row.hash!==b.p_payload_hash) return Response.json({state:'conflict'});
+   return Response.json(row.record ? {state:'done',record_id:row.record} : {state:'pending'});
+  }
   if (url !== 'https://example.supabase.co/rest/v1/rpc/tt_reserve_attempt') throw Error('Unexpected test network destination');
   const body=JSON.parse(init.body),now=Date.now();
   const {p_scope_hash:scope,p_request_id:id,p_limit:limit,p_window_ms:windowMs}=body;
@@ -38,7 +52,8 @@ export function load(name,client,exportsList=[],cryptoApi=webcrypto) {
  const source=inlineShared(fs.readFileSync(file,'utf8')).replace(/npm:@noble\/hashes@1\.8\.0\//g, '@noble/hashes/').replace(/^import .*;\s*$/gm,'')+(exportsList.length?'\nexport { '+exportsList.join(',')+' };':'');
  const js=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
  const exports={};
- const testSecrets=client.testSecrets??{TT_ATOMIC_STORE_URL:'https://example.supabase.co',TT_ATOMIC_SERVICE_ROLE_KEY:'sb_secret_synthetic-test-key-never-real'};
+ // Exercise the staged rollout explicitly; this is not evidence of hosted activation.
+ const testSecrets=client.testSecrets??{TT_DURABLE_WRITES_ENABLED:'true',TT_ATOMIC_STORE_URL:'https://example.supabase.co',TT_ATOMIC_SERVICE_ROLE_KEY:'sb_secret_synthetic-test-key-never-real'};
  const cryptoWithUUID=cryptoApi.randomUUID?cryptoApi:{...cryptoApi,randomUUID:()=>webcrypto.randomUUID()};
  new Function('exports','createClientFromRequest','crypto','secrets','require','fetch',js)(exports,()=>client,cryptoWithUUID,{get:name=>testSecrets[name]??null},createRequire(import.meta.url),client.atomicFetch??budgetFetchFixture(client));
  return exports;

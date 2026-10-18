@@ -66,22 +66,43 @@ export const COALESCE_MS = 10000;
 // alongside the page's own load. Both competed for the app's rate limit.
 export const FIRST_POLL_MS = 1500;
 const ALWAYS_FAST = new Set(['Vehicle', 'Broadcast']);
+let activeChats = 0;
+export function activateChatRefresh() {
+ activeChats++;
+ if (typeof window !== 'undefined') window.dispatchEvent(new Event('tt-chat-wake'));
+ let stopped = false;
+ return () => { if (!stopped) { stopped = true; activeChats = Math.max(0,activeChats-1); } };
+}
 let lastActivity = Date.now(), watchingActivity = false;
 const watchActivity = () => {
  if (watchingActivity || typeof window === 'undefined' || !window.addEventListener) return;
  watchingActivity = true;
  for (const type of ['pointerdown', 'keydown', 'touchstart', 'wheel']) window.addEventListener(type, () => { lastActivity = Date.now(); }, { passive: true, capture: true });
 };
-export const pollDelay = (entity, now = Date.now()) => (ALWAYS_FAST.has(entity) ? FAST_POLL_MS : now - lastActivity < IDLE_AFTER_MS ? ACTIVE_POLL_MS : IDLE_POLL_MS);
+export const pollDelay = (entity, now = Date.now()) => (entity === 'GroupMessage' && activeChats > 0 ? 8000 : ALWAYS_FAST.has(entity) ? FAST_POLL_MS : now - lastActivity < IDLE_AFTER_MS ? ACTIVE_POLL_MS : IDLE_POLL_MS);
 
 export function scopedEntities(client) {
  const reads = new Map();
+ let chatRevision = 0;
  const call = (entity, operation, args={}) => {
   const readOnly = ['list','filter','get'].includes(operation);
   const key = readOnly ? JSON.stringify([entity,operation,args]) : null;
   if (readOnly && reads.has(key)) return reads.get(key);
   const pending = withRateLimitRetry(() => client.functions.invoke('entityAccess', { entity, operation, ...args }))
-   .then(response => response.data.result)
+   .then(response => {
+    const result = response.data.result;
+    if (entity === "GroupMessage" && ["create","update","delete"].includes(operation)) {
+     const live = polls.get(entity);
+     const event = operation === "delete" ? { type:"delete",id:args.id }
+       : { type:operation === "create" ? "create" : "update",id:result?.id,data:result };
+     if (live && event.id) {
+      live.localWrites.set(event.id,{revision:++chatRevision,event});
+      if (live.current) operation === "delete" ? live.current.delete(event.id) : live.current.set(event.id,result);
+      for (const listener of [...live.listeners]) { try { listener(event); } catch { /* independent views */ } }
+     }
+    }
+    return result;
+   })
    .finally(() => { if (readOnly) reads.delete(key); });
   if (readOnly) reads.set(key,pending);
   return pending;
@@ -89,9 +110,14 @@ export function scopedEntities(client) {
  // Every list this device is watching, refreshed together by one timer.
  const polls=new Map();
  let timer=null, running=false, batch=true, watchingVisibility=false;
- const apply=(live,rows)=>{
+ const apply=(live,rows,snapshotRevision)=>{
   live.failures=0;live.nextAllowed=0;
   const next=new Map(rows.map(row=>[row.id,row]));
+  for(const [id,write] of live.localWrites) {
+   if(write.revision > snapshotRevision) {
+    if(write.event.type==='delete')next.delete(id);else next.set(id,write.event.data);
+   } else live.localWrites.delete(id);
+  }
   if(live.current) {
    const emit=(event)=>{ for(const listener of [...live.listeners]) { try { listener(event); } catch { /* one screen's error doesn't stop the others */ } } };
    for(const [id,row] of next) {
@@ -134,6 +160,7 @@ export function scopedEntities(client) {
   // Lists due soon ride along: one call instead of one per list.
   const take=alive.filter(([,live])=>live.nextAllowed<=now && live.due<=now+COALESCE_MS);
   running=true;
+  const snapshotRevision=chatRevision;
   try {
    // Background refreshes never occupy the foreground retry queue. On failure
    // they wait for their next scheduled refresh instead of retrying in a burst.
@@ -147,7 +174,7 @@ export function scopedEntities(client) {
      if(!error && result && typeof result==='object' && !Array.isArray(result) && result.lists && typeof result.lists==='object') {
       for(const [entity,live] of take) {
        if(live.stopped) continue;
-       if(Array.isArray(result.lists[entity])) apply(live,result.lists[entity]);
+       if(Array.isArray(result.lists[entity])) apply(live,result.lists[entity],snapshotRevision);
        else failed(live,{status:result.errors?.[entity]?.status||500});
       }
      } else if(error && ![400,403,404].includes(statusOf(error))) {
@@ -160,7 +187,7 @@ export function scopedEntities(client) {
       if(live.stopped) continue;
       try {
        const response=await client.functions.invoke('entityAccess',{entity,operation:'list',limit:5000});
-       if(!live.stopped) apply(live,response.data.result);
+       if(!live.stopped) apply(live,response.data.result,snapshotRevision);
       } catch(error) { failed(live,error); }
      }
     }
@@ -176,6 +203,11 @@ export function scopedEntities(client) {
  const watchVisibility=()=>{
   if(watchingVisibility || typeof document==='undefined' || !document.addEventListener) return;
   watchingVisibility=true;
+  if(typeof window!=='undefined' && window.addEventListener) window.addEventListener('tt-chat-wake',()=>{
+   if(hidden())return;
+   const live=polls.get('GroupMessage');
+   if(live && !live.dead) {live.due=Date.now();arm();}
+  });
   document.addEventListener('visibilitychange',()=>{
    if(hidden()||!polls.size) return;
    const now=Date.now();
@@ -189,7 +221,7 @@ export function scopedEntities(client) {
   // The page's own data load goes first. A refresh fired at the same instant
   // used to compete with it for the app's rate limit, and the page — not the
   // refresh — is what the person is waiting for.
-  const live={listeners:new Set(),current:null,due:Date.now()+FIRST_POLL_MS,nextAllowed:0,failures:0,dead:false,stopped:false,
+  const live={listeners:new Set(),localWrites:new Map(),current:null,due:Date.now()+FIRST_POLL_MS,nextAllowed:0,failures:0,dead:false,stopped:false,
    stop:()=>{live.stopped=true;live.current=null;if(polls.get(entity)===live)polls.delete(entity);arm();}};
   polls.set(entity,live);
   arm();

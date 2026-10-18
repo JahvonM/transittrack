@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import ChatThread from "@/components/chat/ChatThread";
+import { useChatActivity } from "@/hooks/useChatActivity";
 import { accountName } from "@/lib/userName";
 
 const seenKey = (vehicleId) => `tt_staff_chat_seen_${vehicleId}`;
@@ -44,6 +45,7 @@ export function useChatUnread(vehicleId, open) {
 // "staff" on GroupMessage). Staff post directly as themselves; driver
 // messages arrive through the driverSession backend function.
 export default function StaffGroupChat({ vehicle }) {
+  useChatActivity(!!vehicle);
   const { user } = useAuth();
   const [messages, setMessages] = useBusMessages(vehicle?.id);
   const [sending, setSending] = useState(false);

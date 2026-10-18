@@ -1,3 +1,7 @@
+import { recordingsNotice } from '../../shared/tabletRecordings.ts';
+import { supportNotice } from '../../shared/tabletStreaming.ts';
+import { nativeReleaseHealth } from '../../shared/nativeRelease.ts';
+import { controlNotice } from '../../shared/tabletControl.ts';
 import { cleanRequestMetrics } from '../../shared/requestMetrics.ts';
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 import { cleanNetworkHealth, networkCheckIn } from '../../shared/tabletNetwork.ts';
@@ -54,6 +58,9 @@ function cleanHelperHealth(h: unknown): Record<string, unknown> | null {
   const str = (v: unknown, n: number) =>
     typeof v === 'string' ? v.replace(/[\u0000-\u001f<>]/g, '').slice(0, n) : undefined;
   const out: Record<string, unknown> = { reported_at: new Date().toISOString() };
+  Object.assign(out, nativeReleaseHealth(o));
+  if (o.support_transport === 'webrtc') out.support_transport = 'webrtc';
+  for (const k of ['recordings_available', 'support_available', 'management_available', 'management_owner', 'management_locked']) if (typeof o[k] === 'boolean') out[k] = o[k];
   const version = str(o.version, 16); if (version) out.version = version;
   if (typeof o.battery === 'number' && Number.isFinite(o.battery)) out.battery = Math.max(0, Math.min(100, Math.round(o.battery)));
   if (typeof o.charging === 'boolean') out.charging = o.charging;
@@ -62,6 +69,13 @@ function cleanHelperHealth(h: unknown): Record<string, unknown> | null {
   const gps = str(o.gps, 40); if (gps) out.gps = gps;
   const hotspot = str(o.hotspot, 40); if (hotspot) out.hotspot = hotspot;
   const lastCard = str(o.last_card_at, 40); if (lastCard) out.last_card_at = lastCard;
+  const nativeVersion = str(o.native_version, 16); if (nativeVersion) out.native_version = nativeVersion;
+  const model = str(o.model, 80); if (model) out.model = model;
+  const androidVersion = str(o.android_version, 24); if (androidVersion) out.android_version = androidVersion;
+  const network = str(o.network_type, 16); if (network && ['wifi','mobile','offline','other','unknown'].includes(network)) out.network_type = network;
+  if (typeof o.battery_temperature === 'number' && Number.isFinite(o.battery_temperature) && o.battery_temperature >= -30 && o.battery_temperature <= 100) out.battery_temperature = o.battery_temperature;
+  if (typeof o.free_storage_mb === 'number' && Number.isFinite(o.free_storage_mb) && o.free_storage_mb >= 0 && o.free_storage_mb <= 10000000) out.free_storage_mb = Math.floor(o.free_storage_mb);
+  if (typeof o.usb_devices === 'number' && Number.isFinite(o.usb_devices)) out.usb_devices = Math.max(0, Math.min(64, Math.floor(o.usb_devices)));
   // Helper 1.13: backup boarding over Bluetooth ("Ready as Bus 12", or why not).
   const ble = str(o.ble, 60); if (ble) out.ble = ble;
   // Helper 1.9: the boarding tablet's Wi-Fi (current network, latest scan / join).
@@ -164,7 +178,7 @@ export default async function(req) {
     const helperHealth = cleanHelperHealth(body.helper_health);
     const appHealth = cleanAppHealth(body.app_health);
     // Wi-Fi commands from Admin → Kiosk tablets (see shared/tabletNetwork.ts).
-    const network = networkCheckIn(device, body.network_ack, tokenOk);
+    const network = networkCheckIn(device, body.network_ack, tokenOk, Date.now(), body.network_result);
     await base44.asServiceRole.entities.KioskDevice.update(device_id, {
       last_seen: new Date().toISOString(),
       ...(helperHealth ? { helper_health: helperHealth } : {}),
@@ -206,10 +220,15 @@ export default async function(req) {
       vehicle_id: device.vehicle_id,
       vehicle_name: device.vehicle_name,
       kiosk_type: device.kiosk_type,
+      display_layout: device.display_layout || 'auto',
+      pickup_sign: ['bus_boarding','job_signing'].includes(device.kiosk_type) && Date.parse(device.pickup_sign?.expires_at) > Date.now() ? device.pickup_sign : null,
       paired: device.paired,
       directory_sent_at: device.directory_sent_at || null,
       update_requested_at: device.update_requested_at || null,
       network_command: network.command,
+      control_notice: tokenOk ? controlNotice(device) : null,
+      recordings_notice: tokenOk ? recordingsNotice(device) : null,
+      support_notice: tokenOk ? supportNotice(device) : null,
     });
   } catch (error) {
     const status = error?.status ?? error?.response?.status ?? error?.originalError?.response?.status;

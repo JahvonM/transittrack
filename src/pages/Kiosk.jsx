@@ -1,3 +1,5 @@
+import { handleTabletSupport, handleTabletRecordings } from "@/lib/nativeTabletSupport";
+import { handleTabletControl } from "@/lib/nativeTabletControl";
 import { createPollBudget, startTabletPoll } from "@/lib/tabletPolling";
 import { useKeepAwake } from "@/hooks/useKeepAwake";
 import { useBlockOtherSites } from "@/lib/kioskLinkLock";
@@ -12,6 +14,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import BusBoardingKiosk from "@/components/kiosk/BusBoardingKiosk";
+import BoardingPickupSign from "@/components/kiosk/BoardingPickupSign";
+import { boardingLayout, KIOSK_LAYOUT_KEY } from "@/lib/kioskLayout";
 import JobSigningKiosk from "@/components/kiosk/JobSigningKiosk";
 import KioskConnectionBadge from "@/components/kiosk/KioskConnectionBadge";
 import { saveDevice, loadDevice, forgetTablet, saveDirectory, directoryInfo, warmPhotos, offlineLookup, noteStatus } from "@/lib/kioskOffline";
@@ -53,6 +57,15 @@ export default function Kiosk() {
   const [savedList, setSavedList] = useState(() => directoryInfo());
   const [error, setError] = useState("");
   const [manualCode, setManualCode] = useState("");
+  const [phoneWidth, setPhoneWidth] = useState(() => window.innerWidth);
+  useEffect(() => {
+    const resize = () => setPhoneWidth(window.innerWidth);
+    window.addEventListener("resize",resize);
+    return () => window.removeEventListener("resize",resize);
+  }, []);
+  let savedLayout = "auto";
+  try { savedLayout = localStorage.getItem(KIOSK_LAYOUT_KEY) || "auto"; } catch { /* auto */ }
+  const layout = boardingLayout(device?.display_layout,savedLayout,phoneWidth);
   const [pairing, setPairing] = useState(false);
   const heartbeatId = useRef(null);
   const heartbeatBusy = useRef(false);
@@ -108,6 +121,9 @@ export default function Kiosk() {
       .invoke("kioskHeartbeat", deviceRequest(id, { ...helperHealthPayload(), ...appHealthPayload("boarding"), ...networkAckPayload() }))
       .then((rawRes) => {
         heartbeatBudget.current.succeeded();
+        void handleTabletControl(id, rawRes.data?.control_notice).catch(() => {});
+        void handleTabletRecordings(id, rawRes.data?.recordings_notice).catch(() => {});
+        void handleTabletSupport(id, rawRes.data?.support_notice).catch(() => {});
         // A Wi-Fi change/scan from Admin → Kiosk tablets goes to the helper app;
         // check in again soon so Admin sees the result (and the command is deleted).
         handleNetworkCommand(rawRes.data?.network_command)
@@ -296,12 +312,12 @@ export default function Kiosk() {
   // two-panel layout) — it doesn't fit inside the generic small centered
   // card the other two kiosk types use, and a big tablet has room to spare.
   // The signing tablet is the guests' own screen for signing for jobs.
-  if (device?.kiosk_type === "job_signing") return <JobSigningKiosk device={device} deviceId={deviceId} online={online} />;
+  if (device?.kiosk_type === "job_signing") return <><JobSigningKiosk device={device} deviceId={deviceId} online={online} /><BoardingPickupSign device={device} /></>;
 
   if (device?.kiosk_type === "bus_boarding") {
     return (
       <>
-        <BusBoardingKiosk invoke={invoke} device={device} directoryInfo={savedList} online={online} />
+        <BusBoardingKiosk invoke={invoke} device={device} directoryInfo={savedList} online={online} layout={layout} />
         {!online && <OfflineChip savedList={savedList} />}
       </>
     );
@@ -346,7 +362,7 @@ export default function Kiosk() {
               <CreditCard className="w-10 h-10 mx-auto text-muted-foreground" />
               <p className="text-xl font-semibold">This kiosk mode has been retired</p>
               <p className="text-muted-foreground max-w-md mx-auto">
-                {device?.kiosk_type === "front_desk" ? "Front-desk sign-in is no longer used: hotel front desks confirm pickups and drop-offs on the driver's tablet." : "Passenger cards are now issued by an administrator in Admin → Card issuing."} Ask your administrator to switch this tablet to
+                {device?.kiosk_type === "front_desk" ? "Front-desk sign-in is no longer used: hotel front desks confirm pickups and drop-offs on the boarding/sign-in device." : "Passenger cards are now issued by an administrator in Admin → Card issuing."} Ask your administrator to switch this tablet to
                 <b> Bus boarding</b> in Admin → Kiosk tablets.
               </p>
             </div>

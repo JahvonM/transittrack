@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { MessageCircle, X, ChevronLeft, Bus } from "lucide-react";
 import ChatThread from "@/components/chat/ChatThread";
 import { previewText } from "@/components/chat/previewText";
+import { useChatActivity } from "@/hooks/useChatActivity";
 import { accountName } from "@/lib/userName";
 
 function formatTime(iso) {
@@ -26,6 +27,9 @@ export default function CompanyMessages({ vehicles = [] }) {
   const [unreadVehicleIds, setUnreadVehicleIds] = useState(() => new Set());
   const seenIds = useRef(new Set());
   const firstLoad = useRef(true);
+  useChatActivity(open && !!activeVehicleId);
+  const currentThread = useRef({});
+  currentThread.current = {open,activeVehicleId};
 
   const chatVehicles = useMemo(() => vehicles.filter((v) => v.id), [vehicles]);
   const activeVehicle = chatVehicles.find((v) => v.id === activeVehicleId) || null;
@@ -64,7 +68,7 @@ export default function CompanyMessages({ vehicles = [] }) {
       if (!firstLoad.current && !seenIds.current.has(rec.id) && rec.sender_role !== "company") {
         seenIds.current.add(rec.id);
         setUnreadVehicleIds((prev) => {
-          if (rec.vehicle_id === activeVehicleId && open) return prev;
+          if (rec.vehicle_id === currentThread.current.activeVehicleId && currentThread.current.open) return prev;
           const next = new Set(prev);
           next.add(rec.vehicle_id);
           return next;

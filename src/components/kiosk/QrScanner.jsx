@@ -1,9 +1,11 @@
+import { useSupportCameraReserved } from "@/lib/nativeTabletSupport";
 import React, { useEffect, useRef, useState } from "react";
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from "html5-qrcode";
 import createQrScanGate from "@/components/kiosk/qrScanGate";
 
 // Camera lifetime is independent of the parent's clock and request updates.
 export default function QrScanner({ onDecode, active, facingMode = "environment", requireFacingMode = false, stableMs = 0, compact = false }) {
+  const supportCameraReserved = useSupportCameraReserved();
   const elementId = useRef(`qr-scanner-${Math.random().toString(36).slice(2)}`).current;
   const scannerRef = useRef(null);
   const onDecodeRef = useRef(onDecode);
@@ -11,7 +13,7 @@ export default function QrScanner({ onDecode, active, facingMode = "environment"
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (!active) return;
+    if (!active || supportCameraReserved) return;
     let stopped = false;
     let delivering = false;
     setError("");
@@ -55,9 +57,10 @@ export default function QrScanner({ onDecode, active, facingMode = "environment"
       started.then(() => scanner.stop()).then(() => scanner.clear()).catch(() => {});
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active, facingMode, requireFacingMode, stableMs, elementId, compact]);
+  }, [active, supportCameraReserved, facingMode, requireFacingMode, stableMs, elementId, compact]);
 
   if (!active) return null;
+  if (supportCameraReserved) return <p role="status" className="p-3 text-sm">QR camera paused while native camera capture is active. Card taps and keypad remain available.</p>;
 
   return (
     <div className="space-y-2">

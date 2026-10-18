@@ -1,5 +1,8 @@
 import { toast } from "@/components/ui/use-toast";
 import React, { useState } from "react";
+import { useSearchParams } from "react-router-dom";
+import CompanyWorkspace from "./CompanyWorkspace";
+import { confirmAction } from "@/components/ConfirmHost";
 import CompanyJoinQr from "@/components/CompanyJoinQr";
 import EmptyState from "@/components/EmptyState";
 import { base44 } from "@/api/base44Client";
@@ -11,6 +14,11 @@ import CompanyEditDialog from "@/components/CompanyEditDialog";
 import CreateCompanyForm from "@/components/admin/CreateCompanyForm";
 
 export default function CompaniesTab({ companies, onChange }) {
+  const [params, setParams] = useSearchParams();
+  const selected = companies.find(c => c.id === params.get("company"));
+  const requestedTab = params.get("companyTab");
+  const tab = ["overview","people","transport","pickups"].includes(requestedTab) ? requestedTab : "overview";
+  const selectCompany = (id, section = "overview") => { const next = new URLSearchParams(params); if(id) { next.set("company", id); next.set("companyTab", section); } else { next.delete("company"); next.delete("companyTab"); } setParams(next); };
   const [copied, setCopied] = useState(null);
   const [editing, setEditing] = useState(null);
   const [issuing, setIssuing] = useState(null);
@@ -21,13 +29,16 @@ export default function CompaniesTab({ companies, onChange }) {
     setTimeout(() => setCopied(null), 1500);
   };
   const remove = async (id) => {
-    await base44.entities.Company.delete(id);
-    onChange();
+    if (!(await confirmAction({title:"Delete this company?",description:"This removes the company record. Review its linked people, buses, and devices first.",confirmLabel:"Delete company"}))) return;
+    try { await base44.entities.Company.delete(id); onChange(); }
+    catch(error) { toast({title:"Could not delete company",description:error.message,variant:"destructive"}); }
   };
+
+  if (selected) return <CompanyWorkspace key={selected.id} company={selected} tab={tab} onTab={value=>selectCompany(selected.id,value)} onBack={()=>selectCompany(null)} onChange={onChange}/>;
 
   return (
     <div className="space-y-4">
-      <PageIntro>Bus operators and their passenger access codes.</PageIntro>
+      <PageIntro>Open a company to manage its people, transport, workplace, and pickup planning.</PageIntro>
       <div className="space-y-2">
         {companies.length === 0 && (
           <div className="border rounded-2xl"><EmptyState text="No companies yet." /></div>
@@ -37,7 +48,7 @@ export default function CompaniesTab({ companies, onChange }) {
             <CardContent className="flex flex-wrap items-center gap-3 py-4">
               {c.logo_url && <img src={c.logo_url} alt={`${c.name} logo`} className="w-14 h-14 p-1 rounded-xl object-contain bg-white shrink-0" />}
               <div className="flex-1 min-w-[200px]">
-                <div className="font-medium">{c.name}</div>
+                <button type="button" onClick={()=>selectCompany(c.id)} className="text-left font-semibold text-primary hover:underline">{c.name}</button>
                 <div className="text-xs text-muted-foreground mt-0.5 flex flex-wrap gap-1">
                   {(c.service_types || []).map((t) => (
                     <StatusChip key={t} tone="neutral" dot={false} className="capitalize">
@@ -57,6 +68,7 @@ export default function CompaniesTab({ companies, onChange }) {
                   {copied === c.access_code ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                 </Button>
               </div>
+              <Button onClick={()=>selectCompany(c.id)}>Open company</Button>
               <CompanyJoinQr code={c.access_code} companyName={c.name} />
               <Button variant="outline" size="sm" disabled={issuing === c.id} onClick={async () => {
                 setIssuing(c.id);
