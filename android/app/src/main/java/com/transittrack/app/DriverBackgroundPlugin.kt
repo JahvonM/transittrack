@@ -105,7 +105,7 @@ class DriverBackgroundPlugin:Plugin() {
   val auth=JSONObject()
   val fields=listOf("device_id","device_token","driver_grant","expected_device_id","expected_company_id","expected_vehicle_id")
   for(key in fields)auth.put(key,call.getString(key)?:"")
-  val key=fields.joinToString("|"){auth.getString(it)}
+  val key=org.json.JSONArray(fields.map{auth.getString(it)}).toString()
   val now=android.os.SystemClock.elapsedRealtime()
   if(key!=exportKey || now-exportAt>60000 || (call.getLong("cursor")?:0L)==0L){
    check(activity.hasWindowFocus())

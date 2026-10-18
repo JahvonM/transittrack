@@ -27,7 +27,7 @@ class DriverTrackingStoreTest {
  @Test fun originalAssignmentAndReviewRowsAreRetainedWithoutBlockingNewBus(){
   val s=store();s.add("old-bus",point("old"));s.add("new-bus",point("new"));s.reviewOld("new-bus",System.currentTimeMillis())
   assertEquals(1,s.count("needs_review"));assertEquals("new",s.batch("new-bus").single().getString("queue_id"))
-  assertEquals(2,s.page(0,0).getJSONArray("points").length());s.close()
+  assertEquals(2,s.page(0,0).getJSONArray("points").length());assertEquals(1,s.page(0,0,"new-bus").getJSONArray("points").length());s.close()
  }
  @Test fun rejectedRowsCanBeExportedAndAreNeverAcknowledgedAsUploaded(){
   val s=store();s.add("bus",point("one"));s.acknowledge(s.batch("bus"),true)

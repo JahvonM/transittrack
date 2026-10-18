@@ -78,7 +78,7 @@ class DriverLocationService:Service() {
  }}
  override fun onCreate(){
   super.onCreate();instance=this;closed=false
-  store=DriverTrackingStore(this)
+  try{store=DriverTrackingStore(this)}catch(_:Exception){report("GPS storage unavailable; reopen driver settings");stopSelf();return}
   try{lease=store.readLease()}catch(e:Exception){report("Tracking session unavailable; reopen driver app");stopSelf();return}
   if(!validLease()){stopSelf();return}
   try{
@@ -97,7 +97,7 @@ class DriverLocationService:Service() {
   }catch(e:Exception){report("Android could not start background GPS; reopen driver app");stopSelf()}
  }
  override fun onStartCommand(intent:Intent?,flags:Int,id:Int):Int {
-  if(intent?.action==STOP){try{store.clearLease()}catch(_:Exception){};getSharedPreferences("tt_driver_background",MODE_PRIVATE).edit().putBoolean("enabled",false).apply();stopSelf();return START_NOT_STICKY}
+  if(intent?.action==STOP){try{if(::store.isInitialized)store.clearLease() else android.util.AtomicFile(java.io.File(noBackupFilesDir,"driver_tracking_lease")).delete()}catch(_:Exception){};getSharedPreferences("tt_driver_background",MODE_PRIVATE).edit().putBoolean("enabled",false).apply();stopSelf();return START_NOT_STICKY}
   return if(validLease())START_STICKY else {stopSelf();START_NOT_STICKY}
  }
  private fun validLease():Boolean {
@@ -105,7 +105,7 @@ class DriverLocationService:Service() {
   return DriverTrackingPolicy.leaseValid(System.currentTimeMillis(),l.optLong("verified_at"),l.optLong("expires_ms")) && getSharedPreferences("tt_driver_background",MODE_PRIVATE).getBoolean("enabled",false)
  }
  private fun report(value:String){message=value;UsbGpsPlugin.nativeOwnershipChanged()}
- private fun stopSources(){reader?.stop();reader=null;location?.removeUpdates(locationListener);location=null;wake?.let{if(it.isHeld)it.release()};wake=null}
+ private fun stopSources(){reader?.stop();reader=null;try{location?.removeUpdates(locationListener)}catch(_:Exception){};location=null;try{wake?.let{if(it.isHeld)it.release()}}catch(_:Exception){};wake=null}
  private fun changeSource(){
   if(closed)return
   stopSources()
@@ -205,7 +205,7 @@ class DriverLocationService:Service() {
   try{unregisterReceiver(battery)}catch(_:Exception){};try{unregisterReceiver(permission)}catch(_:Exception){}
   instance=null;latest=null;network.shutdown();disk.shutdown()
   // A worker may still finish an acknowledged upload; close only once it has exited.
-  Thread{try{network.awaitTermination(120,java.util.concurrent.TimeUnit.SECONDS);disk.awaitTermination(120,java.util.concurrent.TimeUnit.SECONDS)}catch(_:Exception){};store.close()}.start()
+  Thread{try{network.awaitTermination(120,java.util.concurrent.TimeUnit.SECONDS);disk.awaitTermination(120,java.util.concurrent.TimeUnit.SECONDS)}catch(_:Exception){};if(::store.isInitialized)store.close()}.start()
   UsbGpsPlugin.nativeOwnershipChanged();stopForeground(STOP_FOREGROUND_REMOVE);super.onDestroy()
  }
  override fun onBind(intent:Intent?):IBinder?=null

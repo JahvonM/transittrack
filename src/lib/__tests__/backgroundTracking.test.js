@@ -57,3 +57,10 @@ describe('native background driver GPS authorization',()=>{
   expect(r.status).toBe(409);expect(sdk.writes).toEqual([]);
  });
 });
+
+it('allows a current verified driver to export their saved GPS even after tracking stops',async()=>{
+ const {send,sdk}=await setup();sdk.tables.Vehicle[0].tracking_active=false;
+ expect(await send({action:'background_export_check'})).toEqual({status:200,body:{ok:true}});
+ expect((await send({action:'background_export_check',expected_company_id:'other-company'})).status).toBe(409);
+ expect(sdk.writes).toEqual([]);
+});
