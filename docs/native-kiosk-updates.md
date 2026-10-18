@@ -1,5 +1,7 @@
 # Combined kiosk native update delivery
 
+> Current release status: [kiosk-release-status.md](kiosk-release-status.md) (18 October 2026). Earlier checkpoint results below are historical.
+
 Status: implemented, release catalog intentionally empty. No APK was built, signed, installed or published in this stage. Package identity remains `com.transittrack.app`; versionCode 1/versionName 1.0 are unchanged. Do not use the separate helper APK as a combined-app release.
 
 ## Admin and device flow
@@ -14,7 +16,7 @@ Status: implemented, release catalog intentionally empty. No APK was built, sign
 - Credentials/signing keys are never persisted by the updater. Session ID, target version, public signer fingerprints and fixed status are persisted privately. Same package, no uninstall/reset/data clearing, existing web origin unchanged.
 
 ## Before activation / final one-time installation
-1. Fix the five outstanding security release failures documented in integrated-tablet-controls.md.
+1. Run the current security release suite and verify hosted durable-operation migrations/configuration. The old five-failure report is superseded: all 188 isolated security tests passed on 18 October 2026. Passing mocks does not confirm hosted activation.
 2. Confirm the currently installed combined app package and public signing certificate. Obtain the existing signing configuration through the owner's secure build environment; do not generate replacement keys or commit private signing material.
 3. Build a non-debuggable combined kiosk APK with a strictly increasing versionCode using that existing signing identity. This first combined installation is still a single final handover; existing installed builds do not gain a native updater merely from a web update.
 4. Host the immutable APK at the allowed HTTPS app-domain /native-releases/<release-id>.apk path; verify direct 200 response, exact bytes/hash and no redirects. This distribution artifact/route is not provisioned yet.

@@ -1,5 +1,7 @@
 # Combined app: helper parity and improvement checklist
 
+> Current release status: [kiosk-release-status.md](kiosk-release-status.md) (18 October 2026). Earlier checkpoint results below are historical.
+
 Baseline: current helper source, manifest version 1.14 / code 15. This is the minimum replacement scope, not a declaration that all items are integrated.
 
 | Existing capability | Combined app status | Replacement verification |
