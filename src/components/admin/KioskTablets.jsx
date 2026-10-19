@@ -1,3 +1,4 @@
+import { cellularSummary, recoverySummary } from "@/lib/tabletHealthSummary";
 import TabletManagementControls from "@/components/admin/TabletManagementControls";
 import { tabletSetupBundle } from "@/lib/tabletSetupBundle";
 import { helperLinkLost } from "@/lib/helperHealth";
@@ -110,6 +111,9 @@ function HelperHealthLine({ h }) {
   if (Number.isFinite(h.battery_temperature)) parts.push(`Battery ${h.battery_temperature}°C`);
   if (Number.isFinite(h.free_storage_mb)) parts.push(`${(h.free_storage_mb / 1024).toFixed(1)} GB free`);
   if (h.network_type) parts.push(`Network: ${h.network_type}`);
+  if (h.internet_validated === false) parts.push("Internet not verified by Android");
+  const cellular = cellularSummary(h); if (cellular) parts.push(cellular);
+  const recovery = recoverySummary(h); if (recovery) parts.push(recovery);
   if (h.model) parts.push(h.model);
   if (h.parked) parts.push("Parked");
   if (h.reader) parts.push(`Reader: ${h.reader}`);
@@ -366,6 +370,7 @@ export default function KioskTablets({ vehicles, companies, onChange }) {
                           <Clock className="w-3 h-3" /> Last seen: {timeAgo(d.last_seen)}
                         </div>
                         <HelperHealthLine h={d.helper_health} />
+                        {d.native_tracking_health?.active && <p className="text-sm text-muted-foreground mt-1">Background GPS · {Date.now()-Date.parse(d.native_tracking_health.reported_at)<180000 ? "reporting" : "report is stale"} · {d.native_tracking_health.pending || 0} saved · {d.native_tracking_health.review || 0} need review</p>}
                         <TabletNetworkControls device={d} onRefresh={loadDevices} />
                         <TabletManagementControls device={d} onRefresh={loadDevices} />
                         <GpsCoordsLine device={d} />

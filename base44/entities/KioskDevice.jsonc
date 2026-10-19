@@ -229,6 +229,27 @@
         },
         "recordings_available": {
           "type": "boolean"
+        },
+        "cellular_state": {
+          "type": "string"
+        },
+        "cellular_carrier": {
+          "type": "string"
+        },
+        "recovery_state": {
+          "type": "string"
+        },
+        "cellular_bars": {
+          "type": "number"
+        },
+        "recovery_count": {
+          "type": "number"
+        },
+        "internet_validated": {
+          "type": "boolean"
+        },
+        "recovery_available": {
+          "type": "boolean"
         }
       },
       "type": "object"
@@ -456,6 +477,28 @@
           "type": "string"
         },
         "expires_at": {
+          "type": "string"
+        }
+      }
+    },
+    "native_tracking_health": {
+      "type": "object",
+      "description": "Server-timestamped native background GPS telemetry; never an authorization source.",
+      "properties": {
+        "active": {
+          "type": "boolean"
+        },
+        "reported_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "pending": {
+          "type": "number"
+        },
+        "review": {
+          "type": "number"
+        },
+        "last_fix_at": {
           "type": "string"
         }
       }

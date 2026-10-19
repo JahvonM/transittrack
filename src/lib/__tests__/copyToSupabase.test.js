@@ -9,14 +9,41 @@ const SECRETS = { SUPABASE_URL: "https://proj.supabase.co", SUPABASE_SECRET_KEY:
 
 // A stand-in for Supabase's REST API with two tables.
 function fakeSupabase() {
-  const tables = { vehicle: [], company: [], app_user: [] };
-  const columns = { vehicle: ["id", "created_date", "updated_date", "name", "company_id", "capacity"], company: ["id", "created_date", "updated_date", "name"], app_user: ["id", "created_date", "updated_date", "email", "role", "full_name", "is_verified", "disabled", "auth_user_id"] };
+  const tables = { vehicle: [], company: [], app_user: [], staff_check_in: [], incident: [], storage_file_copy: [] };
+  const columns = {
+    vehicle: ["id", "created_date", "updated_date", "name", "company_id", "capacity"],
+    company: ["id", "created_date", "updated_date", "name", "logo_url"],
+    app_user: ["id", "created_date", "updated_date", "email", "role", "full_name", "is_verified", "disabled", "auth_user_id"],
+    staff_check_in: ["id", "created_date", "updated_date", "staff_picture_url"],
+    incident: ["id", "created_date", "updated_date", "photo_uris"],
+  };
   const calls = [];
+  // Supabase Storage objects, and the files Base44 (and anyone else) serve.
+  const objects = {};
+  const web = {};
   // Supabase Auth: accounts by email; the database links them to app_user.
   const accounts = [];
   const fetch = async (url, init = {}) => {
     const u = new URL(url);
     calls.push({ host: u.host, url: u.pathname + u.search, method: init.method || "GET", headers: init.headers || {} });
+    if (u.host !== "proj.supabase.co") {
+      const page = web[u.href];
+      if (!page) return new Response("not found", { status: 404 });
+      if (page.location) return new Response(null, { status: 302, headers: { location: page.location } });
+      return new Response(page.body, { status: 200, headers: { "content-type": page.type || "application/octet-stream" } });
+    }
+    if (u.pathname.startsWith("/storage/v1/object/") && init.method === "POST") {
+      const key = decodeURIComponent(u.pathname.slice("/storage/v1/object/".length));
+      objects[key] = { type: init.headers["Content-Type"], bytes: init.body.length };
+      return new Response(JSON.stringify({ Key: key }), { status: 200 });
+    }
+    if (init.method === "PATCH") {
+      const id = u.searchParams.get("id").replace(/^eq\./, "");
+      const row = (tables[u.pathname.split("/").at(-1)] || []).find((r) => r.id === id);
+      if (row) Object.assign(row, JSON.parse(init.body));
+      return new Response(null, { status: 204 });
+    }
+    if ((init.method || "GET") === "GET" && u.pathname === "/rest/v1/storage_file_copy") return new Response(JSON.stringify(tables.storage_file_copy), { status: 200 });
     if (u.pathname === "/auth/v1/admin/users" && init.method === "POST") {
       const body = JSON.parse(init.body);
       if (body.email.startsWith("broken")) return new Response(JSON.stringify({ msg: "Database error creating new user" }), { status: 500 });
@@ -39,10 +66,11 @@ function fakeSupabase() {
     const rows = JSON.parse(init.body);
     if (rows.some((r) => typeof r.capacity === "string")) return new Response(JSON.stringify({ message: 'invalid input syntax for type double precision: "lots"' }), { status: 400 });
     // Like PostgREST's merge-duplicates: only the columns sent are updated.
-    for (const r of rows) { const i = tables[table].findIndex((x) => x.id === r.id); if (i >= 0) tables[table][i] = { ...tables[table][i], ...r }; else tables[table].push(r); }
+    const key = u.searchParams.get("on_conflict") || "id";
+    for (const r of rows) { const i = tables[table].findIndex((x) => x[key] === r[key]); if (i >= 0) tables[table][i] = { ...tables[table][i], ...r }; else tables[table].push(r); }
     return new Response(null, { status: 201 });
   };
-  return { tables, calls, accounts, fetch };
+  return { tables, calls, accounts, objects, web, fetch };
 }
 
 function setup(role = "admin", secrets = SECRETS) {
@@ -210,6 +238,103 @@ describe("copy data to Supabase", () => {
       sdk.tables.User.find((u) => u.id === admin.id).auth_user_id = "someone-else";
       await send({ action: "copy", entity: "User" });
       expect(supa.tables.app_user.find((r) => r.id === admin.id).auth_user_id).toBe(before);
+    });
+  });
+
+  describe("files (step 5)", () => {
+    const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3, 4]);
+    const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3, 4, 5, 6]);
+    const LOGO = "https://base44.app/api/apps/app1/files/mp/public/aa11/logo.png";
+    const FACE = "https://base44.app/api/apps/app1/files/mp/public/bb22/Jane%20Doe.jpeg";
+    const PRIVATE_ID = "private/app1/cc33/incident.jpg";
+    const files = () => {
+      const s = setup();
+      s.sdk.tables.Company = [{ id: "a", created_date: "2026-09-01T10:00:00", updated_date: "2026-09-01T10:00:00", name: "A", logo_url: LOGO }];
+      s.sdk.tables.StaffCheckIn = [
+        { id: "ci1", created_date: "2026-09-01T10:00:00", updated_date: "2026-09-01T10:00:00", staff_picture_url: FACE },
+        { id: "ci2", created_date: "2026-09-02T10:00:00", updated_date: "2026-09-02T10:00:00", staff_picture_url: "data:image/png;base64,AAAA" },
+      ];
+      s.sdk.tables.Incident = [{ id: "inc1", created_date: "2026-09-01T10:00:00", updated_date: "2026-09-01T10:00:00", photo_uris: [PRIVATE_ID, "https://evil.example/x.jpg", "http://169.254.169.254/latest"] }];
+      s.sdk.asServiceRole.integrations.Core.CreateFileSignedUrl = async ({ file_uri }) => ({ signed_url: "https://signed.example/" + file_uri });
+      s.supa.web[LOGO] = { body: PNG, type: "image/png" };
+      s.supa.web[FACE] = { body: JPEG, type: "application/octet-stream" };
+      s.supa.web["https://signed.example/" + PRIVATE_ID] = { body: JPEG, type: "image/jpeg" };
+      s.supa.web["https://evil.example/x.jpg"] = { body: JPEG, type: "image/jpeg" };
+      return s;
+    };
+    const copyAll = async (send, entity) => { for (let skip = 0; ;) { const { body } = await send({ action: "copy", entity, skip }); if (body.done) return; skip = body.next_skip; } };
+
+    it("is for administrators only", async () => {
+      for (const role of ["staff", "company", "mechanic", null]) {
+        const { supa, send } = setup(role);
+        expect((await send({ action: "files", entity: "Company" })).status).toBe(403);
+        expect(supa.calls).toHaveLength(0);
+      }
+    });
+
+    it("copies each file into the right area and points the copied rows at it", async () => {
+      const { supa, send } = files();
+      for (const e of ["Company", "StaffCheckIn", "Incident"]) await copyAll(send, e);
+      const company = (await send({ action: "files", entity: "Company" })).body;
+      const checkIns = (await send({ action: "files", entity: "StaffCheckIn" })).body;
+      const incidents = (await send({ action: "files", entity: "Incident" })).body;
+      expect(company).toMatchObject({ files: 1, copied: 1, already: 0, failed: [] });
+      expect(checkIns).toMatchObject({ files: 1, copied: 1, failed: [] }); // the inline data: picture stays as it is
+      expect(incidents).toMatchObject({ files: 1, copied: 1, failed: [] }); // other sites are not files to copy
+
+      // A logo is public; a boarding-camera face and an incident photo are private.
+      const keys = Object.keys(supa.objects).sort();
+      expect(keys).toHaveLength(3);
+      expect(keys[0]).toMatch(/^private\/incident\/inc1\/photo_uris-[0-9a-f]{16}\.jpg$/);
+      expect(keys[1]).toMatch(/^private\/staff_check_in\/ci1\/staff_picture_url-[0-9a-f]{16}\.jpg$/);
+      expect(keys[2]).toMatch(/^public\/company\/a\/logo_url-[0-9a-f]{16}\.png$/);
+      // Type comes from the file itself; nobody's name ends up in the path.
+      expect(supa.objects[keys[1]].type).toBe("image/jpeg");
+      expect(keys.join()).not.toMatch(/Jane|Doe/);
+
+      // The Supabase rows now point at the copies.
+      expect(supa.tables.company.find((r) => r.id === "a").logo_url).toBe(`https://proj.supabase.co/storage/v1/object/public/${keys[2]}`);
+      expect(supa.tables.staff_check_in.find((r) => r.id === "ci1").staff_picture_url).toBe(`storage://${keys[1]}`);
+      expect(supa.tables.staff_check_in.find((r) => r.id === "ci2").staff_picture_url).toMatch(/^data:/);
+      expect(supa.tables.incident[0].photo_uris).toEqual([`storage://${keys[0]}`, "https://evil.example/x.jpg", "http://169.254.169.254/latest"]);
+
+      // Only Base44's file hosts (and Base44's own signed link) were fetched.
+      const fetched = [...new Set(supa.calls.map((c) => c.host))].filter((h) => h !== "proj.supabase.co").sort();
+      expect(fetched).toEqual(["base44.app", "signed.example"]);
+      // Replies carry counts, never links.
+      expect(JSON.stringify([company, checkIns, incidents])).not.toMatch(/https?:|storage:/);
+    });
+
+    it("copying the tables again keeps the new links, and running files again skips what's done", async () => {
+      const { supa, send } = files();
+      await copyAll(send, "Company");
+      await send({ action: "files", entity: "Company" });
+      const moved = supa.tables.company.find((r) => r.id === "a").logo_url;
+      await copyAll(send, "Company");
+      expect(supa.tables.company.find((r) => r.id === "a").logo_url).toBe(moved);
+      const again = (await send({ action: "files", entity: "Company" })).body;
+      expect(again).toMatchObject({ files: 1, copied: 0, already: 1, failed: [] });
+      expect(Object.keys(supa.objects)).toHaveLength(1);
+    });
+
+    it("refuses anything that isn't really an image, and http redirects", async () => {
+      const { supa, send } = files();
+      supa.web[LOGO] = { body: "<html><script>alert(1)</script></html>", type: "image/png" };
+      supa.web[FACE] = { location: "http://plain.example/face.jpg" };
+      await copyAll(send, "Company");
+      const company = (await send({ action: "files", entity: "Company" })).body;
+      const checkIns = (await send({ action: "files", entity: "StaffCheckIn" })).body;
+      expect(company.failed).toEqual([{ entity: "Company", id: "a", column: "logo_url", error: "Not a file type this area takes (unknown)" }]);
+      expect(checkIns.failed).toEqual([{ entity: "StaffCheckIn", id: "ci1", column: "staff_picture_url", error: "Refused a redirect that is not https" }]);
+      expect(supa.objects).toEqual({});
+      expect(supa.tables.company.find((r) => r.id === "a").logo_url).toBe(LOGO);
+      expect(supa.calls.some((c) => c.host === "plain.example")).toBe(false);
+    });
+
+    it("only takes tables that have files", async () => {
+      const { send } = files();
+      expect((await send({ action: "files", entity: "Route" })).status).toBe(400);
+      expect((await send({ action: "tables" })).body.files).toContain("StaffCheckIn");
     });
   });
 

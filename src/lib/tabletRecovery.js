@@ -7,3 +7,5 @@ export async function tabletRecoveryState() {
   try { return await TabletRecovery.getState(); } catch { return { available: false }; }
 }
 export const openTabletHomeSettings = () => TabletRecovery.openHomeSettings();
+
+export const setTabletKeepScreenOn = enabled => TabletRecovery.setKeepScreenOn({ enabled });

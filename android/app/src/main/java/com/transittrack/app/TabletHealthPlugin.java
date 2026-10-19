@@ -120,6 +120,8 @@ public class TabletHealthPlugin extends Plugin {
         try {
             out.put("networkControl", ((TabletNetworkPlugin) getBridge().getPlugin("TabletNetwork").getInstance()).state());
         } catch (Exception ignored) { }
+        out.put("cellular", TabletCellularHealth.snapshot(getContext()));
+        out.put("recovery", TabletScreenRecovery.snapshot(getContext()));
         out.put("dashcam", RearDashcamService.state(getContext()));
         out.put("events", TabletDiagnostics.snapshot());
         call.resolve(out);

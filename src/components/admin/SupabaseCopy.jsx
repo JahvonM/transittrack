@@ -1,5 +1,5 @@
 import React, { useRef, useState } from "react";
-import { DatabaseZap, KeyRound } from "lucide-react";
+import { DatabaseZap, Images, KeyRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
 
@@ -18,6 +18,56 @@ export function accountsSummary(r) {
   if (r.no_email) parts.push(`${plural(r.no_email, "person", "people")} have no email.`);
   if (r.failed?.length) parts.push(`${plural(r.failed.length, "account")} couldn't be set up (see below).`);
   return parts.join(" ");
+}
+
+export function filesSummary(t) {
+  if (!t.files) return "No files to copy.";
+  const parts = [`${plural(t.files, "file")} found: ${t.copied} copied now, ${t.already} already copied.`];
+  if (t.failed.length) parts.push(`${plural(t.failed.length, "file")} couldn't be copied (see below).`);
+  return parts.join(" ");
+}
+
+// Step 5: copies the photos, signatures, voice notes and documents the tables
+// point to into Supabase storage, one table at a time.
+function FilesCopy() {
+  const [busy, setBusy] = useState(false);
+  const [status, setStatus] = useState("");
+  const [failed, setFailed] = useState([]);
+  const run = async () => {
+    setBusy(true); setStatus("Starting…"); setFailed([]);
+    const total = { files: 0, copied: 0, already: 0, failed: [] };
+    try {
+      const { files } = (await base44.functions.invoke("copyToSupabase", { action: "tables" })).data;
+      for (const entity of files || []) {
+        for (let skip = 0; ;) {
+          setStatus(`Copying files from ${entity}… ${total.copied} copied so far`);
+          const page = (await base44.functions.invoke("copyToSupabase", { action: "files", entity, skip })).data;
+          total.files += page.files; total.copied += page.copied; total.already += page.already; total.failed.push(...page.failed);
+          if (page.done) break;
+          skip = page.next_skip;
+        }
+      }
+      setStatus(`Done: ${filesSummary(total)}`);
+      setFailed(total.failed);
+    } catch (e) {
+      setStatus(errorOf(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="mt-5 border-t border-border pt-4">
+      <h3 className="flex items-center gap-2 text-body font-semibold"><Images className="h-4 w-4 text-muted-foreground" aria-hidden="true" /> Files</h3>
+      <p className="mt-1 text-body-sm text-muted-foreground">Copies the photos, signatures, voice notes and documents into Supabase. Logos and bus photos go in the public area; faces, signatures and incident photos go in the private one. You can run this again.</p>
+      <Button type="button" variant="outline" className="mt-3" onClick={run} disabled={busy}>{busy ? "Copying files…" : "Copy files"}</Button>
+      {status && <p role="status" className="mt-3 text-body-sm">{status}</p>}
+      {failed.length > 0 && (
+        <ul className="mt-2 space-y-1 text-body-sm">
+          {failed.slice(0, 10).map((f) => <li key={f.entity + f.id + f.column}><b>{f.entity}</b> {f.id} ({f.column}): {f.error}</li>)}
+        </ul>
+      )}
+    </div>
+  );
 }
 
 function SignInAccounts() {
@@ -146,6 +196,7 @@ export default function SupabaseCopy() {
           )}
         </details>
       )}
+      <FilesCopy />
       <SignInAccounts />
     </section>
   );

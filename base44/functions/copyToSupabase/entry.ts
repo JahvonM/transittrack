@@ -1,6 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 import { secrets } from 'base44:runtime';
 import { SUPABASE_TABLES } from '../../shared/supabaseTables.ts';
+import { FILE_COLUMNS, base44FileKind, fileValues, applyFileMap, copyOneFile, loadFileMap } from '../../shared/supabaseFiles.ts';
 
 // Step 3 of the move to Supabase (Admin -> Settings -> Copy data to Supabase):
 // copies every table from Base44 into the new database a page at a time,
@@ -13,8 +14,25 @@ import { SUPABASE_TABLES } from '../../shared/supabaseTables.ts';
 const PAGE = 200;
 // Shown with every error, so a message on screen says which copy of this
 // code answered (an app window left open can call an older one).
-const VERSION = 'copy v6';
+const VERSION = 'copy v8';
 function fail(status: number, message: string): never { throw Object.assign(new Error(message), { status }); }
+const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+const statusOf = (error: unknown) => {
+  const e = error as { status?: number; response?: { status?: number } } | null;
+  return Number(e?.status ?? e?.response?.status ?? 0);
+};
+
+// Base44 sometimes refuses or drops a request for a moment (once it answered
+// "access this app through the support panel" for one table, mid-copy). Try
+// again before giving up, and then say which Base44 answer it was.
+async function base44Read<T>(read: () => Promise<T>, what: string): Promise<T> {
+  let last: unknown;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (attempt) await pause(400 * 3 ** (attempt - 1));
+    try { return await read(); } catch (error) { last = error; }
+  }
+  fail(502, `Base44 didn't hand over ${what} just now: ${String((last as Error)?.message || last).slice(0, 160)}`);
+}
 
 // App secrets reach backend functions through base44:runtime and as
 // environment variables; read whichever answers.
@@ -113,7 +131,7 @@ async function upsert(sb: ReturnType<typeof supabaseConfig>, table: string, rows
 async function setUpSignInAccounts(base44: ReturnType<typeof createClientFromRequest>, sb: ReturnType<typeof supabaseConfig>) {
   const people: Record<string, unknown>[] = [];
   for (let skip = 0; ; skip += PAGE) {
-    const page = await base44.asServiceRole.entities.User.filter({}, 'created_date', PAGE, skip);
+    const page = await base44Read(() => base44.asServiceRole.entities.User.filter({}, 'created_date', PAGE, skip), 'the people');
     people.push(...page);
     if (page.length < PAGE) break;
   }
@@ -155,6 +173,54 @@ async function setUpSignInAccounts(base44: ReturnType<typeof createClientFromReq
   return { people: people.length, created, existing, unverified, no_email: noEmail, failed, linked };
 }
 
+// Step 5: copies the files one table's rows point to (a page at a time, like
+// the table copy), then points the Supabase rows at the copies. Safe to run
+// again: files already copied are skipped. Replies hold counts and, for files
+// that failed, the table, row id, field and reason; never the files or links.
+async function copyFiles(base44: ReturnType<typeof createClientFromRequest>, sb: ReturnType<typeof supabaseConfig>, body: Record<string, unknown>) {
+  const entity = body.entity;
+  if (typeof entity !== 'string' || !Object.hasOwn(FILE_COLUMNS, entity)) fail(400, 'Unknown table');
+  const table = SUPABASE_TABLES[entity];
+  const skip = Number.isInteger(body.skip) && (body.skip as number) >= 0 ? body.skip as number : 0;
+  const rows = await base44Read(() => base44.asServiceRole.entities[entity].filter({}, 'created_date', PAGE, skip), entity);
+  const map = await loadFileMap(sb).catch(() => fail(502, 'Could not read which files are copied'));
+  const signedUrl = async (uri: string) => (await base44.asServiceRole.integrations.Core.CreateFileSignedUrl({ file_uri: uri, expires_in: 120 }))?.signed_url || '';
+  let files = 0, copied = 0, already = 0;
+  const failed: { entity: string; id: string; column: string; error: string }[] = [];
+  for (const row of rows as Record<string, unknown>[]) {
+    const id = String(row.id ?? '');
+    const changed: Record<string, unknown> = {};
+    for (const [column, bucket] of Object.entries(FILE_COLUMNS[entity])) {
+      let touched = false;
+      for (const value of fileValues(row[column])) {
+        const kind = base44FileKind(value);
+        if (!kind) continue;
+        files++;
+        if (map.has(value as string)) { already++; touched = true; continue; }
+        try {
+          map.set(value as string, await copyOneFile(sb, { table, id, column, bucket }, value as string, kind, signedUrl));
+          copied++; touched = true;
+        } catch (error) {
+          failed.push({ entity, id, column, error: String((error as Error)?.message || error).slice(0, 200) });
+        }
+      }
+      if (touched) changed[column] = applyFileMap(entity, { [column]: row[column] }, map, sb.origin)[column];
+    }
+    // The copied row points at the new files (a row not copied yet gets them
+    // when the tables are copied).
+    if (Object.keys(changed).length) {
+      const res = await fetch(`${sb.origin}/rest/v1/${table}?id=eq.${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        headers: { ...sb.headers, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+        body: JSON.stringify(changed),
+      });
+      if (!res.ok) failed.push({ entity, id, column: Object.keys(changed).join(','), error: 'Copied, but the row was not updated: ' + await supabaseError(res) });
+      else await res.body?.cancel().catch(() => {});
+    }
+  }
+  return { entity, read: rows.length, files, copied, already, failed, next_skip: skip + rows.length, done: rows.length < PAGE };
+}
+
 async function countRows(sb: ReturnType<typeof supabaseConfig>, table: string, filter = '') {
   const res = await fetch(`${sb.origin}/rest/v1/${table}?select=id&limit=1${filter}`, { headers: { ...sb.headers, Prefer: 'count=exact' } });
   if (!res.ok) return null;
@@ -165,10 +231,23 @@ async function countRows(sb: ReturnType<typeof supabaseConfig>, table: string, f
 export default async function (req: Request) {
   try {
     const base44 = createClientFromRequest(req);
-    const user = await base44.auth.me().catch(() => null);
+    // Who is asking. Not signed in, or not an administrator: refused. Base44
+    // failing to answer is said as such, not as "administrators only".
+    let user: { role?: string } | null = null;
+    let meError: unknown = null;
+    for (let attempt = 0; attempt < 2 && !user; attempt++) {
+      if (attempt) await pause(400);
+      try { user = await base44.auth.me(); meError = null; } catch (error) {
+        meError = error;
+        if ([401, 403].includes(statusOf(error))) break;
+      }
+    }
+    if (!user && meError && ![401, 403].includes(statusOf(meError))) {
+      fail(503, 'Base44 could not confirm who you are just now. Please press the button again.');
+    }
     if (!user || user.role !== 'admin') fail(403, 'Administrators only');
     const body = await req.json().catch(() => ({}));
-    if (body.action === 'tables') return Response.json({ entities: Object.keys(SUPABASE_TABLES) });
+    if (body.action === 'tables') return Response.json({ entities: Object.keys(SUPABASE_TABLES), files: Object.keys(FILE_COLUMNS) });
 
     const sb = supabaseConfig();
     if (body.action === 'counts') {
@@ -177,6 +256,7 @@ export default async function (req: Request) {
       return Response.json({ counts });
     }
     if (body.action === 'accounts') return Response.json({ version: VERSION, ...(await setUpSignInAccounts(base44, sb)) });
+    if (body.action === 'files') return Response.json({ version: VERSION, ...(await copyFiles(base44, sb, body)) });
     if (body.action !== 'copy') fail(400, 'Unknown action');
     const entity = body.entity;
     if (typeof entity !== 'string' || !Object.hasOwn(SUPABASE_TABLES, entity)) fail(400, 'Unknown table');
@@ -185,9 +265,14 @@ export default async function (req: Request) {
 
     const cols = (await tableColumns(sb))[table];
     if (!cols?.size) fail(502, `Supabase has no ${table} table yet`);
-    const rows = await base44.asServiceRole.entities[entity].filter({}, 'created_date', PAGE, skip);
+    const rows = await base44Read(() => base44.asServiceRole.entities[entity].filter({}, 'created_date', PAGE, skip), entity);
     const dropped: Record<string, number> = {};
-    const clean = rows.map((r: Record<string, unknown>) => cleanRow(entity, r, cols, dropped));
+    // Files already copied keep pointing at their Supabase copy.
+    const fileMap = FILE_COLUMNS[entity] ? await loadFileMap(sb).catch(() => fail(502, 'Could not read which files are copied')) : null;
+    const clean = rows.map((r: Record<string, unknown>) => {
+      const row = cleanRow(entity, r, cols, dropped);
+      return fileMap ? applyFileMap(entity, row, fileMap, sb.origin) : row;
+    });
     let copied = 0;
     const failed: { id: string; error: string }[] = [];
     if (clean.length) {

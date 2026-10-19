@@ -1,5 +1,7 @@
 # Verified admin tablet controls (2026-10-15)
 
+> Current release status: [kiosk-release-status.md](kiosk-release-status.md) (18 October 2026). Earlier checkpoint results below are historical.
+
 Status: implemented and checkpointed for the combined Android kiosk build; not physically accepted or released. Keep the existing helper and FreeKiosk. Install once at final handover.
 
 ## Admin experience

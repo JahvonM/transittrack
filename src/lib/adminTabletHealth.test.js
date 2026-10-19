@@ -18,3 +18,12 @@ describe('admin tablet reports',()=>{
   expect(adminTabletHealth({...healthy,paired:false},now)).toMatchObject({label:'Not paired',attention:false});
  });
 });
+
+describe('native driver tracking status',()=>{
+ it('shows a fresh native service report even when the web helper report is stale',()=>{
+  const device={...healthy,kiosk_type:'driver',helper_health:{reported_at:iso(-660000)},native_tracking_health:{active:true,reported_at:iso(0),review:0}};
+  expect(adminTabletHealth(device,now)).toMatchObject({label:'Background GPS reporting',tone:'success'});
+  expect(adminTabletHealth({...device,native_tracking_health:{...device.native_tracking_health,review:2}},now)).toMatchObject({attention:true,tone:'warning'});
+  expect(adminTabletHealth({...device,native_tracking_health:{...device.native_tracking_health,reported_at:iso(-240000)}},now).tone).not.toBe('success');
+ });
+});

@@ -1,3 +1,4 @@
+import { cleanHardwareHealth } from '../../shared/tabletHardwareHealth.ts';
 import { recordingsNotice } from '../../shared/tabletRecordings.ts';
 import { supportNotice } from '../../shared/tabletStreaming.ts';
 import { durableCreate, operationHash } from '../../shared/durableOperation.ts';
@@ -406,7 +407,7 @@ function cleanHelperHealth(h: unknown): Record<string, unknown> | null {
   const str = (v: unknown, n: number) =>
     typeof v === 'string' ? v.replace(/[\u0000-\u001f<>]/g, '').slice(0, n) : undefined;
   const out: Record<string, unknown> = { reported_at: new Date().toISOString() };
-  Object.assign(out, nativeReleaseHealth(o));
+  Object.assign(out, nativeReleaseHealth(o), cleanHardwareHealth(o));
   if (o.support_transport === 'webrtc') out.support_transport = 'webrtc';
   for (const k of ['recordings_available', 'support_available', 'management_available', 'management_owner', 'management_locked']) if (typeof o[k] === 'boolean') out[k] = o[k];
   const version = str(o.version, 16); if (version) out.version = version;
@@ -651,6 +652,30 @@ export default async function(req) {
     if (!vehicleId) return Response.json({ error: 'No vehicle assigned to this device' }, { status: 400 });
 
     if (!['heartbeat', 'verify_pin', 'request_pin_reset', 'register_push_token', 'sos', 'phone_unlock_code', 'phone_unlock_status'].includes(action) && !(await validGrant(base44, device, body.driver_grant, 'driver', vehicleId))) return Response.json({ error: 'Driver PIN verification required', code: 'DRIVER_PIN_REQUIRED' }, { status: 401 });
+
+    const nativeBackground = ['background_check','background_location','background_export_check'].includes(action) || body.native_background === true;
+    if (nativeBackground) {
+      if (!['background_check','background_location','background_export_check','upload_track'].includes(action) ||
+          !(await authenticatedTablet(base44, device, body.device_token)))
+        return Response.json({error:'Current enrolled driver tablet required'}, {status:403});
+      if (body.expected_device_id !== device.id || body.expected_company_id !== companyId || body.expected_vehicle_id !== vehicleId)
+        return Response.json({error:'Background tracking assignment mismatch'}, {status:409});
+      const current = await loadVehicle(base44, vehicleId);
+      if (!current || current.company_id !== companyId) return Response.json({error:'Vehicle assignment mismatch'}, {status:409});
+      if (!['upload_track','background_export_check'].includes(action) && !current.tracking_active && !current.remote_tracking_lock)
+        return Response.json({ok:true,tracking:false});
+      if (action === 'background_export_check') return Response.json({ok:true});
+      if (action === 'background_check') {
+        const status = body.native_tracking_health;
+        const finiteCount = v => typeof v === 'number' && Number.isFinite(v) ? Math.max(0,Math.min(10000,Math.floor(v))) : 0;
+        const lastFix = typeof status?.last_fix_at === 'number' && Number.isFinite(status.last_fix_at) && status.last_fix_at > Date.now()-72*3600000 && status.last_fix_at <= Date.now()+2000 ? new Date(status.last_fix_at).toISOString() : null;
+        await base44.asServiceRole.entities.KioskDevice.update(device.id, {last_seen:new Date().toISOString(),native_tracking_health:{
+          active:true,reported_at:new Date().toISOString(),pending:finiteCount(status?.pending),review:finiteCount(status?.review),...(lastFix?{last_fix_at:lastFix}:{}),
+        }});
+        const grant = (await base44.asServiceRole.entities.VerificationGrant.filter({token_hash:await hashSecret(body.driver_grant)},'-created_date',1))[0];
+        return Response.json({ok:true,tracking:true,expires_at:grant.expires_at,server_time:new Date().toISOString()});
+      }
+    }
 
     const helperHealth = cleanHelperHealth(body.helper_health);
     const appHealth = cleanAppHealth(body.app_health);
@@ -1062,6 +1087,7 @@ export default async function(req) {
         return Response.json({ ok: true });
       }
 
+      case 'background_location':
       case 'update_location': {
         return applyLocationUpdate(base44, { vehicleId, companyId, companyName, body,
           onDepartedStop: (route, stopName, vehicle) => notifyStopAhead(base44, route, stopName, vehicle, companyId),

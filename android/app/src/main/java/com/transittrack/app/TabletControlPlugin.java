@@ -135,7 +135,7 @@ public class TabletControlPlugin extends Plugin {
             if (Build.VERSION.SDK_INT < 24) return "UNSUPPORTED";
             long lastReboot = ledger.lastRebootAt();
             if (lastReboot > 0 && System.currentTimeMillis() - lastReboot < 120000) return "CONTROL_COOLDOWN";
-            if (!device.equals(safeDevice) || !TabletControlPolicy.rebootSafe(safe, safetyAt, interactionAt, SystemClock.elapsedRealtime())) return "TABLET_BUSY";
+            if (DriverLocationService.active() || !device.equals(safeDevice) || !TabletControlPolicy.rebootSafe(safe, safetyAt, interactionAt, SystemClock.elapsedRealtime())) return "TABLET_BUSY";
             // Persist the requested outcome BEFORE reboot. If process exits immediately,
             // next heartbeat can forward this receipt without repeating the side effect.
             if (!saveReceipt(activeId, "REBOOT_REQUESTED")) return "STORAGE_ERROR";
@@ -151,7 +151,7 @@ public class TabletControlPlugin extends Plugin {
         if (SystemClock.elapsedRealtime() >= deadline) return "EXPIRED";
         if (!owner()) return "DEVICE_OWNER_REQUIRED";
         if (getActivity().isFinishing() || getActivity().isDestroyed() || !getActivity().hasWindowFocus()) return "APP_NOT_VISIBLE";
-        if (!device.equals(safeDevice) || !TabletControlPolicy.rebootSafe(safe, safetyAt, interactionAt, SystemClock.elapsedRealtime())) return "TABLET_BUSY";
+        if (DriverLocationService.active() || !device.equals(safeDevice) || !TabletControlPolicy.rebootSafe(safe, safetyAt, interactionAt, SystemClock.elapsedRealtime())) return "TABLET_BUSY";
         return "";
     }
     private String gateOnMain(String device, long deadline) throws InterruptedException {

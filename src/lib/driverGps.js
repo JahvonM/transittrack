@@ -29,7 +29,7 @@ export function usbPosition(raw, now = Date.now()) {
       !Number.isFinite(c.latitude) || Math.abs(c.latitude) > 90 ||
       !Number.isFinite(c.longitude) || Math.abs(c.longitude) > 180 ||
       !Number.isFinite(c.accuracy) || c.accuracy < 0) return null;
-  return { timestamp: t, coords: { latitude: c.latitude, longitude: c.longitude,
+  return { timestamp: t, ...(raw.nativeManaged === true ? { nativeManaged: true, nativePersisted: raw.nativePersisted === true } : {}), coords: { latitude: c.latitude, longitude: c.longitude,
     accuracy: c.accuracy,
     speed: Number.isFinite(c.speed) && c.speed >= 0 && c.speed <= 100 ? c.speed : null,
     heading: Number.isFinite(c.heading) && c.heading >= 0 && c.heading <= 360 ? c.heading : null,
@@ -59,7 +59,7 @@ export function watchDriverPosition(success, failure = () => {}, options = {}) {
   const apply = state => {
     if (stopped) return;
     stateKnown = true;
-    external = state?.enabled === true && state?.available === true;
+    external = (state?.enabled === true || state?.backgroundManaged === true) && state?.available === true;
     if (external) {
       stopBrowser();
       if (!String(state.status).startsWith("Fix (")) error(state.status || "Waiting for USB GPS");

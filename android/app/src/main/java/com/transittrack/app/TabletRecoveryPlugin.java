@@ -13,8 +13,10 @@ public class TabletRecoveryPlugin extends Plugin {
     @PluginMethod public void getState(PluginCall call) {
         JSObject out = new JSObject();
         out.put("available", true);
-        out.put("keepScreenOn", true);
+        out.put("keepScreenOn", TabletDisplay.enabled(getContext()));
+        out.put("screenControl", true);
         out.put("backgroundTracking", false);
+        out.put("screenRecovery", TabletScreenRecovery.snapshot(getContext()));
         boolean home = false;
         try {
             Intent intent = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME);
@@ -25,6 +27,15 @@ public class TabletRecoveryPlugin extends Plugin {
         out.put("defaultHome", home);
         out.put("startup", home ? "Android Home app selected" : "Open Android Home settings to choose startup behaviour");
         call.resolve(out);
+    }
+    @PluginMethod public void setKeepScreenOn(PluginCall call) {
+        Boolean enabled = call.getBoolean("enabled");
+        if (enabled == null) { call.reject("Choose on or off."); return; }
+        getActivity().runOnUiThread(() -> {
+            if (!TabletDisplay.save(getContext(), enabled)) { call.reject("Could not save the display setting."); return; }
+            TabletDisplay.apply(getActivity());
+            JSObject out = new JSObject(); out.put("keepScreenOn", enabled); call.resolve(out);
+        });
     }
     @PluginMethod public void openHomeSettings(PluginCall call) {
         getActivity().runOnUiThread(() -> {

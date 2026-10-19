@@ -89,3 +89,12 @@ describe("USB sample validation", () => {
     expect(usbPosition({ ...fix(), coords: { ...fix().coords, speed: undefined, heading: undefined } }).coords).toMatchObject({ speed: null, heading: null });
   });
 });
+
+it("uses the native tablet GPS service as the sole source when USB mode is off",async()=>{
+ f.state={available:true,enabled:false,backgroundManaged:true,status:"Fix (tablet background GPS)"};
+ const success=vi.fn();stop=watchDriverPosition(success);
+ await vi.waitFor(()=>expect(f.listeners.gpsPosition).toBeTypeOf("function"));
+ await vi.waitFor(()=>expect(watch).not.toHaveBeenCalled());
+ f.listeners.gpsPosition({...fix(),nativeManaged:true,nativePersisted:true});
+ expect(success).toHaveBeenCalledWith(expect.objectContaining({nativeManaged:true,nativePersisted:true}));
+});

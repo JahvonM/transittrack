@@ -1,3 +1,4 @@
+import { beginNativeGpsUpload, endNativeGpsUpload, BACKGROUND_EVENT, stopBackgroundGps, useDriverBackgroundTracking } from "@/lib/driverBackground";
 import { watchDriverPosition, clearDriverWatch } from "@/lib/driverGps";
 import DriverPortraitDrive from "./DriverPortraitDrive";
 import { getNavTarget, onNavTarget } from "@/lib/navTarget";
@@ -32,6 +33,7 @@ export default function DriverTrackingDashboard({ session, invoke, onReportIncid
 
   const [staff, setStaff] = useState([]);
   const [sharing, setSharing] = useState(false);
+  useDriverBackgroundTracking(sharing, session?.vehicle);
   const [nearbyStaff, setNearbyStaff] = useState([]);
   const [liveVehicle, setLiveVehicle] = useState(session?.vehicle || null);
 
@@ -95,6 +97,7 @@ export default function DriverTrackingDashboard({ session, invoke, onReportIncid
     const v = vehicleRef.current;
     if (!v) return;
     setLiveVehicle((prev) => prev ? { ...prev, current_lat: lat, current_lng: lng, speed: speed || 0 } : prev);
+    if (extra.nativeManaged && !extra.nativePersisted) return;
     if (now - lastUpdate.current < GPS_INTERVAL_MS) return;
     lastUpdate.current = now;
     // The tail only covers the last half hour, so yesterday's drive (or the
@@ -122,6 +125,11 @@ export default function DriverTrackingDashboard({ session, invoke, onReportIncid
       const roadStops = roadStopsOf(s);
       if (roadStops) roadNext = nextRoadStopIndex(roadStops, busOnRoad(s.route, lat, lng));
     } catch { /* stop position is optional */ }
+    let nativeUploadLease = null;
+    if (extra.nativeManaged) {
+      try { nativeUploadLease = await beginNativeGpsUpload(); } catch { return; }
+      if (!nativeUploadLease) return; // durable native queue keeps this sample
+    }
     try {
       await invoke("update_location", { lat, lng, speed: speed || 0, status, trail: nextTrail, log_speeding: logSpeeding, recorded_at: new Date(extra.ts || now).toISOString(), ...(Number.isInteger(roadNext) ? { road_next: roadNext } : {}) });
       setLastSentAt(Date.now());
@@ -130,11 +138,12 @@ export default function DriverTrackingDashboard({ session, invoke, onReportIncid
     } catch (e) {
       // No connection: keep the point on the tablet (with the time it was
       // taken) and upload it later, so the trip has no gap.
-      if (!e?.response || [401,403,429].includes(e.response.status) || e.response.status>=500) {
+      if (!extra.nativePersisted && (!e?.response || [401,403,429].includes(e.response.status) || e.response.status>=500)) {
         try { queueGpsPoint({ lat, lng, speed, heading: extra.heading, accuracy: extra.accuracy, t: extra.ts || now, binding:{expected_device_id:localStorage.getItem("tt_driver_device_id"),expected_company_id:v.company_id,expected_vehicle_id:v.id} }); }
         catch (storageError) { toast({ title: "GPS could not be saved", description: storageError.message, variant: "destructive" }); }
       }
     }
+    finally { if (nativeUploadLease) await endNativeGpsUpload(nativeUploadLease).catch(() => {}); }
     setLiveVehicle((prev) => prev ? { ...prev, current_lat: lat, current_lng: lng, speed: speed || 0, status, trail: nextTrail } : prev);
     const nearby = [];
     staffRef.current.forEach((s) => {
@@ -156,7 +165,7 @@ export default function DriverTrackingDashboard({ session, invoke, onReportIncid
     watchId.current = watchDriverPosition(
       (p) => {
         if (p.coords.accuracy != null && p.coords.accuracy > 100) { setGpsProblem("Weak GPS signal"); return; }
-        handlePosition(p.coords.latitude, p.coords.longitude, p.coords.speed, { heading: p.coords.heading, accuracy: p.coords.accuracy, ts: p.timestamp });
+        handlePosition(p.coords.latitude, p.coords.longitude, p.coords.speed, { heading: p.coords.heading, accuracy: p.coords.accuracy, ts: p.timestamp, nativeManaged: p.nativeManaged, nativePersisted: p.nativePersisted });
       },
       (err) => {
         if (err.code === err.PERMISSION_DENIED) {
@@ -175,6 +184,7 @@ export default function DriverTrackingDashboard({ session, invoke, onReportIncid
     if (watchId.current != null) return;
     setSharing(true);
     try { await invoke("start_tracking"); } catch { /* tolerate */ }
+    window.dispatchEvent(new Event(BACKGROUND_EVENT));
     beginWatch();
   };
 
@@ -201,6 +211,7 @@ export default function DriverTrackingDashboard({ session, invoke, onReportIncid
         return;
       }
     }
+    await stopBackgroundGps().catch(() => {});
     setSharing(false);
     if (watchId.current != null) { clearDriverWatch(watchId.current); watchId.current = null; }
     const v = vehicleRef.current;
