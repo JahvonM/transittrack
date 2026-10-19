@@ -340,7 +340,7 @@ function entityApi(entity: string) {
     return `id=eq.${encodeURIComponent(id)}`;
   };
 
-  return {
+  const api = {
     list: (...args: unknown[]) => readCall({}, args),
     filter: (query: Row = {}, ...args: unknown[]) => readCall(query || {}, args),
     async get(id: string) {
@@ -366,7 +366,7 @@ function entityApi(entity: string) {
     async update(id: string, data: Row) {
       const cols = await ensure();
       const changes = forWrite(table, data, cols);
-      if (!Object.keys(changes).length) return this.get(id);
+      if (!Object.keys(changes).length) return api.get(id);
       const rows = await rest(`${table}?${byId(id)}`, { method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify(changes) });
       if (!rows?.length) throw httpError(404, `${entity} not found`);
       return toRecord(rows[0]);
@@ -378,6 +378,7 @@ function entityApi(entity: string) {
       return toRecord(rows[0]);
     },
   };
+  return api;
 }
 
 const entities = new Proxy({} as Record<string, ReturnType<typeof entityApi>>, {
