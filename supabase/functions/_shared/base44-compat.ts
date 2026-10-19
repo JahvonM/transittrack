@@ -103,6 +103,15 @@ const isJson = (t?: string) => t === 'jsonb' || t === 'json';
 // ---------- Mongo-style filter -> PostgREST logic tree ----------
 
 const NEVER = 'id.is.null'; // every table's id is required, so this matches nothing
+const ALWAYS = 'id.not.is.null';
+
+// "not" for one condition: a group takes a not. prefix, a field takes .not.
+function negate(cond: string) {
+  if (cond === NEVER) return ALWAYS;
+  if (cond === ALWAYS) return NEVER;
+  if (/^(or|and)\(/.test(cond)) return `not.${cond}`;
+  return cond.replace(/^([A-Za-z_][A-Za-z0-9_]*)\./, '$1.not.');
+}
 const quote = (v: unknown) => '"' + String(v).replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"';
 
 function scalar(v: unknown) {
@@ -154,21 +163,20 @@ function fieldConditions(col: string, type: string | undefined, value: unknown):
         out.push(inList(col, type, v));
         break;
       case '$nin': {
+        // Not in the list; an empty field counts as not in it unless the list has null.
         if (!Array.isArray(v)) throw httpError(400, 'Bad filter');
-        const plain = v.map(scalar).filter((x) => x !== null && x !== undefined && !(x === '' && !isText(type)));
-        const excludesNull = v.some((x) => x === null || x === undefined);
-        if (isJson(type)) out.push(`not.${inList(col, type, v)}`);
-        else if (!plain.length) out.push(excludesNull ? `${col}.not.is.null` : `${col}.not.is.null,${col}.is.null`.split(',').length ? `or(${col}.not.is.null,${col}.is.null)` : '');
-        else out.push(excludesNull ? `${col}.not.in.(${plain.map(quote).join(',')})` : `or(${col}.not.in.(${plain.map(quote).join(',')}),${col}.is.null)`);
+        const listsNull = v.some((x) => x === null || x === undefined);
+        const values = v.filter((x) => x !== null && x !== undefined);
+        const notIn = values.length ? negate(inList(col, type, values)) : ALWAYS;
+        out.push(listsNull ? (notIn === ALWAYS ? `${col}.not.is.null` : `and(${notIn},${col}.not.is.null)`) : (notIn === ALWAYS ? ALWAYS : `or(${notIn},${col}.is.null)`));
         break;
       }
       case '$ne': {
         const x = scalar(v);
+        // Not equal; an empty field counts as not equal (Mongo).
         if (x === null || x === undefined) out.push(`${col}.not.is.null`);
-        else if (isJson(type)) out.push(`not.${equals(col, type, x)}`);
-        else if (typeof x === 'boolean') out.push(`or(${col}.is.null,${col}.is.${!x})`);
-        else if (x === '' && !isText(type)) out.push(`or(${col}.is.null,${col}.not.is.null)`);
-        else out.push(`or(${col}.neq.${quote(x)},${col}.is.null)`);
+        else if (x === '' && !isText(type) && !isJson(type)) out.push(ALWAYS);
+        else out.push(`or(${negate(equals(col, type, x))},${col}.is.null)`);
         break;
       }
       case '$gt': out.push(compare(col, type, 'gt', v)); break;
@@ -190,6 +198,19 @@ function fieldConditions(col: string, type: string | undefined, value: unknown):
   return out;
 }
 
+function matchesEmpty(value: unknown): boolean {
+  const ops = value && typeof value === 'object' && !Array.isArray(value) && !(value instanceof Date) &&
+    Object.keys(value as object).some((k) => k.startsWith('$')) ? value as Record<string, unknown> : null;
+  if (!ops) return value === null;
+  return Object.entries(ops).every(([op, v]) => {
+    if (op === '$ne') return v !== null && v !== undefined;
+    if (op === '$nin') return Array.isArray(v) && !v.some((x) => x === null || x === undefined);
+    if (op === '$in') return Array.isArray(v) && v.some((x) => x === null || x === undefined);
+    if (op === '$exists') return !v;
+    return op === '$options';
+  });
+}
+
 function conditions(query: Row, table: string, cols: Record<string, string>): string[] {
   const out: string[] = [];
   for (const [key, value] of Object.entries(query || {})) {
@@ -198,13 +219,14 @@ function conditions(query: Row, table: string, cols: Record<string, string>): st
       if (!Array.isArray(value) || !value.length) throw httpError(400, 'Bad filter');
       const groups = value.map((q) => {
         const c = conditions(q as Row, table, cols);
-        return c.length ? `and(${c.join(',')})` : 'id.not.is.null';
+        return c.length ? `and(${c.join(',')})` : ALWAYS;
       });
       out.push(`${key === '$or' ? 'or' : 'and'}(${groups.join(',')})`);
       continue;
     }
     if (!NAME.test(key)) throw httpError(400, `Unsupported filter field ${key}`);
-    if (!(key in cols)) { out.push(value === null || (typeof value === 'object' && value && '$exists' in (value as Row) && !(value as Row).$exists) ? 'id.not.is.null' : NEVER); continue; }
+    // A field the table doesn't have is empty on every record.
+    if (!(key in cols)) { out.push(matchesEmpty(value) ? ALWAYS : NEVER); continue; }
     out.push(...fieldConditions(key, cols[key], value));
   }
   return out;
