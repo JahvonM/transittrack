@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { withAdminBatch } from './helpers/adminBatchMock.js';
 
 // The 3D map and your own position. Mapbox is not reachable from tests, so a
 // blank style stands in for the real one; the camera logic is the same.
@@ -17,7 +18,7 @@ async function setup(page) {
   await page.route('https://api.mapbox.com/**', (r) => (r.request().url().includes('/styles/v1/')
     ? r.fulfill({ json: { version: 8, sources: {}, layers: [{ id: 'bg', type: 'background', paint: { 'background-color': '#123' } }] } })
     : r.fulfill({ status: 404, body: '' })));
-  await page.route('**/api/**', async (route) => {
+  await page.route('**/api/**', withAdminBatch(async (route) => {
     const url = route.request().url();
     if (url.includes('/functions/entityAccess')) {
       const b = route.request().postDataJSON();
@@ -27,7 +28,7 @@ async function setup(page) {
       return route.fulfill({ json: { result } });
     }
     return route.fulfill({ json: { id: 'test-app', public_settings: { authentication_required: false } } });
-  });
+  }));
   return errors;
 }
 const sendFix = (page) => page.evaluate(() => {

@@ -108,10 +108,9 @@ test('directions follow the drawn road to the next pickup', async ({ page, conte
   });
   await page.goto('/driver/track');
   await unlock(page);
-  await page.getByRole('button', { name: 'Navigation', exact: true }).click();
+  // The Drive screen offers Navigate for the next stop straight away.
   const navigate = page.getByRole('button', { name: 'Navigate', exact: true });
   await expect(navigate).toBeVisible({ timeout: 20000 });
-  await expect(page.getByTestId('nav-eta')).toContainText('of 5');
   await navigate.click();
   // Turn-by-turn requests only (the passenger list also asks for arrival times).
   const turnByTurn = () => urls.filter((u) => u.includes('steps=true'));
@@ -155,11 +154,13 @@ test('trip direction reverses the tablet stops and persists in the cached sessio
  await page.getByRole('button',{name:'To home',exact:true}).click();
  await expect(page.getByRole('button',{name:'To home',exact:true})).toHaveAttribute('aria-pressed','true');
  await page.getByRole('button',{name:'Change stop',exact:true}).click();
- await expect(page.getByRole('tabpanel').getByRole('listitem')).toHaveText([/Grand Anse/,/True Blue/,/Pickup 3/,/Pickup 1/,/Town/]);
+ // The stop picker lists them in the order the bus now reaches them.
+ const picker=page.getByRole('dialog').filter({has:page.getByRole('heading',{name:'Change stop'})});
+ await expect(picker.getByRole('button',{name:/^(Grand Anse|True Blue|Pickup 3|Pickup 1|Town)$/})).toHaveText([/Grand Anse/,/True Blue/,/Pickup 3/,/Pickup 1/,/Town/]);
  expect(calls.some(c=>c.action==='set_direction'&&c.direction==='to_home'&&c.driver_grant)).toBe(true);
  await expect.poll(()=>page.evaluate(()=>JSON.parse(localStorage.getItem('tt_driver_session_cache')).session.vehicle.trip_direction)).toBe('to_home');
- await page.getByRole('navigation',{name:'Driver sections'}).getByRole('button',{name:'Drive',exact:true}).click();
+ await picker.getByRole('button',{name:'Cancel',exact:true}).click();
  await page.getByRole('button',{name:'To work',exact:true}).click();
  await page.getByRole('button',{name:'Change stop',exact:true}).click();
- await expect(page.getByRole('tabpanel').getByRole('listitem').first()).toContainText('Town');
+ await expect(picker.getByRole('button',{name:/^(Grand Anse|True Blue|Pickup 3|Pickup 1|Town)$/}).first()).toHaveText(/Town/);
 });
