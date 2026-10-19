@@ -46,9 +46,13 @@ jobs:
       - uses: supabase/setup-cli@v1
         if: env.SUPABASE_ACCESS_TOKEN != ''
         with:
-          version: 2.54.11
+          version: latest
       - name: Deploy every function
         if: env.SUPABASE_ACCESS_TOKEN != ''
         # The functions check who is calling themselves (Supabase sign-in or a
         # tablet's device key), so the gateway's own JWT check stays off.
-        run: supabase functions deploy --project-ref "$PROJECT_REF" --no-verify-jwt --use-api
+        # The CLI wants a config file; this one lives only for this run, so
+        # nothing here changes the project's own settings.
+        run: |
+          [ -f supabase/config.toml ] || printf 'project_id = "%s"\n' "$PROJECT_REF" > supabase/config.toml
+          supabase functions deploy --project-ref "$PROJECT_REF" --no-verify-jwt --use-api
