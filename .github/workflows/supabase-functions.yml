@@ -1,0 +1,54 @@
+# Puts the app's functions on Supabase (step 6 of the move from Base44).
+# supabase/functions is a copy of base44/functions made by
+# tools/supabase/build-functions.mjs; this deploys every function in it to the
+# McSween Transport Supabase project whenever that copy changes on main.
+#
+# Needs one repository secret, SUPABASE_ACCESS_TOKEN: a personal access token
+# from supabase.com -> Account -> Access Tokens. Until it is added the job only
+# checks the copy and says the deploy was skipped.
+name: Supabase functions
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/functions/**'
+      - 'base44/functions/**'
+      - 'base44/shared/**'
+      - 'tools/supabase/build-functions.mjs'
+      - '.github/workflows/supabase-functions.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: supabase-functions
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      PROJECT_REF: ghqpznxqngvhmkiwcauj
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: The Supabase copy matches base44/
+        run: node tools/supabase/build-functions.mjs --check
+      - name: Waiting for the access token
+        if: env.SUPABASE_ACCESS_TOKEN == ''
+        run: echo "::notice::Deploy skipped. Add the SUPABASE_ACCESS_TOKEN repository secret to put the functions on Supabase."
+      - uses: supabase/setup-cli@v1
+        if: env.SUPABASE_ACCESS_TOKEN != ''
+        with:
+          version: 2.54.11
+      - name: Deploy every function
+        if: env.SUPABASE_ACCESS_TOKEN != ''
+        # The functions check who is calling themselves (Supabase sign-in or a
+        # tablet's device key), so the gateway's own JWT check stays off.
+        run: supabase functions deploy --project-ref "$PROJECT_REF" --no-verify-jwt --use-api
