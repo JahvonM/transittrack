@@ -89,7 +89,7 @@ describe("plain-English help on the admin page", () => {
   it("describes devices", () => {
     expect(describeDevice("Mozilla/5.0 (Linux; Android 13; SM-T220) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0 Safari/537.36")).toBe("Android tablet · Chrome");
     expect(describeDevice("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1")).toBe("iPhone · Safari");
-    expect(describeDevice("Mozilla/5.0 (Linux; Android 13; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/129 Mobile Safari/537.36".replace("13; wv)", "13; Pixel; wv)"))).toBe("Android phone · inside the TransitTrack app");
+    expect(describeDevice("Mozilla/5.0 (Linux; Android 13; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/129 Mobile Safari/537.36".replace("13; wv)", "13; Pixel; wv)"))).toBe("Android phone · inside the McSween Transport app");
   });
   it("explains common errors", () => {
     expect(errorHint("Failed to fetch dynamically imported module: /assets/x.js")).toMatch(/updated while this person had it open/);

@@ -49,7 +49,7 @@ test('signed in: asks first, then hands the app a sealed session only its key op
   await expect(page.getByText('rider@test.local')).toBeVisible();
   // The key leaves the address bar once read.
   expect(page.url()).not.toContain('#k=');
-  const open = page.getByRole('link', { name: 'Open TransitTrack app' });
+  const open = page.getByRole('link', { name: 'Open McSween Transport app' });
   await expect(open).toBeVisible();
   const href = await open.getAttribute('href');
   expect(href).toMatch(new RegExp(`^com\\.transittrack\\.app://signin\\?state=${STATE}&iv=`));
@@ -73,14 +73,14 @@ test('a link without the app key is refused', async ({ page }) => {
   await mockServer(page, { signedIn: true });
   await page.goto(`/phone-signin?state=${STATE}&provider=google`);
   await expect(page.getByText("This sign-in link isn't valid")).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Open TransitTrack app' })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Open McSween Transport app' })).toHaveCount(0);
 });
 
 test('Cancel shares nothing with the app', async ({ page }) => {
   await mockServer(page, { signedIn: true });
   await page.goto(`/phone-signin?state=${STATE}&provider=apple#k=${KEY}`);
-  await expect(page.getByRole('link', { name: 'Open TransitTrack app' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Open McSween Transport app' })).toBeVisible();
   await page.getByRole('button', { name: 'Cancel' }).click();
   await expect(page.getByText('App sign-in cancelled')).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Open TransitTrack app' })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Open McSween Transport app' })).toHaveCount(0);
 });
