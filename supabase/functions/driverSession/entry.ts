@@ -1,0 +1,1525 @@
+import { cleanHardwareHealth } from '../_shared/tabletHardwareHealth.ts';
+import { recordingsNotice } from '../_shared/tabletRecordings.ts';
+import { supportNotice } from '../_shared/tabletStreaming.ts';
+import { durableCreate, operationHash } from '../_shared/durableOperation.ts';
+import { nativeReleaseHealth } from '../_shared/nativeRelease.ts';
+import { controlNotice } from '../_shared/tabletControl.ts';
+import { cleanRequestMetrics } from '../_shared/requestMetrics.ts';
+import { createClientFromRequest } from '../_shared/base44-compat.ts';
+import { passengerPushTokens } from '../_shared/chatPush.ts';
+import { applyLocationUpdate } from '../_shared/vehicleLocation.ts';
+import { cleanNetworkHealth, networkCheckIn } from '../_shared/tabletNetwork.ts';
+// Shared request budgets use the configured Supabase RPC and fail closed.
+import { reserveAttempt, createOnce, withLock } from '../_shared/atomicOps.ts';
+import { pushWithPolicy, emailWithPolicy } from '../_shared/notificationPolicy.ts';
+import { placeOnRoad, roadPointsToLine } from '../_shared/pickupStops.ts';
+import { busRoadStops } from '../_shared/routeRiders.ts';
+import { JOB_STEPS, jobForBus, jobStepTime, signJob, tabletTrip } from '../_shared/jobSignature.ts';
+
+
+async function liveMembership(base44, row) {
+ if (!row.expires_at && !row.code_hash) return true; // Explicit admin approval.
+ if (!row.code_hash || (row.scope !== 'passenger' && !(Date.parse(row.expires_at) > Date.now()))) return false;
+ const company=await base44.asServiceRole.entities.Company.get(row.company_id).catch(()=>null);
+ if(!company) return false;
+ const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(company.access_code || ''));
+ const hash=Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,'0')).join('');
+ return row.code_hash===hash;
+}
+
+async function approvedCompanies(base44, user, scope) {
+  const rows = await base44.asServiceRole.entities.CompanyMembership.filter({ user_id: user.id, active: true }, '-updated_date', 100);
+  const approved=[];
+  for(const row of rows) if(row.scope === (scope || (user.role === 'company' ? 'manager' : 'passenger')) && await liveMembership(base44,row)) approved.push(row.company_id);
+  return approved;
+}
+async function approvedPassengerMemberships(base44, companyId) {
+   const rows = await base44.asServiceRole.entities.CompanyMembership.filter({ company_id: companyId, active: true, scope: 'passenger' }, '-updated_date', 5000);
+   // Every row here belongs to the same company: verify its code once, not
+   // once per passenger on every tablet heartbeat.
+   const company = rows.some(row => row.code_hash) ? await base44.asServiceRole.entities.Company.get(companyId) : null;
+   const codeHash = company ? await deviceDigest(company.access_code || '') : null;
+   return rows.filter(row => (!row.expires_at && !row.code_hash) || (row.code_hash && row.code_hash === codeHash));
+}
+async function approvedStaffIds(base44, companyId) {
+  return new Set((await approvedPassengerMemberships(base44,companyId)).map(row=>row.user_id));
+}
+// Random device credentials are stored only as hashes in protected DeviceCredential.
+// Existing development tablets remain legacy-compatible until explicitly re-paired.
+const LEGACY_DEVICE_CUTOFF = Date.parse('2026-10-03T23:35:39Z');
+async function deviceDigest(value) {
+  const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
+  return Array.from(new Uint8Array(bytes), (b) => b.toString(16).padStart(2, '0')).join('');
+}
+function sameDigest(a, b) {
+  if (typeof a !== 'string' || typeof b !== 'string' || a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+async function authenticatedTablet(base44, device, token) {
+  if (!device || !device.paired || device.status !== 'active') return false;
+  const credentials = await base44.asServiceRole.entities.DeviceCredential.filter({ device_id: device.id }, '-issued_at', 1);
+  const credential = credentials[0];
+  if (!credential) return false;
+  if (typeof token !== 'string' || !/^[a-f0-9]{64}$/.test(token)) return false;
+  if (!(Date.parse(credential.expires_at) > Date.now())) return false;
+  if (credential.company_id !== device.company_id || credential.vehicle_id !== (device.vehicle_id || '') || credential.kiosk_type !== device.kiosk_type) return false;
+  if (!sameDigest(credential.pairing_code_hash, await deviceDigest(device.pairing_code || ''))) return false;
+  return sameDigest(credential.token_hash, await deviceDigest(token));
+}
+
+// A tablet paired before the credential ledger existed has no credential to
+// check, so its device record still authorises it — the one place a tokenless
+// device is accepted. Delete this block once every tablet has been re-paired
+// (see security-tests/tablet-repairing-plan.md); the verifier above is already
+// strictly token-based, so that deletion is the whole migration.
+async function legacyDeviceAccepted(base44, device) {
+  if (!device || device.paired !== true || device.status !== 'active') return false;
+  const created = Date.parse(device.created_date);
+  if (!(Number.isFinite(created) && created < LEGACY_DEVICE_CUTOFF)) return false;
+  const credentials = await base44.asServiceRole.entities.DeviceCredential.filter({ device_id: device.id }, '-issued_at', 1);
+  return credentials.length === 0;
+}
+
+// Token, or an un-migrated device record. Used to resolve which device a
+// request came from; it never authorises an action on its own.
+async function deviceAccepted(base44, device, token) {
+  return (await authenticatedTablet(base44, device, token)) || legacyDeviceAccepted(base44, device);
+}
+
+import { secrets } from '../_shared/base44-compat.ts';
+
+// --- Firebase Cloud Messaging (push) helpers — a copy of base44/shared/fcm.ts ---
+function base64UrlEncode(bytes) {
+  const arr = new Uint8Array(bytes);
+  let binary = '';
+  for (let i = 0; i < arr.length; i++) binary += String.fromCharCode(arr[i]);
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+function pemToArrayBuffer(pem) {
+  const b64 = pem.replace(/-----BEGIN PRIVATE KEY-----/, '').replace(/-----END PRIVATE KEY-----/, '').replace(/\s+/g, '');
+  const binary = atob(b64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes.buffer;
+}
+async function getFcmAccessToken(serviceAccount) {
+  const { client_email, private_key, token_uri } = serviceAccount;
+  const now = Math.floor(Date.now() / 1000);
+  const encoder = new TextEncoder();
+  const headerB64 = base64UrlEncode(encoder.encode(JSON.stringify({ alg: 'RS256', typ: 'JWT' })));
+  const claimsB64 = base64UrlEncode(encoder.encode(JSON.stringify({
+    iss: client_email, scope: 'https://www.googleapis.com/auth/firebase.messaging',
+    aud: token_uri, exp: now + 3600, iat: now,
+  })));
+  const signingInput = `${headerB64}.${claimsB64}`;
+  const cryptoKey = await crypto.subtle.importKey('pkcs8', pemToArrayBuffer(private_key), { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['sign']);
+  const signature = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', cryptoKey, encoder.encode(signingInput));
+  const jwt = `${signingInput}.${base64UrlEncode(signature)}`;
+  const res = await fetch(token_uri, {
+    method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: `grant_type=${encodeURIComponent('urn:ietf:params:oauth:grant-type:jwt-bearer')}&assertion=${encodeURIComponent(jwt)}`,
+  });
+  const data = await res.json();
+  if (!res.ok || !data.access_token) throw new Error(`FCM auth failed: ${data.error_description || data.error || res.status}`);
+  return data.access_token;
+}
+async function sendPushToToken(serviceAccountJson, token, payload) {
+  try {
+    const serviceAccount = JSON.parse(serviceAccountJson);
+    const accessToken = await getFcmAccessToken(serviceAccount);
+    const res = await fetch(`https://fcm.googleapis.com/v1/projects/${serviceAccount.project_id}/messages:send`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+      body: JSON.stringify({ message: { token, notification: { title: payload.title, body: payload.body }, data: payload.data || {}, webpush: { fcm_options: { link: '/' } }, apns: { payload: { aps: { sound: 'default' } } } } }),
+    });
+    return res.ok;
+  } catch { return false; }
+}
+async function sendPushToTokens(serviceAccountJson, tokens, payload) {
+  const results = await Promise.all(tokens.map((t) => sendPushToToken(serviceAccountJson, t, payload)));
+  return { sent: results.filter(Boolean).length };
+}
+
+// Chat channels each reach a different audience beyond the always-included
+// admin: 'company' also reaches that company's own manager, 'mechanic' also
+// reaches the maintenance team. 'staff' and 'dispatch' are admin-only targets
+// (staff themselves are already looking at the thread live via subscribe).
+// Stored token roles are registration metadata, never recipient authorization.
+// Re-evaluate current users and approved manager memberships for every send.
+async function recipientRows(db, name, query) {
+  const rows = [];
+  for (let skip = 0; skip < 10000; skip += 500) {
+    const batch = await db[name].filter(query, '-created_date', 500, skip);
+    rows.push(...batch);
+    if (batch.length < 500) return rows;
+  }
+  throw new Error('Notification recipient set is too large');
+}
+async function pushTokensForChannel(base44, channel, companyId) {
+  const db = base44.asServiceRole.entities;
+  const roles = ['admin'];
+  if (channel === 'company' && companyId) roles.push('company');
+  if (channel === 'mechanic') roles.push('mechanic');
+  const users = await recipientRows(db, 'User', { role: { $in: roles } });
+  const tokens = new Set();
+  for (const user of users) {
+    if (!user.email) continue;
+    if (user.role === 'company' && !(await approvedCompanies(base44, user, 'manager')).includes(companyId)) continue;
+    for (const row of await recipientRows(db, 'PushToken', { email: user.email })) {
+      if (typeof row.token === 'string' && row.token) tokens.add(row.token);
+    }
+  }
+  return [...tokens];
+}
+
+// When a bus leaves a stop, the next stop on its route is "one stop away":
+// push to passengers of this company who saved that stop as their favourite
+// and switched stop alerts on. Leaving each stop happens once per pass, so
+// this naturally sends one alert per bus per stop.
+async function notifyStopAhead(base44, route, departedName, vehicle, companyId) {
+  const serviceAccountJson = secrets.get('FIREBASE_SERVICE_ACCOUNT');
+  if (!serviceAccountJson) return;
+  const idx = route.stops.findIndex((s) => s.name === departedName);
+  const next = idx >= 0 ? route.stops[idx + 1] : null;
+  if (!next?.name) return;
+  const users = await base44.asServiceRole.entities.User.filter({ favorite_stop: next.name, stop_alerts: true });
+  // Stop names repeat across routes ("Stop 5"): only passengers who ride this
+  // bus (or have no bus yet) are told, not those waiting at another route's
+  // stop of the same name. Their directory card's bus wins, as on the tablet.
+  const busOf = new Map();
+  for (const row of await approvedPassengerMemberships(base44, companyId)) if (row.user_id) busOf.set(row.user_id, busOf.get(row.user_id) || row.vehicle_id || '');
+  const norm = (e) => String(e || '').trim().toLowerCase();
+  const candidates = users.filter((u) => busOf.has(u.id) && u.email);
+  // Directory emails may differ in case, so match them here rather than in the query.
+  const cards = candidates.length ? await base44.asServiceRole.entities.Contact.filter({ company_id: companyId }, '-updated_date', 2000).catch(() => []) : [];
+  const cardBus = new Map(cards.filter((c) => c.company_id === companyId && c.email && c.vehicle_id).map((c) => [norm(c.email), c.vehicle_id]));
+  const emails = candidates.filter((u) => {
+    const bus = cardBus.get(norm(u.email)) || busOf.get(u.id) || '';
+    return !bus || bus === vehicle.id;
+  }).map((u) => u.email);
+  if (!emails.length) return;
+  const tokenLists = await Promise.all(emails.map((email) => base44.asServiceRole.entities.PushToken.filter({ email })));
+  const tokens = [...new Set(tokenLists.flat().map((t) => t.token))];
+  if (!tokens.length) return;
+  const payload = {
+    title: `${vehicle.name} is one stop away`,
+    body: `It just left ${departedName}. Your stop, ${next.name}, is next.`,
+    data: { type: 'stop_ahead', vehicle_id: vehicle.id, stop: next.name },
+  };
+  await pushWithPolicy(base44, 'stop_ahead', tokens, payload, (list) => sendPushToTokens(serviceAccountJson, list, payload), { companyId });
+}
+
+// On a drawn road the stops are passengers' pickups along it, not named route
+// stops, so the alert above never fires. The tablet reports which of the
+// bus's stops is next (road_next): tell the passengers at that stop, if they
+// switched pickup alerts on. Runs once per stop, as the bus moves on.
+async function notifyRoadStopNext(base44, route, nextIndex, vehicle, companyId) {
+  const serviceAccountJson = secrets.get('FIREBASE_SERVICE_ACCOUNT');
+  if (!serviceAccountJson) return;
+  const db = base44.asServiceRole.entities;
+  const plan = await busRoadStops(db, route, vehicle.id);
+  const stop = plan?.stops?.[nextIndex];
+  const userIds = [...new Set((stop?.riders || []).map((r) => r.user_id).filter(Boolean))];
+  if (!userIds.length) return;
+  const users = await db.User.filter({ id: { $in: userIds }, stop_alerts: true }, '-updated_date', 200);
+  const approvedIds = await approvedStaffIds(base44, companyId);
+  const emails = [...new Set(users.filter((u) => approvedIds.has(u.id) && u.email).map((u) => u.email))];
+  if (!emails.length) return;
+  const rows = await db.PushToken.filter({ email: { $in: emails } }, '-created_date', 500).catch(() => []);
+  const tokens = [...new Set(rows.map((t) => t.token).filter((t) => typeof t === 'string' && t))];
+  if (!tokens.length) return;
+  const payload = {
+    title: `${vehicle.name} is on its way to you`,
+    body: nextIndex === 0 ? 'Your stop is its first stop. Head to your pickup.' : 'It just passed the stop before yours. Your stop is next: head to your pickup.',
+    data: { type: 'stop_ahead', vehicle_id: vehicle.id },
+  };
+  await pushWithPolicy(base44, 'stop_ahead', tokens, payload, (list) => sendPushToTokens(serviceAccountJson, list, payload), { companyId });
+}
+
+// A new trip counts its stops from the start again.
+async function clearRoadNext(base44, vehicleId) {
+  await base44.asServiceRole.entities.Vehicle.update(vehicleId, { road_next_stop: null }).catch(() => {});
+}
+
+// A driver moved some passengers' pickup: tell each of them on their phone.
+async function notifyPickupMoved(base44, riders, payload, companyId) {
+  const serviceAccountJson = secrets.get('FIREBASE_SERVICE_ACCOUNT');
+  const emails = [...new Set(riders.filter((r) => r.user_id && r.email).map((r) => r.email))];
+  if (!serviceAccountJson || !emails.length) return;
+  const rows = await base44.asServiceRole.entities.PushToken.filter({ email: { $in: emails } }, '-created_date', 500).catch(() => []);
+  const tokens = [...new Set(rows.map((t) => t.token).filter((t) => typeof t === 'string' && t))];
+  if (!tokens.length) return;
+  await pushWithPolicy(base44, 'pickup_moved', tokens, payload, (list) => sendPushToTokens(serviceAccountJson, list, payload), { companyId });
+}
+
+// The drawn road's stops for an unlocked tablet: where the bus stops, in the
+// order it reaches them, and who gets on there. `ref` is the passenger's id
+// in the tablet's `staff` list; no emails or account details.
+function tabletRoadStops(plan) {
+  if (!plan) return null;
+  const ref = (r) => r.contact_id || r.user_id;
+  return {
+    stops: plan.stops.map((s) => ({
+      key: s.key, name: s.name, lat: s.lat, lng: s.lng, along: s.along, fixed: !!s.fixed,
+      riders: s.riders.map((r) => ({ ref: ref(r), name: r.name || 'Passenger', moved_m: r.moved_m })),
+    })),
+    off_road: plan.off_road.map((r) => ({ ref: ref(r), name: r.name || 'Passenger' })),
+  };
+}
+
+const CHAT_CHANNELS = ['staff', 'company', 'dispatch', 'mechanic'];
+// What a tablet may upload: photos and voice notes for chat, a PNG signature
+// for a trip. Anything else (a web page, a script, a huge file) is refused,
+// because uploads are stored as public files.
+const CHAT_MEDIA_TYPES = { image: ['image/jpeg', 'image/png', 'image/webp', 'image/gif'], audio: ['audio/webm', 'audio/ogg', 'audio/mp4', 'audio/mpeg', 'audio/aac', 'audio/wav'] };
+const MAX_CHAT_MEDIA_BYTES = 8 * 1024 * 1024;
+const base64Fits = (b64, maxBytes) => typeof b64 === 'string' && b64.length <= Math.ceil(maxBytes / 3) * 4 + 4;
+
+function base64ToBytes(b64) {
+  const binary = atob(b64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+async function resolveDriverDevice(base44, deviceId, token) {
+  if (!deviceId || typeof deviceId !== 'string') return null;
+  const device = await base44.asServiceRole.entities.KioskDevice.get(deviceId).catch(error => {
+    if (error.status === 404) return null;
+    throw error;
+  });
+  if (!device || device.kiosk_type !== 'driver' || !(await deviceAccepted(base44, device, token))) return null;
+  return device;
+}
+
+async function loadVehicle(base44, vehicleId) {
+  if (!vehicleId) return null;
+  try { return await base44.asServiceRole.entities.Vehicle.get(vehicleId); }
+  catch (error) { if (error.status === 404) return null; throw error; }
+}
+
+// "Skip today" and "running late" carry an expiry so they switch themselves
+// off; a flag with no expiry (set before expiries existed) counts as expired.
+const flagActive = (on, until) => !!on && !!until && new Date(until).getTime() > Date.now();
+
+// Passengers this bus picks up: the ones assigned to it, and the company's
+// passengers not assigned to any bus yet (the same rule as the driver phone).
+// Riders of the company's other buses are left out.
+async function loadStaff(base44, companyId, vehicleId) {
+  const approvedRows = await approvedPassengerMemberships(base44,companyId);
+  const approvedIds = new Set(approvedRows.map(row=>row.user_id));
+  const busOf = new Map(approvedRows.map(row=>[row.user_id,row.vehicle_id||'']));
+  const ridesHere = (bus) => !bus || bus === vehicleId;
+  const [users, contacts, workplaces] = await Promise.all([
+    base44.asServiceRole.entities.User.list(),
+    base44.asServiceRole.entities.Contact.filter({ company_id: companyId }, '-updated_date', 500),
+    base44.asServiceRole.entities.Workplace.filter({ company_id: companyId }, '-updated_date', 5),
+  ]);
+  const workplace = workplaces.find(w => w.company_id === companyId && w.lat != null && w.lng != null
+    && Number.isFinite(Number(w.lat)) && Math.abs(Number(w.lat)) <= 90
+    && Number.isFinite(Number(w.lng)) && Math.abs(Number(w.lng)) <= 180);
+  const dropoff = { dropoff_name: workplace?.name || (workplace ? 'Company address' : ''),
+    dropoff_lat: workplace ? Number(workplace.lat) : null, dropoff_lng: workplace ? Number(workplace.lng) : null };
+  const userByEmail = new Map(
+    users.filter((u) => ['staff','passenger'].includes(u.role) && approvedIds.has(u.id))
+      .map((u) => [(u.email || '').toLowerCase(), u])
+  );
+  const companyContacts = contacts.filter((c) => c.company_id === companyId && ['staff','passenger'].includes(c.type));
+  const contactEmails = new Set(companyContacts.map((c) => (c.email || '').toLowerCase()));
+  const orphanUsers = [...userByEmail.values()].filter((u) => !contactEmails.has((u.email || '').toLowerCase()) && ridesHere(busOf.get(u.id)));
+  const merged = [
+    ...companyContacts.filter((c) => {
+      const u = userByEmail.get((c.email || '').toLowerCase());
+      return ridesHere(c.vehicle_id || (u ? busOf.get(u.id) : ''));
+    }).map((c) => {
+      const u = userByEmail.get((c.email || '').toLowerCase()) || {};
+      return {
+        id: c.id, full_name: u.display_name || c.name || u.full_name, email: c.email || u.email, phone: c.phone || u.phone,
+        home_lat: c.pickup_lat != null ? c.pickup_lat : (u.pickup_lat ?? u.home_lat),
+        home_lng: c.pickup_lng != null ? c.pickup_lng : (u.pickup_lng ?? u.home_lng),
+        pickup_name: c.pickup_name || u.pickup_name, ...dropoff,
+        skip_pickup_today: flagActive(u.skip_pickup_today, u.skip_pickup_until),
+        late_snooze_active: flagActive(u.late_snooze_active, u.late_until),
+      };
+    }),
+    ...orphanUsers.map((u) => ({
+      id: u.id, full_name: u.display_name || u.full_name, email: u.email, phone: u.phone,
+      home_lat: u.pickup_lat ?? u.home_lat, home_lng: u.pickup_lng ?? u.home_lng, pickup_name: u.pickup_name, ...dropoff,
+      skip_pickup_today: flagActive(u.skip_pickup_today, u.skip_pickup_until),
+      late_snooze_active: flagActive(u.late_snooze_active, u.late_until),
+    })),
+  ];
+  return merged;
+}
+
+function sanitize(value) {
+  if (value == null) return '';
+  return String(value).replace(/[\u0000-\u001F\u007F]/g, '').replace(/[<>]/g, '').trim();
+}
+
+// When a queued offline action really happened; anything implausible
+// (more than a minute ahead, or older than 3 days) falls back to now.
+function occurredAt(value) {
+  const t = value ? new Date(value).getTime() : NaN;
+  const now = Date.now();
+  if (!Number.isFinite(t) || t > now + 60_000 || t < now - 72 * 3600_000) return new Date(now);
+  return new Date(Math.min(t, now));
+}
+
+function haversineMeters(lat1, lng1, lat2, lng2) {
+  const R = 6371000;
+  const toRad = (d) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+// Live position updates (driving events, stop alerts) live in
+// shared/vehicleLocation.ts. Saved offline points use the same history
+// resolution here.
+const PING_LOG_INTERVAL_MS = 60000; // location-history resolution for the replay timeline
+
+// Inspection templates sent to drivers for this tablet's company.
+// Templates sent to this bus's driver app: right company, and either every
+// bus or one of the buses picked for it.
+function driverTemplates(templates, companyId, vehicleId) {
+  return (templates || [])
+    .filter((t) => (t.audience === 'driver' || t.audience === 'both') && (!t.company_id || t.company_id === companyId))
+    .filter((t) => !Array.isArray(t.driver_vehicle_ids) || !t.driver_vehicle_ids.length || t.driver_vehicle_ids.includes(vehicleId))
+    .map((t) => ({
+      id: t.id, name: t.name, sections: t.sections || [],
+      driver_trigger: t.driver_trigger || 'start_of_day', driver_days: t.driver_days || [],
+      driver_times: Array.isArray(t.driver_times) ? t.driver_times : [],
+      driver_from_time: t.driver_from_time || '', driver_required: t.driver_required !== false,
+      driver_sent_at: t.driver_sent_at || null, xray_layout: t.xray_layout || '',
+    }));
+}
+
+const SEVERITY = { Low: 'low', Medium: 'medium', High: 'high', Critical: 'critical' };
+
+// Status from the TransitTrack Helper Android app on the tablet (battery, card
+// reader, USB GPS...), relayed by the driver page. Shown in Admin → Kiosk Tablets.
+function cleanHelperHealth(h: unknown): Record<string, unknown> | null {
+  if (!h || typeof h !== 'object' || Array.isArray(h)) return null;
+  const o = h as Record<string, unknown>;
+  const str = (v: unknown, n: number) =>
+    typeof v === 'string' ? v.replace(/[\u0000-\u001f<>]/g, '').slice(0, n) : undefined;
+  const out: Record<string, unknown> = { reported_at: new Date().toISOString() };
+  Object.assign(out, nativeReleaseHealth(o), cleanHardwareHealth(o));
+  if (o.support_transport === 'webrtc') out.support_transport = 'webrtc';
+  for (const k of ['recordings_available', 'support_available', 'management_available', 'management_owner', 'management_locked']) if (typeof o[k] === 'boolean') out[k] = o[k];
+  const version = str(o.version, 16); if (version) out.version = version;
+  if (typeof o.battery === 'number' && Number.isFinite(o.battery)) out.battery = Math.max(0, Math.min(100, Math.round(o.battery)));
+  if (typeof o.charging === 'boolean') out.charging = o.charging;
+  if (typeof o.parked === 'boolean') out.parked = o.parked;
+  const reader = str(o.reader, 40); if (reader) out.reader = reader;
+  const gps = str(o.gps, 40); if (gps) out.gps = gps;
+  const hotspot = str(o.hotspot, 40); if (hotspot) out.hotspot = hotspot;
+  const lastCard = str(o.last_card_at, 40); if (lastCard) out.last_card_at = lastCard;
+  // Helper 1.9: whether Admin set this driver tablet's hotspot to always on.
+  Object.assign(out, cleanNetworkHealth(o));
+  return out;
+}
+
+// What the TransitTrack app itself reports (build, uploads waiting, last GPS
+// fix, card reader in use). Shown in Admin → Fleet health.
+function cleanAppHealth(h: unknown): Record<string, unknown> | null {
+  if (!h || typeof h !== 'object' || Array.isArray(h)) return null;
+  const o = h as Record<string, unknown>;
+  const str = (v: unknown, n: number) =>
+    typeof v === 'string' ? v.replace(/[\u0000-\u001f<>]/g, '').slice(0, n) : undefined;
+  const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? Math.max(0, Math.min(100000, Math.round(v))) : undefined);
+  const date = (v: unknown) => { const s = str(v, 40); return s && !Number.isNaN(Date.parse(s)) ? new Date(s).toISOString() : undefined; };
+  const coord = (v: unknown, max: number) =>
+    typeof v === 'number' && Number.isFinite(v) && Math.abs(v) <= max ? Math.round(v * 1e6) / 1e6 : undefined;
+  const out: Record<string, unknown> = { reported_at: new Date().toISOString() };
+  const set = (k: string, v: unknown) => { if (v !== undefined) out[k] = v; };
+  set('build', str(o.build, 24));
+  set('lat', coord(o.lat, 90));
+  set('lng', coord(o.lng, 180));
+  if (typeof o.online === 'boolean') out.online = o.online;
+  set('queued_gps', num(o.queued_gps));
+  set('queued_checkins', num(o.queued_checkins));
+  set('queued_jobs', num(o.queued_jobs));
+  set('request_metrics',cleanRequestMetrics(o.request_metrics));
+  set('last_gps_fix', date(o.last_gps_fix));
+  set('reader', str(o.reader, 24));
+  set('saved_list_at', date(o.saved_list_at));
+  set('saved_list_count', num(o.saved_list_count));
+  return out;
+}
+const MAX_INSPECTION_PHOTOS = 25;
+const MAX_PHOTO_B64 = 3_000_000;
+
+// Tablet response contract: whitelist fields; never forward entire entity records.
+function tabletFields(row, fields) {
+  if (!row) return null;
+  return Object.fromEntries(fields.filter((k) => row[k] !== undefined).map((k) => [k, row[k]]));
+}
+function tabletVehicle(row) {
+  const out = tabletFields(row, ['id', 'name', 'type', 'plate_number', 'company_id', 'company_name', 'capacity', 'route_id', 'current_lat', 'current_lng', 'speed', 'heading', 'status', 'driver_name', 'driver_email', 'image_url', 'model_3d', 'tracking_active', 'remote_tracking_lock', 'last_location_update', 'current_odometer', 'trip_direction']);
+  if (out && Array.isArray(row.trail)) out.trail = row.trail.map((t) => tabletFields(t, ['lat', 'lng', 't']));
+  return out;
+}
+function tabletRoute(row, companyId) {
+  if (!row || row.company_id !== companyId) return null;
+  const point = (p) => tabletFields(p, ['lat', 'lng']);
+  return { ...tabletFields(row, ['id', 'name', 'type', 'active', 'company_id']), stops: (row.stops || []).map((s) => tabletFields(s, ['name', 'lat', 'lng', 'order'])), path: (row.path || []).map(point), path_via: (row.path_via || []).map(point) };
+}
+function tabletCheckIn(row) {
+  return tabletFields(row, ['id', 'staff_name', 'staff_picture_url', 'company_name', 'status', 'boarded_at', 'created_date', 'vehicle_id', 'vehicle_name', 'check_in_method']);
+}
+function boardingStats(rows) {
+  const latest = new Map();
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Grenada' });
+  let todayCount = 0;
+  for (const row of rows || []) {
+    const key = row.card_tag || row.staff_name;
+    const prev = latest.get(key);
+    if (!prev || Date.parse(row.created_date) > Date.parse(prev.created_date)) latest.set(key, row);
+    if (row.status === 'boarded' && new Date(row.created_date).toLocaleDateString('en-CA', { timeZone: 'America/Grenada' }) === today) todayCount++;
+  }
+  return { occupancy: [...latest.values()].filter((r) => r.status === 'boarded').length, today_count: todayCount };
+}
+async function tabletCheckIns(base44, companyId, vehicleId) {
+  if (!companyId || !vehicleId) return [];
+  const rows = [];
+  for (let skip = 0; ; skip += 500) {
+    const batch = await base44.asServiceRole.entities.StaffCheckIn.filter({ company_id: companyId, vehicle_id: vehicleId }, '-created_date', 500, skip);
+    rows.push(...batch);
+    if (batch.length < 500) return rows;
+  }
+}
+// Nobody is riding a bus when a shift begins or ends. Everyone still marked
+// aboard this vehicle is signed off with a fresh record (the same shape the
+// boarding kiosk writes) rather than editing the original sign-in, so the day's
+// log keeps both the time they boarded and the time they were taken off.
+async function offboardEveryone(base44, { companyId, companyName, vehicleId, vehicleName, at }) {
+  const rows = await tabletCheckIns(base44, companyId, vehicleId);
+  const latest = new Map();
+  for (const row of rows) {
+    const key = row.card_tag || row.staff_name;
+    if (!key) continue;
+    const prev = latest.get(key);
+    if (!prev || Date.parse(row.created_date) > Date.parse(prev.created_date)) latest.set(key, row);
+  }
+  const aboard = [...latest.values()].filter((r) => r.status === 'boarded');
+  if (!aboard.length) return 0;
+  await base44.asServiceRole.entities.StaffCheckIn.bulkCreate(aboard.map((r) => ({
+    staff_name: r.staff_name, staff_picture_url: r.staff_picture_url || '', card_tag: r.card_tag,
+    status: 'off_board', boarded_at: new Date(at).toISOString(), check_in_method: 'manual',
+    company_id: companyId, company_name: companyName, vehicle_id: vehicleId,
+    vehicle_name: r.vehicle_name || vehicleName || '',
+  })));
+  return aboard.length;
+}
+
+async function hashSecret(value) {
+ const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
+ return Array.from(new Uint8Array(bytes), b => b.toString(16).padStart(2,'0')).join('');
+}
+function randomSecret() { return Array.from(crypto.getRandomValues(new Uint8Array(32)), b => b.toString(16).padStart(2,'0')).join(''); }
+function randomDigits(len) {
+ let out = '';
+ while (out.length < len) { const b = crypto.getRandomValues(new Uint8Array(1))[0]; if (b < 250) out += b % 10; }
+ return out;
+}
+// Short codes for "Start with the driver app": six characters a driver can
+// also type, without look-alikes (0/O, 1/I/L). They last two minutes.
+const PHONE_UNLOCK_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+const PHONE_UNLOCK_TTL_MS = 2 * 60_000;
+function phoneUnlockCode() {
+ let out = '';
+ const limit = Math.floor(256 / PHONE_UNLOCK_ALPHABET.length) * PHONE_UNLOCK_ALPHABET.length;
+ while (out.length < 6) { const b = crypto.getRandomValues(new Uint8Array(1))[0]; if (b < limit) out += PHONE_UNLOCK_ALPHABET[b % PHONE_UNLOCK_ALPHABET.length]; }
+ return out;
+}
+// Attempt limiting moved to shared/atomicOps.ts: the count and the write must
+// not interleave with a concurrent call, so they now run inside one lock.
+async function noteWrongPin(base44, vehicleId) {
+ await base44.asServiceRole.entities.VerificationAttempt.create({ scope: 'driver-pin:' + vehicleId, attempted_at: new Date().toISOString() });
+}
+// Only a WRONG PIN counts against the limit. Counting the entries that worked
+// too meant a driver whose tablet asked for the PIN again (a reload, the app
+// being reopened) ran out of tries and was then refused a PIN that was
+// correct — which reads to a driver as "the code is wrong".
+// Checking the limit, checking the PIN and recording a wrong one happen as one
+// step per bus, so a burst of guesses sent at once can't all slip under the
+// limit before any of them is recorded.
+function pinAttempt(base44, vehicle, pin) {
+ return withLock('driver-pin:' + vehicle.id, async () => {
+  if (await pinAttemptsExhausted(base44, vehicle.id)) return 'locked';
+  if (!(await verifyProtectedPin(base44, vehicle, pin))) { await noteWrongPin(base44, vehicle.id); return 'wrong'; }
+  return 'ok';
+ });
+}
+async function pinAttemptsExhausted(base44, vehicleId) {
+ const rows = await base44.asServiceRole.entities.VerificationAttempt.filter({ scope: 'driver-pin:' + vehicleId }, '-created_date', 5);
+ return rows.filter(r => Date.parse(r.attempted_at) > Date.now() - 15 * 60_000).length >= 5;
+}
+async function driverCredentialVersion(base44,vehicleId) {
+ const row=(await base44.asServiceRole.entities.DriverPinCredential.filter({vehicle_id:vehicleId},'-updated_date',1))[0];
+ return row ? hashSecret(JSON.stringify({company_id:row.company_id,pin_hash:row.pin_hash,salt:row.salt,enabled:row.enabled})) : 'legacy';
+}
+async function issueGrant(base44, device, purpose, subject, ttlMs) {
+ const secret = randomSecret();
+ await base44.asServiceRole.entities.VerificationGrant.create({
+ token_hash: await hashSecret(secret), ...(purpose==='driver'?{credential_version:await driverCredentialVersion(base44,subject)}:{}), device_id: device.id, company_id: device.company_id,
+ vehicle_id: device.vehicle_id, pairing_code_hash: await hashSecret(device.pairing_code || ''), purpose, subject, expires_at: new Date(Date.now()+ttlMs).toISOString(),
+ });
+ return secret;
+}
+async function validGrant(base44, device, token, purpose, subject) {
+ if (typeof token !== 'string' || !/^[a-f0-9]{64}$/.test(token)) return false;
+ const rows = await base44.asServiceRole.entities.VerificationGrant.filter({ token_hash: await hashSecret(token) }, '-created_date', 1);
+ const row = rows[0];
+ if(purpose==='driver' && row?.credential_version!==await driverCredentialVersion(base44,subject)) return false;
+ return !!row && row.pairing_code_hash === await hashSecret(device.pairing_code || '') && row.device_id === device.id && row.company_id === device.company_id && row.vehicle_id === device.vehicle_id && row.purpose === purpose && row.subject === subject && Date.parse(row.expires_at) > Date.now();
+}
+
+async function pinHash(pin, salt) {
+ let bytes;
+ try {
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(pin), 'PBKDF2', false, ['deriveBits']);
+  const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt: new TextEncoder().encode(salt), iterations: 600000, hash: 'SHA-256' }, key, 256);
+  bytes = new Uint8Array(bits);
+ } catch {
+  // Some hosted WebCrypto runtimes reject PBKDF2 even when local Deno works.
+  // Pure JavaScript PBKDF2 keeps the identical salt, work factor and output.
+  const { pbkdf2Async } = await import('npm:@noble/hashes@1.8.0/pbkdf2');
+  const { sha256 } = await import('npm:@noble/hashes@1.8.0/sha256');
+  bytes = await pbkdf2Async(sha256, new TextEncoder().encode(pin), new TextEncoder().encode(salt), { c: 600000, dkLen: 32 });
+ }
+ return Array.from(bytes, b => b.toString(16).padStart(2,'0')).join('');
+}
+async function setProtectedPin(base44, vehicle, pin) {
+ const salt = Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2,'0')).join('');
+ const data = { vehicle_id: vehicle.id, company_id: vehicle.company_id, salt, pin_hash: pin ? await pinHash(pin, salt) : '', enabled: !!pin };
+ const rows = await base44.asServiceRole.entities.DriverPinCredential.filter({ vehicle_id: vehicle.id }, '-updated_date', 1);
+ if (rows[0]) await base44.asServiceRole.entities.DriverPinCredential.update(rows[0].id, data);
+ else await base44.asServiceRole.entities.DriverPinCredential.create(data);
+ await base44.asServiceRole.entities.Vehicle.update(vehicle.id, { driver_pin: '' });
+}
+async function verifyProtectedPin(base44, vehicle, pin) {
+ if (typeof pin !== 'string' || !/^\d{4}$/.test(pin)) return false;
+ const rows = await base44.asServiceRole.entities.DriverPinCredential.filter({ vehicle_id: vehicle.id }, '-updated_date', 1);
+ const row = rows[0];
+ if (row) return row.enabled === true && row.company_id === vehicle.company_id && (await pinHash(pin, row.salt)) === row.pin_hash;
+ // Development migration only: successful verification moves the old PIN to a protected hash.
+ if (pin !== vehicle.driver_pin) return false;
+ await setProtectedPin(base44, vehicle, pin);
+ return true;
+}
+
+async function replayInspection(base44,device,body) {
+ const id=body.client_request_id;
+ if(id===undefined) return {fields:{},prior:null};
+ if(typeof id!=='string' || !/^[a-zA-Z0-9_-]{8,100}$/.test(id)) throw Object.assign(new Error('Invalid request ID'),{status:400});
+ const {driver_grant,device_token,device_id,client_request_id,expected_device_id,expected_company_id,expected_vehicle_id,queue_replay,...data}=body;
+ const hash=await hashSecret(JSON.stringify(data));
+ const prior=(await base44.asServiceRole.entities.Inspection.filter({client_request_id:id,request_actor_id:device.id,company_id:device.company_id,vehicle_id:device.vehicle_id},'-created_date',1))[0];
+ if(prior && prior.request_hash!==hash) throw Object.assign(new Error('Request ID reused with different data'),{status:409});
+ return {fields:{client_request_id:id,request_hash:hash,request_actor_id:device.id},prior};
+}
+async function createInspection(base44,device,replay,data) {
+ const key=replay.fields.client_request_id;
+ const db=base44.asServiceRole.entities.Inspection;
+ return replay.prior || durableCreate(key ? JSON.stringify(['inspection',device.id,device.company_id,device.vehicle_id,key]) : null,
+  replay.fields.request_hash || await operationHash(JSON.stringify(data)),()=>db.create(data),id=>db.get(id));
+}
+async function inspectionChild(base44,name,data,key,actor) {
+ if(!key) return base44.asServiceRole.entities[name].create(data);
+ const db=base44.asServiceRole.entities[name];
+ const prior=(await db.filter({client_request_id:key,request_actor_id:actor,company_id:data.company_id,vehicle_id:data.vehicle_id},'-created_date',1))[0];
+ const {photo_url,inspection_date,...stable}=data;
+ return prior || durableCreate(JSON.stringify(['inspection-child',name,actor,data.company_id,data.vehicle_id,key]),
+  await operationHash(JSON.stringify(stable)),()=>db.create({...data,client_request_id:key,request_actor_id:actor}),id=>db.get(id));
+}
+export default async function(req) {
+  try {
+    const body = await req.json();
+    const { device_id, action } = body;
+
+    const base44 = createClientFromRequest(req);
+    const device = await resolveDriverDevice(base44, device_id, body.device_token);
+    if (!device) return Response.json({ error: 'Invalid or unpaired driver device', code: 'DEVICE_ACCESS_REQUIRED' }, { status: 401 });
+
+    const companyId = device.company_id;
+    const companyName = device.company_name;
+    const vehicleId = device.vehicle_id;
+    if (!vehicleId) return Response.json({ error: 'No vehicle assigned to this device' }, { status: 400 });
+
+    if (!['heartbeat', 'verify_pin', 'request_pin_reset', 'register_push_token', 'sos', 'phone_unlock_code', 'phone_unlock_status'].includes(action) && !(await validGrant(base44, device, body.driver_grant, 'driver', vehicleId))) return Response.json({ error: 'Driver PIN verification required', code: 'DRIVER_PIN_REQUIRED' }, { status: 401 });
+
+    const nativeBackground = ['background_check','background_location','background_export_check'].includes(action) || body.native_background === true;
+    if (nativeBackground) {
+      if (!['background_check','background_location','background_export_check','upload_track'].includes(action) ||
+          !(await authenticatedTablet(base44, device, body.device_token)))
+        return Response.json({error:'Current enrolled driver tablet required'}, {status:403});
+      if (body.expected_device_id !== device.id || body.expected_company_id !== companyId || body.expected_vehicle_id !== vehicleId)
+        return Response.json({error:'Background tracking assignment mismatch'}, {status:409});
+      const current = await loadVehicle(base44, vehicleId);
+      if (!current || current.company_id !== companyId) return Response.json({error:'Vehicle assignment mismatch'}, {status:409});
+      if (!['upload_track','background_export_check'].includes(action) && !current.tracking_active && !current.remote_tracking_lock)
+        return Response.json({ok:true,tracking:false});
+      if (action === 'background_export_check') return Response.json({ok:true});
+      if (action === 'background_check') {
+        const status = body.native_tracking_health;
+        const finiteCount = v => typeof v === 'number' && Number.isFinite(v) ? Math.max(0,Math.min(10000,Math.floor(v))) : 0;
+        const lastFix = typeof status?.last_fix_at === 'number' && Number.isFinite(status.last_fix_at) && status.last_fix_at > Date.now()-72*3600000 && status.last_fix_at <= Date.now()+2000 ? new Date(status.last_fix_at).toISOString() : null;
+        await base44.asServiceRole.entities.KioskDevice.update(device.id, {last_seen:new Date().toISOString(),native_tracking_health:{
+          active:true,reported_at:new Date().toISOString(),pending:finiteCount(status?.pending),review:finiteCount(status?.review),...(lastFix?{last_fix_at:lastFix}:{}),
+        }});
+        const grant = (await base44.asServiceRole.entities.VerificationGrant.filter({token_hash:await hashSecret(body.driver_grant)},'-created_date',1))[0];
+        return Response.json({ok:true,tracking:true,expires_at:grant.expires_at,server_time:new Date().toISOString()});
+      }
+    }
+
+    const helperHealth = cleanHelperHealth(body.helper_health);
+    const appHealth = cleanAppHealth(body.app_health);
+    // The hotspot switch from Admin → Kiosk tablets (see shared/tabletNetwork.ts).
+    // Driver tablets never receive Wi-Fi passwords, so no device-key check is needed here.
+    const network = action === 'heartbeat' ? networkCheckIn(device, body.network_ack, false, Date.now(), body.network_result) : null;
+    if (action === 'heartbeat') await base44.asServiceRole.entities.KioskDevice.update(device_id, {
+      ...(network ? network.updates : {}),
+      last_seen: new Date().toISOString(),
+      // Sent once per app start: how this tablet draws maps (for support).
+      ...(typeof body.device_info === 'string' ? { device_info: sanitize(body.device_info).slice(0, 400) } : {}),
+      ...(helperHealth ? { helper_health: helperHealth } : {}),
+      ...(appHealth ? { app_health: appHealth } : {}),
+    });
+
+    if(body.queue_replay && (action==='upload_track' ? !Array.isArray(body.points) || body.points.some(p=>!p?.expected_device_id || !p?.expected_company_id || !p?.expected_vehicle_id) : !body.expected_device_id || !body.expected_company_id || !body.expected_vehicle_id)) return Response.json({error:'Legacy saved work lacks its original assignment; export for review'},{status:409});
+    const matchesAssignment = (value) => (!value.expected_device_id || value.expected_device_id===device.id) && (!value.expected_company_id || value.expected_company_id===companyId) && (!value.expected_vehicle_id || value.expected_vehicle_id===vehicleId);
+    if(!matchesAssignment(body) || (action==='upload_track' && Array.isArray(body.points) && body.points.some(p=>!matchesAssignment(p||{})))) return Response.json({error:'Saved work belongs to a different tablet assignment'},{status:409});
+
+    switch (action) {
+      case 'messages': {
+        const vehicle = await loadVehicle(base44, vehicleId);
+        if (!vehicle || vehicle.company_id !== companyId) return Response.json({error:'Vehicle assignment mismatch'},{status:403});
+        const messages = await base44.asServiceRole.entities.GroupMessage.filter({vehicle_id:vehicleId},'-created_date',200);
+        return Response.json({group_messages:messages.filter(m=>m.company_id===companyId).reverse()});
+      }
+      case 'show_pickup_sign': {
+        const db = base44.asServiceRole.entities;
+        const vehicle = await loadVehicle(base44, vehicleId);
+        if (!vehicle || vehicle.company_id !== companyId) return Response.json({error:'Vehicle assignment mismatch'},{status:403});
+        const trip = body.trip_id ? await db.Trip.get(body.trip_id) : null;
+        if (body.trip_id && (!trip || trip.vehicle_id !== vehicleId || trip.company_id !== companyId || !['scheduled','on_the_way','arrived'].includes(trip.status)))
+          return Response.json({error:'Job is not assigned to this bus'},{status:403});
+        const devices = (await db.KioskDevice.filter({vehicle_id:vehicleId,company_id:companyId,status:'active'},'-created_date',100))
+          .filter(d=>d.paired && ['bus_boarding','job_signing'].includes(d.kiosk_type));
+        if (!devices.length) return Response.json({error:'Pair a boarding/sign-in device with this bus first.'},{status:409});
+        const sign = {id:crypto.randomUUID(),name:trip?.passenger_name || trip?.client_name || '',
+          subtitle:trip?.passenger_name ? trip?.client_name || '' : '', shown_at:new Date().toISOString(),
+          expires_at:new Date(Date.now()+30*60_000).toISOString()};
+        for (const target of devices) await db.KioskDevice.update(target.id,{pickup_sign:sign});
+        return Response.json({ok:true,devices:devices.length});
+      }
+      case 'request_pin_reset': {
+        const vehicle = await loadVehicle(base44, vehicleId);
+        if (!vehicle || vehicle.company_id !== companyId) return Response.json({ error: 'Vehicle assignment mismatch' }, { status: 403 });
+        if (!(await reserveAttempt(base44, 'driver-pin-reset:' + device.id, 1, 15 * 60_000))) return Response.json({ error: 'A reset request was already sent recently. Please contact your administrator.' }, { status: 429 });
+        await base44.asServiceRole.entities.Broadcast.create({
+          type: 'info', title: 'Driver PIN reset requested', is_reply: true,
+          message: 'PIN reset requested from the paired tablet for ' + vehicle.name + '. Admin: open Drivers, find the assigned bus and use Save PIN.',
+          company_id: companyId, company_name: companyName || '',
+          vehicle_name: vehicle.name, driver_name: vehicle.driver_name || '', driver_email: vehicle.driver_email || '',
+        });
+        return Response.json({ ok: true });
+      }
+      case 'verify_pin': {
+        const vehicle = await loadVehicle(base44, vehicleId);
+        if (!vehicle || vehicle.company_id !== companyId) return Response.json({ error: 'Vehicle assignment mismatch' }, { status: 403 });
+        const pinResult = await pinAttempt(base44, vehicle, body.pin);
+        if (pinResult === 'locked') return Response.json({ error: 'Too many PIN attempts. Try again in 15 minutes.' }, { status: 429 });
+        if (pinResult === 'wrong') return Response.json({ error: 'Incorrect PIN or no PIN configured' }, { status: 403 });
+        // The grant has to outlast a full shift: at 12 hours it expired in the
+        // middle of a long day and dropped the driver back to the PIN screen
+        // while they were driving. The real daily gate is the tablet asking
+        // for the PIN again at the start of the next local day.
+        return Response.json({ ok: true, driver_grant: await issueGrant(base44, device, 'driver', vehicleId, 20 * 3600_000) });
+      }
+      // Start with the driver app: the locked tablet shows a short code (as a
+      // QR) for two minutes. A driver signed in to the phone app claims it
+      // (driverPhone claim_bus), which starts their shift; the tablet then
+      // collects the same driver pass a correct PIN would give it. The PIN
+      // keeps working as the backup.
+      case 'phone_unlock_code': {
+        const vehicle = await loadVehicle(base44, vehicleId);
+        if (!vehicle || vehicle.company_id !== companyId) return Response.json({ error: 'Vehicle assignment mismatch' }, { status: 403 });
+        if (!(await reserveAttempt(base44, 'phone-unlock-code:' + device.id, 20, 15 * 60_000))) return Response.json({ error: 'Too many codes requested. Use the PIN, or wait a few minutes.' }, { status: 429 });
+        const code = phoneUnlockCode();
+        const expiresAt = new Date(Date.now() + PHONE_UNLOCK_TTL_MS).toISOString();
+        const row = await base44.asServiceRole.entities.PhoneUnlock.create({
+          device_id: device.id, vehicle_id: vehicleId, company_id: companyId,
+          code_hash: await hashSecret('phone-unlock:' + code), expires_at: expiresAt, status: 'pending',
+        });
+        return Response.json({ unlock_id: row.id, code, expires_at: expiresAt });
+      }
+      case 'phone_unlock_status': {
+        const id = body.unlock_id;
+        if (typeof id !== 'string' || !id || id.length > 100) return Response.json({ error: 'Unlock request required' }, { status: 400 });
+        const row = await base44.asServiceRole.entities.PhoneUnlock.get(id).catch(() => null);
+        if (!row || row.device_id !== device.id || row.vehicle_id !== vehicleId || row.company_id !== companyId) return Response.json({ error: 'Unlock request not found' }, { status: 404 });
+        if (row.status === 'pending') return Response.json({ status: Date.parse(row.expires_at) > Date.now() ? 'pending' : 'expired' });
+        // Claimed by a driver: hand this tablet its pass. A reply lost on a
+        // weak signal is collected again on the next check, for ten minutes.
+        if (!(Date.parse(row.claimed_at) > Date.now() - 10 * 60_000)) return Response.json({ status: 'expired' });
+        if (row.status !== 'delivered') await base44.asServiceRole.entities.PhoneUnlock.update(row.id, { status: 'delivered', delivered_at: new Date().toISOString() });
+        return Response.json({
+          status: 'unlocked', driver_name: row.driver_name || '',
+          driver_grant: await issueGrant(base44, device, 'driver', vehicleId, 20 * 3600_000),
+        });
+      }
+      case 'move_stop':
+      case 'add_stop':
+      case 'move_pickup': {
+        // Drivers fix stops where the map is wrong. The new point is always the
+        // bus's own last GPS fix held on the server (never coordinates sent by
+        // the tablet), so a stop can only be placed where the bus really is.
+        // On a route with a drawn road, only on that road (within ROAD_EDIT_M).
+        const vehicle = await loadVehicle(base44, vehicleId);
+        if (!vehicle || vehicle.company_id !== companyId) return Response.json({ error: 'Vehicle assignment mismatch' }, { status: 403 });
+        if (!vehicle.route_id) return Response.json({ error: 'This bus has no route yet. Ask dispatch to assign one.' }, { status: 400 });
+        let route = null;
+        try { route = await base44.asServiceRole.entities.Route.get(vehicle.route_id); } catch { route = null; }
+        if (!route || route.company_id !== companyId) return Response.json({ error: 'Route not found' }, { status: 404 });
+        const lat = Number(vehicle.current_lat), lng = Number(vehicle.current_lng);
+        const fixAge = Date.now() - Date.parse(vehicle.last_location_update || '');
+        if (!Number.isFinite(lat) || !Number.isFinite(lng) || !(fixAge >= 0 && fixAge <= 2 * 60_000)) {
+          return Response.json({ error: 'No fresh GPS position for this bus. Turn on location sharing and try again in a moment.' }, { status: 409 });
+        }
+        if (!(await reserveAttempt(base44, 'stop-edit:' + vehicleId, 20, 60 * 60_000))) return Response.json({ error: 'Too many stop changes this hour. Try again later.' }, { status: 429 });
+        const RADIUS = 150;
+        const ROAD_EDIT_M = 50;
+        const road = roadPointsToLine(route.path);
+        const onRoad = road.length >= 2 ? placeOnRoad(road, lat, lng) : null;
+        if (road.length >= 2 && !(onRoad && onRoad.off <= ROAD_EDIT_M)) {
+          return Response.json({ error: `The bus is ${onRoad ? Math.round(onRoad.off) : 'too far'} m from this route's road. Stops can only be changed on the road the bus drives (within ${ROAD_EDIT_M} m).` }, { status: 400 });
+        }
+        if (action === 'move_pickup') {
+          // Move a pickup stop (the passengers who meet there) to where the bus
+          // is now, on the road. Each passenger is told, and it is logged.
+          if (!onRoad) return Response.json({ error: 'This route has no drawn road. Ask dispatch to draw it in the Route Planner.' }, { status: 400 });
+          const db = base44.asServiceRole.entities;
+          const plan = await busRoadStops(db, route, vehicleId);
+          const key = sanitize(body.stop_key).slice(0, 120);
+          const stop = plan?.stops.find((st) => st.key === key && !st.fixed);
+          if (!stop || !stop.riders.length) return Response.json({ error: 'That pickup has changed. Refresh and try again.' }, { status: 404 });
+          const away = haversineMeters(lat, lng, stop.lat, stop.lng);
+          if (away > RADIUS) return Response.json({ error: `The bus must be within ${RADIUS} m of ${stop.name} to move it.` }, { status: 400 });
+          const to = { lat: Number(onRoad.lat.toFixed(6)), lng: Number(onRoad.lng.toFixed(6)) };
+          const movedM = Math.round(haversineMeters(stop.lat, stop.lng, to.lat, to.lng));
+          const driverName = vehicle.driver_name || 'Your driver';
+          const at = new Date().toISOString();
+          for (const r of stop.riders) {
+            if (r.user_id) await db.User.update(r.user_id, { pickup_lat: to.lat, pickup_lng: to.lng, pickup_route_id: route.id, pickup_moved: { at, by: driverName, m: movedM, lat: to.lat, lng: to.lng } });
+            if (r.contact_id) {
+              const card = r.user_id ? await db.Contact.get(r.contact_id).catch(() => null) : { pickup_lat: 0 };
+              if (card && card.pickup_lat != null) await db.Contact.update(r.contact_id, { pickup_lat: to.lat, pickup_lng: to.lng });
+            }
+          }
+          await db.AuditLog.create({
+            actor_name: vehicle.driver_name || 'Driver tablet', actor_role: 'driver', action: 'update', entity: 'Route',
+            record_id: route.id, page: 'driver tablet',
+            summary: `Moved pickup "${stop.name}" ${movedM} m to the bus's position for ${stop.riders.length} passenger${stop.riders.length === 1 ? '' : 's'} from ${vehicle.name} on ${route.name || 'route'}`,
+          }).catch(() => {});
+          await notifyPickupMoved(base44, stop.riders, {
+            title: 'Your pickup has moved',
+            body: `${driverName} moved your pickup ${movedM} m along ${route.name || 'the route'}, to where the bus can stop. Open the app to see where to wait.`,
+            data: { type: 'pickup_moved', route_id: route.id },
+          }, companyId).catch(() => {});
+          return Response.json({ ok: true, moved: stop.riders.length, moved_m: movedM, road_stops: tabletRoadStops(await busRoadStops(db, route, vehicleId)) });
+        }
+        const stops = (route.stops || []).slice().sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+        const located = stops.filter((st) => Number.isFinite(Number(st.lat)) && Number.isFinite(Number(st.lng)));
+        const nearest = located.map((st) => ({ st, d: haversineMeters(lat, lng, Number(st.lat), Number(st.lng)) })).sort((a, b) => a.d - b.d)[0];
+        let next, summary;
+        if (action === 'move_stop') {
+          const name = sanitize(body.stop_name).slice(0, 80);
+          const target = stops.find((st) => st.name === name);
+          if (!target) return Response.json({ error: 'Stop not found on this route' }, { status: 404 });
+          if (!nearest || nearest.st !== target || nearest.d > RADIUS) return Response.json({ error: `The bus must be within ${RADIUS} m of ${name} to move it.` }, { status: 400 });
+          next = stops.map((st) => (st === target ? { ...st, lat, lng } : st));
+          summary = `Moved stop "${name}" to the bus's position (${Math.round(nearest.d)} m) from ${vehicle.name}`;
+        } else {
+          const name = sanitize(body.name).slice(0, 60);
+          if (name.length < 2) return Response.json({ error: 'Give the new stop a name.' }, { status: 400 });
+          if (stops.some((st) => String(st.name || '').toLowerCase() === name.toLowerCase())) return Response.json({ error: 'A stop with that name is already on this route.' }, { status: 400 });
+          if (nearest && nearest.d <= RADIUS) return Response.json({ error: `${nearest.st.name} is only ${Math.round(nearest.d)} m away. Move that stop instead.` }, { status: 400 });
+          // Put it where it adds the least extra distance along the route.
+          let at = stops.length;
+          if (located.length >= 2) {
+            let best = Infinity;
+            const pos = (st) => [Number(st.lat), Number(st.lng)];
+            for (let i = 0; i < stops.length - 1; i++) {
+              const a = stops[i], b = stops[i + 1];
+              if (!Number.isFinite(Number(a.lat)) || !Number.isFinite(Number(b.lat))) continue;
+              const [alat, alng] = pos(a), [blat, blng] = pos(b);
+              const extra = haversineMeters(alat, alng, lat, lng) + haversineMeters(lat, lng, blat, blng) - haversineMeters(alat, alng, blat, blng);
+              if (extra < best) { best = extra; at = i + 1; }
+            }
+          }
+          next = [...stops.slice(0, at), { name, lat, lng }, ...stops.slice(at)];
+          summary = `Added stop "${name}" at the bus's position from ${vehicle.name}`;
+        }
+        // With a drawn road, the stops go in the order the bus reaches them on it.
+        if (road.length >= 2) {
+          const along = (st) => (Number.isFinite(Number(st.lat)) && Number.isFinite(Number(st.lng)) ? placeOnRoad(road, Number(st.lat), Number(st.lng))?.along ?? Infinity : Infinity);
+          next = next.map((st, i) => ({ st, i, a: along(st) })).sort((x, y) => x.a - y.a || x.i - y.i).map((x) => x.st);
+        }
+        next = next.map((st, i) => ({ ...st, order: i }));
+        const updated = await base44.asServiceRole.entities.Route.update(route.id, { stops: next });
+        await base44.asServiceRole.entities.AuditLog.create({
+          actor_name: vehicle.driver_name || 'Driver tablet', actor_role: 'driver', action: 'update', entity: 'Route',
+          record_id: route.id, summary: summary + ` on ${route.name || 'route'}`, page: 'driver tablet',
+        }).catch(() => {});
+        return Response.json({ ok: true, route: tabletRoute({ ...route, ...(updated || {}), stops: next }, companyId) });
+      }
+      case 'my_documents': {
+        // The assigned driver's licence and insurance. Needs the bus PIN again
+        // even on an unlocked tablet, and shares the PIN attempt limit.
+        const vehicle = await loadVehicle(base44, vehicleId);
+        if (!vehicle || vehicle.company_id !== companyId) return Response.json({ error: 'Vehicle assignment mismatch' }, { status: 403 });
+        const pinResult = await pinAttempt(base44, vehicle, body.pin);
+        if (pinResult === 'locked') return Response.json({ error: 'Too many PIN attempts. Try again in 15 minutes.' }, { status: 429 });
+        if (pinResult === 'wrong') return Response.json({ error: 'Incorrect PIN' }, { status: 403 });
+        const email = String(vehicle.driver_email || '').trim().toLowerCase();
+        if (!email) return Response.json({ ok: true, driver_name: '', documents: [] });
+        const driver = (await base44.asServiceRole.entities.Driver.filter({ company_id: companyId }, '-updated_date', 500))
+          .find((d) => String(d.email || '').trim().toLowerCase() === email);
+        if (!driver) return Response.json({ ok: true, driver_name: vehicle.driver_name || '', documents: [] });
+        const docs = (await base44.asServiceRole.entities.DriverDocument.filter({ driver_id: driver.id }, '-updated_date', 20))
+          .filter((d) => d.company_id === companyId && (d.kind === 'license' || d.kind === 'insurance'));
+        const documents = [];
+        for (const kind of ['license', 'insurance']) {
+          const d = docs.find((x) => x.kind === kind);
+          if (!d) continue;
+          let url = '';
+          if (d.file_uri) {
+            try { url = (await base44.asServiceRole.integrations.Core.CreateFileSignedUrl({ file_uri: d.file_uri, expires_in: 120 }))?.signed_url || ''; }
+            catch { url = ''; }
+          }
+          documents.push({ kind, document_number: d.document_number || '', expiry_date: d.expiry_date || '', file_name: d.file_name || '', url });
+        }
+        return Response.json({ ok: true, driver_name: driver.full_name || vehicle.driver_name || '', documents });
+      }
+      case 'heartbeat': {
+        const vehicle = await loadVehicle(base44, vehicleId);
+        if (!vehicle) return Response.json({ error: 'Vehicle not found' }, { status: 404 });
+        if (vehicle.company_id !== companyId) return Response.json({ error: 'Vehicle assignment mismatch' }, { status: 403 });
+        // Passengers' names, contact details and pickup points only reach a
+        // tablet the driver has unlocked with the bus PIN (or the phone app).
+        const unlocked = await validGrant(base44, device, body.driver_grant, 'driver', vehicleId);
+        // A light check-in: the tablet already has the parts that rarely
+        // change (passenger list, road stops, inspection forms, company
+        // details) from a full check-in in the last minute, so only what
+        // changes quickly is read. Every tablet checking in every few seconds
+        // with the full set went over the platform's request limit.
+        const light = body.light === true;
+        const [staff, broadcasts, checkIns, groupMessages, vehicleTrips, openShifts, allTemplates, recentInspections] = await Promise.all([
+          unlocked && !light ? loadStaff(base44, companyId, vehicleId) : [],
+          base44.asServiceRole.entities.Broadcast.filter({}, '-created_date', 20),
+          tabletCheckIns(base44, companyId, vehicleId),
+          base44.asServiceRole.entities.GroupMessage.filter({ vehicle_id: vehicleId }, '-created_date', 200),
+          // Open jobs only: with every past job included, a bus's 100 oldest
+          // trips filled the list and new jobs never reached the tablet.
+          base44.asServiceRole.entities.Trip.filter({ vehicle_id: vehicleId, status: { $in: ['scheduled', 'on_the_way', 'arrived'] } }, 'scheduled_time', 100).catch(() => []),
+          base44.asServiceRole.entities.DriverShift.filter({ vehicle_id: vehicleId }, '-started_at', 3).catch(() => []),
+          light ? [] : base44.asServiceRole.entities.InspectionTemplate.list().catch(() => []),
+          light ? [] : base44.asServiceRole.entities.Inspection.filter({ vehicle_id: vehicleId }, '-created_date', 30).catch(() => []),
+        ]);
+        const trips = vehicleTrips.filter((t) => ['scheduled', 'on_the_way', 'arrived'].includes(t.status) && t.company_id === companyId).map(tabletTrip);
+        const driverEmail = vehicle.driver_email || '';
+        const relevantBroadcasts = broadcasts.filter((b) => {
+          if (b.company_id && b.company_id !== companyId) return false;
+          const targeted = b.driver_email && b.driver_email === driverEmail;
+          const broadcast = !b.driver_email && b.type === 'info';
+          return targeted || broadcast;
+        });
+        let route = null;
+        if (vehicle.route_id && !light) {
+          try { route = await base44.asServiceRole.entities.Route.get(vehicle.route_id); }
+          catch { /* route may be missing */ }
+        }
+        // Pickup stops along the drawn road name passengers, so only an
+        // unlocked tablet gets them (like `staff`).
+        const roadStops = unlocked && route && route.company_id === companyId
+          ? tabletRoadStops(await busRoadStops(base44.asServiceRole.entities, route, vehicleId).catch(() => null))
+          : null;
+        // Where every pickup passenger is dropped off: the company's workplace.
+        const workplaceRow = light ? null : (await base44.asServiceRole.entities.Workplace.filter({ company_id: companyId }, '-updated_date', 5).catch(() => []))
+          .find((w) => w.company_id === companyId && Number.isFinite(Number(w.lat)) && Number.isFinite(Number(w.lng)));
+        const workplace = workplaceRow ? { name: workplaceRow.name || 'Workplace', lat: Number(workplaceRow.lat), lng: Number(workplaceRow.lng) } : null;
+        let emergencyContacts = { boss_phone: '', secretary_phone: '' };
+        let companyLogoUrl = '', companyDisplayName = companyName;
+        if (!light) try {
+          const company = await base44.asServiceRole.entities.Company.get(companyId);
+          emergencyContacts = { boss_phone: company?.boss_phone || '', secretary_phone: company?.secretary_phone || '' };
+          companyLogoUrl = company?.logo_url || '';
+          companyDisplayName = company?.name || companyName;
+        } catch { /* optional company display and contacts */ }
+        const hasDriverPin = light ? null : !!vehicle.driver_pin || !!(await base44.asServiceRole.entities.DriverPinCredential.filter({ vehicle_id: vehicleId }, '-updated_date', 1))[0]?.enabled;
+        // A guest-facing signing tablet on this bus (full check-ins only; it rarely changes).
+        const hasSigningTablet = light ? null : (await base44.asServiceRole.entities.KioskDevice.filter({ vehicle_id: vehicleId, kiosk_type: 'job_signing', status: 'active' }, '-created_date', 1).catch(() => [])).some((d) => d.paired && d.company_id === companyId);
+        const reply = {
+          vehicle: tabletVehicle(vehicle), driver_name: vehicle.driver_name || '', has_driver_pin: hasDriverPin, has_signing_tablet: hasSigningTablet,
+          company_id: companyId, company_name: companyDisplayName, company_logo_url: companyLogoUrl, staff, route: tabletRoute(route, companyId), road_stops: roadStops, workplace, emergency_contacts: emergencyContacts, ...boardingStats(checkIns),
+          broadcasts: relevantBroadcasts, check_ins: checkIns.slice(0, 20).filter((c) => c.status === 'boarded').map(tabletCheckIn),
+          group_messages: unlocked ? [...groupMessages].filter(message=>message.company_id===companyId).reverse() : [], trips: unlocked ? trips : [],
+          // Lets the tablet tell "no jobs" from "jobs hidden while locked".
+          driver_unlocked: !!unlocked,
+          open_shift: openShifts.find((s) => !s.ended_at) || null,
+          inspection_templates: driverTemplates(allTemplates, companyId, vehicleId),
+          recent_inspections: recentInspections.map((i) => ({
+            id: i.id, template_id: i.template_id || null, template_name: i.template_name || null,
+            status: i.status, created_date: i.created_date,
+          })),
+          update_requested_at: device.update_requested_at || null,
+          network_command: network?.command || null,
+          control_notice: controlNotice(device),
+          support_notice: supportNotice(device),
+          recordings_notice: recordingsNotice(device),
+        };
+        if (light) {
+          // Left out, so the tablet keeps what the last full check-in sent. A
+          // locked tablet still gets an empty passenger list and no stops.
+          for (const key of ['has_driver_pin', 'has_signing_tablet', 'company_name', 'company_logo_url', 'route', 'workplace', 'emergency_contacts', 'inspection_templates', 'recent_inspections']) delete reply[key];
+          if (unlocked) { delete reply.staff; delete reply.road_stops; }
+          reply.light = true;
+        }
+        return Response.json(reply);
+      }
+
+      case 'set_direction': {
+        if (!['to_work', 'to_home'].includes(body.direction)) return Response.json({ error: 'Choose To work or To home' }, { status: 400 });
+        const vehicle = await loadVehicle(base44, vehicleId);
+        if (!vehicle || vehicle.company_id !== companyId) return Response.json({ error: 'Vehicle assignment mismatch' }, { status: 403 });
+        await base44.asServiceRole.entities.Vehicle.update(vehicleId, { trip_direction: body.direction, ...(vehicle.trip_direction !== body.direction ? { trip_direction_started_at: new Date().toISOString(), return_pickup_state: 'pending', road_next_stop: null } : {}) });
+        return Response.json({ ok: true, direction: body.direction });
+      }
+
+      case 'start_shift': {
+        const requestId=body.client_request_id;
+        if(requestId!==undefined && (typeof requestId!=='string' || !/^[a-zA-Z0-9_-]{8,100}$/.test(requestId))) return Response.json({error:'Invalid request ID'},{status:400});
+        const requestHash=await hashSecret(JSON.stringify({action,occurred_at:body.occurred_at||null,notes:body.notes||null}));
+        if(requestId) {
+          const prior=(await base44.asServiceRole.entities.DriverShift.filter({client_request_id:requestId,device_id:device.id,vehicle_id:vehicleId,company_id:companyId},'-started_at',1))[0];
+          if(prior) {
+            if(prior.request_hash!==requestHash) return Response.json({error:'Request ID reused with different data'},{status:409});
+            return Response.json({shift:prior,deduplicated:true});
+          }
+        }
+
+        const vehicle = await loadVehicle(base44, vehicleId);
+        if (!vehicle) return Response.json({ error: 'Vehicle not found' }, { status: 404 });
+        const open = (await base44.asServiceRole.entities.DriverShift.filter({ vehicle_id: vehicleId }, '-started_at', 5))
+          .filter((s) => !s.ended_at);
+        if (open.length) return Response.json({ shift: open[0] });
+        const shift = await durableCreate(requestId ? JSON.stringify(['shift',device.id,companyId,vehicleId,requestId]) : null,requestHash,async()=>{
+        const shift = await base44.asServiceRole.entities.DriverShift.create({
+          ...(requestId ? {client_request_id:requestId,request_hash:requestHash} : {}),
+          vehicle_id: vehicleId, vehicle_name: vehicle.name, company_id: companyId, company_name: companyName,
+          driver_name: vehicle.driver_name || '', driver_email: vehicle.driver_email || '',
+          device_id, started_at: occurredAt(body.occurred_at).toISOString(),
+        });
+        // A shift starts with an empty bus. If the previous shift was never
+        // closed properly its passengers were still counted aboard, so the new
+        // shift would open showing people on a bus that is standing empty.
+        try { await offboardEveryone(base44, { companyId, companyName, vehicleId, vehicleName: shift.vehicle_name || vehicle.name, at: Date.parse(shift.started_at) }); }
+        catch { /* the shift still starts; the kiosk corrects anyone left aboard */ }
+        await clearRoadNext(base44, vehicleId);
+        return shift;
+        },id=>base44.asServiceRole.entities.DriverShift.get(id));
+        return Response.json({ shift });
+      }
+
+      case 'end_shift': {
+        const requestId=body.client_request_id;
+        if(requestId!==undefined && (typeof requestId!=='string' || !/^[a-zA-Z0-9_-]{8,100}$/.test(requestId))) return Response.json({error:'Invalid request ID'},{status:400});
+        const requestHash=await hashSecret(JSON.stringify({action,occurred_at:body.occurred_at||null,notes:body.notes||null,...(body.shift_id?{shift_id:body.shift_id}:{}),...(body.start_request_id?{start_request_id:body.start_request_id}:{})}));
+        if(requestId) {
+          const prior=(await base44.asServiceRole.entities.DriverShift.filter({end_request_id:requestId,device_id:device.id,vehicle_id:vehicleId,company_id:companyId},'-started_at',1))[0];
+          if(prior) {
+            if(prior.end_request_hash!==requestHash) return Response.json({error:'Request ID reused with different data'},{status:409});
+            return Response.json({shift:prior,deduplicated:true});
+          }
+        }
+
+
+        let shift;
+        if(typeof body.shift_id==='string') shift=await base44.asServiceRole.entities.DriverShift.get(body.shift_id).catch(()=>null);
+        else if(typeof body.start_request_id==='string') shift=(await base44.asServiceRole.entities.DriverShift.filter({client_request_id:body.start_request_id,company_id:companyId,vehicle_id:vehicleId},'-started_at',1))[0];
+        else return Response.json({error:'Name the shift this end request belongs to'},{status:400});
+        if(!shift || shift.company_id!==companyId || shift.vehicle_id!==vehicleId) return Response.json({error:'Shift not found on this assignment'},{status:404});
+        if(shift.ended_at) return Response.json({shift,deduplicated:true});
+        const time=Date.parse(body.occurred_at || '');
+        if(!Number.isFinite(time) || time>Date.now()+60000) return Response.json({error:'Invalid shift end time'},{status:400});
+        const startMs=Date.parse(shift.started_at);
+        if(!Number.isFinite(startMs) || time<startMs) return Response.json({error:'End request predates this shift'},{status:409});
+        const ended=await base44.asServiceRole.entities.DriverShift.update(shift.id,{
+          ...(requestId?{end_request_id:requestId,end_request_hash:requestHash}:{}),
+          ended_at:new Date(time).toISOString(),duration_minutes:Math.round((time-startMs)/60000),
+          notes:typeof body.notes==='string'?body.notes.slice(0,500):shift.notes,
+        });
+        // The shift is over, so nobody is riding this bus any more.
+        try { await offboardEveryone(base44, { companyId, companyName, vehicleId, vehicleName: ended.vehicle_name, at: time }); }
+        catch { /* the shift is still ended; the kiosk corrects anyone left aboard */ }
+        return Response.json({shift:ended});
+      }
+
+      case 'start_tracking': {
+        const vehicle = await loadVehicle(base44, vehicleId);
+        if (!vehicle) return Response.json({ error: 'Vehicle not found' }, { status: 404 });
+        await base44.asServiceRole.entities.Vehicle.update(vehicleId, { tracking_active: true, road_next_stop: null });
+        return Response.json({ ok: true });
+      }
+
+      case 'stop_tracking': {
+        const vehicle = await loadVehicle(base44, vehicleId);
+        if (!vehicle) return Response.json({ error: 'Vehicle not found' }, { status: 404 });
+        if (vehicle.remote_tracking_lock)
+          return Response.json({ error: 'Tracking locked by admin' }, { status: 403 });
+        await base44.asServiceRole.entities.Vehicle.update(vehicleId, { tracking_active: false });
+        return Response.json({ ok: true });
+      }
+
+      case 'background_location':
+      case 'update_location': {
+        return applyLocationUpdate(base44, { vehicleId, companyId, companyName, body,
+          onDepartedStop: (route, stopName, vehicle) => notifyStopAhead(base44, route, stopName, vehicle, companyId),
+          onRoadNext: (route, index, vehicle) => notifyRoadStopNext(base44, route, index, vehicle, companyId) });
+      }
+
+      // GPS points the tablet saved while it had no connection. They go into
+      // the location history at the time they were taken (thinned to about
+      // one a minute, like live tracking), skipping times already stored, so
+      // a retried upload can't duplicate. The bus's live position only moves
+      // if these points are newer than the last one the server saw. Driving
+      // events and stop alerts are not raised from old points.
+      case 'upload_track': {
+        const vehicle = await loadVehicle(base44, vehicleId);
+        if (!vehicle) return Response.json({ error: 'Vehicle not found' }, { status: 404 });
+        if(vehicle.company_id!==companyId) return Response.json({error:'Vehicle assignment mismatch'},{status:403});
+        if(!Array.isArray(body.points) || body.points.length>300 || !body.points.length) return Response.json({error:'GPS batch must contain 1 to 300 points'},{status:400});
+        const nowMs = Date.now();
+        const points = (Array.isArray(body.points) ? body.points : []).slice(0, 300)
+          .map((p) => ({ t: new Date(p?.t).getTime(), lat: p?.lat, lng: p?.lng, speed: p?.speed ?? 0 }))
+          .filter((p) => Number.isFinite(p.t) && p.t <= nowMs + 60_000 && p.t >= nowMs - 72 * 3600_000
+            && Number.isFinite(p.lat) && Number.isFinite(p.lng) && Math.abs(p.lat) <= 90 && Math.abs(p.lng) <= 180 && Number.isFinite(p.speed) && p.speed>=0 && p.speed<=100)
+          .sort((a, b) => a.t - b.t);
+        if(points.length!==body.points.length) return Response.json({error:'Invalid GPS point; batch retained'},{status:400});
+
+        const from = points[0].t - PING_LOG_INTERVAL_MS;
+        const to = points[points.length - 1].t + PING_LOG_INTERVAL_MS;
+        const pings = base44.asServiceRole.entities.LocationPing;
+        // Descending history stops at the relevant window; never scan all old trips.
+        const history = [];
+        for(let offset=0;;offset+=500) {
+          const page = await pings.filter({vehicle_id:vehicleId,company_id:companyId},'-recorded_at',500,offset);
+          history.push(...page);
+          if(page.length<500 || page.some(row=>Number.isFinite(Date.parse(row.recorded_at)) && Date.parse(row.recorded_at)<from)) break;
+          if(offset>=9500) return Response.json({error:'GPS history window too dense; review required'},{status:503});
+        }
+        const existing = history.map(r=>Date.parse(r.recorded_at)).filter(t=>Number.isFinite(t)&&t>=from&&t<=to);
+        const taken = [...existing];
+        // Already have a point within a minute of this one (from live tracking
+        // or an earlier upload of the same batch)? Then skip it.
+        const near = (t) => taken.some((x) => Math.abs(x - t) < PING_LOG_INTERVAL_MS);
+        const rows = [];
+        let lastKept = -Infinity;
+        for (const p of points) {
+          if (p.t - lastKept < PING_LOG_INTERVAL_MS || near(p.t)) continue;
+          rows.push({ vehicle_id: vehicleId, company_id: companyId, lat: p.lat, lng: p.lng, speed: Number.isFinite(p.speed) ? p.speed : 0, recorded_at: new Date(p.t).toISOString() });
+          taken.push(p.t);
+          lastKept = p.t;
+        }
+        if (rows.length) await base44.asServiceRole.entities.LocationPing.bulkCreate(rows);
+
+        const newest = points[points.length - 1];
+        const lastSeen = vehicle.last_location_update ? new Date(vehicle.last_location_update).getTime() : 0;
+        if (newest.t > lastSeen) {
+          await base44.asServiceRole.entities.Vehicle.update(vehicleId, {
+            current_lat: newest.lat, current_lng: newest.lng, speed: Number.isFinite(newest.speed) ? newest.speed : 0,
+            last_location_update: new Date(newest.t).toISOString(),
+          }).catch(() => {});
+        }
+        return Response.json({ ok: true, stored: rows.length, received: points.length });
+      }
+
+      case 'sos': {
+        const vehicle = await loadVehicle(base44, vehicleId);
+        if (!vehicle) return Response.json({ error: 'Vehicle not found' }, { status: 404 });
+        await base44.asServiceRole.entities.Vehicle.update(vehicleId, { status: 'emergency' });
+        const incident = await base44.asServiceRole.entities.Incident.create({
+          vehicle_id: vehicleId, vehicle_name: vehicle.name, company_id: companyId, company_name: companyName,
+          driver_name: vehicle.driver_name || '', driver_email: vehicle.driver_email || '',
+          type: 'emergency', details: 'SOS triggered by driver via long-press.', occurred_at: new Date().toISOString(),
+        });
+        try {
+          const serviceAccountJson = secrets.get('FIREBASE_SERVICE_ACCOUNT');
+          if (serviceAccountJson) {
+            const adminTokens = await pushTokensForChannel(base44, 'dispatch', companyId);
+            if (adminTokens.length) {
+              const payload = {
+                title: '🚨 SOS — ' + vehicle.name,
+                body: `${vehicle.driver_name || 'Driver'} triggered SOS. Open the admin dashboard now.`,
+                data: { type: 'sos', vehicle_id: vehicleId },
+              };
+              await pushWithPolicy(base44, 'sos', adminTokens, payload, (list) => sendPushToTokens(serviceAccountJson, list, payload), { companyId });
+            }
+          }
+        } catch { /* push is best-effort — the in-app takeover still works */ }
+        return Response.json({ incident });
+      }
+
+      case 'register_push_token': {
+        const { token } = body;
+        if (!token || typeof token !== 'string') return Response.json({ error: 'token required' }, { status: 400 });
+        const existing = await base44.asServiceRole.entities.PushToken.filter({ token });
+        if (!existing.length) {
+          await base44.asServiceRole.entities.PushToken.create({ token, device_id: String(device_id), role: 'driver', company_id: companyId });
+        }
+        return Response.json({ ok: true });
+      }
+
+      case 'cancel_sos': {
+        const vehicle = await loadVehicle(base44, vehicleId);
+        if (!vehicle) return Response.json({ error: 'Vehicle not found' }, { status: 404 });
+        if (vehicle.status === 'emergency') {
+          await base44.asServiceRole.entities.Vehicle.update(vehicleId, { status: 'on_trip' });
+          await base44.asServiceRole.entities.Incident.create({
+            vehicle_id: vehicleId, vehicle_name: vehicle.name, company_id: companyId, company_name: companyName,
+            driver_name: vehicle.driver_name || '', driver_email: vehicle.driver_email || '',
+            type: 'other', details: 'SOS cancelled by driver (false alarm).', occurred_at: new Date().toISOString(),
+          }).catch(() => {});
+        }
+        return Response.json({ ok: true });
+      }
+
+      case 'submit_inspection': {
+        const { checklist, odometer, fuel, status, service_notes } = body;
+        const vehicle = await loadVehicle(base44, vehicleId);
+        if (!vehicle) return Response.json({ error: 'Vehicle not found' }, { status: 404 });
+        const replay = await replayInspection(base44,device,body);
+        const passed = status !== 'failed';
+        const inspection = await createInspection(base44,device,replay,{
+          ...replay.fields,
+          driver_name: vehicle.driver_name || '', driver_email: vehicle.driver_email || '',
+          vehicle_id: vehicleId, vehicle_name: vehicle.name, company_id: companyId, company_name: companyName,
+          date: new Date().toISOString().slice(0, 10), status: passed ? 'passed' : 'failed',
+          checklist: checklist || {}, odometer_reading: odometer ? Number(odometer) : undefined,
+          fuel_level: Number(fuel) || 0, needs_service: !passed, service_notes: service_notes || '',
+        });
+        if (odometer) await base44.asServiceRole.entities.Vehicle.update(vehicleId, { current_odometer: Number(odometer) });
+        // A failed inspection also raises a proper Fault for the mechanic
+        // queue (richer than the old needs_service flag alone — severity,
+        // status workflow, links back to this inspection) unless the
+        // mechanic team has turned that off in the global MaintenanceSettings
+        // singleton (this is fleet-wide, not per-company — only mechanics
+        // control it).
+        if (!passed) {
+          try {
+            const settingsList = await base44.asServiceRole.entities.MaintenanceSettings.list();
+            const settings = settingsList[0];
+            if (settings?.auto_create_faults !== false) {
+              await inspectionChild(base44,'Fault',{
+                vehicle_id: vehicleId, vehicle_name: vehicle.name, company_id: companyId, company_name: companyName,
+                title: service_notes ? service_notes.slice(0, 80) : 'Failed pre-trip inspection',
+                description: service_notes || 'Auto-created from a failed pre-trip inspection checklist.',
+                source: 'inspection', inspection_id: inspection.id, severity: 'medium', status: 'open',
+                reported_by: vehicle.driver_name || vehicle.driver_email || 'Driver',
+              }, body.client_request_id ? body.client_request_id+'-fault' : null,device.id);
+            }
+          } catch { return Response.json({error:'Inspection saved; fault creation needs retry'},{status:503}); }
+        }
+        return Response.json({ inspection });
+      }
+
+      case 'submit_template_inspection': {
+        const { template_id, results, odometer, fuel, trigger } = body;
+        if (!template_id || !Array.isArray(results) || !results.length)
+          return Response.json({ error: 'template_id and results required' }, { status: 400 });
+        if(results.length>300) return Response.json({error:'Too many inspection results'},{status:400});
+        const attachments=results.filter(r=>r?.photo_data || r?.photo_url);
+        if(attachments.length>MAX_INSPECTION_PHOTOS || attachments.some(r=>typeof r.photo_data==='string' && r.photo_data.length>=MAX_PHOTO_B64)) return Response.json({error:'Inspection photos exceed the size or count limit; answers retained for review'},{status:413});
+        let template;
+        try { template = await base44.asServiceRole.entities.InspectionTemplate.get(template_id); } catch { template = null; }
+        if (!template || !['driver', 'both'].includes(template.audience) || (template.company_id && template.company_id !== companyId))
+          return Response.json({ error: 'This inspection is not available on this tablet' }, { status: 403 });
+        const vehicle = await loadVehicle(base44, vehicleId);
+        if (!vehicle) return Response.json({ error: 'Vehicle not found' }, { status: 404 });
+
+        const replay = await replayInspection(base44,device,body);
+        // Photos arrive as base64 inside the submission (so an offline tablet
+        // can queue the whole thing); upload each one and keep its URL.
+        let photos = 0;
+        const clean = replay.prior?.results || [];
+        for (const r of (replay.prior ? [] : results.slice(0, 300))) {
+          const condition = r?.condition === 'FAILED' ? 'FAILED' : 'GOOD';
+          let photo_url = typeof r?.photo_url === 'string' && r.photo_url.startsWith('https://') ? r.photo_url : '';
+          if (!photo_url && typeof r?.photo_data === 'string' && r.photo_data.length < MAX_PHOTO_B64 && photos < MAX_INSPECTION_PHOTOS) {
+            try {
+              const bytes = base64ToBytes(r.photo_data);
+              const file = new File([bytes], `inspection-${Date.now()}-${photos}.jpg`, { type: 'image/jpeg' });
+              const uploaded = await base44.asServiceRole.integrations.Core.UploadPublicFile({ file });
+              if(typeof uploaded?.file_url!=='string' || !uploaded.file_url.startsWith('https://')) throw new Error('Upload did not return a photo URL');
+              photo_url = uploaded.file_url;
+              photos += 1;
+            } catch { return Response.json({error:'Photo upload failed; inspection remains saved on the tablet for retry'},{status:503}); }
+          }
+          clean.push({
+            section_name: sanitize(r?.section_name).slice(0, 120), item_name: sanitize(r?.item_name).slice(0, 200),
+            zone: sanitize(r?.zone).slice(0, 40), critical: ['Low', 'Medium', 'High', 'Critical'].includes(r?.critical) ? r.critical : 'Medium',
+            condition, notes: sanitize(r?.notes).slice(0, 1000), photo_url,
+          });
+        }
+        const failed = clean.filter((r) => r.condition === 'FAILED');
+        const passed = failed.length === 0;
+        const now = replay.prior?.created_date || new Date().toISOString();
+        const inspection = await createInspection(base44,device,replay,{
+          ...replay.fields,
+          driver_name: vehicle.driver_name || '', driver_email: vehicle.driver_email || '',
+          vehicle_id: vehicleId, vehicle_name: vehicle.name, company_id: companyId, company_name: companyName,
+          date: now.slice(0, 10), status: passed ? 'passed' : 'failed',
+          template_id: template.id, template_name: template.name, trigger: sanitize(trigger).slice(0, 30),
+          results: clean, checklist: {},
+          odometer_reading: odometer ? Number(odometer) : undefined, fuel_level: fuel != null ? Number(fuel) || 0 : undefined,
+          needs_service: !passed,
+          service_notes: passed ? '' : 'Problems: ' + failed.map((f) => f.item_name + (f.notes ? ` (${f.notes})` : '')).join('; ').slice(0, 1500),
+        });
+        if (odometer && Number(odometer) > 0) await base44.asServiceRole.entities.Vehicle.update(vehicleId, { current_odometer: Number(odometer) }).catch(() => {});
+
+        // Same per-item rows mechanics write, so Inspection History and the
+        // overdue reminders count driver inspections too.
+        const inspectorName = vehicle.driver_name || 'Driver';
+        for(const [index,r] of clean.entries()) await inspectionChild(base44,'InspectionResult',{
+          vehicle_id: vehicleId, vehicle_name: vehicle.name, company_id: companyId, company_name: companyName,
+          inspection_name: template.name, section_name: r.section_name, inspection_item: r.item_name,
+          condition: r.condition, fault_found: r.condition === 'FAILED', fault_description: r.condition === 'FAILED' ? r.notes : '',
+          photo_url: r.photo_url || undefined, repair_required: r.condition === 'FAILED', notes: r.notes,
+          inspector_name: `${inspectorName} (driver)`, inspection_date: now,
+        },body.client_request_id ? body.client_request_id+'-result-'+index : null,device.id);
+
+        if (failed.length) {
+          try {
+            const settingsList = await base44.asServiceRole.entities.MaintenanceSettings.list();
+            if (settingsList[0]?.auto_create_faults !== false) {
+              for(const [index,f] of failed.entries()) await inspectionChild(base44,'Fault',{
+                vehicle_id: vehicleId, vehicle_name: vehicle.name, company_id: companyId, company_name: companyName,
+                title: f.item_name.slice(0, 80),
+                description: (f.notes || 'Reported as a problem in a driver inspection.') + ` — ${template.name}`,
+                source: 'inspection', inspection_id: inspection.id, severity: SEVERITY[f.critical] || 'medium',
+                status: 'open', photo_url: f.photo_url || undefined, repair_required: true,
+                reported_by: inspectorName,
+              },body.client_request_id ? body.client_request_id+'-fault-'+index : null,device.id);
+            }
+          } catch { return Response.json({error:'Inspection saved; fault creation needs retry'},{status:503}); }
+        }
+        return Response.json({ inspection: { id: inspection.id, template_id: template.id, status: inspection.status, created_date: inspection.created_date } });
+      }
+
+      case 'report_incident': {
+        const { type, details } = body;
+        if (!details || typeof details !== 'string' || !details.trim())
+          return Response.json({ error: 'details required' }, { status: 400 });
+        const vehicle = await loadVehicle(base44, vehicleId);
+        if (!vehicle) return Response.json({ error: 'Vehicle not found' }, { status: 404 });
+        const allowedTypes = ['breakdown', 'accident', 'delay', 'other'];
+        const incident = await base44.asServiceRole.entities.Incident.create({
+          vehicle_id: vehicleId, vehicle_name: vehicle.name, company_id: companyId, company_name: companyName,
+          driver_name: vehicle.driver_name || '', driver_email: vehicle.driver_email || '',
+          type: allowedTypes.includes(type) ? type : 'other', details: sanitize(details), occurred_at: new Date().toISOString(),
+        });
+        return Response.json({ incident });
+      }
+
+      case 'send_group_message': {
+        const { text, channel } = body;
+        if (!text || typeof text !== 'string' || !text.trim())
+          return Response.json({ error: 'text required' }, { status: 400 });
+        const ch = CHAT_CHANNELS.includes(channel) ? channel : 'staff';
+        const vehicle = await loadVehicle(base44, vehicleId);
+        if (!vehicle) return Response.json({ error: 'Vehicle not found' }, { status: 404 });
+        const cleanText = sanitize(text);
+        const message = await base44.asServiceRole.entities.GroupMessage.create({
+          vehicle_id: vehicleId, vehicle_name: vehicle.name, company_id: companyId, company_name: companyName,
+          channel: ch, sender_role: 'driver', sender_name: vehicle.driver_name || 'Driver', text: cleanText,
+        });
+        try {
+          const serviceAccountJson = secrets.get('FIREBASE_SERVICE_ACCOUNT');
+          if (serviceAccountJson) {
+            // The bus's own passengers ride this chat too, so they're told as
+            // well as the admin/company/mechanic audience.
+            const tokens = [...new Set([
+              ...(await pushTokensForChannel(base44, ch, companyId)),
+              ...(ch === 'staff' ? await passengerPushTokens(base44, vehicleId) : []),
+            ])];
+            if (tokens.length) {
+              const payload = {
+                title: `${vehicle.name} · ${vehicle.driver_name || 'Driver'}`,
+                body: cleanText,
+                data: { type: 'group_message', vehicle_id: vehicleId, channel: ch },
+              };
+              await pushWithPolicy(base44, 'chat_message', tokens, payload, (list) => sendPushToTokens(serviceAccountJson, list, payload), { companyId });
+            }
+          }
+        } catch { /* push is best-effort */ }
+        return Response.json({ message });
+      }
+
+      case 'send_chat_media': {
+        const { channel, message_type, data_base64, mime_type, filename } = body;
+        const ch = CHAT_CHANNELS.includes(channel) ? channel : 'staff';
+        if (!['image', 'audio'].includes(message_type))
+          return Response.json({ error: 'message_type must be image or audio' }, { status: 400 });
+        if (!data_base64 || typeof data_base64 !== 'string')
+          return Response.json({ error: 'data_base64 required' }, { status: 400 });
+        const type = String(mime_type || (message_type === 'image' ? 'image/jpeg' : 'audio/webm')).split(';')[0].trim().toLowerCase();
+        if (!CHAT_MEDIA_TYPES[message_type].includes(type)) return Response.json({ error: 'That kind of file can\'t be sent' }, { status: 400 });
+        if (!base64Fits(data_base64, MAX_CHAT_MEDIA_BYTES)) return Response.json({ error: 'That file is too large' }, { status: 413 });
+        const vehicle = await loadVehicle(base44, vehicleId);
+        if (!vehicle) return Response.json({ error: 'Vehicle not found' }, { status: 404 });
+        let mediaUrl;
+        try {
+          const bytes = base64ToBytes(data_base64);
+          const ext = type.split('/')[1].replace('jpeg', 'jpg').replace('mpeg', 'mp3');
+          const name = `${message_type}-${Date.now()}.${ext}`;
+          const file = new File([bytes], name, { type });
+          const uploaded = await base44.asServiceRole.integrations.Core.UploadPublicFile({ file });
+          mediaUrl = uploaded.file_url;
+        } catch (e) {
+          return Response.json({ error: `Upload failed: ${e.message}` }, { status: 500 });
+        }
+        const message = await base44.asServiceRole.entities.GroupMessage.create({
+          vehicle_id: vehicleId, vehicle_name: vehicle.name, company_id: companyId, company_name: companyName,
+          channel: ch, sender_role: 'driver', sender_name: vehicle.driver_name || 'Driver',
+          text: '', message_type, media_url: mediaUrl,
+        });
+        try {
+          const serviceAccountJson = secrets.get('FIREBASE_SERVICE_ACCOUNT');
+          if (serviceAccountJson) {
+            const tokens = [...new Set([
+              ...(await pushTokensForChannel(base44, ch, companyId)),
+              ...(ch === 'staff' ? await passengerPushTokens(base44, vehicleId) : []),
+            ])];
+            if (tokens.length) {
+              const payload = {
+                title: `${vehicle.name} · ${vehicle.driver_name || 'Driver'}`,
+                body: message_type === 'image' ? '📷 Photo' : '🎤 Voice note',
+                data: { type: 'group_message', vehicle_id: vehicleId, channel: ch },
+              };
+              await pushWithPolicy(base44, 'chat_message', tokens, payload, (list) => sendPushToTokens(serviceAccountJson, list, payload), { companyId });
+            }
+          }
+        } catch { /* push is best-effort */ }
+        return Response.json({ message });
+      }
+
+      case 'edit_group_message': {
+        const { message_id, text } = body;
+        if (!message_id || !text || typeof text !== 'string' || !text.trim())
+          return Response.json({ error: 'message_id and text required' }, { status: 400 });
+        const existing = await base44.asServiceRole.entities.GroupMessage.get(message_id).catch(() => null);
+        if (!existing || existing.vehicle_id !== vehicleId || existing.sender_role !== 'driver')
+          return Response.json({ error: 'Message not found' }, { status: 404 });
+        const updated = await base44.asServiceRole.entities.GroupMessage.update(message_id, { text: sanitize(text), edited: true });
+        return Response.json({ message: updated });
+      }
+
+      case 'delete_group_message': {
+        const { message_id } = body;
+        if (!message_id) return Response.json({ error: 'message_id required' }, { status: 400 });
+        const existing = await base44.asServiceRole.entities.GroupMessage.get(message_id).catch(() => null);
+        if (!existing || existing.vehicle_id !== vehicleId || existing.sender_role !== 'driver')
+          return Response.json({ error: 'Message not found' }, { status: 404 });
+        await base44.asServiceRole.entities.GroupMessage.delete(message_id);
+        return Response.json({ ok: true });
+      }
+
+      case 'send_broadcast': {
+        const { message, title } = body;
+        if (!message || typeof message !== 'string') return Response.json({ error: 'message required' }, { status: 400 });
+        const vehicle = await loadVehicle(base44, vehicleId);
+        if (!vehicle) return Response.json({ error: 'Vehicle not found' }, { status: 404 });
+        const broadcast = await base44.asServiceRole.entities.Broadcast.create({
+          type: 'info', title: title || 'Reply', message,
+          driver_name: vehicle.driver_name || '', driver_email: vehicle.driver_email || '',
+          vehicle_name: vehicle.name || '', company_id: companyId, company_name: companyName, is_reply: true,
+        });
+        return Response.json({ broadcast });
+      }
+
+      case 'notify_pickup': {
+        const currentBus = await loadVehicle(base44, vehicleId);
+        if (currentBus?.trip_direction === 'to_home') return Response.json({ ok: true, skipped: true });
+
+        const { to_email } = body;
+        const to = sanitize(to_email);
+        if (!to) return Response.json({ error: 'Missing recipient' }, { status: 400 });
+        if (!(await reserveAttempt(base44, 'pickup-notice:' + vehicleId, 30, 60 * 60_000))) return Response.json({ error: 'Too many pickup notices this hour. Try again later.' }, { status: 429 });
+        const vehicle = await loadVehicle(base44, vehicleId);
+        if (!vehicle) return Response.json({ error: 'Vehicle not found' }, { status: 404 });
+        let recipient = null;
+        try {
+          const matches = await base44.asServiceRole.entities.User.filter({ email: to });
+          recipient = Array.isArray(matches) ? matches[0] : matches;
+        } catch { /* tolerate */ }
+        if (!recipient || !(await approvedCompanies(base44, recipient, 'passenger')).includes(vehicle.company_id || companyId))
+          return Response.json({ error: 'Recipient not in your company' }, { status: 403 });
+        const subject = `Your bus is approaching — ${sanitize(vehicle.name)}`;
+        const msg = `Hello,\n\n${sanitize(vehicle.name)}${sanitize(vehicle.driver_name) ? ` (driver ${sanitize(vehicle.driver_name)})` : ''} is near your pickup location${sanitize(vehicle.company_name) ? ` for ${sanitize(vehicle.company_name)}` : ''} and will arrive shortly. Please get ready to board.\n\n— McSween Transport`;
+        const email = await emailWithPolicy(base44, 'bus_approaching_email', [{ email: to }],
+          (r) => base44.asServiceRole.integrations.Core.SendEmail({ to: r.email, subject, body: msg }), { title: subject, companyId });
+        if (email.failed) return Response.json({ error: 'The email could not be sent' }, { status: 502 });
+        return Response.json({ ok: true, ...(email.sent ? {} : { held: true }) });
+      }
+
+      case 'update_trip_status': {
+        const { status } = body;
+        if (!['on_the_way', 'arrived', 'completed'].includes(status))
+          return Response.json({ error: 'Invalid status' }, { status: 400 });
+        const { trip: existing, reply } = await jobForBus(base44, body, companyId, vehicleId);
+        if (reply) return reply;
+        // A step sent again after being offline, or one the job is already
+        // past, changes nothing.
+        if (JOB_STEPS.indexOf(existing.status) >= JOB_STEPS.indexOf(status)) return Response.json({ trip: tabletTrip(existing) });
+        const at = jobStepTime(body);
+        const update = { status };
+        if (status === 'on_the_way') update.started_at = at;
+        if (status === 'arrived') update.arrived_at = at;
+        if (status === 'completed') update.completed_at = at;
+        const trip = await base44.asServiceRole.entities.Trip.update(existing.id, update);
+        if (status === 'on_the_way') await base44.asServiceRole.entities.Vehicle.update(vehicleId, { status: 'on_trip' });
+        if (status === 'completed') await base44.asServiceRole.entities.Vehicle.update(vehicleId, { status: 'idle' });
+        return Response.json({ trip: tabletTrip(trip) });
+      }
+
+      case 'reach_stop': {
+        // A tour stop the driver has reached.
+        const index = Number(body.index);
+        const { trip: existing, reply } = await jobForBus(base44, body, companyId, vehicleId);
+        if (reply) return reply;
+        const stops = Array.isArray(existing.stops) ? existing.stops : [];
+        if (!Number.isInteger(index) || index < 0 || index >= stops.length) return Response.json({ error: 'Unknown tour stop' }, { status: 400 });
+        if (stops[index].reached_at) return Response.json({ trip: tabletTrip(existing) });
+        const at = jobStepTime(body);
+        const trip = await base44.asServiceRole.entities.Trip.update(existing.id, { stops: stops.map((s, i) => (i === index ? { ...s, reached_at: at } : s)) });
+        return Response.json({ trip: tabletTrip(trip) });
+      }
+
+      case 'sign_trip':
+        // Pickup / drop-off signature captured on the tablet. Drivers have no
+        // login, so the upload and trip update run with the service role.
+        return signJob(base44, body, companyId, vehicleId);
+
+      default:
+        return Response.json({ error: 'Unknown action' }, { status: 400 });
+    }
+  } catch (error) {
+    return Response.json({ error: error.status ? error.message : 'Driver session failed' }, { status: error.status || 500 });
+  }
+}

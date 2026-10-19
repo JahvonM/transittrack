@@ -1,0 +1,236 @@
+import { cleanHardwareHealth } from '../_shared/tabletHardwareHealth.ts';
+import { recordingsNotice } from '../_shared/tabletRecordings.ts';
+import { supportNotice } from '../_shared/tabletStreaming.ts';
+import { nativeReleaseHealth } from '../_shared/nativeRelease.ts';
+import { controlNotice } from '../_shared/tabletControl.ts';
+import { cleanRequestMetrics } from '../_shared/requestMetrics.ts';
+import { createClientFromRequest } from '../_shared/base44-compat.ts';
+import { cleanNetworkHealth, networkCheckIn } from '../_shared/tabletNetwork.ts';
+// Random device credentials are stored only as hashes in protected DeviceCredential.
+// Existing development tablets remain legacy-compatible until explicitly re-paired.
+const LEGACY_DEVICE_CUTOFF = Date.parse('2026-10-03T23:35:39Z');
+async function deviceDigest(value) {
+  const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
+  return Array.from(new Uint8Array(bytes), (b) => b.toString(16).padStart(2, '0')).join('');
+}
+function sameDigest(a, b) {
+  if (typeof a !== 'string' || typeof b !== 'string' || a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+async function authenticatedTablet(base44, device, token) {
+  if (!device || !device.paired || device.status !== 'active') return false;
+  const credentials = await base44.asServiceRole.entities.DeviceCredential.filter({ device_id: device.id }, '-issued_at', 1);
+  const credential = credentials[0];
+  if (!credential) return false;
+  if (typeof token !== 'string' || !/^[a-f0-9]{64}$/.test(token)) return false;
+  if (!(Date.parse(credential.expires_at) > Date.now())) return false;
+  if (credential.company_id !== device.company_id || credential.vehicle_id !== (device.vehicle_id || '') || credential.kiosk_type !== device.kiosk_type) return false;
+  if (!sameDigest(credential.pairing_code_hash, await deviceDigest(device.pairing_code || ''))) return false;
+  return sameDigest(credential.token_hash, await deviceDigest(token));
+}
+
+// A tablet paired before the credential ledger existed has no credential to
+// check, so its device record still authorises it — the one place a tokenless
+// device is accepted. Delete this block once every tablet has been re-paired
+// (see security-tests/tablet-repairing-plan.md); the verifier above is already
+// strictly token-based, so that deletion is the whole migration.
+async function legacyDeviceAccepted(base44, device) {
+  if (!device || device.paired !== true || device.status !== 'active') return false;
+  const created = Date.parse(device.created_date);
+  if (!(Number.isFinite(created) && created < LEGACY_DEVICE_CUTOFF)) return false;
+  const credentials = await base44.asServiceRole.entities.DeviceCredential.filter({ device_id: device.id }, '-issued_at', 1);
+  return credentials.length === 0;
+}
+
+// Token, or an un-migrated device record. Used to resolve which device a
+// request came from; it never authorises an action on its own.
+async function deviceAccepted(base44, device, token) {
+  return (await authenticatedTablet(base44, device, token)) || legacyDeviceAccepted(base44, device);
+}
+
+
+// Status from the TransitTrack Helper Android app on the tablet (battery, card
+// reader, USB GPS...), relayed by the kiosk page. Shown in Admin → Kiosk Tablets.
+function cleanHelperHealth(h: unknown): Record<string, unknown> | null {
+  if (!h || typeof h !== 'object' || Array.isArray(h)) return null;
+  const o = h as Record<string, unknown>;
+  const str = (v: unknown, n: number) =>
+    typeof v === 'string' ? v.replace(/[\u0000-\u001f<>]/g, '').slice(0, n) : undefined;
+  const out: Record<string, unknown> = { reported_at: new Date().toISOString() };
+  Object.assign(out, nativeReleaseHealth(o), cleanHardwareHealth(o));
+  if (o.support_transport === 'webrtc') out.support_transport = 'webrtc';
+  for (const k of ['recordings_available', 'support_available', 'management_available', 'management_owner', 'management_locked']) if (typeof o[k] === 'boolean') out[k] = o[k];
+  const version = str(o.version, 16); if (version) out.version = version;
+  if (typeof o.battery === 'number' && Number.isFinite(o.battery)) out.battery = Math.max(0, Math.min(100, Math.round(o.battery)));
+  if (typeof o.charging === 'boolean') out.charging = o.charging;
+  if (typeof o.parked === 'boolean') out.parked = o.parked;
+  const reader = str(o.reader, 40); if (reader) out.reader = reader;
+  const gps = str(o.gps, 40); if (gps) out.gps = gps;
+  const hotspot = str(o.hotspot, 40); if (hotspot) out.hotspot = hotspot;
+  const lastCard = str(o.last_card_at, 40); if (lastCard) out.last_card_at = lastCard;
+  // Helper 1.13: backup boarding over Bluetooth ("Ready as Bus 12", or why not).
+  const ble = str(o.ble, 60); if (ble) out.ble = ble;
+  // Helper 1.9: the boarding tablet's Wi-Fi (current network, latest scan / join).
+  Object.assign(out, cleanNetworkHealth(o));
+  return out;
+}
+
+// What the TransitTrack app itself reports (build, uploads waiting, last GPS
+// fix, card reader in use). Shown in Admin → Fleet health.
+function cleanAppHealth(h: unknown): Record<string, unknown> | null {
+  if (!h || typeof h !== 'object' || Array.isArray(h)) return null;
+  const o = h as Record<string, unknown>;
+  const str = (v: unknown, n: number) =>
+    typeof v === 'string' ? v.replace(/[\u0000-\u001f<>]/g, '').slice(0, n) : undefined;
+  const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? Math.max(0, Math.min(100000, Math.round(v))) : undefined);
+  const date = (v: unknown) => { const s = str(v, 40); return s && !Number.isNaN(Date.parse(s)) ? new Date(s).toISOString() : undefined; };
+  const coord = (v: unknown, max: number) =>
+    typeof v === 'number' && Number.isFinite(v) && Math.abs(v) <= max ? Math.round(v * 1e6) / 1e6 : undefined;
+  const out: Record<string, unknown> = { reported_at: new Date().toISOString() };
+  const set = (k: string, v: unknown) => { if (v !== undefined) out[k] = v; };
+  set('build', str(o.build, 24));
+  set('lat', coord(o.lat, 90));
+  set('lng', coord(o.lng, 180));
+  if (typeof o.online === 'boolean') out.online = o.online;
+  set('queued_gps', num(o.queued_gps));
+  set('queued_checkins', num(o.queued_checkins));
+  set('queued_jobs', num(o.queued_jobs));
+  set('request_metrics',cleanRequestMetrics(o.request_metrics));
+  set('last_gps_fix', date(o.last_gps_fix));
+  set('reader', str(o.reader, 24));
+  set('saved_list_at', date(o.saved_list_at));
+  set('saved_list_count', num(o.saved_list_count));
+  return out;
+}
+
+// Tablet response contract: whitelist fields; never forward entire entity records.
+function tabletFields(row, fields) {
+  if (!row) return null;
+  return Object.fromEntries(fields.filter((k) => row[k] !== undefined).map((k) => [k, row[k]]));
+}
+function tabletVehicle(row) {
+  const out = tabletFields(row, ['id', 'name', 'type', 'plate_number', 'company_id', 'company_name', 'capacity', 'route_id', 'current_lat', 'current_lng', 'speed', 'heading', 'status', 'driver_name', 'driver_email', 'image_url', 'model_3d', 'tracking_active', 'remote_tracking_lock', 'last_location_update', 'current_odometer']);
+  if (out && Array.isArray(row.trail)) out.trail = row.trail.map((t) => tabletFields(t, ['lat', 'lng', 't']));
+  return out;
+}
+function tabletRoute(row, companyId) {
+  if (!row || row.company_id !== companyId) return null;
+  return { ...tabletFields(row, ['id', 'name', 'type', 'active', 'company_id']), stops: (row.stops || []).map((s) => tabletFields(s, ['name', 'lat', 'lng', 'order'])) };
+}
+function tabletCheckIn(row) {
+  return tabletFields(row, ['id', 'staff_name', 'staff_picture_url', 'status', 'boarded_at', 'created_date', 'vehicle_id', 'vehicle_name', 'check_in_method']);
+}
+function boardingStats(rows) {
+  const latest = new Map();
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Grenada' });
+  let todayCount = 0;
+  for (const row of rows || []) {
+    const key = row.card_tag || row.staff_name;
+    const prev = latest.get(key);
+    if (!prev || Date.parse(row.created_date) > Date.parse(prev.created_date)) latest.set(key, row);
+    if (row.status === 'boarded' && new Date(row.created_date).toLocaleDateString('en-CA', { timeZone: 'America/Grenada' }) === today) todayCount++;
+  }
+  return { occupancy: [...latest.values()].filter((r) => r.status === 'boarded').length, today_count: todayCount };
+}
+async function tabletCheckIns(base44, companyId, vehicleId) {
+  if (!companyId || !vehicleId) return [];
+  const rows = [];
+  for (let skip = 0; ; skip += 500) {
+    const batch = await base44.asServiceRole.entities.StaffCheckIn.filter({ company_id: companyId, vehicle_id: vehicleId }, '-created_date', 500, skip);
+    rows.push(...batch);
+    if (batch.length < 500) return rows;
+  }
+}
+
+export default async function(req) {
+  try {
+    const body = await req.json();
+    const { device_id } = body;
+
+    if (!device_id || typeof device_id !== 'string') {
+      return Response.json({ error: 'Device ID required' }, { status: 400 });
+    }
+
+    const base44 = createClientFromRequest(req);
+
+    const device = await base44.asServiceRole.entities.KioskDevice.get(device_id);
+    // `paired` must be checked here too, not just `status` — an admin
+    // regenerating this device's pairing code (KioskTablets.jsx's
+    // Regenerate/Reactivate actions) sets paired:false but leaves
+    // status:'active'. Without this check the tablet keeps heartbeating
+    // successfully and looking completely normal while every real action
+    // (kioskCheckIn's resolveKioskDevice requires both) silently 401s.
+    // Only a tablet that presented its device key may receive a Wi-Fi password.
+    const tokenOk = !!(await authenticatedTablet(base44, device, body.device_token));
+    if (!(tokenOk || (await legacyDeviceAccepted(base44, device)))) {
+      return Response.json({ error: 'Device authentication required' }, { status: 401 });
+    }
+
+    // Update last_seen — kiosk is unauthenticated, use service role
+    const helperHealth = cleanHelperHealth(body.helper_health);
+    const appHealth = cleanAppHealth(body.app_health);
+    // Wi-Fi commands from Admin → Kiosk tablets (see shared/tabletNetwork.ts).
+    const network = networkCheckIn(device, body.network_ack, tokenOk, Date.now(), body.network_result);
+    await base44.asServiceRole.entities.KioskDevice.update(device_id, {
+      last_seen: new Date().toISOString(),
+      ...(helperHealth ? { helper_health: helperHealth } : {}),
+      ...(appHealth ? { app_health: appHealth } : {}),
+      ...network.updates,
+    });
+
+    let company_logo_url = '';
+    let company_display_name = device.company_name;
+    if (device.company_id) {
+      try {
+        const company = await base44.asServiceRole.entities.Company.get(device.company_id);
+        company_logo_url = company?.logo_url || '';
+        company_display_name = company?.name || device.company_name;
+      } catch { /* company may have been removed */ }
+    }
+
+    let context = null;
+    if (device.kiosk_type === 'bus_boarding' && device.vehicle_id) {
+      const vehicle = await base44.asServiceRole.entities.Vehicle.get(device.vehicle_id);
+      if (!vehicle || vehicle.company_id !== device.company_id) return Response.json({ error: 'Vehicle assignment mismatch' }, { status: 403 });
+      const [route, rows, ads] = await Promise.all([
+        vehicle.route_id ? base44.asServiceRole.entities.Route.get(vehicle.route_id).catch(() => null) : null,
+        tabletCheckIns(base44, device.company_id, device.vehicle_id),
+        base44.asServiceRole.entities.Advertisement.filter({ active: true }, 'order', 500),
+      ]);
+      context = { vehicle: tabletVehicle(vehicle), route: tabletRoute(route, device.company_id),
+        ...boardingStats(rows), ads: ads.map((a) => tabletFields(a, ['id', 'title', 'message', 'image_url', 'link', 'order', 'active'])) };
+    }
+
+    return Response.json({
+      ok: true,
+      context,
+      device_id: device.id,
+      label: device.label,
+      company_id: device.company_id,
+      company_name: company_display_name,
+      company_logo_url,
+      vehicle_id: device.vehicle_id,
+      vehicle_name: device.vehicle_name,
+      kiosk_type: device.kiosk_type,
+      display_layout: device.display_layout || 'auto',
+      pickup_sign: ['bus_boarding','job_signing'].includes(device.kiosk_type) && Date.parse(device.pickup_sign?.expires_at) > Date.now() ? device.pickup_sign : null,
+      paired: device.paired,
+      directory_sent_at: device.directory_sent_at || null,
+      update_requested_at: device.update_requested_at || null,
+      network_command: network.command,
+      control_notice: tokenOk ? controlNotice(device) : null,
+      recordings_notice: tokenOk ? recordingsNotice(device) : null,
+      support_notice: tokenOk ? supportNotice(device) : null,
+    });
+  } catch (error) {
+    const status = error?.status ?? error?.response?.status ?? error?.originalError?.response?.status;
+    if (status === 429) {
+      const headers = error?.originalError?.response?.headers ?? error?.response?.headers ?? error?.headers;
+      const retryAfter = headers?.get?.('retry-after') ?? headers?.['retry-after'] ?? headers?.['Retry-After'] ?? '15';
+      return Response.json({ error: 'Server is busy. Please try again shortly.' }, { status: 429, headers: { 'Retry-After': String(retryAfter) } });
+    }
+    return Response.json({ error: 'Something went wrong. Please try again.' }, { status: 500 });
+  }
+}
