@@ -1383,23 +1383,28 @@ async function returnPassenger(page,phase,stale=false) {
  }));
  await page.route('https://api.mapbox.com/**',r=>r.fulfill({json:{routes:[{distance:2200,duration:420,geometry:{coordinates:[[-61.7,12.005],[-61.7,12]]}}]}}));
  await page.goto('/staff');
- return page.getByRole('region',{name:'Going home pickup'});
+ // The home's bus card shows the trip home.
+ return page.getByLabel('Your next bus',{exact:true});
 }
 test('return pickup shows road ETA to company with home stop and actions',async({page})=>{
  const card=await returnPassenger(page,'near');
- await expect(card.getByText('About 7 min to your company')).toBeVisible();
- await expect(card.getByText('Home stop: Home gate')).toBeVisible();
- await expect(card.getByRole('button',{name:'Show map'})).toBeVisible();
- await expect(card.getByRole('button',{name:'Message driver'})).toBeVisible();
+ await expect(card.getByText('7 min',{exact:true})).toBeVisible();
+ await expect(card).toContainText('Heading to your company pickup');
+ const trip=page.getByRole('region',{name:'Pickup and drop-off'});
+ await expect(trip).toContainText('Home gate');
+ await expect(trip).toContainText('Your home stop');
+ await expect(page.getByRole('link',{name:'View journey'})).toBeVisible();
+ await expect(page.getByRole('button',{name:/^Need anything\? Message us/})).toBeVisible();
 });
 test('return pickup shows arrival and departure status',async({page})=>{
  let card=await returnPassenger(page,'arrived');
- await expect(card.getByText('Your bus is here')).toBeVisible();
+ await expect(card.getByRole('heading',{name:'Bus arrived'})).toBeVisible();
+ await expect(card).toContainText('Ready for boarding');
  card=await returnPassenger(page,'departed');
- await expect(card.getByText('Bus has left the company')).toBeVisible();
+ await expect(card.getByRole('heading',{name:'Bus has left'})).toBeVisible();
 });
 test('return pickup never shows an ETA from stale GPS',async({page})=>{
  const card=await returnPassenger(page,'near',true);
- await expect(card.getByText('Waiting for a fresh bus location')).toBeVisible();
- await expect(card.getByText(/About .* min/)).toHaveCount(0);
+ await expect(card.getByText('Waiting for a fresh location')).toBeVisible();
+ await expect(card.getByText(/^\d+ min$/)).toHaveCount(0);
 });
