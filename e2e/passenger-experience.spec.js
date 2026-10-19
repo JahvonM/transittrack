@@ -103,19 +103,87 @@ test('the passenger can tell their driver they are running late or skipping toda
  await flags.getByRole('button',{name:"I'm running late"}).click();
  await expect(flags.getByRole('button',{name:/^Running late/})).toHaveAttribute('aria-pressed','true');
  await expect(flags.getByText(/^Until /)).toBeVisible();
+ // The button flips at once; the save reaches the server a moment later.
+ await expect.poll(()=>updates.length).toBe(1);
  expect(updates[0]).toMatchObject({late_snooze_active:true});
  expect(Date.parse(updates[0].late_until)).toBeGreaterThan(Date.now());
  await flags.getByRole('button',{name:'Skip today'}).click();
  await expect(flags.getByRole('button',{name:/^Skipping today/})).toHaveAttribute('aria-pressed','true');
  await expect(flags.getByText('Back on tomorrow')).toBeVisible();
+ await expect.poll(()=>updates.length).toBe(2);
  expect(updates[1]).toMatchObject({skip_pickup_today:true});
  // Tapping again turns it back off.
  await flags.getByRole('button',{name:/^Running late/}).click();
  await expect(flags.getByRole('button',{name:"I'm running late"})).toHaveAttribute('aria-pressed','false');
+ await expect.poll(()=>updates.length).toBe(3);
  expect(updates[2]).toMatchObject({late_snooze_active:false,late_until:null});
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
  await flags.evaluate(el=>el.scrollIntoView({block:'center'}));
  await flags.screenshot({path:'/tmp/passenger-running-late.png'});
+});
+test('passenger sheets follow the finger: pulled down they close, pulled up they stay',async({page})=>{
+ await page.setViewportSize({width:390,height:844});await passengerShowcase(page);
+ const open=async()=>{
+  await page.getByRole('region',{name:'Pickup and drop-off'}).getByRole('button',{name:'Change'}).click();
+  const sheet=page.getByRole('dialog');
+  await expect(sheet).toBeVisible();
+  await page.waitForTimeout(600); // let it finish opening
+  return sheet;
+ };
+ const drag=async(sheet,dy)=>{
+  const box=await sheet.boundingBox();
+  const x=box.x+box.width/2,y=box.y+12; // the grab handle
+  await page.mouse.move(x,y);await page.mouse.down();
+  await page.mouse.move(x,y+dy,{steps:12});await page.mouse.up();
+ };
+ // The page scrolls under the frosted tab bar.
+ await page.mouse.wheel(0,260);await page.waitForTimeout(400);
+ await page.screenshot({path:'/tmp/passenger-frosted-tabs.png'});
+ let sheet=await open();
+ const top=(await sheet.boundingBox()).y;
+ // A short, slow pull follows the finger, then settles back open (a quick
+ // flick the same distance would close it).
+ {
+  const box=await sheet.boundingBox();
+  const x=box.x+box.width/2,y=box.y+12;
+  await page.mouse.move(x,y);await page.mouse.down();
+  for(let i=1;i<=8;i++){await page.mouse.move(x,y+15*i);await page.waitForTimeout(90);}
+  expect((await sheet.boundingBox()).y).toBeGreaterThan(top+80);
+  await page.screenshot({path:'/tmp/passenger-sheet-drag.png'});
+  await page.mouse.up();await page.waitForTimeout(700);
+  expect(Math.abs((await sheet.boundingBox()).y-top)).toBeLessThan(2);
+ }
+ // Pulled up past the top it resists and settles back, still open.
+ await drag(sheet,-200);
+ await page.waitForTimeout(700);
+ await expect(sheet).toBeVisible();
+ expect(Math.abs((await sheet.boundingBox()).y-top)).toBeLessThan(2);
+ // Pulled well down it closes.
+ await drag(sheet,400);
+ await expect(page.getByRole('dialog')).toHaveCount(0);
+ // The close button still works too.
+ sheet=await open();
+ await sheet.getByRole('button',{name:'Close'}).click();
+ await expect(page.getByRole('dialog')).toHaveCount(0);
+});
+test('route stops unfold, and the arrow turns toward them',async({page})=>{
+ await page.setViewportSize({width:390,height:844});await passengerShowcase(page);
+ await tab(page,'Journey').click();
+ const toggle=page.getByRole('button',{name:'All route stops'});
+ await toggle.click();
+ await expect(page.getByRole('button',{name:'Hide route stops'})).toHaveAttribute('aria-expanded','true');
+ await expect(page.locator('.px-unfold')).toBeVisible();
+ await expect.poll(()=>page.getByRole('button',{name:'Hide route stops'}).locator('svg').last().evaluate(n=>getComputedStyle(n).transform)).not.toBe('none');
+ await page.getByRole('button',{name:'Hide route stops'}).click();
+ await expect(page.locator('.px-unfold')).toHaveCount(0);
+});
+test('reduce motion: sheets fade instead of sliding',async({page})=>{
+ await page.emulateMedia({reducedMotion:'reduce'});
+ await page.setViewportSize({width:390,height:844});await passengerShowcase(page);
+ await page.getByRole('region',{name:'Pickup and drop-off'}).getByRole('button',{name:'Change'}).click();
+ const sheet=page.getByRole('dialog');
+ await expect(sheet).toBeVisible();
+ expect(await sheet.evaluate(n=>getComputedStyle(n).animationName)).toBe('tt-sheet-fade-in');
 });
 test('return trip uses company pickup and home dropoff',async({page})=>{
  const state=await passengerShowcase(page,{extra:{pickup_name:'My home',pickup_lat:12.01,pickup_lng:-61.77}});

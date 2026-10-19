@@ -20,7 +20,14 @@ import { useToast } from "@/components/ui/use-toast";
 import { useSupportWhatsApp } from "@/components/support/ReportAppProblem";
 import { whatsappLink } from "@/lib/appSupport";
 import { useStaffFlags } from "@/components/staff/QuickActions";
+import { AnimatePresence, MotionConfig, motion } from "framer-motion";
 import "./passengerExperience.css";
+
+// Apple-style motion: a critically damped spring (no bounce) for things that
+// open and close; it can be reversed mid-way without a jump.
+const SPRING = { type: "spring", bounce: 0, duration: 0.4 };
+// A light tap on phones that can vibrate, for choices the driver will see.
+const tick = () => { try { navigator.vibrate?.(10); } catch { /* no vibration */ } };
 
 function Portrait({ user }) {
  const [failed,setFailed]=useState(false);
@@ -117,10 +124,12 @@ export default function PassengerExperience({view,user,company,workplace,myVehic
  // The driver sees both on the bus tablet and the driver phone. Each turns
  // itself off: running late after a few hours, skip today at midnight.
  const flagsPanel=<div className="px-flags" role="group" aria-label="Tell your driver">
-  <button type="button" aria-pressed={late} onClick={toggleLate}><Clock aria-hidden="true" /><span><strong>{late?"Running late":"I'm running late"}</strong>{late && lateUntil && <small>Until {clock(lateUntil)}</small>}</span></button>
-  <button type="button" aria-pressed={skip} onClick={toggleSkip}><BellOff aria-hidden="true" /><span><strong>{skip?"Skipping today":"Skip today"}</strong>{skip && <small>Back on tomorrow</small>}</span></button>
+  <button type="button" aria-pressed={late} onClick={()=>{tick();toggleLate();}}><Clock aria-hidden="true" /><span><strong>{late?"Running late":"I'm running late"}</strong>{late && lateUntil && <small>Until {clock(lateUntil)}</small>}</span></button>
+  <button type="button" aria-pressed={skip} onClick={()=>{tick();toggleSkip();}}><BellOff aria-hidden="true" /><span><strong>{skip?"Skipping today":"Skip today"}</strong>{skip && <small>Back on tomorrow</small>}</span></button>
  </div>;
- return <div className="px-experience">
+ // reducedMotion="user": with the phone's reduce-motion setting on, the
+ // springs below become fades.
+ return <MotionConfig reducedMotion="user"><div className="px-experience">
   {view==="home" && <>
    <header className="px-top"><p>Transit<span>Track</span></p><div><Link to="/notifications" aria-label="Messages and announcements"><Bell /></Link><Link to="/account" aria-label="Account"><Portrait user={user} /></Link></div></header>
    <CompanyBanner name={company.name} logoUrl={company.logo_url} compact />
@@ -144,11 +153,11 @@ export default function PassengerExperience({view,user,company,workplace,myVehic
    <header className="px-page-title"><h1>My journey</h1><p>{returning?"To home":"To work"} · Today</p></header>
    <section className="px-panel px-bus-identity"><BusArtwork vehicle={myVehicle} className="h-24 w-28" /><div><h2>{myVehicle?.name || "No bus assigned"}</h2><p>{routeName || "Your company transport"}</p><span className={live?"px-status active":"px-status"}>{status}</span><small>{myVehicle?.last_location_update?`Updated ${lastSeen(myVehicle.last_location_update,now)}`:"Waiting for a bus update"}</small></div></section>
    <section className="px-panel px-map-action"><h2><Clock />{estimate}{!atStop && kind==="live" && mins!=null?" away":""}</h2>{etaDetails}<Button variant="outline" className="w-full" onClick={()=>setMapOpen(!mapOpen)} aria-expanded={mapOpen}><Map />{mapOpen?"Hide live map":"View live map"}</Button></section>
-   {mapOpen && <section className="px-map-view" aria-label="Live journey map">{renderMap()}</section>}
+   <AnimatePresence initial={false}>{mapOpen && <motion.section key="map" className="px-map-view" aria-label="Live journey map" initial={{opacity:0,y:-8}} animate={{opacity:1,y:0}} exit={{opacity:0,y:-8}} transition={SPRING}>{renderMap()}</motion.section>}</AnimatePresence>
    <section className="px-panel"><h2>Your trip today</h2>{journeyPanel}{trustedEta && !atStop && <p className="px-trip-time">Estimated pickup {arrivalClock(mins,now)}</p>}</section>
    <section className="px-panel px-wait"><MapPin /><div><h2>Where to wait</h2><p>{returning?`Meet the bus at ${workplace?.name || "your company boarding point"}.`:pickup?`Meet the bus at ${pickup}.`:"Choose a safe roadside pickup on your bus route."}</p><Button variant="outline" onClick={()=>setSheet("pickup")}>Walking directions</Button></div></section>
    {pickupPrompt}
-   {timelineRoute && <><button className="px-message" aria-expanded={showStops} onClick={()=>setShowStops(!showStops)}><Map />{showStops?"Hide route stops":"All route stops"}<ChevronRight /></button>{showStops && <RouteTimeline route={returning?{...timelineRoute,stops:[...(timelineRoute.stops || [])].reverse().map((s,order)=>({...s,order}))}:timelineRoute} bus={myVehicle} kind={kind} stopName={pickup} mins={mins} stopEtas={returning?{}:stopEtas} now={now} />}</>}
+   {timelineRoute && <><button className="px-message" aria-expanded={showStops} onClick={()=>setShowStops(!showStops)}><Map />{showStops?"Hide route stops":"All route stops"}<ChevronRight /></button><AnimatePresence initial={false}>{showStops && <motion.div key="stops" className="px-unfold" initial={{height:0,opacity:0}} animate={{height:"auto",opacity:1}} exit={{height:0,opacity:0}} transition={SPRING}><RouteTimeline route={returning?{...timelineRoute,stops:[...(timelineRoute.stops || [])].reverse().map((s,order)=>({...s,order}))}:timelineRoute} bus={myVehicle} kind={kind} stopName={pickup} mins={mins} stopEtas={returning?{}:stopEtas} now={now} /></motion.div>}</AnimatePresence></>}
    <div className="px-panel px-settings-list"><Row icon={MessageCircle} title="Need help with this trip?" sub="Message your bus team" onClick={()=>setSheet("chat")} badge={chatUnread}/><Row icon={TriangleAlert} title={reportBusy?"Sending report…":"Report missed pickup"} onClick={reportMissed}/></div>
    <BookedRides trips={bookedTrips} stopName={pickupName} />
    <Link to="/buses" className="px-quiet-link">Browse company buses</Link>
@@ -175,5 +184,5 @@ export default function PassengerExperience({view,user,company,workplace,myVehic
    <button className="px-sign-out" onClick={logout}><LogOut />Sign out</button>
   </>}
   {view==="journey" && !mapOpen && <button className="px-floating-chat" aria-label="Open passenger chat" onClick={()=>setSheet("chat")}><MessageCircle /></button>}
- </div>;
+ </div></MotionConfig>;
 }

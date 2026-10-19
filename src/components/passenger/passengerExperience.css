@@ -37,3 +37,24 @@
 .px-eta-details>span{display:inline-flex;align-items:center;gap:7px}
 .px-eta-details svg{width:16px;height:16px;flex-shrink:0;color:#00d6e9}
 .px-map-action>.px-eta-details{margin:0 0 14px}
+
+/* Apple-style feel (the apple-design skill), passenger app only.
+   Feedback shows on press, not on release; rows highlight instead of shrinking. */
+.px-experience :is(a,button,summary),.tt-passenger-reference-tabs button,.tt-apple-sheet :is(a,button){-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.px-experience :is(.px-quick>a,.px-message,.px-flags>button,.px-floating-chat,.px-sign-out,.px-top a,.px-notice,.px-quiet-link,.px-panel button:not([role=switch]):not(.px-row)),.tt-apple-sheet button:not([role=switch]){transition:transform .2s cubic-bezier(.2,.8,.2,1)}
+.px-experience :is(.px-quick>a,.px-message,.px-flags>button,.px-floating-chat,.px-sign-out,.px-top a,.px-notice,.px-quiet-link,.px-panel button:not([role=switch]):not(.px-row)):active,.tt-apple-sheet button:not([role=switch]):not(:disabled):active{transform:scale(.97);transition-duration:.06s}
+.px-experience :is(.px-row,.px-profile){transition:background-color .2s ease-out}.px-experience :is(.px-row,.px-profile):active{background-color:#ffffff0f;transition-duration:.06s}
+.tt-passenger-reference-tabs button{transition:opacity .2s ease-out}.tt-passenger-reference-tabs button:active{opacity:.55;transition-duration:.06s}
+/* The arrow turns toward the list it opens. */
+.px-message[aria-expanded] svg:last-child{transition:transform .3s cubic-bezier(.2,.8,.2,1)}.px-message[aria-expanded=true] svg:last-child{transform:rotate(90deg)}
+.px-unfold{overflow:hidden}
+/* Times keep their width as they count down. */
+.px-hero-copy>h2,.px-map-action h2,.px-trip-time,.px-eta-details{font-variant-numeric:tabular-nums}
+/* Sheets: a grab handle at the top. */
+.tt-sheet-grabber{position:absolute;left:50%;top:8px;width:40px;height:5px;margin-left:-20px;border-radius:999px;background:currentColor;opacity:.25}
+@keyframes tt-sheet-fade-in{from{opacity:0}to{opacity:1}}
+@keyframes tt-sheet-fade-out{from{opacity:1}to{opacity:0}}
+/* Reduce motion: sheets fade instead of sliding; nothing turns. */
+@media (prefers-reduced-motion:reduce){.tt-apple-sheet[data-vaul-drawer]{animation-name:tt-sheet-fade-in!important;animation-duration:.2s!important;transition:none!important}.tt-apple-sheet[data-vaul-drawer][data-state=closed]{animation-name:tt-sheet-fade-out!important}.px-message[aria-expanded] svg:last-child{transition:none}}
+/* Increase contrast: clearer edges. */
+@media (prefers-contrast:more){.px-panel,.px-message,.px-flags>button,.px-quick>a,.px-notice{border-color:#8fb7cf}}

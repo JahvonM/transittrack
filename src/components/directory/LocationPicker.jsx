@@ -47,7 +47,7 @@ export default function LocationPicker({ lat, lng, onChange, onPlace, showCoordi
   return (
     <div className="space-y-2">
       <PlaceSearch onSelect={choosePlace} proximity={hasPoint ? { lat, lng } : null} placeholder="Search a place by name" />
-      <div className="rounded-lg overflow-hidden border border-border" style={{ height: 200 }}>
+      <div data-vaul-no-drag className="rounded-lg overflow-hidden border border-border" style={{ height: 200 }}>
         <Map
           mapboxAccessToken={MAPBOX_TOKEN}
           mapStyle={mapStyleFor(isDark)}

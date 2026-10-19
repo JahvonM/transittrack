@@ -772,8 +772,12 @@ html.tt-future {
 .tt-passenger-reference .tt-bus-card>a{padding:15px;gap:12px;min-height:150px}
 .tt-passenger-reference .tt-bus-card>a>span:first-of-type>.font-semibold {font-size:20px}
 .tt-passenger-reference .tt-bus-card .tt-bus-artwork{width:145px;height:110px}
-.tt-passenger-reference-tabs {background:#071222f2!important;border-color:#274257!important;color:#a5bbc9}
+/* Frosted like an iOS tab bar: the page scrolls under it, softly blurred, with
+   a light top edge. Solid when the phone asks for less transparency. */
+.tt-passenger-reference-tabs {background:#071222c2!important;border-color:#ffffff1c!important;color:#a5bbc9;-webkit-backdrop-filter:blur(20px) saturate(180%);backdrop-filter:blur(20px) saturate(180%)}
 .tt-passenger-reference-tabs [aria-current="page"] {color:#25e1ef;text-shadow:0 0 20px #1ceafa55}
+@media (prefers-reduced-transparency: reduce) { .tt-passenger-reference-tabs {background:#071222!important;-webkit-backdrop-filter:none;backdrop-filter:none} }
+@media (prefers-contrast: more) { .tt-passenger-reference-tabs {background:#071222!important;border-color:#8fb7cf!important} }
 .tt-driver-phone-reference .tt-driver-vehicle-hero{position:relative;overflow:hidden;background:linear-gradient(180deg,#0b1d3580,#0a172cf5),url('/images/boarding-coast.webp') center top/cover!important}
 .tt-driver-phone-reference .tt-driver-vehicle-hero>.tt-bus-artwork {filter:drop-shadow(0 16px 10px #0008);height:150px}
 .tt-driver-phone-reference .tt-phone-quick-actions>button {display:flex;align-items:center;gap:12px;min-height:66px;padding:14px 16px;background:linear-gradient(125deg,#16324b,#0f2036);border:1px solid #34566e;box-shadow:inset 0 1px 0 #82e8ff15;color:#e4f6fc;text-align:left;font-weight:650}

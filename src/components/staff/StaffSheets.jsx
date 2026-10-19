@@ -1,9 +1,9 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Drawer } from "vaul";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, LogOut, MessageCircle, ShieldCheck } from "lucide-react";
+import { CheckCircle2, LogOut, MessageCircle, ShieldCheck, X } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { base44 } from "@/api/base44Client";
 import { waLink } from "@/lib/mapbox";
@@ -15,17 +15,37 @@ import BusAssistant from "@/components/BusAssistant";
 import StopChooser from "@/components/passenger/StopChooser";
 import PickupSelector from "@/components/passenger/PickupSelector";
 
+// The passenger sheets, Apple style: the sheet follows the finger, a flick
+// or a pull past a quarter of its height closes it, pulling up past the top
+// resists, and it opens and closes along the same path. Maps inside are
+// marked data-vaul-no-drag so panning them doesn't move the sheet.
+// The sheet itself never scrolls: an inner area does. vaul paints the sheet's
+// background just below it (so a pull never shows a gap), and inside a
+// scrolling sheet that strip would ride up over the content.
 function BottomSheet({ open, onOpenChange, title, description, children, tall = false, pickup = false }) {
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className={`${pickup ? "tt-pickup-sheet " : ""}max-w-2xl mx-auto rounded-t-3xl overflow-y-auto safe-area-bottom ${tall ? "h-[88vh] flex flex-col" : "max-h-[88vh]"}`}>
-        <SheetHeader className={pickup ? "sr-only" : "text-left"}>
-          <SheetTitle>{title}</SheetTitle>
-          {description && <SheetDescription>{description}</SheetDescription>}
-        </SheetHeader>
-        <div className={`mt-4 ${tall ? "flex-1 min-h-0 flex flex-col" : ""}`}>{children}</div>
-      </SheetContent>
-    </Sheet>
+    <Drawer.Root open={open} onOpenChange={onOpenChange} shouldScaleBackground={false}>
+      <Drawer.Portal>
+        <Drawer.Overlay className="fixed inset-0 z-50 bg-black/80" />
+        <Drawer.Content
+          {...(description ? {} : { "aria-describedby": undefined })}
+          className={`tt-safe-sheet tt-apple-sheet ${pickup ? "tt-pickup-sheet " : ""}fixed inset-x-0 bottom-0 z-50 flex flex-col border-t bg-background p-6 shadow-lg max-w-2xl mx-auto rounded-t-3xl safe-area-bottom outline-none ${tall ? "h-[88vh]" : "max-h-[88vh]"}`}
+        >
+          <div className="tt-sheet-grabber" aria-hidden="true" />
+          <Drawer.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">
+            <X className="h-4 w-4" />
+            <span className="sr-only">Close</span>
+          </Drawer.Close>
+          <div className={`min-h-0 overflow-y-auto ${tall ? "flex-1 flex flex-col" : ""}`}>
+            <div className={pickup ? "sr-only" : "flex flex-col space-y-2 text-left"}>
+              <Drawer.Title className="text-lg font-semibold text-foreground">{title}</Drawer.Title>
+              {description && <Drawer.Description className="text-sm text-muted-foreground">{description}</Drawer.Description>}
+            </div>
+            <div className={`mt-4 ${tall ? "flex-1 min-h-0 flex flex-col" : ""}`}>{children}</div>
+          </div>
+        </Drawer.Content>
+      </Drawer.Portal>
+    </Drawer.Root>
   );
 }
 

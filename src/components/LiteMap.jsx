@@ -184,7 +184,8 @@ export default function LiteMap({
   const start = center ? [center[1], center[0]] : userLocation ? [userLocation.lat, userLocation.lng] : fitPoints[0] || [12.05, -61.7];
 
   return (
-    <div className={`relative isolate ${className}`} style={fill ? { height: "100%" } : { height }}>
+    // data-vaul-no-drag: panning the map inside a sheet moves the map, not the sheet.
+    <div data-vaul-no-drag className={`relative isolate ${className}`} style={fill ? { height: "100%" } : { height }}>
       {tileProblem && <div data-map-tile-error role="status" className="absolute left-3 right-3 top-3 z-[600] rounded-xl border border-border bg-background/95 p-3 text-sm">Some map tiles couldn’t load. Check the connection.<button type="button" className="ml-3 min-h-11 rounded-lg border px-3 font-semibold" onClick={()=>{setTileProblem(false);setTileVersion(v=>v+1);}}>Retry map</button></div>}
       <MapContainer
         center={start}
