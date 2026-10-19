@@ -558,7 +558,7 @@ test('startup recovery settings are PIN gated and never change Home automaticall
   await page.locator('.tt-board-header').dispatchEvent('pointerup');
   const dialog = page.getByRole('dialog');
   for (const digit of '1234') await dialog.getByRole('button', { name: digit, exact: true }).click();
-  await expect(dialog.getByText("Android Home app has not been set to TransitTrack.", { exact: true })).toBeVisible();
+  await expect(dialog.getByText("Android Home app has not been set to McSween Kiosk.", { exact: true })).toBeVisible();
   await expect(dialog.getByText('FLOW · 0/4 signal (last reading)', { exact: true })).toBeVisible();
   await expect(dialog.getByText('Android reports Internet access.', { exact: true })).toBeVisible();
   await expect(dialog.getByText(/Screen recovery is ready/)).toBeVisible();
