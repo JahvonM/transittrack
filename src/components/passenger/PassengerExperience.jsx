@@ -20,6 +20,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { useSupportWhatsApp } from "@/components/support/ReportAppProblem";
 import { whatsappLink } from "@/lib/appSupport";
 import { useStaffFlags } from "@/components/staff/QuickActions";
+import { pickupMovedNote } from "@/lib/pickupOnBus";
 import { AnimatePresence, MotionConfig, motion } from "framer-motion";
 import "./passengerExperience.css";
 
@@ -112,8 +113,20 @@ export default function PassengerExperience({view,user,company,workplace,myVehic
   try{await account.reportLost();toast({title:"Card disabled",description:"Your transport team has the replacement request."});}
   catch(e){toast({title:"Couldn't report the card",description:e.message,variant:"destructive"});}
  };
+ // Neighbours' pickups along the road share one stop: say where to meet.
+ const shareNote=!returning && sharedStop && (sharedStop.shared_with>0 || sharedStop.moved_m>15)
+  ? (sharedStop.moved_m>15 ? `Meet at ${sharedStop.name}, ${sharedStop.moved_m} m from your spot` : `Meet at ${sharedStop.name}`)
+   +(sharedStop.shared_with>0 ? ` · shared with ${sharedStop.shared_with} other${sharedStop.shared_with===1?"":"s"}` : "")
+  : null;
+ // Only while the pinned roadside spot is the pickup in use, not a company stop.
+ const movedNote=!returning && (sharedStop || pickup===user?.pickup_name) ? pickupMovedNote(user,now) : null;
+ // No roadside pickup pinned yet: offer to find one near home.
+ const findPickup=!returning && user?.pickup_lat==null && <section className="px-panel px-find-pickup" aria-labelledby="px-find-pickup">
+  <MapPin aria-hidden="true" /><div><h2 id="px-find-pickup">Get picked up near home</h2><p>Find a roadside pickup on a road your bus uses, with walking directions.</p></div>
+  <button type="button" className="px-find-btn" onClick={()=>setSheet("pickup")}>Find my pickup</button>
+ </section>;
  const journeyPanel=<section className="px-panel px-journey-points" aria-label="Pickup and drop-off">
-  <div><MapPin /><span><small>PICKUP</small><strong>{pickup || "Choose your home pickup"}</strong><p>{returning?"Company boarding point":sharedStop?.shared_with>0?`Shared roadside stop · ${sharedStop.shared_with} others`:"Your saved pickup spot"}</p></span></div>
+  <div><MapPin /><span><small>PICKUP</small><strong>{pickup || "Choose your home pickup"}</strong><p>{returning?"Company boarding point":shareNote || "Your saved pickup spot"}</p>{movedNote && <p className="px-pickup-note">{movedNote}</p>}</span></div>
   <div><MapPin /><span><small>DROP-OFF</small><strong>{dropoff || "Home stop not set"}</strong><p>{returning?"Your home stop":"Company address"}</p></span><Button size="sm" variant="outline" onClick={()=>setSheet("pickup")}>Change</Button></div>
  </section>;
  const alertPanel=<section className="px-panel px-alert-setting">
@@ -142,6 +155,7 @@ export default function PassengerExperience({view,user,company,workplace,myVehic
     {etaDetails}
    </section>
    {pickupPrompt}
+   {findPickup}
    {journeyPanel}
    {flagsPanel}
    {alertPanel}

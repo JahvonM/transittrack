@@ -58,3 +58,11 @@
 @media (prefers-reduced-motion:reduce){.tt-apple-sheet[data-vaul-drawer]{animation-name:tt-sheet-fade-in!important;animation-duration:.2s!important;transition:none!important}.tt-apple-sheet[data-vaul-drawer][data-state=closed]{animation-name:tt-sheet-fade-out!important}.px-message[aria-expanded] svg:last-child{transition:none}}
 /* Increase contrast: clearer edges. */
 @media (prefers-contrast:more){.px-panel,.px-message,.px-flags>button,.px-quick>a,.px-notice{border-color:#8fb7cf}}
+
+/* "Get picked up near home": shown until a roadside pickup is pinned. */
+.px-find-pickup{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;align-items:start}
+.px-find-pickup>svg{color:#18d9ed;margin-top:2px}
+.px-find-pickup h2{font-size:16px;margin:0 0 4px}
+.px-find-pickup p{margin:0}
+.px-find-btn{grid-column:1/-1;margin-top:10px;min-height:46px;border-radius:12px;border:0;background:linear-gradient(120deg,#07c5e4,#32d9ed);color:#031c29;font-weight:700;font-size:13px}
+.px-journey-points .px-pickup-note{color:#f5c26b;margin-top:4px}

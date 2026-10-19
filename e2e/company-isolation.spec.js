@@ -262,6 +262,7 @@ test('passenger Home puts the roadside pickup up front and shows the workplace d
   const showcase=await passengerShowcase(page);
   const cta=page.getByRole('region',{name:'Get picked up near home'});
   await expect(cta).toBeVisible();
+  if(process.env.TT_SHOT_DIR){await cta.evaluate(el=>el.scrollIntoView({block:'center'}));await page.screenshot({path:`${process.env.TT_SHOT_DIR}/find-my-pickup.png`});}
   await cta.getByRole('button',{name:'Find my pickup',exact:true}).click();
   await expect(page.getByRole('dialog',{name:'Pickup'})).toBeVisible();
    await expect(page.getByText('Find your pickup',{exact:true})).toBeVisible();
@@ -273,9 +274,12 @@ test('passenger Home puts the roadside pickup up front and shows the workplace d
     if(b.entity==='User')return r.fulfill({json:{result:{id:'caller',role:'staff',email:'caller@test.local',full_name:'Test Passenger',company_id:'a',favorite_stop:'Grand Anse',pickup_lat:12.02,pickup_lng:-61.76,pickup_name:'Roadside by the church',pickup_route_id:'route-a'}}});
     return r.fallback();
   }));
+  // Saving a pin in the finder also makes it the chosen pickup.
+  await page.addInitScript(()=>localStorage.setItem('tt_staff_pickup','Roadside by the church'));
   await page.goto('/staff');
-  const card=page.getByRole('region',{name:'Your pickup'});
+  const card=page.getByRole('region',{name:'Pickup and drop-off'});
   await expect(card).toContainText('Roadside by the church');
+  await expect(page.getByRole('region',{name:'Get picked up near home'})).toHaveCount(0);
   await expect(card).toContainText('Head office, True Blue');
 });
 
@@ -710,7 +714,7 @@ test('a pickup merged with neighbours says where to meet and how far it is',asyn
  await page.setViewportSize({width:390,height:844});
  await passengerShowcase(page,{pickup:'My spot',extra:{pickup_name:'My spot',pickup_lat:12.02,pickup_lng:-61.76,pickup_route_id:'route-a'},
   sharedStop:{name:"Outside Joe's shop",lat:12.0207,lng:-61.7603,shared_with:2,moved_m:80,fixed:false}});
- const card=page.getByLabel('Your pickup',{exact:true});
+ const card=page.getByRole('region',{name:'Pickup and drop-off'});
  await expect(card).toContainText("Meet at Outside Joe's shop, 80 m from your spot · shared with 2 others");
  await card.evaluate(el=>el.scrollIntoView({block:'center'}));
  if(process.env.TT_SHOT_DIR) await page.screenshot({path:`${process.env.TT_SHOT_DIR}/shared-pickup.png`});
@@ -733,12 +737,20 @@ test('a pickup the assigned bus does not drive past asks to pick again on its ro
 
 test('a pickup the driver moved says so on the pickup card',async({page})=>{
  await page.setViewportSize({width:390,height:844});
- await passengerShowcase(page,{extra:{pickup_name:'My spot',pickup_lat:12.02,pickup_lng:-61.76,pickup_route_id:'route-a',
+ await passengerShowcase(page,{pickup:'My spot',extra:{pickup_name:'My spot',pickup_lat:12.02,pickup_lng:-61.76,pickup_route_id:'route-a',
   pickup_moved:{at:new Date(Date.now()-3600e3).toISOString(),by:'Kofi',m:70,lat:12.02,lng:-61.76}}});
- const card=page.getByLabel('Your pickup',{exact:true});
+ const card=page.getByRole('region',{name:'Pickup and drop-off'});
  await expect(card).toContainText(/Kofi moved your pickup 70 m along the road on .+, to where the bus can stop\./);
  await card.evaluate(el=>el.scrollIntoView({block:'center'}));
  if(process.env.TT_SHOT_DIR) await page.screenshot({path:`${process.env.TT_SHOT_DIR}/pickup-moved-note.png`});
+});
+
+test('the moved-pickup note stays hidden while a company stop is the pickup',async({page})=>{
+ await passengerShowcase(page,{extra:{pickup_name:'My spot',pickup_lat:12.02,pickup_lng:-61.76,pickup_route_id:'route-a',
+  pickup_moved:{at:new Date(Date.now()-3600e3).toISOString(),by:'Kofi',m:70,lat:12.02,lng:-61.76}}});
+ const card=page.getByRole('region',{name:'Pickup and drop-off'});
+ await expect(card).toContainText('Grand Anse');
+ await expect(card).not.toContainText('moved your pickup');
 });
 
 test('no prompt when the pickup is on the assigned bus road',async({page})=>{
