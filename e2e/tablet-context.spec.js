@@ -105,7 +105,7 @@ test('driver can choose a returned route and its ETA updates', async ({ page, co
   await page.goto('/driver/track');
   await page.locator('input[type=password]').fill('1234');
   await page.getByRole('button', { name: 'Unlock', exact: true }).click();
-  await page.getByRole('button', { name: 'Navigation', exact: true }).click();
+  await page.getByRole('button', { name: 'Navigate', exact: true }).click();
   await page.getByRole('button', { name: 'Navigate', exact: true }).click();
   const option = page.getByRole('button', { name: /Alternative test road/ });
   await expect(option).toBeVisible({ timeout: 20000 });
@@ -137,7 +137,7 @@ test('driver map pins the stops and only gives directions after Navigate', async
   await page.goto('/driver/track');
   await page.locator('input[type=password]').fill('1234');
   await page.getByRole('button', { name: 'Unlock', exact: true }).click();
-  await page.getByRole('button', { name: 'Navigation', exact: true }).click();
+  await page.getByRole('button', { name: 'Navigate', exact: true }).click();
   const navigate = page.getByRole('button', { name: 'Navigate', exact: true });
   await expect(navigate).toBeVisible({ timeout: 20000 });
   await expect(page.getByTestId('nav-eta')).toContainText('of 2');
@@ -164,7 +164,7 @@ test('tapping a GPS problem asks the helper to look for the USB GPS again', asyn
   await page.goto('/driver/track');
   await page.locator('input[type=password]').fill('1234');
   await page.getByRole('button', { name: 'Unlock', exact: true }).click();
-  await page.getByText('Trip details',{exact:true}).click();
+  await page.getByText(/^Trip details(?: & GPS)?$/).click();
   const gps = page.getByRole('button', { name: /GPS.*Tap to check again/ });
   await expect(gps).toBeVisible({ timeout: 20000 });
   await expect(gps).toContainText('GPS module: Not plugged in');
