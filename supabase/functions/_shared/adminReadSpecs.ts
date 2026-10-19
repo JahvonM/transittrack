@@ -1,0 +1,24 @@
+// Fixed server-owned queries. No client entity names, filters or credentials.
+export const ADMIN_READ_SPECS = {
+ checkIns:{entity:"StaffCheckIn",query:{},sort:"-created_date",limit:500},
+ kiosks:{entity:"KioskDevice",query:{},sort:"-created_date",limit:1000},
+ vehicles:{entity:"Vehicle",query:{},sort:"-created_date",limit:1000},
+ companies:{entity:"Company",query:{},sort:"-created_date",limit:1000},
+ routes:{entity:"Route",query:{},sort:"-created_date",limit:1000},
+ users:{entity:"User",query:{},sort:"-created_date",limit:1000},
+ drivers:{entity:"Driver",query:{},sort:"-created_date",limit:1000},
+ parts:{entity:"Part",query:{},sort:"-created_date",limit:1000},
+ templates:{entity:"InspectionTemplate",query:{},sort:"-created_date",limit:1000},
+ schedules:{entity:"MaintenanceSchedule",query:{},sort:"-created_date",limit:1000},
+ schedulesDue:{entity:"MaintenanceSchedule",query:{status:{$in:["due","overdue"]}},sort:"-created_date",limit:500},
+ faults:{entity:"Fault",query:{},sort:"-created_date",limit:500},
+ faultsOpen:{entity:"Fault",query:{status:{$ne:"resolved"}},sort:"-created_date",limit:500},
+ trips:{entity:"Trip",query:{status:{$in:["scheduled","on_the_way","arrived"]}},sort:"-created_date",limit:500},
+ completedTrips:{entity:"Trip",query:{status:"completed"},sort:"-completed_at",limit:200},
+ serviceQueue:{entity:"Inspection",query:{needs_service:true},sort:"-created_date",limit:200},
+ inspectionResults:{entity:"InspectionResult",query:{},sort:"-inspection_date",limit:500},
+ // Jobs: saved places, clients and invoices.
+ places:{entity:"Place",query:{},sort:"name",limit:1000},
+ clients:{entity:"Client",query:{},sort:"name",limit:1000},
+ invoices:{entity:"Invoice",query:{},sort:"-issued_at",limit:500},
+};

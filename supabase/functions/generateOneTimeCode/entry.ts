@@ -1,0 +1,116 @@
+import { createClientFromRequest } from '../_shared/base44-compat.ts';
+import { retry429 } from '../_shared/retry429.ts';
+import { personalBoardingCredential, savePersonalBoardingCode } from '../_shared/boardingCredentials.ts';
+// Shared request budgets use the configured Supabase RPC and fail closed.
+import { reserveAttempt } from '../_shared/atomicOps.ts';
+
+async function liveMembership(base44, row) {
+ if (!row.expires_at && !row.code_hash) return true; // Explicit admin approval.
+ if (!row.code_hash || (row.scope !== 'passenger' && !(Date.parse(row.expires_at) > Date.now()))) return false;
+ const company=await retry429(()=>base44.asServiceRole.entities.Company.get(row.company_id)).catch(()=>null);
+ if(!company) return false;
+ const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(company.access_code || ''));
+ const hash=Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,'0')).join('');
+ return row.code_hash===hash;
+}
+
+async function approvedCompanies(base44, user, scope) {
+  const rows = await retry429(()=>base44.asServiceRole.entities.CompanyMembership.filter({ user_id: user.id, active: true }, '-updated_date', 100));
+  const approved=[];
+  for(const row of rows) if(row.scope === (scope || (user.role === 'company' ? 'manager' : 'passenger')) && await liveMembership(base44,row)) approved.push(row.company_id);
+  return approved;
+}
+async function approvedStaffIds(base44, companyId) {
+  const rows = await retry429(()=>base44.asServiceRole.entities.CompanyMembership.filter({ company_id: companyId, active: true, scope: 'passenger' }, '-updated_date', 5000));
+  const ids=new Set();
+  for(const row of rows) if(await liveMembership(base44,row)) ids.add(row.user_id);
+  return ids;
+}
+
+// Codes anyone would try first. A passenger's own six-digit code is how they
+// board without their card, so these are refused when they choose one.
+function weakBoardingCode(code) {
+  if (/^(\d)\1{5}$/.test(code)) return true; // 111111
+  const digits = [...code].map(Number);
+  const steps = digits.slice(1).map((d, i) => (d - digits[i] + 10) % 10);
+  if (steps.every((s) => s === 1) || steps.every((s) => s === 9)) return true; // 123456, 654321
+  if (/^(\d\d)\1\1$/.test(code) || /^(\d{3})\1$/.test(code) || /^(\d)\1(\d)\2(\d)\3$/.test(code)) return true; // 121212, 123123, 112233
+  return ['159753', '147258', '258369', '147852', '753951', '246810', '135790', '102030', '696969', '424242', '789456', '456789', '000001', '100000'].includes(code);
+}
+// Changing a boarding code also says whether a code is already taken, so
+// changes are few per day: enough for a typo or two, too few to search.
+const CODE_CHANGES_PER_DAY = 5;
+const CODE_TTL_MS = 30 * 60 * 1000; // 30 minutes — long enough to walk to the bus, short enough to matter if lost
+
+
+
+// Staff self-service: "I forgot my badge" button in the staff app. Only
+// works for logged-in Users (Contact-only staff have no app to call this
+// from) — generates a short-lived code the bus boarding kiosk's keypad will
+// accept once, in place of an NFC tap or the permanent access_code.
+async function hashSecret(value) {
+ const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
+ return Array.from(new Uint8Array(bytes), b => b.toString(16).padStart(2,'0')).join('');
+}
+function randomSecret() { return Array.from(crypto.getRandomValues(new Uint8Array(32)), b => b.toString(16).padStart(2,'0')).join(''); }
+function randomDigits(len) {
+ let out = '';
+ while (out.length < len) { const b = crypto.getRandomValues(new Uint8Array(1))[0]; if (b < 250) out += b % 10; }
+ return out;
+}
+// Attempt limiting moved to shared/atomicOps.ts: the count and the write must
+// not interleave with a concurrent call, so they now run inside one lock.
+async function issueGrant(base44, device, purpose, subject, ttlMs) {
+ const secret = randomSecret();
+ await base44.asServiceRole.entities.VerificationGrant.create({
+ token_hash: await hashSecret(secret), device_id: device.id, company_id: device.company_id,
+ vehicle_id: device.vehicle_id, purpose, subject, expires_at: new Date(Date.now()+ttlMs).toISOString(),
+ });
+ return secret;
+}
+async function validGrant(base44, device, token, purpose, subject) {
+ if (typeof token !== 'string' || !/^[a-f0-9]{64}$/.test(token)) return false;
+ const rows = await base44.asServiceRole.entities.VerificationGrant.filter({ token_hash: await hashSecret(token) }, '-created_date', 1);
+ const row = rows[0];
+ return !!row && row.device_id === device.id && row.company_id === device.company_id && row.vehicle_id === device.vehicle_id && row.purpose === purpose && row.subject === subject && Date.parse(row.expires_at) > Date.now();
+}
+
+export default async function(req) {
+  try {
+    const base44 = createClientFromRequest(req);
+    const user = await base44.auth.me().catch((e) => { const s = e?.status ?? e?.response?.status; if (s === 401 || s === 403) return null; throw e; }); // no session: signed out; an outage stays an error
+    if (!user || !['staff','passenger'].includes(user.role)) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const companyIds = await approvedCompanies(base44, user, 'passenger');
+    if (companyIds.length !== 1) return Response.json({ error: 'Verified company access required' }, { status: 403 });
+    const companyId = companyIds[0];
+    const body = await req.json();
+    if (['boarding_get', 'boarding_set_code'].includes(body.action)) {
+      if (body.action === 'boarding_set_code') {
+        if (typeof body.code !== 'string' || !/^\d{6}$/.test(body.code)) return Response.json({ error: 'Choose a boarding code with exactly six digits.' }, { status: 400 });
+        if (weakBoardingCode(body.code)) return Response.json({ error: 'That code is too easy to guess. Avoid repeated digits, runs like 123456 and patterns.' }, { status: 400 });
+        if (!(await reserveAttempt(base44, 'boarding-code-change:' + user.id, CODE_CHANGES_PER_DAY, 24 * 3600_000))) return Response.json({ error: 'You have changed your code several times today. Try again tomorrow.' }, { status: 429 });
+      }
+      let credential = await personalBoardingCredential(base44, user, companyId);
+      if (body.action === 'boarding_set_code') credential = await savePersonalBoardingCode(base44, credential, body.code);
+      return Response.json({ qr_token: credential.qr_token, has_code: !!credential.token_hash, permanent: true });
+    }
+    if (body.action) return Response.json({ error: 'Unknown action' }, { status: 400 });
+    if (!(await reserveAttempt(base44, 'otp-issue:' + user.id, 3, 30 * 60_000))) return Response.json({ error: 'Too many code requests. Try again later.' }, { status: 429 });
+    const previous = await retry429(()=>base44.asServiceRole.entities.PassengerOneTimeCredential.filter({ user_id: user.id }, '-created_date', 100));
+    for (const row of previous) if (!row.consumed_at) await retry429(()=>base44.asServiceRole.entities.PassengerOneTimeCredential.update(row.id, { consumed_at: new Date().toISOString() }));
+    let code = '';
+    for (let i = 0; i < 50; i++) {
+      const candidate = randomDigits(6);
+      const matches = await retry429(async ()=>base44.asServiceRole.entities.PassengerOneTimeCredential.filter({ company_id: companyId, token_hash: await hashSecret(candidate) }, '-created_date', 2));
+      if (!matches.some(c => !c.consumed_at && Date.parse(c.expires_at) > Date.now())) { code = candidate; break; }
+    }
+    if (!code) return Response.json({ error: 'Could not allocate a unique code' }, { status: 503 });
+    const expiresAt = new Date(Date.now() + CODE_TTL_MS).toISOString();
+    await retry429(async ()=>base44.asServiceRole.entities.PassengerOneTimeCredential.create({ user_id: user.id, company_id: companyId, token_hash: await hashSecret(code), expires_at: expiresAt }));
+
+    return Response.json({ code, expires_at: expiresAt });
+  } catch (error) {
+    return Response.json({ error: error.status ? error.message : 'Could not load or save your boarding code. Please try again.' }, { status: error.status || 500 });
+  }
+}
