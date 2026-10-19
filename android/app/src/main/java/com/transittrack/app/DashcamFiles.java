@@ -2,6 +2,7 @@ package com.transittrack.app;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -13,6 +14,27 @@ public final class DashcamFiles {
     static final long RESERVE = 32L * 1024 * 1024;
     interface Space { long freeBytes(); }
     private final File root;
+    // NIO is absent before Android 8/API 26. Resolve it once without linking
+    // those classes on older Android; canonical-path checks below still apply.
+    private static final Method FILE_TO_PATH;
+    private static final Method IS_SYMBOLIC_LINK;
+    static {
+        Method path = null, link = null;
+        try {
+            path = File.class.getMethod("toPath");
+            link = Class.forName("java.nio.file.Files").getMethod("isSymbolicLink", Class.forName("java.nio.file.Path"));
+        } catch (ClassNotFoundException | NoSuchMethodException unavailable) {
+            path = null; link = null;
+        }
+        FILE_TO_PATH = path; IS_SYMBOLIC_LINK = link;
+    }
+    private static boolean symbolicLink(File file) throws IOException {
+        if (IS_SYMBOLIC_LINK == null) return false;
+        try { return Boolean.TRUE.equals(IS_SYMBOLIC_LINK.invoke(null, FILE_TO_PATH.invoke(file))); }
+        catch (ReflectiveOperationException | RuntimeException error) {
+            throw new IOException("Could not verify clip location", error);
+        }
+    }
     DashcamFiles(File root) throws IOException {
         this.root = root.getCanonicalFile();
         if (!this.root.isDirectory() && !this.root.mkdirs()) throw new IOException("Clip directory unavailable");
@@ -21,7 +43,11 @@ public final class DashcamFiles {
         if (name == null || !name.matches("[0-9]{13}-[a-f0-9]{16}(?:-partial|-incomplete|-protected|-incomplete-protected)?\\.mp4"))
             throw new IOException("Invalid clip");
         File file = new File(root, name);
-        if (!root.equals(file.getCanonicalFile().getParentFile())) throw new IOException("Invalid clip location");
+        File canonical = file.getCanonicalFile();
+        // File.getCanonicalFile resolves UNIX links, but Windows may only
+        // normalize their names. Never accept a link as a recording on NIO hosts.
+        if (!root.equals(canonical.getParentFile()) || !file.getAbsoluteFile().equals(canonical) || symbolicLink(file))
+            throw new IOException("Invalid clip location");
         return file;
     }
     synchronized List<File> clips() throws IOException {
