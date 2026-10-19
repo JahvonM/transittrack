@@ -1,6 +1,6 @@
 import React from "react";
 
-export const LOGO_URL = "/brand/icon-192.png?v=hiace1";
+export const LOGO_URL = "/brand/icon-192.png?v=mcsween1";
 
 export default function Logo({ className = "w-8 h-8" }) {
   return (
