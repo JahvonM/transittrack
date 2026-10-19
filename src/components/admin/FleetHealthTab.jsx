@@ -229,7 +229,7 @@ export default function FleetHealthTab({ vehicles = [] }) {
         </table>
       </div>
       <p className="text-xs text-muted-foreground">
-        Battery and card-reader details come from the TransitTrack Helper app on each tablet; uploads waiting and app version come from TransitTrack itself.
+        Battery and card-reader details come from the McSween Helper app on each tablet; uploads waiting and app version come from McSween Transport itself.
         A tablet showing “older version” picks up the new one next time it reloads with internet.
       </p>
     </div>

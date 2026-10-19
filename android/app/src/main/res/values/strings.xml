@@ -1,9 +1,9 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">TransitTrack Kiosk</string>
-    <string name="title_activity_main">TransitTrack Kiosk</string>
+    <string name="app_name">McSween Kiosk</string>
+    <string name="title_activity_main">McSween Kiosk</string>
     <string name="package_name">com.transittrack.app</string>
     <string name="custom_url_scheme">com.transittrack.app</string>
-    <string name="usb_auto_accept_label">TransitTrack USB auto-accept</string>
-    <string name="usb_auto_accept_description">Automatically confirms TransitTrack GPS or card-reader USB access prompts on this tablet. Only checks Android System UI while a TransitTrack USB permission request is pending. Does not record, store, or send screen content. Turn this service off here at any time.</string>
+    <string name="usb_auto_accept_label">McSween USB auto-accept</string>
+    <string name="usb_auto_accept_description">Automatically confirms McSween Transport GPS or card-reader USB access prompts on this tablet. Only checks Android System UI while a McSween Transport USB permission request is pending. Does not record, store, or send screen content. Turn this service off here at any time.</string>
 </resources>

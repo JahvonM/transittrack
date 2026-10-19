@@ -1,7 +1,7 @@
 {
   "packageId": "com.transittrack.driver",
   "host": "eager-transit-track-go.base44.app",
-  "name": "TransitTrack Driver",
+  "name": "McSween Driver",
   "launcherName": "Driver",
   "display": "standalone",
   "orientation": "portrait",
@@ -11,7 +11,7 @@
   "backgroundColor": "#0D1520",
   "enableNotifications": true,
   "startUrl": "/driver-phone",
-  "iconUrl": "https://eager-transit-track-go.base44.app/brand/icon-512.png?v=hiace1",
+  "iconUrl": "https://eager-transit-track-go.base44.app/brand/icon-512.png?v=mcsween1",
   "maskableIconUrl": "https://eager-transit-track-go.base44.app/brand/maskable-512.png",
   "webManifestUrl": "https://eager-transit-track-go.base44.app/manifest.webmanifest",
   "splashScreenFadeOutDuration": 300,

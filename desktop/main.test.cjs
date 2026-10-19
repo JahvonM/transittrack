@@ -9,7 +9,7 @@ test('the real entry creates an isolated window and rejects foreign navigation',
   constructor(options){super();this.options=options;this.webContents=new EventEmitter();this.webContents.session={setPermissionCheckHandler:fn=>this.permissionCheck=fn,setPermissionRequestHandler:fn=>this.permissionRequest=fn};this.webContents.setWindowOpenHandler=fn=>this.popup=fn;window=this;}
   once(){} loadURL(url){this.url=url;return Promise.resolve();} loadFile(file){this.file=file;return Promise.resolve();} isDestroyed(){return false;}
  }
- const app=new EventEmitter();Object.assign(app,{enableSandbox(){},setAppUserModelId(){},requestSingleInstanceLock:()=>true,whenReady:()=>Promise.resolve(),quit(){}});
+ const app=new EventEmitter();Object.assign(app,{enableSandbox(){},setAppUserModelId(){},requestSingleInstanceLock:()=>true,setPath(name,dir){this.paths={...this.paths,[name]:dir};},getPath:name=>'/appdata',whenReady:()=>Promise.resolve(),quit(){}});
  const external=[];
  const electron={ipcMain:{handle(){}},app,BrowserWindow:Window,Menu:{buildFromTemplate:t=>(template=t),setApplicationMenu(){}},dialog:{showMessageBox:async()=>({response:0})},shell:{openExternal:async url=>external.push(url)}};
  vm.runInNewContext(fs.readFileSync(__dirname+'/main.cjs','utf8'),{require:name=>name==='electron'?electron:require(name),__dirname,URL,AbortController});

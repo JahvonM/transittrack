@@ -15,7 +15,7 @@ function createReaderProcess({native,script,isPackaged,request,platform=process.
   child=owned;
   const collect=data=>{if(capture)diagnostic=(diagnostic+data.toString()).slice(-6000);};
   owned.stdout?.on('data',collect);owned.stderr?.on('data',collect);
-  owned.on('error',e=>{failure=e.code==='ENOENT'?'The installed reader helper is missing. Reinstall TransitTrack Desktop.':'Windows could not launch the reader helper ('+(e.code||'startup error')+').';if(child===owned)child=null;});
+  owned.on('error',e=>{failure=e.code==='ENOENT'?'The installed reader helper is missing. Reinstall McSween Transport Desktop.':'Windows could not launch the reader helper ('+(e.code||'startup error')+').';if(child===owned)child=null;});
   owned.on('exit',code=>{failure=failure||'The reader helper exited before it was ready (code '+code+').';if(child===owned)child=null;});
   try {
    for(let i=0;i<attempts;i++){

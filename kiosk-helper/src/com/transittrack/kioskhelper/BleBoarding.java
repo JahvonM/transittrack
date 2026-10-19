@@ -22,8 +22,8 @@ import java.util.UUID;
 
 /**
  * Boarding tablets (Helper 1.13): backup boarding over Bluetooth. The tablet
- * advertises a TransitTrack service under the bus's name, at low power so only
- * phones near the door see it. A passenger with the TransitTrack app open taps
+ * advertises a McSween Transport service under the bus's name, at low power so only
+ * phones near the door see it. A passenger with the McSween Transport app open taps
  * "Board by Bluetooth", picks this bus, and the phone writes their boarding
  * code ("tt-code:...", the same as their boarding QR) to the CODE characteristic.
  * The code goes to the boarding page, which checks it with the server exactly
@@ -111,7 +111,7 @@ final class BleBoarding {
     /** Bluetooth names are sent in a 31-byte reply: keep them short and plain. */
     static String clip(String name) {
         String s = name == null ? "" : name.replaceAll("[^A-Za-z0-9 ._-]", "").trim();
-        if (s.isEmpty()) s = "TransitTrack bus";
+        if (s.isEmpty()) s = "McSween bus";
         return s.length() > 24 ? s.substring(0, 24).trim() : s;
     }
 

@@ -223,10 +223,10 @@ export default function TabletNetworkPanel({ boarding = false, className = "max-
         <CardTitle className="text-base">Internet</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        {!h && <p className="text-sm text-muted-foreground">The TransitTrack Helper on this tablet isn't reporting yet. Wi-Fi can't be changed here until it does.</p>}
+        {!h && <p className="text-sm text-muted-foreground">The McSween Helper on this tablet isn't reporting yet. Wi-Fi can't be changed here until it does.</p>}
         {h && !ready && (
           <p className="rounded-lg bg-muted p-3 text-sm">
-            To change Wi-Fi here, update the TransitTrack Helper on this tablet to {LOCAL_NETWORK_HELPER_VERSION} or newer: plug it into the computer and run Update in the setup tool.
+            To change Wi-Fi here, update the McSween Helper on this tablet to {LOCAL_NETWORK_HELPER_VERSION} or newer: plug it into the computer and run Update in the setup tool.
           </p>
         )}
 

@@ -72,7 +72,7 @@ function sameSecret(a,b){
 }
 // Fixed text only (never echoes request data).
 function page(title,text){
- return '<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>TransitTrack Desktop</title><style>body{margin:0;background:#0d1520;color:#edf3fb;font:18px system-ui;min-height:100vh;display:grid;place-items:center}main{max-width:540px;padding:40px}h1{font-size:32px}p{color:#b7c5d7;line-height:1.6}strong{color:#53d6c2}</style><main><strong>TransitTrack Desktop</strong><h1>'+title+'</h1><p>'+text+'</p></main></html>';
+ return '<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>McSween Transport Desktop</title><style>body{margin:0;background:#0d1520;color:#edf3fb;font:18px system-ui;min-height:100vh;display:grid;place-items:center}main{max-width:540px;padding:40px}h1{font-size:32px}p{color:#b7c5d7;line-height:1.6}strong{color:#53d6c2}</style><main><strong>TransitTrack Desktop</strong><h1>'+title+'</h1><p>'+text+'</p></main></html>';
 }
 
 function startBrowserSignIn({openExternal,provider='google',returnPath='/',timeoutMs=TIMEOUT_MS}){
@@ -87,23 +87,23 @@ function startBrowserSignIn({openExternal,provider='google',returnPath='/',timeo
    res.end(page(title,text),after);
   };
   if(finished)return send(410,'Sign-in already finished','You can close this tab.');
-  if(req.headers.host!=='127.0.0.1:'+port)return send(400,'Wrong address','Start signing in from TransitTrack Desktop.');
-  if(req.method!=='POST'||req.url!=='/callback')return send(404,'Nothing here','Start signing in from TransitTrack Desktop.');
+  if(req.headers.host!=='127.0.0.1:'+port)return send(400,'Wrong address','Start signing in from McSween Transport Desktop.');
+  if(req.method!=='POST'||req.url!=='/callback')return send(404,'Nothing here','Start signing in from McSween Transport Desktop.');
   const origin=req.headers.origin;
-  if(origin&&origin!==APP_ORIGIN&&origin!=='null')return send(403,'Not allowed','Only the TransitTrack website can finish a desktop sign-in.');
-  if(!/^application\/x-www-form-urlencoded(\s*;|$)/i.test(req.headers['content-type']||''))return send(415,'Not allowed','Start signing in from TransitTrack Desktop.');
+  if(origin&&origin!==APP_ORIGIN&&origin!=='null')return send(403,'Not allowed','Only the McSween Transport website can finish a desktop sign-in.');
+  if(!/^application\/x-www-form-urlencoded(\s*;|$)/i.test(req.headers['content-type']||''))return send(415,'Not allowed','Start signing in from McSween Transport Desktop.');
   let body='',tooBig=false;
   req.setEncoding('utf8');
   req.on('data',chunk=>{if(tooBig)return;body+=chunk;if(body.length>MAX_BODY){tooBig=true;body='';}});
   req.on('end',()=>{
-   if(tooBig)return send(413,'Not allowed','Start signing in from TransitTrack Desktop.');
+   if(tooBig)return send(413,'Not allowed','Start signing in from McSween Transport Desktop.');
    if(finished)return send(410,'Sign-in already finished','You can close this tab.');
    const form=new URLSearchParams(body);
-   if(!sameSecret(form.get('state')||'',state))return send(400,'This sign-in link has expired','Go back to TransitTrack Desktop and choose Continue with '+PROVIDER_NAMES[provider]+' again.');
+   if(!sameSecret(form.get('state')||'',state))return send(400,'This sign-in link has expired','Go back to McSween Transport Desktop and choose Continue with '+PROVIDER_NAMES[provider]+' again.');
    const token=form.get('token')||'';
-   if(!TOKEN.test(token))return send(400,'Sign-in could not be finished','Go back to TransitTrack Desktop and try again.');
+   if(!TOKEN.test(token))return send(400,'Sign-in could not be finished','Go back to McSween Transport Desktop and try again.');
    finished=true;
-   send(200,'You’re signed in','TransitTrack Desktop is opening your workspace now. You can close this browser tab.',stop);
+   send(200,'You’re signed in','McSween Transport Desktop is opening your workspace now. You can close this browser tab.',stop);
    resolveResult(token);
   });
   req.on('error',()=>{});

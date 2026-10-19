@@ -1,9 +1,9 @@
-// TransitTrack Card Reader - helper for the ACS ACR122U USB NFC reader.
+// McSween Card Reader - helper for the ACS ACR122U USB NFC reader.
 //
 // Browsers can't open smart-card readers (WebUSB blocks them and the ACR122U
 // isn't a HID device), so this small program talks to the reader through
 // Windows' smart-card service (winscard.dll) and passes each card's ID to the
-// TransitTrack page over http://127.0.0.1:8765 (this computer only).
+// McSween Transport page over http://127.0.0.1:8765 (this computer only).
 //
 //   GET /events    Server-Sent Events: status, card, removed, log
 //   GET /status    reader status as JSON
@@ -25,7 +25,7 @@ using System.Threading;
 
 public static class TTCardReader
 {
-    const string Version = "1.1.0";
+    const string Version = "1.2.0";
 
     const uint SCARD_SCOPE_USER = 0;
     const uint SCARD_SHARE_SHARED = 2;
@@ -113,6 +113,7 @@ public static class TTCardReader
     {
         Simulate = simulate;
         AllowedOrigins.Add("https://eager-transit-track-go.base44.app");
+        AllowedOrigins.Add("https://app.mcsweenstransport.com");
         if (!string.IsNullOrEmpty(extraOrigins))
         {
             foreach (string o in extraOrigins.Split(','))
@@ -563,7 +564,7 @@ public static class TTCardReader
                     Clients.Add(s);
                 }
                 keepOpen = true;
-                Log("info", "TransitTrack page connected");
+                Log("info", "McSween Transport page connected");
                 return;
             }
             if (path == "/status")
@@ -593,7 +594,7 @@ public static class TTCardReader
             }
             if (path == "/")
             {
-                Respond(s, 200, cors, "{\"name\":\"TransitTrack Card Reader\",\"version\":\"" + Version + "\"}");
+                Respond(s, 200, cors, "{\"name\":\"McSween Card Reader\",\"version\":\"" + Version + "\"}");
                 return;
             }
             Respond(s, 404, cors, "{\"error\":\"not found\"}");
@@ -629,7 +630,7 @@ public static class TTCardReader
             if (WarnedOrigins.Contains(origin)) return;
             WarnedOrigins.Add(origin);
         }
-        Log("warn", "Refused a connection from " + origin + " - open TransitTrack at https://eager-transit-track-go.base44.app instead");
+        Log("warn", "Refused a connection from " + origin + " - open McSween Transport at https://app.mcsweenstransport.com instead");
     }
 
     static bool OriginAllowed(string origin)

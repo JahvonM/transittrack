@@ -28,7 +28,7 @@ function createDeviceSetup({app,BrowserWindow,dialog,ipcMain},parent){
    return {model:model.trim(),helperVersion:version.match(/versionName=([^\s]+)/)?.[1]||'Not installed',battery:battery.match(/level:\s*(\d+)/)?.[1]||'Unknown',screenTimeout:timeout.trim()};
   },
   chooseHelper:async()=>{
-   const result=await dialog.showOpenDialog(window,{title:'Choose the signed tablet setup downloaded from Admin',properties:['openFile'],filters:[{name:'TransitTrack tablet setup',extensions:['bat']}]});
+   const result=await dialog.showOpenDialog(window,{title:'Choose the signed tablet setup downloaded from Admin',properties:['openFile'],filters:[{name:'McSween tablet setup',extensions:['bat']}]});
    if(result.canceled)return {cancelled:true};
    const stat=await fs.stat(result.filePaths[0]);if(stat.size>45*1024*1024)throw Error('Setup file too large.');
    helper=policy.helperFromSetup(await fs.readFile(result.filePaths[0],'utf8'));
@@ -36,7 +36,7 @@ function createDeviceSetup({app,BrowserWindow,dialog,ipcMain},parent){
   },
   installHelper:async input=>{
    if(!helper)throw Error('Choose the signed tablet setup file first.');await target(input.serial);
-   if(!await confirm('Update TransitTrack Helper on '+input.serial+'?','Version '+helper.version+'. Updates the installed app without uninstalling it or clearing app data. Sync or export Saved Work before an update.'))return {cancelled:true};
+   if(!await confirm('Update McSween Helper on '+input.serial+'?','Version '+helper.version+'. Updates the installed app without uninstalling it or clearing app data. Sync or export Saved Work before an update.'))return {cancelled:true};
    const dir=await fs.mkdtemp(path.join(os.tmpdir(),'tt-helper-'));
    try{const apk=path.join(dir,'TransitTrack-Helper.apk');await fs.writeFile(apk,helper.bytes);await selected(input.serial,['install','-r',apk],120000);return {message:'Helper installed. Existing app data was preserved.'};}finally{await fs.rm(dir,{recursive:true,force:true});}
   },
@@ -81,7 +81,7 @@ function createDeviceSetup({app,BrowserWindow,dialog,ipcMain},parent){
  function open(view='tablet'){
   view=['tablet','nfc'].includes(view)?view:'tablet';
   if(window&&!window.isDestroyed()){window.focus();window.webContents.send('setup-view',view);return;}
-  window=new BrowserWindow({parent,width:1120,height:900,minWidth:900,minHeight:720,title:'TransitTrack • Tablet & NFC setup',backgroundColor:'#0d1520',webPreferences:{preload:path.join(__dirname,'setup-preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true,webSecurity:true,partition:'setup-ui'}});
+  window=new BrowserWindow({parent,width:1120,height:900,minWidth:900,minHeight:720,title:'McSween Transport • Tablet & NFC setup',backgroundColor:'#0d1520',webPreferences:{preload:path.join(__dirname,'setup-preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true,webSecurity:true,partition:'setup-ui'}});
   window.webContents.session.setPermissionCheckHandler(()=>false);window.webContents.session.setPermissionRequestHandler((_contents,_permission,callback)=>callback(false));
   window.webContents.on('will-navigate',e=>e.preventDefault());window.webContents.setWindowOpenHandler(()=>({action:'deny'}));
   window.on('closed',()=>{window=null;helper=null;kiosk=null;clearInterval(pollTimer);pollTimer=null;events?.destroy();events=null;});

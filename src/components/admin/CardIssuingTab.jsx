@@ -541,8 +541,8 @@ export default function CardIssuingTab({ companies = [] }) {
               <>
                 <p className="font-semibold">Can't reach the reader helper on this PC — check these in order:</p>
                 <ol className="text-muted-foreground list-decimal ml-4 space-y-0.5">
-                  <li>The black <b>TransitTrack Card Reader</b> window is open and says <b>Listening on http://127.0.0.1:8765</b>. Not open? Download the helper again and double-click it.</li>
-                  <li><a href={`${HELPER_URL}/`} target="_blank" rel="noreferrer" className="underline font-medium text-foreground">Test the helper</a> — a page showing “TransitTrack Card Reader” means it's running. “Can't be reached” means it isn't.</li>
+                  <li>The black <b>McSween Card Reader</b> window is open and says <b>Listening on http://127.0.0.1:8765</b>. Not open? Download the helper again and double-click it.</li>
+                  <li><a href={`${HELPER_URL}/`} target="_blank" rel="noreferrer" className="underline font-medium text-foreground">Test the helper</a> — a page showing “McSween Card Reader” means it's running. “Can't be reached” means it isn't.</li>
                   <li>Test works but still not connected? Chrome is blocking this site: click the icon left of the web address → <b>Site settings</b> → <b>Local network access</b> → <b>Allow</b>, then press Connect reader.</li>
                 </ol>
                 <p className="text-xs text-muted-foreground">You can still type card IDs by hand.</p>

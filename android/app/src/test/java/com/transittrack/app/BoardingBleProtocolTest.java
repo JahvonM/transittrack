@@ -67,7 +67,7 @@ public class BoardingBleProtocolTest {
         assertEquals(20, accepted.get());
     }
     @Test public void clipsBusNameToAdvertisementBudget() {
-        assertEquals("TransitTrack bus", BoardingBleProtocol.name("💥"));
+        assertEquals("McSween bus", BoardingBleProtocol.name("💥"));
         assertEquals(24, BoardingBleProtocol.name("A very long bus name beyond the limit").length());
         assertEquals("Bus 12", BoardingBleProtocol.name("Bus 12"));
     }

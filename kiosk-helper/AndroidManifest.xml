@@ -20,7 +20,7 @@
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
     <uses-feature android:name="android.hardware.bluetooth_le" android:required="false" />
     <application
-        android:label="TransitTrack Helper"
+        android:label="McSween Helper"
         android:icon="@mipmap/ic_launcher"
         android:allowBackup="false"
         android:usesCleartextTraffic="true">
@@ -47,7 +47,7 @@
         <service
             android:name=".AutoOkService"
             android:exported="true"
-            android:label="TransitTrack Helper (auto OK)"
+            android:label="McSween Helper (auto OK)"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
             <intent-filter>
                 <action android:name="android.accessibilityservice.AccessibilityService" />

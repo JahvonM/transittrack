@@ -2,8 +2,8 @@
   "name": "transittrack-desktop",
   "version": "0.2.6",
   "private": true,
-  "description": "TransitTrack Admin and Mechanic for Windows",
-  "author": "TransitTrack",
+  "description": "McSween Transport Admin and Mechanic for Windows",
+  "author": "McSween Transport",
   "main": "main.cjs",
   "scripts": {
     "start": "electron .",
@@ -18,7 +18,7 @@
   },
   "build": {
     "appId": "com.transittrack.desktop",
-    "productName": "TransitTrack Desktop",
+    "productName": "McSween Transport Desktop",
     "directories": {
       "output": "release"
     },
@@ -60,7 +60,7 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "TransitTrack Desktop",
+      "shortcutName": "McSween Transport Desktop",
       "deleteAppDataOnUninstall": false
     },
     "extraResources": [

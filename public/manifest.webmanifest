@@ -9,25 +9,25 @@
   "theme_color": "#0D1520",
   "icons": [
     {
-      "src": "/brand/icon-192.png?v=hiace1",
+      "src": "/brand/icon-192.png?v=mcsween1",
       "type": "image/png",
       "sizes": "192x192",
       "purpose": "any"
     },
     {
-      "src": "/brand/icon-512.png?v=hiace1",
+      "src": "/brand/icon-512.png?v=mcsween1",
       "type": "image/png",
       "sizes": "512x512",
       "purpose": "any"
     },
     {
-      "src": "/brand/maskable-192.png?v=hiace1",
+      "src": "/brand/maskable-192.png?v=mcsween1",
       "type": "image/png",
       "sizes": "192x192",
       "purpose": "maskable"
     },
     {
-      "src": "/brand/maskable-512.png?v=hiace1",
+      "src": "/brand/maskable-512.png?v=mcsween1",
       "type": "image/png",
       "sizes": "512x512",
       "purpose": "maskable"

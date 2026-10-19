@@ -27,7 +27,7 @@ final class BoardingBleProtocol {
     }
     static String name(String name) {
         String s = name == null ? "" : name.replaceAll("[^A-Za-z0-9 ._-]", "").trim();
-        if (s.isEmpty()) s = "TransitTrack bus";
+        if (s.isEmpty()) s = "McSween bus";
         return s.substring(0, Math.min(24, s.length())).trim();
     }
     // Includes malformed complete messages, so junk does not bypass the budget.

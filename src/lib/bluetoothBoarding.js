@@ -108,7 +108,7 @@ export function bluetoothProblem(error) {
   if (name === "NoBusFound") return "No bus tablet found nearby. Stand at the bus door, check Bluetooth is on, and try again.";
   if (name === "NetworkError") return "Couldn't reach the bus tablet. Move closer to the door and try again.";
   if (name === "BluetoothOff") return "Bluetooth is off on this phone. Turn it on (swipe down for Control Center on iPhone), then tap the button again.";
-  if (name === "NativeDenied") return "TransitTrack isn't allowed to use Bluetooth. Turn it on in your phone's Settings under TransitTrack, or show your QR instead.";
+  if (name === "NativeDenied") return "McSween Transport isn't allowed to use Bluetooth. Turn it on in your phone's Settings under McSween, or show your QR instead.";
   if (name === "Unsupported") return "This phone can't board by Bluetooth. Show your boarding QR or type your code instead.";
   if (name === "SecurityError" || name === "NotAllowedError") return "Bluetooth is blocked for this app in Chrome. Allow it in Chrome's site settings, or show your QR instead.";
   if (name === "NoCode") return "Your boarding code isn't ready yet. Try again in a moment.";

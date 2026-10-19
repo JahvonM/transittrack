@@ -20,7 +20,7 @@ class SupportProjectionService:Service() {
   if(Build.VERSION.SDK_INT>=26)manager.createNotificationChannel(NotificationChannel("tt_support","Tablet screen sharing",NotificationManager.IMPORTANCE_LOW))
   val stop=PendingIntent.getService(this,931,Intent(this,SupportProjectionService::class.java).setAction("STOP"),PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
   val builder=if(Build.VERSION.SDK_INT>=26)Notification.Builder(this,"tt_support")else Notification.Builder(this)
-  val notification=builder.setSmallIcon(android.R.drawable.ic_menu_view).setContentTitle("TransitTrack screen sharing")
+  val notification=builder.setSmallIcon(android.R.drawable.ic_menu_view).setContentTitle("McSween Transport screen sharing")
    .setContentText("An administrator can view your screen. Tap Stop to end.").setOngoing(true)
    .addAction(Notification.Action.Builder(android.R.drawable.ic_menu_close_clear_cancel,"Stop",stop).build()).build()
   if(Build.VERSION.SDK_INT>=29)startForeground(931,notification,ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION)
