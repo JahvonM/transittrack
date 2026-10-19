@@ -472,7 +472,7 @@ for (const size of [{width:1280,height:800},{width:1024,height:600},{width:800,h
   const deck=await page.getByLabel('Driving controls',{exact:true}).boundingBox();
   expect(deck.y+deck.height).toBeLessThanOrEqual(size.height+1);
   expect(main.width).toBeGreaterThan(0);
-  await expect(nav.getByRole('button')).toHaveCount(3);
+  await expect(nav.getByRole('button')).toHaveCount(size.width >= 960 && size.width > size.height ? 5 : 3);
   await page.screenshot({path:`/tmp/tt-driver-reference-${size.width}.png`});
   await nav.getByRole('button',{name:'Passengers',exact:true}).click();
   await expect(page.getByRole('heading',{name:'Passengers',exact:true})).toBeVisible();
