@@ -27,7 +27,7 @@ export default function UsbNfcPanel() {
     <CardHeader className="pb-3"><CardTitle className="flex items-center gap-2 text-base"><CreditCard className="h-5 w-5" /> USB card reader</CardTitle></CardHeader>
     <CardContent className="space-y-3">
       <div className="flex items-center gap-3"><div className="flex-1">
-        <p className="text-sm font-medium">Read cards directly in TransitTrack</p>
+        <p className="text-sm font-medium">Read cards directly in McSween Transport</p>
         <p className="text-xs text-muted-foreground">ACR122U on the passenger boarding tablet</p>
       </div><Switch aria-label="Use integrated USB card reader" checked={state.enabled} disabled={busy} onCheckedChange={toggle} /></div>
       <p role="status" className="text-sm">{state.enabled ? state.status : "Using existing helper / external reader"}</p>

@@ -24,7 +24,7 @@ export default function CompanyJoinQr({ code, companyName, size = "sm" }) {
     const title = String(companyName || "Your bus company").replace(/[<>&"]/g, "");
     w.document.write(`<!doctype html><title>${title} QR</title><body style="font-family:system-ui,sans-serif;text-align:center;padding:40px">
       <h1 style="margin:0 0 8px">${title}</h1><p style="margin:0 0 24px;font-size:18px">Scan with your phone camera to see when your bus arrives.</p>
-      <img src="${png}" width="420" height="420" alt="" /><p style="margin-top:16px;color:#555">TransitTrack</p>
+      <img src="${png}" width="420" height="420" alt="" /><p style="margin-top:16px;color:#555">McSween Transport</p>
       <script>window.onload=()=>{window.print();}</script></body>`);
     w.document.close();
   };

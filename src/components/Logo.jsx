@@ -6,7 +6,7 @@ export default function Logo({ className = "w-8 h-8" }) {
   return (
     <img
       src={LOGO_URL}
-      alt="TransitTrack"
+      alt="McSween Transport"
       className={`${className} rounded-[28%] shrink-0 object-contain`}
     />
   );

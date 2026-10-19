@@ -4,7 +4,7 @@ This checkpoint is part of the combined final kiosk update. No tablet installati
 
 ## Native screen power
 
-MainActivity applies FLAG_KEEP_SCREEN_ON at creation, resume and regained focus. It keeps the visible kiosk activity awake on battery or charger. It is not a CPU wake lock, background tracking service, forced screen wake or guarantee against an empty battery/OS shutdown.
+MainActivity applies the persisted Keep screen on preference at creation, resume and regained focus. It defaults on and keeps the visible kiosk activity awake on battery or charger; off clears the activity flag and restores Android’s normal timeout. The switch is in driver settings and PIN-gated boarding settings → Startup & recovery. The native recovery screen follows this choice; the rear-camera recording activity retains its own keep-awake requirement. It is not a CPU wake lock, background tracking service, forced screen wake or guarantee against an empty battery/OS shutdown.
 
 The existing useKeepAwake hook recognizes the TabletRecovery plugin and leaves this activity-owned flag alone. Older native shells still use the Capacitor keep-awake plugin and web/PWA builds retain the existing Wake Lock API behaviour. This prevents a departing tablet screen's cleanup from clearing the newer activity's keep-awake flag.
 

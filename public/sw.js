@@ -119,7 +119,7 @@ async function page(event) {
     const cached = await caches.match("/", { cacheName: SHELL });
     if (cached) return cached;
     return new Response(
-      "<!doctype html><meta name=viewport content='width=device-width'><body style='font-family:sans-serif;background:#0b0b0d;color:#fff;display:grid;place-items:center;height:100vh;margin:0'><p>TransitTrack needs a connection the first time it opens on this device.</p>",
+      "<!doctype html><meta name=viewport content='width=device-width'><body style='font-family:sans-serif;background:#0b0b0d;color:#fff;display:grid;place-items:center;height:100vh;margin:0'><p>McSween Transport needs a connection the first time it opens on this device.</p>",
       { status: 503, headers: { "Content-Type": "text/html" } }
     );
   }

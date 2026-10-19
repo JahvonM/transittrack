@@ -138,7 +138,7 @@ export default function Login() {
     >
       {providerReturn && !isAuthenticated && !isLoadingAuth && !isLoadingPublicSettings && (
         <div role="alert" className="mb-4 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
-          Sign-in did not complete. TransitTrack could not confirm your account after returning from Google. Try signing in again, or use your email and password.
+          Sign-in did not complete. McSween Transport could not confirm your account after returning from Google. Try signing in again, or use your email and password.
         </div>
       )}
       {error && (
@@ -153,7 +153,7 @@ export default function Login() {
       )}
       {inBrowser && (
         <div role="status" className="mb-4 p-3 rounded-lg bg-secondary text-sm">
-          Finish signing in in the browser window. The app signs in by itself when you tap Open TransitTrack app there.
+          Finish signing in in the browser window. The app signs in by itself when you tap Open McSween Transport app there.
         </div>
       )}
 

@@ -12,7 +12,7 @@ export async function callDriverPhone(action, body = {}) {
     return res.data;
   } catch (error) {
     const data = errorData(error);
-    throw Object.assign(new Error(data.error || "Couldn't reach TransitTrack. Check your signal and try again."), {
+    throw Object.assign(new Error(data.error || "Couldn't reach McSween Transport. Check your signal and try again."), {
       status: httpStatus(error), code: data.code || "",
     });
   }

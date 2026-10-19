@@ -6,7 +6,7 @@ import BusArtwork from "@/components/BusArtwork";
 // Pure presentation: requests, offline caches and access checks stay with the
 // caller. No simulated percentages, completed steps or artificial loading delay.
 export default function JourneyLoading({
- label = "Opening TransitTrack…", heading = "Getting ready for your journey",
+ label = "Opening McSween Transport…", heading = "Getting ready for your journey",
  company, vehicle, context, onRetry, fullScreen = true,
 }) {
  const [slow, setSlow] = useState(false);
@@ -16,7 +16,7 @@ export default function JourneyLoading({
   return () => clearTimeout(timer);
  }, [label]);
  return (
-  <section className={`tt-journey-loading ${fullScreen ? "tt-journey-loading-full" : "tt-journey-loading-inline"}`} aria-label="TransitTrack loading screen" aria-busy="true">
+  <section className={`tt-journey-loading ${fullScreen ? "tt-journey-loading-full" : "tt-journey-loading-inline"}`} aria-label="McSween Transport loading screen" aria-busy="true">
    <div className="tt-loading-contours" aria-hidden="true" />
    <header className="tt-loading-header">
     <div className="tt-loading-brand"><Logo className="w-9 h-9" /><span>Transit<span className="tt-loading-accent">Track</span></span></div>
@@ -44,7 +44,7 @@ export default function JourneyLoading({
      {onRetry && <button type="button" onClick={onRetry}>Try again</button>}
     </div>}
    </div>
-   <footer className="tt-loading-footer">TransitTrack</footer>
+   <footer className="tt-loading-footer">McSween Transport</footer>
   </section>
  );
 }

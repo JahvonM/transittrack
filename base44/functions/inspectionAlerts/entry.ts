@@ -24,7 +24,7 @@ function formatItem(d) {
 }
 
 function buildEmail(name, items) {
-  return `Hi ${name},\n\nThe following recurring inspections are due soon or overdue:\n\n${items.join('\n\n')}\n\nPlease schedule these in Run Inspection at your earliest convenience.\n\n— TransitTrack`;
+  return `Hi ${name},\n\nThe following recurring inspections are due soon or overdue:\n\n${items.join('\n\n')}\n\nPlease schedule these in Run Inspection at your earliest convenience.\n\n— McSween Transport`;
 }
 
 // Recurring-inspection reminders — companion to maintenanceAlerts, but keyed

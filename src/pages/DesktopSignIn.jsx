@@ -69,11 +69,11 @@ export default function DesktopSignIn() {
     return (
       <AuthLayout
         title="This sign-in link isn't valid"
-        subtitle="Go back to TransitTrack Desktop and choose Continue with Google again."
+        subtitle="Go back to McSween Transport Desktop and choose Continue with Google again."
       >
         <p className="flex items-start gap-3 text-body-sm text-muted-foreground">
           <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" aria-hidden="true" />
-          Desktop sign-in links only work from the TransitTrack Desktop app on this computer, and only for a few minutes.
+          Desktop sign-in links only work from the McSween Transport Desktop app on this computer, and only for a few minutes.
         </p>
       </AuthLayout>
     );
@@ -82,14 +82,14 @@ export default function DesktopSignIn() {
   if (step === "cancelled") {
     return (
       <AuthLayout title="Desktop sign-in cancelled" subtitle="Nothing was shared with the desktop app. You can close this tab.">
-        <p className="text-body-sm text-muted-foreground">To try again, go back to TransitTrack Desktop and choose Continue with {providerName}.</p>
+        <p className="text-body-sm text-muted-foreground">To try again, go back to McSween Transport Desktop and choose Continue with {providerName}.</p>
       </AuthLayout>
     );
   }
 
   if (step === "sending") {
     return (
-      <AuthLayout title="Signing in TransitTrack Desktop…" subtitle="Go back to the desktop app. You can close this tab once it says you're signed in.">
+      <AuthLayout title="Signing in McSween Transport Desktop…" subtitle="Go back to the desktop app. You can close this tab once it says you're signed in.">
         <div className="flex items-center gap-3 text-body-sm text-muted-foreground">
           <Loader2 className="h-5 w-5 animate-spin text-primary" aria-hidden="true" />
           Handing your sign-in to the desktop app…
@@ -100,7 +100,7 @@ export default function DesktopSignIn() {
 
   if (isLoadingAuth || step === "redirecting") {
     return (
-      <AuthLayout title="Sign in to TransitTrack Desktop" subtitle={`Opening ${providerName} sign-in…`}>
+      <AuthLayout title="Sign in to McSween Transport Desktop" subtitle={`Opening ${providerName} sign-in…`}>
         <div className="flex items-center justify-center py-6 text-muted-foreground">
           <Loader2 className="h-6 w-6 animate-spin" aria-hidden="true" />
         </div>
@@ -111,7 +111,7 @@ export default function DesktopSignIn() {
   if (!isAuthenticated) {
     const Icon = request.provider === "google" ? GoogleIcon : request.provider === "apple" ? AppleIcon : Monitor;
     return (
-      <AuthLayout title="Sign in to TransitTrack Desktop" subtitle="Sign in here in your browser. The desktop app signs in by itself when you finish.">
+      <AuthLayout title="Sign in to McSween Transport Desktop" subtitle="Sign in here in your browser. The desktop app signs in by itself when you finish.">
         <Button variant="outline" className="w-full h-12 text-sm font-medium" onClick={startProvider}>
           <Icon className="w-5 h-5 mr-2" />
           Continue with {providerName}
@@ -122,8 +122,8 @@ export default function DesktopSignIn() {
 
   return (
     <AuthLayout
-      title="Sign in to TransitTrack Desktop"
-      subtitle="You started signing in from the TransitTrack Desktop app on this computer."
+      title="Sign in to McSween Transport Desktop"
+      subtitle="You started signing in from the McSween Transport Desktop app on this computer."
     >
       {error && (
         <div role="alert" className="mb-4 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
@@ -139,7 +139,7 @@ export default function DesktopSignIn() {
       <div className="grid gap-3">
         <Button className="w-full h-12 font-medium" onClick={finish}>
           <Monitor className="w-4 h-4 mr-2" aria-hidden="true" />
-          Open TransitTrack Desktop
+          Open McSween Transport Desktop
         </Button>
         <Button variant="outline" className="w-full h-12 text-sm font-medium" onClick={switchAccount}>
           <LogOut className="w-4 h-4 mr-2" aria-hidden="true" />
@@ -150,7 +150,7 @@ export default function DesktopSignIn() {
         </Button>
       </div>
       <p className="mt-5 text-xs text-muted-foreground leading-relaxed">
-        Only continue if you just chose to sign in on TransitTrack Desktop. If your browser asks to let this site
+        Only continue if you just chose to sign in on McSween Transport Desktop. If your browser asks to let this site
         connect to apps or devices on this computer, choose Allow.
       </p>
     </AuthLayout>

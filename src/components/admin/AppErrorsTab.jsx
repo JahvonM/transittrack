@@ -55,7 +55,7 @@ function whoOf(r, tablets) {
 export function reportText(group, r, tablets) {
   const steps = (r.breadcrumbs || []).map((b) => `  ${clock(b.t)}  ${STEP_LABEL[b.type] || b.type}: ${b.text}`).join("\n") || "  (not recorded)";
   return [
-    `TransitTrack app error`,
+    `McSween Transport app error`,
     `Message: ${r.message}`,
     `Happened: ${group.rows.length} time(s), ${group.people} ${group.people === 1 ? "person/device" : "people/devices"}, first ${when(group.first.created_date)}, last ${when(group.latest.created_date)}`,
     `This one: ${when(r.created_date)}`,

@@ -13,7 +13,7 @@ export default function CompanyBanner({ name, logoUrl, compact = false, classNam
           {logoUrl && !failed ? <img src={logoUrl} alt={`${name || "Company"} logo`} className="w-full h-full object-contain" onError={() => setFailed(true)} /> : <Building2 className="w-7 h-7 text-neutral-700" aria-hidden="true" />}
         </div>
         <div className="min-w-0">
-          <p className="text-caption font-semibold uppercase tracking-wide text-muted-foreground">TransitTrack · company transport</p>
+          <p className="text-caption font-semibold uppercase tracking-wide text-muted-foreground">McSween Transport · company transport</p>
           <p className={`font-heading font-semibold break-words leading-tight ${compact ? "text-sm" : "text-lg sm:text-xl"}`}>{name || "Your company"}</p>
         </div>
       </div>

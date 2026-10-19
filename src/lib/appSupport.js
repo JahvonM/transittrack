@@ -20,6 +20,6 @@ export async function saveSupportNumber(number) {
 }
 
 export function whatsappLink(number, where = "") {
-  const text = `Hi, I have a problem with the TransitTrack app${where ? ` (${where})` : ""}: `;
+  const text = `Hi, I have a problem with the McSween Transport app${where ? ` (${where})` : ""}: `;
   return `https://wa.me/${number}?text=${encodeURIComponent(text)}`;
 }

@@ -1471,7 +1471,7 @@ export default async function(req) {
         if (!recipient || !(await approvedCompanies(base44, recipient, 'passenger')).includes(vehicle.company_id || companyId))
           return Response.json({ error: 'Recipient not in your company' }, { status: 403 });
         const subject = `Your bus is approaching — ${sanitize(vehicle.name)}`;
-        const msg = `Hello,\n\n${sanitize(vehicle.name)}${sanitize(vehicle.driver_name) ? ` (driver ${sanitize(vehicle.driver_name)})` : ''} is near your pickup location${sanitize(vehicle.company_name) ? ` for ${sanitize(vehicle.company_name)}` : ''} and will arrive shortly. Please get ready to board.\n\n— TransitTrack`;
+        const msg = `Hello,\n\n${sanitize(vehicle.name)}${sanitize(vehicle.driver_name) ? ` (driver ${sanitize(vehicle.driver_name)})` : ''} is near your pickup location${sanitize(vehicle.company_name) ? ` for ${sanitize(vehicle.company_name)}` : ''} and will arrive shortly. Please get ready to board.\n\n— McSween Transport`;
         const email = await emailWithPolicy(base44, 'bus_approaching_email', [{ email: to }],
           (r) => base44.asServiceRole.integrations.Core.SendEmail({ to: r.email, subject, body: msg }), { title: subject, companyId });
         if (email.failed) return Response.json({ error: 'The email could not be sent' }, { status: 502 });

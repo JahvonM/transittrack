@@ -9,7 +9,7 @@ export default function TermsOfService() {
       <LegalSection title="1. Agreement">
         <p>
           These terms are an agreement between you and [COMPANY NAME] ("we", "us") covering your use
-          of the TransitTrack application and the transport services booked or coordinated through
+          of the McSween Transport application and the transport services booked or coordinated through
           it. By creating an account or using the app, you accept these terms. If you do not accept
           them, do not use the app.
         </p>
@@ -114,7 +114,7 @@ export default function TermsOfService() {
 
       <LegalSection title="8. Company responsibilities">
         <p>
-          If you use TransitTrack as a company, you are responsible for the vehicles, drivers and
+          If you use McSween Transport as a company, you are responsible for the vehicles, drivers and
           staff you register, for holding the licences and insurance your operations require, for
           the accuracy of the routes and stop information you enter, and for informing your staff
           about the location tracking and monitoring described in these terms and in our Privacy

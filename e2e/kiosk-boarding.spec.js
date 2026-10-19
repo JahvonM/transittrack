@@ -249,7 +249,7 @@ for(const size of [{width:1280,height:800},{width:800,height:1280},{width:1024,h
   let release;const pending=new Promise(resolve=>{release=resolve});
   await page.route('**/functions/kioskHeartbeat',async r=>{await pending;return r.fallback();});
   await page.goto('/kiosk');
-  const loading=page.getByRole('region',{name:'TransitTrack loading screen'});
+  const loading=page.getByRole('region',{name:'McSween Transport loading screen'});
   await expect(loading).toBeVisible();
   await expect(loading.getByRole('status')).toHaveText('Connecting this tablet…');
   const bounds=await loading.locator('.tt-loading-progress').boundingBox();
@@ -426,7 +426,10 @@ async function installNativeHelper(page, enabled = true, bleEnabled = false, net
       offer: async value => {window.__supportOffers.push(value);},
       stop: async () => window.__supportReserve(false),
     };
-    const recovery = { getState: async () => ({ available: true, defaultHome: false, screenRecovery: { available: true, state: 'ready', count: 0 } }), openHomeSettings: async () => { window.__nativeHomeSettingsOpened = true; } };
+    window.__nativeKeepScreenOn = true;
+    const recovery = { getState: async () => ({ available: true, screenControl: true, keepScreenOn: window.__nativeKeepScreenOn, defaultHome: false, screenRecovery: { available: true, state: 'ready', count: 0 } }),
+      setKeepScreenOn: async ({enabled}) => { if(window.__failScreenChange) throw Error('Synthetic save failure'); window.__nativeKeepScreenOn = enabled; return {keepScreenOn:enabled}; },
+      openHomeSettings: async () => { window.__nativeHomeSettingsOpened = true; } };
     const gps = { openAutoAcceptSettings: async () => { window.__autoAcceptSettingsOpened = true; } };
     const other = new Proxy({}, { get: (_, key) => key === 'addListener' ? async () => ({ remove: async () => {} }) : async () => ({}) });
     window.CapacitorPlatforms = { platforms: new Map(), currentPlatform: { name: 'android', getPlatform: () => 'android', isNativePlatform: () => true, isPluginAvailable: name => ['UsbNfc', 'TabletHealth', 'UsbGps', 'BoardingBluetooth', 'TabletRecovery', 'TabletNetwork', ...(networkOptions.support ? ['TabletSupport'] : []), ...(networkOptions.control ? ['TabletControl'] : [])].includes(name), registerPlugin: name => name === 'TabletSupport' ? support : name === 'TabletControl' ? control : name === 'TabletNetwork' ? net : name === 'TabletRecovery' ? recovery : name === 'BoardingBluetooth' ? ble : name === 'UsbNfc' ? nfc : name === 'TabletHealth' ? health : name === 'UsbGps' ? gps : other } };
@@ -559,6 +562,17 @@ test('startup recovery settings are PIN gated and never change Home automaticall
   await expect(dialog.getByText('FLOW · 0/4 signal (last reading)', { exact: true })).toBeVisible();
   await expect(dialog.getByText('Android reports Internet access.', { exact: true })).toBeVisible();
   await expect(dialog.getByText(/Screen recovery is ready/)).toBeVisible();
+  const screen = dialog.getByRole('switch', {name:'Keep screen on',exact:true});
+  await expect(screen).toBeChecked();
+  await screen.click(); await expect(screen).not.toBeChecked();
+  expect(await page.evaluate(()=>window.__nativeKeepScreenOn)).toBe(false);
+  await page.evaluate(()=>window.dispatchEvent(new Event('focus')));
+  await expect(screen).not.toBeChecked();
+  await page.evaluate(()=>window.__failScreenChange=true);
+  await screen.click(); await expect(screen).not.toBeChecked();
+  await expect(dialog.getByText('Could not change the screen setting. Try again.')).toBeVisible();
+  await page.evaluate(()=>window.__failScreenChange=false);
+  await screen.click(); await expect(screen).toBeChecked();
   expect(await page.evaluate(() => window.__nativeHomeSettingsOpened)).toBeUndefined();
   await dialog.getByRole('button', { name: 'Open Android Home settings', exact: true }).click();
   await expect.poll(() => page.evaluate(() => window.__nativeHomeSettingsOpened)).toBe(true);
@@ -657,9 +671,9 @@ test('native support handoff forwards IDs only and releases the QR camera until 
  expect(await page.evaluate(()=>window.__supportOffers[0])).toEqual({device_id:'tab-1',device_token:TOKEN,session_id:'support-session'});
  await page.getByRole('button',{name:/Scan QR code/}).click();
  await page.evaluate(()=>window.__supportReserve(true));
- await expect(page.getByText('QR camera paused for tablet support.',{exact:false})).toBeVisible();
+ await expect(page.getByText('QR camera paused while native camera capture is active.',{exact:false})).toBeVisible();
  await expect(page.getByText('Slide to enter a code',{exact:true})).toBeVisible();
  await page.evaluate(()=>window.__supportReserve(false));
- await expect(page.getByText('QR camera paused for tablet support.',{exact:false})).toHaveCount(0);
+ await expect(page.getByText('QR camera paused while native camera capture is active.',{exact:false})).toHaveCount(0);
  expect(errors).toEqual([]);
 });

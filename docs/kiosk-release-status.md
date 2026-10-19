@@ -1,10 +1,10 @@
 # Kiosk release status — 18 October 2026
 
-Current source version: Android 1.2 / build 3. Background tracking details and acceptance limits: [background-driver-gps.md](background-driver-gps.md).
+Current combined test candidate: Android **1.3 / build 4**. Start with [kiosk-one-big-test.md](kiosk-one-big-test.md) for one Windows build command and one ordered tablet test. The rejected mint driver theme has been removed; functional work remains. Background tracking details and acceptance limits: [background-driver-gps.md](background-driver-gps.md).
 
 Cloud recording upload/storage is deferred at the owner's request. Rear-camera recordings remain on the tablet; admin playback transfers a selected clip on demand and still requires the tablet to be online. Supabase is not a video archive in this release.
 
-## Verified in this finishing pass
+## Earlier automated evidence (superseded by the combined run below)
 
 - Security release suite: 188 tests passed across 17 files, including concurrent operation and credential/session boundary checks. These are isolated tests with synthetic RPC fixtures; hosted Supabase migrations, flags and production atomicity were not verified.
 - Corrected three stale test fixtures: pairing now loads the actual shared durable-operation helpers; driver messages carry a company and explicitly exclude another company's messages; direct entity access tests recognize server-only support/recording sessions and forbid both through the generic gateway for every role, including admin.
@@ -72,3 +72,32 @@ Added the opt-in native GPS service, private durable assigned queue, independent
 Driver tablet settings and PIN-gated boarding settings → Startup & recovery now include Keep screen on. Defaults on, persists per tablet, applies immediately and after resume/restart. Off uses the Android screen timeout; it does not force sleep or disable background GPS. The native recovery screen follows the preference. The separate rear-camera recording activity keeps its existing awake requirement. Older installed binaries show an update hint instead of a nonfunctional switch. Requires the rebuilt kiosk APK; physical timeout/power/restart acceptance is pending.
 
 Display-switch validation: focused recovery helper tests passed (4), changed frontend files passed the crash-guard lint, Vite build exited successfully and diff whitespace checks passed. The refreshed sandbox has no Java/Android SDK, so this switch's native compilation was not rerun; the earlier 1.2 background GPS build results predate this switch. Compile and verify screen timeout, resume and persistence with the combined native update before rollout.
+
+## Combined test candidate — 1.3 / build 4
+
+Prepared for one owner-run parked tablet acceptance using [kiosk-one-big-test.md](kiosk-one-big-test.md) and tools/kiosk/Prepare-Tablet-Test.ps1. Removed the rejected driverRefined theme import and stylesheet; restored the previous driver appearance without rolling back screen power, background GPS, recordings, health or saved-work changes. Recovery state now reports whether native driver tracking is active instead of a constant false. Package/application ID and signing configuration are unchanged.
+
+Verification on the final application code:
+
+- JavaScript unit suite: 112 files / **1,004 passed**.
+- Security suite: 17 files / **188 passed**, isolated synthetic fixtures; not a hosted database migration/atomicity certification.
+- Web production build/crash guard and Capacitor Android sync passed. Verified rejected theme CSS is absent in web output and synced Android assets.
+- Android debug Java/Kotlin compilation, **92 native tests (zero failures/errors)**, release compilation, vital release lint and assembleRelease passed. Three new tests exercise default-on display state, persistence across activity reopening, restoring on, and repeated resume application retaining off.
+- Built unsigned release manifest verified with aapt: com.transittrack.app, versionName 1.3, versionCode 4, min SDK 22 / target SDK 36. Signature verification correctly rejects it as unsigned. It is build evidence, not an installable production update or approved catalog artifact. No signing key was created or replaced.
+- Browser coverage: **102 distinct mocked scenarios passed across the broad run and final focused rerun**. Broad run: 94 passed, eight failures, one skipped. Corrected stale chooser/camera text, obsolete Navigation-tab paths and landscape tab counts while retaining functional assertions. Clarified that road geometry may load for the overview but turn-by-turn step requests wait for Navigate. The isolated final rerun passed all nine selected tests (the eight previous failures plus an overlapping portrait scenario). One initial PIN-screen readiness timeout under concurrent native/build load passed in isolation without changing its timeout or application logic.
+- One real synthetic WebRTC media-transport browser scenario remains skipped because the sandbox lacks usable ICE interfaces. Mocked admin viewing/recording state, transfer verification and disconnect handling passed; actual tablet media transfer remains mandatory in physical acceptance.
+- PowerShell parser accepted the preparation script. Windows SDK discovery, Android Studio opening, existing-signer installation and physical tablet tests were not executed remotely. Whitespace checks passed.
+
+A first focused rerun overlapped the broad browser runner and lost its shared preview server when that runner exited; its connection-refused result was not treated as an app failure. The final focused rerun ran alone and passed. No further full-suite rerun was needed after test-only selector/fixture corrections.
+
+Remaining handoff: publish web through the existing Base44 dashboard, pull the synced source on Windows, run the preparation script, update in place using the original signing identity, then run the single checklist. Do not uninstall, reset, clear saved work or use a replacement key. Cloud video storage, separate passenger packaging and a provisioned signed native update catalog are not part of this test candidate.
+
+### Windows JDK correction
+
+The owner’s Windows build selected Java 25 and failed with Unsupported class file major version 69 before installation. The preparation script now validates JDK metadata and requires an installed JDK 17 or 21, scanning normal installation paths instead of trusting JAVA_HOME blindly. It pins the selected home for this PowerShell process and for the Gradle invocation, including when a global Gradle Java-home property is set. No global Java settings, Gradle wrapper version, signing identity or tablet data is changed. Five PowerShell selection scenarios passed (reject 25/select 17, select 21, reject 25 only, reject missing paths, reject a JRE without javac), and both scripts parsed. Android Studio’s separate Gradle-JDK setting must use the printed compatible path.
+
+### Windows recording-path safety correction
+
+The owner's Windows native suite reached 92 tests and failed the original DashcamFilesTest.refusesTraversalAndOutsideSymlink assertion: File.getCanonicalFile can normalize a Windows link name without resolving its target. Production DashcamFiles now rejects a leaf whose canonical path differs from its expected absolute path, and explicitly checks symbolic links through NIO where available. Public NIO methods are resolved once through reflection so the class still loads on Android API 22–25; existing canonical containment applies there. Reflection/verification failures on a supported host reject the file. No test was disabled or converted to an assumption.
+
+The original outside-link test remains. Added inside-folder-link tests ensuring find/delete/protect refuse the alias without changing its target, and dangling-link rejection. Compiled production class plus the real JUnit test with JDK 17: **11 recording-file tests passed** on Linux. Full Android Gradle compilation and Windows filesystem acceptance were not rerun in this refreshed sandbox. The Windows native suite should now contain 94 tests; the owner must pull and rerun it before installation. No tablet, clip or signing data was modified remotely.

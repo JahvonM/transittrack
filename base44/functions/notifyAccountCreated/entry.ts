@@ -33,8 +33,8 @@ export default async function(req) {
   const admins = (await db.User.filter({role:'admin'},'-created_date',1000))
    .filter(admin => admin.email && !delivered.has(admin.email.trim().toLowerCase()));
   if (!admins.length) return Response.json({ok:true,retry_after_ms:60_000});
-  const subject = 'TransitTrack: new account created';
-  const body = `A new TransitTrack account has completed sign-in.\n\nName: ${clean(user.display_name || user.full_name) || 'Not provided'}\nEmail: ${clean(user.email) || 'Not provided'}\nCreated: ${new Date(created).toISOString()}\n\nOpen Admin → Passenger directory or Users to review the account.\n\n— TransitTrack`;
+  const subject = 'McSween Transport: new account created';
+  const body = `A new McSween Transport account has completed sign-in.\n\nName: ${clean(user.display_name || user.full_name) || 'Not provided'}\nEmail: ${clean(user.email) || 'Not provided'}\nCreated: ${new Date(created).toISOString()}\n\nOpen Admin → Passenger directory or Users to review the account.\n\n— McSween Transport`;
   const result = await emailWithPolicy(base44,'account_created',admins,
    admin => base44.asServiceRole.integrations.Core.SendEmail({to:admin.email,subject,body}),{title:subject});
   for (const recipient of result.results) if (recipient.ok || recipient.skipped) delivered.add(recipient.to.trim().toLowerCase());

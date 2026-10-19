@@ -511,7 +511,7 @@ export default function CardIssuingTab({ companies = [] }) {
           ))}
         </div>
         <div className="ml-auto flex items-center gap-2">
-          {window.transittrackDesktop?.openSetup && <Button variant="outline" onClick={()=>window.transittrackDesktop.openSetup('nfc').catch(()=>toast({title:"Couldn't open NFC setup",description:"Update TransitTrack Desktop and try again.",variant:"destructive"}))}><Usb className="w-4 h-4" />NFC setup</Button>}
+          {window.transittrackDesktop?.openSetup && <Button variant="outline" onClick={()=>window.transittrackDesktop.openSetup('nfc').catch(()=>toast({title:"Couldn't open NFC setup",description:"Update McSween Transport Desktop and try again.",variant:"destructive"}))}><Usb className="w-4 h-4" />NFC setup</Button>}
           <ReaderBadge helper={helper} reader={reader} webNfc={webNfc} />
           <SendAllToTablets tablets={tablets} vehicles={vehicles} onSent={load} />
           <Button variant="ghost" size="icon" onClick={load} aria-label="Reload"><RefreshCw className="w-4 h-4" /></Button>
@@ -525,7 +525,7 @@ export default function CardIssuingTab({ companies = [] }) {
             {IN_FRAME ? (
               <>
                 <p className="font-semibold">Open Card issuing in its own tab</p>
-                <p className="text-muted-foreground">The card reader can't connect while TransitTrack is shown inside another page (like the Base44 editor preview). Open it in its own Chrome or Edge tab.</p>
+                <p className="text-muted-foreground">The card reader can't connect while McSween Transport is shown inside another page (like the Base44 editor preview). Open it in its own Chrome or Edge tab.</p>
               </>
             ) : IS_SAFARI ? (
               <>

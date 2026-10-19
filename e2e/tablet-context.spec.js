@@ -105,7 +105,6 @@ test('driver can choose a returned route and its ETA updates', async ({ page, co
   await page.goto('/driver/track');
   await page.locator('input[type=password]').fill('1234');
   await page.getByRole('button', { name: 'Unlock', exact: true }).click();
-  await page.getByRole('button', { name: 'Navigation', exact: true }).click();
   await page.getByRole('button', { name: 'Navigate', exact: true }).click();
   const option = page.getByRole('button', { name: /Alternative test road/ });
   await expect(option).toBeVisible({ timeout: 20000 });
@@ -127,7 +126,12 @@ test('driver map pins the stops and only gives directions after Navigate', async
   ] } });
   const urls = [];
   await page.route('https://api.mapbox.com/**', async (r) => {
-    if (r.request().url().includes('/directions/')) { urls.push(r.request().url()); return r.fulfill({ json: fixture }); }
+    if (r.request().url().includes('/directions/')) {
+      // The overview may draw the road between stops before navigation starts.
+      // Turn-by-turn steps/voice must wait for the driver's Navigate action.
+      if (new URL(r.request().url()).searchParams.get('steps') === 'true') urls.push(r.request().url());
+      return r.fulfill({ json: fixture });
+    }
     return r.fulfill({ status: 404, body: '' });
   });
   await page.addInitScript(() => {
@@ -137,10 +141,9 @@ test('driver map pins the stops and only gives directions after Navigate', async
   await page.goto('/driver/track');
   await page.locator('input[type=password]').fill('1234');
   await page.getByRole('button', { name: 'Unlock', exact: true }).click();
-  await page.getByRole('button', { name: 'Navigation', exact: true }).click();
   const navigate = page.getByRole('button', { name: 'Navigate', exact: true });
   await expect(navigate).toBeVisible({ timeout: 20000 });
-  await expect(page.getByTestId('nav-eta')).toContainText('of 2');
+  await expect(page.getByRole('region', {name:'Next stop',exact:true})).toContainText('Stop 1 of 2');
   await expect(page.getByTestId('nav-banner')).toHaveCount(0);
   await page.waitForTimeout(2000);
   expect(urls).toEqual([]); // no directions until the driver asks
@@ -164,7 +167,7 @@ test('tapping a GPS problem asks the helper to look for the USB GPS again', asyn
   await page.goto('/driver/track');
   await page.locator('input[type=password]').fill('1234');
   await page.getByRole('button', { name: 'Unlock', exact: true }).click();
-  await page.getByText('Trip details',{exact:true}).click();
+  await page.getByText(/^Trip details(?: & GPS)?$/).click();
   const gps = page.getByRole('button', { name: /GPS.*Tap to check again/ });
   await expect(gps).toBeVisible({ timeout: 20000 });
   await expect(gps).toContainText('GPS module: Not plugged in');
@@ -444,7 +447,7 @@ test('driver tablet loading offers retry after a slow response without unlocking
  let release;const pending=new Promise(resolve=>{release=resolve});
  await page.route('**/functions/driverSession',async r=>{await pending;return r.fallback();});
  await page.goto('/driver');
- const loading=page.getByRole('region',{name:'TransitTrack loading screen'});
+ const loading=page.getByRole('region',{name:'McSween Transport loading screen'});
  await expect(loading).toBeVisible();
  await expect(loading.getByRole('button',{name:'Try again'})).toHaveCount(0);
  await expect(loading.getByRole('status')).toHaveText('Loading your bus and route…');
@@ -472,7 +475,7 @@ for (const size of [{width:1280,height:800},{width:1024,height:600},{width:800,h
   const deck=await page.getByLabel('Driving controls',{exact:true}).boundingBox();
   expect(deck.y+deck.height).toBeLessThanOrEqual(size.height+1);
   expect(main.width).toBeGreaterThan(0);
-  await expect(nav.getByRole('button')).toHaveCount(3);
+  await expect(nav.getByRole('button')).toHaveCount(size.width >= 960 && size.width > size.height ? 5 : 3);
   await page.screenshot({path:`/tmp/tt-driver-reference-${size.width}.png`});
   await nav.getByRole('button',{name:'Passengers',exact:true}).click();
   await expect(page.getByRole('heading',{name:'Passengers',exact:true})).toBeVisible();

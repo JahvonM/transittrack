@@ -235,7 +235,7 @@ test('phone loading follows real requests, displays bus artwork, and respects re
   return r.fallback();
  });
  await page.goto('/driver-phone');
- const loading=page.getByRole('region',{name:'TransitTrack loading screen'});
+ const loading=page.getByRole('region',{name:'McSween Transport loading screen'});
  await expect(loading).toBeVisible();
  await expect(loading.getByText('Coyaba Transport',{exact:true})).toBeVisible();
  await expect(loading.getByRole('status')).toHaveText('Loading your bus and pickups…');

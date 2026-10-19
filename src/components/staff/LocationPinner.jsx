@@ -179,7 +179,7 @@ export default function LocationPinner({ onSaved, bus = null }) {
   return (
     <div className="tt-pickup-finder space-y-4">
       <div>
-        <p className="text-xs uppercase tracking-widest text-primary">TransitTrack · Pickup finder</p>
+        <p className="text-xs uppercase tracking-widest text-primary">McSween Transport · Pickup finder</p>
         <h2 className="text-2xl font-bold mt-2">{phase === "review" ? "Your walk to the bus" : "Find your pickup"}</h2>
         <p className="text-sm text-muted-foreground mt-1">{phase === "review" ? "Check your meeting point before confirming." : bus?.routeId ? `Spots on the road ${bus.name} drives${bus.routeName ? ` (${bus.routeName})` : ""}.` : "Choose a nearby stop on your bus route."}</p>
       </div>

@@ -68,4 +68,21 @@ public class DashcamFilesTest {
   try{store.find(name);fail("symlink");}catch(IOException expected){}
   assertTrue(store.clips().isEmpty());assertTrue(outside.exists());
  }
+ @Test public void refusesInsideSymlinkWithoutRenamingOrDeletingItsTarget() throws Exception {
+  File target=clip(1792180000000L,1024,true);
+  String name="1792180001000-bbbbbbbbbbbbbbbb.mp4";
+  Files.createSymbolicLink(new File(root,name).toPath(),target.toPath());
+  try{store.find(name);fail("inside symlink");}catch(IOException expected){}
+  try{store.delete(name);fail("delete link");}catch(IOException expected){}
+  try{store.protect(name);fail("protect link");}catch(IOException expected){}
+  assertTrue(target.exists());assertEquals(1,store.clips().size());assertEquals(1024,store.bytes());
+ }
+ @Test public void refusesDanglingSymlinkBeforeItsTargetExists() throws Exception {
+  File outside=new File(temp.getRoot(),"not-created.mp4");
+  String name="1792180001000-cccccccccccccccc.mp4";
+  Files.createSymbolicLink(new File(root,name).toPath(),outside.toPath());
+  try{store.find(name);fail("dangling symlink");}catch(IOException expected){}
+  assertTrue(store.clips().isEmpty());assertFalse(outside.exists());
+ }
+
 }

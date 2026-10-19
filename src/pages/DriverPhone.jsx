@@ -277,7 +277,7 @@ export default function DriverPhone() {
   if (status === "error") {
     return (
       <main className="mx-auto flex min-h-[100dvh] max-w-md flex-col justify-center gap-4 px-4">
-        <h1 className="text-headline">Couldn't reach TransitTrack</h1>
+        <h1 className="text-headline">Couldn't reach McSween Transport</h1>
         <p className="text-muted-foreground">Check your signal, then try again.</p>
         <button type="button" onClick={() => window.location.reload()} className="min-h-[48px] rounded-xl bg-primary font-semibold text-primary-foreground">Try again</button>
       </main>
@@ -289,7 +289,7 @@ export default function DriverPhone() {
       <header className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-border bg-background/95 px-4 py-2 backdrop-blur-md safe-area-top">
         <div className="flex min-w-0 items-center gap-2">
           {me?.company?.logo_url ? <img src={me.company.logo_url} alt="" className="h-8 w-8 rounded-lg object-cover" /> : <Logo />}
-          <span className="truncate font-semibold">{me?.company?.name || "TransitTrack"}</span>
+          <span className="truncate font-semibold">{me?.company?.name || "McSween Transport"}</span>
         </div>
         <span className="shrink-0 rounded-full bg-secondary px-2.5 py-0.5 text-caption font-semibold">Driver</span>
       </header>

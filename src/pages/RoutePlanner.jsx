@@ -280,7 +280,7 @@ export default function RoutePlanner() {
             >
               <GeolocateControl position="bottom-right" trackUserLocation showUserLocation showAccuracyCircle
                 positionOptions={{ enableHighAccuracy: true, timeout: 15000 }}
-                onError={() => toast({ title: "Couldn't get your location", description: "Allow location access for TransitTrack and try the location button again.", variant: "destructive" })} />
+                onError={() => toast({ title: "Couldn't get your location", description: "Allow location access for McSween Transport and try the location button again.", variant: "destructive" })} />
               {road ? (
                 <Source id="planner-road" type="geojson" data={{ type: "Feature", geometry: { type: "LineString", coordinates: road } }}>
                   <Layer id="planner-road-line" type="line" layout={{ "line-cap": "round", "line-join": "round" }} paint={{ "line-color": accent, "line-width": 6, "line-opacity": 0.9 }} />

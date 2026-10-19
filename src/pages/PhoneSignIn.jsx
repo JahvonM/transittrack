@@ -69,7 +69,7 @@ export default function PhoneSignIn() {
     }
     sealSessionForPhone(request, token)
       .then((link) => { if (alive) setAppLink(link); })
-      .catch(() => { if (alive) setError("Couldn't prepare the sign-in for the app. Go back to the TransitTrack app and try again."); });
+      .catch(() => { if (alive) setError("Couldn't prepare the sign-in for the app. Go back to the McSween Transport app and try again."); });
     return () => { alive = false; };
   }, [usable, isAuthenticated, request]);
 
@@ -97,11 +97,11 @@ export default function PhoneSignIn() {
     return (
       <AuthLayout
         title="This sign-in link isn't valid"
-        subtitle="Go back to the TransitTrack app and tap Continue with Google again."
+        subtitle="Go back to the McSween Transport app and tap Continue with Google again."
       >
         <p className="flex items-start gap-3 text-body-sm text-muted-foreground">
           <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" aria-hidden="true" />
-          Phone sign-in links only work when the TransitTrack app opens them, in the same browser window, for a few minutes.
+          Phone sign-in links only work when the McSween Transport app opens them, in the same browser window, for a few minutes.
         </p>
       </AuthLayout>
     );
@@ -110,14 +110,14 @@ export default function PhoneSignIn() {
   if (step === "cancelled") {
     return (
       <AuthLayout title="App sign-in cancelled" subtitle="Nothing was shared with the app. You can close this window.">
-        <p className="text-body-sm text-muted-foreground">To try again, go back to the TransitTrack app and tap Continue with {providerName}.</p>
+        <p className="text-body-sm text-muted-foreground">To try again, go back to the McSween Transport app and tap Continue with {providerName}.</p>
       </AuthLayout>
     );
   }
 
   if (step === "sent") {
     return (
-      <AuthLayout title="Back to the TransitTrack app" subtitle="The app signs in by itself. You can close this window.">
+      <AuthLayout title="Back to the McSween Transport app" subtitle="The app signs in by itself. You can close this window.">
         <p className="text-body-sm text-muted-foreground">If the app didn't open, go back to it and tap Continue with {providerName} again.</p>
       </AuthLayout>
     );
@@ -125,7 +125,7 @@ export default function PhoneSignIn() {
 
   if (isLoadingAuth || step === "redirecting") {
     return (
-      <AuthLayout title="Sign in to the TransitTrack app" subtitle={`Opening ${providerName} sign-in…`}>
+      <AuthLayout title="Sign in to the McSween Transport app" subtitle={`Opening ${providerName} sign-in…`}>
         <div className="flex items-center justify-center py-6 text-muted-foreground">
           <Loader2 className="h-6 w-6 animate-spin" aria-hidden="true" />
         </div>
@@ -136,7 +136,7 @@ export default function PhoneSignIn() {
   if (!isAuthenticated) {
     const Icon = request.provider === "apple" ? AppleIcon : GoogleIcon;
     return (
-      <AuthLayout title="Sign in to the TransitTrack app" subtitle="Sign in here. The app signs in by itself when you finish.">
+      <AuthLayout title="Sign in to the McSween Transport app" subtitle="Sign in here. The app signs in by itself when you finish.">
         <Button variant="outline" className="w-full h-12 text-sm font-medium" onClick={startProvider}>
           <Icon className="w-5 h-5 mr-2" />
           Continue with {providerName}
@@ -146,7 +146,7 @@ export default function PhoneSignIn() {
   }
 
   return (
-    <AuthLayout title="Sign in to the TransitTrack app" subtitle="You started signing in from the TransitTrack app on this phone.">
+    <AuthLayout title="Sign in to the McSween Transport app" subtitle="You started signing in from the McSween Transport app on this phone.">
       {error && (
         <div role="alert" className="mb-4 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
           {error}
@@ -163,13 +163,13 @@ export default function PhoneSignIn() {
           <Button asChild className="w-full h-12 font-medium">
             <a href={appLink} onClick={opened}>
               <Smartphone className="w-4 h-4 mr-2" aria-hidden="true" />
-              Open TransitTrack app
+              Open McSween Transport app
             </a>
           </Button>
         ) : (
           <Button className="w-full h-12 font-medium" disabled>
             <Loader2 className="w-4 h-4 mr-2 animate-spin" aria-hidden="true" />
-            Open TransitTrack app
+            Open McSween Transport app
           </Button>
         )}
         <Button variant="outline" className="w-full h-12 text-sm font-medium" onClick={switchAccount}>
@@ -181,8 +181,8 @@ export default function PhoneSignIn() {
         </Button>
       </div>
       <p className="mt-5 text-xs text-muted-foreground leading-relaxed">
-        Only continue if you just tapped Continue with {providerName} in the TransitTrack app on this phone.
-        If your phone asks to open TransitTrack, choose Open.
+        Only continue if you just tapped Continue with {providerName} in the McSween Transport app on this phone.
+        If your phone asks to open McSween Transport, choose Open.
       </p>
     </AuthLayout>
   );

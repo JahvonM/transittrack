@@ -47,7 +47,7 @@ export default function CardDesignerTab() {
     setBusy(true);
     try {
       const png = await artworkPng(svg);
-      popup.document.write('<!doctype html><html><head><title>TransitTrack card print</title><style>@page{size:A4;margin:10mm}body{margin:0}img{width:85.6mm;height:53.98mm;display:block;print-color-adjust:exact;-webkit-print-color-adjust:exact}p{font-family:sans-serif}@media print{p{display:none}}</style></head><body><p>Print at 100% / actual size. Card: 85.6 × 53.98 mm. Check a sample before cutting.</p><img src="' + png + '" alt="Card artwork"></body></html>');
+      popup.document.write('<!doctype html><html><head><title>McSween Transport card print</title><style>@page{size:A4;margin:10mm}body{margin:0}img{width:85.6mm;height:53.98mm;display:block;print-color-adjust:exact;-webkit-print-color-adjust:exact}p{font-family:sans-serif}@media print{p{display:none}}</style></head><body><p>Print at 100% / actual size. Card: 85.6 × 53.98 mm. Check a sample before cutting.</p><img src="' + png + '" alt="Card artwork"></body></html>');
       popup.document.close();
       const image = popup.document.querySelector("img");
       await image.decode();
