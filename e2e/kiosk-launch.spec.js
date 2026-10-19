@@ -36,7 +36,7 @@ test("kiosk opens a tablet chooser without an account and saves the driver choic
 test("boarding choice remains selected after restart", async ({ page }) => {
   await setup(page);
   await page.goto("/tablet");
-  await page.getByRole("link", { name: /Boarding \/ signing tablet/ }).click();
+  await page.getByRole("link", { name: /^Kiosk tablet NFC cards/ }).click();
   await expect(page).toHaveURL(/\/kiosk$/);
   await page.goto("/");
   await expect(page).toHaveURL(/\/kiosk$/);
