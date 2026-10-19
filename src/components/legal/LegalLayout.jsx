@@ -13,7 +13,7 @@ export default function LegalLayout({ title, children }) {
           <Link to="/" className="flex items-center gap-2.5 font-heading text-title-sm font-bold">
             <Logo className="h-8 w-8" />
             <span>
-              Transit<span className="text-primary">Track</span>
+              McSween <span className="text-primary">Transport</span>
             </span>
           </Link>
           <Link

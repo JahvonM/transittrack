@@ -131,7 +131,7 @@ export default function PassengerExperience({view,user,company,workplace,myVehic
  // springs below become fades.
  return <MotionConfig reducedMotion="user"><div className="px-experience">
   {view==="home" && <>
-   <header className="px-top"><p>Transit<span>Track</span></p><div><Link to="/notifications" aria-label="Messages and announcements"><Bell /></Link><Link to="/account" aria-label="Account"><Portrait user={user} /></Link></div></header>
+   <header className="px-top"><p>McSween <span>Transport</span></p><div><Link to="/notifications" aria-label="Messages and announcements"><Bell /></Link><Link to="/account" aria-label="Account"><Portrait user={user} /></Link></div></header>
    <CompanyBanner name={company.name} logoUrl={company.logo_url} compact />
    <h1 className="px-greeting">{new Date(now).getHours()<12?"Good morning":new Date(now).getHours()<18?"Good afternoon":"Good evening"}{greetingName(user)?`, ${greetingName(user)}`:""}</h1>
    <p className="px-direction">YOUR JOURNEY · {returning?"TO HOME":"TO WORK"}</p>

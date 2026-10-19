@@ -49,7 +49,7 @@ function PassengerLayout({ children, title, fullBleed = false, back = null }) {
         <div className="mx-auto flex h-16 max-w-6xl items-center gap-8 px-8">
           <Link to="/staff" className="flex items-center gap-2.5 font-heading text-title-sm font-bold">
             <Logo className="h-8 w-8" />
-            <span>Transit<span className="text-primary">Track</span></span>
+            <span>McSween <span className="text-primary">Transport</span></span>
           </Link>
           <nav className="flex h-full items-stretch gap-1" aria-label="Main">
             {PASSENGER_NAV.map(({ to, label, also = [] }) => {
@@ -153,7 +153,7 @@ function FullLayout({ children, title }) {
           )}
           <Link to={ROLE_HOME[user?.role] || "/"} className="mr-4 flex items-center gap-2.5 font-heading text-title-sm font-bold">
             <Logo className="h-8 w-8" />
-            <span className="hidden sm:inline">Transit<span className="text-primary">Track</span></span>
+            <span className="hidden sm:inline">McSween <span className="text-primary">Transport</span></span>
           </Link>
           {nav.length > 0 && (
             <nav className="hidden h-full items-stretch gap-1 md:flex" aria-label="Main">

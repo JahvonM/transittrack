@@ -252,7 +252,7 @@ export default function AdminShell({ active, onNavigate, children, alertVehicles
     <div className="flex h-full flex-col">
       <Link to="/admin" className="flex h-16 shrink-0 items-center gap-2.5 px-5 font-heading text-title-sm font-bold text-sidebar-foreground">
         <Logo className="h-8 w-8" />
-        <span>Transit<span className="text-sidebar-primary">Track</span></span>
+        <span>McSween <span className="text-sidebar-primary">Transport</span></span>
       </Link>
       <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-4">
         <SidebarNav active={active} onNavigate={nav} />

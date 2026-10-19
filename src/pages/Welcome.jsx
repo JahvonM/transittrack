@@ -77,7 +77,7 @@ export default function Welcome() {
  if (authError && authError.type !== "auth_required") return <AccessRecovery onRetry={checkAppState} />;
  return <div className="tt-welcome min-h-[100dvh]">
   <header className="tt-welcome-header">
-   <Link to="/" className="flex items-center gap-2 font-bold text-xl"><Logo /><span>Transit<span className="text-primary">Track</span></span></Link>
+   <Link to="/" className="flex items-center gap-2 font-bold text-xl"><Logo /><span>McSween <span className="text-primary">Transport</span></span></Link>
    <Button asChild variant="outline" className="rounded-xl"><Link to="/login">Sign in <ChevronRight className="w-4 h-4" /></Link></Button>
   </header>
   <main className="tt-welcome-main">

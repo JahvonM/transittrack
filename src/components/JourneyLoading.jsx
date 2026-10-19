@@ -19,7 +19,7 @@ export default function JourneyLoading({
   <section className={`tt-journey-loading ${fullScreen ? "tt-journey-loading-full" : "tt-journey-loading-inline"}`} aria-label="McSween Transport loading screen" aria-busy="true">
    <div className="tt-loading-contours" aria-hidden="true" />
    <header className="tt-loading-header">
-    <div className="tt-loading-brand"><Logo className="w-9 h-9" /><span>Transit<span className="tt-loading-accent">Track</span></span></div>
+    <div className="tt-loading-brand"><Logo className="w-9 h-9" /><span>McSween <span className="tt-loading-accent">Transport</span></span></div>
     {context && <span className="tt-loading-context">{context}</span>}
    </header>
    <div className="tt-loading-body">
