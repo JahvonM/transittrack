@@ -20,6 +20,7 @@ try {
         $defaultSdk = Join-Path $env:LOCALAPPDATA 'Android\Sdk'
         if (Test-Path $defaultSdk) { $env:ANDROID_HOME = $defaultSdk }
     }
+    if ($env:VITE_BASE44_APP_ID -and $env:VITE_BASE44_APP_ID -ne '6a98b192be27b5f9635020ba') { throw 'This PowerShell session points to another app. Open a new session for the TransitTrack checkout.' }
     if (-not $env:VITE_BASE44_APP_ID) { $env:VITE_BASE44_APP_ID = '6a98b192be27b5f9635020ba' }
     if (-not $env:VITE_BASE44_APP_BASE_URL) { $env:VITE_BASE44_APP_BASE_URL = 'https://eager-transit-track-go.base44.app' }
     Write-Host '1/4 Installing the exact locked web dependencies...'
@@ -37,7 +38,10 @@ try {
     Write-Host ''
     Write-Host 'READY: install one update using the same signing identity as the tablet.' -ForegroundColor Green
     Write-Host 'In Android Studio, use your existing Run/signing configuration. Do not uninstall or create a replacement key.'
-    Write-Host 'After installation confirm Admin shows kiosk 1.3 / build 4.'
+    $buildConfig = Get-Content -Raw (Join-Path $projectRoot 'android\app\build.gradle')
+    $versionName = [regex]::Match($buildConfig, 'versionName\s+"([^"]+)"').Groups[1].Value
+    $versionCode = [regex]::Match($buildConfig, 'versionCode\s+(\d+)').Groups[1].Value
+    Write-Host "After installation confirm Admin shows kiosk $versionName / build $versionCode."
     Write-Host 'Checklist: docs\kiosk-one-big-test.md'
     Write-Host 'This script has not installed an APK, changed the tablet, published the web app, or created a signing key.'
     if (-not $NoOpen) {
