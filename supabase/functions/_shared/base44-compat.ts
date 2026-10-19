@@ -264,7 +264,7 @@ function forWrite(table: string, data: Row, cols: Record<string, string>): Row {
   return out;
 }
 
-async function rest(path: string, init: RequestInit & { headers?: Record<string, string> } = {}) {
+async function rest(path: string, init: Omit<RequestInit, 'headers'> & { headers?: Record<string, string> } = {}) {
   const res = await runtime.fetch(`${supabaseUrl()}/rest/v1/${path}`, { ...init, headers: serverHeaders({ 'Content-Type': 'application/json', ...(init.headers || {}) }) });
   if (res.ok) {
     const text = await res.text();
