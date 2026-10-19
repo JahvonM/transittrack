@@ -1,6 +1,6 @@
 export const CARD_MM = { width: 85.6, height: 53.98 };
 export const CARD_PX = { width: 1011, height: 638 }; // approximately 300 dpi
-export const DEFAULT_CARD_DESIGN = { title: "TRANSITTRACK", subtitle: "PASSENGER CARD", color: "#0f766e", background: "#0f172a", text: "#ffffff", footer: "Tap your card when boarding", backText: "This card belongs to its named holder. If found, return it to your transport company.", logo: "", backgroundImage: "" };
+export const DEFAULT_CARD_DESIGN = { title: "McSWEEN TRANSPORT", subtitle: "PASSENGER CARD", color: "#0f766e", background: "#0f172a", text: "#ffffff", footer: "Tap your card when boarding", backText: "This card belongs to its named holder. If found, return it to your transport company.", logo: "", backgroundImage: "" };
 const xml = value => String(value || "").replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&apos;" })[c]);
 const imageData = value => /^data:image\/(png|jpeg|webp);base64,[a-zA-Z0-9+/=]+$/.test(value || "") ? value : "";
 const color = (value, fallback) => /^#[0-9a-f]{6}$/i.test(value || "") ? value : fallback;
