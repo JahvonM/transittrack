@@ -21,7 +21,9 @@
 import { SUPABASE_TABLES } from './supabaseTables.ts';
 
 type Env = { get(name: string): string | undefined };
-type Row = Record<string, unknown>;
+// Records are loosely typed, as they are in the Base44 functions that use them.
+// deno-lint-ignore no-explicit-any
+type Row = Record<string, any>;
 type HttpError = Error & { status: number; response: { status: number; data: unknown } };
 
 const runtime: { fetch: typeof fetch; env: Env } = {
@@ -341,8 +343,11 @@ function entityApi(entity: string) {
   };
 
   const api = {
-    list: (...args: unknown[]) => readCall({}, args),
-    filter: (query: Row = {}, ...args: unknown[]) => readCall(query || {}, args),
+    // An array, or one page { items, next_cursor } when given an options object.
+    // deno-lint-ignore no-explicit-any
+    list: (...args: unknown[]): Promise<any> => readCall({}, args),
+    // deno-lint-ignore no-explicit-any
+    filter: (query: Row = {}, ...args: unknown[]): Promise<any> => readCall(query || {}, args),
     async get(id: string) {
       await ensure();
       const rows = await rest(`${table}?${byId(id)}&limit=1`);
