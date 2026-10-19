@@ -249,7 +249,7 @@ for(const size of [{width:1280,height:800},{width:800,height:1280},{width:1024,h
   let release;const pending=new Promise(resolve=>{release=resolve});
   await page.route('**/functions/kioskHeartbeat',async r=>{await pending;return r.fallback();});
   await page.goto('/kiosk');
-  const loading=page.getByRole('region',{name:'TransitTrack loading screen'});
+  const loading=page.getByRole('region',{name:'McSween Transport loading screen'});
   await expect(loading).toBeVisible();
   await expect(loading.getByRole('status')).toHaveText('Connecting this tablet…');
   const bounds=await loading.locator('.tt-loading-progress').boundingBox();

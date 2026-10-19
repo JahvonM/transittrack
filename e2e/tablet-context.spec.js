@@ -444,7 +444,7 @@ test('driver tablet loading offers retry after a slow response without unlocking
  let release;const pending=new Promise(resolve=>{release=resolve});
  await page.route('**/functions/driverSession',async r=>{await pending;return r.fallback();});
  await page.goto('/driver');
- const loading=page.getByRole('region',{name:'TransitTrack loading screen'});
+ const loading=page.getByRole('region',{name:'McSween Transport loading screen'});
  await expect(loading).toBeVisible();
  await expect(loading.getByRole('button',{name:'Try again'})).toHaveCount(0);
  await expect(loading.getByRole('status')).toHaveText('Loading your bus and route…');
