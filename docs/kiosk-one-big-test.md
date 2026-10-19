@@ -46,7 +46,7 @@ Record PASS / FAIL and the exact message for each row. Existing test records wil
 
 - Stop test sharing/recording/viewing and end the test shift. Keep any unsynced/review items; export where available.
 - Report only failed row numbers, the exact error and whether the tablet was online/charging. Add the installed 1.3/build 4 confirmation.
-- Full storage, low-battery park/resume and newer same-signer upgrade rejection policies have automated coverage, but destructive battery/storage experiments and fleet rollout are not part of this single parked test.
+- Low-battery park/resume and native upgrade-rejection policies have automated coverage. Real full-storage and low-battery experiments, a signed rollout artifact and fleet rollout remain outside this parked test.
 - Android force-stop, whole-process hangs and OEM battery restrictions cannot be guaranteed away. A successful parked test is not proof of every Android variant or fleet-wide reliability.
 
 ## Scope boundaries

@@ -1,10 +1,10 @@
 # Kiosk release status — 18 October 2026
 
-Current source version: Android 1.2 / build 3. Background tracking details and acceptance limits: [background-driver-gps.md](background-driver-gps.md).
+Current combined test candidate: Android **1.3 / build 4**. Start with [kiosk-one-big-test.md](kiosk-one-big-test.md) for one Windows build command and one ordered tablet test. The rejected mint driver theme has been removed; functional work remains. Background tracking details and acceptance limits: [background-driver-gps.md](background-driver-gps.md).
 
 Cloud recording upload/storage is deferred at the owner's request. Rear-camera recordings remain on the tablet; admin playback transfers a selected clip on demand and still requires the tablet to be online. Supabase is not a video archive in this release.
 
-## Verified in this finishing pass
+## Earlier automated evidence (superseded by the combined run below)
 
 - Security release suite: 188 tests passed across 17 files, including concurrent operation and credential/session boundary checks. These are isolated tests with synthetic RPC fixtures; hosted Supabase migrations, flags and production atomicity were not verified.
 - Corrected three stale test fixtures: pairing now loads the actual shared durable-operation helpers; driver messages carry a company and explicitly exclude another company's messages; direct entity access tests recognize server-only support/recording sessions and forbid both through the generic gateway for every role, including admin.
