@@ -1072,9 +1072,10 @@ test('passenger arrival alerts stay off when notification setup fails',async({pa
   if(b.entity==='User' && b.operation==='update'){updates.push(b.data);return r.fulfill({json:{result:{id:'caller',...b.data}}});}
   return r.fallback();
  }));
- await page.getByRole('button',{name:/Notify me/}).click();
+ // The home's pickup alerts switch.
+ await page.getByRole('switch',{name:'Pickup alerts'}).click();
  await expect(page.getByText('Notifications are blocked',{exact:true})).toBeVisible();
- await expect(page.getByRole('button',{name:/Notify me/})).toHaveAttribute('aria-pressed','false');
+ await expect(page.getByRole('switch',{name:'Pickup alerts'})).toHaveAttribute('aria-checked','false');
  expect(updates.some(data=>data.stop_alerts===true)).toBe(false);
  await expect(page.getByText('Stop alerts on',{exact:true})).toHaveCount(0);
 });
@@ -1082,7 +1083,7 @@ test('passenger arrival alerts stay off when notification setup fails',async({pa
 test('arrival settings are available through More without cluttering pickup',async({page})=>{
  await passengerShowcase(page);
  await page.goto('/more');
- await page.getByRole('link',{name:/^Notifications Arrival alerts/}).click();
+ await page.getByRole('button',{name:/^Notifications/}).click();
  const dialog=page.getByRole('dialog',{name:'Notifications'});
  await expect(dialog.getByRole('switch',{name:'Alert me when a bus is one stop away'})).toBeVisible();
  await expect(dialog.getByRole('button',{name:'Switch company'})).toBeVisible();
@@ -1094,13 +1095,20 @@ for (const width of [320,390,430]) {
   test('arrival card has no overlapping text or bus at '+width+'px '+(parked?'parked':'live'),async({page})=>{
    await page.setViewportSize({width,height:844});
    await passengerShowcase(page,{parked});
-   const card=page.locator('.tt-arrival-reference');
-   if(parked) await expect(card.getByText('Not started',{exact:true})).toBeVisible();
-   const estimate=await card.locator('.tt-arrival-estimate').boundingBox();
-   const identity=await card.locator('.tt-arrival-main>div:first-child').boundingBox();
-   const art=await card.locator(':scope>.tt-arrival-art').boundingBox();
-   expect(estimate.y+estimate.height).toBeLessThanOrEqual(identity.y);
-   expect(identity.y+identity.height).toBeLessThanOrEqual(art.y);
+   // The home's bus card: the arrival text beside the bus picture, never under it.
+   const card=page.getByLabel('Your next bus',{exact:true});
+   if(parked) await expect(card.getByText('Not started',{exact:true}).first()).toBeVisible();
+   // Where the words actually end, not the edge of their column.
+   const textRight=await card.locator('.px-hero-copy').evaluate(el=>{
+    let right=0;const walk=document.createTreeWalker(el,NodeFilter.SHOW_TEXT);
+    for(let n=walk.nextNode();n;n=walk.nextNode()){if(!n.textContent.trim())continue;const r=document.createRange();r.selectNodeContents(n);for(const b of r.getClientRects())right=Math.max(right,b.right);}
+    return right;
+   });
+   // The picture is drawn 8% larger than its slot by design; compare with the slot.
+   const art=await card.locator('.px-hero-bus').evaluate(el=>{const t=el.style.transform;el.style.transform='none';const r=el.getBoundingClientRect();el.style.transform=t;return {x:r.left,width:r.width};});
+   expect(textRight).toBeLessThanOrEqual(art.x+1);
+   const box=await card.boundingBox();
+   expect(art.x+art.width).toBeLessThanOrEqual(box.x+box.width+1);
    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
    if(width===390&&parked)await page.screenshot({path:'/tmp/tt-arrival-fixed.png',fullPage:true});
   });
