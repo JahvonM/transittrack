@@ -4,6 +4,8 @@ import {fileURLToPath} from 'node:url';
 import {test,expect} from '@playwright/test';
 // Files in this repository, wherever it is checked out.
 const repoFile=(path)=>fileURLToPath(new URL(`../${path}`,import.meta.url));
+// The passenger home opens the pickup finder from its pickup and drop-off card.
+const openPickupFinder=(page)=>page.getByRole('region',{name:'Pickup and drop-off'}).getByRole('button',{name:'Change'}).click();
 const vehicles=[{id:'bus-a',name:'Bus A',company_id:'a',company_name:'Company A',type:'staff_bus',status:'idle',capacity:25},{id:'bus-b',name:'Bus B',company_id:'b',company_name:'Company B',type:'staff_bus',status:'idle',capacity:25}];
 async function session(page,role) {
  const calls=[],direct=[];
@@ -104,7 +106,7 @@ test('passenger previews walking directions then saves a separate roadside picku
   return r.fulfill({status:404,body:''});
  });
  await page.goto('/staff');
- await page.getByRole('button',{name:'Find my pickup',exact:true}).click();
+ await openPickupFinder(page);
  await page.getByRole('button',{name:'Use my location',exact:true}).click();
  await expect(page.getByRole('dialog').getByText('Arrival alerts',{exact:true})).toHaveCount(0);
  await page.screenshot({path:'/tmp/tt-pickup-choose-mobile.png'});
@@ -160,17 +162,17 @@ async function passengerShowcase(page, { stale = false, light = false, parked = 
 test('approved passenger home shows ETA and opens its map only on request',async({page})=>{
   await page.setViewportSize({width:1440,height:1000});
   await passengerShowcase(page);
-  await expect(page.getByLabel('Route stops')).toBeVisible();
-  await expect(page.getByRole('button',{name:/Notify me/})).toBeVisible();
-  await expect(page.getByLabel('Your bus',{exact:true}).getByText(/^Live/)).toBeVisible();
-  await expect(page.locator('#passenger-live-map')).toHaveCount(0);
+  // Home: the live arrival and pickup alerts; no map until asked for.
+  await expect(page.getByLabel('Your next bus',{exact:true}).locator('.px-service.live')).toBeVisible();
+  await expect(page.getByLabel('Bus arrival details')).toContainText('Estimated pickup');
+  await expect(page.getByRole('switch',{name:'Pickup alerts'})).toBeVisible();
   await expect(page.locator('.leaflet-container')).toHaveCount(0);
-  await page.getByRole('button',{name:'Show map',exact:true}).click();
-  const hero=await page.getByLabel('Your bus',{exact:true}).boundingBox();
-  const map=await page.locator('#passenger-live-map').boundingBox();
-  expect(map.x).toBeGreaterThan(hero.x+hero.width);
-  await page.getByRole('button',{name:'Hide map',exact:true}).click();
-  await expect(page.locator('#passenger-live-map')).toHaveCount(0);
+  // Journey: the map opens and closes on request.
+  await page.goto('/journey');
+  await page.getByRole('button',{name:'View live map',exact:true}).click();
+  await expect(page.getByLabel('Live journey map')).toBeVisible();
+  await page.getByRole('button',{name:'Hide live map',exact:true}).click();
+  await expect(page.getByLabel('Live journey map')).toHaveCount(0);
   await expect.poll(()=>page.locator('img[src="/images/transit-bus-3d.webp"]').first().evaluate(img=>img.complete && img.naturalWidth>0)).toBe(true);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
   await page.screenshot({path:'/tmp/tt-passenger-desktop.png',fullPage:true});
@@ -220,7 +222,7 @@ test('passenger can see other pickup spots nearby or drop their own pin',async({
   return r.fulfill({status:404,body:''});
  });
  await page.goto('/staff');
- await page.getByRole('button',{name:'Find my pickup',exact:true}).click();
+ await openPickupFinder(page);
  await page.getByRole('button',{name:'Use my location',exact:true}).click();
  const spots=page.getByRole('region',{name:'Nearby pickup spots'}).getByRole('button');
  await expect(spots.nth(1)).toBeVisible();
@@ -240,7 +242,7 @@ test('passenger can see other pickup spots nearby or drop their own pin',async({
  // Saving keeps the pickup sheet open on the saved spot; close it first.
  // The sheet can still be settling after the save, so press until it closes.
  await expect(async()=>{ await page.keyboard.press('Escape'); await expect(page.getByRole('dialog')).toHaveCount(0,{timeout:1000}); }).toPass({timeout:10000});
- await page.getByRole('region',{name:'Your pickup'}).getByRole('button',{name:'Change'}).click();
+ await openPickupFinder(page);
  await page.getByRole('button',{name:'Choose a different spot on the map'}).click();
  const box=page.getByRole('region',{name:'Pick your own pickup spot'});
  await expect(box.getByLabel('Latitude')).toHaveCount(0);
@@ -318,22 +320,25 @@ test('approved passenger mobile layout keeps four navigation items and more menu
   await passengerShowcase(page,{light:true});
   await expect(page.locator('html')).toHaveClass(/light/);
   const nav=page.getByRole('navigation',{name:'Passenger sections'});
-  for(const name of ['Home','Map','Buses','More'])await expect(nav.getByRole('button',{name,exact:true})).toBeVisible();
+  for(const name of ['Home','Journey','My card','More'])await expect(nav.getByRole('button',{name,exact:true})).toBeVisible();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
   await page.screenshot({path:'/tmp/tt-passenger-mobile.png',fullPage:true});
-  // More is its own page in the passenger app; Messages and Account live there.
+  // More is its own page in the passenger app; Messages and the account live there.
   await nav.getByRole('button',{name:'More',exact:true}).click();
-  await expect(page.getByRole('link',{name:/^Messages/})).toBeVisible();
-  await expect(page.getByRole('link',{name:/^Account/})).toBeVisible();
+  await expect(page.getByRole('button',{name:/^Messages/})).toBeVisible();
+  await expect(page.getByRole('link',{name:/Edit profile/})).toHaveAttribute('href','/account');
 });
 
 test('passenger showcase keeps delayed GPS distinct from live arrival',async({page})=>{
+  await page.setViewportSize({width:390,height:844});
   await passengerShowcase(page,{stale:true});
-  const card=page.getByLabel('Your bus',{exact:true});
-  // Ten minutes without a fix reads as a lost signal; two to ten minutes as a delayed location.
-  await expect(card.getByText(/^(Location delayed|Signal lost)$/).first()).toBeVisible();
-  await expect(card.getByText(/^Live/)).toHaveCount(0);
-  await expect(page.getByLabel('Route stops')).toBeVisible();
+  const card=page.getByLabel('Your next bus',{exact:true});
+  // An old fix reads as a delayed location, never as a live arrival.
+  await expect(card.getByText('Location delayed').first()).toBeVisible();
+  await expect(card.locator('.px-service.live')).toHaveCount(0);
+  // The route's stops are still there.
+  await page.getByRole('navigation',{name:'Passenger sections'}).getByRole('button',{name:'Journey',exact:true}).click();
+  await expect(page.getByRole('button',{name:'All route stops'})).toBeVisible();
 });
 
 test('admin showcase keeps metrics, fleet list and working section navigation',async({page})=>{
@@ -669,17 +674,17 @@ test('the bus an admin assigns shows on the phone, and goes when it is removed',
  await page.setViewportSize({width:390,height:844});
  const assigned={current:true};
  await passengerShowcase(page,{assigned});
- const card=page.getByLabel('Your bus',{exact:true});
+ const card=page.getByLabel('Your next bus',{exact:true});
  await expect(card).toContainText('TT-102');
  await expect(card).not.toContainText('TT-108');
  if(process.env.TT_SHOT_DIR) await page.screenshot({path:`${process.env.TT_SHOT_DIR}/bus-assigned.png`});
  // The admin removes the bus; the phone notices when the app comes back into view.
  assigned.current=false;
  await page.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));
- await expect(card.getByText('No bus assigned yet',{exact:true})).toBeVisible();
+ await expect(card.getByText('Your company assigns your bus',{exact:true})).toBeVisible();
  await expect(card).not.toContainText('TT-102');
  if(process.env.TT_SHOT_DIR) await page.screenshot({path:`${process.env.TT_SHOT_DIR}/bus-removed.png`});
- await page.getByRole('button',{name:'Open passenger chat',exact:true}).click();
+ await page.getByRole('button',{name:/^Need anything\? Message us/}).click();
  await expect(page.getByText(/No bus assigned yet\. Your bus's group chat opens here/)).toBeVisible();
  await page.keyboard.press('Escape');
  // And added back: pulling down to refresh (or tapping Refresh) picks it up at once.
@@ -692,13 +697,13 @@ test('a passenger who has not picked a stop still sees the bus they are assigned
  await page.setViewportSize({width:390,height:844});
  const assigned={current:true};
  await passengerShowcase(page,{assigned,pickup:null});
- const card=page.getByLabel('Your bus',{exact:true});
+ const card=page.getByLabel('Your next bus',{exact:true});
  await expect(card).toContainText('TT-102');
- await expect(page.getByText('Choose your stop below to see when it reaches you.')).toBeVisible();
+ await expect(card.getByText('Choose a stop to see your ETA',{exact:true})).toBeVisible();
  if(process.env.TT_SHOT_DIR) await page.screenshot({path:`${process.env.TT_SHOT_DIR}/no-stop-assigned.png`});
  assigned.current=false;
  await page.getByRole('button',{name:'Refresh list',exact:true}).click();
- await expect(card).toContainText('No bus assigned yet');
+ await expect(card).toContainText('No bus assigned');
 });
 
 test('a pickup merged with neighbours says where to meet and how far it is',async({page})=>{
@@ -714,7 +719,8 @@ test('a pickup merged with neighbours says where to meet and how far it is',asyn
 test('a pickup the assigned bus does not drive past asks to pick again on its road',async({page})=>{
  await page.setViewportSize({width:390,height:844});
  // Saved on another route, before an admin put them on TT-102 (Coastal route).
- await passengerShowcase(page,{extra:{pickup_name:'Old spot',pickup_lat:12.1,pickup_lng:-61.7,pickup_route_id:'route-old'}});
+ // No company stop chosen: one on the bus's route would do instead.
+ await passengerShowcase(page,{pickup:null,extra:{pickup_name:'Old spot',pickup_lat:12.1,pickup_lng:-61.7,pickup_route_id:'route-old'}});
  const prompt=page.getByRole('status').filter({hasText:"Your bus doesn't pass your pickup"});
  await expect(prompt).toContainText('TT-102 drives Coastal route. Choose a pickup on its road so the driver stops for you.');
  await prompt.evaluate(el=>el.scrollIntoView({block:'center'}));
@@ -737,23 +743,25 @@ test('a pickup the driver moved says so on the pickup card',async({page})=>{
 
 test('no prompt when the pickup is on the assigned bus road',async({page})=>{
  await passengerShowcase(page,{extra:{pickup_name:'My spot',pickup_lat:12.02,pickup_lng:-61.76,pickup_route_id:'route-a'}});
- await expect(page.getByLabel('Your pickup',{exact:true})).toBeVisible();
+ await expect(page.getByRole('region',{name:'Pickup and drop-off'})).toBeVisible();
  await expect(page.getByText("Your bus doesn't pass your pickup")).toHaveCount(0);
 });
 
 test('passenger Buses is distinct from Home and chat bubble works on both',async({page})=>{
  await page.setViewportSize({width:390,height:844});
  await passengerShowcase(page);
- const bubble=page.getByRole('button',{name:'Open passenger chat',exact:true});
- await expect(bubble).toBeVisible();
- await bubble.click();
+ // Home: chat from "Message us".
+ await page.getByRole('button',{name:/^Need anything\? Message us/}).click();
  await expect(page.getByRole('heading',{name:/TT-102 chat/})).toBeVisible();
  await page.keyboard.press('Escape');
+ await expect(page.getByRole('dialog')).toHaveCount(0);
  const nav=page.getByRole('navigation',{name:'Passenger sections'});
- await nav.getByRole('button',{name:'Buses',exact:true}).click();
+ // Buses: from Journey, with its own chat bubble.
+ await nav.getByRole('button',{name:'Journey',exact:true}).click();
+ await page.getByRole('link',{name:'Browse company buses'}).click();
  await expect(page.getByRole('heading',{name:'Company buses',exact:true})).toBeVisible();
- await expect(page.getByLabel('Your bus',{exact:true})).toHaveCount(0);
- await expect(page.getByRole('button',{name:/Notify me/})).toHaveCount(0);
+ await expect(page.getByLabel('Your next bus',{exact:true})).toHaveCount(0);
+ const bubble=page.getByRole('button',{name:'Open passenger chat',exact:true});
  await expect(page.getByRole('group',{name:'Filter buses',exact:true})).toBeVisible();
  await expect(page.getByLabel('Company bus directory').getByText('TT-102',{exact:true})).toBeVisible();
  await expect(page.locator('#passenger-live-map')).toHaveCount(0);
@@ -763,7 +771,7 @@ test('passenger Buses is distinct from Home and chat bubble works on both',async
  await expect(page.getByRole('heading',{name:/TT-102 chat/})).toBeVisible();
  await page.keyboard.press('Escape');
  await nav.getByRole('button',{name:'Home',exact:true}).click();
- await expect(page.getByLabel('Your bus',{exact:true})).toBeVisible();
+ await expect(page.getByLabel('Your next bus',{exact:true})).toBeVisible();
  await expect(page.locator('#passenger-live-map')).toHaveCount(0);
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
 });
@@ -839,7 +847,7 @@ test('pickup selection is a draft until confirmed, supports search, and keeps th
   if(b.entity==='User'&&b.operation==='update'){saved.push(b.data);return r.fulfill({json:{result:{id:'caller',...b.data}}});}
   return r.fallback();
  }));
- await page.getByRole('button',{name:'Find my pickup',exact:true}).click();
+ await openPickupFinder(page);
  let dialog=page.getByRole('dialog',{name:'Pickup'});
  await dialog.getByRole('button',{name:'Choose a company stop instead'}).click();
  await expect(dialog.getByText('Coastal route',{exact:true}).first()).toBeVisible();
@@ -855,7 +863,7 @@ test('pickup selection is a draft until confirmed, supports search, and keeps th
  await expect(dialog.getByLabel('Pickup stops map')).toHaveCount(0);
  await page.keyboard.press('Escape');
  expect(saved).toHaveLength(0);
- await page.getByRole('button',{name:'Find my pickup',exact:true}).click();
+ await openPickupFinder(page);
  dialog=page.getByRole('dialog',{name:'Pickup'});
  await dialog.getByRole('button',{name:'Choose a company stop instead'}).click();
  await dialog.getByRole('button',{name:/^True Blue/}).click();
@@ -872,7 +880,7 @@ test('failed pickup save retains the old choice and allows retry',async({page})=
   if(b.entity==='User'&&b.operation==='update')return r.fulfill(fail?{status:503,json:{error:'Unavailable'}}:{json:{result:{id:'caller',...b.data}}});
   return r.fallback();
  }));
- await page.getByRole('button',{name:'Find my pickup',exact:true}).click();
+ await openPickupFinder(page);
  const dialog=page.getByRole('dialog',{name:'Pickup'});
  await dialog.getByRole('button',{name:'Choose a company stop instead'}).click();
  await dialog.getByRole('button',{name:/^True Blue/}).click();
