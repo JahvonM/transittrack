@@ -2,6 +2,8 @@
 
 Use one development tablet, parked, with the existing test driver, bus and NFC card. The previous driver appearance is restored. Cloud video storage is deferred; clips stay on the tablet and Admin plays a requested clip while the tablet is online.
 
+Automated preparation is complete: 1,004 JavaScript tests, 188 security tests, 92 native tests, native release packaging and 102 distinct browser scenarios passed across broad/focused runs. One media transport scenario cannot run in the sandbox; actual tablet checks below remain required.
+
 ## Prepare once on Windows
 
 1. Publish the current web version in the Base44 dashboard. The kiosk still loads the existing hosted app URL; an APK update alone does not publish that web version.
