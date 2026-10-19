@@ -185,7 +185,7 @@ public class HelperService extends Service {
         }
 
         // Local command listener: card results from the boarding page, and
-        // "look for USB devices again" from any TransitTrack page.
+        // "look for USB devices again" from any McSween Transport page.
         results = new ResultServer(new Runnable() {
             @Override public void run() { main.post(new Runnable() { @Override public void run() { rescanUsb(); } }); }
         }, commands);
@@ -755,13 +755,13 @@ public class HelperService extends Service {
         NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
         Notification.Builder b;
         if (Build.VERSION.SDK_INT >= 26) {
-            NotificationChannel ch = new NotificationChannel(CHANNEL, "TransitTrack Helper", NotificationManager.IMPORTANCE_MIN);
+            NotificationChannel ch = new NotificationChannel(CHANNEL, "McSween Helper", NotificationManager.IMPORTANCE_MIN);
             nm.createNotificationChannel(ch);
             b = new Notification.Builder(this, CHANNEL);
         } else {
             b = new Notification.Builder(this);
         }
-        return b.setContentTitle("TransitTrack Helper")
+        return b.setContentTitle("McSween Helper")
                 .setContentText("Card reader, GPS and screen control running")
                 .setSmallIcon(android.R.drawable.ic_menu_compass)
                 .setOngoing(true)

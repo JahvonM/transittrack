@@ -1,7 +1,7 @@
 {
   "packageId": "com.transittrack.driver",
   "host": "eager-transit-track-go.base44.app",
-  "name": "TransitTrack Driver",
+  "name": "McSween Driver",
   "launcherName": "Driver",
   "display": "standalone",
   "orientation": "portrait",

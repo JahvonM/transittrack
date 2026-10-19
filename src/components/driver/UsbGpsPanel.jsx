@@ -38,7 +38,7 @@ export default function UsbGpsPanel() {
       <div className="space-y-2 border-t border-border pt-3">
         <p className="text-sm font-medium">USB auto-accept: {state.autoAcceptEnabled ? "On" : "Off"}</p>
         <p className="text-xs text-muted-foreground">Automatically confirms this app's GPS USB access prompts, like the helper. Android asks you to enable this once in Accessibility settings.</p>
-        <Button variant="outline" className="w-full" onClick={() => { setError(""); openUsbAutoAcceptSettings().catch(() => setError("Open tablet Settings → Accessibility → TransitTrack USB auto-accept.")); }}>{state.autoAcceptEnabled ? "Manage USB auto-accept" : "Set up USB auto-accept"}</Button>
+        <Button variant="outline" className="w-full" onClick={() => { setError(""); openUsbAutoAcceptSettings().catch(() => setError("Open tablet Settings → Accessibility → McSween USB auto-accept (TransitTrack USB auto-accept on older versions).")); }}>{state.autoAcceptEnabled ? "Manage USB auto-accept" : "Set up USB auto-accept"}</Button>
       </div>
       {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
     </CardContent>

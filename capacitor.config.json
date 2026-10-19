@@ -1,6 +1,6 @@
 {
   "appId": "com.transittrack.app",
-  "appName": "TransitTrack",
+  "appName": "McSween Transport",
   "webDir": "dist",
   "server": {
     "androidScheme": "https",

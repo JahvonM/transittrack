@@ -36,7 +36,7 @@ export function tabletSetupBundle(script, helperBytes, version, device = null, t
   const lines = [];
   for (let i = 0; i < b64.length; i += 76) lines.push(HELPER_LINE + b64.slice(i, i + 76));
   if (!text.endsWith(eol)) text += eol;
-  text += `rem ===== TransitTrack Helper ${batSafe(version)} - built in, do not edit below =====${eol}${lines.join(eol)}${eol}`;
+  text += `rem ===== McSween Helper ${batSafe(version)} - built in, do not edit below =====${eol}${lines.join(eol)}${eol}`;
   const bytes = new TextEncoder().encode(text);
   return {
     bytes,

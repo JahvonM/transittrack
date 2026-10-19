@@ -37,7 +37,7 @@ function createUpdateChecker({currentVersion,fetchImpl=fetch,showMessage,openDow
    if(!release) {if(manual)await showMessage({type:'info',title:'Updates',message:'No newer published Windows version is available.',detail:'Installed version: '+currentVersion});return;}
    if(!manual&&lastNotified===release.version)return;
    lastNotified=release.version;
-   const {response:choice}=await showMessage({type:'info',title:'TransitTrack update available',message:'TransitTrack Desktop '+release.version+' is available.',detail:'Installed version: '+currentVersion+'. Download the installer, then run it when you are ready. Your account and saved app settings are retained.',buttons:['Later','Download update'],defaultId:0,cancelId:0,noLink:true});
+   const {response:choice}=await showMessage({type:'info',title:'McSween Transport update available',message:'McSween Transport Desktop '+release.version+' is available.',detail:'Installed version: '+currentVersion+'. Download the installer, then run it when you are ready. Your account and saved app settings are retained.',buttons:['Later','Download update'],defaultId:0,cancelId:0,noLink:true});
    if(choice===1&&!stopped)await openDownload(release.url);
   } catch {
    if(manual&&!stopped)await showMessage({type:'warning',title:'Updates',message:'Could not check for updates.',detail:'Check your internet connection and try again later.'});

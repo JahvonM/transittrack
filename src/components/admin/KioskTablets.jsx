@@ -312,13 +312,13 @@ export default function KioskTablets({ vehicles, companies, onChange }) {
       <div className="rounded-xl border bg-muted/40 px-4 py-3 text-sm">
         <p className="font-medium">Setting up a new driver or bus boarding tablet</p>
         <ol className="text-muted-foreground list-decimal ml-4 mt-1 space-y-0.5">
-          <li>Register the tablet here, then press <b>Setup file</b> on its card. You get one .bat file, filled in with its type, code and bus, with the TransitTrack Helper built in.</li>
+          <li>Register the tablet here, then press <b>Setup file</b> on its card. You get one .bat file, filled in with its type, code and bus, with the McSween Helper built in.</li>
           <li>On the tablet: turn on USB debugging, remove all accounts, connect to Wi-Fi, and plug it into this Windows PC.</li>
           <li>Double-click the setup file and follow the blue window. If the browser or Windows warns about it, choose Keep / Run anyway.</li>
         </ol>
         <p className="text-xs text-muted-foreground mt-1">
           Needs ADB on the PC (<code>winget install Google.PlatformTools</code>) and the WebView .apk in your Downloads folder.
-          The TransitTrack Helper is built into both setup downloads. <b>Setup tool</b> is the same file without a tablet filled in;
+          The McSween Helper is built into both setup downloads. <b>Setup tool</b> is the same file without a tablet filled in;
           its menu also updates a tablet and checks one (Helper version, screen settings, card reader key).
         </p>
         <p className="text-xs text-muted-foreground mt-1">

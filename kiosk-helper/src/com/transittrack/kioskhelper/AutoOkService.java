@@ -8,10 +8,13 @@ import java.util.List;
 
 /**
  * Android often forgets "Use by default" for a USB device that is plugged in while the tablet boots,
- * so it asks "Allow TransitTrack Helper to access ACR122U?" again. This taps OK on that popup.
- * It only acts on System UI popups that mention TransitTrack Helper.
+ * so it asks "Allow McSween Helper to access ACR122U?" again. This taps OK on that popup.
+ * It only acts on System UI popups that mention this app by name: McSween Helper, or
+ * TransitTrack Helper, its name before the rename (Android may still show the old name
+ * until the new version is installed).
  */
 public class AutoOkService extends AccessibilityService {
+    private static final String[] NAMES = {"McSween Helper", "TransitTrack Helper"};
     private long lastClick = 0;
 
     @Override public void onServiceConnected() {
@@ -34,8 +37,7 @@ public class AutoOkService extends AccessibilityService {
         if (root == null) return false;
         CharSequence pkg = root.getPackageName();
         if (pkg == null || !"com.android.systemui".contentEquals(pkg)) return false;
-        List<AccessibilityNodeInfo> mention = root.findAccessibilityNodeInfosByText("TransitTrack Helper");
-        if (mention == null || mention.isEmpty()) return false;
+        if (!mentionsUs(root)) return false;
         // Tick "Use by default / Always" if the popup offers it, then press OK.
         for (String id : new String[] {"com.android.systemui:id/alwaysUse", "android:id/alwaysUse"}) {
             List<AccessibilityNodeInfo> boxes = root.findAccessibilityNodeInfosByViewId(id);
@@ -51,6 +53,14 @@ public class AutoOkService extends AccessibilityService {
                 Status.log("Tapped OK on the USB access popup");
                 return true;
             }
+        }
+        return false;
+    }
+
+    private static boolean mentionsUs(AccessibilityNodeInfo root) {
+        for (String name : NAMES) {
+            List<AccessibilityNodeInfo> found = root.findAccessibilityNodeInfosByText(name);
+            if (found != null && !found.isEmpty()) return true;
         }
         return false;
     }
