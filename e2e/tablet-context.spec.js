@@ -126,7 +126,12 @@ test('driver map pins the stops and only gives directions after Navigate', async
   ] } });
   const urls = [];
   await page.route('https://api.mapbox.com/**', async (r) => {
-    if (r.request().url().includes('/directions/')) { urls.push(r.request().url()); return r.fulfill({ json: fixture }); }
+    if (r.request().url().includes('/directions/')) {
+      // The overview may draw the road between stops before navigation starts.
+      // Turn-by-turn steps/voice must wait for the driver's Navigate action.
+      if (new URL(r.request().url()).searchParams.get('steps') === 'true') urls.push(r.request().url());
+      return r.fulfill({ json: fixture });
+    }
     return r.fulfill({ status: 404, body: '' });
   });
   await page.addInitScript(() => {
