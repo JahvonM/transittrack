@@ -7,15 +7,15 @@ $projectRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 Push-Location $projectRoot
 try {
     if (-not (Get-Command npm.cmd -ErrorAction SilentlyContinue)) { throw 'Install Node.js, then reopen PowerShell.' }
-    if (-not $env:JAVA_HOME -or -not (Test-Path (Join-Path $env:JAVA_HOME 'bin\java.exe'))) {
-        $jdkCandidates = @(
-            (Join-Path $env:ProgramFiles 'Android\Android Studio\jbr'),
-            (Join-Path $env:LOCALAPPDATA 'Programs\Android Studio\jbr')
-        )
-        $foundJdk = $jdkCandidates | Where-Object { Test-Path (Join-Path $_ 'bin\java.exe') } | Select-Object -First 1
-        if ($foundJdk) { $env:JAVA_HOME = $foundJdk }
-        elseif (-not (Get-Command java.exe -ErrorAction SilentlyContinue)) { throw 'Open Android Studio to finish its setup, or set JAVA_HOME to your existing JDK 17 or newer.' }
+    . (Join-Path $PSScriptRoot 'Kiosk-Java.ps1')
+    $foundJdk = Find-KioskJdk -Candidates @(Get-KioskJdkCandidates)
+    if (-not $foundJdk) {
+        throw 'This build requires JDK 17 or 21. Install JDK 17 with: winget install --exact --id Microsoft.OpenJDK.17 . Then rerun this script. Java 25 cannot run Gradle 8.13.'
     }
+    $env:JAVA_HOME = $foundJdk
+    $env:PATH = (Join-Path $foundJdk 'bin') + [IO.Path]::PathSeparator + $env:PATH
+    Write-Host "Using Java $(Get-KioskJdkMajor $foundJdk): $foundJdk"
+    Write-Host 'For Android Studio builds, choose this same path under Settings > Build Tools > Gradle > Gradle JDK.'
     if (-not $env:ANDROID_HOME -and -not $env:ANDROID_SDK_ROOT) {
         $defaultSdk = Join-Path $env:LOCALAPPDATA 'Android\Sdk'
         if (Test-Path $defaultSdk) { $env:ANDROID_HOME = $defaultSdk }
@@ -33,7 +33,7 @@ try {
     & npx.cmd cap sync android
     if ($LASTEXITCODE -ne 0) { throw 'Android sync failed. No installation attempted.' }
     Write-Host '4/4 Compiling native code and running its unit tests...'
-    & (Join-Path $projectRoot 'android\gradlew.bat') -p (Join-Path $projectRoot 'android') :app:compileDebugJavaWithJavac :app:testDebugUnitTest --no-daemon --max-workers=1
+    & (Join-Path $projectRoot 'android\gradlew.bat') -p (Join-Path $projectRoot 'android') "-Dorg.gradle.java.home=$env:JAVA_HOME" :app:compileDebugJavaWithJavac :app:testDebugUnitTest --no-daemon --max-workers=1
     if ($LASTEXITCODE -ne 0) { throw 'Native checks failed. No installation attempted.' }
     Write-Host ''
     Write-Host 'READY: install one update using the same signing identity as the tablet.' -ForegroundColor Green
