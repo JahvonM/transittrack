@@ -10,7 +10,7 @@ export default function FloatingChatbot({ placement = "float" }) {
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [messages, setMessages] = useState([
-    { role: "assistant", content: "Hi! I'm the TransitTrack copilot. Ask me about your fleet, trips, drivers, inspections, or safety procedures." },
+    { role: "assistant", content: "Hi! I'm the McSween Transport copilot. Ask me about your fleet, trips, drivers, inspections, or safety procedures." },
   ]);
   const endRef = useRef(null);
 
@@ -24,13 +24,13 @@ export default function FloatingChatbot({ placement = "float" }) {
     try {
       const convo = next.map((m) => `${m.role}: ${m.content}`).join("\n");
       const res = await base44.integrations.Core.InvokeLLM({
-        prompt: `You are an assistant for a transit/fleet management app called TransitTrack. Help the admin concisely with fleet, trips, drivers, inspections, incidents, and safety.\n\nConversation:\n${convo}\n\nassistant:`,
+        prompt: `You are an assistant for a transit/fleet management app called McSween Transport. Help the admin concisely with fleet, trips, drivers, inspections, incidents, and safety.\n\nConversation:\n${convo}\n\nassistant:`,
       });
       const reply = typeof res === "string" ? res : res?.response || res?.answer || res?.text || (res == null ? "" : JSON.stringify(res));
       if (!reply.trim()) throw new Error("AI service returned an empty response");
       setMessages((m) => [...m, { role: "assistant", content: reply }]);
     } catch (e) {
-      console.error("TransitTrack AI assistant request failed", { status: e?.status ?? e?.response?.status, message: e?.message });
+      console.error("McSween Transport AI assistant request failed", { status: e?.status ?? e?.response?.status, message: e?.message });
       const status = e?.status ?? e?.response?.status;
       const detail = status === 401 ? "Your session expired. Please sign in again." : status === 403 ? "Your account is not authorized to use this AI service." : status === 429 ? "The AI service is receiving too many requests. Please try again shortly." : status >= 500 ? "The AI service is temporarily unavailable." : "The request failed. Please try again.";
       setMessages((m) => [...m, { role: "assistant", content: `AI request failed${status ? ` (HTTP ${status})` : ""}. ${detail}` }]);

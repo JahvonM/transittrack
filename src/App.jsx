@@ -92,7 +92,7 @@ const AuthenticatedApp = () => {
   // Show loading spinner while checking app public settings or auth
   if (!publicPage && !tabletPage && (isLoadingPublicSettings || isLoadingAuth)) {
     return (
-      <JourneyLoading label={isLoadingPublicSettings ? "Connecting to TransitTrack…" : "Checking your account…"} onRetry={checkAppState} />
+      <JourneyLoading label={isLoadingPublicSettings ? "Connecting to McSween Transport…" : "Checking your account…"} onRetry={checkAppState} />
     );
   }
 

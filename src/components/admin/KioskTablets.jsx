@@ -297,7 +297,7 @@ export default function KioskTablets({ vehicles, companies, onChange }) {
           </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap border-t pt-3">
-          <Button variant="outline" disabled={downloadingSetup} onClick={() => window.transittrackDesktop?.openSetup ? window.transittrackDesktop.openSetup("tablet").catch(()=>toast({title:"Couldn't open tablet setup",description:"Update TransitTrack Desktop and try again.",variant:"destructive"})) : downloadBundle()}>
+          <Button variant="outline" disabled={downloadingSetup} onClick={() => window.transittrackDesktop?.openSetup ? window.transittrackDesktop.openSetup("tablet").catch(()=>toast({title:"Couldn't open tablet setup",description:"Update McSween Transport Desktop and try again.",variant:"destructive"})) : downloadBundle()}>
             <Download className="w-4 h-4 mr-1" /> {downloadingSetup ? "Preparing setup…" : (window.transittrackDesktop?.openSetup ? "Open tablet setup" : "Setup tool")}
           </Button>
           <Button variant="outline" disabled={busyId === "upd-all" || !devices.some(updatable)} onClick={() => sendUpdate(devices)}>

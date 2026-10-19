@@ -96,14 +96,14 @@ export default async function (req) {
       'FLEET',
       `• ${plural(vehicles.length, 'vehicle')}, ${offline.length} with no location in the past week${offline.length ? `: ${offline.slice(0, 8).map((v) => v.name).join(', ')}` : ''}`,
       '',
-      'Open TransitTrack → Admin for the details.',
+      'Open McSween Transport → Admin for the details.',
       '',
-      '— TransitTrack',
+      '— McSween Transport',
     ];
     const body = lines.join('\n');
 
     const admins = users.filter((u) => u.role === 'admin' && u.email);
-    const subject = `TransitTrack weekly report · ${period}`;
+    const subject = `McSween Transport weekly report · ${period}`;
     // One bad address doesn't stop the rest.
     const { sent } = await emailWithPolicy(base44, 'weekly_report', admins, (a) => base44.asServiceRole.integrations.Core.SendEmail({
       to: a.email,

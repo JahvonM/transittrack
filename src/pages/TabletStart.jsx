@@ -15,7 +15,7 @@ export default function TabletStart() {
   return <main className="min-h-[100dvh] bg-background text-foreground flex items-center justify-center p-6 safe-area-top safe-area-bottom">
     <div className="w-full max-w-xl space-y-8 py-8">
       <header className="space-y-3">
-        <p className="text-primary font-semibold tracking-widest text-sm uppercase">TransitTrack Kiosk</p>
+        <p className="text-primary font-semibold tracking-widest text-sm uppercase">McSween Transport Kiosk</p>
         <h1 className="text-3xl font-bold">What is this tablet for?</h1>
         <p className="text-muted-foreground">Choose once. This app will remember and open the right screen next time.</p>
       </header>

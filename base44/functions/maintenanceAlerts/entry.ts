@@ -39,7 +39,7 @@ function buildEmail(name, isAdmin, items) {
   const intro = isAdmin
     ? `Hi ${name},\n\nThe following maintenance services in your fleet are due soon or overdue:`
     : `Hi ${name},\n\nThe following maintenance services assigned to you are due soon or overdue:`;
-  return `${intro}\n\n${items.join('\n\n')}\n\nPlease schedule the service at your earliest convenience.\n\n— TransitTrack`;
+  return `${intro}\n\n${items.join('\n\n')}\n\nPlease schedule the service at your earliest convenience.\n\n— McSween Transport`;
 }
 
 // Scans every company's MaintenanceSchedule for items due soon/overdue and

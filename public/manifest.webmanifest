@@ -1,6 +1,6 @@
 {
-  "name": "TransitTrack",
-  "short_name": "TransitTrack",
+  "name": "McSween Transport",
+  "short_name": "McSween",
   "description": "Live fleet tracking, bus boarding and driver tools.",
   "start_url": "/",
   "scope": "/",

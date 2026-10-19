@@ -80,8 +80,8 @@ export default async function (req) {
     if (!alreadyAlerted && await reserveAttempt(base44,'crash-message:v2:'+message,1,HOUR_MS)) {
       const admins = (await base44.asServiceRole.entities.User.list()).filter((u) => u.role === 'admin' && u.email);
       const subjectLine = sanitize(message, 80) || 'unknown error';
-      const text = `A screen in TransitTrack just crashed.\n\nReported error (untrusted, quoted verbatim):\n${quote(message, 500)}\n\nPage: ${sanitize(record.url, 300) || 'unknown'}\nUser: ${record.user_email || 'not signed in'}${record.user_role ? ` (${record.user_role})` : ''}\nDevice: ${sanitize(record.user_agent, 300) || 'unknown'}\n\nThe user saw a "Something went wrong" screen with a reload button. Repeats of this same error in the next hour won't send another email. See what happened, step by step, in Admin → All tools → App errors.\n\n— TransitTrack`;
-      const subject = `TransitTrack crash alert: ${subjectLine}`;
+      const text = `A screen in McSween Transport just crashed.\n\nReported error (untrusted, quoted verbatim):\n${quote(message, 500)}\n\nPage: ${sanitize(record.url, 300) || 'unknown'}\nUser: ${record.user_email || 'not signed in'}${record.user_role ? ` (${record.user_role})` : ''}\nDevice: ${sanitize(record.user_agent, 300) || 'unknown'}\n\nThe user saw a "Something went wrong" screen with a reload button. Repeats of this same error in the next hour won't send another email. See what happened, step by step, in Admin → All tools → App errors.\n\n— McSween Transport`;
+      const subject = `McSween Transport crash alert: ${subjectLine}`;
       const delivery = await emailWithPolicy(base44, 'crash_alert', admins,
         async (a) => {
           // Charge each actual recipient BEFORE the provider call. Unknown delivery is never retried here.

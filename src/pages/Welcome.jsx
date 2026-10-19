@@ -81,7 +81,7 @@ export default function Welcome() {
    <Button asChild variant="outline" className="rounded-xl"><Link to="/login">Sign in <ChevronRight className="w-4 h-4" /></Link></Button>
   </header>
   <main className="tt-welcome-main">
-   <section className="tt-welcome-hero" aria-label="Welcome to TransitTrack">
+   <section className="tt-welcome-hero" aria-label="Welcome to McSween Transport">
     <img src="/images/transit-welcome.webp" alt="White shuttle bus on a Caribbean coastal road at dusk" className="tt-welcome-art" fetchPriority="high" />
     <div className="tt-welcome-copy">
      <h1>Your journey,<br /><span className="text-primary">connected.</span></h1>
@@ -110,6 +110,6 @@ export default function Welcome() {
     </details>
    </div>
   </main>
-  <footer className="tt-welcome-footer"><span>TransitTrack</span><div className="flex items-center gap-3"><WeatherWidget variant="chip" /><LiveClock className="text-xs" /></div></footer>
+  <footer className="tt-welcome-footer"><span>McSween Transport</span><div className="flex items-center gap-3"><WeatherWidget variant="chip" /><LiveClock className="text-xs" /></div></footer>
  </div>;
 }

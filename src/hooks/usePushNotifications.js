@@ -9,8 +9,8 @@ const currentPermission = () =>
 // What to tell people when this device can't get notifications, by reason.
 export const PUSH_FAILURE = {
   native_setup: { title: "Native notifications need setup", description: "This app build needs its Firebase notification configuration. Browser notifications remain available." },
-  unsupported: { title: "This browser can't show notifications", description: "On iPhone, add TransitTrack to your Home Screen and open it from there, then try again." },
-  denied: { title: "Notifications are blocked", description: "Allow TransitTrack notifications in this device’s app or browser settings, then try again." },
+  unsupported: { title: "This browser can't show notifications", description: "On iPhone, add McSween Transport to your Home Screen and open it from there, then try again." },
+  denied: { title: "Notifications are blocked", description: "Allow McSween Transport notifications in this device’s app or browser settings, then try again." },
   dismissed: { title: "Notifications are still off", description: "The permission prompt was closed. Tap again and choose Allow." },
   no_token: { title: "Couldn't turn on notifications", description: "The notification service didn't respond. Check your connection and try again." },
   error: { title: "Couldn't turn on notifications", description: "The notification service didn't respond. Check your connection and try again." },
@@ -78,7 +78,7 @@ export function usePushNotifications({ email, role, companyId } = {}) {
       if (!token) return fail(reason || "error");
       if (!(await saveToken(token))) return fail("not_saved");
       setPermission("granted");
-      toast({ title: "Notifications on", description: "This device will get your TransitTrack alerts." });
+      toast({ title: "Notifications on", description: "This device will get your McSween Transport alerts." });
       return true;
     } finally {
       busy.current = false;

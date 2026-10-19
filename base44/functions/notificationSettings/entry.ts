@@ -140,11 +140,11 @@ export default async function(req) {
 
     // A test to the admin's own inbox or phone, so they can see it arrives.
     if (body.action === 'test') {
-      const title = 'TransitTrack test notification';
+      const title = 'McSween Transport test notification';
       if (body.channel === 'email') {
         const result = await emailWithPolicy(base44, 'test', [{ email: user.email }], (r) => base44.asServiceRole.integrations.Core.SendEmail({
           to: r.email, subject: title,
-          body: `Hello,\n\nThis is a test from Admin → Notifications. Emails from TransitTrack are reaching this inbox.\n\n— TransitTrack`,
+          body: `Hello,\n\nThis is a test from Admin → Notifications. Emails from McSween Transport are reaching this inbox.\n\n— McSween Transport`,
         }), { title });
         if (!result.sent) fail(502, 'The test email could not be sent');
         return Response.json({ ok: true, to: norm(user.email) });
@@ -153,7 +153,7 @@ export default async function(req) {
         const rows = await db.PushToken.filter({ email: user.email }, '-created_date', 50);
         const tokens = [...new Set(rows.map((r) => r.token).filter((t) => typeof t === 'string' && t))];
         if (!tokens.length) fail(409, 'This account has no phone or browser signed up for alerts. Turn on notifications in My profile first.');
-        const payload = { title, body: 'Phone alerts from TransitTrack are reaching this device.', data: { type: 'test' } };
+        const payload = { title, body: 'Phone alerts from McSween Transport are reaching this device.', data: { type: 'test' } };
         const result = await pushWithPolicy(base44, 'test', tokens, payload, (list) => sendPushToTokens(secrets.get('FIREBASE_SERVICE_ACCOUNT'), list, payload, '/admin'));
         if (!result.sent) fail(502, 'The test alert could not be delivered');
         return Response.json({ ok: true, devices: result.sent });

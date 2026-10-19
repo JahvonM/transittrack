@@ -207,7 +207,7 @@ export default function Register() {
       )}
       {inBrowser && !error && (
         <div role="status" className="mb-4 p-3 rounded-lg bg-secondary text-sm">
-          Finish signing in in the browser window. The app signs in by itself when you tap Open TransitTrack app there.
+          Finish signing in in the browser window. The app signs in by itself when you tap Open McSween Transport app there.
         </div>
       )}
 

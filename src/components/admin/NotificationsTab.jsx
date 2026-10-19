@@ -338,7 +338,7 @@ export default function NotificationsTab() {
 
   return (
     <div>
-      <PageIntro>Every email and phone alert TransitTrack sends. Switch one off, or untick the people who shouldn't get it.</PageIntro>
+      <PageIntro>Every email and phone alert McSween Transport sends. Switch one off, or untick the people who shouldn't get it.</PageIntro>
       <PageActions>
         <Button variant="outline" size="sm" onClick={() => test("email")} disabled={!!testing}><Send className="h-4 w-4" /> {testing === "email" ? "Sending…" : "Test email to me"}</Button>
         <Button variant="outline" size="sm" onClick={() => test("push")} disabled={!!testing}><Smartphone className="h-4 w-4" /> {testing === "push" ? "Sending…" : "Test alert to me"}</Button>

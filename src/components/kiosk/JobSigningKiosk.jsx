@@ -171,7 +171,7 @@ export default function JobSigningKiosk({ device, deviceId, online }) {
     <div className="flex min-h-[100dvh] flex-col bg-gradient-to-br from-primary/10 via-background to-background">
       <header className="flex items-center gap-3 px-5 py-3 sm:px-8">
         <div className="min-w-0 flex-1">
-          <p className="truncate font-semibold">{device?.company_name || "TransitTrack"}</p>
+          <p className="truncate font-semibold">{device?.company_name || "McSween Transport"}</p>
           {device?.vehicle_name && <p className="truncate text-sm text-muted-foreground">{device.vehicle_name}</p>}
         </div>
         <span className="font-display text-lg font-semibold tabular-nums">{time(now)}</span>

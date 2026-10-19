@@ -11,7 +11,7 @@ export function describeDevice(ua = "") {
   const browser = /SamsungBrowser/.test(ua) ? "Samsung Internet"
     : /Edg\//.test(ua) ? "Edge"
     : /Firefox|FxiOS/.test(ua) ? "Firefox"
-    : /; wv\)/.test(ua) ? "inside the TransitTrack app"
+    : /; wv\)/.test(ua) ? "inside the McSween Transport app"
     : /CriOS|Chrome/.test(ua) ? "Chrome"
     : /Safari/.test(ua) ? "Safari" : "";
   return browser ? `${device} · ${browser}` : device;

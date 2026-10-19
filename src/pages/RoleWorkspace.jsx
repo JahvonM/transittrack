@@ -39,7 +39,7 @@ export default function RoleWorkspace() {
  if(!section && first)return <Navigate to={"/workspace/"+first} replace />;
  const allowed=role.sections.includes(section);
  return <div className="min-h-[100dvh] bg-background text-foreground">
-  <header className="flex flex-wrap items-center justify-between gap-3 border-b bg-card p-4"><div><Link to="/workspace" className="font-bold">TransitTrack</Link><p className="text-sm text-muted-foreground">{role.name} · View-only workspace</p></div><Button variant="outline" onClick={()=>logout()}>Sign out</Button></header>
+  <header className="flex flex-wrap items-center justify-between gap-3 border-b bg-card p-4"><div><Link to="/workspace" className="font-bold">McSween Transport</Link><p className="text-sm text-muted-foreground">{role.name} · View-only workspace</p></div><Button variant="outline" onClick={()=>logout()}>Sign out</Button></header>
   <div className="mx-auto grid max-w-[1600px] gap-5 p-4 md:grid-cols-[220px_minmax(0,1fr)]">
    <nav className="flex flex-wrap gap-2 md:flex-col" aria-label="Assigned screens">{role.sections.map(key=><Link key={key} to={"/workspace/"+key} aria-current={key===section?"page":undefined} className={"rounded-xl border px-3 py-3 text-sm font-semibold "+(key===section?"bg-primary text-primary-foreground":"bg-card")}>{ROLE_SECTIONS[key]?.label || key}</Link>)}</nav>
    <main className="min-w-0 space-y-4">

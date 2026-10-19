@@ -8,7 +8,7 @@ export default function PrivacyPolicy() {
     <LegalLayout title="Privacy Policy">
       <LegalSection title="1. Who we are">
         <p>
-          [COMPANY NAME] ("we", "us") operates the TransitTrack transport management service and
+          [COMPANY NAME] ("we", "us") operates the McSween Transport transport management service and
           mobile application. We provide staff bus and taxi coordination, live vehicle tracking and
           boarding verification for companies and their employees.
         </p>
@@ -110,7 +110,7 @@ export default function PrivacyPolicy() {
           </li>
         </ul>
         <p>
-          Companies using TransitTrack are separate. Data belonging to one company is not visible to
+          Companies using McSween Transport are separate. Data belonging to one company is not visible to
           another company.
         </p>
       </LegalSection>
@@ -191,7 +191,7 @@ export default function PrivacyPolicy() {
 
       <LegalSection title="10. Children">
         <p>
-          TransitTrack is a workplace transport service and is not intended for children under
+          McSween Transport is a workplace transport service and is not intended for children under
           [MINIMUM AGE]. We do not knowingly collect personal information from children. If you
           believe a child has provided us with personal information, contact us at [CONTACT EMAIL]
           and we will delete it.

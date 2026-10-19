@@ -26,7 +26,7 @@ export default function UsbGpsPanel() {
     <CardHeader className="pb-3"><CardTitle className="flex items-center gap-2 text-base"><Satellite className="h-5 w-5" /> USB GPS receiver</CardTitle></CardHeader>
     <CardContent className="space-y-3">
       <div className="flex items-center gap-3">
-        <div className="flex-1"><p className="text-sm font-medium">Use GPS directly in TransitTrack</p><p className="text-xs text-muted-foreground">VFAN / supported USB serial receivers</p></div>
+        <div className="flex-1"><p className="text-sm font-medium">Use GPS directly in McSween Transport</p><p className="text-xs text-muted-foreground">VFAN / supported USB serial receivers</p></div>
         <Switch aria-label="Use integrated USB GPS" checked={state.enabled} disabled={busy} onCheckedChange={toggle} />
       </div>
       <p role="status" className="text-sm">{state.enabled ? state.status : "Using tablet GPS / existing helper"}</p>
