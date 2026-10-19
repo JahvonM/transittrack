@@ -15,7 +15,7 @@ assert "\n'@" not in cs, "C# code must not contain a line starting with '@"
 
 BAT = r"""<# : batch portion
 @echo off
-title TransitTrack Card Reader
+title McSween Card Reader
 set "TT_SELF=%~f0"
 powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "iex ([IO.File]::ReadAllText($env:TT_SELF))"
 if errorlevel 1 pause
@@ -23,15 +23,15 @@ goto :EOF
 : end of batch portion #>
 
 # ---------------------------------------------------------------------------
-# TransitTrack Card Reader - connects an ACS ACR122U USB NFC reader to
-# TransitTrack (Admin > Card issuing) in Chrome or Edge on this PC.
+# McSween Card Reader - connects an ACS ACR122U USB NFC reader to
+# McSween Transport (Admin > Card issuing) in Chrome or Edge on this PC.
 # Leave this window open (you can minimise it). Close it to stop.
 # ---------------------------------------------------------------------------
 $ErrorActionPreference = 'Stop'
-try { $Host.UI.RawUI.WindowTitle = 'TransitTrack Card Reader' } catch { }
+try { $Host.UI.RawUI.WindowTitle = 'McSween Card Reader' } catch { }
 Write-Host ''
-Write-Host '  TransitTrack Card Reader' -ForegroundColor Green
-Write-Host '  Connects the ACS ACR122U reader to TransitTrack in your browser.'
+Write-Host '  McSween Card Reader' -ForegroundColor Green
+Write-Host '  Connects the ACS ACR122U reader to McSween Transport in your browser.'
 Write-Host '  Leave this window open - you can minimise it.'
 Write-Host ''
 
@@ -48,7 +48,7 @@ try {
 }
 if (-not [TTCardReader]::Start(8765, $env:TT_ORIGINS, ($env:TT_SIMULATE -eq '1'))) { Start-Sleep -Seconds 10; exit 0 }
 Write-Host ''
-Write-Host '  Ready. In Chrome or Edge open https://eager-transit-track-go.base44.app/admin/cards' -ForegroundColor Green
+Write-Host '  Ready. In Chrome or Edge open https://app.mcsweenstransport.com/admin/cards' -ForegroundColor Green
 Write-Host '  and press Connect reader. If Chrome asks to allow access to apps on this device, choose Allow.'
 Write-Host ''
 # First run: offer to start automatically when Windows starts. (Asked after
