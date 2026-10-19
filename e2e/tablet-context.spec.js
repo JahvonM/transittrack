@@ -106,7 +106,6 @@ test('driver can choose a returned route and its ETA updates', async ({ page, co
   await page.locator('input[type=password]').fill('1234');
   await page.getByRole('button', { name: 'Unlock', exact: true }).click();
   await page.getByRole('button', { name: 'Navigate', exact: true }).click();
-  await page.getByRole('button', { name: 'Navigate', exact: true }).click();
   const option = page.getByRole('button', { name: /Alternative test road/ });
   await expect(option).toBeVisible({ timeout: 20000 });
   expect(urls.some((u) => u.includes('alternatives=true'))).toBe(true);
@@ -137,10 +136,9 @@ test('driver map pins the stops and only gives directions after Navigate', async
   await page.goto('/driver/track');
   await page.locator('input[type=password]').fill('1234');
   await page.getByRole('button', { name: 'Unlock', exact: true }).click();
-  await page.getByRole('button', { name: 'Navigate', exact: true }).click();
   const navigate = page.getByRole('button', { name: 'Navigate', exact: true });
   await expect(navigate).toBeVisible({ timeout: 20000 });
-  await expect(page.getByTestId('nav-eta')).toContainText('of 2');
+  await expect(page.getByRole('region', {name:'Next stop',exact:true})).toContainText('Stop 1 of 2');
   await expect(page.getByTestId('nav-banner')).toHaveCount(0);
   await page.waitForTimeout(2000);
   expect(urls).toEqual([]); // no directions until the driver asks
