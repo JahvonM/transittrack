@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import ts from "typescript";
@@ -10,7 +9,9 @@ import ts from "typescript";
 // turns Base44 calls into Supabase requests.
 
 const root = new URL("../../../", import.meta.url);
-const dir = fs.mkdtempSync(path.join(os.tmpdir(), "compat-"));
+// Transpiled copies live inside the project so the test runner may load them.
+const dir = new URL("node_modules/.cache/supabase-compat-test/", root).pathname;
+fs.mkdirSync(dir, { recursive: true });
 const toMjs = (file) => ts.transpileModule(fs.readFileSync(new URL(file, root), "utf8"), {
   compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
 }).outputText.replace(/from '\.\/([A-Za-z0-9]+)\.ts'/g, "from './$1.mjs'");
