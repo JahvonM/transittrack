@@ -13,7 +13,7 @@ function fakeSupabase() {
   const columns = {
     vehicle: ["id", "created_date", "updated_date", "name", "company_id", "capacity"],
     company: ["id", "created_date", "updated_date", "name", "logo_url"],
-    app_user: ["id", "created_date", "updated_date", "email", "role", "full_name", "is_verified", "disabled", "auth_user_id"],
+    app_user: ["id", "created_date", "updated_date", "email", "role", "full_name", "is_verified", "disabled", "auth_user_id", "photo_url"],
     staff_check_in: ["id", "created_date", "updated_date", "staff_picture_url"],
     incident: ["id", "created_date", "updated_date", "photo_uris"],
   };
@@ -66,8 +66,8 @@ function fakeSupabase() {
     const rows = JSON.parse(init.body);
     if (rows.some((r) => typeof r.capacity === "string")) return new Response(JSON.stringify({ message: 'invalid input syntax for type double precision: "lots"' }), { status: 400 });
     // Like PostgREST's merge-duplicates: only the columns sent are updated.
-    const key = u.searchParams.get("on_conflict") || "id";
-    for (const r of rows) { const i = tables[table].findIndex((x) => x[key] === r[key]); if (i >= 0) tables[table][i] = { ...tables[table][i], ...r }; else tables[table].push(r); }
+    const keys = (u.searchParams.get("on_conflict") || "id").split(",");
+    for (const r of rows) { const i = tables[table].findIndex((x) => keys.every((k) => x[k] === r[k])); if (i >= 0) tables[table][i] = { ...tables[table][i], ...r }; else tables[table].push(r); }
     return new Response(null, { status: 201 });
   };
   return { tables, calls, accounts, objects, web, fetch };
@@ -315,6 +315,27 @@ describe("copy data to Supabase", () => {
       const again = (await send({ action: "files", entity: "Company" })).body;
       expect(again).toMatchObject({ files: 1, copied: 0, already: 1, failed: [] });
       expect(Object.keys(supa.objects)).toHaveLength(1);
+    });
+
+    it("a file used in a public field and a private one gets a copy in each area", async () => {
+      for (const order of [["User", "StaffCheckIn"], ["StaffCheckIn", "User"]]) {
+        const { sdk, supa, send } = files();
+        // Jane's profile photo was also used as her check-in picture.
+        sdk.tables.User.push({ id: "jane", created_date: "2026-09-01T10:00:00", updated_date: "2026-09-01T10:00:00", email: "jane@example.com", role: "staff", photo_url: FACE });
+        for (const e of ["User", "StaffCheckIn"]) await copyAll(send, e);
+        for (const e of order) expect((await send({ action: "files", entity: e })).body).toMatchObject({ copied: 1, failed: [] });
+        const keys = Object.keys(supa.objects).sort();
+        expect(keys).toHaveLength(2);
+        expect(keys[0]).toMatch(/^private\/staff_check_in\/ci1\//);
+        expect(keys[1]).toMatch(/^public\/app_user\/jane\//);
+        expect(supa.tables.staff_check_in.find((r) => r.id === "ci1").staff_picture_url).toBe(`storage://${keys[0]}`);
+        expect(supa.tables.app_user.find((r) => r.id === "jane").photo_url).toBe(`https://proj.supabase.co/storage/v1/object/public/${keys[1]}`);
+        // Copying the tables again keeps each field on its own area's copy.
+        for (const e of ["User", "StaffCheckIn"]) await copyAll(send, e);
+        expect(supa.tables.staff_check_in.find((r) => r.id === "ci1").staff_picture_url).toBe(`storage://${keys[0]}`);
+        expect(supa.tables.app_user.find((r) => r.id === "jane").photo_url).toBe(`https://proj.supabase.co/storage/v1/object/public/${keys[1]}`);
+        expect(supa.tables.storage_file_copy).toHaveLength(2);
+      }
     });
 
     it("refuses anything that isn't really an image, and http redirects", async () => {

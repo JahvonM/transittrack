@@ -113,6 +113,11 @@ async function fileDownload(url: string, max: number) {
   throw new Error('Too many redirects');
 }
 
+// The same Base44 file can be in a public field and a private one (a person's
+// profile photo reused as their check-in picture), so each area gets its own
+// copy and the record is per file per area.
+export const fileKey = (bucket: string, source: string) => `${bucket} ${source}`;
+
 // The address the app stores for a copied file.
 export function fileReference(origin: string, bucket: string, path: string) {
   return bucket === 'public' ? `${origin}/storage/v1/object/public/public/${path}` : `storage://${bucket}/${path}`;
@@ -124,7 +129,8 @@ export function applyFileMap(entity: string, row: Record<string, unknown>, map: 
   if (!columns) return row;
   for (const column of Object.keys(columns)) {
     if (!(column in row)) continue;
-    const swap = (v: unknown) => { const hit = typeof v === 'string' ? map.get(v) : undefined; return hit ? fileReference(origin, hit.bucket, hit.path) : v; };
+    const bucket = columns[column];
+    const swap = (v: unknown) => { const hit = typeof v === 'string' ? map.get(fileKey(bucket, v)) : undefined; return hit ? fileReference(origin, hit.bucket, hit.path) : v; };
     row[column] = Array.isArray(row[column]) ? (row[column] as unknown[]).map(swap) : swap(row[column]);
   }
   return row;
@@ -157,7 +163,7 @@ export async function copyOneFile(
     throw new Error('Supabase storage: ' + message);
   }
   await up.body?.cancel().catch(() => {});
-  const record = await fetch(`${sb.origin}/rest/v1/storage_file_copy?on_conflict=source`, {
+  const record = await fetch(`${sb.origin}/rest/v1/storage_file_copy?on_conflict=source,bucket`, {
     method: 'POST',
     headers: { ...sb.headers, 'Content-Type': 'application/json', Prefer: 'resolution=merge-duplicates,return=minimal' },
     body: JSON.stringify([{ source, bucket: where.bucket, path, content_type: type, bytes: bytes.length }]),
@@ -167,14 +173,14 @@ export async function copyOneFile(
   return { bucket: where.bucket, path };
 }
 
-// Every file Supabase already has a copy of, by its Base44 source.
+// Every file Supabase already has a copy of, by area and Base44 source.
 export async function loadFileMap(sb: { origin: string; headers: Record<string, string> }) {
   const map = new Map<string, { bucket: string; path: string }>();
   for (let from = 0; ; from += 1000) {
     const res = await fetch(`${sb.origin}/rest/v1/storage_file_copy?select=source,bucket,path&order=source`, { headers: { ...sb.headers, Range: `${from}-${from + 999}` } });
     if (!res.ok) { await res.body?.cancel().catch(() => {}); throw new Error('Could not read the file list: HTTP ' + res.status); }
     const rows = await res.json();
-    for (const r of rows) map.set(r.source, { bucket: r.bucket, path: r.path });
+    for (const r of rows) map.set(fileKey(r.bucket, r.source), { bucket: r.bucket, path: r.path });
     if (rows.length < 1000) break;
   }
   return map;
