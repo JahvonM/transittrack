@@ -1,7 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 import { secrets } from 'base44:runtime';
 import { SUPABASE_TABLES } from '../../shared/supabaseTables.ts';
-import { FILE_COLUMNS, base44FileKind, fileValues, applyFileMap, copyOneFile, loadFileMap } from '../../shared/supabaseFiles.ts';
+import { FILE_COLUMNS, base44FileKind, fileValues, applyFileMap, copyOneFile, loadFileMap, fileKey } from '../../shared/supabaseFiles.ts';
 
 // Step 3 of the move to Supabase (Admin -> Settings -> Copy data to Supabase):
 // copies every table from Base44 into the new database a page at a time,
@@ -196,9 +196,9 @@ async function copyFiles(base44: ReturnType<typeof createClientFromRequest>, sb:
         const kind = base44FileKind(value);
         if (!kind) continue;
         files++;
-        if (map.has(value as string)) { already++; touched = true; continue; }
+        if (map.has(fileKey(bucket, value as string))) { already++; touched = true; continue; }
         try {
-          map.set(value as string, await copyOneFile(sb, { table, id, column, bucket }, value as string, kind, signedUrl));
+          map.set(fileKey(bucket, value as string), await copyOneFile(sb, { table, id, column, bucket }, value as string, kind, signedUrl));
           copied++; touched = true;
         } catch (error) {
           failed.push({ entity, id, column, error: String((error as Error)?.message || error).slice(0, 200) });
