@@ -40,7 +40,7 @@ export default function OfflineJobsBanner() {
  const exportFile=()=>{
   try {
    const blob=new Blob([exportSavedWork()],{type:"application/json"}),url=URL.createObjectURL(blob),anchor=document.createElement("a");
-   anchor.href=url;anchor.download="TransitTrack-saved-work-"+new Date().toISOString().slice(0,10)+".json";anchor.click();setTimeout(()=>URL.revokeObjectURL(url),1000);setExported(true);
+   anchor.href=url;anchor.download="McSween-saved-work-"+new Date().toISOString().slice(0,10)+".json";anchor.click();setTimeout(()=>URL.revokeObjectURL(url),1000);setExported(true);
   }catch(e){setError(e.message);}
  };
  const retry=()=>{try {retryReviewedWork();flushJobs().catch(e=>setError(e.message));}catch(e){setError(e.message);}};
