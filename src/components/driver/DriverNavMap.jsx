@@ -89,7 +89,7 @@ function SpeedWidget({ kmh, limit }) {
 // its side rail instead). showStatus: the GPS / connection chips on the map.
 // onStatus: reports what the directions already know (next stop, time and
 // distance left, GPS and connection state) so the rail can show it. Read-only.
-export default function DriverNavMap({ session, invoke, fill = false, pushLocation: shouldPush = true, pins = [], showProgress = true, showStatus = true, onStatus }) {
+export default function DriverNavMap({ session, invoke, fill = false, pushLocation: shouldPush = true, pins = [], showProgress = true, showStatus = true, onStatus, startRequested = false, onStartHandled }) {
   const isDark = useIsDark();
   const accent = mapAccentFor(isDark);
   const ROUTE_COLOR = { normal: accent, ...TRAFFIC_COLOR };
@@ -268,6 +268,8 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
   const startNavigation = () => { requestedFor.current = null; setNavigating(true); setFollowing(true); };
   // A passenger picked in the list starts directions straight away.
   useEffect(() => { if (target && target.navigate !== false) { requestedFor.current = null; setNavigating(true); setFollowing(true); } }, [target]);
+  // So does Navigate on the Drive screen, to the next stop on the road.
+  useEffect(() => { if (startRequested) { startNavigation(); onStartHandled?.(); } }, [startRequested]);
   const endNavigation = () => {
     clearNavTarget();
     routeRequest.current += 1; // drop any directions still loading

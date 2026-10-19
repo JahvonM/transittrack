@@ -3,7 +3,7 @@ import { Navigation, Users, ChevronRight, MessageCircle, MapPinned } from "lucid
 import useDriverLandscape from "@/hooks/useDriverLandscape";
 import DriverLandscapeDrive from "./DriverLandscapeDrive";
 import LiteMap from "@/components/LiteMap";
-import { getNavTarget, setNavTarget, onNavTarget } from "@/lib/navTarget";
+import { clearNavTarget, getNavTarget, setNavTarget, onNavTarget } from "@/lib/navTarget";
 import { Button } from "@/components/ui/button";
 import { routeProgress } from "@/components/TripProgress";
 import { roadStopsOf, busOnRoad, nextRoadStopIndex } from "@/lib/roadStops";
@@ -38,6 +38,11 @@ export default function DriverPortraitDrive({session,vehicle,nav,sharing,shiftAc
  const focus=target ? {...targetStop,...target} : (atWork?session.workplace:next);
  const stopIndex=focus ? stops.findIndex(s=>Math.abs(s.lat-focus.lat)<.00001 && Math.abs(s.lng-focus.lng)<.00001) : -1;
  const count=focus?.riders?.filter(r=>!session?.staff?.find(s=>s.id===r.ref)?.skip_pickup_today).length;
+ // Navigate: a stop the driver chose, or the company (not a route stop), is
+ // pinned as the destination. Otherwise the map takes the next stop from where
+ // the bus really is, along the drawn road (a pinned stop would skip the road,
+ // and the stop shown here is only a guess until tracking starts).
+ const navigate=()=>{if(focus && (target || stopIndex<0))setNavTarget(focus);else clearNavTarget();onOpenNavigation(true);};
  const overviewMap = <section className="dk-overview-map" aria-label="Route overview">
     <LiteMap vehicles={vehicle?.current_lat!=null?[landscape ? {...vehicle,image_url:vehicle.image_url || "/images/driver-minibus.svg",marker_plain:true,marker_size:52,marker_label:""} : vehicle]:[]} stops={landscape ? stops.map((s,i)=>({...s,number:i+1})) : stops} mapStyle={landscape ? "satellite" : undefined} alwaysShowRecenter={landscape} showEngineLabel={!landscape} road={session?.route?.path?.map(p=>[p.lng,p.lat])} height="100%" fill followUser={vehicle?.current_lat!=null && vehicle?.current_lng!=null} userLocation={vehicle?.current_lat!=null && vehicle?.current_lng!=null ? {lat:vehicle.current_lat,lng:vehicle.current_lng} : null} showUserDot={false} autoRecenterMs={5000} onStopClick={stop=>{setPickedStop(stop);setChoosing(true);}}/>
     {!landscape && <span className="dk-map-hint">Tap a stop to choose it</span>}
@@ -47,7 +52,7 @@ export default function DriverPortraitDrive({session,vehicle,nav,sharing,shiftAc
   {pickedStop ? <><p>Choose your next stop</p><Button onClick={()=>{setNavTarget(pickedStop,{navigate:false});setChoosing(false);}}>Make this my next stop</Button><Button variant="outline" onClick={()=>{setNavTarget(pickedStop);setChoosing(false);onOpenNavigation();}}><Navigation/>Navigate here</Button></> : <div className="dk-stop-options">{stops.length?stops.map((stop,i)=><Button key={stop.key || i} variant="outline" onClick={()=>setPickedStop(stop)}>{stop.name || "Stop "+(i+1)}</Button>):<p>No stops assigned to this bus.</p>}<Button variant="outline" onClick={()=>{setChoosing(false);onOpenStops();}}>All stops & pickup tools</Button></div>}
   <Button variant="ghost" onClick={()=>setChoosing(false)}>Cancel</Button>
  </section></div>;
- if(landscape) return <DriverLandscapeDrive session={session} vehicle={vehicle} focus={focus} count={count} stops={stops} stopIndex={stopIndex} map={overviewMap} stopChooser={stopChooser} home={home} atWork={atWork} target={target} sharing={sharing} shiftActive={shiftActive} directionControl={directionControl} shiftControl={shiftControl} trackingButton={trackingButton} statusItems={statusItems} attention={attention} panelTop={panelTop} panelBottom={panelBottom} onOpenNavigation={onOpenNavigation} onChangeStop={()=>{setPickedStop(null);setChoosing(true);}} onOpenPassengers={onOpenPassengers} onOpenStops={onOpenStops} onReportIncident={onReportIncident} invoke={invoke}/>;
+ if(landscape) return <DriverLandscapeDrive session={session} vehicle={vehicle} focus={focus} count={count} stops={stops} stopIndex={stopIndex} map={overviewMap} stopChooser={stopChooser} home={home} atWork={atWork} target={target} sharing={sharing} shiftActive={shiftActive} directionControl={directionControl} shiftControl={shiftControl} trackingButton={trackingButton} statusItems={statusItems} attention={attention} panelTop={panelTop} panelBottom={panelBottom} onNavigate={navigate} onChangeStop={()=>{setPickedStop(null);setChoosing(true);}} onOpenPassengers={onOpenPassengers} onOpenStops={onOpenStops} onReportIncident={onReportIncident} invoke={invoke}/>;
  return <div className="dk-drive-frame"><div className="dk-drive-scroll">
   <div className="dk-content">
    <h1 className="sr-only">Your journey</h1>
@@ -56,7 +61,7 @@ export default function DriverPortraitDrive({session,vehicle,nav,sharing,shiftAc
     <small>{atWork && !target?"COMPANY PICKUP":home?"NEXT DROP-OFF":"NEXT PICKUP"}</small>
     <h2>{focus?.name || (stops.length?"Route complete":"No route assigned")}</h2>
     <p>{sharing && fresh && nav?.remainingS!=null && nav?.nextStop?.lat===focus?.lat && nav?.nextStop?.lng===focus?.lng ? Math.max(1,Math.round(nav.remainingS/60))+" min away" : target?"Selected next stop":count!=null?count+" assigned to this stop":focus?"Ready to navigate":"Ask dispatch to assign a route"}</p>
-    <div className="dk-next-actions"><Button onClick={()=>{if(focus)setNavTarget(focus);onOpenNavigation();}} disabled={!focus}><Navigation/>Navigate</Button><Button variant="outline" onClick={()=>{setPickedStop(null);setChoosing(true);}}><MapPinned/>Change stop</Button></div>
+    <div className="dk-next-actions"><Button onClick={navigate} disabled={!focus}><Navigation/>Navigate</Button><Button variant="outline" onClick={()=>{setPickedStop(null);setChoosing(true);}}><MapPinned/>Change stop</Button></div>
    </section>
    {overviewMap}
    <p className="dk-simple-shift">{shiftActive?"Shift active":"Off shift"} · {vehicle?.name}{sharing?" · Sharing location":""}</p>

@@ -27,7 +27,10 @@ export default function DriverTrackingDashboard({ session, invoke, onReportIncid
   const { toast } = useToast();
   const [mapOpen,setMapOpen]=useState(()=>{try{return (!!getNavTarget() && getNavTarget().navigate !== false) || sessionStorage.getItem("tt_nav_on")==="1";}catch{return false;}});
   const [mapLoaded,setMapLoaded]=useState(mapOpen);
-  const openNavigation=()=>{setMapLoaded(true);setMapOpen(true);};
+  // start: the Drive screen's Navigate, which starts directions to the next
+  // stop on the road at once (no destination pinned).
+  const [startNav,setStartNav]=useState(false);
+  const openNavigation=(start)=>{setMapLoaded(true);setMapOpen(true);if(start===true)setStartNav(true);};
   useEffect(()=>onNavTarget(()=>{if(getNavTarget() && getNavTarget().navigate !== false)openNavigation();}),[]);
   useEffect(()=>{if(mapOpen)requestAnimationFrame(()=>window.dispatchEvent(new Event("resize")));},[mapOpen]);
 
@@ -330,7 +333,7 @@ export default function DriverTrackingDashboard({ session, invoke, onReportIncid
     <div className="dk-navigation-screen" style={{display:mapOpen?"flex":"none"}} aria-hidden={!mapOpen}>
       <Button variant="outline" onClick={()=>setMapOpen(false)}>Back to journey</Button>
       <div className="dk-navigation-map" aria-label="Driver navigation map">
-        {mapLoaded && <DriverNavMap key={(session?.vehicle?.id || "")+session?.trip_direction} session={session} invoke={invoke} fill pushLocation={false} pins={staffPins} showProgress={false} showStatus onStatus={onNavStatus}/>}
+        {mapLoaded && <DriverNavMap key={(session?.vehicle?.id || "")+session?.trip_direction} session={session} invoke={invoke} fill pushLocation={false} pins={staffPins} showProgress={false} showStatus onStatus={onNavStatus} startRequested={startNav} onStartHandled={()=>setStartNav(false)}/>}
       </div>
     </div>
     {!mapOpen && <DriverPortraitDrive session={session} vehicle={lastFixAt?{...liveVehicle,last_location_update:new Date(lastFixAt).toISOString()}:liveVehicle} nav={nav} sharing={sharing}

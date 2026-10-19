@@ -1,13 +1,12 @@
 import React from "react";
 import { Navigation, MapPin, MapPinned, Users, ChevronRight, Route } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { setNavTarget } from "@/lib/navTarget";
 import SosButton from "./SosButton";
 import { StatusStrip } from "./cockpit/CockpitParts";
 
 export default function DriverLandscapeDrive({session,vehicle,focus,count,stops,stopIndex,map,stopChooser,home,atWork,target,
  sharing,shiftActive,directionControl,shiftControl,trackingButton,statusItems,attention,panelTop,panelBottom,
- onOpenNavigation,onChangeStop,onOpenPassengers,onOpenStops,onReportIncident,invoke}) {
+ onNavigate,onChangeStop,onOpenPassengers,onOpenStops,onReportIncident,invoke}) {
  const capacity=Number(vehicle?.capacity)||0;
  return <div className="dl-journey" data-testid="landscape-journey">
   <h1 className="sr-only">Your journey</h1>
@@ -26,7 +25,7 @@ export default function DriverLandscapeDrive({session,vehicle,focus,count,stops,
      <p className="dl-next-description">{focus ? target ? "Selected next stop" : "Your next scheduled stop" : "Ask dispatch to assign a route"}</p>
      <p className="dl-stop-riders"><Users aria-hidden="true"/>{count!=null ? count+" passenger"+(count===1?"":"s")+" at this stop" : "Pickup count unavailable"}</p>
      <p className="dl-stop-progress">{stopIndex>=0 ? "Stop "+(stopIndex+1)+" of "+stops.length : target ? "Custom destination" : stops.length ? "All route stops complete" : "No stops assigned"}</p>
-     <div className="dl-next-actions"><Button onClick={()=>{if(focus)setNavTarget(focus);onOpenNavigation();}} disabled={!focus}><Navigation/>Navigate</Button><Button variant="outline" onClick={onChangeStop}><MapPinned/>Change stop</Button></div>
+     <div className="dl-next-actions"><Button onClick={onNavigate} disabled={!focus}><Navigation/>Navigate</Button><Button variant="outline" onClick={onChangeStop}><MapPinned/>Change stop</Button></div>
     </section>
     <div className="dl-stats" aria-label="Journey summary">
      <button onClick={onOpenPassengers}><Users aria-hidden="true"/><span><strong>{session?.occupancy ?? 0}{capacity>0&&<small> / {capacity}</small>}</strong><span>On board</span></span></button>
