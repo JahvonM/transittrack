@@ -1,3 +1,5 @@
+> Superseded: the owner rejected this theme. Its stylesheet is no longer imported; the previous driver tablet appearance is restored. Functional kiosk improvements remain.
+
 # Driver tablet visual refresh — 18 October 2026
 
 Applied the user-provided Apple Design skill (https://github.com/emilkowalski/skills/blob/main/skills/apple-design/SKILL.md) to the existing driver tablet shell. This is a web visual update, requiring the normal web publish or bundled-native rebuild to reach devices. No publish or installed-device update was performed.

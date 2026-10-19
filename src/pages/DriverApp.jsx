@@ -2,7 +2,6 @@ import { stopBackgroundGps } from "@/lib/driverBackground";
 import { useTabletWorkSafety } from "@/lib/nativeTabletControl";
 import "@/components/driver/driverPortrait.css";
 import "@/components/driver/driverLandscape.css";
-import "@/components/driver/driverRefined.css";
 import useDriverLandscape from "@/hooks/useDriverLandscape";
 import { DriverKioskHeader, DriverKioskMore, DriverKioskPassengers, DriverKioskHistory } from "@/components/driver/DriverPortraitPanels";
 import { directionView } from "@/lib/driverDirection";

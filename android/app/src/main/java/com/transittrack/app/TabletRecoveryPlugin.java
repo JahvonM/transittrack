@@ -15,7 +15,7 @@ public class TabletRecoveryPlugin extends Plugin {
         out.put("available", true);
         out.put("keepScreenOn", TabletDisplay.enabled(getContext()));
         out.put("screenControl", true);
-        out.put("backgroundTracking", false);
+        out.put("backgroundTracking", DriverLocationService.active());
         out.put("screenRecovery", TabletScreenRecovery.snapshot(getContext()));
         boolean home = false;
         try {
