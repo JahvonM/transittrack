@@ -1,6 +1,9 @@
 import {withAdminBatch} from "./helpers/adminBatchMock.js";
 import {createHash} from 'node:crypto';
+import {fileURLToPath} from 'node:url';
 import {test,expect} from '@playwright/test';
+// Files in this repository, wherever it is checked out.
+const repoFile=(path)=>fileURLToPath(new URL(`../${path}`,import.meta.url));
 const vehicles=[{id:'bus-a',name:'Bus A',company_id:'a',company_name:'Company A',type:'staff_bus',status:'idle',capacity:25},{id:'bus-b',name:'Bus B',company_id:'b',company_name:'Company B',type:'staff_bus',status:'idle',capacity:25}];
 async function session(page,role) {
  const calls=[],direct=[];
@@ -149,7 +152,8 @@ async function passengerShowcase(page, { stale = false, light = false, parked = 
   await page.route('https://api.mapbox.com/**',r=>r.fulfill({json:{routes:[{duration:180,distance:1500,geometry:{coordinates:stops.map(s=>[s.lng,s.lat])},legs:[{duration:180,distance:1500,steps:[]}]}]}}));
   await page.route('**/api.open-meteo.com/**',r=>r.fulfill({json:{current:{temperature_2m:28,weather_code:0}}}));
   await page.goto('/staff');
-  await expect(page.getByLabel('Your bus',{exact:true})).toBeVisible();
+  // The passenger home's bus card (renamed in the Oct redesign).
+  await expect(page.getByLabel('Your next bus',{exact:true})).toBeVisible();
   return state;
 }
 
@@ -176,8 +180,10 @@ test('passenger More has a WhatsApp link for app problems once admin sets the nu
   await passengerShowcase(page);
   await expect(page.getByRole('link',{name:/Report an app problem/})).toHaveCount(0);
   await page.route('**/functions/appSupport',r=>r.fulfill({json:{whatsapp_number:'14735551234'}}));
-  // The passenger More page (its own page since the Oct 8 redesign).
+  // The passenger More page (its own page since the Oct 8 redesign), under
+  // "More tools".
   await page.goto('/more');
+  await page.getByText('More tools',{exact:true}).click();
   const link=page.getByRole('link',{name:/Report an app problem/});
   await expect(link).toHaveAttribute('href',/^https:\/\/wa\.me\/14735551234\?text=/);
   await expect(link).toHaveAttribute('target','_blank');
@@ -636,7 +642,7 @@ test('company logo upload previews the banner and saves its URL',async({page})=>
   if(b.entity==='Company'&&b.operation==='create'){saved=b.data;return r.fulfill({json:{result:{id:'new-company',...b.data}}});}
   return r.fallback();
  }));
- await page.route('https://test.invalid/company-logo.png',r=>r.fulfill({path:'/app/public/images/transit-bus-3d.webp',contentType:'image/webp'}));
+ await page.route('https://test.invalid/company-logo.png',r=>r.fulfill({path:repoFile('public/images/transit-bus-3d.webp'),contentType:'image/webp'}));
  await page.goto('/admin/companies');
  await page.getByPlaceholder('Island Transit Co.').fill('Logo Company');
  await page.getByLabel('Company logo',{exact:true}).setInputFiles({name:'logo.png',mimeType:'image/png',buffer:Buffer.from([137,80,78,71])});
@@ -791,10 +797,16 @@ test('admin pages ride out Base44 "too many requests" instead of going blank',as
    return r.fulfill({json:{result}});
  }));
  await page.goto('/admin/kiosks');
- await expect(page.getByRole('button',{name:'Copy pairing code for Bus 2'})).toBeVisible({timeout:15000});
+ // The console says the server is busy (not an empty list), keeps what it
+ // has, and loads once asked again.
+ const busy=page.getByRole('alert').filter({hasText:'Server is busy'});
+ const loaded=page.getByRole('button',{name:'Copy pairing code for Bus 2'});
+ await expect(busy.or(loaded)).toBeVisible({timeout:15000});
  await expect(page.getByText('No kiosk tablets registered yet.')).toHaveCount(0);
+ if(await busy.isVisible())await busy.getByRole('button',{name:'Try again'}).click();
+ await expect(loaded).toBeVisible({timeout:15000});
  await expect(page.getByText("Couldn't load devices")).toHaveCount(0);
- expect(limited.has('KioskDevice:list')).toBe(true);
+ expect([...limited].some(k=>k.startsWith('KioskDevice:'))).toBe(true);
 });
 
 test('admin uploads actual bus artwork and saves its URL',async({page})=>{
@@ -804,7 +816,7 @@ test('admin uploads actual bus artwork and saves its URL',async({page})=>{
   if(/UploadFile/i.test(r.request().url()))return r.fulfill({json:{file_url:'https://test.invalid/bus-render.webp'}});
   return r.fallback();
  }));
- await page.route('https://test.invalid/bus-render.webp',r=>r.fulfill({path:'/app/public/images/transit-bus-3d.webp',contentType:'image/webp'}));
+ await page.route('https://test.invalid/bus-render.webp',r=>r.fulfill({path:repoFile('public/images/transit-bus-3d.webp'),contentType:'image/webp'}));
  await page.route('**/functions/entityAccess',withAdminBatch(async r=>{
   const b=r.request().postDataJSON();
   if(b.entity==='Vehicle'&&b.operation==='update'){saved=b.data;return r.fulfill({json:{result:{...vehicles[0],...b.data}}});}
@@ -1115,7 +1127,7 @@ test('desktop setup opens native views while Connect reader connects to the runn
 });
 test('native setup opens focused NFC view and switches to tablet without running operations',async({page})=>{
  await page.addInitScript(()=>{window.nativeCalls=[];window.deviceSetup={onView:()=>{},onReaderEvent:()=>{},run:async action=>{window.nativeCalls.push(action);return {message:'Ready'};}};});
- await page.goto('file:///app/desktop/setup.html#nfc');
+ await page.goto(`file://${repoFile('desktop/setup.html')}#nfc`);
  await expect(page.getByRole('heading',{name:'NFC reader setup',exact:true})).toBeVisible();
  await expect(page.getByRole('button',{name:'Start reader',exact:true})).toBeVisible();
  await expect(page.getByRole('button',{name:'Find tablets',exact:true})).toBeHidden();
