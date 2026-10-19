@@ -296,12 +296,12 @@ function entityApi(entity: string) {
     const params = new URLSearchParams();
     const conds = conditions(query, table, cols);
     if (conds.length) params.set('and', `(${conds.join(',')})`);
-    if (typeof sort === 'string' && sort) {
-      const desc = sort.startsWith('-');
-      const col = sort.replace(/^[-+]/, '');
-      if (!NAME.test(col)) throw httpError(400, 'Bad sort');
-      if (col in cols) params.set('order', `${col}.${desc ? 'desc.nullslast' : 'asc.nullsfirst'},id.asc`);
-    }
+    // Base44 lists newest first unless told otherwise.
+    const order = typeof sort === 'string' && sort ? sort : '-created_date';
+    const desc = order.startsWith('-');
+    const col = order.replace(/^[-+]/, '');
+    if (!NAME.test(col)) throw httpError(400, 'Bad sort');
+    if (col in cols) params.set('order', `${col}.${desc ? 'desc.nullslast' : 'asc.nullsfirst'},id.asc`);
     if (fields) {
       const list = (Array.isArray(fields) ? fields : String(fields).split(',')).map((f) => String(f).trim()).filter(Boolean);
       if (list.some((f) => !NAME.test(f))) throw httpError(400, 'Bad fields');
@@ -365,7 +365,9 @@ function entityApi(entity: string) {
     },
     async update(id: string, data: Row) {
       const cols = await ensure();
-      const rows = await rest(`${table}?${byId(id)}`, { method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify(forWrite(table, data, cols)) });
+      const changes = forWrite(table, data, cols);
+      if (!Object.keys(changes).length) return this.get(id);
+      const rows = await rest(`${table}?${byId(id)}`, { method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify(changes) });
       if (!rows?.length) throw httpError(404, `${entity} not found`);
       return toRecord(rows[0]);
     },
