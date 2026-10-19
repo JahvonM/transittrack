@@ -1,3 +1,4 @@
+import {withAdminBatch} from "./helpers/adminBatchMock.js";
 import {test,expect} from '@playwright/test';
 
 // The driver phone app at phone size, with every backend call mocked.
@@ -29,7 +30,7 @@ async function phone(page,{refuse=false,failDirection=false,today=TODAY,messages
  let directionFailed=false;
  await page.addInitScript(()=>{ localStorage.setItem('base44_access_token','mock-authenticated-session'); });
  await page.route('https://api.mapbox.com/**',r=>r.fulfill({status:404,body:''}));
- await page.route('**/api/**',async route=>{
+ await page.route('**/api/**',withAdminBatch(async route=>{
   const url=route.request().url();
   if(url.includes('/functions/driverPhone')) {
    const body=route.request().postDataJSON();calls.push(body);
@@ -55,7 +56,7 @@ async function phone(page,{refuse=false,failDirection=false,today=TODAY,messages
   }
   if(url.includes('/entities/User/me')) return route.fulfill({json:user});
   return route.fulfill({json:{id:'test-app',public_settings:{authentication_required:false}}});
- });
+ }));
  return calls;
 }
 
@@ -198,7 +199,7 @@ test('admin switches the phone app on for a driver',async({page})=>{
  await page.addInitScript(()=>{ localStorage.setItem('base44_access_token','mock-authenticated-session'); });
  await page.route('https://api.mapbox.com/**',r=>r.fulfill({status:404,body:''}));
  const driver={id:'drv',full_name:'Dana Driver',email:'dana.driver@gmail.com',phone:'+1 473 555 0123',company_id:'a',company_name:'Coyaba Transport',phone_app_access:false};
- await page.route('**/api/**',async route=>{
+ await page.route('**/api/**',withAdminBatch(async route=>{
   const url=route.request().url();
   if(url.includes('/functions/entityAccess')) {
    const body=route.request().postDataJSON();let result=[];
@@ -211,7 +212,7 @@ test('admin switches the phone app on for a driver',async({page})=>{
   }
   if(url.includes('/entities/User/me')) return route.fulfill({json:{id:'admin',role:'admin',email:'admin@test.local'}});
   return route.fulfill({json:{id:'test-app',public_settings:{authentication_required:false}}});
- });
+ }));
  await page.setViewportSize({width:1280,height:900});
  await page.goto('/admin/drivers');
  await page.getByRole('button',{name:'Edit Dana Driver'}).click();

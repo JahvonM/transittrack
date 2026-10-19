@@ -1,3 +1,4 @@
+import {withAdminBatch} from "./helpers/adminBatchMock.js";
 import {test,expect} from '@playwright/test';
 
 // Admin → Notifications: switch a kind off, untick people, save, and test.
@@ -29,7 +30,7 @@ async function admin(page){
  const calls=[];const state={settings:{crash_alert:{enabled:true,blocked_emails:['boss@test.local'],updated_by:'Ada Admin'}},recent:[...RECENT]};
  await page.addInitScript(()=>{ localStorage.setItem('base44_access_token','mock-authenticated-session'); localStorage.setItem('tt-map-engine','basic'); });
  await page.route('https://api.mapbox.com/**',r=>r.fulfill({status:404,body:''}));
- await page.route('**/api/**',async route=>{
+ await page.route('**/api/**',withAdminBatch(async route=>{
   const url=route.request().url();
   if(url.includes('/functions/notificationSettings')) {
    const body=route.request().postDataJSON();calls.push(body);
@@ -45,7 +46,7 @@ async function admin(page){
   }
   if(url.includes('/entities/User/me')) return route.fulfill({json:{id:'admin',role:'admin',email:'admin@test.local',full_name:'Ada Admin'}});
   return route.fulfill({json:{id:'test-app',public_settings:{authentication_required:false}}});
- });
+ }));
  return {calls,state};
 }
 
@@ -132,7 +133,7 @@ test.describe('passenger account',()=>{
   ];
   await page.addInitScript(()=>{ localStorage.setItem('base44_access_token','mock-authenticated-session'); localStorage.setItem('tt-map-engine','basic'); localStorage.setItem('tt_company_access_grant','a'.repeat(64)); });
   await page.route('https://api.mapbox.com/**',r=>r.fulfill({status:404,body:''}));
-  await page.route('**/api/**',async route=>{
+  await page.route('**/api/**',withAdminBatch(async route=>{
    const url=route.request().url();
    if(url.includes('/functions/myNotifications')){
     const body=route.request().postDataJSON();
@@ -147,7 +148,7 @@ test.describe('passenger account',()=>{
    }
    if(url.includes('/entities/User/me')) return route.fulfill({json:{id:'p',role:'passenger',email:'pat@test.local',full_name:'Pat Passenger'}});
    return route.fulfill({json:{id:'test-app',public_settings:{authentication_required:false}}});
-  });
+  }));
   await page.goto('/account');
   const card=page.getByRole('list',{name:'Notifications'});
   await expect(card.getByText('Messages in my bus chat')).toBeVisible();

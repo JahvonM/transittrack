@@ -1,3 +1,4 @@
+import {withAdminBatch} from "./helpers/adminBatchMock.js";
 import {test,expect} from '@playwright/test';
 
 // Admin → Plan pickups: every passenger sorted by whether their bus drives
@@ -39,7 +40,7 @@ async function admin(page){
  await page.addInitScript(()=>{ localStorage.setItem('base44_access_token','mock-authenticated-session'); });
  await page.route('https://api.mapbox.com/**',r=>r.fulfill({status:404,body:''}));
  await page.route(/basemaps|cartocdn|tile/,r=>r.fulfill({status:404,body:''}));
- await page.route('**/api/**',async route=>{
+ await page.route('**/api/**',withAdminBatch(async route=>{
   const url=route.request().url();
   if(url.includes('/functions/routeStops')){ calls.plans++; return route.fulfill({json:plan}); }
   if(url.includes('/functions/nfcCards')){
@@ -69,7 +70,7 @@ async function admin(page){
   }
   if(url.includes('/entities/')) return route.fulfill({json:[]});
   return route.fulfill({json:{id:'test-app',public_settings:{authentication_required:false}}});
- });
+ }));
  return calls;
 }
 

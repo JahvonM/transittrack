@@ -1,3 +1,4 @@
+import {withAdminBatch} from "./helpers/adminBatchMock.js";
 import {test,expect} from '@playwright/test';
 
 // Admin → App errors, and the passenger welcome using the chosen name.
@@ -20,7 +21,7 @@ async function admin(page){
  const updates=[];const rows=structuredClone(ERRORS);
  await page.addInitScript(()=>{ localStorage.setItem('base44_access_token','mock-authenticated-session'); localStorage.setItem('tt-map-engine','basic'); });
  await page.route('https://api.mapbox.com/**',r=>r.fulfill({status:404,body:''}));
- await page.route('**/api/**',async route=>{
+ await page.route('**/api/**',withAdminBatch(async route=>{
   const url=route.request().url();
   if(url.includes('/functions/entityAccess')){
    const body=route.request().postDataJSON();let result=[];
@@ -32,7 +33,7 @@ async function admin(page){
   }
   if(url.includes('/entities/User/me')) return route.fulfill({json:{id:'admin',role:'admin',email:'admin@test.local',full_name:'Ada Admin'}});
   return route.fulfill({json:{id:'test-app',public_settings:{authentication_required:false}}});
- });
+ }));
  return {updates};
 }
 

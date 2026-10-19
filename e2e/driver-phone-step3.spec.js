@@ -1,3 +1,4 @@
+import {withAdminBatch} from "./helpers/adminBatchMock.js";
 import {test,expect} from '@playwright/test';
 
 // Step 3: day-off and swap requests (phone and admin), and backup GPS from
@@ -15,7 +16,7 @@ async function phone(page,{today=TODAY,requests=[]}={}) {
  const calls=[];const state={requests:[...requests]};
  await page.addInitScript(()=>{ localStorage.setItem('base44_access_token','mock-authenticated-session'); });
  await page.route('https://api.mapbox.com/**',r=>r.fulfill({status:404,body:''}));
- await page.route('**/api/**',async route=>{
+ await page.route('**/api/**',withAdminBatch(async route=>{
   const url=route.request().url();
   if(url.includes('/functions/driverPhone')) {
    const body=route.request().postDataJSON();calls.push(body);
@@ -36,7 +37,7 @@ async function phone(page,{today=TODAY,requests=[]}={}) {
   }
   if(url.includes('/entities/User/me')) return route.fulfill({json:{id:'u1',email:'dana.driver@gmail.com',role:'user'}});
   return route.fulfill({json:{id:'test-app',public_settings:{authentication_required:false}}});
- });
+ }));
  return calls;
 }
 
@@ -105,7 +106,7 @@ test.describe('admin',()=>{
   const updates=[],decisions=[];
   await page.addInitScript(()=>{ localStorage.setItem('base44_access_token','mock-authenticated-session'); localStorage.setItem('tt-map-engine','basic'); });
   await page.route('https://api.mapbox.com/**',r=>r.fulfill({status:404,body:''}));
-  await page.route('**/api/**',async route=>{
+  await page.route('**/api/**',withAdminBatch(async route=>{
    const url=route.request().url();
    if(url.includes('/functions/driverRequests')) {
     const body=route.request().postDataJSON();
@@ -123,7 +124,7 @@ test.describe('admin',()=>{
    }
    if(url.includes('/entities/User/me')) return route.fulfill({json:{id:'admin',role:'admin',email:'admin@test.local'}});
    return route.fulfill({json:{id:'test-app',public_settings:{authentication_required:false}}});
-  });
+  }));
   return {updates,decisions};
  }
 
