@@ -623,17 +623,20 @@ const DEFAULT_ORIGINS = [
   'https://app.mcsweenstransport.com',
   'https://mcsweenstransport.com',
   'https://eager-transit-track-go.base44.app',
+  'https://mcsween-transport.pages.dev',
   'capacitor://localhost',
   'https://localhost',
   'http://localhost',
   'http://localhost:5173',
 ];
+// Cloudflare's preview copies of the site: https://<build>.mcsween-transport.pages.dev
+const PREVIEW_ORIGIN = /^https:\/\/[a-z0-9-]{1,63}\.mcsween-transport\.pages\.dev$/;
 
 function corsHeaders(origin: string | null): Record<string, string> {
   const allowed = (runtime.env.get('ALLOWED_ORIGINS') || '').split(',').map((s) => s.trim()).filter(Boolean);
   const list = allowed.length ? allowed : DEFAULT_ORIGINS;
   const headers: Record<string, string> = { Vary: 'Origin' };
-  if (origin && list.includes(origin)) {
+  if (origin && (list.includes(origin) || (!allowed.length && PREVIEW_ORIGIN.test(origin)))) {
     headers['Access-Control-Allow-Origin'] = origin;
     headers['Access-Control-Allow-Headers'] = 'authorization, x-client-info, apikey, content-type';
     headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS';
