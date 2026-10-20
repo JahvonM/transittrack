@@ -1167,7 +1167,7 @@ Table `app_user` · read and changed through entityAccess.
 
 **Linked from:** [CompanyAccessGrant](#companyaccessgrant).user_id, [CompanyMembership](#companymembership).user_id, [GroupMessage](#groupmessage).sender_id, [InspectionResult](#inspectionresult).inspector_id, [LostItemReport](#lostitemreport).reporter_id, [MaintenanceSchedule](#maintenanceschedule).assigned_mechanic_id, [PassengerAccessCredential](#passengeraccesscredential).user_id, [PassengerOneTimeCredential](#passengeronetimecredential).user_id, [RoleAssignment](#roleassignment).user_id, [SignupAlert](#signupalert).user_id, [VerificationGrant](#verificationgrant).member_user_id.
 
-**The app only ever gets:** `email`, `full_name`, `role`, `company_id`, `full_name`, `display_name`, `phone`, `photo_url`, `home_lat`, `home_lng`, `home_address`, `pickup_lat`, `pickup_lng`, `pickup_name`, `pickup_route_id`, `work_lat`, `work_lng`, `whatsapp_linked`, `skip_pickup_today`, `skip_pickup_until`, `late_snooze_active`, `late_until`, `favorite_stop`, `stop_alerts`, `theme_accent`.
+**The app only ever gets:** `email`, `full_name`, `role`, `company_id`, `display_name`, `phone`, `photo_url`, `home_lat`, `home_lng`, `home_address`, `pickup_lat`, `pickup_lng`, `pickup_name`, `pickup_route_id`, `work_lat`, `work_lng`, `whatsapp_linked`, `skip_pickup_today`, `skip_pickup_until`, `late_snooze_active`, `late_until`, `favorite_stop`, `stop_alerts`, `theme_accent`; admins also get `access_role_id`.
 
 | Field | Type | Notes |
 |---|---|---|
@@ -1200,13 +1200,13 @@ Table `app_user` · read and changed through entityAccess.
 | `stop_alerts` | boolean | Send a push when a bus leaves the stop before favorite_stop. Default `false`. |
 | `notification_opt_out` | jsonb (list) | Notifications this person turned off for themselves (Account → Notifications), by key from base44/shared/notificationPolicy.ts. Not sent to the browser. |
 | `theme_accent` | text | Chosen colour theme (see src/lib/accents.js), e.g. lime, ocean, sunset. |
-| `employee_id` | text | The company's own staff number. Staff/employee number printed on their NFC card record. Not sent to the browser. |
+| `employee_id` | text | Staff/employee number printed on their NFC card record. Not sent to the browser. |
 | `pickup_lat` | double precision | Passenger-confirmed roadside pickup suggestion; separate from their home location. |
 | `pickup_lng` | double precision | Passenger-confirmed roadside pickup suggestion; separate from their home location. |
 | `pickup_name` | text | Passenger-confirmed roadside pickup suggestion; separate from their home location. |
 | `pickup_route_id` | text | → Route. Passenger-confirmed roadside pickup suggestion; separate from their home location. |
 | `pickup_moved` | jsonb | Set by the server when a driver moves this passenger's pickup on the bus road: when, by whom, how far, and the new point. The passenger app shows a note while the pickup is still at that point. Not sent to the browser. |
-| `access_role_id` | text | → AccessRole. Administrative routing hint only. RoleAssignment is the protected source of authorization. Not sent to the browser. |
+| `access_role_id` | text | → AccessRole. Administrative routing hint only. RoleAssignment is the protected source of authorization. |
 
 ### Vehicle
 
@@ -1216,7 +1216,7 @@ Table `vehicle` · belongs to a company through `company_id` · read and changed
 
 **Linked from:** [Broadcast](#broadcast).vehicle_id, [CompanyMembership](#companymembership).vehicle_id, [Contact](#contact).vehicle_id, [DeviceCredential](#devicecredential).vehicle_id, [DriverPinCredential](#driverpincredential).vehicle_id, [DriverShift](#drivershift).vehicle_id, [DrivingEvent](#drivingevent).vehicle_id, [Fault](#fault).vehicle_id, [GroupMessage](#groupmessage).vehicle_id, [Incident](#incident).vehicle_id, [Inspection](#inspection).vehicle_id, [InspectionResult](#inspectionresult).vehicle_id, [KioskDevice](#kioskdevice).vehicle_id, [LocationPing](#locationping).vehicle_id, [MaintenanceSchedule](#maintenanceschedule).vehicle_id, [PhoneUnlock](#phoneunlock).vehicle_id, [StaffCheckIn](#staffcheckin).vehicle_id, [TabletRecordingSession](#tabletrecordingsession).vehicle_id, [TabletSupportSession](#tabletsupportsession).vehicle_id, [Trip](#trip).vehicle_id, [VerificationGrant](#verificationgrant).vehicle_id.
 
-**Everyone except admins and company managers and mechanics gets only:** `name`, `type`, `company_id`, `company_name`, `capacity`, `route_id`, `current_lat`, `current_lng`, `speed`, `heading`, `status`, `driver_name`, `image_url`, `model_3d`, `tracking_active`, `last_location_update`, `trail`, `trip_direction`, `return_pickup_state`, `road_next_stop`.
+**Everyone except admins, company managers and mechanics gets only:** `name`, `type`, `company_id`, `company_name`, `capacity`, `route_id`, `current_lat`, `current_lng`, `speed`, `heading`, `status`, `driver_name`, `image_url`, `model_3d`, `tracking_active`, `last_location_update`, `trail`, `trip_direction`, `return_pickup_state`, `road_next_stop`.
 
 | Field | Type | Notes |
 |---|---|---|
@@ -1235,7 +1235,7 @@ Table `vehicle` · belongs to a company through `company_id` · read and changed
 | `last_location_update` | timestamptz |  |
 | `last_ping_logged_at` | timestamptz | Last time a LocationPing history point was recorded for this vehicle — throttles history logging to roughly once a minute. |
 | `name` | text | Required. |
-| `near_stop_id` | text | Name of the route stop the bus is at (a stop inside Route.stops), not a table id. Name of the route stop the vehicle is currently within arrival radius of, if any — used to detect arrival/departure transitions for place alerts without re-alerting every GPS tick. |
+| `near_stop_id` | text | Name of the route stop the vehicle is currently within arrival radius of, if any — used to detect arrival/departure transitions for place alerts without re-alerting every GPS tick. |
 | `road_next_stop` | double precision | On a route with a drawn road: the position (0 = first) of the next stop the bus reaches, in the bus's own stop order. Sent by the bus tablet. Passengers count stops away from it; it never holds anyone's pickup location. Cleared when a trip starts. |
 | `plate_number` | text |  |
 | `remote_tracking_lock` | boolean | Default `false`. |
