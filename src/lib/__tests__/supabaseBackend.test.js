@@ -75,6 +75,60 @@ describe("Supabase client", () => {
     await expect(backend.functions.invoke("../evil", {})).rejects.toMatchObject({ status: 400 });
   });
 
+  it("password reset and invite links are only used when the new password is saved", async () => {
+    const calls = [];
+    let verify = 200;
+    let update = [422, 200];
+    vi.stubGlobal("fetch", async (url, init = {}) => {
+      const u = new URL(url);
+      calls.push({ path: u.pathname, query: u.search, method: init.method, body: init.body ? JSON.parse(init.body) : null });
+      const json = (status, body) => new Response(body === null ? null : JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
+      if (u.pathname === "/auth/v1/recover") return json(200, {});
+      if (u.pathname === "/auth/v1/verify") {
+        if (verify !== 200) return json(verify, { code: verify, error_code: "otp_expired", msg: "Email link is invalid or has expired" });
+        return json(200, {
+          access_token: "aaa.bbb.ccc", token_type: "bearer", expires_in: 3600, expires_at: Math.floor(Date.now() / 1000) + 3600,
+          refresh_token: "refresh-1", user: { id: "u1", aud: "authenticated", email: "a@b.co", app_metadata: {}, user_metadata: {} },
+        });
+      }
+      if (u.pathname === "/auth/v1/user") {
+        const status = update.shift() ?? 200;
+        return status === 200
+          ? json(200, { id: "u1", aud: "authenticated", email: "a@b.co", app_metadata: {}, user_metadata: {} })
+          : json(status, { code: status, error_code: "weak_password", msg: "Password should be at least 6 characters." });
+      }
+      if (u.pathname === "/auth/v1/logout") return new Response(null, { status: 204 });
+      return json(404, {});
+    });
+
+    pageAt("");
+    const backend = createBackend();
+    await backend.auth.resetPasswordRequest(" a@b.co ");
+    const recover = calls.find((c) => c.path === "/auth/v1/recover");
+    expect(recover.body.email).toBe("a@b.co");
+    // The email template adds /reset-password?token=...; the site is all it needs.
+    expect(new URLSearchParams(recover.query).get("redirect_to")).toBe("https://app.example");
+
+    // An invitation: the first password is too short, the second try works
+    // without spending the link again.
+    pageAt("?token=pkce_invite1&type=invite");
+    calls.length = 0;
+    await expect(backend.auth.resetPassword({ resetToken: "pkce_invite1", newPassword: "x" })).rejects.toBeTruthy();
+    await backend.auth.resetPassword({ resetToken: "pkce_invite1", newPassword: "long enough" });
+    const verifies = calls.filter((c) => c.path === "/auth/v1/verify");
+    expect(verifies).toHaveLength(1);
+    expect(verifies[0].body).toMatchObject({ token_hash: "pkce_invite1", type: "invite" });
+    expect(calls.filter((c) => c.path === "/auth/v1/user").map((c) => c.body.password)).toEqual(["x", "long enough"]);
+
+    // A used or old reset link says so in words that fit a link.
+    pageAt("?token=pkce_old&type=recovery");
+    verify = 403;
+    const used = await backend.auth.resetPassword({ resetToken: "pkce_old", newPassword: "long enough" }).catch((e) => e);
+    expect(calls.filter((c) => c.path === "/auth/v1/verify").at(-1).body).toMatchObject({ token_hash: "pkce_old", type: "recovery" });
+    expect(used.message).toBe("This link has expired or was already used. Ask for a new one.");
+    expect(errorData(used).code).toBe("otp_expired");
+  });
+
   it("uploads go through the integrations function as a form", async () => {
     let sent;
     vi.stubGlobal("fetch", async (url, init) => { sent = { url, init }; return new Response(JSON.stringify({ file_url: "https://x/signed" }), { status: 200 }); });
