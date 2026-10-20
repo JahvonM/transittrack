@@ -5,6 +5,7 @@ import { setAuditActor } from '@/lib/auditLog';
 import { ACCENT_KEY, applyAccent } from '@/lib/accents';
 import { isKioskInstall } from '@/lib/kioskApp';
 import { httpStatus, errorData, sessionRejected } from '@/lib/requestError';
+import { savedProfile, rememberProfile, forgetProfile, savedPublicSettings, rememberPublicSettings } from '@/lib/savedSignIn';
 
 const AuthContext = createContext();
 
@@ -33,9 +34,16 @@ export const AuthProvider = ({ children }) => {
     if (!isAuthenticated || !user?.id) return;
     let stopped = false;
     let timer;
+    // Once the server has said there is nothing (more) to send for this
+    // account, this device stops asking on every open.
+    const doneKey = `tt_signup_notice_done:${user.id}`;
+    try { if (localStorage.getItem(doneKey)) return undefined; } catch { /* storage blocked: ask */ }
     const notify = async (canRetry) => {
       try {
         const response = await base44.functions.invoke('notifyAccountCreated', {});
+        if (response.data?.ok && !response.data?.retry_after_ms) {
+          try { localStorage.setItem(doneKey, '1'); } catch { /* storage blocked */ }
+        }
         if (!stopped && canRetry && response.data?.retry_after_ms) timer = setTimeout(() => notify(false), 60_000);
       } catch {
         if (!stopped && canRetry) timer = setTimeout(() => notify(false), 60_000);
@@ -46,10 +54,20 @@ export const AuthProvider = ({ children }) => {
   }, [isAuthenticated, user?.id]);
 
   const checkAppState = async () => {
-    setIsLoadingPublicSettings(true);
     setAuthError(null);
     // Paired tablets use their own device credential, not an account login.
     const tabletPage = isKioskInstall() || /^\/(driver|kiosk|tablet)(\/|$)/.test(window.location.pathname);
+    // Trust the phone: open with what this sign-in last looked like and check
+    // it with the server in the background (savedSignIn.js).
+    const saved = appParams.token && !tabletPage ? savedProfile() : null;
+    const savedSettings = saved ? savedPublicSettings() : null;
+    if (savedSettings) {
+      setAppPublicSettings(savedSettings);
+      setIsLoadingPublicSettings(false);
+    } else {
+      setIsLoadingPublicSettings(true);
+    }
+    if (saved && !sessionRef.current) acceptUser(saved);
     const settingsRequest = base44.app.getPublicSettings();
     const authRequest = appParams.token && !tabletPage ? checkUserAuth() : Promise.resolve();
     if (!appParams.token || tabletPage) {
@@ -59,9 +77,12 @@ export const AuthProvider = ({ children }) => {
     try {
       const publicSettings = await settingsRequest;
       setAppPublicSettings(publicSettings);
+      rememberPublicSettings(publicSettings);
       await authRequest;
     } catch (error) {
       await authRequest;
+      // Already open from the saved copy: the account check decides, not this.
+      if (savedSettings) return;
       const reason = errorData(error).extra_data?.reason;
       setAuthError({
         type: httpStatus(error) === 403 && reason ? reason : 'app_unavailable',
@@ -87,6 +108,7 @@ export const AuthProvider = ({ children }) => {
 
   // The server has actually rejected the sign-in — the only case that ends a session.
   const endSession = () => {
+    forgetProfile();
     sessionRef.current = false;
     setUser(null);
     setAuditActor(null);
@@ -106,7 +128,10 @@ export const AuthProvider = ({ children }) => {
       for (let attempt = 0; attempt < 2; attempt++) {
         try {
           const currentUser = await base44.auth.me();
-          if (epoch === authEpoch.current) acceptUser(currentUser);
+          if (epoch === authEpoch.current) {
+            acceptUser(currentUser);
+            rememberProfile(currentUser);
+          }
           return;
         } catch (error) {
           if (epoch !== authEpoch.current) return;
@@ -132,6 +157,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = (shouldRedirect = true) => {
+    forgetProfile();
     authEpoch.current += 1;
     authRequestRef.current = null;
     sessionRef.current = false;
