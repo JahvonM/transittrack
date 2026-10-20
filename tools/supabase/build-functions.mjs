@@ -72,7 +72,7 @@ for (const name of names) {
 import handler from './entry.ts';
 import { serve } from '../_shared/${COMPAT}';
 
-serve(handler);
+serve(handler, '${name}');
 `);
 }
 
