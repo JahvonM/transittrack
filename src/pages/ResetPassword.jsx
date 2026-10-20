@@ -10,6 +10,8 @@ import AuthLayout from "@/components/AuthLayout";
 export default function ResetPassword() {
   const [searchParams] = useSearchParams();
   const resetToken = searchParams.get("token");
+  // An invitation email opens this page too, to create the first password.
+  const invited = searchParams.get("type") === "invite";
 
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -56,8 +58,8 @@ export default function ResetPassword() {
   return (
     <AuthLayout
       icon={Lock}
-      title="New password"
-      subtitle="Enter your new password below"
+      title={invited ? "Create your password" : "New password"}
+      subtitle={invited ? "Choose a password for your McSween Transport account" : "Enter your new password below"}
     >
       {error && (
         <div className="mb-4 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
@@ -102,10 +104,10 @@ export default function ResetPassword() {
           {loading ? (
             <>
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              Resetting...
+              Saving...
             </>
           ) : (
-            "Reset password"
+            invited ? "Save password" : "Reset password"
           )}
         </Button>
       </form>
