@@ -15,7 +15,8 @@ const ROLES = new Set(['user', 'admin']);
 // Where the invitation's "Create your password" button goes: the site the admin
 // sent it from (the email template adds /reset-password). Anything else falls
 // back to the project's Site URL.
-const SITES = new Set(['https://new.mcsweenstransport.com', 'https://app.mcsweenstransport.com']);
+// The Base44 address is opened by the tablets, phone app and desktop app until they are rebuilt.
+const SITES = new Set(['https://new.mcsweenstransport.com', 'https://app.mcsweenstransport.com', 'https://eager-transit-track-go.base44.app']);
 
 function serverKey(): string {
   try {
