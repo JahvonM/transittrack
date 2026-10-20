@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { storedAccessToken, sessionHandoffToken, createBackend, AUTH_STORAGE_KEY } from "../../api/backend.supabase.js";
+import { storedAccessToken, sessionHandoffToken, createBackend, linkLanding, AUTH_STORAGE_KEY } from "../../api/backend.supabase.js";
 import { sessionRejected, httpStatus, errorData } from "../requestError.js";
 
 // Step 7: the Supabase build's client (src/api/backend.supabase.js) must look
@@ -106,6 +106,8 @@ describe("Supabase client", () => {
     await backend.auth.resetPasswordRequest(" a@b.co ");
     const recover = calls.find((c) => c.path === "/auth/v1/recover");
     expect(recover.body.email).toBe("a@b.co");
+    // Not tied to this browser: no PKCE challenge, so the link opens anywhere.
+    expect(recover.body.code_challenge ?? null).toBeNull();
     // The email template adds /reset-password?token=...; the site is all it needs.
     expect(new URLSearchParams(recover.query).get("redirect_to")).toBe("https://app.example");
 
@@ -127,6 +129,20 @@ describe("Supabase client", () => {
     expect(calls.filter((c) => c.path === "/auth/v1/verify").at(-1).body).toMatchObject({ token_hash: "pkce_old", type: "recovery" });
     expect(used.message).toBe("This link has expired or was already used. Ask for a new one.");
     expect(errorData(used).code).toBe("otp_expired");
+  });
+
+  it("a reset or invite link from Supabase's standard email opens the new-password page", () => {
+    const jwt = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1MSJ9.c2lnbmF0dXJl";
+    expect(linkLanding(`#access_token=${jwt}&expires_in=3600&refresh_token=abcdefgh12&token_type=bearer&type=recovery`))
+      .toEqual({ access_token: jwt, refresh_token: "abcdefgh12", next: "/reset-password?token=session" });
+    expect(linkLanding(`#access_token=${jwt}&refresh_token=abcdefgh12&type=invite`).next).toBe("/reset-password?token=session&type=invite");
+    // Anything else in the address is left alone.
+    expect(linkLanding(`#access_token=${jwt}&refresh_token=abcdefgh12&type=signup`)).toBeNull();
+    expect(linkLanding("#access_token=nope&refresh_token=abcdefgh12&type=recovery")).toBeNull();
+    expect(linkLanding("#error=access_denied&error_code=otp_expired")).toBeNull();
+    expect(linkLanding("")).toBeNull();
+    globalThis.window = { location: { search: "", hash: `#access_token=${jwt}&refresh_token=abcdefgh12&type=recovery` }, localStorage: storage(null) };
+    expect(storedAccessToken()).toBe("email-link");
   });
 
   it("uploads go through the integrations function as a form", async () => {
