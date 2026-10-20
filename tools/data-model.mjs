@@ -47,6 +47,7 @@ const USER_BUILTIN = [
   ["is_verified", "boolean", "Email confirmed."],
   ["auth_user_id", "uuid", "Supabase only: the linked sign-in account (auth.users)."],
 ];
+const ROLE_NAMES = { admin: "admins", company: "company managers", mechanic: "mechanics" };
 const META = new Set(["id", "created_date", "updated_date", "created_by", "created_by_id"]);
 
 // *_id fields that don't simply name their table (vehicle_id → Vehicle does).
@@ -263,7 +264,8 @@ export function renderDataModel({ entities = readEntities(), rules = readAccessR
   w("- Secrets are never sent to the browser: entityAccess removes these fields from every answer,");
   w("  wherever they appear: " + [...rules.sets.CREDENTIALS].map(code).join(", ") + ".");
   w("- Passengers never see other passengers' pickup locations: a passenger's own `User` record is");
-  w("  the only one they can read, and the `Trip` fields they get leave out names, phones and pickup points.");
+  w("  the only one they can read, and the `Trip` fields they get leave out passenger names, phones and");
+  w("  exact pickup and drop-off locations.");
   w();
   w("## Who can see what");
   w();
@@ -321,7 +323,7 @@ export function renderDataModel({ entities = readEntities(), rules = readAccessR
     if (narrow) {
       w();
       w(narrow.except
-        ? `**Everyone except ${narrow.except.join(", ")} gets only:** ${narrow.fields.map(code).join(", ")}.`
+        ? `**Everyone except ${narrow.except.map((role) => ROLE_NAMES[role] || role).join(" and ")} gets only:** ${narrow.fields.map(code).join(", ")}.`
         : `**The app only ever gets:** ${narrow.fields.map(code).join(", ")}.`);
     }
     w();
@@ -348,7 +350,8 @@ export function renderDataModel({ entities = readEntities(), rules = readAccessR
       if (r.serverOnly[e.entity]?.has(f)) notes.push("Set by the server only.");
       if (r.adminOnly[e.entity]?.has(f)) notes.push("Only an admin can change it.");
       if (r.securityFields[e.entity]?.has(f)) notes.push("Changed only through access-code management.");
-      w(`| ${code(f)} | ${type} | ${cell(notes.join(" "))} |`);
+      const sentence = (n) => (/[.!?)]$/.test(n.trim()) ? n.trim() : `${n.trim()}.`);
+      w(`| ${code(f)} | ${type} | ${cell(notes.map(sentence).join(" "))} |`);
     }
   }
   w();
