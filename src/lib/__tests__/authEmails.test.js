@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  buildEmails, checkEmails, expiresText, mergeAllowList, planAuthConfig, push, reportUrl, CODE_LENGTH,
+  buildEmails, checkEmails, expiresText, mergeAllowList, planAuthConfig, push, reportUrl, smtpSettings, CODE_LENGTH,
 } from "../../../tools/supabase/auth-emails.mjs";
 
 // The sign-in emails Supabase sends for the app (tools/supabase/auth-emails.mjs)
@@ -50,25 +50,37 @@ describe("sign-in emails", () => {
     expect(mergeAllowList(merged)).toBe(merged);
   });
 
-  it("change only what is different, and Resend only when its key is there", () => {
+  it("change only what is different", () => {
     const emails = buildEmails();
     const first = planAuthConfig(blankConfig(), { emails });
     expect(first.mailer_otp_length).toBe(CODE_LENGTH);
     expect(first.mailer_templates_recovery_content).toBe(emails.recovery.html);
     expect(first.smtp_host).toBeUndefined();
     expect(planAuthConfig({ ...blankConfig(), ...first }, { emails })).toEqual({});
-    const withResend = planAuthConfig({ ...blankConfig(), ...first }, { emails, smtp: { key: "re_test" } });
-    expect(withResend).toMatchObject({ smtp_host: "smtp.resend.com", smtp_user: "resend", smtp_pass: "re_test", smtp_admin_email: "no-reply@mcsweenstransport.com", smtp_sender_name: "McSween Transport" });
+    // Without emails it only keeps the redirects and the code length right.
+    expect(Object.keys(planAuthConfig(blankConfig())).sort()).toEqual(["mailer_otp_length", "uri_allow_list"]);
     // Settings Supabase leaves out count as empty, so they get filled in.
     expect(planAuthConfig({}, { emails }).mailer_templates_invite_content).toBe(emails.invite.html);
+    expect(smtpSettings({ key: "re_test" })).toEqual({
+      smtp_host: "smtp.resend.com", smtp_port: 465, smtp_user: "resend", smtp_pass: "re_test",
+      smtp_admin_email: "no-reply@mcsweenstransport.com", smtp_sender_name: "McSween Transport",
+    });
   });
 
   it("put them on the project and never print a secret", async () => {
     let config = blankConfig();
     const calls = [];
+    // Like Supabase: a free project on the built-in email can't change its emails.
     const fetchImpl = async (url, init) => {
-      calls.push({ url, method: init.method, auth: init.headers.Authorization, body: init.body ? JSON.parse(init.body) : null });
-      if (init.method === "PATCH") config = { ...config, ...JSON.parse(init.body), smtp_pass: undefined };
+      const body = init.body ? JSON.parse(init.body) : null;
+      calls.push({ url, method: init.method, auth: init.headers.Authorization, body });
+      if (init.method === "PATCH") {
+        const templates = Object.keys(body).some((k) => k.startsWith("mailer_templates_"));
+        if (templates && !config.smtp_host) {
+          return new Response(JSON.stringify({ message: "Email template modification is not available for free tier projects using the default email provider." }), { status: 400 });
+        }
+        config = { ...config, ...body, smtp_pass: undefined };
+      }
       if (init.method === "POST") return new Response("", { status: 201 });
       return new Response(JSON.stringify(config), { status: 200 });
     };
@@ -76,20 +88,33 @@ describe("sign-in emails", () => {
     const log = (line) => lines.push(line);
     const token = "sbp_secrettoken0000000000";
     const resendKey = "re_secretkey000000";
+
+    // Before Resend: the redirects and code length are set, the emails wait.
+    const waiting = await push({ ref: "ghqpznxqngvhmkiwcauj", token, fetchImpl, log });
+    expect(waiting.templates).toBe("waiting for Resend");
+    expect(waiting.changed.sort()).toEqual(["mailer_otp_length", "uri_allow_list"]);
+    expect(calls.map((c) => c.method)).toEqual(["GET", "PATCH", "GET"]);
+    expect(lines.join("\n")).toContain("RESEND_API_KEY");
+
+    // With Resend: the sender first, then the emails.
+    calls.length = 0;
     const result = await push({ ref: "ghqpznxqngvhmkiwcauj", token, resendKey, fetchImpl, log });
+    expect(result.templates).toBe("live");
     expect(result.changed).toContain("mailer_templates_recovery_content");
-    expect(calls.map((c) => c.method)).toEqual(["GET", "PATCH", "POST", "GET"]);
+    expect(calls.map((c) => c.method)).toEqual(["GET", "PATCH", "POST", "PATCH", "GET"]);
     expect(calls[0].url).toBe("https://api.supabase.com/v1/projects/ghqpznxqngvhmkiwcauj/config/auth");
     expect(calls.every((c) => c.auth === `Bearer ${token}`)).toBe(true);
+    expect(calls[1].body.smtp_host).toBe("smtp.resend.com");
     expect(calls[2].body).toEqual([{ name: "RESEND_API_KEY", value: resendKey }]);
+    expect(config.mailer_templates_invite_content).toContain("type=invite");
     const printed = lines.join("\n");
     expect(printed).not.toContain(token);
     expect(printed).not.toContain(resendKey);
     expect(printed).toContain("https://new.mcsweenstransport.com/**");
 
-    // A second run with nothing to change only reads.
+    // A later run with nothing to change only reads.
     calls.length = 0;
-    await push({ ref: "ghqpznxqngvhmkiwcauj", token, fetchImpl, log });
+    expect((await push({ ref: "ghqpznxqngvhmkiwcauj", token, fetchImpl, log })).templates).toBe("live");
     expect(calls.map((c) => c.method)).toEqual(["GET", "GET"]);
 
     // Errors from Supabase are shown without the secrets in them.
