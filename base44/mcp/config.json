@@ -11,25 +11,14 @@
           "properties": {
             "role": {
               "type": "string",
-              "enum": [
-                "passenger",
-                "driver",
-                "staff",
-                "company"
-              ],
+              "enum": ["passenger", "driver", "staff", "company"],
               "description": "The role to assign."
             }
           },
-          "required": [
-            "role"
-          ]
+          "required": ["role"]
         },
         "handler": "applyUserRole",
-        "annotations": {
-          "read_only_hint": false,
-          "destructive_hint": false,
-          "idempotent_hint": true
-        }
+        "annotations": { "read_only_hint": false, "destructive_hint": false, "idempotent_hint": true }
       },
       {
         "name": "book_taxi",
@@ -40,49 +29,21 @@
           "properties": {
             "action": {
               "type": "string",
-              "enum": [
-                "list",
-                "book"
-              ],
+              "enum": ["list", "book"],
               "description": "'list' returns taxi operators; 'book' creates a trip. Defaults to 'book'."
             },
-            "passenger_name": {
-              "type": "string",
-              "description": "Passenger name (required when booking)."
-            },
-            "phone": {
-              "type": "string",
-              "description": "Passenger phone (required when booking)."
-            },
-            "pickup_name": {
-              "type": "string",
-              "description": "Pickup location name (required when booking)."
-            },
-            "dropoff_name": {
-              "type": "string",
-              "description": "Drop-off location name (required when booking)."
-            },
-            "company_id": {
-              "type": "string",
-              "description": "ID of the taxi operator company (required when booking)."
-            },
-            "pickup_lat": {
-              "type": "number",
-              "description": "Pickup latitude (optional)."
-            },
-            "pickup_lng": {
-              "type": "number",
-              "description": "Pickup longitude (optional)."
-            }
+            "passenger_name": { "type": "string", "description": "Passenger name (required when booking)." },
+            "phone": { "type": "string", "description": "Passenger phone (required when booking)." },
+            "pickup_name": { "type": "string", "description": "Pickup location name (required when booking)." },
+            "dropoff_name": { "type": "string", "description": "Drop-off location name (required when booking)." },
+            "company_id": { "type": "string", "description": "ID of the taxi operator company (required when booking)." },
+            "pickup_lat": { "type": "number", "description": "Pickup latitude (optional)." },
+            "pickup_lng": { "type": "number", "description": "Pickup longitude (optional)." }
           },
           "required": []
         },
         "handler": "bookTaxi",
-        "annotations": {
-          "read_only_hint": false,
-          "destructive_hint": false,
-          "idempotent_hint": false
-        }
+        "annotations": { "read_only_hint": false, "destructive_hint": false, "idempotent_hint": false }
       }
     ]
   }
