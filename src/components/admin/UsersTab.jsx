@@ -19,6 +19,7 @@ import { EmptyState, PageActions, Segmented } from "@/components/admin/kit";
 const ROLE_LABEL = { company: "Company", driver: "Driver", staff: "Hotel staff", mechanic: "Mechanic", admin: "Admin" };
 import { exportToCSV, exportToPDF } from "@/lib/exporters";
 import { accountName, nameInitials } from "@/lib/userName";
+import { passwordProblem, PASSWORD_HINT } from "@/lib/passwordRules";
 
 const USER_COLS = [
   { key: "full_name", label: "Full name" },
