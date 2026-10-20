@@ -1,4 +1,5 @@
 import { createClientFromRequest } from '../_shared/base44-compat.ts';
+import { forwarding } from '../_shared/forwardToSupabase.ts';
 
 // Learns how long buses really take between the stops on each route, from
 // their own GPS history (LocationPing), and saves it per route in
@@ -178,6 +179,9 @@ export function buildStats(samples, timeZone = TIME_ZONE) {
 // --- shared:end ---
 
 export default async function (req) {
+  // After the switch this job runs on Supabase, on Supabase's own schedule.
+  // The Base44 copy stands down so nobody gets the same email twice.
+  if (forwarding()) return Response.json({ skipped: 'Runs on Supabase now' });
   try {
     const base44 = createClientFromRequest(req);
     let body = {};

@@ -11,5 +11,7 @@ describe('deployment-wide production concurrency requirements',()=>{
   expect(await load('driverSession',sdk,['reserveAttempt']).reserveAttempt(sdk,'worker-burst',5,60000)).toBe(false);
   expect(sdk.atomicCalls).toHaveLength(21);
   expect(sdk.writes.some(w=>w.name==='VerificationAttempt')).toBe(false);
- });
+  // 21 separate loads of driverSession take a few seconds; more while the
+  // rest of the suite runs alongside.
+ },30000);
 });

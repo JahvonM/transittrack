@@ -209,6 +209,25 @@ function sameOriginPath(value, fallback = '/') {
   } catch { return fallback; }
 }
 
+// Inside McSween Transport Desktop, Google and Apple refuse to sign in within
+// the app's own window. The installed desktop app watches for the Base44
+// sign-in addresses and then signs in through the person's browser instead
+// (/desktop-signin, desktop/browser-signin.cjs), so in the desktop app the
+// buttons go to one of those addresses rather than straight to Supabase.
+// Null outside the desktop app.
+export function desktopProviderUrl(provider, fromUrl = '/', win = hasWindow() ? window : null) {
+  const inDesktop = Boolean(win?.transittrackDesktop) || /Electron\//i.test(win?.navigator?.userAgent || '');
+  if (!inDesktop || !PROVIDERS[provider]) return null;
+  const u = new URL(provider === 'google' ? '/api/apps/auth/login' : `/api/apps/auth/${provider}/login`, win.location.origin);
+  let back = '/';
+  try {
+    const target = new URL(fromUrl || '/', win.location.origin);
+    if (target.origin === win.location.origin) back = target.pathname + target.search;
+  } catch { /* keep '/' */ }
+  u.searchParams.set('from_url', new URL(back, win.location.origin).href);
+  return u.href;
+}
+
 async function invoke(name, payload = {}) {
   if (!FUNCTION_NAME.test(String(name))) throw apiError(400, { error: 'Unknown function' }, 'Unknown function');
   const token = await accessToken();
@@ -268,6 +287,8 @@ export function createBackend() {
     async loginWithProvider(provider, fromUrl = '/') {
       const id = PROVIDERS[provider];
       if (!id) throw apiError(400, { error: 'That sign-in option is not available' }, 'Unknown provider');
+      const desktop = desktopProviderUrl(provider, fromUrl);
+      if (desktop) { window.location.assign(desktop); return; }
       const back = new URL(sameOriginPath(fromUrl), window.location.origin);
       back.searchParams.set(OAUTH_FLAG, '1');
       const { error } = await sb().auth.signInWithOAuth({ provider: id, options: { redirectTo: back.href } });

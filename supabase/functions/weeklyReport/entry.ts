@@ -1,4 +1,5 @@
 import { createClientFromRequest } from '../_shared/base44-compat.ts';
+import { forwarding } from '../_shared/forwardToSupabase.ts';
 import { emailWithPolicy } from '../_shared/notificationPolicy.ts';
 
 // These jobs can be reached over plain HTTP with no login (that's how the
@@ -22,6 +23,9 @@ const hours = (mins) => (mins / 60).toFixed(1);
 // inspections, faults, incidents and SOS over the last 7 days. Runs from a
 // scheduled workflow (no user) or on demand by an admin.
 export default async function (req) {
+  // After the switch this job runs on Supabase, on Supabase's own schedule.
+  // The Base44 copy stands down so nobody gets the same email twice.
+  if (forwarding()) return Response.json({ skipped: 'Runs on Supabase now' });
   try {
     const base44 = createClientFromRequest(req);
     const currentUser = await base44.auth.me().catch(() => null);

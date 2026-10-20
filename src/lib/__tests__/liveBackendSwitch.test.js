@@ -53,6 +53,21 @@ describe("the switch to Supabase", () => {
     expect((await forwardToSupabase(req(), "../evil", { live: "supabase", runsOn: "base44" })).status).toBe(404);
   });
 
+  it("Base44's scheduled jobs stand down after the switch, so no email goes out twice", () => {
+    const jobs = new Set();
+    for (const file of fs.readdirSync("base44/workflows")) {
+      for (const m of fs.readFileSync(`base44/workflows/${file}`, "utf8").matchAll(/"function_name"\s*:\s*"([A-Za-z0-9_-]+)"|functions\/([A-Za-z0-9_-]+)/g)) jobs.add(m[1] || m[2]);
+    }
+    for (const name of ["inspectionAlerts", "maintenanceAlerts", "learnTravelTimes", "weeklyReport"]) jobs.add(name);
+    for (const name of jobs) {
+      const entry = fs.readFileSync(`base44/functions/${name}/entry.ts`, "utf8");
+      expect(entry, name).toMatch(/export default async function \(req\) \{\n(?:  \/\/.*\n)*  if \(forwarding\(\)\) return Response\.json\(\{ skipped: 'Runs on Supabase now' \}\);/);
+    }
+    // The Supabase copies never stand down: there they are the real jobs.
+    expect(forwarding("supabase", "supabase")).toBe(false);
+    expect(forwarding("supabase", "base44")).toBe(true);
+  });
+
   it("covers every function the installed tablet app posts to", () => {
     const native = new Set();
     for (const dir of ["android/app/src/main/java/com/transittrack/app"]) {

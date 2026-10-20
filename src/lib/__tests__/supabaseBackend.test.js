@@ -1,5 +1,6 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { storedAccessToken, sessionHandoffToken, sessionSubject, createBackend, linkLanding, AUTH_STORAGE_KEY } from "../../api/backend.supabase.js";
+import { createRequire } from "node:module";
+import { storedAccessToken, sessionHandoffToken, sessionSubject, createBackend, linkLanding, desktopProviderUrl, AUTH_STORAGE_KEY } from "../../api/backend.supabase.js";
 import { sessionRejected, httpStatus, errorData } from "../requestError.js";
 
 // Step 7: the Supabase build's client (src/api/backend.supabase.js) must look
@@ -157,6 +158,22 @@ describe("Supabase client", () => {
     expect(linkLanding("")).toBeNull();
     globalThis.window = { location: { search: "", hash: `#access_token=${jwt}&refresh_token=abcdefgh12&type=recovery` }, localStorage: storage(null) };
     expect(storedAccessToken()).toBe("email-link");
+  });
+
+  it("in the desktop app, Google and Apple go through the browser sign-in the installed app already knows", () => {
+    const require = createRequire(import.meta.url);
+    const { providerFromLoginUrl, returnPathFromLoginUrl } = require("../../../desktop/browser-signin.cjs");
+    const { APP_ORIGIN } = require("../../../desktop/policy.cjs");
+    const desktop = { transittrackDesktop: {}, navigator: { userAgent: "Mozilla/5.0 Electron/38" }, location: { origin: APP_ORIGIN } };
+    const google = desktopProviderUrl("google", "/login?authReturn=1&returnTo=%2Fadmin", desktop);
+    expect(providerFromLoginUrl(google)).toBe("google");
+    expect(providerFromLoginUrl(desktopProviderUrl("apple", "/admin", desktop))).toBe("apple");
+    expect(returnPathFromLoginUrl(desktopProviderUrl("apple", "/admin", desktop))).toBe("/admin");
+    // Never sends the person to another site.
+    expect(new URL(desktopProviderUrl("google", "https://evil.example/x", desktop)).searchParams.get("from_url")).toBe(`${APP_ORIGIN}/`);
+    // An ordinary browser signs in with Supabase directly.
+    expect(desktopProviderUrl("google", "/", { navigator: { userAgent: "Mozilla/5.0 Chrome/140" }, location: { origin: "https://app.mcsweenstransport.com" } })).toBeNull();
+    expect(desktopProviderUrl("myspace", "/", desktop)).toBeNull();
   });
 
   it("uploads go through the integrations function as a form", async () => {
