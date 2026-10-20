@@ -13,6 +13,7 @@ import { toast } from "@/components/ui/use-toast";
 import { safeReturnTo } from "@/lib/authReturnTo";
 import { phoneSignInAvailable, openPhoneSignIn } from "@/lib/phoneSignIn";
 import { passwordProblem, PASSWORD_HINT } from "@/lib/passwordRules";
+import { useSignInOptions } from "@/lib/signInOptions";
 
 export default function Register() {
   const [email, setEmail] = useState("");
@@ -24,6 +25,8 @@ export default function Register() {
   const [otpCode, setOtpCode] = useState("");
   const [role, setRole] = useState("staff");
   const [inBrowser, setInBrowser] = useState(false);
+  // Only the "Continue with ..." buttons that are turned on.
+  const signInWith = useSignInOptions();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -178,7 +181,9 @@ export default function Register() {
         </>
       }
     >
+      {(signInWith.google || signInWith.apple) && (<>
       <div className="mb-6 grid gap-3">
+        {signInWith.google && (
         <Button
           variant="outline"
           className="w-full h-12 text-sm font-medium"
@@ -187,6 +192,8 @@ export default function Register() {
           <GoogleIcon className="w-5 h-5 mr-2" />
           Continue with Google
         </Button>
+        )}
+        {signInWith.apple && (
         <Button
           variant="outline"
           className="w-full h-12 text-sm font-medium"
@@ -195,6 +202,7 @@ export default function Register() {
           <AppleIcon className="w-5 h-5 mr-2" />
           Continue with Apple
         </Button>
+        )}
       </div>
 
       <div className="relative mb-6">
@@ -205,6 +213,7 @@ export default function Register() {
           <span className="bg-card px-3 text-muted-foreground">or</span>
         </div>
       </div>
+      </>)}
 
       {error && (
         <div className="mb-4 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
