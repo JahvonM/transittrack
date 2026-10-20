@@ -251,7 +251,7 @@ describe("secrets, files and serving", () => {
     const pre = await ok(new Request("https://x/f", { method: "OPTIONS", headers: { Origin: "https://app.mcsweenstransport.com" } }));
     expect(pre.status).toBe(204);
     expect(pre.headers.get("Access-Control-Allow-Origin")).toBe("https://app.mcsweenstransport.com");
-    for (const site of ["https://mcsween-transport.pages.dev", "https://a1b2c3d4.mcsween-transport.pages.dev"]) {
+    for (const site of ["https://new.mcsweenstransport.com", "https://mcsween-transport.pages.dev", "https://a1b2c3d4.mcsween-transport.pages.dev"]) {
       expect((await ok(new Request("https://x/f", { method: "OPTIONS", headers: { Origin: site } }))).headers.get("Access-Control-Allow-Origin")).toBe(site);
     }
     for (const site of ["https://evil.pages.dev", "https://x.mcsween-transport.pages.dev.evil.example", "http://mcsween-transport.pages.dev"]) {
