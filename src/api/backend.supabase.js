@@ -113,6 +113,18 @@ export function storedAccessToken() {
   } catch { return null; }
 }
 
+// Who the saved sign-in belongs to, so a profile saved on this device is only
+// reused for the same person. Null while a new sign-in is arriving in the
+// address (hand-over, Google/Apple return, email link): that one isn't saved yet.
+export function sessionSubject() {
+  const token = storedAccessToken();
+  if (!token || token === 'handoff' || token === 'oauth-return' || token === 'email-link') return null;
+  try {
+    const saved = JSON.parse(window.localStorage.getItem(AUTH_STORAGE_KEY) || 'null');
+    return saved?.refresh_token && saved?.user?.id ? `sb:${saved.user.id}` : null;
+  } catch { return null; }
+}
+
 // What the desktop and phone apps are handed: this browser's whole session.
 export function sessionHandoffToken(storage) {
   try {

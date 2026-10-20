@@ -13,6 +13,7 @@ const blankConfig = () => ({
   mailer_otp_length: 8,
   mailer_otp_exp: 3600,
   smtp_host: null,
+  rate_limit_email_sent: 2,
   ...Object.fromEntries(KINDS.flatMap((k) => [[`mailer_subjects_${k}`, null], [`mailer_templates_${k}_content`, null]])),
 });
 
@@ -59,10 +60,13 @@ describe("sign-in emails", () => {
     expect(planAuthConfig({ ...blankConfig(), ...first }, { emails })).toEqual({});
     // Without emails it only keeps the redirects and the code length right.
     expect(Object.keys(planAuthConfig(blankConfig())).sort()).toEqual(["mailer_otp_length", "uri_allow_list"]);
+    // With its own sender the project may send 30 sign-in emails an hour (never fewer).
+    expect(planAuthConfig({ ...blankConfig(), ...first }, { emails, sender: true })).toEqual({ rate_limit_email_sent: 30 });
+    expect(planAuthConfig({ ...blankConfig(), ...first, rate_limit_email_sent: 100 }, { emails, sender: true })).toEqual({});
     // Settings Supabase leaves out count as empty, so they get filled in.
     expect(planAuthConfig({}, { emails }).mailer_templates_invite_content).toBe(emails.invite.html);
     expect(smtpSettings({ key: "re_test" })).toEqual({
-      smtp_host: "smtp.resend.com", smtp_port: 465, smtp_user: "resend", smtp_pass: "re_test",
+      smtp_host: "smtp.resend.com", smtp_port: "465", smtp_user: "resend", smtp_pass: "re_test",
       smtp_admin_email: "no-reply@mcsweenstransport.com", smtp_sender_name: "McSween Transport",
     });
   });
@@ -80,6 +84,7 @@ describe("sign-in emails", () => {
           return new Response(JSON.stringify({ message: "Email template modification is not available for free tier projects using the default email provider." }), { status: 400 });
         }
         config = { ...config, ...body, smtp_pass: undefined };
+        if ("smtp_host" in body) config.rate_limit_email_sent = 2; // what Supabase did
       }
       if (init.method === "POST") return new Response("", { status: 201 });
       return new Response(JSON.stringify(config), { status: 200 });
@@ -101,7 +106,9 @@ describe("sign-in emails", () => {
     const result = await push({ ref: "ghqpznxqngvhmkiwcauj", token, resendKey, fetchImpl, log });
     expect(result.templates).toBe("live");
     expect(result.changed).toContain("mailer_templates_recovery_content");
-    expect(calls.map((c) => c.method)).toEqual(["GET", "PATCH", "POST", "PATCH", "GET"]);
+    expect(calls.map((c) => c.method)).toEqual(["GET", "PATCH", "POST", "GET", "PATCH", "GET"]);
+    expect(config.rate_limit_email_sent).toBe(30);
+    expect(result.perHour).toBe(30);
     expect(calls[0].url).toBe("https://api.supabase.com/v1/projects/ghqpznxqngvhmkiwcauj/config/auth");
     expect(calls.every((c) => c.auth === `Bearer ${token}`)).toBe(true);
     expect(calls[1].body.smtp_host).toBe("smtp.resend.com");

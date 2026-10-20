@@ -590,6 +590,26 @@ function bearer(req: Request) {
   return token;
 }
 
+// The scheduled jobs (pg_cron, supabase/migrations/20261020111953_*) call these
+// functions with a token only the database holds, the way Base44's workflows
+// ran them as the app's owner. For these functions only, a good token is the
+// scheduler, an admin; anywhere else, or with a wrong token, it's nobody.
+const SCHEDULED_FUNCTIONS = new Set(['weeklyReport', 'maintenanceAlerts', 'inspectionAlerts', 'learnTravelTimes']);
+const SCHEDULER: Row = { id: 'scheduler', email: 'scheduler@mcsweenstransport.com', full_name: 'McSween Transport scheduler', role: 'admin' };
+let servedFunction = '';
+
+async function fromScheduler(req: Request) {
+  const token = req.headers.get('x-tt-scheduler') || '';
+  if (!SCHEDULED_FUNCTIONS.has(servedFunction) || !/^[a-f0-9]{64}$/.test(token)) return false;
+  const res = await runtime.fetch(`${supabaseUrl()}/rest/v1/rpc/tt_scheduler_token_ok`, {
+    method: 'POST',
+    headers: serverHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ p_token: token }),
+  });
+  if (!res.ok) { await res.body?.cancel().catch(() => {}); return false; }
+  return (await res.json().catch(() => false)) === true;
+}
+
 export function createClientFromRequest(req: Request) {
   let me: Promise<Row> | null = null;
   const serviceRole = { entities, integrations };
@@ -597,6 +617,10 @@ export function createClientFromRequest(req: Request) {
     auth: {
       me() {
         me ||= (async () => {
+          if (req.headers.has('x-tt-scheduler')) {
+            if (await fromScheduler(req)) return { ...SCHEDULER };
+            throw httpError(401, 'Not signed in');
+          }
           const token = bearer(req);
           if (!token) throw httpError(401, 'Not signed in');
           const res = await runtime.fetch(`${supabaseUrl()}/auth/v1/user`, { headers: { ...serverHeaders(), Authorization: `Bearer ${token}` } });
@@ -676,6 +700,7 @@ export function withCors(handler: (req: Request) => Response | Promise<Response>
   };
 }
 
-export function serve(handler: (req: Request) => Response | Promise<Response>) {
+export function serve(handler: (req: Request) => Response | Promise<Response>, name = '') {
+  servedFunction = name;
   (globalThis as unknown as { Deno: { serve: (h: (req: Request) => Promise<Response>) => unknown } }).Deno.serve(withCors(handler));
 }

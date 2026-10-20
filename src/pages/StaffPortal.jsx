@@ -72,7 +72,16 @@ export default function StaffPortal() {
   const { user, checkUserAuth, logout } = useAuth();
   const { pathname } = useLocation();
   const view = pathname === "/journey" ? "journey" : pathname === "/my-card" ? "card" : pathname === "/more" ? "more" : "home";
-  const [lastSynced, setLastSynced] = useState(null);
+  // A company join QR scanned in this tab: check its code instead of
+  // restoring the saved company (it may be a different company).
+  const [joinCode] = useState(() => takePendingJoinCode());
+  // The passenger home as this person last saw it on this device (up to a day
+  // old): shown straight away, while the company check and the fresh data load
+  // run together in the background and replace it.
+  const [snapshot] = useState(() => (user?.id && !joinCode ? loadPassengerSnapshot(user.id) : null));
+  // Something is on screen, so background refreshes must not swap it for a spinner.
+  const shownRef = useRef(!!snapshot);
+  const [lastSynced, setLastSynced] = useState(() => snapshot?.savedAt || null);
   const [offline, setOffline] = useState(false);
   // The account check is recreated on every sign-in update; read the latest
   // without restarting the company check each time.
@@ -81,21 +90,21 @@ export default function StaffPortal() {
   const { permission: pushPermission, enableNotifications } = usePushNotifications({ email: user?.email, role: user?.role, companyId: user?.company_id });
   const { toast } = useToast();
   const pickupRef = useRef("");
-  const statusRef = useRef({});
-  const [company, setCompany] = useState(null);
-  const [companiesLoaded, setCompaniesLoaded] = useState(false);
+  const statusRef = useRef(Object.fromEntries((snapshot?.result?.trips || []).map((x) => [x.id, x.status])));
+  const [company, setCompany] = useState(() => snapshot?.company || null);
+  const [companiesLoaded, setCompaniesLoaded] = useState(!!snapshot);
   // The bus the company put this passenger on (Admin → Passengers): { id, name } or null.
-  const [myBus, setMyBus] = useState(null);
+  const [myBus, setMyBus] = useState(() => snapshot?.myBus || null);
   // Where this passenger actually gets on when their pickup is merged with
   // neighbours' along a drawn road: { name, lat, lng, shared_with, moved_m } or null.
   const [sharedStop, setSharedStop] = useState(null);
   const [companyError, setCompanyError] = useState(false);
   const companyAttempt = useRef(0);
-  const [vehicles, setVehicles] = useState([]);
-  const [routes, setRoutes] = useState([]);
-  const [trips, setTrips] = useState([]);
+  const [vehicles, setVehicles] = useState(() => snapshot?.result?.vehicles || []);
+  const [routes, setRoutes] = useState(() => snapshot?.result?.routes || []);
+  const [trips, setTrips] = useState(() => snapshot?.result?.trips || []);
   const [pickupName, setPickupName] = useState(() => localStorage.getItem("tt_staff_pickup") || "");
-  const [companyPhone, setCompanyPhone] = useState("");
+  const [companyPhone, setCompanyPhone] = useState(() => snapshot?.company?.phone || "");
   const [stopAlerts, setStopAlerts] = useState(false);
   const [mapOpen, setMapOpen] = useState(false);
   const [sheet, setSheet] = useState(null); // "pickup" | "stop" | "help" | "badge" | "chat" | "assistant" | null
@@ -153,16 +162,12 @@ export default function StaffPortal() {
   // Fallback fix from the explicit "Allow location" prompt, for when the
   // background watch was denied or timed out.
   const userLoc = watchedLoc;
-  const [loading, setLoading] = useState(true);
-
-  // A company join QR scanned in this tab: check its code instead of
-  // restoring the saved company (it may be a different company).
-  const [joinCode] = useState(() => takePendingJoinCode());
+  const [loading, setLoading] = useState(!snapshot);
 
   // Never erase a saved company pass just because the connection failed.
   const restoreCompany = useCallback(async () => {
     const attempt = ++companyAttempt.current;
-    setCompaniesLoaded(false);
+    if (!shownRef.current) setCompaniesLoaded(false);
     setCompanyError(false);
     try {
       localStorage.removeItem('tt_company_code');
@@ -183,12 +188,16 @@ export default function StaffPortal() {
       setMyBus(data.my_bus || null);
     } catch (error) {
       if (attempt !== companyAttempt.current) return;
-      const saved = navigator.onLine === false ? loadPassengerSnapshot(user?.id) : null;
+      // Offline, or a saved home is already showing: keep showing it, marked as saved.
+      const saved = navigator.onLine === false || (shownRef.current && !companyGrantRejected(error) && !sessionRejected(error))
+        ? loadPassengerSnapshot(user?.id) : null;
       if (saved) {
         setCompany(saved.company); setCompanyPhone(saved.company.phone || ""); setMyBus(saved.myBus);
         setLastSynced(saved.savedAt); setOffline(true);
       } else if (companyGrantRejected(error)) {
         localStorage.removeItem('tt_company_access_grant');
+        clearPassengerSnapshot();
+        shownRef.current = false;
         setCompany(null);
       } else if (sessionRejected(error)) {
         // Maybe the sign-in itself is gone, not the company pass. Ask the
@@ -255,7 +264,7 @@ export default function StaffPortal() {
   }, [companiesLoaded, user?.role]);
 
   // The company's workplace: where every pickup passenger is dropped off.
-  const [workplace, setWorkplace] = useState(null);
+  const [workplace, setWorkplace] = useState(() => snapshot?.result?.workplace || null);
 
   // Everything the passenger home needs — the workplace, the company's
   // vehicles, its routes and the rides still to come — arrives in one call.
@@ -274,15 +283,18 @@ export default function StaffPortal() {
     statusRef.current = Object.fromEntries((result.trips || []).map((x) => [x.id, x.status]));
   }, [company?.id, user?.id]);
 
+  // Keyed on the company's id: the company check returning the same company the
+  // saved home showed must not load everything a second time.
+  const companyId = company?.id;
   useEffect(() => {
-    if (!company) return undefined;
-    setLoading(true);
-    loadData().catch(() => loadFailed()).finally(() => setLoading(false));
+    if (!companyId) return undefined;
+    if (!shownRef.current) setLoading(true);
+    loadData().then(() => { shownRef.current = true; }).catch(() => loadFailed()).finally(() => setLoading(false));
     const unsubVehicles = base44.entities.Vehicle.subscribe((event) => {
       setVehicles((prev) => {
         if (event.type === "delete") return prev.filter((x) => x.id !== event.id);
         const rec = event.data;
-        if (!rec || rec.company_id !== company.id) return prev;
+        if (!rec || rec.company_id !== companyId) return prev;
         const idx = prev.findIndex((x) => x.id === event.id);
         return idx === -1 ? [...prev, rec] : prev.map((x) => (x.id === event.id ? rec : x));
       });
@@ -294,7 +306,7 @@ export default function StaffPortal() {
         return;
       }
       const rec = event.data;
-      if (!rec || rec.company_id !== company.id) return;
+      if (!rec || rec.company_id !== companyId) return;
       const prevStatus = statusRef.current[rec.id];
       if (
         (rec.status === "arrived" || rec.status === "completed") &&
@@ -316,7 +328,7 @@ export default function StaffPortal() {
       unsubVehicles();
       unsubTrips();
     };
-  }, [company, loadData]);
+  }, [companyId, loadData]);
 
   const reload = async () => {
     if (!company) return;

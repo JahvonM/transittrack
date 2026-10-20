@@ -194,7 +194,7 @@ export function mergeAllowList(value) {
 export function smtpSettings({ key, from = '' }) {
   return {
     smtp_host: 'smtp.resend.com',
-    smtp_port: 465,
+    smtp_port: '465', // Supabase wants the port as text
     smtp_user: 'resend',
     smtp_pass: key,
     smtp_admin_email: from || DEFAULT_FROM,
@@ -202,9 +202,14 @@ export function smtpSettings({ key, from = '' }) {
   };
 }
 
+// Sign-in emails the project may send in an hour once it has its own sender.
+// (Supabase drops this to 2 when the sender changes; Resend's free plan allows
+// 100 a day.)
+export const EMAILS_PER_HOUR = 30;
+
 // What has to change on the project's Auth settings (pass no emails to leave
-// them alone).
-export function planAuthConfig(current, { emails = {} } = {}) {
+// them alone; `sender` says the project sends through its own email service).
+export function planAuthConfig(current, { emails = {}, sender = false } = {}) {
   const patch = {};
   for (const [kind, { subject, html }] of Object.entries(emails)) {
     const contentKey = `mailer_templates_${kind}_content`;
@@ -215,6 +220,9 @@ export function planAuthConfig(current, { emails = {} } = {}) {
   const allow = mergeAllowList(current.uri_allow_list);
   if (allow !== String(current.uri_allow_list || '')) patch.uri_allow_list = allow;
   if ('mailer_otp_length' in current && Number(current.mailer_otp_length) !== CODE_LENGTH) patch.mailer_otp_length = CODE_LENGTH;
+  if (sender && 'rate_limit_email_sent' in current && !(Number(current.rate_limit_email_sent) >= EMAILS_PER_HOUR)) {
+    patch.rate_limit_email_sent = EMAILS_PER_HOUR;
+  }
   return patch;
 }
 
@@ -232,24 +240,24 @@ export async function push({ ref, token, resendKey = '', from = '', fetchImpl = 
     return text ? JSON.parse(text) : null;
   };
 
-  const current = await call('GET', '/config/auth');
+  let current = await call('GET', '/config/auth');
   const emails = buildEmails({ expires: expiresText(current.mailer_otp_exp) });
   const problems = checkEmails(emails);
   if (problems.length) throw new Error(`The emails failed their checks: ${problems.join('; ')}`);
   // The sender goes first: Supabase refuses changed emails from a free project
   // that still sends through its built-in email.
   const changed = [];
-  let sender = current.smtp_host || '';
   if (resendKey) {
     const smtp = smtpSettings({ key: resendKey, from });
     await call('PATCH', '/config/auth', smtp);
     await call('POST', '/secrets', [{ name: 'RESEND_API_KEY', value: resendKey }]);
-    sender = smtp.smtp_host;
     changed.push('smtp');
     log(`Emails now go out through Resend from ${smtp.smtp_admin_email}; the functions have the same key.`);
+    current = await call('GET', '/config/auth'); // changing the sender changes other settings too
   }
+  const sender = Boolean(current.smtp_host);
   const want = sender ? emails : {};
-  const patch = planAuthConfig(current, { emails: want });
+  const patch = planAuthConfig(current, { emails: want, sender });
   if (Object.keys(patch).length) await call('PATCH', '/config/auth', patch);
   changed.push(...Object.keys(patch));
   log(changed.length ? `Changed: ${changed.join(', ')}` : 'Everything was already up to date.');
@@ -258,7 +266,7 @@ export async function push({ ref, token, resendKey = '', from = '', fetchImpl = 
   }
 
   const after = await call('GET', '/config/auth');
-  const left = Object.keys(planAuthConfig(after, { emails: want }));
+  const left = Object.keys(planAuthConfig(after, { emails: want, sender }));
   if (left.length) throw new Error(`Supabase did not keep: ${left.join(', ')}`);
   log(`Redirects allowed: ${String(after.uri_allow_list || '').split(',').join(' ')}`);
   log(`Site URL: ${after.site_url || '(none)'}; sign-up code: ${after.mailer_otp_length ?? '?'} digits, lasts ${expiresText(after.mailer_otp_exp).replace(/^in /, '')}`);
@@ -268,6 +276,7 @@ export async function push({ ref, token, resendKey = '', from = '', fetchImpl = 
     templates: sender ? 'live' : 'waiting for Resend',
     otp: after.mailer_otp_length ?? '?',
     smtp: after.smtp_host ? 'custom' : 'built-in',
+    perHour: after.rate_limit_email_sent ?? '?',
     redirects: String(after.uri_allow_list || '').split(',').filter(Boolean).length,
   };
 }
@@ -323,7 +332,7 @@ async function main(argv) {
       const done = await push({ ref, token, resendKey, from: process.env.EMAIL_FROM || '' });
       await report(ref, {
         result: done.templates === 'live' ? 'ok' : 'waiting-for-resend',
-        changed: done.changed.join(' ') || 'nothing', templates: done.templates, otp: done.otp, smtp: done.smtp, redirects: done.redirects,
+        changed: done.changed.join(' ') || 'nothing', templates: done.templates, otp: done.otp, smtp: done.smtp, perHour: done.perHour, redirects: done.redirects,
       });
     } catch (error) {
       const hide = (t) => [token, resendKey].filter(Boolean).reduce((s, x) => s.split(x).join('***'), String(t));

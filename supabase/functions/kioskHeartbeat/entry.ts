@@ -155,7 +155,11 @@ export default async function(req) {
 
     const base44 = createClientFromRequest(req);
 
-    const device = await base44.asServiceRole.entities.KioskDevice.get(device_id);
+    // An unknown tablet is just not signed in (it used to come back as a 500).
+    const device = await base44.asServiceRole.entities.KioskDevice.get(device_id).catch((e) => {
+      if ((e?.status ?? e?.response?.status) === 404) return null;
+      throw e;
+    });
     // `paired` must be checked here too, not just `status` — an admin
     // regenerating this device's pairing code (KioskTablets.jsx's
     // Regenerate/Reactivate actions) sets paired:false but leaves

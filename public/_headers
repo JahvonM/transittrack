@@ -1,0 +1,14 @@
+# Security headers for the site on Cloudflare (new.mcsweenstransport.com, and
+# app.mcsweenstransport.com after the switch-over). Cloudflare reads this file
+# from the built site; other hosts just serve it as a plain file.
+#   frame-ancestors / X-Frame-Options: other sites can't show the app inside
+#     their own page to trick people into tapping things (clickjacking)
+#   nosniff: files are only ever treated as what they say they are
+#   HSTS: browsers always use https for this site
+#   object-src / base-uri: no plugins, and no rewriting where scripts load from
+/*
+  X-Frame-Options: SAMEORIGIN
+  Content-Security-Policy: frame-ancestors 'self'; object-src 'none'; base-uri 'self'
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Strict-Transport-Security: max-age=31536000
