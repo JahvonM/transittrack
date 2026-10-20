@@ -12,6 +12,10 @@ import { createClientFromRequest, serve, httpError, secrets } from '../_shared/b
 const MAX_UPLOAD = 25 * 1024 * 1024;
 const EMAIL = /^[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{2,63}$/;
 const ROLES = new Set(['user', 'admin']);
+// Where the invitation's "Create your password" button goes: the site the admin
+// sent it from (the email template adds /reset-password). Anything else falls
+// back to the project's Site URL.
+const SITES = new Set(['https://new.mcsweenstransport.com', 'https://app.mcsweenstransport.com']);
 
 function serverKey(): string {
   try {
@@ -23,7 +27,7 @@ function serverKey(): string {
   return legacy;
 }
 
-async function invite(base44: ReturnType<typeof createClientFromRequest>, emailRaw: unknown, roleRaw: unknown) {
+async function invite(base44: ReturnType<typeof createClientFromRequest>, emailRaw: unknown, roleRaw: unknown, origin: string | null) {
   const email = String(emailRaw || '').trim().toLowerCase();
   if (!EMAIL.test(email)) throw httpError(400, 'Enter a valid email address');
   const role = ROLES.has(String(roleRaw)) ? String(roleRaw) : 'user';
@@ -34,7 +38,8 @@ async function invite(base44: ReturnType<typeof createClientFromRequest>, emailR
   if (!existing) await db.User.create({ email, role, is_verified: false });
   const url = (secrets.get('SUPABASE_URL') || '').replace(/\/+$/, '');
   const key = serverKey();
-  const res = await fetch(`${url}/auth/v1/invite`, {
+  const back = origin && SITES.has(origin) ? `?redirect_to=${encodeURIComponent(origin)}` : '';
+  const res = await fetch(`${url}/auth/v1/invite${back}`, {
     method: 'POST',
     headers: { apikey: key, ...(key.startsWith('sb_secret_') ? {} : { Authorization: `Bearer ${key}` }), 'Content-Type': 'application/json' },
     body: JSON.stringify({ email }),
@@ -75,7 +80,7 @@ serve(async (req) => {
     }
     case 'invite':
       if (me.role !== 'admin') return Response.json({ error: 'Administrators only' }, { status: 403 });
-      return Response.json(await invite(base44, body.email, body.role));
+      return Response.json(await invite(base44, body.email, body.role, req.headers.get('origin')));
     case 'llm': {
       if (me.role !== 'admin') return Response.json({ error: 'Administrators only' }, { status: 403 });
       const { action: _action, ...params } = body;
