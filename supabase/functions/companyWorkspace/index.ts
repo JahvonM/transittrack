@@ -3,4 +3,4 @@
 import handler from './entry.ts';
 import { serve } from '../_shared/base44-compat.ts';
 
-serve(handler);
+serve(handler, 'companyWorkspace');
