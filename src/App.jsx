@@ -20,7 +20,6 @@ import { useTheme } from "@/lib/useTheme";
 import ScrollToTop from './components/ScrollToTop';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import MobileTabBar from '@/components/MobileTabBar';
-import { AnimatePresence, motion } from 'framer-motion';
 import { Navigate } from 'react-router-dom';
 // Auth components load eagerly so the login flow renders without a chunk round-trip
 import Login from '@/pages/Login';
@@ -139,14 +138,9 @@ const AuthenticatedApp = () => {
   // Render the main app
   return (
     <>
-    <AnimatePresence mode="wait" initial={false}>
-      <motion.div
-        key={pageKey}
-        initial={{ opacity: 0, x: 16 }}
-        animate={{ opacity: 1, x: 0 }}
-        exit={{ opacity: 0, x: -16 }}
-        transition={{ duration: 0.18, ease: "easeOut" }}
-      >
+    {/* A new screen slides in with CSS (index.css .tt-route-in); the first
+        screen after opening the app appears without it. */}
+    <div key={pageKey} className={firstPage === pageKey ? undefined : 'tt-route-in'}>
       <ErrorBoundary key={pageKey}>
       <Suspense fallback={<RouteFallback />}>
       <Routes location={location}>
@@ -203,8 +197,7 @@ const AuthenticatedApp = () => {
       </Routes>
       </Suspense>
       </ErrorBoundary>
-      </motion.div>
-    </AnimatePresence>
+    </div>
     <MobileTabBar />
     </>
   );
