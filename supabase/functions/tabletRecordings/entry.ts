@@ -1,9 +1,13 @@
+import { forwardToSupabase } from '../_shared/forwardToSupabase.ts';
 import {createClientFromRequest} from '../_shared/base44-compat.ts';
 import {strictControlDevice} from '../_shared/tabletControl.ts';
 import {streamingConfig,supportIce} from '../_shared/tabletStreaming.ts';
 import {recordingsAdmin,recordingsRequest,recordingsBinding,recordingsNotice,recordingsTerminal,publicRecordings,validateRecordingsSdp} from '../_shared/tabletRecordings.ts';
 const reply=(body,status=200)=>Response.json(body,{status,headers:{'Cache-Control':'no-store'}});
 export default async function(req){
+  // After the switch, calls from the installed tablet app go on to Supabase.
+  const forwarded = await forwardToSupabase(req, 'tabletRecordings');
+  if (forwarded) return forwarded;
  try{
   if(req.method!=='POST')return reply({error:'POST required'},405);
   if(Number(req.headers.get('Content-Length')||0)>75000)return reply({error:'Request too large'},413);

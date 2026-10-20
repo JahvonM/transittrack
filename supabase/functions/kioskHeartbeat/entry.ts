@@ -1,3 +1,4 @@
+import { forwardToSupabase } from '../_shared/forwardToSupabase.ts';
 import { cleanHardwareHealth } from '../_shared/tabletHardwareHealth.ts';
 import { recordingsNotice } from '../_shared/tabletRecordings.ts';
 import { supportNotice } from '../_shared/tabletStreaming.ts';
@@ -145,6 +146,9 @@ async function tabletCheckIns(base44, companyId, vehicleId) {
 }
 
 export default async function(req) {
+  // After the switch, calls from the installed tablet app go on to Supabase.
+  const forwarded = await forwardToSupabase(req, 'kioskHeartbeat');
+  if (forwarded) return forwarded;
   try {
     const body = await req.json();
     const { device_id } = body;
