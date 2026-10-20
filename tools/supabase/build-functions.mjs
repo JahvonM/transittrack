@@ -58,7 +58,15 @@ function rewrite(source, compatPath, sharedPrefix) {
 
 const wanted = new Map();
 for (const file of fs.readdirSync(from('shared')).filter((f) => f.endsWith('.ts')).sort()) {
-  wanted.set(to('_shared', file), rewrite(fs.readFileSync(from('shared', file), 'utf8'), `./${COMPAT}`, './'));
+  let source = rewrite(fs.readFileSync(from('shared', file), 'utf8'), `./${COMPAT}`, './');
+  // The Supabase copy knows it runs on Supabase, so it never passes calls on
+  // to itself (see base44/shared/forwardToSupabase.ts).
+  if (file === 'liveBackend.ts') {
+    const marked = source.replace(/^export const RUNS_ON: Backend = 'base44';$/m, "export const RUNS_ON: Backend = 'supabase';");
+    if (marked === source) throw new Error('liveBackend.ts: RUNS_ON line not found');
+    source = marked;
+  }
+  wanted.set(to('_shared', file), source);
 }
 const names = fs.readdirSync(from('functions'), { withFileTypes: true })
   .filter((d) => d.isDirectory() && !BASE44_ONLY.has(d.name) && fs.existsSync(from('functions', d.name, 'entry.ts')))
