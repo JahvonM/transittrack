@@ -121,7 +121,9 @@ test('passenger messages show on the phone and the driver can reply to them',asy
  await expect(page.getByRole('tab',{name:'Dispatch (new)'})).toBeVisible();
  await page.getByLabel('Message',{exact:true}).fill('Two minutes away');
  await page.getByRole('button',{name:'Send message'}).click();
- await expect(page.getByText('Two minutes away')).toBeVisible();
+ // The message joins the conversation and the box empties for the next one.
+ await expect(page.getByRole('list',{name:'Messages'}).getByText('Two minutes away')).toBeVisible();
+ await expect(page.getByLabel('Message',{exact:true})).toHaveValue('');
  expect(calls.find(c=>c.action==='send')).toMatchObject({channel:'staff',vehicle_id:'bus-a',text:'Two minutes away'});
  await shot(page,'03b-passenger-messages');
  await page.getByRole('tab',{name:'Dispatch (new)'}).click();

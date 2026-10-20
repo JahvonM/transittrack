@@ -132,9 +132,10 @@ export default function DriverPhone() {
     let alive = true;
     (async () => {
       try {
-        const [profile] = await Promise.all([callDriverPhone("me"), loadToday(), loadMessages()]);
+        // The profile shows as soon as it arrives (the loading screen names the
+        // company), without waiting for the other two.
+        await Promise.all([callDriverPhone("me").then((profile) => { if (alive) setMe(profile); }), loadToday(), loadMessages()]);
         if (!alive) return;
-        setMe(profile);
         setStatus((s) => (s === "refused" ? s : "ready"));
         setFresh(true);
       } catch (error) {
