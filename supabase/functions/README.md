@@ -16,5 +16,5 @@ Settings the functions read (Supabase -> Edge Functions -> Secrets), copied
 from Base44's secrets: `FIREBASE_SERVICE_ACCOUNT`, `TT_DURABLE_WRITES_ENABLED`,
 `TT_SUPPORT_ENABLED`, `TT_SUPPORT_TRANSPORT`, `TT_SUPPORT_STUN_URL`,
 `TT_SUPPORT_TURN_URL`, `TT_SUPPORT_TURN_SECRET`. Later: `RESEND_API_KEY` for
-email (step 7) and `ANTHROPIC_API_KEY` for the assistant. The rate-limit store
+email (step 7). The rate-limit store
 (`TT_ATOMIC_*`) needs nothing: it is this same project.
