@@ -7,6 +7,8 @@
 // checks the real sign-in on each request, so a stale profile (say, a role an
 // admin just changed) can only show a screen for a moment, never its data.
 import { sessionSubject } from 'tt-backend';
+import { forgetScreens } from '@/lib/savedScreen';
+import { clearPassengerSnapshot } from '@/lib/passengerSnapshot';
 
 const PROFILE_KEY = 'tt_saved_profile_v1';
 const SETTINGS_KEY = 'tt_saved_public_settings_v1';
@@ -43,7 +45,10 @@ export function rememberPublicSettings(settings) {
   if (settings && typeof settings === 'object') write(SETTINGS_KEY, settings);
 }
 
-// Sign-out, or the server ended the sign-in.
+// Sign-out, or the server ended the sign-in: the profile and every screen
+// saved for it go.
 export function forgetProfile() {
   try { window.localStorage.removeItem(PROFILE_KEY); } catch { /* storage blocked */ }
+  forgetScreens();
+  clearPassengerSnapshot();
 }
