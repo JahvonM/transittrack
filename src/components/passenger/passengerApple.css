@@ -4,23 +4,13 @@
    capsule buttons, iOS switches, a floating frosted tab bar (in index.css)
    and taller, rounder sheets. Tablets and desktops keep the earlier look. */
 @media (max-width: 767px) {
-  .px-experience, .tt-apple-sheet {
-    --ios-cell: #0d1f33;
-    --ios-cell-raised: #12283f;
-    --ios-sep: rgba(255, 255, 255, .13);
-    --ios-label: #f2f7fb;
-    --ios-label2: #9fb3c4;
-    --ios-label3: #6c8294;
-    --ios-tint: #18d9ed;
-    --ios-tint-fill: rgba(24, 217, 237, .15);
-    --ios-on-tint: #03202d;
-    --ios-red: #ff6488;
-  }
+  /* Colours come from the passenger colour slots (index.css), so these
+     follow Light/Dark and the colour theme. */
 
   /* Type: iOS sizes; large text tighter, small text a touch looser. */
-  .px-experience { padding: 10px 16px 28px; color: var(--ios-label); }
+  .px-experience { padding: 10px 16px 28px; color: var(--px-text); }
   .px-experience > * { margin-bottom: 14px; }
-  .px-experience p, .px-experience small { color: var(--ios-label2); }
+  .px-experience p, .px-experience small { color: var(--px-text2); }
   .px-experience .px-greeting, .px-experience .px-page-title h1 {
     font-size: 34px; line-height: 41px; font-weight: 700; letter-spacing: -.026em; margin-bottom: 6px;
   }
@@ -32,35 +22,35 @@
   /* Top bar: round glass buttons for messages and account. */
   .px-top > p { font-size: 22px; letter-spacing: -.02em; }
   .px-top > div { gap: 8px; }
-  .px-top a { min-width: 40px; min-height: 40px; width: 40px; height: 40px; border-radius: 50%; background: rgba(255, 255, 255, .08); }
+  .px-top a { min-width: 40px; min-height: 40px; width: 40px; height: 40px; border-radius: 50%; background: var(--px-press-strong); }
   .px-top a svg { width: 20px; height: 20px; }
   .px-top .px-avatar { width: 40px; height: 40px; border: 0; font-size: 14px; }
-  .px-direction { border: 0 !important; background: var(--ios-tint-fill); padding: 5px 11px !important; font-size: 11px !important; letter-spacing: .05em; color: var(--ios-tint) !important; }
+  .px-direction { border: 0 !important; background: var(--px-tint-fill); padding: 5px 11px !important; font-size: 11px !important; letter-spacing: .05em; color: var(--px-tint) !important; }
 
   /* Grouped cells: solid, borderless, rounded; no gradients. */
   .px-experience .px-panel, .px-experience .px-message, .px-experience .px-flags > button, .px-experience .px-notice, .px-experience .px-sign-out {
-    border: 0; border-radius: 22px; background: var(--ios-cell); box-shadow: none;
+    border: 0; border-radius: 22px; background: var(--px-cell); box-shadow: none;
   }
   .px-experience .px-panel { padding: 16px; }
   .px-experience .px-panel p { font-size: 15px; line-height: 20px; }
 
   /* The bus card keeps its picture; rounder, with depth instead of an outline. */
-  .px-hero { border: 0; border-radius: 26px; box-shadow: 0 12px 32px rgba(0, 0, 0, .4); padding: 18px 12px 16px 18px; }
+  .px-hero { border: 0; border-radius: 26px; box-shadow: 0 12px 32px var(--px-shadow); padding: 18px 12px 16px 18px; }
   .px-hero-copy > h2 { font-size: clamp(34px, 11vw, 46px); line-height: 1.05; letter-spacing: -.035em; font-weight: 700; }
   .px-hero-copy > p:not(.px-service) { font-size: 15px; line-height: 20px; }
   .px-hero-copy > strong { font-size: 15px; }
   .px-service { font-size: 12px !important; letter-spacing: .02em !important; }
-  .px-eta-details { font-size: 15px; border-top: .5px solid rgba(255, 255, 255, .2); }
+  .px-eta-details { font-size: 15px; border-top: .5px solid var(--px-hair); }
 
   /* Pickup and drop-off: one group, rows split by an inset hairline. */
   .px-experience .px-journey-points { padding: 0; }
   .px-journey-points > div { padding: 14px 16px; position: relative; }
   .px-journey-points > div + div { border-top: 0; }
-  .px-journey-points > div + div::before { content: ""; position: absolute; top: 0; left: 49px; right: 0; height: .5px; background: var(--ios-sep); }
+  .px-journey-points > div + div::before { content: ""; position: absolute; top: 0; left: 49px; right: 0; height: .5px; background: var(--px-hair); }
   .px-journey-points small { font-size: 12px; font-weight: 600; letter-spacing: .04em; }
   .px-journey-points strong { font-size: 17px; line-height: 22px; font-weight: 600; letter-spacing: -.01em; margin-top: 1px; }
   .px-journey-points p { font-size: 15px !important; line-height: 20px; }
-  .px-experience .px-journey-points .px-pickup-note { color: #f5c26b; }
+  .px-experience .px-journey-points .px-pickup-note { color: var(--px-warn); }
 
   /* Buttons: capsules. Filled for the main action, tinted for the rest. */
   .px-experience :is(.px-quick > a, .px-find-btn, .px-panel [data-ui=button]), .tt-apple-sheet [data-ui=button] {
@@ -69,12 +59,12 @@
   .px-experience .px-quick { gap: 10px; }
   .px-experience .px-quick > a { font-size: 16px; }
   .px-experience .px-quick > a:first-child, .px-experience .px-find-btn, .tt-apple-sheet [data-ui=button][data-variant=default] {
-    background: var(--ios-tint); color: var(--ios-on-tint);
+    background: var(--px-tint); color: var(--px-on-tint);
   }
   .px-experience .px-quick > a:not(:first-child), .px-experience .px-panel [data-ui=button]:is([data-variant=outline], [data-variant=secondary]), .tt-apple-sheet [data-ui=button]:is([data-variant=outline], [data-variant=secondary]) {
-    background: var(--ios-tint-fill); color: var(--ios-tint); border: 0;
+    background: var(--px-tint-fill); color: var(--px-tint); border: 0;
   }
-  .tt-apple-sheet [data-ui=button][data-variant=ghost] { min-height: 44px; color: var(--ios-tint); background: transparent; }
+  .tt-apple-sheet [data-ui=button][data-variant=ghost] { min-height: 44px; color: var(--px-tint); background: transparent; }
   .px-experience .px-panel [data-ui=button] svg, .tt-apple-sheet [data-ui=button] svg { width: 19px; height: 19px; }
   /* Small "Change" beside the drop-off. */
   .px-experience .px-journey-points [data-ui=button] { min-height: 32px !important; height: 32px; padding: 0 14px; font-size: 15px; }
@@ -86,19 +76,19 @@
   .px-experience .px-flags > button { min-height: 58px; padding: 10px 14px; border-radius: 20px; }
   .px-experience .px-flags strong { font-size: 15px; font-weight: 600; }
   .px-experience .px-flags small { font-size: 12px; }
-  .px-experience .px-flags > button[aria-pressed=true] { background: var(--ios-tint); color: var(--ios-on-tint); }
+  .px-experience .px-flags > button[aria-pressed=true] { background: var(--px-tint); color: var(--px-on-tint); }
 
   /* "Need anything? Message us" and other single-row cells. */
   .px-experience .px-message { justify-content: flex-start; min-height: 54px; padding: 12px 16px; font-size: 17px; font-weight: 500; text-align: left; }
-  .px-experience .px-message > svg:first-child { width: 30px; height: 30px; padding: 6px; border-radius: 8px; background: var(--ios-tint-fill); color: var(--ios-tint); }
-  .px-experience .px-message > svg:last-child { color: var(--ios-label3); width: 18px; }
+  .px-experience .px-message > svg:first-child { width: 30px; height: 30px; padding: 6px; border-radius: 8px; background: var(--px-tint-fill); color: var(--px-tint); }
+  .px-experience .px-message > svg:last-child { color: var(--px-text3); width: 18px; }
   .px-experience .px-notice { padding: 12px 14px; }
   .px-experience .px-notice strong { font-size: 15px; }
   .px-experience .px-notice small { font-size: 13px; }
 
   /* Pickup alerts: a settings row. */
   .px-experience .px-alert-setting { flex-wrap: nowrap; gap: 12px; padding: 12px 16px; }
-  .px-experience .px-alert-setting > svg { width: 30px; height: 30px; padding: 6px; border-radius: 8px; background: var(--ios-tint-fill); }
+  .px-experience .px-alert-setting > svg { width: 30px; height: 30px; padding: 6px; border-radius: 8px; background: var(--px-tint-fill); }
   .px-experience .px-alert-setting strong { font-size: 17px; font-weight: 500; }
   .px-experience .px-alert-setting small { font-size: 13px; }
   .px-experience .px-alert-setting:has([data-ui=button]) { flex-wrap: wrap; }
@@ -108,8 +98,8 @@
     width: 51px; height: 31px; min-height: 0; padding: 0; border: 0 !important; border-radius: 999px !important;
     box-shadow: none; transition: background-color .25s ease-out; flex-shrink: 0;
   }
-  .px-experience [role=switch][data-state=unchecked], .tt-apple-sheet [role=switch][data-state=unchecked] { background: rgba(120, 120, 128, .36); }
-  .px-experience [role=switch][data-state=checked], .tt-apple-sheet [role=switch][data-state=checked] { background: var(--ios-tint); }
+  .px-experience [role=switch][data-state=unchecked], .tt-apple-sheet [role=switch][data-state=unchecked] { background: var(--px-switch-off); }
+  .px-experience [role=switch][data-state=checked], .tt-apple-sheet [role=switch][data-state=checked] { background: var(--px-tint); }
   .px-experience [role=switch] > span, .tt-apple-sheet [role=switch] > span {
     width: 27px; height: 27px; margin: 2px; background: #fff;
     box-shadow: 0 3px 8px rgba(0, 0, 0, .15), 0 3px 1px rgba(0, 0, 0, .06);
@@ -122,37 +112,37 @@
   .px-experience .px-settings-list { padding: 0; }
   .px-experience .px-row { position: relative; min-height: 56px; padding: 10px 16px; gap: 14px; border-radius: 0; font-size: 17px; }
   .px-experience .px-row + .px-row { border-top: 0; }
-  .px-experience .px-row + .px-row::before { content: ""; position: absolute; top: 0; left: 60px; right: 0; height: .5px; background: var(--ios-sep); }
-  .px-experience .px-row > svg:first-child { width: 30px; height: 30px; padding: 6px; border-radius: 8px; background: var(--ios-tint-fill); color: var(--ios-tint); }
+  .px-experience .px-row + .px-row::before { content: ""; position: absolute; top: 0; left: 60px; right: 0; height: .5px; background: var(--px-hair); }
+  .px-experience .px-row > svg:first-child { width: 30px; height: 30px; padding: 6px; border-radius: 8px; background: var(--px-tint-fill); color: var(--px-tint); }
   .px-experience .px-row strong { font-size: 17px; line-height: 22px; font-weight: 500; letter-spacing: -.01em; }
   .px-experience .px-row small { font-size: 15px; line-height: 20px; margin-top: 1px; }
-  .px-experience .px-row > svg:last-child { color: var(--ios-label3); width: 18px; }
-  .px-experience .px-row .px-count { background: var(--ios-red); color: #fff; }
+  .px-experience .px-row > svg:last-child { color: var(--px-text3); width: 18px; }
+  .px-experience .px-row .px-count { background: var(--px-danger); color: #fff; }
 
   /* Account: profile row like the top of iPhone Settings. */
   .px-experience .px-profile { padding: 14px 16px; gap: 14px; }
   .px-experience .px-profile > .px-avatar { width: 60px; height: 60px; border-radius: 50%; border: 0; font-size: 20px; }
   .px-experience .px-profile strong { font-size: 20px; line-height: 25px; font-weight: 600; letter-spacing: -.015em; }
   .px-experience .px-profile small { font-size: 15px; }
-  .px-experience .px-profile b { font-size: 15px; font-weight: 500; margin-top: 2px; color: var(--ios-tint); }
-  .px-experience .px-profile > svg { color: var(--ios-label3); width: 18px; }
+  .px-experience .px-profile b { font-size: 15px; font-weight: 500; margin-top: 2px; color: var(--px-tint); }
+  .px-experience .px-profile > svg { color: var(--px-text3); width: 18px; }
   .px-experience .px-offline { gap: 14px; }
-  .px-experience .px-offline > svg { width: 30px; height: 30px; padding: 6px; border-radius: 8px; background: var(--ios-tint-fill); }
+  .px-experience .px-offline > svg { width: 30px; height: 30px; padding: 6px; border-radius: 8px; background: var(--px-tint-fill); }
   .px-experience .px-offline strong { font-size: 17px; font-weight: 500; }
   .px-experience .px-offline p { font-size: 15px; }
   .px-experience .px-offline small { font-size: 13px; }
   .px-experience details.px-panel { padding: 0; overflow: hidden; }
-  .px-experience details.px-panel > summary { display: flex; align-items: center; min-height: 54px; padding: 12px 16px; font-size: 17px; color: var(--ios-label); }
-  .px-experience details.px-panel[open] > summary { border-bottom: .5px solid var(--ios-sep); }
+  .px-experience details.px-panel > summary { display: flex; align-items: center; min-height: 54px; padding: 12px 16px; font-size: 17px; color: var(--px-text); }
+  .px-experience details.px-panel[open] > summary { border-bottom: .5px solid var(--px-hair); }
   .px-experience details.px-panel > summary { list-style: none; }
   .px-experience details.px-panel > summary::-webkit-details-marker { display: none; }
   .px-experience details.px-panel > summary::after {
-    content: ""; margin-left: auto; width: 8px; height: 8px; border: solid var(--ios-label3); border-width: 0 2px 2px 0;
+    content: ""; margin-left: auto; width: 8px; height: 8px; border: solid var(--px-text3); border-width: 0 2px 2px 0;
     transform: rotate(-45deg); transition: transform .3s cubic-bezier(.2, .8, .2, 1);
   }
   .px-experience details.px-panel[open] > summary::after { transform: rotate(45deg); }
   .px-experience details.px-panel > .px-settings-list { background: transparent; }
-  .px-experience .px-sign-out { justify-content: center; min-height: 54px; font-size: 17px; font-weight: 500; color: var(--ios-red); }
+  .px-experience .px-sign-out { justify-content: center; min-height: 54px; font-size: 17px; font-weight: 500; color: var(--px-danger); }
 
   /* Journey screen. */
   .px-experience .px-map-action h2 { font-size: 28px; line-height: 34px; letter-spacing: -.025em; }
@@ -161,16 +151,16 @@
   .px-experience .px-bus-identity h2 { font-size: 22px; }
   .px-experience .px-bus-identity p { font-size: 15px; }
   .px-experience .px-status { font-size: 12px; padding: 4px 10px; }
-  .px-experience .px-wait > svg, .px-experience .px-panel h2 > svg { color: var(--ios-tint); }
-  .px-experience .px-quiet-link { font-size: 15px; color: var(--ios-tint); }
+  .px-experience .px-wait > svg, .px-experience .px-panel h2 > svg { color: var(--px-tint); }
+  .px-experience .px-quiet-link { font-size: 15px; color: var(--px-tint); }
   .px-experience button.px-floating-chat {
-    width: 52px; height: 52px; border-radius: 50%; border: .5px solid rgba(255, 255, 255, .18); color: var(--ios-tint);
-    background: rgba(12, 34, 52, .72); -webkit-backdrop-filter: blur(20px) saturate(180%); backdrop-filter: blur(20px) saturate(180%);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, .4); bottom: calc(86px + env(safe-area-inset-bottom));
+    width: 52px; height: 52px; border-radius: 50%; border: .5px solid var(--px-glass-edge); color: var(--px-tint);
+    background: var(--px-glass); -webkit-backdrop-filter: blur(20px) saturate(180%); backdrop-filter: blur(20px) saturate(180%);
+    box-shadow: 0 8px 24px var(--px-shadow); bottom: calc(86px + env(safe-area-inset-bottom));
   }
 
   /* My card: a pass with depth; iPhone-style text fields inside it. */
-  .px-digital-card { border: 0; border-radius: 26px; box-shadow: 0 14px 36px rgba(0, 0, 0, .45), inset 0 .5px 0 rgba(255, 255, 255, .25); }
+  .px-digital-card { border: 0; border-radius: 26px; box-shadow: 0 14px 36px var(--px-shadow), inset 0 .5px 0 rgba(255, 255, 255, .25); }
   .px-card-person h2 { font-size: 24px; letter-spacing: -.02em; }
   .px-digital-card input { min-height: 44px; border: 0; border-radius: 12px; background: rgba(255, 255, 255, .1); font-size: 17px; }
   .px-digital-card [data-ui=button] { border-radius: 999px !important; min-height: 48px; font-size: 17px; font-weight: 600; }
@@ -179,29 +169,29 @@
 
   /* Sheets: rounder, a lighter "raised" surface, a soft dim behind,
      and a round close button. */
-  .tt-apple-sheet { border: 0 !important; border-radius: 34px 34px 0 0 !important; background: #0b1a2b !important; padding: 26px 20px 20px !important; }
+  .tt-apple-sheet { border: 0 !important; border-radius: 34px 34px 0 0 !important; background: var(--px-sheet) !important; color: var(--px-text); padding: 26px 20px 20px !important; }
   .tt-apple-overlay { background: rgba(0, 0, 0, .5) !important; }
   .tt-apple-sheet .tt-sheet-close {
     display: grid; place-items: center; width: 30px; height: 30px; min-height: 0; top: 16px; right: 16px;
-    border-radius: 50% !important; background: rgba(255, 255, 255, .1); color: var(--ios-label2); opacity: 1;
+    border-radius: 50% !important; background: var(--px-field); color: var(--px-text2); opacity: 1;
   }
   .tt-apple-sheet .tt-sheet-close svg { width: 14px; height: 14px; stroke-width: 2.6; }
   .tt-apple-sheet .tt-sheet-title { font-size: 22px; line-height: 28px; font-weight: 700; letter-spacing: -.02em; }
   .tt-apple-sheet .tt-sheet-desc { font-size: 15px; line-height: 20px; }
   /* Text fields: filled, borderless; 17px so iPhones don't zoom in on tap. */
   .tt-apple-sheet :is(input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]), textarea, select, [role=combobox], button.border-input) {
-    border-color: transparent !important; background: rgba(255, 255, 255, .08) !important; border-radius: 12px !important; font-size: 17px;
+    border-color: transparent !important; background: var(--px-field) !important; border-radius: 12px !important; font-size: 17px;
   }
   /* A switch row reads like iPhone Settings: words first, switch on the right. */
-  .tt-apple-sheet label:has(> [role=switch]) { flex-direction: row-reverse; border: 0; border-radius: 16px; background: #12283f; padding: 12px 16px; min-height: 54px; }
+  .tt-apple-sheet label:has(> [role=switch]) { flex-direction: row-reverse; border: 0; border-radius: 16px; background: var(--px-cell-raised); padding: 12px 16px; min-height: 54px; }
   .tt-apple-sheet label:has(> [role=switch]) > span { font-size: 17px; line-height: 22px; }
 
   /* Company banner at the top of Home: a plain cell. */
-  .px-experience [aria-label="Company banner"] { border: 0; border-radius: 20px; background: var(--ios-cell); }
+  .px-experience [aria-label="Company banner"] { border: 0; border-radius: 20px; background: var(--px-cell); }
 }
 
 /* Clearer edges when the phone asks for more contrast. */
 @media (max-width: 767px) and (prefers-contrast: more) {
-  .px-experience :is(.px-panel, .px-message, .px-flags > button, .px-notice, .px-sign-out, .px-hero, .px-digital-card) { border: 1px solid #8fb7cf; }
-  .px-experience .px-row + .px-row::before, .px-journey-points > div + div::before { background: #8fb7cf; }
+  .px-experience :is(.px-panel, .px-message, .px-flags > button, .px-notice, .px-sign-out, .px-hero, .px-digital-card) { border: 1px solid var(--px-edge-contrast); }
+  .px-experience .px-row + .px-row::before, .px-journey-points > div + div::before { background: var(--px-edge-contrast); }
 }

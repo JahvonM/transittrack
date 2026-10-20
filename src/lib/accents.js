@@ -5,6 +5,7 @@
 // (html[data-accent="…"]); the swatch here is just for the picker.
 export const ACCENTS = [
   { id: "lime", label: "Lime", swatch: "#D6F54A" },
+  { id: "cyan", label: "Cyan", swatch: "#18D9ED" },
   { id: "ocean", label: "Ocean", swatch: "#38BDF8" },
   { id: "sunset", label: "Sunset", swatch: "#FB923C" },
   { id: "rose", label: "Rose", swatch: "#F472B6" },
@@ -16,12 +17,14 @@ export const ACCENTS = [
 export const ACCENT_KEY = "tt-accent";
 export const ACCENT_EVENT = "tt-accent-change";
 
-export function currentAccent() {
+// `fallback` is what the screen shows when nothing was picked: lime for the
+// office screens, cyan for the passenger app.
+export function currentAccent(fallback = "lime") {
   try {
     const a = localStorage.getItem(ACCENT_KEY);
     if (ACCENTS.some((x) => x.id === a)) return a;
   } catch { /* storage blocked */ }
-  return "lime";
+  return fallback;
 }
 
 export function applyAccent(id) {

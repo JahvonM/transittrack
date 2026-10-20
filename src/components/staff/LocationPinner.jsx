@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
 import { nearestBusRoad, suggestPickups } from "@/lib/pickupSuggestion";
 import LiteMap from "@/components/LiteMap";
+import { accentHex } from "@/lib/accents";
 
 const LocationPicker = lazy(() => import("@/components/directory/LocationPicker"));
 const OWN_SPOT_WARN_M = 50;
@@ -42,6 +43,8 @@ export default function LocationPinner({ onSaved, bus = null }) {
   const [saving, setSaving] = useState(false);
   const [finding, setFinding] = useState(false);
   const [phase, setPhase] = useState("choose");
+  // "You" and the walking line in the colour theme's highlight.
+  const pick = accentHex();
   const [nickname, setNickname] = useState("");
   const busRoutes = async () => {
     const all = await base44.entities.Route.list();
@@ -172,8 +175,8 @@ export default function LocationPinner({ onSaved, bus = null }) {
   const map = suggestion && <div className="h-60 overflow-hidden rounded-2xl border">
     <LiteMap fill vehicles={[]} stops={phase === "review" ? [{ name: suggestion.name, lat: suggestion.lat, lng: suggestion.lng, selected: true, pickLabel: "Your pickup" }] : options.map((o, i) => ({ ...o, selected: i === choice, index: i, number: options.length > 1 ? i + 1 : null, pickLabel: options.length > 1 ? `Spot ${i + 1} · Your pick` : `Your pick · ${Math.max(1, Math.round(o.walkMin))} min walk` }))}
       onStopClick={phase === "review" || busy ? undefined : (s) => { if (Number.isInteger(s.index)) { setChoice(s.index); setNickname(""); } }}
-      pins={origin ? [{ ...origin, label: "You", color: "#00d7e8" }] : []}
-      lines={phase === "review" ? [{ coords: suggestion.geometry, color: "#00d7e8", width: 4 }] : []} />
+      pins={origin ? [{ ...origin, label: "You", color: pick }] : []}
+      lines={phase === "review" ? [{ coords: suggestion.geometry, color: pick, width: 4 }] : []} />
   </div>;
 
   return (
@@ -222,7 +225,7 @@ export default function LocationPinner({ onSaved, bus = null }) {
       </>}
       {phase === "review" && <>
         {!own && map}
-        {own && <div className="h-60 overflow-hidden rounded-2xl border"><LiteMap fill vehicles={[]} stops={[{name:"Your meeting point",lat:own.lat,lng:own.lng}]} pins={origin ? [{...origin,label:"You",color:"#00d7e8"}] : []} /></div>}
+        {own && <div className="h-60 overflow-hidden rounded-2xl border"><LiteMap fill vehicles={[]} stops={[{name:"Your meeting point",lat:own.lat,lng:own.lng}]} pins={origin ? [{...origin,label:"You",color:pick}] : []} /></div>}
         <div className="rounded-2xl border bg-card p-4 space-y-2">
           <p className="text-2xl font-bold">{own ? "Your meeting point" : Math.max(1,Math.round(suggestion.walkMin)) + " min walk"}</p>
           {!own && <p className="text-sm text-muted-foreground">{Math.round(suggestion.walkM)} m · walking route</p>}

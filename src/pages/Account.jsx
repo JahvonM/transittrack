@@ -63,7 +63,8 @@ export default function Account() {
             <div>
               <p className="text-sm font-medium mb-1">Colour theme</p>
               <p className="text-sm text-muted-foreground mb-3">Changes buttons, highlights and map routes. Saved to your account.</p>
-              <AccentPicker />
+              {/* The passenger app is cyan until a colour is picked; office screens are lime. */}
+              <AccentPicker fallback={["admin", "driver", "company", "mechanic"].includes(user?.role) ? "lime" : "cyan"} />
             </div>
           </CardContent>
         </Card>

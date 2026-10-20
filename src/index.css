@@ -121,6 +121,14 @@
 
 /* Colour themes (Account → Appearance). Lime is the default in :root/.light above. */
 @layer base {
+  html[data-accent="cyan"] {
+    --primary: 186 95% 50%; --ring: 186 95% 50%; --chart-1: 186 95% 50%;
+    --sidebar-primary: 186 95% 50%; --sidebar-ring: 186 95% 50%;
+  }
+  html.light[data-accent="cyan"] {
+    --primary: 192 82% 31%; --ring: 192 82% 31%; --chart-1: 192 82% 31%;
+    --sidebar-primary: 192 82% 31%; --sidebar-ring: 192 82% 31%; --accent: 190 60% 93%;
+  }
   html[data-accent="ocean"] {
     --primary: 199 89% 60%; --ring: 199 89% 60%; --chart-1: 199 89% 60%;
     --sidebar-primary: 199 89% 60%; --sidebar-ring: 199 89% 60%;
@@ -468,6 +476,85 @@ html.tt-future {
  --sidebar-border: 205 38% 24%;
  color-scheme: dark;
 }
+/* Passenger app colours (Account → Appearance). Dark is the approved look;
+   light is the same layout on soft grey with white cells. The colour theme
+   swaps the highlight; passengers who never pick one keep cyan. The bus photo
+   card and the boarding pass stay dark in both modes. Declared on <html> so
+   sheets (rendered outside the page) get them too. */
+html.tt-passenger-app {
+ --background:218 61% 6%;--foreground:205 50% 96%;--card:216 48% 11%;--card-foreground:205 50% 96%;
+ --popover:216 48% 11%;--popover-foreground:205 50% 96%;
+ --primary:186 95% 50%;--primary-foreground:218 70% 7%;--ring:186 95% 50%;--secondary:215 42% 16%;--secondary-foreground:205 50% 96%;
+ --muted:215 35% 15%;--muted-foreground:210 22% 70%;--accent:207 44% 20%;--accent-foreground:205 50% 96%;--border:204 34% 24%;
+ --px-page: radial-gradient(ellipse at 90% 0%,#12384d80,transparent 50%),#050d1b; --px-bg:#050d1b;
+ --px-text:#edf6ff; --px-text2:#a8bdcf; --px-text3:#6c8294;
+ --px-tint:#18d9ed; --px-tint-bright:#18d9ed; --px-tint-soft:#86e7ff; --px-on-tint:#031c29;
+ --px-fill:linear-gradient(120deg,#07c5e4,#32d9ed); --px-tint-fill:rgba(24,217,237,.15);
+ --px-panel:linear-gradient(135deg,#0b2337,#09182a); --px-panel-border:#294f66; --px-panel-shadow:0 6px 16px #0002;
+ --px-card:linear-gradient(145deg,#14263eee,#0c192cee); --px-card-border:#29465b; --px-card-shadow:inset 0 1px 0 #8be7ff0a,0 8px 25px #0002;
+ --px-control:#092239; --px-control-quiet:#082033; --px-control-border:#306a8c;
+ --px-sep:#294355; --px-hair:rgba(255,255,255,.13);
+ --px-cell:#0d1f33; --px-cell-raised:#12283f; --px-sheet:#0b1a2b;
+ --px-avatar:#133147; --px-avatar-edge:#46758b; --px-row-icon:#a8d0e7; --px-chevron:#92adc1;
+ --px-chip:#20374c; --px-chip-text:#c2d7e7; --px-good:#65ffbb; --px-good-bg:#075948; --px-good-dot:#37eca7;
+ --px-warn:#f5c26b; --px-danger:#ff6488; --px-danger-soft:#ffafbb;
+ --px-notice:#182b30; --px-notice-edge:#546445; --px-signout:#0d192d; --px-signout-edge:#3c475f; --px-map-edge:#2a5a73;
+ --px-glass:rgba(10,24,40,.72); --px-glass-edge:rgba(255,255,255,.15); --px-press:rgba(255,255,255,.06); --px-press-strong:rgba(255,255,255,.08);
+ --px-field:rgba(255,255,255,.08); --px-switch-off:rgba(120,120,128,.36); --px-edge-contrast:#8fb7cf; --px-shadow:rgba(0,0,0,.4);
+}
+html.tt-passenger-app.light {
+ --background:216 20% 96%;--foreground:214 45% 8%;--card:0 0% 100%;--card-foreground:214 45% 8%;
+ --popover:0 0% 100%;--popover-foreground:214 45% 8%;
+ --primary:192 82% 31%;--primary-foreground:0 0% 100%;--ring:192 82% 31%;--secondary:216 18% 92%;--secondary-foreground:214 45% 8%;
+ --muted:216 18% 93%;--muted-foreground:212 14% 38%;--accent:192 50% 93%;--accent-foreground:214 45% 8%;--border:214 18% 86%;--input:214 12% 66%;
+ color-scheme:light;
+ --px-page:#f2f4f7; --px-bg:#f2f4f7;
+ --px-text:#0b1620; --px-text2:#566676; --px-text3:#8d9aa6;
+ --px-tint:#0e7490; --px-tint-soft:#0e7490; --px-on-tint:#ffffff;
+ --px-fill:#0e7490; --px-tint-fill:rgba(14,116,144,.1);
+ --px-panel:#ffffff; --px-panel-border:#e1e7ed; --px-panel-shadow:0 1px 2px rgba(16,24,40,.06);
+ --px-card:#ffffff; --px-card-border:#e1e7ed; --px-card-shadow:0 1px 2px rgba(16,24,40,.06);
+ --px-control:#ffffff; --px-control-quiet:#ffffff; --px-control-border:#d5dde4;
+ --px-sep:#e3e8ee; --px-hair:rgba(60,60,67,.16);
+ --px-cell:#ffffff; --px-cell-raised:#ffffff; --px-sheet:#f2f4f7;
+ --px-avatar:#dcedf2; --px-avatar-edge:#b9d4dd; --px-row-icon:#0e7490; --px-chevron:#a3afba;
+ --px-chip:#e8edf2; --px-chip-text:#3b4a58; --px-good:#0f7a4f; --px-good-bg:#d6f3e6; --px-good-dot:#16a36a;
+ --px-warn:#9a5b00; --px-danger:#c8254d; --px-danger-soft:#b4233f;
+ --px-notice:#fff8e6; --px-notice-edge:#efdcab; --px-signout:#ffffff; --px-signout-edge:#e1e7ed; --px-map-edge:#dfe5eb;
+ --px-glass:rgba(255,255,255,.78); --px-glass-edge:rgba(0,0,0,.08); --px-press:rgba(0,0,0,.05); --px-press-strong:rgba(0,0,0,.06);
+ --px-field:rgba(118,118,128,.12); --px-switch-off:rgba(120,120,128,.2); --px-edge-contrast:#44515e; --px-shadow:rgba(16,24,40,.14);
+}
+/* A chosen colour theme. Bright in dark mode (dark text on it), deeper in
+   light mode (white text on it). --px-tint-bright is for the dark photo cards. */
+html.tt-passenger-app[data-accent] {
+ --px-tint:hsl(var(--primary)); --px-tint-soft:hsl(var(--primary)); --px-on-tint:hsl(var(--primary-foreground));
+ --px-fill:hsl(var(--primary)); --px-tint-fill:hsl(var(--primary) / .15); --px-row-icon:hsl(var(--primary));
+}
+html.tt-passenger-app[data-accent="lime"]{--primary:71 90% 63%;--ring:71 90% 63%;--px-tint-bright:hsl(71 90% 63%)}
+html.tt-passenger-app.light[data-accent="lime"]{--primary:75 85% 26%;--ring:75 85% 26%}
+html.tt-passenger-app[data-accent="cyan"]{--primary:186 95% 50%;--ring:186 95% 50%;--px-tint-bright:hsl(186 95% 50%)}
+html.tt-passenger-app.light[data-accent="cyan"]{--primary:192 82% 31%;--ring:192 82% 31%}
+html.tt-passenger-app[data-accent="ocean"]{--primary:199 89% 60%;--ring:199 89% 60%;--px-tint-bright:hsl(199 89% 60%)}
+html.tt-passenger-app.light[data-accent="ocean"]{--primary:201 96% 32%;--ring:201 96% 32%}
+html.tt-passenger-app[data-accent="sunset"]{--primary:25 95% 60%;--ring:25 95% 60%;--px-tint-bright:hsl(25 95% 60%)}
+html.tt-passenger-app.light[data-accent="sunset"]{--primary:17 88% 40%;--ring:17 88% 40%}
+html.tt-passenger-app[data-accent="rose"]{--primary:340 85% 68%;--ring:340 85% 68%;--px-tint-bright:hsl(340 85% 68%)}
+html.tt-passenger-app.light[data-accent="rose"]{--primary:336 70% 40%;--ring:336 70% 40%}
+html.tt-passenger-app[data-accent="violet"]{--primary:262 83% 74%;--ring:262 83% 74%;--px-tint-bright:hsl(262 83% 74%)}
+html.tt-passenger-app.light[data-accent="violet"]{--primary:262 60% 50%;--ring:262 60% 50%}
+html.tt-passenger-app[data-accent="mint"]{--primary:158 64% 52%;--ring:158 64% 52%;--px-tint-bright:hsl(158 64% 52%)}
+html.tt-passenger-app.light[data-accent="mint"]{--primary:161 94% 24%;--ring:161 94% 24%}
+html.tt-passenger-app[data-accent="gold"]{--primary:45 96% 58%;--ring:45 96% 58%;--px-tint-bright:hsl(45 96% 58%)}
+html.tt-passenger-app.light[data-accent="gold"]{--primary:32 95% 34%;--ring:32 95% 34%}
+/* Light passenger app: plain backgrounds instead of the dark glows. */
+html.tt-passenger-app.light body, html.tt-passenger-app.light .tt-app-shell { background:var(--px-page); }
+html.tt-passenger-app.light .tt-app-shell :is(section.rounded-2xl,div.rounded-2xl.border) { background-image:none; box-shadow:var(--px-card-shadow); }
+html.tt-passenger-app.light .tt-bus-card { background:var(--px-card); box-shadow:var(--px-card-shadow); }
+html.tt-passenger-app:is(.light,[data-accent]) button.bg-primary { background-image:none; box-shadow:none; }
+html.tt-passenger-app :is([aria-label="Open passenger chat"],button[aria-label^="Open passenger chat,"]) { background:var(--px-cell); color:var(--px-tint); border-color:var(--px-tint); }
+html.tt-passenger-app.light :is([aria-label="Open passenger chat"],button[aria-label^="Open passenger chat,"]) { box-shadow:0 6px 18px var(--px-shadow); }
+html.tt-passenger-app.light .tt-bus-filters { background:#ffffff; border-color:var(--px-control-border); }
+html.tt-passenger-app:is(.light,[data-accent]) .tt-bus-filters [aria-pressed="true"] { background:var(--px-fill); color:var(--px-on-tint); box-shadow:none; }
 .tt-future body {
  background: radial-gradient(ellipse at 20% 0%,hsl(197 85% 16% / .45),transparent 48%),hsl(var(--background));
 }
@@ -736,7 +823,7 @@ html.tt-future {
 }
 
 /* Approved phone/tablet references: presentation only; live data stays in its existing components. */
-.tt-passenger-reference,.tt-driver-reference,.tt-driver-phone-reference {
+.tt-driver-reference,.tt-driver-phone-reference {
   --background:218 61% 6%;--foreground:205 50% 96%;--card:216 48% 11%;--card-foreground:205 50% 96%;
   --primary:186 95% 50%;--primary-foreground:218 70% 7%;--secondary:215 42% 16%;--secondary-foreground:205 50% 96%;
   --muted:215 35% 15%;--muted-foreground:210 22% 70%;--border:204 34% 24%;--accent:207 44% 20%;--accent-foreground:205 50% 96%;
@@ -747,6 +834,9 @@ html.tt-future {
 .tt-passenger-reference :is(.bg-card,.tt-bus-card),.tt-driver-phone-reference section,.tt-driver-reference :is(.bg-card,.bg-secondary) {
   background:linear-gradient(145deg,#14263eee,#0c192cee);border-color:#29465b;box-shadow:inset 0 1px 0 #8be7ff0a,0 8px 25px #0002;
 }
+.tt-passenger-reference {color:hsl(var(--foreground));background:var(--px-page)}
+.tt-passenger-reference :is(.bg-card,.tt-bus-card) {background:var(--px-card);border-color:var(--px-card-border);box-shadow:var(--px-card-shadow)}
+.tt-passenger-reference button:focus-visible {outline-color:var(--px-tint)}
 .tt-passenger-reference .tt-passenger-greeting h1,.tt-driver-phone-reference h1 {font-size:clamp(25px,6vw,34px);letter-spacing:-.035em}
 .tt-arrival-reference {position:relative;isolation:isolate;overflow:hidden;min-height:310px;background:linear-gradient(90deg,#081a2df2 0%,#091c30bb 45%,#091b3060),url('/images/boarding-coast.webp') center/cover!important;border:1px solid #2e6477!important;box-shadow:0 8px 35px #0005,inset 0 0 36px #27e4ff09!important}
 .tt-arrival-reference {display:flex;flex-direction:column;gap:12px}
@@ -768,27 +858,28 @@ html.tt-future {
 .tt-bus-filters{background:#0d1d32;border-color:#2a455a}
 .tt-bus-filters [aria-pressed="true"] {background:linear-gradient(120deg,#13d7e5,#168dcc);color:#041322;box-shadow:0 0 18px #14ddec22}
 .tt-passenger-reference section[aria-label="Company bus directory"] ul {display:flex;flex-direction:column;gap:14px;background:transparent;border:0}
-.tt-passenger-reference .tt-bus-card{border:1px solid #29495e;border-radius:20px;overflow:hidden}
+.tt-passenger-reference .tt-bus-card{border:1px solid var(--px-card-border);border-radius:20px;overflow:hidden}
 .tt-passenger-reference .tt-bus-card>a{padding:15px;gap:12px;min-height:150px}
 .tt-passenger-reference .tt-bus-card>a>span:first-of-type>.font-semibold {font-size:20px}
 .tt-passenger-reference .tt-bus-card .tt-bus-artwork{width:145px;height:110px}
 /* Frosted like an iOS tab bar: the page scrolls under it, softly blurred, with
    a light top edge. Solid when the phone asks for less transparency. */
-.tt-passenger-reference-tabs {background:#071222c2!important;border-color:#ffffff1c!important;color:#a5bbc9;-webkit-backdrop-filter:blur(20px) saturate(180%);backdrop-filter:blur(20px) saturate(180%)}
-.tt-passenger-reference-tabs [aria-current="page"] {color:#25e1ef;text-shadow:0 0 20px #1ceafa55}
-@media (prefers-reduced-transparency: reduce) { .tt-passenger-reference-tabs {background:#071222!important;-webkit-backdrop-filter:none;backdrop-filter:none} }
-@media (prefers-contrast: more) { .tt-passenger-reference-tabs {background:#071222!important;border-color:#8fb7cf!important} }
+.tt-passenger-reference-tabs {background:var(--px-glass,#071222c2)!important;border-color:var(--px-glass-edge,#ffffff1c)!important;color:var(--px-text2,#a5bbc9);-webkit-backdrop-filter:blur(20px) saturate(180%);backdrop-filter:blur(20px) saturate(180%)}
+.tt-passenger-reference-tabs [aria-current="page"] {color:var(--px-tint,#25e1ef);text-shadow:0 0 20px #1ceafa55}
+html.tt-passenger-app:is(.light,[data-accent]) .tt-passenger-reference-tabs [aria-current="page"] {text-shadow:none}
+@media (prefers-reduced-transparency: reduce) { .tt-passenger-reference-tabs {background:var(--px-bg,#071222)!important;-webkit-backdrop-filter:none;backdrop-filter:none} }
+@media (prefers-contrast: more) { .tt-passenger-reference-tabs {background:var(--px-bg,#071222)!important;border-color:var(--px-edge-contrast,#8fb7cf)!important} }
 /* Phones: the tab bar floats as a frosted capsule above the bottom edge, like
    iPhone apps; the chosen tab sits on a soft pill. */
 @media (max-width: 767px) {
- .tt-passenger-reference-tabs {left:12px!important;right:12px!important;bottom:calc(8px + env(safe-area-inset-bottom))!important;padding:4px!important;border:.5px solid #ffffff26!important;border-radius:999px;background:#0a1828b8!important;box-shadow:0 10px 30px #00000073}
+ .tt-passenger-reference-tabs {left:12px!important;right:12px!important;bottom:calc(8px + env(safe-area-inset-bottom))!important;padding:4px!important;border:.5px solid var(--px-glass-edge,#ffffff26)!important;border-radius:999px;background:var(--px-glass,#0a1828b8)!important;box-shadow:0 10px 30px var(--px-shadow,#00000073)}
  .tt-passenger-reference-tabs button {min-height:54px;padding:6px 0 5px;gap:3px;border-radius:999px;font-size:11px;font-weight:600;letter-spacing:.01em}
  .tt-passenger-reference-tabs button>span.absolute {display:none}
- .tt-passenger-reference-tabs [aria-current="page"] {background:#ffffff14;text-shadow:none}
+ .tt-passenger-reference-tabs [aria-current="page"] {background:var(--px-press-strong,#ffffff14);text-shadow:none}
  .tt-passenger-reference-tabs svg {width:24px;height:24px}
 }
-@media (max-width: 767px) and (prefers-reduced-transparency: reduce) { .tt-passenger-reference-tabs {background:#0a1828!important} }
-@media (max-width: 767px) and (prefers-contrast: more) { .tt-passenger-reference-tabs {background:#0a1828!important;border:1px solid #8fb7cf!important} }
+@media (max-width: 767px) and (prefers-reduced-transparency: reduce) { .tt-passenger-reference-tabs {background:var(--px-cell,#0a1828)!important} }
+@media (max-width: 767px) and (prefers-contrast: more) { .tt-passenger-reference-tabs {background:var(--px-cell,#0a1828)!important;border:1px solid var(--px-edge-contrast,#8fb7cf)!important} }
 .tt-driver-phone-reference .tt-driver-vehicle-hero{position:relative;overflow:hidden;background:linear-gradient(180deg,#0b1d3580,#0a172cf5),url('/images/boarding-coast.webp') center top/cover!important}
 .tt-driver-phone-reference .tt-driver-vehicle-hero>.tt-bus-artwork {filter:drop-shadow(0 16px 10px #0008);height:150px}
 .tt-driver-phone-reference .tt-phone-quick-actions>button {display:flex;align-items:center;gap:12px;min-height:66px;padding:14px 16px;background:linear-gradient(125deg,#16324b,#0f2036);border:1px solid #34566e;box-shadow:inset 0 1px 0 #82e8ff15;color:#e4f6fc;text-align:left;font-weight:650}
@@ -860,6 +951,15 @@ html.tt-future {
 /* A pickup someone taps glows, so it's clear which one they picked; tapping
    another moves the glow there. Also used for the picked spot on the map. */
 .tt-pickup-sheet { --tt-pick: #00d7e8; --tt-pick-ink: #04121c; }
+/* Light passenger app, and a chosen colour theme, in the pickup finder. */
+html.tt-passenger-app.light .tt-pickup-sheet { background: var(--px-sheet); color: var(--px-text); border-color: var(--px-panel-border); }
+html.tt-passenger-app.light .tt-pickup-sheet .tt-pickup-finder .text-muted-foreground { color: var(--px-text2); }
+html.tt-passenger-app.light .tt-pickup-sheet .tt-pickup-finder input { background: #fff; border-color: var(--px-control-border); color: var(--px-text); }
+html.tt-passenger-app.light .tt-pickup-sheet .tt-pickup-finder .bg-card { background: #fff; }
+html.tt-passenger-app.light .tt-pickup-sheet .tt-pickup-finder .border { border-color: var(--px-control-border); }
+html.tt-passenger-app.light .tt-pickup-sheet .tt-pick-mark { border-color: var(--px-chevron); }
+html.tt-passenger-app:is(.light,[data-accent]) .tt-pickup-sheet { --tt-pick: var(--px-tint); --tt-pick-ink: var(--px-on-tint); }
+html.tt-passenger-app:is(.light,[data-accent]) .tt-pickup-sheet .tt-pickup-finder .border-primary { border-color: var(--px-tint); }
 .tt-pick-choice { transition: border-color .15s ease, box-shadow .2s ease, background-color .15s ease; }
 .tt-pick-choice[aria-pressed="true"],
 .tt-pickup-sheet .tt-pickup-finder .tt-pick-choice[aria-pressed="true"] {

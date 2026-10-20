@@ -6,9 +6,9 @@ import { ACCENTS, applyAccent, currentAccent } from "@/lib/accents";
 
 // Colour theme picker. Applies instantly on this device and is saved to the
 // account so it follows the person to their other devices.
-export default function AccentPicker() {
+export default function AccentPicker({ fallback = "lime" }) {
   const { user } = useAuth();
-  const [selected, setSelected] = useState(currentAccent);
+  const [selected, setSelected] = useState(() => currentAccent(fallback));
 
   const choose = (id) => {
     setSelected(applyAccent(id));
@@ -16,7 +16,7 @@ export default function AccentPicker() {
   };
 
   return (
-    <div className="grid grid-cols-4 sm:grid-cols-7 gap-2" role="radiogroup" aria-label="Colour theme">
+    <div className="grid grid-cols-4 sm:grid-cols-8 gap-2" role="radiogroup" aria-label="Colour theme">
       {ACCENTS.map((a) => {
         const active = selected === a.id;
         return (

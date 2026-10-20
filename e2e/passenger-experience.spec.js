@@ -360,8 +360,20 @@ test('stale location cannot claim the bus has arrived',async({page})=>{
 // With TT_SHOT_DIR set it also saves a picture of each one.
 test.describe('phone tour',()=>{
  test.use({viewport:{width:390,height:844},deviceScaleFactor:2});
- test('every passenger screen fits an iPhone',async({page})=>{
-  await passengerShowcase(page,{pickup:'Morne Rouge'});
+ // Dark (the approved look), light, and a chosen colour theme in each.
+ const looks=[{look:'dark'},{look:'light',light:true},{look:'light-ocean',light:true,accent:'ocean'},{look:'dark-sunset',accent:'sunset'}];
+ for(const {look,light=false,accent=null} of looks)test(`every passenger screen fits an iPhone (${look})`,async({page})=>{
+  if(accent)await page.addInitScript(a=>localStorage.setItem('tt-accent',a),accent);
+  await passengerShowcase(page,{pickup:'Morne Rouge',light});
+  // The page really is light or dark, and the highlight follows the colour theme.
+  const rgb=sel=>page.locator(sel).first().evaluate((el,prop)=>getComputedStyle(el)[prop],'backgroundColor');
+  const lum=c=>{const [r,g,b]=c.match(/\d+/g).map(Number);return (r*299+g*587+b*114)/1000;};
+  const pageBg=await page.locator('.tt-passenger-reference').evaluate(el=>getComputedStyle(el).backgroundColor);
+  expect(lum(pageBg)>180).toBe(light);
+  const button=await rgb('.px-find-btn');
+  const cyanDark='rgb(24, 217, 237)',cyanLight='rgb(14, 116, 144)';
+  if(accent)expect([cyanDark,cyanLight]).not.toContain(button);
+  else expect(button).toBe(light?cyanLight:cyanDark);
   await page.route('**/functions/passengerAccount',r=>r.fulfill({json:{card:{issued:true,active:true,status:'Active'},history:[{id:'mine',vehicle_name:'TT-102',status:'boarded',boarded_at:'2026-10-11T10:00:00Z'}]}}));
   await page.route('**/functions/generateBoardingQr',r=>r.fulfill({json:{token:'TEST-QR'}}));
   const dir=process.env.TT_SHOT_DIR;
@@ -374,11 +386,11 @@ test.describe('phone tour',()=>{
    if(await close.isVisible().catch(()=>false)){await close.click().catch(()=>{});await close.waitFor({state:'hidden',timeout:3000}).catch(()=>{});}
    await page.evaluate(()=>window.scrollTo(0,0));
    await page.waitForTimeout(450);
-   await page.screenshot({path:`${dir}/phone-${name}.png`});
+   await page.screenshot({path:`${dir}/phone-${look==='dark'?'':look+'-'}${name}.png`});
    if(whole && await page.evaluate(()=>document.documentElement.scrollHeight>innerHeight+40)){
     await page.evaluate(()=>window.scrollTo(0,document.documentElement.scrollHeight));
     await page.waitForTimeout(300);
-    await page.screenshot({path:`${dir}/phone-${name}-end.png`});
+    await page.screenshot({path:`${dir}/phone-${look==='dark'?'':look+'-'}${name}-end.png`});
     await page.evaluate(()=>window.scrollTo(0,0));
    }
   };
@@ -406,5 +418,12 @@ test.describe('phone tour',()=>{
   await shot('more');
   await sheet('settings-sheet',()=>page.getByRole('button',{name:/^Notifications/}).click());
   await sheet('help-sheet',()=>page.getByRole('button',{name:/^Help & support/}).click());
+  // Account → Appearance shows what the passenger actually sees: cyan until
+  // they pick a colour.
+  await page.getByRole('link',{name:/Edit profile/}).click();
+  const themes=page.getByRole('radiogroup',{name:'Colour theme'});
+  await expect(themes.getByRole('radio',{name:accent?new RegExp(accent,'i'):/Cyan/})).toHaveAttribute('aria-checked','true');
+  await themes.scrollIntoViewIfNeeded();
+  if(dir){await page.waitForTimeout(300);await page.screenshot({path:`${dir}/phone-${look==='dark'?'':look+'-'}appearance.png`});}
  });
 });

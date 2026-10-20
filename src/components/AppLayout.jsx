@@ -39,7 +39,7 @@ const STAFF_ROLES = new Set(["admin", "driver", "company", "mechanic"]);
 function PassengerLayout({ children, title, fullBleed = false, back = null }) {
   const { user, logout } = useAuth();
   const { pathname } = useLocation();
-  useFutureAppearance(!STAFF_ROLES.has(user?.role));
+  useFutureAppearance(!STAFF_ROLES.has(user?.role), "tt-passenger-app");
   if (STAFF_ROLES.has(user?.role)) return <FullLayout title={title}>{children}</FullLayout>;
   const initials = nameInitials(user);
 
