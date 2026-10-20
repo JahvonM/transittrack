@@ -7,6 +7,7 @@
 // checks the real sign-in on each request, so a stale profile (say, a role an
 // admin just changed) can only show a screen for a moment, never its data.
 import { sessionSubject } from 'tt-backend';
+import { ADMIN_SNAPSHOT_KEY } from '@/lib/adminSnapshot';
 
 const PROFILE_KEY = 'tt_saved_profile_v1';
 const SETTINGS_KEY = 'tt_saved_public_settings_v1';
@@ -29,10 +30,18 @@ export function savedProfile(now = Date.now()) {
   return saved.user;
 }
 
+// Codes and card numbers that let someone board or sign in are never kept on
+// the device: the screens don't need them, and the account check returns them
+// fresh when something does. (The same list the server strips in entityAccess.)
+const NOT_SAVED = new Set(['driver_pin', 'entry_code', 'access_code', 'one_time_code', 'one_time_code_expires_at',
+  'nfc_tag_id', 'nfc_card_tag', 'nfc_card_uid', 'card_uid', 'card_tag', 'pairing_code', 'token', 'token_hash',
+  'salt', 'pin_hash', 'password', 'device_token', 'driver_grant', 'verification_grant']);
+
 export function rememberProfile(user, now = Date.now()) {
   const subject = sessionSubject();
   if (!subject || !user?.id) return;
-  write(PROFILE_KEY, { subject, savedAt: now, user });
+  const safe = Object.fromEntries(Object.entries(user).filter(([key]) => !NOT_SAVED.has(key)));
+  write(PROFILE_KEY, { subject, savedAt: now, user: safe });
 }
 
 export function savedPublicSettings() {
@@ -43,7 +52,8 @@ export function rememberPublicSettings(settings) {
   if (settings && typeof settings === 'object') write(SETTINGS_KEY, settings);
 }
 
-// Sign-out, or the server ended the sign-in.
+// Sign-out, or the server ended the sign-in. The admin overview's saved copy
+// (adminSnapshot.js) goes too.
 export function forgetProfile() {
-  try { window.localStorage.removeItem(PROFILE_KEY); } catch { /* storage blocked */ }
+  try { window.localStorage.removeItem(PROFILE_KEY); window.localStorage.removeItem(ADMIN_SNAPSHOT_KEY); } catch { /* storage blocked */ }
 }

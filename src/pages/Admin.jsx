@@ -3,6 +3,7 @@ import { withRateLimitRetry } from "@/lib/scopedEntities";
 import { adminLoadProblem } from "@/lib/adminLoader";
 import ErrorState from "@/components/system/ErrorState";
 import { addBreadcrumb } from "@/lib/breadcrumbs";
+import { loadAdminSnapshot, saveAdminSnapshot } from "@/lib/adminSnapshot";
 import useFutureAppearance from "@/hooks/useFutureAppearance";
 import React, { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import SupportNumberSetting from "@/components/admin/SupportNumberSetting";
@@ -147,9 +148,14 @@ export default function Admin() {
   // Each section asks only for the lists it shows (see lib/adminData). Lists
   // are kept once loaded, so coming back to a section is instant, and a change
   // made inside a tab refreshes just that section's lists.
-  const [data, setData] = useState({});
-  const [settled, setSettled] = useState({});
-  const [attempted, setAttempted] = useState({});
+  // The overview as this admin last saw it here (up to a day old): shown at
+  // once while every list is fetched fresh. settledRef stays empty for these,
+  // so ensure() still loads each one from the server.
+  const [snapshot] = useState(() => loadAdminSnapshot(user?.id));
+  const savedKeys = () => Object.fromEntries(Object.keys(snapshot?.data || {}).map((k) => [k, true]));
+  const [data, setData] = useState(() => snapshot?.data || {});
+  const [settled, setSettled] = useState(savedKeys);
+  const [attempted, setAttempted] = useState(savedKeys);
   const [more, setMore] = useState({});
   const [moreBusy, setMoreBusy] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
@@ -193,13 +199,14 @@ export default function Admin() {
       if (DATASETS[key].page) pages[key] = r.value.length >= PAGE;
     });
     settledRef.current = { ...settledRef.current, ...done };
+    saveAdminSnapshot(user?.id, next);
     setData((prev) => ({ ...prev, ...next }));
     setSettled((prev) => ({ ...prev, ...done }));
     setAttempted((prev) => ({ ...prev, ...marks }));
     setMore((prev) => ({ ...prev, ...pages }));
     setFailed(prev=>({...prev,...failures}));
     setLoadingKeys(prev=>({...prev,...Object.fromEntries(need.filter(k=>loadVersions.current[k]===versions[k]).map(k=>[k,false]))}));
-  }, [adminLoader]);
+  }, [adminLoader, user?.id]);
 
   useEffect(() => {
     ensure(sectionKeys);
@@ -321,7 +328,8 @@ export default function Admin() {
 
   if (user && user.role !== "admin") return <Navigate to="/" replace />;
 
-  const emergencyVehicles = vehicles.filter((v) => v.status === "emergency");
+  // SOS only ever comes from the live fleet list, never from the saved copy.
+  const emergencyVehicles = settledRef.current.vehicles ? vehicles.filter((v) => v.status === "emergency") : [];
   const unacknowledged = emergencyVehicles.filter((v) => !acknowledged.has(v.id));
   const acknowledgeAll = () => {
     setAcknowledged((prev) => {

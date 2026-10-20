@@ -51,6 +51,12 @@ describe("saved sign-in", () => {
     expect(() => forgetProfile()).not.toThrow();
   });
 
+  it("never keeps boarding or sign-in codes on the device", () => {
+    rememberProfile({ ...person, access_code: "123456", one_time_code: "9911", one_time_code_expires_at: "2026-10-20T12:00:00Z", nfc_card_uid: "04AB", driver_pin: "4321" }, 1000);
+    expect(savedProfile(2000)).toEqual(person);
+    expect(window.localStorage.getItem("tt_saved_profile_v1")).not.toMatch(/123456|9911|04AB|4321/);
+  });
+
   it("keeps the app's public settings for the next opening", () => {
     expect(savedPublicSettings()).toBeNull();
     rememberPublicSettings({ id: "app", public_settings: {} });

@@ -154,3 +154,17 @@ for(const [orient,size,tabs] of [['landscape',{width:1280,height:800},['Drive','
  await page.getByRole('button',{name:'Cancel',exact:true}).click();
  await expect(page.getByRole('dialog',{name:'Choose next stop'})).toHaveCount(0);
 });
+
+// The tablet keeps its last trip screen and opens from it while the server
+// catches up (useDriverSession's saved copy; the PIN is asked once a day).
+test('the tablet reopens its trip screen before the server answers',async({page})=>{
+ await page.setViewportSize({width:1280,height:800});
+ await openDriver(page,{route,vehicle:{...vehicle,name:'Bus 12'}});
+ await expect(page.getByRole('region',{name:'Next stop',exact:true})).toContainText('Grand Roy');
+ // Every server call now takes 4 seconds, like a weak mobile signal.
+ await page.route('**/api/**',async r=>{await new Promise(f=>setTimeout(f,4000));return r.fallback();});
+ const started=Date.now();
+ await page.reload({waitUntil:'commit'});
+ await expect(page.getByRole('region',{name:'Next stop',exact:true})).toContainText('Grand Roy',{timeout:3000});
+ expect(Date.now()-started).toBeLessThan(3000);
+});

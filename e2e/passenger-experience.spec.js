@@ -427,3 +427,33 @@ test.describe('phone tour',()=>{
   if(dir){await page.waitForTimeout(300);await page.screenshot({path:`${dir}/phone-${look==='dark'?'':look+'-'}appearance.png`});}
  });
 });
+
+// "Trust the phone" and the saved home (savedSignIn.js, passengerSnapshot.js).
+// A sign-in token shaped like Base44's, so the saved profile can be tied to it.
+const b64=o=>Buffer.from(JSON.stringify(o)).toString('base64url');
+const signedIn=`${b64({alg:'none'})}.${b64({sub:'caller',exp:Math.floor(Date.now()/1000)+3600})}.sig`;
+async function openedOnce(page){
+ await passengerShowcase(page);
+ await page.addInitScript(t=>localStorage.setItem('base44_access_token',t),signedIn);
+ await page.reload();
+ await expect(page.getByLabel('Your next bus',{exact:true})).toBeVisible();
+ await expect.poll(()=>page.evaluate(()=>!!localStorage.getItem('tt_saved_profile_v1'))).toBe(true);
+}
+test('a passenger who has opened the app before sees their home before the server answers',async({page})=>{
+ await openedOnce(page);
+ // Every server call now takes 4 seconds, like a weak mobile signal.
+ await page.route('**/api/**',async r=>{await new Promise(f=>setTimeout(f,4000));return r.fallback();});
+ const started=Date.now();
+ await page.reload({waitUntil:'commit'});
+ await expect(page.getByLabel('Your next bus',{exact:true})).toBeVisible({timeout:3000});
+ expect(Date.now()-started).toBeLessThan(3000);
+ await expect(page.getByRole('region',{name:'Pickup and drop-off'})).toContainText('Grand Anse');
+});
+test('a sign-in the server has ended goes back to sign-in and forgets the saved profile',async({page})=>{
+ await openedOnce(page);
+ await page.route('**/entities/User/me**',r=>r.fulfill({status:401,json:{message:'Authentication required'}}));
+ await page.route('**/functions/entityAccess',r=>r.request().postDataJSON()?.entity==='User'?r.fulfill({status:401,json:{error:'Authentication required'}}):r.fallback());
+ await page.reload();
+ await expect(page).toHaveURL(/\/login/);
+ expect(await page.evaluate(()=>localStorage.getItem('tt_saved_profile_v1'))).toBeNull();
+});
