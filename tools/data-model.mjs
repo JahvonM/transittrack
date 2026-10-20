@@ -181,7 +181,7 @@ export function readAccessRules(file = ACCESS_FILE) {
 function readers(entity, rules) {
   const { sets, fields } = rules;
   if (!fields[entity]) {
-    return { app: "server only", out: "—", passenger: "—", company: "—", mechanic: "—", admin: "through its own functions" };
+    return { app: "server only", out: "—", passenger: "—", company: "—", mechanic: "—", admin: "through other functions" };
   }
   const r = { app: "entityAccess", out: "—", passenger: "—", company: "—", mechanic: "—", admin: "all" };
   if (entity === "Advertisement") return { ...r, out: "all", passenger: "all", company: "all", mechanic: "all" };
@@ -251,7 +251,8 @@ export function renderDataModel({ entities = readEntities(), rules = readAccessR
   w("  (table names are snake_case: `Trip` is `trip`, `User` is `app_user`).");
   w("- Ids are text (Base44's 24-character ids), not numbers. A field ending in `_id` usually holds");
   w("  another record's id; the **Links** lines below say which.");
-  w("- Every record also has: " + BUILTIN.map(([f]) => code(f)).join(", ") + ".");
+  w("- Every record also has these fields, left out of the tables below:");
+  for (const [f, type, note] of BUILTIN) w(`  ${code(f)} (${type}): ${note}`.trimEnd());
   w("- Names are often copied next to ids (`vehicle_name` beside `vehicle_id`) so lists show without");
   w("  extra reads. The id is the truth; the copied name can be out of date.");
   w("- No foreign keys yet: older Base44 data can point at records that were deleted.");
@@ -326,11 +327,11 @@ export function renderDataModel({ entities = readEntities(), rules = readAccessR
     w();
     w("| Field | Type | Notes |");
     w("|---|---|---|");
+    // The fields every record has are listed once, at the top.
     const rows = [];
-    for (const [f, type, note] of BUILTIN) rows.push([f, type, note, null]);
     if (e.entity === "User") for (const [f, type, note] of USER_BUILTIN) rows.push([f, type, note, null]);
     for (const [f, d] of Object.entries(e.properties)) {
-      if (rows.some(([x]) => x === f)) continue;
+      if (rows.some(([x]) => x === f) || BUILTIN.some(([x]) => x === f)) continue;
       rows.push([f, typeOf(d), d.description || "", d]);
     }
     for (const [f, type, note, d] of rows) {
