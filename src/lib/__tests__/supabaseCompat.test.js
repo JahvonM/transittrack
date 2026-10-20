@@ -203,6 +203,38 @@ describe("files", () => {
 });
 
 describe("the signed-in person", () => {
+  it("the scheduler's token is an admin in the four scheduled functions, and nowhere else", async () => {
+    const GOOD = "a".repeat(64);
+    const asked = [];
+    const { client, calls } = fake({
+      rows: (u, init) => {
+        if (u.pathname === "/rest/v1/rpc/tt_scheduler_token_ok") {
+          const { p_token } = JSON.parse(init.body);
+          asked.push(p_token);
+          return p_token === GOOD;
+        }
+        return [];
+      },
+    });
+    globalThis.Deno = { serve() {} };
+    try {
+      compat.serve(() => new Response("ok"), "weeklyReport");
+      expect(await client({ "x-tt-scheduler": GOOD }).auth.me()).toMatchObject({ id: "scheduler", role: "admin" });
+      const check = calls.find((c) => c.url.pathname === "/rest/v1/rpc/tt_scheduler_token_ok");
+      expect(check.headers.apikey).toBe(KEY); // asked with the server key
+      await expect(client({ "x-tt-scheduler": "b".repeat(64) }).auth.me()).rejects.toMatchObject({ status: 401 });
+      // A malformed token never reaches the database, and never falls back to a session.
+      await expect(client({ "x-tt-scheduler": "nope", Authorization: "Bearer good" }).auth.me()).rejects.toMatchObject({ status: 401 });
+      // Any other function: the token is nobody.
+      compat.serve(() => new Response("ok"), "entityAccess");
+      await expect(client({ "x-tt-scheduler": GOOD }).auth.me()).rejects.toMatchObject({ status: 401 });
+      expect(asked).toEqual([GOOD, "b".repeat(64)]);
+    } finally {
+      compat.serve(() => new Response("ok"), "");
+      delete globalThis.Deno;
+    }
+  });
+
   it("nobody signed in, an app key, or a bad session is a 401", async () => {
     const { client } = fake();
     for (const headers of [{}, { Authorization: "Bearer sb_publishable_abc" }, { Authorization: "Bearer bad" }]) {
