@@ -27,7 +27,6 @@ export default function RoleWorkspace() {
    .catch(error=>{if(!stopped)setError(error.data?.error || error.response?.data?.error || "Couldn't load this screen. Try again.");})
    .finally(()=>{if(!stopped)setLoading(false);});
   return()=>{stopped=true;};
- // eslint-disable-next-line react-hooks/exhaustive-deps
  },[section,role?.id,revision]);
  const more=async()=>{
   if(loading || !data)return;
