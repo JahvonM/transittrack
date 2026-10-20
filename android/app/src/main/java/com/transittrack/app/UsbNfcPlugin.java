@@ -28,15 +28,25 @@ public class UsbNfcPlugin extends Plugin {
         @Override public void onReceive(Context context, Intent intent) {
             UsbAutoAcceptService.clearPending(context, "nfc");
             if (!intent.getBooleanExtra(android.hardware.usb.UsbManager.EXTRA_PERMISSION_GRANTED, false)) {
-                enabled = false; preferences.edit().putBoolean("enabled", false).apply();
-                stopReader(); report("USB permission denied - enable reader to retry");
+                // Like the Helper: a cancelled or closed popup is asked again a minute
+                // later. It never switches the reader off (Android also reports a popup
+                // that closed by itself, e.g. when the screen changed, as refused).
+                report("USB access not allowed yet - asking again in a minute");
             } else if (reader != null) reader.reconnect();
         }
     };
 
+    /** The reader is on unless someone switched it off in the boarding settings.
+     *  It only reads while the boarding screen is open, so driver tablets are unaffected. */
+    static boolean readerEnabled(Context context) {
+        SharedPreferences p = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        return !p.contains("enabled") || p.getBoolean("enabled", true);
+    }
+
     @Override public void load() {
         preferences = getContext().getSharedPreferences(PREFS, Context.MODE_PRIVATE);
-        enabled = preferences.getBoolean("enabled", false);
+        enabled = readerEnabled(getContext());
+        if (enabled) UsbAutoAcceptService.ensureEnabled(getContext());
         IntentFilter filter = new IntentFilter(UsbNfcReader.ACTION_PERMISSION);
         if (Build.VERSION.SDK_INT >= 33) getContext().registerReceiver(permissionResult, filter, Context.RECEIVER_NOT_EXPORTED);
         else getContext().registerReceiver(permissionResult, filter);
@@ -99,7 +109,7 @@ public class UsbNfcPlugin extends Plugin {
         getActivity().runOnUiThread(() -> {
             enabled = Boolean.TRUE.equals(call.getBoolean("enabled", false));
             preferences.edit().putBoolean("enabled", enabled).apply();
-            if (enabled) { startReader(); if (!ready) report("Waiting for boarding screen"); }
+            if (enabled) { UsbAutoAcceptService.ensureEnabled(getContext()); startReader(); if (!ready) report("Waiting for boarding screen"); }
             else { stopReader(); UsbAutoAcceptService.clearPending(getContext(), "nfc"); report("Off"); }
             call.resolve(state());
         });

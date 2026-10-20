@@ -35,8 +35,26 @@ public class UsbAutoAcceptService extends AccessibilityService {
     }
     private boolean requestEnabled(SharedPreferences p) {
         return "nfc".equals(p.getString("usb_permission_source", "gps"))
-            ? getSharedPreferences(UsbNfcPlugin.PREFS, MODE_PRIVATE).getBoolean("enabled", false)
+            ? UsbNfcPlugin.readerEnabled(this)
             : p.getBoolean("enabled", false);
+    }
+
+    /** Switches this service on, keeping any others on, like the Helper did. Works when the
+     *  setup tool has granted WRITE_SECURE_SETTINGS; otherwise Android's Accessibility
+     *  settings are still the way to switch it on. */
+    static boolean ensureEnabled(Context context) {
+        if (isEnabled(context)) return true;
+        String me = new ComponentName(context, UsbAutoAcceptService.class).flattenToString();
+        try {
+            String list = Settings.Secure.getString(context.getContentResolver(), Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
+            list = list == null ? "" : list;
+            Settings.Secure.putString(context.getContentResolver(), Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES, list.isEmpty() ? me : list + ":" + me);
+            Settings.Secure.putInt(context.getContentResolver(), Settings.Secure.ACCESSIBILITY_ENABLED, 1);
+            TabletDiagnostics.record("reader", "USB_AUTO_ACCEPT_ON");
+            return true;
+        } catch (SecurityException e) {
+            return false;
+        }
     }
 
     static boolean isEnabled(Context context) {
@@ -50,8 +68,10 @@ public class UsbAutoAcceptService extends AccessibilityService {
     @Override public void onAccessibilityEvent(AccessibilityEvent event) {
         long now = SystemClock.elapsedRealtime();
         SharedPreferences p = getSharedPreferences(PREFS, MODE_PRIVATE);
-        if (now - lastClick < 1500 || !requestEnabled(p) ||
-            p.getLong(PENDING_AT, 0) <= 0 || now - p.getLong(PENDING_AT, 0) > 45000) return;
+        boolean pending = requestEnabled(p) && p.getLong(PENDING_AT, 0) > 0 && now - p.getLong(PENDING_AT, 0) <= 45000;
+        // Android's own start-up popup for the card reader comes without our asking.
+        boolean readerPopup = UsbNfcPlugin.readerEnabled(this);
+        if (now - lastClick < 1500 || (!pending && !readerPopup)) return;
         if (tryConfirm(getRootInActiveWindow(), p, now)) return;
         List<AccessibilityWindowInfo> windows = getWindows();
         if (windows != null) for (AccessibilityWindowInfo window : windows) {
@@ -75,9 +95,12 @@ public class UsbAutoAcceptService extends AccessibilityService {
             }
         }
         String app = getApplicationInfo().loadLabel(getPackageManager()).toString();
-        if (!UsbPromptPolicy.eligible(root.getPackageName().toString(), text.toString(), app,
+        String pkg = root.getPackageName().toString();
+        boolean ours = UsbPromptPolicy.eligible(pkg, text.toString(), app,
                 p.getString(DEVICE_LABEL, ""), requestEnabled(p),
-                p.getLong(PENDING_AT, 0), now)) return false;
+                p.getLong(PENDING_AT, 0), now)
+            || (UsbNfcPlugin.readerEnabled(this) && UsbPromptPolicy.readerAttachPrompt(pkg, text.toString(), app));
+        if (!ours) return false;
         for (String id : new String[] { "com.android.systemui:id/alwaysUse", "android:id/alwaysUse", "android:id/checkbox" }) {
             List<AccessibilityNodeInfo> boxes = root.findAccessibilityNodeInfosByViewId(id);
             if (boxes != null) for (AccessibilityNodeInfo box : boxes) {

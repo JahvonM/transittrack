@@ -119,7 +119,8 @@ final class UsbNfcReader implements Runnable {
             if (d.getInterface(i).getInterfaceClass() == UsbConstants.USB_CLASS_CSCID) { intf = d.getInterface(i); break; }
         }
         if (intf == null && d.getInterfaceCount() > 0) intf = d.getInterface(0);
-        if (intf == null || !con.claimInterface(intf, false)) { android.util.Log.i("TransitTrackUsbNfc", "Could not claim the reader"); return false; }
+        // Force-claim like the Helper: some tablets bind a kernel driver to the reader.
+        if (intf == null || !con.claimInterface(intf, true)) { android.util.Log.i("TransitTrackUsbNfc", "Could not claim the reader"); return false; }
         in = null; out = null;
         for (int j = 0; j < intf.getEndpointCount(); j++) {
             UsbEndpoint ep = intf.getEndpoint(j);
