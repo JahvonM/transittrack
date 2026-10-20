@@ -63,6 +63,9 @@ describe("sign-in emails", () => {
     // With its own sender the project may send 30 sign-in emails an hour (never fewer).
     expect(planAuthConfig({ ...blankConfig(), ...first }, { emails, sender: true })).toEqual({ rate_limit_email_sent: 30 });
     expect(planAuthConfig({ ...blankConfig(), ...first, rate_limit_email_sent: 100 }, { emails, sender: true })).toEqual({});
+    // New passwords: Supabase refuses the same short ones the screens do.
+    expect(planAuthConfig({ ...blankConfig(), ...first, password_min_length: 6 }, { emails })).toEqual({ password_min_length: 8 });
+    expect(planAuthConfig({ ...blankConfig(), ...first, password_min_length: 8 }, { emails })).toEqual({});
     // Settings Supabase leaves out count as empty, so they get filled in.
     expect(planAuthConfig({}, { emails }).mailer_templates_invite_content).toBe(emails.invite.html);
     expect(smtpSettings({ key: "re_test" })).toEqual({
