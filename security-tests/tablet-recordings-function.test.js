@@ -14,7 +14,8 @@ function fixture(){
  const db={KioskDevice:{get:async id=>{reads++;return id===device.id?{...device}:null;},update:async(id,data)=>Object.assign(device,data)},
   User:{get:async()=>requester},AuditLog:{create:async()=>{if(failAudit)throw new Error('audit unavailable');}},
   TabletRecordingSession:{get:async id=>sessions.get(id),create:async data=>{const s={...data,id:'session0'+sessions.size};sessions.set(s.id,s);return {...s};},update:async(id,data)=>Object.assign(sessions.get(id),data)}};
- const entry=load('base44/functions/tabletRecordings/entry.ts',{...policy,createClientFromRequest:()=>({auth:{me:async()=>actor},asServiceRole:{entities:db}}),strictControlDevice:async(_db,d,token)=>{checks++;return d?.paired && d.status==='active' && token==='valid';},streamingConfig:()=>({}),supportIce:async()=>({iceServers:[{urls:['turn:relay.example:3478'],credential:'temporary'}],ttl_ms:600000})}).default;
+ // forwardToSupabase: null means "handle it here on Base44" (before the switch).
+ const entry=load('base44/functions/tabletRecordings/entry.ts',{...policy,forwardToSupabase:async()=>null,createClientFromRequest:()=>({auth:{me:async()=>actor},asServiceRole:{entities:db}}),strictControlDevice:async(_db,d,token)=>{checks++;return d?.paired && d.status==='active' && token==='valid';},streamingConfig:()=>({}),supportIce:async()=>({iceServers:[{urls:['turn:relay.example:3478'],credential:'temporary'}],ttl_ms:600000})}).default;
  const call=async body=>{const r=await entry(new Request('https://example.test',{method:'POST',body:JSON.stringify(body)}));return {status:r.status,body:await r.json()};};
  return {call,device,sessions,actor:a=>{actor=a;},requester:r=>{requester=r;},auditFail:()=>{failAudit=true;},checks:()=>checks,reads:()=>reads};
 }
