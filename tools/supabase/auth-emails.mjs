@@ -21,6 +21,12 @@
 // the emails go out through Resend from no-reply@mcsweenstransport.com and the
 // functions get the same key. It never prints a secret.
 //
+// When it finishes it also leaves a one-line note in the project's API logs (a
+// request to /auth/v1/health?tt_ci=auth-emails&...): ok or the error, and what
+// changed. That way whoever looks after the project can see how the last run
+// went from the Supabase logs, without opening GitHub. The note never holds a
+// secret.
+//
 // Changing a word here and saving is enough: the workflow puts it live.
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -186,9 +192,8 @@ export function planAuthConfig(current, { emails, smtp = null }) {
   for (const [kind, { subject, html }] of Object.entries(emails)) {
     const contentKey = `mailer_templates_${kind}_content`;
     const subjectKey = `mailer_subjects_${kind}`;
-    if (!(contentKey in current)) throw new Error(`Supabase's settings have no ${contentKey}`);
-    if (current[subjectKey] !== subject) patch[subjectKey] = subject;
-    if (current[contentKey] !== html) patch[contentKey] = html;
+    if ((current[subjectKey] ?? null) !== subject) patch[subjectKey] = subject;
+    if ((current[contentKey] ?? null) !== html) patch[contentKey] = html;
   }
   const allow = mergeAllowList(current.uri_allow_list);
   if (allow !== String(current.uri_allow_list || '')) patch.uri_allow_list = allow;
@@ -240,7 +245,24 @@ export async function push({ ref, token, resendKey = '', from = '', fetchImpl = 
   log(`Redirects allowed: ${String(after.uri_allow_list || '').split(',').join(' ')}`);
   log(`Site URL: ${after.site_url || '(none)'}; sign-up code: ${after.mailer_otp_length ?? '?'} digits, lasts ${expiresText(after.mailer_otp_exp).replace(/^in /, '')}`);
   log(`Sending through: ${after.smtp_host ? after.smtp_host : 'Supabase\'s built-in email (team members only)'}`);
-  return { changed };
+  return {
+    changed,
+    otp: after.mailer_otp_length ?? '?',
+    smtp: after.smtp_host ? 'custom' : 'built-in',
+    redirects: String(after.uri_allow_list || '').split(',').filter(Boolean).length,
+  };
+}
+
+// The note this run leaves in the project's API logs (see the top of the file).
+export function reportUrl(ref, fields) {
+  const q = new URLSearchParams({ tt_ci: 'auth-emails' });
+  for (const [k, v] of Object.entries(fields)) q.set(k, String(v).slice(0, 400));
+  return `https://${ref}.supabase.co/auth/v1/health?${q}`;
+}
+
+async function report(ref, fields, fetchImpl = fetch) {
+  if (!/^[a-z0-9]{20}$/.test(String(ref || ''))) return;
+  await fetchImpl(reportUrl(ref, fields), { method: 'GET' }).then((r) => r.body?.cancel()).catch(() => {});
 }
 
 // Sample values, for --preview only.
@@ -270,14 +292,22 @@ async function main(argv) {
     return;
   }
   if (argv.includes('--push')) {
+    const ref = process.env.PROJECT_REF;
     const token = process.env.SUPABASE_ACCESS_TOKEN || '';
-    if (!token) { console.log('::notice::Skipped: add the SUPABASE_ACCESS_TOKEN repository secret.'); return; }
-    await push({
-      ref: process.env.PROJECT_REF,
-      token,
-      resendKey: process.env.RESEND_API_KEY || '',
-      from: process.env.EMAIL_FROM || '',
-    });
+    const resendKey = process.env.RESEND_API_KEY || '';
+    if (!token) {
+      console.log('::notice::Skipped: add the SUPABASE_ACCESS_TOKEN repository secret.');
+      await report(ref, { result: 'skipped', why: 'no SUPABASE_ACCESS_TOKEN secret' });
+      return;
+    }
+    try {
+      const done = await push({ ref, token, resendKey, from: process.env.EMAIL_FROM || '' });
+      await report(ref, { result: 'ok', changed: done.changed.join(' ') || 'nothing', otp: done.otp, smtp: done.smtp, redirects: done.redirects });
+    } catch (error) {
+      const hide = (t) => [token, resendKey].filter(Boolean).reduce((s, x) => s.split(x).join('***'), String(t));
+      await report(ref, { result: 'failed', error: hide(error?.message || error) });
+      throw error;
+    }
     return;
   }
   console.log('Use --check, --preview <dir> or --push');
