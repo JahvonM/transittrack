@@ -36,11 +36,19 @@ public class UsbNfcPlugin extends Plugin {
         }
     };
 
-    /** The reader is on unless someone switched it off in the boarding settings.
-     *  It only reads while the boarding screen is open, so driver tablets are unaffected. */
+    /** The reader is on unless someone switched it off in the boarding settings, like the
+     *  Helper. It only reads while the boarding screen is open, so driver tablets are
+     *  unaffected. While the old Helper app is still installed it stays off unless switched
+     *  on, so the two apps never fight over the reader. */
     static boolean readerEnabled(Context context) {
         SharedPreferences p = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
-        return !p.contains("enabled") || p.getBoolean("enabled", true);
+        if (p.contains("enabled")) return p.getBoolean("enabled", false);
+        return !helperInstalled(context);
+    }
+    static final String OLD_HELPER = "com.transittrack.kioskhelper";
+    static boolean helperInstalled(Context context) {
+        try { context.getPackageManager().getPackageInfo(OLD_HELPER, 0); return true; }
+        catch (android.content.pm.PackageManager.NameNotFoundException e) { return false; }
     }
 
     @Override public void load() {
