@@ -33,7 +33,29 @@ const sb = () => (supabase ||= createClient(SUPABASE_URL, PUBLISHABLE_KEY, {
   auth: { flowType: 'pkce', persistSession: true, autoRefreshToken: true, detectSessionInUrl: false, storageKey: AUTH_STORAGE_KEY },
 }));
 
+// "Forgot password" emails are asked for without PKCE, so the email's one-time
+// key isn't tied to the browser that asked: the person can open it on their
+// phone. (Signing in with Google/Apple still uses PKCE above.)
+let recoveryClient = null;
+const sbRecovery = () => (recoveryClient ||= createClient(SUPABASE_URL, PUBLISHABLE_KEY, {
+  auth: { flowType: 'implicit', persistSession: false, autoRefreshToken: false, detectSessionInUrl: false, storageKey: `${AUTH_STORAGE_KEY}-recovery` },
+}));
+
 const hasWindow = () => typeof window !== 'undefined';
+
+// A reset or invite link from Supabase's standard email lands on the site with
+// the sign-in in the address: #access_token=...&refresh_token=...&type=recovery.
+// (The McSween emails link straight to /reset-password instead; this keeps the
+// standard ones working too.) Returns the sign-in and the page to open, or null.
+export function linkLanding(hash) {
+  const h = new URLSearchParams(String(hash || '').replace(/^#/, ''));
+  const type = h.get('type');
+  const access_token = h.get('access_token') || '';
+  const refresh_token = h.get('refresh_token') || '';
+  if (type !== 'recovery' && type !== 'invite') return null;
+  if (!/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(access_token) || !/^[A-Za-z0-9_-]{8,512}$/.test(refresh_token)) return null;
+  return { access_token, refresh_token, next: `/reset-password?token=session${type === 'invite' ? '&type=invite' : ''}` };
+}
 
 // Finishes a sign-in that arrived in the address (a Google/Apple return or a
 // desktop/phone hand-over) once, then tidies the address.
@@ -44,6 +66,13 @@ function init() {
     const url = new URL(window.location.href);
     const q = url.searchParams;
     let changed = false;
+    const landing = linkLanding(url.hash);
+    if (landing) {
+      const { error } = await sb().auth.setSession({ access_token: landing.access_token, refresh_token: landing.refresh_token })
+        .catch((e) => ({ error: e }));
+      window.location.replace(error ? '/forgot-password' : landing.next);
+      return;
+    }
     if (q.get('clear_access_token') === 'true') {
       await sb().auth.signOut({ scope: 'local' }).catch(() => {});
       q.delete('clear_access_token'); changed = true;
@@ -76,6 +105,7 @@ export function storedAccessToken() {
   const q = new URLSearchParams(window.location.search);
   if (q.get('clear_access_token') === 'true') return null;
   if (HANDOFF.test(q.get('access_token') || '')) return 'handoff';
+  if (linkLanding(window.location.hash)) return 'email-link';
   if (q.get(OAUTH_FLAG) === '1' && q.get('code')) return 'oauth-return';
   try {
     const saved = JSON.parse(window.localStorage.getItem(AUTH_STORAGE_KEY) || 'null');
@@ -231,7 +261,7 @@ export function createBackend() {
       // The email (tools/supabase/auth-emails.mjs) links to <this site>/reset-password
       // with a one-time key that is only used when the new password is saved, so
       // it works in any browser and mail scanners that open links can't spend it.
-      const { error } = await sb().auth.resetPasswordForEmail(String(email || '').trim(), {
+      const { error } = await sbRecovery().auth.resetPasswordForEmail(String(email || '').trim(), {
         redirectTo: window.location.origin,
       });
       if (error) throw authError(error);
