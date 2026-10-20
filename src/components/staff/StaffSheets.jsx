@@ -11,7 +11,6 @@ import { accountName } from "@/lib/userName";
 import LostItemReport from "@/components/staff/LostItemReport";
 import OneTimeCode from "@/components/staff/OneTimeCode";
 import StaffGroupChat from "@/components/staff/StaffGroupChat";
-import BusAssistant from "@/components/BusAssistant";
 import StopChooser from "@/components/passenger/StopChooser";
 import PickupSelector from "@/components/passenger/PickupSelector";
 
@@ -151,14 +150,6 @@ export function StopSheet({ open, onOpenChange, routes, value, onChoose, userLoc
       <div className="-mx-6 pb-4">
         <StopChooser routes={routes} value={value} userLoc={userLoc} intro={false} onChoose={async (name) => { await onChoose(name); onOpenChange(false); }} />
       </div>
-    </BottomSheet>
-  );
-}
-
-export function AssistantSheet({ open, onOpenChange, company, userLoc }) {
-  return (
-    <BottomSheet open={open} onOpenChange={onOpenChange} title="Ask about your bus" description="Quick answers about times, stops and where your bus is.">
-      <div className="pb-4">{open && <BusAssistant company={company} userLoc={userLoc} bare />}</div>
     </BottomSheet>
   );
 }
