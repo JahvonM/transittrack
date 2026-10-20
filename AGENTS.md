@@ -19,6 +19,7 @@ npx skills add base44/skills
 
 ## Key Files
 
+- `docs/DATA-MODEL.md`: map of the database. Every table and field, how records link, and who can see what. Read it before changing data or access rules. It is generated: after changing `base44/entities/*` or `base44/functions/entityAccess`, run `node tools/data-model.mjs` (a test fails until you do).
 - `src/`: frontend application source.
 - `src/api/base44Client.js`: frontend Base44 SDK client.
 - `vite.config.js`: Vite config and Base44 Vite plugin setup.
