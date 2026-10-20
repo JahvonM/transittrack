@@ -42,6 +42,7 @@ try {
     $versionName = [regex]::Match($buildConfig, 'versionName\s+"([^"]+)"').Groups[1].Value
     $versionCode = [regex]::Match($buildConfig, 'versionCode\s+(\d+)').Groups[1].Value
     Write-Host "After installation confirm Admin shows kiosk $versionName / build $versionCode."
+    Write-Host 'Then run once: adb shell pm grant com.transittrack.app android.permission.WRITE_SECURE_SETTINGS  (lets USB auto-accept switch itself on, like the Helper)'
     Write-Host 'Checklist: docs\kiosk-one-big-test.md'
     Write-Host 'This script has not installed an APK, changed the tablet, published the web app, or created a signing key.'
     if (-not $NoOpen) {

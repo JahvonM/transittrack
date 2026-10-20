@@ -1,4 +1,4 @@
-# One combined kiosk test — Android 1.3 / build 4
+# One combined kiosk test — Android 1.4 / build 5
 
 Use one development tablet, parked, with the existing test driver, bus and NFC card. The previous driver appearance is restored. Cloud video storage is deferred; clips stay on the tablet and Admin plays a requested clip while the tablet is online.
 
@@ -19,7 +19,7 @@ If git reports local changes or conflicts, stop and preserve those changes; do n
 
 The script first selects an installed JDK 17 or 21 (including standard Microsoft/Adoptium/Android Studio locations) and skips incompatible Java 25. If neither is present, install Java 17 with `winget install --exact --id Microsoft.OpenJDK.17` and rerun. It then installs locked dependencies, builds the web app, syncs Android, compiles native code and runs native tests, then opens Android Studio. For Android Studio’s own builds, use the same printed JDK path in Settings → Build Tools → Gradle → Gradle JDK. It does not install, publish, clear app data or create keys. Use the existing Android Studio Run/signing configuration to update the tablet **in place once**. If Android rejects its signature, stop and use the original signing environment; do not uninstall or create a new key. Do not accept Android Studio's uninstall-to-resolve prompt.
 
-3. Open the kiosk and check Admin → Kiosk tablets → Tablet controls reports **1.3 / build 4** after a heartbeat. Keep the existing helper and FreeKiosk installed until acceptance is complete; only one app should own a USB reader at a time.
+3. Open the kiosk and check Admin → Kiosk tablets → Tablet controls reports **1.4 / build 5** after a heartbeat. Keep the existing helper and FreeKiosk installed until acceptance is complete; only one app should own a USB reader at a time.
 
 ## Work through the test in this order
 
@@ -38,6 +38,9 @@ Record PASS / FAIL and the exact message for each row. Existing test records wil
 | 9 | Select To work / To home, Change stop and a stop on the map; open navigation, then pan the map. | Selected stop/direction are correct; Change stop stays reachable; map recenters after about five seconds. Route assignment is unchanged. |
 | 10 | End the test shift and switch to Boarding. Tap the known NFC card once; repeat using its existing keypad code/QR. | Exactly one correct passenger/action result per deliberate check-in; welcome/bye returns to the scan screen. A camera/QR lookup must not repeat continuously. |
 | 11 | Disconnect/reconnect NFC and repeat after tablet sleep/wake. Enter settings with its existing settings PIN. | Reader resumes and reports the tap. Startup & recovery contains the same persisted screen switch; settings remain PIN gated. |
+| 11a | Once, with the tablet on USB debugging, run `adb shell pm grant com.transittrack.app android.permission.WRITE_SECURE_SETTINGS`. Then open Boarding. | Android Accessibility shows **McSween USB auto-accept** switched on by itself (as the Helper did). Without the grant, switch it on once there by hand. |
+| 11b | Only after the old Helper is uninstalled (or on a tablet that never had it): reboot with the reader plugged in and leave the tablet alone. | The app opens Boarding, any "Allow/Open McSween Kiosk … ACR122U" popup is answered by itself, and the reader light turns red within about a minute. One card tap checks in once. |
+| 11c | When a USB popup for the reader appears, press Cancel once. | The reader stays on, says it will ask again, and asks again within about a minute. It never switches itself off. |
 | 12 | With the saved passenger list available, disconnect Internet, record one test boarding, reopen the app, then reconnect. | Boarding remains saved before upload and syncs once with correct passenger/company/bus; no lost or duplicate work. Do not clear queues. |
 | 13 | Open rear dashcam, record a short clip, stop it, then play and seek the saved clip locally. | Rear camera only; completed clip plays, can seek and retains its date/time. Existing clips remain. |
 | 14 | In Admin, open Saved recordings, connect, select today's completed clip, play/seek and disconnect. | Only the selected clip transfers and plays after verification; disconnect releases the session. If it ends, use Reconnect. No cloud archive is expected. |
@@ -47,7 +50,7 @@ Record PASS / FAIL and the exact message for each row. Existing test records wil
 ## Before closing the test
 
 - Stop test sharing/recording/viewing and end the test shift. Keep any unsynced/review items; export where available.
-- Report only failed row numbers, the exact error and whether the tablet was online/charging. Add the installed 1.3/build 4 confirmation.
+- Report only failed row numbers, the exact error and whether the tablet was online/charging. Add the installed 1.4/build 5 confirmation.
 - Low-battery park/resume and native upgrade-rejection policies have automated coverage. Real full-storage and low-battery experiments, a signed rollout artifact and fleet rollout remain outside this parked test.
 - Android force-stop, whole-process hangs and OEM battery restrictions cannot be guaranteed away. A successful parked test is not proof of every Android variant or fleet-wide reliability.
 

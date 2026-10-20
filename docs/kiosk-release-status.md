@@ -1,6 +1,6 @@
 # Kiosk release status — 18 October 2026
 
-Current combined test candidate: Android **1.3 / build 4**. Start with [kiosk-one-big-test.md](kiosk-one-big-test.md) for one Windows build command and one ordered tablet test. The rejected mint driver theme has been removed; functional work remains. Background tracking details and acceptance limits: [background-driver-gps.md](background-driver-gps.md).
+Current combined test candidate: Android **1.4 / build 5** (reader starts by itself like the Helper; see helper-feature-parity.md, 19 October). Start with [kiosk-one-big-test.md](kiosk-one-big-test.md) for one Windows build command and one ordered tablet test. The rejected mint driver theme has been removed; functional work remains. Background tracking details and acceptance limits: [background-driver-gps.md](background-driver-gps.md).
 
 Cloud recording upload/storage is deferred at the owner's request. Rear-camera recordings remain on the tablet; admin playback transfers a selected clip on demand and still requires the tablet to be online. Supabase is not a video archive in this release.
 

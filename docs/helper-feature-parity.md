@@ -112,3 +112,17 @@ At the owner’s request, the LiveKit dependency/account requirement has been re
 ## 18 October — mobile health and display recovery
 
 SIM state/carrier/cached signal reporting is integrated without phone identifiers or new permission prompts. Driver and boarding endpoints now retain the same hardware metadata. Confirmed WebView renderer loss has a bounded native fallback, foreground-only automatic retries and manual reopen. This is not full-process/ANR recovery or background GPS. See kiosk-release-status.md for current checks and physical acceptance; earlier remaining-work lists are historical.
+
+
+## 19 October — card reader comes on by itself, like the Helper (1.4 / build 5)
+
+Reviewed the integrated reader against the Helper (CardReader.java, AutoOkService, HelperService). The card protocol, lights and beeps were already the same. Four differences could stop the reader starting unattended on a boarding tablet; all now match the Helper:
+
+- A refused or closed USB popup no longer switches the reader (or USB GPS) off. It asks again at most once a minute, as the Helper did. Android reports a popup that closed by itself as refused, so this mattered even with nobody touching the tablet.
+- The reader is on unless switched off in the PIN-gated boarding settings. It only reads while the boarding screen is open. While the old Helper app is still installed it stays off unless switched on, so the two apps never fight over the reader.
+- USB auto-accept switches itself on when the reader or USB GPS is on, if the app holds WRITE_SECURE_SETTINGS (granted once by adb, as the Helper's setup did). Otherwise it is still switched on once in Android Accessibility.
+- Auto-accept also answers Android's own start-up popup "Open McSween Kiosk to handle ACR122U …?" (only this app, only the ACR122U, never screen/camera/audio consent), as the Helper's auto-OK did. The reader is force-claimed like the Helper.
+
+Checks: the changed native files compile against Android 34; 28 JVM tests pass (USB prompt policy including 2 new start-up popup tests, tap receipts, NMEA, BLE protocol, power policy). Physical acceptance: rows 11a–11c in kiosk-one-big-test.md.
+
+For the step 8 setup tool (replacing the Helper and FreeKiosk): install the combined app, grant it WRITE_SECURE_SETTINGS, set it as the Home app (`adb shell cmd package set-home-activity com.transittrack.app/.MainActivity`), add it to the battery-optimisation allow list, and uninstall the Helper only after rows 10–11c pass.
