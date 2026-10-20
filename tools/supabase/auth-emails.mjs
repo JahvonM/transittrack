@@ -38,7 +38,9 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { MIN_PASSWORD_LENGTH } from '../../src/lib/passwordRules.js';
 
-export const SITES = ['https://new.mcsweenstransport.com', 'https://app.mcsweenstransport.com'];
+// Where the app is opened. The Base44 address stays on the list: the tablets,
+// phone app and desktop app open it until they are rebuilt (step 8).
+export const SITES = ['https://new.mcsweenstransport.com', 'https://app.mcsweenstransport.com', 'https://eager-transit-track-go.base44.app'];
 export const LOGO_URL = 'https://app.mcsweenstransport.com/brand/icon-192.png?v=mcsween1';
 export const CODE_LENGTH = 6;
 const SENDER_NAME = 'McSween Transport';
