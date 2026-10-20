@@ -1,5 +1,6 @@
 import { useTabletWorkSafety } from "@/lib/nativeTabletControl";
 import "./boardingShowcase.css";
+import "./kioskApple.css";
 import BusArtwork from "@/components/BusArtwork";
 import BoardingPickupSign from "@/components/kiosk/BoardingPickupSign";
 import useFutureAppearance from "@/hooks/useFutureAppearance";

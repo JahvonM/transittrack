@@ -677,3 +677,32 @@ test('native support handoff forwards IDs only and releases the QR camera until 
  await expect(page.getByText('QR camera paused while native camera capture is active.',{exact:false})).toHaveCount(0);
  expect(errors).toEqual([]);
 });
+
+// Every boarding tablet screen a passenger meets, landscape and portrait:
+// nothing spills sideways. With TT_SHOT_DIR set it also saves a picture.
+for(const [orient,size] of [['landscape',{width:1280,height:800}],['portrait',{width:800,height:1280}]])test(`boarding tablet tour (${orient})`,async({page})=>{
+ await page.setViewportSize(size);
+ const state={mode:'known'};
+ await setup(page,{checkIn:b=>b.action==='lookup_tag'?(state.mode==='known'?{json:{staff:person,next_status:'boarded',verification_grant:'b'.repeat(64)}}:{status:404,json:{error:'badge_not_registered'}})
+  :b.action==='check_in'?{json:{record:{staff_name:'Maria Joseph',status:b.status},occupancy:5,today_count:10}}:null});
+ const dir=process.env.TT_SHOT_DIR;
+ const shot=async name=>{expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);if(dir){await page.waitForTimeout(350);await page.screenshot({path:`${dir}/kiosk-${orient}-${name}.png`});}};
+ await page.goto('/kiosk');
+ await expect(page.getByText('Slide to enter a code',{exact:true})).toBeVisible();
+ await shot('home');
+ await tap(page);
+ await expect(page.getByText('Are you boarding or exiting?')).toBeVisible();
+ await shot('choose');
+ await page.getByRole('button',{name:/Boarding/}).click();
+ await expect(page.getByText(/Welcome aboard, Maria!/)).toBeVisible();
+ await shot('welcome');
+ await expect(page.getByText('Slide to enter a code',{exact:true})).toBeVisible({timeout:6000});
+ state.mode='unknown';
+ await tap(page);
+ await expect(page.getByText(/This card isn't registered yet/)).toBeVisible();
+ await shot('unknown-card');
+ await expect(page.getByText('Slide to enter a code',{exact:true})).toBeVisible({timeout:6000});
+ await unlock(page);
+ await page.waitForTimeout(500);
+ await shot('code');
+});

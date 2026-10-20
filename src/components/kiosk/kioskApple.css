@@ -1,0 +1,91 @@
+/* Apple look and feel for the bus boarding tablet (the apple-design skill).
+   Same layout, sizes, colours and features as the approved tablet: only
+   surfaces, materials, shapes and touch feedback change. Borders turn
+   transparent rather than disappearing, so nothing moves or grows (the
+   1280x800, 800x1280 and 1024x600 fit tests still hold). Stays dark. */
+.tt-boarding-showcase {
+  --ka-cell: #0f2238;
+  --ka-cell-raised: #142c46;
+  --ka-glass: rgba(7, 24, 40, .62);
+  --ka-glass-edge: rgba(255, 255, 255, .14);
+  --ka-hair: rgba(255, 255, 255, .12);
+  --ka-tint: hsl(var(--primary));
+  --ka-on-tint: #02202c;
+  --ka-gray: rgba(118, 118, 128, .28);
+}
+
+/* Touch: feedback on press, not release. */
+.tt-boarding-showcase :is(button, a, [role=slider]) { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+.tt-boarding-showcase button:not([role=switch]) { transition: transform .2s cubic-bezier(.2, .8, .2, 1), background-color .2s ease-out; }
+.tt-boarding-showcase button:not([role=switch]):not(:disabled):active { transform: scale(.97); transition-duration: .06s; }
+
+/* Frosted header: the page shows softly through it. */
+.tt-boarding-showcase .tt-board-header {
+  background: var(--ka-glass); -webkit-backdrop-filter: blur(22px) saturate(180%); backdrop-filter: blur(22px) saturate(180%);
+  border-bottom-color: var(--ka-hair);
+}
+
+/* The welcome card: rounder, depth instead of an outline. The bottom strip
+   (code slider and QR) is glass over the photo. */
+.tt-boarding-showcase .tt-board-home { border-color: transparent; border-radius: 30px; box-shadow: 0 18px 50px rgba(0, 0, 0, .45); }
+.tt-boarding-showcase .tt-board-entry {
+  background: var(--ka-glass); -webkit-backdrop-filter: blur(22px) saturate(180%); backdrop-filter: blur(22px) saturate(180%);
+  border-top-color: var(--ka-hair);
+}
+.tt-boarding-showcase .tt-board-qr { border-color: transparent; background: transparent; }
+.tt-boarding-showcase .tt-board-qr-start { border: 1px solid var(--ka-glass-edge); border-radius: 22px; background: rgba(255, 255, 255, .06); }
+.tt-boarding-showcase .tt-board-slide [role=slider] { border-color: var(--ka-glass-edge); box-shadow: none; }
+
+/* Side cards: solid cells, rounder, no outlines or gradients. */
+.tt-boarding-showcase .tt-board-panel { background: var(--ka-cell); border-color: transparent; border-radius: 20px; }
+
+/* Boarding / exiting, the code pad and the welcome: a raised card. */
+.tt-boarding-showcase .tt-board-action > [data-mode],
+.tt-boarding-showcase .tt-board-action > .rounded-3xl {
+  background: var(--ka-cell); border-color: transparent; border-radius: 32px; box-shadow: 0 24px 70px rgba(0, 0, 0, .5);
+  animation: ka-rise .4s cubic-bezier(.2, .9, .25, 1);
+}
+/* Big choices: brand colour for the expected one, grey for the other. */
+.tt-boarding-showcase .tt-board-action [data-ui=button][data-variant=default] { background: var(--ka-tint); color: var(--ka-on-tint); border: 0; box-shadow: none; border-radius: 24px; }
+.tt-boarding-showcase .tt-board-action [data-ui=button][data-variant=outline] { background: var(--ka-gray); border-color: transparent; color: #f2f8ff; border-radius: 24px; }
+.tt-boarding-showcase .tt-board-action [data-ui=button][data-variant=ghost] { color: var(--ka-tint); font-weight: 600; }
+/* The code pad: grey capsule keys like a phone dial pad; Submit in the brand colour. */
+.tt-boarding-showcase .tt-board-keypad [data-ui=button] { border-radius: 999px; }
+.tt-boarding-showcase .tt-board-keypad .rounded-xl.border-2 { border-color: transparent; background: var(--ka-gray); border-radius: 14px; }
+.tt-boarding-showcase .tt-board-keypad .rounded-xl.border-2.border-primary { background: hsl(var(--primary) / .18); }
+
+@keyframes ka-rise { from { opacity: 0; transform: translateY(18px) scale(.985); } to { opacity: 1; transform: none; } }
+
+/* iOS switches in the PIN-protected settings. */
+.tt-boarding-showcase [role=switch] {
+  width: 51px; height: 31px; min-height: 0; padding: 0; border: 0 !important; border-radius: 999px !important; flex-shrink: 0;
+  box-shadow: none; transition: background-color .25s ease-out;
+}
+.tt-boarding-showcase [role=switch][data-state=unchecked] { background: rgba(120, 120, 128, .36); }
+.tt-boarding-showcase [role=switch][data-state=checked] { background: var(--ka-tint); }
+.tt-boarding-showcase [role=switch] > span {
+  width: 27px; height: 27px; margin: 2px; background: #fff; box-shadow: 0 3px 8px rgba(0, 0, 0, .15), 0 3px 1px rgba(0, 0, 0, .06);
+  transition: transform .3s cubic-bezier(.25, 1, .5, 1);
+}
+.tt-boarding-showcase [role=switch][data-state=checked] > span { transform: translateX(20px); }
+.tt-boarding-showcase [role=switch][data-state=unchecked] > span { transform: translateX(0); }
+
+/* Phone-sized kiosk menu: grey pills, the chosen one in the brand colour. */
+.tt-boarding-showcase .tt-phone-kiosk-nav { background: var(--ka-glass); -webkit-backdrop-filter: blur(22px) saturate(180%); backdrop-filter: blur(22px) saturate(180%); }
+.tt-boarding-showcase .tt-phone-kiosk-nav button { border-color: transparent; border-radius: 18px; }
+.tt-boarding-showcase .tt-phone-kiosk-nav button[aria-pressed=true] { background: hsl(var(--primary) / .18); color: var(--ka-tint); border-color: transparent; }
+
+/* Numbers keep their width as they change. */
+.tt-boarding-showcase :is(.tt-board-meter, .tt-board-occupancy, .tt-board-header) { font-variant-numeric: tabular-nums; }
+
+/* Accessibility: less motion, less transparency, more contrast. */
+@media (prefers-reduced-motion: reduce) {
+  .tt-boarding-showcase .tt-board-action > [data-mode], .tt-boarding-showcase .tt-board-action > .rounded-3xl { animation: none; }
+  .tt-boarding-showcase button:not([role=switch]):not(:disabled):active { transform: none; }
+}
+@media (prefers-reduced-transparency: reduce) { .tt-boarding-showcase { --ka-glass: #0a1b2d; } }
+@media (prefers-contrast: more) {
+  .tt-boarding-showcase :is(.tt-board-panel, .tt-board-home, .tt-board-qr-start) { border-color: #8fb7cf; }
+  .tt-boarding-showcase .tt-board-action > :is([data-mode], .rounded-3xl) { border-color: #8fb7cf; }
+  .tt-boarding-showcase { --ka-hair: #8fb7cf; --ka-glass: #0a1b2d; }
+}
