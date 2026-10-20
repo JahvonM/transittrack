@@ -14,7 +14,13 @@ and who can see them. Built from `base44/entities/*.jsonc`,
   (table names are snake_case: `Trip` is `trip`, `User` is `app_user`).
 - Ids are text (Base44's 24-character ids), not numbers. A field ending in `_id` usually holds
   another record's id; the **Links** lines below say which.
-- Every record also has: `id`, `created_date`, `updated_date`, `created_by`, `created_by_id`, `is_sample`.
+- Every record also has these fields, left out of the tables below:
+  `id` (text): The record's id: 24 characters, text (not a number).
+  `created_date` (timestamptz): When the record was made.
+  `updated_date` (timestamptz): When it last changed.
+  `created_by` (text): Email of whoever made it, when made from the app.
+  `created_by_id` (text): User id of whoever made it.
+  `is_sample` (boolean): Base44 sample data.
 - Names are often copied next to ids (`vehicle_name` beside `vehicle_id`) so lists show without
   extra reads. The id is the truth; the copied name can be out of date.
 - No foreign keys yet: older Base44 data can point at records that were deleted.
@@ -49,23 +55,23 @@ Changing records through entityAccess:
 
 | Entity | Table | From the app | Signed out | Staff / passenger | Company manager | Mechanic | Admin |
 |---|---|---|---|---|---|---|---|
-| [AccessRole](#accessrole) | `access_role` | server only | — | — | — | — | through its own functions |
+| [AccessRole](#accessrole) | `access_role` | server only | — | — | — | — | through other functions |
 | [Advertisement](#advertisement) | `advertisement` | entityAccess | all | all | all | all | all |
-| [AppSupportSetting](#appsupportsetting) | `app_support_setting` | server only | — | — | — | — | through its own functions |
+| [AppSupportSetting](#appsupportsetting) | `app_support_setting` | server only | — | — | — | — | through other functions |
 | [AuditLog](#auditlog) | `audit_log` | entityAccess | — | — | — | — | all |
 | [Broadcast](#broadcast) | `broadcast` | entityAccess | — | own company + notices to every company (pickup changes: own bus only) | own company + notices to every company | notices to every company | all |
 | [CardHolder](#cardholder) | `card_holder` | entityAccess | — | — | own company | — | all |
 | [Client](#client) | `client` | entityAccess | — | — | — | — | all |
 | [ClientError](#clienterror) | `client_error` | entityAccess | — | — | — | — | all |
 | [Company](#company) | `company` | entityAccess | — | own company, fewer fields | own company | all companies, fewer fields | all |
-| [CompanyAccessGrant](#companyaccessgrant) | `company_access_grant` | server only | — | — | — | — | through its own functions |
-| [CompanyMembership](#companymembership) | `company_membership` | server only | — | — | — | — | through its own functions |
+| [CompanyAccessGrant](#companyaccessgrant) | `company_access_grant` | server only | — | — | — | — | through other functions |
+| [CompanyMembership](#companymembership) | `company_membership` | server only | — | — | — | — | through other functions |
 | [Contact](#contact) | `contact` | entityAccess | — | — | own company | — | all |
-| [DeviceCredential](#devicecredential) | `device_credential` | server only | — | — | — | — | through its own functions |
+| [DeviceCredential](#devicecredential) | `device_credential` | server only | — | — | — | — | through other functions |
 | [Driver](#driver) | `driver` | entityAccess | — | — | own company | — | all |
 | [DriverDocument](#driverdocument) | `driver_document` | entityAccess | — | — | own company | — | all |
-| [DriverPinCredential](#driverpincredential) | `driver_pin_credential` | server only | — | — | — | — | through its own functions |
-| [DriverRequest](#driverrequest) | `driver_request` | server only | — | — | — | — | through its own functions |
+| [DriverPinCredential](#driverpincredential) | `driver_pin_credential` | server only | — | — | — | — | through other functions |
+| [DriverRequest](#driverrequest) | `driver_request` | server only | — | — | — | — | through other functions |
 | [DriverShift](#drivershift) | `driver_shift` | entityAccess | — | — | own company | — | all |
 | [DrivingEvent](#drivingevent) | `driving_event` | entityAccess | — | — | own company | — | all |
 | [Fault](#fault) | `fault` | entityAccess | — | — | own company | all companies | all |
@@ -76,33 +82,33 @@ Changing records through entityAccess:
 | [InspectionResult](#inspectionresult) | `inspection_result` | entityAccess | — | — | own company | all companies | all |
 | [InspectionTemplate](#inspectiontemplate) | `inspection_template` | entityAccess | — | — | own company | all companies | all |
 | [Invoice](#invoice) | `invoice` | entityAccess | — | — | — | — | all |
-| [JobRun](#jobrun) | `job_run` | server only | — | — | — | — | through its own functions |
+| [JobRun](#jobrun) | `job_run` | server only | — | — | — | — | through other functions |
 | [KioskDevice](#kioskdevice) | `kiosk_device` | entityAccess | — | — | own company | — | all |
 | [LocationPing](#locationping) | `location_ping` | entityAccess | — | — | own company | — | all |
 | [LostItemReport](#lostitemreport) | `lost_item_report` | entityAccess | — | own reports | own company | — | all |
 | [MaintenanceSchedule](#maintenanceschedule) | `maintenance_schedule` | entityAccess | — | — | own company | all companies | all |
 | [MaintenanceSettings](#maintenancesettings) | `maintenance_settings` | entityAccess | — | — | — | all companies | all |
 | [NfcCard](#nfccard) | `nfc_card` | entityAccess | — | — | own company | — | all |
-| [NotificationLog](#notificationlog) | `notification_log` | server only | — | — | — | — | through its own functions |
-| [NotificationSetting](#notificationsetting) | `notification_setting` | server only | — | — | — | — | through its own functions |
+| [NotificationLog](#notificationlog) | `notification_log` | server only | — | — | — | — | through other functions |
+| [NotificationSetting](#notificationsetting) | `notification_setting` | server only | — | — | — | — | through other functions |
 | [Part](#part) | `part` | entityAccess | — | — | own company | all companies | all |
-| [PassengerAccessCredential](#passengeraccesscredential) | `passenger_access_credential` | server only | — | — | — | — | through its own functions |
-| [PassengerOneTimeCredential](#passengeronetimecredential) | `passenger_one_time_credential` | server only | — | — | — | — | through its own functions |
-| [PhoneUnlock](#phoneunlock) | `phone_unlock` | server only | — | — | — | — | through its own functions |
+| [PassengerAccessCredential](#passengeraccesscredential) | `passenger_access_credential` | server only | — | — | — | — | through other functions |
+| [PassengerOneTimeCredential](#passengeronetimecredential) | `passenger_one_time_credential` | server only | — | — | — | — | through other functions |
+| [PhoneUnlock](#phoneunlock) | `phone_unlock` | server only | — | — | — | — | through other functions |
 | [Place](#place) | `place` | entityAccess | — | — | — | — | all |
 | [PushToken](#pushtoken) | `push_token` | entityAccess | — | own | own | own | all |
-| [RoleAssignment](#roleassignment) | `role_assignment` | server only | — | — | — | — | through its own functions |
+| [RoleAssignment](#roleassignment) | `role_assignment` | server only | — | — | — | — | through other functions |
 | [Route](#route) | `route` | entityAccess | — | own company | own company | — | all |
 | [RouteTravelTimes](#routetraveltimes) | `route_travel_times` | entityAccess | — | own company | own company | — | all |
-| [SignupAlert](#signupalert) | `signup_alert` | server only | — | — | — | — | through its own functions |
+| [SignupAlert](#signupalert) | `signup_alert` | server only | — | — | — | — | through other functions |
 | [StaffCheckIn](#staffcheckin) | `staff_check_in` | entityAccess | — | — | own company | — | all |
-| [TabletRecordingSession](#tabletrecordingsession) | `tablet_recording_session` | server only | — | — | — | — | through its own functions |
-| [TabletSupportSession](#tabletsupportsession) | `tablet_support_session` | server only | — | — | — | — | through its own functions |
+| [TabletRecordingSession](#tabletrecordingsession) | `tablet_recording_session` | server only | — | — | — | — | through other functions |
+| [TabletSupportSession](#tabletsupportsession) | `tablet_support_session` | server only | — | — | — | — | through other functions |
 | [Trip](#trip) | `trip` | entityAccess | — | own company, fewer fields | own company | — | all |
 | [User](#user) | `app_user` | entityAccess | — | own profile | own profile | own profile | all |
 | [Vehicle](#vehicle) | `vehicle` | entityAccess | — | own company, fewer fields | own company | all companies | all |
-| [VerificationAttempt](#verificationattempt) | `verification_attempt` | server only | — | — | — | — | through its own functions |
-| [VerificationGrant](#verificationgrant) | `verification_grant` | server only | — | — | — | — | through its own functions |
+| [VerificationAttempt](#verificationattempt) | `verification_attempt` | server only | — | — | — | — | through other functions |
+| [VerificationGrant](#verificationgrant) | `verification_grant` | server only | — | — | — | — | through other functions |
 | [Workplace](#workplace) | `workplace` | entityAccess | — | own company | own company | — | all |
 
 "Server only": no screen reads these through entityAccess; only server functions use them
@@ -119,12 +125,6 @@ Table `access_role` · server functions only.
 
 | Field | Type | Notes |
 |---|---|---|
-| `id` | text | The record's id: 24 characters, text (not a number). |
-| `created_date` | timestamptz | When the record was made. |
-| `updated_date` | timestamptz | When it last changed. |
-| `created_by` | text | Email of whoever made it, when made from the app. |
-| `created_by_id` | text | User id of whoever made it. |
-| `is_sample` | boolean | Base44 sample data. |
 | `name` | text | Required. |
 | `sections` | jsonb (list) | Required. |
 | `active` | boolean | Default `true`. |
@@ -137,12 +137,6 @@ Table `advertisement` · read and changed through entityAccess.
 
 | Field | Type | Notes |
 |---|---|---|
-| `id` | text | The record's id: 24 characters, text (not a number). |
-| `created_date` | timestamptz | When the record was made. |
-| `updated_date` | timestamptz | When it last changed. |
-| `created_by` | text | Email of whoever made it, when made from the app. |
-| `created_by_id` | text | User id of whoever made it. |
-| `is_sample` | boolean | Base44 sample data. Not sent to the browser. |
 | `title` | text | Required. |
 | `message` | text |  |
 | `image_url` | text |  |
@@ -157,12 +151,6 @@ Table `app_support_setting` · server functions only.
 
 | Field | Type | Notes |
 |---|---|---|
-| `id` | text | The record's id: 24 characters, text (not a number). |
-| `created_date` | timestamptz | When the record was made. |
-| `updated_date` | timestamptz | When it last changed. |
-| `created_by` | text | Email of whoever made it, when made from the app. |
-| `created_by_id` | text | User id of whoever made it. |
-| `is_sample` | boolean | Base44 sample data. |
 | `whatsapp_number` | text | App support WhatsApp number in international format, digits only (e.g. 14735551234). Shown to everyone as a 'Report an app problem' link; read and changed only through the appSupport function. |
 
 ### AuditLog
@@ -171,12 +159,6 @@ Table `audit_log` · read and changed through entityAccess.
 
 | Field | Type | Notes |
 |---|---|---|
-| `id` | text | The record's id: 24 characters, text (not a number). |
-| `created_date` | timestamptz | When the record was made. |
-| `updated_date` | timestamptz | When it last changed. |
-| `created_by` | text | Email of whoever made it, when made from the app. |
-| `created_by_id` | text | User id of whoever made it. |
-| `is_sample` | boolean | Base44 sample data. Not sent to the browser. |
 | `actor_email` | text |  |
 | `actor_name` | text |  |
 | `actor_role` | text |  |
@@ -197,12 +179,6 @@ Table `broadcast` · belongs to a company through `vehicle_id`, then `company_id
 
 | Field | Type | Notes |
 |---|---|---|
-| `id` | text | The record's id: 24 characters, text (not a number). |
-| `created_date` | timestamptz | When the record was made. |
-| `updated_date` | timestamptz | When it last changed. |
-| `created_by` | text | Email of whoever made it, when made from the app. |
-| `created_by_id` | text | User id of whoever made it. |
-| `is_sample` | boolean | Base44 sample data. Not sent to the browser. |
 | `type` | text | One of: `bus_arrived`, `taxi_arrived`, `info`. Default `"info"`. Required. |
 | `title` | text |  |
 | `message` | text | Required. |
@@ -223,12 +199,6 @@ Table `card_holder` · belongs to a company through `company_id` · read and cha
 
 | Field | Type | Notes |
 |---|---|---|
-| `id` | text | The record's id: 24 characters, text (not a number). |
-| `created_date` | timestamptz | When the record was made. |
-| `updated_date` | timestamptz | When it last changed. |
-| `created_by` | text | Email of whoever made it, when made from the app. |
-| `created_by_id` | text | User id of whoever made it. |
-| `is_sample` | boolean | Base44 sample data. Not sent to the browser. |
 | `full_name` | text | Required. |
 | `employee_id` | text | The company's own staff number. |
 | `role` | text | One of: `Dispatcher`, `Inspector`, `Supervisor`, `Cleaner`, `Security`, `Other`. Default `"Other"`. |
@@ -247,12 +217,6 @@ Table `client` · read and changed through entityAccess.
 
 | Field | Type | Notes |
 |---|---|---|
-| `id` | text | The record's id: 24 characters, text (not a number). |
-| `created_date` | timestamptz | When the record was made. |
-| `updated_date` | timestamptz | When it last changed. |
-| `created_by` | text | Email of whoever made it, when made from the app. |
-| `created_by_id` | text | User id of whoever made it. |
-| `is_sample` | boolean | Base44 sample data. Not sent to the browser. |
 | `company_id` | text | → Company |
 | `name` | text | Required. |
 | `kind` | text | One of: `hotel`, `company`, `tour_operator`, `person`, `other`. Default `"hotel"`. |
@@ -271,12 +235,6 @@ Table `client_error` · read and changed through entityAccess.
 
 | Field | Type | Notes |
 |---|---|---|
-| `id` | text | The record's id: 24 characters, text (not a number). |
-| `created_date` | timestamptz | When the record was made. |
-| `updated_date` | timestamptz | When it last changed. |
-| `created_by` | text | Email of whoever made it, when made from the app. |
-| `created_by_id` | text | User id of whoever made it. |
-| `is_sample` | boolean | Base44 sample data. Not sent to the browser. |
 | `message` | text | Error message (truncated) Required. |
 | `stack` | text | Stack trace / component stack (truncated) |
 | `url` | text | Page path where it happened |
@@ -303,12 +261,6 @@ Table `company` · read and changed through entityAccess.
 
 | Field | Type | Notes |
 |---|---|---|
-| `id` | text | The record's id: 24 characters, text (not a number). |
-| `created_date` | timestamptz | When the record was made. |
-| `updated_date` | timestamptz | When it last changed. |
-| `created_by` | text | Email of whoever made it, when made from the app. |
-| `created_by_id` | text | User id of whoever made it. |
-| `is_sample` | boolean | Base44 sample data. Not sent to the browser. |
 | `name` | text | Required. |
 | `logo_url` | text |  |
 | `phone` | text |  |
@@ -327,12 +279,6 @@ Table `company_access_grant` · server functions only.
 
 | Field | Type | Notes |
 |---|---|---|
-| `id` | text | The record's id: 24 characters, text (not a number). |
-| `created_date` | timestamptz | When the record was made. |
-| `updated_date` | timestamptz | When it last changed. |
-| `created_by` | text | Email of whoever made it, when made from the app. |
-| `created_by_id` | text | User id of whoever made it. |
-| `is_sample` | boolean | Base44 sample data. |
 | `user_id` | text | → User |
 | `company_id` | text | → Company |
 | `token_hash` | text | **Secret**: never sent to the browser. |
@@ -347,12 +293,6 @@ Table `company_membership` · server functions only.
 
 | Field | Type | Notes |
 |---|---|---|
-| `id` | text | The record's id: 24 characters, text (not a number). |
-| `created_date` | timestamptz | When the record was made. |
-| `updated_date` | timestamptz | When it last changed. |
-| `created_by` | text | Email of whoever made it, when made from the app. |
-| `created_by_id` | text | User id of whoever made it. |
-| `is_sample` | boolean | Base44 sample data. |
 | `user_id` | text | → User Required. |
 | `company_id` | text | → Company Required. |
 | `scope` | text | One of: `manager`, `passenger`. Required. |
@@ -372,12 +312,6 @@ Table `contact` · belongs to a company through `vehicle_id`, then `company_id` 
 
 | Field | Type | Notes |
 |---|---|---|
-| `id` | text | The record's id: 24 characters, text (not a number). |
-| `created_date` | timestamptz | When the record was made. |
-| `updated_date` | timestamptz | When it last changed. |
-| `created_by` | text | Email of whoever made it, when made from the app. |
-| `created_by_id` | text | User id of whoever made it. |
-| `is_sample` | boolean | Base44 sample data. Not sent to the browser. |
 | `name` | text | Required. |
 | `phone` | text |  |
 | `email` | text |  |
@@ -404,12 +338,6 @@ Table `device_credential` · server functions only.
 
 | Field | Type | Notes |
 |---|---|---|
-| `id` | text | The record's id: 24 characters, text (not a number). |
-| `created_date` | timestamptz | When the record was made. |
-| `updated_date` | timestamptz | When it last changed. |
-| `created_by` | text | Email of whoever made it, when made from the app. |
-| `created_by_id` | text | User id of whoever made it. |
-| `is_sample` | boolean | Base44 sample data. |
 | `device_id` | text | → KioskDevice Required. |
 | `token_hash` | text | Required. **Secret**: never sent to the browser. |
 | `company_id` | text | → Company |
@@ -429,12 +357,6 @@ Table `driver` · belongs to a company through `company_id` · read and changed 
 
 | Field | Type | Notes |
 |---|---|---|
-| `id` | text | The record's id: 24 characters, text (not a number). |
-| `created_date` | timestamptz | When the record was made. |
-| `updated_date` | timestamptz | When it last changed. |
-| `created_by` | text | Email of whoever made it, when made from the app. |
-| `created_by_id` | text | User id of whoever made it. |
-| `is_sample` | boolean | Base44 sample data. Not sent to the browser. |
 | `full_name` | text | Required. |
 | `email` | text |  |
 | `phone` | text |  |
@@ -453,12 +375,6 @@ Table `driver_document` · belongs to a company through `driver_id`, then `compa
 
 | Field | Type | Notes |
 |---|---|---|
-| `id` | text | The record's id: 24 characters, text (not a number). |
-| `created_date` | timestamptz | When the record was made. |
-| `updated_date` | timestamptz | When it last changed. |
-| `created_by` | text | Email of whoever made it, when made from the app. |
-| `created_by_id` | text | User id of whoever made it. |
-| `is_sample` | boolean | Base44 sample data. Not sent to the browser. |
 | `driver_id` | text | → Driver Required. |
 | `driver_name` | text |  |
 | `company_id` | text | → Company |
@@ -477,12 +393,6 @@ Table `driver_pin_credential` · server functions only.
 
 | Field | Type | Notes |
 |---|---|---|
-| `id` | text | The record's id: 24 characters, text (not a number). |
-| `created_date` | timestamptz | When the record was made. |
-| `updated_date` | timestamptz | When it last changed. |
-| `created_by` | text | Email of whoever made it, when made from the app. |
-| `created_by_id` | text | User id of whoever made it. |
-| `is_sample` | boolean | Base44 sample data. |
 | `vehicle_id` | text | → Vehicle |
 | `company_id` | text | → Company |
 | `salt` | text | **Secret**: never sent to the browser. |
@@ -499,12 +409,6 @@ A driver's day-off or shift-swap request from the driver phone app, approved or 
 
 | Field | Type | Notes |
 |---|---|---|
-| `id` | text | The record's id: 24 characters, text (not a number). |
-| `created_date` | timestamptz | When the record was made. |
-| `updated_date` | timestamptz | When it last changed. |
-| `created_by` | text | Email of whoever made it, when made from the app. |
-| `created_by_id` | text | User id of whoever made it. |
-| `is_sample` | boolean | Base44 sample data. |
 | `company_id` | text | → Company Required. |
 | `company_name` | text |  |
 | `driver_id` | text | → Driver Required. |
@@ -531,12 +435,6 @@ Table `driver_shift` · belongs to a company through `vehicle_id`, then `company
 
 | Field | Type | Notes |
 |---|---|---|
-| `id` | text | The record's id: 24 characters, text (not a number). |
-| `created_date` | timestamptz | When the record was made. |
-| `updated_date` | timestamptz | When it last changed. |
-| `created_by` | text | Email of whoever made it, when made from the app. |
-| `created_by_id` | text | User id of whoever made it. |
-| `is_sample` | boolean | Base44 sample data. Not sent to the browser. |
 | `vehicle_id` | text | → Vehicle Required. |
 | `vehicle_name` | text |  |
 | `company_id` | text | → Company |
@@ -563,12 +461,6 @@ Table `driving_event` · belongs to a company through `vehicle_id`, then `compan
 
 | Field | Type | Notes |
 |---|---|---|
-| `id` | text | The record's id: 24 characters, text (not a number). |
-| `created_date` | timestamptz | When the record was made. |
-| `updated_date` | timestamptz | When it last changed. |
-| `created_by` | text | Email of whoever made it, when made from the app. |
-| `created_by_id` | text | User id of whoever made it. |
-| `is_sample` | boolean | Base44 sample data. Not sent to the browser. |
 | `company_id` | text | → Company Required. |
 | `company_name` | text |  |
 | `driver_email` | text |  |
@@ -590,12 +482,6 @@ Table `fault` · belongs to a company through `vehicle_id`, then `company_id` ·
 
 | Field | Type | Notes |
 |---|---|---|
-| `id` | text | The record's id: 24 characters, text (not a number). |
-| `created_date` | timestamptz | When the record was made. |
-| `updated_date` | timestamptz | When it last changed. |
-| `created_by` | text | Email of whoever made it, when made from the app. |
-| `created_by_id` | text | User id of whoever made it. |
-| `is_sample` | boolean | Base44 sample data. Not sent to the browser. |
 | `vehicle_id` | text | → Vehicle Required. |
 | `vehicle_name` | text |  |
 | `company_id` | text | → Company Required. |
@@ -620,12 +506,6 @@ Table `front_desk_sign_ins` · read and changed through entityAccess.
 
 | Field | Type | Notes |
 |---|---|---|
-| `id` | text | The record's id: 24 characters, text (not a number). |
-| `created_date` | timestamptz | When the record was made. |
-| `updated_date` | timestamptz | When it last changed. |
-| `created_by` | text | Email of whoever made it, when made from the app. |
-| `created_by_id` | text | User id of whoever made it. |
-| `is_sample` | boolean | Base44 sample data. Not sent to the browser. |
 | `full_name` | text | Required. |
 | `company_name` | text |  |
 | `reason` | text |  |
@@ -640,12 +520,6 @@ Table `group_message` · belongs to a company through `vehicle_id`, then `compan
 
 | Field | Type | Notes |
 |---|---|---|
-| `id` | text | The record's id: 24 characters, text (not a number). |
-| `created_date` | timestamptz | When the record was made. |
-| `updated_date` | timestamptz | When it last changed. |
-| `created_by` | text | Email of whoever made it, when made from the app. |
-| `created_by_id` | text | User id of whoever made it. |
-| `is_sample` | boolean | Base44 sample data. Not sent to the browser. |
 | `vehicle_id` | text | → Vehicle Required. |
 | `vehicle_name` | text |  |
 | `company_id` | text | → Company |
@@ -668,12 +542,6 @@ Table `incident` · belongs to a company through `vehicle_id`, then `company_id`
 
 | Field | Type | Notes |
 |---|---|---|
-| `id` | text | The record's id: 24 characters, text (not a number). |
-| `created_date` | timestamptz | When the record was made. |
-| `updated_date` | timestamptz | When it last changed. |
-| `created_by` | text | Email of whoever made it, when made from the app. |
-| `created_by_id` | text | User id of whoever made it. |
-| `is_sample` | boolean | Base44 sample data. Not sent to the browser. |
 | `vehicle_id` | text | → Vehicle |
 | `vehicle_name` | text |  |
 | `company_id` | text | → Company Required. |
@@ -697,12 +565,6 @@ Table `inspection` · belongs to a company through `vehicle_id`, then `company_i
 
 | Field | Type | Notes |
 |---|---|---|
-| `id` | text | The record's id: 24 characters, text (not a number). |
-| `created_date` | timestamptz | When the record was made. |
-| `updated_date` | timestamptz | When it last changed. |
-| `created_by` | text | Email of whoever made it, when made from the app. |
-| `created_by_id` | text | User id of whoever made it. |
-| `is_sample` | boolean | Base44 sample data. Not sent to the browser. |
 | `driver_name` | text | Required. |
 | `driver_email` | text |  |
 | `vehicle_id` | text | → Vehicle Required. |
@@ -732,12 +594,6 @@ Table `inspection_result` · belongs to a company through `vehicle_id`, then `co
 
 | Field | Type | Notes |
 |---|---|---|
-| `id` | text | The record's id: 24 characters, text (not a number). |
-| `created_date` | timestamptz | When the record was made. |
-| `updated_date` | timestamptz | When it last changed. |
-| `created_by` | text | Email of whoever made it, when made from the app. |
-| `created_by_id` | text | User id of whoever made it. |
-| `is_sample` | boolean | Base44 sample data. Not sent to the browser. |
 | `vehicle_id` | text | → Vehicle Required. |
 | `vehicle_name` | text |  |
 | `company_id` | text | → Company |
@@ -768,12 +624,6 @@ Table `inspection_template` · belongs to a company through `company_id` · read
 
 | Field | Type | Notes |
 |---|---|---|
-| `id` | text | The record's id: 24 characters, text (not a number). |
-| `created_date` | timestamptz | When the record was made. |
-| `updated_date` | timestamptz | When it last changed. |
-| `created_by` | text | Email of whoever made it, when made from the app. |
-| `created_by_id` | text | User id of whoever made it. |
-| `is_sample` | boolean | Base44 sample data. Not sent to the browser. |
 | `name` | text | e.g. Daily, Weekly, Monthly, Service Required. |
 | `category` | text |  |
 | `company_id` | text | → Company Optional — blank means available to every company (true for the default seeded templates). |
@@ -800,12 +650,6 @@ Table `invoice` · read and changed through entityAccess.
 
 | Field | Type | Notes |
 |---|---|---|
-| `id` | text | The record's id: 24 characters, text (not a number). |
-| `created_date` | timestamptz | When the record was made. |
-| `updated_date` | timestamptz | When it last changed. |
-| `created_by` | text | Email of whoever made it, when made from the app. |
-| `created_by_id` | text | User id of whoever made it. |
-| `is_sample` | boolean | Base44 sample data. Not sent to the browser. |
 | `company_id` | text | → Company |
 | `company_name` | text |  |
 | `client_id` | text | → Client Required. |
@@ -832,12 +676,6 @@ Table `job_run` · server functions only.
 
 | Field | Type | Notes |
 |---|---|---|
-| `id` | text | The record's id: 24 characters, text (not a number). |
-| `created_date` | timestamptz | When the record was made. |
-| `updated_date` | timestamptz | When it last changed. |
-| `created_by` | text | Email of whoever made it, when made from the app. |
-| `created_by_id` | text | User id of whoever made it. |
-| `is_sample` | boolean | Base44 sample data. |
 | `job` | text | Scheduled job name, e.g. weeklyReport. Required. |
 | `ran_at` | timestamptz | Required. |
 | `trigger` | text | One of: `schedule`, `admin`. |
@@ -853,12 +691,6 @@ Table `kiosk_device` · belongs to a company through `vehicle_id`, then `company
 
 | Field | Type | Notes |
 |---|---|---|
-| `id` | text | The record's id: 24 characters, text (not a number). |
-| `created_date` | timestamptz | When the record was made. |
-| `updated_date` | timestamptz | When it last changed. |
-| `created_by` | text | Email of whoever made it, when made from the app. |
-| `created_by_id` | text | User id of whoever made it. |
-| `is_sample` | boolean | Base44 sample data. Not sent to the browser. |
 | `support_request` | jsonb | Not sent to the browser. Set by the server only. |
 | `company_id` | text | → Company |
 | `company_name` | text |  |
@@ -893,12 +725,6 @@ Table `location_ping` · belongs to a company through `vehicle_id`, then `compan
 
 | Field | Type | Notes |
 |---|---|---|
-| `id` | text | The record's id: 24 characters, text (not a number). |
-| `created_date` | timestamptz | When the record was made. |
-| `updated_date` | timestamptz | When it last changed. |
-| `created_by` | text | Email of whoever made it, when made from the app. |
-| `created_by_id` | text | User id of whoever made it. |
-| `is_sample` | boolean | Base44 sample data. Not sent to the browser. |
 | `company_id` | text | → Company Required. |
 | `lat` | double precision | Required. |
 | `lng` | double precision | Required. |
@@ -914,12 +740,6 @@ Table `lost_item_report` · belongs to a company through `company_id` · read an
 
 | Field | Type | Notes |
 |---|---|---|
-| `id` | text | The record's id: 24 characters, text (not a number). |
-| `created_date` | timestamptz | When the record was made. |
-| `updated_date` | timestamptz | When it last changed. |
-| `created_by` | text | Email of whoever made it, when made from the app. |
-| `created_by_id` | text | User id of whoever made it. |
-| `is_sample` | boolean | Base44 sample data. Not sent to the browser. |
 | `company_id` | text | → Company |
 | `company_name` | text |  |
 | `reporter_name` | text |  |
@@ -939,12 +759,6 @@ Table `maintenance_schedule` · belongs to a company through `vehicle_id`, then 
 
 | Field | Type | Notes |
 |---|---|---|
-| `id` | text | The record's id: 24 characters, text (not a number). |
-| `created_date` | timestamptz | When the record was made. |
-| `updated_date` | timestamptz | When it last changed. |
-| `created_by` | text | Email of whoever made it, when made from the app. |
-| `created_by_id` | text | User id of whoever made it. |
-| `is_sample` | boolean | Base44 sample data. Not sent to the browser. |
 | `vehicle_id` | text | → Vehicle Required. |
 | `vehicle_name` | text |  |
 | `company_id` | text | → Company Required. |
@@ -966,12 +780,6 @@ Table `maintenance_settings` · read and changed through entityAccess.
 
 | Field | Type | Notes |
 |---|---|---|
-| `id` | text | The record's id: 24 characters, text (not a number). |
-| `created_date` | timestamptz | When the record was made. |
-| `updated_date` | timestamptz | When it last changed. |
-| `created_by` | text | Email of whoever made it, when made from the app. |
-| `created_by_id` | text | User id of whoever made it. |
-| `is_sample` | boolean | Base44 sample data. Not sent to the browser. |
 | `auto_create_faults` | boolean | Global, fleet-wide — a failed inspection (driver checklist or a mechanic's Run Inspection) auto-creates a Fault ticket. Only the mechanic team controls this, not individual companies. Default `true`. |
 | `maintenance_reminder_days` | double precision | Global — days before a MaintenanceSchedule's due date that maintenanceAlerts sends a reminder email. Only the mechanic team controls this. Default `14`. |
 | `enable_photo_attachments` | boolean | Global — whether mechanics can attach photos to inspection items in Run Inspection. Only the mechanic team controls this. Default `true`. |
@@ -987,12 +795,6 @@ Table `nfc_card` · belongs to a company through `company_id` · read and change
 
 | Field | Type | Notes |
 |---|---|---|
-| `id` | text | The record's id: 24 characters, text (not a number). |
-| `created_date` | timestamptz | When the record was made. |
-| `updated_date` | timestamptz | When it last changed. |
-| `created_by` | text | Email of whoever made it, when made from the app. |
-| `created_by_id` | text | User id of whoever made it. |
-| `is_sample` | boolean | Base44 sample data. Not sent to the browser. |
 | `card_uid` | text | Card's built-in ID, uppercase hex without separators (e.g. 04A28B22). Unique among active cards. Required. **Secret**: never sent to the browser. |
 | `card_type` | text | Detected chip, e.g. MIFARE Classic 1K, NTAG / Ultralight. |
 | `holder_type` | text | One of: `driver`, `mechanic`, `staff`, `other`. |
@@ -1023,12 +825,6 @@ One email or phone alert the app sent (or held back), for Admin → Notification
 
 | Field | Type | Notes |
 |---|---|---|
-| `id` | text | The record's id: 24 characters, text (not a number). |
-| `created_date` | timestamptz | When the record was made. |
-| `updated_date` | timestamptz | When it last changed. |
-| `created_by` | text | Email of whoever made it, when made from the app. |
-| `created_by_id` | text | User id of whoever made it. |
-| `is_sample` | boolean | Base44 sample data. |
 | `key` | text | Which notification. Required. |
 | `channel` | text | One of: `email`, `push`. Required. |
 | `title` | text |  |
@@ -1050,12 +846,6 @@ Admin choices for one kind of notification (Admin → Notifications): whether it
 
 | Field | Type | Notes |
 |---|---|---|
-| `id` | text | The record's id: 24 characters, text (not a number). |
-| `created_date` | timestamptz | When the record was made. |
-| `updated_date` | timestamptz | When it last changed. |
-| `created_by` | text | Email of whoever made it, when made from the app. |
-| `created_by_id` | text | User id of whoever made it. |
-| `is_sample` | boolean | Base44 sample data. |
 | `key` | text | Which notification (see base44/shared/notificationPolicy.ts). Required. |
 | `enabled` | boolean | Default `true`. |
 | `blocked_emails` | jsonb (list) | Lower-case emails of people who should not get this notification. |
@@ -1070,12 +860,6 @@ Table `part` · belongs to a company through `company_id` · read and changed th
 
 | Field | Type | Notes |
 |---|---|---|
-| `id` | text | The record's id: 24 characters, text (not a number). |
-| `created_date` | timestamptz | When the record was made. |
-| `updated_date` | timestamptz | When it last changed. |
-| `created_by` | text | Email of whoever made it, when made from the app. |
-| `created_by_id` | text | User id of whoever made it. |
-| `is_sample` | boolean | Base44 sample data. Not sent to the browser. |
 | `company_id` | text | → Company |
 | `company_name` | text |  |
 | `part_name` | text | Required. |
@@ -1096,12 +880,6 @@ Table `passenger_access_credential` · server functions only.
 
 | Field | Type | Notes |
 |---|---|---|
-| `id` | text | The record's id: 24 characters, text (not a number). |
-| `created_date` | timestamptz | When the record was made. |
-| `updated_date` | timestamptz | When it last changed. |
-| `created_by` | text | Email of whoever made it, when made from the app. |
-| `created_by_id` | text | User id of whoever made it. |
-| `is_sample` | boolean | Base44 sample data. |
 | `user_id` | text | → User |
 | `company_id` | text | → Company Required. |
 | `token_hash` | text | Required. **Secret**: never sent to the browser. |
@@ -1119,12 +897,6 @@ Table `passenger_one_time_credential` · server functions only.
 
 | Field | Type | Notes |
 |---|---|---|
-| `id` | text | The record's id: 24 characters, text (not a number). |
-| `created_date` | timestamptz | When the record was made. |
-| `updated_date` | timestamptz | When it last changed. |
-| `created_by` | text | Email of whoever made it, when made from the app. |
-| `created_by_id` | text | User id of whoever made it. |
-| `is_sample` | boolean | Base44 sample data. |
 | `user_id` | text | → User |
 | `company_id` | text | → Company |
 | `token_hash` | text | **Secret**: never sent to the browser. |
@@ -1141,12 +913,6 @@ A short-lived code a driver tablet shows so a driver can start the shift and unl
 
 | Field | Type | Notes |
 |---|---|---|
-| `id` | text | The record's id: 24 characters, text (not a number). |
-| `created_date` | timestamptz | When the record was made. |
-| `updated_date` | timestamptz | When it last changed. |
-| `created_by` | text | Email of whoever made it, when made from the app. |
-| `created_by_id` | text | User id of whoever made it. |
-| `is_sample` | boolean | Base44 sample data. |
 | `device_id` | text | → KioskDevice Driver tablet that showed the code. Required. |
 | `vehicle_id` | text | → Vehicle Required. |
 | `company_id` | text | → Company Required. |
@@ -1168,12 +934,6 @@ Table `place` · read and changed through entityAccess.
 
 | Field | Type | Notes |
 |---|---|---|
-| `id` | text | The record's id: 24 characters, text (not a number). |
-| `created_date` | timestamptz | When the record was made. |
-| `updated_date` | timestamptz | When it last changed. |
-| `created_by` | text | Email of whoever made it, when made from the app. |
-| `created_by_id` | text | User id of whoever made it. |
-| `is_sample` | boolean | Base44 sample data. Not sent to the browser. |
 | `company_id` | text | → Company |
 | `name` | text | Required. |
 | `kind` | text | One of: `airport`, `hotel`, `attraction`, `other`. Default `"other"`. |
@@ -1190,12 +950,6 @@ Table `push_token` · read and changed through entityAccess.
 
 | Field | Type | Notes |
 |---|---|---|
-| `id` | text | The record's id: 24 characters, text (not a number). |
-| `created_date` | timestamptz | When the record was made. |
-| `updated_date` | timestamptz | When it last changed. |
-| `created_by` | text | Email of whoever made it, when made from the app. |
-| `created_by_id` | text | User id of whoever made it. |
-| `is_sample` | boolean | Base44 sample data. Not sent to the browser. |
 | `token` | text | The FCM registration token for one browser/device. Required. **Secret**: never sent to the browser. |
 | `email` | text | Logged-in user's email, for staff/admin/company tokens. |
 | `device_id` | text | → KioskDevice KioskDevice id, for driver-tablet tokens (drivers have no login). |
@@ -1210,12 +964,6 @@ Table `role_assignment` · server functions only.
 
 | Field | Type | Notes |
 |---|---|---|
-| `id` | text | The record's id: 24 characters, text (not a number). |
-| `created_date` | timestamptz | When the record was made. |
-| `updated_date` | timestamptz | When it last changed. |
-| `created_by` | text | Email of whoever made it, when made from the app. |
-| `created_by_id` | text | User id of whoever made it. |
-| `is_sample` | boolean | Base44 sample data. |
 | `user_id` | text | → User Required. |
 | `role_id` | text | → AccessRole |
 | `assigned_by` | text |  |
@@ -1230,12 +978,6 @@ Table `route` · belongs to a company through `company_id` · read and changed t
 
 | Field | Type | Notes |
 |---|---|---|
-| `id` | text | The record's id: 24 characters, text (not a number). |
-| `created_date` | timestamptz | When the record was made. |
-| `updated_date` | timestamptz | When it last changed. |
-| `created_by` | text | Email of whoever made it, when made from the app. |
-| `created_by_id` | text | User id of whoever made it. |
-| `is_sample` | boolean | Base44 sample data. Not sent to the browser. |
 | `company_id` | text | → Company Required. |
 | `company_name` | text |  |
 | `name` | text | Required. |
@@ -1254,12 +996,6 @@ Table `route_travel_times` · belongs to a company through `company_id` · read 
 
 | Field | Type | Notes |
 |---|---|---|
-| `id` | text | The record's id: 24 characters, text (not a number). |
-| `created_date` | timestamptz | When the record was made. |
-| `updated_date` | timestamptz | When it last changed. |
-| `created_by` | text | Email of whoever made it, when made from the app. |
-| `created_by_id` | text | User id of whoever made it. |
-| `is_sample` | boolean | Base44 sample data. Not sent to the browser. |
 | `route_id` | text | → Route Required. |
 | `route_name` | text |  |
 | `company_id` | text | → Company |
@@ -1281,12 +1017,6 @@ Server-only delivery ledger for new-account admin alerts.
 
 | Field | Type | Notes |
 |---|---|---|
-| `id` | text | The record's id: 24 characters, text (not a number). |
-| `created_date` | timestamptz | When the record was made. |
-| `updated_date` | timestamptz | When it last changed. |
-| `created_by` | text | Email of whoever made it, when made from the app. |
-| `created_by_id` | text | User id of whoever made it. |
-| `is_sample` | boolean | Base44 sample data. |
 | `user_id` | text | → User Required. |
 | `completed` | boolean |  |
 | `delivered_emails` | jsonb (list) |  |
@@ -1300,12 +1030,6 @@ Table `staff_check_in` · belongs to a company through `vehicle_id`, then `compa
 
 | Field | Type | Notes |
 |---|---|---|
-| `id` | text | The record's id: 24 characters, text (not a number). |
-| `created_date` | timestamptz | When the record was made. |
-| `updated_date` | timestamptz | When it last changed. |
-| `created_by` | text | Email of whoever made it, when made from the app. |
-| `created_by_id` | text | User id of whoever made it. |
-| `is_sample` | boolean | Base44 sample data. Not sent to the browser. |
 | `staff_name` | text |  |
 | `staff_picture_url` | text |  |
 | `card_tag` | text | Required. **Secret**: never sent to the browser. |
@@ -1329,12 +1053,6 @@ Table `tablet_recording_session` · server functions only.
 
 | Field | Type | Notes |
 |---|---|---|
-| `id` | text | The record's id: 24 characters, text (not a number). |
-| `created_date` | timestamptz | When the record was made. |
-| `updated_date` | timestamptz | When it last changed. |
-| `created_by` | text | Email of whoever made it, when made from the app. |
-| `created_by_id` | text | User id of whoever made it. |
-| `is_sample` | boolean | Base44 sample data. |
 | `device_id` | text | → KioskDevice Required. |
 | `requested_by` | text | Required. |
 | `requested_name` | text |  |
@@ -1356,12 +1074,6 @@ Table `tablet_support_session` · server functions only.
 
 | Field | Type | Notes |
 |---|---|---|
-| `id` | text | The record's id: 24 characters, text (not a number). |
-| `created_date` | timestamptz | When the record was made. |
-| `updated_date` | timestamptz | When it last changed. |
-| `created_by` | text | Email of whoever made it, when made from the app. |
-| `created_by_id` | text | User id of whoever made it. |
-| `is_sample` | boolean | Base44 sample data. |
 | `device_id` | text | → KioskDevice Required. |
 | `requested_by` | text | Required. |
 | `requested_name` | text |  |
@@ -1388,12 +1100,6 @@ Table `trip` · belongs to a company through `vehicle_id`, then `company_id` · 
 
 | Field | Type | Notes |
 |---|---|---|
-| `id` | text | The record's id: 24 characters, text (not a number). |
-| `created_date` | timestamptz | When the record was made. |
-| `updated_date` | timestamptz | When it last changed. |
-| `created_by` | text | Email of whoever made it, when made from the app. |
-| `created_by_id` | text | User id of whoever made it. |
-| `is_sample` | boolean | Base44 sample data. Not sent to the browser. |
 | `vehicle_id` | text | → Vehicle |
 | `vehicle_name` | text |  |
 | `plate_number` | text |  |
@@ -1464,12 +1170,6 @@ Table `app_user` · read and changed through entityAccess.
 
 | Field | Type | Notes |
 |---|---|---|
-| `id` | text | The record's id: 24 characters, text (not a number). |
-| `created_date` | timestamptz | When the record was made. |
-| `updated_date` | timestamptz | When it last changed. |
-| `created_by` | text | Email of whoever made it, when made from the app. |
-| `created_by_id` | text | User id of whoever made it. |
-| `is_sample` | boolean | Base44 sample data. Not sent to the browser. |
 | `email` | text | Sign-in email. |
 | `full_name` | text |  |
 | `role` | text | admin, company, mechanic, driver, staff or passenger. |
@@ -1519,12 +1219,6 @@ Table `vehicle` · belongs to a company through `company_id` · read and changed
 
 | Field | Type | Notes |
 |---|---|---|
-| `id` | text | The record's id: 24 characters, text (not a number). |
-| `created_date` | timestamptz | When the record was made. |
-| `updated_date` | timestamptz | When it last changed. |
-| `created_by` | text | Email of whoever made it, when made from the app. |
-| `created_by_id` | text | User id of whoever made it. |
-| `is_sample` | boolean | Base44 sample data. Not sent to the browser. |
 | `capacity` | double precision |  |
 | `company_id` | text | → Company Required. |
 | `company_name` | text |  |
@@ -1576,12 +1270,6 @@ Table `verification_attempt` · server functions only.
 
 | Field | Type | Notes |
 |---|---|---|
-| `id` | text | The record's id: 24 characters, text (not a number). |
-| `created_date` | timestamptz | When the record was made. |
-| `updated_date` | timestamptz | When it last changed. |
-| `created_by` | text | Email of whoever made it, when made from the app. |
-| `created_by_id` | text | User id of whoever made it. |
-| `is_sample` | boolean | Base44 sample data. |
 | `scope` | text |  |
 | `attempted_at` | text |  |
 
@@ -1593,12 +1281,6 @@ Table `verification_grant` · server functions only.
 
 | Field | Type | Notes |
 |---|---|---|
-| `id` | text | The record's id: 24 characters, text (not a number). |
-| `created_date` | timestamptz | When the record was made. |
-| `updated_date` | timestamptz | When it last changed. |
-| `created_by` | text | Email of whoever made it, when made from the app. |
-| `created_by_id` | text | User id of whoever made it. |
-| `is_sample` | boolean | Base44 sample data. |
 | `token_hash` | text | **Secret**: never sent to the browser. |
 | `device_id` | text | → KioskDevice |
 | `company_id` | text | → Company |
@@ -1622,12 +1304,6 @@ Table `workplace` · belongs to a company through `company_id` · read and chang
 
 | Field | Type | Notes |
 |---|---|---|
-| `id` | text | The record's id: 24 characters, text (not a number). |
-| `created_date` | timestamptz | When the record was made. |
-| `updated_date` | timestamptz | When it last changed. |
-| `created_by` | text | Email of whoever made it, when made from the app. |
-| `created_by_id` | text | User id of whoever made it. |
-| `is_sample` | boolean | Base44 sample data. Not sent to the browser. |
 | `name` | text | Required. |
 | `company_id` | text | → Company |
 | `company_name` | text |  |
