@@ -1,7 +1,7 @@
 import { pickupArrival } from "@/lib/pickupArrival";
 import React, { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { Bell, BellOff, Building2, Bus, ChevronRight, Clock, CreditCard, Home, LifeBuoy, LogOut, Map, MapPin, Megaphone, MessageCircle, QrCode, ShieldCheck, Sparkles, TriangleAlert, Wifi } from "lucide-react";
+import { Bell, BellOff, Building2, Bus, ChevronRight, Clock, CreditCard, Home, LifeBuoy, LogOut, Map, MapPin, Megaphone, MessageCircle, QrCode, ShieldCheck, TriangleAlert, Wifi } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { confirmAction } from "@/components/ConfirmHost";
@@ -195,7 +195,7 @@ export default function PassengerExperience({view,user,company,workplace,myVehic
     <Row icon={LifeBuoy} title="Help & support" onClick={()=>setSheet("help")}/>
    </section>
    <section className="px-panel px-offline"><Wifi /><span><strong>Offline access</strong><p>{offline?"Showing saved trip details.":"Your last received trip details stay available."}</p><small>{lastSynced?`Last synced ${clock(lastSynced)}`:"Waiting for the first sync"}</small></span></section>
-   <details className="px-panel"><summary>More tools</summary><div className="px-settings-list"><Row icon={Sparkles} title="Ask about your bus" onClick={()=>setSheet("assistant")}/><Row icon={ShieldCheck} title="Safety standards" to="/safety-standards"/><Row icon={Bus} title="Booked rides" to="/passenger-bookings"/>{support && <a className="px-row" href={whatsappLink(support,"passenger app")} target="_blank" rel="noopener noreferrer"><LifeBuoy /><span>Report an app problem</span><ChevronRight /></a>}</div></details>
+   <details className="px-panel"><summary>More tools</summary><div className="px-settings-list"><Row icon={ShieldCheck} title="Safety standards" to="/safety-standards"/><Row icon={Bus} title="Booked rides" to="/passenger-bookings"/>{support && <a className="px-row" href={whatsappLink(support,"passenger app")} target="_blank" rel="noopener noreferrer"><LifeBuoy /><span>Report an app problem</span><ChevronRight /></a>}</div></details>
    <button className="px-sign-out" onClick={logout}><LogOut />Sign out</button>
   </>}
   {view==="journey" && !mapOpen && <button className="px-floating-chat" aria-label="Open passenger chat" onClick={()=>setSheet("chat")}><MessageCircle /></button>}
