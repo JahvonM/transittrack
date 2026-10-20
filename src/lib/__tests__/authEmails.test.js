@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  buildEmails, checkEmails, expiresText, mergeAllowList, planAuthConfig, push, CODE_LENGTH,
+  buildEmails, checkEmails, expiresText, mergeAllowList, planAuthConfig, push, reportUrl, CODE_LENGTH,
 } from "../../../tools/supabase/auth-emails.mjs";
 
 // The sign-in emails Supabase sends for the app (tools/supabase/auth-emails.mjs)
@@ -59,7 +59,8 @@ describe("sign-in emails", () => {
     expect(planAuthConfig({ ...blankConfig(), ...first }, { emails })).toEqual({});
     const withResend = planAuthConfig({ ...blankConfig(), ...first }, { emails, smtp: { key: "re_test" } });
     expect(withResend).toMatchObject({ smtp_host: "smtp.resend.com", smtp_user: "resend", smtp_pass: "re_test", smtp_admin_email: "no-reply@mcsweenstransport.com", smtp_sender_name: "McSween Transport" });
-    expect(() => planAuthConfig({}, { emails })).toThrow(/mailer_templates/);
+    // Settings Supabase leaves out count as empty, so they get filled in.
+    expect(planAuthConfig({}, { emails }).mailer_templates_invite_content).toBe(emails.invite.html);
   });
 
   it("put them on the project and never print a secret", async () => {
@@ -97,5 +98,14 @@ describe("sign-in emails", () => {
     expect(error.message).toContain("401");
     expect(error.message).not.toContain(token);
     await expect(push({ ref: "../x", token, fetchImpl, log })).rejects.toThrow(/project ref/);
+  });
+
+  it("leave a note of how the run went in the project's API logs", () => {
+    const url = new URL(reportUrl("ghqpznxqngvhmkiwcauj", { result: "failed", error: "x".repeat(900) }));
+    expect(url.origin).toBe("https://ghqpznxqngvhmkiwcauj.supabase.co");
+    expect(url.pathname).toBe("/auth/v1/health");
+    expect(url.searchParams.get("tt_ci")).toBe("auth-emails");
+    expect(url.searchParams.get("result")).toBe("failed");
+    expect(url.searchParams.get("error")).toHaveLength(400);
   });
 });
