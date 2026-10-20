@@ -15,6 +15,22 @@ export function storedAccessToken() {
   return getAccessToken();
 }
 
+// Who the saved sign-in belongs to (the `sub` of Base44's token), so a profile
+// saved on this device is only reused for the same person. Null when unknown
+// or expired.
+export function sessionSubject() {
+  const token = getAccessToken();
+  const part = typeof token === 'string' ? token.split('.')[1] : '';
+  if (!part) return null;
+  try {
+    const b64 = part.replace(/-/g, '+').replace(/_/g, '/');
+    const claims = JSON.parse(atob(b64.padEnd(Math.ceil(b64.length / 4) * 4, '=')));
+    if (claims.exp && claims.exp * 1000 < Date.now()) return null;
+    const who = claims.sub || claims.user_id || claims.email;
+    return who ? `b44:${who}` : null;
+  } catch { return null; }
+}
+
 // What the desktop and phone apps are handed when they sign in through the
 // browser (see desktopSignIn.js / phoneSignIn.js).
 export function sessionHandoffToken(storage, fallback = null) {
