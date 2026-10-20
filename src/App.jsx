@@ -12,7 +12,8 @@ import OfflineNotice from "@/components/system/OfflineNotice";
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
 import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
-import { Suspense, lazy } from 'react';
+import { Suspense, lazy, useEffect, useState } from 'react';
+import { homeFor } from '@/lib/roleHome';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import { useTheme } from "@/lib/useTheme";
@@ -28,7 +29,8 @@ import ForgotPassword from '@/pages/ForgotPassword';
 import ResetPassword from '@/pages/ResetPassword';
 
 // Route-level pages are lazily loaded for code-splitting / performance
-const RoleWorkspace = lazy(() => import('@/pages/RoleWorkspace'));
+const loadRoleWorkspace = () => import('@/pages/RoleWorkspace');
+const RoleWorkspace = lazy(loadRoleWorkspace);
 const PageNotFound = lazy(() => import('./lib/PageNotFound'));
 const Welcome = lazy(() => import('@/pages/Welcome'));
 const TabletStart = lazy(() => import('@/pages/TabletStart'));
@@ -36,12 +38,16 @@ const PrivacyPolicy = lazy(() => import('@/pages/PrivacyPolicy'));
 const TermsOfService = lazy(() => import('@/pages/TermsOfService'));
 const BookTaxi = lazy(() => import('@/pages/BookTaxi'));
 const JoinCompany = lazy(() => import('@/pages/JoinCompany'));
-const CompanyDashboard = lazy(() => import('@/pages/CompanyDashboard'));
+const loadCompanyDashboard = () => import('@/pages/CompanyDashboard');
+const CompanyDashboard = lazy(loadCompanyDashboard);
 const DriverApp = lazy(() => import('@/pages/DriverApp'));
-const Admin = lazy(() => import('@/pages/Admin'));
+const loadAdmin = () => import('@/pages/Admin');
+const Admin = lazy(loadAdmin);
 const Account = lazy(() => import('@/pages/Account'));
-const StaffPortal = lazy(() => import('@/pages/StaffPortal'));
-const MechanicPortal = lazy(() => import('@/pages/MechanicPortal'));
+const loadStaffPortal = () => import('@/pages/StaffPortal');
+const StaffPortal = lazy(loadStaffPortal);
+const loadMechanicPortal = () => import('@/pages/MechanicPortal');
+const MechanicPortal = lazy(loadMechanicPortal);
 const RunInspection = lazy(() => import('@/pages/RunInspection'));
 const ManagerDashboard = lazy(() => import('@/pages/ManagerDashboard'));
 const OAuthConsent = lazy(() => import('@/pages/OAuthConsent'));
@@ -62,20 +68,43 @@ const IncidentReport = lazy(() => import('@/pages/IncidentReport'));
 const ReviewerSandbox = lazy(() => import('@/pages/ReviewerSandbox'));
 const DriverSchedule = lazy(() => import('@/pages/DriverSchedule'));
 const DriverProfile = lazy(() => import('@/pages/DriverProfile'));
-const DriverPhone = lazy(() => import('@/pages/DriverPhone'));
+const loadDriverPhone = () => import('@/pages/DriverPhone');
+const DriverPhone = lazy(loadDriverPhone);
+
+// Each home screen's code, fetched while the account is still being checked
+// (or as soon as the saved sign-in says who this is), so opening the app is
+// one wait instead of "checking your account" and then "opening this screen".
+const HOME_CODE = {
+  '/staff': loadStaffPortal, '/journey': loadStaffPortal, '/my-card': loadStaffPortal, '/more': loadStaffPortal,
+  '/admin': loadAdmin, '/mechanic': loadMechanicPortal, '/company': loadCompanyDashboard,
+  '/driver-phone': loadDriverPhone, '/workspace': loadRoleWorkspace,
+};
+const fetchHomeCode = (path) => { HOME_CODE['/' + String(path || '').split('/')[1]]?.().catch(() => { /* the page loads it again */ }); };
+if (typeof window !== 'undefined') fetchHomeCode(window.location.pathname);
 // Add page imports here
 
 // Pages that moved inside the admin area. Their old addresses still work for
 // bookmarks; nothing in the app links to them any more.
 const MOVED_TO_ADMIN = ["route-analytics", "fleet-analytics", "vehicle-logs", "driving-reports", "route-planner", "ride-history", "incident-reports", "support", "location-timeline"];
 
-const RouteFallback = () => (
-  <JourneyLoading label="Opening this screen…" onRetry={() => window.location.reload()} />
-);
+// A screen's code that is already downloaded opens in a moment: show the
+// loading screen only if it actually takes a while, instead of flashing it.
+const RouteFallback = () => {
+  const [show, setShow] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setShow(true), 400);
+    return () => clearTimeout(timer);
+  }, []);
+  return show
+    ? <JourneyLoading onRetry={() => window.location.reload()} />
+    : <div className="min-h-[100dvh] bg-background" aria-busy="true" />;
+};
 
 const AuthenticatedApp = () => {
-  const { isLoadingAuth, isLoadingPublicSettings, authError, checkAppState } = useAuth();
+  const { user, isAuthenticated, isLoadingAuth, isLoadingPublicSettings, authError, checkAppState } = useAuth();
   const location = useLocation();
+  const home = user ? homeFor(user) : null;
+  useEffect(() => { if (home) fetchHomeCode(home); }, [home]);
   const authPage = ['/login', '/register', '/forgot-password', '/reset-password'].includes(location.pathname);
   const tabletPage = /^\/(driver|kiosk|tablet)(\/|$)/.test(location.pathname);
   // The legal pages are linked from the app stores, so they must open for
@@ -90,10 +119,9 @@ const AuthenticatedApp = () => {
     : location.pathname.startsWith("/driver-phone") ? "/driver-phone" : /^\/admin(\/|$)/.test(location.pathname) ? "/admin" : location.pathname;
 
   // Show loading spinner while checking app public settings or auth
+  // One loading screen for the whole start-up, whichever check is still running.
   if (!publicPage && !tabletPage && (isLoadingPublicSettings || isLoadingAuth)) {
-    return (
-      <JourneyLoading label={isLoadingPublicSettings ? "Connecting to McSween Transport…" : "Checking your account…"} onRetry={checkAppState} />
-    );
+    return <JourneyLoading onRetry={checkAppState} />;
   }
 
   // Login and paired tablets must still open when an account token expires.
