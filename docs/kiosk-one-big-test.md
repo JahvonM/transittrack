@@ -2,7 +2,7 @@
 
 Use one development tablet, parked, with the existing test driver, bus and NFC card. The previous driver appearance is restored. Cloud video storage is deferred; clips stay on the tablet and Admin plays a requested clip while the tablet is online.
 
-Earlier 1.3 checks passed 1,004 JavaScript tests, 188 security tests, 92 native tests and 102 distinct browser scenarios across broad/focused runs. These historical results do not certify the later 1.4 USB/branding changes. The current Windows preparation command reruns native tests before creating the test APK. Actual tablet checks below remain required; one media transport scenario could not run in the sandbox.
+Current source checks (20 October): **1,085 JavaScript tests**, **188 distinct security checks** across the broad run plus the isolated timeout rerun, **96 native tests**, native debug/release compilation, vital lint and unsigned release packaging passed. The installer parsed and passed four mocked safety/success scenarios under PowerShell on Linux. This does not verify Windows filesystem behavior or physical USB/camera/GPS behavior; work through the tablet checklist below. Historical browser coverage is described in kiosk-release-status.md.
 
 ## Prepare once on Windows
 
