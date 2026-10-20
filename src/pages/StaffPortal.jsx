@@ -340,6 +340,7 @@ export default function StaffPortal() {
     localStorage.removeItem("tt_company_access_grant");
     markCompanyLeft();
     clearPassengerSnapshot();
+    shownRef.current = false;
     setSheet(null);
     setCompany(null);
     setCompanyPhone("");
