@@ -1,8 +1,12 @@
+import { forwardToSupabase } from '../../shared/forwardToSupabase.ts';
 import { NATIVE_RELEASE, validNativeRelease } from '../../shared/nativeRelease.ts';
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 import { CONTROL_TTL, controlId, currentControl, newControl, strictControlDevice, controlCompletion } from '../../shared/tabletControl.ts';
 const reply = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 export default async function(req) {
+  // After the switch, calls from the installed tablet app go on to Supabase.
+  const forwarded = await forwardToSupabase(req, 'tabletControl');
+  if (forwarded) return forwarded;
   try {
     if (req.method !== 'POST') return reply({ error: 'POST required' }, 405);
     const input = await req.json().catch(() => null);
