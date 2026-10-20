@@ -25,6 +25,7 @@ const TABLES_FILE = path.join(root, "supabase/entity-tables.json");
 
 const stripComments = (s) => s.replace(/^\s*\/\/.*$/gm, "");
 const oneLine = (s) => String(s || "").replace(/\s+/g, " ").trim();
+const andList = (items) => (items.length < 2 ? items.join("") : `${items.slice(0, -1).join(", ")} and ${items.at(-1)}`);
 const cell = (s) => oneLine(s).replace(/\|/g, "\\|");
 const code = (s) => `\`${s}\``;
 
@@ -170,9 +171,17 @@ export function readAccessRules(file = ACCESS_FILE) {
     if (!list || !entity) continue;
     const except = line.match(/!\[([^\]]*)\]\.includes\(role\)/);
     narrowed[entity[1]] = {
-      fields: parseList(list[1], known, `project() ${entity[1]}`).filter((f) => !META.has(f)),
+      fields: [...new Set(parseList(list[1], known, `project() ${entity[1]}`).filter((f) => !META.has(f)))],
       except: except ? parseList(except[1], known, "project() roles") : null,
+      adminExtra: [],
     };
+  }
+  // Fields projectRecord() adds for admins: if(name==='User' && ctx.user?.role==='admin') out.access_role_id=...
+  const projectRecord = need(/async function projectRecord\(db,ctx,name,row\) \{([\s\S]*?)\n\}/, "projectRecord()")[1];
+  for (const line of projectRecord.split("\n")) {
+    const entity = line.match(/name===['"]([A-Za-z]+)['"]/);
+    if (!entity || !/role===['"]admin['"]/.test(line) || !narrowed[entity[1]]) continue;
+    for (const m of line.matchAll(/out\.([a-z_]+)\s*=(?!=)/g)) narrowed[entity[1]].adminExtra.push(m[1]);
   }
   return { sets, fields, adminOnly, serverOnly, securityFields, narrowed };
 }
@@ -303,7 +312,8 @@ export function renderDataModel({ entities = readEntities(), rules = readAccessR
     const r = rules;
     // What entityAccess ever hands to the browser for this kind of record.
     const only = r.narrowed[e.entity] && !r.narrowed[e.entity].except ? r.narrowed[e.entity].fields : null;
-    const browserFields = !r.fields[e.entity] ? null : new Set([...META, ...(only || r.fields[e.entity])]);
+    const extra = r.narrowed[e.entity]?.adminExtra || [];
+    const browserFields = !r.fields[e.entity] ? null : new Set([...META, ...(only || r.fields[e.entity]), ...extra]);
     w();
     w(`### ${e.entity}`);
     w();
@@ -323,8 +333,9 @@ export function renderDataModel({ entities = readEntities(), rules = readAccessR
     if (narrow) {
       w();
       w(narrow.except
-        ? `**Everyone except ${narrow.except.map((role) => ROLE_NAMES[role] || role).join(" and ")} gets only:** ${narrow.fields.map(code).join(", ")}.`
-        : `**The app only ever gets:** ${narrow.fields.map(code).join(", ")}.`);
+        ? `**Everyone except ${andList(narrow.except.map((role) => ROLE_NAMES[role] || role))} gets only:** ${narrow.fields.map(code).join(", ")}.`
+        : `**The app only ever gets:** ${narrow.fields.map(code).join(", ")}` +
+          (narrow.adminExtra.length ? `; admins also get ${andList(narrow.adminExtra.map(code))}.` : "."));
     }
     w();
     w("| Field | Type | Notes |");
@@ -340,8 +351,8 @@ export function renderDataModel({ entities = readEntities(), rules = readAccessR
       const notes = [];
       const target = /_id$/.test(f) ? linkTarget(f, names) : null;
       if (target) notes.push(`→ ${target}`);
-      if (NOT_LINKS[f]) notes.push(NOT_LINKS[f]);
       if (note) notes.push(note);
+      else if (NOT_LINKS[f]) notes.push(NOT_LINKS[f]);
       if (d && Array.isArray(d.enum) && d.enum.length) notes.push("One of: " + d.enum.map((v) => code(v)).join(", ") + ".");
       if (d && "default" in d && d.default !== null && d.default !== "") notes.push(`Default ${code(JSON.stringify(d.default))}.`);
       if (e.required.has(f)) notes.push("Required.");
