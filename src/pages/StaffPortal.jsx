@@ -13,7 +13,7 @@ import { usePushNotifications } from "@/hooks/usePushNotifications";
 import useUserLocation from "@/hooks/useUserLocation";
 import { useChatUnread } from "@/components/staff/StaffGroupChat";
 import { MyPickupSheet, PassengerSettingsSheet, HelpSheet, BadgeSheet, ChatSheet, StopSheet, AssistantSheet } from "@/components/staff/StaffSheets";
-import { savePassengerSnapshot, loadPassengerSnapshot, clearPassengerSnapshot } from "@/lib/passengerSnapshot";
+import { savePassengerSnapshot, loadPassengerSnapshot, clearPassengerSnapshot, loadSavedCompany } from "@/lib/passengerSnapshot";
 import { haversineKm, etaMinutes } from "@/lib/geo";
 import useTravelTimes, { etaFromLearned } from "@/hooks/useTravelTimes";
 import useBusEta from "@/hooks/useBusEta";
@@ -81,6 +81,9 @@ export default function StaffPortal() {
   const [snapshot] = useState(() => (user?.id && !joinCode ? loadPassengerSnapshot(user.id) : null));
   // Something is on screen, so background refreshes must not swap it for a spinner.
   const shownRef = useRef(!!snapshot);
+  // With an older saved home, its company is still enough to load the buses at
+  // the same time as the company check, rather than after it.
+  const [knownCompany] = useState(() => snapshot?.company || (user?.id && !joinCode ? loadSavedCompany(user.id) : null));
   const [lastSynced, setLastSynced] = useState(() => snapshot?.savedAt || null);
   const [offline, setOffline] = useState(false);
   // The account check is recreated on every sign-in update; read the latest
@@ -91,8 +94,8 @@ export default function StaffPortal() {
   const { toast } = useToast();
   const pickupRef = useRef("");
   const statusRef = useRef(Object.fromEntries((snapshot?.result?.trips || []).map((x) => [x.id, x.status])));
-  const [company, setCompany] = useState(() => snapshot?.company || null);
-  const [companiesLoaded, setCompaniesLoaded] = useState(!!snapshot);
+  const [company, setCompany] = useState(knownCompany);
+  const [companiesLoaded, setCompaniesLoaded] = useState(!!knownCompany);
   // The bus the company put this passenger on (Admin → Passengers): { id, name } or null.
   const [myBus, setMyBus] = useState(() => snapshot?.myBus || null);
   // Where this passenger actually gets on when their pickup is merged with
@@ -524,7 +527,7 @@ export default function StaffPortal() {
   if (user?.role === "mechanic") return <Navigate to="/mechanic" replace />;
   // Same layout as the state below, so the page doesn't jump between the
   // company check and the data load — it reads as one wait.
-  if (!companiesLoaded) return <AppLayout variant="passenger"><JourneyLoading fullScreen={false} context="Passenger" label="Reconnecting to your company…" company={company} onRetry={restoreCompany} /></AppLayout>;
+  if (!companiesLoaded) return <AppLayout variant="passenger"><JourneyLoading fullScreen={false} context="Passenger" label="Getting your buses ready…" company={company} onRetry={restoreCompany} /></AppLayout>;
   if (companyError) return <AppLayout><AccessRecovery onRetry={restoreCompany} title="Couldn't reconnect to your company" description="Your saved company access has not been removed. Check your connection, then try again." /></AppLayout>;
   if (!company) {
     const unlockCompany = (c, reply) => { setCompany(c); setCompanyPhone(c.phone || ""); setMyBus(reply?.my_bus || null); };
@@ -544,7 +547,7 @@ export default function StaffPortal() {
       </AppLayout>
     );
   }
-  if (loading) return <AppLayout variant="passenger"><JourneyLoading fullScreen={false} context="Passenger" label="Loading your buses and arrival times…" company={company} vehicle={vehicles[0]} onRetry={() => window.location.reload()} /></AppLayout>;
+  if (loading) return <AppLayout variant="passenger"><JourneyLoading fullScreen={false} context="Passenger" label="Getting your buses ready…" company={company} vehicle={vehicles[0]} onRetry={() => window.location.reload()} /></AppLayout>;
 
   const mins = tripState.mins;
   const roundMins = mins != null ? Math.max(1, Math.round(mins)) : null;
