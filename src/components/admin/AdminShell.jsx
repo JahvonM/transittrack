@@ -13,7 +13,6 @@ import {
   MapPin,
   Megaphone,
   Menu,
-  Sparkles,
   BellRing,
   Bug,
   User,
@@ -108,7 +107,6 @@ export const ADMIN_SECTIONS = [
 
   { id: "users", label: "Users & roles", icon: Users, group: "Admin" },
   { id: "companies", label: "Companies", icon: Building2, group: "Admin" },
-  { id: "copilot", label: "AI copilot", icon: Sparkles, group: "Admin" },
   { id: "notifications", label: "Notifications", icon: BellRing, group: "Admin" },
   { id: "app-errors", label: "App errors", icon: Bug, group: "Admin" },
   { id: "audit", label: "Change history", icon: ScrollText, group: "Admin" },
@@ -123,7 +121,7 @@ const NAV_GROUPS = [
  {label:"People & access",icon:Users,ids:["drivers","directory","users","cards","card-designs"]},
  {label:"Operations",icon:Activity,ids:["trips","kiosks","shifts","checkins","billing","messaging","lost-items","ride-history","passenger-bookings","support"]},
  {label:"Reports",icon:BarChart3,ids:["vehicle-logs","driving-reports","route-analytics","fleet-analytics","travel-times"]},
- {label:"All tools",icon:Database,ids:["notifications","app-errors","copilot","audit","data"]},
+ {label:"All tools",icon:Database,ids:["notifications","app-errors","audit","data"]},
 ];
 const PRIMARY = [
  {id:"overview",label:"Overview",icon:LayoutDashboard},
