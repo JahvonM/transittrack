@@ -17,7 +17,8 @@
 // --push runs in the "Supabase sign-in emails" GitHub workflow with the
 // SUPABASE_ACCESS_TOKEN secret the functions deploy already uses. It also keeps
 // both sites on Supabase's redirect list and the sign-up code at 6 digits (the
-// sign-up screen has 6 boxes). Once a RESEND_API_KEY secret is there as well,
+// sign-up screen has 6 boxes), and new passwords at least as long as the app's
+// screens ask for (src/lib/passwordRules.js). Once a RESEND_API_KEY secret is there as well,
 // the emails go out through Resend from no-reply@mcsweenstransport.com and the
 // functions get the same key. It never prints a secret.
 //
@@ -35,6 +36,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { MIN_PASSWORD_LENGTH } from '../../src/lib/passwordRules.js';
 
 export const SITES = ['https://new.mcsweenstransport.com', 'https://app.mcsweenstransport.com'];
 export const LOGO_URL = 'https://app.mcsweenstransport.com/brand/icon-192.png?v=mcsween1';
@@ -220,6 +222,10 @@ export function planAuthConfig(current, { emails = {}, sender = false } = {}) {
   const allow = mergeAllowList(current.uri_allow_list);
   if (allow !== String(current.uri_allow_list || '')) patch.uri_allow_list = allow;
   if ('mailer_otp_length' in current && Number(current.mailer_otp_length) !== CODE_LENGTH) patch.mailer_otp_length = CODE_LENGTH;
+  // Supabase refuses a new password shorter than this (sign-up, reset, change).
+  if ('password_min_length' in current && Number(current.password_min_length) !== MIN_PASSWORD_LENGTH) {
+    patch.password_min_length = MIN_PASSWORD_LENGTH;
+  }
   if (sender && 'rate_limit_email_sent' in current && !(Number(current.rate_limit_email_sent) >= EMAILS_PER_HOUR)) {
     patch.rate_limit_email_sent = EMAILS_PER_HOUR;
   }
@@ -270,6 +276,7 @@ export async function push({ ref, token, resendKey = '', from = '', fetchImpl = 
   if (left.length) throw new Error(`Supabase did not keep: ${left.join(', ')}`);
   log(`Redirects allowed: ${String(after.uri_allow_list || '').split(',').join(' ')}`);
   log(`Site URL: ${after.site_url || '(none)'}; sign-up code: ${after.mailer_otp_length ?? '?'} digits, lasts ${expiresText(after.mailer_otp_exp).replace(/^in /, '')}`);
+  log(`New passwords: at least ${after.password_min_length ?? '?'} characters`);
   log(`Sending through: ${after.smtp_host ? after.smtp_host : 'Supabase\'s built-in email (team members only)'}`);
   return {
     changed,
@@ -277,6 +284,7 @@ export async function push({ ref, token, resendKey = '', from = '', fetchImpl = 
     otp: after.mailer_otp_length ?? '?',
     smtp: after.smtp_host ? 'custom' : 'built-in',
     perHour: after.rate_limit_email_sent ?? '?',
+    minPassword: after.password_min_length ?? '?',
     redirects: String(after.uri_allow_list || '').split(',').filter(Boolean).length,
   };
 }
@@ -332,7 +340,7 @@ async function main(argv) {
       const done = await push({ ref, token, resendKey, from: process.env.EMAIL_FROM || '' });
       await report(ref, {
         result: done.templates === 'live' ? 'ok' : 'waiting-for-resend',
-        changed: done.changed.join(' ') || 'nothing', templates: done.templates, otp: done.otp, smtp: done.smtp, perHour: done.perHour, redirects: done.redirects,
+        changed: done.changed.join(' ') || 'nothing', templates: done.templates, otp: done.otp, smtp: done.smtp, perHour: done.perHour, minPassword: done.minPassword, redirects: done.redirects,
       });
     } catch (error) {
       const hide = (t) => [token, resendKey].filter(Boolean).reduce((s, x) => s.split(x).join('***'), String(t));
