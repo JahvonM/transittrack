@@ -85,6 +85,11 @@ import CardDesignerTab from "@/components/admin/CardDesignerTab";
 import FleetHealthTab from "@/components/admin/FleetHealthTab";
 import LostItemsTab from "@/components/admin/LostItemsTab";
 import TravelTimesTab from "@/components/admin/TravelTimesTab";
+import { loadScreen, saveScreen } from "@/lib/savedScreen";
+
+// The overview's lists are kept on this device (for this admin, up to a day)
+// so the console opens with them straight away and refreshes behind them.
+const SAVED_KEYS = ["vehicles", ...SECTION_DATA.overview];
 
 const ROLE_LINKS = [
   { to: "/passenger", label: "Passenger view", icon: MapPin },
@@ -147,9 +152,11 @@ export default function Admin() {
   // Each section asks only for the lists it shows (see lib/adminData). Lists
   // are kept once loaded, so coming back to a section is instant, and a change
   // made inside a tab refreshes just that section's lists.
-  const [data, setData] = useState({});
+  const [saved] = useState(() => loadScreen("admin", user?.id));
+  const [data, setData] = useState(() => saved || {});
   const [settled, setSettled] = useState({});
-  const [attempted, setAttempted] = useState({});
+  // Saved lists count as shown, so the section opens; they still load fresh.
+  const [attempted, setAttempted] = useState(() => Object.fromEntries(Object.keys(saved || {}).map((k) => [k, true])));
   const [more, setMore] = useState({});
   const [moreBusy, setMoreBusy] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
@@ -205,6 +212,18 @@ export default function Admin() {
     ensure(sectionKeys);
   }, [sectionKeys, ensure]);
 
+  // Keep the overview's lists for next time, at most every 30 seconds (live
+  // bus positions change them all the time).
+  const lastSaved = useRef(0);
+  useEffect(() => {
+    if (!SAVED_KEYS.every((k) => settled[k])) return undefined;
+    const timer = setTimeout(() => {
+      lastSaved.current = Date.now();
+      saveScreen("admin", user?.id, Object.fromEntries(SAVED_KEYS.map((k) => [k, data[k]])));
+    }, Math.max(0, 30_000 - (Date.now() - lastSaved.current)));
+    return () => clearTimeout(timer);
+  }, [data, settled, user?.id]);
+
   useEffect(()=>{
     if(section!=="overview")return undefined;
     return base44.entities.StaffCheckIn.subscribe(event=>{
@@ -253,7 +272,8 @@ export default function Admin() {
   // Every list this section shows has been asked for at least once.
   const ready = sectionKeys.every((k) => attempted[k]);
   const failedKeys=sectionKeys.filter(k=>failed[k]);
-  const allFailed=sectionKeys.length>0 && ready && sectionKeys.every(k=>failed[k] && !settled[k]);
+  // Only an error page when there is nothing at all to show (no saved lists either).
+  const allFailed=sectionKeys.length>0 && ready && sectionKeys.every(k=>failed[k] && !settled[k] && data[k] === undefined);
   const problem=adminLoadProblem(failedKeys.map(k=>failed[k]));
   const retrying=sectionKeys.some(k=>loadingKeys[k]);
   const retryFailed=async()=>{
