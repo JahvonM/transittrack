@@ -521,11 +521,9 @@ test('admin keeps the current menu group open and message bubble stays above AI'
  await expect(nav.getByRole('button',{name:'Change history',exact:true})).toBeVisible();
  await tools.click();
  const messages=page.getByRole('button',{name:'Open messages',exact:true});
- const ai=page.getByRole('button',{name:'Open AI assistant',exact:true});
  await expect(messages).toBeVisible();
- await expect(ai).toBeVisible();
- const m=await messages.boundingBox(),a=await ai.boundingBox();
- expect(m.y+m.height).toBeLessThanOrEqual(a.y);
+ // The AI assistant was removed: no second bubble.
+ await expect(page.getByRole('button',{name:'Open AI assistant',exact:true})).toHaveCount(0);
 });
 
 test('message bubble starts a new conversation without prior messages',async({page})=>{
