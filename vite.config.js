@@ -2,11 +2,22 @@ import base44 from "@base44/vite-plugin"
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 import { fileURLToPath } from 'node:url'
+import { readFileSync } from 'node:fs'
 
 // `vite build --mode supabase` (npm run build:supabase) builds the app for its
 // own hosting on Supabase + Cloudflare; the normal build stays on Base44.
 // `tt-backend` is the one switch: src/api/backend.base44.js or backend.supabase.js.
 const backendFor = (mode) => fileURLToPath(new URL(mode === 'supabase' ? './src/api/backend.supabase.js' : './src/api/backend.base44.js', import.meta.url))
+
+// The switch for the whole app (step 7): base44/shared/liveBackend.ts. When it
+// says 'supabase', the build Base44 hosts (the one the tablets, phone app and
+// desktop app open) talks to Supabase too.
+export function liveBackend(source = readFileSync(new URL('./base44/shared/liveBackend.ts', import.meta.url), 'utf8')) {
+  const m = source.match(/^export const LIVE_BACKEND: Backend = '(base44|supabase)';$/m)
+  if (!m) throw new Error('base44/shared/liveBackend.ts: LIVE_BACKEND line not found')
+  return m[1]
+}
+const backendMode = (mode) => (mode === 'supabase' || liveBackend() === 'supabase' ? 'supabase' : 'base44')
 
 // Build stamp shown in Admin → Fleet health, so you can see which tablets
 // are still running an older version. Also written into offline-manifest.json
@@ -31,7 +42,7 @@ export default defineConfig(({ mode }) => ({
   define: { __APP_BUILD__: JSON.stringify(APP_BUILD) },
   resolve: {
     alias: {
-      'tt-backend': backendFor(mode),
+      'tt-backend': backendFor(backendMode(mode)),
       // The Base44 plugin provides @/ itself; the Supabase build leaves that plugin out.
       ...(mode === 'supabase' ? { '@': fileURLToPath(new URL('./src', import.meta.url)) } : {}),
     },
