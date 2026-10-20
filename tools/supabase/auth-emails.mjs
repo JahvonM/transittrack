@@ -21,6 +21,10 @@
 // the emails go out through Resend from no-reply@mcsweenstransport.com and the
 // functions get the same key. It never prints a secret.
 //
+// Supabase only lets a free project change these emails once it sends them
+// through its own email service, so until Resend is set up the emails wait
+// (the run says so) and only the redirect list and code length are set.
+//
 // When it finishes it also leaves a one-line note in the project's API logs (a
 // request to /auth/v1/health?tt_ci=auth-emails&...): ok or the error, and what
 // changed. That way whoever looks after the project can see how the last run
@@ -186,8 +190,21 @@ export function mergeAllowList(value) {
   return [...new Set([...have, ...want])].join(',');
 }
 
-// What has to change on the project's Auth settings.
-export function planAuthConfig(current, { emails, smtp = null }) {
+// Resend's SMTP settings for Supabase Auth.
+export function smtpSettings({ key, from = '' }) {
+  return {
+    smtp_host: 'smtp.resend.com',
+    smtp_port: 465,
+    smtp_user: 'resend',
+    smtp_pass: key,
+    smtp_admin_email: from || DEFAULT_FROM,
+    smtp_sender_name: SENDER_NAME,
+  };
+}
+
+// What has to change on the project's Auth settings (pass no emails to leave
+// them alone).
+export function planAuthConfig(current, { emails = {} } = {}) {
   const patch = {};
   for (const [kind, { subject, html }] of Object.entries(emails)) {
     const contentKey = `mailer_templates_${kind}_content`;
@@ -198,16 +215,6 @@ export function planAuthConfig(current, { emails, smtp = null }) {
   const allow = mergeAllowList(current.uri_allow_list);
   if (allow !== String(current.uri_allow_list || '')) patch.uri_allow_list = allow;
   if ('mailer_otp_length' in current && Number(current.mailer_otp_length) !== CODE_LENGTH) patch.mailer_otp_length = CODE_LENGTH;
-  if (smtp) {
-    Object.assign(patch, {
-      smtp_host: 'smtp.resend.com',
-      smtp_port: 465,
-      smtp_user: 'resend',
-      smtp_pass: smtp.key,
-      smtp_admin_email: smtp.from || DEFAULT_FROM,
-      smtp_sender_name: SENDER_NAME,
-    });
-  }
   return patch;
 }
 
@@ -229,24 +236,36 @@ export async function push({ ref, token, resendKey = '', from = '', fetchImpl = 
   const emails = buildEmails({ expires: expiresText(current.mailer_otp_exp) });
   const problems = checkEmails(emails);
   if (problems.length) throw new Error(`The emails failed their checks: ${problems.join('; ')}`);
-  const smtp = resendKey ? { key: resendKey, from: from || DEFAULT_FROM } : null;
-  const patch = planAuthConfig(current, { emails, smtp });
-  const changed = Object.keys(patch);
-  if (changed.length) await call('PATCH', '/config/auth', patch);
-  log(changed.length ? `Changed: ${changed.join(', ')}` : 'The emails were already up to date.');
+  // The sender goes first: Supabase refuses changed emails from a free project
+  // that still sends through its built-in email.
+  const changed = [];
+  let sender = current.smtp_host || '';
   if (resendKey) {
+    const smtp = smtpSettings({ key: resendKey, from });
+    await call('PATCH', '/config/auth', smtp);
     await call('POST', '/secrets', [{ name: 'RESEND_API_KEY', value: resendKey }]);
-    log(`Emails now go out through Resend from ${smtp.from}; the functions have the same key.`);
+    sender = smtp.smtp_host;
+    changed.push('smtp');
+    log(`Emails now go out through Resend from ${smtp.smtp_admin_email}; the functions have the same key.`);
+  }
+  const want = sender ? emails : {};
+  const patch = planAuthConfig(current, { emails: want });
+  if (Object.keys(patch).length) await call('PATCH', '/config/auth', patch);
+  changed.push(...Object.keys(patch));
+  log(changed.length ? `Changed: ${changed.join(', ')}` : 'Everything was already up to date.');
+  if (!sender) {
+    log('::warning::The new emails wait for Resend: Supabase only lets a free project change its emails once it sends them itself. Add the RESEND_API_KEY repository secret.');
   }
 
   const after = await call('GET', '/config/auth');
-  const left = Object.keys(planAuthConfig(after, { emails }));
+  const left = Object.keys(planAuthConfig(after, { emails: want }));
   if (left.length) throw new Error(`Supabase did not keep: ${left.join(', ')}`);
   log(`Redirects allowed: ${String(after.uri_allow_list || '').split(',').join(' ')}`);
   log(`Site URL: ${after.site_url || '(none)'}; sign-up code: ${after.mailer_otp_length ?? '?'} digits, lasts ${expiresText(after.mailer_otp_exp).replace(/^in /, '')}`);
   log(`Sending through: ${after.smtp_host ? after.smtp_host : 'Supabase\'s built-in email (team members only)'}`);
   return {
     changed,
+    templates: sender ? 'live' : 'waiting for Resend',
     otp: after.mailer_otp_length ?? '?',
     smtp: after.smtp_host ? 'custom' : 'built-in',
     redirects: String(after.uri_allow_list || '').split(',').filter(Boolean).length,
@@ -302,7 +321,10 @@ async function main(argv) {
     }
     try {
       const done = await push({ ref, token, resendKey, from: process.env.EMAIL_FROM || '' });
-      await report(ref, { result: 'ok', changed: done.changed.join(' ') || 'nothing', otp: done.otp, smtp: done.smtp, redirects: done.redirects });
+      await report(ref, {
+        result: done.templates === 'live' ? 'ok' : 'waiting-for-resend',
+        changed: done.changed.join(' ') || 'nothing', templates: done.templates, otp: done.otp, smtp: done.smtp, redirects: done.redirects,
+      });
     } catch (error) {
       const hide = (t) => [token, resendKey].filter(Boolean).reduce((s, x) => s.split(x).join('***'), String(t));
       await report(ref, { result: 'failed', error: hide(error?.message || error) });
