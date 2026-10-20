@@ -19,7 +19,6 @@ import LiveFleetTab from "@/components/admin/LiveFleetTab";
 import CompletedTripsTab from "@/components/admin/CompletedTripsTab";
 import ProfileInfo from "@/components/ProfileInfo";
 import DriversTab from "@/components/admin/DriversTab";
-import CopilotTab from "@/components/admin/CopilotTab";
 import VehiclesTab from "@/components/admin/VehiclesTab";
 import KioskTablets from "@/components/admin/KioskTablets";
 import CheckInLog from "@/components/admin/CheckInLog";
@@ -37,7 +36,6 @@ import InspectionHistoryTab from "@/components/admin/InspectionHistoryTab";
 import DataTab from "@/components/admin/DataTab";
 import NotificationsTab from "@/components/admin/NotificationsTab";
 import AppErrorsTab from "@/components/admin/AppErrorsTab";
-import FloatingChatbot from "@/components/admin/FloatingChatbot";
 import FloatingMessages from "@/components/admin/FloatingMessages";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { Button } from "@/components/ui/button";
@@ -555,7 +553,6 @@ export default function Admin() {
         {section === "companies" && <CompaniesTab companies={companies} onChange={refresh} />}
         {section === "messaging" && <MessagingTab vehicles={vehicles} />}
         {section === "ads" && <AdsTab />}
-        {section === "copilot" && <CopilotTab />}
         {section === "data" && <DataTab />}
         {section === "notifications" && <NotificationsTab />}
         {section === "app-errors" && <AppErrorsTab />}
@@ -623,7 +620,6 @@ export default function Admin() {
         </PullToRefresh>
       </AdminShell>
       <FloatingMessages vehicles={vehicles} />
-      <FloatingChatbot />
     </>
   );
 }
