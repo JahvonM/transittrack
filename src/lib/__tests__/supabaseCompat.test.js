@@ -16,6 +16,7 @@ const toMjs = (file) => ts.transpileModule(fs.readFileSync(new URL(file, root), 
   compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
 }).outputText.replace(/from '\.\/([A-Za-z0-9]+)\.ts'/g, "from './$1.mjs'");
 fs.writeFileSync(path.join(dir, "supabaseTables.mjs"), toMjs("supabase/functions/_shared/supabaseTables.ts"));
+fs.writeFileSync(path.join(dir, "supabaseFiles.mjs"), toMjs("supabase/functions/_shared/supabaseFiles.ts"));
 fs.writeFileSync(path.join(dir, "compat.mjs"), toMjs("supabase/functions/_shared/base44-compat.ts"));
 const compat = await import(path.join(dir, "compat.mjs"));
 
@@ -23,7 +24,9 @@ const URL_ = "https://proj.supabase.co";
 const KEY = "sb_secret_synthetic-test-key-never-real";
 const COLUMNS = {
   fault: { id: "text", created_date: "timestamp with time zone", updated_date: "timestamp with time zone", status: "text", company_id: "text", resolved: "boolean", photo_uris: "jsonb", cost: "double precision", consumed_at: "timestamp with time zone" },
-  app_user: { id: "text", created_date: "timestamp with time zone", email: "text", role: "text", full_name: "text", auth_user_id: "text", disabled: "boolean", phone: "text" },
+  app_user: { id: "text", created_date: "timestamp with time zone", email: "text", role: "text", full_name: "text", auth_user_id: "text", disabled: "boolean", phone: "text", photo_url: "text" },
+  company: { id: "text", created_date: "timestamp with time zone", name: "text", logo_url: "text" },
+  group_message: { id: "text", created_date: "timestamp with time zone", text: "text", media_url: "text" },
 };
 
 function fake({ rows = () => [], env = {} } = {}) {
@@ -39,6 +42,12 @@ function fake({ rows = () => [], env = {} } = {}) {
       if (token === "good" || token === "off") return Response.json({ id: "auth-" + token });
       return Response.json({ msg: "bad jwt" }, { status: 401 });
     }
+    if (u.pathname === "/storage/v1/object/sign/private") {
+      const { paths } = JSON.parse(init.body);
+      return Response.json(paths.map((p) => ({ path: p, signedURL: `/object/sign/private/${p}?token=t-${calls.length}`, error: null })));
+    }
+    if (u.pathname.startsWith("/storage/v1/object/private/")) return Response.json({ Key: u.pathname.slice(18) });
+    if (u.pathname === "/storage/v1/object/copy") return Response.json({ Key: "public/x" });
     if (u.pathname.startsWith("/rest/v1/")) {
       const out = rows(u, init);
       if (out instanceof Response) return out;
@@ -149,6 +158,47 @@ describe("Base44 calls on Supabase", () => {
     const err = await client().asServiceRole.entities.Fault.list().catch((e) => e);
     expect(err.status).toBe(400);
     expect(err.message).not.toMatch(/secret_table/);
+  });
+});
+
+describe("files", () => {
+  it("an upload goes to the private area and comes back as a link the app can show", async () => {
+    const { calls, client } = fake();
+    const file = new Blob([new Uint8Array([0xff, 0xd8, 0xff])], { type: "image/jpeg" });
+    file.name = "Jane Doe.jpg";
+    const { file_url } = await client().asServiceRole.integrations.Core.UploadPublicFile({ file });
+    const put = calls.find((c) => c.url.pathname.startsWith("/storage/v1/object/private/"));
+    expect(put.url.pathname).toMatch(/^\/storage\/v1\/object\/private\/uploads\/\d{4}-\d\d\/[0-9a-f-]{36}\.jpg$/);
+    expect(file_url).toMatch(new RegExp(`^${URL_}/storage/v1/object/sign/private/uploads/.+\\.jpg\\?token=`));
+    expect(file_url).not.toMatch(/Jane/);
+  });
+
+  it("saving a signed link stores the file itself: private fields keep it private, public fields copy it", async () => {
+    const { calls, client } = fake({ rows: (u, init) => [{ id: "r1", ...JSON.parse(init.body || "{}") }] });
+    const db = client().asServiceRole.entities;
+    const link = `${URL_}/storage/v1/object/sign/private/uploads/2026-10/abc.jpg?token=xyz`;
+    const msg = await db.GroupMessage.create({ text: "hi", media_url: link });
+    expect(JSON.parse(tableCalls(calls).at(-1).body).media_url).toBe("storage://private/uploads/2026-10/abc.jpg");
+    expect(msg.media_url).toBe("storage://private/uploads/2026-10/abc.jpg");
+    await db.Company.update("c1", { logo_url: link });
+    const copy = calls.find((c) => c.url.pathname === "/storage/v1/object/copy");
+    expect(JSON.parse(copy.body)).toEqual({ bucketId: "private", sourceKey: "uploads/2026-10/abc.jpg", destinationBucket: "public", destinationKey: "uploads/2026-10/abc.jpg" });
+    expect(JSON.parse(tableCalls(calls).at(-1).body).logo_url).toBe(`${URL_}/storage/v1/object/public/public/uploads/2026-10/abc.jpg`);
+    // Someone else's link, or any other text, is saved as it is.
+    await db.GroupMessage.create({ media_url: "https://evil.example/storage/v1/object/sign/private/x.jpg?token=a" });
+    expect(JSON.parse(tableCalls(calls).at(-1).body).media_url).toBe("https://evil.example/storage/v1/object/sign/private/x.jpg?token=a");
+  });
+
+  it("replies show private files as signed links, signed once and reused", async () => {
+    const { calls } = fake();
+    const handler = compat.withCors(async () => Response.json({ result: [{ id: "a", photo: "storage://private/staff_check_in/a/p-1.jpg" }, { id: "b", photos: ["storage://private/incident/b/x.jpg", "storage://public/no"] }] }));
+    const first = await (await handler(new Request("https://x/f"))).json();
+    expect(first.result[0].photo).toMatch(new RegExp(`^${URL_}/storage/v1/object/sign/private/staff_check_in/a/p-1.jpg\\?token=`));
+    expect(first.result[1].photos[0]).toMatch(/\/object\/sign\/private\/incident\/b\/x\.jpg\?token=/);
+    expect(first.result[1].photos[1]).toBe("storage://public/no");
+    const second = await (await handler(new Request("https://x/f"))).json();
+    expect(second).toEqual(first);
+    expect(calls.filter((c) => c.url.pathname === "/storage/v1/object/sign/private")).toHaveLength(1);
   });
 });
 
