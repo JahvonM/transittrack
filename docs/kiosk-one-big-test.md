@@ -19,7 +19,15 @@ If git reports local changes or conflicts, stop and preserve those changes; do n
 
 The script first selects an installed JDK 17 or 21 (including standard Microsoft/Adoptium/Android Studio locations) and skips incompatible Java 25. If neither is present, install Java 17 with `winget install --exact --id Microsoft.OpenJDK.17` and rerun. It then installs locked dependencies, builds the web app, syncs Android, compiles native code, runs native tests and assembles a debug test APK, then opens Android Studio. The APK and SHA-256 checksum are copied to your Windows Downloads folder as `McSween-Kiosk-1.4-build-5-test.apk` and its `.sha256.txt` file. This uses your local debug signing identity; it is not a signed store release. For Android Studio’s own builds, use the same printed JDK path in Settings → Build Tools → Gradle → Gradle JDK. It does not install, publish or clear app data. Gradle uses the normal local debug signing setup; use the existing PC/signing environment so the update matches your installed app. Use the existing Android Studio Run/signing configuration to update the tablet **in place once**. If Android rejects its signature, stop and use the original signing environment; do not uninstall or create a new key. Do not accept Android Studio's uninstall-to-resolve prompt.
 
-3. Open the kiosk and check Admin → Kiosk tablets → Tablet controls reports **1.4 / build 5** after a heartbeat. Keep the existing helper and FreeKiosk installed until acceptance is complete; only one app should own a USB reader at a time.
+3. With the existing development tablet connected by USB and USB debugging authorized, run:
+
+```powershell
+powershell -NoProfile -File .\tools\kiosk\Install-Tablet-Test.ps1
+```
+
+This checks the APK checksum, requires one authorized tablet (or an explicit `-Serial`), updates with `adb install -r`, grants the optional USB setup permission and opens the app. It never uninstalls, clears data, downgrades or changes pairing. A signature mismatch stops installation; use the original PC/signing environment. Test while parked and stop any recording first. This installer is for your development tablet, not a fleet rollout.
+
+4. Open the kiosk and check Admin → Kiosk tablets → Tablet controls reports **1.4 / build 5** after a heartbeat. Keep the existing helper and FreeKiosk installed until acceptance is complete; only one app should own a USB reader at a time.
 
 ## Work through the test in this order
 
