@@ -70,9 +70,9 @@ export default function Welcome() {
  const navigate = useNavigate();
  const role = user?.role || "staff";
  useEffect(() => {
-  if (isAuthenticated && user) navigate(user.access_role ? "/workspace" : ROLES[role]?.to || "/staff", {replace:true});
+  if (isAuthenticated && user) navigate(homeFor(user), {replace:true});
  }, [isAuthenticated,user,role,navigate]);
- if (isLoadingAuth || isLoadingPublicSettings || (isAuthenticated && user)) return <JourneyLoading label="Opening your app…" onRetry={checkAppState} />;
+ if (isLoadingAuth || isLoadingPublicSettings || (isAuthenticated && user)) return <JourneyLoading onRetry={checkAppState} />;
  if (authError?.type === "user_not_registered") return <UserNotRegisteredError />;
  if (authError && authError.type !== "auth_required") return <AccessRecovery onRetry={checkAppState} />;
  return <div className="tt-welcome min-h-[100dvh]">
