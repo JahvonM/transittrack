@@ -74,8 +74,8 @@ html.tt-admin-app :is([role=dialog], [role=alertdialog]) :is(input:not([type=che
 html.tt-admin-app :is([role=dialog], [role=alertdialog]):not(.tt-apple-sheet) { border-color: transparent; border-radius: 22px; box-shadow: 0 28px 80px rgba(0, 0, 0, .45); }
 html.tt-admin-app [role=menu] { border-color: var(--aa-hair, transparent); border-radius: 14px; }
 
-/* The floating message and assistant buttons follow the theme colour. */
-html.tt-admin-app:is(.light.tt-theme-chosen, [data-accent]) :is(button[aria-label="Open messages"], button[aria-label="Open AI assistant"]) {
+/* The floating messages button follows the theme colour. */
+html.tt-admin-app:is(.light.tt-theme-chosen, [data-accent]) button[aria-label="Open messages"] {
   border-color: hsl(var(--primary)); color: hsl(var(--primary)); box-shadow: 0 6px 18px rgba(0, 0, 0, .12);
 }
 
