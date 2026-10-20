@@ -12,6 +12,7 @@ import AppleIcon from "@/components/AppleIcon";
 import { toast } from "@/components/ui/use-toast";
 import { safeReturnTo } from "@/lib/authReturnTo";
 import { phoneSignInAvailable, openPhoneSignIn } from "@/lib/phoneSignIn";
+import { passwordProblem, PASSWORD_HINT } from "@/lib/passwordRules";
 
 export default function Register() {
   const [email, setEmail] = useState("");
@@ -27,6 +28,11 @@ export default function Register() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+    const problem = passwordProblem(password);
+    if (problem) {
+      setError(problem);
+      return;
+    }
     if (password !== confirmPassword) {
       setError("Passwords do not match");
       return;
@@ -241,9 +247,11 @@ export default function Register() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="pl-10 h-12"
+              aria-describedby="password-hint"
               required
             />
           </div>
+          <p id="password-hint" className="text-xs text-muted-foreground">{PASSWORD_HINT}</p>
         </div>
         <div className="space-y-2">
           <Label htmlFor="confirm">Confirm Password</Label>

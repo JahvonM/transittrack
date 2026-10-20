@@ -16,6 +16,7 @@ on:
     branches: [main]
     paths:
       - 'tools/supabase/auth-emails.mjs'
+      - 'src/lib/passwordRules.js'
       - '.github/workflows/supabase-auth-emails.yml'
   workflow_dispatch:
 

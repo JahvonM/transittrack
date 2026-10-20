@@ -19,6 +19,7 @@ import { EmptyState, PageActions, Segmented } from "@/components/admin/kit";
 const ROLE_LABEL = { company: "Company", driver: "Driver", staff: "Hotel staff", mechanic: "Mechanic", admin: "Admin" };
 import { exportToCSV, exportToPDF } from "@/lib/exporters";
 import { accountName, nameInitials } from "@/lib/userName";
+import { passwordProblem, PASSWORD_HINT } from "@/lib/passwordRules";
 
 const USER_COLS = [
   { key: "full_name", label: "Full name" },
@@ -37,7 +38,7 @@ function CreateAccountDialog({ companies, onCreated }) {
   const [creating, setCreating] = useState(false);
 
   const create = async () => {
-    if (!form.email.trim() || form.password.length < 8) return;
+    if (!form.email.trim() || passwordProblem(form.password)) return;
     setCreating(true);
     try {
       await base44.auth.register({ email: form.email.trim(), password: form.password });
@@ -90,7 +91,7 @@ function CreateAccountDialog({ companies, onCreated }) {
           </div>
           <div className="space-y-1.5">
             <Label>Password</Label>
-            <Input type="text" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="At least 8 characters" />
+            <Input type="text" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder={PASSWORD_HINT.replace(/\.$/, "")} />
           </div>
           <div className="space-y-1.5">
             <Label>Phone</Label>
@@ -123,7 +124,7 @@ function CreateAccountDialog({ companies, onCreated }) {
               </Select>
             </div>
           )}
-          <Button className="w-full" onClick={create} disabled={creating || !form.email.trim() || form.password.length < 8}>
+          <Button className="w-full" onClick={create} disabled={creating || !form.email.trim() || Boolean(passwordProblem(form.password))}>
             {creating ? "Creating…" : "Create account"}
           </Button>
         </div>
