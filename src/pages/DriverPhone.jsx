@@ -21,6 +21,7 @@ import Walkaround from "@/components/driverPhone/Walkaround";
 import Requests from "@/components/driverPhone/Requests";
 import { confirmAction } from "@/components/ConfirmHost";
 import { GPS_INTERVAL_MS } from "@/lib/mapbox";
+import { loadScreen, saveScreen } from "@/lib/savedScreen";
 
 const TABS = [
   { id: "today", label: "Today", icon: CalendarDays },
@@ -63,13 +64,17 @@ export default function DriverPhone() {
   const tab = TABS.some((t) => t.id === tabParam) ? tabParam : screen === "requests" ? "me" : "today";
   const [shifts, setShifts] = useState(null);
   const [startAfterWalk, setStartAfterWalk] = useState(false);
-  const [status, setStatus] = useState("loading");
+  // Opens with the bus, pickups and messages this driver saw last time (up to
+  // a day old); the fresh ones replace them as soon as they arrive.
+  const [saved] = useState(() => loadScreen("driver-phone", user?.id));
+  const [fresh, setFresh] = useState(false);
+  const [status, setStatus] = useState(saved ? "ready" : "loading");
   const [refusal, setRefusal] = useState("");
-  const [me, setMe] = useState(null);
-  const [today, setToday] = useState(null);
+  const [me, setMe] = useState(() => saved?.me || null);
+  const [today, setToday] = useState(() => saved?.today || null);
   const [busId, setBusId] = useState(() => store.get(BUS_KEY));
-  const [messages, setMessages] = useState([]);
-  const [messagesLoaded, setMessagesLoaded] = useState(false);
+  const [messages, setMessages] = useState(() => saved?.messages || []);
+  const [messagesLoaded, setMessagesLoaded] = useState(!!saved);
   const [documents, setDocuments] = useState([]);
   const [docsLoaded, setDocsLoaded] = useState(false);
   const [seen, setSeen] = useState(() => store.get(SEEN_KEY));
@@ -122,22 +127,27 @@ export default function DriverPhone() {
     }
   }, [refused, toast]);
 
-  // First load.
+  // First load: the profile, today's bus and the messages all at once.
   useEffect(() => {
     let alive = true;
     (async () => {
       try {
-        const profile = await callDriverPhone("me");
+        const [profile] = await Promise.all([callDriverPhone("me"), loadToday(), loadMessages()]);
         if (!alive) return;
         setMe(profile);
-        await Promise.all([loadToday(), loadMessages()]);
-        if (alive) setStatus((s) => (s === "refused" ? s : "ready"));
+        setStatus((s) => (s === "refused" ? s : "ready"));
+        setFresh(true);
       } catch (error) {
-        if (alive && !refused(error)) setStatus("error");
+        // No signal but last time's screen is up: keep it rather than an error page.
+        if (alive && !refused(error)) setStatus((s) => (s === "ready" ? s : "error"));
       }
     })();
     return () => { alive = false; };
   }, [loadToday, loadMessages, refused]);
+
+  useEffect(() => {
+    if (fresh && status === "ready" && me) saveScreen("driver-phone", user?.id, { me, today, messages });
+  }, [fresh, status, me, today, messages, user?.id]);
 
   // Keep things fresh without hammering the server: messages every 20 s while
   // they're on screen, otherwise once a minute; nothing while the screen is off.

@@ -3,7 +3,6 @@ import { withRateLimitRetry } from "@/lib/scopedEntities";
 import { adminLoadProblem } from "@/lib/adminLoader";
 import ErrorState from "@/components/system/ErrorState";
 import { addBreadcrumb } from "@/lib/breadcrumbs";
-import { loadAdminSnapshot, saveAdminSnapshot } from "@/lib/adminSnapshot";
 import useFutureAppearance from "@/hooks/useFutureAppearance";
 import React, { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import SupportNumberSetting from "@/components/admin/SupportNumberSetting";
@@ -86,6 +85,11 @@ import CardDesignerTab from "@/components/admin/CardDesignerTab";
 import FleetHealthTab from "@/components/admin/FleetHealthTab";
 import LostItemsTab from "@/components/admin/LostItemsTab";
 import TravelTimesTab from "@/components/admin/TravelTimesTab";
+import { loadScreen, saveScreen } from "@/lib/savedScreen";
+
+// The overview's lists are kept on this device (for this admin, up to a day)
+// so the console opens with them straight away and refreshes behind them.
+const SAVED_KEYS = ["vehicles", ...SECTION_DATA.overview];
 
 const ROLE_LINKS = [
   { to: "/passenger", label: "Passenger view", icon: MapPin },
@@ -148,14 +152,11 @@ export default function Admin() {
   // Each section asks only for the lists it shows (see lib/adminData). Lists
   // are kept once loaded, so coming back to a section is instant, and a change
   // made inside a tab refreshes just that section's lists.
-  // The overview as this admin last saw it here (up to a day old): shown at
-  // once while every list is fetched fresh. settledRef stays empty for these,
-  // so ensure() still loads each one from the server.
-  const [snapshot] = useState(() => loadAdminSnapshot(user?.id));
-  const savedKeys = () => Object.fromEntries(Object.keys(snapshot?.data || {}).map((k) => [k, true]));
-  const [data, setData] = useState(() => snapshot?.data || {});
-  const [settled, setSettled] = useState(savedKeys);
-  const [attempted, setAttempted] = useState(savedKeys);
+  const [saved] = useState(() => loadScreen("admin", user?.id));
+  const [data, setData] = useState(() => saved || {});
+  const [settled, setSettled] = useState({});
+  // Saved lists count as shown, so the section opens; they still load fresh.
+  const [attempted, setAttempted] = useState(() => Object.fromEntries(Object.keys(saved || {}).map((k) => [k, true])));
   const [more, setMore] = useState({});
   const [moreBusy, setMoreBusy] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
@@ -199,18 +200,29 @@ export default function Admin() {
       if (DATASETS[key].page) pages[key] = r.value.length >= PAGE;
     });
     settledRef.current = { ...settledRef.current, ...done };
-    saveAdminSnapshot(user?.id, next);
     setData((prev) => ({ ...prev, ...next }));
     setSettled((prev) => ({ ...prev, ...done }));
     setAttempted((prev) => ({ ...prev, ...marks }));
     setMore((prev) => ({ ...prev, ...pages }));
     setFailed(prev=>({...prev,...failures}));
     setLoadingKeys(prev=>({...prev,...Object.fromEntries(need.filter(k=>loadVersions.current[k]===versions[k]).map(k=>[k,false]))}));
-  }, [adminLoader, user?.id]);
+  }, [adminLoader]);
 
   useEffect(() => {
     ensure(sectionKeys);
   }, [sectionKeys, ensure]);
+
+  // Keep the overview's lists for next time, at most every 30 seconds (live
+  // bus positions change them all the time).
+  const lastSaved = useRef(0);
+  useEffect(() => {
+    if (!SAVED_KEYS.every((k) => settled[k])) return undefined;
+    const timer = setTimeout(() => {
+      lastSaved.current = Date.now();
+      saveScreen("admin", user?.id, Object.fromEntries(SAVED_KEYS.map((k) => [k, data[k]])));
+    }, Math.max(0, 30_000 - (Date.now() - lastSaved.current)));
+    return () => clearTimeout(timer);
+  }, [data, settled, user?.id]);
 
   useEffect(()=>{
     if(section!=="overview")return undefined;
@@ -260,7 +272,8 @@ export default function Admin() {
   // Every list this section shows has been asked for at least once.
   const ready = sectionKeys.every((k) => attempted[k]);
   const failedKeys=sectionKeys.filter(k=>failed[k]);
-  const allFailed=sectionKeys.length>0 && ready && sectionKeys.every(k=>failed[k] && !settled[k]);
+  // Only an error page when there is nothing at all to show (no saved lists either).
+  const allFailed=sectionKeys.length>0 && ready && sectionKeys.every(k=>failed[k] && !settled[k] && data[k] === undefined);
   const problem=adminLoadProblem(failedKeys.map(k=>failed[k]));
   const retrying=sectionKeys.some(k=>loadingKeys[k]);
   const retryFailed=async()=>{

@@ -16,6 +16,7 @@ import { loadFailed } from "@/lib/loadFailed";
 import { accountName } from "@/lib/userName";
 import BusLoader from "@/components/BusLoader";
 import { PageActions, PageIntro } from "@/components/admin/kit";
+import { loadScreen, saveScreen } from "@/lib/savedScreen";
 
 const TAB = "h-9 rounded-lg px-4 text-body-sm font-semibold data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm";
 
@@ -31,12 +32,15 @@ function formatTime(iso) {
 // opening its channel:"mechanic" thread.
 export default function MechanicPortal() {
   const { user } = useAuth();
-  const [vehicles, setVehicles] = useState([]);
-  const [messagesByVehicle, setMessagesByVehicle] = useState({});
+  // Opens with what this screen showed last time; the fresh lists replace it.
+  const [saved] = useState(() => loadScreen("mechanic", user?.id));
+  const [vehicles, setVehicles] = useState(() => saved?.vehicles || []);
+  const [messagesByVehicle, setMessagesByVehicle] = useState(() => saved?.messagesByVehicle || {});
+  const [fresh, setFresh] = useState(false);
   const [activeVehicleId, setActiveVehicleId] = useState(null);
   const [sending, setSending] = useState(false);
   const [unreadVehicleIds, setUnreadVehicleIds] = useState(() => new Set());
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!saved);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const seenIds = useRef(new Set());
   const firstLoad = useRef(true);
@@ -49,8 +53,12 @@ export default function MechanicPortal() {
   const activeMessages = messagesByVehicle[activeVehicleId] || [];
 
   useEffect(() => {
-    base44.entities.Vehicle.list().then((v) => { setVehicles(v); setLoading(false); }).catch(() => { setLoading(false); loadFailed(); });
+    base44.entities.Vehicle.list().then((v) => { setVehicles(v); setFresh(true); setLoading(false); }).catch(() => { setLoading(false); loadFailed(); });
   }, []);
+
+  useEffect(() => {
+    if (fresh) saveScreen("mechanic", user?.id, { vehicles, messagesByVehicle });
+  }, [fresh, vehicles, messagesByVehicle, user?.id]);
 
   useEffect(() => {
     base44.entities.GroupMessage.filter({ channel: "mechanic" }, "-created_date", 300)

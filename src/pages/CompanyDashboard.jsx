@@ -25,6 +25,7 @@ import BusLoader from "@/components/BusLoader";
 import VehicleFormDialog from "@/components/VehicleFormDialog";
 import { VehicleModelThumb } from "@/components/VehicleModelPicker";
 import { modelIdFor } from "@/lib/vehicleModels";
+import { loadScreen, saveScreen } from "@/lib/savedScreen";
 
 const LiveTransitMap = lazy(() => import("@/components/map3d/LiveTransitMap"));
 
@@ -34,12 +35,14 @@ export default function CompanyDashboard() {
   const navigate = useNavigate();
   const { tab: urlTab } = useParams();
   const tab = urlTab || "vehicles";
-  const [company, setCompany] = useState(null);
-  const [vehicles, setVehicles] = useState([]);
-  const [routes, setRoutes] = useState([]);
-  const [trips, setTrips] = useState([]);
-  const [workplace, setWorkplace] = useState(null);
-  const [loading, setLoading] = useState(true);
+  // Opens with what this screen showed last time; the fresh lists replace it.
+  const [saved] = useState(() => loadScreen("company", user?.id));
+  const [company, setCompany] = useState(() => saved?.company || null);
+  const [vehicles, setVehicles] = useState(() => saved?.vehicles || []);
+  const [routes, setRoutes] = useState(() => saved?.routes || []);
+  const [trips, setTrips] = useState(() => saved?.trips || []);
+  const [workplace, setWorkplace] = useState(() => saved?.workplace || null);
+  const [loading, setLoading] = useState(!saved);
   const [copied, setCopied] = useState(false);
   const [editing, setEditing] = useState(false);
   const { toast } = useToast();
@@ -55,11 +58,19 @@ export default function CompanyDashboard() {
       ]);
       const mine = (user.company_id && cos.find((c) => c.id === user.company_id))
         || cos.find((c) => c.created_by_id === user.id);
-      setCompany(mine || null);
-      setWorkplace(wp.find((w) => w.company_id === mine?.id && w.lat != null && w.lng != null) || null);
-      setVehicles(ve.filter((v) => v.company_id === mine?.id));
-      setRoutes(ro.filter((r) => r.company_id === mine?.id));
-      setTrips(tr.filter((t) => t.company_id === mine?.id));
+      const view = {
+        company: mine || null,
+        workplace: wp.find((w) => w.company_id === mine?.id && w.lat != null && w.lng != null) || null,
+        vehicles: ve.filter((v) => v.company_id === mine?.id),
+        routes: ro.filter((r) => r.company_id === mine?.id),
+        trips: tr.filter((t) => t.company_id === mine?.id),
+      };
+      setCompany(view.company);
+      setWorkplace(view.workplace);
+      setVehicles(view.vehicles);
+      setRoutes(view.routes);
+      setTrips(view.trips);
+      if (view.company) saveScreen("company", user?.id, view);
     } catch {
       loadFailed(loadAll);
     } finally {

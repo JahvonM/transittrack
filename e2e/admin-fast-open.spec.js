@@ -2,7 +2,7 @@ import {withAdminBatch} from "./helpers/adminBatchMock.js";
 import {test,expect} from '@playwright/test';
 
 // The admin console opens with the overview this admin last saw on this
-// device (adminSnapshot.js) while every list is fetched fresh, and never
+// device (savedScreen.js) while every list is fetched fresh, and never
 // raises the SOS alarm from that saved copy.
 const b64=o=>Buffer.from(JSON.stringify(o)).toString('base64url');
 const signedIn=`${b64({alg:'none'})}.${b64({sub:'admin-1',exp:Math.floor(Date.now()/1000)+3600})}.sig`;
@@ -33,9 +33,9 @@ test('the admin console shows the last overview before the server answers',async
  await admin(page,fleet);
  await page.goto('/admin');
  await fleetShown(page);
- await expect.poll(()=>page.evaluate(()=>!!localStorage.getItem('tt_admin_snapshot_v1'))).toBe(true);
+ await expect.poll(()=>page.evaluate(()=>!!localStorage.getItem('tt_screen_v1:admin'))).toBe(true);
  // The company join code never lands on the device.
- expect(await page.evaluate(()=>localStorage.getItem('tt_admin_snapshot_v1'))).not.toContain('JOIN-4471');
+ expect(await page.evaluate(()=>localStorage.getItem('tt_screen_v1:admin'))).not.toContain('JOIN-4471');
  await slowServer(page);
  const started=Date.now();
  await page.reload({waitUntil:'commit'});
@@ -48,7 +48,7 @@ test('an old SOS in the saved overview never raises the alarm',async({page})=>{
  await admin(page,fleet);
  await page.goto('/admin');
  await expect(page.getByRole('heading',{name:'EMERGENCY SOS'})).toBeVisible();
- await expect.poll(()=>page.evaluate(()=>localStorage.getItem('tt_admin_snapshot_v1')||'')).toContain('emergency');
+ await expect.poll(()=>page.evaluate(()=>localStorage.getItem('tt_screen_v1:admin')||'')).toContain('emergency');
  // The SOS has been dealt with; the server is slow to say so.
  fleet.bus=bus('idle');
  await slowServer(page);
@@ -73,8 +73,8 @@ test('signing out wipes the saved overview',async({page})=>{
  await admin(page,{bus:bus('idle')});
  await page.goto('/admin');
  await fleetShown(page);
- await expect.poll(()=>page.evaluate(()=>!!localStorage.getItem('tt_admin_snapshot_v1'))).toBe(true);
+ await expect.poll(()=>page.evaluate(()=>!!localStorage.getItem('tt_screen_v1:admin'))).toBe(true);
  await page.getByRole('button',{name:'Account menu'}).click();
  await page.getByRole('menuitem',{name:'Sign out'}).click();
- await expect.poll(()=>page.evaluate(()=>localStorage.getItem('tt_admin_snapshot_v1'))).toBeNull();
+ await expect.poll(()=>page.evaluate(()=>localStorage.getItem('tt_screen_v1:admin'))).toBeNull();
 });
