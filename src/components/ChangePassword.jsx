@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { KeyRound } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
+import { passwordProblem, PASSWORD_HINT } from "@/lib/passwordRules";
 
 export default function ChangePassword() {
   const { user } = useAuth();
@@ -18,12 +19,13 @@ export default function ChangePassword() {
 
   const submit = async () => {
     if (!cur || !nw) return;
-    if (nw !== conf) {
-      toast({ title: "Passwords don't match", variant: "destructive" });
+    const problem = passwordProblem(nw);
+    if (problem) {
+      toast({ title: problem, variant: "destructive" });
       return;
     }
-    if (nw.length < 6) {
-      toast({ title: "New password is too short (min 6 characters)", variant: "destructive" });
+    if (nw !== conf) {
+      toast({ title: "Passwords don't match", variant: "destructive" });
       return;
     }
     setBusy(true);
@@ -62,7 +64,8 @@ export default function ChangePassword() {
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="tt-pw-new">New password</Label>
-          <Input id="tt-pw-new" type="password" value={nw} onChange={(e) => setNw(e.target.value)} />
+          <Input id="tt-pw-new" type="password" autoComplete="new-password" aria-describedby="tt-pw-hint" value={nw} onChange={(e) => setNw(e.target.value)} />
+          <p id="tt-pw-hint" className="text-xs text-muted-foreground">{PASSWORD_HINT}</p>
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="tt-pw-confirm">Confirm new password</Label>
