@@ -79,6 +79,11 @@
     </application>
 
     <uses-feature android:name="android.hardware.usb.host" android:required="false" />
+    <!-- Lets the card reader check whether the old Helper app is still installed
+         (Android 11+ hides other apps otherwise). Only this one package. -->
+    <queries>
+        <package android:name="com.transittrack.kioskhelper" />
+    </queries>
 
     <!-- Native expiry receiver only releases a temporary lock; it does not launch or track. -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />

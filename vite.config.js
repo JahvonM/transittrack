@@ -1,6 +1,12 @@
 import base44 from "@base44/vite-plugin"
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
+import { fileURLToPath } from 'node:url'
+
+// `vite build --mode supabase` (npm run build:supabase) builds the app for its
+// own hosting on Supabase + Cloudflare; the normal build stays on Base44.
+// `tt-backend` is the one switch: src/api/backend.base44.js or backend.supabase.js.
+const backendFor = (mode) => fileURLToPath(new URL(mode === 'supabase' ? './src/api/backend.supabase.js' : './src/api/backend.base44.js', import.meta.url))
 
 // Build stamp shown in Admin → Fleet health, so you can see which tablets
 // are still running an older version. Also written into offline-manifest.json
@@ -21,10 +27,17 @@ function offlineManifest() {
 }
 
 // https://vite.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   define: { __APP_BUILD__: JSON.stringify(APP_BUILD) },
+  resolve: {
+    alias: {
+      'tt-backend': backendFor(mode),
+      // The Base44 plugin provides @/ itself; the Supabase build leaves that plugin out.
+      ...(mode === 'supabase' ? { '@': fileURLToPath(new URL('./src', import.meta.url)) } : {}),
+    },
+  },
   plugins: [
-    base44({
+    ...(mode === 'supabase' ? [] : [base44({
       // Support for legacy code that imports the base44 SDK with @/integrations, @/entities, etc.
       // can be removed if the code has been updated to use the new SDK imports from @base44/sdk
       legacySDKImports: process.env.BASE44_LEGACY_SDK_IMPORTS === 'true',
@@ -32,7 +45,7 @@ export default defineConfig({
       navigationNotifier: true,
       analyticsTracker: true,
       visualEditAgent: true
-    }),
+    })]),
     react(),
     offlineManifest(),
   ],
@@ -51,4 +64,4 @@ export default defineConfig({
       },
     },
   },
-});
+}));

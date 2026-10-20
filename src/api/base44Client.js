@@ -1,6 +1,6 @@
 import { recordRequest } from "@/lib/requestMetrics";
 import { httpStatus } from "@/lib/requestError";
-import { createClient } from '@base44/sdk';
+import { createBackend } from 'tt-backend';
 import { appParams } from '@/lib/app-params';
 import { scopedEntities, withRateLimitRetry } from '@/lib/scopedEntities';
 import { withAuditLog } from '@/lib/auditLog';
@@ -8,13 +8,8 @@ import { addBreadcrumb } from '@/lib/breadcrumbs';
 
 const { appId, token, functionsVersion, appBaseUrl } = appParams;
 
-export const base44 = createClient({
-  appId,
-  token,
-  functionsVersion,
-  serverUrl: '',
-  appBaseUrl
-});
+// Base44 normally; Supabase in the `--mode supabase` build (see vite.config.js).
+export const base44 = createBackend({ appId, token, functionsVersion, appBaseUrl });
 
 // A failed server call is remembered for the next error report (Admin → App
 // errors shows it in "what happened before"). Only the function name and the

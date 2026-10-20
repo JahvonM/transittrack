@@ -28,15 +28,33 @@ public class UsbNfcPlugin extends Plugin {
         @Override public void onReceive(Context context, Intent intent) {
             UsbAutoAcceptService.clearPending(context, "nfc");
             if (!intent.getBooleanExtra(android.hardware.usb.UsbManager.EXTRA_PERMISSION_GRANTED, false)) {
-                enabled = false; preferences.edit().putBoolean("enabled", false).apply();
-                stopReader(); report("USB permission denied - enable reader to retry");
+                // Like the Helper: a cancelled or closed popup is asked again a minute
+                // later. It never switches the reader off (Android also reports a popup
+                // that closed by itself, e.g. when the screen changed, as refused).
+                report("USB access not allowed yet - asking again in a minute");
             } else if (reader != null) reader.reconnect();
         }
     };
 
+    /** The reader is on unless someone switched it off in the boarding settings, like the
+     *  Helper. It only reads while the boarding screen is open, so driver tablets are
+     *  unaffected. While the old Helper app is still installed it stays off unless switched
+     *  on, so the two apps never fight over the reader. */
+    static boolean readerEnabled(Context context) {
+        SharedPreferences p = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        if (p.contains("enabled")) return p.getBoolean("enabled", false);
+        return !helperInstalled(context);
+    }
+    static final String OLD_HELPER = "com.transittrack.kioskhelper";
+    static boolean helperInstalled(Context context) {
+        try { context.getPackageManager().getPackageInfo(OLD_HELPER, 0); return true; }
+        catch (android.content.pm.PackageManager.NameNotFoundException e) { return false; }
+    }
+
     @Override public void load() {
         preferences = getContext().getSharedPreferences(PREFS, Context.MODE_PRIVATE);
-        enabled = preferences.getBoolean("enabled", false);
+        enabled = readerEnabled(getContext());
+        if (enabled) UsbAutoAcceptService.ensureEnabled(getContext());
         IntentFilter filter = new IntentFilter(UsbNfcReader.ACTION_PERMISSION);
         if (Build.VERSION.SDK_INT >= 33) getContext().registerReceiver(permissionResult, filter, Context.RECEIVER_NOT_EXPORTED);
         else getContext().registerReceiver(permissionResult, filter);
@@ -99,7 +117,7 @@ public class UsbNfcPlugin extends Plugin {
         getActivity().runOnUiThread(() -> {
             enabled = Boolean.TRUE.equals(call.getBoolean("enabled", false));
             preferences.edit().putBoolean("enabled", enabled).apply();
-            if (enabled) { startReader(); if (!ready) report("Waiting for boarding screen"); }
+            if (enabled) { UsbAutoAcceptService.ensureEnabled(getContext()); startReader(); if (!ready) report("Waiting for boarding screen"); }
             else { stopReader(); UsbAutoAcceptService.clearPending(getContext(), "nfc"); report("Off"); }
             call.resolve(state());
         });

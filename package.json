@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "eslint -c eslint.crash-guard.config.js --no-inline-config src && vite build",
+    "build:supabase": "eslint -c eslint.crash-guard.config.js --no-inline-config src && vite build --mode supabase",
     "lint": "eslint . --quiet",
     "lint:fix": "eslint . --fix",
     "typecheck": "tsc -p ./jsconfig.json",
@@ -47,6 +48,7 @@
     "@radix-ui/react-toast": "^1.2.2",
     "@radix-ui/react-toggle": "^1.1.2",
     "@radix-ui/react-tooltip": "^1.1.8",
+    "@supabase/supabase-js": "^2.118.0",
     "@tanstack/react-query": "^5.84.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

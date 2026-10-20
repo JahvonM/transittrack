@@ -11,7 +11,7 @@ export async function acceptPhoneSignInLink(url, { storage, setToken, go, closeB
   try { await closeBrowser?.(); } catch { /* Android keeps its own tab */ }
   try {
     const { token, returnTo } = await openPhoneSignInLink(url, { storage });
-    setToken(token);
+    await setToken(token);
     go(afterPhoneSignInPath(returnTo));
     return "signed-in";
   } catch (error) {

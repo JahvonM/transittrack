@@ -8,6 +8,8 @@
 // The desktop app rejects anything without its state, so another site cannot
 // sign the desktop app in or out.
 
+import { sessionHandoffToken } from "tt-backend";
+
 export const DESKTOP_PROVIDERS = {
   google: "Google",
   apple: "Apple",
@@ -15,8 +17,6 @@ export const DESKTOP_PROVIDERS = {
   facebook: "Facebook",
   sso: "your organization",
 };
-
-const STORAGE_KEY = "base44_access_token";
 
 // Validated request from the address bar, or null when the link is not one the
 // desktop app could have made.
@@ -42,15 +42,10 @@ export function desktopCallbackUrl({ port }) {
   return "http://127.0.0.1:" + Number(port) + "/callback";
 }
 
-// The browser's current TransitTrack session token (null when signed out).
+// The browser's current session, as handed to the desktop/phone app (null when
+// signed out). Base44: its access token. Supabase: "<access>~<refresh>".
 export function currentSessionToken(storage, fallback = null) {
-  let token = null;
-  try {
-    token = storage ? storage.getItem(STORAGE_KEY) : null;
-  } catch {
-    /* storage blocked */
-  }
-  return token || fallback || null;
+  return sessionHandoffToken(storage, fallback);
 }
 
 // Post the session to the desktop app's one-time listener on this computer.

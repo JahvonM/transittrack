@@ -23,4 +23,18 @@ public final class UsbPromptPolicy {
         // only when Android could not supply a product name.
         return device.isEmpty() ? lower.contains("usb") : lower.contains(device);
     }
+
+    /** Android's own popup when the ACR122U card reader is plugged in or found at start-up:
+     *  "Open <app> to handle ACR122U PICC Interface?". The Helper answered it too. Only this
+     *  app, only that reader, never screen/camera/audio consent. */
+    public static boolean readerAttachPrompt(String packageName, String text, String appLabel) {
+        if (!"com.android.systemui".equals(packageName) || text == null || appLabel == null || appLabel.isEmpty()) return false;
+        String lower = text.toLowerCase(Locale.ROOT);
+        if (lower.contains("screen") || lower.contains("record") || lower.contains("camera") ||
+            lower.contains("microphone") || lower.contains("cast") || lower.contains("display") || lower.contains("audio")) return false;
+        if (lower.contains((appLabel + " Helper").toLowerCase(Locale.ROOT))) return false;
+        if (!lower.contains("acr122")) return false;
+        String app = "(?i)\\bopen\\s+" + Pattern.quote(appLabel) + "\\s+to\\s+handle\\b";
+        return Pattern.compile(app, Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE).matcher(text).find();
+    }
 }

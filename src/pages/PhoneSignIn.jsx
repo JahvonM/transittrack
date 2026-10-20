@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Loader2, Smartphone, LogOut, CheckCircle2, AlertTriangle } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { appParams } from "@/lib/app-params";
+import { afterSessionHandoff } from "tt-backend";
 import { useAuth } from "@/lib/AuthContext";
 import AuthLayout from "@/components/AuthLayout";
 import { Button } from "@/components/ui/button";
@@ -77,6 +78,8 @@ export default function PhoneSignIn() {
     // Let the link open the app first, then forget the key: one use only.
     setTimeout(() => {
       forgetPhoneSignInKey(request.state, window.sessionStorage);
+      // On Supabase the phone app takes this sign-in over; the browser lets go of it.
+      void afterSessionHandoff();
       setStep("sent");
     }, 300);
   };

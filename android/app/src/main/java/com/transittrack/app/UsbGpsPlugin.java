@@ -45,9 +45,8 @@ public class UsbGpsPlugin extends Plugin {
         @Override public void onReceive(Context context, Intent intent) {
             UsbAutoAcceptService.clearPending(getContext(), "gps");
             if (!intent.getBooleanExtra(android.hardware.usb.UsbManager.EXTRA_PERMISSION_GRANTED, false)) {
-                enabled = false;
-                preferences.edit().putBoolean("enabled", false).apply();
-                stopReader(); report("USB permission denied. Enable USB GPS to try again.");
+                // Asked again a minute later, like the Helper; never switched off.
+                report("USB access not allowed yet - asking again in a minute");
             } else if (reader != null) reader.rescan();
         }
     };
@@ -64,7 +63,7 @@ public class UsbGpsPlugin extends Plugin {
         if (Build.VERSION.SDK_INT >= 33) battery = getContext().registerReceiver(batteryChanged, batteryFilter, Context.RECEIVER_NOT_EXPORTED);
         else battery = getContext().registerReceiver(batteryChanged, batteryFilter);
         updateBattery(battery);
-        if (enabled) startReader();
+        if (enabled) { UsbAutoAcceptService.ensureEnabled(getContext()); startReader(); }
     }
 
     private void updateBattery(Intent battery) {
@@ -148,7 +147,7 @@ public class UsbGpsPlugin extends Plugin {
             enabled = Boolean.TRUE.equals(call.getBoolean("enabled", false));
             preferences.edit().putBoolean("enabled", enabled).apply();
             if (DriverLocationService.active()) DriverLocationService.sourceChanged();
-            if (enabled) startReader();
+            if (enabled) { UsbAutoAcceptService.ensureEnabled(getContext()); startReader(); }
             else {
                 stopReader();
                 UsbAutoAcceptService.clearPending(getContext(), "gps");
