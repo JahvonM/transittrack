@@ -328,7 +328,7 @@ export default function StaffPortal() {
       unsubVehicles();
       unsubTrips();
     };
-  }, [company, loadData]);
+  }, [companyId, loadData]);
 
   const reload = async () => {
     if (!company) return;
