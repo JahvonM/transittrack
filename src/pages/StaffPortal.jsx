@@ -283,15 +283,18 @@ export default function StaffPortal() {
     statusRef.current = Object.fromEntries((result.trips || []).map((x) => [x.id, x.status]));
   }, [company?.id, user?.id]);
 
+  // Keyed on the company's id: the company check returning the same company the
+  // saved home showed must not load everything a second time.
+  const companyId = company?.id;
   useEffect(() => {
-    if (!company) return undefined;
-    setLoading(true);
-    loadData().catch(() => loadFailed()).finally(() => setLoading(false));
+    if (!companyId) return undefined;
+    if (!shownRef.current) setLoading(true);
+    loadData().then(() => { shownRef.current = true; }).catch(() => loadFailed()).finally(() => setLoading(false));
     const unsubVehicles = base44.entities.Vehicle.subscribe((event) => {
       setVehicles((prev) => {
         if (event.type === "delete") return prev.filter((x) => x.id !== event.id);
         const rec = event.data;
-        if (!rec || rec.company_id !== company.id) return prev;
+        if (!rec || rec.company_id !== companyId) return prev;
         const idx = prev.findIndex((x) => x.id === event.id);
         return idx === -1 ? [...prev, rec] : prev.map((x) => (x.id === event.id ? rec : x));
       });
@@ -303,7 +306,7 @@ export default function StaffPortal() {
         return;
       }
       const rec = event.data;
-      if (!rec || rec.company_id !== company.id) return;
+      if (!rec || rec.company_id !== companyId) return;
       const prevStatus = statusRef.current[rec.id];
       if (
         (rec.status === "arrived" || rec.status === "completed") &&
