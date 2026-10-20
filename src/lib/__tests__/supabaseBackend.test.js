@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { storedAccessToken, sessionHandoffToken, createBackend, linkLanding, AUTH_STORAGE_KEY } from "../../api/backend.supabase.js";
+import { storedAccessToken, sessionHandoffToken, sessionSubject, createBackend, linkLanding, AUTH_STORAGE_KEY } from "../../api/backend.supabase.js";
 import { sessionRejected, httpStatus, errorData } from "../requestError.js";
 
 // Step 7: the Supabase build's client (src/api/backend.supabase.js) must look
@@ -34,6 +34,20 @@ describe("Supabase client", () => {
     expect(storedAccessToken()).toBeNull();
     pageAt("?clear_access_token=true", JSON.stringify({ access_token: JWT, refresh_token: "r1" }));
     expect(storedAccessToken()).toBeNull();
+  });
+
+  it("says whose saved sign-in this is, but not while a new one is arriving", () => {
+    const session = JSON.stringify({ access_token: JWT, refresh_token: "r1", user: { id: "auth-1" } });
+    pageAt("", session);
+    expect(sessionSubject()).toBe("sb:auth-1");
+    pageAt("", JSON.stringify({ access_token: JWT, user: { id: "auth-1" } }));
+    expect(sessionSubject()).toBeNull(); // no refresh token: not a usable sign-in
+    pageAt(`?access_token=${JWT}~refresh12345`, session);
+    expect(sessionSubject()).toBeNull(); // a hand-over is replacing it
+    pageAt("?tt_oauth=1&code=abc", session);
+    expect(sessionSubject()).toBeNull();
+    pageAt("");
+    expect(sessionSubject()).toBeNull();
   });
 
   it("hands the desktop/phone app the whole session, in a form their token checks accept", () => {

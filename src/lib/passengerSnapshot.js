@@ -19,4 +19,16 @@ export function loadPassengerSnapshot(userId,companyId) {
   return value;
  }catch{return null;}
 }
+// Just the company from the last saved home, kept longer than the home itself:
+// enough to start loading the buses while the company is being re-checked,
+// instead of one after the other.
+export function loadSavedCompany(userId) {
+ try {
+  const value=JSON.parse(localStorage.getItem(KEY) || "null");
+  if(!value || !userId || value.userId!==userId || !value.company?.id)return null;
+  const age=Date.now()-Date.parse(value.savedAt);
+  if(!Number.isFinite(age) || age>30*24*3600000)return null;
+  return value.company;
+ }catch{return null;}
+}
 export function clearPassengerSnapshot(){try{localStorage.removeItem(KEY);}catch{/* storage unavailable */}}
