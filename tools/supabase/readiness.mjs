@@ -13,7 +13,7 @@
 // by hand in GitHub.
 import { pathToFileURL } from 'node:url';
 
-export const RUN = 1;
+export const RUN = 2;
 
 // Secrets the functions read (supabase/functions/README.md). SUPABASE_URL and
 // the project's keys are built in, so they're not listed.
@@ -24,7 +24,6 @@ export const NEEDED = {
   TT_SUPPORT_TURN_URL: 'tablet screen sharing',
   TT_SUPPORT_TURN_SECRET: 'tablet screen sharing',
   RESEND_API_KEY: 'emails from the functions',
-  ANTHROPIC_API_KEY: 'admin and bus assistant',
 };
 export const OPTIONAL = ['TT_SUPPORT_STUN_URL', 'TT_DURABLE_WRITES_ENABLED', 'EMAIL_FROM', 'ALLOWED_ORIGINS'];
 
