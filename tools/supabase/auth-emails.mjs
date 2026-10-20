@@ -194,7 +194,7 @@ export function mergeAllowList(value) {
 export function smtpSettings({ key, from = '' }) {
   return {
     smtp_host: 'smtp.resend.com',
-    smtp_port: 465,
+    smtp_port: '465', // Supabase wants the port as text
     smtp_user: 'resend',
     smtp_pass: key,
     smtp_admin_email: from || DEFAULT_FROM,
