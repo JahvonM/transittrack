@@ -526,33 +526,9 @@ async function sendEmail(input: { to?: string; subject?: string; body?: string; 
   return await res.json().catch(() => ({}));
 }
 
-async function invokeLLM(input: { prompt?: string; response_json_schema?: unknown }) {
-  const key = runtime.env.get('ANTHROPIC_API_KEY');
-  if (!key) throw httpError(503, 'The assistant is not set up yet');
-  const wantsJson = !!input.response_json_schema;
-  const prompt = String(input.prompt || '') + (wantsJson
-    ? `\n\nReply with only a JSON value matching this JSON schema, no other text:\n${JSON.stringify(input.response_json_schema)}`
-    : '');
-  const res = await runtime.fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model: runtime.env.get('ANTHROPIC_MODEL') || 'claude-haiku-5-5', max_tokens: 2048, messages: [{ role: 'user', content: prompt }] }),
-  });
-  if (!res.ok) {
-    console.error(`[assistant] ${res.status} ${(await res.text().catch(() => '')).slice(0, 200)}`);
-    throw httpError(502, 'The assistant is not available right now');
-  }
-  const out = await res.json();
-  const text = (out.content || []).filter((c: { type: string }) => c.type === 'text').map((c: { text: string }) => c.text).join('');
-  if (!wantsJson) return text;
-  const json = /```(?:json)?\s*([\s\S]*?)```/.exec(text)?.[1] ?? text;
-  try { return JSON.parse(json.trim()); } catch { throw httpError(502, 'The assistant gave an unreadable answer'); }
-}
-
 const integrations = {
   Core: {
     SendEmail: sendEmail,
-    InvokeLLM: invokeLLM,
     // Lands in the private area; the signed link shows it now, and saving it into
     // a public field copies it to the public area (see storedFile).
     async UploadPublicFile({ file }: { file: Blob & { name?: string } }) {

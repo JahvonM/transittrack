@@ -821,7 +821,6 @@ html.tt-passenger-app:is(.light,[data-accent]) .tt-bus-filters [aria-pressed="tr
 .tt-admin-overview [aria-label="Needs attention"] { max-height:580px; overflow:auto; }
 .tt-admin-shell main { padding-bottom:130px; }
 .tt-future button[aria-label="Open messages"] { border-color:#28d9ee; color:#2cd9ef; box-shadow:0 0 20px #00d5f322; }
-.tt-future button[aria-label="Open AI assistant"] { border-color:#31566a; color:#b5daeb; }
 @media(max-width:1279px) {
  .tt-admin-attention-action { margin-left:auto; }
 }

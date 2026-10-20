@@ -12,7 +12,7 @@ import { useCompanyAlerts } from "@/components/StaffAlerts";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import useUserLocation from "@/hooks/useUserLocation";
 import { useChatUnread } from "@/components/staff/StaffGroupChat";
-import { MyPickupSheet, PassengerSettingsSheet, HelpSheet, BadgeSheet, ChatSheet, StopSheet, AssistantSheet } from "@/components/staff/StaffSheets";
+import { MyPickupSheet, PassengerSettingsSheet, HelpSheet, BadgeSheet, ChatSheet, StopSheet } from "@/components/staff/StaffSheets";
 import { savePassengerSnapshot, loadPassengerSnapshot, clearPassengerSnapshot, loadSavedCompany } from "@/lib/passengerSnapshot";
 import { haversineKm, etaMinutes } from "@/lib/geo";
 import useTravelTimes, { etaFromLearned } from "@/hooks/useTravelTimes";
@@ -115,7 +115,7 @@ export default function StaffPortal() {
   const [params, setParams] = useSearchParams();
   useEffect(() => {
     const want = params.get("sheet");
-    if (!want || !["pickup", "stop", "help", "badge", "chat", "assistant", "notifications"].includes(want)) return;
+    if (!want || !["pickup", "stop", "help", "badge", "chat", "notifications"].includes(want)) return;
     setSheet(want);
     const next = new URLSearchParams(params);
     next.delete("sheet");
@@ -629,7 +629,6 @@ export default function StaffPortal() {
       />
       <PassengerSettingsSheet open={sheet === "notifications"} onOpenChange={o => setSheet(o ? "notifications" : null)} stopAlerts={stopAlerts} onToggleStopAlerts={toggleStopAlerts} pushUnsupported={pushPermission === "unsupported"} companyPhone={companyPhone} onSwitchCompany={switchCompany} />
       <StopSheet open={sheet === "stop"} onOpenChange={(o) => setSheet(o ? "stop" : null)} routes={pickupRoutes} value={pickupName} onChoose={choosePickup} userLoc={userLoc} />
-      <AssistantSheet open={sheet === "assistant"} onOpenChange={(o) => setSheet(o ? "assistant" : null)} company={company} userLoc={userLoc} />
       <HelpSheet open={sheet === "help"} onOpenChange={(o) => setSheet(o ? "help" : null)} company={company} vehicles={vehicles} />
       <BadgeSheet open={sheet === "badge"} onOpenChange={(o) => setSheet(o ? "badge" : null)} />
       <ChatSheet

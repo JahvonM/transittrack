@@ -1,0 +1,30 @@
+# Checks the Supabase project is ready for the switch from Base44 (step 7):
+# the function secrets the app needs (by name only) and which sign-in
+# providers are on. Read-only. See tools/supabase/readiness.mjs.
+name: Supabase readiness
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'tools/supabase/readiness.mjs'
+      - '.github/workflows/supabase-readiness.yml'
+  workflow_dispatch:
+
+jobs:
+  readiness:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      PROJECT_REF: ghqpznxqngvhmkiwcauj
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Check the project
+        run: node tools/supabase/readiness.mjs --push

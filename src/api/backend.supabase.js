@@ -152,6 +152,20 @@ export async function afterSessionHandoff() {
   await sb().auth.signOut({ scope: 'local' }).catch(() => {});
 }
 
+// Which "Continue with ..." buttons work: the providers turned on in the
+// Supabase dashboard (Authentication -> Sign In / Providers). Null when it
+// can't be read (offline), so the screen keeps what it showed last time.
+export async function signInOptions(fetchImpl = globalThis.fetch) {
+  try {
+    const res = await fetchImpl(`${SUPABASE_URL}/auth/v1/settings`, { headers: { apikey: PUBLISHABLE_KEY } });
+    if (!res.ok) return null;
+    const external = (await res.json())?.external || {};
+    return { google: external.google === true, apple: external.apple === true };
+  } catch {
+    return null;
+  }
+}
+
 function apiError(status, data, fallback) {
   const body = data && typeof data === 'object' ? data : { error: String(data || '') };
   const message = body.error || body.message || fallback;
@@ -333,7 +347,6 @@ export function createBackend() {
         UploadPublicFile: (params) => upload('public', params),
         UploadPrivateFile: (params) => upload('private', params),
         CreateFileSignedUrl: async (params) => (await invoke('integrations', { action: 'sign', ...params })).data,
-        InvokeLLM: async (params) => (await invoke('integrations', { action: 'llm', ...params })).data,
       },
     },
     users: {

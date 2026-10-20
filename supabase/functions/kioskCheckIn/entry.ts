@@ -1,3 +1,4 @@
+import { forwardToSupabase } from '../_shared/forwardToSupabase.ts';
 import { createClientFromRequest } from '../_shared/base44-compat.ts';
 import { boardingSecretHash, currentBoardingCode } from '../_shared/boardingCredentials.ts';
 // Shared request budgets use the configured Supabase RPC and fail closed.
@@ -328,6 +329,9 @@ async function allocatePassengerCode(base44,person,companyId) {
  return code;
 }
 export default async function(req) {
+  // After the switch, calls from the installed tablet app go on to Supabase.
+  const forwarded = await forwardToSupabase(req, 'kioskCheckIn');
+  if (forwarded) return forwarded;
   try {
     const body = await req.json();
     const { device_id, action } = body;

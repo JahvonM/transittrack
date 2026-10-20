@@ -41,3 +41,8 @@ export function sessionHandoffToken(storage, fallback = null) {
 
 // Base44 sessions can be shared, so the browser keeps its sign-in.
 export async function afterSessionHandoff() {}
+
+// Which "Continue with ..." buttons work: Base44 offers both.
+export async function signInOptions() {
+  return { google: true, apple: true };
+}

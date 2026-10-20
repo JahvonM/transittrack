@@ -58,7 +58,7 @@ describe('approved permanent access and ownership policy',()=>{
   expect(sdk.tables.CompanyAccessGrant[0].expires_at).toBeUndefined();
   const member=sdk.tables.CompanyMembership.find(m=>m.code_hash);expect(member.expires_at).toBeUndefined();expect(member.scope).toBe('passenger');expect(sdk.tables.User[0].role).toBe('staff');
  });
- it.each(['driverSession','kioskCheckIn','generateOneTimeCode','nfcCards','busAssistant','adminCopilot','maintenanceAlerts','notifyAdminMessage'])('%s consistently applies permanent passenger access but still checks the code',async name=>{
+ it.each(['driverSession','kioskCheckIn','generateOneTimeCode','nfcCards','maintenanceAlerts','notifyAdminMessage'])('%s consistently applies permanent passenger access but still checks the code',async name=>{
   const sdk=mock();const row={scope:'passenger',company_id:'a',expires_at:'2000-01-01',code_hash:digest('JOIN12345678')};
   const {liveMembership}=load(name,sdk,['liveMembership']);expect(await liveMembership(name==='maintenanceAlerts'?sdk.asServiceRole.entities:sdk,row)).toBe(true);
   expect(await liveMembership(name==='maintenanceAlerts'?sdk.asServiceRole.entities:sdk,{...row,scope:'manager'})).toBe(false);

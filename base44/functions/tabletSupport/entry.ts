@@ -1,3 +1,4 @@
+import { forwardToSupabase } from '../../shared/forwardToSupabase.ts';
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 import { streamingConfig, supportIce, validateSupportSdp, supportNotice, publicSupport, supportBinding, supportFailureCode } from '../../shared/tabletStreaming.ts';
 import { strictControlDevice } from '../../shared/tabletControl.ts';
@@ -5,6 +6,9 @@ import { authorizeSupportAdmin, supportRequest } from '../../shared/tabletSuppor
 const reply=(body,status=200)=>Response.json(body,{status,headers:{'Cache-Control':'no-store'}});
 const terminal=s=>s.ended_at || ['ended','denied','failed','expired'].includes(s.state);
 export default async function(req) {
+  // After the switch, calls from the installed tablet app go on to Supabase.
+  const forwarded = await forwardToSupabase(req, 'tabletSupport');
+  if (forwarded) return forwarded;
  try {
   if(req.method!=='POST')return reply({error:'POST required'},405);
   if(Number(req.headers.get('Content-Length')||0)>75000)return reply({error:'Request too large'},413);

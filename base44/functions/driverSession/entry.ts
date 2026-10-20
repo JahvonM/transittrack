@@ -1,3 +1,4 @@
+import { forwardToSupabase } from '../../shared/forwardToSupabase.ts';
 import { cleanHardwareHealth } from '../../shared/tabletHardwareHealth.ts';
 import { recordingsNotice } from '../../shared/tabletRecordings.ts';
 import { supportNotice } from '../../shared/tabletStreaming.ts';
@@ -638,6 +639,9 @@ async function inspectionChild(base44,name,data,key,actor) {
   await operationHash(JSON.stringify(stable)),()=>db.create({...data,client_request_id:key,request_actor_id:actor}),id=>db.get(id));
 }
 export default async function(req) {
+  // After the switch, calls from the installed tablet app go on to Supabase.
+  const forwarded = await forwardToSupabase(req, 'driverSession');
+  if (forwarded) return forwarded;
   try {
     const body = await req.json();
     const { device_id, action } = body;

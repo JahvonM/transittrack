@@ -1,12 +1,11 @@
 // Supabase only (step 7). What the app's browser used to ask Base44 for
 // directly, now through this function: file uploads, a link to a private
-// file, inviting a person, and the admin assistant. Written by hand; not a
+// file and inviting a person. Written by hand; not a
 // copy of a Base44 function, so build-functions.mjs leaves it alone.
 //
 //   multipart form: file + area ("public" | "private")  -> { file_url } | { file_uri }
 //   { action: "sign", file_uri, expires_in }             -> { signed_url }
 //   { action: "invite", email, role }   (admins)         -> { ok, invited }
-//   { action: "llm", ...InvokeLLM params } (admins)      -> the assistant's answer
 import { createClientFromRequest, serve, httpError, secrets } from '../_shared/base44-compat.ts';
 
 const MAX_UPLOAD = 25 * 1024 * 1024;
@@ -15,7 +14,8 @@ const ROLES = new Set(['user', 'admin']);
 // Where the invitation's "Create your password" button goes: the site the admin
 // sent it from (the email template adds /reset-password). Anything else falls
 // back to the project's Site URL.
-const SITES = new Set(['https://new.mcsweenstransport.com', 'https://app.mcsweenstransport.com']);
+// The Base44 address is opened by the tablets, phone app and desktop app until they are rebuilt.
+const SITES = new Set(['https://new.mcsweenstransport.com', 'https://app.mcsweenstransport.com', 'https://eager-transit-track-go.base44.app']);
 
 function serverKey(): string {
   try {
@@ -81,11 +81,6 @@ serve(async (req) => {
     case 'invite':
       if (me.role !== 'admin') return Response.json({ error: 'Administrators only' }, { status: 403 });
       return Response.json(await invite(base44, body.email, body.role, req.headers.get('origin')));
-    case 'llm': {
-      if (me.role !== 'admin') return Response.json({ error: 'Administrators only' }, { status: 403 });
-      const { action: _action, ...params } = body;
-      return Response.json(await core.InvokeLLM(params));
-    }
     default:
       return Response.json({ error: 'Unknown action' }, { status: 400 });
   }

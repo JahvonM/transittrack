@@ -10,6 +10,7 @@ import JourneyLoading from "@/components/JourneyLoading";
 import AccessRecovery from "@/components/system/AccessRecovery";
 import GoogleIcon from "@/components/GoogleIcon";
 import AppleIcon from "@/components/AppleIcon";
+import { useSignInOptions } from "@/lib/signInOptions";
 import { safeReturnTo } from "@/lib/authReturnTo";
 import { useAuth } from "@/lib/AuthContext";
 import { hasPendingJoinCode, rememberJoinCode } from "@/lib/companyJoin";
@@ -27,6 +28,8 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  // Only the "Continue with ..." buttons that are turned on.
+  const signInWith = useSignInOptions();
   // Post-login destination (e.g. the MCP OAuth consent page sends users here
   // with returnTo so the grant flow can resume). Same-origin paths only.
   const askedReturn = safeReturnTo();
@@ -208,6 +211,7 @@ export default function Login() {
         </Button>
       </form>
       <div className="mt-6">
+      {(signInWith.google || signInWith.apple) && (<>
       <div className="relative mb-6">
         <div className="absolute inset-0 flex items-center">
           <div className="w-full border-t border-border" />
@@ -218,6 +222,7 @@ export default function Login() {
       </div>
 
       <div className="mb-6 grid gap-3">
+        {signInWith.google && (
         <Button
           variant="outline"
           className="w-full h-12 text-sm font-medium"
@@ -226,6 +231,8 @@ export default function Login() {
           <GoogleIcon className="w-5 h-5 mr-2" />
           Continue with Google
         </Button>
+        )}
+        {signInWith.apple && (
         <Button
           variant="outline"
           className="w-full h-12 text-sm font-medium"
@@ -234,7 +241,9 @@ export default function Login() {
           <AppleIcon className="w-5 h-5 mr-2" />
           Continue with Apple
         </Button>
+        )}
       </div>
+      </>)}
 
       {joinReady ? (
         <div role="status" className="mb-4 flex items-start gap-3 rounded-xl bg-secondary p-3 text-body-sm">
