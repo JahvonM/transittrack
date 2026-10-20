@@ -17,8 +17,16 @@
 // - filter(query, sort, limit, skip, fields) returns an array;
 //   filter(query, { limit, sort, fields }) returns one page { items, next_cursor };
 // - empty fields are left out of records, like Base44 does.
+//
+// Files: private files are stored as storage://private/<path>. Every JSON reply
+// a function sends has those turned into signed links the app can show (cached
+// a day), and a signed link sent back in a save turns into the stored reference
+// again, so a temporary link is never saved. Uploads go to the private area; a
+// file saved into a public field (logos, ads, bus and part photos, profile
+// photos: FILE_COLUMNS in supabaseFiles.ts) is copied to the public area then.
 
 import { SUPABASE_TABLES } from './supabaseTables.ts';
+import { FILE_COLUMNS } from './supabaseFiles.ts';
 
 type Env = { get(name: string): string | undefined };
 // Records are loosely typed, as they are in the Base44 functions that use them.
@@ -35,6 +43,7 @@ const runtime: { fetch: typeof fetch; env: Env } = {
 export function __setRuntimeForTests(next: Partial<typeof runtime>) {
   Object.assign(runtime, next);
   columnCache = null;
+  signedLinks.clear();
 }
 
 export function httpError(status: number, message: string, data?: unknown): HttpError {
@@ -249,7 +258,7 @@ function toRecord(row: Row): Row {
 
 const NAIVE_TIME = /^\d{4}-\d\d-\d\dT\d\d:\d\d(:\d\d(\.\d+)?)?$/;
 
-function forWrite(table: string, data: Row, cols: Record<string, string>): Row {
+async function forWrite(entity: string, table: string, data: Row, cols: Record<string, string>): Promise<Row> {
   const out: Row = {};
   const dropped: string[] = [];
   for (const [k, raw] of Object.entries(data || {})) {
@@ -260,10 +269,94 @@ function forWrite(table: string, data: Row, cols: Record<string, string>): Row {
     if (v === '' && !isText(type) && !isJson(type)) v = null;
     // Base44 times without a zone are UTC.
     if (typeof v === 'string' && type.startsWith('timestamp') && NAIVE_TIME.test(v)) v += 'Z';
+    // A signed link the app got from us is saved as the file itself.
+    const area = FILE_COLUMNS[entity]?.[k] === 'public' ? 'public' : 'private';
+    if (typeof v === 'string') v = await storedFile(v, area);
+    else if (Array.isArray(v)) v = await Promise.all(v.map((x) => typeof x === 'string' ? storedFile(x, area) : x));
     out[k] = v;
   }
   if (dropped.length) console.warn(`[supabase] ${table}: not saved, no such field: ${dropped.join(', ')}`);
   return out;
+}
+
+// ---------- private files: signed links out, stored references in ----------
+
+const SIGN_SECONDS = 24 * 3600;
+const PRIVATE_REF = /^storage:\/\/private\/([A-Za-z0-9._\/-]{1,512})$/;
+const signedLinks = new Map<string, { url: string; until: number }>();
+
+function signedPrivatePath(value: string): string | null {
+  const base = runtime.env.get('SUPABASE_URL')?.trim().replace(/\/+$/, '');
+  if (!base || !value.startsWith(`${base}/storage/v1/object/sign/private/`)) return null;
+  const rest = value.slice(`${base}/storage/v1/object/sign/private/`.length).split('?')[0];
+  try {
+    const path = rest.split('/').map(decodeURIComponent).join('/');
+    return PRIVATE_REF.test(`storage://private/${path}`) ? path : null;
+  } catch { return null; }
+}
+
+/** What to save for a value: our signed private link becomes storage://private/<path>, or,
+ *  for a public field, a copy in the public area and its public link. Anything else as is. */
+async function storedFile(value: string, area: 'public' | 'private'): Promise<string> {
+  const path = signedPrivatePath(value);
+  if (!path) return value;
+  if (area === 'private') return `storage://private/${path}`;
+  const res = await runtime.fetch(`${supabaseUrl()}/storage/v1/object/copy`, {
+    method: 'POST',
+    headers: serverHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ bucketId: 'private', sourceKey: path, destinationBucket: 'public', destinationKey: path }),
+  });
+  const ok = res.ok || res.status === 409; // 409: already copied
+  await res.body?.cancel().catch(() => {});
+  if (!ok) { console.warn(`[supabase] could not make a file public (${res.status}); kept private`); return `storage://private/${path}`; }
+  return `${supabaseUrl()}/storage/v1/object/public/public/${path.split('/').map(encodeURIComponent).join('/')}`;
+}
+
+async function signPaths(paths: string[]): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  const now = Date.now();
+  const need: string[] = [];
+  for (const p of new Set(paths)) {
+    const hit = signedLinks.get(p);
+    if (hit && hit.until > now) out.set(p, hit.url); else need.push(p);
+  }
+  for (let i = 0; i < need.length; i += 100) {
+    const res = await runtime.fetch(`${supabaseUrl()}/storage/v1/object/sign/private`, {
+      method: 'POST',
+      headers: serverHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ expiresIn: SIGN_SECONDS, paths: need.slice(i, i + 100) }),
+    });
+    if (!res.ok) { await res.body?.cancel().catch(() => {}); continue; }
+    for (const r of await res.json()) {
+      if (!r?.signedURL || !r.path) continue;
+      const url = `${supabaseUrl()}/storage/v1${r.signedURL}`;
+      out.set(r.path, url);
+      // Reused until an hour before it ends, so lists polled again keep the same link.
+      signedLinks.set(r.path, { url, until: now + (SIGN_SECONDS - 3600) * 1000 });
+    }
+  }
+  if (signedLinks.size > 5000) signedLinks.clear();
+  return out;
+}
+
+/** Turns every storage://private/<path> string inside a JSON value into a signed link. */
+export async function signPrivateRefs(value: unknown): Promise<unknown> {
+  const paths: string[] = [];
+  const collect = (v: unknown) => {
+    if (typeof v === 'string') { const m = PRIVATE_REF.exec(v); if (m) paths.push(m[1]); }
+    else if (Array.isArray(v)) v.forEach(collect);
+    else if (v && typeof v === 'object') Object.values(v).forEach(collect);
+  };
+  collect(value);
+  if (!paths.length) return value;
+  const links = await signPaths(paths);
+  const swap = (v: unknown): unknown => {
+    if (typeof v === 'string') { const m = PRIVATE_REF.exec(v); return m && links.has(m[1]) ? links.get(m[1]) : v; }
+    if (Array.isArray(v)) return v.map(swap);
+    if (v && typeof v === 'object') return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, swap(x)]));
+    return v;
+  };
+  return swap(value);
 }
 
 async function rest(path: string, init: Omit<RequestInit, 'headers'> & { headers?: Record<string, string> } = {}) {
@@ -356,13 +449,13 @@ function entityApi(entity: string) {
     },
     async create(data: Row) {
       const cols = await ensure();
-      const rows = await rest(table, { method: 'POST', headers: { Prefer: 'return=representation' }, body: JSON.stringify(forWrite(table, data, cols)) });
+      const rows = await rest(table, { method: 'POST', headers: { Prefer: 'return=representation' }, body: JSON.stringify(await forWrite(entity, table, data, cols)) });
       return toRecord(rows[0]);
     },
     async bulkCreate(list: Row[]) {
       const cols = await ensure();
       if (!Array.isArray(list) || !list.length) return [];
-      const body = list.map((d) => forWrite(table, d, cols));
+      const body = await Promise.all(list.map((d) => forWrite(entity, table, d, cols)));
       // PostgREST needs the same keys on every row of one insert.
       const keys = [...new Set(body.flatMap((r) => Object.keys(r)))];
       const rows = await rest(`${table}?columns=${keys.join(',')}`, { method: 'POST', headers: { Prefer: 'return=representation,missing=default' }, body: JSON.stringify(body) });
@@ -370,7 +463,7 @@ function entityApi(entity: string) {
     },
     async update(id: string, data: Row) {
       const cols = await ensure();
-      const changes = forWrite(table, data, cols);
+      const changes = await forWrite(entity, table, data, cols);
       if (!Object.keys(changes).length) return api.get(id);
       const rows = await rest(`${table}?${byId(id)}`, { method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify(changes) });
       if (!rows?.length) throw httpError(404, `${entity} not found`);
@@ -460,9 +553,13 @@ const integrations = {
   Core: {
     SendEmail: sendEmail,
     InvokeLLM: invokeLLM,
+    // Lands in the private area; the signed link shows it now, and saving it into
+    // a public field copies it to the public area (see storedFile).
     async UploadPublicFile({ file }: { file: Blob & { name?: string } }) {
-      const path = await upload('public', file);
-      return { file_url: `${supabaseUrl()}/storage/v1/object/public/public/${path}` };
+      const path = await upload('private', file);
+      const links = await signPaths([path]);
+      if (!links.has(path)) throw httpError(503, 'That file could not be saved');
+      return { file_url: links.get(path) };
     },
     async UploadPrivateFile({ file }: { file: Blob & { name?: string } }) {
       return { file_uri: `storage://private/${await upload('private', file)}` };
@@ -561,7 +658,16 @@ export function withCors(handler: (req: Request) => Response | Promise<Response>
     }
     const headers = new Headers(res.headers);
     for (const [k, v] of Object.entries(cors)) headers.set(k, v);
-    return new Response(res.body, { status: res.status, statusText: res.statusText, headers });
+    let body: BodyInit | null = res.body;
+    if (res.status < 300 && (headers.get('content-type') || '').includes('application/json')) {
+      const text = await res.text();
+      body = text;
+      if (text.includes('storage://private/')) {
+        try { body = JSON.stringify(await signPrivateRefs(JSON.parse(text))); headers.delete('content-length'); }
+        catch (error) { console.error('[function] could not sign file links:', error); }
+      }
+    }
+    return new Response(body, { status: res.status, statusText: res.statusText, headers });
   };
 }
 
