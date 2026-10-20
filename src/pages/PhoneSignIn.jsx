@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Loader2, Smartphone, LogOut, CheckCircle2, AlertTriangle } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { appParams } from "@/lib/app-params";
+import { afterSessionHandoff } from "tt-backend";
 import { useAuth } from "@/lib/AuthContext";
 import AuthLayout from "@/components/AuthLayout";
 import { Button } from "@/components/ui/button";
