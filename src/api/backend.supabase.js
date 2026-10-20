@@ -347,7 +347,6 @@ export function createBackend() {
         UploadPublicFile: (params) => upload('public', params),
         UploadPrivateFile: (params) => upload('private', params),
         CreateFileSignedUrl: async (params) => (await invoke('integrations', { action: 'sign', ...params })).data,
-        InvokeLLM: async (params) => (await invoke('integrations', { action: 'llm', ...params })).data,
       },
     },
     users: {
