@@ -62,7 +62,7 @@ describe("sign-in emails", () => {
     // Settings Supabase leaves out count as empty, so they get filled in.
     expect(planAuthConfig({}, { emails }).mailer_templates_invite_content).toBe(emails.invite.html);
     expect(smtpSettings({ key: "re_test" })).toEqual({
-      smtp_host: "smtp.resend.com", smtp_port: 465, smtp_user: "resend", smtp_pass: "re_test",
+      smtp_host: "smtp.resend.com", smtp_port: "465", smtp_user: "resend", smtp_pass: "re_test",
       smtp_admin_email: "no-reply@mcsweenstransport.com", smtp_sender_name: "McSween Transport",
     });
   });
