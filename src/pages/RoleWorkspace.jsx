@@ -4,6 +4,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { ROLE_SECTIONS } from "../../base44/shared/accessRoles.ts";
+import { loadScreen, saveScreen } from "@/lib/savedScreen";
 
 const cell = value => value == null || value === "" ? "—" : Array.isArray(value)
  ? value.map(item=>typeof item==="object"?item.name || item.id || "Item":String(item)).join(", ")
@@ -19,11 +20,14 @@ export default function RoleWorkspace() {
  useEffect(()=>{
   if(!section || !role?.sections?.includes(section))return;
   let stopped=false;
-  setData(null);setError("");setLoading(true);
-  base44.functions.invoke("accessRoles",{action:"workspace",section}).then(({data:result})=>{if(!stopped)setData(result);})
+  // Last time's rows straight away (this person's, up to a day old); fresh ones replace them.
+  const savedKey="workspace:"+role.id+":"+section;
+  setData(loadScreen(savedKey,user?.id));setError("");setLoading(true);
+  base44.functions.invoke("accessRoles",{action:"workspace",section}).then(({data:result})=>{if(!stopped){setData(result);saveScreen(savedKey,user?.id,result);}})
    .catch(error=>{if(!stopped)setError(error.data?.error || error.response?.data?.error || "Couldn't load this screen. Try again.");})
    .finally(()=>{if(!stopped)setLoading(false);});
   return()=>{stopped=true;};
+ // eslint-disable-next-line react-hooks/exhaustive-deps
  },[section,role?.id,revision]);
  const more=async()=>{
   if(loading || !data)return;
