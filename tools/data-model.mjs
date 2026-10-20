@@ -183,11 +183,10 @@ function readers(entity, rules) {
   if (!fields[entity]) {
     return { app: "server only", out: "—", passenger: "—", company: "—", mechanic: "—", admin: "through its own functions" };
   }
-  const own = (x) => x;
   const r = { app: "entityAccess", out: "—", passenger: "—", company: "—", mechanic: "—", admin: "all" };
   if (entity === "Advertisement") return { ...r, out: "all", passenger: "all", company: "all", mechanic: "all" };
   if (entity === "User") return { ...r, passenger: "own profile", company: "own profile", mechanic: "own profile" };
-  if (entity === "PushToken") return { ...r, passenger: own("own"), company: "own", mechanic: "own" };
+  if (entity === "PushToken") return { ...r, passenger: "own", company: "own", mechanic: "own" };
   if (entity === "LostItemReport") r.passenger = "own reports";
   if (sets.MAINTENANCE.has(entity) || entity === "Company") r.mechanic = "all companies";
   if (entity === "GroupMessage") r.mechanic = "mechanic chat";
@@ -195,7 +194,7 @@ function readers(entity, rules) {
   if (sets.COMPANY_READ.has(entity)) r.company = "own company";
   if (sets.PASSENGER_READ.has(entity)) {
     r.passenger = entity === "GroupMessage" ? "own company, staff chat"
-      : entity === "Broadcast" ? "own company (pickup changes: own bus only)"
+      : entity === "Broadcast" ? "own company + notices to every company (pickup changes: own bus only)"
       : "own company";
   }
   if (entity === "Broadcast") r.company = "own company + notices to every company";
@@ -299,7 +298,9 @@ export function renderDataModel({ entities = readEntities(), rules = readAccessR
   w("## Records");
   for (const e of entities) {
     const r = rules;
-    const browserFields = r.fields[e.entity] ? new Set([...META, ...r.fields[e.entity]]) : null;
+    // What entityAccess ever hands to the browser for this kind of record.
+    const only = r.narrowed[e.entity] && !r.narrowed[e.entity].except ? r.narrowed[e.entity].fields : null;
+    const browserFields = !r.fields[e.entity] ? null : new Set([...META, ...(only || r.fields[e.entity])]);
     w();
     w(`### ${e.entity}`);
     w();
@@ -342,7 +343,7 @@ export function renderDataModel({ entities = readEntities(), rules = readAccessR
       if (d && "default" in d && d.default !== null && d.default !== "") notes.push(`Default ${code(JSON.stringify(d.default))}.`);
       if (e.required.has(f)) notes.push("Required.");
       if (r.sets.CREDENTIALS.has(f)) notes.push("**Secret**: never sent to the browser.");
-      else if (browserFields && !browserFields.has(f) && !(e.entity === "User" && ["email", "full_name", "role"].includes(f))) notes.push("Not sent to the browser.");
+      else if (browserFields && !browserFields.has(f)) notes.push("Not sent to the browser.");
       if (r.serverOnly[e.entity]?.has(f)) notes.push("Set by the server only.");
       if (r.adminOnly[e.entity]?.has(f)) notes.push("Only an admin can change it.");
       if (r.securityFields[e.entity]?.has(f)) notes.push("Changed only through access-code management.");
