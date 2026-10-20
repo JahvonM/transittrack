@@ -118,7 +118,6 @@ const AuthenticatedApp = () => {
   const pageKey = ["/staff","/journey","/my-card","/more"].includes(location.pathname) ? "/passenger-experience" : /^\/driver(\/|$)/.test(location.pathname) ? "/driver"
     : location.pathname.startsWith("/driver-phone") ? "/driver-phone" : /^\/admin(\/|$)/.test(location.pathname) ? "/admin" : location.pathname;
 
-  // Show loading spinner while checking app public settings or auth
   // One loading screen for the whole start-up, whichever check is still running.
   if (!publicPage && !tabletPage && (isLoadingPublicSettings || isLoadingAuth)) {
     return <JourneyLoading onRetry={checkAppState} />;
@@ -132,6 +131,10 @@ const AuthenticatedApp = () => {
     }
     return <AccessRecovery onRetry={checkAppState} />;
   }
+
+  // Signed in at the front page: straight to their own screen, without opening
+  // the welcome page (and its loading screen) on the way.
+  if (location.pathname === '/' && isAuthenticated && home) return <Navigate to={home} replace />;
 
   // Render the main app
   return (
