@@ -1,0 +1,95 @@
+/* Apple look and feel for the admin console (the apple-design skill), in the
+   style of a Mac app: a translucent sidebar with rounded selection pills, a
+   frosted toolbar, rounded panels without heavy outlines, capsule buttons,
+   filled fields, iOS switches and rounder dialogs. Same layout, sizes and
+   features. Colours come from the theme (dark is the approved look; light and
+   the colour theme once chosen in Account -> Appearance). */
+.tt-admin-shell {
+  --aa-hair: rgba(255, 255, 255, .09);
+  --aa-field: rgba(118, 118, 128, .2);
+  --aa-gray: rgba(118, 118, 128, .22);
+  --aa-glass-blur: blur(24px) saturate(180%);
+}
+html.tt-admin-app.light.tt-theme-chosen .tt-admin-shell { --aa-hair: rgba(0, 0, 0, .08); --aa-field: rgba(118, 118, 128, .12); --aa-gray: rgba(118, 118, 128, .14); }
+
+/* Touch and click: feedback on press, not release. */
+.tt-admin-shell :is(button, a) { -webkit-tap-highlight-color: transparent; }
+.tt-admin-shell button:not([role=switch]):not([role=tab]) { transition: transform .2s cubic-bezier(.2, .8, .2, 1), background-color .2s ease-out, color .2s ease-out; }
+.tt-admin-shell button:not([role=switch]):not([role=tab]):not(:disabled):active { transform: scale(.97); transition-duration: .06s; }
+.tt-admin-shell nav button:not(:disabled):active { transform: none; }
+
+/* Sidebar: translucent material; the current section on a soft rounded pill
+   in the theme colour (no glow, no side bar). */
+.tt-admin-shell > aside { border-right-color: var(--aa-hair); -webkit-backdrop-filter: var(--aa-glass-blur); backdrop-filter: var(--aa-glass-blur); }
+.tt-admin-shell nav button[aria-current="page"] {
+  background: hsl(var(--primary) / .16) !important; border-color: transparent !important; box-shadow: none !important;
+  color: hsl(var(--sidebar-foreground)) !important; font-weight: 600;
+}
+.tt-admin-shell nav button[aria-current="page"] svg { color: hsl(var(--primary)); }
+.tt-admin-shell nav button[aria-current="page"] > span.absolute { display: none; }
+.tt-admin-shell nav button { border-radius: 10px; }
+.tt-admin-shell .tt-admin-group-toggle { border-radius: 10px; }
+
+/* Toolbar: frosted, a hairline instead of a border. */
+.tt-admin-shell header { -webkit-backdrop-filter: var(--aa-glass-blur); backdrop-filter: var(--aa-glass-blur); border-bottom-color: var(--aa-hair); }
+
+/* Panels and stat tiles: rounder, a hairline edge instead of an outline. */
+.tt-admin-shell :is(section.rounded-2xl, div.rounded-2xl.border), .tt-admin-stats > button { border-color: var(--aa-hair); border-radius: 18px; }
+.tt-admin-attention-row { border-color: var(--aa-hair); border-radius: 16px; }
+.tt-admin-attention-action { border-radius: 999px; }
+.tt-admin-status-table th { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
+.tt-admin-status-table :is(th, td) { border-bottom-color: var(--aa-hair); }
+
+/* Buttons: capsules. Filled theme colour for the main action, grey for the rest. */
+.tt-admin-shell [data-ui=button], html.tt-admin-app [role=dialog] [data-ui=button], html.tt-admin-app [role=alertdialog] [data-ui=button] { border-radius: 999px; }
+.tt-admin-shell [data-ui=button]:is([data-variant=outline], [data-variant=secondary]),
+html.tt-admin-app :is([role=dialog], [role=alertdialog]) [data-ui=button]:is([data-variant=outline], [data-variant=secondary]) {
+  background: var(--aa-gray); border-color: transparent; box-shadow: none;
+}
+
+/* Fields: filled, borderless, rounded (like macOS search fields). */
+.tt-admin-shell :is(input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]):not([type=color]), textarea, select, button[role=combobox], button.border-input),
+html.tt-admin-app :is([role=dialog], [role=alertdialog]) :is(input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]):not([type=color]), textarea, select, button[role=combobox]) {
+  background-color: var(--aa-field, rgba(118, 118, 128, .2)); border-color: transparent; border-radius: 10px;
+}
+/* A search box drawn as a label around its field: the label is the filled box. */
+.tt-admin-shell label.border-input:has(input) { border-color: transparent; background-color: var(--aa-field); }
+.tt-admin-shell label.border-input:has(input) input { background-color: transparent !important; }
+
+/* iOS switches. */
+.tt-admin-shell [role=switch], html.tt-admin-app [role=dialog] [role=switch] {
+  width: 46px; height: 28px; min-height: 0; padding: 0; border: 0 !important; border-radius: 999px !important; flex-shrink: 0;
+  box-shadow: none; transition: background-color .25s ease-out;
+}
+.tt-admin-shell [role=switch][data-state=unchecked], html.tt-admin-app [role=dialog] [role=switch][data-state=unchecked] { background: rgba(120, 120, 128, .36); }
+.tt-admin-shell [role=switch][data-state=checked], html.tt-admin-app [role=dialog] [role=switch][data-state=checked] { background: hsl(var(--primary)); }
+.tt-admin-shell [role=switch] > span, html.tt-admin-app [role=dialog] [role=switch] > span {
+  width: 24px; height: 24px; margin: 2px; background: #fff; box-shadow: 0 3px 8px rgba(0, 0, 0, .15), 0 3px 1px rgba(0, 0, 0, .06);
+  transition: transform .3s cubic-bezier(.25, 1, .5, 1);
+}
+.tt-admin-shell [role=switch][data-state=checked] > span, html.tt-admin-app [role=dialog] [role=switch][data-state=checked] > span { transform: translateX(18px); }
+.tt-admin-shell [role=switch][data-state=unchecked] > span, html.tt-admin-app [role=dialog] [role=switch][data-state=unchecked] > span { transform: translateX(0); }
+
+/* Dialogs and menus: rounder, depth instead of an outline. */
+html.tt-admin-app :is([role=dialog], [role=alertdialog]):not(.tt-apple-sheet) { border-color: transparent; border-radius: 22px; box-shadow: 0 28px 80px rgba(0, 0, 0, .45); }
+html.tt-admin-app [role=menu] { border-color: var(--aa-hair, transparent); border-radius: 14px; }
+
+/* The floating message and assistant buttons follow the theme colour. */
+html.tt-admin-app:is(.light.tt-theme-chosen, [data-accent]) :is(button[aria-label="Open messages"], button[aria-label="Open AI assistant"]) {
+  border-color: hsl(var(--primary)); color: hsl(var(--primary)); box-shadow: 0 6px 18px rgba(0, 0, 0, .12);
+}
+
+/* Numbers keep their width as they change. */
+.tt-admin-stats strong, .tt-admin-totals, .tt-admin-status-table td { font-variant-numeric: tabular-nums; }
+
+/* Accessibility: less motion, less transparency, more contrast. */
+@media (prefers-reduced-motion: reduce) {
+  .tt-admin-shell button:not([role=switch]):not(:disabled):active { transform: none; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .tt-admin-shell > aside, .tt-admin-shell header { -webkit-backdrop-filter: none; backdrop-filter: none; }
+}
+@media (prefers-contrast: more) {
+  .tt-admin-shell { --aa-hair: #8fb7cf; }
+  html.tt-admin-app.light.tt-theme-chosen .tt-admin-shell { --aa-hair: #44515e; }
+}

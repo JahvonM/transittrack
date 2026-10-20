@@ -13,10 +13,14 @@
       (function () {
         try {
           var t = localStorage.getItem("tt-theme-v2");
+          var chosen = !!t;
           if (t !== "dark" && t !== "light") t = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
           var root = document.documentElement;
           root.classList.remove("dark", "light");
           root.classList.add(t);
+          // Someone picked a mode in Account -> Appearance (the admin console
+          // stays dark until they do).
+          if (chosen) root.classList.add("tt-theme-chosen");
           root.style.colorScheme = t;
           var a = localStorage.getItem("tt-accent");
           if (a) root.setAttribute("data-accent", a);

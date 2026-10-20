@@ -78,3 +78,40 @@ test('signing out wipes the saved overview',async({page})=>{
  await page.getByRole('menuitem',{name:'Sign out'}).click();
  await expect.poll(()=>page.evaluate(()=>localStorage.getItem('tt_screen_v1:admin'))).toBeNull();
 });
+
+// The admin console in each look, section by section (Apple look). Light only
+// once a mode is picked in Account -> Appearance; the colour theme recolours
+// the main buttons. With TT_SHOT_DIR set it saves a picture of each.
+const lum=c=>{const [r,g,b]=c.match(/\d+/g).map(Number);return (r*299+g*587+b*114)/1000;};
+for(const {look,theme=null,accent=null} of [{look:'dark'},{look:'light',theme:'light'},{look:'light-ocean',theme:'light',accent:'ocean'},{look:'dark-sunset',accent:'sunset'}])
+ test(`admin console tour (${look})`,async({page})=>{
+  await page.setViewportSize({width:1440,height:900});
+  await page.addInitScript(({theme,accent})=>{if(theme)localStorage.setItem('tt-theme-v2',theme);if(accent)localStorage.setItem('tt-accent',accent);},{theme,accent});
+  await admin(page,{bus:bus('idle')});
+  await page.goto('/admin');
+  await fleetShown(page);
+  const shell=await page.locator('.tt-admin-shell').evaluate(el=>getComputedStyle(el).backgroundColor);
+  expect(lum(shell)>180).toBe(theme==='light');
+  const add=await page.getByRole('button',{name:'Add vehicle'}).evaluate(el=>getComputedStyle(el).backgroundColor);
+  if(accent)expect(add).not.toMatch(/rgb\(0, (2[0-5]\d|1\d\d), (2[0-5]\d)\)/);
+  const dir=process.env.TT_SHOT_DIR;
+  const shot=async name=>{expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);if(dir){await page.waitForTimeout(400);await page.screenshot({path:`${dir}/admin-${look}-${name}.png`});}};
+  await shot('overview');
+  for(const [path,name] of [['vehicles','vehicles'],['fleet','fleet'],['trips','jobs'],['users','users'],['companies','companies'],['kiosks','kiosks']]){
+   await page.goto('/admin/'+path);
+   await page.waitForLoadState('networkidle').catch(()=>{});
+   await shot(name);
+  }
+  await page.goto('/admin');
+  await page.getByRole('button',{name:'Add vehicle'}).click();
+  await expect(page.getByRole('dialog').first()).toBeVisible();
+  await shot('add-vehicle');
+ });
+
+test('on a computer set to light, the admin console stays dark until a mode is picked',async({page})=>{
+ await page.emulateMedia({colorScheme:'light'});
+ await admin(page,{bus:bus('idle')});
+ await page.goto('/admin');
+ await fleetShown(page);
+ expect(lum(await page.locator('.tt-admin-shell').evaluate(el=>getComputedStyle(el).backgroundColor))).toBeLessThan(60);
+});

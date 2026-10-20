@@ -86,6 +86,7 @@ import FleetHealthTab from "@/components/admin/FleetHealthTab";
 import LostItemsTab from "@/components/admin/LostItemsTab";
 import TravelTimesTab from "@/components/admin/TravelTimesTab";
 import { loadScreen, saveScreen } from "@/lib/savedScreen";
+import "@/components/admin/adminApple.css";
 
 // The overview's lists are kept on this device (for this admin, up to a day)
 // so the console opens with them straight away and refreshes behind them.
@@ -144,7 +145,7 @@ const MGMT_LINKS = [
 
 export default function Admin() {
   const { user, logout, checkUserAuth } = useAuth();
-  useFutureAppearance(user?.role === "admin");
+  useFutureAppearance(user?.role === "admin", "tt-admin-app");
   const { permission: pushPermission, enableNotifications } = usePushNotifications({ email: user?.email, role: "admin" });
   const navigate = useNavigate();
   const { section: urlSection } = useParams();
