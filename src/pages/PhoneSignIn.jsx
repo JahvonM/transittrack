@@ -78,6 +78,8 @@ export default function PhoneSignIn() {
     // Let the link open the app first, then forget the key: one use only.
     setTimeout(() => {
       forgetPhoneSignInKey(request.state, window.sessionStorage);
+      // On Supabase the phone app takes this sign-in over; the browser lets go of it.
+      void afterSessionHandoff();
       setStep("sent");
     }, 300);
   };

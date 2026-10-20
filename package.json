@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "eslint -c eslint.crash-guard.config.js --no-inline-config src && vite build",
+    "build:supabase": "eslint -c eslint.crash-guard.config.js --no-inline-config src && vite build --mode supabase",
     "lint": "eslint . --quiet",
     "lint:fix": "eslint . --fix",
     "typecheck": "tsc -p ./jsconfig.json",
