@@ -121,6 +121,18 @@ function authError(error, status) {
   return apiError(s, { error: message, code }, message);
 }
 
+// A reset or invite link that can't be used (any more).
+const LINK_USED = 'This link has expired or was already used. Ask for a new one.';
+function linkError(error) {
+  const code = error?.code || '';
+  return code === 'otp_expired' || code === 'flow_state_expired' || code === 'flow_state_not_found'
+    ? apiError(400, { error: LINK_USED, code: 'otp_expired' }, LINK_USED)
+    : authError(error);
+}
+// The link this page already used, so a second try (say, the first password
+// was too short) doesn't ask Supabase for it again.
+let usedLink = null;
+
 function sameOriginPath(value, fallback = '/') {
   if (!hasWindow() || !value) return fallback;
   try {
@@ -216,22 +228,28 @@ export function createBackend() {
       if (error) throw authError(error);
     },
     async resetPasswordRequest(email) {
-      // The emailed link comes back to /reset-password, already signed in for the reset.
+      // The email (tools/supabase/auth-emails.mjs) links to <this site>/reset-password
+      // with a one-time key that is only used when the new password is saved, so
+      // it works in any browser and mail scanners that open links can't spend it.
       const { error } = await sb().auth.resetPasswordForEmail(String(email || '').trim(), {
-        redirectTo: `${window.location.origin}/reset-password?token=session&${OAUTH_FLAG}=1`,
+        redirectTo: window.location.origin,
       });
       if (error) throw authError(error);
     },
+    // Also finishes an invitation: the invite email links here with type=invite.
     async resetPassword({ resetToken, newPassword }) {
       await init();
-      if (resetToken && resetToken !== 'session') {
-        const { error } = await sb().auth.verifyOtp({ token_hash: resetToken, type: 'recovery' });
-        if (error) throw authError(error);
+      if (resetToken && resetToken !== 'session' && resetToken !== usedLink) {
+        const invited = hasWindow() && new URLSearchParams(window.location.search).get('type') === 'invite';
+        const { error } = await sb().auth.verifyOtp({ token_hash: resetToken, type: invited ? 'invite' : 'recovery' });
+        if (error) throw linkError(error);
+        usedLink = resetToken;
       }
       const { data } = await sb().auth.getSession();
-      if (!data?.session) throw authError({ code: 'otp_expired' }, 400);
+      if (!data?.session) throw linkError({ code: 'otp_expired' });
       const { error } = await sb().auth.updateUser({ password: newPassword });
       if (error) throw authError(error);
+      usedLink = null;
       await sb().auth.signOut({ scope: 'local' }).catch(() => {});
     },
     async changePassword({ currentPassword, newPassword }) {
