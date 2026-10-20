@@ -1,9 +1,13 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { Suspense, lazy, useEffect, useRef, useState } from "react";
 import { QrCode } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import QrScanner from "@/components/kiosk/QrScanner";
 import { codeFromJoinQr } from "@/lib/companyJoin";
+
+// The camera scanner is a big download (about a third of what the app used to
+// load at start-up, because the sign-in page shows this button). It now loads
+// only when someone actually opens the scanner.
+const QrScanner = lazy(() => import("@/components/kiosk/QrScanner"));
 
 // A camera pop-up for the company join QR. It closes by itself on the first
 // valid company QR and hands the code to onCode; any other QR is refused.
@@ -28,7 +32,11 @@ export function ScanCompanyQrDialog({ open, onOpenChange, onCode }) {
           <DialogTitle>Scan your company QR</DialogTitle>
           <DialogDescription>Point your camera at the QR code from your bus company. It scans by itself.</DialogDescription>
         </DialogHeader>
-        {open && <QrScanner active onDecode={onDecode} />}
+        {open && (
+          <Suspense fallback={<p role="status" className="py-10 text-center text-body-sm text-muted-foreground">Starting the camera…</p>}>
+            <QrScanner active onDecode={onDecode} />
+          </Suspense>
+        )}
         {error && <p role="alert" className="text-center text-body-sm text-danger">{error}</p>}
         <Button type="button" variant="outline" className="w-full" onClick={() => onOpenChange(false)}>Cancel</Button>
       </DialogContent>
