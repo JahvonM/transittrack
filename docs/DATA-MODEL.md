@@ -31,7 +31,8 @@ and who can see them. Built from `base44/entities/*.jsonc`,
 - Secrets are never sent to the browser: entityAccess removes these fields from every answer,
   wherever they appear: `driver_pin`, `entry_code`, `access_code`, `one_time_code`, `one_time_code_expires_at`, `nfc_tag_id`, `nfc_card_tag`, `nfc_card_uid`, `card_uid`, `card_tag`, `pairing_code`, `token`, `token_hash`, `salt`, `pin_hash`, `password`, `device_token`, `driver_grant`, `verification_grant`.
 - Passengers never see other passengers' pickup locations: a passenger's own `User` record is
-  the only one they can read, and the `Trip` fields they get leave out names, phones and pickup points.
+  the only one they can read, and the `Trip` fields they get leave out passenger names, phones and
+  exact pickup and drop-off locations.
 
 ## Who can see what
 
@@ -143,7 +144,7 @@ Table `advertisement` · read and changed through entityAccess.
 | `link` | text |  |
 | `active` | boolean | Default `true`. |
 | `order` | double precision | Default `0`. |
-| `company_id` | text | → Company Owning company; missing means admin-managed global content. |
+| `company_id` | text | → Company. Owning company; missing means admin-managed global content. |
 
 ### AppSupportSetting
 
@@ -183,12 +184,12 @@ Table `broadcast` · belongs to a company through `vehicle_id`, then `company_id
 | `title` | text |  |
 | `message` | text | Required. |
 | `vehicle_name` | text |  |
-| `company_id` | text | → Company |
+| `company_id` | text | → Company. |
 | `company_name` | text |  |
 | `driver_name` | text |  |
 | `driver_email` | text |  |
 | `is_reply` | boolean | Default `false`. |
-| `vehicle_id` | text | → Vehicle |
+| `vehicle_id` | text | → Vehicle. |
 | `return_pickup` | boolean | Default `false`. |
 
 ### CardHolder
@@ -203,7 +204,7 @@ Table `card_holder` · belongs to a company through `company_id` · read and cha
 | `employee_id` | text | The company's own staff number. |
 | `role` | text | One of: `Dispatcher`, `Inspector`, `Supervisor`, `Cleaner`, `Security`, `Other`. Default `"Other"`. |
 | `assigned_vehicle` | text |  |
-| `company_id` | text | → Company |
+| `company_id` | text | → Company. |
 | `company_name` | text |  |
 | `notes` | text |  |
 
@@ -217,7 +218,7 @@ Table `client` · read and changed through entityAccess.
 
 | Field | Type | Notes |
 |---|---|---|
-| `company_id` | text | → Company |
+| `company_id` | text | → Company. |
 | `name` | text | Required. |
 | `kind` | text | One of: `hotel`, `company`, `tour_operator`, `person`, `other`. Default `"hotel"`. |
 | `contact_name` | text |  |
@@ -237,17 +238,17 @@ Table `client_error` · read and changed through entityAccess.
 |---|---|---|
 | `message` | text | Error message (truncated) Required. |
 | `stack` | text | Stack trace / component stack (truncated) |
-| `url` | text | Page path where it happened |
+| `url` | text | Page path where it happened. |
 | `user_email` | text |  |
 | `user_role` | text |  |
 | `user_agent` | text |  |
-| `source` | text | boundary \| window \| promise |
-| `device_id` | text | → KioskDevice Driver or kiosk tablet it came from (blank for signed-in users) |
+| `source` | text | boundary \| window \| promise. |
+| `device_id` | text | → KioskDevice. Driver or kiosk tablet it came from (blank for signed-in users) |
 | `emailed` | boolean | Default `false`. |
-| `area` | text | Part of the app: Admin, Passenger app, Driver tablet, Boarding tablet, Driver phone app, Company manager, Mechanic |
-| `context` | jsonb | App release, screen size, online, installed as an app, language |
+| `area` | text | Part of the app: Admin, Passenger app, Driver tablet, Boarding tablet, Driver phone app, Company manager, Mechanic. |
+| `context` | jsonb | App release, screen size, online, installed as an app, language. |
 | `breadcrumbs` | jsonb (list) | What happened just before: pages, taps, failed server calls ({t, type, text}) |
-| `status` | text | Marked fixed in Admin → App errors One of: `new`, `resolved`. Default `"new"`. |
+| `status` | text | Marked fixed in Admin → App errors. One of: `new`, `resolved`. Default `"new"`. |
 | `resolved_at` | timestamptz |  |
 | `resolved_by` | text |  |
 
@@ -257,7 +258,7 @@ Table `company` · read and changed through entityAccess.
 
 **Linked from:** [Advertisement](#advertisement).company_id, [Broadcast](#broadcast).company_id, [CardHolder](#cardholder).company_id, [Client](#client).company_id, [CompanyAccessGrant](#companyaccessgrant).company_id, [CompanyMembership](#companymembership).company_id, [Contact](#contact).company_id, [DeviceCredential](#devicecredential).company_id, [Driver](#driver).company_id, [DriverDocument](#driverdocument).company_id, [DriverPinCredential](#driverpincredential).company_id, [DriverRequest](#driverrequest).company_id, [DriverShift](#drivershift).company_id, [DrivingEvent](#drivingevent).company_id, [Fault](#fault).company_id, [GroupMessage](#groupmessage).company_id, [Incident](#incident).company_id, [Inspection](#inspection).company_id, [InspectionResult](#inspectionresult).company_id, [InspectionTemplate](#inspectiontemplate).company_id, [Invoice](#invoice).company_id, [KioskDevice](#kioskdevice).company_id, [LocationPing](#locationping).company_id, [LostItemReport](#lostitemreport).company_id, [MaintenanceSchedule](#maintenanceschedule).company_id, [NfcCard](#nfccard).company_id, [NotificationLog](#notificationlog).company_id, [Part](#part).company_id, [PassengerAccessCredential](#passengeraccesscredential).company_id, [PassengerOneTimeCredential](#passengeronetimecredential).company_id, [PhoneUnlock](#phoneunlock).company_id, [Place](#place).company_id, [PushToken](#pushtoken).company_id, [Route](#route).company_id, [RouteTravelTimes](#routetraveltimes).company_id, [StaffCheckIn](#staffcheckin).company_id, [TabletRecordingSession](#tabletrecordingsession).company_id, [TabletSupportSession](#tabletsupportsession).company_id, [Trip](#trip).company_id, [User](#user).company_id, [Vehicle](#vehicle).company_id, [VerificationGrant](#verificationgrant).company_id, [Workplace](#workplace).company_id.
 
-**Everyone except admin, company gets only:** `name`, `phone`, `logo_url`, `service_types`, `description`.
+**Everyone except admins and company managers gets only:** `name`, `phone`, `logo_url`, `service_types`, `description`.
 
 | Field | Type | Notes |
 |---|---|---|
@@ -279,8 +280,8 @@ Table `company_access_grant` · server functions only.
 
 | Field | Type | Notes |
 |---|---|---|
-| `user_id` | text | → User |
-| `company_id` | text | → Company |
+| `user_id` | text | → User. |
+| `company_id` | text | → Company. |
 | `token_hash` | text | **Secret**: never sent to the browser. |
 | `code_hash` | text |  |
 | `expires_at` | text |  |
@@ -293,13 +294,13 @@ Table `company_membership` · server functions only.
 
 | Field | Type | Notes |
 |---|---|---|
-| `user_id` | text | → User Required. |
-| `company_id` | text | → Company Required. |
+| `user_id` | text | → User. Required. |
+| `company_id` | text | → Company. Required. |
 | `scope` | text | One of: `manager`, `passenger`. Required. |
 | `active` | boolean | Required. |
 | `expires_at` | text |  |
 | `code_hash` | text |  |
-| `vehicle_id` | text | → Vehicle Passenger bus assigned by an authorized administrator or company manager. |
+| `vehicle_id` | text | → Vehicle. Passenger bus assigned by an authorized administrator or company manager. |
 | `vehicle_name` | text |  |
 
 ### Contact
@@ -318,7 +319,7 @@ Table `contact` · belongs to a company through `vehicle_id`, then `company_id` 
 | `type` | text | One of: `staff`, `passenger`. Default `"passenger"`. Required. |
 | `nfc_card_tag` | text | **Secret**: never sent to the browser. |
 | `access_code` | text | Persistent staff check-in code, assigned at the badge registry kiosk and typed on the bus boarding kiosk's keypad. **Secret**: never sent to the browser. |
-| `company_id` | text | → Company |
+| `company_id` | text | → Company. |
 | `company_name` | text |  |
 | `pickup_name` | text |  |
 | `pickup_lat` | double precision |  |
@@ -327,7 +328,7 @@ Table `contact` · belongs to a company through `vehicle_id`, then `company_id` 
 | `dropoff_lat` | double precision |  |
 | `dropoff_lng` | double precision |  |
 | `employee_id` | text | The company's own staff number. |
-| `vehicle_id` | text | → Vehicle The bus this staff member rides (their card is sent to this bus's boarding tablet). |
+| `vehicle_id` | text | → Vehicle. The bus this staff member rides (their card is sent to this bus's boarding tablet). |
 | `vehicle_name` | text |  |
 
 ### DeviceCredential
@@ -338,10 +339,10 @@ Table `device_credential` · server functions only.
 
 | Field | Type | Notes |
 |---|---|---|
-| `device_id` | text | → KioskDevice Required. |
+| `device_id` | text | → KioskDevice. Required. |
 | `token_hash` | text | Required. **Secret**: never sent to the browser. |
-| `company_id` | text | → Company |
-| `vehicle_id` | text | → Vehicle |
+| `company_id` | text | → Company. |
+| `vehicle_id` | text | → Vehicle. |
 | `kiosk_type` | text |  |
 | `pairing_code_hash` | text |  |
 | `issued_at` | text | Required. |
@@ -361,7 +362,7 @@ Table `driver` · belongs to a company through `company_id` · read and changed 
 | `email` | text |  |
 | `phone` | text |  |
 | `photo_url` | text |  |
-| `company_id` | text | → Company |
+| `company_id` | text | → Company. |
 | `company_name` | text |  |
 | `employee_id` | text | The company's own staff number. |
 | `nfc_card_uid` | text | Active staff card issued at Card issuing (uppercase hex). **Secret**: never sent to the browser. |
@@ -375,9 +376,9 @@ Table `driver_document` · belongs to a company through `driver_id`, then `compa
 
 | Field | Type | Notes |
 |---|---|---|
-| `driver_id` | text | → Driver Required. |
+| `driver_id` | text | → Driver. Required. |
 | `driver_name` | text |  |
-| `company_id` | text | → Company |
+| `company_id` | text | → Company. |
 | `kind` | text | One of: `license`, `insurance`. Required. |
 | `file_uri` | text | Private file reference; viewed through a short-lived signed URL. |
 | `file_name` | text |  |
@@ -393,8 +394,8 @@ Table `driver_pin_credential` · server functions only.
 
 | Field | Type | Notes |
 |---|---|---|
-| `vehicle_id` | text | → Vehicle |
-| `company_id` | text | → Company |
+| `vehicle_id` | text | → Vehicle. |
+| `company_id` | text | → Company. |
 | `salt` | text | **Secret**: never sent to the browser. |
 | `pin_hash` | text | **Secret**: never sent to the browser. |
 | `enabled` | boolean |  |
@@ -409,15 +410,15 @@ A driver's day-off or shift-swap request from the driver phone app, approved or 
 
 | Field | Type | Notes |
 |---|---|---|
-| `company_id` | text | → Company Required. |
+| `company_id` | text | → Company. Required. |
 | `company_name` | text |  |
-| `driver_id` | text | → Driver Required. |
+| `driver_id` | text | → Driver. Required. |
 | `driver_name` | text |  |
 | `driver_email` | text |  |
 | `kind` | text | One of: `day_off`, `swap`. Required. |
 | `start_date` | text | First day (YYYY-MM-DD, local). Required. |
 | `end_date` | text | Last day (YYYY-MM-DD, local); same as start for one day. |
-| `swap_with_driver_id` | text | → Driver |
+| `swap_with_driver_id` | text | → Driver. |
 | `swap_with_name` | text |  |
 | `note` | text |  |
 | `status` | text | One of: `pending`, `approved`, `declined`, `cancelled`. Default `"pending"`. |
@@ -435,13 +436,13 @@ Table `driver_shift` · belongs to a company through `vehicle_id`, then `company
 
 | Field | Type | Notes |
 |---|---|---|
-| `vehicle_id` | text | → Vehicle Required. |
+| `vehicle_id` | text | → Vehicle. Required. |
 | `vehicle_name` | text |  |
-| `company_id` | text | → Company |
+| `company_id` | text | → Company. |
 | `company_name` | text |  |
 | `driver_name` | text |  |
 | `driver_email` | text |  |
-| `device_id` | text | → KioskDevice Driver tablet (KioskDevice) that started the shift. |
+| `device_id` | text | → KioskDevice. Driver tablet (KioskDevice) that started the shift. |
 | `started_at` | timestamptz | Required. |
 | `ended_at` | timestamptz |  |
 | `duration_minutes` | double precision |  |
@@ -461,7 +462,7 @@ Table `driving_event` · belongs to a company through `vehicle_id`, then `compan
 
 | Field | Type | Notes |
 |---|---|---|
-| `company_id` | text | → Company Required. |
+| `company_id` | text | → Company. Required. |
 | `company_name` | text |  |
 | `driver_email` | text |  |
 | `driver_name` | text |  |
@@ -471,7 +472,7 @@ Table `driving_event` · belongs to a company through `vehicle_id`, then `compan
 | `speed_after_kmh` | double precision |  |
 | `speed_before_kmh` | double precision |  |
 | `type` | text | One of: `hard_brake`, `rapid_accel`, `crash`. Default `"hard_brake"`. Required. |
-| `vehicle_id` | text | → Vehicle Required. |
+| `vehicle_id` | text | → Vehicle. Required. |
 | `vehicle_name` | text |  |
 
 ### Fault
@@ -482,14 +483,14 @@ Table `fault` · belongs to a company through `vehicle_id`, then `company_id` ·
 
 | Field | Type | Notes |
 |---|---|---|
-| `vehicle_id` | text | → Vehicle Required. |
+| `vehicle_id` | text | → Vehicle. Required. |
 | `vehicle_name` | text |  |
-| `company_id` | text | → Company Required. |
+| `company_id` | text | → Company. Required. |
 | `company_name` | text |  |
 | `title` | text | Required. |
 | `description` | text |  |
 | `source` | text | One of: `inspection`, `manual`. Default `"manual"`. |
-| `inspection_id` | text | → Inspection Set when source is 'inspection' — links back to the Inspection record that raised this fault. |
+| `inspection_id` | text | → Inspection. Set when source is 'inspection' — links back to the Inspection record that raised this fault. |
 | `severity` | text | One of: `low`, `medium`, `high`, `critical`. Default `"medium"`. |
 | `status` | text | One of: `open`, `in_progress`, `resolved`. Default `"open"`. |
 | `photo_url` | text |  |
@@ -520,9 +521,9 @@ Table `group_message` · belongs to a company through `vehicle_id`, then `compan
 
 | Field | Type | Notes |
 |---|---|---|
-| `vehicle_id` | text | → Vehicle Required. |
+| `vehicle_id` | text | → Vehicle. Required. |
 | `vehicle_name` | text |  |
-| `company_id` | text | → Company |
+| `company_id` | text | → Company. |
 | `company_name` | text |  |
 | `channel` | text | One of: `staff`, `company`, `dispatch`, `mechanic`. Default `"staff"`. |
 | `sender_role` | text | One of: `driver`, `staff`, `admin`, `company`, `mechanic`. Required. |
@@ -531,7 +532,7 @@ Table `group_message` · belongs to a company through `vehicle_id`, then `compan
 | `message_type` | text | One of: `text`, `image`, `audio`. Default `"text"`. |
 | `media_url` | text |  |
 | `edited` | boolean | Default `false`. |
-| `sender_id` | text | → User |
+| `sender_id` | text | → User. |
 | `sender_email` | text |  |
 
 ### Incident
@@ -542,9 +543,9 @@ Table `incident` · belongs to a company through `vehicle_id`, then `company_id`
 
 | Field | Type | Notes |
 |---|---|---|
-| `vehicle_id` | text | → Vehicle |
+| `vehicle_id` | text | → Vehicle. |
 | `vehicle_name` | text |  |
-| `company_id` | text | → Company Required. |
+| `company_id` | text | → Company. Required. |
 | `company_name` | text |  |
 | `driver_name` | text |  |
 | `driver_email` | text |  |
@@ -567,9 +568,9 @@ Table `inspection` · belongs to a company through `vehicle_id`, then `company_i
 |---|---|---|
 | `driver_name` | text | Required. |
 | `driver_email` | text |  |
-| `vehicle_id` | text | → Vehicle Required. |
+| `vehicle_id` | text | → Vehicle. Required. |
 | `vehicle_name` | text |  |
-| `company_id` | text | → Company Required. |
+| `company_id` | text | → Company. Required. |
 | `company_name` | text |  |
 | `date` | date | Required. |
 | `status` | text | One of: `passed`, `failed`. Default `"passed"`. |
@@ -578,7 +579,7 @@ Table `inspection` · belongs to a company through `vehicle_id`, then `company_i
 | `fuel_level` | double precision |  |
 | `needs_service` | boolean | Default `false`. |
 | `service_notes` | text |  |
-| `template_id` | text | → InspectionTemplate |
+| `template_id` | text | → InspectionTemplate. |
 | `template_name` | text |  |
 | `trigger` | text |  |
 | `results` | jsonb (list) |  |
@@ -594,9 +595,9 @@ Table `inspection_result` · belongs to a company through `vehicle_id`, then `co
 
 | Field | Type | Notes |
 |---|---|---|
-| `vehicle_id` | text | → Vehicle Required. |
+| `vehicle_id` | text | → Vehicle. Required. |
 | `vehicle_name` | text |  |
-| `company_id` | text | → Company |
+| `company_id` | text | → Company. |
 | `company_name` | text |  |
 | `inspection_name` | text | Which InspectionTemplate this came from (its name). Required. |
 | `section_name` | text |  |
@@ -607,7 +608,7 @@ Table `inspection_result` · belongs to a company through `vehicle_id`, then `co
 | `photo_url` | text |  |
 | `repair_required` | boolean | Default `false`. |
 | `notes` | text |  |
-| `inspector_id` | text | → User |
+| `inspector_id` | text | → User. |
 | `inspector_name` | text |  |
 | `inspection_date` | timestamptz |  |
 | `client_request_id` | text | Sent by the device so a retried save isn't made twice. |
@@ -624,9 +625,9 @@ Table `inspection_template` · belongs to a company through `company_id` · read
 
 | Field | Type | Notes |
 |---|---|---|
-| `name` | text | e.g. Daily, Weekly, Monthly, Service Required. |
+| `name` | text | e.g. Daily, Weekly, Monthly, Service. Required. |
 | `category` | text |  |
-| `company_id` | text | → Company Optional — blank means available to every company (true for the default seeded templates). |
+| `company_id` | text | → Company. Optional — blank means available to every company (true for the default seeded templates). |
 | `company_name` | text |  |
 | `frequency_days` | double precision | Optional — how often (in days) this template should be run per vehicle. Set this to have inspectionAlerts remind mechanics when a vehicle is overdue. Leave blank/0 to exclude this template from reminders (e.g. a one-off or ad-hoc checklist). |
 | `audience` | text | Who runs this inspection: mechanics (Run Inspection page), drivers (driver tablet app), or both. One of: `mechanic`, `driver`, `both`. Default `"mechanic"`. |
@@ -650,9 +651,9 @@ Table `invoice` · read and changed through entityAccess.
 
 | Field | Type | Notes |
 |---|---|---|
-| `company_id` | text | → Company |
+| `company_id` | text | → Company. |
 | `company_name` | text |  |
-| `client_id` | text | → Client Required. |
+| `client_id` | text | → Client. Required. |
 | `client_name` | text |  |
 | `client_email` | text |  |
 | `client_address` | text |  |
@@ -692,7 +693,7 @@ Table `kiosk_device` · belongs to a company through `vehicle_id`, then `company
 | Field | Type | Notes |
 |---|---|---|
 | `support_request` | jsonb | Not sent to the browser. Set by the server only. |
-| `company_id` | text | → Company |
+| `company_id` | text | → Company. |
 | `company_name` | text |  |
 | `device_info` | text | Reported by the tablet: which map it can draw (full/basic), WebGL 2 support and browser. |
 | `update_requested_at` | timestamptz | When an admin pressed Send update; the tablet reloads to the newest version the next time it is idle. |
@@ -705,7 +706,7 @@ Table `kiosk_device` · belongs to a company through `vehicle_id`, then `company
 | `paired` | boolean | Default `false`. Changed only through access-code management. |
 | `pairing_code` | text | **Secret**: never sent to the browser. Changed only through access-code management. |
 | `status` | text | One of: `active`, `revoked`. Default `"active"`. Changed only through access-code management. |
-| `vehicle_id` | text | → Vehicle |
+| `vehicle_id` | text | → Vehicle. |
 | `vehicle_name` | text |  |
 | `pairing_expires_at` | timestamptz | Changed only through access-code management. |
 | `network_command` | jsonb | Admin → Kiosk tablets: a pending Wi-Fi or hotspot command for this tablet (a Wi-Fi change includes its password). Not returned by entityAccess; given only to the tablet on check-in and deleted once the tablet confirms it, or after 10 minutes. Not sent to the browser. |
@@ -725,12 +726,12 @@ Table `location_ping` · belongs to a company through `vehicle_id`, then `compan
 
 | Field | Type | Notes |
 |---|---|---|
-| `company_id` | text | → Company Required. |
+| `company_id` | text | → Company. Required. |
 | `lat` | double precision | Required. |
 | `lng` | double precision | Required. |
 | `recorded_at` | timestamptz | Required. |
 | `speed` | double precision |  |
-| `vehicle_id` | text | → Vehicle Required. |
+| `vehicle_id` | text | → Vehicle. Required. |
 
 ### LostItemReport
 
@@ -740,7 +741,7 @@ Table `lost_item_report` · belongs to a company through `company_id` · read an
 
 | Field | Type | Notes |
 |---|---|---|
-| `company_id` | text | → Company |
+| `company_id` | text | → Company. |
 | `company_name` | text |  |
 | `reporter_name` | text |  |
 | `reporter_email` | text |  |
@@ -749,7 +750,7 @@ Table `lost_item_report` · belongs to a company through `company_id` · read an
 | `description` | text | Required. |
 | `status` | text | One of: `open`, `found`, `returned`, `closed`. Default `"open"`. |
 | `admin_notes` | text |  |
-| `reporter_id` | text | → User |
+| `reporter_id` | text | → User. |
 
 ### MaintenanceSchedule
 
@@ -759,18 +760,18 @@ Table `maintenance_schedule` · belongs to a company through `vehicle_id`, then 
 
 | Field | Type | Notes |
 |---|---|---|
-| `vehicle_id` | text | → Vehicle Required. |
+| `vehicle_id` | text | → Vehicle. Required. |
 | `vehicle_name` | text |  |
-| `company_id` | text | → Company Required. |
+| `company_id` | text | → Company. Required. |
 | `company_name` | text |  |
-| `service_type` | text | e.g. Engine Oil Change Required. |
+| `service_type` | text | e.g. Engine Oil Change. Required. |
 | `due_type` | text | One of: `mileage`, `days`. Default `"mileage"`. |
 | `interval_km` | double precision | Default `0`. |
 | `interval_days` | double precision | Default `0`. |
 | `last_service_mileage` | double precision | Default `0`. |
 | `last_service_date` | date |  |
 | `status` | text | One of: `upcoming`, `due`, `overdue`, `completed`. Default `"upcoming"`. |
-| `assigned_mechanic_id` | text | → User |
+| `assigned_mechanic_id` | text | → User. |
 | `assigned_mechanic_name` | text |  |
 | `notes` | text |  |
 
@@ -804,9 +805,9 @@ Table `nfc_card` · belongs to a company through `company_id` · read and change
 | `employee_id` | text | The company's own staff number. |
 | `role` | text | Driver, Mechanic, Staff, Dispatcher, Inspector, ... |
 | `assigned_vehicle` | text |  |
-| `company_id` | text | → Company |
+| `company_id` | text | → Company. |
 | `company_name` | text |  |
-| `access_level` | text | e.g. DEPOT_DRIVER_ZONE |
+| `access_level` | text | e.g. DEPOT_DRIVER_ZONE. |
 | `issue_date` | timestamptz |  |
 | `expiry_date` | date |  |
 | `issued_by` | text |  |
@@ -835,7 +836,7 @@ One email or phone alert the app sent (or held back), for Admin → Notification
 | `skipped` | double precision | Held back by the admin's settings. |
 | `status` | text | One of: `sent`, `partial`, `failed`, `held`, `off`. |
 | `error` | text |  |
-| `company_id` | text | → Company |
+| `company_id` | text | → Company. |
 | `sent_at` | timestamptz |  |
 
 ### NotificationSetting
@@ -860,12 +861,12 @@ Table `part` · belongs to a company through `company_id` · read and changed th
 
 | Field | Type | Notes |
 |---|---|---|
-| `company_id` | text | → Company |
+| `company_id` | text | → Company. |
 | `company_name` | text |  |
 | `part_name` | text | Required. |
 | `oem_number` | text |  |
 | `aftermarket_number` | text |  |
-| `vehicle_compatibility` | text | e.g. Toyota Hiace |
+| `vehicle_compatibility` | text | e.g. Toyota Hiace. |
 | `category` | text |  |
 | `quantity_in_stock` | double precision | Default `0`. |
 | `unit_price` | double precision | Default `0`. |
@@ -880,10 +881,10 @@ Table `passenger_access_credential` · server functions only.
 
 | Field | Type | Notes |
 |---|---|---|
-| `user_id` | text | → User |
-| `company_id` | text | → Company Required. |
+| `user_id` | text | → User. |
+| `company_id` | text | → Company. Required. |
 | `token_hash` | text | Required. **Secret**: never sent to the browser. |
-| `contact_id` | text | → Contact |
+| `contact_id` | text | → Contact. |
 | `issued_at` | timestamptz |  |
 | `qr_token` | text | Permanent random boarding QR secret. Returned only to its signed-in owner, never in tablet directories. |
 | `qr_hash` | text | Digest used to verify the permanent QR on a paired bus tablet. |
@@ -897,8 +898,8 @@ Table `passenger_one_time_credential` · server functions only.
 
 | Field | Type | Notes |
 |---|---|---|
-| `user_id` | text | → User |
-| `company_id` | text | → Company |
+| `user_id` | text | → User. |
+| `company_id` | text | → Company. |
 | `token_hash` | text | **Secret**: never sent to the browser. |
 | `expires_at` | text |  |
 | `consumed_at` | text |  |
@@ -913,18 +914,18 @@ A short-lived code a driver tablet shows so a driver can start the shift and unl
 
 | Field | Type | Notes |
 |---|---|---|
-| `device_id` | text | → KioskDevice Driver tablet that showed the code. Required. |
-| `vehicle_id` | text | → Vehicle Required. |
-| `company_id` | text | → Company Required. |
+| `device_id` | text | → KioskDevice. Driver tablet that showed the code. Required. |
+| `vehicle_id` | text | → Vehicle. Required. |
+| `company_id` | text | → Company. Required. |
 | `code_hash` | text | SHA-256 of the short code; the code itself is never stored. Required. |
 | `expires_at` | timestamptz | Required. |
 | `status` | text | One of: `pending`, `claimed`, `delivered`. Default `"pending"`. |
-| `driver_id` | text | → Driver |
+| `driver_id` | text | → Driver. |
 | `driver_email` | text |  |
 | `driver_name` | text |  |
 | `claimed_at` | timestamptz |  |
 | `delivered_at` | timestamptz |  |
-| `shift_id` | text | → DriverShift |
+| `shift_id` | text | → DriverShift. |
 
 ### Place
 
@@ -934,7 +935,7 @@ Table `place` · read and changed through entityAccess.
 
 | Field | Type | Notes |
 |---|---|---|
-| `company_id` | text | → Company |
+| `company_id` | text | → Company. |
 | `name` | text | Required. |
 | `kind` | text | One of: `airport`, `hotel`, `attraction`, `other`. Default `"other"`. |
 | `address` | text |  |
@@ -952,9 +953,9 @@ Table `push_token` · read and changed through entityAccess.
 |---|---|---|
 | `token` | text | The FCM registration token for one browser/device. Required. **Secret**: never sent to the browser. |
 | `email` | text | Logged-in user's email, for staff/admin/company tokens. |
-| `device_id` | text | → KioskDevice KioskDevice id, for driver-tablet tokens (drivers have no login). |
+| `device_id` | text | → KioskDevice. KioskDevice id, for driver-tablet tokens (drivers have no login). |
 | `role` | text | Role this token belongs to (admin, company, passenger, driver) — used to target a whole audience, e.g. all admins for SOS. |
-| `company_id` | text | → Company |
+| `company_id` | text | → Company. |
 
 ### RoleAssignment
 
@@ -964,8 +965,8 @@ Table `role_assignment` · server functions only.
 
 | Field | Type | Notes |
 |---|---|---|
-| `user_id` | text | → User Required. |
-| `role_id` | text | → AccessRole |
+| `user_id` | text | → User. Required. |
+| `role_id` | text | → AccessRole. |
 | `assigned_by` | text |  |
 
 ### Route
@@ -978,7 +979,7 @@ Table `route` · belongs to a company through `company_id` · read and changed t
 
 | Field | Type | Notes |
 |---|---|---|
-| `company_id` | text | → Company Required. |
+| `company_id` | text | → Company. Required. |
 | `company_name` | text |  |
 | `name` | text | Required. |
 | `type` | text | One of: `staff`, `airport`. Default `"staff"`. |
@@ -996,9 +997,9 @@ Table `route_travel_times` · belongs to a company through `company_id` · read 
 
 | Field | Type | Notes |
 |---|---|---|
-| `route_id` | text | → Route Required. |
+| `route_id` | text | → Route. Required. |
 | `route_name` | text |  |
-| `company_id` | text | → Company |
+| `company_id` | text | → Company. |
 | `legs` | jsonb | Learned stop-to-stop driving times, keyed 'lat,lng>lat,lng' of the two stops: { all: {n, median, p80}, b: { wd07: {n, median}, ... } } in seconds. Bucket = weekday/sa/su + hour in Grenada time. |
 | `dwells` | jsonb | Learned waiting time at each stop, keyed 'lat,lng', same shape as legs. |
 | `leg_samples` | double precision | Stop-to-stop trips the times are based on. |
@@ -1017,7 +1018,7 @@ Server-only delivery ledger for new-account admin alerts.
 
 | Field | Type | Notes |
 |---|---|---|
-| `user_id` | text | → User Required. |
+| `user_id` | text | → User. Required. |
 | `completed` | boolean |  |
 | `delivered_emails` | jsonb (list) |  |
 | `notified_at` | timestamptz |  |
@@ -1035,15 +1036,15 @@ Table `staff_check_in` · belongs to a company through `vehicle_id`, then `compa
 | `card_tag` | text | Required. **Secret**: never sent to the browser. |
 | `status` | text | One of: `boarded`, `off_board`. Default `"boarded"`. Required. |
 | `boarded_at` | timestamptz |  |
-| `company_id` | text | → Company |
+| `company_id` | text | → Company. |
 | `company_name` | text |  |
-| `vehicle_id` | text | → Vehicle |
+| `vehicle_id` | text | → Vehicle. |
 | `vehicle_name` | text |  |
 | `check_in_method` | text | One of: `nfc`, `qr`, `manual`, `code`, `bluetooth`. Default `"manual"`. |
 | `client_request_id` | text | Sent by the device so a retried save isn't made twice. Not sent to the browser. |
 | `request_hash` | text | Not sent to the browser. |
 | `boarding_grant_hash` | text | Server-only digest binding a boarding authorization to its completed check-in. Sequential replay protection; not an atomic uniqueness constraint. Not sent to the browser. |
-| `device_id` | text | → KioskDevice Not sent to the browser. |
+| `device_id` | text | → KioskDevice. Not sent to the browser. |
 
 ### TabletRecordingSession
 
@@ -1053,15 +1054,15 @@ Table `tablet_recording_session` · server functions only.
 
 | Field | Type | Notes |
 |---|---|---|
-| `device_id` | text | → KioskDevice Required. |
+| `device_id` | text | → KioskDevice. Required. |
 | `requested_by` | text | Required. |
 | `requested_name` | text |  |
 | `state` | text | Required. |
 | `created_at` | text |  |
 | `expires_at` | text | Required. |
 | `ended_at` | text |  |
-| `company_id` | text | → Company |
-| `vehicle_id` | text | → Vehicle |
+| `company_id` | text | → Company. |
+| `vehicle_id` | text | → Vehicle. |
 | `kiosk_type` | text |  |
 | `offer_sdp` | text |  |
 | `answer_sdp` | text |  |
@@ -1074,7 +1075,7 @@ Table `tablet_support_session` · server functions only.
 
 | Field | Type | Notes |
 |---|---|---|
-| `device_id` | text | → KioskDevice Required. |
+| `device_id` | text | → KioskDevice. Required. |
 | `requested_by` | text | Required. |
 | `requested_name` | text |  |
 | `capability` | text | Required. |
@@ -1082,8 +1083,8 @@ Table `tablet_support_session` · server functions only.
 | `created_at` | text |  |
 | `expires_at` | text | Required. |
 | `ended_at` | text |  |
-| `company_id` | text | → Company |
-| `vehicle_id` | text | → Vehicle |
+| `company_id` | text | → Company. |
+| `vehicle_id` | text | → Vehicle. |
 | `kiosk_type` | text |  |
 | `transport` | text |  |
 | `offer_sdp` | text |  |
@@ -1096,16 +1097,16 @@ Table `trip` · belongs to a company through `vehicle_id`, then `company_id` · 
 
 **Links to:** [Vehicle](#vehicle) (`vehicle_id`), [Route](#route) (`route_id`), [Company](#company) (`company_id`), [Client](#client) (`client_id`), [Invoice](#invoice) (`invoice_id`).
 
-**Everyone except admin, company gets only:** `company_id`, `vehicle_id`, `vehicle_name`, `route_id`, `route_name`, `pickup_name`, `dropoff_name`, `scheduled_time`, `status`, `started_at`, `arrived_at`, `completed_at`.
+**Everyone except admins and company managers gets only:** `company_id`, `vehicle_id`, `vehicle_name`, `route_id`, `route_name`, `pickup_name`, `dropoff_name`, `scheduled_time`, `status`, `started_at`, `arrived_at`, `completed_at`.
 
 | Field | Type | Notes |
 |---|---|---|
-| `vehicle_id` | text | → Vehicle |
+| `vehicle_id` | text | → Vehicle. |
 | `vehicle_name` | text |  |
 | `plate_number` | text |  |
-| `route_id` | text | → Route |
+| `route_id` | text | → Route. |
 | `route_name` | text |  |
-| `company_id` | text | → Company Required. |
+| `company_id` | text | → Company. Required. |
 | `company_name` | text |  |
 | `driver_email` | text |  |
 | `driver_name` | text |  |
@@ -1128,35 +1129,35 @@ Table `trip` · belongs to a company through `vehicle_id`, then `company_id` · 
 | `dropoff_signature_url` | text |  |
 | `dropoff_signed_by` | text |  |
 | `dropoff_signed_at` | timestamptz |  |
-| `job_type` | text | Kind of job; trips made before job types read as a transfer One of: `airport_pickup`, `airport_dropoff`, `hotel_tour`, `staff_run`, `transfer`. |
-| `client_id` | text | → Client Only an admin can change it. |
+| `job_type` | text | Kind of job; trips made before job types read as a transfer. One of: `airport_pickup`, `airport_dropoff`, `hotel_tour`, `staff_run`, `transfer`. |
+| `client_id` | text | → Client. Only an admin can change it. |
 | `client_name` | text | Only an admin can change it. |
 | `pickup_address` | text |  |
 | `dropoff_address` | text |  |
 | `flight_number` | text |  |
-| `flight_time` | timestamptz | Landing time (airport pickup) or departure time (airport drop-off), as told to dispatch |
+| `flight_time` | timestamptz | Landing time (airport pickup) or departure time (airport drop-off), as told to dispatch. |
 | `guests` | bigint |  |
 | `luggage` | bigint |  |
 | `notes` | text |  |
-| `stops` | jsonb (list) | Tour stops in order |
-| `end_time` | timestamptz | When the job should be finished; used to warn about overlapping jobs |
+| `stops` | jsonb (list) | Tour stops in order. |
+| `end_time` | timestamptz | When the job should be finished; used to warn about overlapping jobs. |
 | `price` | double precision | Only an admin can change it. |
 | `currency` | text | Default `"XCD"`. Only an admin can change it. |
-| `invoice_id` | text | → Invoice Set by the server only. |
+| `invoice_id` | text | → Invoice. Set by the server only. |
 | `invoice_number` | text | Set by the server only. |
 | `cancelled_at` | timestamptz |  |
-| `pickup_signature_uri` | text | Private file; opened through jobBilling Set by the server only. |
+| `pickup_signature_uri` | text | Private file; opened through jobBilling. Set by the server only. |
 | `pickup_signed_guests` | bigint | Set by the server only. |
 | `pickup_signed_lat` | double precision | Set by the server only. |
 | `pickup_signed_lng` | double precision | Set by the server only. |
 | `pickup_signature_request_id` | text | Makes a retried signature safe. Set by the server only. |
-| `dropoff_signature_uri` | text | Private file; opened through jobBilling Set by the server only. |
+| `dropoff_signature_uri` | text | Private file; opened through jobBilling. Set by the server only. |
 | `dropoff_signed_guests` | bigint | Set by the server only. |
 | `dropoff_signed_lat` | double precision | Set by the server only. |
 | `dropoff_signed_lng` | double precision | Set by the server only. |
 | `dropoff_signature_request_id` | text | Makes a retried signature safe. Set by the server only. |
-| `pickup_signed_role` | text | Who signed for the pickup: a guest, or the hotel's front desk One of: `guest`, `reception`. Set by the server only. |
-| `dropoff_signed_role` | text | Who signed for the drop-off: a guest, or the hotel's front desk One of: `guest`, `reception`. Set by the server only. |
+| `pickup_signed_role` | text | Who signed for the pickup: a guest, or the hotel's front desk. One of: `guest`, `reception`. Set by the server only. |
+| `dropoff_signed_role` | text | Who signed for the drop-off: a guest, or the hotel's front desk. One of: `guest`, `reception`. Set by the server only. |
 
 ### User
 
@@ -1177,7 +1178,7 @@ Table `app_user` · read and changed through entityAccess.
 | `disabled_reason` | text | Not sent to the browser. |
 | `is_verified` | boolean | Email confirmed. Not sent to the browser. |
 | `auth_user_id` | uuid | Supabase only: the linked sign-in account (auth.users). Not sent to the browser. |
-| `company_id` | text | → Company |
+| `company_id` | text | → Company. |
 | `display_name` | text | The name the person chose for themselves in My Account. The platform account name (full_name) is read-only, so a chosen name is kept here and shown wherever the person sees their own name. |
 | `phone` | text |  |
 | `photo_url` | text |  |
@@ -1203,9 +1204,9 @@ Table `app_user` · read and changed through entityAccess.
 | `pickup_lat` | double precision | Passenger-confirmed roadside pickup suggestion; separate from their home location. |
 | `pickup_lng` | double precision | Passenger-confirmed roadside pickup suggestion; separate from their home location. |
 | `pickup_name` | text | Passenger-confirmed roadside pickup suggestion; separate from their home location. |
-| `pickup_route_id` | text | → Route Passenger-confirmed roadside pickup suggestion; separate from their home location. |
+| `pickup_route_id` | text | → Route. Passenger-confirmed roadside pickup suggestion; separate from their home location. |
 | `pickup_moved` | jsonb | Set by the server when a driver moves this passenger's pickup on the bus road: when, by whom, how far, and the new point. The passenger app shows a note while the pickup is still at that point. Not sent to the browser. |
-| `access_role_id` | text | → AccessRole Administrative routing hint only. RoleAssignment is the protected source of authorization. Not sent to the browser. |
+| `access_role_id` | text | → AccessRole. Administrative routing hint only. RoleAssignment is the protected source of authorization. Not sent to the browser. |
 
 ### Vehicle
 
@@ -1215,12 +1216,12 @@ Table `vehicle` · belongs to a company through `company_id` · read and changed
 
 **Linked from:** [Broadcast](#broadcast).vehicle_id, [CompanyMembership](#companymembership).vehicle_id, [Contact](#contact).vehicle_id, [DeviceCredential](#devicecredential).vehicle_id, [DriverPinCredential](#driverpincredential).vehicle_id, [DriverShift](#drivershift).vehicle_id, [DrivingEvent](#drivingevent).vehicle_id, [Fault](#fault).vehicle_id, [GroupMessage](#groupmessage).vehicle_id, [Incident](#incident).vehicle_id, [Inspection](#inspection).vehicle_id, [InspectionResult](#inspectionresult).vehicle_id, [KioskDevice](#kioskdevice).vehicle_id, [LocationPing](#locationping).vehicle_id, [MaintenanceSchedule](#maintenanceschedule).vehicle_id, [PhoneUnlock](#phoneunlock).vehicle_id, [StaffCheckIn](#staffcheckin).vehicle_id, [TabletRecordingSession](#tabletrecordingsession).vehicle_id, [TabletSupportSession](#tabletsupportsession).vehicle_id, [Trip](#trip).vehicle_id, [VerificationGrant](#verificationgrant).vehicle_id.
 
-**Everyone except admin, company, mechanic gets only:** `name`, `type`, `company_id`, `company_name`, `capacity`, `route_id`, `current_lat`, `current_lng`, `speed`, `heading`, `status`, `driver_name`, `image_url`, `model_3d`, `tracking_active`, `last_location_update`, `trail`, `trip_direction`, `return_pickup_state`, `road_next_stop`.
+**Everyone except admins and company managers and mechanics gets only:** `name`, `type`, `company_id`, `company_name`, `capacity`, `route_id`, `current_lat`, `current_lng`, `speed`, `heading`, `status`, `driver_name`, `image_url`, `model_3d`, `tracking_active`, `last_location_update`, `trail`, `trip_direction`, `return_pickup_state`, `road_next_stop`.
 
 | Field | Type | Notes |
 |---|---|---|
 | `capacity` | double precision |  |
-| `company_id` | text | → Company Required. |
+| `company_id` | text | → Company. Required. |
 | `company_name` | text |  |
 | `current_lat` | double precision |  |
 | `current_lng` | double precision |  |
@@ -1238,7 +1239,7 @@ Table `vehicle` · belongs to a company through `company_id` · read and changed
 | `road_next_stop` | double precision | On a route with a drawn road: the position (0 = first) of the next stop the bus reaches, in the bus's own stop order. Sent by the bus tablet. Passengers count stops away from it; it never holds anyone's pickup location. Cleared when a trip starts. |
 | `plate_number` | text |  |
 | `remote_tracking_lock` | boolean | Default `false`. |
-| `route_id` | text | → Route |
+| `route_id` | text | → Route. |
 | `speed` | double precision |  |
 | `status` | text | One of: `offline`, `idle`, `on_trip`, `speeding`, `emergency`. Default `"offline"`. |
 | `tracking_active` | boolean | Default `false`. |
@@ -1282,9 +1283,9 @@ Table `verification_grant` · server functions only.
 | Field | Type | Notes |
 |---|---|---|
 | `token_hash` | text | **Secret**: never sent to the browser. |
-| `device_id` | text | → KioskDevice |
-| `company_id` | text | → Company |
-| `vehicle_id` | text | → Vehicle |
+| `device_id` | text | → KioskDevice. |
+| `company_id` | text | → Company. |
+| `vehicle_id` | text | → Vehicle. |
 | `purpose` | text |  |
 | `subject` | text |  |
 | `expires_at` | text |  |
@@ -1292,8 +1293,8 @@ Table `verification_grant` · server functions only.
 | `credential_version` | text |  |
 | `auth_kind` | text |  |
 | `subject_source` | text |  |
-| `member_user_id` | text | → User |
-| `card_id` | text | → NfcCard |
+| `member_user_id` | text | → User. |
+| `card_id` | text | → NfcCard. |
 | `card_tag_hash` | text |  |
 
 ### Workplace
@@ -1305,7 +1306,7 @@ Table `workplace` · belongs to a company through `company_id` · read and chang
 | Field | Type | Notes |
 |---|---|---|
 | `name` | text | Required. |
-| `company_id` | text | → Company |
+| `company_id` | text | → Company. |
 | `company_name` | text |  |
 | `lat` | double precision |  |
 | `lng` | double precision |  |
