@@ -1,0 +1,165 @@
+/* Apple look and feel for the driver tablet (the apple-design skill).
+   Same layout, sizes, colours and features as the approved tablet: only
+   surfaces, materials, shapes and touch feedback change. Borders turn
+   transparent rather than disappearing, so nothing moves or grows. The
+   tablet stays dark. The driver phone and the boarding kiosk keep their own
+   look (they don't use .tt-driver-reference). */
+.tt-driver-reference {
+  --da-cell: #0d2135;
+  --da-cell-raised: #12293f;
+  --da-group: #0a1b2d;
+  --da-glass: rgba(7, 24, 40, .66);
+  --da-glass-edge: rgba(255, 255, 255, .13);
+  --da-hair: rgba(255, 255, 255, .12);
+  --da-tint: hsl(var(--primary));
+  --da-tint-fill: hsl(var(--primary) / .16);
+  --da-on-tint: #02202c;
+  --da-gray-fill: rgba(118, 118, 128, .26);
+  --da-text2: #a9c0d4;
+}
+
+/* Touch: feedback on press, not release. */
+.tt-driver-reference :is(button, a, summary) { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+.tt-driver-reference button:not([role=switch]) { transition: transform .2s cubic-bezier(.2, .8, .2, 1), background-color .2s ease-out, color .2s ease-out; }
+.tt-driver-reference button:not([role=switch]):not(:disabled):active { transform: scale(.97); transition-duration: .06s; }
+.tt-driver-reference :is(.dk-tool, .dl-stats > button, .dk-passenger-row button):active { transform: scale(.985); }
+
+/* Frosted bars: the page shows softly through them. */
+.tt-driver-reference .dl-header,
+.tt-driver-reference .dk-brand-row,
+.tt-driver-reference .dk-company-row {
+  background: var(--da-glass); -webkit-backdrop-filter: blur(20px) saturate(180%); backdrop-filter: blur(20px) saturate(180%);
+  border-color: var(--da-hair);
+}
+.tt-driver-reference .dk-header { border-bottom-color: var(--da-hair); }
+.tt-driver-reference .dl-company > strong { background: var(--da-gray-fill); border-color: transparent; border-radius: 999px; }
+.tt-driver-reference .dl-header-status time { border-left-color: var(--da-hair); font-variant-numeric: tabular-nums; }
+
+/* Section bar: frosted, the chosen section on a soft pill in the brand colour. */
+.tt-driver-reference.tt-driver-portrait > nav[aria-label="Driver sections"] {
+  background: var(--da-glass) !important; -webkit-backdrop-filter: blur(20px) saturate(180%); backdrop-filter: blur(20px) saturate(180%);
+  border-color: var(--da-glass-edge) !important;
+}
+.tt-driver-reference.tt-driver-portrait > nav[aria-label="Driver sections"] > button { border-radius: 999px !important; }
+.tt-driver-reference.tt-driver-portrait > nav[aria-label="Driver sections"] > button > span[aria-hidden="true"] { display: none; }
+.tt-driver-reference.tt-driver-portrait > nav[aria-label="Driver sections"] > [aria-current="page"] {
+  background: var(--da-tint-fill) !important; color: var(--da-tint) !important; box-shadow: none !important; font-weight: 700;
+}
+@media (min-width: 960px) and (orientation: landscape) {
+  .tt-driver-reference.tt-driver-portrait > nav[aria-label="Driver sections"] { border-radius: 999px; }
+}
+@media not ((min-width: 960px) and (orientation: landscape)) {
+  .tt-driver-reference.tt-driver-portrait > nav[aria-label="Driver sections"] { padding: 6px !important; gap: 6px; }
+  .tt-driver-reference.tt-driver-portrait > nav[aria-label="Driver sections"] > button { min-height: 60px !important; height: 60px !important; }
+}
+
+/* Cells: solid, rounder, no outlines, no gradients. */
+.tt-driver-reference :is(.dl-trip-panel) { background: var(--da-group); border-color: transparent; border-radius: 24px; }
+.tt-driver-reference :is(.dl-next, .dl-stats > button, .dl-trip-status) { background: var(--da-cell-raised); border-color: transparent; border-radius: 18px; }
+.tt-driver-reference .dl-stop-progress { border-top-color: var(--da-hair); }
+.tt-driver-reference .dl-trip-status > span + span { border-left-color: var(--da-hair); }
+.tt-driver-reference .dl-map-stage { border-color: transparent; border-radius: 24px; }
+.tt-driver-reference :is(.dk-simple-next, .dk-details, .dk-tool, .dk-counts, .dk-passenger-list, .dk-bus-strip, .dk-next) {
+  background: var(--da-cell); border-color: transparent; box-shadow: none;
+}
+.tt-driver-reference :is(.dk-simple-next, .dk-overview-map, .dk-tool, .dk-counts, .dk-passenger-list, .dk-details) { border-radius: 22px; }
+.tt-driver-reference .dk-overview-map { border-color: transparent; }
+.tt-driver-reference .dk-details[open] > summary, .tt-driver-reference .dk-passenger-row + .dk-passenger-row { border-color: var(--da-hair); }
+.tt-driver-reference .dk-counts > span + span { border-left-color: var(--da-hair); }
+.tt-driver-reference .dk-fixed-controls { background: transparent; border-top-color: var(--da-hair); }
+.tt-driver-reference .dk-tool > svg:first-child { width: 38px; height: 38px; padding: 8px; border-radius: 10px; background: var(--da-tint-fill); }
+
+/* Buttons: capsules. Filled brand colour for the main action, grey for the rest. */
+.tt-driver-reference :is(.dl-next-actions, .dk-next-actions, .dl-trip-actions, .dk-drive-controls) > button,
+.tt-driver-reference :is(.dk-back, .dk-change-stop, .dk-shortcuts > button, .dk-drive-footer > button) { border-radius: 999px !important; }
+.tt-driver-reference :is(.dl-next-actions, .dk-next-actions) > button:first-child {
+  background: var(--da-tint); color: var(--da-on-tint); border-color: transparent;
+}
+.tt-driver-reference :is(.dl-next-actions, .dk-next-actions) > button:last-child,
+.tt-driver-reference .dl-trip-actions > button:not([aria-label="Start tracking"]):not([aria-label="Start shift"]),
+.tt-driver-reference .dk-drive-controls > button:not(:first-child),
+.tt-driver-reference :is(.dk-back, .dk-change-stop) {
+  background: var(--da-gray-fill); border-color: transparent; color: #f2f8ff;
+}
+.tt-driver-reference .dl-trip-actions > button:is([aria-label="Start tracking"], [aria-label="Start shift"]),
+.tt-driver-reference .dk-drive-controls > button:first-child { background: var(--da-tint); border-color: transparent; color: var(--da-on-tint); }
+/* SOS keeps its red edge so it is never mistaken for an ordinary button. */
+.tt-driver-reference .dl-control-dock > div:last-child > button { border-radius: 999px; background: rgba(234, 85, 106, .1); }
+
+/* Trip direction: an iOS segmented control. */
+.tt-driver-reference [aria-label="Choose trip direction"] { background: var(--da-gray-fill) !important; border-color: transparent !important; border-radius: 16px !important; }
+.tt-driver-reference [aria-label="Choose trip direction"] > button { border-radius: 14px !important; }
+.tt-driver-reference [aria-label="Choose trip direction"] > [aria-pressed="true"] {
+  background: var(--da-tint) !important; color: var(--da-on-tint) !important; box-shadow: 0 3px 8px rgba(0, 0, 0, .25);
+}
+
+/* Things floating over the map are frosted glass, like Apple Maps. */
+.tt-driver-reference :is(.dl-route-label, .dl-map-caption, .dk-map-hint),
+.tt-driver-reference .dl-map-stage .dl-details > summary,
+.tt-driver-reference .dl-map-stage .dl-details > div,
+.tt-driver-reference .dl-map-stage button[aria-label="Re-center on my position"] {
+  background: var(--da-glass); -webkit-backdrop-filter: blur(20px) saturate(180%); backdrop-filter: blur(20px) saturate(180%);
+  border-color: var(--da-glass-edge);
+}
+.tt-driver-reference .dl-route-label { border-radius: 20px; }
+.tt-driver-reference .dl-map-caption, .tt-driver-reference .dl-map-stage .dl-details > summary { border-radius: 999px; }
+.tt-driver-reference .dl-map-stage .leaflet-control-zoom { border-color: var(--da-glass-edge) !important; border-radius: 999px !important; }
+.tt-driver-reference .dl-map-stage .leaflet-control-zoom a {
+  background: var(--da-glass); -webkit-backdrop-filter: blur(20px) saturate(180%); backdrop-filter: blur(20px) saturate(180%); border-color: var(--da-hair);
+}
+/* Portrait: the offline map note sits clear of the zoom buttons. */
+.tt-driver-reference .dk-content .dk-overview-map [data-map-tile-error] { left: 58px !important; }
+
+/* Search: a filled iOS search field. */
+.tt-driver-reference .dk-search { background: var(--da-gray-fill); border-color: transparent; border-radius: 14px; }
+
+/* "Change stop": a raised iOS sheet that rises on a spring; the stops are one
+   grouped list. */
+.tt-driver-reference .dk-stop-sheet-backdrop { background: rgba(0, 0, 0, .45); animation: da-fade .25s ease-out; }
+.tt-driver-reference .dk-stop-sheet {
+  background: #10243a; border-color: transparent; border-radius: 30px; box-shadow: 0 24px 80px rgba(0, 0, 0, .55);
+  animation: da-rise .42s cubic-bezier(.2, .9, .25, 1);
+}
+.tt-driver-reference:not(.tt-driver-portrait) .dk-stop-sheet, .tt-driver-reference .dk-stop-sheet-backdrop[style*="flex-end"] .dk-stop-sheet { border-radius: 30px 30px 0 0; }
+.tt-driver-reference .dk-stop-options { gap: 0; border-radius: 18px; overflow: hidden; }
+.tt-driver-reference .dk-stop-options > button {
+  border-radius: 0 !important; border: 0; background: var(--da-cell-raised); justify-content: flex-start; padding-left: 20px; font-size: 17px; position: relative;
+}
+.tt-driver-reference .dk-stop-options > button + button::before { content: ""; position: absolute; left: 20px; right: 0; top: 0; height: .5px; background: var(--da-hair); }
+.tt-driver-reference .dk-stop-options > button:active { transform: none; background: #1a3550; }
+.tt-driver-reference .dk-stop-options > button:last-child { color: var(--da-tint); }
+.tt-driver-reference .dk-stop-sheet > button { border-radius: 999px !important; }
+.tt-driver-reference .dk-stop-sheet > button[data-variant="outline"] { background: var(--da-gray-fill); border-color: transparent; }
+.tt-driver-reference .dk-stop-sheet > button[data-variant="ghost"] { color: var(--da-tint); font-weight: 600; }
+@keyframes da-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes da-rise { from { opacity: 0; transform: translateY(24px) scale(.98); } to { opacity: 1; transform: none; } }
+
+/* iOS switches: 51 × 31, white knob, brand colour when on. */
+.tt-driver-reference [role=switch] {
+  width: 51px; height: 31px; min-height: 0; padding: 0; border: 0 !important; border-radius: 999px !important; flex-shrink: 0;
+  box-shadow: none; transition: background-color .25s ease-out;
+}
+.tt-driver-reference [role=switch][data-state=unchecked] { background: rgba(120, 120, 128, .36); }
+.tt-driver-reference [role=switch][data-state=checked] { background: var(--da-tint); }
+.tt-driver-reference [role=switch] > span {
+  width: 27px; height: 27px; margin: 2px; background: #fff; box-shadow: 0 3px 8px rgba(0, 0, 0, .15), 0 3px 1px rgba(0, 0, 0, .06);
+  transition: transform .3s cubic-bezier(.25, 1, .5, 1);
+}
+.tt-driver-reference [role=switch][data-state=checked] > span { transform: translateX(20px); }
+.tt-driver-reference [role=switch][data-state=unchecked] > span { transform: translateX(0); }
+
+/* Numbers keep their width as they change. */
+.tt-driver-reference :is(.dl-stats strong, .dk-counts strong, .dl-header-status time) { font-variant-numeric: tabular-nums; }
+
+/* Accessibility: less motion, less transparency, more contrast. */
+@media (prefers-reduced-motion: reduce) {
+  .tt-driver-reference .dk-stop-sheet { animation: da-fade .2s ease-out; }
+  .tt-driver-reference button:not([role=switch]):not(:disabled):active { transform: none; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .tt-driver-reference { --da-glass: #071828; }
+}
+@media (prefers-contrast: more) {
+  .tt-driver-reference :is(.dl-trip-panel, .dl-next, .dl-stats > button, .dl-trip-status, .dk-simple-next, .dk-details, .dk-tool, .dk-counts, .dk-passenger-list, .dl-map-caption, .dl-route-label) { border-color: #8fb7cf; }
+  .tt-driver-reference { --da-hair: #8fb7cf; --da-glass: #071828; }
+}

@@ -127,3 +127,30 @@ test('background GPS is opt-in, bound to this bus and can export saved points',a
  const download=page.waitForEvent('download');await page.getByRole('button',{name:'Export saved GPS',exact:true}).click();expect((await download).suggestedFilename()).toBe('saved-driver-gps.json');
  await toggle.click();await expect.poll(()=>page.evaluate(()=>window.__backgroundStops)).toBeGreaterThan(0);
 });
+
+// Every driver tablet screen, landscape and portrait: nothing spills sideways
+// and the main controls stay on screen. With TT_SHOT_DIR set it also saves a
+// picture of each one.
+for(const [orient,size,tabs] of [['landscape',{width:1280,height:800},['Drive','Bus stops','Passengers','Messages','More']],['portrait',{width:800,height:1280},['Drive','Passengers','More']]])test(`tablet tour (${orient})`,async({page})=>{
+ await page.setViewportSize(size);
+ const now=new Date().toISOString();
+ await openDriver(page,{route,company_name:"McSween's Transport",occupancy:3,
+  vehicle:{...vehicle,name:'Bus 12',current_lat:12.095,current_lng:-61.749,last_location_update:now},
+  open_shift:{id:'shift',started_at:now},
+  staff:[{id:'a',full_name:'Alice Joseph',favorite_stop:'Grand Roy'},{id:'b',full_name:'Ben Charles',favorite_stop:'Palmiste'},{id:'c',full_name:'Cara Mitchell',favorite_stop:'Concord'}],
+  check_ins:[{id:'t1',staff_id:'a',staff_name:'Alice Joseph',status:'boarded',boarded_at:now,check_in_method:'nfc'}]});
+ const dir=process.env.TT_SHOT_DIR;
+ const fits=async()=>expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+ const shot=async name=>{await fits();if(dir){await page.waitForTimeout(400);await page.screenshot({path:`${dir}/tablet-${orient}-${name}.png`});}};
+ for(const tab of tabs){
+  await sections(page).getByRole('button',{name:tab,exact:true}).click();
+  await page.waitForTimeout(300);
+  await shot(tab.toLowerCase().replace(/ /g,'-'));
+ }
+ await sections(page).getByRole('button',{name:'Drive',exact:true}).click();
+ await page.getByRole('button',{name:'Change stop',exact:true}).click();
+ await expect(page.getByRole('dialog',{name:'Choose next stop'})).toBeVisible();
+ await shot('change-stop');
+ await page.getByRole('button',{name:'Cancel',exact:true}).click();
+ await expect(page.getByRole('dialog',{name:'Choose next stop'})).toHaveCount(0);
+});
