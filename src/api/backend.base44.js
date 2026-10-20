@@ -22,3 +22,6 @@ export function sessionHandoffToken(storage, fallback = null) {
   try { token = storage ? storage.getItem('base44_access_token') : null; } catch { /* storage blocked */ }
   return token || fallback || null;
 }
+
+// Base44 sessions can be shared, so the browser keeps its sign-in.
+export async function afterSessionHandoff() {}

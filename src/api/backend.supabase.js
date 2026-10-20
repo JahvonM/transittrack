@@ -14,8 +14,11 @@ import { createClient } from '@supabase/supabase-js';
 
 export const BACKEND = 'supabase';
 
-const SUPABASE_URL = String(import.meta.env.VITE_SUPABASE_URL || '').replace(/\/+$/, '');
-const PUBLISHABLE_KEY = String(import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || '');
+// The project's address and its publishable key are public by design: the
+// browser sends them with every request, and they open nothing by themselves
+// (every table is locked; the functions check who is asking).
+const SUPABASE_URL = String(import.meta.env.VITE_SUPABASE_URL || 'https://ghqpznxqngvhmkiwcauj.supabase.co').replace(/\/+$/, '');
+const PUBLISHABLE_KEY = String(import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_XeQJGv6I-Yicnl3WAu659g_Q7AqBc2C');
 const REF = (() => { try { return new URL(SUPABASE_URL).hostname.split('.')[0]; } catch { return 'app'; } })();
 export const AUTH_STORAGE_KEY = `sb-${REF}-auth-token`;
 // A sign-in handed over by the desktop or phone app: "<access JWT>~<refresh token>".

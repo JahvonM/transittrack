@@ -1,4 +1,4 @@
-import { getAccessToken } from '@base44/sdk';
+import { storedAccessToken } from 'tt-backend';
 
 const isNode = typeof window === 'undefined';
 
@@ -16,7 +16,7 @@ const getAppParams = () => {
 	}
 	return {
 		appId: import.meta.env.VITE_BASE44_APP_ID,
-		token: getAccessToken(),
+		token: storedAccessToken(),
 		functionsVersion: import.meta.env.VITE_BASE44_FUNCTIONS_VERSION,
 		appBaseUrl: import.meta.env.VITE_BASE44_APP_BASE_URL,
 	}
