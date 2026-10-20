@@ -12,7 +12,7 @@ import OfflineNotice from "@/components/system/OfflineNotice";
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
 import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
-import { Suspense, lazy, useEffect, useState } from 'react';
+import { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { homeFor } from '@/lib/roleHome';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
@@ -20,7 +20,6 @@ import { useTheme } from "@/lib/useTheme";
 import ScrollToTop from './components/ScrollToTop';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import MobileTabBar from '@/components/MobileTabBar';
-import { AnimatePresence, motion } from 'framer-motion';
 import { Navigate } from 'react-router-dom';
 // Auth components load eagerly so the login flow renders without a chunk round-trip
 import Login from '@/pages/Login';
@@ -117,6 +116,9 @@ const AuthenticatedApp = () => {
   // it (that would stop GPS tracking and navigation).
   const pageKey = ["/staff","/journey","/my-card","/more"].includes(location.pathname) ? "/passenger-experience" : /^\/driver(\/|$)/.test(location.pathname) ? "/driver"
     : location.pathname.startsWith("/driver-phone") ? "/driver-phone" : /^\/admin(\/|$)/.test(location.pathname) ? "/admin" : location.pathname;
+  // The first screen shown after opening the app, or false once the person
+  // has moved on (from then on every new screen slides in).
+  const firstScreen = useRef(null);
 
   // One loading screen for the whole start-up, whichever check is still running.
   if (!publicPage && !tabletPage && (isLoadingPublicSettings || isLoadingAuth)) {
@@ -137,16 +139,13 @@ const AuthenticatedApp = () => {
   if (location.pathname === '/' && isAuthenticated && home) return <Navigate to={home} replace />;
 
   // Render the main app
+  if (firstScreen.current === null) firstScreen.current = pageKey;
+  else if (firstScreen.current !== pageKey) firstScreen.current = false;
   return (
     <>
-    <AnimatePresence mode="wait" initial={false}>
-      <motion.div
-        key={pageKey}
-        initial={{ opacity: 0, x: 16 }}
-        animate={{ opacity: 1, x: 0 }}
-        exit={{ opacity: 0, x: -16 }}
-        transition={{ duration: 0.18, ease: "easeOut" }}
-      >
+    {/* A new screen slides in with CSS (index.css .tt-route-in); the first
+        screen after opening the app appears without it. */}
+    <div key={pageKey} className={firstScreen.current === false ? 'tt-route-in' : undefined}>
       <ErrorBoundary key={pageKey}>
       <Suspense fallback={<RouteFallback />}>
       <Routes location={location}>
@@ -203,8 +202,7 @@ const AuthenticatedApp = () => {
       </Routes>
       </Suspense>
       </ErrorBoundary>
-      </motion.div>
-    </AnimatePresence>
+    </div>
     <MobileTabBar />
     </>
   );

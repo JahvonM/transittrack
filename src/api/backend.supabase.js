@@ -10,7 +10,10 @@
 //   users.inviteUser       through the `integrations` function
 // Records (base44.entities) already go through the entityAccess function
 // (src/lib/scopedEntities.js), so the browser never reads the database itself.
-import { createClient } from '@supabase/supabase-js';
+// Only the sign-in part of Supabase is loaded (@supabase/auth-js): the browser
+// never uses the database, realtime or storage clients, so the full
+// supabase-js package would add ~110 KB to the first download for nothing.
+import { AuthClient } from '@supabase/auth-js';
 
 export const BACKEND = 'supabase';
 
@@ -28,17 +31,26 @@ const OAUTH_FLAG = 'tt_oauth';
 const FUNCTION_NAME = /^[A-Za-z][A-Za-z0-9_-]{0,63}$/;
 const PROVIDERS = { google: 'google', apple: 'apple', microsoft: 'azure', facebook: 'facebook' };
 
+// The same settings supabase-js's createClient would hand its auth client.
+const authClient = (settings) => ({
+  auth: new AuthClient({
+    url: `${SUPABASE_URL}/auth/v1`,
+    headers: { Authorization: `Bearer ${PUBLISHABLE_KEY}`, apikey: PUBLISHABLE_KEY },
+    ...settings,
+  }),
+});
+
 let supabase = null;
-const sb = () => (supabase ||= createClient(SUPABASE_URL, PUBLISHABLE_KEY, {
-  auth: { flowType: 'pkce', persistSession: true, autoRefreshToken: true, detectSessionInUrl: false, storageKey: AUTH_STORAGE_KEY },
+const sb = () => (supabase ||= authClient({
+  flowType: 'pkce', persistSession: true, autoRefreshToken: true, detectSessionInUrl: false, storageKey: AUTH_STORAGE_KEY,
 }));
 
 // "Forgot password" emails are asked for without PKCE, so the email's one-time
 // key isn't tied to the browser that asked: the person can open it on their
 // phone. (Signing in with Google/Apple still uses PKCE above.)
 let recoveryClient = null;
-const sbRecovery = () => (recoveryClient ||= createClient(SUPABASE_URL, PUBLISHABLE_KEY, {
-  auth: { flowType: 'implicit', persistSession: false, autoRefreshToken: false, detectSessionInUrl: false, storageKey: `${AUTH_STORAGE_KEY}-recovery` },
+const sbRecovery = () => (recoveryClient ||= authClient({
+  flowType: 'implicit', persistSession: false, autoRefreshToken: false, detectSessionInUrl: false, storageKey: `${AUTH_STORAGE_KEY}-recovery`,
 }));
 
 const hasWindow = () => typeof window !== 'undefined';

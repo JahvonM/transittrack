@@ -334,6 +334,11 @@
 /* Soft page entrance on route change */
 .tt-page-in { animation: tt-page-in 0.35s ease-out both; }
 @keyframes tt-page-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+/* Each new screen slides in (App.jsx). Plain CSS instead of an animation
+   library, so the first download stays small; "backwards" leaves no transform
+   behind, which would break position: fixed bars inside the page. */
+.tt-route-in { animation: tt-route-in 180ms ease-out backwards; }
+@keyframes tt-route-in { from { opacity: 0; transform: translateX(16px); } to { opacity: 1; transform: translateX(0); } }
 
 /* Tab icon pop when it becomes active */
 .tt-pop { animation: tt-pop 0.35s cubic-bezier(.3,1.6,.5,1) both; }
@@ -341,7 +346,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .tt-wheel-spin, .tt-bus-bob, .tt-bus-arrive, .tt-wheel-arrive, .tt-sky-scroll, .tt-lane-scroll,
-  .tt-door-l, .tt-door-r, .tt-page-in, .tt-pop, .tt-wave, .tt-skeleton, .tt-fade-in,
+  .tt-door-l, .tt-door-r, .tt-page-in, .tt-route-in, .tt-pop, .tt-wave, .tt-skeleton, .tt-fade-in,
   .tt-ld-far, .tt-ld-near, .tt-ld-lane, .tt-ld-bounce { animation: none !important; }
   .tt-ld-puff, .tt-ld-speed, .tt-live-pulse::after { display: none; }
   .tt-door-l, .tt-door-r { transform: scaleX(0.15); }
