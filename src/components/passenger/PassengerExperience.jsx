@@ -23,6 +23,7 @@ import { useStaffFlags } from "@/components/staff/QuickActions";
 import { pickupMovedNote } from "@/lib/pickupOnBus";
 import { AnimatePresence, MotionConfig, motion } from "framer-motion";
 import "./passengerExperience.css";
+import "./passengerApple.css";
 
 // Apple-style motion: a critically damped spring (no bounce) for things that
 // open and close; it can be reversed mid-way without a jump.

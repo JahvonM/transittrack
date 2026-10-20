@@ -26,20 +26,20 @@ function BottomSheet({ open, onOpenChange, title, description, children, tall = 
   return (
     <Drawer.Root open={open} onOpenChange={onOpenChange} shouldScaleBackground={false}>
       <Drawer.Portal>
-        <Drawer.Overlay className="fixed inset-0 z-50 bg-black/80" />
+        <Drawer.Overlay className="tt-apple-overlay fixed inset-0 z-50 bg-black/80" />
         <Drawer.Content
           {...(description ? {} : { "aria-describedby": undefined })}
           className={`tt-safe-sheet tt-apple-sheet ${pickup ? "tt-pickup-sheet " : ""}fixed inset-x-0 bottom-0 z-50 flex flex-col border-t bg-background p-6 shadow-lg max-w-2xl mx-auto rounded-t-3xl safe-area-bottom outline-none ${tall ? "h-[88vh]" : "max-h-[88vh]"}`}
         >
           <div className="tt-sheet-grabber" aria-hidden="true" />
-          <Drawer.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">
+          <Drawer.Close className="tt-sheet-close absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">
             <X className="h-4 w-4" />
             <span className="sr-only">Close</span>
           </Drawer.Close>
           <div className={`min-h-0 overflow-y-auto ${tall ? "flex-1 flex flex-col" : ""}`}>
             <div className={pickup ? "sr-only" : "flex flex-col space-y-2 text-left"}>
-              <Drawer.Title className="text-lg font-semibold text-foreground">{title}</Drawer.Title>
-              {description && <Drawer.Description className="text-sm text-muted-foreground">{description}</Drawer.Description>}
+              <Drawer.Title className="tt-sheet-title text-lg font-semibold text-foreground">{title}</Drawer.Title>
+              {description && <Drawer.Description className="tt-sheet-desc text-sm text-muted-foreground">{description}</Drawer.Description>}
             </div>
             <div className={`mt-4 ${tall ? "flex-1 min-h-0 flex flex-col" : ""}`}>{children}</div>
           </div>

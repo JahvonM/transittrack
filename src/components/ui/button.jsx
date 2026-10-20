@@ -47,6 +47,8 @@ const Button = React.forwardRef(({ className, variant, size, asChild = false, lo
   return (
     (<Comp
       className={cn(buttonVariants({ variant, size, className }))}
+      data-ui="button"
+      data-variant={variant || "default"}
       ref={ref}
       disabled={asChild ? disabled : disabled || loading}
       aria-busy={loading || undefined}

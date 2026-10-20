@@ -355,3 +355,56 @@ test('stale location cannot claim the bus has arrived',async({page})=>{
  await passengerShowcase(page,{stale:true,busExtra:{current_lat:12.01,current_lng:-61.77,speed:0}});
  await expect(page.getByLabel('Your next bus').getByRole('status')).toHaveText('Location delayed');
 });
+
+// Every passenger screen and sheet at iPhone size: nothing spills sideways.
+// With TT_SHOT_DIR set it also saves a picture of each one.
+test.describe('phone tour',()=>{
+ test.use({viewport:{width:390,height:844},deviceScaleFactor:2});
+ test('every passenger screen fits an iPhone',async({page})=>{
+  await passengerShowcase(page,{pickup:'Morne Rouge'});
+  await page.route('**/functions/passengerAccount',r=>r.fulfill({json:{card:{issued:true,active:true,status:'Active'},history:[{id:'mine',vehicle_name:'TT-102',status:'boarded',boarded_at:'2026-10-11T10:00:00Z'}]}}));
+  await page.route('**/functions/generateBoardingQr',r=>r.fulfill({json:{token:'TEST-QR'}}));
+  const dir=process.env.TT_SHOT_DIR;
+  const fits=async()=>expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  // Pictures are phone-screen sized: the top of each screen, then its end.
+  const shot=async(name,whole=true)=>{
+   await fits();
+   if(!dir)return;
+   const close=page.locator('[toast-close]').first();
+   if(await close.isVisible().catch(()=>false)){await close.click().catch(()=>{});await close.waitFor({state:'hidden',timeout:3000}).catch(()=>{});}
+   await page.evaluate(()=>window.scrollTo(0,0));
+   await page.waitForTimeout(450);
+   await page.screenshot({path:`${dir}/phone-${name}.png`});
+   if(whole && await page.evaluate(()=>document.documentElement.scrollHeight>innerHeight+40)){
+    await page.evaluate(()=>window.scrollTo(0,document.documentElement.scrollHeight));
+    await page.waitForTimeout(300);
+    await page.screenshot({path:`${dir}/phone-${name}-end.png`});
+    await page.evaluate(()=>window.scrollTo(0,0));
+   }
+  };
+  const sheet=async(name,open)=>{
+   await open();
+   await expect(page.getByRole('dialog')).toBeVisible();
+   await page.waitForTimeout(500);
+   await shot(name,false);
+   await page.keyboard.press('Escape');
+   await expect(page.getByRole('dialog')).toHaveCount(0);
+  };
+  await page.evaluate(()=>window.scrollTo(0,0));
+  await shot('home');
+  await sheet('pickup-sheet',()=>page.getByRole('region',{name:'Pickup and drop-off'}).getByRole('button',{name:'Change'}).click());
+  await sheet('chat-sheet',()=>page.getByRole('button',{name:/^Need anything\? Message us/}).click());
+  await tab(page,'Journey').click();
+  await expect(page.getByRole('button',{name:'View live map',exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'All route stops'}).click();
+  await shot('journey');
+  await tab(page,'My card').click();
+  await expect(page.getByText('Issued · Active',{exact:true})).toBeVisible();
+  await shot('card');
+  await tab(page,'More').click();
+  await expect(page.getByRole('heading',{name:'Your account'})).toBeVisible();
+  await shot('more');
+  await sheet('settings-sheet',()=>page.getByRole('button',{name:/^Notifications/}).click());
+  await sheet('help-sheet',()=>page.getByRole('button',{name:/^Help & support/}).click());
+ });
+});
