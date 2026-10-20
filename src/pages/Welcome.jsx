@@ -9,6 +9,7 @@ import Logo from "@/components/Logo";
 import LiveClock from "@/components/LiveClock";
 import WeatherWidget from "@/components/WeatherWidget";
 import { Button } from "@/components/ui/button";
+import { homeFor } from "@/lib/roleHome";
 import { Bus, MapPin, MessageCircle, Car, ChevronRight, FlaskConical, Hotel, LayoutDashboard, Navigation, ShieldCheck, Usb, Wrench } from "lucide-react";
 const ROLES = {
   driver: {
