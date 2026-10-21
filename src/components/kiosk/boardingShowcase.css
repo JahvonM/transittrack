@@ -92,3 +92,7 @@
 .tt-kiosk-phone .tt-board-id-layout{grid-template-columns:85px minmax(0,1fr);gap:12px}
 .tt-kiosk-phone .tt-board-id-layout .tt-passenger-photo{width:85px;height:110px}
 .tt-kiosk-phone .tt-board-id-name{font-size:22px}
+
+/* Operator identity fits the existing header without growing its height. */
+.tt-board-brandmark{display:flex;align-items:center;justify-content:center;gap:10px;letter-spacing:.5px;font-size:clamp(14px,1.7vw,22px)}
+.tt-board-brandmark small{letter-spacing:.5px;font-size:10px}

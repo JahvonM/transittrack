@@ -124,6 +124,8 @@ export default function ProfileInfo({ companyName }) {
               {uploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Camera className="w-3 h-3" />}
               <input
                 type="file"
+                disabled={uploading || saving}
+                aria-label="Profile photo"
                 accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
                 className="hidden"
                 onChange={(e) => { const file = e.target.files?.[0]; e.target.value = ""; if (file) void uploadPhoto(file); }}

@@ -28,18 +28,9 @@ export default function LegalLayout({ title, children }) {
       <main className="mx-auto max-w-3xl px-4 py-8 sm:px-6 sm:py-12">
         <h1 className="text-display font-bold">{title}</h1>
 
-        {/* Remove this notice once the placeholders below are replaced. */}
-        <div
-          role="note"
-          className="mt-6 flex items-start gap-3 rounded-xl border border-warning/40 bg-warning/10 p-4 text-body-sm"
-        >
+        <div role="note" className="mt-6 flex items-start gap-3 rounded-xl border border-warning/40 bg-warning/10 p-4 text-body-sm">
           <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-warning" aria-hidden="true" />
-          <span>
-            <span className="font-semibold">Placeholder text.</span> Replace everything in square
-            brackets, such as [COMPANY NAME], [CONTACT EMAIL] and [JURISDICTION], with your own
-            details before publishing. Delete this notice when you are done. This wording is a
-            starting point and is not legal advice.
-          </span>
+          <span><strong>Review draft.</strong> The operator’s public contact details and retention arrangements must be confirmed before these pages are finalized.</span>
         </div>
 
         <div className="mt-8 space-y-8">{children}</div>
@@ -54,9 +45,7 @@ export default function LegalLayout({ title, children }) {
           <Link to="/terms" className="font-semibold text-primary hover:underline">
             Terms of Service
           </Link>
-          <a href="mailto:[CONTACT EMAIL]" className="text-muted-foreground hover:text-foreground">
-            [CONTACT EMAIL]
-          </a>
+          <Link to="/account" className="text-muted-foreground hover:text-foreground">Account and privacy controls</Link>
         </nav>
       </main>
     </div>

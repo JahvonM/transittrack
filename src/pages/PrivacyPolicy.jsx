@@ -1,224 +1,40 @@
 import React from "react";
 import LegalLayout, { LegalSection } from "@/components/legal/LegalLayout";
 
-// Public page. The URL for this page is the privacy policy link the app stores
-// require. Edit the wording below to match your company.
 export default function PrivacyPolicy() {
-  return (
-    <LegalLayout title="Privacy Policy">
-      <LegalSection title="1. Who we are">
-        <p>
-          [COMPANY NAME] ("we", "us") operates the McSween Transport transport management service and
-          mobile application. We provide staff bus and taxi coordination, live vehicle tracking and
-          boarding verification for companies and their employees.
-        </p>
-        <p>
-          Registered address: [COMPANY ADDRESS]. You can reach us about privacy at [CONTACT EMAIL].
-        </p>
-        <p>Effective date: [EFFECTIVE DATE]. Last updated: [EFFECTIVE DATE].</p>
-      </LegalSection>
-
-      <LegalSection title="2. Information we collect">
-        <p>We collect only what we need to run the transport service:</p>
-        <ul className="list-disc space-y-2 pl-5">
-          <li>
-            <span className="font-semibold text-foreground">Account details.</span> Your name, email
-            address, profile photo, phone number, password and your role in the service, such as
-            passenger, driver, company manager or administrator.
-          </li>
-          <li>
-            <span className="font-semibold text-foreground">Location data.</span> Precise GPS
-            location of vehicles and of the device running the driver app, so passengers can see
-            where a bus or taxi is and when it will arrive. See section 4 for when this is
-            collected.
-          </li>
-          <li>
-            <span className="font-semibold text-foreground">Boarding and check-in records.</span>{" "}
-            Which service a passenger boarded, the time, and the method used, such as an NFC card,
-            QR code, access code or a manual entry by staff.
-          </li>
-          <li>
-            <span className="font-semibold text-foreground">Trip records.</span> Pickup and drop-off
-            points, scheduled times, trip status, and signatures or photos captured at pickup and
-            drop-off.
-          </li>
-          <li>
-            <span className="font-semibold text-foreground">Messages and reports.</span> Text,
-            photo and voice messages sent in the app's chat, plus incident, lost item and safety
-            reports you submit.
-          </li>
-          <li>
-            <span className="font-semibold text-foreground">Device and technical data.</span> Device
-            type, operating system, app version, tablet identifier for company-owned tablets, and
-            push notification tokens.
-          </li>
-          <li>
-            <span className="font-semibold text-foreground">Activity records.</span> An internal
-            audit log of actions taken in the management console, such as changes to vehicles,
-            staff records or company settings.
-          </li>
-        </ul>
-      </LegalSection>
-
-      <LegalSection title="3. How we use your information">
-        <ul className="list-disc space-y-2 pl-5">
-          <li>To show passengers and dispatch where a vehicle is and estimate its arrival.</li>
-          <li>To verify that a passenger or staff member is authorised to board a service.</li>
-          <li>To plan routes, schedules and pickups, and to operate company transport services.</li>
-          <li>To send service notifications, arrival alerts and messages you have opted into.</li>
-          <li>To investigate safety incidents, accidents and reports submitted through the app.</li>
-          <li>To maintain security, prevent misuse and keep an audit trail of changes.</li>
-          <li>To provide support and to fix faults in the app.</li>
-        </ul>
-        <p>
-          We do not sell your personal information, and we do not use your location data for
-          advertising.
-        </p>
-      </LegalSection>
-
-      <LegalSection title="4. When location is collected">
-        <p>
-          Location is collected only while tracking is active, which means during an open driver
-          shift or while a company tablet is paired and running a service. Tracking stops when the
-          shift ends or when tracking is switched off. The app does not collect your location in the
-          background outside those periods.
-        </p>
-        <p>
-          If you use the passenger app, your location is used only when you choose to share it, for
-          example to find your nearest stop or to send your position to a driver.
-        </p>
-        <p>
-          You can withdraw location permission at any time in your device settings. Tracking and
-          arrival estimates will stop working for that device.
-        </p>
-      </LegalSection>
-
-      <LegalSection title="5. Who can see your information">
-        <p>
-          Your information is visible to the people who need it to run your transport service:
-        </p>
-        <ul className="list-disc space-y-2 pl-5">
-          <li>
-            Administrators and managers of the company you belong to, who can see vehicles, trips,
-            boarding records and staff records for that company.
-          </li>
-          <li>
-            Drivers, who see the passengers assigned to their service and the stops on their route.
-          </li>
-          <li>
-            Our support staff, where access is needed to resolve a fault or a reported incident.
-          </li>
-        </ul>
-        <p>
-          Companies using McSween Transport are separate. Data belonging to one company is not visible to
-          another company.
-        </p>
-      </LegalSection>
-
-      <LegalSection title="6. Service providers">
-        <p>
-          We use a small number of suppliers to operate the service. They process data only on our
-          instructions:
-        </p>
-        <ul className="list-disc space-y-2 pl-5">
-          <li>
-            <span className="font-semibold text-foreground">Mapping and geocoding</span> providers,
-            to display maps, calculate routes and convert addresses into map coordinates.
-          </li>
-          <li>
-            <span className="font-semibold text-foreground">Cloud hosting and messaging</span>{" "}
-            providers, to store data and deliver push notifications to your device.
-          </li>
-          <li>
-            <span className="font-semibold text-foreground">Email delivery</span> providers, to send
-            verification codes, invitations and account emails.
-          </li>
-        </ul>
-        <p>We may also disclose information where the law requires it.</p>
-      </LegalSection>
-
-      <LegalSection title="7. How long we keep it">
-        <ul className="list-disc space-y-2 pl-5">
-          <li>
-            <span className="font-semibold text-foreground">Location history:</span> retained for
-            [RETENTION PERIOD], then deleted.
-          </li>
-          <li>
-            <span className="font-semibold text-foreground">Trip and boarding records:</span>{" "}
-            retained for [RETENTION PERIOD] for operational and accounting purposes.
-          </li>
-          <li>
-            <span className="font-semibold text-foreground">Incident and safety reports:</span>{" "}
-            retained for [RETENTION PERIOD] in case of an insurance or legal claim.
-          </li>
-          <li>
-            <span className="font-semibold text-foreground">Account data:</span> kept while your
-            account is active, then deleted within [RETENTION PERIOD] of account closure.
-          </li>
-        </ul>
-      </LegalSection>
-
-      <LegalSection title="8. Security">
-        <p>
-          Data is transmitted over encrypted connections and access is limited by role, so that
-          people see only what their job requires. Company tablets are locked to a single assigned
-          vehicle. No system is perfectly secure, but we take reasonable steps to protect the
-          information we hold and we review access regularly.
-        </p>
-      </LegalSection>
-
-      <LegalSection title="9. Your choices and rights">
-        <ul className="list-disc space-y-2 pl-5">
-          <li>You can view and change your name, photo and phone number in My Account.</li>
-          <li>
-            You can delete your account from My Account. This removes your personal profile and
-            signs you out of the app.
-          </li>
-          <li>
-            You can turn off location, camera, microphone and notification permissions in your
-            device settings. Some features will stop working.
-          </li>
-          <li>
-            You can ask us for a copy of your personal information, ask us to correct it, or ask us
-            to delete it by writing to [CONTACT EMAIL].
-          </li>
-        </ul>
-        <p>
-          Depending on where you live, you may have further rights under local data protection law.
-          Contact us and we will respond within the period the law allows.
-        </p>
-      </LegalSection>
-
-      <LegalSection title="10. Children">
-        <p>
-          McSween Transport is a workplace transport service and is not intended for children under
-          [MINIMUM AGE]. We do not knowingly collect personal information from children. If you
-          believe a child has provided us with personal information, contact us at [CONTACT EMAIL]
-          and we will delete it.
-        </p>
-      </LegalSection>
-
-      <LegalSection title="11. Where your data is stored">
-        <p>
-          Our providers may store data in countries other than the one you live in. Where we
-          transfer personal information across borders, we take steps to ensure it remains protected
-          to the standard described in this policy.
-        </p>
-      </LegalSection>
-
-      <LegalSection title="12. Changes to this policy">
-        <p>
-          We may update this policy as the service changes. We will change the "last updated" date
-          above and, for significant changes, notify you in the app or by email.
-        </p>
-      </LegalSection>
-
-      <LegalSection title="13. Contact us">
-        <p>
-          Questions about this policy, or about your personal information, can be sent to [CONTACT
-          EMAIL] or by post to [COMPANY ADDRESS].
-        </p>
-      </LegalSection>
-    </LegalLayout>
-  );
+  return <LegalLayout title="Privacy Policy">
+    <LegalSection title="Who operates this service">
+      <p>Mc Sween’s Transport and Reside Co. operates the McSween Transport app for staff transport, vehicle tracking and boarding. Draft updated 20 October 2026.</p>
+    </LegalSection>
+    <LegalSection title="Information used by the app">
+      <p>Depending on your role and the features you use, the service processes your name, email, telephone number, profile picture or chosen avatar, company membership, assigned bus, pickup location, workplace destination, trips and boarding records. Sign-in credentials are handled by the authentication service.</p>
+      <p>The app also processes messages and attachments you send, incident and maintenance reports, device identifiers, app version, diagnostic events, notification tokens and operational audit records.</p>
+    </LegalSection>
+    <LegalSection title="Location and boarding">
+      <p>Driver and kiosk location sharing supplies vehicle positions, route information and arrival estimates. When enabled, native driver tracking can continue with the app hidden or screen off and displays an Android tracking notification. Use the tracking controls or device permissions to stop it; unsent points may remain saved for later synchronization.</p>
+      <p>Passengers may choose to use their current location to find a pickup spot or share a location. A saved pickup spot remains part of the transport record until changed or removed.</p>
+      <p>NFC cards, boarding QR codes, typed codes and Bluetooth code delivery identify a passenger for boarding verification. Paired boarding tablets can hold a scoped passenger list and pending check-ins for offline use. Bluetooth delivery still requires verification and a Boarding or Exiting choice.</p>
+    </LegalSection>
+    <LegalSection title="Camera, recordings and remote support">
+      <p>The camera is used when you scan a QR code, choose a photo, submit a report or deliberately start a supported camera feature. Voice messages use the microphone when you record them.</p>
+      <p>Company kiosks support administrator live screen or camera viewing with a visible viewing indicator and Stop control. Android may also require system permission. Live support sessions have a ten-minute limit. The live viewing feature does not itself record video or audio.</p>
+      <p>The separate rear dashcam records video on the tablet. Completed clips can be selected for transfer and playback by an authorized administrator while the tablet is online. This release does not automatically archive those clips in cloud storage. Local storage limits can remove older unprotected clips; protected clips and available storage affect recording capacity.</p>
+    </LegalSection>
+    <LegalSection title="Purpose and access">
+      <p>The service uses this information to coordinate transport, verify boarding, communicate service changes, estimate arrival times, maintain vehicles, investigate incidents and diagnose errors.</p>
+      <p>Access depends on role and approved company membership. Company managers have access to their company’s operational records; drivers receive information needed for their services. Platform administrators have broader access, and authorized maintenance staff can work across companies. A profile picture uploaded to public file storage has a shareable URL: do not use a sensitive document as your profile photo.</p>
+    </LegalSection>
+    <LegalSection title="Service providers and storage">
+      <p>The current hosted service uses Base44. Supabase is being prepared as an alternative backend; the backend configured for your deployment handles its records. Mapping, hosting, authentication, email and notification providers process information required for the features in use. The relay server supports live connections between devices. Provider infrastructure may be outside Grenada.</p>
+      <p>There is no single verified automatic deletion schedule for all operational records in the current app. Removing an account profile does not automatically erase associated trip, boarding, message, incident or audit records. The operator’s retention schedule and request-handling arrangements must be finalized before this draft is treated as the published policy.</p>
+    </LegalSection>
+    <LegalSection title="Your controls and requests">
+      <p>You can edit your profile and pickup spot, select an avatar instead of a photo, manage notification preferences and revoke camera, microphone or location permissions. Some features require those permissions to work.</p>
+      <p>My Account includes an account-deletion action. The current action removes the account profile; associated operational records may remain. Contact the transport office for requests to access, correct or remove those records. Signed-in users can contact the administrator through app Messages.</p>
+      <p>This service is designed for company transport users. If a child’s information has been added unexpectedly, contact the transport office so it can be reviewed.</p>
+    </LegalSection>
+    <LegalSection title="Contact and updates">
+      <p>The operator’s public privacy contact and business address are awaiting confirmation. This draft is not the final store-submission policy. Material changes to the final policy should be communicated to users.</p>
+    </LegalSection>
+  </LegalLayout>;
 }

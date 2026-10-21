@@ -65,7 +65,7 @@ function TopStatusBar({ device, vehicle, route, now, online, holdProps }) {
       {device?.company_logo_url ? <img src={device.company_logo_url} alt="" /> : <Bus aria-hidden="true" />}
       <div><strong>{device?.company_name || "Bus boarding"}</strong><small>Welcome aboard</small></div>
     </div>
-    <div className="tt-board-brand" aria-label="Mc Sween’s Transport and Reside Co."><Logo className="h-12 w-12 mx-auto mb-1" /><span>Mc Sween’s</span><small>Transport and Reside Co.</small></div>
+    <div className="tt-board-brand" aria-label="Mc Sween’s Transport and Reside Co."><div className="tt-board-brandmark"><Logo className="h-9 w-9" /><div><span>Mc Sween’s</span><small>Transport and Reside Co.</small></div></div></div>
     <div className="tt-board-trip"><strong>{vehicle?.name || device?.vehicle_name || "Your bus"}</strong>
       {route?.name && <small>{route.name}</small>}
       <span>{now.toLocaleTimeString([], { timeZone: TRANSIT_TIME_ZONE, hour: "2-digit", minute: "2-digit" })}</span>
