@@ -21,7 +21,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import WeatherWidget from "@/components/WeatherWidget";
 import QrScanner from "./QrScanner";
 import SlideToUnlock from "./SlideToUnlock";
-import KioskMascot from "./KioskMascot";
+import Logo from "@/components/Logo";
 import KioskConnectionBadge from "./KioskConnectionBadge";
 import BoardingSettingsGate, { useHold } from "./BoardingSettingsGate";
 import { startBoardingBluetooth, nativeBoardingBluetoothAvailable, boardingBluetoothState } from "@/lib/nativeBoardingBluetooth";
@@ -65,7 +65,7 @@ function TopStatusBar({ device, vehicle, route, now, online, holdProps }) {
       {device?.company_logo_url ? <img src={device.company_logo_url} alt="" /> : <Bus aria-hidden="true" />}
       <div><strong>{device?.company_name || "Bus boarding"}</strong><small>Welcome aboard</small></div>
     </div>
-    <div className="tt-board-brand">TRANSIT<span>TRACK</span><small>YOUR JOURNEY, CONNECTED</small></div>
+    <div className="tt-board-brand" aria-label="Mc Sween’s Transport and Reside Co."><Logo className="h-12 w-12 mx-auto mb-1" /><span>Mc Sween’s</span><small>Transport and Reside Co.</small></div>
     <div className="tt-board-trip"><strong>{vehicle?.name || device?.vehicle_name || "Your bus"}</strong>
       {route?.name && <small>{route.name}</small>}
       <span>{now.toLocaleTimeString([], { timeZone: TRANSIT_TIME_ZONE, hour: "2-digit", minute: "2-digit" })}</span>
@@ -527,7 +527,7 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
             <div className={`w-24 h-24 rounded-full grid place-items-center ${boarded ? "bg-success/15" : "bg-info/15"} animate-in zoom-in spin-in-6 duration-500`}>
               <CheckCircle2 className={`w-14 h-14 ${boarded ? "text-success" : "text-info"}`} />
             </div>
-            {boarded && <KioskMascot mood="cheer" size={72} />}
+            
           </div>
           <p className="text-3xl font-bold">{boarded ? `Welcome aboard, ${result.staff_name.split(" ")[0]}!` : `See you later, ${result.staff_name.split(" ")[0]}!`}</p>
           {boarded && result.riderNumber > 0 && (

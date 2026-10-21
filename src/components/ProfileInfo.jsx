@@ -1,3 +1,4 @@
+import { uploadProfilePhoto } from "@/lib/profilePhoto";
 import AvatarPicker from "@/components/AvatarPicker";
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -64,8 +65,10 @@ export default function ProfileInfo({ companyName }) {
   const uploadPhoto = async (file) => {
     setUploading(true);
     try {
-      const { file_url } = await base44.integrations.Core.UploadPublicFile({ file });
-      setPhotoUrl(file_url);
+      setPhotoUrl(await uploadProfilePhoto(base44, file));
+      toast({ title: "Photo ready", description: "Tap Save to update your profile." });
+    } catch (e) {
+      toast({ title: "Couldn't upload photo", description: e?.message || "Try again. Your previous photo has been kept.", variant: "destructive" });
     } finally {
       setUploading(false);
     }
@@ -121,9 +124,9 @@ export default function ProfileInfo({ companyName }) {
               {uploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Camera className="w-3 h-3" />}
               <input
                 type="file"
-                accept="image/*"
+                accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
                 className="hidden"
-                onChange={(e) => e.target.files?.[0] && uploadPhoto(e.target.files[0])}
+                onChange={(e) => { const file = e.target.files?.[0]; e.target.value = ""; if (file) void uploadPhoto(file); }}
               />
             </label>
           )}
