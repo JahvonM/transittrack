@@ -52,3 +52,15 @@ test('failed profile upload keeps the old picture and permits retrying the same 
   await expect(page.getByText('Profile saved', { exact: true })).toBeVisible();
   expect(saves[0].data.photo_url).toBe('/brand/icon-192.png');
 });
+
+for (const path of ['/privacy', '/terms']) test(`${path} is readable signed out and identifies unfinished policy decisions`, async ({ page }) => {
+  await page.route('**/api/**', r => r.fulfill({ json: { id: 'test-app', public_settings: { authentication_required: false } } }));
+  await page.goto(path);
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+  await expect(page.getByText('Review draft.', { exact: true })).toBeVisible();
+  await expect(page.locator('main')).toContainText('Mc Sween’s Transport and Reside Co.');
+  await expect(page.locator('main')).not.toContainText('[COMPANY');
+  await expect(page.locator('main')).not.toContainText('[CONTACT');
+  await expect(page.locator('main')).not.toContainText('[RETENTION');
+  expect(await page.locator('a[href^="mailto:"]').count()).toBe(0);
+});
