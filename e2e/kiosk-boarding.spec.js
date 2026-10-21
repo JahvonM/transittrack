@@ -91,6 +91,7 @@ test('card tap boards a passenger and the tablet locks again', async ({ page }) 
   await expect(page.getByRole('button', { name: 'Exiting', exact: true })).toBeVisible();
   await page.getByRole('button', { name: /Boarding/ }).click();
   await expect(page.getByText(/Welcome aboard, Maria!/)).toBeVisible();
+  await expect(page.locator('.kiosk-mascot-idle, .kiosk-mascot-arm')).toHaveCount(0);
   await expect(page.getByText('Slide to enter a code', { exact: true })).toBeVisible({ timeout: 6000 });
   expect(calls.filter(([a]) => a === 'check_in')).toEqual([['check_in', 'boarded']]);
 });
@@ -292,6 +293,9 @@ test('boarding home uses the actual company, counts and admin bus photo',async({
  const custom=device();custom.company_name='Island Transit Co.';custom.context.vehicle.image_url='/images/transit-bus-3d.webp';
  await setup(page,{heartbeat:()=>({json:custom})});await page.goto('/kiosk');
  await expect(page.getByRole('group',{name:'Company banner'})).toContainText('Island Transit Co.');
+ await expect(page.locator('.tt-board-brand')).toContainText('Mc Sween’s');
+ await expect(page.locator('.tt-board-brand')).toContainText('Transport and Reside Co.');
+ await expect(page.locator('.tt-board-brand')).not.toContainText('TRANSITTRACK');
  await expect(page.locator('.tt-board-bus')).toHaveAttribute('src','/images/transit-bus-3d.webp');
  await expect(page.locator('.tt-board-occupancy')).toContainText('4');
  await expect(page.locator('.tt-board-occupancy')).toContainText('9 riders today');
