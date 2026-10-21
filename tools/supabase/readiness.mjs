@@ -13,7 +13,7 @@
 // by hand in GitHub.
 import { pathToFileURL } from 'node:url';
 
-export const RUN = 2;
+export const RUN = 3;
 
 // Secrets the functions read (supabase/functions/README.md). SUPABASE_URL and
 // the project's keys are built in, so they're not listed.
