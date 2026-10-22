@@ -74,6 +74,11 @@ test('stop choice updates next stop and navigation still opens',async({page})=>{
  const next=page.getByRole('region',{name:'Next stop',exact:true});await expect(next).toContainText('Palmiste');await expect(next).toContainText('Stop 2 of 3');
  await page.getByRole('button',{name:'Navigate',exact:true}).click();
  await expect(page.getByLabel('Driver navigation map')).toBeVisible();
+ await expect(page.locator('.dl-trip-panel')).toBeVisible();
+ await page.getByRole('button',{name:'Street',exact:true}).click();
+ await expect(page.getByRole('button',{name:'Street',exact:true})).toHaveAttribute('aria-pressed','true');
+ await page.getByRole('button',{name:'Satellite',exact:true}).click();
+ await expect(page.getByRole('button',{name:'Satellite',exact:true})).toHaveAttribute('aria-pressed','true');
  await page.getByRole('button',{name:'Back to journey'}).click();
  await expect(next).toContainText('Palmiste');
 });

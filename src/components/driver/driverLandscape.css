@@ -162,3 +162,5 @@
 .dk-overview-map [data-testid="nav-eta"]{flex-wrap:wrap;gap:6px;padding:8px}
 .dk-overview-map [data-testid="nav-eta"]>div:first-child{flex-basis:100%}
 .dk-overview-map [data-testid="nav-map"]{min-height:0}
+
+.dl-map-stage>.dk-inline-navigating ~ .dl-details{display:none}

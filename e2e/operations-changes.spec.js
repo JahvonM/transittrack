@@ -83,6 +83,9 @@ test('phone kiosk has dedicated mode controls and no horizontal overflow',async(
  await setup(page,{layout:'phone'});await page.goto('/kiosk');
  await expect(page.locator('[data-layout=phone]')).toBeVisible();
  await expect(page.getByRole('navigation',{name:'Phone kiosk'})).toBeVisible();
+ await expect(page.getByRole('button',{name:'Tablet & reader',exact:true})).toBeVisible();
+ await expect(page.getByRole('button',{name:'Full screen',exact:true})).toBeVisible();
+ expect(await page.locator('.tt-kiosk-phone').evaluate(e=>e.getBoundingClientRect().height<=innerHeight+1)).toBe(true);
  await page.getByRole('button',{name:'Enter code',exact:true}).click();
  await expect(page.getByRole('heading',{name:'Enter your boarding code'})).toBeVisible();
  await expect(page.getByRole('button',{name:'Submit code',exact:true})).toBeVisible();
