@@ -456,28 +456,15 @@ export default async function(req) {
    if(!ctx.user) fail(401,'Sign in required');
    const token=body.data?.token;
    if(typeof token!=='string' || token.length<20 || token.length>4096 || /\s/.test(token)) fail(400,'Invalid notification token');
+   const rows=await retry429(()=>db.PushToken.filter({token},'-updated_date',100));
    const data={token,email:ctx.user.email,role:ctx.user.role,company_id:ctx.companies[0]||'',device_id:''};
-   // A quiet registration and a button retry can overlap. Re-read once if a
-   // row disappears, and tolerate another request removing a duplicate first.
-   // Success still requires a confirmed write with this authenticated identity.
-   for(let attempt=0;attempt<2;attempt++) {
-    failureStage='push_lookup';
-    const rows=await retry429(()=>db.PushToken.filter({token},'-updated_date',100));
-    failureStage=rows[0]?'push_refresh':'push_create';
-    try {
-     if(rows[0]) await retry429(()=>db.PushToken.update(rows[0].id,data));
-     else await retry429(()=>db.PushToken.create(data));
-    } catch(error) {
-     if(attempt===0 && rows[0] && (error?.status ?? error?.response?.status)===404) continue;
-     throw error;
-    }
-    failureStage='push_cleanup';
-    for(const duplicate of rows.slice(1)) {
-     try { await retry429(()=>db.PushToken.delete(duplicate.id)); }
-     catch(error) { if((error?.status ?? error?.response?.status)!==404) throw error; }
-    }
-    return Response.json({ok:true});
-   }
+   // Refresh identity and approved company after sign-in/company changes.
+   // A browser token must not keep receiving its previous account's alerts.
+   if(rows[0]) {
+    await retry429(()=>db.PushToken.update(rows[0].id,data));
+    for(const duplicate of rows.slice(1)) await retry429(()=>db.PushToken.delete(duplicate.id));
+   } else await retry429(()=>db.PushToken.create(data));
+   return Response.json({ok:true});
   }
 
 
@@ -570,7 +557,7 @@ export default async function(req) {
   // Preserve throttling so clients back off instead of treating it as a server crash.
   const raw=Number(error?.status ?? error?.response?.status ?? error?.originalError?.response?.status);
   const status=Number.isInteger(raw)&&raw>=400&&raw<=599?raw:500;
-  if(status===429||status>=500||failureStage.startsWith('push_'))console.error(JSON.stringify({event:'entity_request_failed',stage:failureStage,status}));
+  if(status===429||status>=500)console.error(JSON.stringify({event:'entity_request_failed',stage:failureStage,status}));
   return Response.json({error:status===429?'Service busy. Please try again shortly.':error.status ? error.message : 'Entity request failed'},
    {status,headers:status===429?{'Retry-After':'30'}:{}});
  }

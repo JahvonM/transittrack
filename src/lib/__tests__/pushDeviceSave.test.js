@@ -7,7 +7,7 @@ vi.mock("@/components/ui/use-toast",()=>({useToast:()=>({toast:fixture.toast})})
 vi.mock("@/lib/firebase",()=>({requestPushToken:async()=>({token:"synthetic-notification-token-long-enough",reason:null}),pushPermission:async()=>"granted",onForegroundMessage:()=>()=>{}}));
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 function setup(){let hook;function Host(){hook=usePushNotifications({email:"me@test.invalid",role:"staff",companyId:"editable-profile-company"});return null;}renderToString(React.createElement(Host));return hook;}
-beforeEach(()=>{fixture.invoke.mockReset();fixture.toast.mockReset();});
+beforeEach(()=>{fixture.invoke.mockReset();fixture.toast.mockReset();fixture.toast.mockReturnValue(undefined);});
 describe("device registration confirmation",()=>{
  it("sends only the token to the protected action and waits for the server",async()=>{
   let finish;fixture.invoke.mockImplementation(()=>new Promise(resolve=>{finish=resolve;}));
@@ -22,4 +22,16 @@ describe("device registration confirmation",()=>{
   expect(fixture.toast).toHaveBeenCalledWith(expect.objectContaining({title:"Couldn't save this device",variant:"destructive"}));
   expect(fixture.toast).not.toHaveBeenCalledWith(expect.objectContaining({title:"Notifications on"}));
  });
+ it("updates one notice across failed retries and a later success",async()=>{
+  const update=vi.fn();fixture.toast.mockReturnValue({update});
+  fixture.invoke.mockRejectedValueOnce(Error("temporary failure")).mockRejectedValueOnce(Error("temporary failure")).mockResolvedValue({data:{ok:true}});
+  const hook=setup();
+  expect(await hook.enableNotifications()).toBe(false);
+  expect(await hook.enableNotifications()).toBe(false);
+  expect(fixture.toast).toHaveBeenCalledTimes(1);
+  expect(update).toHaveBeenCalledWith(expect.objectContaining({title:"Couldn't save this device",open:true}));
+  expect(await hook.enableNotifications()).toBe(true);
+  expect(update).toHaveBeenLastCalledWith(expect.objectContaining({title:"Notifications on",open:true}));
+ });
+
 });
