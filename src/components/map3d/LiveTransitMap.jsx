@@ -239,7 +239,8 @@ function FullMap({
         zoom: DEFAULT_VIEW.zoom,
         pitch: PITCH_3D,
         attributionControl: false,
-        cooperativeGestures: variant === "preview",
+        // Let passengers drag the map with one finger, including inline previews.
+        cooperativeGestures: false,
         antialias: true,
         config: { basemap: { lightPreset: isDark ? "night" : "day", showPointOfInterestLabels: false, showTransitLabels: false } },
       });
