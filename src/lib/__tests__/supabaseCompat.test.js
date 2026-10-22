@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { execFileSync } from "node:child_process";
 import ts from "typescript";
 
@@ -10,7 +11,7 @@ import ts from "typescript";
 
 const root = new URL("../../../", import.meta.url);
 // Transpiled copies live inside the project so the test runner may load them.
-const dir = new URL("node_modules/.cache/supabase-compat-test/", root).pathname;
+const dir = fileURLToPath(new URL("node_modules/.cache/supabase-compat-test/", root));
 fs.mkdirSync(dir, { recursive: true });
 const toMjs = (file) => ts.transpileModule(fs.readFileSync(new URL(file, root), "utf8"), {
   compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
@@ -18,7 +19,7 @@ const toMjs = (file) => ts.transpileModule(fs.readFileSync(new URL(file, root), 
 fs.writeFileSync(path.join(dir, "supabaseTables.mjs"), toMjs("supabase/functions/_shared/supabaseTables.ts"));
 fs.writeFileSync(path.join(dir, "supabaseFiles.mjs"), toMjs("supabase/functions/_shared/supabaseFiles.ts"));
 fs.writeFileSync(path.join(dir, "compat.mjs"), toMjs("supabase/functions/_shared/base44-compat.ts"));
-const compat = await import(path.join(dir, "compat.mjs"));
+const compat = await import(pathToFileURL(path.join(dir, "compat.mjs")).href);
 
 const URL_ = "https://proj.supabase.co";
 const KEY = "sb_secret_synthetic-test-key-never-real";
@@ -304,6 +305,6 @@ describe("secrets, files and serving", () => {
 
 describe("supabase/functions", () => {
   it("is in step with base44/functions (run node tools/supabase/build-functions.mjs)", () => {
-    expect(() => execFileSync("node", [new URL("tools/supabase/build-functions.mjs", root).pathname, "--check"], { stdio: "pipe" })).not.toThrow();
+    expect(() => execFileSync("node", [fileURLToPath(new URL("tools/supabase/build-functions.mjs", root)), "--check"], { stdio: "pipe" })).not.toThrow();
   });
 });

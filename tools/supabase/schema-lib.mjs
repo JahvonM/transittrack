@@ -14,8 +14,9 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-export const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), "../..");
+export const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 export const entityDir = path.join(root, "base44/entities");
 export const migrationDir = path.join(root, "supabase/migrations");
 
@@ -112,7 +113,7 @@ export function appliedSchema(dir = migrationDir) {
   const files = fs.existsSync(dir) ? fs.readdirSync(dir).filter((f) => f.endsWith(".sql")).sort() : [];
   const NAME = String.raw`("(?:[^"]|"")+"|[a-z_][a-z0-9_]*)`;
   for (const file of files) {
-    const sql = fs.readFileSync(path.join(dir, file), "utf8");
+    const sql = fs.readFileSync(path.join(dir, file), "utf8").replace(/\r\n?/g, "\n");
     if (/create or replace function public\.new_id\(\)/.test(sql)) helpers = true;
     for (const m of sql.matchAll(new RegExp(String.raw`create table if not exists public\.${NAME} \(\n([\s\S]*?)\n\);`, "g"))) {
       const cols = tables.get(unident(m[1])) || new Map();

@@ -40,6 +40,15 @@ describe("boarding camera read confirmation", () => {
     expect(gate.read(CODE, 1800)).toBe(true);
     for (let t = 1900; t <= 90000; t += 100) expect(gate.read(CODE, t)).toBe(false);
   });
+  it("allows the same code again after starting a new scan session", () => {
+    const gate = startGate();
+    for (let t = 1000; t < 1800; t += 100) gate.read(CODE, t);
+    expect(gate.read(CODE, 1800)).toBe(true);
+    expect(gate.read(CODE, 10000)).toBe(false);
+    gate.start(10000);
+    for (let t = 11000; t < 11800; t += 100) expect(gate.read(CODE, t)).toBe(false);
+    expect(gate.read(CODE, 11800)).toBe(true);
+  });
   it("preserves the default two-read behavior outside the boarding kiosk", () => {
     const gate = createQrScanGate();
     gate.start(0);

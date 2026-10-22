@@ -125,7 +125,7 @@ function parseList(text, known, what) {
 }
 
 export function readAccessRules(file = ACCESS_FILE) {
-  const src = fs.readFileSync(file, "utf8");
+  const src = fs.readFileSync(file, "utf8").replace(/\r\n?/g, "\n");
   const known = { META: [...META] };
   const need = (re, what) => {
     const m = src.match(re);
@@ -386,7 +386,7 @@ export function renderDataModel({ entities = readEntities(), rules = readAccessR
 
 export function checkDataModel(file = OUT) {
   const want = renderDataModel();
-  const have = fs.existsSync(file) ? fs.readFileSync(file, "utf8") : "";
+  const have = fs.existsSync(file) ? fs.readFileSync(file, "utf8").replace(/\r\n?/g, "\n") : "";
   return { upToDate: have === want, want };
 }
 

@@ -50,7 +50,7 @@ function joinLongStrings(source) {
 }
 
 function rewrite(source, compatPath, sharedPrefix) {
-  return joinLongStrings(source)
+  return joinLongStrings(source.replace(/\r\n?/g, '\n'))
     .replace(/from\s+(['"])npm:@base44\/sdk@[^'"]+\1/g, `from '${compatPath}'`)
     .replace(/from\s+(['"])base44:runtime\1/g, `from '${compatPath}'`)
     .replace(/(['"])\.\.\/\.\.\/shared\//g, `$1${sharedPrefix}`);

@@ -10,7 +10,8 @@ export function inlineShared(source,seen=new Set()) {
   if(seen.has(file))return '';
   seen.add(file);
   const shared=fs.readFileSync(new URL('../base44/shared/'+file,import.meta.url),'utf8').replace(/^export\s+(?=(?:async\s+)?function|const|let|class)/gm,'');
-  return inlineShared(shared,seen);
+  return inlineShared(shared,seen)
+ .replace(/(\bconst LIVE_BACKEND\s*:\s*Backend\s*=\s*)['"](?:base44|supabase)['"]/, "$1'base44'");
  });
 }
 // Synthetic settings for the fixture below; never real credentials.
@@ -49,7 +50,9 @@ export function budgetFetchFixture(client) {
 }
 export function load(name,client,exportsList=[],cryptoApi=webcrypto) {
  const file=new URL('../base44/functions/'+name+'/entry.ts',import.meta.url);
- const source=inlineShared(fs.readFileSync(file,'utf8')).replace(/npm:@noble\/hashes@1\.8\.0\//g, '@noble/hashes/').replace(/^import .*;\s*$/gm,'')+(exportsList.length?'\nexport { '+exportsList.join(',')+' };':'');
+ const source=inlineShared(fs.readFileSync(file,'utf8'))
+ .replace(/(\bconst LIVE_BACKEND\s*:\s*Backend\s*=\s*)['"](?:base44|supabase)['"]/, "$1'base44'")
+ .replace(/npm:@noble\/hashes@1\.8\.0\//g, '@noble/hashes/').replace(/^import .*;\s*$/gm,'')+(exportsList.length?'\nexport { '+exportsList.join(',')+' };':'');
  const js=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
  const exports={};
  // Exercise the staged rollout explicitly; this is not evidence of hosted activation.

@@ -11,7 +11,7 @@ function fixture(role="admin") {
  const secrets={get:n=>settings[n]};
  function module(file) {
   if(modules[file])return modules[file];
-  const js=ts.transpileModule(fs.readFileSync(file,"utf8"),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
+  const js=ts.transpileModule(fs.readFileSync(file,"utf8").replace(/(\bexport const LIVE_BACKEND\s*:\s*Backend\s*=\s*)['"](?:base44|supabase)['"]/, "$1'base44'"),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
   const out={};modules[file]=out;
   const require=name=> name.includes("@base44/sdk")?{createClientFromRequest:()=>c}:name==="base44:runtime"?{secrets}:module("base44/shared/"+name.split("/").pop());
   new Function("exports","require","crypto",js)(out,require,webcrypto);return out;

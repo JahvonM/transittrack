@@ -9,5 +9,8 @@ export default defineConfig({
   test: {
     include: ["src/**/*.test.js"],
     environment: "node",
+    // Hashing fixtures can exceed 5s on Windows; retain every assertion.
+    testTimeout: 30000,
+    maxWorkers: 2,
   },
 });

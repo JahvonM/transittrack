@@ -1,2 +1,9 @@
 # Windows batch files must keep CRLF line endings
 *.bat -text
+
+# Preserve portable script parsing on Windows and in CI.
+*.mjs text eol=lf
+*.js text eol=lf
+*.ts text eol=lf
+*.sql text eol=lf
+*.md text eol=lf

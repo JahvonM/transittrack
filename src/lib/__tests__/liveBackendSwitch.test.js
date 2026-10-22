@@ -60,7 +60,7 @@ describe("the switch to Supabase", () => {
     }
     for (const name of ["inspectionAlerts", "maintenanceAlerts", "learnTravelTimes", "weeklyReport"]) jobs.add(name);
     for (const name of jobs) {
-      const entry = fs.readFileSync(`base44/functions/${name}/entry.ts`, "utf8");
+      const entry = fs.readFileSync(`base44/functions/${name}/entry.ts`, "utf8").replace(/\r\n?/g, "\n");
       expect(entry, name).toMatch(/export default async function \(req\) \{\n(?:  \/\/.*\n)*  if \(forwarding\(\)\) return Response\.json\(\{ skipped: 'Runs on Supabase now' \}\);/);
     }
     // The Supabase copies never stand down: there they are the real jobs.
@@ -79,7 +79,7 @@ describe("the switch to Supabase", () => {
     const forwarded = ["driverSession", "jobSigning", "kioskCheckIn", "kioskHeartbeat", "pairKioskDevice", "tabletControl", "tabletRecordings", "tabletSupport"];
     for (const name of native) expect(forwarded, `${name} is called by the tablet app`).toContain(name);
     for (const name of forwarded) {
-      const entry = fs.readFileSync(`base44/functions/${name}/entry.ts`, "utf8");
+      const entry = fs.readFileSync(`base44/functions/${name}/entry.ts`, "utf8").replace(/\r\n?/g, "\n");
       expect(entry, name).toMatch(new RegExp(`export default async function ?\\(req\\) ?\\{\\n.*\\n  const forwarded = await forwardToSupabase\\(req, '${name}'\\);\\n  if \\(forwarded\\) return forwarded;`));
     }
   });
