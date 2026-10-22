@@ -13,8 +13,10 @@ import SosButton from "./SosButton";
 
 // Presentation only: existing session, shift and tracking handlers own all writes.
 export default function DriverPortraitDrive({session,vehicle,nav,sharing,shiftActive,directionControl,shiftControl,trackingButton,
- statusItems,attention,panelTop,panelBottom,onOpenNavigation,onOpenPassengers,onOpenStops,onOpenMessages,onReportIncident,invoke}) {
+ statusItems,attention,panelTop,panelBottom,mapOpen=false,navigationMap,onCloseNavigation,onOpenNavigation,onOpenPassengers,onOpenStops,onOpenMessages,onReportIncident,invoke}) {
  const landscape=useDriverLandscape();
+ const [mapStyle,setMapStyle]=useState(()=>{try{return localStorage.getItem("tt-driver-map-style") || "satellite";}catch{return "satellite";}});
+ const changeMapStyle=value=>{setMapStyle(value);try{localStorage.setItem("tt-driver-map-style",value);}catch{/* storage optional */}};
  const [pickedStop,setPickedStop]=useState(null);
  const [choosing,setChoosing]=useState(false);
  const [target,setTarget]=useState(getNavTarget);
@@ -44,7 +46,9 @@ export default function DriverPortraitDrive({session,vehicle,nav,sharing,shiftAc
  // and the stop shown here is only a guess until tracking starts).
  const navigate=()=>{if(focus && (target || stopIndex<0))setNavTarget(focus);else clearNavTarget();onOpenNavigation(true);};
  const overviewMap = <section className="dk-overview-map" aria-label="Route overview">
-    <LiteMap vehicles={vehicle?.current_lat!=null?[landscape ? {...vehicle,image_url:vehicle.image_url || "/images/driver-minibus.svg",marker_plain:true,marker_size:52,marker_label:""} : vehicle]:[]} stops={landscape ? stops.map((s,i)=>({...s,number:i+1})) : stops} mapStyle={landscape ? "satellite" : undefined} alwaysShowRecenter={landscape} showEngineLabel={!landscape} road={session?.route?.path?.map(p=>[p.lng,p.lat])} height="100%" fill followUser={vehicle?.current_lat!=null && vehicle?.current_lng!=null} userLocation={vehicle?.current_lat!=null && vehicle?.current_lng!=null ? {lat:vehicle.current_lat,lng:vehicle.current_lng} : null} showUserDot={false} autoRecenterMs={5000} onStopClick={stop=>{setPickedStop(stop);setChoosing(true);}}/>
+    <div className="h-full" style={{display:mapOpen?"none":"block"}}><LiteMap vehicles={vehicle?.current_lat!=null?[landscape ? {...vehicle,image_url:vehicle.image_url || "/images/driver-minibus.svg",marker_plain:true,marker_size:52,marker_label:""} : vehicle]:[]} stops={landscape ? stops.map((s,i)=>({...s,number:i+1})) : stops} mapStyle={mapStyle} alwaysShowRecenter={landscape} showEngineLabel={!landscape} road={session?.route?.path?.map(p=>[p.lng,p.lat])} height="100%" fill followUser={vehicle?.current_lat!=null && vehicle?.current_lng!=null} userLocation={vehicle?.current_lat!=null && vehicle?.current_lng!=null ? {lat:vehicle.current_lat,lng:vehicle.current_lng} : null} showUserDot={false} autoRecenterMs={5000} onStopClick={stop=>{setPickedStop(stop);setChoosing(true);}}/></div>
+    {navigationMap && <div className="absolute inset-0" aria-label="Driver navigation map" style={{display:mapOpen?"block":"none"}}>{navigationMap(mapStyle)}</div>}
+    <div className="dk-map-style-controls" aria-label="Driver map style"><button type="button" aria-pressed={mapStyle==="streets"} onClick={()=>changeMapStyle("streets")}>Street</button><button type="button" aria-pressed={mapStyle==="satellite"} onClick={()=>changeMapStyle("satellite")}>Satellite</button>{mapOpen&&<button type="button" onClick={onCloseNavigation}>Back to journey</button>}</div>
     {!landscape && <span className="dk-map-hint">Tap a stop to choose it</span>}
    </section>;
  const stopChooser = choosing && <div className="dk-stop-sheet-backdrop" onClick={()=>setChoosing(false)}><section className="dk-stop-sheet" role="dialog" aria-modal="true" aria-label="Choose next stop" onClick={e=>e.stopPropagation()}>

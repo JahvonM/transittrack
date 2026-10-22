@@ -330,13 +330,7 @@ export default function DriverTrackingDashboard({ session, invoke, onReportIncid
 
 
   return <div className="h-full min-h-0">
-    <div className="dk-navigation-screen" style={{display:mapOpen?"flex":"none"}} aria-hidden={!mapOpen}>
-      <Button variant="outline" onClick={()=>setMapOpen(false)}>Back to journey</Button>
-      <div className="dk-navigation-map" aria-label="Driver navigation map">
-        {mapLoaded && <DriverNavMap key={(session?.vehicle?.id || "")+session?.trip_direction} session={session} invoke={invoke} fill pushLocation={false} pins={staffPins} showProgress={false} showStatus onStatus={onNavStatus} startRequested={startNav} onStartHandled={()=>setStartNav(false)}/>}
-      </div>
-    </div>
-    {!mapOpen && <DriverPortraitDrive session={session} vehicle={lastFixAt?{...liveVehicle,last_location_update:new Date(lastFixAt).toISOString()}:liveVehicle} nav={nav} sharing={sharing}
+    {<DriverPortraitDrive session={session} vehicle={lastFixAt?{...liveVehicle,last_location_update:new Date(lastFixAt).toISOString()}:liveVehicle} nav={nav} sharing={sharing} mapOpen={mapOpen} onCloseNavigation={()=>setMapOpen(false)} navigationMap={style=>mapLoaded ? <DriverNavMap key={(session?.vehicle?.id || "")+session?.trip_direction} session={session} invoke={invoke} fill pushLocation={false} pins={staffPins} showProgress={false} showStatus onStatus={onNavStatus} startRequested={startNav} onStartHandled={()=>setStartNav(false)} mapStyle={style}/> : null}
       shiftActive={shiftActive} directionControl={directionControl} shiftControl={shiftControl} trackingButton={trackingButton}
       statusItems={[{key:"gps",...gpsItem},{key:"net",...connItem},{key:"track",...trackItem}]}
       attention={attention} panelTop={panelTop} panelBottom={panelBottom}

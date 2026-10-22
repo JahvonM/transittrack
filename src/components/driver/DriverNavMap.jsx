@@ -1,7 +1,7 @@
 import { watchDriverPosition, clearDriverWatch } from "@/lib/driverGps";
 import { TRANSIT_TIME_ZONE } from "@/lib/localTime";
 import React, { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Map, { Marker, Source, Layer } from "react-map-gl";
+import Map, { Marker, Source, Layer, NavigationControl } from "react-map-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { mapEngine, markFullMapFailed } from "@/lib/mapEngine";
 import { MAPBOX_TOKEN, mapStyleFor, mapAccentFor, GPS_INTERVAL_MS } from "@/lib/mapbox";
@@ -89,7 +89,7 @@ function SpeedWidget({ kmh, limit }) {
 // its side rail instead). showStatus: the GPS / connection chips on the map.
 // onStatus: reports what the directions already know (next stop, time and
 // distance left, GPS and connection state) so the rail can show it. Read-only.
-export default function DriverNavMap({ session, invoke, fill = false, pushLocation: shouldPush = true, pins = [], showProgress = true, showStatus = true, onStatus, startRequested = false, onStartHandled }) {
+export default function DriverNavMap({ session, invoke, fill = false, pushLocation: shouldPush = true, pins = [], showProgress = true, showStatus = true, onStatus, startRequested = false, onStartHandled, mapStyle: selectedMapStyle }) {
   const isDark = useIsDark();
   const accent = mapAccentFor(isDark);
   const ROUTE_COLOR = { normal: accent, ...TRAFFIC_COLOR };
@@ -466,6 +466,8 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
           <Suspense fallback={null}>
             <LiteMap
               fill
+              mapStyle={selectedMapStyle}
+              showEngineLabel={false}
               followUser={following}
               showUserDot={false}
               showRecenter={false}
@@ -486,7 +488,7 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
           <Map
             ref={mapRef}
             mapboxAccessToken={MAPBOX_TOKEN}
-            mapStyle={mapStyleFor(isDark)}
+            mapStyle={selectedMapStyle==="satellite" ? "mapbox://styles/mapbox/satellite-streets-v12" : selectedMapStyle==="streets" ? "mapbox://styles/mapbox/streets-v12" : mapStyleFor(isDark)}
             initialViewState={startView}
             style={{ width: "100%", height: "100%" }}
             attributionControl={false}
@@ -497,6 +499,7 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
             onRotateStart={(e) => { if (e.originalEvent) stopFollowing(); }}
             onPitchStart={(e) => { if (e.originalEvent) stopFollowing(); }}
           >
+            <NavigationControl position="top-right" showCompass={false}/>
             {alternateGeo.features.length > 0 && (
               <Source id="nav-alternatives" type="geojson" data={alternateGeo}>
                 <Layer id="nav-alternatives-line" type="line" layout={{ "line-cap": "round", "line-join": "round" }}

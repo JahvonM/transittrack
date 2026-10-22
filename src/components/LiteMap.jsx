@@ -198,7 +198,7 @@ export default function LiteMap({
         touchZoom={interactive}
         attributionControl={mapStyle === "satellite"}
       >
-        <TileLayer key={(mapStyle || (isDark ? "dark" : "light"))+tileVersion} url={mapStyle === "satellite" ? tileUrl(isDark).replace(/(?:dark-v11|streets-v12)/, "satellite-streets-v12") : tileUrl(isDark)} attribution={mapStyle === "satellite" ? '<a href="https://www.mapbox.com/about/maps/">© Mapbox</a> <a href="https://www.openstreetmap.org/copyright">© OpenStreetMap</a>' : undefined} tileSize={512} zoomOffset={-1} maxZoom={19} keepBuffer={1} updateWhenIdle eventHandlers={{tileerror:()=>setTileProblem(true)}} />
+        <TileLayer key={(mapStyle || (isDark ? "dark" : "light"))+tileVersion} url={mapStyle === "satellite" ? tileUrl(isDark).replace(/(?:dark-v11|streets-v12)/, "satellite-streets-v12") : tileUrl(mapStyle==="streets" ? false : isDark)} attribution={mapStyle === "satellite" ? '<a href="https://www.mapbox.com/about/maps/">© Mapbox</a> <a href="https://www.openstreetmap.org/copyright">© OpenStreetMap</a>' : undefined} tileSize={512} zoomOffset={-1} maxZoom={19} keepBuffer={1} updateWhenIdle eventHandlers={{tileerror:()=>setTileProblem(true)}} />
         <SizeWatch />
         <FitOnce points={fitPoints} skip={!!center || !!userLocation || followUser || !!focusVehicleId} />
         <LocateOnce target={userLocation} skip={!!center || followUser || !!focusVehicleId} />

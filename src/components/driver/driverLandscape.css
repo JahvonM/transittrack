@@ -148,3 +148,17 @@
  .dl-trip-actions>button>span:last-child{font-size:14px}
  .dl-control-dock>div:last-child>button{min-height:44px;padding:5px 10px}
 }
+
+.dk-map-style-controls{position:absolute;left:14px;top:12px;z-index:700;display:flex;flex-wrap:wrap;gap:4px;max-width:calc(100% - 95px);padding:4px;border:1px solid #45617a;border-radius:12px;background:#071d2eef}
+.dk-map-style-controls button{min-height:44px;padding:7px 12px;border-radius:8px;font-size:13px;color:#d6e7f6}
+.dk-map-style-controls button[aria-pressed=true]{background:#09c8e6;color:#04202b;font-weight:700}
+.dl-map-stage:has([aria-label="Driver navigation map"]:not([style*="none"])) .dl-route-label{display:none}
+.dl-map-stage>.dk-overview-map .dk-map-style-controls{top:14px;left:auto;right:78px}
+.dl-map-stage:has([aria-label="Driver navigation map"]:not([style*="none"])) .dl-map-caption{display:none}
+.dk-overview-map .mapboxgl-ctrl button{width:48px;height:48px}
+.dk-overview-map .mapboxgl-ctrl-top-right{top:76px;right:10px}
+.dk-overview-map [data-testid="nav-banner"]{top:76px;right:75px}
+.dk-overview-map .leaflet-control-zoom a{width:48px;height:48px;line-height:46px;font-size:28px}
+.dk-overview-map [data-testid="nav-eta"]{flex-wrap:wrap;gap:6px;padding:8px}
+.dk-overview-map [data-testid="nav-eta"]>div:first-child{flex-basis:100%}
+.dk-overview-map [data-testid="nav-map"]{min-height:0}
