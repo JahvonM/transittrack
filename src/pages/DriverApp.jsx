@@ -583,7 +583,7 @@ export default function DriverApp() {
 
       <DriverMessageAlert alert={alert} onAcknowledge={() => setAlert(null)} onReply={handleAlertReply} />
       <NewCheckInAlert checkIn={checkInAlert} onDismiss={() => setCheckInAlerts(previous => previous.slice(1))} />
-      <JobAlert alert={jobAlerts[0] || null} onDismiss={() => setJobAlerts((previous) => previous.slice(1))} onOpen={() => selectTab("trips")} />
+      <JobAlert onAccept={async job=>{await invoke("accept_job",{trip_id:job.id});await refresh();}} alert={jobAlerts[0] || null} onDismiss={() => setJobAlerts((previous) => previous.slice(1))} onOpen={() => selectTab("trips")} />
       <SentInspectionPrompt pending={promptPending} onStart={(t) => openInspection(t, { from: "unlock" })} />
 
       <Sheet open={isReportOpen} onOpenChange={setIsReportOpen}>

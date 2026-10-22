@@ -1,4 +1,4 @@
-import React from "react";
+import React, {useState} from "react";
 import { Clock, Plane, StickyNote, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import JobTypeIcon from "@/components/jobs/JobTypeIcon";
@@ -15,7 +15,9 @@ const when = (iso) => (iso ? new Date(iso).toLocaleString([], { timeZone: TRANSI
 // Full-screen notice when dispatch gives this bus a job, changes one or takes
 // one off it. Stays until the driver taps OK, so it isn't missed while driving
 // past the tablet; "Open jobs" goes straight to the job list.
-export default function JobAlert({ alert, onDismiss, onOpen }) {
+export default function JobAlert({ alert, onDismiss, onOpen, onAccept }) {
+  const [busy,setBusy]=useState(false),[error,setError]=useState("");
+  const accept=async()=>{if(busy)return;setBusy(true);setError("");try{await onAccept(alert.job);onDismiss();}catch(e){setError(e?.response?.data?.error||e.message||"Could not accept job.");}finally{setBusy(false);}};
   if (!alert) return null;
   const { kind, job } = alert;
   const head = HEADINGS[kind] || HEADINGS.new;
@@ -39,6 +41,8 @@ export default function JobAlert({ alert, onDismiss, onOpen }) {
             {job.guests ? <p className="flex items-center gap-2"><Users className="h-4 w-4" aria-hidden="true" /> {job.guests} guest{job.guests === 1 ? "" : "s"}{job.passenger_name ? ` · ${job.passenger_name}` : ""}</p> : null}
             {job.notes && kind !== "removed" && <p className="flex items-start gap-2 text-foreground"><StickyNote className="mt-1 h-4 w-4 shrink-0" aria-hidden="true" /> {job.notes}</p>}
           </div>
+          {error&&<p role="alert" className="text-danger">{error}</p>}
+          {kind==="new"&&onAccept&&!job.driver_accepted_at&&<Button className="h-12 w-full" disabled={busy} onClick={accept}>{busy?"Accepting…":"Yes, accept job"}</Button>}
           {kind === "removed" && <p className="text-base">Dispatch cancelled this job or gave it to another bus. You don't need to do it.</p>}
           {kind !== "removed" && onOpen ? (
             <div className="grid gap-2 sm:grid-cols-2">

@@ -1,3 +1,4 @@
+import { notifyJobProgress } from '../../shared/jobNotifications.ts';
 import { forwardToSupabase } from '../../shared/forwardToSupabase.ts';
 import { cleanHardwareHealth } from '../../shared/tabletHardwareHealth.ts';
 import { recordingsNotice } from '../../shared/tabletRecordings.ts';
@@ -1482,6 +1483,15 @@ export default async function(req) {
         return Response.json({ ok: true, ...(email.sent ? {} : { held: true }) });
       }
 
+      case 'accept_job': {
+        const {trip:existing,reply}=await jobForBus(base44,body,companyId,vehicleId);
+        if(reply)return reply;
+        if(existing.driver_accepted_at)return Response.json({trip:tabletTrip(existing)});
+        if(existing.status!=='scheduled')return Response.json({error:'This job has already started'},{status:409});
+        const trip=await base44.asServiceRole.entities.Trip.update(existing.id,{driver_accepted_at:jobStepTime(body)});
+        await notifyJobProgress(base44,trip,'accepted');
+        return Response.json({trip:tabletTrip(trip)});
+      }
       case 'update_trip_status': {
         const { status } = body;
         if (!['on_the_way', 'arrived', 'completed'].includes(status))
@@ -1499,6 +1509,7 @@ export default async function(req) {
         const trip = await base44.asServiceRole.entities.Trip.update(existing.id, update);
         if (status === 'on_the_way') await base44.asServiceRole.entities.Vehicle.update(vehicleId, { status: 'on_trip' });
         if (status === 'completed') await base44.asServiceRole.entities.Vehicle.update(vehicleId, { status: 'idle' });
+        await notifyJobProgress(base44,trip,status==='on_the_way'?'started':status);
         return Response.json({ trip: tabletTrip(trip) });
       }
 

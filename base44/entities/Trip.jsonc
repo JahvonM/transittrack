@@ -234,6 +234,14 @@
         "reception"
       ],
       "description": "Who signed for the drop-off: a guest, or the hotel's front desk"
+    },
+    "driver_accepted_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "pickup_arrived_at": {
+      "type": "string",
+      "format": "date-time"
     }
   },
   "required": [
