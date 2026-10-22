@@ -139,6 +139,9 @@ function PassengerListDialog({ open, onOpenChange, vehicleName }) {
 // The boarding home keeps NFC, QR and code entry beside live bus information.
 export default function BusBoardingKiosk({ invoke, device, directoryInfo, online, layout = "tablet" }) {
   const phoneLayout = layout === "phone";
+  const [qrFacing,setQrFacing]=useState("environment");
+  const [fullscreenError,setFullscreenError]=useState("");
+  const fullScreen=async()=>{setFullscreenError("");try{if(!document.fullscreenElement)await document.documentElement.requestFullscreen();}catch{setFullscreenError("Open the installed kiosk app for full screen, or use Add to Home Screen.");}};
   const [phoneInfo, setPhoneInfo] = useState(false);
   useFutureAppearance();
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -485,7 +488,8 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
       <div className="tt-board-entry">
         <div className="tt-board-slide"><p>Prefer to use your code?</p><SlideToUnlock label="Slide to enter a code" onUnlock={() => { setUnlocked(true); setMode("idle"); }} /></div>
         <section className="tt-board-qr" aria-label="Home QR scanner">
-          {mode === "qr" ? <><QrScanner compact active={qrCooldown === 0} onDecode={handleQrDecode} facingMode="user" requireFacingMode stableMs={800} />
+          {mode === "qr" ? <><QrScanner compact active={qrCooldown === 0} onDecode={handleQrDecode} facingMode={phoneLayout?qrFacing:"user"} requireFacingMode={!phoneLayout} stableMs={phoneLayout?300:800} />
+            {phoneLayout&&<button type="button" onClick={()=>setQrFacing(v=>v==="environment"?"user":"environment")}>Switch camera</button>}
             <button type="button" onClick={() => {setMode("idle"); setUnlocked(false); setQrHint("");}}>Close camera</button>
             {qrCooldown > 0 && <p role="status">Scanning paused. Try again in {qrCooldown} seconds with your boarding QR.</p>}
             {busy ? <p role="status">Checking your code…</p> : qrHint && <p role="status">{qrHint}</p>}
@@ -594,6 +598,7 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
       <button type="button" aria-pressed={!phoneInfo && mode === "qr"} onClick={() => { setPhoneInfo(false); setMode("qr"); setUnlocked(false); }}><QrCode />Scan QR</button>
       <button type="button" aria-pressed={phoneInfo} onClick={() => setPhoneInfo(value => !value)}><Bus />Bus info</button>
     </nav>}
+    {phoneLayout&&<div className="tt-phone-kiosk-tools"><button type="button" onClick={()=>setSettingsOpen(true)}>Tablet &amp; reader</button><button type="button" onClick={fullScreen}>Full screen</button>{fullscreenError&&<p role="status">{fullscreenError}</p>}</div>}
     <BoardingPickupSign device={device} enabled={mode === "idle" && !busy && !checkingCard} />
     <main className="tt-board-layout"><div className="tt-board-action">{actionContent}</div>
       <InfoRail occupancy={occupancy} vehicle={vehicle} nearestStop={nearestStop} ads={ads} todayCount={todayCount} directoryInfo={directoryInfo} now={now} onList={() => setListOpen(true)} pendingSyncCount={pendingSyncCount} syncError={syncError} />

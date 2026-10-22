@@ -9,3 +9,5 @@ export async function tabletRecoveryState() {
 export const openTabletHomeSettings = () => TabletRecovery.openHomeSettings();
 
 export const setTabletKeepScreenOn = enabled => TabletRecovery.setKeepScreenOn({ enabled });
+
+export const setTabletFullscreen = enabled => tabletRecoveryAvailable() ? TabletRecovery.setFullscreen({enabled}) : Promise.resolve();

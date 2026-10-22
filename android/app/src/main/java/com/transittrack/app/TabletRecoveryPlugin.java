@@ -10,6 +10,18 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 /** Optional Home selection uses Android UI; never takes over the launcher silently. */
 @CapacitorPlugin(name = "TabletRecovery")
 public class TabletRecoveryPlugin extends Plugin {
+    @PluginMethod public void setFullscreen(PluginCall call) {
+        boolean enabled = Boolean.TRUE.equals(call.getBoolean("enabled", true));
+        getActivity().runOnUiThread(() -> {
+            android.view.View decor = getActivity().getWindow().getDecorView();
+            decor.setSystemUiVisibility(enabled
+                ? android.view.View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY | android.view.View.SYSTEM_UI_FLAG_FULLSCREEN
+                  | android.view.View.SYSTEM_UI_FLAG_HIDE_NAVIGATION | android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                  | android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN | android.view.View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                : android.view.View.SYSTEM_UI_FLAG_VISIBLE);
+            call.resolve();
+        });
+    }
     @PluginMethod public void getState(PluginCall call) {
         JSObject out = new JSObject();
         out.put("available", true);

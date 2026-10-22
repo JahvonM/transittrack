@@ -96,3 +96,29 @@
 /* Operator identity fits the existing header without growing its height. */
 .tt-board-brandmark{display:flex;align-items:center;justify-content:center;gap:10px;letter-spacing:.5px;font-size:clamp(14px,1.7vw,22px)}
 .tt-board-brandmark small{letter-spacing:.5px;font-size:10px}
+
+/* Phone kiosk fills the available screen; only an unusually long inner form scrolls. */
+.tt-kiosk-phone{width:100%;max-width:none;height:100dvh;min-height:0;overflow:hidden;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
+.tt-kiosk-phone .tt-board-header{min-height:54px;padding:8px 12px;flex-shrink:0}
+.tt-kiosk-phone .tt-phone-kiosk-nav{position:static;flex-shrink:0;padding:5px 8px;gap:4px}
+.tt-kiosk-phone .tt-phone-kiosk-nav button{min-height:52px}
+.tt-phone-kiosk-tools{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 10px;flex-shrink:0;flex-wrap:wrap}
+.tt-phone-kiosk-tools button{min-height:44px;padding:6px 12px;font-size:12px;text-decoration:underline}
+.tt-phone-kiosk-tools p{font-size:12px;flex-basis:100%}
+.tt-kiosk-phone .tt-board-layout{flex:1;overflow-y:auto;padding:6px 10px 10px}
+.tt-kiosk-phone .tt-board-action{flex:1;min-height:0;justify-content:safe center}
+.tt-kiosk-phone .tt-board-home{min-height:0;flex:1}
+.tt-kiosk-phone .tt-board-scene{min-height:220px;flex:1}
+.tt-kiosk-phone .tt-board-welcome{padding:12px 8px}
+.tt-kiosk-phone .tt-board-welcome h1{font-size:25px}
+.tt-kiosk-phone .tt-board-nfc{top:92px;gap:6px}
+.tt-kiosk-phone .tt-board-nfc-ring{width:76px;height:76px}
+.tt-kiosk-phone .tt-board-nfc strong{margin-top:4px}
+.tt-kiosk-phone .tt-board-entry{padding:8px}
+.tt-kiosk-phone .tt-board-qr-start{min-height:48px}
+.tt-kiosk-phone .tt-board-camera-open .tt-board-scene{display:none}
+.tt-kiosk-phone .tt-board-camera-open .tt-board-entry{flex:1;display:grid;place-items:center}
+.tt-kiosk-phone .tt-board-camera-open .tt-board-qr{width:100%}
+.tt-kiosk-phone .tt-board-action>[data-mode]>div{padding:12px}
+.tt-kiosk-phone .tt-board-keypad .grid button{height:44px}
+.tt-kiosk-phone .tt-board-keypad h2{font-size:23px}

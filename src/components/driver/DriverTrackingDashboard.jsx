@@ -7,7 +7,6 @@ import { haversineKm } from "@/lib/geo";
 import { accountName } from "@/lib/userName";
 import { GPS_INTERVAL_MS, PROXIMITY_TRIGGER_M, SPEEDING_THRESHOLD_KMH, TRAIL_MAX } from "@/lib/mapbox";
 import DriverNavMap from "@/components/driver/DriverNavMap";
-import { Button } from "@/components/ui/button";
 import { Navigation, NavigationOff, Lock, Satellite, SatelliteDish, Wifi, WifiOff, CloudUpload, Radio, PauseCircle, Gauge, BellRing } from "lucide-react";
 import { AttentionItem, DeckButton } from "@/components/driver/cockpit/CockpitParts";
 import { useToast } from "@/components/ui/use-toast";

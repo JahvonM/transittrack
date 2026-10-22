@@ -1,3 +1,5 @@
+import { setTabletFullscreen } from "@/lib/tabletRecovery";
+import { App } from "@capacitor/app";
 import { handleTabletSupport, handleTabletRecordings } from "@/lib/nativeTabletSupport";
 import { handleTabletControl } from "@/lib/nativeTabletControl";
 import { createPollBudget, startTabletPoll } from "@/lib/tabletPolling";
@@ -45,6 +47,7 @@ const initialStoredId = () => { try { return localStorage.getItem("tt_kiosk_devi
 
 export default function Kiosk() {
   useNoPageZoom();
+  useEffect(()=>{void setTabletFullscreen(true).catch(()=>{});let listener;App.addListener("appStateChange",state=>{if(state.isActive)void setTabletFullscreen(true).catch(()=>{});}).then(value=>{listener=value;}).catch(()=>{});return()=>{listener?.remove();void setTabletFullscreen(false).catch(()=>{});};},[]);
   useKeepAwake();
   // Boarding tablets never leave TransitTrack for another website.
   useBlockOtherSites();

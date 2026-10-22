@@ -16,13 +16,14 @@ export default function QrScanner({ onDecode, active, facingMode = "environment"
     if (!active || supportCameraReserved) return;
     let stopped = false;
     let delivering = false;
+    let lastText="",lastAt=0;
     setError("");
     const gate = createQrScanGate({ stableMs, warmupMs: stableMs > 0 ? 1000 : 0 });
     // Decoder settings belong to the constructor, not start(). Limit this
     // QR scanner to QR codes so ordinary barcodes cannot trigger a lookup.
     const scanner = new Html5Qrcode(elementId, {
       formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
-      useBarCodeDetectorIfSupported: true,
+      useBarCodeDetectorIfSupported: false,
       verbose: false,
     });
     scannerRef.current = scanner;
@@ -30,11 +31,13 @@ export default function QrScanner({ onDecode, active, facingMode = "environment"
       { facingMode: requireFacingMode ? { exact: facingMode } : facingMode },
       { fps: 10, qrbox: compact ? ((w, h) => ({width: Math.min(160, Math.floor(Math.min(w,h)*0.7)), height: Math.min(160, Math.floor(Math.min(w,h)*0.7))})) : 220 },
       async (decodedText) => {
-        if (stopped || delivering || !gate.read(decodedText, Date.now())) return;
+        if (stopped || delivering || (decodedText===lastText && Date.now()-lastAt<5000) || !gate.read(decodedText, Date.now())) return;
+        lastText=decodedText;lastAt=Date.now();
         // Synchronous lock plus the latest callback: a slow lookup cannot
         // start overlapping requests using an old copy of busy=false.
         delivering = true;
         try { await onDecodeRef.current?.(decodedText); }
+        catch { setError("Could not check that QR. Hold it steady and try again."); }
         finally { delivering = false; }
       },
       () => gate.miss(Date.now())
