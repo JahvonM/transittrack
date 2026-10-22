@@ -33,6 +33,12 @@ export function usePushNotifications({ email, role, companyId } = {}) {
   const [permission, setPermission] = useState(currentPermission);
   const autoChecked = useRef(false);
   const busy = useRef(false);
+  const notice = useRef(null);
+  // Repeated retries update the same notice instead of stacking error cards.
+  const notify = (message) => {
+    if (notice.current?.update) notice.current.update({ ...message, open: true });
+    else notice.current = toast(message);
+  };
 
   // Saves the token for the signed-in account; true only when it's stored.
   const saveToken = async (token) => {
@@ -70,7 +76,7 @@ export function usePushNotifications({ email, role, companyId } = {}) {
     if (busy.current) return false;
     busy.current = true;
     try {
-      const fail = (key) => { toast({ ...PUSH_FAILURE[key], variant: "destructive" }); return false; };
+      const fail = (key) => { notify({ ...PUSH_FAILURE[key], variant: "destructive" }); return false; };
       if (!email) return fail("signed_out");
       const { token, reason } = await requestPushToken();
       const devicePermission=await pushPermission();
@@ -78,7 +84,7 @@ export function usePushNotifications({ email, role, companyId } = {}) {
       if (!token) return fail(reason || "error");
       if (!(await saveToken(token))) return fail("not_saved");
       setPermission("granted");
-      toast({ title: "Notifications on", description: "This device will get your McSween Transport alerts." });
+      notify({ title: "Notifications on", description: "This device will get your McSween Transport alerts." });
       return true;
     } finally {
       busy.current = false;
