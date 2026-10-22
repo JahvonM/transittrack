@@ -93,6 +93,7 @@ function SignScreen({ job, mode, onSign }) {
 // given with no signal is kept on the tablet and sent later.
 export default function JobSigningKiosk({ device, deviceId, online }) {
   const [jobs, setJobs] = useState([]);
+  const [requestedJob,setRequestedJob]=useState(null);
   const [signed, setSigned] = useState(() => savedHere());
   const [thanks, setThanks] = useState(null);
   const [now, setNow] = useState(() => new Date());
@@ -132,7 +133,7 @@ export default function JobSigningKiosk({ device, deviceId, online }) {
     return () => clearTimeout(t);
   }, [thanks]);
 
-  const waiting = useMemo(() => waitingSignature(jobs, signed), [jobs, signed]);
+  const waiting = useMemo(() => {const chosen=jobs.find(j=>j.id===requestedJob);return (chosen?waitingSignature([chosen],signed):null)||waitingSignature(jobs,signed);}, [jobs, signed, requestedJob]);
 
   const sign = async ({ name, guests, file }) => {
     const { job, mode } = waiting;
@@ -147,6 +148,7 @@ export default function JobSigningKiosk({ device, deviceId, online }) {
     const done = (queued) => {
       setSigned((prev) => new Set([...prev, key(job.id, mode)]));
       setThanks({ name, mode, queued });
+      setRequestedJob(null);
     };
     try {
       const { expected_device_id: _a, expected_company_id: _b, expected_vehicle_id: _c, ...live } = payload;
@@ -176,7 +178,7 @@ export default function JobSigningKiosk({ device, deviceId, online }) {
           {device?.vehicle_name && <p className="truncate text-sm text-muted-foreground">{device.vehicle_name}</p>}
         </div>
         <span className="font-display text-lg font-semibold tabular-nums">{time(now)}</span>
-        <SigningJobControls deviceId={deviceId} onShowSignature={trip=>{setThanks(null);setJobs(prev=>[trip,...prev.filter(j=>j.id!==trip.id)]);}}/>
+        <SigningJobControls deviceId={deviceId} onShowSignature={trip=>{setThanks(null);setRequestedJob(trip.id);setJobs(prev=>[trip,...prev.filter(j=>j.id!==trip.id)]);}}/>
         <KioskConnectionBadge online={online} />
       </header>
       <main className="flex flex-1 items-center justify-center p-5 sm:p-8">

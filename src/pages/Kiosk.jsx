@@ -47,7 +47,7 @@ const initialStoredId = () => { try { return localStorage.getItem("tt_kiosk_devi
 
 export default function Kiosk() {
   useNoPageZoom();
-  useEffect(()=>{void setTabletFullscreen(true).catch(()=>{});let listener;App.addListener("appStateChange",state=>{if(state.isActive)void setTabletFullscreen(true).catch(()=>{});}).then(value=>{listener=value;}).catch(()=>{});return()=>{listener?.remove();void setTabletFullscreen(false).catch(()=>{});};},[]);
+  useEffect(()=>{void setTabletFullscreen(true).catch(()=>{});let listener,closed=false;App.addListener("appStateChange",state=>{if(state.isActive)void setTabletFullscreen(true).catch(()=>{});}).then(value=>{if(closed)value.remove();else listener=value;}).catch(()=>{});return()=>{closed=true;listener?.remove();void setTabletFullscreen(false).catch(()=>{});};},[]);
   useKeepAwake();
   // Boarding tablets never leave TransitTrack for another website.
   useBlockOtherSites();

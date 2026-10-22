@@ -30,6 +30,15 @@ async function tablet(trips = [job()]) {
 }
 
 describe("driver tablet jobs", () => {
+  it("records explicit acceptance once and sends only one dispatch event on retry",async()=>{
+    const {sdk,send}=await tablet();
+    expect((await send({action:'accept_job',trip_id:'job-1'})).status).toBe(200);
+    expect(sdk.tables.Trip[0].driver_accepted_at).toBeTruthy();
+    expect((await send({action:'accept_job',trip_id:'job-1'})).status).toBe(200);
+    expect((sdk.tables.GroupMessage||[]).filter(m=>m.text.includes('Driver accepted'))).toHaveLength(1);
+    expect((await send({action:'accept_job',trip_id:'other-bus'})).status).not.toBe(200);
+  });
+
   it("gets open jobs without prices, invoices or signature files, even after 100 finished trips", async () => {
     const old = Array.from({ length: 120 }, (_, i) => job({ id: "old-" + i, status: "completed", scheduled_time: `2026-01-01T${String(i % 24).padStart(2, "0")}:00:00Z` }));
     const { send } = await tablet([...old, job({ pickup_signature_uri: "private/x.png", invoice_number: "INV-1" })]);
@@ -306,6 +315,23 @@ describe("signing tablet", () => {
     const call = async (body, token = TOKEN) => { const res = await handler(request({ device_id: "signer", device_token: token, ...body })); return { status: res.status, body: await res.json() }; };
     return { sdk, call };
   };
+
+  it("requires a current operator grant and restricts arrival to its assigned bus",async()=>{
+    const {sdk,call}=setup([job({status:'on_the_way'}),job({id:'foreign',vehicle_id:'bus-b',status:'on_the_way'})]);
+    expect((await call({action:'operator_state'})).status).toBe(403);
+    expect((await call({action:'arrive',trip_id:'job-1',stage:'pickup'})).status).toBe(403);
+    const unlock=await call({action:'unlock_operator',pin:'1234'});
+    expect(unlock.status).toBe(200);
+    const operator_grant=unlock.body.operator_grant;
+    const state=await call({action:'operator_state',operator_grant});
+    expect(state.body.jobs.map(j=>j.id)).toEqual(['job-1']);
+    expect((await call({action:'arrive',operator_grant,trip_id:'foreign',stage:'pickup'})).status).toBe(403);
+    expect((await call({action:'arrive',operator_grant,trip_id:'job-1',stage:'dropoff'})).status).toBe(409);
+    expect((await call({action:'arrive',operator_grant,trip_id:'job-1',stage:'pickup'})).status).toBe(200);
+    expect(sdk.tables.Trip[0].pickup_arrived_at).toBeTruthy();
+    sdk.tables.VerificationGrant[0].expires_at='2000-01-01T00:00:00Z';
+    expect((await call({action:'operator_state',operator_grant})).status).toBe(403);
+  });
 
   it("shows only the bus's jobs under way, with only what guests may see", async () => {
     const { call } = setup([job({ status: "on_the_way", passenger_phone: "+1 473 555 0100", notes: "VIP guest" }), job({ id: "done", status: "completed" }),

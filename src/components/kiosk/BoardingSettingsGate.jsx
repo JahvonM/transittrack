@@ -118,6 +118,7 @@ export default function BoardingSettingsGate({ open, onClose, deviceId, invoke }
         </DialogHeader>
         {unlocked ? (
           <div className="space-y-3">
+            <p className="text-sm">For automatic opening on Android, use Startup &amp; recovery below and choose this kiosk as the Home app. Native reader and startup controls require the installed kiosk app.</p>
             <Button asChild variant="outline" className="w-full"><Link to="/tablet?choose=1">Choose tablet screen</Link></Button>
             <UsbNfcPanel />
             <BoardingBluetoothPanel />

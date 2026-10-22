@@ -10,16 +10,17 @@ export default function SigningJobControls({deviceId,onShowSignature}) {
  const lock=()=>{setOpen(false);setGrant("");setPin("");setJobs([]);setError("");};
  const touch=()=>{clearTimeout(idle.current);idle.current=setTimeout(lock,120000);};
  useEffect(()=>()=>clearTimeout(idle.current),[]);
+ useEffect(()=>{lock();},[deviceId]);
  const call=async(action,body={})=>(await base44.functions.invoke("jobSigning",deviceRequest(deviceId,{action,operator_grant:grant,...body}))).data;
  const unlock=async()=>{
   if(busy)return;setBusy(true);setError("");
   try{const result=await call("unlock_operator",{pin});setPin("");const state=await call("operator_state",{operator_grant:result.operator_grant});setJobs(state.jobs||[]);setGrant(result.operator_grant);touch();}
-  catch(e){setError(e?.response?.data?.error||e.message);}finally{setBusy(false);}
+  catch(e){if(e?.response?.status===403){setGrant("");setJobs([]);}setError(e?.response?.data?.error||e.message);}finally{setBusy(false);}
  };
  const arrive=async(job,stage)=>{
   if(busy)return;setBusy(true);setError("");
   try{const result=await call("arrive",{trip_id:job.id,stage});onShowSignature(result.trip,stage);lock();}
-  catch(e){setError(e?.response?.data?.error||e.message);}finally{setBusy(false);}
+  catch(e){if(e?.response?.status===403){setGrant("");setJobs([]);}setError(e?.response?.data?.error||e.message);}finally{setBusy(false);}
  };
  return <><Button variant="outline" onClick={()=>{setOpen(true);touch();}}>Job controls</Button>
  <Dialog open={open} onOpenChange={value=>value?setOpen(true):lock()}><DialogContent className="max-h-[90dvh] overflow-y-auto max-w-2xl" onPointerDownCapture={touch} onKeyDownCapture={touch}>
