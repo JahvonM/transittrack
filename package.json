@@ -20,7 +20,7 @@
     "test:security:release": "vitest run --config vitest.security.config.js"
   },
   "dependencies": {
-    "@base44/sdk": "^0.8.56",
+    "@base44/sdk": "^0.8.57",
     "@base44/vite-plugin": "^1.0.47",
     "@capacitor-community/bluetooth-le": "^6.1.0",
     "@capacitor-community/keep-awake": "^5.0.1",
