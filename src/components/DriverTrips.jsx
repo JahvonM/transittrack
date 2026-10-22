@@ -72,7 +72,6 @@ export default function DriverTrips({ trips, invoke, startSharing, refresh, vehi
 
   const startTrip = (trip) => {
     startSharing?.();
-    if(!trip.driver_accepted_at)await invoke("accept_job",{trip_id:trip.id});
     return tryStep(trip, "update_trip_status", { status: "on_the_way" }, "Start job");
   };
   const markArrived = (trip) => tryStep(trip, "update_trip_status", { status: "arrived" }, "Arrived");

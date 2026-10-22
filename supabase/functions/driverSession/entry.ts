@@ -1503,12 +1503,13 @@ export default async function(req) {
         if (JOB_STEPS.indexOf(existing.status) >= JOB_STEPS.indexOf(status)) return Response.json({ trip: tabletTrip(existing) });
         const at = jobStepTime(body);
         const update = { status };
-        if (status === 'on_the_way') update.started_at = at;
+        if (status === 'on_the_way') { update.started_at = at; if(!existing.driver_accepted_at)update.driver_accepted_at=at; }
         if (status === 'arrived') update.arrived_at = at;
         if (status === 'completed') update.completed_at = at;
         const trip = await base44.asServiceRole.entities.Trip.update(existing.id, update);
         if (status === 'on_the_way') await base44.asServiceRole.entities.Vehicle.update(vehicleId, { status: 'on_trip' });
         if (status === 'completed') await base44.asServiceRole.entities.Vehicle.update(vehicleId, { status: 'idle' });
+        if(status==='on_the_way'&&!existing.driver_accepted_at)await notifyJobProgress(base44,trip,'accepted');
         await notifyJobProgress(base44,trip,status==='on_the_way'?'started':status);
         return Response.json({ trip: tabletTrip(trip) });
       }
