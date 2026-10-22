@@ -36,8 +36,9 @@ export function usePushNotifications({ email, role, companyId } = {}) {
   const notice = useRef(null);
   // Repeated retries update the same notice instead of stacking error cards.
   const notify = (message) => {
-    if (notice.current?.update) notice.current.update({ ...message, open: true });
-    else notice.current = toast(message);
+    if (notice.current?.handle?.update && Date.now()-notice.current.at<5000) {
+      notice.current.handle.update({ variant: "default", ...message, open: true });
+    } else notice.current = { handle: toast(message), at: Date.now() };
   };
 
   // Saves the token for the signed-in account; true only when it's stored.

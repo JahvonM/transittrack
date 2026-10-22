@@ -31,7 +31,7 @@ describe("device registration confirmation",()=>{
   expect(fixture.toast).toHaveBeenCalledTimes(1);
   expect(update).toHaveBeenCalledWith(expect.objectContaining({title:"Couldn't save this device",open:true}));
   expect(await hook.enableNotifications()).toBe(true);
-  expect(update).toHaveBeenLastCalledWith(expect.objectContaining({title:"Notifications on",open:true}));
+  expect(update).toHaveBeenLastCalledWith(expect.objectContaining({title:"Notifications on",variant:"default",open:true}));
  });
 
 });
