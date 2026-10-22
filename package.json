@@ -12,6 +12,7 @@
     "typecheck": "tsc -p ./jsconfig.json",
     "preview": "vite preview",
     "test:e2e": "playwright test",
+    "build:e2e": "eslint -c eslint.crash-guard.config.js --no-inline-config src && vite build --mode e2e",
     "cap:sync": "vite build && cap sync",
     "cap:ios": "vite build && cap sync ios && cap open ios",
     "cap:android": "vite build && cap sync android && cap open android",

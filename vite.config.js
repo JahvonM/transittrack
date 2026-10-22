@@ -17,7 +17,9 @@ export function liveBackend(source = readFileSync(new URL('./base44/shared/liveB
   if (!m) throw new Error('base44/shared/liveBackend.ts: LIVE_BACKEND line not found')
   return m[1]
 }
-const backendMode = (mode) => (mode === 'supabase' || liveBackend() === 'supabase' ? 'supabase' : 'base44')
+// Browser fixtures intercept Base44 requests; keep their build isolated from the live switch.
+// Normal production builds always follow LIVE_BACKEND.
+const backendMode = (mode) => mode === 'e2e' ? 'base44' : (mode === 'supabase' || liveBackend() === 'supabase' ? 'supabase' : 'base44')
 
 // Build stamp shown in Admin → Fleet health, so you can see which tablets
 // are still running an older version. Also written into offline-manifest.json
