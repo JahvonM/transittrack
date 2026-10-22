@@ -141,7 +141,7 @@ test('driver map pins the stops and only gives directions after Navigate', async
   await page.goto('/driver/track');
   await page.locator('input[type=password]').fill('1234');
   await page.getByRole('button', { name: 'Unlock', exact: true }).click();
-  const navigate = page.getByRole('button', { name: 'Navigate', exact: true });
+  const navigate = page.getByRole('region', { name: 'Next stop', exact: true }).getByRole('button', { name: 'Navigate', exact: true });
   await expect(navigate).toBeVisible({ timeout: 20000 });
   await expect(page.getByRole('region', {name:'Next stop',exact:true})).toContainText('Stop 1 of 2');
   await expect(page.getByTestId('nav-banner')).toHaveCount(0);

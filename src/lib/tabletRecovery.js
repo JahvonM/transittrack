@@ -10,4 +10,8 @@ export const openTabletHomeSettings = () => TabletRecovery.openHomeSettings();
 
 export const setTabletKeepScreenOn = enabled => TabletRecovery.setKeepScreenOn({ enabled });
 
-export const setTabletFullscreen = enabled => tabletRecoveryAvailable() ? TabletRecovery.setFullscreen({enabled}) : Promise.resolve();
+// Always return a promise, including when an older bridge has no fullscreen method.
+// Callers can catch an unsupported optional capability without crashing the page.
+export async function setTabletFullscreen(enabled) {
+  if (tabletRecoveryAvailable()) return TabletRecovery.setFullscreen({ enabled });
+}
