@@ -2,6 +2,7 @@
 -- No real application rows are touched; all test objects are rolled back.
 begin;
 create temporary table tt_update_contract (id text primary key, status text, updated_date timestamptz);
+alter table tt_update_contract enable row level security;
 create trigger tt_update_contract_touch before update on tt_update_contract
 for each row execute function public.touch_updated_date();
 insert into tt_update_contract values ('device', 'registered', '2000-01-01T00:00:00Z');
