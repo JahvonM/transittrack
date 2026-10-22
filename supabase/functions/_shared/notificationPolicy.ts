@@ -17,6 +17,7 @@
 // company's buses and can be switched off company by company. `selfService`
 // kinds are ones passengers may turn off for themselves.
 export const NOTIFICATION_TYPES = [
+  { key:'job_progress',channel:'push',label:'Job progress',when:'Driver accepts a job, arrives, confirms pickup or drop-off, or completes it.',audiences:['admin'],perCompany:true },
   { key: 'return_pickup_push', channel: 'push', label: 'Going home: company pickup', when: 'Your assigned bus approaches or arrives at the company for the return journey.', audiences: ['passenger'], perCompany: true, selfService: true, passengerLabel: 'Going home: company pickup', passengerWhen: 'A phone alert when my bus is near or at work to take me home.' },
   { key: 'return_pickup_email', channel: 'email', label: 'Going home: company pickup (email)', when: 'Your assigned bus approaches or arrives at the company for the return journey.', audiences: ['passenger'], perCompany: true, selfService: true, passengerLabel: 'Going home: company pickup (email)', passengerWhen: 'An email when my bus is near or at work to take me home.' },
 

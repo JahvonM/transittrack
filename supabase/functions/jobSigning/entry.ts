@@ -1,6 +1,8 @@
+import { checkBusPin } from '../_shared/busPin.ts';
+import { notifyJobProgress } from '../_shared/jobNotifications.ts';
 import { forwardToSupabase } from '../_shared/forwardToSupabase.ts';
 import { createClientFromRequest } from '../_shared/base44-compat.ts';
-import { guestTrip, signJob } from '../_shared/jobSignature.ts';
+import { guestTrip, signJob, tabletTrip, jobForBus } from '../_shared/jobSignature.ts';
 
 // The signing tablet: a guest-facing tablet on a bus, used only to sign for a
 // job at pickup and at drop-off. It is a paired tablet (no login), accepted
@@ -47,6 +49,41 @@ export default async function(req) {
     // Saved while offline: only for the tablet and bus it was saved on.
     if (body.queue_replay && (body.expected_device_id !== device.id || body.expected_company_id !== companyId || body.expected_vehicle_id !== vehicleId))
       return Response.json({ error: 'Saved work belongs to a different tablet assignment' }, { status: 409 });
+
+
+    const db=base44.asServiceRole.entities;
+    if(body.action==='unlock_operator') {
+      const vehicle=await db.Vehicle.get(vehicleId);
+      if(!vehicle || vehicle.company_id!==companyId)return Response.json({error:'Bus assignment changed'},{status:403});
+      const result=await checkBusPin(base44,vehicle,body.pin);
+      if(result!=='ok')return Response.json({error:result==='locked'?'Too many PIN attempts. Try again later.':'Incorrect bus PIN'},{status:result==='locked'?429:403});
+      const token=Array.from(crypto.getRandomValues(new Uint8Array(32)),x=>x.toString(16).padStart(2,'0')).join('');
+      await db.VerificationGrant.create({token_hash:await digestHex(token),device_id:device.id,company_id:companyId,vehicle_id:vehicleId,purpose:'signing_operator',subject:vehicleId,pairing_code_hash:await digestHex(device.pairing_code||''),expires_at:new Date(Date.now()+10*60000).toISOString()});
+      return Response.json({operator_grant:token});
+    }
+    if(['operator_state','arrive'].includes(body.action)) {
+      if(typeof body.operator_grant!=='string' || !/^[a-f0-9]{64}$/.test(body.operator_grant))return Response.json({error:'Enter the bus PIN first'},{status:403});
+      const [grant]=await db.VerificationGrant.filter({token_hash:await digestHex(body.operator_grant)},'-created_date',1);
+      if(!grant || grant.purpose!=='signing_operator' || grant.device_id!==device.id || grant.vehicle_id!==vehicleId || grant.company_id!==companyId || grant.pairing_code_hash!==await digestHex(device.pairing_code||'') || !(Date.parse(grant.expires_at)>Date.now()))return Response.json({error:'Operator access expired. Enter the bus PIN again.'},{status:403});
+      if(body.action==='operator_state') {
+        const rows=await db.Trip.filter({vehicle_id:vehicleId,status:{$in:['scheduled','on_the_way','arrived']}},'scheduled_time',100);
+        return Response.json({jobs:rows.filter(t=>t.company_id===companyId).map(tabletTrip)});
+      }
+      const {trip,reply}=await jobForBus(base44,body,companyId,vehicleId);
+      if(reply)return reply;
+      if(body.stage==='pickup') {
+        if(trip.status!=='on_the_way' || trip.pickup_signed_at)return Response.json({error:'This job is not waiting at pickup'},{status:409});
+        if(trip.pickup_arrived_at)return Response.json({trip:guestTrip(trip)});
+        const updated=await db.Trip.update(trip.id,{pickup_arrived_at:new Date().toISOString()});
+        await notifyJobProgress(base44,updated,'pickup_arrived');
+        return Response.json({trip:guestTrip(updated)});
+      }
+      if(body.stage!=='dropoff' || !trip.pickup_signed_at || !['on_the_way','arrived'].includes(trip.status))return Response.json({error:'Confirm pickup before arriving at drop-off'},{status:409});
+      if(trip.status==='arrived')return Response.json({trip:guestTrip(trip)});
+      const updated=await db.Trip.update(trip.id,{status:'arrived',arrived_at:new Date().toISOString()});
+      await notifyJobProgress(base44,updated,'arrived');
+      return Response.json({trip:guestTrip(updated)});
+    }
 
     switch (body.action) {
       case 'state': {

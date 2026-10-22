@@ -1,3 +1,4 @@
+import { notifyJobProgress } from './jobNotifications.ts';
 // Jobs on a bus, as the bus's tablets see and sign them: the driver tablet
 // (driverSession) and the guest-facing signing tablet (jobSigning).
 
@@ -12,7 +13,7 @@ export function tabletTrip(row: any) {
     'driver_name', 'passenger_name', 'passenger_phone', 'client_name', 'pickup_name', 'pickup_address', 'pickup_lat', 'pickup_lng', 'dropoff_name',
     'dropoff_address', 'dropoff_lat', 'dropoff_lng', 'scheduled_time', 'end_time', 'flight_number', 'flight_time', 'guests', 'luggage', 'notes',
     'started_at', 'arrived_at', 'completed_at', 'pickup_signed_by', 'pickup_signed_role', 'pickup_signed_at', 'dropoff_signed_by', 'dropoff_signed_role', 'dropoff_signed_at',
-    'created_date', 'updated_date']);
+    'driver_accepted_at','pickup_arrived_at','created_date', 'updated_date']);
   out.stops = Array.isArray(row.stops) ? row.stops.map((s: any) => jobFields(s || {}, ['name', 'address', 'lat', 'lng', 'reached_at'])) : [];
   return out;
 }
@@ -105,5 +106,6 @@ export async function signJob(base44: any, body: any, companyId: string, vehicle
   if (mode === 'dropoff' && existing.status !== 'completed') Object.assign(update, { status: 'completed', completed_at: at });
   const trip = await base44.asServiceRole.entities.Trip.update(existing.id, update);
   if (mode === 'dropoff') await base44.asServiceRole.entities.Vehicle.update(vehicleId, { status: 'idle' });
+  await notifyJobProgress(base44,trip,mode);
   return Response.json({ trip: view(trip) });
 }

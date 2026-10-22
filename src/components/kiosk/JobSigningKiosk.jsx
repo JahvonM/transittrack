@@ -1,3 +1,4 @@
+import SigningJobControls from "./SigningJobControls";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CheckCircle2, CloudOff, Plane, Users } from "lucide-react";
 import { base44 } from "@/api/base44Client";
@@ -175,6 +176,7 @@ export default function JobSigningKiosk({ device, deviceId, online }) {
           {device?.vehicle_name && <p className="truncate text-sm text-muted-foreground">{device.vehicle_name}</p>}
         </div>
         <span className="font-display text-lg font-semibold tabular-nums">{time(now)}</span>
+        <SigningJobControls deviceId={deviceId} onShowSignature={trip=>{setThanks(null);setJobs(prev=>[trip,...prev.filter(j=>j.id!==trip.id)]);}}/>
         <KioskConnectionBadge online={online} />
       </header>
       <main className="flex flex-1 items-center justify-center p-5 sm:p-8">
