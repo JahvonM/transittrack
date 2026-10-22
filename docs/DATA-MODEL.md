@@ -1158,6 +1158,8 @@ Table `trip` · belongs to a company through `vehicle_id`, then `company_id` · 
 | `dropoff_signature_request_id` | text | Makes a retried signature safe. Set by the server only. |
 | `pickup_signed_role` | text | Who signed for the pickup: a guest, or the hotel's front desk. One of: `guest`, `reception`. Set by the server only. |
 | `dropoff_signed_role` | text | Who signed for the drop-off: a guest, or the hotel's front desk. One of: `guest`, `reception`. Set by the server only. |
+| `driver_accepted_at` | timestamptz | Not sent to the browser. |
+| `pickup_arrived_at` | timestamptz | Not sent to the browser. |
 
 ### User
 

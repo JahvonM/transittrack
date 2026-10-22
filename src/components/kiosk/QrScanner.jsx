@@ -8,6 +8,7 @@ export default function QrScanner({ onDecode, active, facingMode = "environment"
   const supportCameraReserved = useSupportCameraReserved();
   const elementId = useRef(`qr-scanner-${Math.random().toString(36).slice(2)}`).current;
   const scannerRef = useRef(null);
+  const cameraLifecycle=useRef(Promise.resolve());
   const onDecodeRef = useRef(onDecode);
   onDecodeRef.current = onDecode;
   const [error, setError] = useState("");
@@ -21,13 +22,16 @@ export default function QrScanner({ onDecode, active, facingMode = "environment"
     const gate = createQrScanGate({ stableMs, warmupMs: stableMs > 0 ? 1000 : 0 });
     // Decoder settings belong to the constructor, not start(). Limit this
     // QR scanner to QR codes so ordinary barcodes cannot trigger a lookup.
-    const scanner = new Html5Qrcode(elementId, {
+    let scanner;
+    const started = cameraLifecycle.current.catch(()=>{}).then(()=>{
+    if(stopped)return;
+    scanner = new Html5Qrcode(elementId, {
       formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
       useBarCodeDetectorIfSupported: false,
       verbose: false,
     });
     scannerRef.current = scanner;
-    const started = scanner.start(
+    return scanner.start(
       { facingMode: requireFacingMode ? { exact: facingMode } : facingMode },
       { fps: 10, qrbox: compact ? ((w, h) => ({width: Math.min(160, Math.floor(Math.min(w,h)*0.7)), height: Math.min(160, Math.floor(Math.min(w,h)*0.7))})) : 220 },
       async (decodedText) => {
@@ -42,6 +46,7 @@ export default function QrScanner({ onDecode, active, facingMode = "environment"
       },
       () => gate.miss(Date.now())
     );
+    });
     started.then(() => { if (!stopped) gate.start(Date.now()); }, () => {});
     started.catch((e) => {
       if (stopped) return;
@@ -57,7 +62,7 @@ export default function QrScanner({ onDecode, active, facingMode = "environment"
     // this also turns off a camera that opens after the scanner was closed.
     return () => {
       stopped = true;
-      started.then(() => scanner.stop()).then(() => scanner.clear()).catch(() => {});
+      cameraLifecycle.current=started.catch(()=>{}).then(async()=>{if(scanner?.isScanning)await scanner.stop();scanner?.clear();}).catch(()=>{});
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, supportCameraReserved, facingMode, requireFacingMode, stableMs, elementId, compact]);

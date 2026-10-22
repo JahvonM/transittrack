@@ -75,6 +75,11 @@ test('stop choice updates next stop and navigation still opens',async({page})=>{
  await page.getByRole('button',{name:'Navigate',exact:true}).click();
  await expect(page.getByLabel('Driver navigation map')).toBeVisible();
  await expect(page.locator('.dl-trip-panel')).toBeVisible();
+ const inline=await page.getByLabel('Driver navigation map',{exact:true}).boundingBox(),stage=await page.locator('.dl-map-stage').boundingBox();
+ expect(inline.x).toBeGreaterThanOrEqual(stage.x);expect(inline.x+inline.width).toBeLessThanOrEqual(stage.x+stage.width+1);
+ await expect(page.getByRole('button',{name:'Zoom in',exact:true})).toBeVisible();
+ await page.screenshot({path:'/tmp/tt-inline-driver-nav.png'});
+
  await page.getByRole('button',{name:'Street',exact:true}).click();
  await expect(page.getByRole('button',{name:'Street',exact:true})).toHaveAttribute('aria-pressed','true');
  await page.getByRole('button',{name:'Satellite',exact:true}).click();

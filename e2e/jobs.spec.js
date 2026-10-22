@@ -249,3 +249,34 @@ test('at the hotel the front desk confirms the drop-off; the driver sends a meet
   await expect(page.getByText('Showing on 1 boarding/sign-in device(s).', { exact: true })).toBeVisible();
   await expect(page.getByRole('dialog', { name: 'Name sign' })).toHaveCount(0);
 });
+
+test('signing operator unlocks jobs and chooses the correct pickup signature',async({page})=>{
+ const device={device_id:'signer',paired:true,status:'active',kiosk_type:'job_signing',company_id:'a',vehicle_id:'bus-a',vehicle_name:'Bus 12'};
+ const jobs=[{id:'earlier',status:'on_the_way',pickup_name:'First Airport',dropoff_name:'First Hotel',scheduled_time:'2026-10-22T10:00:00Z'},
+ {id:'chosen',status:'on_the_way',pickup_name:'Chosen Airport',dropoff_name:'Chosen Hotel',scheduled_time:'2026-10-22T11:00:00Z',notes:'Operator-only instructions'}];
+ const actions=[];
+ await page.addInitScript(()=>{localStorage.setItem('tt_kiosk_device_id','signer');localStorage.setItem('tt_device_token_signer','e'.repeat(64));});
+ await page.route('**/api/**',route=>{
+  const url=route.request().url();let body={};try{body=route.request().postDataJSON()||{};}catch{}
+  if(url.includes('/functions/kioskHeartbeat'))return route.fulfill({json:device});
+  if(url.includes('/functions/jobSigning')){
+   actions.push(body);
+   if(body.action==='state')return route.fulfill({json:{jobs:jobs.map(({notes,...j})=>j)}});
+   if(body.action==='unlock_operator')return route.fulfill(body.pin==='1234'?{json:{operator_grant:'f'.repeat(64)}}:{status:403,json:{error:'Incorrect bus PIN'}});
+   if(body.action==='operator_state')return route.fulfill({json:{jobs}});
+   if(body.action==='arrive')return route.fulfill({json:{trip:jobs.find(j=>j.id===body.trip_id)}});
+  }
+  return route.fulfill({json:{id:'test-app',public_settings:{authentication_required:false}}});
+ });
+ await page.goto('/kiosk');
+ await page.getByRole('button',{name:'Job controls',exact:true}).click();
+ await page.getByLabel('Bus PIN',{exact:true}).fill('1234');
+ await page.getByRole('button',{name:'Unlock job controls',exact:true}).click();
+ const job=page.getByRole('dialog').locator('section').filter({hasText:'Chosen Airport'});
+ await expect(job).toContainText('Operator-only instructions');
+ await job.getByRole('button',{name:'Arrived at pickup · Show sign-in',exact:true}).click();
+ await expect(page.getByRole('dialog')).toHaveCount(0);
+ await expect(page.getByText('Chosen Airport',{exact:false}).first()).toBeVisible();
+ expect(actions.find(a=>a.action==='arrive')).toMatchObject({trip_id:'chosen',operator_grant:'f'.repeat(64),stage:'pickup'});
+ await expect(page.getByText('Operator-only instructions',{exact:true})).toHaveCount(0);
+});
