@@ -13,7 +13,7 @@
 // The steps around the switch are in docs/SWITCH-TO-SUPABASE.md.
 export type Backend = 'base44' | 'supabase';
 
-export const LIVE_BACKEND: Backend = 'base44';
+export const LIVE_BACKEND: Backend = 'supabase';
 
 // Where this copy of the code runs. tools/supabase/build-functions.mjs writes
 // 'supabase' into the copy under supabase/functions/_shared, so the Supabase
