@@ -69,3 +69,30 @@ from before the switch), and turn the three Supabase email jobs off again
   Supabase directly, and re-pair the tablets (this also retires the two older
   tablets' legacy sign-in).
 - Step 9: once things have run quietly for a while, retire Base44.
+
+
+## Cutover completed — 22 October 2026
+
+- Live backend switched in commit `c186c680c929100085375c3ee5b42bed87ba9680`.
+- Supabase function deployment run `39780161870` completed successfully.
+- Release checks run `39780162077` passed lint, unit tests, production build,
+  mocked browser regression tests, and security release readiness.
+- Production on both app.mcsweenstransport.com and
+  eager-transit-track-go.base44.app serves the release built at
+  `2026-10-22T12:40:16.204Z` (build label `2026-10-22 12:39`).
+- Production Google sign-in opened Admin; fleet overview and passenger
+  directory loaded. Five cron jobs are active, including the three email jobs.
+- Final migration read 3,059 rows with no row copy failures. All 23 files were
+  copied or already present. Seven of eight people have linked sign-in
+  accounts; the remaining email was unverified. Extra target rows were job,
+  notification, and error logs. `User.bogus_field_xyz` has no target column;
+  its original value remains in Base44. No schema or source rows were deleted.
+- Physical tablet checks remain: GPS movement, NFC/QR boarding, push delivery,
+  desktop sign-in, and live screen/camera viewing. Tablets were offline during
+  the remote checks; no physical-device success is claimed.
+- Base44 still hosts the web frontend and forwards older tablet calls. Retiring
+  Base44 is a separate later step.
+
+The Windows checkout may contain older local migration edits. Review its diff
+before merging or pushing; the remote main branch already contains the final
+portability and test-fixture fixes.
