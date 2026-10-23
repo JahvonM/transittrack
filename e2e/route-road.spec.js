@@ -7,7 +7,9 @@ const shot=async(page,name)=>{ if(SHOTS) await page.screenshot({path:`${SHOTS}/$
 async function planner(page){
  const saved=[];
  const routes=[{id:'route-a',name:'Coastal road',company_id:'a',company_name:'Company A',type:'staff',stops:[],
-  path:[{lat:12.05,lng:-61.75},{lat:12.04,lng:-61.755},{lat:12.03,lng:-61.76}],path_via:[{lat:12.05,lng:-61.75},{lat:12.03,lng:-61.76}]}];
+  path:[{lat:12.05,lng:-61.75},{lat:12.04,lng:-61.755},{lat:12.03,lng:-61.76}],path_via:[{lat:12.05,lng:-61.75},{lat:12.03,lng:-61.76}]},
+  {id:'route-b',name:'Staff stops',company_id:'a',company_name:'Company A',type:'staff',
+   stops:[{name:'First stop',lat:12.05,lng:-61.75},{name:'Second stop',lat:12.03,lng:-61.76}]}];
  await page.addInitScript(()=>{ localStorage.setItem('base44_access_token','mock-authenticated-session'); });
  await page.route('https://api.mapbox.com/**',r=>{
   const url=r.request().url();
@@ -44,6 +46,26 @@ async function planner(page){
 }
 
 test.use({viewport:{width:1440,height:900}});
+
+test('switching between stop routes and drawn roads keeps the map and editor working',async({page})=>{
+ const errors=[];
+ page.on('pageerror',error=>errors.push(error.message));
+ await planner(page);
+ await page.goto('/admin/route-planner');
+ await expect(page.locator('.mapboxgl-canvas')).toBeVisible();
+ for(let i=0;i<2;i++){
+  await page.getByRole('button',{name:/Staff stops/}).last().click();
+  await expect(page.getByLabel('Route name')).toHaveValue('Staff stops');
+  await expect(page.getByRole('region',{name:'Stops (2)'})).toBeVisible();
+  await page.getByRole('button',{name:/Coastal road/}).last().click();
+  await expect(page.getByLabel('Route name')).toHaveValue('Coastal road');
+  await expect(page.getByRole('region',{name:'Road',exact:true})).toContainText('2.5 km');
+ }
+ await page.getByRole('button',{name:'New route',exact:true}).click();
+ await expect(page.getByLabel('Route name')).toHaveValue('');
+ await expect(page.locator('.mapboxgl-canvas')).toBeVisible();
+ expect(errors).toEqual([]);
+});
 
 test('a saved route shows its drawn road',async({page})=>{
  await planner(page);
