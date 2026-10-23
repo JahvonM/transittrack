@@ -4,7 +4,7 @@ package com.transittrack.app;
 final class TabletControlPolicy {
     static boolean id(String value) { return value != null && value.matches("[a-f0-9]{32}"); }
     static boolean token(String value) { return value != null && value.matches("[a-f0-9]{64}"); }
-    static boolean action(String value) { return "lock_test".equals(value) || "release".equals(value) || "reboot".equals(value) || "app_update".equals(value); }
+    static boolean action(String value) { return "lock_test".equals(value) || "release".equals(value) || "reboot".equals(value) || "app_update".equals(value) || "kiosk_prepare".equals(value) || "kiosk_enable".equals(value) || "kiosk_disable".equals(value) || "kiosk_maintenance".equals(value); }
     static boolean proof(String id, String expected, String action, long ttl, long lease) {
         return id(id) && id.equals(expected) && action(action) && ttl > 0 && ttl <= 120000 &&
             (!"lock_test".equals(action) || (lease > 0 && lease <= 600000));

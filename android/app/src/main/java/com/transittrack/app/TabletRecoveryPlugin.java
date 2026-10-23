@@ -11,7 +11,8 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 @CapacitorPlugin(name = "TabletRecovery")
 public class TabletRecoveryPlugin extends Plugin {
     @PluginMethod public void setFullscreen(PluginCall call) {
-        boolean enabled = Boolean.TRUE.equals(call.getBoolean("enabled", true));
+        boolean enabled = (KioskMode.enabled(getContext()) && !KioskMode.maintenance(getContext())) || Boolean.TRUE.equals(call.getBoolean("enabled", true));
+        if (!getContext().getSharedPreferences("tablet_display", android.content.Context.MODE_PRIVATE).edit().putBoolean("fullscreen", enabled).commit()) { call.reject("Could not save fullscreen preference."); return; }
         getActivity().runOnUiThread(() -> {
             android.view.View decor = getActivity().getWindow().getDecorView();
             decor.setSystemUiVisibility(enabled
@@ -19,6 +20,7 @@ public class TabletRecoveryPlugin extends Plugin {
                   | android.view.View.SYSTEM_UI_FLAG_HIDE_NAVIGATION | android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE
                   | android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN | android.view.View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
                 : android.view.View.SYSTEM_UI_FLAG_VISIBLE);
+            if (enabled) KioskMode.immersive(getActivity());
             call.resolve();
         });
     }

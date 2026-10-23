@@ -33,6 +33,7 @@ public class TabletRecoveryActivity extends Activity {
     }
     @Override protected void onResume() {
         super.onResume();
+        KioskMode.resume(this);
         SharedPreferences p = getSharedPreferences(TabletScreenRecovery.STORE, Context.MODE_PRIVATE);
         long now = System.currentTimeMillis(), start = p.getLong("window", 0);
         int attempts = p.getInt("attempts", 0);

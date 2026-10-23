@@ -64,6 +64,12 @@ export function helperHealthPayload() {
       report.management_available = true;
       report.management_owner = management.deviceOwner === true;
       report.management_locked = management.locked === true;
+      report.kiosk_available = management.kioskAvailable === true;
+      report.kiosk_enabled = management.kioskEnabled === true;
+      report.kiosk_recovery_ready = management.kioskRecoveryReady === true;
+      report.kiosk_maintenance = management.kioskMaintenance === true;
+      report.kiosk_startup = management.kioskStartup === true;
+      report.kiosk_locked = management.kioskLocked === true;
     }
     return { helper_health: report };
   } catch {

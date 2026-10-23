@@ -87,7 +87,7 @@ public class TabletControlPlugin extends Plugin {
                 updateDialog.dismiss(); updateDialog = null;
             }
             checkLease();
-            JSObject out = new JSObject();
+            JSObject out = KioskMode.state(getContext());
             out.put("available", true); out.put("deviceOwner", owner());
             out.put("locked", locked()); out.put("temporaryLock", prefs.getBoolean("lease", false));
             out.put("leaseSeconds", Math.max(0, (prefs.getLong("leaseElapsed", 0) - SystemClock.elapsedRealtime()) / 1000));
@@ -110,7 +110,16 @@ public class TabletControlPlugin extends Plugin {
         if (!owner()) return "DEVICE_OWNER_REQUIRED";
         try {
             if ("release".equals(action)) return prefs.getBoolean("lease", false) ? (releaseLease() ? "RELEASED" : "ANDROID_ERROR") : "NO_LOCK";
+            if ("kiosk_prepare".equals(action)) return KioskMode.prepare(getActivity());
+            if ("kiosk_enable".equals(action)) return KioskMode.enable(getActivity());
+            if ("kiosk_disable".equals(action)) return KioskMode.disable(getContext());
+            if ("kiosk_maintenance".equals(action)) {
+                String result = KioskMode.maintain(getContext());
+                if ("KIOSK_MAINTENANCE".equals(result)) getActivity().startActivity(new android.content.Intent(getActivity(), KioskMaintenanceActivity.class));
+                return result;
+            }
             if ("lock_test".equals(action)) {
+                if (KioskMode.enabled(getContext())) return "ALREADY_LOCKED";
                 if (Build.VERSION.SDK_INT < 23) return "UNSUPPORTED";
                 if (locked() || prefs.getBoolean("lease", false) || policy().isLockTaskPermitted(getContext().getPackageName())) return "ALREADY_LOCKED";
                 if (!TabletLockRecovery.canSchedule(getContext())) return "RECOVERY_UNAVAILABLE";
