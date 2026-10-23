@@ -69,7 +69,7 @@ public class LocalKioskSettingsTest {
         android.content.SharedPreferences p=context.getSharedPreferences("transittrack_network",Context.MODE_PRIVATE);
         p.edit().putBoolean("enabled",true).putBoolean("always",true).putString("mode","driver").commit();
         TabletHotspotStartupService.start(context);
-        assertEquals("HOTSPOT_UNSUPPORTED",p.getString("startup_code",""));
+        assertEquals("HOTSPOT_ANDROID_VERSION_UNSUPPORTED",p.getString("startup_code",""));
         assertTrue(p.getBoolean("always",false)); // Preserve the requested policy, separately from actual power.
     }
 }
