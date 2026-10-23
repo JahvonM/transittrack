@@ -81,8 +81,7 @@ final class KioskMode {
             if (!prefs(a).edit().putString("previous_packages", previous.toString()).putInt("previous_features", features)
                 .putBoolean("previous_window_restriction", policy(a).getUserRestrictions(admin(a)).getBoolean(UserManager.DISALLOW_CREATE_WINDOWS))
                 .putBoolean("enabled", true).remove("maintenance_elapsed").remove("maintenance_wall").commit()) return "STORAGE_ERROR";
-        }
-        if (!prefs(a).edit().remove("maintenance_elapsed").remove("maintenance_wall").commit()) return "STORAGE_ERROR";
+        } else if (!prefs(a).edit().remove("maintenance_elapsed").remove("maintenance_wall").commit()) return "STORAGE_ERROR";
         try {
             configure(a); a.startLockTask();
             if (!locked(a)) throw new IllegalStateException();
@@ -94,6 +93,11 @@ final class KioskMode {
         DevicePolicyManager d = policy(c);
         JSONArray previous = new JSONArray(prefs(c).getString("previous_packages", "[]"));
         String[] names = new String[previous.length()]; for (int i = 0; i < names.length; i++) names[i] = previous.getString(i);
+        // Removing this package ends its running task even if it was allowlisted before setup.
+        // Re-adding an earlier allowlist entry must not leave maintenance pinned.
+        java.util.ArrayList<String> release = new java.util.ArrayList<>();
+        for (String name : names) if (!name.equals(c.getPackageName())) release.add(name);
+        d.setLockTaskPackages(admin(c), release.toArray(new String[0]));
         d.setLockTaskPackages(admin(c), names);
         if (Build.VERSION.SDK_INT >= 28) d.setLockTaskFeatures(admin(c), prefs(c).getInt("previous_features", DevicePolicyManager.LOCK_TASK_FEATURE_GLOBAL_ACTIONS));
         d.clearPackagePersistentPreferredActivities(admin(c), c.getPackageName());

@@ -65,4 +65,31 @@ public class ManagedKioskTest {
         }
         assertFalse(TabletControlPolicy.action("kiosk_shell"));
     }
+    @Test public void managedPolicyHidesNavigationAndRestoresEarlierAllowlistForMaintenance() {
+        org.robolectric.Shadows.shadowOf(KioskMode.policy(context)).setDeviceOwner(KioskMode.admin(context));
+        String own = context.getPackageName();
+        KioskMode.prefs(context).edit().putBoolean("enabled",true)
+            .putString("previous_packages", "[\"com.example.previous\",\"" + own + "\"]")
+            .putInt("previous_features",android.app.admin.DevicePolicyManager.LOCK_TASK_FEATURE_HOME).commit();
+        KioskMode.configure(context);
+        assertArrayEquals(new String[]{own}, KioskMode.policy(context).getLockTaskPackages(KioskMode.admin(context)));
+        int features = KioskMode.policy(context).getLockTaskFeatures(KioskMode.admin(context));
+        assertEquals(0, features & (android.app.admin.DevicePolicyManager.LOCK_TASK_FEATURE_HOME
+            | android.app.admin.DevicePolicyManager.LOCK_TASK_FEATURE_OVERVIEW | android.app.admin.DevicePolicyManager.LOCK_TASK_FEATURE_NOTIFICATIONS));
+        assertTrue(KioskMode.policy(context).getUserRestrictions(KioskMode.admin(context)).getBoolean(android.os.UserManager.DISALLOW_CREATE_WINDOWS));
+        assertEquals("KIOSK_MAINTENANCE",KioskMode.maintain(context));
+        assertTrue(KioskMode.maintenance(context));
+        assertArrayEquals(new String[]{"com.example.previous", own}, KioskMode.policy(context).getLockTaskPackages(KioskMode.admin(context)));
+        assertFalse(KioskMode.policy(context).getUserRestrictions(KioskMode.admin(context)).getBoolean(android.os.UserManager.DISALLOW_CREATE_WINDOWS));
+        assertEquals(android.app.admin.DevicePolicyManager.LOCK_TASK_FEATURE_HOME,KioskMode.policy(context).getLockTaskFeatures(KioskMode.admin(context)));
+    }
+    @Test public void disablePreservesAWindowRestrictionThatPredatedKioskSetup() {
+        org.robolectric.Shadows.shadowOf(KioskMode.policy(context)).setDeviceOwner(KioskMode.admin(context));
+        KioskMode.prefs(context).edit().putBoolean("enabled",true).putBoolean("previous_window_restriction",true).commit();
+        KioskMode.configure(context);
+        assertEquals("KIOSK_DISABLED",KioskMode.disable(context));
+        assertFalse(KioskMode.enabled(context));
+        assertTrue(KioskMode.policy(context).getUserRestrictions(KioskMode.admin(context)).getBoolean(android.os.UserManager.DISALLOW_CREATE_WINDOWS));
+    }
+
 }
