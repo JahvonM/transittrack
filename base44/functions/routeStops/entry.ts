@@ -242,7 +242,7 @@ export default async function(req) {
       }
       return Response.json({
         route_id: route.id,
-        stop: { name: stop.name, lat: stop.lat, lng: stop.lng, fixed: stop.fixed, shared_with: stop.riders.length - 1, moved_m: mine.moved_m, order: result.stops.indexOf(stop), bus_id: routeBus?.id || null, bus_order: busOrder, stops_away: stopsAway },
+        stop: { name: stop.name, lat: stop.lat, lng: stop.lng, fixed: stop.fixed, shared_with: stop.riders.length - 1, moved_m: mine.moved_m, order: result.stops.indexOf(stop), bus_id: routeBus?.id || null, bus_order: busOrder, stops_away: stopsAway, count_at: stopsAway == null ? null : new Date().toISOString() },
       });
     }
 
