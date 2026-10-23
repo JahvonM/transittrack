@@ -129,3 +129,17 @@ export function pickupStops({ road, fixed = [], pickups = [], mergeM = DEFAULT_M
   }
   return { stops, offRoad };
 }
+
+/**
+ * Only a count, never another passenger's pickup coordinates.
+ * The caller must separately verify the bus is actively tracking and that
+ * the location timestamp is fresh.
+ */
+export function stopsUntilPickup(stops, targetIndex, road, lat, lng) {
+  if (!Array.isArray(stops) || !Number.isInteger(targetIndex) || targetIndex < 0 || targetIndex >= stops.length) return null;
+  const at = placeOnRoad(road, Number(lat), Number(lng));
+  if (!at || at.off > 200) return null;
+  const next = stops.findIndex((s) => Number(s.along) > at.along - 30);
+  const nextIndex = next < 0 ? stops.length : next;
+  return targetIndex >= nextIndex ? targetIndex - nextIndex : null;
+}

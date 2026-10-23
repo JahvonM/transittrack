@@ -252,7 +252,19 @@ export default function StaffPortal() {
       setSharedStop(data?.stop || null);
     } catch { /* keep the pickup as saved */ }
   }, [user?.pickup_lat, user?.pickup_lng, user?.pickup_route_id]);
-  useEffect(() => { if (company?.id) refreshSharedStop(); }, [company?.id, refreshSharedStop]);
+  useEffect(() => {
+    if (!company?.id) return undefined;
+    refreshSharedStop();
+    // On drawn-road routes, the server supplies only this passenger's stop
+    // index and a private count of stops ahead; never other riders' addresses.
+    // Refresh while visible to handle drivers that lack road_next_stop uploads.
+    const refreshVisible = () => {
+      if (document.visibilityState === 'visible' && navigator.onLine) refreshSharedStop();
+    };
+    const id = setInterval(refreshVisible, 60_000);
+    document.addEventListener('visibilitychange', refreshVisible);
+    return () => { clearInterval(id); document.removeEventListener('visibilitychange', refreshVisible); };
+  }, [company?.id, refreshSharedStop]);
   useEffect(() => {
     if (!company?.id) return undefined;
     const onShow = () => { if (document.visibilityState === 'visible') refreshMyBus(); };
@@ -514,7 +526,12 @@ export default function StaffPortal() {
     && sharedStop?.bus_id === busOnMap.id && Number.isInteger(sharedStop?.bus_order) && Number.isInteger(busOnMap.road_next_stop)
     && sharedStop.bus_order >= busOnMap.road_next_stop ? sharedStop.bus_order - busOnMap.road_next_stop : null;
   const stopsAway = roadStopsAway != null ? roadStopsAway
-    : liveForCount && nextStopIndex!=null && pickupIndex>=nextStopIndex ? pickupIndex-nextStopIndex : null;
+    : liveForCount && stop?.personal && sharedStop?.bus_id === busOnMap.id
+      && Number.isInteger(sharedStop?.stops_away) && sharedStop.stops_away >= 0
+      && Number.isFinite(Date.parse(sharedStop?.count_at))
+      && now - Date.parse(sharedStop.count_at) <= 90_000
+      ? sharedStop.stops_away
+      : liveForCount && nextStopIndex!=null && pickupIndex>=nextStopIndex ? pickupIndex-nextStopIndex : null;
 
 
   // Same rule as the main estimate: no stop times from a position more than
