@@ -281,12 +281,13 @@ export default function RoutePlanner() {
               <GeolocateControl position="bottom-right" trackUserLocation showUserLocation showAccuracyCircle
                 positionOptions={{ enableHighAccuracy: true, timeout: 15000 }}
                 onError={() => toast({ title: "Couldn't get your location", description: "Allow location access for McSween Transport and try the location button again.", variant: "destructive" })} />
+              {/* Source IDs are immutable: replace the source when changing line modes. */}
               {road ? (
-                <Source id="planner-road" type="geojson" data={{ type: "Feature", geometry: { type: "LineString", coordinates: road } }}>
+                <Source key="planner-road" id="planner-road" type="geojson" data={{ type: "Feature", geometry: { type: "LineString", coordinates: road } }}>
                   <Layer id="planner-road-line" type="line" layout={{ "line-cap": "round", "line-join": "round" }} paint={{ "line-color": accent, "line-width": 6, "line-opacity": 0.9 }} />
                 </Source>
               ) : routeCoords.length > 1 && (
-                <Source id="planner-route" type="geojson" data={{ type: "Feature", geometry: { type: "LineString", coordinates: routeCoords } }}>
+                <Source key="planner-route" id="planner-route" type="geojson" data={{ type: "Feature", geometry: { type: "LineString", coordinates: routeCoords } }}>
                   <Layer id="planner-route-line" type="line" layout={{ "line-cap": "round", "line-join": "round" }} paint={{ "line-color": accent, "line-width": 5, "line-opacity": 0.85, "line-dasharray": [2, 1.5] }} />
                 </Source>
               )}
