@@ -76,11 +76,11 @@ public class ManagedKioskTest {
         int features = KioskMode.policy(context).getLockTaskFeatures(KioskMode.admin(context));
         assertEquals(0, features & (android.app.admin.DevicePolicyManager.LOCK_TASK_FEATURE_HOME
             | android.app.admin.DevicePolicyManager.LOCK_TASK_FEATURE_OVERVIEW | android.app.admin.DevicePolicyManager.LOCK_TASK_FEATURE_NOTIFICATIONS));
-        assertTrue(KioskMode.policy(context).getUserRestrictions(KioskMode.admin(context)).getBoolean(android.os.UserManager.DISALLOW_CREATE_WINDOWS));
+        assertTrue(((android.os.UserManager)context.getSystemService(Context.USER_SERVICE)).hasUserRestriction(android.os.UserManager.DISALLOW_CREATE_WINDOWS));
         assertEquals("KIOSK_MAINTENANCE",KioskMode.maintain(context));
         assertTrue(KioskMode.maintenance(context));
         assertArrayEquals(new String[]{"com.example.previous", own}, KioskMode.policy(context).getLockTaskPackages(KioskMode.admin(context)));
-        assertFalse(KioskMode.policy(context).getUserRestrictions(KioskMode.admin(context)).getBoolean(android.os.UserManager.DISALLOW_CREATE_WINDOWS));
+        assertFalse(((android.os.UserManager)context.getSystemService(Context.USER_SERVICE)).hasUserRestriction(android.os.UserManager.DISALLOW_CREATE_WINDOWS));
         assertEquals(android.app.admin.DevicePolicyManager.LOCK_TASK_FEATURE_HOME,KioskMode.policy(context).getLockTaskFeatures(KioskMode.admin(context)));
     }
     @Test public void disablePreservesAWindowRestrictionThatPredatedKioskSetup() {
@@ -89,7 +89,7 @@ public class ManagedKioskTest {
         KioskMode.configure(context);
         assertEquals("KIOSK_DISABLED",KioskMode.disable(context));
         assertFalse(KioskMode.enabled(context));
-        assertTrue(KioskMode.policy(context).getUserRestrictions(KioskMode.admin(context)).getBoolean(android.os.UserManager.DISALLOW_CREATE_WINDOWS));
+        assertTrue(((android.os.UserManager)context.getSystemService(Context.USER_SERVICE)).hasUserRestriction(android.os.UserManager.DISALLOW_CREATE_WINDOWS));
     }
 
 }
