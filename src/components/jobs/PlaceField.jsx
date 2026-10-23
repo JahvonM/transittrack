@@ -21,6 +21,7 @@ export default function PlaceField({ id, label, value, onChange, places = [], ro
     [routes]
   );
   const savedPlaces = useMemo(() => orderedJobPlaces(places), [places]);
+  const favouritePlaces = savedPlaces.filter((p) => p.favorite).slice(0, 6);
   const savedMatch = value && places.some((p) => p.name === value.name && p.lat === value.lat && p.lng === value.lng);
 
   const pick = (key) => {
@@ -68,6 +69,16 @@ export default function PlaceField({ id, label, value, onChange, places = [], ro
         </div>
       ) : (
         <div className="space-y-2">
+          {favouritePlaces.length > 0 && (
+            <div className="flex flex-wrap gap-1.5" aria-label="Favourite destinations">
+              {favouritePlaces.map((p) => (
+                <button key={p.id} type="button" onClick={() => pick(`place:${p.id}`)}
+                  className="inline-flex items-center gap-1 rounded-full border border-border bg-secondary/50 px-2.5 py-1 text-caption font-medium hover:bg-accent">
+                  <Star className="h-3 w-3 text-primary" aria-hidden="true" />{p.name}
+                </button>
+              ))}
+            </div>
+          )}
           {(places.length > 0 || stops.length > 0) && (
             <Select value="" onValueChange={pick}>
               <SelectTrigger id={id}><SelectValue placeholder={stops.length ? "Saved place or bus stop" : "Saved place"} /></SelectTrigger>
