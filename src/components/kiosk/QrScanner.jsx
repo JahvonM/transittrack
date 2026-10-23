@@ -73,9 +73,9 @@ export default function QrScanner({ onDecode, active, facingMode = "environment"
   if (supportCameraReserved) return <p role="status" className="p-3 text-sm">QR camera paused while native camera capture is active. Card taps and keypad remain available.</p>;
 
   return (
-    <div className="space-y-2">
+    <div className="relative">
       <div id={elementId} className="rounded-xl overflow-hidden bg-black/80 mx-auto" style={{ width: compact ? "100%" : 260, height: compact ? 180 : 260 }} />
-      {error && <div role="alert" className="space-y-2 text-center"><p className="text-sm text-destructive">{error}</p><Button type="button" variant="outline" onClick={() => setRetry(v => v + 1)}>Try camera again</Button></div>}
+      {error && <div role="alert" className="absolute inset-0 flex flex-col items-center justify-center gap-2 overflow-y-auto rounded-xl bg-background/95 p-3 text-center"><p className="text-sm text-destructive">{error}</p><Button type="button" variant="outline" onClick={() => setRetry(v => v + 1)}>Try camera again</Button></div>}
     </div>
   );
 }
