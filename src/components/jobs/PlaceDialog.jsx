@@ -30,7 +30,7 @@ export default function PlaceDialog({ open, onOpenChange, place, onSaved }) {
     if (!open) return;
     setForm(place
       ? { name: place.name || "", kind: place.kind || "other", address: place.address || "", lat: place.lat ?? null, lng: place.lng ?? null, notes: place.notes || "", favorite: !!place.favorite }
-      : { name: "", kind: "hotel", address: "", lat: null, lng: null, notes: "" });
+      : { name: "", kind: "hotel", address: "", lat: null, lng: null, notes: "", favorite: false });
   }, [open, place]);
 
   const set = (patch) => setForm((f) => ({ ...f, ...patch }));
