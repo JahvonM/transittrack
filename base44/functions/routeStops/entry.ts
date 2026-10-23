@@ -217,16 +217,32 @@ export default async function(req) {
       // bus's next stop index subtracted from this. Just a number: no one
       // else's pickup leaves the server.
       let busOrder = null;
+      let stopsAway = null;
       if (routeBus) {
         const byId = new Map(result.riders.map((r) => [r.id, r]));
         const ridesBus = (r) => !!r && (!r.bus_id || r.bus_id === routeBus.id);
         const busStops = result.stops.filter((s) => s.fixed || s.riders.some((x) => ridesBus(byId.get(x.id))));
         const at = busStops.findIndex((s) => s.key === stop.key);
-        if (at >= 0) busOrder = at;
+        if (at >= 0) {
+          busOrder = at;
+          // Server-side count when the driver has not yet uploaded road_next_stop.
+          // Never send other passengers' coordinates, stop names or identities.
+          const seenAt = Date.parse(routeBus.last_location_update || '');
+          const fresh = routeBus.tracking_active && Number.isFinite(seenAt)
+            && Date.now() - seenAt <= 120000 && seenAt <= Date.now() + 30000;
+          const gps = fresh && routeBus.current_lat != null && routeBus.current_lng != null
+            ? placeOnRoad(result.road, Number(routeBus.current_lat), Number(routeBus.current_lng))
+            : null;
+          if (gps && gps.off <= 200) {
+            const next = busStops.findIndex((s) => Number(s.along) > gps.along - 30);
+            const nextIndex = next < 0 ? busStops.length : next;
+            if (at >= nextIndex) stopsAway = at - nextIndex;
+          }
+        }
       }
       return Response.json({
         route_id: route.id,
-        stop: { name: stop.name, lat: stop.lat, lng: stop.lng, fixed: stop.fixed, shared_with: stop.riders.length - 1, moved_m: mine.moved_m, order: result.stops.indexOf(stop), bus_id: routeBus?.id || null, bus_order: busOrder },
+        stop: { name: stop.name, lat: stop.lat, lng: stop.lng, fixed: stop.fixed, shared_with: stop.riders.length - 1, moved_m: mine.moved_m, order: result.stops.indexOf(stop), bus_id: routeBus?.id || null, bus_order: busOrder, stops_away: stopsAway },
       });
     }
 
