@@ -59,6 +59,6 @@ Run on Windows:
 
     powershell.exe -NoProfile -STA -ExecutionPolicy Bypass -File .\tools\kiosk\McSween-Kiosk-Setup.ps1 -SelfTest
 
-The Windows workflow checks PowerShell syntax, USB device selection including offline/unauthorized cases, separation of device owner from active admins/profile owners, rejection of another owner, stop-on-error behavior, Windows argument quoting, and construction of the real Forms window.
+The Windows workflow checks PowerShell syntax, USB device selection including offline/unauthorized cases, separation of device owner from active admins/profile owners, rejection of another owner, stop-on-error behavior, Windows argument quoting including a real child-process round trip, and construction of the real Forms window.
 SelfTest never runs ADB, installs an APK, builds the app, or changes a device.
 Physical USB installation and Android ownership still need testing on the target devices.

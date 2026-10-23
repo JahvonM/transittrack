@@ -446,14 +446,48 @@ function Invoke-SetupSelfTest{
     Assert-TestEqual '"C:\Program Files\tool.ps1"' (ConvertTo-ProcessArgument 'C:\Program Files\tool.ps1') 'spaced path'
     Assert-TestEqual '"a\"b"' (ConvertTo-ProcessArgument 'a"b') 'embedded quote'
     Assert-TestEqual '"C:\Folder with space\\"' (ConvertTo-ProcessArgument 'C:\Folder with space\') 'trailing backslash'
-    # Construct the real UI without displaying it or launching any worker.
+    # Exercise the actual Windows PowerShell -File argument transport used by GUI workers.
+    $probeDirectory=Join-Path ([IO.Path]::GetTempPath()) ('McSween setup test '+[guid]::NewGuid().ToString('N'))
+    [void][IO.Directory]::CreateDirectory($probeDirectory)
+    $probeProcess=$null
+    try{
+        $probePath=Join-Path $probeDirectory 'argument probe.ps1'
+        $probeOutput=Join-Path $probeDirectory 'result.json'
+        $probeSource='param([string]$First,[AllowEmptyString()][string]$Empty,[string]$Last,[string]$OutputFile)'+[Environment]::NewLine+
+            '[IO.File]::WriteAllText($OutputFile,(@{First=$First;Empty=$Empty;Last=$Last}|ConvertTo-Json))'
+        [IO.File]::WriteAllText($probePath,$probeSource,$script:Utf8)
+        $probeArguments=@('-NoProfile','-ExecutionPolicy','Bypass','-File',$probePath,'-First','C:\Folder with space\','-Empty','','-Last','a"b','-OutputFile',$probeOutput)
+        $probeInfo=[Diagnostics.ProcessStartInfo]::new()
+        $probeInfo.FileName=Join-Path $PSHOME 'powershell.exe'
+        $probeInfo.Arguments=($probeArguments|ForEach-Object{ConvertTo-ProcessArgument ([string]$_)}) -join ' '
+        $probeInfo.UseShellExecute=$false;$probeInfo.CreateNoWindow=$true
+        $probeInfo.RedirectStandardOutput=$true;$probeInfo.RedirectStandardError=$true
+        $probeProcess=[Diagnostics.Process]::new();$probeProcess.StartInfo=$probeInfo
+        if(-not $probeProcess.Start()){throw 'Argument probe could not start.'}
+        if(-not $probeProcess.WaitForExit(20000)){throw 'Argument probe timed out.'}
+        if($probeProcess.ExitCode -ne 0){throw ('Argument probe failed: '+$probeProcess.StandardError.ReadToEnd())}
+        $probeResult=Get-Content -LiteralPath $probeOutput -Raw|ConvertFrom-Json
+        Assert-TestEqual 'C:\Folder with space\' $probeResult.First 'real worker spaced path'
+        Assert-TestEqual '' $probeResult.Empty 'real worker empty parameter'
+        Assert-TestEqual 'a"b' $probeResult.Last 'real worker embedded quote'
+    }finally{
+        if($null -ne $probeProcess){
+            if(-not $probeProcess.HasExited){$probeProcess.Kill()}
+            $probeProcess.Dispose()
+        }
+        Remove-Item -LiteralPath $probeDirectory -Recurse -Force
+    }
+    # Construct the real UI without displaying it or launching any device worker.
     $window=New-SetupWindow
     try{
         Assert-TestEqual 9 $script:ActionButtons.Count 'UI action count'
         Assert-TestEqual 'DropDownList' ($script:DeviceBox.DropDownStyle.ToString()) 'explicit device selection'
         Assert-TestEqual $null $script:ActiveJob 'UI construction has no operation side effect'
+        Start-SetupAction 'Install'
+        Assert-TestEqual $null $script:ActiveJob 'install without selection cannot start a worker'
+        if($script:StatusLabel.Text -notlike 'Select a device first*'){throw 'Missing selection was not explained.'}
     }finally{$script:PollTimer.Dispose();$window.Dispose()}
-    Write-Output 'PASS: PowerShell syntax, USB selection, owner parsing, stop-on-error, argument quoting, and Windows Forms construction.'
+    Write-Output 'PASS: PowerShell syntax, USB selection, owner parsing, stop-on-error, real worker argument transport, and Windows Forms construction.'
 }
 
 if($env:OS -ne 'Windows_NT'){throw 'This setup app requires Windows PowerShell 5.1 on Windows.'}
