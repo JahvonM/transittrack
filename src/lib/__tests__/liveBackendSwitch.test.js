@@ -72,10 +72,17 @@ describe("the switch to Supabase", () => {
     const native = new Set();
     for (const dir of ["android/app/src/main/java/com/transittrack/app"]) {
       for (const file of fs.readdirSync(dir)) {
-        for (const m of fs.readFileSync(`${dir}/${file}`, "utf8").matchAll(/\/functions\/([A-Za-z0-9_-]+)/g)) native.add(m[1]);
+        for (const m of fs.readFileSync(`${dir}/${file}`, "utf8").matchAll(/https:\/\/([^/"\s]+)\/functions\/v1\/([A-Za-z0-9_-]+)/g)) {
+          expect(m[1]).toBe("ghqpznxqngvhmkiwcauj.supabase.co");
+          native.add(m[2]);
+        }
       }
     }
-    expect(native.size).toBeGreaterThan(0);
+    expect([...native].sort()).toEqual(["driverSession", "tabletControl", "tabletRecordings", "tabletSupport"]);
+    const cap = JSON.parse(fs.readFileSync("capacitor.config.json", "utf8"));
+    expect(cap.server.url).toBe("https://app.mcsweenstransport.com");
+    expect(cap.server.allowNavigation).toEqual(["app.mcsweenstransport.com"]);
+    // Retain forwarding for the older installed tablets until all have upgraded.
     const forwarded = ["driverSession", "jobSigning", "kioskCheckIn", "kioskHeartbeat", "pairKioskDevice", "tabletControl", "tabletRecordings", "tabletSupport"];
     for (const name of native) expect(forwarded, `${name} is called by the tablet app`).toContain(name);
     for (const name of forwarded) {
