@@ -1,7 +1,6 @@
 package com.transittrack.app;
 
 import android.content.Context;
-import android.net.ConnectivityManager;
 import android.net.wifi.WifiManager;
 import android.os.*;
 import android.util.Log;
@@ -37,13 +36,19 @@ final class TabletHotspotApi {
         if (Build.VERSION.SDK_INT != 29) return fail(context,"HOTSPOT_ANDROID_VERSION_UNSUPPORTED",null);
         TabletHotspotStartupService.prefs(context).edit().remove("hotspot_error").apply();
         try {
-            ConnectivityManager cm = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
-            Field field = ConnectivityManager.class.getDeclaredField("mService"); field.setAccessible(true);
-            Object service = field.get(cm);
+            Object service = connectivityService();
             if (service==null) return fail(context,"HOTSPOT_SERVICE_UNAVAILABLE",null);
             Class<?> contract = Class.forName("android.net.IConnectivityManager");
             return requestOnInterface(context,on,result,service,contract);
         } catch (Exception failure) { return fail(context,classify(failure),failure); }
+    }
+    /** Android's named connectivity Binder avoids the restricted ConnectivityManager.mService field. */
+    static Object connectivityService() throws ReflectiveOperationException {
+        Class<?> manager = Class.forName("android.os.ServiceManager");
+        Object binder = manager.getMethod("getService",String.class).invoke(null,Context.CONNECTIVITY_SERVICE);
+        if (binder == null) return null;
+        return Class.forName("android.net.IConnectivityManager$Stub")
+            .getMethod("asInterface",IBinder.class).invoke(null,binder);
     }
     /** The contract is public; the concrete generated Binder proxy may be private. */
     static boolean requestOnInterface(Context context,boolean on,Result result,Object service,Class<?> contract) throws ReflectiveOperationException {

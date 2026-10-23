@@ -15,6 +15,14 @@ import static org.junit.Assert.*;
 public class TabletHotspotApiTest {
     private Context context;
     @Before public void reset(){context=RuntimeEnvironment.getApplication();TabletHotspotStartupService.prefs(context).edit().clear().commit();}
+    @Test public void resolvesConnectivityBinderWithoutPrivateManagerFields() throws Exception {
+        Binder binder=new Binder();
+        org.robolectric.shadows.ShadowServiceManager.addService(Context.CONNECTIVITY_SERVICE,binder);
+        Object service=TabletHotspotApi.connectivityService();
+        assertNotNull(service);
+        assertTrue(Class.forName("android.net.IConnectivityManager").isInstance(service));
+        assertSame(binder,((IInterface)service).asBinder());
+    }
     @Test public void startsThroughPublicContractWhenConcreteProxyIsPrivate() throws Exception {
         Object proxy=TetheringFixture.proxy();
         Method old=proxy.getClass().getMethod("startTethering",int.class,ResultReceiver.class,boolean.class,String.class);
