@@ -13,6 +13,7 @@ final class TabletDisplay {
         return context.getSharedPreferences("tablet_display", Context.MODE_PRIVATE).edit().putBoolean("keep_screen_on", enabled).commit();
     }
     static void apply(Activity activity) {
+        KioskMode.immersive(activity);
         if (enabled(activity)) activity.getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         else activity.getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
     }

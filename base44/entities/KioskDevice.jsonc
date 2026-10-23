@@ -250,6 +250,24 @@
         },
         "recovery_available": {
           "type": "boolean"
+        },
+        "kiosk_available": {
+          "type": "boolean"
+        },
+        "kiosk_enabled": {
+          "type": "boolean"
+        },
+        "kiosk_recovery_ready": {
+          "type": "boolean"
+        },
+        "kiosk_maintenance": {
+          "type": "boolean"
+        },
+        "kiosk_startup": {
+          "type": "boolean"
+        },
+        "kiosk_locked": {
+          "type": "boolean"
         }
       },
       "type": "object"

@@ -1,10 +1,10 @@
 import { test, expect } from "@playwright/test";
 
-async function setup(page, { managed = true, release = null, supportEnabled = false } = {}) {
+async function setup(page, { managed = true, release = null, supportEnabled = false, kiosk = null } = {}) {
   const controls = [], writes = [], support = [];
   const device = { id: "tablet-managed", label: "Driver tablet test", company_id: "a", kiosk_type: "driver", vehicle_id: "bus-a",
     vehicle_name: "Bus A", status: "active", paired: true, last_seen: new Date().toISOString(),
-    helper_health: { reported_at: new Date().toISOString(), support_available: supportEnabled, support_transport: "webrtc", management_available: true, management_owner: managed, management_locked: false, native_app_package: "com.transittrack.app", native_app_version: "1.0", native_app_code: 1, native_update_available: true, cellular_state: "ready", cellular_carrier: "FLOW", cellular_bars: 2, recovery_available: true, recovery_state: "recovered", internet_validated: true } };
+    helper_health: { reported_at: new Date().toISOString(), support_available: supportEnabled, support_transport: "webrtc", management_available: true, management_owner: managed, management_locked: false, native_app_package: "com.transittrack.app", native_app_version: "1.0", native_app_code: 1, native_update_available: true, cellular_state: "ready", cellular_carrier: "FLOW", cellular_bars: 2, recovery_available: true, recovery_state: "recovered", internet_validated: true, ...(kiosk || {}) } };
   await page.addInitScript(() => localStorage.setItem("base44_access_token", "isolated-test-session"));
   await page.route("https://api.mapbox.com/**", r => r.fulfill({ status: 404, body: "" }));
   await page.route("**/api/**", r => {
@@ -116,4 +116,38 @@ test("admin sees cellular and screen recovery health without starting a control 
   await expect(page.getByText("FLOW · 2/4 signal (last reading)", { exact: true })).toBeVisible();
   await expect(page.getByText("Kiosk screen recovered", { exact: true })).toBeVisible();
   expect(controls).toEqual([]); expect(writes).toEqual([]); expect(support).toEqual([]);
+});
+
+test("permanent kiosk setup is capability-gated and never collects a PIN in the admin page", async ({ page }) => {
+  const { controls } = await setup(page, { kiosk: { kiosk_available: true, kiosk_enabled: false, kiosk_recovery_ready: false } });
+  await page.goto("/admin/kiosks");
+  await page.getByRole("button", { name: "Tablet controls", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Enable permanent kiosk", exact: true })).toBeDisabled();
+  await page.getByRole("button", { name: "Set recovery PIN", exact: true }).click();
+  await expect(page.getByRole("dialog")).toContainText("Set and confirm an 8–12 digit recovery PIN there");
+  expect(controls).toHaveLength(0);
+  await page.getByRole("button", { name: "Send admin request", exact: true }).click();
+  await expect.poll(() => controls.length).toBe(1);
+  expect(controls[0]).toEqual({ operation: "request", device_id: "tablet-managed", action: "kiosk_prepare" });
+});
+
+test("ready managed kiosk can deliberately enable permanent locking", async ({ page }) => {
+  const { controls } = await setup(page, { kiosk: { kiosk_available: true, kiosk_enabled: false, kiosk_recovery_ready: true } });
+  await page.goto("/admin/kiosks");
+  await page.getByRole("button", { name: "Tablet controls", exact: true }).click();
+  await expect(page.getByLabel("Managed kiosk status")).toContainText("Recovery PIN: ready");
+  await page.getByRole("button", { name: "Enable permanent kiosk", exact: true }).click();
+  expect(controls).toHaveLength(0);
+  await page.getByRole("button", { name: "Send admin request", exact: true }).click();
+  await expect.poll(() => controls.length).toBe(1);
+  expect(controls[0].action).toBe("kiosk_enable");
+});
+
+test("older installations cannot issue permanent kiosk commands", async ({ page }) => {
+  const { controls } = await setup(page);
+  await page.goto("/admin/kiosks");
+  await page.getByRole("button", { name: "Tablet controls", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Set recovery PIN", exact: true })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Enable permanent kiosk", exact: true })).toBeDisabled();
+  expect(controls).toHaveLength(0);
 });

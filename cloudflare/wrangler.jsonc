@@ -5,12 +5,14 @@
 //
 // Worker -> Settings -> Build:
 //   Build command:  npm run build:supabase
+//   Preview command: npx wrangler preview --config cloudflare/wrangler.jsonc
 //   Deploy command: npx wrangler deploy --config cloudflare/wrangler.jsonc
 //   Build variable: NODE_VERSION = 22
 {
   "name": "transittrack",
   "compatibility_date": "2025-09-01",
   "workers_dev": true,
+  "previews": {},
   "assets": {
     "directory": "../dist",
     "not_found_handling": "single-page-application"

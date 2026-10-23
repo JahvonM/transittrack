@@ -28,6 +28,11 @@ export default async function(req) {
       return reply({ release: validNativeRelease(r) ? { id: r.id, version_name: r.version_name, version_code: r.version_code } : null });
     }
     if (admin) {
+      if (['kiosk_prepare', 'kiosk_enable', 'kiosk_disable', 'kiosk_maintenance'].includes(input.action)) {
+        const h = device.helper_health;
+        if (h?.kiosk_available !== true || h?.management_owner !== true || !(now - Date.parse(h.reported_at) < 300000))
+          return reply({ error: 'Open an updated managed kiosk installation and refresh tablet status first.' }, 409);
+      }
       if (input.action === 'app_update') {
         if (!validNativeRelease(NATIVE_RELEASE) || input.release_id !== NATIVE_RELEASE.id) return reply({ error: 'No approved combined kiosk release available' }, 409);
         const h = device.helper_health;
@@ -41,7 +46,7 @@ export default async function(req) {
       if (prior?.action === 'app_update' && device.control_status?.result_code === 'UPDATE_REQUESTED' && now - Date.parse(prior.requested_at) < 600000)
         return reply({ error: 'Native installation is awaiting confirmation. Wait for tablet status before another command.' }, 409);
       if (currentControl(device, now) && device.control_status?.state === 'waiting') return reply({ error: 'A tablet command is already waiting. Wait for completion or expiry.' }, 409);
-      if (input.action !== 'release' && prior && now - Date.parse(prior.requested_at) < CONTROL_TTL) return reply({ error: 'Wait two minutes between tablet commands.' }, 429);
+      if (!['release', 'kiosk_disable', 'kiosk_maintenance'].includes(input.action) && prior && now - Date.parse(prior.requested_at) < CONTROL_TTL) return reply({ error: 'Wait two minutes between tablet commands.' }, 429);
       const credential = (await db.DeviceCredential.filter({ device_id: device.id }, '-issued_at', 1))[0];
       if (!credential || !(Date.parse(credential.expires_at) > now)) return reply({ error: 'Secure tablet pairing is required for managed controls.' }, 409);
       let built; try { built = newControl(device, input.action, admin.id, now); }
