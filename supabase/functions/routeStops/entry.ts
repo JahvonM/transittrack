@@ -1,5 +1,5 @@
 import { createClientFromRequest } from '../_shared/base44-compat.ts';
-import { roadPointsToLine, placeOnRoad, MAX_OFF_ROAD_M } from '../_shared/pickupStops.ts';
+import { roadPointsToLine, placeOnRoad, MAX_OFF_ROAD_M, stopsUntilPickup } from '../_shared/pickupStops.ts';
 import { riderMembershipLive, routeStopPlan } from '../_shared/routeRiders.ts';
 
 // The stops a route's bus makes along its drawn road: every passenger's
@@ -230,13 +230,8 @@ export default async function(req) {
           const seenAt = Date.parse(routeBus.last_location_update || '');
           const fresh = routeBus.tracking_active && Number.isFinite(seenAt)
             && Date.now() - seenAt <= 120000 && seenAt <= Date.now() + 30000;
-          const gps = fresh && routeBus.current_lat != null && routeBus.current_lng != null
-            ? placeOnRoad(result.road, Number(routeBus.current_lat), Number(routeBus.current_lng))
-            : null;
-          if (gps && gps.off <= 200) {
-            const next = busStops.findIndex((s) => Number(s.along) > gps.along - 30);
-            const nextIndex = next < 0 ? busStops.length : next;
-            if (at >= nextIndex) stopsAway = at - nextIndex;
+          if (fresh && routeBus.current_lat != null && routeBus.current_lng != null) {
+            stopsAway = stopsUntilPickup(busStops, at, result.road, routeBus.current_lat, routeBus.current_lng);
           }
         }
       }
