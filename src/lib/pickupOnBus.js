@@ -17,6 +17,18 @@ export function pickupMissesBus(user, busRoute) {
   return !(near && near.distanceM <= ON_ROAD_M);
 }
 
+
+/** Recover a passenger's previously saved roadside pickup without trusting a
+ * missing/stale route ID. Only locations actually within the bus road qualify.
+ * Never use this helper to auto-assign a different bus or route. */
+export function pickupOnAssignedRoad(user, route) {
+  if (!route?.id || user?.pickup_lat == null || user?.pickup_lng == null) return false;
+  const lat = Number(user.pickup_lat), lng = Number(user.pickup_lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return false;
+  const near = nearestRoutePoint({ lat, lng }, drawnRoad(route));
+  return !!near && near.distanceM <= ON_ROAD_M;
+}
+
 // "Your driver moved your pickup": shown while the pickup is still where the
 // driver put it, for two weeks.
 export function pickupMovedNote(user, now = Date.now()) {
