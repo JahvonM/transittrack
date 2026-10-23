@@ -79,8 +79,7 @@
     }
   },
   "required": [
-    "name",
-    "company_id"
+    "name"
   ],
   "rls": {
     "read": {
