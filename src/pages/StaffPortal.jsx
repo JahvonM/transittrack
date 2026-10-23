@@ -261,7 +261,7 @@ export default function StaffPortal() {
     const refreshVisible = () => {
       if (document.visibilityState === 'visible' && navigator.onLine) refreshSharedStop();
     };
-    const id = setInterval(refreshVisible, 30_000);
+    const id = setInterval(refreshVisible, 60_000);
     document.addEventListener('visibilitychange', refreshVisible);
     return () => { clearInterval(id); document.removeEventListener('visibilitychange', refreshVisible); };
   }, [company?.id, refreshSharedStop]);
@@ -528,6 +528,8 @@ export default function StaffPortal() {
   const stopsAway = roadStopsAway != null ? roadStopsAway
     : liveForCount && stop?.personal && sharedStop?.bus_id === busOnMap.id
       && Number.isInteger(sharedStop?.stops_away) && sharedStop.stops_away >= 0
+      && Number.isFinite(Date.parse(sharedStop?.count_at))
+      && now - Date.parse(sharedStop.count_at) <= 90_000
       ? sharedStop.stops_away
       : liveForCount && nextStopIndex!=null && pickupIndex>=nextStopIndex ? pickupIndex-nextStopIndex : null;
 
