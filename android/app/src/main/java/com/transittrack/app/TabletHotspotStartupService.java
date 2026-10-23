@@ -11,7 +11,6 @@ public class TabletHotspotStartupService extends Service {
     private final TabletPowerPolicy power = new TabletPowerPolicy();
     private boolean pending, owned;
     private int failures;
-    private static boolean running;
     static android.content.SharedPreferences prefs(Context c) { return c.getSharedPreferences("transittrack_network",MODE_PRIVATE); }
     static boolean wanted(Context c) {
         android.content.SharedPreferences p=prefs(c);
@@ -20,8 +19,7 @@ public class TabletHotspotStartupService extends Service {
     static boolean supported(Context c) { return Build.VERSION.SDK_INT == 29 && KioskMode.owner(c); }
     static void start(Context c) {
         if (!wanted(c)) return;
-        if (!supported(c)) { prefs(c).edit().putString("startup_code","HOTSPOT_UNSUPPORTED").apply(); return; }
-        if (running) return;
+        if (!supported(c)) { prefs(c).edit().putString("startup_code",Build.VERSION.SDK_INT != 29 ? "HOTSPOT_ANDROID_VERSION_UNSUPPORTED" : "HOTSPOT_DEVICE_OWNER_REQUIRED").apply(); return; }
         try { c.startForegroundService(new Intent(c,TabletHotspotStartupService.class)); }
         catch (RuntimeException e) { prefs(c).edit().putString("startup_code","HOTSPOT_START_BLOCKED").apply(); }
     }
@@ -40,7 +38,7 @@ public class TabletHotspotStartupService extends Service {
         else if (Boolean.TRUE.equals(TabletHotspotApi.isOn(TabletHotspotStartupService.this))) { code("HOTSPOT_ON"); owned=true; failures=0; }
         else if(!pending && failures<3) {
             pending=true; code("HOTSPOT_STARTING");
-            if(!TabletHotspotApi.request(TabletHotspotStartupService.this,true,ok->{ if(!ok) failed("HOTSPOT_NOT_CONFIRMED"); })) failed("HOTSPOT_UNSUPPORTED");
+            if(!TabletHotspotApi.request(TabletHotspotStartupService.this,true,ok->{ if(!ok) failed(TabletHotspotApi.failureCode(TabletHotspotStartupService.this)); })) failed(TabletHotspotApi.failureCode(TabletHotspotStartupService.this));
             else main.postDelayed(()->{
                 if(!pending)return; pending=false;
                 if(Boolean.TRUE.equals(TabletHotspotApi.isOn(TabletHotspotStartupService.this))) { owned=true; failures=0; code("HOTSPOT_ON"); }
@@ -56,8 +54,8 @@ public class TabletHotspotStartupService extends Service {
         PendingIntent open=PendingIntent.getActivity(this,17122,new Intent(this,MainActivity.class),PendingIntent.FLAG_IMMUTABLE|PendingIntent.FLAG_UPDATE_CURRENT);
         startForeground(17122,new Notification.Builder(this,"driver_hotspot").setSmallIcon(android.R.drawable.stat_sys_upload)
             .setContentTitle("Driver hotspot startup").setContentText("Maintaining your saved hotspot setting").setContentIntent(open).setOngoing(true).build());
-        running=true; main.removeCallbacks(tick); main.post(tick); return START_STICKY;
+        main.removeCallbacks(tick); main.post(tick); return START_STICKY;
     }
     @Override public IBinder onBind(Intent intent){return null;}
-    @Override public void onDestroy(){running=false;pending=false;main.removeCallbacksAndMessages(null);super.onDestroy();}
+    @Override public void onDestroy(){pending=false;main.removeCallbacksAndMessages(null);super.onDestroy();}
 }
