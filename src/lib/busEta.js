@@ -59,3 +59,21 @@ export function roughMinutes(points) {
   const km = (pointsLengthM(points) * 1.25) / 1000;
   return { mins: (km / FALLBACK_KMH) * 60, km };
 }
+
+// Used only when the server has a valid passenger pickup but has not yet
+// supplied the bus's route geometry. This is a clearly approximate ETA, not
+// a claim that the bus follows a straight road to the pickup.
+export function unroutedPickupEstimate(vehicle, stop) {
+  const lat = Number(vehicle?.current_lat), lng = Number(vehicle?.current_lng);
+  const destLat = Number(stop?.lat), destLng = Number(stop?.lng);
+  if (!vehicle || !stop || ![lat, lng, destLat, destLng].every(Number.isFinite)) return null;
+  if (Math.abs(lat) > 90 || Math.abs(destLat) > 90 || Math.abs(lng) > 180 || Math.abs(destLng) > 180) return null;
+  const rad = Math.PI / 180;
+  const dLat = (destLat - lat) * rad, dLng = (destLng - lng) * rad;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat * rad) * Math.cos(destLat * rad) * Math.sin(dLng / 2) ** 2;
+  const straightKm = 2 * 6371 * Math.asin(Math.min(1, Math.sqrt(a)));
+  // Allow for road bends; don't interpret an instantaneous GPS speed of zero
+  // (traffic stop) as an infinite ETA.
+  const km = straightKm * 1.25;
+  return { mins: km / FALLBACK_KMH * 60, km, estimated: true, source: "unrouted" };
+}
