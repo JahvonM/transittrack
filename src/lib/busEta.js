@@ -64,9 +64,10 @@ export function roughMinutes(points) {
 // supplied the bus's route geometry. This is a clearly approximate ETA, not
 // a claim that the bus follows a straight road to the pickup.
 export function unroutedPickupEstimate(vehicle, stop) {
-  const lat = Number(vehicle?.current_lat), lng = Number(vehicle?.current_lng);
-  const destLat = Number(stop?.lat), destLng = Number(stop?.lng);
-  if (!vehicle || !stop || ![lat, lng, destLat, destLng].every(Number.isFinite)) return null;
+  if (!vehicle || !stop || vehicle.current_lat == null || vehicle.current_lng == null || stop.lat == null || stop.lng == null) return null;
+  const lat = Number(vehicle.current_lat), lng = Number(vehicle.current_lng);
+  const destLat = Number(stop.lat), destLng = Number(stop.lng);
+  if (![lat, lng, destLat, destLng].every(Number.isFinite)) return null;
   if (Math.abs(lat) > 90 || Math.abs(destLat) > 90 || Math.abs(lng) > 180 || Math.abs(destLng) > 180) return null;
   const rad = Math.PI / 180;
   const dLat = (destLat - lat) * rad, dLng = (destLng - lng) * rad;
