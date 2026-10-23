@@ -12,6 +12,7 @@ import { Segmented, StatusChip } from "@/components/admin/kit";
 import PlaceField from "@/components/jobs/PlaceField";
 import ClientDialog from "@/components/jobs/ClientDialog";
 import { JOB_ICONS } from "@/components/jobs/JobTypeIcon";
+import { orderedJobPlaces } from "@/lib/jobPlaces";
 import {
   CURRENCIES, JOB_TYPES, addMinutesToInput, defaultMinutes, findClashes, fromLocalInput, isAirportJob, jobTypeOf, toLocalInput,
 } from "@/lib/jobs";
@@ -66,8 +67,8 @@ export default function JobDialog({ open, onOpenChange, job, day, vehicles = [],
     const ids = new Set(clients.map((c) => c.id));
     return [...clients, ...newClients.filter((c) => !ids.has(c.id))].sort((a, b) => String(a.name).localeCompare(String(b.name)));
   }, [clients, newClients]);
-  const airport = places.find((p) => p.kind === "airport");
-  const airportPlace = airport ? { name: airport.name, address: airport.address || "", lat: airport.lat ?? null, lng: airport.lng ?? null } : null;
+  const airport = orderedJobPlaces(places).find((p) => p.kind === "airport");
+  const airportPlace = airport ? { name: airport.name, address: airport.address || "", lat: airport.lat ?? null, lng: airport.lng ?? null, notes: airport.notes || "" } : null;
   const set = (patch) => setForm((f) => ({ ...f, ...patch }));
 
   const setType = (job_type) => setForm((f) => ({
