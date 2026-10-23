@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { BookmarkPlus, MapPin, X } from "lucide-react";
+import { BookmarkPlus, MapPin, Star, X } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import PlaceSearch from "@/components/PlaceSearch";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/components/ui/use-toast";
 import { errorData } from "@/lib/requestError";
+import { orderedJobPlaces } from "@/lib/jobPlaces";
 
 // Where a job picks up or drops off: a saved place (the airport, a hotel), a
 // bus stop, or any address found by search. A searched address can be kept
@@ -19,6 +20,7 @@ export default function PlaceField({ id, label, value, onChange, places = [], ro
     () => routes.flatMap((r) => (r.stops || []).filter((s) => s?.name).map((s) => ({ ...s, route_id: r.id, route_name: r.name }))),
     [routes]
   );
+  const savedPlaces = useMemo(() => orderedJobPlaces(places), [places]);
   const savedMatch = value && places.some((p) => p.name === value.name && p.lat === value.lat && p.lng === value.lng);
 
   const pick = (key) => {
@@ -70,10 +72,10 @@ export default function PlaceField({ id, label, value, onChange, places = [], ro
             <Select value="" onValueChange={pick}>
               <SelectTrigger id={id}><SelectValue placeholder={stops.length ? "Saved place or bus stop" : "Saved place"} /></SelectTrigger>
               <SelectContent>
-                {places.length > 0 && (
+                {savedPlaces.length > 0 && (
                   <SelectGroup>
                     <SelectLabel>Saved places</SelectLabel>
-                    {places.map((p) => <SelectItem key={p.id} value={`place:${p.id}`}>{p.name}</SelectItem>)}
+                    {savedPlaces.map((p) => <SelectItem key={p.id} value={`place:${p.id}`}>{p.favorite ? "★ " : ""}{p.name}{p.kind === "taxi_stand" ? " · Taxi stand" : p.kind === "airport" ? " · Airport" : ""}</SelectItem>)}
                   </SelectGroup>
                 )}
                 {stops.length > 0 && (
