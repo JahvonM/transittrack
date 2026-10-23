@@ -937,11 +937,12 @@ Table `place` · read and changed through entityAccess.
 |---|---|---|
 | `company_id` | text | → Company. |
 | `name` | text | Required. |
-| `kind` | text | One of: `airport`, `hotel`, `attraction`, `other`. Default `"other"`. |
+| `kind` | text | One of: `airport`, `hotel`, `taxi_stand`, `attraction`, `business`, `other`. Default `"other"`. |
 | `address` | text |  |
 | `lat` | double precision |  |
 | `lng` | double precision |  |
 | `notes` | text |  |
+| `favorite` | boolean | Default `false`. |
 
 ### PushToken
 

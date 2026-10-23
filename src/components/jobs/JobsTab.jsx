@@ -11,6 +11,7 @@ import JobDialog from "@/components/jobs/JobDialog";
 import JobTypeIcon from "@/components/jobs/JobTypeIcon";
 import PlaceDialog, { PLACE_KINDS } from "@/components/jobs/PlaceDialog";
 import ClientDialog, { CLIENT_KINDS } from "@/components/jobs/ClientDialog";
+import { orderedJobPlaces } from "@/lib/jobPlaces";
 import { ACTIVE_JOB_STATUSES, findClashes, formatMoney, jobTypeLabel, jobWindow } from "@/lib/jobs";
 import { STATUS_LABEL } from "@/lib/trip";
 import { errorData } from "@/lib/requestError";
@@ -156,9 +157,9 @@ export default function JobsTab({ vehicles = [], routes = [], trips = [], comple
             <EmptyState icon={Plane} title="No saved places" className="border-0">Add the airport and the hotels you work with.</EmptyState>
           ) : (
             <div className="divide-y divide-border">
-              {places.map((p) => (
+              {orderedJobPlaces(places).map((p) => (
                 <Row key={p.id} lead={<LeadIcon icon={p.kind === "airport" ? Plane : p.kind === "hotel" ? Building2 : MapPin} />} title={p.name}
-                  subtitle={[kindLabel(PLACE_KINDS, p.kind), p.address].filter(Boolean).join(" · ")}
+                  subtitle={[p.favorite ? "★ Favourite" : "", kindLabel(PLACE_KINDS, p.kind), p.address, p.notes].filter(Boolean).join(" · ")}
                   actions={<>
                     <Button variant="ghost" size="icon" onClick={() => setPlaceDialog({ open: true, place: p })} aria-label={`Edit ${p.name}`}><Pencil className="h-4 w-4" /></Button>
                     <Button variant="ghost" size="icon" className="text-danger hover:text-danger" onClick={() => remove("Place", p, "places")} aria-label={`Remove ${p.name}`}><Trash2 className="h-4 w-4" /></Button>

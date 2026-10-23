@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { MapPin } from "lucide-react";
+import { MapPin, Star } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import PlaceSearch from "@/components/PlaceSearch";
 import { Button } from "@/components/ui/button";
@@ -14,28 +14,30 @@ import { errorData } from "@/lib/requestError";
 export const PLACE_KINDS = [
   { value: "airport", label: "Airport" },
   { value: "hotel", label: "Hotel" },
+  { value: "taxi_stand", label: "Taxi stand" },
   { value: "attraction", label: "Attraction" },
+  { value: "business", label: "Business" },
   { value: "other", label: "Other" },
 ];
 
 // Add or change a saved place (the airport, a hotel, a tour stop).
 export default function PlaceDialog({ open, onOpenChange, place, onSaved }) {
   const { toast } = useToast();
-  const [form, setForm] = useState({ name: "", kind: "hotel", address: "", lat: null, lng: null, notes: "" });
+  const [form, setForm] = useState({ name: "", kind: "hotel", address: "", lat: null, lng: null, notes: "", favorite: false });
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!open) return;
     setForm(place
-      ? { name: place.name || "", kind: place.kind || "other", address: place.address || "", lat: place.lat ?? null, lng: place.lng ?? null, notes: place.notes || "" }
-      : { name: "", kind: "hotel", address: "", lat: null, lng: null, notes: "" });
+      ? { name: place.name || "", kind: place.kind || "other", address: place.address || "", lat: place.lat ?? null, lng: place.lng ?? null, notes: place.notes || "", favorite: !!place.favorite }
+      : { name: "", kind: "hotel", address: "", lat: null, lng: null, notes: "", favorite: false });
   }, [open, place]);
 
   const set = (patch) => setForm((f) => ({ ...f, ...patch }));
   const save = async () => {
     setSaving(true);
     try {
-      const data = { name: form.name.trim(), kind: form.kind, address: form.address.trim(), notes: form.notes.trim(), lat: form.lat, lng: form.lng };
+      const data = { name: form.name.trim(), kind: form.kind, address: form.address.trim(), notes: form.notes.trim(), lat: form.lat, lng: form.lng, favorite: form.favorite };
       const row = place ? await base44.entities.Place.update(place.id, data) : await base44.entities.Place.create(data);
       onSaved?.(row);
       onOpenChange(false);
@@ -76,6 +78,10 @@ export default function PlaceDialog({ open, onOpenChange, place, onSaved }) {
             <Label htmlFor="place-notes">Notes for drivers (optional)</Label>
             <Textarea id="place-notes" value={form.notes} onChange={(e) => set({ notes: e.target.value })} placeholder="e.g. Wait at the arrivals exit" maxLength={1000} rows={2} />
           </div>
+          <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-border p-3 text-body-sm">
+            <input type="checkbox" checked={form.favorite} onChange={(e) => set({ favorite: e.target.checked })} />
+            <Star className="h-4 w-4 text-muted-foreground" /> Show as a favourite when dispatching jobs
+          </label>
           <Button className="w-full" onClick={save} disabled={saving || !form.name.trim()}>
             {saving ? "Saving…" : place ? "Save changes" : "Add place"}
           </Button>

@@ -40,7 +40,7 @@ const JOB_SIGNATURE_FIELDS=['pickup_signature_uri','pickup_signed_role','pickup_
 ENTITY_FIELDS.Trip.push('job_type','client_id','client_name','pickup_address','dropoff_address','flight_number','flight_time','guests','luggage','notes','stops','end_time','price','currency','cancelled_at','invoice_id','invoice_number',...JOB_SIGNATURE_FIELDS);
 // Saved places, clients and invoices for jobs. None is a company list, so only
 // an administrator can read or change them.
-ENTITY_FIELDS.Place=['company_id','name','kind','address','lat','lng','notes'];
+ENTITY_FIELDS.Place=['company_id','name','kind','address','lat','lng','notes','favorite'];
 ENTITY_FIELDS.Client=['company_id','name','kind','contact_name','email','phone','address','currency','notes'];
 ENTITY_FIELDS.Invoice=['company_id','company_name','client_id','client_name','client_email','client_address','number','period_start','period_end','issued_at','due_date','lines','total','currency','status','sent_at','paid_at','voided_at','notes'];
 const ADMIN_ONLY_FIELDS={Driver:new Set(['phone_app_access']),Trip:new Set(['client_id','client_name','price','currency'])};
@@ -78,9 +78,10 @@ function cleanJob(data) {
 function cleanPlace(data,existing) {
  if(!existing&&(typeof data.name!=='string'||!data.name.trim())) fail(400,'A place needs a name');
  for(const [field,max] of [['name',120],['address',300],['notes',1000]]) text(data,field,max);
- if(Object.hasOwn(data,'kind')&&!['airport','hotel','attraction','other'].includes(data.kind)) fail(400,'Invalid kind of place');
+ if(Object.hasOwn(data,'kind')&&!['airport','hotel','taxi_stand','attraction','business','other'].includes(data.kind)) fail(400,'Invalid kind of place');
  if(Object.hasOwn(data,'lat')!==Object.hasOwn(data,'lng')) fail(400,'Place coordinates must be supplied together');
  point(data.lat,data.lng,'place');
+ if(Object.hasOwn(data,'favorite') && typeof data.favorite !== 'boolean') fail(400,'Invalid favourite setting');
 }
 function cleanClient(data,existing) {
  if(!existing&&(typeof data.name!=='string'||!data.name.trim())) fail(400,'A client needs a name');
