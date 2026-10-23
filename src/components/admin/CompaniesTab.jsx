@@ -29,9 +29,13 @@ export default function CompaniesTab({ companies, onChange }) {
     setTimeout(() => setCopied(null), 1500);
   };
   const remove = async (id) => {
-    if (!(await confirmAction({title:"Delete this company?",description:"This removes the company record. Review its linked people, buses, and devices first.",confirmLabel:"Delete company"}))) return;
-    try { await base44.entities.Company.delete(id); onChange(); }
-    catch(error) { toast({title:"Could not delete company",description:error.message,variant:"destructive"}); }
+    if (!(await confirmAction({title:"Delete this company?",description:"The company will be detached from drivers, vehicles and routes; access will be revoked before deletion.",confirmLabel:"Delete company"}))) return;
+    try {
+      const response = await base44.functions.invoke("deleteCompanySafely", {company_id:id});
+      if (response.data?.error) throw new Error(response.data.error);
+      toast({title:"Company removed",description:"Linked records were retained and company access revoked."});
+      onChange();
+    } catch(error) { toast({title:"Could not delete company",description:error.message,variant:"destructive"}); }
   };
 
   if (selected) return <CompanyWorkspace key={selected.id} company={selected} tab={tab} onTab={value=>selectCompany(selected.id,value)} onBack={()=>selectCompany(null)} onChange={onChange}/>;
