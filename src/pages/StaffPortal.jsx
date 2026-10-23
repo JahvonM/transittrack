@@ -34,7 +34,7 @@ import {
 import { clock, passengerTripState, sortStops } from "@/components/passenger/passengerState";
 import useStopEtas from "@/components/passenger/useStopEtas";
 import { drawnRoad } from "@/lib/routeRoad";
-import { pickupMissesBus } from "@/lib/pickupOnBus";
+import { pickupMissesBus, pickupOnAssignedRoad } from "@/lib/pickupOnBus";
 import { Button } from "@/components/ui/button";
 
 // The live 3D map (mapbox-gl + three.js) loads after the page around it.
@@ -246,7 +246,7 @@ export default function StaffPortal() {
     } catch { /* keep what's shown; the next check tries again */ }
   }, []);
   const refreshSharedStop = useCallback(async () => {
-    if (user?.pickup_lat == null || !user?.pickup_route_id) { setSharedStop(null); return; }
+    if (user?.pickup_lat == null || user?.pickup_lng == null) { setSharedStop(null); return; }
     try {
       const { data } = await base44.functions.invoke('routeStops', { action: 'mine' });
       setSharedStop(data?.stop || null);
@@ -386,8 +386,15 @@ export default function StaffPortal() {
     );
     // Your own pickup, or the shared stop it was merged into along the road:
     // only while your bus drives past it.
-    if (user?.pickup_lat != null && routes.some(r => r.id === user.pickup_route_id) && !(assignedRoute && pickupMissesBus(user, assignedRoute))) {
-      const routeId = assignedRoute ? assignedRoute.id : user.pickup_route_id;
+    const savedRouteExists = routes.some((r) => r.id === user?.pickup_route_id);
+    // Legacy passenger profiles may have a saved pickup but no route ID.
+    // Recover it only when the coordinates are actually on the assigned road.
+    const onAssignedRoad = pickupOnAssignedRoad(user, assignedRoute);
+    const pickupIsValid = savedRouteExists
+      ? !(assignedRoute && pickupMissesBus(user, assignedRoute))
+      : onAssignedRoad;
+    if (user?.pickup_lat != null && user?.pickup_lng != null && pickupIsValid) {
+      const routeId = onAssignedRoad ? assignedRoute.id : user.pickup_route_id;
       if (!seen.has(user.pickup_name)) out.push({ name: user.pickup_name, lat: sharedStop?.lat ?? user.pickup_lat, lng: sharedStop?.lng ?? user.pickup_lng, route_id: routeId, personal: true, shared: sharedStop });
     }
     return out;
