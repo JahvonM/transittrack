@@ -66,6 +66,7 @@
         </receiver>
         <activity android:name=".KioskMaintenanceActivity" android:exported="false"
             android:theme="@android:style/Theme.Material.NoActionBar" android:label="Kiosk maintenance" />
+        <service android:name=".TabletHotspotStartupService" android:exported="false" android:foregroundServiceType="systemExempted" />
         <service android:name=".KioskWatchdogService" android:exported="false" android:foregroundServiceType="systemExempted" />
         <receiver android:name=".KioskBootReceiver" android:exported="false">
             <intent-filter><action android:name="android.intent.action.BOOT_COMPLETED" /><action android:name="android.intent.action.MY_PACKAGE_REPLACED" /></intent-filter>

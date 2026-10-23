@@ -38,7 +38,7 @@ public class TabletNetworkPlugin extends Plugin {
         @Override public void run() {
             if (destroyed) return;
             updatePower();
-            if (enabled && always && foreground && mode.equals("driver") && !hotspotAttempt && policyFailures < 2) {
+            if (enabled && always && foreground && mode.equals("driver") && !TabletHotspotStartupService.supported(getContext()) && !hotspotAttempt && policyFailures < 2) {
                 if (power.parked()) {
                     if (ownedHotspot && Boolean.TRUE.equals(TabletHotspotApi.isOn(getContext()))) {
                         policyFailures++;
@@ -63,6 +63,8 @@ public class TabletNetworkPlugin extends Plugin {
         prefs = getContext().getSharedPreferences("transittrack_network", Context.MODE_PRIVATE);
         enabled = prefs.getBoolean("enabled", false); always = prefs.getBoolean("always", false);
         ownedHotspot = always;
+        mode = prefs.getString("mode", "");
+        TabletHotspotStartupService.start(getContext());
         wifi = (WifiManager) getContext().getApplicationContext().getSystemService(Context.WIFI_SERVICE);
         IntentFilter filter = new IntentFilter(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION);
         if (Build.VERSION.SDK_INT >= 33) getContext().registerReceiver(scanReady, filter, Context.RECEIVER_EXPORTED);
@@ -113,7 +115,15 @@ public class TabletNetworkPlugin extends Plugin {
         Boolean on = TabletHotspotApi.isOn(getContext());
         out.put("hotspot", power.parked() && always ? (Boolean.TRUE.equals(on) ? "On - low battery stop pending" : Boolean.FALSE.equals(on) ? "Paused: low battery" : "Low battery - state unknown") : hotspotAttempt ? "Starting"
             : policyFailures >= 2 ? (Boolean.TRUE.equals(on) ? "On - automation paused" : "Blocked - retry in settings") : on == null ? hotspot : on ? "On" : "Off");
-        out.put("hotspot_always", always); out.put("last_code", lastCode);
+        if (TabletHotspotStartupService.supported(getContext()) && prefs.getBoolean("always",false) && !Boolean.TRUE.equals(on)) {
+            String startup = prefs.getString("startup_code","");
+            if ("HOTSPOT_STARTING".equals(startup)) out.put("hotspot","Starting after boot");
+            else if ("LOW_BATTERY".equals(startup)) out.put("hotspot","Paused: low battery");
+            else if ("HOTSPOT_PERMISSION_REQUIRED".equals(startup)) out.put("hotspot","Blocked: allow Modify system settings");
+            else if (!startup.isEmpty()) out.put("hotspot","Not confirmed on · " + startup);
+        }
+        out.put("hotspot_always", prefs.getBoolean("always",always));
+        out.put("last_code", TabletHotspotStartupService.supported(getContext()) && prefs.getBoolean("always",false) ? prefs.getString("startup_code",lastCode) : lastCode);
         return out;
     }
     private void publish() { if (!destroyed) notifyListeners("networkState", state()); }
@@ -139,6 +149,8 @@ public class TabletNetworkPlugin extends Plugin {
         getActivity().runOnUiThread(() -> {
             String next = call.getString("mode", "");
             mode = next.equals("driver") || next.equals("boarding") ? next : "";
+            prefs.edit().putString("mode",mode).commit();
+            TabletHotspotStartupService.start(getContext());
             call.resolve();
         });
     }
@@ -147,7 +159,10 @@ public class TabletNetworkPlugin extends Plugin {
             if (pendingCall != null || hotspotAttempt) { call.reject("Wait for the current network action to finish."); return; }
             enabled = Boolean.TRUE.equals(call.getBoolean("enabled", false));
             prefs.edit().putBoolean("enabled", enabled).apply();
-            policyFailures = 0; publish(); call.resolve(state());
+            policyFailures = 0;
+            if (enabled) TabletHotspotStartupService.start(getContext());
+            else getContext().stopService(new Intent(getContext(),TabletHotspotStartupService.class));
+            publish(); call.resolve(state());
         });
     }
     @PluginMethod public void requestScanAccess(PluginCall call) {
@@ -184,8 +199,10 @@ public class TabletNetworkPlugin extends Plugin {
         if (type.equals("hotspot")) {
             if (!mode.equals("driver")) { complete("NETWORK_CONTEXT_REQUIRED"); return; }
             if (!cmd.optBoolean("always_on")) {
-                always = false; prefs.edit().putBoolean("always", false).apply(); complete("HOTSPOT_POLICY_OFF"); return;
+                always = false; prefs.edit().putBoolean("always", false).commit(); getContext().stopService(new Intent(getContext(),TabletHotspotStartupService.class)); complete("HOTSPOT_POLICY_OFF"); return;
             }
+            always = true;
+            if (!prefs.edit().putBoolean("always",true).commit()) { complete("NETWORK_ERROR"); return; }
             policyFailures = 0; beginHotspot(call, id); return;
         }
         if (!scanAllowed()) { complete("LOCATION_PERMISSION_REQUIRED"); return; }
@@ -305,7 +322,8 @@ public class TabletNetworkPlugin extends Plugin {
         hotspotAttempt = true;
         final long expires = SystemClock.elapsedRealtime() + 10000;
         final boolean[] failed = { false };
-        if (!Boolean.TRUE.equals(TabletHotspotApi.isOn(getContext())) &&
+        if (TabletHotspotStartupService.supported(getContext())) TabletHotspotStartupService.start(getContext());
+        if (!TabletHotspotStartupService.supported(getContext()) && !Boolean.TRUE.equals(TabletHotspotApi.isOn(getContext())) &&
             !TabletHotspotApi.request(getContext(), true, ok -> { if (!ok) failed[0] = true; })) {
             hotspotAttempt = false; hotspotFailed(call, "HOTSPOT_UNSUPPORTED"); return;
         }
@@ -329,7 +347,7 @@ public class TabletNetworkPlugin extends Plugin {
         if (call != null) complete(code); else publish();
     }
     @Override protected void handleOnPause() { foreground = false; }
-    @Override protected void handleOnResume() { foreground = true; main.removeCallbacks(watchdog); main.post(watchdog); publish(); }
+    @Override protected void handleOnResume() { foreground = true; always = prefs.getBoolean("always",false); enabled = prefs.getBoolean("enabled",false); TabletHotspotStartupService.start(getContext()); main.removeCallbacks(watchdog); main.post(watchdog); publish(); }
     @Override protected void handleOnDestroy() {
         destroyed = true; main.removeCallbacksAndMessages(null); worker.shutdownNow();
         try { getContext().unregisterReceiver(scanReady); } catch (IllegalArgumentException ignored) { }
