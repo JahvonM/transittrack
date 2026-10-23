@@ -246,7 +246,10 @@ export default function StaffPortal() {
     } catch { /* keep what's shown; the next check tries again */ }
   }, []);
   const refreshSharedStop = useCallback(async () => {
-    if (user?.pickup_lat == null || !user?.pickup_route_id) { setSharedStop(null); return; }
+    // A saved roadside address can predate pickup_route_id; the server can
+    // resolve it against this passenger's assigned bus route without exposing
+    // anyone else's pickup. Do not discard it solely for a missing route ID.
+    if (user?.pickup_lat == null || user?.pickup_lng == null) { setSharedStop(null); return; }
     try {
       const { data } = await base44.functions.invoke('routeStops', { action: 'mine' });
       setSharedStop(data?.stop || null);
@@ -386,8 +389,12 @@ export default function StaffPortal() {
     );
     // Your own pickup, or the shared stop it was merged into along the road:
     // only while your bus drives past it.
-    if (user?.pickup_lat != null && routes.some(r => r.id === user.pickup_route_id) && !(assignedRoute && pickupMissesBus(user, assignedRoute))) {
-      const routeId = assignedRoute ? assignedRoute.id : user.pickup_route_id;
+    // An already-saved roadside pickup is valid if it belongs to the assigned
+    // bus's road, even when an older profile has an empty pickup_route_id.
+    const hasSavedRoute = routes.some(r => r.id === user?.pickup_route_id);
+    const hasAssignedRoad = !!assignedRoute && !pickupMissesBus(user, assignedRoute);
+    if (user?.pickup_lat != null && user?.pickup_lng != null && (hasSavedRoute || hasAssignedRoad) && !(assignedRoute && pickupMissesBus(user, assignedRoute))) {
+      const routeId = hasAssignedRoad ? assignedRoute.id : user.pickup_route_id;
       if (!seen.has(user.pickup_name)) out.push({ name: user.pickup_name, lat: sharedStop?.lat ?? user.pickup_lat, lng: sharedStop?.lng ?? user.pickup_lng, route_id: routeId, personal: true, shared: sharedStop });
     }
     return out;
