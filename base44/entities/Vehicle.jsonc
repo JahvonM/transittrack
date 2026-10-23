@@ -3,8 +3,7 @@
   "type": "object",
   "required": [
     "name",
-    "type",
-    "company_id"
+    "type"
   ],
   "properties": {
     "capacity": {
@@ -24,7 +23,7 @@
     },
     "current_odometer": {
       "type": "number",
-      "description": "Odometer reading in km \u2014 also the single source of truth for MaintenanceSchedule's mileage-based due calculations (merged from FleetPilot's separate 'mileage' field)."
+      "description": "Odometer reading in km — also the single source of truth for MaintenanceSchedule's mileage-based due calculations (merged from FleetPilot's separate 'mileage' field)."
     },
     "driver_email": {
       "type": "string"
@@ -49,7 +48,7 @@
       "type": "string"
     },
     "last_ping_logged_at": {
-      "description": "Last time a LocationPing history point was recorded for this vehicle \u2014 throttles history logging to roughly once a minute.",
+      "description": "Last time a LocationPing history point was recorded for this vehicle — throttles history logging to roughly once a minute.",
       "format": "date-time",
       "type": "string"
     },
@@ -57,7 +56,7 @@
       "type": "string"
     },
     "near_stop_id": {
-      "description": "Name of the route stop the vehicle is currently within arrival radius of, if any \u2014 used to detect arrival/departure transitions for place alerts without re-alerting every GPS tick.",
+      "description": "Name of the route stop the vehicle is currently within arrival radius of, if any — used to detect arrival/departure transitions for place alerts without re-alerting every GPS tick.",
       "type": "string"
     },
     "road_next_stop": {
@@ -168,7 +167,7 @@
     "in_service": {
       "type": "boolean",
       "default": true,
-      "description": "Whether this vehicle is an active part of the fleet for maintenance purposes \u2014 separate from the live dispatch 'status' field (a vehicle can be in_service but currently offline)."
+      "description": "Whether this vehicle is an active part of the fleet for maintenance purposes — separate from the live dispatch 'status' field (a vehicle can be in_service but currently offline)."
     },
     "model_3d": {
       "type": "string",
