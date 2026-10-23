@@ -56,6 +56,7 @@ import LiveClock from "@/components/LiveClock";
 import { cn } from "@/lib/utils";
 import { PageSlots } from "@/components/admin/kit";
 import "./adminGlassPreview.css";
+import ThemeToggle from "@/components/ThemeToggle";
 
 // `group` clusters the flat section list into labeled chunks in the sidebar
 // (Fleet Operations / Maintenance — the mechanic's own area / Dispatch — the
@@ -296,6 +297,7 @@ export default function AdminShell({ active, onNavigate, children, alertVehicles
               {fmtDate()} <LiveClock seconds={false} mono={false} className="ml-1 font-semibold text-foreground" />
             </p>
             {headerActions}
+            <div className="tt-admin-theme-control hidden lg:block" aria-label="Admin appearance"><ThemeToggle /></div>
             {pushPermission !== "granted" && pushPermission !== "unsupported" && onEnableNotifications && (
               <Button variant="ghost" size="icon" onClick={onEnableNotifications} aria-label="Turn on SOS notifications on this device" title="Turn on SOS notifications on this device">
                 <Bell className="h-5 w-5" aria-hidden="true" />
