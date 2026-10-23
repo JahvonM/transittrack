@@ -454,9 +454,9 @@ export default function DriverApp() {
     // A required inspection can't be skipped — unless the driver opened it themselves.
     const canSkip = !template || !template.driver_required || from === "manual";
     return (
-      <div className="min-h-[100dvh] p-4 safe-area-top safe-area-x">
+      <div className={`min-h-[100dvh] p-4 safe-area-top safe-area-x ${template ? "tt-driver-inspection" : ""}`}>
         <div className="space-y-4 max-w-6xl mx-auto">
-          <CompanyBanner name={session.company_name || vehicle.company_name} logoUrl={session.company_logo_url} compact />
+          {!template && <CompanyBanner name={session.company_name || vehicle.company_name} logoUrl={session.company_logo_url} compact />}
           {canSkip && (
             <Button
               variant="ghost"

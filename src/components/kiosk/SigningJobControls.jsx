@@ -4,7 +4,7 @@ import {deviceRequest} from "@/lib/deviceAuth";
 import {Button} from "@/components/ui/button";
 import {Input} from "@/components/ui/input";
 import {Dialog,DialogContent,DialogHeader,DialogTitle,DialogDescription} from "@/components/ui/dialog";
-export default function SigningJobControls({deviceId,onShowSignature}) {
+export default function SigningJobControls({deviceId,onShowSignature,onShowNameSign}) {
  const [open,setOpen]=useState(false),[pin,setPin]=useState(""),[grant,setGrant]=useState(""),[jobs,setJobs]=useState([]),[busy,setBusy]=useState(false),[error,setError]=useState("");
  const idle=useRef(null);
  const lock=()=>{setOpen(false);setGrant("");setPin("");setJobs([]);setError("");};
@@ -27,7 +27,8 @@ export default function SigningJobControls({deviceId,onShowSignature}) {
  <DialogHeader><DialogTitle>Signing tablet job controls</DialogTitle><DialogDescription>{grant?"Your assigned bus's jobs. Controls lock after two minutes idle.":"Enter the bus PIN to view job details and arrival controls."}</DialogDescription></DialogHeader>
  {error&&<p role="alert" className="text-destructive">{error}</p>}
  {!grant?<form className="space-y-3" onSubmit={e=>{e.preventDefault();unlock();}}><Input aria-label="Bus PIN" type="password" inputMode="numeric" maxLength={4} value={pin} onChange={e=>setPin(e.target.value.replace(/\D/g,""))}/><Button type="submit" disabled={busy||pin.length!==4}>{busy?"Checking…":"Unlock job controls"}</Button></form>:<div className="space-y-3">{jobs.length?jobs.map(job=><section key={job.id} className="rounded-xl border p-4 space-y-2"><h2 className="font-bold">{job.pickup_name} → {job.dropoff_name}</h2><p>{job.passenger_name||job.client_name} · {job.guests??"—"} guests</p>{job.flight_number&&<p>Flight {job.flight_number}</p>}{job.scheduled_time&&<p>{new Date(job.scheduled_time).toLocaleString()}</p>}{job.notes&&<p>{job.notes}</p>}<p className="text-sm text-muted-foreground">{job.status.replaceAll("_"," ")}</p>
- {job.status==="scheduled"?<p>Waiting for the driver to start this job.</p>:!job.pickup_signed_at?<Button disabled={busy||job.status!=="on_the_way"} onClick={()=>arrive(job,"pickup")}>Arrived at pickup · Show sign-in</Button>:<Button disabled={busy} onClick={()=>arrive(job,"dropoff")}>Arrived at drop-off · Show sign-in</Button>}
+ <Button variant="outline" onClick={()=>{onShowNameSign(job);lock();}}>Show guest name card</Button>
+ {job.status==="scheduled"?<p>Waiting for the driver to start this job.</p>:!job.pickup_signed_at?<Button disabled={busy||job.status!=="on_the_way"} onClick={()=>arrive(job,"pickup")}>Mark pickup · Guest sign-in</Button>:<Button disabled={busy} onClick={()=>arrive(job,"dropoff")}>Mark drop-off · Guest sign-in</Button>}
  </section>):<p>No active jobs assigned to this bus.</p>}<Button variant="outline" onClick={lock}>Lock controls</Button></div>}
  </DialogContent></Dialog></>;
 }

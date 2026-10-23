@@ -1,6 +1,7 @@
 import { useTabletWorkSafety } from "@/lib/nativeTabletControl";
 import "./boardingShowcase.css";
 import "./kioskApple.css";
+import "./phoneKiosk.css";
 import BusArtwork from "@/components/BusArtwork";
 import BoardingPickupSign from "@/components/kiosk/BoardingPickupSign";
 import useFutureAppearance from "@/hooks/useFutureAppearance";
@@ -10,7 +11,7 @@ import { helperLink } from "@/lib/helperHealth";
 import { httpStatus, errorData } from "@/lib/requestError";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CreditCard, QrCode, ChevronLeft, CheckCircle2, LogIn, LogOut, AlertCircle, Delete, MapPin, CloudUpload, PartyPopper, Bus, Users, Loader2 } from "lucide-react";
+import { CreditCard, QrCode, SwitchCamera, X, ChevronLeft, CheckCircle2, LogIn, LogOut, AlertCircle, Delete, MapPin, CloudUpload, PartyPopper, Bus, Users, Loader2 } from "lucide-react";
 import { useNfcTap, reportBadgeResult } from "@/hooks/useNfcTap";
 import { parseCodeQrPayload } from "@/lib/qr";
 import { haversineKm, etaMinutes, formatEta } from "@/lib/geo";
@@ -489,8 +490,8 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
         <div className="tt-board-slide"><p>Prefer to use your code?</p><SlideToUnlock label="Slide to enter a code" onUnlock={() => { setUnlocked(true); setMode("idle"); }} /></div>
         <section className="tt-board-qr" aria-label="Home QR scanner">
           {mode === "qr" ? <><QrScanner compact active={qrCooldown === 0} onDecode={handleQrDecode} facingMode={phoneLayout?qrFacing:"user"} requireFacingMode={!phoneLayout} stableMs={phoneLayout?300:800} />
-            {phoneLayout&&<button type="button" onClick={()=>setQrFacing(v=>v==="environment"?"user":"environment")}>Switch camera</button>}
-            <button type="button" onClick={() => {setMode("idle"); setUnlocked(false); setQrHint("");}}>Close camera</button>
+            <div className="tt-qr-actions">{phoneLayout&&<Button variant="outline" onClick={()=>setQrFacing(v=>v==="environment"?"user":"environment")}><SwitchCamera className="h-4 w-4" />Switch camera</Button>}
+            <Button variant="secondary" onClick={() => {setMode("idle"); setUnlocked(false); setQrHint("");}}><X className="h-4 w-4" />Close camera</Button></div>
             {qrCooldown > 0 && <p role="status">Scanning paused. Try again in {qrCooldown} seconds with your boarding QR.</p>}
             {busy ? <p role="status">Checking your code…</p> : qrHint && <p role="status">{qrHint}</p>}
           </> : <button type="button" className="tt-board-qr-start" onClick={() => {clearTimeout(resetTimer.current); setQrHint(""); setMode("qr");}}><QrCode aria-hidden="true" /><span><strong>Scan QR code</strong><small>Show your boarding QR to the camera</small></span></button>}
