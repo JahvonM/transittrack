@@ -13,3 +13,10 @@ APK downloads are restricted to HTTPS app.mcsweenstransport.com/native-releases/
 5. Verify PIN sign-in, GPS with screen off then resume, NFC/QR boarding and offline replay, tablet command acknowledgement, approved live viewing, local dashcam playback and admin recording access. Check all requests reach Supabase and no queued work is lost.
 
 Physical device validation is still required. Windows migration and retirement of Base44 are separate remaining steps.
+
+## Validation
+
+- 58 focused Vitest checks passed (backend switch, device/PIN security, background tracking, recording transfer, support failure handling, native update boundary and tablet control).
+- Independent Supabase production web build passed; generated function copies match their sources; git diff --check passed.
+- Live empty-request probes reached all four Supabase handlers without an embedded app/server key: driverSession rejected missing pairing with 401 DEVICE_ACCESS_REQUIRED; control/support/recordings rejected incomplete requests with 400. These checks did not create a session or mutate application records.
+- Native Java/Kotlin compilation and JUnit checks were not run in this sandbox (no installed Java/Android SDK). Run Prepare-Tablet-Test.ps1 on the existing Windows build machine before installation. Physical device acceptance remains pending.
