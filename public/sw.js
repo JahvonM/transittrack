@@ -1,8 +1,8 @@
 // TransitTrack service worker: lets the app open with no WiFi, and handles
 // push notifications (the Firebase part lives in firebase-messaging-sw.js).
 //
-// - Pages: network first (so a new deploy shows up straight away), falling
-//   back to the saved copy of the app when there's no connection.
+// - Pages: open the fully saved app immediately, then check and stage
+//   updates in the background. Live data refreshes inside the app.
 // - App files (/assets/*): the whole build is saved in the background, so
 //   every screen - including ones not opened yet - works offline.
 // - Live data (/api, /functions) is never cached here; screens keep their
@@ -16,7 +16,6 @@ const VERSION = "1";
 const SHELL = "tt-shell-v" + VERSION;
 const ASSETS = "tt-assets-v" + VERSION;
 const RUNTIME = "tt-runtime-v" + VERSION;
-const NAV_TIMEOUT_MS = 4000;
 const FIRST_NAV_TIMEOUT_MS = 30000;
 const STATIC_FILES = ["/images/boarding-coast.webp", "/images/boarding-coaster.webp", "/manifest.webmanifest", "/brand/icon.svg", "/brand/favicon-32.png", "/brand/apple-touch-icon.png", "/brand/icon-192.png"];
 
@@ -107,9 +106,8 @@ self.addEventListener("message", (event) => {
   event.waitUntil(fetchAndStage({ force: true }).catch(() => false).then((ok) => port?.postMessage({ ok })));
 });
 
-// The short deadline is for switching to a SAVED app, not for deciding that
-// a first-time device has no internet. Keep the original network request
-// alive so a slow response can still finish saving the app in the background.
+// Only a device without a saved app waits for its initial page request.
+// A late response can still finish saving the app in the background.
 async function withDeadline(request, ms) {
   let timer;
   try {
@@ -128,13 +126,14 @@ function connectionRecovery() {
 
 async function page(event) {
   const network = fetch(event.request);
-  // Register background work before waiting for a deadline. A slow network
-  // success must still stage its files after the saved screen has opened.
+  // Refresh the saved app in the background without delaying startup or
+  // replacing the screen the driver is already using.
   event.waitUntil(network.then(response => htmlOf(response.clone()))
     .then(html => html && update(html)).catch(() => {}));
   const cached = await caches.match("/", { cacheName: SHELL }).catch(() => null);
+  if (cached) return cached;
   try {
-    const response = await withDeadline(network, cached ? NAV_TIMEOUT_MS : FIRST_NAV_TIMEOUT_MS);
+    const response = await withDeadline(network, FIRST_NAV_TIMEOUT_MS);
     if (response.ok) return response;
     return cached || connectionRecovery();
   } catch {
