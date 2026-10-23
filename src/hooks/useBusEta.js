@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { fetchDrivingRoute } from "@/lib/geo";
-import { locationIsStale, remainingBusPoints, roughMinutes } from "@/lib/busEta";
+import { locationIsStale, remainingBusPoints, roughMinutes, unroutedPickupEstimate } from "@/lib/busEta";
 
 export default function useBusEta(route, vehicle, stop) {
   const [now, setNow] = useState(Date.now);
@@ -25,8 +25,18 @@ export default function useBusEta(route, vehicle, stop) {
       // the distance along the road, rather than no time at all.
       setResult(r ? { mins: r.durationMin, km: r.distanceKm, isDriving: true } : { ...roughMinutes(waypoints), estimated: true });
       setLoading(false);
+    }).catch(() => {
+      // Directions providers can reject a valid route; keep the ETA useful.
+      if (!alive) return;
+      setResult({ ...roughMinutes(waypoints), estimated: true });
+      setLoading(false);
     });
     return () => { alive = false; };
   }, [key, stale]);
-  return stale ? { mins: null, stale: true } : result || { mins: null, loading, unavailable: !loading };
+  // Route data can arrive after the bus and passenger pickup. Give an explicitly
+  // approximate straight-line time only until the route geometry is available.
+  // Never override a known route where the bus may already have passed the stop.
+  const fallback = !route || (!route?.path?.length && !route?.stops?.length)
+    ? unroutedPickupEstimate(vehicle, stop) : null;
+  return stale ? { mins: null, stale: true } : result || fallback || { mins: null, loading, unavailable: !loading };
 }
