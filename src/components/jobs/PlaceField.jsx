@@ -68,7 +68,7 @@ export default function PlaceField({ id, label, value, onChange, places = [], ro
         <div className="space-y-2">
           {(places.length > 0 || stops.length > 0) && (
             <Select value="" onValueChange={pick}>
-              <SelectTrigger id={id}><SelectValue placeholder="Saved place or bus stop" /></SelectTrigger>
+              <SelectTrigger id={id}><SelectValue placeholder={stops.length ? "Saved place or bus stop" : "Saved place"} /></SelectTrigger>
               <SelectContent>
                 {places.length > 0 && (
                   <SelectGroup>

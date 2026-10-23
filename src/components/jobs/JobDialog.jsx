@@ -47,7 +47,7 @@ function blankForm(day, job) {
 
 // Create or change a job: what kind, for whom, which bus, when, where, and
 // what the driver should know. Saving tells the bus's tablet within a minute.
-export default function JobDialog({ open, onOpenChange, job, day, vehicles = [], routes = [], places = [], clients = [], trips = [], onSaved, onPlaceSaved, onClientSaved }) {
+export default function JobDialog({ open, onOpenChange, job, day, vehicles = [], places = [], clients = [], trips = [], onSaved, onPlaceSaved, onClientSaved }) {
   const { toast } = useToast();
   const [form, setForm] = useState(() => blankForm(day, job));
   const [saving, setSaving] = useState(false);
@@ -246,9 +246,9 @@ export default function JobDialog({ open, onOpenChange, job, day, vehicles = [],
           )}
 
           <div className="grid gap-3 sm:grid-cols-2">
-            <PlaceField id="job-pickup" label={tour ? "Pick guests up at" : "Pickup"} value={form.pickup} onChange={(pickup) => set({ pickup })} places={places} routes={routes} onPlaceSaved={onPlaceSaved} proximity={near} />
+            <PlaceField id="job-pickup" label={tour ? "Pick guests up at" : "Pickup"} value={form.pickup} onChange={(pickup) => set({ pickup })} places={places} onPlaceSaved={onPlaceSaved} proximity={near} />
             <div className="space-y-1">
-              <PlaceField id="job-dropoff" label={tour ? "Bring guests back to" : "Drop-off"} value={form.dropoff} onChange={(dropoff) => set({ dropoff })} places={places} routes={routes} onPlaceSaved={onPlaceSaved} proximity={near} />
+              <PlaceField id="job-dropoff" label={tour ? "Bring guests back to" : "Drop-off"} value={form.dropoff} onChange={(dropoff) => set({ dropoff })} places={places} onPlaceSaved={onPlaceSaved} proximity={near} />
               {!form.dropoff && form.pickup && (
                 <button type="button" className="text-caption font-semibold text-primary" onClick={() => set({ dropoff: { ...form.pickup } })}>Same as pickup</button>
               )}
