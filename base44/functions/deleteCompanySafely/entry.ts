@@ -24,6 +24,9 @@ export default async function(req: Request) {
     const types = ['Vehicle','Route','Driver','CompanyMembership','CompanyAccessGrant','Contact','KioskDevice','DriverSession'];
     const inventory: Record<string,any[]> = {};
     for (const type of types) inventory[type] = await all(db,type,company_id);
+    // Refuse to start a multi-record change while other access-bearing records remain.
+    const blockers = ['CompanyAccessGrant','Contact','KioskDevice','DriverSession'].filter(type=>inventory[type].length);
+    if (blockers.length) return Response.json({error:'Deletion requires review of company access, contacts and paired devices first',blockers:Object.fromEntries(blockers.map(t=>[t,inventory[t].length]))},{status:409});
     // Revoke company access first. Keep membership history, but disable active grants.
     for (const row of inventory.CompanyMembership) if (row.active) await db.CompanyMembership.update(row.id,{active:false});
     // Preserve users and all operational history; detach the company-owned assignments.
