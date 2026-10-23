@@ -1,0 +1,106 @@
+/* TransitTrack Admin • glass preview.
+   All selectors are scoped to .tt-admin-shell to avoid changing drivers,
+   kiosks, passengers, authentication, or any existing event handlers. */
+.tt-admin-shell {
+  --tt-glass: hsl(var(--card) / .84);
+  --tt-glass-strong: hsl(var(--card) / .94);
+  --tt-glass-line: hsl(var(--border) / .82);
+  --tt-admin-glow: hsl(210 95% 57% / .12);
+  --tt-admin-highlight: hsl(210 97% 65% / .2);
+  background:
+    radial-gradient(ellipse 70% 55% at 94% 0%, var(--tt-admin-glow), transparent 75%),
+    radial-gradient(ellipse 42% 36% at 12% 85%, hsl(262 85% 58% / .055), transparent 80%),
+    hsl(var(--background));
+  transition: background-color .55s ease, color .55s ease;
+}
+.light .tt-admin-shell {
+  --tt-glass: hsl(0 0% 100% / .83);
+  --tt-glass-strong: hsl(0 0% 100% / .96);
+  --tt-glass-line: hsl(214 35% 82% / .9);
+  --tt-admin-glow: hsl(206 100% 75% / .26);
+  --tt-admin-highlight: hsl(210 90% 50% / .10);
+}
+.tt-admin-shell > aside,
+.tt-admin-shell [data-radix-scroll-area-viewport] {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--muted-foreground) / .36) transparent;
+}
+.tt-admin-shell > aside {
+  background: var(--tt-glass-strong);
+  backdrop-filter: blur(22px) saturate(145%);
+  border-color: var(--tt-glass-line);
+  box-shadow: 5px 0 36px -24px hsl(220 80% 10% / .45);
+  transition: background .55s ease, border-color .55s ease;
+}
+.tt-admin-shell header {
+  background: var(--tt-glass-strong);
+  border-color: var(--tt-glass-line);
+  backdrop-filter: blur(18px) saturate(145%);
+  box-shadow: 0 6px 28px -23px hsl(210 65% 43% / .35);
+  transition: background .55s ease, border-color .55s ease;
+}
+.tt-admin-shell .tt-admin-group-toggle,
+.tt-admin-shell nav button {
+  border-radius: 13px;
+  transition: color .25s ease, background-color .3s ease, box-shadow .3s ease, transform .3s ease;
+}
+.tt-admin-shell nav button:hover {
+  background: var(--tt-admin-highlight);
+  transform: translateX(2px);
+}
+.tt-admin-shell nav button[aria-current="page"] {
+  background: linear-gradient(105deg, hsl(var(--sidebar-primary) / .17), var(--tt-admin-highlight));
+  box-shadow: inset 0 0 0 1px hsl(var(--sidebar-primary) / .24), 0 6px 22px -16px hsl(var(--sidebar-primary) / .6);
+}
+.tt-admin-shell .tt-admin-group-items { animation: tt-admin-nav-reveal .28s cubic-bezier(.2,.8,.2,1) both; }
+.tt-admin-shell .tt-admin-overview :is(.tt-admin-stats > button, .tt-admin-top-grid > section),
+.tt-admin-shell .tt-admin-overview .tt-admin-totals,
+.tt-admin-shell .tt-admin-overview section[aria-label] {
+  transition: background .45s ease, border-color .45s ease, box-shadow .35s ease, transform .35s ease;
+}
+.tt-admin-shell .tt-admin-overview :is(.tt-admin-stats > button, .tt-admin-top-grid > section) {
+  background: var(--tt-glass);
+  border-color: var(--tt-glass-line);
+  backdrop-filter: blur(14px) saturate(132%);
+  box-shadow: 0 14px 40px -32px hsl(220 70% 5% / .7);
+}
+.tt-admin-shell .tt-admin-overview .tt-admin-stats > button:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 15px 35px -22px hsl(207 88% 60% / .43);
+}
+.tt-admin-shell :is(.rounded-xl, .rounded-2xl) { transition-property: background-color, border-color, box-shadow, color; transition-duration: .35s; }
+.tt-admin-shell main > div:first-child h1 {
+  letter-spacing: -.035em;
+  background: linear-gradient(115deg, hsl(var(--foreground)), hsl(var(--foreground) / .74));
+  color: transparent;
+  background-clip: text;
+}
+.tt-admin-shell .tt-admin-page-enter {
+  animation: tt-admin-page-reveal .43s cubic-bezier(.16,1,.3,1) both;
+}
+.tt-admin-shell .tt-admin-page-enter .tt-admin-stats > button {
+  animation: tt-admin-card-reveal .5s cubic-bezier(.16,1,.3,1) both;
+}
+.tt-admin-shell .tt-admin-page-enter .tt-admin-stats > button:nth-child(2){ animation-delay: .055s; }
+.tt-admin-shell .tt-admin-page-enter .tt-admin-stats > button:nth-child(3){ animation-delay: .11s; }
+.tt-admin-shell .tt-admin-page-enter .tt-admin-stats > button:nth-child(4){ animation-delay: .165s; }
+@keyframes tt-admin-page-reveal {
+  from { opacity: .55; transform: translateY(9px); filter: blur(3px); }
+  to { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+@keyframes tt-admin-card-reveal {
+  from { opacity: .2; transform: translateY(15px) scale(.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes tt-admin-nav-reveal {
+  from { opacity: .2; transform: translateY(-5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tt-admin-shell *, .tt-admin-shell *::before, .tt-admin-shell *::after {
+    animation-duration: .01ms !important;
+    animation-delay: 0ms !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
