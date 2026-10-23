@@ -1,3 +1,4 @@
+import "./inspectionFit.css";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -112,7 +113,7 @@ export default function XrayInspection({ template, vehicle, onSubmit, onSkip, on
   const goNext = (res2 = results) => {
     const j = nextUnchecked(idx, res2);
     if (j === -1) setPhase("readings");
-    else setIdx(j);
+    else { setIdx(j); setPhase("check"); }
   };
 
   const needsPhoto = item?.requires_photo && !res.photo;
@@ -121,11 +122,11 @@ export default function XrayInspection({ template, vehicle, onSubmit, onSkip, on
     if (!item) return;
     const next = { ...results, [item.key]: { ...res, condition: "GOOD" } };
     setResults(next);
-    if (item.requires_photo && !res.photo) return; // wait for the photo
+    if (item.requires_photo && !res.photo) { setPhase("details"); return; } // wait for the photo
     setTimeout(() => goNext(next), 220);
   };
 
-  const markProblem = () => item && patch(item.key, { condition: "FAILED" });
+  const markProblem = () => { if (item) { patch(item.key, { condition: "FAILED" }); setPhase("details"); } };
 
   const pickPhoto = async (e) => {
     const file = e.target.files?.[0];
@@ -193,7 +194,7 @@ export default function XrayInspection({ template, vehicle, onSubmit, onSkip, on
   const pct = Math.round((doneCount / items.length) * 100);
 
   return (
-    <div className="space-y-4">
+    <div className="tt-inspection space-y-4">
       {/* header */}
       <div className="flex items-start gap-3">
         <div className="w-11 h-11 rounded-xl bg-primary/15 text-primary grid place-items-center shrink-0">
@@ -217,7 +218,7 @@ export default function XrayInspection({ template, vehicle, onSubmit, onSkip, on
         <div className="h-full bg-primary transition-all duration-300" style={{ width: `${pct}%` }} />
       </div>
 
-      <div className="grid lg:grid-cols-[1.35fr_1fr] gap-4 items-start">
+      <div className="tt-inspection-grid grid lg:grid-cols-[1.35fr_1fr] gap-4 items-start">
         {/* X-ray */}
         <div className="space-y-2">
           <div className="relative">
@@ -254,7 +255,7 @@ export default function XrayInspection({ template, vehicle, onSubmit, onSkip, on
         </div>
 
         {/* current step */}
-        <div className="rounded-2xl border border-border bg-card p-4 space-y-4">
+        <div className="tt-inspection-step rounded-2xl border border-border bg-card p-4 space-y-4">
           {phase === "scan" && (
             <div className="py-10 text-center text-muted-foreground flex flex-col items-center gap-3">
               <Loader2 className="w-6 h-6 animate-spin text-primary" />
@@ -262,7 +263,7 @@ export default function XrayInspection({ template, vehicle, onSubmit, onSkip, on
             </div>
           )}
 
-          {phase === "check" && item && (
+          {["check", "details"].includes(phase) && item && (
             <>
               <div className="space-y-1">
                 <p className="text-xs font-bold uppercase tracking-wider text-primary">{zone?.label || "Whole bus"}</p>
@@ -275,7 +276,7 @@ export default function XrayInspection({ template, vehicle, onSubmit, onSkip, on
                 {item.instructions && <p className="text-sm text-muted-foreground pt-1">{item.instructions}</p>}
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              {phase === "check" && <div className="grid grid-cols-2 gap-3">
                 <Button
                   onClick={markOk}
                   aria-pressed={res.condition === "GOOD"}
@@ -290,14 +291,14 @@ export default function XrayInspection({ template, vehicle, onSubmit, onSkip, on
                 >
                   <AlertTriangle className="w-5 h-5" /> Problem
                 </Button>
-              </div>
+              </div>}
 
-              {(res.condition === "FAILED" || item.requires_photo) && (
+              {phase === "details" && (
                 <div className="space-y-3">
                   {res.condition === "FAILED" && (
                     <div className="space-y-1.5">
                       <Label htmlFor="xr-note">What's wrong?</Label>
-                      <Textarea id="xr-note" rows={3} value={res.notes || ""} onChange={(e) => patch(item.key, { notes: e.target.value })} placeholder="e.g. Front left tyre looks low" />
+                      <Textarea id="xr-note" rows={2} value={res.notes || ""} onChange={(e) => patch(item.key, { notes: e.target.value })} placeholder="e.g. Front left tyre looks low" />
                     </div>
                   )}
                   <input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={pickPhoto} />
@@ -323,7 +324,8 @@ export default function XrayInspection({ template, vehicle, onSubmit, onSkip, on
                 </div>
               )}
 
-              <div className="flex items-center justify-between pt-1">
+              {phase === "details" && <Button variant="ghost" className="min-h-[44px]" onClick={() => setPhase("check")}><ChevronLeft className="w-4 h-4" />Change result</Button>}
+              {phase === "check" && <div className="flex items-center justify-between pt-1">
                 <Button variant="ghost" onClick={() => setIdx((i) => Math.max(0, i - 1))} disabled={idx === 0} className="min-h-[44px]">
                   <ChevronLeft className="w-4 h-4" /> Back
                 </Button>
@@ -335,8 +337,8 @@ export default function XrayInspection({ template, vehicle, onSubmit, onSkip, on
                     Next <ChevronRight className="w-4 h-4" />
                   </Button>
                 )}
-              </div>
-              {onSkip && (
+              </div>}
+              {onSkip && phase === "check" && (
                 <Button variant="link" className="w-full text-muted-foreground" onClick={onSkip}>Skip for now</Button>
               )}
             </>

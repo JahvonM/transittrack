@@ -621,6 +621,7 @@ export function createClientFromRequest(req: Request) {
 
 const DEFAULT_ORIGINS = [
   'https://app.mcsweenstransport.com',
+  'https://mcsween-grenada-travel.modestejahvon.chatgpt.site',
   'https://mcsweenstransport.com',
   'https://eager-transit-track-go.base44.app',
   // The Supabase build on Cloudflare while it is tested side by side.
