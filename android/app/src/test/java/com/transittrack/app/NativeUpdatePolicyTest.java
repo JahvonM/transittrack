@@ -5,12 +5,13 @@ import java.util.*;
 public class NativeUpdatePolicyTest {
     Set<String> cert(String v) { return new HashSet<>(Arrays.asList(v)); }
     @Test public void acceptsOnlyOwnHttpsReleasePath() {
-        assertTrue(NativeUpdatePolicy.url("https://eager-transit-track-go.base44.app/native-releases/kiosk_2.apk"));
-        for (String s : Arrays.asList("http://eager-transit-track-go.base44.app/native-releases/a.apk",
-            "https://evil.test/native-releases/a.apk", "https://user@eager-transit-track-go.base44.app/native-releases/a.apk",
-            "https://eager-transit-track-go.base44.app:443/native-releases/a.apk",
-            "https://eager-transit-track-go.base44.app/native-releases/a.apk?key=secret",
-            "https://eager-transit-track-go.base44.app/native-releases/%2e%2e/helper.apk",
+        assertTrue(NativeUpdatePolicy.url("https://app.mcsweenstransport.com/native-releases/kiosk_2.apk"));
+        for (String s : Arrays.asList("http://app.mcsweenstransport.com/native-releases/a.apk",
+            "https://evil.test/native-releases/a.apk", "https://user@app.mcsweenstransport.com/native-releases/a.apk",
+            "https://app.mcsweenstransport.com:443/native-releases/a.apk",
+            "https://app.mcsweenstransport.com/native-releases/a.apk?key=secret",
+            "https://app.mcsweenstransport.com/native-releases/%2e%2e/helper.apk",
+            "https://eager-transit-track-go.base44.app/native-releases/a.apk",
             "file:///data/local/a.apk")) assertFalse(s, NativeUpdatePolicy.url(s));
     }
     @Test public void rejectsHelperPackageWrongKeyDowngradeDebugAndMissingSignature() {

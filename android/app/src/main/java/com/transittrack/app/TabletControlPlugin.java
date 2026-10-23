@@ -28,7 +28,7 @@ import javax.net.ssl.HttpsURLConnection;
 /** WebView supplies only an ID and existing device key. Actions come from fixed HTTPS server. */
 @CapacitorPlugin(name = "TabletControl")
 public class TabletControlPlugin extends Plugin {
-    private static final String ENDPOINT = "https://eager-transit-track-go.base44.app/api/apps/6a98b192be27b5f9635020ba/functions/tabletControl";
+    private static final String ENDPOINT = "https://ghqpznxqngvhmkiwcauj.supabase.co/functions/v1/tabletControl";
     private final ExecutorService worker = Executors.newSingleThreadExecutor();
     private final Handler main = new Handler(Looper.getMainLooper());
     private android.app.ProgressDialog updateDialog;

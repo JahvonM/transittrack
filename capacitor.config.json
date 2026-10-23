@@ -4,9 +4,9 @@
   "webDir": "dist",
   "server": {
     "androidScheme": "https",
-    "url": "https://eager-transit-track-go.base44.app",
+    "url": "https://app.mcsweenstransport.com",
     "allowNavigation": [
-      "eager-transit-track-go.base44.app"
+      "app.mcsweenstransport.com"
     ]
   },
   "plugins": {

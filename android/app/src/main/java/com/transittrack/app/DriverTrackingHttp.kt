@@ -7,7 +7,7 @@ import javax.net.ssl.HttpsURLConnection
 internal object DriverTrackingHttp {
  class Rejected(val status:Int,val retrySeconds:Long=0):Exception("TRACKING_HTTP")
  fun post(body:JSONObject):JSONObject {
-  val c=URL("https://eager-transit-track-go.base44.app/api/apps/6a98b192be27b5f9635020ba/functions/driverSession").openConnection() as HttpsURLConnection
+  val c=URL("https://ghqpznxqngvhmkiwcauj.supabase.co/functions/v1/driverSession").openConnection() as HttpsURLConnection
   try{
    c.instanceFollowRedirects=false;c.requestMethod="POST";c.connectTimeout=8000;c.readTimeout=8000;c.doOutput=true
    c.setRequestProperty("X-App-Id","6a98b192be27b5f9635020ba");c.setRequestProperty("Content-Type","application/json")

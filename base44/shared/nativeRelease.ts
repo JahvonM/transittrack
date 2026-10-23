@@ -10,7 +10,7 @@ export function validNativeRelease(r: NativeRelease | null): r is NativeRelease 
       !/^[a-f0-9]{64}$/.test(r.sha256)) return false;
   try {
     const u = new URL(r.url);
-    return u.protocol === 'https:' && u.hostname === 'eager-transit-track-go.base44.app' &&
+    return u.protocol === 'https:' && u.hostname === 'app.mcsweenstransport.com' &&
       !u.username && !u.password && !u.port && !u.search && !u.hash &&
       /^\/native-releases\/[a-zA-Z0-9_-]+\.apk$/.test(u.pathname);
   } catch { return false; }

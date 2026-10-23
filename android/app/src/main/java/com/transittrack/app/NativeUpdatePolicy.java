@@ -6,7 +6,7 @@ final class NativeUpdatePolicy {
     static boolean url(String value) {
         try {
             URI u = new URI(value);
-            return "https".equals(u.getScheme()) && "eager-transit-track-go.base44.app".equals(u.getHost()) &&
+            return "https".equals(u.getScheme()) && "app.mcsweenstransport.com".equals(u.getHost()) &&
                 u.getPort() == -1 && u.getUserInfo() == null && u.getQuery() == null && u.getFragment() == null &&
                 u.getRawPath().matches("/native-releases/[a-zA-Z0-9_-]+\\.apk");
         } catch (Exception e) { return false; }

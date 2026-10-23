@@ -4,7 +4,7 @@ import { newControl, controlCompletion } from "../../../base44/shared/tabletCont
 import { mock, load, request } from "../../../security-tests/helpers.js";
 import { helperHealthPayload } from "../helperHealth";
 const release = { id: "kiosk-2", package_name: "com.transittrack.app", version_code: 2, version_name: "1.1",
-  bytes: 1024, sha256: "a".repeat(64), url: "https://eager-transit-track-go.base44.app/native-releases/kiosk-2.apk" };
+  bytes: 1024, sha256: "a".repeat(64), url: "https://app.mcsweenstransport.com/native-releases/kiosk-2.apk" };
 afterEach(() => vi.unstubAllGlobals());
 describe("native kiosk release boundary", () => {
   it("ships without an approved APK and refuses arbitrary URLs or helper identity", () => {
@@ -12,6 +12,7 @@ describe("native kiosk release boundary", () => {
     expect(validNativeRelease(release)).toBe(true);
     for (const change of [{ package_name: "com.transittrack.helper" }, { version_code: 1 }, { version_code: 2.5 },
       { bytes: 0 }, { bytes: 151*1024*1024 }, { sha256: "bad" }, { url: "https://evil.test/update.apk" },
+      { url: "https://eager-transit-track-go.base44.app/native-releases/kiosk-2.apk" },
       { url: release.url + "?token=secret" }, { url: release.url.replace("https:", "http:") }])
       expect(validNativeRelease({ ...release, ...change })).toBe(false);
   });

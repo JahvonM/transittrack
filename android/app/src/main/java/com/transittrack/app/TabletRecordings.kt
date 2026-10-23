@@ -22,7 +22,7 @@ class TabletRecordings(private val activity:Activity) {
  @Volatile private var current:Session?=null
  private val seen=LinkedHashSet<String>()
  @Volatile private var resumed=true
- private val endpoint="https://eager-transit-track-go.base44.app/api/apps/6a98b192be27b5f9635020ba/functions/tabletRecordings"
+ private val endpoint="https://ghqpznxqngvhmkiwcauj.supabase.co/functions/v1/tabletRecordings"
  fun offer(call:PluginCall){
   val id=call.getString("session_id")?:"";val device=call.getString("device_id")?:"";val token=call.getString("device_token")?:""
   if(!resumed || current!=null || seen.contains(id) || !id.matches(Regex("[A-Za-z0-9_-]{6,128}")) || !device.matches(Regex("[A-Za-z0-9_-]{6,128}")) || !token.matches(Regex("[a-f0-9]{64}"))){call.resolve();return}

@@ -32,7 +32,7 @@ class TabletSupportPlugin : Plugin() {
  private val seen=LinkedHashSet<String>()
  private val recordings by lazy{TabletRecordings(activity)}
  @PluginMethod fun offerRecordings(call:PluginCall){activity.runOnUiThread{recordings.offer(call)}}
- private val endpoint="https://eager-transit-track-go.base44.app/api/apps/6a98b192be27b5f9635020ba/functions/tabletSupport"
+ private val endpoint="https://ghqpznxqngvhmkiwcauj.supabase.co/functions/v1/tabletSupport"
 
  @PluginMethod fun getCapabilities(call:PluginCall) {
   call.resolve(JSObject().put("remoteViewingReady",true).put("screenConsentRequired",true)

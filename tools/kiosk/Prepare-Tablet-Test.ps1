@@ -20,14 +20,11 @@ try {
         $defaultSdk = Join-Path $env:LOCALAPPDATA 'Android\Sdk'
         if (Test-Path $defaultSdk) { $env:ANDROID_HOME = $defaultSdk }
     }
-    if ($env:VITE_BASE44_APP_ID -and $env:VITE_BASE44_APP_ID -ne '6a98b192be27b5f9635020ba') { throw 'This PowerShell session points to another app. Open a new session for the TransitTrack checkout.' }
-    if (-not $env:VITE_BASE44_APP_ID) { $env:VITE_BASE44_APP_ID = '6a98b192be27b5f9635020ba' }
-    if (-not $env:VITE_BASE44_APP_BASE_URL) { $env:VITE_BASE44_APP_BASE_URL = 'https://eager-transit-track-go.base44.app' }
     Write-Host '1/4 Installing the exact locked web dependencies...'
     & npm.cmd ci
     if ($LASTEXITCODE -ne 0) { throw 'Dependency installation failed. Fix the displayed error before continuing.' }
     Write-Host '2/4 Building the web app...'
-    & npm.cmd run build
+    & npm.cmd run build:supabase
     if ($LASTEXITCODE -ne 0) { throw 'Web build failed. No installation attempted.' }
     Write-Host '3/4 Syncing the integrated Android project...'
     & npx.cmd cap sync android
