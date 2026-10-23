@@ -149,7 +149,10 @@ export function sessionHandoffToken(storage) {
 // After handing the session to the desktop/phone app this browser lets go of it
 // (without ending it), so the two never refresh the same sign-in and cancel it.
 export async function afterSessionHandoff() {
-  await sb().auth.signOut({ scope: 'local' }).catch(() => {});
+  // Supabase's scope:'local' still revokes this session on the server. The
+  // desktop/phone is taking that very session over, so never signOut here.
+  await sb().auth.stopAutoRefresh();
+  if (hasWindow()) window.localStorage.removeItem(AUTH_STORAGE_KEY);
 }
 
 // Which "Continue with ..." buttons work: the providers turned on in the
