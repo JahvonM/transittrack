@@ -16,13 +16,18 @@ public class TabletHotspotApiTest {
     private Context context;
     @Before public void reset(){context=RuntimeEnvironment.getApplication();TabletHotspotStartupService.prefs(context).edit().clear().commit();}
     @Test public void resolvesConnectivityBinderWithoutPrivateManagerFields() throws Exception {
-        Binder binder=new Binder();
-        Class.forName("android.os.ServiceManager").getMethod("addService",String.class,IBinder.class)
-            .invoke(null,Context.CONNECTIVITY_SERVICE,binder);
+        IBinder binder=(IBinder)Class.forName("android.os.ServiceManager").getMethod("getService",String.class)
+            .invoke(null,Context.CONNECTIVITY_SERVICE);
+        assertNotNull(binder);
         Object service=TabletHotspotApi.connectivityService();
         assertNotNull(service);
         assertTrue(Class.forName("android.net.IConnectivityManager").isInstance(service));
-        assertSame(binder,((IInterface)service).asBinder());
+        assertSame(binder.queryLocalInterface("android.net.IConnectivityManager"),service);
+    }
+    @Test public void missingConnectivityServiceReturnsUnavailable() throws Exception {
+        org.robolectric.shadows.ShadowServiceManager.setServiceAvailability(Context.CONNECTIVITY_SERVICE,false);
+        try { assertNull(TabletHotspotApi.connectivityService()); }
+        finally { org.robolectric.shadows.ShadowServiceManager.setServiceAvailability(Context.CONNECTIVITY_SERVICE,true); }
     }
     @Test public void startsThroughPublicContractWhenConcreteProxyIsPrivate() throws Exception {
         Object proxy=TetheringFixture.proxy();
