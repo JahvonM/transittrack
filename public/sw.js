@@ -17,6 +17,7 @@ const SHELL = "tt-shell-v" + VERSION;
 const ASSETS = "tt-assets-v" + VERSION;
 const RUNTIME = "tt-runtime-v" + VERSION;
 const NAV_TIMEOUT_MS = 4000;
+const FIRST_NAV_TIMEOUT_MS = 30000;
 const STATIC_FILES = ["/images/boarding-coast.webp", "/images/boarding-coaster.webp", "/manifest.webmanifest", "/brand/icon.svg", "/brand/favicon-32.png", "/brand/apple-touch-icon.png", "/brand/icon-192.png"];
 
 // A version is only switched to once it's complete: the new page and every
@@ -106,22 +107,39 @@ self.addEventListener("message", (event) => {
   event.waitUntil(fetchAndStage({ force: true }).catch(() => false).then((ok) => port?.postMessage({ ok })));
 });
 
-function timeout(ms) {
-  return new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), ms));
+// The short deadline is for switching to a SAVED app, not for deciding that
+// a first-time device has no internet. Keep the original network request
+// alive so a slow response can still finish saving the app in the background.
+async function withDeadline(request, ms) {
+  let timer;
+  try {
+    return await Promise.race([request, new Promise((_, reject) => {
+      timer = setTimeout(() => reject(new Error("timeout")), ms);
+    })]);
+  } finally { clearTimeout(timer); }
+}
+
+function connectionRecovery() {
+  return new Response(
+    `<!doctype html><html lang="en"><head><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#091116"><title>Connecting · McSween Transport</title></head><body style="font-family:system-ui,sans-serif;background:#091116;color:#f1f4ee;display:grid;place-items:center;min-height:100vh;margin:0;padding:24px;box-sizing:border-box"><main style="max-width:440px;text-align:center"><h1>Let’s get connected</h1><p style="color:#aebec5;line-height:1.7">McSween Transport couldn’t finish loading. Your connection may still be starting. Check Wi-Fi or mobile data, then try again.</p><button id="retry" style="background:#d6f54a;color:#14200b;border:0;border-radius:14px;padding:16px 28px;font:inherit;font-weight:700;min-height:48px">Try again</button><p style="font-size:13px;color:#aebec5">Saved records and tablet pairing have not been cleared.</p></main><script>document.getElementById('retry').onclick=()=>location.reload();window.addEventListener('online',()=>location.reload(),{once:true});</script></body></html>`,
+    { status: 503, headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" } }
+  );
 }
 
 async function page(event) {
+  const network = fetch(event.request);
+  // Register background work before waiting for a deadline. A slow network
+  // success must still stage its files after the saved screen has opened.
+  event.waitUntil(network.then(response => htmlOf(response.clone()))
+    .then(html => html && update(html)).catch(() => {}));
+  const cached = await caches.match("/", { cacheName: SHELL }).catch(() => null);
   try {
-    const response = await Promise.race([fetch(event.request), timeout(NAV_TIMEOUT_MS)]);
-    event.waitUntil(htmlOf(response.clone()).then((html) => html && update(html)).catch(() => {}));
-    return response;
+    const response = await withDeadline(network, cached ? NAV_TIMEOUT_MS : FIRST_NAV_TIMEOUT_MS);
+    if (response.ok) return response;
+    return cached || connectionRecovery();
   } catch {
-    const cached = await caches.match("/", { cacheName: SHELL });
-    if (cached) return cached;
-    return new Response(
-      "<!doctype html><meta name=viewport content='width=device-width'><body style='font-family:sans-serif;background:#0b0b0d;color:#fff;display:grid;place-items:center;height:100vh;margin:0'><p>McSween Transport needs a connection the first time it opens on this device.</p>",
-      { status: 503, headers: { "Content-Type": "text/html" } }
-    );
+    // Background staging may have completed while the connection was waiting.
+    return cached || await caches.match("/", { cacheName: SHELL }).catch(() => null) || connectionRecovery();
   }
 }
 
