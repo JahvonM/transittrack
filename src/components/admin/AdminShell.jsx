@@ -55,6 +55,7 @@ import Logo from "@/components/Logo";
 import LiveClock from "@/components/LiveClock";
 import { cn } from "@/lib/utils";
 import { PageSlots } from "@/components/admin/kit";
+import "./adminGlassPreview.css";
 
 // `group` clusters the flat section list into labeled chunks in the sidebar
 // (Fleet Operations / Maintenance — the mechanic's own area / Dispatch — the
@@ -238,6 +239,14 @@ const fmtDate = () => new Date().toLocaleDateString([], { weekday: "short", mont
  */
 export default function AdminShell({ active, onNavigate, children, alertVehicles = [], user, onSignOut, pushPermission, onEnableNotifications, headerActions = null }) {
   const [open, setOpen] = useState(false);
+  const pageRef = useRef(null);
+  useEffect(() => {
+    const node = pageRef.current;
+    if (!node) return;
+    node.classList.remove("tt-admin-page-enter");
+    void node.offsetWidth; // Replay visual entrance only; never remount functional children.
+    node.classList.add("tt-admin-page-enter");
+  }, [active]);
   const [actionsEl, setActionsEl] = useState(null);
   const [introEl, setIntroEl] = useState(null);
   const slots = useMemo(() => ({ actions: actionsEl, intro: introEl }), [actionsEl, introEl]);
@@ -322,7 +331,7 @@ export default function AdminShell({ active, onNavigate, children, alertVehicles
           </button>
         )}
 
-        <main className="min-w-0 flex-1 px-4 pb-24 pt-6 sm:px-6 lg:px-8">
+        <main ref={pageRef} className="min-w-0 flex-1 px-4 pb-24 pt-6 sm:px-6 lg:px-8">
           <div className="mb-5 flex flex-wrap items-end justify-between gap-x-4 gap-y-3">
             <div className="min-w-0">
               <h1 className="text-headline font-bold">{title}</h1>
