@@ -68,7 +68,22 @@
   transform: translateY(-3px);
   box-shadow: 0 15px 35px -22px hsl(207 88% 60% / .43);
 }
-.tt-admin-shell :is(.rounded-xl, .rounded-2xl) { transition-property: background-color, border-color, box-shadow, color; transition-duration: .35s; }
+/* Animate only admin chrome and direct surface containers: never animate
+   maps, map markers, modal overlays, or operational controls. */
+.tt-admin-shell .tt-admin-theme-control button {
+  transition: background-color .48s ease, color .48s ease, box-shadow .4s ease, transform .25s ease;
+}
+.tt-admin-shell .tt-admin-theme-control button:hover { transform: translateY(-1px); }
+.tt-admin-shell .tt-admin-theme-control button[aria-pressed="true"] {
+  box-shadow: 0 3px 14px -8px hsl(var(--sidebar-primary) / .6);
+}
+.tt-admin-shell .tt-admin-overview .tt-admin-map-panel,
+.tt-admin-shell .tt-admin-overview .tt-admin-top-grid > section,
+.tt-admin-shell .tt-admin-overview .tt-admin-stats > button {
+  transition: background-color .55s ease, border-color .55s ease, box-shadow .4s ease, transform .35s ease;
+}
+.tt-admin-shell .tt-admin-breadcrumb { transition: color .4s ease; }
+.tt-admin-shell header input { transition: background-color .45s ease, border-color .45s ease, color .45s ease; }
 .tt-admin-shell main > div:first-child h1 {
   letter-spacing: -.035em;
   background: linear-gradient(115deg, hsl(var(--foreground)), hsl(var(--foreground) / .74));
@@ -85,8 +100,8 @@
 .tt-admin-shell .tt-admin-page-enter .tt-admin-stats > button:nth-child(3){ animation-delay: .11s; }
 .tt-admin-shell .tt-admin-page-enter .tt-admin-stats > button:nth-child(4){ animation-delay: .165s; }
 @keyframes tt-admin-page-reveal {
-  from { opacity: .55; transform: translateY(9px); filter: blur(3px); }
-  to { opacity: 1; transform: translateY(0); filter: blur(0); }
+  from { opacity: .78; transform: translateY(7px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 @keyframes tt-admin-card-reveal {
   from { opacity: .2; transform: translateY(15px) scale(.985); }
