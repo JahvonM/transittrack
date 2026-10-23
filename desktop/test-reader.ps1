@@ -12,7 +12,7 @@ try {
     Start-Sleep -Milliseconds 250
     if ($proc.HasExited) { throw 'Compiled NFC helper exited before becoming ready.' }
     try {
-      $response = Invoke-WebRequest -UseBasicParsing -Uri 'http://127.0.0.1:8765/status' -Headers @{Origin='https://eager-transit-track-go.base44.app'} -TimeoutSec 2
+      $response = Invoke-WebRequest -UseBasicParsing -Uri 'http://127.0.0.1:8765/status' -Headers @{Origin='https://app.mcsweenstransport.com'} -TimeoutSec 2
       $status = $response.Content | ConvertFrom-Json
       if ($status.type -eq 'status' -and $status.simulate -eq $true -and $status.reader -match 'simulated') { $ready = $true; break }
     } catch { if ($proc.HasExited) { throw } }

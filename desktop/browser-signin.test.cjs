@@ -2,7 +2,7 @@ const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const http=require('node:http');
 const {startBrowserSignIn,providerFromLoginUrl,providerFromRedirect,returnPathFromLoginUrl,signedInUrl}=require('./browser-signin.cjs');
-const APP='https://eager-transit-track-go.base44.app';
+const APP='https://app.mcsweenstransport.com';
 const TOKEN='eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0In0.c2lnbmF0dXJlLXZhbHVl';
 
 function post(port,{body,origin=APP,type='application/x-www-form-urlencoded',host,method='POST',path='/callback'}={}){
@@ -25,7 +25,7 @@ test('recognises provider sign-in only on the TransitTrack and Base44 hosts',()=
  assert.equal(providerFromLoginUrl('https://app.base44.com/api/apps/auth/login?app_id=1'),'google');
  assert.equal(providerFromLoginUrl('https://app.base44.com/api/apps/auth/apple/login?app_id=1'),'apple');
  assert.equal(providerFromLoginUrl(APP+'/api/apps/6a98b192be27b5f9635020ba/auth/sso/login'),'sso');
- for(const bad of ['https://evil.invalid/api/apps/auth/login','http://eager-transit-track-go.base44.app/api/apps/auth/login',APP+'/api/apps/auth/evil/login',APP+'/login','https://user:pw@app.base44.com/api/apps/auth/login','javascript:alert(1)','not a url'])assert.equal(providerFromLoginUrl(bad),null,bad);
+ for(const bad of ['https://evil.invalid/api/apps/auth/login','http://app.mcsweenstransport.com/api/apps/auth/login',APP+'/api/apps/auth/evil/login',APP+'/login','https://user:pw@app.base44.com/api/apps/auth/login','javascript:alert(1)','not a url'])assert.equal(providerFromLoginUrl(bad),null,bad);
  assert.equal(providerFromRedirect('https://accounts.google.com/o/oauth2/v2/auth?x=1'),'google');
  assert.equal(providerFromRedirect('https://appleid.apple.com/auth/authorize'),'apple');
  for(const bad of ['https://accounts.google.com.evil.invalid/','http://accounts.google.com/','https://evil.invalid/?accounts.google.com'])assert.equal(providerFromRedirect(bad),null,bad);
@@ -52,6 +52,7 @@ test('the loopback listener accepts only the matching state from the website, on
  assert.equal((await post(port,{method:'GET',path:'/callback?'+good})).status,404);
  assert.equal((await post(port,{body:new URLSearchParams({state:'x'.repeat(43),token:TOKEN}).toString()})).status,400);
  assert.equal((await post(port,{body:good,origin:'https://evil.invalid'})).status,403);
+ assert.equal((await post(port,{body:good,origin:'https://eager-transit-track-go.base44.app'})).status,403);
  assert.equal((await post(port,{body:good,host:'localhost:'+port})).status,400);
  assert.equal((await post(port,{body:good,type:'text/plain'})).status,415);
  assert.equal((await post(port,{body:new URLSearchParams({state,token:'not a token'}).toString()})).status,400);

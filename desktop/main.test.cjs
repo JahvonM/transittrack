@@ -19,19 +19,19 @@ test('the real entry creates an isolated window and rejects foreign navigation',
  assert.equal(window.options.webPreferences.sandbox,true);
  assert.equal(window.options.webPreferences.webSecurity,true);
  assert.equal(window.options.webPreferences.webviewTag,false);
- assert.equal(window.url,'https://eager-transit-track-go.base44.app/');
+ assert.equal(window.url,'https://app.mcsweenstransport.com/');
  assert.equal(window.options.webPreferences.partition,'persist:transittrack-desktop');
  let prevented=false;window.webContents.emit('will-navigate',{preventDefault(){prevented=true;}},'file:///secret');
  assert.equal(prevented,true);assert.deepEqual(external,[]);
  assert.equal(window.popup({url:'javascript:alert(1)'}).action,'deny');
- assert.equal(window.permissionCheck(null,'media','https://eager-transit-track-go.base44.app'),false);
+ assert.equal(window.permissionCheck(null,'media','https://app.mcsweenstransport.com'),false);
  assert.equal(window.permissionCheck(null,'geolocation','https://evil.invalid'),false);
  // Google sign-in is moved to the person's own browser (Google blocks app windows).
- const APP='https://eager-transit-track-go.base44.app';
+ const APP='https://app.mcsweenstransport.com';
  let blocked=false;window.webContents.emit('will-navigate',{preventDefault(){blocked=true;}},APP+'/api/apps/auth/login?app_id=x&from_url='+encodeURIComponent(APP+'/admin'));
  assert.equal(blocked,true);
  for(let i=0;i<100&&external.length<1;i++)await new Promise(r=>setTimeout(r,10));
- assert.match(external[0],/^https:\/\/eager-transit-track-go\.base44\.app\/desktop-signin\?port=\d+&state=[A-Za-z0-9_-]{43}&provider=google$/);
+ assert.match(external[0],/^https:\/\/app\.mcsweenstransport\.com\/desktop-signin\?port=\d+&state=[A-Za-z0-9_-]{43}&provider=google$/);
  let redirected=false;window.webContents.emit('will-redirect',{preventDefault(){redirected=true;}},'https://accounts.google.com/o/oauth2/v2/auth?client_id=x');
  assert.equal(redirected,true);
  for(let i=0;i<100&&external.length<2;i++)await new Promise(r=>setTimeout(r,10));

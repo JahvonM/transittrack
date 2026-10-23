@@ -61,7 +61,7 @@ All 22 desktop Node tests passed, including version ordering, stable release fil
 Choosing "Continue with Google" (or Apple) in the desktop window does not load the provider inside the app.
 Instead `browser-signin.cjs`:
 1. starts a one-time listener on `127.0.0.1` (random port) with a random 256-bit `state`;
-2. opens `https://eager-transit-track-go.base44.app/desktop-signin?port=…&state=…&provider=google`
+2. opens `https://app.mcsweenstransport.com/desktop-signin?port=…&state=…&provider=google`
    in the default browser, where the person signs in normally;
 3. after they choose "Open TransitTrack Desktop" on that page, it POSTs the session to
    `http://127.0.0.1:<port>/callback` (`src/pages/DesktopSignIn.jsx`, `src/lib/desktopSignIn.js`);
@@ -70,6 +70,15 @@ Instead `browser-signin.cjs`:
 The listener closes after success, cancel or 10 minutes. If the browser asks to let the site connect
 to apps on this device, choose Allow. The /desktop-signin page must be published on the website.
 
-The site URL is fixed in policy.cjs to https://eager-transit-track-go.base44.app.
+The site URL is fixed in policy.cjs to https://app.mcsweenstransport.com.
 
 - Startup restores the saved session through the home route. The published login page also resumes valid sessions for older desktop versions that open /login?returnTo=/. Explicit account switching and server-rejected sessions still show sign-in.
+
+
+## Cloudflare switch — desktop 0.2.7
+
+Opens the independent Cloudflare site at app.mcsweenstransport.com, which uses Supabase. Browser sign-in and local NFC/tablet setup use that exact origin. The compiled helper already permits this address; its Windows build smoke test now checks the new origin. Package identity, user-data directory and Electron partition stay the same. Browser sessions and localStorage belong to each origin, so expect to sign in again; old-origin storage is not automatically copied. Do not uninstall or clear application data to change hosts.
+
+Build on the existing Windows PC with npm ci, npm test, then npm run build:win in desktop/. Close the existing desktop application before the helper protocol test, which needs local port 8765. The output is desktop/release/TransitTrack-Desktop-Setup-0.2.7.exe. Install over the existing desktop app. No GitHub release is published by these build commands.
+
+After installation verify About/version, email/password sign-in, Google browser sign-in returning to the app, People/Fleet/photos, NFC card issuing and tablet setup detection. This development environment can run the Node tests; the Windows compiler, installer and physical NFC reader require Windows validation. Keep Base44 active until all remaining installed clients are updated and checked.

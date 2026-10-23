@@ -1,6 +1,6 @@
 const {test}=require('node:test');const assert=require('node:assert/strict');const {registerSetupLauncher}=require('./setup-launch.cjs');
 test('setup buttons open only approved views from the trusted main app frame',()=>{
- let handler;const opened=[];const frame={url:'https://eager-transit-track-go.base44.app/admin'};const window={webContents:{mainFrame:frame}};
+ let handler;const opened=[];const frame={url:'https://app.mcsweenstransport.com/admin'};const window={webContents:{mainFrame:frame}};
  registerSetupLauncher({handle:(_channel,fn)=>handler=fn},()=>window,view=>opened.push(view));
  const event={sender:window.webContents,senderFrame:frame};
  assert.deepEqual(handler(event,'nfc'),{ok:true});handler(event,'tablet');assert.deepEqual(opened,['nfc','tablet']);
