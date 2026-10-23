@@ -21,12 +21,14 @@ export default async function(req: Request) {
     const company = await db.Company.get(company_id).catch(()=>null);
     if (!company) return Response.json({error:'Company already removed. Use orphan recovery for remaining records.'},{status:409});
     // Inventory every dependency before the first write. Fail closed if any query fails.
-    const types = ['Vehicle','Route','Driver','CompanyMembership','CompanyAccessGrant','Contact','KioskDevice','DriverSession'];
+    const types = ['Vehicle','Route','Driver','CompanyMembership','CompanyAccessGrant','Contact','KioskDevice','DriverSession','User','RoleAssignment'];
     const inventory: Record<string,any[]> = {};
     for (const type of types) inventory[type] = await all(db,type,company_id);
     // Refuse to start a multi-record change while other access-bearing records remain.
-    const blockers = ['CompanyAccessGrant','Contact','KioskDevice','DriverSession'].filter(type=>inventory[type].length);
+    const blockers = ['CompanyAccessGrant','Contact','KioskDevice','DriverSession','User','RoleAssignment'].filter(type=>inventory[type].length);
     if (blockers.length) return Response.json({error:'Deletion requires review of company access, contacts and paired devices first',blockers:Object.fromEntries(blockers.map(t=>[t,inventory[t].length]))},{status:409});
+    // Prevent unsafe partial writes while there is no transactional rollback mechanism.
+    if (inventory.Vehicle.length || inventory.Route.length || inventory.Driver.length || inventory.CompanyMembership.length) return Response.json({error:'Company has linked records. Transaction-safe cleanup is required before deletion.',counts:Object.fromEntries(['Vehicle','Route','Driver','CompanyMembership'].map(t=>[t,inventory[t].length]))},{status:409});
     // Revoke company access first. Keep membership history, but disable active grants.
     for (const row of inventory.CompanyMembership) if (row.active) await db.CompanyMembership.update(row.id,{active:false});
     // Preserve users and all operational history; detach the company-owned assignments.
