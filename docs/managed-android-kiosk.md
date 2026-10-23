@@ -1,20 +1,20 @@
-# Managed Android kiosk (app 1.6, build 7)
+# Managed Android kiosk (app 1.7, build 8)
 
 Adds persistent Android Lock Task, managed Home selection, lifecycle fullscreen, boot/update recovery, an owner-only watchdog, and private native offline maintenance to the combined driver/boarding/signing APK. Existing web caching, pairing, saved uploads, USB readers, GPS and camera ownership remain in their existing components.
 
 ## Installation and first setup
 
-1. Deploy the matching frontend and `tabletControl`, `driverSession`, and `kioskHeartbeat` functions together. There is no SQL migration: status uses boolean fields in the existing `helper_health` JSON column.
-2. Build/install the combined APK as a same-package, same-signature upgrade, with a higher version code. Do not uninstall, clear app data, or generate a replacement signing key. Installing build 7 does not enable permanent locking automatically.
-3. Confirm Android 8+ and that **this app** is device owner. Device admin alone is insufficient. If FreeKiosk is device owner, stop here and plan a managed-device handover; this implementation never removes another owner's management or resets a device. Do not factory-reset a tablet merely to try this feature.
-4. Open the paired tablet. In Admin → Kiosk tablets → Tablet controls, refresh until the new kiosk capability and ownership are reported.
-5. While parked with the tablet nearby, request **Set recovery PIN**. Complete the private native screen on the tablet within two minutes using a confirmed 8–12 digit PIN. Store it securely. A fresh admin setup request can replace a forgotten recovery PIN. PINs never travel through the web page, API, heartbeat or audit record.
-6. Refresh tablet status, then request **Enable permanent kiosk**. Existing commands have a two-minute issuance cooldown; allow the earlier setup request to age before issuing enable.
-7. Verify Home, Overview, notification shade and Android Back cannot leave the app. Test the offline escape before putting the tablet into use.
+1. Build/install the combined APK as a same-package, same-signature upgrade. Do not uninstall, clear app data, or generate a replacement signing key. Installing build 8 does not enable permanent locking automatically.
+2. Confirm Android 8+ and that **this app** is device owner. Device admin alone is insufficient. If FreeKiosk is device owner, plan a managed-device handover; this implementation never removes another owner's management or resets a device.
+3. On the tablet, tap the native gear in the top-right corner. Set and confirm an 8–12 digit exit code, or enter the existing recovery PIN. Store the code securely. This flow works offline and requires no web dashboard request.
+4. Choose **Start kiosk mode**. Verify Home, Overview, notification shade and Android Back cannot leave the app. Tap the gear and verify the code opens settings and **Exit kiosk mode** releases the lock. Test this offline before putting the tablet into use.
+5. For driver hotspot startup, enable **Start hotspot automatically** in the same protected native settings and grant **Modify system settings**. Confirm actual hotspot power and connectivity, then test a reboot. See the device-support limits below.
+
+Optional remote administration retains the existing `tabletControl`, `driverSession`, and `kioskHeartbeat` functions from app 1.6. No backend change or SQL migration is needed for 1.7. Admin setup/recovery requests still open the private native screen for two minutes and can replace a forgotten exit code. PINs never travel through the web page, API, heartbeat or audit record.
 
 ## Maintenance and release
 
-- Tap the top-right 48dp corner of the main kiosk screen **seven times within four seconds**. Enter the recovery PIN to open native maintenance.
+- Tap the native gear and enter the exit code to open settings. The original top-right corner shortcut (**seven taps within four seconds**) also remains available.
 - Offline PINs use a fresh 32-byte salt and PBKDF2-HMAC-SHA256 (150,000 iterations); five failures start a persisted, increasing lockout capped at 15 minutes. Rebooting does not erase the penalty. Recovery state is excluded from cloud backup and device transfer.
 - Maintenance restores the previous lock-task packages/features and releases this app's managed Home selection for ten minutes. Android settings are accessible from the native maintenance screen. Return early with **Lock and return to kiosk**. Reboot ends the maintenance window. The watchdog returns the tablet after expiry, with a five-second polling interval.
 - Admin can request **Unlock maintenance · 10 min** or **Turn off permanent kiosk** through the verified command path. Existing temporary-lock release remains independent.
@@ -28,7 +28,7 @@ The foreground watchdog uses Android's device-owner `systemExempted` service typ
 
 Fullscreen uses the current WindowInsets API on Android 11+ and immersive flags on older devices. MainActivity re-applies it after focus/resume. Android Back is intercepted only in enabled permanent mode. The app's own navigation, PIN entry, inspection and signature buttons retain their existing behavior.
 
-All four new commands are fixed actions: `kiosk_prepare`, `kiosk_enable`, `kiosk_disable`, `kiosk_maintenance`. They retain admin-only issuance, recent capability/ownership checks, strong paired-device credentials, command expiry, requester-role revalidation, assignment binding and durable execution receipts. Neither arbitrary URLs nor PIN values can be supplied as native commands. Native code independently requires device ownership.
+All four existing remote commands are fixed actions: `kiosk_prepare`, `kiosk_enable`, `kiosk_disable`, `kiosk_maintenance`. They retain admin-only issuance, recent capability/ownership checks, strong paired-device credentials, command expiry, requester-role revalidation, assignment binding and durable execution receipts. Neither arbitrary URLs nor PIN values can be supplied as native commands. Native code independently requires device ownership.
 
 The feature applies to the combined Android kiosk package only. Passenger builds must continue to exclude the combined kiosk plugins and manifest; it is not a passenger-phone restriction.
 
