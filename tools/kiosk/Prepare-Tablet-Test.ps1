@@ -30,7 +30,9 @@ try {
     & npx.cmd cap sync android
     if ($LASTEXITCODE -ne 0) { throw 'Android sync failed. No installation attempted.' }
     Write-Host '4/4 Running native tests and building the test APK...'
-    & (Join-Path $projectRoot 'android\gradlew.bat') -p (Join-Path $projectRoot 'android') "-Dorg.gradle.java.home=$env:JAVA_HOME" :app:compileDebugJavaWithJavac :app:testDebugUnitTest :app:assembleDebug --no-daemon --max-workers=1
+    # JAVA_HOME above selects the verified JDK. Passing its spaced path again as
+    # a -D argument through gradlew.bat breaks quoting in Windows PowerShell 5.1.
+    & (Join-Path $projectRoot 'android\gradlew.bat') -p (Join-Path $projectRoot 'android') :app:compileDebugJavaWithJavac :app:testDebugUnitTest :app:assembleDebug --no-daemon --max-workers=1
     if ($LASTEXITCODE -ne 0) { throw 'Native checks failed. No installation attempted.' }
     Write-Host ''
     Write-Host 'CHECKS PASSED: test APK built. Update using the same signing identity as the tablet.' -ForegroundColor Green
