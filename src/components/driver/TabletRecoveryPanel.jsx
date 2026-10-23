@@ -3,7 +3,7 @@ import { Home } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
-import { tabletRecoveryState, openTabletHomeSettings, setTabletKeepScreenOn } from "@/lib/tabletRecovery";
+import { tabletRecoveryState, openTabletHomeSettings, setTabletKeepScreenOn, openLocalKioskSettings } from "@/lib/tabletRecovery";
 
 export default function TabletRecoveryPanel() {
   const [state, setState] = useState(null), [error, setError] = useState("");
@@ -26,6 +26,10 @@ export default function TabletRecoveryPanel() {
   return <Card className="max-w-lg mx-auto">
     <CardHeader><CardTitle className="text-base flex items-center gap-2"><Home className="w-5 h-5" /> Startup &amp; recovery</CardTitle></CardHeader>
     <CardContent className="space-y-3">
+      {state.localKioskSettings && <>
+        <Button className="w-full" onClick={() => openLocalKioskSettings().catch(() => setError("Could not open kiosk settings."))}>Kiosk lock &amp; exit code</Button>
+        <p className="text-xs text-muted-foreground">Set your exit code and start or exit kiosk mode directly on this tablet. The gear button also opens these settings offline.</p>
+      </>}
       {state.screenRecovery?.available && <p className="text-sm">Screen recovery is ready. If Android closes the app’s display, the kiosk reopens it, with a limit to prevent repeated restarts. Saved pairing and records stay on this tablet.</p>}
       {state.screenControl ? <div className="flex items-center justify-between gap-3 rounded-xl border p-3">
         <div><label htmlFor="tablet-keep-screen-on" className="text-sm font-medium">Keep screen on</label>

@@ -34,8 +34,7 @@ final class KioskMode {
         return a != null && Build.VERSION.SDK_INT >= 23 && a.getLockTaskModeState() == ActivityManager.LOCK_TASK_MODE_LOCKED;
     }
     static void immersive(Activity a) {
-        boolean hide = (enabled(a) && !maintenance(a)) || a.getSharedPreferences("tablet_display", Context.MODE_PRIVATE).getBoolean("fullscreen", false);
-        if (!hide) return;
+        // Combined kiosk APK is fullscreen before JavaScript or cached pages load.
         if (Build.VERSION.SDK_INT >= 30) {
             WindowInsetsController ctl = a.getWindow().getInsetsController();
             if (ctl != null) { ctl.hide(WindowInsets.Type.systemBars()); ctl.setSystemBarsBehavior(WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE); }

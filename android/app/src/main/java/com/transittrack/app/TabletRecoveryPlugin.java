@@ -10,8 +10,14 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 /** Optional Home selection uses Android UI; never takes over the launcher silently. */
 @CapacitorPlugin(name = "TabletRecovery")
 public class TabletRecoveryPlugin extends Plugin {
+    @PluginMethod public void openKioskSettings(PluginCall call) {
+        getActivity().runOnUiThread(() -> {
+            try { getActivity().startActivity(new Intent(getActivity(),KioskMaintenanceActivity.class)); call.resolve(); }
+            catch (RuntimeException e) { call.reject("Could not open kiosk settings."); }
+        });
+    }
     @PluginMethod public void setFullscreen(PluginCall call) {
-        boolean enabled = (KioskMode.enabled(getContext()) && !KioskMode.maintenance(getContext())) || Boolean.TRUE.equals(call.getBoolean("enabled", true));
+        boolean enabled = true; // Page cleanup must not expose system bars in the dedicated kiosk APK.
         if (!getContext().getSharedPreferences("tablet_display", android.content.Context.MODE_PRIVATE).edit().putBoolean("fullscreen", enabled).commit()) { call.reject("Could not save fullscreen preference."); return; }
         getActivity().runOnUiThread(() -> {
             android.view.View decor = getActivity().getWindow().getDecorView();
@@ -29,6 +35,7 @@ public class TabletRecoveryPlugin extends Plugin {
         out.put("available", true);
         out.put("keepScreenOn", TabletDisplay.enabled(getContext()));
         out.put("screenControl", true);
+        out.put("localKioskSettings", true);
         out.put("backgroundTracking", DriverLocationService.active());
         out.put("screenRecovery", TabletScreenRecovery.snapshot(getContext()));
         boolean home = false;

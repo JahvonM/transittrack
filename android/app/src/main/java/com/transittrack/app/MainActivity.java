@@ -31,6 +31,21 @@ public class MainActivity extends BridgeActivity {
             }
         });
         keepTabletAwake();
+        android.widget.Button settings = new android.widget.Button(this);
+        settings.setText("⚙"); settings.setTextSize(22); settings.setTextColor(android.graphics.Color.WHITE);
+        settings.setContentDescription("Kiosk settings · exit code required");
+        android.graphics.drawable.GradientDrawable background = new android.graphics.drawable.GradientDrawable();
+        background.setColor(android.graphics.Color.rgb(11,16,24)); background.setCornerRadius(48);
+        background.setStroke(2,android.graphics.Color.rgb(208,241,92)); settings.setBackground(background);
+        int size=(int)(48*getResources().getDisplayMetrics().density), margin=(int)(8*getResources().getDisplayMetrics().density);
+        android.widget.FrameLayout.LayoutParams position=new android.widget.FrameLayout.LayoutParams(size,size,android.view.Gravity.TOP|android.view.Gravity.RIGHT);
+        position.setMargins(margin,margin,margin,margin);
+        settings.setOnClickListener(v -> startActivity(new android.content.Intent(this,KioskMaintenanceActivity.class)));
+        addContentView(settings,position);
+        getWindow().getDecorView().setOnSystemUiVisibilityChangeListener(visibility -> {
+            if ((visibility & android.view.View.SYSTEM_UI_FLAG_HIDE_NAVIGATION)==0)
+                getWindow().getDecorView().postDelayed(() -> KioskMode.immersive(this),300);
+        });
         screenRecovery = new TabletScreenRecovery(this);
         if (getBridge() != null) getBridge().addWebViewListener(screenRecovery);
     }
@@ -64,6 +79,7 @@ public class MainActivity extends BridgeActivity {
         super.onResume(); keepTabletAwake();
         KioskWatchdogService.lastVisible = android.os.SystemClock.elapsedRealtime();
         KioskMode.resume(this);
+        TabletHotspotStartupService.start(this);
         DriverLocationService.setVisible(true);
         if (screenRecovery != null) screenRecovery.resumed();
     }

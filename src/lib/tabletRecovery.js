@@ -6,6 +6,8 @@ export async function tabletRecoveryState() {
   if (!tabletRecoveryAvailable()) return { available: false };
   try { return await TabletRecovery.getState(); } catch { return { available: false }; }
 }
+export const openLocalKioskSettings = () => TabletRecovery.openKioskSettings();
+
 export const openTabletHomeSettings = () => TabletRecovery.openHomeSettings();
 
 export const setTabletKeepScreenOn = enabled => TabletRecovery.setKeepScreenOn({ enabled });
