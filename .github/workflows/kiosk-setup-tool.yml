@@ -1,0 +1,28 @@
+name: Windows kiosk setup tool
+
+on:
+  pull_request:
+    paths:
+      - 'tools/kiosk/McSween-Kiosk-Setup.ps1'
+      - 'tools/kiosk/Start-Kiosk-Setup.cmd'
+      - '.github/workflows/kiosk-setup-tool.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'tools/kiosk/McSween-Kiosk-Setup.ps1'
+      - 'tools/kiosk/Start-Kiosk-Setup.cmd'
+      - '.github/workflows/kiosk-setup-tool.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  setup-tool:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - name: Validate Windows PowerShell 5.1 syntax, selection guards, and UI construction
+        shell: pwsh
+        run: powershell.exe -NoProfile -STA -ExecutionPolicy Bypass -File .\tools\kiosk\McSween-Kiosk-Setup.ps1 -SelfTest
