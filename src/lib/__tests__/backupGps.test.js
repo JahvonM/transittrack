@@ -6,7 +6,7 @@ import { load, mock, request } from "../../../security-tests/helpers.js";
 function setup({ backup = "caller@test.invalid", shiftEmail = "caller@test.invalid" } = {}) {
   const sdk = mock("staff");
   Object.assign(sdk.tables.Vehicle[0], { driver_email: "caller@test.invalid", driver_name: "Dana", route_id: "route-a", backup_gps_driver_email: backup, tracking_active: false });
-  sdk.tables.Driver = [{ id: "drv", full_name: "Dana Driver", email: "caller@test.invalid", company_id: "a", phone_app_access: true }];
+  sdk.tables.Driver = [{ id: "drv", full_name: "Dana Driver", email: "caller@test.invalid", auth_user_id: "mock-auth-caller", company_id: "a", phone_app_access: true }];
   sdk.tables.Route = [{ id: "route-a", company_id: "a", name: "Coastal", stops: [{ name: "Town", lat: 12.05, lng: -61.75, order: 0 }, { name: "Grand Anse", lat: 12.0, lng: -61.78, order: 1 }] }];
   sdk.tables.DriverShift = shiftEmail ? [{ id: "s1", company_id: "a", vehicle_id: "bus-a", driver_email: shiftEmail, started_at: new Date(Date.now() - 3600e3).toISOString() }] : [];
   sdk.tables.StaffCheckIn = [];
