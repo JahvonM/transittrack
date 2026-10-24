@@ -221,7 +221,7 @@ test('admin provisions phone login without toggling access through the Driver re
  }));
  await page.setViewportSize({width:1280,height:900});
  await page.goto('/admin/drivers');
- await page.getByRole('button',{name:'Set up phone login'}).click();
+ await page.getByRole('button',{name:'Manage phone account for Dana Driver'}).click();
  await expect(page.getByText('Create a username for the phone app. No personal email is required.')).toBeVisible();
  await page.getByLabel('Driver username').fill('Dana.Driver');
  await shot(page,'09-admin-phone-account');
