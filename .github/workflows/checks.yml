@@ -47,6 +47,8 @@ jobs:
         run: npm run build:supabase
       - name: Install test browser
         run: npx playwright install --with-deps chromium
+      - name: Driver account provisioning browser smoke test
+        run: npx playwright test e2e/driver-phone.spec.js --grep "admin provisions phone login"
       - name: Mocked browser regression tests
         run: npm run test:e2e
 
