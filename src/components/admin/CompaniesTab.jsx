@@ -22,6 +22,29 @@ export default function CompaniesTab({ companies, onChange }) {
   const [copied, setCopied] = useState(null);
   const [editing, setEditing] = useState(null);
   const [issuing, setIssuing] = useState(null);
+  const [orphans, setOrphans] = useState(null);
+  const [recovering, setRecovering] = useState(false);
+  const findOrphans = async () => {
+    setRecovering(true);
+    try {
+      const {data} = await base44.functions.invoke('companyCleanupPreview', {action:'orphans'});
+      if (data?.error) throw new Error(data.error);
+      setOrphans(data.orphans);
+    } catch(error) { toast({title:'Could not check unassigned records',description:error.message,variant:'destructive'}); }
+    finally { setRecovering(false); }
+  };
+  const recover = async (companyId) => {
+    if (!(await confirmAction({title:'Recover records from a removed company?',description:'Keep drivers, vehicles and routes as unassigned records and revoke the former company’s access.',confirmLabel:'Recover records'}))) return;
+    setRecovering(true);
+    try {
+      const {data} = await base44.functions.invoke('deleteCompanySafely', {company_id:companyId,action:'recover'});
+      if (data?.error) throw new Error(data.error);
+      toast({title:'Records recovered',description:'Retained assets are available for reassignment.'});
+      setOrphans(rows=>rows.filter(row=>row.company_id!==companyId));
+      onChange();
+    } catch(error) { toast({title:'Recovery failed',description:error.message,variant:'destructive'}); }
+    finally { setRecovering(false); }
+  };
 
   const copy = (code) => {
     navigator.clipboard.writeText(code || "");
@@ -43,6 +66,14 @@ export default function CompaniesTab({ companies, onChange }) {
   return (
     <div className="space-y-4">
       <PageIntro>Open a company to manage its people, transport, workplace, and pickup planning.</PageIntro>
+      <Card><CardContent className="p-4 space-y-3">
+        <Button variant="outline" disabled={recovering} onClick={findOrphans}>{recovering ? 'Checking records…' : 'Find records from removed companies'}</Button>
+        {orphans?.length === 0 && <p className="text-sm text-muted-foreground">No orphaned records found.</p>}
+        {orphans?.map(row=><div key={row.company_id} className="flex flex-wrap items-center justify-between gap-3 text-sm">
+          <span>Removed company {row.company_id}: {Object.entries(row.counts).map(([type,count])=>`${count} ${type}`).join(', ')}</span>
+          <Button disabled={recovering} onClick={()=>recover(row.company_id)}>Recover records</Button>
+        </div>)}
+      </CardContent></Card>
       <div className="space-y-2">
         {companies.length === 0 && (
           <div className="border rounded-2xl"><EmptyState text="No companies yet." /></div>

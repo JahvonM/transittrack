@@ -980,7 +980,7 @@ Table `route` · belongs to a company through `company_id` · read and changed t
 
 | Field | Type | Notes |
 |---|---|---|
-| `company_id` | text | → Company. Required. |
+| `company_id` | text | → Company. |
 | `company_name` | text |  |
 | `name` | text | Required. |
 | `type` | text | One of: `staff`, `airport`. Default `"staff"`. |
@@ -1224,7 +1224,7 @@ Table `vehicle` · belongs to a company through `company_id` · read and changed
 | Field | Type | Notes |
 |---|---|---|
 | `capacity` | double precision |  |
-| `company_id` | text | → Company. Required. |
+| `company_id` | text | → Company. |
 | `company_name` | text |  |
 | `current_lat` | double precision |  |
 | `current_lng` | double precision |  |
