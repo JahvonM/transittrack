@@ -21,7 +21,10 @@ export async function findPhoneDriver(base44, email) {
 // The buses an administrator has assigned to this driver.
 export async function driverVehicles(base44, driver) {
   const rows = await base44.asServiceRole.entities.Vehicle.filter({ company_id: driver.company_id }, 'name', 500);
-  return rows.filter((v) => v.company_id === driver.company_id && normEmail(v.driver_email) === normEmail(driver.email));
+  return rows.filter((v) => v.company_id === driver.company_id && (
+    // An explicit driver ID always wins: never reassign a bus by a stale email.
+    v.driver_id ? v.driver_id === driver.id : !!normEmail(driver.email) && normEmail(v.driver_email) === normEmail(driver.email)
+  ));
 }
 
 // Phones signed up by the driver currently assigned to this bus. Checked
