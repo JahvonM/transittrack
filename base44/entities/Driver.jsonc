@@ -43,7 +43,7 @@
     "phone_app_access": {
       "type": "boolean",
       "default": false,
-      "description": "The driver may sign in to the driver phone app with this record's email."
+      "description": "The driver's admin-controlled permission to use the phone app, regardless of whether they have an email address."
     }
   },
   "required": [
