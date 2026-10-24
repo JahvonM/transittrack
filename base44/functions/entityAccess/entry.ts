@@ -333,6 +333,10 @@ async function prepare(db,ctx,name,input,existing=null) {
  if(COMPANY_ENTITIES.has(name) || name==='Company') {
   if(!tenant && ['InspectionTemplate','Part'].includes(name) && ['admin','mechanic'].includes(user.role)) return data;
   if(!tenant && name==='Broadcast' && user.role==='admin') return data;
+  if(!tenant && ctx.user.role==='admin' && ['Vehicle','Route','Driver'].includes(name)) {
+   if(combined.vehicle_id || combined.route_id || combined.driver_id) fail(400,'Assign a company before linking records');
+   return {...data,company_id:null,company_name:''};
+  }
   if(!tenant) fail(400,'Company assignment required');
   if(user.role!=='admin' && user.role!=='mechanic' && !ctx.companies.includes(tenant)) fail(403,'Company access denied');
   if(existing && existing.company_id && data.company_id && data.company_id!==existing.company_id) fail(403,'Company assignment cannot be changed here');
@@ -539,11 +543,12 @@ export default async function(req) {
    if(!existing || !(await visible(db,ctx,name,existing))) fail(404,'Record not found');
   }
   if(operation==='delete') {
+   if(name==='Company') fail(409,'Use the protected company deletion workflow');
    if(ctx.user.role!=='admin'&&MAINTENANCE.has(name))fail(403,'Maintenance deletion is admin-only');
    if(ctx.user.role!=='admin' && !(ctx.user.role==='company' && COMPANY_READ.has(name) && name!=='Company') && !(ctx.user.role==='mechanic' && MAINTENANCE.has(name) && name!=='Vehicle') && !(name==='GroupMessage' && existing.sender_id===ctx.user.id)) fail(403,'Delete forbidden');
    // Deleting an old schedule does not need its now-removed vehicle/company
    // to pass create/update validation. Visibility and admin checks ran above.
-   if(name!=='MaintenanceSchedule') await prepare(db,ctx,name,{},existing);
+   if(name!=='MaintenanceSchedule' && !(ctx.user.role==='admin' && ['Vehicle','Route','Driver'].includes(name) && !existing.company_id)) await prepare(db,ctx,name,{},existing);
    await db[name].delete(body.id);
    return Response.json({result:{ok:true}});
   }

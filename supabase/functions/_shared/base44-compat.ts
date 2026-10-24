@@ -588,7 +588,24 @@ async function fromScheduler(req: Request) {
 
 export function createClientFromRequest(req: Request) {
   let me: Promise<Row> | null = null;
-  const serviceRole = { entities, integrations };
+  const serviceRole = { entities, integrations,
+    // TransitTrack-only extension, not a Base44 SDK method. Never emulate this
+    // with separate REST writes: PostgreSQL owns authorization and atomicity.
+    async companyLifecycle(actorId: string, companyId: string, action: string) {
+      const res = await runtime.fetch(`${supabaseUrl()}/rest/v1/rpc/tt_company_lifecycle`, {
+        method: 'POST', redirect: 'error', signal: AbortSignal.timeout(30000),
+        headers: serverHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ p_actor_id: actorId, p_company_id: companyId, p_action: action }),
+      });
+      if (!res.ok) {
+        const detail = await res.json().catch(() => ({}));
+        if (detail.code === '42501') throw httpError(403, 'Admin required');
+        if (detail.code === '22023') throw httpError(409, 'Recovery requires a company that no longer exists');
+        throw httpError(503, 'Transactional company cleanup unavailable');
+      }
+      return res.json();
+    },
+  };
   return {
     auth: {
       me() {

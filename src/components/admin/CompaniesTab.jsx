@@ -22,6 +22,29 @@ export default function CompaniesTab({ companies, onChange }) {
   const [copied, setCopied] = useState(null);
   const [editing, setEditing] = useState(null);
   const [issuing, setIssuing] = useState(null);
+  const [orphans, setOrphans] = useState(null);
+  const [recovering, setRecovering] = useState(false);
+  const findOrphans = async () => {
+    setRecovering(true);
+    try {
+      const {data} = await base44.functions.invoke('companyCleanupPreview', {action:'orphans'});
+      if (data?.error) throw new Error(data.error);
+      setOrphans(data.orphans);
+    } catch(error) { toast({title:'Could not check unassigned records',description:error.message,variant:'destructive'}); }
+    finally { setRecovering(false); }
+  };
+  const recover = async (companyId) => {
+    if (!(await confirmAction({title:'Recover records from a removed company?',description:'Keep drivers, vehicles and routes as unassigned records and revoke the former company’s access.',confirmLabel:'Recover records'}))) return;
+    setRecovering(true);
+    try {
+      const {data} = await base44.functions.invoke('deleteCompanySafely', {company_id:companyId,action:'recover'});
+      if (data?.error) throw new Error(data.error);
+      toast({title:'Records recovered',description:'Retained assets are available for reassignment.'});
+      setOrphans(rows=>rows.filter(row=>row.company_id!==companyId));
+      onChange();
+    } catch(error) { toast({title:'Recovery failed',description:error.message,variant:'destructive'}); }
+    finally { setRecovering(false); }
+  };
 
   const copy = (code) => {
     navigator.clipboard.writeText(code || "");
@@ -29,9 +52,13 @@ export default function CompaniesTab({ companies, onChange }) {
     setTimeout(() => setCopied(null), 1500);
   };
   const remove = async (id) => {
-    if (!(await confirmAction({title:"Delete this company?",description:"This removes the company record. Review its linked people, buses, and devices first.",confirmLabel:"Delete company"}))) return;
-    try { await base44.entities.Company.delete(id); onChange(); }
-    catch(error) { toast({title:"Could not delete company",description:error.message,variant:"destructive"}); }
+    if (!(await confirmAction({title:"Delete this company?",description:"The company will be detached from drivers, vehicles and routes; access will be revoked before deletion.",confirmLabel:"Delete company"}))) return;
+    try {
+      const response = await base44.functions.invoke("deleteCompanySafely", {company_id:id});
+      if (response.data?.error) throw new Error(response.data.error);
+      toast({title:"Company removed",description:"Linked records were retained and company access revoked."});
+      onChange();
+    } catch(error) { toast({title:"Could not delete company",description:error.message,variant:"destructive"}); }
   };
 
   if (selected) return <CompanyWorkspace key={selected.id} company={selected} tab={tab} onTab={value=>selectCompany(selected.id,value)} onBack={()=>selectCompany(null)} onChange={onChange}/>;
@@ -39,6 +66,14 @@ export default function CompaniesTab({ companies, onChange }) {
   return (
     <div className="space-y-4">
       <PageIntro>Open a company to manage its people, transport, workplace, and pickup planning.</PageIntro>
+      <div className="rounded-xl border bg-card p-4 space-y-3">
+        <button type="button" className="rounded-md border px-4 py-2 text-sm font-medium disabled:opacity-50" disabled={recovering} onClick={findOrphans}>{recovering ? 'Checking records…' : 'Find records from removed companies'}</button>
+        {orphans?.length === 0 && <p className="text-sm text-muted-foreground">No orphaned records found.</p>}
+        {orphans?.map(row=><div key={row.company_id} className="flex flex-wrap items-center justify-between gap-3 text-sm">
+          <span>Removed company {row.company_id}: {Object.entries(row.counts).map(([type,count])=>`${count} ${type}`).join(', ')}</span>
+          <button type="button" className="rounded-md bg-primary text-primary-foreground px-4 py-2 disabled:opacity-50" disabled={recovering} onClick={()=>recover(row.company_id)}>Recover records</button>
+        </div>)}
+      </div>
       <div className="space-y-2">
         {companies.length === 0 && (
           <div className="border rounded-2xl"><EmptyState text="No companies yet." /></div>

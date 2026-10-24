@@ -308,3 +308,19 @@ describe("supabase/functions", () => {
     expect(() => execFileSync("node", [fileURLToPath(new URL("tools/supabase/build-functions.mjs", root)), "--check"], { stdio: "pipe" })).not.toThrow();
   });
 });
+
+describe('transactional company cleanup extension',()=>{
+ it('sends one service-only RPC with the server-authenticated actor',async()=>{
+  const {client,calls}=fake({rows:()=>({ok:true,detached:{Vehicle:1}})});
+  expect(await client().asServiceRole.companyLifecycle('admin-id','company-id','recover')).toEqual({ok:true,detached:{Vehicle:1}});
+  expect(calls).toHaveLength(1);
+  expect(calls[0].url.pathname).toBe('/rest/v1/rpc/tt_company_lifecycle');
+  expect(JSON.parse(calls[0].body)).toEqual({p_actor_id:'admin-id',p_company_id:'company-id',p_action:'recover'});
+  expect(calls[0].headers.apikey).toBe(KEY);
+ });
+ it.each([['42501',403],['22023',409],['XX000',503]])('maps %s without leaking database details',async(code,status)=>{
+  const {client,calls}=fake({rows:()=>Response.json({code,message:'private details'},{status:400})});
+  await expect(client().asServiceRole.companyLifecycle('admin-id','company-id','delete')).rejects.toMatchObject({status});
+  expect(calls).toHaveLength(1);
+ });
+});
