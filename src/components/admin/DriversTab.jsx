@@ -38,7 +38,7 @@ const STATUSES = [
 // PIN (see driverSession). The driver phone app is the one place a driver
 // signs in: with Google, using the email on this record, and only while
 // "Can use the phone app" is on (see driverPhone).
-function DriverFormFields({ form, setForm, companies }) {
+function DriverFormFields({ form, setForm, companies, companyLocked = false }) {
   return (
     <div className="space-y-3">
       <div className="space-y-1.5">
@@ -56,7 +56,7 @@ function DriverFormFields({ form, setForm, companies }) {
       <p className="text-xs text-muted-foreground">Phone app usernames and passwords are managed in each driver's Phone account button.</p>
       <div className="space-y-1.5">
         <Label>Company</Label>
-        <Select value={form.company_id || "none"} onValueChange={(v) => setForm({ ...form, company_id: v === "none" ? "" : v })}>
+        <Select value={form.company_id || "none"} disabled={companyLocked} onValueChange={(v) => setForm({ ...form, company_id: v === "none" ? "" : v })}>
           <SelectTrigger><SelectValue placeholder="No company" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="none">No company</SelectItem>
@@ -201,7 +201,8 @@ function EditDriverDialog({ driver, companies, vehicles = [], open, onOpenChange
             </label>
           </div>
           <AvatarPicker onChange={setPhotoUrl} disabled={saving || uploading} />
-          <DriverFormFields form={form} setForm={setForm} companies={companies} />
+          <DriverFormFields form={form} setForm={setForm} companies={companies} companyLocked={!!driver.auth_user_id} />
+          {driver.auth_user_id && <p className="text-xs text-muted-foreground">A linked driver account cannot be moved to another company from this form. Deactivate and request a controlled transfer.</p>}
           <Button className="w-full" onClick={save} disabled={saving || uploading || !form.full_name.trim()}>
             {saving ? "Saving…" : "Save changes"}
           </Button>
