@@ -320,7 +320,11 @@ export default async function(req) {
     const user = await base44.auth.me().catch(() => null);
     if (!user?.email) return Response.json({ error: 'Sign in to continue', code: 'SIGN_IN_REQUIRED' }, { status: 401 });
     const body = await req.json().catch(() => ({}));
-    const { driver, reason } = await findPhoneDriver(base44, user.email);
+    const linkedDrivers = user.id ? await base44.asServiceRole.entities.Driver.filter({ auth_user_id: user.id }, '-updated_date', 20) : [];
+    const match = linkedDrivers.length === 1
+      ? { driver: linkedDrivers[0].phone_app_access && linkedDrivers[0].company_id ? linkedDrivers[0] : null, reason: 'not_registered' }
+      : linkedDrivers.length > 1 ? { driver: null, reason: 'ambiguous' } : await findPhoneDriver(base44, user.email);
+    const { driver, reason } = match;
     if (!driver) {
       return Response.json({
         error: reason === 'ambiguous'
