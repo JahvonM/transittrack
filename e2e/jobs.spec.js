@@ -46,15 +46,15 @@ test('dispatch creates an airport pickup and the day board shows it', async ({ p
   await dialog.getByRole('button', { name: 'Transfer', exact: true }).click();
   await dialog.getByRole('button', { name: 'Change pickup', exact: true }).click();
   await dialog.getByLabel('Pickup', { exact: true }).click();
-  await expect(page.getByRole('option')).toHaveText(['Maurice Bishop Airport', 'Grand Hotel']);
-  await page.getByRole('option', { name: 'Maurice Bishop Airport', exact: true }).click();
+  await expect(page.getByRole('option')).toHaveText(['Grand Hotel', 'Maurice Bishop Airport · Airport']);
+  await page.getByRole('option', { name: 'Maurice Bishop Airport · Airport', exact: true }).click();
   await dialog.getByRole('button', { name: 'Airport pickup', exact: true }).click();
   await dialog.getByLabel('Client', { exact: true }).click();
   await page.getByRole('option', { name: 'Grand Hotel Group' }).click();
   await dialog.getByLabel('Bus and driver', { exact: true }).click();
   await page.getByRole('option', { name: 'Bus 12 · Kofi' }).click();
   await dialog.getByLabel('Drop-off', { exact: true }).click();
-  await expect(page.getByRole('option')).toHaveText(['Maurice Bishop Airport', 'Grand Hotel']);
+  await expect(page.getByRole('option')).toHaveText(['Grand Hotel', 'Maurice Bishop Airport · Airport']);
   await page.getByRole('option', { name: 'Grand Hotel', exact: true }).click();
   await dialog.getByLabel('Flight number').fill('aa 1234');
   await dialog.getByLabel('Guests').fill('3');
