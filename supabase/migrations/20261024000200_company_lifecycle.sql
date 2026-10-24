@@ -68,6 +68,9 @@ begin
 
   update public.company_membership set active=false where company_id=p_company_id;
   delete from public.company_access_grant where company_id=p_company_id;
+  delete from public.passenger_access_credential where company_id=p_company_id;
+  delete from public.passenger_one_time_credential where company_id=p_company_id;
+  delete from public.phone_unlock where company_id=p_company_id or device_id=any(devices) or vehicle_id=any(vehicles);
   delete from public.device_credential where company_id=p_company_id or device_id=any(devices) or vehicle_id=any(vehicles);
   delete from public.verification_grant where company_id=p_company_id or device_id=any(devices) or vehicle_id=any(vehicles);
   update public.driver_pin_credential set enabled=false, pin_hash=null, salt=null
@@ -83,14 +86,14 @@ begin
   -- from departing company staff so the global workspace cannot expose history.
   -- Platform administrators/mechanics retain their explicitly global access.
   delete from public.role_assignment where user_id in
-    (select id from public.app_user where id=any(people) and role not in ('admin','mechanic'));
-  update public.app_user set access_role_id=null where id=any(people) and role not in ('admin','mechanic');
+    (select id from public.app_user where id=any(people) and role is distinct from 'admin' and role is distinct from 'mechanic');
+  update public.app_user set access_role_id=null where id=any(people) and role is distinct from 'admin' and role is distinct from 'mechanic';
   update public.app_user set company_id=null, access_code=null, one_time_code=null,
     one_time_code_expires_at=null, nfc_tag_id=null, pickup_route_id=null,
     role=case when role in ('company','driver') then 'staff' else role end where company_id=p_company_id;
   delete from public.push_token where company_id=p_company_id;
   update public.tablet_support_session set state='ended', ended_at=now()::text, offer_sdp=null, answer_sdp=null where company_id=p_company_id or device_id=any(devices);
-  update public.tablet_recording_session set state='ended', ended_at=now()::text where company_id=p_company_id or device_id=any(devices);
+  update public.tablet_recording_session set state='ended', ended_at=now()::text, offer_sdp=null, answer_sdp=null where company_id=p_company_id or device_id=any(devices);
   update public.driver_shift set ended_at=now() where company_id=p_company_id and ended_at is null;
   update public.advertisement set active=false where company_id=p_company_id;
   -- Preserve company ids on trips, inspections, invoices, messages, and audit

@@ -16,6 +16,8 @@ async function setup(page,{fail=false}={}){
    if(b.entity==='Vehicle' && b.operation==='update'){calls.push(b);result={id:b.id,...b.data};}
    return route.fulfill({json:{result}});
   }
+  if(url.includes('/functions/companyCleanupPreview')) return route.fulfill({json:{orphans:[{company_id:'removed',counts:{Driver:1,Vehicle:2}}],read_only:true}});
+  if(url.includes('/functions/deleteCompanySafely')) { calls.push({cleanup:b});return route.fulfill({json:{ok:true}}); }
   if(url.includes('/functions/companyWorkspace')){
    calls.push({workspace:b});
    if(shouldFail){shouldFail=false;return route.fulfill({status:503,json:{error:'Company temporarily unavailable'}});}
@@ -61,4 +63,18 @@ test('deep links restore tab and recover failed reads on a narrow screen',async(
  await page.reload();
  await expect(page.getByRole('tab',{name:'People',exact:true})).toHaveAttribute('aria-selected','true');
  await expect(page.getByText('Alice Rider',{exact:true})).toBeVisible();
+});
+
+test('orphan recovery requires confirmation and uses the protected endpoint',async({page})=>{
+ const calls=await setup(page);await page.goto('/admin/companies');
+ await page.getByRole('button',{name:'Find records from removed companies'}).click();
+ await expect(page.getByText('Removed company removed:',{exact:false})).toBeVisible();
+ expect(calls.some(c=>c.cleanup)).toBe(false);
+ await page.getByRole('button',{name:'Recover records',exact:true}).click();
+ const dialog=page.getByRole('alertdialog');
+ await expect(dialog).toBeVisible();
+ expect(calls.some(c=>c.cleanup)).toBe(false);
+ await dialog.getByRole('button',{name:'Recover records',exact:true}).click();
+ await expect.poll(()=>calls.find(c=>c.cleanup)?.cleanup).toEqual({company_id:'removed',action:'recover'});
+ await expect(page.getByText('No orphaned records found.')).toBeVisible();
 });

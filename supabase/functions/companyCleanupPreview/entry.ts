@@ -1,7 +1,7 @@
 import { createClientFromRequest } from '../_shared/base44-compat.ts';
 
 // Read-only inventory. Never mutate records in a preview.
-const TYPES = ['Vehicle','Route','Driver','CompanyMembership','CompanyAccessGrant','Contact','KioskDevice','DeviceCredential','VerificationGrant','DriverPinCredential','NfcCard','User','CardHolder'];
+const TYPES = ['Vehicle','Route','Driver','CompanyMembership','CompanyAccessGrant','Contact','KioskDevice','DeviceCredential','VerificationGrant','DriverPinCredential','NfcCard','User','CardHolder','PassengerAccessCredential','PassengerOneTimeCredential','PhoneUnlock'];
 export default async function(req: Request) {
   try {
     const base44 = createClientFromRequest(req);

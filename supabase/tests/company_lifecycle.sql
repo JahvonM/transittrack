@@ -14,6 +14,9 @@ insert into public.device_credential(device_id,token_hash,issued_at,expires_at,c
 insert into public.verification_grant(company_id,device_id,vehicle_id,token_hash) values ('test-co','test-device','test-bus','hash');
 insert into public.company_access_grant(user_id,company_id,token_hash) values ('test-staff','test-co','hash');
 insert into public.driver_pin_credential(company_id,vehicle_id,enabled,pin_hash,salt) values ('test-co','test-bus',true,'hash','salt');
+insert into public.passenger_access_credential(company_id,token_hash,user_id) values ('test-co','hash','test-staff');
+insert into public.passenger_one_time_credential(company_id,token_hash,user_id) values ('test-co','hash','test-staff');
+insert into public.phone_unlock(company_id,device_id,vehicle_id,code_hash,expires_at) values ('test-co','test-device','test-bus','hash','2030-01-01');
 insert into public.contact(id,name,type,company_id,access_code,nfc_card_tag) values ('test-contact','Rider','staff','test-co','1234','card');
 insert into public.trip(id,vehicle_id,company_id) values ('test-history','test-bus','test-co');
 
@@ -55,6 +58,9 @@ do $$ begin
     exists(select 1 from public.device_credential where device_id='test-device') or
     exists(select 1 from public.verification_grant where device_id='test-device') or
     exists(select 1 from public.company_access_grant where company_id='test-co') or
+    exists(select 1 from public.passenger_access_credential where company_id='test-co') or
+    exists(select 1 from public.passenger_one_time_credential where company_id='test-co') or
+    exists(select 1 from public.phone_unlock where company_id='test-co') or
     exists(select 1 from public.role_assignment where user_id='test-staff') then raise exception 'Access survived'; end if;
  if not exists(select 1 from public.kiosk_device where id='test-device' and status='revoked' and paired=false) then raise exception 'Device still paired'; end if;
  if not exists(select 1 from public.contact where id='test-contact' and company_id is null and access_code is null and nfc_card_tag is null) then raise exception 'Contact credential survived'; end if;

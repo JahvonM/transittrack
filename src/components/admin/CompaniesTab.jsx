@@ -66,14 +66,14 @@ export default function CompaniesTab({ companies, onChange }) {
   return (
     <div className="space-y-4">
       <PageIntro>Open a company to manage its people, transport, workplace, and pickup planning.</PageIntro>
-      <Card><CardContent className="p-4 space-y-3">
-        <Button variant="outline" disabled={recovering} onClick={findOrphans}>{recovering ? 'Checking records…' : 'Find records from removed companies'}</Button>
+      <div className="rounded-xl border bg-card p-4 space-y-3">
+        <button type="button" className="rounded-md border px-4 py-2 text-sm font-medium disabled:opacity-50" disabled={recovering} onClick={findOrphans}>{recovering ? 'Checking records…' : 'Find records from removed companies'}</button>
         {orphans?.length === 0 && <p className="text-sm text-muted-foreground">No orphaned records found.</p>}
         {orphans?.map(row=><div key={row.company_id} className="flex flex-wrap items-center justify-between gap-3 text-sm">
           <span>Removed company {row.company_id}: {Object.entries(row.counts).map(([type,count])=>`${count} ${type}`).join(', ')}</span>
-          <Button disabled={recovering} onClick={()=>recover(row.company_id)}>Recover records</Button>
+          <button type="button" className="rounded-md bg-primary text-primary-foreground px-4 py-2 disabled:opacity-50" disabled={recovering} onClick={()=>recover(row.company_id)}>Recover records</button>
         </div>)}
-      </CardContent></Card>
+      </div>
       <div className="space-y-2">
         {companies.length === 0 && (
           <div className="border rounded-2xl"><EmptyState text="No companies yet." /></div>
