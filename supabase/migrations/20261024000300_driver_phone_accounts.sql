@@ -16,3 +16,7 @@ do $$ begin
   alter table public.vehicle add constraint vehicle_driver_id_fk
     foreign key (driver_id) references public.driver(id) on delete set null;
 exception when duplicate_object then null; end $$;
+
+-- Standard lookup indexes also required by tools/supabase/gen-schema.mjs.
+create index if not exists driver_auth_user_id_idx on public.driver(auth_user_id);
+create index if not exists vehicle_driver_id_idx on public.vehicle(driver_id);
