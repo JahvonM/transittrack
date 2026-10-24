@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
+import { BACKEND } from "tt-backend";
+import { internalDriverEmail, validDriverUsername } from "@/lib/driverAccount";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -63,8 +65,20 @@ export default function Login() {
     setError("");
     setLoading(true);
     try {
-      await base44.auth.loginViaEmailPassword(email, password);
-      window.location.href = returnTo;
+      const identifier = email.trim();
+      const driverUsername = BACKEND === "supabase" && !identifier.includes("@");
+      if (driverUsername && !validDriverUsername(identifier)) throw new Error("Enter a valid driver username");
+      await base44.auth.loginViaEmailPassword(driverUsername ? internalDriverEmail(identifier) : identifier, password);
+      if (driverUsername) {
+        const result = await base44.functions.invoke("driverAccounts", { action: "status" });
+        if (!result.data?.is_driver) {
+          await base44.auth.logout();
+          throw new Error("This driver account is not active. Contact your administrator.");
+        }
+        window.location.href = result.data?.must_change_password ? "/driver-password" : "/driver-phone";
+      } else {
+        window.location.href = returnTo;
+      }
     } catch (err) {
       setError(err.message || "Invalid email or password");
     } finally {
@@ -162,14 +176,14 @@ export default function Login() {
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="email">Email address</Label>
+          <Label htmlFor="email">Email or driver username</Label>
           <div className="relative">
             <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
             <Input
               id="email"
-              type="email"
-              autoComplete="email"
-              placeholder="you@example.com"
+              type="text"
+              autoComplete="username"
+              placeholder="you@example.com or driver username"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="pl-10 h-12"
