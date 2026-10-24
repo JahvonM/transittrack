@@ -1,6 +1,7 @@
 // Usernames are identifiers, never credentials. Passwords are handled by Supabase Auth.
 export const normalizeDriverUsername = (value) => String(value ?? '').trim().toLowerCase();
 export const validDriverUsername = (value) => /^[a-z][a-z0-9._-]{3,31}$/.test(normalizeDriverUsername(value));
+export const internalDriverEmail = (username) => `driver.${normalizeDriverUsername(username)}@login.mcsweenstransport.com`;
 
 // Always use the stable Driver record ID for bus assignments.
 export function isAssignedDriver(vehicle, driver) {
