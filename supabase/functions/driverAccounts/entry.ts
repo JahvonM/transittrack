@@ -45,10 +45,9 @@ async function authRequest(path, method, body) {
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     const code = String(data.code || data.error_code || '');
-    const error = new Error(response.status === 422 && /exists|registered|duplicate/i.test(code + data.msg + data.message)
-      ? 'Username is unavailable' : 'Supabase authentication request failed');
-    error.status = response.status;
-    throw error;
+    const message = response.status === 422 && /exists|registered|duplicate/i.test(code + data.msg + data.message)
+      ? 'Username is unavailable' : 'Supabase authentication request failed';
+    throw Object.assign(new Error(message), { status: response.status });
   }
   return data;
 }
@@ -132,18 +131,20 @@ export default async function(req) {
           email: internalEmail(username), password, email_confirm: true,
           user_metadata: { full_name: driver.full_name || 'Driver' },
         });
-        if (!account?.id) throw new Error('Authentication account was not created');
-        const person = await linkedAppUser(db, account.id);
+        const newAuthId = account?.id || account?.user?.id;
+        if (!newAuthId) throw new Error('Authentication account was not created');
+        const person = await linkedAppUser(db, newAuthId);
         await db.User.update(person.id, {
           role: 'driver', company_id: driver.company_id,
           full_name: driver.full_name || person.full_name || 'Driver', disabled: false,
         });
         await db.Driver.update(driver.id, {
-          username, auth_user_id: account.id, must_change_password: true, phone_app_access: true,
+          username, auth_user_id: newAuthId, must_change_password: true, phone_app_access: true,
         });
       } catch (error) {
         // Do not leave an active orphan account if linking fails.
-        if (account?.id) await authRequest('/auth/v1/admin/users/' + encodeURIComponent(account.id), 'DELETE').catch(() => {});
+        const newAuthId = account?.id || account?.user?.id;
+        if (newAuthId) await authRequest('/auth/v1/admin/users/' + encodeURIComponent(newAuthId), 'DELETE').catch(() => {});
         if (error?.message === 'Username is unavailable') return reply('Username is unavailable', 409);
         throw error;
       }
