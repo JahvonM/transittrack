@@ -1,7 +1,7 @@
 import { createClientFromRequest } from '../_shared/base44-compat.ts';
 import { secrets } from '../_shared/base44-compat.ts';
 import { busRoadStops } from '../_shared/routeRiders.ts';
-import { findPhoneDriver, driverVehicles, normEmail } from '../_shared/driverPhone.ts';
+import { driverVehicles, normEmail } from '../_shared/driverPhone.ts';
 import { sendPushToTokens } from '../_shared/fcm.ts';
 import { applyLocationUpdate } from '../_shared/vehicleLocation.ts';
 import { pushWithPolicy } from '../_shared/notificationPolicy.ts';
@@ -320,15 +320,18 @@ export default async function(req) {
     const user = await base44.auth.me().catch(() => null);
     if (!user?.email) return Response.json({ error: 'Sign in to continue', code: 'SIGN_IN_REQUIRED' }, { status: 401 });
     const body = await req.json().catch(() => ({}));
-    const { driver, reason } = await findPhoneDriver(base44, user.email);
-    if (!driver) {
-      return Response.json({
-        error: reason === 'ambiguous'
-          ? 'Your email is on more than one company\'s driver list. Ask your administrator to fix it.'
-          : 'Ask your administrator to put this email on your driver record and switch on "Can use the phone app".',
-        code: 'NOT_A_DRIVER',
-      }, { status: 403 });
-    }
+    // The admin-linked Supabase Auth identity is mandatory for every driver action.
+    // An email match alone must never grant access to a driver phone.
+    const linkedDrivers = user.auth_user_id
+      ? await base44.asServiceRole.entities.Driver.filter({ auth_user_id: user.auth_user_id }, '-updated_date', 2)
+      : [];
+    const driver = linkedDrivers.length === 1 && linkedDrivers[0].phone_app_access === true && linkedDrivers[0].company_id
+      ? linkedDrivers[0] : null;
+    if (!driver) return Response.json({
+      error: 'Your driver phone account is not active. Ask your administrator to set up or reactivate it.',
+      code: 'NOT_A_DRIVER',
+    }, { status: 403 });
+    if (driver.must_change_password === true) return Response.json({ error: 'Change your temporary password to continue', code: 'PASSWORD_CHANGE_REQUIRED' }, { status: 403 });
     const email = normEmail(user.email);
     const companyId = driver.company_id;
     const db = base44.asServiceRole.entities;

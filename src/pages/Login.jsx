@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
+import { BACKEND } from "tt-backend";
+import { internalDriverEmail, validDriverUsername } from "@/lib/driverAccount";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,6 +26,8 @@ const PHONE_SIGNIN_PROBLEMS = {
 
 export default function Login() {
   const [email, setEmail] = useState("");
+  // Preserve the existing email sign-in for passengers and desktop; driver mode is explicit.
+  const driverLogin = BACKEND === "supabase" && new URLSearchParams(window.location.search).get("driver") === "1";
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
@@ -63,8 +67,20 @@ export default function Login() {
     setError("");
     setLoading(true);
     try {
-      await base44.auth.loginViaEmailPassword(email, password);
-      window.location.href = returnTo;
+      const identifier = email.trim();
+      const driverUsername = driverLogin;
+      if (driverUsername && !validDriverUsername(identifier)) throw new Error("Enter a valid driver username");
+      await base44.auth.loginViaEmailPassword(driverUsername ? internalDriverEmail(identifier) : identifier, password);
+      if (driverUsername) {
+        const result = await base44.functions.invoke("driverAccounts", { action: "status" });
+        if (!result.data?.is_driver) {
+          await base44.auth.logout();
+          throw new Error("This driver account is not active. Contact your administrator.");
+        }
+        window.location.href = result.data?.must_change_password ? "/driver-password" : "/driver-phone";
+      } else {
+        window.location.href = returnTo;
+      }
     } catch (err) {
       setError(err.message || "Invalid email or password");
     } finally {
@@ -108,7 +124,7 @@ export default function Login() {
     <AuthLayout
       icon={LogIn}
       title="Your journey starts here"
-      subtitle="Sign in to track your bus and plan your pickup."
+      subtitle={driverLogin ? "Sign in to your driver phone account." : "Sign in to track your bus and plan your pickup."}
       footer={
         <div className="space-y-3 text-center">
           <div className="rounded-xl border border-border p-3 text-sm">
@@ -118,7 +134,10 @@ export default function Login() {
               <Link to="/kiosk" className="text-primary font-medium hover:underline">Boarding kiosk</Link>
             </div>
           </div>
-          <div>
+          {BACKEND === "supabase" && <div>
+            <Link to={driverLogin ? "/login" : "/login?driver=1"} className="text-primary font-medium hover:underline">{driverLogin ? "Use email or Google sign-in" : "Driver phone username sign-in"}</Link>
+          </div>}
+          {!driverLogin && <div>
             New here?{" "}
             <Link
               to={"/register" + (returnTo !== "/" ? "?returnTo=" + encodeURIComponent(returnTo) : "")}
@@ -126,7 +145,7 @@ export default function Login() {
             >
               Create an account
             </Link>
-          </div>
+          </div>}
           <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
             <Link to="/privacy" className="inline-flex items-center gap-1 hover:text-foreground hover:underline">
               <Shield className="h-3 w-3" aria-hidden="true" />
@@ -162,14 +181,14 @@ export default function Login() {
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="email">Email address</Label>
+          <Label htmlFor="email">{driverLogin ? "Driver username" : "Email address"}</Label>
           <div className="relative">
             <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
             <Input
               id="email"
-              type="email"
-              autoComplete="email"
-              placeholder="you@example.com"
+              type={driverLogin ? "text" : "email"}
+              autoComplete={driverLogin ? "username" : "email"}
+              placeholder={driverLogin ? "driver001" : "you@example.com"}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="pl-10 h-12"
@@ -180,9 +199,9 @@ export default function Login() {
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <Label htmlFor="password">Password</Label>
-            <Link to="/forgot-password" className="text-xs text-primary hover:underline">
+            {!driverLogin && <Link to="/forgot-password" className="text-xs text-primary hover:underline">
               Forgot password?
-            </Link>
+            </Link>}
           </div>
           <div className="relative">
             <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
@@ -211,7 +230,7 @@ export default function Login() {
         </Button>
       </form>
       <div className="mt-6">
-      {(signInWith.google || signInWith.apple) && (<>
+      {!driverLogin && (signInWith.google || signInWith.apple) && (<>
       <div className="relative mb-6">
         <div className="absolute inset-0 flex items-center">
           <div className="w-full border-t border-border" />

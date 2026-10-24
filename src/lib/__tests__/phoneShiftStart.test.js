@@ -7,7 +7,7 @@ function setup({ role = "staff", access = true, assigned = true, company = "a" }
   const sdk = mock(role);
   sdk.tables.KioskDevice[0].kiosk_type = "driver";
   Object.assign(sdk.tables.Vehicle[0], { driver_email: assigned ? "caller@test.invalid" : "someone@test.invalid", driver_name: "Dana Driver" });
-  sdk.tables.Driver = [{ id: "drv", full_name: "Dana Driver", email: "caller@test.invalid", company_id: company, phone_app_access: access }];
+  sdk.tables.Driver = [{ id: "drv", full_name: "Dana Driver", email: "caller@test.invalid", auth_user_id: "mock-auth-caller", company_id: company, phone_app_access: access }];
   sdk.tables.DriverShift = [];
   sdk.tables.StaffCheckIn = [{ id: "c1", company_id: "a", vehicle_id: "bus-a", staff_name: "Jane", card_tag: "T1", status: "boarded", created_date: "2026-10-07T05:00:00Z" }];
   sdk.tables.Inspection = []; sdk.tables.InspectionResult = []; sdk.tables.Fault = [];

@@ -196,17 +196,21 @@ test('while the bus moves the app shows only the Driving screen and sends no loc
  expect(JSON.stringify(calls)).not.toMatch(/latitude|longitude|-61\.76|"lat"|"lng"/);
 });
 
-test('admin switches the phone app on for a driver',async({page})=>{
+test('admin provisions phone login without toggling access through the Driver record',async({page})=>{
  const saves=[];
+ const issued={ok:true,username:'dana.driver',temporary_password:'SomeTempPass12345!',must_change_password:true};
  await page.addInitScript(()=>{ localStorage.setItem('base44_access_token','mock-authenticated-session'); });
  await page.route('https://api.mapbox.com/**',r=>r.fulfill({status:404,body:''}));
  const driver={id:'drv',full_name:'Dana Driver',email:'dana.driver@gmail.com',phone:'+1 473 555 0123',company_id:'a',company_name:'Coyaba Transport',phone_app_access:false};
  await page.route('**/api/**',withAdminBatch(async route=>{
   const url=route.request().url();
+  if(url.includes('/functions/driverAccounts')){
+   saves.push(route.request().postDataJSON());
+   return route.fulfill({json:issued});
+  }
   if(url.includes('/functions/entityAccess')) {
    const body=route.request().postDataJSON();let result=[];
    if(body.entity==='User' && body.operation==='get') result={id:'admin',email:'admin@test.local',full_name:'Admin',role:'admin'};
-   else if(body.entity==='Driver' && body.operation==='update'){saves.push(body.data);Object.assign(driver,body.data);result=driver;}
    else if(body.entity==='Driver') result=[driver];
    else if(body.entity==='Company') result=[{id:'a',name:'Coyaba Transport'}];
    else if(body.entity==='Vehicle') result=[{id:'bus-a',name:'Bus 12',company_id:'a',driver_email:'dana.driver@gmail.com',driver_name:'Dana Driver',status:'idle'}];
@@ -217,15 +221,17 @@ test('admin switches the phone app on for a driver',async({page})=>{
  }));
  await page.setViewportSize({width:1280,height:900});
  await page.goto('/admin/drivers');
- await page.getByRole('button',{name:'Edit Dana Driver'}).click();
- const toggle=page.getByRole('switch',{name:'Can use the phone app'});
- await expect(toggle).not.toBeChecked();
- await toggle.click();
- await shot(page,'09-admin-switch');
- await page.getByRole('button',{name:'Save changes'}).click();
+ await page.getByRole('button',{name:'Manage phone account for Dana Driver'}).click();
+ await expect(page.getByText('Create a username for the phone app. No personal email is required.')).toBeVisible();
+ await page.getByLabel('Driver username').fill('Dana.Driver');
+ await shot(page,'09-admin-phone-account');
+ await page.getByRole('button',{name:'Create phone login'}).click();
+ await expect(page.getByText('Account credentials issued.',{exact:false})).toBeVisible();
+ await expect(page.getByText('dana.driver',{exact:true})).toBeVisible();
  await expect.poll(()=>saves.length).toBe(1);
- expect(saves[0]).toMatchObject({email:'dana.driver@gmail.com',phone_app_access:true});
- await expect(page.getByText('Phone app',{exact:true})).toBeVisible();
+ expect(saves[0]).toMatchObject({action:'provision',driver_id:'drv',username:'dana.driver'});
+ // Radix Dialog intentionally hides background links from the accessibility tree.
+ await page.getByRole('button',{name:"I've saved the details"}).click();
  await expect(page.getByRole('link',{name:'WhatsApp'})).toHaveAttribute('href','https://wa.me/14735550123');
 });
 

@@ -73,7 +73,7 @@ function matches(row,query) {
 }
 export function mock(role='staff') {
  const tables={
-  User:[{id:'caller',role:role||'staff',email:'caller@test.invalid',full_name:'Caller',company_id:'b'}],
+  User:[{id:'caller',role:role||'staff',email:'caller@test.invalid',auth_user_id:'mock-auth-caller',full_name:'Caller',company_id:'b'}],
   CompanyMembership:[{id:'membership',user_id:'caller',company_id:'a',scope:role==='company'?'manager':'passenger',active:true}],
   Company:[{id:'a',name:'A',access_code:'JOIN12345678'},{id:'b',name:'B',access_code:'JOIN87654321'}],
   Vehicle:[{id:'bus-a',company_id:'a',name:'Bus A',driver_pin:'1234'},{id:'bus-b',company_id:'b',name:'Bus B'}],

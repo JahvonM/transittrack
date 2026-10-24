@@ -21,27 +21,47 @@ export async function findPhoneDriver(base44, email) {
 // The buses an administrator has assigned to this driver.
 export async function driverVehicles(base44, driver) {
   const rows = await base44.asServiceRole.entities.Vehicle.filter({ company_id: driver.company_id }, 'name', 500);
-  return rows.filter((v) => v.company_id === driver.company_id && normEmail(v.driver_email) === normEmail(driver.email));
+  return rows.filter((v) => v.company_id === driver.company_id && (
+    // An explicit driver ID always wins: never reassign a bus by a stale email.
+    v.driver_id ? v.driver_id === driver.id : !!normEmail(driver.email) && normEmail(v.driver_email) === normEmail(driver.email)
+  ));
+}
+
+const driverLoginEmail = (driver) => driver?.username
+  ? `driver.${String(driver.username).trim().toLowerCase()}@login.mcsweenstransport.com`
+  : normEmail(driver?.email);
+
+function phoneEmails(driver) {
+  return new Set([normEmail(driver?.email), driverLoginEmail(driver)].filter(Boolean));
 }
 
 // Phones signed up by the driver currently assigned to this bus. Checked
 // against the Driver record on every send, never trusted from the token row.
 export async function driverPhoneTokens(base44, vehicle) {
-  if (!vehicle?.company_id || !normEmail(vehicle.driver_email)) return [];
-  const { driver } = await findPhoneDriver(base44, vehicle.driver_email);
-  if (!driver || driver.company_id !== vehicle.company_id) return [];
+  if (!vehicle?.company_id) return [];
+  let driver = null;
+  if (vehicle.driver_id) {
+    const record = await base44.asServiceRole.entities.Driver.get(vehicle.driver_id).catch(() => null);
+    if (record?.company_id === vehicle.company_id && record.phone_app_access) driver = record;
+  } else if (normEmail(vehicle.driver_email)) {
+    const legacy = await findPhoneDriver(base44, vehicle.driver_email);
+    if (legacy.driver?.company_id === vehicle.company_id) driver = legacy.driver;
+  }
+  if (!driver || !driver.phone_app_access || !driver.company_id) return [];
+  const emails = phoneEmails(driver);
   const rows = await base44.asServiceRole.entities.PushToken.filter({ role: 'driver_phone', company_id: vehicle.company_id }, '-created_date', 500);
   return [...new Set(rows
-    .filter((row) => normEmail(row.email) === normEmail(driver.email) && typeof row.token === 'string' && row.token)
+    .filter((row) => emails.has(normEmail(row.email)) && typeof row.token === 'string' && row.token)
     .map((row) => row.token))];
 }
 
 // Phones of one driver record, for telling them about their own requests.
 // Nothing is sent once the phone app is switched off for them.
 export async function phoneTokensForDriver(base44, driver) {
-  if (!driver?.phone_app_access || !normEmail(driver.email) || !driver.company_id) return [];
+  if (!driver?.phone_app_access || !phoneEmails(driver).size || !driver.company_id) return [];
   const rows = await base44.asServiceRole.entities.PushToken.filter({ role: 'driver_phone', company_id: driver.company_id }, '-created_date', 500);
+  const emails = phoneEmails(driver);
   return [...new Set(rows
-    .filter((row) => normEmail(row.email) === normEmail(driver.email) && typeof row.token === 'string' && row.token)
+    .filter((row) => emails.has(normEmail(row.email)) && typeof row.token === 'string' && row.token)
     .map((row) => row.token))];
 }
