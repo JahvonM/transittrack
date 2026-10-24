@@ -6,7 +6,7 @@ const day = (offset) => { const d = new Date(Date.now() + offset * 86400000); re
 function setup(role = "staff") {
   const sdk = mock(role);
   sdk.tables.Driver = [
-    { id: "drv", full_name: "Dana Driver", email: "caller@test.invalid", company_id: "a", phone_app_access: true },
+    { id: "drv", full_name: "Dana Driver", email: "caller@test.invalid", auth_user_id: "mock-auth-caller", company_id: "a", phone_app_access: true },
     { id: "drv2", full_name: "Sam Other", email: "sam@test.invalid", company_id: "a" },
     { id: "drvb", full_name: "Bea Elsewhere", email: "bea@test.invalid", company_id: "b" },
   ];
