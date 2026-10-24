@@ -230,6 +230,8 @@ test('admin provisions phone login without toggling access through the Driver re
  await expect(page.getByText('dana.driver',{exact:true})).toBeVisible();
  await expect.poll(()=>saves.length).toBe(1);
  expect(saves[0]).toMatchObject({action:'provision',driver_id:'drv',username:'dana.driver'});
+ // Radix Dialog intentionally hides background links from the accessibility tree.
+ await page.getByRole('button',{name:"I've saved the details"}).click();
  await expect(page.getByRole('link',{name:'WhatsApp'})).toHaveAttribute('href','https://wa.me/14735550123');
 });
 
