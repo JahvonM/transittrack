@@ -36,8 +36,15 @@ jobs:
         run: npm run lint
       - name: Unit tests
         run: npm test
+      - name: Generated Supabase mirrors, schema and data model
+        run: |
+          node tools/supabase/build-functions.mjs --check
+          node tools/supabase/gen-schema.mjs --check
+          node tools/data-model.mjs --check
       - name: Build
         run: npm run build
+      - name: Supabase production build
+        run: npm run build:supabase
       - name: Install test browser
         run: npx playwright install --with-deps chromium
       - name: Mocked browser regression tests
