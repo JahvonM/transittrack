@@ -35,9 +35,8 @@ const STATUSES = [
 
 // Drivers are entered directly here (a plain Driver record) rather than
 // invited as a base44 login. The bus tablet authenticates by paired device +
-// PIN (see driverSession). The driver phone app is the one place a driver
-// signs in: with Google, using the email on this record, and only while
-// "Can use the phone app" is on (see driverPhone).
+// PIN (see driverSession). The separate driver phone app uses an admin-created
+// Supabase Auth username and a mandatory initial password change.
 function DriverFormFields({ form, setForm, companies, companyLocked = false }) {
   return (
     <div className="space-y-3">
@@ -46,7 +45,7 @@ function DriverFormFields({ form, setForm, companies, companyLocked = false }) {
         <Input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} placeholder="John D." />
       </div>
       <div className="space-y-1.5">
-        <Label>Email (Gmail)</Label>
+        <Label>Email (optional)</Label>
         <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="driver@example.com" />
       </div>
       <div className="space-y-1.5">
@@ -285,7 +284,7 @@ function AssignedVehicleRow({ vehicle: v, routes, onUnassign, onSetStatus, onSet
 function DriverCard({ driver, vehicles, companies, routes, docs = [], onDocsChanged, onAssign, onUnassign, onSetStatus, onSetRoute, onSetPin, onSaved, onRemove }) {
   const [editOpen, setEditOpen] = useState(false);
   const [docsOpen, setDocsOpen] = useState(false);
-  const assigned = vehicles.filter((v) => v.driver_id === driver.id || (!v.driver_id && driver.email && v.driver_email === driver.email));
+  const assigned = vehicles.filter((v) => v.company_id === driver.company_id && (v.driver_id === driver.id || (!v.driver_id && driver.email && v.driver_email === driver.email)));
   const companyName = companies.find((c) => c.id === driver.company_id)?.name;
   const pool = vehicles.filter(
     (v) => !!driver.company_id && v.company_id === driver.company_id && v.driver_id !== driver.id && (!driver.email || v.driver_email !== driver.email)
@@ -441,7 +440,7 @@ export default function DriversTab({ drivers, vehicles, companies, routes, onCha
 
   const removeDriver = async (driver) => {
     try {
-      const assignedVehicles = vehicles.filter((v) => v.driver_id === driver.id || (!v.driver_id && driver.email && v.driver_email === driver.email));
+      const assignedVehicles = vehicles.filter((v) => v.company_id === driver.company_id && (v.driver_id === driver.id || (!v.driver_id && driver.email && v.driver_email === driver.email)));
       await Promise.all(
         assignedVehicles.map((v) =>
           base44.entities.Vehicle.update(v.id, { driver_id: null, driver_email: null, driver_name: null })
