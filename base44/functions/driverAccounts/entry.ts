@@ -141,10 +141,24 @@ export default async function(req) {
         await db.Driver.update(driver.id, {
           username, auth_user_id: newAuthId, must_change_password: true, phone_app_access: true,
         });
+        const saved = await db.Driver.get(driver.id);
+        if (saved?.auth_user_id !== newAuthId || saved?.username !== username || saved?.must_change_password !== true || saved?.phone_app_access !== true) {
+          throw new Error('Driver account fields were not stored; apply the database migration first');
+        }
       } catch (error) {
         // Do not leave an active orphan account if linking fails.
         const newAuthId = account?.id || account?.user?.id;
-        if (newAuthId) await authRequest('/auth/v1/admin/users/' + encodeURIComponent(newAuthId), 'DELETE').catch(() => {});
+        if (newAuthId) {
+          // If the Driver update succeeded but its verification failed, clear the
+          // unusable mapping before removing its sign-in identity.
+          const current = await db.Driver.get(driver.id).catch(() => null);
+          if (current?.auth_user_id === newAuthId) {
+            await db.Driver.update(driver.id, {
+              username: null, auth_user_id: null, must_change_password: false, phone_app_access: false,
+            }).catch(() => {});
+          }
+          await authRequest('/auth/v1/admin/users/' + encodeURIComponent(newAuthId), 'DELETE').catch(() => {});
+        }
         if (error?.message === 'Username is unavailable') return reply('Username is unavailable', 409);
         throw error;
       }
@@ -159,6 +173,8 @@ export default async function(req) {
       const password = temporaryPassword();
       // Block every driver-phone action BEFORE rotating the password.
       await db.Driver.update(driver.id, { must_change_password: true });
+      const locked = await db.Driver.get(driver.id);
+      if (locked?.must_change_password !== true) return reply('Database password-change flag unavailable. Migration required.', 503);
       await authRequest('/auth/v1/admin/users/' + encodeURIComponent(driver.auth_user_id), 'PUT', { password });
       await audit(db, actor, driver, 'Reset driver phone password');
       return Response.json({ ok: true, username: driver.username, temporary_password: password });
