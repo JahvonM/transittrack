@@ -84,11 +84,15 @@ export default function DriverPhone() {
   busRef.current = busId;
 
   const refused = useCallback((error) => {
+    if (error?.code === "PASSWORD_CHANGE_REQUIRED") {
+      navigate("/driver-password", { replace: true });
+      return true;
+    }
     if (!notADriver(error)) return false;
     setRefusal(error.message);
     setStatus("refused");
     return true;
-  }, []);
+  }, [navigate]);
 
   const loadToday = useCallback(async () => {
     try {
