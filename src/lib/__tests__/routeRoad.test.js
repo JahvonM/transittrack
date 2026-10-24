@@ -57,7 +57,7 @@ describe("saving and sharing a drawn road", () => {
 
   it("reaches the driver phone with the route", async () => {
     const sdk = mock("staff");
-    sdk.tables.Driver = [{ id: "drv", full_name: "Dana", email: "caller@test.invalid", company_id: "a", phone_app_access: true }];
+    sdk.tables.Driver = [{ id: "drv", full_name: "Dana", email: "caller@test.invalid", auth_user_id: "mock-auth-caller", company_id: "a", phone_app_access: true }];
     sdk.tables.Vehicle[0].driver_email = "caller@test.invalid";
     sdk.tables.Vehicle[0].route_id = "route-a";
     sdk.tables.Route = [route];
