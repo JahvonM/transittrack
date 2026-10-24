@@ -2,6 +2,19 @@
   "name": "Driver",
   "type": "object",
   "properties": {
+    "username": {
+      "type": "string",
+      "description": "Unique normalized username for driver phone sign-in; managed by privileged account provisioning."
+    },
+    "auth_user_id": {
+      "type": "string",
+      "description": "Immutable authentication user ID. Never store a password here."
+    },
+    "must_change_password": {
+      "type": "boolean",
+      "default": false,
+      "description": "Server-enforced first-login/reset password change requirement."
+    },
     "full_name": {
       "type": "string"
     },
