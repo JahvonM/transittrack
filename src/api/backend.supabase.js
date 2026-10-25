@@ -185,9 +185,16 @@ const AUTH_MESSAGES = {
   over_request_rate_limit: 'Too many tries. Wait a minute and try again.',
   same_password: 'Choose a password different from your current one.',
 };
+// Supabase turns down a new password that is too short, or (leaked-password
+// protection) one that has turned up in a data breach somewhere else.
+const PWNED_PASSWORD = 'This password has turned up in a data breach on another site, so it isn\'t safe. Choose a different one.';
+function weakPasswordMessage(error) {
+  const reasons = Array.isArray(error?.reasons) ? error.reasons : [];
+  return reasons.includes('pwned') ? PWNED_PASSWORD : 'Choose a stronger password: at least 8 characters.';
+}
 function authError(error, status) {
   const code = error?.code || '';
-  const message = AUTH_MESSAGES[code] || error?.message || 'Sign-in failed';
+  const message = code === 'weak_password' ? weakPasswordMessage(error) : AUTH_MESSAGES[code] || error?.message || 'Sign-in failed';
   const s = status || error?.status || 400;
   return apiError(s, { error: message, code }, message);
 }
