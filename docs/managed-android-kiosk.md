@@ -1,5 +1,13 @@
 # Managed Android kiosk (app 1.7, build 8)
 
+> **Update (25 October 2026, app 2.0):** the visible gear button is gone. Like FreeKiosk, kiosk settings open by
+> tapping the top-right corner of the screen **5 times quickly** (an invisible 64 dp tap area), then entering the
+> exit code on a number pad. Settings are split into Kiosk, Network, Exit code and Advanced. Boarding and sign-in
+> devices can save the bus hotspot there and turn on **Always join this hotspot** (BusHotspot.java). Ownership is set
+> from Admin → Kiosk tablets → **Set up a device** in Chrome or Edge over USB (src/lib/usbAdb.js), no PowerShell.
+> Advanced → Remove device owner gives ownership up. The older text below describes the gear and seven taps.
+
+
 Adds persistent Android Lock Task, managed Home selection, lifecycle fullscreen, boot/update recovery, an owner-only watchdog, and private native offline maintenance to the combined driver/boarding/signing APK. Existing web caching, pairing, saved uploads, USB readers, GPS and camera ownership remain in their existing components.
 
 ## Installation and first setup

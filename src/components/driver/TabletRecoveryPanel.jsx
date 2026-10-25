@@ -28,7 +28,7 @@ export default function TabletRecoveryPanel() {
     <CardContent className="space-y-3">
       {state.localKioskSettings && <>
         <Button className="w-full" onClick={() => openLocalKioskSettings().catch(() => setError("Could not open kiosk settings."))}>Kiosk lock &amp; exit code</Button>
-        <p className="text-xs text-muted-foreground">Set your exit code and start or exit kiosk mode directly on this tablet. The gear button also opens these settings offline.</p>
+        <p className="text-xs text-muted-foreground">Set the exit code and turn kiosk mode on or off on this device. Tapping the top-right corner of the screen 5 times also opens these settings, even offline.</p>
       </>}
       {state.screenRecovery?.available && <p className="text-sm">Screen recovery is ready. If Android closes the app’s display, the kiosk reopens it, with a limit to prevent repeated restarts. Saved pairing and records stay on this tablet.</p>}
       {state.screenControl ? <div className="flex items-center justify-between gap-3 rounded-xl border p-3">

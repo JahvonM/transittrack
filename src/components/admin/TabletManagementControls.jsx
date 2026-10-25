@@ -45,7 +45,7 @@ export default function TabletManagementControls({ device, onRefresh }) {
           <p>Permanent kiosk: {health.kiosk_enabled ? "enabled" : "off"} · Android lock: {health.kiosk_locked ? "locked" : "unlocked"}</p>
           <p>Recovery PIN: {health.kiosk_recovery_ready ? "ready" : "setup required"} · Startup: {health.kiosk_startup ? "enabled" : "off"}</p>
           <p>Maintenance: {health.kiosk_maintenance ? "temporarily unlocked" : "closed"}</p>
-          <p className="text-muted-foreground">Offline access: tap the top-right corner of the kiosk screen seven times within four seconds, then enter the recovery PIN. Status is from the last tablet report.</p>
+          <p className="text-muted-foreground">Offline access: tap the top-right corner of the kiosk screen 5 times quickly, then enter the exit code. Status is from the last tablet report.</p>
         </div> : <p className="text-sm text-muted-foreground">Permanent kiosk controls require Android app 1.6 / build 7 or newer. Update the APK, open it, then refresh status.</p>}
         <TabletNativeUpdate device={device} onRefresh={onRefresh} />
         {open && <TabletRemoteViewer device={device} />}
