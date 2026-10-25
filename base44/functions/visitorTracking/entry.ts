@@ -2,7 +2,10 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.57';
 import { forwardToSupabase } from '../../shared/forwardToSupabase.ts';
 import { reserveAttempt } from '../../shared/atomicOps.ts';
 
-export const VISITOR_SITE = 'https://mcsween-grenada-travel.modestejahvon.chatgpt.site';
+// The guest's tracking page is part of the app itself (src/pages/TrackRide.jsx).
+// The key goes after #, so it never reaches a server in an address or referrer.
+export const VISITOR_SITE = 'https://app.mcsweenstransport.com';
+export const trackingUrl = (token: string) => `${VISITOR_SITE}/track#trip=${token}`;
 const TOKEN = /^[a-f0-9]{64}$/;
 const CLOSED = ['completed', 'cancelled'];
 async function hash(value: string) {
@@ -45,7 +48,7 @@ export default async function(req: Request) {
       const now = Date.now(), planned = Date.parse(trip.scheduled_time || '') || now;
       const expires_at = new Date(Math.min(now + 7*86400_000, Math.max(now+86400_000,planned+86400_000))).toISOString();
       await db.VerificationGrant.create({token_hash:await hash(token),purpose:'visitor_tracking',subject:trip.id,company_id:trip.company_id,vehicle_id:trip.vehicle_id,expires_at});
-      return json({url:VISITOR_SITE+'/#trip='+token,expires_at});
+      return json({url:trackingUrl(token),expires_at});
     }
     if (body.action !== 'track' || !TOKEN.test(body.token || '')) return json({error:'This tracking link is invalid or expired'},404);
     const digest = await hash(body.token);
