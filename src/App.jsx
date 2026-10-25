@@ -36,6 +36,8 @@ const TabletStart = lazy(() => import('@/pages/TabletStart'));
 const PrivacyPolicy = lazy(() => import('@/pages/PrivacyPolicy'));
 const TermsOfService = lazy(() => import('@/pages/TermsOfService'));
 const BookTaxi = lazy(() => import('@/pages/BookTaxi'));
+// A guest following their ride from a link (no sign-in).
+const TrackRide = lazy(() => import('@/pages/TrackRide'));
 const JoinCompany = lazy(() => import('@/pages/JoinCompany'));
 const loadCompanyDashboard = () => import('@/pages/CompanyDashboard');
 const CompanyDashboard = lazy(loadCompanyDashboard);
@@ -110,7 +112,7 @@ const AuthenticatedApp = () => {
   // signed-out visitors instead of bouncing to the login screen.
   // /desktop-signin and /phone-signin handle their own sign-in (the desktop
   // and phone apps' browser hand-off).
-  const publicPage = authPage || ['/privacy', '/terms', '/reviewer-sandbox', '/desktop-signin', '/phone-signin'].includes(location.pathname);
+  const publicPage = authPage || ['/privacy', '/terms', '/reviewer-sandbox', '/desktop-signin', '/phone-signin', '/track'].includes(location.pathname);
   // Pages remount (and animate) when this key changes. The driver app's tabs
   // are all one page, so they share a key — switching tabs must not restart
   // it (that would stop GPS tracking and navigation).
@@ -155,6 +157,7 @@ const AuthenticatedApp = () => {
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/" element={<Welcome />} />
       <Route path="/book-taxi" element={<BookTaxi />} />
+      <Route path="/track" element={<TrackRide />} />
       <Route path="/join" element={<JoinCompany />} />
       <Route path="/oauth/consent" element={<OAuthConsent />} />
       <Route path="/desktop-signin" element={<DesktopSignIn />} />
