@@ -5,7 +5,6 @@ import { CLOSED_TRIP as CLOSED, issueVisitorLink, sha256Hex as hash } from '../.
 
 // The guest's tracking page is part of the app itself (src/pages/TrackRide.jsx);
 // how links are made is in base44/shared/visitorLinks.ts.
-export { VISITOR_SITE, trackingUrl } from '../../shared/visitorLinks.ts';
 const TOKEN = /^[a-f0-9]{64}$/;
 const json = (data: unknown, status = 200) => Response.json(data, { status, headers: { 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' } });
 // Explicit allowlist: a visitor never receives passenger lists, phone numbers,
