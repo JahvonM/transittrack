@@ -1,0 +1,24 @@
+/* Driver inspections own the viewport; the bus and current check remain together.
+   Large checklists stay step-by-step rather than shrinking touch controls. */
+.tt-driver-inspection{height:100dvh;min-height:0!important;display:flex;flex-direction:column;padding:12px!important}
+.tt-driver-inspection>div{width:100%;flex:1;min-height:0;display:flex;flex-direction:column;gap:8px}
+.tt-driver-inspection>div>*{margin-top:0!important;flex-shrink:0}
+.tt-driver-inspection>div>.tt-inspection{flex:1;min-height:0}
+.tt-driver-inspection .tt-inspection{display:flex;flex-direction:column;gap:8px}
+.tt-driver-inspection .tt-inspection>*{margin-top:0!important}
+.tt-driver-inspection .tt-inspection-grid{flex:1;min-height:0;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);align-items:stretch;gap:12px}
+.tt-driver-inspection .tt-inspection-grid>div:first-child{min-height:0;display:flex;flex-direction:column;justify-content:center}
+.tt-driver-inspection .tt-xr{max-height:calc(100dvh - 200px)}
+.tt-driver-inspection .tt-xr svg{max-height:calc(100dvh - 210px);width:100%;object-fit:contain}
+.tt-driver-inspection .tt-inspection-step{min-height:0;padding:12px;display:flex;flex-direction:column;gap:8px;overflow:auto}
+.tt-driver-inspection .tt-inspection-step>*{margin-top:0!important;flex-shrink:0}
+.tt-driver-inspection .tt-inspection-step h3{font-size:20px;line-height:1.2}
+.tt-driver-inspection .tt-inspection-step button{min-height:44px}
+.tt-driver-inspection .tt-inspection-step button.min-h-\[64px\]{min-height:48px}
+.tt-driver-inspection .tt-inspection-step textarea{min-height:56px}
+.tt-driver-inspection .tt-inspection-step img{height:48px;width:48px}
+@media(orientation:portrait){
+ .tt-driver-inspection .tt-inspection-grid{grid-template-columns:1fr;grid-template-rows:minmax(100px,27%) minmax(0,1fr);gap:8px}
+ .tt-driver-inspection .tt-inspection-grid>div:first-child>div:last-child:not(:first-child){display:none}
+ .tt-driver-inspection .tt-xr,.tt-driver-inspection .tt-xr svg{max-height:20dvh}
+}

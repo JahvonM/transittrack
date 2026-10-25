@@ -294,6 +294,10 @@ describe("secrets, files and serving", () => {
     expect(other.headers.get("Access-Control-Allow-Origin")).toBeNull();
     expect(await other.json()).toEqual({ ok: true });
 
+    // The visitor ride-tracking page is part of the app now; the old ChatGPT
+    // copy of it gets no access at all.
+    expect(compat.corsHeaders("https://mcsween-grenada-travel.modestejahvon.chatgpt.site")["Access-Control-Allow-Origin"]).toBeUndefined();
+
     const notFound = await compat.withCors(async () => { throw compat.httpError(404, "Trip not found"); })(new Request("https://x/f"));
     expect(notFound.status).toBe(404);
     expect(await notFound.json()).toEqual({ error: "Trip not found" });

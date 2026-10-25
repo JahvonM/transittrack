@@ -93,7 +93,7 @@ describe("Supabase client", () => {
   it("password reset and invite links are only used when the new password is saved", async () => {
     const calls = [];
     let verify = 200;
-    let update = [422, 200];
+    let update = [422, "pwned", 200];
     vi.stubGlobal("fetch", async (url, init = {}) => {
       const u = new URL(url);
       calls.push({ path: u.pathname, query: u.search, method: init.method, body: init.body ? JSON.parse(init.body) : null });
@@ -108,9 +108,10 @@ describe("Supabase client", () => {
       }
       if (u.pathname === "/auth/v1/user") {
         const status = update.shift() ?? 200;
+        if (status === "pwned") return json(422, { code: 422, error_code: "weak_password", msg: "Password is known to be weak and easy to guess", weak_password: { reasons: ["pwned"] } });
         return status === 200
           ? json(200, { id: "u1", aud: "authenticated", email: "a@b.co", app_metadata: {}, user_metadata: {} })
-          : json(status, { code: status, error_code: "weak_password", msg: "Password should be at least 6 characters." });
+          : json(status, { code: status, error_code: "weak_password", msg: "Password should be at least 6 characters.", weak_password: { reasons: ["length"] } });
       }
       if (u.pathname === "/auth/v1/logout") return new Response(null, { status: 204 });
       return json(404, {});
@@ -130,12 +131,14 @@ describe("Supabase client", () => {
     // without spending the link again.
     pageAt("?token=pkce_invite1&type=invite");
     calls.length = 0;
-    await expect(backend.auth.resetPassword({ resetToken: "pkce_invite1", newPassword: "x" })).rejects.toBeTruthy();
+    await expect(backend.auth.resetPassword({ resetToken: "pkce_invite1", newPassword: "x" })).rejects.toMatchObject({ message: expect.stringMatching(/stronger password/) });
+    // A password from a data breach (leaked-password protection) says why.
+    await expect(backend.auth.resetPassword({ resetToken: "pkce_invite1", newPassword: "password123" })).rejects.toMatchObject({ message: expect.stringMatching(/data breach/) });
     await backend.auth.resetPassword({ resetToken: "pkce_invite1", newPassword: "long enough" });
     const verifies = calls.filter((c) => c.path === "/auth/v1/verify");
     expect(verifies).toHaveLength(1);
     expect(verifies[0].body).toMatchObject({ token_hash: "pkce_invite1", type: "invite" });
-    expect(calls.filter((c) => c.path === "/auth/v1/user").map((c) => c.body.password)).toEqual(["x", "long enough"]);
+    expect(calls.filter((c) => c.path === "/auth/v1/user").map((c) => c.body.password)).toEqual(["x", "password123", "long enough"]);
 
     // A used or old reset link says so in words that fit a link.
     pageAt("?token=pkce_old&type=recovery");

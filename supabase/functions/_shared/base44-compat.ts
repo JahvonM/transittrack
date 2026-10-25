@@ -650,8 +650,7 @@ const DEFAULT_ORIGINS = [
 ];
 // Cloudflare's preview copies of the site: https://<build>.mcsween-transport.pages.dev
 const PREVIEW_ORIGIN = /^https:\/\/[a-z0-9-]{1,63}\.mcsween-transport\.pages\.dev$/;
-
-function corsHeaders(origin: string | null): Record<string, string> {
+export function corsHeaders(origin: string | null): Record<string, string> {
   const allowed = (runtime.env.get('ALLOWED_ORIGINS') || '').split(',').map((s) => s.trim()).filter(Boolean);
   const list = allowed.length ? allowed : DEFAULT_ORIGINS;
   const headers: Record<string, string> = { Vary: 'Origin' };

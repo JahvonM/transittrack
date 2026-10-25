@@ -1,5 +1,5 @@
 // Require consecutive, time-spaced reads, not two isolated glimpses.
-export default function createQrScanGate({ stableMs = 0, warmupMs = 0 } = {}) {
+export default function createQrScanGate({ stableMs = 0, warmupMs = 0, maxGapMs = 350 } = {}) {
   let readyAt = Infinity;
   let lastFire = -Infinity;
   let candidate = null;
@@ -12,11 +12,11 @@ export default function createQrScanGate({ stableMs = 0, warmupMs = 0 } = {}) {
       candidate = null;
     },
     miss(now) {
-      if (candidate && now - candidate.last > 350) candidate = null;
+      if (candidate && now - candidate.last > maxGapMs) candidate = null;
     },
     read(text, now) {
       if (!text || (stableMs > 0 && submitted.has(text)) || now < readyAt || now - lastFire < 2500) return false;
-      if (!candidate || candidate.text !== text || now - candidate.last > 350) {
+      if (!candidate || candidate.text !== text || now - candidate.last > maxGapMs) {
         candidate = { text, first: now, last: now, count: 0 };
       }
       candidate.last = now;

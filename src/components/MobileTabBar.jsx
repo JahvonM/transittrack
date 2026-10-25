@@ -16,6 +16,7 @@ const HIDDEN_PREFIXES = [
   "/kiosk",
   "/tablet",
   "/reviewer-sandbox",
+  "/track",
   "/driver",
   "/admin",
   "/workspace",
