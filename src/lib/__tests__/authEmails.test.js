@@ -66,6 +66,9 @@ describe("sign-in emails", () => {
     // New passwords: Supabase refuses the same short ones the screens do.
     expect(planAuthConfig({ ...blankConfig(), ...first, password_min_length: 6 }, { emails })).toEqual({ password_min_length: 8 });
     expect(planAuthConfig({ ...blankConfig(), ...first, password_min_length: 8 }, { emails })).toEqual({});
+    // ...nor passwords that turned up in a data breach.
+    expect(planAuthConfig({ ...blankConfig(), ...first, password_hibp_enabled: false }, { emails })).toEqual({ password_hibp_enabled: true });
+    expect(planAuthConfig({ ...blankConfig(), ...first, password_hibp_enabled: true }, { emails })).toEqual({});
     // Settings Supabase leaves out count as empty, so they get filled in.
     expect(planAuthConfig({}, { emails }).mailer_templates_invite_content).toBe(emails.invite.html);
     expect(smtpSettings({ key: "re_test" })).toEqual({
