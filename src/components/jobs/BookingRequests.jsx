@@ -9,6 +9,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { EmptyState, Panel } from "@/components/admin/kit";
 import JobTypeIcon from "@/components/jobs/JobTypeIcon";
 import { jobTypeLabel } from "@/lib/jobs";
+import { TRANSIT_TIME_ZONE } from "@/lib/localTime";
 import { errorData } from "@/lib/requestError";
 
 // Admin → Jobs → Requests: rides asked for on the website. Dispatch makes a
@@ -16,7 +17,7 @@ import { errorData } from "@/lib/requestError";
 
 const when = (iso) => {
   const t = Date.parse(iso || "");
-  return Number.isFinite(t) ? new Date(t).toLocaleString([], { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }) : "No time";
+  return Number.isFinite(t) ? new Date(t).toLocaleString([], { timeZone: TRANSIT_TIME_ZONE, weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }) : "No time";
 };
 const ago = (iso) => {
   const m = Math.round((Date.now() - Date.parse(iso || "")) / 60000);
