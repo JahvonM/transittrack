@@ -136,7 +136,7 @@ public class KioskMaintenanceActivity extends Activity {
         LinearLayout page;
         int p = KioskUi.dp(this, wide ? 48 : 20);
         if (wide) {
-            page = KioskUi.row(this, KioskUi.dp(this, 32));
+            page = KioskUi.row(this, 32);
             page.setGravity(Gravity.CENTER);
             page.addView(words, new LinearLayout.LayoutParams(KioskUi.dp(this, 400), ViewGroup.LayoutParams.WRAP_CONTENT));
             page.addView(pad, new LinearLayout.LayoutParams(KioskUi.dp(this, 440), ViewGroup.LayoutParams.WRAP_CONTENT));
@@ -150,14 +150,15 @@ public class KioskMaintenanceActivity extends Activity {
         setContentView(KioskUi.scroll(this, page));
     }
 
-    private void showSetup() {
+    private void showSetup() { showSetup(null); }
+    private void showSetup(String problem) {
         setup = true;
         codePad("Choose an exit code", "8 to 12 digits. It opens these settings and turns kiosk mode off, even with no internet. It isn't the driver PIN.",
-            "Next", null, (first, message) -> {
+            "Next", problem, (first, message) -> {
                 if (!KioskRecoveryPin.valid(first)) { message.setText("Use 8 to 12 digits."); return; }
                 codePad("Enter the code again", "Type the same code once more so you know it's right.", "Save exit code", null, (second, again) -> {
                     if (!canSetPin()) { again.setText("Enter the current exit code before changing it."); return; }
-                    if (!first.equals(second)) { showSetupWith("The two codes didn't match. Choose the code again."); return; }
+                    if (!first.equals(second)) { showSetup("The two codes didn't match. Choose the code again."); return; }
                     working = true; again.setTextColor(KioskUi.SOFT); again.setText("Saving…");
                     worker.execute(() -> {
                         boolean saved = false;
@@ -171,21 +172,6 @@ public class KioskMaintenanceActivity extends Activity {
                     });
                 });
             });
-    }
-    private void showSetupWith(String problem) {
-        showSetup();
-        // The first pad's message line is the last text in its words column.
-        View root = getWindow().getDecorView();
-        TextView line = findMessage(root);
-        if (line != null) line.setText(problem);
-    }
-    private TextView findMessage(View v) {
-        if (v instanceof TextView && !(v instanceof Button) && ((TextView) v).getCurrentTextColor() == KioskUi.BAD) return (TextView) v;
-        if (v instanceof ViewGroup) for (int i = 0; i < ((ViewGroup) v).getChildCount(); i++) {
-            TextView found = findMessage(((ViewGroup) v).getChildAt(i));
-            if (found != null) return found;
-        }
-        return null;
     }
 
     private void showPin() {
@@ -358,15 +344,15 @@ public class KioskMaintenanceActivity extends Activity {
             content.addView(help, KioskUi.fill());
         }
 
-        LinearLayout start = KioskUi.panel(this);
-        start.addView(KioskUi.panelHeading(this, "When the device starts"));
+        LinearLayout startPanel = KioskUi.panel(this);
+        startPanel.addView(KioskUi.panelHeading(this, "When the device starts"));
         Switch awake = KioskUi.toggle(this, "Keep the screen on", TabletDisplay.enabled(this));
         awake.setOnCheckedChangeListener((b, on) -> { if (checkAuth()) TabletDisplay.save(this, on); });
-        start.addView(KioskUi.settingRow(this, "Keep the screen on", "On battery and on the charger.", awake), KioskUi.fill());
-        start.addView(KioskUi.line(this));
+        startPanel.addView(KioskUi.settingRow(this, "Keep the screen on", "On battery and on the charger.", awake), KioskUi.fill());
+        startPanel.addView(KioskUi.line(this));
         TextView reopen = KioskUi.text(this, active && owner ? "Yes" : "No", 17, active && owner ? KioskUi.TEAL : KioskUi.MUTED);
-        start.addView(KioskUi.settingRow(this, "Opens by itself after a restart", "Happens while kiosk mode is on.", reopen), KioskUi.fill());
-        content.addView(start, KioskUi.fill());
+        startPanel.addView(KioskUi.settingRow(this, "Opens by itself after a restart", "Happens while kiosk mode is on.", reopen), KioskUi.fill());
+        content.addView(startPanel, KioskUi.fill());
     }
     private LinearLayout tile(String label, int color, String value) {
         LinearLayout t = KioskUi.column(this, 6);
@@ -502,10 +488,10 @@ public class KioskMaintenanceActivity extends Activity {
         boolean owner = KioskMode.owner(this);
         LinearLayout panel = KioskUi.panel(this);
         TextView feedback = KioskUi.text(this, "", 15, KioskUi.BAD);
-        Button android = KioskUi.button(this, "Open", KioskUi.Style.SECONDARY, () -> {
+        Button systemSettings = KioskUi.button(this, "Open", KioskUi.Style.SECONDARY, () -> {
             if (checkAuth()) startActivity(new Intent(android.provider.Settings.ACTION_SETTINGS));
         });
-        panel.addView(KioskUi.settingRow(this, "Android settings", "All of Android's settings, while these settings are open.", android), KioskUi.fill());
+        panel.addView(KioskUi.settingRow(this, "Android settings", "All of Android's settings, while these settings are open.", systemSettings), KioskUi.fill());
         if (owner) {
             panel.addView(KioskUi.line(this));
             Button remove = KioskUi.button(this, "Remove", KioskUi.Style.DANGER, () -> {
