@@ -27,7 +27,7 @@ export default function HomePage() {
                 <Link className="mcs-btn mcs-btn-quiet" to={to("/track")}>Track a ride</Link>
               </div>
             </div>
-            <img src="/images/boarding-coaster.webp" alt="A white McSween Transport minibus" width="1200" height="800" />
+            <img src="/images/boarding-coaster.webp" alt="A white minibus" width="1200" height="800" />
           </div>
         </div>
       </section>
@@ -35,7 +35,7 @@ export default function HomePage() {
       <section className="mcs-section" id="services" aria-labelledby="services-title">
         <div className="mcs-wrap">
           <h2 id="services-title">What we do</h2>
-          <p className="mcs-lede">Every ride is a bus with a driver, booked for you or your group.</p>
+          <p className="mcs-lede">Each ride is booked just for you or your group.</p>
           <ul className="mcs-services">
             {SITE_SERVICES.map((s) => (
               <li key={s.id}>
