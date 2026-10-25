@@ -110,8 +110,12 @@ const detailRows = (r: any): [string, string][] => [
   ['Flight', r.flight_number || ''],
 ];
 
+// To the customer. Logged like every other email (Admin → Notifications);
+// these replies can't be switched off. Throws when it couldn't be sent.
 async function send(base44: any, to: string, subject: string, body: string) {
-  await base44.asServiceRole.integrations.Core.SendEmail({ to, subject, body, from_name: 'McSween Transport' });
+  const result = await emailWithPolicy(base44, 'booking_reply', [{ email: to }],
+    () => base44.asServiceRole.integrations.Core.SendEmail({ to, subject, body, from_name: 'McSween Transport' }), { title: subject });
+  if (!result?.sent) throw new Error('The email could not be sent');
 }
 function clientAddress(req: Request) {
   const forwarded = req.headers.get('x-forwarded-for') || '';
@@ -160,12 +164,14 @@ export default async function (req: Request) {
       try {
         const admins = await db.User.filter({ role: 'admin' }, '-created_date', 200);
         const subject = `New ride request: ${service}, ${grenadaTime(data.requested_time)}`;
-        await emailWithPolicy(base44, 'booking_request', admins, (a: any) => send(base44, a.email, subject, emailHtml({
+        const html = emailHtml({
           heading: `${data.name} asked for a ride`,
           lines: ['Open Jobs → Requests to make the job, or to decline it.'],
           rows: [...detailRows(data), ['Phone', data.phone], ['Email', data.email], ['Note', data.notes]],
           button: { label: 'Open requests', url: `${APP}/admin/trips` },
-        })), { title: subject });
+        });
+        await emailWithPolicy(base44, 'booking_request', admins,
+          (a: any) => base44.asServiceRole.integrations.Core.SendEmail({ to: a.email, subject, body: html, from_name: 'McSween Transport' }), { title: subject });
       } catch (e) { console.error('[booking] admin email failed', (e as Error)?.message); }
       return json({ ok: true, id: row.id });
     }
