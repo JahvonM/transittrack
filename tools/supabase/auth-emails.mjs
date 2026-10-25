@@ -228,6 +228,9 @@ export function planAuthConfig(current, { emails = {}, sender = false } = {}) {
   if ('password_min_length' in current && Number(current.password_min_length) !== MIN_PASSWORD_LENGTH) {
     patch.password_min_length = MIN_PASSWORD_LENGTH;
   }
+  // ...and one that has turned up in a data breach (checked against
+  // HaveIBeenPwned without sending the password; needs the Pro plan).
+  if ('password_hibp_enabled' in current && current.password_hibp_enabled !== true) patch.password_hibp_enabled = true;
   if (sender && 'rate_limit_email_sent' in current && !(Number(current.rate_limit_email_sent) >= EMAILS_PER_HOUR)) {
     patch.rate_limit_email_sent = EMAILS_PER_HOUR;
   }
@@ -278,7 +281,7 @@ export async function push({ ref, token, resendKey = '', from = '', fetchImpl = 
   if (left.length) throw new Error(`Supabase did not keep: ${left.join(', ')}`);
   log(`Redirects allowed: ${String(after.uri_allow_list || '').split(',').join(' ')}`);
   log(`Site URL: ${after.site_url || '(none)'}; sign-up code: ${after.mailer_otp_length ?? '?'} digits, lasts ${expiresText(after.mailer_otp_exp).replace(/^in /, '')}`);
-  log(`New passwords: at least ${after.password_min_length ?? '?'} characters`);
+  log(`New passwords: at least ${after.password_min_length ?? '?'} characters; leaked passwords ${after.password_hibp_enabled ? 'refused' : 'allowed'}`);
   log(`Sending through: ${after.smtp_host ? after.smtp_host : 'Supabase\'s built-in email (team members only)'}`);
   return {
     changed,
@@ -287,6 +290,7 @@ export async function push({ ref, token, resendKey = '', from = '', fetchImpl = 
     smtp: after.smtp_host ? 'custom' : 'built-in',
     perHour: after.rate_limit_email_sent ?? '?',
     minPassword: after.password_min_length ?? '?',
+    leaked: after.password_hibp_enabled ? 'refused' : 'allowed',
     redirects: String(after.uri_allow_list || '').split(',').filter(Boolean).length,
   };
 }
@@ -342,7 +346,7 @@ async function main(argv) {
       const done = await push({ ref, token, resendKey, from: process.env.EMAIL_FROM || '' });
       await report(ref, {
         result: done.templates === 'live' ? 'ok' : 'waiting-for-resend',
-        changed: done.changed.join(' ') || 'nothing', templates: done.templates, otp: done.otp, smtp: done.smtp, perHour: done.perHour, minPassword: done.minPassword, redirects: done.redirects,
+        changed: done.changed.join(' ') || 'nothing', templates: done.templates, otp: done.otp, smtp: done.smtp, perHour: done.perHour, minPassword: done.minPassword, leaked: done.leaked, redirects: done.redirects,
       });
     } catch (error) {
       const hide = (t) => [token, resendKey].filter(Boolean).reduce((s, x) => s.split(x).join('***'), String(t));
