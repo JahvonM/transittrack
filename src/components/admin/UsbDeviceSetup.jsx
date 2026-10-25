@@ -145,7 +145,7 @@ export default function UsbDeviceSetup() {
           <div className="space-y-4">
             <div>
               <label htmlFor="kiosk-apk" className="block font-semibold">App file (.apk)</label>
-              <p className="text-caption text-muted-foreground">Usually in your Downloads folder, named like McSween-Kiosk-1.9-build-10-test.apk. Use the file made on your usual PC.</p>
+              <p className="text-caption text-muted-foreground">Usually in your Downloads folder, named like McSween-Kiosk-2.0-build-11-test.apk. Use the file made on your usual PC.</p>
               <input id="kiosk-apk" type="file" accept=".apk,application/vnd.android.package-archive" className="mt-2 block w-full text-body-sm" onChange={(e) => setApk(e.target.files?.[0] || null)} />
             </div>
             <Button className="w-full" size="lg" onClick={setUp} disabled={!!busy || (!apk && !info.version)}>
