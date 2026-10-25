@@ -38,7 +38,7 @@ export default function BookPage() {
   const problems = useMemo(() => bookingProblems(form), [form]);
   const airport = isAirportService(form.service);
   const err = (key) => (shown ? problems[key] : "");
-  const describe = (id, hint) => [hint && `${id}-hint`, err(id === "when" ? "when" : id) && `${id}-error`].filter(Boolean).join(" ") || undefined;
+  const describe = (id, hint) => [hint && `${id}-hint`, err(id) && `${id}-error`].filter(Boolean).join(" ") || undefined;
   const input = (key, extra = {}) => ({
     id: key, name: key, value: form[key],
     onChange: (e) => setForm((f) => ({ ...f, [key]: e.target.value })),
@@ -51,8 +51,8 @@ export default function BookPage() {
     setShown(true);
     setFailure("");
     if (Object.keys(problems).length) {
-      const firstBad = formRef.current?.querySelector('[aria-invalid="true"], [name="service"]:checked');
-      requestAnimationFrame(() => formRef.current?.querySelector('[aria-invalid="true"]')?.focus() || firstBad?.focus());
+      // The first answer that needs a look, once it is marked.
+      setTimeout(() => formRef.current?.querySelector('[aria-invalid="true"]')?.focus(), 0);
       return;
     }
     setSending(true);
@@ -97,7 +97,7 @@ export default function BookPage() {
           <form ref={formRef} className="mcs-form" onSubmit={send} noValidate>
             <fieldset>
               <legend>What kind of ride?</legend>
-              <div className="mcs-choices" role="radiogroup" aria-label="Kind of ride">
+              <div className="mcs-choices">
                 {SITE_SERVICES.map((s) => (
                   <label key={s.id} className="mcs-choice">
                     <input type="radio" name="service" value={s.id} checked={form.service === s.id} onChange={() => setForm((f) => withService(f, s.id))} />
@@ -186,19 +186,20 @@ export default function BookPage() {
   );
 }
 
-// Choosing an airport ride fills in the airport on the right side.
-function withService(form, service) {
+// Choosing an airport ride puts the airport on the right side (swapping the
+// two places when someone switches between pickup and drop-off).
+export function withService(form, service) {
   const next = { ...form, service };
-  const wasAirport = (v) => v === AIRPORT_NAME;
+  const isAirport = (v) => v === AIRPORT_NAME;
   if (service === "airport_pickup") {
-    if (!next.pickup || wasAirport(next.dropoff)) next.pickup = AIRPORT_NAME;
-    if (wasAirport(next.dropoff)) next.dropoff = "";
+    if (isAirport(next.dropoff)) [next.pickup, next.dropoff] = [AIRPORT_NAME, next.pickup];
+    else if (!next.pickup) next.pickup = AIRPORT_NAME;
   } else if (service === "airport_dropoff") {
-    if (!next.dropoff || wasAirport(next.pickup)) next.dropoff = AIRPORT_NAME;
-    if (wasAirport(next.pickup)) next.pickup = "";
+    if (isAirport(next.pickup)) [next.pickup, next.dropoff] = [next.dropoff, AIRPORT_NAME];
+    else if (!next.dropoff) next.dropoff = AIRPORT_NAME;
   } else {
-    if (wasAirport(next.pickup)) next.pickup = "";
-    if (wasAirport(next.dropoff)) next.dropoff = "";
+    if (isAirport(next.pickup)) next.pickup = "";
+    if (isAirport(next.dropoff)) next.dropoff = "";
   }
   if (!isAirportService(service)) next.flight_number = "";
   return next;
