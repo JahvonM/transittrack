@@ -17,6 +17,7 @@ import BusDistance from "@/components/BusDistance";
 import useUserLocation from "@/hooks/useUserLocation";
 import { createVehicleLayer } from "./vehicleLayer";
 import { boundsOf, bearingDeg, splitRoute } from "./routeGeometry";
+import { setCooperativeGestures } from "./cooperativeGestures";
 
 const LiteMap = lazy(() => import("@/components/LiteMap"));
 
