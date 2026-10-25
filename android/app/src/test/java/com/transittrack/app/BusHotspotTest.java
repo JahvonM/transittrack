@@ -51,8 +51,10 @@ public class BusHotspotTest {
         boolean found=false;
         for(WifiConfiguration n:wifi.getConfiguredNetworks()) if("\"McSween-Bus3\"".equals(n.SSID)){found=true;assertEquals("\"busthree2026\"",n.preSharedKey);}
         assertTrue(found);
-        // Asked again straight away: it waits instead of piling up joins.
-        assertEquals("WAITING",BusHotspot.ensure(context));
+        // Asked again straight away it doesn't start another join: it's either
+        // connected by now (the test Android joins at once) or waiting.
+        String again=BusHotspot.ensure(context);
+        assertTrue(again,again.equals("WAITING")||again.equals("CONNECTED"));
         // The saved network is reused, not added twice.
         BusHotspot.ensure(context,true);
         int copies=0;for(WifiConfiguration n:wifi.getConfiguredNetworks()) if("\"McSween-Bus3\"".equals(n.SSID))copies++;
