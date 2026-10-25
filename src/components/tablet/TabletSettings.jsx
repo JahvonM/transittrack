@@ -7,12 +7,12 @@ import "@/components/tablet/tabletSettings.css";
 // browser, and an empty section says so.
 //
 // sections: [{ id, label, content }]
-export default function TabletSettings({ title = "Tablet settings", subtitle, sections, onDone, doneLabel = "Done", headingLevel = 1 }) {
+export default function TabletSettings({ title = "Tablet settings", subtitle, sections, onDone, doneLabel = "Done", headingLevel = 1, className }) {
   const [open, setOpen] = useState(sections[0]?.id);
   const current = sections.find((s) => s.id === open) || sections[0];
   const Heading = headingLevel === 2 ? "h2" : "h1";
   return (
-    <div className="ts">
+    <div className={className ? `ts ${className}` : "ts"}>
       <div className="ts-head">
         <div>
           <Heading>{title}</Heading>

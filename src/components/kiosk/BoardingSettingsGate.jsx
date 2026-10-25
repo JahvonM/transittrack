@@ -112,13 +112,14 @@ export default function BoardingSettingsGate({ open, onClose, deviceId, invoke }
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-lg max-h-[95dvh] overflow-y-auto" onPointerDownCapture={poke} onKeyDownCapture={poke}>
-        <DialogHeader>
+      <DialogContent className={unlocked ? "max-w-5xl w-[96vw] h-[92dvh] p-0 border-0 bg-transparent shadow-none overflow-hidden [&>button.absolute]:hidden" : "max-w-lg max-h-[95dvh] overflow-y-auto"} onPointerDownCapture={poke} onKeyDownCapture={poke}>
+        <DialogHeader className={unlocked ? "sr-only" : undefined}>
           <DialogTitle className="flex items-center gap-2">{unlocked ? "Tablet settings" : <><Lock className="h-5 w-5" /> Bus PIN</>}</DialogTitle>
           <DialogDescription>{unlocked ? "Closes by itself after 2 minutes without a tap." : "Enter the bus PIN to change this tablet's Internet settings."}</DialogDescription>
         </DialogHeader>
         {unlocked ? (
           <TabletSettings
+            className="h-full"
             headingLevel={2}
             title="Tablet settings"
             subtitle="Closes by itself after 2 minutes without a tap."
