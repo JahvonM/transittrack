@@ -3,7 +3,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { errorData } from "@/lib/requestError";
 import {
-  AIRPORT_NAME, SITE_SERVICES, bookingBody, bookingProblems, grenadaInputFor, isAirportService,
+  AIRPORT_NAME, SITE_SERVICES, bookingBody, bookingProblems, grenadaInputFor, isAirportService, withService,
 } from "@/lib/bookingSite";
 import { sitePath, usePageTitle, useSiteBase, useWhatsApp, whatsappTo } from "@/site/siteKit";
 
@@ -184,23 +184,4 @@ export default function BookPage() {
       </div>
     </section>
   );
-}
-
-// Choosing an airport ride puts the airport on the right side (swapping the
-// two places when someone switches between pickup and drop-off).
-export function withService(form, service) {
-  const next = { ...form, service };
-  const isAirport = (v) => v === AIRPORT_NAME;
-  if (service === "airport_pickup") {
-    if (isAirport(next.dropoff)) [next.pickup, next.dropoff] = [AIRPORT_NAME, next.pickup];
-    else if (!next.pickup) next.pickup = AIRPORT_NAME;
-  } else if (service === "airport_dropoff") {
-    if (isAirport(next.pickup)) [next.pickup, next.dropoff] = [next.dropoff, AIRPORT_NAME];
-    else if (!next.dropoff) next.dropoff = AIRPORT_NAME;
-  } else {
-    if (isAirport(next.pickup)) next.pickup = "";
-    if (isAirport(next.dropoff)) next.dropoff = "";
-  }
-  if (!isAirportService(service)) next.flight_number = "";
-  return next;
 }

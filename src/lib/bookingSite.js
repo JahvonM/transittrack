@@ -58,6 +58,25 @@ export function grenadaInputFor(ms) {
   return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}T${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;
 }
 
+// Choosing an airport ride puts the airport on the right side (swapping the
+// two places when someone switches between pickup and drop-off).
+export function withService(form, service) {
+  const next = { ...form, service };
+  const isAirport = (v) => v === AIRPORT_NAME;
+  if (service === "airport_pickup") {
+    if (isAirport(next.dropoff)) [next.pickup, next.dropoff] = [AIRPORT_NAME, next.pickup];
+    else if (!next.pickup) next.pickup = AIRPORT_NAME;
+  } else if (service === "airport_dropoff") {
+    if (isAirport(next.pickup)) [next.pickup, next.dropoff] = [next.dropoff, AIRPORT_NAME];
+    else if (!next.dropoff) next.dropoff = AIRPORT_NAME;
+  } else {
+    if (isAirport(next.pickup)) next.pickup = "";
+    if (isAirport(next.dropoff)) next.dropoff = "";
+  }
+  if (!isAirportService(service)) next.flight_number = "";
+  return next;
+}
+
 const EMAIL = /^[^\s@<>"']{1,64}@[^\s@<>"']{1,190}\.[a-z]{2,24}$/i;
 const PHONE = /^\+?[\d\s().-]{6,24}$/;
 const FLIGHT = /^[A-Z0-9][A-Z0-9 -]{1,11}$/i;
