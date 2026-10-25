@@ -34,16 +34,10 @@ export default function QrScanner({ onDecode, active, facingMode = "environment"
       verbose: false,
     });
     scannerRef.current = scanner;
-<<<<<<< HEAD
-    return scanner.start(
-      { facingMode: requireFacingMode ? { exact: facingMode } : facingMode },
-      // The scanner refuses a scan box under 50px, which a tablet can ask for
-      // while its layout is still settling (e.g. switching to full screen).
-      { fps: 10, qrbox: compact ? ((w, h) => { const side = Math.max(50, Math.min(160, Math.floor(Math.min(w,h)*0.7))); return { width: side, height: side }; }) : 220 },
-=======
+    // The scanner refuses a scan box under 50px, which a tablet can ask for
+    // while its layout is still settling (e.g. switching to full screen).
     return startQrCamera(scanner, facingMode, requireFacingMode,
       { fps: 10, qrbox: compact ? ((w, h) => ({width: Math.max(50, Math.min(240, Math.floor(Math.min(w,h)*0.85))), height: Math.max(50, Math.min(240, Math.floor(Math.min(w,h)*0.85)))})) : 220 },
->>>>>>> origin/fix/tablet-kiosk-visitor
       async (decodedText) => {
         if (stopped || delivering || (decodedText===lastText && Date.now()-lastAt<5000) || !gate.read(decodedText, Date.now())) return;
         lastText=decodedText;lastAt=Date.now();
