@@ -3,6 +3,8 @@ import { Link, Route, Routes, useLocation } from "react-router-dom";
 import { LOGO_URL } from "@/components/Logo";
 import { APP_ORIGIN, isSiteHost, sitePage } from "@/lib/bookingSite";
 import { SiteBase, sitePath, useSiteBase } from "@/site/siteKit";
+import "@fontsource-variable/figtree";
+import "@fontsource-variable/big-shoulders-display";
 import "@/site/site.css";
 
 // The public website. On mcsweenstransport.com it is the whole site; inside
@@ -27,7 +29,7 @@ function Header() {
         <nav className="mcs-nav" aria-label="Main">
           <Link className="mcs-nav-more" to={`${to("/")}#services`}>Services</Link>
           <Link className="mcs-nav-more" to={`${to("/")}#contact`}>Contact</Link>
-          <Link to={to("/track")}>Track</Link>
+          <Link className="mcs-nav-wide" to={to("/track")}>Track</Link>
           <Link className="mcs-btn mcs-btn-primary" to={to("/book")}>Request a ride</Link>
         </nav>
       </div>

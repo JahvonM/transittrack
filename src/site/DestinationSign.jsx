@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Pause, Play } from "lucide-react";
 
 // The sign on the front of a bus, lit in dots, changing to the next place
@@ -16,6 +16,8 @@ export default function DestinationSign() {
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(prefersStill);
   const [moved, setMoved] = useState(false);
+  const line = useRef(null);
+  const text = useRef(null);
 
   useEffect(() => {
     if (paused) return undefined;
@@ -23,13 +25,31 @@ export default function DestinationSign() {
     return () => clearInterval(timer);
   }, [paused]);
 
+  // A long name on a narrow screen is set a little smaller so it fits.
+  useLayoutEffect(() => {
+    const fit = () => {
+      const box = line.current, word = text.current;
+      if (!box || !word) return;
+      box.style.removeProperty("--sign-fit");
+      const room = word.clientWidth, needed = word.scrollWidth;
+      if (needed > room && room > 0) {
+        const size = parseFloat(getComputedStyle(word).fontSize);
+        box.style.setProperty("--sign-fit", `${Math.floor(size * (room / needed) * 0.97)}px`);
+      }
+    };
+    fit();
+    window.addEventListener("resize", fit);
+    document.fonts?.ready?.then(fit).catch(() => {});
+    return () => window.removeEventListener("resize", fit);
+  }, [index]);
+
   const stop = STOPS[index];
   const cls = moved ? " mcs-new" : "";
   return (
     <div className="mcs-sign">
-      <div className="mcs-sign-line" aria-hidden="true">
+      <div className="mcs-sign-line" ref={line} aria-hidden="true">
         <span key={`g${index}`} className={`mcs-sign-glow${cls}`}>{stop}</span>
-        <span key={`t${index}`} className={`mcs-sign-text${cls}`}>{stop}</span>
+        <span key={`t${index}`} ref={text} className={`mcs-sign-text${cls}`}>{stop}</span>
       </div>
       <button type="button" className="mcs-sign-pause" onClick={() => setPaused((p) => !p)} aria-label={paused ? "Start the sign" : "Stop the sign"}>
         {paused ? <Play aria-hidden="true" /> : <Pause aria-hidden="true" />}
