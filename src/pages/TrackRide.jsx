@@ -5,6 +5,8 @@ import { httpStatus } from "@/lib/requestError";
 import Logo from "@/components/Logo";
 import MapboxMap from "@/components/MapboxMap";
 import { describeRide, nextCheckMs, readTrackToken, rideClosed } from "@/lib/visitorTrack";
+import { TRANSIT_TIME_ZONE } from "@/lib/localTime";
+import { isSiteHost } from "@/lib/bookingSite";
 
 // Public page for a guest following their ride: /track#trip=<key>.
 // No sign-in. Shows only what the visitorTracking function allows for this
@@ -13,12 +15,12 @@ import { describeRide, nextCheckMs, readTrackToken, rideClosed } from "@/lib/vis
 const when = (iso) => {
   const t = Date.parse(iso || "");
   return Number.isFinite(t)
-    ? new Date(t).toLocaleString(undefined, { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })
+    ? `${new Date(t).toLocaleString(undefined, { timeZone: TRANSIT_TIME_ZONE, weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })} (Grenada time)`
     : "";
 };
 const clock = (iso) => {
   const t = Date.parse(iso || "");
-  return Number.isFinite(t) ? new Date(t).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }) : "";
+  return Number.isFinite(t) ? new Date(t).toLocaleTimeString(undefined, { timeZone: TRANSIT_TIME_ZONE, hour: "numeric", minute: "2-digit" }) : "";
 };
 
 function Shell({ children }) {
@@ -81,6 +83,15 @@ export default function TrackRide() {
   }, [token, check]);
 
   useEffect(() => { document.title = "Track your ride · McSween Transport"; }, []);
+
+  if (!token) {
+    return (
+      <Shell>
+        <Notice icon={MapPin} title="Open your tracking link" text="Your tracking link is in the email that confirmed your ride. Tap Track my ride in that email to see your bus here. The link works until a day after the ride." />
+        <p className="mt-4 text-center text-body-sm"><a className="font-semibold text-primary underline-offset-2 hover:underline" href={isSiteHost(window.location.hostname) ? "/book" : "/site/book"}>Request a ride</a></p>
+      </Shell>
+    );
+  }
 
   if (problem === "invalid") {
     return (
