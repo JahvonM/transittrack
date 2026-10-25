@@ -11,6 +11,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { Segmented, StatusChip } from "@/components/admin/kit";
 import PlaceField from "@/components/jobs/PlaceField";
 import ClientDialog from "@/components/jobs/ClientDialog";
+import TrackingLinks from "@/components/jobs/TrackingLinks";
 import { JOB_ICONS } from "@/components/jobs/JobTypeIcon";
 import { orderedJobPlaces } from "@/lib/jobPlaces";
 import {
@@ -330,6 +331,8 @@ export default function JobDialog({ open, onOpenChange, job, draft = null, day, 
             <Textarea id="job-notes" value={form.notes} onChange={(e) => set({ notes: e.target.value })} placeholder="e.g. Hold a sign with the guest's name; child seat needed" maxLength={2000} rows={2} />
           </div>
         </fieldset>
+
+        {job && !locked && <TrackingLinks job={job} />}
 
         {!locked && (
           <div className="space-y-2">
