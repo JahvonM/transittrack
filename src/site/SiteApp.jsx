@@ -29,7 +29,7 @@ function Header() {
         <nav className="mcs-nav" aria-label="Main">
           <Link className="mcs-nav-more" to={`${to("/")}#services`}>Services</Link>
           <Link className="mcs-nav-more" to={`${to("/")}#contact`}>Contact</Link>
-          <Link to={to("/track")}>Track</Link>
+          <Link className="mcs-nav-wide" to={to("/track")}>Track</Link>
           <Link className="mcs-btn mcs-btn-primary" to={to("/book")}>Request a ride</Link>
         </nav>
       </div>

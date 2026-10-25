@@ -54,18 +54,24 @@ export default function HomePage() {
           <ol className="mcs-steps">
             <li>
               <span className="mcs-step-n" aria-hidden="true">1</span>
-              <h3>Send a request</h3>
-              <p>Choose the ride, the time and where. It takes a couple of minutes and you don't need an account.</p>
+              <div>
+                <h3>Send a request</h3>
+                <p>Choose the ride, the time and where. It takes a couple of minutes and you don't need an account.</p>
+              </div>
             </li>
             <li>
               <span className="mcs-step-n" aria-hidden="true">2</span>
-              <h3>We confirm by email</h3>
-              <p>We check a bus is free and email you the price. Nothing is booked until you get that email.</p>
+              <div>
+                <h3>We confirm by email</h3>
+                <p>We check a bus is free and email you the price. Nothing is booked until you get that email.</p>
+              </div>
             </li>
             <li>
               <span className="mcs-step-n" aria-hidden="true">3</span>
-              <h3>Watch your bus come</h3>
-              <p>Your confirmation has a private link that shows your bus on a map. Only you can see it, and it stops working a day after the ride.</p>
+              <div>
+                <h3>Watch your bus come</h3>
+                <p>Your confirmation has a private link that shows your bus on a map. Only you can see it, and it stops working a day after the ride.</p>
+              </div>
             </li>
           </ol>
         </div>

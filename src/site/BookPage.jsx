@@ -14,8 +14,8 @@ function Field({ id, label, hint, error, children }) {
   return (
     <div className="mcs-field">
       <label htmlFor={id}>{label}</label>
-      {hint && <p className="mcs-hint" id={`${id}-hint`}>{hint}</p>}
       {children}
+      {hint && <p className="mcs-hint" id={`${id}-hint`}>{hint}</p>}
       {error && <p className="mcs-error" id={`${id}-error`}>{error}</p>}
     </div>
   );
