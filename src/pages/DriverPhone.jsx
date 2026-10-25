@@ -44,9 +44,11 @@ function NotADriver({ email, message, onSignOut }) {
       <Logo />
       <h1 className="text-headline">This account isn't set up for the driver app</h1>
       <p className="text-body text-muted-foreground">{message}</p>
-      {email && <p className="rounded-xl bg-secondary px-3 py-2 text-body-sm">Signed in as <span className="font-semibold">{email}</span></p>}
+      {/* Drivers never use Google or email: only the username their admin made. */}
+      <p className="text-body text-muted-foreground">Drivers sign in with the username and password from their administrator, not with Google or an email address.</p>
+      {email && !/@login\.mcsweenstransport\.com$/i.test(email) && <p className="rounded-xl bg-secondary px-3 py-2 text-body-sm">Signed in as <span className="font-semibold">{email}</span></p>}
       <button type="button" onClick={onSignOut} className="flex min-h-[48px] items-center justify-center gap-2 rounded-xl border border-border font-semibold hover:bg-accent">
-        <LogOut className="h-4 w-4" aria-hidden="true" /> Sign out and use another account
+        <LogOut className="h-4 w-4" aria-hidden="true" /> Sign out and use my username
       </button>
     </main>
   );

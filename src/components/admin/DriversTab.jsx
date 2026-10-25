@@ -19,11 +19,11 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/components/ui/use-toast";
 import { telLink, whatsappLink } from "@/lib/driverPhone";
-import { driverKey, driverOwnsBus } from "@/lib/driverAccount";
+import { driverKey, driverOwnsBus, normalizeDriverUsername, validDriverUsername } from "@/lib/driverAccount";
 import DriverDocumentsDialog, { DocChips } from "@/components/admin/DriverDocuments";
-import DriverAccountActions from "@/components/admin/DriverAccountActions";
+import DriverAccountActions, { IssuedCredentials, USERNAME_RULE } from "@/components/admin/DriverAccountActions";
 import DriverRequestsPanel from "@/components/admin/DriverRequestsPanel";
-import { Bus, Camera, Car, Loader2, Mail, Pencil, Phone, Plus, Search, Smartphone, Trash2, User as UserIcon, X } from "lucide-react";
+import { Bus, Camera, Car, Loader2, Pencil, Phone, Plus, Search, Smartphone, Trash2, User as UserIcon, X } from "lucide-react";
 import { EmptyState, PageActions, StatusChip } from "@/components/admin/kit";
 
 const STATUSES = [
@@ -35,29 +35,24 @@ const STATUSES = [
 ];
 
 // Drivers are entered directly here (a plain Driver record) rather than
-// invited as a base44 login. The bus tablet authenticates by paired device +
-// PIN (see driverSession). The separate driver phone app uses an admin-created
-// Supabase Auth username and a mandatory initial password change.
+// invited as a login. The bus tablet authenticates by paired device + PIN
+// (see driverSession). The driver phone app signs in with a username and
+// password made here (driverAccounts); drivers don't use email or Google.
 function DriverFormFields({ form, setForm, companies, companyLocked = false }) {
   return (
     <div className="space-y-3">
       <div className="space-y-1.5">
-        <Label>Full name</Label>
-        <Input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} placeholder="John D." />
+        <Label htmlFor="driver-full-name">Full name</Label>
+        <Input id="driver-full-name" value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} placeholder="John D." />
       </div>
       <div className="space-y-1.5">
-        <Label>Email (optional)</Label>
-        <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="driver@example.com" />
+        <Label htmlFor="driver-phone">Phone number</Label>
+        <Input id="driver-phone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="+1 473-..." />
       </div>
-      <div className="space-y-1.5">
-        <Label>Phone</Label>
-        <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="+1 473-..." />
-      </div>
-      <p className="text-xs text-muted-foreground">Phone app usernames and passwords are managed in each driver's Phone account button.</p>
       <div className="space-y-1.5">
         <Label>Company</Label>
-        <Select value={form.company_id || "none"} disabled={companyLocked} onValueChange={(v) => setForm({ ...form, company_id: v === "none" ? "" : v })}>
-          <SelectTrigger><SelectValue placeholder="No company" /></SelectTrigger>
+        <Select value={form.company_id || "none"} disabled={companyLocked} onValueChange={(v) => setForm({ ...form, company_id: v === "none" ? "" : v, vehicle_id: "" })}>
+          <SelectTrigger aria-label="Company"><SelectValue placeholder="No company" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="none">No company</SelectItem>
             {companies.map((c) => (
@@ -70,57 +65,122 @@ function DriverFormFields({ form, setForm, companies, companyLocked = false }) {
   );
 }
 
-function AddDriverDialog({ companies, onAdded }) {
+// One step: the driver, their company and bus, and their phone app username.
+// Saving creates the driver, assigns the bus and shows the username and a
+// temporary password to give them.
+const NEW_DRIVER = { full_name: "", phone: "", company_id: "", vehicle_id: "", username: "" };
+function AddDriverDialog({ companies, vehicles = [], onAdded }) {
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ full_name: "", email: "", phone: "", company_id: "" });
+  const [form, setForm] = useState(NEW_DRIVER);
   const [saving, setSaving] = useState(false);
+  const [created, setCreated] = useState(null);
+  const [issued, setIssued] = useState(null);
+  const [error, setError] = useState("");
+  const buses = vehicles.filter((v) => form.company_id && v.company_id === form.company_id);
+  const username = normalizeDriverUsername(form.username);
+  const usernameOk = !username || validDriverUsername(username);
+
+  const reset = () => { setForm(NEW_DRIVER); setCreated(null); setIssued(null); setError(""); };
+  const changeOpen = (next) => { if (!next && saving) return; setOpen(next); if (!next) reset(); };
 
   const save = async () => {
-    if (!form.full_name.trim()) return;
+    if (!form.full_name.trim() || !usernameOk || saving) return;
+    if (username && !form.company_id) return setError("Choose the driver's company to create their phone login.");
     setSaving(true);
+    setError("");
     try {
-      const company = companies.find((c) => c.id === form.company_id);
-      await base44.entities.Driver.create({
-        full_name: form.full_name.trim(),
-        email: form.email.trim(),
-        phone: form.phone.trim(),
-        company_id: form.company_id || null,
-        company_name: company?.name || "",
-        phone_app_access: false,
-      });
-      toast({ title: "Driver added" });
-      setForm({ full_name: "", email: "", phone: "", company_id: "" });
-      setOpen(false);
+      let driver = created;
+      if (!driver) {
+        const company = companies.find((c) => c.id === form.company_id);
+        driver = await base44.entities.Driver.create({
+          full_name: form.full_name.trim(),
+          phone: form.phone.trim(),
+          company_id: form.company_id || null,
+          company_name: company?.name || "",
+          phone_app_access: false,
+        });
+        if (!driver?.id) throw new Error("The driver was not saved.");
+        setCreated({ ...driver, bus: false });
+        if (form.vehicle_id) {
+          try {
+            await base44.entities.Vehicle.update(form.vehicle_id, { driver_id: driver.id, driver_email: null, driver_name: driver.full_name || "" });
+            setCreated({ ...driver, bus: true });
+          } catch {
+            toast({ title: "Driver saved, but the bus wasn't assigned", description: "Assign it from their card.", variant: "destructive" });
+          }
+        }
+        onAdded();
+      }
+      if (!username) {
+        toast({ title: "Driver added", description: "Set up their phone login any time with Set up phone login." });
+        changeOpen(false);
+        return;
+      }
+      const { data } = await base44.functions.invoke("driverAccounts", { action: "provision", driver_id: driver.id, username });
+      if (!data?.ok || !data.temporary_password) throw new Error("The phone login was not confirmed.");
+      setIssued({ username: data.username, password: data.temporary_password });
       onAdded();
     } catch (e) {
-      toast({ title: "Couldn't add driver", description: e.message, variant: "destructive" });
+      setError(e?.response?.data?.error || e.message || "Couldn't add the driver");
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={changeOpen}>
       <Button size="sm" onClick={() => setOpen(true)}>
         <Plus className="w-4 h-4" /> Add driver
       </Button>
-      <DialogContent>
+      <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2"><Plus className="w-4 h-4" /> Add driver</DialogTitle>
         </DialogHeader>
-        <DriverFormFields form={form} setForm={setForm} companies={companies} />
-        <Button className="w-full" onClick={save} disabled={saving || !form.full_name.trim()}>
-          {saving ? "Adding…" : "Add driver"}
-        </Button>
+        {issued ? (
+          <IssuedCredentials issued={issued} onDone={() => changeOpen(false)} />
+        ) : (
+          <div className="space-y-4">
+            {created
+              ? <p role="status" className="rounded-lg bg-secondary px-3 py-2 text-sm"><strong>{created.full_name}</strong> is saved{created.bus ? " with their bus" : ""}. Only the phone login is left.</p>
+              : <DriverFormFields form={form} setForm={setForm} companies={companies} />}
+            {!created && (
+              <div className="space-y-1.5">
+                <Label>Bus</Label>
+                <Select value={form.vehicle_id || "none"} disabled={!form.company_id} onValueChange={(v) => setForm({ ...form, vehicle_id: v === "none" ? "" : v })}>
+                  <SelectTrigger aria-label="Bus"><SelectValue placeholder={form.company_id ? "No bus yet" : "Choose a company first"} /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No bus yet</SelectItem>
+                    {buses.map((v) => (
+                      <SelectItem key={v.id} value={v.id}>{v.name}{v.plate_number ? ` · ${v.plate_number}` : ""}{v.driver_name ? ` (now ${v.driver_name})` : ""}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <div className="space-y-1.5 rounded-xl border border-border p-3">
+              <Label htmlFor="new-driver-username">Phone app username</Label>
+              <Input id="new-driver-username" value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })}
+                placeholder="john.d" autoCapitalize="none" autoComplete="off" spellCheck={false} />
+              <p className="text-xs text-muted-foreground">
+                {usernameOk ? `The driver signs in with this and a temporary password you'll see next. No email needed. ${USERNAME_RULE}` : `Username: ${USERNAME_RULE}`}
+              </p>
+            </div>
+            {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+            <Button className="w-full" onClick={save} disabled={saving || !form.full_name.trim() || !usernameOk || (!!created && !username)}>
+              {saving ? "Saving…" : created ? "Create phone login" : username ? "Add driver and create login" : "Add driver"}
+            </Button>
+            {created && <Button variant="ghost" className="w-full" onClick={() => changeOpen(false)} disabled={saving}>Set up the phone login later</Button>}
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );
 }
 
-function EditDriverDialog({ driver, companies, vehicles = [], open, onOpenChange, onSaved }) {
+function EditDriverDialog({ driver, companies, open, onOpenChange, onSaved }) {
   const { toast } = useToast();
-  const [form, setForm] = useState({ full_name: "", email: "", phone: "", company_id: "" });
+  const [form, setForm] = useState({ full_name: "", phone: "", company_id: "" });
   const [photoUrl, setPhotoUrl] = useState("");
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -129,10 +189,8 @@ function EditDriverDialog({ driver, companies, vehicles = [], open, onOpenChange
     if (open && driver) {
       setForm({
         full_name: driver.full_name || "",
-        email: driver.email || "",
         phone: driver.phone || "",
         company_id: driver.company_id || "",
-        
       });
       setPhotoUrl(driver.photo_url || "");
     }
@@ -152,22 +210,14 @@ function EditDriverDialog({ driver, companies, vehicles = [], open, onOpenChange
     setSaving(true);
     try {
       const company = companies.find((c) => c.id === form.company_id);
-      const email = form.email.trim();
+      // Drivers have no email: they sign in with a username.
       await base44.entities.Driver.update(driver.id, {
         full_name: form.full_name.trim(),
-        email,
         phone: form.phone.trim(),
         photo_url: photoUrl,
         company_id: form.company_id || null,
         company_name: company?.name || "",
       });
-      // Older buses know an email-only driver by their email: keep them with the
-      // driver when it changes. Username accounts are known by their sign-in.
-      const oldEmail = (driver.email || "").trim();
-      if (!driver.username && oldEmail && email && oldEmail.toLowerCase() !== email.toLowerCase()) {
-        await Promise.all(vehicles.filter((v) => !v.driver_id && v.driver_email === oldEmail)
-          .map((v) => base44.entities.Vehicle.update(v.id, { driver_email: email })));
-      }
       // A phone-account driver given a company (e.g. after their old one was
       // deleted): their sign-in follows the driver record.
       if (driver.auth_user_id && form.company_id && form.company_id !== (driver.company_id || "")) {
@@ -297,7 +347,7 @@ function DriverCard({ driver, vehicles, companies, routes, docs = [], onDocsChan
   const companyName = companies.find((c) => c.id === driver.company_id)?.name;
   const pool = vehicles.filter((v) => !!driver.company_id && v.company_id === driver.company_id && !driverOwnsBus(v, driver));
 
-  const initials = (driver.full_name || driver.email || "?").split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join("");
+  const initials = (driver.full_name || driver.username || "?").split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join("");
   return (
     <li className="flex flex-col rounded-2xl border border-border bg-card">
       <div className="flex items-start gap-4 p-4">
@@ -306,11 +356,12 @@ function DriverCard({ driver, vehicles, companies, routes, docs = [], onDocsChan
         </div>
         <div className="min-w-0 flex-1">
           <h2 className="truncate text-title-sm font-bold">{driver.full_name || "Unnamed driver"}</h2>
-          {driver.email && (
-            <p className="flex items-center gap-1.5 truncate text-body-sm text-muted-foreground">
-              <Mail className="h-3.5 w-3.5 shrink-0" aria-hidden="true" /> <span className="truncate">{driver.email}</span>
-            </p>
-          )}
+          <p className="flex items-center gap-1.5 truncate text-body-sm text-muted-foreground">
+            <UserIcon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+            {driver.username
+              ? <span className="truncate">Username <span className="font-mono text-foreground">{driver.username}</span></span>
+              : <span className="truncate">No phone login yet</span>}
+          </p>
           {driver.phone && (
             <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-body-sm text-muted-foreground">
               <a href={telLink(driver.phone) || undefined} className="flex items-center gap-1.5 hover:text-foreground hover:underline">
@@ -345,7 +396,7 @@ function DriverCard({ driver, vehicles, companies, routes, docs = [], onDocsChan
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle>Remove {driver.full_name || driver.email}?</AlertDialogTitle>
+                <AlertDialogTitle>Remove {driver.full_name || driver.username || "this driver"}?</AlertDialogTitle>
                 <AlertDialogDescription>
                   This deletes their driver record{driver.auth_user_id ? " and their phone app sign-in" : ""} and unassigns any buses currently assigned to them. Their past shifts and reports are kept. This can't be undone.
                 </AlertDialogDescription>
@@ -399,7 +450,7 @@ function DriverCard({ driver, vehicles, companies, routes, docs = [], onDocsChan
         <DocChips docs={docs} onOpen={() => setDocsOpen(true)} />
       </div>
 
-      <EditDriverDialog driver={driver} companies={companies} vehicles={vehicles} open={editOpen} onOpenChange={setEditOpen} onSaved={onSaved} />
+      <EditDriverDialog driver={driver} companies={companies} open={editOpen} onOpenChange={setEditOpen} onSaved={onSaved} />
       <DriverDocumentsDialog driver={driver} docs={docs} open={docsOpen} onOpenChange={setDocsOpen} onChanged={onDocsChanged} />
     </li>
   );
@@ -472,20 +523,20 @@ export default function DriversTab({ drivers, vehicles, companies, routes, onCha
   const q = query.trim().toLowerCase();
   const shown = drivers
     .filter((d) => company === "all" || (company === "none" ? !d.company_id : d.company_id === company))
-    .filter((d) => !q || [d.full_name, d.username, d.email, d.phone].some((x) => String(x || "").toLowerCase().includes(q)))
-    .sort((a, b) => String(a.full_name || a.email).localeCompare(String(b.full_name || b.email)));
+    .filter((d) => !q || [d.full_name, d.username, d.phone].some((x) => String(x || "").toLowerCase().includes(q)))
+    .sort((a, b) => String(a.full_name || a.username || "").localeCompare(String(b.full_name || b.username || "")));
 
   return (
     <div>
       <PageActions>
-        <AddDriverDialog companies={companies} onAdded={onChange} />
+        <AddDriverDialog companies={companies} vehicles={vehicles} onAdded={onChange} />
       </PageActions>
       <div className="mb-4"><DriverRequestsPanel /></div>
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <label className="relative min-w-[220px] flex-1 sm:max-w-sm">
           <span className="sr-only">Search drivers</span>
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
-          <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Name, username, email or phone"
+          <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Name, username or phone"
             className="h-10 w-full rounded-xl border border-input bg-card pl-9 pr-3 text-body-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
         </label>
         <Select value={company} onValueChange={setCompany}>

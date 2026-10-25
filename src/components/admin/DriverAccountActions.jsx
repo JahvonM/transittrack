@@ -16,6 +16,31 @@ const CONFIRM = {
   unlink: { title: "Remove this phone account?", description: "The driver is signed out and the username is freed. The driver record, buses and history stay. You can create a new phone login afterwards.", confirmLabel: "Remove phone account" },
 };
 
+export const USERNAME_RULE = "4–32 characters, starting with a letter: letters, numbers, dots, dashes or underscores.";
+
+// The username and temporary password, shown once to hand to the driver.
+export function IssuedCredentials({ issued, onDone }) {
+  const { toast } = useToast();
+  return (
+    <div className="space-y-3">
+      <p role="status" className="text-sm font-medium">Account credentials issued. Give these to the driver securely. The temporary password will not be shown again.</p>
+      <div className="rounded-xl border bg-secondary/50 p-3">
+        <p className="text-xs text-muted-foreground">Username</p>
+        <p className="break-all font-mono font-semibold">{issued.username}</p>
+        <p className="mt-3 text-xs text-muted-foreground">Temporary password</p>
+        <p className="break-all font-mono font-semibold">{issued.password}</p>
+      </div>
+      <Button variant="outline" className="w-full" onClick={() => {
+        navigator.clipboard.writeText(`Username: ${issued.username}\nTemporary password: ${issued.password}`)
+          .then(() => toast({ title: "Credentials copied — share them privately" }))
+          .catch(() => toast({ title: "Copy unavailable", variant: "destructive" }));
+      }}><Copy className="mr-2 h-4 w-4" /> Copy credentials</Button>
+      <p className="text-xs text-muted-foreground">The driver signs in to the phone app with the username and this password, then chooses their own password. Avoid sharing credentials in public chats.</p>
+      <Button className="w-full" onClick={onDone}>I've saved the details</Button>
+    </div>
+  );
+}
+
 // Account passwords are never persisted in Driver, localStorage or logs.
 // The generated temporary password only appears once in this admin dialog.
 export default function DriverAccountActions({ driver, onChanged }) {
@@ -29,7 +54,7 @@ export default function DriverAccountActions({ driver, onChanged }) {
   const action = async (name) => {
     if (busy) return;
     if (name === "provision" && !validDriverUsername(username)) {
-      setError("Username must be 4–32 characters, beginning with a letter; use letters, numbers, dots, dashes or underscores.");
+      setError("Username: " + USERNAME_RULE);
       return;
     }
     if (CONFIRM[name] && !(await confirmAction(CONFIRM[name]))) return;
@@ -74,27 +99,12 @@ export default function DriverAccountActions({ driver, onChanged }) {
             <DialogDescription>{driver.full_name} · {driver.company_name || "No company"}</DialogDescription>
           </DialogHeader>
           {issued ? (
-            <div className="space-y-3">
-              <p role="status" className="text-sm font-medium">Account credentials issued. Give these to the driver securely. The temporary password will not be shown again.</p>
-              <div className="rounded-xl border bg-secondary/50 p-3">
-                <p className="text-xs text-muted-foreground">Username</p>
-                <p className="break-all font-mono font-semibold">{issued.username}</p>
-                <p className="mt-3 text-xs text-muted-foreground">Temporary password</p>
-                <p className="break-all font-mono font-semibold">{issued.password}</p>
-              </div>
-              <Button variant="outline" className="w-full" onClick={() => {
-                navigator.clipboard.writeText(`Username: ${issued.username}\nTemporary password: ${issued.password}`)
-                  .then(() => toast({ title: "Credentials copied — share them privately" }))
-                  .catch(() => toast({ title: "Copy unavailable", variant: "destructive" }));
-              }}><Copy className="mr-2 h-4 w-4" /> Copy credentials</Button>
-              <p className="text-xs text-muted-foreground">The driver must set their own password on first sign-in. Avoid sharing credentials in public chats.</p>
-              <Button className="w-full" onClick={() => close(false)}>I've saved the details</Button>
-            </div>
+            <IssuedCredentials issued={issued} onDone={() => close(false)} />
           ) : (
             <div className="space-y-4">
               {!driver.auth_user_id ? (
                 <>
-                  <p className="text-sm text-muted-foreground">Create a username for the phone app. No personal email is required.</p>
+                  <p className="text-sm text-muted-foreground">Drivers sign in to the phone app with a username and password. No email needed.</p>
                   <div className="space-y-2">
                     <Label htmlFor={`username-${driver.id}`}>Driver username</Label>
                     <Input id={`username-${driver.id}`} value={username} onChange={(e) => setUsername(e.target.value)}

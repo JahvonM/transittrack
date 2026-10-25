@@ -6,7 +6,7 @@ import {test,expect} from '@playwright/test';
 // removing them removes their sign-in first, and buses know them by it.
 const KEY='driver.ann_1@login.mcsweenstransport.com';
 
-async function drivers(page,{driver,buses=[]}){
+async function drivers(page,{driver,buses=[],takenUsernames=[]}){
  const calls=[];
  await page.addInitScript(()=>{ localStorage.setItem('base44_access_token','mock-authenticated-session'); });
  await page.route('https://api.mapbox.com/**',r=>r.fulfill({status:404,body:''}));
@@ -14,6 +14,8 @@ async function drivers(page,{driver,buses=[]}){
   const url=route.request().url();
   if(url.includes('/functions/driverAccounts')){
    const body=route.request().postDataJSON();calls.push({fn:'driverAccounts',...body});
+   if(body.action==='provision'&&takenUsernames.includes(body.username))return route.fulfill({status:409,json:{error:'Username is unavailable'}});
+   if(body.action==='provision')return route.fulfill({json:{ok:true,username:body.username,temporary_password:'FirstTempPass12'}});
    return route.fulfill({json:body.action==='reset'?{ok:true,username:'ann_1',temporary_password:'NewTempPass1234'}:{ok:true}});
   }
   if(url.includes('/functions/entityAccess')){
@@ -23,6 +25,7 @@ async function drivers(page,{driver,buses=[]}){
    if(body.entity==='User'&&body.operation==='get')result={id:'admin',email:'admin@test.local',full_name:'Admin',role:'admin'};
    else if(body.entity==='Driver'&&body.operation==='update'){Object.assign(driver,body.data);result=driver;}
    else if(body.entity==='Driver'&&body.operation==='delete')result={ok:true};
+   else if(body.entity==='Driver'&&body.operation==='create')result={id:'new-driver',...body.data};
    else if(body.entity==='Driver')result=[driver];
    else if(body.entity==='Company')result=[{id:'a',name:'Coyaba Transport'}];
    else if(body.entity==='Vehicle'&&body.operation==='update')result={id:body.id,...body.data};
@@ -80,4 +83,56 @@ test('a bus assigned to a username driver knows them by their sign-in',async({pa
  await page.getByRole('option',{name:/Bus 7/}).click();
  await expect.poll(()=>calls.length).toBe(1);
  expect(calls[0]).toMatchObject({fn:'Vehicle.update',id:'bus-b',data:{driver_id:'d1',driver_email:KEY,driver_name:'Ann Driver'}});
+});
+
+test('adding a driver sets their company, bus and phone login in one go, with no email',async({page})=>{
+ const calls=await drivers(page,{driver:ann(),buses:[{id:'bus-b',name:'Bus 7',plate_number:'HA 7',company_id:'a',company_name:'Coyaba Transport',status:'idle'}]});
+ await page.getByRole('button',{name:'Add driver'}).click();
+ const dialog=page.getByRole('dialog');
+ // No email field anywhere in the form.
+ await expect(dialog.getByLabel(/email/i)).toHaveCount(0);
+ await dialog.getByLabel('Full name').fill('Bob Driver');
+ await dialog.getByLabel('Phone number').fill('+1 473 555 0199');
+ await dialog.getByRole('combobox',{name:'Company'}).click();
+ await page.getByRole('option',{name:'Coyaba Transport'}).click();
+ await dialog.getByRole('combobox',{name:'Bus'}).click();
+ await page.getByRole('option',{name:/Bus 7/}).click();
+ await dialog.getByLabel('Phone app username').fill('Bob.D');
+ const shots=process.env.TT_SHOT_DIR;
+ if(shots)await page.screenshot({path:`${shots}/add-driver-form.png`});
+ await dialog.getByRole('button',{name:'Add driver and create login'}).click();
+ await expect(dialog.getByText('FirstTempPass12')).toBeVisible();
+ await expect(dialog.getByText('bob.d',{exact:true})).toBeVisible();
+ if(shots)await page.screenshot({path:`${shots}/add-driver-login.png`});
+ const flow=calls.map(c=>c.fn+(c.action?':'+c.action:''));
+ expect(flow).toEqual(['Driver.create','Vehicle.update','driverAccounts:provision']);
+ expect(calls[0].data).toEqual({full_name:'Bob Driver',phone:'+1 473 555 0199',company_id:'a',company_name:'Coyaba Transport',phone_app_access:false});
+ expect(calls[1]).toMatchObject({id:'bus-b',data:{driver_id:'new-driver',driver_name:'Bob Driver'}});
+ expect(calls[2]).toMatchObject({driver_id:'new-driver',username:'bob.d'});
+});
+
+test('a taken username keeps the new driver and only retries the login',async({page})=>{
+ const calls=await drivers(page,{driver:ann(),takenUsernames:['ann_1']});
+ await page.getByRole('button',{name:'Add driver'}).click();
+ const dialog=page.getByRole('dialog');
+ await dialog.getByLabel('Full name').fill('Bob Driver');
+ await dialog.getByRole('combobox',{name:'Company'}).click();
+ await page.getByRole('option',{name:'Coyaba Transport'}).click();
+ await dialog.getByLabel('Phone app username').fill('ann_1');
+ await dialog.getByRole('button',{name:'Add driver and create login'}).click();
+ await expect(dialog.getByRole('alert')).toContainText('Username is unavailable');
+ await expect(dialog.getByText('Bob Driver is saved',{exact:false})).toBeVisible();
+ await dialog.getByLabel('Phone app username').fill('bob_2');
+ await dialog.getByRole('button',{name:'Create phone login'}).click();
+ await expect(dialog.getByText('FirstTempPass12')).toBeVisible();
+ expect(calls.filter(c=>c.fn==='Driver.create')).toHaveLength(1);
+ expect(calls.filter(c=>c.action==='provision').map(c=>c.username)).toEqual(['ann_1','bob_2']);
+});
+
+test('driver cards show the username, never an email',async({page})=>{
+ await drivers(page,{driver:ann({email:'ann.old@gmail.com'})});
+ await expect(page.getByText('Username ann_1')).toBeVisible();
+ await expect(page.getByText('ann.old@gmail.com')).toHaveCount(0);
+ await page.getByRole('button',{name:'Edit Ann Driver'}).click();
+ await expect(page.getByRole('dialog').getByLabel(/email/i)).toHaveCount(0);
 });

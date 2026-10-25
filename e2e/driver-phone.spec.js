@@ -166,7 +166,9 @@ test('an account that is not a driver is refused with a way out',async({page})=>
  await page.goto('/driver-phone');
  await expect(page.getByRole('heading',{name:"This account isn't set up for the driver app"})).toBeVisible();
  await expect(page.getByText('dana.driver@gmail.com')).toBeVisible();
- await expect(page.getByRole('button',{name:/Sign out/})).toBeVisible();
+ // A driver who tried Gmail is pointed to their username.
+ await expect(page.getByText('not with Google or an email address',{exact:false})).toBeVisible();
+ await expect(page.getByRole('button',{name:'Sign out and use my username'})).toBeVisible();
  await shot(page,'07-refused');
 });
 
@@ -222,7 +224,7 @@ test('admin provisions phone login without toggling access through the Driver re
  await page.setViewportSize({width:1280,height:900});
  await page.goto('/admin/drivers');
  await page.getByRole('button',{name:'Manage phone account for Dana Driver'}).click();
- await expect(page.getByText('Create a username for the phone app. No personal email is required.')).toBeVisible();
+ await expect(page.getByText('Drivers sign in to the phone app with a username and password. No email needed.')).toBeVisible();
  await page.getByLabel('Driver username').fill('Dana.Driver');
  await shot(page,'09-admin-phone-account');
  await page.getByRole('button',{name:'Create phone login'}).click();
