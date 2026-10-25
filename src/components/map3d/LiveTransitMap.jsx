@@ -330,7 +330,7 @@ function FullMap({
     host.appendChild(mapEl);
     mapRef.current?.resize();
     // On the scrolling home page one finger scrolls the page; full screen is all map.
-    try { mapRef.current?.setCooperativeGestures(variant === "preview" && !fullscreen); } catch { /* older engine */ }
+    try { setCooperativeGestures(mapRef.current, variant === "preview" && !fullscreen); } catch { /* older engine */ }
     if (!fullscreen) return undefined;
     const onKey = (e) => { if (e.key === "Escape") setFullscreen(false); };
     window.addEventListener("keydown", onKey);
