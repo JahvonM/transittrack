@@ -6,6 +6,7 @@ import Logo from "@/components/Logo";
 import MapboxMap from "@/components/MapboxMap";
 import { describeRide, nextCheckMs, readTrackToken, rideClosed } from "@/lib/visitorTrack";
 import { TRANSIT_TIME_ZONE } from "@/lib/localTime";
+import { isSiteHost } from "@/lib/bookingSite";
 
 // Public page for a guest following their ride: /track#trip=<key>.
 // No sign-in. Shows only what the visitorTracking function allows for this
@@ -86,8 +87,8 @@ export default function TrackRide() {
   if (!token) {
     return (
       <Shell>
-        <Notice icon={MapPin} title="Open your tracking link" text="Your tracking link is in the email that confirmed your ride. Tap Track my ride in that email to see your bus here. It works from the day before the ride until a day after." />
-        <p className="mt-4 text-center text-body-sm"><a className="font-semibold text-primary underline-offset-2 hover:underline" href={/^\/site(\/|$)/.test(window.location.pathname) ? "/site/book" : "/book"}>Request a ride</a></p>
+        <Notice icon={MapPin} title="Open your tracking link" text="Your tracking link is in the email that confirmed your ride. Tap Track my ride in that email to see your bus here. The link works until a day after the ride." />
+        <p className="mt-4 text-center text-body-sm"><a className="font-semibold text-primary underline-offset-2 hover:underline" href={isSiteHost(window.location.hostname) ? "/book" : "/site/book"}>Request a ride</a></p>
       </Shell>
     );
   }
