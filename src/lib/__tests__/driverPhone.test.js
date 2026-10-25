@@ -6,7 +6,7 @@ import { load, mock, request } from "../../../security-tests/helpers.js";
 function phone({ role = "staff", access = true, email = "Caller@Test.invalid" } = {}) {
   const sdk = mock(role);
   sdk.tables.Driver = [
-    { id: "drv", full_name: "Dana Driver", email, phone: "+1 473 555 0100", company_id: "a", company_name: "A", phone_app_access: access },
+    { id: "drv", full_name: "Dana Driver", email, auth_user_id: "mock-auth-caller", phone: "+1 473 555 0100", company_id: "a", company_name: "A", phone_app_access: access },
   ];
   sdk.tables.Vehicle[0].driver_email = "caller@test.invalid";
   sdk.tables.Vehicle[0].route_id = "route-a";
@@ -63,14 +63,22 @@ describe("driver phone sign-in", () => {
     expect(res.body.code).toBe("NOT_A_DRIVER");
   });
 
+  it("rejects an email-only match without the admin-linked Supabase identity", async () => {
+    const { sdk, send } = phone();
+    delete sdk.tables.Driver[0].auth_user_id;
+    const result = await send({ action: "me" });
+    expect(result.status).toBe(403);
+    expect(result.body.code).toBe("NOT_A_DRIVER");
+  });
+
   it("refuses a driver record whose phone app switch is off", async () => {
     const { send } = phone({ access: false });
     expect((await send({ action: "today" })).status).toBe(403);
   });
 
-  it("refuses an email listed as a driver by two companies", async () => {
+  it("refuses a Supabase auth account linked to two drivers", async () => {
     const { sdk, send } = phone();
-    sdk.tables.Driver.push({ id: "drv-b", full_name: "Dana", email: "caller@test.invalid", company_id: "b", phone_app_access: true });
+    sdk.tables.Driver.push({ id: "drv-b", full_name: "Dana", email: "caller@test.invalid", auth_user_id: "mock-auth-caller", company_id: "b", phone_app_access: true });
     expect((await send({ action: "me" })).status).toBe(403);
   });
 
@@ -149,7 +157,8 @@ describe("driver phone problem reports", () => {
     expect(uploads).toHaveLength(2);
     expect(sdk.tables.Incident.at(-1)).toMatchObject({
       vehicle_id: "bus-a", company_id: "a", type: "breakdown", details: "Flat tyre", source: "driver_phone", status: "open",
-      driver_email: "Caller@Test.invalid", photo_uris: [expect.stringMatching(/^private\/report-.*\.jpg$/), expect.stringMatching(/\.png$/)],
+      // The driver's key (driverKey): how shifts and reports find them, in lower case.
+      driver_email: "caller@test.invalid", photo_uris: [expect.stringMatching(/^private\/report-.*\.jpg$/), expect.stringMatching(/\.png$/)],
     });
   });
 

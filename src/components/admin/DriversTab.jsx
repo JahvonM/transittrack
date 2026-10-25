@@ -4,7 +4,6 @@ import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
@@ -20,7 +19,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/components/ui/use-toast";
 import { telLink, whatsappLink } from "@/lib/driverPhone";
+import { driverKey, driverOwnsBus } from "@/lib/driverAccount";
 import DriverDocumentsDialog, { DocChips } from "@/components/admin/DriverDocuments";
+import DriverAccountActions from "@/components/admin/DriverAccountActions";
 import DriverRequestsPanel from "@/components/admin/DriverRequestsPanel";
 import { Bus, Camera, Car, Loader2, Mail, Pencil, Phone, Plus, Search, Smartphone, Trash2, User as UserIcon, X } from "lucide-react";
 import { EmptyState, PageActions, StatusChip } from "@/components/admin/kit";
@@ -35,10 +36,9 @@ const STATUSES = [
 
 // Drivers are entered directly here (a plain Driver record) rather than
 // invited as a base44 login. The bus tablet authenticates by paired device +
-// PIN (see driverSession). The driver phone app is the one place a driver
-// signs in: with Google, using the email on this record, and only while
-// "Can use the phone app" is on (see driverPhone).
-function DriverFormFields({ form, setForm, companies }) {
+// PIN (see driverSession). The separate driver phone app uses an admin-created
+// Supabase Auth username and a mandatory initial password change.
+function DriverFormFields({ form, setForm, companies, companyLocked = false }) {
   return (
     <div className="space-y-3">
       <div className="space-y-1.5">
@@ -46,28 +46,17 @@ function DriverFormFields({ form, setForm, companies }) {
         <Input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} placeholder="John D." />
       </div>
       <div className="space-y-1.5">
-        <Label>Email (Gmail)</Label>
+        <Label>Email (optional)</Label>
         <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="driver@example.com" />
       </div>
       <div className="space-y-1.5">
         <Label>Phone</Label>
         <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="+1 473-..." />
       </div>
-      <div className="flex items-start justify-between gap-3 rounded-xl border border-border p-3">
-        <div className="min-w-0">
-          <Label htmlFor="driver-phone-app">Can use the phone app</Label>
-          <p className="text-body-sm text-muted-foreground">
-            {form.email.trim()
-              ? "The driver signs in with Google using the email above. Turn off to remove access."
-              : "Add the driver's Gmail address first."}
-          </p>
-        </div>
-        <Switch id="driver-phone-app" checked={!!form.phone_app_access && !!form.email.trim()} disabled={!form.email.trim()}
-          onCheckedChange={(on) => setForm({ ...form, phone_app_access: on })} />
-      </div>
+      <p className="text-xs text-muted-foreground">Phone app usernames and passwords are managed in each driver's Phone account button.</p>
       <div className="space-y-1.5">
         <Label>Company</Label>
-        <Select value={form.company_id || "none"} onValueChange={(v) => setForm({ ...form, company_id: v === "none" ? "" : v })}>
+        <Select value={form.company_id || "none"} disabled={companyLocked} onValueChange={(v) => setForm({ ...form, company_id: v === "none" ? "" : v })}>
           <SelectTrigger><SelectValue placeholder="No company" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="none">No company</SelectItem>
@@ -84,7 +73,7 @@ function DriverFormFields({ form, setForm, companies }) {
 function AddDriverDialog({ companies, onAdded }) {
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ full_name: "", email: "", phone: "", company_id: "", phone_app_access: false });
+  const [form, setForm] = useState({ full_name: "", email: "", phone: "", company_id: "" });
   const [saving, setSaving] = useState(false);
 
   const save = async () => {
@@ -98,10 +87,10 @@ function AddDriverDialog({ companies, onAdded }) {
         phone: form.phone.trim(),
         company_id: form.company_id || null,
         company_name: company?.name || "",
-        phone_app_access: !!form.phone_app_access && !!form.email.trim(),
+        phone_app_access: false,
       });
       toast({ title: "Driver added" });
-      setForm({ full_name: "", email: "", phone: "", company_id: "", phone_app_access: false });
+      setForm({ full_name: "", email: "", phone: "", company_id: "" });
       setOpen(false);
       onAdded();
     } catch (e) {
@@ -130,7 +119,8 @@ function AddDriverDialog({ companies, onAdded }) {
 }
 
 function EditDriverDialog({ driver, companies, vehicles = [], open, onOpenChange, onSaved }) {
-  const [form, setForm] = useState({ full_name: "", email: "", phone: "", company_id: "", phone_app_access: false });
+  const { toast } = useToast();
+  const [form, setForm] = useState({ full_name: "", email: "", phone: "", company_id: "" });
   const [photoUrl, setPhotoUrl] = useState("");
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -142,7 +132,7 @@ function EditDriverDialog({ driver, companies, vehicles = [], open, onOpenChange
         email: driver.email || "",
         phone: driver.phone || "",
         company_id: driver.company_id || "",
-        phone_app_access: !!driver.phone_app_access,
+        
       });
       setPhotoUrl(driver.photo_url || "");
     }
@@ -170,16 +160,23 @@ function EditDriverDialog({ driver, companies, vehicles = [], open, onOpenChange
         photo_url: photoUrl,
         company_id: form.company_id || null,
         company_name: company?.name || "",
-        phone_app_access: !!form.phone_app_access && !!email,
       });
-      // Buses are matched to drivers by email, so a new email keeps them.
+      // Older buses know an email-only driver by their email: keep them with the
+      // driver when it changes. Username accounts are known by their sign-in.
       const oldEmail = (driver.email || "").trim();
-      if (oldEmail && email && oldEmail.toLowerCase() !== email.toLowerCase()) {
-        await Promise.all(vehicles.filter((v) => v.driver_email === oldEmail)
+      if (!driver.username && oldEmail && email && oldEmail.toLowerCase() !== email.toLowerCase()) {
+        await Promise.all(vehicles.filter((v) => !v.driver_id && v.driver_email === oldEmail)
           .map((v) => base44.entities.Vehicle.update(v.id, { driver_email: email })));
+      }
+      // A phone-account driver given a company (e.g. after their old one was
+      // deleted): their sign-in follows the driver record.
+      if (driver.auth_user_id && form.company_id && form.company_id !== (driver.company_id || "")) {
+        await base44.functions.invoke("driverAccounts", { action: "sync", driver_id: driver.id });
       }
       onSaved();
       onOpenChange(false);
+    } catch (e) {
+      toast({ title: "Couldn't save the driver", description: e?.response?.data?.error || e.message, variant: "destructive" });
     } finally {
       setSaving(false);
     }
@@ -212,7 +209,8 @@ function EditDriverDialog({ driver, companies, vehicles = [], open, onOpenChange
             </label>
           </div>
           <AvatarPicker onChange={setPhotoUrl} disabled={saving || uploading} />
-          <DriverFormFields form={form} setForm={setForm} companies={companies} />
+          <DriverFormFields form={form} setForm={setForm} companies={companies} companyLocked={!!driver.auth_user_id && !!driver.company_id} />
+          {driver.auth_user_id && driver.company_id && <p className="text-xs text-muted-foreground">A driver with a phone account can't be moved to another company from here. Remove their phone account first (Phone account → Remove phone account).</p>}
           <Button className="w-full" onClick={save} disabled={saving || uploading || !form.full_name.trim()}>
             {saving ? "Saving…" : "Save changes"}
           </Button>
@@ -295,11 +293,9 @@ function AssignedVehicleRow({ vehicle: v, routes, onUnassign, onSetStatus, onSet
 function DriverCard({ driver, vehicles, companies, routes, docs = [], onDocsChanged, onAssign, onUnassign, onSetStatus, onSetRoute, onSetPin, onSaved, onRemove }) {
   const [editOpen, setEditOpen] = useState(false);
   const [docsOpen, setDocsOpen] = useState(false);
-  const assigned = vehicles.filter((v) => driver.email && v.driver_email === driver.email);
+  const assigned = vehicles.filter((v) => driverOwnsBus(v, driver));
   const companyName = companies.find((c) => c.id === driver.company_id)?.name;
-  const pool = vehicles.filter(
-    (v) => (!driver.company_id || v.company_id === driver.company_id) && v.driver_email !== driver.email
-  );
+  const pool = vehicles.filter((v) => !!driver.company_id && v.company_id === driver.company_id && !driverOwnsBus(v, driver));
 
   const initials = (driver.full_name || driver.email || "?").split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join("");
   return (
@@ -330,7 +326,7 @@ function DriverCard({ driver, vehicles, companies, routes, docs = [], onDocsChan
             <StatusChip tone={assigned.length ? "success" : "neutral"} dot={false}>
               <Bus className="h-3.5 w-3.5" aria-hidden="true" /> {assigned.length} {assigned.length === 1 ? "bus" : "buses"}
             </StatusChip>
-            {driver.phone_app_access && driver.email && (
+            {driver.phone_app_access && driver.auth_user_id && (
               <StatusChip tone="info" dot={false}>
                 <Smartphone className="h-3.5 w-3.5" aria-hidden="true" /> Phone app
               </StatusChip>
@@ -351,7 +347,7 @@ function DriverCard({ driver, vehicles, companies, routes, docs = [], onDocsChan
               <AlertDialogHeader>
                 <AlertDialogTitle>Remove {driver.full_name || driver.email}?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  This deletes their driver record and unassigns any buses currently assigned to them. This can't be undone.
+                  This deletes their driver record{driver.auth_user_id ? " and their phone app sign-in" : ""} and unassigns any buses currently assigned to them. Their past shifts and reports are kept. This can't be undone.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -363,6 +359,9 @@ function DriverCard({ driver, vehicles, companies, routes, docs = [], onDocsChan
         </div>
       </div>
 
+      <div className="border-t border-border px-4 py-3">
+        <DriverAccountActions driver={driver} onChanged={onSaved} />
+      </div>
       <div className="space-y-2 border-t border-border px-4 py-3">
         <h3 className="text-caption font-semibold uppercase tracking-wide text-muted-foreground">Assigned buses</h3>
         {assigned.length === 0 && <p className="text-body-sm text-muted-foreground">No buses assigned yet.</p>}
@@ -381,7 +380,7 @@ function DriverCard({ driver, vehicles, companies, routes, docs = [], onDocsChan
             ))}
           </ul>
         )}
-        {pool.length > 0 && driver.email && (
+        {pool.length > 0 && driver.company_id && (
           <Select onValueChange={(vid) => onAssign(driver, vid)}>
             <SelectTrigger className="h-10" aria-label={`Assign a bus to ${driver.full_name || "this driver"}`}>
               <SelectValue placeholder="Assign a bus to this driver" />
@@ -394,9 +393,6 @@ function DriverCard({ driver, vehicles, companies, routes, docs = [], onDocsChan
               ))}
             </SelectContent>
           </Select>
-        )}
-        {pool.length > 0 && !driver.email && (
-          <p className="text-body-sm text-warning">Add an email for this driver to assign a bus (vehicles are matched by driver email).</p>
         )}
       </div>
       <div className="mt-auto border-t border-border px-4 py-3">
@@ -418,14 +414,16 @@ export default function DriversTab({ drivers, vehicles, companies, routes, onCha
   const assign = async (driver, vehicleId) => {
     if (!vehicleId) return;
     await base44.entities.Vehicle.update(vehicleId, {
-      driver_email: driver.email,
-      driver_name: driver.full_name || driver.email,
+      driver_id: driver.id,
+      // How shifts, messages and backup GPS find this driver (driverKey).
+      driver_email: driverKey(driver) || null,
+      driver_name: driver.full_name || driver.username || "",
     });
     onChange();
   };
 
   const unassign = async (vehicleId) => {
-    await base44.entities.Vehicle.update(vehicleId, { driver_email: null, driver_name: null });
+    await base44.entities.Vehicle.update(vehicleId, { driver_id: null, driver_email: null, driver_name: null });
     onChange();
   };
 
@@ -450,17 +448,22 @@ export default function DriversTab({ drivers, vehicles, companies, routes, onCha
 
   const removeDriver = async (driver) => {
     try {
-      const assignedVehicles = vehicles.filter((v) => driver.email && v.driver_email === driver.email);
+      // Their phone sign-in goes first, so a failure leaves everything as it was.
+      if (driver.auth_user_id) {
+        const { data } = await base44.functions.invoke("driverAccounts", { action: "unlink", driver_id: driver.id });
+        if (!data?.ok) throw new Error("The phone account could not be removed.");
+      }
+      const assignedVehicles = vehicles.filter((v) => driverOwnsBus(v, driver));
       await Promise.all(
         assignedVehicles.map((v) =>
-          base44.entities.Vehicle.update(v.id, { driver_email: null, driver_name: null })
+          base44.entities.Vehicle.update(v.id, { driver_id: null, driver_email: null, driver_name: null })
         )
       );
       await base44.entities.Driver.delete(driver.id);
       toast({ title: "Driver removed" });
       onChange();
     } catch (e) {
-      toast({ title: "Couldn't remove driver", description: e.message, variant: "destructive" });
+      toast({ title: "Couldn't remove driver", description: e?.response?.data?.error || e.message, variant: "destructive" });
     }
   };
 
@@ -469,7 +472,7 @@ export default function DriversTab({ drivers, vehicles, companies, routes, onCha
   const q = query.trim().toLowerCase();
   const shown = drivers
     .filter((d) => company === "all" || (company === "none" ? !d.company_id : d.company_id === company))
-    .filter((d) => !q || [d.full_name, d.email, d.phone].some((x) => String(x || "").toLowerCase().includes(q)))
+    .filter((d) => !q || [d.full_name, d.username, d.email, d.phone].some((x) => String(x || "").toLowerCase().includes(q)))
     .sort((a, b) => String(a.full_name || a.email).localeCompare(String(b.full_name || b.email)));
 
   return (
@@ -482,7 +485,7 @@ export default function DriversTab({ drivers, vehicles, companies, routes, onCha
         <label className="relative min-w-[220px] flex-1 sm:max-w-sm">
           <span className="sr-only">Search drivers</span>
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
-          <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Name, email or phone"
+          <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Name, username, email or phone"
             className="h-10 w-full rounded-xl border border-input bg-card pl-9 pr-3 text-body-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
         </label>
         <Select value={company} onValueChange={setCompany}>

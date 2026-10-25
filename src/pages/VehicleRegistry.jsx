@@ -53,8 +53,8 @@ export default function VehicleRegistry() {
     setSaving(true);
     try {
       await base44.entities.Vehicle.update(v.id, {
-        driver_name: form.driver_name,
-        driver_email: form.driver_email,
+        // A bus linked to a driver record changes driver in Admin → Drivers.
+        ...(v.driver_id ? {} : { driver_name: form.driver_name, driver_email: form.driver_email }),
         route_id: form.route_id === "none" ? null : form.route_id,
       });
       toast({ title: "Saved" });
@@ -101,14 +101,20 @@ export default function VehicleRegistry() {
 
                 {isEditing ? (
                   <div className="grid sm:grid-cols-3 gap-3 mb-3 p-3 rounded-lg border bg-muted/30">
-                    <div className="space-y-1">
-                      <Label className="text-xs">Driver name</Label>
-                      <Input value={form.driver_name} onChange={(e) => setForm({ ...form, driver_name: e.target.value })} placeholder="Driver name" />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs">Driver email</Label>
-                      <Input value={form.driver_email} onChange={(e) => setForm({ ...form, driver_email: e.target.value })} placeholder="driver@email.com" />
-                    </div>
+                    {v.driver_id ? (
+                      <p className="sm:col-span-2 self-center text-xs text-muted-foreground">
+                        Driver: <span className="font-medium text-foreground">{v.driver_name || "Assigned"}</span>. Change the driver in Admin → Drivers.
+                      </p>
+                    ) : (<>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Driver name</Label>
+                        <Input value={form.driver_name} onChange={(e) => setForm({ ...form, driver_name: e.target.value })} placeholder="Driver name" />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Driver email</Label>
+                        <Input value={form.driver_email} onChange={(e) => setForm({ ...form, driver_email: e.target.value })} placeholder="driver@email.com" />
+                      </div>
+                    </>)}
                     <div className="space-y-1">
                       <Label className="text-xs">Route</Label>
                       <Select value={form.route_id} onValueChange={(r) => setForm({ ...form, route_id: r })}>

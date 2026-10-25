@@ -24,10 +24,10 @@ ENTITY_FIELDS.Company.push('access_code_expires_at');
 ENTITY_FIELDS.Advertisement.push('company_id');
 // Driver phone app: the access switch, and the private photos a driver sends
 // with a problem report (written only by the driverPhone function).
-ENTITY_FIELDS.Driver.push('phone_app_access');
+ENTITY_FIELDS.Driver.push('phone_app_access','username','auth_user_id','must_change_password');
 ENTITY_FIELDS.Incident.push('photo_uris','source');
 ENTITY_FIELDS.DriverShift.push('started_with','ended_with');
-ENTITY_FIELDS.Vehicle.push('backup_gps_driver_email','backup_gps_since','road_next_stop');
+ENTITY_FIELDS.Vehicle.push('backup_gps_driver_email','backup_gps_since','road_next_stop','driver_id');
 // The latest Wi-Fi/hotspot command's status for Admin → Kiosk tablets (never the command itself, which can hold a Wi-Fi password).
 ENTITY_FIELDS.KioskDevice.push('network_status');
 ENTITY_FIELDS.KioskDevice.push('control_status');
@@ -46,8 +46,8 @@ ENTITY_FIELDS.Client=['company_id','name','kind','contact_name','email','phone',
 // they change only through the bookingRequest function, which emails the customer.
 ENTITY_FIELDS.BookingRequest=['service','requested_time','pickup','dropoff','guests','luggage','flight_number','name','phone','email','notes','status','trip_id','decline_reason','handled_by','handled_at','tracking_sent_at'];
 ENTITY_FIELDS.Invoice=['company_id','company_name','client_id','client_name','client_email','client_address','number','period_start','period_end','issued_at','due_date','lines','total','currency','status','sent_at','paid_at','voided_at','notes'];
-const ADMIN_ONLY_FIELDS={Driver:new Set(['phone_app_access']),Trip:new Set(['client_id','client_name','price','currency'])};
-const SERVER_ONLY_FIELDS={Incident:new Set(['photo_uris','source']),KioskDevice:new Set(['recordings_request','support_request','network_status', 'control_status']),Trip:new Set([...JOB_SIGNATURE_FIELDS,'invoice_id','invoice_number'])};
+const ADMIN_ONLY_FIELDS={Driver:new Set(['phone_app_access']),Vehicle:new Set(['driver_id']),Trip:new Set(['client_id','client_name','price','currency'])};
+const SERVER_ONLY_FIELDS={Driver:new Set(['username','auth_user_id','must_change_password']),Incident:new Set(['photo_uris','source']),KioskDevice:new Set(['recordings_request','support_request','network_status', 'control_status']),Trip:new Set([...JOB_SIGNATURE_FIELDS,'invoice_id','invoice_number'])};
 const JOB_TYPES=new Set(['airport_pickup','airport_dropoff','hotel_tour','staff_run','transfer']);
 const CURRENCIES=new Set(['XCD','USD']);
 const text=(data,field,max)=>{ if(!Object.hasOwn(data,field)||data[field]===null) return; if(typeof data[field]!=='string'||data[field].length>max) fail(400,'Invalid '+field.replace(/_/g,' ')); data[field]=data[field].trim(); };
@@ -199,6 +199,7 @@ function project(ctx,name,row) {
  const role=ctx.user?.role;
  let fields=[...META,...(ENTITY_FIELDS[name] || [])];
  if (name === 'User') fields=[...META,'email','full_name','role','company_id',...PROFILE_FIELDS];
+ if (name === 'Driver' && role !== 'admin') fields=fields.filter(f=>!['username','auth_user_id','must_change_password'].includes(f));
  if (name === 'Company' && !['admin','company'].includes(role)) fields=[...META,'name','phone','logo_url','service_types','description'];
  if (!['admin','company','mechanic'].includes(role) && name === 'Vehicle') fields=[...META,'name','type','company_id','company_name','capacity','route_id','current_lat','current_lng','speed','heading','status','driver_name','image_url','model_3d','tracking_active','last_location_update','trail','trip_direction','return_pickup_state','road_next_stop'];
  if (!['admin','company'].includes(role) && name === 'Trip') fields=[...META,'company_id','vehicle_id','vehicle_name','route_id','route_name','pickup_name','dropoff_name','scheduled_time','status','started_at','arrived_at','completed_at'];

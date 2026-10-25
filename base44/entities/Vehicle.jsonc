@@ -6,6 +6,10 @@
     "type"
   ],
   "properties": {
+    "driver_id": {
+      "type": "string",
+      "description": "Permanent Driver record ID for assignment. Preferred over legacy driver_email."
+    },
     "capacity": {
       "type": "number"
     },

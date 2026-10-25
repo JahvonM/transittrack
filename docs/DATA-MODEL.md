@@ -383,10 +383,13 @@ Table `driver` · belongs to a company through `company_id` · read and changed 
 
 **Links to:** [Company](#company) (`company_id`).
 
-**Linked from:** [DriverDocument](#driverdocument).driver_id, [DriverRequest](#driverrequest).driver_id, [DriverRequest](#driverrequest).swap_with_driver_id, [PhoneUnlock](#phoneunlock).driver_id.
+**Linked from:** [DriverDocument](#driverdocument).driver_id, [DriverRequest](#driverrequest).driver_id, [DriverRequest](#driverrequest).swap_with_driver_id, [PhoneUnlock](#phoneunlock).driver_id, [Vehicle](#vehicle).driver_id.
 
 | Field | Type | Notes |
 |---|---|---|
+| `username` | text | Unique normalized username for driver phone sign-in; managed by privileged account provisioning. Set by the server only. |
+| `auth_user_id` | text | Immutable authentication user ID. Never store a password here. Set by the server only. |
+| `must_change_password` | boolean | Server-enforced first-login/reset password change requirement. Default `false`. Set by the server only. |
 | `full_name` | text | Required. |
 | `email` | text |  |
 | `phone` | text |  |
@@ -395,7 +398,7 @@ Table `driver` · belongs to a company through `company_id` · read and changed 
 | `company_name` | text |  |
 | `employee_id` | text | The company's own staff number. |
 | `nfc_card_uid` | text | Active staff card issued at Card issuing (uppercase hex). **Secret**: never sent to the browser. |
-| `phone_app_access` | boolean | The driver may sign in to the driver phone app with this record's email. Default `false`. Only an admin can change it. |
+| `phone_app_access` | boolean | The driver's admin-controlled permission to use the phone app, regardless of whether they have an email address. Default `false`. Only an admin can change it. |
 
 ### DriverDocument
 
@@ -1244,9 +1247,9 @@ Table `app_user` · read and changed through entityAccess.
 
 ### Vehicle
 
-Table `vehicle` · belongs to a company through `company_id` · read and changed through entityAccess.
+Table `vehicle` · belongs to a company through `driver_id`, then `company_id` · read and changed through entityAccess.
 
-**Links to:** [Company](#company) (`company_id`), [Route](#route) (`route_id`).
+**Links to:** [Driver](#driver) (`driver_id`), [Company](#company) (`company_id`), [Route](#route) (`route_id`).
 
 **Linked from:** [Broadcast](#broadcast).vehicle_id, [CompanyMembership](#companymembership).vehicle_id, [Contact](#contact).vehicle_id, [DeviceCredential](#devicecredential).vehicle_id, [DriverPinCredential](#driverpincredential).vehicle_id, [DriverShift](#drivershift).vehicle_id, [DrivingEvent](#drivingevent).vehicle_id, [Fault](#fault).vehicle_id, [GroupMessage](#groupmessage).vehicle_id, [Incident](#incident).vehicle_id, [Inspection](#inspection).vehicle_id, [InspectionResult](#inspectionresult).vehicle_id, [KioskDevice](#kioskdevice).vehicle_id, [LocationPing](#locationping).vehicle_id, [MaintenanceSchedule](#maintenanceschedule).vehicle_id, [PhoneUnlock](#phoneunlock).vehicle_id, [StaffCheckIn](#staffcheckin).vehicle_id, [TabletRecordingSession](#tabletrecordingsession).vehicle_id, [TabletSupportSession](#tabletsupportsession).vehicle_id, [Trip](#trip).vehicle_id, [VerificationGrant](#verificationgrant).vehicle_id.
 
@@ -1254,6 +1257,7 @@ Table `vehicle` · belongs to a company through `company_id` · read and changed
 
 | Field | Type | Notes |
 |---|---|---|
+| `driver_id` | text | → Driver. Permanent Driver record ID for assignment. Preferred over legacy driver_email. Only an admin can change it. |
 | `capacity` | double precision |  |
 | `company_id` | text | → Company. |
 | `company_name` | text |  |

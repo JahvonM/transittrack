@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
+import { BACKEND } from "tt-backend";
+import { signInTarget } from "@/lib/driverAccount";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { LogIn, Mail, Lock, Loader2, QrCode, Eye, EyeOff, Shield } from "lucide-react";
+import { LogIn, Mail, Lock, Loader2, QrCode, Eye, EyeOff, Shield, User } from "lucide-react";
 import AuthLayout from "@/components/AuthLayout";
 import JourneyLoading from "@/components/JourneyLoading";
 import AccessRecovery from "@/components/system/AccessRecovery";
@@ -33,6 +35,11 @@ export default function Login() {
   // Post-login destination (e.g. the MCP OAuth consent page sends users here
   // with returnTo so the grant flow can resume). Same-origin paths only.
   const askedReturn = safeReturnTo();
+  // Drivers sign in with the username their administrator gave them, everyone
+  // else with their email: the one box takes either. Coming from the driver
+  // app (or ?driver=1) it asks for the username.
+  const usernames = BACKEND === "supabase";
+  const driverLogin = usernames && (new URLSearchParams(window.location.search).get("driver") === "1" || askedReturn.startsWith("/driver-phone"));
   const navigate = useNavigate();
   const { isAuthenticated, isLoadingAuth, isLoadingPublicSettings, authError, checkAppState } = useAuth();
   // Older Windows versions start at /login?returnTo=/ on every launch.
@@ -63,8 +70,25 @@ export default function Login() {
     setError("");
     setLoading(true);
     try {
-      await base44.auth.loginViaEmailPassword(email, password);
-      window.location.href = returnTo;
+      const target = usernames ? signInTarget(email, { driverMode: driverLogin }) : { email: email.trim(), driver: false };
+      if (!target) throw new Error(driverLogin ? "Enter your driver username" : "Enter your email address or username");
+      const driverUsername = target.driver;
+      await base44.auth.loginViaEmailPassword(target.email, password)
+        .catch((err) => {
+          // The sign-in address behind a username is never shown to the driver.
+          if (driverUsername && /invalid|credentials|password/i.test(err?.message || "")) throw new Error("Wrong username or password");
+          throw err;
+        });
+      if (driverUsername) {
+        const result = await base44.functions.invoke("driverAccounts", { action: "status" });
+        if (!result.data?.is_driver) {
+          await base44.auth.logout();
+          throw new Error("This driver account is not active. Contact your administrator.");
+        }
+        window.location.href = result.data?.must_change_password ? "/driver-password" : "/driver-phone";
+      } else {
+        window.location.href = returnTo;
+      }
     } catch (err) {
       setError(err.message || "Invalid email or password");
     } finally {
@@ -108,7 +132,7 @@ export default function Login() {
     <AuthLayout
       icon={LogIn}
       title="Your journey starts here"
-      subtitle="Sign in to track your bus and plan your pickup."
+      subtitle={driverLogin ? "Sign in to your driver phone account." : "Sign in to track your bus and plan your pickup."}
       footer={
         <div className="space-y-3 text-center">
           <div className="rounded-xl border border-border p-3 text-sm">
@@ -118,7 +142,10 @@ export default function Login() {
               <Link to="/kiosk" className="text-primary font-medium hover:underline">Boarding kiosk</Link>
             </div>
           </div>
-          <div>
+          {BACKEND === "supabase" && <div>
+            <Link to={driverLogin ? "/login" : "/login?driver=1"} className="text-primary font-medium hover:underline">{driverLogin ? "Not a driver? Use email or Google" : "Driver? Sign in with your username"}</Link>
+          </div>}
+          {!driverLogin && <div>
             New here?{" "}
             <Link
               to={"/register" + (returnTo !== "/" ? "?returnTo=" + encodeURIComponent(returnTo) : "")}
@@ -126,7 +153,7 @@ export default function Login() {
             >
               Create an account
             </Link>
-          </div>
+          </div>}
           <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
             <Link to="/privacy" className="inline-flex items-center gap-1 hover:text-foreground hover:underline">
               <Shield className="h-3 w-3" aria-hidden="true" />
@@ -162,14 +189,20 @@ export default function Login() {
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="email">Email address</Label>
+          <Label htmlFor="email">{driverLogin ? "Driver username" : usernames ? "Email address or username" : "Email address"}</Label>
           <div className="relative">
-            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
+            {driverLogin
+              ? <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
+              : <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />}
             <Input
               id="email"
-              type="email"
-              autoComplete="email"
-              placeholder="you@example.com"
+              type={usernames ? "text" : "email"}
+              inputMode={driverLogin ? "text" : "email"}
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              autoComplete={usernames ? "username" : "email"}
+              placeholder={driverLogin ? "driver001" : "you@example.com"}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="pl-10 h-12"
@@ -180,9 +213,9 @@ export default function Login() {
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <Label htmlFor="password">Password</Label>
-            <Link to="/forgot-password" className="text-xs text-primary hover:underline">
+            {!driverLogin && <Link to="/forgot-password" className="text-xs text-primary hover:underline">
               Forgot password?
-            </Link>
+            </Link>}
           </div>
           <div className="relative">
             <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
@@ -211,7 +244,7 @@ export default function Login() {
         </Button>
       </form>
       <div className="mt-6">
-      {(signInWith.google || signInWith.apple) && (<>
+      {!driverLogin && (signInWith.google || signInWith.apple) && (<>
       <div className="relative mb-6">
         <div className="absolute inset-0 flex items-center">
           <div className="w-full border-t border-border" />

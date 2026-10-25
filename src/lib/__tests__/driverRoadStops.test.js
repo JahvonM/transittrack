@@ -116,7 +116,7 @@ describe("adding and moving stops on a drawn road", () => {
 describe("driver phone stop list on a drawn road", () => {
   it("lists stops in road order by name, without pickup points, and who meets where", async () => {
     const sdk = mock("staff");
-    sdk.tables.Driver = [{ id: "drv", full_name: "Dana Driver", email: "caller@test.invalid", company_id: "a", company_name: "A", phone_app_access: true }];
+    sdk.tables.Driver = [{ id: "drv", full_name: "Dana Driver", email: "caller@test.invalid", auth_user_id: "mock-auth-caller", company_id: "a", company_name: "A", phone_app_access: true }];
     Object.assign(sdk.tables.Vehicle[0], { driver_email: "caller@test.invalid", route_id: "route-a" });
     sdk.tables.Route = [{ id: "route-a", company_id: "a", name: "Coastal", path: ROAD, stops: [
       { name: "Town", lat: 12.05, lng: -61.75, order: 0 }, { name: "Grand Anse", lat: 12.0, lng: -61.78, order: 1 },

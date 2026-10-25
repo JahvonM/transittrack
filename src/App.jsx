@@ -71,6 +71,7 @@ const DriverSchedule = lazy(() => import('@/pages/DriverSchedule'));
 const DriverProfile = lazy(() => import('@/pages/DriverProfile'));
 const loadDriverPhone = () => import('@/pages/DriverPhone');
 const DriverPhone = lazy(loadDriverPhone);
+const DriverPassword = lazy(() => import('@/pages/DriverPassword'));
 
 // Each home screen's code, fetched while the account is still being checked
 // (or as soon as the saved sign-in says who this is), so opening the app is
@@ -196,6 +197,7 @@ const AuthenticatedApp = () => {
         <Route path="/vehicle/:id" element={<VehicleDetail />} />
         <Route path="/incident-report" element={<IncidentReport />} />
         {MOVED_TO_ADMIN.map((id) => <Route key={id} path={`/${id}`} element={<Navigate to={`/admin/${id}`} replace />} />)}
+        <Route path="/driver-password" element={<DriverPassword />} />
         <Route path="/driver-schedule" element={<DriverSchedule />} />
         <Route path="/driver-profile" element={<DriverProfile />} />
         {/* The driver phone app (Google sign-in); /driver is the bus tablet. */}

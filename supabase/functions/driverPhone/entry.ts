@@ -1,17 +1,17 @@
 import { createClientFromRequest } from '../_shared/base44-compat.ts';
 import { secrets } from '../_shared/base44-compat.ts';
 import { busRoadStops } from '../_shared/routeRiders.ts';
-import { findPhoneDriver, driverVehicles, normEmail } from '../_shared/driverPhone.ts';
+import { driverKey, driverVehicles, normEmail } from '../_shared/driverPhone.ts';
 import { sendPushToTokens } from '../_shared/fcm.ts';
 import { applyLocationUpdate } from '../_shared/vehicleLocation.ts';
 import { pushWithPolicy } from '../_shared/notificationPolicy.ts';
 import { passengerPushTokens } from '../_shared/chatPush.ts';
 
-// The driver phone app. Drivers sign in with their own Google account; the
-// server matches that email to a Driver record an administrator switched on
-// for the phone app (see shared/driverPhone.ts). Nothing here trusts the
-// signed-in person's role, and every bus, message and document is checked
-// against the driver's own company and assigned buses.
+// The driver phone app. Drivers sign in with the username account an
+// administrator made for them (driverAccounts); every request checks that
+// account's link to their Driver record. Nothing here trusts the signed-in
+// person's role, and every bus, message and document is checked against the
+// driver's own company and assigned buses.
 //
 // The phone never sends its location: tracking stays on the bus tablet.
 
@@ -320,16 +320,20 @@ export default async function(req) {
     const user = await base44.auth.me().catch(() => null);
     if (!user?.email) return Response.json({ error: 'Sign in to continue', code: 'SIGN_IN_REQUIRED' }, { status: 401 });
     const body = await req.json().catch(() => ({}));
-    const { driver, reason } = await findPhoneDriver(base44, user.email);
-    if (!driver) {
-      return Response.json({
-        error: reason === 'ambiguous'
-          ? 'Your email is on more than one company\'s driver list. Ask your administrator to fix it.'
-          : 'Ask your administrator to put this email on your driver record and switch on "Can use the phone app".',
-        code: 'NOT_A_DRIVER',
-      }, { status: 403 });
-    }
-    const email = normEmail(user.email);
+    // The admin-linked Supabase Auth identity is mandatory for every driver action.
+    // An email match alone must never grant access to a driver phone.
+    const linkedDrivers = user.auth_user_id
+      ? await base44.asServiceRole.entities.Driver.filter({ auth_user_id: user.auth_user_id }, '-updated_date', 2)
+      : [];
+    const driver = linkedDrivers.length === 1 && linkedDrivers[0].phone_app_access === true && linkedDrivers[0].company_id
+      ? linkedDrivers[0] : null;
+    if (!driver) return Response.json({
+      error: 'Your driver phone account is not active. Ask your administrator to set up or reactivate it.',
+      code: 'NOT_A_DRIVER',
+    }, { status: 403 });
+    if (driver.must_change_password === true) return Response.json({ error: 'Change your temporary password to continue', code: 'PASSWORD_CHANGE_REQUIRED' }, { status: 403 });
+    // How this driver's buses, shifts, messages and backup GPS know them.
+    const email = driverKey(driver) || normEmail(user.email);
     const companyId = driver.company_id;
     const db = base44.asServiceRole.entities;
     const action = body?.action;
@@ -455,7 +459,7 @@ export default async function(req) {
         }
         const incident = await db.Incident.create({
           vehicle_id: bus?.id || '', vehicle_name: bus?.name || '', company_id: companyId, company_name: bus?.company_name || driver.company_name || '',
-          driver_name: sanitize(driver.full_name), driver_email: driver.email || user.email,
+          driver_name: sanitize(driver.full_name), driver_email: email,
           type, details, occurred_at: new Date().toISOString(), status: 'open',
           photo_uris: photoUris, source: 'driver_phone',
         });
@@ -493,14 +497,14 @@ export default async function(req) {
         if (!shift) {
           shift = await db.DriverShift.create({
             vehicle_id: bus.id, vehicle_name: bus.name, company_id: companyId, company_name: bus.company_name || driver.company_name || '',
-            driver_name: sanitize(driver.full_name), driver_email: driver.email, device_id: row.device_id,
+            driver_name: sanitize(driver.full_name), driver_email: email, device_id: row.device_id,
             started_at: now.toISOString(), started_with: 'phone',
           });
           try { await offboardEveryone(base44, { companyId, companyName: shift.company_name, vehicleId: bus.id, vehicleName: bus.name, at: now.getTime() }); }
           catch { /* the shift still starts; the boarding tablet corrects anyone left aboard */ }
         }
         await db.PhoneUnlock.update(row.id, {
-          status: 'claimed', driver_id: driver.id, driver_email: driver.email, driver_name: sanitize(driver.full_name),
+          status: 'claimed', driver_id: driver.id, driver_email: email, driver_name: sanitize(driver.full_name),
           claimed_at: now.toISOString(), shift_id: shift.id,
         });
         return Response.json({ ok: true, bus: busSummary(bus), shift: shiftSummary(shift, email), resumed: !!open });
@@ -563,7 +567,7 @@ export default async function(req) {
         const name = sanitize(driver.full_name) || 'Driver';
         const base = { vehicle_id: bus.id, vehicle_name: bus.name, company_id: companyId, company_name: bus.company_name || driver.company_name || '' };
         const inspection = await db.Inspection.create({
-          ...base, driver_name: name, driver_email: driver.email, date: localDay(now),
+          ...base, driver_name: name, driver_email: email, date: localDay(now),
           status: passed ? 'passed' : 'failed', template_name: 'Walk-around (driver app)', trigger: 'driver_phone',
           results, checklist: {}, needs_service: !passed,
           service_notes: passed ? '' : 'Problems: ' + failed.map((f) => f.item_name + (f.notes ? ` (${f.notes})` : '')).join('; ').slice(0, 1500),
@@ -663,7 +667,7 @@ export default async function(req) {
         const pending = (await db.DriverRequest.filter({ driver_id: driver.id, status: 'pending' }, '-created_date', 20)).filter((r) => r.company_id === companyId);
         if (pending.length >= 10) fail(429, 'You have 10 requests waiting. Wait for an answer first.');
         const row = await db.DriverRequest.create({
-          company_id: companyId, company_name: driver.company_name || '', driver_id: driver.id, driver_name: sanitize(driver.full_name), driver_email: driver.email,
+          company_id: companyId, company_name: driver.company_name || '', driver_id: driver.id, driver_name: sanitize(driver.full_name), driver_email: email,
           kind, start_date: start, end_date: end, note, status: 'pending',
           ...(swapWith ? { swap_with_driver_id: swapWith.id, swap_with_name: sanitize(swapWith.full_name) } : {}),
         });
