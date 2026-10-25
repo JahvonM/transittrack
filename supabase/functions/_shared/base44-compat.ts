@@ -650,19 +650,11 @@ const DEFAULT_ORIGINS = [
 ];
 // Cloudflare's preview copies of the site: https://<build>.mcsween-transport.pages.dev
 const PREVIEW_ORIGIN = /^https:\/\/[a-z0-9-]{1,63}\.mcsween-transport\.pages\.dev$/;
-// Outside sites that may call one function only, never the rest. The visitor
-// ride-tracking page lives on its own site (VISITOR_SITE in
-// base44/functions/visitorTracking/entry.ts) and only reads one ride.
-export const FUNCTION_ORIGINS: Record<string, string[]> = {
-  visitorTracking: ['https://mcsween-grenada-travel.modestejahvon.chatgpt.site'],
-};
-
-export function corsHeaders(origin: string | null, fn = servedFunction): Record<string, string> {
+export function corsHeaders(origin: string | null): Record<string, string> {
   const allowed = (runtime.env.get('ALLOWED_ORIGINS') || '').split(',').map((s) => s.trim()).filter(Boolean);
   const list = allowed.length ? allowed : DEFAULT_ORIGINS;
   const headers: Record<string, string> = { Vary: 'Origin' };
-  const forThisFunction = Object.hasOwn(FUNCTION_ORIGINS, fn) && FUNCTION_ORIGINS[fn].includes(origin || '');
-  if (origin && (list.includes(origin) || forThisFunction || (!allowed.length && PREVIEW_ORIGIN.test(origin)))) {
+  if (origin && (list.includes(origin) || (!allowed.length && PREVIEW_ORIGIN.test(origin)))) {
     headers['Access-Control-Allow-Origin'] = origin;
     headers['Access-Control-Allow-Headers'] = 'authorization, x-client-info, apikey, content-type';
     headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS';
