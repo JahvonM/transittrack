@@ -1,9 +1,6 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import fs from "node:fs";
-vi.mock("npm:@base44/sdk@0.8.57", () => ({ createClientFromRequest: vi.fn() }));
-vi.mock("../../../base44/shared/forwardToSupabase.ts", () => ({ forwardToSupabase: vi.fn() }));
-vi.mock("../../../base44/shared/atomicOps.ts", () => ({ reserveAttempt: vi.fn() }));
-import { trackingUrl, VISITOR_SITE } from "../../../base44/functions/visitorTracking/entry.ts";
+import { trackingUrl, VISITOR_SITE, linkExpiry } from "../../../base44/shared/visitorLinks.ts";
 import { describeRide, nextCheckMs, readTrackToken, rideClosed } from "../visitorTrack.js";
 
 // The guest's tracking page lives in the app (/track), not on another site.
@@ -17,6 +14,13 @@ describe("visitor tracking page", () => {
     expect(url.origin + url.pathname).toBe("https://app.mcsweenstransport.com/track");
     expect(url.search).toBe("");
     expect(readTrackToken(url.hash)).toBe(key);
+  });
+
+  it("a link lasts until a day after the ride: at least a day, at most a week", () => {
+    const now = Date.parse("2026-10-25T12:00:00Z");
+    expect(linkExpiry({ scheduled_time: "2026-10-25T14:00:00Z" }, now)).toBe("2026-10-26T14:00:00.000Z");
+    expect(linkExpiry({ scheduled_time: "2026-10-01T14:00:00Z" }, now)).toBe("2026-10-26T12:00:00.000Z");
+    expect(linkExpiry({ scheduled_time: "2026-12-25T14:00:00Z" }, now)).toBe("2026-11-01T12:00:00.000Z");
   });
 
   it("reads only a proper key", () => {
@@ -48,7 +52,7 @@ describe("visitor tracking page", () => {
     const app = fs.readFileSync("src/App.jsx", "utf8");
     expect(app).toMatch(/const publicPage = .*'\/track'/);
     expect(app).toContain('<Route path="/track" element={<TrackRide />} />');
-    for (const file of ["base44/functions/visitorTracking/entry.ts", "supabase/functions/visitorTracking/entry.ts", "supabase/functions/_shared/base44-compat.ts"]) {
+    for (const file of ["base44/functions/visitorTracking/entry.ts", "base44/shared/visitorLinks.ts", "supabase/functions/_shared/base44-compat.ts"]) {
       expect(fs.readFileSync(file, "utf8"), file).not.toContain("chatgpt.site");
     }
   });
