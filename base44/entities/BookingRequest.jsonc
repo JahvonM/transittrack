@@ -1,0 +1,111 @@
+{
+  "name": "BookingRequest",
+  "type": "object",
+  "description": "A ride asked for on the public website (mcsweenstransport.com/book). Dispatch confirms it by making a job (trip_id), or declines it; the customer is emailed either way. Written only by the bookingRequest function.",
+  "properties": {
+    "service": {
+      "type": "string",
+      "enum": [
+        "airport_pickup",
+        "airport_dropoff",
+        "hotel_tour",
+        "transfer",
+        "staff_run"
+      ],
+      "description": "What kind of ride: the same kinds as jobs (Trip.job_type)."
+    },
+    "requested_time": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the customer wants to be picked up."
+    },
+    "pickup": {
+      "type": "string",
+      "description": "Where to pick up, as the customer typed it."
+    },
+    "dropoff": {
+      "type": "string",
+      "description": "Where to, as the customer typed it."
+    },
+    "guests": {
+      "type": "integer"
+    },
+    "luggage": {
+      "type": "integer"
+    },
+    "flight_number": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "phone": {
+      "type": "string"
+    },
+    "email": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "new",
+        "confirmed",
+        "declined"
+      ],
+      "default": "new"
+    },
+    "trip_id": {
+      "type": "string",
+      "description": "The job made from this request."
+    },
+    "decline_reason": {
+      "type": "string"
+    },
+    "handled_by": {
+      "type": "string",
+      "description": "Who confirmed or declined it."
+    },
+    "handled_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "tracking_sent_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the customer was last emailed their tracking link."
+    }
+  },
+  "required": [
+    "service",
+    "requested_time",
+    "pickup",
+    "dropoff",
+    "name",
+    "email"
+  ],
+  "rls": {
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

@@ -42,6 +42,9 @@ ENTITY_FIELDS.Trip.push('job_type','client_id','client_name','pickup_address','d
 // an administrator can read or change them.
 ENTITY_FIELDS.Place=['company_id','name','kind','address','lat','lng','notes','favorite'];
 ENTITY_FIELDS.Client=['company_id','name','kind','contact_name','email','phone','address','currency','notes'];
+// Rides asked for on the public website. Only an administrator reads them;
+// they change only through the bookingRequest function, which emails the customer.
+ENTITY_FIELDS.BookingRequest=['service','requested_time','pickup','dropoff','guests','luggage','flight_number','name','phone','email','notes','status','trip_id','decline_reason','handled_by','handled_at','tracking_sent_at'];
 ENTITY_FIELDS.Invoice=['company_id','company_name','client_id','client_name','client_email','client_address','number','period_start','period_end','issued_at','due_date','lines','total','currency','status','sent_at','paid_at','voided_at','notes'];
 const ADMIN_ONLY_FIELDS={Driver:new Set(['phone_app_access']),Trip:new Set(['client_id','client_name','price','currency'])};
 const SERVER_ONLY_FIELDS={Incident:new Set(['photo_uris','source']),KioskDevice:new Set(['recordings_request','support_request','network_status', 'control_status']),Trip:new Set([...JOB_SIGNATURE_FIELDS,'invoice_id','invoice_number'])};
@@ -247,6 +250,7 @@ async function prepare(db,ctx,name,input,existing=null) {
  const data={...input};
  if(name==='KioskDevice' && data.display_layout!==undefined && !['auto','tablet','phone'].includes(data.display_layout)) fail(400,'Invalid kiosk layout');
  if(name==='Invoice') fail(403,'Invoices are made and changed in Completed & billing');
+ if(name==='BookingRequest') fail(403,'Booking requests are answered from Jobs → Requests');
  if(name==='Trip') {
   cleanJob(data);
   if(data.client_id) {

@@ -1,17 +1,11 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.57';
 import { forwardToSupabase } from '../../shared/forwardToSupabase.ts';
 import { reserveAttempt } from '../../shared/atomicOps.ts';
+import { CLOSED_TRIP as CLOSED, issueVisitorLink, sha256Hex as hash } from '../../shared/visitorLinks.ts';
 
-// The guest's tracking page is part of the app itself (src/pages/TrackRide.jsx).
-// The key goes after #, so it never reaches a server in an address or referrer.
-export const VISITOR_SITE = 'https://app.mcsweenstransport.com';
-export const trackingUrl = (token: string) => `${VISITOR_SITE}/track#trip=${token}`;
+// The guest's tracking page is part of the app itself (src/pages/TrackRide.jsx);
+// how links are made is in base44/shared/visitorLinks.ts.
 const TOKEN = /^[a-f0-9]{64}$/;
-const CLOSED = ['completed', 'cancelled'];
-async function hash(value: string) {
-  const data = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
-  return Array.from(new Uint8Array(data), x => x.toString(16).padStart(2, '0')).join('');
-}
 const json = (data: unknown, status = 200) => Response.json(data, { status, headers: { 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' } });
 // Explicit allowlist: a visitor never receives passenger lists, phone numbers,
 // signatures, driver credentials, company codes, notes or other fleet vehicles.
@@ -41,14 +35,9 @@ export default async function(req: Request) {
       if (typeof body.trip_id !== 'string' || body.trip_id.length > 128) return json({error:'Choose a trip'},400);
       if (!(await reserveAttempt(base44, 'visitor-link:' + user.id, 30, 60_000))) return json({error:'Try again in a minute'},429);
       const trip = await db.Trip.get(body.trip_id);
-      if (!trip?.company_id || !trip.vehicle_id || CLOSED.includes(trip.status)) return json({error:'Assign an active job to a vehicle first'},409);
-      const previous = await db.VerificationGrant.filter({purpose:'visitor_tracking',subject:trip.id},'-created_date',100);
-      for (const grant of previous) await db.VerificationGrant.update(grant.id,{expires_at:new Date().toISOString()});
-      const token = Array.from(crypto.getRandomValues(new Uint8Array(32)), x => x.toString(16).padStart(2,'0')).join('');
-      const now = Date.now(), planned = Date.parse(trip.scheduled_time || '') || now;
-      const expires_at = new Date(Math.min(now + 7*86400_000, Math.max(now+86400_000,planned+86400_000))).toISOString();
-      await db.VerificationGrant.create({token_hash:await hash(token),purpose:'visitor_tracking',subject:trip.id,company_id:trip.company_id,vehicle_id:trip.vehicle_id,expires_at});
-      return json({url:trackingUrl(token),expires_at});
+      const link = await issueVisitorLink(db, trip);
+      if (!link) return json({error:'Assign an active job to a vehicle first'},409);
+      return json(link);
     }
     if (body.action !== 'track' || !TOKEN.test(body.token || '')) return json({error:'This tracking link is invalid or expired'},404);
     const digest = await hash(body.token);

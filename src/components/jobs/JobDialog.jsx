@@ -11,6 +11,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { Segmented, StatusChip } from "@/components/admin/kit";
 import PlaceField from "@/components/jobs/PlaceField";
 import ClientDialog from "@/components/jobs/ClientDialog";
+import TrackingLinks from "@/components/jobs/TrackingLinks";
 import { JOB_ICONS } from "@/components/jobs/JobTypeIcon";
 import { orderedJobPlaces } from "@/lib/jobPlaces";
 import {
@@ -26,7 +27,29 @@ const placeOf = (t, side) => (t?.[`${side}_name`] ? {
 } : null);
 const timeOf = (iso) => (iso ? new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "");
 
-function blankForm(day, job) {
+// A new job filled in from a website ride request (BookingRequests.jsx).
+export function draftFromRequest(r) {
+  const type = JOB_TYPES.some((t) => t.id === r.service) ? r.service : "transfer";
+  const text = (name) => (name ? { name, address: "", lat: null, lng: null } : null);
+  const note = [r.notes, r.email ? `Booked on the website by ${r.email}` : ""].filter(Boolean).join("\n");
+  return {
+    job_type: type, scheduled_time: r.requested_time, pickup: text(r.pickup), dropoff: text(r.dropoff),
+    flight_number: r.flight_number || "", guests: r.guests ?? "", luggage: r.luggage ?? "",
+    passenger_name: r.name || "", passenger_phone: r.phone || "", notes: note,
+  };
+}
+
+function blankForm(day, job, draft) {
+  if (!job && draft) {
+    const start = toLocalInput(draft.scheduled_time);
+    return {
+      ...blankForm(day, null),
+      job_type: draft.job_type, start, end: start ? addMinutesToInput(start, defaultMinutes(draft.job_type)) : "",
+      flight_number: draft.flight_number || "", pickup: draft.pickup, dropoff: draft.dropoff,
+      guests: draft.guests ?? "", luggage: draft.luggage ?? "", passenger_name: draft.passenger_name || "",
+      passenger_phone: draft.passenger_phone || "", notes: draft.notes || "",
+    };
+  }
   if (job) {
     const type = jobTypeOf(job);
     return {
@@ -48,9 +71,9 @@ function blankForm(day, job) {
 
 // Create or change a job: what kind, for whom, which bus, when, where, and
 // what the driver should know. Saving tells the bus's tablet within a minute.
-export default function JobDialog({ open, onOpenChange, job, day, vehicles = [], places = [], clients = [], trips = [], onSaved, onPlaceSaved, onClientSaved }) {
+export default function JobDialog({ open, onOpenChange, job, draft = null, day, vehicles = [], places = [], clients = [], trips = [], onSaved, onPlaceSaved, onClientSaved }) {
   const { toast } = useToast();
-  const [form, setForm] = useState(() => blankForm(day, job));
+  const [form, setForm] = useState(() => blankForm(day, job, draft));
   const [saving, setSaving] = useState(false);
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [clientOpen, setClientOpen] = useState(false);
@@ -58,10 +81,10 @@ export default function JobDialog({ open, onOpenChange, job, day, vehicles = [],
 
   useEffect(() => {
     if (!open) return;
-    setForm(blankForm(day, job));
+    setForm(blankForm(day, job, draft));
     setConfirmCancel(false);
     setNewClients([]);
-  }, [open, job, day]);
+  }, [open, job, day, draft]);
 
   const allClients = useMemo(() => {
     const ids = new Set(clients.map((c) => c.id));
@@ -130,10 +153,11 @@ export default function JobDialog({ open, onOpenChange, job, day, vehicles = [],
         passenger_name: form.passenger_name.trim(), passenger_phone: form.passenger_phone.trim(), notes: form.notes.trim(),
         price: form.price === "" ? null : Number(form.price), currency: form.currency,
       };
-      if (job) await base44.entities.Trip.update(job.id, data);
-      else await base44.entities.Trip.create({ ...data, status: "scheduled" });
-      toast({ title: job ? "Job updated" : "Job created", description: vehicle ? `${vehicle.name}'s tablet shows it within a minute.` : "Give it a bus when you're ready." });
-      onSaved?.();
+      const saved = job ? await base44.entities.Trip.update(job.id, data) : await base44.entities.Trip.create({ ...data, status: "scheduled" });
+      if (!draft) toast({ title: job ? "Job updated" : "Job created", description: vehicle ? `${vehicle.name}'s tablet shows it within a minute.` : "Give it a bus when you're ready." });
+      // A job made from a website request: the caller confirms it and tells the
+      // customer (it reports its own problems; the job is saved either way).
+      if (draft) await onSaved?.(saved); else onSaved?.(saved);
       onOpenChange(false);
     } catch (e) {
       toast({ title: "Couldn't save the job", description: errorData(e).error || "Check the connection and try again.", variant: "destructive" });
@@ -170,11 +194,11 @@ export default function JobDialog({ open, onOpenChange, job, day, vehicles = [],
       <DialogContent className="max-h-[92dvh] max-w-2xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            {job ? "Edit job" : "New job"}
+            {job ? "Edit job" : draft ? "Make a job from this request" : "New job"}
             {job && <StatusChip status={job.status}>{STATUS_LABEL[job.status] || job.status}</StatusChip>}
           </DialogTitle>
           <DialogDescription>
-            {locked ? "This job is finished; it can't be changed." : "The bus's tablet shows the job and any change within a minute."}
+            {locked ? "This job is finished; it can't be changed." : draft ? "Check the details, choose the bus and the price. Saving confirms the ride and emails the customer." : "The bus's tablet shows the job and any change within a minute."}
           </DialogDescription>
         </DialogHeader>
 
@@ -307,6 +331,8 @@ export default function JobDialog({ open, onOpenChange, job, day, vehicles = [],
             <Textarea id="job-notes" value={form.notes} onChange={(e) => set({ notes: e.target.value })} placeholder="e.g. Hold a sign with the guest's name; child seat needed" maxLength={2000} rows={2} />
           </div>
         </fieldset>
+
+        {job && !locked && <TrackingLinks job={job} />}
 
         {!locked && (
           <div className="space-y-2">

@@ -60,6 +60,7 @@ Changing records through entityAccess:
 | [Advertisement](#advertisement) | `advertisement` | entityAccess | all | all | all | all | all |
 | [AppSupportSetting](#appsupportsetting) | `app_support_setting` | server only | — | — | — | — | through other functions |
 | [AuditLog](#auditlog) | `audit_log` | entityAccess | — | — | — | — | all |
+| [BookingRequest](#bookingrequest) | `booking_request` | entityAccess | — | — | — | — | all |
 | [Broadcast](#broadcast) | `broadcast` | entityAccess | — | own company + notices to every company (pickup changes: own bus only) | own company + notices to every company | notices to every company | all |
 | [CardHolder](#cardholder) | `card_holder` | entityAccess | — | — | own company | — | all |
 | [Client](#client) | `client` | entityAccess | — | — | — | — | all |
@@ -171,6 +172,34 @@ Table `audit_log` · read and changed through entityAccess.
 | `page` | text |  |
 | `card_uid` | text | **Secret**: never sent to the browser. |
 | `status` | text | One of: `SUCCESS`, `ERROR`. |
+
+### BookingRequest
+
+Table `booking_request` · read and changed through entityAccess.
+
+A ride asked for on the public website (mcsweenstransport.com/book). Dispatch confirms it by making a job (trip_id), or declines it; the customer is emailed either way. Written only by the bookingRequest function.
+
+**Links to:** [Trip](#trip) (`trip_id`).
+
+| Field | Type | Notes |
+|---|---|---|
+| `service` | text | What kind of ride: the same kinds as jobs (Trip.job_type). One of: `airport_pickup`, `airport_dropoff`, `hotel_tour`, `transfer`, `staff_run`. Required. |
+| `requested_time` | timestamptz | When the customer wants to be picked up. Required. |
+| `pickup` | text | Where to pick up, as the customer typed it. Required. |
+| `dropoff` | text | Where to, as the customer typed it. Required. |
+| `guests` | bigint |  |
+| `luggage` | bigint |  |
+| `flight_number` | text |  |
+| `name` | text | Required. |
+| `phone` | text |  |
+| `email` | text | Required. |
+| `notes` | text |  |
+| `status` | text | One of: `new`, `confirmed`, `declined`. Default `"new"`. |
+| `trip_id` | text | → Trip. The job made from this request. |
+| `decline_reason` | text |  |
+| `handled_by` | text | Who confirmed or declined it. |
+| `handled_at` | timestamptz |  |
+| `tracking_sent_at` | timestamptz | When the customer was last emailed their tracking link. |
 
 ### Broadcast
 
@@ -1097,6 +1126,8 @@ Table `tablet_support_session` · server functions only.
 Table `trip` · belongs to a company through `vehicle_id`, then `company_id` · read and changed through entityAccess.
 
 **Links to:** [Vehicle](#vehicle) (`vehicle_id`), [Route](#route) (`route_id`), [Company](#company) (`company_id`), [Client](#client) (`client_id`), [Invoice](#invoice) (`invoice_id`).
+
+**Linked from:** [BookingRequest](#bookingrequest).trip_id.
 
 **Everyone except admins and company managers gets only:** `company_id`, `vehicle_id`, `vehicle_name`, `route_id`, `route_name`, `pickup_name`, `dropoff_name`, `scheduled_time`, `status`, `started_at`, `arrived_at`, `completed_at`.
 
