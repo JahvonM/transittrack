@@ -1,8 +1,6 @@
 /* The public website (mcsweenstransport.com). Its own look, kept apart from
    the app: everything here sits under .mcs. The fonts are served with the
    site's own files and load only on these pages. */
-@import "@fontsource-variable/figtree/wght.css";
-@import "@fontsource-variable/big-shoulders-display/wght.css";
 
 .mcs {
   --ink: #0b2e35;

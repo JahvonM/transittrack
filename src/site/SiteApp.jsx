@@ -3,6 +3,8 @@ import { Link, Route, Routes, useLocation } from "react-router-dom";
 import { LOGO_URL } from "@/components/Logo";
 import { APP_ORIGIN, isSiteHost, sitePage } from "@/lib/bookingSite";
 import { SiteBase, sitePath, useSiteBase } from "@/site/siteKit";
+import "@fontsource-variable/figtree";
+import "@fontsource-variable/big-shoulders-display";
 import "@/site/site.css";
 
 // The public website. On mcsweenstransport.com it is the whole site; inside
