@@ -23,7 +23,8 @@ describe("rear-only local recording boundaries",()=>{
   expect(service).toContain("START_NOT_STICKY");
   expect(service).toContain('"Rear dashcam · video only"');
   expect(service).toContain('"Stop",stop');
-  expect(activity).toContain('text="Stop"');
+  // The record button turns into a visible Stop while recording.
+  expect(activity).toContain('if (active) "■  Stop recording" else "●  Start recording"');
  });
  it("requires a native camera lease and keeps failed footage",()=>{
   expect(service).toContain('TabletCameraLease.acquire("dashcam")');
