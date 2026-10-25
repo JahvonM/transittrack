@@ -10,6 +10,7 @@ import { Delete, Loader2, Lock, X } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import TabletNetworkPanel from "@/components/driver/TabletNetworkPanel";
+import TabletSettings from "@/components/tablet/TabletSettings";
 import { rememberPin, checkPinOffline } from "@/lib/offlinePin";
 import { isNetworkFailure } from "@/lib/offlineQueue";
 import { httpStatus, errorData } from "@/lib/requestError";
@@ -117,18 +118,19 @@ export default function BoardingSettingsGate({ open, onClose, deviceId, invoke }
           <DialogDescription>{unlocked ? "Closes by itself after 2 minutes without a tap." : "Enter the bus PIN to change this tablet's Internet settings."}</DialogDescription>
         </DialogHeader>
         {unlocked ? (
-          <div className="space-y-3">
-            <p className="text-sm">For automatic opening on Android, use Startup &amp; recovery below and choose this kiosk as the Home app. Native reader and startup controls require the installed kiosk app.</p>
-            <Button asChild variant="outline" className="w-full"><Link to="/tablet?choose=1">Choose tablet screen</Link></Button>
-            <UsbNfcPanel />
-            <BoardingBluetoothPanel />
-            <TabletDiagnosticsPanel />
-    <TabletRecoveryPanel />
-    <TabletCellularPanel />
-    <NativeNetworkPanel boarding />
-            <TabletNetworkPanel boarding className="border-0 shadow-none" />
-            <Button variant="outline" className="h-12 w-full text-base" onClick={onClose}><X className="mr-2 h-4 w-4" /> Done</Button>
-          </div>
+          <TabletSettings
+            headingLevel={2}
+            title="Tablet settings"
+            subtitle="Closes by itself after 2 minutes without a tap."
+            onDone={onClose}
+            sections={[
+              { id: "reader", label: "Card reader", content: <UsbNfcPanel /> },
+              { id: "bluetooth", label: "Bluetooth boarding", content: <BoardingBluetoothPanel /> },
+              { id: "connection", label: "Connection", content: <><TabletNetworkPanel boarding /><NativeNetworkPanel boarding /><TabletCellularPanel /></> },
+              { id: "startup", label: "Startup", content: <><TabletRecoveryPanel /><Button asChild variant="outline" className="w-full"><Link to="/tablet?choose=1">Choose tablet screen</Link></Button></> },
+              { id: "health", label: "Tablet health", content: <TabletDiagnosticsPanel /> },
+            ]}
+          />
         ) : (
           <PinPad deviceId={deviceId} invoke={invoke} onUnlock={() => setUnlocked(true)} onCancel={onClose} />
         )}
