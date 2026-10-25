@@ -31,37 +31,27 @@ public class MainActivity extends BridgeActivity {
             }
         });
         keepTabletAwake();
-        android.widget.Button settings = new android.widget.Button(this);
-        settings.setText("⚙"); settings.setTextSize(22); settings.setTextColor(android.graphics.Color.WHITE);
-        settings.setContentDescription("Kiosk settings · exit code required");
-        android.graphics.drawable.GradientDrawable background = new android.graphics.drawable.GradientDrawable();
-        background.setColor(android.graphics.Color.rgb(11,16,24)); background.setCornerRadius(48);
-        background.setStroke(2,android.graphics.Color.rgb(208,241,92)); settings.setBackground(background);
-        int size=(int)(48*getResources().getDisplayMetrics().density), margin=(int)(8*getResources().getDisplayMetrics().density);
-        android.widget.FrameLayout.LayoutParams position=new android.widget.FrameLayout.LayoutParams(size,size,android.view.Gravity.TOP|android.view.Gravity.RIGHT);
-        position.setMargins(margin,margin,margin,margin);
-        settings.setOnClickListener(v -> startActivity(new android.content.Intent(this,KioskMaintenanceActivity.class)));
-        addContentView(settings,position);
+        // Like FreeKiosk: no visible settings button. Tapping the top-right
+        // corner 5 times quickly opens kiosk settings (behind the exit code).
+        // The invisible tap area covers the corner the old gear button used.
+        android.view.View corner = new android.view.View(this);
+        corner.setContentDescription("Kiosk settings. Tap 5 times, then enter the exit code.");
+        corner.setOnClickListener(v -> {
+            long now = android.os.SystemClock.elapsedRealtime();
+            if (now - cornerStarted > 3000) { cornerStarted = now; cornerTaps = 0; }
+            if (++cornerTaps >= 5) {
+                cornerTaps = 0; cornerStarted = 0;
+                startActivity(new android.content.Intent(this, KioskMaintenanceActivity.class));
+            }
+        });
+        int size = (int) (64 * getResources().getDisplayMetrics().density);
+        addContentView(corner, new android.widget.FrameLayout.LayoutParams(size, size, android.view.Gravity.TOP | android.view.Gravity.RIGHT));
         getWindow().getDecorView().setOnSystemUiVisibilityChangeListener(visibility -> {
             if ((visibility & android.view.View.SYSTEM_UI_FLAG_HIDE_NAVIGATION)==0)
                 getWindow().getDecorView().postDelayed(() -> KioskMode.immersive(this),300);
         });
         screenRecovery = new TabletScreenRecovery(this);
         if (getBridge() != null) getBridge().addWebViewListener(screenRecovery);
-    }
-    @Override public boolean dispatchTouchEvent(android.view.MotionEvent event) {
-        if (KioskMode.enabled(this) && event.getActionMasked() == android.view.MotionEvent.ACTION_DOWN) {
-            float corner = 48 * getResources().getDisplayMetrics().density;
-            long now = android.os.SystemClock.elapsedRealtime();
-            if (event.getX() >= getWindow().getDecorView().getWidth() - corner && event.getY() <= corner) {
-                if (now - cornerStarted > 4000) { cornerStarted = now; cornerTaps = 0; }
-                if (++cornerTaps >= 7) {
-                    cornerTaps = 0; cornerStarted = now;
-                    startActivity(new android.content.Intent(this, KioskMaintenanceActivity.class));
-                }
-            } else cornerTaps = 0;
-        }
-        return super.dispatchTouchEvent(event);
     }
     @Override public void onUserInteraction() {
         super.onUserInteraction();
@@ -80,6 +70,8 @@ public class MainActivity extends BridgeActivity {
         KioskWatchdogService.lastVisible = android.os.SystemClock.elapsedRealtime();
         KioskMode.resume(this);
         TabletHotspotStartupService.start(this);
+        final android.content.Context app = getApplicationContext();
+        new Thread(() -> BusHotspot.ensure(app), "bus-hotspot").start();
         DriverLocationService.setVisible(true);
         if (screenRecovery != null) screenRecovery.resumed();
     }
