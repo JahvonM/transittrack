@@ -1,7 +1,7 @@
 import { TRANSIT_TIME_ZONE } from "@/lib/localTime";
 import React, { useEffect, useState } from "react";
 import { Activity, RefreshCw, Wifi, Radio } from "lucide-react";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/tablet/settingsKit";
 import { Button } from "@/components/ui/button";
 import { tabletSnapshot, openTabletWifiSettings, openTabletHotspotSettings } from "@/lib/nativeTabletHealth";
 
@@ -19,7 +19,7 @@ export default function TabletDiagnosticsPanel() {
   if (!health?.available) return null;
   const storage = Number.isFinite(health.freeStorageMb) ? (health.freeStorageMb / 1024).toFixed(1) + " GB free" : "Unavailable";
   const temp = Number.isFinite(health.batteryTemperature) ? health.batteryTemperature + "°C" : "Unavailable";
-  return <Card className="max-w-lg mx-auto">
+  return <Card>
     <CardHeader className="pb-3"><CardTitle className="flex items-center gap-2 text-base"><Activity className="h-5 w-5" /> Tablet health</CardTitle></CardHeader>
     <CardContent className="space-y-3">
       <p className="text-xs text-muted-foreground">{health.model} · Android {health.androidVersion}</p>

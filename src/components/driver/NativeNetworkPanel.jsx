@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Wifi, Radio } from "lucide-react";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/tablet/settingsKit";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -36,11 +36,11 @@ export default function NativeNetworkPanel({ boarding = false }) {
     setPassword(""); setSelected(null);
     void command({ type: "wifi_join", ssid, password: pass });
   };
-  return <Card className="max-w-lg mx-auto">
-    <CardHeader><CardTitle className="text-base flex gap-2 items-center"><Wifi className="w-5 h-5" /> Integrated Internet controls</CardTitle></CardHeader>
+  return <Card>
+    <CardHeader><CardTitle className="text-base flex gap-2 items-center"><Wifi className="w-5 h-5" /> Wi-Fi from this app</CardTitle></CardHeader>
     <CardContent className="space-y-4">
-      <label className="flex items-center gap-3 text-sm"><span className="flex-1">Use network controls in this app</span><Switch checked={!!state.enabled} disabled={busy} onCheckedChange={on => run(() => enableNativeNetwork(on))} aria-label="Use integrated network controls" /></label>
-      <p className="text-xs text-muted-foreground">Stop network automation in the old helper before enabling this. Keep the helper installed. Some Android controls need managed-device access or special permission.</p>
+      <label className="flex items-center gap-3 text-sm"><span className="flex-1">Manage Wi-Fi from this app</span><Switch checked={!!state.enabled} disabled={busy} onCheckedChange={on => run(() => enableNativeNetwork(on))} aria-label="Use integrated network controls" /></label>
+      <p className="text-xs text-muted-foreground">Scan and join Wi-Fi here. Turning Wi-Fi on and off needs the kiosk to be the device owner. To keep joining the bus hotspot, use Kiosk settings → Network.</p>
       {state.enabled && <>
         <p className="text-sm">{wifi.ssid ? "Wi-Fi: " + wifi.ssid : wifi.enabled ? "Wi-Fi on; network name unavailable or disconnected." : "Wi-Fi off or unavailable."}</p>
         {!cap.managedWifi && <p className="text-xs text-muted-foreground">Direct joining and Wi-Fi power changes are blocked by Android on this setup. You can scan here, then connect in Android settings. The current helper remains an alternative.</p>}

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Bluetooth } from "lucide-react";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/tablet/settingsKit";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { boardingBluetoothState, enableBoardingBluetooth, onBoardingBluetoothState, retryBoardingBluetooth, openBoardingBluetoothSettings } from "@/lib/nativeBoardingBluetooth";
@@ -28,7 +28,7 @@ export default function BoardingBluetoothPanel() {
         <Switch aria-label="Use integrated Bluetooth boarding" checked={!!state.enabled} disabled={busy} onCheckedChange={enabled => run(() => enableBoardingBluetooth(enabled))} />
       </div>
       <p role="status" className="text-sm">{state.status || "Off"}</p>
-      <p className="text-xs text-muted-foreground">Stop Bluetooth boarding in the separate helper before switching this on. Keep the helper installed. Android may ask for Nearby devices permission. The tablet's Bluetooth name uses the bus name while enabled.</p>
+      <p className="text-xs text-muted-foreground">Android may ask for Nearby devices permission. While this is on, the device's Bluetooth name is the bus name.</p>
       <p className="text-xs text-muted-foreground">Works while this boarding screen is open. A sent code still needs verification and Boarding or Exiting confirmation.</p>
       {state.enabled && <Button className="w-full" variant="outline" disabled={busy} onClick={() => run(retryBoardingBluetooth)}>Retry Bluetooth boarding</Button>}
       <Button className="w-full" variant="outline" disabled={busy} onClick={() => run(openBoardingBluetoothSettings)}>Open Android Bluetooth settings</Button>

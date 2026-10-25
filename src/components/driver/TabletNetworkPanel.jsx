@@ -1,7 +1,7 @@
 import { nativeTabletHealthAvailable } from "@/lib/nativeTabletHealth";
 import React, { useEffect, useRef, useState } from "react";
 import { Wifi, WifiOff, Signal, Radio, Lock, Loader2, RefreshCw, Eye, EyeOff, ChevronLeft } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/tablet/settingsKit";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -170,7 +170,7 @@ const clockTime = (iso) => {
   return Number.isFinite(t) ? new Date(t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "";
 };
 
-export default function TabletNetworkPanel({ boarding = false, className = "max-w-lg mx-auto" }) {
+export default function TabletNetworkPanel({ boarding = false, className = "" }) {
   const h = useHelperStatus();
   const [nativeEnabled, setNativeEnabled] = useState(() => window.__ttNativeNetwork?.enabled === true);
   useEffect(() => {

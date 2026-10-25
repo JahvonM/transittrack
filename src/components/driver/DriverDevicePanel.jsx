@@ -7,7 +7,7 @@ import UsbGpsPanel from "@/components/driver/UsbGpsPanel";
 import React from "react";
 import { Link } from "react-router-dom";
 import { Bus, Building2, Tablet, LogOut, Sun, Moon } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/tablet/settingsKit";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useIsDark } from "@/lib/useTheme";
@@ -28,7 +28,7 @@ export default function DriverDevicePanel({ session, deviceId, onUnpair }) {
     <TabletCellularPanel />
     <NativeNetworkPanel />
     <TabletNetworkPanel />
-    <Card className="max-w-lg mx-auto">
+    <Card>
       <CardHeader className="pb-3">
         <CardTitle className="text-base">Tablet &amp; vehicle</CardTitle>
       </CardHeader>

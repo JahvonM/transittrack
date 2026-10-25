@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Signal } from "lucide-react";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/tablet/settingsKit";
 import { nativeTabletHealthAvailable, tabletSnapshot } from "@/lib/nativeTabletHealth";
 import { cellularSummary } from "@/lib/tabletHealthSummary";
 
@@ -17,7 +17,7 @@ export default function TabletCellularPanel() {
   }, []);
   if (!health?.cellular) return null;
   const { cellular } = health;
-  return <Card className="max-w-lg mx-auto">
+  return <Card>
     <CardHeader><CardTitle className="text-base flex items-center gap-2"><Signal className="w-5 h-5" /> Mobile connection</CardTitle></CardHeader>
     <CardContent className="space-y-2 text-sm">
       <p role="status">{cellularSummary({ cellular_state: cellular.state, cellular_carrier: cellular.carrier, cellular_bars: cellular.bars })}</p>

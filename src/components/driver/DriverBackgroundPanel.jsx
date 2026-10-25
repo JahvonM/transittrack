@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Satellite, Download } from "lucide-react";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/tablet/settingsKit";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { backgroundGpsState, setBackgroundGpsEnabled, exportBackgroundGps } from "@/lib/driverBackground";
@@ -29,7 +29,7 @@ export default function DriverBackgroundPanel({ vehicle }) {
   } catch (e) { setError(e?.message || "Could not export saved GPS. Nothing was cleared."); }
   finally { setBusy(false); }
  };
- return <Card className="max-w-lg mx-auto">
+ return <Card>
   <CardHeader><CardTitle className="text-base flex items-center gap-2"><Satellite className="w-5 h-5" /> GPS with screen off</CardTitle></CardHeader>
   <CardContent className="space-y-3">
    <div className="flex items-center gap-3"><div className="flex-1"><p className="font-medium text-sm">Keep sharing in the background</p><p className="text-xs text-muted-foreground">Uses the selected USB receiver or tablet GPS.</p></div><Switch aria-label="Keep driver GPS in background" checked={state.enabled === true} disabled={busy} onCheckedChange={toggle} /></div>
