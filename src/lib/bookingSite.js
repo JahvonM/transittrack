@@ -29,7 +29,7 @@ export const SITE_SERVICES = [
   },
   {
     id: "transfer", name: "Transfers",
-    text: "From one place to another anywhere on the island: hotels, villas, restaurants, weddings and events.",
+    text: "From one place to another anywhere on the island: hotels, villas, restaurants and events.",
   },
   {
     id: "hotel_tour", name: "Island tours",

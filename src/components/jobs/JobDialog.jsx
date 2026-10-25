@@ -27,18 +27,6 @@ const placeOf = (t, side) => (t?.[`${side}_name`] ? {
 } : null);
 const timeOf = (iso) => (iso ? new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "");
 
-// A new job filled in from a website ride request (BookingRequests.jsx).
-export function draftFromRequest(r) {
-  const type = JOB_TYPES.some((t) => t.id === r.service) ? r.service : "transfer";
-  const text = (name) => (name ? { name, address: "", lat: null, lng: null } : null);
-  const note = [r.notes, r.email ? `Booked on the website by ${r.email}` : ""].filter(Boolean).join("\n");
-  return {
-    job_type: type, scheduled_time: r.requested_time, pickup: text(r.pickup), dropoff: text(r.dropoff),
-    flight_number: r.flight_number || "", guests: r.guests ?? "", luggage: r.luggage ?? "",
-    passenger_name: r.name || "", passenger_phone: r.phone || "", notes: note,
-  };
-}
-
 function blankForm(day, job, draft) {
   if (!job && draft) {
     const start = toLocalInput(draft.scheduled_time);
