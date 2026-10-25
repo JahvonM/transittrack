@@ -1,0 +1,56 @@
+/* Tablet settings inside the app (driver tablet → Settings, boarding device →
+   hold the top bar). Same look as the native kiosk settings (KioskUi.java):
+   sea-ink ground, rounded panels, big rows, sun yellow for the main action. */
+.ts {
+  --ts-ink: #0b1d22; --ts-surface: #13292f; --ts-surface-high: #163a42; --ts-line: #22404a; --ts-border: #2a4a53;
+  --ts-text: #eef6f5; --ts-soft: #b9cfcd; --ts-muted: #9bb6b4; --ts-teal: #5fd0de; --ts-sun: #f7c948;
+  --ts-good: #4fd18b; --ts-bad: #ff9b94;
+  background: var(--ts-ink); color: var(--ts-text);
+  display: flex; flex-direction: column; min-height: 100%;
+  border-radius: 18px; overflow: hidden;
+  font-size: 16px;
+}
+.ts-head { display: flex; align-items: center; gap: 16px; padding: 16px 24px; border-bottom: 1px solid var(--ts-line); }
+.ts-head h1, .ts-head h2 { margin: 0; font-size: 22px; font-weight: 700; color: var(--ts-text); }
+.ts-head p { margin: 2px 0 0; font-size: 14px; color: var(--ts-muted); }
+.ts-done { margin-left: auto; height: 48px; padding: 0 24px; border-radius: 12px; border: 0; background: var(--ts-sun); color: var(--ts-ink); font-weight: 700; font-size: 16px; }
+.ts-main { display: flex; flex: 1; min-height: 0; }
+.ts-nav { width: 250px; flex: none; padding: 18px 14px; border-right: 1px solid var(--ts-line); display: flex; flex-direction: column; gap: 6px; }
+.ts-nav button { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 56px; padding: 0 16px; border-radius: 12px; border: 0; background: transparent; color: #c8dcda; font-size: 17px; text-align: left; }
+.ts-nav button[aria-current="true"] { background: var(--ts-surface-high); color: var(--ts-text); font-weight: 600; }
+.ts-nav button:focus-visible, .ts-done:focus-visible { outline: 3px solid var(--ts-teal); outline-offset: 2px; }
+.ts-body { flex: 1; min-width: 0; padding: 22px 28px 32px; display: flex; flex-direction: column; gap: 18px; overflow-y: auto; }
+.ts-body:empty::before { content: "These settings need the McSween Kiosk app on this device."; color: var(--ts-muted); }
+@media (max-width: 760px) {
+  .ts-main { flex-direction: column; }
+  .ts-nav { width: auto; flex-direction: row; overflow-x: auto; border-right: 0; border-bottom: 1px solid var(--ts-line); padding: 10px 12px; gap: 8px; }
+  .ts-nav button { min-height: 42px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--ts-border); white-space: nowrap; font-size: 15px; }
+  .ts-nav button[aria-current="true"] { background: var(--ts-teal); color: var(--ts-ink); border-color: var(--ts-teal); }
+  .ts-nav .ts-hint { display: none; }
+  .ts-body { padding: 16px; }
+  .ts-head { padding: 14px 16px; }
+}
+
+/* A section panel (the settings kit's Card). */
+.ts-card { background: var(--ts-surface); border-radius: 16px; color: var(--ts-text); }
+.ts-card-head { padding: 18px 22px 4px; }
+.ts-card-title { margin: 0; display: flex; align-items: center; gap: 10px; font-size: 18px; font-weight: 700; color: var(--ts-text); }
+.ts-card-title svg { color: var(--ts-teal); }
+.ts-card-body { padding: 10px 22px 20px; display: flex; flex-direction: column; gap: 14px; }
+
+/* The panels inside use the app's components; give them this look here. */
+.ts .text-muted-foreground { color: var(--ts-muted); }
+.ts .text-destructive { color: var(--ts-bad); }
+.ts .text-sm { font-size: 16px; line-height: 1.45; }
+.ts .text-xs { font-size: 14px; line-height: 1.45; }
+.ts .border, .ts .border-t, .ts .divide-y > * + * { border-color: var(--ts-line); }
+.ts .rounded-xl.border, .ts .rounded-lg.border { background: transparent; }
+.ts button.inline-flex { min-height: 48px; border-radius: 12px; font-size: 16px; }
+.ts button.inline-flex:not([class*="bg-primary"]):not([class*="bg-destructive"]) { background: var(--ts-surface-high); border: 1px solid var(--ts-border); color: var(--ts-text); }
+.ts input:not([type="checkbox"]):not([type="radio"]) { background: #0e2328; border-color: var(--ts-border); color: var(--ts-text); min-height: 48px; font-size: 16px; }
+.ts [role="switch"][data-state="checked"] { background: #1f6f7a; }
+.ts [role="switch"][data-state="unchecked"] { background: #35535b; }
+.ts [role="switch"] > span { background: #e6f3f2; }
+.ts [role="switch"][data-state="checked"] > span { background: var(--ts-teal); }
+.ts dl dt { color: var(--ts-muted); }
+.ts details summary { color: var(--ts-soft); }
