@@ -6,7 +6,6 @@ import { addBreadcrumb } from "@/lib/breadcrumbs";
 import useFutureAppearance from "@/hooks/useFutureAppearance";
 import React, { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import SupportNumberSetting from "@/components/admin/SupportNumberSetting";
-import SupabaseCopy from "@/components/admin/SupabaseCopy";
 import { Navigate, Link, useParams, useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
@@ -570,7 +569,6 @@ export default function Admin() {
             <div className="space-y-4">
               <ProfileInfo />
               <SupportNumberSetting />
-              <SupabaseCopy />
             </div>
             <section className="rounded-2xl border border-border bg-card" aria-label="Settings">
               <h2 className="px-5 pb-2 pt-4 text-title-sm font-bold">Settings</h2>
