@@ -5,6 +5,8 @@ public class KioskBootReceiver extends BroadcastReceiver {
     @Override public void onReceive(Context c, Intent intent) {
         if (intent == null || !(Intent.ACTION_BOOT_COMPLETED.equals(intent.getAction()) || Intent.ACTION_MY_PACKAGE_REPLACED.equals(intent.getAction()))) return;
         TabletHotspotStartupService.start(c);
+        final Context app = c.getApplicationContext();
+        new Thread(() -> BusHotspot.ensure(app, true), "bus-hotspot").start();
         KioskMode.reconcile(c);
         if (!KioskMode.enabled(c) || !KioskMode.owner(c)) return;
         try { if (!KioskMode.maintenance(c)) { KioskMode.configure(c); KioskWatchdogService.launch(c); } KioskWatchdogService.start(c); }
