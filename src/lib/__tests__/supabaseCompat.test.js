@@ -294,13 +294,9 @@ describe("secrets, files and serving", () => {
     expect(other.headers.get("Access-Control-Allow-Origin")).toBeNull();
     expect(await other.json()).toEqual({ ok: true });
 
-    // The visitor ride-tracking site may call that one function, and no other.
-    const visitor = "https://mcsween-grenada-travel.modestejahvon.chatgpt.site";
-    expect(compat.corsHeaders(visitor, "visitorTracking")["Access-Control-Allow-Origin"]).toBe(visitor);
-    for (const fn of ["entityAccess", "driverSession", "integrations", ""]) {
-      expect(compat.corsHeaders(visitor, fn)["Access-Control-Allow-Origin"], fn).toBeUndefined();
-    }
-    expect(compat.corsHeaders("https://evil.example", "visitorTracking")["Access-Control-Allow-Origin"]).toBeUndefined();
+    // The visitor ride-tracking page is part of the app now; the old ChatGPT
+    // copy of it gets no access at all.
+    expect(compat.corsHeaders("https://mcsween-grenada-travel.modestejahvon.chatgpt.site")["Access-Control-Allow-Origin"]).toBeUndefined();
 
     const notFound = await compat.withCors(async () => { throw compat.httpError(404, "Trip not found"); })(new Request("https://x/f"));
     expect(notFound.status).toBe(404);
