@@ -1,13 +1,14 @@
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  AlertTriangle, Building2, CalendarClock, ChevronLeft, ChevronRight, CircleCheck, MapPin, Navigation, Pencil, Plane, Plus, Trash2, Users,
+  AlertTriangle, Building2, CalendarClock, ChevronLeft, ChevronRight, CircleCheck, Globe, MapPin, Navigation, Pencil, Plane, Plus, Trash2, Users,
 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
 import { EmptyState, Kpi, KpiRow, Panel, Row, LeadIcon, Segmented, StatusChip, Toolbar } from "@/components/admin/kit";
-import JobDialog from "@/components/jobs/JobDialog";
+import JobDialog, { draftFromRequest } from "@/components/jobs/JobDialog";
+import BookingRequests, { answerRequest } from "@/components/jobs/BookingRequests";
 import JobTypeIcon from "@/components/jobs/JobTypeIcon";
 import PlaceDialog, { PLACE_KINDS } from "@/components/jobs/PlaceDialog";
 import ClientDialog, { CLIENT_KINDS } from "@/components/jobs/ClientDialog";
@@ -58,9 +59,42 @@ export default function JobsTab({ vehicles = [], routes = [], trips = [], comple
   const { toast } = useToast();
   const [view, setView] = useState("board");
   const [day, setDay] = useState(() => dayKey(new Date()));
-  const [dialog, setDialog] = useState({ open: false, job: null });
+  const [dialog, setDialog] = useState({ open: false, job: null, draft: null, request: null });
   const [placeDialog, setPlaceDialog] = useState({ open: false, place: null });
   const [clientDialog, setClientDialog] = useState({ open: false, client: null });
+
+  // Rides asked for on the website, waiting for an answer.
+  const [requests, setRequests] = useState([]);
+  const [requestsLoading, setRequestsLoading] = useState(true);
+  const loadRequests = useCallback(async () => {
+    try {
+      const rows = await base44.entities.BookingRequest.filter({ status: "new" }, "created_date", 100);
+      setRequests(Array.isArray(rows) ? rows : []);
+    } catch { /* keep what's shown; the next check tries again */ }
+    finally { setRequestsLoading(false); }
+  }, []);
+  useEffect(() => {
+    loadRequests();
+    const timer = setInterval(() => { if (!document.hidden) loadRequests(); }, 60_000);
+    return () => clearInterval(timer);
+  }, [loadRequests]);
+  const makeJobFrom = (r) => setDialog({ open: true, job: null, draft: draftFromRequest(r), request: r });
+  // The job was saved: confirm the request, which emails the customer.
+  const confirmRequest = async (saved) => {
+    const r = dialog.request;
+    try {
+      const res = await answerRequest("confirm", { request_id: r.id, trip_id: saved?.id });
+      toast({
+        title: "Ride confirmed",
+        description: !res.emailed ? `The job is saved, but the email to ${r.name} didn't go out. Contact them yourself.`
+          : res.tracking ? `${r.name} was emailed the details and a tracking link.` : `${r.name} was emailed. They get a tracking link once the job has a bus (open the job to send it).`,
+      });
+    } catch (e) {
+      toast({ title: "The job is saved, but the request wasn't confirmed", description: errorData(e).error || "Open Requests and try again.", variant: "destructive" });
+    }
+    loadRequests();
+    onChange?.();
+  };
 
   const all = useMemo(() => {
     const byId = new Map();
@@ -77,7 +111,7 @@ export default function JobsTab({ vehicles = [], routes = [], trips = [], comple
     ...[...vehicles].sort((a, b) => String(a.name).localeCompare(String(b.name))).map((v) => ({ id: v.id, name: v.name, driver: v.driver_name || "" })),
   ];
   const completedToday = all.filter((t) => t.status === "completed" && t.completed_at && dayKey(new Date(t.completed_at)) === today).length;
-  const openJob = (job) => setDialog({ open: true, job });
+  const openJob = (job) => setDialog({ open: true, job, draft: null, request: null });
   const dayLabel = day === today ? "Today" : day === shiftDay(today, 1) ? "Tomorrow" : day === shiftDay(today, -1) ? "Yesterday"
     : new Date(`${day}T12:00`).toLocaleDateString([], { weekday: "long", day: "numeric", month: "short" });
 
@@ -105,10 +139,23 @@ export default function JobsTab({ vehicles = [], routes = [], trips = [], comple
           : <Button onClick={() => setClientDialog({ open: true, client: null })}><Plus className="h-4 w-4" /> Add client</Button>}>
         <Segmented label="Jobs view" value={view} onChange={setView} options={[
           { value: "board", label: "Day board", icon: CalendarClock },
+          { value: "requests", label: "Requests", icon: Globe, count: requests.length },
           { value: "places", label: "Places", icon: MapPin, count: places.length },
           { value: "clients", label: "Clients", icon: Building2, count: clients.length },
         ]} />
       </Toolbar>
+
+      {view === "board" && requests.length > 0 && (
+        <button type="button" onClick={() => setView("requests")} className="mb-3 flex w-full items-center gap-3 rounded-xl border border-primary/40 bg-primary/10 px-4 py-3 text-left hover:bg-primary/15">
+          <Globe className="h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
+          <span className="flex-1 font-semibold">{requests.length === 1 ? "1 ride request" : `${requests.length} ride requests`} from the website</span>
+          <span className="text-body-sm text-primary">Answer</span>
+        </button>
+      )}
+
+      {view === "requests" && (
+        <BookingRequests requests={requests} loading={requestsLoading} onMakeJob={makeJobFrom} onChanged={loadRequests} />
+      )}
 
       {view === "board" && (
         <Panel
@@ -193,13 +240,14 @@ export default function JobsTab({ vehicles = [], routes = [], trips = [], comple
         open={dialog.open}
         onOpenChange={(open) => setDialog((d) => ({ ...d, open }))}
         job={dialog.job}
+        draft={dialog.draft}
         day={day}
         vehicles={vehicles}
         routes={routes}
         places={places}
         clients={clients}
         trips={all}
-        onSaved={onChange}
+        onSaved={dialog.request ? confirmRequest : onChange}
         onPlaceSaved={onChange}
         onClientSaved={onChange}
       />
