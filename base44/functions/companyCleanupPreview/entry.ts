@@ -2,6 +2,9 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 
 // Read-only inventory. Never mutate records in a preview.
 const TYPES = ['Vehicle','Route','Driver','CompanyMembership','CompanyAccessGrant','Contact','KioskDevice','DeviceCredential','VerificationGrant','DriverPinCredential','NfcCard','User','CardHolder','PassengerAccessCredential','PassengerOneTimeCredential','PhoneUnlock'];
+// History a removed company leaves behind. It gives no access to anything and
+// is kept on purpose; an administrator can delete it from its own screen.
+const HISTORY = ['Trip','Incident','Inspection','Broadcast','GroupMessage','Workplace','LostItemReport','Fault','DriverShift'];
 export default async function(req: Request) {
   try {
     const base44 = createClientFromRequest(req);
@@ -20,15 +23,23 @@ export default async function(req: Request) {
         throw new Error('Inventory too large');
       };
       const companies = new Set((await scan('Company')).map(row=>row.id));
-      const orphans: Record<string, Record<string, number>> = {};
+      const found: Record<string, {company_name: string, counts: Record<string, number>, history: Record<string, number>}> = {};
+      const note = (row: any, type: string, list: 'counts' | 'history') => {
+        if (!row.company_id || companies.has(row.company_id)) return;
+        const entry = found[row.company_id] ||= { company_name: '', counts: {}, history: {} };
+        if (!entry.company_name && typeof row.company_name === 'string') entry.company_name = row.company_name.trim().slice(0, 120);
+        entry[list][type] = (entry[list][type] || 0) + 1;
+      };
       for (const type of TYPES) for (const row of await scan(type)) {
         if ((type==='CompanyMembership' && !row.active) || (type==='DriverPinCredential' && !row.enabled) || (type==='NfcCard' && row.is_active===false)) continue;
-        if (row.company_id && !companies.has(row.company_id)) {
-          const counts = orphans[row.company_id] ||= {};
-          counts[type] = (counts[type] || 0) + 1;
-        }
+        note(row, type, 'counts');
       }
-      return Response.json({orphans:Object.entries(orphans).map(([company_id,counts])=>({company_id,counts})),read_only:true});
+      // History is a nice-to-know: a list that can't be read is left out.
+      for (const type of HISTORY) {
+        const rows = await scan(type).catch(() => []);
+        for (const row of rows) note(row, type, 'history');
+      }
+      return Response.json({orphans:Object.entries(found).map(([company_id,entry])=>({company_id,...entry})),read_only:true});
     }
     if (typeof company_id !== 'string' || !company_id.trim()) return Response.json({ error: 'company_id required' }, { status: 400 });
     const db = base44.asServiceRole.entities;

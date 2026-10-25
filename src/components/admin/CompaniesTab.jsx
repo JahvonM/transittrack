@@ -13,6 +13,23 @@ import { Copy, Check, KeyRound, Pencil, Trash2 } from "lucide-react";
 import CompanyEditDialog from "@/components/CompanyEditDialog";
 import CreateCompanyForm from "@/components/admin/CreateCompanyForm";
 
+// Plain names for what a removed company left behind.
+const KINDS = {
+  Vehicle: ["vehicle", "vehicles"], Route: ["route", "routes"], Driver: ["driver", "drivers"],
+  CompanyMembership: ["membership", "memberships"], CompanyAccessGrant: ["access grant", "access grants"],
+  Contact: ["contact", "contacts"], KioskDevice: ["tablet", "tablets"], DeviceCredential: ["tablet key", "tablet keys"],
+  VerificationGrant: ["sign-in grant", "sign-in grants"], DriverPinCredential: ["driver PIN", "driver PINs"],
+  NfcCard: ["card", "cards"], User: ["user", "users"], CardHolder: ["card holder", "card holders"],
+  PassengerAccessCredential: ["passenger code", "passenger codes"], PassengerOneTimeCredential: ["one-time code", "one-time codes"],
+  PhoneUnlock: ["phone unlock code", "phone unlock codes"], Trip: ["job", "jobs"], Incident: ["incident", "incidents"],
+  Inspection: ["inspection", "inspections"], Broadcast: ["dispatch message", "dispatch messages"],
+  GroupMessage: ["chat message", "chat messages"], Workplace: ["workplace", "workplaces"],
+  LostItemReport: ["lost item report", "lost item reports"], Fault: ["fault", "faults"], DriverShift: ["shift", "shifts"],
+};
+const listOf = (counts = {}) => Object.entries(counts)
+  .map(([type, n]) => { const [one, many] = KINDS[type] || [type, type]; return `${n} ${n === 1 ? one : many}`; })
+  .join(", ");
+
 export default function CompaniesTab({ companies, onChange }) {
   const [params, setParams] = useSearchParams();
   const selected = companies.find(c => c.id === params.get("company"));
@@ -40,7 +57,9 @@ export default function CompaniesTab({ companies, onChange }) {
       const {data} = await base44.functions.invoke('deleteCompanySafely', {company_id:companyId,action:'recover'});
       if (data?.error) throw new Error(data.error);
       toast({title:'Records recovered',description:'Retained assets are available for reassignment.'});
-      setOrphans(rows=>rows.filter(row=>row.company_id!==companyId));
+      // Its history stays listed: that is kept on purpose.
+      setOrphans(rows=>rows.map(row=>row.company_id===companyId?{...row,counts:{}}:row)
+        .filter(row=>Object.keys(row.counts||{}).length||Object.keys(row.history||{}).length));
       onChange();
     } catch(error) { toast({title:'Recovery failed',description:error.message,variant:'destructive'}); }
     finally { setRecovering(false); }
@@ -67,12 +86,22 @@ export default function CompaniesTab({ companies, onChange }) {
     <div className="space-y-4">
       <PageIntro>Open a company to manage its people, transport, workplace, and pickup planning.</PageIntro>
       <div className="rounded-xl border bg-card p-4 space-y-3">
-        <button type="button" className="rounded-md border px-4 py-2 text-sm font-medium disabled:opacity-50" disabled={recovering} onClick={findOrphans}>{recovering ? 'Checking records…' : 'Find records from removed companies'}</button>
-        {orphans?.length === 0 && <p className="text-sm text-muted-foreground">No orphaned records found.</p>}
-        {orphans?.map(row=><div key={row.company_id} className="flex flex-wrap items-center justify-between gap-3 text-sm">
-          <span>Removed company {row.company_id}: {Object.entries(row.counts).map(([type,count])=>`${count} ${type}`).join(', ')}</span>
-          <button type="button" className="rounded-md bg-primary text-primary-foreground px-4 py-2 disabled:opacity-50" disabled={recovering} onClick={()=>recover(row.company_id)}>Recover records</button>
-        </div>)}
+        <Button variant="outline" disabled={recovering} onClick={findOrphans}>{recovering ? 'Checking records…' : 'Find records from removed companies'}</Button>
+        {orphans?.length === 0 && <p className="text-sm text-muted-foreground">Nothing is left from removed companies.</p>}
+        {orphans?.map(row=>(
+          <div key={row.company_id} className="space-y-2 rounded-lg border p-3 text-sm">
+            <p className="font-medium">{row.company_name ? `${row.company_name} (removed)` : "A removed company"}</p>
+            {Object.keys(row.counts||{}).length > 0 && (
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <span>Still linked: {listOf(row.counts)}</span>
+                <Button size="sm" disabled={recovering} onClick={()=>recover(row.company_id)}>Recover records</Button>
+              </div>
+            )}
+            {Object.keys(row.history||{}).length > 0 && (
+              <p className="text-muted-foreground">History kept: {listOf(row.history)}. It gives no access to anything. You can delete these one by one from their own screens.</p>
+            )}
+          </div>
+        ))}
       </div>
       <div className="space-y-2">
         {companies.length === 0 && (

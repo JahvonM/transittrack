@@ -16,7 +16,7 @@ async function setup(page,{fail=false}={}){
    if(b.entity==='Vehicle' && b.operation==='update'){calls.push(b);result={id:b.id,...b.data};}
    return route.fulfill({json:{result}});
   }
-  if(url.includes('/functions/companyCleanupPreview')) return route.fulfill({json:{orphans:[{company_id:'removed',counts:{Driver:1,Vehicle:2}}],read_only:true}});
+  if(url.includes('/functions/companyCleanupPreview')) return route.fulfill({json:{orphans:[{company_id:'removed',company_name:'Old Transit',counts:{Driver:1,Vehicle:2},history:{Incident:3,Trip:1}}],read_only:true}});
   if(url.includes('/functions/deleteCompanySafely')) { calls.push({cleanup:b});return route.fulfill({json:{ok:true}}); }
   if(url.includes('/functions/companyWorkspace')){
    calls.push({workspace:b});
@@ -68,7 +68,11 @@ test('deep links restore tab and recover failed reads on a narrow screen',async(
 test('orphan recovery requires confirmation and uses the protected endpoint',async({page})=>{
  const calls=await setup(page);await page.goto('/admin/companies');
  await page.getByRole('button',{name:'Find records from removed companies'}).click();
- await expect(page.getByText('Removed company removed:',{exact:false})).toBeVisible();
+ // Plain names and the company's old name, never its record ID.
+ await expect(page.getByText('Old Transit (removed)')).toBeVisible();
+ await expect(page.getByText('Still linked: 1 driver, 2 vehicles')).toBeVisible();
+ await expect(page.getByText('History kept: 3 incidents, 1 job.',{exact:false})).toBeVisible();
+ await expect(page.getByText('removed:',{exact:false})).toHaveCount(0);
  expect(calls.some(c=>c.cleanup)).toBe(false);
  await page.getByRole('button',{name:'Recover records',exact:true}).click();
  const dialog=page.getByRole('alertdialog');
@@ -76,5 +80,7 @@ test('orphan recovery requires confirmation and uses the protected endpoint',asy
  expect(calls.some(c=>c.cleanup)).toBe(false);
  await dialog.getByRole('button',{name:'Recover records',exact:true}).click();
  await expect.poll(()=>calls.find(c=>c.cleanup)?.cleanup).toEqual({company_id:'removed',action:'recover'});
- await expect(page.getByText('No orphaned records found.')).toBeVisible();
+ // Nothing is linked any more; the history stays listed, kept on purpose.
+ await expect(page.getByText('Still linked:',{exact:false})).toHaveCount(0);
+ await expect(page.getByText('History kept: 3 incidents, 1 job.',{exact:false})).toBeVisible();
 });

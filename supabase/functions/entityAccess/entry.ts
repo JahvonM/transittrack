@@ -331,6 +331,9 @@ async function prepare(db,ctx,name,input,existing=null) {
  const combined={...existing,...data};
  let tenant=await tenantOf(db,name,combined);
  if(COMPANY_ENTITIES.has(name) || name==='Company') {
+  // An administrator can delete a record whose company is gone: left behind
+  // by a deleted company, or whose bus or driver has no company any more.
+  if(ctx.adminDelete && (!tenant || !(await db.Company.get(tenant).catch(()=>null)))) return data;
   if(!tenant && ['InspectionTemplate','Part'].includes(name) && ['admin','mechanic'].includes(user.role)) return data;
   if(!tenant && name==='Broadcast' && user.role==='admin') return data;
   if(!tenant && ctx.user.role==='admin' && ['Vehicle','Route','Driver'].includes(name)) {
@@ -548,7 +551,9 @@ export default async function(req) {
    if(ctx.user.role!=='admin' && !(ctx.user.role==='company' && COMPANY_READ.has(name) && name!=='Company') && !(ctx.user.role==='mechanic' && MAINTENANCE.has(name) && name!=='Vehicle') && !(name==='GroupMessage' && existing.sender_id===ctx.user.id)) fail(403,'Delete forbidden');
    // Deleting an old schedule does not need its now-removed vehicle/company
    // to pass create/update validation. Visibility and admin checks ran above.
-   if(name!=='MaintenanceSchedule' && !(ctx.user.role==='admin' && ['Vehicle','Route','Driver'].includes(name) && !existing.company_id)) await prepare(db,ctx,name,{},existing);
+   // Other deletes keep their rules (invoices, for one), except that an
+   // administrator's delete does not need the record's company to still exist.
+   if(name!=='MaintenanceSchedule') await prepare(db,{...ctx,adminDelete:ctx.user.role==='admin'},name,{},existing);
    await db[name].delete(body.id);
    return Response.json({result:{ok:true}});
   }

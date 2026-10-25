@@ -33,6 +33,38 @@ describe('company lifecycle boundary',()=>{
  it('finds old orphan company ids without mutating data',async()=>{
   const sdk=mock('admin');sdk.tables.Driver=[{id:'driver',company_id:'removed'}];
   const res=await call(sdk,{action:'orphans'},'companyCleanupPreview');expect(res.status).toBe(200);
-  expect((await res.json()).orphans).toEqual([{company_id:'removed',counts:{Driver:1}}]);expect(sdk.writes).toEqual([]);
+  expect((await res.json()).orphans).toEqual([{company_id:'removed',company_name:'',counts:{Driver:1},history:{}}]);expect(sdk.writes).toEqual([]);
+ });
+ it('lists history a removed company left, by the name it had',async()=>{
+  const sdk=mock('admin');
+  sdk.tables.Incident=[{id:'i1',company_id:'removed',company_name:'Old Co'}];
+  sdk.tables.Trip=[{id:'t1',company_id:'removed'},{id:'t2',company_id:'a'}];
+  const res=await call(sdk,{action:'orphans'},'companyCleanupPreview');
+  expect((await res.json()).orphans).toEqual([{company_id:'removed',company_name:'Old Co',counts:{},history:{Trip:1,Incident:1}}]);
+  expect(sdk.writes).toEqual([]);
+ });
+});
+
+describe('deleting what a removed company left behind',()=>{
+ const del=(sdk,entity,id)=>call(sdk,{entity,operation:'delete',id},'entityAccess');
+ it.each([
+  ['Incident',{company_id:'removed'}],['Trip',{company_id:'removed'}],['Broadcast',{company_id:'removed'}],
+  ['Workplace',{company_id:'removed'}],['LostItemReport',{company_id:'removed'}],['NfcCard',{company_id:'removed',is_active:false}],
+  // Its bus was unassigned when the company went.
+  ['Inspection',{company_id:'removed',vehicle_id:'loose'}],
+ ])('an administrator can delete a leftover %s',async(entity,row)=>{
+  const sdk=mock('admin');sdk.tables.Vehicle.push({id:'loose',company_id:null});sdk.tables[entity]=[{id:'old',...row}];
+  expect((await del(sdk,entity,'old')).status).toBe(200);
+  expect(sdk.tables[entity]).toEqual([]);
+ });
+ it('invoices stay protected',async()=>{
+  const sdk=mock('admin');sdk.tables.Invoice=[{id:'inv',company_id:'removed'}];
+  expect((await del(sdk,'Invoice','inv')).status).toBe(403);
+  expect(sdk.tables.Invoice).toHaveLength(1);
+ });
+ it('company managers still cannot delete them',async()=>{
+  const sdk=mock('company');sdk.tables.Incident=[{id:'old',company_id:'removed'}];
+  expect((await del(sdk,'Incident','old')).status).toBe(404);
+  expect(sdk.tables.Incident).toHaveLength(1);
  });
 });
