@@ -6,7 +6,7 @@ import { Link } from "react-router-dom";
 import TabletDiagnosticsPanel from "@/components/driver/TabletDiagnosticsPanel";
 import UsbNfcPanel from "@/components/driver/UsbNfcPanel";
 import React, { useEffect, useRef, useState } from "react";
-import { Delete, Loader2, Lock, X } from "lucide-react";
+import { Delete, Loader2, Lock } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import TabletNetworkPanel from "@/components/driver/TabletNetworkPanel";
