@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { StatusChip } from "@/components/admin/kit";
 import KioskDeviceDialog from "@/components/admin/KioskDeviceDialog";
+import UsbDeviceSetup from "@/components/admin/UsbDeviceSetup";
 import TabletNetworkControls from "@/components/admin/TabletNetworkControls";
 import {
   AlertDialog,
@@ -309,8 +310,10 @@ export default function KioskTablets({ vehicles, companies, onChange }) {
         </div>
       </div>
 
-      <div className="rounded-xl border bg-muted/40 px-4 py-3 text-sm">
-        <p className="font-medium">Setting up a new driver or bus boarding tablet</p>
+      <UsbDeviceSetup />
+
+      <details className="rounded-xl border bg-muted/40 px-4 py-3 text-sm">
+        <summary className="cursor-pointer font-medium">Old setup: FreeKiosk and the McSween Helper (.bat file)</summary>
         <ol className="text-muted-foreground list-decimal ml-4 mt-1 space-y-0.5">
           <li>Register the tablet here, then press <b>Setup file</b> on its card. You get one .bat file, filled in with its type, code and bus, with the McSween Helper built in.</li>
           <li>On the tablet: turn on USB debugging, remove all accounts, connect to Wi-Fi, and plug it into this Windows PC.</li>
@@ -325,7 +328,7 @@ export default function KioskTablets({ vehicles, companies, onChange }) {
           <b>Updating a tablet that's already set up:</b> plug it in, run its Setup file (or the Setup tool) and choose <b>Update</b>.
           The Helper is built into the setup file. Have the existing FreeKiosk PIN and REST API key ready. Sync or export Saved Work first. After updating, verify the Helper version, pairing and device status.
         </p>
-      </div>
+      </details>
 
       {loading ? (
         <p className="text-muted-foreground">Loading devices…</p>
