@@ -10,6 +10,7 @@ Never delete webhooks, cron jobs, auth callbacks, or anything called from outsid
 - `base44/functions/*`: Base44 calls them by name, so code scanners report them all as unused.
 - Sign-in hand-offs opened by other apps: `/oauth/consent`, `/desktop-signin`, `/phone-signin`, `/login`, `/reset-password`.
 - Pages linked from the app stores: `/privacy`, `/terms`, `/reviewer-sandbox`.
+- `/track`: guests open it from ride-tracking links sent by dispatch (the `visitorTracking` function).
 - Pages the tablet app opens directly: `/tablet`, `/driver`, `/kiosk`.
 - `android/` and `capacitor.config.json`: the installed tablet and phone app.
 - `public/sw.js` and `public/firebase-messaging-sw.js`: the browser loads them.
