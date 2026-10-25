@@ -134,7 +134,7 @@ export default function JobsTab({ vehicles = [], routes = [], trips = [], comple
         <Kpi label="Completed today" value={completedToday} icon={CircleCheck} tone="success" />
       </KpiRow>
 
-      <Toolbar actions={view === "board" ? <Button onClick={() => openJob(null)}><Plus className="h-4 w-4" /> New job</Button>
+      <Toolbar actions={view === "board" || view === "requests" ? <Button onClick={() => openJob(null)}><Plus className="h-4 w-4" /> New job</Button>
         : view === "places" ? <Button onClick={() => setPlaceDialog({ open: true, place: null })}><Plus className="h-4 w-4" /> Add place</Button>
           : <Button onClick={() => setClientDialog({ open: true, client: null })}><Plus className="h-4 w-4" /> Add client</Button>}>
         <Segmented label="Jobs view" value={view} onChange={setView} options={[
