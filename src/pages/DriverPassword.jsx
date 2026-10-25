@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LockKeyhole, Loader2 } from "lucide-react";
+import { DRIVER_PASSWORD_RULE, okDriverPassword } from "@/lib/driverAccount";
 
 // The server rejects ALL driver-phone actions while a temporary password is set.
 // This page never stores passwords, including in app state beyond this form.
@@ -34,9 +35,7 @@ export default function DriverPassword() {
     event.preventDefault();
     setError("");
     if (next !== confirm) return setError("The new passwords do not match.");
-    if (next.length < 12 || !/[a-z]/.test(next) || !/[A-Z]/.test(next) || !/[0-9]/.test(next)) {
-      return setError("Use at least 12 characters, with uppercase, lowercase and a number.");
-    }
+    if (!okDriverPassword(next)) return setError(DRIVER_PASSWORD_RULE);
     if (next === current) return setError("Your new password must be different.");
     setSaving(true);
     try {
@@ -68,6 +67,7 @@ export default function DriverPassword() {
           </div>
           <div className="space-y-2">
             <Label htmlFor="new-driver-password">New password</Label>
+            <p className="text-xs text-muted-foreground">{DRIVER_PASSWORD_RULE}</p>
             <Input id="new-driver-password" type="password" autoComplete="new-password" value={next} onChange={(e) => setNext(e.target.value)} minLength={12} required disabled={saving || checking} />
           </div>
           <div className="space-y-2">

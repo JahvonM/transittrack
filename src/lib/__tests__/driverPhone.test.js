@@ -157,7 +157,8 @@ describe("driver phone problem reports", () => {
     expect(uploads).toHaveLength(2);
     expect(sdk.tables.Incident.at(-1)).toMatchObject({
       vehicle_id: "bus-a", company_id: "a", type: "breakdown", details: "Flat tyre", source: "driver_phone", status: "open",
-      driver_email: "Caller@Test.invalid", photo_uris: [expect.stringMatching(/^private\/report-.*\.jpg$/), expect.stringMatching(/\.png$/)],
+      // The driver's key (driverKey): how shifts and reports find them, in lower case.
+      driver_email: "caller@test.invalid", photo_uris: [expect.stringMatching(/^private\/report-.*\.jpg$/), expect.stringMatching(/\.png$/)],
     });
   });
 

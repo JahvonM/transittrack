@@ -5,8 +5,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/use-toast";
+import { confirmAction } from "@/components/ConfirmHost";
 import { Copy, KeyRound, Loader2, Smartphone } from "lucide-react";
 import { validDriverUsername, normalizeDriverUsername } from "@/lib/driverAccount";
+
+// Account changes that lock a driver out ask first.
+const CONFIRM = {
+  reset: { title: "Reset this driver's password?", description: "Their current password stops working at once. They sign in with the new temporary password and choose their own.", confirmLabel: "Reset password" },
+  deactivate: { title: "Deactivate this phone account?", description: "The driver is signed out and can't use the phone app until you reactivate it.", confirmLabel: "Deactivate" },
+  unlink: { title: "Remove this phone account?", description: "The driver is signed out and the username is freed. The driver record, buses and history stay. You can create a new phone login afterwards.", confirmLabel: "Remove phone account" },
+};
 
 // Account passwords are never persisted in Driver, localStorage or logs.
 // The generated temporary password only appears once in this admin dialog.
@@ -24,6 +32,7 @@ export default function DriverAccountActions({ driver, onChanged }) {
       setError("Username must be 4–32 characters, beginning with a letter; use letters, numbers, dots, dashes or underscores.");
       return;
     }
+    if (CONFIRM[name] && !(await confirmAction(CONFIRM[name]))) return;
     setBusy(true);
     setError("");
     setIssued(null);
@@ -36,7 +45,7 @@ export default function DriverAccountActions({ driver, onChanged }) {
       if (data.temporary_password) {
         setIssued({ username: data.username, password: data.temporary_password });
       } else {
-        toast({ title: name === "deactivate" ? "Driver account deactivated" : "Driver account updated" });
+        toast({ title: name === "deactivate" ? "Driver account deactivated" : name === "unlink" ? "Phone account removed" : "Driver account updated" });
         setOpen(false);
       }
       onChanged?.();
@@ -111,6 +120,8 @@ export default function DriverAccountActions({ driver, onChanged }) {
                   {driver.phone_app_access
                     ? <Button variant="destructive" className="w-full" onClick={() => action("deactivate")} disabled={busy}>Deactivate account</Button>
                     : <Button className="w-full" onClick={() => action("reactivate")} disabled={busy || !driver.company_id}>Reactivate account</Button>}
+                  {!driver.company_id && <p className="text-sm text-muted-foreground">This driver has no company. Choose one with Edit driver, then reactivate.</p>}
+                  <Button variant="ghost" className="w-full text-destructive" onClick={() => action("unlink")} disabled={busy}>Remove phone account</Button>
                 </>
               )}
               {error && <p role="alert" className="text-sm text-destructive">{error}</p>}

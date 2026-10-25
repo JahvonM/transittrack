@@ -1,11 +1,17 @@
 // Who may use the driver phone app, and which phones hear about a bus.
 //
-// A signed-in person counts as a driver only when an administrator has put
-// their email on a Driver record and switched "Can use the phone app" on.
-// The role people pick for themselves at sign-up is never trusted for this.
-// Turning the switch off or clearing the email removes access at once,
-// including notifications to phones that were already signed up.
+// The phone app is for Driver records an administrator gave a username
+// account (driverAccounts); driverPhone checks the account link on every
+// request. Switching the account off removes access at once, including
+// notifications to phones that were already signed up.
 export const normEmail = (value) => String(value || '').trim().toLowerCase();
+
+// The one address the app uses to recognise a driver on buses, shifts,
+// messages and backup GPS: the sign-in address of a username account,
+// otherwise the driver's own email (older records).
+export const driverKey = (driver) => driver?.username
+  ? `driver.${String(driver.username).trim().toLowerCase()}@login.mcsweenstransport.com`
+  : normEmail(driver?.email);
 
 export async function findPhoneDriver(base44, email) {
   const key = normEmail(email);
@@ -21,18 +27,15 @@ export async function findPhoneDriver(base44, email) {
 // The buses an administrator has assigned to this driver.
 export async function driverVehicles(base44, driver) {
   const rows = await base44.asServiceRole.entities.Vehicle.filter({ company_id: driver.company_id }, 'name', 500);
+  const emails = phoneEmails(driver);
   return rows.filter((v) => v.company_id === driver.company_id && (
     // An explicit driver ID always wins: never reassign a bus by a stale email.
-    v.driver_id ? v.driver_id === driver.id : !!normEmail(driver.email) && normEmail(v.driver_email) === normEmail(driver.email)
+    v.driver_id ? v.driver_id === driver.id : emails.has(normEmail(v.driver_email))
   ));
 }
 
-const driverLoginEmail = (driver) => driver?.username
-  ? `driver.${String(driver.username).trim().toLowerCase()}@login.mcsweenstransport.com`
-  : normEmail(driver?.email);
-
 function phoneEmails(driver) {
-  return new Set([normEmail(driver?.email), driverLoginEmail(driver)].filter(Boolean));
+  return new Set([normEmail(driver?.email), driverKey(driver)].filter(Boolean));
 }
 
 // Phones signed up by the driver currently assigned to this bus. Checked

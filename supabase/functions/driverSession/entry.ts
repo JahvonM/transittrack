@@ -892,10 +892,13 @@ export default async function(req) {
         const pinResult = await pinAttempt(base44, vehicle, body.pin);
         if (pinResult === 'locked') return Response.json({ error: 'Too many PIN attempts. Try again in 15 minutes.' }, { status: 429 });
         if (pinResult === 'wrong') return Response.json({ error: 'Incorrect PIN' }, { status: 403 });
+        // The bus's driver record; older buses only name the driver's email.
         const email = String(vehicle.driver_email || '').trim().toLowerCase();
-        if (!email) return Response.json({ ok: true, driver_name: '', documents: [] });
-        const driver = (await base44.asServiceRole.entities.Driver.filter({ company_id: companyId }, '-updated_date', 500))
-          .find((d) => String(d.email || '').trim().toLowerCase() === email);
+        const byId = vehicle.driver_id ? await base44.asServiceRole.entities.Driver.get(vehicle.driver_id).catch(() => null) : null;
+        if (!byId && (vehicle.driver_id || !email)) return Response.json({ ok: true, driver_name: vehicle.driver_name || '', documents: [] });
+        const driver = byId ? (byId.company_id === companyId ? byId : null)
+          : (await base44.asServiceRole.entities.Driver.filter({ company_id: companyId }, '-updated_date', 500))
+            .find((d) => String(d.email || '').trim().toLowerCase() === email);
         if (!driver) return Response.json({ ok: true, driver_name: vehicle.driver_name || '', documents: [] });
         const docs = (await base44.asServiceRole.entities.DriverDocument.filter({ driver_id: driver.id }, '-updated_date', 20))
           .filter((d) => d.company_id === companyId && (d.kind === 'license' || d.kind === 'insurance'));

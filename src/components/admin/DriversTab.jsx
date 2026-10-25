@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/components/ui/use-toast";
 import { telLink, whatsappLink } from "@/lib/driverPhone";
+import { driverKey, driverOwnsBus } from "@/lib/driverAccount";
 import DriverDocumentsDialog, { DocChips } from "@/components/admin/DriverDocuments";
 import DriverAccountActions from "@/components/admin/DriverAccountActions";
 import DriverRequestsPanel from "@/components/admin/DriverRequestsPanel";
@@ -118,6 +119,7 @@ function AddDriverDialog({ companies, onAdded }) {
 }
 
 function EditDriverDialog({ driver, companies, vehicles = [], open, onOpenChange, onSaved }) {
+  const { toast } = useToast();
   const [form, setForm] = useState({ full_name: "", email: "", phone: "", company_id: "" });
   const [photoUrl, setPhotoUrl] = useState("");
   const [uploading, setUploading] = useState(false);
@@ -158,16 +160,23 @@ function EditDriverDialog({ driver, companies, vehicles = [], open, onOpenChange
         photo_url: photoUrl,
         company_id: form.company_id || null,
         company_name: company?.name || "",
-        
       });
-      // Keep legacy driver_email readable for old logs, but never change ID-based assignments.
+      // Older buses know an email-only driver by their email: keep them with the
+      // driver when it changes. Username accounts are known by their sign-in.
       const oldEmail = (driver.email || "").trim();
-      if (oldEmail && email && oldEmail.toLowerCase() !== email.toLowerCase()) {
+      if (!driver.username && oldEmail && email && oldEmail.toLowerCase() !== email.toLowerCase()) {
         await Promise.all(vehicles.filter((v) => !v.driver_id && v.driver_email === oldEmail)
           .map((v) => base44.entities.Vehicle.update(v.id, { driver_email: email })));
       }
+      // A phone-account driver given a company (e.g. after their old one was
+      // deleted): their sign-in follows the driver record.
+      if (driver.auth_user_id && form.company_id && form.company_id !== (driver.company_id || "")) {
+        await base44.functions.invoke("driverAccounts", { action: "sync", driver_id: driver.id });
+      }
       onSaved();
       onOpenChange(false);
+    } catch (e) {
+      toast({ title: "Couldn't save the driver", description: e?.response?.data?.error || e.message, variant: "destructive" });
     } finally {
       setSaving(false);
     }
@@ -200,8 +209,8 @@ function EditDriverDialog({ driver, companies, vehicles = [], open, onOpenChange
             </label>
           </div>
           <AvatarPicker onChange={setPhotoUrl} disabled={saving || uploading} />
-          <DriverFormFields form={form} setForm={setForm} companies={companies} companyLocked={!!driver.auth_user_id} />
-          {driver.auth_user_id && <p className="text-xs text-muted-foreground">A linked driver account cannot be moved to another company from this form. Deactivate and request a controlled transfer.</p>}
+          <DriverFormFields form={form} setForm={setForm} companies={companies} companyLocked={!!driver.auth_user_id && !!driver.company_id} />
+          {driver.auth_user_id && driver.company_id && <p className="text-xs text-muted-foreground">A driver with a phone account can't be moved to another company from here. Remove their phone account first (Phone account → Remove phone account).</p>}
           <Button className="w-full" onClick={save} disabled={saving || uploading || !form.full_name.trim()}>
             {saving ? "Saving…" : "Save changes"}
           </Button>
@@ -284,11 +293,9 @@ function AssignedVehicleRow({ vehicle: v, routes, onUnassign, onSetStatus, onSet
 function DriverCard({ driver, vehicles, companies, routes, docs = [], onDocsChanged, onAssign, onUnassign, onSetStatus, onSetRoute, onSetPin, onSaved, onRemove }) {
   const [editOpen, setEditOpen] = useState(false);
   const [docsOpen, setDocsOpen] = useState(false);
-  const assigned = vehicles.filter((v) => v.company_id === driver.company_id && (v.driver_id === driver.id || (!v.driver_id && driver.email && v.driver_email === driver.email)));
+  const assigned = vehicles.filter((v) => driverOwnsBus(v, driver));
   const companyName = companies.find((c) => c.id === driver.company_id)?.name;
-  const pool = vehicles.filter(
-    (v) => !!driver.company_id && v.company_id === driver.company_id && v.driver_id !== driver.id && (!driver.email || v.driver_email !== driver.email)
-  );
+  const pool = vehicles.filter((v) => !!driver.company_id && v.company_id === driver.company_id && !driverOwnsBus(v, driver));
 
   const initials = (driver.full_name || driver.email || "?").split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join("");
   return (
@@ -340,7 +347,7 @@ function DriverCard({ driver, vehicles, companies, routes, docs = [], onDocsChan
               <AlertDialogHeader>
                 <AlertDialogTitle>Remove {driver.full_name || driver.email}?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  This deletes their driver record and unassigns any buses currently assigned to them. This can't be undone.
+                  This deletes their driver record{driver.auth_user_id ? " and their phone app sign-in" : ""} and unassigns any buses currently assigned to them. Their past shifts and reports are kept. This can't be undone.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -408,7 +415,8 @@ export default function DriversTab({ drivers, vehicles, companies, routes, onCha
     if (!vehicleId) return;
     await base44.entities.Vehicle.update(vehicleId, {
       driver_id: driver.id,
-      driver_email: driver.email || null,
+      // How shifts, messages and backup GPS find this driver (driverKey).
+      driver_email: driverKey(driver) || null,
       driver_name: driver.full_name || driver.username || "",
     });
     onChange();
@@ -440,18 +448,22 @@ export default function DriversTab({ drivers, vehicles, companies, routes, onCha
 
   const removeDriver = async (driver) => {
     try {
-      const assignedVehicles = vehicles.filter((v) => v.company_id === driver.company_id && (v.driver_id === driver.id || (!v.driver_id && driver.email && v.driver_email === driver.email)));
+      // Their phone sign-in goes first, so a failure leaves everything as it was.
+      if (driver.auth_user_id) {
+        const { data } = await base44.functions.invoke("driverAccounts", { action: "unlink", driver_id: driver.id });
+        if (!data?.ok) throw new Error("The phone account could not be removed.");
+      }
+      const assignedVehicles = vehicles.filter((v) => driverOwnsBus(v, driver));
       await Promise.all(
         assignedVehicles.map((v) =>
           base44.entities.Vehicle.update(v.id, { driver_id: null, driver_email: null, driver_name: null })
         )
       );
-      if (driver.auth_user_id) throw new Error("Deactivate the phone account before removing a linked driver. The account must be unlinked by an administrator first.");
       await base44.entities.Driver.delete(driver.id);
       toast({ title: "Driver removed" });
       onChange();
     } catch (e) {
-      toast({ title: "Couldn't remove driver", description: e.message, variant: "destructive" });
+      toast({ title: "Couldn't remove driver", description: e?.response?.data?.error || e.message, variant: "destructive" });
     }
   };
 

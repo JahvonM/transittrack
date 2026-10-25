@@ -2,11 +2,11 @@ import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { BACKEND } from "tt-backend";
-import { internalDriverEmail, validDriverUsername } from "@/lib/driverAccount";
+import { signInTarget } from "@/lib/driverAccount";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { LogIn, Mail, Lock, Loader2, QrCode, Eye, EyeOff, Shield } from "lucide-react";
+import { LogIn, Mail, Lock, Loader2, QrCode, Eye, EyeOff, Shield, User } from "lucide-react";
 import AuthLayout from "@/components/AuthLayout";
 import JourneyLoading from "@/components/JourneyLoading";
 import AccessRecovery from "@/components/system/AccessRecovery";
@@ -26,8 +26,6 @@ const PHONE_SIGNIN_PROBLEMS = {
 
 export default function Login() {
   const [email, setEmail] = useState("");
-  // Preserve the existing email sign-in for passengers and desktop; driver mode is explicit.
-  const driverLogin = BACKEND === "supabase" && new URLSearchParams(window.location.search).get("driver") === "1";
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
@@ -37,6 +35,11 @@ export default function Login() {
   // Post-login destination (e.g. the MCP OAuth consent page sends users here
   // with returnTo so the grant flow can resume). Same-origin paths only.
   const askedReturn = safeReturnTo();
+  // Drivers sign in with the username their administrator gave them, everyone
+  // else with their email: the one box takes either. Coming from the driver
+  // app (or ?driver=1) it asks for the username.
+  const usernames = BACKEND === "supabase";
+  const driverLogin = usernames && (new URLSearchParams(window.location.search).get("driver") === "1" || askedReturn.startsWith("/driver-phone"));
   const navigate = useNavigate();
   const { isAuthenticated, isLoadingAuth, isLoadingPublicSettings, authError, checkAppState } = useAuth();
   // Older Windows versions start at /login?returnTo=/ on every launch.
@@ -67,10 +70,15 @@ export default function Login() {
     setError("");
     setLoading(true);
     try {
-      const identifier = email.trim();
-      const driverUsername = driverLogin;
-      if (driverUsername && !validDriverUsername(identifier)) throw new Error("Enter a valid driver username");
-      await base44.auth.loginViaEmailPassword(driverUsername ? internalDriverEmail(identifier) : identifier, password);
+      const target = usernames ? signInTarget(email, { driverMode: driverLogin }) : { email: email.trim(), driver: false };
+      if (!target) throw new Error(driverLogin ? "Enter your driver username" : "Enter your email address or username");
+      const driverUsername = target.driver;
+      await base44.auth.loginViaEmailPassword(target.email, password)
+        .catch((err) => {
+          // The sign-in address behind a username is never shown to the driver.
+          if (driverUsername && /invalid|credentials|password/i.test(err?.message || "")) throw new Error("Wrong username or password");
+          throw err;
+        });
       if (driverUsername) {
         const result = await base44.functions.invoke("driverAccounts", { action: "status" });
         if (!result.data?.is_driver) {
@@ -135,7 +143,7 @@ export default function Login() {
             </div>
           </div>
           {BACKEND === "supabase" && <div>
-            <Link to={driverLogin ? "/login" : "/login?driver=1"} className="text-primary font-medium hover:underline">{driverLogin ? "Use email or Google sign-in" : "Driver phone username sign-in"}</Link>
+            <Link to={driverLogin ? "/login" : "/login?driver=1"} className="text-primary font-medium hover:underline">{driverLogin ? "Not a driver? Use email or Google" : "Driver? Sign in with your username"}</Link>
           </div>}
           {!driverLogin && <div>
             New here?{" "}
@@ -181,13 +189,19 @@ export default function Login() {
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="email">{driverLogin ? "Driver username" : "Email address"}</Label>
+          <Label htmlFor="email">{driverLogin ? "Driver username" : usernames ? "Email address or username" : "Email address"}</Label>
           <div className="relative">
-            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
+            {driverLogin
+              ? <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
+              : <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />}
             <Input
               id="email"
-              type={driverLogin ? "text" : "email"}
-              autoComplete={driverLogin ? "username" : "email"}
+              type={usernames ? "text" : "email"}
+              inputMode={driverLogin ? "text" : "email"}
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              autoComplete={usernames ? "username" : "email"}
               placeholder={driverLogin ? "driver001" : "you@example.com"}
               value={email}
               onChange={(e) => setEmail(e.target.value)}

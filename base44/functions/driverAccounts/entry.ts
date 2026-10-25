@@ -9,7 +9,8 @@ const USERNAME = /^[a-z][a-z0-9._-]{3,31}$/;
 const PASSWORD_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%';
 const internalEmail = (username) => `driver.${username}@login.mcsweenstransport.com`;
 const norm = (value) => String(value || '').trim().toLowerCase();
-const okPassword = (value) => typeof value === 'string' && value.length >= 12 && value.length <= 128
+// Supabase Auth refuses passwords longer than 72 bytes.
+const okPassword = (value) => typeof value === 'string' && value.length >= 12 && new TextEncoder().encode(value).length <= 72
   && /[A-Z]/.test(value) && /[a-z]/.test(value) && /[0-9]/.test(value);
 const reply = (message, status = 400, code = '') => Response.json({ error: message, code }, { status });
 
@@ -65,6 +66,22 @@ async function linkedAppUser(db, authId) {
   return rows[0];
 }
 
+// Buses, shifts, messages and backup GPS know a driver by one address
+// (driverKey in shared/driverPhone.ts): the sign-in address of a username
+// account, otherwise the driver's own email. Point this driver's buses at it.
+async function rekeyBuses(db, driver, username) {
+  if (!driver.company_id) return;
+  const key = username ? internalEmail(username) : norm(driver.email);
+  const own = norm(driver.email);
+  const buses = await db.Vehicle.filter({ company_id: driver.company_id }, 'name', 500);
+  for (const bus of buses) {
+    const mine = bus.driver_id ? bus.driver_id === driver.id : !!own && norm(bus.driver_email) === own;
+    if (mine && (bus.driver_id !== driver.id || norm(bus.driver_email) !== key)) {
+      await db.Vehicle.update(bus.id, { driver_id: driver.id, driver_email: key || null });
+    }
+  }
+}
+
 async function audit(db, actor, driver, summary) {
   try {
     await db.AuditLog.create({ actor_email: actor.email || '', actor_role: actor.role, action: 'update',
@@ -96,7 +113,7 @@ export default async function(req) {
       if (!await reserveAttempt(client, 'driver-password:' + actor.auth_user_id, 8, 60 * 60_000)) return reply('Try again later', 429);
       const current = body.current_password;
       const password = body.new_password;
-      if (!okPassword(password) || password === current) return reply('Choose a different password of at least 12 characters, including uppercase, lowercase and a number');
+      if (!okPassword(password) || password === current) return reply('Choose a different password of 12 to 72 characters, including uppercase, lowercase and a number');
       if (typeof current !== 'string' || !current) return reply('Enter your temporary or current password');
       // Verify the current password before changing it, even if a browser session was stolen.
       const login = await authRequest('/auth/v1/token?grant_type=password', 'POST', {
@@ -110,7 +127,7 @@ export default async function(req) {
     }
 
     if (actor.role !== 'admin') return reply('Admin required', 403);
-    if (!['provision', 'reset', 'deactivate', 'reactivate'].includes(action)) return reply('Unknown account action');
+    if (!['provision', 'reset', 'deactivate', 'reactivate', 'sync', 'unlink'].includes(action)) return reply('Unknown account action');
     if (!await reserveAttempt(client, 'driver-admin:' + actor.id, 24, 60 * 60_000)) return reply('Too many account changes. Try again later', 429);
     const id = typeof body.driver_id === 'string' ? body.driver_id : '';
     if (!id || id.length > 200) return reply('Driver ID is required');
@@ -162,13 +179,43 @@ export default async function(req) {
         if (error?.message === 'Username is unavailable') return reply('Username is unavailable', 409);
         throw error;
       }
+      // The account works without this; if it fails, "sync" repeats it.
+      await rekeyBuses(db, { ...driver, username }, username)
+        .catch(() => console.error('[driverAccounts] could not update the driver\'s buses'));
       await audit(db, actor, driver, 'Created driver phone username account');
       // The temporary password is returned once over the authenticated admin request; never stored.
       return Response.json({ ok: true, username, temporary_password: password, must_change_password: true });
     }
 
     if (!driver.auth_user_id) return reply('Create a driver phone account first', 409);
+
+    if (action === 'unlink') {
+      // Removes the phone sign-in for good (it ends every session and frees the
+      // username). The driver record, its buses and its history stay.
+      await db.Driver.update(driver.id, { phone_app_access: false });
+      const profiles = await db.User.filter({ auth_user_id: driver.auth_user_id }, '-updated_date', 2);
+      for (const profile of profiles) await db.User.update(profile.id, { disabled: true });
+      await authRequest('/auth/v1/admin/users/' + encodeURIComponent(driver.auth_user_id), 'DELETE')
+        .catch((error) => { if (error?.status !== 404) throw error; });
+      await db.Driver.update(driver.id, { username: null, auth_user_id: null, must_change_password: false });
+      await rekeyBuses(db, { ...driver, username: null }, null).catch(() => {});
+      await audit(db, actor, driver, 'Removed driver phone account');
+      return Response.json({ ok: true });
+    }
+
     const accountUser = await linkedAppUser(db, driver.auth_user_id);
+    if (action === 'sync') {
+      // After the driver record moves to a company (for example when their
+      // old company was deleted), bring the sign-in profile and buses in line.
+      if (!driver.company_id) return reply('Assign the driver to a company first');
+      await db.User.update(accountUser.id, {
+        company_id: driver.company_id,
+        ...(driver.phone_app_access ? { role: 'driver', disabled: false } : {}),
+      });
+      await rekeyBuses(db, driver, driver.username);
+      await audit(db, actor, driver, 'Matched driver phone account to the driver record');
+      return Response.json({ ok: true });
+    }
     if (action === 'reset') {
       const password = temporaryPassword();
       // Block every driver-phone action BEFORE rotating the password.
@@ -190,9 +237,11 @@ export default async function(req) {
     }
 
     // Unban first. Phone endpoints remain inaccessible until both database flags are restored.
+    if (!driver.company_id) return reply('Assign the driver to a company first');
     await authRequest('/auth/v1/admin/users/' + encodeURIComponent(driver.auth_user_id), 'PUT', { ban_duration: 'none' });
     await db.User.update(accountUser.id, { disabled: false, role: 'driver', company_id: driver.company_id });
     await db.Driver.update(driver.id, { phone_app_access: true });
+    await rekeyBuses(db, driver, driver.username).catch(() => {});
     await audit(db, actor, driver, 'Reactivated driver phone account');
     return Response.json({ ok: true });
   } catch (error) {
