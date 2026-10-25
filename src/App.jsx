@@ -14,6 +14,7 @@ import { queryClientInstance } from '@/lib/query-client'
 import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
 import { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { homeFor } from '@/lib/roleHome';
+import { isSiteHost } from '@/lib/bookingSite';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import { useTheme } from "@/lib/useTheme";
@@ -38,6 +39,9 @@ const TermsOfService = lazy(() => import('@/pages/TermsOfService'));
 const BookTaxi = lazy(() => import('@/pages/BookTaxi'));
 // A guest following their ride from a link (no sign-in).
 const TrackRide = lazy(() => import('@/pages/TrackRide'));
+// The public website (mcsweenstransport.com, and /site inside the app).
+const SiteApp = lazy(() => import('@/site/SiteApp'));
+const SITE_HOST = typeof window !== 'undefined' && isSiteHost(window.location.hostname);
 const JoinCompany = lazy(() => import('@/pages/JoinCompany'));
 const loadCompanyDashboard = () => import('@/pages/CompanyDashboard');
 const CompanyDashboard = lazy(loadCompanyDashboard);
@@ -112,7 +116,8 @@ const AuthenticatedApp = () => {
   // signed-out visitors instead of bouncing to the login screen.
   // /desktop-signin and /phone-signin handle their own sign-in (the desktop
   // and phone apps' browser hand-off).
-  const publicPage = authPage || ['/privacy', '/terms', '/reviewer-sandbox', '/desktop-signin', '/phone-signin', '/track'].includes(location.pathname);
+  const publicPage = authPage || ['/privacy', '/terms', '/reviewer-sandbox', '/desktop-signin', '/phone-signin', '/track'].includes(location.pathname)
+    || location.pathname === '/site' || location.pathname.startsWith('/site/');
   // Pages remount (and animate) when this key changes. The driver app's tabs
   // are all one page, so they share a key — switching tabs must not restart
   // it (that would stop GPS tracking and navigation).
@@ -158,6 +163,7 @@ const AuthenticatedApp = () => {
       <Route path="/" element={<Welcome />} />
       <Route path="/book-taxi" element={<BookTaxi />} />
       <Route path="/track" element={<TrackRide />} />
+      <Route path="/site/*" element={<SiteApp base="/site" />} />
       <Route path="/join" element={<JoinCompany />} />
       <Route path="/oauth/consent" element={<OAuthConsent />} />
       <Route path="/desktop-signin" element={<DesktopSignIn />} />
@@ -214,6 +220,19 @@ const AuthenticatedApp = () => {
 
 function App() {
   useTheme();
+
+  // mcsweenstransport.com is the public website only: no sign-in, none of
+  // the app's background work.
+  if (SITE_HOST) {
+    return (
+      <ErrorBoundary>
+        <Router>
+          <ScrollToTop />
+          <Suspense fallback={null}><SiteApp /></Suspense>
+        </Router>
+      </ErrorBoundary>
+    );
+  }
 
   return (
     <ErrorBoundary>

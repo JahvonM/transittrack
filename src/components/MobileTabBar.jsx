@@ -9,6 +9,7 @@ import { useAuth } from "@/lib/AuthContext";
 const NOT_PASSENGER = new Set(["admin", "driver", "company", "mechanic"]);
 
 const HIDDEN_PREFIXES = [
+  "/site",
   "/login",
   "/register",
   "/forgot-password",

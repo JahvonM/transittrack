@@ -8,7 +8,7 @@ import {
 import { sitePath, usePageTitle, useSiteBase, useWhatsApp, whatsappTo } from "@/site/siteKit";
 
 const DESCRIPTION = "Request an airport pickup, drop-off, transfer, island tour or staff run in Grenada. We confirm the price and your bus by email.";
-const START = { service: "airport_pickup", when: "", flight_number: "", pickup: AIRPORT_NAME, dropoff: "", guests: "2", luggage: "", name: "", phone: "", email: "", notes: "", website: "" };
+const START = { service: "airport_pickup", when: "", flight_number: "", pickup: "", dropoff: "", guests: "2", luggage: "", name: "", phone: "", email: "", notes: "", website: "" };
 
 function Field({ id, label, hint, error, children }) {
   return (
@@ -27,7 +27,7 @@ export default function BookPage() {
   usePageTitle("Request a ride", DESCRIPTION);
   const [params] = useSearchParams();
   const first = SITE_SERVICES.some((s) => s.id === params.get("service")) ? params.get("service") : START.service;
-  const [form, setForm] = useState(() => withService({ ...START, pickup: "" }, first));
+  const [form, setForm] = useState(() => withService({ ...START }, first));
   const [shown, setShown] = useState(false);
   const [sending, setSending] = useState(false);
   const [failure, setFailure] = useState("");
@@ -77,7 +77,7 @@ export default function BookPage() {
             <p>We emailed a copy to <strong>{sent.email}</strong>. We'll email you again to confirm the time and the price. Nothing is booked until then.</p>
             <p>If you don't see our email, check your spam folder{whatsapp ? <>, or <a href={whatsappTo(whatsapp, "Hi McSween Transport, I sent a ride request on the website. ")} target="_blank" rel="noreferrer">message us on WhatsApp</a></> : ""}.</p>
             <div className="mcs-actions">
-              <button type="button" className="mcs-btn mcs-btn-quiet" onClick={() => { setForm(withService({ ...START, pickup: "" }, form.service)); setShown(false); setSent(null); startedAt.current = Date.now(); }}>Request another ride</button>
+              <button type="button" className="mcs-btn mcs-btn-quiet" onClick={() => { setForm(withService({ ...START }, form.service)); setShown(false); setSent(null); startedAt.current = Date.now(); }}>Request another ride</button>
               <Link className="mcs-btn mcs-btn-quiet" to={sitePath(base, "/")}>Back to the home page</Link>
             </div>
           </div>
