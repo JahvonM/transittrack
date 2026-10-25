@@ -117,7 +117,9 @@ async function loadPeople(base44, companyFilter) {
     const email = (c.email || '').toLowerCase();
     if (email) contactEmails.add(c.company_id + ':' + email);
     const candidate = staffUsers.get(email);
-    const u = candidate?.company_id === c.company_id ? candidate : {};
+    // No account for this email: {}. (On Supabase an empty company is left out
+    // of the record, so "no account" and "no company" must not count as a match.)
+    const u = candidate && candidate.company_id === c.company_id ? candidate : {};
     // Keep an existing account-owned card attached to its canonical holder
     // when the directory also has a same-company contact for that email.
     const accountCard = u.id && cards.find(card => card.holder_source === 'user' && card.holder_id === u.id && card.company_id === c.company_id && card.is_active);
