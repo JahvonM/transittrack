@@ -37,9 +37,12 @@ export default function JobRecordDialog({ open, onOpenChange, job, clients = [],
   const [billing, setBilling] = useState({ client_id: "", price: "", currency: "XCD" });
   const [saving, setSaving] = useState(false);
   const [printing, setPrinting] = useState(false);
+  const [sharing, setSharing] = useState(false);
+  const [trackingLink, setTrackingLink] = useState("");
 
   useEffect(() => {
     if (!open || !job) return undefined;
+    setTrackingLink("");
     setBilling({ client_id: job.client_id || "", price: job.price ?? "", currency: job.currency || "XCD" });
     let live = true;
     const signed = job.pickup_signed_at || job.dropoff_signed_at || job.pickup_signature_url || job.dropoff_signature_url;
@@ -66,6 +69,15 @@ export default function JobRecordDialog({ open, onOpenChange, job, clients = [],
     } finally {
       setSaving(false);
     }
+  };
+  const shareTracking = async () => {
+    setSharing(true);
+    try {
+      const res = await base44.functions.invoke("visitorTracking", { action: "issue", trip_id: job.id });
+      setTrackingLink(res.data.url);
+      try { await navigator.clipboard.writeText(res.data.url); toast({title:"Private tracking link copied"}); } catch { toast({title:"Tracking link ready — copy it below"}); }
+    } catch(e) { toast({title:"Could not create tracking link",description:errorData(e).error||"Try again later",variant:"destructive"}); }
+    finally {setSharing(false);}
   };
   const printSheet = async () => {
     setPrinting(true);
@@ -168,6 +180,7 @@ export default function JobRecordDialog({ open, onOpenChange, job, clients = [],
             )}
           </div>
 
+          {job.vehicle_id && !["completed","cancelled"].includes(job.status) && <div className="space-y-2"><Button className="w-full" variant="outline" disabled={sharing} onClick={shareTracking}>{sharing ? "Creating link…" : "Create visitor tracking link"}</Button><p className="text-xs text-muted-foreground">Anyone with this link can track this ride. A new link replaces earlier links.</p>{trackingLink && <Input readOnly aria-label="Private visitor tracking link" value={trackingLink} onFocus={e=>e.target.select()} />}</div>}
           <Button className="w-full" variant="outline" onClick={printSheet} disabled={printing || signatures.loading}>
             <FileDown className="h-4 w-4" /> {printing ? "Making the PDF…" : "Download job sheet (PDF)"}
           </Button>

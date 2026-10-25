@@ -1,3 +1,6 @@
+import "./jobSigning.css";
+import Logo from "@/components/Logo";
+import NameSign from "@/components/driver/NameSign";
 import SigningJobControls from "./SigningJobControls";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CheckCircle2, CloudOff, Plane, Users } from "lucide-react";
@@ -51,7 +54,7 @@ function SignScreen({ job, mode, onSign }) {
   };
 
   return (
-    <div className="mx-auto w-full max-w-3xl space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-300">
+    <div className="tt-guest-sign mx-auto w-full max-w-3xl space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-300">
       <div className="text-center">
         <p className="text-sm font-bold uppercase tracking-wider text-primary">{pickup ? "Pickup" : "Drop-off"}</p>
         <h1 className="mt-1 font-heading text-3xl font-bold sm:text-5xl">{pickup ? "Welcome aboard" : "Thank you for travelling with us"}</h1>
@@ -77,7 +80,7 @@ function SignScreen({ job, mode, onSign }) {
       </div>
       <div className="space-y-1.5">
         <Label className="text-base">Signature</Label>
-        <SignaturePad ref={pad} onChange={setHasInk} canvasClassName="h-56 sm:h-64" />
+        <SignaturePad ref={pad} onChange={setHasInk} canvasClassName="tt-guest-sign-canvas h-56 sm:h-64" />
       </div>
       {error && <p role="alert" className="text-center text-base font-semibold text-danger">{error}</p>}
       <Button className="h-14 w-full text-lg" onClick={confirm} disabled={saving || !hasInk || !name.trim()}>
@@ -93,6 +96,7 @@ function SignScreen({ job, mode, onSign }) {
 // given with no signal is kept on the tablet and sent later.
 export default function JobSigningKiosk({ device, deviceId, online }) {
   const [jobs, setJobs] = useState([]);
+  const [nameSign, setNameSign] = useState(null);
   const [requestedJob,setRequestedJob]=useState(null);
   const [signed, setSigned] = useState(() => savedHere());
   const [thanks, setThanks] = useState(null);
@@ -171,16 +175,18 @@ export default function JobSigningKiosk({ device, deviceId, online }) {
   };
 
   return (
-    <div className="flex min-h-[100dvh] flex-col bg-gradient-to-br from-primary/10 via-background to-background">
+    <div className="tt-job-signing flex min-h-[100dvh] flex-col bg-background">
       <header className="flex items-center gap-3 px-5 py-3 sm:px-8">
+        <Logo className="h-10 w-10" />
         <div className="min-w-0 flex-1">
           <p className="truncate font-semibold">{device?.company_name || "McSween Transport"}</p>
           {device?.vehicle_name && <p className="truncate text-sm text-muted-foreground">{device.vehicle_name}</p>}
         </div>
         <span className="font-display text-lg font-semibold tabular-nums">{time(now)}</span>
-        <SigningJobControls deviceId={deviceId} onShowSignature={trip=>{setThanks(null);setRequestedJob(trip.id);setJobs(prev=>[trip,...prev.filter(j=>j.id!==trip.id)]);}}/>
+        <SigningJobControls deviceId={deviceId} onShowNameSign={job=>setNameSign({name:job.passenger_name||job.client_name||"Welcome",subtitle:job.flight_number?"Flight "+job.flight_number:"Welcome to Grenada"})} onShowSignature={trip=>{setThanks(null);setRequestedJob(trip.id);setJobs(prev=>[trip,...prev.filter(j=>j.id!==trip.id)]);}}/>
         <KioskConnectionBadge online={online} />
       </header>
+      {nameSign && <NameSign sign={nameSign} company={{name:device?.company_name||"McSween Transport",logo_url:device?.company_logo_url}} onClose={()=>setNameSign(null)} />}
       <main className="flex flex-1 items-center justify-center p-5 sm:p-8">
         {thanks ? (
           <div role="status" className="max-w-xl space-y-4 text-center animate-in fade-in zoom-in-95 duration-300">
