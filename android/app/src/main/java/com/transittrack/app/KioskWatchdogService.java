@@ -9,7 +9,7 @@ import java.util.List;
 /** Owner-only watchdog. Never starts GPS, cameras, recording, or an unconfigured kiosk. */
 public class KioskWatchdogService extends Service {
     private final Handler main = new Handler(Looper.getMainLooper());
-    private long lastLaunch;
+    private long lastLaunch, lastHotspotCheck;
     private static volatile boolean running;
     static volatile long lastVisible;
     static void start(Context c) {
@@ -43,6 +43,13 @@ public class KioskWatchdogService extends Service {
                 try { KioskMode.configure(KioskWatchdogService.this); launch(KioskWatchdogService.this); }
                 catch (RuntimeException e) { KioskMode.prefs(KioskWatchdogService.this).edit().putString("last_error", "WATCHDOG_REOPEN_FAILED").apply(); }
             }
+        }
+        // Rejoin the saved bus hotspot about once a minute (boarding and sign-in devices).
+        long at = SystemClock.elapsedRealtime();
+        if (at - lastHotspotCheck > 60000) {
+            lastHotspotCheck = at;
+            final Context app = getApplicationContext();
+            new Thread(() -> BusHotspot.ensure(app), "bus-hotspot").start();
         }
         main.postDelayed(this, 5000);
     }};
