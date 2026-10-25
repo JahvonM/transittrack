@@ -8,69 +8,63 @@ import React from "react";
 import { Link } from "react-router-dom";
 import { Bus, Building2, Tablet, LogOut, Sun, Moon } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/tablet/settingsKit";
+import TabletSettings from "@/components/tablet/TabletSettings";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useIsDark } from "@/lib/useTheme";
 import useTheme from "@/hooks/useTheme";
 import TabletNetworkPanel from "@/components/driver/TabletNetworkPanel";
 
+function Fact({ icon: Icon, title, detail, children }) {
+  return (
+    <div className="flex items-center gap-3 py-2">
+      <Icon className="w-5 h-5 shrink-0" style={{ color: "var(--ts-teal)" }} aria-hidden="true" />
+      <div className="flex-1 min-w-0">
+        <div className="text-sm font-medium truncate">{title}</div>
+        <div className="text-xs text-muted-foreground">{detail}</div>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+// Driver tablet → Settings.
 export default function DriverDevicePanel({ session, deviceId, onUnpair }) {
   const vehicle = session?.vehicle;
   const { toggle } = useTheme();
   const isDark = useIsDark();
 
-  return (
-    <>
-    <UsbGpsPanel />
-    <DriverBackgroundPanel vehicle={vehicle} />
-    <TabletDiagnosticsPanel />
-    <TabletRecoveryPanel />
-    <TabletCellularPanel />
-    <NativeNetworkPanel />
-    <TabletNetworkPanel />
+  const thisTablet = (
     <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-base">Tablet &amp; vehicle</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="space-y-3">
-          <div className="flex items-center gap-3 p-3 rounded-lg border bg-card">
-            <Bus className="w-5 h-5 text-primary shrink-0" />
-            <div>
-              <div className="text-sm font-medium">{vehicle?.name || "—"}</div>
-              <div className="text-xs text-muted-foreground">{vehicle?.plate_number || "No plate"} · {vehicle?.type}</div>
-            </div>
-          </div>
-          <div className="flex items-center gap-3 p-3 rounded-lg border bg-card">
-            <Building2 className="w-5 h-5 text-primary shrink-0" />
-            <div>
-              <div className="text-sm font-medium">{vehicle?.company_name || session?.company_name || "—"}</div>
-              <div className="text-xs text-muted-foreground">Company</div>
-            </div>
-          </div>
-          <div className="flex items-center gap-3 p-3 rounded-lg border bg-card">
-            <Tablet className="w-5 h-5 text-primary shrink-0" />
-            <div className="flex-1 min-w-0">
-              <div className="text-sm font-medium truncate">{deviceId}</div>
-              <div className="text-xs text-muted-foreground">Device ID</div>
-            </div>
-          </div>
-          <div className="flex items-center gap-3 p-3 rounded-lg border bg-card">
-            {isDark ? <Moon className="w-5 h-5 text-primary shrink-0" /> : <Sun className="w-5 h-5 text-primary shrink-0" />}
-            <div className="flex-1 min-w-0">
-              <div className="text-sm font-medium">{isDark ? "Dark mode" : "Light mode"}</div>
-              <div className="text-xs text-muted-foreground">Applies to this tablet</div>
-            </div>
-            <Switch checked={isDark} onCheckedChange={toggle} aria-label="Toggle dark mode" />
-          </div>
+      <CardHeader><CardTitle>This tablet</CardTitle></CardHeader>
+      <CardContent>
+        <div className="divide-y">
+          <Fact icon={Bus} title={vehicle?.name || "No bus"} detail={[vehicle?.plate_number || "No plate", vehicle?.type].filter(Boolean).join(", ")} />
+          <Fact icon={Building2} title={vehicle?.company_name || session?.company_name || "No company"} detail="Company" />
+          <Fact icon={Tablet} title={deviceId} detail="Device ID" />
+          <Fact icon={isDark ? Moon : Sun} title={isDark ? "Dark screens" : "Light screens"} detail="For the driver screens on this tablet">
+            <Switch checked={isDark} onCheckedChange={toggle} aria-label="Dark screens" />
+          </Fact>
         </div>
         <Button asChild variant="outline" className="w-full"><Link to="/tablet?choose=1">Choose tablet screen</Link></Button>
         <Button variant="outline" className="w-full" onClick={onUnpair}>
           <LogOut className="w-4 h-4 mr-2" /> Unpair tablet
         </Button>
-        <p className="text-xs text-muted-foreground text-center">Unpairing will require a new pairing code to use this tablet again.</p>
+        <p className="text-xs text-muted-foreground text-center">After unpairing, the tablet needs a new pairing code from Admin.</p>
       </CardContent>
     </Card>
-    </>
+  );
+
+  return (
+    <TabletSettings
+      subtitle={vehicle?.name ? `Driver tablet, ${vehicle.name}` : "Driver tablet"}
+      sections={[
+        { id: "gps", label: "GPS", content: <><UsbGpsPanel /><DriverBackgroundPanel vehicle={vehicle} /></> },
+        { id: "connection", label: "Connection", content: <><TabletNetworkPanel /><NativeNetworkPanel /><TabletCellularPanel /></> },
+        { id: "startup", label: "Startup", content: <TabletRecoveryPanel /> },
+        { id: "health", label: "Tablet health", content: <TabletDiagnosticsPanel /> },
+        { id: "tablet", label: "This tablet", content: thisTablet },
+      ]}
+    />
   );
 }
