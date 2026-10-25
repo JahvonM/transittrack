@@ -5,6 +5,7 @@ export const SUPABASE_TABLES: Record<string, string> = {
   Advertisement: "advertisement",
   AppSupportSetting: "app_support_setting",
   AuditLog: "audit_log",
+  BookingRequest: "booking_request",
   Broadcast: "broadcast",
   CardHolder: "card_holder",
   Client: "client",
