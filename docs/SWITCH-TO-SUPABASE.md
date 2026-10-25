@@ -1,5 +1,11 @@
 # Switching the live app from Base44 to Supabase (step 7)
 
+**Done on 23 October 2026.** Supabase is the live database. app.mcsweenstransport.com
+is served by the Cloudflare Worker; the Base44 copy (eager-transit-track-go.base44.app)
+stays published for the installed apps until step 8. The "Copy data to Supabase"
+panel was removed afterwards: copying again would put older Base44 data back.
+The steps below are kept as the record, and for going back.
+
 One switch moves everything: `LIVE_BACKEND` in `base44/shared/liveBackend.ts`.
 
 - `'base44'`: everything runs on Base44, as before.
