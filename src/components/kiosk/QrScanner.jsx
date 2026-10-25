@@ -33,7 +33,9 @@ export default function QrScanner({ onDecode, active, facingMode = "environment"
     scannerRef.current = scanner;
     return scanner.start(
       { facingMode: requireFacingMode ? { exact: facingMode } : facingMode },
-      { fps: 10, qrbox: compact ? ((w, h) => ({width: Math.min(160, Math.floor(Math.min(w,h)*0.7)), height: Math.min(160, Math.floor(Math.min(w,h)*0.7))})) : 220 },
+      // The scanner refuses a scan box under 50px, which a tablet can ask for
+      // while its layout is still settling (e.g. switching to full screen).
+      { fps: 10, qrbox: compact ? ((w, h) => { const side = Math.max(50, Math.min(160, Math.floor(Math.min(w,h)*0.7))); return { width: side, height: side }; }) : 220 },
       async (decodedText) => {
         if (stopped || delivering || (decodedText===lastText && Date.now()-lastAt<5000) || !gate.read(decodedText, Date.now())) return;
         lastText=decodedText;lastAt=Date.now();
