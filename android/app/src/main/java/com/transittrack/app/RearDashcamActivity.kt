@@ -51,12 +51,12 @@ class RearDashcamActivity : Activity() {
   val header = KioskUi.row(this, 16)
   header.setPadding(dp(if (wide) 24 else 16), dp(12), dp(if (wide) 24 else 16), dp(12))
   header.addView(KioskUi.button(this, "‹  Driver screen", KioskUi.Style.SECONDARY) { finish() })
-  header.addView(KioskUi.title(this, "Rear camera", 22), KioskUi.weight(1f))
+  header.addView(KioskUi.title(this, "Rear camera", 22f), KioskUi.weight(1f))
   val usage = KioskUi.column(this, 6)
   storage = KioskUi.text(this, "", 14f, KioskUi.MUTED)
   storageBar = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
    max = 1000; isIndeterminate = false
-   progressDrawable = android.graphics.drawable.LayerDrawable(arrayOf(
+   progressDrawable = android.graphics.drawable.LayerDrawable(arrayOf<android.graphics.drawable.Drawable>(
     KioskUi.shape(this@RearDashcamActivity, KioskUi.LINE, 4f, 0),
     android.graphics.drawable.ClipDrawable(KioskUi.shape(this@RearDashcamActivity, KioskUi.TEAL, 4f, 0), Gravity.START, android.graphics.drawable.ClipDrawable.HORIZONTAL)
    )).apply { setId(0, android.R.id.background); setId(1, android.R.id.progress) }
@@ -70,7 +70,7 @@ class RearDashcamActivity : Activity() {
   rec.setPadding(dp(26), dp(26), dp(26), dp(26))
   rec.dividerDrawable = android.graphics.drawable.GradientDrawable().apply { setSize(dp(18), dp(18)); setColor(0) }
   rec.showDividers = LinearLayout.SHOW_DIVIDER_MIDDLE
-  heading = KioskUi.title(this, "Ready to record", 20)
+  heading = KioskUi.title(this, "Ready to record", 20f)
   timer = KioskUi.text(this, "00:00", 60f, KioskUi.TEXT).apply { typeface = Typeface.MONOSPACE; setLineSpacing(0f, 1f) }
   status = KioskUi.text(this, "Checking the camera…", 16f, KioskUi.SOFT)
   rec.addView(KioskUi.column(this, 4).apply { addView(heading); addView(timer); addView(status) })
@@ -105,7 +105,7 @@ class RearDashcamActivity : Activity() {
   val library = KioskUi.panel(this)
   val libHead = KioskUi.row(this, 10)
   libHead.setPadding(dp(22), dp(20), dp(22), dp(12))
-  libHead.addView(KioskUi.title(this, "Saved videos", 20), KioskUi.weight(1f))
+  libHead.addView(KioskUi.title(this, "Saved videos", 20f), KioskUi.weight(1f))
   allChip = chip("All") { onlyIncidents = false; listKey = ""; refresh() }
   incidentChip = chip("Incidents") { onlyIncidents = true; listKey = ""; refresh() }
   libHead.addView(allChip); libHead.addView(incidentChip)
@@ -214,7 +214,7 @@ class RearDashcamActivity : Activity() {
   val row = if (wide) KioskUi.row(this, 16) else KioskUi.column(this, 12)
   row.setPadding(dp(22), dp(14), dp(22), dp(14))
   val info = KioskUi.row(this, 14)
-  info.addView(KioskUi.text(this, "▶", 22f, KioskUi.TEAL).apply {
+  info.addView(KioskUi.text(this, "\u25B6\uFE0E", 22f, KioskUi.TEAL).apply {
    gravity = Gravity.CENTER; background = KioskUi.shape(this@RearDashcamActivity, KioskUi.INK, 10f, 0)
    importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
   }, LinearLayout.LayoutParams(dp(96), dp(56)))
@@ -249,7 +249,7 @@ class RearDashcamActivity : Activity() {
    val player = VideoView(this); video = player
    val layout = KioskUi.column(this, 12)
    layout.setPadding(dp(20), dp(16), dp(20), dp(16)); layout.setBackgroundColor(KioskUi.INK)
-   layout.addView(KioskUi.title(this, whenSaved(file), 20))
+   layout.addView(KioskUi.title(this, whenSaved(file), 20f))
    layout.addView(KioskUi.text(this, "Rear camera, no sound", 14f, KioskUi.MUTED))
    layout.addView(player, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
    val clock = KioskUi.text(this, "Loading the video…", 16f, KioskUi.SOFT).apply { typeface = Typeface.MONOSPACE }
