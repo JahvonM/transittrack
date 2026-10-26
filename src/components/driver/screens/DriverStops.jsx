@@ -134,7 +134,7 @@ export default function DriverStops({ session, passengers, trips, invoke, refres
   const offRoadRiders = roadStops ? session?.road_stops?.off_road || [] : [];
 
   return (
-    <div className="mx-auto w-full max-w-2xl px-4 pb-6 sm:px-5">
+    <div className="mx-auto w-full max-w-2xl px-4 pb-6 sm:px-5 [@media(orientation:landscape)_and_(min-width:960px)]:pt-6">
       <div className="mb-4 flex items-baseline justify-between gap-3">
         <div className="min-w-0">
           <h1 className="truncate text-title font-bold">{route?.name || "No route assigned"}</h1>
