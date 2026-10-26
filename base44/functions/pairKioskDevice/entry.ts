@@ -87,8 +87,9 @@ export default async function(req) {
     else await base44.asServiceRole.entities.DeviceCredential.create(data);
     await base44.asServiceRole.entities.KioskDevice.update(device.id, { paired: true, last_seen: issued.toISOString() });
 
-    let driver_name = '';
-    if (device.vehicle_id) {
+    // A driver's own phone carries its driver's name; a bus tablet the bus's.
+    let driver_name = device.personal === true ? device.driver_name || '' : '';
+    if (device.vehicle_id && !driver_name) {
       try {
         const vehicle = await base44.asServiceRole.entities.Vehicle.get(device.vehicle_id);
         driver_name = vehicle?.driver_name || '';
@@ -114,6 +115,7 @@ export default async function(req) {
       vehicle_id: device.vehicle_id,
       vehicle_name: device.vehicle_name,
       kiosk_type: device.kiosk_type,
+      personal: device.personal === true,
       driver_name
     });
   } catch (error) {
