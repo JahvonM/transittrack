@@ -1,5 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 const PAIR_TTL_MS=15*60_000;
+// A driver's own phone: the driver installs the store app first, so its code lasts longer.
+const OWN_PHONE_TTL_MS=7*86400_000;
 function fail(status,message){throw Object.assign(new Error(message),{status});}
 function randomAccessCode() {
  const alphabet='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';let code='';
@@ -63,7 +65,7 @@ export default async function(req) {
   if(device.vehicle_id) {
    const vehicle=await getRecord(db,"Vehicle",device.vehicle_id);if(!vehicle||vehicle.company_id!==device.company_id)fail(403,'Vehicle assignment mismatch');
   }
-  const code=await uniqueAccessCode(db,'KioskDevice','pairing_code'),expires_at=new Date(Date.now()+PAIR_TTL_MS).toISOString();
+  const code=await uniqueAccessCode(db,'KioskDevice','pairing_code'),expires_at=new Date(Date.now()+(device.personal===true?OWN_PHONE_TTL_MS:PAIR_TTL_MS)).toISOString();
   await db.KioskDevice.update(device.id,{status:'active',paired:false,pairing_code:code,pairing_expires_at:expires_at});
   return Response.json({code,expires_at});
  }catch(error){return Response.json({error:error.status?error.message:'Could not manage access code'},{status:error.status||500});}

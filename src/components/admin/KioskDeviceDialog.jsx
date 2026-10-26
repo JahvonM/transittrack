@@ -101,7 +101,7 @@ export default function KioskDeviceDialog({ open, onOpenChange, companies, vehic
           label: label.trim(), kiosk_type: "driver", personal: true, driver_id: driverId,
           company_id: companyId, company_name: company?.name || "",
         });
-        toast({ title: "Driver's phone added", description: `Code for the McSween Transport app: ${created.pairing_code}` });
+        toast({ title: "Driver's phone added", description: `Code for the McSween Driver app: ${created.pairing_code}. It works once, for 7 days.` });
       } else if (isEdit) {
         await base44.entities.KioskDevice.update(device.id, {
           label: label.trim(),
@@ -145,7 +145,7 @@ export default function KioskDeviceDialog({ open, onOpenChange, companies, vehic
             {lockedOwn
               ? "This phone belongs to its driver, who picks the bus in the app before each shift."
               : own
-                ? "The driver types the code into the McSween Transport app from Google Play or the App Store. They pick the bus before each shift and enter its PIN."
+                ? "The driver installs McSween Driver from Google Play or the App Store and types the code (it works once, for 7 days). Before each shift they pick the bus and enter its PIN."
                 : isEdit
                   ? "Update this device's company, vehicle, or kiosk type."
                   : "Create a device record and receive a one-time pairing code for the kiosk app."}
