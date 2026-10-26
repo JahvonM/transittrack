@@ -639,6 +639,65 @@ async function inspectionChild(base44,name,data,key,actor) {
  return prior || durableCreate(JSON.stringify(['inspection-child',name,actor,data.company_id,data.vehicle_id,key]),
   await operationHash(JSON.stringify(stable)),()=>db.create({...data,client_request_id:key,request_actor_id:actor}),id=>db.get(id));
 }
+// ---- A driver's own phone or tablet (the store app) ----
+// It belongs to a driver, not a bus (KioskDevice.personal, driver_id). Before
+// a shift the driver picks the bus; the device and its credential then point
+// at that bus, and everything else works as on a bus's own driver tablet,
+// including the bus PIN. A bus has one driver on shift at a time, so a bus
+// with a shift open on another device can't be picked, and the phone can't
+// change bus while its own shift is open.
+const OWN_DEVICE_ACTIONS = ['list_buses', 'choose_bus', 'release_bus'];
+const VEHICLE_ID = /^[A-Za-z0-9_-]{1,64}$/;
+async function openShiftsOn(base44, vehicleId) {
+  return (await base44.asServiceRole.entities.DriverShift.filter({ vehicle_id: vehicleId }, '-started_at', 5).catch(() => [])).filter((s) => !s.ended_at);
+}
+async function ownDeviceIdle(base44, device) {
+  await base44.asServiceRole.entities.KioskDevice.update(device.id, { last_seen: new Date().toISOString() });
+  let company = null;
+  try { company = await base44.asServiceRole.entities.Company.get(device.company_id); } catch { /* optional display */ }
+  return {
+    personal: true, vehicle: null, driver_name: device.driver_name || '',
+    company_id: device.company_id, company_name: company?.name || device.company_name || '', company_logo_url: company?.logo_url || '',
+    update_requested_at: device.update_requested_at || null,
+  };
+}
+async function ownDeviceAction(base44, device, body, action) {
+  const db = base44.asServiceRole.entities;
+  if (action === 'list_buses') {
+    const [vehicles, shifts] = await Promise.all([
+      db.Vehicle.filter({ company_id: device.company_id }, 'name', 300),
+      db.DriverShift.filter({ company_id: device.company_id }, '-started_at', 300).catch(() => []),
+    ]);
+    const busy = new Set(shifts.filter((s) => !s.ended_at && s.device_id !== device.id).map((s) => s.vehicle_id));
+    const buses = vehicles.filter((v) => v.company_id === device.company_id && v.in_service !== false)
+      .map((v) => ({ id: v.id, name: v.name || 'Bus', plate_number: v.plate_number || '', type: v.type || 'bus', busy: busy.has(v.id) }));
+    return Response.json({ buses, current: device.vehicle_id || null });
+  }
+  if (device.vehicle_id && (await openShiftsOn(base44, device.vehicle_id)).some((s) => s.device_id === device.id)) {
+    return Response.json({ error: `End your shift on ${device.vehicle_name || 'this bus'} before changing bus`, code: 'SHIFT_OPEN' }, { status: 409 });
+  }
+  let next = null;
+  if (action === 'choose_bus') {
+    if (typeof body.vehicle_id !== 'string' || !VEHICLE_ID.test(body.vehicle_id)) return Response.json({ error: 'Choose a bus' }, { status: 400 });
+    next = await loadVehicle(base44, body.vehicle_id);
+    if (!next || next.company_id !== device.company_id) return Response.json({ error: 'That bus was not found' }, { status: 404 });
+    if (next.in_service === false) return Response.json({ error: `${next.name || 'That bus'} is not in service` }, { status: 409 });
+    if ((await openShiftsOn(base44, next.id)).some((s) => s.device_id !== device.id)) {
+      return Response.json({ error: `${next.name || 'That bus'} already has a driver on shift`, code: 'BUS_BUSY' }, { status: 409 });
+    }
+  }
+  const vehicleId = next ? next.id : '';
+  if (vehicleId === (device.vehicle_id || '')) return Response.json({ ok: true, vehicle: next ? tabletVehicle(next) : null });
+  const credential = (await db.DeviceCredential.filter({ device_id: device.id }, '-issued_at', 1))[0];
+  if (!credential) return Response.json({ error: 'Pair this phone again', code: 'DEVICE_ACCESS_REQUIRED' }, { status: 401 });
+  // The device and its credential move together; if the second write fails
+  // the first is put back, so the phone is never left locked out.
+  await db.KioskDevice.update(device.id, { vehicle_id: vehicleId, vehicle_name: next?.name || '' });
+  try { await db.DeviceCredential.update(credential.id, { vehicle_id: vehicleId }); }
+  catch (error) { await db.KioskDevice.update(device.id, { vehicle_id: device.vehicle_id || '', vehicle_name: device.vehicle_name || '' }); throw error; }
+  return Response.json({ ok: true, vehicle: next ? tabletVehicle(next) : null });
+}
+
 export default async function(req) {
   // After the switch, calls from the installed tablet app go on to Supabase.
   const forwarded = await forwardToSupabase(req, 'driverSession');
@@ -654,6 +713,12 @@ export default async function(req) {
     const companyId = device.company_id;
     const companyName = device.company_name;
     const vehicleId = device.vehicle_id;
+    const ownDevice = device.personal === true;
+    if (ownDevice && OWN_DEVICE_ACTIONS.includes(action)) return ownDeviceAction(base44, device, body, action);
+    if (ownDevice && !vehicleId) {
+      if (action === 'heartbeat') return Response.json(await ownDeviceIdle(base44, device));
+      return Response.json({ error: 'Choose the bus you are driving first', code: 'BUS_REQUIRED' }, { status: 409 });
+    }
     if (!vehicleId) return Response.json({ error: 'No vehicle assigned to this device' }, { status: 400 });
 
     if (!['heartbeat', 'verify_pin', 'request_pin_reset', 'register_push_token', 'sos', 'phone_unlock_code', 'phone_unlock_status'].includes(action) && !(await validGrant(base44, device, body.driver_grant, 'driver', vehicleId))) return Response.json({ error: 'Driver PIN verification required', code: 'DRIVER_PIN_REQUIRED' }, { status: 401 });
@@ -974,7 +1039,8 @@ export default async function(req) {
         // A guest-facing signing tablet on this bus (full check-ins only; it rarely changes).
         const hasSigningTablet = light ? null : (await base44.asServiceRole.entities.KioskDevice.filter({ vehicle_id: vehicleId, kiosk_type: 'job_signing', status: 'active' }, '-created_date', 1).catch(() => [])).some((d) => d.paired && d.company_id === companyId);
         const reply = {
-          vehicle: tabletVehicle(vehicle), driver_name: vehicle.driver_name || '', has_driver_pin: hasDriverPin, has_signing_tablet: hasSigningTablet,
+          vehicle: tabletVehicle(vehicle), driver_name: ownDevice ? device.driver_name || vehicle.driver_name || '' : vehicle.driver_name || '', has_driver_pin: hasDriverPin, has_signing_tablet: hasSigningTablet,
+          ...(ownDevice ? { personal: true } : {}),
           company_id: companyId, company_name: companyDisplayName, company_logo_url: companyLogoUrl, staff, route: tabletRoute(route, companyId), road_stops: roadStops, workplace, emergency_contacts: emergencyContacts, ...boardingStats(checkIns),
           broadcasts: relevantBroadcasts, check_ins: checkIns.slice(0, 20).filter((c) => c.status === 'boarded').map(tabletCheckIn),
           group_messages: unlocked ? [...groupMessages].filter(message=>message.company_id===companyId).reverse() : [], trips: unlocked ? trips : [],
@@ -1026,12 +1092,15 @@ export default async function(req) {
         if (!vehicle) return Response.json({ error: 'Vehicle not found' }, { status: 404 });
         const open = (await base44.asServiceRole.entities.DriverShift.filter({ vehicle_id: vehicleId }, '-started_at', 5))
           .filter((s) => !s.ended_at);
+        // A driver's own phone never joins a shift another device has open.
+        if (ownDevice && open.length && open[0].device_id !== device.id) return Response.json({ error: `${vehicle.name || 'This bus'} already has a driver on shift`, code: 'BUS_BUSY' }, { status: 409 });
         if (open.length) return Response.json({ shift: open[0] });
         const shift = await durableCreate(requestId ? JSON.stringify(['shift',device.id,companyId,vehicleId,requestId]) : null,requestHash,async()=>{
         const shift = await base44.asServiceRole.entities.DriverShift.create({
           ...(requestId ? {client_request_id:requestId,request_hash:requestHash} : {}),
           vehicle_id: vehicleId, vehicle_name: vehicle.name, company_id: companyId, company_name: companyName,
-          driver_name: vehicle.driver_name || '', driver_email: vehicle.driver_email || '',
+          driver_name: ownDevice ? device.driver_name || '' : vehicle.driver_name || '', driver_email: ownDevice ? '' : vehicle.driver_email || '',
+          ...(ownDevice && device.driver_id ? { driver_id: device.driver_id } : {}),
           device_id, started_at: occurredAt(body.occurred_at).toISOString(),
         });
         // A shift starts with an empty bus. If the previous shift was never
