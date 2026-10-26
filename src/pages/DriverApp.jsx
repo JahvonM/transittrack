@@ -553,7 +553,8 @@ export default function DriverApp() {
         </section>
         {activeTab !== "track" && (
           <section className="absolute inset-0 overflow-y-auto overscroll-contain">
-            {activeTab!=="more" && activeTab!=="passengers" && <div className="dk-content"><Button variant="outline" className="dk-back self-start" onClick={()=>selectTab("more")}><ArrowLeft/>Back to More</Button></div>}
+            {/* Bus stops and Messages have their own buttons in the sideways tablet's bar. */}
+            {activeTab!=="more" && activeTab!=="passengers" && !(landscape && ["stops","chat"].includes(activeTab)) && <div className="dk-content"><Button variant="outline" className="dk-back self-start" onClick={()=>selectTab("more")}><ArrowLeft/>Back to More</Button></div>}
             {activeTab === "stops" && (
               <DriverStops
                 session={session}
