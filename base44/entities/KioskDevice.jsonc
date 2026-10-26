@@ -286,6 +286,19 @@
     "label": {
       "type": "string"
     },
+    "personal": {
+      "type": "boolean",
+      "default": false,
+      "description": "A driver's own phone or tablet (the store app). It belongs to driver_id, not a bus: the driver picks the bus (vehicle_id) before each shift. Set only when it is added; never a kiosk."
+    },
+    "driver_id": {
+      "type": "string",
+      "description": "The driver who owns this device (personal devices only)."
+    },
+    "driver_name": {
+      "type": "string",
+      "description": "That driver's name, copied when the device is added."
+    },
     "last_seen": {
       "format": "date-time",
       "type": "string"

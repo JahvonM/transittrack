@@ -24,6 +24,10 @@
       "type": "string",
       "description": "Driver tablet (KioskDevice) that started the shift."
     },
+    "driver_id": {
+      "type": "string",
+      "description": "The driver, when the shift was started on the driver's own phone."
+    },
     "started_at": {
       "type": "string",
       "format": "date-time"
