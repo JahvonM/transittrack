@@ -13,8 +13,9 @@ export default function ChooseBus({ session, invoke, onChosen, onUnpair }) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState("");
 
-  const load = useCallback(async () => {
-    setError("");
+  // keepError: after a refused choice, refresh the list but keep saying why.
+  const load = useCallback(async ({ keepError = false } = {}) => {
+    if (!keepError) setError("");
     try {
       const res = await invoke("list_buses");
       setBuses(Array.isArray(res?.buses) ? res.buses : []);
@@ -34,7 +35,7 @@ export default function ChooseBus({ session, invoke, onChosen, onUnpair }) {
       await onChosen?.(bus);
     } catch (e) {
       setError(busChoiceMessage(e, `Couldn't choose ${bus.name}. Try again.`));
-      load();
+      load({ keepError: true });
     } finally {
       setBusy("");
     }
@@ -57,7 +58,7 @@ export default function ChooseBus({ session, invoke, onChosen, onUnpair }) {
               <h2 id="choose-bus-title" className="text-title font-bold">Which bus are you driving?</h2>
               <p className="text-body-sm text-muted-foreground mt-1">Then enter that bus's PIN to start.</p>
             </div>
-            <Button variant="ghost" size="icon" aria-label="Refresh the list" onClick={load} disabled={buses === null}>
+            <Button variant="ghost" size="icon" aria-label="Refresh the list" onClick={() => load()} disabled={buses === null}>
               <RefreshCw className="h-5 w-5" />
             </Button>
           </div>
