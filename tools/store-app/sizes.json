@@ -1,0 +1,6 @@
+[{"name":"iphone-6.9","dir":"app-store","w":440,"h":956,"dpr":3},
+ {"name":"iphone-6.3","dir":"app-store","w":402,"h":874,"dpr":3},
+ {"name":"ipad-13","dir":"app-store","w":1376,"h":1032,"dpr":2},
+ {"name":"phone","dir":"google-play","w":432,"h":768,"dpr":2.5},
+ {"name":"tablet-7in","dir":"google-play","w":612,"h":1088,"dpr":1.7647058823529411},
+ {"name":"tablet-10in","dir":"google-play","w":1280,"h":720,"dpr":2}]
