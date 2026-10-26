@@ -33,7 +33,7 @@ export async function answerRequest(action, body) {
   return (await base44.functions.invoke("bookingRequest", { action, ...body })).data;
 }
 
-function RequestCard({ r, onMakeJob, onDecline, onSpam, busy }) {
+function RequestCard({ r, madeJob, onMakeJob, onConfirmMade, onDecline, onSpam, busy }) {
   const details = [
     r.guests ? `${r.guests} passenger${r.guests === 1 ? "" : "s"}` : "",
     r.luggage ? `${r.luggage} bag${r.luggage === 1 ? "" : "s"}` : "",
@@ -63,8 +63,12 @@ function RequestCard({ r, onMakeJob, onDecline, onSpam, busy }) {
         </p>
         {r.notes && <p className="mt-1.5 whitespace-pre-wrap text-muted-foreground">{r.notes}</p>}
       </div>
+      {madeJob && <p role="status" className="mt-3 text-body-sm text-warning">The job for this request is saved, but the ride wasn't confirmed yet.</p>}
       <div className="mt-3 flex flex-wrap gap-2">
-        <Button onClick={() => onMakeJob(r)} disabled={busy}>Make job</Button>
+        {/* A job already made for it is confirmed, never made a second time. */}
+        {madeJob
+          ? <Button onClick={() => onConfirmMade(r)} disabled={busy}>Confirm ride</Button>
+          : <Button onClick={() => onMakeJob(r)} disabled={busy}>Make job</Button>}
         <Button variant="outline" onClick={() => onDecline(r)} disabled={busy}>Decline</Button>
         <Button variant="ghost" className="text-muted-foreground" onClick={() => onSpam(r)} disabled={busy}>Spam</Button>
       </div>
@@ -72,7 +76,7 @@ function RequestCard({ r, onMakeJob, onDecline, onSpam, busy }) {
   );
 }
 
-export default function BookingRequests({ requests = [], loading = false, onMakeJob, onChanged }) {
+export default function BookingRequests({ requests = [], loading = false, madeJobs = {}, onMakeJob, onConfirmMade, onChanged }) {
   const { toast } = useToast();
   const [declining, setDeclining] = useState(null);
   const [reason, setReason] = useState("");
@@ -105,7 +109,7 @@ export default function BookingRequests({ requests = [], loading = false, onMake
         <EmptyState icon={Globe} title="No new requests" className="border-0">Rides people ask for on mcsweenstransport.com show up here.</EmptyState>
       ) : (
         <ul className="space-y-3">
-          {requests.map((r) => <RequestCard key={r.id} r={r} busy={busy} onMakeJob={onMakeJob} onDecline={(x) => { setReason(""); setDeclining(x); }} onSpam={spam} />)}
+          {requests.map((r) => <RequestCard key={r.id} r={r} busy={busy} madeJob={madeJobs[r.id]} onMakeJob={onMakeJob} onConfirmMade={onConfirmMade} onDecline={(x) => { setReason(""); setDeclining(x); }} onSpam={spam} />)}
         </ul>
       )}
       <Dialog open={!!declining} onOpenChange={(open) => !open && setDeclining(null)}>

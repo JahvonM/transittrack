@@ -80,22 +80,27 @@ export default function JobsTab({ vehicles = [], routes = [], trips = [], comple
     return () => clearInterval(timer);
   }, [loadRequests]);
   const makeJobFrom = (r) => setDialog({ open: true, job: null, draft: draftFromRequest(r), request: r });
-  // The job was saved: confirm the request, which emails the customer.
-  const confirmRequest = async (saved) => {
-    const r = dialog.request;
+  // Requests whose job is saved but whose confirmation didn't go through:
+  // "Confirm ride" retries with that job instead of making a second one.
+  const [madeJobs, setMadeJobs] = useState({});
+  const confirmWith = async (r, tripId) => {
     try {
-      const res = await answerRequest("confirm", { request_id: r.id, trip_id: saved?.id });
+      const res = await answerRequest("confirm", { request_id: r.id, trip_id: tripId });
+      setMadeJobs((m) => { const { [r.id]: _done, ...rest } = m; return rest; });
       toast({
         title: "Ride confirmed",
         description: !res.emailed ? `The job is saved, but the email to ${r.name} didn't go out. Contact them yourself.`
           : res.tracking ? `${r.name} was emailed the details and a tracking link.` : `${r.name} was emailed. They get a tracking link once the job has a bus (open the job to send it).`,
       });
     } catch (e) {
-      toast({ title: "The job is saved, but the request wasn't confirmed", description: errorData(e).error || "Open Requests and try again.", variant: "destructive" });
+      if (tripId) setMadeJobs((m) => ({ ...m, [r.id]: tripId }));
+      toast({ title: "The job is saved, but the ride wasn't confirmed", description: errorData(e).error || "Open Requests and press Confirm ride.", variant: "destructive" });
     }
     loadRequests();
     onChange?.();
   };
+  // The job was saved: confirm the request, which emails the customer.
+  const confirmRequest = (saved) => confirmWith(dialog.request, saved?.id);
 
   const all = useMemo(() => {
     const byId = new Map();
@@ -155,7 +160,7 @@ export default function JobsTab({ vehicles = [], routes = [], trips = [], comple
       )}
 
       {view === "requests" && (
-        <BookingRequests requests={requests} loading={requestsLoading} onMakeJob={makeJobFrom} onChanged={loadRequests} />
+        <BookingRequests requests={requests} loading={requestsLoading} madeJobs={madeJobs} onMakeJob={makeJobFrom} onConfirmMade={(r) => confirmWith(r, madeJobs[r.id])} onChanged={loadRequests} />
       )}
 
       {view === "board" && (

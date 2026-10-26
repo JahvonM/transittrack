@@ -503,6 +503,8 @@ async function driverWithHelper(page, health) {
   await page.goto('/driver/profile');
   await page.locator('input[type=password]').fill('1234');
   await page.getByRole('button', { name: 'Unlock', exact: true }).click();
+  // Wi-Fi lives in the Connection section of Tablet settings.
+  await page.getByRole('navigation', { name: 'Settings sections' }).getByRole('button', { name: 'Connection', exact: true }).click();
   return { bodies, helper };
 }
 const tabletHealth = {
@@ -601,6 +603,7 @@ test('boarding tablet opens its Internet settings after holding the top bar and 
   for (const d of '0000') await dialog.getByRole('button', { name: d, exact: true }).click();
   await expect(dialog.getByRole('alert')).toContainText('Wrong PIN');
   for (const d of '1234') await dialog.getByRole('button', { name: d, exact: true }).click();
+  await dialog.getByRole('navigation', { name: 'Settings sections' }).getByRole('button', { name: 'Connection', exact: true }).click();
   await expect(dialog.getByText('Connected to TT-BUS1')).toBeVisible();
   await expect(dialog.getByText('Mobile data')).toHaveCount(0);
   await dialog.getByRole('switch', { name: 'Wi-Fi' }).click();
@@ -632,6 +635,7 @@ test('boarding tablet joins a Wi-Fi chosen on its screen without changing its bu
   await page.mouse.down(); await page.waitForTimeout(3300); await page.mouse.up();
   const dialog = page.getByRole('dialog').first();
   for (const d of '1234') await dialog.getByRole('button', { name: d, exact: true }).click();
+  await dialog.getByRole('navigation', { name: 'Settings sections' }).getByRole('button', { name: 'Connection', exact: true }).click();
   await page.getByRole('button', { name: 'Choose a Wi-Fi network' }).click();
   await expect.poll(() => helper.some((u) => u.includes('/wifi/scan?'))).toBe(true);
   await page.evaluate(() => {

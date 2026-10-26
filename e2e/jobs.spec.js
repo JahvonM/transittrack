@@ -288,3 +288,55 @@ test('signing operator unlocks jobs and chooses the correct pickup signature',as
  expect(actions.find(a=>a.action==='arrive')).toMatchObject({trip_id:'chosen',operator_grant:'f'.repeat(64),stage:'pickup'});
  await expect(page.getByText('Operator-only instructions',{exact:true})).toHaveCount(0);
 });
+
+test('if confirming a website request fails, Confirm ride retries with the saved job instead of making a second one', async ({ page }) => {
+  const created = [], confirms = [];
+  const bus = { id: 'bus', name: 'Bus 12', company_id: 'a', company_name: 'Island Transit Co.', driver_name: 'Kofi', status: 'idle', type: 'bus', capacity: 30 };
+  const when = new Date(Date.now() + 2 * 86400_000); when.setHours(10, 0, 0, 0);
+  let request = { id: 'req-1', status: 'new', service: 'transfer', requested_time: when.toISOString(), pickup: 'Grand Hotel', dropoff: 'Maurice Bishop Airport', guests: 2, name: 'Ana Joseph', phone: '+1 473 555 0101', email: 'ana@example.com', created_date: new Date().toISOString() };
+  await page.addInitScript(() => { localStorage.setItem('base44_access_token', 'isolated-test-session'); localStorage.setItem('tt-map-engine', 'basic'); });
+  await page.route('https://api.mapbox.com/**', (r) => r.fulfill({ status: 404, body: '' }));
+  await page.route('**/api/**', (r) => {
+    const body = r.request().postDataJSON(), url = r.request().url();
+    if (url.includes('/functions/bookingRequest')) {
+      confirms.push(body);
+      // The first confirmation fails (say the connection dropped); the second goes through.
+      if (confirms.length === 1) return r.fulfill({ status: 500, json: { error: 'Server is busy. Try again.' } });
+      request = null;
+      return r.fulfill({ json: { ok: true, emailed: true, tracking: true } });
+    }
+    if (url.includes('/functions/entityAccess')) {
+      if (body.entity === 'User') return r.fulfill({ json: { result: { id: 'admin-test', role: 'admin', full_name: 'Test Admin' } } });
+      if (body.entity === 'AdminBootstrap') {
+        const lists = { vehicles: [bus], trips: created };
+        return r.fulfill({ json: { result: { datasets: Object.fromEntries(body.datasets.map((k) => [k, lists[k] || []])), errors: {} } } });
+      }
+      if (body.entity === 'BookingRequest') return r.fulfill({ json: { result: request ? [request] : [] } });
+      if (body.entity === 'Trip' && body.operation === 'create') {
+        const row = { id: `job-${created.length + 1}`, ...body.data };
+        created.push(row);
+        return r.fulfill({ json: { result: row } });
+      }
+      return r.fulfill({ json: { result: [] } });
+    }
+    return r.fulfill({ json: { id: 'test-app', public_settings: { authentication_required: false } } });
+  });
+
+  await page.goto('/admin/trips');
+  await page.getByRole('button', { name: /1 ride request from the website/ }).click();
+  await page.getByRole('button', { name: 'Make job', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByLabel('Bus and driver', { exact: true }).click();
+  await page.getByRole('option', { name: 'Bus 12 · Kofi' }).click();
+  await dialog.getByRole('button', { name: 'Create job', exact: true }).click();
+  await expect.poll(() => created.length).toBe(1);
+  await expect(page.getByText("The job is saved, but the ride wasn't confirmed", { exact: true })).toBeVisible();
+
+  // The request stays, now offering to confirm the saved job, not to make another.
+  await expect(page.getByText("The job for this request is saved, but the ride wasn't confirmed yet.")).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Make job', exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Confirm ride', exact: true }).click();
+  await expect(page.getByText('Ride confirmed', { exact: true })).toBeVisible();
+  expect(created).toHaveLength(1);
+  expect(confirms.map((c) => [c.action, c.request_id, c.trip_id])).toEqual([['confirm', 'req-1', 'job-1'], ['confirm', 'req-1', 'job-1']]);
+});

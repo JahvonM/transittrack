@@ -485,13 +485,15 @@ test('boarding settings expose integrated reader, USB auto-accept and tablet hea
   const dialog = page.getByRole('dialog');
   await expect(dialog.getByText('Bus PIN', { exact: true })).toBeVisible();
   for (const d of '1234') await dialog.getByRole('button', { name: d, exact: true }).click();
-  await expect(dialog.getByText('Tablet settings', { exact: true })).toBeVisible();
+  await expect(dialog.getByRole('heading', { name: 'Tablet settings', exact: true })).toBeVisible();
+  // Card reader is the first section, open by default.
   const toggle = dialog.getByRole('switch', { name: 'Use integrated USB card reader' });
   await expect(toggle).not.toBeChecked(); await toggle.click(); await expect(toggle).toBeChecked();
-  await dialog.getByRole('button', { name: 'Check card reader again' }).click();
+  await dialog.getByRole('button', { name: 'Check the reader' }).click();
   await expect(dialog.getByText('Reconnecting', { exact: true })).toBeVisible();
-  await dialog.getByRole('button', { name: 'Set up USB auto-accept' }).click();
+  await dialog.getByRole('button', { name: 'Answer USB questions by itself', exact: true }).click();
   await expect.poll(() => page.evaluate(() => window.__autoAcceptSettingsOpened)).toBe(true);
+  await dialog.getByRole('navigation', { name: 'Settings sections' }).getByRole('button', { name: 'Tablet health', exact: true }).click();
   await expect(dialog.getByText('Test tablet · Android 10')).toBeVisible();
   await expect(dialog.getByText('32.5°C', { exact: true })).toBeVisible();
   await dialog.getByRole('button', { name: 'Wi-Fi settings', exact: true }).click();
@@ -540,6 +542,7 @@ test('native Bluetooth control remains behind the boarding settings PIN', async 
   const dialog = page.getByRole('dialog');
   await expect(dialog.getByText('Bus PIN', { exact: true })).toBeVisible();
   for (const n of ['1', '2', '3', '4']) await dialog.getByRole('button', { name: n, exact: true }).click();
+  await dialog.getByRole('navigation', { name: 'Settings sections' }).getByRole('button', { name: 'Bluetooth boarding', exact: true }).click();
   await expect(dialog.getByRole('switch', { name: 'Use integrated Bluetooth boarding' })).toBeVisible();
   await dialog.getByRole('switch', { name: 'Use integrated Bluetooth boarding' }).click();
   await expect.poll(() => page.evaluate(() => window.__nativeBleEnabled)).toBe(true);
@@ -548,6 +551,7 @@ test('native Bluetooth control remains behind the boarding settings PIN', async 
   await dialog.getByRole('button', { name: 'Open Android Bluetooth settings', exact: true }).click();
   await expect.poll(() => page.evaluate(() => window.__nativeBluetoothSettingsOpened)).toBe(true);
   await page.screenshot({ path: '/tmp/tt-ble-settings.png', fullPage: true });
+  await dialog.getByRole('navigation', { name: 'Settings sections' }).getByRole('button', { name: 'Startup', exact: true }).click();
   await dialog.getByRole('link', { name: 'Choose tablet screen', exact: true }).click();
   await expect.poll(() => page.evaluate(() => window.__nativeBleReady)).toBe(false);
 });
@@ -556,16 +560,18 @@ test('startup recovery settings are PIN gated and never change Home automaticall
   await installNativeHelper(page, false, false);
   await setup(page, { checkIn: b => b.action === 'verify_settings_pin' ? { json: { ok: b.pin === '1234' } } : null });
   await page.goto('/kiosk');
-  await expect(page.getByRole('button', { name: 'Open Android Home settings', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Choose the Home app', exact: true })).toHaveCount(0);
   await page.locator('.tt-board-header').dispatchEvent('pointerdown');
   await page.waitForTimeout(3100);
   await page.locator('.tt-board-header').dispatchEvent('pointerup');
   const dialog = page.getByRole('dialog');
   for (const digit of '1234') await dialog.getByRole('button', { name: digit, exact: true }).click();
-  await expect(dialog.getByText("Android Home app has not been set to McSween Kiosk.", { exact: true })).toBeVisible();
+  await dialog.getByRole('navigation', { name: 'Settings sections' }).getByRole('button', { name: 'Connection', exact: true }).click();
   await expect(dialog.getByText('FLOW · 0/4 signal (last reading)', { exact: true })).toBeVisible();
   await expect(dialog.getByText('Android reports Internet access.', { exact: true })).toBeVisible();
-  await expect(dialog.getByText(/Screen recovery is ready/)).toBeVisible();
+  await dialog.getByRole('navigation', { name: 'Settings sections' }).getByRole('button', { name: 'Startup', exact: true }).click();
+  await expect(dialog.getByText("McSween Kiosk isn't the Home app yet.", { exact: true })).toBeVisible();
+  await expect(dialog.getByText(/If the app's screen stops, it reopens by itself/)).toBeVisible();
   const screen = dialog.getByRole('switch', {name:'Keep screen on',exact:true});
   await expect(screen).toBeChecked();
   await screen.click(); await expect(screen).not.toBeChecked();
@@ -578,7 +584,7 @@ test('startup recovery settings are PIN gated and never change Home automaticall
   await page.evaluate(()=>window.__failScreenChange=false);
   await screen.click(); await expect(screen).toBeChecked();
   expect(await page.evaluate(() => window.__nativeHomeSettingsOpened)).toBeUndefined();
-  await dialog.getByRole('button', { name: 'Open Android Home settings', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Choose the Home app', exact: true }).click();
   await expect.poll(() => page.evaluate(() => window.__nativeHomeSettingsOpened)).toBe(true);
   await page.screenshot({ path: '/tmp/tt-recovery-settings.png', fullPage: true });
 });
@@ -590,6 +596,7 @@ async function openNativeNetworkSettings(page) {
   await page.locator('.tt-board-header').dispatchEvent('pointerup');
   const dialog = page.getByRole('dialog');
   for (const digit of '1234') await dialog.getByRole('button', { name: digit, exact: true }).click();
+  await dialog.getByRole('navigation', { name: 'Settings sections' }).getByRole('button', { name: 'Connection', exact: true }).click();
   return dialog;
 }
 test('integrated network settings are PIN gated and scan access is explicit', async ({ page }) => {

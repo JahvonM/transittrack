@@ -87,6 +87,19 @@ describe("booking on the website", () => {
     expect(sent[0].body).toMatch(/Nothing is booked until then/);
   });
 
+  it("the first email to the address on the form holds nothing the visitor typed", async () => {
+    // Anyone can put anyone's email on the form: the reply must not carry their text.
+    const { sent } = setup();
+    const bait = { name: "Visit evil.example now", pickup: "Your account is locked", dropoff: "call 555 0000", notes: "phish" };
+    await call({ action: "request", form_ms: 45000, ...form({ requested_time: new Date(Date.now() + 3 * 86400_000).toISOString(), ...bait }) });
+    const toCustomer = sent.find((m) => m.to === "ana@example.com");
+    for (const text of Object.values(bait)) expect(toCustomer.body).not.toContain(text);
+    expect(toCustomer.body).toMatch(/Airport pickup|Airport drop-off|Transfer|Island tour|Staff transport/);
+    // Dispatch still sees everything.
+    const toDispatch = sent.find((m) => m.to === "dispatch@example.com");
+    for (const text of ["Visit evil.example now", "Your account is locked", "call 555 0000"]) expect(toDispatch.body).toContain(text);
+  });
+
   it("quietly ignores bots and turns away floods", async () => {
     const { rows, sent } = setup();
     const later = new Date(Date.now() + 3 * 86400_000).toISOString();

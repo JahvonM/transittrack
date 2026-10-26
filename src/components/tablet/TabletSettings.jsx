@@ -7,14 +7,16 @@ import "@/components/tablet/tabletSettings.css";
 // browser, and an empty section says so.
 //
 // sections: [{ id, label, content }]
-export default function TabletSettings({ title = "Tablet settings", subtitle, sections, onDone, doneLabel = "Done", headingLevel = 1, className }) {
+// Inside a dialog that already has a title and description (decorativeTitle),
+// the visible ones are left out for screen readers so they're read once.
+export default function TabletSettings({ title = "Tablet settings", subtitle, sections, onDone, doneLabel = "Done", headingLevel = 1, decorativeTitle = false, className }) {
   const [open, setOpen] = useState(sections[0]?.id);
   const current = sections.find((s) => s.id === open) || sections[0];
-  const Heading = headingLevel === 2 ? "h2" : "h1";
+  const Heading = decorativeTitle ? "div" : headingLevel === 2 ? "h2" : "h1";
   return (
     <div className={className ? `ts ${className}` : "ts"}>
       <div className="ts-head">
-        <div>
+        <div aria-hidden={decorativeTitle || undefined} className={decorativeTitle ? "ts-title" : undefined}>
           <Heading>{title}</Heading>
           {subtitle && <p>{subtitle}</p>}
         </div>

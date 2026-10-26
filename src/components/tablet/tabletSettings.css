@@ -11,7 +11,7 @@
   font-size: 16px;
 }
 .ts-head { display: flex; align-items: center; gap: 16px; padding: 16px 24px; border-bottom: 1px solid var(--ts-line); }
-.ts-head h1, .ts-head h2 { margin: 0; font-size: 22px; font-weight: 700; color: var(--ts-text); }
+.ts-head h1, .ts-head h2, .ts-head .ts-title > div { margin: 0; font-size: 22px; font-weight: 700; color: var(--ts-text); }
 .ts-head p { margin: 2px 0 0; font-size: 14px; color: var(--ts-muted); }
 .ts-done { margin-left: auto; height: 48px; padding: 0 24px; border-radius: 12px; border: 0; background: var(--ts-sun); color: var(--ts-ink); font-weight: 700; font-size: 16px; }
 .ts-main { display: flex; flex: 1; min-height: 0; }

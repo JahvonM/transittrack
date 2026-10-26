@@ -155,10 +155,13 @@ export default async function (req: Request) {
       const row = await db.BookingRequest.create({ ...data, status: 'new' });
       const service = SERVICES[data.service];
       try {
+        // Anyone can type any email address on the form, so this first email
+        // holds nothing they typed: only the kind of ride and the time. The
+        // details go to dispatch, and back to the customer once confirmed.
         await send(base44, data.email, 'We have your ride request', emailHtml({
-          heading: `Thanks, ${data.name.split(' ')[0]}. We have your request.`,
-          lines: ['We will email you to confirm the time and the price. Nothing is booked until then.', 'If anything changes, reply on WhatsApp or send a new request.'],
-          rows: detailRows(data),
+          heading: 'Thanks. We have your ride request.',
+          lines: ['We will email you to confirm the time and the price. Nothing is booked until then.', 'If anything changes, reply on WhatsApp or send a new request.', 'If you didn\'t ask for a ride, you can ignore this email.'],
+          rows: [['Ride', service], ['When', grenadaTime(data.requested_time)]],
         }));
       } catch (e) { console.error('[booking] customer email failed', (e as Error)?.message); }
       try {

@@ -121,6 +121,7 @@ export default function BoardingSettingsGate({ open, onClose, deviceId, invoke }
           <TabletSettings
             className="h-full"
             headingLevel={2}
+            decorativeTitle
             title="Tablet settings"
             subtitle="Closes by itself after 2 minutes without a tap."
             onDone={onClose}

@@ -90,6 +90,7 @@ test('phone kiosk has dedicated mode controls and no horizontal overflow',async(
  const gate=page.getByRole('dialog');
  for(const digit of ['1','2','3','4'])await gate.getByRole('button',{name:digit,exact:true}).click();
  await expect(gate.getByRole('heading',{name:'Tablet settings',exact:true})).toBeVisible();
+ await gate.getByRole('navigation',{name:'Settings sections'}).getByRole('button',{name:'Startup',exact:true}).click();
  await expect(gate.getByRole('link',{name:'Choose tablet screen',exact:true})).toBeVisible();
  await gate.getByRole('button',{name:'Done',exact:true}).click();
  await page.getByRole('button',{name:'Enter code',exact:true}).click();
