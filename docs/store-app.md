@@ -44,6 +44,14 @@ Rules the server keeps (base44/functions/driverSession, tested in
   grant and background GPS session stop working;
 - shifts are saved in the driver's name (and `driver_id`).
 
+## Phones and tablets
+
+McSween Driver runs on phones and tablets (iPhone and iPad, Android phones and
+tablets). Phones stay upright; tablets turn either way. On a tablet on its side
+the bus list and the PIN pad sit next to the greeting, like the bus tablets; on
+a phone the greeting shrinks so the PIN pad fits without scrolling. Screens say
+"phone" or "tablet" to match the device.
+
 ## GPS with the screen off
 
 - **Android:** the same visible location service the tablets use, started from
@@ -208,7 +216,8 @@ the review thread.
       `src/pages/PrivacyPolicy.jsx` still say "awaiting confirmation". Both
       stores need a real contact.
 - [ ] App icon: the store app uses the McSween Kiosk/McSween icon for now.
-- [ ] Screenshots: Play needs phone screenshots; the App Store needs 6.9" and
-      6.5" iPhone ones (and iPad if iPad stays on).
+- [ ] Screenshots, phone and tablet (the app is for both): Play wants phone
+      screenshots plus 7" and 10" tablet ones to show up for tablets; the App
+      Store wants 6.9" iPhone and 13" iPad ones.
 - [ ] Try it on a real phone from TestFlight / the closed test: pair, pick a
       bus, PIN, shift, sharing with the screen locked for 10 minutes, change bus.
