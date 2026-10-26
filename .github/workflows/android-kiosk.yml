@@ -28,7 +28,11 @@ jobs:
       - run: npm run build:supabase
       - run: npx cap sync android
       - name: Compile combined kiosk and run native unit tests
-        run: bash android/gradlew -p android :app:assembleDebug :app:testDebugUnitTest --no-daemon
+        run: bash android/gradlew -p android :app:assembleKioskDebug :app:testKioskDebugUnitTest --no-daemon
+      # The store app (McSween Driver) is built from the same code: make sure
+      # a kiosk change never breaks it. Its own checks are in store-app.yml.
+      - name: Compile the store app
+        run: bash android/gradlew -p android :app:assembleStoreDebug --no-daemon
       - uses: actions/upload-artifact@v4
         if: failure()
         with:

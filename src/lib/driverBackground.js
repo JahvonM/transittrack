@@ -3,7 +3,9 @@ import { Capacitor, registerPlugin } from "@capacitor/core";
 import { deviceRequest } from "@/lib/deviceAuth";
 const Native = registerPlugin("DriverBackground");
 export const BACKGROUND_EVENT = "tt-background-gps";
-export const backgroundGpsAvailable = () => Capacitor.isNativePlatform() && Capacitor.getPlatform() === "android" && Capacitor.isPluginAvailable("DriverBackground");
+// Android: the kiosk tablet and the McSween Driver store app. iPhone: McSween Driver
+// (driver-app/ios), whose DriverBackground plugin has the same calls.
+export const backgroundGpsAvailable = () => Capacitor.isNativePlatform() && ["android", "ios"].includes(Capacitor.getPlatform()) && Capacitor.isPluginAvailable("DriverBackground");
 export const backgroundGpsState = async () => backgroundGpsAvailable() ? Native.getState() : { available: false };
 export async function setBackgroundGpsEnabled(enabled) {
  const result = await Native.setEnabled({ enabled: !!enabled });

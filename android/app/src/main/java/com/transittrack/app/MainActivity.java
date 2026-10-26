@@ -4,6 +4,10 @@ import android.os.Bundle;
 import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
+    // McSween Kiosk (the managed bus tablet) or McSween Driver (the store app
+    // on a driver's own phone). The store app has none of the kiosk parts:
+    // no lock, no hidden settings corner, no hotspot, no card reader.
+    static final boolean KIOSK = BuildConfig.KIOSK;
     private TabletScreenRecovery screenRecovery;
     private long cornerStarted;
     private int cornerTaps;
@@ -11,17 +15,22 @@ public class MainActivity extends BridgeActivity {
     protected void onCreate(Bundle savedInstanceState) {
         // These are appended after auto-discovered plugins by BridgeActivity.load().
         // The guarded push plugin must replace the stock plugin before JS starts.
-        initialPlugins.add(TabletSupportPlugin.class);
-        initialPlugins.add(UsbGpsPlugin.class);
+        if (KIOSK) {
+            initialPlugins.add(TabletSupportPlugin.class);
+            initialPlugins.add(UsbGpsPlugin.class);
+        }
         initialPlugins.add(DriverBackgroundPlugin.class);
-        initialPlugins.add(UsbNfcPlugin.class);
-        initialPlugins.add(BoardingBluetoothPlugin.class);
-        initialPlugins.add(TabletHealthPlugin.class);
-        initialPlugins.add(TabletRecoveryPlugin.class);
-        initialPlugins.add(TabletNetworkPlugin.class);
-        initialPlugins.add(TabletControlPlugin.class);
+        if (KIOSK) {
+            initialPlugins.add(UsbNfcPlugin.class);
+            initialPlugins.add(BoardingBluetoothPlugin.class);
+            initialPlugins.add(TabletHealthPlugin.class);
+            initialPlugins.add(TabletRecoveryPlugin.class);
+            initialPlugins.add(TabletNetworkPlugin.class);
+            initialPlugins.add(TabletControlPlugin.class);
+        }
         initialPlugins.add(SafePushNotificationsPlugin.class);
         super.onCreate(savedInstanceState);
+        if (!KIOSK) return;
         KioskMode.reconcile(this);
         getOnBackPressedDispatcher().addCallback(this, new androidx.activity.OnBackPressedCallback(true) {
             @Override public void handleOnBackPressed() {
@@ -55,7 +64,7 @@ public class MainActivity extends BridgeActivity {
     }
     @Override public void onUserInteraction() {
         super.onUserInteraction();
-        noteTabletInteraction();
+        if (KIOSK) noteTabletInteraction();
     }
     void noteTabletInteraction() {
         if (getBridge() != null && getBridge().getPlugin("TabletControl") != null) {
@@ -66,12 +75,15 @@ public class MainActivity extends BridgeActivity {
         TabletDisplay.apply(this);
     }
     @Override public void onResume() {
-        super.onResume(); keepTabletAwake();
-        KioskWatchdogService.lastVisible = android.os.SystemClock.elapsedRealtime();
-        KioskMode.resume(this);
-        TabletHotspotStartupService.start(this);
-        final android.content.Context app = getApplicationContext();
-        new Thread(() -> BusHotspot.ensure(app), "bus-hotspot").start();
+        super.onResume();
+        if (KIOSK) {
+            keepTabletAwake();
+            KioskWatchdogService.lastVisible = android.os.SystemClock.elapsedRealtime();
+            KioskMode.resume(this);
+            TabletHotspotStartupService.start(this);
+            final android.content.Context app = getApplicationContext();
+            new Thread(() -> BusHotspot.ensure(app), "bus-hotspot").start();
+        }
         DriverLocationService.setVisible(true);
         if (screenRecovery != null) screenRecovery.resumed();
     }
@@ -82,6 +94,6 @@ public class MainActivity extends BridgeActivity {
     }
     @Override public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
-        if (hasFocus) { keepTabletAwake(); KioskMode.resume(this); }
+        if (KIOSK && hasFocus) { keepTabletAwake(); KioskMode.resume(this); }
     }
 }

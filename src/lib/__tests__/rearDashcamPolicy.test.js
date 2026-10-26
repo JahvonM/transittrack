@@ -2,7 +2,7 @@ import fs from "node:fs";
 import {describe,it,expect} from "vitest";
 const service=fs.readFileSync("android/app/src/main/java/com/transittrack/app/RearDashcamService.kt","utf8");
 const activity=fs.readFileSync("android/app/src/main/java/com/transittrack/app/RearDashcamActivity.kt","utf8");
-const manifest=fs.readFileSync("android/app/src/main/AndroidManifest.xml","utf8");
+const manifest=fs.readFileSync("android/app/src/kiosk/AndroidManifest.xml","utf8");
 describe("rear-only local recording boundaries",()=>{
  it("selects only the rear camera and never configures audio",()=>{
   expect(service).toContain("CameraCharacteristics.LENS_FACING_BACK");

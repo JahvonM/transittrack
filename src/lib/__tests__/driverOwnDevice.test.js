@@ -161,3 +161,18 @@ describe("a new code for a driver's own phone", () => {
     expect(status).toBe(400);
   });
 });
+
+describe("how long a driver's phone code lasts", () => {
+  it("is 7 days for a driver's own phone and 15 minutes for a tablet", async () => {
+    const sdk = mock("admin");
+    sdk.tables.KioskDevice.push(
+      { id: "p3", status: "active", paired: false, kiosk_type: "driver", personal: true, driver_id: "drv1", company_id: "a", vehicle_id: "" },
+      { id: "t3", status: "active", paired: false, kiosk_type: "driver", company_id: "a", vehicle_id: "bus-a" },
+    );
+    const api = load("manageAccessCodes", sdk, []);
+    const issue = async (id) => (await (await api.default(request({ action: "issue_pairing", device_id: id }))).json()).expires_at;
+    const left = (iso) => Date.parse(iso) - Date.now();
+    expect(left(await issue("p3"))).toBeGreaterThan(6.9 * 86400_000);
+    expect(left(await issue("t3"))).toBeLessThanOrEqual(15 * 60_000);
+  });
+});

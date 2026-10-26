@@ -5,7 +5,7 @@ import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { backgroundGpsState, setBackgroundGpsEnabled, exportBackgroundGps } from "@/lib/driverBackground";
 
-export default function DriverBackgroundPanel({ vehicle }) {
+export default function DriverBackgroundPanel({ vehicle, phone = false }) {
  const [state, setState] = useState(null), [busy, setBusy] = useState(false), [error, setError] = useState("");
  useEffect(() => {
   let stopped = false;
@@ -32,9 +32,11 @@ export default function DriverBackgroundPanel({ vehicle }) {
  return <Card>
   <CardHeader><CardTitle className="text-base flex items-center gap-2"><Satellite className="w-5 h-5" /> GPS with screen off</CardTitle></CardHeader>
   <CardContent className="space-y-3">
-   <div className="flex items-center gap-3"><div className="flex-1"><p className="font-medium text-sm">Keep sharing in the background</p><p className="text-xs text-muted-foreground">Uses the selected USB receiver or tablet GPS.</p></div><Switch aria-label="Keep driver GPS in background" checked={state.enabled === true} disabled={busy} onCheckedChange={toggle} /></div>
+   <div className="flex items-center gap-3"><div className="flex-1"><p className="font-medium text-sm">Keep sharing in the background</p><p className="text-xs text-muted-foreground">{phone ? "Uses this phone's GPS while you share the bus." : "Uses the selected USB receiver or tablet GPS."}</p></div><Switch aria-label="Keep driver GPS in background" checked={state.enabled === true} disabled={busy} onCheckedChange={toggle} /></div>
    <p className="text-sm">{state.active ? state.status : state.enabled ? "Ready. Starts when this bus is sharing and the driver PIN is verified." : "Background GPS is off. Foreground tracking is unchanged."}</p>
-   <p className="text-xs text-muted-foreground">A tracking notification stays visible while active. GPS points are saved on this tablet before upload and keep their original bus/company. Android can still stop the app; reopening restores a valid session. On Android 10, restart recovery also attempts to resume an unexpired session.</p>
+   <p className="text-xs text-muted-foreground">{phone
+    ? "While it's on, your phone shows that its location is in use (a notification on Android, the blue pill on iPhone). Points are saved on the phone first and keep their bus. It stops when you stop sharing, end the shift or change bus."
+    : "A tracking notification stays visible while active. GPS points are saved on this tablet before upload and keep their original bus/company. Android can still stop the app; reopening restores a valid session. On Android 10, restart recovery also attempts to resume an unexpired session."}</p>
    <p className="text-sm">Saved GPS: {state.pending || 0} waiting · {state.review || 0} need review</p>
    {(state.pending > 0 || state.review > 0) && <Button variant="outline" disabled={busy} onClick={download}><Download className="w-4 h-4 mr-2" /> Export saved GPS</Button>}
    <p className="text-xs text-muted-foreground">Export keeps the originals. Failed points are retained. Exports cover this bus only; records from an old assignment stay private for administrator recovery. Locations are private; share exports only with your transport administrator.</p>

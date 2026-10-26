@@ -1,0 +1,133 @@
+# McSween Driver: the Google Play / App Store app for a driver's own phone.
+# Android comes from android/ (the "store" flavor), iPhone from driver-app/ios.
+#
+# Every pull request that touches them: both apps are built (unsigned) and the
+# Android app is checked for kiosk parts.
+# Run it by hand (Actions → Store app → Run workflow) to get the store files:
+#  - Android: a signed .aab to upload in Play Console, when the STORE_KEYSTORE_*
+#    secrets are set;
+#  - iPhone: a build sent straight to TestFlight, when "Send the iPhone build"
+#    is ticked and the APPSTORE_* secrets are set.
+# Secrets are typed into GitHub (Settings → Secrets and variables → Actions),
+# never into the repo. See docs/store-app.md.
+name: Store app
+on:
+  pull_request:
+    paths: ['android/**', 'driver-app/**', 'src/lib/driverBackground.js', '.github/workflows/store-app.yml']
+  workflow_dispatch:
+    inputs:
+      upload_ios:
+        description: Send the iPhone build to TestFlight
+        type: boolean
+        default: false
+permissions:
+  contents: read
+jobs:
+  android:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+          log-accepted-android-sdk-licenses: false
+      - run: sdkmanager 'platforms;android-36' 'build-tools;36.0.0'
+      - run: npm ci
+      - run: npm run build:supabase
+      - run: npx cap sync android
+      - name: Use the Play upload key (only when the secrets are set)
+        env:
+          KEYSTORE_BASE64: ${{ secrets.STORE_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ] && [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            printf '%s' "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/upload.jks"
+            echo "STORE_KEYSTORE_PATH=$RUNNER_TEMP/upload.jks" >> "$GITHUB_ENV"
+          fi
+      - name: Build McSween Driver for Android
+        env:
+          STORE_KEYSTORE_PASSWORD: ${{ secrets.STORE_KEYSTORE_PASSWORD }}
+          STORE_KEY_ALIAS: ${{ secrets.STORE_KEY_ALIAS }}
+          STORE_KEY_PASSWORD: ${{ secrets.STORE_KEY_PASSWORD }}
+        run: bash android/gradlew -p android :app:assembleStoreRelease :app:bundleStoreRelease --no-daemon
+      - name: Check the store app has no kiosk parts
+        run: |
+          apk=$(ls android/app/build/outputs/apk/store/release/*.apk | head -1)
+          aapt2="$ANDROID_HOME/build-tools/36.0.0/aapt2"
+          "$aapt2" dump xmltree --file AndroidManifest.xml "$apk" > "$RUNNER_TEMP/manifest.txt"
+          "$aapt2" dump badging "$apk" | head -3
+          grep -q 'com.mcsweenstransport.driver' "$RUNNER_TEMP/manifest.txt"
+          for part in BIND_DEVICE_ADMIN BIND_ACCESSIBILITY_SERVICE category.HOME REQUEST_INSTALL_PACKAGES WRITE_SECURE_SETTINGS \
+                      FOREGROUND_SERVICE_SYSTEM_EXEMPTED FOREGROUND_SERVICE_MEDIA_PROJECTION KioskBootReceiver KioskWatchdogService \
+                      RearDashcam ACCESS_BACKGROUND_LOCATION BLUETOOTH_SCAN com.transittrack.kioskhelper; do
+            if grep -q "$part" "$RUNNER_TEMP/manifest.txt"; then echo "::error::The store app must not contain $part"; exit 1; fi
+          done
+          grep -q 'DriverLocationService' "$RUNNER_TEMP/manifest.txt"
+          echo "No kiosk parts in the store app."
+      - uses: actions/upload-artifact@v4
+        if: github.event_name == 'workflow_dispatch'
+        with:
+          name: mcsween-driver-android
+          path: android/app/build/outputs/bundle/storeRelease/*.aab
+          if-no-files-found: error
+  ios:
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Prepare the iPhone project
+        working-directory: driver-app
+        run: npx cap sync ios
+      - name: Build for the simulator (no signing)
+        working-directory: driver-app/ios/App
+        run: |
+          xcodebuild -workspace App.xcworkspace -scheme App -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build | tail -40
+          test "${PIPESTATUS[0]}" = 0
+      - name: Send to TestFlight
+        if: github.event_name == 'workflow_dispatch' && inputs.upload_ios
+        working-directory: driver-app/ios/App
+        env:
+          KEY_ID: ${{ secrets.APPSTORE_KEY_ID }}
+          ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID }}
+          KEY_P8: ${{ secrets.APPSTORE_KEY_P8 }}
+          TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          if [ -z "$KEY_ID" ] || [ -z "$ISSUER_ID" ] || [ -z "$KEY_P8" ] || [ -z "$TEAM_ID" ]; then
+            echo "::error::Add APPSTORE_KEY_ID, APPSTORE_ISSUER_ID, APPSTORE_KEY_P8 and APPLE_TEAM_ID in GitHub first (docs/store-app.md)."; exit 1
+          fi
+          key="$RUNNER_TEMP/AuthKey.p8"
+          printf '%s' "$KEY_P8" > "$key"
+          auth=(-allowProvisioningUpdates -authenticationKeyPath "$key" -authenticationKeyID "$KEY_ID" -authenticationKeyIssuerID "$ISSUER_ID")
+          xcodebuild -workspace App.xcworkspace -scheme App -configuration Release -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/App.xcarchive" "${auth[@]}" \
+            DEVELOPMENT_TEAM="$TEAM_ID" CODE_SIGN_STYLE=Automatic CURRENT_PROJECT_VERSION="${{ github.run_number }}" archive | tail -30
+          test "${PIPESTATUS[0]}" = 0
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>upload</string>
+            <key>teamID</key><string>$TEAM_ID</string>
+            <key>signingStyle</key><string>automatic</string>
+          </dict></plist>
+          PLIST
+          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/App.xcarchive" -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
+            -exportPath "$RUNNER_TEMP/export" "${auth[@]}" | tail -30
+          test "${PIPESTATUS[0]}" = 0
+          rm -f "$key"
+          echo "Sent build ${{ github.run_number }} to App Store Connect. It shows in TestFlight after Apple processes it."

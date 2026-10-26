@@ -9,6 +9,8 @@ android {
         applicationId "com.transittrack.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
+        // McSween Kiosk's version. Keep it the first versionCode/versionName in
+        // this file: the tablet setup scripts in tools/kiosk read the first one.
         versionCode 11
         versionName "2.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
@@ -16,6 +18,39 @@ android {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
              // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
             ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+        }
+    }
+    buildFeatures { buildConfig true }
+    // Google Play upload key for the store app. CI reads it from GitHub
+    // secrets (see .github/workflows/store-app.yml); it is never in the repo.
+    signingConfigs {
+        storeUpload {
+            def keystore = System.getenv("STORE_KEYSTORE_PATH")
+            if (keystore) {
+                storeFile file(keystore)
+                storePassword System.getenv("STORE_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("STORE_KEY_ALIAS")
+                keyPassword System.getenv("STORE_KEY_PASSWORD")
+            }
+        }
+    }
+    // Two apps from one project (see src/main/AndroidManifest.xml):
+    //   kiosk: McSween Kiosk, the managed bus tablet (installed by Admin → Set up a device)
+    //   store: McSween Driver, on Google Play for a driver's own phone. No kiosk parts.
+    flavorDimensions "edition"
+    productFlavors {
+        kiosk {
+            dimension "edition"
+            buildConfigField "boolean", "KIOSK", "true"
+        }
+        store {
+            dimension "edition"
+            applicationId "com.mcsweenstransport.driver"
+            versionCode 1
+            versionName "1.0"
+            buildConfigField "boolean", "KIOSK", "false"
+            // Release builds only; debug builds keep the normal debug key.
+            if (System.getenv("STORE_KEYSTORE_PATH")) signingConfig signingConfigs.storeUpload
         }
     }
     buildTypes {

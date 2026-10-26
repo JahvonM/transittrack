@@ -377,7 +377,8 @@ async function prepare(db,ctx,name,input,existing=null) {
   } else if(data.driver_id!==undefined) fail(400,'Only a driver\'s own phone belongs to a driver');
  }
  if(name==='KioskDevice'&&combined.personal!==true&&!existing?.personal&&['driver','bus_boarding','job_signing'].includes(combined.kiosk_type)&&!combined.vehicle_id) fail(400,'Vehicle assignment required');
- if(name==='KioskDevice'&&!existing) return {...data,status:'active',paired:false,pairing_code:await uniqueAccessCode(db,'KioskDevice','pairing_code'),pairing_expires_at:new Date(Date.now()+15*60_000).toISOString()};
+ // A driver's own phone gets 7 days: the driver installs the store app first.
+ if(name==='KioskDevice'&&!existing) return {...data,status:'active',paired:false,pairing_code:await uniqueAccessCode(db,'KioskDevice','pairing_code'),pairing_expires_at:new Date(Date.now()+(data.personal===true?7*86400_000:15*60_000)).toISOString()};
  return data;
 }
 async function approveMembership(db,target,companyId) {

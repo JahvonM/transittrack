@@ -32,7 +32,7 @@ try {
     Write-Host '4/4 Running native tests and building the test APK...'
     # JAVA_HOME above selects the verified JDK. Passing its spaced path again as
     # a -D argument through gradlew.bat breaks quoting in Windows PowerShell 5.1.
-    & (Join-Path $projectRoot 'android\gradlew.bat') -p (Join-Path $projectRoot 'android') :app:compileDebugJavaWithJavac :app:testDebugUnitTest :app:assembleDebug --no-daemon --max-workers=1
+    & (Join-Path $projectRoot 'android\gradlew.bat') -p (Join-Path $projectRoot 'android') :app:compileKioskDebugJavaWithJavac :app:testKioskDebugUnitTest :app:assembleKioskDebug --no-daemon --max-workers=1
     if ($LASTEXITCODE -ne 0) { throw 'Native checks failed. No installation attempted.' }
     Write-Host ''
     Write-Host 'CHECKS PASSED: test APK built. Update using the same signing identity as the tablet.' -ForegroundColor Green
@@ -40,7 +40,7 @@ try {
     $buildConfig = Get-Content -Raw (Join-Path $projectRoot 'android\app\build.gradle')
     $versionName = [regex]::Match($buildConfig, 'versionName\s+"([^"]+)"').Groups[1].Value
     $versionCode = [regex]::Match($buildConfig, 'versionCode\s+(\d+)').Groups[1].Value
-    $apkSource = Join-Path $projectRoot 'android\app\build\outputs\apk\debug\app-debug.apk'
+    $apkSource = Join-Path $projectRoot 'android\app\build\outputs\apk\kiosk\debug\app-kiosk-debug.apk'
     if (-not (Test-Path -LiteralPath $apkSource -PathType Leaf)) { throw 'Gradle completed but the test APK was not found.' }
     $downloadDir = Join-Path $env:USERPROFILE 'Downloads'
     New-Item -ItemType Directory -Force -Path $downloadDir | Out-Null
