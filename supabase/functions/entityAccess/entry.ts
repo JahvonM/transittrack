@@ -15,6 +15,8 @@ async function uniqueAccessCode(db,entity,field) {
  fail(503,'Could not allocate a unique code');
 }
 ENTITY_FIELDS.KioskDevice.push('display_layout');
+// A driver's own phone (store app): belongs to a driver; the phone picks the bus.
+ENTITY_FIELDS.KioskDevice.push('personal', 'driver_id', 'driver_name');
 const MAINTENANCE = new Set(["Vehicle", "Fault", "Inspection", "InspectionResult", "InspectionTemplate", "Part", "MaintenanceSchedule", "MaintenanceSettings"]);
 
 for(const name of ['InspectionResult','Fault']) ENTITY_FIELDS[name].push('client_request_id');
@@ -354,7 +356,27 @@ async function prepare(db,ctx,name,input,existing=null) {
  for(const [field,parent] of [['route_id','Route'],['inspection_id','Inspection'],['driver_id','Driver'],['template_id','InspectionTemplate']]) {
   if(data[field]) { const row=await db[parent].get(data[field]).catch(()=>null); const parentTenant=row ? await tenantOf(db,parent,row) : null; if(!row || (tenant && parentTenant!==tenant && !(parent==='InspectionTemplate' && !parentTenant && !row.company_id))) fail(403,'Related record belongs to another company'); }
  }
- if(name==='KioskDevice'&&['driver','bus_boarding','job_signing'].includes(combined.kiosk_type)&&!combined.vehicle_id) fail(400,'Vehicle assignment required');
+ if(name==='KioskDevice') {
+  // A driver's own phone: added for a driver, never a kiosk, and only the
+  // phone itself picks its bus (driverSession choose_bus, which moves its
+  // credential with it). The name is copied from the driver here.
+  const personal=existing ? existing.personal===true : data.personal===true;
+  delete data.driver_name;
+  if(existing && data.personal!==undefined && (data.personal===true)!==personal) fail(400,'A driver\'s own phone stays one; add a new device instead');
+  if(personal) {
+   if(combined.kiosk_type!=='driver') fail(400,'A driver\'s own phone is a driver device');
+   if(!combined.driver_id) fail(400,'Choose the driver whose phone this is');
+   if(existing && data.driver_id!==undefined && data.driver_id!==existing.driver_id) fail(400,'Add a new device for another driver');
+   if(data.vehicle_id!==undefined && (data.vehicle_id||'')!==(existing?.vehicle_id||'')) fail(400,'The driver picks the bus on their phone');
+   if(!existing) {
+    const driver=await db.Driver.get(combined.driver_id).catch(()=>null);
+    if(!driver) fail(404,'Driver not found');
+    data.personal=true;data.vehicle_id='';data.vehicle_name='';
+    data.driver_name=driver.full_name||driver.username||'Driver';
+   }
+  } else if(data.driver_id!==undefined) fail(400,'Only a driver\'s own phone belongs to a driver');
+ }
+ if(name==='KioskDevice'&&combined.personal!==true&&!existing?.personal&&['driver','bus_boarding','job_signing'].includes(combined.kiosk_type)&&!combined.vehicle_id) fail(400,'Vehicle assignment required');
  if(name==='KioskDevice'&&!existing) return {...data,status:'active',paired:false,pairing_code:await uniqueAccessCode(db,'KioskDevice','pairing_code'),pairing_expires_at:new Date(Date.now()+15*60_000).toISOString()};
  return data;
 }
