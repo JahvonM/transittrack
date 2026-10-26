@@ -50,6 +50,8 @@ const TYPE_META = {
   job_signing: { label: "Signing tablet", icon: PenLine },
   badge_registry: { label: "Retired mode - edit to switch to Bus boarding", icon: CreditCard },
 };
+// A driver's own phone running the store app (no kiosk parts).
+const OWN_META = { label: "Driver's own phone", icon: Smartphone };
 
 function timeAgo(dateStr) {
   if (!dateStr) return "Never";
@@ -151,6 +153,7 @@ export default function KioskTablets({ vehicles, companies, onChange }) {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editDevice, setEditDevice] = useState(null);
+  const [presetType, setPresetType] = useState("");
   const [busyId, setBusyId] = useState(null);
   const [copiedId, setCopiedId] = useState(null);
   const [downloadingSetup, setDownloadingSetup] = useState(false);
@@ -269,11 +272,13 @@ export default function KioskTablets({ vehicles, companies, onChange }) {
 
   const openEdit = (device) => {
     setEditDevice(device);
+    setPresetType("");
     setDialogOpen(true);
   };
 
-  const openCreate = () => {
+  const openCreate = (type = "") => {
     setEditDevice(null);
+    setPresetType(type);
     setDialogOpen(true);
   };
 
@@ -304,7 +309,10 @@ export default function KioskTablets({ vehicles, companies, onChange }) {
           <Button variant="outline" disabled={busyId === "upd-all" || !devices.some(updatable)} onClick={() => sendUpdate(devices)}>
             <ArrowUpCircle className="w-4 h-4 mr-1" /> Update all tablets
           </Button>
-          <Button onClick={openCreate}>
+          <Button variant="outline" onClick={() => openCreate("driver_own")}>
+            <Smartphone className="w-4 h-4 mr-1" /> Add a driver's own phone
+          </Button>
+          <Button onClick={() => openCreate()}>
             <Plus className="w-4 h-4 mr-1" /> Register tablet
           </Button>
         </div>
@@ -337,7 +345,7 @@ export default function KioskTablets({ vehicles, companies, onChange }) {
           <CardContent className="py-12 text-center">
             <Smartphone className="w-10 h-10 mx-auto text-muted-foreground mb-3" />
             <p className="text-muted-foreground mb-4">No kiosk tablets registered yet.</p>
-            <Button onClick={openCreate}>
+            <Button onClick={() => openCreate()}>
               <Plus className="w-4 h-4 mr-1" /> Register your first tablet
             </Button>
           </CardContent>
@@ -345,7 +353,8 @@ export default function KioskTablets({ vehicles, companies, onChange }) {
       ) : (
         <div className="space-y-3">
           {devices.map((d) => {
-            const meta = TYPE_META[d.kiosk_type] || TYPE_META.bus_boarding;
+            const own = d.personal === true;
+            const meta = own ? OWN_META : TYPE_META[d.kiosk_type] || TYPE_META.bus_boarding;
             const Icon = meta.icon;
             const isRevoked = d.status === "revoked";
             const hasCode = !!d.pairing_code;
@@ -366,18 +375,19 @@ export default function KioskTablets({ vehicles, companies, onChange }) {
                         </div>
                         <div className="text-sm text-muted-foreground break-words">
                           {meta.label}
+                          {own && d.driver_name && ` · ${d.driver_name}`}
                           {d.company_name && ` · ${d.company_name}`}
-                          {d.vehicle_name && ` · ${d.vehicle_name}`}
+                          {own ? ` · ${d.vehicle_id ? `Driving ${d.vehicle_name || "a bus"}` : "Not on a bus"}` : d.vehicle_name && ` · ${d.vehicle_name}`}
                         </div>
                         <div className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
                           <Clock className="w-3 h-3" /> Last seen: {timeAgo(d.last_seen)}
                         </div>
-                        <HelperHealthLine h={d.helper_health} />
+                        {!own && <HelperHealthLine h={d.helper_health} />}
                         {d.native_tracking_health?.active && <p className="text-sm text-muted-foreground mt-1">Background GPS · {Date.now()-Date.parse(d.native_tracking_health.reported_at)<180000 ? "reporting" : "report is stale"} · {d.native_tracking_health.pending || 0} saved · {d.native_tracking_health.review || 0} need review</p>}
-                        <TabletNetworkControls device={d} onRefresh={loadDevices} />
-                        <TabletManagementControls device={d} onRefresh={loadDevices} />
+                        {!own && <TabletNetworkControls device={d} onRefresh={loadDevices} />}
+                        {!own && <TabletManagementControls device={d} onRefresh={loadDevices} />}
                         <GpsCoordsLine device={d} />
-                        {helperLinkLost(d) && (
+                        {!own && helperLinkLost(d) && (
                           <p className="mt-1 text-xs font-semibold text-danger" role="alert">
                             Card reader helper can't reach this tablet's screen: card taps aren't getting through. Usually FreeKiosk's REST API key no longer matches the helper's, or the REST API is off. Fix: run Update in the tablet setup tool with this tablet's PIN and API key.
                           </p>
@@ -409,7 +419,7 @@ export default function KioskTablets({ vehicles, companies, onChange }) {
                           Copy URL
                         </Button>
                       )}
-                      {hasCode && !isRevoked && ["driver", "bus_boarding", "job_signing"].includes(d.kiosk_type) && (
+                      {hasCode && !isRevoked && !own && ["driver", "bus_boarding", "job_signing"].includes(d.kiosk_type) && (
                         <Button
                           size="sm"
                           variant="outline"
@@ -422,7 +432,7 @@ export default function KioskTablets({ vehicles, companies, onChange }) {
                       {!isRevoked && (
                         <>
                           <Button size="sm" variant="outline" onClick={() => openEdit(d)}>
-                            <Pencil className="w-3.5 h-3.5" /> Reassign
+                            <Pencil className="w-3.5 h-3.5" /> {own ? "Rename" : "Reassign"}
                           </Button>
                           {d.paired && (
                             <Button size="sm" variant="outline" disabled={busyId === `upd-${d.id}`} onClick={() => sendUpdate([d])}>
@@ -493,6 +503,7 @@ export default function KioskTablets({ vehicles, companies, onChange }) {
         companies={companies}
         vehicles={vehicles}
         device={editDevice}
+        presetType={presetType}
         onSaved={loadDevices}
       />
     </div>

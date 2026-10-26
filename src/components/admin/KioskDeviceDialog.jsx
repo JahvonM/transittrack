@@ -24,7 +24,7 @@ const KIOSK_TYPES = [
   { value: "driver_own", label: "Driver's own phone (store app)" },
 ];
 
-export default function KioskDeviceDialog({ open, onOpenChange, companies, vehicles, device, onSaved }) {
+export default function KioskDeviceDialog({ open, onOpenChange, companies, vehicles, device, presetType, onSaved }) {
   const isEdit = !!device;
   const [label, setLabel] = useState("");
   const [kioskType, setKioskType] = useState("bus_boarding");
@@ -41,12 +41,12 @@ export default function KioskDeviceDialog({ open, onOpenChange, companies, vehic
       setLabel(device?.label || "");
       setDisplayLayout(device?.display_layout || "auto");
       // Retired types (card registry, front-desk sign-in) switch to bus boarding when edited.
-      setKioskType(device?.personal ? "driver_own" : device?.kiosk_type && !["badge_registry", "front_desk"].includes(device.kiosk_type) ? device.kiosk_type : "bus_boarding");
+      setKioskType(device?.personal ? "driver_own" : !device && presetType ? presetType : device?.kiosk_type && !["badge_registry", "front_desk"].includes(device.kiosk_type) ? device.kiosk_type : "bus_boarding");
       setCompanyId(device?.company_id || "");
       setVehicleId(device?.vehicle_id || "");
       setDriverId(device?.driver_id || "");
     }
-  }, [open, device]);
+  }, [open, device, presetType]);
 
   // The company's drivers, for a driver's own phone.
   useEffect(() => {
