@@ -1,7 +1,7 @@
 import { RearDashcamTool, RearDashcamIndicator } from "./RearDashcamControls";
 import React, { useState, useMemo, useEffect } from "react";
 import useDriverLandscape from "@/hooks/useDriverLandscape";
-import { Bus, MapPin, ClipboardCheck, Wrench, MessageCircle, FileText, Tablet, ChevronRight, LifeBuoy, ListOrdered, ShieldCheck, User, Clock, Users, Search, IdCard } from "lucide-react";
+import { Bus, MapPin, ClipboardCheck, Wrench, MessageCircle, FileText, Tablet, ChevronRight, LifeBuoy, ListOrdered, ShieldCheck, User, Clock, Users, Search, IdCard, Smartphone } from "lucide-react";
 import { accountName } from "@/lib/userName";
 import StaffRouteListItem from "./StaffRouteListItem";
 import { haversineKm } from "@/lib/geo";

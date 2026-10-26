@@ -459,8 +459,8 @@ export default function DriverApp() {
           </div>
           <div className="flex flex-col gap-3">
             {/* Step 2 of the driver phone app: scan instead of the shared PIN. */}
-            <PhoneUnlock deviceId={deviceId} vehicle={vehicle} invoke={invoke} onOpenChange={setPhoneUnlockOpen}
-              onUnlock={({ driverName }) => { toast({ title: `Unlocked for ${driverName || "the driver"}`, description: "Shift started from the driver app." }); refresh?.(); afterUnlock(); }} />
+            {!isOwnDevice(session) && <PhoneUnlock deviceId={deviceId} vehicle={vehicle} invoke={invoke} onOpenChange={setPhoneUnlockOpen}
+              onUnlock={({ driverName }) => { toast({ title: `Unlocked for ${driverName || "the driver"}`, description: "Shift started from the driver app." }); refresh?.(); afterUnlock(); }} />}
             {!phoneUnlockOpen && <PinGate deviceId={deviceId} vehicle={vehicle} invoke={invoke} onUnlock={({ pinSaved } = {}) => { if (pinSaved === false) toast({ title: 'PIN verified, but not saved on this tablet', description: 'Tablet storage is unavailable. You can continue now, but offline PIN entry will not work until storage is available.', variant: 'destructive' }); refresh?.(); afterUnlock(); }} />}
           </div>
         </div>

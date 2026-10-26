@@ -21,7 +21,9 @@ export default function DriverGreeting({ driverName, subtitle, compact = false }
   const num = String(subtitle || "").match(/(\d+)\s*$/)?.[1];
   return (
     <section className={`flex flex-col ${compact ? "gap-3" : "gap-6"}`} aria-label="This tablet">
-      <div className="flex items-center justify-between gap-4">
+      {/* On a phone (under 600px wide) the bus tile and the clock row go, so
+          the PIN pad or the bus list fits one screen; the bus is in the subtitle. */}
+      <div className={`flex items-center justify-between gap-4 ${compact ? "[@media(max-width:599px)]:hidden" : ""}`}>
         <span className={`grid w-fit place-items-center bg-primary text-primary-foreground ${compact ? "h-14 min-w-[3.5rem] rounded-xl px-3" : "h-20 min-w-[5rem] rounded-2xl px-4"}`} aria-hidden="true">
           {num
             ? <span className={`font-display font-bold leading-none tabular-nums ${compact ? "text-[2rem]" : "text-[2.75rem]"}`}>{num}</span>
@@ -34,7 +36,7 @@ export default function DriverGreeting({ driverName, subtitle, compact = false }
         <h1 className={`mt-1 font-bold ${compact ? "text-title" : "text-display"}`}>{greetingWord()}, {name}</h1>
         {subtitle && <p className={`mt-1 text-muted-foreground ${compact ? "text-body-sm" : "text-title-sm"}`}>{subtitle}</p>}
       </div>
-      <div className="flex flex-wrap items-center gap-3">
+      <div className={`flex flex-wrap items-center gap-3 ${compact ? "[@media(max-width:599px)]:hidden" : ""}`}>
         <LiveClock seconds={false} mono={false} className={`font-display font-semibold ${compact ? "text-title" : "text-headline"}`} />
         <WeatherWidget variant="chip" />
       </div>
