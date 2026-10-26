@@ -41,3 +41,14 @@ describe("driver's own phone (store app)", () => {
     expect(localStorage.getItem("tt_driver_grant_dev-2")).toBe("b".repeat(64));
   });
 });
+
+describe("what the app calls the device", () => {
+  it("is a tablet from 600 points on the short side, otherwise a phone", async () => {
+    const { ownDeviceNoun } = await import("@/lib/driverOwnDevice");
+    expect(ownDeviceNoun({ width: 390, height: 844 })).toBe("phone");
+    expect(ownDeviceNoun({ width: 844, height: 390 })).toBe("phone");
+    expect(ownDeviceNoun({ width: 820, height: 1180 })).toBe("tablet");
+    expect(ownDeviceNoun({ width: 1280, height: 800 })).toBe("tablet");
+    expect(ownDeviceNoun(undefined)).toBe("phone");
+  });
+});

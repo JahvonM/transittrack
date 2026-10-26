@@ -68,3 +68,22 @@ describe("iPhone background GPS (driver-app/ios)", () => {
     expect(swift).toMatch(/expires - verified <= 20 \* 3600/);
   });
 });
+
+describe("McSween Driver on phones and tablets", () => {
+  const plist = fs.readFileSync("driver-app/ios/App/App/Info.plist", "utf8");
+  const pbx = fs.readFileSync("driver-app/ios/App/App.xcodeproj/project.pbxproj", "utf8");
+  const activity = fs.readFileSync("android/app/src/main/java/com/transittrack/app/MainActivity.java", "utf8");
+
+  it("runs on iPhone and iPad", () => {
+    expect(pbx.match(/TARGETED_DEVICE_FAMILY = "1,2";/g)).toHaveLength(2);
+  });
+
+  it("keeps phones upright and lets tablets turn", () => {
+    const iphone = plist.match(/<key>UISupportedInterfaceOrientations<\/key>\s*<array>([\s\S]*?)<\/array>/)[1];
+    const ipad = plist.match(/<key>UISupportedInterfaceOrientations~ipad<\/key>\s*<array>([\s\S]*?)<\/array>/)[1];
+    expect(iphone).toContain("Portrait");
+    expect(iphone).not.toContain("Landscape");
+    for (const o of ["Portrait", "PortraitUpsideDown", "LandscapeLeft", "LandscapeRight"]) expect(ipad).toContain(`UIInterfaceOrientation${o}<`);
+    expect(activity).toMatch(/!KIOSK && getResources\(\)\.getConfiguration\(\)\.smallestScreenWidthDp < 600\)\s*setRequestedOrientation\(android\.content\.pm\.ActivityInfo\.SCREEN_ORIENTATION_PORTRAIT\)/);
+  });
+});

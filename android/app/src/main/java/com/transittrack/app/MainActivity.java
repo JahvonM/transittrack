@@ -29,6 +29,10 @@ public class MainActivity extends BridgeActivity {
             initialPlugins.add(TabletControlPlugin.class);
         }
         initialPlugins.add(SafePushNotificationsPlugin.class);
+        // The store app on a phone stays upright, like the iPhone app; tablets
+        // turn freely (Android 16 ignores this on tablets anyway).
+        if (!KIOSK && getResources().getConfiguration().smallestScreenWidthDp < 600)
+            setRequestedOrientation(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
         super.onCreate(savedInstanceState);
         if (!KIOSK) return;
         KioskMode.reconcile(this);

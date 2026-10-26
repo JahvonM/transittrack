@@ -30,11 +30,11 @@
 	<array>
 		<string>armv7</string>
 	</array>
+	<!-- iPhone: upright only (the driver screens are laid out for an upright
+	     phone). iPad: every way round, as Apple requires for iPad apps. -->
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
-		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>UISupportedInterfaceOrientations~ipad</key>
 	<array>
