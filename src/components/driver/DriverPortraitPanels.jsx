@@ -19,7 +19,7 @@ function Tool({icon:Icon,title,sub,onClick,badge}) {
  return <button className="dk-tool" onClick={onClick}><Icon aria-hidden="true"/><span><strong>{title}</strong>{sub&&<small>{sub}</small>}</span>{badge&&<span className="dk-unread"/>}<ChevronRight className="dk-chevron"/></button>;
 }
 export function DriverKioskMore({session,selectTab,onReport,unread,onHelp,onNameSign}) {
- return <div className="dk-content dk-more"><h1>More</h1><Tool icon={User} title={session.driver_name || "Driver & tablet"} sub="Tablet settings & pairing" onClick={()=>selectTab("settings")}/>
+ return <div className="dk-content dk-more"><h1>More</h1><Tool icon={User} title={session.driver_name || "Driver & tablet"} sub={session.personal?"Phone settings & pairing":"Tablet settings & pairing"} onClick={()=>selectTab("settings")}/>
  <h2>Tools</h2><div className="dk-tool-grid">
  <Tool icon={ClipboardCheck} title="Inspection" onClick={()=>selectTab("inspection")}/>
  <Tool icon={Wrench} title="Report fault" onClick={onReport}/>
@@ -28,7 +28,9 @@ export function DriverKioskMore({session,selectTab,onReport,unread,onHelp,onName
  </div>
  {onNameSign&&<Tool icon={IdCard} title="Name sign" sub="Shows on the boarding tablet" onClick={onNameSign}/>}
  <RearDashcamTool/>
- <Tool icon={Tablet} title="Tablet & reader" sub="Status and settings" onClick={()=>selectTab("settings")}/>
+ {session.personal
+  ? <Tool icon={Smartphone} title="Phone & GPS" sub="Background GPS, change bus" onClick={()=>selectTab("settings")}/>
+  : <Tool icon={Tablet} title="Tablet & reader" sub="Status and settings" onClick={()=>selectTab("settings")}/>}
  <Tool icon={ListOrdered} title="Stops & pickups" onClick={()=>selectTab("stops")}/>
  <Tool icon={FileText} title="Licence & insurance" onClick={()=>selectTab("documents")}/>
  <Tool icon={ShieldCheck} title="Safety standards" onClick={()=>selectTab("safety")}/>
