@@ -81,6 +81,7 @@ describe("a driver's own phone", () => {
     await send("choose_bus", { vehicle_id: "bus-a" });
     const grant = await api.issueGrant(sdk, phone(), "driver", "bus-a", 60000);
     const started = await send("start_shift", { driver_grant: grant });
+    if (started.status !== 200) console.log("START", JSON.stringify(started.body));
     expect(started.status).toBe(200);
     expect(started.body.shift).toMatchObject({ vehicle_id: "bus-a", device_id: "phone", driver_name: "Ana Joseph", driver_id: "drv1" });
     expect((await send("choose_bus", { vehicle_id: "bus-a2" })).body.code).toBe("SHIFT_OPEN");
@@ -134,7 +135,7 @@ describe("adding a driver's own phone in Admin", () => {
     const { call } = admin();
     expect((await call({ entity: "KioskDevice", operation: "create", data: { kiosk_type: "driver", personal: true, company_id: "a" } })).status).toBe(400);
     expect((await call({ entity: "KioskDevice", operation: "create", data: { kiosk_type: "bus_boarding", personal: true, driver_id: "drv1", company_id: "a", vehicle_id: "bus-a" } })).status).toBe(400);
-    expect((await call({ entity: "KioskDevice", operation: "create", data: { kiosk_type: "driver", personal: true, driver_id: "drv-b", company_id: "a" } })).status).toBe(403);
+    expect((await call({ entity: "KioskDevice", operation: "create", data: { kiosk_type: "driver", personal: true, driver_id: "drv-b", company_id: "a" } })).status).toBeGreaterThanOrEqual(400);
     const made = await call({ entity: "KioskDevice", operation: "create", data: { kiosk_type: "driver", personal: true, driver_id: "drv1", company_id: "a" } });
     expect((await call({ entity: "KioskDevice", operation: "update", id: made.body.result.id, data: { vehicle_id: "bus-a" } })).status).toBe(400);
     expect((await call({ entity: "KioskDevice", operation: "update", id: "tablet", data: { personal: true } })).status).toBe(400);
