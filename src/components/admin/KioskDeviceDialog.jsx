@@ -21,7 +21,7 @@ const KIOSK_TYPES = [
   { value: "job_signing", label: "Signing tablet (guests sign for jobs)" },
   // The store app on a driver's own phone or tablet: belongs to the driver,
   // who picks the bus before each shift. Saved as a driver device, personal.
-  { value: "driver_own", label: "Driver's own phone (store app)" },
+  { value: "driver_own", label: "Driver's own phone or tablet (store app)" },
 ];
 
 export default function KioskDeviceDialog({ open, onOpenChange, companies, vehicles, device, presetType, onSaved }) {
@@ -101,7 +101,7 @@ export default function KioskDeviceDialog({ open, onOpenChange, companies, vehic
           label: label.trim(), kiosk_type: "driver", personal: true, driver_id: driverId,
           company_id: companyId, company_name: company?.name || "",
         });
-        toast({ title: "Driver's phone added", description: `Code for the McSween Driver app: ${created.pairing_code}. It works once, for 7 days.` });
+        toast({ title: "Driver's device added", description: `Code for the McSween Driver app: ${created.pairing_code}. It works once, for 7 days.` });
       } else if (isEdit) {
         await base44.entities.KioskDevice.update(device.id, {
           label: label.trim(),
@@ -140,10 +140,10 @@ export default function KioskDeviceDialog({ open, onOpenChange, companies, vehic
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{lockedOwn ? "Driver's own phone" : isEdit ? "Reassign device" : "Register kiosk tablet"}</DialogTitle>
+          <DialogTitle>{lockedOwn ? "Driver's own device" : isEdit ? "Reassign device" : "Register kiosk tablet"}</DialogTitle>
           <DialogDescription>
             {lockedOwn
-              ? "This phone belongs to its driver, who picks the bus in the app before each shift."
+              ? "This phone or tablet belongs to its driver, who picks the bus in the app before each shift."
               : own
                 ? "The driver installs McSween Driver from Google Play or the App Store and types the code (it works once, for 7 days). Before each shift they pick the bus and enter its PIN."
                 : isEdit
@@ -226,7 +226,7 @@ export default function KioskDeviceDialog({ open, onOpenChange, companies, vehic
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button onClick={handleSave} disabled={saving}>
-            {saving ? "Saving…" : isEdit ? "Save changes" : own ? "Add phone" : "Register device"}
+            {saving ? "Saving…" : isEdit ? "Save changes" : own ? "Add and get code" : "Register device"}
           </Button>
         </DialogFooter>
       </DialogContent>

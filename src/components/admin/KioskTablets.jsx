@@ -51,7 +51,7 @@ const TYPE_META = {
   badge_registry: { label: "Retired mode - edit to switch to Bus boarding", icon: CreditCard },
 };
 // A driver's own phone running the store app (no kiosk parts).
-const OWN_META = { label: "Driver's own phone", icon: Smartphone };
+const OWN_META = { label: "Driver's own device", icon: Smartphone };
 
 function timeAgo(dateStr) {
   if (!dateStr) return "Never";
@@ -310,7 +310,7 @@ export default function KioskTablets({ vehicles, companies, onChange }) {
             <ArrowUpCircle className="w-4 h-4 mr-1" /> Update all tablets
           </Button>
           <Button variant="outline" onClick={() => openCreate("driver_own")}>
-            <Smartphone className="w-4 h-4 mr-1" /> Add a driver's own phone
+            <Smartphone className="w-4 h-4 mr-1" /> Add a driver's phone or tablet
           </Button>
           <Button onClick={() => openCreate()}>
             <Plus className="w-4 h-4 mr-1" /> Register tablet

@@ -4,6 +4,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/tablet/se
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { backgroundGpsState, setBackgroundGpsEnabled, exportBackgroundGps } from "@/lib/driverBackground";
+import { ownDeviceNoun } from "@/lib/driverOwnDevice";
 
 export default function DriverBackgroundPanel({ vehicle, phone = false }) {
  const [state, setState] = useState(null), [busy, setBusy] = useState(false), [error, setError] = useState("");
@@ -32,10 +33,10 @@ export default function DriverBackgroundPanel({ vehicle, phone = false }) {
  return <Card>
   <CardHeader><CardTitle className="text-base flex items-center gap-2"><Satellite className="w-5 h-5" /> GPS with screen off</CardTitle></CardHeader>
   <CardContent className="space-y-3">
-   <div className="flex items-center gap-3"><div className="flex-1"><p className="font-medium text-sm">Keep sharing in the background</p><p className="text-xs text-muted-foreground">{phone ? "Uses this phone's GPS while you share the bus." : "Uses the selected USB receiver or tablet GPS."}</p></div><Switch aria-label="Keep driver GPS in background" checked={state.enabled === true} disabled={busy} onCheckedChange={toggle} /></div>
+   <div className="flex items-center gap-3"><div className="flex-1"><p className="font-medium text-sm">Keep sharing in the background</p><p className="text-xs text-muted-foreground">{phone ? `Uses this ${ownDeviceNoun()}'s GPS while you share the bus.` : "Uses the selected USB receiver or tablet GPS."}</p></div><Switch aria-label="Keep driver GPS in background" checked={state.enabled === true} disabled={busy} onCheckedChange={toggle} /></div>
    <p className="text-sm">{state.active ? state.status : state.enabled ? "Ready. Starts when this bus is sharing and the driver PIN is verified." : "Background GPS is off. Foreground tracking is unchanged."}</p>
    <p className="text-xs text-muted-foreground">{phone
-    ? "While it's on, your phone shows that its location is in use (a notification on Android, the blue pill on iPhone). Points are saved on the phone first and keep their bus. It stops when you stop sharing, end the shift or change bus."
+    ? `While it's on, your ${ownDeviceNoun()} shows that its location is in use (a notification on Android, the location arrow on iPhone and iPad). Points are saved on the ${ownDeviceNoun()} first and keep their bus. It stops when you stop sharing, end the shift or change bus.`
     : "A tracking notification stays visible while active. GPS points are saved on this tablet before upload and keep their original bus/company. Android can still stop the app; reopening restores a valid session. On Android 10, restart recovery also attempts to resume an unexpired session."}</p>
    <p className="text-sm">Saved GPS: {state.pending || 0} waiting · {state.review || 0} need review</p>
    {(state.pending > 0 || state.review > 0) && <Button variant="outline" disabled={busy} onClick={download}><Download className="w-4 h-4 mr-2" /> Export saved GPS</Button>}
