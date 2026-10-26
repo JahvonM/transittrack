@@ -44,21 +44,24 @@ export default function ChooseBus({ session, invoke, onChosen, onUnpair }) {
   const free = (buses || []).filter((b) => !b.busy);
   const taken = (buses || []).filter((b) => b.busy);
 
+  // Same frame as the PIN screen: a phone or a tablet held upright stacks the
+  // greeting over the list; a tablet on its side puts them side by side.
   return (
-    <div className="min-h-[100dvh] safe-area-top safe-area-x">
-      <div className="mx-auto flex w-full max-w-xl flex-col gap-6 p-4 pb-10">
-        <div className="flex flex-col gap-3">
+    <div className="min-h-[100dvh] grid place-items-center safe-area-top safe-area-x">
+      <div className="grid w-full max-w-xl gap-6 p-4 pb-10 [@media(orientation:landscape)]:max-w-4xl [@media(orientation:landscape)]:grid-cols-2 [@media(orientation:landscape)]:items-center [@media(orientation:landscape)]:gap-10 [@media(orientation:landscape)]:p-6">
+        <div className="flex flex-col gap-3 [@media(orientation:landscape)]:gap-6">
           <CompanyBanner name={session?.company_name} logoUrl={session?.company_logo_url} compact />
           <DriverGreeting driverName={session?.driver_name} compact />
         </div>
 
+        <div className="flex flex-col gap-6">
         <section aria-labelledby="choose-bus-title" className="flex flex-col gap-3">
           <div className="flex items-end justify-between gap-3">
             <div>
               <h2 id="choose-bus-title" className="text-title font-bold">Which bus are you driving?</h2>
               <p className="text-body-sm text-muted-foreground mt-1">Then enter that bus's PIN to start.</p>
             </div>
-            <Button variant="ghost" size="icon" aria-label="Refresh the list" onClick={() => load()} disabled={buses === null}>
+            <Button variant="ghost" size="icon" className="h-11 w-11 shrink-0" aria-label="Refresh the list" onClick={() => load()} disabled={buses === null}>
               <RefreshCw className="h-5 w-5" />
             </Button>
           </div>
@@ -86,7 +89,7 @@ export default function ChooseBus({ session, invoke, onChosen, onUnpair }) {
                       <span className="truncate text-body font-semibold">{bus.name}</span>
                       {bus.plate_number && <span className="text-body-sm text-muted-foreground">{bus.plate_number}</span>}
                     </span>
-                    <span className="text-body-sm font-medium text-primary">{busy === bus.id ? "Choosing…" : "Drive this bus"}</span>
+                    <span className="shrink-0 text-body-sm font-medium text-primary">{busy === bus.id ? "Choosing…" : "Drive this bus"}</span>
                   </button>
                 </li>
               ))}
@@ -106,6 +109,7 @@ export default function ChooseBus({ session, invoke, onChosen, onUnpair }) {
         <Button variant="ghost" className="self-center text-muted-foreground" onClick={onUnpair}>
           <LogOut className="mr-2 h-4 w-4" /> Unpair this phone
         </Button>
+        </div>
       </div>
     </div>
   );
