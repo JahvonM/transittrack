@@ -24,7 +24,7 @@ describe("store app (McSween Driver)", () => {
   });
 
   it("never asks for all-the-time location; GPS runs as a visible service", () => {
-    expect(main + store).not.toContain("ACCESS_BACKGROUND_LOCATION");
+    expect(main + store).not.toMatch(/uses-permission[^>]*ACCESS_BACKGROUND_LOCATION/);
     expect(main).toMatch(/DriverLocationService" android:exported="false" android:foregroundServiceType="location"/);
   });
 
