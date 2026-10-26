@@ -80,8 +80,7 @@ describe("a driver's own phone", () => {
     const { sdk, api, send, phone } = setup();
     await send("choose_bus", { vehicle_id: "bus-a" });
     const grant = await api.issueGrant(sdk, phone(), "driver", "bus-a", 60000);
-    const started = await send("start_shift", { driver_grant: grant });
-    if (started.status !== 200) console.log("START", JSON.stringify(started.body));
+    const started = await send("start_shift", { driver_grant: grant, client_request_id: "start-req-0001" });
     expect(started.status).toBe(200);
     expect(started.body.shift).toMatchObject({ vehicle_id: "bus-a", device_id: "phone", driver_name: "Ana Joseph", driver_id: "drv1" });
     expect((await send("choose_bus", { vehicle_id: "bus-a2" })).body.code).toBe("SHIFT_OPEN");
@@ -98,7 +97,7 @@ describe("a driver's own phone", () => {
     await send("choose_bus", { vehicle_id: "bus-a" });
     sdk.tables.DriverShift.push({ id: "tablet-shift", vehicle_id: "bus-a", company_id: "a", device_id: "tablet", started_at: new Date().toISOString() });
     const grant = await api.issueGrant(sdk, phone(), "driver", "bus-a", 60000);
-    const res = await send("start_shift", { driver_grant: grant });
+    const res = await send("start_shift", { driver_grant: grant, client_request_id: "start-req-0002" });
     expect(res.status).toBe(409);
     expect(res.body.code).toBe("BUS_BUSY");
   });
