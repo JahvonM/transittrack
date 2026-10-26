@@ -9,6 +9,8 @@ android {
         applicationId "com.transittrack.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
+        // McSween Kiosk's version. Keep it the first versionCode/versionName in
+        // this file: the tablet setup scripts in tools/kiosk read the first one.
         versionCode 11
         versionName "2.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
