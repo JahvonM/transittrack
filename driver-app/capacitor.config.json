@@ -1,0 +1,23 @@
+{
+  "appId": "com.mcsweenstransport.driver",
+  "appName": "McSween Driver",
+  "webDir": "www",
+  "server": {
+    "url": "https://app.mcsweenstransport.com/driver",
+    "allowNavigation": ["app.mcsweenstransport.com"]
+  },
+  "ios": {
+    "path": "ios",
+    "contentInset": "never"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 800,
+      "backgroundColor": "#0B1D22",
+      "showSpinner": false
+    },
+    "PushNotifications": {
+      "presentationOptions": ["badge", "sound", "alert"]
+    }
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "name": "mcsween-driver",
+  "private": true,
+  "description": "McSween Driver: the App Store app for a driver's own iPhone. Native shell only; the screens come from the live site. Plugins resolve from the repo root's node_modules.",
+  "dependencies": {
+    "@capacitor/app": "^6.0.1",
+    "@capacitor/browser": "^6.0.6",
+    "@capacitor/core": "^6.1.2",
+    "@capacitor/geolocation": "^6.0.1",
+    "@capacitor/ios": "^6.1.2",
+    "@capacitor/push-notifications": "^6.0.2",
+    "@capacitor/splash-screen": "^6.0.2",
+    "@capacitor/status-bar": "^6.0.1",
+    "@capacitor-community/keep-awake": "^5.0.1"
+  }
+}
