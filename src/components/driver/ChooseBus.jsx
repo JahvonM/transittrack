@@ -3,7 +3,7 @@ import { Bus, RefreshCw, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import CompanyBanner from "@/components/CompanyBanner";
 import DriverGreeting from "@/components/driver/DriverGreeting";
-import { busChoiceMessage } from "@/lib/driverOwnDevice";
+import { busChoiceMessage, ownDeviceNoun } from "@/lib/driverOwnDevice";
 
 // A driver's own phone (the store app) belongs to the driver, not to a bus,
 // so before each shift it asks which bus they're driving. The bus PIN comes
@@ -107,7 +107,7 @@ export default function ChooseBus({ session, invoke, onChosen, onUnpair }) {
         </section>
 
         <Button variant="ghost" className="self-center text-muted-foreground" onClick={onUnpair}>
-          <LogOut className="mr-2 h-4 w-4" /> Unpair this phone
+          <LogOut className="mr-2 h-4 w-4" /> Unpair this {ownDeviceNoun()}
         </Button>
         </div>
       </div>

@@ -14,6 +14,7 @@ import { Switch } from "@/components/ui/switch";
 import { useIsDark } from "@/lib/useTheme";
 import useTheme from "@/hooks/useTheme";
 import TabletNetworkPanel from "@/components/driver/TabletNetworkPanel";
+import { ownDeviceNoun } from "@/lib/driverOwnDevice";
 
 function Fact({ icon: Icon, title, detail, children }) {
   return (
@@ -33,13 +34,14 @@ export default function DriverDevicePanel({ session, deviceId, onUnpair, onChang
   const vehicle = session?.vehicle;
   // The store app on a driver's own phone: no kiosk, network or startup parts.
   const own = session?.personal === true;
-  const noun = own ? "phone" : "tablet";
+  const noun = own ? ownDeviceNoun() : "tablet";
+  const Noun = noun[0].toUpperCase() + noun.slice(1);
   const { toggle } = useTheme();
   const isDark = useIsDark();
 
   const thisTablet = (
     <Card>
-      <CardHeader><CardTitle>{own ? "This phone" : "This tablet"}</CardTitle></CardHeader>
+      <CardHeader><CardTitle>This {noun}</CardTitle></CardHeader>
       <CardContent>
         <div className="divide-y">
           <Fact icon={Bus} title={vehicle?.name || "No bus"} detail={[vehicle?.plate_number || "No plate", vehicle?.type].filter(Boolean).join(", ")} />
@@ -68,11 +70,11 @@ export default function DriverDevicePanel({ session, deviceId, onUnpair, onChang
 
   return (
     <TabletSettings
-      title={own ? "Phone settings" : undefined}
-      subtitle={own ? [session?.driver_name ? `${session.driver_name}'s phone` : "Driver's phone", vehicle?.name].filter(Boolean).join(", ") : vehicle?.name ? `Driver tablet, ${vehicle.name}` : "Driver tablet"}
+      title={own ? `${Noun} settings` : undefined}
+      subtitle={own ? [session?.driver_name ? `${session.driver_name}'s ${noun}` : `Driver's ${noun}`, vehicle?.name].filter(Boolean).join(", ") : vehicle?.name ? `Driver tablet, ${vehicle.name}` : "Driver tablet"}
       sections={own ? [
         { id: "gps", label: "GPS", content: <DriverBackgroundPanel vehicle={vehicle} phone /> },
-        { id: "tablet", label: "This phone", content: thisTablet },
+        { id: "tablet", label: `This ${noun}`, content: thisTablet },
       ] : [
         { id: "gps", label: "GPS", content: <><UsbGpsPanel /><DriverBackgroundPanel vehicle={vehicle} /></> },
         { id: "connection", label: "Connection", content: <><TabletNetworkPanel /><NativeNetworkPanel /><TabletCellularPanel /></> },

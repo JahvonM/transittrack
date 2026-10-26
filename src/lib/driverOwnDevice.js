@@ -6,6 +6,13 @@ import { forgetPin } from "@/lib/offlinePin";
 
 export const isOwnDevice = (session) => session?.personal === true;
 
+// McSween Driver runs on the driver's phone or tablet; screens name it.
+// 600 points on the short side is where Android and iPad call it a tablet.
+export function ownDeviceNoun(view = globalThis.screen) {
+  const short = Math.min(Number(view?.width) || 0, Number(view?.height) || 0);
+  return short >= 600 ? "tablet" : "phone";
+}
+
 // A phone that hasn't chosen a bus yet (or released it) shows the bus list.
 export const needsBusChoice = (session) => isOwnDevice(session) && !session?.vehicle;
 
@@ -14,7 +21,7 @@ export function busChoiceMessage(error, fallback = "Something went wrong. Try ag
   const data = errorData(error);
   if (data.code === "BUS_BUSY") return data.error || "That bus already has a driver on shift. Choose another bus.";
   if (data.code === "SHIFT_OPEN") return data.error || "End your shift before changing bus.";
-  if (data.code === "DEVICE_ACCESS_REQUIRED") return "This phone isn't connected any more. Ask the office for a new code.";
+  if (data.code === "DEVICE_ACCESS_REQUIRED") return `This ${ownDeviceNoun()} isn't connected any more. Ask the office for a new code.`;
   const status = httpStatus(error);
   if (status && status < 500 && typeof data.error === "string" && data.error) return data.error;
   return fallback;
