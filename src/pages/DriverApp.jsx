@@ -25,6 +25,8 @@ import { requestPushToken, onForegroundMessage } from "@/lib/firebase";
 import { useKeepAwake } from "@/hooks/useKeepAwake";
 import { useBlockOtherSites, DRIVER_ALLOWED } from "@/lib/kioskLinkLock";
 import DriverPairing from "@/components/driver/DriverPairing";
+import ChooseBus from "@/components/driver/ChooseBus";
+import { isOwnDevice, needsBusChoice, busChoiceMessage, forgetBusAccess } from "@/lib/driverOwnDevice";
 import DriverGreeting from "@/components/driver/DriverGreeting";
 import PinGate from "@/components/driver/PinGate";
 import PhoneUnlock from "@/components/driver/PhoneUnlock";
@@ -115,7 +117,8 @@ export default function DriverApp() {
   // Driver tablets are mounted and always powered — keep the screen on so
   // locking is never what interrupts GPS tracking (no background-location
   // permission needed for this; it only matters while the screen is on).
-  useKeepAwake(!!deviceId);
+  // A driver's own phone keeps its screen on only during a shift.
+  useKeepAwake(!!deviceId && (!isOwnDevice(session) || !!session?.open_shift));
   // Other websites stay closed on the tablet; WhatsApp and Google Maps hand-offs still work.
   useBlockOtherSites(!!deviceId, DRIVER_ALLOWED);
 
@@ -288,7 +291,8 @@ export default function DriverApp() {
       setAutoPairing(true);
       base44.functions.invoke("pairKioskDevice", { pairing_code: pairCode, expected_type: "driver" })
         .then((res) => {
-          if (res.data?.kiosk_type === "driver" && res.data?.vehicle_id) {
+          // A driver's own phone pairs with no bus; it picks one next.
+          if (res.data?.kiosk_type === "driver" && (res.data?.vehicle_id || res.data?.personal === true)) {
             saveDeviceToken(res.data.device_id, res.data.device_token);
             localStorage.setItem("tt_driver_device_id", res.data.device_id);
             setDeviceId(res.data.device_id);
@@ -370,6 +374,21 @@ export default function DriverApp() {
   };
 
   const handlePaired = (id) => { localStorage.setItem("tt_driver_device_id", id); setDeviceId(id); };
+
+  // A driver's own phone: the bus PIN and the unlock belong to the bus, so
+  // choosing or leaving a bus starts again from the PIN.
+  const lockForNewBus = () => { forgetBusAccess(deviceId); forgetUnlockDay(); unlockedDayRef.current = null; setUnlocked(false); };
+  const handleBusChosen = async () => { lockForNewBus(); await refresh?.(); navigate("/driver", { replace: true }); };
+  const changeBus = async () => {
+    if (session?.open_shift) { toast({ title: "End your shift first", description: "You can change bus once this shift is over." }); return; }
+    try { await stopBackgroundGps(); } catch { /* not running */ }
+    if (session?.vehicle?.tracking_active) await invoke("stop_tracking").catch(() => {});
+    try { await invoke("release_bus"); }
+    catch (e) { toast({ title: "Couldn't change bus", description: busChoiceMessage(e), variant: "destructive" }); return; }
+    lockForNewBus();
+    await refresh?.();
+    navigate("/driver", { replace: true });
+  };
   const handleUnpair = async () => { try { await stopBackgroundGps(); } catch { toast({ title: "Could not stop background GPS", description: "Stop it from Android notifications, then try unpairing again.", variant: "destructive" }); return; } forgetPin(deviceId); forgetDeviceToken(deviceId); clearDriverSessionCache(); localStorage.removeItem("tt_driver_device_id"); forgetUnlockDay(); unlockedDayRef.current = null; setDeviceId(null); setUnlocked(false); navigate("/driver"); };
 
   // Handler to submit the incident report via the driver-session backend function.
@@ -408,6 +427,9 @@ export default function DriverApp() {
 
   if (!session && sessionError)
     return <div className="min-h-[100dvh] grid place-items-center p-6"><ErrorState title="Couldn't reconnect to this tablet" description={sessionError} onRetry={refresh} retrying={loading} /></div>;
+
+  if (needsBusChoice(session))
+    return <ChooseBus session={session} invoke={invoke} onChosen={handleBusChosen} onUnpair={handleUnpair} />;
 
   if (!session?.vehicle)
     return (
@@ -551,7 +573,7 @@ export default function DriverApp() {
             {activeTab === "passengers" && <DriverKioskPassengers session={session}/>}
             {activeTab === "inspection" && <div className="dk-content"><h1 className="text-title font-bold">Inspection</h1><DriverInspectionList templates={inspTemplates} recent={recentInspections} localDone={localDone} onStart={(t) => openInspection(t, { from: "manual" })} /><SafetyStandardsContent /></div>}
             {activeTab === "documents" && <div className="dk-content"><h1 className="text-title font-bold">Licence & insurance</h1><DriverDocumentsViewer invoke={invoke} busName={vehicle?.name} /></div>}
-            {activeTab === "settings" && <div className="dk-content"><DriverDevicePanel session={session} deviceId={deviceId} onUnpair={handleUnpair} /><ReportAppProblemButton where="driver tablet" className="w-full justify-start" /></div>}
+            {activeTab === "settings" && <div className="dk-content"><DriverDevicePanel session={session} deviceId={deviceId} onUnpair={handleUnpair} onChangeBus={isOwnDevice(session) ? changeBus : undefined} /><ReportAppProblemButton where="driver tablet" className="w-full justify-start" /></div>}
             {activeTab === "trips" && <div className="dk-content"><h1>Jobs & history</h1>{session.trips?.length?<DriverTrips trips={session.trips} vehicle={session.vehicle} signingTablet={!!session.has_signing_tablet} onNameSign={showNameSign} invoke={invoke} refresh={refresh} startSharing={()=>invoke("start_tracking").catch(()=>{})}/>:<p>No jobs for this bus.</p>}<h2>Shift</h2><ShiftCard session={session} invoke={invoke} refresh={refresh} beforeStart={()=>beforeShift("start_shift")} beforeEnd={()=>beforeShift("end_shift")}/><DriverKioskHistory session={session}/></div>}
             {activeTab === "safety" && <div className="dk-content"><h1>Safety standards</h1><SafetyStandardsContent/></div>}
             {activeTab === "help" && <div className="dk-content"><h1>Help & support</h1><p className="dk-muted">Contact your transport team through Messages, or report an app problem below.</p><Button onClick={()=>selectTab("chat")}>Message your bus team</Button><ReportAppProblemButton where="driver tablet" className="w-full justify-start"/></div>}

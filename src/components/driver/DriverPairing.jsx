@@ -24,7 +24,8 @@ export default function DriverPairing({ onPaired }) {
         setChecking(false);
         return;
       }
-      if (!res.data?.vehicle_id) {
+      // A driver's own phone pairs with no bus; it picks one next.
+      if (!res.data?.vehicle_id && res.data?.personal !== true) {
         setError("No vehicle assigned to this tablet. Contact your administrator.");
         setChecking(false);
         return;
@@ -45,15 +46,15 @@ export default function DriverPairing({ onPaired }) {
             <div className="mx-auto w-12 h-12 rounded-xl bg-primary text-primary-foreground grid place-items-center mb-2">
               <Bus className="w-6 h-6" />
             </div>
-            <CardTitle className="text-xl">Pair driver tablet</CardTitle>
-            <CardDescription>Enter the pairing code your administrator gave you to link this tablet to your vehicle.</CardDescription>
+            <CardTitle className="text-xl">Enter your code</CardTitle>
+            <CardDescription>Type the code from the office to connect this phone or tablet.</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={submit} className="space-y-3">
               <Input value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="e.g. ABCD2345EFGH" maxLength={12} autoFocus className="h-12 text-center text-lg font-semibold tracking-[0.3em]" />
               {error && <p className="text-sm text-destructive">{error}</p>}
               <Button type="submit" className="w-full" disabled={checking || !code.trim()}>
-                {checking ? "Pairing…" : "Pair tablet"}
+                {checking ? "Connecting…" : "Connect"}
                 <ArrowRight className="w-4 h-4" />
               </Button>
             </form>

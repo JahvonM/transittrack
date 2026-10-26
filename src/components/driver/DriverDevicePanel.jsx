@@ -6,7 +6,7 @@ import TabletDiagnosticsPanel from "@/components/driver/TabletDiagnosticsPanel";
 import UsbGpsPanel from "@/components/driver/UsbGpsPanel";
 import React from "react";
 import { Link } from "react-router-dom";
-import { Bus, Building2, Tablet, LogOut, Sun, Moon } from "lucide-react";
+import { Bus, Building2, Tablet, LogOut, Sun, Moon, Repeat } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/tablet/settingsKit";
 import TabletSettings from "@/components/tablet/TabletSettings";
 import { Button } from "@/components/ui/button";
@@ -29,36 +29,50 @@ function Fact({ icon: Icon, title, detail, children }) {
 }
 
 // Driver tablet → Settings.
-export default function DriverDevicePanel({ session, deviceId, onUnpair }) {
+export default function DriverDevicePanel({ session, deviceId, onUnpair, onChangeBus }) {
   const vehicle = session?.vehicle;
+  // The store app on a driver's own phone: no kiosk, network or startup parts.
+  const own = session?.personal === true;
+  const noun = own ? "phone" : "tablet";
   const { toggle } = useTheme();
   const isDark = useIsDark();
 
   const thisTablet = (
     <Card>
-      <CardHeader><CardTitle>This tablet</CardTitle></CardHeader>
+      <CardHeader><CardTitle>{own ? "This phone" : "This tablet"}</CardTitle></CardHeader>
       <CardContent>
         <div className="divide-y">
           <Fact icon={Bus} title={vehicle?.name || "No bus"} detail={[vehicle?.plate_number || "No plate", vehicle?.type].filter(Boolean).join(", ")} />
           <Fact icon={Building2} title={vehicle?.company_name || session?.company_name || "No company"} detail="Company" />
           <Fact icon={Tablet} title={deviceId} detail="Device ID" />
-          <Fact icon={isDark ? Moon : Sun} title={isDark ? "Dark screens" : "Light screens"} detail="For the driver screens on this tablet">
+          <Fact icon={isDark ? Moon : Sun} title={isDark ? "Dark screens" : "Light screens"} detail={`For the driver screens on this ${noun}`}>
             <Switch checked={isDark} onCheckedChange={toggle} aria-label="Dark screens" />
           </Fact>
         </div>
-        <Button asChild variant="outline" className="w-full"><Link to="/tablet?choose=1">Choose tablet screen</Link></Button>
+        {own && onChangeBus && (
+          <>
+            <Button variant="outline" className="w-full" onClick={onChangeBus} disabled={!!session?.open_shift}>
+              <Repeat className="w-4 h-4 mr-2" /> Change bus
+            </Button>
+            {session?.open_shift && <p className="text-xs text-muted-foreground text-center">End your shift to change bus.</p>}
+          </>
+        )}
+        {!own && <Button asChild variant="outline" className="w-full"><Link to="/tablet?choose=1">Choose tablet screen</Link></Button>}
         <Button variant="outline" className="w-full" onClick={onUnpair}>
-          <LogOut className="w-4 h-4 mr-2" /> Unpair tablet
+          <LogOut className="w-4 h-4 mr-2" /> Unpair this {noun}
         </Button>
-        <p className="text-xs text-muted-foreground text-center">After unpairing, the tablet needs a new pairing code from Admin.</p>
+        <p className="text-xs text-muted-foreground text-center">After unpairing, the {noun} needs a new code from Admin.</p>
       </CardContent>
     </Card>
   );
 
   return (
     <TabletSettings
-      subtitle={vehicle?.name ? `Driver tablet, ${vehicle.name}` : "Driver tablet"}
-      sections={[
+      subtitle={own ? [session?.driver_name ? `${session.driver_name}'s phone` : "Driver's phone", vehicle?.name].filter(Boolean).join(", ") : vehicle?.name ? `Driver tablet, ${vehicle.name}` : "Driver tablet"}
+      sections={own ? [
+        { id: "gps", label: "GPS", content: <DriverBackgroundPanel vehicle={vehicle} /> },
+        { id: "tablet", label: "This phone", content: thisTablet },
+      ] : [
         { id: "gps", label: "GPS", content: <><UsbGpsPanel /><DriverBackgroundPanel vehicle={vehicle} /></> },
         { id: "connection", label: "Connection", content: <><TabletNetworkPanel /><NativeNetworkPanel /><TabletCellularPanel /></> },
         { id: "startup", label: "Startup", content: <TabletRecoveryPanel /> },
