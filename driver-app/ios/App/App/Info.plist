@@ -45,5 +45,22 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<!-- The bus's position comes from this phone while the driver shares it.
+	     "While Using" only: with the "location" background mode iOS keeps a
+	     started session going with the screen off and shows the blue pill.
+	     "Always" location is never asked for. -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>McSween Driver shares your bus's position with the office and your passengers while you're on a shift, including when the screen is off. It stops when you stop sharing or end the shift.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>location</string>
+		<string>remote-notification</string>
+	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>McSween Driver uses the camera for the photos you add to bus inspections, reports and messages.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>McSween Driver uses the microphone to record the voice notes you send in chats.</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 </dict>
 </plist>
