@@ -19,6 +19,9 @@ const KIOSK_TYPES = [
   { value: "bus_boarding", label: "Bus boarding" },
   { value: "driver", label: "Driver tablet" },
   { value: "job_signing", label: "Signing tablet (guests sign for jobs)" },
+  // The store app on a driver's own phone or tablet: belongs to the driver,
+  // who picks the bus before each shift. Saved as a driver device, personal.
+  { value: "driver_own", label: "Driver's own phone (store app)" },
 ];
 
 export default function KioskDeviceDialog({ open, onOpenChange, companies, vehicles, device, onSaved }) {
@@ -29,17 +32,31 @@ export default function KioskDeviceDialog({ open, onOpenChange, companies, vehic
   const [vehicleId, setVehicleId] = useState("");
   const [saving, setSaving] = useState(false);
   const [displayLayout, setDisplayLayout] = useState("auto");
+  const [driverId, setDriverId] = useState("");
+  const [drivers, setDrivers] = useState([]);
+  const own = kioskType === "driver_own";
 
   useEffect(() => {
     if (open) {
       setLabel(device?.label || "");
       setDisplayLayout(device?.display_layout || "auto");
       // Retired types (card registry, front-desk sign-in) switch to bus boarding when edited.
-      setKioskType(device?.kiosk_type && !["badge_registry", "front_desk"].includes(device.kiosk_type) ? device.kiosk_type : "bus_boarding");
+      setKioskType(device?.personal ? "driver_own" : device?.kiosk_type && !["badge_registry", "front_desk"].includes(device.kiosk_type) ? device.kiosk_type : "bus_boarding");
       setCompanyId(device?.company_id || "");
       setVehicleId(device?.vehicle_id || "");
+      setDriverId(device?.driver_id || "");
     }
   }, [open, device]);
+
+  // The company's drivers, for a driver's own phone.
+  useEffect(() => {
+    if (!open || !own || !companyId) { setDrivers([]); return undefined; }
+    let live = true;
+    base44.entities.Driver.filter({ company_id: companyId }, "full_name", 300)
+      .then((rows) => { if (live) setDrivers(Array.isArray(rows) ? rows : []); })
+      .catch(() => { if (live) setDrivers([]); });
+    return () => { live = false; };
+  }, [open, own, companyId]);
 
   const filteredVehicles = vehicles.filter((v) => {
     if (!companyId) return [];
@@ -50,6 +67,7 @@ export default function KioskDeviceDialog({ open, onOpenChange, companies, vehic
   });
 
   const needsVehicle = kioskType === "bus_boarding" || kioskType === "driver" || kioskType === "job_signing";
+  const lockedOwn = isEdit && device?.personal;
 
   const handleSave = async () => {
     if (!label.trim()) {
@@ -64,13 +82,27 @@ export default function KioskDeviceDialog({ open, onOpenChange, companies, vehic
       toast({ title: "Vehicle required for this kiosk type", variant: "destructive" });
       return;
     }
+    if (own && !driverId) {
+      toast({ title: "Choose the driver", variant: "destructive" });
+      return;
+    }
 
     const company = companies.find((c) => c.id === companyId);
     const vehicle = filteredVehicles.find((v) => v.id === vehicleId);
 
     setSaving(true);
     try {
-      if (isEdit) {
+      if (lockedOwn) {
+        // A driver's own phone keeps its driver; the phone picks the bus.
+        await base44.entities.KioskDevice.update(device.id, { label: label.trim() });
+        toast({ title: "Device updated" });
+      } else if (own) {
+        const created = await base44.entities.KioskDevice.create({
+          label: label.trim(), kiosk_type: "driver", personal: true, driver_id: driverId,
+          company_id: companyId, company_name: company?.name || "",
+        });
+        toast({ title: "Driver's phone added", description: `Code for the McSween Transport app: ${created.pairing_code}` });
+      } else if (isEdit) {
         await base44.entities.KioskDevice.update(device.id, {
           label: label.trim(),
           kiosk_type: kioskType,
@@ -108,11 +140,15 @@ export default function KioskDeviceDialog({ open, onOpenChange, companies, vehic
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{isEdit ? "Reassign device" : "Register kiosk tablet"}</DialogTitle>
+          <DialogTitle>{lockedOwn ? "Driver's own phone" : isEdit ? "Reassign device" : "Register kiosk tablet"}</DialogTitle>
           <DialogDescription>
-            {isEdit
-              ? "Update this device's company, vehicle, or kiosk type."
-              : "Create a device record and receive a one-time pairing code for the kiosk app."}
+            {lockedOwn
+              ? "This phone belongs to its driver, who picks the bus in the app before each shift."
+              : own
+                ? "The driver types the code into the McSween Transport app from Google Play or the App Store. They pick the bus before each shift and enter its PIN."
+                : isEdit
+                  ? "Update this device's company, vehicle, or kiosk type."
+                  : "Create a device record and receive a one-time pairing code for the kiosk app."}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-2">
@@ -121,9 +157,10 @@ export default function KioskDeviceDialog({ open, onOpenChange, companies, vehic
             <Input
               value={label}
               onChange={(e) => setLabel(e.target.value)}
-              placeholder="e.g. Lobby tablet, Bus 12 tablet"
+              placeholder={own ? "e.g. Ana's phone" : "e.g. Lobby tablet, Bus 12 tablet"}
             />
           </div>
+          {!lockedOwn && <>
           <div className="space-y-2">
             <Label>Kiosk type</Label>
             <ChoiceSelect
@@ -131,7 +168,7 @@ export default function KioskDeviceDialog({ open, onOpenChange, companies, vehic
               onChange={(e) => setKioskType(e.target.value)}
               className={selectClass}
             >
-              {KIOSK_TYPES.map((t) => (
+              {KIOSK_TYPES.filter((t) => !isEdit || t.value !== "driver_own").map((t) => (
                 <option key={t.value} value={t.value}>{t.label}</option>
               ))}
             </ChoiceSelect>
@@ -140,7 +177,7 @@ export default function KioskDeviceDialog({ open, onOpenChange, companies, vehic
             <Label>Company</Label>
             <ChoiceSelect
               aria-label="Company" value={companyId}
-              onChange={(e) => { setCompanyId(e.target.value); setVehicleId(""); }}
+              onChange={(e) => { setCompanyId(e.target.value); setVehicleId(""); setDriverId(""); }}
               className={selectClass}
             >
               <option value="">Select company…</option>
@@ -149,7 +186,20 @@ export default function KioskDeviceDialog({ open, onOpenChange, companies, vehic
               ))}
             </ChoiceSelect>
           </div>
-          {kioskType !== "driver" && <div className="space-y-2">
+          {own && (
+            <div className="space-y-2">
+              <Label>Driver</Label>
+              <ChoiceSelect aria-label="Driver" value={driverId} onChange={(e) => {
+                setDriverId(e.target.value);
+                const d = drivers.find((x) => x.id === e.target.value);
+                if (d && !label.trim()) setLabel(`${(d.full_name || d.username || "Driver").split(" ")[0]}'s phone`);
+              }} className={selectClass} disabled={!companyId}>
+                <option value="">{companyId ? (drivers.length ? "Select driver…" : "No drivers in this company yet") : "Select a company first"}</option>
+                {drivers.map((d) => <option key={d.id} value={d.id}>{d.full_name || d.username}</option>)}
+              </ChoiceSelect>
+            </div>
+          )}
+          {kioskType !== "driver" && !own && <div className="space-y-2">
             <Label htmlFor="kiosk-layout">Screen layout</Label>
             <ChoiceSelect id="kiosk-layout" aria-label="Screen layout" value={displayLayout} onChange={e => setDisplayLayout(e.target.value)} className={selectClass}>
               <option value="auto">Automatic / device choice</option><option value="tablet">Kiosk tablet</option><option value="phone">Kiosk phone</option>
@@ -171,11 +221,12 @@ export default function KioskDeviceDialog({ open, onOpenChange, companies, vehic
               </ChoiceSelect>
             </div>
           )}
+          </>}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button onClick={handleSave} disabled={saving}>
-            {saving ? "Saving…" : isEdit ? "Save changes" : "Register device"}
+            {saving ? "Saving…" : isEdit ? "Save changes" : own ? "Add phone" : "Register device"}
           </Button>
         </DialogFooter>
       </DialogContent>
