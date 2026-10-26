@@ -383,7 +383,7 @@ Table `driver` · belongs to a company through `company_id` · read and changed 
 
 **Links to:** [Company](#company) (`company_id`).
 
-**Linked from:** [DriverDocument](#driverdocument).driver_id, [DriverRequest](#driverrequest).driver_id, [DriverRequest](#driverrequest).swap_with_driver_id, [PhoneUnlock](#phoneunlock).driver_id, [Vehicle](#vehicle).driver_id.
+**Linked from:** [DriverDocument](#driverdocument).driver_id, [DriverRequest](#driverrequest).driver_id, [DriverRequest](#driverrequest).swap_with_driver_id, [DriverShift](#drivershift).driver_id, [KioskDevice](#kioskdevice).driver_id, [PhoneUnlock](#phoneunlock).driver_id, [Vehicle](#vehicle).driver_id.
 
 | Field | Type | Notes |
 |---|---|---|
@@ -460,9 +460,9 @@ A driver's day-off or shift-swap request from the driver phone app, approved or 
 
 ### DriverShift
 
-Table `driver_shift` · belongs to a company through `vehicle_id`, then `company_id` · read and changed through entityAccess.
+Table `driver_shift` · belongs to a company through `vehicle_id`, then `driver_id`, then `company_id` · read and changed through entityAccess.
 
-**Links to:** [Vehicle](#vehicle) (`vehicle_id`), [Company](#company) (`company_id`), [KioskDevice](#kioskdevice) (`device_id`).
+**Links to:** [Vehicle](#vehicle) (`vehicle_id`), [Company](#company) (`company_id`), [KioskDevice](#kioskdevice) (`device_id`), [Driver](#driver) (`driver_id`).
 
 **Linked from:** [PhoneUnlock](#phoneunlock).shift_id.
 
@@ -475,6 +475,7 @@ Table `driver_shift` · belongs to a company through `vehicle_id`, then `company
 | `driver_name` | text |  |
 | `driver_email` | text |  |
 | `device_id` | text | → KioskDevice. Driver tablet (KioskDevice) that started the shift. |
+| `driver_id` | text | → Driver. The driver, when the shift was started on the driver's own phone. Not sent to the browser. |
 | `started_at` | timestamptz | Required. |
 | `ended_at` | timestamptz |  |
 | `duration_minutes` | double precision |  |
@@ -716,9 +717,9 @@ Table `job_run` · server functions only.
 
 ### KioskDevice
 
-Table `kiosk_device` · belongs to a company through `vehicle_id`, then `company_id` · read and changed through entityAccess.
+Table `kiosk_device` · belongs to a company through `vehicle_id`, then `driver_id`, then `company_id` · read and changed through entityAccess.
 
-**Links to:** [Company](#company) (`company_id`), [Vehicle](#vehicle) (`vehicle_id`).
+**Links to:** [Company](#company) (`company_id`), [Driver](#driver) (`driver_id`), [Vehicle](#vehicle) (`vehicle_id`).
 
 **Linked from:** [ClientError](#clienterror).device_id, [DeviceCredential](#devicecredential).device_id, [DriverShift](#drivershift).device_id, [PhoneUnlock](#phoneunlock).device_id, [PushToken](#pushtoken).device_id, [StaffCheckIn](#staffcheckin).device_id, [TabletRecordingSession](#tabletrecordingsession).device_id, [TabletSupportSession](#tabletsupportsession).device_id, [VerificationGrant](#verificationgrant).device_id.
 
@@ -734,6 +735,9 @@ Table `kiosk_device` · belongs to a company through `vehicle_id`, then `company
 | `helper_health` | jsonb | Reported by the TransitTrack Helper Android app on the tablet (via the kiosk/driver page heartbeat): helper version, battery %, charging, parked, card reader state, last card time, USB GPS state, Wi-Fi hotspot state, and when it was reported. |
 | `kiosk_type` | text | One of: `bus_boarding`, `front_desk`, `badge_registry`, `driver`, `job_signing`. Default `"bus_boarding"`. Required. |
 | `label` | text | Required. |
+| `personal` | boolean | A driver's own phone or tablet (the store app). It belongs to driver_id, not a bus: the driver picks the bus (vehicle_id) before each shift. Set only when it is added; never a kiosk. Default `false`. |
+| `driver_id` | text | → Driver. The driver who owns this device (personal devices only). |
+| `driver_name` | text | That driver's name, copied when the device is added. |
 | `last_seen` | timestamptz |  |
 | `paired` | boolean | Default `false`. Changed only through access-code management. |
 | `pairing_code` | text | **Secret**: never sent to the browser. Changed only through access-code management. |
