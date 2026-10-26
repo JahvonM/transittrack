@@ -53,6 +53,16 @@ test('failed profile upload keeps the old picture and permits retrying the same 
   expect(saves[0].data.photo_url).toBe('/brand/icon-192.png');
 });
 
+test('an avatar is uploaded like a photo, so the saved picture is a file link', async ({ page }) => {
+  const { uploads, saves } = await profile(page);
+  await page.getByRole('button', { name: 'Ocean avatar', exact: true }).click();
+  await expect.poll(() => uploads.length).toBe(1);
+  expect(uploads[0].url).toContain('/Core/UploadFile');
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page.getByText('Profile saved', { exact: true })).toBeVisible();
+  expect(saves[0].data.photo_url).toBe('/brand/icon-512.png');
+});
+
 for (const path of ['/privacy', '/terms']) test(`${path} is readable signed out and identifies unfinished policy decisions`, async ({ page }) => {
   await page.route('**/api/**', r => r.fulfill({ json: { id: 'test-app', public_settings: { authentication_required: false } } }));
   await page.goto(path);

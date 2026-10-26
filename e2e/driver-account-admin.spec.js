@@ -6,12 +6,16 @@ import {test,expect} from '@playwright/test';
 // removing them removes their sign-in first, and buses know them by it.
 const KEY='driver.ann_1@login.mcsweenstransport.com';
 
-async function drivers(page,{driver,buses=[],takenUsernames=[]}){
+async function drivers(page,{driver,buses=[],takenUsernames=[],admin={}}){
  const calls=[];
  await page.addInitScript(()=>{ localStorage.setItem('base44_access_token','mock-authenticated-session'); });
  await page.route('https://api.mapbox.com/**',r=>r.fulfill({status:404,body:''}));
  await page.route('**/api/**',withAdminBatch(async route=>{
   const url=route.request().url();
+  if(url.includes('/integration-endpoints/Core/')){
+   calls.push({fn:'upload',url,body:route.request().postDataBuffer().toString('latin1')});
+   return route.fulfill({json:{file_url:'https://base44.app/api/apps/test/files/public/avatar.png'}});
+  }
   if(url.includes('/functions/driverAccounts')){
    const body=route.request().postDataJSON();calls.push({fn:'driverAccounts',...body});
    if(body.action==='provision'&&takenUsernames.includes(body.username))return route.fulfill({status:409,json:{error:'Username is unavailable'}});
@@ -22,7 +26,7 @@ async function drivers(page,{driver,buses=[],takenUsernames=[]}){
    const body=route.request().postDataJSON();let result=[];
    // Change-history entries the app writes after each change are not part of the flow.
    if(['update','delete','create'].includes(body.operation)&&body.entity!=='AuditLog')calls.push({fn:body.entity+'.'+body.operation,id:body.id,data:body.data});
-   if(body.entity==='User'&&body.operation==='get')result={id:'admin',email:'admin@test.local',full_name:'Admin',role:'admin'};
+   if(body.entity==='User'&&body.operation==='get')result={id:'admin',email:'admin@test.local',full_name:'Admin',role:'admin',...admin};
    else if(body.entity==='Driver'&&body.operation==='update'){Object.assign(driver,body.data);result=driver;}
    else if(body.entity==='Driver'&&body.operation==='delete')result={ok:true};
    else if(body.entity==='Driver'&&body.operation==='create')result={id:'new-driver',...body.data};
@@ -135,4 +139,28 @@ test('driver cards show the username, never an email',async({page})=>{
  await expect(page.getByText('ann.old@gmail.com')).toHaveCount(0);
  await page.getByRole('button',{name:'Edit Ann Driver'}).click();
  await expect(page.getByRole('dialog').getByLabel(/email/i)).toHaveCount(0);
+});
+
+test('an avatar chosen for a driver is uploaded, so the server takes it',async({page})=>{
+ const calls=await drivers(page,{driver:ann()});
+ await page.getByRole('button',{name:'Edit Ann Driver'}).click();
+ const dialog=page.getByRole('dialog');
+ await dialog.getByRole('button',{name:'Ocean avatar',exact:true}).click();
+ await expect.poll(()=>calls.filter(c=>c.fn==='upload').length).toBe(1);
+ const upload=calls.find(c=>c.fn==='upload');
+ expect(upload.url).toContain('/Core/UploadPublicFile');
+ expect(upload.body).toContain('filename="avatar.png"');
+ await dialog.getByRole('button',{name:'Save changes'}).click();
+ await expect.poll(()=>calls.find(c=>c.fn==='Driver.update')?.data?.photo_url).toBe('https://base44.app/api/apps/test/files/public/avatar.png');
+});
+
+test("the admin's own photo shows in the side panel and the account button",async({page})=>{
+ await drivers(page,{driver:ann(),admin:{photo_url:'/brand/icon-192.png'}});
+ await expect(page.locator('aside img[src="/brand/icon-192.png"]')).toBeVisible();
+ await expect(page.getByRole('button',{name:'Account menu'}).locator('img')).toHaveAttribute('src','/brand/icon-192.png');
+});
+
+test('an admin photo that fails to load falls back to initials',async({page})=>{
+ await drivers(page,{driver:ann(),admin:{photo_url:'/missing-photo.png'}});
+ await expect(page.getByRole('button',{name:'Account menu'})).toHaveText('A');
 });

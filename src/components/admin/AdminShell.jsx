@@ -236,6 +236,16 @@ const fmtDate = () => new Date().toLocaleDateString([], { weekday: "short", mont
  * top bar with section search, date and time, notifications and the
  * account menu, and the SOS banner above the page.
  */
+// The signed-in person's photo, or their initials when there is none or it
+// doesn't load.
+function AccountPicture({ user, initials }) {
+  const photo = typeof user?.photo_url === "string" ? user.photo_url : "";
+  const [failed, setFailed] = useState("");
+  return photo && failed !== photo
+    ? <img src={photo} alt="" className="h-full w-full object-cover" onError={() => setFailed(photo)} />
+    : initials;
+}
+
 export default function AdminShell({ active, onNavigate, children, alertVehicles = [], user, onSignOut, pushPermission, onEnableNotifications, headerActions = null }) {
   const [open, setOpen] = useState(false);
   const [actionsEl, setActionsEl] = useState(null);
@@ -256,7 +266,7 @@ export default function AdminShell({ active, onNavigate, children, alertVehicles
         <SidebarNav active={active} onNavigate={nav} />
       </div>
       <div className="flex shrink-0 items-center gap-3 border-t border-sidebar-border px-4 py-3">
-        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-sidebar-primary text-body-sm font-bold text-sidebar-primary-foreground" aria-hidden="true">{initials}</span>
+        <span className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-full bg-sidebar-primary text-body-sm font-bold text-sidebar-primary-foreground" aria-hidden="true"><AccountPicture user={user} initials={initials} /></span>
         <span className="min-w-0">
           <span className="block truncate text-body-sm font-semibold text-sidebar-foreground">{accountName(user) || "Admin"}</span>
           <span className="block text-caption text-sidebar-foreground/60">Administrator</span>
@@ -294,7 +304,7 @@ export default function AdminShell({ active, onNavigate, children, alertVehicles
             )}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button type="button" className="grid h-10 w-10 place-items-center rounded-full bg-secondary text-body-sm font-bold hover:ring-2 hover:ring-ring" aria-label="Account menu">{initials}</button>
+                <button type="button" className="grid h-10 w-10 place-items-center overflow-hidden rounded-full bg-secondary text-body-sm font-bold hover:ring-2 hover:ring-ring" aria-label="Account menu"><AccountPicture user={user} initials={initials} /></button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel className="truncate">{user?.email || "Admin"}</DropdownMenuLabel>

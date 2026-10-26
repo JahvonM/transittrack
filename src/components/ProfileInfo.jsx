@@ -170,7 +170,7 @@ export default function ProfileInfo({ companyName }) {
         </div>
       </div>
 
-      {editing && <div className="mt-4"><AvatarPicker onChange={setPhotoUrl} disabled={saving || uploading} /></div>}
+      {editing && <div className="mt-4"><AvatarPicker onChange={setPhotoUrl} upload={(file) => uploadProfilePhoto(base44, file)} onBusy={setUploading} disabled={saving || uploading} /></div>}
       <div className="mt-5 space-y-2.5 text-sm">
         <div className="flex items-center gap-2 text-muted-foreground">
           <Mail className="w-4 h-4 shrink-0" />

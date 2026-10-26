@@ -12,8 +12,12 @@ const OPTIONS = [
 function portrait([, background, shirt, skin], index) {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256"><rect width="256" height="256" rx="32" fill="${background}"/><path d="M36 256v-24c0-60 184-60 184 0v24" fill="${shirt}"/><rect x="109" y="150" width="38" height="42" rx="12" fill="${skin}"/><ellipse cx="128" cy="111" rx="53" ry="65" fill="${skin}"/><path d="${index % 2 ? "M74 116V81c0-69 111-65 111 0v35l-20-45-48 13-28-13Z" : "M75 94c-6-75 113-76 107 0l-20-26-25 16-25-12-27 24Z"}" fill="#292524"/><circle cx="108" cy="112" r="5" fill="#292524"/><circle cx="148" cy="112" r="5" fill="#292524"/><path d="M113 140q15 15 30 0" fill="none" stroke="#713f32" stroke-width="5" stroke-linecap="round"/></svg>`;
 }
-export default function AvatarPicker({ onChange, disabled = false }) {
-  const [busy, setBusy] = useState(false);
+// upload: when the picture is saved on a record, the avatar is uploaded like a
+// photo and onChange gets its link (the server only takes uploaded files).
+// Without it, onChange gets the picture itself, for use on this screen only.
+export default function AvatarPicker({ onChange, upload, onBusy, disabled = false }) {
+  const [busy, setBusyState] = useState(false);
+  const setBusy = (v) => { setBusyState(v); onBusy?.(v); };
   const [error, setError] = useState("");
   const choose = async (option, index) => {
     setBusy(true); setError("");
@@ -23,8 +27,13 @@ export default function AvatarPicker({ onChange, disabled = false }) {
       await img.decode();
       const canvas = document.createElement("canvas"); canvas.width = 256; canvas.height = 256;
       canvas.getContext("2d").drawImage(img, 0, 0);
-      onChange(canvas.toDataURL("image/png"));
-    } catch { setError("Could not create avatar. Try again."); }
+      if (!upload) { onChange(canvas.toDataURL("image/png")); return; }
+      const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+      if (!blob) throw new Error("no picture");
+      const url = await upload(new File([blob], "avatar.png", { type: "image/png" }));
+      if (typeof url !== "string" || !url) throw new Error("no link");
+      onChange(url);
+    } catch { setError(upload ? "Could not save the avatar. Check the connection and try again." : "Could not create avatar. Try again."); }
     finally { setBusy(false); }
   };
   return <fieldset disabled={disabled || busy} className="space-y-2">

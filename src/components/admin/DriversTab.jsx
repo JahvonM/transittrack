@@ -258,7 +258,7 @@ function EditDriverDialog({ driver, companies, open, onOpenChange, onSaved }) {
               />
             </label>
           </div>
-          <AvatarPicker onChange={setPhotoUrl} disabled={saving || uploading} />
+          <AvatarPicker onChange={setPhotoUrl} upload={async (file) => (await base44.integrations.Core.UploadPublicFile({ file })).file_url} onBusy={setUploading} disabled={saving || uploading} />
           <DriverFormFields form={form} setForm={setForm} companies={companies} companyLocked={!!driver.auth_user_id && !!driver.company_id} />
           {driver.auth_user_id && driver.company_id && <p className="text-xs text-muted-foreground">A driver with a phone account can't be moved to another company from here. Remove their phone account first (Phone account → Remove phone account).</p>}
           <Button className="w-full" onClick={save} disabled={saving || uploading || !form.full_name.trim()}>
