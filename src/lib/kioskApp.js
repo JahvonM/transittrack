@@ -7,6 +7,15 @@ export function isKioskInstall() {
     && Capacitor.isPluginAvailable("TabletHealth")
     && (Capacitor.isPluginAvailable("UsbGps") || Capacitor.isPluginAvailable("UsbNfc"));
 }
+// McSween Driver, the store app for a driver's own phone (Android store
+// flavor or driver-app/ios): it has the driver GPS plugin and none of the
+// kiosk ones. It only ever shows the driver screens.
+export function isDriverStoreInstall() {
+  return Capacitor.isNativePlatform() && Capacitor.isPluginAvailable("DriverBackground") && !isKioskInstall();
+}
+export function driverStorePathAllowed(path) {
+  return /^\/(driver(?:\/[^/]+)?|privacy|terms)\/?$/.test(path);
+}
 const MODE_KEY = "tt_tablet_mode";
 export function rememberTabletMode(mode, storage) {
   if (!["driver", "kiosk"].includes(mode)) return;

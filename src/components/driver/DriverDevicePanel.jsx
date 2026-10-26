@@ -70,7 +70,7 @@ export default function DriverDevicePanel({ session, deviceId, onUnpair, onChang
     <TabletSettings
       subtitle={own ? [session?.driver_name ? `${session.driver_name}'s phone` : "Driver's phone", vehicle?.name].filter(Boolean).join(", ") : vehicle?.name ? `Driver tablet, ${vehicle.name}` : "Driver tablet"}
       sections={own ? [
-        { id: "gps", label: "GPS", content: <DriverBackgroundPanel vehicle={vehicle} /> },
+        { id: "gps", label: "GPS", content: <DriverBackgroundPanel vehicle={vehicle} phone /> },
         { id: "tablet", label: "This phone", content: thisTablet },
       ] : [
         { id: "gps", label: "GPS", content: <><UsbGpsPanel /><DriverBackgroundPanel vehicle={vehicle} /></> },
