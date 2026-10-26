@@ -29,8 +29,8 @@ public class DriverBackgroundPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationMana
     ]
 
     // Same server and app id as android/.../DriverTrackingHttp.kt.
-    static let endpoint = URL(string: "__DRIVER_SESSION_URL__")!
-    static let appId = "__APP_ID__"
+    static let endpoint = URL(string: "https://ghqpznxqngvhmkiwcauj.supabase.co/functions/v1/driverSession")!
+    static let appId = "6a98b192be27b5f9635020ba"
 
     private static let fields = ["device_id", "device_token", "driver_grant", "expected_device_id", "expected_company_id", "expected_vehicle_id"]
     private static let maxPoints = 9500
