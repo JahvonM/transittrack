@@ -71,6 +71,7 @@ export default function DriverDevicePanel({ session, deviceId, onUnpair, onChang
   return (
     <TabletSettings
       title={own ? `${Noun} settings` : undefined}
+      className={own ? "ts-own" : undefined}
       subtitle={own ? [session?.driver_name ? `${session.driver_name}'s ${noun}` : `Driver's ${noun}`, vehicle?.name].filter(Boolean).join(", ") : vehicle?.name ? `Driver tablet, ${vehicle.name}` : "Driver tablet"}
       sections={own ? [
         { id: "gps", label: "GPS", content: <DriverBackgroundPanel vehicle={vehicle} phone /> },

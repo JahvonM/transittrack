@@ -21,6 +21,8 @@
 .ts-nav button:focus-visible, .ts-done:focus-visible { outline: 3px solid var(--ts-teal); outline-offset: 2px; }
 .ts-body { flex: 1; min-width: 0; padding: 22px 28px 32px; display: flex; flex-direction: column; gap: 18px; overflow-y: auto; }
 .ts-body:empty::before { content: "These settings need the McSween Kiosk app on this device."; color: var(--ts-muted); }
+/* A driver's own phone or tablet opened in a web browser instead of the store app. */
+.ts-own .ts-body:empty::before { content: "GPS with the screen off comes with the McSween Driver app from Google Play or the App Store. In a web browser, keep this screen open while you share the bus."; }
 @media (max-width: 760px) {
   .ts-main { flex-direction: column; }
   .ts-nav { width: auto; flex-direction: row; overflow-x: auto; border-right: 0; border-bottom: 1px solid var(--ts-line); padding: 10px 12px; gap: 8px; }
