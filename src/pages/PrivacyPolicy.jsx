@@ -12,6 +12,7 @@ export default function PrivacyPolicy() {
     </LegalSection>
     <LegalSection title="Location and boarding">
       <p>Driver and kiosk location sharing supplies vehicle positions, route information and arrival estimates. When enabled, native driver tracking can continue with the app hidden or screen off and displays an Android tracking notification. Use the tracking controls or device permissions to stop it; unsent points may remain saved for later synchronization.</p>
+      <p>The McSween Driver app on a driver’s own phone links the phone to that driver with a code from the transport office. It shares the phone’s location only while the driver shares the bus they chose for a shift, including with the screen off (Android shows a notification, iPhone shows its location indicator). It stops when the driver stops sharing, ends the shift, changes bus or unpairs the phone, and it never asks for location access “all the time”. The app has no account to create: removing the phone in Admin or unpairing it in the app ends the link.</p>
       <p>Passengers may choose to use their current location to find a pickup spot or share a location. A saved pickup spot remains part of the transport record until changed or removed.</p>
       <p>NFC cards, boarding QR codes, typed codes and Bluetooth code delivery identify a passenger for boarding verification. Paired boarding tablets can hold a scoped passenger list and pending check-ins for offline use. Bluetooth delivery still requires verification and a Boarding or Exiting choice.</p>
     </LegalSection>
