@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="utf-8" ?>
+<!-- Shared by both apps built from this project:
+     kiosk  = McSween Kiosk, the managed bus tablet (adds src/kiosk/AndroidManifest.xml)
+     store  = McSween Driver, the Google Play app for a driver's own phone (src/store/)
+     Anything only a kiosk tablet needs goes in src/kiosk/, never here. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
     <application
@@ -21,25 +25,6 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-            <!-- Optional Home handler: selected only through Android's explicit chooser/settings. -->
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.HOME" />
-                <category android:name="android.intent.category.DEFAULT" />
-            </intent-filter>
-            <intent-filter>
-                <action android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED" />
-            </intent-filter>
-            <meta-data android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED" android:resource="@xml/tablet_usb_devices" />
-            <!-- Google/Apple sign-in happens in the phone's browser, which hands
-                 the (sealed) session back through com.transittrack.app://signin.
-                 Keep in step with PHONE_SIGNIN_SCHEME in src/lib/phoneSignIn.js. -->
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="com.transittrack.app" android:host="signin" />
-            </intent-filter>
         </activity>
 
         <provider
@@ -49,75 +34,19 @@
             android:grantUriPermissions="true">
             <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/file_paths" />
         </provider>
-        <service
-            android:name=".UsbAutoAcceptService"
-            android:exported="true"
-            android:label="@string/usb_auto_accept_label"
-            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
-            <intent-filter>
-                <action android:name="android.accessibilityservice.AccessibilityService" />
-            </intent-filter>
-            <meta-data android:name="android.accessibilityservice" android:resource="@xml/usb_auto_accept" />
-        </service>
-        <receiver android:name=".TransitDeviceAdminReceiver" android:exported="true"
-            android:permission="android.permission.BIND_DEVICE_ADMIN">
-            <meta-data android:name="android.app.device_admin" android:resource="@xml/transit_device_admin" />
-            <intent-filter><action android:name="android.app.action.DEVICE_ADMIN_ENABLED" /></intent-filter>
-        </receiver>
-        <activity android:name=".KioskMaintenanceActivity" android:exported="false"
-            android:theme="@android:style/Theme.Material.NoActionBar" android:label="Kiosk maintenance" />
-        <service android:name=".TabletHotspotStartupService" android:exported="false" android:foregroundServiceType="systemExempted" />
-        <service android:name=".KioskWatchdogService" android:exported="false" android:foregroundServiceType="systemExempted" />
-        <receiver android:name=".KioskBootReceiver" android:exported="false">
-            <intent-filter><action android:name="android.intent.action.BOOT_COMPLETED" /><action android:name="android.intent.action.MY_PACKAGE_REPLACED" /></intent-filter>
-        </receiver>
-        <activity android:name=".TabletRecoveryActivity" android:exported="false"
-            android:theme="@android:style/Theme.Material.NoActionBar" android:label="Kiosk recovery" />
-        <activity android:name=".RearDashcamActivity" android:exported="false"
-            android:theme="@android:style/Theme.Material.NoActionBar" android:label="Rear dashcam" />
         <service android:name=".DriverLocationService" android:exported="false" android:foregroundServiceType="location" />
         <receiver android:name=".DriverTrackingRecoveryReceiver" android:exported="false">
             <intent-filter><action android:name="android.intent.action.BOOT_COMPLETED" /><action android:name="android.intent.action.MY_PACKAGE_REPLACED" /></intent-filter>
         </receiver>
-        <service android:name=".RearDashcamService" android:exported="false" android:foregroundServiceType="camera" />
-        <service android:name=".SupportProjectionService" android:exported="false" android:foregroundServiceType="mediaProjection" />
-        <receiver android:name=".NativeUpdateReceiver" android:exported="false" />
-        <receiver android:name=".TabletLockExpiryReceiver" android:exported="false">
-            <intent-filter><action android:name="android.intent.action.BOOT_COMPLETED" /></intent-filter>
-        </receiver>
     </application>
 
-    <uses-feature android:name="android.hardware.usb.host" android:required="false" />
-    <!-- Lets the card reader check whether the old Helper app is still installed
-         (Android 11+ hides other apps otherwise). Only this one package. -->
-    <queries>
-        <package android:name="com.transittrack.kioskhelper" />
-    </queries>
-
-    <!-- Native expiry receiver only releases a temporary lock; it does not launch or track. -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-    <!-- Managed combined-kiosk APK updates only; never used by the passenger binary. -->
-    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SYSTEM_EXEMPTED" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
-    <!-- Permissions -->
-    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
-    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
-    <uses-permission android:name="android.permission.WRITE_SETTINGS" />
-    <!-- Optional owner setup via adb; Android never grants this from a runtime prompt.
-         Used only to enable our narrowly scoped USB accessibility helper. -->
-    <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS" tools:ignore="ProtectedPermissions" />
-    <uses-permission android:name="android.permission.NEARBY_WIFI_DEVICES" android:usesPermissionFlags="neverForLocation" tools:targetApi="tiramisu" />
-
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    <!-- The boarding kiosk scans a staff check-in QR with the tablet's camera
-         through the WebView. Without this declared, Android denies the page's
-         camera request and the scanner can never pick a code up. -->
+    <!-- Photos for inspections, reports and chat, through the WebView. -->
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
@@ -128,19 +57,7 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <!-- Board by Bluetooth: the Bluetooth plugin adds its own permissions.
-         This only marks the scan as never used for location, so Android 12+
-         asks for "Nearby devices" alone, not location too. -->
-    <uses-permission
-        android:name="android.permission.BLUETOOTH_SCAN"
-        android:usesPermissionFlags="neverForLocation"
-        tools:targetApi="s" />
-    <!-- Kiosk receiver permissions are explicit, independent of the phone BLE plugin. -->
-    <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
-    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
-    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" tools:targetApi="s" />
-    <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" tools:targetApi="s" />
-    <!-- Driver GPS now uses a visible location foreground service started from the driver UI.
+    <!-- Driver GPS uses a visible location foreground service started from the driver UI.
          No all-the-time location grant is requested. Android 11+ boot recovery waits for opening.
          ACCESS_BACKGROUND_LOCATION is deliberately NOT included: it triggers
          a stricter Google Play review (a prominent in-app disclosure + written

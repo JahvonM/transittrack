@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">McSween Driver</string>
+    <string name="title_activity_main">McSween Driver</string>
+    <string name="package_name">com.mcsweenstransport.driver</string>
+    <string name="custom_url_scheme">com.mcsweenstransport.driver</string>
+</resources>
