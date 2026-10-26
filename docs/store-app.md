@@ -199,7 +199,7 @@ the review thread.
 > This app is for McSween Transport's drivers; it needs a code from the
 > office. Code: `XXXXXXXXXXXX` (works once). After entering it, tap
 > **Bus 1** and enter the bus PIN `1234`. Tap **Start shift**, then
-> **Share location** to see live tracking. Location is "While Using" only; it
+> **Start tracking** to share the bus's live position. Location is "While Using" only; it
 > continues with the screen off and shows the system indicator.
 
 ## Before the first submission
