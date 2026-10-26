@@ -140,3 +140,24 @@ describe("adding a driver's own phone in Admin", () => {
     expect((await call({ entity: "KioskDevice", operation: "update", id: "tablet", data: { personal: true } })).status).toBe(400);
   });
 });
+
+describe("a new code for a driver's own phone", () => {
+  const issue = async (device) => {
+    const sdk = mock("admin");
+    sdk.tables.KioskDevice.push(device);
+    const api = load("manageAccessCodes", sdk, []);
+    const res = await api.default(request({ action: "issue_pairing", device_id: device.id, replace_existing: true }));
+    return { status: res.status, body: await res.json() };
+  };
+
+  it("works before the phone has picked a bus", async () => {
+    const { status, body } = await issue({ id: "phone2", status: "active", paired: true, kiosk_type: "driver", personal: true, driver_id: "drv1", company_id: "a", vehicle_id: "" });
+    expect(status).toBe(200);
+    expect(body.code).toMatch(/^[A-Z0-9]{12}$/);
+  });
+
+  it("still needs a bus for a bus's own driver tablet", async () => {
+    const { status } = await issue({ id: "tab2", status: "active", paired: true, kiosk_type: "driver", company_id: "a", vehicle_id: "" });
+    expect(status).toBe(400);
+  });
+});
