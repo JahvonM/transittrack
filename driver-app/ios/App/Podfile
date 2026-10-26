@@ -23,6 +23,8 @@ end
 target 'App' do
   capacitor_pods
   # Add your Pods here
+  # Notifications go through Firebase like the other apps (see AppDelegate.swift).
+  pod 'FirebaseMessaging', '~> 11.15'
 end
 
 post_install do |installer|

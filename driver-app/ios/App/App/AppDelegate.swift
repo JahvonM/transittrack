@@ -1,5 +1,7 @@
 import UIKit
 import Capacitor
+import FirebaseCore
+import FirebaseMessaging
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -7,8 +9,38 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        // Override point for customization after application launch.
+        // Notifications are sent through Firebase Cloud Messaging, like on
+        // Android and the website. Firebase starts only when
+        // App/firebase/GoogleService-Info.plist is in the build, so a build
+        // without it still runs (notifications just report "needs setup").
+        if FirebaseApp.app() == nil,
+           let path = Bundle.main.path(forResource: "GoogleService-Info", ofType: "plist", inDirectory: "firebase"),
+           let options = FirebaseOptions(contentsOfFile: path) {
+            FirebaseApp.configure(options: options)
+        }
         return true
+    }
+
+    // iPhone gives an Apple (APNs) token; the server sends through Firebase,
+    // so swap it for this phone's Firebase token before the app sees it.
+    // (Capacitor's guide: Using Push Notifications with Firebase on iOS.)
+    func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+        guard FirebaseApp.app() != nil else {
+            NotificationCenter.default.post(name: .capacitorDidFailToRegisterForRemoteNotifications, object: NSError(domain: "TransitTrack", code: 1, userInfo: [NSLocalizedDescriptionKey: "Firebase is not set up in this build"]))
+            return
+        }
+        Messaging.messaging().apnsToken = deviceToken
+        Messaging.messaging().token { token, error in
+            if let error = error {
+                NotificationCenter.default.post(name: .capacitorDidFailToRegisterForRemoteNotifications, object: error)
+            } else if let token = token {
+                NotificationCenter.default.post(name: .capacitorDidRegisterForRemoteNotifications, object: token)
+            }
+        }
+    }
+
+    func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
+        NotificationCenter.default.post(name: .capacitorDidFailToRegisterForRemoteNotifications, object: error)
     }
 
     func applicationWillResignActive(_ application: UIApplication) {
