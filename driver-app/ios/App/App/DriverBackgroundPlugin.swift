@@ -325,7 +325,7 @@ public class DriverBackgroundPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationMana
         lastSaved = now
         var point: [String: Any] = [
             "queue_id": UUID().uuidString, "lat": p.coordinate.latitude, "lng": p.coordinate.longitude,
-            "speed": speed, "accuracy": p.horizontalAccuracy, "timestamp": Int64(t * 1000), "t": Self.iso(t),
+            "speed": speed, "accuracy": p.horizontalAccuracy, "timestamp": NSNumber(value: Int64(t * 1000)), "t": Self.iso(t),
         ]
         if p.course >= 0 { point["heading"] = p.course }
         for key in ["expected_device_id", "expected_company_id", "expected_vehicle_id"] { point[key] = l[key] }
@@ -354,7 +354,8 @@ public class DriverBackgroundPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationMana
         let started = generation
         let bind = binding(l)
         let batch = Array(queue.filter { binding($0) == bind }.prefix(100))
-        let live = !pageUploading() ? newest.flatMap { now - (($0["timestamp"] as? Int64).map { Double($0) / 1000 } ?? 0) <= 30 ? $0 : nil } : nil
+        var live: [String: Any]? = nil
+        if !pageUploading(), let p = newest, let ms = (p["timestamp"] as? NSNumber)?.doubleValue, now - ms / 1000 <= 30 { live = p }
         var steps: [(String, [String: Any])] = []
         if now - checkedAt >= 60 {
             var body = credentials(l, "background_check")
@@ -403,13 +404,14 @@ public class DriverBackgroundPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationMana
                     }
                     self.run(rest, started: started, batch: batch)
                 case .failure(let error):
-                    if kind == "history", case HttpError.rejected(let code, _) = error, code == 400 || code == 409 {
+                    let http = error as? HttpError
+                    if kind == "history", case .rejected(let code, _)? = http, code == 400 || code == 409 {
                         // The server can't take these points; keep counting them for the office.
                         self.acknowledge(batch, review: true)
                         self.run(rest, started: started, batch: batch)
                         return
                     }
-                    if case HttpError.rejected(let code, let retry) = error {
+                    if case .rejected(let code, let retry)? = http {
                         self.finish(started: started, denied: [401, 403, 404, 409].contains(code), retry: retry, ok: false)
                     } else {
                         self.finish(started: started, denied: false, retry: 0, ok: false)
