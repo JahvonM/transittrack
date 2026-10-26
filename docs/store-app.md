@@ -216,8 +216,9 @@ the review thread.
       `src/pages/PrivacyPolicy.jsx` still say "awaiting confirmation". Both
       stores need a real contact.
 - [ ] App icon: the store app uses the McSween Kiosk/McSween icon for now.
-- [ ] Screenshots, phone and tablet (the app is for both): Play wants phone
-      screenshots plus 7" and 10" tablet ones to show up for tablets; the App
-      Store wants 6.9" iPhone and 13" iPad ones.
+- [x] Screenshots, phone and tablet, at each store's sizes, plus the Play
+      feature graphic: made with sample data by `tools/store-app/screenshots.mjs`
+      (re-run it after screen changes). App Store: 6.9" and 6.3" iPhone, 13" iPad.
+      Google Play: phone, 7" and 10" tablet, feature graphic 1024 x 500.
 - [ ] Try it on a real phone from TestFlight / the closed test: pair, pick a
       bus, PIN, shift, sharing with the screen locked for 10 minutes, change bus.
