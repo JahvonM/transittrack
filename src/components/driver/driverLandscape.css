@@ -159,6 +159,8 @@
 .dk-overview-map .mapboxgl-ctrl-top-right{top:76px;right:10px}
 .dk-overview-map [data-testid="nav-banner"]{top:76px;right:75px}
 .dk-overview-map .leaflet-control-zoom a{width:48px;height:48px;line-height:46px;font-size:28px}
+/* Upright screens: zoom on the right, so it never sits under Street/Satellite. */
+.dk-simple-next+.dk-overview-map .leaflet-top.leaflet-left{left:auto;right:10px}
 .dk-overview-map [data-testid="nav-eta"]{flex-wrap:wrap;gap:6px;padding:8px}
 .dk-overview-map [data-testid="nav-eta"]>div:first-child{flex-basis:100%}
 .dk-overview-map [data-testid="nav-map"]{min-height:0}

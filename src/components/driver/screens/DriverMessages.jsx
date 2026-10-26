@@ -12,7 +12,7 @@ export default function DriverMessages({ chats, broadcasts = [], hasUnreadChat =
   const [tab, setTab] = useState("chats");
   const alerts = broadcasts.filter((b) => !b.is_reply).slice(0, 30);
   return (
-    <div className="mx-auto max-w-3xl">
+    <div className="mx-auto w-full max-w-3xl px-4 pb-6 sm:px-5">
       <h1 className="mb-3 text-title font-bold">Messages</h1>
       <div className="mb-4 grid grid-cols-2 rounded-xl bg-secondary p-1" role="tablist" aria-label="Chats or alerts">
         {[["chats", "Chats"], ["alerts", `Alerts${alerts.length ? ` (${alerts.length})` : ""}`]].map(([id, label]) => (
