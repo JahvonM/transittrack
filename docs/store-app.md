@@ -146,9 +146,11 @@ repository secret. Type them there yourself; they never go in the code or a chat
 
 Both apps send notifications through Firebase (project `transit-track-1e9e4`):
 
-- Android: add an Android app with package `com.mcsweenstransport.driver` in
-  the Firebase console and put its `google-services.json` in
-  `android/app/src/store/` (the kiosk's goes in `android/app/src/kiosk/`).
+- Android: in the Firebase console add Android apps for both
+  `com.mcsweenstransport.driver` and `com.transittrack.app`, then download
+  `google-services.json` (one file lists both) into `android/app/`. With only
+  one of them in the file, the other app's build stops with "No matching
+  client found".
 - iPhone: add an iOS app with bundle ID `com.mcsweenstransport.driver`, put its
   `GoogleService-Info.plist` in `driver-app/ios/App/App/firebase/`, and upload
   an APNs key in Firebase → Project settings → Cloud Messaging.

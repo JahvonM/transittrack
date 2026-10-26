@@ -1,4 +1,9 @@
-# Mobile app (iOS / Android) — Capacitor
+# Mobile apps (iOS / Android) — Capacitor
+
+> **Three native apps come from this repo:**
+> - **McSween Kiosk** (`android/`, kiosk flavor): the managed bus tablet. Build: `:app:assembleKioskDebug`.
+> - **McSween Driver** (`android/` store flavor + `driver-app/ios`): the Google Play / App Store app for a driver's own phone. See [docs/store-app.md](docs/store-app.md).
+> - The passenger phone app (`ios/`, and the sections below).
 
 This project is wrapped with [Capacitor](https://capacitorjs.com), which turns the
 existing web app into real native iOS and Android projects (`ios/` and `android/`).
