@@ -16,7 +16,8 @@ set HELPER_SHA256=
 rem ===== Credentials are entered locally for this tablet; never embed them here. =====
 set PIN=
 set APIKEY=
-set SITE=https://eager-transit-track-go.base44.app
+rem The app lives at app.mcsweenstransport.com (Cloudflare + Supabase), no longer on Base44.
+set SITE=https://app.mcsweenstransport.com
 set HOTSPOT_PREFIX=TT-BUS
 set HELPER=com.transittrack.kioskhelper
 set FK=com.freekiosk/.MainActivity
