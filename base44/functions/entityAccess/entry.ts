@@ -381,6 +381,17 @@ async function prepare(db,ctx,name,input,existing=null) {
  if(name==='KioskDevice'&&!existing) return {...data,status:'active',paired:false,pairing_code:await uniqueAccessCode(db,'KioskDevice','pairing_code'),pairing_expires_at:new Date(Date.now()+(data.personal===true?7*86400_000:15*60_000)).toISOString()};
  return data;
 }
+// A signing tablet moved to another bus in Admin keeps working: its
+// credential moves with it, as a driver's own phone's does when it picks a
+// bus. Other tablets still need a new pairing code after a move.
+async function moveSigningTablet(db,before,after) {
+ if(before.personal===true || before.kiosk_type!=='job_signing' || after.kiosk_type!=='job_signing' || !before.paired) return;
+ if((after.vehicle_id||'')===(before.vehicle_id||'')) return;
+ const [credential]=await db.DeviceCredential.filter({device_id:before.id},'-issued_at',1);
+ if(!credential || credential.kiosk_type!=='job_signing' || credential.company_id!==after.company_id || credential.vehicle_id!==(before.vehicle_id||'')) return;
+ try { await db.DeviceCredential.update(credential.id,{vehicle_id:after.vehicle_id||''}); }
+ catch(error) { await db.KioskDevice.update(before.id,{vehicle_id:before.vehicle_id||'',vehicle_name:before.vehicle_name||''}); throw error; }
+}
 async function approveMembership(db,target,companyId) {
  if (companyId && !(await db.Company.get(companyId).catch(()=>null))) fail(400,'Company not found');
  const rows=await db.CompanyMembership.filter({user_id:target.id},'-updated_date',100);
@@ -590,6 +601,7 @@ export default async function(req) {
    await approveMembership(db,{...existing,...data},data.company_id);
   }
   const row=operation==='create' ? await replayCreate(db,ctx,name,data) : await db[name].update(body.id,data);
+  if(name==='KioskDevice' && operation==='update') await moveSigningTablet(db,existing,{...existing,...row});
   return Response.json({result:await projectRecord(db,ctx,name,row)});
  } catch(error) {
   // SDK transport errors may carry their status on response rather than directly.

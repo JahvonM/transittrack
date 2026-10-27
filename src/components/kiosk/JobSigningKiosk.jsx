@@ -94,7 +94,7 @@ function SignScreen({ job, mode, onSign }) {
 // signature screen by itself when the driver starts a job (pickup) or
 // arrives (drop-off), and a welcome screen the rest of the time. A signature
 // given with no signal is kept on the tablet and sent later.
-export default function JobSigningKiosk({ device, deviceId, online }) {
+export default function JobSigningKiosk({ device, deviceId, online, onBusChanged }) {
   const [jobs, setJobs] = useState([]);
   const [nameSign, setNameSign] = useState(null);
   const [requestedJob,setRequestedJob]=useState(null);
@@ -110,10 +110,13 @@ export default function JobSigningKiosk({ device, deviceId, online }) {
       const res = await base44.functions.invoke("jobSigning", deviceRequest(deviceId, { action: "state" }));
       budget.current.succeeded();
       if (Array.isArray(res.data?.jobs)) setJobs(res.data.jobs);
+      // Moved to another bus (in Admin, or on another screen): follow it.
+      const bus = res.data?.bus;
+      if (bus?.id && device?.vehicle_id && bus.id !== device.vehicle_id) onBusChanged?.(bus);
     } catch (e) {
       budget.current.failed(e);
     }
-  }, [deviceId]);
+  }, [deviceId, device?.vehicle_id, onBusChanged]);
 
   const busy = jobs.some((j) => j.status === "on_the_way" || j.status === "arrived");
   useEffect(() => {
@@ -183,7 +186,8 @@ export default function JobSigningKiosk({ device, deviceId, online }) {
           {device?.vehicle_name && <p className="truncate text-sm text-muted-foreground">{device.vehicle_name}</p>}
         </div>
         <span className="font-display text-lg font-semibold tabular-nums">{time(now)}</span>
-        <SigningJobControls deviceId={deviceId} onShowNameSign={job=>setNameSign({name:job.passenger_name||job.client_name||"Welcome",subtitle:job.flight_number?"Flight "+job.flight_number:"Welcome to Grenada"})} onShowSignature={trip=>{setThanks(null);setRequestedJob(trip.id);setJobs(prev=>[trip,...prev.filter(j=>j.id!==trip.id)]);}}/>
+        <SigningJobControls deviceId={deviceId} busName={device?.vehicle_name} savedCount={savedHere().size}
+          onBusChanged={(bus) => { setJobs([]); setRequestedJob(null); onBusChanged?.(bus); }} onShowNameSign={job=>setNameSign({name:job.passenger_name||job.client_name||"Welcome",subtitle:job.flight_number?"Flight "+job.flight_number:"Welcome to Grenada"})} onShowSignature={trip=>{setThanks(null);setRequestedJob(trip.id);setJobs(prev=>[trip,...prev.filter(j=>j.id!==trip.id)]);}}/>
         <KioskConnectionBadge online={online} />
       </header>
       {nameSign && <NameSign sign={nameSign} company={{name:device?.company_name||"McSween Transport",logo_url:device?.company_logo_url}} onClose={()=>setNameSign(null)} />}

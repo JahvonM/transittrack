@@ -390,3 +390,72 @@ describe("front-desk kiosk", () => {
     expect(sdk.tables.FrontDeskSignIns).toBeUndefined();
   });
 });
+
+describe("moving a signing tablet to another bus", () => {
+  const TOKEN = "e".repeat(64);
+  const setup = (role = null) => {
+    const sdk = mock(role);
+    sdk.tables.Vehicle.push({ id: "bus-a2", company_id: "a", name: "Bus A2", driver_pin: "5678" }, { id: "bus-off", company_id: "a", name: "Old bus", driver_pin: "1111", in_service: false });
+    sdk.tables.KioskDevice.push({ id: "signer", kiosk_type: "job_signing", status: "active", paired: true, company_id: "a", company_name: "A", vehicle_id: "bus-a", vehicle_name: "Bus A", pairing_code: "PAIRSIGN1234", created_date: "2026-10-12T00:00:00Z", pickup_sign: { id: "s1", name: "Mr Smith" } });
+    sdk.tables.DeviceCredential = [{ id: "cred", device_id: "signer", token_hash: digest(TOKEN), company_id: "a", vehicle_id: "bus-a", kiosk_type: "job_signing", pairing_code_hash: digest("PAIRSIGN1234"), issued_at: "2026-10-12T00:00:00Z", expires_at: "2099-01-01T00:00:00Z" }];
+    sdk.tables.Trip = [job({ id: "a-job", status: "on_the_way" }), job({ id: "a2-job", vehicle_id: "bus-a2", vehicle_name: "Bus A2", status: "on_the_way" })];
+    const handler = load("jobSigning", sdk).default;
+    const call = async (body) => { const res = await handler(request({ device_id: "signer", device_token: TOKEN, ...body })); return { status: res.status, body: await res.json() }; };
+    const signer = () => sdk.tables.KioskDevice.find((d) => d.id === "signer");
+    return { sdk, call, signer };
+  };
+
+  it("on the tablet: needs this bus's PIN to open, then the new bus's PIN, and stays paired", async () => {
+    const { sdk, call, signer } = setup();
+    expect((await call({ action: "list_buses" })).status).toBe(403);
+    expect((await call({ action: "change_bus", vehicle_id: "bus-a2", pin: "5678" })).status).toBe(403);
+    const { operator_grant } = (await call({ action: "unlock_operator", pin: "1234" })).body;
+    const list = await call({ action: "list_buses", operator_grant });
+    expect(list.body.current).toBe("bus-a");
+    // Its own company's buses in service only.
+    expect(list.body.buses.map((b) => b.id).sort()).toEqual(["bus-a", "bus-a2"]);
+    expect((await call({ action: "change_bus", operator_grant, vehicle_id: "bus-b", pin: "1234" })).status).toBe(404);
+    expect((await call({ action: "change_bus", operator_grant, vehicle_id: "bus-off", pin: "1111" })).status).toBe(409);
+    const wrong = await call({ action: "change_bus", operator_grant, vehicle_id: "bus-a2", pin: "1234" });
+    expect(wrong.status).toBe(403);
+    expect(wrong.body.error).toBe("Incorrect PIN for Bus A2");
+    expect(signer().vehicle_id).toBe("bus-a");
+
+    const moved = await call({ action: "change_bus", operator_grant, vehicle_id: "bus-a2", pin: "5678" });
+    expect(moved.status).toBe(200);
+    expect(moved.body.bus).toEqual({ id: "bus-a2", name: "Bus A2" });
+    expect(signer()).toMatchObject({ vehicle_id: "bus-a2", vehicle_name: "Bus A2", pickup_sign: null });
+    expect(sdk.tables.DeviceCredential[0].vehicle_id).toBe("bus-a2");
+    // Still paired: it now shows the new bus's job, not the old one's.
+    const state = await call({ action: "state" });
+    expect(state.status).toBe(200);
+    expect(state.body.bus).toEqual({ id: "bus-a2", name: "Bus A2" });
+    expect(state.body.jobs.map((j) => j.id)).toEqual(["a2-job"]);
+    // The old bus's controls are closed; the new grant works for the new bus.
+    expect((await call({ action: "operator_state", operator_grant })).status).toBe(403);
+    expect((await call({ action: "operator_state", operator_grant: moved.body.operator_grant })).body.jobs.map((j) => j.id)).toEqual(["a2-job"]);
+    // Signatures saved for the old bus can't be sent from the new one.
+    expect((await call({ action: "sign", trip_id: "a2-job", mode: "pickup", data_base64: PNG, queue_replay: true, expected_device_id: "signer", expected_company_id: "a", expected_vehicle_id: "bus-a" })).status).toBe(409);
+  });
+
+  it("in Admin: a signing tablet moved to another bus keeps working", async () => {
+    const { sdk, call, signer } = setup("admin");
+    const res = await load("entityAccess", sdk).default(request({ entity: "KioskDevice", operation: "update", id: "signer", data: { vehicle_id: "bus-a2", vehicle_name: "Bus A2" } }));
+    expect(res.status).toBe(200);
+    expect(signer().vehicle_id).toBe("bus-a2");
+    expect(sdk.tables.DeviceCredential[0].vehicle_id).toBe("bus-a2");
+    const state = await call({ action: "state" });
+    expect(state.status).toBe(200);
+    expect(state.body.bus.id).toBe("bus-a2");
+  });
+
+  it("in Admin: other tablets still need a new pairing code after a move", async () => {
+    const { sdk } = setup("admin");
+    const board = { id: "board", kiosk_type: "bus_boarding", status: "active", paired: true, company_id: "a", vehicle_id: "bus-a", vehicle_name: "Bus A", pairing_code: "PAIRBOARD123" };
+    sdk.tables.KioskDevice.push(board);
+    sdk.tables.DeviceCredential.push({ id: "cred-board", device_id: "board", company_id: "a", vehicle_id: "bus-a", kiosk_type: "bus_boarding" });
+    const res = await load("entityAccess", sdk).default(request({ entity: "KioskDevice", operation: "update", id: "board", data: { vehicle_id: "bus-a2", vehicle_name: "Bus A2" } }));
+    expect(res.status).toBe(200);
+    expect(sdk.tables.DeviceCredential.find((c) => c.id === "cred-board").vehicle_id).toBe("bus-a");
+  });
+});

@@ -219,6 +219,14 @@ export default function KioskDeviceDialog({ open, onOpenChange, companies, vehic
                   <option key={v.id} value={v.id}>{v.name}{v.plate_number ? ` · ${v.plate_number}` : ""}</option>
                 ))}
               </ChoiceSelect>
+              {/* What moving a paired tablet to another bus does to it. */}
+              {isEdit && device?.paired && vehicleId && vehicleId !== (device.vehicle_id || "") && (
+                <p role="status" className="text-xs text-muted-foreground">
+                  {kioskType === "job_signing" && device.kiosk_type === "job_signing"
+                    ? "The tablet stays paired and switches to the new bus within a minute. Move it while it's online: signatures saved on it with no signal can't be sent after a move and are kept on the tablet for review."
+                    : "This tablet will need a new pairing code after it changes bus."}
+                </p>
+              )}
             </div>
           )}
           </>}
