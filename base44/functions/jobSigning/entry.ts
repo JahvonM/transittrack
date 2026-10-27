@@ -61,10 +61,36 @@ export default async function(req) {
       await db.VerificationGrant.create({token_hash:await digestHex(token),device_id:device.id,company_id:companyId,vehicle_id:vehicleId,purpose:'signing_operator',subject:vehicleId,pairing_code_hash:await digestHex(device.pairing_code||''),expires_at:new Date(Date.now()+10*60000).toISOString()});
       return Response.json({operator_grant:token});
     }
-    if(['operator_state','arrive'].includes(body.action)) {
+    if(['operator_state','arrive','list_buses','change_bus'].includes(body.action)) {
       if(typeof body.operator_grant!=='string' || !/^[a-f0-9]{64}$/.test(body.operator_grant))return Response.json({error:'Enter the bus PIN first'},{status:403});
       const [grant]=await db.VerificationGrant.filter({token_hash:await digestHex(body.operator_grant)},'-created_date',1);
       if(!grant || grant.purpose!=='signing_operator' || grant.device_id!==device.id || grant.vehicle_id!==vehicleId || grant.company_id!==companyId || grant.pairing_code_hash!==await digestHex(device.pairing_code||'') || !(Date.parse(grant.expires_at)>Date.now()))return Response.json({error:'Operator access expired. Enter the bus PIN again.'},{status:403});
+      // Moving the tablet to another bus of the same company: staff unlock it
+      // with this bus's PIN, pick the bus, and give that bus's PIN too. The
+      // tablet and its credential move together, so it stays paired.
+      if(body.action==='list_buses') {
+        const rows=await db.Vehicle.filter({company_id:companyId},'name',300);
+        return Response.json({current:vehicleId,buses:rows.filter(v=>v.company_id===companyId&&v.in_service!==false).map(v=>({id:v.id,name:v.name||'Bus',plate_number:v.plate_number||''}))});
+      }
+      if(body.action==='change_bus') {
+        if(typeof body.vehicle_id!=='string' || !/^[A-Za-z0-9_-]{1,64}$/.test(body.vehicle_id))return Response.json({error:'Choose a bus'},{status:400});
+        if(body.vehicle_id===vehicleId)return Response.json({error:'This tablet is already on that bus'},{status:409});
+        const next=await db.Vehicle.get(body.vehicle_id).catch(()=>null);
+        if(!next || next.company_id!==companyId)return Response.json({error:'That bus was not found'},{status:404});
+        if(next.in_service===false)return Response.json({error:`${next.name||'That bus'} is not in service`},{status:409});
+        const result=await checkBusPin(base44,next,body.pin);
+        if(result!=='ok')return Response.json({error:result==='locked'?'Too many PIN attempts. Try again later.':`Incorrect PIN for ${next.name||'that bus'}`},{status:result==='locked'?429:403});
+        const [credential]=await db.DeviceCredential.filter({device_id:device.id},'-issued_at',1);
+        if(!credential)return Response.json({error:'Pair this tablet again',code:'DEVICE_ACCESS_REQUIRED'},{status:401});
+        // The old bus's name card doesn't follow the tablet.
+        await db.KioskDevice.update(device.id,{vehicle_id:next.id,vehicle_name:next.name||'',pickup_sign:null});
+        try { await db.DeviceCredential.update(credential.id,{vehicle_id:next.id}); }
+        catch(error) { await db.KioskDevice.update(device.id,{vehicle_id:vehicleId,vehicle_name:device.vehicle_name||''}); throw error; }
+        // The new bus's PIN was just given, so the controls stay open.
+        const token=Array.from(crypto.getRandomValues(new Uint8Array(32)),x=>x.toString(16).padStart(2,'0')).join('');
+        await db.VerificationGrant.create({token_hash:await digestHex(token),device_id:device.id,company_id:companyId,vehicle_id:next.id,purpose:'signing_operator',subject:next.id,pairing_code_hash:await digestHex(device.pairing_code||''),expires_at:new Date(Date.now()+10*60000).toISOString()});
+        return Response.json({bus:{id:next.id,name:next.name||''},operator_grant:token});
+      }
       if(body.action==='operator_state') {
         const rows=await db.Trip.filter({vehicle_id:vehicleId,status:{$in:['scheduled','on_the_way','arrived']}},'scheduled_time',100);
         return Response.json({jobs:rows.filter(t=>t.company_id===companyId).map(tabletTrip)});

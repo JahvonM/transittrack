@@ -61,6 +61,15 @@ export default function Kiosk() {
   const [error, setError] = useState("");
   const [manualCode, setManualCode] = useState("");
   const [phoneWidth, setPhoneWidth] = useState(() => window.innerWidth);
+  // A signing tablet moved to another bus stays paired: remember the new bus
+  // (also on the tablet, for when it next starts with no signal).
+  const moveToBus = useCallback((bus) => setDevice((d) => (d && bus?.id && d.vehicle_id !== bus.id ? { ...d, vehicle_id: bus.id, vehicle_name: bus.name || "", pickup_sign: null } : d)), []);
+  const savedBus = useRef(device?.vehicle_id);
+  useEffect(() => {
+    if (!device || !deviceId || savedBus.current === device.vehicle_id) return;
+    savedBus.current = device.vehicle_id;
+    saveDevice({ ...device, device_id: deviceId });
+  }, [device, deviceId]);
   useEffect(() => {
     const resize = () => setPhoneWidth(window.innerWidth);
     window.addEventListener("resize",resize);
@@ -315,7 +324,7 @@ export default function Kiosk() {
   // two-panel layout) — it doesn't fit inside the generic small centered
   // card the other two kiosk types use, and a big tablet has room to spare.
   // The signing tablet is the guests' own screen for signing for jobs.
-  if (device?.kiosk_type === "job_signing") return <><JobSigningKiosk device={device} deviceId={deviceId} online={online} /><BoardingPickupSign device={device} /></>;
+  if (device?.kiosk_type === "job_signing") return <><JobSigningKiosk device={device} deviceId={deviceId} online={online} onBusChanged={moveToBus} /><BoardingPickupSign device={device} /></>;
 
   if (device?.kiosk_type === "bus_boarding") {
     return (

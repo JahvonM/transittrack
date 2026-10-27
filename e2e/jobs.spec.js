@@ -340,3 +340,67 @@ test('if confirming a website request fails, Confirm ride retries with the saved
   expect(created).toHaveLength(1);
   expect(confirms.map((c) => [c.action, c.request_id, c.trip_id])).toEqual([['confirm', 'req-1', 'job-1'], ['confirm', 'req-1', 'job-1']]);
 });
+
+// The signing tablet goes from one bus to another: staff open the job
+// controls with this bus's PIN, pick the bus, and give that bus's PIN.
+async function signingTablet(page, { saved = [] } = {}) {
+ const device = { device_id: 'signer', paired: true, status: 'active', kiosk_type: 'job_signing', company_id: 'a', company_name: 'Island Transit Co.', vehicle_id: 'bus-a', vehicle_name: 'Bus 12' };
+ const actions = [];
+ await page.addInitScript((items) => {
+  localStorage.setItem('tt_kiosk_device_id', 'signer'); localStorage.setItem('tt_device_token_signer', 'e'.repeat(64));
+  if (items.length) localStorage.setItem('tt_offline_jobs', JSON.stringify(items));
+ }, saved);
+ await page.route('**/api/**', (route) => {
+  const url = route.request().url(); let body = {}; try { body = route.request().postDataJSON() || {}; } catch { /* no body */ }
+  if (url.includes('/functions/kioskHeartbeat')) return route.fulfill({ json: device });
+  if (url.includes('/functions/jobSigning')) {
+   actions.push(body);
+   if (body.action === 'sign') return route.abort();
+   if (body.action === 'state') return route.fulfill({ json: { jobs: [], bus: { id: device.vehicle_id, name: device.vehicle_name } } });
+   if (body.action === 'unlock_operator') return route.fulfill({ json: { operator_grant: 'f'.repeat(64) } });
+   if (body.action === 'operator_state') return route.fulfill({ json: { jobs: device.vehicle_id === 'bus-a' ? [{ id: 'run', status: 'on_the_way', pickup_name: 'Airport', dropoff_name: 'Grand Hotel' }] : [] } });
+   if (body.action === 'list_buses') return route.fulfill({ json: { current: 'bus-a', buses: [{ id: 'bus-a', name: 'Bus 12' }, { id: 'bus-b', name: 'Bus 14', plate_number: 'PB 14' }] } });
+   if (body.action === 'change_bus') {
+    if (body.pin !== '5678') return route.fulfill({ status: 403, json: { error: 'Incorrect PIN for Bus 14' } });
+    Object.assign(device, { vehicle_id: 'bus-b', vehicle_name: 'Bus 14' });
+    return route.fulfill({ json: { bus: { id: 'bus-b', name: 'Bus 14' }, operator_grant: '9'.repeat(64) } });
+   }
+  }
+  return route.fulfill({ json: { id: 'test-app', public_settings: { authentication_required: false } } });
+ });
+ await page.goto('/kiosk');
+ await page.getByRole('button', { name: 'Job controls', exact: true }).click();
+ await page.getByLabel('Bus PIN', { exact: true }).fill('1234');
+ await page.getByRole('button', { name: 'Unlock job controls', exact: true }).click();
+ const dialog = page.getByRole('dialog');
+ await expect(dialog.getByText('This tablet is on')).toContainText('Bus 12');
+ await dialog.getByRole('button', { name: 'Change bus', exact: true }).click();
+ return { dialog, actions };
+}
+
+test('the signing tablet moves to another bus with that bus\'s PIN and stays paired', async ({ page }) => {
+ const { dialog, actions } = await signingTablet(page);
+ // Only the other buses; the job under way on this bus is pointed out.
+ await expect(dialog.getByRole('button', { name: /Bus 12/ })).toHaveCount(0);
+ await dialog.getByRole('button', { name: /Bus 14/ }).click();
+ await expect(dialog.getByText(/A job on Bus 12 is under way/)).toBeVisible();
+ await dialog.getByLabel('PIN for Bus 14').fill('1234');
+ await dialog.getByRole('button', { name: 'Move to Bus 14', exact: true }).click();
+ await expect(dialog.getByRole('alert')).toHaveText('Incorrect PIN for Bus 14');
+ await dialog.getByLabel('PIN for Bus 14').fill('5678');
+ await dialog.getByRole('button', { name: 'Move to Bus 14', exact: true }).click();
+ await expect(dialog.getByRole('status')).toHaveText('This tablet is now on Bus 14.');
+ expect(actions.find((a) => a.action === 'change_bus' && a.pin === '5678')).toMatchObject({ vehicle_id: 'bus-b', operator_grant: 'f'.repeat(64) });
+ await dialog.getByRole('button', { name: 'Lock controls', exact: true }).click();
+ // The screen now says the new bus, and the tablet remembers it.
+ await expect(page.getByText('Bus 14', { exact: true }).first()).toBeVisible();
+ expect(await page.evaluate(() => Object.values(localStorage).join(' '))).toContain('bus-b');
+});
+
+test('the signing tablet keeps its bus while signatures saved on it are unsent', async ({ page }) => {
+ const saved = [{ kind: 'kiosk_job_sign', label: 'Pickup signature', payload: { action: 'sign', trip_id: 'run', mode: 'pickup', device_id: 'signer', client_request_id: 'saved-sign-0001', expected_device_id: 'signer', expected_company_id: 'a', expected_vehicle_id: 'bus-a' } }];
+ const { dialog, actions } = await signingTablet(page, { saved });
+ await expect(dialog.getByRole('status')).toContainText('1 signature is saved on this tablet and not sent yet');
+ await expect(dialog.getByRole('button', { name: /Bus 14/ })).toHaveCount(0);
+ expect(actions.some((a) => a.action === 'list_buses')).toBe(false);
+});
