@@ -11,6 +11,8 @@ import AuthLayout from "@/components/AuthLayout";
 import JourneyLoading from "@/components/JourneyLoading";
 import AccessRecovery from "@/components/system/AccessRecovery";
 import GoogleIcon from "@/components/GoogleIcon";
+import GoogleSignInButton from "@/components/GoogleSignInButton";
+import { googleButtonAvailable } from "@/lib/googleButton";
 import AppleIcon from "@/components/AppleIcon";
 import { useSignInOptions } from "@/lib/signInOptions";
 import { safeReturnTo } from "@/lib/authReturnTo";
@@ -255,7 +257,10 @@ export default function Login() {
       </div>
 
       <div className="mb-6 grid gap-3">
-        {signInWith.google && (
+        {signInWith.google && (googleButtonAvailable() ? (
+          // Google's own button: Google shows this site's address, not Supabase's.
+          <GoogleSignInButton then={`/login?authReturn=1&returnTo=${encodeURIComponent(returnTo)}`} onFallback={handleGoogle} />
+        ) : (
         <Button
           variant="outline"
           className="w-full h-12 text-sm font-medium"
@@ -264,7 +269,7 @@ export default function Login() {
           <GoogleIcon className="w-5 h-5 mr-2" />
           Continue with Google
         </Button>
-        )}
+        ))}
         {signInWith.apple && (
         <Button
           variant="outline"
