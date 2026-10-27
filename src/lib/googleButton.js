@@ -10,10 +10,10 @@ import { phoneSignInAvailable } from "@/lib/phoneSignIn";
 //
 // The web client ID is public by design: Google shows it in every sign-in
 // address. Its Authorized JavaScript origins in Google Cloud must include each
-// site that shows the button (app.mcsweenstransport.com).
+// site that shows the button (app. and new.mcsweenstransport.com are there).
 export const GOOGLE_WEB_CLIENT_ID = "411225112950-79slmr303ghsfe4h3lf90h6u7midn7ri.apps.googleusercontent.com";
 export const GIS_SCRIPT = "https://accounts.google.com/gsi/client";
-export const GIS_ORIGINS = ["https://app.mcsweenstransport.com"];
+export const GIS_ORIGINS = ["https://app.mcsweenstransport.com", "https://new.mcsweenstransport.com"];
 
 // Only on the Supabase build, in a normal browser on one of the allowed
 // sites. Inside the phone and desktop apps Google refuses to sign in at all,
