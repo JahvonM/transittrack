@@ -78,3 +78,12 @@ describe("website booking form", () => {
     expect(draftFromRequest({ service: "spaceship" }).job_type).toBe("transfer");
   });
 });
+
+describe("the old Base44 address", () => {
+  it("sends people to the same page on app.mcsweenstransport.com, and nowhere else", async () => {
+    const { readFileSync } = await import("node:fs");
+    const html = readFileSync("index.html", "utf8");
+    expect(html).toContain('if (location.hostname === "eager-transit-track-go.base44.app") {');
+    expect(html).toContain('location.replace("https://app.mcsweenstransport.com" + location.pathname + location.search + location.hash);');
+  });
+});

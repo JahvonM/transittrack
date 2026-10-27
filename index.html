@@ -10,6 +10,13 @@
     <meta name="theme-color" content="#0D1520" />
     <style>html.dark, html:not(.light) { background: #0D1520; } html.light { background: #ffffff; }</style>
     <script>
+      // The app moved off Base44: its old address sends people to the same
+      // page on app.mcsweenstransport.com (docs/SWITCH-TO-SUPABASE.md, step 9).
+      if (location.hostname === "eager-transit-track-go.base44.app") {
+        location.replace("https://app.mcsweenstransport.com" + location.pathname + location.search + location.hash);
+      }
+    </script>
+    <script>
       (function () {
         try {
           var t = localStorage.getItem("tt-theme-v2");
