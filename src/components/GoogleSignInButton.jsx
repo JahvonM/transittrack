@@ -43,7 +43,8 @@ export default function GoogleSignInButton({ then = "/", onFallback, label = "Co
             }
           },
         });
-        const width = Math.max(200, Math.min(400, Math.round(slot.current.getBoundingClientRect().width || 320)));
+        const box = slot.current.parentElement?.getBoundingClientRect().width || 320;
+        const width = Math.max(200, Math.min(400, Math.round(box)));
         slot.current.replaceChildren();
         google.accounts.id.renderButton(slot.current, {
           type: "standard", theme: isDark ? "filled_black" : "outline", size: "large",
