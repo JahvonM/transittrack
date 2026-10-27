@@ -7,6 +7,8 @@ import { useAuth } from "@/lib/AuthContext";
 import AuthLayout from "@/components/AuthLayout";
 import { Button } from "@/components/ui/button";
 import GoogleIcon from "@/components/GoogleIcon";
+import GoogleSignInButton from "@/components/GoogleSignInButton";
+import { googleButtonAvailable } from "@/lib/googleButton";
 import AppleIcon from "@/components/AppleIcon";
 import { currentSessionToken } from "@/lib/desktopSignIn";
 import { PHONE_PROVIDERS, readPhoneSignIn, phoneSignInPath, sealSessionForPhone, forgetPhoneSignInKey } from "@/lib/phoneSignIn";
@@ -55,7 +57,8 @@ export default function PhoneSignIn() {
     } catch {
       /* storage blocked: still start once */
     }
-    if (!tried) startProvider();
+    // Google: its own button needs a tap, and shows this site's address.
+    if (!tried && !(request.provider === "google" && googleButtonAvailable())) startProvider();
   }, [usable, isLoadingAuth, isAuthenticated]);
 
   // Signed in: prepare the sealed link ahead of the tap, so opening the app
@@ -140,10 +143,14 @@ export default function PhoneSignIn() {
     const Icon = request.provider === "apple" ? AppleIcon : GoogleIcon;
     return (
       <AuthLayout title="Sign in to the McSween Transport app" subtitle="Sign in here. The app signs in by itself when you finish.">
+        {request.provider === "google" && googleButtonAvailable() ? (
+          <GoogleSignInButton then={phoneSignInPath(request)} onFallback={startProvider} />
+        ) : (
         <Button variant="outline" className="w-full h-12 text-sm font-medium" onClick={startProvider}>
           <Icon className="w-5 h-5 mr-2" />
           Continue with {providerName}
         </Button>
+        )}
       </AuthLayout>
     );
   }

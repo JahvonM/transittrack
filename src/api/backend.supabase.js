@@ -304,6 +304,14 @@ export function createBackend() {
       const { error } = await sb().auth.signInWithOAuth({ provider: id, options: { redirectTo: back.href } });
       if (error) throw authError(error);
     },
+    // Google's own sign-in button (src/lib/googleButton.js) hands over an ID
+    // token; Supabase checks it was issued to our client and for this nonce.
+    async loginWithGoogleIdToken(token, nonce) {
+      if (typeof token !== 'string' || !token || typeof nonce !== 'string' || !nonce) throw apiError(400, { error: 'Google sign-in did not finish' }, 'Missing token');
+      const { data, error } = await sb().auth.signInWithIdToken({ provider: 'google', token, nonce });
+      if (error) throw authError(error);
+      return { access_token: data.session?.access_token, user: data.user };
+    },
     async register({ email, password, full_name }) {
       const { data, error } = await sb().auth.signUp({
         email: String(email || '').trim(),

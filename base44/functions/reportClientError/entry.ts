@@ -14,6 +14,14 @@ const clip = (v, n) => (typeof v === 'string' ? v.slice(0, n) : '');
 // alert or smuggle in extra fields/links of its own.
 const sanitize = (v, n) => clip(v, n).replace(/[\u0000-\u001f\u007f]+/g, ' ').replace(/[<>]/g, '').trim();
 const quote = (v, n) => clip(v, n).split(/\r?\n/).map((line) => `    | ${sanitize(line, n)}`).join('\n');
+// Microsoft's link checker (Outlook "Safe Links") opens links from emails in
+// its own browser; its code leaves this message behind. Not a person, not ours.
+const LINK_CHECKER_NOISE = /^Object Not Found Matching Id:\d+, MethodName:\w+, ParamCount:\d+$/;
+// What the person saw, by where the app caught the error.
+const WHAT_THEY_SAW = {
+  boundary: 'The person saw a "Something went wrong" screen with a reload button.',
+  style: "A style file didn't load in their browser (blocked, or a bad connection), so the screen opened without some of its look. It kept working.",
+};
 const AREAS = ['Admin', 'Passenger app', 'Driver tablet', 'Boarding tablet', 'Driver phone app', 'Company manager', 'Mechanic'];
 const STEP_TYPES = ['page', 'tap', 'server', 'network', 'error'];
 // What the app says happened before the error: at most 25 short steps.
@@ -42,6 +50,7 @@ export default async function (req) {
     const body = await req.json().catch(() => ({}));
     const message = clip(body.message, 500);
     if (!message) return Response.json({ error: 'message required' }, { status: 400 });
+    if (LINK_CHECKER_NOISE.test(message)) return Response.json({ ok: true, ignored: true });
 
     const base44 = createClientFromRequest(req);
     let user = null;
@@ -80,8 +89,10 @@ export default async function (req) {
     if (!alreadyAlerted && await reserveAttempt(base44,'crash-message:v2:'+message,1,HOUR_MS)) {
       const admins = (await base44.asServiceRole.entities.User.list()).filter((u) => u.role === 'admin' && u.email);
       const subjectLine = sanitize(message, 80) || 'unknown error';
-      const text = `A screen in McSween Transport just crashed.\n\nReported error (untrusted, quoted verbatim):\n${quote(message, 500)}\n\nPage: ${sanitize(record.url, 300) || 'unknown'}\nUser: ${record.user_email || 'not signed in'}${record.user_role ? ` (${record.user_role})` : ''}\nDevice: ${sanitize(record.user_agent, 300) || 'unknown'}\n\nThe user saw a "Something went wrong" screen with a reload button. Repeats of this same error in the next hour won't send another email. See what happened, step by step, in Admin → All tools → App errors.\n\n— McSween Transport`;
-      const subject = `McSween Transport crash alert: ${subjectLine}`;
+      const crashed = record.source === 'boundary';
+      const saw = WHAT_THEY_SAW[record.source] || 'The screen kept working; this happened in the background.';
+      const text = `${crashed ? 'A screen in McSween Transport just crashed.' : 'McSween Transport reported an error.'}\n\nReported error (untrusted, quoted verbatim):\n${quote(message, 500)}\n\nPage: ${sanitize(record.url, 300) || 'unknown'}\nUser: ${record.user_email || 'not signed in'}${record.user_role ? ` (${record.user_role})` : ''}\nDevice: ${sanitize(record.user_agent, 300) || 'unknown'}\n\n${saw} Repeats of this same error in the next hour won't send another email. See what happened, step by step, in Admin → All tools → App errors.\n\n— McSween Transport`;
+      const subject = `McSween Transport ${crashed ? 'crash alert' : 'error report'}: ${subjectLine}`;
       const delivery = await emailWithPolicy(base44, 'crash_alert', admins,
         async (a) => {
           // Charge each actual recipient BEFORE the provider call. Unknown delivery is never retried here.

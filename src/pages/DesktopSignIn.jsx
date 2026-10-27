@@ -7,6 +7,8 @@ import { useAuth } from "@/lib/AuthContext";
 import AuthLayout from "@/components/AuthLayout";
 import { Button } from "@/components/ui/button";
 import GoogleIcon from "@/components/GoogleIcon";
+import GoogleSignInButton from "@/components/GoogleSignInButton";
+import { googleButtonAvailable } from "@/lib/googleButton";
 import AppleIcon from "@/components/AppleIcon";
 import {
   DESKTOP_PROVIDERS,
@@ -47,7 +49,8 @@ export default function DesktopSignIn() {
     } catch {
       /* storage blocked: still start once */
     }
-    if (!tried) startProvider();
+    // Google: its own button needs a tap, and shows this site's address.
+    if (!tried && !(request.provider === "google" && googleButtonAvailable())) startProvider();
   }, [request, isLoadingAuth, isAuthenticated]);
 
   const finish = async () => {
@@ -115,10 +118,14 @@ export default function DesktopSignIn() {
     const Icon = request.provider === "google" ? GoogleIcon : request.provider === "apple" ? AppleIcon : Monitor;
     return (
       <AuthLayout title="Sign in to McSween Transport Desktop" subtitle="Sign in here in your browser. The desktop app signs in by itself when you finish.">
+        {request.provider === "google" && googleButtonAvailable() ? (
+          <GoogleSignInButton then={desktopSignInPath(request)} onFallback={startProvider} />
+        ) : (
         <Button variant="outline" className="w-full h-12 text-sm font-medium" onClick={startProvider}>
           <Icon className="w-5 h-5 mr-2" />
           Continue with {providerName}
         </Button>
+        )}
       </AuthLayout>
     );
   }

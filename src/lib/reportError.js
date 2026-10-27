@@ -41,12 +41,17 @@ export function reportError(error, { source = "window", extra = "" } = {}) {
   }
 }
 
+// Microsoft's link checker (Outlook "Safe Links") opens links from emails in
+// its own browser to check them, and its own code leaves this message behind.
+// It isn't a person and it isn't our code.
+export const isLinkCheckerNoise = (reason) => /^Object Not Found Matching Id:\d+, MethodName:\w+, ParamCount:\d+$/.test(String(reason?.message || reason || ""));
+
 let installed = false;
 export function installGlobalErrorReporting() {
   if (installed || typeof window === "undefined") return;
   installed = true;
   installBreadcrumbs();
-  installUpdateReload();
+  installUpdateReload({ onStyleMissing: (error) => reportError(error, { source: "style" }) });
   window.addEventListener("error", (e) => {
     // Ignore browser noise that isn't an app crash.
     if (!e.error || /ResizeObserver loop/.test(e.message || "")) return;
@@ -54,6 +59,7 @@ export function installGlobalErrorReporting() {
   });
   window.addEventListener("unhandledrejection", (e) => {
     const r = e.reason;
+    if (isLinkCheckerNoise(r)) return;
     // Failed network requests are handled (or not) by each screen; only report real code errors.
     if (!r || r?.response || /Network|fetch|Load failed/i.test(String(r?.message || r))) {
       if (r) addBreadcrumb("error", String(r?.message || r));
