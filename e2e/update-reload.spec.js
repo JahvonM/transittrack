@@ -42,3 +42,24 @@ test('if the reload does not help, it stops and the error is reported once',asyn
  expect(state.loads).toBe(2);
  expect(state.reports[0].message).toMatch(/dynamically imported module|Importing a module script failed/);
 });
+
+// A browser that won't load a screen's style file (blocked, or a bad
+// connection): after the one reload, the screen opens without that styling
+// instead of the error screen, and it is noted (not as a crash).
+test('a style file that never loads still lets the page open',async({page})=>{
+ const state={blocked:0,loads:0,reports:[]};
+ page.on('domcontentloaded',()=>{ state.loads++; });
+ await page.route(/\/assets\/SiteApp-[^/]+\.css$/,route=>{ state.blocked++; return route.abort(); });
+ await page.route('**/api/**',route=>{
+  const url=route.request().url();
+  if(url.includes('/functions/reportClientError')){ state.reports.push(route.request().postDataJSON()); return route.fulfill({json:{ok:true}}); }
+  return route.fulfill({json:{id:'test-app',public_settings:{authentication_required:false}}});
+ });
+ await page.goto('/site');
+ await expect(page.getByRole('link',{name:'Request a ride'}).first()).toBeVisible({timeout:20000});
+ await expect(page.getByText('Something went wrong')).toHaveCount(0);
+ expect(state.loads).toBe(2);
+ await expect.poll(()=>state.reports.length).toBe(1);
+ expect(state.reports[0]).toMatchObject({source:'style'});
+ expect(state.reports[0].message).toMatch(/^Unable to preload CSS/);
+});

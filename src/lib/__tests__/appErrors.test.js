@@ -58,6 +58,33 @@ describe("reportClientError stores the steps safely", () => {
   });
 });
 
+describe("what the alert email says happened", () => {
+  const report = async (body) => {
+    const sdk = mock(null);
+    sdk.tables.ClientError = [];
+    sdk.tables.User = [{ id: "boss", role: "admin", email: "boss@test.invalid" }];
+    const res = await call(sdk, "reportClientError", body);
+    return { sdk, res };
+  };
+  it("ignores Microsoft's link checker, which isn't a person or our code", async () => {
+    const { sdk, res } = await report({ message: "Object Not Found Matching Id:2, MethodName:update, ParamCount:4", source: "promise" });
+    expect(res.body).toMatchObject({ ok: true, ignored: true });
+    expect(sdk.tables.ClientError).toHaveLength(0);
+    expect(sdk.emails).toHaveLength(0);
+  });
+  it("says a screen crashed only when the person saw the error screen", async () => {
+    const crash = await report({ message: "Cannot read properties of undefined (reading 'x')", source: "boundary" });
+    expect(crash.sdk.emails[0].subject).toMatch(/^McSween Transport crash alert: /);
+    expect(crash.sdk.emails[0].body).toMatch(/saw a "Something went wrong" screen/);
+    const background = await report({ message: "Background thing failed", source: "promise" });
+    expect(background.sdk.emails[0].subject).toMatch(/^McSween Transport error report: /);
+    expect(background.sdk.emails[0].body).toMatch(/kept working; this happened in the background/);
+    expect(background.sdk.emails[0].body).not.toMatch(/Something went wrong/);
+    const style = await report({ message: "Unable to preload CSS for /assets/SiteApp-x.css", source: "style" });
+    expect(style.sdk.emails[0].body).toMatch(/opened without some of its look/);
+  });
+});
+
 describe("marking errors fixed", () => {
   const setup = (role) => {
     const sdk = mock(role);

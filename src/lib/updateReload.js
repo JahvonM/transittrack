@@ -25,12 +25,25 @@ export function reloadForUpdate({ now = Date.now(), storage = window.sessionStor
   return true;
 }
 
+// What to do when a screen's file can't be loaded. Reload once, as above. If
+// that doesn't help and the file is only the screen's styling (the browser
+// blocked it, or the connection dropped it), the screen opens without it
+// rather than failing; onStyleMissing notes it. A missing script still shows
+// the error screen.
+export function handlePreloadError(event, { reload = reloadForUpdate, onStyleMissing } = {}) {
+  if (reload()) { event.preventDefault(); return "reload"; }
+  if (/^Unable to preload CSS/.test(String(event?.payload?.message || ""))) {
+    event.preventDefault();
+    onStyleMissing?.(event.payload);
+    return "without-style";
+  }
+  return "error";
+}
+
 let installed = false;
-export function installUpdateReload() {
+export function installUpdateReload({ onStyleMissing } = {}) {
   if (installed || typeof window === "undefined") return;
   installed = true;
   // Vite raises this whenever a screen's file can't be loaded.
-  window.addEventListener("vite:preloadError", (event) => {
-    if (reloadForUpdate()) event.preventDefault();
-  });
+  window.addEventListener("vite:preloadError", (event) => { handlePreloadError(event, { onStyleMissing }); });
 }
