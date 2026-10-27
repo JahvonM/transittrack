@@ -14,6 +14,8 @@ export function useWhatsApp() {
   return number;
 }
 export const showPhone = (digits) => (/^1\d{10}$/.test(digits) ? `+1 ${digits.slice(1, 4)} ${digits.slice(4, 7)} ${digits.slice(7)}` : `+${digits}`);
+// "01", "02"… for the n-th ride, like the route number on a bus.
+export const routeNumber = (i) => String(i + 1).padStart(2, "0");
 export const whatsappTo = (digits, text) => `https://wa.me/${digits}${text ? `?text=${encodeURIComponent(text)}` : ""}`;
 
 export function usePageTitle(title, description) {

@@ -1,11 +1,12 @@
 import React, { useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
+import { Check } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { errorData } from "@/lib/requestError";
 import {
   AIRPORT_NAME, SITE_SERVICES, bookingBody, bookingProblems, grenadaInputFor, isAirportService, withService,
 } from "@/lib/bookingSite";
-import { sitePath, usePageTitle, useSiteBase, useWhatsApp, whatsappTo } from "@/site/siteKit";
+import { routeNumber, sitePath, usePageTitle, useSiteBase, useWhatsApp, whatsappTo } from "@/site/siteKit";
 
 const DESCRIPTION = "Request an airport pickup, drop-off, transfer, island tour or staff run in Grenada. We confirm the price and your bus by email.";
 const START = { service: "airport_pickup", when: "", flight_number: "", pickup: "", dropoff: "", guests: "2", luggage: "", name: "", phone: "", email: "", notes: "", website: "" };
@@ -17,6 +18,52 @@ function Field({ id, label, hint, error, children }) {
       {children}
       {hint && <p className="mcs-hint" id={`${id}-hint`}>{hint}</p>}
       {error && <p className="mcs-error" id={`${id}-error`}>{error}</p>}
+    </div>
+  );
+}
+
+// "Tue 27 Oct, 3:30 pm" for the form's time (already Grenada time).
+function whenText(value) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(value || "");
+  if (!m) return "";
+  const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]));
+  return d.toLocaleString("en-GB", { timeZone: "UTC", weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit", hour12: true });
+}
+
+function Legend({ n, children }) {
+  return <legend><span className="mcs-step" aria-hidden="true">{n}</span>{children}</legend>;
+}
+
+// The ride so far, filled in as the visitor types. It repeats the form, so
+// screen readers skip it.
+function RideTicket({ form }) {
+  const i = SITE_SERVICES.findIndex((s) => s.id === form.service);
+  const service = SITE_SERVICES[i];
+  const when = whenText(form.when);
+  const guests = Number(form.guests) > 0 ? `${form.guests} passenger${Number(form.guests) === 1 ? "" : "s"}` : "";
+  const bags = Number(form.luggage) > 0 ? `${form.luggage} bag${Number(form.luggage) === 1 ? "" : "s"}` : "";
+  const value = (text, empty = "Not filled in yet") => <dd className={text ? undefined : "mcs-empty"}>{text || empty}</dd>;
+  return (
+    <div className="mcs-ticket mcs-dark" aria-hidden="true">
+      <div className="mcs-ticket-head">
+        <h2>Your ride</h2>
+        {service && <span className="mcs-route">{routeNumber(i)}</span>}
+      </div>
+      <div className="mcs-ticket-tear" />
+      <dl>
+        <div><dt>Ride</dt>{value(service?.name)}</div>
+        <div><dt>When</dt>{value(when && `${when}, Grenada time`)}</div>
+        <div className="mcs-ticket-route">
+          <span className="mcs-from" />
+          <div><dt>From</dt>{value(form.pickup.trim())}</div>
+        </div>
+        <div className="mcs-ticket-route">
+          <span className="mcs-to" />
+          <div><dt>To</dt>{value(form.dropoff.trim())}</div>
+        </div>
+        <div><dt>Who</dt>{value([guests, bags].filter(Boolean).join(", "))}</div>
+        {isAirportService(form.service) && form.flight_number.trim() && <div><dt>Flight</dt>{value(form.flight_number.trim().toUpperCase())}</div>}
+      </dl>
     </div>
   );
 }
@@ -69,10 +116,14 @@ export default function BookPage() {
 
   if (sent) {
     return (
-      <section className="mcs-book">
+      <>
+        <div className="mcs-pagehead mcs-dark">
+          <div className="mcs-wrap"><h1>Request sent</h1></div>
+        </div>
+        <section className="mcs-book">
         <div className="mcs-wrap">
-          <h1>Request sent</h1>
-          <div className="mcs-done" role="status">
+          <div className="mcs-done mcs-card" role="status">
+            <span className="mcs-done-mark" aria-hidden="true"><Check /></span>
             <h2>Thanks, {sent.name}. We have your request.</h2>
             <p>We emailed a copy to <strong>{sent.email}</strong>. We'll email you again to confirm the time and the price. Nothing is booked until then.</p>
             <p>If you don't see our email, check your spam folder{whatsapp ? <>, or <a href={whatsappTo(whatsapp, "Hi McSween Transport, I sent a ride request on the website. ")} target="_blank" rel="noreferrer">message us on WhatsApp</a></> : ""}.</p>
@@ -82,33 +133,38 @@ export default function BookPage() {
             </div>
           </div>
         </div>
-      </section>
+        </section>
+      </>
     );
   }
 
   const minWhen = grenadaInputFor(Date.now() + 61 * 60_000);
   return (
+    <>
+    <div className="mcs-pagehead mcs-dark">
+      <div className="mcs-wrap">
+        <h1>Request a ride</h1>
+        <p className="mcs-lede">Fill this in and we'll email you to confirm. No account needed.</p>
+      </div>
+    </div>
     <section className="mcs-book">
       <div className="mcs-wrap mcs-book-grid">
-        <div>
-          <h1>Request a ride</h1>
-          <p className="mcs-lede">Fill this in and we'll email you to confirm. No account needed.</p>
-
+        <div className="mcs-card">
           <form ref={formRef} className="mcs-form" onSubmit={send} noValidate>
             <fieldset>
-              <legend>What kind of ride?</legend>
+              <Legend n={1}>What kind of ride?</Legend>
               <div className="mcs-choices">
-                {SITE_SERVICES.map((s) => (
+                {SITE_SERVICES.map((s, i) => (
                   <label key={s.id} className="mcs-choice">
                     <input type="radio" name="service" value={s.id} checked={form.service === s.id} onChange={() => setForm((f) => withService(f, s.id))} />
-                    <span>{s.name}</span>
+                    <span><b aria-hidden="true">{routeNumber(i)}</b>{s.name}</span>
                   </label>
                 ))}
               </div>
             </fieldset>
 
             <fieldset>
-              <legend>When</legend>
+              <Legend n={2}>When</Legend>
               <div className="mcs-row mcs-row-2">
                 <Field id="when" label={airport && form.service === "airport_pickup" ? "Landing time" : "Pickup time"} hint="Grenada time" error={err("when")}>
                   <input type="datetime-local" min={minWhen} step={300} {...input("when", { "aria-describedby": describe("when", true) })} />
@@ -122,7 +178,7 @@ export default function BookPage() {
             </fieldset>
 
             <fieldset>
-              <legend>Where</legend>
+              <Legend n={3}>Where</Legend>
               <div className="mcs-row mcs-row-2">
                 <Field id="pickup" label="Pick up from" error={err("pickup")}>
                   <input type="text" maxLength={160} placeholder="Hotel, villa or address" {...input("pickup", { "aria-describedby": describe("pickup") })} />
@@ -142,7 +198,7 @@ export default function BookPage() {
             </fieldset>
 
             <fieldset>
-              <legend>Your details</legend>
+              <Legend n={4}>Your details</Legend>
               <Field id="name" label="Your name" error={err("name")}>
                 <input type="text" autoComplete="name" maxLength={80} {...input("name", { "aria-describedby": describe("name") })} />
               </Field>
@@ -173,15 +229,19 @@ export default function BookPage() {
         </div>
 
         <aside className="mcs-aside" aria-labelledby="next-title">
-          <h2 id="next-title">What happens next</h2>
-          <ol>
-            <li>We email you a copy of your request.</li>
-            <li>We check a bus is free and email you the price. Nothing is booked until then.</li>
-            <li>Before the ride, you get a private link to watch your bus on a map.</li>
-          </ol>
-          {whatsapp && <p className="mcs-hint" style={{ marginTop: "1.25rem" }}>Need a ride in the next hour? <a href={whatsappTo(whatsapp, "Hi McSween Transport, I need a ride soon. ")} target="_blank" rel="noreferrer">Message us on WhatsApp</a>.</p>}
+          <RideTicket form={form} />
+          <div className="mcs-next">
+            <h2 id="next-title">What happens next</h2>
+            <ol>
+              <li>We email you a copy of your request.</li>
+              <li>We check a bus is free and email you the price. Nothing is booked until then.</li>
+              <li>Before the ride, you get a private link to watch your bus on a map.</li>
+            </ol>
+            {whatsapp && <p className="mcs-hint">Need a ride in the next hour? <a href={whatsappTo(whatsapp, "Hi McSween Transport, I need a ride soon. ")} target="_blank" rel="noreferrer">Message us on WhatsApp</a>.</p>}
+          </div>
         </aside>
       </div>
     </section>
+    </>
   );
 }

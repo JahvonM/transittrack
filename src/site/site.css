@@ -1,105 +1,178 @@
 /* The public website (mcsweenstransport.com). Its own look, kept apart from
    the app: everything here sits under .mcs. The fonts are served with the
-   site's own files and load only on these pages. */
+   site's own files and load only on these pages.
+
+   The look is the bus at night: the dark teal of the evening sea, the dot
+   sign on the front of the bus, the lit route line along the coast road and
+   the warm sand of the beach. Red is kept for the one thing to do: request
+   a ride. */
 
 .mcs {
   --ink: #0b2e35;
+  --night: #071f24;
+  --ink-raised: #10404a;
   --teal: #018299;
   --teal-text: #016b7d;
-  --glass: #e3f1ef;
-  --glass-line: #c3dedb;
-  --foam: #9fd3cf;
+  --glow: #4fd8de;
   --sun: #f7c948;
   --red: #c8322b;
-  --red-dark: #b42a24;
-  --muted: #4a6266;
+  --red-dark: #a9271f;
+  --sand: #f6f2ea;
+  --sand-line: #e3dccd;
   --paper: #ffffff;
+  --muted: #4a6266;
+  --on-ink: #eef6f5;
+  --on-ink-muted: #a9c4c1;
+  --line-dark: rgba(238, 246, 245, 0.12);
   --display: "Big Shoulders Display Variable", "Barlow Semi Condensed", "Arial Narrow", sans-serif;
   --body: "Figtree Variable", system-ui, -apple-system, "Segoe UI", sans-serif;
   --gutter: clamp(1rem, 4vw, 2.5rem);
-  --wide: 72rem;
+  --wide: 74rem;
+  --header-h: 4.25rem;
 
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
-  background: var(--paper);
+  background: var(--sand);
   color: var(--ink);
   font-family: var(--body);
   font-size: 1.0625rem;
   line-height: 1.6;
   color-scheme: light;
   -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
 }
 .mcs main { flex: 1; }
 .mcs a { color: var(--teal-text); text-underline-offset: 0.18em; }
 .mcs a:hover { color: var(--ink); }
-.mcs :focus-visible { outline: 3px solid var(--teal); outline-offset: 2px; border-radius: 4px; }
-.mcs h1, .mcs h2, .mcs h3 { margin: 0; color: var(--ink); }
-.mcs p { margin: 0; }
+.mcs a, .mcs button, .mcs input, .mcs label { touch-action: manipulation; }
+.mcs :focus-visible { outline: 3px solid var(--teal); outline-offset: 3px; border-radius: 6px; }
+/* Resets carry no weight, so each part's own spacing wins. */
+:where(.mcs) :where(h1, h2, h3) { margin: 0; color: inherit; text-wrap: balance; }
+:where(.mcs) :where(p) { margin: 0; text-wrap: pretty; }
+.mcs [id] { scroll-margin-top: calc(var(--header-h) + 1rem); }
 .mcs-wrap { width: 100%; max-width: var(--wide); margin: 0 auto; padding: 0 var(--gutter); }
 .mcs-sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
-.mcs-skip { position: absolute; left: 1rem; top: -4rem; z-index: 20; background: var(--ink); color: var(--paper) !important; padding: 0.6rem 1rem; border-radius: 8px; }
-.mcs-skip:focus { top: 1rem; }
+.mcs-skip { position: absolute; left: 1rem; top: -4rem; z-index: 40; background: var(--sun); color: var(--ink) !important; padding: 0.6rem 1rem; border-radius: 8px; font-weight: 700; }
+.mcs-skip:focus { top: 0.75rem; }
+
+/* Dark parts of the page: header, hero, departures board, contact, footer. */
+.mcs-dark { background: var(--ink); color: var(--on-ink); }
+.mcs-dark :focus-visible { outline-color: var(--sun); }
 
 /* Buttons */
 .mcs-btn {
-  display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
-  min-height: 3rem; padding: 0.7rem 1.35rem; border-radius: 10px; border: 2px solid transparent;
-  font: 650 1rem/1.2 var(--body); text-decoration: none; cursor: pointer;
-  transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease;
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.55rem;
+  min-height: 3.1rem; padding: 0.75rem 1.4rem; border-radius: 12px; border: 2px solid transparent;
+  font: 680 1rem/1.2 var(--body); text-decoration: none; cursor: pointer; white-space: nowrap;
+  transition: background-color 140ms ease, color 140ms ease, border-color 140ms ease, transform 140ms ease;
 }
+.mcs-btn:active { transform: translateY(1px); }
 .mcs a.mcs-btn-primary, .mcs .mcs-btn-primary { background: var(--red); color: #fff; }
 .mcs a.mcs-btn-primary:hover, .mcs .mcs-btn-primary:hover { background: var(--red-dark); color: #fff; }
 .mcs a.mcs-btn-quiet, .mcs .mcs-btn-quiet { background: transparent; color: var(--ink); border-color: var(--ink); }
 .mcs a.mcs-btn-quiet:hover, .mcs .mcs-btn-quiet:hover { background: var(--ink); color: #fff; }
-.mcs .mcs-btn:disabled { opacity: 0.6; cursor: progress; }
+.mcs a.mcs-btn-light, .mcs .mcs-btn-light { background: transparent; color: var(--on-ink); border-color: rgba(238, 246, 245, 0.55); }
+.mcs a.mcs-btn-light:hover, .mcs .mcs-btn-light:hover { background: var(--on-ink); color: var(--ink); border-color: var(--on-ink); }
+.mcs .mcs-btn:disabled { opacity: 0.6; cursor: progress; transform: none; }
 .mcs-btn svg { width: 1.15rem; height: 1.15rem; flex: none; }
+@media (prefers-reduced-motion: reduce) { .mcs-btn { transition: none; } .mcs-btn:active { transform: none; } }
 
-/* Header */
-.mcs-header { border-bottom: 1px solid var(--glass-line); background: var(--paper); }
-.mcs-header .mcs-wrap { display: flex; align-items: center; gap: 1rem; min-height: 4.5rem; }
-.mcs .mcs-brand { display: flex; align-items: center; gap: 0.6rem; text-decoration: none; color: var(--ink); margin-right: auto; }
-.mcs-brand img { width: 2.6rem; height: 2.6rem; border-radius: 28%; }
-.mcs-brand span { font: 750 1.55rem/1 var(--display); letter-spacing: 0.01em; }
-.mcs-nav { display: flex; align-items: center; gap: 1.4rem; }
-.mcs .mcs-nav a:not(.mcs-btn) { color: var(--ink); text-decoration: none; font-weight: 550; }
-.mcs .mcs-nav a:not(.mcs-btn):hover { color: var(--teal-text); text-decoration: underline; }
-.mcs-nav .mcs-btn { min-height: 2.6rem; padding: 0.5rem 1rem; }
+/* Header: the same dark bar on every page, always within reach. */
+.mcs-header {
+  position: sticky; top: 0; z-index: 30;
+  background: rgba(11, 46, 53, 0.94);
+  -webkit-backdrop-filter: saturate(140%) blur(12px);
+  backdrop-filter: saturate(140%) blur(12px);
+  border-bottom: 1px solid var(--line-dark);
+  padding-top: env(safe-area-inset-top);
+}
+.mcs-header .mcs-wrap { display: flex; align-items: center; gap: 1rem; min-height: var(--header-h); }
+.mcs .mcs-brand { display: flex; align-items: center; gap: 0.65rem; text-decoration: none; color: var(--on-ink); margin-right: auto; }
+.mcs .mcs-brand:hover { color: #fff; }
+.mcs-brand img { width: 2.4rem; height: 2.4rem; border-radius: 28%; }
+.mcs-brand span { font: 760 1.5rem/1 var(--display); letter-spacing: 0.015em; }
+.mcs-nav { display: flex; align-items: center; gap: 1.5rem; }
+.mcs .mcs-nav a:not(.mcs-btn) { color: var(--on-ink); text-decoration: none; font-weight: 560; padding: 0.4rem 0; border-bottom: 2px solid transparent; }
+.mcs .mcs-nav a:not(.mcs-btn):hover { color: #fff; border-bottom-color: var(--sun); }
+.mcs-nav .mcs-btn { min-height: 2.6rem; padding: 0.5rem 1.05rem; border-radius: 10px; }
 .mcs-brand span, .mcs-nav a { white-space: nowrap; }
 @media (max-width: 47.99rem) {
   .mcs-nav .mcs-nav-more { display: none; }
-  .mcs-nav { gap: 0.9rem; }
-  .mcs-brand img { width: 2.25rem; height: 2.25rem; }
+  .mcs-nav { gap: 1rem; }
+  .mcs-brand img { width: 2.15rem; height: 2.15rem; }
   .mcs-brand span { font-size: 1.3rem; }
 }
 @media (max-width: 29.99rem) {
   .mcs-nav .mcs-nav-wide { display: none; }
 }
+/* The smallest phones (320 px): the name and the button still fit side by side. */
+@media (max-width: 22.49rem) {
+  .mcs-header .mcs-wrap { gap: 0.5rem; padding: 0 0.85rem; }
+  .mcs .mcs-brand { gap: 0.45rem; }
+  .mcs-brand img { width: 1.9rem; height: 1.9rem; }
+  .mcs-brand span { font-size: 1.12rem; }
+  .mcs-nav .mcs-btn { padding: 0.45rem 0.7rem; font-size: 0.9rem; }
+}
+
+/* Hero: the coach on the coast road at dusk. On a phone the photo sits on
+   top and the words below it; on a wide screen the words sit on the dark
+   side of the photo. */
+.mcs-hero { position: relative; isolation: isolate; overflow: hidden; }
+.mcs-hero-media { position: relative; }
+.mcs-hero-media img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 10; object-fit: cover; object-position: 78% 60%; }
+.mcs-hero-media::after { content: ""; position: absolute; inset: auto 0 0 0; height: 45%; background: linear-gradient(to top, var(--ink), rgba(11, 46, 53, 0)); }
+.mcs-hero-body { position: relative; padding: 0 0 clamp(2.5rem, 7vw, 3.5rem); margin-top: -2.5rem; }
+.mcs-hero h1 {
+  font: 800 clamp(2.7rem, 9.5vw, 5rem)/0.98 var(--display);
+  letter-spacing: 0.004em;
+  color: #fff;
+  max-width: 14ch;
+  margin-top: 1.4rem;
+}
+.mcs-hero-lede { margin-top: 1.35rem; max-width: 42ch; color: var(--on-ink-muted); font-size: 1.15rem; }
+.mcs-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 1.75rem; }
+.mcs-facts { display: flex; flex-wrap: wrap; gap: 0.5rem 1.25rem; list-style: none; margin: 1.75rem 0 0; padding: 0; color: var(--on-ink-muted); font-size: 0.95rem; }
+.mcs-facts li { display: inline-flex; align-items: center; gap: 0.5rem; }
+.mcs-facts li::before { content: ""; width: 0.55rem; height: 0.55rem; border-radius: 50%; background: var(--glow); box-shadow: 0 0 10px rgba(79, 216, 222, 0.7); flex: none; }
+@media (min-width: 56rem) {
+  .mcs-hero { min-height: min(86vh, 50rem); display: grid; align-items: center; }
+  .mcs-hero-media { position: absolute; inset: 0; z-index: -1; }
+  .mcs-hero-media img { height: 100%; aspect-ratio: auto; object-position: 66% 58%; }
+  .mcs-hero-media::after {
+    inset: 0; height: auto;
+    background:
+      linear-gradient(90deg, rgba(7, 31, 36, 0.97) 0%, rgba(7, 31, 36, 0.9) 28%, rgba(7, 31, 36, 0.45) 52%, rgba(7, 31, 36, 0) 70%),
+      linear-gradient(0deg, rgba(7, 31, 36, 0.75) 0%, rgba(7, 31, 36, 0) 28%);
+  }
+  .mcs-hero-body { margin-top: 0; padding: 4.5rem 0 5rem; max-width: 37rem; }
+}
 
 /* The destination sign: the front of a bus, saying where it is going. */
-.mcs-hero { padding: clamp(1rem, 3vw, 2.25rem) 0 clamp(0.5rem, 2vw, 1.5rem); }
 .mcs-sign {
-  --dot: clamp(4px, 0.62vw, 7px);
+  --dot: clamp(3px, 0.5vw, 5px);
   position: relative;
-  background: var(--ink);
-  border-radius: 18px;
-  padding: clamp(1rem, 2.4vw, 1.75rem) clamp(1rem, 3vw, 2.25rem);
-  box-shadow: inset 0 0 0 6px #072227, inset 0 10px 30px rgba(0, 0, 0, 0.35);
+  background: var(--night);
+  border-radius: 14px;
+  padding: 0.85rem 3.25rem 0.85rem 1.1rem;
+  box-shadow: inset 0 0 0 4px #04161a, inset 0 8px 24px rgba(0, 0, 0, 0.45), 0 10px 30px rgba(0, 0, 0, 0.35);
   overflow: hidden;
+  max-width: 26rem;
 }
+.mcs-sign-label { display: block; font: 700 0.72rem/1 var(--body); letter-spacing: 0.16em; text-transform: uppercase; color: var(--on-ink-muted); margin-bottom: 0.45rem; }
 .mcs-sign-line {
   position: relative;
   /* the unlit lamps */
-  background-image: radial-gradient(circle, rgba(247, 201, 72, 0.09) 0 42%, transparent 46%);
+  background-image: radial-gradient(circle, rgba(247, 201, 72, 0.1) 0 42%, transparent 46%);
   background-size: var(--dot) var(--dot);
+  --sign-size: clamp(2.8rem, 12vw, 4.9rem);
   min-height: calc(var(--sign-size) * 1.02);
-  --sign-size: clamp(3.6rem, 17vw, 10.5rem);
 }
 /* Both layers span the whole sign, so the lit dots line up with the unlit
-   ones; the word sits in the middle, as on a real sign. */
+   ones. */
 .mcs-sign-text, .mcs-sign-glow {
   position: absolute; left: 0; right: 0; top: 0;
-  text-align: center;
+  text-align: left;
   overflow: hidden;
   font: 820 var(--sign-fit, var(--sign-size))/1.02 var(--display);
   text-transform: uppercase;
@@ -113,110 +186,207 @@
   -webkit-mask-size: var(--dot) var(--dot);
   mask-size: var(--dot) var(--dot);
 }
-.mcs-sign-glow { filter: blur(18px); opacity: 0.42; overflow: visible; }
+.mcs-sign-glow { filter: blur(14px); opacity: 0.45; overflow: visible; }
 /* A new place lights up row by row, the way the lamps refresh. */
 .mcs-sign-text.mcs-new { animation: mcs-scan 480ms steps(9, end) both; }
 .mcs-sign-glow.mcs-new { animation: mcs-glow 480ms steps(4, end) both; }
 @keyframes mcs-scan { from { clip-path: inset(0 0 100% 0); } to { clip-path: inset(0 0 0 0); } }
-@keyframes mcs-glow { from { opacity: 0; } to { opacity: 0.42; } }
+@keyframes mcs-glow { from { opacity: 0; } to { opacity: 0.45; } }
 .mcs .mcs-sign-pause {
-  position: absolute; right: 0.6rem; bottom: 0.6rem;
+  position: absolute; right: 0.6rem; top: 50%; translate: 0 -50%;
   width: 2.25rem; height: 2.25rem; display: grid; place-items: center;
-  border-radius: 8px; border: 1px solid rgba(159, 211, 207, 0.35); background: transparent; color: var(--foam); cursor: pointer;
+  border-radius: 8px; border: 1px solid rgba(159, 211, 207, 0.35); background: transparent; color: var(--on-ink-muted); cursor: pointer;
 }
-.mcs .mcs-sign-pause:hover { background: rgba(159, 211, 207, 0.12); }
+.mcs .mcs-sign-pause:hover { background: rgba(159, 211, 207, 0.12); color: #fff; }
 .mcs-sign-pause svg { width: 1rem; height: 1rem; }
 @media (prefers-reduced-motion: reduce) {
   .mcs-sign-text.mcs-new, .mcs-sign-glow.mcs-new { animation: none; }
 }
 
-.mcs-intro { display: grid; gap: 1.5rem 3rem; align-items: center; margin-top: clamp(1.5rem, 4vw, 2.75rem); }
-.mcs-intro h1 { font: 700 clamp(1.85rem, 4.2vw, 3rem)/1.12 var(--body); letter-spacing: -0.015em; max-width: 20ch; }
-.mcs-intro p { margin-top: 1rem; max-width: 46ch; color: var(--muted); font-size: 1.125rem; }
-.mcs-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 1.75rem; }
-.mcs-intro img { width: 100%; max-width: 34rem; height: auto; justify-self: center; }
-@media (min-width: 56rem) {
-  .mcs-intro { grid-template-columns: 1.05fr 1fr; }
-  .mcs-intro img { margin-right: -1.5rem; }
-}
-
 /* Sections */
-.mcs-section { padding: clamp(3rem, 7vw, 5.5rem) 0; }
-.mcs-section-glass { background: var(--glass); }
-.mcs-section h2 { font: 760 clamp(2.4rem, 5.5vw, 3.6rem)/1 var(--display); letter-spacing: 0.005em; }
-.mcs-lede { margin-top: 1.1rem; max-width: 52ch; color: var(--muted); }
+.mcs-section { padding: clamp(3.5rem, 8vw, 6rem) 0; }
+.mcs-paper { background: var(--paper); }
+.mcs-section h2, .mcs-night h2, .mcs-pagehead h1 { font: 800 clamp(2.6rem, 6vw, 4rem)/1 var(--display); letter-spacing: 0.004em; }
+.mcs-section h2 + .mcs-lede, .mcs-night h2 + .mcs-lede, .mcs-pagehead h1 + .mcs-lede { margin-top: 1.15rem; }
+.mcs-lede { margin-top: 1rem; max-width: 52ch; color: var(--muted); font-size: 1.1rem; }
+.mcs-dark .mcs-lede { color: var(--on-ink-muted); }
+.mcs-head { display: grid; gap: 0.25rem 3rem; align-items: end; }
+@media (min-width: 56rem) { .mcs-head { grid-template-columns: 1fr auto; } .mcs-head .mcs-lede { margin-top: 0; max-width: 34ch; } }
 
-.mcs-services { list-style: none; margin: 2.25rem 0 0; padding: 0; border-top: 2px solid var(--ink); }
-.mcs-services li { display: grid; gap: 0.4rem 2.5rem; padding: 1.5rem 0; border-bottom: 1px solid var(--glass-line); }
-.mcs-services h3 { font: 700 clamp(1.75rem, 3.2vw, 2.25rem)/1.05 var(--display); }
-.mcs-services p { max-width: 58ch; }
-.mcs-services a { font-weight: 650; justify-self: start; }
+/* Services: a departures board, one route per ride. */
+.mcs-board { margin-top: 2.25rem; border-radius: 20px; padding: 0.5rem clamp(0.85rem, 2.5vw, 1.75rem) 0.75rem; box-shadow: 0 24px 60px -30px rgba(7, 31, 36, 0.55); }
+.mcs-board-top {
+  display: grid; grid-template-columns: 3.25rem 1fr; gap: 1.25rem; padding: 1rem 0 0.85rem;
+  font: 700 0.75rem/1 var(--body); letter-spacing: 0.16em; text-transform: uppercase; color: var(--on-ink-muted);
+  border-bottom: 1px solid var(--line-dark);
+}
+.mcs-board-list { list-style: none; margin: 0; padding: 0; }
+.mcs-board-row {
+  position: relative; display: grid; grid-template-columns: 3.25rem 1fr; gap: 0.35rem 1.25rem; align-items: start;
+  padding: 1.35rem 0; border-bottom: 1px solid var(--line-dark);
+}
+.mcs-board-row:last-child { border-bottom: 0; }
+.mcs-route {
+  grid-row: span 2;
+  display: grid; place-items: center; width: 3.25rem; height: 3.25rem; border-radius: 10px;
+  background: var(--sun); color: var(--ink); font: 800 1.65rem/1 var(--display); font-variant-numeric: tabular-nums;
+}
+.mcs-board-row h3 { font: 780 clamp(1.75rem, 3.2vw, 2.2rem)/1.02 var(--display); color: #fff; letter-spacing: 0.01em; }
+.mcs-board-row p { color: var(--on-ink-muted); max-width: 60ch; }
+.mcs .mcs-board-go { grid-column: 2; justify-self: start; display: inline-flex; align-items: center; gap: 0.4rem; margin-top: 0.35rem; color: var(--sun); font-weight: 680; text-decoration: none; }
+.mcs .mcs-board-go:hover { color: #fff; }
+.mcs-board-go svg { width: 1.1rem; height: 1.1rem; transition: translate 160ms ease; }
+/* The whole row opens the form for that ride. */
+.mcs .mcs-board-go::after { content: ""; position: absolute; inset: 0; border-radius: 12px; }
+.mcs-board-row:hover { background: linear-gradient(90deg, rgba(238, 246, 245, 0.05), rgba(238, 246, 245, 0)); }
+.mcs-board-row:hover .mcs-board-go svg { translate: 4px 0; }
+.mcs .mcs-board-go:focus-visible { outline: none; }
+.mcs .mcs-board-go:focus-visible::after { outline: 3px solid var(--sun); outline-offset: -2px; }
 @media (min-width: 48rem) {
-  .mcs-services li { grid-template-columns: 15rem 1fr auto; align-items: baseline; }
+  .mcs-board-top { grid-template-columns: 3.25rem 15rem 1fr; }
+  .mcs-board-row { grid-template-columns: 3.25rem 15rem 1fr auto; align-items: center; gap: 1.5rem; }
+  .mcs-route { grid-row: auto; }
+  .mcs .mcs-board-go { grid-column: auto; margin-top: 0; justify-self: end; }
+}
+@media (prefers-reduced-motion: reduce) { .mcs-board-go svg { transition: none; } }
+
+/* How booking works: a route with three stops. */
+.mcs-stops { list-style: none; margin: 2.75rem 0 0; padding: 0; display: grid; gap: 2rem; position: relative; }
+.mcs-stops li:not(:last-child)::after {
+  content: ""; position: absolute; left: 1.35rem; top: 2.7rem; bottom: -2rem; width: 4px; margin-left: -2px;
+  background: linear-gradient(var(--teal), var(--glow));
+  box-shadow: 0 0 14px rgba(1, 130, 153, 0.45);
+}
+.mcs-stops li { position: relative; display: grid; grid-template-columns: 2.7rem 1fr; gap: 0 1.1rem; align-items: start; }
+.mcs-stop {
+  display: grid; place-items: center; width: 2.7rem; height: 2.7rem; border-radius: 50%;
+  background: var(--paper); border: 4px solid var(--teal); color: var(--teal-text);
+  font: 800 1.35rem/1 var(--display); font-variant-numeric: tabular-nums;
+}
+.mcs-stops li:last-child .mcs-stop { background: var(--teal); color: #fff; box-shadow: 0 0 0 6px rgba(1, 130, 153, 0.15); }
+.mcs-stops h3 { font: 700 1.25rem/1.3 var(--body); padding-top: 0.45rem; }
+.mcs-stops p { color: var(--muted); margin-top: 0.35rem; max-width: 36ch; }
+@media (min-width: 56rem) {
+  .mcs-stops { grid-template-columns: repeat(3, 1fr); gap: 3rem; }
+  .mcs-stops li:not(:last-child)::after { left: 2.7rem; right: -3rem; top: 1.35rem; bottom: auto; width: auto; height: 4px; margin: -2px 0 0; background: linear-gradient(90deg, var(--teal), var(--glow)); }
+  .mcs-stops li { grid-template-columns: 1fr; gap: 1.1rem; }
+  .mcs-stops h3 { padding-top: 0; }
 }
 
-.mcs-steps { list-style: none; margin: 2.25rem 0 0; padding: 0; display: grid; gap: 2rem 3rem; }
-.mcs-steps li { display: grid; grid-template-columns: 2rem 1fr; gap: 0 1rem; align-items: start; }
-.mcs-steps .mcs-step-n { font: 800 3.25rem/0.9 var(--display); color: var(--teal); }
-.mcs-steps h3 { font: 700 1.2rem/1.3 var(--body); }
-.mcs-steps p { color: var(--muted); margin-top: 0.3rem; }
-@media (min-width: 56rem) { .mcs-steps { grid-template-columns: repeat(3, 1fr); } }
-
-.mcs-contact { display: grid; gap: 2rem 3rem; }
-.mcs-contact-list { display: grid; gap: 1rem; align-content: start; }
-.mcs-contact-list .mcs-btn { justify-self: start; }
-@media (min-width: 56rem) { .mcs-contact { grid-template-columns: 1fr 1fr; } }
+/* Contact: the bay at night. */
+.mcs-night { position: relative; isolation: isolate; overflow: hidden; padding: clamp(4rem, 10vw, 7rem) 0; }
+.mcs-night > img { position: absolute; inset: 0; z-index: -2; width: 100%; height: 100%; object-fit: cover; object-position: 30% 70%; }
+.mcs-night::before { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(180deg, rgba(7, 31, 36, 0.9) 0%, rgba(7, 31, 36, 0.55) 55%, rgba(7, 31, 36, 0.85) 100%); }
+.mcs-night h2 { color: #fff; }
+.mcs-contact { display: grid; gap: 2rem 3rem; align-items: end; }
+.mcs-contact-list { display: grid; gap: 0.9rem; align-content: start; justify-items: start; }
+.mcs-contact-list p { color: var(--on-ink-muted); }
+.mcs .mcs-contact-list a:not(.mcs-btn) { color: var(--sun); font-weight: 650; }
+.mcs .mcs-contact-list a:not(.mcs-btn):hover { color: #fff; }
+.mcs-contact-list .mcs-hint { color: var(--on-ink-muted); }
+@media (min-width: 56rem) { .mcs-contact { grid-template-columns: 1.1fr 1fr; } }
 
 /* Footer */
-.mcs-footer { background: var(--ink); color: #d6e9e7; padding: 2.5rem 0 calc(2.5rem + env(safe-area-inset-bottom)); font-size: 0.95rem; }
-.mcs-footer .mcs-wrap { display: flex; flex-wrap: wrap; gap: 1.25rem 2.5rem; align-items: center; justify-content: space-between; }
-.mcs .mcs-footer a { color: #d6e9e7; }
-.mcs .mcs-footer a:hover { color: #fff; }
-.mcs-footer nav { display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem; }
-.mcs-footer :focus-visible { outline-color: var(--foam); }
+.mcs-footer { background: var(--night); color: var(--on-ink-muted); padding: 2.75rem 0 calc(2.75rem + env(safe-area-inset-bottom)); font-size: 0.95rem; }
+.mcs-footer .mcs-wrap { display: grid; gap: 1.5rem 3rem; }
+.mcs-footer-brand { display: flex; align-items: center; gap: 0.65rem; color: var(--on-ink); }
+.mcs-footer-brand img { width: 2.1rem; height: 2.1rem; border-radius: 28%; }
+.mcs-footer-note { margin-top: 0.6rem; }
+.mcs-footer-brand strong { font: 760 1.35rem/1 var(--display); letter-spacing: 0.015em; }
+.mcs .mcs-footer a { color: var(--on-ink); text-decoration: none; }
+.mcs .mcs-footer a:hover { color: #fff; text-decoration: underline; }
+.mcs-footer nav { display: flex; flex-wrap: wrap; gap: 0.6rem 1.5rem; }
+.mcs-footer :focus-visible { outline-color: var(--sun); }
+@media (min-width: 56rem) { .mcs-footer .mcs-wrap { grid-template-columns: 1fr auto; align-items: center; } }
 
-/* Booking form */
-.mcs-book { padding: clamp(2rem, 5vw, 3.5rem) 0 clamp(3rem, 7vw, 5rem); }
-.mcs-book-grid { display: grid; gap: 2.5rem 4rem; }
-@media (min-width: 60rem) { .mcs-book-grid { grid-template-columns: minmax(0, 1fr) 19rem; } }
-.mcs-book h1 { font: 780 clamp(2.75rem, 7vw, 4.5rem)/1 var(--display); }
-.mcs-form { margin-top: 2rem; display: grid; gap: 2.25rem; }
+/* Booking page */
+.mcs-pagehead { padding: clamp(2.25rem, 6vw, 3.75rem) 0 clamp(2rem, 5vw, 3rem); position: relative; }
+.mcs-pagehead::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: linear-gradient(90deg, var(--teal), var(--glow), rgba(79, 216, 222, 0)); box-shadow: 0 0 12px rgba(79, 216, 222, 0.5); }
+.mcs-pagehead h1 { color: #fff; }
+.mcs-book { padding: clamp(1.75rem, 5vw, 3rem) 0 clamp(3rem, 8vw, 5.5rem); }
+.mcs-book-grid { display: grid; gap: 2rem 3rem; align-items: start; }
+@media (min-width: 62rem) { .mcs-book-grid { grid-template-columns: minmax(0, 1fr) 21rem; } }
+.mcs-card { background: var(--paper); border: 1px solid var(--sand-line); border-radius: 22px; padding: clamp(1.25rem, 4vw, 2.25rem); box-shadow: 0 18px 50px -34px rgba(7, 31, 36, 0.45); }
+.mcs-form { display: grid; gap: 2.25rem; }
 .mcs-form fieldset { border: 0; margin: 0; padding: 0; display: grid; gap: 1rem; min-width: 0; }
-.mcs-form legend { font: 700 1.25rem/1.3 var(--body); padding: 0; margin-bottom: 1rem; }
+.mcs-form legend { display: flex; align-items: center; gap: 0.7rem; font: 700 1.25rem/1.3 var(--body); padding: 0; margin-bottom: 1rem; }
+.mcs-step {
+  display: grid; place-items: center; width: 1.9rem; height: 1.9rem; border-radius: 50%;
+  border: 2.5px solid var(--teal); color: var(--teal-text); font: 800 1.05rem/1 var(--display); flex: none;
+}
 .mcs-row { display: grid; gap: 1rem; }
 @media (min-width: 36rem) { .mcs-row-2 { grid-template-columns: 1fr 1fr; } }
 .mcs-field { display: grid; gap: 0.35rem; align-content: start; }
-.mcs-field label, .mcs-label { font-weight: 600; font-size: 0.98rem; }
+.mcs-field label, .mcs-label { font-weight: 620; font-size: 0.98rem; }
 .mcs-hint { font-size: 0.9rem; color: var(--muted); }
 .mcs-field input, .mcs-field textarea {
-  width: 100%; min-height: 3rem; padding: 0.65rem 0.85rem;
-  border: 1.5px solid #9bbab7; border-radius: 10px; background: var(--paper);
+  width: 100%; min-height: 3.2rem; padding: 0.7rem 0.9rem;
+  border: 1.5px solid #a9bebb; border-radius: 12px; background: var(--paper);
   font: 400 1rem/1.4 var(--body); color: var(--ink);
+  transition: border-color 120ms ease, box-shadow 120ms ease;
 }
+.mcs-field input:hover, .mcs-field textarea:hover { border-color: var(--teal); }
 .mcs-field textarea { min-height: 6.5rem; resize: vertical; }
-.mcs-field input:focus, .mcs-field textarea:focus { outline: 3px solid var(--teal); outline-offset: 0; border-color: var(--teal); }
-.mcs-field [aria-invalid="true"] { border-color: var(--red); }
-.mcs-error { color: var(--red-dark); font-size: 0.92rem; font-weight: 550; }
+.mcs-field input:focus, .mcs-field textarea:focus { outline: none; border-color: var(--teal); box-shadow: 0 0 0 3px rgba(1, 130, 153, 0.28); }
+.mcs-field [aria-invalid="true"] { border-color: var(--red); background: #fffafa; }
+.mcs-error { color: var(--red-dark); font-size: 0.92rem; font-weight: 580; }
 
-.mcs-choices { display: flex; flex-wrap: wrap; gap: 0.6rem; }
+/* The kinds of ride, as route tiles like the board on the home page. */
+.mcs-choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.6rem; }
+@media (min-width: 40rem) { .mcs-choices { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 .mcs-choice { position: relative; }
 .mcs-choice input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
 .mcs-choice span {
-  display: inline-flex; align-items: center; min-height: 2.9rem; padding: 0.55rem 1.1rem;
-  border: 1.5px solid #9bbab7; border-radius: 999px; font-weight: 600; background: var(--paper);
+  display: flex; align-items: center; gap: 0.65rem; min-height: 3.4rem; padding: 0.55rem 0.8rem; height: 100%;
+  border: 1.5px solid #a9bebb; border-radius: 14px; font-weight: 640; line-height: 1.2; background: var(--paper);
+  transition: border-color 120ms ease, background-color 120ms ease, color 120ms ease;
 }
+.mcs-choice b {
+  display: grid; place-items: center; width: 2rem; height: 2rem; border-radius: 7px; flex: none;
+  background: var(--sand); color: var(--ink); font: 800 1.05rem/1 var(--display); font-variant-numeric: tabular-nums;
+}
+.mcs-choice input:hover + span { border-color: var(--teal); }
 .mcs-choice input:checked + span { background: var(--ink); border-color: var(--ink); color: #fff; }
+.mcs-choice input:checked + span b { background: var(--sun); color: var(--ink); }
 .mcs-choice input:focus-visible + span { outline: 3px solid var(--teal); outline-offset: 2px; }
 
 .mcs-alert { border-left: 4px solid var(--red); background: #fbeceb; padding: 0.9rem 1rem; border-radius: 0 10px 10px 0; }
-.mcs-submit { display: grid; gap: 0.75rem; justify-items: start; }
+.mcs-submit { display: grid; gap: 0.85rem; justify-items: start; padding-top: 0.25rem; }
+.mcs-submit .mcs-btn { min-width: 12rem; min-height: 3.4rem; font-size: 1.05rem; }
+@media (max-width: 35.99rem) { .mcs-submit .mcs-btn { width: 100%; } }
 .mcs-trap { position: absolute; left: -200vw; width: 1px; height: 1px; overflow: hidden; }
 
-.mcs-aside { align-self: start; border-top: 2px solid var(--ink); padding-top: 1.25rem; }
-@media (min-width: 60rem) { .mcs-aside { position: sticky; top: 1.5rem; margin-top: 6.5rem; } }
-.mcs-aside h2 { font: 700 1.2rem/1.3 var(--body); }
-.mcs-aside ol { margin: 1rem 0 0; padding-left: 1.2rem; display: grid; gap: 0.75rem; color: var(--muted); list-style: decimal; }
-.mcs-aside ol li::marker { color: var(--teal); font-weight: 700; }
+/* Beside the form: the ride so far, as a ticket, then what happens next. */
+.mcs-aside { display: grid; gap: 1.5rem; }
+@media (min-width: 62rem) { .mcs-aside { position: sticky; top: calc(var(--header-h) + 1.5rem); } }
+.mcs-ticket { border-radius: 18px; overflow: hidden; display: none; }
+@media (min-width: 62rem) { .mcs-ticket { display: block; } }
+.mcs-ticket-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1.1rem 1.25rem 1rem; }
+.mcs-ticket-head h2 { font: 780 1.6rem/1 var(--display); color: #fff; letter-spacing: 0.01em; }
+.mcs-ticket-head .mcs-route { width: 2.4rem; height: 2.4rem; font-size: 1.25rem; border-radius: 8px; }
+/* the tear-off line */
+.mcs-ticket-tear { height: 1.1rem; background:
+  radial-gradient(circle at 0 50%, var(--sand) 0.55rem, transparent 0.6rem) left / 50% 100% no-repeat,
+  radial-gradient(circle at 100% 50%, var(--sand) 0.55rem, transparent 0.6rem) right / 50% 100% no-repeat;
+  position: relative; }
+.mcs-ticket-tear::after { content: ""; position: absolute; left: 1rem; right: 1rem; top: 50%; border-top: 2px dashed rgba(238, 246, 245, 0.22); }
+.mcs-ticket dl { margin: 0; padding: 0.4rem 1.25rem 1.3rem; display: grid; gap: 0.85rem; }
+.mcs-ticket dt { font: 700 0.72rem/1 var(--body); letter-spacing: 0.14em; text-transform: uppercase; color: var(--on-ink-muted); }
+.mcs-ticket dd { margin: 0.3rem 0 0; color: #fff; font-weight: 600; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.mcs-ticket dd.mcs-empty { color: rgba(238, 246, 245, 0.4); font-weight: 500; }
+.mcs-ticket-route { display: grid; grid-template-columns: 0.9rem 1fr; gap: 0 0.7rem; }
+.mcs-ticket-route > span { position: relative; }
+.mcs-ticket-route > span::before { content: ""; position: absolute; left: 50%; top: 0.35rem; width: 0.7rem; height: 0.7rem; margin-left: -0.35rem; border-radius: 50%; border: 2px solid var(--glow); }
+.mcs-ticket-route > span.mcs-to::before { background: var(--glow); box-shadow: 0 0 8px rgba(79, 216, 222, 0.8); }
+.mcs-ticket-route > span.mcs-from::after { content: ""; position: absolute; left: 50%; top: 1.15rem; bottom: -0.5rem; width: 2px; margin-left: -1px; background: rgba(79, 216, 222, 0.5); }
 
-.mcs-done { margin-top: 2rem; max-width: 38rem; display: grid; gap: 1rem; }
+.mcs-next { border-top: 2px solid var(--ink); padding-top: 1.25rem; }
+.mcs-next h2 { font: 700 1.2rem/1.3 var(--body); }
+.mcs-next ol { margin: 1rem 0 0; padding-left: 1.2rem; display: grid; gap: 0.75rem; color: var(--muted); list-style: decimal; }
+.mcs-next ol li::marker { color: var(--teal); font-weight: 700; }
+.mcs-next .mcs-hint { margin-top: 1.25rem; }
+
+.mcs-done { max-width: 40rem; display: grid; gap: 1rem; }
+.mcs-done-mark { display: grid; place-items: center; width: 3.25rem; height: 3.25rem; border-radius: 50%; background: var(--teal); color: #fff; box-shadow: 0 0 0 8px rgba(1, 130, 153, 0.14); }
+.mcs-done-mark svg { width: 1.6rem; height: 1.6rem; }
 .mcs-done h2 { font: 700 1.6rem/1.2 var(--body); }
