@@ -76,6 +76,35 @@ from before the switch), and turn the three Supabase email jobs off again
   tablets' legacy sign-in).
 - Step 9: once things have run quietly for a while, retire Base44.
 
+## Step 9: leaving Base44 (started 27 October 2026)
+
+Done:
+- The public website is on mcsweenstransport.com and www (the same
+  `transittrack` Worker as app.mcsweenstransport.com).
+- No tablet is paired and Base44's functions had no calls in the last 7 days,
+  so nothing depends on the Base44 copy or its forwarding any more.
+- The old address, eager-transit-track-go.base44.app, sends people to the same
+  page on app.mcsweenstransport.com (a script at the top of index.html). To
+  undo, remove that script and publish the Base44 copy again.
+- The old FreeKiosk setup file opens app.mcsweenstransport.com.
+
+Left:
+1. Two profile photos (and six old boarding pictures copied from them) still
+   point at Base44's file storage. Upload the photos again from the profile
+   page; old boarding pictures from those days will show initials.
+2. Code changes: today they are made in the Base44 editor, which saves them to
+   GitHub. Before cancelling Base44, make changes through GitHub instead (a
+   Claude Code session with JahvonM/transittrack connected, or a computer).
+3. Then remove the Base44-only code in one change: src/api/backend.base44.js,
+   the `--mode` switch in vite.config.js, @base44/sdk and @base44/vite-plugin,
+   base44/shared/forwardToSupabase.ts and LIVE_BACKEND, the Base44 address in
+   the allowed-site lists (supabase/functions/_shared/base44-compat.ts,
+   integrations, tools/supabase/auth-emails.mjs, the card reader, desktop
+   sign-in) and the media.base44.com image mapping. The folders named
+   base44/ stay: they are the source the Supabase copies are built from.
+4. In Base44: disconnect GitHub (so nothing more is pushed from there),
+   unpublish the app, then cancel the plan.
+
 
 ## Cutover completed — 22 October 2026
 
