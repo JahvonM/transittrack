@@ -22,6 +22,17 @@ public class TabletPowerPolicyTest {
         assertTrue(p.update(5, false));
         assertFalse(p.update(1, true));
     }
+    @Test public void ownPhoneOnBatteryTakesFixesLessOften() {
+        TabletPowerPolicy p = new TabletPowerPolicy();
+        assertEquals(5000L, p.gpsIntervalMs(false));
+        p.update(60, false);
+        assertEquals(10000L, p.gpsIntervalMs(false));
+        assertEquals(5000L, p.gpsIntervalMs(true));
+        p.update(60, null);
+        assertEquals(10000L, p.gpsIntervalMs(false));
+        p.update(60, true);
+        assertEquals(5000L, p.gpsIntervalMs(false));
+    }
     @Test public void unknownReadingsDoNotChangeExistingParkState() {
         TabletPowerPolicy p = new TabletPowerPolicy();
         p.update(3, false);

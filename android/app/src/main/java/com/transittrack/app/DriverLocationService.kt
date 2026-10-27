@@ -68,8 +68,8 @@ class DriverLocationService:Service() {
   val level=intent.getIntExtra(BatteryManager.EXTRA_LEVEL,-1);val scale=intent.getIntExtra(BatteryManager.EXTRA_SCALE,-1)
   val percent=if(level>=0&&scale>0)level*100/scale else -1
   val plugged=intent.getIntExtra(BatteryManager.EXTRA_PLUGGED,-1)
-  val old=power.parked();power.update(percent,if(plugged<0)null else plugged!=0)
-  if(old!=power.parked())changeSource()
+  val old=power.parked();val every=power.gpsIntervalMs(BuildConfig.KIOSK);power.update(percent,if(plugged<0)null else plugged!=0)
+  if(old!=power.parked()||every!=power.gpsIntervalMs(BuildConfig.KIOSK))changeSource()
  }}
  private val permission=object:BroadcastReceiver(){override fun onReceive(context:Context,intent:Intent){
   UsbAutoAcceptService.clearPending(context,"gps")
@@ -126,7 +126,7 @@ class DriverLocationService:Service() {
    val coarse=checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION)==PackageManager.PERMISSION_GRANTED
    if(!fine&&!coarse)throw SecurityException()
    val provider=if(fine)LocationManager.GPS_PROVIDER else LocationManager.NETWORK_PROVIDER
-   location?.requestLocationUpdates(provider,5000L,0f,locationListener,Looper.getMainLooper());report("Waiting for tablet GPS")
+   location?.requestLocationUpdates(provider,power.gpsIntervalMs(BuildConfig.KIOSK),0f,locationListener,Looper.getMainLooper());report("Waiting for tablet GPS")
   }catch(e:Exception){report("Location permission or tablet GPS unavailable")}
  }
  private fun sample(lat:Double,lng:Double,accuracy:Double,speed:Double,heading:Double,t:Long){

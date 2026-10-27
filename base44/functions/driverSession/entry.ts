@@ -11,6 +11,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 import { passengerPushTokens } from '../../shared/chatPush.ts';
 import { applyLocationUpdate } from '../../shared/vehicleLocation.ts';
 import { cleanNetworkHealth, networkCheckIn } from '../../shared/tabletNetwork.ts';
+import { driverKey } from '../../shared/driverPhone.ts';
 // Shared request budgets use the configured Supabase RPC and fail closed.
 import { reserveAttempt, createOnce, withLock } from '../../shared/atomicOps.ts';
 import { pushWithPolicy, emailWithPolicy } from '../../shared/notificationPolicy.ts';
@@ -1095,11 +1096,15 @@ export default async function(req) {
         // A driver's own phone never joins a shift another device has open.
         if (ownDevice && open.length && open[0].device_id !== device.id) return Response.json({ error: `${vehicle.name || 'This bus'} already has a driver on shift`, code: 'BUS_BUSY' }, { status: 409 });
         if (open.length) return Response.json({ shift: open[0] });
+        // A phone's shift carries the driver's sign-in name, as a bus tablet's
+        // does (from the bus), so their hours add up in one place.
+        const owner = ownDevice && device.driver_id ? await base44.asServiceRole.entities.Driver.get(device.driver_id).catch(() => null) : null;
+        const ownerKey = owner && owner.company_id === companyId ? driverKey(owner) : '';
         const shift = await durableCreate(requestId ? JSON.stringify(['shift',device.id,companyId,vehicleId,requestId]) : null,requestHash,async()=>{
         const shift = await base44.asServiceRole.entities.DriverShift.create({
           ...(requestId ? {client_request_id:requestId,request_hash:requestHash} : {}),
           vehicle_id: vehicleId, vehicle_name: vehicle.name, company_id: companyId, company_name: companyName,
-          driver_name: ownDevice ? device.driver_name || '' : vehicle.driver_name || '', driver_email: ownDevice ? '' : vehicle.driver_email || '',
+          driver_name: ownDevice ? device.driver_name || '' : vehicle.driver_name || '', driver_email: ownDevice ? ownerKey : vehicle.driver_email || '',
           ...(ownDevice && device.driver_id ? { driver_id: device.driver_id } : {}),
           device_id, started_at: occurredAt(body.occurred_at).toISOString(),
         });

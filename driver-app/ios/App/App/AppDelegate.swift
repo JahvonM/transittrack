@@ -18,7 +18,20 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
            let options = FirebaseOptions(contentsOfFile: path) {
             FirebaseApp.configure(options: options)
         }
+        keepWebDataOutOfBackups()
         return true
+    }
+
+    // The app's web storage holds this phone's pairing key. Keep it out of
+    // iCloud and computer backups, so a restored or new phone is paired again
+    // instead of carrying the old phone's key.
+    private func keepWebDataOutOfBackups() {
+        guard let library = FileManager.default.urls(for: .libraryDirectory, in: .userDomainMask).first else { return }
+        var webKit = library.appendingPathComponent("WebKit", isDirectory: true)
+        try? FileManager.default.createDirectory(at: webKit, withIntermediateDirectories: true)
+        var values = URLResourceValues()
+        values.isExcludedFromBackup = true
+        try? webKit.setResourceValues(values)
     }
 
     // iPhone gives an Apple (APNs) token; the server sends through Firebase,

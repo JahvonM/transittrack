@@ -58,6 +58,7 @@ public class DriverBackgroundPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationMana
     private var generation = 0
     private var configuring = false
     private var timer: DispatchSourceTimer?
+    private var powerObserver: NSObjectProtocol?
 
     private lazy var session: URLSession = {
         let config = URLSessionConfiguration.ephemeral
@@ -232,7 +233,15 @@ public class DriverBackgroundPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationMana
         status = "Waiting for GPS"
         DispatchQueue.main.async {
             let m = self.locationManager()
-            m.desiredAccuracy = kCLLocationAccuracyBestForNavigation
+            // The navigation-grade mode is meant for a phone on a charger; on
+            // battery the normal best accuracy is plenty for a bus.
+            UIDevice.current.isBatteryMonitoringEnabled = true
+            self.matchAccuracyToPower()
+            if self.powerObserver == nil {
+                self.powerObserver = NotificationCenter.default.addObserver(forName: UIDevice.batteryStateDidChangeNotification, object: nil, queue: .main) { [weak self] _ in
+                    self?.matchAccuracyToPower()
+                }
+            }
             m.distanceFilter = 10
             m.activityType = .automotiveNavigation
             m.pausesLocationUpdatesAutomatically = false
@@ -263,7 +272,18 @@ public class DriverBackgroundPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationMana
         DispatchQueue.main.async {
             self.manager?.stopUpdatingLocation()
             self.manager?.allowsBackgroundLocationUpdates = false
+            if let observer = self.powerObserver {
+                NotificationCenter.default.removeObserver(observer)
+                self.powerObserver = nil
+            }
         }
+    }
+
+    // Main thread only.
+    private func matchAccuracyToPower() {
+        let state = UIDevice.current.batteryState
+        let onPower = state == .charging || state == .full
+        manager?.desiredAccuracy = onPower ? kCLLocationAccuracyBestForNavigation : kCLLocationAccuracyBest
     }
 
     private func locationManager() -> CLLocationManager {

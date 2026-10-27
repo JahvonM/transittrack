@@ -13,7 +13,7 @@ const future = () => new Date(Date.now() + 86400_000).toISOString();
 function setup() {
   const sdk = mock(null);
   sdk.tables.Vehicle.push({ id: "bus-a2", company_id: "a", name: "Bus A2" }, { id: "bus-off", company_id: "a", name: "Old bus", in_service: false });
-  sdk.tables.Driver = [{ id: "drv1", company_id: "a", full_name: "Ana Joseph" }];
+  sdk.tables.Driver = [{ id: "drv1", company_id: "a", full_name: "Ana Joseph", username: "ana_j" }];
   sdk.tables.KioskDevice.push({
     id: "phone", created_date: "2026-10-26T00:00:00Z", status: "active", paired: true, kiosk_type: "driver", personal: true,
     driver_id: "drv1", driver_name: "Ana Joseph", company_id: "a", company_name: "A", vehicle_id: "", pairing_code: "PHONE1234567",
@@ -83,6 +83,8 @@ describe("a driver's own phone", () => {
     const started = await send("start_shift", { driver_grant: grant, client_request_id: "start-req-0001" });
     expect(started.status).toBe(200);
     expect(started.body.shift).toMatchObject({ vehicle_id: "bus-a", device_id: "phone", driver_name: "Ana Joseph", driver_id: "drv1" });
+    // The same sign-in name a bus tablet's shift carries, so hours add up in one row.
+    expect(started.body.shift.driver_email).toBe("driver.ana_j@login.mcsweenstransport.com");
     expect((await send("choose_bus", { vehicle_id: "bus-a2" })).body.code).toBe("SHIFT_OPEN");
     expect((await send("release_bus")).body.code).toBe("SHIFT_OPEN");
     sdk.tables.DriverShift.find((s) => s.id === started.body.shift.id).ended_at = new Date().toISOString();

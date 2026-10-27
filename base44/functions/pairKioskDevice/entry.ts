@@ -62,7 +62,11 @@ export default async function(req) {
 
     if (body.expected_type === 'driver' && device.kiosk_type !== 'driver') return Response.json({ error: 'Not a driver tablet' }, { status: 400 });
     if (body.expected_type === 'kiosk' && device.kiosk_type === 'driver') return Response.json({ error: 'Not a kiosk tablet' }, { status: 400 });
-    if (!(Date.parse(device.pairing_expires_at) > Date.now()) || Date.parse(device.pairing_expires_at) > Date.now()+15*60_000) return Response.json({ error: 'Pairing code expired' }, { status: 410 });
+    // A bus tablet's code lasts 15 minutes; a driver's own phone's code 7 days
+    // (the driver installs the app from the store first). A code set to last
+    // longer than that was not made by Admin and is refused.
+    const longestCode = device.personal === true ? 7 * 86400_000 : 15 * 60_000;
+    if (!(Date.parse(device.pairing_expires_at) > Date.now()) || Date.parse(device.pairing_expires_at) > Date.now() + longestCode) return Response.json({ error: 'Pairing code expired' }, { status: 410 });
     if (!device.company_id) return Response.json({ error: 'Company assignment required' }, { status: 400 });
     if (durableWritesEnabled()) {
       const binding=JSON.stringify([device.id,device.company_id,device.vehicle_id||'',device.kiosk_type,device.pairing_expires_at]);

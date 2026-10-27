@@ -10,4 +10,11 @@
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" tools:node="remove" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" tools:node="remove" />
     <uses-feature android:name="android.hardware.bluetooth_le" tools:node="remove" />
+    <!-- A driver's own phone: the pairing key stays on the phone, out of
+         Google backups and phone-to-phone transfers. -->
+    <application
+        android:allowBackup="false"
+        android:fullBackupContent="@xml/store_backup_rules"
+        android:dataExtractionRules="@xml/store_data_extraction"
+        tools:replace="android:allowBackup,android:fullBackupContent,android:dataExtractionRules" />
 </manifest>
