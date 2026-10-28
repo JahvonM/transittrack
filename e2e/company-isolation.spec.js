@@ -42,7 +42,7 @@ test('mechanic sees vehicles from both companies through scoped backend access',
 });
 test('company fleet uses approved context and scoped entity access',async({page})=>{
  const {calls,direct}=await session(page,'company');
- await page.goto('/company');
+ await page.goto('/company/vehicles');
  await expect(page.getByText(/^Bus A · Driver:/).first()).toBeVisible();
  await expect(page.getByText('Bus B',{exact:true})).toHaveCount(0);
  expect(calls.some(c=>c.entity==='User' && c.id==='me')).toBe(true);

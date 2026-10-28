@@ -7,11 +7,12 @@ import { busNumber, busStatusLine, sortStops } from "@/components/passenger/pass
 import { fleetStatus, StatusPill } from "@/components/admin/AdminOverview";
 
 const LiveTransitMap = lazy(() => import("@/components/map3d/LiveTransitMap"));
-const ORDER = { sos: 0, speed: 1, lost: 2, stale: 3, live: 4, out: 5, idle: 6 };
+const ORDER = { sos: 0, speed: 1, lost: 2, stale: 3, live: 4, out: 5, idle: 6, hidden: 7 };
 
 // The company's buses beside the 3D map. Read-only: picking a bus flies the
-// map to it and draws its route.
-export default function FleetMap({ vehicles }) {
+// map to it and draws its route. A company account passes its own status
+// and line, since it sees a bus only while it is shared with it.
+export default function FleetMap({ vehicles, statusOf = fleetStatus, lineOf = busStatusLine }) {
   const { location: userLoc } = useUserLocation();
   const [liveVehicles, setLiveVehicles] = useState(vehicles);
   const [routes, setRoutes] = useState([]);
@@ -40,12 +41,12 @@ export default function FleetMap({ vehicles }) {
 
   const alerts = liveVehicles.filter((v) => v.status === "speeding" || v.status === "emergency");
   const routeOf = (v) => routes.find((r) => r.id === v.route_id) || null;
-  const statuses = useMemo(() => Object.fromEntries(liveVehicles.map((v) => [v.id, fleetStatus(v, now)])), [liveVehicles, now]);
-  const rows = [...liveVehicles].sort((a, b) => ORDER[statuses[a.id].key] - ORDER[statuses[b.id].key] || String(a.name).localeCompare(String(b.name), undefined, { numeric: true }));
+  const statuses = useMemo(() => Object.fromEntries(liveVehicles.map((v) => [v.id, statusOf(v, now)])), [liveVehicles, now, statusOf]);
+  const rows = [...liveVehicles].sort((a, b) => (ORDER[statuses[a.id].key] ?? 9) - (ORDER[statuses[b.id].key] ?? 9) || String(a.name).localeCompare(String(b.name), undefined, { numeric: true }));
   const selected = liveVehicles.find((v) => v.id === focus.id) || null;
   const selRoute = selected ? routeOf(selected) : null;
   const selStops = useMemo(() => sortStops(selRoute?.stops).filter((s) => s.lat != null && s.lng != null), [selRoute]);
-  const callout = selected?.current_lat != null ? { primary: selected.name, secondary: busStatusLine(selected, selRoute, now), tone: "live" } : null;
+  const callout = selected?.current_lat != null ? { primary: selected.name, secondary: lineOf(selected, selRoute, now), tone: "live" } : null;
 
   return (
     <div className="space-y-4">
@@ -101,7 +102,7 @@ export default function FleetMap({ vehicles }) {
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="block truncate font-semibold">{v.name}</span>
-                      <span className="block truncate text-body-sm text-muted-foreground">{busStatusLine(v, routeOf(v), now)}</span>
+                      <span className="block truncate text-body-sm text-muted-foreground">{lineOf(v, routeOf(v), now)}</span>
                     </span>
                     <StatusPill status={st} />
                   </button>

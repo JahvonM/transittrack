@@ -43,13 +43,17 @@ function ChangeBus({busName,jobs,savedCount,call,onMoved,onCancel}) {
  </section>;
 }
 
-export default function SigningJobControls({deviceId,busName,savedCount=0,onShowSignature,onShowNameSign,onBusChanged}) {
+// hidden: a name sign is up; the controls stay as they were behind it (still
+// locking after two minutes idle). openRequest: bump it to open them again,
+// e.g. when the sign is slid away.
+export default function SigningJobControls({deviceId,busName,savedCount=0,onShowSignature,onShowNameSign,onBusChanged,hidden=false,openRequest=0}) {
  const [open,setOpen]=useState(false),[pin,setPin]=useState(""),[grant,setGrant]=useState(""),[jobs,setJobs]=useState([]),[busy,setBusy]=useState(false),[error,setError]=useState(""),[moving,setMoving]=useState(false),[moved,setMoved]=useState("");
  const idle=useRef(null);
  const lock=()=>{setOpen(false);setGrant("");setPin("");setJobs([]);setError("");setMoving(false);setMoved("");};
  const touch=()=>{clearTimeout(idle.current);idle.current=setTimeout(lock,120000);};
  useEffect(()=>()=>clearTimeout(idle.current),[]);
  useEffect(()=>{lock();},[deviceId]);
+ useEffect(()=>{if(openRequest){setOpen(true);touch();}},[openRequest]);
  const call=async(action,body={})=>(await base44.functions.invoke("jobSigning",deviceRequest(deviceId,{action,operator_grant:grant,...body}))).data;
  const unlock=async()=>{
   if(busy)return;setBusy(true);setError("");
@@ -67,7 +71,7 @@ export default function SigningJobControls({deviceId,busName,savedCount=0,onShow
   try{const state=await call("operator_state",{operator_grant:nextGrant});setJobs(state.jobs||[]);}catch{setJobs([]);}
  };
  return <><Button variant="outline" onClick={()=>{setOpen(true);touch();}}>Job controls</Button>
- <Dialog open={open} onOpenChange={value=>value?setOpen(true):lock()}><DialogContent className="max-h-[90dvh] overflow-y-auto max-w-2xl" onPointerDownCapture={touch} onKeyDownCapture={touch}>
+ <Dialog open={open&&!hidden} onOpenChange={value=>value?setOpen(true):lock()}><DialogContent className="max-h-[90dvh] overflow-y-auto max-w-2xl" onPointerDownCapture={touch} onKeyDownCapture={touch}>
  <DialogHeader><DialogTitle>Signing tablet job controls</DialogTitle><DialogDescription>{grant?"Your assigned bus's jobs. Controls lock after two minutes idle.":"Enter the bus PIN to view job details and arrival controls."}</DialogDescription></DialogHeader>
  {error&&<p role="alert" className="text-destructive">{error}</p>}
  {!grant?<form className="space-y-3" onSubmit={e=>{e.preventDefault();unlock();}}><Input aria-label="Bus PIN" type="password" inputMode="numeric" maxLength={4} value={pin} onChange={e=>setPin(e.target.value.replace(/\D/g,""))}/><Button type="submit" disabled={busy||pin.length!==4}>{busy?"Checking…":"Unlock job controls"}</Button></form>
@@ -75,7 +79,7 @@ export default function SigningJobControls({deviceId,busName,savedCount=0,onShow
  :<div className="space-y-3">
  <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-muted/50 p-3"><p>{moved?<span role="status" className="font-semibold">{moved}</span>:<>This tablet is on <strong>{busName||"its bus"}</strong>.</>}</p><Button variant="outline" onClick={()=>{setMoving(true);setMoved("");}}>Change bus</Button></div>
  {jobs.length?jobs.map(job=><section key={job.id} className="rounded-xl border p-4 space-y-2"><h2 className="font-bold">{job.pickup_name} → {job.dropoff_name}</h2><p>{job.passenger_name||job.client_name} · {job.guests??"—"} guests</p>{job.flight_number&&<p>Flight {job.flight_number}</p>}{job.scheduled_time&&<p>{new Date(job.scheduled_time).toLocaleString()}</p>}{job.notes&&<p>{job.notes}</p>}<p className="text-sm text-muted-foreground">{job.status.replaceAll("_"," ")}</p>
- <Button variant="outline" onClick={()=>{onShowNameSign(job);lock();}}>Show guest name card</Button>
+ <Button variant="outline" onClick={()=>onShowNameSign(job)}>Show guest name card</Button>
  {job.status==="scheduled"?<p>Waiting for the driver to start this job.</p>:!job.pickup_signed_at?<Button disabled={busy||job.status!=="on_the_way"} onClick={()=>arrive(job,"pickup")}>Arrived at pickup · Show sign-in</Button>:<Button disabled={busy} onClick={()=>arrive(job,"dropoff")}>Arrived at drop-off · Show sign-in</Button>}
  </section>):<p>No active jobs assigned to this bus.</p>}<Button variant="outline" onClick={lock}>Lock controls</Button></div>}
  </DialogContent></Dialog></>;

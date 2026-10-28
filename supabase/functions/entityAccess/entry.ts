@@ -40,15 +40,17 @@ ENTITY_FIELDS.ClientError.push('area','context','breadcrumbs','status','resolved
 // on from billing only.
 const JOB_SIGNATURE_FIELDS=['pickup_signature_uri','pickup_signed_role','pickup_signed_guests','pickup_signed_lat','pickup_signed_lng','pickup_signature_request_id','dropoff_signature_uri','dropoff_signed_role','dropoff_signed_guests','dropoff_signed_lat','dropoff_signed_lng','dropoff_signature_request_id'];
 ENTITY_FIELDS.Trip.push('job_type','client_id','client_name','pickup_address','dropoff_address','flight_number','flight_time','guests','luggage','notes','stops','end_time','price','currency','cancelled_at','invoice_id','invoice_number',...JOB_SIGNATURE_FIELDS);
+// A job dispatch shows in the bus company's portal (see busSharing below).
+ENTITY_FIELDS.Trip.push('shared_with_company');
 // Saved places, clients and invoices for jobs. None is a company list, so only
 // an administrator can read or change them.
 ENTITY_FIELDS.Place=['company_id','name','kind','address','lat','lng','notes','favorite'];
 ENTITY_FIELDS.Client=['company_id','name','kind','contact_name','email','phone','address','currency','notes'];
 // Rides asked for on the public website. Only an administrator reads them;
 // they change only through the bookingRequest function, which emails the customer.
-ENTITY_FIELDS.BookingRequest=['service','requested_time','pickup','dropoff','guests','luggage','flight_number','name','phone','email','notes','status','trip_id','decline_reason','handled_by','handled_at','tracking_sent_at'];
+ENTITY_FIELDS.BookingRequest=['service','requested_time','pickup','dropoff','guests','luggage','flight_number','name','phone','email','notes','status','trip_id','decline_reason','handled_by','handled_at','tracking_sent_at','company_id','company_name','requested_by_id'];
 ENTITY_FIELDS.Invoice=['company_id','company_name','client_id','client_name','client_email','client_address','number','period_start','period_end','issued_at','due_date','lines','total','currency','status','sent_at','paid_at','voided_at','notes'];
-const ADMIN_ONLY_FIELDS={Driver:new Set(['phone_app_access']),Vehicle:new Set(['driver_id']),Trip:new Set(['client_id','client_name','price','currency'])};
+const ADMIN_ONLY_FIELDS={Driver:new Set(['phone_app_access']),Vehicle:new Set(['driver_id']),Trip:new Set(['client_id','client_name','price','currency','shared_with_company'])};
 const SERVER_ONLY_FIELDS={Driver:new Set(['username','auth_user_id','must_change_password']),Incident:new Set(['photo_uris','source']),KioskDevice:new Set(['recordings_request','support_request','network_status', 'control_status']),Trip:new Set([...JOB_SIGNATURE_FIELDS,'invoice_id','invoice_number'])};
 const JOB_TYPES=new Set(['airport_pickup','airport_dropoff','hotel_tour','staff_run','transfer']);
 const CURRENCIES=new Set(['XCD','USD']);
@@ -191,7 +193,13 @@ async function visible(db, ctx, name, row) {
   if (!row.vehicle_id) return false;
   return (await memberships(db,user,ctx)).some(m=>m.scope==='passenger' && m.company_id===tenant && m.vehicle_id===row.vehicle_id);
  }
- if (user.role === 'company') return COMPANY_READ.has(name);
+ if (user.role === 'company') {
+  // No location history for a company: only where a bus is now, and only
+  // while it is shared (busSharing). Jobs only when dispatch shares them.
+  if (COMPANY_NO_HISTORY.has(name)) return false;
+  if (name === 'Trip' && row.job_type && row.shared_with_company !== true) return false;
+  return COMPANY_READ.has(name);
+ }
  if (!PASSENGER_READ.has(name)) return false;
  if (name === 'GroupMessage' && row.channel !== 'staff') return false;
  return true;
@@ -211,8 +219,48 @@ function project(ctx,name,row) {
  if (name==='User' && row.id===ctx.user?.id) out.company_id=ctx.companies[0] || '';
  return out;
 }
+// A company sees where one of its buses is only while a driver's shift is
+// open on it, or while a job dispatch shared with the company is under way
+// on it. Otherwise the bus comes back without a position.
+const COMPANY_NO_HISTORY=new Set(['LocationPing','DrivingEvent']);
+const BUS_LOCATION_FIELDS=['current_lat','current_lng','trail','speed','heading','last_location_update','last_ping_logged_at','near_stop_id','road_next_stop'];
+const JOB_UNDER_WAY=['on_the_way','arrived'];
+async function busSharing(db,ctx,ids) {
+ if(!ctx.busSharing) ctx.busSharing=new Map();
+ const missing=[...new Set(ids)].filter(id=>typeof id==='string' && id && !ctx.busSharing.has(id));
+ if(missing.length) {
+  const lookup=(async()=>{
+   const [shifts,jobs]=await Promise.all([
+    // An open shift is its bus's latest one; the newest shifts are enough.
+    retry429(()=>db.DriverShift.filter({vehicle_id:{$in:missing}},'-started_at',300)),
+    retry429(()=>db.Trip.filter({vehicle_id:{$in:missing},status:{$in:JOB_UNDER_WAY}},'-scheduled_time',500)),
+   ]);
+   const out=new Map(missing.map(id=>[id,'']));
+   for(const job of jobs) if(job.shared_with_company===true && job.job_type && JOB_UNDER_WAY.includes(job.status) && ctx.companies.includes(job.company_id) && out.has(job.vehicle_id)) out.set(job.vehicle_id,'job');
+   for(const shift of shifts) if(!shift.ended_at && out.has(shift.vehicle_id)) out.set(shift.vehicle_id,'shift');
+   return out;
+  })();
+  for(const id of missing) ctx.busSharing.set(id,lookup.then(found=>found.get(id)||''));
+ }
+ return Promise.all(ids.map(id=>ctx.busSharing.get(id) || ''));
+}
+async function companyView(db,ctx,name,row,out) {
+ if(name==='Vehicle') {
+  const [shared]=await busSharing(db,ctx,[row.id]);
+  if(!shared) for(const field of BUS_LOCATION_FIELDS) if(Object.hasOwn(out,field)) out[field]=null;
+  out.location_shared=shared;
+ }
+ // The bus's tablet reports its last GPS fix with its health.
+ if(name==='KioskDevice' && out.app_health && typeof out.app_health==='object') {
+  const health={...out.app_health};
+  delete health.lat;delete health.lng;
+  out.app_health=health;
+ }
+ return out;
+}
 async function projectRecord(db,ctx,name,row) {
  const out=project(ctx,name,row);
+ if(ctx.user?.role==='company' && row) await companyView(db,ctx,name,row,out);
  if(name==='User' && row?.id===ctx.user?.id) out.access_role=await assignedAccessRole(db,ctx.user);
  if(name==='User' && ctx.user?.role==='admin') out.access_role_id=row?.access_role_id || '';
  if(name==='User' && row && ctx.user?.role==='admin') {
@@ -318,7 +366,9 @@ async function prepare(db,ctx,name,input,existing=null) {
    if (!(MAINTENANCE.has(name) || (name==='GroupMessage' && (data.channel||existing?.channel)==='mechanic'))) fail(403,'Forbidden');
    if(name==='Vehicle' && Object.keys(data).some(k=>!['current_odometer','last_inspection_date','in_service','hours','status'].includes(k))) fail(403,'Maintenance vehicle fields only');
   } else if(user.role==='company') {
-   if(!COMPANY_READ.has(name) || (name==='Company' && !existing)) fail(403,'Forbidden');
+   if(!COMPANY_READ.has(name) || (name==='Company' && !existing) || COMPANY_NO_HISTORY.has(name)) fail(403,'Forbidden');
+   // Jobs are asked for (bookingRequest company_request); dispatch makes and changes them.
+   if(name==='Trip' && (existing?.job_type || data.job_type)) fail(403,'Ask for a job from Jobs → Request a job');
   } else if (name!=='GroupMessage' && name!=='LostItemReport') fail(403,'Forbidden');
  }
  if(name==='LostItemReport' && user.role!=='admin' && user.role!=='company') {
@@ -449,6 +499,8 @@ async function listRows(db, ctx, name, operation, body) {
    rows.map(row=>[row.id,membershipRows.filter(m=>m.user_id===row.id).slice(0,100)]));
  }
  if (ctx.user && !['admin','mechanic'].includes(ctx.user.role)) await prefetchParents(db, rows, ctx.parents);
+ // One look-up for the whole page of buses instead of one per bus.
+ if (name==='Vehicle' && ctx.user?.role==='company' && rows.length) await busSharing(db,ctx,rows.map(row=>row.id));
  const result=[];
  for(const row of rows) if(await visible(db,ctx,name,row)) result.push(await projectRecord(db,ctx,name,row));
  return result;
@@ -532,6 +584,7 @@ export default async function(req) {
    ]);
    // The trips' buses were just read above: reuse them instead of one read per trip's bus.
    for(const row of vehicleRows) ctx.parents.set('Vehicle:'+row.id,Promise.resolve(row));
+   if(ctx.user.role==='company' && vehicleRows.length) await busSharing(db,ctx,vehicleRows.map(row=>row.id));
    const projected=async(entity,rows)=>{const out=[];for(const row of rows) if(await visible(db,ctx,entity,row)) out.push(await projectRecord(db,ctx,entity,row));return out;};
    const [workplaces,vehicles,routes,trips]=await Promise.all([
     projected('Workplace',workplaceRows),projected('Vehicle',vehicleRows),projected('Route',routeRows),projected('Trip',tripRows),

@@ -146,3 +146,78 @@ describe("booking on the website", () => {
     expect(rows.get("req2")).toMatchObject({ status: "declined", decline_reason: "spam" });
   });
 });
+
+// A company asking for a job from its portal.
+describe("job requests from a company portal", () => {
+  function companySetup({ role = "company", membership = { scope: "manager", active: true, company_id: "c1" } } = {}) {
+    const env = setup({ role });
+    const manager = { id: "u1", role, email: "frontdesk@hotel.example", display_name: "Front desk", phone: "" };
+    env.db.User.get = vi.fn(async (id) => (id === "u1" ? manager : null));
+    env.db.CompanyMembership = { filter: vi.fn(async () => (membership ? [{ id: "m1", user_id: "u1", ...membership }] : [])) };
+    env.db.Company = { get: vi.fn(async (id) => (id === "c1" ? { id: "c1", name: "Six Senses", phone: "+1 473 555 0200" } : null)) };
+    env.db.BookingRequest.filter = vi.fn(async (q) => [...env.rows.values()].filter((r) => (q.company_id ? r.company_id === q.company_id : r.trip_id === q.trip_id)));
+    env.db.Trip.update = vi.fn(async (id, d) => ({ id, ...d }));
+    return env;
+  }
+  const later = () => new Date(Date.now() + 3 * 86400_000).toISOString();
+  const jobForm = (over = {}) => ({ action: "company_request", service: "airport_pickup", requested_time: later(), pickup: "Maurice Bishop Airport", dropoff: "Six Senses", guests: 2, flight_number: "AA 1234", name: "Mr and Mrs Lee", notes: "VIP", ...over });
+
+  it("saves the request for the company and emails dispatch", async () => {
+    const { rows, sent } = companySetup();
+    const res = await call(jobForm());
+    expect(res).toMatchObject({ status: 200, body: { ok: true, id: "req1" } });
+    // The company's phone stands in when the form has none; replies go to the account's own email.
+    expect(rows.get("req1")).toMatchObject({ status: "new", company_id: "c1", company_name: "Six Senses", requested_by_id: "u1", name: "Mr and Mrs Lee", email: "frontdesk@hotel.example", phone: "+1 473 555 0200" });
+    const toDispatch = sent.find((m) => m.to === "dispatch@example.com");
+    expect(toDispatch.subject).toMatch(/^Job request from Six Senses: Airport pickup/);
+    for (const text of ["Six Senses asked for a job", "Mr and Mrs Lee", "Front desk", "AA 1234", "VIP"]) expect(toDispatch.body).toContain(text);
+    const toCompany = sent.find((m) => m.to === "frontdesk@hotel.example");
+    expect(toCompany.subject).toBe("We have your job request");
+    expect(toCompany.body).toContain("your company account asked for this ride");
+  });
+
+  it("is only for approved company accounts", async () => {
+    companySetup({ role: "staff" });
+    expect((await call(jobForm())).status).toBe(403);
+    companySetup({ membership: null });
+    expect((await call(jobForm())).body.error).toMatch(/administrator approval/);
+    // A passenger membership is not a manager's.
+    companySetup({ membership: { scope: "passenger", active: true, company_id: "c1" } });
+    expect((await call(jobForm())).status).toBe(403);
+    setup();
+    expect((await call(jobForm())).status).toBe(401);
+  });
+
+  it("asks for the guest and a sensible time", async () => {
+    const { rows } = companySetup();
+    expect((await call(jobForm({ name: "" }))).body.error).toBe("Please add the guest's name.");
+    expect((await call(jobForm({ requested_time: new Date(Date.now() + 10 * 60_000).toISOString() }))).body.error).toMatch(/at least an hour/);
+    expect(rows.size).toBe(0);
+    vi.mocked(reserveAttempt).mockResolvedValue(false);
+    expect((await call(jobForm())).status).toBe(429);
+  });
+
+  it("lists only the company's own requests, without other customers' details", async () => {
+    const { rows } = companySetup();
+    rows.set("w1", { id: "w1", status: "new", email: "tourist@example.com", name: "Website customer" });
+    rows.set("c1r", { id: "c1r", status: "declined", decline_reason: "No bus", company_id: "c1", email: "frontdesk@hotel.example", requested_by_id: "u1", name: "Guest" });
+    const res = await call({ action: "company_requests" });
+    expect(res.body.requests.map((r) => r.id)).toEqual(["c1r"]);
+    expect(res.body.requests[0]).toMatchObject({ status: "declined", decline_reason: "No bus" });
+    expect(res.body.requests[0]).not.toHaveProperty("email");
+    expect(res.body.requests[0]).not.toHaveProperty("requested_by_id");
+  });
+
+  it("confirming a company's request shares the job with that company", async () => {
+    const { rows, sent, db } = companySetup({ role: "admin" });
+    rows.set("req1", { id: "req1", status: "new", email: "frontdesk@hotel.example", company_id: "c1", service: "airport_pickup", requested_time: "2026-10-27T15:30:00Z", pickup: "MBIA", dropoff: "Hotel" });
+    expect((await call({ action: "confirm", request_id: "req1", trip_id: "trip1" })).body).toMatchObject({ ok: true });
+    expect(db.Trip.update).toHaveBeenCalledWith("trip1", { shared_with_company: true });
+    expect(sent[0].body).toContain("company portal under Jobs");
+    // A website request does not share the job.
+    db.Trip.update.mockClear();
+    rows.set("req2", { id: "req2", status: "new", email: "ana@example.com", service: "airport_pickup", requested_time: "2026-10-27T15:30:00Z", pickup: "MBIA", dropoff: "Hotel" });
+    await call({ action: "confirm", request_id: "req2", trip_id: "trip1" });
+    expect(db.Trip.update).not.toHaveBeenCalled();
+  });
+});

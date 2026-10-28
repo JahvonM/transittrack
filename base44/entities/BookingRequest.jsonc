@@ -76,6 +76,17 @@
       "type": "string",
       "format": "date-time",
       "description": "When the customer was last emailed their tracking link."
+    },
+    "company_id": {
+      "type": "string",
+      "description": "Set when a company asked for the ride from its portal: the job made from it is shared with that company."
+    },
+    "company_name": {
+      "type": "string"
+    },
+    "requested_by_id": {
+      "type": "string",
+      "description": "The company account that asked for it."
     }
   },
   "required": [

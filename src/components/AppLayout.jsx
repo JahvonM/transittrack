@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import Logo from "@/components/Logo";
 import { accountName, nameInitials } from "@/lib/userName";
+import CompanyShell from "@/components/company/CompanyShell";
 
 // Set by the admin area when it shows a full page (Vehicle logs, Location
 // timeline…) inside its own sidebar — the page then skips its own header so
@@ -17,10 +18,13 @@ export const EmbeddedLayout = React.createContext(false);
 
 export default function AppLayout(props) {
   const embedded = React.useContext(EmbeddedLayout);
+  const { user } = useAuth();
   if (embedded) {
     // The admin sidebar already shows the page name as its heading.
     return <div>{props.children}</div>;
   }
+  // A company account sees every page in its portal's sidebar, like Admin.
+  if (user?.role === "company") return <CompanyShell title={props.title} subtitle={props.subtitle}>{props.children}</CompanyShell>;
   if (props.variant === "passenger") return <PassengerLayout {...props} />;
   return <FullLayout {...props} />;
 }

@@ -192,8 +192,9 @@ describe("who can see and change jobs, places, clients and invoices", () => {
       expect(list.body.result).toEqual([]);
       expect((await call({ entity, operation: "create", data: entity === "Invoice" ? { number: "X" } : { name: "X" } })).status).toBe(403);
     }
-    expect((await call({ entity: "Trip", operation: "update", id: "job-1", data: { price: 1 } })).status).toBe(403);
-    expect((await call({ entity: "Trip", operation: "update", id: "job-1", data: { client_id: "hotel" } })).status).toBe(403);
+    // A job dispatch hasn't shared with them isn't there for them at all.
+    expect((await call({ entity: "Trip", operation: "update", id: "job-1", data: { price: 1 } })).status).toBe(404);
+    expect((await call({ entity: "Trip", operation: "update", id: "job-1", data: { client_id: "hotel" } })).status).toBe(404);
   });
 
   it("passengers still see only a job's bare outline", async () => {

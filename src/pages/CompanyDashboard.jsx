@@ -1,24 +1,20 @@
-import CardIssuingTab from "@/components/admin/CardIssuingTab";
-import CardDesignerTab from "@/components/admin/CardDesignerTab";
-import AdsTab from "@/components/admin/AdsTab";
 import React, { Suspense, lazy, useEffect, useState } from "react";
 import CompanyJoinQr from "@/components/CompanyJoinQr";
-import { Navigate, useParams, useNavigate, Link } from "react-router-dom";
+import { Navigate, useParams, Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import AppLayout from "@/components/AppLayout";
 import ProfileInfo from "@/components/ProfileInfo";
-import { Bus, Plus, Pencil, Trash2, Route as RouteIcon, MapPin, Building2, Phone, KeyRound, Copy, Check, RefreshCw, User, History } from "lucide-react";
+import { Bus, Plus, Pencil, Trash2, Route as RouteIcon, MapPin, Building2, Phone, KeyRound, Copy, Check, RefreshCw, CalendarClock, Inbox, Navigation, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { NestedPage, PageIntro, StatusChip, humanize } from "@/components/admin/kit";
+import { EmptyState, Kpi, KpiRow, Panel, StatusChip, humanize } from "@/components/admin/kit";
+import { StatusPill } from "@/components/admin/AdminOverview";
 import PlaceSearch from "@/components/PlaceSearch";
 import { useToast } from "@/components/ui/use-toast";
-import { STATUS_LABEL } from "@/lib/trip";
 import CompanyEditDialog from "@/components/CompanyEditDialog";
 import { loadFailed } from "@/lib/loadFailed";
 import BusLoader from "@/components/BusLoader";
@@ -26,15 +22,42 @@ import VehicleFormDialog from "@/components/VehicleFormDialog";
 import { VehicleModelThumb } from "@/components/VehicleModelPicker";
 import { modelIdFor } from "@/lib/vehicleModels";
 import { loadScreen, saveScreen } from "@/lib/savedScreen";
+import CompanyJobs, { useCompanyRequests } from "@/components/company/CompanyJobs";
+import { companyBusStatus } from "@/components/company/BusStatus";
+import { busOnMap, busSharingLine, jobGroups } from "@/lib/companyPortal";
+import { TRANSIT_TIME_ZONE } from "@/lib/localTime";
 
 const LiveTransitMap = lazy(() => import("@/components/map3d/LiveTransitMap"));
 
+// The company portal (a hotel whose staff and guests ride the buses). Each
+// section is its own address so the sidebar can link to it.
+const SECTIONS = {
+  overview: { title: null },
+  jobs: { title: "Jobs", subtitle: "Ask for a job, and follow your jobs on the way." },
+  vehicles: { title: "Buses", subtitle: "Your buses. Each shows on the map while its shift is open." },
+  routes: { title: "Routes", subtitle: "Your routes and their stops." },
+  profile: { title: "Company profile" },
+};
+// Old addresses: the trips list is part of Jobs now; NFC cards, the card
+// designer and advertisements were taken out of the company portal.
+const MOVED = { trips: "jobs", cards: "overview", "card-designs": "overview", ads: "overview" };
+
+// A list that follows the server's live refresh (a shared poll for every screen watching it).
+function useLive(entity, setRows) {
+  useEffect(() => base44.entities[entity].subscribe((event) => {
+    setRows((prev) => {
+      if (event.type === "delete") return prev.filter((r) => r.id !== event.id);
+      const rec = event.data;
+      if (!rec) return prev;
+      return prev.some((r) => r.id === event.id) ? prev.map((r) => (r.id === event.id ? rec : r)) : prev;
+    });
+  }), [entity, setRows]);
+}
 
 export default function CompanyDashboard() {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const { tab: urlTab } = useParams();
-  const tab = urlTab || "vehicles";
+  const section = urlTab || "overview";
   // Opens with what this screen showed last time; the fresh lists replace it.
   const [saved] = useState(() => loadScreen("company", user?.id));
   const [company, setCompany] = useState(() => saved?.company || null);
@@ -43,9 +66,6 @@ export default function CompanyDashboard() {
   const [trips, setTrips] = useState(() => saved?.trips || []);
   const [workplace, setWorkplace] = useState(() => saved?.workplace || null);
   const [loading, setLoading] = useState(!saved);
-  const [copied, setCopied] = useState(false);
-  const [editing, setEditing] = useState(false);
-  const { toast } = useToast();
 
   const loadAll = async () => {
     try {
@@ -70,7 +90,8 @@ export default function CompanyDashboard() {
       setVehicles(view.vehicles);
       setRoutes(view.routes);
       setTrips(view.trips);
-      if (view.company) saveScreen("company", user?.id, view);
+      // Bus positions change by the minute: they aren't kept for next time.
+      if (view.company) saveScreen("company", user?.id, { ...view, vehicles: view.vehicles.map((v) => ({ ...v, current_lat: null, current_lng: null, trail: null, location_shared: "" })) });
     } catch {
       loadFailed(loadAll);
     } finally {
@@ -81,27 +102,53 @@ export default function CompanyDashboard() {
   useEffect(() => {
     loadAll();
   }, []);
+  useLive("Vehicle", setVehicles);
+  useLive("Trip", setTrips);
 
   if (user && user.role !== "company" && user.role !== "admin") return <Navigate to="/" replace />;
+  if (MOVED[section]) return <Navigate to={MOVED[section] === "overview" ? "/company" : `/company/${MOVED[section]}`} replace />;
+  if (!SECTIONS[section]) return <Navigate to="/company" replace />;
 
   if (loading) return <AppLayout><BusLoader className="py-8" /></AppLayout>;
   if (!company) return user?.role === "admin"
     ? <CreateCompany onCreated={loadAll} />
     : <AppLayout><p className="py-8">Company access needs administrator approval. Ask your administrator to assign your company in User management.</p></AppLayout>;
 
-  const TAB = "h-9 rounded-lg px-3 text-body-sm font-semibold data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm";
+  const { title, subtitle } = SECTIONS[section];
   return (
-    <AppLayout title={company.name}>
-      <PageIntro>Company dashboard: your buses, routes, trips and promos.</PageIntro>
-      <Card className="mb-4 rounded-2xl">
-        <CardContent className="flex flex-wrap items-center gap-4 p-5">
-          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-secondary" aria-hidden="true"><KeyRound className="h-6 w-6" /></span>
-          <div className="min-w-0 flex-1">
-            <div className="text-body-sm text-muted-foreground">Passenger access code. Share it so passengers can see your fleet.</div>
-            <div className="font-display text-[1.75rem] font-semibold tracking-[0.25em]">{company.access_code || "Not set"}</div>
-            <div className="text-caption text-muted-foreground">Permanent company code. Passengers keep access.</div>
-          </div>
-          <div className="flex w-full flex-wrap gap-2 sm:w-auto">
+    <AppLayout title={title || company.name} subtitle={subtitle || (section === "overview" ? "Your buses, jobs and passenger code" : undefined)}>
+      {section === "overview" && <Overview company={company} vehicles={vehicles} routes={routes} trips={trips} workplace={workplace} onChange={loadAll} />}
+      {section === "jobs" && <CompanyJobs company={company} trips={trips} vehicles={vehicles} routes={routes} />}
+      {section === "vehicles" && <VehiclesTab company={company} routes={routes} vehicles={vehicles} workplace={workplace} onChange={loadAll} />}
+      {section === "routes" && <RoutesTab company={company} routes={routes} workplace={workplace} onChange={loadAll} />}
+      {section === "profile" && (
+        <div className="grid gap-4 lg:grid-cols-2">
+          <AccessCode company={company} onChange={loadAll} />
+          <ProfileInfo companyName={company.name} />
+        </div>
+      )}
+    </AppLayout>
+  );
+}
+
+const when = (iso) => {
+  const t = Date.parse(iso || "");
+  return Number.isFinite(t) ? new Date(t).toLocaleString([], { timeZone: TRANSIT_TIME_ZONE, weekday: "short", hour: "numeric", minute: "2-digit" }) : "";
+};
+
+// The passenger access code, with its QR code, copy and edit.
+function AccessCode({ company, onChange }) {
+  const { toast } = useToast();
+  const [copied, setCopied] = useState(false);
+  const [editing, setEditing] = useState(false);
+  return (
+    <Panel title="Passenger access code" icon={KeyRound} description="Share it so your staff can see their bus in the passenger app.">
+      <div className="flex flex-wrap items-center gap-4">
+        <div className="min-w-0 flex-1">
+          <div className="font-display text-[1.75rem] font-semibold tracking-[0.25em]">{company.access_code || "Not set"}</div>
+          <div className="text-caption text-muted-foreground">Permanent company code. Passengers keep access.</div>
+        </div>
+        <div className="flex w-full flex-wrap gap-2 sm:w-auto">
           <CompanyJoinQr code={company.access_code} companyName={company.name} />
           <Button
             variant="outline"
@@ -122,7 +169,7 @@ export default function CompanyDashboard() {
               try {
                 const res = await base44.functions.invoke("manageAccessCodes", { action: "issue_company", company_id: company.id });
                 toast({ description: `Passenger code: ${res.data.code}` });
-                loadAll();
+                onChange();
               } catch (error) { toast({ title: "Could not issue code", description: error.message, variant: "destructive" }); }
             }}
           >
@@ -133,39 +180,96 @@ export default function CompanyDashboard() {
             <Pencil className="w-4 h-4" />
             Edit details
           </Button>
+        </div>
+      </div>
+      <CompanyEditDialog company={company} open={editing} onOpenChange={setEditing} onSaved={onChange} />
+    </Panel>
+  );
+}
+
+// Buses beside the map: a bus is on the map only while it is shared.
+function BusList({ vehicles, now = Date.now() }) {
+  if (vehicles.length === 0) return <EmptyState icon={Bus} title="No buses yet" className="border-0">McSween Transport adds your buses.</EmptyState>;
+  return (
+    <ul className="divide-y divide-border">
+      {[...vehicles].sort((a, b) => Number(busOnMap(b)) - Number(busOnMap(a)) || String(a.name).localeCompare(String(b.name), undefined, { numeric: true })).map((v) => (
+        <li key={v.id} className="flex min-h-[56px] items-center gap-3 py-2">
+          <div className="shrink-0 rounded-xl bg-secondary"><VehicleModelThumb model={modelIdFor(v)} size={40} /></div>
+          <div className="min-w-0 flex-1">
+            <p className="truncate font-semibold">{v.name}</p>
+            <p className="truncate text-body-sm text-muted-foreground">{busSharingLine(v)}{v.driver_name && busOnMap(v) ? ` · ${v.driver_name}` : ""}</p>
           </div>
-        </CardContent>
-      </Card>
-      <CompanyEditDialog company={company} open={editing} onOpenChange={setEditing} onSaved={loadAll} />
-      <Tabs value={tab} onValueChange={(v) => navigate("/company/" + v)}>
-        <TabsList className="h-auto max-w-full flex-wrap justify-start gap-1 rounded-xl bg-secondary p-1">
-          <TabsTrigger value="vehicles" className={TAB}><Bus className="mr-1.5 h-4 w-4" />Vehicles ({vehicles.length})</TabsTrigger>
-          <TabsTrigger value="routes" className={TAB}><RouteIcon className="mr-1.5 h-4 w-4" />Routes ({routes.length})</TabsTrigger>
-          <TabsTrigger value="trips" className={TAB}><MapPin className="mr-1.5 h-4 w-4" />Trips ({trips.length})</TabsTrigger>
-          <TabsTrigger value="cards" className={TAB}>NFC cards</TabsTrigger>
-          <TabsTrigger value="card-designs" className={TAB}>Card designer</TabsTrigger>
-          <TabsTrigger value="ads" className={TAB}>Advertisements</TabsTrigger>
-          <TabsTrigger value="profile" className={TAB}><User className="mr-1.5 h-4 w-4" />Profile</TabsTrigger>
-        </TabsList>
-        <TabsContent value="vehicles" className="mt-4">
-          <VehiclesTab company={company} routes={routes} vehicles={vehicles} workplace={workplace} onChange={loadAll} />
-        </TabsContent>
-        <TabsContent value="routes" className="mt-4">
-          <RoutesTab company={company} routes={routes} workplace={workplace} onChange={loadAll} />
-        </TabsContent>
-        <TabsContent value="trips" className="mt-4">
-          <TripsTab trips={trips} vehicles={vehicles} onChange={loadAll} />
-        </TabsContent>
-        <TabsContent value="cards" className="mt-4"><NestedPage><CardIssuingTab companies={[company]} /></NestedPage></TabsContent>
-        <TabsContent value="card-designs" className="mt-4"><NestedPage><CardDesignerTab /></NestedPage></TabsContent>
-        <TabsContent value="ads" className="mt-4"><NestedPage><AdsTab companyId={company.id} /></NestedPage></TabsContent>
-        <TabsContent value="profile" className="mt-4">
-          <div className="max-w-xl">
-            <ProfileInfo companyName={company.name} />
-          </div>
-        </TabsContent>
-      </Tabs>
-    </AppLayout>
+          <StatusPill status={companyBusStatus(v, now)} />
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function SharedMap({ vehicles, routes, workplace, label, className = "h-[420px]" }) {
+  const shown = vehicles.filter(busOnMap);
+  return (
+    <div className={`relative overflow-hidden rounded-xl border ${className}`}>
+      <Suspense fallback={<div className="h-full w-full animate-pulse bg-muted" />}>
+        <LiveTransitMap
+          variant="page"
+          className="h-full w-full"
+          vehicles={shown}
+          routes={routes}
+          looseStops={routes.flatMap((r) => r.stops || []).filter((st) => st.lat != null)}
+          dropoff={workplace}
+          label={label}
+        />
+      </Suspense>
+      {shown.length === 0 && (
+        <p className="pointer-events-none absolute inset-x-3 bottom-3 rounded-lg bg-background/90 px-3 py-2 text-body-sm shadow">No bus on the map right now. A bus shows while its driver's shift is open, or while one of your jobs is on the way.</p>
+      )}
+    </div>
+  );
+}
+
+function Overview({ company, vehicles, routes, trips, workplace, onChange }) {
+  const { requests } = useCompanyRequests();
+  const { live, upcoming, todayCount } = jobGroups(trips);
+  const onMap = vehicles.filter(busOnMap).length;
+  const waiting = (requests || []).filter((r) => r.status === "new").length;
+  return (
+    <div className="space-y-4">
+      <KpiRow>
+        <Kpi label="Buses" value={vehicles.length} icon={Bus} />
+        <Kpi label="On the map now" value={onMap} icon={Navigation} tone={onMap ? "success" : undefined} detail="On shift or on your job" />
+        <Kpi label="Jobs today" value={todayCount} icon={CalendarClock} />
+        <Kpi label="Requests waiting" value={requests === null ? "…" : waiting} icon={Inbox} tone={waiting ? "warning" : undefined} />
+      </KpiRow>
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
+        <Panel title="Your buses" icon={Bus}>
+          <BusList vehicles={vehicles} />
+        </Panel>
+        <Panel title="Live map" icon={MapPin} className="tt-admin-map-panel">
+          <SharedMap vehicles={vehicles} routes={routes} workplace={workplace} label="Your buses on the map" />
+        </Panel>
+      </div>
+      <Panel title="Jobs" icon={CalendarClock} actions={<Button asChild variant="outline" size="sm"><Link to="/company/jobs">All jobs <ArrowRight className="h-4 w-4" /></Link></Button>}>
+        {live.length + upcoming.length === 0 ? (
+          <EmptyState icon={CalendarClock} title="No jobs coming up" className="border-0" action={<Button asChild><Link to="/company/jobs"><Plus className="h-4 w-4" /> Request a job</Link></Button>}>
+            Ask for an airport pickup, a transfer or a tour from Jobs.
+          </EmptyState>
+        ) : (
+          <ul className="divide-y divide-border">
+            {[...live, ...upcoming].slice(0, 4).map((j) => (
+              <li key={j.id} className="flex flex-wrap items-center justify-between gap-2 py-2.5">
+                <div className="min-w-0">
+                  <p className="font-semibold">{when(j.scheduled_time)} · {j.pickup_name} to {j.dropoff_name}</p>
+                  <p className="text-body-sm text-muted-foreground">{[j.passenger_name, j.vehicle_name].filter(Boolean).join(" · ")}</p>
+                </div>
+                <StatusChip status={j.status}>{humanize(j.status)}</StatusChip>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Panel>
+      <AccessCode company={company} onChange={onChange} />
+    </div>
   );
 }
 
@@ -265,7 +369,7 @@ function VehiclesTab({ company, routes, vehicles, workplace, onChange }) {
             <div className="min-w-[10rem] flex-1">
               <div className="font-medium truncate">{v.name} <span className="text-xs text-muted-foreground font-normal">· {[v.fleet_number, v.plate_number].filter(Boolean).join(" · ")}</span></div>
               <div className="text-xs text-muted-foreground truncate">
-                Driver: {v.driver_name || v.driver_email || "Unassigned"}
+                Driver: {v.driver_name || v.driver_email || "Unassigned"} · {busSharingLine(v)}
               </div>
             </div>
             <div className="flex w-full items-center justify-end gap-1 sm:w-auto">
@@ -278,10 +382,7 @@ function VehiclesTab({ company, routes, vehicles, workplace, onChange }) {
                 ))}
               </SelectContent>
             </Select>
-            <StatusChip status={v.status || "offline"} />
-            <Button asChild variant="ghost" size="icon">
-              <Link to={`/vehicle/${v.id}`} aria-label={`History of ${v.name}`} title="History"><History className="w-4 h-4" /></Link>
-            </Button>
+            <StatusPill status={companyBusStatus(v)} />
             <Button variant="ghost" size="icon" onClick={() => { setEditing(v); setFormOpen(true); }} aria-label={`Edit ${v.name}`} title="Edit">
               <Pencil className="w-4 h-4" />
             </Button>
@@ -294,25 +395,10 @@ function VehiclesTab({ company, routes, vehicles, workplace, onChange }) {
         <VehicleFormDialog open={formOpen} onOpenChange={setFormOpen} vehicle={editing} fixedCompany={company} routes={routes} onSaved={onChange} />
       </div>
 
-      <Card className="sticky top-20 h-fit rounded-2xl">
-        <CardHeader><CardTitle className="text-base flex items-center gap-2"><MapPin className="w-4 h-4" /> Live fleet map</CardTitle></CardHeader>
-        <CardContent>
-          <div className="rounded-xl overflow-hidden border h-[440px]">
-            <Suspense fallback={<div className="h-full w-full animate-pulse bg-muted" />}>
-              <LiveTransitMap
-                variant="page"
-                className="h-full w-full"
-                vehicles={vehicles.filter((v) => v.current_lat != null)}
-                routes={routes}
-                looseStops={routes.flatMap((r) => r.stops || []).filter((st) => st.lat != null)}
-                dropoff={workplace}
-                label="Live fleet map"
-              />
-            </Suspense>
-          </div>
-          <p className="mt-2 text-body-sm text-muted-foreground">Live vehicle positions, your route stops and the drop-off.</p>
-        </CardContent>
-      </Card>
+      <Panel title="Live map" icon={MapPin} className="h-fit lg:sticky lg:top-20">
+        <SharedMap vehicles={vehicles} routes={routes} workplace={workplace} label="Live fleet map" className="h-[440px]" />
+        <p className="mt-2 text-body-sm text-muted-foreground">Your route stops and the drop-off. A bus shows while its shift is open, or while one of your jobs is on the way.</p>
+      </Panel>
     </div>
   );
 }
@@ -427,26 +513,6 @@ function RoutesTab({ company, routes, workplace, onChange }) {
           </Button>
         </CardContent>
       </Card>
-    </div>
-  );
-}
-
-function TripsTab({ trips, vehicles, onChange }) {
-  const sorted = [...trips].sort((a, b) => (b.scheduled_time || "").localeCompare(a.scheduled_time || ""));
-  return (
-    <div className="space-y-2">
-      {sorted.length === 0 && <p className="text-sm text-muted-foreground py-8 text-center">No trips yet. Assign trips from the Admin dashboard.</p>}
-      {sorted.map((t) => (
-        <div key={t.id} className="flex items-center gap-3 p-3 rounded-xl border bg-card">
-          <div className="flex-1 min-w-0">
-            <div className="font-medium truncate">{t.pickup_name} <span className="text-muted-foreground">→</span> {t.dropoff_name}</div>
-            <div className="text-xs text-muted-foreground truncate">
-              {t.vehicle_name} · {t.scheduled_time ? new Date(t.scheduled_time).toLocaleString() : "—"}
-            </div>
-          </div>
-          <StatusChip status={t.status}>{STATUS_LABEL[t.status] || t.status}</StatusChip>
-        </div>
-      ))}
     </div>
   );
 }

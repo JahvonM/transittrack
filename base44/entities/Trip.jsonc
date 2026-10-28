@@ -242,6 +242,11 @@
     "pickup_arrived_at": {
       "type": "string",
       "format": "date-time"
+    },
+    "shared_with_company": {
+      "type": "boolean",
+      "default": false,
+      "description": "A job shown in the bus company's portal, with the bus's location while the job is under way. Set by dispatch; on for jobs the company asked for."
     }
   },
   "required": [

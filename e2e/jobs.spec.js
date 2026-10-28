@@ -289,6 +289,64 @@ test('signing operator unlocks jobs and chooses the correct pickup signature',as
  await expect(page.getByText('Operator-only instructions',{exact:true})).toHaveCount(0);
 });
 
+async function slideAway(page, label) {
+ const b = await page.getByText(label, { exact: true }).locator('..').boundingBox();
+ await page.mouse.move(b.x + 36, b.y + b.height / 2); await page.mouse.down();
+ await page.mouse.move(b.x + b.width - 30, b.y + b.height / 2, { steps: 12 }); await page.mouse.up();
+}
+// The kiosk app's hidden settings area (tap 5 times) covers the top-right
+// 64dp of the screen and takes every tap there.
+const controlsInSettingsCorner = (page) => page.evaluate(() => [...document.querySelectorAll('[aria-label="Name sign"] button,[aria-label="Name sign"] [role=button]')]
+ .filter((el) => { const r = el.getBoundingClientRect(); return r.right > innerWidth - 64 && r.top < 64; }).length);
+
+test('the guest name card on the signing tablet slides away to the jobs behind it', async ({ page }) => {
+ await page.setViewportSize({ width: 1280, height: 800 });
+ const device = { device_id: 'signer', paired: true, status: 'active', kiosk_type: 'job_signing', company_id: 'a', company_name: 'Island Transit Co.', vehicle_id: 'bus-a', vehicle_name: 'Bus 12' };
+ const jobs = [{ id: 'run', status: 'on_the_way', pickup_name: 'Airport', dropoff_name: 'Spice Island Resort', passenger_name: 'Mr Smith', guests: 2, scheduled_time: '2026-10-28T10:00:00Z' }];
+ await page.addInitScript(() => { localStorage.setItem('tt_kiosk_device_id', 'signer'); localStorage.setItem('tt_device_token_signer', 'e'.repeat(64)); });
+ await page.route('**/api/**', (route) => {
+  const url = route.request().url(); let body = {}; try { body = route.request().postDataJSON() || {}; } catch { /* GET */ }
+  if (url.includes('/functions/kioskHeartbeat')) return route.fulfill({ json: device });
+  if (url.includes('/functions/jobSigning')) {
+   if (body.action === 'state') return route.fulfill({ json: { jobs: [] } });
+   if (body.action === 'unlock_operator') return route.fulfill({ json: { operator_grant: 'f'.repeat(64) } });
+   if (body.action === 'operator_state') return route.fulfill({ json: { jobs } });
+  }
+  return route.fulfill({ json: { id: 'test-app', public_settings: { authentication_required: false } } });
+ });
+ await page.goto('/kiosk');
+ await page.getByRole('button', { name: 'Job controls', exact: true }).click();
+ await page.getByLabel('Bus PIN', { exact: true }).fill('1234');
+ await page.getByRole('button', { name: 'Unlock job controls', exact: true }).click();
+ await page.getByRole('button', { name: 'Show guest name card', exact: true }).click();
+ const sign = page.getByRole('dialog', { name: 'Name sign' });
+ await expect(sign).toBeVisible();
+ await expect(sign.getByText('Mr Smith', { exact: true })).toBeVisible();
+ await expect(page.getByRole('dialog', { name: 'Signing tablet job controls' })).toHaveCount(0);
+ expect(await controlsInSettingsCorner(page)).toBe(0);
+ await page.screenshot({ path: '/tmp/tt-name-card.png' });
+ // Sliding it away shows the jobs again, still unlocked.
+ await slideAway(page, 'Slide to go back to jobs');
+ await expect(sign).toHaveCount(0);
+ const controls = page.getByRole('dialog', { name: 'Signing tablet job controls' });
+ await expect(controls.getByText('Airport → Spice Island Resort')).toBeVisible();
+ await expect(controls.getByLabel('Bus PIN', { exact: true })).toHaveCount(0);
+
+ // A sign the driver sends shows by itself; behind it the controls ask for
+ // the bus PIN, and closing it leaves no second sign underneath.
+ await controls.getByRole('button', { name: 'Lock controls', exact: true }).click();
+ device.pickup_sign = { id: 'from-driver', name: 'Ms Jones', subtitle: 'Calabash Hotel', shown_at: new Date().toISOString(), expires_at: new Date(Date.now() + 30 * 60_000).toISOString() };
+ await page.reload();
+ await expect(sign.getByText('Ms Jones', { exact: true })).toBeVisible();
+ await expect(page.getByRole('dialog', { name: 'Name sign' })).toHaveCount(1);
+ await slideAway(page, 'Slide to go back to jobs');
+ await expect(sign).toHaveCount(0);
+ await expect(controls.getByLabel('Bus PIN', { exact: true })).toBeVisible();
+ await page.reload();
+ await expect(page.getByRole('button', { name: 'Job controls', exact: true })).toBeVisible();
+ await expect(sign).toHaveCount(0);
+});
+
 test('if confirming a website request fails, Confirm ride retries with the saved job instead of making a second one', async ({ page }) => {
   const created = [], confirms = [];
   const bus = { id: 'bus', name: 'Bus 12', company_id: 'a', company_name: 'Island Transit Co.', driver_name: 'Kofi', status: 'idle', type: 'bus', capacity: 30 };

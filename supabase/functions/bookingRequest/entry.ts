@@ -3,6 +3,7 @@ import { forwardToSupabase } from '../_shared/forwardToSupabase.ts';
 import { reserveAttempt } from '../_shared/atomicOps.ts';
 import { emailWithPolicy } from '../_shared/notificationPolicy.ts';
 import { issueVisitorLink, sha256Hex } from '../_shared/visitorLinks.ts';
+import { riderMembershipLive } from '../_shared/routeRiders.ts';
 
 // Rides asked for on the public website (mcsweenstransport.com/book), and
 // dispatch's answers to them. Nothing is booked until dispatch confirms:
@@ -15,6 +16,12 @@ import { issueVisitorLink, sha256Hex } from '../_shared/visitorLinks.ts';
 //   { action: 'decline', request_id, reason }    admins: customer emailed
 //   { action: 'spam', request_id }               admins: closed, nobody emailed
 //   { action: 'send_tracking', trip_id }         admins: a fresh tracking link emailed
+//   { action: 'company_request', ...form }       a company account: a job asked for
+//                                                from its portal; dispatch is emailed
+//   { action: 'company_requests' }               a company account: its own requests
+//
+// A job made from a company's request is shared with that company: it shows
+// in the company's portal, with the bus's location while the job is under way.
 
 export const SERVICES: Record<string, string> = {
   airport_pickup: 'Airport pickup',
@@ -86,7 +93,9 @@ export function grenadaTime(iso: string) {
 }
 // A plain, readable email: a heading, a few lines, a table of details, and
 // at most one button.
-export function emailHtml({ heading, lines = [], rows = [], button = null }: { heading: string; lines?: string[]; rows?: [string, string][]; button?: { label: string; url: string } | null }) {
+const WEBSITE_FOOTER = 'You\'re getting this because a ride was requested with this email address on mcsweenstransport.com.';
+const COMPANY_FOOTER = 'You\'re getting this because your company account asked for this ride in the McSween Transport app.';
+export function emailHtml({ heading, lines = [], rows = [], button = null, footer = WEBSITE_FOOTER }: { heading: string; lines?: string[]; rows?: [string, string][]; button?: { label: string; url: string } | null; footer?: string }) {
   const table = rows.filter(([, v]) => v).map(([k, v]) => `<tr><td style="padding:6px 16px 6px 0;color:#5b6b70;vertical-align:top;white-space:nowrap">${esc(k)}</td><td style="padding:6px 0;color:#12262c">${esc(v)}</td></tr>`).join('');
   return `<!doctype html><html><body style="margin:0;background:#eef4f3;font-family:Helvetica,Arial,sans-serif">
 <div style="max-width:560px;margin:0 auto;padding:28px 20px">
@@ -97,7 +106,7 @@ ${lines.map((l) => `<p style="margin:0 0 12px;font-size:15px;line-height:1.55;co
 ${table ? `<table style="border-collapse:collapse;font-size:15px;margin:8px 0 4px">${table}</table>` : ''}
 ${button ? `<p style="margin:22px 0 4px"><a href="${esc(button.url)}" style="display:inline-block;background:#c8322b;color:#ffffff;text-decoration:none;font-weight:700;padding:12px 20px;border-radius:10px">${esc(button.label)}</a></p>` : ''}
 </div>
-<p style="margin:16px 4px 0;font-size:12px;color:#5b6b70">McSween's Transport and Reside Co., Grenada. You're getting this because a ride was requested with this email address on mcsweenstransport.com.</p>
+<p style="margin:16px 4px 0;font-size:12px;color:#5b6b70">McSween's Transport and Reside Co., Grenada. ${esc(footer)}</p>
 </div></body></html>`;
 }
 const detailRows = (r: any): [string, string][] => [
@@ -132,6 +141,35 @@ async function openRequest(db: any, id: unknown) {
   if (!row) fail(404, 'That request was not found');
   return row;
 }
+
+// The signed-in company account and the company it is approved for.
+async function companyAccount(base44: any) {
+  const db = base44.asServiceRole.entities;
+  const session = await base44.auth.me().catch(() => null);
+  if (!session) fail(401, 'Please sign in');
+  const user = await db.User.get(session.id).catch(() => null);
+  if (!user || user.id !== session.id) fail(401, 'Please sign in');
+  if (user.role !== 'company') fail(403, 'For company accounts only');
+  const rows = await db.CompanyMembership.filter({ user_id: user.id, active: true }, '-updated_date', 20);
+  for (const row of rows) {
+    if (row.scope !== 'manager') continue;
+    // Admin-approved, or made with the company's current code and not expired.
+    if ((row.code_hash || row.expires_at) && !(Date.parse(row.expires_at) > Date.now() && await riderMembershipLive(db, row))) continue;
+    const company = await db.Company.get(row.company_id).catch(() => null);
+    if (company) return { user, company };
+  }
+  return fail(403, 'Your company access needs administrator approval');
+}
+
+// A company's job request: the website form's checks, with the guest's name
+// in place of the customer's and the account's own email for the replies.
+export function readCompanyRequest(body: any, user: any, company: any, now = Date.now()) {
+  if (clean(body?.name).length < 2) fail(400, 'Please add the guest\'s name.');
+  const phone = clean(body?.phone) || clean(company?.phone) || clean(user?.phone);
+  if (!phone) fail(400, 'Please add a phone number we can call about this job.');
+  return readRequest({ ...body, phone, email: user?.email }, now);
+}
+const COMPANY_REQUEST_FIELDS = ['id', 'created_date', 'service', 'requested_time', 'pickup', 'dropoff', 'guests', 'luggage', 'flight_number', 'name', 'phone', 'notes', 'status', 'decline_reason', 'trip_id'];
 
 export default async function (req: Request) {
   const forwarded = await forwardToSupabase(req, 'bookingRequest');
@@ -179,6 +217,45 @@ export default async function (req: Request) {
       return json({ ok: true, id: row.id });
     }
 
+    if (action === 'company_request') {
+      const { user, company } = await companyAccount(base44);
+      const data = readCompanyRequest(body, user, company);
+      if (!(await reserveAttempt(base44, 'company-request:' + user.id, 20, 3600_000))) {
+        return json({ error: 'Too many requests in the last hour. Please call us instead.' }, 429);
+      }
+      const row = await db.BookingRequest.create({ ...data, status: 'new', company_id: company.id, company_name: company.name || '', requested_by_id: user.id });
+      const service = SERVICES[data.service];
+      const asker = user.display_name || user.full_name || user.email;
+      try {
+        const admins = await db.User.filter({ role: 'admin' }, '-created_date', 200);
+        const subject = `Job request from ${company.name || 'a company'}: ${service}, ${grenadaTime(data.requested_time)}`;
+        const html = emailHtml({
+          heading: `${company.name || 'A company'} asked for a job`,
+          lines: ['Open Jobs → Requests to make the job, or to decline it. The job will show in their portal, with the bus while it is on the way.'],
+          rows: [...detailRows(data), ['Guest', data.name], ['Asked by', asker], ['Phone', data.phone], ['Email', data.email], ['Note', data.notes]],
+          button: { label: 'Open requests', url: `${APP}/admin/trips` },
+          footer: 'You\'re getting this because a company asked for a job in the McSween Transport app.',
+        });
+        await emailWithPolicy(base44, 'company_job_request', admins,
+          (a: any) => base44.asServiceRole.integrations.Core.SendEmail({ to: a.email, subject, body: html, from_name: 'McSween Transport' }), { title: subject });
+      } catch (e) { console.error('[booking] company request email failed', (e as Error)?.message); }
+      try {
+        await send(base44, data.email, 'We have your job request', emailHtml({
+          heading: 'Thanks. We have your job request.',
+          lines: ['We will email you when it is confirmed. You can follow it in your company portal under Jobs.'],
+          rows: [...detailRows(data), ['Guest', data.name]],
+          footer: COMPANY_FOOTER,
+        }));
+      } catch (e) { console.error('[booking] company ack email failed', (e as Error)?.message); }
+      return json({ ok: true, id: row.id });
+    }
+
+    if (action === 'company_requests') {
+      const { company } = await companyAccount(base44);
+      const rows = await db.BookingRequest.filter({ company_id: company.id }, '-created_date', 50);
+      return json({ requests: rows.filter((r: any) => r.company_id === company.id).map((r: any) => Object.fromEntries(COMPANY_REQUEST_FIELDS.map((k) => [k, r[k] ?? null]))) });
+    }
+
     if (action === 'confirm') {
       const user = await admin(base44);
       const row = await openRequest(db, body.request_id);
@@ -186,6 +263,9 @@ export default async function (req: Request) {
       if (typeof body.trip_id !== 'string' || !ID.test(body.trip_id)) fail(400, 'Make the job first');
       const trip = await db.Trip.get(body.trip_id).catch(() => null);
       if (!trip || trip.status === 'cancelled') fail(404, 'That job was not found');
+      // A company's request: the job shows in that company's portal.
+      const fromCompany = !!row.company_id;
+      if (fromCompany && trip.company_id === row.company_id && trip.shared_with_company !== true) await db.Trip.update(trip.id, { shared_with_company: true });
       const link = await issueVisitorLink(db, trip);
       const now = new Date().toISOString();
       await db.BookingRequest.update(row.id, { status: 'confirmed', trip_id: trip.id, handled_by: user.email, handled_at: now, ...(link ? { tracking_sent_at: now } : {}) });
@@ -194,7 +274,11 @@ export default async function (req: Request) {
       try {
         await send(base44, row.email, 'Your ride is confirmed', emailHtml({
           heading: 'Your ride is confirmed',
-          lines: [link ? 'You can follow your bus on the way with the button below.' : 'We will email your tracking link once your bus is assigned.'],
+          footer: fromCompany ? COMPANY_FOOTER : WEBSITE_FOOTER,
+          lines: [
+            link ? 'You can follow your bus on the way with the button below.' : 'We will email your tracking link once your bus is assigned.',
+            ...(fromCompany ? ['It is also in your company portal under Jobs, with the bus on the map while it is on the way.'] : []),
+          ],
           rows: [
             ['Ride', SERVICES[row.service] || 'Ride'],
             ['When', grenadaTime(trip.scheduled_time || row.requested_time)],
@@ -223,6 +307,7 @@ export default async function (req: Request) {
           heading: 'We can\'t take this ride',
           lines: [reason || 'We are not able to take this ride at that time.', 'You are welcome to send a new request for another time, or message us on WhatsApp.'],
           rows: detailRows(row),
+          footer: row.company_id ? COMPANY_FOOTER : WEBSITE_FOOTER,
         }));
       } catch (e) { emailed = false; console.error('[booking] decline email failed', (e as Error)?.message); }
       return json({ ok: true, emailed });
