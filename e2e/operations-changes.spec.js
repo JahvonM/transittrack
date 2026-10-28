@@ -110,7 +110,16 @@ test('pickup name sign is on the boarding device and can be closed',async({page}
  await page.goto('/kiosk');
  await expect(page.getByRole('dialog',{name:'Name sign'})).toBeVisible();
  await expect(page.getByText('JANE GUEST',{exact:true})).toBeVisible();
- await page.getByRole('button',{name:'Close the sign'}).click();
+ // The kiosk app's hidden settings area covers the top-right corner (64dp)
+ // and takes every tap there, so nothing on the sign may sit in it.
+ expect(await page.evaluate(()=>[...document.querySelectorAll('[aria-label="Name sign"] button,[aria-label="Name sign"] [role=button]')]
+  .filter(el=>{const r=el.getBoundingClientRect();return r.right>innerWidth-64&&r.top<64;}).length)).toBe(0);
+ // A tap doesn't close it; it closes with a slide.
+ await page.getByText('Slide to close the sign',{exact:true}).locator('..').click();
+ await expect(page.getByRole('dialog',{name:'Name sign'})).toBeVisible();
+ const b=await page.getByText('Slide to close the sign',{exact:true}).locator('..').boundingBox();
+ await page.mouse.move(b.x+36,b.y+b.height/2);await page.mouse.down();
+ await page.mouse.move(b.x+b.width-30,b.y+b.height/2,{steps:12});await page.mouse.up();
  await expect(page.getByRole('dialog',{name:'Name sign'})).toBeHidden();
  await expect(page.getByText('Tap your card to begin')).toBeVisible();
 });
