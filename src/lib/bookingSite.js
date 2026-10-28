@@ -126,14 +126,18 @@ export function bookingBody(form, startedAt, now = Date.now()) {
   };
 }
 
-// A new job filled in from a website ride request (Admin → Jobs → Requests).
+// A new job filled in from a ride request (Admin → Jobs → Requests): asked
+// for on the website, or by a company in its portal. A company's job is
+// shared back with it.
 export function draftFromRequest(r) {
   const type = JOB_TYPES.some((t) => t.id === r.service) ? r.service : "transfer";
   const text = (name) => (name ? { name, address: "", lat: null, lng: null } : null);
-  const note = [r.notes, r.email ? `Booked on the website by ${r.email}` : ""].filter(Boolean).join("\n");
+  const from = r.company_id ? `Asked for by ${r.company_name || "the company"} in their portal` : r.email ? `Booked on the website by ${r.email}` : "";
+  const note = [r.notes, from].filter(Boolean).join("\n");
   return {
     job_type: type, scheduled_time: r.requested_time, pickup: text(r.pickup), dropoff: text(r.dropoff),
     flight_number: r.flight_number || "", guests: r.guests ?? "", luggage: r.luggage ?? "",
     passenger_name: r.name || "", passenger_phone: r.phone || "", notes: note,
+    shared_with_company: !!r.company_id,
   };
 }

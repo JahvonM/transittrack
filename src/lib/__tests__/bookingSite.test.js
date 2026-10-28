@@ -75,7 +75,12 @@ describe("website booking form", () => {
     const d = draftFromRequest({ service: "airport_pickup", requested_time: "2026-10-27T19:30:00.000Z", pickup: AIRPORT_NAME, dropoff: "Coyaba", guests: 3, luggage: 2, flight_number: "BW 431", name: "Ana Joseph", phone: "+1 473 555 0101", email: "ana@example.com", notes: "Two car seats" });
     expect(d).toMatchObject({ job_type: "airport_pickup", scheduled_time: "2026-10-27T19:30:00.000Z", pickup: { name: AIRPORT_NAME, lat: null }, dropoff: { name: "Coyaba" }, passenger_name: "Ana Joseph", guests: 3 });
     expect(d.notes).toBe("Two car seats\nBooked on the website by ana@example.com");
+    expect(d.shared_with_company).toBe(false);
     expect(draftFromRequest({ service: "spaceship" }).job_type).toBe("transfer");
+    // A company's request: the job is shared back with the company.
+    const c = draftFromRequest({ service: "airport_pickup", name: "Mr Lee", email: "desk@hotel.example", company_id: "c1", company_name: "Six Senses" });
+    expect(c.shared_with_company).toBe(true);
+    expect(c.notes).toBe("Asked for by Six Senses in their portal");
   });
 });
 
