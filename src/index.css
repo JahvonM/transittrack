@@ -800,7 +800,7 @@ html.tt-passenger-app:is(.light,[data-accent]) .tt-bus-filters [aria-pressed="tr
 .tt-admin-group-items { margin:4px 0 10px 20px; padding-left:8px; border-left:1px solid var(--ad-nav-line,#274153); }
 .tt-admin-nav-secondary { border-top:1px solid var(--ad-nav-sep,#244052); margin-top:18px; padding-top:16px; }
 .tt-admin-shell nav [aria-current="page"] { background:var(--ad-nav-active-bg,linear-gradient(110deg,#05657a66,#064e6977)); border:1px solid var(--ad-nav-active-edge,#2fd9eb55); color:var(--ad-nav-active-text,#e5fbff); box-shadow:0 0 18px #16d6ed10; }
-.tt-admin-shell nav button:focus-visible { outline:2px solid var(--ad-focus,#3ee0f5); outline-offset:2px; }
+.tt-admin-shell nav :is(button,a):focus-visible { outline:2px solid var(--ad-focus,#3ee0f5); outline-offset:2px; }
 .tt-admin-stats > button { min-height:112px; border-radius:16px; }
 .tt-admin-totals { border-bottom:1px solid hsl(var(--border)); padding-bottom:10px; }
 .tt-admin-alert-list { padding-top:10px; }
