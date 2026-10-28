@@ -12,9 +12,12 @@ const ANDROID = 'Mozilla/5.0 (Linux; Android 14; SM-A546B) AppleWebKit/537.36 (K
 
 test.use({ launchOptions: { args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'] } });
 
-async function asPerson(page, { installOffer = false } = {}) {
-  await page.addInitScript((offer) => {
+async function asPerson(page, { installOffer = false, notificationAnswer = 'granted' } = {}) {
+  await page.addInitScript(({ offer, answer }) => {
     Object.defineProperty(Navigator.prototype, 'webdriver', { get: () => false });
+    // A phone that hasn't been asked yet (headless Chrome starts at "denied").
+    const fake = { permission: 'default', requestPermission: async () => { fake.permission = answer; return answer; } };
+    Object.defineProperty(window, 'Notification', { configurable: true, value: fake });
     if (offer) {
       // What Chrome on Android sends when the app can be installed.
       window.addEventListener('load', () => setTimeout(() => {
@@ -24,7 +27,7 @@ async function asPerson(page, { installOffer = false } = {}) {
         window.dispatchEvent(event);
       }, 50));
     }
-  }, installOffer);
+  }, { offer: installOffer, answer: notificationAnswer });
   await page.route('**/api/**', (route) => {
     const url = route.request().url();
     if (url.includes('/functions/entityAccess')) return route.fulfill({ status: 401, json: { error: 'Authentication required' } });
@@ -67,7 +70,7 @@ test.describe('on an iPhone', () => {
     await expect(dialog.getByText('Step 2 of 2')).toBeVisible();
     for (const title of ['Notifications', 'Location', 'Camera and microphone']) await expect(dialog.getByText(title, { exact: true })).toBeVisible();
     await page.screenshot({ path: '/tmp/tt-first-open-permissions.png' });
-    await context.grantPermissions(['notifications', 'geolocation', 'camera', 'microphone']);
+    await context.grantPermissions(['geolocation', 'camera', 'microphone']);
     await context.setGeolocation({ latitude: 12.0561, longitude: -61.7488 });
     await dialog.getByRole('button', { name: 'Allow all' }).click();
     await expect(dialog.getByText('Allowed', { exact: true })).toHaveCount(3);
@@ -81,7 +84,7 @@ test.describe('on an Android phone', () => {
   test.use({ userAgent: ANDROID, viewport: { width: 412, height: 915 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2.6 });
 
   test('the Install button opens the browser\'s own install, then the permissions follow', async ({ page }) => {
-    await asPerson(page, { installOffer: true });
+    await asPerson(page, { installOffer: true, notificationAnswer: 'denied' });
     await page.goto('/login');
     const dialog = setup(page);
     await expect(dialog.getByRole('heading', { name: 'Install the McSween Transport app' })).toBeVisible();
