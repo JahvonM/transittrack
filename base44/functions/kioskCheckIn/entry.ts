@@ -265,12 +265,17 @@ async function validGrant(base44, device, token, purpose, subject) {
 
 async function currentCard(base44,companyId,person,uid) {
  if(!uid)return {valid:false};
- const rows=await base44.asServiceRole.entities.NfcCard.filter({card_uid:uid},'-updated_date',2);
+ // A physical card can be revoked and later reissued. Only current active
+ // bindings compete for ownership; historical rows must not hide the new one.
+ const rows=await base44.asServiceRole.entities.NfcCard.filter({card_uid:uid,is_active:true},'-updated_date',2);
  if(rows.length>1)return {valid:false};
  const card=rows[0];
  // Unregistered legacy Contact tags remain development-compatible. A ledger
  // record, including a revoked one, takes precedence over a copied legacy tag.
- if(!card)return {valid:true,card_id:''};
+ if(!card){
+  const history=await base44.asServiceRole.entities.NfcCard.filter({card_uid:uid},'-updated_date',1);
+  return {valid:history.length===0,card_id:''};
+ }
  const expiry=card.expiry_date?Date.parse(card.expiry_date):null;
  const today=Date.parse(new Date().toISOString().slice(0,10));
  const owner=(card.holder_source==='contact'&&person.source==='contact'&&card.holder_id===person.id)||
