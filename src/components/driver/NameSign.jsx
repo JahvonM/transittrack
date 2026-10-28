@@ -30,7 +30,7 @@ export default function NameSign({ sign, company, onClose, closeLabel = "Slide t
     if (!sign) return;
     setText(sign.name || "");
     setEditing(false);
-  }, [sign?.id, sign?.name]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [sign?.id, sign?.name]);
   if (!sign) return null;
 
   const logo = company?.logo_url && !logoFailed ? company.logo_url : "";
