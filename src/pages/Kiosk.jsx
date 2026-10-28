@@ -16,7 +16,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import BusBoardingKiosk from "@/components/kiosk/BusBoardingKiosk";
-import BoardingPickupSign from "@/components/kiosk/BoardingPickupSign";
 import { boardingLayout, KIOSK_LAYOUT_KEY } from "@/lib/kioskLayout";
 import JobSigningKiosk from "@/components/kiosk/JobSigningKiosk";
 import KioskConnectionBadge from "@/components/kiosk/KioskConnectionBadge";
@@ -323,8 +322,9 @@ export default function Kiosk() {
   // bus_boarding owns the whole viewport (top status bar, live map backdrop,
   // two-panel layout) — it doesn't fit inside the generic small centered
   // card the other two kiosk types use, and a big tablet has room to spare.
-  // The signing tablet is the guests' own screen for signing for jobs.
-  if (device?.kiosk_type === "job_signing") return <><JobSigningKiosk device={device} deviceId={deviceId} online={online} onBusChanged={moveToBus} /><BoardingPickupSign device={device} /></>;
+  // The signing tablet is the guests' own screen for signing for jobs (it
+  // shows the driver's name sign itself, in front of its job controls).
+  if (device?.kiosk_type === "job_signing") return <JobSigningKiosk device={device} deviceId={deviceId} online={online} onBusChanged={moveToBus} />;
 
   if (device?.kiosk_type === "bus_boarding") {
     return (
