@@ -20,7 +20,7 @@ function Header() {
   const base = useSiteBase();
   const to = (p) => sitePath(base, p);
   return (
-    <header className="mcs-header">
+    <header className="mcs-header mcs-dark">
       <div className="mcs-wrap">
         <Link to={to("/")} className="mcs-brand" aria-label="McSween Transport, home">
           <img src={LOGO_URL} alt="" width="42" height="42" />
@@ -43,7 +43,10 @@ function Footer() {
   return (
     <footer className="mcs-footer">
       <div className="mcs-wrap">
-        <p>McSween's Transport and Reside Co., Grenada</p>
+        <div>
+          <p className="mcs-footer-brand"><img src={LOGO_URL} alt="" width="34" height="34" loading="lazy" /><strong>McSween Transport</strong></p>
+          <p className="mcs-footer-note">McSween's Transport and Reside Co., Grenada. Times on this site are Grenada time.</p>
+        </div>
         <nav aria-label="More">
           <Link to={to("/book")}>Request a ride</Link>
           <Link to={to("/track")}>Track a ride</Link>
@@ -57,13 +60,21 @@ function Footer() {
 }
 
 // Marketing pages get the site's header and footer; tracking and the legal
-// pages keep their own look.
+// pages keep their own look. The page behind them (seen when a phone pulls
+// past the top or bottom) and the browser bar match the dark header.
+const SITE_INK = "#0b2e35";
 function Framed({ children }) {
   useEffect(() => {
     const root = document.documentElement;
     const before = root.style.backgroundColor;
-    root.style.backgroundColor = "#ffffff";
-    return () => { root.style.backgroundColor = before; };
+    const meta = document.querySelector('meta[name="theme-color"]');
+    const beforeTheme = meta?.getAttribute("content");
+    root.style.backgroundColor = SITE_INK;
+    meta?.setAttribute("content", SITE_INK);
+    return () => {
+      root.style.backgroundColor = before;
+      if (meta && beforeTheme != null) meta.setAttribute("content", beforeTheme);
+    };
   }, []);
   return (
     <div className="mcs">

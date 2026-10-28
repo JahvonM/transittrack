@@ -154,7 +154,7 @@ export default function JobsTab({ vehicles = [], routes = [], trips = [], comple
       {view === "board" && requests.length > 0 && (
         <button type="button" onClick={() => setView("requests")} className="mb-3 flex w-full items-center gap-3 rounded-xl border border-primary/40 bg-primary/10 px-4 py-3 text-left hover:bg-primary/15">
           <Globe className="h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
-          <span className="flex-1 font-semibold">{requests.length === 1 ? "1 ride request" : `${requests.length} ride requests`} from the website</span>
+          <span className="flex-1 font-semibold">{requests.length === 1 ? "1 ride request" : `${requests.length} ride requests`} {requests.some((r) => r.company_id) ? "to answer" : "from the website"}</span>
           <span className="text-body-sm text-primary">Answer</span>
         </button>
       )}

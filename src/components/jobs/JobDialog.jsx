@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import { Segmented, StatusChip } from "@/components/admin/kit";
@@ -35,7 +36,7 @@ function blankForm(day, job, draft) {
       job_type: draft.job_type, start, end: start ? addMinutesToInput(start, defaultMinutes(draft.job_type)) : "",
       flight_number: draft.flight_number || "", pickup: draft.pickup, dropoff: draft.dropoff,
       guests: draft.guests ?? "", luggage: draft.luggage ?? "", passenger_name: draft.passenger_name || "",
-      passenger_phone: draft.passenger_phone || "", notes: draft.notes || "",
+      passenger_phone: draft.passenger_phone || "", notes: draft.notes || "", shared: draft.shared_with_company === true,
     };
   }
   if (job) {
@@ -46,14 +47,14 @@ function blankForm(day, job, draft) {
       flight_number: job.flight_number || "", flight_time: toLocalInput(job.flight_time),
       pickup: placeOf(job, "pickup"), dropoff: placeOf(job, "dropoff"), stops: (job.stops || []).map((s) => ({ ...s })),
       guests: job.guests ?? "", luggage: job.luggage ?? "", passenger_name: job.passenger_name || "", passenger_phone: job.passenger_phone || "",
-      notes: job.notes || "", price: job.price ?? "", currency: job.currency || "XCD",
+      notes: job.notes || "", price: job.price ?? "", currency: job.currency || "XCD", shared: job.shared_with_company === true,
     };
   }
   const start = day ? `${day}T09:00` : "";
   return {
     job_type: "airport_pickup", client_id: "", vehicle_id: "", start, end: start ? addMinutesToInput(start, defaultMinutes("airport_pickup")) : "", endTouched: false,
     flight_number: "", flight_time: "", pickup: null, dropoff: null, stops: [], guests: "", luggage: "",
-    passenger_name: "", passenger_phone: "", notes: "", price: "", currency: "XCD",
+    passenger_name: "", passenger_phone: "", notes: "", price: "", currency: "XCD", shared: false,
   };
 }
 
@@ -140,6 +141,8 @@ export default function JobDialog({ open, onOpenChange, job, draft = null, day, 
         guests: form.guests === "" ? null : Number(form.guests), luggage: form.luggage === "" ? null : Number(form.luggage),
         passenger_name: form.passenger_name.trim(), passenger_phone: form.passenger_phone.trim(), notes: form.notes.trim(),
         price: form.price === "" ? null : Number(form.price), currency: form.currency,
+        // Shown in the bus company's portal, with the bus while the job is under way.
+        shared_with_company: !!(form.shared && companyId),
       };
       const saved = job ? await base44.entities.Trip.update(job.id, data) : await base44.entities.Trip.create({ ...data, status: "scheduled" });
       if (!draft) toast({ title: job ? "Job updated" : "Job created", description: vehicle ? `${vehicle.name}'s tablet shows it within a minute.` : "Give it a bus when you're ready." });
@@ -314,6 +317,15 @@ export default function JobDialog({ open, onOpenChange, job, draft = null, day, 
               </Select>
             </div>
           </div>
+          {companyId && (
+            <div className="flex items-start justify-between gap-3 rounded-xl border border-border p-3">
+              <div className="min-w-0">
+                <Label htmlFor="job-shared" className="font-semibold">Show to {companyName || "the bus company"}</Label>
+                <p id="job-shared-help" className="text-caption text-muted-foreground">They see this job in their portal, and the bus on their map while it's on the way. It goes from their map when the job ends.</p>
+              </div>
+              <Switch id="job-shared" aria-describedby="job-shared-help" checked={form.shared} onCheckedChange={(shared) => set({ shared })} />
+            </div>
+          )}
           <div className="space-y-1.5">
             <Label htmlFor="job-notes">Notes for the driver</Label>
             <Textarea id="job-notes" value={form.notes} onChange={(e) => set({ notes: e.target.value })} placeholder="e.g. Hold a sign with the guest's name; child seat needed" maxLength={2000} rows={2} />

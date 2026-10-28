@@ -179,7 +179,7 @@ Table `booking_request` · read and changed through entityAccess.
 
 A ride asked for on the public website (mcsweenstransport.com/book). Dispatch confirms it by making a job (trip_id), or declines it; the customer is emailed either way. Written only by the bookingRequest function.
 
-**Links to:** [Trip](#trip) (`trip_id`).
+**Links to:** [Trip](#trip) (`trip_id`), [Company](#company) (`company_id`).
 
 | Field | Type | Notes |
 |---|---|---|
@@ -200,6 +200,9 @@ A ride asked for on the public website (mcsweenstransport.com/book). Dispatch co
 | `handled_by` | text | Who confirmed or declined it. |
 | `handled_at` | timestamptz |  |
 | `tracking_sent_at` | timestamptz | When the customer was last emailed their tracking link. |
+| `company_id` | text | → Company. Set when a company asked for the ride from its portal: the job made from it is shared with that company. |
+| `company_name` | text |  |
+| `requested_by_id` | text | The company account that asked for it. |
 
 ### Broadcast
 
@@ -285,7 +288,7 @@ Table `client_error` · read and changed through entityAccess.
 
 Table `company` · read and changed through entityAccess.
 
-**Linked from:** [Advertisement](#advertisement).company_id, [Broadcast](#broadcast).company_id, [CardHolder](#cardholder).company_id, [Client](#client).company_id, [CompanyAccessGrant](#companyaccessgrant).company_id, [CompanyMembership](#companymembership).company_id, [Contact](#contact).company_id, [DeviceCredential](#devicecredential).company_id, [Driver](#driver).company_id, [DriverDocument](#driverdocument).company_id, [DriverPinCredential](#driverpincredential).company_id, [DriverRequest](#driverrequest).company_id, [DriverShift](#drivershift).company_id, [DrivingEvent](#drivingevent).company_id, [Fault](#fault).company_id, [GroupMessage](#groupmessage).company_id, [Incident](#incident).company_id, [Inspection](#inspection).company_id, [InspectionResult](#inspectionresult).company_id, [InspectionTemplate](#inspectiontemplate).company_id, [Invoice](#invoice).company_id, [KioskDevice](#kioskdevice).company_id, [LocationPing](#locationping).company_id, [LostItemReport](#lostitemreport).company_id, [MaintenanceSchedule](#maintenanceschedule).company_id, [NfcCard](#nfccard).company_id, [NotificationLog](#notificationlog).company_id, [Part](#part).company_id, [PassengerAccessCredential](#passengeraccesscredential).company_id, [PassengerOneTimeCredential](#passengeronetimecredential).company_id, [PhoneUnlock](#phoneunlock).company_id, [Place](#place).company_id, [PushToken](#pushtoken).company_id, [Route](#route).company_id, [RouteTravelTimes](#routetraveltimes).company_id, [StaffCheckIn](#staffcheckin).company_id, [TabletRecordingSession](#tabletrecordingsession).company_id, [TabletSupportSession](#tabletsupportsession).company_id, [Trip](#trip).company_id, [User](#user).company_id, [Vehicle](#vehicle).company_id, [VerificationGrant](#verificationgrant).company_id, [Workplace](#workplace).company_id.
+**Linked from:** [Advertisement](#advertisement).company_id, [BookingRequest](#bookingrequest).company_id, [Broadcast](#broadcast).company_id, [CardHolder](#cardholder).company_id, [Client](#client).company_id, [CompanyAccessGrant](#companyaccessgrant).company_id, [CompanyMembership](#companymembership).company_id, [Contact](#contact).company_id, [DeviceCredential](#devicecredential).company_id, [Driver](#driver).company_id, [DriverDocument](#driverdocument).company_id, [DriverPinCredential](#driverpincredential).company_id, [DriverRequest](#driverrequest).company_id, [DriverShift](#drivershift).company_id, [DrivingEvent](#drivingevent).company_id, [Fault](#fault).company_id, [GroupMessage](#groupmessage).company_id, [Incident](#incident).company_id, [Inspection](#inspection).company_id, [InspectionResult](#inspectionresult).company_id, [InspectionTemplate](#inspectiontemplate).company_id, [Invoice](#invoice).company_id, [KioskDevice](#kioskdevice).company_id, [LocationPing](#locationping).company_id, [LostItemReport](#lostitemreport).company_id, [MaintenanceSchedule](#maintenanceschedule).company_id, [NfcCard](#nfccard).company_id, [NotificationLog](#notificationlog).company_id, [Part](#part).company_id, [PassengerAccessCredential](#passengeraccesscredential).company_id, [PassengerOneTimeCredential](#passengeronetimecredential).company_id, [PhoneUnlock](#phoneunlock).company_id, [Place](#place).company_id, [PushToken](#pushtoken).company_id, [Route](#route).company_id, [RouteTravelTimes](#routetraveltimes).company_id, [StaffCheckIn](#staffcheckin).company_id, [TabletRecordingSession](#tabletrecordingsession).company_id, [TabletSupportSession](#tabletsupportsession).company_id, [Trip](#trip).company_id, [User](#user).company_id, [Vehicle](#vehicle).company_id, [VerificationGrant](#verificationgrant).company_id, [Workplace](#workplace).company_id.
 
 **Everyone except admins and company managers gets only:** `name`, `phone`, `logo_url`, `service_types`, `description`.
 
@@ -1199,6 +1202,7 @@ Table `trip` · belongs to a company through `vehicle_id`, then `company_id` · 
 | `dropoff_signed_role` | text | Who signed for the drop-off: a guest, or the hotel's front desk. One of: `guest`, `reception`. Set by the server only. |
 | `driver_accepted_at` | timestamptz | Not sent to the browser. |
 | `pickup_arrived_at` | timestamptz | Not sent to the browser. |
+| `shared_with_company` | boolean | A job shown in the bus company's portal, with the bus's location while the job is under way. Set by dispatch; on for jobs the company asked for. Default `false`. Only an admin can change it. |
 
 ### User
 

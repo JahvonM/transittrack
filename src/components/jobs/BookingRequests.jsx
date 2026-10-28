@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Globe, Mail, MessageCircle, Phone, Plane, Users } from "lucide-react";
+import { Building2, Globe, Mail, MessageCircle, Phone, Plane, Users } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -12,8 +12,9 @@ import { jobTypeLabel } from "@/lib/jobs";
 import { TRANSIT_TIME_ZONE } from "@/lib/localTime";
 import { errorData } from "@/lib/requestError";
 
-// Admin → Jobs → Requests: rides asked for on the website. Dispatch makes a
-// job from one (which confirms it and emails the customer), or declines it.
+// Admin → Jobs → Requests: rides asked for on the website, or by a company
+// in its portal. Dispatch makes a job from one (which confirms it and emails
+// whoever asked), or declines it. A company's job is shared back with it.
 
 const when = (iso) => {
   const t = Date.parse(iso || "");
@@ -42,6 +43,11 @@ function RequestCard({ r, madeJob, onMakeJob, onConfirmMade, onDecline, onSpam, 
     <li className="rounded-xl border border-border bg-card p-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
+          {r.company_id && (
+            <p className="mb-1.5 inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-0.5 text-caption font-semibold text-primary">
+              <Building2 className="h-3.5 w-3.5" aria-hidden="true" /> From {r.company_name || "a company"}
+            </p>
+          )}
           <p className="flex items-center gap-1.5 text-caption font-semibold text-muted-foreground">
             <JobTypeIcon trip={{ job_type: r.service }} className="h-3.5 w-3.5" /> {jobTypeLabel({ job_type: r.service })}
             <span className="font-normal">· asked {ago(r.created_date)}</span>
@@ -55,7 +61,7 @@ function RequestCard({ r, madeJob, onMakeJob, onConfirmMade, onDecline, onSpam, 
         </div>
       </div>
       <div className="mt-3 rounded-lg bg-secondary px-3 py-2 text-body-sm">
-        <p className="font-semibold">{r.name}</p>
+        <p className="font-semibold">{r.company_id ? `Guest: ${r.name}` : r.name}</p>
         <p className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
           {r.phone && <a className="inline-flex items-center gap-1 text-primary hover:underline" href={`tel:${r.phone}`}><Phone className="h-3.5 w-3.5" aria-hidden="true" />{r.phone}</a>}
           {waNumber(r.phone).length >= 7 && <a className="inline-flex items-center gap-1 text-primary hover:underline" href={`https://wa.me/${waNumber(r.phone)}`} target="_blank" rel="noopener noreferrer"><MessageCircle className="h-3.5 w-3.5" aria-hidden="true" />WhatsApp</a>}
@@ -102,11 +108,11 @@ export default function BookingRequests({ requests = [], loading = false, madeJo
   };
 
   return (
-    <Panel title="Ride requests" icon={Globe} description="Asked for on the website. Make a job to confirm a ride, or decline it. The customer is emailed either way.">
+    <Panel title="Ride requests" icon={Globe} description="Asked for on the website, or by a company in its portal. Make a job to confirm a ride, or decline it. Whoever asked is emailed either way.">
       {loading && requests.length === 0 ? (
         <p className="px-1 py-6 text-center text-body-sm text-muted-foreground" role="status">Loading requests…</p>
       ) : requests.length === 0 ? (
-        <EmptyState icon={Globe} title="No new requests" className="border-0">Rides people ask for on mcsweenstransport.com show up here.</EmptyState>
+        <EmptyState icon={Globe} title="No new requests" className="border-0">Rides asked for on mcsweenstransport.com or from a company portal show up here.</EmptyState>
       ) : (
         <ul className="space-y-3">
           {requests.map((r) => <RequestCard key={r.id} r={r} busy={busy} madeJob={madeJobs[r.id]} onMakeJob={onMakeJob} onConfirmMade={onConfirmMade} onDecline={(x) => { setReason(""); setDeclining(x); }} onSpam={spam} />)}

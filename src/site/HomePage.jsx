@@ -1,9 +1,9 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { MessageCircle } from "lucide-react";
+import { ArrowRight, MessageCircle } from "lucide-react";
 import { SITE_SERVICES } from "@/lib/bookingSite";
 import DestinationSign from "@/site/DestinationSign";
-import { showPhone, sitePath, usePageTitle, useSiteBase, useWhatsApp, whatsappTo } from "@/site/siteKit";
+import { routeNumber, showPhone, sitePath, usePageTitle, useSiteBase, useWhatsApp, whatsappTo } from "@/site/siteKit";
 
 const DESCRIPTION = "McSween Transport: airport pickups and drop-offs, transfers, island tours and staff transport in Grenada. Request a ride online and track your bus.";
 
@@ -15,59 +15,72 @@ export default function HomePage() {
 
   return (
     <>
-      <section className="mcs-hero">
+      <section className="mcs-hero mcs-dark" aria-labelledby="hero-title">
+        <div className="mcs-hero-media">
+          <img src="/images/transit-welcome.webp" alt="" width="1599" height="900" fetchpriority="high" decoding="async" />
+        </div>
         <div className="mcs-wrap">
-          <DestinationSign />
-          <div className="mcs-intro">
-            <div>
-              <h1>Airport pickups, transfers and island tours in Grenada.</h1>
-              <p>Tell us where and when. We email you the price and your bus, then send a link so you can watch it on its way to you.</p>
-              <div className="mcs-actions">
-                <Link className="mcs-btn mcs-btn-primary" to={to("/book")}>Request a ride</Link>
-                <Link className="mcs-btn mcs-btn-quiet" to={to("/track")}>Track a ride</Link>
-              </div>
+          <div className="mcs-hero-body">
+            <DestinationSign label="Where to?" />
+            <h1 id="hero-title">Airport pickups, transfers and island tours in Grenada.</h1>
+            <p className="mcs-hero-lede">Tell us where and when. We email you the price and your bus, then send a link so you can watch it on its way to you.</p>
+            <div className="mcs-actions">
+              <Link className="mcs-btn mcs-btn-primary" to={to("/book")}>Request a ride</Link>
+              <Link className="mcs-btn mcs-btn-light" to={to("/track")}>Track a ride</Link>
             </div>
-            <img src="/images/boarding-coaster.webp" alt="A white minibus" width="1200" height="800" />
+            <ul className="mcs-facts">
+              <li>No account needed</li>
+              <li>Price confirmed by email</li>
+              <li>Watch your bus on a map</li>
+            </ul>
           </div>
         </div>
       </section>
 
       <section className="mcs-section" id="services" aria-labelledby="services-title">
         <div className="mcs-wrap">
-          <h2 id="services-title">What we do</h2>
-          <p className="mcs-lede">Each ride is booked just for you or your group.</p>
-          <ul className="mcs-services">
-            {SITE_SERVICES.map((s) => (
-              <li key={s.id}>
-                <h3>{s.name}</h3>
-                <p>{s.text}</p>
-                <Link to={`${to("/book")}?service=${s.id}`} aria-label={`Request ${s.name.toLowerCase()}`}>Request this ride</Link>
-              </li>
-            ))}
-          </ul>
+          <div className="mcs-head">
+            <h2 id="services-title">What we do</h2>
+            <p className="mcs-lede">Each ride is booked just for you or your group.</p>
+          </div>
+          <div className="mcs-board mcs-dark">
+            <div className="mcs-board-top" aria-hidden="true"><span>Route</span><span>Ride</span></div>
+            <ul className="mcs-board-list">
+              {SITE_SERVICES.map((s, i) => (
+                <li key={s.id} className="mcs-board-row">
+                  <span className="mcs-route" aria-hidden="true">{routeNumber(i)}</span>
+                  <h3>{s.name}</h3>
+                  <p>{s.text}</p>
+                  <Link className="mcs-board-go" to={`${to("/book")}?service=${s.id}`} aria-label={`Request ${s.name.toLowerCase()}`}>
+                    Request this ride <ArrowRight aria-hidden="true" />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
       </section>
 
-      <section className="mcs-section mcs-section-glass" id="how" aria-labelledby="how-title">
+      <section className="mcs-section mcs-paper" id="how" aria-labelledby="how-title">
         <div className="mcs-wrap">
           <h2 id="how-title">How booking works</h2>
-          <ol className="mcs-steps">
+          <ol className="mcs-stops">
             <li>
-              <span className="mcs-step-n" aria-hidden="true">1</span>
+              <span className="mcs-stop" aria-hidden="true">1</span>
               <div>
                 <h3>Send a request</h3>
                 <p>Choose the ride, the time and where. It takes a couple of minutes and you don't need an account.</p>
               </div>
             </li>
             <li>
-              <span className="mcs-step-n" aria-hidden="true">2</span>
+              <span className="mcs-stop" aria-hidden="true">2</span>
               <div>
                 <h3>We confirm by email</h3>
                 <p>We check a bus is free and email you the price. Nothing is booked until you get that email.</p>
               </div>
             </li>
             <li>
-              <span className="mcs-step-n" aria-hidden="true">3</span>
+              <span className="mcs-stop" aria-hidden="true">3</span>
               <div>
                 <h3>Watch your bus come</h3>
                 <p>Your confirmation has a private link that shows your bus on a map. Only you can see it, and it stops working a day after the ride.</p>
@@ -77,7 +90,8 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="mcs-section" id="contact" aria-labelledby="contact-title">
+      <section className="mcs-night mcs-dark" id="contact" aria-labelledby="contact-title">
+        <img src="/images/boarding-coast.webp" alt="" width="1200" height="447" loading="lazy" decoding="async" />
         <div className="mcs-wrap mcs-contact">
           <div>
             <h2 id="contact-title">Talk to us</h2>
@@ -92,9 +106,11 @@ export default function HomePage() {
                 <p>Or call <a href={`tel:+${whatsapp}`}>{showPhone(whatsapp)}</a></p>
               </>
             ) : (
-              <p>Send a ride request and we'll reply by email.</p>
+              <>
+                <Link className="mcs-btn mcs-btn-primary" to={to("/book")}>Request a ride</Link>
+                <p>Send a ride request and we'll reply by email.</p>
+              </>
             )}
-            <p className="mcs-hint">McSween's Transport and Reside Co. is based in Grenada. Times on this site are Grenada time.</p>
           </div>
         </div>
       </section>

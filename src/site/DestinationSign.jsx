@@ -12,7 +12,7 @@ const prefersStill = () => {
   try { return window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch { return false; }
 };
 
-export default function DestinationSign() {
+export default function DestinationSign({ label = "" }) {
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(prefersStill);
   const [moved, setMoved] = useState(false);
@@ -47,6 +47,7 @@ export default function DestinationSign() {
   const cls = moved ? " mcs-new" : "";
   return (
     <div className="mcs-sign">
+      {label && <span className="mcs-sign-label" aria-hidden="true">{label}</span>}
       <div className="mcs-sign-line" ref={line} aria-hidden="true">
         <span key={`g${index}`} className={`mcs-sign-glow${cls}`}>{stop}</span>
         <span key={`t${index}`} ref={text} className={`mcs-sign-text${cls}`}>{stop}</span>
