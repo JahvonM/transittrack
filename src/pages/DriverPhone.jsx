@@ -9,6 +9,7 @@ import JourneyLoading from "@/components/JourneyLoading";
 import Logo from "@/components/Logo";
 import { useToast } from "@/components/ui/use-toast";
 import { requestPushToken, pushPermission, onForegroundMessage } from "@/lib/firebase";
+import { NOTIFICATIONS_ALLOWED_EVENT } from "@/lib/appPermissions";
 import { PUSH_FAILURE } from "@/hooks/usePushNotifications";
 import { callDriverPhone, nextDrivingState, notADriver } from "@/lib/driverPhone";
 import TodayTab from "@/components/driverPhone/TodayTab";
@@ -189,7 +190,10 @@ export default function DriverPhone() {
     if (status !== "ready") return;
     let cancelled=false;
     pushPermission().then(p=>{if(!cancelled&&p==="granted")registerPush({prompt:false}).catch(()=>{});});
-    return()=>{cancelled=true;};
+    // Allowed on the first-open screen: register straight away.
+    const allowed=()=>{if(!cancelled)registerPush({prompt:false}).catch(()=>{});};
+    window.addEventListener(NOTIFICATIONS_ALLOWED_EVENT,allowed);
+    return()=>{cancelled=true;window.removeEventListener(NOTIFICATIONS_ALLOWED_EVENT,allowed);};
   }, [status, registerPush]);
   useEffect(() => onForegroundMessage((payload) => {
     const { title, body } = payload.notification || {};
