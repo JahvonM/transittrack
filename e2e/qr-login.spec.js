@@ -112,3 +112,40 @@ test('redesigned email sign-in keeps credentials and reports rejection',async({p
  expect(submitted).toMatchObject({email:'person@test.local',password:'wrong-test-password'});
  await expect(page.getByRole('button',{name:'Sign in',exact:true})).toBeEnabled();
 });
+
+test('company code screen takes a code typed with dashes and says plainly what went wrong', async ({ page }) => {
+  await mockApi(page, { signedIn: true });
+  const sent = [];
+  let reply = { status: 403, json: { error: 'Invalid company code' } };
+  // Registered last, so it answers the code checks.
+  await page.route('**/functions/companyAccess', (route) => {
+    const b = route.request().postDataJSON();
+    if (b.action !== 'verify') return route.fulfill({ status: 401, json: { error: 'Company code required' } });
+    sent.push(b.code);
+    return reply === 'offline' ? route.abort() : route.fulfill(reply);
+  });
+  await page.goto('/staff');
+  const box = page.getByRole('textbox', { name: 'Company code' });
+  const go = page.getByRole('button', { name: 'View live fleet' });
+  // Too short: caught here, without using up a try.
+  await box.fill('ABCD 2345');
+  await go.click();
+  await expect(page.getByRole('alert')).toHaveText('Company codes are 12 letters and numbers. This one has 8.');
+  expect(sent).toEqual([]);
+  // Dashes and spaces are dropped; a wrong code says so.
+  await box.fill('abcd-2345-efgx');
+  await go.click();
+  await expect(page.getByRole('alert')).toHaveText("That code isn't right. Check it with your company: it's 12 letters and numbers.");
+  expect(sent).toEqual(['ABCD2345EFGX']);
+  reply = 'offline';
+  await go.click();
+  await expect(page.getByRole('alert')).toHaveText('No connection. Check your internet, then try again.');
+  reply = { status: 401, json: { error: 'Sign in to continue' } };
+  await go.click();
+  await expect(page.getByRole('alert')).toHaveText("You're signed out. Sign in again, then enter the code.");
+  reply = { json: { company: { id: 'a', name: 'Company A' }, grant: 'b'.repeat(64) } };
+  await box.fill('ABCD 2345 EFGH');
+  await go.click();
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('tt_company_access_grant'))).toBe('b'.repeat(64));
+  expect(sent.at(-1)).toBe('ABCD2345EFGH');
+});

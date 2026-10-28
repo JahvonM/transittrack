@@ -8,6 +8,24 @@ import { ScanCompanyQrButton, ScanCompanyQrDialog } from "@/components/ScanCompa
 import { clearCompanyLeft } from "@/lib/companyJoin";
 import { withRateLimitRetry } from "@/lib/scopedEntities";
 import { useAuth } from "@/lib/AuthContext";
+import { errorData, httpStatus } from "@/lib/requestError";
+import { reportError } from "@/lib/reportError";
+
+// A company code is 12 letters and numbers. People copy it with spaces or
+// dashes, so only the letters and numbers count.
+export const cleanCompanyCode = (value) => String(value || "").replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+
+// What went wrong, in words the passenger can act on. Anything unexpected is
+// also noted in Admin → App errors, so it can be looked into.
+export function companyCodeProblem(error) {
+  const status = httpStatus(error), data = errorData(error);
+  if (status === 429) return "Too many attempts. Try again in 15 minutes.";
+  if (status === 403 && data.code === "PASSENGER_ROLE_REQUIRED") return "This account can't join a company here. Sign in with your passenger account.";
+  if (status === 403) return "That code isn't right. Check it with your company: it's 12 letters and numbers.";
+  if (status === 401) return "You're signed out. Sign in again, then enter the code.";
+  if (!status) return "No connection. Check your internet, then try again.";
+  return "Something went wrong on our side. Try again in a minute.";
+}
 
 // initialCode comes from a company's join QR; it is checked straight away,
 // exactly as if the passenger had typed it.
@@ -20,8 +38,13 @@ export default function CodeGate({ onUnlock, initialCode = "", className = "mt-1
 
   const submit = async (e, override) => {
     e?.preventDefault();
-    const value = (override ?? code).trim().toUpperCase();
+    const value = cleanCompanyCode(override ?? code);
     if (!value) return;
+    // Checked here first, so a typo doesn't use up one of the 5 tries.
+    if (value.length !== 12) {
+      setError(`Company codes are 12 letters and numbers. This one has ${value.length}.`);
+      return;
+    }
     setChecking(true);
     setError("");
     try {
@@ -35,7 +58,9 @@ export default function CodeGate({ onUnlock, initialCode = "", className = "mt-1
       onUnlock(company, response.data);
       checkUserAuth();
     } catch (e) {
-      setError(e?.response?.status === 429 ? "Too many attempts. Try again in 15 minutes." : "Could not verify. Check your code and connection.");
+      setError(companyCodeProblem(e));
+      const status = httpStatus(e);
+      if (status !== 401 && status !== 403 && status !== 429) reportError(e, { source: "company-code", extra: `status ${status ?? "none"}` });
     } finally { setChecking(false); }
   };
 
@@ -66,12 +91,16 @@ export default function CodeGate({ onUnlock, initialCode = "", className = "mt-1
             <Input
               value={code}
               onChange={(e) => setCode(e.target.value.toUpperCase())}
-              placeholder="e.g. AB3D9K"
-              maxLength={12}
+              placeholder="12 letters and numbers"
+              aria-label="Company code"
+              autoCapitalize="characters"
+              autoComplete="off"
+              spellCheck={false}
+              maxLength={20}
               autoFocus
-              className="h-12 text-center text-lg font-semibold tracking-[0.3em]"
+              className="h-12 text-center text-lg font-semibold tracking-[0.3em] placeholder:text-base placeholder:font-normal placeholder:tracking-normal"
             />
-            {error && <p className="text-sm text-destructive">{error}</p>}
+            {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
             <Button type="submit" className="w-full" disabled={checking || !code.trim()}>
               {checking ? "Checking…" : "View live fleet"}
               <ArrowRight className="w-4 h-4" />
