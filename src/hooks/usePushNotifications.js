@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { onForegroundMessage, requestPushToken, pushPermission } from "@/lib/firebase";
 import { useToast } from "@/components/ui/use-toast";
+import { NOTIFICATIONS_ALLOWED_EVENT } from "@/lib/appPermissions";
 
 const currentPermission = () =>
   typeof window !== "undefined" && "Notification" in window ? (Notification.permission === "granted" ? "default" : Notification.permission) : "unsupported";
@@ -34,6 +35,13 @@ export function usePushNotifications({ email, role, companyId } = {}) {
   const autoChecked = useRef(false);
   const busy = useRef(false);
   const notice = useRef(null);
+  // Allowed on the first-open screen while already signed in: register now.
+  const [recheck, setRecheck] = useState(0);
+  useEffect(() => {
+    const again = () => setRecheck((n) => n + 1);
+    window.addEventListener(NOTIFICATIONS_ALLOWED_EVENT, again);
+    return () => window.removeEventListener(NOTIFICATIONS_ALLOWED_EVENT, again);
+  }, []);
   // Repeated retries update the same notice instead of stacking error cards.
   const notify = (message) => {
     if (notice.current?.handle?.update && Date.now()-notice.current.at<5000) {
@@ -65,7 +73,7 @@ export function usePushNotifications({ email, role, companyId } = {}) {
       if(p==="granted"){const {token}=await requestPushToken({prompt:false});if(token&&!cancelled&&(await saveToken(token))&&!cancelled)setPermission("granted");}
     });
     return()=>{cancelled=true;autoChecked.current=false;};
-  }, [email, role, companyId]);
+  }, [email, role, companyId, recheck]);
 
   useEffect(() => onForegroundMessage((payload) => {
     const { title, body } = payload.notification || {};
