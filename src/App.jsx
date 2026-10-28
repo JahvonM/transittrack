@@ -15,6 +15,7 @@ import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-route
 import { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { homeFor } from '@/lib/roleHome';
 import { isSiteHost } from '@/lib/bookingSite';
+import { firstOpenWanted } from '@/lib/appInstall';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import { useTheme } from "@/lib/useTheme";
@@ -58,6 +59,15 @@ const ManagerDashboard = lazy(() => import('@/pages/ManagerDashboard'));
 const OAuthConsent = lazy(() => import('@/pages/OAuthConsent'));
 const DesktopSignIn = lazy(() => import('@/pages/DesktopSignIn'));
 const PhoneSignIn = lazy(() => import('@/pages/PhoneSignIn'));
+// The first time someone opens the app in a browser: get the app, then allow
+// notifications, location, camera and microphone.
+const FirstOpenSetup = lazy(() => import('@/components/FirstOpenSetup'));
+function FirstOpenGate() {
+  const location = useLocation();
+  const [closed, setClosed] = useState(false);
+  if (closed || !firstOpenWanted({ path: location.pathname })) return null;
+  return <Suspense fallback={null}><FirstOpenSetup onClose={() => setClosed(true)} /></Suspense>;
+}
 const PassengerBookings = lazy(() => import('@/pages/PassengerBookings'));
 const Kiosk = lazy(() => import('@/pages/Kiosk'));
 const RouteExplorer = lazy(() => import('@/pages/RouteExplorer'));
@@ -248,6 +258,7 @@ function App() {
           <PhoneSignInListener />
           <NativeNotificationTaps />
           <NativeTabletHealth />
+          <FirstOpenGate />
         </Router>
         <Toaster />
         <ConfirmHost />
