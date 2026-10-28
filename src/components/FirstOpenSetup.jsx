@@ -252,17 +252,20 @@ export default function FirstOpenSetup({ onClose }) {
   return (
     <div className="fixed inset-0 z-[80] flex bg-background sm:items-center sm:justify-center sm:bg-black/60 sm:p-6 sm:backdrop-blur-sm">
       <div role="dialog" aria-modal="true" aria-labelledby="first-open-title"
-        className="flex h-full w-full flex-col bg-background sm:h-auto sm:max-h-[min(760px,92dvh)] sm:max-w-md sm:rounded-3xl sm:border sm:border-border sm:shadow-2xl">
+        className="flex h-full w-full flex-col bg-background sm:h-auto sm:max-h-[92dvh] sm:max-w-md sm:rounded-3xl sm:border sm:border-border sm:shadow-2xl">
         <header className="flex items-center gap-2.5 px-5 pb-2 pt-[max(1.25rem,env(safe-area-inset-top))] sm:px-6 sm:pt-6">
           <img src={LOGO_URL} alt="" className="h-7 w-7 rounded-[28%]" />
           <span className="flex-1 text-sm font-semibold">McSween Transport</span>
           {counting && <span className="text-sm text-muted-foreground">Step {stepNumber} of 2</span>}
         </header>
-        <div className="flex-1 overflow-y-auto px-5 pb-4 pt-4 sm:px-6">
-          {showIcon && <div className="mb-6 mt-2 flex justify-center"><HomeScreenIcon /></div>}
-          <h2 id="first-open-title" ref={heading} tabIndex={-1} className="font-heading text-2xl font-bold leading-tight tracking-tight outline-none sm:text-[1.65rem]">{title}</h2>
-          <p className="mt-2 text-base leading-relaxed text-muted-foreground">{body}</p>
-          {content && <div className="mt-6">{content}</div>}
+        <div className="flex flex-1 flex-col overflow-y-auto px-5 pb-4 pt-4 sm:px-6">
+          {/* Short screens sit in the middle of a phone instead of at the top. */}
+          <div className="my-auto">
+            {showIcon && <div className="mb-6 mt-2 flex justify-center"><HomeScreenIcon /></div>}
+            <h2 id="first-open-title" ref={heading} tabIndex={-1} className="font-heading text-2xl font-bold leading-tight tracking-tight outline-none sm:text-[1.65rem]">{title}</h2>
+            <p className="mt-2 text-base leading-relaxed text-muted-foreground">{body}</p>
+            {content && <div className="mt-6">{content}</div>}
+          </div>
         </div>
         <footer className="space-y-2 border-t border-border px-5 pt-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:px-6 sm:pb-6">
           <Button size="lg" className="w-full" onClick={primary.onClick} loading={busy && (step === "prompt" || step === "permissions")}>{primary.label}</Button>
