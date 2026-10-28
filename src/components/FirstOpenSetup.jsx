@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Bell, Camera, Check, Copy, EllipsisVertical, MapPin, Menu, Share, SquarePlus } from "lucide-react";
+import { Bell, Camera, Check, Copy, Ellipsis, EllipsisVertical, MapPin, Share, SquarePlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LOGO_URL } from "@/components/Logo";
 import {
@@ -73,7 +73,7 @@ const ANDROID_STEPS = [
 ];
 
 const INAPP_STEPS = (ios) => [
-  { title: <>Tap the menu <Control icon={ios ? Share : Menu}>{ios ? "•••" : "⋮"}</Control> in the corner</>, detail: "Facebook, Instagram, WhatsApp and similar apps show links in their own viewer." },
+  { title: <>Tap the menu <Control icon={ios ? Ellipsis : EllipsisVertical}>Menu</Control> in the corner</>, detail: "Facebook, Instagram and similar apps show links in their own viewer." },
   { title: <>Choose <Control>{ios ? "Open in Safari" : "Open in browser"}</Control></>, detail: "Or copy the link below and paste it into your browser." },
   { title: "Add the app from there", detail: "This page will show you how." },
 ];
@@ -94,7 +94,7 @@ function PermissionRow({ item, state, ctx, onAllow, busy }) {
   const status = statusText(item.id, state, ctx);
   return (
     <li className="flex items-start gap-3 py-3.5 first:pt-0 last:pb-0">
-      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/12 text-primary" aria-hidden="true"><Icon className="h-5 w-5" /></span>
+      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/15 text-primary" aria-hidden="true"><Icon className="h-5 w-5" /></span>
       <div className="min-w-0 flex-1">
         <p className="font-semibold leading-snug">{item.title}</p>
         <p className="mt-0.5 text-sm leading-relaxed text-muted-foreground">{item.why}</p>
@@ -138,7 +138,7 @@ export default function FirstOpenSetup({ onClose }) {
   // A computer whose browser offers to install after all.
   useEffect(() => {
     if (step === "permissions" && promptable && !ctx.mobile && !ctx.standalone && !states.started) setStep("prompt");
-  }, [promptable]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [promptable]);
 
   const installing = step && step !== "permissions" && step !== "ios-open";
   const hasInstallStep = useRef(false);
@@ -159,14 +159,15 @@ export default function FirstOpenSetup({ onClose }) {
     const { overflow } = document.body.style;
     document.body.style.overflow = "hidden";
     return () => { document.body.style.overflow = overflow; };
-  }, [!!step]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [!!step]);
 
   const close = useCallback(() => { markFirstOpenDone(); onClose?.(); }, [onClose]);
   useEffect(() => {
+    if (!step) return undefined;
     const onKey = (e) => { if (e.key === "Escape") close(); };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [close]);
+  }, [close, !!step]);
 
   const install = async () => {
     setBusy(true);
@@ -195,7 +196,8 @@ export default function FirstOpenSetup({ onClose }) {
   const counting = hasInstallStep.current && step !== "ios-open";
   const stepNumber = step === "permissions" ? 2 : 1;
 
-  let title, body, content, primary, secondary = { label: "Not now", onClick: close };
+  // "Not now" on the get-the-app screens still goes on to the permissions.
+  let title, body, content, primary, secondary = { label: "Not now", onClick: () => setStep("permissions") };
   if (step === "prompt") {
     title = ctx.mobile ? "Install the McSween Transport app" : "Install McSween Transport on this computer";
     body = ctx.mobile ? "It opens in one tap from your Home Screen, full screen, and can alert you about your rides." : "It opens in its own window from your desktop or taskbar, and can alert you about your rides.";
@@ -243,7 +245,7 @@ export default function FirstOpenSetup({ onClose }) {
       </ul>
     );
     primary = left ? { label: "Allow all", onClick: allowAll } : { label: "Done", onClick: close };
-    if (!left) secondary = null;
+    secondary = left ? { label: "Not now", onClick: close } : null;
   }
   const showIcon = step !== "permissions";
 
