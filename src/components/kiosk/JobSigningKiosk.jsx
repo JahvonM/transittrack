@@ -2,6 +2,7 @@ import "./jobSigning.css";
 import Logo from "@/components/Logo";
 import NameSign from "@/components/driver/NameSign";
 import SigningJobControls from "./SigningJobControls";
+import { usePickupSign } from "./BoardingPickupSign";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CheckCircle2, CloudOff, Plane, Users } from "lucide-react";
 import { base44 } from "@/api/base44Client";
@@ -97,6 +98,13 @@ function SignScreen({ job, mode, onSign }) {
 export default function JobSigningKiosk({ device, deviceId, online, onBusChanged }) {
   const [jobs, setJobs] = useState([]);
   const [nameSign, setNameSign] = useState(null);
+  // The driver can also send a name sign from the driver tablet. Only one
+  // sign shows at a time, and the job controls are behind it: sliding the
+  // sign away opens them (the bus PIN again once they have locked).
+  const [driverSign, dismissDriverSign] = usePickupSign(device);
+  const shownSign = nameSign || driverSign;
+  const [controlsRequest, setControlsRequest] = useState(0);
+  const closeSign = () => { setNameSign(null); dismissDriverSign(); setControlsRequest((n) => n + 1); };
   const [requestedJob,setRequestedJob]=useState(null);
   const [signed, setSigned] = useState(() => savedHere());
   const [thanks, setThanks] = useState(null);
@@ -186,11 +194,11 @@ export default function JobSigningKiosk({ device, deviceId, online, onBusChanged
           {device?.vehicle_name && <p className="truncate text-sm text-muted-foreground">{device.vehicle_name}</p>}
         </div>
         <span className="font-display text-lg font-semibold tabular-nums">{time(now)}</span>
-        <SigningJobControls deviceId={deviceId} busName={device?.vehicle_name} savedCount={savedHere().size}
+        <SigningJobControls deviceId={deviceId} busName={device?.vehicle_name} savedCount={savedHere().size} hidden={!!shownSign} openRequest={controlsRequest}
           onBusChanged={(bus) => { setJobs([]); setRequestedJob(null); onBusChanged?.(bus); }} onShowNameSign={job=>setNameSign({name:job.passenger_name||job.client_name||"Welcome",subtitle:job.flight_number?"Flight "+job.flight_number:"Welcome to Grenada"})} onShowSignature={trip=>{setThanks(null);setRequestedJob(trip.id);setJobs(prev=>[trip,...prev.filter(j=>j.id!==trip.id)]);}}/>
         <KioskConnectionBadge online={online} />
       </header>
-      {nameSign && <NameSign sign={nameSign} company={{name:device?.company_name||"McSween Transport",logo_url:device?.company_logo_url}} onClose={()=>setNameSign(null)} />}
+      {shownSign && <NameSign sign={shownSign} company={{name:device?.company_name||"McSween Transport",logo_url:device?.company_logo_url}} onClose={closeSign} closeLabel="Slide to go back to jobs" />}
       <main className="flex flex-1 items-center justify-center p-5 sm:p-8">
         {thanks ? (
           <div role="status" className="max-w-xl space-y-4 text-center animate-in fade-in zoom-in-95 duration-300">
