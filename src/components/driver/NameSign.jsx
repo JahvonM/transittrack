@@ -43,7 +43,7 @@ export default function NameSign({ sign, company, onClose, closeLabel = "Slide t
         </Button>
       </div>
 
-      <div className={`flex flex-col items-center justify-center px-6 ${text ? "pt-10" : "flex-1"}`}>
+      <div className={`flex flex-col items-center justify-center px-6 ${text ? "pt-16" : "flex-1"}`}>
         {logo ? (
           <img src={logo} alt={companyName} onError={() => setLogoFailed(true)} className={`${text ? "max-h-[22vh]" : "max-h-[45vh]"} max-w-[80vw] object-contain`} />
         ) : null}
