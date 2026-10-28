@@ -14,6 +14,25 @@ async function lookedUp(fixture){
 }
 const check=grant=>({action:'check_in',staff_id:'rider',method:'nfc',status:'boarded',verification_grant:grant,client_request_id:'boarding-1234',occurred_at:new Date().toISOString()});
 describe('boarding grant current authorization',()=>{
+ it('accepts the active reissued card and saves it for offline taps despite revoked history',async()=>{
+  const f=setup();
+  const active=f.sdk.tables.NfcCard[0];
+  f.sdk.tables.NfcCard.unshift(...Array.from({length:3},(_,i)=>({...active,id:'old-'+i,is_active:false,revoked_at:new Date().toISOString()})));
+  const grant=await lookedUp(f);
+  const directory=await f.send({action:'offline_directory'});
+  expect(directory.status).toBe(200);
+  expect((await directory.json()).staff).toEqual(expect.arrayContaining([expect.objectContaining({id:'rider'})]));
+  expect((await f.send(check(grant))).status).toBe(200);
+ });
+ it('rejects a grant from an earlier issue of the same physical card',async()=>{
+  const f=setup(),oldGrant=await lookedUp(f);
+  const previous=f.sdk.tables.NfcCard[0];
+  previous.is_active=false;previous.revoked_at=new Date().toISOString();
+  f.sdk.tables.NfcCard.push({...previous,id:'reissued',is_active:true,revoked_at:null});
+  expect((await f.send(check(oldGrant))).status).toBe(403);
+  const fresh=await lookedUp(f);
+  expect((await f.send(check(fresh))).status).toBe(200);
+ });
  it.each([
  ['revoked ledger',sdk=>{sdk.tables.NfcCard[0].is_active=false;}],
  ['revoked timestamp',sdk=>{sdk.tables.NfcCard[0].revoked_at=new Date().toISOString();}],
