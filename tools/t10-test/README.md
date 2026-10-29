@@ -11,7 +11,7 @@ Let Gradle sync, install Android SDK 36 when prompted, select the T10 and click 
 Alternatively, from the repository root (with ANDROID_HOME set):
 
 ```powershell
-.\android\gradlew.bat -p tools/t10-test :app:assembleDebug
+.\tools\t10-test\gradlew.bat -p tools/t10-test :app:assembleDebug
 ```
 
 APK: `tools/t10-test/app/build/outputs/apk/debug/app-debug.apk`.
@@ -35,3 +35,8 @@ Card identifiers are displayed locally: redact them from shared screenshots.
 This diagnostic does not yet integrate the reader into boarding/check-in. Its
 results determine the next isolated integration step. Hardware validation needs
 the physical T10; do not treat an untested APK as a proven fix.
+
+## Gradle version
+This project includes its own wrapper pinned to Gradle 8.13 for AGP 8.12.0.
+In Android Studio Gradle settings, use the wrapper (gradle-wrapper.properties),
+not a local Gradle 9.x installation. Use JDK 17 or 21 for Gradle.
