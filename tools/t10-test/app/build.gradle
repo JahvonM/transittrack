@@ -1,0 +1,12 @@
+plugins { id 'com.android.application' version '8.12.0' }
+android {
+    namespace 'com.mcsween.t10test'
+    compileSdk 36
+    defaultConfig {
+        applicationId 'com.mcsween.t10test'
+        minSdk 23
+        targetSdk 32
+        versionCode 1
+        versionName '0.1-test'
+    }
+}
