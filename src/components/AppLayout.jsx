@@ -30,9 +30,9 @@ export default function AppLayout(props) {
 }
 
 const PASSENGER_NAV = [
-  { to: "/staff", label: "Home", also: ["/"] },
-  { to: "/journey", label: "Journey", also: ["/route-explorer", "/buses"] },
-  { to: "/my-card", label: "My card" },
+  { to: "/staff", label: "Home", also: ["/", "/journey", "/route-explorer", "/buses"] },
+  { to: "/rides", label: "My rides" },
+  { to: "/my-card", label: "My pass" },
   { to: "/more", label: "More", also: ["/notifications", "/account", "/safety-standards"] },
 ];
 const STAFF_ROLES = new Set(["admin", "driver", "company", "mechanic"]);

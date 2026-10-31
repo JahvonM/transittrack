@@ -333,7 +333,7 @@ export default function NotificationsTab() {
   const leftOut = types.reduce((n, t) => n + settingOf(t.key).blocked_emails.filter((e) => reachOf[t.key]?.some((p) => p.email === e)).length, 0);
   const ownChoices = types.reduce((n, t) => n + (reachOf[t.key] || []).filter((p) => p.opted_out?.includes(t.key)).length, 0);
   const day = Date.now() - 24 * 3600_000;
-  const lastDay = data.recent.filter((r) => Date.parse(r.sent_at) > day);
+  const lastDay = (data.recent || []).filter((r) => Date.parse(r.sent_at) > day);
   const problems = lastDay.filter((r) => r.status === "failed" || r.status === "partial").length;
 
   return (
@@ -363,13 +363,13 @@ export default function NotificationsTab() {
         </Panel>
         {current && (
           <KindDetail key={current.key + JSON.stringify(settingOf(current.key))} type={current} setting={settingOf(current.key)}
-            reach={reachOf[current.key] || []} companies={data.companies || []} recent={data.recent} types={types} onSaved={onSaved} />
+            reach={reachOf[current.key] || []} companies={data.companies || []} recent={data.recent || []} types={types} onSaved={onSaved} />
         )}
       </div>
 
       <Panel className="mt-4" title="All recent notifications" description="What went out, to whom, and whether it arrived."
         actions={<Button variant="ghost" size="sm" onClick={load}><RefreshCw className="h-4 w-4" /> Refresh</Button>}>
-        <RecentList rows={data.recent.slice(0, 50)} types={types} empty="Nothing has been sent since this page was added." />
+        <RecentList rows={(data.recent || []).slice(0, 50)} types={types} empty="Nothing has been sent since this page was added." />
       </Panel>
     </div>
   );

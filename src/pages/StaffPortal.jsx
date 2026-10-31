@@ -71,7 +71,7 @@ function DriverPhoneCheck({ children }) {
 export default function StaffPortal() {
   const { user, checkUserAuth, logout } = useAuth();
   const { pathname } = useLocation();
-  const view = pathname === "/journey" ? "journey" : pathname === "/my-card" ? "card" : pathname === "/more" ? "more" : "home";
+  const view = pathname === "/journey" ? "journey" : pathname === "/rides" ? "rides" : pathname === "/my-card" ? "card" : pathname === "/more" ? "more" : "home";
   // A company join QR scanned in this tab: check its code instead of
   // restoring the saved company (it may be a different company).
   const [joinCode] = useState(() => takePendingJoinCode());

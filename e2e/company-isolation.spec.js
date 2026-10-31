@@ -324,7 +324,7 @@ test('approved passenger mobile layout keeps four navigation items and more menu
   await passengerShowcase(page,{light:true});
   await expect(page.locator('html')).toHaveClass(/light/);
   const nav=page.getByRole('navigation',{name:'Passenger sections'});
-  for(const name of ['Home','Journey','My card','More'])await expect(nav.getByRole('button',{name,exact:true})).toBeVisible();
+  for(const name of ['Home','My rides','My pass','More'])await expect(nav.getByRole('button',{name,exact:true})).toBeVisible();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
   await page.screenshot({path:'/tmp/tt-passenger-mobile.png',fullPage:true});
   // More is its own page in the passenger app; Messages and the account live there.
@@ -341,7 +341,7 @@ test('passenger showcase keeps delayed GPS distinct from live arrival',async({pa
   await expect(card.getByText('Location delayed').first()).toBeVisible();
   await expect(card.locator('.px-service.live')).toHaveCount(0);
   // The route's stops are still there.
-  await page.getByRole('navigation',{name:'Passenger sections'}).getByRole('button',{name:'Journey',exact:true}).click();
+  await page.getByRole('link',{name:'View journey',exact:true}).click();
   await expect(page.getByRole('button',{name:'All route stops'})).toBeVisible();
 });
 
@@ -767,7 +767,8 @@ test('passenger Buses is distinct from Home and chat bubble works on both',async
  await expect(page.getByRole('dialog')).toHaveCount(0);
  const nav=page.getByRole('navigation',{name:'Passenger sections'});
  // Buses: from Journey, with its own chat bubble.
- await nav.getByRole('button',{name:'Journey',exact:true}).click();
+ await nav.getByRole('button',{name:'Home',exact:true}).click();
+ await page.getByRole('link',{name:'View journey',exact:true}).click();
  await page.getByRole('link',{name:'Browse company buses'}).click();
  await expect(page.getByRole('heading',{name:'Company buses',exact:true})).toBeVisible();
  await expect(page.getByLabel('Your next bus',{exact:true})).toHaveCount(0);

@@ -17,6 +17,7 @@ export default function PassengerBookings() {
   const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [assign, setAssign] = useState({});
+  const [approving, setApproving] = useState("");
 
   const load = async () => {
     try {
@@ -34,14 +35,22 @@ export default function PassengerBookings() {
   useEffect(() => { load(); }, []);
 
   const approve = async (trip) => {
+    if (approving) return;
     const vid = assign[trip.id];
     if (!vid) { toast({ title: "Select a vehicle first", variant: "destructive" }); return; }
     const vh = vehicles.find((x) => x.id === vid);
-    await base44.entities.Trip.update(trip.id, {
-      status: "on_the_way", vehicle_id: vid, vehicle_name: vh?.name, plate_number: vh?.plate_number, started_at: new Date().toISOString(),
-    });
-    toast({ title: "Booking approved & assigned" });
-    load();
+    setApproving(trip.id);
+    try {
+      await base44.entities.Trip.update(trip.id, {
+        status: "on_the_way", vehicle_id: vid, vehicle_name: vh?.name, plate_number: vh?.plate_number, started_at: new Date().toISOString(),
+      });
+      toast({ title: "Booking approved & assigned" });
+      load();
+    } catch (e) {
+      toast({ title: "Couldn't approve the booking", description: e?.response?.data?.error || "Check the connection and try again.", variant: "destructive" });
+    } finally {
+      setApproving("");
+    }
   };
 
   const pending = trips.filter((t) => t.status === "scheduled");
@@ -58,7 +67,7 @@ export default function PassengerBookings() {
               <SelectTrigger className="h-8 w-44" aria-label="Assign vehicle"><SelectValue placeholder="Assign vehicle" /></SelectTrigger>
               <SelectContent>{vehicles.map((v) => <SelectItem key={v.id} value={v.id}>{v.name} · {v.plate_number}</SelectItem>)}</SelectContent>
             </Select>
-            <Button size="sm" onClick={() => approve(t)}>Approve</Button>
+            <Button size="sm" onClick={() => approve(t)} disabled={!!approving}>{approving === t.id ? "Approving…" : "Approve"}</Button>
           </div>
         )}
       </CardContent>

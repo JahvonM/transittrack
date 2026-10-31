@@ -15,6 +15,8 @@ async function approvedCompany(db, user) {
  }
  return ids.size===1 ? [...ids][0] : null;
 }
+// One boarding or exit, as its own passenger may see it: no card numbers.
+const ownEvent=(r)=>({id:r.id,status:r.status,boarded_at:r.boarded_at || r.created_date,vehicle_name:r.vehicle_name || 'Bus',method:r.check_in_method});
 export default async function(req) {
  try {
   const client=createClientFromRequest(req), session=await client.auth.me();
@@ -24,8 +26,8 @@ export default async function(req) {
   const companyId=await approvedCompany(db,user);
   if(!companyId) return Response.json({error:'Verified company access required'},{status:403});
   const body=await req.json(), action=body.action || 'summary';
-  if(!['summary','report_lost_card','report_missed_pickup'].includes(action)) return Response.json({error:'Unknown action'},{status:400});
-  if(action!=='summary' && !(await reserveAttempt(client,'passenger-report:'+action+':'+user.id,3,60_000))) return Response.json({error:'Please wait before sending another report.'},{status:429,headers:{'Retry-After':'60'}});
+  if(!['summary','rides','report_lost_card','report_missed_pickup'].includes(action)) return Response.json({error:'Unknown action'},{status:400});
+  if(!['summary','rides'].includes(action) && !(await reserveAttempt(client,'passenger-report:'+action+':'+user.id,3,60_000))) return Response.json({error:'Please wait before sending another report.'},{status:429,headers:{'Retry-After':'60'}});
   const contacts=(await db.Contact.filter({company_id:companyId,email:user.email},'-updated_date',100)).filter(c=>c.company_id===companyId && c.email?.toLowerCase()===user.email?.toLowerCase());
   const cards=await db.NfcCard.filter({company_id:companyId,holder_source:'user',holder_id:user.id},'-issue_date',100);
   for(const contact of contacts) cards.push(...await db.NfcCard.filter({company_id:companyId,holder_source:'contact',holder_id:contact.id},'-issue_date',100));
@@ -47,10 +49,16 @@ export default async function(req) {
   }
   // Match stable IDs and all this person's card identifiers; never match by name.
   const tags=[...new Set([user.id,...owned.map(c=>c.card_uid),...contacts.flatMap(c=>[c.id,c.nfc_card_tag])].filter(Boolean))];
+  // My rides: the last 60 days of this person's own boardings and exits.
+  if(action==='rides') {
+   const since=new Date(Date.now()-60*86400_000).toISOString();
+   const rides=await db.StaffCheckIn.filter({company_id:companyId,card_tag:{$in:tags}},'-boarded_at',200);
+   return Response.json({events:rides.filter(r=>r.company_id===companyId && tags.includes(r.card_tag) && (r.boarded_at || r.created_date)>=since).map(ownEvent)});
+  }
   const rows=await db.StaffCheckIn.filter({company_id:companyId,card_tag:{$in:tags}},'-boarded_at',10);
   return Response.json({
    card:{issued:owned.length>0,active:active.length>0,status:active.length?'Active':owned.length?'Inactive':'Not issued'},
-   history:rows.filter(r=>r.company_id===companyId && tags.includes(r.card_tag)).map(r=>({id:r.id,status:r.status,boarded_at:r.boarded_at || r.created_date,vehicle_name:r.vehicle_name || 'Bus',method:r.check_in_method})),
+   history:rows.filter(r=>r.company_id===companyId && tags.includes(r.card_tag)).map(ownEvent),
   });
  } catch(error) {
   const status=error?.status ?? error?.response?.status ?? 500;

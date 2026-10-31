@@ -1,7 +1,7 @@
 import { pickupArrival } from "@/lib/pickupArrival";
 import React, { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { Bell, BellOff, Building2, Bus, ChevronRight, Clock, CreditCard, Home, LifeBuoy, LogOut, Map, MapPin, Megaphone, MessageCircle, QrCode, ShieldCheck, TriangleAlert, Wifi } from "lucide-react";
+import { Bell, BellOff, Building2, CalendarClock, ChevronRight, Clock, CreditCard, Home, LifeBuoy, LogOut, Map, MapPin, Megaphone, MessageCircle, QrCode, ShieldCheck, TriangleAlert, Wifi } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { confirmAction } from "@/components/ConfirmHost";
@@ -10,7 +10,8 @@ import BusArtwork from "@/components/BusArtwork";
 import BoardingPass from "@/components/staff/BoardingPass";
 import RouteTimeline from "./RouteTimeline";
 import { BookedRides, SponsorLine } from "./PassengerSections";
-import usePassengerAccount from "./usePassengerAccount";
+import usePassengerAccount, { usePassengerRides } from "./usePassengerAccount";
+import { RIDE_STATE_TEXT, TODAY_STATE_TEXT, groupRides, todayRides } from "@/lib/myRides";
 import { accountName, greetingName, nameInitials } from "@/lib/userName";
 import { arrivalClock, clock, lastSeen } from "./passengerState";
 import { fetchDrivingRoute } from "@/lib/geo";
@@ -58,6 +59,7 @@ export default function PassengerExperience({view,user,company,workplace,myVehic
  const {toast}=useToast();
  const support=useSupportWhatsApp();
  const account=usePassengerAccount(user,company.id,view==="card");
+ const rides=usePassengerRides(user,company.id,view==="rides");
  const [reportBusy,setReportBusy]=useState(false);
  const [showStops,setShowStops]=useState(false);
  const returnEta=useReturnEta(myVehicle,workplace,returning,now);
@@ -178,10 +180,21 @@ export default function PassengerExperience({view,user,company,workplace,myVehic
    <Link to="/buses" className="px-quiet-link">Browse company buses</Link>
   </>}
   {view==="card" && <>
-   <header className="px-page-title"><h1>My boarding card</h1></header>
+   <header className="px-page-title"><h1>My pass</h1></header>
    <section className="px-digital-card"><div className="px-card-person"><div><p>{company.name}</p><h2>{accountName(user)}</h2><span className="px-role">{user.role==="staff"?"HOTEL STAFF":"PASSENGER"}</span>{user.employee_id && <small>{user.employee_id}</small>}</div><Portrait user={user}/></div><BoardingPass digital /></section>
    <section className="px-panel"><h2><CreditCard />NFC card</h2>{account.loading?<p role="status">Checking your issued card…</p>:account.error?<><p role="alert">{account.error}</p><Button onClick={()=>account.retry()} variant="outline">Retry card details</Button></>:<><p className={account.summary?.card?.active?"px-positive":""}>{account.summary?.card?.issued?"Issued · ":""}{account.summary?.card?.status || "Not issued"}</p><p>{account.summary?.card?.active?"Tap your card on the boarding tablet.":"Your transport team can issue or replace your card."}</p><Button disabled={!account.summary?.card?.active || account.reporting} variant="outline" className="w-full" onClick={lostCard}><TriangleAlert />Report lost card</Button></>}</section>
-   <section className="px-panel"><h2><Clock />Recent journeys</h2>{account.summary?.history?.length?<ul className="px-history">{account.summary.history.map(row=><li key={row.id}><span className="px-history-dot"/><span><strong>{row.vehicle_name}</strong><small>{row.status==="boarded"?"Boarded":"Exited"} · {new Date(row.boarded_at).toLocaleDateString()} · {clock(row.boarded_at)}</small></span></li>)}</ul>:<p>{account.loading?"Loading your boarding history…":"No boarding history yet."}</p>}</section>
+   <div className="px-panel px-settings-list"><Row icon={CalendarClock} title="My rides" sub="Today's rides and your boarding history" to="/rides"/></div>
+  </>}
+  {view==="rides" && <>
+   <header className="px-page-title"><h1>My rides</h1><p>Your regular transport and the rides you've taken</p></header>
+   <section className="px-panel" aria-labelledby="px-rides-today"><h2 id="px-rides-today"><CalendarClock />Today</h2>
+    <ul className="px-ride-list">{todayRides({bus:myVehicle,pickup:homeName || pickupName,destination:workplace?.name || company.name,returning,skip,late,lateUntil}).map(r=><li key={r.key} aria-current={r.current?"step":undefined}><span><strong>{r.label}{r.current?" · next":""}</strong><small>{r.from || "Your pickup"} to {r.to || "your destination"}{r.bus?` · ${r.bus}`:""}</small></span><b className={`px-ride-state ${r.state}`}>{TODAY_STATE_TEXT[r.state]}{r.lateUntil?` until ${clock(r.lateUntil)}`:""}</b></li>)}</ul>
+    {flagsPanel}
+    <p className="px-ride-note">No booking needed: your rides follow your company's schedule. Tell your driver here if you're not travelling or running late.</p>
+   </section>
+   <section className="px-panel" aria-labelledby="px-rides-done"><h2 id="px-rides-done"><Clock />Completed</h2>
+    {rides.loading?<p role="status">Loading your rides…</p>:rides.error?<><p role="alert">{rides.error}</p><Button variant="outline" onClick={()=>rides.retry()}>Try again</Button></>:(()=>{const list=groupRides(rides.events);return list.length?<ul className="px-history">{list.map(r=><li key={r.id}><span className="px-history-dot"/><span><strong>{r.bus}</strong><small>{new Date(r.boardedAt || r.exitedAt).toLocaleDateString([], {weekday:"short",day:"numeric",month:"short"})} · {r.boardedAt?clock(r.boardedAt):"—"}{r.exitedAt?` to ${clock(r.exitedAt)}`:""} · {RIDE_STATE_TEXT[r.state]}</small></span></li>)}</ul>:<p>No rides in the last 60 days. Rides appear here after you tap your card or show your pass on the bus.</p>;})()}
+   </section>
   </>}
   {view==="more" && <>
    <header className="px-page-title"><h1>Your account</h1></header>
@@ -195,7 +208,7 @@ export default function PassengerExperience({view,user,company,workplace,myVehic
     <Row icon={LifeBuoy} title="Help & support" onClick={()=>setSheet("help")}/>
    </section>
    <section className="px-panel px-offline"><Wifi /><span><strong>Offline access</strong><p>{offline?"Showing saved trip details.":"Your last received trip details stay available."}</p><small>{lastSynced?`Last synced ${clock(lastSynced)}`:"Waiting for the first sync"}</small></span></section>
-   <details className="px-panel"><summary>More tools</summary><div className="px-settings-list"><Row icon={ShieldCheck} title="Safety standards" to="/safety-standards"/><Row icon={Bus} title="Booked rides" to="/passenger-bookings"/>{support && <a className="px-row" href={whatsappLink(support,"passenger app")} target="_blank" rel="noopener noreferrer"><LifeBuoy /><span>Report an app problem</span><ChevronRight /></a>}</div></details>
+   <details className="px-panel"><summary>More tools</summary><div className="px-settings-list"><Row icon={ShieldCheck} title="Safety standards" to="/safety-standards"/>{support && <a className="px-row" href={whatsappLink(support,"passenger app")} target="_blank" rel="noopener noreferrer"><LifeBuoy /><span>Report an app problem</span><ChevronRight /></a>}</div></details>
    <button className="px-sign-out" onClick={logout}><LogOut />Sign out</button>
   </>}
   {view==="journey" && !mapOpen && <button className="px-floating-chat" aria-label="Open passenger chat" onClick={()=>setSheet("chat")}><MessageCircle /></button>}

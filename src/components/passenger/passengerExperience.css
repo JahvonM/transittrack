@@ -67,3 +67,7 @@
 .px-find-pickup p{margin:0}
 .px-find-btn{grid-column:1/-1;margin-top:10px;min-height:46px;border-radius:12px;border:0;background:var(--px-fill);color:var(--px-on-tint);font-weight:700;font-size:13px}
 .px-journey-points .px-pickup-note{color:var(--px-warn);margin-top:4px}
+/* My rides: today's regular rides with a state shown as words, not colour alone. */
+.px-ride-list{list-style:none;padding:0;margin:0 0 12px}.px-ride-list li{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 0}.px-ride-list li+li{border-top:1px solid var(--px-sep)}.px-ride-list li span{min-width:0}.px-ride-list strong{display:block;font-size:14px}.px-ride-list small{display:block;font-size:12px;opacity:.85;overflow-wrap:anywhere}.px-ride-list li[aria-current=step] strong{color:var(--px-tint)}
+.px-ride-state{flex-shrink:0;border-radius:20px;padding:4px 10px;font-size:11px;font-weight:700;background:var(--px-chip);color:var(--px-chip-text)}.px-ride-state.scheduled{background:var(--px-good-bg);color:var(--px-good)}.px-ride-state.running_late{color:var(--px-warn)}.px-ride-state.not_travelling{text-decoration:none;opacity:.9}
+.px-ride-note{margin-top:12px;font-size:12px;opacity:.85}

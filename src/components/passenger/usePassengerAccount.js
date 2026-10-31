@@ -11,3 +11,10 @@ export default function usePassengerAccount(user, companyId, enabled) {
  return {summary:query.data,loading:query.isPending,error:query.error?errorData(query.error).error || "Couldn't load your card details.":"",retry:query.refetch,
   reportLost:()=>lost.mutateAsync(),reporting:lost.isPending};
 }
+
+// My rides: the passenger's own boardings and exits from the last 60 days.
+export function usePassengerRides(user, companyId, enabled) {
+ const query=useQuery({queryKey:["passenger-rides",user?.id,companyId],enabled:!!enabled && !!user?.id && !!companyId,staleTime:60000,retry:false,
+  queryFn:()=>withRateLimitRetry(()=>base44.functions.invoke("passengerAccount",{action:"rides"}),{attempts:3}).then(r=>r.data?.events || [])});
+ return {events:query.data || [],loading:query.isPending,error:query.error?errorData(query.error).error || "Couldn't load your rides.":"",retry:query.refetch};
+}

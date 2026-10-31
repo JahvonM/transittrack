@@ -1,5 +1,7 @@
 import {test,expect} from '@playwright/test';
 const tab=(page,name)=>page.getByRole(page.viewportSize().width<768?'button':'link',{name,exact:true});
+// The live map and stops (/journey) open from Home since My rides took the tab.
+const openJourney=async(page)=>{await tab(page,'Home').click();await page.getByRole('link',{name:'View journey',exact:true}).click();};
 const vehicles=[{id:'bus-a',name:'Bus A',company_id:'a',company_name:'Company A',type:'staff_bus',status:'idle',capacity:25},{id:'bus-b',name:'Bus B',company_id:'b',company_name:'Company B',type:'staff_bus',status:'idle',capacity:25}];
 async function session(page,role) {
  const calls=[],direct=[];
@@ -65,17 +67,20 @@ test('four passenger tabs retain data and open map only on request',async({page}
  await expect(page.getByLabel('Bus arrival details')).toContainText('Estimated pickup');
  await expect(page.getByLabel('Bus arrival details')).toContainText('1 stop away');
  await expect(page.getByLabel('Live journey map')).toHaveCount(0);
- await tab(page,'Journey').click();
+ await openJourney(page);
  await expect(page.getByRole('button',{name:'View live map',exact:true})).toBeVisible();
  await page.getByRole('button',{name:'View live map',exact:true}).click();
  await expect(page.getByLabel('Live journey map')).toBeVisible();
  await page.getByRole('button',{name:'Hide live map',exact:true}).click();
- await tab(page,'My card').click();
+ await tab(page,'My pass').click();
  await expect(page.getByText('Issued · Active',{exact:true})).toBeVisible();
  await expect(page.getByRole('button',{name:'Report lost card'})).toBeEnabled();
  await tab(page,'More').click();
  await expect(page.getByRole('heading',{name:'Your account'})).toBeVisible();
  await expect(page.getByText('Offline access',{exact:true})).toBeVisible();
+ // Home remembers the journey page it was left on; tapping it again goes back to the top.
+ await tab(page,'Home').click();
+ await expect(page.getByRole('heading',{name:'My journey'})).toBeVisible();
  await tab(page,'Home').click();
  await expect(page.getByLabel('Your next bus')).toBeVisible();
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
@@ -85,7 +90,7 @@ for(const width of [320,430,768])test('passenger layout fits '+width,async({page
  await page.setViewportSize({width,height:950});await passengerShowcase(page);
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
  const hero=page.getByLabel('Your next bus');await expect(hero).toBeVisible();
- await tab(page,'Journey').click();
+ await openJourney(page);
  await expect(page.getByRole('button',{name:'View live map',exact:true})).toBeVisible();
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
 });
@@ -168,7 +173,7 @@ test('passenger sheets follow the finger: pulled down they close, pulled up they
 });
 test('route stops unfold, and the arrow turns toward them',async({page})=>{
  await page.setViewportSize({width:390,height:844});await passengerShowcase(page);
- await tab(page,'Journey').click();
+ await openJourney(page);
  const toggle=page.getByRole('button',{name:'All route stops'});
  await toggle.click();
  await expect(page.getByRole('button',{name:'Hide route stops'})).toHaveAttribute('aria-expanded','true');
@@ -194,7 +199,7 @@ test('return trip uses company pickup and home dropoff',async({page})=>{
  return r.fulfill({json:{result}});
  });
  await page.reload();await expect(page.getByLabel('Your next bus')).toBeVisible();
- await tab(page,'Journey').click();
+ await openJourney(page);
  await expect(page.getByLabel('Pickup and drop-off')).toContainText('Hotel entrance');
  await expect(page.getByLabel('Pickup and drop-off')).toContainText('My home');
 });
@@ -206,7 +211,7 @@ for(const item of [
 ])test('passenger card shows '+item.name+' from fresh bus location',async({page})=>{
  await passengerShowcase(page,{busExtra:{current_lat:item.lat,current_lng:-61.77,speed:item.speed}});
  await expect(page.getByLabel('Your next bus').getByRole('status')).toHaveText(item.label);
- await tab(page,'Journey').click();
+ await openJourney(page);
  await expect(page.locator('.px-bus-identity')).toContainText(item.label);
 });
 // A route with only a drawn road (Route Planner) and no named stops: the
@@ -406,11 +411,11 @@ test.describe('phone tour',()=>{
   await shot('home');
   await sheet('pickup-sheet',()=>page.getByRole('region',{name:'Pickup and drop-off'}).getByRole('button',{name:'Change'}).click());
   await sheet('chat-sheet',()=>page.getByRole('button',{name:/^Need anything\? Message us/}).click());
-  await tab(page,'Journey').click();
+  await openJourney(page);
   await expect(page.getByRole('button',{name:'View live map',exact:true})).toBeVisible();
   await page.getByRole('button',{name:'All route stops'}).click();
   await shot('journey');
-  await tab(page,'My card').click();
+  await tab(page,'My pass').click();
   await expect(page.getByText('Issued · Active',{exact:true})).toBeVisible();
   await shot('card');
   await tab(page,'More').click();

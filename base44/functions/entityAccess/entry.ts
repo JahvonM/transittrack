@@ -202,6 +202,9 @@ async function visible(db, ctx, name, row) {
  }
  if (!PASSENGER_READ.has(name)) return false;
  if (name === 'GroupMessage' && row.channel !== 'staff') return false;
+ // Passengers see their company's staff runs, never dispatch jobs: those are
+ // hotel guests' and website customers' rides (places and times).
+ if (name === 'Trip' && row.job_type) return false;
  return true;
 }
 function project(ctx,name,row) {

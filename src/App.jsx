@@ -14,6 +14,7 @@ import { queryClientInstance } from '@/lib/query-client'
 import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
 import { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { homeFor } from '@/lib/roleHome';
+import RoleGate from '@/components/RoleGate';
 import { isSiteHost } from '@/lib/bookingSite';
 import { firstOpenWanted } from '@/lib/appInstall';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
@@ -197,25 +198,26 @@ const AuthenticatedApp = () => {
         <Route path="/staff" element={<StaffPortal />} />
         <Route path="/journey" element={<StaffPortal />} />
         <Route path="/my-card" element={<StaffPortal />} />
+        <Route path="/rides" element={<StaffPortal />} />
         <Route path="/mechanic" element={<MechanicPortal />} />
         <Route path="/run-inspection" element={<RunInspection />} />
         <Route path="/manager" element={<ManagerDashboard />} />
         <Route path="/manager/:tab" element={<ManagerDashboard />} />
-        <Route path="/passenger-bookings" element={<PassengerBookings />} />
+        <Route path="/passenger-bookings" element={<RoleGate allow={["admin"]}><PassengerBookings /></RoleGate>} />
         <Route path="/route-explorer" element={<RouteExplorer />} />
         <Route path="/buses" element={<Buses />} />
         <Route path="/more" element={<StaffPortal />} />
         <Route path="/staff-directory" element={<StaffDirectory />} />
-        <Route path="/service-history" element={<ServiceHistory />} />
+        <Route path="/service-history" element={<RoleGate allow={["admin", "mechanic"]}><ServiceHistory /></RoleGate>} />
         <Route path="/safety-standards" element={<SafetyStandards />} />
         <Route path="/notifications" element={<Notifications />} />
-        <Route path="/vehicle-registry" element={<VehicleRegistry />} />
+        <Route path="/vehicle-registry" element={<RoleGate allow={["admin"]}><VehicleRegistry /></RoleGate>} />
         <Route path="/vehicle/:id" element={<VehicleDetail />} />
-        <Route path="/incident-report" element={<IncidentReport />} />
+        <Route path="/incident-report" element={<RoleGate allow={["admin", "company", "mechanic", "driver"]}><IncidentReport /></RoleGate>} />
         {MOVED_TO_ADMIN.map((id) => <Route key={id} path={`/${id}`} element={<Navigate to={`/admin/${id}`} replace />} />)}
         <Route path="/driver-password" element={<DriverPassword />} />
-        <Route path="/driver-schedule" element={<DriverSchedule />} />
-        <Route path="/driver-profile" element={<DriverProfile />} />
+        <Route path="/driver-schedule" element={<RoleGate allow={["admin", "driver"]}><DriverSchedule /></RoleGate>} />
+        <Route path="/driver-profile" element={<RoleGate allow={["admin", "driver"]}><DriverProfile /></RoleGate>} />
         {/* The driver phone app (Google sign-in); /driver is the bus tablet. */}
         <Route path="/driver-phone/:tab?" element={<DriverPhone />} />
       </Route>
