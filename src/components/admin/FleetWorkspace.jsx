@@ -97,13 +97,13 @@ export default function FleetWorkspace({ vehicles = [], kiosks = [], checkIns = 
           </ul>
         )}
       </Panel>
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
+      <div className="space-y-4">
         <Panel title="Live map" icon={MapPin} bodyClassName="p-0 overflow-hidden rounded-b-2xl">
-          <div className="h-[420px]"><Suspense fallback={<p role="status" className="p-4 text-body-sm">Loading the map…</p>}><FleetMap vehicles={vehicles} /></Suspense></div>
+          <div className="h-[460px]"><Suspense fallback={<p role="status" className="p-4 text-body-sm">Loading the map…</p>}><FleetMap vehicles={vehicles} /></Suspense></div>
         </Panel>
         <Panel title="Buses" icon={Bus} bodyClassName="p-2 pt-0">
           {rows.length === 0 ? <EmptyState icon={Bus} title="No buses yet" /> : (
-            <ul className="space-y-1" aria-label="Buses">
+            <ul className="grid gap-2 md:grid-cols-2" aria-label="Buses">
               {rows.map((r) => (
                 <li key={r.vehicle.id} className="rounded-xl border border-border p-3">
                   <div className="flex flex-wrap items-center gap-2">
