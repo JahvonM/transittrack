@@ -1,0 +1,74 @@
+# What's new, and how to use it
+
+For the office and drivers. Nothing here needs a computer person.
+
+## Cards
+
+- **Card issuing → Issued cards** shows each card as Active, Suspended, Lost,
+  Revoked or Replaced.
+- To stop a card, press **Stop card** and choose:
+  - **Suspend** if it might come back (you can **Switch back on** later).
+  - **Report lost** if it's gone. A lost card can't be switched back on.
+    If it turns up, issue it again (tap it on the reader as a new card).
+  - **Revoke** if it must never work again.
+- Online boarding tablets stop accepting the card within about 30 seconds.
+  A tablet without a connection may still accept it until it reconnects
+  (24 hours at most). Those taps are kept and marked for review.
+- Under each passenger, the bus line says when the bus tablet last
+  **downloaded** its card list and how many cards it has. If it says the bus
+  has no set-up, paired boarding tablet, cards can't reach that bus: pair
+  one in **Kiosk tablets**.
+
+## Boarding tablets
+
+- In **Kiosk tablets → Reassign**, choose what the reader records:
+  - **Boarding and getting off (asks each time)**: as before.
+  - **Boarding only**: front door; records straight away.
+  - **Getting off only**: rear door.
+  - Tick **Only accept taps while a driver shift is open** if you want taps
+    refused when no driver has started their shift.
+- A second tap within 30 minutes shows **Already recorded** and adds nothing.
+- On the tablet, hold the top bar for 3 seconds and enter the bus PIN for
+  **Tablet settings**. **Diagnostics** shows, in plain words, whether the
+  card reader, camera, card list, saved taps, connection and kiosk lock are
+  working. **Copy for support** copies it without any card numbers or names.
+- **Kiosk tablets** shows each tablet's protection: *active*, *limited*,
+  *setup required* (and what is missing), *not reported*, or *failed* (and
+  why). On 1 November only 2 of 7 tablets were locked. To lock one: on the
+  tablet, Tablet settings → Startup → **Kiosk lock & exit code**, set an exit
+  code, turn kiosk mode on. A tablet that says "not a managed kiosk" needs
+  the USB setup tool. Nothing is changed on a tablet from the office.
+
+## Driver tablet: Passengers
+
+- Each passenger shows **On board since…**, **Got off at…**, **Didn't show**
+  or nothing yet, plus any **Help:** note they asked for (for example a lower
+  step).
+- With the bus stopped, the driver can mark **Didn't show** (and undo it),
+  or **Got on / Got off (no tap)** for someone who couldn't tap. Each mark is
+  saved with the driver's name and shows in Change history; got on / off is
+  marked for review.
+
+## Passenger requests (Admin → Passenger support)
+
+- Passengers can ask to change a pickup time or place for one day, cancel a
+  ride on a later day, report a missed pickup, a card or booking problem, or
+  rate a ride. Each has a reference like **TT-7K3Q2M**.
+- Open one to read it, **Send reply**, or **Confirm** / **Turn down** (turning
+  down needs a message saying why) / **Mark resolved**. The passenger sees
+  your reply and the status in their app.
+- Confirming tells the passenger it's arranged. Make the change itself (the
+  driver, the pickup or the job) the usual way.
+
+## Fleet workspace (Admin → Fleet workspace)
+
+One screen with the map, a line per bus (live or last known location,
+shift, people on board where a boarding tablet is reporting, faults, last
+check, tablet protection) and **Needs attention** with links to fix things.
+**Cameras (trial)** is off until you switch it on; it shows road-facing
+driver-tablet cameras only, up to four, and each view ends after 10 minutes.
+
+## Route stops
+
+In **Route planner**, each stop has a **Where to wait** box (for example
+"opposite the bank, sea side"). Passengers see it under Where to wait.

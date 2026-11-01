@@ -4,6 +4,7 @@ import { boardingSecretHash, currentBoardingCode } from '../_shared/boardingCred
 // Shared request budgets use the configured Supabase RPC and fail closed.
 import { reserveAttempt, claimOnce, createOnce } from '../_shared/atomicOps.ts';
 import { checkBusPin } from '../_shared/busPin.ts';
+import { modeStatus, onBoardCount, readerMode, repeatOf, reviewReason, suggestedStatus, tapAdvice } from '../_shared/boardingEvents.ts';
 
 
 async function liveMembership(base44, row) {
@@ -149,16 +150,41 @@ async function resolveVehicleName(base44, vehicleId) {
   catch { return ''; }
 }
 
-// Toggles boarded/off_board based on the most recent record for this exact
-// person (matched by card_tag when there is one, else by name) on this bus —
-// used only as a *suggested* default now; the kiosk always lets the person
-// pick boarding/exiting explicitly (see 'check_in' below).
-async function nextStatus(base44, vehicleId, matchKey, matchValue) {
-  const rows = await base44.asServiceRole.entities.StaffCheckIn.filter(
-    { vehicle_id: vehicleId, [matchKey]: matchValue }, '-created_date', 1
-  );
-  return rows[0]?.status === 'boarded' ? 'off_board' : 'boarded';
+// This person's recent taps on this bus, oldest to newest by when they
+// happened. Matched by card_tag (the card, or the person's id for codes).
+async function recentTaps(base44, companyId, vehicleId, cardTag) {
+  if (!vehicleId || !cardTag) return [];
+  const rows = await base44.asServiceRole.entities.StaffCheckIn.filter({ vehicle_id: vehicleId, card_tag: cardTag }, '-boarded_at', 30);
+  return rows.filter((r) => r.company_id === companyId).map((r) => ({ ...r, at: r.boarded_at || r.created_date }));
 }
+// The run a tap belongs to: the driver's shift open on the bus at that time,
+// or the bus's day when no shift was open.
+async function runAt(base44, vehicleId, at) {
+  const shifts = await base44.asServiceRole.entities.DriverShift.filter({ vehicle_id: vehicleId }, '-started_at', 20).catch(() => []);
+  const shift = shifts.find((x) => x.vehicle_id === vehicleId && Date.parse(x.started_at) <= at + 60_000 && (!x.ended_at || Date.parse(x.ended_at) >= at - 60_000));
+  if (shift) return { run_key: 'shift:' + shift.id, shift_id: shift.id, active: true };
+  return { run_key: 'day:' + vehicleId + ':' + new Date(at).toLocaleDateString('en-CA', { timeZone: 'America/Grenada' }), shift_id: '', active: false };
+}
+// A card this person had before (replaced or cancelled since), matched by the
+// fingerprint an offline tablet saved with the tap, never by the number.
+async function earlierCard(base44, companyId, person, device, fingerprint) {
+  if (typeof fingerprint !== 'string' || !/^[a-f0-9]{64}$/.test(fingerprint)) return null;
+  const holders = [];
+  if (person.source === 'contact') holders.push({ holder_source: 'contact', holder_id: person.id });
+  if (person.member_user_id) holders.push({ holder_source: 'user', holder_id: person.member_user_id });
+  for (const holder of holders) {
+    const cards = await base44.asServiceRole.entities.NfcCard.filter({ company_id: companyId, ...holder }, '-issue_date', 20);
+    for (const card of cards) {
+      if (card.company_id !== companyId || !card.card_uid) continue;
+      if (sameDigest(fingerprint, await hashSecret(device.id + ':' + String(card.card_uid).toUpperCase()))) return card;
+    }
+  }
+  return null;
+}
+const WRONG_DIRECTION = {
+  boarded: 'This reader records boarding only. Tap the exit reader when you get off.',
+  off_board: 'This reader records exits only. Tap the boarding reader when you get on.',
+};
 
 // A check-in saved on the tablet while offline carries the time it really
 // happened; accept it if it's plausible (not in the future, not days old).
@@ -214,17 +240,19 @@ function tabletRoute(row, companyId) {
 function tabletCheckIn(row) {
   return tabletFields(row, ['id', 'staff_name', 'staff_picture_url', 'status', 'boarded_at', 'created_date', 'vehicle_id', 'vehicle_name', 'check_in_method']);
 }
-function boardingStats(rows) {
-  const latest = new Map();
-  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Grenada' });
+// On board now, by when taps happened (shared boarding rules), the same
+// count the driver tablet shows.
+function boardingStats(rows, now = Date.now()) {
+  const byPerson = {};
+  const today = new Date(now).toLocaleDateString('en-CA', { timeZone: 'America/Grenada' });
   let todayCount = 0;
   for (const row of rows || []) {
-    const key = row.card_tag || row.staff_name;
-    const prev = latest.get(key);
-    if (!prev || Date.parse(row.created_date) > Date.parse(prev.created_date)) latest.set(key, row);
-    if (row.status === 'boarded' && new Date(row.created_date).toLocaleDateString('en-CA', { timeZone: 'America/Grenada' }) === today) todayCount++;
+    const key = row.person_key || row.card_tag || row.staff_name;
+    if (!key) continue;
+    (byPerson[key] ||= []).push({ status: row.status, at: row.boarded_at || row.created_date });
+    if (row.status === 'boarded' && new Date(row.boarded_at || row.created_date).toLocaleDateString('en-CA', { timeZone: 'America/Grenada' }) === today) todayCount++;
   }
-  return { occupancy: [...latest.values()].filter((r) => r.status === 'boarded').length, today_count: todayCount };
+  return { occupancy: onBoardCount(byPerson, now), today_count: todayCount };
 }
 async function tabletCheckIns(base44, companyId, vehicleId) {
   if (!companyId || !vehicleId) return [];
@@ -256,11 +284,11 @@ async function issueGrant(base44, device, purpose, subject, ttlMs, binding={}) {
  });
  return secret;
 }
-async function validGrant(base44, device, token, purpose, subject) {
+async function validGrant(base44, device, token, purpose, subject, at = Date.now()) {
  if (typeof token !== 'string' || !/^[a-f0-9]{64}$/.test(token)) return false;
  const rows = await base44.asServiceRole.entities.VerificationGrant.filter({ token_hash: await hashSecret(token) }, '-created_date', 1);
  const row = rows[0];
- return !!row && row.pairing_code_hash === await hashSecret(device.pairing_code || '') && row.device_id === device.id && row.company_id === device.company_id && row.vehicle_id === device.vehicle_id && row.purpose === purpose && row.subject === subject && Date.parse(row.expires_at) > Date.now();
+ return !!row && row.pairing_code_hash === await hashSecret(device.pairing_code || '') && row.device_id === device.id && row.company_id === device.company_id && row.vehicle_id === device.vehicle_id && row.purpose === purpose && row.subject === subject && Date.parse(row.expires_at) > at;
 }
 
 async function currentCard(base44,companyId,person,uid) {
@@ -411,8 +439,10 @@ export default async function(req) {
         if (refusal) return Response.json(refusal, { status: 403 });
         const binding=await boardingBinding(base44,device,person,'card');
         if(!binding)return Response.json({error:'Card no longer authorized'},{status:403});
-        const status = await nextStatus(base44, vehicleId, 'card_tag', person.nfc_tag || person.id);
-        return Response.json({ staff: { id: person.id, full_name: person.full_name, photo_url: person.photo_url }, next_status: status, verification_grant: await issueGrant(base44, device, 'boarding', person.id, 24 * 3600_000,binding) });
+        const mode = readerMode(device?.reader_mode), now = Date.now();
+        const advice = tapAdvice(await recentTaps(base44, companyId, vehicleId, person.nfc_tag || person.id), mode, now);
+        const status = advice.status;
+        return Response.json({ staff: { id: person.id, full_name: person.full_name, photo_url: person.photo_url }, next_status: status, reader_mode: mode, already: advice.repeat ? { status: advice.repeat.status, at: advice.repeat.at } : null, verification_grant: await issueGrant(base44, device, 'boarding', person.id, 24 * 3600_000,binding) });
       }
 
       // Permanent personal QR, chosen keypad code, or a legacy temporary code.
@@ -458,9 +488,11 @@ export default async function(req) {
           if (!claimOnce('one-time:' + current.id, 30 * 60_000)) return Response.json({ error: 'This code has already been used. Ask for a new one.' }, { status: 409 });
           await base44.asServiceRole.entities.PassengerOneTimeCredential.update(current.id, { consumed_at: new Date().toISOString() });
         }
-        const status = await nextStatus(base44, vehicleId, 'card_tag', person.nfc_tag || person.id);
+        const mode = readerMode(device?.reader_mode);
+        const advice = tapAdvice(await recentTaps(base44, companyId, vehicleId, person.nfc_tag || person.id), mode, Date.now());
+        const status = advice.status;
         const binding = { ...await boardingBinding(base44,device,person,'code'), ...(credentialVersion ? { credential_version: credentialVersion } : {}) };
-        return Response.json({ staff: { id: person.id, full_name: person.full_name, photo_url: person.photo_url }, next_status: status, code_type: codeType, verification_grant: await issueGrant(base44, device, 'boarding', person.id, 24 * 3600_000,binding) });
+        return Response.json({ staff: { id: person.id, full_name: person.full_name, photo_url: person.photo_url }, next_status: status, reader_mode: mode, already: advice.repeat ? { status: advice.repeat.status, at: advice.repeat.at } : null, code_type: codeType, verification_grant: await issueGrant(base44, device, 'boarding', person.id, 24 * 3600_000,binding) });
       }
 
       // --- admin app (Staff Directory): generate a persistent access code for
@@ -502,12 +534,26 @@ export default async function(req) {
         }
         const directory = await loadStaffDirectory(base44, companyId);
         const person = directory.find((s) => s.id === sanitize(staff_id)) || null;
-        let locallyVerified = false;
-        if (method === 'nfc' && body.directory_grant && device && person?.nfc_tag &&
-            await validGrant(base44,device,body.directory_grant,'boarding-directory',device.id)) {
-          const fingerprint = await hashSecret(device.id + ':' + person.nfc_tag.toUpperCase());
-          locallyVerified = sameDigest(body.card_fingerprint,fingerprint) &&
-            (await currentCard(base44,companyId,person,person.nfc_tag)).valid;
+        // When the tap happened: now, or the time an offline tablet saved it.
+        const occurred = Date.parse(occurredAt(body.occurred_at));
+        const replay = !!body.queue_replay;
+        let locallyVerified = false, offlineCardNote = '';
+        // An offline tap is checked against the card list the tablet had then
+        // (still valid at the time of the tap), not only today's.
+        if (method === 'nfc' && body.directory_grant && device && person &&
+            await validGrant(base44,device,body.directory_grant,'boarding-directory',device.id,replay ? occurred : Date.now())) {
+          if (person.nfc_tag && sameDigest(body.card_fingerprint, await hashSecret(device.id + ':' + person.nfc_tag.toUpperCase())))
+            locallyVerified = (await currentCard(base44,companyId,person,person.nfc_tag)).valid;
+          // Offline-tap policy: a card replaced or cancelled after the tablet
+          // downloaded its list still records the ride (it happened), marked
+          // for review so the office sees it. Live taps of such a card are refused.
+          if (!locallyVerified && replay) {
+            const card = await earlierCard(base44, companyId, person, device, body.card_fingerprint);
+            if (card) {
+              locallyVerified = true;
+              offlineCardNote = card.revoked_at && Date.parse(card.revoked_at) <= occurred ? 'revoked_card_used_offline' : 'card_changed_after_tap';
+            }
+          }
         }
         if (['nfc', 'qr', 'code', 'bluetooth'].includes(method) && !locallyVerified && (!person || !(await validGrant(base44, device, body.verification_grant, 'boarding', person.id)) || !(await currentBoardingEligibility(base44,device,person,body.verification_grant,method)))) return Response.json({ error: 'Card authorization expired or changed. Refresh the tablet passenger list.' }, { status: 403 });
         // Directory grants are reusable for offline card verification. Lookup
@@ -527,9 +573,29 @@ export default async function(req) {
         const refusal = wrongBus(person, vehicleId);
         if (refusal) return Response.json(refusal, { status: 403 });
         const cardTag = person?.nfc_tag || person?.id || sanitize(staff_id) || sanitize(staff_name);
-        const status = ['boarded', 'off_board'].includes(requestedStatus)
-          ? requestedStatus
-          : await nextStatus(base44, vehicleId, 'card_tag', cardTag);
+        const mode = readerMode(device?.reader_mode);
+        // If the history can't be read the tap is still recorded (a boarding
+        // must not fail on a lookup), marked so a possible repeat is reviewed.
+        let historyNote = '';
+        const taps = await recentTaps(base44, companyId, vehicleId, cardTag).catch(() => { historyNote = 'history_unavailable'; return []; });
+        const requested = ['boarded', 'off_board'].includes(requestedStatus) ? requestedStatus : null;
+        // A reader set to one direction records only that direction. Taps
+        // saved offline before the setting changed are still recorded.
+        if (requested && modeStatus(mode) && requested !== modeStatus(mode) && !replay)
+          return Response.json({ error: 'wrong_direction', message: WRONG_DIRECTION[modeStatus(mode)] }, { status: 409 });
+        const status = requested || suggestedStatus(taps, occurred, mode);
+        // A repeated tap (same direction, just recorded, nothing in between,
+        // from this or another tablet) adds nothing: "Already recorded".
+        const repeat = repeatOf(taps, status, occurred);
+        if (repeat) {
+          let stats = {};
+          try { stats = boardingStats(await tabletCheckIns(base44, companyId, vehicleId)); } catch { /* heartbeat refreshes counts later */ }
+          return Response.json({ record: tabletCheckIn(repeat), duplicate: true, ...stats });
+        }
+        const run = await runAt(base44, vehicleId, occurred);
+        if (device?.require_active_trip && !run.active && !replay)
+          return Response.json({ error: 'no_active_trip', message: 'No trip is running on this bus yet. The driver starts the shift on the driver tablet, then taps work here.' }, { status: 409 });
+        const review = offlineCardNote || historyNote || reviewReason(taps, status, occurred) || '';
         const resolvedVehicleName = vehicleName || (await resolveVehicleName(base44, vehicleId));
         // Two identical requests (a retry racing the original) create one
         // check-in and both get that same record back.
@@ -538,7 +604,9 @@ export default async function(req) {
           ...(boardingGrantHash ? {boarding_grant_hash:boardingGrantHash,device_id:device.id} : {}),
           staff_name: person?.full_name || sanitize(staff_name) || 'Staff',
           staff_picture_url: person?.photo_url || '',
-          card_tag: cardTag, status, boarded_at: occurredAt(body.occurred_at),
+          card_tag: cardTag, status, boarded_at: new Date(occurred).toISOString(),
+          person_key: person ? person.source + ':' + person.id : '',
+          run_key: run.run_key, shift_id: run.shift_id, review_reason: review, saved_offline: replay,
           company_id: companyId, company_name: companyName,
           vehicle_id: vehicleId, vehicle_name: resolvedVehicleName,
           check_in_method: ['nfc', 'qr', 'manual', 'code', 'bluetooth'].includes(method) ? method : 'manual',

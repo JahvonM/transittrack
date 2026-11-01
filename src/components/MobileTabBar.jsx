@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 import { useLocation, useNavigate, useNavigationType } from "react-router-dom";
-import { CreditCard, Home, LayoutGrid, Route } from "lucide-react";
+import { CalendarClock, Home, LayoutGrid, QrCode } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/AuthContext";
 
@@ -25,11 +25,12 @@ const HIDDEN_PREFIXES = [
 
 const TABS = [
   // The passenger home lives at /staff ("/" sends each role to its own home).
-  { to: "/staff", label: "Home", icon: Home, exact: true, also: "/" },
-  { to: "/journey", label: "Journey", icon: Route, also: ["/route-explorer", "/buses"] },
-  { to: "/my-card", label: "My card", icon: CreditCard },
+  // Home is the current journey; its live map and stops (/journey) open from it.
+  { to: "/staff", label: "Home", icon: Home, exact: true, also: ["/journey", "/route-explorer", "/buses"] },
+  { to: "/rides", label: "My rides", icon: CalendarClock },
+  { to: "/my-card", label: "My pass", icon: QrCode },
   // Messages and Account live under More.
-  { to: "/more", label: "More", icon: LayoutGrid, also: ["/notifications", "/account", "/safety-standards"] },
+  { to: "/more", label: "More", icon: LayoutGrid, also: ["/notifications", "/account", "/safety-standards", "/help"] },
 ];
 
 // Per-tab remembered navigation stack (session-local): each tab keeps the
@@ -40,7 +41,7 @@ const TABS = [
 const tabStacks = {};
 
 function tabFor(pathname) {
-  if (pathname === "/" || pathname.startsWith("/staff")) return "/staff";
+  if (pathname === "/" || pathname.startsWith("/staff") || TABS[0].also.some((p) => pathname.startsWith(p))) return "/staff";
   const match = TABS.find((t) => t.to !== "/staff" && (pathname.startsWith(t.to) || (Array.isArray(t.also) && t.also.some((p) => pathname.startsWith(p)))));
   return match ? match.to : null;
 }

@@ -1,3 +1,5 @@
+import { localTapAdvice } from "./recentTaps";
+import { readerMode } from "../../base44/shared/boardingEvents.ts";
 // A scoped display index and temporary tablet grant; no raw card UIDs or PINs.
 const KEY = "tt_boarding_card_index_v1";
 const read = () => { try { return JSON.parse(localStorage.getItem(KEY) || "null"); } catch { return null; } };
@@ -36,7 +38,9 @@ export async function localCardLookup(uid, device) {
   const matches=d.staff.filter(p=>p.card_fingerprint===fingerprint);
   if (matches.length!==1) return null;
   const p=matches[0];
-  let status="boarded";
-  try { if (JSON.parse(localStorage.getItem("tt_kiosk_last_status") || "{}")[p.id]==="boarded") status="off_board"; } catch { /* default */ }
-  return {staff:{id:p.id,full_name:p.full_name,photo_url:p.photo_url},next_status:status,directory_grant:d.directory_grant,card_fingerprint:fingerprint,local_lookup:true};
+  // Same rules as the server: the reader's direction, or a suggestion, and
+  // whether this tap repeats one this tablet just recorded.
+  const mode=readerMode(device.reader_mode);
+  const advice=localTapAdvice(p.id,mode);
+  return {staff:{id:p.id,full_name:p.full_name,photo_url:p.photo_url},next_status:advice.next_status,already:advice.already,reader_mode:mode,directory_grant:d.directory_grant,card_fingerprint:fingerprint,local_lookup:true};
 }

@@ -1,4 +1,5 @@
 import { supportCapabilities } from "@/lib/nativeTabletSupport";
+import { tabletRecoveryState } from "./tabletRecovery";
 import { Capacitor, registerPlugin } from "@capacitor/core";
 const TabletHealth = registerPlugin("TabletHealth");
 export const nativeTabletHealthAvailable = () => Capacitor.isNativePlatform() && Capacitor.getPlatform() === "android" && Capacitor.isPluginAvailable("TabletHealth");
@@ -22,6 +23,8 @@ export function startNativeTabletHealth(target = window) {
         snapshot.supportAvailable = support?.remoteViewingReady === true;
         snapshot.supportTransport = support?.transport;
         target.__ttNativeHealth = snapshot;
+        // Whether the app opens at start-up (Android Home app), for the kiosk protection report.
+        target.__ttRecovery = await tabletRecoveryState().catch(() => null);
         target.dispatchEvent(new Event("tt-native-health"));
       }
     } finally { reading = false; }

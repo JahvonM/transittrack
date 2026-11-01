@@ -84,7 +84,8 @@ test('phone kiosk has dedicated mode controls and no horizontal overflow',async(
  await expect(page.locator('[data-layout=phone]')).toBeVisible();
  await expect(page.getByRole('navigation',{name:'Phone kiosk'})).toBeVisible();
  await expect(page.getByRole('button',{name:'Tablet & reader',exact:true})).toBeVisible();
- await expect(page.getByRole('button',{name:'Full screen',exact:true})).toBeVisible();
+ // Full screen is a staff control now: behind the bus PIN, not on the passenger screen.
+ await expect(page.getByRole('button',{name:'Full screen',exact:true})).toHaveCount(0);
  expect(await page.locator('.tt-kiosk-phone').evaluate(e=>e.getBoundingClientRect().height<=innerHeight+1)).toBe(true);
  await page.getByRole('button',{name:'Tablet & reader',exact:true}).click();
  const gate=page.getByRole('dialog');
@@ -92,6 +93,10 @@ test('phone kiosk has dedicated mode controls and no horizontal overflow',async(
  await expect(gate.getByRole('heading',{name:'Tablet settings',exact:true})).toBeVisible();
  await gate.getByRole('navigation',{name:'Settings sections'}).getByRole('button',{name:'Startup',exact:true}).click();
  await expect(gate.getByRole('link',{name:'Choose tablet screen',exact:true})).toBeVisible();
+ await gate.getByRole('navigation',{name:'Settings sections'}).getByRole('button',{name:'Screen',exact:true}).click();
+ await expect(gate.getByRole('button',{name:'Full screen',exact:true})).toBeVisible();
+ await gate.getByRole('navigation',{name:'Settings sections'}).getByRole('button',{name:'Diagnostics',exact:true}).click();
+ await expect(gate.getByLabel('Boarding tablet diagnostics')).toContainText('Card reader');
  await gate.getByRole('button',{name:'Done',exact:true}).click();
  await page.getByRole('button',{name:'Enter code',exact:true}).click();
  await expect(page.getByRole('heading',{name:'Enter your boarding code'})).toBeVisible();

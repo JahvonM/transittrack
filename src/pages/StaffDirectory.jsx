@@ -110,13 +110,15 @@ export default function StaffDirectory() {
   const toggleSelected = (key, checked) => setSelectedKeys(previous => {
     const next = new Set(previous); if (checked) next.add(key); else next.delete(key); return next;
   });
+  // Cards are issued in Admin → Card issuing; the company portal has no card tools.
+  const canIssueCards = user?.role === "admin";
   const bulkIssue = async () => {
     if (!selectedPassengers.length) return;
     const replacements = selectedPassengers.filter(c => c.status === "Card Issued").length;
     if (!(await confirmAction({ title: `Bulk issue cards for ${selectedPassengers.length} passengers?`,
       description: `Each name will appear one at a time. Tap one card, then move to the next person.${replacements ? ` ${replacements} existing cards will be replaced and deactivated.` : ""}`,
       confirmLabel: "Start bulk issuing" }))) return;
-    navigate(user?.role === "admin" ? "/admin/cards" : "/company/cards", { state: { bulkPersonKeys: selectedPassengers.map(c => c.key) } });
+    navigate("/admin/cards", { state: { bulkPersonKeys: selectedPassengers.map(c => c.key) } });
   };
   const place = (name, lat, lng) => name || (lat != null ? `${lat?.toFixed(4)}, ${lng?.toFixed(4)}` : "");
 
@@ -149,7 +151,7 @@ export default function StaffDirectory() {
         }))} />
       </div>
 
-      {!loading && contacts.length > 0 && <div className="mb-3 flex flex-wrap items-center gap-3 rounded-xl border bg-card p-3">
+      {canIssueCards && !loading && contacts.length > 0 && <div className="mb-3 flex flex-wrap items-center gap-3 rounded-xl border bg-card p-3">
         <label className="flex items-center gap-2 text-sm"><Checkbox aria-label="Select visible passengers"
           checked={filtered.some(c => c.company_id) && filtered.filter(c => c.company_id).every(c => selectedKeys.has(c.key))}
           onCheckedChange={checked => setSelectedKeys(previous => { const next = new Set(previous); for (const c of filtered) if (c.company_id) { if (checked) next.add(c.key); else next.delete(c.key); } return next; })} />Select visible passengers</label>
@@ -180,8 +182,8 @@ export default function StaffDirectory() {
               return (
                 <li key={c.key} className="grid grid-cols-1 gap-x-4 gap-y-2 px-4 py-3 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1.3fr)_252px] lg:items-center">
                   <div className="flex min-w-0 items-center gap-3">
-                    <Checkbox aria-label={`Select ${c.name}`} checked={selectedKeys.has(c.key)} disabled={!c.company_id}
-                      onCheckedChange={checked => toggleSelected(c.key, checked)} />
+                    {canIssueCards && <Checkbox aria-label={`Select ${c.name}`} checked={selectedKeys.has(c.key)} disabled={!c.company_id}
+                      onCheckedChange={checked => toggleSelected(c.key, checked)} />}
                     <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-secondary text-body-sm font-bold" aria-hidden="true">{initials}</span>
                     <div className="min-w-0">
                       <p className="truncate font-semibold">{c.name}</p>
@@ -214,9 +216,9 @@ export default function StaffDirectory() {
                   </div>
                   <div className="flex flex-wrap items-center gap-1 lg:justify-end">
                     <Button variant="outline" size="sm" onClick={() => setPickupPerson(c)} aria-label={`Set pickup for ${c.name}`}><MapPin className="h-4 w-4" />{pickup ? "Edit pickup" : "Add pickup"}</Button>
-                    <Button asChild variant="outline" size="sm">
-                      <Link to={(user?.role === "admin" ? "/admin/cards" : "/company/cards") + "?person=" + encodeURIComponent(c.key)}><Nfc className="h-4 w-4" /> {c.status === "Card Issued" ? "Manage card" : "Issue card"}</Link>
-                    </Button>
+                    {canIssueCards && <Button asChild variant="outline" size="sm">
+                      <Link to={"/admin/cards?person=" + encodeURIComponent(c.key)}><Nfc className="h-4 w-4" /> {c.status === "Card Issued" ? "Manage card" : "Issue card"}</Link>
+                    </Button>}
                     {wa && (
                       <Button asChild variant="ghost" size="icon" title="WhatsApp">
                         <a href={wa} target="_blank" rel="noreferrer" aria-label={`WhatsApp ${c.name}`}><MessageCircle className="h-4 w-4" /></a>

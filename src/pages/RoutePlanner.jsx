@@ -430,6 +430,8 @@ export default function RoutePlanner() {
                     <span className="min-w-0 flex-1">
                       <span className="block truncate font-semibold">{st.name}</span>
                       <span className="block text-caption tabular-nums text-muted-foreground">{st.lat.toFixed(4)}, {st.lng.toFixed(4)}</span>
+                      <Input value={st.note || ""} maxLength={140} onChange={(e) => setStops((prev) => prev.map((x, j) => (j === i ? { ...x, note: e.target.value } : x)))}
+                        placeholder="Where to wait, e.g. opposite the bank, sea side" aria-label={`Where to wait at ${st.name}`} className="mt-1 h-8 text-body-sm" />
                     </span>
                     <Button size="icon" variant="ghost" onClick={() => removeStop(i)} aria-label={`Remove ${st.name}`} title="Remove stop" className="text-danger hover:text-danger">
                       <Trash2 className="h-4 w-4" />

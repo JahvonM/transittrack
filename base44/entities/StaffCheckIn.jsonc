@@ -49,6 +49,25 @@
     "client_request_id": {
       "type": "string"
     },
+    "person_key": {
+      "type": "string",
+      "description": "Who tapped, as 'contact:<id>' or 'user:<id>': stays the same when their card is replaced."
+    },
+    "run_key": {
+      "type": "string",
+      "description": "The run this tap belongs to: 'shift:<DriverShift id>' while a driver's shift is open on the bus, else 'day:<bus>:<date>'."
+    },
+    "shift_id": {
+      "type": "string"
+    },
+    "review_reason": {
+      "type": "string",
+      "description": "Why a person should look at this tap (exit with no boarding, cancelled card used offline, two tablets out of order...). Empty when normal."
+    },
+    "saved_offline": {
+      "type": "boolean",
+      "description": "The tablet saved this tap offline and sent it later. boarded_at is when it happened; created_date is when it arrived."
+    },
     "request_hash": {
       "type": "string"
     },

@@ -1,4 +1,5 @@
 import { retry429 } from '../_shared/retry429.ts';
+import { CARD_STATUS_TEXT, STOP_REASON, STOP_STATUSES, canReactivate, cardStatus } from '../_shared/cardStatus.ts';
 import { createClientFromRequest } from '../_shared/base44-compat.ts';
 
 
@@ -34,8 +35,8 @@ async function approvedStaffIds(base44, companyId) {
 // chip's built-in ID (UID), which is what the bus boarding kiosks already
 // match on, so an issued card works for check-in straight away.
 //
-// Actions: people · issue · verify · revoke · add_holder · set_bus ·
-// send_to_bus · keypad_code
+// Actions: people · issue · verify · revoke (suspend / lost / revoke) ·
+// reactivate · add_holder · set_bus · send_to_bus · keypad_code
 // Admins see everyone; company managers only their own company.
 // Bus staff belong to a company and are linked to one bus; their card list
 // is sent to that bus's boarding tablet.
@@ -185,12 +186,14 @@ async function loadPeople(base44, companyFilter) {
   people.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
   return {
     people,
-    cards: cards.filter((c) => inCompany(c.company_id)),
+    cards: cards.filter((c) => inCompany(c.company_id)).map((c) => ({ ...c, status: cardStatus(c) })),
     vehicles: vehicles.filter((v) => inCompany(v.company_id))
       .map((v) => ({ id: v.id, name: vehicleName.get(v.id), company_id: v.company_id || '' }))
       .sort((a, b) => (a.name || '').localeCompare(b.name || '', undefined, { numeric: true })),
     tablets: kiosks.filter((k) => inCompany(k.company_id) && k.vehicle_id)
-      .map((k) => ({ id: k.id, label: k.label || '', vehicle_id: k.vehicle_id, paired: !!k.paired, active: k.status === 'active', last_seen: k.last_seen || null, directory_sent_at: k.directory_sent_at || null })),
+      // When the tablet says it last downloaded its card list (it reports this with every check-in).
+      .map((k) => ({ id: k.id, label: k.label || '', vehicle_id: k.vehicle_id, paired: !!k.paired, active: k.status === 'active', last_seen: k.last_seen || null, directory_sent_at: k.directory_sent_at || null,
+        list_downloaded_at: k.app_health?.saved_list_at || null, list_count: Number.isFinite(k.app_health?.saved_list_count) ? k.app_health.saved_list_count : null })),
   };
 }
 
@@ -206,6 +209,24 @@ async function sendToBus(base44, user, vehicleId) {
   }
   return { sent: tablets.length, sent_at: at };
 }
+
+// Ask this company's boarding tablets to download their card list again, so
+// a stopped or restored card changes there at their next check: about 30
+// seconds for a tablet that is online, when it reconnects for one that isn't.
+// A tablet that stays offline keeps its saved list until it expires (24 h).
+async function refreshCompanyTablets(base44, companyId) {
+  if (!companyId) return 0;
+  try {
+    const sr = base44.asServiceRole.entities;
+    const tablets = (await sr.KioskDevice.filter({ company_id: companyId, kiosk_type: 'bus_boarding' }))
+      .filter((k) => k.company_id === companyId && k.status === 'active' && k.paired);
+    const at = new Date().toISOString();
+    for (const k of tablets) await sr.KioskDevice.update(k.id, { directory_sent_at: at });
+    return tablets.length;
+  } catch { return 0; }
+}
+
+const STOP_AUDIT = { suspended: 'card_suspended', lost: 'card_lost', revoked: 'card_revoked' };
 
 async function loadVehicleFor(base44, vehicleId, companyFilter) {
   const v = vehicleId ? await base44.asServiceRole.entities.Vehicle.get(vehicleId).catch(() => null) : null;
@@ -300,12 +321,16 @@ export default async function (req) {
           return Response.json({ ok: false, code: same ? 'already_theirs' : 'duplicate', error: msg, owner_name: owner.name });
         }
 
-        // A new card replaces the person's previous one.
+        // A new card replaces the person's previous one, including a
+        // suspended one (it can no longer be switched back on).
         const now = new Date().toISOString();
         const previous = await sr.NfcCard.filter({ holder_source: person.source, holder_id: person.id, is_active: true });
         for (const c of previous) {
-          await sr.NfcCard.update(c.id, { is_active: false, revoked_at: now, revoked_by: operator, revoke_reason: 'Replaced by a new card' });
+          await sr.NfcCard.update(c.id, { is_active: false, status: 'replaced', revoked_at: now, revoked_by: operator, revoke_reason: 'Replaced by a new card' });
         }
+        const suspended = (await sr.NfcCard.filter({ holder_source: person.source, holder_id: person.id, is_active: false }))
+          .filter((c) => cardStatus(c) === 'suspended');
+        for (const c of suspended) await sr.NfcCard.update(c.id, { status: 'replaced', revoke_reason: 'Replaced by a new card' });
 
         const employeeId = clean(body.employee_id, 40) || person.employee_id || '';
         const card = await sr.NfcCard.create({
@@ -314,7 +339,7 @@ export default async function (req) {
           assigned_vehicle: person.assigned_vehicle, company_id: person.company_id, company_name: person.company_name,
           access_level: clean(body.access_level, 60) || person.default_access,
           expiry_date: /^\d{4}-\d{2}-\d{2}$/.test(body.expiry_date || '') ? body.expiry_date : undefined,
-          issue_date: now, issued_by: operator, is_active: true,
+          issue_date: now, issued_by: operator, is_active: true, status: 'active',
         });
         await setTag(base44, person.source, person.id, uid, employeeId && employeeId !== person.employee_id ? { employee_id: employeeId } : {});
         await audit(base44, user, {
@@ -334,12 +359,18 @@ export default async function (req) {
         return Response.json({ ok: true, uid, owner: owner ? { key: owner.key, name: owner.name, card: owner.card || null } : null });
       }
 
+      // Stop a card: suspended (can be switched back on), lost, or revoked.
+      // A suspended card can later be marked lost or revoked.
       case 'revoke': {
         const card = await sr.NfcCard.get(body.card_id).catch(() => null);
         if (!card || (companyFilter && card.company_id !== companyFilter)) return Response.json({ error: 'Card not found' }, { status: 404 });
-        if (!card.is_active) return Response.json({ ok: true, card });
+        if (body.status !== undefined && !(STOP_STATUSES as readonly string[]).includes(body.status)) return Response.json({ error: 'Choose suspend, lost or revoke' }, { status: 400 });
+        const status = body.status || 'revoked';
+        const current = cardStatus(card);
+        if (current !== 'active' && !(current === 'suspended' && status !== 'suspended')) return Response.json({ ok: true, card: { ...card, status: current } });
         const updated = await sr.NfcCard.update(card.id, {
-          is_active: false, revoked_at: new Date().toISOString(), revoked_by: operator, revoke_reason: clean(body.reason, 200) || 'Revoked',
+          is_active: false, status, revoked_at: current === 'active' ? new Date().toISOString() : card.revoked_at || new Date().toISOString(),
+          revoked_by: operator, revoke_reason: clean(body.reason, 200) || STOP_REASON[status],
         });
         // Stop the card opening check-in too (only if it's still the one on file).
         try {
@@ -348,8 +379,31 @@ export default async function (req) {
           if (src === 'user') { const u = await sr.User.get(card.holder_id); if (u?.nfc_tag_id === card.card_uid) await sr.User.update(u.id, { nfc_tag_id: '' }); }
           if (src === 'driver') { const d = await sr.Driver.get(card.holder_id); if (d?.nfc_card_uid === card.card_uid) await sr.Driver.update(d.id, { nfc_card_uid: '' }); }
         } catch { /* person may have been deleted */ }
-        await audit(base44, user, { action: 'card_revoked', card_uid: card.card_uid, status: 'SUCCESS', record_id: card.id, summary: `Revoked card ${card.card_uid} (${card.holder_name}): ${updated.revoke_reason}` });
-        return Response.json({ ok: true, card: updated });
+        await audit(base44, user, { action: STOP_AUDIT[status], card_uid: card.card_uid, status: 'SUCCESS', record_id: card.id, summary: `${CARD_STATUS_TEXT[status]} card ${card.card_uid} (${card.holder_name}): ${updated.revoke_reason}${current === 'suspended' ? ' · was suspended' : ''}` });
+        const tablets = await refreshCompanyTablets(base44, card.company_id);
+        return Response.json({ ok: true, card: { ...updated, status }, tablets_told: tablets });
+      }
+
+      // Switch a suspended card back on. Lost, revoked and replaced cards
+      // can't be: issue the card again or issue a new one.
+      case 'reactivate': {
+        const card = await sr.NfcCard.get(body.card_id).catch(() => null);
+        if (!card || (companyFilter && card.company_id !== companyFilter)) return Response.json({ error: 'Card not found' }, { status: 404 });
+        const current = cardStatus(card);
+        if (current === 'active') return Response.json({ ok: true, card: { ...card, status: current } });
+        if (!canReactivate(card)) return Response.json({ error: `A ${CARD_STATUS_TEXT[current].toLowerCase()} card can't be switched back on. Issue the card again, or issue a new one.` }, { status: 409 });
+        const uid = normalizeUid(card.card_uid);
+        const holderKey = `${card.holder_source}:${card.holder_id}`;
+        const owner = await findOwner(base44, uid);
+        if (owner && owner.key !== holderKey) return Response.json({ error: companyFilter && owner.card?.company_id !== companyFilter ? 'Card is already assigned' : `Card ${uid} is now assigned to ${owner.name}.` }, { status: 409 });
+        const others = (await sr.NfcCard.filter({ holder_source: card.holder_source, holder_id: card.holder_id, is_active: true }))
+          .filter((c) => c.id !== card.id);
+        if (others.length) return Response.json({ error: `${card.holder_name} already has another active card. Stop that card first.` }, { status: 409 });
+        const updated = await sr.NfcCard.update(card.id, { is_active: true, status: 'active', revoked_at: null, revoked_by: '', revoke_reason: '' });
+        await setTag(base44, card.holder_source, card.holder_id, uid).catch(() => {});
+        await audit(base44, user, { action: 'card_reactivated', card_uid: uid, status: 'SUCCESS', record_id: card.id, summary: `Switched card ${uid} (${card.holder_name}) back on after suspension` });
+        const tablets = await refreshCompanyTablets(base44, card.company_id);
+        return Response.json({ ok: true, card: { ...updated, status: 'active' }, tablets_told: tablets });
       }
 
       // Keypad code for the bus boarding tablets (staff who forget their card).

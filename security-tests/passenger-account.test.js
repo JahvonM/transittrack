@@ -10,7 +10,8 @@ describe('passenger account private data',()=>{
  it('returns only own company history and no NFC credentials',async()=>{
  const c=fixture(),response=await load('passengerAccount',c).default(request({action:'summary',user_id:'someone',company_id:'b'}));
  expect(response.status).toBe(200);const data=await response.json();
- expect(data.card).toEqual({issued:true,active:true,status:'Active'});
+ // state is the card's state in words (active, suspended, lost…), never its number.
+ expect(data.card).toEqual({issued:true,active:true,state:'active',status:'Active'});
  expect(data.history.map(x=>x.id)).toEqual(['mine']);
  expect(JSON.stringify(data)).not.toContain('CARD');expect(c.writes).toEqual([]);
  });

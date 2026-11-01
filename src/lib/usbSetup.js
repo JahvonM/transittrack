@@ -111,11 +111,11 @@ export const canTakeOwnership = (info) => !!info && info.api >= MIN_OWNER_API &&
 // A browser problem while connecting, in plain words.
 export function connectProblem(error) {
   const text = `${error?.name || ""} ${error?.message || error || ""}`;
-  if (/DeviceBusy|busy|claimInterface|Unable to claim/i.test(text)) {
-    return "Another program on this PC is using the device. Close Android Studio and the old Kiosk Setup tool. If it still says this, open Task Manager, end adb.exe, then unplug the device and plug it back in.";
+  if (/DeviceBusy|busy|claimInterface|Unable to claim|in use|Failed to execute 'open'/i.test(text)) {
+    return "Another program on this PC is using the device. If you used adb in Command Prompt, run adb kill-server. Close Android Studio and the old Kiosk Setup tool. If it still says this, open Task Manager, end adb.exe, then unplug the device and plug it back in.";
   }
   if (/NotFoundError|No device selected/i.test(text)) return "No device was chosen. Click Connect and pick the phone or tablet in the list.";
   if (/SecurityError|Access denied/i.test(text)) return "Windows didn't let the browser use the device. Unplug it, plug it back in and try again. If it keeps happening, install the Google USB driver.";
   if (/auth|timed? ?out/i.test(text)) return "The device didn't answer. Unlock it and tap Allow on the \"Allow USB debugging?\" message, then click Connect again.";
-  return "Couldn't connect to the device. Unplug it, plug it back in, and make sure USB debugging is on.";
+  return "Couldn't connect to the device. Unplug it, plug it back in, and make sure USB debugging is on. If you used adb in Command Prompt, run adb kill-server first: it keeps hold of the device.";
 }

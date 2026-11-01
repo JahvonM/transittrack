@@ -226,6 +226,8 @@ export default async function(req) {
       pickup_sign: ['bus_boarding','job_signing'].includes(device.kiosk_type) && Date.parse(device.pickup_sign?.expires_at) > Date.now() ? device.pickup_sign : null,
       paired: device.paired,
       directory_sent_at: device.directory_sent_at || null,
+      reader_mode: ['both','boarding','exit'].includes(device.reader_mode) ? device.reader_mode : 'both',
+      require_active_trip: device.require_active_trip === true,
       update_requested_at: device.update_requested_at || null,
       network_command: network.command,
       control_notice: tokenOk ? controlNotice(device) : null,

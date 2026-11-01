@@ -75,6 +75,10 @@
       "type": "boolean",
       "default": false
     },
+    "boarding_note": {
+      "type": "string",
+      "description": "Help the passenger asks for when boarding (e.g. a lower step). Shown to their driver; set by the passenger."
+    },
     "late_until": {
       "type": "string",
       "format": "date-time",

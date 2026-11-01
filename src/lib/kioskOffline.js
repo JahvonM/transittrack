@@ -1,5 +1,6 @@
 import { clearBoardingDirectory, boardingDirectoryInfo } from "./boardingDirectory";
 import { cleanTabletSession } from "./tabletSession";
+import { forgetTaps, noteTap } from "./recentTaps";
 // Cache tablet display information only. Credential verification requires a connection.
 const DEVICE_KEY = "tt_kiosk_device_cache";
 const DIRECTORY_KEY = "tt_kiosk_directory";
@@ -23,6 +24,7 @@ export function loadDevice(deviceId) {
 }
 export function forgetTablet() {
   try { clearBoardingDirectory(); } catch { /* unavailable storage */ }
+  forgetTaps();
   for (const k of [DEVICE_KEY, DIRECTORY_KEY, LAST_STATUS_KEY]) {
     try { localStorage.removeItem(k); } catch { /* ignore */ }
   }
@@ -46,11 +48,13 @@ export function warmPhotos(staff = []) {
   }
 }
 
-export function noteStatus(staffId, status) {
+export function noteStatus(staffId, status, at = Date.now()) {
   if (!staffId || !status) return;
   const map = read(LAST_STATUS_KEY, {});
   map[staffId] = status;
   write(LAST_STATUS_KEY, map);
+  // With the time too, so the tablet can tell a repeated tap offline.
+  noteTap(staffId, status, at);
 }
 const nextStatus = (staffId) => (read(LAST_STATUS_KEY, {})[staffId] === "boarded" ? "off_board" : "boarded");
 

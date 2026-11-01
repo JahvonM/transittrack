@@ -571,7 +571,7 @@ export default function DriverApp() {
                 chats={<DriverChats session={session} invoke={invoke} onUnreadChange={setHasUnreadChat} />}
               />
             )}
-            {activeTab === "passengers" && <DriverKioskPassengers session={session}/>}
+            {activeTab === "passengers" && <DriverKioskPassengers session={session} invoke={invoke} refresh={refresh}/>}
             {activeTab === "inspection" && <div className="dk-content"><h1 className="text-title font-bold">Inspection</h1><DriverInspectionList templates={inspTemplates} recent={recentInspections} localDone={localDone} onStart={(t) => openInspection(t, { from: "manual" })} /><SafetyStandardsContent /></div>}
             {activeTab === "documents" && <div className="dk-content"><h1 className="text-title font-bold">Licence & insurance</h1><DriverDocumentsViewer invoke={invoke} busName={vehicle?.name} /></div>}
             {activeTab === "settings" && <div className="dk-content"><DriverDevicePanel session={session} deviceId={deviceId} onUnpair={handleUnpair} onChangeBus={isOwnDevice(session) ? changeBus : undefined} /><ReportAppProblemButton where="driver tablet" className="w-full justify-start" /></div>}

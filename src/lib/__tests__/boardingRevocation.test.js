@@ -67,7 +67,8 @@ describe('boarding grant current authorization',()=>{
  });
  it('does not return grant identity or card fingerprint to the tablet',async()=>{
   const f=setup();const response=await f.send({action:'lookup_tag',card_tag:'CARD'});const data=await response.json();
-  expect(Object.keys(data).sort()).toEqual(['next_status','staff','verification_grant']);
+  // reader_mode and already (this person's own last tap: direction and time) are safe to show.
+  expect(Object.keys(data).sort()).toEqual(['already','next_status','reader_mode','staff','verification_grant']);
   expect(JSON.stringify(data)).not.toContain(digest('CARD'));expect(JSON.stringify(data)).not.toContain('member_user_id');
  });
 });

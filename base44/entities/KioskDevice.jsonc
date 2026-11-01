@@ -32,6 +32,21 @@
       "format": "date-time",
       "type": "string"
     },
+    "reader_mode": {
+      "type": "string",
+      "enum": [
+        "both",
+        "boarding",
+        "exit"
+      ],
+      "default": "both",
+      "description": "What a boarding tablet records: 'both' asks the rider each time; 'boarding' or 'exit' records that direction only (one reader per door)."
+    },
+    "require_active_trip": {
+      "type": "boolean",
+      "default": false,
+      "description": "Refuse taps unless a driver's shift is open on the bus. Off: taps are recorded and marked 'no active trip'."
+    },
     "app_health": {
       "type": "object",
       "description": "Reported by the TransitTrack app on the tablet every heartbeat: build, online, uploads waiting (GPS points, check-ins, other saved work), last GPS fix, the latitude/longitude the tablet's GPS is getting, card reader in use, saved staff list.",

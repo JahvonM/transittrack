@@ -70,7 +70,11 @@ export function helperHealthPayload() {
       report.kiosk_maintenance = management.kioskMaintenance === true;
       report.kiosk_startup = management.kioskStartup === true;
       report.kiosk_locked = management.kioskLocked === true;
+      if (management.kioskError) report.kiosk_error = String(management.kioskError);
+      if (management.lastCode) report.kiosk_last_code = String(management.lastCode);
     }
+    const recovery = typeof window !== "undefined" ? window.__ttRecovery : null;
+    if (recovery?.available && typeof recovery.defaultHome === "boolean") report.default_home = recovery.defaultHome;
     return { helper_health: report };
   } catch {
     return {};

@@ -92,5 +92,8 @@ describe("what's in the way", () => {
     expect(connectProblem({ name: "DeviceBusyError", message: "The device is already in use" })).toMatch(/Android Studio/);
     expect(connectProblem({ name: "NotFoundError", message: "No device selected." })).toMatch(/pick the phone/);
     expect(connectProblem(new Error("weird"))).toMatch(/USB debugging/);
+    // ADB started from Command Prompt holds the device: say how to free it.
+    expect(connectProblem(new Error("weird"))).toMatch(/adb kill-server/);
+    expect(connectProblem({ name: "NetworkError", message: "Failed to execute 'open' on 'USBDevice': Access denied." })).toMatch(/adb kill-server/);
   });
 });

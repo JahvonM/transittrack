@@ -15,7 +15,7 @@ fs.mkdirSync(dir, { recursive: true });
 const toMjs = (file) => ts.transpileModule(fs.readFileSync(new URL(file, root), "utf8"), {
   compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
 }).outputText.replace(/from '\.\.?\/(?:_shared\/)?([A-Za-z0-9-]+)\.ts'/g, "from './$1.mjs'");
-for (const f of ["supabaseTables", "supabaseFiles", "retry429", "base44-compat"]) fs.writeFileSync(path.join(dir, f + ".mjs"), toMjs(`supabase/functions/_shared/${f}.ts`));
+for (const f of ["supabaseTables", "supabaseFiles", "retry429", "base44-compat", "cardStatus"]) fs.writeFileSync(path.join(dir, f + ".mjs"), toMjs(`supabase/functions/_shared/${f}.ts`));
 fs.writeFileSync(path.join(dir, "nfcCards.mjs"), toMjs("supabase/functions/nfcCards/entry.ts"));
 const compat = await import(pathToFileURL(path.join(dir, "base44-compat.mjs")).href);
 const handler = (await import(pathToFileURL(path.join(dir, "nfcCards.mjs")).href)).default;

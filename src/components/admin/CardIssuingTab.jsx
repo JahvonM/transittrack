@@ -10,9 +10,11 @@ import { Switch } from "@/components/ui/switch";
 import { StatusChip } from "@/components/admin/kit";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { CARD_STATUS_TEXT, cardStatus } from "../../../base44/shared/cardStatus.ts";
 import {
   AlertTriangle, Bus, CheckCircle2, CreditCard, Download, ExternalLink, Keyboard, Loader2, Nfc, Plus, RefreshCw,
-  Search, Send, ShieldCheck, Tablet, Terminal, Usb, UserRound, XCircle,
+  Search, Send, ShieldCheck, Tablet, Terminal, Usb, UserRound, XCircle, ChevronDown, RotateCcw,
 } from "lucide-react";
 import { useCardReader, formatUid, normalizeUid, HELPER_DOWNLOAD, HELPER_URL } from "@/lib/cardReader";
 import BulkCardIssue from "@/components/admin/BulkCardIssue";
@@ -86,6 +88,16 @@ function SendAllToTablets({ tablets, vehicles, onSent }) {
   );
 }
 
+// Whether the bus tablet really has the latest card list: what it reported
+// downloading, against when a list was last sent to it.
+function listState(onBus, sentAt) {
+  const got = onBus.map((t) => t.list_downloaded_at).filter(Boolean).sort().pop();
+  const count = onBus.find((t) => t.list_downloaded_at === got)?.list_count;
+  if (!got) return sentAt ? `list sent ${ago(sentAt)}, not downloaded yet` : "card list not downloaded yet";
+  const behind = sentAt && Date.parse(sentAt) > Date.parse(got) + 60_000;
+  return `list downloaded ${ago(got)}${count != null ? ` (${count} card${count === 1 ? "" : "s"})` : ""}${behind ? ` · newer list sent ${ago(sentAt)}, waiting for the tablet` : ""}`;
+}
+
 function BusLink({ person, vehicles, tablets, onChanged }) {
   const { toast } = useToast();
   const [busy, setBusy] = useState("");
@@ -139,8 +151,8 @@ function BusLink({ person, vehicles, tablets, onChanged }) {
         <p className="text-xs text-muted-foreground flex items-center gap-1.5">
           <Tablet className="w-3.5 h-3.5" />
           {onBus.length
-            ? `${onBus.map((t) => t.label || "Boarding tablet").join(", ")} · seen ${ago(onBus[0].last_seen)} · last sent ${ago(sentAt)}`
-            : "No boarding tablet on this bus yet — pair one in Kiosk tablets."}
+            ? `${onBus.map((t) => t.label || "Boarding tablet").join(", ")} · seen ${ago(onBus[0].last_seen)} · ${listState(onBus, sentAt)}`
+            : "No boarding tablet on this bus is set up and paired, so cards can't reach it. Pair one in Kiosk tablets."}
         </p>
       )}
     </div>
@@ -257,24 +269,48 @@ function AddStaffDialog({ open, onOpenChange, companies, vehicles, defaultCompan
 }
 
 // ---------------------------------------------------------------------------
+const CARD_TONE = { active: "success", suspended: "warning", lost: "danger", revoked: "danger", replaced: "neutral" };
+// What each way of stopping a card means, said honestly: a tablet without a
+// connection keeps its saved card list until it reconnects (24 h at most).
+const STOP = {
+  suspended: { label: "Suspend", title: "Suspend", done: "Card suspended", effect: "You can switch it back on later." },
+  lost: { label: "Report lost", title: "Report lost:", done: "Card marked lost", effect: "A lost card can't be switched back on. Issue a new card when they need one." },
+  revoked: { label: "Revoke", title: "Revoke", done: "Card revoked", effect: "A revoked card can't be switched back on." },
+};
+const OFFLINE_NOTE = "Boarding tablets that are online stop accepting it within about 30 seconds. A tablet with no connection can still accept it until it reconnects (24 hours at most); those taps are marked for review.";
+
 function IssuedCards({ cards, people, companies = [], onRevoked }) {
   const { toast } = useToast();
   const [q, setQ] = useState("");
   const [show, setShow] = useState("active");
   const [company, setCompany] = useState("all");
+  const [working, setWorking] = useState("");
   const list = cards
     .filter((c) => (show === "all" ? true : show === "active" ? c.is_active : !c.is_active))
     .filter((c) => company === "all" || c.company_id === company)
     .filter((c) => !q || `${c.holder_name} ${c.card_uid} ${c.company_name} ${c.assigned_vehicle} ${c.access_level}`.toLowerCase().includes(q.toLowerCase()));
-  const revoke = async (card) => {
-    if (!(await confirmAction({ title: `Revoke ${card.holder_name}'s card?`, description: `Card ${formatUid(card.card_uid)} will stop working straight away, including on the bus boarding tablets.`, confirmLabel: "Revoke card" }))) return;
+  const stop = async (card, status) => {
+    const how = STOP[status];
+    if (!(await confirmAction({ title: `${how.title} ${card.holder_name}'s card?`, description: `Card ${formatUid(card.card_uid)}. ${how.effect} ${OFFLINE_NOTE}`, confirmLabel: how.label }))) return;
+    setWorking(card.id);
     try {
-      await base44.functions.invoke("nfcCards", { action: "revoke", card_id: card.id, reason: "Revoked by admin" });
-      toast({ title: "Card revoked" });
+      await base44.functions.invoke("nfcCards", { action: "revoke", card_id: card.id, status });
+      toast({ title: how.done });
       onRevoked?.();
     } catch (e) {
-      toast({ title: "Couldn't revoke", description: e?.response?.data?.error || e.message, variant: "destructive" });
-    }
+      toast({ title: "Couldn't change the card", description: e?.response?.data?.error || e.message, variant: "destructive" });
+    } finally { setWorking(""); }
+  };
+  const restore = async (card) => {
+    if (!(await confirmAction({ title: `Switch ${card.holder_name}'s card back on?`, description: `Card ${formatUid(card.card_uid)} works again on the boarding tablets once they refresh their card list.`, confirmLabel: "Switch back on" }))) return;
+    setWorking(card.id);
+    try {
+      await base44.functions.invoke("nfcCards", { action: "reactivate", card_id: card.id });
+      toast({ title: "Card switched back on" });
+      onRevoked?.();
+    } catch (e) {
+      toast({ title: "Couldn't switch the card back on", description: e?.response?.data?.error || e.message, variant: "destructive" });
+    } finally { setWorking(""); }
   };
   return (
     <div className="rounded-2xl border bg-card">
@@ -293,10 +329,10 @@ function IssuedCards({ cards, people, companies = [], onRevoked }) {
           </Select>
         )}
         <Select value={show} onValueChange={setShow}>
-          <SelectTrigger className="w-40" aria-label="Show"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="w-48" aria-label="Show"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="active">Active cards</SelectItem>
-            <SelectItem value="inactive">Revoked / replaced</SelectItem>
+            <SelectItem value="inactive">Suspended, lost, revoked or replaced</SelectItem>
             <SelectItem value="all">All cards</SelectItem>
           </SelectContent>
         </Select>
@@ -319,11 +355,28 @@ function IssuedCards({ cards, people, companies = [], onRevoked }) {
                 <td className="px-3 py-2 font-mono text-xs">{c.access_level}</td>
                 <td className="px-3 py-2">{fmtDate(c.issue_date)}<div className="text-xs text-muted-foreground">{c.issued_by || ""}</div></td>
                 <td className="px-3 py-2">
-                  {c.is_active
-                    ? <StatusChip tone="success">Active</StatusChip>
-                    : <span className="text-xs text-muted-foreground">{c.revoke_reason || "Revoked"}<br />{fmtDate(c.revoked_at)}</span>}
+                  {(() => { const state = cardStatus(c); return <>
+                    <StatusChip tone={CARD_TONE[state]}>{CARD_STATUS_TEXT[state]}</StatusChip>
+                    {state !== "active" && <div className="mt-1 text-xs text-muted-foreground">{c.revoke_reason && c.revoke_reason !== CARD_STATUS_TEXT[state] ? c.revoke_reason + " · " : ""}{fmtDate(c.revoked_at)}</div>}
+                  </>; })()}
                 </td>
-                <td className="px-3 py-2 text-right">{c.is_active && <Button size="sm" variant="outline" className="text-destructive" onClick={() => revoke(c)}>Revoke</Button>}</td>
+                <td className="px-3 py-2 text-right whitespace-nowrap">
+                  {cardStatus(c) === "suspended" && <Button size="sm" variant="outline" className="mr-2" disabled={working === c.id} onClick={() => restore(c)}><RotateCcw className="h-3.5 w-3.5" />Switch back on</Button>}
+                  {["active", "suspended"].includes(cardStatus(c)) && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button size="sm" variant="outline" className="text-destructive" disabled={working === c.id} aria-label={`Stop ${c.holder_name}'s card`}>
+                          {working === c.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}Stop card<ChevronDown className="h-3.5 w-3.5" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        {cardStatus(c) === "active" && <DropdownMenuItem onSelect={() => stop(c, "suspended")}>Suspend (can switch back on)</DropdownMenuItem>}
+                        <DropdownMenuItem onSelect={() => stop(c, "lost")}>Report lost</DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => stop(c, "revoked")} className="text-destructive">Revoke</DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>
