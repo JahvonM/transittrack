@@ -33,7 +33,7 @@ export function progress(people = []) {
 export function visiblePeople(people = [], view = "all", query = "") {
   const term = String(query || "").trim().toLowerCase();
   return people
-    .filter((p) => !term || `${p.name} ${p.email} ${p.phone} ${p.employee_id}`.toLowerCase().includes(term))
+    .filter((p) => !term || [p.name, p.email, p.phone, p.employee_id].filter(Boolean).join(" ").toLowerCase().includes(term))
     .filter((p) => view === "all" ? true
       : view === "mine" ? !!p.helper?.mine
       : view === "ready" ? isReady(p)
