@@ -265,9 +265,12 @@ async function validGrant(base44, device, token, purpose, subject) {
 
 async function currentCard(base44,companyId,person,uid) {
  if(!uid)return {valid:false};
- const rows=await base44.asServiceRole.entities.NfcCard.filter({card_uid:uid},'-updated_date',2);
- if(rows.length>1)return {valid:false};
- const card=rows[0];
+ // A card issued again keeps its older cancelled records: the one active
+ // record decides. Two active records for one card is ambiguous and refused.
+ const rows=(await base44.asServiceRole.entities.NfcCard.filter({card_uid:uid},'-updated_date',50)).filter(r=>r.card_uid===uid);
+ const active=rows.filter(r=>r.is_active===true);
+ if(active.length>1)return {valid:false};
+ const card=active[0]||rows[0];
  // Unregistered legacy Contact tags remain development-compatible. A ledger
  // record, including a revoked one, takes precedence over a copied legacy tag.
  if(!card)return {valid:true,card_id:''};
