@@ -40,6 +40,7 @@ test("My rides shows today's regular rides and completed rides, newest first", a
   await expect(done.getByRole("listitem").first()).toContainText("Completed");
   // Not travelling today is recorded for both rides, and stays visible.
   await today.getByRole("button", { name: /Skip today/ }).click();
+  await expect(page.getByText("Skipping today's pickup").first()).toBeVisible();
   await expect(today.getByText("Not travelling", { exact: true })).toHaveCount(2);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
