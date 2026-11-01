@@ -18,6 +18,7 @@ const HIDDEN_PREFIXES = [
   "/tablet",
   "/reviewer-sandbox",
   "/track",
+  "/share",
   "/driver",
   "/admin",
   "/workspace",

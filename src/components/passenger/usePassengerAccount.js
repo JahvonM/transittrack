@@ -39,3 +39,13 @@ export function usePassengerCases(user, companyId, enabled) {
  return {cases,pattern:query.data?.pattern || null,loading:query.isPending,error:query.error?errorData(query.error).error || "Couldn't load your requests.":"",retry:query.refetch,
   send:(body)=>send.mutateAsync(body),sending:send.isPending,unread:cases.filter(c=>c.unread).length};
 }
+
+// Journey sharing: whether a link is live, and making or stopping one.
+export function useJourneyShare(user, companyId, enabled) {
+ const client=useQueryClient(), key=["journey-share",user?.id,companyId];
+ const query=useQuery({queryKey:key,enabled:!!enabled && !!user?.id && !!companyId,staleTime:30000,retry:false,
+  queryFn:()=>base44.functions.invoke("journeyShare",{action:"mine"}).then(r=>r.data || {active:false})});
+ const act=useMutation({mutationFn:(action)=>base44.functions.invoke("journeyShare",{action}).then(r=>r.data),onSuccess:()=>client.invalidateQueries({queryKey:key})});
+ const live=!!query.data?.active && Date.parse(query.data?.expires_at || "")>Date.now();
+ return {active:live,expiresAt:live?query.data.expires_at:null,start:()=>act.mutateAsync("start"),stop:()=>act.mutateAsync("stop"),busy:act.isPending};
+}

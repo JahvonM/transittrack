@@ -1,7 +1,7 @@
 import { pickupArrival } from "@/lib/pickupArrival";
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Accessibility, Bell, BellOff, Building2, CalendarClock, ChevronRight, Clock, CreditCard, Home, LifeBuoy, LogOut, Map, MapPin, Megaphone, MessageCircle, PackageSearch, QrCode, ShieldCheck, TriangleAlert, Wifi, X } from "lucide-react";
+import { Accessibility, Bell, BellOff, Building2, CalendarClock, ChevronRight, Clock, CreditCard, Home, LifeBuoy, LogOut, Map, MapPin, Megaphone, MessageCircle, PackageSearch, QrCode, ShieldCheck, TriangleAlert, Wifi, X, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { confirmAction } from "@/components/ConfirmHost";
@@ -11,7 +11,7 @@ import BusArtwork from "@/components/BusArtwork";
 import BoardingPass from "@/components/staff/BoardingPass";
 import RouteTimeline from "./RouteTimeline";
 import { BookedRides, SponsorLine } from "./PassengerSections";
-import usePassengerAccount, { usePassengerCases, usePassengerRides, usePassengerToday } from "./usePassengerAccount";
+import usePassengerAccount, { useJourneyShare, usePassengerCases, usePassengerRides, usePassengerToday } from "./usePassengerAccount";
 import { CaseList, CaseSheet, RequestForm, RideFeedback } from "./PassengerRequests";
 import { ETA_QUALITY_TEXT, STAGES, alertKey, etaQuality, firstTime, journeyStage, stopsLeftTo } from "@/lib/journeyStage";
 import { routeProgress } from "@/components/TripProgress";
@@ -100,6 +100,22 @@ export default function PassengerExperience({view,user,company,workplace,myVehic
  const {late,skip,lateUntil,toggleLate,toggleSkip}=useStaffFlags();
  const today=usePassengerToday(user,company.id,["home","journey"].includes(view));
  const cases=usePassengerCases(user,company.id,["home","rides","more","help"].includes(view));
+ const sharing=useJourneyShare(user,company.id,view==="journey" && !!myVehicle);
+ // Journey sharing: a private link family can open while the passenger rides.
+ const shareJourney=async()=>{
+  if(sharing.busy)return;
+  if(sharing.active){
+   if(!(await confirmAction({title:"Stop sharing your journey?",description:"The link stops working straight away.",confirmLabel:"Stop sharing"})))return;
+   try{await sharing.stop();toast({title:"Stopped sharing"});}catch(e){toast({title:"Couldn't stop sharing",description:errorData(e).error || "Check your connection and try again.",variant:"destructive"});}
+   return;
+  }
+  let res;
+  try{res=await sharing.start();}catch(e){toast({title:"Couldn't make a link",description:errorData(e).error || "Check your connection and try again.",variant:"destructive"});return;}
+  const text=`Follow my ride on ${myVehicle?.name || "my bus"}. The link ends when I get off.`;
+  try{ if(navigator.share){await navigator.share({title:"My bus journey",text,url:res.url});toast({title:"Journey shared",description:"It ends when you get off, or after 3 hours."});return;} }catch(e){ if(e?.name==="AbortError")return; }
+  try{await navigator.clipboard.writeText(res.url);toast({title:"Link copied",description:"Send it to someone you trust. It ends when you get off, or after 3 hours."});}
+  catch{toast({title:"Your journey link",description:res.url});}
+ };
  const [openCase,setOpenCase]=useState(null);
  const [helpKind,setHelpKind]=useState(null);
  const [boardingNote,setBoardingNote]=useState(user?.boarding_note || "");
@@ -275,7 +291,7 @@ export default function PassengerExperience({view,user,company,workplace,myVehic
    <section className="px-panel px-wait"><MapPin /><div><h2>Where to wait</h2><p>{returning?`Meet the bus at ${workplace?.name || "your company boarding point"}.`:pickup?`Meet the bus at ${pickup}.`:"Choose a safe roadside pickup on your bus route."}</p>{!returning && pickupStop?.note && <p className="px-pickup-note">{pickupStop.note}</p>}<Button variant="outline" onClick={()=>setSheet("pickup")}>Walking directions</Button></div></section>
    {pickupPrompt}
    {timelineRoute && <><button className="px-message" aria-expanded={showStops} onClick={()=>setShowStops(!showStops)}><Map />{showStops?"Hide route stops":"All route stops"}<ChevronRight /></button><AnimatePresence initial={false}>{showStops && <motion.div key="stops" className="px-unfold" initial={{height:0,opacity:0}} animate={{height:"auto",opacity:1}} exit={{height:0,opacity:0}} transition={SPRING}><RouteTimeline route={returning?{...timelineRoute,stops:[...(timelineRoute.stops || [])].reverse().map((s,order)=>({...s,order}))}:timelineRoute} bus={myVehicle} kind={kind} stopName={pickup} mins={mins} stopEtas={returning?{}:stopEtas} now={now} /></motion.div>}</AnimatePresence></>}
-   <div className="px-panel px-settings-list"><Row icon={MessageCircle} title="Need help with this trip?" sub="Message your bus team" onClick={()=>setSheet("chat")} badge={chatUnread}/><Row icon={TriangleAlert} title={reportBusy?"Sending report…":"Report missed pickup"} onClick={reportMissed}/></div>
+   <div className="px-panel px-settings-list"><Row icon={MessageCircle} title="Need help with this trip?" sub="Message your bus team" onClick={()=>setSheet("chat")} badge={chatUnread}/>{myVehicle && <Row icon={Share2} title={sharing.busy?"Please wait…":sharing.active?"Sharing your journey":"Share my journey"} sub={sharing.active?`Until ${clock(sharing.expiresAt)} or when you get off · tap to stop`:"A private link family can follow while you ride"} onClick={shareJourney}/>}<Row icon={TriangleAlert} title={reportBusy?"Sending report…":"Report missed pickup"} onClick={reportMissed}/></div>
    <BookedRides trips={bookedTrips} stopName={pickupName} />
    <Link to="/buses" className="px-quiet-link">Browse company buses</Link>
   </>}
