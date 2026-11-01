@@ -39,14 +39,14 @@ function LocationChip({ location, now }) {
 
 function BusRow({ row, now }) {
   return (
-    <div className="rounded-xl border border-border bg-background/40 px-3 py-2">
+    <div className="rounded-xl border border-border bg-background/40 px-3 py-1.5">
       <div className="flex items-center justify-between gap-3">
-        <p className="min-w-0 truncate font-display text-[1.45rem] font-bold leading-tight">
+        <p className="min-w-0 truncate font-display text-[1.4rem] font-bold leading-tight">
           {row.name}{row.plate && <span className="ml-2 text-[1rem] font-semibold text-muted-foreground">{row.plate}</span>}
         </p>
         {row.status === "emergency" ? <Chip tone="danger">SOS</Chip> : !row.inService ? <Chip tone="neutral" icon={CircleSlash}>Out of service</Chip> : <LocationChip location={row.location} now={now} />}
       </div>
-      <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-[1rem] text-muted-foreground">
+      <div className="mt-0.5 flex flex-wrap items-center gap-x-4 gap-y-0.5 text-[1rem] text-muted-foreground">
         {row.job && <span className="flex min-w-0 items-center gap-1 text-foreground"><span className="font-semibold">{row.job.kind}</span>{row.job.to && <><ArrowRight className="h-[1em] w-[1em]" aria-hidden="true" /><span className="truncate">{row.job.to}</span></>}</span>}
         {row.driverName && <span className="truncate">{row.driverName}</span>}
         {row.onBoard != null && <span className="flex items-center gap-1"><Users className="h-[1em] w-[1em]" aria-hidden="true" />{row.onBoard} on board</span>}
@@ -62,24 +62,26 @@ export function FleetLayout({ feed, dark, now }) {
   const alerts = useMemo(() => displayAlerts(feed, now), [feed, now]);
   const counts = fleetCounts(feed, now);
   return (
-    <div className="grid h-full min-h-0 grid-cols-[minmax(0,1fr)_minmax(26rem,34%)] gap-4">
-      <WallMap feed={feed} dark={dark} now={now} />
+    <div className="grid h-full min-h-0 grid-cols-[minmax(0,1fr)_minmax(26rem,33%)] gap-4">
+      <div className="flex min-h-0 flex-col gap-4">
+        <WallMap feed={feed} dark={dark} now={now} className="flex-1" />
+        {alerts.length > 0 && (
+          <Panel title="Needs attention" count={alerts.length} tone="warning" className="h-[9.5rem] shrink-0" compact>
+            <FitList row items={alerts} itemKey={(a) => a.key} render={(a) => <Chip tone={a.tone} className="text-[1rem]">{a.text}</Chip>} gap="gap-2" />
+          </Panel>
+        )}
+      </div>
       <div className="flex min-h-0 flex-col gap-4">
         <div className="grid shrink-0 grid-cols-3 gap-3">
           <Stat label="Live" value={counts.live} tone="live" />
           <Stat label="Last known" value={counts.lastKnown} tone={counts.lastKnown ? "warning" : undefined} />
-          <Stat label="Jobs under way" value={counts.underWay} />
+          <Stat label="Under way" value={counts.underWay} />
         </div>
         {counts.pastTime > 0 && (
           <p className="flex shrink-0 items-center gap-2 rounded-xl border border-warning/40 bg-warning/10 px-4 py-2 text-[1.1rem] font-semibold text-warning">
             <Clock className="h-[1.1em] w-[1.1em]" aria-hidden="true" />
             {counts.pastTime} job{counts.pastTime === 1 ? " is" : "s are"} past {counts.pastTime === 1 ? "its" : "their"} time and not started
           </p>
-        )}
-        {alerts.length > 0 && (
-          <Panel title="Needs attention" count={alerts.length} tone="warning" className="max-h-[38%] shrink-0">
-            <FitList items={alerts} itemKey={(a) => a.key} render={(a) => <Chip tone={a.tone} className="text-[1rem]">{a.text}</Chip>} gap="gap-1.5" />
-          </Panel>
         )}
         <Panel title="Buses" count={rows.length} className="flex-1">
           {down(feed, "vehicles") ? <Unavailable what="buses" /> : <FitList items={rows} render={(r) => <BusRow row={r} now={now} />} empty="No buses on this display." />}
