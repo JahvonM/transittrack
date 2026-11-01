@@ -142,19 +142,29 @@ export function feedVehicles(d: any, vehicles: any[]) {
   })).sort((a, b) => String(a.name).localeCompare(String(b.name), undefined, { numeric: true }));
 }
 
-// Tablets as connectivity only: when each last checked in, battery.
+// Tablets as connectivity only: when each last checked in, battery. Shaped
+// like KioskDevice so the fleet workspace's own rules (src/lib/fleetWorkspace.js)
+// read them the same way.
 export function feedTablets(d: any, kiosks: any[]) {
   return kiosks.filter((k) => inScope(d, k.company_id) && k.vehicle_id && busOnly(d, k.vehicle_id) && k.paired && k.status === 'active' && !k.personal)
     .map((k) => ({
-      id: k.id, vehicle_id: k.vehicle_id, kiosk_type: k.kiosk_type, last_seen: k.last_seen || null,
-      battery: num(k.helper_health?.battery), charging: k.helper_health?.charging === true,
+      id: k.id, vehicle_id: k.vehicle_id, kiosk_type: k.kiosk_type, label: text(k.label, 40), paired: true, status: 'active', last_seen: k.last_seen || null,
+      helper_health: { battery: num(k.helper_health?.battery), charging: k.helper_health?.charging === true },
     }));
 }
 
-// Boardings today, for the on-board count the fleet workspace already
-// shows; a person is an opaque key, never a name, card or code.
+// The McSween kiosk app's direct viewing, on a driver tablet (the road-facing
+// camera). Boarding tablets' QR cameras are never offered. Same rule as
+// cameraTablets in src/lib/fleetWorkspace.js.
+export const cameraCapable = (k: any) => !!k && k.kiosk_type === 'driver' && !k.personal && k.paired && k.status === 'active'
+  && k.helper_health?.support_available === true && k.helper_health?.support_transport === 'webrtc';
+
+// Recent boardings, for the on-board count the fleet workspace already shows
+// (a ride with no exit stops counting after 6 hours); a person is an opaque
+// key, never a name, card or code.
+export const BOARDING_LOOKBACK_MS = 7 * 3600_000;
 export async function feedBoardings(d: any, checkIns: any[], now = Date.now()) {
-  const from = localDayStart(now);
+  const from = now - BOARDING_LOOKBACK_MS;
   const rows = checkIns.filter((r) => inScope(d, r.company_id) && r.vehicle_id && busOnly(d, r.vehicle_id) && ms(r.boarded_at || r.created_date) >= from);
   return Promise.all(rows.map(async (r) => ({
     vehicle_id: r.vehicle_id, status: r.status, at: r.boarded_at || r.created_date,
@@ -173,10 +183,10 @@ const JOB_LABEL: Record<string, string> = { airport_pickup: 'Airport pickup', ai
 // from and to, and how far along (pickup and drop-off confirmed).
 export function feedJobs(d: any, trips: any[], now = Date.now()) {
   const from = localDayStart(now), to = from + 86_400_000;
-  return trips.filter((t) => t.job_type && inScope(d, t.company_id) && busOnly(d, t.vehicle_id || null) && t.status !== 'cancelled'
+  return trips.filter((t) => inScope(d, t.company_id) && busOnly(d, t.vehicle_id || null) && t.status !== 'cancelled'
     && (['on_the_way', 'arrived'].includes(t.status) || (ms(t.scheduled_time) >= from && ms(t.scheduled_time) < to)))
     .map((t) => ({
-      id: t.id, kind: JOB_LABEL[t.job_type] || 'Job', status: t.status || 'scheduled', scheduled_time: t.scheduled_time || null,
+      id: t.id, kind: JOB_LABEL[t.job_type] || (t.route_name ? 'Route' : 'Trip'), route_name: t.job_type ? '' : text(t.route_name, 60), status: t.status || 'scheduled', scheduled_time: t.scheduled_time || null,
       started_at: t.started_at || null, arrived_at: t.arrived_at || null, completed_at: t.completed_at || null,
       vehicle_id: t.vehicle_id || '', vehicle_name: t.vehicle_name || '', driver_name: d.show_driver_names !== false ? t.driver_name || '' : '',
       pickup_name: t.pickup_name || '', dropoff_name: t.dropoff_name || '', guests: num(t.guests), flight_number: t.flight_number || '',
