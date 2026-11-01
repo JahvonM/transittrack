@@ -100,6 +100,7 @@ Changing records through entityAccess:
 | [PhoneUnlock](#phoneunlock) | `phone_unlock` | server only | — | — | — | — | through other functions |
 | [Place](#place) | `place` | entityAccess | — | — | — | — | all |
 | [PushToken](#pushtoken) | `push_token` | entityAccess | — | own | own | own | all |
+| [RideException](#rideexception) | `ride_exception` | server only | — | — | — | — | through other functions |
 | [RoleAssignment](#roleassignment) | `role_assignment` | server only | — | — | — | — | through other functions |
 | [Route](#route) | `route` | entityAccess | — | own company | own company | — | all |
 | [RouteTravelTimes](#routetraveltimes) | `route_travel_times` | entityAccess | — | own company | own company | — | all |
@@ -289,7 +290,7 @@ Table `client_error` · read and changed through entityAccess.
 
 Table `company` · read and changed through entityAccess.
 
-**Linked from:** [Advertisement](#advertisement).company_id, [BookingRequest](#bookingrequest).company_id, [Broadcast](#broadcast).company_id, [CardHolder](#cardholder).company_id, [Client](#client).company_id, [CompanyAccessGrant](#companyaccessgrant).company_id, [CompanyMembership](#companymembership).company_id, [Contact](#contact).company_id, [DeviceCredential](#devicecredential).company_id, [Driver](#driver).company_id, [DriverDocument](#driverdocument).company_id, [DriverPinCredential](#driverpincredential).company_id, [DriverRequest](#driverrequest).company_id, [DriverShift](#drivershift).company_id, [DrivingEvent](#drivingevent).company_id, [Fault](#fault).company_id, [GroupMessage](#groupmessage).company_id, [Incident](#incident).company_id, [Inspection](#inspection).company_id, [InspectionResult](#inspectionresult).company_id, [InspectionTemplate](#inspectiontemplate).company_id, [Invoice](#invoice).company_id, [KioskDevice](#kioskdevice).company_id, [LocationPing](#locationping).company_id, [LostItemReport](#lostitemreport).company_id, [MaintenanceSchedule](#maintenanceschedule).company_id, [NfcCard](#nfccard).company_id, [NotificationLog](#notificationlog).company_id, [Part](#part).company_id, [PassengerAccessCredential](#passengeraccesscredential).company_id, [PassengerCase](#passengercase).company_id, [PassengerOneTimeCredential](#passengeronetimecredential).company_id, [PhoneUnlock](#phoneunlock).company_id, [Place](#place).company_id, [PushToken](#pushtoken).company_id, [Route](#route).company_id, [RouteTravelTimes](#routetraveltimes).company_id, [StaffCheckIn](#staffcheckin).company_id, [TabletRecordingSession](#tabletrecordingsession).company_id, [TabletSupportSession](#tabletsupportsession).company_id, [Trip](#trip).company_id, [User](#user).company_id, [Vehicle](#vehicle).company_id, [VerificationGrant](#verificationgrant).company_id, [Workplace](#workplace).company_id.
+**Linked from:** [Advertisement](#advertisement).company_id, [BookingRequest](#bookingrequest).company_id, [Broadcast](#broadcast).company_id, [CardHolder](#cardholder).company_id, [Client](#client).company_id, [CompanyAccessGrant](#companyaccessgrant).company_id, [CompanyMembership](#companymembership).company_id, [Contact](#contact).company_id, [DeviceCredential](#devicecredential).company_id, [Driver](#driver).company_id, [DriverDocument](#driverdocument).company_id, [DriverPinCredential](#driverpincredential).company_id, [DriverRequest](#driverrequest).company_id, [DriverShift](#drivershift).company_id, [DrivingEvent](#drivingevent).company_id, [Fault](#fault).company_id, [GroupMessage](#groupmessage).company_id, [Incident](#incident).company_id, [Inspection](#inspection).company_id, [InspectionResult](#inspectionresult).company_id, [InspectionTemplate](#inspectiontemplate).company_id, [Invoice](#invoice).company_id, [KioskDevice](#kioskdevice).company_id, [LocationPing](#locationping).company_id, [LostItemReport](#lostitemreport).company_id, [MaintenanceSchedule](#maintenanceschedule).company_id, [NfcCard](#nfccard).company_id, [NotificationLog](#notificationlog).company_id, [Part](#part).company_id, [PassengerAccessCredential](#passengeraccesscredential).company_id, [PassengerCase](#passengercase).company_id, [PassengerOneTimeCredential](#passengeronetimecredential).company_id, [PhoneUnlock](#phoneunlock).company_id, [Place](#place).company_id, [PushToken](#pushtoken).company_id, [RideException](#rideexception).company_id, [Route](#route).company_id, [RouteTravelTimes](#routetraveltimes).company_id, [StaffCheckIn](#staffcheckin).company_id, [TabletRecordingSession](#tabletrecordingsession).company_id, [TabletSupportSession](#tabletsupportsession).company_id, [Trip](#trip).company_id, [User](#user).company_id, [Vehicle](#vehicle).company_id, [VerificationGrant](#verificationgrant).company_id, [Workplace](#workplace).company_id.
 
 **Everyone except admins and company managers gets only:** `name`, `phone`, `logo_url`, `service_types`, `description`.
 
@@ -468,7 +469,7 @@ Table `driver_shift` · belongs to a company through `vehicle_id`, then `driver_
 
 **Links to:** [Vehicle](#vehicle) (`vehicle_id`), [Company](#company) (`company_id`), [KioskDevice](#kioskdevice) (`device_id`), [Driver](#driver) (`driver_id`).
 
-**Linked from:** [PhoneUnlock](#phoneunlock).shift_id, [StaffCheckIn](#staffcheckin).shift_id.
+**Linked from:** [PhoneUnlock](#phoneunlock).shift_id, [RideException](#rideexception).shift_id, [StaffCheckIn](#staffcheckin).shift_id.
 
 | Field | Type | Notes |
 |---|---|---|
@@ -725,7 +726,7 @@ Table `kiosk_device` · belongs to a company through `vehicle_id`, then `driver_
 
 **Links to:** [Company](#company) (`company_id`), [Driver](#driver) (`driver_id`), [Vehicle](#vehicle) (`vehicle_id`).
 
-**Linked from:** [ClientError](#clienterror).device_id, [DeviceCredential](#devicecredential).device_id, [DriverShift](#drivershift).device_id, [PhoneUnlock](#phoneunlock).device_id, [PushToken](#pushtoken).device_id, [StaffCheckIn](#staffcheckin).device_id, [TabletRecordingSession](#tabletrecordingsession).device_id, [TabletSupportSession](#tabletsupportsession).device_id, [VerificationGrant](#verificationgrant).device_id.
+**Linked from:** [ClientError](#clienterror).device_id, [DeviceCredential](#devicecredential).device_id, [DriverShift](#drivershift).device_id, [PhoneUnlock](#phoneunlock).device_id, [PushToken](#pushtoken).device_id, [RideException](#rideexception).device_id, [StaffCheckIn](#staffcheckin).device_id, [TabletRecordingSession](#tabletrecordingsession).device_id, [TabletSupportSession](#tabletsupportsession).device_id, [VerificationGrant](#verificationgrant).device_id.
 
 | Field | Type | Notes |
 |---|---|---|
@@ -1035,6 +1036,30 @@ Table `push_token` · read and changed through entityAccess.
 | `role` | text | Role this token belongs to (admin, company, passenger, driver) — used to target a whole audience, e.g. all admins for SOS. |
 | `company_id` | text | → Company. |
 
+### RideException
+
+Table `ride_exception` · server functions only.
+
+**Links to:** [Company](#company) (`company_id`), [Vehicle](#vehicle) (`vehicle_id`), [DriverShift](#drivershift) (`shift_id`), [KioskDevice](#kioskdevice) (`device_id`).
+
+| Field | Type | Notes |
+|---|---|---|
+| `company_id` | text | → Company. Required. |
+| `vehicle_id` | text | → Vehicle. Required. |
+| `vehicle_name` | text |  |
+| `run_key` | text | The run it belongs to: shift:<id>, or day:<bus>:<date>. |
+| `shift_id` | text | → DriverShift. |
+| `person_ref` | text | The passenger's directory card or account id, as on the tablet. Required. |
+| `person_name` | text |  |
+| `kind` | text | no_show: not at the pickup. got_on / got_off: the driver recorded it because the passenger couldn't tap. One of: `no_show`, `got_on`, `got_off`. Required. |
+| `note` | text |  |
+| `recorded_by` | text | Driver name on the tablet. |
+| `device_id` | text | → KioskDevice. |
+| `at` | timestamptz | Required. |
+| `checkin_id` | text | The boarding record the driver's correction created, if any. |
+| `undone_at` | timestamptz |  |
+| `undone_by` | text |  |
+
 ### RoleAssignment
 
 Table `role_assignment` · server functions only.
@@ -1303,7 +1328,7 @@ Table `vehicle` · belongs to a company through `driver_id`, then `company_id` �
 
 **Links to:** [Driver](#driver) (`driver_id`), [Company](#company) (`company_id`), [Route](#route) (`route_id`).
 
-**Linked from:** [Broadcast](#broadcast).vehicle_id, [CompanyMembership](#companymembership).vehicle_id, [Contact](#contact).vehicle_id, [DeviceCredential](#devicecredential).vehicle_id, [DriverPinCredential](#driverpincredential).vehicle_id, [DriverShift](#drivershift).vehicle_id, [DrivingEvent](#drivingevent).vehicle_id, [Fault](#fault).vehicle_id, [GroupMessage](#groupmessage).vehicle_id, [Incident](#incident).vehicle_id, [Inspection](#inspection).vehicle_id, [InspectionResult](#inspectionresult).vehicle_id, [KioskDevice](#kioskdevice).vehicle_id, [LocationPing](#locationping).vehicle_id, [MaintenanceSchedule](#maintenanceschedule).vehicle_id, [PassengerCase](#passengercase).vehicle_id, [PhoneUnlock](#phoneunlock).vehicle_id, [StaffCheckIn](#staffcheckin).vehicle_id, [TabletRecordingSession](#tabletrecordingsession).vehicle_id, [TabletSupportSession](#tabletsupportsession).vehicle_id, [Trip](#trip).vehicle_id, [VerificationGrant](#verificationgrant).vehicle_id.
+**Linked from:** [Broadcast](#broadcast).vehicle_id, [CompanyMembership](#companymembership).vehicle_id, [Contact](#contact).vehicle_id, [DeviceCredential](#devicecredential).vehicle_id, [DriverPinCredential](#driverpincredential).vehicle_id, [DriverShift](#drivershift).vehicle_id, [DrivingEvent](#drivingevent).vehicle_id, [Fault](#fault).vehicle_id, [GroupMessage](#groupmessage).vehicle_id, [Incident](#incident).vehicle_id, [Inspection](#inspection).vehicle_id, [InspectionResult](#inspectionresult).vehicle_id, [KioskDevice](#kioskdevice).vehicle_id, [LocationPing](#locationping).vehicle_id, [MaintenanceSchedule](#maintenanceschedule).vehicle_id, [PassengerCase](#passengercase).vehicle_id, [PhoneUnlock](#phoneunlock).vehicle_id, [RideException](#rideexception).vehicle_id, [StaffCheckIn](#staffcheckin).vehicle_id, [TabletRecordingSession](#tabletrecordingsession).vehicle_id, [TabletSupportSession](#tabletsupportsession).vehicle_id, [Trip](#trip).vehicle_id, [VerificationGrant](#verificationgrant).vehicle_id.
 
 **Everyone except admins, company managers and mechanics gets only:** `name`, `type`, `company_id`, `company_name`, `capacity`, `route_id`, `current_lat`, `current_lng`, `speed`, `heading`, `status`, `driver_name`, `image_url`, `model_3d`, `tracking_active`, `last_location_update`, `trail`, `trip_direction`, `return_pickup_state`, `road_next_stop`.
 

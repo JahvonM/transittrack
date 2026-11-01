@@ -196,6 +196,7 @@ error, and the page stayed put (or redirected where it should). Console noise fr
 | Boarding taps | Repeated tap shows "Already recorded" and sends nothing; "I'm getting off" after a short ride; boarding-only tablet records without asking and explains a refused exit | `kiosk-boarding`, `boardingEventsServer.test`, `recentTaps.test` |
 | Card office | Card states shown in words; Stop card menu (suspend / report lost / revoke) with the offline limit in the confirm text; Switch back on only for suspended cards | `card-states`, `cardStates.test` |
 | Driver tablet/phone | Pairing, shift start/end, walk-around, messages, stops | `driver-*`, `tablet-*` |
+| Driver passengers | Ride state per passenger in words (on board since, got off at, didn't show), boarding note, counts; no-show with confirm and undo; got on / off without a tap; refused marks explained; marks blocked while moving | `driver-manifest`, `driverManifest.test` |
 | Admin | Fast open, load recovery, notifications, app errors, users, company workspace | `admin-*`, `notifications`, `app-errors`, `company-workspace` |
 | Website | Booking form, tracking link, phone widths | `website`, `public` |
 

@@ -4,7 +4,7 @@ import { boardingSecretHash, currentBoardingCode } from '../../shared/boardingCr
 // Shared request budgets use the configured Supabase RPC and fail closed.
 import { reserveAttempt, claimOnce, createOnce } from '../../shared/atomicOps.ts';
 import { checkBusPin } from '../../shared/busPin.ts';
-import { modeStatus, readerMode, repeatOf, reviewReason, suggestedStatus, tapAdvice } from '../../shared/boardingEvents.ts';
+import { modeStatus, onBoardCount, readerMode, repeatOf, reviewReason, suggestedStatus, tapAdvice } from '../../shared/boardingEvents.ts';
 
 
 async function liveMembership(base44, row) {
@@ -240,17 +240,19 @@ function tabletRoute(row, companyId) {
 function tabletCheckIn(row) {
   return tabletFields(row, ['id', 'staff_name', 'staff_picture_url', 'status', 'boarded_at', 'created_date', 'vehicle_id', 'vehicle_name', 'check_in_method']);
 }
-function boardingStats(rows) {
-  const latest = new Map();
-  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Grenada' });
+// On board now, by when taps happened (shared boarding rules), the same
+// count the driver tablet shows.
+function boardingStats(rows, now = Date.now()) {
+  const byPerson = {};
+  const today = new Date(now).toLocaleDateString('en-CA', { timeZone: 'America/Grenada' });
   let todayCount = 0;
   for (const row of rows || []) {
-    const key = row.card_tag || row.staff_name;
-    const prev = latest.get(key);
-    if (!prev || Date.parse(row.created_date) > Date.parse(prev.created_date)) latest.set(key, row);
-    if (row.status === 'boarded' && new Date(row.created_date).toLocaleDateString('en-CA', { timeZone: 'America/Grenada' }) === today) todayCount++;
+    const key = row.person_key || row.card_tag || row.staff_name;
+    if (!key) continue;
+    (byPerson[key] ||= []).push({ status: row.status, at: row.boarded_at || row.created_date });
+    if (row.status === 'boarded' && new Date(row.boarded_at || row.created_date).toLocaleDateString('en-CA', { timeZone: 'America/Grenada' }) === today) todayCount++;
   }
-  return { occupancy: [...latest.values()].filter((r) => r.status === 'boarded').length, today_count: todayCount };
+  return { occupancy: onBoardCount(byPerson, now), today_count: todayCount };
 }
 async function tabletCheckIns(base44, companyId, vehicleId) {
   if (!companyId || !vehicleId) return [];

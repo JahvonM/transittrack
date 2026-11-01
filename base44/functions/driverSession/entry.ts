@@ -17,6 +17,7 @@ import { reserveAttempt, createOnce, withLock } from '../../shared/atomicOps.ts'
 import { pushWithPolicy, emailWithPolicy } from '../../shared/notificationPolicy.ts';
 import { placeOnRoad, roadPointsToLine } from '../../shared/pickupStops.ts';
 import { busRoadStops } from '../../shared/routeRiders.ts';
+import { onBoard, onBoardCount, tapTime } from '../../shared/boardingEvents.ts';
 import { JOB_STEPS, jobForBus, jobStepTime, signJob, tabletTrip } from '../../shared/jobSignature.ts';
 
 
@@ -314,11 +315,15 @@ async function loadStaff(base44, companyId, vehicleId) {
   const approvedIds = new Set(approvedRows.map(row=>row.user_id));
   const busOf = new Map(approvedRows.map(row=>[row.user_id,row.vehicle_id||'']));
   const ridesHere = (bus) => !bus || bus === vehicleId;
-  const [users, contacts, workplaces] = await Promise.all([
+  const [users, contacts, workplaces, cards] = await Promise.all([
     base44.asServiceRole.entities.User.list(),
     base44.asServiceRole.entities.Contact.filter({ company_id: companyId }, '-updated_date', 500),
     base44.asServiceRole.entities.Workplace.filter({ company_id: companyId }, '-updated_date', 5),
+    base44.asServiceRole.entities.NfcCard.filter({ company_id: companyId, is_active: true }, '-issue_date', 3000).catch(() => []),
   ]);
+  // What this person's taps are filed under (card numbers, ids). Used here to
+  // work out who is on board; never sent to the tablet.
+  const userCards = (id) => cards.filter((c) => c.company_id === companyId && c.holder_source === 'user' && c.holder_id === id).map((c) => c.card_uid);
   const workplace = workplaces.find(w => w.company_id === companyId && w.lat != null && w.lng != null
     && Number.isFinite(Number(w.lat)) && Math.abs(Number(w.lat)) <= 90
     && Number.isFinite(Number(w.lng)) && Math.abs(Number(w.lng)) <= 180);
@@ -344,6 +349,8 @@ async function loadStaff(base44, companyId, vehicleId) {
         pickup_name: c.pickup_name || u.pickup_name, ...dropoff,
         skip_pickup_today: flagActive(u.skip_pickup_today, u.skip_pickup_until),
         late_snooze_active: flagActive(u.late_snooze_active, u.late_until),
+        boarding_note: u.boarding_note || '',
+        _source: 'contact', _tags: [c.nfc_card_tag, c.id, u.id, ...(u.id ? userCards(u.id) : [])].filter(Boolean),
       };
     }),
     ...orphanUsers.map((u) => ({
@@ -351,6 +358,8 @@ async function loadStaff(base44, companyId, vehicleId) {
       home_lat: u.pickup_lat ?? u.home_lat, home_lng: u.pickup_lng ?? u.home_lng, pickup_name: u.pickup_name, ...dropoff,
       skip_pickup_today: flagActive(u.skip_pickup_today, u.skip_pickup_until),
       late_snooze_active: flagActive(u.late_snooze_active, u.late_until),
+      boarding_note: u.boarding_note || '',
+      _source: 'user', _tags: [...userCards(u.id), u.id].filter(Boolean),
     })),
   ];
   return merged;
@@ -474,18 +483,44 @@ function tabletRoute(row, companyId) {
 function tabletCheckIn(row) {
   return tabletFields(row, ['id', 'staff_name', 'staff_picture_url', 'company_name', 'status', 'boarded_at', 'created_date', 'vehicle_id', 'vehicle_name', 'check_in_method']);
 }
-function boardingStats(rows) {
-  const latest = new Map();
-  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Grenada' });
+// On board now: each person's taps in the order they happened (a tap saved
+// offline and sent later still lands in its place), and a boarding with no
+// exit stops counting after a ride's length (shared boarding rules).
+function boardingStats(rows, now = Date.now()) {
+  const byPerson = {};
+  const today = new Date(now).toLocaleDateString('en-CA', { timeZone: 'America/Grenada' });
   let todayCount = 0;
   for (const row of rows || []) {
-    const key = row.card_tag || row.staff_name;
-    const prev = latest.get(key);
-    if (!prev || Date.parse(row.created_date) > Date.parse(prev.created_date)) latest.set(key, row);
-    if (row.status === 'boarded' && new Date(row.created_date).toLocaleDateString('en-CA', { timeZone: 'America/Grenada' }) === today) todayCount++;
+    const key = row.person_key || row.card_tag || row.staff_name;
+    if (!key) continue;
+    (byPerson[key] ||= []).push({ status: row.status, at: row.boarded_at || row.created_date });
+    if (row.status === 'boarded' && new Date(row.boarded_at || row.created_date).toLocaleDateString('en-CA', { timeZone: 'America/Grenada' }) === today) todayCount++;
   }
-  return { occupancy: [...latest.values()].filter((r) => r.status === 'boarded').length, today_count: todayCount };
+  return { occupancy: onBoardCount(byPerson, now), today_count: todayCount };
 }
+const TZ_DAY = (at) => new Date(at).toLocaleDateString('en-CA', { timeZone: 'America/Grenada' });
+// Each passenger's ride today, for the driver: on board (since when), got
+// off, didn't show, or not yet. Only from their own taps and the driver's
+// marks; GPS never decides it.
+function rideOf(person, checkIns, exceptions, now = Date.now()) {
+  const tags = new Set(person._tags || []);
+  const taps = checkIns.filter((r) => tags.has(r.card_tag) || (r.person_key && r.person_key === `${person._source}:${person.id}`))
+    .map((r) => ({ status: r.status, at: r.boarded_at || r.created_date, method: r.check_in_method, review: r.review_reason || '' }))
+    .filter((t) => Number.isFinite(tapTime(t)) && tapTime(t) <= now + 60_000)
+    .sort((a, b) => tapTime(a) - tapTime(b));
+  const on = onBoard(taps, now);
+  const last = taps.at(-1);
+  if (on.onBoard) return { state: 'on_board', at: new Date(on.since).toISOString(), by_driver: last?.review === 'driver_correction' };
+  if (last && last.status === 'off_board' && TZ_DAY(tapTime(last)) === TZ_DAY(now)) return { state: 'got_off', at: new Date(tapTime(last)).toISOString(), by_driver: last.review === 'driver_correction' };
+  const noShow = exceptions.find((e) => e.person_ref === person.id && e.kind === 'no_show' && !e.undone_at && TZ_DAY(Date.parse(e.at)) === TZ_DAY(now));
+  if (noShow) return { state: 'no_show', at: noShow.at, id: noShow.id };
+  return { state: 'not_yet' };
+}
+// What the tablet gets for a passenger: never their card numbers.
+const forTablet = (person, checkIns, exceptions) => {
+  const { _tags, _source, ...rest } = person;
+  return { ...rest, ride: rideOf(person, checkIns, exceptions) };
+};
 async function tabletCheckIns(base44, companyId, vehicleId) {
   if (!companyId || !vehicleId) return [];
   const rows = [];
@@ -1007,6 +1042,8 @@ export default async function(req) {
           light ? [] : base44.asServiceRole.entities.Inspection.filter({ vehicle_id: vehicleId }, '-created_date', 30).catch(() => []),
         ]);
         const trips = vehicleTrips.filter((t) => ['scheduled', 'on_the_way', 'arrived'].includes(t.status) && t.company_id === companyId).map(tabletTrip);
+        const exceptions = unlocked && !light ? (await base44.asServiceRole.entities.RideException.filter({ vehicle_id: vehicleId }, '-at', 100).catch(() => [])).filter((e) => e.company_id === companyId) : [];
+        const manifest = staff.map((person) => forTablet(person, checkIns, exceptions));
         const driverEmail = vehicle.driver_email || '';
         const relevantBroadcasts = broadcasts.filter((b) => {
           if (b.company_id && b.company_id !== companyId) return false;
@@ -1042,7 +1079,7 @@ export default async function(req) {
         const reply = {
           vehicle: tabletVehicle(vehicle), driver_name: ownDevice ? device.driver_name || vehicle.driver_name || '' : vehicle.driver_name || '', has_driver_pin: hasDriverPin, has_signing_tablet: hasSigningTablet,
           ...(ownDevice ? { personal: true } : {}),
-          company_id: companyId, company_name: companyDisplayName, company_logo_url: companyLogoUrl, staff, route: tabletRoute(route, companyId), road_stops: roadStops, workplace, emergency_contacts: emergencyContacts, ...boardingStats(checkIns),
+          company_id: companyId, company_name: companyDisplayName, company_logo_url: companyLogoUrl, staff: manifest, route: tabletRoute(route, companyId), road_stops: roadStops, workplace, emergency_contacts: emergencyContacts, ...boardingStats(checkIns),
           broadcasts: relevantBroadcasts, check_ins: checkIns.slice(0, 20).filter((c) => c.status === 'boarded').map(tabletCheckIn),
           group_messages: unlocked ? [...groupMessages].filter(message=>message.company_id===companyId).reverse() : [], trips: unlocked ? trips : [],
           // Lets the tablet tell "no jobs" from "jobs hidden while locked".
@@ -1589,6 +1626,56 @@ export default async function(req) {
         if(status==='on_the_way'&&!existing.driver_accepted_at)await notifyJobProgress(base44,trip,'accepted');
         await notifyJobProgress(base44,trip,status==='on_the_way'?'started':status);
         return Response.json({ trip: tabletTrip(trip) });
+      }
+
+      // The driver marks a passenger: didn't show (or undo), or got on / got
+      // off when they couldn't tap. Each is recorded with who and when, and a
+      // got on / got off makes a boarding record marked for review.
+      case 'ride_exception': {
+        const kind = String(body.kind || '');
+        if (!['no_show', 'undo_no_show', 'got_on', 'got_off'].includes(kind)) return Response.json({ error: 'Unknown mark' }, { status: 400 });
+        const vehicle = await loadVehicle(base44, vehicleId);
+        if (!vehicle || vehicle.company_id !== companyId) return Response.json({ error: 'Vehicle assignment mismatch' }, { status: 403 });
+        if (!(await reserveAttempt(base44, 'ride-mark:' + vehicleId, 120, 60 * 60_000))) return Response.json({ error: 'Too many changes this hour. Try again later.' }, { status: 429 });
+        const people = await loadStaff(base44, companyId, vehicleId);
+        const person = people.find((p) => p.id === String(body.ref || ''));
+        if (!person) return Response.json({ error: 'That passenger isn’t on this bus’s list' }, { status: 404 });
+        const db = base44.asServiceRole.entities;
+        const [checkIns, exceptions, shifts] = await Promise.all([
+          tabletCheckIns(base44, companyId, vehicleId),
+          db.RideException.filter({ vehicle_id: vehicleId }, '-at', 100).catch(() => []),
+          db.DriverShift.filter({ vehicle_id: vehicleId }, '-started_at', 3).catch(() => []),
+        ]);
+        const ride = rideOf(person, checkIns, exceptions);
+        const now = new Date();
+        const driverName = sanitize(body.driver_name).slice(0, 80) || vehicle.driver_name || 'Driver';
+        const note = sanitize(body.note).slice(0, 200);
+        const shift = shifts.find((x) => !x.ended_at);
+        const run = shift ? { run_key: 'shift:' + shift.id, shift_id: shift.id } : { run_key: `day:${vehicleId}:${TZ_DAY(now.getTime())}`, shift_id: '' };
+        const audit = (summary, record_id) => db.AuditLog.create({ actor_email: '', actor_name: driverName, actor_role: 'driver', action: 'create', entity: 'RideException', record_id, page: '/driver', summary }).catch(() => {});
+        const name = person.full_name || 'Passenger';
+        if (kind === 'undo_no_show') {
+          if (ride.state !== 'no_show') return Response.json({ error: `${name} isn’t marked as a no-show` }, { status: 409 });
+          await db.RideException.update(ride.id, { undone_at: now.toISOString(), undone_by: driverName });
+          await audit(`${driverName} took back the no-show for ${name} on ${vehicle.name}`, ride.id);
+        } else if (kind === 'no_show') {
+          if (['on_board', 'got_off'].includes(ride.state)) return Response.json({ error: `${name} is already recorded as ${ride.state === 'on_board' ? 'on board' : 'having got off'} today` }, { status: 409 });
+          if (ride.state !== 'no_show') {
+            const row = await db.RideException.create({ company_id: companyId, vehicle_id: vehicleId, vehicle_name: vehicle.name, ...run, person_ref: person.id, person_name: name, kind, note, recorded_by: driverName, device_id: device.id, at: now.toISOString() });
+            await audit(`${driverName} marked ${name} as not at the pickup on ${vehicle.name}${note ? ': ' + note : ''}`, row.id);
+          }
+        } else {
+          const status = kind === 'got_on' ? 'boarded' : 'off_board';
+          if (kind === 'got_on' && ride.state === 'on_board') return Response.json({ error: `${name} is already on board` }, { status: 409 });
+          if (kind === 'got_off' && ride.state !== 'on_board') return Response.json({ error: `${name} isn’t recorded as on board` }, { status: 409 });
+          const tag = checkIns.find((r) => (person._tags || []).includes(r.card_tag))?.card_tag || person._tags?.[0] || person.id;
+          const record = await db.StaffCheckIn.create({ company_id: companyId, company_name: companyName || '', vehicle_id: vehicleId, vehicle_name: vehicle.name, staff_name: name, card_tag: tag, status, boarded_at: now.toISOString(), check_in_method: 'manual', person_key: `${person._source}:${person.id}`, ...run, review_reason: 'driver_correction', saved_offline: false });
+          const row = await db.RideException.create({ company_id: companyId, vehicle_id: vehicleId, vehicle_name: vehicle.name, ...run, person_ref: person.id, person_name: name, kind, note, recorded_by: driverName, device_id: device.id, at: now.toISOString(), checkin_id: record.id });
+          await audit(`${driverName} recorded ${name} ${kind === 'got_on' ? 'getting on' : 'getting off'} ${vehicle.name} without a tap${note ? ': ' + note : ''}`, row.id);
+          checkIns.unshift(record);
+        }
+        const after = rideOf(person, checkIns, await db.RideException.filter({ vehicle_id: vehicleId }, '-at', 100).catch(() => []));
+        return Response.json({ ok: true, ref: person.id, ride: after, ...boardingStats(checkIns) });
       }
 
       case 'reach_stop': {

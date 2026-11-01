@@ -45,6 +45,7 @@ export const SUPABASE_TABLES: Record<string, string> = {
   PhoneUnlock: "phone_unlock",
   Place: "place",
   PushToken: "push_token",
+  RideException: "ride_exception",
   RoleAssignment: "role_assignment",
   Route: "route",
   RouteTravelTimes: "route_travel_times",

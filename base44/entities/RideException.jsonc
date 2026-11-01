@@ -1,0 +1,92 @@
+{
+  "name": "RideException",
+  "type": "object",
+  "required": [
+    "company_id",
+    "vehicle_id",
+    "person_ref",
+    "kind",
+    "at"
+  ],
+  "properties": {
+    "company_id": {
+      "type": "string"
+    },
+    "vehicle_id": {
+      "type": "string"
+    },
+    "vehicle_name": {
+      "type": "string"
+    },
+    "run_key": {
+      "type": "string",
+      "description": "The run it belongs to: shift:<id>, or day:<bus>:<date>."
+    },
+    "shift_id": {
+      "type": "string"
+    },
+    "person_ref": {
+      "type": "string",
+      "description": "The passenger's directory card or account id, as on the tablet."
+    },
+    "person_name": {
+      "type": "string"
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "no_show",
+        "got_on",
+        "got_off"
+      ],
+      "description": "no_show: not at the pickup. got_on / got_off: the driver recorded it because the passenger couldn't tap."
+    },
+    "note": {
+      "type": "string"
+    },
+    "recorded_by": {
+      "type": "string",
+      "description": "Driver name on the tablet."
+    },
+    "device_id": {
+      "type": "string"
+    },
+    "at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "checkin_id": {
+      "type": "string",
+      "description": "The boarding record the driver's correction created, if any."
+    },
+    "undone_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "undone_by": {
+      "type": "string"
+    }
+  },
+  "rls": {
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

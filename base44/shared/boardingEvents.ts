@@ -105,4 +105,5 @@ export const REVIEW_TEXT: Record<string, string> = {
   card_changed_after_tap: 'Card was replaced or cancelled after this offline tap',
   no_active_trip: 'No driver shift was open on this bus',
   history_unavailable: 'Recorded without checking for a repeat (history could not be read)',
+  driver_correction: 'Recorded by the driver (the passenger could not tap)',
 };
