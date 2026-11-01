@@ -289,10 +289,10 @@ export default function PassengerExperience({view,user,company,workplace,myVehic
    </section>
    {(()=>{const lists=upcomingAndCancelled({trips:bookedTrips || [],cancelledTrips,cases:cases.cases,now});const dayText=(item)=>{const t=item.kind==="trip"&&item.at?Date.parse(item.at):Date.parse(item.day+"T12:00:00");return Number.isFinite(t)?new Date(t).toLocaleDateString([], {weekday:"short",day:"numeric",month:"short",...(item.kind==="trip"?{hour:"numeric",minute:"2-digit"}:{})}):"";};return <>
     <section className="px-panel" aria-labelledby="px-rides-upcoming"><h2 id="px-rides-upcoming"><CalendarClock />Coming up</h2>
-     {lists.upcoming.length?<ul className="px-ride-list">{lists.upcoming.map(i=><li key={i.key}><span><strong>{i.title}</strong><small>{dayText(i)}</small></span><b className="px-ride-state scheduled">{i.note}</b></li>)}</ul>:<p className="px-ride-note">Nothing booked or changed. Your regular rides follow your company's schedule.</p>}
+     {lists.upcoming.length?<ul className="px-ride-list">{lists.upcoming.map(i=><li key={i.key}><span><strong>{i.title}</strong><small>{[dayText(i),i.ref].filter(Boolean).join(" · ")}</small></span><b className="px-ride-state scheduled">{i.note}</b></li>)}</ul>:<p className="px-ride-note">Nothing booked or changed. Your regular rides follow your company's schedule.</p>}
     </section>
     {lists.cancelled.length>0 && <section className="px-panel" aria-labelledby="px-rides-cancelled"><h2 id="px-rides-cancelled"><X />Cancelled</h2>
-     <ul className="px-ride-list">{lists.cancelled.map(i=><li key={i.key}><span><strong>{i.title}</strong><small>{dayText(i)}</small></span><b className={`px-ride-state ${i.kind==="asked"?"running_late":"not_travelling"}`}>{i.note}</b></li>)}</ul>
+     <ul className="px-ride-list">{lists.cancelled.map(i=><li key={i.key}><span><strong>{i.title}</strong><small>{[dayText(i),i.ref].filter(Boolean).join(" · ")}</small></span><b className={`px-ride-state ${i.kind==="asked"?"running_late":"not_travelling"}`}>{i.note}</b></li>)}</ul>
     </section>}
    </>;})()}
    <section className="px-panel" aria-labelledby="px-rides-change"><h2 id="px-rides-change"><Clock />Change a ride</h2>

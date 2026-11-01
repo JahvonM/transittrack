@@ -72,3 +72,22 @@ driver-tablet cameras only, up to four, and each view ends after 10 minutes.
 
 In **Route planner**, each stop has a **Where to wait** box (for example
 "opposite the bank, sea side"). Passengers see it under Where to wait.
+
+## After the follow-up (branch `more-updates`, once merged)
+
+- **Driver phone, Passenger list**: drivers see who is on board and can
+  mark "Didn't show" (with Undo) or "Got on / Got off (no tap)", the same as
+  on the bus tablet. Marks are off while the bus is moving.
+- **Start shift on the phone** shows four steps: the bus, the walk-around,
+  who to pick up today, then scanning the tablet.
+- **Passengers get "Boarding confirmed" / "Exit confirmed"** on their phone
+  when their tap is recorded. To switch it off for everyone or a company:
+  Admin → Notifications → Boarding and exit confirmed. Passengers can turn
+  it off for themselves.
+- **Admin → Kiosk tablets → the tablet → Screen layout** now also has
+  *Validator (card reader above the screen)* and *Passenger information
+  screen (no tapping)*. A T10 uses the validator layout by itself.
+- **Where passengers tap their card** (same dialog, boarding tablets): pick
+  where the card reader is so the screen tells passengers where to hold
+  their card.
+- **My rides** lists what's coming up and what was cancelled.

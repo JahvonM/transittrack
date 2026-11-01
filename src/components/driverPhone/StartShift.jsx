@@ -92,7 +92,7 @@ export default function StartShift({ today, initialCode, onClaim, onWalkaround, 
             <p className="font-semibold">{riding.length} {home ? "to drop off" : "to pick up"} today</p>
             <p className="text-body-sm text-muted-foreground">
               {pickups.length - riding.length > 0 ? `${pickups.length - riding.length} not riding today. ` : ""}
-              {late.length ? `Running late: ${late.map((p) => p.name).join(", ")}.` : riding.length ? "The full list with stops is on Today." : "Nobody to collect yet."}
+              {late.length ? `Running late: ${late.map((p) => p.name).join(", ")}`.replace(/([^.])$/, "$1.") : riding.length ? "The full list with stops is on Today." : "Nobody to collect yet."}
             </p>
           </div>
         </div>

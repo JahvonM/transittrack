@@ -80,6 +80,7 @@ test.describe('phone',()=>{
   await expect(people).toContainText('2 to pick up today');
   await expect(people).toContainText('1 not riding today.');
   await expect(people).toContainText('Running late: Marcus T.');
+  await expect(people).not.toContainText('T..');
   await expect(page.getByRole('region',{name:'Step 4, scan the bus tablet'})).toBeVisible();
  });
 

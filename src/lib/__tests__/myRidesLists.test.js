@@ -20,7 +20,7 @@ describe("My rides: coming up and cancelled", () => {
       ],
     });
     expect(upcoming.map((u) => u.key)).toEqual(["trip:t1", "case:c1", "trip:t2"]);
-    expect(upcoming[1]).toMatchObject({ title: "New time 07:15", note: "Confirmed · TT-AAAAAA" });
+    expect(upcoming[1]).toMatchObject({ title: "New time 07:15", note: "Confirmed", ref: "TT-AAAAAA" });
     expect(upcoming[0].note).toBe("Booked · on the way");
   });
 
@@ -37,7 +37,7 @@ describe("My rides: coming up and cancelled", () => {
     });
     expect(upcoming).toEqual([]);
     expect(cancelled.map((c) => [c.key, c.title])).toEqual([
-      ["case:c", "Cancellation not possible"],
+      ["case:c", "Cancellation not possible: your ride stays booked"],
       ["case:a", "Cancellation asked for"],
       ["trip:x", "Grand Anse to Airport"],
       ["case:b", "Ride cancelled at your request"],

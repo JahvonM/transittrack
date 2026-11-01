@@ -86,12 +86,12 @@ export function upcomingAndCancelled({ trips = [], cancelledTrips = [], cases = 
     if (!c || !c.requested_date) continue;
     if (["time_change", "pickup_change"].includes(c.kind) && c.status === "confirmed" && c.requested_date >= today) {
       const what = c.kind === "time_change" ? `New time${c.requested_time ? " " + c.requested_time : ""}` : `New pickup${c.requested_pickup ? ": " + c.requested_pickup : ""}`;
-      upcoming.push({ key: "case:" + c.id, at: c.requested_date, day: c.requested_date, title: what, note: `Confirmed · ${c.reference}`, kind: "change" });
+      upcoming.push({ key: "case:" + c.id, at: c.requested_date, day: c.requested_date, title: what, note: "Confirmed", ref: c.reference, kind: "change" });
     }
     if (c.kind === "cancel_ride" && c.requested_date >= monthAgo) {
-      if (c.status === "confirmed") cancelled.push({ key: "case:" + c.id, at: c.requested_date, day: c.requested_date, title: "Ride cancelled at your request", note: c.reference, kind: "cancelled" });
-      else if (["requested", "pending"].includes(c.status)) cancelled.push({ key: "case:" + c.id, at: c.requested_date, day: c.requested_date, title: "Cancellation asked for", note: `Waiting for the office · ${c.reference}`, kind: "asked" });
-      else if (c.status === "rejected") cancelled.push({ key: "case:" + c.id, at: c.requested_date, day: c.requested_date, title: "Cancellation not possible", note: `Your ride stays booked · ${c.reference}`, kind: "refused" });
+      if (c.status === "confirmed") cancelled.push({ key: "case:" + c.id, at: c.requested_date, day: c.requested_date, title: "Ride cancelled at your request", note: "Cancelled", ref: c.reference, kind: "cancelled" });
+      else if (["requested", "pending"].includes(c.status)) cancelled.push({ key: "case:" + c.id, at: c.requested_date, day: c.requested_date, title: "Cancellation asked for", note: "Waiting", ref: c.reference, kind: "asked" });
+      else if (c.status === "rejected") cancelled.push({ key: "case:" + c.id, at: c.requested_date, day: c.requested_date, title: "Cancellation not possible: your ride stays booked", note: "Not possible", ref: c.reference, kind: "refused" });
     }
   }
   for (const t of cancelledTrips) {

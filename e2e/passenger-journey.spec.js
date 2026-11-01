@@ -138,11 +138,12 @@ test("My rides lists what's coming up and what was cancelled", async ({ page }) 
   await page.goto("/rides");
   const coming = page.getByRole("region", { name: "Coming up" });
   await expect(coming.getByText("New time 07:15")).toBeVisible();
-  await expect(coming.getByText("Confirmed · TT-AAAAAA")).toBeVisible();
+  await expect(coming.getByText(/TT-AAAAAA/)).toBeVisible();
+  await expect(coming.getByText("Confirmed", { exact: true })).toBeVisible();
   const cancelled = page.getByRole("region", { name: "Cancelled" });
   await expect(cancelled.getByRole("listitem")).toHaveCount(2);
   await expect(cancelled.getByRole("listitem").first()).toContainText("Ride cancelled at your request");
-  await expect(cancelled.getByText("Waiting for the office · TT-BBBBBB")).toBeVisible();
+  await expect(cancelled.getByRole("listitem").filter({ hasText: "TT-BBBBBB" })).toContainText("Waiting");
   expect(s.errors).toEqual([]);
 });
 
