@@ -15,6 +15,17 @@ export const KIOSK_CODE_TEXT = {
 };
 export const kioskCodeText = (code) => KIOSK_CODE_TEXT[code] || (code ? `code ${String(code).slice(0, 40)}` : "");
 
+// The same states for Admin, from what a tablet last reported (helper_health).
+export function protectionFromHealth(h) {
+  if (!h || h.management_available !== true) return protectionState(null, null);
+  return protectionState({ defaultHome: h.default_home === true }, {
+    available: true, deviceOwner: h.management_owner === true, locked: h.management_locked === true,
+    kioskAvailable: h.kiosk_available !== false, kioskEnabled: h.kiosk_enabled === true, kioskRecoveryReady: h.kiosk_recovery_ready === true,
+    kioskMaintenance: h.kiosk_maintenance === true, kioskLocked: h.kiosk_locked === true, kioskError: h.kiosk_error || "",
+  });
+}
+export const PROTECTION_LABEL = { ok: "Kiosk protection active", limited: "Limited protection", setup: "Setup required", unsupported: "Not reported", failed: "Protection failed" };
+
 export function protectionState(recovery = null, control = typeof window !== "undefined" ? window.__ttNativeControl : null) {
   if (!control?.available) {
     return { tone: "unsupported", text: "Not reported: this screen isn't running in the McSween kiosk app, so the app can't see or set the lock. If another kiosk app (such as FreeKiosk) locks this tablet, check that app's own settings." };

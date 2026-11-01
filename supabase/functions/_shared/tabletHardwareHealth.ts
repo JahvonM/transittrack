@@ -16,5 +16,9 @@ export function cleanHardwareHealth(o: Record<string, unknown>): Record<string, 
   if (cellular.includes(o.cellular_state as string)) out.cellular_state = o.cellular_state;
   const carrier = str(o.cellular_carrier,60); if (carrier) out.cellular_carrier = carrier;
   if (['ready','recovered','waiting','retry_required'].includes(o.recovery_state as string)) out.recovery_state = o.recovery_state;
+  // Kiosk protection details: the app's last lock result code (e.g.
+  // DEVICE_OWNER_REQUIRED) and whether it opens at start-up.
+  for (const key of ['kiosk_error', 'kiosk_last_code']) if (typeof o[key] === 'string' && /^[A-Z_]{3,40}$/.test(o[key] as string)) out[key] = o[key];
+  if (typeof o.default_home === 'boolean') out.default_home = o.default_home;
   return out;
 }

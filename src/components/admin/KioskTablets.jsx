@@ -2,6 +2,7 @@ import { cellularSummary, recoverySummary } from "@/lib/tabletHealthSummary";
 import TabletManagementControls from "@/components/admin/TabletManagementControls";
 import { tabletSetupBundle } from "@/lib/tabletSetupBundle";
 import { helperLinkLost } from "@/lib/helperHealth";
+import { PROTECTION_LABEL, protectionFromHealth } from "@/lib/kioskProtection";
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
@@ -383,6 +384,12 @@ export default function KioskTablets({ vehicles, companies, onChange }) {
                           <Clock className="w-3 h-3" /> Last seen: {timeAgo(d.last_seen)}
                         </div>
                         {!own && <HelperHealthLine h={d.helper_health} />}
+                        {!own && d.paired && ["bus_boarding", "driver", "job_signing"].includes(d.kiosk_type) && (() => { const p = protectionFromHealth(d.helper_health); return (
+                          <div className="mt-1 text-xs" role="status">
+                            <StatusChip tone={{ ok: "success", limited: "warning", setup: "warning", unsupported: "neutral", failed: "danger" }[p.tone]}>{PROTECTION_LABEL[p.tone]}</StatusChip>
+                            <span className="ml-2 text-muted-foreground">{p.text}{d.helper_health?.model ? ` · ${d.helper_health.model}${d.helper_health.android_version ? `, Android ${d.helper_health.android_version}` : ""}` : ""}</span>
+                          </div>
+                        ); })()}
                         {d.native_tracking_health?.active && <p className="text-sm text-muted-foreground mt-1">Background GPS · {Date.now()-Date.parse(d.native_tracking_health.reported_at)<180000 ? "reporting" : "report is stale"} · {d.native_tracking_health.pending || 0} saved · {d.native_tracking_health.review || 0} need review</p>}
                         {!own && <TabletNetworkControls device={d} onRefresh={loadDevices} />}
                         {!own && <TabletManagementControls device={d} onRefresh={loadDevices} />}
