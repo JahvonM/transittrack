@@ -123,7 +123,8 @@ export default function SignupDayTab() {
   if (hotels === null) return <BusLoader className="py-12" />;
 
   return (
-    <div className="space-y-4">
+    // Bottom room so the last person can scroll clear of the chat button.
+    <div className="space-y-4 pb-24 lg:pb-0">
       <PageIntro>Run a sign-up day at a hotel. Everyone helping opens this page on their own phone, tablet or laptop and works from the same list, which updates by itself.</PageIntro>
       <PageActions>
         <Button variant="outline" onClick={() => setDialog("import")} disabled={!hotelId}><Upload className="h-4 w-4" aria-hidden="true" /> Import list</Button>
@@ -182,7 +183,7 @@ export default function SignupDayTab() {
           ) : state && (
             <section className="rounded-2xl border border-border bg-card p-2 sm:p-3" aria-label="Staff">
               <div className="flex flex-wrap items-center gap-2 p-1 pb-3">
-                <Segmented label="Show" value={view} onChange={setView} options={[
+                <Segmented label="Show" size="sm" value={view} onChange={setView} options={[
                   { value: "todo", label: "To do", count: viewCount("todo") }, { value: "mine", label: "Mine", count: viewCount("mine") },
                   { value: "ready", label: "All set", count: viewCount("ready") }, { value: "all", label: "Everyone", count: people.length },
                 ]} />
