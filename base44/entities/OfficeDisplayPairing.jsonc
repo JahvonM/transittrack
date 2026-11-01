@@ -1,0 +1,58 @@
+{
+  "name": "OfficeDisplayPairing",
+  "type": "object",
+  "description": "A screen asking to be paired as an office display: a short-lived, single-use code shown on the screen. Server-only; codes and poll secrets are stored as hashes.",
+  "required": [
+    "code_hash",
+    "poll_hash",
+    "expires_at"
+  ],
+  "properties": {
+    "code_hash": {
+      "type": "string"
+    },
+    "poll_hash": {
+      "type": "string"
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "approved_display_id": {
+      "type": "string"
+    },
+    "approved_by": {
+      "type": "string"
+    },
+    "approved_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "used_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "rls": {
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}
