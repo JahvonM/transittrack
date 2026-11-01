@@ -1027,3 +1027,10 @@ html.tt-passenger-app:is(.light,[data-accent]) .tt-pickup-sheet .tt-pickup-finde
 }
 .tt-wall-label--stale { color: hsl(var(--muted-foreground)); border-style: dashed; border-color: hsl(var(--border)); }
 @media (prefers-reduced-motion: reduce) { .tt-display-root * { animation: none !important; transition: none !important; } }
+/* Office display Density: Compact (more rows, tighter spacing). */
+.tt-display-compact .p-4 { padding: 0.65rem; }
+.tt-display-compact .gap-4 { gap: 0.6rem; }
+.tt-display-compact .gap-3 { gap: 0.5rem; }
+.tt-display-compact .gap-2 { gap: 0.35rem; }
+.tt-display-compact .py-2 { padding-top: 0.3rem; padding-bottom: 0.3rem; }
+.tt-display-compact .rounded-2xl { border-radius: 0.75rem; }
