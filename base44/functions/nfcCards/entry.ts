@@ -1,5 +1,6 @@
 import { retry429 } from '../../shared/retry429.ts';
 import { CARD_STATUS_TEXT, STOP_REASON, STOP_STATUSES, canReactivate, cardStatus } from '../../shared/cardStatus.ts';
+import { signupDay } from '../../shared/signupDay.ts';
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 
 
@@ -537,6 +538,11 @@ export default async function (req) {
         if (!vehicle) return Response.json({ error: 'Bus not found' }, { status: 404 });
         return Response.json({ ok: true, ...(await sendToBus(base44, user, vehicle.id)) });
       }
+
+      // Sign-up day at a hotel (Admin → Sign-up day), for the same people:
+      // admins, and a hotel's own approved manager for that hotel only.
+      case 'signup_state': case 'signup_claim': case 'signup_app': case 'signup_add': case 'signup_import':
+        return await signupDay(base44, user, body, { companyFilter, loadPeople, audit });
 
       default:
         return Response.json({ error: 'Unknown action' }, { status: 400 });
