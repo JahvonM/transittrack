@@ -68,6 +68,21 @@ test.describe('phone',()=>{
   await expect(page.getByRole('button',{name:'End shift'})).toBeVisible();
  });
 
+ test('start shift goes step by step: bus, walk-around, passengers, then the tablet',async({page})=>{
+  await phone(page,{todayData:today({pickups:[{name:'Jane R.',stop:'Town',skipping:false,late:false},{name:'Marcus T.',stop:'Town',skipping:false,late:true},{name:'Sam',stop:'',skipping:true,late:false}]})});
+  await page.goto('/driver-phone/start');
+  const steps=page.getByRole('region',{name:/^Step \d/});
+  await expect(steps).toHaveCount(4);
+  await expect(page.getByRole('region',{name:'Step 1, your bus'})).toContainText('Bus 12');
+  await expect(page.getByRole('region',{name:'Step 1, your bus'})).toContainText('HA 1234 · To work');
+  await expect(page.getByRole('region',{name:'Step 2, walk-around check'})).toContainText('Look around the bus');
+  const people=page.getByRole('region',{name:'Step 3, passengers today'});
+  await expect(people).toContainText('2 to pick up today');
+  await expect(people).toContainText('1 not riding today.');
+  await expect(people).toContainText('Running late: Marcus T.');
+  await expect(page.getByRole('region',{name:'Step 4, scan the bus tablet'})).toBeVisible();
+ });
+
  test('opening the QR link from the phone camera asks once, then starts',async({page})=>{
   const calls=await phone(page);
   await page.goto('/driver-phone/start?code=K7Q4MD');
