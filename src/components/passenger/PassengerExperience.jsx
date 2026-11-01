@@ -5,6 +5,7 @@ import { Accessibility, Bell, BellOff, Building2, CalendarClock, ChevronRight, C
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { confirmAction } from "@/components/ConfirmHost";
+import { errorData } from "@/lib/requestError";
 import CompanyBanner from "@/components/CompanyBanner";
 import BusArtwork from "@/components/BusArtwork";
 import BoardingPass from "@/components/staff/BoardingPass";
@@ -15,6 +16,7 @@ import { CaseList, CaseSheet, RequestForm, RideFeedback } from "./PassengerReque
 import { ETA_QUALITY_TEXT, STAGES, alertKey, etaQuality, firstTime, journeyStage, stopsLeftTo } from "@/lib/journeyStage";
 import { routeProgress } from "@/components/TripProgress";
 import { RIDE_STATE_TEXT, TODAY_STATE_TEXT, groupRides, todayRides, upcomingAndCancelled } from "@/lib/myRides";
+import { patternSkips, patternText } from "../../../base44/shared/ridePattern.ts";
 import { accountName, greetingName, nameInitials } from "@/lib/userName";
 import { arrivalClock, clock, lastSeen } from "./passengerState";
 import { fetchDrivingRoute, haversineKm } from "@/lib/geo";
@@ -120,7 +122,10 @@ export default function PassengerExperience({view,user,company,workplace,myVehic
   ?(user?.pickup_lat!=null?{name:homeName || pickupName || "your stop",lat:user.pickup_lat,lng:user.pickup_lng}:null)
   :(workplace?.lat!=null?{name:workplace.name || company.name,lat:Number(workplace.lat),lng:Number(workplace.lng)}:null);
  const destKm=fresh && myVehicle?.current_lat!=null && destination?haversineKm(myVehicle.current_lat,myVehicle.current_lng,destination.lat,destination.lng):null;
- const stageInfo=journeyStage({tripKind:kind,arrivalKind:arrival?.kind,taps:today.events,notTravelling:skip,destinationKm:destKm,now});
+ // Regular days off the office approved count as not travelling, that way.
+ const nowMs=typeof now==="number"?now:Date.now();
+ const daysOff={to_work:patternSkips(cases.pattern,nowMs,"to_work"),to_home:patternSkips(cases.pattern,nowMs,"to_home")};
+ const stageInfo=journeyStage({tripKind:kind,arrivalKind:arrival?.kind,taps:today.events,notTravelling:skip || (returning?daysOff.to_home:daysOff.to_work),destinationKm:destKm,now});
  const stage=stageInfo.stage;
  const riding=["boarded","onboard","near_destination"].includes(stage);
  const rideEta=useRideEta(myVehicle,destination,riding && !!fresh,now);
@@ -283,7 +288,7 @@ export default function PassengerExperience({view,user,company,workplace,myVehic
   {view==="rides" && <>
    <header className="px-page-title"><h1>My rides</h1><p>Your regular transport and the rides you've taken</p></header>
    <section className="px-panel" aria-labelledby="px-rides-today"><h2 id="px-rides-today"><CalendarClock />Today</h2>
-    <ul className="px-ride-list">{todayRides({bus:myVehicle,pickup:homeName || pickupName,destination:workplace?.name || company.name,returning,skip,late,lateUntil}).map(r=><li key={r.key} aria-current={r.current?"step":undefined}><span><strong>{r.label}{r.current?" · next":""}</strong><small>{r.from || "Your pickup"} to {r.to || "your destination"}{r.bus?` · ${r.bus}`:""}</small></span><b className={`px-ride-state ${r.state}`}>{TODAY_STATE_TEXT[r.state]}{r.lateUntil?` until ${clock(r.lateUntil)}`:""}</b></li>)}</ul>
+    <ul className="px-ride-list">{todayRides({bus:myVehicle,pickup:homeName || pickupName,destination:workplace?.name || company.name,returning,skip,late,lateUntil,daysOff}).map(r=><li key={r.key} aria-current={r.current?"step":undefined}><span><strong>{r.label}{r.current?" · next":""}</strong><small>{r.from || "Your pickup"} to {r.to || "your destination"}{r.bus?` · ${r.bus}`:""}</small></span><b className={`px-ride-state ${r.state}`}>{TODAY_STATE_TEXT[r.state]}{r.regular?" (regular)":""}{r.lateUntil?` until ${clock(r.lateUntil)}`:""}</b></li>)}</ul>
     {flagsPanel}
     <p className="px-ride-note">No booking needed: your rides follow your company's schedule. Tell your driver here if you're not travelling or running late.</p>
    </section>
@@ -291,13 +296,20 @@ export default function PassengerExperience({view,user,company,workplace,myVehic
     <section className="px-panel" aria-labelledby="px-rides-upcoming"><h2 id="px-rides-upcoming"><CalendarClock />Coming up</h2>
      {lists.upcoming.length?<ul className="px-ride-list">{lists.upcoming.map(i=><li key={i.key}><span><strong>{i.title}</strong><small>{[dayText(i),i.ref].filter(Boolean).join(" · ")}</small></span><b className="px-ride-state scheduled">{i.note}</b></li>)}</ul>:<p className="px-ride-note">Nothing booked or changed. Your regular rides follow your company's schedule.</p>}
     </section>
+    <section className="px-panel" aria-labelledby="px-rides-regular"><h2 id="px-rides-regular"><CalendarClock />Regular days off</h2>
+     {cases.pattern?<>
+      <p className="px-positive">{patternText(cases.pattern)}</p>
+      <p className="px-ride-note">Approved by the office{cases.pattern.reference?` · ${cases.pattern.reference}`:""}. Your driver doesn't wait for you on these days.</p>
+      <Button variant="outline" disabled={cases.sending} onClick={async()=>{if(!(await confirmAction({title:"Ride on these days again?",description:"Your driver will expect you on these days again from today. The office is told.",confirmLabel:"Ride again"})))return;try{await cases.send({action:"end_pattern"});toast({title:"You're back on these days",description:"Your driver expects you from today."});}catch(e){toast({title:"Couldn't change that",description:errorData(e).error || "Check your connection and try again.",variant:"destructive"});}}}>Ride on these days again</Button>
+     </>:<p className="px-ride-note">None. If you don't ride on some days every week, ask for "Days I don't ride" below. The office confirms it.</p>}
+    </section>
     {lists.cancelled.length>0 && <section className="px-panel" aria-labelledby="px-rides-cancelled"><h2 id="px-rides-cancelled"><X />Cancelled</h2>
      <ul className="px-ride-list">{lists.cancelled.map(i=><li key={i.key}><span><strong>{i.title}</strong><small>{[dayText(i),i.ref].filter(Boolean).join(" · ")}</small></span><b className={`px-ride-state ${i.kind==="asked"?"running_late":"not_travelling"}`}>{i.note}</b></li>)}</ul>
     </section>}
    </>;})()}
    <section className="px-panel" aria-labelledby="px-rides-change"><h2 id="px-rides-change"><Clock />Change a ride</h2>
     <p>Ask for a different time or pickup on one day, or say you won't need the bus on a later day. The office confirms or tells you why not.</p>
-    <RequestForm kinds={["time_change","pickup_change","cancel_ride"]} send={cases.send} sending={cases.sending} bookedTrips={bookedTrips} onSent={setOpenCase} />
+    <RequestForm kinds={["time_change","pickup_change","cancel_ride","regular_days"]} send={cases.send} sending={cases.sending} bookedTrips={bookedTrips} onSent={setOpenCase} />
    </section>
    <section className="px-panel px-settings-list" aria-labelledby="px-rides-requests"><h2 id="px-rides-requests" className="px-list-title">My requests{cases.unread>0 && <b className="px-count">{cases.unread}</b>}</h2>
     <CaseList cases={cases.cases} loading={cases.loading} error={cases.error} retry={cases.retry} onOpen={setOpenCase} empty="No requests yet." />

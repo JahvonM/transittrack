@@ -950,7 +950,10 @@ Table `passenger_case` · server functions only.
 | `user_id` | text | → User. The passenger's account. Required. |
 | `user_name` | text |  |
 | `user_email` | text | For the office only; never shown to other passengers. |
-| `kind` | text | One of: `time_change`, `pickup_change`, `cancel_ride`, `missed_pickup`, `card_issue`, `booking_issue`, `other`, `feedback`. Required. |
+| `kind` | text | One of: `time_change`, `pickup_change`, `cancel_ride`, `regular_days`, `missed_pickup`, `card_issue`, `booking_issue`, `other`, `feedback`. Required. |
+| `days` | jsonb (list) | Regular days off: weekdays the passenger won't ride (0 = Sunday). |
+| `direction` | text | Regular days off: which way. One of: `both`, `to_work`, `to_home`. |
+| `until_date` | text | Regular days off: last day (YYYY-MM-DD), or empty for no end. |
 | `status` | text | One of: `requested`, `pending`, `confirmed`, `rejected`, `resolved`, `closed`. Default `"requested"`. Required. |
 | `details` | text | What the passenger wrote. |
 | `vehicle_id` | text | → Vehicle. The passenger's bus when they asked (set by the server). |
@@ -1330,6 +1333,7 @@ Table `app_user` · read and changed through entityAccess.
 | `skip_pickup_until` | timestamptz | Skip only applies until this moment (end of the day it was set). |
 | `late_snooze_active` | boolean | Default `false`. |
 | `boarding_note` | text | Help the passenger asks for when boarding (e.g. a lower step). Shown to their driver; set by the passenger. |
+| `ride_pattern` | jsonb | Regular days off the office approved (days 0-6, direction, from, until, reference, case_id). Set only by the server when the office confirms the request; the passenger can stop it. Not sent to the browser. |
 | `late_until` | timestamptz | Running-late flag only applies until this moment. |
 | `favorite_stop` | text | Name of the passenger's usual pickup stop (matches a Route stop name). |
 | `stop_alerts` | boolean | Send a push when a bus leaves the stop before favorite_stop. Default `false`. |

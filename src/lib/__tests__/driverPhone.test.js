@@ -305,3 +305,15 @@ describe("driver phone passenger marks", () => {
     expect(sdk.tables.RideException).toEqual([]);
   });
 });
+
+describe("driver phone and regular days off", () => {
+  it("lists a passenger as not riding on a day the office approved, in that direction only", async () => {
+    const { sdk, send } = phone();
+    const weekday = new Date(new Date().toLocaleDateString("en-CA", { timeZone: "America/Grenada" }) + "T12:00:00Z").getUTCDay();
+    sdk.tables.User.find((u) => u.id === "p1").ride_pattern = { days: [weekday], direction: "to_home", from: "2020-01-01", until: "" };
+    sdk.tables.Vehicle[0].trip_direction = "to_home";
+    expect((await send({ action: "today" })).body.pickups.find((p) => p.ref === "p1").skipping).toBe(true);
+    sdk.tables.Vehicle[0].trip_direction = "to_work";
+    expect((await send({ action: "today" })).body.pickups.find((p) => p.ref === "p1").skipping).toBe(false);
+  });
+});

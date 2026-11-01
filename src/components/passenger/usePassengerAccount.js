@@ -32,8 +32,10 @@ export function usePassengerToday(user, companyId, enabled) {
 export function usePassengerCases(user, companyId, enabled) {
  const client=useQueryClient(), key=["passenger-cases",user?.id,companyId];
  const query=useQuery({queryKey:key,enabled:!!enabled && !!user?.id && !!companyId,staleTime:30000,retry:false,refetchOnWindowFocus:true,
-  queryFn:()=>withRateLimitRetry(()=>base44.functions.invoke("passengerCases",{action:"mine"}),{attempts:2}).then(r=>r.data?.cases || [])});
+  queryFn:()=>withRateLimitRetry(()=>base44.functions.invoke("passengerCases",{action:"mine"}),{attempts:2}).then(r=>({cases:r.data?.cases || [],pattern:r.data?.pattern || null}))});
  const send=useMutation({mutationFn:(body)=>base44.functions.invoke("passengerCases",body).then(r=>r.data),onSuccess:()=>client.invalidateQueries({queryKey:key})});
- return {cases:query.data || [],loading:query.isPending,error:query.error?errorData(query.error).error || "Couldn't load your requests.":"",retry:query.refetch,
-  send:(body)=>send.mutateAsync(body),sending:send.isPending,unread:(query.data || []).filter(c=>c.unread).length};
+ const cases=query.data?.cases || [];
+ // Regular days off the office approved (null if none).
+ return {cases,pattern:query.data?.pattern || null,loading:query.isPending,error:query.error?errorData(query.error).error || "Couldn't load your requests.":"",retry:query.refetch,
+  send:(body)=>send.mutateAsync(body),sending:send.isPending,unread:cases.filter(c=>c.unread).length};
 }

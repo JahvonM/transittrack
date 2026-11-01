@@ -9,6 +9,7 @@ import { EmptyState, PageIntro, Row, Segmented, StatusChip, Toolbar, LeadIcon } 
 import { errorData } from "@/lib/requestError";
 import { Inbox, Loader2, RefreshCw, Star } from "lucide-react";
 import { CASE_KIND_TEXT, isChange, isOpen, officeStatuses } from "../../../base44/shared/passengerCases.ts";
+import { patternText } from "../../../base44/shared/ridePattern.ts";
 
 // Admin → Passenger support: requests and problems passengers send from the
 // app (time or pickup changes, cancelling a ride, missed pickups, card and
@@ -51,7 +52,8 @@ function CaseDialog({ item, onClose, onChanged }) {
         <div className="space-y-3 text-body-sm">
           <StatusChip tone={STATUS_TONE[item.status]}>{STATUS_TEXT[item.status]}</StatusChip>
           <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
-            {item.requested_date && <><dt className="text-muted-foreground">Day</dt><dd>{day(item.requested_date)}</dd></>}
+            {item.kind === "regular_days" && item.days?.length > 0 && <><dt className="text-muted-foreground">Asked for</dt><dd>{patternText({ days: item.days, direction: item.direction, from: item.requested_date, until: item.until_date })}. Confirming it leaves them off the driver's lists on those days until they or you end it.</dd></>}
+            {item.requested_date && item.kind !== "regular_days" && <><dt className="text-muted-foreground">Day</dt><dd>{day(item.requested_date)}</dd></>}
             {item.requested_time && <><dt className="text-muted-foreground">Time asked for</dt><dd>{item.requested_time}</dd></>}
             {item.requested_pickup && <><dt className="text-muted-foreground">Pickup asked for</dt><dd>{item.requested_pickup}</dd></>}
             {item.rating && <><dt className="text-muted-foreground">Rating</dt><dd>{item.rating} of 5</dd></>}

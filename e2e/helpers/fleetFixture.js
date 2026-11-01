@@ -70,7 +70,8 @@ function passengerCases(body, data) {
   const list = (data.passengerCases ||= []);
   const find = () => list.find((c) => c.id === body?.id);
   switch (body?.action) {
-    case "mine": case "list": return { cases: body.action === "list" && body.show !== "all" ? list.filter((c) => ["requested", "pending"].includes(c.status)) : list };
+    case "mine": case "list": return { cases: body.action === "list" && body.show !== "all" ? list.filter((c) => ["requested", "pending"].includes(c.status)) : list, pattern: data.ridePattern || null };
+    case "end_pattern": data.ridePattern = null; return { ok: true, pattern: null };
     case "create": {
       const row = { id: "case-" + (list.length + 1), reference: "TT-TEST" + (list.length + 1), status: "requested", replies: [], unread: false, source: "case", vehicle_name: "Bus 1", user_name: "Rita Rider", created_date: new Date().toISOString(), ...body };
       delete row.action; list.unshift(row); return { ok: true, case: row };

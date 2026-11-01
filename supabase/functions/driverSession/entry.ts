@@ -19,6 +19,7 @@ import { placeOnRoad, roadPointsToLine } from '../_shared/pickupStops.ts';
 import { busRoadStops } from '../_shared/routeRiders.ts';
 import { onBoardCount } from '../_shared/boardingEvents.ts';
 import { RIDE_MARK_KINDS, recordRideMark, rideOf } from '../_shared/rideMarks.ts';
+import { patternSkips } from '../_shared/ridePattern.ts';
 import { JOB_STEPS, jobForBus, jobStepTime, signJob, tabletTrip } from '../_shared/jobSignature.ts';
 
 
@@ -311,7 +312,7 @@ const flagActive = (on, until) => !!on && !!until && new Date(until).getTime() >
 // Passengers this bus picks up: the ones assigned to it, and the company's
 // passengers not assigned to any bus yet (the same rule as the driver phone).
 // Riders of the company's other buses are left out.
-async function loadStaff(base44, companyId, vehicleId) {
+async function loadStaff(base44, companyId, vehicleId, direction = '') {
   const approvedRows = await approvedPassengerMemberships(base44,companyId);
   const approvedIds = new Set(approvedRows.map(row=>row.user_id));
   const busOf = new Map(approvedRows.map(row=>[row.user_id,row.vehicle_id||'']));
@@ -348,7 +349,7 @@ async function loadStaff(base44, companyId, vehicleId) {
         home_lat: c.pickup_lat != null ? c.pickup_lat : (u.pickup_lat ?? u.home_lat),
         home_lng: c.pickup_lng != null ? c.pickup_lng : (u.pickup_lng ?? u.home_lng),
         pickup_name: c.pickup_name || u.pickup_name, ...dropoff,
-        skip_pickup_today: flagActive(u.skip_pickup_today, u.skip_pickup_until),
+        skip_pickup_today: flagActive(u.skip_pickup_today, u.skip_pickup_until) || patternSkips(u.ride_pattern, Date.now(), direction),
         late_snooze_active: flagActive(u.late_snooze_active, u.late_until),
         boarding_note: u.boarding_note || '',
         _source: 'contact', _tags: [c.nfc_card_tag, c.id, u.id, ...(u.id ? userCards(u.id) : [])].filter(Boolean),
@@ -357,7 +358,7 @@ async function loadStaff(base44, companyId, vehicleId) {
     ...orphanUsers.map((u) => ({
       id: u.id, full_name: u.display_name || u.full_name, email: u.email, phone: u.phone,
       home_lat: u.pickup_lat ?? u.home_lat, home_lng: u.pickup_lng ?? u.home_lng, pickup_name: u.pickup_name, ...dropoff,
-      skip_pickup_today: flagActive(u.skip_pickup_today, u.skip_pickup_until),
+      skip_pickup_today: flagActive(u.skip_pickup_today, u.skip_pickup_until) || patternSkips(u.ride_pattern, Date.now(), direction),
       late_snooze_active: flagActive(u.late_snooze_active, u.late_until),
       boarding_note: u.boarding_note || '',
       _source: 'user', _tags: [...userCards(u.id), u.id].filter(Boolean),
@@ -1015,7 +1016,7 @@ export default async function(req) {
         // with the full set went over the platform's request limit.
         const light = body.light === true;
         const [staff, broadcasts, checkIns, groupMessages, vehicleTrips, openShifts, allTemplates, recentInspections] = await Promise.all([
-          unlocked && !light ? loadStaff(base44, companyId, vehicleId) : [],
+          unlocked && !light ? loadStaff(base44, companyId, vehicleId, vehicle.trip_direction === 'to_home' ? 'to_home' : 'to_work') : [],
           base44.asServiceRole.entities.Broadcast.filter({}, '-created_date', 20),
           tabletCheckIns(base44, companyId, vehicleId),
           base44.asServiceRole.entities.GroupMessage.filter({ vehicle_id: vehicleId }, '-created_date', 200),

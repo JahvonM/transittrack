@@ -8,6 +8,7 @@ import { pushWithPolicy } from '../_shared/notificationPolicy.ts';
 import { passengerPushTokens } from '../_shared/chatPush.ts';
 import { reserveAttempt } from '../_shared/atomicOps.ts';
 import { RIDE_MARK_KINDS, recordRideMark, rideOf } from '../_shared/rideMarks.ts';
+import { patternSkips } from '../_shared/ridePattern.ts';
 
 // The driver phone app. Drivers sign in with the username account an
 // administrator made for them (driverAccounts); every request checks that
@@ -235,7 +236,7 @@ function phoneRoadStops(plan) {
 // Everyone who rides this bus, as the bus tablet lists them (same ids, so a
 // mark from the phone and one from the tablet are about the same person).
 // `_tags` are what their taps are filed under; they never leave the server.
-async function busPeople(base44, companyId, vehicleId) {
+async function busPeople(base44, companyId, vehicleId, direction = '') {
   const db = base44.asServiceRole.entities;
   const memberships = await approvedPassengerMemberships(base44, companyId);
   const membershipByUser = new Map(memberships.map((m) => [m.user_id, m]));
@@ -261,7 +262,7 @@ async function busPeople(base44, companyId, vehicleId) {
       name: u.display_name || c.name || u.full_name,
       lat: c.pickup_lat ?? u.pickup_lat ?? u.home_lat, lng: c.pickup_lng ?? u.pickup_lng ?? u.home_lng,
       pickup_name: c.pickup_name || u.pickup_name || '',
-      skipping: flagActive(u.skip_pickup_today, u.skip_pickup_until), late: flagActive(u.late_snooze_active, u.late_until),
+      skipping: flagActive(u.skip_pickup_today, u.skip_pickup_until) || patternSkips(u.ride_pattern, Date.now(), direction), late: flagActive(u.late_snooze_active, u.late_until),
     });
   }
   for (const [email, u] of userByEmail) {
@@ -273,7 +274,7 @@ async function busPeople(base44, companyId, vehicleId) {
       keys: ['user:' + u.id],
       name: u.display_name || u.full_name, lat: u.pickup_lat ?? u.home_lat, lng: u.pickup_lng ?? u.home_lng,
       pickup_name: u.pickup_name || '',
-      skipping: flagActive(u.skip_pickup_today, u.skip_pickup_until), late: flagActive(u.late_snooze_active, u.late_until),
+      skipping: flagActive(u.skip_pickup_today, u.skip_pickup_until) || patternSkips(u.ride_pattern, Date.now(), direction), late: flagActive(u.late_snooze_active, u.late_until),
     });
   }
   return people;
@@ -294,9 +295,9 @@ async function busRides(db, companyId, vehicleId) {
 // phone numbers, card numbers or pickup coordinates leave the server. `ref`
 // is the id the tablet uses for the same person; `ride` is where their ride
 // is today, from their own taps and the driver's marks.
-async function pickupsFor(base44, companyId, vehicleId, stops, roadPlan = null) {
+async function pickupsFor(base44, companyId, vehicleId, stops, roadPlan = null, direction = '') {
   const db = base44.asServiceRole.entities;
-  const [people, rides] = await Promise.all([busPeople(base44, companyId, vehicleId), busRides(db, companyId, vehicleId)]);
+  const [people, rides] = await Promise.all([busPeople(base44, companyId, vehicleId, direction), busRides(db, companyId, vehicleId)]);
   const located = stops.filter((s) => s.lat != null && s.lng != null);
   const stopOf = new Map();
   for (const s of roadPlan?.stops || []) for (const r of s.riders) stopOf.set(r.id, sanitize(s.name));
@@ -399,7 +400,7 @@ export default async function(req) {
         const routeOk = route && route.company_id === companyId;
         const roadPlan = routeOk ? await busRoadStops(db, route, bus.id).catch(() => null) : null;
         const stops = roadPlan ? phoneRoadStops(roadPlan) : routeOk ? sortedStops(route) : [];
-        const pickups = await pickupsFor(base44, companyId, bus.id, stops, roadPlan);
+        const pickups = await pickupsFor(base44, companyId, bus.id, stops, roadPlan, bus.trip_direction === 'to_home' ? 'to_home' : 'to_work');
         const busShifts = shifts.filter((s) => s.company_id === companyId);
         const weekAgo = Date.now() - 7 * 86400_000;
         const notices = broadcasts

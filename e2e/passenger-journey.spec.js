@@ -153,3 +153,29 @@ test("My rides says nothing is booked when there's nothing coming up", async ({ 
   await expect(page.getByRole("region", { name: "Coming up" }).getByText(/Nothing booked or changed/)).toBeVisible();
   await expect(page.getByRole("region", { name: "Cancelled" })).toHaveCount(0);
 });
+
+test("Regular days off: ask for them, see them once approved, and stop them", async ({ page }) => {
+  const data = fleetData();
+  const s = await passenger(page, { data });
+  await page.goto("/rides");
+  await expect(page.getByRole("region", { name: "Regular days off" })).toContainText("None.");
+  const change = page.getByRole("region", { name: "Change a ride" });
+  await change.getByRole("radio", { name: "Days I don’t ride" }).check();
+  await change.getByRole("checkbox", { name: "Fri" }).check();
+  await change.getByLabel("Which way").selectOption("to_home");
+  await change.getByRole("button", { name: "Send request" }).click();
+  await expect(page.getByText(/Reference TT-TEST1/).first()).toBeVisible();
+  const sent = caseCalls(s.calls).find((b) => b.action === "create");
+  expect(sent).toMatchObject({ kind: "regular_days", days: [5], direction: "to_home" });
+
+  // Once the office approves it, My rides shows it and it can be stopped.
+  data.ridePattern = { days: [5], direction: "to_home", from: "2026-11-02", until: "", reference: "TT-TEST1", case_id: "case-1" };
+  await page.reload();
+  const regular = page.getByRole("region", { name: "Regular days off" });
+  await expect(regular).toContainText("Not riding on Fridays (home only) from 2026-11-02");
+  await regular.getByRole("button", { name: "Ride on these days again" }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Ride again" }).click();
+  await expect(regular).toContainText("None.");
+  expect(caseCalls(s.calls).some((b) => b.action === "end_pattern")).toBe(true);
+  expect(s.errors).toEqual([]);
+});

@@ -50,12 +50,15 @@ export const RIDE_STATE_TEXT = {
 // Today's regular rides for a passenger with assigned transport: to work and
 // home again. Nothing is booked: they follow the company schedule unless the
 // passenger says they're not travelling or running late.
-export function todayRides({ bus, pickup, destination, returning, skip, late, lateUntil }) {
-  const state = skip ? "not_travelling" : late ? "running_late" : "scheduled";
-  const base = { bus: bus?.name || "", state, lateUntil: late ? lateUntil || null : null };
+// `daysOff` says which of today's rides the passenger's approved regular
+// days off cover: { to_work, to_home }.
+export function todayRides({ bus, pickup, destination, returning, skip, late, lateUntil, daysOff = {} }) {
+  const offWork = skip || !!daysOff.to_work;
+  const offHome = skip || !!daysOff.to_home;
+  const base = { bus: bus?.name || "", lateUntil: late ? lateUntil || null : null };
   return [
-    { key: "to_work", label: "To work", from: pickup || "", to: destination || "", current: !returning, ...base },
-    { key: "return", label: "Return", from: destination || "", to: pickup || "", current: !!returning, ...base, state: skip ? "not_travelling" : "scheduled", lateUntil: null },
+    { key: "to_work", label: "To work", from: pickup || "", to: destination || "", current: !returning, ...base, state: offWork ? "not_travelling" : late ? "running_late" : "scheduled", lateUntil: offWork ? null : base.lateUntil, regular: !skip && !!daysOff.to_work },
+    { key: "return", label: "Return", from: destination || "", to: pickup || "", current: !!returning, ...base, state: offHome ? "not_travelling" : "scheduled", lateUntil: null, regular: !skip && !!daysOff.to_home },
   ];
 }
 
