@@ -93,6 +93,8 @@ Changing records through entityAccess:
 | [NfcCard](#nfccard) | `nfc_card` | entityAccess | — | — | own company | — | all |
 | [NotificationLog](#notificationlog) | `notification_log` | server only | — | — | — | — | through other functions |
 | [NotificationSetting](#notificationsetting) | `notification_setting` | server only | — | — | — | — | through other functions |
+| [OfficeDisplay](#officedisplay) | `office_display` | server only | — | — | — | — | through other functions |
+| [OfficeDisplayPairing](#officedisplaypairing) | `office_display_pairing` | server only | — | — | — | — | through other functions |
 | [Part](#part) | `part` | entityAccess | — | — | own company | all companies | all |
 | [PassengerAccessCredential](#passengeraccesscredential) | `passenger_access_credential` | server only | — | — | — | — | through other functions |
 | [PassengerCase](#passengercase) | `passenger_case` | server only | — | — | — | — | through other functions |
@@ -898,6 +900,54 @@ Admin choices for one kind of notification (Admin → Notifications): whether it
 | `blocked_company_ids` | jsonb (list) | Companies this notification is switched off for (only kinds about one company's buses). |
 | `updated_by` | text |  |
 
+### OfficeDisplay
+
+Table `office_display` · server functions only.
+
+An office monitor or TV showing a read-only operations view (Admin → Office displays). Server-only: read and written through officeDisplay. The display's own credential is stored only as a hash.
+
+| Field | Type | Notes |
+|---|---|---|
+| `name` | text | Required. |
+| `kind` | text | window: a monitor connected to the Windows computer running McSween Transport Desktop. paired: another computer or a TV browser paired with a code. One of: `window`, `paired`. Required. |
+| `company_ids` | jsonb (list) | Companies whose operations it may show. At least one. |
+| `vehicle_ids` | jsonb (list) | Only these buses (of those companies); empty means all of their buses. |
+| `layout` | text | One of: `fleet`, `cameras`, `dispatch`, `maintenance`. Default `"fleet"`. |
+| `rotate` | boolean | Switch between rotate_layouts (never the camera layout). |
+| `rotate_layouts` | jsonb (list) |  |
+| `rotate_seconds` | bigint |  |
+| `theme` | text | One of: `dark`, `light`. Default `"dark"`. |
+| `text_size` | text | One of: `normal`, `large`, `xlarge`. Default `"large"`. |
+| `density` | text | One of: `comfortable`, `compact`. Default `"comfortable"`. |
+| `show_driver_names` | boolean |  |
+| `show_client_names` | boolean | Hotel or client company on a job. |
+| `show_guest_names` | boolean | Passenger and guest names. Off unless an administrator turns it on. |
+| `blanked` | boolean |  |
+| `status` | text | One of: `active`, `revoked`. Default `"active"`. |
+| `credential_hash` | text |  |
+| `credential_expires_at` | timestamptz |  |
+| `credential_issued_by` | text | The administrator who opened the window or approved the pairing. |
+| `paired_at` | timestamptz |  |
+| `last_seen_at` | timestamptz |  |
+| `camera_sessions` | jsonb (list) | Camera viewing sessions an administrator started for this display: [{session_id, device_id}]. Each ends after 10 minutes. |
+| `camera_device_ids` | jsonb (list) | Driver tablets offered for the camera layout (up to four). |
+
+### OfficeDisplayPairing
+
+Table `office_display_pairing` · server functions only.
+
+A screen asking to be paired as an office display: a short-lived, single-use code shown on the screen. Server-only; codes and poll secrets are stored as hashes.
+
+| Field | Type | Notes |
+|---|---|---|
+| `code_hash` | text | Required. |
+| `poll_hash` | text | Required. |
+| `expires_at` | timestamptz | Required. |
+| `approved_display_id` | text |  |
+| `approved_by` | text |  |
+| `approved_at` | timestamptz |  |
+| `used_at` | timestamptz |  |
+
 ### Part
 
 Table `part` · belongs to a company through `company_id` · read and changed through entityAccess.
@@ -1218,6 +1268,7 @@ Table `tablet_support_session` · server functions only.
 | `offer_sdp` | text |  |
 | `answer_sdp` | text |  |
 | `failure_code` | text |  |
+| `display_id` | text | An office display an administrator started this camera view for; that display may watch it (officeDisplay). |
 
 ### Trip
 
