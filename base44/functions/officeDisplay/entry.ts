@@ -320,7 +320,7 @@ export default async function (req: Request) {
         const kiosks = await db.KioskDevice.filter({ company_id: { $in: clean.company_ids }, kiosk_type: 'driver' }, '-last_seen', 300);
         clean.camera_device_ids = clean.camera_device_ids.filter((id: string) => {
           const k = kiosks.find((x: any) => x.id === id);
-          return k && k.vehicle_id && (!clean.vehicle_ids.length || clean.vehicle_ids.includes(k.vehicle_id));
+          return k && !k.personal && k.vehicle_id && (!clean.vehicle_ids.length || clean.vehicle_ids.includes(k.vehicle_id));
         });
       }
       if (existing) {
