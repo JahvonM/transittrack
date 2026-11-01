@@ -1,10 +1,10 @@
-const {app,BrowserWindow,Menu,dialog,shell,ipcMain}=require('electron');
+const {app,BrowserWindow,Menu,dialog,shell,ipcMain,screen}=require('electron');
 const path=require('node:path');
 const {APP_ORIGIN,isAppUrl,externalUrl}=require('./policy.cjs');
 const {startBrowserSignIn,providerFromLoginUrl,providerFromRedirect,returnPathFromLoginUrl,signedInUrl,PROVIDER_NAMES}=require('./browser-signin.cjs');
 const {createUpdateChecker,startUpdateChecks}=require('./updates.cjs');
 const DESKTOP_VERSION=require('./package.json').version;
-let mainWindow,deviceSetup,browserSignIn=null,updateChecker,stopUpdateChecks;
+let mainWindow,deviceSetup,browserSignIn=null,updateChecker,stopUpdateChecks,displays;
 app.enableSandbox();
 // Keep saved sign-ins and settings where the app kept them before it was
 // renamed from TransitTrack Desktop (Windows derives this folder from the name).
@@ -60,6 +60,14 @@ function openDeviceSetup(target='tablet') {
  deviceSetup.open(target);
 }
 require('./setup-launch.cjs').registerSetupLauncher(ipcMain,()=>mainWindow,openDeviceSetup);
+// Office displays: windows on monitors connected to this computer (displays.cjs).
+const DISPLAY_ACTIONS=['screens','list','open','close','closeAll','fullscreen','refresh','show'];
+ipcMain.handle('office-displays',(event,action,...args)=>{
+ if(!displays||!mainWindow||event.sender!==mainWindow.webContents||!isAppUrl(event.senderFrame?.url||event.sender.getURL()))throw new Error('Not allowed');
+ if(!DISPLAY_ACTIONS.includes(action))throw new Error('Unknown action');
+ return displays[action](...args);
+});
+ipcMain.handle('office-display-credential',event=>displays?.credentialFor(event.sender)||null);
 function createWindow() {
  mainWindow=new BrowserWindow({width:1440,height:960,minWidth:1000,minHeight:700,title:'McSween Transport Desktop',backgroundColor:'#0d1520',icon:path.join(__dirname,'assets','icon.ico'),show:false,webPreferences:{preload:path.join(__dirname,'preload.cjs'),nodeIntegration:false,nodeIntegrationInWorker:false,contextIsolation:true,sandbox:true,webSecurity:true,allowRunningInsecureContent:false,webviewTag:false,partition:'persist:transittrack-desktop'}});
  mainWindow.once('ready-to-show',()=>mainWindow.show());
@@ -92,6 +100,10 @@ function createWindow() {
   if(isMainFrame&&code!==-3&&isAppUrl(url))showOffline();
  });
  mainWindow.webContents.on('will-attach-webview',event=>event.preventDefault());
+ displays=require('./displays.cjs').createDisplayManager({BrowserWindow,screen,fs:require('node:fs'),path,userData:app.getPath('userData'),appOrigin:APP_ORIGIN,preload:path.join(__dirname,'display-preload.cjs'),
+  onChange:list=>{if(mainWindow&&!mainWindow.isDestroyed())mainWindow.webContents.send('office-displays-changed',list);}});
+ // Display windows depend on the main window's sign-in: they close with it.
+ mainWindow.on('close',()=>displays?.closeAll());
  mainWindow.on('closed',()=>{mainWindow=null;});
  updateChecker=createUpdateChecker({currentVersion:DESKTOP_VERSION,showMessage:options=>dialog.showMessageBox(mainWindow,options),openDownload:url=>shell.openExternal(url)});
  if(app.isPackaged)stopUpdateChecks=startUpdateChecks(updateChecker);
@@ -104,7 +116,7 @@ function createWindow() {
    {label:'Sign in / switch account',click:()=>openRoute('/login')},
    {type:'separator'},{role:'quit'}
   ]},
-  {label:'Devices',submenu:[{label:'Tablet & NFC setup',click:()=>{openDeviceSetup();}}]},
+  {label:'Devices',submenu:[{label:'Tablet & NFC setup',click:()=>{openDeviceSetup();}},{label:'Office displays',click:()=>openRoute('/admin/office-displays')}]},
   {label:'Edit',submenu:[{role:'undo'},{role:'redo'},{type:'separator'},{role:'cut'},{role:'copy'},{role:'paste'},{role:'selectAll'}]},
   {label:'View',submenu:[{label:'Reconnect / reload',accelerator:'Ctrl+R',click:()=>isAppUrl(mainWindow?.webContents.getURL())?mainWindow.reload():openRoute('/')},{role:'resetZoom'},{role:'zoomIn'},{role:'zoomOut'},{role:'togglefullscreen'}]},
   {label:'Help',submenu:[{label:'Check for updates',click:()=>updateChecker.check(true)},{label:'About McSween Transport Desktop',click:()=>dialog.showMessageBox(mainWindow,{type:'info',message:'McSween Transport Desktop '+DESKTOP_VERSION,detail:'Admin and Mechanic workspaces. Uses your existing account permissions. Internet is needed for live data. Sign in with email and password, or with Google or Apple through your web browser. USB tablet setup and NFC reader controls are available under Devices. New Windows versions are checked at startup and every six hours. Use Help → Check for updates at any time.'})}]}
