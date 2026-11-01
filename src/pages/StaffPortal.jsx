@@ -491,6 +491,11 @@ export default function StaffPortal() {
 
   const chatUnread = useChatUnread(myVehicle?.id, sheet === "chat");
 
+  // Booked rides from this stop the office cancelled, for My rides.
+  const cancelledTrips = useMemo(
+    () => trips.filter((t) => t.pickup_name === pickupName && t.status === "cancelled").slice(0, 10),
+    [trips, pickupName]
+  );
   const upcomingTrips = useMemo(
     () =>
       trips
@@ -623,7 +628,7 @@ export default function StaffPortal() {
           now={now} homeName={homeStop && !homeStop.personal ? homeStop.name : user?.pickup_name || pickupName} sharedStop={homeStop?.personal ? sharedStop : null}
           pickupPrompt={pickupPrompt} notice={notice} chatUnread={chatUnread} stopAlerts={stopAlerts} pushPermission={pushPermission}
           toggleStopAlerts={toggleStopAlerts} enableNotifications={enableNotifications} setSheet={setSheet}
-          mapOpen={mapOpen} setMapOpen={setMapOpen} bookedTrips={upcomingTrips} pickupName={pickupName} eta={eta}
+          mapOpen={mapOpen} setMapOpen={setMapOpen} bookedTrips={upcomingTrips} cancelledTrips={cancelledTrips} pickupName={pickupName} eta={eta}
           logout={()=>{clearPassengerSnapshot();logout();}} lastSynced={lastSynced} offline={offline}
           renderMap={() => <Suspense fallback={<div className="h-72 animate-pulse bg-muted" />}>
             <LiveTransitMap defaultSatellite className="h-80 lg:h-[520px]" vehicles={locatedVehicles}

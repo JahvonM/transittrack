@@ -1,7 +1,7 @@
 import { pickupArrival } from "@/lib/pickupArrival";
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Accessibility, Bell, BellOff, Building2, CalendarClock, ChevronRight, Clock, CreditCard, Home, LifeBuoy, LogOut, Map, MapPin, Megaphone, MessageCircle, PackageSearch, QrCode, ShieldCheck, TriangleAlert, Wifi } from "lucide-react";
+import { Accessibility, Bell, BellOff, Building2, CalendarClock, ChevronRight, Clock, CreditCard, Home, LifeBuoy, LogOut, Map, MapPin, Megaphone, MessageCircle, PackageSearch, QrCode, ShieldCheck, TriangleAlert, Wifi, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { confirmAction } from "@/components/ConfirmHost";
@@ -14,7 +14,7 @@ import usePassengerAccount, { usePassengerCases, usePassengerRides, usePassenger
 import { CaseList, CaseSheet, RequestForm, RideFeedback } from "./PassengerRequests";
 import { ETA_QUALITY_TEXT, STAGES, alertKey, etaQuality, firstTime, journeyStage, stopsLeftTo } from "@/lib/journeyStage";
 import { routeProgress } from "@/components/TripProgress";
-import { RIDE_STATE_TEXT, TODAY_STATE_TEXT, groupRides, todayRides } from "@/lib/myRides";
+import { RIDE_STATE_TEXT, TODAY_STATE_TEXT, groupRides, todayRides, upcomingAndCancelled } from "@/lib/myRides";
 import { accountName, greetingName, nameInitials } from "@/lib/userName";
 import { arrivalClock, clock, lastSeen } from "./passengerState";
 import { fetchDrivingRoute, haversineKm } from "@/lib/geo";
@@ -87,7 +87,7 @@ function systemAlert(title,body,tag) {
  } catch { /* not supported */ }
 }
 
-export default function PassengerExperience({view,user,company,workplace,myVehicle,returning,tripState,pickupStop,stopsAway,timelineRoute,stopEtas,now,homeName,sharedStop,pickupPrompt,notice,chatUnread,stopAlerts,pushPermission,toggleStopAlerts,enableNotifications,setSheet,mapOpen,setMapOpen,renderMap,bookedTrips,pickupName,logout,lastSynced,offline,eta=null}) {
+export default function PassengerExperience({view,user,company,workplace,myVehicle,returning,tripState,pickupStop,stopsAway,timelineRoute,stopEtas,now,homeName,sharedStop,pickupPrompt,notice,chatUnread,stopAlerts,pushPermission,toggleStopAlerts,enableNotifications,setSheet,mapOpen,setMapOpen,renderMap,bookedTrips,cancelledTrips=[],pickupName,logout,lastSynced,offline,eta=null}) {
  const {toast}=useToast();
  const support=useSupportWhatsApp();
  const account=usePassengerAccount(user,company.id,view==="card");
@@ -287,6 +287,14 @@ export default function PassengerExperience({view,user,company,workplace,myVehic
     {flagsPanel}
     <p className="px-ride-note">No booking needed: your rides follow your company's schedule. Tell your driver here if you're not travelling or running late.</p>
    </section>
+   {(()=>{const lists=upcomingAndCancelled({trips:bookedTrips || [],cancelledTrips,cases:cases.cases,now});const dayText=(item)=>{const t=item.kind==="trip"&&item.at?Date.parse(item.at):Date.parse(item.day+"T12:00:00");return Number.isFinite(t)?new Date(t).toLocaleDateString([], {weekday:"short",day:"numeric",month:"short",...(item.kind==="trip"?{hour:"numeric",minute:"2-digit"}:{})}):"";};return <>
+    <section className="px-panel" aria-labelledby="px-rides-upcoming"><h2 id="px-rides-upcoming"><CalendarClock />Coming up</h2>
+     {lists.upcoming.length?<ul className="px-ride-list">{lists.upcoming.map(i=><li key={i.key}><span><strong>{i.title}</strong><small>{dayText(i)}</small></span><b className="px-ride-state scheduled">{i.note}</b></li>)}</ul>:<p className="px-ride-note">Nothing booked or changed. Your regular rides follow your company's schedule.</p>}
+    </section>
+    {lists.cancelled.length>0 && <section className="px-panel" aria-labelledby="px-rides-cancelled"><h2 id="px-rides-cancelled"><X />Cancelled</h2>
+     <ul className="px-ride-list">{lists.cancelled.map(i=><li key={i.key}><span><strong>{i.title}</strong><small>{dayText(i)}</small></span><b className={`px-ride-state ${i.kind==="asked"?"running_late":"not_travelling"}`}>{i.note}</b></li>)}</ul>
+    </section>}
+   </>;})()}
    <section className="px-panel" aria-labelledby="px-rides-change"><h2 id="px-rides-change"><Clock />Change a ride</h2>
     <p>Ask for a different time or pickup on one day, or say you won't need the bus on a later day. The office confirms or tells you why not.</p>
     <RequestForm kinds={["time_change","pickup_change","cancel_ride"]} send={cases.send} sending={cases.sending} bookedTrips={bookedTrips} onSent={setOpenCase} />

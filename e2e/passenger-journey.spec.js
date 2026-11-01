@@ -127,3 +127,28 @@ test("the office answers a request and can't turn one down without saying why", 
   await expect(page.getByText(/Request confirmed/).first()).toBeVisible();
   expect(caseCalls(s.calls)).toEqual([{ action: "set_status", id: "c1", status: "confirmed", note: "Your driver will come at 6:45 on Tuesday" }]);
 });
+
+test("My rides lists what's coming up and what was cancelled", async ({ page }) => {
+  const day = (n) => new Date(Date.now() + n * 86_400_000).toLocaleDateString("en-CA", { timeZone: "America/Grenada" });
+  const s = await passenger(page, { cases: [
+    { id: "c1", reference: "TT-AAAAAA", kind: "time_change", status: "confirmed", requested_date: day(1), requested_time: "07:15", replies: [], source: "case", created_date: new Date().toISOString() },
+    { id: "c2", reference: "TT-BBBBBB", kind: "cancel_ride", status: "pending", requested_date: day(2), replies: [], source: "case", created_date: new Date().toISOString() },
+    { id: "c3", reference: "TT-CCCCCC", kind: "cancel_ride", status: "confirmed", requested_date: day(3), replies: [], source: "case", created_date: new Date().toISOString() },
+  ] });
+  await page.goto("/rides");
+  const coming = page.getByRole("region", { name: "Coming up" });
+  await expect(coming.getByText("New time 07:15")).toBeVisible();
+  await expect(coming.getByText("Confirmed · TT-AAAAAA")).toBeVisible();
+  const cancelled = page.getByRole("region", { name: "Cancelled" });
+  await expect(cancelled.getByRole("listitem")).toHaveCount(2);
+  await expect(cancelled.getByRole("listitem").first()).toContainText("Ride cancelled at your request");
+  await expect(cancelled.getByText("Waiting for the office · TT-BBBBBB")).toBeVisible();
+  expect(s.errors).toEqual([]);
+});
+
+test("My rides says nothing is booked when there's nothing coming up", async ({ page }) => {
+  await passenger(page);
+  await page.goto("/rides");
+  await expect(page.getByRole("region", { name: "Coming up" }).getByText(/Nothing booked or changed/)).toBeVisible();
+  await expect(page.getByRole("region", { name: "Cancelled" })).toHaveCount(0);
+});
