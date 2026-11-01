@@ -34,7 +34,7 @@ const ADMIN_ACTIONS = ['list', 'save', 'delete', 'blank', 'revoke', 'window_open
 const DISPLAY_ACTIONS = ['feed', 'camera_status', 'camera_viewer', 'camera_answer', 'camera_end'];
 const PUBLIC_ACTIONS = ['pair_start', 'pair_poll'];
 const ENDED = ['ended', 'denied', 'failed', 'expired'];
-const terminal = (s: any) => !!s.ended_at || ENDED.includes(s.state);
+const isEnded = (s: any) => !!s.ended_at || ENDED.includes(s.state);
 const iso = (t: number) => new Date(t).toISOString();
 const json = (data: unknown, status = 200) => Response.json(data, { status, headers: { 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' } });
 const credentialHash = (token: string) => sha256Hex('office-display:' + token);
@@ -74,7 +74,7 @@ export default async function (req: Request) {
     // Camera views, ended the same way Admin → Fleet ends its own
     // (tabletSupport): the tablet sees the session end on its next check.
     const finish = async (s: any, state: string, actor: any, why: string) => {
-      if (terminal(s)) return;
+      if (isEnded(s)) return;
       await db.TabletSupportSession.update(s.id, { state, ended_at: iso(Date.now()), offer_sdp: '', answer_sdp: '', failure_code: null });
       await audit(actor, `Office display camera view ${state} (${why}) · session ${s.id}`, s.device_id, 'KioskDevice');
     };
@@ -162,7 +162,7 @@ export default async function (req: Request) {
         if (!id || !(d.camera_sessions || []).some((c: any) => c.session_id === id)) return { ended: true, s: null };
         const s = await db.TabletSupportSession.get(id).catch(() => null);
         if (!s || s.display_id !== d.id) return { ended: true, s: null };
-        if (terminal(s)) return { ended: true, s };
+        if (isEnded(s)) return { ended: true, s };
         if (!(Date.parse(s.expires_at) > Date.now())) { await finish(s, 'expired', actor, '10 minutes'); return { ended: true, s: { ...s, state: 'expired', ended_at: iso(Date.now()) } }; }
         const config = streamingConfig();
         const dev = await db.KioskDevice.get(s.device_id).catch(() => null);
@@ -176,7 +176,7 @@ export default async function (req: Request) {
       };
       const cameraView = (s: any, deviceId: string) => ({
         session_id: s?.id || null, device_id: deviceId, state: s ? publicSupport(s).state : 'ended', expires_at: s?.expires_at || null,
-        offer_ready: !!s?.offer_sdp && !terminal(s), answered: !!s?.answer_sdp,
+        offer_ready: !!s?.offer_sdp && !isEnded(s), answered: !!s?.answer_sdp,
       });
 
       if (action === 'feed') {
@@ -283,7 +283,7 @@ export default async function (req: Request) {
       const cams = [];
       for (const c of d.camera_sessions || []) {
         const s = await db.TabletSupportSession.get(c.session_id).catch(() => null);
-        const expired = s && !terminal(s) && !(Date.parse(s.expires_at) > now);
+        const expired = s && !isEnded(s) && !(Date.parse(s.expires_at) > now);
         cams.push({ session_id: c.session_id, device_id: c.device_id, state: !s ? 'ended' : expired ? 'expired' : publicSupport(s).state, expires_at: s?.expires_at || null });
       }
       const p = publicDisplay(d, now);
@@ -320,7 +320,7 @@ export default async function (req: Request) {
         const kiosks = await db.KioskDevice.filter({ company_id: { $in: clean.company_ids }, kiosk_type: 'driver' }, '-last_seen', 300);
         clean.camera_device_ids = clean.camera_device_ids.filter((id: string) => {
           const k = kiosks.find((x: any) => x.id === id);
-          return k && k.vehicle_id && (!clean.vehicle_ids.length || clean.vehicle_ids.includes(k.vehicle_id));
+          return k && !k.personal && k.vehicle_id && (!clean.vehicle_ids.length || clean.vehicle_ids.includes(k.vehicle_id));
         });
       }
       if (existing) {
@@ -420,7 +420,7 @@ export default async function (req: Request) {
           if (!inScope(d, dev.company_id) || ((d.vehicle_ids || []).length && !(d.vehicle_ids || []).includes(dev.vehicle_id))) fail(403, 'Not one of this display\'s buses');
           if (supportNotice(dev)) {
             const prior = await db.TabletSupportSession.get(dev.support_request.id).catch(() => null);
-            if (prior && !terminal(prior) && Date.parse(prior.expires_at) > now) fail(409, 'Someone is already viewing this camera');
+            if (prior && !isEnded(prior) && Date.parse(prior.expires_at) > now) fail(409, 'Someone is already viewing this camera');
           }
           const built = supportRequest(admin, dev, 'camera_back', now);
           const s = await db.TabletSupportSession.create({
