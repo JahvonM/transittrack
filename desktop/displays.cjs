@@ -37,7 +37,11 @@ function createDisplayManager({ BrowserWindow, screen, fs, path, userData, appOr
   }));
   const changed = () => { try { onChange(state()); } catch { /* main window gone */ } };
 
+  // Moves made here (opening, a monitor coming or going) aren't the person's
+  // choice, so they don't change which monitor the display prefers.
   function place(win, id, screenId, fullscreen) {
+    const entry = open.get(id);
+    if (entry) entry.autoAt = Date.now();
     const d = target(screenId);
     const remembered = saved[id];
     const bounds = remembered && String(remembered.screen_id) === String(d.id) && inside(remembered.bounds, d.workArea) ? remembered.bounds : d.workArea;
@@ -47,7 +51,7 @@ function createDisplayManager({ BrowserWindow, screen, fs, path, userData, appOr
   }
   function remember(id) {
     const o = open.get(id);
-    if (!o || o.win.isDestroyed()) return;
+    if (!o || o.win.isDestroyed() || Date.now() - (o.autoAt || 0) < 2500) return;
     const full = o.win.isFullScreen();
     const d = screen.getDisplayMatching(o.win.getBounds());
     saved[id] = { screen_id: String(d.id), fullscreen: full, bounds: full ? saved[id]?.bounds : o.win.getBounds() };
@@ -61,6 +65,7 @@ function createDisplayManager({ BrowserWindow, screen, fs, path, userData, appOr
     const existing = open.get(id);
     // Never two windows for one display: the open one takes the new
     // credential and moves if a different monitor was chosen.
+    if (screenId && String(saved[id]?.screen_id) !== String(screenId)) { saved[id] = { screen_id: String(screenId), fullscreen: wantFull }; persist(); }
     if (existing && !existing.win.isDestroyed()) {
       existing.token = token;
       existing.name = title;
@@ -105,8 +110,8 @@ function createDisplayManager({ BrowserWindow, screen, fs, path, userData, appOr
     let timer;
     const later = () => { clearTimeout(timer); timer = setTimeout(() => remember(id), 800); };
     win.on('move', later); win.on('resize', later);
-    win.on('enter-full-screen', () => { remember(id); changed(); });
-    win.on('leave-full-screen', () => { remember(id); changed(); });
+    win.on('enter-full-screen', () => { later(); changed(); });
+    win.on('leave-full-screen', () => { later(); changed(); });
     win.on('minimize', changed); win.on('restore', changed);
     // Closing: let the page end its camera views first (briefly), then close.
     win.on('close', (e) => {
@@ -146,14 +151,7 @@ function createDisplayManager({ BrowserWindow, screen, fs, path, userData, appOr
     }
     changed();
   }
-  const keepPreferred = (id) => saved[id]?.screen_id;
-  screen.on('display-removed', () => {
-    // Keep the preferred monitor remembered so the window goes back to it.
-    const before = Object.fromEntries([...open.keys()].map((id) => [id, keepPreferred(id)]));
-    recover();
-    for (const [id, s] of Object.entries(before)) if (s && saved[id]) { saved[id].screen_id = s; }
-    persist();
-  });
+  screen.on('display-removed', recover);
   screen.on('display-added', recover);
   screen.on('display-metrics-changed', recover);
 
