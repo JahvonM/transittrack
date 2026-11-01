@@ -11,7 +11,7 @@ import { helperLink } from "@/lib/helperHealth";
 import { httpStatus, errorData } from "@/lib/requestError";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CreditCard, QrCode, SwitchCamera, X, ChevronLeft, CheckCircle2, LogIn, LogOut, AlertCircle, Delete, MapPin, CloudUpload, PartyPopper, Bus, Users, Loader2 } from "lucide-react";
+import { CreditCard, QrCode, SwitchCamera, X, ChevronLeft, CheckCircle2, LogIn, LogOut, AlertCircle, Delete, MapPin, CloudUpload, PartyPopper, Bus, Users, Loader2, History } from "lucide-react";
 import { useNfcTap, reportBadgeResult } from "@/hooks/useNfcTap";
 import { parseCodeQrPayload } from "@/lib/qr";
 import { haversineKm, etaMinutes, formatEta } from "@/lib/geo";
@@ -294,7 +294,24 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
     // 429 counts as a "network failure" for queueing, so check it first.
     if (httpStatus(e) === 429) return errorData(e).code === "CLIENT_RATE_COOLDOWN" ? errorData(e).error : /attempt/i.test(errorData(e).error || "") ? "Too many attempts. Try again in a minute." : "Server is busy. Try again in a minute.";
     if (e?.response?.data?.error === "verification_requires_connection" || isNetworkFailure(e)) return "Connect to WiFi to verify your card or code.";
-    return ["wrong_bus", "no_bus"].includes(e?.response?.data?.error) ? e.response.data.message : "";
+    return ["wrong_bus", "no_bus", "wrong_direction", "no_active_trip"].includes(e?.response?.data?.error) ? e.response.data.message : "";
+  };
+
+  // After a card, code, QR or Bluetooth lookup: say it's already recorded,
+  // record straight away on a one-direction reader, or ask getting on/off.
+  const presentLookup = async (item, res) => {
+    if (res.already) {
+      setPending(item);
+      setResult({ staff_name: item.staff.full_name, status: res.already.status, already: true, at: res.already.at, canSwitch: (res.reader_mode || "both") === "both" });
+      setMode("result");
+      speak("Already recorded");
+      resetSoon(5000);
+      return;
+    }
+    const fixed = res.reader_mode === "boarding" ? "boarded" : res.reader_mode === "exit" ? "off_board" : null;
+    setPending(item);
+    if (fixed) { setMode("checking"); await confirmCheckIn(fixed, item, true); return; }
+    setMode("confirm");
   };
 
   const handleTag = async (tag, receipt = {}) => {
@@ -308,9 +325,8 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
     try {
       const res = await invoke("lookup_tag", { card_tag: tag });
       setUnlocked(true);
-      setPending({ staff: res.staff, next_status: res.next_status, method: "nfc", verification_grant: res.verification_grant, directory_grant:res.directory_grant, card_fingerprint:res.card_fingerprint });
-      setMode("confirm");
       reportBadgeResult(true, receipt);
+      await presentLookup({ staff: res.staff, next_status: res.next_status, method: "nfc", verification_grant: res.verification_grant, directory_grant:res.directory_grant, card_fingerprint:res.card_fingerprint }, res);
     } catch (e) {
       reportBadgeResult(false, receipt);
       if (handleUnpaired(e)) return;
@@ -347,8 +363,7 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
       const res = await invoke("lookup_code", { code: decoded });
       if (qrMode.current !== "qr") return;
       setUnlocked(true);
-      setPending({ staff: res.staff, next_status: res.next_status, method: "qr", code_type: res.code_type, verification_grant: res.verification_grant });
-      setMode("confirm");
+      await presentLookup({ staff: res.staff, next_status: res.next_status, method: "qr", code_type: res.code_type, verification_grant: res.verification_grant }, res);
     } catch (e) {
       if (qrMode.current !== "qr" || handleUnpaired(e)) return;
       // Keep the camera open on a rejected code or a connection failure.
@@ -375,8 +390,7 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
     try {
       const res = await invoke("lookup_code", { code: decoded });
       setUnlocked(true);
-      setPending({ staff: res.staff, next_status: res.next_status, method: "bluetooth", code_type: res.code_type, verification_grant: res.verification_grant });
-      setMode("confirm");
+      await presentLookup({ staff: res.staff, next_status: res.next_status, method: "bluetooth", code_type: res.code_type, verification_grant: res.verification_grant }, res);
     } catch (e) {
       if (handleUnpaired(e)) return;
       setUnlocked(true);
@@ -420,9 +434,8 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
     setCheckingCode(true);
     try {
       const res = await invoke("lookup_code", { code });
-      setPending({ staff: res.staff, next_status: res.next_status, method: "code", code_type: res.code_type, verification_grant: res.verification_grant });
-      setMode("confirm");
       setCode("");
+      await presentLookup({ staff: res.staff, next_status: res.next_status, method: "code", code_type: res.code_type, verification_grant: res.verification_grant }, res);
     } catch (e) {
       if (handleUnpaired(e)) return;
       setBadgeError(busMessage(e) || "That code isn't recognized — check it and try again.");
@@ -433,12 +446,22 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
     }
   };
 
-  const confirmCheckIn = async (status) => {
-    if (!pending || busy) return;
+  const confirmCheckIn = async (status, from = null, chained = false) => {
+    const item = from || pending;
+    if (!item || (busy && !chained)) return;
     setBusy(true);
-    const payload = { expected_device_id:device.device_id||device.id, expected_company_id:device.company_id, expected_vehicle_id:device.vehicle_id, client_request_id: crypto.randomUUID(), occurred_at: new Date().toISOString(), staff_id: pending.staff.id, method: pending.method, code_type: pending.code_type, verification_grant: pending.verification_grant, directory_grant:pending.directory_grant, card_fingerprint:pending.card_fingerprint, status };
+    const payload = { expected_device_id:device.device_id||device.id, expected_company_id:device.company_id, expected_vehicle_id:device.vehicle_id, client_request_id: crypto.randomUUID(), occurred_at: new Date().toISOString(), staff_id: item.staff.id, method: item.method, code_type: item.code_type, verification_grant: item.verification_grant, directory_grant:item.directory_grant, card_fingerprint:item.card_fingerprint, status };
     try {
       const res = await submitSavedCheckIn(invoke, payload);
+      // Another tap or tablet already recorded this: nothing new was added.
+      if (res.duplicate) {
+        noteStatus(payload.staff_id, res.record.status, res.record.boarded_at || Date.now());
+        setResult({ staff_name: res.record.staff_name || item.staff.full_name, status: res.record.status, already: true, at: res.record.boarded_at, canSwitch: false });
+        setMode("result");
+        speak("Already recorded");
+        resetSoon(4000);
+        return;
+      }
       const record = { staff_name: res.record.staff_name, status: res.record.status };
       noteStatus(payload.staff_id,status);
       if (Number.isFinite(res.occupancy)) setOccupancy(res.occupancy);
@@ -462,9 +485,9 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
         } catch (storageError) { setBadgeError(storageError.message); setMode("badge_error"); resetSoon(5000); return; }
         noteStatus(payload.staff_id, status);
         if (payload.code_type === "one_time") burnOneTimeCode(payload.staff_id);
-        setResult({ staff_name: pending.staff.full_name, status, offline: true });
+        setResult({ staff_name: item.staff.full_name, status, offline: true });
         setMode("result");
-        speak(status === "boarded" ? `Welcome aboard, ${pending.staff.full_name.split(" ")[0]}` : `See you later, ${pending.staff.full_name.split(" ")[0]}`);
+        speak(status === "boarded" ? `Welcome aboard, ${item.staff.full_name.split(" ")[0]}` : `See you later, ${item.staff.full_name.split(" ")[0]}`);
         resetSoon();
         return;
       }
@@ -518,6 +541,32 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
         <Button variant="ghost" onClick={() => { setUnlocked(false); setMode("idle"); setPending(null); }}>Cancel</Button>
       </Screen>
     );
+  } else if (mode === "checking" && pending) {
+    // The card was read; the boarding isn't recorded until this finishes.
+    actionContent = (
+      <Screen modeKey="checking" className="p-10 text-center space-y-4">
+        <Loader2 className="mx-auto h-14 w-14 animate-spin text-primary motion-reduce:animate-none" aria-hidden="true" />
+        <p role="status" className="text-2xl font-bold">Card read · saving {pending.staff.full_name.split(" ")[0]}…</p>
+        <p className="text-sm text-muted-foreground">Hold on a moment. Don't tap again.</p>
+      </Screen>
+    );
+  } else if (mode === "result" && result?.already) {
+    // A repeat tap: nothing new is recorded; offer the other direction only
+    // where the rider is asked (both-way readers).
+    const on = result.status === "boarded";
+    const when = result.at ? new Date(result.at).toLocaleTimeString([], { timeZone: TRANSIT_TIME_ZONE, hour: "numeric", minute: "2-digit" }) : "";
+    actionContent = (
+      <Screen modeKey="already" className="p-10 text-center space-y-4">
+        <div className="mx-auto w-20 h-20 rounded-full bg-secondary grid place-items-center"><History className="w-11 h-11 text-foreground" aria-hidden="true" /></div>
+        <p role="status" className="text-3xl font-bold">Already recorded</p>
+        <p className="text-base text-muted-foreground">{result.staff_name.split(" ")[0]}, you {on ? "boarded" : "got off"}{when ? ` at ${when}` : ""}. Nothing else to do.</p>
+        {result.canSwitch && pending && (
+          <Button variant="outline" className="h-14 rounded-2xl text-lg" onClick={() => confirmCheckIn(on ? "off_board" : "boarded")} disabled={busy}>
+            {on ? <LogOut className="w-6 h-6" /> : <LogIn className="w-6 h-6" />} {on ? "I'm getting off" : "I'm getting on"}
+          </Button>
+        )}
+      </Screen>
+    );
   } else if (mode === "result" && result) {
     const boarded = result.status === "boarded";
     actionContent = (
@@ -534,7 +583,8 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
             </div>
             
           </div>
-          <p className="text-3xl font-bold">{boarded ? `Welcome aboard, ${result.staff_name.split(" ")[0]}!` : `See you later, ${result.staff_name.split(" ")[0]}!`}</p>
+          <p role="status" className="text-3xl font-bold">{boarded ? `Welcome aboard, ${result.staff_name.split(" ")[0]}!` : `See you later, ${result.staff_name.split(" ")[0]}!`}</p>
+          <p className="text-base font-semibold">{boarded ? "Boarding recorded" : "Exit recorded"}</p>
           {boarded && result.riderNumber > 0 && (
             <p className="text-sm font-medium text-primary flex items-center justify-center gap-1.5">
               <PartyPopper className="w-4 h-4" /> You're rider #{result.riderNumber} today!
@@ -554,7 +604,7 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
         <div className="mx-auto w-20 h-20 rounded-full bg-destructive/10 grid place-items-center">
           <AlertCircle className="w-11 h-11 text-destructive" />
         </div>
-        <p className="text-base text-muted-foreground">{badgeError}</p>
+        <p role="alert" className="text-base text-muted-foreground">{badgeError}</p>
       </Screen>
     );
   } else {

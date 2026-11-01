@@ -189,6 +189,8 @@ error, and the page stayed put (or redirected where it should). Console noise fr
 | Company portal | Sidebar sections, request a job form (validation, send), shared job on map, no route replay | `company-portal` |
 | Jobs (admin) | Create/edit job, requests, confirm ride, signing tablet bus change | `jobs` |
 | Boarding kiosk | Tap/keypad/QR, offline save, sync, settings PIN | `kiosk-boarding`, `kiosk-bus-boarding`, `saved-work` |
+| Boarding taps | Repeated tap shows "Already recorded" and sends nothing; "I'm getting off" after a short ride; boarding-only tablet records without asking and explains a refused exit | `kiosk-boarding`, `boardingEventsServer.test`, `recentTaps.test` |
+| Card office | Card states shown in words; Stop card menu (suspend / report lost / revoke) with the offline limit in the confirm text; Switch back on only for suspended cards | `card-states`, `cardStates.test` |
 | Driver tablet/phone | Pairing, shift start/end, walk-around, messages, stops | `driver-*`, `tablet-*` |
 | Admin | Fast open, load recovery, notifications, app errors, users, company workspace | `admin-*`, `notifications`, `app-errors`, `company-workspace` |
 | Website | Booking form, tracking link, phone widths | `website`, `public` |

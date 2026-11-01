@@ -72,7 +72,19 @@
     },
     "is_active": {
       "type": "boolean",
-      "default": true
+      "default": true,
+      "description": "The switch boarding tablets check. True only while status is active."
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "suspended",
+        "lost",
+        "revoked",
+        "replaced"
+      ],
+      "description": "Why the card is or isn't working. Older records have none; see base44/shared/cardStatus.ts."
     },
     "revoked_at": {
       "type": "string",

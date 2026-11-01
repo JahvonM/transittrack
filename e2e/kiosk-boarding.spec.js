@@ -96,6 +96,47 @@ test('card tap boards a passenger and the tablet locks again', async ({ page }) 
   expect(calls.filter(([a]) => a === 'check_in')).toEqual([['check_in', 'boarded']]);
 });
 
+test('a repeated card tap says already recorded and records nothing new', async ({ page }) => {
+  const at = new Date(Date.now() - 3 * 60_000).toISOString();
+  const { calls } = await setup(page, {
+    checkIn: (b) => b.action === 'lookup_tag' ? { json: { staff: person, next_status: 'off_board', reader_mode: 'both', already: { status: 'boarded', at }, verification_grant: 'b'.repeat(64) } }
+      : b.action === 'check_in' ? { json: { record: { staff_name: 'Maria Joseph', status: b.status }, occupancy: 3, today_count: 9 } } : null,
+  });
+  await page.goto('/kiosk');
+  await expect(page.getByText('Slide to enter a code', { exact: true })).toBeVisible();
+  await tap(page);
+  await expect(page.getByRole('status').filter({ hasText: 'Already recorded' })).toBeVisible();
+  await expect(page.getByText(/Maria, you boarded at/)).toBeVisible();
+  // A double tap is never asked "boarding or exiting", and nothing is sent.
+  await expect(page.getByText('Are you boarding or exiting?')).toHaveCount(0);
+  expect(calls.filter(([a]) => a === 'check_in')).toEqual([]);
+  // A rider getting off after a short ride can still say so.
+  await page.getByRole('button', { name: "I'm getting off" }).click();
+  await expect(page.getByText('See you later, Maria!')).toBeVisible();
+  expect(calls.filter(([a]) => a === 'check_in')).toEqual([['check_in', 'off_board']]);
+});
+
+test('a boarding-only tablet records the boarding straight away and refuses exits clearly', async ({ page }) => {
+  const state = { refuse: false };
+  const { calls } = await setup(page, {
+    checkIn: (b) => b.action === 'lookup_tag' ? { json: { staff: person, next_status: 'boarded', reader_mode: 'boarding', already: null, verification_grant: 'b'.repeat(64) } }
+      : b.action === 'check_in' ? (state.refuse
+        ? { status: 409, json: { error: 'wrong_direction', message: 'This reader records boarding only. Tap the exit reader when you get off.' } }
+        : { json: { record: { staff_name: 'Maria Joseph', status: b.status }, occupancy: 5, today_count: 10 } }) : null,
+  });
+  await page.goto('/kiosk');
+  await expect(page.getByText('Slide to enter a code', { exact: true })).toBeVisible();
+  await tap(page);
+  await expect(page.getByText(/Welcome aboard, Maria!/)).toBeVisible();
+  await expect(page.getByText('Boarding recorded', { exact: true })).toBeVisible();
+  await expect(page.getByText('Are you boarding or exiting?')).toHaveCount(0);
+  expect(calls.filter(([a]) => a === 'check_in')).toEqual([['check_in', 'boarded']]);
+  await expect(page.getByText('Slide to enter a code', { exact: true })).toBeVisible({ timeout: 6000 });
+  state.refuse = true;
+  await tap(page);
+  await expect(page.getByRole('alert').filter({ hasText: 'records boarding only' })).toBeVisible();
+});
+
 test('boarding tablet explains unknown cards, rate limits and lost pairing', async ({ page }) => {
   await page.clock.install();
   const state = { mode: 'unknown' };

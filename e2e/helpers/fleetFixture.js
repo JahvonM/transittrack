@@ -74,7 +74,7 @@ function functionReply(name, body, data, role) {
     case "routeStops": return { stop: null, stops: [] };
     case "myNotifications": return { items: [], notifications: [] };
     case "notificationSettings": return { types: [], settings: [], people: [] };
-    case "nfcCards": return { people: [{ key: "user:u-pass", source: "user", id: "u-pass", name: "Rita Rider", company_id: "a", company_name: data.company.name, vehicle_id: "bus-a", assigned_vehicle: "Bus 1", registered: true, status: "Active" }], cards: [], vehicles: data.vehicles.map((v) => ({ id: v.id, name: v.name, company_id: "a" })), tablets: data.kiosks.map((k) => ({ id: k.id, label: k.label, vehicle_id: k.vehicle_id, paired: true, active: true, last_seen: k.last_seen, directory_sent_at: k.directory_sent_at || null })) };
+    case "nfcCards": return { people: [{ key: "user:u-pass", source: "user", id: "u-pass", name: "Rita Rider", company_id: "a", company_name: data.company.name, vehicle_id: "bus-a", assigned_vehicle: "Bus 1", registered: true, status: "Active" }], cards: data.cards || [], vehicles: data.vehicles.map((v) => ({ id: v.id, name: v.name, company_id: "a" })), tablets: data.kiosks.map((k) => ({ id: k.id, label: k.label, vehicle_id: k.vehicle_id, paired: true, active: true, last_seen: k.last_seen, directory_sent_at: k.directory_sent_at || null })) };
     case "accessRoles": return { roles: [], assignments: [] };
     case "companyWorkspace": return { vehicles: [], routes: [], drivers: [], workplaces: [], contacts: [], devices: [], people: [] };
     case "bookingRequest": return body?.action === "company_requests" ? { requests: [] } : { ok: true };

@@ -20,7 +20,10 @@
         "card_programmed",
         "card_verified",
         "card_rejected",
-        "card_revoked"
+        "card_revoked",
+        "card_suspended",
+        "card_lost",
+        "card_reactivated"
       ]
     },
     "entity": {

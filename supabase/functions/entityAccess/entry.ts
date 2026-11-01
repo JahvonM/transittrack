@@ -33,6 +33,12 @@ ENTITY_FIELDS.Vehicle.push('backup_gps_driver_email','backup_gps_since','road_ne
 // The latest Wi-Fi/hotspot command's status for Admin → Kiosk tablets (never the command itself, which can hold a Wi-Fi password).
 ENTITY_FIELDS.KioskDevice.push('network_status');
 ENTITY_FIELDS.KioskDevice.push('control_status');
+// Boarding tablets: what the reader records, and whether taps need an open shift.
+ENTITY_FIELDS.KioskDevice.push('reader_mode','require_active_trip');
+// A tap's person, run and review flag (written by kioskCheckIn only).
+ENTITY_FIELDS.StaffCheckIn.push('person_key','run_key','shift_id','review_reason','saved_offline');
+// Why a card is or isn't working (active, suspended, lost, revoked, replaced).
+ENTITY_FIELDS.NfcCard.push('status');
 // Admin → App errors: what happened before an error, and marking it fixed.
 ENTITY_FIELDS.ClientError.push('area','context','breadcrumbs','status','resolved_at','resolved_by');
 // Jobs dispatch gives a bus. The signatures (and where and by how many guests
@@ -51,7 +57,7 @@ ENTITY_FIELDS.Client=['company_id','name','kind','contact_name','email','phone',
 ENTITY_FIELDS.BookingRequest=['service','requested_time','pickup','dropoff','guests','luggage','flight_number','name','phone','email','notes','status','trip_id','decline_reason','handled_by','handled_at','tracking_sent_at','company_id','company_name','requested_by_id'];
 ENTITY_FIELDS.Invoice=['company_id','company_name','client_id','client_name','client_email','client_address','number','period_start','period_end','issued_at','due_date','lines','total','currency','status','sent_at','paid_at','voided_at','notes'];
 const ADMIN_ONLY_FIELDS={Driver:new Set(['phone_app_access']),Vehicle:new Set(['driver_id']),Trip:new Set(['client_id','client_name','price','currency','shared_with_company'])};
-const SERVER_ONLY_FIELDS={Driver:new Set(['username','auth_user_id','must_change_password']),Incident:new Set(['photo_uris','source']),KioskDevice:new Set(['recordings_request','support_request','network_status', 'control_status']),Trip:new Set([...JOB_SIGNATURE_FIELDS,'invoice_id','invoice_number'])};
+const SERVER_ONLY_FIELDS={StaffCheckIn:new Set(['person_key','run_key','shift_id','review_reason','saved_offline']),Driver:new Set(['username','auth_user_id','must_change_password']),Incident:new Set(['photo_uris','source']),KioskDevice:new Set(['recordings_request','support_request','network_status', 'control_status']),Trip:new Set([...JOB_SIGNATURE_FIELDS,'invoice_id','invoice_number'])};
 const JOB_TYPES=new Set(['airport_pickup','airport_dropoff','hotel_tour','staff_run','transfer']);
 const CURRENCIES=new Set(['XCD','USD']);
 const text=(data,field,max)=>{ if(!Object.hasOwn(data,field)||data[field]===null) return; if(typeof data[field]!=='string'||data[field].length>max) fail(400,'Invalid '+field.replace(/_/g,' ')); data[field]=data[field].trim(); };
@@ -303,6 +309,8 @@ async function prepare(db,ctx,name,input,existing=null) {
  if(input.client_request_id!==undefined && (existing || typeof input.client_request_id!=='string' || !/^[a-zA-Z0-9_-]{8,100}$/.test(input.client_request_id))) fail(400,'Invalid immutable request ID');
  const data={...input};
  if(name==='KioskDevice' && data.display_layout!==undefined && !['auto','tablet','phone'].includes(data.display_layout)) fail(400,'Invalid kiosk layout');
+ if(name==='KioskDevice' && data.reader_mode!==undefined && !['both','boarding','exit'].includes(data.reader_mode)) fail(400,'Invalid reader mode');
+ if(name==='KioskDevice' && data.require_active_trip!==undefined && typeof data.require_active_trip!=='boolean') fail(400,'Invalid trip setting');
  if(name==='Invoice') fail(403,'Invoices are made and changed in Completed & billing');
  if(name==='BookingRequest') fail(403,'Booking requests are answered from Jobs → Requests');
  if(name==='Trip') {

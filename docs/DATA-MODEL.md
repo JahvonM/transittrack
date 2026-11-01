@@ -164,7 +164,7 @@ Table `audit_log` · read and changed through entityAccess.
 | `actor_email` | text |  |
 | `actor_name` | text |  |
 | `actor_role` | text |  |
-| `action` | text | One of: `create`, `update`, `delete`, `card_programmed`, `card_verified`, `card_rejected`, `card_revoked`. |
+| `action` | text | One of: `create`, `update`, `delete`, `card_programmed`, `card_verified`, `card_rejected`, `card_revoked`, `card_suspended`, `card_lost`, `card_reactivated`. |
 | `entity` | text |  |
 | `record_id` | text | Id of the changed record; `entity` says which table. |
 | `summary` | text |  |
@@ -467,7 +467,7 @@ Table `driver_shift` · belongs to a company through `vehicle_id`, then `driver_
 
 **Links to:** [Vehicle](#vehicle) (`vehicle_id`), [Company](#company) (`company_id`), [KioskDevice](#kioskdevice) (`device_id`), [Driver](#driver) (`driver_id`).
 
-**Linked from:** [PhoneUnlock](#phoneunlock).shift_id.
+**Linked from:** [PhoneUnlock](#phoneunlock).shift_id, [StaffCheckIn](#staffcheckin).shift_id.
 
 | Field | Type | Notes |
 |---|---|---|
@@ -734,6 +734,8 @@ Table `kiosk_device` · belongs to a company through `vehicle_id`, then `driver_
 | `device_info` | text | Reported by the tablet: which map it can draw (full/basic), WebGL 2 support and browser. |
 | `update_requested_at` | timestamptz | When an admin pressed Send update; the tablet reloads to the newest version the next time it is idle. |
 | `directory_sent_at` | timestamptz | When an admin last sent the staff card list to this tablet; the tablet re-downloads it on its next check-in. |
+| `reader_mode` | text | What a boarding tablet records: 'both' asks the rider each time; 'boarding' or 'exit' records that direction only (one reader per door). One of: `both`, `boarding`, `exit`. Default `"both"`. |
+| `require_active_trip` | boolean | Refuse taps unless a driver's shift is open on the bus. Off: taps are recorded and marked 'no active trip'. Default `false`. |
 | `app_health` | jsonb | Reported by the TransitTrack app on the tablet every heartbeat: build, online, uploads waiting (GPS points, check-ins, other saved work), last GPS fix, the latitude/longitude the tablet's GPS is getting, card reader in use, saved staff list. |
 | `helper_health` | jsonb | Reported by the TransitTrack Helper Android app on the tablet (via the kiosk/driver page heartbeat): helper version, battery %, charging, parked, card reader state, last card time, USB GPS state, Wi-Fi hotspot state, and when it was reported. |
 | `kiosk_type` | text | One of: `bus_boarding`, `front_desk`, `badge_registry`, `driver`, `job_signing`. Default `"bus_boarding"`. Required. |
@@ -850,7 +852,8 @@ Table `nfc_card` · belongs to a company through `company_id` · read and change
 | `issue_date` | timestamptz |  |
 | `expiry_date` | date |  |
 | `issued_by` | text |  |
-| `is_active` | boolean | Default `true`. |
+| `is_active` | boolean | The switch boarding tablets check. True only while status is active. Default `true`. |
+| `status` | text | Why the card is or isn't working. Older records have none; see base44/shared/cardStatus.ts. One of: `active`, `suspended`, `lost`, `revoked`, `replaced`. |
 | `revoked_at` | timestamptz |  |
 | `revoked_by` | text |  |
 | `revoke_reason` | text |  |
@@ -1067,7 +1070,7 @@ Server-only delivery ledger for new-account admin alerts.
 
 Table `staff_check_in` · belongs to a company through `vehicle_id`, then `company_id` · read and changed through entityAccess.
 
-**Links to:** [Company](#company) (`company_id`), [Vehicle](#vehicle) (`vehicle_id`), [KioskDevice](#kioskdevice) (`device_id`).
+**Links to:** [Company](#company) (`company_id`), [Vehicle](#vehicle) (`vehicle_id`), [DriverShift](#drivershift) (`shift_id`), [KioskDevice](#kioskdevice) (`device_id`).
 
 | Field | Type | Notes |
 |---|---|---|
@@ -1082,6 +1085,11 @@ Table `staff_check_in` · belongs to a company through `vehicle_id`, then `compa
 | `vehicle_name` | text |  |
 | `check_in_method` | text | One of: `nfc`, `qr`, `manual`, `code`, `bluetooth`. Default `"manual"`. |
 | `client_request_id` | text | Sent by the device so a retried save isn't made twice. Not sent to the browser. |
+| `person_key` | text | Who tapped, as 'contact:<id>' or 'user:<id>': stays the same when their card is replaced. Set by the server only. |
+| `run_key` | text | The run this tap belongs to: 'shift:<DriverShift id>' while a driver's shift is open on the bus, else 'day:<bus>:<date>'. Set by the server only. |
+| `shift_id` | text | → DriverShift. Set by the server only. |
+| `review_reason` | text | Why a person should look at this tap (exit with no boarding, cancelled card used offline, two tablets out of order...). Empty when normal. Set by the server only. |
+| `saved_offline` | boolean | The tablet saved this tap offline and sent it later. boarded_at is when it happened; created_date is when it arrived. Set by the server only. |
 | `request_hash` | text | Not sent to the browser. |
 | `boarding_grant_hash` | text | Server-only digest binding a boarding authorization to its completed check-in. Sequential replay protection; not an atomic uniqueness constraint. Not sent to the browser. |
 | `device_id` | text | → KioskDevice. Not sent to the browser. |
