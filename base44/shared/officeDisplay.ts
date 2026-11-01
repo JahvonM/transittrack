@@ -5,6 +5,8 @@
 // Guest names only when an administrator turned them on; driver and client
 // names can be turned off. Nothing a display may not show is sent to it.
 
+import { onBoardCount } from './boardingEvents.ts';
+
 export const LAYOUTS = ['fleet', 'cameras', 'dispatch', 'maintenance'];
 export const ROTATABLE = ['fleet', 'dispatch', 'maintenance'];
 export const THEMES = ['dark', 'light'];
@@ -159,17 +161,21 @@ export function feedTablets(d: any, kiosks: any[]) {
 export const cameraCapable = (k: any) => !!k && k.kiosk_type === 'driver' && !k.personal && k.paired && k.status === 'active'
   && k.helper_health?.support_available === true && k.helper_health?.support_transport === 'webrtc';
 
-// Recent boardings, for the on-board count the fleet workspace already shows
-// (a ride with no exit stops counting after 6 hours); a person is an opaque
-// key, never a name, card or code.
+// How many are on each bus, counted here with the boarding tablets' own rule
+// (boardingEvents.ts: a ride with no exit stops counting after 6 hours). Only
+// the numbers go to the screen, never who. The screen shows a number only
+// where a boarding tablet is reporting, as Admin → Fleet workspace does.
 export const BOARDING_LOOKBACK_MS = 7 * 3600_000;
-export async function feedBoardings(d: any, checkIns: any[], now = Date.now()) {
+export function feedOnBoard(d: any, checkIns: any[], now = Date.now()) {
   const from = now - BOARDING_LOOKBACK_MS;
-  const rows = checkIns.filter((r) => inScope(d, r.company_id) && r.vehicle_id && busOnly(d, r.vehicle_id) && ms(r.boarded_at || r.created_date) >= from);
-  return Promise.all(rows.map(async (r) => ({
-    vehicle_id: r.vehicle_id, status: r.status, at: r.boarded_at || r.created_date,
-    person: (await sha256Hex(d.id + ':' + (r.person_key || r.card_tag || r.staff_name || r.id))).slice(0, 16),
-  })));
+  const byBus: Record<string, Record<string, any[]>> = {};
+  for (const r of checkIns) {
+    if (!inScope(d, r.company_id) || !r.vehicle_id || !busOnly(d, r.vehicle_id) || !(ms(r.boarded_at || r.created_date) >= from)) continue;
+    const key = r.person_key || r.card_tag || r.staff_name;
+    if (!key) continue;
+    ((byBus[r.vehicle_id] ||= {})[key] ||= []).push({ status: r.status, at: r.boarded_at || r.created_date });
+  }
+  return Object.fromEntries(Object.entries(byBus).map(([bus, people]) => [bus, onBoardCount(people, now)]));
 }
 
 export function feedShifts(d: any, shifts: any[]) {
