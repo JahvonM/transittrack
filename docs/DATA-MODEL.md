@@ -757,7 +757,7 @@ Table `kiosk_device` · belongs to a company through `vehicle_id`, then `driver_
 | `network_status` | jsonb | Latest admin network command delivery and native completion status; no passwords. Set by the server only. |
 | `control_command` | jsonb | Private admin command; native executor verifies over fixed HTTPS endpoint. Never exposed through entity gateway. Not sent to the browser. |
 | `control_status` | jsonb | Safe command progress. Requested is not proof that reboot completed. Set by the server only. |
-| `display_layout` | text | Boarding screen layout. 'auto' picks from the device: a validator model (card reader above the screen), else phone or tablet by screen size. One of: `auto`, `tablet`, `phone`, `validator`. Default `"auto"`. |
+| `display_layout` | text | Boarding screen layout. 'auto' picks from the device: a validator model (card reader above the screen), else phone or tablet by screen size. 'info' is an in-bus passenger information screen (no tapping, no passenger list). One of: `auto`, `tablet`, `phone`, `validator`, `info`. Default `"auto"`. |
 | `pickup_sign` | jsonb | Not sent to the browser. |
 | `recordings_request` | jsonb | Not sent to the browser. Set by the server only. |
 | `native_tracking_health` | jsonb | Server-timestamped native background GPS telemetry; never an authorization source. |

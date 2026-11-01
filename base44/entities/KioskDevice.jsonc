@@ -505,10 +505,11 @@
         "auto",
         "tablet",
         "phone",
-        "validator"
+        "validator",
+        "info"
       ],
       "default": "auto",
-      "description": "Boarding screen layout. 'auto' picks from the device: a validator model (card reader above the screen), else phone or tablet by screen size."
+      "description": "Boarding screen layout. 'auto' picks from the device: a validator model (card reader above the screen), else phone or tablet by screen size. 'info' is an in-bus passenger information screen (no tapping, no passenger list)."
     },
     "pickup_sign": {
       "type": "object",

@@ -212,7 +212,7 @@ export default function KioskDeviceDialog({ open, onOpenChange, companies, vehic
           {kioskType !== "driver" && !own && <div className="space-y-2">
             <Label htmlFor="kiosk-layout">Screen layout</Label>
             <ChoiceSelect id="kiosk-layout" aria-label="Screen layout" value={displayLayout} onChange={e => setDisplayLayout(e.target.value)} className={selectClass}>
-              <option value="auto">Automatic / device choice</option><option value="tablet">Kiosk tablet</option><option value="phone">Kiosk phone</option>{kioskType === "bus_boarding" && <option value="validator">Validator (card reader above the screen)</option>}
+              <option value="auto">Automatic / device choice</option><option value="tablet">Kiosk tablet</option><option value="phone">Kiosk phone</option>{kioskType === "bus_boarding" && <option value="validator">Validator (card reader above the screen)</option>}{kioskType === "bus_boarding" && <option value="info">Passenger information screen (no tapping)</option>}
             </ChoiceSelect>
           </div>}
           {kioskType === "bus_boarding" && <div className="space-y-2">

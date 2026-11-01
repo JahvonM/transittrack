@@ -16,6 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import BusBoardingKiosk from "@/components/kiosk/BusBoardingKiosk";
+import BusInfoDisplay from "@/components/kiosk/BusInfoDisplay";
 import { boardingLayout, KIOSK_LAYOUT_KEY } from "@/lib/kioskLayout";
 import JobSigningKiosk from "@/components/kiosk/JobSigningKiosk";
 import KioskConnectionBadge from "@/components/kiosk/KioskConnectionBadge";
@@ -225,7 +226,8 @@ export default function Kiosk() {
   }, []);
 
   // Refresh credential-free display metadata and replace any legacy directory.
-  const isBoarding = device?.kiosk_type === "bus_boarding";
+  // An information screen only shows: it keeps no passenger list.
+  const isBoarding = device?.kiosk_type === "bus_boarding" && layout !== "info";
   const sentAt = device?.directory_sent_at || null;
   useEffect(() => {
     if (!deviceId || !isBoarding) return undefined;
@@ -328,6 +330,8 @@ export default function Kiosk() {
   // The signing tablet is the guests' own screen for signing for jobs (it
   // shows the driver's name sign itself, in front of its job controls).
   if (device?.kiosk_type === "job_signing") return <JobSigningKiosk device={device} deviceId={deviceId} online={online} onBusChanged={moveToBus} />;
+
+  if (device?.kiosk_type === "bus_boarding" && layout === "info") return <BusInfoDisplay device={device} online={online} invoke={invoke} />;
 
   if (device?.kiosk_type === "bus_boarding") {
     return (

@@ -63,7 +63,7 @@ function Screen({ modeKey, className = "", children }) {
 }
 
 // Holding this bar for 3 seconds asks for the bus PIN (tablet settings).
-function TopStatusBar({ device, vehicle, route, now, online, holdProps }) {
+export function TopStatusBar({ device, vehicle, route, now, online, holdProps }) {
   return <header className="tt-board-header" {...holdProps}>
     <div className="tt-board-company" role="group" aria-label="Company banner">
       {device?.company_logo_url ? <img src={device.company_logo_url} alt="" /> : <Bus aria-hidden="true" />}

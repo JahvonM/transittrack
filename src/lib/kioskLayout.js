@@ -8,9 +8,11 @@ export const isValidatorModel = (model) => typeof model === "string" && VALIDATO
 
 // The boarding screen layout: the tablet's setting in Admin, else the choice
 // made on the tablet, else from the device (a validator model, or a phone-
-// sized screen).
+// sized screen). "info" is the in-bus passenger information screen: set in
+// Admin only, never picked automatically.
 export function boardingLayout(deviceLayout, localLayout, width, model = "") {
   const choice = deviceLayout && deviceLayout !== "auto" ? deviceLayout : localLayout;
+  if (choice === "info") return "info";
   if (choice === "validator") return "validator";
   if (choice === "phone") return "phone";
   if (choice === "tablet") return "tablet";

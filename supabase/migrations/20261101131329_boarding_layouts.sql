@@ -8,5 +8,5 @@ do $$ begin
 exception when duplicate_object then null; end $$;
 alter table public.kiosk_device drop constraint if exists kiosk_device_display_layout_allowed;
 do $$ begin
-  alter table public.kiosk_device add constraint kiosk_device_display_layout_allowed check (display_layout is null or display_layout in ('auto', 'tablet', 'phone', 'validator')) not valid;
+  alter table public.kiosk_device add constraint kiosk_device_display_layout_allowed check (display_layout is null or display_layout in ('auto', 'tablet', 'phone', 'validator', 'info')) not valid;
 exception when duplicate_object then null; end $$;
