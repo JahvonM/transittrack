@@ -39,6 +39,8 @@ ENTITY_FIELDS.KioskDevice.push('reader_mode','require_active_trip');
 ENTITY_FIELDS.StaffCheckIn.push('person_key','run_key','shift_id','review_reason','saved_offline');
 // Why a card is or isn't working (active, suspended, lost, revoked, replaced).
 ENTITY_FIELDS.NfcCard.push('status');
+// Help a passenger asks for when boarding, shown to their driver.
+ENTITY_FIELDS.User.push('boarding_note');
 // Admin → App errors: what happened before an error, and marking it fixed.
 ENTITY_FIELDS.ClientError.push('area','context','breadcrumbs','status','resolved_at','resolved_by');
 // Jobs dispatch gives a bus. The signatures (and where and by how many guests
@@ -109,7 +111,7 @@ const CREDENTIALS = new Set(['driver_pin','entry_code','access_code','one_time_c
 const COMPANY_ENTITIES = new Set(['Vehicle','Trip','InspectionResult','GroupMessage','LocationPing','Driver','DriverShift','NfcCard','Broadcast','KioskDevice','Route','Inspection','RouteTravelTimes','Fault','StaffCheckIn','CardHolder','DrivingEvent','DriverDocument','Part','Workplace','Incident','Contact','LostItemReport','InspectionTemplate','MaintenanceSchedule']);
 const PASSENGER_READ = new Set(['Company','Vehicle','Route','RouteTravelTimes','Broadcast','Trip','GroupMessage','Workplace','Advertisement']);
 const COMPANY_READ = new Set([...COMPANY_ENTITIES, 'Company','Advertisement']);
-const PROFILE_FIELDS = new Set(['full_name','display_name','phone','photo_url','home_lat','home_lng','home_address','pickup_lat','pickup_lng','pickup_name','pickup_route_id','work_lat','work_lng','whatsapp_linked','skip_pickup_today','skip_pickup_until','late_snooze_active','late_until','favorite_stop','stop_alerts','theme_accent']);
+const PROFILE_FIELDS = new Set(['boarding_note','full_name','display_name','phone','photo_url','home_lat','home_lng','home_address','pickup_lat','pickup_lng','pickup_name','pickup_route_id','work_lat','work_lng','whatsapp_linked','skip_pickup_today','skip_pickup_until','late_snooze_active','late_until','favorite_stop','stop_alerts','theme_accent']);
 function fail(status, message) { throw Object.assign(new Error(message), { status }); }
 // Photos, voice notes, logos and the like are files uploaded through the app,
 // so anyone but an administrator may only point these fields at the app's own

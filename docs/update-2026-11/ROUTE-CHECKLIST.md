@@ -6,7 +6,7 @@ against the realistic fixture in `e2e/helpers/fleetFixture.js`. **Pass** means: 
 error, and the page stayed put (or redirected where it should). Console noise from the blocked map service
 (Mapbox 404 in tests) is expected and is not an app error.
 
-**Result: 140 addresses, 140 pass, 0 crash/uncaught error.** Unknown addresses show the not-found page with a way back (separate test).
+**Result: 141 addresses, 141 pass, 0 crash/uncaught error.** Unknown addresses show the not-found page with a way back (separate test).
 
 ## Signed out (19)
 
@@ -141,7 +141,7 @@ error, and the page stayed put (or redirected where it should). Console noise fr
 | `/service-history` | same page | Pass |
 | `/vehicle/bus-a` | same page | Pass |
 
-## Passenger (20)
+## Passenger (21)
 
 | Address | Ends at | Result |
 |---|---|---|
@@ -160,6 +160,7 @@ error, and the page stayed put (or redirected where it should). Console noise fr
 | `/notifications` | same page | Pass |
 | `/passenger-bookings` | /staff | Pass |
 | `/rides` | same page | Pass |
+| `/help` | same page | Pass |
 | `/route-explorer` | same page | Pass |
 | `/safety-standards` | same page | Pass |
 | `/service-history` | /staff | Pass |
@@ -184,6 +185,9 @@ error, and the page stayed put (or redirected where it should). Console noise fr
 |---|---|---|
 | Passenger tabs | Home, My rides, My pass, More; tab memory; back to top on re-tap; no sideways scroll at 320–768 px | `passenger-experience`, `passenger-rides` |
 | My rides | Today (scheduled / not travelling / running late), completed rides, repeated tap = one ride, empty state, failed load + Try again | `passenger-rides` |
+| Passenger journey | Home follows the passenger's own taps (boarded, on board, nearly there, got off, done), a bus at the stop is not a boarding, old GPS is "Last known position", change of bus announced once, optional ride rating | `passenger-journey`, `journeyStage.test` |
+| Requests and help | Change a ride (time / pickup / cancel) with validation, reference and status, withdraw; Help page: missed pickup, card and booking problems, office replies; passenger can't open the office inbox | `passenger-journey`, `passengerCases.test` |
+| Passenger support (admin) | Open/All, reply, confirm / turn down (needs a message) / resolve | `passenger-journey` |
 | Passenger permissions | No admin booking link; admin pages redirect home; server hides jobs and others' taps | `passenger-rides`, `passengerPrivacy.test` |
 | Passenger journey | Live/stale location, ETA, map opens only on request, pickup finder, chat send/retry, lost card | `company-isolation`, `passenger-experience` |
 | Company portal | Sidebar sections, request a job form (validation, send), shared job on map, no route replay | `company-portal` |

@@ -1,0 +1,175 @@
+{
+  "name": "PassengerCase",
+  "type": "object",
+  "required": [
+    "reference",
+    "kind",
+    "status",
+    "company_id",
+    "user_id"
+  ],
+  "properties": {
+    "reference": {
+      "type": "string",
+      "description": "Shown to the passenger, e.g. TT-7K3Q2M. Unique."
+    },
+    "company_id": {
+      "type": "string"
+    },
+    "company_name": {
+      "type": "string"
+    },
+    "user_id": {
+      "type": "string",
+      "description": "The passenger's account."
+    },
+    "user_name": {
+      "type": "string"
+    },
+    "user_email": {
+      "type": "string",
+      "description": "For the office only; never shown to other passengers."
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "time_change",
+        "pickup_change",
+        "cancel_ride",
+        "missed_pickup",
+        "card_issue",
+        "booking_issue",
+        "other",
+        "feedback"
+      ]
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "requested",
+        "pending",
+        "confirmed",
+        "rejected",
+        "resolved",
+        "closed"
+      ],
+      "default": "requested"
+    },
+    "details": {
+      "type": "string",
+      "description": "What the passenger wrote."
+    },
+    "vehicle_id": {
+      "type": "string",
+      "description": "The passenger's bus when they asked (set by the server)."
+    },
+    "vehicle_name": {
+      "type": "string"
+    },
+    "trip_date": {
+      "type": "string",
+      "format": "date",
+      "description": "The day the request was made, Grenada time."
+    },
+    "leg": {
+      "type": "string",
+      "enum": [
+        "to_work",
+        "to_home"
+      ],
+      "description": "Which way the bus was going when they asked."
+    },
+    "trip_id": {
+      "type": "string",
+      "description": "A booked ride the request is about, if any."
+    },
+    "ride_boarded_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Their last boarding tap that day, if any."
+    },
+    "pickup_name": {
+      "type": "string",
+      "description": "Their pickup when they asked."
+    },
+    "requested_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "requested_time": {
+      "type": "string",
+      "description": "HH:MM, for a time change."
+    },
+    "requested_pickup": {
+      "type": "string",
+      "description": "For a pickup change."
+    },
+    "rating": {
+      "type": "integer",
+      "description": "1 to 5, for ride feedback."
+    },
+    "replies": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string",
+            "enum": [
+              "passenger",
+              "office"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      }
+    },
+    "passenger_unread": {
+      "type": "boolean",
+      "default": false,
+      "description": "The office replied or changed the status since the passenger last looked."
+    },
+    "office_unread": {
+      "type": "boolean",
+      "default": true
+    },
+    "closed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "closed_by": {
+      "type": "string"
+    }
+  },
+  "rls": {
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

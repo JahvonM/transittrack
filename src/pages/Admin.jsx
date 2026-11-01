@@ -118,7 +118,8 @@ const ADMIN_PAGES = {
   directory: lazy(() => import("@/pages/StaffDirectory")),
   "ride-history": lazy(() => import("@/pages/RideHistory")),
   "passenger-bookings": lazy(() => import("@/pages/PassengerBookings")),
-  support: lazy(() => import("@/pages/PassengerSupport")),
+  // Requests and problems passengers send from the app (passengerCases).
+  support: lazy(() => import("@/components/admin/PassengerCasesTab")),
 };
 
 const MGMT_LINKS = [

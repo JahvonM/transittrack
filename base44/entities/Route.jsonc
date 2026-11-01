@@ -35,6 +35,10 @@
           },
           "order": {
             "type": "number"
+          },
+          "note": {
+            "type": "string",
+            "description": "Where to wait, for passengers: a landmark and which side of the road."
           }
         }
       }

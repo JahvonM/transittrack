@@ -11,6 +11,7 @@ been applied to the live database yet.
 |---|---|---|
 | `20261031194008_boarding_events.sql` | `kiosk_device.reader_mode` (`both` / `boarding` / `exit`, default `both`), `kiosk_device.require_active_trip` (default off), and on `staff_check_in`: `person_key`, `run_key`, `shift_id`, `review_reason`, `saved_offline`, plus an index on `shift_id` | `kioskCheckIn` only (server-only fields) |
 | `20261101004614_card_states.sql` | `nfc_card.status` (`active` / `suspended` / `lost` / `revoked` / `replaced`), and three audit actions: `card_suspended`, `card_lost`, `card_reactivated` | `nfcCards` only |
+| `20261101010408_passenger_cases.sql` | New table `passenger_case` (requests and support cases: reference, kind, status, the passenger's bus and trip context, replies), and `app_user.boarding_note` (help a passenger asks for when boarding, shown to their driver) | `passengerCases` only for cases; the passenger for their own boarding note |
 
 Existing cards are **not** back-filled. A card with no `status` is read from
 what it already has (`is_active`, and "Replaced…" in the reason), see
@@ -22,6 +23,10 @@ Roll the app back first (redeploy the previous `main`), then, only if the
 columns must go, run in the Supabase SQL editor:
 
 ```sql
+-- 20261101010408_passenger_cases.sql (removes every passenger request and reply)
+drop table if exists public.passenger_case;
+alter table public.app_user drop column if exists boarding_note;
+
 -- 20261101004614_card_states.sql
 alter table public.nfc_card drop constraint if exists nfc_card_status_allowed;
 alter table public.nfc_card drop column if exists status;
@@ -40,7 +45,7 @@ alter table public.kiosk_device drop column if exists reader_mode, drop column i
 ```
 
 Dropping the columns loses only what this update recorded (review flags,
-run keys, card states). Leaving them in place after an app rollback is
+run keys, card states, passenger requests and boarding notes). Leaving them in place after an app rollback is
 harmless, so the usual answer is: roll the app back and leave the columns.
 A suspended card is `is_active = false`, so after a rollback it simply shows
 as revoked.

@@ -23,7 +23,7 @@ const ROUTES = {
   ],
   company: [["/vehicle-registry", /\/company$/], ["/passenger-bookings", /\/company$/], ["/service-history", /\/company$/], ["/company", null], ["/company/jobs", null], ["/company/vehicles", null], ["/company/routes", null], ["/company/profile", null], ["/company/ads", /\/company$/], ["/manager", null], ["/manager/analytics", null], ["/manager/replay", null], ["/staff-directory", null], ["/account", null], ["/notifications", null], ["/admin", /\/$|\/company$/], ["/mechanic", /\/$|\/company$/]],
   mechanic: [["/mechanic", null], ["/run-inspection", null], ["/account", null], ["/vehicle/bus-a", null], ["/service-history", null], ["/admin", /\/$|\/mechanic$/], ["/company", /\/$|\/mechanic$/]],
-  staff: [["/staff", null], ["/journey", null], ["/rides", null], ["/my-card", null], ["/more", null],
+  staff: [["/staff", null], ["/journey", null], ["/rides", null], ["/help", null], ["/my-card", null], ["/more", null],
     ["/passenger-bookings", /\/staff$/], ["/service-history", /\/staff$/], ["/incident-report", /\/staff$/], ["/driver-schedule", /\/staff$/], ["/driver-profile", /\/staff$/], ["/notifications", null], ["/account", null], ["/route-explorer", null], ["/buses", null], ["/safety-standards", null], ["/admin", /\/$|\/staff$/], ["/company", /\/$|\/staff$/], ["/manager", /\/$|\/staff$/], ["/mechanic", /\/$|\/staff$/], ["/vehicle-registry", /\/staff$/]],
   driver: [["/driver-phone", null], ["/driver-phone/messages", null], ["/driver-phone/report", null], ["/driver-phone/me", null], ["/driver-schedule", null], ["/driver-profile", null], ["/driver-password", /\/driver-phone$/]],
 };

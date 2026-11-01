@@ -65,6 +65,23 @@ const ME = {
   driver: { id: "u-drv", email: "driver.kt@login.test", full_name: "Kevin Thomas", role: "driver", company_id: "a" },
 };
 
+// Requests and support cases, kept in `data.passengerCases` for the test.
+function passengerCases(body, data) {
+  const list = (data.passengerCases ||= []);
+  const find = () => list.find((c) => c.id === body?.id);
+  switch (body?.action) {
+    case "mine": case "list": return { cases: body.action === "list" && body.show !== "all" ? list.filter((c) => ["requested", "pending"].includes(c.status)) : list };
+    case "create": {
+      const row = { id: "case-" + (list.length + 1), reference: "TT-TEST" + (list.length + 1), status: "requested", replies: [], unread: false, source: "case", vehicle_name: "Bus 1", user_name: "Rita Rider", created_date: new Date().toISOString(), ...body };
+      delete row.action; list.unshift(row); return { ok: true, case: row };
+    }
+    case "reply": { const c = find(); c.replies = [...(c.replies || []), { from: "office", name: "Office", text: body.text, at: new Date().toISOString() }]; if (c.status === "requested") c.status = "pending"; return { ok: true, case: c }; }
+    case "set_status": { const c = find(); c.status = body.status; return { ok: true, case: c }; }
+    case "withdraw": { const c = find(); c.status = "closed"; return { ok: true, case: c }; }
+    default: return { ok: true };
+  }
+}
+
 // Shapes the app's own server functions return, for the screens that open
 // with one. Anything not listed answers { ok: true }.
 function functionReply(name, body, data, role) {
@@ -79,7 +96,8 @@ function functionReply(name, body, data, role) {
     case "companyWorkspace": return { vehicles: [], routes: [], drivers: [], workplaces: [], contacts: [], devices: [], people: [] };
     case "bookingRequest": return body?.action === "company_requests" ? { requests: [] } : { ok: true };
     case "driverAccounts": return body?.action === "status" ? { is_driver: role === "driver", must_change_password: false } : { drivers: data.drivers, ok: true };
-    case "passengerAccount": return body?.action === "rides" ? { events: [] } : { card: { issued: false, active: false, status: "Not issued" }, history: [] };
+    case "passengerAccount": return body?.action === "rides" ? { events: [] } : body?.action === "today" ? { events: data.today || [] } : { card: { issued: false, active: false, status: "Not issued" }, history: [] };
+    case "passengerCases": return passengerCases(body, data);
     case "jobBilling": return { invoices: [], groups: [], ok: true };
     case "driverRequests": return { requests: [] };
     case "helperRelease": return { version: "1.0", url: "" };

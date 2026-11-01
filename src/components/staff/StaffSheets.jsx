@@ -21,7 +21,7 @@ import PickupSelector from "@/components/passenger/PickupSelector";
 // The sheet itself never scrolls: an inner area does. vaul paints the sheet's
 // background just below it (so a pull never shows a gap), and inside a
 // scrolling sheet that strip would ride up over the content.
-function BottomSheet({ open, onOpenChange, title, description, children, tall = false, pickup = false }) {
+export function BottomSheet({ open, onOpenChange, title, description, children, tall = false, pickup = false }) {
   return (
     <Drawer.Root open={open} onOpenChange={onOpenChange} shouldScaleBackground={false}>
       <Drawer.Portal>

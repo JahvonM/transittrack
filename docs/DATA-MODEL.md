@@ -95,6 +95,7 @@ Changing records through entityAccess:
 | [NotificationSetting](#notificationsetting) | `notification_setting` | server only | — | — | — | — | through other functions |
 | [Part](#part) | `part` | entityAccess | — | — | own company | all companies | all |
 | [PassengerAccessCredential](#passengeraccesscredential) | `passenger_access_credential` | server only | — | — | — | — | through other functions |
+| [PassengerCase](#passengercase) | `passenger_case` | server only | — | — | — | — | through other functions |
 | [PassengerOneTimeCredential](#passengeronetimecredential) | `passenger_one_time_credential` | server only | — | — | — | — | through other functions |
 | [PhoneUnlock](#phoneunlock) | `phone_unlock` | server only | — | — | — | — | through other functions |
 | [Place](#place) | `place` | entityAccess | — | — | — | — | all |
@@ -288,7 +289,7 @@ Table `client_error` · read and changed through entityAccess.
 
 Table `company` · read and changed through entityAccess.
 
-**Linked from:** [Advertisement](#advertisement).company_id, [BookingRequest](#bookingrequest).company_id, [Broadcast](#broadcast).company_id, [CardHolder](#cardholder).company_id, [Client](#client).company_id, [CompanyAccessGrant](#companyaccessgrant).company_id, [CompanyMembership](#companymembership).company_id, [Contact](#contact).company_id, [DeviceCredential](#devicecredential).company_id, [Driver](#driver).company_id, [DriverDocument](#driverdocument).company_id, [DriverPinCredential](#driverpincredential).company_id, [DriverRequest](#driverrequest).company_id, [DriverShift](#drivershift).company_id, [DrivingEvent](#drivingevent).company_id, [Fault](#fault).company_id, [GroupMessage](#groupmessage).company_id, [Incident](#incident).company_id, [Inspection](#inspection).company_id, [InspectionResult](#inspectionresult).company_id, [InspectionTemplate](#inspectiontemplate).company_id, [Invoice](#invoice).company_id, [KioskDevice](#kioskdevice).company_id, [LocationPing](#locationping).company_id, [LostItemReport](#lostitemreport).company_id, [MaintenanceSchedule](#maintenanceschedule).company_id, [NfcCard](#nfccard).company_id, [NotificationLog](#notificationlog).company_id, [Part](#part).company_id, [PassengerAccessCredential](#passengeraccesscredential).company_id, [PassengerOneTimeCredential](#passengeronetimecredential).company_id, [PhoneUnlock](#phoneunlock).company_id, [Place](#place).company_id, [PushToken](#pushtoken).company_id, [Route](#route).company_id, [RouteTravelTimes](#routetraveltimes).company_id, [StaffCheckIn](#staffcheckin).company_id, [TabletRecordingSession](#tabletrecordingsession).company_id, [TabletSupportSession](#tabletsupportsession).company_id, [Trip](#trip).company_id, [User](#user).company_id, [Vehicle](#vehicle).company_id, [VerificationGrant](#verificationgrant).company_id, [Workplace](#workplace).company_id.
+**Linked from:** [Advertisement](#advertisement).company_id, [BookingRequest](#bookingrequest).company_id, [Broadcast](#broadcast).company_id, [CardHolder](#cardholder).company_id, [Client](#client).company_id, [CompanyAccessGrant](#companyaccessgrant).company_id, [CompanyMembership](#companymembership).company_id, [Contact](#contact).company_id, [DeviceCredential](#devicecredential).company_id, [Driver](#driver).company_id, [DriverDocument](#driverdocument).company_id, [DriverPinCredential](#driverpincredential).company_id, [DriverRequest](#driverrequest).company_id, [DriverShift](#drivershift).company_id, [DrivingEvent](#drivingevent).company_id, [Fault](#fault).company_id, [GroupMessage](#groupmessage).company_id, [Incident](#incident).company_id, [Inspection](#inspection).company_id, [InspectionResult](#inspectionresult).company_id, [InspectionTemplate](#inspectiontemplate).company_id, [Invoice](#invoice).company_id, [KioskDevice](#kioskdevice).company_id, [LocationPing](#locationping).company_id, [LostItemReport](#lostitemreport).company_id, [MaintenanceSchedule](#maintenanceschedule).company_id, [NfcCard](#nfccard).company_id, [NotificationLog](#notificationlog).company_id, [Part](#part).company_id, [PassengerAccessCredential](#passengeraccesscredential).company_id, [PassengerCase](#passengercase).company_id, [PassengerOneTimeCredential](#passengeronetimecredential).company_id, [PhoneUnlock](#phoneunlock).company_id, [Place](#place).company_id, [PushToken](#pushtoken).company_id, [Route](#route).company_id, [RouteTravelTimes](#routetraveltimes).company_id, [StaffCheckIn](#staffcheckin).company_id, [TabletRecordingSession](#tabletrecordingsession).company_id, [TabletSupportSession](#tabletsupportsession).company_id, [Trip](#trip).company_id, [User](#user).company_id, [Vehicle](#vehicle).company_id, [VerificationGrant](#verificationgrant).company_id, [Workplace](#workplace).company_id.
 
 **Everyone except admins and company managers gets only:** `name`, `phone`, `logo_url`, `service_types`, `description`.
 
@@ -932,6 +933,40 @@ Table `passenger_access_credential` · server functions only.
 | `qr_hash` | text | Digest used to verify the permanent QR on a paired bus tablet. |
 | `qr_issued_at` | timestamptz |  |
 
+### PassengerCase
+
+Table `passenger_case` · server functions only.
+
+**Links to:** [Company](#company) (`company_id`), [User](#user) (`user_id`), [Vehicle](#vehicle) (`vehicle_id`), [Trip](#trip) (`trip_id`).
+
+| Field | Type | Notes |
+|---|---|---|
+| `reference` | text | Shown to the passenger, e.g. TT-7K3Q2M. Unique. Required. |
+| `company_id` | text | → Company. Required. |
+| `company_name` | text |  |
+| `user_id` | text | → User. The passenger's account. Required. |
+| `user_name` | text |  |
+| `user_email` | text | For the office only; never shown to other passengers. |
+| `kind` | text | One of: `time_change`, `pickup_change`, `cancel_ride`, `missed_pickup`, `card_issue`, `booking_issue`, `other`, `feedback`. Required. |
+| `status` | text | One of: `requested`, `pending`, `confirmed`, `rejected`, `resolved`, `closed`. Default `"requested"`. Required. |
+| `details` | text | What the passenger wrote. |
+| `vehicle_id` | text | → Vehicle. The passenger's bus when they asked (set by the server). |
+| `vehicle_name` | text |  |
+| `trip_date` | date | The day the request was made, Grenada time. |
+| `leg` | text | Which way the bus was going when they asked. One of: `to_work`, `to_home`. |
+| `trip_id` | text | → Trip. A booked ride the request is about, if any. |
+| `ride_boarded_at` | timestamptz | Their last boarding tap that day, if any. |
+| `pickup_name` | text | Their pickup when they asked. |
+| `requested_date` | date |  |
+| `requested_time` | text | HH:MM, for a time change. |
+| `requested_pickup` | text | For a pickup change. |
+| `rating` | bigint | 1 to 5, for ride feedback. |
+| `replies` | jsonb (list) |  |
+| `passenger_unread` | boolean | The office replied or changed the status since the passenger last looked. Default `false`. |
+| `office_unread` | boolean | Default `true`. |
+| `closed_at` | timestamptz |  |
+| `closed_by` | text |  |
+
 ### PassengerOneTimeCredential
 
 Table `passenger_one_time_credential` · server functions only.
@@ -1145,7 +1180,7 @@ Table `trip` · belongs to a company through `vehicle_id`, then `company_id` · 
 
 **Links to:** [Vehicle](#vehicle) (`vehicle_id`), [Route](#route) (`route_id`), [Company](#company) (`company_id`), [Client](#client) (`client_id`), [Invoice](#invoice) (`invoice_id`).
 
-**Linked from:** [BookingRequest](#bookingrequest).trip_id.
+**Linked from:** [BookingRequest](#bookingrequest).trip_id, [PassengerCase](#passengercase).trip_id.
 
 **Everyone except admins and company managers gets only:** `company_id`, `vehicle_id`, `vehicle_name`, `route_id`, `route_name`, `pickup_name`, `dropoff_name`, `scheduled_time`, `status`, `started_at`, `arrived_at`, `completed_at`.
 
@@ -1218,9 +1253,9 @@ Table `app_user` · read and changed through entityAccess.
 
 **Links to:** [Company](#company) (`company_id`), [Route](#route) (`pickup_route_id`), [AccessRole](#accessrole) (`access_role_id`).
 
-**Linked from:** [CompanyAccessGrant](#companyaccessgrant).user_id, [CompanyMembership](#companymembership).user_id, [GroupMessage](#groupmessage).sender_id, [InspectionResult](#inspectionresult).inspector_id, [LostItemReport](#lostitemreport).reporter_id, [MaintenanceSchedule](#maintenanceschedule).assigned_mechanic_id, [PassengerAccessCredential](#passengeraccesscredential).user_id, [PassengerOneTimeCredential](#passengeronetimecredential).user_id, [RoleAssignment](#roleassignment).user_id, [SignupAlert](#signupalert).user_id, [VerificationGrant](#verificationgrant).member_user_id.
+**Linked from:** [CompanyAccessGrant](#companyaccessgrant).user_id, [CompanyMembership](#companymembership).user_id, [GroupMessage](#groupmessage).sender_id, [InspectionResult](#inspectionresult).inspector_id, [LostItemReport](#lostitemreport).reporter_id, [MaintenanceSchedule](#maintenanceschedule).assigned_mechanic_id, [PassengerAccessCredential](#passengeraccesscredential).user_id, [PassengerCase](#passengercase).user_id, [PassengerOneTimeCredential](#passengeronetimecredential).user_id, [RoleAssignment](#roleassignment).user_id, [SignupAlert](#signupalert).user_id, [VerificationGrant](#verificationgrant).member_user_id.
 
-**The app only ever gets:** `email`, `full_name`, `role`, `company_id`, `display_name`, `phone`, `photo_url`, `home_lat`, `home_lng`, `home_address`, `pickup_lat`, `pickup_lng`, `pickup_name`, `pickup_route_id`, `work_lat`, `work_lng`, `whatsapp_linked`, `skip_pickup_today`, `skip_pickup_until`, `late_snooze_active`, `late_until`, `favorite_stop`, `stop_alerts`, `theme_accent`; admins also get `access_role_id`.
+**The app only ever gets:** `email`, `full_name`, `role`, `company_id`, `boarding_note`, `display_name`, `phone`, `photo_url`, `home_lat`, `home_lng`, `home_address`, `pickup_lat`, `pickup_lng`, `pickup_name`, `pickup_route_id`, `work_lat`, `work_lng`, `whatsapp_linked`, `skip_pickup_today`, `skip_pickup_until`, `late_snooze_active`, `late_until`, `favorite_stop`, `stop_alerts`, `theme_accent`; admins also get `access_role_id`.
 
 | Field | Type | Notes |
 |---|---|---|
@@ -1248,6 +1283,7 @@ Table `app_user` · read and changed through entityAccess.
 | `skip_pickup_today` | boolean | Default `false`. |
 | `skip_pickup_until` | timestamptz | Skip only applies until this moment (end of the day it was set). |
 | `late_snooze_active` | boolean | Default `false`. |
+| `boarding_note` | text | Help the passenger asks for when boarding (e.g. a lower step). Shown to their driver; set by the passenger. |
 | `late_until` | timestamptz | Running-late flag only applies until this moment. |
 | `favorite_stop` | text | Name of the passenger's usual pickup stop (matches a Route stop name). |
 | `stop_alerts` | boolean | Send a push when a bus leaves the stop before favorite_stop. Default `false`. |
@@ -1267,7 +1303,7 @@ Table `vehicle` · belongs to a company through `driver_id`, then `company_id` �
 
 **Links to:** [Driver](#driver) (`driver_id`), [Company](#company) (`company_id`), [Route](#route) (`route_id`).
 
-**Linked from:** [Broadcast](#broadcast).vehicle_id, [CompanyMembership](#companymembership).vehicle_id, [Contact](#contact).vehicle_id, [DeviceCredential](#devicecredential).vehicle_id, [DriverPinCredential](#driverpincredential).vehicle_id, [DriverShift](#drivershift).vehicle_id, [DrivingEvent](#drivingevent).vehicle_id, [Fault](#fault).vehicle_id, [GroupMessage](#groupmessage).vehicle_id, [Incident](#incident).vehicle_id, [Inspection](#inspection).vehicle_id, [InspectionResult](#inspectionresult).vehicle_id, [KioskDevice](#kioskdevice).vehicle_id, [LocationPing](#locationping).vehicle_id, [MaintenanceSchedule](#maintenanceschedule).vehicle_id, [PhoneUnlock](#phoneunlock).vehicle_id, [StaffCheckIn](#staffcheckin).vehicle_id, [TabletRecordingSession](#tabletrecordingsession).vehicle_id, [TabletSupportSession](#tabletsupportsession).vehicle_id, [Trip](#trip).vehicle_id, [VerificationGrant](#verificationgrant).vehicle_id.
+**Linked from:** [Broadcast](#broadcast).vehicle_id, [CompanyMembership](#companymembership).vehicle_id, [Contact](#contact).vehicle_id, [DeviceCredential](#devicecredential).vehicle_id, [DriverPinCredential](#driverpincredential).vehicle_id, [DriverShift](#drivershift).vehicle_id, [DrivingEvent](#drivingevent).vehicle_id, [Fault](#fault).vehicle_id, [GroupMessage](#groupmessage).vehicle_id, [Incident](#incident).vehicle_id, [Inspection](#inspection).vehicle_id, [InspectionResult](#inspectionresult).vehicle_id, [KioskDevice](#kioskdevice).vehicle_id, [LocationPing](#locationping).vehicle_id, [MaintenanceSchedule](#maintenanceschedule).vehicle_id, [PassengerCase](#passengercase).vehicle_id, [PhoneUnlock](#phoneunlock).vehicle_id, [StaffCheckIn](#staffcheckin).vehicle_id, [TabletRecordingSession](#tabletrecordingsession).vehicle_id, [TabletSupportSession](#tabletsupportsession).vehicle_id, [Trip](#trip).vehicle_id, [VerificationGrant](#verificationgrant).vehicle_id.
 
 **Everyone except admins, company managers and mechanics gets only:** `name`, `type`, `company_id`, `company_name`, `capacity`, `route_id`, `current_lat`, `current_lng`, `speed`, `heading`, `status`, `driver_name`, `image_url`, `model_3d`, `tracking_active`, `last_location_update`, `trail`, `trip_direction`, `return_pickup_state`, `road_next_stop`.
 

@@ -40,6 +40,7 @@ export const SUPABASE_TABLES: Record<string, string> = {
   NotificationSetting: "notification_setting",
   Part: "part",
   PassengerAccessCredential: "passenger_access_credential",
+  PassengerCase: "passenger_case",
   PassengerOneTimeCredential: "passenger_one_time_credential",
   PhoneUnlock: "phone_unlock",
   Place: "place",

@@ -133,7 +133,7 @@ const AuthenticatedApp = () => {
   // Pages remount (and animate) when this key changes. The driver app's tabs
   // are all one page, so they share a key — switching tabs must not restart
   // it (that would stop GPS tracking and navigation).
-  const pageKey = ["/staff","/journey","/my-card","/more"].includes(location.pathname) ? "/passenger-experience" : /^\/driver(\/|$)/.test(location.pathname) ? "/driver"
+  const pageKey = ["/staff","/journey","/my-card","/more","/rides","/help"].includes(location.pathname) ? "/passenger-experience" : /^\/driver(\/|$)/.test(location.pathname) ? "/driver"
     : location.pathname.startsWith("/driver-phone") ? "/driver-phone" : /^\/admin(\/|$)/.test(location.pathname) ? "/admin" : location.pathname;
   // The first screen shown after opening the app, or false once the person
   // has moved on (from then on every new screen slides in).
@@ -199,6 +199,7 @@ const AuthenticatedApp = () => {
         <Route path="/journey" element={<StaffPortal />} />
         <Route path="/my-card" element={<StaffPortal />} />
         <Route path="/rides" element={<StaffPortal />} />
+        <Route path="/help" element={<StaffPortal />} />
         <Route path="/mechanic" element={<MechanicPortal />} />
         <Route path="/run-inspection" element={<RunInspection />} />
         <Route path="/manager" element={<ManagerDashboard />} />

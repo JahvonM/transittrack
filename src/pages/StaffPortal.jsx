@@ -71,7 +71,7 @@ function DriverPhoneCheck({ children }) {
 export default function StaffPortal() {
   const { user, checkUserAuth, logout } = useAuth();
   const { pathname } = useLocation();
-  const view = pathname === "/journey" ? "journey" : pathname === "/rides" ? "rides" : pathname === "/my-card" ? "card" : pathname === "/more" ? "more" : "home";
+  const view = pathname === "/journey" ? "journey" : pathname === "/rides" ? "rides" : pathname === "/my-card" ? "card" : pathname === "/more" ? "more" : pathname === "/help" ? "help" : "home";
   // A company join QR scanned in this tab: check its code instead of
   // restoring the saved company (it may be a different company).
   const [joinCode] = useState(() => takePendingJoinCode());
@@ -623,7 +623,7 @@ export default function StaffPortal() {
           now={now} homeName={homeStop && !homeStop.personal ? homeStop.name : user?.pickup_name || pickupName} sharedStop={homeStop?.personal ? sharedStop : null}
           pickupPrompt={pickupPrompt} notice={notice} chatUnread={chatUnread} stopAlerts={stopAlerts} pushPermission={pushPermission}
           toggleStopAlerts={toggleStopAlerts} enableNotifications={enableNotifications} setSheet={setSheet}
-          mapOpen={mapOpen} setMapOpen={setMapOpen} bookedTrips={upcomingTrips} pickupName={pickupName}
+          mapOpen={mapOpen} setMapOpen={setMapOpen} bookedTrips={upcomingTrips} pickupName={pickupName} eta={eta}
           logout={()=>{clearPassengerSnapshot();logout();}} lastSynced={lastSynced} offline={offline}
           renderMap={() => <Suspense fallback={<div className="h-72 animate-pulse bg-muted" />}>
             <LiveTransitMap defaultSatellite className="h-80 lg:h-[520px]" vehicles={locatedVehicles}

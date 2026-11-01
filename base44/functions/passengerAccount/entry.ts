@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.52';
 import { reserveAttempt } from '../../shared/atomicOps.ts';
+import { CARD_STATUS_TEXT, cardStatus } from '../../shared/cardStatus.ts';
 // Own card status and boarding history only. NFC identifiers never leave the server.
 async function approvedCompany(db, user) {
  const rows = await db.CompanyMembership.filter({user_id:user.id,active:true,scope:'passenger'},'-updated_date',100);
@@ -26,8 +27,8 @@ export default async function(req) {
   const companyId=await approvedCompany(db,user);
   if(!companyId) return Response.json({error:'Verified company access required'},{status:403});
   const body=await req.json(), action=body.action || 'summary';
-  if(!['summary','rides','report_lost_card','report_missed_pickup'].includes(action)) return Response.json({error:'Unknown action'},{status:400});
-  if(!['summary','rides'].includes(action) && !(await reserveAttempt(client,'passenger-report:'+action+':'+user.id,3,60_000))) return Response.json({error:'Please wait before sending another report.'},{status:429,headers:{'Retry-After':'60'}});
+  if(!['summary','rides','today','report_lost_card','report_missed_pickup'].includes(action)) return Response.json({error:'Unknown action'},{status:400});
+  if(!['summary','rides','today'].includes(action) && !(await reserveAttempt(client,'passenger-report:'+action+':'+user.id,3,60_000))) return Response.json({error:'Please wait before sending another report.'},{status:429,headers:{'Retry-After':'60'}});
   const contacts=(await db.Contact.filter({company_id:companyId,email:user.email},'-updated_date',100)).filter(c=>c.company_id===companyId && c.email?.toLowerCase()===user.email?.toLowerCase());
   const cards=await db.NfcCard.filter({company_id:companyId,holder_source:'user',holder_id:user.id},'-issue_date',100);
   for(const contact of contacts) cards.push(...await db.NfcCard.filter({company_id:companyId,holder_source:'contact',holder_id:contact.id},'-issue_date',100));
@@ -35,7 +36,9 @@ export default async function(req) {
   const active=owned.filter(c=>c.is_active && !c.revoked_at && (!c.expiry_date || c.expiry_date>=new Date().toISOString().slice(0,10)));
   if(action==='report_lost_card') {
    if(!active.length) return Response.json({ok:true,already_inactive:true});
-   for(const card of active) await db.NfcCard.update(card.id,{is_active:false,revoked_at:new Date().toISOString(),revoked_by:user.email,revoke_reason:'Card reported lost by its holder'});
+   for(const card of active) await db.NfcCard.update(card.id,{is_active:false,status:'lost',revoked_at:new Date().toISOString(),revoked_by:user.email,revoke_reason:'Card reported lost by its holder'});
+   // The company's boarding tablets download their card list again (online ones within about 30 s).
+   try { const at=new Date().toISOString(); for(const k of (await db.KioskDevice.filter({company_id:companyId,kiosk_type:'bus_boarding'})).filter(k=>k.company_id===companyId&&k.status==='active'&&k.paired)) await db.KioskDevice.update(k.id,{directory_sent_at:at}); } catch { /* the card is already stopped on the server */ }
    await db.LostItemReport.create({company_id:companyId,reporter_id:user.id,reporter_name:user.full_name || user.email,reporter_email:user.email,contact:user.phone || user.email,description:'NFC boarding card reported lost. Card disabled; please issue a replacement.',status:'open'});
    return Response.json({ok:true});
   }
@@ -50,6 +53,12 @@ export default async function(req) {
   // Match stable IDs and all this person's card identifiers; never match by name.
   const tags=[...new Set([user.id,...owned.map(c=>c.card_uid),...contacts.flatMap(c=>[c.id,c.nfc_card_tag])].filter(Boolean))];
   // My rides: the last 60 days of this person's own boardings and exits.
+  // Today's own taps, for the Home screen's journey (boarded, on board, got off).
+  if(action==='today') {
+   const day=new Date().toLocaleDateString('en-CA',{timeZone:'America/Grenada'});
+   const rows=await db.StaffCheckIn.filter({company_id:companyId,card_tag:{$in:tags}},'-boarded_at',20);
+   return Response.json({events:rows.filter(r=>r.company_id===companyId && tags.includes(r.card_tag) && new Date(r.boarded_at || r.created_date).toLocaleDateString('en-CA',{timeZone:'America/Grenada'})===day).map(ownEvent),server_time:new Date().toISOString()});
+  }
   if(action==='rides') {
    const since=new Date(Date.now()-60*86400_000).toISOString();
    const rides=await db.StaffCheckIn.filter({company_id:companyId,card_tag:{$in:tags}},'-boarded_at',200);
@@ -57,7 +66,7 @@ export default async function(req) {
   }
   const rows=await db.StaffCheckIn.filter({company_id:companyId,card_tag:{$in:tags}},'-boarded_at',10);
   return Response.json({
-   card:{issued:owned.length>0,active:active.length>0,status:active.length?'Active':owned.length?'Inactive':'Not issued'},
+   card:(()=>{const newest=[...owned].sort((a,b)=>String(b.issue_date||'').localeCompare(String(a.issue_date||'')))[0];const latest=newest?cardStatus(newest):null;return {issued:owned.length>0,active:active.length>0,state:active.length?'active':latest,status:active.length?'Active':latest?CARD_STATUS_TEXT[latest]:'Not issued'};})(),
    history:rows.filter(r=>r.company_id===companyId && tags.includes(r.card_tag)).map(ownEvent),
   });
  } catch(error) {

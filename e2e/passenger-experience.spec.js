@@ -422,7 +422,12 @@ test.describe('phone tour',()=>{
   await expect(page.getByRole('heading',{name:'Your account'})).toBeVisible();
   await shot('more');
   await sheet('settings-sheet',()=>page.getByRole('button',{name:/^Notifications/}).click());
-  await sheet('help-sheet',()=>page.getByRole('button',{name:/^Help & support/}).click());
+  // Help & support is its own page: problems, requests and replies.
+  await page.getByRole('link',{name:/^Help & support/}).click();
+  await expect(page.getByRole('heading',{name:'Help',exact:true})).toBeVisible();
+  await shot('help');
+  await sheet('help-sheet',()=>page.getByRole('button',{name:/^Lost item/}).click());
+  await tab(page,'More').click();
   // Account → Appearance shows what the passenger actually sees: cyan until
   // they pick a colour.
   await page.getByRole('link',{name:/Edit profile/}).click();

@@ -30,7 +30,7 @@ const TABS = [
   { to: "/rides", label: "My rides", icon: CalendarClock },
   { to: "/my-card", label: "My pass", icon: QrCode },
   // Messages and Account live under More.
-  { to: "/more", label: "More", icon: LayoutGrid, also: ["/notifications", "/account", "/safety-standards"] },
+  { to: "/more", label: "More", icon: LayoutGrid, also: ["/notifications", "/account", "/safety-standards", "/help"] },
 ];
 
 // Per-tab remembered navigation stack (session-local): each tab keeps the
