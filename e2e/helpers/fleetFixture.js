@@ -96,6 +96,7 @@ function functionReply(name, body, data, role) {
     ] };
     return { people: [{ key: "user:u-pass", source: "user", id: "u-pass", name: "Rita Rider", company_id: "a", company_name: data.company.name, vehicle_id: "bus-a", assigned_vehicle: "Bus 1", registered: true, status: "Active" }], cards: data.cards || [], vehicles: data.vehicles.map((v) => ({ id: v.id, name: v.name, company_id: "a" })), tablets: data.kiosks.map((k) => ({ id: k.id, label: k.label, vehicle_id: k.vehicle_id, paired: true, active: true, last_seen: k.last_seen, directory_sent_at: k.directory_sent_at || null })) };
     case "accessRoles": return { roles: [], assignments: [] };
+    case "officeDisplay": return { displays: [], companies: [{ id: "a", name: data.company.name }], vehicles: data.vehicles.map((v) => ({ id: v.id, name: v.name, plate_number: v.plate_number || "", company_id: "a" })), cameras: [], streaming: false, limits: { max_cameras: 4, max_displays: 20, camera_ms: 600000 } };
     case "companyWorkspace": return { vehicles: [], routes: [], drivers: [], workplaces: [], contacts: [], devices: [], people: [] };
     case "bookingRequest": return body?.action === "company_requests" ? { requests: [] } : { ok: true };
     case "driverAccounts": return body?.action === "status" ? { is_driver: role === "driver", must_change_password: false } : { drivers: data.drivers, ok: true };
