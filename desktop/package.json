@@ -39,7 +39,9 @@
       "reader.ps1",
       "preload.cjs",
       "setup-launch.cjs",
-      "reader-process.cjs"
+      "reader-process.cjs",
+      "displays.cjs",
+      "display-preload.cjs"
     ],
     "win": {
       "target": [

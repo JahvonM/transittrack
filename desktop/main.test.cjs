@@ -43,4 +43,11 @@ test('the real entry creates an isolated window and rejects foreign navigation',
  window.webContents.emit('did-fail-load',{},-105,'Offline',window.url,true);
  assert.ok(window.file.endsWith('offline.html'));
  assert.equal(template[0].submenu[2].label,'Mechanic');
+ // Office displays: only the main window, on the TransitTrack site, may open display windows.
+ assert.equal(template[1].submenu[1].label,'Office displays');
+ assert.throws(()=>handlers['office-displays']({sender:{},senderFrame:{url:APP+'/admin'}},'list'),/Not allowed/);
+ assert.throws(()=>handlers['office-displays']({sender:window.webContents,senderFrame:{url:'https://evil.invalid/'}},'list'),/Not allowed/);
+ assert.throws(()=>handlers['office-displays']({sender:window.webContents,senderFrame:{url:APP+'/admin'}},'credentialFor'),/Unknown action/);
+ assert.deepEqual(handlers['office-displays']({sender:window.webContents,senderFrame:{url:APP+'/admin/office-displays'}},'list'),[]);
+ assert.equal(handlers['office-display-credential']({sender:window.webContents}),null);
 });
