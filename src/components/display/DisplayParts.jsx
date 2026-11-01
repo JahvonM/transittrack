@@ -44,7 +44,7 @@ export function Panel({ title, count, tone, children, className, compact }) {
 
 // A list that never scrolls: it shows the rows that fit whole and says how
 // many more there are, so nothing is cut in half or hidden below the fold.
-export function FitList({ items, render, itemKey = (x) => x.id, empty, gap = "gap-2", className }) {
+export function FitList({ items, render, itemKey = (x) => x.id, empty, gap = "gap-2", className, row = false }) {
   const ref = useRef(null);
   const [fit, setFit] = useState(items.length);
   useLayoutEffect(() => {
@@ -69,7 +69,7 @@ export function FitList({ items, render, itemKey = (x) => x.id, empty, gap = "ga
   const hidden = Math.max(0, items.length - fit);
   return (
     <div className={cn("flex min-h-0 flex-1 flex-col", className)}>
-      <ul ref={ref} className={cn("relative flex min-h-0 flex-1 flex-col overflow-hidden", gap)}>
+      <ul ref={ref} className={cn("relative flex min-h-0 flex-1 overflow-hidden", row ? "flex-row flex-wrap content-start" : "flex-col", gap)}>
         {items.map((item, i) => (
           <li key={itemKey(item)} className={i >= fit ? "invisible" : undefined} aria-hidden={i >= fit || undefined}>{render(item)}</li>
         ))}
@@ -84,10 +84,10 @@ export function FitList({ items, render, itemKey = (x) => x.id, empty, gap = "ga
 export function Stat({ label, value, tone }) {
   const t = tone ? toneOf(tone) : null;
   return (
-    <div className="rounded-2xl border border-border bg-card px-4 py-3">
-      <p className="font-display text-[2.6rem] font-bold leading-none tabular-nums">{value}</p>
-      <p className={cn("mt-1 flex items-center gap-1.5 text-[0.95rem] font-semibold", t ? t.text : "text-muted-foreground")}>
-        {t && <t.icon className={cn("h-[1em] w-[1em]", t.fg)} aria-hidden="true" />}
+    <div className="rounded-2xl border border-border bg-card px-4 py-2.5">
+      <p className="font-display text-[2.4rem] font-bold leading-none tabular-nums">{value}</p>
+      <p className={cn("mt-1 flex items-center gap-1.5 truncate text-[0.95rem] font-semibold", t ? t.text : "text-muted-foreground")}>
+        {t && <t.icon className={cn("h-[1em] w-[1em] shrink-0", t.fg)} aria-hidden="true" />}
         {label}
       </p>
     </div>
