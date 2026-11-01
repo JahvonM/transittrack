@@ -26,7 +26,17 @@ function CameraTile({ view, token, bus, label, onLive, now }) {
   const tried = useRef(false);
   const [live, setLive] = useState(false);
   const [problem, setProblem] = useState("");
-  const expired = view.expires_at && Date.parse(view.expires_at) <= now;
+  const [timeUp, setTimeUp] = useState(false);
+  // Stop on the dot at the end time, not at the next screen update.
+  useEffect(() => {
+    const ms = Date.parse(view.expires_at || "") - Date.now();
+    if (!Number.isFinite(ms)) return undefined;
+    if (ms <= 0) { setTimeUp(true); return undefined; }
+    setTimeUp(false);
+    const t = setTimeout(() => setTimeUp(true), ms);
+    return () => clearTimeout(t);
+  }, [view.expires_at]);
+  const expired = timeUp || (view.expires_at && Date.parse(view.expires_at) <= now);
   const over = ENDED.has(view.state) || expired || !view.session_id;
 
   const close = useCallback(() => { const r = room.current; room.current = null; r?.close(); setLive(false); }, []);
