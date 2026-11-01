@@ -16,14 +16,21 @@ alert**.
 | Boarding devices | **Validator** screen layout: the card reader is above a small screen, so a banner points up to it; code entry and camera QR stay below. A T10 picks it automatically from the model the kiosk app reports. | Automatic only on a T10; Admin can set it for any boarding device |
 | Boarding devices | **Where passengers tap their card** (Admin → Kiosk tablets → the tablet): above the screen, back of the phone (top or middle), or a separate reader. The boarding screen tells passengers where to hold the card. | Automatic: follows the layout. The tablet layout keeps today's wording unless set |
 | Boarding devices | **Passenger information screen** layout, for a display inside the bus: nearest stop (with minutes only while the bus position is fresh, otherwise "Last known position at …"), the route's stops, how many are on board, weather and announcements. No tapping, and it downloads no passenger list. It never says "next stop" or "on time": the app doesn't track either. | Only when chosen in Admin |
+| My rides | **Regular days off** (owner's decision: the office approves). A passenger asks for "Days I don't ride" (weekdays, both ways / to work / home, from a date, optional end). The office confirms or turns it down in Passenger support. Once confirmed, on those days the passenger is left off the driver phone and bus tablet lists and the going-home alerts, like Skip today. The passenger can stop it ("Ride on these days again"; the office is told); the office ends it by closing the request. | Nothing changes until the office confirms a request |
+| Journey screen | **Share my journey** (owner's decision). A private link family can open without signing in. It shows only that passenger's ride: first name, bus, where they're heading, and the bus on a map only while they're on board. Never the route, other passengers, stops or names. Ends when they get off, after 3 hours, when they stop it, when they make a new link, or if their bus changes. | Off until the passenger shares |
 | Tests | A button-by-button check presses every safe button on 13 main screens and fails on any crash. | — |
 
 ## Database
 
-One additive migration, `20261101131329_boarding_layouts.sql`:
+One additive migration, `20261101194233_follow_up.sql`:
 
 - adds `kiosk_device.nfc_spot` (text, default `'auto'`, with an allowed-values check);
-- widens the `display_layout` check to also allow `'validator'` and `'info'`.
+- widens the `display_layout` check to also allow `'validator'` and `'info'`;
+- adds `passenger_case.days`, `direction` and `until_date`, and allows the `regular_days` kind;
+- adds `app_user.ride_pattern` (the approved regular days off; set only by the server).
+
+Journey sharing needs no database change (links are kept, hashed, in the
+existing `verification_grant` table).
 
 Undo (only after rolling the app back; older code ignores the column):
 
@@ -34,6 +41,14 @@ update public.kiosk_device set display_layout = 'auto' where display_layout in (
 alter table public.kiosk_device drop constraint if exists kiosk_device_display_layout_allowed;
 alter table public.kiosk_device add constraint kiosk_device_display_layout_allowed
   check (display_layout is null or display_layout in ('auto', 'tablet', 'phone')) not valid;
+alter table public.app_user drop column if exists ride_pattern;
+alter table public.passenger_case drop constraint if exists passenger_case_direction_allowed;
+alter table public.passenger_case drop column if exists days, drop column if exists direction, drop column if exists until_date;
+-- Requests of the new kind must go first, or the old check fails.
+delete from public.passenger_case where kind = 'regular_days';
+alter table public.passenger_case drop constraint if exists passenger_case_kind_allowed;
+alter table public.passenger_case add constraint passenger_case_kind_allowed check (kind is null or kind in
+  ('time_change', 'pickup_change', 'cancel_ride', 'missed_pickup', 'card_issue', 'booking_issue', 'other', 'feedback')) not valid;
 ```
 
 The driver phone marks use the `ride_exception` table added in PR #16, and
@@ -51,15 +66,14 @@ the rules are now shared by the tablet and the phone
 | F5 | T10 | Open the boarding screen (layout Automatic). | Validator layout with "Tap card above"; a card held above the screen is read |
 | F6 | Coolpad K18 | Set "Where passengers tap" to the spot that works best. | The hint matches where the card actually reads |
 | F7 | Spare tablet in a bus | Set layout to Passenger information screen. | Nearest stop and minutes while driving; "Last known position" when GPS stops; no passenger list in Tablet settings → Diagnostics |
+| F8 | Passenger + office | Passenger asks for Fridays off; office confirms. On a Friday, open the driver phone and bus tablet lists. | The passenger shows as not riding on Fridays only; "Ride on these days again" brings them back the same day |
+| F9 | Passenger phone + a second phone | Share my journey, open the link on the second phone, ride, get off. | "Hasn't boarded yet" with no map, then the bus on the map while on board, then "got off" and the link stops working within 15 minutes |
 
 ## Still blocked or for the owner
 
 - T10 barcode scanner, LED and buzzer: the maker's SDK (`HARDWARE.md`).
 - Kiosk lock on the 5 unlocked tablets, boarding tablets for Grenville and
   St. George, the camera relay (TURN): on the devices or in Cloudflare.
-- Journey sharing for staff rides: reviewed, not added (`AUDIT.md`).
-- Recurring travel preferences ("I don't ride on Fridays"): needs your
-  decision on how the office approves them; not built.
 - No tablet had checked in since 30 Oct when PR #16 went live (1 Nov), so
   the 15-minute device checks in `ROLLOUT.md` are still to do when the
   fleet is back on.
@@ -68,10 +82,10 @@ the rules are now shared by the tablet and the phone
 
 | Suite | Result |
 |---|---|
-| Unit and server-function tests (`npx vitest run`) | **1453 passed**, 0 failed (177 files) |
+| Unit and server-function tests (`npx vitest run`) | **1481 passed**, 0 failed (181 files), including regular days off (ask, approve, stop, driver lists) and journey sharing (what the link shows, when it ends, stop, new link, bus change) |
 | Production security tests (`npm run test:security:release`) | **188 passed**, 0 failed |
-| Browser tests, full list | **541 passed**, 6 failed, 1 skipped on the first full run. 5 of the failures are `first-open`, which can't start this sandbox's browser (known, passes in CI). The 6th, `admin-load-recovery` "activity updates use supplied rows", uses a fake clock and timed out while the machine was busy at the start of the run; it touches nothing in this branch and passed 5 of 5 when re-run. Every spec changed in this branch was re-run after the last fixes: all pass |
-| Button-by-button check (new) | 13 screens, 98 buttons pressed, no crash screen or uncaught error. Buttons that send, save, delete or change records were skipped (they have their own tests) |
+| Browser tests, full list, after merging `main` | **544 passed**, 5 failed, 1 skipped. The 5 are `first-open`, which can't start this sandbox's browser (known; pass in CI). After adding regular days off and journey sharing, the affected specs were re-run: route check (now with `/share`), passenger, driver phone, driver manifest, button check and the new `journey-share`: 219 passed, 0 failed |
+| Button-by-button check | 13 screens, 98 buttons pressed, no crash screen or uncaught error |
 | Lint, generated-file checks | Pass |
 
-No physical device was tested. The device tests above (F1–F7) are still to do.
+No physical device was tested. Device tests F1–F9 above are still to do.

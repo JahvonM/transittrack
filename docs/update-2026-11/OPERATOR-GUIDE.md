@@ -91,3 +91,10 @@ In **Route planner**, each stop has a **Where to wait** box (for example
   where the card reader is so the screen tells passengers where to hold
   their card.
 - **My rides** lists what's coming up and what was cancelled.
+- **Regular days off** (Passenger support): a passenger can ask for "Days
+  I don't ride". Open the request to see the days, then Confirm or Turn
+  down. Once confirmed, they're left off the driver's list on those days.
+  Closing the request later ends it; the passenger can also end it.
+- **Share my journey** (passenger Journey screen): passengers can send
+  family a private link that shows their bus only while they're on board.
+  It ends when they get off or after 3 hours. Nothing to set up.
