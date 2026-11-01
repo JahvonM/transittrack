@@ -46,6 +46,10 @@
     },
     "failure_code": {
       "type": "string"
+    },
+    "display_id": {
+      "type": "string",
+      "description": "An office display an administrator started this camera view for; that display may watch it (officeDisplay)."
     }
   },
   "required": [
