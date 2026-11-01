@@ -54,7 +54,8 @@ function GiveCard({ person, onChanged }) {
       setMsg({ tone: "danger", text: errorText(e, "The card wasn't saved. Try again.") });
     } finally { busy.current = false; }
   };
-  const { helper, reader, webNfc, feedback, connect } = useCardReader((tap) => { if (armed) issue(tap); }, { active: armed });
+  // Taps only arrive while waiting for a card (active).
+  const { helper, reader, webNfc, feedback, connect } = useCardReader(issue, { active: armed });
   const readerReady = helper === "connected" || webNfc;
   const readerText = helper === "connected" ? `USB card reader ready${reader ? ` (${reader})` : ""}.`
     : webNfc ? "This phone's NFC is ready. Hold the card flat against the back of the phone."
@@ -105,7 +106,7 @@ export default function SignupPersonSheet({ person, company, call, onChanged, on
       else { setClaim({ state: "free" }); setError(errorText(e, "Couldn't mark them as yours.")); }
     }
   };
-  useEffect(() => { if (ref) take(false); }, [ref]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (ref) take(false); }, [ref]);
   // Keep the claim fresh while the panel is open (claims lapse after 20 minutes).
   useEffect(() => {
     if (claim.state !== "mine") return undefined;
