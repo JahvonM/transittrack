@@ -47,6 +47,7 @@ import {
   LifeBuoy,
   BookOpen,
   Hourglass,
+  ClipboardCheck,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -97,6 +98,7 @@ export const ADMIN_SECTIONS = [
   { id: "safety-standards", label: "Safety standards", icon: ShieldCheck, group: "Maintenance" },
 
   { id: "directory", label: "Passenger directory", icon: Contact, group: "Dispatch" },
+  { id: "signup-day", label: "Sign-up day", icon: ClipboardCheck, group: "Dispatch" },
   { id: "checkins", label: "Sign-in log", icon: ClipboardList, group: "Dispatch" },
   { id: "billing", label: "Completed & billing", icon: Building2, group: "Dispatch" },
   { id: "messaging", label: "Messaging", icon: Megaphone, group: "Dispatch" },
@@ -119,7 +121,7 @@ export const ADMIN_SECTIONS = [
 const NAV_GROUPS = [
  {label:"Fleet",icon:Bus,ids:["fleet-workspace","fleet","vehicles","health","route-planner","route-explorer","plan-pickups"]},
  {label:"Maintenance",icon:Wrench,ids:["service","faults","parts","schedule","calendar","templates","inspection-history","service-history","incident-reports","safety-standards"]},
- {label:"People & access",icon:Users,ids:["drivers","directory","users","cards","card-designs"]},
+ {label:"People & access",icon:Users,ids:["drivers","directory","signup-day","users","cards","card-designs"]},
  {label:"Operations",icon:Activity,ids:["trips","kiosks","shifts","checkins","billing","messaging","lost-items","ride-history","passenger-bookings","support"]},
  {label:"Reports",icon:BarChart3,ids:["vehicle-logs","driving-reports","route-analytics","fleet-analytics","travel-times"]},
  {label:"All tools",icon:Database,ids:["notifications","app-errors","audit","data"]},
