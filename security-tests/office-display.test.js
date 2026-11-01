@@ -50,7 +50,7 @@ function client() {
     ],
     KioskDevice: [
       {id: 'cam-a', company_id: 'a', vehicle_id: 'bus-a', kiosk_type: 'driver', status: 'active', paired: true, label: 'Driver tablet', pairing_code: 'SECRETPAIR1',
-        last_seen: at(-MIN), helper_health: {support_available: true, support_transport: 'webrtc', battery: 80, charging: false, wifi_ssid: 'Office'}},
+        last_seen: at(-MIN), helper_health: {support_available: true, support_transport: 'webrtc', battery: 80, charging: false, wifi_ssid: 'YardWifi-5G'}},
       {id: 'cam-a2', company_id: 'a', vehicle_id: 'bus-a2', kiosk_type: 'driver', status: 'active', paired: true, label: 'Driver tablet 2',
         helper_health: {support_available: true, support_transport: 'webrtc'}},
       {id: 'board-a', company_id: 'a', vehicle_id: 'bus-a', kiosk_type: 'bus_boarding', status: 'active', paired: true, helper_health: {support_available: true, support_transport: 'webrtc'}},
@@ -218,7 +218,7 @@ describe('what a display is sent', () => {
     expect(r.status).toBe(200);
     const text = JSON.stringify(r.body);
     expect(r.body.vehicles.map((v) => v.id).sort()).toEqual(['bus-a', 'bus-a2']);
-    for (const secret of ['1234', '9999', 'VIN123', 'SECRETPAIR1', 'JOIN12345678', '+14735550000', 'Office', 'dana@test.invalid',
+    for (const secret of ['1234', '9999', 'VIN123', 'SECRETPAIR1', 'JOIN12345678', '+14735550000', 'YardWifi-5G', 'dana@test.invalid',
       '+1473555', '1 Home Road', '2 Beach Road', 'gate code', 'sig.png', 'Guest Name', 'Pat Passenger', 'CARD-1', 'pk-1', 'p.jpg',
       'email:pat@test.invalid', 'called twice', 'Bus B', 'B Guest', 'B fault', 'Other Rider', 'Driver said', 'f.jpg', 'Mo"']) {
       expect(text, secret).not.toContain(secret);
@@ -350,12 +350,16 @@ describe('cameras on a display', () => {
 
   it('starts only on an explicit administrator action, for chosen driver tablets in scope', async () => {
     const {d, token} = await cameraDisplay();
-    expect(row(d.id).camera_device_ids).toEqual(['cam-a', 'board-a']); // cam-b is another company's
+    // A boarding tablet's QR camera is never offered; cam-b is another company's.
+    expect(row(d.id).camera_device_ids).toEqual(['cam-a']);
     expect(sessions()).toHaveLength(0);
     expect((await feed(token)).body.cameras).toEqual([]);
+    // Asking for a camera that isn't chosen for this display starts nothing.
+    expect((await call({action: 'camera_start', display_id: d.id, device_ids: ['cam-b', 'board-a']}, 'admin-1')).status).toBe(400);
+    expect(sessions()).toHaveLength(0);
     const r = await call({action: 'camera_start', display_id: d.id}, 'admin-1');
     expect(r.status).toBe(200);
-    expect(r.body.results.find((x) => x.device_id === 'board-a').ok).toBe(false);
+    expect(r.body.results).toEqual([expect.objectContaining({device_id: 'cam-a', ok: true})]);
     expect(sessions()).toHaveLength(1);
     const s = sessions()[0];
     expect(s).toMatchObject({device_id: 'cam-a', capability: 'camera_back', display_id: d.id, requested_by: 'admin-1', state: 'requested'});
@@ -425,8 +429,8 @@ describe('cameras on a display', () => {
 
   it('refuses a camera someone is already viewing', async () => {
     const {d} = await cameraDisplay();
-    c.tables.TabletSupportSession.push({id: 'busy', device_id: 'cam-a', state: 'active', expires_at: at(5 * MIN)});
-    c.tables.KioskDevice.find((k) => k.id === 'cam-a').support_request = {id: 'busy', expires_at: at(5 * MIN)};
+    c.tables.TabletSupportSession.push({id: 'busy-session', device_id: 'cam-a', state: 'active', expires_at: at(5 * MIN)});
+    c.tables.KioskDevice.find((k) => k.id === 'cam-a').support_request = {id: 'busy-session', expires_at: at(5 * MIN)};
     const r = await call({action: 'camera_start', display_id: d.id}, 'admin-1');
     expect(r.body.results.find((x) => x.device_id === 'cam-a')).toMatchObject({ok: false, error: 'Someone is already viewing this camera'});
   });
