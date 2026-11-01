@@ -1,0 +1,166 @@
+{
+  "name": "OfficeDisplay",
+  "type": "object",
+  "description": "An office monitor or TV showing a read-only operations view (Admin \u2192 Office displays). Server-only: read and written through officeDisplay. The display's own credential is stored only as a hash.",
+  "required": [
+    "name",
+    "kind"
+  ],
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "window",
+        "paired"
+      ],
+      "description": "window: a monitor connected to the Windows computer running McSween Transport Desktop. paired: another computer or a TV browser paired with a code."
+    },
+    "company_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Companies whose operations it may show. At least one."
+    },
+    "vehicle_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Only these buses (of those companies); empty means all of their buses."
+    },
+    "layout": {
+      "type": "string",
+      "enum": [
+        "fleet",
+        "cameras",
+        "dispatch",
+        "maintenance"
+      ],
+      "default": "fleet"
+    },
+    "rotate": {
+      "type": "boolean",
+      "description": "Switch between rotate_layouts (never the camera layout)."
+    },
+    "rotate_layouts": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "fleet",
+          "dispatch",
+          "maintenance"
+        ]
+      }
+    },
+    "rotate_seconds": {
+      "type": "integer"
+    },
+    "theme": {
+      "type": "string",
+      "enum": [
+        "dark",
+        "light"
+      ],
+      "default": "dark"
+    },
+    "text_size": {
+      "type": "string",
+      "enum": [
+        "normal",
+        "large",
+        "xlarge"
+      ],
+      "default": "large"
+    },
+    "density": {
+      "type": "string",
+      "enum": [
+        "comfortable",
+        "compact"
+      ],
+      "default": "comfortable"
+    },
+    "show_driver_names": {
+      "type": "boolean"
+    },
+    "show_client_names": {
+      "type": "boolean",
+      "description": "Hotel or client company on a job."
+    },
+    "show_guest_names": {
+      "type": "boolean",
+      "description": "Passenger and guest names. Off unless an administrator turns it on."
+    },
+    "blanked": {
+      "type": "boolean"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "revoked"
+      ],
+      "default": "active"
+    },
+    "credential_hash": {
+      "type": "string"
+    },
+    "credential_expires_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "credential_issued_by": {
+      "type": "string",
+      "description": "The administrator who opened the window or approved the pairing."
+    },
+    "paired_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "last_seen_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "camera_sessions": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "description": "Camera viewing sessions an administrator started for this display: [{session_id, device_id}]. Each ends after 10 minutes."
+    },
+    "camera_device_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Driver tablets offered for the camera layout (up to four)."
+    }
+  },
+  "rls": {
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}
