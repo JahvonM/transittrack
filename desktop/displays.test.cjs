@@ -137,6 +137,6 @@ test('fullscreen, refresh and screens for the settings page',async()=>{
  m.fullscreen('disp-1');assert.equal(r.windows[0].full,false);
  m.refresh('disp-1');assert.equal(r.windows[0].reloads,1);
  assert.deepEqual(m.screens().map(s=>[s.id,s.primary,s.width]),[['1',true,1920],['2',false,3840]]);
- m.closeAll();await tick();await tick();
+ await m.closeAll();
  assert.equal(m.count(),0);
 });

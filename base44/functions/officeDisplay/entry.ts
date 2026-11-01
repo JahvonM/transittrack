@@ -202,7 +202,7 @@ export default async function (req: Request) {
           Promise.all(companyIds.map((id: string) => db.Company.get(id).catch(() => null))),
           source('vehicles', true, () => db.Vehicle.filter(inCompanies, 'name', 200)),
           source('tablets', needs('fleet', 'cameras'), () => db.KioskDevice.filter({ ...inCompanies, status: 'active' }, '-last_seen', 300)),
-          source('boardings', needs('fleet'), () => db.StaffCheckIn.filter({ ...inCompanies, created_date: { $gte: iso(now - BOARDING_LOOKBACK_MS) } }, '-created_date', 10000)),
+          source('boardings', needs('fleet'), () => db.StaffCheckIn.filter({ ...inCompanies, created_date: { $gte: iso(now - BOARDING_LOOKBACK_MS) } }, '-created_date', 5000)),
           source('shifts', needs('fleet', 'dispatch'), () => db.DriverShift.filter(inCompanies, '-started_at', 150)),
           source('jobs', needs('fleet', 'dispatch'), () => db.Trip.filter({ ...inCompanies, scheduled_time: { $gte: iso(from), $lt: iso(from + 86_400_000) } }, 'scheduled_time', 300)),
           source('jobs', needs('fleet', 'dispatch'), () => db.Trip.filter({ ...inCompanies, status: { $in: ['on_the_way', 'arrived'] } }, '-scheduled_time', 100)),

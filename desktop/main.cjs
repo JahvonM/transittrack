@@ -126,4 +126,10 @@ function createWindow() {
 }
 app.on('window-all-closed',()=>app.quit());
 
-app.on('before-quit',()=>{stopUpdateChecks?.();updateChecker?.stop();deviceSetup?.stop();browserSignIn?.cancel();});
+// Quitting with display windows open: close them first (each ends its camera
+// views), then quit; otherwise their close step would cancel the quit.
+let displaysClosedForQuit=false;
+app.on('before-quit',event=>{
+ if(displays&&displays.count()>0&&!displaysClosedForQuit){event.preventDefault();displaysClosedForQuit=true;displays.closeAll().finally(()=>app.quit());return;}
+ stopUpdateChecks?.();updateChecker?.stop();deviceSetup?.stop();browserSignIn?.cancel();
+});

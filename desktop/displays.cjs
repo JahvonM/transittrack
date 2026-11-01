@@ -165,7 +165,16 @@ function createDisplayManager({ BrowserWindow, screen, fs, path, userData, appOr
     list: state,
     open: openDisplay,
     close(id) { const o = open.get(id); if (o && !o.win.isDestroyed()) o.win.close(); return { ok: true }; },
-    closeAll() { for (const o of open.values()) if (!o.win.isDestroyed()) o.win.close(); return { ok: true }; },
+    // Resolves once every display window has closed (each first lets its
+    // page end camera views), or after a few seconds whatever happens.
+    closeAll() {
+      for (const o of open.values()) if (!o.win.isDestroyed()) o.win.close();
+      return new Promise((resolve) => {
+        const started = Date.now();
+        const check = () => (open.size === 0 || Date.now() - started > 2500 ? resolve({ ok: true }) : setTimeout(check, 50));
+        check();
+      });
+    },
     fullscreen(id, on) { const o = get(id); o.win.setFullScreen(typeof on === 'boolean' ? on : !o.win.isFullScreen()); return { ok: true }; },
     refresh(id) { const o = get(id); o.win.reload(); return { ok: true }; },
     show(id) { const o = get(id); if (o.win.isMinimized()) o.win.restore(); o.win.show(); return { ok: true }; },
