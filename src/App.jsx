@@ -66,6 +66,14 @@ const FirstOpenSetup = lazy(() => import('@/components/FirstOpenSetup'));
 function FirstOpenGate() {
   const location = useLocation();
   const [closed, setClosed] = useState(false);
+  // Look again now and then: someone joining a hotel gets it once they've
+  // joined, without having to move to another screen first.
+  const [, recheck] = useState(0);
+  useEffect(() => {
+    if (closed) return undefined;
+    const timer = setInterval(() => recheck((n) => n + 1), 3000);
+    return () => clearInterval(timer);
+  }, [closed]);
   if (closed || !firstOpenWanted({ path: location.pathname })) return null;
   return <Suspense fallback={null}><FirstOpenSetup onClose={() => setClosed(true)} /></Suspense>;
 }
