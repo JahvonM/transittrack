@@ -102,7 +102,7 @@ test("a monitor on this computer: add, open on the TV, full screen, refresh, clo
   expect(await page.evaluate(() => window.__bridgeCalls)).toContainEqual(["open", "disp-1", "2", true]);
   await page.getByRole("button", { name: "Leave full screen" }).click();
   await expect(page.getByText("Open in a window")).toBeVisible();
-  await page.getByRole("button", { name: "Refresh" }).click();
+  await page.getByRole("button", { name: "Refresh", exact: true }).click();
   await page.getByRole("button", { name: "Close", exact: true }).click();
   await expect(page.getByText("Not open")).toBeVisible();
   const calls = await page.evaluate(() => window.__bridgeCalls.map((c) => c[0]));
