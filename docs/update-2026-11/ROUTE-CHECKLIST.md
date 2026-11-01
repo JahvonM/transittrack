@@ -6,7 +6,7 @@ against the realistic fixture in `e2e/helpers/fleetFixture.js`. **Pass** means: 
 error, and the page stayed put (or redirected where it should). Console noise from the blocked map service
 (Mapbox 404 in tests) is expected and is not an app error.
 
-**Result: 141 addresses, 141 pass, 0 crash/uncaught error.** Unknown addresses show the not-found page with a way back (separate test).
+**Result: 142 addresses, 142 pass, 0 crash/uncaught error.** Unknown addresses show the not-found page with a way back (separate test).
 
 ## Signed out (19)
 
@@ -32,7 +32,7 @@ error, and the page stayed put (or redirected where it should). Console noise fr
 | `/terms` | same page | Pass |
 | `/track` | same page | Pass |
 
-## Admin (70)
+## Admin (71)
 
 | Address | Ends at | Result |
 |---|---|---|
@@ -51,6 +51,7 @@ error, and the page stayed put (or redirected where it should). Console noise fr
 | `/admin/drivers` | same page | Pass |
 | `/admin/driving-reports` | same page | Pass |
 | `/admin/faults` | same page | Pass |
+| `/admin/fleet-workspace` | same page | Pass |
 | `/admin/fleet` | same page | Pass |
 | `/admin/fleet-analytics` | same page | Pass |
 | `/admin/health` | same page | Pass |
@@ -198,6 +199,7 @@ error, and the page stayed put (or redirected where it should). Console noise fr
 | Boarding tablet staff area | Bus PIN → Diagnostics (reader, last read, camera, sound test, card list, waiting taps, connection, kiosk protection, copy for support), Screen → Full screen; no Full screen on the passenger screen | `operations-changes`, `kioskProtection.test` |
 | Reader setting (admin) | Kiosk tablets → Reassign → What this reader records / needs an open shift, saved with the device | `reader-settings` |
 | Kiosk protection (admin) | Each paired tablet shows its protection state in words from its own report (active / limited / setup required / not reported / failed with the reason) | `reader-settings`, `kioskProtectionReport.test` |
+| Fleet workspace (admin) | Tiles (live buses, on board where reliable, faults, requests), alerts that link to where to act, map, a line per bus (location state, shift, on board, faults, last check, tablet protection), camera trial off by default and offering driver tablet cameras only, up to 4 | `fleet-workspace`, `fleetWorkspace.test` |
 | Driver tablet/phone | Pairing, shift start/end, walk-around, messages, stops | `driver-*`, `tablet-*` |
 | Driver passengers | Ride state per passenger in words (on board since, got off at, didn't show), boarding note, counts; no-show with confirm and undo; got on / off without a tap; refused marks explained; marks blocked while moving | `driver-manifest`, `driverManifest.test` |
 | Admin | Fast open, load recovery, notifications, app errors, users, company workspace | `admin-*`, `notifications`, `app-errors`, `company-workspace` |

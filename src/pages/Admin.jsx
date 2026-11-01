@@ -81,6 +81,7 @@ import CardIssuingTab from "@/components/admin/CardIssuingTab";
 import CardDesignerTab from "@/components/admin/CardDesignerTab";
 import FleetHealthTab from "@/components/admin/FleetHealthTab";
 import LostItemsTab from "@/components/admin/LostItemsTab";
+import FleetWorkspace from "@/components/admin/FleetWorkspace";
 import TravelTimesTab from "@/components/admin/TravelTimesTab";
 import { loadScreen, saveScreen } from "@/lib/savedScreen";
 import "@/components/admin/adminApple.css";
@@ -510,6 +511,7 @@ export default function Admin() {
             inspectionResults={inspectionResults}
           />
         )}
+        {section === "fleet-workspace" && <FleetWorkspace vehicles={vehicles} kiosks={kiosks} checkIns={data.checkIns || []} faults={faultsOpen} inspections={inspectionResults} />}
         {section === "health" && <FleetHealthTab vehicles={vehicles} />}
         {section === "kiosks" && <KioskTablets vehicles={vehicles} companies={companies} onChange={refresh} />}
         {section === "checkins" && <CheckInLog vehicles={vehicles} onChange={refresh} />}

@@ -8,7 +8,7 @@ import { mockFleet } from "./helpers/fleetFixture.js";
 // Console errors are written to a report for the audit, not failed on: some
 // are expected (a map without a key, a request the test answers with 404).
 
-const ADMIN_SECTIONS = ["overview", "trips", "fleet", "vehicles", "drivers", "health", "kiosks", "shifts", "cards", "card-designs", "vehicle-logs", "driving-reports", "route-analytics", "fleet-analytics", "route-planner", "route-explorer", "plan-pickups", "travel-times", "service", "faults", "parts", "schedule", "calendar", "templates", "inspection-history", "service-history", "incident-reports", "safety-standards", "directory", "checkins", "billing", "messaging", "lost-items", "ads", "ride-history", "passenger-bookings", "support", "users", "companies", "notifications", "app-errors", "audit", "data", "profile"];
+const ADMIN_SECTIONS = ["overview", "trips", "fleet-workspace", "fleet", "vehicles", "drivers", "health", "kiosks", "shifts", "cards", "card-designs", "vehicle-logs", "driving-reports", "route-analytics", "fleet-analytics", "route-planner", "route-explorer", "plan-pickups", "travel-times", "service", "faults", "parts", "schedule", "calendar", "templates", "inspection-history", "service-history", "incident-reports", "safety-standards", "directory", "checkins", "billing", "messaging", "lost-items", "ads", "ride-history", "passenger-bookings", "support", "users", "companies", "notifications", "app-errors", "audit", "data", "profile"];
 const MOVED_TO_ADMIN = ["route-analytics", "fleet-analytics", "vehicle-logs", "driving-reports", "route-planner", "ride-history", "incident-reports", "support", "location-timeline"];
 
 // [path, where it should end up (RegExp) or null to stay]

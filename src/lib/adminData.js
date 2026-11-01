@@ -55,6 +55,7 @@ export const SECTION_DATA = {
   overview: ["routes", "companies", "parts", "faultsOpen", "schedulesDue", "trips", "kiosks", "checkIns"],
   trips: ["routes", "trips", "completedTrips", "places", "clients"],
   fleet: ["routes"],
+  "fleet-workspace": ["kiosks", "checkIns", "faultsOpen", "inspectionResults"],
   vehicles: ["companies", "routes", "faultsOpen", "schedulesDue", "inspectionResults"],
   health: [],
   kiosks: ["companies"],
