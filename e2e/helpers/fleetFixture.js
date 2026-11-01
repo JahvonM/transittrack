@@ -110,7 +110,8 @@ function functionReply(name, body, data, role) {
 // asked for and anything that reached an address not answered here.
 export async function mockFleet(page, { role = "admin", data = fleetData(), signedIn = true } = {}) {
   const calls = [];
-  const me = ME[role];
+  // A copy, so a profile change saved in one test never reaches another.
+  const me = ME[role] ? structuredClone(ME[role]) : ME[role];
   await page.addInitScript(({ signedIn, role }) => {
     if (signedIn) localStorage.setItem("base44_access_token", "mock-authenticated-session");
     localStorage.setItem("tt-map-engine", "basic");
@@ -131,6 +132,9 @@ export async function mockFleet(page, { role = "admin", data = fleetData(), sign
       const rows = data.tables[body?.entity] || [];
       let result = rows;
       if (body?.entity === "User" && body.operation === "get") result = me;
+      // Saving your own profile (Skip today, Running late) is kept, as on the
+      // real server, so the next profile read returns it.
+      else if (body?.entity === "User" && body.operation === "update" && me && body.id === me.id) result = Object.assign(me, body.data || {});
       else if (body?.entity === "User") result = role === "admin" ? data.tables.User : [me];
       else if (body?.entity === "Bootstrap") result = { workplace: data.tables.Workplace[0], vehicles: data.vehicles, routes: data.routes, trips: data.trips.filter((t) => !t.job_type) };
       else if (body?.entity === "LiveLists") result = { lists: Object.fromEntries((body.entities || []).map((e) => [e, data.tables[e] || []])), errors: {} };
