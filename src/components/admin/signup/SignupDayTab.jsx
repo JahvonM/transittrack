@@ -109,6 +109,7 @@ export default function SignupDayTab() {
   const people = state?.people || [];
   const counts = useMemo(() => progress(people), [people]);
   const shown = useMemo(() => visiblePeople(people, view, query), [people, view, query]);
+  const viewCount = (v) => visiblePeople(people, v).length;
   const open = people.find((p) => p.ref === openRef) || null;
   const hotel = state?.company || hotels?.find((h) => h.id === hotelId) || null;
 
@@ -182,7 +183,8 @@ export default function SignupDayTab() {
             <section className="rounded-2xl border border-border bg-card p-2 sm:p-3" aria-label="Staff">
               <div className="flex flex-wrap items-center gap-2 p-1 pb-3">
                 <Segmented label="Show" value={view} onChange={setView} options={[
-                  { value: "todo", label: "To do" }, { value: "mine", label: "Mine" }, { value: "ready", label: "All set" }, { value: "all", label: "Everyone" },
+                  { value: "todo", label: "To do", count: viewCount("todo") }, { value: "mine", label: "Mine", count: viewCount("mine") },
+                  { value: "ready", label: "All set", count: viewCount("ready") }, { value: "all", label: "Everyone", count: people.length },
                 ]} />
                 <div className="relative min-w-[180px] flex-1">
                   <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
