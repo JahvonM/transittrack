@@ -91,21 +91,31 @@ export function FleetLayout({ feed, dark, now }) {
   );
 }
 
-function JobRow({ job, now, late }) {
+// "3:28 PM" as a big "3:28" and a small "PM", like a departures board.
+function BoardTime({ iso }) {
+  const [time, suffix] = clock(iso).split(/\s+/);
+  return (
+    <p className="whitespace-nowrap font-display font-bold leading-none tabular-nums">
+      <span className="text-[1.9rem]">{time}</span>{suffix && <span className="ml-1 text-[0.95rem] text-muted-foreground">{suffix}</span>}
+    </p>
+  );
+}
+
+function JobRow({ job, now, late, showStatus = true }) {
   const status = JOB_STATUS[job.status] || JOB_STATUS.scheduled;
   const names = [job.guest_name, job.client_name].filter(Boolean).join(" · ");
   return (
-    <div className={cn("grid grid-cols-[5.6rem_minmax(0,1fr)] items-start gap-3 rounded-xl border px-3 py-2", late ? "border-warning/40 bg-warning/5" : "border-border bg-background/40")}>
-      <p className="font-display text-[1.9rem] font-bold leading-none tabular-nums">{clock(job.scheduled_time)}</p>
+    <div className={cn("grid grid-cols-[6.4rem_minmax(0,1fr)] items-start gap-3 rounded-xl border px-3 py-2", late ? "border-warning/40 bg-warning/5" : "border-border bg-background/40")}>
+      <BoardTime iso={job.scheduled_time} />
       <div className="min-w-0">
         <div className="flex items-center justify-between gap-2">
           <p className="truncate text-[1.1rem] font-semibold">{job.kind}{job.route_name ? ` · ${job.route_name}` : ""}</p>
-          {late ? <Chip tone="warning" icon={Clock}>{formatAge(now - Date.parse(job.scheduled_time)).replace(" ago", "")} past</Chip> : <Chip tone={status.tone}>{status.label}</Chip>}
+          {late ? <Chip tone="warning" icon={Clock} className="shrink-0">{formatAge(now - Date.parse(job.scheduled_time)).replace(" ago", "")} past</Chip> : showStatus ? <Chip tone={status.tone} className="shrink-0">{status.label}</Chip> : null}
         </div>
-        <p className="flex min-w-0 items-center gap-1 truncate text-[1rem]">
-          <span className="truncate">{job.pickup_name || "Pickup not set"}</span>
-          <ArrowRight className="h-[1em] w-[1em] shrink-0 text-muted-foreground" aria-hidden="true" />
-          <span className="truncate">{job.dropoff_name || "Drop-off not set"}</span>
+        <p className="line-clamp-2 text-[1rem] leading-snug">
+          {job.pickup_name || "Pickup not set"}
+          <ArrowRight className="mx-1 inline h-[1em] w-[1em] text-muted-foreground" aria-label="to" />
+          {job.dropoff_name || "Drop-off not set"}
         </p>
         <p className="flex flex-wrap gap-x-3 truncate text-[0.95rem] text-muted-foreground">
           <span className={job.vehicle_name ? "" : "font-semibold text-warning"}>{job.vehicle_name || "No bus assigned"}</span>
@@ -134,7 +144,7 @@ export function DispatchLayout({ feed, now }) {
           {jobsDown ? <Unavailable what="jobs" /> : <FitList items={cols.underWay} render={(j) => <JobRow job={j} now={now} />} empty="No jobs under way." />}
         </Panel>
         <Panel title="Next up" count={cols.next.length}>
-          {jobsDown ? <Unavailable what="jobs" /> : <FitList items={cols.next} render={(j) => <JobRow job={j} now={now} />} empty="No more jobs today." />}
+          {jobsDown ? <Unavailable what="jobs" /> : <FitList items={cols.next} render={(j) => <JobRow job={j} now={now} showStatus={false} />} empty="No more jobs today." />}
         </Panel>
       </div>
       <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-4">
