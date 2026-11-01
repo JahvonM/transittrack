@@ -147,7 +147,11 @@ function createDisplayManager({ BrowserWindow, screen, fs, path, userData, appOr
       const preferred = all.find((d) => String(d.id) === String(want));
       if (preferred && (!onScreen || onScreen.id !== preferred.id)) place(o.win, id, preferred.id, o.win.isFullScreen() || saved[id]?.fullscreen !== false);
       else if (!onScreen) place(o.win, id, null, o.win.isFullScreen());
-      else if (o.win.isFullScreen()) { o.win.setFullScreen(false); o.win.setFullScreen(true); }
+      else if (o.win.isFullScreen()) {
+        // Resolution changed: fill the screen at its new size.
+        const b = o.win.getBounds();
+        if (b.width !== onScreen.bounds.width || b.height !== onScreen.bounds.height) { o.autoAt = Date.now(); o.win.setFullScreen(false); o.win.setFullScreen(true); }
+      }
     }
     changed();
   }
