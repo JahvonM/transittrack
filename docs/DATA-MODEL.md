@@ -737,6 +737,7 @@ Table `kiosk_device` · belongs to a company through `vehicle_id`, then `driver_
 | `update_requested_at` | timestamptz | When an admin pressed Send update; the tablet reloads to the newest version the next time it is idle. |
 | `directory_sent_at` | timestamptz | When an admin last sent the staff card list to this tablet; the tablet re-downloads it on its next check-in. |
 | `reader_mode` | text | What a boarding tablet records: 'both' asks the rider each time; 'boarding' or 'exit' records that direction only (one reader per door). One of: `both`, `boarding`, `exit`. Default `"both"`. |
+| `nfc_spot` | text | Where passengers tap their card on this boarding device, for the hint on screen. 'auto' follows the layout. One of: `auto`, `above_screen`, `back_top`, `back_middle`, `external`. Default `"auto"`. |
 | `require_active_trip` | boolean | Refuse taps unless a driver's shift is open on the bus. Off: taps are recorded and marked 'no active trip'. Default `false`. |
 | `app_health` | jsonb | Reported by the TransitTrack app on the tablet every heartbeat: build, online, uploads waiting (GPS points, check-ins, other saved work), last GPS fix, the latitude/longitude the tablet's GPS is getting, card reader in use, saved staff list. |
 | `helper_health` | jsonb | Reported by the TransitTrack Helper Android app on the tablet (via the kiosk/driver page heartbeat): helper version, battery %, charging, parked, card reader state, last card time, USB GPS state, Wi-Fi hotspot state, and when it was reported. |
@@ -756,7 +757,7 @@ Table `kiosk_device` · belongs to a company through `vehicle_id`, then `driver_
 | `network_status` | jsonb | Latest admin network command delivery and native completion status; no passwords. Set by the server only. |
 | `control_command` | jsonb | Private admin command; native executor verifies over fixed HTTPS endpoint. Never exposed through entity gateway. Not sent to the browser. |
 | `control_status` | jsonb | Safe command progress. Requested is not proof that reboot completed. Set by the server only. |
-| `display_layout` | text | One of: `auto`, `tablet`, `phone`. Default `"auto"`. |
+| `display_layout` | text | Boarding screen layout. 'auto' picks from the device: a validator model (card reader above the screen), else phone or tablet by screen size. One of: `auto`, `tablet`, `phone`, `validator`. Default `"auto"`. |
 | `pickup_sign` | jsonb | Not sent to the browser. |
 | `recordings_request` | jsonb | Not sent to the browser. Set by the server only. |
 | `native_tracking_health` | jsonb | Server-timestamped native background GPS telemetry; never an authorization source. |

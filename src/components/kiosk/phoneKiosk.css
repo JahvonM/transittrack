@@ -30,3 +30,12 @@
 .tt-kiosk-phone .tt-board-rail .tt-board-panel{background:hsl(var(--card));border:1px solid hsl(var(--border));border-radius:20px}
 .tt-kiosk-phone .tt-board-action>[data-mode]{background:hsl(var(--card));box-shadow:none;border:1px solid hsl(var(--border))}
 @media(max-height:700px){.tt-kiosk-phone .tt-board-scene{min-height:190px}.tt-kiosk-phone .tt-phone-kiosk-nav button{min-height:52px}.tt-kiosk-phone .tt-board-layout{padding-bottom:8px}}
+/* Where to tap the card (phone and validator layouts). */
+.tt-board-tap-detail{display:block;margin-top:4px;font-size:12px;color:hsl(var(--muted-foreground))}
+/* Validator: the card reader is above the screen, so the screen points up to it. */
+.tt-kiosk-validator .tt-validator-tap{order:-1;display:flex;align-items:center;justify-content:center;gap:8px;margin:0;padding:10px 16px;background:hsl(var(--primary));color:hsl(var(--primary-foreground));font-size:16px;font-weight:700;letter-spacing:.2px}
+.tt-kiosk-validator .tt-validator-tap svg{width:22px;height:22px;animation:tt-tap-up 1.6s ease-in-out infinite}
+@keyframes tt-tap-up{0%,100%{transform:translateY(2px)}50%{transform:translateY(-3px)}}
+@media (prefers-reduced-motion:reduce){.tt-kiosk-validator .tt-validator-tap svg{animation:none}}
+.tt-kiosk-validator .tt-board-nfc{display:none}
+.tt-kiosk-validator .tt-board-bus{opacity:.6}

@@ -11,7 +11,8 @@ import { helperLink } from "@/lib/helperHealth";
 import { httpStatus, errorData } from "@/lib/requestError";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CreditCard, QrCode, SwitchCamera, X, ChevronLeft, CheckCircle2, LogIn, LogOut, AlertCircle, Delete, MapPin, CloudUpload, PartyPopper, Bus, Users, Loader2, History } from "lucide-react";
+import { CreditCard, QrCode, SwitchCamera, X, ChevronLeft, CheckCircle2, LogIn, LogOut, AlertCircle, Delete, MapPin, CloudUpload, PartyPopper, Bus, Users, Loader2, History, ArrowUp } from "lucide-react";
+import { nfcHint } from "@/lib/kioskLayout";
 import { useNfcTap, reportBadgeResult } from "@/hooks/useNfcTap";
 import { parseCodeQrPayload } from "@/lib/qr";
 import { haversineKm, etaMinutes, formatEta } from "@/lib/geo";
@@ -141,7 +142,14 @@ function PassengerListDialog({ open, onOpenChange, vehicleName }) {
 
 // The boarding home keeps NFC, QR and code entry beside live bus information.
 export default function BusBoardingKiosk({ invoke, device, directoryInfo, online, layout = "tablet" }) {
-  const phoneLayout = layout === "phone";
+  // A validator (card reader above a small screen) uses the phone screens,
+  // with a "tap above" banner.
+  const validatorLayout = layout === "validator";
+  const phoneLayout = layout === "phone" || validatorLayout;
+  // Where to tap: from the tablet's setting, else the layout. The tablet
+  // layout keeps its own wording unless a position is set.
+  const tapHint = nfcHint(layout, device?.nfc_spot);
+  const customHint = phoneLayout || (device?.nfc_spot && device.nfc_spot !== "auto");
   const [qrFacing,setQrFacing]=useState("environment");
   const [fullscreenError,setFullscreenError]=useState("");
   const fullScreen=async()=>{setFullscreenError("");try{if(!document.fullscreenElement)await document.documentElement.requestFullscreen();}catch{setFullscreenError("Open the installed kiosk app for full screen, or use Add to Home Screen.");}};
@@ -516,7 +524,7 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
   if ((!unlocked && mode === "idle") || mode === "qr") {
     actionContent = <section className={`tt-board-home${mode === "qr" ? " tt-board-camera-open" : ""}`} aria-label="Boarding home">
       <div className="tt-board-scene">
-        <div className="tt-board-welcome"><h1>Welcome aboard</h1><p>Tap your card to begin</p></div>
+        <div className="tt-board-welcome"><h1>Welcome aboard</h1><p>{customHint ? tapHint.title : "Tap your card to begin"}</p>{customHint && <small className="tt-board-tap-detail">{tapHint.detail}</small>}</div>
         <BusArtwork vehicle={vehicle} fallbackUrl="/images/boarding-coaster.webp" width={650} className="tt-board-bus" />
         <div className="tt-board-nfc"><div className="tt-board-nfc-ring"><CreditCard aria-hidden="true" /></div><strong>NFC CARD TAP</strong><small>{nfcListening ? "Ready to scan" : "Tap your NFC card"}</small></div>
         {nfcError && <p className="tt-board-reader-note">{nfcError}</p>}
@@ -650,7 +658,8 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
     </Screen>;
   }
 
-  return <div data-layout={layout} className={`tt-boarding-future tt-boarding-showcase${phoneLayout ? " tt-kiosk-phone" : ""}${phoneInfo ? " tt-kiosk-phone-info" : ""}`}>
+  return <div data-layout={layout} data-nfc-spot={tapHint.where} className={`tt-boarding-future tt-boarding-showcase${phoneLayout ? " tt-kiosk-phone" : ""}${validatorLayout ? " tt-kiosk-validator" : ""}${phoneInfo ? " tt-kiosk-phone-info" : ""}`}>
+    {validatorLayout && <p className="tt-validator-tap" role="note"><ArrowUp aria-hidden="true" />Tap card above</p>}
     <TopStatusBar device={device} vehicle={vehicle} route={route} now={now} online={online} holdProps={settingsHold} />
     <BoardingSettingsGate open={settingsOpen} onClose={() => setSettingsOpen(false)} deviceId={device?.device_id || device?.id} invoke={invoke} device={device} online={online} onFullScreen={phoneLayout ? fullScreen : null} />
     <PassengerListDialog open={listOpen} onOpenChange={setListOpen} vehicleName={device?.vehicle_name} />

@@ -1,3 +1,4 @@
+import { NFC_SPOTS, NFC_SPOT_LABEL } from "@/lib/kioskLayout";
 import { ChoiceSelect } from "@/components/ui/choice-picker";
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -34,6 +35,7 @@ export default function KioskDeviceDialog({ open, onOpenChange, companies, vehic
   const [displayLayout, setDisplayLayout] = useState("auto");
   // Boarding tablets: what the reader records, and whether taps need an open shift.
   const [readerMode, setReaderMode] = useState("both");
+  const [nfcSpot, setNfcSpot] = useState("auto");
   const [needsShift, setNeedsShift] = useState(false);
   const [driverId, setDriverId] = useState("");
   const [drivers, setDrivers] = useState([]);
@@ -44,6 +46,7 @@ export default function KioskDeviceDialog({ open, onOpenChange, companies, vehic
       setLabel(device?.label || "");
       setDisplayLayout(device?.display_layout || "auto");
       setReaderMode(device?.reader_mode || "both");
+      setNfcSpot(device?.nfc_spot || "auto");
       setNeedsShift(device?.require_active_trip === true);
       // Retired types (card registry, front-desk sign-in) switch to bus boarding when edited.
       setKioskType(device?.personal ? "driver_own" : !device && presetType ? presetType : device?.kiosk_type && !["badge_registry", "front_desk"].includes(device.kiosk_type) ? device.kiosk_type : "bus_boarding");
@@ -116,7 +119,7 @@ export default function KioskDeviceDialog({ open, onOpenChange, companies, vehic
           company_name: company?.name || "",
           vehicle_id: needsVehicle ? vehicleId : "",
           vehicle_name: needsVehicle ? vehicle?.name : "",
-          ...(kioskType === "bus_boarding" ? { reader_mode: readerMode, require_active_trip: needsShift } : {}),
+          ...(kioskType === "bus_boarding" ? { reader_mode: readerMode, require_active_trip: needsShift, nfc_spot: nfcSpot } : {}),
         });
         toast({ title: "Device updated" });
       } else {
@@ -128,7 +131,7 @@ export default function KioskDeviceDialog({ open, onOpenChange, companies, vehic
           company_name: company?.name || "",
           vehicle_id: needsVehicle ? vehicleId : "",
           vehicle_name: needsVehicle ? vehicle?.name : "",
-          ...(kioskType === "bus_boarding" ? { reader_mode: readerMode, require_active_trip: needsShift } : {}),
+          ...(kioskType === "bus_boarding" ? { reader_mode: readerMode, require_active_trip: needsShift, nfc_spot: nfcSpot } : {}),
         });
         toast({ title: "Device registered", description: `Pairing code: ${created.pairing_code}` });
       }
@@ -209,7 +212,7 @@ export default function KioskDeviceDialog({ open, onOpenChange, companies, vehic
           {kioskType !== "driver" && !own && <div className="space-y-2">
             <Label htmlFor="kiosk-layout">Screen layout</Label>
             <ChoiceSelect id="kiosk-layout" aria-label="Screen layout" value={displayLayout} onChange={e => setDisplayLayout(e.target.value)} className={selectClass}>
-              <option value="auto">Automatic / device choice</option><option value="tablet">Kiosk tablet</option><option value="phone">Kiosk phone</option>
+              <option value="auto">Automatic / device choice</option><option value="tablet">Kiosk tablet</option><option value="phone">Kiosk phone</option>{kioskType === "bus_boarding" && <option value="validator">Validator (card reader above the screen)</option>}
             </ChoiceSelect>
           </div>}
           {kioskType === "bus_boarding" && <div className="space-y-2">
@@ -220,6 +223,11 @@ export default function KioskDeviceDialog({ open, onOpenChange, companies, vehic
               <option value="exit">Getting off only (rear door)</option>
             </ChoiceSelect>
             <p className="text-caption text-muted-foreground">A one-way reader records straight away, with no question. A second tap within 30 minutes is shown as "Already recorded".</p>
+            <Label htmlFor="kiosk-nfc-spot">Where passengers tap their card</Label>
+            <ChoiceSelect id="kiosk-nfc-spot" aria-label="Where passengers tap their card" value={nfcSpot} onChange={e => setNfcSpot(e.target.value)} className={selectClass}>
+              {NFC_SPOTS.map((k) => <option key={k} value={k}>{NFC_SPOT_LABEL[k]}</option>)}
+            </ChoiceSelect>
+            <p className="text-caption text-muted-foreground">The boarding screen shows passengers where to hold their card. Automatic: above the screen on a validator (a T10 is recognised), the back of a phone, or the card reader beside a tablet.</p>
             <label className="flex items-start gap-2 text-body-sm">
               <input type="checkbox" className="mt-1 h-4 w-4" checked={needsShift} onChange={e => setNeedsShift(e.target.checked)} />
               <span>Only accept taps while a driver shift is open on this bus<span className="block text-caption text-muted-foreground">Without one, the tablet says "No trip is running on this bus yet" and asks the driver to start their shift. Taps saved offline are still kept.</span></span>

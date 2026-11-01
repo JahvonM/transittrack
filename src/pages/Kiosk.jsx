@@ -76,7 +76,10 @@ export default function Kiosk() {
   }, []);
   let savedLayout = "auto";
   try { savedLayout = localStorage.getItem(KIOSK_LAYOUT_KEY) || "auto"; } catch { /* auto */ }
-  const layout = boardingLayout(device?.display_layout,savedLayout,phoneWidth);
+  // A validator (card reader above the screen) is recognised from the model
+  // the kiosk app reports.
+  const deviceModel = typeof window !== "undefined" ? window.__ttNativeHealth?.model || "" : "";
+  const layout = boardingLayout(device?.display_layout,savedLayout,phoneWidth,deviceModel);
   const [pairing, setPairing] = useState(false);
   const heartbeatId = useRef(null);
   const heartbeatBusy = useRef(false);
