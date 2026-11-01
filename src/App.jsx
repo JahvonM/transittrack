@@ -20,7 +20,7 @@ import { FIRST_OPEN_KEY, firstOpenWanted } from '@/lib/appInstall';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import { useTheme } from "@/lib/useTheme";
-import { DesktopDisplayKeeper } from "@/lib/officeDisplayDesktop";
+import DesktopDisplayKeeper from "@/components/DesktopDisplayKeeper";
 import ScrollToTop from './components/ScrollToTop';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import MobileTabBar from '@/components/MobileTabBar';
