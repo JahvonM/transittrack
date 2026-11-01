@@ -107,7 +107,10 @@ export default async function (req: Request) {
     if (action === 'pair_poll') {
       if (!TOKEN.test(body.poll_secret || '')) return json({ error: 'This code has expired. Get a new one.', code: 'expired' }, 410);
       const pollHash = await sha256Hex('display-poll:' + body.poll_secret);
-      if (!(await reserveAttempt(base44, 'display-poll:' + pollHash, 200, PAIRING_TTL_MS))) return json({ error: 'Checking too often. Wait a moment.' }, 429);
+      const ip = await sha256Hex('display-poll-ip:' + clientAddress(req));
+      if (!(await reserveAttempt(base44, 'display-poll-ip:' + ip, 600, PAIRING_TTL_MS)) || !(await reserveAttempt(base44, 'display-poll:' + pollHash, 200, PAIRING_TTL_MS))) {
+        return json({ error: 'Checking too often. Wait a moment.' }, 429);
+      }
       const [p] = await db.OfficeDisplayPairing.filter({ poll_hash: pollHash }, '-created_date', 1);
       if (!p || p.used_at) return json({ error: 'This code has already been used or has expired. Get a new one.', code: 'expired' }, 410);
       if (!p.approved_display_id) {
@@ -334,6 +337,14 @@ export default async function (req: Request) {
       return json({ display: await view(created) });
     }
 
+    if (action === 'window_close_all') {
+      // Signing out of the desktop app: the display windows it opened lose
+      // access now rather than when their two hours run out.
+      const open = await db.OfficeDisplay.filter({ kind: 'window', credential_issued_by: admin.id }, 'name', MAX_DISPLAYS + 5);
+      for (const w of open) { await stopCameras(w, admin, 'signed out'); await clearCredential(w); }
+      if (open.length) await audit(admin, `Office display windows closed on sign-out (${open.length})`, open[0].id);
+      return json({ ok: true, closed: open.length });
+    }
     const d = await load(body.display_id);
     if (action === 'delete') {
       await stopCameras(d, admin, 'display deleted');
@@ -430,10 +441,6 @@ export default async function (req: Request) {
     if (action === 'camera_stop') {
       await stopCameras(d, admin, 'stopped from Office displays');
       return json({ display: await view({ ...d, camera_sessions: [] }) });
-    }
-    if (action === 'window_close_all') {
-      // Signing out of the desktop app: its display windows lose access.
-      return json({ ok: true });
     }
     return json({ error: 'Invalid request' }, 400);
   } catch (e: any) {
