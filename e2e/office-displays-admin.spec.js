@@ -94,7 +94,7 @@ test("a monitor on this computer: add, open on the TV, full screen, refresh, clo
   expect(saved).toMatchObject({ name: "Office TV", kind: "window", layout: "dispatch", company_ids: ["a"], vehicle_ids: [], show_guest_names: false });
   await expect(page.getByRole("heading", { name: "Office TV" })).toBeVisible();
   await expect(page.getByText("Not open")).toBeVisible();
-  await expect(page.getByLabel("Monitor")).toHaveValue("2"); // the TV, not the main screen
+  await expect(page.getByRole("combobox", { name: /^Monitor/ })).toHaveValue("2"); // the TV, not the main screen
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/admin-office-displays.png`, fullPage: true });
 
   await page.getByRole("button", { name: "Open", exact: true }).click();
