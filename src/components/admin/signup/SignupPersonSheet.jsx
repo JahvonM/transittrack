@@ -175,7 +175,7 @@ export default function SignupPersonSheet({ person, company, call, onChanged, on
           <Step n={3} icon={MapPin} title="Pickup spot" done={steps.pickup}
             status={steps.pickup ? person.pickup_name || "Pickup spot set." : "Not set yet."}>
             <Button variant={steps.pickup ? "outline" : "default"} onClick={() => setPickupOpen(true)}><MapPin className="h-4 w-4" aria-hidden="true" /> {steps.pickup ? "Change pickup spot" : "Set pickup spot"}</Button>
-            {!steps.pickup && <p className="text-body-sm text-muted-foreground">Or {first} sets it in the app: Home → Pickup spot.</p>}
+            {!steps.pickup && <p className="text-body-sm text-muted-foreground">Or {first} sets it in the app: More → My home pickup spot.</p>}
           </Step>
 
           <Step n={4} icon={Nfc} title="NFC card" done={steps.card}
