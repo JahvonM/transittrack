@@ -88,12 +88,24 @@ describe("firstOpenWanted", () => {
     expect(firstOpenWanted({ win: fakeWindow({ framed: true }), native: false })).toBe(false);
   });
   it("leaves the bus tablets, ride links and sign-in hand-offs alone", () => {
-    for (const path of ["/kiosk", "/tablet", "/driver", "/driver/stops", "/track", "/desktop-signin", "/phone-signin", "/oauth/consent", "/privacy", "/terms", "/site/book", "/reviewer-sandbox"]) {
+    for (const path of ["/kiosk", "/tablet", "/driver", "/driver/stops", "/track", "/desktop-signin", "/phone-signin", "/oauth/consent", "/privacy", "/terms", "/site/book", "/reviewer-sandbox", "/join"]) {
       expect(firstOpenWanted({ win: fakeWindow({ path }), native: false }), path).toBe(false);
     }
-    for (const path of ["/", "/login", "/register", "/staff", "/driver-phone", "/admin", "/join"]) {
+    for (const path of ["/", "/login", "/register", "/staff", "/driver-phone", "/admin"]) {
       expect(firstOpenWanted({ win: fakeWindow({ path }), native: false }), path).toBe(true);
     }
+  });
+  it("waits until someone who scanned a hotel's QR has joined", () => {
+    expect(firstOpenWanted({ win: fakeWindow({ path: "/join" }), native: false })).toBe(false);
+    const scanned = fakeWindow({ path: "/login" });
+    scanned.location.hash = "#code=ABCD2345EFGH";
+    expect(firstOpenWanted({ win: scanned, native: false })).toBe(false);
+    const signingUp = fakeWindow({ path: "/register" });
+    signingUp.sessionStorage = memoryStorage({ tt_pending_company_code: "ABCD2345EFGH" });
+    expect(firstOpenWanted({ win: signingUp, native: false })).toBe(false);
+    // Joined: the code has been used, so now it's time to get the app.
+    signingUp.sessionStorage = memoryStorage();
+    expect(firstOpenWanted({ win: signingUp, path: "/staff", native: false })).toBe(true);
   });
   it("doesn't show where it couldn't remember being closed", () => {
     const blocked = { getItem: () => { throw new Error("blocked"); }, setItem: () => { throw new Error("blocked"); } };

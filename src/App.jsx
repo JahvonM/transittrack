@@ -16,7 +16,7 @@ import { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { homeFor } from '@/lib/roleHome';
 import RoleGate from '@/components/RoleGate';
 import { isSiteHost } from '@/lib/bookingSite';
-import { firstOpenWanted } from '@/lib/appInstall';
+import { FIRST_OPEN_KEY, firstOpenWanted } from '@/lib/appInstall';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import { useTheme } from "@/lib/useTheme";
@@ -66,6 +66,16 @@ const FirstOpenSetup = lazy(() => import('@/components/FirstOpenSetup'));
 function FirstOpenGate() {
   const location = useLocation();
   const [closed, setClosed] = useState(false);
+  // Look again now and then: someone joining a hotel gets it once they've
+  // joined, without having to move to another screen first.
+  const [, recheck] = useState(0);
+  useEffect(() => {
+    let done = closed;
+    try { done = done || !!localStorage.getItem(FIRST_OPEN_KEY); } catch { done = true; }
+    if (done) return undefined;
+    const timer = setInterval(() => recheck((n) => n + 1), 3000);
+    return () => clearInterval(timer);
+  }, [closed]);
   if (closed || !firstOpenWanted({ path: location.pathname })) return null;
   return <Suspense fallback={null}><FirstOpenSetup onClose={() => setClosed(true)} /></Suspense>;
 }

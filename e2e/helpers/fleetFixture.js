@@ -91,7 +91,10 @@ function functionReply(name, body, data, role) {
     case "routeStops": return { stop: null, stops: [] };
     case "myNotifications": return { items: [], notifications: [] };
     case "notificationSettings": return { types: [], settings: [], people: [] };
-    case "nfcCards": return { people: [{ key: "user:u-pass", source: "user", id: "u-pass", name: "Rita Rider", company_id: "a", company_name: data.company.name, vehicle_id: "bus-a", assigned_vehicle: "Bus 1", registered: true, status: "Active" }], cards: data.cards || [], vehicles: data.vehicles.map((v) => ({ id: v.id, name: v.name, company_id: "a" })), tablets: data.kiosks.map((k) => ({ id: k.id, label: k.label, vehicle_id: k.vehicle_id, paired: true, active: true, last_seen: k.last_seen, directory_sent_at: k.directory_sent_at || null })) };
+    case "nfcCards": if (body?.action === "signup_state") return { company: { id: "a", name: data.company.name, join_code: data.company.access_code }, me: "Admin", people: [
+      { key: "user:u-pass", ref: "email:rita@test.local", name: "Rita Rider", email: "rita@test.local", registered: true, app: "alerts", pickup: true, pickup_name: "True Blue", card: "", helper: null },
+    ] };
+    return { people: [{ key: "user:u-pass", source: "user", id: "u-pass", name: "Rita Rider", company_id: "a", company_name: data.company.name, vehicle_id: "bus-a", assigned_vehicle: "Bus 1", registered: true, status: "Active" }], cards: data.cards || [], vehicles: data.vehicles.map((v) => ({ id: v.id, name: v.name, company_id: "a" })), tablets: data.kiosks.map((k) => ({ id: k.id, label: k.label, vehicle_id: k.vehicle_id, paired: true, active: true, last_seen: k.last_seen, directory_sent_at: k.directory_sent_at || null })) };
     case "accessRoles": return { roles: [], assignments: [] };
     case "companyWorkspace": return { vehicles: [], routes: [], drivers: [], workplaces: [], contacts: [], devices: [], people: [] };
     case "bookingRequest": return body?.action === "company_requests" ? { requests: [] } : { ok: true };

@@ -1,0 +1,62 @@
+{
+  "name": "SignupHelp",
+  "type": "object",
+  "description": "Sign-up day at a hotel: which helper is with which staff member, and whether they have the app. Server-only; read and written through nfcCards.",
+  "required": [
+    "company_id",
+    "person_ref"
+  ],
+  "properties": {
+    "company_id": {
+      "type": "string"
+    },
+    "person_ref": {
+      "type": "string",
+      "description": "email:<address>, or the directory key (contact:<id> / user:<id>) for someone with no email."
+    },
+    "person_name": {
+      "type": "string"
+    },
+    "helper_id": {
+      "type": "string",
+      "description": "The signed-in admin or hotel manager helping them now; empty when nobody is."
+    },
+    "helper_name": {
+      "type": "string"
+    },
+    "claimed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "has_app_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When a helper ticked that the app is on their phone."
+    },
+    "has_app_by": {
+      "type": "string"
+    }
+  },
+  "rls": {
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

@@ -105,6 +105,7 @@ Changing records through entityAccess:
 | [Route](#route) | `route` | entityAccess | — | own company | own company | — | all |
 | [RouteTravelTimes](#routetraveltimes) | `route_travel_times` | entityAccess | — | own company | own company | — | all |
 | [SignupAlert](#signupalert) | `signup_alert` | server only | — | — | — | — | through other functions |
+| [SignupHelp](#signuphelp) | `signup_help` | server only | — | — | — | — | through other functions |
 | [StaffCheckIn](#staffcheckin) | `staff_check_in` | entityAccess | — | — | own company | — | all |
 | [TabletRecordingSession](#tabletrecordingsession) | `tablet_recording_session` | server only | — | — | — | — | through other functions |
 | [TabletSupportSession](#tabletsupportsession) | `tablet_support_session` | server only | — | — | — | — | through other functions |
@@ -290,7 +291,7 @@ Table `client_error` · read and changed through entityAccess.
 
 Table `company` · read and changed through entityAccess.
 
-**Linked from:** [Advertisement](#advertisement).company_id, [BookingRequest](#bookingrequest).company_id, [Broadcast](#broadcast).company_id, [CardHolder](#cardholder).company_id, [Client](#client).company_id, [CompanyAccessGrant](#companyaccessgrant).company_id, [CompanyMembership](#companymembership).company_id, [Contact](#contact).company_id, [DeviceCredential](#devicecredential).company_id, [Driver](#driver).company_id, [DriverDocument](#driverdocument).company_id, [DriverPinCredential](#driverpincredential).company_id, [DriverRequest](#driverrequest).company_id, [DriverShift](#drivershift).company_id, [DrivingEvent](#drivingevent).company_id, [Fault](#fault).company_id, [GroupMessage](#groupmessage).company_id, [Incident](#incident).company_id, [Inspection](#inspection).company_id, [InspectionResult](#inspectionresult).company_id, [InspectionTemplate](#inspectiontemplate).company_id, [Invoice](#invoice).company_id, [KioskDevice](#kioskdevice).company_id, [LocationPing](#locationping).company_id, [LostItemReport](#lostitemreport).company_id, [MaintenanceSchedule](#maintenanceschedule).company_id, [NfcCard](#nfccard).company_id, [NotificationLog](#notificationlog).company_id, [Part](#part).company_id, [PassengerAccessCredential](#passengeraccesscredential).company_id, [PassengerCase](#passengercase).company_id, [PassengerOneTimeCredential](#passengeronetimecredential).company_id, [PhoneUnlock](#phoneunlock).company_id, [Place](#place).company_id, [PushToken](#pushtoken).company_id, [RideException](#rideexception).company_id, [Route](#route).company_id, [RouteTravelTimes](#routetraveltimes).company_id, [StaffCheckIn](#staffcheckin).company_id, [TabletRecordingSession](#tabletrecordingsession).company_id, [TabletSupportSession](#tabletsupportsession).company_id, [Trip](#trip).company_id, [User](#user).company_id, [Vehicle](#vehicle).company_id, [VerificationGrant](#verificationgrant).company_id, [Workplace](#workplace).company_id.
+**Linked from:** [Advertisement](#advertisement).company_id, [BookingRequest](#bookingrequest).company_id, [Broadcast](#broadcast).company_id, [CardHolder](#cardholder).company_id, [Client](#client).company_id, [CompanyAccessGrant](#companyaccessgrant).company_id, [CompanyMembership](#companymembership).company_id, [Contact](#contact).company_id, [DeviceCredential](#devicecredential).company_id, [Driver](#driver).company_id, [DriverDocument](#driverdocument).company_id, [DriverPinCredential](#driverpincredential).company_id, [DriverRequest](#driverrequest).company_id, [DriverShift](#drivershift).company_id, [DrivingEvent](#drivingevent).company_id, [Fault](#fault).company_id, [GroupMessage](#groupmessage).company_id, [Incident](#incident).company_id, [Inspection](#inspection).company_id, [InspectionResult](#inspectionresult).company_id, [InspectionTemplate](#inspectiontemplate).company_id, [Invoice](#invoice).company_id, [KioskDevice](#kioskdevice).company_id, [LocationPing](#locationping).company_id, [LostItemReport](#lostitemreport).company_id, [MaintenanceSchedule](#maintenanceschedule).company_id, [NfcCard](#nfccard).company_id, [NotificationLog](#notificationlog).company_id, [Part](#part).company_id, [PassengerAccessCredential](#passengeraccesscredential).company_id, [PassengerCase](#passengercase).company_id, [PassengerOneTimeCredential](#passengeronetimecredential).company_id, [PhoneUnlock](#phoneunlock).company_id, [Place](#place).company_id, [PushToken](#pushtoken).company_id, [RideException](#rideexception).company_id, [Route](#route).company_id, [RouteTravelTimes](#routetraveltimes).company_id, [SignupHelp](#signuphelp).company_id, [StaffCheckIn](#staffcheckin).company_id, [TabletRecordingSession](#tabletrecordingsession).company_id, [TabletSupportSession](#tabletsupportsession).company_id, [Trip](#trip).company_id, [User](#user).company_id, [Vehicle](#vehicle).company_id, [VerificationGrant](#verificationgrant).company_id, [Workplace](#workplace).company_id.
 
 **Everyone except admins and company managers gets only:** `name`, `phone`, `logo_url`, `service_types`, `description`.
 
@@ -1126,6 +1127,25 @@ Server-only delivery ledger for new-account admin alerts.
 | `completed` | boolean |  |
 | `delivered_emails` | jsonb (list) |  |
 | `notified_at` | timestamptz |  |
+
+### SignupHelp
+
+Table `signup_help` · server functions only.
+
+Sign-up day at a hotel: which helper is with which staff member, and whether they have the app. Server-only; read and written through nfcCards.
+
+**Links to:** [Company](#company) (`company_id`).
+
+| Field | Type | Notes |
+|---|---|---|
+| `company_id` | text | → Company. Required. |
+| `person_ref` | text | email:<address>, or the directory key (contact:<id> / user:<id>) for someone with no email. Required. |
+| `person_name` | text |  |
+| `helper_id` | text | The signed-in admin or hotel manager helping them now; empty when nobody is. |
+| `helper_name` | text |  |
+| `claimed_at` | timestamptz |  |
+| `has_app_at` | timestamptz | When a helper ticked that the app is on their phone. |
+| `has_app_by` | text |  |
 
 ### StaffCheckIn
 
