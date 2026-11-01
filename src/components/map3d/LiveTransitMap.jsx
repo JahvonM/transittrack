@@ -143,14 +143,18 @@ function FullMap({
   topCard = null, // full screen: where you're going, across the top
   overlay = null, // desktop-only panel over the inline map (e.g. other buses)
   defaultSatellite = false,
-  variant = "preview", // "preview" (on a scrolling page) | "page" (fills a screen)
+  variant = "preview", // "preview" (on a scrolling page) | "page" (fills a screen) | "wall" (office display: read-only, no controls)
+  dark = null, // an office display's own Light/Dark, instead of the app's
+  wallLabel = null, // office display: (vehicle) => { text, stale } shown beside each bus
   label = "Live map",
   focusKey = 0, // changes when a bus is picked outside the map, to fly to it
   className,
   style,
   onEngineFail,
 }) {
-  const isDark = useIsDark();
+  const appDark = useIsDark();
+  const isDark = typeof dark === "boolean" ? dark : appDark;
+  const wall = variant === "wall";
   const accent = mapAccentFor(isDark);
   const reduceMotion = usePrefersReducedMotion();
   const online = useOnline();
@@ -242,6 +246,8 @@ function FullMap({
         attributionControl: false,
         // Let passengers drag the map with one finger, including inline previews.
         cooperativeGestures: false,
+        // An office display is looked at, not touched.
+        interactive: variant !== "wall",
         antialias: true,
         config: { basemap: { lightPreset: isDark ? "night" : "day", showPointOfInterestLabels: false, showTransitLabels: false } },
       });
@@ -375,11 +381,39 @@ function FullMap({
       img.style.cssText = "width:100%;height:100%;object-fit:contain";
       img.onerror = () => { img.onerror = null; img.src = "/images/transit-bus-3d.webp"; };
       button.appendChild(img);
-      button.onclick = event => { event.stopPropagation(); setSelectedId(v.id); };
+      if (wall) { button.tabIndex = -1; button.style.pointerEvents = "none"; }
+      else button.onclick = event => { event.stopPropagation(); setSelectedId(v.id); };
       return new mapboxgl.Marker({element:button,anchor:"center"}).setLngLat([v.current_lng,v.current_lat]).addTo(map);
     });
     return () => markers.forEach(marker => marker.remove());
   }, [located, styleTick]);
+
+  // Office display: each bus's name beside it (dimmed when its position is
+  // only the last known one), and the view refitted now and then so every
+  // bus stays in frame without anyone touching the screen.
+  const wallKey = wall ? located.map((v) => `${v.id}:${v.current_lat?.toFixed(3)},${v.current_lng?.toFixed(3)}:${wallLabel ? wallLabel(v).text + wallLabel(v).stale : ""}`).join("|") : "";
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!wall || !map || !wallLabel) return undefined;
+    const markers = located.map((v) => {
+      const { text, stale } = wallLabel(v);
+      const el = document.createElement("div");
+      el.className = `tt-wall-label${stale ? " tt-wall-label--stale" : ""}`;
+      el.textContent = text;
+      el.setAttribute("aria-hidden", "true");
+      return new mapboxgl.Marker({ element: el, anchor: "bottom", offset: [0, -34] }).setLngLat([v.current_lng, v.current_lat]).addTo(map);
+    });
+    return () => markers.forEach((m) => m.remove());
+     
+  }, [wallKey, styleTick, loaded]);
+  const lastWallFit = useRef(0);
+  useEffect(() => {
+    if (!wall || !loaded || !fittedRef.current) return;
+    if (Date.now() - lastWallFit.current < 60_000) return;
+    lastWallFit.current = Date.now();
+    frame(false);
+     
+  }, [wallKey, loaded]);
 
   // Road-following route through the stops; a straight dashed line until then.
   const stopsKey = (drawn ? "road:" + drawn.length + ":" + drawn[0].join(",") + ":" + drawn[drawn.length - 1].join(",") + "|" : "") + orderedStops.map((s) => `${s.lng},${s.lat}`).join(";");
@@ -573,7 +607,13 @@ function FullMap({
   const roomy = fullscreen || variant === "page";
   const freshState = focusFresh?.state === "unknown" ? null : focusFresh?.state;
 
-  const overlays = (
+  const overlays = wall ? (
+    loaded && !located.length ? (
+      <div className="pointer-events-none absolute inset-x-0 top-[8%] z-10 flex justify-center px-4">
+        <p className="rounded-full border border-border bg-background/92 px-4 py-2 text-body text-muted-foreground shadow-md">No buses are sharing their location right now</p>
+      </div>
+    ) : null
+  ) : (
     <>
       {fullscreen && topCard && <div className="absolute left-3 right-[4.25rem] top-3 z-20">{topCard}</div>}
       <div className={cn("pointer-events-none absolute left-3 z-10 flex max-w-[calc(100%-5.5rem)] flex-col items-start gap-1.5", fullscreen && topCard ? "top-[5.75rem]" : "top-3")}>
