@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import QRCode from "qrcode";
 import { Printer, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -50,7 +51,9 @@ export function TableQr({ code, hotel, onClose }) {
       <p style="margin-top:28px;color:#555">McSween Transport</p><script>window.onload=()=>{window.print();}</script></body>`);
     w.document.close();
   };
-  return (
+  // On the page itself, not inside the admin screen's sliding container,
+  // so it covers the whole screen.
+  return createPortal(
     <div role="dialog" aria-modal="true" aria-label="Table QR code" className="fixed inset-0 z-[70] flex flex-col bg-white text-black">
       <div className="flex items-center justify-between gap-2 p-3">
         <Button variant="outline" className="border-black/15 bg-white text-black hover:bg-black/5" onClick={onClose}><X className="h-4 w-4" aria-hidden="true" /> Close</Button>
@@ -62,7 +65,8 @@ export function TableQr({ code, hotel, onClose }) {
         {png ? <img src={png} alt={`QR code to join ${hotel || "the hotel"}`} className="aspect-square w-[min(78vw,52dvh)]" /> : <div className="aspect-square w-[min(78vw,52dvh)] animate-pulse rounded-2xl bg-black/5" />}
         <p className="max-w-xl text-base text-black/60">Create your account, then a helper sets your pickup spot and gives you your card.</p>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
