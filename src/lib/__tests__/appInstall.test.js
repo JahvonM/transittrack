@@ -88,10 +88,10 @@ describe("firstOpenWanted", () => {
     expect(firstOpenWanted({ win: fakeWindow({ framed: true }), native: false })).toBe(false);
   });
   it("leaves the bus tablets, ride links and sign-in hand-offs alone", () => {
-    for (const path of ["/kiosk", "/tablet", "/driver", "/driver/stops", "/track", "/desktop-signin", "/phone-signin", "/oauth/consent", "/privacy", "/terms", "/site/book", "/reviewer-sandbox"]) {
+    for (const path of ["/kiosk", "/tablet", "/driver", "/driver/stops", "/track", "/desktop-signin", "/phone-signin", "/oauth/consent", "/privacy", "/terms", "/site/book", "/reviewer-sandbox", "/join"]) {
       expect(firstOpenWanted({ win: fakeWindow({ path }), native: false }), path).toBe(false);
     }
-    for (const path of ["/", "/login", "/register", "/staff", "/driver-phone", "/admin", "/join"]) {
+    for (const path of ["/", "/login", "/register", "/staff", "/driver-phone", "/admin"]) {
       expect(firstOpenWanted({ win: fakeWindow({ path }), native: false }), path).toBe(true);
     }
   });
