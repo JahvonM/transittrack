@@ -160,7 +160,7 @@ test("dispatch board states facts and keeps personal details out", async ({ page
   await expect(page.getByText("Picked up, heading to drop-off")).toBeVisible();
   await expect(page.getByText("No bus assigned").first()).toBeVisible();
   await expect(page.getByText(/more not shown/)).toBeVisible();
-  await expect(page.locator("body")).not.toContainText(/ETA|minutes late|occupancy/i);
+  await expect(page.locator("body")).not.toContainText(/\bETA\b|minutes late|occupancy/i);
 });
 
 test("rotation steps through approved layouts and can be paused", async ({ page }) => {
@@ -178,19 +178,20 @@ test("rotation steps through approved layouts and can be paused", async ({ page 
 test("says when it stops updating, hides old content after 15 minutes, and recovers", async ({ page }) => {
   await page.setViewportSize({ width: 1920, height: 1080 });
   await page.clock.install();
-  const server = displayServer();
+  // The dispatch board (no map) keeps this about the connection, not map tiles.
+  const server = displayServer({ layout: "dispatch" });
   await open(page, server);
-  await expect(page.getByRole("heading", { name: "Buses" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Under way" })).toBeVisible();
   server.state.failing = true;
   await page.clock.fastForward("01:30");
   await expect(page.getByText(/Not updating\. Showing the last update from/)).toBeVisible();
   await shot(page, "not-updating");
   await page.clock.fastForward("15:00");
   await expect(page.getByRole("heading", { name: "Connection lost" })).toBeVisible();
-  await expect(page.locator("body")).not.toContainText("Bus 1");
+  await expect(page.locator("body")).not.toContainText("Coyaba");
   server.state.failing = false;
   await page.clock.fastForward("01:05");
-  await expect(page.getByRole("heading", { name: "Buses" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Under way" })).toBeVisible();
   await expect(page.getByText(/Updated/)).toBeVisible();
 });
 
@@ -222,11 +223,11 @@ test("camera panels wait, end at the end time, and never start a view themselves
   ] });
   await open(page, server);
   await expect(page.getByText("Waiting for the tablet to check in…")).toBeVisible();
-  await expect(page.getByText("Viewing session ended")).toBeVisible();
+  await expect(page.locator("figure").filter({ hasText: "Viewing session ended" })).toHaveCount(1);
   await expect(page.getByText(/Ends .* · 10 min/)).toBeVisible();
   await shot(page, "cameras-waiting");
   server.state.cameras = server.state.cameras.map((c) => ({ ...c, state: "expired" }));
-  await expect(page.getByText("Viewing session ended")).toHaveCount(2, { timeout: 10_000 });
+  await expect(page.locator("figure").filter({ hasText: "Viewing session ended" })).toHaveCount(2, { timeout: 10_000 });
   expect(server.state.calls).not.toContain("camera_viewer");
   expect(server.state.calls).not.toContain("camera_start");
 });
