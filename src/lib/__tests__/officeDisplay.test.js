@@ -73,7 +73,7 @@ const feed = {
     { id: "t1", vehicle_id: "a", kiosk_type: "bus_boarding", paired: true, status: "active", last_seen: at(-60_000), helper_health: {} },
     { id: "t2", vehicle_id: "b", kiosk_type: "driver", paired: true, status: "active", last_seen: at(-40 * 60_000), helper_health: { battery: 12, charging: false } },
   ],
-  boardings: [{ vehicle_id: "a", status: "boarded", at: at(-5 * 60_000), person: "p1" }, { vehicle_id: "a", status: "boarded", at: at(-4 * 60_000), person: "p2" }],
+  on_board: { a: 2, b: 5 },
   shifts: [{ vehicle_id: "b", started_at: at(-3600_000), driver_name: "Dana" }],
   jobs: [
     { id: "j1", status: "scheduled", scheduled_time: at(-20 * 60_000), past_time_not_started: true },
@@ -92,7 +92,7 @@ describe("fleet overview", () => {
     expect(a.onBoard).toBe(2); // boarding tablet reporting
     expect(a.job).toEqual({ kind: "Transfer", to: "Hotel", status: "on_the_way" });
     const b = rows.find((r) => r.id === "b");
-    expect(b.onBoard).toBeNull(); // no boarding tablet: no count, never a guess
+    expect(b.onBoard).toBeNull(); // no boarding tablet reporting: the server's 5 isn't shown
     expect(b.tablet.ok).toBe(false);
     expect(b.driverName).toBe("Dana");
   });

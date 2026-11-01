@@ -61,7 +61,9 @@ export function forgetToken(storage) {
 // rules for live/last-known location and the on-board count.
 export function fleetRows(feed, now = Date.now()) {
   if (!feed?.vehicles) return [];
-  const summaries = busSummaries({ vehicles: feed.vehicles, kiosks: feed.tablets || [], checkIns: (feed.boardings || []).map((b) => ({ ...b, person_key: b.person, boarded_at: b.at })), shifts: feed.shifts || [], now });
+  // Counts come from the server (feed.on_board); the fleet workspace's rule
+  // decides where a count can be trusted (a boarding tablet reporting).
+  const summaries = busSummaries({ vehicles: feed.vehicles, kiosks: feed.tablets || [], shifts: feed.shifts || [], now });
   const jobs = feed.jobs || [];
   return summaries.map((s) => {
     const v = s.vehicle;
@@ -70,7 +72,7 @@ export function fleetRows(feed, now = Date.now()) {
     const tabletAge = driver?.last_seen ? now - Date.parse(driver.last_seen) : null;
     return {
       id: v.id, name: v.name, plate: v.plate_number || v.fleet_number || "", status: v.status, inService: v.in_service !== false,
-      location: s.location, onBoard: s.onBoard, onBoardWhy: s.onBoardWhy,
+      location: s.location, onBoard: s.onBoard == null ? null : Number(feed.on_board?.[v.id] ?? 0), onBoardWhy: s.onBoardWhy,
       driverName: s.shift?.driver_name || v.driver_name || "", shiftOpen: !!s.shift,
       tablet: driver ? { ok: tabletAge != null && tabletAge <= 15 * 60_000, ageMs: tabletAge, battery: driver.helper_health?.battery ?? null, charging: !!driver.helper_health?.charging } : null,
       job: job ? { kind: job.kind, to: job.dropoff_name, status: job.status } : null,

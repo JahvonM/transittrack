@@ -227,8 +227,9 @@ describe('what a display is sent', () => {
     expect(r.body.jobs.map((j) => j.id)).toEqual(['t1', 't2']);
     expect(r.body.jobs[0].client_name).toBe('Hotel Client');
     expect(r.body.jobs[0].guest_name).toBe('');
-    expect(r.body.boardings).toHaveLength(1);
-    expect(r.body.boardings[0].person).toMatch(/^[a-f0-9]{16}$/);
+    // Only how many are on each bus, never who.
+    expect(r.body.on_board).toEqual({'bus-a': 1});
+    expect(r.body.boardings).toBeUndefined();
     expect(r.body.maintenance.faults.map((f) => f.id)).toEqual(['f1']);
     expect(r.body.maintenance.unavailable.map((v) => v.id)).toEqual(['bus-a2']);
     expect(r.body.companies).toEqual([{id: 'a', name: 'A Co', logo_url: 'https://cdn.test/a.png'}]);

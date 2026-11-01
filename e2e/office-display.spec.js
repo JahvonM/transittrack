@@ -36,7 +36,7 @@ function displayServer(overrides = {}) {
         { id: "k2", vehicle_id: "v1", kiosk_type: "driver", label: "Driver tablet", paired: true, status: "active", last_seen: at(-MIN), helper_health: { battery: 70, charging: true } },
         { id: "k3", vehicle_id: "v2", kiosk_type: "driver", label: "Driver tablet", paired: true, status: "active", last_seen: at(-50 * MIN), helper_health: { battery: 14, charging: false } },
       ],
-      boardings: ["p1", "p2", "p3", "p4", "p5", "p6", "p7"].map((person, i) => ({ vehicle_id: "v1", status: "boarded", at: at(-(20 - i) * MIN), person })),
+      on_board: { v1: 7 },
       shifts: [{ vehicle_id: "v1", started_at: at(-3 * 3_600_000), driver_name: "Kevin Charles" }, { vehicle_id: "v2", started_at: at(-3_600_000), driver_name: "Andre Mitchell" }],
       jobs: [
         { id: "j1", kind: "Airport pickup", status: "scheduled", scheduled_time: at(-25 * MIN), vehicle_id: "v2", vehicle_name: "Bus 2", driver_name: "Andre Mitchell", pickup_name: "Maurice Bishop Airport", dropoff_name: "Spice Island Beach Resort", guests: 4, flight_number: "BW 425", pickup_confirmed: false, dropoff_confirmed: false, client_name: "Spice Island Beach Resort", guest_name: "", past_time_not_started: true },

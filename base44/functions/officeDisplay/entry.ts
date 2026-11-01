@@ -5,7 +5,7 @@ import { streamingConfig, supportIce, validateSupportSdp, supportNotice, publicS
 import { supportRequest } from '../../shared/tabletSupportPolicy.ts';
 import {
   FEED_MS, MAX_CAMERAS, PAIRED_TTL_MS, PAIRING_TTL_MS, WINDOW_TTL_MS, BOARDING_LOOKBACK_MS,
-  cameraCapable, cleanSettings, displaySettings, fail, feedBoardings, feedExceptions, feedJobs, feedMaintenance,
+  cameraCapable, cleanSettings, displaySettings, fail, feedOnBoard, feedExceptions, feedJobs, feedMaintenance,
   feedShifts, feedTablets, feedVehicles, inScope, layoutsInUse, localDayStart, normalizeCode, pairingCode,
   publicDisplay, randomToken, sha256Hex,
 } from '../../shared/officeDisplay.ts';
@@ -202,7 +202,7 @@ export default async function (req: Request) {
           Promise.all(companyIds.map((id: string) => db.Company.get(id).catch(() => null))),
           source('vehicles', true, () => db.Vehicle.filter(inCompanies, 'name', 200)),
           source('tablets', needs('fleet', 'cameras'), () => db.KioskDevice.filter({ ...inCompanies, status: 'active' }, '-last_seen', 300)),
-          source('boardings', needs('fleet'), () => db.StaffCheckIn.filter({ ...inCompanies, created_date: { $gte: iso(now - BOARDING_LOOKBACK_MS) } }, '-created_date', 2000)),
+          source('boardings', needs('fleet'), () => db.StaffCheckIn.filter({ ...inCompanies, created_date: { $gte: iso(now - BOARDING_LOOKBACK_MS) } }, '-created_date', 10000)),
           source('shifts', needs('fleet', 'dispatch'), () => db.DriverShift.filter(inCompanies, '-started_at', 150)),
           source('jobs', needs('fleet', 'dispatch'), () => db.Trip.filter({ ...inCompanies, scheduled_time: { $gte: iso(from), $lt: iso(from + 86_400_000) } }, 'scheduled_time', 300)),
           source('jobs', needs('fleet', 'dispatch'), () => db.Trip.filter({ ...inCompanies, status: { $in: ['on_the_way', 'arrived'] } }, '-scheduled_time', 100)),
@@ -218,7 +218,7 @@ export default async function (req: Request) {
           vehicles: feedVehicles(d, vehicles),
         };
         if (needs('fleet', 'cameras')) out.tablets = feedTablets(d, kiosks);
-        if (needs('fleet')) out.boardings = await feedBoardings(d, checkIns, now);
+        if (needs('fleet')) out.on_board = feedOnBoard(d, checkIns, now);
         if (needs('fleet', 'dispatch')) { out.shifts = feedShifts(d, shifts); out.jobs = feedJobs(d, trips, now); }
         if (needs('dispatch')) out.exceptions = feedExceptions(d, exceptions, now);
         if (needs('maintenance')) out.maintenance = feedMaintenance(d, { faults, schedules, inspections, vehicles }, now);
