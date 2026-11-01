@@ -195,6 +195,8 @@ error, and the page stayed put (or redirected where it should). Console noise fr
 | Boarding kiosk | Tap/keypad/QR, offline save, sync, settings PIN | `kiosk-boarding`, `kiosk-bus-boarding`, `saved-work` |
 | Boarding taps | Repeated tap shows "Already recorded" and sends nothing; "I'm getting off" after a short ride; boarding-only tablet records without asking and explains a refused exit | `kiosk-boarding`, `boardingEventsServer.test`, `recentTaps.test` |
 | Card office | Card states shown in words; Stop card menu (suspend / report lost / revoke) with the offline limit in the confirm text; Switch back on only for suspended cards | `card-states`, `cardStates.test` |
+| Boarding tablet staff area | Bus PIN → Diagnostics (reader, last read, camera, sound test, card list, waiting taps, connection, kiosk protection, copy for support), Screen → Full screen; no Full screen on the passenger screen | `operations-changes`, `kioskProtection.test` |
+| Reader setting (admin) | Kiosk tablets → Reassign → What this reader records / needs an open shift, saved with the device | `reader-settings` |
 | Driver tablet/phone | Pairing, shift start/end, walk-around, messages, stops | `driver-*`, `tablet-*` |
 | Driver passengers | Ride state per passenger in words (on board since, got off at, didn't show), boarding note, counts; no-show with confirm and undo; got on / off without a tap; refused marks explained; marks blocked while moving | `driver-manifest`, `driverManifest.test` |
 | Admin | Fast open, load recovery, notifications, app errors, users, company workspace | `admin-*`, `notifications`, `app-errors`, `company-workspace` |

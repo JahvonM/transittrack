@@ -5,6 +5,7 @@ import BoardingBluetoothPanel from "@/components/driver/BoardingBluetoothPanel";
 import { Link } from "react-router-dom";
 import TabletDiagnosticsPanel from "@/components/driver/TabletDiagnosticsPanel";
 import UsbNfcPanel from "@/components/driver/UsbNfcPanel";
+import BoardingDiagnosticsPanel from "@/components/kiosk/BoardingDiagnosticsPanel";
 import React, { useEffect, useRef, useState } from "react";
 import { Delete, Loader2, Lock } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -94,7 +95,7 @@ function PinPad({ deviceId, invoke, onUnlock, onCancel }) {
   );
 }
 
-export default function BoardingSettingsGate({ open, onClose, deviceId, invoke }) {
+export default function BoardingSettingsGate({ open, onClose, deviceId, invoke, device = null, online = true, onFullScreen = null }) {
   const [unlocked, setUnlocked] = useState(false);
   const idle = useRef(null);
   useEffect(() => { if (!open) setUnlocked(false); }, [open]);
@@ -130,7 +131,9 @@ export default function BoardingSettingsGate({ open, onClose, deviceId, invoke }
               { id: "bluetooth", label: "Bluetooth boarding", content: <BoardingBluetoothPanel /> },
               { id: "connection", label: "Connection", content: <><TabletNetworkPanel boarding /><NativeNetworkPanel boarding /><TabletCellularPanel /></> },
               { id: "startup", label: "Startup", content: <><TabletRecoveryPanel /><Button asChild variant="outline" className="w-full"><Link to="/tablet?choose=1">Choose tablet screen</Link></Button></> },
+              { id: "diagnostics", label: "Diagnostics", content: <BoardingDiagnosticsPanel device={device} online={online} /> },
               { id: "health", label: "Tablet health", content: <TabletDiagnosticsPanel /> },
+              ...(onFullScreen ? [{ id: "screen", label: "Screen", content: <div className="space-y-2"><Button className="w-full" onClick={onFullScreen}>Full screen</Button><p className="text-xs text-muted-foreground">In the McSween kiosk app the screen is already full. On a phone browser, this hides the address bar until someone swipes.</p></div> }] : []),
             ]}
           />
         ) : (

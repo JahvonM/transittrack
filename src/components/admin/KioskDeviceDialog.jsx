@@ -32,6 +32,9 @@ export default function KioskDeviceDialog({ open, onOpenChange, companies, vehic
   const [vehicleId, setVehicleId] = useState("");
   const [saving, setSaving] = useState(false);
   const [displayLayout, setDisplayLayout] = useState("auto");
+  // Boarding tablets: what the reader records, and whether taps need an open shift.
+  const [readerMode, setReaderMode] = useState("both");
+  const [needsShift, setNeedsShift] = useState(false);
   const [driverId, setDriverId] = useState("");
   const [drivers, setDrivers] = useState([]);
   const own = kioskType === "driver_own";
@@ -40,6 +43,8 @@ export default function KioskDeviceDialog({ open, onOpenChange, companies, vehic
     if (open) {
       setLabel(device?.label || "");
       setDisplayLayout(device?.display_layout || "auto");
+      setReaderMode(device?.reader_mode || "both");
+      setNeedsShift(device?.require_active_trip === true);
       // Retired types (card registry, front-desk sign-in) switch to bus boarding when edited.
       setKioskType(device?.personal ? "driver_own" : !device && presetType ? presetType : device?.kiosk_type && !["badge_registry", "front_desk"].includes(device.kiosk_type) ? device.kiosk_type : "bus_boarding");
       setCompanyId(device?.company_id || "");
@@ -111,6 +116,7 @@ export default function KioskDeviceDialog({ open, onOpenChange, companies, vehic
           company_name: company?.name || "",
           vehicle_id: needsVehicle ? vehicleId : "",
           vehicle_name: needsVehicle ? vehicle?.name : "",
+          ...(kioskType === "bus_boarding" ? { reader_mode: readerMode, require_active_trip: needsShift } : {}),
         });
         toast({ title: "Device updated" });
       } else {
@@ -122,6 +128,7 @@ export default function KioskDeviceDialog({ open, onOpenChange, companies, vehic
           company_name: company?.name || "",
           vehicle_id: needsVehicle ? vehicleId : "",
           vehicle_name: needsVehicle ? vehicle?.name : "",
+          ...(kioskType === "bus_boarding" ? { reader_mode: readerMode, require_active_trip: needsShift } : {}),
         });
         toast({ title: "Device registered", description: `Pairing code: ${created.pairing_code}` });
       }
@@ -204,6 +211,19 @@ export default function KioskDeviceDialog({ open, onOpenChange, companies, vehic
             <ChoiceSelect id="kiosk-layout" aria-label="Screen layout" value={displayLayout} onChange={e => setDisplayLayout(e.target.value)} className={selectClass}>
               <option value="auto">Automatic / device choice</option><option value="tablet">Kiosk tablet</option><option value="phone">Kiosk phone</option>
             </ChoiceSelect>
+          </div>}
+          {kioskType === "bus_boarding" && <div className="space-y-2">
+            <Label htmlFor="kiosk-reader-mode">What this reader records</Label>
+            <ChoiceSelect id="kiosk-reader-mode" aria-label="What this reader records" value={readerMode} onChange={e => setReaderMode(e.target.value)} className={selectClass}>
+              <option value="both">Boarding and getting off (asks each time)</option>
+              <option value="boarding">Boarding only (front door)</option>
+              <option value="exit">Getting off only (rear door)</option>
+            </ChoiceSelect>
+            <p className="text-caption text-muted-foreground">A one-way reader records straight away, with no question. A second tap within 30 minutes is shown as "Already recorded".</p>
+            <label className="flex items-start gap-2 text-body-sm">
+              <input type="checkbox" className="mt-1 h-4 w-4" checked={needsShift} onChange={e => setNeedsShift(e.target.checked)} />
+              <span>Only accept taps while a driver shift is open on this bus<span className="block text-caption text-muted-foreground">Without one, the tablet says "No trip is running on this bus yet" and asks the driver to start their shift. Taps saved offline are still kept.</span></span>
+            </label>
           </div>}
           {needsVehicle && (
             <div className="space-y-2">

@@ -20,6 +20,8 @@ export function acknowledgeCheckIn(requestId) {writeQueue(readQueue().filter(ite
 export function quarantineCheckIn(requestId,error) {writeQueue(readQueue().map(item=>item.payload.client_request_id===requestId?review(item,error):item));}
 export function queueSyncError() {return readQueue().find(item=>item.state!=="archived"&&item.last_error)?.last_error||"";}
 export function queueLength() {return readQueue().filter(item=>item.state!=="archived").length;}
+// When the oldest tap still waiting to be sent was saved (for Diagnostics).
+export function oldestQueuedAt() {const waiting=readQueue().filter(item=>item.state!=="archived").map(item=>item.queued_at).filter(Boolean).sort();return waiting[0]||null;}
 export function isNetworkFailure(error) {return !error?.response||error.response.status===429||error.response.status>=500;}
 const inFlight=new Set();
 export async function submitSavedCheckIn(invoke,payload) {

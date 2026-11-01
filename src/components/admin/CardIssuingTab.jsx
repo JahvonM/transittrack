@@ -88,6 +88,16 @@ function SendAllToTablets({ tablets, vehicles, onSent }) {
   );
 }
 
+// Whether the bus tablet really has the latest card list: what it reported
+// downloading, against when a list was last sent to it.
+function listState(onBus, sentAt) {
+  const got = onBus.map((t) => t.list_downloaded_at).filter(Boolean).sort().pop();
+  const count = onBus.find((t) => t.list_downloaded_at === got)?.list_count;
+  if (!got) return sentAt ? `list sent ${ago(sentAt)}, not downloaded yet` : "card list not downloaded yet";
+  const behind = sentAt && Date.parse(sentAt) > Date.parse(got) + 60_000;
+  return `list downloaded ${ago(got)}${count != null ? ` (${count} card${count === 1 ? "" : "s"})` : ""}${behind ? ` · newer list sent ${ago(sentAt)}, waiting for the tablet` : ""}`;
+}
+
 function BusLink({ person, vehicles, tablets, onChanged }) {
   const { toast } = useToast();
   const [busy, setBusy] = useState("");
@@ -141,8 +151,8 @@ function BusLink({ person, vehicles, tablets, onChanged }) {
         <p className="text-xs text-muted-foreground flex items-center gap-1.5">
           <Tablet className="w-3.5 h-3.5" />
           {onBus.length
-            ? `${onBus.map((t) => t.label || "Boarding tablet").join(", ")} · seen ${ago(onBus[0].last_seen)} · last sent ${ago(sentAt)}`
-            : "No boarding tablet on this bus yet — pair one in Kiosk tablets."}
+            ? `${onBus.map((t) => t.label || "Boarding tablet").join(", ")} · seen ${ago(onBus[0].last_seen)} · ${listState(onBus, sentAt)}`
+            : "No boarding tablet on this bus is set up and paired, so cards can't reach it. Pair one in Kiosk tablets."}
         </p>
       )}
     </div>

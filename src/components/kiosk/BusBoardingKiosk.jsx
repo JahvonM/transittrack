@@ -17,6 +17,8 @@ import { parseCodeQrPayload } from "@/lib/qr";
 import { haversineKm, etaMinutes, formatEta } from "@/lib/geo";
 import { submitSavedCheckIn, hasSavedCheckIn, queueLength, queueSyncError, isNetworkFailure, flushQueue } from "@/lib/offlineQueue";
 import { noteStatus, burnOneTimeCode } from "@/lib/kioskOffline";
+import { playTone } from "@/lib/kioskSound";
+import { noteProblem, noteRead, noteSync } from "@/lib/boardingDiagnostics";
 import { boardingDirectoryNames } from "@/lib/boardingDirectory";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import WeatherWidget from "@/components/WeatherWidget";
@@ -231,7 +233,7 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
       // A storage problem while syncing in the background is shown on the
       // sync line, never as a full-screen error that would block the next
       // passenger (that screen has no button and never cleared itself).
-      flushQueue(invoke).then(() => { setPendingSyncCount(queueLength()); setSyncError(queueSyncError()); }).catch((e) => { setSyncError(e.message); });
+      flushQueue(invoke).then((sent) => { if (sent > 0) noteSync(); setPendingSyncCount(queueLength()); setSyncError(queueSyncError()); }).catch((e) => { setSyncError(e.message); });
     };
     const t = setInterval(tryFlush, FLUSH_INTERVAL_MS);
     // Also on open: check-ins saved offline before a restart go up right away.
@@ -300,10 +302,12 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
   // After a card, code, QR or Bluetooth lookup: say it's already recorded,
   // record straight away on a one-direction reader, or ask getting on/off.
   const presentLookup = async (item, res) => {
+    noteRead(item.method);
     if (res.already) {
       setPending(item);
       setResult({ staff_name: item.staff.full_name, status: res.already.status, already: true, at: res.already.at, canSwitch: (res.reader_mode || "both") === "both" });
       setMode("result");
+      playTone("duplicate");
       speak("Already recorded");
       resetSoon(5000);
       return;
@@ -330,6 +334,8 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
     } catch (e) {
       reportBadgeResult(false, receipt);
       if (handleUnpaired(e)) return;
+      noteProblem(e?.response?.data?.error || (isNetworkFailure(e) ? "no_connection" : "card_lookup_failed"));
+      playTone("refused");
       setUnlocked(true);
       setBadgeError(busMessage(e) || (e?.response?.data?.error === "badge_not_registered"
         ? "This card isn't registered yet. Ask an admin to issue it in Card issuing."
@@ -458,6 +464,7 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
         noteStatus(payload.staff_id, res.record.status, res.record.boarded_at || Date.now());
         setResult({ staff_name: res.record.staff_name || item.staff.full_name, status: res.record.status, already: true, at: res.record.boarded_at, canSwitch: false });
         setMode("result");
+        playTone("duplicate");
         speak("Already recorded");
         resetSoon(4000);
         return;
@@ -469,8 +476,10 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
         setTodayCount(res.today_count);
         if (record.status === "boarded") record.riderNumber = res.today_count;
       }
+      noteSync();
       setResult(record);
       setMode("result");
+      playTone(record.status === "boarded" ? "accepted" : "exit");
       speak(record.status === "boarded" ? `Welcome aboard, ${record.staff_name.split(" ")[0]}` : `See you later, ${record.staff_name.split(" ")[0]}`);
       resetSoon();
     } catch (e) {
@@ -487,10 +496,13 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
         if (payload.code_type === "one_time") burnOneTimeCode(payload.staff_id);
         setResult({ staff_name: item.staff.full_name, status, offline: true });
         setMode("result");
+        playTone(status === "boarded" ? "accepted" : "exit");
         speak(status === "boarded" ? `Welcome aboard, ${item.staff.full_name.split(" ")[0]}` : `See you later, ${item.staff.full_name.split(" ")[0]}`);
         resetSoon();
         return;
       }
+      noteProblem(e?.response?.data?.error || "check_in_failed");
+      playTone("refused");
       setBadgeError(busMessage(e) || "Something went wrong checking that in — please try again.");
       setMode("badge_error");
       resetSoon(3000);
@@ -640,7 +652,7 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
 
   return <div data-layout={layout} className={`tt-boarding-future tt-boarding-showcase${phoneLayout ? " tt-kiosk-phone" : ""}${phoneInfo ? " tt-kiosk-phone-info" : ""}`}>
     <TopStatusBar device={device} vehicle={vehicle} route={route} now={now} online={online} holdProps={settingsHold} />
-    <BoardingSettingsGate open={settingsOpen} onClose={() => setSettingsOpen(false)} deviceId={device?.device_id || device?.id} invoke={invoke} />
+    <BoardingSettingsGate open={settingsOpen} onClose={() => setSettingsOpen(false)} deviceId={device?.device_id || device?.id} invoke={invoke} device={device} online={online} onFullScreen={phoneLayout ? fullScreen : null} />
     <PassengerListDialog open={listOpen} onOpenChange={setListOpen} vehicleName={device?.vehicle_name} />
     {readerLink === "lost" && <div className="tt-board-reader-warning" role="alert"><strong>Card reader isn't connected to this screen.</strong> Use your code on the keypad instead.<small>Staff: run Update in the tablet setup tool for this tablet.</small></div>}
     {phoneLayout && <nav className="tt-phone-kiosk-nav" aria-label="Phone kiosk">
@@ -649,7 +661,7 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
       <button type="button" aria-pressed={!phoneInfo && mode === "qr"} onClick={() => { setPhoneInfo(false); setMode("qr"); setUnlocked(false); }}><QrCode />Scan QR</button>
       <button type="button" aria-pressed={phoneInfo} onClick={() => setPhoneInfo(value => !value)}><Bus />Bus info</button>
     </nav>}
-    {phoneLayout&&<div className="tt-phone-kiosk-tools"><button type="button" onClick={()=>setSettingsOpen(true)}>Tablet &amp; reader</button><button type="button" onClick={fullScreen}>Full screen</button>{fullscreenError&&<p role="status">{fullscreenError}</p>}</div>}
+    {phoneLayout&&<div className="tt-phone-kiosk-tools"><button type="button" onClick={()=>setSettingsOpen(true)}>Tablet &amp; reader</button>{fullscreenError&&<p role="status">{fullscreenError}</p>}</div>}
     <BoardingPickupSign device={device} enabled={mode === "idle" && !busy && !checkingCard} />
     <main className="tt-board-layout"><div className="tt-board-action">{actionContent}</div>
       <InfoRail occupancy={occupancy} vehicle={vehicle} nearestStop={nearestStop} ads={ads} todayCount={todayCount} directoryInfo={directoryInfo} now={now} onList={() => setListOpen(true)} pendingSyncCount={pendingSyncCount} syncError={syncError} />

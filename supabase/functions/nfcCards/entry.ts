@@ -191,7 +191,9 @@ async function loadPeople(base44, companyFilter) {
       .map((v) => ({ id: v.id, name: vehicleName.get(v.id), company_id: v.company_id || '' }))
       .sort((a, b) => (a.name || '').localeCompare(b.name || '', undefined, { numeric: true })),
     tablets: kiosks.filter((k) => inCompany(k.company_id) && k.vehicle_id)
-      .map((k) => ({ id: k.id, label: k.label || '', vehicle_id: k.vehicle_id, paired: !!k.paired, active: k.status === 'active', last_seen: k.last_seen || null, directory_sent_at: k.directory_sent_at || null })),
+      // When the tablet says it last downloaded its card list (it reports this with every check-in).
+      .map((k) => ({ id: k.id, label: k.label || '', vehicle_id: k.vehicle_id, paired: !!k.paired, active: k.status === 'active', last_seen: k.last_seen || null, directory_sent_at: k.directory_sent_at || null,
+        list_downloaded_at: k.app_health?.saved_list_at || null, list_count: Number.isFinite(k.app_health?.saved_list_count) ? k.app_health.saved_list_count : null })),
   };
 }
 
