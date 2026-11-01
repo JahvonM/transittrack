@@ -87,7 +87,36 @@ fixes and new checks: **140 addresses, 140 pass**. Results are in `ROUTE-CHECKLI
 ## 6. Owner decisions and dependencies
 
 * T10 manufacturer SDK, sample app and exact model/firmware (scanner, LED, buzzer).
-* Screenshot/log of "Lockdown failed" and which tablets show it.
-* Whether passengers may cancel/change rides themselves or only request (company policy).
+* Screenshot of "Lockdown failed" if it appears on a tablet running another kiosk app (the McSween app now reports its own reason).
+* Passengers now **request** changes and the office confirms (no self-service cancel). Change if company policy allows more.
 * Whether cabin camera viewing is wanted beyond the existing tablet camera support (privacy notice to staff/passengers).
 * Cloudflare preview command (F16).
+
+## 7. Journey sharing (reviewed, not added)
+
+The existing ride-tracking link (`base44/shared/visitorLinks.ts`, `/track`)
+is built for **jobs** (an airport pickup, a website booking): a 256-bit key
+kept only as a hash, sent after `#` so it never reaches a server log, one
+live link per job (a new one ends the old), expiring a day after the ride
+(at most a week), and stopping if the bus changes. It shows only that job's
+bus, pickup and drop-off.
+
+Reusing it for regular staff rides would share a bus that carries other
+passengers, along a road made of other passengers' pickups. That needs a
+decision on what a shared view may show (no other pickups or names), a
+revoke button for the passenger and a short expiry tied to their own ride.
+It was **not added in this update**; the job links keep working as before.
+
+## 8. Known limitations and open dependencies
+
+| Area | Limitation | What unblocks it |
+|---|---|---|
+| Physical devices | No device was available; every hardware test in `DEVICE-TESTS.md` is **not run** | Run the list on one bus |
+| T10 validator | Scanner, LED and buzzer need the maker's SDK; can't be kiosk-locked (not a managed device) | Supplier SDK, sample app, model and firmware; USB setup tool |
+| Kiosk protection | 5 of 7 active tablets not locked (1 Nov); the app reports but never changes this remotely | Owner turns kiosk lock on per tablet |
+| Cards | UID cards can be copied; offline tablets keep a stopped card up to 24 h (flagged) | See `NFC-SECURITY.md` |
+| Driver phone app | Passenger list has no on-board status yet (the driver tablet has it) | Follow-up |
+| Background alerts | With the phone locked, only server push alerts arrive (pickup, replies); boarding/exit alerts show when the app opens | A server push on each tap (adds work to every tap) |
+| Cameras | Trial only; untested on hardware; relay (TURN) not set up | Test on one tablet with the owner |
+| Grenville, St. George | No boarding tablet, so cards can't reach those buses | Set up and pair one per bus |
+| Preview builds | Cloudflare preview fails on non-`main` branches (F16) | Dashboard "Preview command" |

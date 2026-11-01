@@ -7,6 +7,8 @@ import { fleetData, mockFleet } from './helpers/fleetFixture.js';
 
 test('shows each bus, what needs attention, and keeps cameras off until asked', async ({ page }) => {
   const data = fleetData();
+  // Set both times here: the shared fixture's times are fixed when the test worker starts.
+  Object.assign(data.vehicles[0], { tracking_active: true, last_location_update: new Date(Date.now() - 20_000).toISOString() });
   data.vehicles[1].last_location_update = new Date(Date.now() - 40 * 60_000).toISOString();
   Object.assign(data.kiosks[1].helper_health, { support_available: true, support_transport: 'webrtc', management_available: true, management_owner: true, kiosk_enabled: true, kiosk_locked: false });
   const errors = [];
