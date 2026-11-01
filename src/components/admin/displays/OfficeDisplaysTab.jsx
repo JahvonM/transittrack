@@ -42,7 +42,7 @@ function Status({ d, win, now }) {
 function CameraControls({ d, options, busy, act, now }) {
   const names = (d.camera_device_ids || []).map((id) => options.cameras.find((k) => k.id === id)).filter(Boolean);
   const live = (d.cameras || []).filter((c) => !ENDED.has(c.state) && Date.parse(c.expires_at) > now);
-  const canStart = options.streaming && (d.kind === "window" ? true : d.connected) && !d.blanked && names.length > 0;
+  const canStart = options.streaming && d.connected && d.status !== "revoked" && !d.blanked && names.length > 0;
   return (
     <div className="rounded-xl border border-border p-3">
       <p className="text-body-sm font-semibold">Cameras</p>
