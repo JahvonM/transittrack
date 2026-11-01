@@ -11,6 +11,7 @@ described; they don't prove every device works.
 | Suite | Result |
 |---|---|
 | Unit and server-function tests (`npx vitest run`) | **1438 passed**, 0 failed (175 files) |
+| Production security tests (`npm run test:security:release`) | **188 passed**, 0 failed (17 files); one expectation updated for the new card `state` word (no card number is returned) |
 | Browser tests, full list in `playwright.config.js` | **524 passed**, 0 failed, 1 skipped (see notes) |
 | Route check (`e2e/route-smoke.spec.js`) | **142 addresses, 142 pass**, 0 crashes or uncaught errors |
 | Lint, generated-file checks | Pass (`eslint src`, `build-functions --check`, `gen-schema --check`, `data-model --check`) |
