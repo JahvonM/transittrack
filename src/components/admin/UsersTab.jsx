@@ -47,11 +47,13 @@ function CreateAccountDialog({ companies, onCreated }) {
       const matches = await base44.entities.User.filter({ email: form.email.trim() });
       const created = Array.isArray(matches) ? matches[0] : matches;
       if (created) {
-        const patch = { role: form.role };
+        const patch = {};
         if (form.full_name.trim()) patch.full_name = form.full_name.trim();
         if (form.phone.trim()) patch.phone = form.phone.trim();
-        if (form.role === "company" && form.company_id) patch.company_id = form.company_id;
-        await base44.entities.User.update(created.id, patch);
+        if (Object.keys(patch).length) await base44.entities.User.update(created.id, patch);
+        // The role goes through the server, which tells them by email when it
+        // gives them office access.
+        await base44.functions.invoke("accessRoles", { action: "set_user_role", user_id: created.id, role: form.role, ...(form.role === "company" && form.company_id ? { company_id: form.company_id } : {}) });
       }
       toast({
         title: "Account created",
@@ -134,12 +136,20 @@ function CreateAccountDialog({ companies, onCreated }) {
 }
 
 export default function UsersTab({ users, companies, currentUser, onChange }) {
+  const { toast } = useToast();
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("staff");
   const [inviting, setInviting] = useState(false);
 
+  // Saved by the server, which emails the person when this gives them
+  // office access (admin, company manager or mechanic).
   const setRole = async (u, role) => {
-    await base44.entities.User.update(u.id, { role });
+    try {
+      const res = await base44.functions.invoke("accessRoles", { action: "set_user_role", user_id: u.id, role });
+      if (res.data?.emailed) toast({ title: "Role changed", description: `${accountName(u)} has been told by email.` });
+    } catch (e) {
+      toast({ title: "Couldn't change the role", description: e?.response?.data?.error || e?.message || "Try again.", variant: "destructive" });
+    }
     onChange();
   };
   const setCompany = async (u, companyId) => {

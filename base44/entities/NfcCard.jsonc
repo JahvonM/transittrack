@@ -67,6 +67,10 @@
       "type": "string",
       "format": "date"
     },
+    "expiry_notice_for": {
+      "type": "string",
+      "description": "The end date the holder was last emailed about (Bus card ending soon), so each end date is told once."
+    },
     "issued_by": {
       "type": "string"
     },

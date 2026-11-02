@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import fs from 'node:fs';
 import ts from 'typescript';
 import { webcrypto } from 'node:crypto';
-import { passwordChangedEmail } from '../../../base44/shared/accountEmails.ts';
+import { driverAccountEmail, passwordChangedEmail } from '../../../base44/shared/accountEmails.ts';
 
 // The real driverAccounts handler with in-memory tables and a fake Supabase Auth.
 const source = fs.readFileSync('base44/functions/driverAccounts/entry.ts', 'utf8').replace(/^import .*;\r?\n/gm, '');
@@ -41,10 +41,10 @@ function setup({ driver: driverFields = {}, actor: actorFields = {}, buses = [] 
   // Emails the handler sends (the real text, a stand-in for delivery).
   const emails = [];
   const exports = {};
-  const handler = new Function('exports', 'createClientFromRequest', 'secrets', 'reserveAttempt', 'sendAccountEmail', 'passwordChangedEmail', 'fetch', 'crypto', 'Response', 'AbortSignal', 'TextEncoder', compiled + '\nreturn exports.default;')(
+  const handler = new Function('exports', 'createClientFromRequest', 'secrets', 'reserveAttempt', 'sendAccountEmail', 'passwordChangedEmail', 'driverAccountEmail', 'fetch', 'crypto', 'Response', 'AbortSignal', 'TextEncoder', compiled + '\nreturn exports.default;')(
     exports, () => ({ auth: { me: async () => actor }, asServiceRole: { entities: db } }),
     { get: (k) => k === 'SUPABASE_URL' ? 'https://unit-test.supabase.co' : k === 'SUPABASE_SERVICE_ROLE_KEY' ? 'mock-service-key' : undefined },
-    async () => true, async (_client, key, to, email) => { emails.push({ key, to, ...email }); return { sent: 1 }; }, passwordChangedEmail, fetchMock, webcrypto, Response, AbortSignal, TextEncoder,
+    async () => true, async (_client, key, to, email) => { emails.push({ key, to, ...email }); return { sent: 1 }; }, passwordChangedEmail, driverAccountEmail, fetchMock, webcrypto, Response, AbortSignal, TextEncoder,
   );
   const call = (action, rest = {}) => handler(new Request('https://unit.test/driverAccounts', { method: 'POST', body: JSON.stringify({ action, driver_id: driver.id, ...rest }) }));
   return { call, driver, profiles, vehicles, auth, emails };
@@ -110,6 +110,17 @@ describe('driver accounts keep buses, shifts and messages working', () => {
     expect((await response.json()).error).toMatch(/12 to 72 characters/);
     const ok = await t.call('change_password', { current_password: 'TempPassword12', new_password: 'Aa1' + 'x'.repeat(69) });
     expect(ok.status).toBe(200);
+  });
+
+  it('tells a driver with a real email their new username, never the temporary password', async () => {
+    const t = setup({ driver: { email: 'ann@example.com' } });
+    const res = await t.call('provision', { username: 'ann_1' });
+    expect(res.status).toBe(200);
+    const { temporary_password } = await res.json();
+    expect(t.emails).toHaveLength(1);
+    expect(t.emails[0]).toMatchObject({ key: 'driver_account', to: 'ann@example.com', subject: 'Your McSween Transport driver app account' });
+    expect(t.emails[0].body).toContain('ann_1');
+    expect(t.emails[0].body).not.toContain(temporary_password);
   });
 
   it('tells the driver by email when their password changes, never with the password in it', async () => {

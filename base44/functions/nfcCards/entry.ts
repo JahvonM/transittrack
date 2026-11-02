@@ -1,7 +1,7 @@
 import { retry429 } from '../../shared/retry429.ts';
 import { CARD_STATUS_TEXT, STOP_REASON, STOP_STATUSES, canReactivate, cardStatus } from '../../shared/cardStatus.ts';
 import { signupDay } from '../../shared/signupDay.ts';
-import { cardEmail, sendAccountEmail } from '../../shared/accountEmails.ts';
+import { cardEmail, rideChangedEmail, sendAccountEmail } from '../../shared/accountEmails.ts';
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 
 
@@ -504,6 +504,11 @@ export default async function (req) {
           record_id: person.id, page: '/admin/directory', summary: `Updated pickup for ${person.name}: ${name}` });
         const vehicle = person.vehicle_id ? await loadVehicleFor(base44, person.vehicle_id, person.company_id || companyFilter) : null;
         const delivery = vehicle ? await sendToBus(base44, actor, vehicle.id).catch(() => ({ sent: 0 })) : { sent: 0 };
+        // Tell them when a pickup spot they already had is moved (a first
+        // pickup is usually set with them there, on a sign-up day).
+        const had = person.pickup_lat != null && person.pickup_lng != null;
+        const moved = had && (Math.abs(person.pickup_lat - lat) > 0.0002 || Math.abs(person.pickup_lng - lng) > 0.0002 || clean(person.pickup_name, 120) !== name);
+        if (moved) await sendAccountEmail(base44, 'ride_changed', person.email, rideChangedEmail({ name: person.name, change: 'pickup', pickup: name }), { companyId: person.company_id || '' }).catch(() => {});
         return Response.json({ ok: true, person_key: person.key, ...patch, sent_to_bus: delivery.sent });
       }
 
@@ -552,6 +557,11 @@ export default async function (req) {
         }
         await audit(base44, user, { action: 'update', entity: 'Contact', record_id: person.id, summary: vehicle ? `${person.name} now rides ${vehicle.name}` : `${person.name} removed from ${person.assigned_vehicle || 'their bus'}` });
         const delivery = vehicle ? await sendToBus(base44, user, vehicle.id).catch(() => ({ sent: 0 })) : { sent: 0 };
+        // Tell them their bus changed (or that they were taken off it).
+        if ((vehicle?.id || '') !== (person.vehicle_id || '')) {
+          const change = vehicle ? 'bus' : 'bus_removed';
+          await sendAccountEmail(base44, 'ride_changed', person.email, rideChangedEmail({ name: person.name, change, bus: vehicle?.name || '', oldBus: person.assigned_vehicle || '' }), { companyId: person.company_id || vehicle?.company_id || '' }).catch(() => {});
+        }
         return Response.json({ ok: true, person_key: key, sent_to_bus: delivery.sent });
       }
 

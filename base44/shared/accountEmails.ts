@@ -135,16 +135,23 @@ export function caseUpdateEmail({ name = '', title, text }: { name?: string; tit
 
 // A bus card was issued, replaced, paused, stopped or switched back on.
 // Only the last four characters of the card are ever shown.
-const CARD_EMAIL: Record<string, { subject: string; line: (card: string, bus: string) => string }> = {
+const CARD_EMAIL: Record<string, { subject: string; line: (card: string, bus: string, until: string) => string }> = {
   issued: { subject: 'Your bus card is ready', line: (c, bus) => `Your ${c} is set up${bus ? ` for ${bus}` : ''}. Tap it on the boarding tablet when you get on and when you get off.` },
   replaced: { subject: 'Your new bus card is ready', line: (c, bus) => `Your new ${c} is set up${bus ? ` for ${bus}` : ''}. It replaces your old card, which no longer works.` },
   suspended: { subject: 'Your bus card is paused', line: (c) => `The office paused your ${c}, so it won't work on the bus for now. Until it's switched back on, show the QR code in the app (My card).` },
   lost: { subject: 'Your bus card was stopped', line: (c) => `Your ${c} was marked as lost and no longer works. The office can give you a new one. Until then, show the QR code in the app (My card).` },
   revoked: { subject: 'Your bus card was stopped', line: (c) => `Your ${c} was stopped and no longer works. Ask the office if you need a new one.` },
   reactivated: { subject: 'Your bus card works again', line: (c) => `Your ${c} is switched back on. Tap it on the boarding tablet as usual.` },
+  expiring: { subject: 'Your bus card ends soon', line: (c, _bus, until) => `Your ${c} stops working after ${until || 'its end date'}. Ask the office for a new card before then.` },
 };
 export const CARD_EMAIL_EVENTS = Object.keys(CARD_EMAIL);
-export function cardEmail({ name = '', event, uid = '', bus = '' }: { name?: string; event: string; uid?: string; bus?: string }) {
+// A day as "Monday 30 November" (end dates are kept as YYYY-MM-DD).
+export function dayWords(day: unknown) {
+  const d = String(day || '');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return '';
+  return new Date(d + 'T12:00:00Z').toLocaleDateString('en-GB', { timeZone: 'UTC', weekday: 'long', day: 'numeric', month: 'long' });
+}
+export function cardEmail({ name = '', event, uid = '', bus = '', until = '' }: { name?: string; event: string; uid?: string; bus?: string; until?: string }) {
   const kind = CARD_EMAIL[event];
   if (!kind) return null;
   const tail = String(uid || '').replace(/[^A-Za-z0-9]/g, '').slice(-4).toUpperCase();
@@ -153,8 +160,84 @@ export function cardEmail({ name = '', event, uid = '', bus = '' }: { name?: str
     subject: kind.subject,
     body: accountEmailHtml({
       heading: kind.subject,
-      lines: [hello(name), kind.line(card, acctPlain(bus, 60))],
-      note: "If you didn't expect this, tell the office.",
+      lines: [hello(name), kind.line(card, acctPlain(bus, 60), dayWords(until))],
+      note: event === 'expiring' ? 'Until you have a new card, you can show the QR code in the app (My card).' : "If you didn't expect this, tell the office.",
+    }),
+  };
+}
+
+// A driver's phone app account was made. The username only: the office gives
+// the temporary password in person.
+export function driverAccountEmail({ name = '', username }: { name?: string; username: string }) {
+  return {
+    subject: 'Your McSween Transport driver app account',
+    body: accountEmailHtml({
+      heading: 'Your driver app account is ready',
+      lines: [hello(name), 'The office has set up the driver phone app for you.'],
+      rows: [['Username', acctPlain(username, 40)]],
+      steps: [
+        'On your phone, open the app and choose Driver sign-in.',
+        'Sign in with this username and the temporary password the office gives you.',
+        'Choose your own password when the app asks.',
+      ],
+      button: { label: 'Open the app', url: `${ACCOUNT_SITE}/login?driver=1` },
+      note: 'The temporary password is never sent by email. Ask the office for it.',
+    }),
+  };
+}
+
+// Someone was given office access: a standard role, or a custom role by name.
+const ACCESS_TEXT: Record<string, { label: string; line: (company: string) => string }> = {
+  admin: { label: 'administrator', line: () => 'You can now open Admin in McSween Transport: buses, passengers, drivers, cards and settings.' },
+  company: { label: 'company manager', line: (company) => `You can now manage ${company || 'your company'} in McSween Transport: its passengers, buses and job requests.` },
+  mechanic: { label: 'mechanic', line: () => 'You can now open the maintenance screens in McSween Transport: faults, inspections and servicing.' },
+};
+export const ACCESS_ROLES = Object.keys(ACCESS_TEXT);
+export function accessGivenEmail({ name = '', role = '', company = '', customRole = '' }: { name?: string; role?: string; company?: string; customRole?: string }) {
+  const custom = acctPlain(customRole, 60);
+  const text = ACCESS_TEXT[role];
+  if (!custom && !text) return null;
+  return {
+    subject: 'Your McSween Transport access has changed',
+    body: accountEmailHtml({
+      heading: custom ? `You've been given the ${custom} role` : `You now have ${text.label} access`,
+      lines: [hello(name), custom ? `You can now open the screens that come with the ${custom} role in McSween Transport.` : text.line(acctPlain(company, 80))],
+      button: { label: 'Open the app', url: ACCOUNT_SITE },
+      note: "If you weren't expecting this, tell the office straight away.",
+    }),
+  };
+}
+
+// The office moved a passenger to another bus, took them off one, or moved
+// a pickup spot they already had.
+export function rideChangedEmail({ name = '', change, bus = '', oldBus = '', pickup = '' }: { name?: string; change: string; bus?: string; oldBus?: string; pickup?: string }) {
+  const b = acctPlain(bus, 60), was = acctPlain(oldBus, 60), at = acctPlain(pickup, 120);
+  const words = change === 'bus' ? { subject: `You now ride ${b}`, line: `The office moved you to ${b}${was ? ` (you were on ${was})` : ''}. Your app shows the new bus from now on.` }
+    : change === 'bus_removed' ? { subject: 'You have been taken off your bus', line: `The office took you off ${was || 'your bus'}. Ask the office which bus to take.` }
+      : change === 'pickup' ? { subject: 'Your pickup spot has changed', line: `The office moved your pickup spot to ${at}. Your app shows it on the map.` }
+        : null;
+  if (!words) return null;
+  return {
+    subject: words.subject,
+    body: accountEmailHtml({
+      heading: words.subject,
+      lines: [hello(name), words.line],
+      button: { label: 'Open the app', url: ACCOUNT_SITE },
+      note: 'Questions? Ask in the app under Help, or call the office.',
+    }),
+  };
+}
+
+// An account signed in on a phone or browser it hasn't used before.
+export function newSignInEmail({ name = '', device = '', at = Date.now() }: { name?: string; device?: string; at?: number }) {
+  const what = acctPlain(device, 60) || 'a new phone or browser';
+  return {
+    subject: 'New sign-in to your McSween Transport account',
+    body: accountEmailHtml({
+      heading: 'New sign-in',
+      lines: [hello(name), `Your account was just used to sign in on ${what} (${grenadaWhen(at)}).`, "If this was you, there's nothing to do."],
+      button: { label: 'Reset my password', url: `${ACCOUNT_SITE}/forgot-password` },
+      note: "If it wasn't you, reset your password now and tell the office.",
     }),
   };
 }

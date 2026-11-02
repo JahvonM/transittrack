@@ -1,5 +1,9 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 import { ROLE_SECTIONS, roleSections, assignedAccessRole, safeRoleRecord } from '../../shared/accessRoles.ts';
+import { ACCESS_ROLES, accessGivenEmail, sendAccountEmail } from '../../shared/accountEmails.ts';
+
+// The standard roles an admin can give in Users & roles.
+const STANDARD_ROLES=['admin','company','driver','staff','mechanic'];
 
 export default async function(req) {
  try {
@@ -37,14 +41,39 @@ export default async function(req) {
    const role=body.role_id?await db.AccessRole.update(body.role_id,data):await db.AccessRole.create(data);
    return Response.json({role});
   }
+  // Users & roles: change someone's standard role (and, for a company
+  // manager, their company). The person is told by email when this gives
+  // them office access (Admin → Notifications → Office access given).
+  if(action==='set_user_role') {
+   if(typeof body.user_id!=='string' || !body.user_id)return Response.json({error:'Select a user'},{status:400});
+   if(!STANDARD_ROLES.includes(body.role))return Response.json({error:'Choose a role'},{status:400});
+   const target=await db.User.get(body.user_id);
+   if(!target)return Response.json({error:'User not found'},{status:404});
+   const patch={role:body.role};
+   let company=null;
+   if(body.role==='company' && typeof body.company_id==='string' && body.company_id) {
+    company=await db.Company.get(body.company_id).catch(()=>null);
+    if(!company)return Response.json({error:'Company not found'},{status:404});
+    patch.company_id=company.id;
+   }
+   await db.User.update(target.id,patch);
+   let emailed=false;
+   if(target.role!==body.role && ACCESS_ROLES.includes(body.role)) {
+    if(!company && body.role==='company' && target.company_id)company=await db.Company.get(target.company_id).catch(()=>null);
+    const sent=await sendAccountEmail(base44,'access_given',target.email,accessGivenEmail({name:target.display_name||target.full_name,role:body.role,company:company?.name||''}));
+    emailed=sent.sent>0;
+   }
+   return Response.json({ok:true,emailed});
+  }
   if(action==='assign') {
    if(typeof body.user_id!=='string')return Response.json({error:'Select a user'},{status:400});
    const target=await db.User.get(body.user_id);
    if(!target)return Response.json({error:'User not found'},{status:404});
    if(target.role==='admin')return Response.json({error:'Full administrators keep full access. Choose a non-admin account.'},{status:403});
    const roleId=typeof body.role_id==='string'?body.role_id:'';
+   let role=null;
    if(roleId) {
-    const role=await db.AccessRole.get(roleId);
+    role=await db.AccessRole.get(roleId);
     if(!role || role.active===false)return Response.json({error:'Choose an active role'},{status:400});
    }
    const [old]=await db.RoleAssignment.filter({user_id:target.id},'-updated_date',1);
@@ -53,6 +82,8 @@ export default async function(req) {
    // A custom view role replaces elevated company/mechanic/driver access.
    // Clearing it leaves a regular staff account; admin can set a standard role.
    await db.User.update(target.id,{access_role_id:roleId,...(roleId?{role:'staff'}:{})});
+   // A new custom role is office access too: tell them.
+   if(role && target.access_role_id!==roleId)await sendAccountEmail(base44,'access_given',target.email,accessGivenEmail({name:target.display_name||target.full_name,customRole:role.name}));
    return Response.json({ok:true});
   }
   return Response.json({error:'Unknown action'},{status:400});

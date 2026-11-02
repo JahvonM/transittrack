@@ -1,6 +1,7 @@
 import { createClientFromRequest } from '../_shared/base44-compat.ts';
 import { forwarding } from '../_shared/forwardToSupabase.ts';
 import { emailWithPolicy } from '../_shared/notificationPolicy.ts';
+import { remindExpiringCards } from '../_shared/cardExpiry.ts';
 
 // These jobs can be reached over plain HTTP with no login (that's how the
 // scheduler calls them), so outside an admin each one may only run once per
@@ -67,6 +68,10 @@ export default async function (req) {
       return Response.json({ ok: true, skipped: 'already ran recently' });
     }
 
+    // Also each morning: bus cards ending in the next 14 days (their holders
+    // get one email each). It never holds up the maintenance reminders.
+    const cards = await remindExpiringCards(base44).catch(() => ({ due: 0, sent: 0 }));
+
     const [schedules, vehicles, users, settingsList] = await Promise.all([
       base44.asServiceRole.entities.MaintenanceSchedule.list(),
       base44.asServiceRole.entities.Vehicle.list(),
@@ -124,7 +129,7 @@ export default async function (req) {
     }
 
     if (dueByCompany.size === 0) {
-      return Response.json({ alerted: false, count: 0, message: 'No maintenance due soon.' });
+      return Response.json({ alerted: false, count: 0, message: 'No maintenance due soon.', cards });
     }
 
     const sendResults = [];
@@ -173,6 +178,7 @@ export default async function (req) {
       alerted: true,
       dueCount: [...dueByCompany.values()].reduce((n, l) => n + l.length, 0),
       recipients: sendResults,
+      cards,
     });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });

@@ -1,0 +1,52 @@
+{
+  "name": "SignInDevice",
+  "type": "object",
+  "description": "Server-only: the phones and browsers each account has signed in on, for the New sign-in email. Only a hash of the browser's random id is kept, with a plain description such as \"Safari on an iPhone\". Read and written through accountEmails.",
+  "required": [
+    "user_id",
+    "device_hash"
+  ],
+  "properties": {
+    "user_id": {
+      "type": "string"
+    },
+    "device_hash": {
+      "type": "string",
+      "description": "SHA-256 of the account id and the browser's random id."
+    },
+    "label": {
+      "type": "string",
+      "description": "What kind of phone or browser, e.g. \"the app on an iPhone\"."
+    },
+    "first_seen_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "last_seen_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "rls": {
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}
