@@ -17,6 +17,7 @@ import BusDistance from "@/components/BusDistance";
 import useUserLocation from "@/hooks/useUserLocation";
 import { createVehicleLayer } from "./vehicleLayer";
 import { boundsOf, bearingDeg, splitRoute } from "./routeGeometry";
+import { drawnRoad } from "@/lib/routeRoad";
 import { setCooperativeGestures } from "./cooperativeGestures";
 
 const LiteMap = lazy(() => import("@/components/LiteMap"));
@@ -118,7 +119,7 @@ export default function LiveTransitMap(props) {
     return (
       <div className={cn("relative overflow-hidden", props.className)} style={props.style}>
         <Suspense fallback={<div className="h-full w-full animate-pulse bg-muted" />}>
-          <LiteMap vehicles={props.vehicles} stops={props.stops} road={props.road} userLocation={props.userLocation} followUser={!!props.followUser} focusVehicleId={props.focusVehicleId} focusKey={props.focusKey} fill />
+          <LiteMap vehicles={props.vehicles} routes={props.routes} stops={props.stops} road={props.road} userLocation={props.userLocation} followUser={!!props.followUser} focusVehicleId={props.focusVehicleId} focusKey={props.focusKey} fill />
         </Suspense>
       </div>
     );
@@ -167,6 +168,8 @@ function FullMap({
   const stopMarkersRef = useRef([]);
   const routeRef = useRef({ line: [], followsRoads: false });
   const lastSplitRef = useRef(0);
+  const photoMarkersRef = useRef(new Map());
+  const wallLabelsRef = useRef(new Map());
   const fittedRef = useRef(false);
   const followRef = useRef(true);
   const stateRef = useRef({});
@@ -204,6 +207,8 @@ function FullMap({
   const calloutEl = useMemo(() => (typeof document === "undefined" ? null : document.createElement("div")), []);
 
   const located = useMemo(() => vehicles.filter((v) => v.current_lat != null && v.current_lng != null), [vehicles]);
+  // Each route's drawn road, so a bus on it follows the bends between updates.
+  const roads = useMemo(() => new Map((routes || []).map((r) => [r.id, drawnRoad(r)]).filter(([, line]) => line)), [routes]);
   const focus = located.find((v) => v.id === focusVehicleId) || null;
   const focusFresh = focus ? freshnessOf(focus.last_location_update, { now }) : null;
   const orderedStops = useMemo(() => (stops || []).filter((s) => s.lat != null && s.lng != null), [stops]);
@@ -260,6 +265,9 @@ function FullMap({
 
     const layer = createVehicleLayer({
       onFrame: (positions) => {
+        // Photo markers ride along with the same steady movement as the 3D buses.
+        photoMarkersRef.current.forEach((m, vid) => { const at = positions[vid]; if (at) m.marker.setLngLat(at.lngLat); });
+        wallLabelsRef.current.forEach((m, vid) => { const at = positions[vid]; if (at) m.marker.setLngLat(at.lngLat); });
         const { focus: f } = stateRef.current;
         const p = f && positions[f.id];
         if (p && calloutRef.current) calloutRef.current.setLngLat(p.lngLat);
@@ -351,7 +359,7 @@ function FullMap({
     const layer = layerRef.current;
     if (!layer) return;
     layer.setVehicles(
-      located.filter(v => !v.image_url).map((v) => {
+      located.map((v) => {
         const fresh = freshnessOf(v.last_location_update, { now });
         return {
           id: v.id,
@@ -362,31 +370,47 @@ function FullMap({
           stale: !v.tracking_active || fresh.state === "lost" || fresh.state === "unknown",
           emphasis: v.id === focusVehicleId,
           alert: v.status === "emergency",
+          hidden: !!v.image_url,
+          road: roads.get(v.route_id) || (v.id === focusVehicleId ? drawn : null),
         };
       }),
       { accent, reduceMotion },
     );
-  }, [located, focusVehicleId, accent, reduceMotion, now, styleTick]);
+  }, [located, focusVehicleId, accent, reduceMotion, now, styleTick, roads, drawn]);
 
+  // Buses with a photo: one marker each, kept between updates (so the photo
+  // never reloads) and moved every frame by onFrame above.
   useEffect(() => {
     const map = mapRef.current;
-    if (!map) return undefined;
-    const markers = located.filter(v => v.image_url).map(v => {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.setAttribute("aria-label", `${v.name}, view bus details`);
-      button.style.cssText = "width:84px;height:70px;border:0;background:transparent;cursor:pointer;filter:drop-shadow(0 0 7px #00dce655)";
-      const img = document.createElement("img");
-      img.src = v.image_url; img.alt = "";
-      img.style.cssText = "width:100%;height:100%;object-fit:contain";
-      img.onerror = () => { img.onerror = null; img.src = "/images/transit-bus-3d.webp"; };
-      button.appendChild(img);
-      if (wall) { button.tabIndex = -1; button.style.pointerEvents = "none"; }
-      else button.onclick = event => { event.stopPropagation(); setSelectedId(v.id); };
-      return new mapboxgl.Marker({element:button,anchor:"center"}).setLngLat([v.current_lng,v.current_lat]).addTo(map);
-    });
-    return () => markers.forEach(marker => marker.remove());
+    if (!map) return;
+    const live = photoMarkersRef.current;
+    const seen = new Set();
+    for (const v of located) {
+      if (!v.image_url) continue;
+      seen.add(v.id);
+      let m = live.get(v.id);
+      if (!m) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.style.cssText = "width:84px;height:70px;border:0;background:transparent;cursor:pointer;filter:drop-shadow(0 0 7px #00dce655)";
+        const img = document.createElement("img");
+        img.alt = "";
+        img.style.cssText = "width:100%;height:100%;object-fit:contain";
+        img.onerror = () => { img.onerror = null; img.src = "/images/transit-bus-3d.webp"; };
+        button.appendChild(img);
+        const id = v.id;
+        if (wall) { button.tabIndex = -1; button.style.pointerEvents = "none"; }
+        else button.onclick = event => { event.stopPropagation(); setSelectedId(id); };
+        const at = layerRef.current?.positions()[id]?.lngLat || [v.current_lng, v.current_lat];
+        m = { marker: new mapboxgl.Marker({ element: button, anchor: "center" }).setLngLat(at).addTo(map), button, img, url: "" };
+        live.set(id, m);
+      }
+      if (m.url !== v.image_url) { m.img.src = v.image_url; m.url = v.image_url; }
+      m.button.setAttribute("aria-label", `${v.name}, view bus details`);
+    }
+    for (const [id, m] of live) if (!seen.has(id)) { m.marker.remove(); live.delete(id); }
   }, [located, styleTick]);
+  useEffect(() => () => { photoMarkersRef.current.forEach((m) => m.marker.remove()); photoMarkersRef.current.clear(); }, []);
 
   // Office display: each bus's name beside it (dimmed when its position is
   // only the last known one), and the view refitted now and then so every
@@ -394,18 +418,27 @@ function FullMap({
   const wallKey = wall ? located.map((v) => `${v.id}:${v.current_lat?.toFixed(3)},${v.current_lng?.toFixed(3)}:${wallLabel ? wallLabel(v).text + wallLabel(v).stale : ""}`).join("|") : "";
   useEffect(() => {
     const map = mapRef.current;
-    if (!wall || !map || !wallLabel) return undefined;
-    const markers = located.map((v) => {
+    const live = wallLabelsRef.current;
+    if (!wall || !map || !wallLabel) return;
+    const seen = new Set();
+    for (const v of located) {
+      seen.add(v.id);
       const { text, stale } = wallLabel(v);
-      const el = document.createElement("div");
-      el.className = `tt-wall-label${stale ? " tt-wall-label--stale" : ""}`;
-      el.textContent = text;
-      el.setAttribute("aria-hidden", "true");
-      return new mapboxgl.Marker({ element: el, anchor: "bottom", offset: [0, -34] }).setLngLat([v.current_lng, v.current_lat]).addTo(map);
-    });
-    return () => markers.forEach((m) => m.remove());
+      let m = live.get(v.id);
+      if (!m) {
+        const el = document.createElement("div");
+        el.setAttribute("aria-hidden", "true");
+        const at = layerRef.current?.positions()[v.id]?.lngLat || [v.current_lng, v.current_lat];
+        m = { el, marker: new mapboxgl.Marker({ element: el, anchor: "bottom", offset: [0, -34] }).setLngLat(at).addTo(map) };
+        live.set(v.id, m);
+      }
+      m.el.className = `tt-wall-label${stale ? " tt-wall-label--stale" : ""}`;
+      m.el.textContent = text;
+    }
+    for (const [id, m] of live) if (!seen.has(id)) { m.marker.remove(); live.delete(id); }
      
   }, [wallKey, styleTick, loaded]);
+  useEffect(() => () => { wallLabelsRef.current.forEach((m) => m.marker.remove()); wallLabelsRef.current.clear(); }, []);
   const lastWallFit = useRef(0);
   useEffect(() => {
     if (!wall || !loaded || !fittedRef.current) return;

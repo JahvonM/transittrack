@@ -127,7 +127,7 @@ export default function AdminOverview({ vehicles=[], routes=[], trips=[], faults
   </ul>
   <div className="tt-admin-top-grid grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
    <Panel title="Live Fleet" action={<ViewAll onClick={()=>onNavigate("fleet")} label="Open Live Fleet" />} className="tt-admin-map-panel overflow-hidden">
-    <div className="p-3 pt-1"><Suspense fallback={<div className="h-[410px] animate-pulse rounded-xl bg-muted" />}><LiveTransitMap variant="page" className="h-[410px] rounded-xl" vehicles={fleet.filter(v=>v.current_lat!=null&&v.current_lng!=null)} label="Fleet map" /></Suspense></div>
+    <div className="p-3 pt-1"><Suspense fallback={<div className="h-[410px] animate-pulse rounded-xl bg-muted" />}><LiveTransitMap variant="page" className="h-[410px] rounded-xl" vehicles={fleet.filter(v=>v.current_lat!=null&&v.current_lng!=null)} routes={routes} label="Fleet map" /></Suspense></div>
     <p className="px-5 pb-4 text-xs text-muted-foreground">Latest recorded positions. Delayed or missing reports are shown in Fleet status.</p>
    </Panel>
    <Panel title="Needs attention" action={<ViewAll onClick={()=>onNavigate("health")} label="Fleet health" />}>

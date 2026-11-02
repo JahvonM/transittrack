@@ -1,9 +1,11 @@
 import * as THREE from "three";
 import mapboxgl from "mapbox-gl";
 import { buildVehicle, setVehicleStale, disposeVehicle } from "./vehicleMesh";
-import { bearingDeg, distanceM, lerpHeading } from "./routeGeometry";
+import { createTrack, movedTo, retarget, step, turnTo } from "@/lib/vehicleMotion";
 
-const GLIDE_MS = 2600; // shorter than the GPS interval, so a bus settles before the next fix
+// While buses move the map redraws about 30 times a second: smooth to the
+// eye, and half the work (and battery) of redrawing every frame.
+const MOVING_FRAME_MS = 33;
 const rad = (d) => (d * Math.PI) / 180;
 
 function makeScene(group) {
@@ -28,8 +30,9 @@ function ringMesh(color) {
 /**
  * Mapbox custom layer that draws vehicles as real 3D models (three.js),
  * sharing the map's depth buffer so they sit among 3D buildings and on
- * terrain. Positions glide between GPS fixes and turn to face the direction
- * of travel. Purely visual: it never changes vehicle data.
+ * terrain. Buses move steadily between GPS fixes and turn to face the
+ * direction of travel (src/lib/vehicleMotion.js). Purely visual: it never
+ * changes vehicle data.
  */
 export function createVehicleLayer({ id = "tt-vehicles", onFrame } = {}) {
   const vehicles = new Map();
@@ -38,6 +41,7 @@ export function createVehicleLayer({ id = "tt-vehicles", onFrame } = {}) {
   const camera = new THREE.Camera();
   let accent = "#D6F54A";
   let reduceMotion = false;
+  let repaintTimer = null;
 
   const layer = {
     id,
@@ -57,11 +61,8 @@ export function createVehicleLayer({ id = "tt-vehicles", onFrame } = {}) {
       const projection = new THREE.Matrix4().fromArray(matrix);
       let moving = false;
       vehicles.forEach((v) => {
-        const t = v.dur ? Math.min(1, (now - v.t0) / v.dur) : 1;
-        const e = 1 - Math.pow(1 - t, 3);
-        v.current = [v.from[0] + (v.to[0] - v.from[0]) * e, v.from[1] + (v.to[1] - v.from[1]) * e];
-        v.heading = lerpHeading(v.hFrom, v.hTo, e);
-        if (t < 1) moving = true;
+        if (step(v, now)) moving = true;
+        if (!v.scene) return; // tracked only (a bus shown by its photo marker)
         let elevation = 0;
         try { elevation = map.queryTerrainElevation?.(v.current) || 0; } catch { elevation = 0; }
         const merc = mapboxgl.MercatorCoordinate.fromLngLat(v.current, elevation);
@@ -75,10 +76,12 @@ export function createVehicleLayer({ id = "tt-vehicles", onFrame } = {}) {
         renderer.render(v.scene, camera);
       });
       onFrame?.(layer.positions());
-      if (moving) map.triggerRepaint();
+      if (moving && !repaintTimer) repaintTimer = setTimeout(() => { repaintTimer = null; map?.triggerRepaint(); }, MOVING_FRAME_MS);
     },
     onRemove() {
-      vehicles.forEach((v) => disposeVehicle(v.group));
+      clearTimeout(repaintTimer);
+      repaintTimer = null;
+      vehicles.forEach((v) => { if (v.group) disposeVehicle(v.group); });
       vehicles.clear();
       renderer?.dispose?.();
       renderer = null;
@@ -86,7 +89,10 @@ export function createVehicleLayer({ id = "tt-vehicles", onFrame } = {}) {
     },
   };
 
-  // [{ id, lng, lat, heading?, modelId, stale, emphasis, alert }]
+  // [{ id, lng, lat, heading?, modelId, stale, emphasis, alert, hidden, road? }]
+  // road: the bus's route road ([lng, lat] pairs), so it follows the bends.
+  // hidden: moved like the others but not drawn (its photo marker follows
+  // layer.positions() instead).
   layer.setVehicles = (list, opts = {}) => {
     const now = performance.now();
     if (opts.reduceMotion != null) reduceMotion = opts.reduceMotion;
@@ -98,42 +104,33 @@ export function createVehicleLayer({ id = "tt-vehicles", onFrame } = {}) {
       seen.add(item.id);
       const to = [item.lng, item.lat];
       let v = vehicles.get(item.id);
-      if (v && (accentChanged || v.modelId !== item.modelId || v.emphasis !== !!item.emphasis || v.alert !== !!item.alert)) {
-        disposeVehicle(v.group);
+      if (v && (accentChanged || v.modelId !== item.modelId || v.emphasis !== !!item.emphasis || v.alert !== !!item.alert || v.hidden !== !!item.hidden)) {
+        if (v.group) disposeVehicle(v.group);
         vehicles.delete(item.id);
         v = { ...v, rebuilt: true };
       }
       if (!vehicles.has(item.id)) {
-        const group = buildVehicle(item.modelId, { accent });
+        const group = item.hidden ? null : buildVehicle(item.modelId, { accent });
         // Red ring for an emergency (staff views only), lime for the bus you follow.
-        if (item.alert) group.add(ringMesh("#FF5A5F"));
-        else if (item.emphasis) group.add(ringMesh(accent));
-        const start = v?.current || to;
-        const heading = item.heading ?? v?.heading ?? 0;
+        if (group && item.alert) group.add(ringMesh("#FF5A5F"));
+        else if (group && item.emphasis) group.add(ringMesh(accent));
+        // A rebuilt model (new colour or ring) keeps its motion; a bus seen
+        // for the first time appears where it is.
+        const track = v?.current ? { ...v } : createTrack(to, now, item.heading ?? 0);
         vehicles.set(item.id, {
-          id: item.id, group, scene: makeScene(group), modelId: item.modelId, emphasis: !!item.emphasis, alert: !!item.alert,
-          from: start, to, current: start, t0: now, dur: v && !reduceMotion ? GLIDE_MS : 0,
-          hFrom: heading, hTo: heading, heading,
+          ...track, id: item.id, group, scene: group ? makeScene(group) : null, modelId: item.modelId, emphasis: !!item.emphasis, alert: !!item.alert, hidden: !!item.hidden,
         });
         v = vehicles.get(item.id);
-      } else if (distanceM(v.to, to) > 0.5) {
-        const travel = bearingDeg(v.current, to);
-        v.from = v.current;
-        v.to = to;
-        v.t0 = now;
-        v.dur = reduceMotion ? 0 : GLIDE_MS;
-        v.hFrom = v.heading;
-        v.hTo = item.heading ?? travel ?? v.heading;
-      } else if (item.heading != null && Math.abs(item.heading - v.hTo) > 1) {
-        v.hFrom = v.heading;
-        v.hTo = item.heading;
-        v.t0 = now;
-        v.dur = reduceMotion ? 0 : 800;
+        if (movedTo(v, to)) retarget(v, to, now, { heading: item.heading, snap: reduceMotion || !!item.stale, road: item.road });
+      } else if (movedTo(v, to)) {
+        retarget(v, to, now, { heading: item.heading, snap: reduceMotion || !!item.stale, road: item.road });
+      } else if (item.heading != null) {
+        turnTo(v, item.heading, now, { snap: reduceMotion });
       }
-      setVehicleStale(v.group, !!item.stale);
+      if (v.group) setVehicleStale(v.group, !!item.stale);
     });
     vehicles.forEach((v, key) => {
-      if (!seen.has(key)) { disposeVehicle(v.group); vehicles.delete(key); }
+      if (!seen.has(key)) { if (v.group) disposeVehicle(v.group); vehicles.delete(key); }
     });
     map?.triggerRepaint();
   };
@@ -150,6 +147,7 @@ export function createVehicleLayer({ id = "tt-vehicles", onFrame } = {}) {
     if (!map) return null;
     let best = null;
     vehicles.forEach((v, key) => {
+      if (v.hidden) return; // its photo marker takes the tap
       const p = map.project(v.current);
       const d = Math.hypot(p.x - point.x, p.y - point.y);
       if (d <= radiusPx && (!best || d < best.d)) best = { id: key, d };

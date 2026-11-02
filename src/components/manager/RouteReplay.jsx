@@ -5,6 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Play, Pause, RotateCcw } from "lucide-react";
 
+// One replay step; the bus glides between steps in the same time.
+const STEP_MS = 800;
+
 export default function RouteReplay({ vehicles }) {
   const [vehicleId, setVehicleId] = useState("");
   const [trail, setTrail] = useState([]);
@@ -29,7 +32,7 @@ export default function RouteReplay({ vehicles }) {
       setPlaying(false);
       return;
     }
-    timer.current = setTimeout(() => setStep((s) => s + 1), 800);
+    timer.current = setTimeout(() => setStep((s) => s + 1), STEP_MS);
     return () => clearTimeout(timer.current);
   }, [playing, step, trail]);
 
@@ -82,6 +85,7 @@ export default function RouteReplay({ vehicles }) {
                 center={currentPoint ? [currentPoint.lng, currentPoint.lat] : null}
                 height="50vh"
                 interactive={false}
+                glideMs={STEP_MS}
               />
             </div>
           </>

@@ -471,6 +471,7 @@ export default function DriverNavMap({ session, invoke, fill = false, pushLocati
               followUser={following}
               showUserDot={false}
               showRecenter={false}
+              glide={false}
               onDragStart={stopFollowing}
               userLocation={smooth || (vehicle?.current_lat != null ? { lat: vehicle.current_lat, lng: vehicle.current_lng } : null)}
               vehicles={smooth ? [{

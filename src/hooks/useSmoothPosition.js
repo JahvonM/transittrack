@@ -1,54 +1,60 @@
 import { useEffect, useRef, useState } from "react";
+import { createTrack, movedTo, prefersReducedMotion, retarget, step } from "@/lib/vehicleMotion";
+
+const FRAME_MS = 33; // about 30 updates a second while moving
 
 /**
- * Smoothly animates between successive (lat, lng) updates instead of snapping
- * to each new GPS ping — so a moving marker glides continuously across the
- * map (like Life360's vehicle markers) even though the underlying location
- * update only arrives every several seconds.
+ * A map marker's drawn position between GPS updates.
+ *
+ * Default: a bus being watched moves steadily from where it is drawn to each
+ * new real position, over about the time updates take to arrive, so it keeps
+ * moving instead of hopping and then waiting (see src/lib/vehicleMotion.js).
+ * It is only ever drawn between real positions, never ahead of the newest.
+ *
+ * With { duration }: a fixed, quick glide that settles (the driver's own
+ * position, route replay). With { road }: follows that road ([lng, lat]
+ * pairs) round the bends when the bus is on it.
  *
  * @param {number|null|undefined} lat
  * @param {number|null|undefined} lng
- * @param {{duration?: number}} options - animation length in ms (default 2500,
- *   comfortably shorter than the ~8s GPS polling interval so it always
- *   finishes settling before the next update arrives)
+ * @param {{duration?: number}} options
  */
-export default function useSmoothPosition(lat, lng, { duration = 2500 } = {}) {
+export default function useSmoothPosition(lat, lng, { duration, road = null } = {}) {
   const hasTarget = lat != null && lng != null;
   const [pos, setPos] = useState(hasTarget ? { lat, lng } : null);
-  const posRef = useRef(pos);
-  posRef.current = pos;
+  const trackRef = useRef(null);
   const rafRef = useRef(null);
+  const lastPaint = useRef(0);
 
   useEffect(() => {
-    if (!hasTarget) return;
-    const target = { lat, lng };
-
-    // First position ever seen — snap instantly, nothing to animate from.
-    if (!posRef.current) {
-      setPos(target);
-      return;
+    if (!hasTarget) return undefined;
+    const now = performance.now();
+    const to = [lng, lat];
+    const reduce = prefersReducedMotion();
+    let track = trackRef.current;
+    if (!track) {
+      // First position ever seen: nothing to move from.
+      trackRef.current = createTrack(to, now);
+      setPos({ lat, lng });
+      return undefined;
     }
+    if (movedTo(track, to)) {
+      retarget(track, to, now, { snap: reduce, road });
+      if (Number.isFinite(duration) && !reduce && track.dur) { track.dur = Math.max(0, duration); track.ht0 = now; }
+    }
+    // (Re)start the frame loop; it stops by itself once the marker arrives.
 
-    const from = posRef.current;
-    const start = performance.now();
-
-    const step = (now) => {
-      const t = Math.min(1, (now - start) / duration);
-      const eased = 1 - Math.pow(1 - t, 3); // ease-out: fast start, gentle settle
-      setPos({
-        lat: from.lat + (target.lat - from.lat) * eased,
-        lng: from.lng + (target.lng - from.lng) * eased,
-      });
-      if (t < 1) rafRef.current = requestAnimationFrame(step);
+    const tick = (t) => {
+      const moving = step(track, performance.now());
+      if (!moving || t - lastPaint.current >= FRAME_MS) {
+        lastPaint.current = t;
+        setPos({ lng: track.current[0], lat: track.current[1] });
+      }
+      rafRef.current = moving ? requestAnimationFrame(tick) : null;
     };
-
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    rafRef.current = requestAnimationFrame(step);
-
-    return () => {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    rafRef.current = requestAnimationFrame(tick);
+    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); rafRef.current = null; };
   }, [lat, lng, hasTarget, duration]);
 
   return pos;
