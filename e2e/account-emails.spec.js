@@ -134,3 +134,19 @@ test("after a password reset the sign-in page says the password changed", async 
   await page.goto("/login?reset=1");
   await expect(page.getByRole("status").filter({ hasText: "Password changed. Sign in with your new password." })).toBeVisible();
 });
+
+test("Users & roles: a role change goes through the server, which tells the person when it gives office access", async ({ page }) => {
+  const sent = [];
+  await mockFleet(page, { role: "admin", data: fleetData() });
+  await page.route("**/functions/accessRoles", async (route) => {
+    const body = route.request().postDataJSON();
+    if (body.action === "set_user_role") { sent.push(body); return route.fulfill({ json: { ok: true, emailed: true } }); }
+    return route.fulfill({ json: { roles: [], assignments: [] } });
+  });
+  await page.setViewportSize({ width: 1280, height: 860 });
+  await page.goto("/admin/users");
+  await page.getByRole("combobox", { name: "Role for Rita Rider" }).click();
+  await page.getByRole("option", { name: "Mechanic" }).click();
+  await expect(page.getByText("Rita Rider has been told by email.").first()).toBeVisible();
+  expect(sent).toEqual([{ action: "set_user_role", user_id: "u-pass", role: "mechanic" }]);
+});

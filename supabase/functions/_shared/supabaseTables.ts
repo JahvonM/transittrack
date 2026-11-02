@@ -51,6 +51,7 @@ export const SUPABASE_TABLES: Record<string, string> = {
   RoleAssignment: "role_assignment",
   Route: "route",
   RouteTravelTimes: "route_travel_times",
+  SignInDevice: "sign_in_device",
   SignupAlert: "signup_alert",
   SignupHelp: "signup_help",
   StaffCheckIn: "staff_check_in",

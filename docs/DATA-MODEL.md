@@ -106,6 +106,7 @@ Changing records through entityAccess:
 | [RoleAssignment](#roleassignment) | `role_assignment` | server only | — | — | — | — | through other functions |
 | [Route](#route) | `route` | entityAccess | — | own company | own company | — | all |
 | [RouteTravelTimes](#routetraveltimes) | `route_travel_times` | entityAccess | — | own company | own company | — | all |
+| [SignInDevice](#signindevice) | `sign_in_device` | server only | — | — | — | — | through other functions |
 | [SignupAlert](#signupalert) | `signup_alert` | server only | — | — | — | — | through other functions |
 | [SignupHelp](#signuphelp) | `signup_help` | server only | — | — | — | — | through other functions |
 | [StaffCheckIn](#staffcheckin) | `staff_check_in` | entityAccess | — | — | own company | — | all |
@@ -857,6 +858,7 @@ Table `nfc_card` · belongs to a company through `company_id` · read and change
 | `access_level` | text | e.g. DEPOT_DRIVER_ZONE. |
 | `issue_date` | timestamptz |  |
 | `expiry_date` | date |  |
+| `expiry_notice_for` | text | The end date the holder was last emailed about (Bus card ending soon), so each end date is told once. Not sent to the browser. |
 | `issued_by` | text |  |
 | `is_active` | boolean | The switch boarding tablets check. True only while status is active. Default `true`. |
 | `status` | text | Why the card is or isn't working. Older records have none; see base44/shared/cardStatus.ts. One of: `active`, `suspended`, `lost`, `revoked`, `replaced`. |
@@ -1166,6 +1168,22 @@ Table `route_travel_times` · belongs to a company through `company_id` · read 
 | `days` | double precision | How many days of history were used. |
 | `learned_at` | timestamptz |  |
 
+### SignInDevice
+
+Table `sign_in_device` · server functions only.
+
+Server-only: the phones and browsers each account has signed in on, for the New sign-in email. Only a hash of the browser's random id is kept, with a plain description such as "Safari on an iPhone". Read and written through accountEmails.
+
+**Links to:** [User](#user) (`user_id`).
+
+| Field | Type | Notes |
+|---|---|---|
+| `user_id` | text | → User. Required. |
+| `device_hash` | text | SHA-256 of the account id and the browser's random id. Required. |
+| `label` | text | What kind of phone or browser, e.g. "the app on an iPhone". |
+| `first_seen_at` | timestamptz |  |
+| `last_seen_at` | timestamptz |  |
+
 ### SignupAlert
 
 Table `signup_alert` · server functions only.
@@ -1356,7 +1374,7 @@ Table `app_user` · read and changed through entityAccess.
 
 **Links to:** [Company](#company) (`company_id`), [Route](#route) (`pickup_route_id`), [AccessRole](#accessrole) (`access_role_id`).
 
-**Linked from:** [CompanyAccessGrant](#companyaccessgrant).user_id, [CompanyMembership](#companymembership).user_id, [GroupMessage](#groupmessage).sender_id, [InspectionResult](#inspectionresult).inspector_id, [LostItemReport](#lostitemreport).reporter_id, [MaintenanceSchedule](#maintenanceschedule).assigned_mechanic_id, [PassengerAccessCredential](#passengeraccesscredential).user_id, [PassengerCase](#passengercase).user_id, [PassengerOneTimeCredential](#passengeronetimecredential).user_id, [RoleAssignment](#roleassignment).user_id, [SignupAlert](#signupalert).user_id, [VerificationGrant](#verificationgrant).member_user_id.
+**Linked from:** [CompanyAccessGrant](#companyaccessgrant).user_id, [CompanyMembership](#companymembership).user_id, [GroupMessage](#groupmessage).sender_id, [InspectionResult](#inspectionresult).inspector_id, [LostItemReport](#lostitemreport).reporter_id, [MaintenanceSchedule](#maintenanceschedule).assigned_mechanic_id, [PassengerAccessCredential](#passengeraccesscredential).user_id, [PassengerCase](#passengercase).user_id, [PassengerOneTimeCredential](#passengeronetimecredential).user_id, [RoleAssignment](#roleassignment).user_id, [SignInDevice](#signindevice).user_id, [SignupAlert](#signupalert).user_id, [VerificationGrant](#verificationgrant).member_user_id.
 
 **The app only ever gets:** `email`, `full_name`, `role`, `company_id`, `boarding_note`, `display_name`, `phone`, `photo_url`, `home_lat`, `home_lng`, `home_address`, `pickup_lat`, `pickup_lng`, `pickup_name`, `pickup_route_id`, `work_lat`, `work_lng`, `whatsapp_linked`, `skip_pickup_today`, `skip_pickup_until`, `late_snooze_active`, `late_until`, `favorite_stop`, `stop_alerts`, `theme_accent`; admins also get `access_role_id`.
 

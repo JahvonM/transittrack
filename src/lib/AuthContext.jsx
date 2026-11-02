@@ -8,6 +8,7 @@ import { isKioskInstall } from '@/lib/kioskApp';
 import { httpStatus, errorData, sessionRejected } from '@/lib/requestError';
 import { savedProfile, rememberProfile, forgetProfile, savedPublicSettings, rememberPublicSettings } from '@/lib/savedSignIn';
 import { confirmPasswordReset } from '@/lib/passwordNotice';
+import { noteSignIn } from '@/lib/signInDevice';
 
 const AuthContext = createContext();
 
@@ -59,6 +60,9 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     if (!isAuthenticated || !user?.id) return;
     confirmPasswordReset((body) => base44.functions.invoke('accountEmails', body));
+    // A new phone or browser for this account: the server may send the
+    // "New sign-in" email.
+    noteSignIn((body) => base44.functions.invoke('accountEmails', body), user.id);
   }, [isAuthenticated, user?.id]);
 
   const checkAppState = async () => {

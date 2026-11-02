@@ -1,7 +1,7 @@
 import { createClientFromRequest } from '../_shared/base44-compat.ts';
 import { secrets } from '../_shared/base44-compat.ts';
 import { reserveAttempt } from '../_shared/atomicOps.ts';
-import { passwordChangedEmail, sendAccountEmail } from '../_shared/accountEmails.ts';
+import { driverAccountEmail, passwordChangedEmail, sendAccountEmail } from '../_shared/accountEmails.ts';
 
 // Only trusted admins can provision, reset or disable driver credentials.
 // Supabase Auth holds passwords. Driver records hold identity and access flags only.
@@ -186,6 +186,9 @@ export default async function(req) {
       await rekeyBuses(db, { ...driver, username }, username)
         .catch(() => console.error('[driverAccounts] could not update the driver\'s buses'));
       await audit(db, actor, driver, 'Created driver phone username account');
+      // Their username and how to sign in, if the record has a real email.
+      // The temporary password stays with the office.
+      await sendAccountEmail(client, 'driver_account', driver.email, driverAccountEmail({ name: driver.full_name, username }), { companyId: driver.company_id || '' });
       // The temporary password is returned once over the authenticated admin request; never stored.
       return Response.json({ ok: true, username, temporary_password: password, must_change_password: true });
     }
