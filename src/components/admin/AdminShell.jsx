@@ -48,6 +48,7 @@ import {
   BookOpen,
   Hourglass,
   ClipboardCheck,
+  Tv,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -67,6 +68,7 @@ export const ADMIN_SECTIONS = [
 
   { id: "trips", label: "Jobs", icon: CalendarPlus, group: "Fleet Operations" },
   { id: "fleet-workspace", label: "Fleet workspace", icon: LayoutDashboard, group: "Fleet Operations" },
+  { id: "office-displays", label: "Office displays", icon: Tv, group: "Fleet Operations" },
   { id: "fleet", label: "Live fleet", icon: MapPin, group: "Fleet Operations" },
   { id: "vehicles", label: "Vehicles", icon: Bus, group: "Fleet Operations" },
   { id: "drivers", label: "Drivers", icon: Car, group: "Fleet Operations" },
@@ -119,7 +121,7 @@ export const ADMIN_SECTIONS = [
 ];
 
 const NAV_GROUPS = [
- {label:"Fleet",icon:Bus,ids:["fleet-workspace","fleet","vehicles","health","route-planner","route-explorer","plan-pickups"]},
+ {label:"Fleet",icon:Bus,ids:["fleet-workspace","office-displays","fleet","vehicles","health","route-planner","route-explorer","plan-pickups"]},
  {label:"Maintenance",icon:Wrench,ids:["service","faults","parts","schedule","calendar","templates","inspection-history","service-history","incident-reports","safety-standards"]},
  {label:"People & access",icon:Users,ids:["drivers","directory","signup-day","users","cards","card-designs"]},
  {label:"Operations",icon:Activity,ids:["trips","kiosks","shifts","checkins","billing","messaging","lost-items","ride-history","passenger-bookings","support"]},

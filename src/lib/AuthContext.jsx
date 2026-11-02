@@ -1,4 +1,5 @@
 import React, { createContext, useState, useContext, useEffect, useRef } from 'react';
+import { closeDesktopDisplaysOnSignOut } from "@/lib/officeDisplayDesktop";
 import { base44 } from '@/api/base44Client';
 import { appParams } from '@/lib/app-params';
 import { setAuditActor } from '@/lib/auditLog';
@@ -157,6 +158,8 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = (shouldRedirect = true) => {
+    // McSween Transport Desktop: office display windows close with the sign-in.
+    closeDesktopDisplaysOnSignOut(user);
     forgetProfile();
     authEpoch.current += 1;
     authRequestRef.current = null;

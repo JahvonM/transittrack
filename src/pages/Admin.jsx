@@ -119,6 +119,7 @@ const ADMIN_PAGES = {
   directory: lazy(() => import("@/pages/StaffDirectory")),
   // A team at a hotel signs its staff up together, each on their own device.
   "signup-day": lazy(() => import("@/components/admin/signup/SignupDayTab")),
+  "office-displays": lazy(() => import("@/components/admin/displays/OfficeDisplaysTab")),
   "ride-history": lazy(() => import("@/pages/RideHistory")),
   "passenger-bookings": lazy(() => import("@/pages/PassengerBookings")),
   // Requests and problems passengers send from the app (passengerCases).

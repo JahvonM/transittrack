@@ -12,7 +12,7 @@ export const FIRST_OPEN_KEY = "tt_first_open_v1";
 // a guest following a ride link, the desktop/phone sign-in hand-offs, the
 // legal pages, the public website, the app-store reviewers' sandbox, and a
 // hotel's join link (see joining below).
-const SKIP_PATH = /^\/(kiosk|tablet|driver|track|desktop-signin|phone-signin|oauth|privacy|terms|site|reviewer-sandbox|join)(\/|$)/;
+const SKIP_PATH = /^\/(kiosk|tablet|driver|track|desktop-signin|phone-signin|oauth|privacy|terms|site|reviewer-sandbox|join|display)(\/|$)/;
 
 // Someone who scanned a hotel's join QR joins first and gets the app after:
 // on an iPhone the Home Screen app has storage of its own, so leaving Safari

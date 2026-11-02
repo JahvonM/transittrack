@@ -3,7 +3,7 @@ import { useLocation } from "react-router-dom";
 import { WifiOff } from "lucide-react";
 
 // Driver tablets and kiosks show their own connection state.
-const OWN_INDICATOR = ["/driver", "/kiosk"];
+const OWN_INDICATOR = ["/driver", "/kiosk", "/display"];
 
 // One app-wide notice while the device has no connection. Presentation only:
 // it reads navigator.onLine and changes nothing about how data loads or saves.

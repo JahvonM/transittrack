@@ -1,6 +1,6 @@
 {
   "name": "transittrack-desktop",
-  "version": "0.2.7",
+  "version": "0.2.8",
   "private": true,
   "description": "McSween Transport Admin and Mechanic for Windows",
   "author": "McSween Transport",
@@ -39,7 +39,9 @@
       "reader.ps1",
       "preload.cjs",
       "setup-launch.cjs",
-      "reader-process.cjs"
+      "reader-process.cjs",
+      "displays.cjs",
+      "display-preload.cjs"
     ],
     "win": {
       "target": [

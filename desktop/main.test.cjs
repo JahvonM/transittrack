@@ -11,7 +11,9 @@ test('the real entry creates an isolated window and rejects foreign navigation',
  }
  const app=new EventEmitter();Object.assign(app,{enableSandbox(){},setAppUserModelId(){},requestSingleInstanceLock:()=>true,setPath(name,dir){this.paths={...this.paths,[name]:dir};},getPath:name=>'/appdata',whenReady:()=>Promise.resolve(),quit(){}});
  const external=[];
- const electron={ipcMain:{handle(){}},app,BrowserWindow:Window,Menu:{buildFromTemplate:t=>(template=t),setApplicationMenu(){}},dialog:{showMessageBox:async()=>({response:0})},shell:{openExternal:async url=>external.push(url)}};
+ const handlers={};
+ const screen=Object.assign(new EventEmitter(),{getAllDisplays:()=>[{id:1,bounds:{x:0,y:0,width:1920,height:1080},workArea:{x:0,y:0,width:1920,height:1040}}],getPrimaryDisplay:()=>({id:1}),getDisplayMatching:()=>({id:1})});
+ const electron={ipcMain:{handle(name,fn){handlers[name]=fn;}},screen,app,BrowserWindow:Window,Menu:{buildFromTemplate:t=>(template=t),setApplicationMenu(){}},dialog:{showMessageBox:async()=>({response:0})},shell:{openExternal:async url=>external.push(url)}};
  vm.runInNewContext(fs.readFileSync(__dirname+'/main.cjs','utf8'),{require:name=>name==='electron'?electron:require(name),__dirname,URL,AbortController});
  await new Promise(resolve=>setImmediate(resolve));
  assert.equal(window.options.webPreferences.nodeIntegration,false);
@@ -41,4 +43,11 @@ test('the real entry creates an isolated window and rejects foreign navigation',
  window.webContents.emit('did-fail-load',{},-105,'Offline',window.url,true);
  assert.ok(window.file.endsWith('offline.html'));
  assert.equal(template[0].submenu[2].label,'Mechanic');
+ // Office displays: only the main window, on the TransitTrack site, may open display windows.
+ assert.equal(template[1].submenu[1].label,'Office displays');
+ assert.throws(()=>handlers['office-displays']({sender:{},senderFrame:{url:APP+'/admin'}},'list'),/Not allowed/);
+ assert.throws(()=>handlers['office-displays']({sender:window.webContents,senderFrame:{url:'https://evil.invalid/'}},'list'),/Not allowed/);
+ assert.throws(()=>handlers['office-displays']({sender:window.webContents,senderFrame:{url:APP+'/admin'}},'credentialFor'),/Unknown action/);
+ assert.deepEqual(handlers['office-displays']({sender:window.webContents,senderFrame:{url:APP+'/admin/office-displays'}},'list'),[]);
+ assert.equal(handlers['office-display-credential']({sender:window.webContents}),null);
 });

@@ -23,6 +23,14 @@ Windows CI can build the same installer from the repository's Desktop Windows wo
 The preview has application metadata and the TransitTrack icon. Sign production
 builds with an owner-controlled certificate before release.
 
+## Office displays
+Devices → Office displays (Admin → Office displays) opens a read-only display in its own
+window on a monitor or TV connected to this computer, full screen, on the screen you choose.
+Set Windows to Extend first (Windows + P); the app never changes display settings. Each
+display window has its own in-memory session, can only show /display, and gets its access
+from this app, never from your sign-in or a URL. Display windows close when you sign out or
+close the main window. Details, checklist and rollback: docs/office-displays.md.
+
 ## Current scope and limitations
 - Remote website updates appear when the app loads. Version 0.2.3 adds automatic Windows installer checks 15 seconds after startup and every six hours while open, plus Help → Check for updates. Checks notify once per new version per session; choose Download update to open the verified project release download in your browser. Installation remains manual and does not restart an active session. Offline background checks remain quiet.
 - Internet is needed for live tracking and writes. The local connection screen provides retry.

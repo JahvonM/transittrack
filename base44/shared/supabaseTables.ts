@@ -38,6 +38,8 @@ export const SUPABASE_TABLES: Record<string, string> = {
   NfcCard: "nfc_card",
   NotificationLog: "notification_log",
   NotificationSetting: "notification_setting",
+  OfficeDisplay: "office_display",
+  OfficeDisplayPairing: "office_display_pairing",
   Part: "part",
   PassengerAccessCredential: "passenger_access_credential",
   PassengerCase: "passenger_case",
