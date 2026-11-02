@@ -46,8 +46,11 @@ export function roadPath(road, from, to) {
   if (!a || !b || a.offM > ROAD.maxOffM || b.offM > ROAD.maxOffM) return null;
   const forward = a.index < b.index || (a.index === b.index && a.t <= b.t);
   const mid = forward ? road.slice(a.index + 1, b.index + 1) : road.slice(b.index + 1, a.index + 1).reverse();
-  if (!mid.length) return null; // same stretch of road: straight is the road
-  const pts = [from, ...mid, to];
+  // Points on top of each other (the bus exactly on a corner) add nothing.
+  const pts = [from];
+  for (const p of [...mid, to]) if (distanceM(pts[pts.length - 1], p) >= 0.5) pts.push(p);
+  if (distanceM(pts[pts.length - 1], to) > 0) pts[pts.length - 1] = to;
+  if (pts.length < 3) return null; // one stretch of road: straight is the road
   const straight = distanceM(from, to);
   if (lengthOf(pts) > Math.max(straight * ROAD.maxDetour, straight + ROAD.extraM)) return null;
   return pts;
