@@ -37,9 +37,11 @@ export default function useSmoothPosition(lat, lng, { duration } = {}) {
       setPos({ lat, lng });
       return undefined;
     }
-    if (!movedTo(track, to)) return undefined;
-    retarget(track, to, now, { snap: reduce });
-    if (Number.isFinite(duration) && !reduce) { track.dur = Math.max(0, duration); track.ht0 = now; }
+    if (movedTo(track, to)) {
+      retarget(track, to, now, { snap: reduce });
+      if (Number.isFinite(duration) && !reduce && track.dur) { track.dur = Math.max(0, duration); track.ht0 = now; }
+    }
+    // (Re)start the frame loop; it stops by itself once the marker arrives.
 
     const tick = (t) => {
       const moving = step(track, performance.now());
