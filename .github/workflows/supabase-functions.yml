@@ -52,7 +52,8 @@ jobs:
         # The functions check who is calling themselves (Supabase sign-in or a
         # tablet's device key), so the gateway's own JWT check stays off.
         # The CLI wants a config file; this one lives only for this run, so
-        # nothing here changes the project's own settings.
+        # nothing here changes the project's own settings. Newer CLIs ask to
+        # confirm a deploy of every function; --yes answers that here.
         run: |
           [ -f supabase/config.toml ] || printf 'project_id = "%s"\n' "$PROJECT_REF" > supabase/config.toml
-          supabase functions deploy --project-ref "$PROJECT_REF" --no-verify-jwt --use-api
+          supabase functions deploy --project-ref "$PROJECT_REF" --no-verify-jwt --use-api --yes
