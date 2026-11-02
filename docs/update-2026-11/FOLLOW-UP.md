@@ -73,7 +73,9 @@ the rules are now shared by the tablet and the phone
 
 - T10 barcode scanner, LED and buzzer: the maker's SDK (`HARDWARE.md`).
 - Kiosk lock on the 5 unlocked tablets, boarding tablets for Grenville and
-  St. George, the camera relay (TURN): on the devices or in Cloudflare.
+  St. George: on the devices. Camera viewing: the owner reports it is set
+  up in Admin → Kiosk tablets (2 Nov). Not tested on a bus from here; a view
+  that says "Direct connection mode" has no relay (TURN).
 - No tablet had checked in since 30 Oct when PR #16 went live (1 Nov), so
   the 15-minute device checks in `ROLLOUT.md` are still to do when the
   fleet is back on.
@@ -89,3 +91,24 @@ the rules are now shared by the tablet and the phone
 | Lint, generated-file checks | Pass |
 
 No physical device was tested. Device tests F1–F9 above are still to do.
+
+## Fleet monitoring screen (2 Nov 2026, branch `fleet-monitoring`)
+
+PR #17 above is merged and live. This branch lays out Admin → Fleet
+workspace like a fleet monitoring screen (owner's choice: "same look, keep
+the rules"). Front end only: no database or server change.
+
+| Part | What it shows |
+|---|---|
+| Tabs | Live view, Playback, Alerts (with a count), Reports |
+| Live view | A tile per bus: status dot, cameras, the bus picture, location (live / last known with the time), speed, on board, shift and driver, faults, tablet protection. Search, filter (all / with a camera / live location / needs attention), Tiles or List, 9 tiles a page. Beside it the live map and a Buses list (location, speed, cameras); a row shows that bus on the map |
+| Live camera | Unchanged rules, still labelled a trial: tap a bus, then choose back or front camera (driver tablets only, never a boarding tablet's QR camera). Up to 4 at once, Stop on the tablet, 10 minutes, logged. A view ends when closed or when its tile leaves the screen. The old "Show" switch is replaced by this two-tap start |
+| Playback | Saved dashcam clips for a chosen bus (the existing viewer) |
+| Alerts | Needs attention, each linking to where to fix it |
+| Reports | Links to driving reports, fleet and route analytics, vehicle logs, ride history, boarding log |
+
+Tiles show the bus picture, not a camera snapshot: a snapshot would mean
+starting the tablet's camera, which only happens when an admin asks. Speed
+is the bus's last reported speed, shown only while its location is live.
+
+Device test D22 (camera on mobile data) is added to `DEVICE-TESTS.md`.

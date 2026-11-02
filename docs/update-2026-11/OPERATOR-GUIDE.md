@@ -62,11 +62,27 @@ For the office and drivers. Nothing here needs a computer person.
 
 ## Fleet workspace (Admin → Fleet workspace)
 
-One screen with the map, a line per bus (live or last known location,
-shift, people on board where a boarding tablet is reporting, faults, last
-check, tablet protection) and **Needs attention** with links to fix things.
-**Cameras (trial)** is off until you switch it on; it shows road-facing
-driver-tablet cameras only, up to four, and each view ends after 10 minutes.
+Laid out as a monitoring screen with four tabs:
+
+- **Live view**: a tile per bus (live or last known location, speed, people
+  on board where a boarding tablet is reporting, shift and driver, faults,
+  tablet protection), the live map, and a **Buses** list with location,
+  speed and cameras. Tap a row in the list to show that bus on the map.
+  Search by bus, plate or driver; filter to buses with a camera, a live
+  location, or something that needs attention. Tiles or List; 9 tiles a page.
+- **Live camera (trial)**: on a bus whose driver tablet can be viewed, tap
+  the tile, then **View back camera** or **View front camera**. Nothing
+  streams until you choose a camera. Up to four at once; the tablet shows a
+  Stop button, each view ends after 10 minutes, and it is logged. A view
+  ends when you close it or its tile leaves the screen. Boarding tablets'
+  QR cameras are never offered. Tiles show the bus picture, not a camera
+  snapshot (a snapshot would mean starting the camera). If a view says
+  "Direct connection mode", no relay is configured and some mobile networks
+  may not connect.
+- **Playback**: choose a bus to see its driver tablet's saved dashcam clips.
+- **Alerts**: everything under Needs attention, each linking to where to fix it.
+- **Reports**: links to driving reports, fleet and route analytics, vehicle
+  logs, ride history and the boarding log.
 
 ## Route stops
 

@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
 import { load, mock, request } from "../../../security-tests/helpers.js";
 
 // The driver's passenger list (driverSession): who is on board, who got off
@@ -34,6 +34,11 @@ async function tablet() {
 }
 
 describe("who is on board", () => {
+  // Rides count per Grenada day, so start the clock at midday: taps "an hour
+  // ago" then stay on today whenever the tests run (they failed just after
+  // midnight). The clock still moves forward.
+  beforeEach(() => { vi.useFakeTimers({ toFake: ["Date"], shouldAdvanceTime: true }); vi.setSystemTime(new Date("2026-11-02T16:00:00Z")); });
+  afterEach(() => vi.useRealTimers());
   it("several riders board and get off at different stops", async () => {
     const t = await tablet();
     t.tap("ANNCARD1", "boarded", 60); t.tap("BENCARD1", "boarded", 58);

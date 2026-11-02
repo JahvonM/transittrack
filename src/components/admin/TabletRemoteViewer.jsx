@@ -10,7 +10,9 @@ async function invoke(operation, extra = {}) {
  if (r.data?.error) throw new Error(r.data.error);
  return r.data;
 }
-export default function TabletRemoteViewer({device}) {
+// compact: a smaller look for the Fleet workspace tiles. capabilities: which
+// views to offer (default: screen and both cameras).
+export default function TabletRemoteViewer({device, compact = false, capabilities = null}) {
  const [relay, setRelay] = useState(false), [enabled, setEnabled] = useState(null), [session, setSession] = useState(null);
  const [busy, setBusy] = useState(false), [error, setError] = useState(""), [live, setLive] = useState(false);
  const video = useRef(null), room = useRef(null), sessionRef = useRef(null), alive = useRef(false), connecting = useRef(false), epoch = useRef(0);
@@ -72,13 +74,14 @@ export default function TabletRemoteViewer({device}) {
   return () => { cancelled = true; clearTimeout(timer); clearRoom(); };
  }, [session?.id]);
  const active = session && !ended(session.state);
- return <section className="space-y-3 border rounded-xl p-3" aria-label="Remote tablet viewing">
-  <h3 className="font-semibold">Screen & camera</h3>
-  <p className="text-sm text-muted-foreground">Admin-only live viewing. Updated fleet tablets accept requests automatically. Android may still ask for camera or screen-sharing permission. A Stop button stays visible. Live sessions are not recorded here; ends after 10 minutes. Saved dashcam videos are under Saved recordings.</p>
+ const offered = Object.entries(labels).filter(([key]) => !capabilities || capabilities.includes(key));
+ return <section className={compact ? "space-y-2" : "space-y-3 border rounded-xl p-3"} aria-label="Remote tablet viewing">
+  {!compact && <h3 className="font-semibold">Screen & camera</h3>}
+  {!compact && <p className="text-sm text-muted-foreground">Admin-only live viewing. Updated fleet tablets accept requests automatically. Android may still ask for camera or screen-sharing permission. A Stop button stays visible. Live sessions are not recorded here; ends after 10 minutes. Saved dashcam videos are under Saved recordings.</p>}
   {enabled === false && <p role="status" className="text-sm">Direct remote viewing is not enabled yet.</p>}
   {enabled === true && !relay && <p className="text-sm">Direct connection mode. Some mobile and Wi-Fi networks need a relay before video can connect.</p>}
   {device.helper_health?.support_transport !== "webrtc" && <p className="text-sm">Requires the direct-viewing kiosk update.</p>}
-  <div className="flex flex-wrap gap-2">{Object.entries(labels).map(([key,label]) => <Button key={key} variant="outline" disabled={busy || active || enabled !== true || device.helper_health?.support_available !== true || device.helper_health?.support_transport !== "webrtc" || !device.paired} onClick={()=>request(key)}>{label}</Button>)}</div>
+  <div className="flex flex-wrap gap-2">{offered.map(([key,label]) => <Button key={key} variant="outline" disabled={busy || active || enabled !== true || device.helper_health?.support_available !== true || device.helper_health?.support_transport !== "webrtc" || !device.paired} onClick={()=>request(key)}>{label}</Button>)}</div>
   {session && <div className="space-y-2">
    <p role="status">{live ? "Live video" : session.state === "requested" ? "Waiting for tablet to check in" : session.state === "waiting_permission" ? "Waiting for tablet startup or Android permission" : ["connecting","active"].includes(session.state) ? "Connecting video…" : "Session " + session.state}</p>
    {session.state === "failed" && session.failure_code && <p role="alert" className="text-sm text-destructive">{tabletSupportFailure(session.failure_code)}</p>}

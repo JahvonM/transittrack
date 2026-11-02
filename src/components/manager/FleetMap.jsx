@@ -12,7 +12,9 @@ const ORDER = { sos: 0, speed: 1, lost: 2, stale: 3, live: 4, out: 5, idle: 6, h
 // The company's buses beside the 3D map. Read-only: picking a bus flies the
 // map to it and draws its route. A company account passes its own status
 // and line, since it sees a bus only while it is shared with it.
-export default function FleetMap({ vehicles, statusOf = fleetStatus, lineOf = busStatusLine }) {
+// mapOnly: just the map (the Fleet workspace has its own bus list); focusId
+// centres it on a bus.
+export default function FleetMap({ vehicles, statusOf = fleetStatus, lineOf = busStatusLine, mapOnly = false, focusId = null, mapClassName = "" }) {
   const { location: userLoc } = useUserLocation();
   const [liveVehicles, setLiveVehicles] = useState(vehicles);
   const [routes, setRoutes] = useState([]);
@@ -39,6 +41,8 @@ export default function FleetMap({ vehicles, statusOf = fleetStatus, lineOf = bu
     return () => clearInterval(t);
   }, []);
 
+  useEffect(() => { if (focusId) setFocus((f) => ({ id: focusId, n: f.n + 1 })); }, [focusId]);
+
   const alerts = liveVehicles.filter((v) => v.status === "speeding" || v.status === "emergency");
   const routeOf = (v) => routes.find((r) => r.id === v.route_id) || null;
   const statuses = useMemo(() => Object.fromEntries(liveVehicles.map((v) => [v.id, statusOf(v, now)])), [liveVehicles, now, statusOf]);
@@ -47,6 +51,25 @@ export default function FleetMap({ vehicles, statusOf = fleetStatus, lineOf = bu
   const selRoute = selected ? routeOf(selected) : null;
   const selStops = useMemo(() => sortStops(selRoute?.stops).filter((s) => s.lat != null && s.lng != null), [selRoute]);
   const callout = selected?.current_lat != null ? { primary: selected.name, secondary: lineOf(selected, selRoute, now), tone: "live" } : null;
+
+  const map = (className) => (
+    <Suspense fallback={<div className="h-full min-h-[240px] animate-pulse rounded-2xl bg-muted" />}>
+      <LiveTransitMap
+        variant="page"
+        followUser={!selected}
+        className={className}
+        vehicles={liveVehicles.filter((v) => v.current_lat != null)}
+        focusVehicleId={selected?.current_lat != null ? selected.id : null}
+        focusKey={focus.n}
+        routes={routes}
+        stops={selected ? selStops : []}
+        userLocation={selected ? null : userLoc}
+        callout={callout}
+        label="Fleet map"
+      />
+    </Suspense>
+  );
+  if (mapOnly) return map(mapClassName || "h-full w-full");
 
   return (
     <div className="space-y-4">
@@ -67,21 +90,7 @@ export default function FleetMap({ vehicles, statusOf = fleetStatus, lineOf = bu
       )}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(280px,360px)_minmax(0,1fr)]">
         <div className="min-w-0 lg:order-last">
-          <Suspense fallback={<div className="h-[46vh] animate-pulse rounded-2xl bg-muted" />}>
-            <LiveTransitMap
-              variant="page"
-              followUser={!selected}
-              className="h-[46vh] min-h-[320px] rounded-2xl border border-border lg:h-[calc(100vh-19rem)]"
-              vehicles={liveVehicles.filter((v) => v.current_lat != null)}
-              focusVehicleId={selected?.current_lat != null ? selected.id : null}
-              focusKey={focus.n}
-              routes={routes}
-              stops={selected ? selStops : []}
-              userLocation={selected ? null : userLoc}
-              callout={callout}
-              label="Fleet map"
-            />
-          </Suspense>
+          {map("h-[46vh] min-h-[320px] rounded-2xl border border-border lg:h-[calc(100vh-19rem)]")}
         </div>
         <section className="min-w-0 rounded-2xl border border-border bg-card" aria-label="Buses">
           <h2 className="px-5 pb-2 pt-4 text-title-sm font-bold">Buses</h2>

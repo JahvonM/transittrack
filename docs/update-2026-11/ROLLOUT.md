@@ -65,7 +65,8 @@ off (asks)**, no tablet needs an open shift, no camera is on.
 - Set up boarding tablets for Grenville and St. George (they have none, so
   cards can't reach them).
 - Only after the camera trial is tested on one tablet with the owner: use
-  it more widely. A relay (TURN) may be needed on mobile networks.
+  it more widely. A relay (TURN) may be needed on mobile networks; a view
+  that says "Direct connection mode" has none.
 
 ## If something goes wrong
 
