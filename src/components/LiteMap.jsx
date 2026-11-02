@@ -8,6 +8,7 @@ import { useIsDark } from "@/lib/useTheme";
 import { statusColor } from "@/lib/vehicleStatus";
 import { fetchDrivingRoute } from "@/lib/geo";
 import useSmoothPosition from "@/hooks/useSmoothPosition";
+import { drawnRoad } from "@/lib/routeRoad";
 
 // Basic map for devices that can't run the full map engine (no WebGL 2).
 // Same Mapbox street / dark styles, served as plain images through Leaflet,
@@ -154,6 +155,7 @@ export default function LiteMap({
   vehicles = [],
   stops = [],
   road = null, // drawn road as [lng, lat] pairs; else the road between the stops
+  routes = [], // buses on a route with a drawn road follow its bends between updates
   userLocation = null,
   center = null,
   className = "",
@@ -185,6 +187,7 @@ export default function LiteMap({
   useEffect(() => { setFollowing(followUser); }, [followUser]);
 
   const liveVehicles = vehicles.filter((v) => v.current_lat != null && v.current_lng != null);
+  const roads = useMemo(() => new Map((routes || []).map((r) => [r.id, drawnRoad(r)]).filter(([, line]) => line)), [routes]);
   const stopPts = (stops || []).filter((s) => s.lat != null && s.lng != null);
 
   // Road-following route through the stops, like the full map.
@@ -267,7 +270,7 @@ export default function LiteMap({
             {(s.pickLabel || s.name) && <Marker position={[s.lat, s.lng]} icon={pickedLabelIcon(s.pickLabel || s.name)} interactive={false} keyboard={false} zIndexOffset={1000} />}
           </React.Fragment>
         ))}
-        {liveVehicles.map((v) => <BusMarker key={`v-${v.id}`} v={v} glide={glide} road={roads.get(v.route_id) || null} />)}
+        {liveVehicles.map((v) => <BusMarker key={`v-${v.id}`} v={v} glide={glide} road={roads.get(v.route_id) || (v.id === focusVehicleId && Array.isArray(road) && road.length >= 2 ? road : null)} />)}
         {userLocation && showUserDot && (
           <CircleMarker center={[userLocation.lat, userLocation.lng]} radius={8} pathOptions={{ color: "#0B0B0D", weight: 3, fillColor: accent, fillOpacity: 1 }} />
         )}
