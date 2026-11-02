@@ -62,6 +62,7 @@ export function createVehicleLayer({ id = "tt-vehicles", onFrame } = {}) {
       let moving = false;
       vehicles.forEach((v) => {
         if (step(v, now)) moving = true;
+        if (!v.scene) return; // tracked only (a bus shown by its photo marker)
         let elevation = 0;
         try { elevation = map.queryTerrainElevation?.(v.current) || 0; } catch { elevation = 0; }
         const merc = mapboxgl.MercatorCoordinate.fromLngLat(v.current, elevation);
@@ -80,7 +81,7 @@ export function createVehicleLayer({ id = "tt-vehicles", onFrame } = {}) {
     onRemove() {
       clearTimeout(repaintTimer);
       repaintTimer = null;
-      vehicles.forEach((v) => disposeVehicle(v.group));
+      vehicles.forEach((v) => { if (v.group) disposeVehicle(v.group); });
       vehicles.clear();
       renderer?.dispose?.();
       renderer = null;
@@ -88,7 +89,9 @@ export function createVehicleLayer({ id = "tt-vehicles", onFrame } = {}) {
     },
   };
 
-  // [{ id, lng, lat, heading?, modelId, stale, emphasis, alert }]
+  // [{ id, lng, lat, heading?, modelId, stale, emphasis, alert, hidden }]
+  // hidden: moved like the others but not drawn (its photo marker follows
+  // layer.positions() instead).
   layer.setVehicles = (list, opts = {}) => {
     const now = performance.now();
     if (opts.reduceMotion != null) reduceMotion = opts.reduceMotion;
@@ -100,21 +103,21 @@ export function createVehicleLayer({ id = "tt-vehicles", onFrame } = {}) {
       seen.add(item.id);
       const to = [item.lng, item.lat];
       let v = vehicles.get(item.id);
-      if (v && (accentChanged || v.modelId !== item.modelId || v.emphasis !== !!item.emphasis || v.alert !== !!item.alert)) {
-        disposeVehicle(v.group);
+      if (v && (accentChanged || v.modelId !== item.modelId || v.emphasis !== !!item.emphasis || v.alert !== !!item.alert || v.hidden !== !!item.hidden)) {
+        if (v.group) disposeVehicle(v.group);
         vehicles.delete(item.id);
         v = { ...v, rebuilt: true };
       }
       if (!vehicles.has(item.id)) {
-        const group = buildVehicle(item.modelId, { accent });
+        const group = item.hidden ? null : buildVehicle(item.modelId, { accent });
         // Red ring for an emergency (staff views only), lime for the bus you follow.
-        if (item.alert) group.add(ringMesh("#FF5A5F"));
-        else if (item.emphasis) group.add(ringMesh(accent));
+        if (group && item.alert) group.add(ringMesh("#FF5A5F"));
+        else if (group && item.emphasis) group.add(ringMesh(accent));
         // A rebuilt model (new colour or ring) keeps its motion; a bus seen
         // for the first time appears where it is.
         const track = v?.current ? { ...v } : createTrack(to, now, item.heading ?? 0);
         vehicles.set(item.id, {
-          ...track, id: item.id, group, scene: makeScene(group), modelId: item.modelId, emphasis: !!item.emphasis, alert: !!item.alert,
+          ...track, id: item.id, group, scene: group ? makeScene(group) : null, modelId: item.modelId, emphasis: !!item.emphasis, alert: !!item.alert, hidden: !!item.hidden,
         });
         v = vehicles.get(item.id);
         if (movedTo(v, to)) retarget(v, to, now, { heading: item.heading, snap: reduceMotion || !!item.stale });
@@ -123,10 +126,10 @@ export function createVehicleLayer({ id = "tt-vehicles", onFrame } = {}) {
       } else if (item.heading != null) {
         turnTo(v, item.heading, now, { snap: reduceMotion });
       }
-      setVehicleStale(v.group, !!item.stale);
+      if (v.group) setVehicleStale(v.group, !!item.stale);
     });
     vehicles.forEach((v, key) => {
-      if (!seen.has(key)) { disposeVehicle(v.group); vehicles.delete(key); }
+      if (!seen.has(key)) { if (v.group) disposeVehicle(v.group); vehicles.delete(key); }
     });
     map?.triggerRepaint();
   };
@@ -143,6 +146,7 @@ export function createVehicleLayer({ id = "tt-vehicles", onFrame } = {}) {
     if (!map) return null;
     let best = null;
     vehicles.forEach((v, key) => {
+      if (v.hidden) return; // its photo marker takes the tap
       const p = map.project(v.current);
       const d = Math.hypot(p.x - point.x, p.y - point.y);
       if (d <= radiusPx && (!best || d < best.d)) best = { id: key, d };
