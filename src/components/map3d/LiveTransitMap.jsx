@@ -168,6 +168,7 @@ function FullMap({
   const routeRef = useRef({ line: [], followsRoads: false });
   const lastSplitRef = useRef(0);
   const photoMarkersRef = useRef(new Map());
+  const wallLabelsRef = useRef(new Map());
   const fittedRef = useRef(false);
   const followRef = useRef(true);
   const stateRef = useRef({});
@@ -263,6 +264,7 @@ function FullMap({
       onFrame: (positions) => {
         // Photo markers ride along with the same steady movement as the 3D buses.
         photoMarkersRef.current.forEach((m, vid) => { const at = positions[vid]; if (at) m.marker.setLngLat(at.lngLat); });
+        wallLabelsRef.current.forEach((m, vid) => { const at = positions[vid]; if (at) m.marker.setLngLat(at.lngLat); });
         const { focus: f } = stateRef.current;
         const p = f && positions[f.id];
         if (p && calloutRef.current) calloutRef.current.setLngLat(p.lngLat);
@@ -412,18 +414,27 @@ function FullMap({
   const wallKey = wall ? located.map((v) => `${v.id}:${v.current_lat?.toFixed(3)},${v.current_lng?.toFixed(3)}:${wallLabel ? wallLabel(v).text + wallLabel(v).stale : ""}`).join("|") : "";
   useEffect(() => {
     const map = mapRef.current;
-    if (!wall || !map || !wallLabel) return undefined;
-    const markers = located.map((v) => {
+    const live = wallLabelsRef.current;
+    if (!wall || !map || !wallLabel) return;
+    const seen = new Set();
+    for (const v of located) {
+      seen.add(v.id);
       const { text, stale } = wallLabel(v);
-      const el = document.createElement("div");
-      el.className = `tt-wall-label${stale ? " tt-wall-label--stale" : ""}`;
-      el.textContent = text;
-      el.setAttribute("aria-hidden", "true");
-      return new mapboxgl.Marker({ element: el, anchor: "bottom", offset: [0, -34] }).setLngLat([v.current_lng, v.current_lat]).addTo(map);
-    });
-    return () => markers.forEach((m) => m.remove());
+      let m = live.get(v.id);
+      if (!m) {
+        const el = document.createElement("div");
+        el.setAttribute("aria-hidden", "true");
+        const at = layerRef.current?.positions()[v.id]?.lngLat || [v.current_lng, v.current_lat];
+        m = { el, marker: new mapboxgl.Marker({ element: el, anchor: "bottom", offset: [0, -34] }).setLngLat(at).addTo(map) };
+        live.set(v.id, m);
+      }
+      m.el.className = `tt-wall-label${stale ? " tt-wall-label--stale" : ""}`;
+      m.el.textContent = text;
+    }
+    for (const [id, m] of live) if (!seen.has(id)) { m.marker.remove(); live.delete(id); }
      
   }, [wallKey, styleTick, loaded]);
+  useEffect(() => () => { wallLabelsRef.current.forEach((m) => m.marker.remove()); wallLabelsRef.current.clear(); }, []);
   const lastWallFit = useRef(0);
   useEffect(() => {
     if (!wall || !loaded || !fittedRef.current) return;
