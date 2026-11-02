@@ -17,6 +17,7 @@ import BusDistance from "@/components/BusDistance";
 import useUserLocation from "@/hooks/useUserLocation";
 import { createVehicleLayer } from "./vehicleLayer";
 import { boundsOf, bearingDeg, splitRoute } from "./routeGeometry";
+import { drawnRoad } from "@/lib/routeRoad";
 import { setCooperativeGestures } from "./cooperativeGestures";
 
 const LiteMap = lazy(() => import("@/components/LiteMap"));
@@ -118,7 +119,7 @@ export default function LiveTransitMap(props) {
     return (
       <div className={cn("relative overflow-hidden", props.className)} style={props.style}>
         <Suspense fallback={<div className="h-full w-full animate-pulse bg-muted" />}>
-          <LiteMap vehicles={props.vehicles} stops={props.stops} road={props.road} userLocation={props.userLocation} followUser={!!props.followUser} focusVehicleId={props.focusVehicleId} focusKey={props.focusKey} fill />
+          <LiteMap vehicles={props.vehicles} routes={props.routes} stops={props.stops} road={props.road} userLocation={props.userLocation} followUser={!!props.followUser} focusVehicleId={props.focusVehicleId} focusKey={props.focusKey} fill />
         </Suspense>
       </div>
     );
@@ -206,6 +207,8 @@ function FullMap({
   const calloutEl = useMemo(() => (typeof document === "undefined" ? null : document.createElement("div")), []);
 
   const located = useMemo(() => vehicles.filter((v) => v.current_lat != null && v.current_lng != null), [vehicles]);
+  // Each route's drawn road, so a bus on it follows the bends between updates.
+  const roads = useMemo(() => new Map((routes || []).map((r) => [r.id, drawnRoad(r)]).filter(([, line]) => line)), [routes]);
   const focus = located.find((v) => v.id === focusVehicleId) || null;
   const focusFresh = focus ? freshnessOf(focus.last_location_update, { now }) : null;
   const orderedStops = useMemo(() => (stops || []).filter((s) => s.lat != null && s.lng != null), [stops]);
@@ -368,11 +371,12 @@ function FullMap({
           emphasis: v.id === focusVehicleId,
           alert: v.status === "emergency",
           hidden: !!v.image_url,
+          road: roads.get(v.route_id) || (v.id === focusVehicleId ? drawn : null),
         };
       }),
       { accent, reduceMotion },
     );
-  }, [located, focusVehicleId, accent, reduceMotion, now, styleTick]);
+  }, [located, focusVehicleId, accent, reduceMotion, now, styleTick, roads, drawn]);
 
   // Buses with a photo: one marker each, kept between updates (so the photo
   // never reloads) and moved every frame by onFrame above.

@@ -128,8 +128,8 @@ function pickedLabelIcon(text) {
 // One bus. It moves steadily between GPS updates; its icon is built once per
 // look (colour, size, heading, label, photo), not on every animation frame,
 // so the photo doesn't reload while it moves.
-function BusMarker({ v, glide }) {
-  const smooth = useSmoothPosition(glide ? v.current_lat : null, glide ? v.current_lng : null);
+function BusMarker({ v, glide, road }) {
+  const smooth = useSmoothPosition(glide ? v.current_lat : null, glide ? v.current_lng : null, { road });
   const color = v.marker_color || statusColor(v.status);
   const size = v.marker_size || 46;
   const heading = v.marker_heading == null ? null : Math.round(v.marker_heading);
@@ -267,7 +267,7 @@ export default function LiteMap({
             {(s.pickLabel || s.name) && <Marker position={[s.lat, s.lng]} icon={pickedLabelIcon(s.pickLabel || s.name)} interactive={false} keyboard={false} zIndexOffset={1000} />}
           </React.Fragment>
         ))}
-        {liveVehicles.map((v) => <BusMarker key={`v-${v.id}`} v={v} glide={glide} />)}
+        {liveVehicles.map((v) => <BusMarker key={`v-${v.id}`} v={v} glide={glide} road={roads.get(v.route_id) || null} />)}
         {userLocation && showUserDot && (
           <CircleMarker center={[userLocation.lat, userLocation.lng]} radius={8} pathOptions={{ color: "#0B0B0D", weight: 3, fillColor: accent, fillOpacity: 1 }} />
         )}

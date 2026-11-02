@@ -12,13 +12,14 @@ const FRAME_MS = 33; // about 30 updates a second while moving
  * It is only ever drawn between real positions, never ahead of the newest.
  *
  * With { duration }: a fixed, quick glide that settles (the driver's own
- * position, route replay).
+ * position, route replay). With { road }: follows that road ([lng, lat]
+ * pairs) round the bends when the bus is on it.
  *
  * @param {number|null|undefined} lat
  * @param {number|null|undefined} lng
  * @param {{duration?: number}} options
  */
-export default function useSmoothPosition(lat, lng, { duration } = {}) {
+export default function useSmoothPosition(lat, lng, { duration, road = null } = {}) {
   const hasTarget = lat != null && lng != null;
   const [pos, setPos] = useState(hasTarget ? { lat, lng } : null);
   const trackRef = useRef(null);
@@ -38,7 +39,7 @@ export default function useSmoothPosition(lat, lng, { duration } = {}) {
       return undefined;
     }
     if (movedTo(track, to)) {
-      retarget(track, to, now, { snap: reduce });
+      retarget(track, to, now, { snap: reduce, road });
       if (Number.isFinite(duration) && !reduce && track.dur) { track.dur = Math.max(0, duration); track.ht0 = now; }
     }
     // (Re)start the frame loop; it stops by itself once the marker arrives.

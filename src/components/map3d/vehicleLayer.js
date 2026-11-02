@@ -89,7 +89,8 @@ export function createVehicleLayer({ id = "tt-vehicles", onFrame } = {}) {
     },
   };
 
-  // [{ id, lng, lat, heading?, modelId, stale, emphasis, alert, hidden }]
+  // [{ id, lng, lat, heading?, modelId, stale, emphasis, alert, hidden, road? }]
+  // road: the bus's route road ([lng, lat] pairs), so it follows the bends.
   // hidden: moved like the others but not drawn (its photo marker follows
   // layer.positions() instead).
   layer.setVehicles = (list, opts = {}) => {
@@ -120,9 +121,9 @@ export function createVehicleLayer({ id = "tt-vehicles", onFrame } = {}) {
           ...track, id: item.id, group, scene: group ? makeScene(group) : null, modelId: item.modelId, emphasis: !!item.emphasis, alert: !!item.alert, hidden: !!item.hidden,
         });
         v = vehicles.get(item.id);
-        if (movedTo(v, to)) retarget(v, to, now, { heading: item.heading, snap: reduceMotion || !!item.stale });
+        if (movedTo(v, to)) retarget(v, to, now, { heading: item.heading, snap: reduceMotion || !!item.stale, road: item.road });
       } else if (movedTo(v, to)) {
-        retarget(v, to, now, { heading: item.heading, snap: reduceMotion || !!item.stale });
+        retarget(v, to, now, { heading: item.heading, snap: reduceMotion || !!item.stale, road: item.road });
       } else if (item.heading != null) {
         turnTo(v, item.heading, now, { snap: reduceMotion });
       }
