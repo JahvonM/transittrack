@@ -28,7 +28,8 @@ result, the date and who tested in the last column.
 | D18 | T10 validator | Kiosk lock | Diagnostics → Kiosk protection | "Setup required: … device owner"; needs the USB setup tool | Not run |
 | D19 | Passenger phone | Journey | Board and get off with a card while watching Home | Boarded → On board → Got off → Done; alerts for each | Not run |
 | D20 | Passenger phone | Locked phone | Lock the phone near the pickup with notifications allowed | Pickup alert arrives; boarding/exit alerts show on next open | Not run |
-| D21 | Admin | Camera trial | Fleet workspace → Cameras → choose a driver tablet | Tablet shows the viewing notice and Stop; ends after 10 min; Change history logs it | Not run |
+| D21 | Admin | Camera trial | Fleet workspace → Live view → tap a bus with a camera → View back camera | Tablet shows the viewing notice and Stop; ends after 10 min; Change history logs it | Not run |
+| D22 | Admin | Camera on mobile data | As D21 with the tablet on mobile data, not Wi-Fi | Video connects; if the view says "Direct connection mode" and fails, a relay is needed | Not run |
 
 ## "Lockdown failed"
 

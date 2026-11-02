@@ -42,3 +42,24 @@ describe("fleet workspace", () => {
     expect(list.map((k) => k.id)).toEqual(["d1"]);
   });
 });
+
+import { filterBuses, speedText } from "@/lib/fleetWorkspace";
+
+describe("fleet monitoring: tiles and list", () => {
+  const row = (id, state, extra = {}) => ({ vehicle: { id, name: `Bus ${id}`, speed: 10, ...extra }, location: { state }, shift: extra.shift || null });
+  it("shows speed in km/h only while the position is live", () => {
+    expect(speedText(row("1", "live"))).toBe("36 km/h");
+    expect(speedText(row("1", "last_known"))).toBe("—");
+    expect(speedText(row("1", "live", { speed: null }))).toBe("—");
+  });
+  it("filters by camera, live location, attention and search", () => {
+    const rows = [row("1", "live", { plate_number: "HA 1234" }), row("2", "last_known", { shift: { driver_name: "Dana" } }), row("3", "unavailable")];
+    const cameraIds = new Set(["1"]), alertBusIds = new Set(["3"]);
+    expect(filterBuses(rows, { filter: "camera", cameraIds }).map((r) => r.vehicle.id)).toEqual(["1"]);
+    expect(filterBuses(rows, { filter: "live" }).map((r) => r.vehicle.id)).toEqual(["1"]);
+    expect(filterBuses(rows, { filter: "attention", alertBusIds }).map((r) => r.vehicle.id)).toEqual(["3"]);
+    expect(filterBuses(rows, { query: "ha 12" }).map((r) => r.vehicle.id)).toEqual(["1"]);
+    expect(filterBuses(rows, { query: "dana" }).map((r) => r.vehicle.id)).toEqual(["2"]);
+    expect(filterBuses(rows, {}).length).toBe(3);
+  });
+});

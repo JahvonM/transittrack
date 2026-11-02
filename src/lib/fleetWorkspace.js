@@ -72,3 +72,33 @@ export function fleetAlerts(summaries, { openRequests = 0, now = Date.now() } = 
 // app's direct viewing). Boarding tablets' QR cameras are never offered.
 export const cameraTablets = (kiosks = []) => kiosks.filter((k) => k.kiosk_type === "driver" && !k.personal && k.paired && k.status === "active"
   && k.helper_health?.support_available === true && k.helper_health?.support_transport === "webrtc");
+
+// Fleet monitoring (Live view tab): what a bus tile and list row say.
+export const MONITOR_PAGE = 9;
+export const MAX_LIVE_VIEWS = 4;
+// Live views each driver tablet offers: its front and back cameras.
+export const CAMERAS_PER_TABLET = 2;
+export function speedText(row) {
+  if (row.location.state !== "live") return "—";
+  const raw = row.vehicle.speed;
+  const ms = raw == null || raw === "" ? NaN : Number(raw);
+  return Number.isFinite(ms) ? `${Math.round(Math.max(0, ms) * 3.6)} km/h` : "—";
+}
+// The bus filter and search on the Live view.
+export const MONITOR_FILTERS = [
+  { value: "all", label: "All buses" },
+  { value: "camera", label: "With a camera" },
+  { value: "live", label: "Live location" },
+  { value: "attention", label: "Needs attention" },
+];
+export function filterBuses(rows, { filter = "all", query = "", cameraIds = new Set(), alertBusIds = new Set() } = {}) {
+  const q = String(query || "").trim().toLowerCase();
+  return rows.filter((r) => {
+    const v = r.vehicle;
+    if (q && ![v.name, v.plate_number, v.fleet_number, r.shift?.driver_name].some((x) => String(x || "").toLowerCase().includes(q))) return false;
+    if (filter === "camera") return cameraIds.has(v.id);
+    if (filter === "live") return r.location.state === "live";
+    if (filter === "attention") return alertBusIds.has(v.id);
+    return true;
+  });
+}
