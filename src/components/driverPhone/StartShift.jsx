@@ -1,5 +1,5 @@
 import React, { lazy, Suspense, useEffect, useRef, useState } from "react";
-import { ArrowLeft, CircleCheck, ClipboardCheck, Keyboard, Loader2, ScanLine } from "lucide-react";
+import { ArrowLeft, Bus, CircleCheck, ClipboardCheck, Keyboard, Loader2, ScanLine, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { unlockCodeFrom, UNLOCK_CODE } from "@/lib/driverPhone";
 
@@ -7,9 +7,10 @@ const QrScanner = lazy(() => import("@/components/kiosk/QrScanner"));
 const time = (iso) => (iso ? new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "");
 
 /**
- * Start shift: the walk-around check, then scan (or type) the code the bus
- * tablet shows after "Start with the driver app". Claiming the code starts
- * the shift and unlocks that tablet for this driver.
+ * Start shift, step by step: the bus, the walk-around check, who to pick up
+ * today, then scan (or type) the code the bus tablet shows after "Start with
+ * the driver app". Claiming the code starts the shift and unlocks that
+ * tablet for this driver.
  */
 export default function StartShift({ today, initialCode, onClaim, onWalkaround, onBack }) {
   const [code, setCode] = useState(() => unlockCodeFrom(initialCode));
@@ -19,6 +20,11 @@ export default function StartShift({ today, initialCode, onClaim, onWalkaround, 
   const [done, setDone] = useState(null);
   const sending = useRef(false);
   const walk = today?.walkaround;
+  const bus = today?.bus;
+  const pickups = today?.pickups || [];
+  const riding = pickups.filter((p) => !p.skipping);
+  const late = riding.filter((p) => p.late);
+  const home = bus?.trip_direction === "to_home";
 
   useEffect(() => { if (initialCode) setCode(unlockCodeFrom(initialCode)); }, [initialCode]);
 
@@ -50,8 +56,22 @@ export default function StartShift({ today, initialCode, onClaim, onWalkaround, 
       </button>
       <h1 className="text-headline">Start shift</h1>
 
-      <section className="rounded-2xl border border-border bg-card p-4" aria-label="Step 1, walk-around check">
+      <section className="rounded-2xl border border-border bg-card p-4" aria-label="Step 1, your bus">
         <p className="text-caption font-semibold uppercase tracking-wide text-muted-foreground">Step 1</p>
+        <div className="mt-1 flex items-center gap-3">
+          <Bus className={cn("h-6 w-6 shrink-0", bus ? "text-success" : "text-muted-foreground")} aria-hidden="true" />
+          <div className="min-w-0 flex-1">
+            <p className="font-semibold">{bus ? bus.name : "No bus assigned"}</p>
+            <p className="text-body-sm text-muted-foreground">
+              {bus ? [bus.plate_number, home ? "To home" : "To work"].filter(Boolean).join(" · ") : "Ask dispatch to assign you a bus."}
+              {bus && (today?.buses || []).length > 1 ? " · Not this bus? Choose it on Today." : ""}
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-border bg-card p-4" aria-label="Step 2, walk-around check">
+        <p className="text-caption font-semibold uppercase tracking-wide text-muted-foreground">Step 2</p>
         <div className="mt-1 flex items-center gap-3">
           <ClipboardCheck className={cn("h-6 w-6 shrink-0", walk ? (walk.status === "passed" ? "text-success" : "text-warning") : "text-muted-foreground")} aria-hidden="true" />
           <div className="min-w-0 flex-1">
@@ -64,8 +84,22 @@ export default function StartShift({ today, initialCode, onClaim, onWalkaround, 
         </div>
       </section>
 
-      <section className="rounded-2xl border border-border bg-card p-4" aria-label="Step 2, scan the bus tablet">
-        <p className="text-caption font-semibold uppercase tracking-wide text-muted-foreground">Step 2</p>
+      <section className="rounded-2xl border border-border bg-card p-4" aria-label="Step 3, passengers today">
+        <p className="text-caption font-semibold uppercase tracking-wide text-muted-foreground">Step 3</p>
+        <div className="mt-1 flex items-center gap-3">
+          <Users className="h-6 w-6 shrink-0 text-muted-foreground" aria-hidden="true" />
+          <div className="min-w-0 flex-1">
+            <p className="font-semibold">{riding.length} {home ? "to drop off" : "to pick up"} today</p>
+            <p className="text-body-sm text-muted-foreground">
+              {pickups.length - riding.length > 0 ? `${pickups.length - riding.length} not riding today. ` : ""}
+              {late.length ? `Running late: ${late.map((p) => p.name).join(", ")}`.replace(/([^.])$/, "$1.") : riding.length ? "The full list with stops is on Today." : "Nobody to collect yet."}
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-border bg-card p-4" aria-label="Step 4, scan the bus tablet">
+        <p className="text-caption font-semibold uppercase tracking-wide text-muted-foreground">Step 4</p>
         <p className="mt-1 font-semibold">Scan the bus tablet</p>
         <p className="text-body-sm text-muted-foreground">On the tablet, tap <span className="font-semibold text-foreground">Start with the driver app</span>, then point your camera at the code.</p>
 

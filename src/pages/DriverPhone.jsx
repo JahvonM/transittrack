@@ -21,6 +21,7 @@ import StartShift from "@/components/driverPhone/StartShift";
 import Walkaround from "@/components/driverPhone/Walkaround";
 import Requests from "@/components/driverPhone/Requests";
 import { confirmAction } from "@/components/ConfirmHost";
+import { MARKS, markNote } from "@/lib/rideMarks";
 import { GPS_INTERVAL_MS } from "@/lib/mapbox";
 import { loadScreen, saveScreen } from "@/lib/savedScreen";
 
@@ -290,6 +291,23 @@ export default function DriverPhone() {
       toast({ title: "Couldn't end your shift", description: error.message, variant: "destructive" });
     }
   };
+  // Mark a passenger (didn't show, or got on / off without a tap), as on the
+  // bus tablet. The list shows the new state straight away.
+  const [markingRef, setMarkingRef] = useState("");
+  const markRide = async (p, kind) => {
+    const m = MARKS[kind];
+    if (markingRef || !m) return;
+    if (m.confirm && !(await confirmAction({ title: m.confirm(p.name), description: markNote(kind), confirmLabel: m.label }))) return;
+    setMarkingRef(p.ref);
+    try {
+      const vehicleId = today?.bus?.id;
+      const res = await callDriverPhone("ride_mark", { vehicle_id: vehicleId, ref: p.ref, kind });
+      setToday((prev) => prev?.bus?.id === vehicleId ? { ...prev, pickups: (prev.pickups || []).map((x) => (x.ref === p.ref ? { ...x, ride: res.ride } : x)) } : prev);
+      toast({ title: m.done(p.name) });
+    } catch (error) {
+      toast({ title: "Couldn't save that", description: error.message || "Check the connection and try again.", variant: "destructive" });
+    } finally { setMarkingRef(""); }
+  };
   const signOut = () => logout(true);
   const go = (id) => navigate(id === "today" ? "/driver-phone" : `/driver-phone/${id}`);
 
@@ -335,7 +353,8 @@ export default function DriverPhone() {
             if (!result?.ok) throw new Error("Couldn't save direction. Try again.");
             setToday(prev => prev?.bus?.id === vehicleId ? { ...prev, bus: { ...prev.bus, trip_direction: direction } } : prev);
           }} onMessages={() => navigate("/driver-phone/messages")} onDocuments={() => navigate("/driver-phone/me")} today={today} driverName={me?.driver?.name} onPickBus={pickBus} backupSentAt={backupSentAt}
-            onStartShift={() => navigate("/driver-phone/start")} onEndShift={endShift} onWalkaround={() => navigate("/driver-phone/walkaround")} /></PullToRefresh>
+            onStartShift={() => navigate("/driver-phone/start")} onEndShift={endShift} onWalkaround={() => navigate("/driver-phone/walkaround")}
+            onMark={markRide} driving={driving} markingRef={markingRef} /></PullToRefresh>
         )}
         {tab === "messages" && <PullToRefresh onRefresh={loadMessages}><MessagesTab messages={messages} loaded={messagesLoaded} hasBus={!!today?.bus} onSend={send} seen={seen} /></PullToRefresh>}
         {tab === "report" && <ReportTab busName={today?.bus?.name} onSend={report} />}

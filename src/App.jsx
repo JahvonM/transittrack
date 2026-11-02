@@ -41,6 +41,7 @@ const TermsOfService = lazy(() => import('@/pages/TermsOfService'));
 const BookTaxi = lazy(() => import('@/pages/BookTaxi'));
 // A guest following their ride from a link (no sign-in).
 const TrackRide = lazy(() => import('@/pages/TrackRide'));
+const ShareJourney = lazy(() => import('@/pages/ShareJourney'));
 // The public website (mcsweenstransport.com, and /site inside the app).
 const SiteApp = lazy(() => import('@/site/SiteApp'));
 const SITE_HOST = typeof window !== 'undefined' && isSiteHost(window.location.hostname);
@@ -138,7 +139,7 @@ const AuthenticatedApp = () => {
   // signed-out visitors instead of bouncing to the login screen.
   // /desktop-signin and /phone-signin handle their own sign-in (the desktop
   // and phone apps' browser hand-off).
-  const publicPage = authPage || ['/privacy', '/terms', '/reviewer-sandbox', '/desktop-signin', '/phone-signin', '/track'].includes(location.pathname)
+  const publicPage = authPage || ['/privacy', '/terms', '/reviewer-sandbox', '/desktop-signin', '/phone-signin', '/track', '/share'].includes(location.pathname)
     || location.pathname === '/site' || location.pathname.startsWith('/site/');
   // Pages remount (and animate) when this key changes. The driver app's tabs
   // are all one page, so they share a key — switching tabs must not restart
@@ -185,6 +186,7 @@ const AuthenticatedApp = () => {
       <Route path="/" element={<Welcome />} />
       <Route path="/book-taxi" element={<BookTaxi />} />
       <Route path="/track" element={<TrackRide />} />
+      <Route path="/share" element={<ShareJourney />} />
       <Route path="/site/*" element={<SiteApp base="/site" />} />
       <Route path="/join" element={<JoinCompany />} />
       <Route path="/oauth/consent" element={<OAuthConsent />} />

@@ -227,6 +227,7 @@ export default async function(req) {
       paired: device.paired,
       directory_sent_at: device.directory_sent_at || null,
       reader_mode: ['both','boarding','exit'].includes(device.reader_mode) ? device.reader_mode : 'both',
+      nfc_spot: ['above_screen','back_top','back_middle','external'].includes(device.nfc_spot) ? device.nfc_spot : 'auto',
       require_active_trip: device.require_active_trip === true,
       update_requested_at: device.update_requested_at || null,
       network_command: network.command,

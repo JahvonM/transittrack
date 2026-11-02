@@ -9,8 +9,9 @@ import {load,mock,request} from '../../../security-tests/helpers.js';
 const minAgo=(n)=>new Date(Date.now()-n*60_000).toISOString();
 const ASSIGNED={expected_device_id:'tablet',expected_company_id:'a',expected_vehicle_id:'bus-a'};
 
-function setup(){
+function setup({push=false}={}){
  const sdk=mock('admin');
+ if(push)sdk.testSecrets={TT_DURABLE_WRITES_ENABLED:'true',TT_ATOMIC_STORE_URL:'https://example.supabase.co',TT_ATOMIC_SERVICE_ROLE_KEY:'sb_secret_synthetic-test-key-never-real',FIREBASE_SERVICE_ACCOUNT:'{}'};
  sdk.tables.Contact[0].nfc_card_tag='AABBCCDD';
  sdk.tables.Contact.push({id:'rider2',company_id:'a',type:'staff',vehicle_id:'bus-a',name:'Second Rider',nfc_card_tag:'11223344'});
  sdk.tables.NfcCard=[
@@ -152,5 +153,34 @@ describe('reader modes',()=>{
   expect((await f.send(tap(dir,'rider','off_board',3,{queue_replay:true}))).status).toBe(200);
   const look=(await f.send({action:'lookup_tag',card_tag:'11223344'})).body;
   expect(look).toMatchObject({next_status:'boarded',reader_mode:'boarding',already:null});
+ });
+});
+
+describe("the passenger's phone alert",()=>{
+ const alerts=(f)=>(f.sdk.tables.NotificationLog||[]).filter(r=>r.key==='ride_confirmed');
+ const withPhone=(f)=>{f.sdk.tables.NotificationLog=[];f.sdk.tables.PushToken=[{email:'caller@test.invalid',token:'RIDER-PHONE'},{email:'other@test.invalid',token:'OTHER-PHONE'}];};
+ it('says boarding confirmed, then exit confirmed, on that passenger\'s phone only',async()=>{
+  const f=setup({push:true});withPhone(f);const dir=(await f.send({action:'offline_directory'})).body;
+  expect((await f.send(tap(dir,'rider','boarded',1))).status).toBe(200);
+  expect(alerts(f)).toHaveLength(1);
+  expect(alerts(f)[0]).toMatchObject({title:'Boarding confirmed',company_id:'a'});
+  expect(alerts(f)[0].recipients).toEqual(['caller@test.invalid']);
+  expect((await f.send(tap(dir,'rider','off_board',0))).status).toBe(200);
+  expect(alerts(f).map(a=>a.title)).toEqual(['Boarding confirmed','Exit confirmed']);
+ });
+ it('is not sent for a tap saved offline and sent later, or a repeat tap',async()=>{
+  const f=setup({push:true});withPhone(f);const dir=(await f.send({action:'offline_directory'})).body;
+  await f.send(tap(dir,'rider','boarded',30,{queue_replay:true}));
+  expect(records(f)).toHaveLength(1);
+  expect(alerts(f)).toHaveLength(0);
+  expect((await f.send(tap(dir,'rider','boarded',29))).body.duplicate).toBe(true);
+  expect(alerts(f)).toHaveLength(0);
+ });
+ it('a passenger who turned it off gets nothing, and the tap is still recorded',async()=>{
+  const f=setup({push:true});withPhone(f);f.sdk.tables.User[0].notification_opt_out=['ride_confirmed'];
+  const dir=(await f.send({action:'offline_directory'})).body;
+  expect((await f.send(tap(dir,'rider','boarded',1))).status).toBe(200);
+  expect(records(f)).toHaveLength(1);
+  expect(alerts(f).flatMap(a=>a.recipients||[])).toEqual([]);
  });
 });

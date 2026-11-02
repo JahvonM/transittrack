@@ -5,6 +5,7 @@ import { emailWithPolicy, pushWithPolicy } from '../../shared/notificationPolicy
 import { sendPushToTokens } from '../../shared/fcm.ts';
 import { CASE_KIND_TEXT, caseStatusText, isChange, isOpen, newReference, officeStatuses, readCaseRequest, readReply } from '../../shared/passengerCases.ts';
 
+import { patternText } from '../../shared/ridePattern.ts';
 // Passenger requests and support cases (My rides → Change a ride, More →
 // Help). A passenger sees and answers only their own; admins see all of them
 // in Admin → Passenger support. The server adds the bus and trip context, so
@@ -38,6 +39,7 @@ const forPassenger = (c) => ({
   id: c.id, reference: c.reference, kind: c.kind, status: c.status, details: c.details || '',
   vehicle_name: c.vehicle_name || '', trip_date: c.trip_date || '', requested_date: c.requested_date || '',
   requested_time: c.requested_time || '', requested_pickup: c.requested_pickup || '', rating: c.rating ?? null,
+  days: Array.isArray(c.days) ? c.days : [], direction: c.direction || '', until_date: c.until_date || '',
   replies: (c.replies || []).map((r) => ({ from: r.from, name: r.from === 'office' ? 'McSween Transport' : 'You', text: r.text, at: r.at })),
   unread: !!c.passenger_unread, created_date: c.created_date, updated_date: c.updated_date, source: 'case',
 });
@@ -92,6 +94,21 @@ async function tellPassenger(base44, row, title, body) {
 
 const appendReply = (row, from, name, text) => [...(row.replies || []), { from, name, text, at: new Date().toISOString() }].slice(-50);
 
+// Regular days off on the passenger's account: set when the office confirms
+// the request, cleared when the office closes or turns down that request.
+async function applyPattern(db, row, status, officeName) {
+  const person = await db.User.get(row.user_id).catch(() => null);
+  if (!person) return;
+  if (status === 'confirmed') {
+    await db.User.update(person.id, { ride_pattern: {
+      days: row.days || [], direction: row.direction || 'both', from: row.requested_date || '', until: row.until_date || '',
+      reference: row.reference, case_id: row.id, approved_at: new Date().toISOString(), approved_by: officeName,
+    } });
+  } else if (['closed', 'rejected'].includes(status) && person.ride_pattern?.case_id === row.id) {
+    await db.User.update(person.id, { ride_pattern: null });
+  }
+}
+
 export default async function (req) {
   try {
     const base44 = createClientFromRequest(req);
@@ -134,6 +151,9 @@ export default async function (req) {
         ...(final ? { closed_at: new Date().toISOString(), closed_by: officeName } : { closed_at: null, closed_by: '' }),
       });
       await db.AuditLog.create({ actor_email: user.email || '', actor_name: officeName, actor_role: 'admin', action: 'update', entity: 'PassengerCase', record_id: row.id, page: '/admin/support', summary: `${row.reference} (${CASE_KIND_TEXT[row.kind] || row.kind}) set to ${status}` }).catch(() => {});
+      // Regular days off take effect when the office confirms them, and end
+      // if the office later closes or turns down that same request.
+      if (row.kind === 'regular_days') await applyPattern(db, row, status, officeName);
       await tellPassenger(base44, row, `${row.reference}: ${caseStatusText(row.kind, status)}`, note ? note.slice(0, 140) : `${CASE_KIND_TEXT[row.kind] || 'Your request'} is now: ${caseStatusText(row.kind, status).toLowerCase()}.`);
       return json({ ok: true, case: updated });
     }
@@ -151,7 +171,7 @@ export default async function (req) {
       const rows = (await db.PassengerCase.filter({ user_id: user.id, company_id: companyId }, '-created_date', 50)).filter((c) => c.user_id === user.id && c.company_id === companyId);
       const lost = (await db.LostItemReport.filter({ reporter_id: user.id, company_id: companyId }, '-created_date', 20).catch(() => [])).filter((r) => r.reporter_id === user.id && r.company_id === companyId);
       const list = [...rows.map(forPassenger), ...lost.map(lostForPassenger)].sort((a, b) => String(b.created_date || '').localeCompare(String(a.created_date || '')));
-      return json({ cases: list });
+      return json({ cases: list, pattern: user.ride_pattern?.days?.length ? user.ride_pattern : null });
     }
 
     if (action === 'create') {
@@ -181,7 +201,7 @@ export default async function (req) {
         const label = CASE_KIND_TEXT[row.kind] || 'Request';
         const subject = `${label} from ${name} (${row.reference})`;
         const rows = [['Reference', row.reference], ['Company', company?.name || ''], ['Bus', row.vehicle_name || 'None assigned'],
-          ['For', [row.requested_date, row.requested_time].filter(Boolean).join(' ')], ['New pickup', row.requested_pickup || ''],
+          ['For', row.kind === 'regular_days' ? patternText({ days: row.days, direction: row.direction, from: row.requested_date, until: row.until_date }) : [row.requested_date, row.requested_time].filter(Boolean).join(' ')], ['New pickup', row.requested_pickup || ''],
           ['Rating', row.rating ? `${row.rating} of 5` : ''], ['Details', row.details || '']].filter(([, v]) => v);
         const html = `<p><strong>${name}</strong> sent: ${label}.</p><table>${rows.map(([k, v]) => `<tr><td style="padding:4px 12px 4px 0;color:#555">${k}</td><td>${String(v).replace(/[<>&]/g, '')}</td></tr>`).join('')}</table><p><a href="${APP}/admin/support">Open Passenger support</a></p>`;
         await emailWithPolicy(base44, 'passenger_case', admins, (a) => base44.asServiceRole.integrations.Core.SendEmail({ to: a.email, subject, body: html, from_name: 'McSween Transport' }), { title: subject, companyId });
@@ -203,6 +223,18 @@ export default async function (req) {
       if (!(await reserveAttempt(base44, 'passenger-case-reply:' + user.id, 20, 3600_000))) return json({ error: 'Please wait a little before sending more.' }, 429, { 'Retry-After': '300' });
       const updated = await db.PassengerCase.update(row.id, { replies: appendReply(row, 'passenger', row.user_name || 'Passenger', text), office_unread: true });
       return json({ ok: true, case: forPassenger(updated) });
+    }
+
+    // The passenger rides on their regular days off again, from now. The
+    // office is told; nothing needs approving to add someone back.
+    if (action === 'end_pattern') {
+      const pattern = user.ride_pattern;
+      if (!pattern?.days?.length) return json({ error: 'You have no regular days off.' }, 409);
+      await db.User.update(user.id, { ride_pattern: null });
+      const row = pattern.case_id ? await mine(pattern.case_id) : null;
+      if (row) await db.PassengerCase.update(row.id, { status: 'closed', closed_at: new Date().toISOString(), closed_by: 'Passenger', office_unread: true, replies: appendReply(row, 'passenger', row.user_name || 'Passenger', `I’m riding on these days again from today (${today()}).`) });
+      await db.AuditLog.create({ actor_email: user.email || '', actor_name: user.display_name || user.full_name || 'Passenger', actor_role: user.role, action: 'update', entity: 'User', record_id: user.id, page: '/rides', summary: `Ended regular days off (${pattern.reference || 'no reference'})` }).catch(() => {});
+      return json({ ok: true, pattern: null });
     }
 
     return json({ error: 'Unknown action' }, 400);

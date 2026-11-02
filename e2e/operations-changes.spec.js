@@ -2,15 +2,16 @@ import {test,expect} from '@playwright/test';
 const vehicle={id:'bus-a',name:'Bus A',company_id:'a',company_name:'Island Transit',status:'idle',type:'bus',capacity:25};
 const profile={id:'admin',role:'admin',email:'admin@test.invalid',full_name:'Admin'};
 const users=[profile,{id:'viewer',role:'staff',email:'viewer@test.invalid',full_name:'Fleet Viewer'}];
-async function setup(page,{custom=false,layout='auto',sign=null}={}){
+async function setup(page,{custom=false,layout='auto',sign=null,model='',spot,context=null}={}){
  const roles=[{id:'fleet-role',name:'Fleet supervisor',sections:['fleet'],active:true}],calls=[],messages=[];
  const driver={vehicle,company_id:'a',company_name:'Island Transit',driver_name:'Test Driver',has_driver_pin:true,driver_unlocked:true,
   staff:[],check_ins:[],broadcasts:[],group_messages:[],trips:[],inspection_templates:[],recent_inspections:[],open_shift:null,emergency_contacts:{}};
  const kiosk={device_id:'board',paired:true,status:'active',kiosk_type:'bus_boarding',company_id:'a',company_name:'Island Transit',
-  vehicle_id:'bus-a',vehicle_name:'Bus A',display_layout:layout,pickup_sign:sign,
-  context:{vehicle,route:null,occupancy:4,today_count:10,ads:[]}};
+  vehicle_id:'bus-a',vehicle_name:'Bus A',display_layout:layout,pickup_sign:sign,...(spot?{nfc_spot:spot}:{}),
+  context:context||{vehicle,route:null,occupancy:4,today_count:10,ads:[]}};
  const who=custom?{id:'viewer',role:'staff',email:'viewer@test.invalid',full_name:'Fleet Viewer',access_role:{id:'fleet-role',name:'Fleet supervisor',sections:['fleet']}}:profile;
  const tables={Vehicle:[vehicle],User:users,Company:[{id:'a',name:'Island Transit'}],Route:[],Workplace:[],GroupMessage:messages};
+ if(model)await page.addInitScript(m=>{window.__ttNativeHealth={model:m};},model);
  await page.addInitScript(()=>{
   localStorage.setItem('base44_access_token','mock-authenticated-session');
   localStorage.setItem('tt_driver_device_id','driver');
@@ -168,4 +169,68 @@ test('incoming bus chat pops up for two seconds and stays in message history',as
  await page.getByRole('button',{name:'Open driver messages'}).click();
  await page.getByText('Dispatch',{exact:true}).first().click();
  await expect(page.getByText('Please collect the hotel guests',{exact:true})).toBeVisible();
+});
+test('a T10 validator gets the validator screen automatically, pointing to the reader above',async({page})=>{
+ await page.setViewportSize({width:720,height:1280});
+ await setup(page,{model:'QUALCOMM T10'});await page.goto('/kiosk');
+ await expect(page.locator('[data-layout=validator]')).toBeVisible();
+ await expect(page.getByRole('note').filter({hasText:'Tap card above'})).toBeVisible();
+ await expect(page.getByText('Tap your card above the screen',{exact:true})).toBeVisible();
+ // The compact controls of the phone screen, so code and camera QR still work.
+ await expect(page.getByRole('navigation',{name:'Phone kiosk'})).toBeVisible();
+ await expect(page.getByRole('navigation',{name:'Phone kiosk'}).getByRole('button',{name:'Scan QR'})).toBeVisible();
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+ await page.screenshot({path:'/tmp/tt-validator.png'});
+});
+test('the boarding screen says where to hold the card on a phone, and follows the Admin setting',async({page})=>{
+ await page.setViewportSize({width:390,height:844});
+ await setup(page,{layout:'phone'});await page.goto('/kiosk');
+ await expect(page.getByText('Hold your card to the back of the phone',{exact:true})).toBeVisible();
+ await expect(page.getByRole('note').filter({hasText:'Tap card above'})).toHaveCount(0);
+});
+test('a tablet keeps its wording unless Admin says where the reader is',async({page})=>{
+ await page.setViewportSize({width:1280,height:800});
+ await setup(page,{layout:'tablet',spot:'above_screen'});await page.goto('/kiosk');
+ await expect(page.locator('[data-nfc-spot=above_screen]')).toBeVisible();
+ await expect(page.getByText('Tap your card above the screen',{exact:true})).toBeVisible();
+});
+test('the in-bus information screen shows the nearest stop and keeps no passenger list',async({page})=>{
+ await page.setViewportSize({width:1280,height:800});
+ const {calls}=await setup(page,{layout:'info'});
+ const seen=[];page.on('request',r=>{if(r.url().includes('/functions/kioskCheckIn'))seen.push(r.postDataJSON()?.action);});
+ await page.goto('/kiosk');
+ await expect(page.locator('[data-layout=info]')).toBeVisible();
+ await expect(page.getByRole('region',{name:'Where the bus is'})).toContainText('Bus position not available right now');
+ await expect(page.getByRole('region',{name:'How full the bus is'})).toContainText('4');
+ // Nothing to tap here: no card, code or QR controls.
+ await expect(page.getByRole('button',{name:/Scan QR/})).toHaveCount(0);
+ await expect(page.getByText('Tap your card to begin',{exact:true})).toHaveCount(0);
+ await page.waitForTimeout(1500);
+ expect(seen).not.toContain('offline_directory');
+ expect(calls).toBeDefined();
+ await page.screenshot({path:'/tmp/tt-info.png'});
+});
+test('the information screen names the nearest stop only while the position is fresh',async({page})=>{
+ await page.setViewportSize({width:1280,height:800});
+ const route={id:'r',name:'Grand Anse morning',stops:[{name:'Town',lat:12.05,lng:-61.75,order:0},{name:'True Blue',lat:12.02,lng:-61.76,order:1},{name:'Grand Anse',lat:12.0,lng:-61.78,order:2}]};
+ const live={...vehicle,current_lat:12.021,current_lng:-61.761,last_location_update:new Date().toISOString()};
+ await setup(page,{layout:'info',context:{vehicle:live,route,occupancy:12,today_count:30,ads:[{id:'a1',title:'Road works at Morne Rouge',message:'Use the bypass until Friday.'}]}});
+ await page.goto('/kiosk');
+ const where=page.getByRole('region',{name:'Where the bus is'});
+ await expect(where).toContainText('Nearest stop');
+ await expect(where).toContainText('True Blue');
+ await expect(where).toContainText('At or near this stop');
+ await expect(where).not.toContainText('Arriving away');
+ await expect(page.getByRole('region',{name:'Route stops'}).locator('[aria-current=location]')).toHaveText('True Blue');
+ await expect(page.getByRole('region',{name:'Announcement'})).toContainText('Road works at Morne Rouge');
+ await page.screenshot({path:'/tmp/tt-info-live.png'});
+});
+test('an old bus position on the information screen says when it was last known',async({page})=>{
+ await page.setViewportSize({width:1280,height:800});
+ const route={id:'r',name:'Grand Anse morning',stops:[{name:'Town',lat:12.05,lng:-61.75,order:0}]};
+ const old={...vehicle,current_lat:12.05,current_lng:-61.75,last_location_update:new Date(Date.now()-20*60e3).toISOString()};
+ await setup(page,{layout:'info',context:{vehicle:old,route,occupancy:0,today_count:0,ads:[]}});
+ await page.goto('/kiosk');
+ await expect(page.getByRole('region',{name:'Where the bus is'})).toContainText(/Last known position at/);
+ await expect(page.getByRole('region',{name:'Where the bus is'})).not.toContainText(/away/);
 });

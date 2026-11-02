@@ -1,9 +1,12 @@
 import { forwardToSupabase } from '../_shared/forwardToSupabase.ts';
 import { createClientFromRequest } from '../_shared/base44-compat.ts';
+import { secrets } from '../_shared/base44-compat.ts';
 import { boardingSecretHash, currentBoardingCode } from '../_shared/boardingCredentials.ts';
 // Shared request budgets use the configured Supabase RPC and fail closed.
 import { reserveAttempt, claimOnce, createOnce } from '../_shared/atomicOps.ts';
 import { checkBusPin } from '../_shared/busPin.ts';
+import { pushWithPolicy } from '../_shared/notificationPolicy.ts';
+import { sendPushToTokens } from '../_shared/fcm.ts';
 import { modeStatus, onBoardCount, readerMode, repeatOf, reviewReason, suggestedStatus, tapAdvice } from '../_shared/boardingEvents.ts';
 
 
@@ -359,6 +362,25 @@ async function allocatePassengerCode(base44,person,companyId) {
  if(!user)await db.Contact.update(person.id,{access_code:''});
  return code;
 }
+// "Boarding confirmed" / "Exit confirmed" on the passenger's own phone, for a
+// tap that just happened (a tap a tablet saved offline and sent later is old
+// news). Best effort: the tap is already recorded.
+async function tellRider(base44, { person, status, vehicleName, companyId, at }) {
+  try {
+    const serviceAccountJson = secrets.get('FIREBASE_SERVICE_ACCOUNT');
+    const email = String(person?.email || '').trim().toLowerCase();
+    if (!serviceAccountJson || !email) return;
+    const tokens = [...new Set((await base44.asServiceRole.entities.PushToken.filter({ email }, '-created_date', 20).catch(() => [])).map((t) => t.token).filter(Boolean))];
+    if (!tokens.length) return;
+    const time = new Date(at).toLocaleTimeString('en-US', { timeZone: 'America/Grenada', hour: 'numeric', minute: '2-digit' });
+    const bus = sanitize(vehicleName) || 'the bus';
+    const payload = status === 'off_board'
+      ? { title: 'Exit confirmed', body: `You got off ${bus} at ${time}.`, data: { type: 'ride_confirmed', status } }
+      : { title: 'Boarding confirmed', body: `You're on ${bus}. Recorded at ${time}.`, data: { type: 'ride_confirmed', status } };
+    await pushWithPolicy(base44, 'ride_confirmed', tokens, payload, (list) => sendPushToTokens(serviceAccountJson, list, payload, '/'), { companyId });
+  } catch { /* a courtesy alert; the tablet already confirmed the tap */ }
+}
+
 export default async function(req) {
   // After the switch, calls from the installed tablet app go on to Supabase.
   const forwarded = await forwardToSupabase(req, 'kioskCheckIn');
@@ -612,8 +634,14 @@ export default async function(req) {
           check_in_method: ['nfc', 'qr', 'manual', 'code', 'bluetooth'].includes(method) ? method : 'manual',
         }));
         // A summary failure must not turn a completed write into a retry.
+        // The passenger's phone alert goes out at the same time, so the tap
+        // isn't slowed down; it never holds up the reply for long.
         let stats = {};
-        try { stats = boardingStats(await tabletCheckIns(base44, companyId, vehicleId)); } catch { /* heartbeat refreshes counts later */ }
+        const [counted] = await Promise.allSettled([
+          tabletCheckIns(base44, companyId, vehicleId).then(boardingStats),
+          replay ? null : Promise.race([tellRider(base44, { person, status, vehicleName: resolvedVehicleName, companyId, at: occurred }), new Promise((r) => setTimeout(r, 2500))]),
+        ]);
+        if (counted.status === 'fulfilled') stats = counted.value;
         return Response.json({ record: tabletCheckIn(record), ...stats });
       }
 

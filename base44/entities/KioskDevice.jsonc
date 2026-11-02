@@ -42,6 +42,18 @@
       "default": "both",
       "description": "What a boarding tablet records: 'both' asks the rider each time; 'boarding' or 'exit' records that direction only (one reader per door)."
     },
+    "nfc_spot": {
+      "type": "string",
+      "enum": [
+        "auto",
+        "above_screen",
+        "back_top",
+        "back_middle",
+        "external"
+      ],
+      "default": "auto",
+      "description": "Where passengers tap their card on this boarding device, for the hint on screen. 'auto' follows the layout."
+    },
     "require_active_trip": {
       "type": "boolean",
       "default": false,
@@ -492,9 +504,12 @@
       "enum": [
         "auto",
         "tablet",
-        "phone"
+        "phone",
+        "validator",
+        "info"
       ],
-      "default": "auto"
+      "default": "auto",
+      "description": "Boarding screen layout. 'auto' picks from the device: a validator model (card reader above the screen), else phone or tablet by screen size. 'info' is an in-bus passenger information screen (no tapping, no passenger list)."
     },
     "pickup_sign": {
       "type": "object",

@@ -2,6 +2,7 @@ import { secrets } from 'base44:runtime';
 import { reserveAttempt } from './atomicOps.ts';
 import { pushWithPolicy, emailWithPolicy } from './notificationPolicy.ts';
 import { sendPushToTokens } from './fcm.ts';
+import { patternSkips } from './ridePattern.ts';
 
 function returnDistance(a,b) {
  const rad=Math.PI/180, dlat=(b.lat-a.lat)*rad, dlng=(b.lng-a.lng)*rad;
@@ -48,7 +49,8 @@ export async function updateReturnPickup(base44, vehicle, sample, now=Date.now()
  const ids=[...new Set(live.map(m=>m.user_id).filter(Boolean))];
  if(!ids.length) return;
  const users=(await db.User.filter({id:{$in:ids}})).filter(u=>['staff','passenger'].includes(u.role)
-   && !(u.skip_pickup_today && (!u.skip_pickup_until || Date.parse(u.skip_pickup_until)>now)));
+   && !(u.skip_pickup_today && (!u.skip_pickup_until || Date.parse(u.skip_pickup_until)>now))
+   && !patternSkips(u.ride_pattern, now, 'to_home'));
  const emails=[...new Set(users.map(u=>String(u.email||'').trim().toLowerCase()).filter(Boolean))];
  if(!emails.length) return;
  const name=String(workplace.name||'your company').replace(/[<>\x00-\x1f]/g,'');

@@ -50,12 +50,15 @@ export const RIDE_STATE_TEXT = {
 // Today's regular rides for a passenger with assigned transport: to work and
 // home again. Nothing is booked: they follow the company schedule unless the
 // passenger says they're not travelling or running late.
-export function todayRides({ bus, pickup, destination, returning, skip, late, lateUntil }) {
-  const state = skip ? "not_travelling" : late ? "running_late" : "scheduled";
-  const base = { bus: bus?.name || "", state, lateUntil: late ? lateUntil || null : null };
+// `daysOff` says which of today's rides the passenger's approved regular
+// days off cover: { to_work, to_home }.
+export function todayRides({ bus, pickup, destination, returning, skip, late, lateUntil, daysOff = {} }) {
+  const offWork = skip || !!daysOff.to_work;
+  const offHome = skip || !!daysOff.to_home;
+  const base = { bus: bus?.name || "", lateUntil: late ? lateUntil || null : null };
   return [
-    { key: "to_work", label: "To work", from: pickup || "", to: destination || "", current: !returning, ...base },
-    { key: "return", label: "Return", from: destination || "", to: pickup || "", current: !!returning, ...base, state: skip ? "not_travelling" : "scheduled", lateUntil: null },
+    { key: "to_work", label: "To work", from: pickup || "", to: destination || "", current: !returning, ...base, state: offWork ? "not_travelling" : late ? "running_late" : "scheduled", lateUntil: offWork ? null : base.lateUntil, regular: !skip && !!daysOff.to_work },
+    { key: "return", label: "Return", from: destination || "", to: pickup || "", current: !!returning, ...base, state: offHome ? "not_travelling" : "scheduled", lateUntil: null, regular: !skip && !!daysOff.to_home },
   ];
 }
 
@@ -64,3 +67,41 @@ export const TODAY_STATE_TEXT = {
   not_travelling: "Not travelling",
   running_late: "Running late",
 };
+
+// "Coming up" and "Cancelled" on My rides, from the passenger's booked rides
+// and their own requests. Days are the transit day (YYYY-MM-DD).
+const DAY_MS = 86_400_000;
+const isoDay = (ms) => new Date(ms).toLocaleDateString("en-CA", { timeZone: "America/Grenada" });
+const tripDay = (t) => (t?.scheduled_time ? isoDay(Date.parse(t.scheduled_time)) : "");
+const route = (t) => [t.pickup_name, t.dropoff_name].filter(Boolean).join(" to ") || "Booked ride";
+
+export function upcomingAndCancelled({ trips = [], cancelledTrips = [], cases = [], now = Date.now() } = {}) {
+  const today = isoDay(now);
+  const monthAgo = isoDay(now - 30 * DAY_MS);
+  const upcoming = [];
+  const cancelled = [];
+  for (const t of trips) {
+    if (!t || t.status === "cancelled" || t.status === "completed") continue;
+    if (tripDay(t) && tripDay(t) < today) continue;
+    upcoming.push({ key: "trip:" + t.id, at: t.scheduled_time || "", day: tripDay(t), title: route(t), note: t.status === "scheduled" ? "Booked" : "Booked · " + String(t.status || "").replace(/_/g, " "), kind: "trip" });
+  }
+  for (const c of cases) {
+    if (!c || !c.requested_date) continue;
+    if (["time_change", "pickup_change"].includes(c.kind) && c.status === "confirmed" && c.requested_date >= today) {
+      const what = c.kind === "time_change" ? `New time${c.requested_time ? " " + c.requested_time : ""}` : `New pickup${c.requested_pickup ? ": " + c.requested_pickup : ""}`;
+      upcoming.push({ key: "case:" + c.id, at: c.requested_date, day: c.requested_date, title: what, note: "Confirmed", ref: c.reference, kind: "change" });
+    }
+    if (c.kind === "cancel_ride" && c.requested_date >= monthAgo) {
+      if (c.status === "confirmed") cancelled.push({ key: "case:" + c.id, at: c.requested_date, day: c.requested_date, title: "Ride cancelled at your request", note: "Cancelled", ref: c.reference, kind: "cancelled" });
+      else if (["requested", "pending"].includes(c.status)) cancelled.push({ key: "case:" + c.id, at: c.requested_date, day: c.requested_date, title: "Cancellation asked for", note: "Waiting", ref: c.reference, kind: "asked" });
+      else if (c.status === "rejected") cancelled.push({ key: "case:" + c.id, at: c.requested_date, day: c.requested_date, title: "Cancellation not possible: your ride stays booked", note: "Not possible", ref: c.reference, kind: "refused" });
+    }
+  }
+  for (const t of cancelledTrips) {
+    if (!t || t.status !== "cancelled") continue;
+    if (tripDay(t) && tripDay(t) < monthAgo) continue;
+    cancelled.push({ key: "trip:" + t.id, at: t.scheduled_time || "", day: tripDay(t), title: route(t), note: "Cancelled", kind: "cancelled" });
+  }
+  const byTime = (a, b) => String(a.at).localeCompare(String(b.at));
+  return { upcoming: upcoming.sort(byTime), cancelled: cancelled.sort((a, b) => byTime(b, a)) };
+}

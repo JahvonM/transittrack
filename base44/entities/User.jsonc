@@ -79,6 +79,20 @@
       "type": "string",
       "description": "Help the passenger asks for when boarding (e.g. a lower step). Shown to their driver; set by the passenger."
     },
+    "ride_pattern": {
+      "type": "object",
+      "description": "Regular days off the office approved (days 0-6, direction, from, until, reference, case_id). Set only by the server when the office confirms the request; the passenger can stop it.",
+      "properties": {
+        "days": { "type": "array", "items": { "type": "integer" } },
+        "direction": { "type": "string" },
+        "from": { "type": "string" },
+        "until": { "type": "string" },
+        "reference": { "type": "string" },
+        "case_id": { "type": "string" },
+        "approved_at": { "type": "string" },
+        "approved_by": { "type": "string" }
+      }
+    },
     "late_until": {
       "type": "string",
       "format": "date-time",

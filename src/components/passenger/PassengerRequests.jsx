@@ -6,6 +6,7 @@ import { confirmAction } from "@/components/ConfirmHost";
 import { errorData } from "@/lib/requestError";
 import { BottomSheet } from "@/components/staff/StaffSheets";
 import { CASE_KIND_TEXT, caseStatusText, isOpen, readCaseRequest } from "../../../base44/shared/passengerCases.ts";
+import { patternText, WEEKDAY_NAMES } from "../../../base44/shared/ridePattern.ts";
 
 // Passenger requests and support cases: ask for a change or report a problem,
 // see its reference and status, and talk to the office about it.
@@ -21,6 +22,7 @@ const HINT = {
   time_change: "Ask for a different pickup time on one day. Your driver keeps the usual time until the office confirms.",
   pickup_change: "Ask to be picked up somewhere else on one day. To change your usual pickup, use My home pickup spot.",
   cancel_ride: "Tell the office you won't need the bus on a later day. For today, use Skip today.",
+  regular_days: "Tell the office which days you don't ride every week. Once they confirm, your driver won't wait for you on those days. You can stop it any time.",
   missed_pickup: "We'll tell your bus team straight away. Say where you are and what happened.",
   card_issue: "Card not working, damaged or not received? If it's lost, use Report lost card on My pass.",
   booking_issue: "A booked ride that is wrong or missing.",
@@ -37,17 +39,22 @@ export function RequestForm({ kinds, send, sending, onSent, bookedTrips = [] }) 
   const [details, setDetails] = useState("");
   const [tripId, setTripId] = useState("");
   const [problem, setProblem] = useState("");
-  useEffect(() => setProblem(""), [kind, date, time, place, details]);
+  const [days, setDays] = useState([]);
+  const [direction, setDirection] = useState("both");
+  const [until, setUntil] = useState("");
+  useEffect(() => setProblem(""), [kind, date, time, place, details, days, direction, until]);
+  const toggleDay = (d) => setDays((list) => (list.includes(d) ? list.filter((x) => x !== d) : [...list, d]));
   const submit = async (e) => {
     e.preventDefault();
     if (sending) return;
-    const body = { kind, details, requested_date: date, requested_time: time, requested_pickup: place, trip_id: tripId || undefined };
+    const body = { kind, details, requested_date: date, requested_time: time, requested_pickup: place, trip_id: tripId || undefined,
+      ...(kind === "regular_days" ? { days, direction, until_date: until } : {}) };
     const checked = readCaseRequest(body, todayIso());
     if (checked.error) { setProblem(checked.error); return; }
     try {
       const res = await send({ action: "create", ...body });
       toast({ title: "Request sent", description: `Reference ${res.case.reference}. You'll see the answer here.` });
-      setTime(""); setPlace(""); setDetails(""); setTripId("");
+      setTime(""); setPlace(""); setDetails(""); setTripId(""); setDays([]); setUntil("");
       onSent?.(res.case);
     } catch (err) {
       setProblem(errorData(err).error || "Couldn't send your request. Check your connection and try again.");
@@ -71,6 +78,23 @@ export function RequestForm({ kinds, send, sending, onSent, bookedTrips = [] }) 
       {["time_change", "pickup_change", "cancel_ride"].includes(kind) && (
         <label className="px-field"><span>Day</span><input type="date" min={todayIso()} value={date} onChange={(e) => setDate(e.target.value)} required /></label>
       )}
+      {kind === "regular_days" && <>
+        <fieldset className="px-field">
+          <legend>Days you don't ride</legend>
+          <div className="px-day-picks">
+            {[1, 2, 3, 4, 5, 6, 0].map((d) => (
+              <label key={d} className="px-day-pick"><input type="checkbox" checked={days.includes(d)} onChange={() => toggleDay(d)} /><span>{WEEKDAY_NAMES[d].slice(0, 3)}</span></label>
+            ))}
+          </div>
+        </fieldset>
+        <label className="px-field"><span>Which way</span>
+          <select value={direction} onChange={(e) => setDirection(e.target.value)}>
+            <option value="both">Both ways</option><option value="to_work">To work only</option><option value="to_home">Home only</option>
+          </select>
+        </label>
+        <label className="px-field"><span>Starting</span><input type="date" min={todayIso()} value={date} onChange={(e) => setDate(e.target.value)} required /></label>
+        <label className="px-field"><span>Until (optional)</span><input type="date" min={date || todayIso()} value={until} onChange={(e) => setUntil(e.target.value)} /></label>
+      </>}
       {kind === "time_change" && <label className="px-field"><span>Pickup time you would like</span><input type="time" value={time} onChange={(e) => setTime(e.target.value)} required /></label>}
       {kind === "pickup_change" && <label className="px-field"><span>Where to pick you up</span><input type="text" value={place} maxLength={160} placeholder="e.g. Grand Anse, opposite the bank" onChange={(e) => setPlace(e.target.value)} required /></label>}
       {kind === "cancel_ride" && bookedTrips.length > 0 && (
@@ -81,7 +105,7 @@ export function RequestForm({ kinds, send, sending, onSent, bookedTrips = [] }) 
           </select>
         </label>
       )}
-      <label className="px-field"><span>{["time_change", "pickup_change", "cancel_ride"].includes(kind) ? "Note (optional)" : "What happened"}</span>
+      <label className="px-field"><span>{["time_change", "pickup_change", "cancel_ride", "regular_days"].includes(kind) ? "Note (optional)" : "What happened"}</span>
         <textarea rows={3} maxLength={1000} value={details} onChange={(e) => setDetails(e.target.value)} />
       </label>
       {problem && <p role="alert" className="px-form-error">{problem}</p>}
@@ -138,7 +162,8 @@ export function CaseSheet({ item, onClose, send, sending }) {
     <BottomSheet open={open} onOpenChange={(o) => { if (!o) onClose(); }} title={`${kindText(item.kind)} · ${item.reference}`} description={caseStatusText(item.kind, item.status)}>
       <div className="px-case-detail space-y-3 pb-4">
         <dl>
-          {item.requested_date && <><dt>Day</dt><dd>{day(item.requested_date)}</dd></>}
+          {item.kind === "regular_days" && item.days?.length > 0 && <><dt>Asked for</dt><dd>{patternText({ days: item.days, direction: item.direction, from: item.requested_date, until: item.until_date })}</dd></>}
+          {item.requested_date && item.kind !== "regular_days" && <><dt>Day</dt><dd>{day(item.requested_date)}</dd></>}
           {item.requested_time && <><dt>Time asked for</dt><dd>{item.requested_time}</dd></>}
           {item.requested_pickup && <><dt>Pickup asked for</dt><dd>{item.requested_pickup}</dd></>}
           {item.rating && <><dt>Rating</dt><dd>{item.rating} of 5</dd></>}

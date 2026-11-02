@@ -98,8 +98,8 @@ describe("driver phone today", () => {
     expect(res.status).toBe(200);
     expect(res.body.route.stops.map((s) => s.name)).toEqual(["Town", "Grand Anse"]);
     expect(res.body.pickups).toEqual([
-      { name: "Jane R.", stop: "Town", skipping: false, late: false },
-      { name: "Sam", stop: "", skipping: true, late: false },
+      { ref: "p1", name: "Jane R.", stop: "Town", skipping: false, late: false, ride: { state: "not_yet" } },
+      { ref: "p3", name: "Sam", stop: "", skipping: true, late: false, ride: { state: "not_yet" } },
     ]);
     expect(JSON.stringify(res.body.pickups)).not.toMatch(/555|12\.049|p1@/);
   });
@@ -253,5 +253,67 @@ describe("driver trip direction", () => {
     sdk.tables.Driver=[];
     expect((await send({action:"set_direction",vehicle_id:"bus-a",direction:"to_home"})).status).toBe(403);
     expect(sdk.tables.Vehicle.every(v=>!v.trip_direction)).toBe(true);
+  });
+});
+
+describe("driver phone passenger marks", () => {
+  const rider = (sdk) => {
+    sdk.tables.StaffCheckIn = [];
+    sdk.tables.RideException = [];
+    sdk.tables.AuditLog = [];
+    sdk.tables.DriverShift = [{ id: "sh1", vehicle_id: "bus-a", company_id: "a", started_at: new Date(Date.now() - 3600e3).toISOString() }];
+    sdk.tables.NfcCard = [{ id: "c1", company_id: "a", holder_source: "user", holder_id: "p1", card_uid: "04AABBCC", is_active: true }];
+  };
+
+  it("shows a passenger on board from their own card tap, without sending the card number", async () => {
+    const { sdk, send } = phone();
+    rider(sdk);
+    sdk.tables.StaffCheckIn.push({ id: "t1", company_id: "a", vehicle_id: "bus-a", card_tag: "04AABBCC", status: "boarded", boarded_at: new Date(Date.now() - 600e3).toISOString() });
+    const res = await send({ action: "today" });
+    const jane = res.body.pickups.find((p) => p.ref === "p1");
+    expect(jane.ride.state).toBe("on_board");
+    expect(JSON.stringify(res.body)).not.toContain("04AABBCC");
+  });
+
+  it("marks a no-show with the driver's name, then takes it back", async () => {
+    const { sdk, send } = phone();
+    rider(sdk);
+    const res = await send({ action: "ride_mark", ref: "p1", kind: "no_show", note: "Waited 2 minutes" });
+    expect(res.status).toBe(200);
+    expect(res.body.ride.state).toBe("no_show");
+    expect(sdk.tables.RideException[0]).toMatchObject({ kind: "no_show", person_ref: "p1", recorded_by: "Dana Driver", run_key: "shift:sh1", vehicle_id: "bus-a" });
+    expect(sdk.tables.AuditLog[0]).toMatchObject({ actor_role: "driver", entity: "RideException", page: "/driver-phone" });
+    expect((await send({ action: "today" })).body.pickups.find((p) => p.ref === "p1").ride.state).toBe("no_show");
+    expect((await send({ action: "ride_mark", ref: "p1", kind: "undo_no_show" })).body.ride.state).toBe("not_yet");
+  });
+
+  it("records got on without a tap as a boarding marked for review", async () => {
+    const { sdk, send } = phone();
+    rider(sdk);
+    const res = await send({ action: "ride_mark", ref: "p1", kind: "got_on" });
+    expect(res.body.ride).toMatchObject({ state: "on_board", by_driver: true });
+    expect(sdk.tables.StaffCheckIn[0]).toMatchObject({ status: "boarded", review_reason: "driver_correction", check_in_method: "manual", person_key: "user:p1", card_tag: "04AABBCC" });
+    expect((await send({ action: "ride_mark", ref: "p1", kind: "no_show" })).status).toBe(409);
+  });
+
+  it("won't mark someone who doesn't ride this bus, or on another company's bus", async () => {
+    const { sdk, send } = phone();
+    rider(sdk);
+    expect((await send({ action: "ride_mark", ref: "p2", kind: "no_show" })).status).toBe(404);
+    expect((await send({ action: "ride_mark", ref: "p1", kind: "no_show", vehicle_id: "bus-b" })).status).toBe(403);
+    expect((await send({ action: "ride_mark", ref: "p1", kind: "delete" })).status).toBe(400);
+    expect(sdk.tables.RideException).toEqual([]);
+  });
+});
+
+describe("driver phone and regular days off", () => {
+  it("lists a passenger as not riding on a day the office approved, in that direction only", async () => {
+    const { sdk, send } = phone();
+    const weekday = new Date(new Date().toLocaleDateString("en-CA", { timeZone: "America/Grenada" }) + "T12:00:00Z").getUTCDay();
+    sdk.tables.User.find((u) => u.id === "p1").ride_pattern = { days: [weekday], direction: "to_home", from: "2020-01-01", until: "" };
+    sdk.tables.Vehicle[0].trip_direction = "to_home";
+    expect((await send({ action: "today" })).body.pickups.find((p) => p.ref === "p1").skipping).toBe(true);
+    sdk.tables.Vehicle[0].trip_direction = "to_work";
+    expect((await send({ action: "today" })).body.pickups.find((p) => p.ref === "p1").skipping).toBe(false);
   });
 });

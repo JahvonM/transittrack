@@ -6,6 +6,9 @@ import { sendPushToTokens } from '../../shared/fcm.ts';
 import { applyLocationUpdate } from '../../shared/vehicleLocation.ts';
 import { pushWithPolicy } from '../../shared/notificationPolicy.ts';
 import { passengerPushTokens } from '../../shared/chatPush.ts';
+import { reserveAttempt } from '../../shared/atomicOps.ts';
+import { RIDE_MARK_KINDS, recordRideMark, rideOf } from '../../shared/rideMarks.ts';
+import { patternSkips } from '../../shared/ridePattern.ts';
 
 // The driver phone app. Drivers sign in with the username account an
 // administrator made for them (driverAccounts); every request checks that
@@ -230,19 +233,20 @@ function phoneRoadStops(plan) {
   return plan.stops.map((s, i) => ({ name: sanitize(s.name) || `Stop ${i + 1}`, lat: s.fixed ? s.lat : null, lng: s.fixed ? s.lng : null, order: i, fixed: !!s.fixed }));
 }
 
-// Passengers who ride this bus, each listed at their stop: on a drawn road,
-// the pickup stop they meet at (`roadPlan`); otherwise the stop nearest their
-// pinned pickup point (as on the bus tablet). Names only: no addresses,
-// phone numbers or pickup coordinates leave the server.
-async function pickupsFor(base44, companyId, vehicleId, stops, roadPlan = null) {
+// Everyone who rides this bus, as the bus tablet lists them (same ids, so a
+// mark from the phone and one from the tablet are about the same person).
+// `_tags` are what their taps are filed under; they never leave the server.
+async function busPeople(base44, companyId, vehicleId, direction = '') {
   const db = base44.asServiceRole.entities;
   const memberships = await approvedPassengerMemberships(base44, companyId);
   const membershipByUser = new Map(memberships.map((m) => [m.user_id, m]));
   const userIds = [...membershipByUser.keys()].filter(Boolean);
-  const [users, contacts] = await Promise.all([
+  const [users, contacts, cards] = await Promise.all([
     userIds.length ? db.User.filter({ id: { $in: userIds } }, '-updated_date', 5000) : [],
     db.Contact.filter({ company_id: companyId }, '-updated_date', 2000),
+    db.NfcCard.filter({ company_id: companyId, is_active: true }, '-issue_date', 3000).catch(() => []),
   ]);
+  const userCards = (id) => cards.filter((c) => c.company_id === companyId && c.holder_source === 'user' && c.holder_id === id && c.is_active === true).map((c) => c.card_uid);
   const userByEmail = new Map(users.filter((u) => u.email && membershipByUser.has(u.id)).map((u) => [normEmail(u.email), u]));
   const people = [];
   const seen = new Set();
@@ -253,11 +257,12 @@ async function pickupsFor(base44, companyId, vehicleId, stops, roadPlan = null) 
     if (bus && bus !== vehicleId) continue;
     if (c.email) seen.add(normEmail(c.email));
     people.push({
+      id: c.id, _source: 'contact', _tags: [c.nfc_card_tag, c.id, u.id, ...(u.id ? userCards(u.id) : [])].filter(Boolean),
       keys: ['contact:' + c.id, u.id ? 'user:' + u.id : ''],
       name: u.display_name || c.name || u.full_name,
       lat: c.pickup_lat ?? u.pickup_lat ?? u.home_lat, lng: c.pickup_lng ?? u.pickup_lng ?? u.home_lng,
       pickup_name: c.pickup_name || u.pickup_name || '',
-      skipping: flagActive(u.skip_pickup_today, u.skip_pickup_until), late: flagActive(u.late_snooze_active, u.late_until),
+      skipping: flagActive(u.skip_pickup_today, u.skip_pickup_until) || patternSkips(u.ride_pattern, Date.now(), direction), late: flagActive(u.late_snooze_active, u.late_until),
     });
   }
   for (const [email, u] of userByEmail) {
@@ -265,12 +270,34 @@ async function pickupsFor(base44, companyId, vehicleId, stops, roadPlan = null) 
     const bus = membershipByUser.get(u.id)?.vehicle_id || '';
     if (bus && bus !== vehicleId) continue;
     people.push({
+      id: u.id, _source: 'user', _tags: [...userCards(u.id), u.id].filter(Boolean),
       keys: ['user:' + u.id],
       name: u.display_name || u.full_name, lat: u.pickup_lat ?? u.home_lat, lng: u.pickup_lng ?? u.home_lng,
       pickup_name: u.pickup_name || '',
-      skipping: flagActive(u.skip_pickup_today, u.skip_pickup_until), late: flagActive(u.late_snooze_active, u.late_until),
+      skipping: flagActive(u.skip_pickup_today, u.skip_pickup_until) || patternSkips(u.ride_pattern, Date.now(), direction), late: flagActive(u.late_snooze_active, u.late_until),
     });
   }
+  return people;
+}
+
+// The bus's recent taps and the driver marks, for each passenger's ride today.
+async function busRides(db, companyId, vehicleId) {
+  const [checkIns, exceptions] = await Promise.all([
+    db.StaffCheckIn.filter({ company_id: companyId, vehicle_id: vehicleId }, '-created_date', 400).catch(() => []),
+    db.RideException.filter({ vehicle_id: vehicleId }, '-at', 100).catch(() => []),
+  ]);
+  return { checkIns: checkIns.filter((r) => r.company_id === companyId), exceptions: exceptions.filter((e) => e.company_id === companyId) };
+}
+
+// Passengers who ride this bus, each listed at their stop: on a drawn road,
+// the pickup stop they meet at (`roadPlan`); otherwise the stop nearest their
+// pinned pickup point (as on the bus tablet). Names only: no addresses,
+// phone numbers, card numbers or pickup coordinates leave the server. `ref`
+// is the id the tablet uses for the same person; `ride` is where their ride
+// is today, from their own taps and the driver's marks.
+async function pickupsFor(base44, companyId, vehicleId, stops, roadPlan = null, direction = '') {
+  const db = base44.asServiceRole.entities;
+  const [people, rides] = await Promise.all([busPeople(base44, companyId, vehicleId, direction), busRides(db, companyId, vehicleId)]);
   const located = stops.filter((s) => s.lat != null && s.lng != null);
   const stopOf = new Map();
   for (const s of roadPlan?.stops || []) for (const r of s.riders) stopOf.set(r.id, sanitize(s.name));
@@ -285,7 +312,7 @@ async function pickupsFor(base44, companyId, vehicleId, stops, roadPlan = null) 
     } else if (p.pickup_name && stops.some((s) => s.name === sanitize(p.pickup_name))) {
       stop = sanitize(p.pickup_name);
     }
-    return { name: shortName(p.name), stop, skipping: p.skipping, late: p.late };
+    return { ref: p.id, name: shortName(p.name), stop, skipping: p.skipping, late: p.late, ride: rideOf(p, rides.checkIns, rides.exceptions) };
   }).sort((a, b) => a.name.localeCompare(b.name));
 }
 
@@ -373,7 +400,7 @@ export default async function(req) {
         const routeOk = route && route.company_id === companyId;
         const roadPlan = routeOk ? await busRoadStops(db, route, bus.id).catch(() => null) : null;
         const stops = roadPlan ? phoneRoadStops(roadPlan) : routeOk ? sortedStops(route) : [];
-        const pickups = await pickupsFor(base44, companyId, bus.id, stops, roadPlan);
+        const pickups = await pickupsFor(base44, companyId, bus.id, stops, roadPlan, bus.trip_direction === 'to_home' ? 'to_home' : 'to_work');
         const busShifts = shifts.filter((s) => s.company_id === companyId);
         const weekAgo = Date.now() - 7 * 86400_000;
         const notices = broadcasts
@@ -394,6 +421,32 @@ export default async function(req) {
           contacts: { dispatch_phone: company?.secretary_phone || '', manager_phone: company?.boss_phone || '' },
           workplace: workplace ? { name: sanitize(workplace.name) || 'Workplace' } : null,
         });
+      }
+
+      // The driver marks a passenger from the phone, as on the bus tablet:
+      // didn't show (or undo), or got on / got off when they couldn't tap.
+      case 'ride_mark': {
+        const kind = String(body.kind || '');
+        if (!RIDE_MARK_KINDS.includes(kind)) fail(400, 'Unknown mark');
+        const { bus } = await pickBus(base44, driver, body.vehicle_id);
+        if (!bus || bus.company_id !== companyId) fail(403, 'This bus is not assigned to you');
+        if (!(await reserveAttempt(base44, 'ride-mark:' + bus.id, 120, 60 * 60_000))) fail(429, 'Too many changes this hour. Try again later.');
+        const people = await busPeople(base44, companyId, bus.id);
+        const found = people.find((p) => p.id === String(body.ref || ''));
+        if (!found) fail(404, 'That passenger isn’t on this bus’s list');
+        const [rides, shifts, company] = await Promise.all([
+          busRides(db, companyId, bus.id),
+          db.DriverShift.filter({ vehicle_id: bus.id }, '-started_at', 3).catch(() => []),
+          db.Company.get(companyId).catch(() => null),
+        ]);
+        const result = await recordRideMark(db, {
+          companyId, companyName: company?.name || driver.company_name || '', vehicle: bus,
+          person: { ...found, full_name: sanitize(found.name) }, kind, note: sanitize(body.note).slice(0, 200),
+          driverName: sanitize(driver.full_name) || 'Driver', actorEmail: driver.email || '', page: '/driver-phone',
+          checkIns: rides.checkIns, exceptions: rides.exceptions, shifts: shifts.filter((x) => x.company_id === companyId),
+        });
+        if (result.error) fail(result.status, result.error);
+        return Response.json({ ok: true, ref: found.id, ride: result.ride });
       }
 
       case 'messages': {

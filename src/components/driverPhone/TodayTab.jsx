@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Bus, CircleCheck, ClipboardCheck, Clock, MapPin, Megaphone, MessageCircle, Phone, Play, Radio, Route as RouteIcon, Square, UserX, Users, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { telLink, whatsappLink } from "@/lib/driverPhone";
+import { MARKS, marksFor, rideText, rideTone } from "@/lib/rideMarks";
 
 const time = (iso) => (iso ? new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "");
 const day = (iso) => (iso ? new Date(iso).toLocaleDateString([], { weekday: "short", day: "numeric", month: "short" }) : "");
@@ -44,7 +45,7 @@ function ContactRow({ label, phone }) {
   );
 }
 
-export default function TodayTab({ today, driverName, onPickBus, onStartShift, onEndShift, onWalkaround, backupSentAt, onMessages, onDocuments, onDirectionChange }) {
+export default function TodayTab({ today, driverName, onPickBus, onStartShift, onEndShift, onWalkaround, backupSentAt, onMessages, onDocuments, onDirectionChange, onMark, driving = false, markingRef = "" }) {
   const view = useMemo(() => directionView(today), [today]);
   const home = view?.trip_direction === "to_home";
   const { buses = [], bus, route, pickups = [], shift, last_shift: lastShift, notices = [], contacts, workplace, walkaround } = view || {};
@@ -62,6 +63,9 @@ export default function TodayTab({ today, driverName, onPickBus, onStartShift, o
   const stopNumber = new Map(stops.map((s, i) => [s.name, i + 1]));
   const inOrder = [...riding].sort((a, b) => ((stopNumber.get(a.stop) ?? Infinity) - (stopNumber.get(b.stop) ?? Infinity)) || a.name.localeCompare(b.name));
   const hasContacts = telLink(contacts?.dispatch_phone) || telLink(contacts?.manager_phone);
+  // From the passengers' own taps and the driver's marks (never GPS).
+  const onBoardNow = pickups.filter((p) => p.ride?.state === "on_board").length;
+  const noShows = pickups.filter((p) => p.ride?.state === "no_show").length;
 
   return (
     <div className="tt-phone-today flex flex-col gap-4">
@@ -134,7 +138,7 @@ export default function TodayTab({ today, driverName, onPickBus, onStartShift, o
       )}
 
       {bus && <><div className="tt-phone-trip-summary grid grid-cols-2 gap-3">
-        <Section title={home ? "Home drop-offs today" : "Pickups today"}><p className="font-display text-3xl font-bold">{riding.length}</p><p className="text-body-sm text-muted-foreground">{skipping.length} skipping today</p></Section>
+        <Section title={home ? "Home drop-offs today" : "Pickups today"}><p className="font-display text-3xl font-bold">{riding.length}</p><p className="text-body-sm text-muted-foreground">{skipping.length} skipping today{onBoardNow ? ` · ${onBoardNow} on board` : ""}{noShows ? ` · ${noShows} didn't show` : ""}</p></Section>
         <Section title="Your route"><p className="font-bold">{route?.name || "Not assigned"}</p><p className="text-body-sm text-muted-foreground">{stops.length} stops</p></Section>
       </div><div className="tt-phone-quick-actions grid grid-cols-2 gap-3" aria-label="Driver shortcuts">
         <button type="button" aria-haspopup="dialog" aria-expanded={panel === "stops"} onClick={(event) => openPanel("stops", event)}><RouteIcon aria-hidden="true" />Bus stops</button>
@@ -175,6 +179,8 @@ export default function TodayTab({ today, driverName, onPickBus, onStartShift, o
           {inOrder.length === 0 ? (
             <p className="text-body text-muted-foreground">{home ? "No home drop-offs today." : "No pickups today."}</p>
           ) : (
+            <>
+            {onMark && driving && <p className="mb-2 text-body-sm text-muted-foreground" role="status">Stop the bus to mark passengers.</p>}
             <ul className="divide-y divide-border" aria-label={home ? "Passengers to drop off" : "Passengers to pick up"}>
               {inOrder.map((p, i) => {
                 const n = stopNumber.get(p.stop);
@@ -183,6 +189,17 @@ export default function TodayTab({ today, driverName, onPickBus, onStartShift, o
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-body font-semibold">{p.name}</p>
                       {p.late && <p className="text-caption font-semibold text-warning">Running late</p>}
+                      {rideText(p.ride) && <p className={cn("text-caption font-semibold", rideTone(p.ride))} role="status">{rideText(p.ride)}</p>}
+                      {onMark && p.ref && (
+                        <div className="mt-1 flex flex-wrap gap-1.5">
+                          {marksFor(p.ride?.state).map((k) => (
+                            <button key={k} type="button" disabled={driving || !!markingRef} onClick={() => onMark(p, k)} aria-label={`${MARKS[k].label}: ${p.name}`}
+                              className="min-h-[40px] rounded-full border border-border px-3 text-caption font-semibold hover:bg-accent disabled:opacity-50">
+                              {markingRef === p.ref ? "Saving…" : MARKS[k].label}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                     {p.stop ? (
                       <p className="flex min-w-0 max-w-[58%] items-center justify-end gap-1.5 text-right text-body-sm font-medium">
@@ -197,6 +214,7 @@ export default function TodayTab({ today, driverName, onPickBus, onStartShift, o
                 );
               })}
             </ul>
+            </>
           )}
           {skipping.length > 0 && (
             <p className="mt-3 flex items-start gap-2 text-body-sm text-muted-foreground">

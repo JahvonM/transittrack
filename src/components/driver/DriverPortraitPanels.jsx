@@ -11,6 +11,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { errorData } from "@/lib/requestError";
 import { haversineKm } from "@/lib/geo";
 import { TRANSIT_TIME_ZONE } from "@/lib/localTime";
+import { MARKS, marksFor, markNote } from "@/lib/rideMarks";
 const time=value=>value?new Date(value).toLocaleTimeString([], {timeZone:TRANSIT_TIME_ZONE,hour:"numeric",minute:"2-digit"}):"";
 export function DriverKioskHeader({session,offline,onMessages,unread}) {
  const landscape=useDriverLandscape();
@@ -49,13 +50,6 @@ export function DriverKioskHistory({session}) {
 }
 // The driver's marks for a passenger who couldn't tap, or didn't come. Each is
 // recorded with the driver's name; got on / got off are flagged for review.
-const MARKS={
- no_show:{label:"Didn't show",confirm:(n)=>`Mark ${n} as not at the pickup?`,done:(n)=>`${n} marked as a no-show`},
- undo_no_show:{label:"Undo no-show",confirm:null,done:(n)=>`No-show taken back for ${n}`},
- got_on:{label:"Got on (no tap)",confirm:(n)=>`Record ${n} getting on without a tap?`,done:(n)=>`${n} recorded on board`},
- got_off:{label:"Got off (no tap)",confirm:(n)=>`Record ${n} getting off without a tap?`,done:(n)=>`${n} recorded as got off`},
-};
-const marksFor=(state)=>state==="on_board"?["got_off"]:state==="no_show"?["undo_no_show"]:state==="got_off"?["got_on"]:["got_on","no_show"];
 export function DriverKioskPassengers({session,invoke,refresh}) {
  const {toast}=useToast();
  const [query,setQuery]=useState("");
@@ -71,7 +65,7 @@ export function DriverKioskPassengers({session,invoke,refresh}) {
   const name=accountName(s) || "this passenger";
   const m=MARKS[kind];
   if(!invoke || busyRef)return;
-  if(m.confirm && !(await confirmAction({title:m.confirm(name),description:kind==="no_show"?"The office sees this. You can undo it.":"The office sees this, marked as recorded by the driver.",confirmLabel:m.label})))return;
+  if(m.confirm && !(await confirmAction({title:m.confirm(name),description:markNote(kind),confirmLabel:m.label})))return;
   setBusyRef(s.id);
   try { const res=await invoke("ride_exception",{ref:s.id,kind,driver_name:session.driver_name || ""}); setRides(r=>({...r,[s.id]:{ride:res.ride,until:Date.now()+90_000}})); toast({title:m.done(name)}); refresh?.(); }
   catch(e){ toast({title:"Couldn't save that",description:errorData(e).error || "Check the connection and try again.",variant:"destructive"}); }

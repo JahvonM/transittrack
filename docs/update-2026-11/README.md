@@ -11,3 +11,5 @@
 | [MIGRATIONS.md](MIGRATIONS.md) | Database changes and how to undo them |
 | [ROLLOUT.md](ROLLOUT.md) | Controlled rollout, checks, rollback |
 | [OPERATOR-GUIDE.md](OPERATOR-GUIDE.md) | Plain-language guide for the office and drivers |
+
+Follow-up items (driver phone marks, boarding alerts, validator and information screen layouts, My rides lists, start-shift steps, button check): [`FOLLOW-UP.md`](FOLLOW-UP.md).

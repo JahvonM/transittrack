@@ -45,7 +45,8 @@ async function phone(page,{refuse=false,failDirection=false,today=TODAY,messages
      {id:'d1',kind:'license',document_number:'GD-55821',expiry_date:in20days,file_name:'licence.jpg',url:'https://files.test/licence.jpg'},
      {id:'d2',kind:'insurance',document_number:'',expiry_date:'2027-08-31',file_name:'insurance.pdf',url:'https://files.test/ins.pdf'}]},
     send:{message:{id:'g3',channel:body.channel,sender_role:'driver',sender_name:'Dana Driver',text:body.text,created_date:new Date().toISOString(),mine:true}},
-    report:{ok:true,incident:{id:'inc1',type:body.type,photos:(body.photos||[]).length}},register_push:{ok:true}}[body.action];
+    report:{ok:true,incident:{id:'inc1',type:body.type,photos:(body.photos||[]).length}},register_push:{ok:true},
+    ride_mark:{ok:true,ref:body.ref,ride:body.kind==='no_show'?{state:'no_show',at:new Date().toISOString(),id:'x1'}:body.kind==='got_on'?{state:'on_board',at:new Date().toISOString(),by_driver:true}:{state:'not_yet'}}}[body.action];
    return route.fulfill({json:reply||{error:'Unknown action'}});
   }
   if(url.includes('/functions/companyAccess')) return route.fulfill({status:401,json:{error:'Company code required',code:'COMPANY_ACCESS_REQUIRED'}});
@@ -288,4 +289,27 @@ test('trip direction keeps the old selection after a failed save and allows retr
  await page.getByRole('button',{name:'To home',exact:true}).click();
  await expect(page.getByRole('button',{name:'To home',exact:true})).toHaveAttribute('aria-pressed','true');
  await expect(page.getByRole('alert').filter({hasText:"Couldn't save direction"})).toHaveCount(0);
+});
+
+test('the phone passenger list shows who is on board and marks a no-show',async({page})=>{
+ const at=new Date(Date.now()-15*60e3).toISOString();
+ const today={...TODAY,pickups:[
+  {ref:'p1',name:'Jane R.',stop:'Town',skipping:false,late:false,ride:{state:'on_board',at}},
+  {ref:'p2',name:'Marcus T.',stop:'Town',skipping:false,late:false,ride:{state:'not_yet'}},
+  {ref:'p3',name:'Keisha B.',stop:'True Blue',skipping:false,late:false,ride:{state:'not_yet'}},
+ ]};
+ const calls=await phone(page,{today});
+ await page.goto('/driver-phone');
+ await expect(page.getByText('1 on board',{exact:false})).toBeVisible();
+ await page.getByRole('button',{name:'Passenger list',exact:true}).click();
+ const rows=page.getByRole('list',{name:'Passengers to pick up'}).getByRole('listitem');
+ await expect(rows.nth(0)).toContainText('On board since');
+ await expect(rows.nth(0).getByRole('button',{name:'Got off (no tap): Jane R.'})).toBeVisible();
+ await rows.nth(1).getByRole('button',{name:"Didn't show: Marcus T."}).click();
+ await expect(page.getByRole('alertdialog')).toContainText('Mark Marcus T. as not at the pickup?');
+ await page.getByRole('alertdialog').getByRole('button',{name:"Didn't show"}).click();
+ await expect(rows.nth(1)).toContainText("Didn't show at the pickup");
+ await expect(rows.nth(1).getByRole('button',{name:'Undo no-show: Marcus T.'})).toBeVisible();
+ expect(calls.find(c=>c.action==='ride_mark')).toMatchObject({ref:'p2',kind:'no_show',vehicle_id:'bus-a'});
+ await shot(page,'driver-phone-marks');
 });

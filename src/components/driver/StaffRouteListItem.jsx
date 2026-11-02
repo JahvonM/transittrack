@@ -5,25 +5,15 @@ import { setNavTarget } from "@/lib/navTarget";
 import useDrivingEta from "@/hooks/useDrivingEta";
 import { waLink, PROXIMITY_TRIGGER_M } from "@/lib/mapbox";
 import { Accessibility, Navigation, MessageCircle, UserCheck, Volume2 } from "lucide-react";
-import { TRANSIT_TIME_ZONE } from "@/lib/localTime";
 import { Button } from "@/components/ui/button";
 import { accountName } from "@/lib/userName";
+import { rideText, rideTone } from "@/lib/rideMarks";
+
+export { rideText };
 
 // One row of the driver's staff pickup list. Split out from StaffRouteList so this
 // component can call useDrivingEta once per staff member (hooks can't be called a
 // variable number of times inside a .map(), but a per-item component is fine).
-const hhmm = (iso) => (iso ? new Date(iso).toLocaleTimeString([], { timeZone: TRANSIT_TIME_ZONE, hour: "numeric", minute: "2-digit" }) : "");
-// Where this passenger's ride is today, in words (from their taps and the
-// driver's marks; never from GPS).
-export function rideText(ride) {
-  if (!ride) return "";
-  const by = ride.by_driver ? " · marked by driver" : "";
-  if (ride.state === "on_board") return `On board since ${hhmm(ride.at)}${by}`;
-  if (ride.state === "got_off") return `Got off at ${hhmm(ride.at)}${by}`;
-  if (ride.state === "no_show") return "Didn't show at the pickup";
-  return "";
-}
-
 export default function StaffRouteListItem({ s, vehicle, onAttend, actions = null }) {
   const navigate = useNavigate();
   const { pathname } = useLocation();
@@ -62,7 +52,7 @@ export default function StaffRouteListItem({ s, vehicle, onAttend, actions = nul
           {skipped && <span className="ml-2 text-xs text-muted-foreground">(skipping)</span>}
           {late && <span className="ml-2 text-xs font-semibold text-warning">(running late)</span>}
         </div>
-        {rideText(s.ride) && <div className={`text-xs font-semibold ${s.ride.state === "on_board" ? "text-success" : s.ride.state === "no_show" ? "text-warning" : "text-muted-foreground"}`} role="status">{rideText(s.ride)}</div>}
+        {rideText(s.ride) && <div className={`text-xs font-semibold ${rideTone(s.ride)}`} role="status">{rideText(s.ride)}</div>}
         {s.boarding_note && <div className="flex items-center gap-1 text-xs text-info"><Accessibility className="h-3.5 w-3.5 shrink-0" aria-hidden="true" /><span className="truncate">Help: {s.boarding_note}</span></div>}
         <div className="text-xs text-muted-foreground">
           {s.dist != null
