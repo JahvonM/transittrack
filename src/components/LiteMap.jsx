@@ -7,6 +7,7 @@ import { MAPBOX_TOKEN, mapAccentFor } from "@/lib/mapbox";
 import { useIsDark } from "@/lib/useTheme";
 import { statusColor } from "@/lib/vehicleStatus";
 import { fetchDrivingRoute } from "@/lib/geo";
+import useSmoothPosition from "@/hooks/useSmoothPosition";
 
 // Basic map for devices that can't run the full map engine (no WebGL 2).
 // Same Mapbox street / dark styles, served as plain images through Leaflet,
@@ -147,6 +148,9 @@ export default function LiteMap({
   autoRecenterMs = 0,
   fill = false, // fill the parent box instead of using `height`
   focusVehicleId = null,
+  // Buses move steadily between GPS updates (src/lib/vehicleMotion.js). Off
+  // where the position given is already smoothed (the driver's own map).
+  glide = true,
   focusKey = 0,
 }) {
   const isDark = useIsDark();
@@ -239,20 +243,7 @@ export default function LiteMap({
             {(s.pickLabel || s.name) && <Marker position={[s.lat, s.lng]} icon={pickedLabelIcon(s.pickLabel || s.name)} interactive={false} keyboard={false} zIndexOffset={1000} />}
           </React.Fragment>
         ))}
-        {liveVehicles.map((v) => (
-          <Marker
-            key={`v-${v.id}`}
-            position={[v.current_lat, v.current_lng]}
-            icon={busIcon(v.marker_color || statusColor(v.status), { size: v.marker_size || 46, heading: v.marker_heading ?? null, label: v.marker_label ?? v.name, imageUrl: v.image_url, plain: v.marker_plain === true })}
-          >
-            {v.name && (
-              <Popup>
-                <strong>{v.name}</strong>
-                {v.status ? <div>{String(v.status).replace(/_/g, " ")}</div> : null}
-              </Popup>
-            )}
-          </Marker>
-        ))}
+        {liveVehicles.map((v) => <BusMarker key={`v-${v.id}`} v={v} glide={glide} />)}
         {userLocation && showUserDot && (
           <CircleMarker center={[userLocation.lat, userLocation.lng]} radius={8} pathOptions={{ color: "#0B0B0D", weight: 3, fillColor: accent, fillOpacity: 1 }} />
         )}
