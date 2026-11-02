@@ -93,7 +93,7 @@ shown".
 
 Never: phone numbers, home or pickup addresses, signatures, notes, prices, card
 numbers, PINs, entry codes, company access codes, Wi-Fi details, emails, or
-passenger photos. Boardings arrive as anonymous keys, used only to count.
+passenger photos. Boardings arrive only as a count per bus, never who.
 
 By setting: driver names (on by default), client names (on), guest and
 passenger names (off by default; turn on only where only staff can see the
@@ -143,7 +143,7 @@ Automated (simulated: no real monitors, TVs or tablets):
 | Suite | What it covers |
 |---|---|
 | `security-tests/office-display.test.js` (24) | Admin-only management; a display credential can't call admin actions; credentials stored only as hashes; refused when unknown, closed, revoked, expired or the issuer lost access; what a feed contains and leaves out; blanking; partial failures; pairing (single use, expiry, rate limit, re-pairing); cameras (explicit start, own display only, no resume, 10-minute server expiry, stops on blank/revoke/close/layout change/lost access, busy camera refused) |
-| `src/lib/__tests__/officeDisplay.test.js` (11) | Screen scaling, connection states, retry back-off, rotation rules, stored credential, fleet rows and alerts, dispatch columns |
+| `src/lib/__tests__/officeDisplay.test.js` (11), `officeDisplayDesktop.test.js` (2) | Screen scaling, connection states, retry back-off, rotation rules, stored credential, fleet rows and alerts, dispatch columns; the desktop app renews display windows and closes only those whose access is gone |
 | `e2e/office-display.spec.js` (13) | Pairing in a browser, all four layouts at 1080p, 4K and 150% scaling with no cut-off rows, rotation and pause, stopping updates / hiding after 15 min / recovering, access ending, blanking, camera panels, the Windows bridge, light theme and extra-large text |
 | `e2e/office-displays-admin.spec.js` (4) | Every button on Admin → Office displays: add, validation, open on a chosen monitor, full screen, refresh, close, pair (wrong and right code), revoke, start and stop cameras, blank, change, delete, phone width |
 | `desktop/displays.test.cjs` (8) + `desktop/main.test.cjs` | Isolated display windows (own in-memory session, sandboxed, locked to /display, no permissions), credential only to its own window, no duplicates, closing ends camera views first, monitor unplugged and back, resolution change, only the main window can control displays |
