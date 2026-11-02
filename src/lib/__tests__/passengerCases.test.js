@@ -1,9 +1,16 @@
-import { describe, it, expect } from 'vitest';
+import { afterAll, describe, it, expect, vi } from 'vitest';
 import { load, mock, request } from '../../../security-tests/helpers.js';
 import { caseStatusText, newReference, readCaseRequest } from '../../../base44/shared/passengerCases.ts';
 
 // Passenger requests and support cases (passengerCases): a passenger sees and
 // answers only their own; the server adds their bus; only admins run the inbox.
+
+// The server links a request to today's ride (Grenada day), so start the
+// clock at midday: a tap 20 minutes ago is then always today, whenever the
+// tests run (it failed just after midnight). The clock still moves forward.
+vi.useFakeTimers({ toFake: ['Date'], shouldAdvanceTime: true });
+vi.setSystemTime(new Date('2026-11-02T16:00:00Z'));
+afterAll(() => vi.useRealTimers());
 
 const TODAY = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Grenada' });
 function setup(role = 'staff') {
