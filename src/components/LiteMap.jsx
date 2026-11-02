@@ -125,6 +125,30 @@ function pickedLabelIcon(text) {
   return pickedIcons.get(label);
 }
 
+// One bus. It moves steadily between GPS updates; its icon is built once per
+// look (colour, size, heading, label, photo), not on every animation frame,
+// so the photo doesn't reload while it moves.
+function BusMarker({ v, glide }) {
+  const smooth = useSmoothPosition(glide ? v.current_lat : null, glide ? v.current_lng : null);
+  const color = v.marker_color || statusColor(v.status);
+  const size = v.marker_size || 46;
+  const heading = v.marker_heading == null ? null : Math.round(v.marker_heading);
+  const label = v.marker_label ?? v.name;
+  const icon = useMemo(() => busIcon(color, { size, heading, label, imageUrl: v.image_url, plain: v.marker_plain === true }),
+    [color, size, heading, label, v.image_url, v.marker_plain]);
+  const at = glide && smooth ? [smooth.lat, smooth.lng] : [v.current_lat, v.current_lng];
+  return (
+    <Marker position={at} icon={icon}>
+      {v.name && (
+        <Popup>
+          <strong>{v.name}</strong>
+          {v.status ? <div>{String(v.status).replace(/_/g, " ")}</div> : null}
+        </Popup>
+      )}
+    </Marker>
+  );
+}
+
 export default function LiteMap({
   mapStyle = null,
   vehicles = [],
