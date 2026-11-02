@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/components/ui/use-toast";
 import { EmptyState, PageActions, PageIntro, Segmented } from "@/components/admin/kit";
 import BusLoader from "@/components/BusLoader";
-import { STEPS, progress, stepsOf, isReady, visiblePeople } from "@/lib/signupDay";
+import { INVITE_BATCH, STEPS, inviteText, progress, stepsOf, isReady, visiblePeople } from "@/lib/signupDay";
 import SignupPersonSheet from "./SignupPersonSheet";
 import { AddPersonDialog, ImportListDialog, TableQr } from "./SignupDialogs";
 
@@ -115,10 +115,30 @@ export default function SignupDayTab() {
 
   const add = async (form) => {
     const res = await call("signup_add", form);
-    toast({ title: res.existing ? `${res.name} is already on the list` : `${res.name} added` });
+    toast({ title: res.existing ? `${res.name} is already on the list` : `${res.name} added`, description: res.invite ? inviteText(res.invite, res.name) : undefined });
     setDialog(""); await load(); setOpenRef(res.person_ref);
   };
-  const importRows = async (rows) => { const res = await call("signup_import", { rows }); await load(); return res; };
+  // After an import, setup emails go out a few at a time so a long list
+  // doesn't time out; the dialog shows how far it has got.
+  const importRows = async (rows, { sendInvites = false, onProgress } = {}) => {
+    const res = await call("signup_import", { rows });
+    const refs = sendInvites ? res.invite_refs || [] : [];
+    let invites = null;
+    if (refs.length) {
+      invites = { sent: 0, total: refs.length, problem: "" };
+      for (let i = 0; i < refs.length; i += INVITE_BATCH) {
+        onProgress?.({ done: i, total: refs.length });
+        try {
+          const sent = await call("signup_invite", { person_refs: refs.slice(i, i + INVITE_BATCH) });
+          invites.sent += sent.sent || 0;
+          if (!invites.problem && (sent.results || []).some((r) => r.status === "off")) invites.problem = inviteText("off");
+        } catch (e) { invites.problem = errorText(e, "Some setup emails couldn't be sent."); break; }
+      }
+      onProgress?.(null);
+    }
+    await load();
+    return { ...res, invites };
+  };
 
   if (hotels === null) return <BusLoader className="py-12" />;
 

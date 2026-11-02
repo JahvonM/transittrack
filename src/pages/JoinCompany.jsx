@@ -4,7 +4,7 @@ import { QrCode } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { Button } from "@/components/ui/button";
 import AuthLayout from "@/components/AuthLayout";
-import { captureJoinCode, hasPendingJoinCode } from "@/lib/companyJoin";
+import { captureJoinCode, hasPendingInvite, hasPendingJoinCode } from "@/lib/companyJoin";
 
 const STAFF_ROLES = new Set(["admin", "driver", "company", "mechanic"]);
 const RETURN = "?returnTo=" + encodeURIComponent("/join");
@@ -15,10 +15,12 @@ export default function JoinCompany() {
   const { user, isAuthenticated } = useAuth();
   const [ready, setReady] = useState(false);
   const [valid, setValid] = useState(false);
+  const [invite, setInvite] = useState(false);
 
   useEffect(() => {
     const captured = captureJoinCode();
     setValid(captured || hasPendingJoinCode());
+    setInvite(hasPendingInvite());
     setReady(true);
   }, []);
 
@@ -35,7 +37,7 @@ export default function JoinCompany() {
 
   if (isAuthenticated && user && STAFF_ROLES.has(user.role)) {
     return (
-      <AuthLayout title="This QR code is for passengers" subtitle="You're signed in with a staff account, so it can't join you to a company as a passenger.">
+      <AuthLayout title={invite ? "This setup link is for passengers" : "This QR code is for passengers"} subtitle="You're signed in with a staff account, so it can't join you to a company as a passenger.">
         <Button asChild variant="outline" className="w-full"><Link to="/">Go to my dashboard</Link></Button>
       </AuthLayout>
     );
@@ -44,11 +46,13 @@ export default function JoinCompany() {
   return (
     <AuthLayout
       title="Join your bus company"
-      subtitle="Sign in or create a free account. We'll add you to the company that gave you this QR code."
+      subtitle={invite
+        ? "Sign in or create a free account with the email address this link was sent to. We'll add you to the company that sent it."
+        : "Sign in or create a free account. We'll add you to the company that gave you this QR code."}
     >
       <div className="mb-5 flex items-center gap-3 rounded-xl bg-secondary p-3 text-body-sm">
         <QrCode className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden="true" />
-        Company code received. You won't need to type it.
+        {invite ? "Setup link received. You won't need a company code." : "Company code received. You won't need to type it."}
       </div>
       <div className="grid gap-2">
         <Button asChild className="w-full"><Link to={"/register" + RETURN}>Create an account</Link></Button>

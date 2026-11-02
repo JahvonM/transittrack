@@ -21,6 +21,8 @@ export function companyCodeProblem(error) {
   const status = httpStatus(error), data = errorData(error);
   if (status === 429) return "Too many attempts. Try again in 15 minutes.";
   if (status === 403 && data.code === "PASSENGER_ROLE_REQUIRED") return "This account can't join a company here. Sign in with your passenger account.";
+  // A sign-up day setup link: the server says why it didn't work.
+  if (status === 403 && String(data.code || "").startsWith("INVITE_") && data.error) return data.error;
   if (status === 403) return "That code isn't right. Check it with your company: it's 12 letters and numbers.";
   if (status === 401) return "You're signed out. Sign in again, then enter the code.";
   if (!status) return "No connection. Check your internet, then try again.";
@@ -28,20 +30,22 @@ export function companyCodeProblem(error) {
 }
 
 // initialCode comes from a company's join QR; it is checked straight away,
-// exactly as if the passenger had typed it.
-export default function CodeGate({ onUnlock, initialCode = "", className = "mt-10 sm:mt-20" }) {
+// exactly as if the passenger had typed it. initialInvite is a sign-up day
+// setup link's key, checked straight away too; if it doesn't work, the
+// passenger can still type the code.
+export default function CodeGate({ onUnlock, initialCode = "", initialInvite = "", className = "mt-10 sm:mt-20" }) {
   const { checkUserAuth } = useAuth();
   const [code, setCode] = useState(initialCode);
   const [error, setError] = useState("");
   const [checking, setChecking] = useState(false);
   const [scanning, setScanning] = useState(false);
 
-  const submit = async (e, override) => {
+  const submit = async (e, override, invite = "") => {
     e?.preventDefault();
     const value = cleanCompanyCode(override ?? code);
-    if (!value) return;
+    if (!invite && !value) return;
     // Checked here first, so a typo doesn't use up one of the 5 tries.
-    if (value.length !== 12) {
+    if (!invite && value.length !== 12) {
       setError(`Company codes are 12 letters and numbers. This one has ${value.length}.`);
       return;
     }
@@ -50,7 +54,7 @@ export default function CodeGate({ onUnlock, initialCode = "", className = "mt-1
     try {
       // A new device links with several calls at once, and the platform refuses
       // bursts — one rejected call used to read as a wrong code or no signal.
-      const response = await withRateLimitRetry(() => base44.functions.invoke("companyAccess", { action: "verify", code: value }));
+      const response = await withRateLimitRetry(() => base44.functions.invoke("companyAccess", invite ? { action: "verify", invite } : { action: "verify", code: value }));
       const { company, grant } = response.data;
       localStorage.removeItem("tt_company_code");
       localStorage.setItem("tt_company_access_grant", grant);
@@ -66,12 +70,13 @@ export default function CodeGate({ onUnlock, initialCode = "", className = "mt-1
 
   const autoTried = useRef(false);
   useEffect(() => {
-    if (!initialCode || autoTried.current) return;
+    if ((!initialCode && !initialInvite) || autoTried.current) return;
     autoTried.current = true;
-    submit(null, initialCode);
-    // Runs once for the QR code it was given.
+    if (initialInvite) submit(null, "", initialInvite);
+    else submit(null, initialCode);
+    // Runs once for the QR code or setup link it was given.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialCode]);
+  }, [initialCode, initialInvite]);
 
   // Scanning the company's QR checks its code, the same as typing it.
   const onScan = (found) => { setCode(found); submit(null, found); };

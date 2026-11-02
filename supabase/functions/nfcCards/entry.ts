@@ -1,6 +1,7 @@
 import { retry429 } from '../_shared/retry429.ts';
 import { CARD_STATUS_TEXT, STOP_REASON, STOP_STATUSES, canReactivate, cardStatus } from '../_shared/cardStatus.ts';
 import { signupDay } from '../_shared/signupDay.ts';
+import { cardEmail, sendAccountEmail } from '../_shared/accountEmails.ts';
 import { createClientFromRequest } from '../_shared/base44-compat.ts';
 
 
@@ -229,6 +230,24 @@ async function refreshCompanyTablets(base44, companyId) {
 
 const STOP_AUDIT = { suspended: 'card_suspended', lost: 'card_lost', revoked: 'card_revoked' };
 
+// Tells the card holder by email (Admin → Notifications → Bus card changes).
+// Only the last four characters of the card are shown. Never blocks or undoes
+// the card change.
+async function tellCardHolder(base44, card, event, { email = '', name = '', bus = '' } = {}) {
+  try {
+    const sr = base44.asServiceRole.entities;
+    let to = email, who = name || card.holder_name || '';
+    if (!to) {
+      const holder = card.holder_source === 'contact' ? await sr.Contact.get(card.holder_id)
+        : card.holder_source === 'user' ? await sr.User.get(card.holder_id)
+          : card.holder_source === 'driver' ? await sr.Driver.get(card.holder_id) : null;
+      to = holder?.email || '';
+      who = who || holder?.full_name || holder?.name || '';
+    }
+    await sendAccountEmail(base44, 'card_update', to, cardEmail({ name: who, event, uid: card.card_uid, bus: bus || card.assigned_vehicle || '' }), { companyId: card.company_id || '' });
+  } catch { /* the card change stands; the email is a courtesy */ }
+}
+
 async function loadVehicleFor(base44, vehicleId, companyFilter) {
   const v = vehicleId ? await base44.asServiceRole.entities.Vehicle.get(vehicleId).catch(() => null) : null;
   if (!v || (companyFilter && v.company_id !== companyFilter)) return null;
@@ -349,6 +368,7 @@ export default async function (req) {
         });
         // The new card goes straight to their bus's boarding tablet.
         const delivery = person.vehicle_id ? await sendToBus(base44, user, person.vehicle_id).catch(() => ({ sent: 0 })) : { sent: 0 };
+        await tellCardHolder(base44, card, previous.length ? 'replaced' : 'issued', { email: person.email, name: person.name, bus: person.assigned_vehicle });
         return Response.json({ ok: true, card, replaced: previous.length, sent_to_bus: delivery.sent });
       }
 
@@ -382,6 +402,7 @@ export default async function (req) {
         } catch { /* person may have been deleted */ }
         await audit(base44, user, { action: STOP_AUDIT[status], card_uid: card.card_uid, status: 'SUCCESS', record_id: card.id, summary: `${CARD_STATUS_TEXT[status]} card ${card.card_uid} (${card.holder_name}): ${updated.revoke_reason}${current === 'suspended' ? ' · was suspended' : ''}` });
         const tablets = await refreshCompanyTablets(base44, card.company_id);
+        await tellCardHolder(base44, card, status);
         return Response.json({ ok: true, card: { ...updated, status }, tablets_told: tablets });
       }
 
@@ -404,6 +425,7 @@ export default async function (req) {
         await setTag(base44, card.holder_source, card.holder_id, uid).catch(() => {});
         await audit(base44, user, { action: 'card_reactivated', card_uid: uid, status: 'SUCCESS', record_id: card.id, summary: `Switched card ${uid} (${card.holder_name}) back on after suspension` });
         const tablets = await refreshCompanyTablets(base44, card.company_id);
+        await tellCardHolder(base44, card, 'reactivated');
         return Response.json({ ok: true, card: { ...updated, status: 'active' }, tablets_told: tablets });
       }
 
@@ -541,7 +563,7 @@ export default async function (req) {
 
       // Sign-up day at a hotel (Admin → Sign-up day), for the same people:
       // admins, and a hotel's own approved manager for that hotel only.
-      case 'signup_state': case 'signup_claim': case 'signup_app': case 'signup_add': case 'signup_import':
+      case 'signup_state': case 'signup_claim': case 'signup_app': case 'signup_add': case 'signup_import': case 'signup_invite':
         return await signupDay(base44, user, body, { companyFilter, loadPeople, audit });
 
       default:

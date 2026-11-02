@@ -114,3 +114,22 @@ In **Route planner**, each stop has a **Where to wait** box (for example
 - **Share my journey** (passenger Journey screen): passengers can send
   family a private link that shows their bus only while they're on board.
   It ends when they get off or after 3 hours. Nothing to set up.
+
+## Emails to passengers and drivers (branch `account-emails`, once merged)
+
+The full list is in `EMAILS.md`. Each kind can be switched off in Admin →
+Notifications.
+
+- **Sign-up day**: when you add someone with an email address, leave **Email
+  them how to set up the app** ticked. They get a personal link that joins
+  the hotel when they sign in with that address. The import has the same
+  tick box. On a person's page, **Send the setup email again** sends a fresh
+  link (wait 2 minutes between sends). The hotel needs a join code (Admin →
+  Companies).
+- **New accounts** get a welcome email with the next steps.
+- **Password changed**: after a reset with the email link, and when a driver
+  changes theirs or you reset a driver's (only if the driver record has a
+  real email). The password is never in the email.
+- **Passenger support**: your reply also goes to the passenger by email.
+- **Cards**: the holder is told when you issue, replace, pause, stop or
+  switch back on their card (only the last four characters are shown).

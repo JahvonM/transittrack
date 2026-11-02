@@ -2,6 +2,7 @@ import { createClientFromRequest } from '../_shared/base44-compat.ts';
 import { secrets } from '../_shared/base44-compat.ts';
 import { reserveAttempt } from '../_shared/atomicOps.ts';
 import { emailWithPolicy, pushWithPolicy } from '../_shared/notificationPolicy.ts';
+import { caseUpdateEmail, sendAccountEmail } from '../_shared/accountEmails.ts';
 import { sendPushToTokens } from '../_shared/fcm.ts';
 import { CASE_KIND_TEXT, caseStatusText, isChange, isOpen, newReference, officeStatuses, readCaseRequest, readReply } from '../_shared/passengerCases.ts';
 
@@ -81,15 +82,24 @@ async function uniqueReference(db) {
   throw Object.assign(new Error('Could not make a reference number'), { status: 503 });
 }
 
-async function tellPassenger(base44, row, title, body) {
+// The passenger hears about the office's answer on their phone (a short
+// alert) and by email (the whole reply), each switchable on its own.
+async function tellPassenger(base44, row, title, body, fullText = body) {
   try {
     const serviceAccountJson = secrets.get('FIREBASE_SERVICE_ACCOUNT');
-    if (!serviceAccountJson || !row.user_email) return;
-    const tokens = [...new Set((await base44.asServiceRole.entities.PushToken.filter({ email: row.user_email }, '-created_date', 20).catch(() => [])).map((t) => t.token).filter(Boolean))];
-    if (!tokens.length) return;
-    const payload = { title, body, data: { type: 'case_update', case_id: row.id } };
-    await pushWithPolicy(base44, 'case_update', tokens, payload, (list) => sendPushToTokens(serviceAccountJson, list, payload, '/help'), { companyId: row.company_id });
+    const tokens = serviceAccountJson && row.user_email
+      ? [...new Set((await base44.asServiceRole.entities.PushToken.filter({ email: row.user_email }, '-created_date', 20).catch(() => [])).map((t) => t.token).filter(Boolean))]
+      : [];
+    if (tokens.length) {
+      const payload = { title, body, data: { type: 'case_update', case_id: row.id } };
+      await pushWithPolicy(base44, 'case_update', tokens, payload, (list) => sendPushToTokens(serviceAccountJson, list, payload, '/help'), { companyId: row.company_id });
+    }
   } catch { /* a push is a courtesy; the app shows the reply */ }
+  try {
+    if (!row.user_email) return;
+    const person = row.user_id ? await base44.asServiceRole.entities.User.get(row.user_id).catch(() => null) : null;
+    await sendAccountEmail(base44, 'case_update_email', row.user_email, caseUpdateEmail({ name: person?.display_name || person?.full_name || '', title, text: fullText }), { companyId: row.company_id || '' });
+  } catch { /* so is the email */ }
 }
 
 const appendReply = (row, from, name, text) => [...(row.replies || []), { from, name, text, at: new Date().toISOString() }].slice(-50);
@@ -138,7 +148,7 @@ export default async function (req) {
           replies: appendReply(row, 'office', officeName, text), passenger_unread: true, office_unread: false,
           ...(row.status === 'requested' ? { status: 'pending' } : {}),
         });
-        await tellPassenger(base44, row, `Reply about ${row.reference}`, text.slice(0, 140));
+        await tellPassenger(base44, row, `Reply about ${row.reference}`, text.slice(0, 140), text);
         return json({ ok: true, case: updated });
       }
       const status = String(body.status || '');
@@ -154,7 +164,8 @@ export default async function (req) {
       // Regular days off take effect when the office confirms them, and end
       // if the office later closes or turns down that same request.
       if (row.kind === 'regular_days') await applyPattern(db, row, status, officeName);
-      await tellPassenger(base44, row, `${row.reference}: ${caseStatusText(row.kind, status)}`, note ? note.slice(0, 140) : `${CASE_KIND_TEXT[row.kind] || 'Your request'} is now: ${caseStatusText(row.kind, status).toLowerCase()}.`);
+      const said = `${CASE_KIND_TEXT[row.kind] || 'Your request'} is now: ${caseStatusText(row.kind, status).toLowerCase()}.`;
+      await tellPassenger(base44, row, `${row.reference}: ${caseStatusText(row.kind, status)}`, note ? note.slice(0, 140) : said, note ? `${said} ${note}` : said);
       return json({ ok: true, case: updated });
     }
 

@@ -18,6 +18,11 @@
     "notified_at": {
       "type": "string",
       "format": "date-time"
+    },
+    "welcome_sent_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the welcome email to the new person went out (or was held back by Admin → Notifications)."
     }
   },
   "required": [

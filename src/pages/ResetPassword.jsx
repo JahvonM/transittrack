@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Lock, Loader2, AlertTriangle } from "lucide-react";
 import AuthLayout from "@/components/AuthLayout";
 import { passwordProblem, PASSWORD_HINT } from "@/lib/passwordRules";
+import { rememberPasswordReset } from "@/lib/passwordNotice";
 
 export default function ResetPassword() {
   const [searchParams] = useSearchParams();
@@ -34,7 +35,10 @@ export default function ResetPassword() {
     setLoading(true);
     try {
       await base44.auth.resetPassword({ resetToken, newPassword });
-      window.location.href = "/login";
+      // The next sign-in on this browser sends the "password changed" email.
+      // An invitation's first password isn't a change, so nothing is sent.
+      if (!invited) rememberPasswordReset();
+      window.location.href = invited ? "/login" : "/login?reset=1";
     } catch (err) {
       setError(err.message || "Failed to reset password");
     } finally {

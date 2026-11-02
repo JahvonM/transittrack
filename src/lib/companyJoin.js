@@ -4,24 +4,47 @@
 // checked by the same companyAccess "verify" step as typing it.
 const KEY = "tt_pending_company_code";
 const CODE = /^[A-Z0-9]{12}$/;
+// A sign-up day setup email carries a personal link instead (#invite=…): it
+// joins the company that sent it, but only for the email address it was sent
+// to (companyAccess checks that). Kept the same way as a scanned code.
+const INVITE_KEY = "tt_pending_company_invite";
+const INVITE = /^[a-f0-9]{64}$/;
 
 export function companyJoinUrl(code) {
   return `${window.location.origin}/join#code=${encodeURIComponent(code)}`;
 }
 
-// Reads #code= from the current URL, keeps it for this browser tab only,
-// and removes it from the address bar.
+// Reads #code= (or a setup link's #invite=) from the current URL, keeps it
+// for this browser tab only, and removes it from the address bar.
 export function captureJoinCode() {
-  const raw = new URLSearchParams(window.location.hash.slice(1)).get("code");
-  const code = String(raw || "").trim().toUpperCase();
+  const params = new URLSearchParams(window.location.hash.slice(1));
+  const code = String(params.get("code") || "").trim().toUpperCase();
+  const invite = String(params.get("invite") || "").trim().toLowerCase();
   if (window.location.hash) window.history.replaceState(null, "", window.location.pathname + window.location.search);
-  if (!CODE.test(code)) return false;
-  try { sessionStorage.setItem(KEY, code); } catch { return false; }
+  try {
+    if (INVITE.test(invite)) { sessionStorage.setItem(INVITE_KEY, invite); return true; }
+    if (!CODE.test(code)) return false;
+    sessionStorage.setItem(KEY, code);
+  } catch { return false; }
   return true;
 }
 
+// A scanned code or a setup link is waiting for the passenger to sign in.
 export function hasPendingJoinCode() {
-  try { return CODE.test(sessionStorage.getItem(KEY) || ""); } catch { return false; }
+  try { return CODE.test(sessionStorage.getItem(KEY) || "") || INVITE.test(sessionStorage.getItem(INVITE_KEY) || ""); } catch { return false; }
+}
+
+export function hasPendingInvite() {
+  try { return INVITE.test(sessionStorage.getItem(INVITE_KEY) || ""); } catch { return false; }
+}
+
+// Returns the pending setup link's key once and forgets it.
+export function takePendingInvite() {
+  try {
+    const invite = sessionStorage.getItem(INVITE_KEY) || "";
+    sessionStorage.removeItem(INVITE_KEY);
+    return INVITE.test(invite) ? invite : "";
+  } catch { return ""; }
 }
 
 // Returns the pending code once and forgets it.

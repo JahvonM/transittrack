@@ -5,6 +5,7 @@ import { Printer, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { companyJoinUrl } from "@/lib/companyJoin";
@@ -72,6 +73,9 @@ export function TableQr({ code, hotel, onClose }) {
 
 export function AddPersonDialog({ hotel, onAdd, onClose }) {
   const [form, setForm] = useState({ name: "", email: "", phone: "", employee_id: "" });
+  // With an email address, they get a personal link to set up the app.
+  const [sendInvite, setSendInvite] = useState(true);
+  const hasEmail = /\S+@\S+\.\S+/.test(form.email.trim());
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
@@ -79,7 +83,7 @@ export function AddPersonDialog({ hotel, onAdd, onClose }) {
     e.preventDefault();
     if (!form.name.trim() || busy) return;
     setBusy(true); setError("");
-    try { await onAdd(form); } catch (err) { setError(err?.response?.data?.error || err.message || "Couldn't add them. Try again."); setBusy(false); }
+    try { await onAdd({ ...form, send_invite: hasEmail && sendInvite }); } catch (err) { setError(err?.response?.data?.error || err.message || "Couldn't add them. Try again."); setBusy(false); }
   };
   return (
     <Dialog open onOpenChange={(open) => { if (!open && !busy) onClose(); }}>
@@ -91,6 +95,12 @@ export function AddPersonDialog({ hotel, onAdd, onClose }) {
           </DialogHeader>
           <div className="space-y-1.5"><Label htmlFor="su-name">Name</Label><Input id="su-name" value={form.name} onChange={set("name")} autoComplete="off" maxLength={120} autoFocus required /></div>
           <div className="space-y-1.5"><Label htmlFor="su-email">Email</Label><Input id="su-email" type="email" inputMode="email" value={form.email} onChange={set("email")} autoComplete="off" maxLength={160} /></div>
+          {hasEmail && (
+            <label htmlFor="su-invite" className="flex items-start gap-3 rounded-xl border border-border px-3 py-2.5">
+              <Checkbox id="su-invite" checked={sendInvite} onCheckedChange={(v) => setSendInvite(v === true)} className="mt-0.5" />
+              <span className="text-body-sm"><span className="font-medium">Email them how to set up the app</span><span className="block text-muted-foreground">A personal link that joins them to {hotel || "the hotel"} when they sign in with this email address.</span></span>
+            </label>
+          )}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5"><Label htmlFor="su-phone">Phone</Label><Input id="su-phone" type="tel" inputMode="tel" value={form.phone} onChange={set("phone")} autoComplete="off" maxLength={40} /></div>
             <div className="space-y-1.5"><Label htmlFor="su-emp">Employee ID</Label><Input id="su-emp" value={form.employee_id} onChange={set("employee_id")} autoComplete="off" maxLength={40} /></div>
@@ -112,8 +122,11 @@ export function ImportListDialog({ hotel, onImport, onClose }) {
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [sendInvites, setSendInvites] = useState(true);
+  const [sending, setSending] = useState(null); // { done, total } while setup emails go out
   const file = useRef(null);
   const rows = parseStaffList(text);
+  const withEmail = rows.filter((r) => /\S+@\S+\.\S+/.test(String(r.email || "").trim())).length;
   const choose = async (e) => {
     const f = e.target.files?.[0];
     if (!f) return;
@@ -123,7 +136,7 @@ export function ImportListDialog({ hotel, onImport, onClose }) {
   const submit = async () => {
     if (!rows.length || busy) return;
     setBusy(true); setError("");
-    try { setResult(await onImport(rows)); } catch (err) { setError(err?.response?.data?.error || err.message || "Couldn't add the list. Try again."); } finally { setBusy(false); }
+    try { setResult(await onImport(rows, { sendInvites: sendInvites && withEmail > 0, onProgress: setSending })); } catch (err) { setError(err?.response?.data?.error || err.message || "Couldn't add the list. Try again."); } finally { setBusy(false); }
   };
   return (
     <Dialog open onOpenChange={(open) => { if (!open && !busy) onClose(); }}>
@@ -135,6 +148,12 @@ export function ImportListDialog({ hotel, onImport, onClose }) {
         {result ? (
           <div className="space-y-3" role="status">
             <p className="text-title-sm font-semibold">Added {result.added} {result.added === 1 ? "person" : "people"}.</p>
+            {result.invites && (
+              <p className="text-body-sm">
+                Setup emails sent to {result.invites.sent} of {result.invites.total}.
+                {result.invites.total > result.invites.sent ? ` ${result.invites.problem || "Open a person to send theirs again."}` : ""}
+              </p>
+            )}
             {result.skipped?.length > 0 && (
               <div>
                 <p className="text-body-sm text-muted-foreground">Skipped {result.skipped.length}:</p>
@@ -155,6 +174,13 @@ export function ImportListDialog({ hotel, onImport, onClose }) {
               <span className="text-body-sm text-muted-foreground" role="status">{text.trim() ? `${rows.length} ${rows.length === 1 ? "person" : "people"} found` : ""}</span>
             </div>
             {rows.length > 0 && <p className="text-body-sm text-muted-foreground">First: {rows.slice(0, 3).map((r) => r.name || r.email).join(", ")}{rows.length > 3 ? "…" : ""}</p>}
+            {withEmail > 0 && (
+              <label htmlFor="su-invites" className="flex items-start gap-3 rounded-xl border border-border px-3 py-2.5">
+                <Checkbox id="su-invites" checked={sendInvites} onCheckedChange={(v) => setSendInvites(v === true)} className="mt-0.5" disabled={busy} />
+                <span className="text-body-sm"><span className="font-medium">Email everyone with an email address how to set up the app</span><span className="block text-muted-foreground">{withEmail} {withEmail === 1 ? "person" : "people"} on this list. Each gets a personal link that only works with their own email address.</span></span>
+              </label>
+            )}
+            {sending && <p role="status" className="text-body-sm text-muted-foreground">Sending setup emails… {sending.done} of {sending.total}</p>}
             {error && <p role="alert" className="text-body-sm text-danger">{error}</p>}
             <DialogFooter>
               <Button type="button" variant="outline" onClick={onClose} disabled={busy}>Cancel</Button>
