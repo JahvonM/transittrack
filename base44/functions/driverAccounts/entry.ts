@@ -1,6 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 import { secrets } from 'base44:runtime';
 import { reserveAttempt } from '../../shared/atomicOps.ts';
+import { passwordChangedEmail, sendAccountEmail } from '../../shared/accountEmails.ts';
 
 // Only trusted admins can provision, reset or disable driver credentials.
 // Supabase Auth holds passwords. Driver records hold identity and access flags only.
@@ -123,6 +124,8 @@ export default async function(req) {
       await authRequest('/auth/v1/admin/users/' + encodeURIComponent(actor.auth_user_id), 'PUT', { password });
       await db.Driver.update(driver.id, { must_change_password: false });
       await audit(db, actor, driver, 'Driver changed their own password');
+      // A confirmation to the driver's own email, when the record has a real one.
+      await sendAccountEmail(client, 'password_changed', driver.email, passwordChangedEmail({ name: driver.full_name, how: 'self' }), { companyId: driver.company_id || '' });
       return Response.json({ ok: true });
     }
 
@@ -224,6 +227,8 @@ export default async function(req) {
       if (locked?.must_change_password !== true) return reply('Database password-change flag unavailable. Migration required.', 503);
       await authRequest('/auth/v1/admin/users/' + encodeURIComponent(driver.auth_user_id), 'PUT', { password });
       await audit(db, actor, driver, 'Reset driver phone password');
+      // Tells the driver (never the password) if their record has a real email.
+      await sendAccountEmail(client, 'password_changed', driver.email, passwordChangedEmail({ name: driver.full_name, how: 'office' }), { companyId: driver.company_id || '' });
       return Response.json({ ok: true, username: driver.username, temporary_password: password });
     }
 

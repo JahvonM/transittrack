@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import fs from 'node:fs';
 import ts from 'typescript';
 import { webcrypto } from 'node:crypto';
+import { passwordChangedEmail } from '../../../base44/shared/accountEmails.ts';
 
 // The real driverAccounts handler with in-memory tables and a fake Supabase Auth.
 const source = fs.readFileSync('base44/functions/driverAccounts/entry.ts', 'utf8').replace(/^import .*;\r?\n/gm, '');
@@ -34,17 +35,19 @@ function setup({ driver: driverFields = {}, actor: actorFields = {}, buses = [] 
   const fetchMock = vi.fn(async (url, init) => {
     auth.push({ path: new URL(url).pathname + new URL(url).search, method: init.method });
     if (url.endsWith('/auth/v1/admin/users') && init.method === 'POST') return Response.json({ id: 'new-auth' });
-    if (url.includes('grant_type=password')) return Response.json({ user: { id: actor.auth_user_id } });
+    if (url.includes('grant_type=password')) return JSON.parse(init.body).password === 'nope' ? Response.json({ error: 'invalid_grant' }, { status: 400 }) : Response.json({ user: { id: actor.auth_user_id } });
     return Response.json({});
   });
+  // Emails the handler sends (the real text, a stand-in for delivery).
+  const emails = [];
   const exports = {};
-  const handler = new Function('exports', 'createClientFromRequest', 'secrets', 'reserveAttempt', 'fetch', 'crypto', 'Response', 'AbortSignal', 'TextEncoder', compiled + '\nreturn exports.default;')(
+  const handler = new Function('exports', 'createClientFromRequest', 'secrets', 'reserveAttempt', 'sendAccountEmail', 'passwordChangedEmail', 'fetch', 'crypto', 'Response', 'AbortSignal', 'TextEncoder', compiled + '\nreturn exports.default;')(
     exports, () => ({ auth: { me: async () => actor }, asServiceRole: { entities: db } }),
     { get: (k) => k === 'SUPABASE_URL' ? 'https://unit-test.supabase.co' : k === 'SUPABASE_SERVICE_ROLE_KEY' ? 'mock-service-key' : undefined },
-    async () => true, fetchMock, webcrypto, Response, AbortSignal, TextEncoder,
+    async () => true, async (_client, key, to, email) => { emails.push({ key, to, ...email }); return { sent: 1 }; }, passwordChangedEmail, fetchMock, webcrypto, Response, AbortSignal, TextEncoder,
   );
   const call = (action, rest = {}) => handler(new Request('https://unit.test/driverAccounts', { method: 'POST', body: JSON.stringify({ action, driver_id: driver.id, ...rest }) }));
-  return { call, driver, profiles, vehicles, auth };
+  return { call, driver, profiles, vehicles, auth, emails };
 }
 
 describe('driver accounts keep buses, shifts and messages working', () => {
@@ -107,5 +110,27 @@ describe('driver accounts keep buses, shifts and messages working', () => {
     expect((await response.json()).error).toMatch(/12 to 72 characters/);
     const ok = await t.call('change_password', { current_password: 'TempPassword12', new_password: 'Aa1' + 'x'.repeat(69) });
     expect(ok.status).toBe(200);
+  });
+
+  it('tells the driver by email when their password changes, never with the password in it', async () => {
+    const own = setup({ driver: { email: 'ann@example.com', username: 'ann_1', auth_user_id: 'auth-ann', phone_app_access: true, must_change_password: true }, actor: { role: 'driver', auth_user_id: 'auth-ann' } });
+    const changed = 'Aa1' + 'y'.repeat(20);
+    expect((await own.call('change_password', { current_password: 'TempPassword12', new_password: changed })).status).toBe(200);
+    expect(own.emails).toHaveLength(1);
+    expect(own.emails[0]).toMatchObject({ key: 'password_changed', to: 'ann@example.com', subject: 'Your McSween Transport password was changed' });
+    expect(own.emails[0].body).toContain('You changed the password for your driver sign-in');
+    expect(own.emails[0].body).not.toContain(changed);
+
+    const office = setup({ driver: { email: 'ann@example.com', username: 'ann_1', auth_user_id: 'auth-ann', phone_app_access: true } });
+    const reset = await office.call('reset');
+    expect(reset.status).toBe(200);
+    const { temporary_password } = await reset.json();
+    expect(office.emails).toHaveLength(1);
+    expect(office.emails[0].body).toContain('The office reset the password');
+    expect(office.emails[0].body).not.toContain(temporary_password);
+    // A wrong current password changes nothing and sends nothing.
+    const wrong = setup({ driver: { email: 'ann@example.com', username: 'ann_1', auth_user_id: 'auth-ann', phone_app_access: true }, actor: { role: 'driver', auth_user_id: 'auth-ann' } });
+    expect((await wrong.call('change_password', { current_password: 'nope', new_password: changed })).status).toBe(403);
+    expect(wrong.emails).toEqual([]);
   });
 });

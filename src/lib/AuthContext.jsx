@@ -7,6 +7,7 @@ import { ACCENT_KEY, applyAccent } from '@/lib/accents';
 import { isKioskInstall } from '@/lib/kioskApp';
 import { httpStatus, errorData, sessionRejected } from '@/lib/requestError';
 import { savedProfile, rememberProfile, forgetProfile, savedPublicSettings, rememberPublicSettings } from '@/lib/savedSignIn';
+import { confirmPasswordReset } from '@/lib/passwordNotice';
 
 const AuthContext = createContext();
 
@@ -52,6 +53,12 @@ export const AuthProvider = ({ children }) => {
     };
     notify(true);
     return () => { stopped = true; clearTimeout(timer); };
+  }, [isAuthenticated, user?.id]);
+
+  // After a password reset with an email link: the confirmation email, once.
+  useEffect(() => {
+    if (!isAuthenticated || !user?.id) return;
+    confirmPasswordReset((body) => base44.functions.invoke('accountEmails', body));
   }, [isAuthenticated, user?.id]);
 
   const checkAppState = async () => {

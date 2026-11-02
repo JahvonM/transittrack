@@ -7,7 +7,7 @@ import { useAuth } from "@/lib/AuthContext";
 import AppLayout from "@/components/AppLayout";
 import CodeGate from "@/components/CodeGate";
 import AccountWaiting from "@/components/AccountWaiting";
-import { takePendingJoinCode, markCompanyLeft, hasLeftCompany } from "@/lib/companyJoin";
+import { takePendingInvite, takePendingJoinCode, markCompanyLeft, hasLeftCompany } from "@/lib/companyJoin";
 import { useCompanyAlerts } from "@/components/StaffAlerts";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import useUserLocation from "@/hooks/useUserLocation";
@@ -74,16 +74,19 @@ export default function StaffPortal() {
   const view = pathname === "/journey" ? "journey" : pathname === "/rides" ? "rides" : pathname === "/my-card" ? "card" : pathname === "/more" ? "more" : pathname === "/help" ? "help" : "home";
   // A company join QR scanned in this tab: check its code instead of
   // restoring the saved company (it may be a different company).
-  const [joinCode] = useState(() => takePendingJoinCode());
+  // Or a sign-up day setup link (#invite=), checked the same way.
+  const [joinInvite] = useState(() => takePendingInvite());
+  const [joinCode] = useState(() => (joinInvite ? "" : takePendingJoinCode()));
+  const joining = !!(joinCode || joinInvite);
   // The passenger home as this person last saw it on this device (up to a day
   // old): shown straight away, while the company check and the fresh data load
   // run together in the background and replace it.
-  const [snapshot] = useState(() => (user?.id && !joinCode ? loadPassengerSnapshot(user.id) : null));
+  const [snapshot] = useState(() => (user?.id && !joining ? loadPassengerSnapshot(user.id) : null));
   // Something is on screen, so background refreshes must not swap it for a spinner.
   const shownRef = useRef(!!snapshot);
   // With an older saved home, its company is still enough to load the buses at
   // the same time as the company check, rather than after it.
-  const [knownCompany] = useState(() => snapshot?.company || (user?.id && !joinCode ? loadSavedCompany(user.id) : null));
+  const [knownCompany] = useState(() => snapshot?.company || (user?.id && !joining ? loadSavedCompany(user.id) : null));
   const [lastSynced, setLastSynced] = useState(() => snapshot?.savedAt || null);
   const [offline, setOffline] = useState(false);
   // The account check is recreated on every sign-in update; read the latest
@@ -175,7 +178,7 @@ export default function StaffPortal() {
     try {
       localStorage.removeItem('tt_company_code');
       const grant = localStorage.getItem('tt_company_access_grant');
-      if (joinCode) return;
+      if (joining) return;
       // restore: a device that has lost its saved pass (a new phone, a cleared
       // browser) still gets back into the company this account belongs to, so
       // staff aren't asked for the company code over and over. Never when they
@@ -215,7 +218,7 @@ export default function StaffPortal() {
     } finally {
       if (attempt === companyAttempt.current) setCompaniesLoaded(true);
     }
-  }, [user?.id, joinCode]);
+  }, [user?.id, joining]);
   useEffect(() => {
     restoreCompany();
     return () => { companyAttempt.current += 1; };
@@ -565,8 +568,8 @@ export default function StaffPortal() {
     return (
       <AppLayout>
         <DriverPhoneCheck>
-          {joinCode || user?.role === "admin" ? (
-            <CodeGate initialCode={joinCode} onUnlock={unlockCompany} />
+          {joining || user?.role === "admin" ? (
+            <CodeGate initialCode={joinCode} initialInvite={joinInvite} onUnlock={unlockCompany} />
           ) : (
             <AccountWaiting onCheck={checkAgain}>
               <CodeGate className="mt-0" onUnlock={unlockCompany} />

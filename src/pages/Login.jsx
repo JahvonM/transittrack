@@ -17,7 +17,7 @@ import AppleIcon from "@/components/AppleIcon";
 import { useSignInOptions } from "@/lib/signInOptions";
 import { safeReturnTo } from "@/lib/authReturnTo";
 import { useAuth } from "@/lib/AuthContext";
-import { hasPendingJoinCode, rememberJoinCode } from "@/lib/companyJoin";
+import { hasPendingInvite, hasPendingJoinCode, rememberJoinCode } from "@/lib/companyJoin";
 import { ScanCompanyQrButton, ScanCompanyQrDialog } from "@/components/ScanCompanyQr";
 import { phoneSignInAvailable, openPhoneSignIn } from "@/lib/phoneSignIn";
 
@@ -56,6 +56,8 @@ export default function Login() {
   const [scanOpen, setScanOpen] = useState(false);
   const [joinReady, setJoinReady] = useState(() => hasPendingJoinCode());
   const returnTo = joinReady && askedReturn === "/" ? "/join" : askedReturn;
+  // Just set a new password with a reset link.
+  const justReset = new URLSearchParams(window.location.search).get("reset") === "1";
   useEffect(() => {
     if (resumeSignIn && isAuthenticated && !isLoadingAuth && !isLoadingPublicSettings && !authError) {
       navigate(returnTo.startsWith("/login") ? "/" : returnTo, { replace: true });
@@ -173,6 +175,11 @@ export default function Login() {
           Sign-in did not complete. McSween Transport could not confirm your account after returning from Google. Try signing in again, or use your email and password.
         </div>
       )}
+      {justReset && !error && (
+        <div role="status" className="mb-4 p-3 rounded-lg bg-secondary text-sm">
+          Password changed. Sign in with your new password.
+        </div>
+      )}
       {error && (
         <div role="alert" className="mb-4 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
           {error}
@@ -286,7 +293,9 @@ export default function Login() {
       {joinReady ? (
         <div role="status" className="mb-4 flex items-start gap-3 rounded-xl bg-secondary p-3 text-body-sm">
           <QrCode className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
-          <span><span className="font-semibold">Company QR scanned.</span> Log in or create an account and you'll be added to your bus company automatically.</span>
+          {hasPendingInvite()
+            ? <span><span className="font-semibold">Setup link received.</span> Log in or create an account with the email address it was sent to, and you'll be added to your bus company automatically.</span>
+            : <span><span className="font-semibold">Company QR scanned.</span> Log in or create an account and you'll be added to your bus company automatically.</span>}
         </div>
       ) : (
         <ScanCompanyQrButton className="mb-3 w-full h-12 text-sm font-medium" onClick={() => setScanOpen(true)} />

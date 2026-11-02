@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Check, MapPin, Nfc, QrCode, Smartphone, UserCheck } from "lucide-react";
+import { Check, Mail, MapPin, Nfc, QrCode, Smartphone, UserCheck } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,7 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import PassengerPickupDialog from "@/components/directory/PassengerPickupDialog";
 import { useCardReader, formatUid, normalizeUid } from "@/lib/cardReader";
-import { isReady, stepsOf } from "@/lib/signupDay";
+import { inviteText, isReady, stepsOf } from "@/lib/signupDay";
 import { JoinQrImage } from "./SignupDialogs";
 
 const errorText = (e, fallback) => e?.response?.data?.error || e?.message || fallback;
@@ -87,6 +87,32 @@ function GiveCard({ person, onChanged }) {
   );
 }
 
+const clock = (iso) => (iso ? new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "");
+
+// The setup email: a personal link that joins them to the hotel once they
+// sign in with this email address. Sent again if they can't find it.
+function SetupEmail({ person, call, onChanged }) {
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState(null);
+  const send = async () => {
+    setBusy(true); setMsg(null);
+    try {
+      const res = await call("signup_invite", { person_ref: person.ref });
+      const status = res.results?.[0]?.status || "failed";
+      setMsg({ ok: status === "sent", text: inviteText(status, person.name) });
+      if (status === "sent") onChanged();
+    } catch (e) { setMsg({ ok: false, text: errorText(e, inviteText("failed")) }); }
+    finally { setBusy(false); }
+  };
+  return (
+    <div className="space-y-1.5">
+      <Button variant="outline" onClick={send} loading={busy}><Mail className="h-4 w-4" aria-hidden="true" /> {person.invite_sent_at ? "Send the setup email again" : "Email the setup link"}</Button>
+      {person.invite_sent_at && !msg && <p className="text-body-sm text-muted-foreground">Setup email sent at {clock(person.invite_sent_at)}{person.invite_sent_by ? ` by ${person.invite_sent_by}` : ""}.</p>}
+      {msg && <p role={msg.ok ? "status" : "alert"} className={`text-body-sm ${msg.ok ? "text-success" : "text-danger"}`}>{msg.text}</p>}
+    </div>
+  );
+}
+
 export default function SignupPersonSheet({ person, company, call, onChanged, onClose }) {
   const [claim, setClaim] = useState({ state: "claiming" }); // claiming | mine | taken | free
   const [showQr, setShowQr] = useState(!person?.registered);
@@ -145,6 +171,7 @@ export default function SignupPersonSheet({ person, company, call, onChanged, on
             status={steps.signed ? "Signed in and joined." : `Waiting for ${first} to sign in. This ticks by itself.`}>
             {!steps.signed && (
               <>
+                {person.email && <SetupEmail person={person} call={call} onChanged={onChanged} />}
                 <Button variant="outline" onClick={() => setShowQr((v) => !v)}><QrCode className="h-4 w-4" aria-hidden="true" /> {showQr ? "Hide the join QR" : "Show the join QR"}</Button>
                 {showQr && (company?.join_code ? (
                   <div className="space-y-2">

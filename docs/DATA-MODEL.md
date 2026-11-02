@@ -1180,6 +1180,7 @@ Server-only delivery ledger for new-account admin alerts.
 | `completed` | boolean |  |
 | `delivered_emails` | jsonb (list) |  |
 | `notified_at` | timestamptz |  |
+| `welcome_sent_at` | timestamptz | When the welcome email to the new person went out (or was held back by Admin → Notifications). |
 
 ### SignupHelp
 
@@ -1199,6 +1200,8 @@ Sign-up day at a hotel: which helper is with which staff member, and whether the
 | `claimed_at` | timestamptz |  |
 | `has_app_at` | timestamptz | When a helper ticked that the app is on their phone. |
 | `has_app_by` | text |  |
+| `invite_sent_at` | timestamptz | When the setup email with their personal link last went out. |
+| `invite_sent_by` | text |  |
 
 ### StaffCheckIn
 

@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import fs from 'node:fs';
 import ts from 'typescript';
 import { webcrypto } from 'node:crypto';
+import { passwordChangedEmail } from '../../../base44/shared/accountEmails.ts';
 
 // Run the real Edge-function handler in isolation without connecting to a live Supabase project.
 const source = fs.readFileSync('base44/functions/driverAccounts/entry.ts', 'utf8').replace(/^import .*;\r?\n/gm, '');
@@ -30,15 +31,17 @@ function fixture({ role = 'admin', authId = 'auth-admin', allowed = true } = {})
       return Response.json({ id: 'new-auth' });
     return Response.json({ ok: true });
   });
+  // Emails the handler sends (the real text, a stand-in for delivery).
+  const emails = [];
   const exports = {};
-  const handler = new Function('exports', 'createClientFromRequest', 'secrets', 'reserveAttempt', 'fetch', 'crypto', 'Response', 'AbortSignal', compiled + '\nreturn exports.default;')(
+  const handler = new Function('exports', 'createClientFromRequest', 'secrets', 'reserveAttempt', 'sendAccountEmail', 'passwordChangedEmail', 'fetch', 'crypto', 'Response', 'AbortSignal', compiled + '\nreturn exports.default;')(
     exports,
     () => client,
     { get: (key) => key === 'SUPABASE_URL' ? 'https://unit-test.supabase.co' : key === 'SUPABASE_SERVICE_ROLE_KEY' ? 'mock-service-key' : undefined },
-    async () => allowed, fetchMock, webcrypto, Response, AbortSignal,
+    async () => allowed, async (_client, key, to, email) => { emails.push({ key, to, ...email }); return { sent: 1 }; }, passwordChangedEmail, fetchMock, webcrypto, Response, AbortSignal,
   );
   const request = (action, rest = {}) => handler(new Request('https://unit.test/driverAccounts', { method: 'POST', body: JSON.stringify({ action, driver_id: driver.id, ...rest }) }));
-  return { handler, request, db, driver, actor, person, writes, fetchMock };
+  return { handler, request, db, driver, actor, person, writes, fetchMock, emails };
 }
 
 describe('driver-account authorization', () => {

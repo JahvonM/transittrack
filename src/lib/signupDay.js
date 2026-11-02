@@ -94,3 +94,18 @@ export function parseStaffList(textValue) {
     return { name: rest[0] || "", email: emailAt >= 0 ? cells[emailAt] : "", phone: rest[1] || "", employee_id: rest[2] || "" };
   }).filter((r) => r.name || r.email);
 }
+
+// Setup emails (a personal link to set up the app): what happened, in words.
+export const INVITE_BATCH = 20;
+export function inviteText(status, name = "") {
+  const who = String(name || "").trim().split(/\s+/)[0] || "They";
+  switch (status) {
+    case "sent": return `Setup email sent to ${who}.`;
+    case "off": return "Setup emails are switched off in Admin → Notifications.";
+    case "no_email": return `${who} has no email address on the list.`;
+    case "signed_in": return `${who} has already signed in, so no setup email is needed.`;
+    case "just_sent": return `A setup email went to ${who} a moment ago. Give it a couple of minutes.`;
+    case "not_on_list": return `${who} isn't on this hotel's list.`;
+    default: return "The setup email couldn't be sent. Try again.";
+  }
+}

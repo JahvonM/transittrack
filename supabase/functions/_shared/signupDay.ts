@@ -8,12 +8,23 @@
 // can only ever reach their own hotel. Pickup spots and cards are saved with
 // nfcCards' own set_pickup and issue actions.
 //
-// Actions: signup_state · signup_claim · signup_app · signup_add · signup_import
+// Actions: signup_state · signup_claim · signup_app · signup_add · signup_import · signup_invite
+//
+// Setup emails: adding someone with an email address can send them a
+// personal link to set up the app (signupInvites.ts); signup_invite sends
+// it, or sends it again, to people on the list who haven't signed in yet.
+
+import { sendAccountEmail, signupInviteEmail } from './accountEmails.ts';
+import { INVITE_DAYS, issueSignupInvite } from './signupInvites.ts';
 
 // A helper's claim lapses after this long without being renewed, so a
 // helper who walked away doesn't block the person forever.
 export const SIGNUP_CLAIM_MS = 20 * 60_000;
 const MAX_IMPORT = 300;
+// At most this many setup emails per request (the page sends a long list in
+// turns), and not again to the same person within a couple of minutes.
+export const INVITES_PER_CALL = 20;
+export const INVITE_GAP_MS = 2 * 60_000;
 
 const text = (v, max = 120) => String(v ?? '').replace(/[\u0000-\u001F\u007F<>]/g, '').trim().slice(0, max);
 const emailOf = (v) => {
@@ -49,6 +60,24 @@ export async function signupDay(base44, user, body, { companyFilter, loadPeople,
     const row = { company_id: companyId, person_ref: ref, person_name: person.name, ...data };
     return existing ? sr.SignupHelp.update(existing.id, row) : sr.SignupHelp.create(row);
   };
+  // Emails one person their setup link. Returns a status word for the page:
+  // sent · off (switched off in Admin → Notifications) · failed · no_email ·
+  // signed_in (already has an account) · just_sent.
+  const invite = async (person, rows) => {
+    const email = emailOf(person.email);
+    if (!email) return 'no_email';
+    if (person.registered) return 'signed_in';
+    const ref = signupRef(person);
+    const h = rows.find((r) => r.person_ref === ref);
+    if (Date.parse(h?.invite_sent_at) > now - INVITE_GAP_MS) return 'just_sent';
+    const link = await issueSignupInvite(sr, companyId, email, now);
+    const result = await sendAccountEmail(base44, 'signup_invite', email, signupInviteEmail({ name: person.name, hotel: company.name, url: link.url, days: INVITE_DAYS }), { companyId });
+    if (!result.sent) return result.failed ? 'failed' : 'off';
+    await save(h, ref, person, { invite_sent_at: new Date(now).toISOString(), invite_sent_by: helperName });
+    await audit(base44, user, { action: 'update', entity: 'SignupHelp', page: '/admin/signup-day', summary: `Sign-up day: emailed ${person.name} a setup link for ${company.name || 'the hotel'}` });
+    return 'sent';
+  };
+  const noJoinCode = () => Response.json({ error: 'This hotel has no join code yet. Make one in Admin → Companies first.', code: 'no_join_code' }, { status: 409 });
 
   switch (body.action) {
     case 'signup_state': {
@@ -68,6 +97,7 @@ export async function signupDay(base44, user, body, { companyFilter, loadPeople,
           card: CARD[p.status] || '', card_tail: p.card?.card_uid ? String(p.card.card_uid).slice(-4) : '',
           bus: p.assigned_vehicle || '',
           helper: fresh(h) ? { name: h.helper_name || 'Someone', mine: h.helper_id === user.id, since: h.claimed_at } : null,
+          invite_sent_at: h?.invite_sent_at || null, invite_sent_by: h?.invite_sent_by || '',
         };
       });
       return Response.json({
@@ -112,15 +142,26 @@ export async function signupDay(base44, user, body, { companyFilter, loadPeople,
       const typed = text(body.email, 160);
       const email = emailOf(typed);
       if (typed && !email) return Response.json({ error: 'That email address looks wrong' }, { status: 400 });
+      const wantsInvite = body.send_invite === true && !!email;
+      if (wantsInvite && !company.access_code) return noJoinCode();
       const staff = await staffOf();
       const same = staff.find((p) => email ? emailOf(p.email) === email : !emailOf(p.email) && p.name.trim().toLowerCase() === name.toLowerCase());
-      if (same) return Response.json({ ok: true, existing: true, person_ref: signupRef(same), name: same.name });
+      if (same) {
+        const status = wantsInvite ? await invite(same, await helps()) : undefined;
+        return Response.json({ ok: true, existing: true, person_ref: signupRef(same), name: same.name, invite: status });
+      }
       const contact = await sr.Contact.create({
         name, email, phone: text(body.phone, 40), employee_id: text(body.employee_id, 40),
         type: 'staff', company_id: companyId, company_name: company.name || '',
       });
       await audit(base44, user, { action: 'create', entity: 'Contact', record_id: contact.id, page: '/admin/signup-day', summary: `Sign-up day: added ${name} to ${company.name || 'the hotel'}` });
-      return Response.json({ ok: true, person_ref: email ? 'email:' + email : `contact:${contact.id}`, name });
+      const ref = email ? 'email:' + email : `contact:${contact.id}`;
+      let status;
+      if (wantsInvite) {
+        const person = await personFor(ref);
+        status = person ? await invite(person, await helps()) : 'failed';
+      }
+      return Response.json({ ok: true, person_ref: ref, name, invite: status });
     }
 
     // The hotel's staff list from a spreadsheet: adds the people not on it
@@ -143,7 +184,23 @@ export async function signupDay(base44, user, body, { companyFilter, loadPeople,
       });
       if (add.length) await sr.Contact.bulkCreate(add);
       if (add.length) await audit(base44, user, { action: 'create', entity: 'Contact', page: '/admin/signup-day', summary: `Sign-up day: added ${add.length} staff to ${company.name || 'the hotel'} from a list` });
-      return Response.json({ ok: true, added: add.length, skipped });
+      // The people with an email address, for the page to send setup emails to in turns.
+      return Response.json({ ok: true, added: add.length, skipped, invite_refs: add.filter((p) => p.email).map((p) => 'email:' + p.email) });
+    }
+
+    // Email setup links to up to INVITES_PER_CALL people on the list.
+    case 'signup_invite': {
+      const refs = [...new Set((Array.isArray(body.person_refs) ? body.person_refs : [body.person_ref]).map((r) => text(r, 200)).filter(Boolean))];
+      if (!refs.length) return Response.json({ error: 'Choose who to email' }, { status: 400 });
+      if (refs.length > INVITES_PER_CALL) return Response.json({ error: `Send at most ${INVITES_PER_CALL} at a time` }, { status: 400 });
+      if (!company.access_code) return noJoinCode();
+      const [staff, rows] = await Promise.all([staffOf(), helps()]);
+      const results = [];
+      for (const ref of refs) {
+        const person = staff.find((p) => signupRef(p) === ref);
+        results.push({ ref, name: person?.name || '', status: person ? await invite(person, rows) : 'not_on_list' });
+      }
+      return Response.json({ ok: true, sent: results.filter((r) => r.status === 'sent').length, results });
     }
   }
   return Response.json({ error: 'Unknown action' }, { status: 400 });

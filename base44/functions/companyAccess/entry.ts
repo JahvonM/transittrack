@@ -2,6 +2,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 import { retry429 } from '../../shared/retry429.ts';
 // Shared request budgets use the configured Supabase RPC and fail closed.
 import { reserveAttempt } from '../../shared/atomicOps.ts';
+import { readSignupInvite } from '../../shared/signupInvites.ts';
 
 async function hashSecret(value) {
  const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
@@ -133,11 +134,27 @@ export default async function(req) {
    return Response.json({ error: 'Company code required', code: 'COMPANY_ACCESS_REQUIRED' }, { status: 401 });
   }
   if (!(await reserveAttempt(base44, 'company-code:' + user.id, 5, 15 * 60_000))) return Response.json({ error: 'Too many attempts. Try again in 15 minutes.' }, { status: 429 });
-  const code = typeof body.code === 'string' ? body.code.trim().toUpperCase() : '';
-  if (!/^[A-Z0-9]{12}$/.test(code)) return Response.json({ error: 'Invalid company code' }, { status: 403 });
-  const rows = await retry429(async ()=>base44.asServiceRole.entities.Company.filter({ access_code: code }, '-created_date', 2));
-  if (rows.length !== 1) return Response.json({ error: 'Invalid company code' }, { status: 403 });
-  const company = rows[0];
+  let code = '', company = null;
+  if (body.invite !== undefined) {
+   // A sign-up day setup link: joins the company that sent it, but only for
+   // the email address it was sent to, exactly as its join code would.
+   const INVITE_PROBLEM = {
+    invalid: ['This setup link is not valid. Type your company code instead.', 'INVITE_INVALID'],
+    expired: ['This setup link has expired. Ask your company or the office for the company code.', 'INVITE_EXPIRED'],
+    other_email: ['This setup link was sent to a different email address. Sign in with that address, or type your company code.', 'INVITE_OTHER_EMAIL'],
+   };
+   const invite = await readSignupInvite(base44.asServiceRole.entities, body.invite, user.email);
+   if (invite.problem) { const [error, problem] = INVITE_PROBLEM[invite.problem]; return Response.json({ error, code: problem }, { status: 403 }); }
+   company = await retry429(async ()=>base44.asServiceRole.entities.Company.get(invite.companyId)).catch(() => null);
+   code = String(company?.access_code || '');
+   if (!company || !/^[A-Z0-9]{12}$/.test(code)) return Response.json({ error: INVITE_PROBLEM.invalid[0], code: 'INVITE_INVALID' }, { status: 403 });
+  } else {
+   code = typeof body.code === 'string' ? body.code.trim().toUpperCase() : '';
+   if (!/^[A-Z0-9]{12}$/.test(code)) return Response.json({ error: 'Invalid company code' }, { status: 403 });
+   const rows = await retry429(async ()=>base44.asServiceRole.entities.Company.filter({ access_code: code }, '-created_date', 2));
+   if (rows.length !== 1) return Response.json({ error: 'Invalid company code' }, { status: 403 });
+   company = rows[0];
+  }
   // Only a verified company join converts an ordinary passenger to hotel staff.
   // Re-read the authoritative role so a stale session cannot demote an admin,
   // manager, driver or mechanic.

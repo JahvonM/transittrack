@@ -35,6 +35,14 @@
     },
     "has_app_by": {
       "type": "string"
+    },
+    "invite_sent_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the setup email with their personal link last went out."
+    },
+    "invite_sent_by": {
+      "type": "string"
     }
   },
   "rls": {
