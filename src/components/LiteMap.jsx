@@ -270,7 +270,7 @@ export default function LiteMap({
             {(s.pickLabel || s.name) && <Marker position={[s.lat, s.lng]} icon={pickedLabelIcon(s.pickLabel || s.name)} interactive={false} keyboard={false} zIndexOffset={1000} />}
           </React.Fragment>
         ))}
-        {liveVehicles.map((v) => <BusMarker key={`v-${v.id}`} v={v} glide={glide} road={roads.get(v.route_id) || (v.id === focusVehicleId && Array.isArray(road) && road.length >= 2 ? road : null)} />)}
+        {liveVehicles.map((v) => <BusMarker key={`v-${v.id}`} v={v} glide={glide} road={roads.get(v.route_id) || (v.id === focusVehicleId ? drawn : null)} />)}
         {userLocation && showUserDot && (
           <CircleMarker center={[userLocation.lat, userLocation.lng]} radius={8} pathOptions={{ color: "#0B0B0D", weight: 3, fillColor: accent, fillOpacity: 1 }} />
         )}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { MOTION, createTrack, movedTo, retarget, step, turnTo } from "../vehicleMotion";
-import { distanceM } from "../../components/map3d/routeGeometry";
+import { MOTION, createTrack, movedTo, retarget, roadPath, step, turnTo } from "../vehicleMotion";
+import { distanceM, nearestOnLine } from "../../components/map3d/routeGeometry";
 
 // A bus on St. George's Carenage, moving east about 150 m every 15 s.
 const A = [-61.7520, 12.0530];
@@ -89,5 +89,66 @@ describe("bus movement between GPS updates", () => {
     const t = createTrack(A, 0);
     expect(movedTo(t, [A[0] + 0.000001, A[1]])).toBe(false);
     expect(movedTo(t, B)).toBe(true);
+  });
+});
+
+// A route road with a right-angle bend: east along the Carenage, then north.
+const CORNER = [-61.7506, 12.0530];
+const NORTH = [-61.7506, 12.0544]; // ~155 m north of the corner
+const ROAD_LINE = [[-61.7534, 12.0530], A, [-61.7513, 12.0530], CORNER, [-61.7506, 12.0537], NORTH, [-61.7506, 12.0560]];
+
+describe("following the route's road between updates", () => {
+  it("goes round the bend instead of cutting the corner", () => {
+    const t = createTrack(A, 0);
+    retarget(t, NORTH, 15_000, { road: ROAD_LINE });
+    expect(t.pts).not.toBeNull();
+    for (let ms = 0; ms <= t.dur; ms += t.dur / 40) {
+      step(t, t.t0 + ms);
+      expect(nearestOnLine(ROAD_LINE, t.current).offM).toBeLessThan(1); // always on the road
+    }
+    expect(t.current).toEqual(NORTH);
+  });
+
+  it("keeps a steady speed along the road and passes the corner on time", () => {
+    const t = createTrack(A, 0);
+    retarget(t, NORTH, 15_000, { road: ROAD_LINE });
+    const toCorner = distanceM(A, CORNER), total = toCorner + distanceM(CORNER, NORTH);
+    step(t, t.t0 + t.dur * (toCorner / total));
+    expect(distanceM(t.current, CORNER)).toBeLessThan(1);
+  });
+
+  it("faces each stretch of road as it reaches it", () => {
+    const t = createTrack(A, 0, 0);
+    retarget(t, NORTH, 15_000, { road: ROAD_LINE });
+    expect(t.hTo).toBeCloseTo(90, 0); // east first
+    step(t, t.t0 + t.dur * 0.95);
+    step(t, t.t0 + t.dur * 0.95 + MOTION.segmentTurnMs);
+    expect(t.heading).toBeCloseTo(0, 0); // north after the bend
+  });
+
+  it("works on the return trip, driving the road backwards", () => {
+    const t = createTrack(NORTH, 0);
+    retarget(t, A, 15_000, { road: ROAD_LINE });
+    expect(t.pts).not.toBeNull();
+    step(t, t.t0 + t.dur / 2);
+    expect(nearestOnLine(ROAD_LINE, t.current).offM).toBeLessThan(1);
+  });
+
+  it("moves straight when the bus is off its road or the road would loop away", () => {
+    const offRoad = [-61.7520, 12.0540]; // ~110 m north of the road
+    expect(roadPath(ROAD_LINE, A, offRoad)).toBeNull();
+    // A road that runs 1 km out and back between two points 50 m apart.
+    const loop = [[-61.7520, 12.0530], [-61.7520, 12.0620], [-61.7516, 12.0620], [-61.7516, 12.0530]];
+    expect(roadPath(loop, [-61.7520, 12.0530], [-61.7516, 12.0530])).toBeNull();
+    const t = createTrack(A, 0);
+    retarget(t, B, 15_000, { road: null });
+    expect(t.pts).toBeNull();
+  });
+
+  it("still shows a big jump straight away, road or not", () => {
+    const t = createTrack(A, 0);
+    retarget(t, [-61.70, 12.10], 15_000, { road: ROAD_LINE });
+    expect(t.dur).toBe(0);
+    expect(t.pts).toBeNull();
   });
 });
