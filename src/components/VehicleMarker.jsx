@@ -6,12 +6,12 @@ import MapBusPin, { useBearing } from "@/components/MapBusPin";
 import { modelIdFor } from "@/lib/vehicleModels";
 
 /**
- * A single vehicle on the map: a small 3D bus (or taxi) that glides to each
- * new GPS position and turns to face its direction of travel, with a
+ * A single vehicle on the map: a small 3D bus (or taxi) that moves steadily
+ * between GPS updates and turns to face its direction of travel, with a
  * status-coloured glow that pulses while it's on a trip.
  */
-export default function VehicleMarker({ vehicle, onSelect, cameraBearing = 0 }) {
-  const pos = useSmoothPosition(vehicle.current_lat, vehicle.current_lng);
+export default function VehicleMarker({ vehicle, onSelect, cameraBearing = 0, glideMs }) {
+  const pos = useSmoothPosition(vehicle.current_lat, vehicle.current_lng, { duration: glideMs });
   const heading = useBearing(vehicle.current_lat, vehicle.current_lng, vehicle.heading);
   if (!pos) return null;
 

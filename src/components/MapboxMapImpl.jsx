@@ -74,6 +74,9 @@ export default function MapboxMap({
   // position every time it updates; a driver looking at their own live
   // position does. Dragging the map turns it off until recenter is tapped.
   followUser = false,
+  // Route replay: a fixed, quick glide between its steps (live buses move
+  // steadily between GPS updates by default; see src/lib/vehicleMotion.js).
+  glideMs = undefined,
   // Arbitrary standalone point markers (e.g. staff pickup locations) —
   // unlike `stops`, these do NOT get connected by a route line.
   pins = [],
@@ -362,11 +365,11 @@ export default function MapboxMap({
           </Marker>
         ))}
 
-        {/* Vehicle markers — tappable little bus icons, gliding smoothly between GPS pings */}
+        {/* Vehicle markers: tappable little bus icons, moving steadily between GPS updates */}
         {vehicles
           .filter((v) => v.current_lat != null)
           .map((v) => (
-            <VehicleMarker key={`v-${v.id}`} vehicle={v} cameraBearing={cameraBearing} onSelect={setSelectedVehicle} />
+            <VehicleMarker key={`v-${v.id}`} vehicle={v} cameraBearing={cameraBearing} onSelect={setSelectedVehicle} glideMs={glideMs} />
           ))}
 
         {/* (selected vehicle panel rendered as overlay below to keep the map visible) */}
