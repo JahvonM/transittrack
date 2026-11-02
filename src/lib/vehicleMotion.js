@@ -70,7 +70,9 @@ export function turnTo(track, heading, now, { snap = false } = {}) {
 export function step(track, now) {
   const t = track.dur ? clamp((now - track.t0) / track.dur, 0, 1) : 1;
   track.current = [track.from[0] + (track.to[0] - track.from[0]) * t, track.from[1] + (track.to[1] - track.from[1]) * t];
-  const ht = clamp((now - track.ht0) / MOTION.turnMs, 0, 1);
+  // Nothing to turn (a new bus, or already facing that way): not turning.
+  const turn = Math.abs(((((track.hTo - track.hFrom) % 360) + 540) % 360) - 180);
+  const ht = turn < 0.5 ? 1 : clamp((now - track.ht0) / MOTION.turnMs, 0, 1);
   track.heading = lerpHeading(track.hFrom, track.hTo, 1 - Math.pow(1 - ht, 3));
   return t < 1 || ht < 1;
 }
