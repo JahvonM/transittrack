@@ -37,6 +37,11 @@ exact model and firmware, the maker's SDK and a sample app, the T10 can be
 used only as a card reader with camera QR (if its camera works), and it
 can't be locked as a kiosk because it isn't set up as a managed device.
 
+What works without the SDK (follow-up branch): the validator screen layout
+(chosen automatically on a T10) points passengers to the card reader above
+the screen, and code entry and camera QR stay available below. "Show your QR
+below" waits for the scanner SDK, so the screen doesn't say it.
+
 To unblock: ask the supplier for (1) the exact model and firmware version,
 (2) the Android SDK and sample app for scanner, LED and buzzer, (3) the
 supported card and barcode formats. Then test on one bus first.

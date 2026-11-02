@@ -1,20 +1,22 @@
 import { pickupArrival } from "@/lib/pickupArrival";
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Accessibility, Bell, BellOff, Building2, CalendarClock, ChevronRight, Clock, CreditCard, Home, LifeBuoy, LogOut, Map, MapPin, Megaphone, MessageCircle, PackageSearch, QrCode, ShieldCheck, TriangleAlert, Wifi } from "lucide-react";
+import { Accessibility, Bell, BellOff, Building2, CalendarClock, ChevronRight, Clock, CreditCard, Home, LifeBuoy, LogOut, Map, MapPin, Megaphone, MessageCircle, PackageSearch, QrCode, ShieldCheck, TriangleAlert, Wifi, X, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { confirmAction } from "@/components/ConfirmHost";
+import { errorData } from "@/lib/requestError";
 import CompanyBanner from "@/components/CompanyBanner";
 import BusArtwork from "@/components/BusArtwork";
 import BoardingPass from "@/components/staff/BoardingPass";
 import RouteTimeline from "./RouteTimeline";
 import { BookedRides, SponsorLine } from "./PassengerSections";
-import usePassengerAccount, { usePassengerCases, usePassengerRides, usePassengerToday } from "./usePassengerAccount";
+import usePassengerAccount, { useJourneyShare, usePassengerCases, usePassengerRides, usePassengerToday } from "./usePassengerAccount";
 import { CaseList, CaseSheet, RequestForm, RideFeedback } from "./PassengerRequests";
 import { ETA_QUALITY_TEXT, STAGES, alertKey, etaQuality, firstTime, journeyStage, stopsLeftTo } from "@/lib/journeyStage";
 import { routeProgress } from "@/components/TripProgress";
-import { RIDE_STATE_TEXT, TODAY_STATE_TEXT, groupRides, todayRides } from "@/lib/myRides";
+import { RIDE_STATE_TEXT, TODAY_STATE_TEXT, groupRides, todayRides, upcomingAndCancelled } from "@/lib/myRides";
+import { patternSkips, patternText } from "../../../base44/shared/ridePattern.ts";
 import { accountName, greetingName, nameInitials } from "@/lib/userName";
 import { arrivalClock, clock, lastSeen } from "./passengerState";
 import { fetchDrivingRoute, haversineKm } from "@/lib/geo";
@@ -87,7 +89,7 @@ function systemAlert(title,body,tag) {
  } catch { /* not supported */ }
 }
 
-export default function PassengerExperience({view,user,company,workplace,myVehicle,returning,tripState,pickupStop,stopsAway,timelineRoute,stopEtas,now,homeName,sharedStop,pickupPrompt,notice,chatUnread,stopAlerts,pushPermission,toggleStopAlerts,enableNotifications,setSheet,mapOpen,setMapOpen,renderMap,bookedTrips,pickupName,logout,lastSynced,offline,eta=null}) {
+export default function PassengerExperience({view,user,company,workplace,myVehicle,returning,tripState,pickupStop,stopsAway,timelineRoute,stopEtas,now,homeName,sharedStop,pickupPrompt,notice,chatUnread,stopAlerts,pushPermission,toggleStopAlerts,enableNotifications,setSheet,mapOpen,setMapOpen,renderMap,bookedTrips,cancelledTrips=[],pickupName,logout,lastSynced,offline,eta=null}) {
  const {toast}=useToast();
  const support=useSupportWhatsApp();
  const account=usePassengerAccount(user,company.id,view==="card");
@@ -98,6 +100,22 @@ export default function PassengerExperience({view,user,company,workplace,myVehic
  const {late,skip,lateUntil,toggleLate,toggleSkip}=useStaffFlags();
  const today=usePassengerToday(user,company.id,["home","journey"].includes(view));
  const cases=usePassengerCases(user,company.id,["home","rides","more","help"].includes(view));
+ const sharing=useJourneyShare(user,company.id,view==="journey" && !!myVehicle);
+ // Journey sharing: a private link family can open while the passenger rides.
+ const shareJourney=async()=>{
+  if(sharing.busy)return;
+  if(sharing.active){
+   if(!(await confirmAction({title:"Stop sharing your journey?",description:"The link stops working straight away.",confirmLabel:"Stop sharing"})))return;
+   try{await sharing.stop();toast({title:"Stopped sharing"});}catch(e){toast({title:"Couldn't stop sharing",description:errorData(e).error || "Check your connection and try again.",variant:"destructive"});}
+   return;
+  }
+  let res;
+  try{res=await sharing.start();}catch(e){toast({title:"Couldn't make a link",description:errorData(e).error || "Check your connection and try again.",variant:"destructive"});return;}
+  const text=`Follow my ride on ${myVehicle?.name || "my bus"}. The link ends when I get off.`;
+  try{ if(navigator.share){await navigator.share({title:"My bus journey",text,url:res.url});toast({title:"Journey shared",description:"It ends when you get off, or after 3 hours."});return;} }catch(e){ if(e?.name==="AbortError")return; }
+  try{await navigator.clipboard.writeText(res.url);toast({title:"Link copied",description:"Send it to someone you trust. It ends when you get off, or after 3 hours."});}
+  catch{toast({title:"Your journey link",description:res.url});}
+ };
  const [openCase,setOpenCase]=useState(null);
  const [helpKind,setHelpKind]=useState(null);
  const [boardingNote,setBoardingNote]=useState(user?.boarding_note || "");
@@ -120,7 +138,10 @@ export default function PassengerExperience({view,user,company,workplace,myVehic
   ?(user?.pickup_lat!=null?{name:homeName || pickupName || "your stop",lat:user.pickup_lat,lng:user.pickup_lng}:null)
   :(workplace?.lat!=null?{name:workplace.name || company.name,lat:Number(workplace.lat),lng:Number(workplace.lng)}:null);
  const destKm=fresh && myVehicle?.current_lat!=null && destination?haversineKm(myVehicle.current_lat,myVehicle.current_lng,destination.lat,destination.lng):null;
- const stageInfo=journeyStage({tripKind:kind,arrivalKind:arrival?.kind,taps:today.events,notTravelling:skip,destinationKm:destKm,now});
+ // Regular days off the office approved count as not travelling, that way.
+ const nowMs=typeof now==="number"?now:Date.now();
+ const daysOff={to_work:patternSkips(cases.pattern,nowMs,"to_work"),to_home:patternSkips(cases.pattern,nowMs,"to_home")};
+ const stageInfo=journeyStage({tripKind:kind,arrivalKind:arrival?.kind,taps:today.events,notTravelling:skip || (returning?daysOff.to_home:daysOff.to_work),destinationKm:destKm,now});
  const stage=stageInfo.stage;
  const riding=["boarded","onboard","near_destination"].includes(stage);
  const rideEta=useRideEta(myVehicle,destination,riding && !!fresh,now);
@@ -270,7 +291,7 @@ export default function PassengerExperience({view,user,company,workplace,myVehic
    <section className="px-panel px-wait"><MapPin /><div><h2>Where to wait</h2><p>{returning?`Meet the bus at ${workplace?.name || "your company boarding point"}.`:pickup?`Meet the bus at ${pickup}.`:"Choose a safe roadside pickup on your bus route."}</p>{!returning && pickupStop?.note && <p className="px-pickup-note">{pickupStop.note}</p>}<Button variant="outline" onClick={()=>setSheet("pickup")}>Walking directions</Button></div></section>
    {pickupPrompt}
    {timelineRoute && <><button className="px-message" aria-expanded={showStops} onClick={()=>setShowStops(!showStops)}><Map />{showStops?"Hide route stops":"All route stops"}<ChevronRight /></button><AnimatePresence initial={false}>{showStops && <motion.div key="stops" className="px-unfold" initial={{height:0,opacity:0}} animate={{height:"auto",opacity:1}} exit={{height:0,opacity:0}} transition={SPRING}><RouteTimeline route={returning?{...timelineRoute,stops:[...(timelineRoute.stops || [])].reverse().map((s,order)=>({...s,order}))}:timelineRoute} bus={myVehicle} kind={kind} stopName={pickup} mins={mins} stopEtas={returning?{}:stopEtas} now={now} /></motion.div>}</AnimatePresence></>}
-   <div className="px-panel px-settings-list"><Row icon={MessageCircle} title="Need help with this trip?" sub="Message your bus team" onClick={()=>setSheet("chat")} badge={chatUnread}/><Row icon={TriangleAlert} title={reportBusy?"Sending report…":"Report missed pickup"} onClick={reportMissed}/></div>
+   <div className="px-panel px-settings-list"><Row icon={MessageCircle} title="Need help with this trip?" sub="Message your bus team" onClick={()=>setSheet("chat")} badge={chatUnread}/>{myVehicle && <Row icon={Share2} title={sharing.busy?"Please wait…":sharing.active?"Sharing your journey":"Share my journey"} sub={sharing.active?`Until ${clock(sharing.expiresAt)} or when you get off · tap to stop`:"A private link family can follow while you ride"} onClick={shareJourney}/>}<Row icon={TriangleAlert} title={reportBusy?"Sending report…":"Report missed pickup"} onClick={reportMissed}/></div>
    <BookedRides trips={bookedTrips} stopName={pickupName} />
    <Link to="/buses" className="px-quiet-link">Browse company buses</Link>
   </>}
@@ -283,13 +304,28 @@ export default function PassengerExperience({view,user,company,workplace,myVehic
   {view==="rides" && <>
    <header className="px-page-title"><h1>My rides</h1><p>Your regular transport and the rides you've taken</p></header>
    <section className="px-panel" aria-labelledby="px-rides-today"><h2 id="px-rides-today"><CalendarClock />Today</h2>
-    <ul className="px-ride-list">{todayRides({bus:myVehicle,pickup:homeName || pickupName,destination:workplace?.name || company.name,returning,skip,late,lateUntil}).map(r=><li key={r.key} aria-current={r.current?"step":undefined}><span><strong>{r.label}{r.current?" · next":""}</strong><small>{r.from || "Your pickup"} to {r.to || "your destination"}{r.bus?` · ${r.bus}`:""}</small></span><b className={`px-ride-state ${r.state}`}>{TODAY_STATE_TEXT[r.state]}{r.lateUntil?` until ${clock(r.lateUntil)}`:""}</b></li>)}</ul>
+    <ul className="px-ride-list">{todayRides({bus:myVehicle,pickup:homeName || pickupName,destination:workplace?.name || company.name,returning,skip,late,lateUntil,daysOff}).map(r=><li key={r.key} aria-current={r.current?"step":undefined}><span><strong>{r.label}{r.current?" · next":""}</strong><small>{r.from || "Your pickup"} to {r.to || "your destination"}{r.bus?` · ${r.bus}`:""}</small></span><b className={`px-ride-state ${r.state}`}>{TODAY_STATE_TEXT[r.state]}{r.regular?" (regular)":""}{r.lateUntil?` until ${clock(r.lateUntil)}`:""}</b></li>)}</ul>
     {flagsPanel}
     <p className="px-ride-note">No booking needed: your rides follow your company's schedule. Tell your driver here if you're not travelling or running late.</p>
    </section>
+   {(()=>{const lists=upcomingAndCancelled({trips:bookedTrips || [],cancelledTrips,cases:cases.cases,now});const dayText=(item)=>{const t=item.kind==="trip"&&item.at?Date.parse(item.at):Date.parse(item.day+"T12:00:00");return Number.isFinite(t)?new Date(t).toLocaleDateString([], {weekday:"short",day:"numeric",month:"short",...(item.kind==="trip"?{hour:"numeric",minute:"2-digit"}:{})}):"";};return <>
+    <section className="px-panel" aria-labelledby="px-rides-upcoming"><h2 id="px-rides-upcoming"><CalendarClock />Coming up</h2>
+     {lists.upcoming.length?<ul className="px-ride-list">{lists.upcoming.map(i=><li key={i.key}><span><strong>{i.title}</strong><small>{[dayText(i),i.ref].filter(Boolean).join(" · ")}</small></span><b className="px-ride-state scheduled">{i.note}</b></li>)}</ul>:<p className="px-ride-note">Nothing booked or changed. Your regular rides follow your company's schedule.</p>}
+    </section>
+    <section className="px-panel" aria-labelledby="px-rides-regular"><h2 id="px-rides-regular"><CalendarClock />Regular days off</h2>
+     {cases.pattern?<>
+      <p className="px-positive">{patternText(cases.pattern)}</p>
+      <p className="px-ride-note">Approved by the office{cases.pattern.reference?` · ${cases.pattern.reference}`:""}. Your driver doesn't wait for you on these days.</p>
+      <Button variant="outline" disabled={cases.sending} onClick={async()=>{if(!(await confirmAction({title:"Ride on these days again?",description:"Your driver will expect you on these days again from today. The office is told.",confirmLabel:"Ride again"})))return;try{await cases.send({action:"end_pattern"});toast({title:"You're back on these days",description:"Your driver expects you from today."});}catch(e){toast({title:"Couldn't change that",description:errorData(e).error || "Check your connection and try again.",variant:"destructive"});}}}>Ride on these days again</Button>
+     </>:<p className="px-ride-note">None. If you don't ride on some days every week, ask for "Days I don't ride" below. The office confirms it.</p>}
+    </section>
+    {lists.cancelled.length>0 && <section className="px-panel" aria-labelledby="px-rides-cancelled"><h2 id="px-rides-cancelled"><X />Cancelled</h2>
+     <ul className="px-ride-list">{lists.cancelled.map(i=><li key={i.key}><span><strong>{i.title}</strong><small>{[dayText(i),i.ref].filter(Boolean).join(" · ")}</small></span><b className={`px-ride-state ${i.kind==="asked"?"running_late":"not_travelling"}`}>{i.note}</b></li>)}</ul>
+    </section>}
+   </>;})()}
    <section className="px-panel" aria-labelledby="px-rides-change"><h2 id="px-rides-change"><Clock />Change a ride</h2>
     <p>Ask for a different time or pickup on one day, or say you won't need the bus on a later day. The office confirms or tells you why not.</p>
-    <RequestForm kinds={["time_change","pickup_change","cancel_ride"]} send={cases.send} sending={cases.sending} bookedTrips={bookedTrips} onSent={setOpenCase} />
+    <RequestForm kinds={["time_change","pickup_change","cancel_ride","regular_days"]} send={cases.send} sending={cases.sending} bookedTrips={bookedTrips} onSent={setOpenCase} />
    </section>
    <section className="px-panel px-settings-list" aria-labelledby="px-rides-requests"><h2 id="px-rides-requests" className="px-list-title">My requests{cases.unread>0 && <b className="px-count">{cases.unread}</b>}</h2>
     <CaseList cases={cases.cases} loading={cases.loading} error={cases.error} retry={cases.retry} onOpen={setOpenCase} empty="No requests yet." />

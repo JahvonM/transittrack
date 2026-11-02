@@ -107,6 +107,12 @@ decision on what a shared view may show (no other pickups or names), a
 revoke button for the passenger and a short expiry tied to their own ride.
 It was **not added in this update**; the job links keep working as before.
 
+**Follow-up (owner's decision, 1 Nov):** added as a separate passenger link
+(`journeyShare`, `/share`) built to those rules: only the passenger's own
+ride, the bus only while they're on board, no other pickups or names, a
+Stop button, and it ends when they get off or after 3 hours. See
+`FOLLOW-UP.md`.
+
 ## 8. Known limitations and open dependencies
 
 | Area | Limitation | What unblocks it |

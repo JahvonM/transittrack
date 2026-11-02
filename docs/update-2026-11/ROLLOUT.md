@@ -10,6 +10,14 @@ offline work are kept.
 - The re-issued card fix (audit F18) went live on 1 Nov with the owner's
   approval: boarding tablets accept a card that was cancelled and issued
   again. All 3 active cards were affected.
+- PR #16 was merged on 1 Nov (12:44 UTC) with the owner's approval. Checked
+  afterwards: CI green on `main`; the four migrations applied (new columns
+  and the `passenger_case` and `ride_exception` tables are present); all
+  server functions redeployed at 12:45; Base44 synced, checkpointed and
+  published. Not yet checked: the 15-minute device checks below, because no
+  tablet had checked in since 30 Oct (the fleet was off). Do them when the
+  first bus comes on.
+- The follow-up items are on branch `more-updates` (see `FOLLOW-UP.md`).
 
 ## Stage 0: before merging
 
@@ -73,7 +81,7 @@ off (asks)**, no tablet needs an open shift, no camera is on.
 
 ## Not changed by this update
 
-The driver phone app's passenger list still has no on-board status (the
-tablet has it). The T10's scanner, LED and buzzer stay blocked on the maker's
-SDK. Journey sharing for regular staff rides was reviewed and not added (see
+The driver phone app's passenger list had no on-board status (the tablet
+has it); the follow-up adds it (`FOLLOW-UP.md`). The T10's scanner, LED and
+buzzer stay blocked on the maker's SDK. Journey sharing for regular staff rides was reviewed and not added (see
 `AUDIT.md`, "Journey sharing").

@@ -2,9 +2,11 @@
 // a status and replies, shared by the passenger app, the office inbox and the
 // server (passengerCases).
 
+import { readPattern } from './ridePattern.ts';
+
 export const CASE_KINDS = [
   // Changes the office confirms or turns down.
-  'time_change', 'pickup_change', 'cancel_ride',
+  'time_change', 'pickup_change', 'cancel_ride', 'regular_days',
   // Problems the office looks into.
   'missed_pickup', 'card_issue', 'booking_issue', 'other',
   // Optional, after a ride.
@@ -12,7 +14,7 @@ export const CASE_KINDS = [
 ] as const;
 export type CaseKind = typeof CASE_KINDS[number];
 
-export const CHANGE_KINDS: readonly CaseKind[] = ['time_change', 'pickup_change', 'cancel_ride'];
+export const CHANGE_KINDS: readonly CaseKind[] = ['time_change', 'pickup_change', 'cancel_ride', 'regular_days'];
 export const isChange = (kind: string) => (CHANGE_KINDS as readonly string[]).includes(kind);
 
 export const CASE_STATUSES = ['requested', 'pending', 'confirmed', 'rejected', 'resolved', 'closed'] as const;
@@ -27,6 +29,7 @@ export const CASE_KIND_TEXT: Record<CaseKind, string> = {
   time_change: 'Change my pickup time',
   pickup_change: 'Change my pickup place',
   cancel_ride: 'Cancel a ride',
+  regular_days: 'Days I don’t ride',
   missed_pickup: 'Missed pickup',
   card_issue: 'Card problem',
   booking_issue: 'Booking problem',
@@ -65,6 +68,14 @@ export function readCaseRequest(body: any, today: string) {
     const rating = Number(body?.rating);
     if (!Number.isInteger(rating) || rating < 1 || rating > 5) return { error: 'Choose a rating from 1 to 5.' };
     data.rating = rating;
+    return { data };
+  }
+  // Regular days off: which weekdays, which way, from when (and until when).
+  if (kind === 'regular_days') {
+    const read = readPattern(body, today);
+    if ('error' in read) return { error: read.error };
+    const { days, direction, from, until } = read.pattern;
+    Object.assign(data, { days, direction, requested_date: from, until_date: until });
     return { data };
   }
   if (isChange(kind)) {

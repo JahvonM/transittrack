@@ -70,7 +70,8 @@ function passengerCases(body, data) {
   const list = (data.passengerCases ||= []);
   const find = () => list.find((c) => c.id === body?.id);
   switch (body?.action) {
-    case "mine": case "list": return { cases: body.action === "list" && body.show !== "all" ? list.filter((c) => ["requested", "pending"].includes(c.status)) : list };
+    case "mine": case "list": return { cases: body.action === "list" && body.show !== "all" ? list.filter((c) => ["requested", "pending"].includes(c.status)) : list, pattern: data.ridePattern || null };
+    case "end_pattern": data.ridePattern = null; return { ok: true, pattern: null };
     case "create": {
       const row = { id: "case-" + (list.length + 1), reference: "TT-TEST" + (list.length + 1), status: "requested", replies: [], unread: false, source: "case", vehicle_name: "Bus 1", user_name: "Rita Rider", created_date: new Date().toISOString(), ...body };
       delete row.action; list.unshift(row); return { ok: true, case: row };
@@ -102,6 +103,12 @@ function functionReply(name, body, data, role) {
     case "driverAccounts": return body?.action === "status" ? { is_driver: role === "driver", must_change_password: false } : { drivers: data.drivers, ok: true };
     case "passengerAccount": return body?.action === "rides" ? { events: [] } : body?.action === "today" ? { events: data.today || [] } : { card: { issued: false, active: false, status: "Not issued" }, history: [] };
     case "passengerCases": return passengerCases(body, data);
+    case "journeyShare": {
+      const share = (data.share ||= { active: false, expires_at: null });
+      if (body?.action === "start") { Object.assign(share, { active: true, expires_at: new Date(Date.now() + 3 * 3600e3).toISOString() }); return { ok: true, url: "https://app.mcsweenstransport.com/share#j=" + "a".repeat(64), expires_at: share.expires_at }; }
+      if (body?.action === "stop") { Object.assign(share, { active: false, expires_at: null }); return { ok: true, active: false }; }
+      return { active: share.active, expires_at: share.expires_at };
+    }
     case "jobBilling": return { invoices: [], groups: [], ok: true };
     case "driverRequests": return { requests: [] };
     case "helperRelease": return { version: "1.0", url: "" };

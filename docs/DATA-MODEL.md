@@ -740,6 +740,7 @@ Table `kiosk_device` · belongs to a company through `vehicle_id`, then `driver_
 | `update_requested_at` | timestamptz | When an admin pressed Send update; the tablet reloads to the newest version the next time it is idle. |
 | `directory_sent_at` | timestamptz | When an admin last sent the staff card list to this tablet; the tablet re-downloads it on its next check-in. |
 | `reader_mode` | text | What a boarding tablet records: 'both' asks the rider each time; 'boarding' or 'exit' records that direction only (one reader per door). One of: `both`, `boarding`, `exit`. Default `"both"`. |
+| `nfc_spot` | text | Where passengers tap their card on this boarding device, for the hint on screen. 'auto' follows the layout. One of: `auto`, `above_screen`, `back_top`, `back_middle`, `external`. Default `"auto"`. |
 | `require_active_trip` | boolean | Refuse taps unless a driver's shift is open on the bus. Off: taps are recorded and marked 'no active trip'. Default `false`. |
 | `app_health` | jsonb | Reported by the TransitTrack app on the tablet every heartbeat: build, online, uploads waiting (GPS points, check-ins, other saved work), last GPS fix, the latitude/longitude the tablet's GPS is getting, card reader in use, saved staff list. |
 | `helper_health` | jsonb | Reported by the TransitTrack Helper Android app on the tablet (via the kiosk/driver page heartbeat): helper version, battery %, charging, parked, card reader state, last card time, USB GPS state, Wi-Fi hotspot state, and when it was reported. |
@@ -759,7 +760,7 @@ Table `kiosk_device` · belongs to a company through `vehicle_id`, then `driver_
 | `network_status` | jsonb | Latest admin network command delivery and native completion status; no passwords. Set by the server only. |
 | `control_command` | jsonb | Private admin command; native executor verifies over fixed HTTPS endpoint. Never exposed through entity gateway. Not sent to the browser. |
 | `control_status` | jsonb | Safe command progress. Requested is not proof that reboot completed. Set by the server only. |
-| `display_layout` | text | One of: `auto`, `tablet`, `phone`. Default `"auto"`. |
+| `display_layout` | text | Boarding screen layout. 'auto' picks from the device: a validator model (card reader above the screen), else phone or tablet by screen size. 'info' is an in-bus passenger information screen (no tapping, no passenger list). One of: `auto`, `tablet`, `phone`, `validator`, `info`. Default `"auto"`. |
 | `pickup_sign` | jsonb | Not sent to the browser. |
 | `recordings_request` | jsonb | Not sent to the browser. Set by the server only. |
 | `native_tracking_health` | jsonb | Server-timestamped native background GPS telemetry; never an authorization source. |
@@ -999,7 +1000,10 @@ Table `passenger_case` · server functions only.
 | `user_id` | text | → User. The passenger's account. Required. |
 | `user_name` | text |  |
 | `user_email` | text | For the office only; never shown to other passengers. |
-| `kind` | text | One of: `time_change`, `pickup_change`, `cancel_ride`, `missed_pickup`, `card_issue`, `booking_issue`, `other`, `feedback`. Required. |
+| `kind` | text | One of: `time_change`, `pickup_change`, `cancel_ride`, `regular_days`, `missed_pickup`, `card_issue`, `booking_issue`, `other`, `feedback`. Required. |
+| `days` | jsonb (list) | Regular days off: weekdays the passenger won't ride (0 = Sunday). |
+| `direction` | text | Regular days off: which way. One of: `both`, `to_work`, `to_home`. |
+| `until_date` | text | Regular days off: last day (YYYY-MM-DD), or empty for no end. |
 | `status` | text | One of: `requested`, `pending`, `confirmed`, `rejected`, `resolved`, `closed`. Default `"requested"`. Required. |
 | `details` | text | What the passenger wrote. |
 | `vehicle_id` | text | → Vehicle. The passenger's bus when they asked (set by the server). |
@@ -1380,6 +1384,7 @@ Table `app_user` · read and changed through entityAccess.
 | `skip_pickup_until` | timestamptz | Skip only applies until this moment (end of the day it was set). |
 | `late_snooze_active` | boolean | Default `false`. |
 | `boarding_note` | text | Help the passenger asks for when boarding (e.g. a lower step). Shown to their driver; set by the passenger. |
+| `ride_pattern` | jsonb | Regular days off the office approved (days 0-6, direction, from, until, reference, case_id). Set only by the server when the office confirms the request; the passenger can stop it. Not sent to the browser. |
 | `late_until` | timestamptz | Running-late flag only applies until this moment. |
 | `favorite_stop` | text | Name of the passenger's usual pickup stop (matches a Route stop name). |
 | `stop_alerts` | boolean | Send a push when a bus leaves the stop before favorite_stop. Default `false`. |

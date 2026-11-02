@@ -13,7 +13,7 @@ const MOVED_TO_ADMIN = ["route-analytics", "fleet-analytics", "vehicle-logs", "d
 
 // [path, where it should end up (RegExp) or null to stay]
 const ROUTES = {
-  public: [["/", null], ["/login", null], ["/register", null], ["/forgot-password", null], ["/reset-password", null], ["/book-taxi", null], ["/track", null], ["/site", null], ["/site/book", null], ["/site/track", null], ["/privacy", null], ["/terms", null], ["/join", null], ["/reviewer-sandbox", null], ["/tablet", null], ["/kiosk", null], ["/driver", null], ["/staff", /\/login/], ["/admin", /\/login/]],
+  public: [["/", null], ["/login", null], ["/register", null], ["/forgot-password", null], ["/reset-password", null], ["/book-taxi", null], ["/track", null], ["/share", null], ["/site", null], ["/site/book", null], ["/site/track", null], ["/privacy", null], ["/terms", null], ["/join", null], ["/reviewer-sandbox", null], ["/tablet", null], ["/kiosk", null], ["/driver", null], ["/staff", /\/login/], ["/admin", /\/login/]],
   admin: [
     ...ADMIN_SECTIONS.map((s) => [`/admin/${s}`, null]),
     ...MOVED_TO_ADMIN.map((s) => [`/${s}`, new RegExp(`/admin/${s}$`)]),

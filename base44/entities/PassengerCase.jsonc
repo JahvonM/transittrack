@@ -36,12 +36,33 @@
         "time_change",
         "pickup_change",
         "cancel_ride",
+        "regular_days",
         "missed_pickup",
         "card_issue",
         "booking_issue",
         "other",
         "feedback"
       ]
+    },
+    "days": {
+      "type": "array",
+      "items": {
+        "type": "integer"
+      },
+      "description": "Regular days off: weekdays the passenger won't ride (0 = Sunday)."
+    },
+    "direction": {
+      "type": "string",
+      "enum": [
+        "both",
+        "to_work",
+        "to_home"
+      ],
+      "description": "Regular days off: which way."
+    },
+    "until_date": {
+      "type": "string",
+      "description": "Regular days off: last day (YYYY-MM-DD), or empty for no end."
     },
     "status": {
       "type": "string",
