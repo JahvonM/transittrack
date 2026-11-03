@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Camera, Upload, Rotate3D, Trash2, Download, AlertTriangle, Loader2, Image as ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { deleteAsset, getAsset, listPhotos, putAsset } from "@/lib/vehicle3dDrafts";
+import { useAuth } from "@/lib/AuthContext";
 
 const PASSES = [
   { id: "lower", label: "Lower body", hint: "Walk around the bus with the wheels and lower panels visible." },
@@ -120,7 +121,9 @@ function PhotoThumb({ photo, onRemove }) {
 }
 
 export default function Bus3DStudio({ vehicle }) {
-  const id = String(vehicle?.id || "");
+  const { user } = useAuth();
+  // Local drafts must not be shared across signed-in accounts on one device.
+  const id = [user?.id, vehicle?.company_id, vehicle?.id].map((part) => String(part || "unknown")).join("/");
   const [pass, setPass] = useState("middle");
   const [photos, setPhotos] = useState([]);
   const [model, setModel] = useState(null);
