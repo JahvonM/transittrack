@@ -56,66 +56,17 @@ create index if not exists vehicle_3d_photo_scan_idx on public.vehicle_3d_photo(
 create index if not exists vehicle_3d_model_scan_idx on public.vehicle_3d_model(scan_id);
 create index if not exists vehicle_3d_job_scan_idx on public.vehicle_3d_job(scan_id);
 
-create or replace function public.vehicle_3d_can_access(company text)
-returns boolean
-language sql stable security invoker
-set search_path = ''
-as $$
-  select exists (
-    select 1 from public.app_user u
-    join public.company_membership m on m.user_id = u.id
-    where u.auth_user_id = (select auth.uid())
-      and u.disabled is distinct from true
-      and m.active is true
-      and m.company_id = company
-      and case when m.expires_at is null then true when m.expires_at ~ '^\\d{4}-\\d\\d-\\d\\d' then m.expires_at::timestamptz > now() else false end
-      and u.role in ('admin','mechanic','company')
-  )
-$$;
-
-create or replace function public.vehicle_3d_scan_allowed(scan_uuid uuid)
-returns boolean
-language sql stable security invoker
-set search_path = ''
-as $$
-  select exists(
-    select 1 from public.vehicle_3d_scan s
-    where s.id=scan_uuid and public.vehicle_3d_can_access(s.company_id)
-  )
-$$;
-
+-- Browser clients do not access these tables directly. The existing
+-- TransitTrack app uses authenticated Edge Functions for all data access.
+-- Enable RLS and grant no direct anon/authenticated access; service_role
+-- functions perform explicit company/vehicle authorization for every call.
 alter table public.vehicle_3d_scan enable row level security;
 alter table public.vehicle_3d_photo enable row level security;
 alter table public.vehicle_3d_model enable row level security;
 alter table public.vehicle_3d_job enable row level security;
 
-revoke all on public.vehicle_3d_scan,public.vehicle_3d_photo,public.vehicle_3d_model,public.vehicle_3d_job from anon;
-grant select,insert on public.vehicle_3d_scan to authenticated;
--- Photo metadata must be inserted by a trusted backend after Storage verification.
-grant select on public.vehicle_3d_photo to authenticated;
-grant select on public.vehicle_3d_model,public.vehicle_3d_job to authenticated;
-
-create policy "scan tenant read" on public.vehicle_3d_scan for select to authenticated
-using (public.vehicle_3d_can_access(company_id));
-create policy "scan tenant create" on public.vehicle_3d_scan for insert to authenticated
-with check (
-  created_by = (select auth.uid())
-  and public.vehicle_3d_can_access(company_id)
-  and exists (select 1 from public.vehicle v where v.id=vehicle_id and v.company_id=company_id)
-  and status='draft'
-);
-create policy "photo tenant read" on public.vehicle_3d_photo for select to authenticated
-using (public.vehicle_3d_scan_allowed(scan_id));
-create policy "photo tenant create" on public.vehicle_3d_photo for insert to authenticated
-with check (
-  exists (select 1 from public.vehicle_3d_scan s
-          where s.id=scan_id and s.created_by=(select auth.uid())
-          and s.status in ('draft','capturing','uploading') and public.vehicle_3d_can_access(s.company_id))
-);
-create policy "model tenant read" on public.vehicle_3d_model for select to authenticated
-using (public.vehicle_3d_scan_allowed(scan_id));
-create policy "job tenant read" on public.vehicle_3d_job for select to authenticated
-using (public.vehicle_3d_scan_allowed(scan_id));
+revoke all on public.vehicle_3d_scan,public.vehicle_3d_photo,
+  public.vehicle_3d_model,public.vehicle_3d_job from public, anon, authenticated;
 
 -- Create private buckets only. A separate backend service (not the browser)
 -- uploads and downloads through short-lived signed URLs with company authorization.
