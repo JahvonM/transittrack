@@ -1,15 +1,14 @@
-name: Vehicle 3D staging checks
+name: Bus 360 viewer checks
 
 on:
   pull_request:
     paths:
       - 'src/components/vehicle3d/**'
+      - 'src/lib/vehicle360*'
       - 'src/lib/vehicle3d*'
       - 'src/pages/VehicleDetail.jsx'
       - 'src/pages/VehicleRegistry.jsx'
       - 'supabase/functions/vehicle3d/**'
-      - 'workers/vehicle3d/**'
-      - 'docs/vehicle-3d-backend-schema.review.sql'
       - '.github/workflows/vehicle3d.yml'
   workflow_dispatch:
 
@@ -18,7 +17,7 @@ permissions:
 
 jobs:
   frontend:
-    name: Frontend unit, lint and build
+    name: 360 viewer validation and build
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -28,15 +27,5 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
-      - run: npm test -- --run src/lib/vehicle3dCapture.test.js
+      - run: npm test -- --run src/lib/vehicle360.test.js src/lib/vehicle3dCapture.test.js
       - run: npm run build:supabase
-  worker:
-    name: Python syntax checks
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-      - run: python -m py_compile workers/vehicle3d/worker.py workers/vehicle3d/mesh_to_glb.py

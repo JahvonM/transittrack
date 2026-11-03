@@ -93,7 +93,7 @@ export default function VehicleRegistry() {
                     <div className="text-xs text-muted-foreground">{v.company_name} · {v.driver_name || "Unassigned"}</div>
                   </div>
                   <StatusChip status={v.status}>{v.status}</StatusChip>
-                  <Button asChild size="sm" variant="outline" title="Open this vehicle’s 3D Studio"><Link to={"/vehicle/" + encodeURIComponent(v.id)}><Box className="h-4 w-4 sm:mr-1.5" /><span className="hidden sm:inline">3D Studio</span></Link></Button>
+                  <Button asChild size="sm" variant="outline" title="Open this vehicle’s 360° photo viewer"><Link to={"/vehicle/" + encodeURIComponent(v.id)}><Box className="h-4 w-4 sm:mr-1.5" /><span className="hidden sm:inline">360° View</span></Link></Button>
                   {!isEditing && (
                     <Button size="icon" variant="ghost" onClick={() => startEdit(v)} title="Edit driver / route">
                       <Pencil className="w-4 h-4" />

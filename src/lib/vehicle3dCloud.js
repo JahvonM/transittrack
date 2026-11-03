@@ -1,6 +1,5 @@
-// Cloud adapter for Vehicle 3D Studio. Not wired to the UI until the
-// reviewed schema, private buckets and authenticated vehicle3d function
-// are deployed to staging. No background uploads or paid processing.
+// Photo-only cloud adapter for the 360 bus viewer.
+// No 3D reconstruction, GPU worker, or background uploads.
 import { base44 } from "@/api/base44Client";
 import { validateScanPhoto } from "@/lib/vehicle3dCapture";
 
@@ -13,13 +12,10 @@ async function call(action, payload = {}) {
 
 export const createCloudScan = (vehicleId) => call("create", { vehicleId });
 export const listCloudScans = (vehicleId) => call("list", { vehicleId });
-export const getCloudModelLink = (scanId) => call("modelLink", { scanId });
-export const getReconstructionStatus = (scanId) => call("jobStatus", { scanId });
+export const listCloudPhotos = (scanId) => call("photoLinks", { scanId });
 export const confirmCloudPhoto = ({ scanId, fileId, photo, pass }) => call("confirmPhoto", {
   scanId, fileId, bytes: photo.size, contentType: photo.type, pass,
 });
-// A deliberate user action is required; this remains off until backend setup.
-export const requestReconstruction = (scanId, idempotencyKey) => call("startReconstruction", { scanId, idempotencyKey });
 
 export async function uploadCloudPhoto({ scanId, fileId, photo, pass }) {
   const problem = validateScanPhoto(photo, 0);

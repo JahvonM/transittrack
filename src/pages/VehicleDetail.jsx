@@ -141,7 +141,7 @@ export default function VehicleDetail() {
             <TabsTrigger value="faults" className="h-9 rounded-lg px-3 text-body-sm font-semibold data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"><AlertTriangle className="w-4 h-4 mr-1.5" /> Faults</TabsTrigger>
             <TabsTrigger value="maintenance" className="h-9 rounded-lg px-3 text-body-sm font-semibold data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"><Wrench className="w-4 h-4 mr-1.5" /> Maintenance</TabsTrigger>
             <TabsTrigger value="inspections" className="h-9 rounded-lg px-3 text-body-sm font-semibold data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"><ClipboardCheck className="w-4 h-4 mr-1.5" /> Inspections</TabsTrigger>
-            <TabsTrigger value="studio" className="h-9 rounded-lg px-3 text-body-sm font-semibold data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"><Box className="w-4 h-4 mr-1.5" /> 3D Studio</TabsTrigger>
+            <TabsTrigger value="studio" className="h-9 rounded-lg px-3 text-body-sm font-semibold data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"><Box className="w-4 h-4 mr-1.5" /> 360° View</TabsTrigger>
           </TabsList>
           <TabsContent value="faults" className="mt-4">
             <FaultsTab faults={faults} onChange={load} />
