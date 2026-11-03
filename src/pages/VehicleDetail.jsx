@@ -6,11 +6,12 @@ import AppLayout from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { NestedPage, StatusChip } from "@/components/admin/kit";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Bus, AlertTriangle, Wrench, ClipboardCheck } from "lucide-react";
+import { Bus, AlertTriangle, Wrench, ClipboardCheck, Box } from "lucide-react";
 import FaultsTab from "@/components/admin/FaultsTab";
 import MaintenanceScheduleTab from "@/components/admin/MaintenanceScheduleTab";
 import InspectionHistoryTab from "@/components/admin/InspectionHistoryTab";
 import AnimatedBus from "@/components/AnimatedBus";
+import Bus3DStudio from "@/components/vehicle3d/Bus3DStudio";
 import { loadFailed } from "@/lib/loadFailed";
 import BusLoader from "@/components/BusLoader";
 
@@ -140,6 +141,7 @@ export default function VehicleDetail() {
             <TabsTrigger value="faults" className="h-9 rounded-lg px-3 text-body-sm font-semibold data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"><AlertTriangle className="w-4 h-4 mr-1.5" /> Faults</TabsTrigger>
             <TabsTrigger value="maintenance" className="h-9 rounded-lg px-3 text-body-sm font-semibold data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"><Wrench className="w-4 h-4 mr-1.5" /> Maintenance</TabsTrigger>
             <TabsTrigger value="inspections" className="h-9 rounded-lg px-3 text-body-sm font-semibold data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"><ClipboardCheck className="w-4 h-4 mr-1.5" /> Inspections</TabsTrigger>
+            <TabsTrigger value="studio" className="h-9 rounded-lg px-3 text-body-sm font-semibold data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"><Box className="w-4 h-4 mr-1.5" /> 3D Studio</TabsTrigger>
           </TabsList>
           <TabsContent value="faults" className="mt-4">
             <FaultsTab faults={faults} onChange={load} />
@@ -149,6 +151,9 @@ export default function VehicleDetail() {
           </TabsContent>
           <TabsContent value="inspections" className="mt-4">
             <InspectionHistoryTab results={inspectionResults} vehicles={[vehicle]} />
+          </TabsContent>
+          <TabsContent value="studio" className="mt-4">
+            <Bus3DStudio vehicle={vehicle} />
           </TabsContent>
         </Tabs>
         </NestedPage>
