@@ -1,0 +1,131 @@
+-- PROPOSED ONLY: review and convert into a tracked migration before applying.
+-- No SQL in this file has been applied to the connected Supabase project.
+-- Company membership (text user_id) is resolved through app_user.auth_user_id.
+-- Photos are private and constrained to one scan per storage prefix.
+create table if not exists public.vehicle_3d_scan (
+  id uuid primary key default gen_random_uuid(),
+  vehicle_id text not null references public.vehicle(id) on delete cascade,
+  company_id text not null references public.company(id) on delete cascade,
+  created_by uuid not null references auth.users(id),
+  status text not null default 'draft' check (status in ('draft','capturing','uploading','queued','processing','ready','failed','cancelled')),
+  photo_count integer not null default 0 check (photo_count between 0 and 200),
+  error_summary text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique(id,company_id)
+);
+
+create table if not exists public.vehicle_3d_photo (
+  id uuid primary key default gen_random_uuid(),
+  scan_id uuid not null references public.vehicle_3d_scan(id) on delete cascade,
+  object_path text not null unique,
+  capture_pass text not null check (capture_pass in ('lower','middle','upper')),
+  bytes bigint not null check (bytes > 0 and bytes <= 20971520),
+  content_type text not null check (content_type in ('image/jpeg','image/png','image/webp','image/heic','image/heif')),
+  created_at timestamptz not null default now(),
+  constraint photo_path_scan check (split_part(object_path,'/',1)=scan_id::text),
+  constraint photo_path_structure check (object_path ~ '^[0-9a-f-]{36}/[0-9a-f-]{36}\\.(jpg|jpeg|png|webp|heic|heif)$')
+);
+
+create table if not exists public.vehicle_3d_model (
+  id uuid primary key default gen_random_uuid(),
+  scan_id uuid not null references public.vehicle_3d_scan(id) on delete cascade,
+  object_path text not null unique,
+  file_size bigint not null check(file_size > 0),
+  generation_provider text,
+  quality_report jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.vehicle_3d_job (
+  id uuid primary key default gen_random_uuid(),
+  scan_id uuid not null references public.vehicle_3d_scan(id) on delete cascade,
+  idempotency_key text not null unique,
+  status text not null default 'queued' check (status in ('queued','processing','ready','failed','cancelled')),
+  attempt_count integer not null default 0 check (attempt_count between 0 and 5),
+  provider_job_id text,
+  provider_name text,
+  estimated_cost_cents integer check (estimated_cost_cents >= 0),
+  error_message text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists vehicle_3d_scan_company_vehicle_idx on public.vehicle_3d_scan(company_id,vehicle_id,created_at desc);
+create index if not exists vehicle_3d_photo_scan_idx on public.vehicle_3d_photo(scan_id);
+create index if not exists vehicle_3d_model_scan_idx on public.vehicle_3d_model(scan_id);
+create index if not exists vehicle_3d_job_scan_idx on public.vehicle_3d_job(scan_id);
+
+create or replace function public.vehicle_3d_can_access(company text)
+returns boolean
+language sql stable security invoker
+set search_path = ''
+as $$
+  select exists (
+    select 1 from public.app_user u
+    join public.company_membership m on m.user_id = u.id
+    where u.auth_user_id = (select auth.uid())
+      and u.disabled is distinct from true
+      and m.active is true
+      and m.company_id = company
+      and case when m.expires_at is null then true when m.expires_at ~ '^\\d{4}-\\d\\d-\\d\\d' then m.expires_at::timestamptz > now() else false end
+      and u.role in ('admin','mechanic','company')
+  )
+$$;
+
+create or replace function public.vehicle_3d_scan_allowed(scan_uuid uuid)
+returns boolean
+language sql stable security invoker
+set search_path = ''
+as $$
+  select exists(
+    select 1 from public.vehicle_3d_scan s
+    where s.id=scan_uuid and public.vehicle_3d_can_access(s.company_id)
+  )
+$$;
+
+alter table public.vehicle_3d_scan enable row level security;
+alter table public.vehicle_3d_photo enable row level security;
+alter table public.vehicle_3d_model enable row level security;
+alter table public.vehicle_3d_job enable row level security;
+
+revoke all on public.vehicle_3d_scan,public.vehicle_3d_photo,public.vehicle_3d_model,public.vehicle_3d_job from anon;
+grant select,insert on public.vehicle_3d_scan to authenticated;
+grant select,insert on public.vehicle_3d_photo to authenticated;
+grant select on public.vehicle_3d_model,public.vehicle_3d_job to authenticated;
+
+create policy "scan tenant read" on public.vehicle_3d_scan for select to authenticated
+using (public.vehicle_3d_can_access(company_id));
+create policy "scan tenant create" on public.vehicle_3d_scan for insert to authenticated
+with check (
+  created_by = (select auth.uid())
+  and public.vehicle_3d_can_access(company_id)
+  and exists (select 1 from public.vehicle v where v.id=vehicle_id and v.company_id=company_id)
+  and status='draft'
+);
+create policy "photo tenant read" on public.vehicle_3d_photo for select to authenticated
+using (public.vehicle_3d_scan_allowed(scan_id));
+create policy "photo tenant create" on public.vehicle_3d_photo for insert to authenticated
+with check (
+  exists (select 1 from public.vehicle_3d_scan s
+          where s.id=scan_id and s.created_by=(select auth.uid())
+          and s.status in ('draft','capturing','uploading') and public.vehicle_3d_can_access(s.company_id))
+);
+create policy "model tenant read" on public.vehicle_3d_model for select to authenticated
+using (public.vehicle_3d_scan_allowed(scan_id));
+create policy "job tenant read" on public.vehicle_3d_job for select to authenticated
+using (public.vehicle_3d_scan_allowed(scan_id));
+
+-- Create private buckets only. A separate backend service (not the browser)
+-- uploads and downloads through short-lived signed URLs with company authorization.
+insert into storage.buckets (id,name,public,file_size_limit,allowed_mime_types)
+values ('vehicle-3d-photos','vehicle-3d-photos',false,20971520,array['image/jpeg','image/png','image/webp','image/heic','image/heif'])
+on conflict (id) do nothing;
+insert into storage.buckets (id,name,public,file_size_limit,allowed_mime_types)
+values ('vehicle-3d-models','vehicle-3d-models',false,157286400,array['model/gltf-binary','application/octet-stream'])
+on conflict (id) do nothing;
+
+-- Deliberately do NOT allow browser storage insert/update/delete here.
+-- An authenticated edge function must validate the scan and issue one-file
+-- upload URLs; model uploads are restricted to the reconstruction worker.
+-- Before deploying, audit every existing storage policy and grants.
