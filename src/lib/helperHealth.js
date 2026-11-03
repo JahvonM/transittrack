@@ -39,8 +39,9 @@ export function helperHealthPayload() {
       report.recovery_count = n.recovery?.count;
       report.usb_devices = n.usbDevices;
       if (n.gps?.enabled || n.gps?.backgroundManaged) report.gps = n.gps.status;
-      if (n.reader?.enabled) {
-        report.reader = n.reader.status;
+      const readerText = nativeReaderHealth(n.reader);
+      if (readerText) {
+        report.reader = readerText;
         if (n.reader.lastTapAt) report.last_card_at = new Date(n.reader.lastTapAt).toISOString();
       }
     }
@@ -95,7 +96,7 @@ const PAGE_OPENED_AT = Date.now();
 export function helperLink(now = Date.now()) {
   try {
     const n = typeof window !== "undefined" ? window.__ttNativeHealth : null;
-    if (n?.reader?.enabled && typeof n.at === "number" && now - n.at <= LINK_GRACE_MS) return "ok";
+    if (nativeReaderOn(n?.reader) && typeof n.at === "number" && now - n.at <= LINK_GRACE_MS) return "ok";
     const h = typeof window !== "undefined" ? window.__ttHelperHealth : null;
     if (h && typeof h.at === "number" && now - h.at <= LINK_GRACE_MS) return "ok";
     if (localStorage.getItem("tt_badge_reader") !== "1") return "none";
