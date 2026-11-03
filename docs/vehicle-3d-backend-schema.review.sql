@@ -184,6 +184,19 @@ begin
     raise exception 'Company access denied';
   end if;
 
+  -- Serialize the daily company quota even if multiple vehicles enqueue
+  -- simultaneously. This intentionally limits initial GPU processing volume.
+  perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtext(v_scan.company_id));
+  if not exists(select 1 from public.vehicle_3d_job j where j.scan_id=p_scan_id)
+     and (
+       select count(*) from public.vehicle_3d_job j
+       join public.vehicle_3d_scan s on s.id=j.scan_id
+       where s.company_id=v_scan.company_id
+         and j.created_at >= date_trunc('day', now())
+     ) >= 2 then
+    raise exception 'Daily company reconstruction quota reached';
+  end if;
+
   select count(*), count(distinct p.capture_pass)
     into v_count, v_passes
     from public.vehicle_3d_photo p
