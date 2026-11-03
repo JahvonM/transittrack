@@ -22,11 +22,9 @@ final class UsbNfcReader implements Runnable {
 
     private final Context ctx;
     private final UsbManager usb;
-    interface Listener {
+    interface Listener extends TapDelivery.Sink {
         boolean isReady();
-        void onTap(String uid, String tapId, long at);
         void onStatus(String status);
-        void onDelivery(String status);
     }
     private final Listener listener;
     private final TapReceipt results;
@@ -175,26 +173,10 @@ final class UsbNfcReader implements Runnable {
     private void handleCard(String uid) {
         if (!running || !listener.isReady()) return;
         long at = System.currentTimeMillis();
-        String tapId = "native-" + java.util.UUID.randomUUID().toString();
         ledRead();
-        results.begin(tapId, at);
-        if (!running) { results.cancel(); return; }
-        listener.onDelivery("Waiting for app confirmation");
-        listener.onTap(uid, tapId, at);
-        Boolean ok = results.await(tapId, at + 10000);
-        if (ok == null && running) {
-            listener.onDelivery("Retrying app confirmation");
-            listener.onTap(uid, tapId, at);
-            ok = results.await(tapId, at + 30000);
-        }
-        if (!running) return;
-        if (ok == null) {
-            listener.onDelivery("App did not confirm - tap again"); ledRejected();
-        } else if (ok) {
-            listener.onDelivery("Card recognized by app"); ledSuccess();
-        } else {
-            listener.onDelivery("Card rejected by app"); ledRejected();
-        }
+        TapDelivery.Result result = TapDelivery.deliver(results, listener, uid, at, () -> running);
+        if (result == TapDelivery.Result.ACCEPTED) ledSuccess();
+        else if (result != TapDelivery.Result.CANCELLED) ledRejected();
     }
 
     // ---------- card reading ----------
