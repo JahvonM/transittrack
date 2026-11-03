@@ -60,6 +60,10 @@
     </application>
 
     <uses-feature android:name="android.hardware.usb.host" android:required="false" />
+    <!-- Cards tapped on the device's own NFC (e.g. a Telpo T10 validator), read only
+         while the boarding screen is open. Tablets without NFC still install. -->
+    <uses-permission android:name="android.permission.NFC" />
+    <uses-feature android:name="android.hardware.nfc" android:required="false" />
     <!-- Lets the card reader check whether the old Helper app is still installed
          (Android 11+ hides other apps otherwise). Only this one package. -->
     <queries>
