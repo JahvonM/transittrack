@@ -15,15 +15,18 @@ export const createCloudScan = (vehicleId) => call("create", { vehicleId });
 export const listCloudScans = (vehicleId) => call("list", { vehicleId });
 export const getCloudModelLink = (scanId) => call("modelLink", { scanId });
 export const getReconstructionStatus = (scanId) => call("jobStatus", { scanId });
+export const confirmCloudPhoto = ({ scanId, fileId, photo, pass }) => call("confirmPhoto", {
+  scanId, fileId, bytes: photo.size, contentType: photo.type, pass,
+});
 // A deliberate user action is required; this remains off until backend setup.
 export const requestReconstruction = (scanId, idempotencyKey) => call("startReconstruction", { scanId, idempotencyKey });
 
-export async function uploadCloudPhoto({ scanId, photo, pass }) {
+export async function uploadCloudPhoto({ scanId, fileId, photo, pass }) {
   const problem = validateScanPhoto(photo, 0);
   if (problem) throw new Error(problem);
   if (!["lower", "middle", "upper"].includes(pass)) throw new Error("Invalid capture pass.");
   if (!crypto?.randomUUID) throw new Error("This device requires a secure context for uploads.");
-  const fileId = crypto.randomUUID();
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(fileId || "")) throw new Error("A persistent photo upload ID is required.");
   const signed = await call("signPhoto", {
     scanId, fileId, bytes: photo.size, contentType: photo.type,
   });
@@ -35,7 +38,5 @@ export async function uploadCloudPhoto({ scanId, photo, pass }) {
     body: photo,
   });
   if (!response.ok) throw new Error("Photo upload failed (HTTP " + response.status + "). Please retry.");
-  return call("confirmPhoto", {
-    scanId, fileId, bytes: photo.size, contentType: photo.type, pass,
-  });
+  return confirmCloudPhoto({ scanId, fileId, photo, pass });
 }
