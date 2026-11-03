@@ -11,9 +11,18 @@ const MODELS_BUCKET = "vehicle-3d-models";
 const MAX_PHOTOS = 200;
 const SAFE_IMAGE_MIME = { "image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp", "image/heic": ".heic", "image/heif": ".heif" };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const respond = (body: unknown, status = 200) => Response.json(body, { status, headers: { "cache-control": "no-store" } });
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, apikey, x-client-info, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+const respond = (body: unknown, status = 200) => Response.json(body, {
+  status,
+  headers: { ...corsHeaders, "cache-control": "no-store" },
+});
 
 Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders });
   if (req.method !== "POST") return respond({ error: "POST required" }, 405);
   if (!URL || !ANON || !SECRET) return respond({ error: "Backend not configured" }, 503);
   const token = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
