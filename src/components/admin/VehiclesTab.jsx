@@ -142,7 +142,7 @@ export default function VehiclesTab({ vehicles, companies, routes, onChange, fau
                   {nFaults > 0 && <StatusChip tone="danger" dot={false}><OctagonAlert className="h-3.5 w-3.5" aria-hidden="true" />{nFaults} open fault{nFaults === 1 ? "" : "s"}</StatusChip>}
                   {due && <StatusChip tone={due === "overdue" ? "danger" : "warning"} dot={false}><Wrench className="h-3.5 w-3.5" aria-hidden="true" />Service {due}</StatusChip>}
                   <Button variant="outline" size="sm" asChild>
-                    <Link to={"/vehicle/" + encodeURIComponent(v.id)} aria-label={`Open 360 degree photo viewer for ${v.name}`}>
+                    <Link to={"/vehicle/" + encodeURIComponent(v.id) + "?tab=studio"} aria-label={`Open 360 degree photo viewer for ${v.name}`}>
                       <Images className="mr-1.5 h-4 w-4" aria-hidden="true" /> 360° View
                     </Link>
                   </Button>
