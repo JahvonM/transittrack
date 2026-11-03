@@ -3,15 +3,13 @@ import { Camera, Upload, Rotate3D, Trash2, Download, AlertTriangle, Loader2, Ima
 import { Button } from "@/components/ui/button";
 import { deleteAsset, getAsset, listPhotos, putAsset } from "@/lib/vehicle3dDrafts";
 import { useAuth } from "@/lib/AuthContext";
+import { MAX_3D_PHOTOS, validateScanPhoto, validateScanModel } from "@/lib/vehicle3dCapture";
 
 const PASSES = [
   { id: "lower", label: "Lower body", hint: "Walk around the bus with the wheels and lower panels visible." },
   { id: "middle", label: "Mid body", hint: "Capture the doors, windows, front, rear and sides." },
   { id: "upper", label: "Upper body", hint: "Raise the camera to capture the roof edges and upper panels safely." },
 ];
-const MAX_PHOTOS = 200;
-const MAX_FILE = 20 * 1024 * 1024;
-const MAX_MODEL = 150 * 1024 * 1024;
 
 function ModelViewer({ file, onError }) {
   const host = useRef(null);
@@ -158,9 +156,8 @@ export default function Bus3DStudio({ vehicle }) {
       let added = 0;
       const existing = await listPhotos(id);
       for (const file of items) {
-        if (existing.length + added >= MAX_PHOTOS) throw new Error("Photo limit reached (200 per scan draft).");
-        if (!file.type.startsWith("image/")) throw new Error("Only image files can be added.");
-        if (file.size > MAX_FILE) throw new Error("Each photo must be 20 MB or smaller.");
+        const problem = validateScanPhoto(file, existing.length + added);
+        if (problem) throw new Error(problem);
         const photo = { id: crypto.randomUUID(), pass, blob: file, name: file.name, createdAt: Date.now() + added };
         await putAsset(id, "photo", photo.id, photo);
         added++;
@@ -184,9 +181,8 @@ export default function Bus3DStudio({ vehicle }) {
   const openModel = async (file) => {
     if (!file) return;
     setError("");
-    if (!file.name.toLowerCase().endsWith(".glb") || file.size > MAX_MODEL) {
-      setError("Choose a GLB model no larger than 150 MB."); return;
-    }
+    const problem = validateScanModel(file);
+    if (problem) { setError(problem); return; }
     try {
       await putAsset(id, "model", "current", file);
       setModel(file);
@@ -223,7 +219,7 @@ export default function Bus3DStudio({ vehicle }) {
       </div>
 
       <div className="rounded-xl border border-border bg-card p-4 sm:p-5 space-y-3">
-        <div className="flex items-center justify-between"><h3 className="font-semibold"><Camera className="mr-2 inline h-4 w-4" />Guided photo capture</h3><span className="text-sm text-muted-foreground">{photos.length} / {MAX_PHOTOS}</span></div>
+        <div className="flex items-center justify-between"><h3 className="font-semibold"><Camera className="mr-2 inline h-4 w-4" />Guided photo capture</h3><span className="text-sm text-muted-foreground">{photos.length} / {MAX_3D_PHOTOS}</span></div>
         <div className="grid grid-cols-3 gap-2">
           {PASSES.map((p) => <button type="button" key={p.id} onClick={() => setPass(p.id)} aria-pressed={pass === p.id} className={"rounded-lg border px-2 py-3 text-sm font-medium transition-colors " + (pass === p.id ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-secondary")}>{p.label}<span className="block text-xs opacity-70">{counts[p.id]} photos</span></button>)}
         </div>
