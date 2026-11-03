@@ -69,7 +69,7 @@ export default function UsbNfcPanel() {
           <p className="text-xs text-muted-foreground">{state.delivery || "No tap yet"}</p>
           <Button variant="outline" className="w-full" onClick={() => retryNativeNfc().catch(() => setError("Could not retry the reader."))}><RefreshCw className="mr-2 h-4 w-4" /> Check the reader</Button>
         </>}
-        <Button variant="outline" className="w-full" onClick={() => openUsbAutoAcceptSettings().catch(() => setError("Open tablet Settings → Accessibility → McSween USB auto-accept (TransitTrack USB auto-accept on older versions).")).then(() => {})}>{state.autoAcceptEnabled ? "Answer USB questions by itself: on" : "Answer USB questions by itself"}</Button>
+        <Button variant="outline" className="w-full" onClick={() => openUsbAutoAcceptSettings().catch(() => setError("Open tablet Settings → Accessibility → McSween USB auto-accept (TransitTrack USB auto-accept on older versions)."))}>{state.autoAcceptEnabled ? "Answer USB questions by itself: on" : "Answer USB questions by itself"}</Button>
         {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
       </CardContent>
     </Card>
