@@ -2,6 +2,8 @@
 // into the page every minute through FreeKiosk (window.__ttHelperHealth):
 // helper version, battery %, charging, parked, card reader, last card, USB GPS.
 // Heartbeats pass it on so admins see it per tablet in Admin → Kiosk Tablets.
+import { nativeReaderHealth, nativeReaderOn } from "@/lib/nativeNfc";
+
 const MAX_AGE_MS = 5 * 60 * 1000;
 
 export function helperHealthPayload() {
