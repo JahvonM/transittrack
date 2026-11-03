@@ -1,264 +1,207 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Camera, Upload, Rotate3D, Trash2, Download, AlertTriangle, Loader2, Image as ImageIcon } from "lucide-react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Camera, ChevronLeft, ChevronRight, ImagePlus, RotateCcw, Trash2, AlertTriangle, Cloud, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { deleteAsset, getAsset, listPhotos, putAsset } from "@/lib/vehicle3dDrafts";
 import { useAuth } from "@/lib/AuthContext";
-import { MAX_3D_PHOTOS, validateScanPhoto, validateScanModel } from "@/lib/vehicle3dCapture";
+import { deleteAsset, listPhotos, putAsset } from "@/lib/vehicle3dDrafts";
+import { BUS_360_MAX_FRAMES, BUS_360_RECOMMENDED_FRAMES, sortedBus360Frames, validateBus360Photo, wrapBus360Frame, stepBus360FromSwipe } from "@/lib/vehicle360";
 
-const CLOUD_ENABLED = import.meta.env.MODE === "supabase" && import.meta.env.VITE_VEHICLE_3D_CLOUD_ENABLED === "true";
-const Bus3DCloudPanel = React.lazy(() => import("@/components/vehicle3d/Bus3DCloudPanel"));
+const CLOUD_ENABLED = import.meta.env.MODE === "supabase" && import.meta.env.VITE_VEHICLE_360_CLOUD_ENABLED === "true";
+const Bus360CloudPanel = React.lazy(() => import("@/components/vehicle3d/Bus360CloudPanel"));
 
-const PASSES = [
-  { id: "lower", label: "Lower body", hint: "Walk around the bus with the wheels and lower panels visible." },
-  { id: "middle", label: "Mid body", hint: "Capture the doors, windows, front, rear and sides." },
-  { id: "upper", label: "Upper body", hint: "Raise the camera to capture the roof edges and upper panels safely." },
-];
-
-function ModelViewer({ file, onError }) {
-  const host = useRef(null);
+function usePhotoUrls(photos) {
+  const [urls, setUrls] = useState({});
   useEffect(() => {
-    if (!file || !host.current) return undefined;
-    let disposed = false;
-    let renderer;
-    let controls;
-    let model;
-    let frame;
-    let resize;
-    const url = URL.createObjectURL(file);
-    const parent = host.current;
-    (async () => {
-      try {
-        const [THREE, { OrbitControls }, { GLTFLoader }] = await Promise.all([
-          import("three"), import("three/addons/controls/OrbitControls.js"), import("three/addons/loaders/GLTFLoader.js"),
-        ]);
-        if (disposed) return;
-        const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x101d2e);
-        const camera = new THREE.PerspectiveCamera(45, 1, 0.01, 5000);
-        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-        renderer.outputColorSpace = THREE.SRGBColorSpace;
-        parent.appendChild(renderer.domElement);
-        scene.add(new THREE.HemisphereLight(0xffffff, 0x50617b, 2.8));
-        const sunlight = new THREE.DirectionalLight(0xffffff, 2.3);
-        sunlight.position.set(5, 10, 8);
-        scene.add(sunlight);
-        const gltf = await new GLTFLoader().loadAsync(url);
-        if (disposed) return;
-        model = gltf.scene;
-        scene.add(model);
-        const bounds = new THREE.Box3().setFromObject(model);
-        if (bounds.isEmpty()) throw new Error("The GLB has no visible geometry.");
-        const center = bounds.getCenter(new THREE.Vector3());
-        const size = bounds.getSize(new THREE.Vector3());
-        model.position.sub(center);
-        const span = Math.max(size.x, size.y, size.z, 0.1);
-        camera.position.set(span * 1.5, span * 0.85, span * 1.6);
-        camera.near = Math.max(span / 1000, 0.001);
-        camera.far = Math.max(span * 100, 100);
-        camera.updateProjectionMatrix();
-        controls = new OrbitControls(camera, renderer.domElement);
-        controls.enableDamping = true;
-        controls.minDistance = span * 0.15;
-        controls.maxDistance = span * 12;
-        const redraw = () => {
-          if (disposed) return;
-          const width = Math.max(parent.clientWidth, 1), height = Math.max(parent.clientHeight, 1);
-          camera.aspect = width / height;
-          camera.updateProjectionMatrix();
-          renderer.setSize(width, height, false);
-        };
-        resize = new ResizeObserver(redraw);
-        resize.observe(parent);
-        redraw();
-        const animate = () => {
-          if (disposed) return;
-          controls.update();
-          renderer.render(scene, camera);
-          frame = requestAnimationFrame(animate);
-        };
-        animate();
-      } catch (error) {
-        if (!disposed) onError(error?.message || "Could not load this 3D model.");
-      }
-    })();
-    return () => {
-      disposed = true;
-      URL.revokeObjectURL(url);
-      if (frame) cancelAnimationFrame(frame);
-      resize?.disconnect();
-      controls?.dispose();
-      model?.traverse((object) => {
-        object.geometry?.dispose();
-        const materials = Array.isArray(object.material) ? object.material : [object.material];
-        materials.filter(Boolean).forEach((material) => {
-          Object.values(material).forEach((value) => { if (value?.isTexture) value.dispose(); });
-          material.dispose();
-        });
-      });
-      renderer?.dispose();
-      if (renderer?.domElement?.parentNode === parent) parent.removeChild(renderer.domElement);
-    };
-  }, [file, onError]);
-  return <div ref={host} className="h-72 sm:h-[420px] w-full overflow-hidden rounded-xl" aria-label="Interactive 3D bus model; drag to rotate and scroll to zoom" />;
-}
-
-function PhotoThumb({ photo, onRemove }) {
-  const [url, setUrl] = useState(null);
-  useEffect(() => {
-    const objectUrl = URL.createObjectURL(photo.blob);
-    setUrl(objectUrl);
-    return () => URL.revokeObjectURL(objectUrl);
-  }, [photo]);
-  return (
-    <div className="group relative overflow-hidden rounded-xl border border-border bg-muted">
-      {url && <img alt={photo.name || "Bus scan photograph"} src={url} loading="lazy" className="aspect-square w-full object-cover" />}
-      <div className="flex items-center justify-between gap-1 p-1.5 text-[11px]">
-        <span className="truncate">{photo.pass}</span>
-        <button type="button" onClick={() => onRemove(photo.id)} aria-label={"Remove " + photo.name} className="rounded p-1 hover:bg-destructive/10"><Trash2 className="h-3.5 w-3.5" /></button>
-      </div>
-    </div>
-  );
+    const next = {};
+    photos.forEach((photo) => { next[photo.id] = URL.createObjectURL(photo.blob); });
+    setUrls(next);
+    return () => Object.values(next).forEach((url) => URL.revokeObjectURL(url));
+  }, [photos]);
+  return urls;
 }
 
 export default function Bus3DStudio({ vehicle }) {
   const { user } = useAuth();
-  // Local drafts must not be shared across signed-in accounts on one device.
-  const id = [user?.id, vehicle?.company_id, vehicle?.id].map((part) => String(part || "unknown")).join("/");
-  const [pass, setPass] = useState("middle");
+  // Reuse the existing draft namespace so photos from the original Studio remain.
+  const localKey = [user?.id, vehicle?.company_id, vehicle?.id].map((part) => String(part || "unknown")).join("/");
   const [photos, setPhotos] = useState([]);
-  const [model, setModel] = useState(null);
-  const [status, setStatus] = useState("Loading saved local draft…");
+  const [frame, setFrame] = useState(0);
   const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [cloudGallery, setCloudGallery] = useState(null);
+  const fileInput = useRef(null);
   const cameraInput = useRef(null);
-  const uploadInput = useRef(null);
-  const modelInput = useRef(null);
-  const onViewerError = useCallback((message) => setError(message), []);
+  const dragX = useRef(null);
+  const ordered = useMemo(() => sortedBus360Frames(photos), [photos]);
+  const urls = usePhotoUrls(ordered);
+  const current = ordered[wrapBus360Frame(frame, ordered.length)];
+  const imageUrl = current ? urls[current.id] : "";
+  const count = ordered.length;
+  const angle = count ? Math.round(wrapBus360Frame(frame, count) * 360 / count) : 0;
 
+  const reload = useCallback(async () => {
+    setPhotos(await listPhotos(localKey));
+  }, [localKey]);
   useEffect(() => {
-    let cancelled = false;
-    setPhotos([]); setModel(null); setError("");
-    Promise.all([listPhotos(id), getAsset(id, "model", "current")])
-      .then(([saved, savedModel]) => {
-        if (!cancelled) {
-          setPhotos(saved);
-          setModel(savedModel || null);
-          setStatus("Saved on this device only · Not uploaded to TransitTrack");
-        }
-      })
-      .catch((err) => { if (!cancelled) { setStatus("Local draft unavailable"); setError(err.message); } });
-    return () => { cancelled = true; };
-  }, [id]);
+    let active = true;
+    setLoading(true); setPhotos([]); setFrame(0); setError(""); setCloudGallery(null);
+    listPhotos(localKey)
+      .then((saved) => { if (active) setPhotos(saved); })
+      .catch((err) => { if (active) setError(err.message || "Cannot open locally saved photos."); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [localKey]);
 
   const addFiles = async (files) => {
     const items = Array.from(files || []);
-    if (!items.length) return;
-    setBusy(true); setError("");
+    if (!items.length || saving) return;
+    setSaving(true); setError(""); setMessage("");
     try {
+      const existing = await listPhotos(localKey);
       let added = 0;
-      const existing = await listPhotos(id);
       for (const file of items) {
-        const problem = validateScanPhoto(file, existing.length + added);
-        if (problem) throw new Error(problem);
-        const photo = { id: crypto.randomUUID(), pass, blob: file, name: file.name, createdAt: Date.now() + added };
-        await putAsset(id, "photo", photo.id, photo);
+        const problem = validateBus360Photo(file, existing.length + added);
+        if (problem) throw Error(problem);
+        const id = crypto.randomUUID();
+        await putAsset(localKey, "photo", id, {
+          id, name: file.name || "bus-photo.jpg", blob: file, pass: "middle",
+          createdAt: Date.now() + added,
+        });
         added++;
       }
-      setPhotos(await listPhotos(id));
-      setStatus(added + " photo(s) stored locally on this device");
+      await reload();
+      setMessage(added + " view" + (added === 1 ? "" : "s") + " saved on this device.");
     } catch (err) {
-      setPhotos(await listPhotos(id).catch(() => []));
-      setError(err.message || "Unable to save photos; check available storage.");
+      await reload().catch(() => {});
+      setError(err.message || "Photos could not be saved. Check storage space.");
     } finally {
-      setBusy(false);
+      setSaving(false);
+      if (fileInput.current) fileInput.current.value = "";
       if (cameraInput.current) cameraInput.current.value = "";
-      if (uploadInput.current) uploadInput.current.value = "";
     }
   };
-
-  const removePhoto = async (photoId) => {
-    try { await deleteAsset(id, "photo", photoId); setPhotos(await listPhotos(id)); }
-    catch (err) { setError(err.message); }
-  };
-  const openModel = async (file) => {
-    if (!file) return;
-    setError("");
-    const problem = validateScanModel(file);
-    if (problem) { setError(problem); return; }
+  const removeFrame = async () => {
+    if (!current || saving) return;
+    setSaving(true); setError("");
     try {
-      await putAsset(id, "model", "current", file);
-      setModel(file);
-      setStatus("GLB saved on this device only");
-    } catch (err) { setError(err.message || "Unable to save model."); }
+      await deleteAsset(localKey, "photo", current.id);
+      await reload();
+      setFrame((old) => Math.max(0, old - 1));
+      setMessage("Photo removed from this device. Previously uploaded cloud copies are not deleted.");
+    } catch (err) { setError(err.message); }
+    finally { setSaving(false); }
   };
-  const exportPhotos = () => {
-    // A single-photo download avoids requiring an unreviewed ZIP library.
-    photos.forEach((photo, i) => {
-      const url = URL.createObjectURL(photo.blob);
-      const anchor = document.createElement("a");
-      anchor.href = url;
-      anchor.download = String(i + 1).padStart(3, "0") + "-" + photo.pass + "-" + (photo.name || "bus.jpg");
-      document.body.appendChild(anchor);
-      anchor.click(); anchor.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 30000);
-    });
+  const downloadPhoto = () => {
+    if (!current || !imageUrl) return;
+    const a = document.createElement("a");
+    a.href = imageUrl; a.download = current.name || "bus-view.jpg";
+    document.body.appendChild(a); a.click(); a.remove();
   };
-  const counts = Object.fromEntries(PASSES.map((p) => [p.id, photos.filter((photo) => photo.pass === p.id).length]));
+  const step = (delta) => setFrame((old) => wrapBus360Frame(old + delta, ordered.length));
+  const handlePointerDown = (event) => { dragX.current = event.clientX; };
+  const handlePointerUp = (event) => {
+    if (dragX.current === null) return;
+    const delta = event.clientX - dragX.current;
+    dragX.current = null;
+    const steps = stepBus360FromSwipe(delta, count);
+    if (steps) step(steps);
+  };
+  const cloudReady = cloudGallery?.frames?.length > 0;
+  const cloudCurrent = cloudReady ? cloudGallery.frames[wrapBus360Frame(frame, cloudGallery.frames.length)] : null;
+  const displayedUrl = cloudReady ? cloudCurrent?.url : imageUrl;
+  const displayedCount = cloudReady ? cloudGallery.frames.length : count;
 
   return (
-    <section className="space-y-4" aria-label="3D Bus Studio">
-      <div className="rounded-xl border border-border bg-card p-4 sm:p-5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div><h2 className="text-lg font-bold">3D Bus Studio</h2><p className="text-sm text-muted-foreground">Exterior scan · {vehicle?.name || vehicle?.fleet_number || "Vehicle"}</p></div>
-          <span className="rounded-full bg-secondary px-3 py-1 text-xs font-semibold">{CLOUD_ENABLED ? "Cloud preview · Staging" : "Local preview · Phase 1"}</span>
+    <section className="space-y-4" aria-label="360 degree bus viewer">
+      <div className="rounded-2xl border border-border bg-card p-4 sm:p-5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2 className="text-xl font-bold">360° Bus Viewer</h2>
+            <p className="text-sm text-muted-foreground">Exterior photos · {vehicle?.name || vehicle?.fleet_number || "Vehicle"}</p>
+          </div>
+          <span className="rounded-full bg-secondary px-3 py-1 text-xs font-semibold">No GPU needed</span>
         </div>
-        <div className="mt-3 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
-          Photos and GLB models stay in this browser on this device. Clearing app data may delete them.
-          {CLOUD_ENABLED
-            ? "Cloud transfer is optional and uses your signed-in account. Automatic 3D reconstruction requires an approved worker."
-            : "Automatic 3D reconstruction and cloud syncing are not enabled yet."}
-        </div>
-        <p className="mt-2 text-xs text-muted-foreground" role="status">{status}</p>
-        {error && <p className="mt-2 flex gap-2 rounded-lg bg-destructive/10 p-3 text-sm text-destructive" role="alert"><AlertTriangle className="h-4 w-4 shrink-0" />{error}</p>}
+        <p className="mt-3 text-sm text-muted-foreground">
+          Take {BUS_360_RECOMMENDED_FRAMES} photos in order as you walk around the parked bus.
+          The viewer switches between photos to simulate rotating the bus. It is not a true 3D scan.
+        </p>
+        {!CLOUD_ENABLED && <p className="mt-2 text-xs text-muted-foreground">
+          Photos are saved locally on this device and linked to this bus. Clearing app data removes local copies.
+          Sharing across devices requires cloud photo sync.
+        </p>}
+        {error && <p role="alert" className="mt-3 flex items-start gap-2 rounded-lg bg-destructive/10 p-3 text-sm text-destructive"><AlertTriangle className="h-4 w-4 shrink-0" />{error}</p>}
+        {message && <p role="status" className="mt-2 text-sm text-primary">{message}</p>}
       </div>
 
-      <div className="rounded-xl border border-border bg-card p-4 sm:p-5 space-y-3">
-        <div className="flex items-center justify-between"><h3 className="font-semibold"><Camera className="mr-2 inline h-4 w-4" />Guided photo capture</h3><span className="text-sm text-muted-foreground">{photos.length} / {MAX_3D_PHOTOS}</span></div>
-        <div className="grid grid-cols-3 gap-2">
-          {PASSES.map((p) => <button type="button" key={p.id} onClick={() => setPass(p.id)} aria-pressed={pass === p.id} className={"rounded-lg border px-2 py-3 text-sm font-medium transition-colors " + (pass === p.id ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-secondary")}>{p.label}<span className="block text-xs opacity-70">{counts[p.id]} photos</span></button>)}
+      <div className="overflow-hidden rounded-2xl border border-border bg-card">
+        <div
+          tabIndex={0}
+          role="group"
+          aria-label="Bus rotation viewer. Use left and right arrow keys, or swipe to rotate."
+          onKeyDown={(event) => { if (event.key === "ArrowLeft" || event.key === "ArrowRight") { event.preventDefault(); step(event.key === "ArrowLeft" ? -1 : 1); } }}
+          onPointerDown={handlePointerDown}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={() => { dragX.current = null; }}
+          className="relative flex aspect-[16/10] max-h-[490px] items-center justify-center overflow-hidden bg-slate-950 touch-pan-y outline-offset-[-3px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary select-none"
+        >
+          {displayedUrl ? (
+            <img src={displayedUrl} draggable={false} alt={"Exterior bus view " + (wrapBus360Frame(frame, displayedCount) + 1) + " of " + displayedCount} className="max-h-full max-w-full object-contain pointer-events-none" />
+          ) : (
+            <div className="px-5 text-center text-slate-300">
+              <RotateCcw className="mx-auto mb-3 h-11 w-11" />
+              <p className="font-semibold">{loading ? "Loading saved views…" : "Start your bus photo tour"}</p>
+              <p className="mt-1 text-sm text-slate-400">Park safely. Walk around the bus and photograph each angle.</p>
+            </div>
+          )}
+          {displayedCount > 0 && <>
+            <div className="absolute left-3 top-3 rounded-lg bg-black/60 px-3 py-1.5 text-xs text-white">{wrapBus360Frame(frame, displayedCount) + 1} / {displayedCount} views · {angle}°</div>
+            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-black/60 px-3 py-1 text-xs text-white">Swipe or use arrows to rotate</div>
+          </>}
         </div>
-        <p className="text-sm text-muted-foreground">{PASSES.find((p) => p.id === pass)?.hint} Take overlapping views from every side. Avoid traffic and do not climb on the vehicle.</p>
-        <input ref={cameraInput} className="hidden" type="file" accept="image/*" capture="environment" onChange={(event) => addFiles(event.target.files)} />
-        <input ref={uploadInput} className="hidden" type="file" accept="image/*" multiple onChange={(event) => addFiles(event.target.files)} />
+        <div className="flex items-center justify-between gap-2 border-t border-border px-3 py-3 sm:px-5">
+          <Button type="button" size="sm" variant="outline" disabled={displayedCount < 2} onClick={() => step(-1)} aria-label="Previous bus angle"><ChevronLeft className="h-4 w-4" /> Left</Button>
+          <div className="text-center">
+            <p className="text-sm font-semibold">{displayedCount} exterior views</p>
+            <p className="text-xs text-muted-foreground">{displayedCount >= BUS_360_RECOMMENDED_FRAMES ? "Good rotation coverage" : BUS_360_RECOMMENDED_FRAMES - displayedCount + " more for recommended coverage"}</p>
+          </div>
+          <Button type="button" size="sm" variant="outline" disabled={displayedCount < 2} onClick={() => step(1)}>Right <ChevronRight className="h-4 w-4" /></Button>
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-border bg-card p-4 sm:p-5 space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h3 className="font-semibold">Add bus views</h3>
+          <span className="text-sm text-muted-foreground">{count} / {BUS_360_MAX_FRAMES} local photos</span>
+        </div>
+        <p className="text-sm text-muted-foreground">Take photos in clockwise order at about the same height and distance. You can add up to 36 images. Existing photos are kept in their original capture order.</p>
+        <input ref={cameraInput} className="hidden" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" onChange={(e) => addFiles(e.target.files)} />
+        <input ref={fileInput} className="hidden" type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={(e) => addFiles(e.target.files)} />
         <div className="flex flex-wrap gap-2">
-          <Button type="button" disabled={busy} onClick={() => cameraInput.current?.click()}><Camera className="mr-2 h-4 w-4" />Take photo</Button>
-          <Button type="button" variant="outline" disabled={busy} onClick={() => uploadInput.current?.click()}><Upload className="mr-2 h-4 w-4" />Add existing photos</Button>
-          {photos.length > 0 && <Button type="button" variant="outline" disabled={busy} onClick={exportPhotos}><Download className="mr-2 h-4 w-4" />Export photos</Button>}
-          {busy && <Loader2 className="h-5 w-5 animate-spin" />}
+          <Button disabled={saving || count >= BUS_360_MAX_FRAMES} onClick={() => cameraInput.current?.click()}><Camera className="mr-2 h-4 w-4" />Take a photo</Button>
+          <Button variant="outline" disabled={saving || count >= BUS_360_MAX_FRAMES} onClick={() => fileInput.current?.click()}><ImagePlus className="mr-2 h-4 w-4" />Add photos</Button>
+          {count > 0 && <Button variant="outline" disabled={saving || cloudReady} onClick={removeFrame}><Trash2 className="mr-2 h-4 w-4" />Delete selected</Button>}
+          {current && !cloudReady && <Button variant="ghost" onClick={downloadPhoto}><Download className="mr-2 h-4 w-4" />Save selected</Button>}
         </div>
-        {photos.length ? <div className="grid grid-cols-3 gap-2 sm:grid-cols-5 md:grid-cols-6">{photos.map((photo) => <PhotoThumb key={photo.id} photo={photo} onRemove={removePhoto} />)}</div> : <div className="rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground"><ImageIcon className="mx-auto mb-2 h-6 w-6" />No photos yet. Start with one side of the bus and move around it.</div>}
+        {count > 0 && (
+          <div className="flex gap-2 overflow-x-auto pb-2" aria-label="Bus photo thumbnails">
+            {ordered.map((photo, index) => <button key={photo.id} type="button" onClick={() => { setCloudGallery(null); setFrame(index); }} aria-label={"View angle " + (index + 1)} aria-pressed={!cloudReady && index === wrapBus360Frame(frame, count)} className={"h-16 w-24 flex-none overflow-hidden rounded-lg border-2 " + (!cloudReady && index === wrapBus360Frame(frame, count) ? "border-primary" : "border-border")}>
+              {urls[photo.id] && <img alt="" src={urls[photo.id]} className="h-full w-full object-cover" loading="lazy" />}
+            </button>)}
+          </div>
+        )}
       </div>
-
       {CLOUD_ENABLED && (
-        <React.Suspense fallback={<p className="text-sm text-muted-foreground">Loading cloud tools…</p>}>
-          <Bus3DCloudPanel vehicle={vehicle} localKey={id} photos={photos} onModelReady={setModel} />
+        <React.Suspense fallback={<p className="text-sm text-muted-foreground">Loading photo sync…</p>}>
+          <Bus360CloudPanel
+            vehicle={vehicle}
+            localKey={localKey}
+            photos={ordered}
+            onSelectGallery={(gallery) => { setCloudGallery(gallery); setFrame(0); }}
+            onShowLocal={() => { setCloudGallery(null); setFrame(0); }}
+          />
         </React.Suspense>
       )}
-
-      <div className="rounded-xl border border-border bg-card p-4 sm:p-5 space-y-3">
-        <h3 className="font-semibold"><Rotate3D className="mr-2 inline h-4 w-4" />3D model viewer</h3>
-        <p className="text-sm text-muted-foreground">Open an existing textured GLB model to rotate and inspect it. A collection of photographs alone cannot create a model in this preview.</p>
-        <input ref={modelInput} className="hidden" type="file" accept=".glb,model/gltf-binary" onChange={(event) => { openModel(event.target.files?.[0]); event.target.value = ""; }} />
-        <Button type="button" variant="outline" onClick={() => modelInput.current?.click()}><Upload className="mr-2 h-4 w-4" />Import GLB model</Button>
-        {model ? <>
-          <ModelViewer key={id + ":" + model.name + ":" + model.size} file={model} onError={onViewerError} />
-          <div className="flex items-center justify-between gap-2 text-sm text-muted-foreground">
-            <span className="truncate">{model.name} · Drag to rotate, scroll or pinch to zoom</span>
-            <Button size="sm" variant="ghost" onClick={async () => { try { await deleteAsset(id, "model", "current"); setModel(null); } catch (err) { setError(err.message); } }}>Remove model</Button>
-          </div>
-        </> : <div className="grid h-56 place-items-center rounded-xl bg-slate-900 text-center text-sm text-slate-300"><div><Rotate3D className="mx-auto mb-2 h-10 w-10" />No 3D model imported yet</div></div>}
-      </div>
     </section>
   );
 }
