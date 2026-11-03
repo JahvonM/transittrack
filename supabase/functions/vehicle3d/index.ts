@@ -108,8 +108,12 @@ Deno.serve(async (req) => {
       if (stored.size !== bytes) return respond({ error: "Uploaded size mismatch" }, 409);
       const { count } = await admin.from("vehicle_3d_photo").select("id", { count: "exact", head: true }).eq("scan_id", scan.id);
       if ((count || 0) >= MAX_PHOTOS) return respond({ error: "Photo limit reached" }, 409);
-      const { error } = await admin.from("vehicle_3d_photo").upsert({ id: fileId, scan_id: scan.id, object_path: path, capture_pass: capturePass, bytes, content_type: mime }, { onConflict: "id" });
-      if (error) throw error;
+      const { error } = await admin.from("vehicle_3d_photo").insert({ id: fileId, scan_id: scan.id, object_path: path, capture_pass: capturePass, bytes, content_type: mime });
+      // Never allow a scan owner to overwrite another scan's photo metadata.
+      if (error?.code === "23505") {
+        const { data: existing } = await admin.from("vehicle_3d_photo").select("scan_id,object_path").eq("id", fileId).maybeSingle();
+        if (existing?.scan_id !== scan.id || existing?.object_path !== path) return respond({ error: "Photo ID conflict" }, 409);
+      } else if (error) throw error;
       const { count: actualCount } = await admin.from("vehicle_3d_photo").select("id", { count: "exact", head: true }).eq("scan_id", scan.id);
       await admin.from("vehicle_3d_scan").update({ photo_count: actualCount || 0, status: "uploading", updated_at: new Date().toISOString() }).eq("id", scan.id);
       return respond({ confirmed: true, count: actualCount || 0 });
