@@ -29,6 +29,7 @@ export default function Bus3DStudio({ vehicle }) {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [zoom, setZoom] = useState(1);
   const [cloudGallery, setCloudGallery] = useState(null);
   const fileInput = useRef(null);
   const cameraInput = useRef(null);
@@ -38,7 +39,7 @@ export default function Bus3DStudio({ vehicle }) {
   const current = ordered[wrapBus360Frame(frame, ordered.length)];
   const imageUrl = current ? urls[current.id] : "";
   const count = ordered.length;
-  const angle = count ? Math.round(wrapBus360Frame(frame, count) * 360 / count) : 0;
+  const angle = (cloudGallery?.frames?.length || count) ? Math.round(wrapBus360Frame(frame, cloudGallery?.frames?.length || count) * 360 / (cloudGallery?.frames?.length || count)) : 0;
 
   const reload = useCallback(async () => {
     setPhotos(await listPhotos(localKey));
@@ -98,13 +99,13 @@ export default function Bus3DStudio({ vehicle }) {
     a.href = imageUrl; a.download = current.name || "bus-view.jpg";
     document.body.appendChild(a); a.click(); a.remove();
   };
-  const step = (delta) => setFrame((old) => wrapBus360Frame(old + delta, ordered.length));
+  const step = (delta) => setFrame((old) => wrapBus360Frame(old + delta, cloudGallery?.frames?.length || ordered.length));
   const handlePointerDown = (event) => { dragX.current = event.clientX; };
   const handlePointerUp = (event) => {
     if (dragX.current === null) return;
     const delta = event.clientX - dragX.current;
     dragX.current = null;
-    const steps = stepBus360FromSwipe(delta, count);
+    const steps = stepBus360FromSwipe(delta, displayedCount);
     if (steps) step(steps);
   };
   const cloudReady = cloudGallery?.frames?.length > 0;
@@ -146,7 +147,7 @@ export default function Bus3DStudio({ vehicle }) {
           className="relative flex aspect-[16/10] max-h-[490px] items-center justify-center overflow-hidden bg-slate-950 touch-pan-y outline-offset-[-3px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary select-none"
         >
           {displayedUrl ? (
-            <img src={displayedUrl} draggable={false} alt={"Exterior bus view " + (wrapBus360Frame(frame, displayedCount) + 1) + " of " + displayedCount} className="max-h-full max-w-full object-contain pointer-events-none" />
+            <img src={displayedUrl} draggable={false} alt={"Exterior bus view " + (wrapBus360Frame(frame, displayedCount) + 1) + " of " + displayedCount} className="max-h-full max-w-full object-contain pointer-events-none transition-transform duration-100" style={{ transform: `scale(${zoom})` }} />
           ) : (
             <div className="px-5 text-center text-slate-300">
               <RotateCcw className="mx-auto mb-3 h-11 w-11" />
@@ -168,6 +169,15 @@ export default function Bus3DStudio({ vehicle }) {
           <Button type="button" size="sm" variant="outline" disabled={displayedCount < 2} onClick={() => step(1)}>Right <ChevronRight className="h-4 w-4" /></Button>
         </div>
       </div>
+
+      {displayedCount > 0 && (
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          <Button type="button" variant="outline" size="sm" disabled={zoom <= 1} onClick={() => setZoom((z) => Math.max(1, z - 0.25))}>− Zoom out</Button>
+          <span className="text-xs text-muted-foreground">{Math.round(zoom * 100)}%</span>
+          <Button type="button" variant="outline" size="sm" disabled={zoom >= 2.5} onClick={() => setZoom((z) => Math.min(2.5, z + 0.25))}>+ Zoom in</Button>
+          <Button type="button" variant="ghost" size="sm" onClick={() => setZoom(1)}>Reset</Button>
+        </div>
+      )}
 
       <div className="rounded-2xl border border-border bg-card p-4 sm:p-5 space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
