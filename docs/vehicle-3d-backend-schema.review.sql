@@ -91,7 +91,8 @@ alter table public.vehicle_3d_job enable row level security;
 
 revoke all on public.vehicle_3d_scan,public.vehicle_3d_photo,public.vehicle_3d_model,public.vehicle_3d_job from anon;
 grant select,insert on public.vehicle_3d_scan to authenticated;
-grant select,insert on public.vehicle_3d_photo to authenticated;
+-- Photo metadata must be inserted by a trusted backend after Storage verification.
+grant select on public.vehicle_3d_photo to authenticated;
 grant select on public.vehicle_3d_model,public.vehicle_3d_job to authenticated;
 
 create policy "scan tenant read" on public.vehicle_3d_scan for select to authenticated
@@ -176,10 +177,9 @@ begin
     where u.auth_user_id=p_actor and u.disabled is distinct from true
       and u.role in ('admin','company','mechanic')
       and m.company_id=v_scan.company_id and m.active is true
-      and (
-        m.expires_at is null or
-        (m.expires_at ~ '^\\d{4}-\\d\\d-\\d\\d' and m.expires_at::timestamptz > now())
-      )
+      and case when m.expires_at is null then true
+        when m.expires_at ~ '^\\d{4}-\\d\\d-\\d\\d' then m.expires_at::timestamptz > now()
+        else false end
   ) then
     raise exception 'Company access denied';
   end if;
