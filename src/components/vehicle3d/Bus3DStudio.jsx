@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Camera, ChevronLeft, ChevronRight, ImagePlus, RotateCcw, Trash2, AlertTriangle, Cloud, Download } from "lucide-react";
+import { Camera, ChevronLeft, ChevronRight, ImagePlus, RotateCcw, Trash2, AlertTriangle, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/AuthContext";
 import { deleteAsset, listPhotos, putAsset } from "@/lib/vehicle3dDrafts";
