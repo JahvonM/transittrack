@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useParams, Navigate } from "react-router-dom";
+import { useParams, useSearchParams, Navigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import AppLayout from "@/components/AppLayout";
@@ -24,6 +24,7 @@ const RESTRICTED_ROLES = ["driver", "staff", "passenger"];
 // path — and the same RLS — as the fleet-wide admin/mechanic views.
 export default function VehicleDetail() {
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const [vehicle, setVehicle] = useState(null);
   const [faults, setFaults] = useState([]);
@@ -136,7 +137,7 @@ export default function VehicleDetail() {
         </Card>
 
         <NestedPage>
-        <Tabs defaultValue="faults">
+        <Tabs defaultValue={searchParams.get("tab") === "studio" ? "studio" : "faults"}>
           <TabsList className="h-auto gap-1 rounded-xl bg-secondary p-1">
             <TabsTrigger value="faults" className="h-9 rounded-lg px-3 text-body-sm font-semibold data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"><AlertTriangle className="w-4 h-4 mr-1.5" /> Faults</TabsTrigger>
             <TabsTrigger value="maintenance" className="h-9 rounded-lg px-3 text-body-sm font-semibold data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"><Wrench className="w-4 h-4 mr-1.5" /> Maintenance</TabsTrigger>

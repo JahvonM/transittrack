@@ -1,11 +1,11 @@
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import BusArtwork from "@/components/BusArtwork";
 import React, { useEffect, useMemo, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { confirmAction } from "@/components/ConfirmHost";
-import { Bus, FileSpreadsheet, FileText, History, OctagonAlert, Pencil, Plus, Search, Trash2, Wrench } from "lucide-react";
+import { Bus, FileSpreadsheet, FileText, History, Images, OctagonAlert, Pencil, Plus, Search, Trash2, Wrench } from "lucide-react";
 import { EmptyState, PageActions, Segmented, StatusChip } from "@/components/admin/kit";
 import { exportToCSV, exportToPDF } from "@/lib/exporters";
 import VehicleHistoryDialog from "./VehicleHistoryDialog";
@@ -141,6 +141,11 @@ export default function VehiclesTab({ vehicles, companies, routes, onChange, fau
                 <div className="mt-auto flex flex-wrap items-center gap-2 border-t border-border px-3 py-2">
                   {nFaults > 0 && <StatusChip tone="danger" dot={false}><OctagonAlert className="h-3.5 w-3.5" aria-hidden="true" />{nFaults} open fault{nFaults === 1 ? "" : "s"}</StatusChip>}
                   {due && <StatusChip tone={due === "overdue" ? "danger" : "warning"} dot={false}><Wrench className="h-3.5 w-3.5" aria-hidden="true" />Service {due}</StatusChip>}
+                  <Button variant="outline" size="sm" asChild>
+                    <Link to={"/vehicle/" + encodeURIComponent(v.id) + "?tab=studio"} aria-label={`Open 360 degree photo viewer for ${v.name}`}>
+                      <Images className="mr-1.5 h-4 w-4" aria-hidden="true" /> 360° View
+                    </Link>
+                  </Button>
                   <span className="ml-auto flex items-center">
                     <Button variant="ghost" size="icon" onClick={() => setHistoryVehicle(v)} aria-label={`History of ${v.name}`} title="History"><History className="h-4 w-4" /></Button>
                     <Button variant="ghost" size="icon" onClick={() => openEdit(v)} aria-label={`Edit ${v.name}`} title="Edit"><Pencil className="h-4 w-4" /></Button>
