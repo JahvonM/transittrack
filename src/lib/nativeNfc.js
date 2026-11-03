@@ -13,13 +13,13 @@ export const openNativeNfcSettings = () => UsbNfc.openNfcSettings();
 /** True when the app reads cards itself: the USB reader is switched on, or the
  *  device's own NFC is switched on here and in Android. Like the USB switch, this
  *  stays true while the boarding screen briefly stops listening. */
-export const nativeReaderOn = state => !!(state?.enabled ||
-  (state?.builtIn?.available && state.builtIn.enabled && state.builtIn.nfcOn !== false));
+const ownNfcOn = state => !!(state?.builtIn?.available && state.builtIn.enabled && state.builtIn.nfcOn !== false);
+export const nativeReaderOn = state => !!state?.enabled || ownNfcOn(state);
 const usbConnected = state => !!state?.enabled && /^connected/i.test(state?.status || "");
-/** Which reader the app reads with now: "usb", "built_in" or "". */
+/** Which reader the app reads with: "usb", "built_in" or "". */
 export function nativeReaderKind(state) {
   if (usbConnected(state)) return "usb";
-  if (state?.builtIn?.on) return "built_in";
+  if (ownNfcOn(state)) return "built_in";
   return state?.enabled ? "usb" : "";
 }
 /** One line for Admin's tablet health, or null when the app reads no cards itself. */
