@@ -129,3 +129,89 @@ on conflict (id) do nothing;
 -- An authenticated edge function must validate the scan and issue one-file
 -- upload URLs; model uploads are restricted to the reconstruction worker.
 -- Before deploying, audit every existing storage policy and grants.
+
+
+-- An explicit server-authorized action enqueues a job through this atomic
+-- database function. Never expose it to anonymous/authenticated API roles.
+alter table public.vehicle_3d_job
+  add constraint vehicle_3d_job_single_scan unique (scan_id);
+
+create or replace function public.vehicle_3d_enqueue_verified(
+  p_scan_id uuid,
+  p_actor uuid,
+  p_idempotency_key text
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_scan record;
+  v_count integer;
+  v_passes integer;
+  v_job_id uuid;
+begin
+  if p_actor is null or length(p_idempotency_key) not between 16 and 128 then
+    raise exception 'Invalid reconstruction request';
+  end if;
+
+  select s.id, s.company_id, s.created_by, s.status
+    into v_scan
+    from public.vehicle_3d_scan s
+    where s.id = p_scan_id
+    for update;
+  if not found or v_scan.created_by <> p_actor then
+    raise exception 'Scan unavailable';
+  end if;
+  if v_scan.status not in ('draft','capturing','uploading','queued') then
+    raise exception 'Scan cannot be queued';
+  end if;
+
+  -- Membership must be checked against the supplied actor rather than
+  -- auth.uid(), because this RPC is called with the service role.
+  if not exists (
+    select 1 from public.app_user u
+    join public.company_membership m on m.user_id=u.id
+    where u.auth_user_id=p_actor and u.disabled is distinct from true
+      and u.role in ('admin','company','mechanic')
+      and m.company_id=v_scan.company_id and m.active is true
+      and (
+        m.expires_at is null or
+        (m.expires_at ~ '^\\d{4}-\\d\\d-\\d\\d' and m.expires_at::timestamptz > now())
+      )
+  ) then
+    raise exception 'Company access denied';
+  end if;
+
+  select count(*), count(distinct p.capture_pass)
+    into v_count, v_passes
+    from public.vehicle_3d_photo p
+    where p.scan_id=p_scan_id;
+
+  if v_count < 40 or v_count > 200 or v_passes <> 3 then
+    raise exception 'Incomplete exterior photo coverage';
+  end if;
+
+  insert into public.vehicle_3d_job (scan_id, idempotency_key, status)
+    values (p_scan_id, p_idempotency_key, 'queued')
+    on conflict (scan_id) do nothing
+    returning id into v_job_id;
+
+  if v_job_id is null then
+    select id into v_job_id from public.vehicle_3d_job
+    where scan_id=p_scan_id;
+    if v_job_id is null then raise exception 'Could not queue scan'; end if;
+  end if;
+
+  update public.vehicle_3d_scan
+    set status='queued', updated_at=now()
+    where id=p_scan_id and status in ('draft','capturing','uploading');
+  return v_job_id;
+end;
+$$;
+
+revoke all on function public.vehicle_3d_enqueue_verified(uuid,uuid,text)
+  from public, anon, authenticated;
+grant execute on function public.vehicle_3d_enqueue_verified(uuid,uuid,text)
+  to service_role;
