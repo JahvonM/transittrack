@@ -6,6 +6,29 @@ export async function nativeNfcState() {
   try { return await UsbNfc.getState(); } catch { return { available: false, enabled: false }; }
 }
 export const setNativeNfcEnabled = enabled => UsbNfc.setEnabled({ enabled: !!enabled });
+// The device's own NFC (e.g. a Telpo T10 validator). Kiosk app 2.1+; older apps
+// don't report `builtIn`, so everything below treats it as absent.
+export const setNativeBuiltInNfcEnabled = enabled => UsbNfc.setBuiltInEnabled({ enabled: !!enabled });
+export const openNativeNfcSettings = () => UsbNfc.openNfcSettings();
+/** True while the app reads cards itself: the USB reader is switched on, or the
+ *  device's own NFC is reading. */
+export const nativeReaderOn = state => !!(state?.enabled || state?.builtIn?.on);
+const usbConnected = state => !!state?.enabled && /^connected/i.test(state?.status || "");
+/** Which reader the app reads with now: "usb", "built_in" or "". */
+export function nativeReaderKind(state) {
+  if (usbConnected(state)) return "usb";
+  if (state?.builtIn?.on) return "built_in";
+  return state?.enabled ? "usb" : "";
+}
+/** One line for Admin's tablet health, or null when the app reads no cards itself. */
+export function nativeReaderHealth(state) {
+  if (!state) return null;
+  if (usbConnected(state)) return state.status;
+  const own = state.builtIn;
+  if (own?.on) return "Connected (built-in NFC)";
+  if (own?.available && own.enabled) return own.nfcOn === false ? "NFC is off in Android settings" : own.status || null;
+  return state.enabled ? state.status : null;
+}
 let cardListening = false, desiredReady = false;
 export async function setNativeNfcReady(ready) {
   desiredReady = !!ready;
@@ -44,7 +67,7 @@ export function bridgeNativeNfc(target = window) {
   if (!detach) {
     const announce = state => {
       target.__ttNativeNfcState = { ...state, at: Date.now() };
-      if (state.enabled) {
+      if (nativeReaderOn(state)) {
         try { target.localStorage.setItem("tt_badge_reader", "1"); } catch { /* status flag only */ }
         target.dispatchEvent(new Event("tt-badge-reader"));
       }
