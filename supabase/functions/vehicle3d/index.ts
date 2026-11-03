@@ -1,5 +1,5 @@
-// TransitTrack Vehicle 3D backend — staged only, NOT deployed.
-// Requires reviewed vehicle-3d schema and private Storage buckets.
+// TransitTrack photo-based 360 bus gallery backend.
+// Requires vehicle_3d_scan and vehicle_3d_photo tables and private photo bucket.
 // Supabase secrets are used only inside this Edge Function.
 import { createClient } from "npm:@supabase/supabase-js@2";
 
@@ -7,8 +7,7 @@ const URL = Deno.env.get("SUPABASE_URL") || "";
 const ANON = Deno.env.get("SUPABASE_ANON_KEY") || "";
 const SECRET = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 const PHOTOS_BUCKET = "vehicle-3d-photos";
-const MODELS_BUCKET = "vehicle-3d-models";
-const MAX_PHOTOS = 200;
+const MAX_PHOTOS = 36;
 const SAFE_IMAGE_MIME = { "image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp", "image/heic": ".heic", "image/heif": ".heif" };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const corsHeaders = {
@@ -128,43 +127,22 @@ Deno.serve(async (req) => {
       return respond({ confirmed: true, count: actualCount || 0 });
     }
 
-    if (action === "modelLink") {
+    if (action === "photoLinks") {
       const scan = await scanAccess(scanId);
-      if (!scan) return respond({ error: "Scan unavailable" }, 403);
-      const { data: model } = await admin.from("vehicle_3d_model").select("object_path").eq("scan_id", scan.id).order("created_at", { ascending: false }).limit(1).maybeSingle();
-      if (!model) return respond({ error: "Model not ready" }, 404);
-      const { data, error } = await admin.storage.from(MODELS_BUCKET).createSignedUrl(model.object_path, 300);
+      if (!scan) return respond({ error: "Gallery unavailable" }, 403);
+      const { data: photos, error } = await admin.from("vehicle_3d_photo")
+        .select("id,object_path,created_at,capture_pass")
+        .eq("scan_id", scan.id).order("created_at", { ascending: true }).order("id", { ascending: true }).limit(36);
       if (error) throw error;
-      return respond({ url: data.signedUrl, expiresIn: 300 });
-    }
-
-    if (action === "jobStatus") {
-      const scan = await scanAccess(scanId);
-      if (!scan) return respond({ error: "Scan unavailable" }, 403);
-      const { data, error } = await admin.from("vehicle_3d_job")
-        .select("id,status,created_at,updated_at,error_message")
-        .eq("scan_id", scan.id).maybeSingle();
-      if (error) throw error;
-      return respond({ job: data || null, scanStatus: scan.status });
-    }
-
-    if (action === "startReconstruction") {
-      // Default OFF. Only set after separately provisioning a secured GPU worker,
-      // reviewing SQL/storage grants, and enabling an explicit spending policy.
-      if (Deno.env.get("VEHICLE3D_RECONSTRUCTION_ENABLED") !== "true") {
-        return respond({ error: "Reconstruction is disabled until staging security, quality, and cost reviews pass." }, 501);
+      // URLs expire after five minutes and are only issued after company access checks.
+      const frames = [];
+      for (const photo of photos || []) {
+        const { data: link, error: linkError } = await admin.storage.from(PHOTOS_BUCKET)
+          .createSignedUrl(photo.object_path, 300);
+        if (linkError) throw linkError;
+        frames.push({ id: photo.id, url: link.signedUrl, createdAt: photo.created_at });
       }
-      const scan = await scanAccess(scanId);
-      if (!scan || scan.created_by !== uid) return respond({ error: "Scan unavailable" }, 403);
-      const key = String(body?.idempotencyKey || "");
-      if (!UUID.test(key)) return respond({ error: "Invalid idempotency key" }, 400);
-      const { data: jobId, error } = await admin.rpc("vehicle_3d_enqueue_verified", {
-        p_scan_id: scan.id,
-        p_actor: uid,
-        p_idempotency_key: key,
-      });
-      if (error) return respond({ error: "Unable to queue scan; check photo coverage and access." }, 409);
-      return respond({ job: { id: jobId, status: "queued" } }, 202);
+      return respond({ frames, expiresIn: 300 });
     }
 
     return respond({ error: "Unknown action" }, 400);
