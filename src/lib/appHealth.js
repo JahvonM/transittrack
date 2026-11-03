@@ -9,6 +9,7 @@ import { queuedGpsCount } from "@/lib/gpsQueue";
 import { pendingJobs } from "@/lib/offlineJobs";
 import { queueLength } from "@/lib/offlineQueue";
 import { directoryInfo } from "@/lib/kioskOffline";
+import { nativeReaderKind } from "@/lib/nativeNfc";
 
 export const APP_BUILD = typeof __APP_BUILD__ !== "undefined" ? __APP_BUILD__ : "dev";
 const LAST_FIX_KEY = "tt_last_gps_fix";
@@ -37,6 +38,9 @@ function lastPosition() {
 
 function readerInUse() {
   try {
+    const native = nativeReaderKind(typeof window !== "undefined" ? window.__ttNativeNfcState : null);
+    if (native === "built_in") return "built_in_nfc";
+    if (native === "usb") return "usb_reader";
     if (localStorage.getItem("tt_reader_helper") === "1") return "pc_helper";
     if (localStorage.getItem("tt_badge_reader") === "1") return "usb_reader";
   } catch { /* ignore */ }
