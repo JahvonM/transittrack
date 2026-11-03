@@ -32,7 +32,7 @@ export function readerSummary(now = Date.now()) {
   const own = reader?.builtIn;
   const usbOk = reader?.enabled && /^connected/i.test(reader.status || "");
   if (!usbOk && own?.available && own.enabled) {
-    if (own.nfcOn === false) return { text: "This device's NFC is switched off in Android settings. Turn it on under Card reader below.", ok: false };
+    if (own.nfcOn === false) return { text: "This device's NFC is switched off in Android settings. Turn it on from the Card reader tab.", ok: false };
     return { text: `This device's NFC: ${own.on ? "ready for cards" : (own.status || "on")}`, ok: true };
   }
   if (reader?.enabled) return { text: `USB card reader (read by this app): ${reader.status || "on"}`, ok: true };
