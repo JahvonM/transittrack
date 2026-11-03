@@ -5,6 +5,9 @@ import { deleteAsset, getAsset, listPhotos, putAsset } from "@/lib/vehicle3dDraf
 import { useAuth } from "@/lib/AuthContext";
 import { MAX_3D_PHOTOS, validateScanPhoto, validateScanModel } from "@/lib/vehicle3dCapture";
 
+const CLOUD_ENABLED = import.meta.env.MODE === "supabase" && import.meta.env.VITE_VEHICLE_3D_CLOUD_ENABLED === "true";
+const Bus3DCloudPanel = React.lazy(() => import("@/components/vehicle3d/Bus3DCloudPanel"));
+
 const PASSES = [
   { id: "lower", label: "Lower body", hint: "Walk around the bus with the wheels and lower panels visible." },
   { id: "middle", label: "Mid body", hint: "Capture the doors, windows, front, rear and sides." },
@@ -208,11 +211,13 @@ export default function Bus3DStudio({ vehicle }) {
       <div className="rounded-xl border border-border bg-card p-4 sm:p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div><h2 className="text-lg font-bold">3D Bus Studio</h2><p className="text-sm text-muted-foreground">Exterior scan · {vehicle?.name || vehicle?.fleet_number || "Vehicle"}</p></div>
-          <span className="rounded-full bg-secondary px-3 py-1 text-xs font-semibold">Local preview · Phase 1</span>
+          <span className="rounded-full bg-secondary px-3 py-1 text-xs font-semibold">{CLOUD_ENABLED ? "Cloud preview · Staging" : "Local preview · Phase 1"}</span>
         </div>
         <div className="mt-3 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
           Photos and GLB models stay in this browser on this device. Clearing app data may delete them.
-          Automatic 3D reconstruction and cloud syncing are not enabled yet.
+          {CLOUD_ENABLED
+            ? "Cloud transfer is optional and uses your signed-in account. Automatic 3D reconstruction requires an approved worker."
+            : "Automatic 3D reconstruction and cloud syncing are not enabled yet."}
         </div>
         <p className="mt-2 text-xs text-muted-foreground" role="status">{status}</p>
         {error && <p className="mt-2 flex gap-2 rounded-lg bg-destructive/10 p-3 text-sm text-destructive" role="alert"><AlertTriangle className="h-4 w-4 shrink-0" />{error}</p>}
@@ -234,6 +239,12 @@ export default function Bus3DStudio({ vehicle }) {
         </div>
         {photos.length ? <div className="grid grid-cols-3 gap-2 sm:grid-cols-5 md:grid-cols-6">{photos.map((photo) => <PhotoThumb key={photo.id} photo={photo} onRemove={removePhoto} />)}</div> : <div className="rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground"><ImageIcon className="mx-auto mb-2 h-6 w-6" />No photos yet. Start with one side of the bus and move around it.</div>}
       </div>
+
+      {CLOUD_ENABLED && (
+        <React.Suspense fallback={<p className="text-sm text-muted-foreground">Loading cloud tools…</p>}>
+          <Bus3DCloudPanel vehicle={vehicle} localKey={id} photos={photos} onModelReady={setModel} />
+        </React.Suspense>
+      )}
 
       <div className="rounded-xl border border-border bg-card p-4 sm:p-5 space-y-3">
         <h3 className="font-semibold"><Rotate3D className="mr-2 inline h-4 w-4" />3D model viewer</h3>

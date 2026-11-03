@@ -24,7 +24,7 @@ create table if not exists public.vehicle_3d_photo (
   content_type text not null check (content_type in ('image/jpeg','image/png','image/webp','image/heic','image/heif')),
   created_at timestamptz not null default now(),
   constraint photo_path_scan check (split_part(object_path,'/',1)=scan_id::text),
-  constraint photo_path_structure check (object_path ~ '^[0-9a-f-]{36}/[0-9a-f-]{36}\\.(jpg|jpeg|png|webp|heic|heif)$')
+  constraint photo_path_structure check (object_path ~ '^[0-9a-f-]{36}/[0-9a-f-]{36}[.](jpg|jpeg|png|webp|heic|heif)$')
 );
 
 create table if not exists public.vehicle_3d_model (
@@ -56,65 +56,17 @@ create index if not exists vehicle_3d_photo_scan_idx on public.vehicle_3d_photo(
 create index if not exists vehicle_3d_model_scan_idx on public.vehicle_3d_model(scan_id);
 create index if not exists vehicle_3d_job_scan_idx on public.vehicle_3d_job(scan_id);
 
-create or replace function public.vehicle_3d_can_access(company text)
-returns boolean
-language sql stable security invoker
-set search_path = ''
-as $$
-  select exists (
-    select 1 from public.app_user u
-    join public.company_membership m on m.user_id = u.id
-    where u.auth_user_id = (select auth.uid())
-      and u.disabled is distinct from true
-      and m.active is true
-      and m.company_id = company
-      and case when m.expires_at is null then true when m.expires_at ~ '^\\d{4}-\\d\\d-\\d\\d' then m.expires_at::timestamptz > now() else false end
-      and u.role in ('admin','mechanic','company')
-  )
-$$;
-
-create or replace function public.vehicle_3d_scan_allowed(scan_uuid uuid)
-returns boolean
-language sql stable security invoker
-set search_path = ''
-as $$
-  select exists(
-    select 1 from public.vehicle_3d_scan s
-    where s.id=scan_uuid and public.vehicle_3d_can_access(s.company_id)
-  )
-$$;
-
+-- Browser clients do not access these tables directly. The existing
+-- TransitTrack app uses authenticated Edge Functions for all data access.
+-- Enable RLS and grant no direct anon/authenticated access; service_role
+-- functions perform explicit company/vehicle authorization for every call.
 alter table public.vehicle_3d_scan enable row level security;
 alter table public.vehicle_3d_photo enable row level security;
 alter table public.vehicle_3d_model enable row level security;
 alter table public.vehicle_3d_job enable row level security;
 
-revoke all on public.vehicle_3d_scan,public.vehicle_3d_photo,public.vehicle_3d_model,public.vehicle_3d_job from anon;
-grant select,insert on public.vehicle_3d_scan to authenticated;
-grant select,insert on public.vehicle_3d_photo to authenticated;
-grant select on public.vehicle_3d_model,public.vehicle_3d_job to authenticated;
-
-create policy "scan tenant read" on public.vehicle_3d_scan for select to authenticated
-using (public.vehicle_3d_can_access(company_id));
-create policy "scan tenant create" on public.vehicle_3d_scan for insert to authenticated
-with check (
-  created_by = (select auth.uid())
-  and public.vehicle_3d_can_access(company_id)
-  and exists (select 1 from public.vehicle v where v.id=vehicle_id and v.company_id=company_id)
-  and status='draft'
-);
-create policy "photo tenant read" on public.vehicle_3d_photo for select to authenticated
-using (public.vehicle_3d_scan_allowed(scan_id));
-create policy "photo tenant create" on public.vehicle_3d_photo for insert to authenticated
-with check (
-  exists (select 1 from public.vehicle_3d_scan s
-          where s.id=scan_id and s.created_by=(select auth.uid())
-          and s.status in ('draft','capturing','uploading') and public.vehicle_3d_can_access(s.company_id))
-);
-create policy "model tenant read" on public.vehicle_3d_model for select to authenticated
-using (public.vehicle_3d_scan_allowed(scan_id));
-create policy "job tenant read" on public.vehicle_3d_job for select to authenticated
-using (public.vehicle_3d_scan_allowed(scan_id));
+revoke all on public.vehicle_3d_scan,public.vehicle_3d_photo,
+  public.vehicle_3d_model,public.vehicle_3d_job from public, anon, authenticated;
 
 -- Create private buckets only. A separate backend service (not the browser)
 -- uploads and downloads through short-lived signed URLs with company authorization.
@@ -129,3 +81,101 @@ on conflict (id) do nothing;
 -- An authenticated edge function must validate the scan and issue one-file
 -- upload URLs; model uploads are restricted to the reconstruction worker.
 -- Before deploying, audit every existing storage policy and grants.
+
+
+-- An explicit server-authorized action enqueues a job through this atomic
+-- database function. Never expose it to anonymous/authenticated API roles.
+alter table public.vehicle_3d_job
+  add constraint vehicle_3d_job_single_scan unique (scan_id);
+
+create or replace function public.vehicle_3d_enqueue_verified(
+  p_scan_id uuid,
+  p_actor uuid,
+  p_idempotency_key text
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_scan record;
+  v_count integer;
+  v_passes integer;
+  v_job_id uuid;
+begin
+  if p_actor is null or length(p_idempotency_key) not between 16 and 128 then
+    raise exception 'Invalid reconstruction request';
+  end if;
+
+  select s.id, s.company_id, s.created_by, s.status
+    into v_scan
+    from public.vehicle_3d_scan s
+    where s.id = p_scan_id
+    for update;
+  if not found or v_scan.created_by <> p_actor then
+    raise exception 'Scan unavailable';
+  end if;
+  if v_scan.status not in ('draft','capturing','uploading','queued') then
+    raise exception 'Scan cannot be queued';
+  end if;
+
+  -- Membership must be checked against the supplied actor rather than
+  -- auth.uid(), because this RPC is called with the service role.
+  if not exists (
+    select 1 from public.app_user u
+    join public.company_membership m on m.user_id=u.id
+    where u.auth_user_id=p_actor and u.disabled is distinct from true
+      and u.role in ('admin','company','mechanic')
+      and m.company_id=v_scan.company_id and m.active is true
+      and case when m.expires_at is null then true
+        when m.expires_at ~ '^[0-9]{4}-[0-9][0-9]-[0-9][0-9]' then m.expires_at::timestamptz > now()
+        else false end
+  ) then
+    raise exception 'Company access denied';
+  end if;
+
+  -- Serialize the daily company quota even if multiple vehicles enqueue
+  -- simultaneously. This intentionally limits initial GPU processing volume.
+  perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtext(v_scan.company_id));
+  if not exists(select 1 from public.vehicle_3d_job j where j.scan_id=p_scan_id)
+     and (
+       select count(*) from public.vehicle_3d_job j
+       join public.vehicle_3d_scan s on s.id=j.scan_id
+       where s.company_id=v_scan.company_id
+         and j.created_at >= date_trunc('day', now())
+     ) >= 2 then
+    raise exception 'Daily company reconstruction quota reached';
+  end if;
+
+  select count(*), count(distinct p.capture_pass)
+    into v_count, v_passes
+    from public.vehicle_3d_photo p
+    where p.scan_id=p_scan_id;
+
+  if v_count < 40 or v_count > 200 or v_passes <> 3 then
+    raise exception 'Incomplete exterior photo coverage';
+  end if;
+
+  insert into public.vehicle_3d_job (scan_id, idempotency_key, status)
+    values (p_scan_id, p_idempotency_key, 'queued')
+    on conflict (scan_id) do nothing
+    returning id into v_job_id;
+
+  if v_job_id is null then
+    select id into v_job_id from public.vehicle_3d_job
+    where scan_id=p_scan_id;
+    if v_job_id is null then raise exception 'Could not queue scan'; end if;
+  end if;
+
+  update public.vehicle_3d_scan
+    set status='queued', updated_at=now()
+    where id=p_scan_id and status in ('draft','capturing','uploading');
+  return v_job_id;
+end;
+$$;
+
+revoke all on function public.vehicle_3d_enqueue_verified(uuid,uuid,text)
+  from public, anon, authenticated;
+grant execute on function public.vehicle_3d_enqueue_verified(uuid,uuid,text)
+  to service_role;
