@@ -28,7 +28,14 @@ export function readerSummary(now = Date.now()) {
   const native = typeof window !== "undefined" ? window.__ttNativeHealth : null;
   const link = helperLink(now);
   const webNfc = typeof window !== "undefined" && "NDEFReader" in window;
-  if (native?.reader?.enabled) return { text: `Built-in NFC reader: ${native.reader.status || "on"}`, ok: true };
+  const reader = native?.reader;
+  const own = reader?.builtIn;
+  const usbOk = reader?.enabled && /^connected/i.test(reader.status || "");
+  if (!usbOk && own?.available && own.enabled) {
+    if (own.nfcOn === false) return { text: "This device's NFC is switched off in Android settings. Turn it on under Card reader below.", ok: false };
+    return { text: `This device's NFC: ${own.on ? "ready for cards" : (own.status || "on")}`, ok: true };
+  }
+  if (reader?.enabled) return { text: `USB card reader (read by this app): ${reader.status || "on"}`, ok: true };
   if (hasExternalReader()) return link === "lost" ? { text: "USB card reader set up, but its helper hasn't reported for 3 minutes. Cards may not reach this screen.", ok: false } : { text: "USB card reader: connected", ok: true };
   if (webNfc) return { text: "Phone NFC (browser): available after the screen is unlocked", ok: true };
   return { text: "No card reader found on this device. Passengers can use the keypad or QR.", ok: false };
