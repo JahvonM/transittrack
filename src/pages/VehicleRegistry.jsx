@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { StatusChip } from "@/components/admin/kit";
 import { base44 } from "@/api/base44Client";
 import AppLayout from "@/components/AppLayout";
@@ -8,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/components/ui/use-toast";
-import { Bus, Car, Wrench, Route as RouteIcon, Pencil, ChevronDown, ChevronUp, ClipboardCheck } from "lucide-react";
+import { Bus, Car, Wrench, Route as RouteIcon, Pencil, ChevronDown, ChevronUp, ClipboardCheck, Box } from "lucide-react";
 
 // The single place to manage a vehicle AND its assigned driver together — this
 // used to be split across a read-only Vehicle Registry (no editing at all) and
@@ -92,6 +93,7 @@ export default function VehicleRegistry() {
                     <div className="text-xs text-muted-foreground">{v.company_name} · {v.driver_name || "Unassigned"}</div>
                   </div>
                   <StatusChip status={v.status}>{v.status}</StatusChip>
+                  <Button asChild size="sm" variant="outline" title="Open this vehicle’s 3D Studio"><Link to={"/vehicle/" + encodeURIComponent(v.id)}><Box className="h-4 w-4 sm:mr-1.5" /><span className="hidden sm:inline">3D Studio</span></Link></Button>
                   {!isEditing && (
                     <Button size="icon" variant="ghost" onClick={() => startEdit(v)} title="Edit driver / route">
                       <Pencil className="w-4 h-4" />
