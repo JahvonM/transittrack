@@ -30,7 +30,7 @@ export default function UsbNfcPanel() {
       <div className="flex items-center gap-3"><div className="flex-1">
         <p className="text-sm font-medium">Read cards in this app</p>
         <p className="text-xs text-muted-foreground">{builtIn ? "This device's built-in NFC reader. No USB reader is needed." : "The ACR122U reader plugged into this device."}</p>
-      </div><Switch aria-label="Read NFC cards in this app" checked={state.enabled} disabled={busy} onCheckedChange={toggle} /></div>
+      </div><Switch aria-label={builtIn ? "Read NFC cards in this app" : "Use integrated USB card reader"} checked={state.enabled} disabled={busy} onCheckedChange={toggle} /></div>
       <p role="status" className="text-sm">{state.enabled ? state.status : builtIn ? "Card reading is off." : "Off. Cards are read by the old helper app, if it is installed."}</p>
       <p className="text-xs text-muted-foreground">{builtIn ? "Cards are read while the boarding screen is open." : "If the old McSween Helper is still installed, stop it first so both don't use the reader. Cards are read while the boarding screen is open."}</p>
       {state.enabled && <>
