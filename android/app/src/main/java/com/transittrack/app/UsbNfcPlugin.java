@@ -6,6 +6,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.os.Build;
+import android.nfc.NfcAdapter;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
@@ -21,9 +22,18 @@ public class UsbNfcPlugin extends Plugin {
     private final TapReceipt receipt = new TapReceipt();
     private SharedPreferences preferences;
     private UsbNfcReader reader;
+    private BuiltInNfcReader builtInReader;
+    private NfcAdapter builtInAdapter;
+    private String readerType = "usb";
     private volatile boolean enabled, ready, foreground = true;
     private volatile String status = "Off", delivery = "No tap yet";
     private volatile long lastTapAt;
+    private final BroadcastReceiver nfcStateChanged = new BroadcastReceiver() {
+        @Override public void onReceive(Context context, Intent intent) {
+            if (!NfcAdapter.ACTION_ADAPTER_STATE_CHANGED.equals(intent.getAction())) return;
+            getActivity().runOnUiThread(() -> { stopReader(); startReader(); });
+        }
+    };
     private final BroadcastReceiver permissionResult = new BroadcastReceiver() {
         @Override public void onReceive(Context context, Intent intent) {
             UsbAutoAcceptService.clearPending(context, "nfc");
@@ -54,10 +64,14 @@ public class UsbNfcPlugin extends Plugin {
     @Override public void load() {
         preferences = getContext().getSharedPreferences(PREFS, Context.MODE_PRIVATE);
         enabled = readerEnabled(getContext());
-        if (enabled) UsbAutoAcceptService.ensureEnabled(getContext());
+        builtInAdapter = NfcAdapter.getDefaultAdapter(getContext());
+        readerType = builtInAdapter == null ? "usb" : "built-in";
         IntentFilter filter = new IntentFilter(UsbNfcReader.ACTION_PERMISSION);
         if (Build.VERSION.SDK_INT >= 33) getContext().registerReceiver(permissionResult, filter, Context.RECEIVER_NOT_EXPORTED);
         else getContext().registerReceiver(permissionResult, filter);
+        IntentFilter nfcFilter = new IntentFilter(NfcAdapter.ACTION_ADAPTER_STATE_CHANGED);
+        if (Build.VERSION.SDK_INT >= 33) getContext().registerReceiver(nfcStateChanged, nfcFilter, Context.RECEIVER_NOT_EXPORTED);
+        else getContext().registerReceiver(nfcStateChanged, nfcFilter);
         // Wait for the boarding screen to announce readiness before claiming USB.
     }
     JSObject state() {
@@ -65,6 +79,7 @@ public class UsbNfcPlugin extends Plugin {
         out.put("available", true); out.put("enabled", enabled); out.put("ready", ready);
         out.put("status", status); out.put("delivery", delivery); out.put("lastTapAt", lastTapAt);
         out.put("autoAcceptEnabled", UsbAutoAcceptService.isEnabled(getContext()));
+        out.put("readerType", readerType);
         return out;
     }
     private void report(String message) {
@@ -76,8 +91,28 @@ public class UsbNfcPlugin extends Plugin {
     }
     private void startReader() {
         if (!enabled || !foreground || !ready || reader != null) return;
+        if (builtInReader != null) { report("Built-in NFC ready"); return; }
+        // Preserve ACR122U installations on tablets that also have phone NFC.
+        android.hardware.usb.UsbManager usb = (android.hardware.usb.UsbManager) getContext().getSystemService(Context.USB_SERVICE);
+        boolean hasUsbReader = false;
+        if (usb != null) for (android.hardware.usb.UsbDevice device : usb.getDeviceList().values()) {
+            if (device.getVendorId() == UsbNfcReader.ACS_VENDOR) { hasUsbReader = true; break; }
+        }
+        if (builtInAdapter != null && !hasUsbReader) {
+            readerType = "built-in";
+            if (!builtInAdapter.isEnabled()) { report("Built-in NFC is off - enable NFC in Android settings"); return; }
+            builtInReader = new BuiltInNfcReader(getActivity(), builtInAdapter, receipt, readerListener());
+            builtInReader.start();
+            return;
+        }
+        readerType = "usb";
+        UsbAutoAcceptService.ensureEnabled(getContext());
         report("Looking for USB reader");
-        UsbNfcReader next = new UsbNfcReader(getContext(), receipt, new UsbNfcReader.Listener() {
+        UsbNfcReader next = new UsbNfcReader(getContext(), receipt, readerListener());
+        reader = next; worker.execute(next);
+    }
+    private UsbNfcReader.Listener readerListener() {
+        return new UsbNfcReader.Listener() {
             @Override public boolean isReady() { return ready && enabled && foreground; }
             @Override public void onTap(String uid, String tapId, long at) {
                 if (!isReady()) return;
@@ -97,10 +132,10 @@ public class UsbNfcPlugin extends Plugin {
                     : message.startsWith("App did not") ? "TAP_UNCONFIRMED" : "TAP_PENDING");
                 notifyListeners("readerState", state());
             }
-        });
-        reader = next; worker.execute(next);
+        };
     }
     private void stopReader() {
+        if (builtInReader != null) { builtInReader.stop(); builtInReader = null; }
         if (reader != null) { reader.stop(); reader = null; }
         receipt.cancel();
     }
@@ -109,7 +144,12 @@ public class UsbNfcPlugin extends Plugin {
         getActivity().runOnUiThread(() -> {
             ready = Boolean.TRUE.equals(call.getBoolean("ready", false));
             if (ready) startReader();
-            else { stopReader(); if (enabled) report("Waiting for boarding screen"); }
+            else {
+                // Keep integrated polling alive across the result screen. Android
+                // then waits for physical card removal before delivering another tap.
+                if (builtInReader == null) stopReader();
+                if (enabled) report("Waiting for boarding screen");
+            }
             call.resolve(state());
         });
     }
@@ -117,7 +157,7 @@ public class UsbNfcPlugin extends Plugin {
         getActivity().runOnUiThread(() -> {
             enabled = Boolean.TRUE.equals(call.getBoolean("enabled", false));
             preferences.edit().putBoolean("enabled", enabled).apply();
-            if (enabled) { UsbAutoAcceptService.ensureEnabled(getContext()); startReader(); if (!ready) report("Waiting for boarding screen"); }
+            if (enabled) { startReader(); if (!ready) report("Waiting for boarding screen"); }
             else { stopReader(); UsbAutoAcceptService.clearPending(getContext(), "nfc"); report("Off"); }
             call.resolve(state());
         });
@@ -132,7 +172,8 @@ public class UsbNfcPlugin extends Plugin {
     }
     @PluginMethod public void rescan(PluginCall call) {
         getActivity().runOnUiThread(() -> {
-            if (reader != null) reader.reconnect(); else startReader();
+            if (builtInReader != null) { stopReader(); startReader(); }
+            else if (reader != null) reader.reconnect(); else startReader();
             call.resolve(state());
         });
     }
@@ -147,5 +188,6 @@ public class UsbNfcPlugin extends Plugin {
     @Override protected void handleOnDestroy() {
         foreground = false; ready = false; stopReader(); worker.shutdownNow();
         try { getContext().unregisterReceiver(permissionResult); } catch (IllegalArgumentException ignored) { }
+        try { getContext().unregisterReceiver(nfcStateChanged); } catch (IllegalArgumentException ignored) { }
     }
 }
