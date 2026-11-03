@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/AuthContext";
 import { deleteAsset, listPhotos, putAsset } from "@/lib/vehicle3dDrafts";
 import { BUS_360_MAX_FRAMES, BUS_360_RECOMMENDED_FRAMES, sortedBus360Frames, validateBus360Photo, wrapBus360Frame, stepBus360FromSwipe } from "@/lib/vehicle360";
+import { optimizeBus360Photo } from "@/lib/vehicle360Optimize";
 
 const CLOUD_ENABLED = import.meta.env.MODE === "supabase" && import.meta.env.VITE_VEHICLE_360_CLOUD_ENABLED === "true";
 const Bus360CloudPanel = React.lazy(() => import("@/components/vehicle3d/Bus360CloudPanel"));
@@ -61,7 +62,8 @@ export default function Bus3DStudio({ vehicle }) {
     try {
       const existing = await listPhotos(localKey);
       let added = 0;
-      for (const file of items) {
+      for (const original of items) {
+        const file = await optimizeBus360Photo(original);
         const problem = validateBus360Photo(file, existing.length + added);
         if (problem) throw Error(problem);
         const id = crypto.randomUUID();
