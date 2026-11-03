@@ -129,10 +129,33 @@ Deno.serve(async (req) => {
       return respond({ url: data.signedUrl, expiresIn: 300 });
     }
 
+    if (action === "jobStatus") {
+      const scan = await scanAccess(scanId);
+      if (!scan) return respond({ error: "Scan unavailable" }, 403);
+      const { data, error } = await admin.from("vehicle_3d_job")
+        .select("id,status,created_at,updated_at,error_message")
+        .eq("scan_id", scan.id).maybeSingle();
+      if (error) throw error;
+      return respond({ job: data || null, scanStatus: scan.status });
+    }
+
     if (action === "startReconstruction") {
-      // Fail closed until a separately approved processing provider, rate limit,
-      // secure queue/worker and actual pricing controls have been deployed.
-      return respond({ error: "3D reconstruction is not configured yet. Photos are safe; no paid processing has started." }, 501);
+      // Default OFF. Only set after separately provisioning a secured GPU worker,
+      // reviewing SQL/storage grants, and enabling an explicit spending policy.
+      if (Deno.env.get("VEHICLE3D_RECONSTRUCTION_ENABLED") !== "true") {
+        return respond({ error: "Reconstruction is disabled until staging security, quality, and cost reviews pass." }, 501);
+      }
+      const scan = await scanAccess(scanId);
+      if (!scan || scan.created_by !== uid) return respond({ error: "Scan unavailable" }, 403);
+      const key = String(body?.idempotencyKey || "");
+      if (!UUID.test(key)) return respond({ error: "Invalid idempotency key" }, 400);
+      const { data: jobId, error } = await admin.rpc("vehicle_3d_enqueue_verified", {
+        p_scan_id: scan.id,
+        p_actor: uid,
+        p_idempotency_key: key,
+      });
+      if (error) return respond({ error: "Unable to queue scan; check photo coverage and access." }, 409);
+      return respond({ job: { id: jobId, status: "queued" } }, 202);
     }
 
     return respond({ error: "Unknown action" }, 400);
