@@ -10,10 +10,10 @@ export const setNativeNfcEnabled = enabled => UsbNfc.setEnabled({ enabled: !!ena
 // don't report `builtIn`, so everything below treats it as absent.
 export const setNativeBuiltInNfcEnabled = enabled => UsbNfc.setBuiltInEnabled({ enabled: !!enabled });
 export const openNativeNfcSettings = () => UsbNfc.openNfcSettings();
+const ownNfcOn = state => !!(state?.builtIn?.available && state.builtIn.enabled && state.builtIn.nfcOn !== false);
 /** True when the app reads cards itself: the USB reader is switched on, or the
  *  device's own NFC is switched on here and in Android. Like the USB switch, this
  *  stays true while the boarding screen briefly stops listening. */
-const ownNfcOn = state => !!(state?.builtIn?.available && state.builtIn.enabled && state.builtIn.nfcOn !== false);
 export const nativeReaderOn = state => !!state?.enabled || ownNfcOn(state);
 const usbConnected = state => !!state?.enabled && /^connected/i.test(state?.status || "");
 /** Which reader the app reads with: "usb", "built_in" or "". */
