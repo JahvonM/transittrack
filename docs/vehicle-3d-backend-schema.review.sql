@@ -23,8 +23,8 @@ create table if not exists public.vehicle_3d_photo (
   bytes bigint not null check (bytes > 0 and bytes <= 20971520),
   content_type text not null check (content_type in ('image/jpeg','image/png','image/webp','image/heic','image/heif')),
   created_at timestamptz not null default now(),
-  constraint 3d_photo_path_scan check (split_part(object_path,'/',1)=scan_id::text),
-  constraint 3d_photo_path_structure check (object_path ~ '^[0-9a-f-]{36}/[0-9a-f-]{36}\\.(jpg|jpeg|png|webp|heic|heif)$')
+  constraint photo_path_scan check (split_part(object_path,'/',1)=scan_id::text),
+  constraint photo_path_structure check (object_path ~ '^[0-9a-f-]{36}/[0-9a-f-]{36}\\.(jpg|jpeg|png|webp|heic|heif)$')
 );
 
 create table if not exists public.vehicle_3d_model (
@@ -68,7 +68,7 @@ as $$
       and u.disabled is distinct from true
       and m.active is true
       and m.company_id = company
-      and (m.expires_at is null or (m.expires_at ~ '^\\d{4}-\\d\\d-\\d\\d' and m.expires_at::timestamptz > now()))
+      and case when m.expires_at is null then true when m.expires_at ~ '^\\d{4}-\\d\\d-\\d\\d' then m.expires_at::timestamptz > now() else false end
       and u.role in ('admin','mechanic','company')
   )
 $$;
