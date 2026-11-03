@@ -14,6 +14,9 @@ async function call(action, payload = {}) {
 export const createCloudScan = (vehicleId) => call("create", { vehicleId });
 export const listCloudScans = (vehicleId) => call("list", { vehicleId });
 export const getCloudModelLink = (scanId) => call("modelLink", { scanId });
+export const getReconstructionStatus = (scanId) => call("jobStatus", { scanId });
+// A deliberate user action is required; this remains off until backend setup.
+export const requestReconstruction = (scanId, idempotencyKey) => call("startReconstruction", { scanId, idempotencyKey });
 
 export async function uploadCloudPhoto({ scanId, photo, pass }) {
   const problem = validateScanPhoto(photo, 0);
