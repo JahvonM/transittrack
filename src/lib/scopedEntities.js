@@ -118,13 +118,15 @@ export function scopedEntities(client) {
     if(write.event.type==='delete')next.delete(id);else next.set(id,write.event.data);
    } else live.localWrites.delete(id);
   }
-  if(live.current) {
+  // A saved admin screen may hold an older fix than the first live read.
+  // Publish that first vehicle snapshot even if the bus then stays still.
+  if(live.current || live.entity === 'Vehicle') {
    const emit=(event)=>{ for(const listener of [...live.listeners]) { try { listener(event); } catch { /* one screen's error doesn't stop the others */ } } };
    for(const [id,row] of next) {
-    if(!live.current.has(id)) emit({type:'create',id,data:row});
+    if(!live.current?.has(id)) emit({type:'create',id,data:row});
     else if(JSON.stringify(live.current.get(id))!==JSON.stringify(row)) emit({type:'update',id,data:row});
    }
-   for(const id of live.current.keys()) if(!next.has(id)) emit({type:'delete',id});
+   for(const id of live.current?.keys() || []) if(!next.has(id)) emit({type:'delete',id});
   }
   live.current=next;
  };
@@ -221,7 +223,7 @@ export function scopedEntities(client) {
   // The page's own data load goes first. A refresh fired at the same instant
   // used to compete with it for the app's rate limit, and the page — not the
   // refresh — is what the person is waiting for.
-  const live={listeners:new Set(),localWrites:new Map(),current:null,due:Date.now()+FIRST_POLL_MS,nextAllowed:0,failures:0,dead:false,stopped:false,
+  const live={entity,listeners:new Set(),localWrites:new Map(),current:null,due:Date.now()+FIRST_POLL_MS,nextAllowed:0,failures:0,dead:false,stopped:false,
    stop:()=>{live.stopped=true;live.current=null;if(polls.get(entity)===live)polls.delete(entity);arm();}};
   polls.set(entity,live);
   arm();
@@ -244,6 +246,11 @@ export function scopedEntities(client) {
    subscribe(callback) {
     const live=polls.get(entity)||startPoll(entity);
     live.listeners.add(callback);
+    // A newly opened admin view can join a vehicle poll already in progress.
+    // Reconcile its saved screen immediately with the authorized snapshot.
+    if(entity === 'Vehicle' && live.current) for(const [id,data] of live.current) {
+     try { callback({type:'update',id,data}); } catch { /* isolate listeners */ }
+    }
     return ()=>{
      live.listeners.delete(callback);
      if(!live.listeners.size) { live.stop(); polls.delete(entity); }
