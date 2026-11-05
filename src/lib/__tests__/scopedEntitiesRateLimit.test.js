@@ -178,3 +178,33 @@ it("a poll that started before an acknowledged chat send cannot erase that messa
  expect(listener).not.toHaveBeenCalledWith({type:"delete",id:"new-chat"});
  stop();
 });
+
+
+it("replaces a cached lost location with the first live vehicle snapshot even when subsequent polls are unchanged", async () => {
+ vi.useFakeTimers(); vi.setSystemTime(new Date("2030-01-01T00:00:00Z"));
+ const current = { id: "bus", current_lat: 12.04, current_lng: -61.75, last_location_update: new Date().toISOString() };
+ let displayed = { ...current, last_location_update: "2020-01-01T00:00:00Z" };
+ const invoke = vi.fn(async () => liveLists({ Vehicle: [current] }));
+ const listener = vi.fn(event => { if (event.id === displayed.id && event.data) displayed = event.data; });
+ const stop = scopedEntities({ functions: { invoke } }).Vehicle.subscribe(listener);
+ await vi.advanceTimersByTimeAsync(FIRST_POLL_MS);
+ expect(displayed).toEqual(current);
+ expect(listener).toHaveBeenCalledTimes(1);
+ await vi.advanceTimersByTimeAsync(FAST_POLL_MS * 2);
+ expect(displayed).toEqual(current);
+ expect(listener).toHaveBeenCalledTimes(1);
+ stop();
+});
+
+
+it("gives a newly opened vehicle view the existing live snapshot", async () => {
+ vi.useFakeTimers(); vi.setSystemTime(new Date("2031-01-01T00:00:00Z"));
+ const row = { id: "bus", last_location_update: new Date().toISOString() };
+ const entities = scopedEntities({ functions: { invoke: vi.fn(async () => liveLists({ Vehicle: [row] })) } });
+ const stopA = entities.Vehicle.subscribe(() => {});
+ await vi.advanceTimersByTimeAsync(FIRST_POLL_MS);
+ const late = vi.fn();
+ const stopB = entities.Vehicle.subscribe(late);
+ expect(late).toHaveBeenCalledWith({ type: "update", id: "bus", data: row });
+ stopA(); stopB();
+});
