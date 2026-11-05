@@ -28,6 +28,7 @@ export default function StaffDirectory() {
   const { toast } = useToast();
   const [contacts, setContacts] = useState([]);
   const [vehicles, setVehicles] = useState([]);
+  const [assignableCompanies, setAssignableCompanies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
   const [filter, setFilter] = useState("all");
@@ -39,7 +40,8 @@ export default function StaffDirectory() {
 
   const load = async () => {
     try {
-      const data = await loadCardDirectory(base44, "directory");
+      const [data, companyRows] = await Promise.all([loadCardDirectory(base44, "directory"), user?.role === "admin" ? base44.entities.Company.list("name", 1000) : Promise.resolve([])]);
+      setAssignableCompanies(companyRows || []);
       setLoadError(null);
       setContacts((data?.people || []).map(p => ({ ...p, type: p.directory_type || (p.company_id ? "staff" : "passenger") })));
       setVehicles(data?.vehicles || []);
@@ -61,6 +63,21 @@ export default function StaffDirectory() {
     } catch (e) {
       toast({ title: "Couldn't change the bus", description: e?.response?.data?.error || e.message, variant: "destructive" });
     } finally { setBusyKey(""); }
+  };
+
+  const assignCompany = async (c, companyId) => {
+    if (companyId === c.company_id) return;
+    const company = assignableCompanies.find(row => row.id === companyId);
+    if (!company || !(await confirmAction({ title: `Assign ${c.name} to ${company.name}?`, description: "Their previous company access, bus assignment, card and keypad codes will be removed. Issue a new card after assigning their company.", confirmLabel: "Assign company" }))) return;
+    setBusyKey(c.key);
+    try {
+      const { data } = await base44.functions.invoke("nfcCards", { action: "set_company", person_key: c.key, company_id: companyId });
+      if (!data?.ok) throw new Error(data?.error || "Company assignment failed");
+      setSelectedKeys(new Set());
+      toast({ title: `${c.name} assigned to ${company.name}` });
+      await load();
+    } catch (e) { toast({ title: "Couldn't assign company", description: e?.response?.data?.error || e.message, variant: "destructive" }); }
+    finally { setBusyKey(""); }
   };
 
   const openAdd = () => {
@@ -202,7 +219,14 @@ export default function StaffDirectory() {
                   </div>
                   <div className="min-w-0 text-body-sm">
                     <p className="truncate"><span className="text-muted-foreground">Pickup </span>{pickup || "Not set"}</p>
-                    <p className="truncate"><span className="text-muted-foreground">Company </span>{dropoff || "Company address not set"}</p>
+                    <p className="truncate"><span className="text-muted-foreground">Destination </span>{dropoff || "Company address not set"}</p>
+                    {user?.role === "admin" ? <Select value={c.company_id || "__unassigned__"} onValueChange={val => assignCompany(c, val)} disabled={busyKey === c.key}>
+                      <SelectTrigger className="mt-1.5 h-8 w-full max-w-[220px]" aria-label={`Company for ${c.name}`}><SelectValue placeholder="Assign company" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__unassigned__" disabled>Assign company</SelectItem>
+                        {assignableCompanies.map(company => <SelectItem key={company.id} value={company.id}>{company.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select> : <p className="text-muted-foreground">{c.company_name || "No company assigned"}</p>}
                     <Select value={c.vehicle_id || NO_BUS} onValueChange={(val) => assignBus(c, val)} disabled={busyKey === c.key}>
                       <SelectTrigger className="mt-1.5 h-8 w-full max-w-[220px]" aria-label={`Bus for ${c.name}`}>
                         <SelectValue placeholder="Assign a bus" />
