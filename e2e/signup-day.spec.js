@@ -27,6 +27,12 @@ function hotelServer(companyName, joinCode) {
           claims.set(body.person_ref, helper);
           return { status: 200, json: { ok: true } };
         }
+        case "signup_remove": {
+          const i = people.findIndex(p => p.ref === body.person_ref);
+          if (i < 0) return { status: 404, json: { error: "Passenger not found" } };
+          people.splice(i, 1); claims.delete(body.person_ref);
+          return { status: 200, json: { ok: true } };
+        }
         case "signup_app": find(body.person_ref).app = body.has_app ? "ticked" : ""; return { status: 200, json: { ok: true } };
         case "signup_import":
           for (const row of body.rows) people.push({ key: `contact:${row.name}`, ref: row.email ? `email:${row.email}` : `contact:${row.name}`, name: row.name, email: row.email, registered: false, app: "", pickup: false, card: "" });
@@ -117,4 +123,41 @@ test("two helpers on different devices share one live sign-up list", async ({ br
 
   await laptop.context.close();
   await phone.context.close();
+});
+
+
+test("helpers can remove a mistaken sign-up entry after confirmation", async ({ browser }) => {
+  const server = hotelServer("Hotel A", "JOIN12345678");
+  const { context, page } = await helperDevice(browser, server, { id: "helper", name: "Helper" }, { width: 1280, height: 800 });
+  await page.getByRole("button", { name: /Ben Charles/ }).click();
+  const sheet = page.getByRole("dialog", { name: "Ben Charles" });
+  await expect(sheet.getByRole("button", { name: "Remove passenger" })).toBeEnabled();
+  await sheet.getByRole("button", { name: "Remove passenger" }).click();
+  const confirmation = page.getByRole("alertdialog");
+  await confirmation.getByRole("button", { name: "Remove passenger", exact: true }).click();
+  await expect(sheet).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /Ben Charles/ })).toHaveCount(0);
+  expect(server.people.some(p => p.name === "Ben Charles")).toBe(false);
+  await context.close();
+});
+
+test("passenger directory assigns a company with confirmation", async ({ page }) => {
+  const data = fleetData();
+  await mockFleet(page, { role: "admin", data });
+  let assignment;
+  const person = { key: "contact:walk-in", source: "contact", id: "walk-in", name: "Walk In", directory_type: "passenger", company_id: "" };
+  await page.route("**/functions/nfcCards", route => {
+    const body = route.request().postDataJSON();
+    if (body.action === "set_company") {
+      assignment = body; person.company_id = body.company_id;
+      return route.fulfill({ json: { ok: true } });
+    }
+    return route.fulfill({ json: { people: [person], vehicles: [] } });
+  });
+  await page.goto("/admin/directory");
+  await page.getByRole("combobox", { name: "Company for Walk In", exact: true }).click();
+  await page.getByRole("option", { name: data.company.name, exact: true }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Assign company", exact: true }).click();
+  await expect(page.getByRole("combobox", { name: "Company for Walk In", exact: true })).toContainText(data.company.name);
+  expect(assignment).toMatchObject({ action: "set_company", person_key: "contact:walk-in", company_id: data.company.id });
 });
