@@ -41,6 +41,7 @@ import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   Car,
+  Tv,
   ChevronDown,
   ExternalLink,
   FlaskConical,
@@ -583,6 +584,7 @@ export default function Admin() {
                   { to: "/account", icon: Palette, title: "Account and appearance", detail: "Theme, colours, password and sign-in" },
                   { go: "companies", icon: Building2, title: "Companies", detail: "Operators, contact numbers and access codes" },
                   { go: "kiosks", icon: Smartphone, title: "Kiosk tablets", detail: "Pair and update boarding and driver tablets" },
+                  { go: "office-displays", icon: Tv, title: "Office displays", detail: "Set up and manage office screens" },
                   { go: "templates", icon: ListChecks, title: "Inspection templates", detail: "Checklists drivers and mechanics complete" },
                   { go: "notifications", icon: BellRing, title: "Notifications", detail: "Who gets each email and phone alert" },
                   { go: "app-errors", icon: Bug, title: "App errors", detail: "Crashes people hit, and what led to them" },
