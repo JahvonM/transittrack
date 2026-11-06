@@ -1,3 +1,4 @@
+import { automaticNfcAdvice } from "./boardingPolicy";
 import { RIDE_MAX_MS, readerMode, tapAdvice } from "../../base44/shared/boardingEvents.ts";
 
 // The boarding tablet's own memory of recent taps per passenger: direction
@@ -37,8 +38,8 @@ export function tapsFor(staffId) {
 }
 
 // What to do with a tap on this tablet: direction and the tap it repeats.
-export function localTapAdvice(staffId, mode, now = Date.now()) {
-  const advice = tapAdvice(tapsFor(staffId), readerMode(mode), now);
+export function localTapAdvice(staffId, mode, now = Date.now(), automatic = false) {
+  const advice = automatic ? automaticNfcAdvice(tapsFor(staffId), now) : tapAdvice(tapsFor(staffId), readerMode(mode), now);
   return { next_status: advice.status, already: advice.repeat ? { status: advice.repeat.status, at: new Date(advice.repeat.at).toISOString() } : null };
 }
 
