@@ -13,7 +13,7 @@ import { helperLink } from "@/lib/helperHealth";
 import { httpStatus, errorData } from "@/lib/requestError";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CreditCard, QrCode, SwitchCamera, X, ChevronLeft, CheckCircle2, LogIn, LogOut, AlertCircle, Delete, MapPin, CloudUpload, PartyPopper, Bus, Users, Loader2, History, ArrowUp } from "lucide-react";
+import { CreditCard, QrCode, SwitchCamera, X, ChevronLeft, CheckCircle2, LogIn, LogOut, AlertCircle, Delete, MapPin, CloudUpload, PartyPopper, Bus, Users, History, ArrowUp } from "lucide-react";
 import { nfcHint } from "@/lib/kioskLayout";
 import { useNfcTap, reportBadgeResult } from "@/hooks/useNfcTap";
 import { parseCodeQrPayload } from "@/lib/qr";
@@ -33,7 +33,6 @@ import BoardingSettingsGate, { useHold } from "./BoardingSettingsGate";
 import { startBoardingBluetooth, nativeBoardingBluetoothAvailable, boardingBluetoothState } from "@/lib/nativeBoardingBluetooth";
 import { takeBleCodes, markBleCodeSeen } from "@/lib/bluetoothBoarding";
 import { sendLocalCommand, helperKey } from "@/lib/tabletNetwork";
-
 
 const CODE_MAX_LEN = 12;
 const FLUSH_INTERVAL_MS = 15000;
