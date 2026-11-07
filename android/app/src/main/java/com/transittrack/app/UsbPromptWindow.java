@@ -7,7 +7,6 @@ import android.content.SharedPreferences;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
-import android.os.SystemClock;
 import java.util.ArrayList;
 import java.util.Arrays;
 
@@ -53,7 +52,6 @@ final class UsbPromptWindow {
             if (pendingClose != null) main.removeCallbacks(pendingClose);
             pendingClose = () -> close(app);
             main.postDelayed(pendingClose, WINDOW_MS);
-            prefs(app).edit().putLong("until", SystemClock.elapsedRealtime() + WINDOW_MS).apply();
             return true;
         } catch (RuntimeException e) {
             TabletDiagnostics.record("system", "USB_PROMPT_ALLOW_FAILED");
