@@ -4,6 +4,7 @@
 // rejected list used to blank a whole page (Admin loads 12 at once, plus live
 // lists every 10s in every open tab), so calls run a few at a time and a
 // rate-limited call waits and tries again.
+import { noteServerTime } from "./serverClock";
 const MAX_IN_FLIGHT = 4;
 let inFlight = 0;
 let cooldownUntil = 0;
@@ -111,7 +112,7 @@ export function scopedEntities(client) {
  const polls=new Map();
  let timer=null, running=false, batch=true, watchingVisibility=false;
  const apply=(live,rows,snapshotRevision)=>{
-  live.failures=0;live.nextAllowed=0;
+  live.failures=0;live.unauthorized=0;live.nextAllowed=0;
   const next=new Map(rows.map(row=>[row.id,row]));
   for(const [id,write] of live.localWrites) {
    if(write.revision > snapshotRevision) {
@@ -132,8 +133,14 @@ export function scopedEntities(client) {
  };
  const failed=(live,error)=>{
   const status=statusOf(error);
-  // Signed out or not allowed: this list stops refreshing.
-  if(status===401||status===403){live.current=null;live.dead=true;return;}
+  // Not allowed: this list stops refreshing.
+  if(status===403){live.current=null;live.dead=true;return;}
+  // A 401 is usually a sign-in that is being renewed (a PC waking from sleep
+  // refreshes before its new sign-in is ready). It used to stop the list for
+  // good, so that one screen showed every bus as "Signal lost" until it was
+  // reloaded. It now waits and tries again, like any other failure, and only
+  // stops after six in a row (about ten minutes: really signed out).
+  if(status===401 && ++live.unauthorized>=6){live.current=null;live.dead=true;return;}
   live.failures++;
   live.nextAllowed=Date.now()+Math.max(retryAfterMs(error),Math.min(120000,30000*2**Math.min(live.failures-1,2)));
  };
@@ -170,9 +177,11 @@ export function scopedEntities(client) {
    try {
     if(batch) {
      let response=null, error=null;
+     const sentAt=Date.now();
      try { response=await client.functions.invoke('entityAccess',{entity:'LiveLists',operation:'list',entities:take.map(([entity])=>entity),limit:5000}); }
      catch(e) { error=e; }
      const result=response?.data?.result;
+     if(result && typeof result==='object') noteServerTime(Number(result.now),sentAt,Date.now());
      if(!error && result && typeof result==='object' && !Array.isArray(result) && result.lists && typeof result.lists==='object') {
       for(const [entity,live] of take) {
        if(live.stopped) continue;
@@ -223,7 +232,7 @@ export function scopedEntities(client) {
   // The page's own data load goes first. A refresh fired at the same instant
   // used to compete with it for the app's rate limit, and the page — not the
   // refresh — is what the person is waiting for.
-  const live={entity,listeners:new Set(),localWrites:new Map(),current:null,due:Date.now()+FIRST_POLL_MS,nextAllowed:0,failures:0,dead:false,stopped:false,
+  const live={entity,listeners:new Set(),localWrites:new Map(),current:null,due:Date.now()+FIRST_POLL_MS,nextAllowed:0,failures:0,unauthorized:0,dead:false,stopped:false,
    stop:()=>{live.stopped=true;live.current=null;if(polls.get(entity)===live)polls.delete(entity);arm();}};
   polls.set(entity,live);
   arm();

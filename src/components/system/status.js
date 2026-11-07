@@ -2,6 +2,7 @@ import {
   CircleCheck, TriangleAlert, OctagonAlert, Info, WifiOff, Radio, Circle,
   Navigation, PauseCircle, Gauge, Siren, Wrench,
 } from "lucide-react";
+import { serverNow } from "@/lib/serverClock";
 
 // Status tones. Lime ("live") is the brand accent and marks live/active
 // things only; the other tones use the fixed status palette in index.css.
@@ -45,7 +46,9 @@ export function vehicleStatusMeta(status) {
 export function freshnessOf(updatedAt, { now = Date.now(), liveMs = 2 * 60_000, lostMs = 10 * 60_000 } = {}) {
   const t = updatedAt ? new Date(updatedAt).getTime() : NaN;
   if (!Number.isFinite(t)) return { state: "unknown", ageMs: null };
-  const ageMs = Math.max(0, now - t);
+  // `now` is this device's clock; a bus's fix time comes from the bus. A device
+  // whose clock is off is corrected to the server's time (lib/serverClock).
+  const ageMs = Math.max(0, serverNow(now) - t);
   return { state: ageMs <= liveMs ? "live" : ageMs <= lostMs ? "stale" : "lost", ageMs };
 }
 

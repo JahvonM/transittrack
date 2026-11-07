@@ -69,6 +69,8 @@ final class UsbGpsReader implements Runnable {
                         Intent i = new Intent(ACTION_PERMISSION).setPackage(ctx.getPackageName());
                         PendingIntent pi = PendingIntent.getBroadcast(ctx, 1, i, PendingIntent.FLAG_UPDATE_CURRENT | (android.os.Build.VERSION.SDK_INT >= 31 ? PendingIntent.FLAG_MUTABLE : 0));
                         UsbAutoAcceptService.markPending(ctx, d, "gps");
+                        // A locked kiosk hides Android's popup unless SystemUI may show it.
+                        UsbPromptWindow.open(ctx);
                         usb.requestPermission(d, pi);
                         android.util.Log.i("TransitTrackUsbGps", "Asked for USB access for the GPS (popup)");
                     }

@@ -44,6 +44,7 @@ public class UsbGpsPlugin extends Plugin {
     private final BroadcastReceiver permissionResult = new BroadcastReceiver() {
         @Override public void onReceive(Context context, Intent intent) {
             UsbAutoAcceptService.clearPending(getContext(), "gps");
+            UsbPromptWindow.close(context);
             if (!intent.getBooleanExtra(android.hardware.usb.UsbManager.EXTRA_PERMISSION_GRANTED, false)) {
                 // Asked again a minute later, like the Helper; never switched off.
                 report("USB access not allowed yet - asking again in a minute");
@@ -53,6 +54,7 @@ public class UsbGpsPlugin extends Plugin {
 
     @Override public void load() {
         current = new java.lang.ref.WeakReference<>(this);
+        UsbPromptWindow.closeIfLeftOpen(getContext());
         preferences = getContext().getSharedPreferences("transittrack_usb_gps", Context.MODE_PRIVATE);
         enabled = preferences.getBoolean("enabled", false);
         IntentFilter filter = new IntentFilter(UsbGpsReader.ACTION_PERMISSION);
