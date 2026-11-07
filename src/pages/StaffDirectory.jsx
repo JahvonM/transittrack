@@ -40,7 +40,9 @@ export default function StaffDirectory() {
 
   const load = async () => {
     try {
-      const [data, companyRows] = await Promise.all([loadCardDirectory(base44, "directory"), user?.role === "admin" ? base44.entities.Company.list("name", 1000) : Promise.resolve([])]);
+      // The company list is only for "Assign company": if it can't load, the
+      // directory still shows, with no companies to assign until a refresh.
+      const [data, companyRows] = await Promise.all([loadCardDirectory(base44, "directory"), user?.role === "admin" ? base44.entities.Company.list("name", 1000).catch(() => []) : Promise.resolve([])]);
       setAssignableCompanies(companyRows || []);
       setLoadError(null);
       setContacts((data?.people || []).map(p => ({ ...p, type: p.directory_type || (p.company_id ? "staff" : "passenger") })));
