@@ -40,7 +40,10 @@ export default function StaffDirectory() {
 
   const load = async () => {
     try {
-      const [data, companyRows] = await Promise.all([loadCardDirectory(base44, "directory"), user?.role === "admin" ? base44.entities.Company.list("name", 1000) : Promise.resolve([])]);
+      // The company list only fills the "assign company" picker. If it can't
+      // load (server busy), the passenger list still opens and shows each
+      // person's company as text.
+      const [data, companyRows] = await Promise.all([loadCardDirectory(base44, "directory"), user?.role === "admin" ? base44.entities.Company.list("name", 1000).catch(() => []) : Promise.resolve([])]);
       setAssignableCompanies(companyRows || []);
       setLoadError(null);
       setContacts((data?.people || []).map(p => ({ ...p, type: p.directory_type || (p.company_id ? "staff" : "passenger") })));
@@ -220,7 +223,7 @@ export default function StaffDirectory() {
                   <div className="min-w-0 text-body-sm">
                     <p className="truncate"><span className="text-muted-foreground">Pickup </span>{pickup || "Not set"}</p>
                     <p className="truncate"><span className="text-muted-foreground">Destination </span>{dropoff || "Company address not set"}</p>
-                    {user?.role === "admin" ? <Select value={c.company_id || "__unassigned__"} onValueChange={val => assignCompany(c, val)} disabled={busyKey === c.key}>
+                    {user?.role === "admin" && assignableCompanies.length > 0 ? <Select value={c.company_id || "__unassigned__"} onValueChange={val => assignCompany(c, val)} disabled={busyKey === c.key}>
                       <SelectTrigger className="mt-1.5 h-8 w-full max-w-[220px]" aria-label={`Company for ${c.name}`}><SelectValue placeholder="Assign company" /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="__unassigned__" disabled>Assign company</SelectItem>
