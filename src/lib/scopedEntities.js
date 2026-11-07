@@ -4,6 +4,7 @@
 // rejected list used to blank a whole page (Admin loads 12 at once, plus live
 // lists every 10s in every open tab), so calls run a few at a time and a
 // rate-limited call waits and tries again.
+import { noteServerTime } from "./serverClock";
 const MAX_IN_FLIGHT = 4;
 let inFlight = 0;
 let cooldownUntil = 0;
@@ -132,8 +133,13 @@ export function scopedEntities(client) {
  };
  const failed=(live,error)=>{
   const status=statusOf(error);
-  // Signed out or not allowed: this list stops refreshing.
-  if(status===401||status===403){live.current=null;live.dead=true;return;}
+  // Not allowed: this list stops refreshing.
+  if(status===403){live.current=null;live.dead=true;return;}
+  // A 401 is usually a sign-in that is being renewed (a PC waking from sleep
+  // refreshes before its new sign-in is ready). It used to stop the list for
+  // good, so that one screen showed every bus as "Signal lost" until it was
+  // reloaded. It now waits and tries again, like any other failure; a person
+  // who really signed out leaves the page, which ends the refresh.
   live.failures++;
   live.nextAllowed=Date.now()+Math.max(retryAfterMs(error),Math.min(120000,30000*2**Math.min(live.failures-1,2)));
  };
@@ -170,9 +176,11 @@ export function scopedEntities(client) {
    try {
     if(batch) {
      let response=null, error=null;
+     const sentAt=Date.now();
      try { response=await client.functions.invoke('entityAccess',{entity:'LiveLists',operation:'list',entities:take.map(([entity])=>entity),limit:5000}); }
      catch(e) { error=e; }
      const result=response?.data?.result;
+     if(result && typeof result==='object') noteServerTime(Number(result.now),sentAt,Date.now());
      if(!error && result && typeof result==='object' && !Array.isArray(result) && result.lists && typeof result.lists==='object') {
       for(const [entity,live] of take) {
        if(live.stopped) continue;
