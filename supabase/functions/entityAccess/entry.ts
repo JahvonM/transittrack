@@ -625,7 +625,8 @@ export default async function(req) {
      errors[entity]={status,error:status<500 && error?.message ? error.message : 'Could not load '+entity};
     }
    }
-   return Response.json({result:{lists,errors}});
+   // The server's time: devices with a wrong clock correct bus ages with it.
+   return Response.json({result:{lists,errors,now:Date.now()}});
   }
   if(!Object.hasOwn(ENTITY_FIELDS,name)) fail(403,'Entity access denied');
   if(!ctx.user && !(name==='Advertisement' && ['list','filter','get'].includes(operation))) fail(401,'Sign in required');

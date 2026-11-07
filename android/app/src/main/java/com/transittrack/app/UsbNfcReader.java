@@ -73,6 +73,8 @@ final class UsbNfcReader implements Runnable {
                         Intent i = new Intent(ACTION_PERMISSION).setPackage(ctx.getPackageName());
                         PendingIntent pi = PendingIntent.getBroadcast(ctx, 0, i, PendingIntent.FLAG_UPDATE_CURRENT | (android.os.Build.VERSION.SDK_INT >= 31 ? PendingIntent.FLAG_MUTABLE : 0));
                         UsbAutoAcceptService.markPending(ctx, d, "nfc");
+                        // A locked kiosk hides Android's popup unless SystemUI may show it.
+                        UsbPromptWindow.open(ctx);
                         usb.requestPermission(d, pi);
                         android.util.Log.i("TransitTrackUsbNfc", "Asked for USB access (popup)");
                     }
