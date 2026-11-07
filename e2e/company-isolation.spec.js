@@ -354,9 +354,10 @@ test('admin showcase keeps metrics, fleet list and working section navigation',a
   await expect(page.getByText('Active buses',{exact:true})).toBeVisible();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
   await page.screenshot({path:'/tmp/tt-admin-desktop.png',fullPage:true});
+  // Card designer is a tab of Passengers, not a menu link of its own.
   await expect(page.getByRole('button',{name:'Card designer',exact:true})).toHaveCount(0);
-  await page.getByRole('button',{name:'People & access',exact:true}).click();
-  await page.getByRole('button',{name:'Card designer',exact:true}).click();
+  await page.getByRole('button',{name:'Passengers',exact:true}).click();
+  await page.getByRole('navigation',{name:'Passengers tabs'}).getByRole('link',{name:'Card designer',exact:true}).click();
   await expect(page.getByRole('button',{name:'Download PNG',exact:true})).toBeVisible();
 });
 
@@ -504,16 +505,19 @@ test('company dashboard shows a passenger QR for its access code',async({page})=
  await expect(img).toHaveAttribute('src',/^data:image\/png;base64,/);
 });
 
-test('admin keeps the current menu group open and message bubble stays above AI',async({page})=>{
+test('admin keeps the current menu entry marked and message bubble stays above AI',async({page})=>{
  await session(page,'admin');
  await page.goto('/admin/drivers');
- const nav=page.getByRole('navigation',{name:'Admin'});
- await expect(nav.getByRole('button',{name:'Drivers',exact:true})).toHaveAttribute('aria-current','page');
- await expect(nav.getByRole('button',{name:'People & access',exact:true})).toHaveAttribute('aria-expanded','true');
- await expect(nav.getByRole('button',{name:'Fleet',exact:true})).toHaveAttribute('aria-expanded','false');
- await nav.getByRole('button',{name:'Card designer',exact:true}).click();
- await expect(nav.getByRole('button',{name:'Card designer',exact:true})).toHaveAttribute('aria-current','page');
- await expect(nav.getByRole('button',{name:'People & access',exact:true})).toHaveAttribute('aria-expanded','true');
+ const nav=page.getByRole('navigation',{name:'Admin',exact:true});
+ // Drivers is a tab of Vehicles & drivers: the menu marks the hub, the tab row the tab.
+ await expect(nav.getByRole('button',{name:'Vehicles & drivers',exact:true})).toHaveAttribute('aria-current','page');
+ const tabs=page.getByRole('navigation',{name:'Vehicles & drivers tabs'});
+ await expect(tabs.getByRole('link',{name:'Drivers',exact:true})).toHaveAttribute('aria-current','page');
+ await expect(nav.getByRole('button',{name:'Maintenance',exact:true})).toHaveAttribute('aria-expanded','false');
+ await tabs.getByRole('link',{name:'Driver shifts',exact:true}).click();
+ await expect(page).toHaveURL(/\/admin\/shifts$/);
+ await expect(tabs.getByRole('link',{name:'Driver shifts',exact:true})).toHaveAttribute('aria-current','page');
+ await expect(nav.getByRole('button',{name:'Vehicles & drivers',exact:true})).toHaveAttribute('aria-current','page');
  const tools=nav.getByRole('button',{name:'All tools',exact:true});
  await expect(tools).toHaveAttribute('aria-expanded','false');
  await expect(nav.getByRole('button',{name:'Change history',exact:true})).toHaveCount(0);
@@ -945,9 +949,11 @@ test('admin overview fits a phone and opens grouped navigation',async({page})=>{
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
  await page.screenshot({path:'/tmp/tt-admin-mobile.png',fullPage:true});
  await page.getByRole('button',{name:'Open menu',exact:true}).click();
- await page.getByRole('button',{name:'People & access',exact:true}).click();
- await page.getByRole('button',{name:'Drivers',exact:true}).click();
+ await page.getByRole('button',{name:'Vehicles & drivers',exact:true}).click();
+ await expect(page).toHaveURL(/admin\/vehicles/);
+ await page.getByRole('navigation',{name:'Vehicles & drivers tabs'}).getByRole('link',{name:'Drivers',exact:true}).click();
  await expect(page).toHaveURL(/admin\/drivers/);
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
 });
 
 

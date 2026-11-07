@@ -33,15 +33,17 @@ function busIcon(color, { size = 34, heading = null, label = "", imageUrl = "", 
   return L.divIcon({ html, className: "", iconSize: [size, size], iconAnchor: [size / 2, size / 2] });
 }
 
-// Fits every point once, when the map first has something to show.
+// Fits every point once, when the map first has something to show. Without
+// animation: Leaflet finishes a zoom animation on a timer even after the map
+// is closed, and fails if the screen was left within that quarter second.
 function FitOnce({ points, skip }) {
   const map = useMap();
   const done = useRef(false);
   useEffect(() => {
     if (done.current || skip || !points.length) return;
     done.current = true;
-    if (points.length === 1) map.setView(points[0], 15);
-    else map.fitBounds(points, { padding: [40, 40], maxZoom: 15 });
+    if (points.length === 1) map.setView(points[0], 15, { animate: false });
+    else map.fitBounds(points, { padding: [40, 40], maxZoom: 15, animate: false });
   }, [points, skip, map]);
   return null;
 }
