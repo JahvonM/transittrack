@@ -1,5 +1,6 @@
 import AvatarPicker from "@/components/AvatarPicker";
 import React, { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,8 +24,12 @@ import { driverKey, driverOwnsBus, normalizeDriverUsername, validDriverUsername 
 import DriverDocumentsDialog, { DocChips } from "@/components/admin/DriverDocuments";
 import DriverAccountActions, { IssuedCredentials, USERNAME_RULE } from "@/components/admin/DriverAccountActions";
 import DriverRequestsPanel from "@/components/admin/DriverRequestsPanel";
-import { Bus, Camera, Car, Loader2, Pencil, Phone, Plus, Search, Smartphone, Trash2, User as UserIcon, X } from "lucide-react";
-import { EmptyState, PageActions, StatusChip } from "@/components/admin/kit";
+import { Bus, Camera, Car, Loader2, Pencil, Phone, Plus, Search, Smartphone, Timer, Trash2, User as UserIcon, X } from "lucide-react";
+import { EmptyState, FocusNote, PageActions, StatusChip } from "@/components/admin/kit";
+import useAdminFocus from "@/hooks/useAdminFocus";
+import { cn } from "@/lib/utils";
+
+const enc = encodeURIComponent;
 
 const STATUSES = [
   { value: "offline", label: "Offline" },
@@ -270,7 +275,7 @@ function EditDriverDialog({ driver, companies, open, onOpenChange, onSaved }) {
   );
 }
 
-function AssignedVehicleRow({ vehicle: v, routes, onUnassign, onSetStatus, onSetRoute, onSetPin }) {
+function AssignedVehicleRow({ vehicle: v, driverId, routes, onUnassign, onSetStatus, onSetRoute, onSetPin }) {
   const [pin, setPin] = useState("");
   const [pinSaving, setPinSaving] = useState(false);
   const [pinMessage, setPinMessage] = useState("");
@@ -286,7 +291,7 @@ function AssignedVehicleRow({ vehicle: v, routes, onUnassign, onSetStatus, onSet
           {v.type === "taxi" ? <Car className="h-4 w-4" /> : <Bus className="h-4 w-4" />}
         </span>
         <div className="min-w-0 flex-1">
-          <div className="truncate font-semibold">{v.name}</div>
+          <Link to={`/admin/vehicles?bus=${enc(v.id)}&driver=${enc(driverId || "")}`} className="block truncate font-semibold underline-offset-4 hover:underline" aria-label={`Open ${v.name} in Vehicles`}>{v.name}</Link>
           <div className="truncate text-caption text-muted-foreground">{[v.plate_number, v.company_name].filter(Boolean).join(" · ")}</div>
         </div>
         <StatusChip status={v.status || "offline"} />
@@ -340,7 +345,7 @@ function AssignedVehicleRow({ vehicle: v, routes, onUnassign, onSetStatus, onSet
   );
 }
 
-function DriverCard({ driver, vehicles, companies, routes, docs = [], onDocsChanged, onAssign, onUnassign, onSetStatus, onSetRoute, onSetPin, onSaved, onRemove }) {
+function DriverCard({ driver, vehicles, companies, routes, docs = [], onDocsChanged, onAssign, onUnassign, onSetStatus, onSetRoute, onSetPin, onSaved, onRemove, focused = false, onPick }) {
   const [editOpen, setEditOpen] = useState(false);
   const [docsOpen, setDocsOpen] = useState(false);
   const assigned = vehicles.filter((v) => driverOwnsBus(v, driver));
@@ -349,13 +354,15 @@ function DriverCard({ driver, vehicles, companies, routes, docs = [], onDocsChan
 
   const initials = (driver.full_name || driver.username || "?").split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join("");
   return (
-    <li className="flex flex-col rounded-2xl border border-border bg-card">
+    <li id={"driver-" + driver.id} aria-current={focused ? "true" : undefined} className={cn("flex flex-col rounded-2xl border border-border bg-card", focused && "ring-2 ring-ring")}>
       <div className="flex items-start gap-4 p-4">
         <div className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-xl bg-secondary font-display text-title-sm font-semibold">
           {driver.photo_url ? <img src={driver.photo_url} alt="" className="h-full w-full object-cover" /> : <span aria-hidden="true">{initials}</span>}
         </div>
         <div className="min-w-0 flex-1">
-          <h2 className="truncate text-title-sm font-bold">{driver.full_name || "Unnamed driver"}</h2>
+          <h2 className="min-w-0 truncate text-title-sm font-bold">
+            <button type="button" onClick={() => onPick?.(driver, assigned)} aria-pressed={focused} title={focused ? "Unpick this driver" : "Pick this driver for the other tabs"} className="max-w-full truncate text-left underline-offset-4 hover:underline">{driver.full_name || "Unnamed driver"}</button>
+          </h2>
           <p className="flex items-center gap-1.5 truncate text-body-sm text-muted-foreground">
             <UserIcon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
             {driver.username
@@ -422,6 +429,7 @@ function DriverCard({ driver, vehicles, companies, routes, docs = [], onDocsChan
               <AssignedVehicleRow
                 key={v.id}
                 vehicle={v}
+                driverId={driver.id}
                 routes={routes}
                 onUnassign={onUnassign}
                 onSetStatus={onSetStatus}
@@ -446,8 +454,13 @@ function DriverCard({ driver, vehicles, companies, routes, docs = [], onDocsChan
           </Select>
         )}
       </div>
-      <div className="mt-auto border-t border-border px-4 py-3">
+      <div className="mt-auto flex flex-wrap items-center gap-2 border-t border-border px-4 py-3">
         <DocChips docs={docs} onOpen={() => setDocsOpen(true)} />
+        <Button variant="outline" size="sm" asChild className="ml-auto">
+          <Link to={`/admin/shifts?driver=${enc(driver.id)}`} aria-label={`Shifts of ${driver.full_name || "this driver"}`}>
+            <Timer className="mr-1.5 h-4 w-4" aria-hidden="true" /> Shifts
+          </Link>
+        </Button>
       </div>
 
       <EditDriverDialog driver={driver} companies={companies} open={editOpen} onOpenChange={setEditOpen} onSaved={onSaved} />
@@ -518,6 +531,35 @@ export default function DriversTab({ drivers, vehicles, companies, routes, onCha
     }
   };
 
+  // The driver (or the driver of the bus) picked here or in Vehicles and
+  // Driver shifts: outlined, scrolled to, and kept when switching tabs.
+  const [driverFocus, setDriverFocus] = useAdminFocus("driver");
+  const [busFocus] = useAdminFocus("bus");
+  const focusBus = busFocus ? vehicles.find((v) => v.id === busFocus) : null;
+  const busDriver = focusBus ? drivers.find((d) => driverOwnsBus(focusBus, d)) : null;
+  const focusedId = driverFocus || busDriver?.id || "";
+  const focusedDriver = drivers.find((d) => d.id === focusedId) || null;
+  useEffect(() => {
+    if (focusedId) document.getElementById("driver-" + focusedId)?.scrollIntoView?.({ block: "nearest" });
+  }, [focusedId]);
+  const pick = (driver, assigned) => {
+    if (driver.id === focusedId) setDriverFocus("", { bus: "" });
+    else setDriverFocus(driver.id, { bus: assigned.length === 1 ? assigned[0].id : "" });
+  };
+  // A bus picked in Vehicles that has no driver: assign one here.
+  const canDrive = focusBus && !busDriver && !driverFocus ? drivers.filter((d) => d.company_id && d.company_id === focusBus.company_id) : [];
+  const assignPicked = async (driverId) => {
+    const driver = drivers.find((d) => d.id === driverId);
+    if (!driver || !focusBus) return;
+    try {
+      await assign(driver, focusBus.id);
+      toast({ title: `${driver.full_name || "Driver"} now drives ${focusBus.name}` });
+      setDriverFocus(driver.id);
+    } catch (e) {
+      toast({ title: "Couldn't assign the bus", description: e?.response?.data?.error || e.message, variant: "destructive" });
+    }
+  };
+
   const [query, setQuery] = useState("");
   const [company, setCompany] = useState("all");
   const q = query.trim().toLowerCase();
@@ -532,6 +574,23 @@ export default function DriversTab({ drivers, vehicles, companies, routes, onCha
         <AddDriverDialog companies={companies} vehicles={vehicles} onAdded={onChange} />
       </PageActions>
       <div className="mb-4"><DriverRequestsPanel /></div>
+      {focusBus && !busDriver && !driverFocus ? (
+        <FocusNote onClear={() => setDriverFocus("", { bus: "" })} clearLabel="Clear">
+          <span className="flex flex-wrap items-center gap-2">
+            <span><span className="font-semibold">{focusBus.name}</span> has no driver.</span>
+            {canDrive.length ? (
+              <Select onValueChange={assignPicked}>
+                <SelectTrigger className="h-9 w-56 bg-card" aria-label={`Driver for ${focusBus.name}`}><SelectValue placeholder="Choose its driver" /></SelectTrigger>
+                <SelectContent>{canDrive.map((d) => <SelectItem key={d.id} value={d.id}>{d.full_name || d.username || "Unnamed driver"}</SelectItem>)}</SelectContent>
+              </Select>
+            ) : <span className="text-muted-foreground">No drivers in {focusBus.company_name || "its company"} yet. Add one first.</span>}
+          </span>
+        </FocusNote>
+      ) : focusedDriver ? (
+        <FocusNote onClear={() => setDriverFocus("", { bus: "" })} clearLabel="Clear">
+          Picked: <span className="font-semibold">{focusedDriver.full_name || focusedDriver.username || "driver"}</span>{focusBus ? <> · {focusBus.name}</> : ""}. Vehicles and Driver shifts open on them too.
+        </FocusNote>
+      ) : null}
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <label className="relative min-w-[220px] flex-1 sm:max-w-sm">
           <span className="sr-only">Search drivers</span>
@@ -571,6 +630,8 @@ export default function DriversTab({ drivers, vehicles, companies, routes, onCha
               onRemove={removeDriver}
               docs={docs.filter((doc) => doc.driver_id === d.id)}
               onDocsChanged={loadDocs}
+              focused={d.id === focusedId}
+              onPick={pick}
             />
           ))}
         </ul>

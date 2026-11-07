@@ -552,7 +552,7 @@ export default function Admin() {
         {section === "drivers" && (
           <DriversTab drivers={drivers} vehicles={vehicles} companies={companies} routes={routes} onChange={refresh} />
         )}
-        {section === "shifts" && <ShiftsTab />}
+        {section === "shifts" && <ShiftsTab vehicles={vehicles} />}
         {section === "cards" && <CardIssuingTab companies={companies} />}
         {section === "card-designs" && <CardDesignerTab />}
         {section === "audit" && <AuditLogTab />}

@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { StatusChip, PageActions, PageIntro, Segmented } from "@/components/admin/kit";
+import { FocusNote, StatusChip, PageActions, PageIntro, Segmented } from "@/components/admin/kit";
+import useAdminFocus from "@/hooks/useAdminFocus";
 import { Button } from "@/components/ui/button";
 import { Download } from "lucide-react";
 import BusLoader from "@/components/BusLoader";
@@ -28,7 +29,8 @@ const startedWith = (s) => (s.started_with === "phone" ? "Driver app" : "Tablet"
 const fmt = (iso) => (iso ? new Date(iso).toLocaleString([], { dateStyle: "medium", timeStyle: "short" }) : "—");
 
 // Driver shift log: hours per driver for the chosen range plus every shift.
-export default function ShiftsTab() {
+// A driver or bus picked in Vehicles or Drivers narrows it to their shifts.
+export default function ShiftsTab({ vehicles = [] }) {
   const [shifts, setShifts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [days, setDays] = useState(7);
@@ -44,10 +46,18 @@ export default function ShiftsTab() {
   };
   useEffect(() => { load(); }, []);
 
+  const [driverFocus, setDriverFocus] = useAdminFocus("driver");
+  const [busFocus] = useAdminFocus("bus");
   const inRange = useMemo(() => {
     const since = Date.now() - days * 24 * 60 * 60 * 1000;
-    return shifts.filter((s) => new Date(s.started_at).getTime() >= since);
-  }, [shifts, days]);
+    return shifts
+      .filter((s) => new Date(s.started_at).getTime() >= since)
+      .filter((s) => (driverFocus ? s.driver_id === driverFocus : busFocus ? s.vehicle_id === busFocus : true));
+  }, [shifts, days, driverFocus, busFocus]);
+  const driverName = driverFocus ? shifts.find((s) => s.driver_id === driverFocus)?.driver_name || "this driver" : "";
+  const busName = !driverFocus && busFocus ? vehicles.find((v) => v.id === busFocus)?.name || shifts.find((s) => s.vehicle_id === busFocus)?.vehicle_name || "this bus" : "";
+  const focusLabel = driverName ? `${driverName}'s shifts` : busName ? `shifts on ${busName}` : "";
+  const focusEmpty = driverName ? `No shifts for ${driverName}` : `No shifts on ${busName}`;
 
   const byDriver = useMemo(() => {
     const map = new Map();
@@ -85,10 +95,15 @@ export default function ShiftsTab() {
           <Download className="w-4 h-4" /> CSV
         </Button>
       </PageActions>
+      {focusLabel && (
+        <FocusNote onClear={() => setDriverFocus("", { bus: "" })}>
+          Showing <span className="font-semibold">{focusLabel}</span> only.
+        </FocusNote>
+      )}
       <Segmented label="Time range" value={days} onChange={setDays} options={RANGES.map((r) => ({ value: r.id, label: r.label }))} />
 
       {!inRange.length ? (
-        <EmptyState text="No shifts yet. They appear here once a driver starts a shift with the driver app or on the bus tablet." />
+        <EmptyState text={focusLabel ? `${focusEmpty} in the last ${days} days.` : "No shifts yet. They appear here once a driver starts a shift with the driver app or on the bus tablet."} />
       ) : (
         <>
           <Card>

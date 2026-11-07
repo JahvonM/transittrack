@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
-import { ADMIN_HUBS, ADMIN_MENU, groupOf, hubOf, hubTarget, menuSections, rememberTab } from "@/lib/adminMenu";
+import { ADMIN_HUBS, ADMIN_MENU, carriedSearch, groupOf, hubOf, hubTarget, menuSections, rememberTab } from "@/lib/adminMenu";
 
 // Admin menu: four hubs (Live fleet, Vehicles & drivers, Routes, Passengers)
 // put related screens together as tabs. Every admin section must still be
@@ -48,5 +48,17 @@ describe("admin menu", () => {
     rememberTab("faults");
     expect(hubTarget("routes")).toBe("travel-times");
     expect(hubTarget("nope")).toBeNull();
+  });
+
+  it("each hub's tabs keep what was picked in it, and nothing else", () => {
+    expect(Object.fromEntries(ADMIN_HUBS.map((h) => [h.id, h.carry]))).toEqual({
+      live: ["bus"], "vehicles-drivers": ["bus", "driver"], routes: ["route"], passengers: ["person"],
+    });
+    expect(carriedSearch("drivers", "?bus=b1&driver=d1&create=1")).toBe("?bus=b1&driver=d1");
+    expect(carriedSearch("health", "?bus=b1&driver=d1")).toBe("?bus=b1");
+    expect(carriedSearch("cards", "?person=user%3Au-1&bus=b1")).toBe("?person=user%3Au-1");
+    expect(carriedSearch("travel-times", "?route=r1")).toBe("?route=r1");
+    expect(carriedSearch("vehicles", "")).toBe("");
+    expect(carriedSearch("faults", "?bus=b1")).toBe("");
   });
 });

@@ -1,5 +1,7 @@
 import React, { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
-import { Bus, History, Lock, MapPin, Radar, Radio, Search, Smartphone, Unlock, Users, X } from "lucide-react";
+import { Activity, Bus, History, Lock, MapPin, Radar, Radio, Search, Smartphone, Unlock, Users, X } from "lucide-react";
+import { Link } from "react-router-dom";
+import useAdminFocus from "@/hooks/useAdminFocus";
 import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
 import { cn } from "@/lib/utils";
@@ -36,8 +38,14 @@ export default function LiveFleetTab({ vehicles, routes = [], onVehicleUpdate, i
   const [filter, setFilter] = useState("all");
   const [now, setNow] = useState(() => Date.now());
   const withLocation = vehicles.filter((v) => v.current_lat != null);
-  // Tapping a bus in the list centres the map on it.
-  const [focus, setFocus] = useState({ id: null, n: 0 });
+  // Tapping a bus in the list centres the map on it. The bus stays picked in
+  // the address, so Fleet workspace and Fleet health open on it too, and
+  // coming back here (or arriving with ?bus=) opens it again.
+  const [busFocus, setBusFocus] = useAdminFocus("bus");
+  const [focus, setFocus] = useState(() => ({ id: busFocus || null, n: busFocus ? 1 : 0 }));
+  useEffect(() => {
+    if ((focus.id || "") !== busFocus) setBusFocus(focus.id || "");
+  }, [focus.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const mapBox = useRef(null);
   // "live" = where buses are now, "history" = replay a past day.
   const [view, setView] = useState(initialView);
@@ -265,6 +273,12 @@ export default function LiveFleetTab({ vehicles, routes = [], onVehicleUpdate, i
             <Unlock className="h-4 w-4" aria-hidden="true" /> Release lock
           </button>
         )}
+        <Link to={`/admin/health?bus=${encodeURIComponent(selected.id)}`} className={cn(ACTION, "border-border bg-background hover:bg-accent")}>
+          <Activity className="h-4 w-4" aria-hidden="true" /> Its tablets and GPS
+        </Link>
+        <Link to={`/admin/vehicles?bus=${encodeURIComponent(selected.id)}${selected.driver_id ? "&driver=" + encodeURIComponent(selected.driver_id) : ""}`} className={cn(ACTION, "border-border bg-background hover:bg-accent")}>
+          <Bus className="h-4 w-4" aria-hidden="true" /> Bus and driver
+        </Link>
       </div>
     </section>
   );

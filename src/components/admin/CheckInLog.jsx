@@ -2,7 +2,8 @@ import React, { useEffect, useState } from "react";
 import EmptyState from "@/components/EmptyState";
 import { base44 } from "@/api/base44Client";
 import { Card, CardContent } from "@/components/ui/card";
-import { StatusChip } from "@/components/admin/kit";
+import { FocusNote, StatusChip } from "@/components/admin/kit";
+import useAdminFocus from "@/hooks/useAdminFocus";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -38,11 +39,16 @@ function BusCheckIns({ vehicles }) {
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all");
+  // A passenger picked in the Directory, Card issuing or Card designer: only
+  // their boardings (read for them, so older ones show too).
+  const [person, setPerson] = useAdminFocus("person");
 
   const load = async () => {
     setLoading(true);
     try {
-      const list = await base44.entities.StaffCheckIn.list("-created_date", 200);
+      const list = person
+        ? await base44.entities.StaffCheckIn.filter({ person_key: person }, "-created_date", 200)
+        : await base44.entities.StaffCheckIn.list("-created_date", 200);
       setRecords(list || []);
     } catch {
       setRecords([]);
@@ -51,12 +57,19 @@ function BusCheckIns({ vehicles }) {
     }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [person]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const filtered = filter === "all" ? records : records.filter((r) => r.vehicle_id === filter);
+  const mine = person ? records.filter((r) => r.person_key === person) : records;
+  const filtered = filter === "all" ? mine : mine.filter((r) => r.vehicle_id === filter);
+  const personName = person ? mine.find((r) => r.staff_name)?.staff_name || "this passenger" : "";
 
   return (
     <div className="space-y-3">
+      {person && (
+        <FocusNote className="mb-0" onClear={() => setPerson("")} clearLabel="Show everyone">
+          Showing <span className="font-semibold">{personName}'s</span> boardings only.
+        </FocusNote>
+      )}
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <Select value={filter} onValueChange={setFilter}>
           <SelectTrigger className="w-full sm:w-72" aria-label="Bus">
@@ -85,7 +98,7 @@ function BusCheckIns({ vehicles }) {
       {loading ? (
         <BusLoader className="py-8" />
       ) : filtered.length === 0 ? (
-        <EmptyState text="No check-ins recorded yet." />
+        <EmptyState text={person ? `No boardings recorded for ${personName} yet.` : "No check-ins recorded yet."} />
       ) : (
         <div className="space-y-2">
           {filtered.map((r) => {

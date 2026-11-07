@@ -4,10 +4,14 @@
 // A hub is one sidebar link for a few related sections. Its page shows them as
 // tabs under the title. Each tab keeps its own address (/admin/<section id>),
 // so links and bookmarks to any of them still open that tab.
+//
+// `carry` is what the tabs share: the bus, driver, route or person picked in
+// one tab rides along in the address (?bus=…), so the next tab opens on it.
 export const ADMIN_HUBS = [
   {
     id: "live",
     label: "Live fleet",
+    carry: ["bus"],
     tabs: [
       { id: "fleet", label: "Live map" },
       { id: "fleet-workspace", label: "Fleet workspace" },
@@ -17,6 +21,7 @@ export const ADMIN_HUBS = [
   {
     id: "vehicles-drivers",
     label: "Vehicles & drivers",
+    carry: ["bus", "driver"],
     tabs: [
       { id: "vehicles", label: "Vehicles" },
       { id: "drivers", label: "Drivers" },
@@ -26,6 +31,7 @@ export const ADMIN_HUBS = [
   {
     id: "routes",
     label: "Routes",
+    carry: ["route"],
     tabs: [
       { id: "route-planner", label: "Route planner" },
       { id: "route-explorer", label: "Route explorer" },
@@ -36,6 +42,7 @@ export const ADMIN_HUBS = [
   {
     id: "passengers",
     label: "Passengers",
+    carry: ["person"],
     tabs: [
       { id: "directory", label: "Directory" },
       { id: "signup-day", label: "Sign-up day" },
@@ -70,6 +77,20 @@ export const ADMIN_MENU = [
 // The hub a section is a tab of, or null.
 export function hubOf(section) {
   return ADMIN_HUBS.find((h) => h.tabs.some((t) => t.id === section)) || null;
+}
+
+// The part of an address a hub's other tabs keep ("?bus=b1"), or "".
+export function carriedSearch(section, search) {
+  const hub = hubOf(section);
+  if (!hub?.carry?.length) return "";
+  const from = new URLSearchParams(search || "");
+  const out = new URLSearchParams();
+  for (const key of hub.carry) {
+    const value = from.get(key);
+    if (value) out.set(key, value);
+  }
+  const text = out.toString();
+  return text ? "?" + text : "";
 }
 
 // The folding group a section is in, or null.

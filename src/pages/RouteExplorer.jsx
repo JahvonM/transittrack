@@ -24,7 +24,17 @@ export default function RouteExplorer() {
   const [params, setParams] = useSearchParams();
   const [routes, setRoutes] = useState([]);
   const [vehicles, setVehicles] = useState([]);
-  const [active, setActive] = useState(null);
+  // The route picked here or in the Route planner (?route=), kept when switching tabs.
+  const [active, setActive] = useState(() => params.get("route") || null);
+  const chooseRoute = (id) => {
+    setActive(id);
+    setParams((previous) => {
+      const next = new URLSearchParams(previous);
+      if (id) next.set("route", id); else next.delete("route");
+      next.delete("bus");
+      return next;
+    }, { replace: true });
+  };
   const [loading, setLoading] = useState(true);
   const [focusId, setFocusId] = useState(() => params.get("bus") || null);
   const [focusKey, setFocusKey] = useState(() => (params.get("bus") ? 1 : 0));
@@ -141,7 +151,7 @@ export default function RouteExplorer() {
                   <button
                     key={r.id || "all"}
                     type="button"
-                    onClick={() => { setActive(r.id); setFocusId(null); setFocusKey((k) => k + 1); }}
+                    onClick={() => { chooseRoute(r.id); setFocusId(null); setFocusKey((k) => k + 1); }}
                     aria-pressed={on}
                     className={cn(
                       "h-10 shrink-0 rounded-full border px-4 text-body-sm font-semibold transition-colors",
