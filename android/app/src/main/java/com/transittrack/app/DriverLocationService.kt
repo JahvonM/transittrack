@@ -73,8 +73,12 @@ class DriverLocationService:Service() {
  }}
  private val permission=object:BroadcastReceiver(){override fun onReceive(context:Context,intent:Intent){
   UsbAutoAcceptService.clearPending(context,"gps")
+  UsbPromptWindow.close(context)
+  // Like the screen-on reader: a refused or self-closed popup (Android reports both as
+  // refused) is asked again a minute later. Stopping here left the GPS off until the
+  // driver unplugged it and plugged it back in.
   if(intent.getBooleanExtra(android.hardware.usb.UsbManager.EXTRA_PERMISSION_GRANTED,false))reader?.rescan()
-  else {stopSources();report("USB permission denied; reopen GPS settings")}
+  else report("USB access not allowed yet - asking again in a minute")
  }}
  override fun onCreate(){
   super.onCreate();instance=this;closed=false
