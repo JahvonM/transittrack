@@ -10,7 +10,7 @@ export function positionState(vehicle, now = Date.now()) {
   if (vehicle?.current_lat == null || vehicle?.current_lng == null) return "none";
   const at = Date.parse(vehicle.last_location_update || "");
   if (!Number.isFinite(at)) return "none";
-  return now - at <= LIVE_POSITION_MS ? "live" : "last_known";
+  return serverNow(now) - at <= LIVE_POSITION_MS ? "live" : "last_known";
 }
 
 export function nearestStopOf(vehicle, route) {
