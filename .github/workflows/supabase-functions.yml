@@ -45,15 +45,20 @@ jobs:
         run: echo "::notice::Deploy skipped. Add the SUPABASE_ACCESS_TOKEN repository secret to put the functions on Supabase."
       - uses: supabase/setup-cli@v1
         if: env.SUPABASE_ACCESS_TOKEN != ''
+        # A fixed version, so a new CLI release can't change how the deploy
+        # behaves without a change here. Move it up on purpose and watch the
+        # next run.
         with:
-          version: latest
+          version: 3.0.0
       - name: Deploy every function
         if: env.SUPABASE_ACCESS_TOKEN != ''
         # The functions check who is calling themselves (Supabase sign-in or a
         # tablet's device key), so the gateway's own JWT check stays off.
         # The CLI wants a config file; this one lives only for this run, so
-        # nothing here changes the project's own settings. Newer CLIs ask to
+        # nothing here changes the project's own settings. The CLI asks to
         # confirm a deploy of every function; --yes answers that here.
+        # --remote picks the project (--project-ref is going away in v4).
         run: |
           [ -f supabase/config.toml ] || printf 'project_id = "%s"\n' "$PROJECT_REF" > supabase/config.toml
-          supabase functions deploy --project-ref "$PROJECT_REF" --no-verify-jwt --use-api --yes
+          supabase --version
+          supabase functions deploy --remote="$PROJECT_REF" --no-verify-jwt --use-api --yes
