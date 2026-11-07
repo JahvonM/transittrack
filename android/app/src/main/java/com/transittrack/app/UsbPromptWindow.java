@@ -48,7 +48,7 @@ final class UsbPromptWindow {
                 String[] next = Arrays.copyOf(allowed, allowed.length + 1);
                 next[allowed.length] = SYSTEM_UI;
                 policy.setLockTaskPackages(admin, next);
-                TabletDiagnostics.record("usb", "USB_PROMPT_ALLOWED");
+                TabletDiagnostics.record("system", "USB_PROMPT_ALLOWED");
             }
             if (pendingClose != null) main.removeCallbacks(pendingClose);
             pendingClose = () -> close(app);
@@ -56,7 +56,7 @@ final class UsbPromptWindow {
             prefs(app).edit().putLong("until", SystemClock.elapsedRealtime() + WINDOW_MS).apply();
             return true;
         } catch (RuntimeException e) {
-            TabletDiagnostics.record("usb", "USB_PROMPT_ALLOW_FAILED");
+            TabletDiagnostics.record("system", "USB_PROMPT_ALLOW_FAILED");
             return false;
         }
     }
@@ -77,7 +77,7 @@ final class UsbPromptWindow {
             }
             p.edit().clear().apply();
         } catch (RuntimeException e) {
-            TabletDiagnostics.record("usb", "USB_PROMPT_CLOSE_FAILED");
+            TabletDiagnostics.record("system", "USB_PROMPT_CLOSE_FAILED");
         }
     }
 
