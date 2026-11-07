@@ -1,4 +1,5 @@
 import { haversineKm, etaMinutes } from "@/lib/geo";
+import { serverNow } from "@/lib/serverClock";
 
 // What the in-bus information screen can honestly say about where the bus
 // is. "Nearest stop" is the closest stop on the route in a straight line:
