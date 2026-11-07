@@ -36,7 +36,8 @@ final class UsbPromptWindow {
     /** Call just before UsbManager.requestPermission. Safe to call from any thread. */
     static synchronized boolean open(Context context) {
         final Context app = context.getApplicationContext();
-        if (Build.VERSION.SDK_INT < 23 || !KioskMode.owner(app) || !KioskMode.locked(app)) return false;
+        // getLockTaskPackages is Android 8+; the managed kiosk needs 8+ anyway.
+        if (Build.VERSION.SDK_INT < 26 || !KioskMode.owner(app) || !KioskMode.locked(app)) return false;
         try {
             DevicePolicyManager policy = KioskMode.policy(app);
             ComponentName admin = KioskMode.admin(app);
@@ -66,7 +67,7 @@ final class UsbPromptWindow {
         SharedPreferences p = prefs(app);
         if (!p.getBoolean("added", false)) return;
         try {
-            if (KioskMode.owner(app) && Build.VERSION.SDK_INT >= 23) {
+            if (KioskMode.owner(app) && Build.VERSION.SDK_INT >= 26) {
                 DevicePolicyManager policy = KioskMode.policy(app);
                 ComponentName admin = KioskMode.admin(app);
                 ArrayList<String> keep = new ArrayList<>();
