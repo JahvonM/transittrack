@@ -257,10 +257,11 @@ export default function Kiosk() {
 
   // Every kiosk action (search/lookup/check-in/register/sign-in) goes
   // through this one backend function, keyed by device_id like driverSession.
-  // NFC uses the scoped local index first. Codes still require the server.
+  // Automatic taps check current shift history online; the scoped card index
+  // remains available when the network is unavailable.
   const invoke = useCallback(async (action, payload = {}) => {
-    if (action === "lookup_tag" && device?.kiosk_type === "bus_boarding") {
-      const local = await localCardLookup(payload.card_tag, device);
+    if (action === "lookup_tag" && device?.kiosk_type === "bus_boarding" && payload.auto_toggle !== true) {
+      const local = await localCardLookup(payload.card_tag, device, {automatic:payload.auto_toggle === true});
       if (local) return local;
     }
     try {
@@ -269,7 +270,7 @@ export default function Kiosk() {
       // the saved list and check-ins are queued instead of hanging.
       const ms = action === "lookup_tag" || action === "lookup_code" ? 4000 : action === "check_in" ? 12000 : 20000;
       const res = await withTimeout(base44.functions.invoke("kioskCheckIn", deviceRequest(deviceId, { ...payload, action })), ms);
-      if (action === "check_in" && payload.staff_id) noteStatus(payload.staff_id, payload.status);
+      if (action === "check_in" && payload.staff_id) noteStatus(payload.staff_id, res.data?.record?.status || payload.status, res.data?.record?.boarded_at || payload.occurred_at || Date.now());
       setOnline(true);
       return res.data;
     } catch (e) {
@@ -279,12 +280,14 @@ export default function Kiosk() {
         // Only a request with no answer means the connection is gone; a
         // server error still uses the saved list but keeps the tablet online.
         if (!e?.response) setOnline(false);
-        const local = offlineLookup(action, payload);
+        const local = action === "lookup_tag" && device?.kiosk_type === "bus_boarding"
+          ? await localCardLookup(payload.card_tag, device, {automatic:payload.auto_toggle === true})
+          : offlineLookup(action, payload);
         if (local) return local;
       }
       throw e;
     }
-  }, [deviceId, device?.company_id, device?.vehicle_id, device?.kiosk_type]);
+  }, [deviceId, device?.company_id, device?.vehicle_id, device?.kiosk_type, device?.reader_mode]);
 
   const meta = device ? (TYPE_META[device.kiosk_type] || TYPE_META.bus_boarding) : null;
   const Icon = meta?.icon || Bus;

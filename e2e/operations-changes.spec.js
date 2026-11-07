@@ -60,6 +60,7 @@ async function setup(page,{custom=false,layout='auto',sign=null,model='',spot,co
   if(url.includes('/functions/kioskHeartbeat'))return route.fulfill({json:kiosk});
   if(url.includes('/functions/kioskCheckIn')){
    if(b.action==='lookup_tag')return route.fulfill({json:{staff:{id:'p',full_name:'Test Passenger'},next_status:'boarded',verification_grant:'b'.repeat(64)}});
+   if(b.action==='check_in')return route.fulfill({json:{record:{staff_name:'Test Passenger',status:b.status},shift_count:1}});
    if(b.action==='offline_directory')return route.fulfill({json:{staff:[]}});
    return route.fulfill({json:{ok:true}});
   }
@@ -108,7 +109,7 @@ test('phone kiosk has dedicated mode controls and no horizontal overflow',async(
  await expect(page.getByLabel('Bus information')).toBeVisible();
  await page.getByRole('button',{name:'Tap card',exact:true}).click();
  await page.evaluate(()=>window.dispatchEvent(new CustomEvent('tt-badge',{detail:'04AABBCC'})));
- await expect(page.getByText('Are you boarding or exiting?')).toBeVisible();
+ await expect(page.getByText('Welcome aboard, Test!')).toBeVisible();
 });
 test('pickup name sign is on the boarding device and can be closed',async({page})=>{
  await page.setViewportSize({width:800,height:1280});

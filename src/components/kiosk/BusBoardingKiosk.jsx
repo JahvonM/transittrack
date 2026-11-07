@@ -1,3 +1,5 @@
+import { boardingTapWait } from "@/lib/boardingTapWait";
+import CoastalCardScene from "./CoastalCardScene";
 import { useTabletWorkSafety } from "@/lib/nativeTabletControl";
 import "./boardingShowcase.css";
 import "./kioskApple.css";
@@ -11,7 +13,7 @@ import { helperLink } from "@/lib/helperHealth";
 import { httpStatus, errorData } from "@/lib/requestError";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CreditCard, QrCode, SwitchCamera, X, ChevronLeft, CheckCircle2, LogIn, LogOut, AlertCircle, Delete, MapPin, CloudUpload, PartyPopper, Bus, Users, Loader2, History, ArrowUp } from "lucide-react";
+import { CreditCard, QrCode, SwitchCamera, X, ChevronLeft, CheckCircle2, LogIn, LogOut, AlertCircle, Delete, MapPin, CloudUpload, PartyPopper, Bus, Users, History, ArrowUp } from "lucide-react";
 import { nfcHint } from "@/lib/kioskLayout";
 import { useNfcTap, reportBadgeResult } from "@/hooks/useNfcTap";
 import { parseCodeQrPayload } from "@/lib/qr";
@@ -79,12 +81,12 @@ export function TopStatusBar({ device, vehicle, route, now, online, holdProps })
   </header>;
 }
 
-function InfoRail({ occupancy, vehicle, nearestStop, ads, todayCount, directoryInfo, now, onList, pendingSyncCount, syncError }) {
+function InfoRail({ occupancy, vehicle, nearestStop, ads, shiftCount, directoryInfo, now, onList, pendingSyncCount, syncError }) {
   return <aside className="tt-board-rail" aria-label="Bus information">
     <section className="tt-board-panel tt-board-occupancy"><p><Users size={16} /> Occupancy</p>
       <strong>{occupancy}<small>{vehicle?.capacity ? " / " + vehicle.capacity : ""}</small></strong>
       <div className="tt-board-meter"><i style={{width: vehicle?.capacity ? Math.min(100, occupancy / vehicle.capacity * 100) + "%" : "0%"}} /></div>
-      <span>{todayCount ?? "—"} riders today</span>
+      <span>{shiftCount ?? "—"} riders this shift</span>
     </section>
     <section className="tt-board-panel">
       {directoryInfo?.expires ? <button type="button" onClick={onList} aria-label={"Passenger list: " + directoryInfo.count + (directoryInfo.count === 1 ? " card" : " cards")}>
@@ -149,6 +151,7 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
   // Where to tap: from the tablet's setting, else the layout. The tablet
   // layout keeps its own wording unless a position is set.
   const tapHint = nfcHint(layout, device?.nfc_spot);
+  const automaticNfc = !["boarding", "exit"].includes(device?.reader_mode);
   const customHint = phoneLayout || (device?.nfc_spot && device.nfc_spot !== "auto");
   const [qrFacing,setQrFacing]=useState("environment");
   const [fullscreenError,setFullscreenError]=useState("");
@@ -182,6 +185,7 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
   const [ads, setAds] = useState([]);
   const [todayCount, setTodayCount] = useState(null);
   const [occupancy, setOccupancy] = useState(0);
+  const [shiftCount, setShiftCount] = useState(null);
   const [listOpen, setListOpen] = useState(false);
   // The reader helper stops reaching this screen when FreeKiosk's REST API
   // key or setting changes; say so instead of cards silently doing nothing.
@@ -259,6 +263,7 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
     setAds(context.ads || []);
     setOccupancy(context.occupancy || 0);
     setTodayCount(context.today_count || 0);
+    setShiftCount(context.shift_count ?? null);
   }, [device?.context]);
 
   // This is straight-line distance to the closest stop on the vehicle's
@@ -313,32 +318,33 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
     noteRead(item.method);
     if (res.already) {
       setPending(item);
-      setResult({ staff_name: item.staff.full_name, status: res.already.status, already: true, at: res.already.at, canSwitch: (res.reader_mode || "both") === "both" });
+      setResult({ staff_name: item.staff.full_name, status: res.already.status, already: true, at: res.already.at, canSwitch: (res.reader_mode || "both") === "both" && !(automaticNfc && item.method === "nfc") });
       setMode("result");
       playTone("duplicate");
       speak("Already recorded");
       resetSoon(5000);
       return;
     }
-    const fixed = res.reader_mode === "boarding" ? "boarded" : res.reader_mode === "exit" ? "off_board" : null;
+    const fixed = res.reader_mode === "boarding" ? "boarded" : res.reader_mode === "exit" ? "off_board" : automaticNfc && item.method === "nfc" && ["boarded", "off_board"].includes(res.next_status) ? res.next_status : null;
     setPending(item);
-    if (fixed) { setMode("checking"); await confirmCheckIn(fixed, item, true); return; }
+    if (fixed) { setMode("checking"); return await confirmCheckIn(fixed, item, true); }
     setMode("confirm");
   };
 
   const handleTag = async (tag, receipt = {}) => {
     if (lookupStarted.current && Date.now() - lookupStarted.current < 12000) { reportBadgeResult(false, receipt); return; }
     lookupStarted.current = Date.now();
+    const tappedAt = new Date(lookupStarted.current).toISOString();
     setCheckingCard(true);
     clearTimeout(resetTimer.current);
     setResult(null);
     setBadgeError("");
     setBusy(true);
     try {
-      const res = await invoke("lookup_tag", { card_tag: tag });
+      const res = await invoke("lookup_tag", { card_tag: tag, ...(automaticNfc ? {auto_toggle:true} : {}) });
       setUnlocked(true);
-      reportBadgeResult(true, receipt);
-      await presentLookup({ staff: res.staff, next_status: res.next_status, method: "nfc", verification_grant: res.verification_grant, directory_grant:res.directory_grant, card_fingerprint:res.card_fingerprint }, res);
+      const accepted = await presentLookup({ staff: res.staff, next_status: res.next_status, method: "nfc", occurred_at: tappedAt, verification_grant: res.verification_grant, directory_grant:res.directory_grant, card_fingerprint:res.card_fingerprint }, res);
+      reportBadgeResult(accepted !== false, receipt);
     } catch (e) {
       reportBadgeResult(false, receipt);
       if (handleUnpaired(e)) return;
@@ -464,7 +470,7 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
     const item = from || pending;
     if (!item || (busy && !chained)) return;
     setBusy(true);
-    const payload = { expected_device_id:device.device_id||device.id, expected_company_id:device.company_id, expected_vehicle_id:device.vehicle_id, client_request_id: crypto.randomUUID(), occurred_at: new Date().toISOString(), staff_id: item.staff.id, method: item.method, code_type: item.code_type, verification_grant: item.verification_grant, directory_grant:item.directory_grant, card_fingerprint:item.card_fingerprint, status };
+    const payload = { expected_device_id:device.device_id||device.id, expected_company_id:device.company_id, expected_vehicle_id:device.vehicle_id, client_request_id: crypto.randomUUID(), occurred_at: item.occurred_at || new Date().toISOString(), staff_id: item.staff.id, method: item.method, code_type: item.code_type, verification_grant: item.verification_grant, directory_grant:item.directory_grant, card_fingerprint:item.card_fingerprint, status, ...(automaticNfc && item.method === "nfc" ? {auto_toggle:true} : {}) };
     try {
       const res = await submitSavedCheckIn(invoke, payload);
       // Another tap or tablet already recorded this: nothing new was added.
@@ -475,14 +481,15 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
         playTone("duplicate");
         speak("Already recorded");
         resetSoon(4000);
-        return;
+        return true;
       }
       const record = { staff_name: res.record.staff_name, status: res.record.status };
-      noteStatus(payload.staff_id,status);
+      noteStatus(payload.staff_id,record.status,res.record.boarded_at || payload.occurred_at);
+      if (Number.isFinite(res.shift_count)) setShiftCount(res.shift_count);
       if (Number.isFinite(res.occupancy)) setOccupancy(res.occupancy);
       if (Number.isFinite(res.today_count)) {
         setTodayCount(res.today_count);
-        if (record.status === "boarded") record.riderNumber = res.today_count;
+        if (record.status === "boarded") record.riderNumber = res.shift_count;
       }
       noteSync();
       setResult(record);
@@ -490,8 +497,9 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
       playTone(record.status === "boarded" ? "accepted" : "exit");
       speak(record.status === "boarded" ? `Welcome aboard, ${record.staff_name.split(" ")[0]}` : `See you later, ${record.staff_name.split(" ")[0]}`);
       resetSoon();
+      return true;
     } catch (e) {
-      if (handleUnpaired(e)) return;
+      if (handleUnpaired(e)) return false;
       // A network failure (never reached the server) doesn't have to cost
       // this person their check-in — queue it and let them walk away as if
       // it worked; a real rejection from the backend still shows the error.
@@ -499,21 +507,22 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
         try {
           setPendingSyncCount(queueLength());
           if (!hasSavedCheckIn(payload.client_request_id)) throw new Error("This check-in couldn't be saved on the tablet. Please try again.");
-        } catch (storageError) { setBadgeError(storageError.message); setMode("badge_error"); resetSoon(5000); return; }
-        noteStatus(payload.staff_id, status);
+        } catch (storageError) { setBadgeError(storageError.message); setMode("badge_error"); resetSoon(5000); return false; }
+        noteStatus(payload.staff_id, status, payload.occurred_at);
         if (payload.code_type === "one_time") burnOneTimeCode(payload.staff_id);
         setResult({ staff_name: item.staff.full_name, status, offline: true });
         setMode("result");
         playTone(status === "boarded" ? "accepted" : "exit");
         speak(status === "boarded" ? `Welcome aboard, ${item.staff.full_name.split(" ")[0]}` : `See you later, ${item.staff.full_name.split(" ")[0]}`);
         resetSoon();
-        return;
+        return true;
       }
       noteProblem(e?.response?.data?.error || "check_in_failed");
       playTone("refused");
       setBadgeError(busMessage(e) || "Something went wrong checking that in — please try again.");
       setMode("badge_error");
       resetSoon(3000);
+      return false;
     } finally {
       setBusy(false);
     }
@@ -522,13 +531,13 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
   let actionContent;
 
   if ((!unlocked && mode === "idle") || mode === "qr") {
-    actionContent = <section className={`tt-board-home${mode === "qr" ? " tt-board-camera-open" : ""}`} aria-label="Boarding home">
-      <div className="tt-board-scene">
+    actionContent = <section className={`tt-board-home tt-coastal-home${mode === "qr" ? " tt-board-camera-open" : ""}`} aria-label="Boarding home">
+      {mode !== "qr" ? <CoastalCardScene vehicle={vehicle} readerError={nfcError} tapHint={tapHint} /> : <div className="tt-board-scene">
         <div className="tt-board-welcome"><h1>Welcome aboard</h1><p>{customHint ? tapHint.title : "Tap your card to begin"}</p>{customHint && <small className="tt-board-tap-detail">{tapHint.detail}</small>}</div>
         <BusArtwork vehicle={vehicle} fallbackUrl="/images/boarding-coaster.webp" width={650} className="tt-board-bus" />
         <div className="tt-board-nfc"><div className="tt-board-nfc-ring"><CreditCard aria-hidden="true" /></div><strong>NFC CARD TAP</strong><small>{nfcListening ? "Ready to scan" : "Tap your NFC card"}</small></div>
         {nfcError && <p className="tt-board-reader-note">{nfcError}</p>}
-      </div>
+      </div>}
       <div className="tt-board-entry">
         <div className="tt-board-slide"><p>Prefer to use your code?</p><SlideToUnlock label="Slide to enter a code" onUnlock={() => { setUnlocked(true); setMode("idle"); }} /></div>
         <section className="tt-board-qr" aria-label="Home QR scanner">
@@ -564,11 +573,7 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
   } else if (mode === "checking" && pending) {
     // The card was read; the boarding isn't recorded until this finishes.
     actionContent = (
-      <Screen modeKey="checking" className="p-10 text-center space-y-4">
-        <Loader2 className="mx-auto h-14 w-14 animate-spin text-primary motion-reduce:animate-none" aria-hidden="true" />
-        <p role="status" className="text-2xl font-bold">Card read · saving {pending.staff.full_name.split(" ")[0]}…</p>
-        <p className="text-sm text-muted-foreground">Hold on a moment. Don't tap again.</p>
-      </Screen>
+      <CoastalCardScene checking vehicle={vehicle} />
     );
   } else if (mode === "result" && result?.already) {
     // A repeat tap: nothing new is recorded; offer the other direction only
@@ -580,6 +585,7 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
         <div className="mx-auto w-20 h-20 rounded-full bg-secondary grid place-items-center"><History className="w-11 h-11 text-foreground" aria-hidden="true" /></div>
         <p role="status" className="text-3xl font-bold">Already recorded</p>
         <p className="text-base text-muted-foreground">{result.staff_name.split(" ")[0]}, you {on ? "boarded" : "got off"}{when ? ` at ${when}` : ""}. Nothing else to do.</p>
+        {automaticNfc && boardingTapWait(result.status, result.at, now) && <p className="text-sm text-muted-foreground">{boardingTapWait(result.status, result.at, now)}</p>}
         {result.canSwitch && pending && (
           <Button variant="outline" className="h-14 rounded-2xl text-lg" onClick={() => confirmCheckIn(on ? "off_board" : "boarded")} disabled={busy}>
             {on ? <LogOut className="w-6 h-6" /> : <LogIn className="w-6 h-6" />} {on ? "I'm getting off" : "I'm getting on"}
@@ -605,9 +611,10 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
           </div>
           <p role="status" className="text-3xl font-bold">{boarded ? `Welcome aboard, ${result.staff_name.split(" ")[0]}!` : `See you later, ${result.staff_name.split(" ")[0]}!`}</p>
           <p className="text-base font-semibold">{boarded ? "Boarding recorded" : "Exit recorded"}</p>
+          {automaticNfc && boarded && <p className="text-sm text-muted-foreground">To sign out, remove your card and tap again after 5 minutes.</p>}
           {boarded && result.riderNumber > 0 && (
             <p className="text-sm font-medium text-primary flex items-center justify-center gap-1.5">
-              <PartyPopper className="w-4 h-4" /> You're rider #{result.riderNumber} today!
+              <PartyPopper className="w-4 h-4" /> You're rider #{result.riderNumber} this shift!
             </p>
           )}
           {result.offline && (
@@ -673,8 +680,8 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
     {phoneLayout&&<div className="tt-phone-kiosk-tools"><button type="button" onClick={()=>setSettingsOpen(true)}>Tablet &amp; reader</button>{fullscreenError&&<p role="status">{fullscreenError}</p>}</div>}
     <BoardingPickupSign device={device} enabled={mode === "idle" && !busy && !checkingCard} />
     <main className="tt-board-layout"><div className="tt-board-action">{actionContent}</div>
-      <InfoRail occupancy={occupancy} vehicle={vehicle} nearestStop={nearestStop} ads={ads} todayCount={todayCount} directoryInfo={directoryInfo} now={now} onList={() => setListOpen(true)} pendingSyncCount={pendingSyncCount} syncError={syncError} />
+      <InfoRail occupancy={occupancy} vehicle={vehicle} nearestStop={nearestStop} ads={ads} todayCount={todayCount} shiftCount={shiftCount} directoryInfo={directoryInfo} now={now} onList={() => setListOpen(true)} pendingSyncCount={pendingSyncCount} syncError={syncError} />
     </main>
-    {checkingCard && <div className="absolute inset-0 z-20 flex items-center justify-center bg-background/70 backdrop-blur-sm" role="status" aria-live="polite"><div className="flex flex-col items-center gap-3 rounded-2xl border bg-card px-10 py-8 shadow-lg"><Loader2 className="w-12 h-12 animate-spin text-primary" /><p className="text-2xl font-semibold">Checking your card…</p></div></div>}
+    {checkingCard && <div className="tt-coastal-check-overlay" role="status"><CoastalCardScene checking vehicle={vehicle} /></div>}
   </div>;
 }
