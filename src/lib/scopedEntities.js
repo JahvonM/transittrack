@@ -112,7 +112,7 @@ export function scopedEntities(client) {
  const polls=new Map();
  let timer=null, running=false, batch=true, watchingVisibility=false;
  const apply=(live,rows,snapshotRevision)=>{
-  live.failures=0;live.nextAllowed=0;
+  live.failures=0;live.unauthorized=0;live.nextAllowed=0;
   const next=new Map(rows.map(row=>[row.id,row]));
   for(const [id,write] of live.localWrites) {
    if(write.revision > snapshotRevision) {
@@ -138,8 +138,9 @@ export function scopedEntities(client) {
   // A 401 is usually a sign-in that is being renewed (a PC waking from sleep
   // refreshes before its new sign-in is ready). It used to stop the list for
   // good, so that one screen showed every bus as "Signal lost" until it was
-  // reloaded. It now waits and tries again, like any other failure; a person
-  // who really signed out leaves the page, which ends the refresh.
+  // reloaded. It now waits and tries again, like any other failure, and only
+  // stops after six in a row (about ten minutes: really signed out).
+  if(status===401 && ++live.unauthorized>=6){live.current=null;live.dead=true;return;}
   live.failures++;
   live.nextAllowed=Date.now()+Math.max(retryAfterMs(error),Math.min(120000,30000*2**Math.min(live.failures-1,2)));
  };
@@ -231,7 +232,7 @@ export function scopedEntities(client) {
   // The page's own data load goes first. A refresh fired at the same instant
   // used to compete with it for the app's rate limit, and the page — not the
   // refresh — is what the person is waiting for.
-  const live={entity,listeners:new Set(),localWrites:new Map(),current:null,due:Date.now()+FIRST_POLL_MS,nextAllowed:0,failures:0,dead:false,stopped:false,
+  const live={entity,listeners:new Set(),localWrites:new Map(),current:null,due:Date.now()+FIRST_POLL_MS,nextAllowed:0,failures:0,unauthorized:0,dead:false,stopped:false,
    stop:()=>{live.stopped=true;live.current=null;if(polls.get(entity)===live)polls.delete(entity);arm();}};
   polls.set(entity,live);
   arm();
