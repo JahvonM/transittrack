@@ -10,12 +10,14 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
 import { cardArtwork, artworkPng, localCardImage, DEFAULT_CARD_DESIGN } from "@/lib/cardArtwork";
 import { PageIntro } from "@/components/admin/kit";
+import useAdminFocus from "@/hooks/useAdminFocus";
 
 export default function CardDesignerTab() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [people, setPeople] = useState([]);
-  const [personKey, setPersonKey] = useState("");
+  // The card holder is the passenger picked in the other Passengers tabs.
+  const [personKey, setPersonKey] = useAdminFocus("person");
   const [design, setDesign] = useState(DEFAULT_CARD_DESIGN);
   const [side, setSide] = useState("front");
   const [photo, setPhoto] = useState("");

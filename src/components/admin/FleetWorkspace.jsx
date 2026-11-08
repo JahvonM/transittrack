@@ -1,7 +1,8 @@
 import React, { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { EmptyState, PageIntro, Panel, Segmented, StatusChip } from "@/components/admin/kit";
+import { EmptyState, FocusNote, PageIntro, Panel, Segmented, StatusChip } from "@/components/admin/kit";
+import useAdminFocus from "@/hooks/useAdminFocus";
 import { AlertTriangle, BarChart3, Bus, Camera, ChevronLeft, ChevronRight, Film, LayoutGrid, List, Maximize2, MapPin, Search, Video, X } from "lucide-react";
 import { TRANSIT_TIME_ZONE } from "@/lib/localTime";
 import { busSummaries, cameraTablets, CAMERAS_PER_TABLET, filterBuses, fleetAlerts, MAX_LIVE_VIEWS, MONITOR_FILTERS, MONITOR_PAGE, speedText } from "@/lib/fleetWorkspace";
@@ -34,13 +35,13 @@ const REPORTS = [
 const where = (r) => (r.location.state === "live" ? `Live · ${time(r.location.at)}` : r.location.state === "last_known" ? `Last known · ${time(r.location.at)}` : "No location yet");
 
 // One bus: its status, what it can show, and a live camera when opened.
-function BusTile({ row, camera, open, canOpen, onOpen, onClose }) {
+function BusTile({ row, camera, open, canOpen, onOpen, onClose, picked = false }) {
   const tile = useRef(null);
   const v = row.vehicle;
   const live = row.location.state === "live";
   const full = () => { try { tile.current?.requestFullscreen?.(); } catch { /* not available here */ } };
   return (
-    <li ref={tile} className="flex min-w-0 flex-col overflow-hidden rounded-2xl border border-border bg-card" aria-label={v.name}>
+    <li ref={tile} id={"tile-" + v.id} aria-current={picked ? "true" : undefined} className={`flex min-w-0 flex-col overflow-hidden rounded-2xl border border-border bg-card ${picked ? "ring-2 ring-ring" : ""}`} aria-label={v.name}>
       <div className="flex items-center gap-2 px-3 pt-2.5">
         <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${live ? "bg-success" : row.location.state === "last_known" ? "bg-warning" : "bg-muted-foreground/40"}`} aria-hidden="true" />
         <strong className="min-w-0 flex-1 truncate">{v.name}</strong>
@@ -90,7 +91,11 @@ export default function FleetWorkspace({ vehicles = [], kiosks = [], checkIns = 
   const [page, setPage] = useState(0);
   const [openIds, setOpenIds] = useState([]);
   const [playbackId, setPlaybackId] = useState("");
-  const [mapFocus, setMapFocus] = useState(null);
+  // The bus picked here, on the Live map or in Fleet health (kept in the
+  // address): centred on the map, outlined, and its clips in Playback.
+  const [busFocus, setBusFocus] = useAdminFocus("bus");
+  const mapFocus = busFocus || null;
+  const setMapFocus = (id) => setBusFocus(id || "");
   useEffect(() => {
     let alive = true;
     const load = () => {
@@ -116,7 +121,8 @@ export default function FleetWorkspace({ vehicles = [], kiosks = [], checkIns = 
   const counted = rows.filter((r) => r.onBoard != null);
   const onBoard = counted.reduce((n, r) => n + r.onBoard, 0);
   const recordingTablets = kiosks.filter((k) => k.kiosk_type === "driver" && k.paired && k.status === "active" && k.helper_health?.recordings_available === true);
-  const playback = recordingTablets.find((k) => k.id === playbackId) || null;
+  const playback = recordingTablets.find((k) => k.id === playbackId) || (!playbackId && busFocus ? recordingTablets.find((k) => k.vehicle_id === busFocus) : null) || null;
+  const pickedBus = busFocus ? vehicles.find((v) => v.id === busFocus) : null;
   const open = (id) => setOpenIds((ids) => (ids.includes(id) || ids.length >= MAX_LIVE_VIEWS ? ids : [...ids, id]));
   const close = (id) => setOpenIds((ids) => ids.filter((x) => x !== id));
   // A view whose tile leaves the screen (search, filter, another page, List,
@@ -130,6 +136,11 @@ export default function FleetWorkspace({ vehicles = [], kiosks = [], checkIns = 
   return (
     <div className="space-y-4">
       <PageIntro>Watch the fleet: each bus's location, shift and tablets, a live camera when you open one, saved dashcam clips, and what needs attention.</PageIntro>
+      {pickedBus && (
+        <FocusNote className="mb-0" onClear={() => setBusFocus("")} clearLabel="Clear">
+          Picked: <span className="font-semibold">{pickedBus.name}</span>. It's centred on the map, and the Live map and Fleet health open on it too.
+        </FocusNote>
+      )}
       <Segmented label="Fleet workspace" value={tab} onChange={setTab} options={[
         { value: "live", label: "Live view", icon: Video },
         { value: "playback", label: "Playback", icon: Film },
@@ -155,7 +166,7 @@ export default function FleetWorkspace({ vehicles = [], kiosks = [], checkIns = 
             {cameras.length > 0 && <p role="status" className="text-body-sm text-muted-foreground">{openIds.length > 0 ? `${openIds.length} of ${MAX_LIVE_VIEWS} live views open.` : "Live cameras are a trial until they're tested on a bus."} Tap a bus, then choose a camera. Each view shows a Stop button on the tablet, ends after 10 minutes and is logged.</p>}
             {pageRows.length === 0 ? <EmptyState icon={Bus} title={rows.length ? "No buses match" : "No buses yet"} /> : layout === "grid" ? (
               <ul className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3" aria-label="Bus tiles">
-                {pageRows.map((r) => <BusTile key={r.vehicle.id} row={r} camera={cameraOf(r.vehicle.id)} open={openIds.includes(r.vehicle.id)} canOpen={openIds.length < MAX_LIVE_VIEWS} onOpen={() => open(r.vehicle.id)} onClose={() => close(r.vehicle.id)} />)}
+                {pageRows.map((r) => <BusTile key={r.vehicle.id} row={r} camera={cameraOf(r.vehicle.id)} open={openIds.includes(r.vehicle.id)} canOpen={openIds.length < MAX_LIVE_VIEWS} onOpen={() => open(r.vehicle.id)} onClose={() => close(r.vehicle.id)} picked={r.vehicle.id === busFocus} />)}
               </ul>
             ) : (
               <ul className="divide-y divide-border rounded-2xl border border-border bg-card" aria-label="Bus list">
@@ -186,7 +197,7 @@ export default function FleetWorkspace({ vehicles = [], kiosks = [], checkIns = 
               <ul className="divide-y divide-border" aria-label="Buses">
                 {rows.map((r) => (
                   <li key={r.vehicle.id}>
-                    <button type="button" onClick={() => setMapFocus(r.vehicle.id)} disabled={r.location.state === "unavailable"} aria-label={`Show ${r.vehicle.name} on the map (${where(r)}, ${speedText(r) === "—" ? "speed not known" : speedText(r)}, ${cameraIds.has(r.vehicle.id) ? CAMERAS_PER_TABLET : "no"} live cameras)`} className="grid w-full grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-3 px-5 py-2.5 text-left text-body-sm hover:bg-accent/60 disabled:hover:bg-transparent">
+                    <button type="button" onClick={() => setMapFocus(r.vehicle.id)} aria-pressed={r.vehicle.id === busFocus} disabled={r.location.state === "unavailable"} aria-label={`Show ${r.vehicle.name} on the map (${where(r)}, ${speedText(r) === "—" ? "speed not known" : speedText(r)}, ${cameraIds.has(r.vehicle.id) ? CAMERAS_PER_TABLET : "no"} live cameras)`} className={`grid w-full grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-3 px-5 py-2.5 text-left text-body-sm hover:bg-accent/60 disabled:hover:bg-transparent ${r.vehicle.id === busFocus ? "bg-secondary" : ""}`}>
                     <span className="min-w-0">
                       <span className="flex items-center gap-2"><span className={`h-2 w-2 shrink-0 rounded-full ${r.location.state === "live" ? "bg-success" : r.location.state === "last_known" ? "bg-warning" : "bg-muted-foreground/40"}`} aria-hidden="true" /><strong className="truncate">{r.vehicle.name}</strong></span>
                       <span className="block truncate text-caption text-muted-foreground">{where(r)}</span>

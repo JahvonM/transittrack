@@ -1,10 +1,12 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { Hourglass, RefreshCw } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import BusLoader from "@/components/BusLoader";
-import { EmptyState, PageActions, PageIntro, StatusChip } from "@/components/admin/kit";
+import { EmptyState, FocusNote, PageActions, PageIntro, StatusChip } from "@/components/admin/kit";
+import useAdminFocus from "@/hooks/useAdminFocus";
 import { bucketOf, legKey, routeCoverage, stopKey, typicalSeconds } from "@/lib/travelTimes";
 
 const fmt = (s) => {
@@ -29,6 +31,8 @@ export default function TravelTimesTab() {
   const [routes, setRoutes] = useState(null);
   const [learned, setLearned] = useState({});
   const [busy, setBusy] = useState(false);
+  // A route picked in the planner, explorer or Plan pickups: just that one.
+  const [routeFocus, setRouteFocus] = useAdminFocus("route");
 
   const load = async () => {
     const [r, t] = await Promise.all([
@@ -60,6 +64,7 @@ export default function TravelTimesTab() {
   const bucket = bucketOf(Date.now());
 
   if (!routes) return <BusLoader className="py-12" />;
+  const focusRoute = routeFocus ? routes.find((r) => r.id === routeFocus) || null : null;
 
   return (
     <div className="space-y-4">
@@ -73,10 +78,15 @@ export default function TravelTimesTab() {
         </Button>
       </PageActions>
 
+      {focusRoute && (
+        <FocusNote className="mb-0" onClear={() => setRouteFocus("")} clearLabel="Show all routes">
+          Showing <span className="font-semibold">{focusRoute.name}</span> only.
+        </FocusNote>
+      )}
       {routes.length === 0 ? (
         <EmptyState icon={Hourglass} title="No routes yet">Add a route with its stops in Routes first.</EmptyState>
       ) : (
-        routes.map((route) => (
+        (focusRoute ? [focusRoute] : routes).map((route) => (
           <RouteCard key={route.id} route={route} record={learned[route.id]} bucket={bucket} />
         ))
       )}
@@ -97,6 +107,7 @@ function RouteCard({ route, record, bucket }) {
       <header className="flex flex-wrap items-center gap-2 border-b border-border px-5 py-4">
         <Hourglass className="h-[18px] w-[18px] text-muted-foreground" aria-hidden="true" />
         <h2 className="text-title-sm font-bold">{route.name}</h2>
+        <Link to={`/admin/route-planner?route=${encodeURIComponent(route.id)}`} className="text-body-sm font-semibold text-muted-foreground underline underline-offset-4 hover:text-foreground" aria-label={`Open ${route.name} in the Route planner`}>Open in planner</Link>
         {status && (
           <StatusChip tone={cov.learned === cov.total ? "success" : cov.learned ? "info" : "neutral"}>
             {status} · {cov.learned}/{cov.total} legs

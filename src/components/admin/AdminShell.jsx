@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { accountName, nameInitials } from "@/lib/userName";
 import {
   Activity,
@@ -57,7 +57,7 @@ import Logo from "@/components/Logo";
 import LiveClock from "@/components/LiveClock";
 import { cn } from "@/lib/utils";
 import { PageSlots } from "@/components/admin/kit";
-import { ADMIN_HUBS, ADMIN_MENU, groupOf, hubOf, hubTarget, rememberTab } from "@/lib/adminMenu";
+import { ADMIN_HUBS, ADMIN_MENU, carriedSearch, groupOf, hubOf, hubTarget, rememberTab } from "@/lib/adminMenu";
 
 // Every admin section, for its label, its icon and the search box. Where each
 // one sits in the sidebar (alone, as a tab of a hub, or in a folding group) is
@@ -176,10 +176,12 @@ function SidebarNav({ active, onNavigate }) {
  </nav>;
 }
 
-// A hub's tabs, under its page title. Each tab is a link to its own address.
+// A hub's tabs, under its page title. Each tab is a link to its own address,
+// keeping the bus, driver, route or person picked here (see carry).
 // On a phone the row scrolls sideways and starts at the open tab.
 function HubTabs({ hub, active }) {
   const row = useRef(null);
+  const { search } = useLocation();
   useEffect(() => {
     const el = row.current;
     const on = el?.querySelector('[aria-current="page"]');
@@ -196,7 +198,7 @@ function HubTabs({ hub, active }) {
           return (
             <Link
               key={t.id}
-              to={"/admin/" + t.id}
+              to={"/admin/" + t.id + carriedSearch(t.id, search)}
               aria-current={on ? "page" : undefined}
               className={cn(
                 "inline-flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg px-3 text-body-sm font-semibold transition-colors",

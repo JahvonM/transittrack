@@ -103,6 +103,17 @@ export function Toolbar({ children, actions, className }) {
   );
 }
 
+// "Showing Bus 1's shifts · Show all": a list narrowed to what was picked in
+// another tab of the same hub, with a way back to everything.
+export function FocusNote({ children, onClear, clearLabel = "Show all", className }) {
+  return (
+    <div role="status" className={cn("mb-4 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl bg-secondary px-4 py-2 text-body-sm", className)}>
+      <span className="min-w-0 flex-1">{children}</span>
+      {onClear && <button type="button" onClick={onClear} className="min-h-[36px] font-semibold underline-offset-4 hover:underline">{clearLabel}</button>}
+    </div>
+  );
+}
+
 // Pill filters / view switch. options: [{ value, label, count? }]
 export function Segmented({ value, onChange, options, label, className, size = "md" }) {
   return (

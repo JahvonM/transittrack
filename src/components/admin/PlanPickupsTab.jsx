@@ -5,7 +5,8 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { confirmAction } from "@/components/ConfirmHost";
-import { EmptyState, Kpi, KpiRow, PageIntro, Panel, Segmented, StatusChip } from "@/components/admin/kit";
+import { EmptyState, FocusNote, Kpi, KpiRow, PageIntro, Panel, Segmented, StatusChip } from "@/components/admin/kit";
+import useAdminFocus from "@/hooks/useAdminFocus";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -188,8 +189,12 @@ export default function PlanPickupsTab({ companyId: fixedCompanyId = '' }) {
     } finally { actionLock.current = false; }
   };
 
+  // A route picked in the planner, explorer or Travel times: its riders only.
+  const [routeFocus, setRouteFocus] = useAdminFocus("route");
+  const focusRoute = routeFocus ? routes.find((r) => r.id === routeFocus) : null;
   const attention = people.filter((p) => !["ok", "no_pickup"].includes(p.status));
   const visible = people.filter((p) => {
+    if (focusRoute && p.route_id !== focusRoute.id) return false;
     if (view === "attention" && ["ok", "no_pickup"].includes(p.status)) return false;
     if (view === "ready" && p.status !== "ok") return false;
     if (view === "no_pickup" && p.status !== "no_pickup") return false;
@@ -225,6 +230,11 @@ export default function PlanPickupsTab({ companyId: fixedCompanyId = '' }) {
   return (
     <div className="space-y-4">
       <PageIntro>Review pickups and assign the right bus. Changes apply only after confirmation.</PageIntro>
+      {focusRoute && (
+        <FocusNote onClear={() => { setRouteFocus(""); setActiveKey(""); setChoice(null); }} clearLabel="Show all routes">
+          Showing riders of <span className="font-semibold">{focusRoute.name}</span> only.
+        </FocusNote>
+      )}
       <div className="flex flex-wrap items-center justify-end gap-2">
         {!fixedCompanyId && companies.length > 1 && <div className="w-full sm:w-60"><Select value={companyId} onValueChange={changeCompany} disabled={!!busy}>
           <SelectTrigger aria-label="Company" className="rounded-xl"><SelectValue /></SelectTrigger>

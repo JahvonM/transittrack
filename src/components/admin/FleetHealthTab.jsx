@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Activity, AlertTriangle, BatteryLow, Satellite, Bus, CloudUpload, CreditCard, MapPinOff, RefreshCw, TabletSmartphone } from "lucide-react";
 import { APP_BUILD } from "@/lib/appHealth";
+import { FocusNote } from "@/components/admin/kit";
+import useAdminFocus from "@/hooks/useAdminFocus";
 
 // One screen for "is everything working out there?": per bus, how fresh its
 // GPS is, whether its driver and boarding tablets are checking in, the card
@@ -150,7 +152,10 @@ export default function FleetHealthTab({ vehicles = [] }) {
     }).sort((a, b) => Number(b.problem) - Number(a.problem) || (a.v.name || "").localeCompare(b.v.name || "", undefined, { numeric: true }));
   }, [fleet, devices, errors]);
 
-  const shown = problemsOnly ? rows.filter((r) => r.problem) : rows;
+  // A bus picked on the Live map or in Fleet workspace: just its row.
+  const [busFocus, setBusFocus] = useAdminFocus("bus");
+  const pickedBus = busFocus ? fleet.find((v) => v.id === busFocus) : null;
+  const shown = pickedBus ? rows.filter((r) => r.v.id === busFocus) : problemsOnly ? rows.filter((r) => r.problem) : rows;
   const tiles = [
     { label: "Tracking live", value: rows.filter((r) => r.cells.gps.tone === "ok").length, icon: Activity, tone: "ok" },
     { label: "GPS lost / late", value: rows.filter((r) => ["bad", "warn"].includes(r.cells.gps.tone)).length, icon: MapPinOff, tone: "bad" },
@@ -164,6 +169,11 @@ export default function FleetHealthTab({ vehicles = [] }) {
   return (
     <div className="space-y-4">
       <RequestHealth devices={devices}/>
+      {pickedBus && (
+        <FocusNote className="mb-0" onClear={() => setBusFocus("")} clearLabel="Show all buses">
+          Showing <span className="font-semibold">{pickedBus.name}</span> only. The Live map and Fleet workspace open on it too.
+        </FocusNote>
+      )}
       <div className="flex flex-wrap items-center gap-3">
         <span className="text-body-sm text-muted-foreground">Updated {loadedAt ? loadedAt.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" }) : "…"} · refreshes every 30 s · current version {APP_BUILD}</span>
         <div className="ml-auto flex items-center gap-3">
@@ -206,7 +216,7 @@ export default function FleetHealthTab({ vehicles = [] }) {
             {shown.map((r) => (
               <tr key={r.v.id} className={`border-b last:border-0 align-top ${r.problem ? "" : "opacity-90"}`}>
                 <td className="px-3 py-2.5 min-w-[150px]">
-                  <p className="font-medium flex items-center gap-1.5 whitespace-nowrap"><Bus className="w-4 h-4 text-muted-foreground shrink-0" />{r.v.name}</p>
+                  <p className="font-medium flex items-center gap-1.5 whitespace-nowrap"><Bus className="w-4 h-4 text-muted-foreground shrink-0" /><button type="button" onClick={() => setBusFocus(r.v.id === busFocus ? "" : r.v.id)} aria-pressed={r.v.id === busFocus} title="Pick this bus for the other tabs" className="underline-offset-4 hover:underline">{r.v.name}</button></p>
                   <p className="text-xs text-muted-foreground pl-5 truncate max-w-[180px]">{[r.v.fleet_number, r.v.driver_name].filter(Boolean).join(" · ")}</p>
                 </td>
                 <td className="px-3 py-2.5"><Cell s={r.cells.gps} /></td>

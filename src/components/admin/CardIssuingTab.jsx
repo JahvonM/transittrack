@@ -19,6 +19,7 @@ import {
 import { useCardReader, formatUid, normalizeUid, HELPER_DOWNLOAD, HELPER_URL } from "@/lib/cardReader";
 import BulkCardIssue from "@/components/admin/BulkCardIssue";
 import { useLocation } from "react-router-dom";
+import useAdminFocus from "@/hooks/useAdminFocus";
 
 const ROLE_FILTERS = [
   { id: "all", label: "All" },
@@ -404,6 +405,8 @@ export default function CardIssuingTab({ companies = [] }) {
   const [roleFilter, setRoleFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedKey, setSelectedKey] = useState(() => new URLSearchParams(window.location.search).get("person"));
+  // Picking someone here keeps them picked in the other Passengers tabs.
+  const [, setPersonFocus] = useAdminFocus("person");
   const [phase, setPhase] = useState("noperson");
   const [message, setMessage] = useState("");
   const [lastUid, setLastUid] = useState("");
@@ -457,6 +460,7 @@ export default function CardIssuingTab({ companies = [] }) {
 
   const select = (p) => {
     setSelectedKey(p?.key || null);
+    setPersonFocus(p?.key || "");
     setAccess(p?.card?.access_level || p?.default_access || "");
     setExpiry("");
     setMessage("");

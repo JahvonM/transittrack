@@ -5,8 +5,10 @@ import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { confirmAction } from "@/components/ConfirmHost";
-import { Bus, FileSpreadsheet, FileText, History, Images, OctagonAlert, Pencil, Plus, Search, Trash2, Wrench } from "lucide-react";
-import { EmptyState, PageActions, Segmented, StatusChip } from "@/components/admin/kit";
+import { Bus, FileSpreadsheet, FileText, History, Images, OctagonAlert, Pencil, Plus, Search, Timer, Trash2, Wrench } from "lucide-react";
+import { EmptyState, FocusNote, PageActions, Segmented, StatusChip } from "@/components/admin/kit";
+import useAdminFocus from "@/hooks/useAdminFocus";
+import { cn } from "@/lib/utils";
 import { exportToCSV, exportToPDF } from "@/lib/exporters";
 import VehicleHistoryDialog from "./VehicleHistoryDialog";
 import VehicleFormDialog from "@/components/VehicleFormDialog";
@@ -28,6 +30,7 @@ const VEHICLE_COLS = [
 ];
 
 const km = (n) => (n == null || n === "" ? null : `${Number(n).toLocaleString()} km`);
+const enc = encodeURIComponent;
 
 export default function VehiclesTab({ vehicles, companies, routes, onChange, faults = [], schedules = [], inspectionResults = [] }) {
   const { toast } = useToast();
@@ -41,6 +44,17 @@ export default function VehiclesTab({ vehicles, companies, routes, onChange, fau
   }, [searchParams, setSearchParams]);
   const [editing, setEditing] = useState(null);
   const [historyVehicle, setHistoryVehicle] = useState(null);
+  // The bus (or the driver's buses) picked here or in the Drivers and Driver
+  // shifts tabs: shown outlined, and kept when switching tabs.
+  const [busFocus, setBusFocus] = useAdminFocus("bus");
+  const [driverFocus] = useAdminFocus("driver");
+  const focusIds = busFocus ? [busFocus] : driverFocus ? vehicles.filter((v) => v.driver_id === driverFocus).map((v) => v.id) : [];
+  const focusKey = focusIds.join(",");
+  useEffect(() => {
+    if (focusKey) document.getElementById("vehicle-" + focusKey.split(",")[0])?.scrollIntoView?.({ block: "nearest" });
+  }, [focusKey]);
+  const picked = busFocus ? vehicles.find((v) => v.id === busFocus) : null;
+  const pick = (v) => setBusFocus(focusIds.includes(v.id) ? "" : v.id, { driver: focusIds.includes(v.id) ? "" : v.driver_id || "" });
 
   const openAdd = () => { setEditing(null); setFormOpen(true); };
   const openEdit = (v) => { setEditing(v); setFormOpen(true); };
@@ -103,6 +117,11 @@ export default function VehiclesTab({ vehicles, companies, routes, onChange, fau
         ]} />
       </div>
 
+      {picked && (
+        <FocusNote onClear={() => setBusFocus("", { driver: "" })} clearLabel="Clear">
+          Picked: <span className="font-semibold">{picked.name}</span>{picked.driver_name ? <> · driver {picked.driver_name}</> : ""}. Drivers and Driver shifts open on it too.
+        </FocusNote>
+      )}
       {vehicles.length === 0 ? (
         <EmptyState icon={Bus} title="No buses yet" action={<Button size="sm" onClick={openAdd}><Plus className="h-4 w-4" /> Add your first bus</Button>}>
           Add a bus or taxi to start tracking it.
@@ -115,15 +134,22 @@ export default function VehiclesTab({ vehicles, companies, routes, onChange, fau
             const details = [v.fleet_number && `No. ${v.fleet_number}`, v.plate_number, km(v.current_odometer)].filter(Boolean);
             const nFaults = openFaults[v.id] || 0;
             const due = serviceDue[v.id];
+            const on = focusIds.includes(v.id);
+            const driverName = v.driver_name || v.driver_email;
+            const driverCell = v.driver_id
+              ? <Link to={`/admin/drivers?driver=${enc(v.driver_id)}&bus=${enc(v.id)}`} className="underline-offset-4 hover:underline" aria-label={`Open driver ${driverName || ""} of ${v.name}`}>{driverName || "Open driver"}</Link>
+              : driverName || <Link to={`/admin/drivers?bus=${enc(v.id)}`} className="font-medium text-muted-foreground underline underline-offset-4 hover:text-foreground" aria-label={`Assign a driver to ${v.name}`}>Assign a driver</Link>;
             return (
-              <li key={v.id} className="flex flex-col rounded-2xl border border-border bg-card">
+              <li key={v.id} id={"vehicle-" + v.id} aria-current={on ? "true" : undefined} className={cn("flex flex-col rounded-2xl border border-border bg-card", on && "ring-2 ring-ring")}>
                 <div className="flex items-start gap-3 p-4">
                   <div className="shrink-0 rounded-xl bg-secondary" title={getModel(modelIdFor(v)).label}>
                     {v.image_url ? <BusArtwork vehicle={v} width={90} className="h-16 w-24" alt={`${v.name} artwork`} /> : <VehicleModelThumb model={modelIdFor(v)} size={60} />}
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-start justify-between gap-2">
-                      <h2 className="truncate text-title-sm font-bold">{v.name}</h2>
+                      <h2 className="min-w-0 truncate text-title-sm font-bold">
+                        <button type="button" onClick={() => pick(v)} aria-pressed={on} title={on ? "Unpick this bus" : "Pick this bus for the other tabs"} className="max-w-full truncate text-left underline-offset-4 hover:underline">{v.name}</button>
+                      </h2>
                       <StatusChip status={bucket(v)} tone={bucket(v) === "on_trip" ? "success" : "neutral"} />
                     </div>
                     <p className="truncate text-body-sm text-muted-foreground">{details.join(" · ") || "No details yet"}</p>
@@ -131,7 +157,7 @@ export default function VehiclesTab({ vehicles, companies, routes, onChange, fau
                   </div>
                 </div>
                 <dl className="grid grid-cols-3 gap-3 border-t border-border px-4 py-3 text-body-sm">
-                  {[["Company", v.company_name || "None"], ["Driver", v.driver_name || v.driver_email || "Unassigned"], ["Route", routeName(v.route_id) || "None"]].map(([k, val]) => (
+                  {[["Company", v.company_name || "None"], ["Driver", driverCell], ["Route", v.route_id && routeName(v.route_id) ? <Link to={`/admin/route-planner?route=${enc(v.route_id)}`} className="underline-offset-4 hover:underline" aria-label={`Open route ${routeName(v.route_id)} of ${v.name}`}>{routeName(v.route_id)}</Link> : "None"]].map(([k, val]) => (
                     <div key={k} className="min-w-0">
                       <dt className="text-caption text-muted-foreground">{k}</dt>
                       <dd className="truncate font-semibold">{val}</dd>
@@ -144,6 +170,11 @@ export default function VehiclesTab({ vehicles, companies, routes, onChange, fau
                   <Button variant="outline" size="sm" asChild>
                     <Link to={"/vehicle/" + encodeURIComponent(v.id) + "?tab=studio"} aria-label={`Open 360 degree photo viewer for ${v.name}`}>
                       <Images className="mr-1.5 h-4 w-4" aria-hidden="true" /> 360° View
+                    </Link>
+                  </Button>
+                  <Button variant="outline" size="sm" asChild>
+                    <Link to={`/admin/shifts?bus=${enc(v.id)}`} aria-label={`Shifts on ${v.name}`}>
+                      <Timer className="mr-1.5 h-4 w-4" aria-hidden="true" /> Shifts
                     </Link>
                   </Button>
                   <span className="ml-auto flex items-center">
