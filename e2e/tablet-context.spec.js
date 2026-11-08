@@ -236,7 +236,7 @@ test('locked driver can request an admin PIN reset and stays locked',async({page
  expect(await page.evaluate(()=>localStorage.getItem('tt_driver_unlock_date'))).toBeNull();
 });
 
-test('boarding tablet uses its saved card file after restart without a server lookup',async({page})=>{
+test('boarding tablet uses its saved card file after restart when offline',async({page})=>{
  await mockApi(page,[]);
  let offline=false,lookups=0;
  const fingerprint=createHash('sha256').update('kiosk-test:AABBCCDD').digest('hex');
@@ -258,9 +258,9 @@ test('boarding tablet uses its saved card file after restart without a server lo
  await page.reload();
  await expect(page.getByRole('button',{name:/Passenger list: 1 card\b/})).toBeVisible();
  await page.evaluate(()=>window.dispatchEvent(new CustomEvent('tt-badge',{detail:'AABBCCDD'})));
- await expect(page.getByText('Local Passenger',{exact:true})).toBeVisible();
- expect(lookups).toBe(0);
- await page.getByRole('button',{name:/Boarding/}).click();
+ // The tap asks the server first (no answer), then the saved list records it by itself.
+ await expect(page.getByText('Welcome aboard, Local!',{exact:true})).toBeVisible();
+ expect(lookups).toBe(1);
  await expect(page.getByText('Saved offline — will sync automatically',{exact:true})).toBeVisible();
  const queue=await page.evaluate(()=>JSON.parse(localStorage.getItem('tt_offline_checkins')));
  expect(queue[0].payload).toMatchObject({staff_id:'rider',method:'nfc',directory_grant:'a'.repeat(64),card_fingerprint:fingerprint});
@@ -286,7 +286,7 @@ async function scannerBoarding(page) {
 test('first scanner tap works without a prior reader announcement',async({page})=>{
  await scannerBoarding(page);
  await page.evaluate(()=>window.dispatchEvent(new CustomEvent('tt-badge',{detail:'AABBCCDD'})));
- await expect(page.getByText('First Tap Passenger',{exact:true})).toBeVisible();
+ await expect(page.getByText('Welcome aboard, First!',{exact:true})).toBeVisible();
 });
 test('boarding drains wake taps once and reacquires its screen lock',async({page})=>{
  await page.addInitScript(()=>{
@@ -305,7 +305,7 @@ test('boarding drains wake taps once and reacquires its screen lock',async({page
    await window.wakeLocks.at(-1).release();
    window.dispatchEvent(new Event('pageshow'));
  });
- await expect(page.getByText('First Tap Passenger',{exact:true})).toBeVisible();
+ await expect(page.getByText('Welcome aboard, First!',{exact:true})).toBeVisible();
  await expect.poll(()=>page.evaluate(()=>window.wakeRequests)).toBe(2);
  expect(await page.evaluate(()=>window.__ttBadgeInbox)).toEqual([]);
  expect(await page.evaluate(()=>Object.values(localStorage).join(''))).not.toContain('AABBCCDD');
@@ -320,7 +320,6 @@ test('completed card boarding returns to swipe screen with company banner',async
  });
  await expect(page.getByLabel('Company banner',{exact:true})).toContainText('Company A');
  await page.evaluate(()=>window.dispatchEvent(new CustomEvent('tt-badge',{detail:'AABBCCDD'})));
- await page.getByRole('button',{name:/Boarding/}).click();
  await expect(page.getByText(/Welcome/).first()).toBeVisible();
  await expect(page.getByText(/Slide to/).first()).toBeVisible({timeout:10000});
  await expect(page.getByLabel('Company banner',{exact:true})).toContainText('Company A');
