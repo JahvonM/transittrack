@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 
-async function setup(page, { managed = true, release = null, supportEnabled = false, kiosk = null } = {}) {
+async function setup(page, { managed = true, release = null, supportEnabled = false, kiosk = null, others = [] } = {}) {
   const controls = [], writes = [], support = [];
   const device = { id: "tablet-managed", label: "Driver tablet test", company_id: "a", kiosk_type: "driver", vehicle_id: "bus-a",
     vehicle_name: "Bus A", status: "active", paired: true, last_seen: new Date().toISOString(),
@@ -22,8 +22,8 @@ async function setup(page, { managed = true, release = null, supportEnabled = fa
     if (url.includes("/functions/entityAccess")) {
       if (["create", "update", "delete"].includes(b.operation)) writes.push(b);
       if (b.entity === "User") return r.fulfill({ json: { result: { id: "admin", role: "admin", full_name: "Test Admin" } } });
-      if (b.entity === "AdminBootstrap") return r.fulfill({ json: { result: { datasets: Object.fromEntries((b.datasets || []).map(key => [key, key === "kiosks" ? [device] : []])), errors: {} } } });
-      if (b.entity === "KioskDevice") return r.fulfill({ json: { result: [device] } });
+      if (b.entity === "AdminBootstrap") return r.fulfill({ json: { result: { datasets: Object.fromEntries((b.datasets || []).map(key => [key, key === "kiosks" ? [device, ...others] : []])), errors: {} } } });
+      if (b.entity === "KioskDevice") return r.fulfill({ json: { result: [device, ...others] } });
       return r.fulfill({ json: { result: [] } });
     }
     return r.fulfill({ json: { id: "test-app", public_settings: { authentication_required: false } } });
@@ -150,4 +150,20 @@ test("older installations cannot issue permanent kiosk commands", async ({ page 
   await expect(page.getByRole("button", { name: "Set recovery PIN", exact: true })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Enable permanent kiosk", exact: true })).toBeDisabled();
   expect(controls).toHaveLength(0);
+});
+
+test("each paired tablet says how its pass stands, and the top line counts the ones to fix", async ({ page }) => {
+  const day = (n) => new Date(Date.now() + n * 86400000).toISOString();
+  const tablet = (id, label, pass) => ({ id, label, company_id: "a", kiosk_type: "bus_boarding", vehicle_id: "bus-a", vehicle_name: "Bus A", status: "active", paired: true, last_seen: new Date().toISOString(), pass });
+  await setup(page, { others: [
+    tablet("moved", "Moved tablet", { state: "moved", expires_at: day(40) }),
+    tablet("soon", "Ending tablet", { state: "expiring", expires_at: day(12) }),
+    tablet("fine", "Fine tablet", { state: "ok", expires_at: day(80) }),
+  ] });
+  await page.goto("/admin/kiosks");
+  await expect(page.getByRole("status").filter({ hasText: "1 tablet needs a new pairing code now · 1 tablet's pass ends within 30 days" })).toBeVisible();
+  await expect(page.getByRole("alert").filter({ hasText: "Needs a new pairing code" })).toContainText("Its bus, company or type changed after it was paired");
+  await expect(page.getByText(/^Pass ends /)).toBeVisible();
+  await expect(page.getByText("In 12 days.", { exact: false })).toBeVisible();
+  await expect(page.getByText(/^Pass until /)).toBeVisible();
 });
