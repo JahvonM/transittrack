@@ -5,13 +5,18 @@ import React, { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Delete, Lock, Unlock } from "lucide-react";
+import { Delete, Lock, Repeat, Unlock } from "lucide-react";
+import { busChoiceMessage } from "@/lib/driverOwnDevice";
 
 // The reviewer back door only exists in reviewer builds (VITE_REVIEWER_MODE),
 // so a production tablet has no PIN that skips verification.
 const REVIEWER_PIN = import.meta.env.VITE_REVIEWER_MODE === "true" ? "9999" : null;
 
-export default function PinGate({ vehicle, deviceId, invoke, onUnlock }) {
+// `verify` replaces the usual check (Switch bus checks the new bus's PIN).
+// `onlineOnly`: no unlocking with a PIN saved on the tablet, and no "Forgot
+// PIN?" (that asks about this tablet's current bus). `onSwitchBus` adds a
+// "Switch bus" button under the keypad.
+export default function PinGate({ vehicle, deviceId, invoke, onUnlock, verify, onlineOnly = false, onSwitchBus }) {
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
   const [checking, setChecking] = useState(false);
@@ -37,7 +42,7 @@ export default function PinGate({ vehicle, deviceId, invoke, onUnlock }) {
     busyRef.current = true;
     setChecking(true);
     try {
-      const result = await invoke("verify_pin", { pin: value });
+      const result = await (verify ? verify(value) : invoke("verify_pin", { pin: value }));
       if (result?.ok !== true) throw new Error("PIN verification failed");
       // The pass every other action on this tablet needs. If it can't be kept,
       // say so: unlocking into a screen that bounces straight back here is what
@@ -48,6 +53,12 @@ export default function PinGate({ vehicle, deviceId, invoke, onUnlock }) {
       const pinSaved = await rememberPin(deviceId, value);
       onUnlock({ pinSaved });
     } catch (e) {
+      // Only the server can check another bus's PIN, so there's no offline try.
+      if (onlineOnly) {
+        setError(busChoiceMessage(e, "No connection. Switching bus needs Wi-Fi or mobile data. Connect, then try again."));
+        setPin("");
+        return;
+      }
       // Say what actually went wrong — a locked-out or offline tablet is not a
       // wrong PIN, and drivers were reading all three as one.
       const status = httpStatus(e);
@@ -122,8 +133,13 @@ export default function PinGate({ vehicle, deviceId, invoke, onUnlock }) {
       <Button size="lg" className="mt-3 h-14 w-full text-body" onClick={() => submit()} disabled={pin.length < 4 || checking} loading={checking}>
         <Unlock className="w-5 h-5" aria-hidden="true" /> Unlock
       </Button>
-      <Button variant="ghost" className="mt-2 w-full" onClick={() => setForgot(!forgot)} aria-expanded={forgot}>Forgot PIN?</Button>
-      {forgot && (
+      {onSwitchBus ? (
+        <div className="mt-2 grid grid-cols-2 gap-2">
+          <Button variant="ghost" className="w-full" onClick={() => setForgot(!forgot)} aria-expanded={forgot}>Forgot PIN?</Button>
+          <Button variant="ghost" className="w-full" onClick={onSwitchBus}><Repeat className="w-4 h-4" aria-hidden="true" /> Switch bus</Button>
+        </div>
+      ) : !onlineOnly && <Button variant="ghost" className="mt-2 w-full" onClick={() => setForgot(!forgot)} aria-expanded={forgot}>Forgot PIN?</Button>}
+      {forgot && !onlineOnly && (
         <div className="mt-2 space-y-3 rounded-xl border border-border bg-secondary/50 p-3">
           <p className="text-body-sm">Your administrator can set a new PIN for {vehicle?.name || "this bus"}. Your current PIN cannot be displayed.</p>
           {requested

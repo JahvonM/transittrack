@@ -252,7 +252,9 @@ export default function KioskDeviceDialog({ open, onOpenChange, companies, vehic
                 <p role="status" className="text-xs text-muted-foreground">
                   {kioskType === "job_signing" && device.kiosk_type === "job_signing"
                     ? "The tablet stays paired and switches to the new bus within a minute. Move it while it's online: signatures saved on it with no signal can't be sent after a move and are kept on the tablet for review."
-                    : "This tablet will need a new pairing code after it changes bus."}
+                    : kioskType === "driver" && device.kiosk_type === "driver"
+                      ? "The tablet stays paired and switches to the new bus within a minute, then asks for the new bus's PIN. Drivers can also do this on the tablet with Switch bus."
+                      : "This tablet will need a new pairing code after it changes bus."}
                 </p>
               )}
             </div>
