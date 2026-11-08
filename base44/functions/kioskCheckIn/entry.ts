@@ -539,7 +539,10 @@ export default async function(req) {
       // explicitly (status is required from the client) — next_status from
       // lookup_tag/lookup_code is only ever a suggested default the UI
       // highlights, never the sole option, since a missed tap or skipped
-      // stop would otherwise leave no way to correct a wrong guess. ---
+      // stop would otherwise leave no way to correct a wrong guess. A card
+      // tap on a both-way reader sends the direction lookup_tag gave it
+      // (tap on, tap again to get off); the repeat and review checks below
+      // still apply, and the driver can correct a ride on the driver tablet. ---
       case 'check_in': {
         const { staff_id, staff_name, method, code_type, status: requestedStatus } = body;
         if (!staff_id && !staff_name) return Response.json({ error: 'staff_id or staff_name required' }, { status: 400 });
