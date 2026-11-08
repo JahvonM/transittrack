@@ -1,4 +1,4 @@
-import { RIDE_MAX_MS, readerMode, tapAdvice } from "../../base44/shared/boardingEvents.ts";
+import { RIDE_MAX_MS, automaticTapAdvice, readerMode, tapAdvice } from "../../base44/shared/boardingEvents.ts";
 
 // The boarding tablet's own memory of recent taps per passenger: direction
 // and when it happened, saved for taps recorded online and taps saved
@@ -37,9 +37,12 @@ export function tapsFor(staffId) {
 }
 
 // What to do with a tap on this tablet: direction and the tap it repeats.
-export function localTapAdvice(staffId, mode, now = Date.now()) {
-  const advice = tapAdvice(tapsFor(staffId), readerMode(mode), now);
-  return { next_status: advice.status, already: advice.repeat ? { status: advice.repeat.status, at: new Date(advice.repeat.at).toISOString() } : null };
+// `automatic`: a both-way reader recording card taps by itself (tap on, tap
+// again to get off), with the same rules as the server.
+export function localTapAdvice(staffId, mode, now = Date.now(), automatic = false) {
+  const m = readerMode(mode), auto = automatic && m === "both";
+  const advice = auto ? automaticTapAdvice(tapsFor(staffId), now) : tapAdvice(tapsFor(staffId), m, now);
+  return { next_status: advice.status, automatic: auto, already: advice.repeat ? { status: advice.repeat.status, at: new Date(advice.repeat.at).toISOString() } : null };
 }
 
 export function forgetTaps() {
