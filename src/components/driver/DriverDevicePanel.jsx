@@ -51,12 +51,12 @@ export default function DriverDevicePanel({ session, deviceId, onUnpair, onChang
             <Switch checked={isDark} onCheckedChange={toggle} aria-label="Dark screens" />
           </Fact>
         </div>
-        {own && onChangeBus && (
+        {onChangeBus && (
           <>
             <Button variant="outline" className="w-full" onClick={onChangeBus} disabled={!!session?.open_shift}>
-              <Repeat className="w-4 h-4 mr-2" /> Change bus
+              <Repeat className="w-4 h-4 mr-2" /> {own ? "Change bus" : "Switch bus"}
             </Button>
-            {session?.open_shift && <p className="text-xs text-muted-foreground text-center">End your shift to change bus.</p>}
+            {session?.open_shift && <p className="text-xs text-muted-foreground text-center">End your shift to {own ? "change" : "switch"} bus.</p>}
           </>
         )}
         {!own && <Button asChild variant="outline" className="w-full"><Link to="/tablet?choose=1">Choose tablet screen</Link></Button>}

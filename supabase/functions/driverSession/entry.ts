@@ -683,19 +683,28 @@ async function ownDeviceIdle(base44, device) {
     update_requested_at: device.update_requested_at || null,
   };
 }
+// The company's buses in service, marking ones another device has a shift on.
+async function companyBuses(base44, device) {
+  const db = base44.asServiceRole.entities;
+  const [vehicles, shifts] = await Promise.all([
+    db.Vehicle.filter({ company_id: device.company_id }, 'name', 300),
+    db.DriverShift.filter({ company_id: device.company_id }, '-started_at', 300).catch(() => []),
+  ]);
+  const busy = new Set(shifts.filter((s) => !s.ended_at && s.device_id !== device.id).map((s) => s.vehicle_id));
+  const buses = vehicles.filter((v) => v.company_id === device.company_id && v.in_service !== false)
+    .map((v) => ({ id: v.id, name: v.name || 'Bus', plate_number: v.plate_number || '', type: v.type || 'bus', busy: busy.has(v.id) }));
+  return { buses, current: device.vehicle_id || null };
+}
+// The bus this device is on, or null when it was removed (or moved to another
+// company). A shift on a removed bus can't go on, so it never blocks a move.
+async function currentBus(base44, device) {
+  const bus = device.vehicle_id ? await loadVehicle(base44, device.vehicle_id) : null;
+  return bus && bus.company_id === device.company_id ? bus : null;
+}
 async function ownDeviceAction(base44, device, body, action) {
   const db = base44.asServiceRole.entities;
-  if (action === 'list_buses') {
-    const [vehicles, shifts] = await Promise.all([
-      db.Vehicle.filter({ company_id: device.company_id }, 'name', 300),
-      db.DriverShift.filter({ company_id: device.company_id }, '-started_at', 300).catch(() => []),
-    ]);
-    const busy = new Set(shifts.filter((s) => !s.ended_at && s.device_id !== device.id).map((s) => s.vehicle_id));
-    const buses = vehicles.filter((v) => v.company_id === device.company_id && v.in_service !== false)
-      .map((v) => ({ id: v.id, name: v.name || 'Bus', plate_number: v.plate_number || '', type: v.type || 'bus', busy: busy.has(v.id) }));
-    return Response.json({ buses, current: device.vehicle_id || null });
-  }
-  if (device.vehicle_id && (await openShiftsOn(base44, device.vehicle_id)).some((s) => s.device_id === device.id)) {
+  if (action === 'list_buses') return Response.json(await companyBuses(base44, device));
+  if ((await currentBus(base44, device)) && (await openShiftsOn(base44, device.vehicle_id)).some((s) => s.device_id === device.id)) {
     return Response.json({ error: `End your shift on ${device.vehicle_name || 'this bus'} before changing bus`, code: 'SHIFT_OPEN' }, { status: 409 });
   }
   let next = null;
@@ -720,6 +729,56 @@ async function ownDeviceAction(base44, device, body, action) {
   return Response.json({ ok: true, vehicle: next ? tabletVehicle(next) : null });
 }
 
+// ---- A bus's own driver tablet moved to another bus ----
+// On the locked tablet: "Switch bus", pick the bus it is in now and enter THAT
+// bus's PIN. The old bus's PIN isn't asked for, so a tablet whose bus was
+// removed isn't stuck. The new bus's PIN is checked under its own attempt
+// limit (shared with its own tablet), and this tablet also gets 10 tries per
+// 15 minutes in all, so it can't be used to guess PINs across the fleet. A
+// tablet can't leave a bus while its driver is on shift, or join a bus that
+// has a driver on shift on another device. The tablet and its credential move
+// together, so it stays paired, and it opens on the new bus straight away.
+const TABLET_BUS_ACTIONS = ['list_buses', 'switch_bus'];
+async function tabletBusAction(base44, device, body, action) {
+  const db = base44.asServiceRole.entities;
+  const current = await currentBus(base44, device);
+  const shiftOpen = !!current && (await openShiftsOn(base44, current.id)).some((s) => s.device_id === device.id);
+  const shiftMessage = `End the shift on ${current?.name || 'this bus'} before switching bus`;
+  // shift_open: the tablet says so before anyone picks a bus or types a PIN.
+  if (action === 'list_buses') return Response.json({ ...(await companyBuses(base44, device)), ...(shiftOpen ? { shift_open: shiftMessage } : {}) });
+  if (typeof body.vehicle_id !== 'string' || !VEHICLE_ID.test(body.vehicle_id)) return Response.json({ error: 'Choose a bus' }, { status: 400 });
+  if (current && current.id === body.vehicle_id) return Response.json({ error: `This tablet is already on ${current.name || 'that bus'}. Enter its PIN on the first screen.`, code: 'SAME_BUS' }, { status: 409 });
+  if (shiftOpen) return Response.json({ error: shiftMessage, code: 'SHIFT_OPEN' }, { status: 409 });
+  const next = await loadVehicle(base44, body.vehicle_id);
+  if (!next || next.company_id !== device.company_id) return Response.json({ error: 'That bus was not found' }, { status: 404 });
+  if (next.in_service === false) return Response.json({ error: `${next.name || 'That bus'} is not in service` }, { status: 409 });
+  if ((await openShiftsOn(base44, next.id)).some((s) => s.device_id !== device.id)) {
+    return Response.json({ error: `${next.name || 'That bus'} already has a driver on shift`, code: 'BUS_BUSY' }, { status: 409 });
+  }
+  // A tablet paired before credentials existed has nothing to move: it needs a new pairing code.
+  const credential = (await db.DeviceCredential.filter({ device_id: device.id }, '-issued_at', 1))[0];
+  if (!credential) return Response.json({ error: 'Pair this tablet again', code: 'DEVICE_ACCESS_REQUIRED' }, { status: 401 });
+  if (!(await reserveAttempt(base44, 'driver-switch-bus:' + device.id, 10, 15 * 60_000))) {
+    return Response.json({ error: 'Too many tries on this tablet. Wait 15 minutes and try again.' }, { status: 429 });
+  }
+  const pinResult = await pinAttempt(base44, next, body.pin);
+  if (pinResult === 'locked') return Response.json({ error: 'Too many PIN attempts. Try again in 15 minutes.' }, { status: 429 });
+  if (pinResult === 'wrong') return Response.json({ error: `Incorrect PIN for ${next.name || 'that bus'}` }, { status: 403 });
+  await db.KioskDevice.update(device.id, { vehicle_id: next.id, vehicle_name: next.name || '' });
+  try { await db.DeviceCredential.update(credential.id, { vehicle_id: next.id }); }
+  catch (error) { await db.KioskDevice.update(device.id, { vehicle_id: device.vehicle_id || '', vehicle_name: device.vehicle_name || '' }); throw error; }
+  await db.AuditLog.create({
+    actor_name: 'Driver tablet', actor_role: 'driver', action: 'update', entity: 'KioskDevice', record_id: device.id, page: 'driver tablet',
+    summary: `Driver tablet "${device.label || 'Driver tablet'}" switched from ${current?.name || device.vehicle_name || 'a removed bus'} to ${next.name || 'another bus'} with that bus's PIN`,
+  }).catch(() => {});
+  // The new bus's PIN was just given, so the tablet opens unlocked on it.
+  const moved = { ...device, vehicle_id: next.id, vehicle_name: next.name || '' };
+  return Response.json({
+    ok: true, vehicle: tabletVehicle(next), driver_name: next.driver_name || '',
+    driver_grant: await issueGrant(base44, moved, 'driver', next.id, 20 * 3600_000),
+  });
+}
+
 export default async function(req) {
   // After the switch, calls from the installed tablet app go on to Supabase.
   const forwarded = await forwardToSupabase(req, 'driverSession');
@@ -737,11 +796,13 @@ export default async function(req) {
     const vehicleId = device.vehicle_id;
     const ownDevice = device.personal === true;
     if (ownDevice && OWN_DEVICE_ACTIONS.includes(action)) return ownDeviceAction(base44, device, body, action);
+    if (!ownDevice && TABLET_BUS_ACTIONS.includes(action)) return tabletBusAction(base44, device, body, action);
     if (ownDevice && !vehicleId) {
       if (action === 'heartbeat') return Response.json(await ownDeviceIdle(base44, device));
       return Response.json({ error: 'Choose the bus you are driving first', code: 'BUS_REQUIRED' }, { status: 409 });
     }
-    if (!vehicleId) return Response.json({ error: 'No vehicle assigned to this device' }, { status: 400 });
+    // BUS_GONE: the tablet offers "Switch bus" instead of the old bus's PIN.
+    if (!vehicleId) return Response.json({ error: 'No vehicle assigned to this device', code: 'BUS_GONE' }, { status: 400 });
 
     if (!['heartbeat', 'verify_pin', 'request_pin_reset', 'register_push_token', 'sos', 'phone_unlock_code', 'phone_unlock_status'].includes(action) && !(await validGrant(base44, device, body.driver_grant, 'driver', vehicleId))) return Response.json({ error: 'Driver PIN verification required', code: 'DRIVER_PIN_REQUIRED' }, { status: 401 });
 
@@ -824,7 +885,7 @@ export default async function(req) {
       }
       case 'verify_pin': {
         const vehicle = await loadVehicle(base44, vehicleId);
-        if (!vehicle || vehicle.company_id !== companyId) return Response.json({ error: 'Vehicle assignment mismatch' }, { status: 403 });
+        if (!vehicle || vehicle.company_id !== companyId) return Response.json({ error: 'This tablet\'s bus was removed. Tap Switch bus and choose the bus it is in now.', code: 'BUS_GONE' }, { status: 403 });
         const pinResult = await pinAttempt(base44, vehicle, body.pin);
         if (pinResult === 'locked') return Response.json({ error: 'Too many PIN attempts. Try again in 15 minutes.' }, { status: 429 });
         if (pinResult === 'wrong') return Response.json({ error: 'Incorrect PIN or no PIN configured' }, { status: 403 });
@@ -1004,8 +1065,9 @@ export default async function(req) {
       }
       case 'heartbeat': {
         const vehicle = await loadVehicle(base44, vehicleId);
-        if (!vehicle) return Response.json({ error: 'Vehicle not found' }, { status: 404 });
-        if (vehicle.company_id !== companyId) return Response.json({ error: 'Vehicle assignment mismatch' }, { status: 403 });
+        const gone = { code: 'BUS_GONE', ...(ownDevice ? { personal: true } : {}) };
+        if (!vehicle) return Response.json({ error: 'Vehicle not found', ...gone }, { status: 404 });
+        if (vehicle.company_id !== companyId) return Response.json({ error: 'Vehicle assignment mismatch', ...gone }, { status: 403 });
         // Passengers' names, contact details and pickup points only reach a
         // tablet the driver has unlocked with the bus PIN (or the phone app).
         const unlocked = await validGrant(base44, device, body.driver_grant, 'driver', vehicleId);

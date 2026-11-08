@@ -125,6 +125,18 @@ export function useDriverSession(deviceId, { intervalMs = 15000, chatActive = fa
       setOffline(false);
     } catch (e) {
       if (currentDevice.current !== deviceId) return;
+      // The bus was removed (or moved to another company). Nothing saved for
+      // it applies any more, so the tablet offers Switch bus (a driver's own
+      // phone, its bus list) instead of the old bus's PIN.
+      const gone = errorData(e);
+      if (gone.code === "BUS_GONE") setSession((prev) => {
+        const next = cleanTabletSession({
+          ...(prev || {}), ...(gone.personal === true ? { personal: true } : {}),
+          vehicle: null, route: null, road_stops: null, staff: [], trips: [], check_ins: [], group_messages: [], open_shift: null, driver_unlocked: false,
+        });
+        writeCache(deviceId, next);
+        return next;
+      });
       pollBudget.current.failed(e);
       if (first) sentInfoRef.current = false;
       if (isOfflineError(e) && !serverAnswered(e)) setOffline(true);

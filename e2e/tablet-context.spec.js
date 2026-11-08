@@ -73,7 +73,9 @@ test('unpairing a driver tablet preserves saved GPS with its original assignment
   localStorage.setItem('tt_gps_queue',JSON.stringify([{queue_id:'retained-gps',state:'needs_review',lat:12,lng:-61,t:'2026-10-03T12:00:00Z',expected_device_id:'driver-test',expected_company_id:'company-a',expected_vehicle_id:'bus-a'}]));
  });
  await page.goto('/driver');
- await page.getByRole('button',{name:'Unpair tablet',exact:true}).click();
+ // No bus: the tablet offers Switch bus, and Unpair stays there.
+ await expect(page.getByRole('heading',{name:"This tablet's bus was removed"})).toBeVisible();
+ await page.getByRole('button',{name:'Unpair this tablet',exact:true}).click();
  await expect.poll(()=>page.evaluate(()=>localStorage.getItem('tt_driver_device_id'))).toBeNull();
  expect(await page.evaluate(()=>JSON.parse(localStorage.getItem('tt_gps_queue')))).toEqual([{queue_id:'retained-gps',state:'needs_review',lat:12,lng:-61,t:'2026-10-03T12:00:00Z',expected_device_id:'driver-test',expected_company_id:'company-a',expected_vehicle_id:'bus-a'}]);
 });
