@@ -339,7 +339,9 @@ for(const size of [{width:1280,height:800},{width:800,height:1280},{width:1024,h
 
 test('home QR camera stays beside NFC and a card still reaches both actions', async ({page}) => {
   await page.setViewportSize({width:1024,height:600});
-  const {calls,errors}=await setup(page,{checkIn:b=>b.action==='lookup_tag'?{json:{staff:person,next_status:'boarded',verification_grant:'b'.repeat(64)}}:null});
+  // The boarding-or-exiting question (still asked for codes and QR, and by
+  // tablets on an older server) fits beside the camera.
+  const {calls,errors}=await setup(page,{checkIn:b=>b.action==='lookup_tag'?{json:{staff:person,next_status:'boarded',automatic:false,verification_grant:'b'.repeat(64)}}:null});
   await page.goto('/kiosk');
   await page.getByRole('button',{name:/Scan QR code/}).click();
   await expect(page.getByRole('region',{name:'Home QR scanner'})).toBeVisible();
@@ -521,13 +523,11 @@ test('integrated NFC reader correlates accepted taps and retries without duplica
   await expect.poll(() => page.evaluate(() => window.__nativeReady)).toBe(true);
   const raw = { uid: 'AABBCCDD', tapId: 'native-test-accepted-00001', at: await page.evaluate(() => Date.now()) };
   await page.evaluate(raw => window.__emitNativeCard(raw), raw);
-  await expect(page.getByText('Are you boarding or exiting?')).toBeVisible();
+  await expect(page.getByText(/Welcome aboard, Maria!/)).toBeVisible();
   await expect.poll(() => page.evaluate(() => window.__nativeTapResults)).toContainEqual({ tapId: raw.tapId, accepted: true });
   await page.evaluate(raw => window.__emitNativeCard(raw), raw);
   await expect.poll(() => page.evaluate(() => window.__nativeTapResults.length)).toBe(2);
   expect(calls.filter(([a]) => a === 'lookup_tag')).toHaveLength(1);
-  await page.getByRole('button', { name: /Boarding/ }).click();
-  await expect(page.getByText(/Welcome aboard, Maria!/)).toBeVisible();
   expect(calls.filter(([a]) => a === 'check_in')).toHaveLength(1);
   expect(await page.evaluate(() => Object.values(localStorage).join(' '))).not.toContain(raw.uid);
   expect(errors).toEqual([]);
@@ -773,9 +773,6 @@ for(const [orient,size] of [['landscape',{width:1280,height:800}],['portrait',{w
  await expect(page.getByText('Slide to enter a code',{exact:true})).toBeVisible();
  await shot('home');
  await tap(page);
- await expect(page.getByText('Are you boarding or exiting?')).toBeVisible();
- await shot('choose');
- await page.getByRole('button',{name:/Boarding/}).click();
  await expect(page.getByText(/Welcome aboard, Maria!/)).toBeVisible();
  await shot('welcome');
  await expect(page.getByText('Slide to enter a code',{exact:true})).toBeVisible({timeout:6000});
