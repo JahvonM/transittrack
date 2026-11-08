@@ -280,13 +280,18 @@ export default function Kiosk() {
     } catch (e) {
       // "Too many attempts" (429) is the server answering, not a lost
       // connection: show it as it is rather than falling back offline.
-      // A busy server (429) is answered from the saved list for automatic
-      // card taps: the card is checked against this tablet's own list.
-      if (isNetworkFailure(e) && (httpStatus(e) !== 429 || automatic) && (action === "lookup_tag" || action === "lookup_code")) {
+      // For automatic card taps a busy server is answered from the saved
+      // list too (the card is checked against this tablet's own list); with
+      // no saved list the rider still sees "Too many attempts".
+      const busy = httpStatus(e) === 429;
+      if (isNetworkFailure(e) && (!busy || automatic) && (action === "lookup_tag" || action === "lookup_code")) {
         // Only a request with no answer means the connection is gone; a
         // server error still uses the saved list but keeps the tablet online.
         if (!e?.response) setOnline(false);
-        const local = (automatic ? await localCardLookup(payload.card_tag, device, { automatic: true }) : null) || offlineLookup(action, payload);
+        const saved = automatic ? await localCardLookup(payload.card_tag, device, { automatic: true }) : null;
+        if (saved) return saved;
+        if (busy) throw e;
+        const local = offlineLookup(action, payload);
         if (local) return local;
       }
       throw e;
