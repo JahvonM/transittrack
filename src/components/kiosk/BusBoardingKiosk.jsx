@@ -147,6 +147,8 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
   // A validator (card reader above a small screen) uses the phone screens,
   // with a "tap above" banner.
   const validatorLayout = layout === "validator";
+  // A both-way reader records card taps by itself: tap on, tap again to get off.
+  const automaticNfc = !["boarding", "exit"].includes(device?.reader_mode);
   const phoneLayout = layout === "phone" || validatorLayout;
   // Where to tap: from the tablet's setting, else the layout. The tablet
   // layout keeps its own wording unless a position is set.
