@@ -4,6 +4,7 @@ import "./kioskApple.css";
 import "./phoneKiosk.css";
 import BusArtwork from "@/components/BusArtwork";
 import BoardingPickupSign from "@/components/kiosk/BoardingPickupSign";
+import CoastalCardScene from "./CoastalCardScene";
 import useFutureAppearance from "@/hooks/useFutureAppearance";
 import { TRANSIT_TIME_ZONE } from "@/lib/localTime";
 import React, { useEffect, useRef, useState } from "react";
@@ -11,7 +12,7 @@ import { helperLink } from "@/lib/helperHealth";
 import { httpStatus, errorData } from "@/lib/requestError";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CreditCard, QrCode, SwitchCamera, X, ChevronLeft, CheckCircle2, LogIn, LogOut, AlertCircle, Delete, MapPin, CloudUpload, PartyPopper, Bus, Users, Loader2, History, ArrowUp } from "lucide-react";
+import { CreditCard, QrCode, SwitchCamera, X, ChevronLeft, CheckCircle2, LogIn, LogOut, AlertCircle, Delete, MapPin, CloudUpload, PartyPopper, Bus, Users, History, ArrowUp } from "lucide-react";
 import { nfcHint } from "@/lib/kioskLayout";
 import { useNfcTap, reportBadgeResult } from "@/hooks/useNfcTap";
 import { parseCodeQrPayload } from "@/lib/qr";
@@ -522,13 +523,13 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
   let actionContent;
 
   if ((!unlocked && mode === "idle") || mode === "qr") {
-    actionContent = <section className={`tt-board-home${mode === "qr" ? " tt-board-camera-open" : ""}`} aria-label="Boarding home">
-      <div className="tt-board-scene">
+    actionContent = <section className={`tt-board-home tt-coastal-home${mode === "qr" ? " tt-board-camera-open" : ""}`} aria-label="Boarding home">
+      {mode !== "qr" ? <CoastalCardScene vehicle={vehicle} readerError={nfcError} tapHint={customHint ? tapHint : { ...tapHint, title: "Tap your card to begin" }} /> : <div className="tt-board-scene">
         <div className="tt-board-welcome"><h1>Welcome aboard</h1><p>{customHint ? tapHint.title : "Tap your card to begin"}</p>{customHint && <small className="tt-board-tap-detail">{tapHint.detail}</small>}</div>
         <BusArtwork vehicle={vehicle} fallbackUrl="/images/boarding-coaster.webp" width={650} className="tt-board-bus" />
         <div className="tt-board-nfc"><div className="tt-board-nfc-ring"><CreditCard aria-hidden="true" /></div><strong>NFC CARD TAP</strong><small>{nfcListening ? "Ready to scan" : "Tap your NFC card"}</small></div>
         {nfcError && <p className="tt-board-reader-note">{nfcError}</p>}
-      </div>
+      </div>}
       <div className="tt-board-entry">
         <div className="tt-board-slide"><p>Prefer to use your code?</p><SlideToUnlock label="Slide to enter a code" onUnlock={() => { setUnlocked(true); setMode("idle"); }} /></div>
         <section className="tt-board-qr" aria-label="Home QR scanner">
@@ -563,13 +564,7 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
     );
   } else if (mode === "checking" && pending) {
     // The card was read; the boarding isn't recorded until this finishes.
-    actionContent = (
-      <Screen modeKey="checking" className="p-10 text-center space-y-4">
-        <Loader2 className="mx-auto h-14 w-14 animate-spin text-primary motion-reduce:animate-none" aria-hidden="true" />
-        <p role="status" className="text-2xl font-bold">Card read · saving {pending.staff.full_name.split(" ")[0]}…</p>
-        <p className="text-sm text-muted-foreground">Hold on a moment. Don't tap again.</p>
-      </Screen>
-    );
+    actionContent = <CoastalCardScene checking vehicle={vehicle} />;
   } else if (mode === "result" && result?.already) {
     // A repeat tap: nothing new is recorded; offer the other direction only
     // where the rider is asked (both-way readers).
@@ -675,6 +670,6 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
     <main className="tt-board-layout"><div className="tt-board-action">{actionContent}</div>
       <InfoRail occupancy={occupancy} vehicle={vehicle} nearestStop={nearestStop} ads={ads} todayCount={todayCount} directoryInfo={directoryInfo} now={now} onList={() => setListOpen(true)} pendingSyncCount={pendingSyncCount} syncError={syncError} />
     </main>
-    {checkingCard && <div className="absolute inset-0 z-20 flex items-center justify-center bg-background/70 backdrop-blur-sm" role="status" aria-live="polite"><div className="flex flex-col items-center gap-3 rounded-2xl border bg-card px-10 py-8 shadow-lg"><Loader2 className="w-12 h-12 animate-spin text-primary" /><p className="text-2xl font-semibold">Checking your card…</p></div></div>}
+    {checkingCard && <div className="tt-coastal-check-overlay" role="status"><CoastalCardScene checking vehicle={vehicle} /></div>}
   </div>;
 }
