@@ -16,8 +16,9 @@ export const DUPLICATE_WINDOW_MS = 30 * 60_000;
 // A boarding older than this with no exit no longer counts as "on board".
 export const RIDE_MAX_MS = 6 * 3600_000;
 
-// What a boarding tablet's reader records. 'both' asks the rider each time
-// (the behaviour before reader modes existed and still the default).
+// What a boarding tablet's reader records. 'both' (the default): getting on
+// and off. Card taps on current tablets record by themselves (tap on, tap
+// again to get off, automaticTapAdvice); codes, QR and older tablets ask.
 export const READER_MODES = ['both', 'boarding', 'exit'] as const;
 export type ReaderMode = typeof READER_MODES[number];
 export const readerMode = (value: unknown): ReaderMode =>
