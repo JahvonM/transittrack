@@ -138,6 +138,7 @@ test('a tablet without the new server still asks boarding or exiting', async ({ 
       : b.action === 'check_in' ? { json: { record: { staff_name: 'Maria Joseph', status: b.status }, occupancy: 5, today_count: 10 } } : null,
   });
   await page.goto('/kiosk');
+  await expect(page.getByText('Slide to enter a code', { exact: true })).toBeVisible();
   await tap(page);
   await expect(page.getByText('Are you boarding or exiting?')).toBeVisible();
   await page.getByRole('button', { name: /Boarding/ }).click();
