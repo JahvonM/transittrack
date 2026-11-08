@@ -18,7 +18,7 @@ import { protectionState } from "@/lib/kioskProtection";
 // fixing it. Nothing secret: no card numbers, codes, names or device keys.
 
 const when = (iso) => (iso ? new Date(iso).toLocaleString([], { timeZone: TRANSIT_TIME_ZONE, day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }) : "Never");
-const MODE_TEXT = { both: "Boarding and getting off (asks each time)", boarding: "Boarding only", exit: "Getting off only" };
+const MODE_TEXT = { both: "Boarding and getting off (tap on, tap again to get off)", boarding: "Boarding only", exit: "Getting off only" };
 
 function Row({ label, value, warn = false }) {
   return <div className="grid grid-cols-[minmax(0,40%)_1fr] gap-3 py-1.5 text-sm"><dt className="text-muted-foreground">{label}</dt><dd className={warn ? "font-semibold text-warning" : ""}>{value}</dd></div>;
