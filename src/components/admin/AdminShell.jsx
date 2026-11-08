@@ -57,90 +57,84 @@ import Logo from "@/components/Logo";
 import LiveClock from "@/components/LiveClock";
 import { cn } from "@/lib/utils";
 import { PageSlots } from "@/components/admin/kit";
+import { ADMIN_HUBS, ADMIN_MENU, groupOf, hubOf, hubTarget, rememberTab } from "@/lib/adminMenu";
 
-// `group` clusters the flat section list into labeled chunks in the sidebar
-// (Fleet Operations / Maintenance — the mechanic's own area / Dispatch — the
-// secretary/front-desk area / Admin) instead of one long undifferentiated
-// list. `null` keeps an item standalone (Overview at top, My profile at
-// bottom), matching the pre-grouping layout.
+// Every admin section, for its label, its icon and the search box. Where each
+// one sits in the sidebar (alone, as a tab of a hub, or in a folding group) is
+// in lib/adminMenu.js.
 export const ADMIN_SECTIONS = [
-  { id: "overview", label: "Overview", icon: LayoutDashboard, group: null },
+  { id: "overview", label: "Overview", icon: LayoutDashboard },
 
-  { id: "trips", label: "Jobs", icon: CalendarPlus, group: "Fleet Operations" },
-  { id: "fleet-workspace", label: "Fleet workspace", icon: LayoutDashboard, group: "Fleet Operations" },
-  { id: "office-displays", label: "Office displays", icon: Tv, group: "Settings" },
-  { id: "fleet", label: "Live fleet", icon: MapPin, group: "Fleet Operations" },
-  { id: "vehicles", label: "Vehicles", icon: Bus, group: "Fleet Operations" },
-  { id: "drivers", label: "Drivers", icon: Car, group: "Fleet Operations" },
-  { id: "health", label: "Fleet health", icon: Activity, group: "Fleet Operations" },
-  { id: "kiosks", label: "Kiosk tablets", icon: Smartphone, group: "Fleet Operations" },
-  { id: "shifts", label: "Driver shifts", icon: Timer, group: "Fleet Operations" },
-  { id: "cards", label: "Card issuing", icon: CreditCard, group: "Fleet Operations" },
-  { id: "card-designs", label: "Card designer", icon: ImageIcon, group: "Fleet Operations" },
+  { id: "trips", label: "Jobs", icon: CalendarPlus },
+  { id: "fleet-workspace", label: "Fleet workspace", icon: LayoutDashboard },
+  { id: "office-displays", label: "Office displays", icon: Tv },
+  { id: "fleet", label: "Live fleet", icon: MapPin },
+  { id: "vehicles", label: "Vehicles", icon: Bus },
+  { id: "drivers", label: "Drivers", icon: Car },
+  { id: "health", label: "Fleet health", icon: Activity },
+  { id: "kiosks", label: "Kiosk tablets", icon: Smartphone },
+  { id: "shifts", label: "Driver shifts", icon: Timer },
+  { id: "cards", label: "Card issuing", icon: CreditCard },
+  { id: "card-designs", label: "Card designer", icon: ImageIcon },
 
   // Full pages shown inside the admin area (see ADMIN_PAGES in Admin.jsx).
-  { id: "vehicle-logs", label: "Vehicle log", icon: FileText, group: "Fleet management" },
-  { id: "driving-reports", label: "Driver report", icon: Gauge, group: "Fleet management" },
-  { id: "route-analytics", label: "Route analysis", icon: LineChart, group: "Fleet management" },
-  { id: "fleet-analytics", label: "Fleet analysis", icon: BarChart3, group: "Fleet management" },
-  { id: "route-planner", label: "Route planner", icon: MapIcon, group: "Fleet management" },
-  { id: "route-explorer", label: "Route explorer", icon: Route, group: "Fleet management" },
-  { id: "plan-pickups", label: "Plan pickups", icon: Users, group: "Fleet management" },
-  { id: "travel-times", label: "Travel times", icon: Hourglass, group: "Fleet management" },
+  { id: "vehicle-logs", label: "Vehicle log", icon: FileText },
+  { id: "driving-reports", label: "Driver report", icon: Gauge },
+  { id: "route-analytics", label: "Route analysis", icon: LineChart },
+  { id: "fleet-analytics", label: "Fleet analysis", icon: BarChart3 },
+  { id: "route-planner", label: "Route planner", icon: MapIcon },
+  { id: "route-explorer", label: "Route explorer", icon: Route },
+  { id: "plan-pickups", label: "Plan pickups", icon: Users },
+  { id: "travel-times", label: "Travel times", icon: Hourglass },
 
-  { id: "service", label: "Service Queue", icon: Wrench, group: "Maintenance" },
-  { id: "faults", label: "Faults", icon: AlertTriangle, group: "Maintenance" },
-  { id: "parts", label: "Parts", icon: Package, group: "Maintenance" },
-  { id: "schedule", label: "Maintenance Schedule", icon: CalendarClock, group: "Maintenance" },
-  { id: "calendar", label: "Maintenance Calendar", icon: Calendar, group: "Maintenance" },
-  { id: "templates", label: "Inspection Templates", icon: ListChecks, group: "Maintenance" },
-  { id: "inspection-history", label: "Inspection History", icon: History, group: "Maintenance" },
-  { id: "service-history", label: "Service history", icon: History, group: "Maintenance" },
-  { id: "incident-reports", label: "Incident reports", icon: AlertTriangle, group: "Maintenance" },
-  { id: "safety-standards", label: "Safety standards", icon: ShieldCheck, group: "Maintenance" },
+  { id: "service", label: "Service Queue", icon: Wrench },
+  { id: "faults", label: "Faults", icon: AlertTriangle },
+  { id: "parts", label: "Parts", icon: Package },
+  { id: "schedule", label: "Maintenance Schedule", icon: CalendarClock },
+  { id: "calendar", label: "Maintenance Calendar", icon: Calendar },
+  { id: "templates", label: "Inspection Templates", icon: ListChecks },
+  { id: "inspection-history", label: "Inspection History", icon: History },
+  { id: "service-history", label: "Service history", icon: History },
+  { id: "incident-reports", label: "Incident reports", icon: AlertTriangle },
+  { id: "safety-standards", label: "Safety standards", icon: ShieldCheck },
 
-  { id: "directory", label: "Passenger directory", icon: Contact, group: "Dispatch" },
-  { id: "signup-day", label: "Sign-up day", icon: ClipboardCheck, group: "Dispatch" },
-  { id: "checkins", label: "Sign-in log", icon: ClipboardList, group: "Dispatch" },
-  { id: "billing", label: "Completed & billing", icon: Building2, group: "Dispatch" },
-  { id: "messaging", label: "Messaging", icon: Megaphone, group: "Dispatch" },
-  { id: "lost-items", label: "Lost items", icon: PackageSearch, group: "Dispatch" },
-  { id: "ads", label: "Advertisements", icon: ImageIcon, group: "Dispatch" },
-  { id: "ride-history", label: "Ride history", icon: History, group: "Dispatch" },
-  { id: "passenger-bookings", label: "Passenger bookings", icon: BookOpen, group: "Dispatch" },
-  { id: "support", label: "Passenger support", icon: LifeBuoy, group: "Dispatch" },
+  { id: "directory", label: "Passenger directory", icon: Contact },
+  { id: "signup-day", label: "Sign-up day", icon: ClipboardCheck },
+  { id: "checkins", label: "Sign-in log", icon: ClipboardList },
+  { id: "billing", label: "Completed & billing", icon: Building2 },
+  { id: "messaging", label: "Messaging", icon: Megaphone },
+  { id: "lost-items", label: "Lost items", icon: PackageSearch },
+  { id: "ads", label: "Advertisements", icon: ImageIcon },
+  { id: "ride-history", label: "Ride history", icon: History },
+  { id: "passenger-bookings", label: "Passenger bookings", icon: BookOpen },
+  { id: "support", label: "Passenger support", icon: LifeBuoy },
 
-  { id: "users", label: "Users & roles", icon: Users, group: "Admin" },
-  { id: "companies", label: "Companies", icon: Building2, group: "Admin" },
-  { id: "notifications", label: "Notifications", icon: BellRing, group: "Admin" },
-  { id: "app-errors", label: "App errors", icon: Bug, group: "Admin" },
-  { id: "audit", label: "Change history", icon: ScrollText, group: "Admin" },
-  { id: "data", label: "Data manager", icon: Database, group: "Admin" },
+  { id: "users", label: "Users & roles", icon: Users },
+  { id: "companies", label: "Companies", icon: Building2 },
+  { id: "notifications", label: "Notifications", icon: BellRing },
+  { id: "app-errors", label: "App errors", icon: Bug },
+  { id: "audit", label: "Change history", icon: ScrollText },
+  { id: "data", label: "Data manager", icon: Database },
 
-  { id: "profile", label: "My profile", icon: User, group: null },
+  { id: "profile", label: "My profile", icon: User },
 ];
 
-const NAV_GROUPS = [
- {label:"Fleet",icon:Bus,ids:["fleet-workspace","fleet","vehicles","health","route-planner","route-explorer","plan-pickups"]},
- {label:"Maintenance",icon:Wrench,ids:["service","faults","parts","schedule","calendar","templates","inspection-history","service-history","incident-reports","safety-standards"]},
- {label:"People & access",icon:Users,ids:["drivers","directory","signup-day","users","cards","card-designs"]},
- {label:"Operations",icon:Activity,ids:["trips","kiosks","shifts","checkins","billing","messaging","lost-items","ride-history","passenger-bookings","support"]},
- {label:"Reports",icon:BarChart3,ids:["vehicle-logs","driving-reports","route-analytics","fleet-analytics","travel-times"]},
- {label:"All tools",icon:Database,ids:["notifications","app-errors","audit","data"]},
-];
+// Sidebar names that differ from the section's own name.
 const PRIMARY = [
  {id:"overview",label:"Overview",icon:LayoutDashboard},
- {id:"companies",label:"Companies",icon:Building2},
- {id:"ads",label:"Advertisements",icon:ImageIcon},
  {id:"profile",label:"Settings",icon:Settings},
 ];
-function NavItem({ item, active, onNavigate }) {
+const HUB_ICONS = { live: MapPin, "vehicles-drivers": Bus, routes: Route, passengers: Contact };
+const GROUP_ICONS = { Maintenance: Wrench, Operations: Activity, Reports: BarChart3, "All tools": Database };
+const sectionItem = (id) => PRIMARY.find((p) => p.id === id) || ADMIN_SECTIONS.find((s) => s.id === id);
+
+function NavItem({ item, active, onNavigate, current = active === item.id, target = item.id }) {
   const Icon = item.icon;
-  const on = active === item.id;
+  const on = current;
   return (
     <button
       type="button"
-      onClick={() => onNavigate(item.id)}
+      onClick={() => onNavigate(target)}
       aria-current={on ? "page" : undefined}
       className={cn(
         "relative flex min-h-[40px] w-full items-center gap-3 rounded-lg px-3 text-left text-body-sm font-medium transition-colors",
@@ -154,31 +148,69 @@ function NavItem({ item, active, onNavigate }) {
   );
 }
 
+// The sidebar, laid out by lib/adminMenu.js: the everyday screens at the top
+// (each hub is one link), then folding groups for the rest.
 function SidebarNav({ active, onNavigate }) {
- const activeGroup=NAV_GROUPS.find(g=>g.ids.includes(active))?.label;
+ const activeGroup=groupOf(active);
+ const activeHub=hubOf(active)?.id;
  const [openGroups,setOpenGroups]=useState(()=>activeGroup?{[activeGroup]:true}:{});
  useEffect(()=>{if(activeGroup)setOpenGroups(g=>({...g,[activeGroup]:true}));},[activeGroup]);
- const group=(g)=>{
-  const Icon=g.icon,expanded=!!openGroups[g.label];
-  return <div key={g.label} className="tt-admin-nav-group">
-   <button type="button" aria-expanded={expanded} onClick={()=>setOpenGroups(v=>({...v,[g.label]:!v[g.label]}))} className={cn("tt-admin-group-toggle",activeGroup===g.label && "tt-admin-group-current")}>
-    <Icon className="w-[18px] h-[18px] shrink-0" aria-hidden="true" /><span>{g.label}</span><ChevronDown className={cn("w-4 h-4 transition-transform",!expanded && "-rotate-90")} aria-hidden="true" />
+ const entry=(e)=>{
+  if(typeof e==="string")return <NavItem key={e} item={sectionItem(e)} active={active} onNavigate={onNavigate} />;
+  if(e.hub){
+   const hub=ADMIN_HUBS.find(h=>h.id===e.hub);
+   return <NavItem key={hub.id} item={{id:hub.id,label:hub.label,icon:HUB_ICONS[hub.id]}} current={activeHub===hub.id} target={hubTarget(hub.id)} onNavigate={onNavigate} />;
+  }
+  const Icon=GROUP_ICONS[e.group]||Database,expanded=!!openGroups[e.group];
+  return <div key={e.group} className="tt-admin-nav-group">
+   <button type="button" aria-expanded={expanded} onClick={()=>setOpenGroups(v=>({...v,[e.group]:!v[e.group]}))} className={cn("tt-admin-group-toggle",activeGroup===e.group && "tt-admin-group-current")}>
+    <Icon className="w-[18px] h-[18px] shrink-0" aria-hidden="true" /><span>{e.group}</span><ChevronDown className={cn("w-4 h-4 transition-transform",!expanded && "-rotate-90")} aria-hidden="true" />
    </button>
-   {expanded && <div className="tt-admin-group-items">{g.ids.map(id=>{const item=ADMIN_SECTIONS.find(s=>s.id===id);return <NavItem key={id} item={item} active={active} onNavigate={onNavigate} />;})}</div>}
+   {expanded && <div className="tt-admin-group-items space-y-1">{e.ids.map(id=><NavItem key={id} item={sectionItem(id)} active={active} onNavigate={onNavigate} />)}</div>}
   </div>;
  };
- return <nav aria-label="Admin" className="space-y-2">
-  <NavItem item={PRIMARY[0]} active={active} onNavigate={onNavigate} />
-  {NAV_GROUPS.slice(0,3).map(group)}
-  <NavItem item={PRIMARY[1]} active={active} onNavigate={onNavigate} />
-  {group(NAV_GROUPS[3])}
-  <div className="tt-admin-nav-secondary">
-   <NavItem item={PRIMARY[2]} active={active} onNavigate={onNavigate} />
-   {group(NAV_GROUPS[4])}
-   <NavItem item={PRIMARY[3]} active={active} onNavigate={onNavigate} />
-   {group(NAV_GROUPS[5])}
-  </div>
+ const split=ADMIN_MENU.indexOf("divider");
+ return <nav aria-label="Admin" className="tt-admin-nav space-y-1">
+  {ADMIN_MENU.slice(0,split).map(entry)}
+  <div className="tt-admin-nav-secondary space-y-1">{ADMIN_MENU.slice(split+1).map(entry)}</div>
  </nav>;
+}
+
+// A hub's tabs, under its page title. Each tab is a link to its own address.
+// On a phone the row scrolls sideways and starts at the open tab.
+function HubTabs({ hub, active }) {
+  const row = useRef(null);
+  useEffect(() => {
+    const el = row.current;
+    const on = el?.querySelector('[aria-current="page"]');
+    if (!el || !on) return;
+    const left = on.offsetLeft - el.offsetLeft;
+    if (left < el.scrollLeft || left + on.offsetWidth > el.scrollLeft + el.clientWidth) el.scrollLeft = Math.max(0, left - 16);
+  }, [active]);
+  return (
+    <nav ref={row} aria-label={hub.label + " tabs"} className="tt-admin-hub-tabs min-w-0 max-w-full overflow-x-auto">
+      <div className="inline-flex gap-1 rounded-xl bg-secondary p-1">
+        {hub.tabs.map((t) => {
+          const Icon = ADMIN_SECTIONS.find((s) => s.id === t.id)?.icon;
+          const on = t.id === active;
+          return (
+            <Link
+              key={t.id}
+              to={"/admin/" + t.id}
+              aria-current={on ? "page" : undefined}
+              className={cn(
+                "inline-flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg px-3 text-body-sm font-semibold transition-colors",
+                on ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {Icon && <Icon className="h-4 w-4" aria-hidden="true" />}
+              {t.label}
+            </Link>
+          );
+        })}
+      </div>
+    </nav>
+  );
 }
 
 // Finds any admin section by name, from the top bar.
@@ -186,9 +218,16 @@ function SectionSearch({ onNavigate }) {
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
   const box = useRef(null);
+  // Every section, then each hub by its own name ("Passengers", "Routes").
   const all = useMemo(() => {
     const seen = new Set();
-    return [...PRIMARY, ...ADMIN_SECTIONS].filter((s) => (seen.has(s.id) ? false : seen.add(s.id)));
+    const hubs = ADMIN_HUBS.map((h) => ({ key: "hub:" + h.id, id: h.tabs[0].id, hub: h.id, label: h.label, icon: HUB_ICONS[h.id] }));
+    return [...PRIMARY, ...ADMIN_SECTIONS, ...hubs].filter((s) => {
+      const keys = [s.key || s.id, "label:" + s.label.toLowerCase()];
+      if (keys.some((k) => seen.has(k))) return false;
+      keys.forEach((k) => seen.add(k));
+      return true;
+    });
   }, []);
   const needle = q.trim().toLowerCase();
   const results = needle ? all.filter((s) => s.label.toLowerCase().includes(needle) || s.id.includes(needle)).slice(0, 8) : [];
@@ -197,7 +236,7 @@ function SectionSearch({ onNavigate }) {
     document.addEventListener("mousedown", close);
     return () => document.removeEventListener("mousedown", close);
   }, []);
-  const go = (id) => { onNavigate(id); setQ(""); setOpen(false); };
+  const go = (r) => { onNavigate(r.hub ? hubTarget(r.hub) : r.id); setQ(""); setOpen(false); };
   return (
     <div ref={box} className="relative min-w-0 flex-1 sm:max-w-md">
       <label className="flex h-10 items-center gap-2 rounded-xl border border-input bg-card px-3 focus-within:ring-2 focus-within:ring-ring">
@@ -207,7 +246,7 @@ function SectionSearch({ onNavigate }) {
           value={q}
           onChange={(e) => { setQ(e.target.value); setOpen(true); }}
           onFocus={() => setOpen(true)}
-          onKeyDown={(e) => { if (e.key === "Enter" && results[0]) go(results[0].id); if (e.key === "Escape") setOpen(false); }}
+          onKeyDown={(e) => { if (e.key === "Enter" && results[0]) go(results[0]); if (e.key === "Escape") setOpen(false); }}
           placeholder="Search admin tools, e.g. faults"
           className="h-full min-w-0 flex-1 bg-transparent text-body-sm outline-none placeholder:text-muted-foreground"
           role="combobox"
@@ -221,8 +260,8 @@ function SectionSearch({ onNavigate }) {
           {results.map((r) => {
             const Icon = r.icon;
             return (
-              <li key={r.id} role="option" aria-selected={false}>
-                <button type="button" onClick={() => go(r.id)} className="flex min-h-[40px] w-full items-center gap-3 rounded-lg px-3 text-left text-body-sm hover:bg-accent">
+              <li key={r.key || r.id} role="option" aria-selected={false}>
+                <button type="button" onClick={() => go(r)} className="flex min-h-[40px] w-full items-center gap-3 rounded-lg px-3 text-left text-body-sm hover:bg-accent">
                   <Icon className="h-4 w-4 text-muted-foreground" aria-hidden="true" /> {r.label}
                 </button>
               </li>
@@ -237,7 +276,7 @@ function SectionSearch({ onNavigate }) {
 const fmtDate = () => new Date().toLocaleDateString([], { weekday: "short", month: "short", day: "numeric", year: "numeric" });
 
 /**
- * Admin chrome: a full-height sidebar (main sections, then All tools), a
+ * Admin chrome: a full-height sidebar (everyday screens, then folding groups), a
  * top bar with section search, date and time, notifications and the
  * account menu, and the SOS banner above the page.
  */
@@ -258,7 +297,10 @@ export default function AdminShell({ active, onNavigate, children, alertVehicles
   const slots = useMemo(() => ({ actions: actionsEl, intro: introEl }), [actionsEl, introEl]);
   const nav = (id) => { onNavigate(id); setOpen(false); };
   const current = ADMIN_SECTIONS.find((s) => s.id === active);
-  const title = active === "overview" ? "Fleet overview" : PRIMARY.find((p) => p.id === active)?.label || current?.label || "Admin";
+  const hub = hubOf(active);
+  // So the hub's sidebar link comes back to this tab (kept while the console is open).
+  rememberTab(active);
+  const title = active === "overview" ? "Fleet overview" : hub?.label || PRIMARY.find((p) => p.id === active)?.label || current?.label || "Admin";
   const initials = nameInitials(user) || "A";
 
   const sidebar = (
@@ -295,7 +337,7 @@ export default function AdminShell({ active, onNavigate, children, alertVehicles
           <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setOpen(true)} aria-label="Open menu">
             <Menu className="h-5 w-5" aria-hidden="true" />
           </Button>
-          <span className="tt-admin-breadcrumb hidden xl:block text-sm text-muted-foreground">Admin <span className="mx-2">/</span> {current?.label || "Overview"}</span>
+          <span className="tt-admin-breadcrumb hidden xl:block text-sm text-muted-foreground">Admin <span className="mx-2">/</span> {hub && <>{hub.label} <span className="mx-2">/</span> </>}{hub?.tabs.find((t) => t.id === active)?.label || current?.label || "Overview"}</span>
           <SectionSearch onNavigate={nav} />
           <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
             <p className="hidden whitespace-nowrap text-body-sm text-muted-foreground md:block">
@@ -338,14 +380,27 @@ export default function AdminShell({ active, onNavigate, children, alertVehicles
         )}
 
         <main className="min-w-0 flex-1 px-4 pb-24 pt-6 sm:px-6 lg:px-8">
-          <div className="mb-5 flex flex-wrap items-end justify-between gap-x-4 gap-y-3">
-            <div className="min-w-0">
+          {hub ? (
+            // A hub: its name, then its tabs with the open tab's main actions
+            // beside them, then that tab's short description.
+            <div className="mb-5">
               <h1 className="text-headline font-bold">{title}</h1>
-              {active === "overview" && <p className="mt-1 text-body-sm text-muted-foreground">Across all companies</p>}
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
+                <HubTabs hub={hub} active={active} />
+                <div ref={setActionsEl} className="empty:hidden" />
+              </div>
               <div ref={setIntroEl} />
             </div>
-            <div ref={setActionsEl} className="empty:hidden" />
-          </div>
+          ) : (
+            <div className="mb-5 flex flex-wrap items-end justify-between gap-x-4 gap-y-3">
+              <div className="min-w-0">
+                <h1 className="text-headline font-bold">{title}</h1>
+                {active === "overview" && <p className="mt-1 text-body-sm text-muted-foreground">Across all companies</p>}
+                <div ref={setIntroEl} />
+              </div>
+              <div ref={setActionsEl} className="empty:hidden" />
+            </div>
+          )}
           <PageSlots.Provider value={slots}>{children}</PageSlots.Provider>
         </main>
       </div>

@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { Buffer } from "node:buffer";
 import { digest, load, mock, request } from "../../../security-tests/helpers.js";
 
 // Jobs dispatch gives a bus (airport runs, hotel tours, transfers): what the

@@ -1,13 +1,15 @@
 import { describe, it, expect } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 // Server functions read app secrets through `secrets` from 'base44:runtime'.
 // The test harness hands every function a `secrets` of its own, so a function
 // that forgets the import passes its tests but can't see any secret once
 // deployed (the Copy data to Supabase button said "add SUPABASE_URL" with the
 // secret already saved). This checks the import is there.
-const dir = path.resolve(__dirname, "../../../base44/functions");
+const here = path.dirname(fileURLToPath(import.meta.url));
+const dir = path.resolve(here, "../../../base44/functions");
 
 describe("server functions that read secrets import them", () => {
   const files = fs.readdirSync(dir)

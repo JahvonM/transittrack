@@ -801,6 +801,15 @@ html.tt-passenger-app:is(.light,[data-accent]) .tt-bus-filters [aria-pressed="tr
 .tt-admin-nav-secondary { border-top:1px solid var(--ad-nav-sep,#244052); margin-top:18px; padding-top:16px; }
 .tt-admin-shell nav [aria-current="page"] { background:var(--ad-nav-active-bg,linear-gradient(110deg,#05657a66,#064e6977)); border:1px solid var(--ad-nav-active-edge,#2fd9eb55); color:var(--ad-nav-active-text,#e5fbff); box-shadow:0 0 18px #16d6ed10; }
 .tt-admin-shell nav :is(button,a):focus-visible { outline:2px solid var(--ad-focus,#3ee0f5); outline-offset:2px; }
+/* The admin sidebar sits closer together, so more of it fits without scrolling. */
+.tt-admin-nav .tt-admin-group-toggle { min-height:40px; padding:8px 12px; }
+.tt-admin-nav .tt-admin-group-items { margin:2px 0 6px 20px; }
+.tt-admin-nav .tt-admin-nav-secondary { margin-top:12px; padding-top:12px; }
+/* A hub's tabs: the open tab is a raised pill, not the sidebar's highlight. */
+.tt-admin-shell nav.tt-admin-hub-tabs [aria-current="page"] { background:hsl(var(--background)); border:0; color:hsl(var(--foreground)); box-shadow:0 1px 3px rgb(0 0 0 / .25); }
+.tt-admin-hub-tabs { scrollbar-width:none; }
+.tt-admin-hub-tabs::-webkit-scrollbar { display:none; }
+.tt-admin-shell nav.tt-admin-hub-tabs a:focus-visible { outline-offset:-2px; }
 .tt-admin-stats > button { min-height:112px; border-radius:16px; }
 .tt-admin-totals { border-bottom:1px solid hsl(var(--border)); padding-bottom:10px; }
 .tt-admin-alert-list { padding-top:10px; }
