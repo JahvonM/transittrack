@@ -42,5 +42,5 @@ export async function localCardLookup(uid, device, { automatic = false } = {}) {
   // whether this tap repeats one this tablet just recorded.
   const mode=readerMode(device.reader_mode);
   const advice=localTapAdvice(p.id,mode,Date.now(),automatic);
-  return {staff:{id:p.id,full_name:p.full_name,photo_url:p.photo_url},next_status:advice.next_status,already:advice.already,reader_mode:mode,automatic:advice.automatic,directory_grant:d.directory_grant,card_fingerprint:fingerprint,local_lookup:true};
+  return {staff:{id:p.id,full_name:p.full_name,photo_url:p.photo_url},next_status:advice.next_status,already:advice.already,reader_mode:mode,automatic:advice.automatic===true,directory_grant:d.directory_grant,card_fingerprint:fingerprint,local_lookup:true};
 }
