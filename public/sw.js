@@ -29,6 +29,12 @@ let staging = null;
 
 const assetRefs = (html) => [...html.matchAll(/(?:src|href)="(\/assets\/[^"?#]+)"/g)].map((m) => m[1]);
 
+// Some hosts answer a request for an app file the build no longer has with
+// the app's page (status 200, text/html) instead of "not found". That is
+// never one of the app's files, so it counts as missing: it isn't saved, and
+// it's never handed to the app as a script or style.
+const pageInstead = (path, response) => path.startsWith("/assets/") && (response?.headers?.get("content-type") || "").includes("text/html");
+
 async function stage(html) {
   const cache = await caches.open(ASSETS);
   let files = [];
@@ -43,7 +49,7 @@ async function stage(html) {
     if (have.has(path)) continue;
     try {
       const r = await fetch(path, { cache: "no-store" });
-      if (r.ok) await cache.put(path, r); else missing++;
+      if (r.ok && !pageInstead(path, r)) await cache.put(path, r); else missing++;
     } catch { missing++; }
   }
   if (missing) return false; // keep the last working version; try again later
@@ -95,6 +101,15 @@ self.addEventListener("activate", (event) => {
     const keep = new Set([SHELL, ASSETS, RUNTIME]);
     for (const name of await caches.keys()) if (name.startsWith("tt-") && !keep.has(name)) await caches.delete(name);
     await self.clients.claim();
+    // An earlier version of this worker could save the app's page in place
+    // of a missing file; drop those so the real file is fetched. After taking
+    // over the open pages, so they aren't kept waiting for it.
+    try {
+      const assets = await caches.open(ASSETS);
+      for (const req of await assets.keys()) {
+        if (pageInstead(new URL(req.url).pathname, await assets.match(req))) await assets.delete(req);
+      }
+    } catch { /* storage unavailable: the fetch handler also skips them */ }
   })());
 });
 
@@ -143,11 +158,16 @@ async function page(event) {
 }
 
 async function cacheFirst(request, cacheName) {
+  const path = new URL(request.url).pathname;
   // ignoreVary: app files are saved with a plain request, but scripts load
   // with an Origin header; a "Vary: Origin" reply would never match offline.
   const cached = await caches.match(request, { ignoreVary: true });
-  if (cached) return cached;
+  if (cached && !pageInstead(path, cached)) return cached;
+  if (cached) caches.open(cacheName).then((c) => c.delete(request, { ignoreVary: true })).catch(() => {});
   const response = await fetch(request);
+  // A file this version no longer has: say so plainly, so the app reloads
+  // into the newest version instead of running a page as a script.
+  if (pageInstead(path, response)) return new Response("", { status: 404, statusText: "Not Found" });
   if (response.ok || response.type === "opaque") {
     const cache = await caches.open(cacheName);
     cache.put(request, response.clone())

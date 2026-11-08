@@ -2,7 +2,8 @@ import base44 from "@base44/vite-plugin"
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 import { fileURLToPath } from 'node:url'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
 
 // `vite build --mode supabase` (npm run build:supabase) builds the app for its
 // own hosting on Supabase + Cloudflare; the normal build stays on Base44.
@@ -27,14 +28,26 @@ const backendMode = (mode) => mode === 'e2e' ? 'base44' : (mode === 'supabase' |
 const APP_BUILD = new Date().toISOString().slice(0, 16).replace('T', ' ');
 
 // Lists every file in the build so the service worker (public/sw.js) can
-// save them all and the app opens with no WiFi.
+// save them all and the app opens with no WiFi. Written once the build is on
+// disk, from the files actually there: listed any earlier, a chunk renamed
+// late in the build (mapbox-gl) was listed under a name that never existed,
+// and the service worker can only switch to a version once every listed file
+// has been saved.
+export function offlineFiles(bundle, dir, exists = existsSync) {
+  return Object.keys(bundle)
+    .filter((f) => !f.endsWith('.map') && f !== 'index.html' && f !== 'offline-manifest.json')
+    .filter((f) => exists(join(dir, f)))
+}
 function offlineManifest() {
   return {
     name: 'tt-offline-manifest',
     apply: 'build',
-    generateBundle(_options, bundle) {
-      const files = Object.keys(bundle).filter((f) => !f.endsWith('.map') && f !== 'index.html');
-      this.emitFile({ type: 'asset', fileName: 'offline-manifest.json', source: JSON.stringify({ built: new Date().toISOString(), build: APP_BUILD, files }) });
+    writeBundle: {
+      order: 'post',
+      handler(options, bundle) {
+        const files = offlineFiles(bundle, options.dir)
+        writeFileSync(join(options.dir, 'offline-manifest.json'), JSON.stringify({ built: new Date().toISOString(), build: APP_BUILD, files }))
+      },
     },
   };
 }
