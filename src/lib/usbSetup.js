@@ -80,7 +80,7 @@ export function installResult(text) {
   const out = String(text || "");
   if (/^\s*Success\s*$/m.test(out)) return { ok: true, message: "The app is installed." };
   if (/INSTALL_FAILED_UPDATE_INCOMPATIBLE|signatures do not match/i.test(out)) {
-    return { ok: false, code: "signature", message: "This file was made on a different PC from the app already on the device. Use the file from your usual PC. Don't uninstall the app on the device: that would lose its pairing." };
+    return { ok: false, code: "signature", message: "This file is signed with a different key from the app already on the device. Use a file from your usual PC or from the Kiosk APK build on GitHub. Don't uninstall the app on the device: that would lose its pairing." };
   }
   if (/INSTALL_FAILED_VERSION_DOWNGRADE/i.test(out)) return { ok: false, code: "older", message: "This file is older than the app already on the device. Choose the newest file." };
   if (/INSTALL_FAILED_INSUFFICIENT_STORAGE/i.test(out)) return { ok: false, code: "storage", message: "The device is out of storage. Free some space, then try again." };
