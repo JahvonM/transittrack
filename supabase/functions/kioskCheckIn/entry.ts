@@ -7,7 +7,7 @@ import { reserveAttempt, claimOnce, createOnce } from '../_shared/atomicOps.ts';
 import { checkBusPin } from '../_shared/busPin.ts';
 import { pushWithPolicy } from '../_shared/notificationPolicy.ts';
 import { sendPushToTokens } from '../_shared/fcm.ts';
-import { modeStatus, onBoardCount, readerMode, repeatOf, reviewReason, suggestedStatus, tapAdvice } from '../_shared/boardingEvents.ts';
+import { automaticTapAdvice, modeStatus, onBoardCount, readerMode, repeatOf, reviewReason, suggestedStatus, tapAdvice } from '../_shared/boardingEvents.ts';
 
 
 async function liveMembership(base44, row) {
@@ -462,9 +462,13 @@ export default async function(req) {
         const binding=await boardingBinding(base44,device,person,'card');
         if(!binding)return Response.json({error:'Card no longer authorized'},{status:403});
         const mode = readerMode(device?.reader_mode), now = Date.now();
-        const advice = tapAdvice(await recentTaps(base44, companyId, vehicleId, person.nfc_tag || person.id), mode, now);
+        const taps = await recentTaps(base44, companyId, vehicleId, person.nfc_tag || person.id);
+        // A both-way reader that records card taps by itself (tap on, tap
+        // again to get off) asks with auto_toggle; older tablets ask the rider.
+        const automatic = body.auto_toggle === true && mode === 'both';
+        const advice = automatic ? automaticTapAdvice(taps, now) : tapAdvice(taps, mode, now);
         const status = advice.status;
-        return Response.json({ staff: { id: person.id, full_name: person.full_name, photo_url: person.photo_url }, next_status: status, reader_mode: mode, already: advice.repeat ? { status: advice.repeat.status, at: advice.repeat.at } : null, verification_grant: await issueGrant(base44, device, 'boarding', person.id, 24 * 3600_000,binding) });
+        return Response.json({ staff: { id: person.id, full_name: person.full_name, photo_url: person.photo_url }, next_status: status, reader_mode: mode, automatic, already: advice.repeat ? { status: advice.repeat.status, at: advice.repeat.at } : null, verification_grant: await issueGrant(base44, device, 'boarding', person.id, 24 * 3600_000,binding) });
       }
 
       // Permanent personal QR, chosen keypad code, or a legacy temporary code.

@@ -85,6 +85,16 @@ export function tapAdvice(taps: TapEvent[], mode: ReaderMode, now: number) {
   return { status, repeat };
 }
 
+// On a both-way reader a card tap records by itself: getting on if the rider
+// isn't on the bus, getting off if they are. A tap this soon after their last
+// one is a double tap, not getting off: "Already recorded" (wait, then tap).
+export const AUTO_TAP_WAIT_MS = 5 * 60_000;
+export function automaticTapAdvice(taps: TapEvent[], now: number) {
+  const last = neighbours(taps, now).before;
+  const repeat = last && now - tapTime(last) < AUTO_TAP_WAIT_MS ? last : null;
+  return { status: suggestedStatus(taps, now, 'both'), repeat };
+}
+
 // Whether the passenger is on the bus at `now`, from their own taps.
 export function onBoard(events: TapEvent[], now: number) {
   const { before } = neighbours(events, now);
