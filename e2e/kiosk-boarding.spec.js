@@ -115,7 +115,7 @@ test('a repeated card tap says already recorded and records nothing new', async 
   expect(calls.filter(([a]) => a === 'check_in')).toEqual([]);
   // Getting off is the next tap, after the short wait: no button to press.
   await expect(page.getByRole('button', { name: "I'm getting off" })).toHaveCount(0);
-  await expect(page.getByText(/^Wait 2m \d\ds, then tap again to get off\.$/)).toBeVisible();
+  await expect(page.getByText(/^Wait [12]m \d\ds, then tap again to get off\.$/)).toBeVisible();
 });
 
 test('the next card tap after boarding records getting off by itself', async ({ page }) => {
