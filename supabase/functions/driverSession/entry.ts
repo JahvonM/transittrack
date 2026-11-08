@@ -21,6 +21,7 @@ import { onBoardCount } from '../_shared/boardingEvents.ts';
 import { RIDE_MARK_KINDS, recordRideMark, rideOf } from '../_shared/rideMarks.ts';
 import { patternSkips } from '../_shared/ridePattern.ts';
 import { JOB_STEPS, jobForBus, jobStepTime, signJob, tabletTrip } from '../_shared/jobSignature.ts';
+import { stopSharingLeftBus } from '../_shared/busLeft.ts';
 
 
 async function liveMembership(base44, row) {
@@ -704,7 +705,8 @@ async function currentBus(base44, device) {
 async function ownDeviceAction(base44, device, body, action) {
   const db = base44.asServiceRole.entities;
   if (action === 'list_buses') return Response.json(await companyBuses(base44, device));
-  if ((await currentBus(base44, device)) && (await openShiftsOn(base44, device.vehicle_id)).some((s) => s.device_id === device.id)) {
+  const leaving = await currentBus(base44, device);
+  if (leaving && (await openShiftsOn(base44, device.vehicle_id)).some((s) => s.device_id === device.id)) {
     return Response.json({ error: `End your shift on ${device.vehicle_name || 'this bus'} before changing bus`, code: 'SHIFT_OPEN' }, { status: 409 });
   }
   let next = null;
@@ -726,6 +728,7 @@ async function ownDeviceAction(base44, device, body, action) {
   await db.KioskDevice.update(device.id, { vehicle_id: vehicleId, vehicle_name: next?.name || '' });
   try { await db.DeviceCredential.update(credential.id, { vehicle_id: vehicleId }); }
   catch (error) { await db.KioskDevice.update(device.id, { vehicle_id: device.vehicle_id || '', vehicle_name: device.vehicle_name || '' }); throw error; }
+  await stopSharingLeftBus(db, leaving, device.id).catch(() => {});
   return Response.json({ ok: true, vehicle: next ? tabletVehicle(next) : null });
 }
 
@@ -767,6 +770,8 @@ async function tabletBusAction(base44, device, body, action) {
   await db.KioskDevice.update(device.id, { vehicle_id: next.id, vehicle_name: next.name || '' });
   try { await db.DeviceCredential.update(credential.id, { vehicle_id: next.id }); }
   catch (error) { await db.KioskDevice.update(device.id, { vehicle_id: device.vehicle_id || '', vehicle_name: device.vehicle_name || '' }); throw error; }
+  // Nothing on the old bus shares its position now: it stops showing as live.
+  await stopSharingLeftBus(db, current, device.id).catch(() => {});
   await db.AuditLog.create({
     actor_name: 'Driver tablet', actor_role: 'driver', action: 'update', entity: 'KioskDevice', record_id: device.id, page: 'driver tablet',
     summary: `Driver tablet "${device.label || 'Driver tablet'}" switched from ${current?.name || device.vehicle_name || 'a removed bus'} to ${next.name || 'another bus'} with that bus's PIN`,

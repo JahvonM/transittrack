@@ -149,6 +149,68 @@ describe("Switch bus on a bus's own driver tablet", () => {
   });
 });
 
+describe("the bus a tablet leaves stops showing as live", () => {
+  const busA = (sdk) => sdk.tables.Vehicle.find((v) => v.id === "bus-a");
+  const sharing = (sdk) => { Object.assign(busA(sdk), { tracking_active: true, current_lat: 12.05, current_lng: -61.75, last_location_update: new Date().toISOString() }); };
+
+  it("after Switch bus on the tablet; the new bus is left as it was", async () => {
+    const { sdk, send } = setup();
+    sharing(sdk);
+    expect((await send("switch_bus", { vehicle_id: "bus-a2", pin: "5678" })).status).toBe(200);
+    expect(busA(sdk).tracking_active).toBe(false);
+    expect(sdk.tables.Vehicle.find((v) => v.id === "bus-a2").tracking_active).toBeUndefined();
+  });
+
+  it("not when the office locked sharing on, a phone is its backup GPS, another tablet is on it, or another device has a shift on it", async () => {
+    const cases = [
+      (sdk) => { busA(sdk).remote_tracking_lock = true; },
+      (sdk) => { busA(sdk).backup_gps_driver_email = "driver@test.invalid"; },
+      (sdk) => { sdk.tables.KioskDevice.push({ id: "spare", kiosk_type: "driver", status: "active", paired: true, company_id: "a", vehicle_id: "bus-a" }); },
+      (sdk) => { sdk.tables.DriverShift.push({ id: "phone-shift", vehicle_id: "bus-a", company_id: "a", device_id: "a-phone", started_at: new Date().toISOString() }); },
+    ];
+    for (const arrange of cases) {
+      const { sdk, send } = setup();
+      sharing(sdk);
+      arrange(sdk);
+      expect((await send("switch_bus", { vehicle_id: "bus-a2", pin: "5678" })).status).toBe(200);
+      expect(busA(sdk).tracking_active).toBe(true);
+    }
+  });
+
+  it("an unpaired or revoked tablet record left on the bus doesn't keep it live", async () => {
+    const { sdk, send } = setup();
+    sharing(sdk);
+    sdk.tables.KioskDevice.push({ id: "old", kiosk_type: "driver", status: "revoked", paired: false, company_id: "a", vehicle_id: "bus-a" });
+    expect((await send("switch_bus", { vehicle_id: "bus-a2", pin: "5678" })).status).toBe(200);
+    expect(busA(sdk).tracking_active).toBe(false);
+  });
+
+  it("after Reassign in Admin, and after making the tablet another kind of tablet", async () => {
+    for (const data of [{ vehicle_id: "bus-a2", vehicle_name: "Bus A2" }, { kiosk_type: "bus_boarding" }]) {
+      const { sdk } = setup("admin");
+      sharing(sdk);
+      const res = await load("entityAccess", sdk).default(request({ entity: "KioskDevice", operation: "update", id: "tablet", data }));
+      expect(res.status).toBe(200);
+      expect(busA(sdk).tracking_active).toBe(false);
+    }
+  });
+
+  it("not when Admin only renames the tablet", async () => {
+    const { sdk } = setup("admin");
+    sharing(sdk);
+    expect((await load("entityAccess", sdk).default(request({ entity: "KioskDevice", operation: "update", id: "tablet", data: { label: "Front tablet 2" } }))).status).toBe(200);
+    expect(busA(sdk).tracking_active).toBe(true);
+  });
+
+  it("after a driver's own phone changes bus", async () => {
+    const { sdk, send } = setup();
+    sharing(sdk);
+    Object.assign(sdk.tables.KioskDevice[0], { personal: true, driver_id: "drv1", driver_name: "Ana" });
+    expect((await send("choose_bus", { vehicle_id: "bus-a2" })).status).toBe(200);
+    expect(busA(sdk).tracking_active).toBe(false);
+  });
+});
+
 describe("Reassign in Admin", () => {
   it("keeps a driver tablet paired on the new bus; it then needs the new bus's PIN", async () => {
     const { sdk, api, send, tablet } = setup("admin");
