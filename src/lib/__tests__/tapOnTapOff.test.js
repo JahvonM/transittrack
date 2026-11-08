@@ -53,7 +53,6 @@ describe("the tablet's saved card list (no connection, or server busy)", () => {
     expect(await localCardLookup("AABBCCDD", device, { automatic: true })).toMatchObject({ next_status: "boarded", already: null, automatic: true });
     noteTap("rider", "boarded", Date.now() - 2 * 60_000);
     expect((await localCardLookup("AABBCCDD", device, { automatic: true })).already).toMatchObject({ status: "boarded" });
-    noteTap("rider", "boarded", Date.now() - 10 * 60_000);
   });
   it("lets a rider off ten minutes after boarding (an asking reader would say already recorded)", async () => {
     saveBoardingDirectory(list(), device);
