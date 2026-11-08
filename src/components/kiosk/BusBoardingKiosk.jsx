@@ -5,6 +5,7 @@ import "./phoneKiosk.css";
 import BusArtwork from "@/components/BusArtwork";
 import BoardingPickupSign from "@/components/kiosk/BoardingPickupSign";
 import CoastalCardScene from "./CoastalCardScene";
+import { boardingTapWait } from "@/lib/boardingTapWait";
 import useFutureAppearance from "@/hooks/useFutureAppearance";
 import { TRANSIT_TIME_ZONE } from "@/lib/localTime";
 import React, { useEffect, useRef, useState } from "react";
@@ -310,18 +311,23 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
 
   // After a card, code, QR or Bluetooth lookup: say it's already recorded,
   // record straight away on a one-direction reader, or ask getting on/off.
+  // A card on a both-way reader records by itself: on, then off at the next
+  // tap (the server or saved list says so with `automatic`). Codes, QR and
+  // Bluetooth still ask.
   const presentLookup = async (item, res) => {
     noteRead(item.method);
+    const automatic = res.automatic === true && item.method === "nfc";
     if (res.already) {
       setPending(item);
-      setResult({ staff_name: item.staff.full_name, status: res.already.status, already: true, at: res.already.at, canSwitch: (res.reader_mode || "both") === "both" });
+      setResult({ staff_name: item.staff.full_name, status: res.already.status, already: true, at: res.already.at, canSwitch: (res.reader_mode || "both") === "both" && !automatic, wait: automatic ? boardingTapWait(res.already.status, res.already.at) : "" });
       setMode("result");
       playTone("duplicate");
       speak("Already recorded");
       resetSoon(5000);
       return;
     }
-    const fixed = res.reader_mode === "boarding" ? "boarded" : res.reader_mode === "exit" ? "off_board" : null;
+    const fixed = res.reader_mode === "boarding" ? "boarded" : res.reader_mode === "exit" ? "off_board"
+      : automatic && ["boarded", "off_board"].includes(res.next_status) ? res.next_status : null;
     setPending(item);
     if (fixed) { setMode("checking"); await confirmCheckIn(fixed, item, true); return; }
     setMode("confirm");
@@ -336,10 +342,12 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
     setBadgeError("");
     setBusy(true);
     try {
-      const res = await invoke("lookup_tag", { card_tag: tag });
+      // Recorded at the moment of the tap, however long the lookup takes.
+      const occurred_at = new Date(lookupStarted.current).toISOString();
+      const res = await invoke("lookup_tag", { card_tag: tag, ...(automaticNfc ? { auto_toggle: true } : {}) });
       setUnlocked(true);
       reportBadgeResult(true, receipt);
-      await presentLookup({ staff: res.staff, next_status: res.next_status, method: "nfc", verification_grant: res.verification_grant, directory_grant:res.directory_grant, card_fingerprint:res.card_fingerprint }, res);
+      await presentLookup({ staff: res.staff, next_status: res.next_status, method: "nfc", occurred_at, verification_grant: res.verification_grant, directory_grant:res.directory_grant, card_fingerprint:res.card_fingerprint }, res);
     } catch (e) {
       reportBadgeResult(false, receipt);
       if (handleUnpaired(e)) return;
@@ -465,7 +473,7 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
     const item = from || pending;
     if (!item || (busy && !chained)) return;
     setBusy(true);
-    const payload = { expected_device_id:device.device_id||device.id, expected_company_id:device.company_id, expected_vehicle_id:device.vehicle_id, client_request_id: crypto.randomUUID(), occurred_at: new Date().toISOString(), staff_id: item.staff.id, method: item.method, code_type: item.code_type, verification_grant: item.verification_grant, directory_grant:item.directory_grant, card_fingerprint:item.card_fingerprint, status };
+    const payload = { expected_device_id:device.device_id||device.id, expected_company_id:device.company_id, expected_vehicle_id:device.vehicle_id, client_request_id: crypto.randomUUID(), occurred_at: item.occurred_at || new Date().toISOString(), staff_id: item.staff.id, method: item.method, code_type: item.code_type, verification_grant: item.verification_grant, directory_grant:item.directory_grant, card_fingerprint:item.card_fingerprint, status };
     try {
       const res = await submitSavedCheckIn(invoke, payload);
       // Another tap or tablet already recorded this: nothing new was added.
@@ -478,8 +486,8 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
         resetSoon(4000);
         return;
       }
-      const record = { staff_name: res.record.staff_name, status: res.record.status };
-      noteStatus(payload.staff_id,status);
+      const record = { staff_name: res.record.staff_name, status: res.record.status, automatic: item.method === "nfc" && automaticNfc };
+      noteStatus(payload.staff_id, res.record.status || status, res.record.boarded_at || payload.occurred_at);
       if (Number.isFinite(res.occupancy)) setOccupancy(res.occupancy);
       if (Number.isFinite(res.today_count)) {
         setTodayCount(res.today_count);
@@ -501,9 +509,9 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
           setPendingSyncCount(queueLength());
           if (!hasSavedCheckIn(payload.client_request_id)) throw new Error("This check-in couldn't be saved on the tablet. Please try again.");
         } catch (storageError) { setBadgeError(storageError.message); setMode("badge_error"); resetSoon(5000); return; }
-        noteStatus(payload.staff_id, status);
+        noteStatus(payload.staff_id, status, payload.occurred_at);
         if (payload.code_type === "one_time") burnOneTimeCode(payload.staff_id);
-        setResult({ staff_name: item.staff.full_name, status, offline: true });
+        setResult({ staff_name: item.staff.full_name, status, offline: true, automatic: item.method === "nfc" && automaticNfc });
         setMode("result");
         playTone(status === "boarded" ? "accepted" : "exit");
         speak(status === "boarded" ? `Welcome aboard, ${item.staff.full_name.split(" ")[0]}` : `See you later, ${item.staff.full_name.split(" ")[0]}`);
@@ -575,6 +583,7 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
         <div className="mx-auto w-20 h-20 rounded-full bg-secondary grid place-items-center"><History className="w-11 h-11 text-foreground" aria-hidden="true" /></div>
         <p role="status" className="text-3xl font-bold">Already recorded</p>
         <p className="text-base text-muted-foreground">{result.staff_name.split(" ")[0]}, you {on ? "boarded" : "got off"}{when ? ` at ${when}` : ""}. Nothing else to do.</p>
+        {result.wait && <p className="text-sm text-muted-foreground">{result.wait}</p>}
         {result.canSwitch && pending && (
           <Button variant="outline" className="h-14 rounded-2xl text-lg" onClick={() => confirmCheckIn(on ? "off_board" : "boarded")} disabled={busy}>
             {on ? <LogOut className="w-6 h-6" /> : <LogIn className="w-6 h-6" />} {on ? "I'm getting off" : "I'm getting on"}
@@ -600,6 +609,7 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
           </div>
           <p role="status" className="text-3xl font-bold">{boarded ? `Welcome aboard, ${result.staff_name.split(" ")[0]}!` : `See you later, ${result.staff_name.split(" ")[0]}!`}</p>
           <p className="text-base font-semibold">{boarded ? "Boarding recorded" : "Exit recorded"}</p>
+          {boarded && result.automatic && <p className="text-sm text-muted-foreground">Tap your card again when you get off.</p>}
           {boarded && result.riderNumber > 0 && (
             <p className="text-sm font-medium text-primary flex items-center justify-center gap-1.5">
               <PartyPopper className="w-4 h-4" /> You're rider #{result.riderNumber} today!
