@@ -1,13 +1,14 @@
 import React from "react";
 import { AlertTriangle, RotateCw, Home } from "lucide-react";
 import { reportError } from "@/lib/reportError";
+import { reloadIntoNewest } from "@/lib/updateReload";
 
 // Catches a crash in any screen below it and shows a recovery card instead of
 // a blank page. Keyed by route in App.jsx, so moving to another page clears it.
 export default class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
-    this.state = { error: null };
+    this.state = { error: null, reloading: false };
   }
 
   static getDerivedStateFromError(error) {
@@ -35,10 +36,13 @@ export default class ErrorBoundary extends React.Component {
           <div className="flex flex-col gap-2">
             <button
               type="button"
-              onClick={() => window.location.reload()}
-              className="h-11 rounded-xl bg-primary text-primary-foreground font-semibold inline-flex items-center justify-center gap-2"
+              // Loads the newest version first, so a screen broken by an
+              // update in the meantime doesn't reopen from the old saved copy.
+              onClick={() => { this.setState({ reloading: true }); reloadIntoNewest(); }}
+              disabled={this.state.reloading}
+              className="h-11 rounded-xl bg-primary text-primary-foreground font-semibold inline-flex items-center justify-center gap-2 disabled:opacity-70"
             >
-              <RotateCw className="w-4 h-4" /> Reload
+              <RotateCw className={`w-4 h-4 ${this.state.reloading ? "animate-spin" : ""}`} /> {this.state.reloading ? "Getting the latest version…" : "Reload"}
             </button>
             <button
               type="button"

@@ -3,6 +3,7 @@
 // fetch dynamically imported module"). Reloading picks up the new version, so
 // do that once for them instead of showing an error. If it happens again
 // within a minute, or the device is offline, the error shows as before.
+import { stageNewVersion } from "@/lib/swStage";
 
 const KEY = "tt_update_reload_at";
 const WINDOW_MS = 60_000;
@@ -10,7 +11,15 @@ let reloading = false;
 
 export const reloadingForUpdate = () => reloading;
 
-export function reloadForUpdate({ now = Date.now(), storage = window.sessionStorage, online = navigator.onLine, reload = () => window.location.reload() } = {}) {
+// A plain reload would open the saved copy of the old version again (the
+// service worker opens the app from its saved copy), so the newest version is
+// saved first, for at most 15 seconds, then the page reloads into it.
+export async function reloadIntoNewest({ stage = stageNewVersion, reload = () => window.location.reload() } = {}) {
+  try { await stage(15_000); } catch { /* reload anyway */ }
+  reload();
+}
+
+export function reloadForUpdate({ now = Date.now(), storage = window.sessionStorage, online = navigator.onLine, reload = () => { reloadIntoNewest(); } } = {}) {
   if (reloading) return true;
   if (online === false) return false;
   try {

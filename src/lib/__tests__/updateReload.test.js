@@ -65,3 +65,22 @@ describe("Microsoft's link checker", () => {
     expect(isLinkCheckerNoise(new Error("Cannot read properties of undefined"))).toBe(false);
   });
 });
+
+describe("reloading into the newest version, not the saved old one", () => {
+  it("asks for the newest version to be saved, then reloads", async () => {
+    vi.resetModules();
+    const { reloadIntoNewest } = await import("@/lib/updateReload");
+    const order = [];
+    await reloadIntoNewest({ stage: async (ms) => { order.push("stage " + ms); return true; }, reload: () => order.push("reload") });
+    expect(order).toEqual(["stage 15000", "reload"]);
+  });
+
+  it("still reloads when saving the new version fails", async () => {
+    vi.resetModules();
+    const { reloadIntoNewest } = await import("@/lib/updateReload");
+    let reloads = 0;
+    await reloadIntoNewest({ stage: async () => { throw new Error("no worker"); }, reload: () => reloads++ });
+    await reloadIntoNewest({ stage: async () => false, reload: () => reloads++ });
+    expect(reloads).toBe(2);
+  });
+});
