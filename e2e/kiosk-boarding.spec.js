@@ -337,7 +337,8 @@ test('boarding home uses the actual company, counts and admin bus photo',async({
  await expect(page.locator('.tt-board-brand')).toContainText('Mc Sween’s');
  await expect(page.locator('.tt-board-brand')).toContainText('Transport and Reside Co.');
  await expect(page.locator('.tt-board-brand')).not.toContainText('TRANSITTRACK');
- await expect(page.locator('.tt-board-bus')).toHaveAttribute('src','/images/transit-bus-3d.webp');
+ // The card-tap animation shows the admin's own photo of this bus.
+ await expect(page.locator('.tt-coastal-bus')).toHaveAttribute('src','/images/transit-bus-3d.webp');
  await expect(page.locator('.tt-board-occupancy')).toContainText('4');
  await expect(page.locator('.tt-board-occupancy')).toContainText('9 riders today');
 });
