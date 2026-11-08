@@ -218,11 +218,11 @@ export default function KioskDeviceDialog({ open, onOpenChange, companies, vehic
           {kioskType === "bus_boarding" && <div className="space-y-2">
             <Label htmlFor="kiosk-reader-mode">What this reader records</Label>
             <ChoiceSelect id="kiosk-reader-mode" aria-label="What this reader records" value={readerMode} onChange={e => setReaderMode(e.target.value)} className={selectClass}>
-              <option value="both">Boarding and getting off (asks each time)</option>
+              <option value="both">Boarding and getting off (tap on, tap again to get off)</option>
               <option value="boarding">Boarding only (front door)</option>
               <option value="exit">Getting off only (rear door)</option>
             </ChoiceSelect>
-            <p className="text-caption text-muted-foreground">A one-way reader records straight away, with no question. A second tap within 30 minutes is shown as "Already recorded".</p>
+            <p className="text-caption text-muted-foreground">Cards record straight away, with no question. On a two-way reader the first tap is getting on and the next tap is getting off; a second tap within 5 minutes is shown as "Already recorded" (30 minutes on a one-way reader). Codes and QR still ask on a two-way reader.</p>
             <Label htmlFor="kiosk-nfc-spot">Where passengers tap their card</Label>
             <ChoiceSelect id="kiosk-nfc-spot" aria-label="Where passengers tap their card" value={nfcSpot} onChange={e => setNfcSpot(e.target.value)} className={selectClass}>
               {NFC_SPOTS.map((k) => <option key={k} value={k}>{NFC_SPOT_LABEL[k]}</option>)}
