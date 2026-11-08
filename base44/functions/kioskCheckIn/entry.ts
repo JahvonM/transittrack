@@ -7,7 +7,7 @@ import { reserveAttempt, claimOnce, createOnce } from '../../shared/atomicOps.ts
 import { checkBusPin } from '../../shared/busPin.ts';
 import { pushWithPolicy } from '../../shared/notificationPolicy.ts';
 import { sendPushToTokens } from '../../shared/fcm.ts';
-import { modeStatus, onBoardCount, readerMode, repeatOf, reviewReason, suggestedStatus, tapAdvice } from '../../shared/boardingEvents.ts';
+import { automaticTapAdvice, modeStatus, onBoardCount, readerMode, repeatOf, reviewReason, suggestedStatus, tapAdvice } from '../../shared/boardingEvents.ts';
 
 
 async function liveMembership(base44, row) {
@@ -462,9 +462,13 @@ export default async function(req) {
         const binding=await boardingBinding(base44,device,person,'card');
         if(!binding)return Response.json({error:'Card no longer authorized'},{status:403});
         const mode = readerMode(device?.reader_mode), now = Date.now();
-        const advice = tapAdvice(await recentTaps(base44, companyId, vehicleId, person.nfc_tag || person.id), mode, now);
+        const taps = await recentTaps(base44, companyId, vehicleId, person.nfc_tag || person.id);
+        // A both-way reader that records card taps by itself (tap on, tap
+        // again to get off) asks with auto_toggle; older tablets ask the rider.
+        const automatic = body.auto_toggle === true && mode === 'both';
+        const advice = automatic ? automaticTapAdvice(taps, now) : tapAdvice(taps, mode, now);
         const status = advice.status;
-        return Response.json({ staff: { id: person.id, full_name: person.full_name, photo_url: person.photo_url }, next_status: status, reader_mode: mode, already: advice.repeat ? { status: advice.repeat.status, at: advice.repeat.at } : null, verification_grant: await issueGrant(base44, device, 'boarding', person.id, 24 * 3600_000,binding) });
+        return Response.json({ staff: { id: person.id, full_name: person.full_name, photo_url: person.photo_url }, next_status: status, reader_mode: mode, automatic, already: advice.repeat ? { status: advice.repeat.status, at: advice.repeat.at } : null, verification_grant: await issueGrant(base44, device, 'boarding', person.id, 24 * 3600_000,binding) });
       }
 
       // Permanent personal QR, chosen keypad code, or a legacy temporary code.
@@ -535,7 +539,10 @@ export default async function(req) {
       // explicitly (status is required from the client) — next_status from
       // lookup_tag/lookup_code is only ever a suggested default the UI
       // highlights, never the sole option, since a missed tap or skipped
-      // stop would otherwise leave no way to correct a wrong guess. ---
+      // stop would otherwise leave no way to correct a wrong guess. A card
+      // tap on a both-way reader sends the direction lookup_tag gave it
+      // (tap on, tap again to get off); the repeat and review checks below
+      // still apply, and the driver can correct a ride on the driver tablet. ---
       case 'check_in': {
         const { staff_id, staff_name, method, code_type, status: requestedStatus } = body;
         if (!staff_id && !staff_name) return Response.json({ error: 'staff_id or staff_name required' }, { status: 400 });

@@ -28,7 +28,7 @@ export function boardingDirectoryInfo() {
   const d=read();
   return d?.version===1 ? {count:d.staff?.length || 0,updated:d.generated_at,expires:d.expires_at} : null;
 }
-export async function localCardLookup(uid, device) {
+export async function localCardLookup(uid, device, { automatic = false } = {}) {
   const d=read(), id=device?.device_id || device?.id;
   if (!d || d.device_id!==id || d.company_id!==device.company_id || d.vehicle_id!==device.vehicle_id || !(Date.parse(d.expires_at)>Date.now())) return null;
   const normalized=String(uid || "").replace(/[^0-9a-f]/gi,"").toUpperCase();
@@ -41,6 +41,6 @@ export async function localCardLookup(uid, device) {
   // Same rules as the server: the reader's direction, or a suggestion, and
   // whether this tap repeats one this tablet just recorded.
   const mode=readerMode(device.reader_mode);
-  const advice=localTapAdvice(p.id,mode);
-  return {staff:{id:p.id,full_name:p.full_name,photo_url:p.photo_url},next_status:advice.next_status,already:advice.already,reader_mode:mode,directory_grant:d.directory_grant,card_fingerprint:fingerprint,local_lookup:true};
+  const advice=localTapAdvice(p.id,mode,Date.now(),automatic);
+  return {staff:{id:p.id,full_name:p.full_name,photo_url:p.photo_url},next_status:advice.next_status,already:advice.already,reader_mode:mode,automatic:advice.automatic===true,directory_grant:d.directory_grant,card_fingerprint:fingerprint,local_lookup:true};
 }

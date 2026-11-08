@@ -16,8 +16,9 @@ export const DUPLICATE_WINDOW_MS = 30 * 60_000;
 // A boarding older than this with no exit no longer counts as "on board".
 export const RIDE_MAX_MS = 6 * 3600_000;
 
-// What a boarding tablet's reader records. 'both' asks the rider each time
-// (the behaviour before reader modes existed and still the default).
+// What a boarding tablet's reader records. 'both' (the default): getting on
+// and off. Card taps on current tablets record by themselves (tap on, tap
+// again to get off, automaticTapAdvice); codes, QR and older tablets ask.
 export const READER_MODES = ['both', 'boarding', 'exit'] as const;
 export type ReaderMode = typeof READER_MODES[number];
 export const readerMode = (value: unknown): ReaderMode =>
@@ -83,6 +84,16 @@ export function tapAdvice(taps: TapEvent[], mode: ReaderMode, now: number) {
   const last = neighbours(taps, now).before;
   const repeat = fixed ? repeatOf(taps, fixed, now) : (last && now - tapTime(last) <= DUPLICATE_WINDOW_MS ? last : null);
   return { status, repeat };
+}
+
+// On a both-way reader a card tap records by itself: getting on if the rider
+// isn't on the bus, getting off if they are. A tap this soon after their last
+// one is a double tap, not getting off: "Already recorded" (wait, then tap).
+export const AUTO_TAP_WAIT_MS = 5 * 60_000;
+export function automaticTapAdvice(taps: TapEvent[], now: number) {
+  const last = neighbours(taps, now).before;
+  const repeat = last && now - tapTime(last) < AUTO_TAP_WAIT_MS ? last : null;
+  return { status: suggestedStatus(taps, now, 'both'), repeat };
 }
 
 // Whether the passenger is on the bus at `now`, from their own taps.

@@ -258,8 +258,13 @@ export default function Kiosk() {
   // Every kiosk action (search/lookup/check-in/register/sign-in) goes
   // through this one backend function, keyed by device_id like driverSession.
   // NFC uses the scoped local index first. Codes still require the server.
+  // A card tap that records by itself (tap on, tap again to get off) asks the
+  // server first: it knows taps from every tablet on the bus and the driver's
+  // corrections. The saved list answers when the server can't.
   const invoke = useCallback(async (action, payload = {}) => {
-    if (action === "lookup_tag" && device?.kiosk_type === "bus_boarding") {
+    const cardTap = action === "lookup_tag" && device?.kiosk_type === "bus_boarding";
+    const automatic = cardTap && payload.auto_toggle === true;
+    if (cardTap && !automatic) {
       const local = await localCardLookup(payload.card_tag, device);
       if (local) return local;
     }
@@ -269,22 +274,29 @@ export default function Kiosk() {
       // the saved list and check-ins are queued instead of hanging.
       const ms = action === "lookup_tag" || action === "lookup_code" ? 4000 : action === "check_in" ? 12000 : 20000;
       const res = await withTimeout(base44.functions.invoke("kioskCheckIn", deviceRequest(deviceId, { ...payload, action })), ms);
-      if (action === "check_in" && payload.staff_id) noteStatus(payload.staff_id, payload.status);
+      if (action === "check_in" && payload.staff_id) noteStatus(payload.staff_id, res.data?.record?.status || payload.status, res.data?.record?.boarded_at || payload.occurred_at || Date.now());
       setOnline(true);
       return res.data;
     } catch (e) {
       // "Too many attempts" (429) is the server answering, not a lost
       // connection: show it as it is rather than falling back offline.
-      if (isNetworkFailure(e) && httpStatus(e) !== 429 && (action === "lookup_tag" || action === "lookup_code")) {
+      // For automatic card taps a busy server is answered from the saved
+      // list too (the card is checked against this tablet's own list); with
+      // no saved list the rider still sees "Too many attempts".
+      const busy = httpStatus(e) === 429;
+      if (isNetworkFailure(e) && (!busy || automatic) && (action === "lookup_tag" || action === "lookup_code")) {
         // Only a request with no answer means the connection is gone; a
         // server error still uses the saved list but keeps the tablet online.
         if (!e?.response) setOnline(false);
+        const saved = automatic ? await localCardLookup(payload.card_tag, device, { automatic: true }) : null;
+        if (saved) return saved;
+        if (busy) throw e;
         const local = offlineLookup(action, payload);
         if (local) return local;
       }
       throw e;
     }
-  }, [deviceId, device?.company_id, device?.vehicle_id, device?.kiosk_type]);
+  }, [deviceId, device?.company_id, device?.vehicle_id, device?.kiosk_type, device?.reader_mode]);
 
   const meta = device ? (TYPE_META[device.kiosk_type] || TYPE_META.bus_boarding) : null;
   const Icon = meta?.icon || Bus;

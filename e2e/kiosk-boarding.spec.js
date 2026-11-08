@@ -34,6 +34,9 @@ async function setup(page, { heartbeat = () => ({ json: device() }), checkIn = (
       calls.push([body.action, body.status || '']);
       const r = checkIn(body);
       if (r === 'abort') return route.abort('internetdisconnected');
+      // Like the server: a both-way reader's card tap (auto_toggle) records by itself.
+      if (r?.json?.staff && body.action === 'lookup_tag' && body.auto_toggle === true && r.json.automatic === undefined && [undefined, 'both'].includes(r.json.reader_mode))
+        r.json = { ...r.json, automatic: true };
       if (r) return route.fulfill(r);
       if (body.action === 'offline_directory') return route.fulfill({ json: { staff: [] } });
       return route.fulfill({ status: 400, json: { error: 'Unknown action' } });
@@ -87,10 +90,10 @@ test('card tap boards a passenger and the tablet locks again', async ({ page }) 
   await page.goto('/kiosk');
   await expect(page.getByText('Slide to enter a code', { exact: true })).toBeVisible();
   await tap(page);
-  await expect(page.getByText('Are you boarding or exiting?')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Exiting', exact: true })).toBeVisible();
-  await page.getByRole('button', { name: /Boarding/ }).click();
+  // A two-way reader records the card by itself: no "boarding or exiting?".
   await expect(page.getByText(/Welcome aboard, Maria!/)).toBeVisible();
+  await expect(page.getByText('Tap your card again when you get off.')).toBeVisible();
+  await expect(page.getByText('Are you boarding or exiting?')).toHaveCount(0);
   await expect(page.locator('.kiosk-mascot-idle, .kiosk-mascot-arm')).toHaveCount(0);
   await expect(page.getByText('Slide to enter a code', { exact: true })).toBeVisible({ timeout: 6000 });
   expect(calls.filter(([a]) => a === 'check_in')).toEqual([['check_in', 'boarded']]);
@@ -110,10 +113,37 @@ test('a repeated card tap says already recorded and records nothing new', async 
   // A double tap is never asked "boarding or exiting", and nothing is sent.
   await expect(page.getByText('Are you boarding or exiting?')).toHaveCount(0);
   expect(calls.filter(([a]) => a === 'check_in')).toEqual([]);
-  // A rider getting off after a short ride can still say so.
-  await page.getByRole('button', { name: "I'm getting off" }).click();
+  // Getting off is the next tap, after the short wait: no button to press.
+  await expect(page.getByRole('button', { name: "I'm getting off" })).toHaveCount(0);
+  await expect(page.getByText(/^Wait [12]m \d\ds, then tap again to get off\.$/)).toBeVisible();
+});
+
+test('the next card tap after boarding records getting off by itself', async ({ page }) => {
+  const at = new Date(Date.now() - 20 * 60_000).toISOString();
+  const { calls } = await setup(page, {
+    checkIn: (b) => b.action === 'lookup_tag' ? { json: { staff: person, next_status: 'off_board', reader_mode: 'both', already: null, verification_grant: 'b'.repeat(64) } }
+      : b.action === 'check_in' ? { json: { record: { staff_name: 'Maria Joseph', status: b.status, boarded_at: at }, occupancy: 3, today_count: 9 } } : null,
+  });
+  await page.goto('/kiosk');
+  await expect(page.getByText('Slide to enter a code', { exact: true })).toBeVisible();
+  await tap(page);
   await expect(page.getByText('See you later, Maria!')).toBeVisible();
+  await expect(page.getByText('Exit recorded', { exact: true })).toBeVisible();
   expect(calls.filter(([a]) => a === 'check_in')).toEqual([['check_in', 'off_board']]);
+});
+
+test('a tablet without the new server still asks boarding or exiting', async ({ page }) => {
+  const { calls } = await setup(page, {
+    checkIn: (b) => b.action === 'lookup_tag' ? { json: { staff: person, next_status: 'boarded', automatic: false, verification_grant: 'b'.repeat(64) } }
+      : b.action === 'check_in' ? { json: { record: { staff_name: 'Maria Joseph', status: b.status }, occupancy: 5, today_count: 10 } } : null,
+  });
+  await page.goto('/kiosk');
+  await expect(page.getByText('Slide to enter a code', { exact: true })).toBeVisible();
+  await tap(page);
+  await expect(page.getByText('Are you boarding or exiting?')).toBeVisible();
+  await page.getByRole('button', { name: /Boarding/ }).click();
+  await expect(page.getByText(/Welcome aboard, Maria!/)).toBeVisible();
+  expect(calls.filter(([a]) => a === 'check_in')).toEqual([['check_in', 'boarded']]);
 });
 
 test('a boarding-only tablet records the boarding straight away and refuses exits clearly', async ({ page }) => {
@@ -310,7 +340,9 @@ for(const size of [{width:1280,height:800},{width:800,height:1280},{width:1024,h
 
 test('home QR camera stays beside NFC and a card still reaches both actions', async ({page}) => {
   await page.setViewportSize({width:1024,height:600});
-  const {calls,errors}=await setup(page,{checkIn:b=>b.action==='lookup_tag'?{json:{staff:person,next_status:'boarded',verification_grant:'b'.repeat(64)}}:null});
+  // The boarding-or-exiting question (still asked for codes and QR, and by
+  // tablets on an older server) fits beside the camera.
+  const {calls,errors}=await setup(page,{checkIn:b=>b.action==='lookup_tag'?{json:{staff:person,next_status:'boarded',automatic:false,verification_grant:'b'.repeat(64)}}:null});
   await page.goto('/kiosk');
   await page.getByRole('button',{name:/Scan QR code/}).click();
   await expect(page.getByRole('region',{name:'Home QR scanner'})).toBeVisible();
@@ -492,13 +524,11 @@ test('integrated NFC reader correlates accepted taps and retries without duplica
   await expect.poll(() => page.evaluate(() => window.__nativeReady)).toBe(true);
   const raw = { uid: 'AABBCCDD', tapId: 'native-test-accepted-00001', at: await page.evaluate(() => Date.now()) };
   await page.evaluate(raw => window.__emitNativeCard(raw), raw);
-  await expect(page.getByText('Are you boarding or exiting?')).toBeVisible();
+  await expect(page.getByText(/Welcome aboard, Maria!/)).toBeVisible();
   await expect.poll(() => page.evaluate(() => window.__nativeTapResults)).toContainEqual({ tapId: raw.tapId, accepted: true });
   await page.evaluate(raw => window.__emitNativeCard(raw), raw);
   await expect.poll(() => page.evaluate(() => window.__nativeTapResults.length)).toBe(2);
   expect(calls.filter(([a]) => a === 'lookup_tag')).toHaveLength(1);
-  await page.getByRole('button', { name: /Boarding/ }).click();
-  await expect(page.getByText(/Welcome aboard, Maria!/)).toBeVisible();
   expect(calls.filter(([a]) => a === 'check_in')).toHaveLength(1);
   expect(await page.evaluate(() => Object.values(localStorage).join(' '))).not.toContain(raw.uid);
   expect(errors).toEqual([]);
@@ -744,9 +774,6 @@ for(const [orient,size] of [['landscape',{width:1280,height:800}],['portrait',{w
  await expect(page.getByText('Slide to enter a code',{exact:true})).toBeVisible();
  await shot('home');
  await tap(page);
- await expect(page.getByText('Are you boarding or exiting?')).toBeVisible();
- await shot('choose');
- await page.getByRole('button',{name:/Boarding/}).click();
  await expect(page.getByText(/Welcome aboard, Maria!/)).toBeVisible();
  await shot('welcome');
  await expect(page.getByText('Slide to enter a code',{exact:true})).toBeVisible({timeout:6000});
