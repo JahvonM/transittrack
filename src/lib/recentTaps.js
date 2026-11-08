@@ -42,7 +42,7 @@ export function tapsFor(staffId) {
 export function localTapAdvice(staffId, mode, now = Date.now(), automatic = false) {
   const m = readerMode(mode), auto = automatic && m === "both";
   const advice = auto ? automaticTapAdvice(tapsFor(staffId), now) : tapAdvice(tapsFor(staffId), m, now);
-  return { next_status: advice.status, automatic: auto, already: advice.repeat ? { status: advice.repeat.status, at: new Date(advice.repeat.at).toISOString() } : null };
+  return { next_status: advice.status, already: advice.repeat ? { status: advice.repeat.status, at: new Date(advice.repeat.at).toISOString() } : null, ...(auto ? { automatic: true } : {}) };
 }
 
 export function forgetTaps() {
