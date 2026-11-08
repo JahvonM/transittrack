@@ -34,6 +34,9 @@ async function setup(page, { heartbeat = () => ({ json: device() }), checkIn = (
       calls.push([body.action, body.status || '']);
       const r = checkIn(body);
       if (r === 'abort') return route.abort('internetdisconnected');
+      // Like the server: a both-way reader's card tap (auto_toggle) records by itself.
+      if (r?.json?.staff && body.action === 'lookup_tag' && body.auto_toggle === true && r.json.automatic === undefined && [undefined, 'both'].includes(r.json.reader_mode))
+        r.json = { ...r.json, automatic: true };
       if (r) return route.fulfill(r);
       if (body.action === 'offline_directory') return route.fulfill({ json: { staff: [] } });
       return route.fulfill({ status: 400, json: { error: 'Unknown action' } });
