@@ -20,6 +20,7 @@ export default function WelcomeHero() {
           <Button asChild variant="outline" className="h-14 rounded-xl text-base"><a href={bookHref()}><Car className="w-5 h-5" /> Book a taxi</a></Button>
           <Button asChild variant="outline" className="h-14 rounded-xl text-base"><Link to="/track"><MapPin className="w-5 h-5" /> Track a ride</Link></Button>
         </div>
+        <p className="tt-welcome-signup">New here? <Link to="/register">Create an account</Link></p>
         <p className="tt-welcome-note">Drivers and crew sign in with a code — no email account needed.</p>
       </div>
     </section>
