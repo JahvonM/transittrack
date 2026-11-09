@@ -45,21 +45,49 @@ test('shows each bus as a tile and in the list, with its location, speed and shi
   expect(errors).toEqual([]);
 });
 
-test('a live camera opens only when asked, offers the driver tablet\'s cameras only', async ({ page }) => {
+// The live-viewing service: switched on; every view waits for the tablet.
+async function liveViewing(page) {
+  const support = [];
+  await page.route('**/functions/tabletSupport', (r) => {
+    const b = r.request().postDataJSON() || {};
+    support.push(b);
+    if (b.operation === 'config') return r.fulfill({ json: { enabled: true, relay_configured: true } });
+    const id = b.session_id || `view-${support.filter((x) => x.operation === 'request').length}`;
+    return r.fulfill({ json: { session: { id, state: b.operation === 'end' ? 'ended' : 'waiting_permission', expires_at: new Date(Date.now() + 600_000).toISOString() } } });
+  });
+  return support;
+}
+
+test('one tap starts a bus\'s back camera in its box; the driver tablet\'s cameras only', async ({ page }) => {
   const { data, errors } = await open(page);
+  const support = await liveViewing(page);
+  const tablet = data.kiosks.find((k) => k.kiosk_type === 'driver');
   const tiles = page.getByRole('list', { name: 'Bus tiles' });
   await expect(page.getByRole('region', { name: 'Remote tablet viewing' })).toHaveCount(0);
   await expect(page.getByText(/Live cameras are a trial until they're tested on a bus/)).toBeVisible();
   await expect(tiles.getByRole('button', { name: `${data.vehicles[1].name}: no live camera` })).toBeDisabled();
+  expect(support.filter((x) => x.operation === 'request')).toEqual([]);
+  // One tap: the back camera is asked for straight away, inside the box.
   await tiles.getByRole('button', { name: `Open live camera: ${data.vehicles[0].name}` }).click();
   const viewer = page.getByRole('region', { name: 'Remote tablet viewing' });
   await expect(viewer).toBeVisible();
-  await expect(viewer.getByRole('button', { name: 'View back camera' })).toBeVisible();
-  await expect(viewer.getByRole('button', { name: 'View front camera' })).toBeVisible();
-  await expect(viewer.getByRole('button', { name: 'View screen' })).toHaveCount(0);
+  await expect.poll(() => support.filter((x) => x.operation === 'request')).toEqual([{ operation: 'request', device_id: tablet.id, capability: 'camera_back' }]);
+  await expect(viewer.getByText('Waiting for the tablet…')).toBeVisible();
+  const cams = viewer.getByRole('group', { name: 'Camera' });
+  await expect(cams.getByRole('button', { name: 'Back camera' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(cams.getByRole('button', { name: 'Front camera' })).toHaveAttribute('aria-pressed', 'false');
+  await expect(viewer.getByRole('button', { name: /screen/i })).toHaveCount(0);
   await expect(page.getByText(/1 of 4 live views open/)).toBeVisible();
+  await page.screenshot({ path: '/tmp/tt-fleet-one-tap.png' });
+  // One tap to change camera: the back view ends, the front one is asked for.
+  await cams.getByRole('button', { name: 'Front camera' }).click();
+  await expect.poll(() => support.filter((x) => x.operation === 'request').map((x) => x.capability)).toEqual(['camera_back', 'camera_front']);
+  expect(support.filter((x) => x.operation === 'end').map((x) => x.session_id)).toEqual(['view-1']);
+  await expect(cams.getByRole('button', { name: 'Front camera' })).toHaveAttribute('aria-pressed', 'true');
+  // Close ends it.
   await tiles.getByRole('button', { name: `Close camera: ${data.vehicles[0].name}` }).click();
   await expect(viewer).toHaveCount(0);
+  await expect.poll(() => support.filter((x) => x.operation === 'end').map((x) => x.session_id)).toEqual(['view-1', 'view-2']);
   // A view whose tile is searched off the screen ends and stops counting.
   await tiles.getByRole('button', { name: `Open live camera: ${data.vehicles[0].name}` }).click();
   await expect(page.getByText(/1 of 4 live views open/)).toBeVisible();
@@ -68,6 +96,19 @@ test('a live camera opens only when asked, offers the driver tablet\'s cameras o
   await expect(page.getByText(/live views open/)).toHaveCount(0);
   await page.getByLabel('Search buses').fill('');
   await expect(tiles.getByRole('button', { name: `Open live camera: ${data.vehicles[0].name}` })).toBeEnabled();
+  await expect.poll(() => support.filter((x) => x.operation === 'end').length).toBe(3);
+  expect(errors).toEqual([]);
+});
+
+test('a bus box says plainly when live viewing is off, and asks the tablet nothing', async ({ page }) => {
+  const { data, errors } = await open(page);
+  const support = [];
+  await page.route('**/functions/tabletSupport', (r) => { support.push(r.request().postDataJSON() || {}); return r.fulfill({ json: { enabled: false } }); });
+  await page.getByRole('list', { name: 'Bus tiles' }).getByRole('button', { name: `Open live camera: ${data.vehicles[0].name}` }).click();
+  const viewer = page.getByRole('region', { name: 'Remote tablet viewing' });
+  await expect(viewer.getByText("Live viewing isn't switched on yet.")).toBeVisible();
+  await expect(viewer.getByRole('button', { name: 'Back camera' })).toBeDisabled();
+  expect(support.map((x) => x.operation)).toEqual(['config']);
   expect(errors).toEqual([]);
 });
 
