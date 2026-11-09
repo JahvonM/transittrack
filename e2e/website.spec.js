@@ -72,17 +72,41 @@ test('a ride request fills in the ticket beside the form and sends what was type
   expect(requests[0]).toMatchObject({ action: 'request', service: 'transfer', pickup: 'Spice Island Beach Resort', dropoff: "St. George's market", guests: 4, name: 'Ana Joseph', email: 'ana@example.com' });
 });
 
-for (const width of [320, 390]) {
+for (const width of [320, 360, 375, 390]) {
   test(`the website fits a ${width}px phone without sideways scrolling`, async ({ page }) => {
     await site(page);
     await page.setViewportSize({ width, height: 800 });
     for (const path of ['/site', '/site/book']) {
       await page.goto(path);
       await expect(page.getByRole('link', { name: 'Request a ride' }).first()).toBeVisible();
+      await page.evaluate(() => document.fonts.ready);
       expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
+      // The whole name shows, and the button doesn't sit on top of it.
+      const header = await page.evaluate(() => {
+        const name = document.querySelector('.mcs-brand span');
+        const button = document.querySelector('.mcs-nav .mcs-btn');
+        return { clipped: name.scrollWidth - name.clientWidth, gap: button.getBoundingClientRect().left - (name.getBoundingClientRect().left + name.scrollWidth) };
+      });
+      expect(header.clipped).toBeLessThanOrEqual(0);
+      expect(header.gap).toBeGreaterThanOrEqual(0);
     }
   });
 }
+
+// While the web font is still loading the browser draws a stand-in font; the
+// header must still fit small phones.
+test('the header fits small phones before its fonts arrive', async ({ page }) => {
+  await site(page);
+  await page.route('**/*.woff2', (r) => r.abort());
+  for (const width of [320, 360]) {
+    await page.setViewportSize({ width, height: 800 });
+    for (const path of ['/site', '/site/book']) {
+      await page.goto(path);
+      await expect(page.getByRole('link', { name: 'Request a ride' }).first()).toBeInViewport({ ratio: 1 });
+      expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
+    }
+  }
+});
 
 test('without a WhatsApp number, the contact part offers the form instead', async ({ page }) => {
   await site(page, { whatsapp: '' });
