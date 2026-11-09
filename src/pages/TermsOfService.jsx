@@ -64,7 +64,7 @@ export default function TermsOfService() {
     </LegalSection>
 
     <LegalSection title="Your account and contacting us">
-      <p>You can ask for your account profile to be deleted in My Account. Some records of rides and operations are kept, as described in the Privacy Policy.</p>
+      <p>You can delete your account on your Account page in the app. Some records of rides and operations are kept, as described in the Privacy Policy.</p>
       <LegalContact details={details} whatsapp={whatsapp} />
     </LegalSection>
   </LegalLayout>;
