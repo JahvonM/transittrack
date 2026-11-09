@@ -1,4 +1,4 @@
-import { changePassengerCompany } from '../_shared/passengerCompany.ts';
+import { changePassengerCompany, removePassenger } from '../_shared/passengerCompany.ts';
 import { retry429 } from '../_shared/retry429.ts';
 import { CARD_STATUS_TEXT, STOP_REASON, STOP_STATUSES, canReactivate, cardStatus } from '../_shared/cardStatus.ts';
 import { signupDay } from '../_shared/signupDay.ts';
@@ -39,7 +39,8 @@ async function approvedStaffIds(base44, companyId) {
 // match on, so an issued card works for check-in straight away.
 //
 // Actions: people · issue · verify · revoke (suspend / lost / revoke) ·
-// reactivate · add_holder · set_bus · send_to_bus · keypad_code
+// reactivate · add_holder · set_bus · send_to_bus · keypad_code ·
+// set_company · remove_person (admins only)
 // Admins see everyone; company managers only their own company.
 // Bus staff belong to a company and are linked to one bus; their card list
 // is sent to that bus's boarding tablet.
@@ -338,6 +339,20 @@ export default async function (req) {
         await audit(base44, user, { action: 'update', entity: person.source === 'user' ? 'User' : 'Contact', record_id: person.id, summary: `Assigned ${person.name} to ${company.name}` });
         await refreshCompanyTablets(base44, person.company_id);
         return Response.json({ ok: true });
+      }
+
+      // Admin → Passengers → Remove passenger: out completely (see removePassenger).
+      case 'remove_person': {
+        if (user.role !== 'admin') return Response.json({ error: 'Only admins can remove a passenger' }, { status: 403 });
+        const { people } = await loadPeople(base44, null);
+        const person = people.find(p => p.key === body.person_key && p.type === 'staff');
+        if (!person) return Response.json({ error: 'Passenger not found' }, { status: 404 });
+        const done = await removePassenger(sr, person);
+        await audit(base44, user, { action: 'delete', entity: person.source === 'user' ? 'User' : 'Contact', record_id: person.id, page: '/admin/directory',
+          summary: `Removed passenger ${person.name}: ${done.cards} card${done.cards === 1 ? '' : 's'} stopped${done.logins ? ', app login deleted' : ''}` });
+        // Their boarding tablets drop them at the next list download.
+        for (const companyId of done.companies) await refreshCompanyTablets(base44, companyId);
+        return Response.json({ ok: true, cards_stopped: done.cards, login_deleted: done.logins > 0 });
       }
 
       case 'issue': {

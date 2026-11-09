@@ -50,3 +50,47 @@ describe('passenger company changes', () => {
     expect(sdk.writes).toHaveLength(0);
   });
 });
+
+describe('removing a passenger completely', () => {
+  it('stops every card and code, leaves every company, deletes the directory entry and their passenger login, keeps history', async () => {
+    const sdk = fixture();
+    sdk.tables.NfcCard.push({ id: 'other-card', holder_source: 'user', holder_id: 'rider-user', company_id: 'b', is_active: true });
+    sdk.tables.NfcCard.push({ id: 'someone-else', holder_source: 'contact', holder_id: 'other', company_id: 'a', is_active: true });
+    sdk.tables.PassengerOneTimeCredential = [{ id: 'otc', user_id: 'rider-user', company_id: 'b' }];
+    sdk.tables.CompanyAccessGrant = [{ id: 'grant', user_id: 'rider-user', company_id: 'a' }];
+    sdk.tables.SignupHelp = [{ id: 'help', company_id: 'a', person_ref: 'email:rider@test.invalid' }];
+    sdk.tables.PushToken = [{ id: 'phone', email: 'rider@test.invalid', token: 't' }, { id: 'other-phone', email: 'caller@test.invalid', token: 'u' }];
+    sdk.tables.StaffCheckIn = [{ id: 'ride', person_key: 'contact:rider', staff_name: 'Rider' }];
+    const res = await call(sdk, { action: 'remove_person', person_key: 'contact:rider' });
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ ok: true, cards_stopped: 2, login_deleted: true });
+    expect(sdk.tables.NfcCard.find(c => c.id === 'card')).toMatchObject({ is_active: false, status: 'revoked' });
+    expect(sdk.tables.NfcCard.find(c => c.id === 'other-card')).toMatchObject({ is_active: false, status: 'revoked' });
+    expect(sdk.tables.NfcCard.find(c => c.id === 'someone-else').is_active).toBe(true);
+    expect(sdk.tables.CompanyMembership.find(m => m.id === 'rider-membership').active).toBe(false);
+    for (const t of ['Contact', 'PassengerAccessCredential', 'PassengerOneTimeCredential', 'CompanyAccessGrant', 'SignupHelp']) expect(sdk.tables[t]).toHaveLength(0);
+    expect(Date.parse(sdk.tables.VerificationGrant[0].expires_at)).toBeLessThanOrEqual(Date.now());
+    expect(sdk.tables.User.find(u => u.id === 'rider-user')).toBeUndefined();
+    expect(sdk.tables.User.find(u => u.id === 'caller')).toBeDefined();
+    expect(sdk.tables.PushToken.map(t => t.id)).toEqual(['other-phone']);
+    expect(sdk.tables.StaffCheckIn).toHaveLength(1);
+    expect(sdk.tables.NfcCard).toHaveLength(3);
+    // Their company's boarding tablet is told to download its list again.
+    expect(sdk.tables.KioskDevice[0].directory_sent_at).toBeTruthy();
+  });
+  it('never deletes a login that is not a passenger login', async () => {
+    const sdk = fixture();
+    sdk.tables.User.push({ id: 'rider-driver', role: 'driver', email: 'rider@test.invalid' });
+    expect((await call(sdk, { action: 'remove_person', person_key: 'contact:rider' })).status).toBe(200);
+    expect(sdk.tables.User.find(u => u.id === 'rider-driver')).toBeDefined();
+    expect(sdk.tables.User.find(u => u.id === 'rider-user')).toBeUndefined();
+  });
+  it('is for admins only, and an unknown person changes nothing', async () => {
+    const manager = fixture('company');
+    expect((await call(manager, { action: 'remove_person', person_key: 'contact:rider' })).status).toBe(403);
+    expect(manager.writes).toHaveLength(0);
+    const admin = fixture();
+    expect((await call(admin, { action: 'remove_person', person_key: 'contact:nobody' })).status).toBe(404);
+    expect(admin.writes).toHaveLength(0);
+  });
+});
