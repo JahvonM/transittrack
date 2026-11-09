@@ -78,7 +78,7 @@ export default function BusinessDetailsSetting() {
           <p className="text-body-sm text-muted-foreground">{rule ? `The Terms will say: "${rule}"` : "Empty: the Terms just say to cancel as early as possible."}</p>
         </fieldset>
         <div className="flex flex-wrap items-center gap-3">
-          <Button type="submit" disabled={busy || !changed}>{busy ? "Saving…" : "Save"}</Button>
+          <Button type="submit" disabled={busy || !changed}>{busy ? "Saving…" : "Save business details"}</Button>
           <a className="text-body-sm font-semibold underline underline-offset-4" href="/terms" target="_blank" rel="noopener noreferrer">See the Terms page</a>
         </div>
         {status.text && <p role="status" className={`text-body-sm ${status.ok ? "" : "text-danger"}`}>{status.text}</p>}
