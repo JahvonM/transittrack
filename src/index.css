@@ -808,6 +808,10 @@ html.tt-passenger-app:is(.light,[data-accent]) .tt-bus-filters [aria-pressed="tr
 /* A hub's tabs: the open tab is a raised pill, not the sidebar's highlight. */
 .tt-admin-shell nav.tt-admin-hub-tabs [aria-current="page"] { background:hsl(var(--background)); border:0; color:hsl(var(--foreground)); box-shadow:0 1px 3px rgb(0 0 0 / .25); }
 .tt-admin-hub-tabs { scrollbar-width:none; }
+/* Admin notices drop in under the header (AdminAlerts). */
+@keyframes tt-admin-popup-in { from { opacity:0; transform:translateY(-8px); } to { opacity:1; transform:none; } }
+.tt-admin-popup { animation:tt-admin-popup-in 180ms cubic-bezier(.2,.8,.2,1); }
+@media (prefers-reduced-motion:reduce) { .tt-admin-popup { animation:none; } }
 .tt-admin-hub-tabs::-webkit-scrollbar { display:none; }
 .tt-admin-shell nav.tt-admin-hub-tabs a:focus-visible { outline-offset:-2px; }
 .tt-admin-stats > button { min-height:112px; border-radius:16px; }

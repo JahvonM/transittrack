@@ -9,6 +9,16 @@
 // one tab rides along in the address (?bus=…), so the next tab opens on it.
 export const ADMIN_HUBS = [
   {
+    // Jobs to do, and the finished ones with their billing, in one place.
+    id: "jobs",
+    label: "Jobs",
+    carry: [],
+    tabs: [
+      { id: "trips", label: "Jobs" },
+      { id: "billing", label: "Completed & billing" },
+    ],
+  },
+  {
     id: "live",
     label: "Live fleet",
     carry: ["bus"],
