@@ -9,6 +9,16 @@
 // one tab rides along in the address (?bus=…), so the next tab opens on it.
 export const ADMIN_HUBS = [
   {
+    // Jobs to do, and the finished ones with their billing, in one place.
+    id: "jobs",
+    label: "Jobs",
+    carry: [],
+    tabs: [
+      { id: "trips", label: "Jobs" },
+      { id: "billing", label: "Completed & billing" },
+    ],
+  },
+  {
     id: "live",
     label: "Live fleet",
     carry: ["bus"],
@@ -59,14 +69,14 @@ export const ADMIN_HUBS = [
 export const ADMIN_MENU = [
   "overview",
   { hub: "live" },
-  "trips",
+  { hub: "jobs" },
   { hub: "vehicles-drivers" },
   { hub: "routes" },
   { hub: "passengers" },
   "users",
   "companies",
   { group: "Maintenance", ids: ["service", "faults", "parts", "schedule", "calendar", "templates", "inspection-history", "service-history", "incident-reports", "safety-standards"] },
-  { group: "Operations", ids: ["kiosks", "billing", "messaging", "lost-items", "ride-history", "passenger-bookings", "support"] },
+  { group: "Operations", ids: ["kiosks", "messaging", "lost-items", "ride-history", "passenger-bookings", "support"] },
   "divider",
   "ads",
   { group: "Reports", ids: ["vehicle-logs", "driving-reports", "route-analytics", "fleet-analytics"] },
