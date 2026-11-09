@@ -124,7 +124,7 @@ const PRIMARY = [
  {id:"overview",label:"Overview",icon:LayoutDashboard},
  {id:"profile",label:"Settings",icon:Settings},
 ];
-const HUB_ICONS = { live: MapPin, "vehicles-drivers": Bus, routes: Route, passengers: Contact };
+const HUB_ICONS = { jobs: CalendarPlus, live: MapPin, "vehicles-drivers": Bus, routes: Route, passengers: Contact };
 const GROUP_ICONS = { Maintenance: Wrench, Operations: Activity, Reports: BarChart3, "All tools": Database };
 const sectionItem = (id) => PRIMARY.find((p) => p.id === id) || ADMIN_SECTIONS.find((s) => s.id === id);
 
