@@ -722,6 +722,10 @@ html.tt-passenger-app:is(.light,[data-accent]) .tt-bus-filters [aria-pressed="tr
 .tt-welcome-lead { max-width:430px; margin:20px 0 0; color:hsl(var(--muted-foreground)); font-size:18px; line-height:1.6; }
 .tt-welcome-actions { display:flex; gap:14px; flex-wrap:wrap; margin-top:28px; }
 .tt-welcome-actions > a { min-width:170px; }
+/* "New here? Create an account" under the buttons. */
+.tt-welcome-signup { margin:14px 0 0; font-size:15px; color:hsl(var(--muted-foreground)); }
+.tt-welcome-signup a { display:inline-flex; align-items:center; min-height:44px; font-weight:650; color:hsl(var(--primary)); text-underline-offset:4px; }
+.tt-welcome-signup a:hover, .tt-welcome-signup a:focus-visible { text-decoration:underline; }
 .tt-welcome-note { margin:18px 0 0; max-width:430px; font-size:13px; line-height:1.5; color:hsl(var(--muted-foreground)); }
 .tt-welcome-steps { margin:34px 0 10px; }
 .tt-welcome-steps > h2 { font-size:15px; font-weight:600; color:hsl(var(--muted-foreground)); }
@@ -788,7 +792,7 @@ html.tt-passenger-app:is(.light,[data-accent]) .tt-bus-filters [aria-pressed="tr
  .tt-welcome-step-list { grid-template-columns:1fr; gap:10px; }
  .tt-welcome-step-list > li { padding:16px; }
  .tt-welcome-workspaces { grid-template-columns:1fr; }
- .tt-welcome-footer { margin:6px 20px 0; padding-left:0; padding-right:0; }
+ .tt-welcome-footer { width:auto; margin:6px 20px 0; padding-left:0; padding-right:0; }
  .tt-welcome-footer-bar nav { gap:16px; }
 }
 
