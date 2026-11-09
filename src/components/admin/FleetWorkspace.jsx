@@ -16,9 +16,10 @@ const FleetMap = lazy(() => import("@/components/manager/FleetMap"));
 // Admin → Fleet workspace, laid out as a monitoring screen: Live view (a tile
 // per bus, the map and a list), Playback (saved dashcam clips), Alerts and
 // Reports. Cameras keep the same rules as before: a live view starts only
-// when an admin taps a bus, the tablet shows a Stop button, it ends after 10
-// minutes and is logged, at most 4 at once, driver tablets' front and back
-// cameras only (never a boarding tablet's QR camera).
+// when an admin taps a bus (one tap starts its back camera in the box; Front
+// camera switches), the tablet shows a Stop button, it ends after 10 minutes
+// and is logged, at most 4 at once, driver tablets' front and back cameras
+// only (never a boarding tablet's QR camera).
 
 const time = (iso) => (iso ? new Date(iso).toLocaleTimeString([], { timeZone: TRANSIT_TIME_ZONE, hour: "numeric", minute: "2-digit" }) : "");
 const LOCATION_TEXT = { live: "Live", last_known: "Last known", unavailable: "No location" };
@@ -50,7 +51,7 @@ function BusTile({ row, camera, open, canOpen, onOpen, onClose, picked = false }
       <div className="relative m-2 overflow-hidden rounded-xl bg-secondary">
         {open && camera ? (
           <div className="space-y-2 p-2">
-            <TabletRemoteViewer device={camera} compact capabilities={["camera_back", "camera_front"]} />
+            <TabletRemoteViewer device={camera} compact capabilities={["camera_back", "camera_front"]} start="camera_back" />
             <div className="flex gap-2">
               <button type="button" onClick={full} className="inline-flex min-h-9 items-center gap-1 rounded-lg px-2 text-caption font-semibold hover:bg-accent" aria-label={`Full screen: ${v.name}`}><Maximize2 className="h-4 w-4" aria-hidden="true" />Full screen</button>
               <button type="button" onClick={onClose} className="ml-auto inline-flex min-h-9 items-center gap-1 rounded-lg px-2 text-caption font-semibold hover:bg-accent" aria-label={`Close camera: ${v.name}`}><X className="h-4 w-4" aria-hidden="true" />Close</button>
@@ -61,7 +62,7 @@ function BusTile({ row, camera, open, canOpen, onOpen, onClose, picked = false }
             <BusArtwork vehicle={v} fallbackUrl="/images/boarding-coaster.webp" width={320} className="h-full w-full object-contain opacity-90" />
             <span className="absolute inset-x-2 bottom-2 flex items-center justify-between gap-2">
               <span className="inline-flex items-center gap-1 rounded-full bg-background/90 px-2 py-0.5 text-caption font-semibold">
-                <Video className="h-3.5 w-3.5" aria-hidden="true" />{!camera ? "No camera to view" : canOpen ? "Tap to view live" : `Up to ${MAX_LIVE_VIEWS} at once`}
+                <Video className="h-3.5 w-3.5" aria-hidden="true" />{!camera ? "No camera to view" : canOpen ? "Tap to watch live" : `Up to ${MAX_LIVE_VIEWS} at once`}
               </span>
             </span>
           </button>
@@ -163,7 +164,7 @@ export default function FleetWorkspace({ vehicles = [], kiosks = [], checkIns = 
               </label>
               <Segmented size="sm" label="Layout" value={layout} onChange={setLayout} options={[{ value: "grid", label: "Tiles", icon: LayoutGrid }, { value: "list", label: "List", icon: List }]} />
             </div>
-            {cameras.length > 0 && <p role="status" className="text-body-sm text-muted-foreground">{openIds.length > 0 ? `${openIds.length} of ${MAX_LIVE_VIEWS} live views open.` : "Live cameras are a trial until they're tested on a bus."} Tap a bus, then choose a camera. Each view shows a Stop button on the tablet, ends after 10 minutes and is logged.</p>}
+            {cameras.length > 0 && <p role="status" className="text-body-sm text-muted-foreground">{openIds.length > 0 ? `${openIds.length} of ${MAX_LIVE_VIEWS} live views open.` : "Live cameras are a trial until they're tested on a bus."} Tap a bus to watch its back camera in its box; Front camera switches. Each view shows a Stop button on the tablet, ends after 10 minutes and is logged.</p>}
             {pageRows.length === 0 ? <EmptyState icon={Bus} title={rows.length ? "No buses match" : "No buses yet"} /> : layout === "grid" ? (
               <ul className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3" aria-label="Bus tiles">
                 {pageRows.map((r) => <BusTile key={r.vehicle.id} row={r} camera={cameraOf(r.vehicle.id)} open={openIds.includes(r.vehicle.id)} canOpen={openIds.length < MAX_LIVE_VIEWS} onOpen={() => open(r.vehicle.id)} onClose={() => close(r.vehicle.id)} picked={r.vehicle.id === busFocus} />)}
