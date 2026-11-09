@@ -1,36 +1,18 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import LegalLayout, { LegalSection } from "@/components/legal/LegalLayout";
-import { NO_BUSINESS, cancellationRule, loadBusinessDetails, loadSupportNumber } from "@/lib/appSupport";
+import LegalContact, { useBusinessContact } from "@/components/legal/LegalContact";
+import { cancellationRule } from "@/lib/appSupport";
 
 // The Terms of Service (app /terms and the website's /terms). The contact
 // details and the free-cancellation rule come from Admin -> Settings ->
 // Business details; anything not set there is simply left out.
 export const TERMS_UPDATED = "9 November 2026";
 
-function Contact({ details, whatsapp }) {
-  const tel = (v) => v.replace(/[^\d+]/g, "");
-  const items = [
-    details.contact_email && <li key="email">Email: <a className="font-semibold text-primary hover:underline" href={`mailto:${details.contact_email}`}>{details.contact_email}</a></li>,
-    details.contact_phone && <li key="phone">Phone: <a className="font-semibold text-primary hover:underline" href={`tel:${tel(details.contact_phone)}`}>{details.contact_phone}</a></li>,
-    whatsapp && <li key="wa">WhatsApp: <a className="font-semibold text-primary hover:underline" href={`https://wa.me/${whatsapp}`} target="_blank" rel="noopener noreferrer">+{whatsapp}</a></li>,
-    details.business_address && <li key="address">Address: {details.business_address}</li>,
-  ].filter(Boolean);
-  if (!items.length) return <p>Reply to any email we have sent you about your ride. If you use the app, you can also message the office from it.</p>;
-  return <ul className="list-disc space-y-1 pl-5">{items}</ul>;
-}
-
 export default function TermsOfService() {
-  const [details, setDetails] = useState(NO_BUSINESS);
-  const [whatsapp, setWhatsapp] = useState("");
-  useEffect(() => {
-    let live = true;
-    loadBusinessDetails().then((d) => { if (live) setDetails(d); });
-    loadSupportNumber().then((n) => { if (live) setWhatsapp(n); });
-    return () => { live = false; };
-  }, []);
+  const { details, whatsapp } = useBusinessContact();
   const rule = cancellationRule(details);
 
-  return <LegalLayout title="Terms of Service" draft={false}>
+  return <LegalLayout title="Terms of Service">
     <p className="text-body-sm text-muted-foreground">Last updated {TERMS_UPDATED}.</p>
 
     <LegalSection title="Who we are">
@@ -83,7 +65,7 @@ export default function TermsOfService() {
 
     <LegalSection title="Your account and contacting us">
       <p>You can ask for your account profile to be deleted in My Account. Some records of rides and operations are kept, as described in the Privacy Policy.</p>
-      <Contact details={details} whatsapp={whatsapp} />
+      <LegalContact details={details} whatsapp={whatsapp} />
     </LegalSection>
   </LegalLayout>;
 }
