@@ -711,29 +711,41 @@ html.tt-passenger-app:is(.light,[data-accent]) .tt-bus-filters [aria-pressed="tr
 }
 
 /* Public welcome and authentication share the passenger navy/cyan style. */
-.tt-welcome { background:#041321; color:#f3f8ff; }
+/* Public welcome: the app's own tokens, so light mode and the colour themes
+   apply on the front door exactly as they do inside the app. */
+.tt-welcome { background:hsl(var(--background)); color:hsl(var(--foreground)); }
 .tt-welcome-header { max-width:1280px; margin:auto; padding:20px 28px; display:flex; align-items:center; justify-content:space-between; gap:16px; }
-.tt-welcome-main { max-width:1280px; margin:auto; padding:0 28px; }
-.tt-welcome-hero { position:relative; overflow:hidden; min-height:510px; display:flex; align-items:center; border-radius:28px; background:#041321; }
+.tt-welcome-main { max-width:1280px; margin:auto; padding:0 28px; width:100%; }
+.tt-welcome-hero { position:relative; overflow:hidden; min-height:500px; display:flex; align-items:center; border-radius:28px; border:1px solid hsl(var(--border)); background:hsl(var(--card)); }
 .tt-welcome-art { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; object-position:center; }
-.tt-welcome-copy { position:relative; z-index:1; width:52%; padding:40px 32px; background:linear-gradient(90deg,#041321d9,#04132145,transparent); }
-.tt-welcome-copy h1 { font-size:clamp(38px,5.4vw,68px); line-height:1.02; letter-spacing:-.05em; font-weight:750; }
-.tt-welcome-copy p { max-width:430px; color:#c0d1e2; font-size:18px; line-height:1.6; margin:24px 0 30px; }
-.tt-welcome-actions { display:flex; gap:14px; flex-wrap:wrap; }
+.tt-welcome-copy { position:relative; z-index:1; width:54%; padding:40px 32px; background:linear-gradient(90deg,hsl(var(--background)/.94),hsl(var(--background)/.55) 58%,transparent); }
+.tt-welcome-kicker { margin:0 0 14px; font-size:12px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:hsl(var(--primary)); }
+.tt-welcome-copy h1 { font-size:clamp(38px,5.4vw,68px); line-height:1.02; letter-spacing:-.05em; font-weight:750; text-wrap:balance; }
+.tt-welcome-lead { max-width:430px; margin:20px 0 0; color:hsl(var(--muted-foreground)); font-size:18px; line-height:1.6; }
+.tt-welcome-actions { display:flex; gap:14px; flex-wrap:wrap; margin-top:28px; }
 .tt-welcome-actions > a { min-width:170px; }
-.tt-welcome-features { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:18px; margin:24px 0; }
-.tt-welcome-features > div { display:flex; align-items:center; gap:18px; padding:24px; border:1px solid #264052; background:linear-gradient(120deg,#0c2c3e90,#071725); border-radius:18px; }
-.tt-welcome-features > div > span { display:grid; place-items:center; flex-shrink:0; height:48px; width:48px; border-radius:14px; background:#15cdea14; color:#35dbf5; }
-.tt-welcome-features h2 { font-size:16px; font-weight:600; }
-.tt-welcome-extra { margin:20px 0 30px; }
-.tt-welcome-extra summary { cursor:pointer; color:#a9c4d8; padding:16px 8px; min-height:48px; }
-.tt-welcome-extra summary:focus-visible { outline:2px solid #36d9ef; border-radius:8px; }
-.tt-welcome-workspaces { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; padding:10px 0; }
-.tt-welcome-workspaces > a { display:flex; align-items:center; gap:12px; padding:18px; border:1px solid #264052; border-radius:14px; }
+.tt-welcome-note { margin:18px 0 0; max-width:430px; font-size:13px; line-height:1.5; color:hsl(var(--muted-foreground)); }
+.tt-welcome-steps { margin:34px 0 10px; }
+.tt-welcome-steps > h2 { font-size:13px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:hsl(var(--muted-foreground)); }
+.tt-welcome-step-list { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:18px; margin-top:14px; }
+.tt-welcome-step-list > li { display:flex; align-items:flex-start; gap:16px; padding:22px; border:1px solid hsl(var(--border)); background:hsl(var(--card)); border-radius:18px; }
+.tt-welcome-step-list > li > span { display:grid; place-items:center; flex-shrink:0; height:44px; width:44px; border-radius:14px; background:hsl(var(--primary)/.12); color:hsl(var(--primary)); font-family:var(--font-display); font-size:22px; font-weight:700; }
+.tt-welcome-step-list h3 { font-size:16px; font-weight:650; }
+.tt-welcome-step-list p { margin-top:6px; font-size:14px; line-height:1.5; color:hsl(var(--muted-foreground)); }
+.tt-welcome-footer { max-width:1224px; margin:6px auto 0; padding:20px 12px 32px; border-top:1px solid hsl(var(--border)); color:hsl(var(--muted-foreground)); font-size:13px; width:100%; }
+.tt-welcome-footer-bar { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+.tt-welcome-footer nav { display:flex; flex-wrap:wrap; gap:20px; }
+.tt-welcome-footer nav a { display:inline-flex; align-items:center; min-height:44px; font-weight:600; }
+.tt-welcome-footer nav a:hover { color:hsl(var(--foreground)); }
+.tt-welcome-access summary { cursor:pointer; display:flex; align-items:center; min-height:44px; padding:10px 0; font-weight:600; }
+.tt-welcome-access summary:focus-visible { outline:2px solid hsl(var(--ring)); outline-offset:2px; border-radius:8px; }
+.tt-welcome-access > p { padding-bottom:8px; font-size:12px; }
+.tt-welcome-workspaces { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; padding:6px 0 4px; }
+.tt-welcome-workspaces > a { display:flex; align-items:center; gap:12px; padding:16px; border:1px solid hsl(var(--border)); border-radius:14px; background:hsl(var(--card)); color:hsl(var(--foreground)); }
+.tt-welcome-workspaces > a:hover { border-color:hsl(var(--primary)/.55); }
 .tt-welcome-workspaces span { flex:1; min-width:0; }
 .tt-welcome-workspaces strong,.tt-welcome-workspaces small { display:block; }
-.tt-welcome-workspaces small { margin-top:5px; color:#9eb7ca; font-size:12px; }
-.tt-welcome-footer { max-width:1224px; margin:auto; border-top:1px solid #203546; padding:22px 12px; display:flex; align-items:center; justify-content:space-between; gap:12px; color:#7fa5be; font-size:13px; }
+.tt-welcome-workspaces small { margin-top:5px; color:hsl(var(--muted-foreground)); font-size:12px; font-weight:400; }
 .tt-auth-layout { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); background:#041321; color:#f3f8ff; }
 .tt-auth-brand-panel { position:sticky; top:0; height:100dvh; min-height:650px; overflow:hidden; padding:40px; border-right:1px solid #203546; display:flex; flex-direction:column; justify-content:space-between; }
 .tt-auth-logo { display:inline-flex; align-items:center; gap:12px; font-size:26px; font-weight:700; position:relative; z-index:1; letter-spacing:-.03em; }
@@ -767,15 +779,19 @@ html.tt-passenger-app:is(.light,[data-accent]) .tt-bus-filters [aria-pressed="tr
  .tt-welcome-main { padding:0 20px; }
  .tt-welcome-hero { display:block; min-height:0; border-radius:18px; }
  .tt-welcome-art { position:relative; height:240px; object-position:75% center; mask-image:linear-gradient(#000 80%,transparent); }
- .tt-welcome-copy { width:100%; padding:10px 0 4px; text-align:center; background:none; }
+ .tt-welcome-copy { width:100%; padding:16px 0 4px; text-align:center; background:none; }
+ .tt-welcome-kicker { margin-bottom:10px; }
  .tt-welcome-copy h1 { font-size:39px; }
- .tt-welcome-copy p { font-size:16px; margin:18px auto 24px; }
- .tt-welcome-actions { display:grid; grid-template-columns:1fr; }
- .tt-welcome-features { grid-template-columns:1fr; gap:10px; margin-top:22px; }
- .tt-welcome-features > div { padding:13px 16px; gap:14px; }
- .tt-welcome-features > div > span { height:38px; width:38px; border-radius:12px; }
+ .tt-welcome-lead { font-size:16px; margin:16px auto 0; }
+ .tt-welcome-note { margin:14px auto 0; }
+ .tt-welcome-actions { display:grid; grid-template-columns:1fr 1fr; margin-top:22px; }
+ .tt-welcome-actions > a { min-width:0; }
+ .tt-welcome-actions > a:first-child { grid-column:1/-1; }
+ .tt-welcome-step-list { grid-template-columns:1fr; gap:10px; }
+ .tt-welcome-step-list > li { padding:16px; }
  .tt-welcome-workspaces { grid-template-columns:1fr; }
- .tt-welcome-footer { margin:0 20px; flex-wrap:wrap; }
+ .tt-welcome-footer { margin:6px 20px 0; padding-left:0; padding-right:0; }
+ .tt-welcome-footer-bar nav { gap:16px; }
 }
 
 /* Shared Admin chrome and panels. All existing management tabs inherit it. */

@@ -1,5 +1,7 @@
 import {describe,it,expect,vi} from 'vitest';
+import {Buffer} from 'node:buffer';
 import {webcrypto} from 'node:crypto';
+import {setImmediate} from 'node:timers';
 import {createRecordingReceiver,MAX_RECORDING_BYTES,clipName,recordingDateRange} from '../recordingTransfer';
 const name='1792195200000-1234567890abcdef.mp4';
 function harness(extra={}){const sent=[];const r=createRecordingReceiver({send:text=>sent.push(JSON.parse(text)),digest:bytes=>webcrypto.subtle.digest('SHA-256',bytes),...extra});return {r,sent};}

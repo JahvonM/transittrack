@@ -1,116 +1,43 @@
 import React, { useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/AuthContext";
-import useFutureAppearance from "@/hooks/useFutureAppearance";
 import JourneyLoading from "@/components/JourneyLoading";
 import AccessRecovery from "@/components/system/AccessRecovery";
 import UserNotRegisteredError from "@/components/UserNotRegisteredError";
 import Logo from "@/components/Logo";
 import LiveClock from "@/components/LiveClock";
 import WeatherWidget from "@/components/WeatherWidget";
+import WelcomeHero from "@/components/welcome/WelcomeHero";
+import HowItWorks from "@/components/welcome/HowItWorks";
+import WelcomeFooter from "@/components/welcome/WelcomeFooter";
 import { Button } from "@/components/ui/button";
 import { homeFor } from "@/lib/roleHome";
-import { Bus, MapPin, MessageCircle, Car, ChevronRight, FlaskConical, Hotel, LayoutDashboard, Navigation, ShieldCheck, Usb, Wrench } from "lucide-react";
-const ROLES = {
-  driver: {
-    to: "/driver-phone",
-    title: "Driver",
-    icon: Car,
-    blurb: "Your shift, trips and one-tap GPS sharing.",
-  },
-  company: {
-    to: "/company",
-    title: "Company",
-    icon: LayoutDashboard,
-    blurb: "Manage vehicles, routes and trips.",
-  },
-  staff: {
-    to: "/staff",
-    title: "Hotel staff",
-    icon: Hotel,
-    blurb: "Pickup alerts and buses approaching your stop.",
-  },
-  admin: {
-    to: "/admin",
-    title: "Admin",
-    icon: ShieldCheck,
-    blurb: "Fleet health, users, roles and scheduling.",
-  },
-  mechanic: {
-    to: "/mechanic",
-    title: "Mechanic",
-    icon: Wrench,
-    blurb: "Vehicle issues and maintenance chat with drivers.",
-  },
-  kiosk_bus: {
-    tablet: true,
-    to: "/kiosk",
-    title: "Bus Entry Kiosk",
-    icon: Usb,
-    blurb: "NFC badge tap-in board at the vehicle door.",
-  },
-  kiosk_driver: {
-    tablet: true,
-    to: "/driver",
-    title: "Driver Kiosk",
-    icon: Navigation,
-    blurb: "High-accuracy GPS sharing and turn-by-turn nav.",
-  },
-  reviewer_sandbox: {
-    to: "/reviewer-sandbox",
-    title: "Reviewer Sandbox",
-    icon: FlaskConical,
-    blurb: "Simulated live bus demo for review.",
-  },
-};
+import { ChevronRight } from "lucide-react";
 
-
+// The public front door: sign in, book a taxi, track a ride, and the legal
+// pages the app stores require. It uses the app's own colour tokens, so light
+// mode and the chosen colour theme apply here as everywhere else.
 export default function Welcome() {
- useFutureAppearance();
- const { user, isAuthenticated, isLoadingAuth, isLoadingPublicSettings, authError, checkAppState } = useAuth();
- const navigate = useNavigate();
- const role = user?.role || "staff";
- useEffect(() => {
-  if (isAuthenticated && user) navigate(homeFor(user), {replace:true});
- }, [isAuthenticated,user,role,navigate]);
- if (isLoadingAuth || isLoadingPublicSettings || (isAuthenticated && user)) return <JourneyLoading onRetry={checkAppState} />;
- if (authError?.type === "user_not_registered") return <UserNotRegisteredError />;
- if (authError && authError.type !== "auth_required") return <AccessRecovery onRetry={checkAppState} />;
- return <div className="tt-welcome min-h-[100dvh]">
-  <header className="tt-welcome-header">
-   <Link to="/" className="flex items-center gap-2 font-bold text-xl"><Logo /><span>McSween <span className="text-primary">Transport</span></span></Link>
-   <Button asChild variant="outline" className="rounded-xl"><Link to="/login">Sign in <ChevronRight className="w-4 h-4" /></Link></Button>
-  </header>
-  <main className="tt-welcome-main">
-   <section className="tt-welcome-hero" aria-label="Welcome to McSween Transport">
-    <img src="/images/transit-welcome.webp" alt="White shuttle bus on a Caribbean coastal road at dusk" className="tt-welcome-art" fetchPriority="high" />
-    <div className="tt-welcome-copy">
-     <h1>Your journey,<br /><span className="text-primary">connected.</span></h1>
-     <p>Track your bus, choose your pickup and stay connected along the way.</p>
-     <div className="tt-welcome-actions">
-      <Button asChild className="h-14 rounded-xl text-base"><Link to="/login">Sign in <ChevronRight className="w-5 h-5" /></Link></Button>
-      <Button asChild variant="outline" className="h-14 rounded-xl text-base"><Link to="/register">Create an account <ChevronRight className="w-5 h-5" /></Link></Button>
-     </div>
-    </div>
-   </section>
-   <section className="tt-welcome-features" aria-label="What you can do">
-    {[[Bus,"Live bus updates"],[MapPin,"Easy pickup planning"],[MessageCircle,"Messages on the go"]].map(([Icon,text])=><div key={text}><span><Icon aria-hidden="true" /></span><h2>{text}</h2></div>)}
-   </section>
-   <div className="tt-welcome-extra">
-    <div className="flex flex-wrap justify-center gap-3" aria-label="Tablet setup">
-     <Button asChild variant="outline"><Link to="/driver"><Navigation className="w-4 h-4" /> Driver tablet</Link></Button>
-     <Button asChild variant="outline"><Link to="/kiosk"><Usb className="w-4 h-4" /> Boarding kiosk</Link></Button>
-    </div>
-    <p className="text-center text-sm text-muted-foreground">Tablets use an admin pairing code. Drivers unlock with their PIN—no email account needed.</p>
-    <Button asChild variant="ghost"><Link to="/book-taxi"><Car className="w-4 h-4" /> Book a taxi</Link></Button>
-    <details>
-     <summary>Workspaces and tablet access</summary>
-     <div className="tt-welcome-workspaces">
-      {Object.entries(ROLES).map(([key,r])=>{const Icon=r.icon;return <Link key={key} to={r.tablet ? r.to : `/login?returnTo=${encodeURIComponent(r.to)}`}><Icon className="w-5 h-5 text-primary" /><span><strong>{r.title}</strong><small>{r.blurb}</small></span><ChevronRight className="w-4 h-4 shrink-0" /></Link>})}
-     </div>
-    </details>
-   </div>
-  </main>
-  <footer className="tt-welcome-footer"><span>McSween Transport</span><div className="flex items-center gap-3"><WeatherWidget variant="chip" /><LiveClock className="text-xs" /></div></footer>
- </div>;
+  const { user, isAuthenticated, isLoadingAuth, isLoadingPublicSettings, authError, checkAppState } = useAuth();
+  const navigate = useNavigate();
+  useEffect(() => {
+    if (isAuthenticated && user) navigate(homeFor(user), { replace: true });
+  }, [isAuthenticated, user, navigate]);
+  if (isLoadingAuth || isLoadingPublicSettings || (isAuthenticated && user)) return <JourneyLoading onRetry={checkAppState} />;
+  if (authError?.type === "user_not_registered") return <UserNotRegisteredError />;
+  if (authError && authError.type !== "auth_required") return <AccessRecovery onRetry={checkAppState} />;
+  return <div className="tt-welcome min-h-[100dvh] flex flex-col">
+    <header className="tt-welcome-header">
+      <Link to="/" className="flex items-center gap-2 font-bold text-xl"><Logo /><span>McSween <span className="text-primary">Transport</span></span></Link>
+      <div className="flex items-center gap-3">
+        <div className="hidden sm:flex items-center gap-4"><WeatherWidget variant="chip" /><LiveClock className="text-xs text-muted-foreground" /></div>
+        <Button asChild variant="outline" className="rounded-xl sm:hidden"><Link to="/login">Sign in <ChevronRight className="w-4 h-4" /></Link></Button>
+      </div>
+    </header>
+    <main className="tt-welcome-main flex-1">
+      <WelcomeHero />
+      <HowItWorks />
+    </main>
+    <WelcomeFooter />
+  </div>;
 }

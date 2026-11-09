@@ -1,3 +1,4 @@
+import { Buffer } from "node:buffer";
 import { describe, it, expect } from "vitest";
 import { digest, load, mock, request } from "../../../security-tests/helpers.js";
 
