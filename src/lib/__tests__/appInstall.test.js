@@ -76,7 +76,7 @@ describe("installStep", () => {
 describe("firstOpenWanted", () => {
   it("shows once, until it is closed", () => {
     const storage = memoryStorage();
-    expect(firstOpenWanted({ win: fakeWindow({ storage }), native: false })).toBe(true);
+    expect(firstOpenWanted({ win: fakeWindow({ storage, path: "/staff" }), native: false })).toBe(true);
     markFirstOpenDone(storage);
     expect(storage.data[FIRST_OPEN_KEY]).toBeTruthy();
     expect(firstOpenWanted({ win: fakeWindow({ storage }), native: false })).toBe(false);
@@ -87,11 +87,11 @@ describe("firstOpenWanted", () => {
     expect(firstOpenWanted({ win: fakeWindow({ webdriver: true }), native: false })).toBe(false);
     expect(firstOpenWanted({ win: fakeWindow({ framed: true }), native: false })).toBe(false);
   });
-  it("leaves the bus tablets, ride links and sign-in hand-offs alone", () => {
-    for (const path of ["/kiosk", "/tablet", "/driver", "/driver/stops", "/track", "/desktop-signin", "/phone-signin", "/oauth/consent", "/privacy", "/terms", "/site/book", "/reviewer-sandbox", "/join"]) {
+  it("leaves the bus tablets, ride links, the public front page and sign-in screens alone", () => {
+    for (const path of ["/kiosk", "/tablet", "/driver", "/driver/stops", "/track", "/desktop-signin", "/phone-signin", "/oauth/consent", "/privacy", "/terms", "/site/book", "/reviewer-sandbox", "/join", "/", "/login", "/register", "/forgot-password", "/reset-password", "/mfa"]) {
       expect(firstOpenWanted({ win: fakeWindow({ path }), native: false }), path).toBe(false);
     }
-    for (const path of ["/", "/login", "/register", "/staff", "/driver-phone", "/admin"]) {
+    for (const path of ["/staff", "/driver-phone", "/admin"]) {
       expect(firstOpenWanted({ win: fakeWindow({ path }), native: false }), path).toBe(true);
     }
   });

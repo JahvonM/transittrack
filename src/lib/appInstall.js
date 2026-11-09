@@ -12,7 +12,7 @@ export const FIRST_OPEN_KEY = "tt_first_open_v1";
 // a guest following a ride link, the desktop/phone sign-in hand-offs, the
 // legal pages, the public website, the app-store reviewers' sandbox, and a
 // hotel's join link (see joining below).
-const SKIP_PATH = /^\/(kiosk|tablet|driver|track|desktop-signin|phone-signin|oauth|privacy|terms|site|reviewer-sandbox|join|display)(\/|$)/;
+const SKIP_PATH = /^\/(kiosk|tablet|driver|track|desktop-signin|phone-signin|oauth|privacy|terms|site|reviewer-sandbox|join|display|login|register|forgot-password|reset-password|mfa)(\/|$)/;
 
 // Someone who scanned a hotel's join QR joins first and gets the app after:
 // on an iPhone the Home Screen app has storage of its own, so leaving Safari
@@ -114,7 +114,10 @@ export function firstOpenWanted({ win = typeof window !== "undefined" ? window :
   // The Windows desktop app has its own window and notifications.
   if (win.transittrackDesktop || /Electron\//i.test(nav.userAgent || "")) return false;
   try { if (win.self !== win.top) return false; } catch { return false; }
-  if (SKIP_PATH.test(path ?? win.location?.pathname ?? "/")) return false;
+  const here = path ?? win.location?.pathname ?? "/";
+  // The public front page too: visitors browse before signing in, and the
+  // prompt belongs on their own home screen once they are using the app.
+  if (here === "/" || SKIP_PATH.test(here)) return false;
   if (joining(win)) return false;
   try {
     return !(storage || win.localStorage).getItem(FIRST_OPEN_KEY);
