@@ -794,7 +794,7 @@ html.tt-passenger-app:is(.light,[data-accent]) .tt-bus-filters [aria-pressed="tr
  .tt-welcome-step-list { grid-template-columns:1fr; gap:10px; }
  .tt-welcome-step-list > li { padding:16px; }
  .tt-welcome-workspaces { grid-template-columns:1fr; }
- .tt-welcome-footer { margin:6px 20px 0; padding-left:0; padding-right:0; }
+ .tt-welcome-footer { width:auto; margin:6px 20px 0; padding-left:0; padding-right:0; }
  .tt-welcome-footer-bar nav { gap:16px; }
 }
 
