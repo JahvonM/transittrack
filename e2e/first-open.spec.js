@@ -1,8 +1,11 @@
 import { test, expect } from '@playwright/test';
+import { mockFleet } from './helpers/fleetFixture.js';
 
 // The first time someone opens the app in a browser they're asked to get the
 // app (a walkthrough on iPhone/iPad, the Install button on Android), then to
-// allow notifications, location, camera and microphone in one go.
+// allow notifications, location, camera and microphone in one go. It waits
+// until they are inside the app: the front page and the sign-in pages never
+// show it (src/lib/appInstall.js).
 //
 // Automated browsers normally skip these screens (navigator.webdriver), so
 // every other test opens straight to its page; these tests switch that off.
@@ -12,7 +15,8 @@ const ANDROID = 'Mozilla/5.0 (Linux; Android 14; SM-A546B) AppleWebKit/537.36 (K
 
 test.use({ launchOptions: { args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'] } });
 
-async function asPerson(page, { installOffer = false, notificationAnswer = 'granted' } = {}) {
+// signedIn: a passenger (Rita) opening the app; otherwise a visitor.
+async function asPerson(page, { installOffer = false, notificationAnswer = 'granted', signedIn = true } = {}) {
   await page.addInitScript(({ offer, answer }) => {
     Object.defineProperty(Navigator.prototype, 'webdriver', { get: () => false });
     // A phone that hasn't been asked yet (headless Chrome starts at "denied").
@@ -28,6 +32,7 @@ async function asPerson(page, { installOffer = false, notificationAnswer = 'gran
       }, 50));
     }
   }, { offer: installOffer, answer: notificationAnswer });
+  if (signedIn) { await mockFleet(page, { role: 'staff' }); return; }
   await page.route('**/api/**', (route) => {
     const url = route.request().url();
     if (url.includes('/functions/entityAccess')) return route.fulfill({ status: 401, json: { error: 'Authentication required' } });
@@ -42,7 +47,7 @@ test.describe('on an iPhone', () => {
 
   test('walks through adding the app to the Home Screen, once', async ({ page }) => {
     await asPerson(page);
-    await page.goto('/login');
+    await page.goto('/staff');
     const dialog = setup(page);
     await expect(dialog.getByRole('heading', { name: 'Add McSween Transport to your iPhone' })).toBeVisible();
     await expect(dialog.getByText('Step 1 of 2')).toBeVisible();
@@ -56,14 +61,14 @@ test.describe('on an iPhone', () => {
     await dialog.getByRole('button', { name: 'Done' }).click();
     await expect(setup(page)).toHaveCount(0);
     await page.reload();
-    await expect(page.locator('input[type="email"]')).toBeVisible();
+    await expect(page.getByRole('navigation', { name: 'Passenger sections' })).toBeVisible();
     await page.waitForTimeout(900);
     await expect(setup(page)).toHaveCount(0);
   });
 
   test('"Not now" goes on to the permissions, and Allow all asks for every one', async ({ page, context }) => {
     await asPerson(page);
-    await page.goto('/login');
+    await page.goto('/staff');
     const dialog = setup(page);
     await dialog.getByRole('button', { name: 'Not now' }).click();
     await expect(dialog.getByRole('heading', { name: 'Allow what the app needs' })).toBeVisible();
@@ -78,6 +83,15 @@ test.describe('on an iPhone', () => {
     await expect(setup(page)).toHaveCount(0);
     expect(await page.evaluate(() => Notification.permission)).toBe('granted');
   });
+
+  test('the front page and the sign-in page are not interrupted', async ({ page }) => {
+    await asPerson(page, { signedIn: false });
+    for (const path of ['/', '/login', '/register']) {
+      await page.goto(path);
+      await page.waitForTimeout(1600);
+      await expect(setup(page)).toHaveCount(0);
+    }
+  });
 });
 
 test.describe('on an Android phone', () => {
@@ -85,7 +99,7 @@ test.describe('on an Android phone', () => {
 
   test('the Install button opens the browser\'s own install, then the permissions follow', async ({ page }) => {
     await asPerson(page, { installOffer: true, notificationAnswer: 'denied' });
-    await page.goto('/login');
+    await page.goto('/staff');
     const dialog = setup(page);
     await expect(dialog.getByRole('heading', { name: 'Install the McSween Transport app' })).toBeVisible();
     await page.screenshot({ path: '/tmp/tt-first-open-android.png' });
@@ -101,7 +115,7 @@ test.describe('on an Android phone', () => {
 
   test('without an install offer it shows the browser-menu steps', async ({ page }) => {
     await asPerson(page);
-    await page.goto('/login');
+    await page.goto('/staff');
     const dialog = setup(page);
     await expect(dialog.getByRole('heading', { name: 'Add McSween Transport to your phone' })).toBeVisible();
     await expect(dialog.getByText('Install app', { exact: true })).toBeVisible();
@@ -110,7 +124,7 @@ test.describe('on an Android phone', () => {
 
 test('a guest following a ride link is not interrupted', async ({ page }) => {
   await page.setViewportSize({ width: 393, height: 852 });
-  await asPerson(page);
+  await asPerson(page, { signedIn: false });
   await page.goto('/track?t=abc');
   await page.waitForTimeout(1600);
   await expect(setup(page)).toHaveCount(0);
