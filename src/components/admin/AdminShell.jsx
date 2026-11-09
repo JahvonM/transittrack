@@ -57,7 +57,7 @@ import Logo from "@/components/Logo";
 import LiveClock from "@/components/LiveClock";
 import { cn } from "@/lib/utils";
 import { PageSlots } from "@/components/admin/kit";
-import { ADMIN_HUBS, ADMIN_MENU, carriedSearch, groupOf, hubOf, hubTarget, rememberTab } from "@/lib/adminMenu";
+import { ADMIN_HUBS, ADMIN_MENU, carriedSearch, groupOf, hubOf, hubTarget, menuHome, rememberTab } from "@/lib/adminMenu";
 
 // Every admin section, for its label, its icon and the search box. Where each
 // one sits in the sidebar (alone, as a tab of a hub, or in a folding group) is
@@ -98,7 +98,7 @@ export const ADMIN_SECTIONS = [
   { id: "incident-reports", label: "Incident reports", icon: AlertTriangle },
   { id: "safety-standards", label: "Safety standards", icon: ShieldCheck },
 
-  { id: "directory", label: "Passenger directory", icon: Contact },
+  { id: "directory", label: "Passengers", icon: Contact },
   { id: "signup-day", label: "Sign-up day", icon: ClipboardCheck },
   { id: "checkins", label: "Sign-in log", icon: ClipboardList },
   { id: "billing", label: "Completed & billing", icon: Building2 },
@@ -124,7 +124,7 @@ const PRIMARY = [
  {id:"overview",label:"Overview",icon:LayoutDashboard},
  {id:"profile",label:"Settings",icon:Settings},
 ];
-const HUB_ICONS = { live: MapPin, "vehicles-drivers": Bus, routes: Route, passengers: Contact };
+const HUB_ICONS = { live: MapPin, "vehicles-drivers": Bus, routes: Route };
 const GROUP_ICONS = { Maintenance: Wrench, Operations: Activity, Reports: BarChart3, "All tools": Database };
 const sectionItem = (id) => PRIMARY.find((p) => p.id === id) || ADMIN_SECTIONS.find((s) => s.id === id);
 
@@ -150,7 +150,9 @@ function NavItem({ item, active, onNavigate, current = active === item.id, targe
 
 // The sidebar, laid out by lib/adminMenu.js: the everyday screens at the top
 // (each hub is one link), then folding groups for the rest.
-function SidebarNav({ active, onNavigate }) {
+function SidebarNav({ active: section, onNavigate }) {
+ // Card issuing, card design and the sign-in log open on the Passengers page.
+ const active=menuHome(section);
  const activeGroup=groupOf(active);
  const activeHub=hubOf(active)?.id;
  const [openGroups,setOpenGroups]=useState(()=>activeGroup?{[activeGroup]:true}:{});
@@ -220,7 +222,7 @@ function SectionSearch({ onNavigate }) {
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
   const box = useRef(null);
-  // Every section, then each hub by its own name ("Passengers", "Routes").
+  // Every section, then each hub by its own name ("Live fleet", "Routes").
   const all = useMemo(() => {
     const seen = new Set();
     const hubs = ADMIN_HUBS.map((h) => ({ key: "hub:" + h.id, id: h.tabs[0].id, hub: h.id, label: h.label, icon: HUB_ICONS[h.id] }));
@@ -298,7 +300,7 @@ export default function AdminShell({ active, onNavigate, children, alertVehicles
   const [introEl, setIntroEl] = useState(null);
   const slots = useMemo(() => ({ actions: actionsEl, intro: introEl }), [actionsEl, introEl]);
   const nav = (id) => { onNavigate(id); setOpen(false); };
-  const current = ADMIN_SECTIONS.find((s) => s.id === active);
+  const current = ADMIN_SECTIONS.find((s) => s.id === menuHome(active));
   const hub = hubOf(active);
   // So the hub's sidebar link comes back to this tab (kept while the console is open).
   rememberTab(active);

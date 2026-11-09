@@ -68,7 +68,7 @@ test('passenger directory opens while fleet loading is unavailable',async({page}
   if(body.entity==='User'&&body.id==='me')return route.fulfill({json:{result:{id:'caller',role:'admin',full_name:'Test Admin'}}});
   return route.fulfill({status:503,json:{error:'Fleet unavailable'}});
  }));
- await page.route('**/functions/nfcCards',route=>{directoryReads++;return route.fulfill({json:{people:[{key:'contact:p',id:'p',source:'contact',name:'Directory Passenger',company_id:'a',company_name:'Company A'}],vehicles:[]}});});
+ await page.route('**/functions/nfcCards',route=>{directoryReads++;return route.fulfill({json:{people:[{key:'contact:p',id:'p',source:'contact',type:'staff',name:'Directory Passenger',company_id:'a',company_name:'Company A'}],vehicles:[]}});});
  await page.goto('/admin/directory');
  await expect(page.getByText('Directory Passenger',{exact:true})).toBeVisible({timeout:15000});
  expect(directoryReads).toBe(1);

@@ -39,19 +39,13 @@ export const ADMIN_HUBS = [
       { id: "travel-times", label: "Travel times" },
     ],
   },
-  {
-    id: "passengers",
-    label: "Passengers",
-    carry: ["person"],
-    tabs: [
-      { id: "directory", label: "Directory" },
-      { id: "signup-day", label: "Sign-up day" },
-      { id: "cards", label: "Card issuing" },
-      { id: "card-designs", label: "Card designer" },
-      { id: "checkins", label: "Sign-in log" },
-    ],
-  },
 ];
+
+// Passengers is one page (Admin → Passengers): card issuing, card design and
+// the sign-in log open on it. Their own addresses still work and open that
+// part of the page; the sidebar shows them as Passengers.
+export const PAGE_OF = { cards: "directory", "card-designs": "directory", checkins: "directory" };
+export const menuHome = (section) => PAGE_OF[section] || section;
 
 // The sidebar from top to bottom. A string is one section, { hub } a hub
 // link, { group } a folding group, and "divider" starts the quieter part at
@@ -62,7 +56,8 @@ export const ADMIN_MENU = [
   "trips",
   { hub: "vehicles-drivers" },
   { hub: "routes" },
-  { hub: "passengers" },
+  "directory",
+  "signup-day",
   "users",
   "companies",
   { group: "Maintenance", ids: ["service", "faults", "parts", "schedule", "calendar", "templates", "inspection-history", "service-history", "incident-reports", "safety-standards"] },

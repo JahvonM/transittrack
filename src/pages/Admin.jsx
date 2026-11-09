@@ -20,7 +20,6 @@ import ProfileInfo from "@/components/ProfileInfo";
 import DriversTab from "@/components/admin/DriversTab";
 import VehiclesTab from "@/components/admin/VehiclesTab";
 import KioskTablets from "@/components/admin/KioskTablets";
-import CheckInLog from "@/components/admin/CheckInLog";
 import MessagingTab from "@/components/admin/MessagingTab";
 import AdsTab from "@/components/admin/AdsTab";
 import CompaniesTab from "@/components/admin/CompaniesTab";
@@ -78,8 +77,6 @@ import { DATASETS, PAGE, SECTION_DATA } from "@/lib/adminData";
 import BusLoader from "@/components/BusLoader";
 import ShiftsTab from "@/components/admin/ShiftsTab";
 import AuditLogTab from "@/components/admin/AuditLogTab";
-import CardIssuingTab from "@/components/admin/CardIssuingTab";
-import CardDesignerTab from "@/components/admin/CardDesignerTab";
 import FleetHealthTab from "@/components/admin/FleetHealthTab";
 import LostItemsTab from "@/components/admin/LostItemsTab";
 import FleetWorkspace from "@/components/admin/FleetWorkspace";
@@ -117,7 +114,6 @@ const ADMIN_PAGES = {
   "service-history": lazy(() => import("@/pages/ServiceHistory")),
   "incident-reports": lazy(() => import("@/pages/IncidentReports")),
   "safety-standards": lazy(() => import("@/pages/SafetyStandards")),
-  directory: lazy(() => import("@/pages/StaffDirectory")),
   // A team at a hotel signs its staff up together, each on their own device.
   "signup-day": lazy(() => import("@/components/admin/signup/SignupDayTab")),
   "office-displays": lazy(() => import("@/components/admin/displays/OfficeDisplaysTab")),
@@ -141,10 +137,14 @@ const MGMT_LINKS = [
   { to: "/admin/fleet-analytics", label: "Fleet Analytics", icon: LineChart },
   { to: "/admin/ride-history", label: "Ride History", icon: History },
   { to: "/admin/passenger-bookings", label: "Passenger Bookings", icon: BookOpen },
-  { to: "/admin/directory", label: "Passenger directory", icon: Users },
+  { to: "/admin/directory", label: "Passengers", icon: Users },
   { to: "/notifications", label: "Notifications", icon: Bell },
   { to: "/admin/support", label: "Passenger Support", icon: LifeBuoy },
 ];
+
+// Passengers is one page; card issuing, card design and the sign-in log open on it.
+const PassengersPage = lazy(() => import("@/components/admin/passengers/PassengersPage"));
+const PASSENGER_SECTIONS = ["directory", "cards", "card-designs", "checkins"];
 
 export default function Admin() {
   const { user, logout, checkUserAuth } = useAuth();
@@ -175,7 +175,7 @@ export default function Admin() {
   const go = (s) => navigate("/admin/" + s);
 
   const sectionKeys = useMemo(
-    () => section === "directory" ? [] : ["vehicles", ...(SECTION_DATA[section] || [])].filter((k, i, a) => a.indexOf(k) === i),
+    () => PASSENGER_SECTIONS.includes(section) ? [] : ["vehicles", ...(SECTION_DATA[section] || [])].filter((k, i, a) => a.indexOf(k) === i),
     [section]
   );
 
@@ -245,6 +245,8 @@ export default function Admin() {
   // A tab that saved something re-reads its own section, not the whole console.
   // Whatever another section had cached may now be out of date, so it re-reads
   // the next time it is opened instead of showing a stale number.
+  // Pages that load their own lists (Passengers) reload when this changes.
+  const [refreshTick, setRefreshTick] = useState(0);
   const refresh = async () => {
     // Pages that load their own data (App errors, Notifications) reload too.
     window.dispatchEvent(new Event("tt-admin-refresh"));
@@ -460,7 +462,7 @@ export default function Admin() {
         pushPermission={pushPermission}
         onEnableNotifications={enableNotifications}
       >
-        <PullToRefresh onRefresh={refresh}>
+        <PullToRefresh onRefresh={async () => { setRefreshTick((t) => t + 1); await refresh(); }}>
         {failedKeys.length>0 && <ErrorState compact title={problem.title} description={problem.description} onRetry={retryFailed} retrying={retrying}/>}
         {section === "overview" && (
           <AdminOverview
@@ -518,7 +520,6 @@ export default function Admin() {
         {section === "fleet-workspace" && <FleetWorkspace vehicles={vehicles} kiosks={kiosks} checkIns={data.checkIns || []} faults={faultsOpen} inspections={inspectionResults} />}
         {section === "health" && <FleetHealthTab vehicles={vehicles} />}
         {section === "kiosks" && <KioskTablets vehicles={vehicles} companies={companies} onChange={refresh} />}
-        {section === "checkins" && <CheckInLog vehicles={vehicles} onChange={refresh} />}
         {section === "billing" && (
           <CompletedTripsTab
             trips={completedTrips}
@@ -553,8 +554,11 @@ export default function Admin() {
           <DriversTab drivers={drivers} vehicles={vehicles} companies={companies} routes={routes} onChange={refresh} />
         )}
         {section === "shifts" && <ShiftsTab vehicles={vehicles} />}
-        {section === "cards" && <CardIssuingTab companies={companies} />}
-        {section === "card-designs" && <CardDesignerTab />}
+        {PASSENGER_SECTIONS.includes(section) && (
+          <Suspense fallback={<BusLoader className="py-12" />}>
+            <PassengersPage mode={section} refreshTick={refreshTick} />
+          </Suspense>
+        )}
         {section === "audit" && <AuditLogTab />}
         {section === "lost-items" && <LostItemsTab />}
         {section === "companies" && <CompaniesTab companies={companies} onChange={refresh} />}

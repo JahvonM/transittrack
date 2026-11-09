@@ -63,31 +63,48 @@ test('Vehicles & drivers: a bus leads to its driver and their shifts, and the pi
   expect(errors).toEqual([]);
 });
 
-test('Passengers: a person panel with their card, bus, pickup and boardings, and the pick follows the tabs', async ({ page }) => {
+test('Passengers: one panel per person with their company, bus, pickup, card, printed card and sign-ins', async ({ page }) => {
   const { errors } = await open(page, '/admin/directory');
+  // One page: no tabs under the title.
+  await expect(page.getByRole('navigation', { name: /tabs$/ })).toHaveCount(0);
   await page.getByRole('button', { name: 'Open Rita Rider' }).click();
   const panel = page.getByRole('dialog', { name: 'Rita Rider' });
   await expect(panel).toBeVisible();
   await expect(page).toHaveURL(/\/admin\/directory\?person=user%3Au-pass$/);
-  await expect(panel.getByRole('region', { name: 'Bus and pickup' })).toContainText('Bus 1');
-  await expect(panel.getByRole('list', { name: "Rita Rider's recent boardings" })).toContainText('Got on Bus 1');
+  await expect(panel.getByRole('region', { name: 'Company, bus and pickup' })).toContainText('Bus 1');
+  await expect(panel.getByRole('list', { name: "Rita Rider's recent sign-ins" })).toContainText('Got on Bus 1');
   await expect(panel.getByText('Otto Other')).toHaveCount(0);
-  await expect(panel.getByRole('link', { name: /Issue card|Manage card/ })).toHaveAttribute('href', '/admin/cards?person=user%3Au-pass');
+  // Her card is programmed right in her panel, and her printed card shows there.
+  await expect(panel.getByRole('region', { name: 'Card', exact: true }).getByRole('button', { name: 'Program card' })).toBeVisible();
+  await expect(panel.getByTestId('person-card-preview')).toContainText('Rita Rider');
   await page.screenshot({ path: '/tmp/tt-admin-connected-person.png' });
-  await panel.getByRole('link', { name: 'See all' }).click();
-  await expect(page).toHaveURL(/\/admin\/checkins\?person=user%3Au-pass$/);
-  await expect(page.getByText("Showing Rita Rider's boardings only.")).toBeVisible();
-  await expect(page.getByText('Otto Other')).toHaveCount(0);
-  // Card issuing and Card designer open on her too.
-  await tabs(page, 'Passengers').getByRole('link', { name: 'Card issuing' }).click();
-  await expect(page).toHaveURL(/\/admin\/cards\?person=user%3Au-pass$/);
-  await expect(page.getByText('Pick someone from the list')).toHaveCount(0);
-  await tabs(page, 'Passengers').getByRole('link', { name: 'Card designer' }).click();
-  await expect(page.getByTestId('card-artwork-preview')).toContainText('Rita Rider');
-  // Back in the Sign-in log, "Show everyone" lets her go.
-  await tabs(page, 'Passengers').getByRole('link', { name: 'Sign-in log' }).click();
+  // See all: the sign-in log, hers only. Closing it comes back to her panel.
+  await panel.getByRole('button', { name: 'See all' }).click();
+  const log = page.getByRole('dialog', { name: 'Sign-in log' });
+  await expect(log.getByText("Showing Rita Rider's boardings only.")).toBeVisible();
+  await expect(log.getByText('Otto Other')).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await expect(log).toBeHidden();
+  await expect(panel).toBeVisible();
+  // Design and print opens the card designer on her.
+  await panel.getByRole('button', { name: 'Design and print' }).click();
+  const design = page.getByRole('dialog', { name: 'Card design' });
+  await expect(design.getByTestId('card-artwork-preview')).toContainText('Rita Rider');
+  await page.keyboard.press('Escape');
+  await expect(design).toBeHidden();
+  await expect(panel).toBeVisible();
+  // Closing her panel lets her go: the full sign-in log shows everyone.
+  await page.keyboard.press('Escape');
+  await expect(panel).toBeHidden();
+  await expect(page).toHaveURL(/\/admin\/directory$/);
+  await page.getByRole('button', { name: 'Full sign-in log' }).click();
+  await expect(page.getByRole('dialog', { name: 'Sign-in log' }).getByText('Otto Other')).toBeVisible();
+  await expect(page.getByText("Showing Rita Rider's boardings only.")).toHaveCount(0);
+  // An old link to her sign-ins still opens them, and "Show everyone" lets her go.
+  await page.goto('/admin/checkins?person=user%3Au-pass');
+  await expect(page.getByRole('dialog', { name: 'Sign-in log' }).getByText("Showing Rita Rider's boardings only.")).toBeVisible();
   await page.getByRole('button', { name: 'Show everyone' }).click();
-  await expect(page.getByText('Otto Other')).toBeVisible();
+  await expect(page.getByRole('dialog', { name: 'Sign-in log' }).getByText('Otto Other')).toBeVisible();
   await expect(page).toHaveURL(/\/admin\/checkins$/);
   expect(errors).toEqual([]);
 });
