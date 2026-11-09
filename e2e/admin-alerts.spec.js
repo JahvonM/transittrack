@@ -60,7 +60,7 @@ test('a new ride request pops up when the lists refresh, then goes; pop-ups can 
   await page.getByRole('button', { name: 'Notifications, 1 new' }).click();
   await page.getByRole('button', { name: /New ride request on the website/ }).click();
   await expect(page).toHaveURL(/\/admin\/trips\?view=requests/);
-  await expect(page.getByRole('radio', { name: /Requests/ }).or(page.getByRole('tab', { name: /Requests/ })).first()).toHaveAttribute(/aria-(checked|selected)/, 'true');
+  await expect(page.getByRole('group', { name: 'Jobs view' }).getByRole('button', { name: /Requests/ })).toHaveAttribute('aria-pressed', 'true');
 
   // Turned off: the next one is listed but doesn't pop up.
   await page.getByRole('button', { name: 'Notifications', exact: true }).click();
