@@ -15,7 +15,7 @@ import PullToRefresh from "@/components/PullToRefresh";
 import AdminShell from "@/components/admin/AdminShell";
 import AdminOverview from "@/components/admin/AdminOverview";
 import JobsTab from "@/components/jobs/JobsTab";
-import LiveFleetTab from "@/components/admin/LiveFleetTab";
+import LiveFleetPage from "@/components/admin/fleet/LiveFleetPage";
 import CompletedTripsTab from "@/components/admin/CompletedTripsTab";
 import ProfileInfo from "@/components/ProfileInfo";
 import DriversTab from "@/components/admin/DriversTab";
@@ -78,9 +78,7 @@ import { DATASETS, PAGE, SECTION_DATA } from "@/lib/adminData";
 import BusLoader from "@/components/BusLoader";
 import ShiftsTab from "@/components/admin/ShiftsTab";
 import AuditLogTab from "@/components/admin/AuditLogTab";
-import FleetHealthTab from "@/components/admin/FleetHealthTab";
 import LostItemsTab from "@/components/admin/LostItemsTab";
-import FleetWorkspace from "@/components/admin/FleetWorkspace";
 import TravelTimesTab from "@/components/admin/TravelTimesTab";
 import { loadScreen, saveScreen } from "@/lib/savedScreen";
 import "@/components/admin/adminApple.css";
@@ -146,6 +144,8 @@ const MGMT_LINKS = [
 // Passengers is one page; card issuing, card design and the sign-in log open on it.
 const PassengersPage = lazy(() => import("@/components/admin/passengers/PassengersPage"));
 const PASSENGER_SECTIONS = ["directory", "cards", "card-designs", "checkins"];
+// Live fleet is one page too; Fleet workspace and Fleet health open on it.
+const FLEET_SECTIONS = ["fleet", "fleet-workspace", "health"];
 
 export default function Admin() {
   const { user, logout, checkUserAuth } = useAuth();
@@ -494,11 +494,16 @@ export default function Admin() {
             onChange={refresh}
           />
         )}
-        {section === "fleet" && (
-          <LiveFleetTab
+        {FLEET_SECTIONS.includes(section) && (
+          <LiveFleetPage
+            mode={urlSection === "location-timeline" ? "location-timeline" : section}
             vehicles={vehicles}
             routes={routes}
-            initialView={urlSection === "location-timeline" ? "history" : "live"}
+            kiosks={kiosks}
+            checkIns={data.checkIns || []}
+            faults={faultsOpen}
+            inspections={inspectionResults}
+            refreshTick={refreshTick}
             onVehicleUpdate={(updated) =>
               setData((prev) => ({
                 ...prev,
@@ -518,8 +523,6 @@ export default function Admin() {
             inspectionResults={inspectionResults}
           />
         )}
-        {section === "fleet-workspace" && <FleetWorkspace vehicles={vehicles} kiosks={kiosks} checkIns={data.checkIns || []} faults={faultsOpen} inspections={inspectionResults} />}
-        {section === "health" && <FleetHealthTab vehicles={vehicles} />}
         {section === "kiosks" && <KioskTablets vehicles={vehicles} companies={companies} onChange={refresh} />}
         {section === "billing" && (
           <CompletedTripsTab

@@ -125,7 +125,7 @@ const PRIMARY = [
  {id:"overview",label:"Overview",icon:LayoutDashboard},
  {id:"profile",label:"Settings",icon:Settings},
 ];
-const HUB_ICONS = { jobs: CalendarPlus, live: MapPin, "vehicles-drivers": Bus, routes: Route };
+const HUB_ICONS = { jobs: CalendarPlus, "vehicles-drivers": Bus, routes: Route };
 const GROUP_ICONS = { Maintenance: Wrench, Operations: Activity, Reports: BarChart3, "All tools": Database };
 const sectionItem = (id) => PRIMARY.find((p) => p.id === id) || ADMIN_SECTIONS.find((s) => s.id === id);
 
@@ -152,7 +152,8 @@ function NavItem({ item, active, onNavigate, current = active === item.id, targe
 // The sidebar, laid out by lib/adminMenu.js: the everyday screens at the top
 // (each hub is one link), then folding groups for the rest.
 function SidebarNav({ active: section, onNavigate }) {
- // Card issuing, card design and the sign-in log open on the Passengers page.
+ // Card issuing, card design and the sign-in log open on the Passengers page;
+ // Fleet workspace and Fleet health open on Live fleet.
  const active=menuHome(section);
  const activeGroup=groupOf(active);
  const activeHub=hubOf(active)?.id;

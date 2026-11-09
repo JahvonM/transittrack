@@ -19,16 +19,6 @@ export const ADMIN_HUBS = [
     ],
   },
   {
-    id: "live",
-    label: "Live fleet",
-    carry: ["bus"],
-    tabs: [
-      { id: "fleet", label: "Live map" },
-      { id: "fleet-workspace", label: "Fleet workspace" },
-      { id: "health", label: "Fleet health" },
-    ],
-  },
-  {
     id: "vehicles-drivers",
     label: "Vehicles & drivers",
     carry: ["bus", "driver"],
@@ -52,9 +42,10 @@ export const ADMIN_HUBS = [
 ];
 
 // Passengers is one page (Admin → Passengers): card issuing, card design and
-// the sign-in log open on it. Their own addresses still work and open that
-// part of the page; the sidebar shows them as Passengers.
-export const PAGE_OF = { cards: "directory", "card-designs": "directory", checkins: "directory" };
+// the sign-in log open on it. Live fleet is one page too: Fleet workspace and
+// Fleet health open on it. Their own addresses still work and open that part
+// of the page; the sidebar shows them as Passengers or Live fleet.
+export const PAGE_OF = { cards: "directory", "card-designs": "directory", checkins: "directory", "fleet-workspace": "fleet", health: "fleet" };
 export const menuHome = (section) => PAGE_OF[section] || section;
 
 // The sidebar from top to bottom. A string is one section, { hub } a hub
@@ -62,7 +53,7 @@ export const menuHome = (section) => PAGE_OF[section] || section;
 // the bottom. Office displays is reached from Settings.
 export const ADMIN_MENU = [
   "overview",
-  { hub: "live" },
+  "fleet",
   { hub: "jobs" },
   { hub: "vehicles-drivers" },
   { hub: "routes" },
