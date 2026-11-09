@@ -1,13 +1,11 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, AlertTriangle } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import Logo from "@/components/Logo";
 
 // Shared chrome for the public legal pages (/privacy, /terms). The app stores
 // link straight to these URLs, so they must render for signed-out visitors.
-// draft: show the "Review draft" note (the Privacy Policy still has decisions
-// to confirm; the Terms don't).
-export default function LegalLayout({ title, children, draft = true }) {
+export default function LegalLayout({ title, children }) {
   return (
     <div className="tt-app-shell min-h-screen bg-background">
       <header className="safe-area-top sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur">
@@ -29,13 +27,6 @@ export default function LegalLayout({ title, children, draft = true }) {
 
       <main className="mx-auto max-w-3xl px-4 py-8 sm:px-6 sm:py-12">
         <h1 className="text-display font-bold">{title}</h1>
-
-        {draft && (
-          <div role="note" className="mt-6 flex items-start gap-3 rounded-xl border border-warning/40 bg-warning/10 p-4 text-body-sm">
-            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-warning" aria-hidden="true" />
-            <span><strong>Review draft.</strong> The operator’s public contact details and retention arrangements must be confirmed before these pages are finalized.</span>
-          </div>
-        )}
 
         <div className="mt-8 space-y-8">{children}</div>
 
