@@ -67,19 +67,40 @@ for (const path of ['/privacy', '/terms']) test(`${path} is readable signed out,
   await page.route('**/api/**', r => r.fulfill({ json: { id: 'test-app', public_settings: { authentication_required: false } } }));
   await page.goto(path);
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
-  // The Privacy Policy still has decisions to confirm; the Terms are final.
-  await expect(page.getByText('Review draft.', { exact: true })).toHaveCount(path === '/privacy' ? 1 : 0);
+  // Both are final: no "Review draft" note, and a date.
+  await expect(page.getByText('Review draft.', { exact: true })).toHaveCount(0);
+  await expect(page.locator('main')).not.toContainText('draft');
+  await expect(page.locator('main')).toContainText('Last updated');
   await expect(page.locator('main')).toContainText('Mc Sween’s Transport and Reside Co.');
+  await expect(page.locator('main')).toContainText('Reply to any email we have sent you about your ride.');
   await expect(page.locator('main')).not.toContainText('[COMPANY');
   await expect(page.locator('main')).not.toContainText('[CONTACT');
   await expect(page.locator('main')).not.toContainText('[RETENTION');
   expect(await page.locator('a[href^="mailto:"]').count()).toBe(0);
   if (path === '/terms') {
-    await expect(page.locator('main')).toContainText('Reply to any email we have sent you about your ride.');
     await expect(page.locator('main')).toContainText('tell us as early as possible');
     await expect(page.locator('main')).not.toContainText('Cancelling is free');
-    await expect(page.locator('main')).not.toContainText('draft');
   }
+  if (path === '/privacy') {
+    await expect(page.locator('main')).toContainText('Bus location history: 90 days');
+    await expect(page.locator('main')).toContainText('live views are not recorded');
+  }
+});
+
+test('/privacy shows the contact details set in Admin', async ({ page }) => {
+  await page.route('**/api/**', (r) => {
+    if (r.request().url().includes('/functions/appSupport')) return r.fulfill({ json: { whatsapp_number: '14735550100', business: { contact_email: 'privacy@example.com', contact_phone: '+1 473 555 0199', business_address: 'Grand Anse, St. George, Grenada', cancel_free_hours: null, cancel_late_charge: '' } } });
+    return r.fulfill({ json: { id: 'test-app', public_settings: { authentication_required: false } } });
+  });
+  await page.goto('/privacy');
+  const main = page.locator('main');
+  await expect(main.getByRole('link', { name: 'privacy@example.com' })).toHaveAttribute('href', 'mailto:privacy@example.com');
+  await expect(main.getByRole('link', { name: '+1 473 555 0199' })).toHaveAttribute('href', 'tel:+14735550199');
+  await expect(main).toContainText('Address: Grand Anse, St. George, Grenada');
+  await expect(main).not.toContainText('Reply to any email we have sent you');
+  // Fits a phone screen.
+  await page.setViewportSize({ width: 360, height: 780 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
 test('/terms shows the business details and cancelling rule set in Admin', async ({ page }) => {
