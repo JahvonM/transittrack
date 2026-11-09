@@ -84,7 +84,7 @@ for(const size of [{width:390,height:844},{width:1440,height:1000}]) {
   await expect(page.locator('.tt-welcome-art')).toHaveJSProperty('complete',true);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await page.screenshot({path:'/tmp/tt-welcome-'+size.width+'.png',fullPage:true});
-  await page.getByText('Workspaces and tablet access',{exact:true}).click();
+  await page.getByText('Staff & tablet access',{exact:true}).click();
   await expect(page.getByRole('link',{name:/Admin Fleet health/})).toHaveAttribute('href','/login?returnTo=%2Fadmin');
   await page.goto('/login');
   await expect(page.getByRole('heading',{name:'Your journey starts here'})).toBeVisible();
