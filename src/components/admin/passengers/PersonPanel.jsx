@@ -48,7 +48,7 @@ function PrintedCard({ person, onDesign }) {
 // card and their recent sign-ins.
 export default function PersonPanel({
   person, open, onOpenChange, reader, vehicles, tablets, cards, companies, canEdit,
-  onChanged, onAssignCompany, onEditPickup, onEdit, onDelete, onDesign, onOpenLog, busy,
+  onChanged, onAssignCompany, onEditPickup, onEdit, onRemove, onDesign, onOpenLog, busy,
 }) {
   const [boardings, setBoardings] = useState(null);
   const key = person?.key || "";
@@ -87,7 +87,7 @@ export default function PersonPanel({
           <div className="flex flex-wrap gap-1 pt-1">
             {wa && <Button asChild size="sm" variant="outline"><a href={wa} target="_blank" rel="noreferrer" aria-label={`WhatsApp ${person.name}`}><MessageCircle className="h-4 w-4" /> WhatsApp</a></Button>}
             {canEdit && person.source === "contact" && <Button size="sm" variant="outline" onClick={() => onEdit(person)} aria-label={`Edit ${person.name}`}><Pencil className="h-4 w-4" /> Edit</Button>}
-            {canEdit && person.source === "contact" && <Button size="sm" variant="ghost" className="text-danger hover:text-danger" onClick={() => onDelete(person)} aria-label={`Delete ${person.name}`}><Trash2 className="h-4 w-4" /> Delete</Button>}
+            {canEdit && passenger && <Button size="sm" variant="ghost" className="text-danger hover:text-danger" onClick={() => onRemove(person)} disabled={busy} aria-label={`Remove ${person.name}`}><Trash2 className="h-4 w-4" /> Remove</Button>}
           </div>
         </SheetHeader>
 

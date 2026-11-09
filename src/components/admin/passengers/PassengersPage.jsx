@@ -281,12 +281,25 @@ export default function PassengersPage({ mode = "directory", refreshTick = 0 }) 
     setFormOpen(false);
     load();
   };
+  // Remove passenger: out completely (server: nfcCards remove_person).
   const remove = async (c) => {
-    if (!(await confirmAction({ title: `Delete ${c.name}?`, description: "This contact will be removed from the directory." }))) return;
-    await base44.entities.Contact.delete(c.id);
-    setPanelOpen(false);
-    setPersonFocus("");
-    load();
+    const login = c.registered || c.source === "user";
+    if (!(await confirmAction({
+      title: `Remove ${c.name} completely?`,
+      description: `They come off the passenger list, their company and their bus, and every card and keypad code of theirs stops.${login ? " Their app login is deleted too, so they would have to sign up again." : ""} Past trips and sign-ins stay in the records. This can't be undone.`,
+      confirmLabel: "Remove passenger",
+    }))) return;
+    setBusyKey(c.key);
+    try {
+      const { data } = await base44.functions.invoke("nfcCards", { action: "remove_person", person_key: c.key });
+      if (!data?.ok) throw new Error(data?.error || "Couldn't remove them");
+      toast({ title: `${c.name} removed`, description: [data.cards_stopped ? `${data.cards_stopped} card${data.cards_stopped === 1 ? "" : "s"} stopped` : "", data.login_deleted ? "app login deleted" : ""].filter(Boolean).join(" · ") || undefined });
+      setSelectedKeys((prev) => { const next = new Set(prev); next.delete(c.key); return next; });
+      closePanel();
+      await load();
+    } catch (e) {
+      toast({ title: "Couldn't remove them", description: e?.response?.data?.error || e.message, variant: "destructive" });
+    } finally { setBusyKey(""); }
   };
   const bulkIssue = async () => {
     if (!selectedPassengers.length) return;
@@ -392,7 +405,7 @@ export default function PassengersPage({ mode = "directory", refreshTick = 0 }) 
         person={focused} open={panelOpen && !!focused} onOpenChange={(o) => (o ? setPanelOpen(true) : closePanel())}
         reader={reader} vehicles={vehicles} tablets={tablets} cards={cards} companies={companies} canEdit={canEdit} busy={busyKey === focused?.key}
         onChanged={reloadPerson} onAssignCompany={assignCompany} onEditPickup={(p) => setPickupPerson(p)}
-        onEdit={(p) => { setEditing(p); setFormOpen(true); }} onDelete={remove}
+        onEdit={(p) => { setEditing(p); setFormOpen(true); }} onRemove={remove}
         onDesign={(p) => { setPersonFocus(p.key); openSheet("design", null, true); }} onOpenLog={(p) => { setPersonFocus(p.key); openSheet("log", null, true); }}
       />
 

@@ -72,6 +72,46 @@ test('a ride request fills in the ticket beside the form and sends what was type
   expect(requests[0]).toMatchObject({ action: 'request', service: 'transfer', pickup: 'Spice Island Beach Resort', dropoff: "St. George's market", guests: 4, name: 'Ana Joseph', email: 'ana@example.com' });
 });
 
+test('what was typed in a ride request comes back after visiting another page, until it is sent', async ({ page }) => {
+  const requests = await site(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/site/book');
+  await page.getByRole('radio', { name: /Transfers/ }).check();
+  await page.getByLabel('Pick up from').fill('Spice Island Beach Resort');
+  await page.getByLabel('Your name').fill('Ana Joseph');
+  await page.getByLabel('Email').fill('ana@example.com');
+  // Off to the terms and back.
+  await page.getByRole('link', { name: 'terms', exact: true }).click();
+  await expect(page).toHaveURL(/\/site\/terms/);
+  await page.goBack();
+  await expect(page.getByLabel('Your name')).toHaveValue('Ana Joseph');
+  // Off to the home page, and back with its Request a ride link.
+  await page.goto('/site');
+  await page.getByRole('link', { name: 'Request a ride' }).first().click();
+  await expect(page).toHaveURL(/\/site\/book/);
+  await expect(page.getByLabel('Your name')).toHaveValue('Ana Joseph');
+  await expect(page.getByLabel('Email')).toHaveValue('ana@example.com');
+  await expect(page.getByLabel('Pick up from')).toHaveValue('Spice Island Beach Resort');
+  await expect(page.getByRole('radio', { name: /Transfers/ })).toBeChecked();
+  // A reload keeps it too.
+  await page.reload();
+  await expect(page.getByLabel('Your name')).toHaveValue('Ana Joseph');
+  // Once sent, it is forgotten.
+  const when = await page.evaluate(() => {
+    const d = new Date(Date.now() - 4 * 3600_000 + 3 * 86400_000);
+    const p = (n) => String(n).padStart(2, '0');
+    return `${d.getUTCFullYear()}-${p(d.getUTCMonth() + 1)}-${p(d.getUTCDate())}T10:30`;
+  });
+  await page.getByLabel('Pickup time').fill(when);
+  await page.getByLabel('Going to').fill("St. George's market");
+  await page.getByLabel('Phone or WhatsApp').fill('+1 473 555 0101');
+  await page.getByRole('button', { name: 'Send request' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Request sent' })).toBeVisible();
+  expect(requests).toHaveLength(1);
+  await page.goto('/site/book');
+  await expect(page.getByLabel('Your name')).toHaveValue('');
+});
+
 for (const width of [320, 360, 375, 390]) {
   test(`the website fits a ${width}px phone without sideways scrolling`, async ({ page }) => {
     await site(page);

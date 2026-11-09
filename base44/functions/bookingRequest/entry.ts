@@ -16,6 +16,10 @@ import { riderMembershipLive } from '../../shared/routeRiders.ts';
 //   { action: 'decline', request_id, reason }    admins: customer emailed
 //   { action: 'spam', request_id }               admins: closed, nobody emailed
 //   { action: 'send_tracking', trip_id }         admins: a fresh tracking link emailed
+//   { action: 'cancel_notice', trip_id, reason } admins, after cancelling a job: whoever
+//                                                asked for it (the website or company
+//                                                request it came from, else the job's
+//                                                client) is emailed that it's cancelled
 //   { action: 'company_request', ...form }       a company account: a job asked for
 //                                                from its portal; dispatch is emailed
 //   { action: 'company_requests' }               a company account: its own requests
@@ -95,6 +99,7 @@ export function grenadaTime(iso: string) {
 // at most one button.
 const WEBSITE_FOOTER = 'You\'re getting this because a ride was requested with this email address on mcsweenstransport.com.';
 const COMPANY_FOOTER = 'You\'re getting this because your company account asked for this ride in the McSween Transport app.';
+const CLIENT_FOOTER = 'You\'re getting this because this ride was booked for you with McSween Transport.';
 export function emailHtml({ heading, lines = [], rows = [], button = null, footer = WEBSITE_FOOTER }: { heading: string; lines?: string[]; rows?: [string, string][]; button?: { label: string; url: string } | null; footer?: string }) {
   const table = rows.filter(([, v]) => v).map(([k, v]) => `<tr><td style="padding:6px 16px 6px 0;color:#5b6b70;vertical-align:top;white-space:nowrap">${esc(k)}</td><td style="padding:6px 0;color:#12262c">${esc(v)}</td></tr>`).join('');
   return `<!doctype html><html><body style="margin:0;background:#eef4f3;font-family:Helvetica,Arial,sans-serif">
@@ -311,6 +316,39 @@ export default async function (req: Request) {
         }));
       } catch (e) { emailed = false; console.error('[booking] decline email failed', (e as Error)?.message); }
       return json({ ok: true, emailed });
+    }
+
+    if (action === 'cancel_notice') {
+      await admin(base44);
+      if (typeof body.trip_id !== 'string' || !ID.test(body.trip_id)) fail(400, 'Choose a job');
+      const reason = clean(body.reason);
+      if (reason.length > 300) fail(400, 'The reason is too long');
+      const trip = await db.Trip.get(body.trip_id).catch(() => null);
+      if (!trip) fail(404, 'That job was not found');
+      // Only ever about a job that really is cancelled.
+      if (trip.status !== 'cancelled') fail(409, 'Cancel the job first');
+      const [row] = await db.BookingRequest.filter({ trip_id: trip.id }, '-created_date', 1).catch(() => []);
+      let to = typeof row?.email === 'string' ? row.email : '';
+      if (!to && typeof trip.client_id === 'string' && ID.test(trip.client_id)) {
+        const client = await db.Client.get(trip.client_id).catch(() => null);
+        to = typeof client?.email === 'string' ? client.email.trim() : '';
+      }
+      if (!to || !EMAIL.test(to)) return json({ ok: true, emailed: false, why: 'no_email' });
+      let emailed = true;
+      try {
+        await send(base44, to, 'Your ride is cancelled', emailHtml({
+          heading: 'Your ride is cancelled',
+          lines: [reason || 'We\'re sorry, we have had to cancel this ride.', 'If you still need a ride, send a new request or message us on WhatsApp.'],
+          rows: [
+            ['Ride', SERVICES[trip.job_type] || SERVICES[row?.service] || 'Ride'],
+            ['When', grenadaTime(trip.scheduled_time || row?.requested_time)],
+            ['Pickup', trip.pickup_name || row?.pickup || ''],
+            ['Drop-off', trip.dropoff_name || row?.dropoff || ''],
+          ],
+          footer: row ? (row.company_id ? COMPANY_FOOTER : WEBSITE_FOOTER) : CLIENT_FOOTER,
+        }));
+      } catch (e) { emailed = false; console.error('[booking] cancel email failed', (e as Error)?.message); }
+      return json({ ok: true, emailed, to: emailed ? to : '' });
     }
 
     if (action === 'send_tracking') {

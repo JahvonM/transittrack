@@ -324,6 +324,28 @@ test('admin saves the app support WhatsApp number in Settings',async({page})=>{
   await expect(page.getByRole('link',{name:'Test the link'})).toHaveAttribute('href',/wa\.me\/14735551234/);
 });
 
+test('admin saves the business details shown on the Terms page',async({page})=>{
+  await session(page,'admin');
+  const saved=[];
+  await page.route('**/functions/appSupport',r=>{
+    const b=r.request().postDataJSON();
+    if(b.action==='set_business'){saved.push(b);return r.fulfill({json:{ok:true,business:{contact_email:'bookings@example.com',contact_phone:'+1 473 555 1234',business_address:'',cancel_free_hours:24,cancel_late_charge:'the full price'}}});}
+    return r.fulfill({json:{whatsapp_number:'',business:{}}});
+  });
+  await page.goto('/admin/profile');
+  const panel=page.getByRole('region',{name:'Business details'});
+  await panel.getByLabel('Email').fill('bookings@example.com');
+  await panel.getByLabel('Phone').fill('+1 473 555 1234');
+  await panel.getByLabel('Free until (hours before)').fill('24');
+  await panel.getByLabel('After that, the charge is').fill('the full price');
+  await expect(panel).toContainText('Cancelling is free until 24 hours before the pickup time. After that, the full price may be charged.');
+  await panel.getByRole('button',{name:'Save business details'}).click();
+  await expect(panel.getByRole('status')).toHaveText('Saved. The Terms page shows these now.');
+  expect(saved).toHaveLength(1);
+  expect(saved[0]).toMatchObject({contact_email:'bookings@example.com',contact_phone:'+1 473 555 1234',cancel_free_hours:'24',cancel_late_charge:'the full price'});
+  await expect(panel.getByRole('button',{name:'Save business details'})).toBeDisabled();
+});
+
 test('approved passenger mobile layout keeps four navigation items and more menu',async({page})=>{
   await page.setViewportSize({width:390,height:844});
   await passengerShowcase(page,{light:true});
@@ -1360,6 +1382,37 @@ test('route deletion requires confirmation and removes only the selected route',
  expect(deletes).toEqual(['route-a']);
  await expect(page.getByRole('button',{name:/Morning route A/})).toHaveCount(0);
  await expect(page.getByRole('button',{name:/Evening route A/}).last()).toBeVisible();
+});
+
+test('remove passenger takes them out completely after a confirmation',async({page})=>{
+ await session(page,'admin');
+ let people=[{key:'user:gone',source:'user',id:'gone',type:'staff',name:'Gone Passenger',email:'gone@test.invalid',company_id:'a',company_name:'Company A',registered:true,status:'Card Issued'},
+  {key:'contact:stay',source:'contact',id:'stay',type:'staff',name:'Staying Passenger',company_id:'a',company_name:'Company A',status:'Unassigned'}];
+ const removes=[];
+ await page.route('**/functions/nfcCards',r=>{
+  const b=r.request().postDataJSON();
+  if(b.action==='remove_person'){removes.push(b);people=people.filter(p=>p.key!==b.person_key);return r.fulfill({json:{ok:true,cards_stopped:1,login_deleted:true}});}
+  return r.fulfill({json:{people,cards:[],vehicles:[],tablets:[]}});
+ });
+ await page.goto('/admin/directory');
+ await page.getByRole('button',{name:'Open Gone Passenger',exact:true}).click();
+ const panel=page.getByRole('dialog',{name:'Gone Passenger'});
+ // Cancelling changes nothing.
+ await panel.getByRole('button',{name:'Remove Gone Passenger',exact:true}).click();
+ const confirm=page.getByRole('alertdialog');
+ await expect(confirm).toContainText('Their app login is deleted too');
+ await confirm.getByRole('button',{name:'Cancel',exact:true}).click();
+ expect(removes).toHaveLength(0);
+ await expect(panel).toBeVisible();
+ // Confirming removes them and closes their panel; the others stay.
+ await panel.getByRole('button',{name:'Remove Gone Passenger',exact:true}).click();
+ await page.getByRole('alertdialog').getByRole('button',{name:'Remove passenger',exact:true}).click();
+ await expect(panel).toBeHidden();
+ expect(removes).toEqual([{action:'remove_person',person_key:'user:gone'}]);
+ await expect(page.getByText('Gone Passenger removed',{exact:true})).toBeVisible();
+ await expect(page.getByRole('button',{name:'Open Gone Passenger',exact:true})).toHaveCount(0);
+ await expect(page.getByRole('button',{name:'Open Staying Passenger',exact:true})).toBeVisible();
+ await expect(page).toHaveURL(/\/admin\/directory$/);
 });
 
 for (const source of ['user','contact']) test('directory pickup editor saves and retries for '+source,async({page})=>{

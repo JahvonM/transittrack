@@ -160,6 +160,11 @@ Table `app_support_setting` · server functions only.
 | Field | Type | Notes |
 |---|---|---|
 | `whatsapp_number` | text | App support WhatsApp number in international format, digits only (e.g. 14735551234). Shown to everyone as a 'Report an app problem' link; read and changed only through the appSupport function. |
+| `contact_email` | text | Public business email shown on the Terms page and the website (Admin -> Settings -> Business details). Read and changed only through the appSupport function. |
+| `contact_phone` | text | Public business phone number shown on the Terms page, as typed (e.g. +1 473 555 1234). |
+| `business_address` | text | Public business address shown on the Terms page. |
+| `cancel_free_hours` | double precision | Customers can cancel a ride free of charge until this many hours before the pickup time (0-168). Empty: no rule is published yet. |
+| `cancel_late_charge` | text | What a later cancellation costs, in the owner's words (e.g. 'the full price'), shown on the Terms page. |
 
 ### AuditLog
 
