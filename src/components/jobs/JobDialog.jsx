@@ -65,6 +65,8 @@ export default function JobDialog({ open, onOpenChange, job, draft = null, day, 
   const [form, setForm] = useState(() => blankForm(day, job, draft));
   const [saving, setSaving] = useState(false);
   const [confirmCancel, setConfirmCancel] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
+  const [cancelEmail, setCancelEmail] = useState(true);
   const [clientOpen, setClientOpen] = useState(false);
   const [newClients, setNewClients] = useState([]);
 
@@ -161,14 +163,26 @@ export default function JobDialog({ open, onOpenChange, job, draft = null, day, 
     setSaving(true);
     try {
       await base44.entities.Trip.update(job.id, { status: "cancelled", cancelled_at: new Date().toISOString() });
-      toast({ title: "Job cancelled", description: job.vehicle_name ? `It comes off ${job.vehicle_name}'s tablet.` : undefined });
-      onSaved?.();
-      onOpenChange(false);
     } catch (e) {
       toast({ title: "Couldn't cancel the job", description: errorData(e).error || "Check the connection and try again.", variant: "destructive" });
-    } finally {
       setSaving(false);
+      return;
     }
+    // The job is cancelled whatever happens to the email.
+    const offTablet = job.vehicle_name ? `It comes off ${job.vehicle_name}'s tablet.` : "";
+    let emailNote = "";
+    if (cancelEmail) {
+      try {
+        const r = (await base44.functions.invoke("bookingRequest", { action: "cancel_notice", trip_id: job.id, reason: cancelReason.trim() })).data || {};
+        emailNote = r.emailed ? `We emailed ${r.to}.` : r.why === "no_email" ? "No customer email on this job, so nobody was emailed." : "The customer email couldn't be sent.";
+      } catch (e) {
+        emailNote = `The customer email couldn't be sent: ${errorData(e).error || "check the connection"}.`;
+      }
+    }
+    toast({ title: "Job cancelled", description: [offTablet, emailNote].filter(Boolean).join(" ") || undefined });
+    setSaving(false);
+    onSaved?.();
+    onOpenChange(false);
   };
 
   const moveStop = (i, by) => set({ stops: (() => { const s = [...form.stops]; const [x] = s.splice(i, 1); s.splice(i + by, 0, x); return s; })() });
@@ -341,9 +355,22 @@ export default function JobDialog({ open, onOpenChange, job, draft = null, day, 
               {saving ? "Saving…" : job ? "Save changes" : "Create job"}
             </Button>
             {job && (confirmCancel ? (
-              <div className="flex gap-2">
-                <Button variant="destructive" className="flex-1" onClick={cancelJob} disabled={saving}>Yes, cancel this job</Button>
-                <Button variant="outline" className="flex-1" onClick={() => setConfirmCancel(false)} disabled={saving}>Keep it</Button>
+              <div className="space-y-2 rounded-xl border border-border p-3">
+                <label className="flex items-center justify-between gap-3 text-body-sm font-semibold" htmlFor="job-cancel-email">
+                  Email the customer that it's cancelled
+                  <Switch id="job-cancel-email" checked={cancelEmail} onCheckedChange={setCancelEmail} />
+                </label>
+                {cancelEmail && (
+                  <div className="space-y-1">
+                    <Label htmlFor="job-cancel-reason">Reason for the customer (optional)</Label>
+                    <Textarea id="job-cancel-reason" value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} maxLength={300} rows={2} placeholder="e.g. The flight was cancelled" />
+                    <p className="text-caption text-muted-foreground">Goes to whoever asked for the ride: the website or company request, or the job's client.</p>
+                  </div>
+                )}
+                <div className="flex gap-2">
+                  <Button variant="destructive" className="flex-1" onClick={cancelJob} disabled={saving}>Yes, cancel this job</Button>
+                  <Button variant="outline" className="flex-1" onClick={() => setConfirmCancel(false)} disabled={saving}>Keep it</Button>
+                </div>
               </div>
             ) : (
               <Button variant="ghost" className="w-full text-danger hover:text-danger" onClick={() => setConfirmCancel(true)} disabled={saving}>
