@@ -15,6 +15,8 @@ import { saveDeviceToken, forgetDeviceToken } from "@/lib/deviceAuth";
 import { forgetPin } from '@/lib/offlinePin';
 import ErrorState from '@/components/system/ErrorState';
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { isDriverStoreInstall, rememberTabletMode } from "@/lib/kioskApp";
+import { pairingPath, screenForCode } from "@/lib/tabletPairing";
 import useNoPageZoom from "@/hooks/useNoPageZoom";
 import JourneyLoading from "@/components/JourneyLoading";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
@@ -304,7 +306,16 @@ export default function DriverApp() {
             setAutoPairing(false);
           }
         })
-        .catch(() => setAutoPairing(false));
+        .catch((e) => {
+          // A bus kiosk's code (say, a driver tablet becoming a kiosk): open
+          // the kiosk screen, which pairs with the same code.
+          if (screenForCode(e) === "kiosk" && !isDriverStoreInstall()) {
+            rememberTabletMode("kiosk");
+            window.location.replace(pairingPath("kiosk", pairCode));
+            return;
+          }
+          setAutoPairing(false);
+        });
     }
   }, [deviceId, pairCode, autoPairing, navigate]);
 

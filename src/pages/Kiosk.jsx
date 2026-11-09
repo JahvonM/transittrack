@@ -8,6 +8,9 @@ import { useBlockOtherSites } from "@/lib/kioskLinkLock";
 import { saveBoardingDirectory, localCardLookup } from "@/lib/boardingDirectory";
 import { deviceRequest, saveDeviceToken, forgetDeviceToken, pairingProfile } from "@/lib/deviceAuth";
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import { Link } from "react-router-dom";
+import { rememberTabletMode } from "@/lib/kioskApp";
+import { CHOOSE_SCREEN_PATH, pairingPath, screenForCode } from "@/lib/tabletPairing";
 import useNoPageZoom from "@/hooks/useNoPageZoom";
 import JourneyLoading from "@/components/JourneyLoading";
 import { base44 } from "@/api/base44Client";
@@ -119,6 +122,13 @@ export default function Kiosk() {
         heartbeatId.current = startTabletPoll(()=>heartbeat(res.data.device_id),HEARTBEAT_MS);
       })
       .catch((e) => {
+        // A driver tablet's code: this tablet is becoming a driver tablet.
+        // Open the driver screen, which pairs with the same code.
+        if (screenForCode(e) === "driver") {
+          rememberTabletMode("driver");
+          window.location.replace(pairingPath("driver", value));
+          return;
+        }
         setStatus("error");
         setError(e?.response?.data?.error || "Invalid or expired pairing code.");
       })
@@ -331,6 +341,8 @@ export default function Kiosk() {
               </div>
             </div>
             <Button variant="outline" className="w-full h-11" onClick={() => { forgetDeviceToken(deviceId); localStorage.removeItem("tt_kiosk_device_id"); forgetTablet(); window.location.reload(); }}>Retry</Button>
+            {/* A tablet set up for the wrong job (say, now a driver tablet). */}
+            <Button asChild variant="ghost" className="w-full h-11"><Link to={CHOOSE_SCREEN_PATH}>Choose tablet screen</Link></Button>
           </CardContent>
         </Card>
       </div>
