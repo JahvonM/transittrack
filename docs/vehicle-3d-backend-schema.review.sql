@@ -1,5 +1,5 @@
--- PROPOSED ONLY: review and convert into a tracked migration before applying.
--- No SQL in this file has been applied to the connected Supabase project.
+-- Review copy. Applied on 3 Nov 2026 as
+-- supabase/migrations/20261103052355_vehicle_3d_staging_schema.sql (that file is the record).
 -- Company membership (text user_id) is resolved through app_user.auth_user_id.
 -- Photos are private and constrained to one scan per storage prefix.
 create table if not exists public.vehicle_3d_scan (
