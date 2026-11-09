@@ -10,7 +10,8 @@ import { AdbDaemonWebUsbDeviceManager } from "@yume-chan/adb-daemon-webusb";
 import AdbWebCredentialStore from "@yume-chan/adb-credential-web";
 import { PackageManager } from "@yume-chan/android-bin";
 import {
-  KIOSK_ACTIVITY, KIOSK_ADMIN, KIOSK_PACKAGE, deviceAccounts, deviceUsers, installResult, installedVersion, ownerPackage, ownerResult,
+  KIOSK_ACTIVITY, KIOSK_ADMIN, KIOSK_PACKAGE, USB_AUTO_OK_PERMISSION, deviceAccounts, deviceUsers, installResult, installedVersion,
+  ownerPackage, ownerResult, usbAutoOkGranted, usbAutoOkResult,
 } from "@/lib/usbSetup";
 
 export const usbSupported = () => typeof navigator !== "undefined" && !!navigator.usb && !!AdbDaemonWebUsbDeviceManager.BROWSER;
@@ -42,7 +43,7 @@ export async function connectUsbDevice() {
         serial: device.serial,
         name: [manufacturer, model].filter(Boolean).join(" ") || device.name || "Android device",
         release, api: Number.parseInt(sdk, 10) || 0,
-        version: installedVersion(pkg), owner: ownerPackage(policy),
+        version: installedVersion(pkg), owner: ownerPackage(policy), usbAutoOk: usbAutoOkGranted(pkg),
         accounts: deviceAccounts(accounts), users: deviceUsers(users),
       };
     },
@@ -54,6 +55,11 @@ export async function connectUsbDevice() {
       } catch (error) {
         return installResult(error?.message || String(error));
       }
+    },
+    // Lets the app switch on its USB auto-OK, so the GPS and card reader get
+    // USB access without anyone tapping OK on the device.
+    async allowUsbAutoOk() {
+      return usbAutoOkResult(await shell(["pm", "grant", KIOSK_PACKAGE, USB_AUTO_OK_PERMISSION]));
     },
     async takeOwnership() {
       return ownerResult(await shell(["dpm", "set-device-owner", KIOSK_ADMIN]));

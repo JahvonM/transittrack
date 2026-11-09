@@ -7,7 +7,9 @@ import { canTakeOwnership, connectProblem, readiness } from "@/lib/usbSetup";
 // Admin → Kiosk tablets → Set up a device. The phone or tablet is plugged
 // into this PC; Chrome or Edge talks to Android's USB debugging directly, so
 // there is nothing to install and no PowerShell. Steps: install or update the
-// kiosk app from its .apk file, make it the device owner, open it.
+// kiosk app from its .apk file, make it the device owner, switch on its USB
+// auto-OK (so a USB GPS or card reader never waits for someone to tap OK),
+// open it.
 
 const browserCanUse = () => typeof navigator !== "undefined" && !!navigator.usb && !window.transittrackDesktop;
 const now = () => new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" });
@@ -85,6 +87,12 @@ export default function UsbDeviceSetup() {
     await refresh();
     return result.ok;
   });
+  const usbAutoOk = () => step("usb", async () => {
+    const result = await session.allowUsbAutoOk();
+    note(result.message, result.ok);
+    await refresh();
+    return result.ok;
+  });
   const open = () => step("open", async () => {
     const ok = await session.openApp();
     note(ok ? "Opened McSween Kiosk on the device." : "Android couldn't open the app. Open it on the device.", ok);
@@ -99,6 +107,8 @@ export default function UsbDeviceSetup() {
       if (!canTakeOwnership(current)) { note("Fix the items marked above, then press Set up this device again.", false); return; }
       if (!(await own())) return;
     }
+    // Not a stopper: without it, someone taps OK on the device instead.
+    if (!current.usbAutoOk) await usbAutoOk();
     await open();
     note("Done. On the device: pair it, then tap the top-right corner 5 times to set its exit code and start kiosk mode.");
   };
@@ -145,7 +155,7 @@ export default function UsbDeviceSetup() {
           <div className="space-y-4">
             <div>
               <label htmlFor="kiosk-apk" className="block font-semibold">App file (.apk)</label>
-              <p className="text-caption text-muted-foreground">Usually in your Downloads folder, named like McSween-Kiosk-2.0-build-11-test.apk. Use the file made on your usual PC.</p>
+              <p className="text-caption text-muted-foreground">Usually in your Downloads folder, named like McSween-Kiosk-2.0-build-11-test.apk. Use a file made on your usual PC or by the Kiosk APK build on GitHub.</p>
               <input id="kiosk-apk" type="file" accept=".apk,application/vnd.android.package-archive" className="mt-2 block w-full text-body-sm" onChange={(e) => setApk(e.target.files?.[0] || null)} />
             </div>
             <Button className="w-full" size="lg" onClick={setUp} disabled={!!busy || (!apk && !info.version)}>
@@ -155,6 +165,7 @@ export default function UsbDeviceSetup() {
             <div className="flex flex-wrap gap-2">
               <Button variant="outline" size="sm" onClick={install} disabled={!!busy || !apk}><Upload className="mr-1 h-4 w-4" /> Install or update only</Button>
               <Button variant="outline" size="sm" onClick={own} disabled={!!busy || owner || !canTakeOwnership(info)}><ShieldCheck className="mr-1 h-4 w-4" /> Make it the owner</Button>
+              <Button variant="outline" size="sm" onClick={usbAutoOk} disabled={!!busy || !info.version || info.usbAutoOk}><Usb className="mr-1 h-4 w-4" /> Switch on USB auto-OK</Button>
               <Button variant="outline" size="sm" onClick={open} disabled={!!busy || !info.version}><Play className="mr-1 h-4 w-4" /> Open the app</Button>
               <Button variant="ghost" size="sm" onClick={() => step("read", () => refresh())} disabled={!!busy}>Check again</Button>
             </div>

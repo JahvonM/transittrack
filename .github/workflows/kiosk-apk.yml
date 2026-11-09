@@ -1,0 +1,136 @@
+# McSween Kiosk: the tablet app file (.apk) that Admin → Kiosk tablets →
+# Set up a device installs over USB.
+#
+# Android only accepts an update signed with the same key as the app already
+# on the tablet. The bus tablets were set up with builds from the office PC,
+# which signs them with that PC's Android debug key. Put a copy of that key in
+# GitHub once, as the secret KIOSK_SIGNING_KEYSTORE_BASE64 (Settings → Secrets
+# and variables → Actions), and this workflow makes an .apk the tablets accept
+# without needing the PC. See docs/kiosk-apk-from-github.md.
+#
+# Runs when tablet code changes on main, or by hand (Actions → Kiosk APK →
+# Run workflow). The file is kept for 30 days under the run's Artifacts.
+# Never runs for pull requests, so the key is never handed to proposed code.
+name: Kiosk APK
+on:
+  push:
+    branches: [main]
+    paths: ['android/**', 'capacitor.config.json', '.github/workflows/kiosk-apk.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: kiosk-apk
+  cancel-in-progress: true
+jobs:
+  apk:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      # Certificate of the app already on the bus tablets, read from
+      # McSween-Kiosk-2.0-build-11-test.apk (office PC debug key, made 14 Oct 2026).
+      # Public information: every copy of the app carries it.
+      TABLET_CERT_SHA256: d80288e91f3740c0bacfd7dca88fb12c21a022c9166675da8f9eb2201dfbb2e1
+    steps:
+      - name: Check the office PC's tablet signing key is in GitHub
+        id: key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KIOSK_SIGNING_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            msg="No tablet file made: add the KIOSK_SIGNING_KEYSTORE_BASE64 secret first (docs/kiosk-apk-from-github.md). A file signed with any other key is refused by the tablets."
+            if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then echo "::error::$msg"; exit 1; fi
+            echo "::notice::$msg"; echo "ready=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          echo "ready=true" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v5
+        if: steps.key.outputs.ready == 'true'
+      - uses: actions/setup-node@v5
+        if: steps.key.outputs.ready == 'true'
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v5
+        if: steps.key.outputs.ready == 'true'
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Use the office PC's tablet signing key
+        if: steps.key.outputs.ready == 'true'
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KIOSK_SIGNING_KEYSTORE_BASE64 }}
+        run: |
+          home="$RUNNER_TEMP/android-user-home"
+          mkdir -p "$home"
+          printf '%s' "$KEYSTORE_BASE64" | tr -d '\r\n\t ' | base64 -d > "$home/debug.keystore"
+          # The standard Android debug key always uses this public password and alias.
+          if ! keytool -list -keystore "$home/debug.keystore" -storepass android -alias androiddebugkey > /dev/null 2>&1; then
+            echo "::error::The secret is not an Android debug key (debug.keystore with alias androiddebugkey)."; exit 1
+          fi
+          cert=$(keytool -list -v -keystore "$home/debug.keystore" -storepass android -alias androiddebugkey \
+            | sed -n 's/^[[:space:]]*SHA256:[[:space:]]*//p' | head -1 | tr -d ':' | tr 'A-F' 'a-f')
+          if ! printf '%s' "$cert" | grep -Eq '^[0-9a-f]{64}$'; then echo "::error::Could not read the key's certificate."; exit 1; fi
+          if [ "$cert" != "$TABLET_CERT_SHA256" ]; then
+            echo "::error::This is not the key the bus tablets were set up with (got $cert). Copy debug.keystore from the office PC again."; exit 1
+          fi
+          # Gradle signs debug builds with ANDROID_USER_HOME/debug.keystore.
+          echo "ANDROID_USER_HOME=$home" >> "$GITHUB_ENV"
+          echo "KIOSK_CERT_SHA256=$cert" >> "$GITHUB_ENV"
+          echo "Signing certificate SHA-256: $cert"
+      - uses: android-actions/setup-android@v3
+        if: steps.key.outputs.ready == 'true'
+        with:
+          packages: platform-tools
+          log-accepted-android-sdk-licenses: false
+      - if: steps.key.outputs.ready == 'true'
+        run: sdkmanager 'platforms;android-36' 'build-tools;36.0.0'
+      # Same steps as tools/kiosk/Prepare-Tablet-Test.ps1 on the office PC.
+      - if: steps.key.outputs.ready == 'true'
+        run: npm ci
+      - if: steps.key.outputs.ready == 'true'
+        run: npm run build:supabase
+      - if: steps.key.outputs.ready == 'true'
+        run: npx cap sync android
+      - name: Run the tablet app's native tests and build the .apk
+        if: steps.key.outputs.ready == 'true'
+        run: bash android/gradlew -p android :app:testKioskDebugUnitTest :app:assembleKioskDebug --no-daemon
+      - name: Check the file is signed with the PC key and name it
+        id: apk
+        if: steps.key.outputs.ready == 'true'
+        run: |
+          tools="$ANDROID_HOME/build-tools/36.0.0"
+          apk=android/app/build/outputs/apk/kiosk/debug/app-kiosk-debug.apk
+          signer=$("$tools/apksigner" verify --print-certs "$apk" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')
+          if [ "$signer" != "$KIOSK_CERT_SHA256" ]; then
+            echo "::error::The .apk is not signed with the office PC key, so the tablets would refuse it."; exit 1
+          fi
+          badging=$("$tools/aapt2" dump badging "$apk" | head -1)
+          pkg=$(printf '%s' "$badging" | sed -n "s/^package: name='\([^']*\)'.*/\1/p")
+          code=$(printf '%s' "$badging" | sed -n "s/.* versionCode='\([0-9]*\)'.*/\1/p")
+          name=$(printf '%s' "$badging" | sed -n "s/.* versionName='\([^']*\)'.*/\1/p")
+          if [ "$pkg" != "com.transittrack.app" ] || [ -z "$code" ] || [ -z "$name" ]; then
+            echo "::error::Unexpected app in the build: $badging"; exit 1
+          fi
+          file="McSween-Kiosk-$name-build-$code-$(date -u +%Y%m%d)-${GITHUB_SHA::7}.apk"
+          mkdir -p "$RUNNER_TEMP/out"
+          cp "$apk" "$RUNNER_TEMP/out/$file"
+          (cd "$RUNNER_TEMP/out" && sha256sum "$file" > "$file.sha256.txt")
+          echo "file=$file" >> "$GITHUB_OUTPUT"
+          {
+            echo "### $file"
+            echo "Version $name / build $code, signed with the office PC key (certificate SHA-256 \`$signer\`)."
+            echo "Install it with Admin → Kiosk tablets → Set up a device. Never uninstall the old app to get past an error."
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: steps.key.outputs.ready == 'true'
+        with:
+          name: ${{ steps.apk.outputs.file }}
+          path: ${{ runner.temp }}/out/
+          retention-days: 30
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: kiosk-apk-test-results
+          path: android/app/build/reports/tests/
+          if-no-files-found: ignore
