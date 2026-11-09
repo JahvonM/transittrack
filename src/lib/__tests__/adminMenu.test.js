@@ -2,8 +2,8 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { ADMIN_HUBS, ADMIN_MENU, carriedSearch, groupOf, hubOf, hubTarget, menuSections, rememberTab } from "@/lib/adminMenu";
 
-// Admin menu: four hubs (Live fleet, Vehicles & drivers, Routes, Passengers)
-// put related screens together as tabs. Every admin section must still be
+// Admin menu: five hubs (Jobs, Live fleet, Vehicles & drivers, Routes,
+// Passengers) put related screens together as tabs. Every admin section must still be
 // reachable from the menu, once.
 const shell = readFileSync(new URL("../../components/admin/AdminShell.jsx", import.meta.url), "utf8");
 const list = shell.slice(shell.indexOf("export const ADMIN_SECTIONS = ["), shell.indexOf("];", shell.indexOf("export const ADMIN_SECTIONS = [")));
@@ -17,8 +17,10 @@ describe("admin menu", () => {
     expect([...reached].sort()).toEqual(SECTIONS.filter((id) => id !== "office-displays").sort());
   });
 
-  it("has the four hubs the office asked for, with their screens as tabs", () => {
+  it("has the hubs the office asked for, with their screens as tabs", () => {
     expect(ADMIN_HUBS.map((h) => [h.label, h.tabs.map((t) => t.id)])).toEqual([
+      // Jobs, and the finished ones with their billing, are one place.
+      ["Jobs", ["trips", "billing"]],
       ["Live fleet", ["fleet", "fleet-workspace", "health"]],
       ["Vehicles & drivers", ["vehicles", "drivers", "shifts"]],
       ["Routes", ["route-planner", "route-explorer", "plan-pickups", "travel-times"]],
@@ -26,16 +28,18 @@ describe("admin menu", () => {
     ]);
   });
 
-  it("puts the hubs and everyday screens at the top, and is down from 46 links to 35", () => {
+  it("puts the hubs and everyday screens at the top, and is down from 46 links to 34", () => {
     const top = ADMIN_MENU.slice(0, ADMIN_MENU.findIndex((e) => e && e.group));
-    expect(top).toEqual(["overview", { hub: "live" }, "trips", { hub: "vehicles-drivers" }, { hub: "routes" }, { hub: "passengers" }, "users", "companies"]);
+    expect(top).toEqual(["overview", { hub: "live" }, { hub: "jobs" }, { hub: "vehicles-drivers" }, { hub: "routes" }, { hub: "passengers" }, "users", "companies"]);
     const links = ADMIN_MENU.reduce((n, e) => n + (e === "divider" ? 0 : e.ids ? e.ids.length : 1), 0);
-    expect(links).toBe(35);
+    expect(links).toBe(34);
   });
 
   it("finds a section's hub and folding group", () => {
     expect(hubOf("card-designs")?.label).toBe("Passengers");
     expect(hubOf("fleet")?.label).toBe("Live fleet");
+    expect(hubOf("billing")?.label).toBe("Jobs");
+    expect(groupOf("billing")).toBeNull();
     expect(hubOf("faults")).toBeNull();
     expect(groupOf("faults")).toBe("Maintenance");
     expect(groupOf("drivers")).toBeNull();
@@ -52,8 +56,9 @@ describe("admin menu", () => {
 
   it("each hub's tabs keep what was picked in it, and nothing else", () => {
     expect(Object.fromEntries(ADMIN_HUBS.map((h) => [h.id, h.carry]))).toEqual({
-      live: ["bus"], "vehicles-drivers": ["bus", "driver"], routes: ["route"], passengers: ["person"],
+      jobs: [], live: ["bus"], "vehicles-drivers": ["bus", "driver"], routes: ["route"], passengers: ["person"],
     });
+    expect(carriedSearch("billing", "?bus=b1")).toBe("");
     expect(carriedSearch("drivers", "?bus=b1&driver=d1&create=1")).toBe("?bus=b1&driver=d1");
     expect(carriedSearch("health", "?bus=b1&driver=d1")).toBe("?bus=b1");
     expect(carriedSearch("cards", "?person=user%3Au-1&bus=b1")).toBe("?person=user%3Au-1");
