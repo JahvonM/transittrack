@@ -11,7 +11,7 @@ export default function AuthLayout({ title, subtitle, footer, children }) {
   <aside className="tt-auth-brand-panel">
    <Link to="/" className="tt-auth-logo"><Logo className="w-10 h-10" /><span>McSween <span className="text-primary">Transport</span></span></Link>
    <img src="/images/transit-welcome.webp" alt="" className="tt-auth-art" />
-   <div className="tt-auth-brand-copy"><h2>Your journey,<br /><span className="text-primary">connected.</span></h2><p>Track your bus, choose your pickup and stay connected along the way.</p>
+   <div className="tt-auth-brand-copy"><h2>Your journey,<br /><span className="text-primary">Connected.</span></h2><p>Track your bus, choose your pickup and stay connected along the way.</p>
     <ul>{POINTS.map(([Icon,text])=><li key={text}><Icon className="w-5 h-5 text-primary" aria-hidden="true" />{text}</li>)}</ul>
    </div>
   </aside>

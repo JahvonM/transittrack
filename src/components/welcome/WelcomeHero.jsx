@@ -13,7 +13,7 @@ export default function WelcomeHero() {
       <img src="/images/transit-welcome.webp" alt="White shuttle bus on a Caribbean coastal road at dusk" className="tt-welcome-art" fetchPriority="high" />
       <div className="tt-welcome-copy">
         <p className="tt-welcome-kicker">Staff transfers · Airport pickups · Taxi service</p>
-        <h1>Your journey,<br /><span className="text-primary">connected.</span></h1>
+        <h1>Your journey,<br /><span className="text-primary">Connected.</span></h1>
         <p className="tt-welcome-lead">Track your bus, choose your pickup and stay connected along the way.</p>
         <div className="tt-welcome-actions">
           <Button asChild className="h-14 rounded-xl text-base"><Link to="/login">Sign in <ChevronRight className="w-5 h-5" /></Link></Button>
