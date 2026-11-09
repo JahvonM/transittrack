@@ -71,7 +71,7 @@ export default function SosButton({ vehicle, invoke, emergencyContacts, compact 
       <button
         onMouseDown={startHold} onMouseUp={cancelHold} onMouseLeave={cancelHold}
         onTouchStart={startHold} onTouchEnd={cancelHold} disabled={fired || cooldown}
-        className={`w-full rounded-2xl border-2 border-destructive/40 ${compact ? "min-h-[52px] py-2 px-4 flex flex-row items-center justify-center gap-3 text-left rounded-xl" : "py-5 flex flex-col items-center gap-1"} transition-all ${
+        className={`w-full rounded-2xl border-2 border-destructive/40 ${compact ? "min-h-[52px] py-2 px-4 flex flex-row items-center justify-center gap-3 text-left rounded-xl" : "py-5 flex flex-col items-center gap-1"} transition-[background-color,transform] ${
           holding ? "bg-destructive scale-95" : fired ? "bg-destructive/20" : "bg-destructive/10 hover:bg-destructive/20"
         }`}
       >

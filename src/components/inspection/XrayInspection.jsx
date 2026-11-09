@@ -215,7 +215,7 @@ export default function XrayInspection({ template, vehicle, onSubmit, onSkip, on
         </Button>
       </div>
       <div className="h-2 rounded-full bg-muted overflow-hidden" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label="Inspection progress">
-        <div className="h-full bg-primary transition-all duration-300" style={{ width: `${pct}%` }} />
+        <div className="h-full w-full origin-left bg-primary transition-transform duration-300" style={{ transform: `scaleX(${pct / 100})` }} />
       </div>
 
       <div className="tt-inspection-grid grid lg:grid-cols-[1.35fr_1fr] gap-4 items-start">
@@ -266,7 +266,7 @@ export default function XrayInspection({ template, vehicle, onSubmit, onSkip, on
           {["check", "details"].includes(phase) && item && (
             <>
               <div className="space-y-1">
-                <p className="text-xs font-bold uppercase tracking-wider text-primary">{zone?.label || "Whole bus"}</p>
+                <p className="text-xs font-bold text-primary">{zone?.label || "Whole bus"}</p>
                 <h3 className="text-xl font-bold leading-snug">{item.item_name}</h3>
                 <div className="flex flex-wrap items-center gap-2 pt-1">
                   <span className={`text-xs px-2 py-0.5 rounded-full border ${CRIT_STYLE[item.critical] || CRIT_STYLE.Medium}`}>{item.critical}</span>
@@ -411,7 +411,7 @@ export default function XrayInspection({ template, vehicle, onSubmit, onSkip, on
           <div className="py-3 space-y-4">
             {Object.entries(items.reduce((acc, it, i) => { (acc[it.zone] ||= []).push({ it, i }); return acc; }, {})).map(([z, list]) => (
               <div key={z}>
-                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">{ZONE_BY_ID[z]?.label || "Whole bus"}</p>
+                <p className="text-xs font-bold text-muted-foreground mb-1">{ZONE_BY_ID[z]?.label || "Whole bus"}</p>
                 <ul className="divide-y divide-border rounded-xl border border-border">
                   {list.map(({ it, i }) => {
                     const c = results[it.key]?.condition;

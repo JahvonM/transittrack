@@ -140,8 +140,8 @@ export default function ReviewerSandbox() {
             </div>
             <div className="mt-2 h-1.5 rounded-full bg-muted overflow-hidden">
               <div
-                className="h-full bg-primary transition-all duration-500"
-                style={{ width: `${progress}%` }}
+                className="h-full w-full origin-left bg-primary transition-transform duration-500"
+                style={{ transform: `scaleX(${progress / 100})` }}
               />
             </div>
           </div>

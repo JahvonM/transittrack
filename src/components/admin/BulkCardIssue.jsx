@@ -208,7 +208,7 @@ export default function BulkCardIssue({ people, vehicles, companies, companyName
     <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-3 items-start">
       <div className="rounded-2xl border bg-card p-4 space-y-3">
         <div className="flex items-center gap-3">
-          <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden"><div className="h-full bg-primary transition-all" style={{ width: `${pct}%` }} /></div>
+          <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden"><div className="h-full w-full origin-left bg-primary transition-transform" style={{ transform: `scaleX(${pct / 100})` }} /></div>
           <span className="text-sm font-semibold tabular-nums">{stage === "done" ? queue.length : idx + 1} / {queue.length}</span>
         </div>
 
@@ -231,7 +231,7 @@ export default function BulkCardIssue({ people, vehicles, companies, companyName
                 </div>
               </div>
               <div className="min-w-0">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">{paused ? "Paused" : busy ? "Registering…" : "Place a card for"}</p>
+                <p className="text-xs text-muted-foreground font-semibold">{paused ? "Paused" : busy ? "Registering…" : "Place a card for"}</p>
                 <p className="text-2xl font-bold truncate">{current?.name}</p>
                 <p className="text-sm text-muted-foreground truncate">{[companyName(current || {}), current?.assigned_vehicle].filter(Boolean).join(" · ") || "No bus"}</p>
                 {error && <p className="text-sm font-medium text-danger mt-1">{error} Try another card, or skip.</p>}

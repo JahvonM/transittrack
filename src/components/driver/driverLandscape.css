@@ -3,10 +3,10 @@
  .tt-driver-reference.tt-driver-portrait{background:#04121f!important}
  .dl-header{display:flex;align-items:center;gap:22px;min-height:64px;flex-shrink:0;padding:10px 22px;border-bottom:1px solid #29465d;background:linear-gradient(110deg,#0c2134,#061421);color:#eef6ff}
  .dl-brand{display:flex;align-items:center;gap:12px;white-space:nowrap;font-size:clamp(23px,2.5vw,32px);letter-spacing:-.04em;line-height:1}
- .dl-brand>svg{width:34px;height:34px}.dl-brand>span>span{color:#05c8ec}
+ .dl-brand>svg{width:34px;height:34px}.dl-brand>span>span{color:hsl(var(--primary))}
  .dl-company{display:flex;align-items:center;gap:14px;min-width:0;flex:1;border-left:1px solid #39566d;padding-left:22px;font-size:17px}
  .dl-company>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}.dl-company img{width:30px;height:30px;object-fit:contain}
- .dl-company>strong{flex-shrink:0;background:#182e46;border:1px solid #294761;border-radius:9px;padding:5px 10px;text-transform:uppercase;font-size:14px}
+ .dl-company>strong{flex-shrink:0;background:#182e46;border:1px solid #294761;border-radius:9px;padding:5px 10px;font-size:14px}
  .dl-header-status{display:flex;align-items:center;gap:18px;white-space:nowrap;font-size:15px}
  .dl-header-status>span{display:flex;align-items:center;gap:8px}.dl-header-status i,.dl-trip-status i{display:inline-block;width:12px;height:12px;border-radius:50%;background:#23db7b;flex-shrink:0}
  .dl-header-status .dl-offline i{background:#f6b340}.dl-header-status svg{width:20px;height:20px;color:#18d3ef}
@@ -151,7 +151,7 @@
 
 .dk-map-style-controls{position:absolute;left:14px;top:12px;z-index:700;display:flex;flex-wrap:wrap;gap:4px;max-width:calc(100% - 95px);padding:4px;border:1px solid #45617a;border-radius:12px;background:#071d2eef}
 .dk-map-style-controls button{min-height:44px;padding:7px 12px;border-radius:8px;font-size:13px;color:#d6e7f6}
-.dk-map-style-controls button[aria-pressed=true]{background:#09c8e6;color:#04202b;font-weight:700}
+.dk-map-style-controls button[aria-pressed=true]{background:hsl(var(--primary));color:hsl(var(--primary-foreground));font-weight:700}
 .dl-map-stage>.dk-inline-navigating ~ .dl-route-label{display:none}
 .dl-map-stage>.dk-overview-map .dk-map-style-controls{top:14px;left:auto;right:78px}
 .dl-map-stage>.dk-inline-navigating ~ .dl-map-caption{display:none}

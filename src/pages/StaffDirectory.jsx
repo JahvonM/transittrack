@@ -206,7 +206,7 @@ export default function StaffDirectory() {
         <EmptyState icon={Search} title="No passengers match">Try another search or type.</EmptyState>
       ) : (
         <div className="overflow-hidden rounded-2xl border border-border bg-card">
-          <div className="hidden grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1.3fr)_252px] gap-4 border-b border-border px-4 py-3 text-caption font-semibold uppercase tracking-wide text-muted-foreground lg:grid" aria-hidden="true">
+          <div className="hidden grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1.3fr)_252px] gap-4 border-b border-border px-4 py-3 text-caption font-semibold text-muted-foreground lg:grid" aria-hidden="true">
             <span>Passenger</span><span>Contact</span><span>Pickup, drop-off and bus</span><span className="text-right">Actions</span>
           </div>
           <ul className="divide-y divide-border">

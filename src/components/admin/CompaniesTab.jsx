@@ -125,7 +125,7 @@ export default function CompaniesTab({ companies, onChange }) {
               <div className="flex items-center gap-2 px-3 py-2 rounded-lg border bg-muted/40">
                 <KeyRound className="w-4 h-4 text-primary" />
                 <div>
-                  <div className="text-caption uppercase tracking-wide text-muted-foreground">Access code</div>
+                  <div className="text-caption text-muted-foreground">Access code</div>
                   <div className="font-mono font-bold tracking-[0.2em]">{c.access_code || "—"}</div>
                 </div>
                 <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => copy(c.access_code)} aria-label={`Copy access code for ${c.name}`} title="Copy code">

@@ -122,7 +122,7 @@ function RouteCard({ route, record, bucket }) {
       ) : (
         <div className="overflow-x-auto" tabIndex={0} role="region" aria-label={`Travel times table for ${route.name}`}>
           <table className="w-full min-w-[640px] text-body-sm">
-            <thead className="text-caption uppercase tracking-wide text-muted-foreground">
+            <thead className="text-caption text-muted-foreground">
               <tr className="text-left">
                 <th scope="col" className="px-5 py-3 font-semibold">From → to</th>
                 <th scope="col" className="px-3 py-3 font-semibold">Now <span className="font-normal normal-case tracking-normal">({bucketLabel(bucket)})</span></th>

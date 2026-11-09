@@ -1,8 +1,8 @@
 .tt-coastal-scene{position:relative;isolation:isolate;overflow:hidden;display:flex;flex-direction:column;flex:1;min-height:360px;border-radius:24px;background:linear-gradient(180deg,#07132438,#07132400 48%,#071324c6),url('/images/boarding-coast.webp') 26% center/cover;color:#f1f8ff;border:1px solid #4cd6ff40;padding:24px 18px 18px}
 .tt-coastal-copy{position:relative;z-index:3}.tt-coastal-copy h1{font-size:clamp(26px,5vw,44px);font-weight:750;letter-spacing:-1px;line-height:1.12;margin:0 0 10px}.tt-coastal-copy p{font-size:16px;color:#c1dceb;margin:0}
 .tt-coastal-art{position:relative;flex:1;min-height:240px;width:100%;max-width:480px;margin:12px auto 0}
-.tt-coastal-bus{position:absolute!important;bottom:0!important;left:-12%!important;width:100%!important;height:70%!important;object-fit:contain;filter:drop-shadow(0 10px 18px #0bcaff33)}
-.tt-coastal-reader{position:absolute;top:10px;right:6%;width:80px;height:80px;border:2px solid #76eeff;border-radius:50%;display:grid;place-items:center;color:#a5f4ff;background:#071d36d9;box-shadow:0 0 0 7px #39cbfa18,0 0 0 15px #39cbfa12,0 0 30px #4adfff55;z-index:2}.tt-coastal-reader svg{width:36px;height:36px}
+.tt-coastal-bus{position:absolute!important;bottom:0!important;left:-12%!important;width:100%!important;height:70%!important;object-fit:contain;filter:drop-shadow(0 10px 18px #0006)}
+.tt-coastal-reader{position:absolute;top:10px;right:6%;width:80px;height:80px;border:2px solid hsl(var(--primary) / .7);border-radius:50%;display:grid;place-items:center;color:#a5f4ff;background:#071d36d9;z-index:2}.tt-coastal-reader svg{width:36px;height:36px}
 .tt-coastal-travel-card{position:absolute;top:94px;right:0;width:128px;height:88px;border-radius:11px;background:linear-gradient(125deg,#f4f9ff,#cbdcf4);color:#133a70;box-shadow:0 9px 20px #0004;padding:11px;overflow:hidden;z-index:3;animation:tt-coastal-lift 3.5s ease-in-out infinite}
 .tt-coastal-card-top{display:flex;align-items:center;justify-content:space-between;font-size:9px;letter-spacing:.07em}.tt-coastal-card-top svg{width:15px;height:15px;transform:rotate(90deg)}
 .tt-coastal-card-body{display:flex;gap:6px;align-items:center;margin-top:9px;text-align:left}.tt-coastal-card-body>span{width:26px;height:27px;background:#a6bfdf;border-radius:5px;display:grid;place-items:center;flex-shrink:0}.tt-coastal-card-body svg{width:17px;height:17px}.tt-coastal-card-body b{font-size:9px;display:block;white-space:nowrap}.tt-coastal-card-body small{display:block;font-size:6px;letter-spacing:.05em;margin-top:3px}
@@ -19,7 +19,7 @@
 @keyframes tt-coastal-contact{0%,40%,100%{opacity:0;transform:scale(.9)}50%{opacity:.8}80%{opacity:0;transform:scale(1.25)}}
 @keyframes tt-coastal-up{0%,100%{transform:translateY(0);opacity:.4}50%{transform:translateY(-10px);opacity:1}}
 @keyframes tt-coastal-scan{0%,100%{left:3%}50%{left:96%}}
-@keyframes tt-coastal-reading{0%,100%{box-shadow:0 0 0 7px #39cbfa18,0 0 0 15px #39cbfa12,0 0 24px #4adfff33}50%{box-shadow:0 0 0 10px #39cbfa20,0 0 0 22px #39cbfa10,0 0 36px #4adfff88}}
+@keyframes tt-coastal-reading{0%,100%{box-shadow:0 0 0 7px #39cbfa18,0 0 0 15px #39cbfa12}50%{box-shadow:0 0 0 10px #39cbfa20,0 0 0 22px #39cbfa10}}
 @keyframes tt-coastal-pip{0%,100%{opacity:.3}50%{opacity:1}}
 @media(max-height:700px){.tt-kiosk-validator .tt-coastal-scene{min-height:280px;padding:18px 14px 12px}.tt-kiosk-validator .tt-coastal-art{min-height:190px}.tt-kiosk-validator .tt-coastal-copy h1{font-size:26px}.tt-kiosk-validator .tt-coastal-copy p{font-size:14px}.tt-coastal-check-overlay>.tt-coastal-scene{min-height:min(420px,calc(100dvh - 32px))}}
 @media(prefers-reduced-motion:reduce){.tt-coastal-scene *{animation:none!important}.tt-coastal-travel-card{transform:translateY(-68px) rotate(-7deg)}.tt-coastal-checking .tt-coastal-travel-card{transform:rotate(-7deg)}.tt-coastal-checking .tt-coastal-scan{left:50%}}

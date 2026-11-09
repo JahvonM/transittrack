@@ -421,7 +421,7 @@ function DriverCard({ driver, vehicles, companies, routes, docs = [], onDocsChan
         <DriverAccountActions driver={driver} onChanged={onSaved} />
       </div>
       <div className="space-y-2 border-t border-border px-4 py-3">
-        <h3 className="text-caption font-semibold uppercase tracking-wide text-muted-foreground">Assigned buses</h3>
+        <h3 className="text-caption font-semibold text-muted-foreground">Assigned buses</h3>
         {assigned.length === 0 && <p className="text-body-sm text-muted-foreground">No buses assigned yet.</p>}
         {assigned.length > 0 && (
           <ul className="space-y-2">

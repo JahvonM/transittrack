@@ -62,7 +62,7 @@ export default function DriverPortraitDrive({session,vehicle,nav,sharing,shiftAc
    <h1 className="sr-only">Your journey</h1>
    {directionControl}
    <section className="dk-simple-next" aria-label="Next stop">
-    <small>{atWork && !target?"COMPANY PICKUP":home?"NEXT DROP-OFF":"NEXT PICKUP"}</small>
+    <small>{atWork && !target?"Company pickup":home?"Next drop-off":"Next pickup"}</small>
     <h2>{focus?.name || (stops.length?"Route complete":"No route assigned")}</h2>
     <p>{sharing && fresh && nav?.remainingS!=null && nav?.nextStop?.lat===focus?.lat && nav?.nextStop?.lng===focus?.lng ? Math.max(1,Math.round(nav.remainingS/60))+" min away" : target?"Selected next stop":count!=null?count+" assigned to this stop":focus?"Ready to navigate":"Ask dispatch to assign a route"}</p>
     <div className="dk-next-actions"><Button onClick={navigate} disabled={!focus}><Navigation/>Navigate</Button><Button variant="outline" onClick={()=>{setPickedStop(null);setChoosing(true);}}><MapPinned/>Change stop</Button></div>

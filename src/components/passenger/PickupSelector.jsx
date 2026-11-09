@@ -56,7 +56,7 @@ export default function PickupSelector({ options=[], routes=[], value, onChoose,
     {mapOpen && <div className="h-64 overflow-hidden rounded-xl border" aria-label="Pickup stops map"><Suspense fallback={<p className="p-4 text-sm">Opening stops map…</p>}><StopsMap fill vehicles={[]} stops={stops.map(s=>({...s,selected:s.name===draft}))} userLocation={userLoc} onStopClick={saving ? undefined : s=>{setDraft(s.name);setSaved(false);setError("");}} /></Suspense></div>}
    </>}
    <div className="tt-pickup-confirm rounded-xl border p-4 space-y-3">
-    <div><p className="text-xs uppercase tracking-wider text-muted-foreground">Your pickup</p><p className="text-lg font-semibold">{draft || "Select a stop above"}</p></div>
+    <div><p className="text-xs text-muted-foreground">Your pickup</p><p className="text-lg font-semibold">{draft || "Select a stop above"}</p></div>
     <Button type="button" className="w-full h-12 text-base" disabled={!draft || saving} onClick={confirm}>{saving ? "Saving pickup…" : "Confirm pickup"}</Button>
     {error && <p role="alert" className="text-sm text-danger">{error}</p>}
     {saved && <p role="status" className="text-sm text-primary">Pickup saved.</p>}
