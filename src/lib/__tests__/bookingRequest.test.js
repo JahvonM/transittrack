@@ -147,7 +147,6 @@ describe("booking on the website", () => {
   });
 });
 
-// A company asking for a job from its portal.
 describe("cancelling a job", () => {
   // A cancelled job, and the client it was for.
   const cancelled = (db, over = {}) => {
@@ -194,6 +193,7 @@ describe("cancelling a job", () => {
   });
 });
 
+// A company asking for a job from its portal.
 describe("job requests from a company portal", () => {
   function companySetup({ role = "company", membership = { scope: "manager", active: true, company_id: "c1" } } = {}) {
     const env = setup({ role });
