@@ -97,6 +97,12 @@
 .mcs .mcs-nav a:not(.mcs-btn):hover { color: #fff; border-bottom-color: var(--sun); }
 .mcs-nav .mcs-btn { min-height: 2.6rem; padding: 0.5rem 1.05rem; border-radius: 10px; }
 .mcs-brand span, .mcs-nav a { white-space: nowrap; }
+/* The name gives way before the page does: if it doesn't fit (a 320 px
+   phone while the web font is still loading), it ends in "…" instead of
+   making the page wider than the screen. The button never shrinks. */
+.mcs .mcs-brand, .mcs-brand span { min-width: 0; }
+.mcs-brand span { overflow: hidden; text-overflow: ellipsis; }
+.mcs-nav { flex-shrink: 0; }
 @media (max-width: 47.99rem) {
   .mcs-nav .mcs-nav-more { display: none; }
   .mcs-nav { gap: 1rem; }
@@ -106,13 +112,18 @@
 @media (max-width: 29.99rem) {
   .mcs-nav .mcs-nav-wide { display: none; }
 }
-/* The smallest phones (320 px): the name and the button still fit side by side. */
-@media (max-width: 22.49rem) {
-  .mcs-header .mcs-wrap { gap: 0.5rem; padding: 0 0.85rem; }
-  .mcs .mcs-brand { gap: 0.45rem; }
-  .mcs-brand img { width: 1.9rem; height: 1.9rem; }
-  .mcs-brand span { font-size: 1.12rem; }
-  .mcs-nav .mcs-btn { padding: 0.45rem 0.7rem; font-size: 0.9rem; }
+/* Phones narrower than 390 px (320, 360, 375 …): a smaller name and button,
+   so the two still fit side by side. */
+@media (max-width: 24.37rem) {
+  .mcs-header .mcs-wrap { gap: 0.5rem; padding: 0 0.75rem; }
+  .mcs .mcs-brand { gap: 0.4rem; }
+  .mcs-brand img { width: 1.85rem; height: 1.85rem; }
+  .mcs-brand span { font-size: 1.08rem; }
+  .mcs-nav .mcs-btn { padding: 0.45rem 0.65rem; font-size: 0.9rem; }
+}
+@media (max-width: 20.49rem) {
+  .mcs-header .mcs-wrap { padding: 0 0.6rem; }
+  .mcs-brand span { font-size: 1.02rem; }
 }
 
 /* Hero: the coach on the coast road at dusk. On a phone the photo sits on
