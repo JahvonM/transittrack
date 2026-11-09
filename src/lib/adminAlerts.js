@@ -110,7 +110,8 @@ export function lateJobs(trips, now = Date.now()) {
 // What this admin has seen, read and muted, kept in this browser so a reload
 // doesn't pop everything up again. Never holds customers' names or contacts.
 const storeKey = (email) => `tt-admin-alerts:${String(email || "admin").toLowerCase()}`;
-export function loadAlertState(email, storage = globalThis.localStorage) {
+const localStore = () => { try { return globalThis.localStorage || null; } catch { return null; } };
+export function loadAlertState(email, storage = localStore()) {
   const empty = { items: [], seen: [], read: [], muted: false };
   try {
     const saved = JSON.parse(storage?.getItem(storeKey(email)) || "null");
@@ -123,7 +124,7 @@ export function loadAlertState(email, storage = globalThis.localStorage) {
     return { items, seen: strings(saved.seen, 400), read: strings(saved.read, 400), muted: saved.muted === true };
   } catch { return empty; }
 }
-export function saveAlertState(email, state, storage = globalThis.localStorage) {
+export function saveAlertState(email, state, storage = localStore()) {
   try {
     storage?.setItem(storeKey(email), JSON.stringify({
       items: state.items.slice(0, MAX_ITEMS), seen: state.seen.slice(0, 400), read: state.read.slice(0, 400), muted: !!state.muted,
