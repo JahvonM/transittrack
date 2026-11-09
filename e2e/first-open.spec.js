@@ -67,6 +67,7 @@ test.describe('on an iPhone', () => {
   });
 
   test('"Not now" goes on to the permissions, and Allow all asks for every one', async ({ page, context }) => {
+    test.setTimeout(60000);
     await asPerson(page);
     await page.goto('/staff');
     const dialog = setup(page);
@@ -78,7 +79,9 @@ test.describe('on an iPhone', () => {
     await context.grantPermissions(['geolocation', 'camera', 'microphone']);
     await context.setGeolocation({ latitude: 12.0561, longitude: -61.7488 });
     await dialog.getByRole('button', { name: 'Allow all' }).click();
-    await expect(dialog.getByText('Allowed', { exact: true })).toHaveCount(3);
+    // Location waits for a first fix (up to 20 seconds, src/lib/appPermissions.js)
+    // before it reports; inside the passenger app that can take the full time.
+    await expect(dialog.getByText('Allowed', { exact: true })).toHaveCount(3, { timeout: 25000 });
     await dialog.getByRole('button', { name: 'Done' }).click();
     await expect(setup(page)).toHaveCount(0);
     expect(await page.evaluate(() => Notification.permission)).toBe('granted');
