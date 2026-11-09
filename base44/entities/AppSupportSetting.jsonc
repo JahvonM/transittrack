@@ -5,12 +5,48 @@
     "whatsapp_number": {
       "type": "string",
       "description": "App support WhatsApp number in international format, digits only (e.g. 14735551234). Shown to everyone as a 'Report an app problem' link; read and changed only through the appSupport function."
+    },
+    "contact_email": {
+      "type": "string",
+      "description": "Public business email shown on the Terms page and the website (Admin -> Settings -> Business details). Read and changed only through the appSupport function."
+    },
+    "contact_phone": {
+      "type": "string",
+      "description": "Public business phone number shown on the Terms page, as typed (e.g. +1 473 555 1234)."
+    },
+    "business_address": {
+      "type": "string",
+      "description": "Public business address shown on the Terms page."
+    },
+    "cancel_free_hours": {
+      "type": "number",
+      "description": "Customers can cancel a ride free of charge until this many hours before the pickup time (0-168). Empty: no rule is published yet."
+    },
+    "cancel_late_charge": {
+      "type": "string",
+      "description": "What a later cancellation costs, in the owner's words (e.g. 'the full price'), shown on the Terms page."
     }
   },
   "rls": {
-    "read": { "user_condition": { "role": "admin" } },
-    "create": { "user_condition": { "role": "admin" } },
-    "update": { "user_condition": { "role": "admin" } },
-    "delete": { "user_condition": { "role": "admin" } }
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
   }
 }
