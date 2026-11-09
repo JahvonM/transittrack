@@ -304,7 +304,16 @@ export default function DriverApp() {
             setAutoPairing(false);
           }
         })
-        .catch(() => setAutoPairing(false));
+        .catch((e) => {
+          // A bus kiosk's code (say, a driver tablet becoming a kiosk): open
+          // the kiosk screen, which pairs with the same code.
+          if (screenForCode(e) === "kiosk" && !isDriverStoreInstall()) {
+            rememberTabletMode("kiosk");
+            window.location.replace(pairingPath("kiosk", pairCode));
+            return;
+          }
+          setAutoPairing(false);
+        });
     }
   }, [deviceId, pairCode, autoPairing, navigate]);
 
