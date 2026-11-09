@@ -1,13 +1,13 @@
 import { test, expect } from '@playwright/test';
 import { mockFleet } from './helpers/fleetFixture.js';
 
-// Admin menu: the everyday screens sit at the top, and three of them are hubs
-// (Live fleet, Vehicles & drivers, Routes). A hub is one menu link; its
-// screens are tabs under the page title. Passengers is one page of its own
-// (card issuing, card design and the sign-in log open on it) and Sign-up day
-// has its own link. Every old address still opens its own screen.
+// Admin menu: the everyday screens sit at the top, and two of them are hubs
+// (Vehicles & drivers, Routes). A hub is one menu link; its screens are tabs
+// under the page title. Live fleet is one page of its own (the camera wall
+// and Fleet health open on it), and so is Passengers (card issuing, card
+// design and the sign-in log open on it); Sign-up day has its own link.
+// Every old address still opens its own screen.
 const HUBS = [
-  ['Live fleet', [['Live map', 'fleet'], ['Fleet workspace', 'fleet-workspace'], ['Fleet health', 'health']]],
   ['Vehicles & drivers', [['Vehicles', 'vehicles'], ['Drivers', 'drivers'], ['Driver shifts', 'shifts']]],
   ['Routes', [['Route planner', 'route-planner'], ['Route explorer', 'route-explorer'], ['Plan pickups', 'plan-pickups'], ['Travel times', 'travel-times']]],
 ];
@@ -30,9 +30,9 @@ test('each hub is one menu link, and its screens are tabs under the title', asyn
   for (const name of ['Overview', 'Live fleet', 'Jobs', 'Vehicles & drivers', 'Routes', 'Passengers', 'Sign-up day', 'Users & roles', 'Companies']) {
     await expect(nav.getByRole('button', { name, exact: true })).toBeVisible();
   }
-  // The screens inside a hub, and the parts of the Passengers page, are not
-  // separate menu links.
-  for (const name of ['Fleet workspace', 'Drivers', 'Route planner', 'Passenger directory', 'Card issuing', 'Card designer', 'Sign-in log']) {
+  // The screens inside a hub, and the parts of the Live fleet and Passengers
+  // pages, are not separate menu links.
+  for (const name of ['Live map', 'Fleet workspace', 'Fleet health', 'Drivers', 'Route planner', 'Passenger directory', 'Card issuing', 'Card designer', 'Sign-in log']) {
     await expect(nav.getByRole('button', { name, exact: true })).toHaveCount(0);
   }
   for (const [hub, tabs] of HUBS) {
@@ -49,6 +49,13 @@ test('each hub is one menu link, and its screens are tabs under the title', asyn
       await expect(heading(page, hub)).toBeVisible();
     }
   }
+  // Live fleet is one page, with no tabs under its title.
+  await nav.getByRole('button', { name: 'Live fleet', exact: true }).click();
+  await expect(page).toHaveURL(/\/admin\/fleet$/);
+  await expect(heading(page, 'Live fleet')).toBeVisible();
+  await expect(nav.getByRole('button', { name: 'Live fleet', exact: true })).toHaveAttribute('aria-current', 'page');
+  await expect(page.getByRole('navigation', { name: /tabs$/ })).toHaveCount(0);
+  await expect(page.getByRole('region', { name: 'Buses' })).toBeVisible();
   // Passengers is one page, with no tabs under its title.
   await nav.getByRole('button', { name: 'Passengers', exact: true }).click();
   await expect(page).toHaveURL(/\/admin\/directory$/);
@@ -105,6 +112,16 @@ test('an old address opens its part of the page, and a hub link comes back to th
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog', { name: 'Sign-in log' })).toBeHidden();
   await expect(page).toHaveURL(/\/admin\/directory$/);
+  // ...and a part of the Live fleet page by its name.
+  await page.getByRole('combobox', { name: 'Search admin' }).fill('fleet health');
+  await page.getByRole('option', { name: 'Fleet health', exact: true }).click();
+  await expect(page).toHaveURL(/\/admin\/health$/);
+  await expect(page.getByRole('dialog', { name: 'Fleet health' })).toBeVisible();
+  await expect(page.locator('h1')).toHaveText('Live fleet');
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog', { name: 'Fleet health' })).toBeHidden();
+  await expect(page).toHaveURL(/\/admin\/fleet$/);
+  await expect(nav.getByRole('button', { name: 'Live fleet', exact: true })).toHaveAttribute('aria-current', 'page');
   // Folding groups still work for the rest.
   await expect(nav.getByRole('button', { name: 'Maintenance', exact: true })).toHaveAttribute('aria-expanded', 'false');
   await nav.getByRole('button', { name: 'Maintenance', exact: true }).click();
@@ -131,6 +148,10 @@ test('on a phone the tabs scroll sideways and start at the open tab; the page do
   await expect(page.getByRole('dialog', { name: 'Sign-in log' })).toBeHidden();
   await expect(page).toHaveURL(/\/admin\/directory$/);
   await expect(heading(page, 'Passengers')).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  // Live fleet fits a phone too.
+  await page.goto('/admin/fleet');
+  await expect(page.getByRole('region', { name: 'Buses' })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await page.getByRole('button', { name: 'Open menu', exact: true }).click();
   await page.getByRole('button', { name: 'Vehicles & drivers', exact: true }).click();

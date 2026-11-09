@@ -1,9 +1,10 @@
 import { test, expect } from '@playwright/test';
 import { fleetData, mockFleet } from './helpers/fleetFixture.js';
 
-// The tabs of each admin hub work together: the bus, driver, route or person
-// picked in one tab stays picked in the others (it rides in the address), and
-// each tab links straight to the related one.
+// The tabs of each admin hub work together: the bus, driver or route picked in
+// one tab stays picked in the others (it rides in the address), and each tab
+// links straight to the related one. Live fleet and Passengers are one page
+// each: everything about a bus or a person opens in one panel.
 
 function linkedData() {
   const data = fleetData();
@@ -109,23 +110,36 @@ test('Passengers: one panel per person with their company, bus, pickup, card, pr
   expect(errors).toEqual([]);
 });
 
-test('Live fleet: the bus picked on the map stays picked in Fleet workspace and Fleet health', async ({ page }) => {
+test('Live fleet: a bus picked anywhere opens its panel, and its parts come back to it', async ({ page }) => {
   const { errors } = await open(page, '/admin/fleet');
-  await page.getByRole('button', { name: /^Bus 1, .*Show on the map/ }).click();
+  await page.getByRole('region', { name: 'Buses' }).getByRole('button', { name: /^Bus 1, / }).click();
   await expect(page).toHaveURL(/\/admin\/fleet\?bus=bus-a$/);
-  await expect(page.getByRole('region', { name: 'Bus 1 details' })).toBeVisible();
-  await tabs(page, 'Live fleet').getByRole('link', { name: 'Fleet workspace' }).click();
-  await expect(page).toHaveURL(/\/admin\/fleet-workspace\?bus=bus-a$/);
-  await expect(page.getByRole('list', { name: 'Bus tiles' }).getByRole('listitem', { name: 'Bus 1' })).toHaveAttribute('aria-current', 'true');
-  await tabs(page, 'Live fleet').getByRole('link', { name: 'Fleet health' }).click();
-  await expect(page.getByText('Showing Bus 1 only.')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Bus 2', exact: true })).toHaveCount(0);
-  await page.getByRole('button', { name: 'Show all buses' }).click();
-  await expect(page.getByRole('button', { name: 'Bus 2', exact: true })).toBeVisible();
-  // The live map opens on a bus picked anywhere in Live fleet.
-  await page.getByRole('button', { name: 'Bus 2', exact: true }).click();
-  await tabs(page, 'Live fleet').getByRole('link', { name: 'Live map' }).click();
-  await expect(page.getByRole('region', { name: 'Bus 2 details' })).toBeVisible();
+  const bus1 = page.getByRole('dialog', { name: 'Bus 1' });
+  await expect(bus1.getByRole('region', { name: 'Now' })).toContainText('Kevin Thomas');
+  // Its tablets and GPS are in its panel; Whole fleet opens the health table
+  // and closing it comes back to Bus 1.
+  await expect(bus1.getByRole('region', { name: 'Tablets and GPS' })).toBeVisible();
+  await bus1.getByRole('button', { name: 'Whole fleet' }).click();
+  const health = page.getByRole('dialog', { name: 'Fleet health' });
+  await expect(health.getByRole('region', { name: 'Fleet health table' })).toContainText('Bus 2');
+  await page.keyboard.press('Escape');
+  await expect(health).toBeHidden();
+  await expect(bus1).toBeVisible();
+  // From the health table, a bus's name opens that bus.
+  await expect(page.locator('[role=dialog][data-state=closed]')).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await expect(bus1).toBeHidden();
+  await page.getByRole('main').getByRole('button', { name: 'Fleet health', exact: true }).click();
+  await health.getByRole('button', { name: 'Open Bus 2', exact: true }).click();
+  await expect(health).toBeHidden();
+  await expect(page.getByRole('dialog', { name: 'Bus 2' })).toBeVisible();
+  await expect(page).toHaveURL(/\/admin\/fleet\?bus=bus-b$/);
+  // Old links to a bus in Fleet health or Fleet workspace open its panel.
+  for (const path of ['/admin/health?bus=bus-a', '/admin/fleet-workspace?bus=bus-a']) {
+    await page.goto(path);
+    await expect(page.getByRole('dialog', { name: 'Bus 1' })).toBeVisible();
+    await expect(page.getByRole('dialog', { name: /^(Fleet health|Cameras)$/ })).toHaveCount(0);
+  }
   expect(errors).toEqual([]);
 });
 

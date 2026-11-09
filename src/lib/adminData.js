@@ -54,10 +54,10 @@ export const DATASETS = {
 export const SECTION_DATA = {
   overview: ["routes", "companies", "parts", "faultsOpen", "schedulesDue", "trips", "kiosks", "checkIns"],
   trips: ["routes", "trips", "completedTrips", "places", "clients"],
-  fleet: ["routes"],
-  "fleet-workspace": ["kiosks", "checkIns", "faultsOpen", "inspectionResults"],
+  fleet: ["routes", "kiosks", "checkIns", "faultsOpen", "inspectionResults"],
+  "fleet-workspace": ["routes", "kiosks", "checkIns", "faultsOpen", "inspectionResults"],
   vehicles: ["companies", "routes", "faultsOpen", "schedulesDue", "inspectionResults"],
-  health: [],
+  health: ["routes", "kiosks", "checkIns", "faultsOpen", "inspectionResults"],
   kiosks: ["companies"],
   checkins: [],
   billing: ["completedTrips", "clients", "invoices", "companies"],
