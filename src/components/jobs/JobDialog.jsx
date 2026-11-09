@@ -20,6 +20,7 @@ import {
 } from "@/lib/jobs";
 import { STATUS_LABEL } from "@/lib/trip";
 import { errorData } from "@/lib/requestError";
+import { noteOwnChange } from "@/lib/adminAlerts";
 
 const NONE = "__none";
 const placeOf = (t, side) => (t?.[`${side}_name`] ? {
@@ -147,6 +148,8 @@ export default function JobDialog({ open, onOpenChange, job, draft = null, day, 
         shared_with_company: !!(form.shared && companyId),
       };
       const saved = job ? await base44.entities.Trip.update(job.id, data) : await base44.entities.Trip.create({ ...data, status: "scheduled" });
+      // Your own change doesn't pop up for you (Admin notices).
+      noteOwnChange(saved?.id || job?.id);
       if (!draft) toast({ title: job ? "Job updated" : "Job created", description: vehicle ? `${vehicle.name}'s tablet shows it within a minute.` : "Give it a bus when you're ready." });
       // A job made from a website request: the caller confirms it and tells the
       // customer (it reports its own problems; the job is saved either way).
@@ -162,6 +165,7 @@ export default function JobDialog({ open, onOpenChange, job, draft = null, day, 
   const cancelJob = async () => {
     setSaving(true);
     try {
+      noteOwnChange(job.id);
       await base44.entities.Trip.update(job.id, { status: "cancelled", cancelled_at: new Date().toISOString() });
     } catch (e) {
       toast({ title: "Couldn't cancel the job", description: errorData(e).error || "Check the connection and try again.", variant: "destructive" });

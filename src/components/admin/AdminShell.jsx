@@ -29,7 +29,6 @@ import {
   History,
   ChevronDown,
   Search,
-  Bell,
   BellPlus,
   LogOut,
   Settings,

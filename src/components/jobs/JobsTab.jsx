@@ -58,7 +58,8 @@ function JobCard({ job, clash, onOpen }) {
 // that jobs use are kept here too.
 export default function JobsTab({ vehicles = [], routes = [], trips = [], completedTrips = [], places = [], clients = [], onChange }) {
   const { toast } = useToast();
-  const [view, setView] = useState("board");
+  // A notice about a new ride request opens Jobs on Requests (?view=requests).
+  const [view, setView] = useState(() => (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("view") === "requests" ? "requests" : "board"));
   const [day, setDay] = useState(() => dayKey(new Date()));
   const [dialog, setDialog] = useState({ open: false, job: null, draft: null, request: null });
   const [placeDialog, setPlaceDialog] = useState({ open: false, place: null });
