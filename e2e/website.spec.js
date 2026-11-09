@@ -83,7 +83,12 @@ test('what was typed in a ride request comes back after visiting another page, u
   // Off to the terms and back.
   await page.getByRole('link', { name: 'terms', exact: true }).click();
   await expect(page).toHaveURL(/\/site\/terms/);
+  await page.goBack();
+  await expect(page.getByLabel('Your name')).toHaveValue('Ana Joseph');
+  // Off to the home page, and back with its Request a ride link.
+  await page.goto('/site');
   await page.getByRole('link', { name: 'Request a ride' }).first().click();
+  await expect(page).toHaveURL(/\/site\/book/);
   await expect(page.getByLabel('Your name')).toHaveValue('Ana Joseph');
   await expect(page.getByLabel('Email')).toHaveValue('ana@example.com');
   await expect(page.getByLabel('Pick up from')).toHaveValue('Spice Island Beach Resort');
