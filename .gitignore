@@ -46,3 +46,6 @@ base44/.app.jsonc
 /blob-report/
 
 /desktop/native/TransitTrack-Card-Reader.exe
+
+# Cloudflare local dev state (wrangler dev)
+.wrangler/
