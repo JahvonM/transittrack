@@ -84,8 +84,7 @@ export default function TabletRemoteViewer({device, compact = false, capabilitie
   if (!start || !ready || autoStarted.current) return;
   autoStarted.current = true;
   void request(start);
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- once, when viewing becomes available
- }, [start, ready]);
+ }, [start, ready]); // once, when viewing becomes available
  // One tap to change camera: end the current view, then ask for the other.
  const switchTo = async capability => {
   if (busy || (active && cap === capability)) return;
