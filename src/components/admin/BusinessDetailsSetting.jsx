@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Building } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,14 +18,20 @@ export default function BusinessDetailsSetting() {
   const [saved, setSaved] = useState(toForm(NO_BUSINESS));
   const [status, setStatus] = useState({ text: "", ok: true });
   const [busy, setBusy] = useState(false);
+  // Typing before the saved details arrive wins over them.
+  const touched = useRef(false);
 
   useEffect(() => {
     let live = true;
-    loadBusinessDetails({ fresh: true }).then((d) => { if (live) { setForm(toForm(d)); setSaved(toForm(d)); } });
+    loadBusinessDetails({ fresh: true }).then((d) => {
+      if (!live) return;
+      setSaved(toForm(d));
+      if (!touched.current) setForm(toForm(d));
+    });
     return () => { live = false; };
   }, []);
 
-  const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
+  const set = (key) => (e) => { touched.current = true; setForm((f) => ({ ...f, [key]: e.target.value })); };
   const changed = JSON.stringify(form) !== JSON.stringify(saved);
   const hours = form.cancel_free_hours.trim() === "" ? null : Number(form.cancel_free_hours);
   const rule = cancellationRule({ cancel_free_hours: Number.isInteger(hours) ? hours : null, cancel_late_charge: form.cancel_late_charge.trim() });
