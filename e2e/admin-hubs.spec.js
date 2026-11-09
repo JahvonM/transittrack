@@ -1,13 +1,14 @@
 import { test, expect } from '@playwright/test';
 import { mockFleet } from './helpers/fleetFixture.js';
 
-// Admin menu: the everyday screens sit at the top, and two of them are hubs
-// (Vehicles & drivers, Routes). A hub is one menu link; its screens are tabs
-// under the page title. Live fleet is one page of its own (the camera wall
+// Admin menu: the everyday screens sit at the top, and three of them are hubs
+// (Jobs, Vehicles & drivers, Routes). A hub is one menu link; its screens are
+// tabs under the page title. Live fleet is one page of its own (the camera wall
 // and Fleet health open on it), and so is Passengers (card issuing, card
 // design and the sign-in log open on it); Sign-up day has its own link.
 // Every old address still opens its own screen.
 const HUBS = [
+  ['Jobs', [['Jobs', 'trips'], ['Completed & billing', 'billing']]],
   ['Vehicles & drivers', [['Vehicles', 'vehicles'], ['Drivers', 'drivers'], ['Driver shifts', 'shifts']]],
   ['Routes', [['Route planner', 'route-planner'], ['Route explorer', 'route-explorer'], ['Plan pickups', 'plan-pickups'], ['Travel times', 'travel-times']]],
 ];
