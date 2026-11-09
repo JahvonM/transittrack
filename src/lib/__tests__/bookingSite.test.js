@@ -5,8 +5,8 @@ vi.mock("../../../base44/shared/atomicOps.ts", () => ({ reserveAttempt: vi.fn(as
 vi.mock("../../../base44/shared/notificationPolicy.ts", () => ({ emailWithPolicy: vi.fn() }));
 import { readRequest } from "../../../base44/functions/bookingRequest/entry.ts";
 import {
-  AIRPORT_NAME, SITE_SERVICES, bookingBody, bookingProblems, draftFromRequest, grenadaInputFor, grenadaInputToIso,
-  isSiteHost, sitePage, withService,
+  AIRPORT_NAME, SITE_SERVICES, bookingBody, bookingProblems, clearRideDraft, draftFromRequest, grenadaInputFor, grenadaInputToIso,
+  isSiteHost, loadRideDraft, saveRideDraft, sitePage, withService,
 } from "@/lib/bookingSite";
 import { JOB_TYPES } from "@/lib/jobs";
 
@@ -81,6 +81,41 @@ describe("website booking form", () => {
     const c = draftFromRequest({ service: "airport_pickup", name: "Mr Lee", email: "desk@hotel.example", company_id: "c1", company_name: "Six Senses" });
     expect(c.shared_with_company).toBe(true);
     expect(c.notes).toBe("Asked for by Six Senses in their portal");
+  });
+});
+
+describe("what was typed, kept while the visitor looks at other pages", () => {
+  const memory = () => { const m = new Map(); return { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)), removeItem: (k) => m.delete(k), m }; };
+  const blank = withService({ service: "transfer", when: "", flight_number: "", pickup: "", dropoff: "", guests: "2", luggage: "", name: "", phone: "", email: "", notes: "", website: "" }, "transfer");
+
+  it("keeps the answers, never the hidden spam trap, and gives them back", () => {
+    const s = memory();
+    saveRideDraft({ ...blank, name: "Ana Joseph", email: "ana@example.com", website: "spam.example" }, blank, s);
+    const back = loadRideDraft(s);
+    expect(back).toMatchObject({ service: "transfer", name: "Ana Joseph", email: "ana@example.com" });
+    expect(back).not.toHaveProperty("website");
+  });
+
+  it("keeps nothing for an untouched form, and forgets it once sent", () => {
+    const s = memory();
+    saveRideDraft(blank, blank, s);
+    expect(s.m.size).toBe(0);
+    saveRideDraft({ ...blank, notes: "Two car seats" }, blank, s);
+    expect(s.m.size).toBe(1);
+    clearRideDraft(s);
+    expect(loadRideDraft(s)).toBeNull();
+  });
+
+  it("ignores anything odd in storage, and works when storage is blocked", () => {
+    const s = memory();
+    s.setItem("mcs-ride-request", "{not json");
+    expect(loadRideDraft(s)).toBeNull();
+    s.setItem("mcs-ride-request", JSON.stringify({ service: "helicopter", name: 42, email: "a@b.co" }));
+    expect(loadRideDraft(s)).toEqual({ email: "a@b.co" });
+    const blocked = { getItem() { throw new Error("blocked"); }, setItem() { throw new Error("blocked"); }, removeItem() { throw new Error("blocked"); } };
+    expect(loadRideDraft(blocked)).toBeNull();
+    expect(() => saveRideDraft({ ...blank, name: "Ana" }, blank, blocked)).not.toThrow();
+    expect(() => clearRideDraft(blocked)).not.toThrow();
   });
 });
 
