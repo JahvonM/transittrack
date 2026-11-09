@@ -145,7 +145,7 @@ test("passenger directory assigns a company with confirmation", async ({ page })
   const data = fleetData();
   await mockFleet(page, { role: "admin", data });
   let assignment;
-  const person = { key: "contact:walk-in", source: "contact", id: "walk-in", name: "Walk In", directory_type: "passenger", company_id: "" };
+  const person = { key: "contact:walk-in", source: "contact", id: "walk-in", type: "staff", name: "Walk In", directory_type: "passenger", company_id: "" };
   await page.route("**/functions/nfcCards", route => {
     const body = route.request().postDataJSON();
     if (body.action === "set_company") {
@@ -155,6 +155,7 @@ test("passenger directory assigns a company with confirmation", async ({ page })
     return route.fulfill({ json: { people: [person], vehicles: [] } });
   });
   await page.goto("/admin/directory");
+  await page.getByRole("button", { name: "Open Walk In", exact: true }).click();
   await page.getByRole("combobox", { name: "Company for Walk In", exact: true }).click();
   await page.getByRole("option", { name: data.company.name, exact: true }).click();
   await page.getByRole("alertdialog").getByRole("button", { name: "Assign company", exact: true }).click();

@@ -50,13 +50,18 @@ test('company fleet uses approved context and scoped entity access',async({page}
  expect(direct.filter(url=>!url.endsWith('/entities/User/me'))).toEqual([]);
 });
 
-test('email passenger directory links to card issuing without displaying card UIDs',async({page})=>{
+test('email passenger opens with card issuing in their panel without displaying card UIDs',async({page})=>{
  await session(page,'admin');
- await page.route('**/functions/nfcCards',route=>route.fulfill({json:{people:[{key:'user:email-passenger',source:'user',id:'email-passenger',name:'Email Passenger',email:'email@test.invalid',company_id:'a',company_name:'Company A',registered:true,status:'Unassigned'}]}}));
+ await page.route('**/functions/nfcCards',route=>route.fulfill({json:{people:[{key:'user:email-passenger',source:'user',id:'email-passenger',type:'staff',name:'Email Passenger',email:'email@test.invalid',company_id:'a',company_name:'Company A',registered:true,status:'Unassigned'}]}}));
  await page.goto('/admin/directory');
  await expect(page.getByText('Email Passenger',{exact:true})).toBeVisible();
- await expect(page.getByText('Email account',{exact:true})).toBeVisible();
- await expect(page.getByRole('link',{name:'Issue card'})).toHaveAttribute('href','/admin/cards?person=user%3Aemail-passenger');
+ await page.getByRole('button',{name:'Open Email Passenger',exact:true}).click();
+ const panel=page.getByRole('dialog',{name:'Email Passenger'});
+ await expect(panel.getByText('Email account',{exact:true})).toBeVisible();
+ // Their card is programmed right here; with no card yet, no card ID is shown.
+ await expect(panel.getByRole('region',{name:'Card',exact:true}).getByText('No card yet',{exact:true})).toBeVisible();
+ await expect(panel.getByRole('button',{name:'Program card',exact:true})).toBeVisible();
+ await expect(page).toHaveURL(/\/admin\/directory\?person=user%3Aemail-passenger$/);
 });
 test('card designer exports a printable PNG using selected passenger details',async({page})=>{
  await session(page,'admin');
@@ -354,11 +359,11 @@ test('admin showcase keeps metrics, fleet list and working section navigation',a
   await expect(page.getByText('Active buses',{exact:true})).toBeVisible();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
   await page.screenshot({path:'/tmp/tt-admin-desktop.png',fullPage:true});
-  // Card designer is a tab of Passengers, not a menu link of its own.
+  // Card design opens on the Passengers page; it is not a menu link of its own.
   await expect(page.getByRole('button',{name:'Card designer',exact:true})).toHaveCount(0);
   await page.getByRole('button',{name:'Passengers',exact:true}).click();
-  await page.getByRole('navigation',{name:'Passengers tabs'}).getByRole('link',{name:'Card designer',exact:true}).click();
-  await expect(page.getByRole('button',{name:'Download PNG',exact:true})).toBeVisible();
+  await page.getByRole('region',{name:'Card tools'}).getByRole('button',{name:'Card design',exact:true}).click();
+  await expect(page.getByRole('dialog',{name:'Card design'}).getByRole('button',{name:'Download PNG',exact:true})).toBeVisible();
 });
 
 
@@ -393,18 +398,31 @@ test('driver PIN is saved explicitly and retains input after a server failure',a
 
 test('existing card status and bulk role dropdown are clear',async({page})=>{
  await session(page,'admin');
- const people=[{key:'user:p',source:'user',id:'p',name:'Existing Passenger',type:'staff',status:'Card Issued',company_id:'a',registered:true},
+ const card={id:'card-p',card_uid:'04A28B22',holder_source:'user',holder_id:'p',holder_name:'Existing Passenger',access_level:'STAFF_BUS_BOARDING',is_active:true,status:'active',issue_date:'2026-10-01'};
+ const people=[{key:'user:p',source:'user',id:'p',name:'Existing Passenger',type:'staff',status:'Card Issued',company_id:'a',registered:true,card},
  {key:'driver:d',source:'driver',id:'d',name:'New Driver',type:'driver',status:'Unassigned',company_id:'a'}];
- await page.route('**/functions/nfcCards',r=>r.fulfill({json:{people,cards:[],vehicles,tablets:[]}}));
+ await page.route('**/functions/nfcCards',r=>r.fulfill({json:{people,cards:[card],vehicles,tablets:[]}}));
  await page.goto('/admin/directory');
  await expect(page.getByText('Card issued',{exact:true})).toBeVisible();
- await expect(page.getByRole('link',{name:'Manage card'})).toBeVisible();
+ // The card status menu narrows the list to one status.
+ await page.getByRole('combobox',{name:'Card status'}).click();
+ await page.getByRole('option',{name:'Never had a card',exact:true}).click();
+ await expect(page.getByText('No passengers match',{exact:true})).toBeVisible();
+ await page.getByRole('combobox',{name:'Card status'}).click();
+ await page.getByRole('option',{name:'Card issued',exact:true}).click();
+ await expect(page.getByRole('button',{name:'With a card'})).toHaveAttribute('aria-pressed','true');
+ // Their panel offers to replace the card and to stop it.
+ await page.getByRole('button',{name:'Open Existing Passenger',exact:true}).click();
+ const panel=page.getByRole('dialog',{name:'Existing Passenger'});
+ await expect(panel.getByRole('button',{name:'Replace card',exact:true})).toBeVisible();
+ await expect(panel.getByRole('button',{name:"Stop Existing Passenger's card"})).toBeVisible();
  await page.goto('/admin/cards');
- await page.getByRole('tab',{name:'Bulk setup',exact:true}).click();
- await page.getByRole('combobox',{name:'Card holder role'}).click();
+ const tools=page.getByRole('dialog',{name:'Card tools'});
+ await tools.getByRole('tab',{name:'Bulk setup',exact:true}).click();
+ await tools.getByRole('combobox',{name:'Card holder role'}).click();
  await page.getByRole('option',{name:'Drivers',exact:true}).click();
- await expect(page.getByText('New Driver',{exact:true})).toBeVisible();
- await expect(page.getByText('Existing Passenger',{exact:true})).toHaveCount(0);
+ await expect(tools.getByText('New Driver',{exact:true})).toBeVisible();
+ await expect(tools.getByText('Existing Passenger',{exact:true})).toHaveCount(0);
 });
 
 test('avatar can replace a photo in exported card artwork',async({page})=>{
@@ -1135,9 +1153,10 @@ for (const width of [320,390,430]) {
 test('desktop setup opens native views while Connect reader connects to the running helper',async({page})=>{
  await session(page,'admin');
  await page.addInitScript(()=>{window.setupCalls=[];window.transittrackDesktop={openSetup:async view=>{window.setupCalls.push(view);return {ok:true};}};});
- await page.route('**/functions/nfcCards',r=>r.fulfill({json:{people:[],cards:[],vehicles:[],tablets:[]}}));
- await page.goto('/admin/cards');
- await page.getByRole('button',{name:'NFC setup',exact:true}).click();
+ const people=[{key:'user:r',source:'user',id:'r',type:'staff',name:'Reader Passenger',company_id:'a',company_name:'Company A',status:'Unassigned'}];
+ await page.route('**/functions/nfcCards',r=>r.fulfill({json:{people,cards:[],vehicles:[],tablets:[]}}));
+ await page.goto('/admin/directory');
+ await page.getByRole('region',{name:'Card tools'}).getByRole('button',{name:'NFC setup',exact:true}).click();
  expect(await page.evaluate(()=>window.setupCalls)).toEqual(['nfc']);
  await page.route('http://127.0.0.1:8765/status',r=>r.fulfill({json:{reader:'ACS ACR122U'}}));
  await page.addInitScript(()=>{
@@ -1148,12 +1167,15 @@ test('desktop setup opens native views while Connect reader connects to the runn
   };
  });
  await page.reload();
- await page.getByRole('button',{name:'Connect reader',exact:true}).click();
- await expect(page.getByText('ACS ACR122U',{exact:true})).toBeVisible();
+ // A passenger's panel connects the reader for their card.
+ await page.getByRole('button',{name:'Open Reader Passenger',exact:true}).click();
+ const panel=page.getByRole('dialog',{name:'Reader Passenger'});
+ await panel.getByRole('button',{name:'Connect reader',exact:true}).click();
+ await expect(panel.getByText('ACS ACR122U',{exact:true})).toBeVisible();
  expect(await page.evaluate(()=>window.setupCalls)).toEqual([]);
  expect(await page.evaluate(()=>window.readerStreams.map(stream=>stream.url))).toEqual(['http://127.0.0.1:8765/events']);
  await page.evaluate(()=>window.readerStreams[0].onmessage({data:JSON.stringify({type:'card',uid:'04AABBCC',cardType:'MIFARE'})}));
- await expect(page.getByRole('button',{name:/Reader log · Card detected · UID 04:AA:BB:CC/})).toBeVisible();
+ await expect(panel.getByRole('button',{name:/Reader log · Card detected · UID 04:AA:BB:CC/})).toBeVisible();
  await page.goto('/admin/kiosks');
  await page.getByRole('button',{name:'Open tablet setup',exact:true}).click();
  expect(await page.evaluate(()=>window.setupCalls)).toEqual(['tablet']);
@@ -1291,8 +1313,11 @@ test('directory batch selection issues one card per selected name and stays on a
  await page.getByRole('button',{name:'Bulk issue cards',exact:true}).click();
  await expect(page.getByRole('alertdialog')).toContainText('2 passengers');
  await page.getByRole('button',{name:'Start bulk issuing',exact:true}).click();
- await expect(page).toHaveURL(/\/admin\/cards$/);
- const active=page.getByRole('status').filter({hasText:'Place a card for'});
+ // Bulk setup opens over the same page.
+ await expect(page).toHaveURL(/\/admin\/directory$/);
+ const tools=page.getByRole('dialog',{name:'Card tools'});
+ await expect(tools.getByRole('tab',{name:'Bulk setup',exact:true})).toHaveAttribute('aria-selected','true');
+ const active=tools.getByRole('status').filter({hasText:'Place a card for'});
  await expect(active).toContainText('Alice');
  await page.getByRole('textbox',{name:'Card ID',exact:true}).fill('BAD00000');
  await page.getByRole('button',{name:'Use ID',exact:true}).click();
@@ -1341,10 +1366,10 @@ for (const source of ['user','contact']) test('directory pickup editor saves and
  await session(page,'admin');
  const writes=[];
  let fail=true;
- let person={key:source+':pat',source,id:'pat',name:'Pat Passenger',company_id:'a',company_name:'Company A',registered:source==='user',directory_type:'staff',status:'Card Issued'};
+ let person={key:source+':pat',source,id:'pat',type:'staff',name:'Pat Passenger',company_id:'a',company_name:'Company A',registered:source==='user',directory_type:'staff',status:'Card Issued'};
  await page.route('**/functions/nfcCards',async r=>{
   const b=r.request().postDataJSON();
-  if(b.action==='directory')return r.fulfill({json:{people:[person],vehicles:[vehicles[0]]}});
+  if(b.action==='people')return r.fulfill({json:{people:[person],cards:[],vehicles:[vehicles[0]],tablets:[]}});
   if(b.action==='set_pickup'){
     writes.push(b);
     if(fail)return r.fulfill({status:503,json:{error:'Pickup could not be saved'}});
@@ -1355,8 +1380,11 @@ for (const source of ['user','contact']) test('directory pickup editor saves and
  });
  await page.route('https://api.mapbox.com/geocoding/**',r=>r.fulfill({json:{features:[{id:'belmont',text:'Belmont junction',place_name:'Belmont junction, Grenada',center:[-61.748,12.049]}]}}));
  await page.goto('/admin/directory');
- await page.getByRole('button',{name:'Set pickup for Pat Passenger'}).click();
- const dialog=page.getByRole('dialog');
+ // The pickup is set from their panel.
+ await page.getByRole('button',{name:'Open Pat Passenger',exact:true}).click();
+ const panel=page.getByRole('dialog',{name:'Pat Passenger'});
+ await panel.getByRole('button',{name:'Set pickup for Pat Passenger'}).click();
+ const dialog=page.getByRole('dialog').filter({has:page.getByRole('heading',{name:'Pickup spot for Pat Passenger'})});
  await expect(dialog.getByRole('heading',{name:'Pickup spot for Pat Passenger'})).toBeVisible();
  await expect(dialog.getByRole('button',{name:'Save pickup spot'})).toBeDisabled();
  await dialog.getByRole('textbox',{name:'Search a place by name'}).fill('Belmont');
@@ -1372,16 +1400,25 @@ for (const source of ['user','contact']) test('directory pickup editor saves and
  await expect(dialog).toHaveCount(0);
  expect(writes).toHaveLength(2);
  expect(writes[1]).toEqual({action:'set_pickup',person_key:source+':pat',pickup_name:'Belmont junction',pickup_lat:12.049,pickup_lng:-61.748});
- await expect(page.locator('li').filter({has:page.getByRole('button',{name:'Set pickup for Pat Passenger'})})).toContainText('Belmont junction');
- await page.getByRole('button',{name:'Set pickup for Pat Passenger'}).click();
- await expect(page.getByRole('dialog').getByLabel('Pickup name')).toHaveValue('Belmont junction');
- await page.getByRole('dialog').getByLabel('Pickup name').fill('Unsaved edit');
- await page.getByRole('dialog').getByRole('button',{name:'Cancel',exact:true}).click();
+ // Their panel shows it (and, once it closes, their row in the list).
+ await expect(panel.getByRole('region',{name:'Company, bus and pickup'})).toContainText('Belmont junction');
+ await panel.getByRole('button',{name:'Set pickup for Pat Passenger'}).click();
+ await expect(dialog.getByLabel('Pickup name')).toHaveValue('Belmont junction');
+ await dialog.getByLabel('Pickup name').fill('Unsaved edit');
+ await dialog.getByRole('button',{name:'Cancel',exact:true}).click();
+ await expect(dialog).toHaveCount(0);
  expect(writes).toHaveLength(2);
+ await expect(panel).toBeVisible();
  await page.setViewportSize({width:390,height:844});
- await page.getByRole('button',{name:'Set pickup for Pat Passenger'}).click();
- await expect(page.getByRole('dialog').getByLabel('Pickup name')).toHaveValue('Belmont junction');
+ await panel.getByRole('button',{name:'Set pickup for Pat Passenger'}).click();
+ await expect(dialog.getByLabel('Pickup name')).toHaveValue('Belmont junction');
  expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+ await dialog.getByRole('button',{name:'Cancel',exact:true}).click();
+ await expect(dialog).toHaveCount(0);
+ await panel.getByRole('button',{name:'Close',exact:true}).click();
+ await expect(panel).toBeHidden();
+ await expect(page.getByRole('list',{name:'Passengers'}).getByRole('listitem').filter({hasText:'Pat Passenger'})).toContainText('Pickup: Belmont junction');
+ expect(writes).toHaveLength(2);
 });
 
 async function returnPassenger(page,phase,stale=false) {

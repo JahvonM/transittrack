@@ -16,7 +16,7 @@ export default function CardDesignerTab() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [people, setPeople] = useState([]);
-  // The card holder is the passenger picked in the other Passengers tabs.
+  // The card holder is the passenger opened on the Passengers page.
   const [personKey, setPersonKey] = useAdminFocus("person");
   const [design, setDesign] = useState(DEFAULT_CARD_DESIGN);
   const [side, setSide] = useState("front");
