@@ -270,8 +270,40 @@ async function companyView(db,ctx,name,row,out) {
  }
  return out;
 }
+// A paired tablet's pass (its device credential), for Admin: only how it
+// stands and when it ends, never the pass itself. Passes last 90 days and
+// are renewed only by giving the tablet a new pairing code (by design, see
+// security-tests/tablet-repairing-plan.md), so Admin is warned 30 days ahead.
+// "moved": the tablet's company, bus or type changed after it was paired,
+// so its pass no longer matches and it needs a new pairing code.
+const PASS_WARN_MS=30*86400_000;
+async function prefetchPasses(db,ctx,rows) {
+ const ids=rows.filter(r=>r?.paired && r.status==='active').map(r=>r.id);
+ if(!ids.length) return;
+ try {
+  const creds=await db.DeviceCredential.filter({device_id:{$in:ids}},'-issued_at',5000);
+  ctx.passes=new Map(ids.map(id=>[id,null]));
+  for(const c of creds) if(ctx.passes.has(c.device_id) && !ctx.passes.get(c.device_id)) ctx.passes.set(c.device_id,c);
+ } catch { ctx.passes=null; }
+}
+async function devicePass(db,ctx,row,now=Date.now()) {
+ if(!row?.paired || row.status!=='active') return null;
+ let cred;
+ if(ctx.passes?.has(row.id)) cred=ctx.passes.get(row.id);
+ else {
+  try { cred=(await db.DeviceCredential.filter({device_id:row.id},'-issued_at',1))[0] || null; }
+  catch { return null; } // can't tell: say nothing rather than raise a false alarm
+ }
+ if(!cred) return {state:'none'};
+ const ends=Date.parse(cred.expires_at);
+ const expires_at=Number.isFinite(ends) ? new Date(ends).toISOString() : null;
+ if(cred.company_id!==row.company_id || (cred.vehicle_id||'')!==(row.vehicle_id||'') || cred.kiosk_type!==row.kiosk_type) return {state:'moved',expires_at};
+ if(!(ends>now)) return {state:'expired',expires_at};
+ return {state:ends-now<PASS_WARN_MS?'expiring':'ok',expires_at};
+}
 async function projectRecord(db,ctx,name,row) {
  const out=project(ctx,name,row);
+ if(name==='KioskDevice' && row && ctx.user?.role==='admin') out.pass=await devicePass(db,ctx,row);
  if(ctx.user?.role==='company' && row) await companyView(db,ctx,name,row,out);
  if(name==='User' && row?.id===ctx.user?.id) out.access_role=await assignedAccessRole(db,ctx.user);
  if(name==='User' && ctx.user?.role==='admin') out.access_role_id=row?.access_role_id || '';
@@ -528,6 +560,7 @@ async function listRows(db, ctx, name, operation, body) {
  if (ctx.user && !['admin','mechanic'].includes(ctx.user.role)) await prefetchParents(db, rows, ctx.parents);
  // One look-up for the whole page of buses instead of one per bus.
  if (name==='Vehicle' && ctx.user?.role==='company' && rows.length) await busSharing(db,ctx,rows.map(row=>row.id));
+ if (name==='KioskDevice' && ctx.user?.role==='admin') await prefetchPasses(db,ctx,rows);
  const result=[];
  for(const row of rows) if(await visible(db,ctx,name,row)) result.push(await projectRecord(db,ctx,name,row));
  return result;
@@ -565,6 +598,7 @@ export default async function(req) {
       const memberRows=await retry429(()=>db.CompanyMembership.filter({user_id:{$in:rows.map(r=>r.id)},active:true},'-updated_date',5000));
       if(memberRows.length<5000)ctx.membershipRows=new Map(rows.map(r=>[r.id,memberRows.filter(m=>m.user_id===r.id).slice(0,100)]));
      }
+     if(spec.entity==='KioskDevice') await prefetchPasses(db,ctx,rows);
      const out=[];
      for(const row of rows)if(await visible(db,ctx,spec.entity,row))out.push(await projectRecord(db,ctx,spec.entity,row));
      datasets[key]=out;
