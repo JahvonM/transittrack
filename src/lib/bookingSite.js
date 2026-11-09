@@ -60,6 +60,36 @@ export function grenadaInputFor(ms) {
 
 // Choosing an airport ride puts the airport on the right side (swapping the
 // two places when someone switches between pickup and drop-off).
+// What a visitor has typed in the ride request form, kept in this browser tab
+// so going to another page (Home, Track, Terms) and coming back doesn't lose
+// it. Session storage: it goes when the tab is closed, so a shared computer
+// doesn't keep someone's details. The hidden spam-trap field is never kept.
+const DRAFT_KEY = "mcs-ride-request";
+const DRAFT_FIELDS = ["service", "when", "flight_number", "pickup", "dropoff", "guests", "luggage", "name", "phone", "email", "notes"];
+const sessionStore = () => { try { return globalThis.sessionStorage || null; } catch { return null; } };
+export function loadRideDraft(storage = sessionStore()) {
+  try {
+    const saved = JSON.parse(storage?.getItem(DRAFT_KEY) || "null");
+    if (!saved || typeof saved !== "object" || Array.isArray(saved)) return null;
+    const out = {};
+    for (const k of DRAFT_FIELDS) if (typeof saved[k] === "string") out[k] = saved[k].slice(0, 2000);
+    if (out.service && !SITE_SERVICES.some((s) => s.id === out.service)) delete out.service;
+    return Object.keys(out).length ? out : null;
+  } catch { return null; }
+}
+// blank: the empty form for the same ride, so an untouched form isn't kept.
+export function saveRideDraft(form, blank = {}, storage = sessionStore()) {
+  try {
+    const keep = Object.fromEntries(DRAFT_FIELDS.map((k) => [k, String(form?.[k] ?? "")]));
+    const typed = DRAFT_FIELDS.some((k) => k !== "service" && keep[k] !== String(blank?.[k] ?? ""));
+    if (typed) storage?.setItem(DRAFT_KEY, JSON.stringify(keep));
+    else storage?.removeItem(DRAFT_KEY);
+  } catch { /* storage blocked: the form still works, it just isn't kept */ }
+}
+export function clearRideDraft(storage = sessionStore()) {
+  try { storage?.removeItem(DRAFT_KEY); } catch { /* nothing kept */ }
+}
+
 export function withService(form, service) {
   const next = { ...form, service };
   const isAirport = (v) => v === AIRPORT_NAME;
