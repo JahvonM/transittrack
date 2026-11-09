@@ -63,7 +63,7 @@ export const menuHome = (section) => PAGE_OF[section] || section;
 export const ADMIN_MENU = [
   "overview",
   { hub: "live" },
-  "trips",
+  { hub: "jobs" },
   { hub: "vehicles-drivers" },
   { hub: "routes" },
   "directory",
@@ -71,7 +71,7 @@ export const ADMIN_MENU = [
   "users",
   "companies",
   { group: "Maintenance", ids: ["service", "faults", "parts", "schedule", "calendar", "templates", "inspection-history", "service-history", "incident-reports", "safety-standards"] },
-  { group: "Operations", ids: ["kiosks", "billing", "messaging", "lost-items", "ride-history", "passenger-bookings", "support"] },
+  { group: "Operations", ids: ["kiosks", "messaging", "lost-items", "ride-history", "passenger-bookings", "support"] },
   "divider",
   "ads",
   { group: "Reports", ids: ["vehicle-logs", "driving-reports", "route-analytics", "fleet-analytics"] },
