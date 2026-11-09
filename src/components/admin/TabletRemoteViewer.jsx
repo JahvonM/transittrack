@@ -77,7 +77,8 @@ export default function TabletRemoteViewer({device, compact = false, capabilitie
   return () => { cancelled = true; clearTimeout(timer); clearRoom(); };
  }, [session?.id]);
  const active = session && !ended(session.state);
- const offered = Object.entries(labels).filter(([key]) => !capabilities || capabilities.includes(key));
+ // In the order asked for (the Fleet workspace puts the back camera first).
+ const offered = capabilities ? capabilities.filter(key => labels[key]).map(key => [key, labels[key]]) : Object.entries(labels);
  const ready = enabled === true && tabletCanStream(device);
  const autoStarted = useRef(false);
  useEffect(() => {
