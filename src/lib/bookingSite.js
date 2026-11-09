@@ -58,8 +58,6 @@ export function grenadaInputFor(ms) {
   return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}T${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;
 }
 
-// Choosing an airport ride puts the airport on the right side (swapping the
-// two places when someone switches between pickup and drop-off).
 // What a visitor has typed in the ride request form, kept in this browser tab
 // so going to another page (Home, Track, Terms) and coming back doesn't lose
 // it. Session storage: it goes when the tab is closed, so a shared computer
@@ -90,6 +88,8 @@ export function clearRideDraft(storage = sessionStore()) {
   try { storage?.removeItem(DRAFT_KEY); } catch { /* nothing kept */ }
 }
 
+// Choosing an airport ride puts the airport on the right side (swapping the
+// two places when someone switches between pickup and drop-off).
 export function withService(form, service) {
   const next = { ...form, service };
   const isAirport = (v) => v === AIRPORT_NAME;
