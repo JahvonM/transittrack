@@ -324,6 +324,28 @@ test('admin saves the app support WhatsApp number in Settings',async({page})=>{
   await expect(page.getByRole('link',{name:'Test the link'})).toHaveAttribute('href',/wa\.me\/14735551234/);
 });
 
+test('admin saves the business details shown on the Terms page',async({page})=>{
+  await session(page,'admin');
+  const saved=[];
+  await page.route('**/functions/appSupport',r=>{
+    const b=r.request().postDataJSON();
+    if(b.action==='set_business'){saved.push(b);return r.fulfill({json:{ok:true,business:{contact_email:'bookings@example.com',contact_phone:'+1 473 555 1234',business_address:'',cancel_free_hours:24,cancel_late_charge:'the full price'}}});}
+    return r.fulfill({json:{whatsapp_number:'',business:{}}});
+  });
+  await page.goto('/admin/profile');
+  const panel=page.getByRole('region',{name:'Business details'});
+  await panel.getByLabel('Email').fill('bookings@example.com');
+  await panel.getByLabel('Phone').fill('+1 473 555 1234');
+  await panel.getByLabel('Free until (hours before)').fill('24');
+  await panel.getByLabel('After that, the charge is').fill('the full price');
+  await expect(panel).toContainText('Cancelling is free until 24 hours before the pickup time. After that, the full price may be charged.');
+  await panel.getByRole('button',{name:'Save business details'}).click();
+  await expect(panel.getByRole('status')).toHaveText('Saved. The Terms page shows these now.');
+  expect(saved).toHaveLength(1);
+  expect(saved[0]).toMatchObject({contact_email:'bookings@example.com',contact_phone:'+1 473 555 1234',cancel_free_hours:'24',cancel_late_charge:'the full price'});
+  await expect(panel.getByRole('button',{name:'Save business details'})).toBeDisabled();
+});
+
 test('approved passenger mobile layout keeps four navigation items and more menu',async({page})=>{
   await page.setViewportSize({width:390,height:844});
   await passengerShowcase(page,{light:true});

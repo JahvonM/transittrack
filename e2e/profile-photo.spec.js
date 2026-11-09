@@ -63,14 +63,35 @@ test('an avatar is uploaded like a photo, so the saved picture is a file link', 
   expect(saves[0].data.photo_url).toBe('/brand/icon-512.png');
 });
 
-for (const path of ['/privacy', '/terms']) test(`${path} is readable signed out and identifies unfinished policy decisions`, async ({ page }) => {
+for (const path of ['/privacy', '/terms']) test(`${path} is readable signed out, with no invented contact details`, async ({ page }) => {
   await page.route('**/api/**', r => r.fulfill({ json: { id: 'test-app', public_settings: { authentication_required: false } } }));
   await page.goto(path);
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
-  await expect(page.getByText('Review draft.', { exact: true })).toBeVisible();
+  // The Privacy Policy still has decisions to confirm; the Terms are final.
+  await expect(page.getByText('Review draft.', { exact: true })).toHaveCount(path === '/privacy' ? 1 : 0);
   await expect(page.locator('main')).toContainText('Mc Sween’s Transport and Reside Co.');
   await expect(page.locator('main')).not.toContainText('[COMPANY');
   await expect(page.locator('main')).not.toContainText('[CONTACT');
   await expect(page.locator('main')).not.toContainText('[RETENTION');
   expect(await page.locator('a[href^="mailto:"]').count()).toBe(0);
+  if (path === '/terms') {
+    await expect(page.locator('main')).toContainText('Reply to any email we have sent you about your ride.');
+    await expect(page.locator('main')).toContainText('tell us as early as possible');
+    await expect(page.locator('main')).not.toContainText('Cancelling is free');
+    await expect(page.locator('main')).not.toContainText('draft');
+  }
+});
+
+test('/terms shows the business details and cancelling rule set in Admin', async ({ page }) => {
+  await page.route('**/api/**', (r) => {
+    if (r.request().url().includes('/functions/appSupport')) return r.fulfill({ json: { whatsapp_number: '14735550100', business: { contact_email: 'bookings@example.com', contact_phone: '+1 473 555 0199', business_address: 'Grand Anse, St. George, Grenada', cancel_free_hours: 24, cancel_late_charge: 'the full price' } } });
+    return r.fulfill({ json: { id: 'test-app', public_settings: { authentication_required: false } } });
+  });
+  await page.goto('/terms');
+  const main = page.locator('main');
+  await expect(main.getByRole('link', { name: 'bookings@example.com' })).toHaveAttribute('href', 'mailto:bookings@example.com');
+  await expect(main.getByRole('link', { name: '+1 473 555 0199' })).toHaveAttribute('href', 'tel:+14735550199');
+  await expect(main.getByRole('link', { name: '+14735550100' })).toHaveAttribute('href', 'https://wa.me/14735550100');
+  await expect(main).toContainText('Address: Grand Anse, St. George, Grenada');
+  await expect(main).toContainText('Cancelling is free until 24 hours before the pickup time. After that, the full price may be charged.');
 });

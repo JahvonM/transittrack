@@ -1,10 +1,11 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Check } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { errorData } from "@/lib/requestError";
 import {
-  AIRPORT_NAME, SITE_SERVICES, bookingBody, bookingProblems, grenadaInputFor, isAirportService, withService,
+  AIRPORT_NAME, SITE_SERVICES, bookingBody, bookingProblems, clearRideDraft, grenadaInputFor, isAirportService, loadRideDraft, saveRideDraft,
+  withService,
 } from "@/lib/bookingSite";
 import { routeNumber, sitePath, usePageTitle, useSiteBase, useWhatsApp, whatsappTo } from "@/site/siteKit";
 
@@ -73,14 +74,20 @@ export default function BookPage() {
   const whatsapp = useWhatsApp();
   usePageTitle("Request a ride", DESCRIPTION);
   const [params] = useSearchParams();
-  const first = SITE_SERVICES.some((s) => s.id === params.get("service")) ? params.get("service") : START.service;
-  const [form, setForm] = useState(() => withService({ ...START }, first));
+  const asked = SITE_SERVICES.some((s) => s.id === params.get("service")) ? params.get("service") : "";
+  // What was typed before leaving the page comes back (a ride picked on the
+  // home page still wins).
+  const [form, setForm] = useState(() => {
+    const draft = loadRideDraft();
+    return withService({ ...START, ...(draft || {}) }, asked || draft?.service || START.service);
+  });
   const [shown, setShown] = useState(false);
   const [sending, setSending] = useState(false);
   const [failure, setFailure] = useState("");
   const [sent, setSent] = useState(null);
   const startedAt = useRef(Date.now());
   const formRef = useRef(null);
+  useEffect(() => { if (!sent) saveRideDraft(form, withService({ ...START }, form.service)); }, [form, sent]);
 
   const problems = useMemo(() => bookingProblems(form), [form]);
   const airport = isAirportService(form.service);
@@ -105,6 +112,7 @@ export default function BookPage() {
     setSending(true);
     try {
       await base44.functions.invoke("bookingRequest", bookingBody(form, startedAt.current));
+      clearRideDraft();
       setSent({ email: form.email.trim(), name: form.name.trim().split(" ")[0] });
       window.scrollTo({ top: 0, behavior: "instant" });
     } catch (error) {
