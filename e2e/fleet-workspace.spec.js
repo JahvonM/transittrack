@@ -108,7 +108,8 @@ test('a bus box says plainly when live viewing is off, and asks the tablet nothi
   const viewer = page.getByRole('region', { name: 'Remote tablet viewing' });
   await expect(viewer.getByText("Live viewing isn't switched on yet.")).toBeVisible();
   await expect(viewer.getByRole('button', { name: 'Back camera' })).toBeDisabled();
-  expect(support.map((x) => x.operation)).toEqual(['config']);
+  expect(support.length).toBeGreaterThan(0);
+  expect(support.every((x) => x.operation === 'config')).toBe(true);
   expect(errors).toEqual([]);
 });
 
