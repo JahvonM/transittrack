@@ -1,4 +1,5 @@
 import { tabletSupportFailure } from "@/lib/tabletSupportFailure";
+import { liveViewStatus, tabletCanStream } from "@/lib/liveViewStatus";
 import { createSupportViewer } from "@/lib/directTabletViewer";
 import React, { useEffect, useRef, useState } from "react";
 import { base44 } from "@/api/base44Client";
@@ -10,11 +11,13 @@ async function invoke(operation, extra = {}) {
  if (r.data?.error) throw new Error(r.data.error);
  return r.data;
 }
-// compact: a smaller look for the Fleet workspace tiles. capabilities: which
-// views to offer (default: screen and both cameras).
-export default function TabletRemoteViewer({device, compact = false, capabilities = null}) {
+// compact: the video inside a Fleet workspace bus box, with a button per
+// camera. capabilities: which views to offer (default: screen and both
+// cameras). start: a view to ask for as soon as viewing is available, so one
+// tap on the bus starts it (the admin's tap is still the request).
+export default function TabletRemoteViewer({device, compact = false, capabilities = null, start = null}) {
  const [relay, setRelay] = useState(false), [enabled, setEnabled] = useState(null), [session, setSession] = useState(null);
- const [busy, setBusy] = useState(false), [error, setError] = useState(""), [live, setLive] = useState(false);
+ const [busy, setBusy] = useState(false), [error, setError] = useState(""), [live, setLive] = useState(false), [cap, setCap] = useState(null);
  const video = useRef(null), room = useRef(null), sessionRef = useRef(null), alive = useRef(false), connecting = useRef(false), epoch = useRef(0);
  const clearRoom = () => { const r = room.current; room.current = null; r?.close(); if (video.current) video.current.srcObject = null; };
  useEffect(() => {
@@ -30,7 +33,7 @@ export default function TabletRemoteViewer({device, compact = false, capabilitie
   finally { if(alive.current) setBusy(false); }
  };
  const request = async capability => {
-  setBusy(true); setError("");
+  setBusy(true); setError(""); setCap(capability);
   try {
    const r = await invoke("request", {device_id:device.id, capability});
    if(!alive.current) { await invoke("end", {session_id:r.session.id}); return; }
@@ -75,6 +78,36 @@ export default function TabletRemoteViewer({device, compact = false, capabilitie
  }, [session?.id]);
  const active = session && !ended(session.state);
  const offered = Object.entries(labels).filter(([key]) => !capabilities || capabilities.includes(key));
+ const ready = enabled === true && tabletCanStream(device);
+ const autoStarted = useRef(false);
+ useEffect(() => {
+  if (!start || !ready || autoStarted.current) return;
+  autoStarted.current = true;
+  void request(start);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- once, when viewing becomes available
+ }, [start, ready]);
+ // One tap to change camera: end the current view, then ask for the other.
+ const switchTo = async capability => {
+  if (busy || (active && cap === capability)) return;
+  if (sessionRef.current) await stop();
+  await request(capability);
+ };
+ if (compact) {
+  const camName = key => (key === "camera_front" ? "Front camera" : key === "camera_back" ? "Back camera" : "Screen");
+  return <section className="space-y-2" aria-label="Remote tablet viewing">
+   <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-black">
+    <video ref={video} onPlaying={() => { if(room.current && video.current?.readyState >= 2) setLive(true); }} autoPlay playsInline muted aria-label="Tablet live video" className={live ? "h-full w-full object-contain" : "hidden"} />
+    {live
+     ? <span className="absolute left-2 top-2 inline-flex items-center gap-1.5 rounded-full bg-black/65 px-2 py-0.5 text-caption font-semibold text-white"><span className="h-2 w-2 rounded-full bg-danger" aria-hidden="true" />Live · {camName(cap).toLowerCase()}</span>
+     : <p role="status" className="absolute inset-0 grid place-items-center p-3 text-center text-body-sm text-white">{liveViewStatus({enabled, device, busy, session})}</p>}
+   </div>
+   <div className="flex flex-wrap items-center gap-1" role="group" aria-label="Camera">
+    {offered.map(([key]) => <button key={key} type="button" aria-pressed={!!active && cap === key} disabled={busy || !ready} onClick={() => switchTo(key)} className={`min-h-9 rounded-lg border px-2.5 text-caption font-semibold disabled:opacity-50 ${active && cap === key ? "border-primary bg-primary/10" : "border-border hover:bg-accent"}`}>{camName(key)}</button>)}
+    {active && <span className="ml-auto text-caption text-muted-foreground">Ends by {new Date(session.expires_at).toLocaleTimeString([], {hour: "numeric", minute: "2-digit"})}</span>}
+   </div>
+   {error && <p role="alert" className="text-caption text-destructive">{error}</p>}
+  </section>;
+ }
  return <section className={compact ? "space-y-2" : "space-y-3 border rounded-xl p-3"} aria-label="Remote tablet viewing">
   {!compact && <h3 className="font-semibold">Screen & camera</h3>}
   {!compact && <p className="text-sm text-muted-foreground">Admin-only live viewing. Updated fleet tablets accept requests automatically. Android may still ask for camera or screen-sharing permission. A Stop button stays visible. Live sessions are not recorded here; ends after 10 minutes. Saved dashcam videos are under Saved recordings.</p>}
