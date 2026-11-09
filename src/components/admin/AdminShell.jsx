@@ -55,6 +55,7 @@ import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import Logo from "@/components/Logo";
 import LiveClock from "@/components/LiveClock";
+import AdminAlerts from "@/components/admin/AdminAlerts";
 import { cn } from "@/lib/utils";
 import { PageSlots } from "@/components/admin/kit";
 import { ADMIN_HUBS, ADMIN_MENU, carriedSearch, groupOf, hubOf, hubTarget, rememberTab } from "@/lib/adminMenu";
@@ -348,9 +349,10 @@ export default function AdminShell({ active, onNavigate, children, alertVehicles
             {headerActions}
             {pushPermission !== "granted" && pushPermission !== "unsupported" && onEnableNotifications && (
               <Button variant="ghost" size="icon" onClick={onEnableNotifications} aria-label="Turn on SOS notifications on this device" title="Turn on SOS notifications on this device">
-                <Bell className="h-5 w-5" aria-hidden="true" />
+                <BellPlus className="h-5 w-5" aria-hidden="true" />
               </Button>
             )}
+            {user && <AdminAlerts user={user} onNavigate={nav} />}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button type="button" className="grid h-10 w-10 place-items-center overflow-hidden rounded-full bg-secondary text-body-sm font-bold hover:ring-2 hover:ring-ring" aria-label="Account menu"><AccountPicture user={user} initials={initials} /></button>
