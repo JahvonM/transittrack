@@ -15,6 +15,8 @@ import { saveDeviceToken, forgetDeviceToken } from "@/lib/deviceAuth";
 import { forgetPin } from '@/lib/offlinePin';
 import ErrorState from '@/components/system/ErrorState';
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { isDriverStoreInstall, rememberTabletMode } from "@/lib/kioskApp";
+import { pairingPath, screenForCode } from "@/lib/tabletPairing";
 import useNoPageZoom from "@/hooks/useNoPageZoom";
 import JourneyLoading from "@/components/JourneyLoading";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
