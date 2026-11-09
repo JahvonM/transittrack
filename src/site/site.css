@@ -143,9 +143,7 @@
 }
 .mcs-hero-lede { margin-top: 1.35rem; max-width: 42ch; color: var(--on-ink-muted); font-size: 1.15rem; }
 .mcs-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 1.75rem; }
-.mcs-facts { display: flex; flex-wrap: wrap; gap: 0.5rem 1.25rem; list-style: none; margin: 1.75rem 0 0; padding: 0; color: var(--on-ink-muted); font-size: 0.95rem; }
-.mcs-facts li { display: inline-flex; align-items: center; gap: 0.5rem; }
-.mcs-facts li::before { content: ""; width: 0.55rem; height: 0.55rem; border-radius: 50%; background: var(--glow); box-shadow: 0 0 10px rgba(79, 216, 222, 0.7); flex: none; }
+.mcs-facts { margin: 1.75rem 0 0; max-width: 34rem; color: var(--on-ink-muted); font-size: 0.95rem; }
 @media (min-width: 56rem) {
   .mcs-hero { min-height: min(86vh, 50rem); display: grid; align-items: center; }
   .mcs-hero-media { position: absolute; inset: 0; z-index: -1; }
@@ -170,7 +168,7 @@
   overflow: hidden;
   max-width: 26rem;
 }
-.mcs-sign-label { display: block; font: 700 0.72rem/1 var(--body); letter-spacing: 0.16em; text-transform: uppercase; color: var(--on-ink-muted); margin-bottom: 0.45rem; }
+.mcs-sign-label { display: block; font: 600 0.8rem/1 var(--body); letter-spacing: 0.01em; color: var(--on-ink-muted); margin-bottom: 0.45rem; }
 .mcs-sign-line {
   position: relative;
   /* the unlit lamps */
@@ -228,7 +226,7 @@
 .mcs-board { margin-top: 2.25rem; border-radius: 20px; padding: 0.5rem clamp(0.85rem, 2.5vw, 1.75rem) 0.75rem; box-shadow: 0 24px 60px -30px rgba(7, 31, 36, 0.55); }
 .mcs-board-top {
   display: grid; grid-template-columns: 3.25rem 1fr; gap: 1.25rem; padding: 1rem 0 0.85rem;
-  font: 700 0.75rem/1 var(--body); letter-spacing: 0.16em; text-transform: uppercase; color: var(--on-ink-muted);
+  font: 600 0.82rem/1 var(--body); letter-spacing: 0.01em; color: var(--on-ink-muted);
   border-bottom: 1px solid var(--line-dark);
 }
 .mcs-board-list { list-style: none; margin: 0; padding: 0; }
@@ -265,8 +263,7 @@
 .mcs-stops { list-style: none; margin: 2.75rem 0 0; padding: 0; display: grid; gap: 2rem; position: relative; }
 .mcs-stops li:not(:last-child)::after {
   content: ""; position: absolute; left: 1.35rem; top: 2.7rem; bottom: -2rem; width: 4px; margin-left: -2px;
-  background: linear-gradient(var(--teal), var(--glow));
-  box-shadow: 0 0 14px rgba(1, 130, 153, 0.45);
+  background: var(--teal);
 }
 .mcs-stops li { position: relative; display: grid; grid-template-columns: 2.7rem 1fr; gap: 0 1.1rem; align-items: start; }
 .mcs-stop {
@@ -279,7 +276,7 @@
 .mcs-stops p { color: var(--muted); margin-top: 0.35rem; max-width: 36ch; }
 @media (min-width: 56rem) {
   .mcs-stops { grid-template-columns: repeat(3, 1fr); gap: 3rem; }
-  .mcs-stops li:not(:last-child)::after { left: 2.7rem; right: -3rem; top: 1.35rem; bottom: auto; width: auto; height: 4px; margin: -2px 0 0; background: linear-gradient(90deg, var(--teal), var(--glow)); }
+  .mcs-stops li:not(:last-child)::after { left: 2.7rem; right: -3rem; top: 1.35rem; bottom: auto; width: auto; height: 4px; margin: -2px 0 0; background: var(--teal); }
   .mcs-stops li { grid-template-columns: 1fr; gap: 1.1rem; }
   .mcs-stops h3 { padding-top: 0; }
 }
@@ -382,7 +379,7 @@
   position: relative; }
 .mcs-ticket-tear::after { content: ""; position: absolute; left: 1rem; right: 1rem; top: 50%; border-top: 2px dashed rgba(238, 246, 245, 0.22); }
 .mcs-ticket dl { margin: 0; padding: 0.4rem 1.25rem 1.3rem; display: grid; gap: 0.85rem; }
-.mcs-ticket dt { font: 700 0.72rem/1 var(--body); letter-spacing: 0.14em; text-transform: uppercase; color: var(--on-ink-muted); }
+.mcs-ticket dt { font: 600 0.8rem/1 var(--body); letter-spacing: 0.01em; color: var(--on-ink-muted); }
 .mcs-ticket dd { margin: 0.3rem 0 0; color: #fff; font-weight: 600; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
 .mcs-ticket dd.mcs-empty { color: rgba(238, 246, 245, 0.4); font-weight: 500; }
 .mcs-ticket-route { display: grid; grid-template-columns: 0.9rem 1fr; gap: 0 0.7rem; }

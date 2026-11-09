@@ -57,7 +57,7 @@ function SignScreen({ job, mode, onSign }) {
   return (
     <div className="tt-guest-sign mx-auto w-full max-w-3xl space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-300">
       <div className="text-center">
-        <p className="text-sm font-bold uppercase tracking-wider text-primary">{pickup ? "Pickup" : "Drop-off"}</p>
+        <p className="text-sm font-bold text-primary">{pickup ? "Pickup" : "Drop-off"}</p>
         <h1 className="mt-1 font-heading text-3xl font-bold sm:text-5xl">{pickup ? "Welcome aboard" : "Thank you for travelling with us"}</h1>
         <p className="mt-2 text-lg text-muted-foreground">Please sign to confirm your {pickup ? "pickup" : "drop-off"}.</p>
       </div>

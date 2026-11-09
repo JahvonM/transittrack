@@ -41,6 +41,8 @@ export function StatusPill({ status }) {
   );
 }
 
+// Icon tiles stay grey; only a count that needs action (faults, tablets) takes a colour.
+const QUIET = "bg-secondary text-muted-foreground";
 function Stat({ icon: Icon, tone, value, label, detail, onClick }) {
   return (
     <button type="button" onClick={onClick} className="flex min-h-[96px] min-w-0 flex-col items-start gap-3 rounded-2xl border border-border bg-card p-4 text-left transition-colors hover:bg-accent sm:flex-row sm:items-center sm:gap-4">
@@ -117,16 +119,16 @@ export default function AdminOverview({ vehicles=[], routes=[], trips=[], faults
    <Button onClick={()=>onNavigate("vehicles?create=1")}><Plus className="w-4 h-4" />Add vehicle</Button>
   </PageActions>
   <section aria-label="Fleet overview" className="tt-admin-stats grid grid-cols-2 gap-3 xl:grid-cols-4">
-   <Stat icon={Bus} tone="bg-primary/15 text-primary" value={fleet.length} label="Vehicles" detail={scope==="all"?"Across all companies":"Selected company"} onClick={()=>onNavigate("vehicles")} />
-   <Stat icon={Bus} tone="bg-info/15 text-info" value={onTrip.length} label="On trip" detail={live.length+" buses sharing location"} onClick={()=>onNavigate("fleet")} />
-   <Stat icon={OctagonAlert} tone="bg-danger/15 text-danger" value={openFaults.length>=500?"500+":openFaults.length} label="Open faults" detail="Loaded unresolved fault records" onClick={()=>onNavigate("faults")} />
-   <Stat icon={Smartphone} tone="bg-warning/15 text-warning" value={kiosksReady?needsTablets.length:"—"} label="Tablets needing attention" detail={kiosksReady?"Current tablet reports":"Tablet data unavailable"} onClick={()=>onNavigate("kiosks")} />
+   <Stat icon={Bus} tone={QUIET} value={fleet.length} label="Vehicles" detail={scope==="all"?"Across all companies":"Selected company"} onClick={()=>onNavigate("vehicles")} />
+   <Stat icon={Bus} tone={QUIET} value={onTrip.length} label="On trip" detail={live.length+" buses sharing location"} onClick={()=>onNavigate("fleet")} />
+   <Stat icon={OctagonAlert} tone={openFaults.length?"bg-danger/15 text-danger":QUIET} value={openFaults.length>=500?"500+":openFaults.length} label="Open faults" detail="Loaded unresolved fault records" onClick={()=>onNavigate("faults")} />
+   <Stat icon={Smartphone} tone={kiosksReady&&needsTablets.length?"bg-warning/15 text-warning":QUIET} value={kiosksReady?needsTablets.length:"—"} label="Tablets needing attention" detail={kiosksReady?"Current tablet reports":"Tablet data unavailable"} onClick={()=>onNavigate("kiosks")} />
   </section>
   <ul aria-label="Fleet totals" className="tt-admin-totals flex flex-wrap gap-x-6 gap-y-2 text-sm">
    {[["Active buses",live.length,"fleet"],["Signal issues",signal.length,"fleet"],["Major issues",sos.length+major.length,"faults"],["Passengers",occupancyReady?onBoard:"—","checkins"],["Active trips",trips.filter(belongs).length,"trips"],["Companies",scope==="all"?companies.length:1,"companies"],["Maintenance due",due.length,"schedule"],["Parts",parts.filter(belongs).length,"parts"]].map(([label,value,go])=><li key={label}><button type="button" onClick={()=>onNavigate(go)} className="min-h-[44px] flex items-center gap-2"><strong className="text-lg tabular-nums">{value}</strong><span className="text-muted-foreground">{label}</span></button></li>)}
   </ul>
   <div className="tt-admin-top-grid grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
-   <Panel title="Live Fleet" action={<ViewAll onClick={()=>onNavigate("fleet")} label="Open Live Fleet" />} className="tt-admin-map-panel overflow-hidden">
+   <Panel title="Live fleet" action={<ViewAll onClick={()=>onNavigate("fleet")} label="Open live fleet" />} className="tt-admin-map-panel overflow-hidden">
     <div className="p-3 pt-1"><Suspense fallback={<div className="h-[410px] animate-pulse rounded-xl bg-muted" />}><LiveTransitMap variant="page" className="h-[410px] rounded-xl" vehicles={fleet.filter(v=>v.current_lat!=null&&v.current_lng!=null)} routes={routes} label="Fleet map" /></Suspense></div>
     <p className="px-5 pb-4 text-xs text-muted-foreground">Latest recorded positions. Delayed or missing reports are shown in Fleet status.</p>
    </Panel>

@@ -366,8 +366,7 @@ test('boarding home uses the actual company, counts and admin bus photo',async({
  const custom=device();custom.company_name='Island Transit Co.';custom.context.vehicle.image_url='/images/transit-bus-3d.webp';
  await setup(page,{heartbeat:()=>({json:custom})});await page.goto('/kiosk');
  await expect(page.getByRole('group',{name:'Company banner'})).toContainText('Island Transit Co.');
- await expect(page.locator('.tt-board-brand')).toContainText('Mc Sween’s');
- await expect(page.locator('.tt-board-brand')).toContainText('Transport and Reside Co.');
+ await expect(page.locator('.tt-board-brand')).toContainText('McSween Transport');
  await expect(page.locator('.tt-board-brand')).not.toContainText('TRANSITTRACK');
  // The card-tap animation shows the admin's own photo of this bus.
  await expect(page.locator('.tt-coastal-bus')).toHaveAttribute('src','/images/transit-bus-3d.webp');

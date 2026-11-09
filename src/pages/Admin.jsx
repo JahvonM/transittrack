@@ -418,7 +418,7 @@ export default function Admin() {
 
   const linkGroup = (title, Icon, links, note) => (
     <div>
-      <h3 className="flex items-center gap-2 text-body-sm font-bold uppercase tracking-wide text-muted-foreground">
+      <h3 className="flex items-center gap-2 text-body-sm font-bold text-muted-foreground">
         <Icon className="h-4 w-4" aria-hidden="true" /> {title}
       </h3>
       {note && <p className="mt-1 text-body-sm text-muted-foreground">{note}</p>}
@@ -463,7 +463,7 @@ export default function Admin() {
         pushPermission={pushPermission}
         onEnableNotifications={enableNotifications}
       >
-        <PullToRefresh onRefresh={async () => { setRefreshTick((t) => t + 1); await refresh(); }}>
+        <PullToRefresh inPageActions onRefresh={async () => { setRefreshTick((t) => t + 1); await refresh(); }}>
         {failedKeys.length>0 && <ErrorState compact title={problem.title} description={problem.description} onRetry={retryFailed} retrying={retrying}/>}
         {section === "overview" && (
           <AdminOverview

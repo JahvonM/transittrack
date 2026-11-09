@@ -68,7 +68,7 @@ export default function DriverSchedule() {
         )}
 
         <div>
-          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-2 flex items-center gap-1.5">
+          <h3 className="text-sm font-semibold text-muted-foreground mb-2 flex items-center gap-1.5">
             <Calendar className="w-4 h-4" /> Today's shifts
           </h3>
           <div className="space-y-2">
@@ -78,7 +78,7 @@ export default function DriverSchedule() {
         </div>
 
         <div>
-          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-2 flex items-center gap-1.5">
+          <h3 className="text-sm font-semibold text-muted-foreground mb-2 flex items-center gap-1.5">
             <Calendar className="w-4 h-4" /> Upcoming
           </h3>
           <div className="space-y-2">

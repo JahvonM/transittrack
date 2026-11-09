@@ -71,7 +71,7 @@ export function TopStatusBar({ device, vehicle, route, now, online, holdProps })
       {device?.company_logo_url ? <img src={device.company_logo_url} alt="" /> : <Bus aria-hidden="true" />}
       <div><strong>{device?.company_name || "Bus boarding"}</strong><small>Welcome aboard</small></div>
     </div>
-    <div className="tt-board-brand" aria-label="Mc Sween’s Transport and Reside Co."><div className="tt-board-brandmark"><Logo className="h-9 w-9" /><div><span>Mc Sween’s</span><small>Transport and Reside Co.</small></div></div></div>
+    <div className="tt-board-brand" aria-label="McSween Transport"><div className="tt-board-brandmark"><Logo className="h-9 w-9" /><span>McSween Transport</span></div></div>
     <div className="tt-board-trip"><strong>{vehicle?.name || device?.vehicle_name || "Your bus"}</strong>
       {route?.name && <small>{route.name}</small>}
       <span>{now.toLocaleTimeString([], { timeZone: TRANSIT_TIME_ZONE, hour: "2-digit", minute: "2-digit" })}</span>
@@ -537,7 +537,7 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
       {mode !== "qr" ? <CoastalCardScene vehicle={vehicle} readerError={nfcError} tapHint={customHint ? tapHint : { ...tapHint, title: "Tap your card to begin" }} /> : <div className="tt-board-scene">
         <div className="tt-board-welcome"><h1>Welcome aboard</h1><p>{customHint ? tapHint.title : "Tap your card to begin"}</p>{customHint && <small className="tt-board-tap-detail">{tapHint.detail}</small>}</div>
         <BusArtwork vehicle={vehicle} fallbackUrl="/images/boarding-coaster.webp" width={650} className="tt-board-bus" />
-        <div className="tt-board-nfc"><div className="tt-board-nfc-ring"><CreditCard aria-hidden="true" /></div><strong>NFC CARD TAP</strong><small>{nfcListening ? "Ready to scan" : "Tap your NFC card"}</small></div>
+        <div className="tt-board-nfc"><div className="tt-board-nfc-ring"><CreditCard aria-hidden="true" /></div><strong>Card reader</strong><small>{nfcListening ? "Ready to scan" : "Tap your NFC card"}</small></div>
         {nfcError && <p className="tt-board-reader-note">{nfcError}</p>}
       </div>}
       <div className="tt-board-entry">
@@ -559,7 +559,7 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
       <Screen modeKey="confirm" className="p-8 text-center space-y-4">
         <div className="tt-board-id-layout">
           <Avatar name={pending.staff.full_name} photoUrl={pending.staff.photo_url} />
-          <div><p className="tt-board-id-label">PASSENGER IDENTIFICATION</p><p className="tt-board-id-name">{pending.staff.full_name}</p><p className="tt-board-id-bus">Passenger · {device?.vehicle_name || "This bus"}</p></div>
+          <div><p className="tt-board-id-label">Passenger identification</p><p className="tt-board-id-name">{pending.staff.full_name}</p><p className="tt-board-id-bus">Passenger · {device?.vehicle_name || "This bus"}</p></div>
         </div>
         <p className="text-base text-muted-foreground">
           {boarding ? "You're not on this bus yet." : `You're recorded as being on ${device?.vehicle_name || "this bus"}.`}

@@ -37,7 +37,7 @@ html.tt-admin-app.light.tt-theme-chosen .tt-admin-shell { --aa-hair: rgba(0, 0, 
 .tt-admin-shell :is(section.rounded-2xl, div.rounded-2xl.border), .tt-admin-stats > button { border-color: var(--aa-hair); border-radius: 18px; }
 .tt-admin-attention-row { border-color: var(--aa-hair); border-radius: 16px; }
 .tt-admin-attention-action { border-radius: 999px; }
-.tt-admin-status-table th { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
+.tt-admin-status-table th { font-size: 12px; }
 .tt-admin-status-table :is(th, td) { border-bottom-color: var(--aa-hair); }
 
 /* Buttons: capsules. Filled theme colour for the main action, grey for the rest. */

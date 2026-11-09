@@ -343,7 +343,7 @@ export default function AdminShell({ active, onNavigate, children, alertVehicles
           <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setOpen(true)} aria-label="Open menu">
             <Menu className="h-5 w-5" aria-hidden="true" />
           </Button>
-          <span className="tt-admin-breadcrumb hidden xl:block text-sm text-muted-foreground">Admin <span className="mx-2">/</span> {hub && <>{hub.label} <span className="mx-2">/</span> </>}{hub?.tabs.find((t) => t.id === active)?.label || current?.label || "Overview"}</span>
+          <span className="tt-admin-breadcrumb hidden xl:block text-sm text-muted-foreground">Admin <span className="mx-2">/</span> {hub && hub.label !== hub.tabs.find((t) => t.id === active)?.label && <>{hub.label} <span className="mx-2">/</span> </>}{hub?.tabs.find((t) => t.id === active)?.label || current?.label || "Overview"}</span>
           <SectionSearch onNavigate={nav} />
           <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
             <p className="hidden whitespace-nowrap text-body-sm text-muted-foreground md:block">
@@ -382,7 +382,7 @@ export default function AdminShell({ active, onNavigate, children, alertVehicles
             <span className="text-body-sm font-semibold">
               SOS: {alertVehicles.map((v) => v.name).join(", ")} {alertVehicles.length === 1 ? "needs" : "need"} immediate attention
             </span>
-            <span className="ml-auto hidden shrink-0 text-body-sm underline sm:inline">Open Live Fleet</span>
+            <span className="ml-auto hidden shrink-0 text-body-sm underline sm:inline">Open live fleet</span>
           </button>
         )}
 
@@ -394,7 +394,7 @@ export default function AdminShell({ active, onNavigate, children, alertVehicles
               <h1 className="text-headline font-bold">{title}</h1>
               <div className="mt-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
                 <HubTabs hub={hub} active={active} />
-                <div ref={setActionsEl} className="empty:hidden" />
+                <div ref={setActionsEl} className="flex flex-wrap items-center justify-end gap-2 empty:hidden" />
               </div>
               <div ref={setIntroEl} />
             </div>
@@ -405,7 +405,7 @@ export default function AdminShell({ active, onNavigate, children, alertVehicles
                 {active === "overview" && <p className="mt-1 text-body-sm text-muted-foreground">Across all companies</p>}
                 <div ref={setIntroEl} />
               </div>
-              <div ref={setActionsEl} className="empty:hidden" />
+              <div ref={setActionsEl} className="flex flex-wrap items-center justify-end gap-2 empty:hidden" />
             </div>
           )}
           <PageSlots.Provider value={slots}>{children}</PageSlots.Provider>

@@ -20,7 +20,7 @@ export default function DriverLandscapeDrive({session,vehicle,focus,count,stops,
    <div className="dl-panel-scroll">
     {directionControl}
     <section className="dl-next" aria-label="Next stop">
-     <div className="dl-next-label"><small>{atWork&&!target?"COMPANY PICKUP":home?"NEXT DROP-OFF":"NEXT PICKUP"}</small><MapPin aria-hidden="true"/></div>
+     <div className="dl-next-label"><small>{atWork&&!target?"Company pickup":home?"Next drop-off":"Next pickup"}</small><MapPin aria-hidden="true"/></div>
      <h2>{focus?.name || (stops.length?"Route complete":"No route assigned")}</h2>
      <p className="dl-next-description">{focus ? target ? "Selected next stop" : "Your next scheduled stop" : "Ask dispatch to assign a route"}</p>
      <p className="dl-stop-riders"><Users aria-hidden="true"/>{count!=null ? count+" passenger"+(count===1?"":"s")+" at this stop" : "Pickup count unavailable"}</p>

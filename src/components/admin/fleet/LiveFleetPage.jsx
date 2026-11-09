@@ -39,14 +39,14 @@ const REPORTS = [
 ];
 const HEALTH_MS = 30_000;
 const SHIFTS_MS = 60_000;
-const TONE_FG = { success: "text-success", warning: "text-warning", danger: "text-danger" };
+const TONE_FG = { warning: "text-warning", danger: "text-danger" };
 const SHEET_OF = { "fleet-workspace": "cameras", health: "health", "location-timeline": "history" };
 
 // A number at the top that also filters the list (or opens what it counts).
 function Tile({ label, value, tone, on, onClick }) {
   return (
     <button type="button" onClick={onClick} aria-pressed={on}
-      className={cn("min-w-0 rounded-2xl border bg-card px-4 py-3 text-left transition-colors hover:bg-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", on ? "border-primary ring-1 ring-primary" : "border-border")}>
+      className={cn("min-w-0 rounded-2xl border bg-card px-4 py-3 text-left transition-colors hover:bg-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", on ? "border-foreground/20 bg-accent" : "border-border")}>
       <span className="block truncate text-caption font-semibold text-muted-foreground">{label}</span>
       <span className={cn("mt-1 block font-display text-[1.75rem] font-semibold leading-none tabular-nums", value > 0 && TONE_FG[tone])}>{value}</span>
     </button>

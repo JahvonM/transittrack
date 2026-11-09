@@ -185,7 +185,7 @@ const PHASES = {
   ready: { cls: "border-border bg-card", icon: CreditCard, title: "Ready to program", sub: "Press Program card, then place the card on the reader." },
   waiting: { cls: "border-danger/60 bg-danger/10 text-danger", icon: Nfc, title: "Place NFC card on reader", sub: "Hold it flat on the ACR122U until it beeps." },
   encoding: { cls: "border-warning/70 bg-warning/15 text-warning animate-pulse", icon: Loader2, title: "Registering card…", sub: "Checking it isn't already in use." },
-  success: { cls: "border-success/70 bg-success/15 text-success", icon: CheckCircle2, title: "Card issued!", sub: "" },
+  success: { cls: "border-success/70 bg-success/15 text-success", icon: CheckCircle2, title: "Card issued", sub: "" },
   error: { cls: "border-danger/70 bg-danger/15 text-danger", icon: XCircle, title: "Card not issued", sub: "" },
   check: { cls: "border-primary/60 bg-primary/10", icon: ShieldCheck, title: "Check a card", sub: "Place any card on the reader to see who it belongs to." },
 };

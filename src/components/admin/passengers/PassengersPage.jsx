@@ -42,12 +42,16 @@ const TOOL_VIEWS = [["bulk", "Bulk setup"], ["issued", "Issued cards"], ["check"
 const localDay = (iso) => { const d = new Date(iso); return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`; };
 const timeOf = (iso) => (iso ? new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "—");
 
+// A working card reads green, no card grey, and only a card that needs
+// attention (expired, revoked, lost) amber.
+const cardChipTone = (status) => (status === "Card Issued" || status === "Active" ? "success" : !status || status === "Unassigned" ? "neutral" : "warning");
+
 // A number at the top that also filters the list (or opens the sign-in log).
 function Tile({ label, value, tone, on, onClick }) {
-  const fg = { success: "text-success", warning: "text-warning", info: "text-info" }[tone];
+  const fg = { warning: "text-warning" }[tone];
   return (
     <button type="button" onClick={onClick} aria-pressed={on}
-      className={cn("min-w-0 rounded-2xl border bg-card px-4 py-3 text-left transition-colors hover:bg-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", on ? "border-primary ring-1 ring-primary" : "border-border")}>
+      className={cn("min-w-0 rounded-2xl border bg-card px-4 py-3 text-left transition-colors hover:bg-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", on ? "border-foreground/20 bg-accent" : "border-border")}>
       <span className="block truncate text-caption font-semibold text-muted-foreground">{label}</span>
       <span className={cn("mt-1 block font-display text-[1.75rem] font-semibold leading-none tabular-nums", fg)}>{value}</span>
     </button>
@@ -128,7 +132,7 @@ function StaffCards({ people, onOpenPerson }) {
               <button type="button" onClick={() => onOpenPerson(p.key)} className="flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-accent/60">
                 <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-secondary text-caption font-bold" aria-hidden="true">{initials(p.name)}</span>
                 <span className="min-w-0 flex-1"><span className="block truncate font-medium">{p.name}</span><span className="block truncate text-caption text-muted-foreground">{[TYPE_LABEL[p.type] || p.role, p.company_name, p.assigned_vehicle].filter(Boolean).join(" · ")}</span></span>
-                <StatusChip tone={p.status === "Card Issued" ? "success" : p.status === "Unassigned" ? "neutral" : "warning"} dot={false}>{p.status === "Unassigned" ? "No card" : p.status}</StatusChip>
+                <StatusChip tone={cardChipTone(p.status)} dot={false}>{p.status === "Unassigned" ? "No card" : p.status}</StatusChip>
               </button>
             </li>
           ))}
@@ -385,7 +389,7 @@ export default function PassengersPage({ mode = "directory", refreshTick = 0 }) 
                             <span className="block truncate text-body-sm text-muted-foreground">{[companyName(c) || "No company", c.assigned_vehicle || "No bus", pickup ? "Pickup: " + pickup : "No pickup"].join(" · ")}</span>
                           </span>
                           <span className="hidden shrink-0 sm:inline-flex">
-                            <StatusChip tone={c.status === "Card Issued" ? "success" : c.status && c.status !== "Unassigned" ? "warning" : "neutral"} dot={false}><Nfc className="h-3.5 w-3.5" aria-hidden="true" /> {c.status === "Card Issued" ? "Card issued" : c.status && c.status !== "Unassigned" ? c.status + " card" : "No card"}</StatusChip>
+                            <StatusChip tone={cardChipTone(c.status)} dot={false}><Nfc className="h-3.5 w-3.5" aria-hidden="true" /> {c.status === "Card Issued" ? "Card issued" : c.status && c.status !== "Unassigned" ? c.status + " card" : "No card"}</StatusChip>
                           </span>
                           <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
                         </button>

@@ -235,7 +235,7 @@ export default function UsersTab({ users, companies, currentUser, onChange }) {
         <EmptyState icon={Users} title={users.length ? "No users match" : "No users yet"}>{users.length ? "Try another search or role." : "Invite someone to get started."}</EmptyState>
       ) : (
         <div className="overflow-hidden rounded-2xl border border-border bg-card">
-          <div className="hidden grid-cols-[minmax(0,1.6fr)_160px_minmax(0,1fr)_44px] gap-4 border-b border-border px-4 py-3 text-caption font-semibold uppercase tracking-wide text-muted-foreground md:grid" aria-hidden="true">
+          <div className="hidden grid-cols-[minmax(0,1.6fr)_160px_minmax(0,1fr)_44px] gap-4 border-b border-border px-4 py-3 text-caption font-semibold text-muted-foreground md:grid" aria-hidden="true">
             <span>User</span><span>Role</span><span>Company access</span><span />
           </div>
           <ul className="divide-y divide-border">

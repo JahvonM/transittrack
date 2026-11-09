@@ -114,7 +114,7 @@ export default function BookTaxi() {
             >
               <CheckCircle2 className="w-14 h-14 text-success mx-auto" />
               <div>
-                <h1 className="text-headline font-bold">Taxi booked!</h1>
+                <h1 className="text-headline font-bold">Taxi booked</h1>
                 <p className="text-muted-foreground mt-1">
                   We've sent your request to {done.company}. A driver will be assigned shortly.
                 </p>

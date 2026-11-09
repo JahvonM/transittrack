@@ -28,11 +28,7 @@ export default function HomePage() {
               <Link className="mcs-btn mcs-btn-primary" to={to("/book")}>Request a ride</Link>
               <Link className="mcs-btn mcs-btn-light" to={to("/track")}>Track a ride</Link>
             </div>
-            <ul className="mcs-facts">
-              <li>No account needed</li>
-              <li>Price confirmed by email</li>
-              <li>Watch your bus on a map</li>
-            </ul>
+            <p className="mcs-facts">No account needed. The price is confirmed by email, then you can watch your bus on a map.</p>
           </div>
         </div>
       </section>

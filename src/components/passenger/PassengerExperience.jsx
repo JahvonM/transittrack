@@ -264,7 +264,7 @@ export default function PassengerExperience({view,user,company,workplace,myVehic
    <header className="px-top"><p>McSween <span>Transport</span></p><div><Link to="/notifications" aria-label="Messages and announcements"><Bell /></Link><Link to="/account" aria-label="Account"><Portrait user={user} /></Link></div></header>
    <CompanyBanner name={company.name} logoUrl={company.logo_url} compact />
    <h1 className="px-greeting">{new Date(now).getHours()<12?"Good morning":new Date(now).getHours()<18?"Good afternoon":"Good evening"}{greetingName(user)?`, ${greetingName(user)}`:""}</h1>
-   <p className="px-direction">YOUR JOURNEY · {returning?"TO HOME":"TO WORK"}</p>
+   <p className="px-direction">Your journey · {returning?"To home":"To work"}</p>
    {notice && <Link className="px-notice" to="/notifications"><Megaphone /><span><strong>{notice.title || "Company update"}</strong><small>{notice.message}</small></span><ChevronRight /></Link>}
    <section className="px-hero" aria-label="Your next bus">
     <div className="px-hero-copy"><p role="status" aria-live="polite" className={live || riding?"px-service live":"px-service"}><span />{hero?hero.status:status}</p><h2>{estimate}</h2><p>{hero?hero.detail:live?(arrival?.detail || `Until pickup ${returning?"at work":"near home"}`):kind==="unassigned"?"Your company assigns your bus":kind==="signal_lost"?"Waiting for a fresh location":kind==="choose"?"Choose a stop to see your ETA":"Your next trip will appear here"}</p>{myVehicle && !["exited","completed","not_travelling"].includes(stage) && <small className={`px-eta-quality ${quality}`}>{qualityText}</small>}<strong>{myVehicle?.name || "No bus assigned"}{routeName?` · ${routeName}`:""}</strong></div>

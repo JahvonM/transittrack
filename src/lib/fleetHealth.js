@@ -35,7 +35,7 @@ export function tabletStatus(d, kind) {
   const a = d.app_health || {};
   const m = minsSince(d.last_seen);
   const extra = [];
-  if (typeof h.battery === "number") extra.push(`battery ${h.battery}%${h.charging ? " ⚡" : ""}`);
+  if (typeof h.battery === "number") extra.push(`battery ${h.battery}%${h.charging ? ", charging" : ""}`);
   if (h.battery_temperature >= 45) extra.push("battery hot");
   if (h.free_storage_mb < 200) extra.push("storage almost full");
   if (a.build && a.build !== APP_BUILD) extra.push("older version");

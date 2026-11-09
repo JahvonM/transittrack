@@ -51,7 +51,7 @@ export function BottomSheet({ open, onOpenChange, title, description, children, 
 function Section({ title, children }) {
   return (
     <section className="space-y-2.5">
-      <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{title}</h3>
+      <h3 className="text-xs font-semibold text-muted-foreground">{title}</h3>
       {children}
     </section>
   );
