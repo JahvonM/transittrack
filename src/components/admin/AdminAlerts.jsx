@@ -37,11 +37,14 @@ function Popup({ alert, onOpen, onClose }) {
   const meta = ALERT_KINDS[alert.kind];
   const Icon = ICONS[alert.kind] || Bell;
   const [held, setHeld] = useState(false);
+  // Goes after 8 seconds (paused while pointed at or focused), unless it needs action.
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
   useEffect(() => {
     if (meta.sticky || held) return undefined;
-    const t = setTimeout(onClose, POPUP_MS);
+    const t = setTimeout(() => closeRef.current(), POPUP_MS);
     return () => clearTimeout(t);
-  }, [meta.sticky, held, onClose]);
+  }, [meta.sticky, held]);
   return (
     <div
       role={meta.tone === "danger" ? "alert" : "status"}
@@ -149,9 +152,11 @@ export default function AdminAlerts({ user, onNavigate }) {
         </PopoverContent>
       </Popover>
 
-      <div className="tt-admin-popups pointer-events-none fixed inset-x-0 top-[calc(4.5rem+env(safe-area-inset-top))] z-50 flex flex-col items-center gap-2 px-4" aria-label="New notifications">
-        {popups.map((a) => <Popup key={a.key} alert={a} onOpen={() => go(a)} onClose={() => close(a.key)} />)}
-      </div>
+      {popups.length > 0 && (
+        <div role="region" aria-label="New notifications" className="tt-admin-popups pointer-events-none fixed inset-x-0 top-[calc(4.5rem+env(safe-area-inset-top))] z-50 flex flex-col items-center gap-2 px-4">
+          {popups.map((a) => <Popup key={a.key} alert={a} onOpen={() => go(a)} onClose={() => close(a.key)} />)}
+        </div>
+      )}
     </>
   );
 }
