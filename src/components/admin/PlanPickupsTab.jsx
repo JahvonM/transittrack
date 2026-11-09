@@ -47,7 +47,7 @@ function Seats({ bus }) {
     <div className="min-w-0">
       <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
         <span className="break-words font-semibold">{bus.name}</span>
-        <span className="shrink-0 text-body-sm tabular-nums">{bus.riders}{cap ? ` / ${cap}` : ""} <span className="text-muted-foreground">assigned</span></span>
+        <span className="shrink-0 text-body-sm tabular-nums">{bus.riders}{cap ? ` / ${cap}` : ""} <span className="text-muted-foreground">Assigned</span></span>
       </div>
       <p className="truncate text-caption text-muted-foreground">{bus.route_name || "No route"}</p>
       {cap > 0 && (
@@ -330,4 +330,3 @@ export default function PlanPickupsTab({ companyId: fixedCompanyId = '' }) {
     </div>
   );
 }
-

@@ -76,7 +76,7 @@ export function DriverKioskPassengers({session,invoke,refresh}) {
  const recent=[...(session.check_ins || [])].sort((a,b)=>Date.parse(b.boarded_at||b.created_date||0)-Date.parse(a.boarded_at||a.created_date||0));
  const latest=recent[0];
  return <div className="dk-content dk-passengers"><h1>Passengers</h1><p className="dk-muted">{session.trip_direction==="to_home"?"To home":"To work"} · {session.vehicle?.name}</p>
- <div className="dk-counts"><span><Users/><strong>{session.occupancy ?? 0}</strong><small>on board</small></span><span><Users/><strong>{counts.waiting}</strong><small>still to pick up</small></span>{counts.noShow>0 && <span><Users/><strong>{counts.noShow}</strong><small>didn't show</small></span>}<span><Users/><strong>{staff.length}</strong><small>assigned</small></span></div>
+ <div className="dk-counts"><span><Users/><strong>{session.occupancy ?? 0}</strong><small>On board</small></span><span><Users/><strong>{counts.waiting}</strong><small>Still to pick up</small></span>{counts.noShow>0 && <span><Users/><strong>{counts.noShow}</strong><small>Didn't show</small></span>}<span><Users/><strong>{staff.length}</strong><small>Assigned</small></span></div>
  {moving && invoke && <p className="dk-muted" role="status">Stop the bus to mark passengers.</p>}
  <label className="dk-search"><Search/><input aria-label="Search passengers" placeholder="Search passengers" value={query} onChange={e=>setQuery(e.target.value)}/></label>
  <section aria-label="Assigned passengers"><h2>Assigned passengers{query?" · "+filtered.length:""}</h2><div className="dk-passenger-list">{filtered.length?filtered.map(s=>{
