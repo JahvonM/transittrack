@@ -724,6 +724,10 @@ html.tt-passenger-app:is(.light,[data-accent]) .tt-bus-filters [aria-pressed="tr
 .tt-welcome-lead { max-width:430px; margin:20px 0 0; color:hsl(var(--muted-foreground)); font-size:18px; line-height:1.6; }
 .tt-welcome-actions { display:flex; gap:14px; flex-wrap:wrap; margin-top:28px; }
 .tt-welcome-actions > a { min-width:170px; }
+/* "New here? Create an account" under the buttons. */
+.tt-welcome-signup { margin:14px 0 0; font-size:15px; color:hsl(var(--muted-foreground)); }
+.tt-welcome-signup a { display:inline-flex; align-items:center; min-height:44px; font-weight:650; color:hsl(var(--primary)); text-underline-offset:4px; }
+.tt-welcome-signup a:hover, .tt-welcome-signup a:focus-visible { text-decoration:underline; }
 .tt-welcome-note { margin:18px 0 0; max-width:430px; font-size:13px; line-height:1.5; color:hsl(var(--muted-foreground)); }
 .tt-welcome-steps { margin:34px 0 10px; }
 .tt-welcome-steps > h2 { font-size:13px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:hsl(var(--muted-foreground)); }
