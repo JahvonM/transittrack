@@ -43,6 +43,7 @@ import {
   PenLine,
 } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
+import { confirmAction } from "@/components/ConfirmHost";
 
 
 const TYPE_META = {
@@ -259,6 +260,28 @@ export default function KioskTablets({ vehicles, companies, onChange }) {
     }
   };
 
+  // An admin extends a pass in its last 30 days, for a tablet they know is
+  // still in use. The server checks the rest (same bus and company, online
+  // this week) and records who renewed it.
+  const renewPass = async (device) => {
+    if (!(await confirmAction({
+      title: `Renew ${device.label}'s pass?`,
+      description: `It keeps working for 90 more days from today without a new pairing code. Only renew a tablet you know is in use${device.vehicle_name ? ` on ${device.vehicle_name}` : ""}.`,
+      confirmLabel: "Renew pass",
+    }))) return;
+    setBusyId(device.id);
+    try {
+      const res = await base44.functions.invoke("manageAccessCodes", { action: "renew_pass", device_id: device.id });
+      const until = new Date(res.data.expires_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+      toast({ title: "Pass renewed", description: `${device.label} works until ${until}.` });
+      loadDevices();
+    } catch (e) {
+      toast({ title: "Couldn't renew the pass", description: e?.response?.data?.error || "Try again.", variant: "destructive" });
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   const reactivate = async (device) => {
     setBusyId(device.id);
     try {
@@ -399,6 +422,11 @@ export default function KioskTablets({ vehicles, companies, onChange }) {
                           <div className="mt-1 text-xs" role={note.tone === "danger" ? "alert" : "status"}>
                             <StatusChip tone={note.tone}>{note.label}</StatusChip>
                             <span className="ml-2 text-muted-foreground">{note.text}</span>
+                            {note.renewable && (
+                              <Button size="sm" variant="outline" className="ml-2 h-7" disabled={busyId === d.id} onClick={() => renewPass(d)} aria-label={`Renew pass for ${d.label}`}>
+                                Renew pass
+                              </Button>
+                            )}
                           </div>
                         ) : <div className="text-xs text-muted-foreground mt-0.5">{note.text}</div>; })()}
                         {!own && <HelperHealthLine h={d.helper_health} />}
